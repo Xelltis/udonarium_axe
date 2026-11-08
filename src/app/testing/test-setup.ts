@@ -11,6 +11,7 @@ import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
+import { lazyLoadsSettled } from '@axe/core/util/lazy-loads';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
@@ -431,6 +432,10 @@ beforeAll(async () => {
     ? await loadGlobalTestProviders()
     : null;
 });
+
+// A test can start loading a part of the app lazily, as setting out the first table's tutorial does;
+// the part must arrive before the test's page is taken down, or it lands in the next file's.
+afterEach(() => lazyLoadsSettled());
 
 beforeEach(async () => {
   // A test that turns logging up, as the logger specs do, must not leave the next one printing.

@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { OPEN_GROUND_AT, openPanel, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
+import { openGroundAt, openPanel, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, Point, settle } from './see-through-helpers';
 
 async function becomeGm(page: Page) {
@@ -78,7 +78,7 @@ test.describe('engagement zones', () => {
     await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
 
     await settle(foe);
-    await drag(page, await spotOnPiece(foe), OPEN_GROUND_AT);
+    await drag(page, await spotOnPiece(foe), await openGroundAt(page));
     await settle(foe);
     await settle(hero);
     await drag(page, await spotOnPiece(hero), await centreOf(pedestal(foe)));

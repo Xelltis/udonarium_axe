@@ -16,6 +16,8 @@ function handlers() {
     onCopy: vi.fn(),
     onSave: vi.fn(),
     onDelete: vi.fn(),
+    onPutAwayTutorial: vi.fn(),
+    onClearToBlankTable: vi.fn(),
   };
 }
 
@@ -93,5 +95,23 @@ describe('buildWhiteBoardContextMenu()', () => {
 
     menu.find((item) => item.name === 'feature.whiteBoard.contextMenu.save')?.action?.();
     expect(acted.onSave).toHaveBeenCalledWith(board);
+  });
+
+  it('offers to put the tutorial away, leaving the pieces or a blank table, only on the first table’s tutorial boards', () => {
+    const tutorial = WhiteBoard.create('tutorial', 32, 15, 1, 'tutorialBoard');
+    const acted = handlers();
+    try {
+      const plain = names(buildWhiteBoardContextMenu(board, 0, t, acted));
+      expect(plain).not.toContain('feature.tabletop.tutorial.putAway');
+      expect(plain).not.toContain('feature.tabletop.tutorial.clearToBlank');
+      const menu = buildWhiteBoardContextMenu(tutorial, 0, t, acted);
+      menu.find((item) => item.name === 'feature.tabletop.tutorial.putAway')!.action!();
+      menu.find((item) => item.name === 'feature.tabletop.tutorial.clearToBlank')!.action!();
+
+      expect(acted.onPutAwayTutorial).toHaveBeenCalled();
+      expect(acted.onClearToBlankTable).toHaveBeenCalled();
+    } finally {
+      ObjectStore.instance.remove(tutorial);
+    }
   });
 });

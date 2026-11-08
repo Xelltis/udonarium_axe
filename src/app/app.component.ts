@@ -77,7 +77,7 @@ import { ModelDropEventHandlerService } from '@axe/features/media/model-library/
 import { TurnSoundEventHandlerService } from '@axe/features/media/turn-sound/turn-sound-event-handler.service';
 import { FabDrawerComponent } from '@axe/features/menu/fab-drawer/fab-drawer.component';
 import { MobileShellComponent } from '@axe/features/mobile/mobile-shell/mobile-shell.component';
-import { RoomPanelService } from '@axe/features/panels/room-panel.service';
+import { RoomPanelService, START_PANEL_LEFT } from '@axe/features/panels/room-panel.service';
 import { PlToolbarComponent } from '@axe/features/pl-tools/pl-toolbar/pl-toolbar.component';
 import { ReplayBoardBannerComponent } from '@axe/features/replay/replay-board-banner/replay-board-banner.component';
 import { ReplayEventHandlerService } from '@axe/features/replay/replay-event-handler.service';
@@ -246,11 +246,11 @@ export class AppComponent {
 
     afterNextRender(() => {
       this.overlays.main = this.modalLayerViewContainerRef();
-      const startPanels: [RoomPanelName, PanelOption][] = [['peerMenu', { left: 80, top: 10 }]];
+      const startPanels: [RoomPanelName, PanelOption][] = [['peerMenu', { left: START_PANEL_LEFT, top: 10 }]];
       if (!this.viewport.isCompact()) {
         const chatHeight = 460;
         const top = Math.max(10, window.innerHeight - chatHeight - 20);
-        startPanels.push(['chatWindow', { width: 660, height: chatHeight, left: 80, top }]);
+        startPanels.push(['chatWindow', { width: 660, height: chatHeight, left: START_PANEL_LEFT, top }]);
       }
       // The chat window overlaps the connection panel, and stands over it.
       this.roomPanels.openInTurn(startPanels);

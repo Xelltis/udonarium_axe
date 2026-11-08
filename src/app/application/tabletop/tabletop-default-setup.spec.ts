@@ -25,7 +25,7 @@ describe('the pieces a first table is set out with', () => {
 
   beforeEach(() => {
     clearStore();
-    makeDefaultTabletopObjects(ImageStorage.instance);
+    makeDefaultTabletopObjects(ImageStorage.instance, (key) => key);
   });
 
   afterEach(() => clearStore());
@@ -95,6 +95,21 @@ describe('the pieces a first table is set out with', () => {
         expect(sample(name).visionRange).toBe(0);
       }
     });
+  });
+
+  it('lines the samples up in rows, the big monsters behind, the small ones before them and the party in front', () => {
+    const pieces = ObjectStore.instance.getObjects<GameCharacter>(GameCharacter);
+    const big = pieces.filter((piece) => piece.isNpc && piece.size >= 3);
+    const small = pieces.filter((piece) => piece.isNpc && piece.size < 3);
+    const party = pieces.filter((piece) => !piece.isNpc);
+    const frontsOf = (row: GameCharacter[]) => new Set(row.map((piece) => piece.location.y / 50 + piece.size));
+    const backOf = (row: GameCharacter[]) => Math.min(...row.map((piece) => piece.location.y / 50));
+
+    expect(frontsOf(big).size).toBe(1);
+    expect(frontsOf(small).size).toBe(1);
+    expect(frontsOf(party).size).toBe(1);
+    expect(backOf(small)).toBeGreaterThanOrEqual([...frontsOf(big)][0]);
+    expect(backOf(party)).toBeGreaterThan([...frontsOf(small)][0]);
   });
 
   it('sets out three of a party and three to fight', () => {

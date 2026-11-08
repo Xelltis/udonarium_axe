@@ -1005,6 +1005,7 @@ describe('GameTableComponent', () => {
     it('drops the glide when the table goes before it lands', () => {
       vi.useFakeTimers({ toFake: [...FRAME_TIMERS] });
       fixture.detectChanges();
+      vi.advanceTimersByTime(2000);
 
       TestBed.inject(SelectionSignalService).focusCoordinate.set({ x: 100, y: 100, timestamp: 2 });
       fixture.detectChanges();

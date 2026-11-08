@@ -77,7 +77,7 @@ test.describe('the ground of a table drawn on a canvas', () => {
   test('is raised under a piece by strokes of the brush, lifting the piece, and goes back when a stroke is taken back', async ({
     page,
   }) => {
-    const character = page.locator('game-character', { has: page.getByText('キャラクターB', { exact: true }) });
+    const character = page.locator('game-character', { has: page.getByText('モンスターA', { exact: true }) });
     const id = (await character.getAttribute('data-object-id'))!;
     const flat = await pedestalOf(page, id);
 

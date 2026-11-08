@@ -1,4 +1,5 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
+import { isTutorialPart } from '@axe/application/tabletop/tutorial-board';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
 import { buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -13,13 +14,19 @@ export interface WhiteBoardMenuHandlers {
   onCopy(board: WhiteBoard): void;
   onSave(board: WhiteBoard): void;
   onDelete(board: WhiteBoard): void;
+  /** Takes the tutorial off the table and leaves the sample pieces, offered on the first table's tutorial boards. */
+  onPutAwayTutorial(): void;
+  /** Clears the first table down to a blank one, offered on the first table's tutorial boards. */
+  onClearToBlankTable(): void;
 }
 
 /**
  * A white board's right-click menu: draw, tilt, lock, then save, copy and delete.
  *
  * Tilting and locking act on the board directly; everything else is left to the handlers. The entry
- * that takes everything off the board is offered only while something stands on it.
+ * that takes everything off the board is offered only while something stands on it, and the two that
+ * put the tutorial away, leaving the sample pieces or leaving a blank table, only on the first
+ * table's tutorial boards.
  */
 export function buildWhiteBoardContextMenu(
   board: WhiteBoard,
@@ -58,6 +65,11 @@ export function buildWhiteBoardContextMenu(
   menu.push({ name: t('feature.whiteBoard.contextMenu.save'), action: () => handlers.onSave(board) });
   menu.push({ name: t('feature.whiteBoard.contextMenu.copy'), action: () => handlers.onCopy(board) });
   menu.push({ name: t('feature.whiteBoard.contextMenu.delete'), action: () => handlers.onDelete(board) });
+  if (isTutorialPart(board.identifier)) {
+    menu.push(ContextMenuSeparator);
+    menu.push({ name: t('feature.tabletop.tutorial.putAway'), action: () => handlers.onPutAwayTutorial() });
+    menu.push({ name: t('feature.tabletop.tutorial.clearToBlank'), action: () => handlers.onClearToBlankTable() });
+  }
 
   return menu;
 }

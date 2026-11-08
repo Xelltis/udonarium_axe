@@ -56,6 +56,20 @@ async function box(locator: Locator) {
 }
 
 /**
+ * The scale the marks over a piece are drawn at, which follows how near the camera stands to the
+ * piece: read off the transform of the nearest box over a mark that scales it.
+ */
+function markScale(mark: Locator): Promise<number> {
+  return mark.evaluate((element) => {
+    for (let at: Element | null = element; at; at = at.parentElement) {
+      const scaled = /scale\(([\d.]+)\)/.exec((at as HTMLElement).style?.transform ?? '');
+      if (scaled) return Number(scaled[1]);
+    }
+    return 1;
+  });
+}
+
+/**
  * Measures a buff's icon and an element inside it at the same moment. The icon comes in from a
  * slightly shrunken size, so the measuring waits for the animation to end. Measured in two goes, a
  * redraw in between would leave positions from different moments to compare.
@@ -146,17 +160,19 @@ test.describe('what shows above a piece', () => {
     const gauge = await box(piece.locator('[data-testid="piece-gauge"]').first());
     const lastGauge = await box(piece.locator('[data-testid="piece-gauge"]').last());
     const name = await box(piece.locator('[data-testid="piece-name"]'));
+    // The marks are measured as at a scale of one, however far back the camera stands.
+    const scale = await markScale(piece.locator('[data-testid="buff-badge"]').first());
 
     expect(badge.y).toBeLessThan(gauge.y);
     expect(lastGauge.y).toBeLessThan(name.y);
 
-    expect(gauge.y - (badge.y + badge.height)).toBeLessThan(14);
-    expect(name.y - (lastGauge.y + lastGauge.height)).toBeLessThan(12);
-    expect(name.y + name.height - badge.y).toBeLessThan(110);
+    expect((gauge.y - (badge.y + badge.height)) / scale).toBeLessThan(14);
+    expect((name.y - (lastGauge.y + lastGauge.height)) / scale).toBeLessThan(12);
+    expect((name.y + name.height - badge.y) / scale).toBeLessThan(110);
 
-    expect(badge.width).toBeGreaterThan(8);
-    expect(badge.width).toBeLessThan(22);
-    expect(name.height).toBeLessThan(34);
+    expect(badge.width / scale).toBeGreaterThan(8);
+    expect(badge.width / scale).toBeLessThan(22);
+    expect(name.height / scale).toBeLessThan(34);
 
     expect(Math.abs(badge.x - gauge.x), 'バフがリソースバーの開始位置から始まっていない').toBeLessThan(6);
     expect(gauge.width, 'リソースバーがキャラ名に比べて細すぎる').toBeGreaterThan(name.width * 0.7);

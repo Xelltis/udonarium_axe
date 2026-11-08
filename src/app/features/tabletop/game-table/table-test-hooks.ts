@@ -7,12 +7,20 @@ import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { pageOfTablePoint, TableCameraView } from '@axe/domain/tabletop/camera/table-camera';
+import {
+  DEFAULT_TABLE_CAMERA_VIEW,
+  pageOfTablePoint,
+  TableCameraView,
+  TableLayout,
+} from '@axe/domain/tabletop/camera/table-camera';
+import { framingView } from '@axe/domain/tabletop/camera/table-framing';
 import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { partOf } from '@axe/domain/tabletop/world/page-boxes';
 import { pointOnFace } from '@axe/domain/tabletop/world/table-sprites';
+import { putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
 
 /** What the end-to-end suite can ask the table, in a browser driven by automation. */
 export interface TableTestHooks {
@@ -106,9 +114,37 @@ export interface TableTestHooks {
   spritesOf(identifier: string): { part: string; widthPx: number; heightPx: number }[];
   /** Keeps the dice at rest on the table on show until let go, however slowly frames are drawn. */
   keepDiceResting(on: boolean): void;
+  /** Takes the first table's tutorial away, as its menu does, for a spec the tutorial would stand in the way of. Answers how many things went. */
+  putAwayTutorial(): number;
+  /**
+   * Puts the camera near the board, at the default view's depth and angle, over the middle of the
+   * table, in place of the first view that brings the whole first table in: the view specs that
+   * handle pieces are measured at.
+   */
+  lookFromNear(): void;
 }
 
 type HookedWindow = Window & { __axeTable?: TableTestHooks };
+
+/** The default view's depth and angle, moved across to stand over the middle of the board. */
+function nearView(layout: TableLayout): TableCameraView {
+  const width = layout.boardWidth;
+  const depth = layout.boardHeight;
+  const corners = [
+    { x: 0, y: 0, z: 0 },
+    { x: width, y: 0, z: 0 },
+    { x: 0, y: depth, z: 0 },
+    { x: width, y: depth, z: 0 },
+  ];
+  const depthOfDefault = DEFAULT_TABLE_CAMERA_VIEW.positionZ;
+  return framingView(
+    DEFAULT_TABLE_CAMERA_VIEW,
+    layout,
+    corners,
+    { top: 0, right: 0, bottom: 0, left: 0 },
+    { furthest: depthOfDefault, nearest: depthOfDefault }
+  );
+}
 
 /**
  * Puts the table's test hooks on the window, in a browser that says automation drives it and in
@@ -125,7 +161,9 @@ export function installTableTestHooks(
   motions: PieceMotionsService,
   ground: GroundService,
   pictures: PiecePicturesService,
-  dice: DiceRenderService
+  dice: DiceRenderService,
+  tabletop: TabletopService,
+  moveCamera: (view: TableCameraView) => void
 ): () => void {
   if (!win.navigator.webdriver) return () => undefined;
   const hooked = win as HookedWindow;
@@ -166,6 +204,11 @@ export function installTableTestHooks(
     },
     sceneStats: () => scene.stats(),
     keepDiceResting: (on) => dice.keepResting(on),
+    putAwayTutorial: () => putAwayTutorial(tabletop),
+    lookFromNear: () => {
+      const layout = camera.layout;
+      if (layout) moveCamera(nearView(layout));
+    },
     spritesOf: (identifier) =>
       scene
         .world()

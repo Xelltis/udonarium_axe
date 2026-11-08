@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { chatInput, expectChatText, TABLE_MENU_AT, waitAppReady } from './helpers';
+import { chatInput, expectChatText, tableMenuSpot, waitAppReady } from './helpers';
 
 /** Whether a widget shows comes from localStorage, so it is set before the page loads to have the bar out. */
 async function showHotbar(page: Page) {
@@ -48,7 +48,7 @@ test.describe('the hotbar', () => {
     await page.locator('[data-testid="hotbar-editor-save"]').click();
     await expect(slots(page).nth(2)).toHaveAttribute('data-filled', 'true');
 
-    await page.locator('body').click({ position: TABLE_MENU_AT });
+    await page.locator('#app-table-layer').click({ position: await tableMenuSpot(page) });
     await page.keyboard.press('Digit3');
 
     await expectChatText(chatInput(page), '走って逃げる');

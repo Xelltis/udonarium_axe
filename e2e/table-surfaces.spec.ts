@@ -1,7 +1,15 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from './dungeon-helpers';
-import { openTableContextMenu, revealMenuEntry, turnByHandle, waitAppReady } from './helpers';
+import {
+  cellSpot,
+  openTableContextMenu,
+  putAwayTutorial,
+  revealMenuEntry,
+  sizeTable,
+  turnByHandle,
+  waitAppReady,
+} from './helpers';
 
 /**
  * A white board's face is laid on the screen over the canvas, where the table works out from its
@@ -58,12 +66,14 @@ async function pitchBoard(page: Page, label: string) {
 test.describe('the faces things are put on', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
+    await putAwayTutorial(page);
     await becomeGm(page);
+    await sizeTable(page, 20, 15);
     await closePanels(page);
   });
 
   test('puts a point of a white board where the page draws it, lying, leaning and standing', async ({ page }) => {
-    const menu = await openTableContextMenu(page);
+    const menu = await openTableContextMenu(page, await cellSpot(page, 1.5, 1.5));
     await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
     const face = page.locator('white-board [data-surface]');
     // Over a table drawn on a canvas the face is put once the canvas draws the board.
@@ -77,7 +87,7 @@ test.describe('the faces things are put on', () => {
   });
 
   test('puts a point of a white board where the page draws it once it has been turned', async ({ page }) => {
-    const menu = await openTableContextMenu(page);
+    const menu = await openTableContextMenu(page, await cellSpot(page, 1.5, 1.5));
     await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
     const face = page.locator('white-board [data-surface]');
     await expect(face).toBeAttached({ timeout: 10000 });

@@ -1,5 +1,6 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { isTutorialPart } from '@axe/application/tabletop/tutorial-board';
 import {
   ContextMenuAction,
   ContextMenuRadialGroup,
@@ -17,15 +18,22 @@ export interface TextNoteContextMenuModel {
   radialGroups: ContextMenuRadialGroup[];
 }
 
+/** What the note's menu hands back to the note to do. */
+export interface TextNoteMenuCallbacks {
+  onSetUpright: (isUpright: boolean) => void;
+  onShowDetail: () => void;
+  /** Takes the tutorial off the table and leaves the sample pieces, offered on the first table's tutorial note when given. */
+  onPutAwayTutorial?: () => void;
+  /** Clears the first table down to a blank one, offered on the first table's tutorial note when given. */
+  onClearToBlankTable?: () => void;
+}
+
 /** The text note's right-click menu as a flat list, without the groups a radial menu needs. */
 export function buildTextNoteContextMenu(
   textNote: TextNote,
   gridSize: number,
   inventoryService: GameObjectInventoryService,
-  callbacks: {
-    onSetUpright: (isUpright: boolean) => void;
-    onShowDetail: () => void;
-  },
+  callbacks: TextNoteMenuCallbacks,
   t: TranslateFn
 ): ContextMenuAction[] {
   return buildTextNoteContextMenuModel(textNote, gridSize, inventoryService, callbacks, t).actions;
@@ -36,16 +44,14 @@ export function buildTextNoteContextMenu(
  *
  * It offers editing, altitude, standing the note up or laying it down, disclosure, lock, copy and
  * delete, with any entries for moving it to another surface last. A copy is placed one cell down
- * and to the right, on top of the others.
+ * and to the right, on top of the others. The first table's tutorial note also offers, after delete,
+ * to put the tutorial away, leaving the sample pieces or leaving a blank table.
  */
 export function buildTextNoteContextMenuModel(
   textNote: TextNote,
   gridSize: number,
   inventoryService: GameObjectInventoryService,
-  callbacks: {
-    onSetUpright: (isUpright: boolean) => void;
-    onShowDetail: () => void;
-  },
+  callbacks: TextNoteMenuCallbacks,
   t: TranslateFn,
   surfaceEntries: ContextMenuAction[] = []
 ): TextNoteContextMenuModel {
@@ -93,6 +99,15 @@ export function buildTextNoteContextMenuModel(
     },
   };
 
+  const { onPutAwayTutorial: putAway, onClearToBlankTable: clear } = callbacks;
+  const tutorialActions: ContextMenuAction[] =
+    putAway && clear && isTutorialPart(textNote.identifier)
+      ? [
+          { name: t('feature.tabletop.tutorial.putAway'), action: () => putAway() },
+          { name: t('feature.tabletop.tutorial.clearToBlank'), action: () => clear() },
+        ]
+      : [];
+
   return {
     actions: [
       editAction,
@@ -104,6 +119,7 @@ export function buildTextNoteContextMenuModel(
       lockAction,
       copyAction,
       deleteAction,
+      ...tutorialActions,
       ...(surfaceEntries.length > 0 ? [ContextMenuSeparator, ...surfaceEntries] : []),
     ],
     radialGroups: [
@@ -125,7 +141,7 @@ export function buildTextNoteContextMenuModel(
       {
         name: t('feature.textNote.contextMenu.radialObject'),
         icon: 'settings',
-        actions: [...surfaceEntries, lockAction, copyAction, deleteAction],
+        actions: [...surfaceEntries, lockAction, copyAction, deleteAction, ...tutorialActions],
       },
     ],
   };

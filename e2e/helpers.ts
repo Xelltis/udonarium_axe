@@ -61,7 +61,7 @@ export async function drawSampleModels(page: Page) {
 /**
  * A point of the page where the canvas draws a piece, for a press to take hold of it by or the
  * pointer to rest on it at: the middle of the base it stands on, or where that is hidden, as by a
- * piece in front of it or a standing board, a point of its picture. The table's line of sight picks
+ * piece in front of it or a standing board, a point of its picture, its lower half before its upper. The table's line of sight picks
  * what a press takes, and a point it picks the piece at is taken only where no panel lies over the
  * table, and once the pointer resting there reaches the piece too, rather than another piece's mark
  * or a card over it. Leaves the pointer on the point.
@@ -77,11 +77,15 @@ export async function spotOnPiece(of: Locator): Promise<{ x: number; y: number }
     const middle = { x: base.left + base.width / 2, y: base.top + base.height / 2 };
     if (takesIt(middle.x, middle.y)) found.push(middle);
     const picture = element.querySelector('[data-part="picture"]')!.getBoundingClientRect();
-    for (let y = picture.top + picture.height / 2; y < picture.bottom && found.length < 12; y += 6) {
-      for (let x = picture.left + 2; x < picture.right && found.length < 12; x += 6) {
-        if (takesIt(x, y)) found.push({ x, y });
+    const rows = (from: number, to: number) => {
+      for (let y = from; y < to && found.length < 12; y += 6) {
+        for (let x = picture.left + 2; x < picture.right && found.length < 12; x += 6) {
+          if (takesIt(x, y)) found.push({ x, y });
+        }
       }
-    }
+    };
+    rows(picture.top + picture.height / 2, picture.bottom);
+    rows(picture.top + 2, picture.top + picture.height / 2);
     return found;
   });
   for (const spot of candidates) {
@@ -111,6 +115,25 @@ export async function waitAppReady(page: Page) {
   // once a load was seen to take past the default fifteen seconds in Firefox.
   await page.goto('/', { timeout: 45_000 });
   await expect(chatInput(page)).toBeVisible({ timeout: 20000 });
+  await lookFromNear(page);
+}
+
+/**
+ * Puts the table's camera near the board, at the default view's depth and angle, over the middle of
+ * the table, where the table opened with a first view that brings the whole of it in: the pieces are
+ * handled and measured at the size that view draws them. A page with no table, as a screen laid over
+ * a stream, is left as it is.
+ */
+async function lookFromNear(page: Page): Promise<void> {
+  if ((await page.locator('game-table').count()) === 0) return;
+  await page.waitForFunction(() => !!(window as { __axeTable?: unknown }).__axeTable, undefined, { timeout: 20000 });
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        (window as unknown as { __axeTable: { lookFromNear(): void } }).__axeTable.lookFromNear();
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      })
+  );
 }
 
 /**
@@ -207,31 +230,147 @@ export function chatTabPill(page: Page, name: string): Locator {
   return page.locator('chat-window .chat-tab-pill', { hasText: new RegExp(`^\\s*${name}\\s*`) });
 }
 
-/**
- * Where a right click on the table lands on the bare board, clear of the sample room's pieces and
- * the marks over them, on the right of the board, clear of the panels too.
- */
-export const TABLE_MENU_AT = { x: 1120, y: 340 };
+/** What the table's hooks for tests answer that the points below are found with. */
+interface SpotHooks {
+  sceneBoard(): { widthPx: number; depthPx: number } | null;
+  project(x: number, y: number, z: number): { x: number; y: number } | null;
+  pickAt(pageX: number, pageY: number): string | null;
+}
 
 /**
- * A point of the sample room's board, as the page first shows it, on the open ground at its lower
- * right: far enough from every piece that pieces brought here meet, move and ride with none of the
- * others in reach, and with room on every side for a move of a few cells.
+ * Where a right click on the table lands on the bare board, as an offset into the table's layer: the
+ * first cell, from two cells in from the board's south-east corner and on west and north, that is on
+ * the screen with room below it and to its right for what is made there, that picking finds nothing
+ * at and that the page draws nothing over, neither a piece's marks nor a panel. The sample room's pieces stand in the middle of the board, so on its first
+ * table this is the open ground south-east of them.
  */
-export const OPEN_GROUND_AT = { x: 920, y: 540 };
+export async function tableMenuSpot(page: Page): Promise<{ x: number; y: number }> {
+  await page.waitForFunction(
+    () => !!(window as unknown as { __axeTable?: SpotHooks }).__axeTable?.sceneBoard(),
+    undefined,
+    { timeout: 20000 }
+  );
+  const spot = await page.evaluate(() => {
+    const hooks = (window as unknown as { __axeTable: SpotHooks }).__axeTable;
+    const board = hooks.sceneBoard()!;
+    const layer = document.querySelector('#app-table-layer')!;
+    const box = layer.getBoundingClientRect();
+    const cell = 50;
+    for (let y = board.depthPx - cell * 2.5; y > 0; y -= cell) {
+      for (let x = board.widthPx - cell * 2.5; x > 0; x -= cell) {
+        const at = hooks.project(x, y, 0);
+        if (!at || at.x < box.left + 40 || at.x > box.right - 120 || at.y < box.top + 40 || at.y > box.bottom - 120) {
+          continue;
+        }
+        const bare = [-10, 0, 10].every((dx) =>
+          [-10, 0, 10].every((dy) => {
+            const front = document.elementFromPoint(at.x + dx, at.y + dy);
+            return (
+              !!front &&
+              layer.contains(front) &&
+              !front.closest('[data-object-id], ui-panel') &&
+              hooks.pickAt(at.x + dx, at.y + dy) === null
+            );
+          })
+        );
+        if (bare) return { x: at.x - box.left, y: at.y - box.top };
+      }
+    }
+    return null;
+  });
+  expect(spot, 'a point of the bare board on the screen').not.toBeNull();
+  return spot!;
+}
+
+/** Where the middle of a cell of the table is drawn, as an offset into the table's layer. */
+export async function cellSpot(page: Page, cellX: number, cellY: number): Promise<{ x: number; y: number }> {
+  await page.waitForFunction(
+    () => !!(window as unknown as { __axeTable?: SpotHooks }).__axeTable?.sceneBoard(),
+    undefined,
+    { timeout: 20000 }
+  );
+  const layer = (await page.locator('#app-table-layer').boundingBox())!;
+  const onPage = await page.evaluate(
+    ({ x, y }) => (window as unknown as { __axeTable: SpotHooks }).__axeTable.project(x * 50, y * 50, 0)!,
+    { x: cellX, y: cellY }
+  );
+  return { x: onPage.x - layer.x, y: onPage.y - layer.y };
+}
+
+/**
+ * A point of the page on the sample room's first table, on the open ground east of the pieces: far
+ * enough from every piece that pieces brought here meet, move and ride with none of the others in
+ * reach, and with room on every side for a move of a few cells.
+ */
+export async function openGroundAt(page: Page): Promise<{ x: number; y: number }> {
+  await page.waitForFunction(
+    () => !!(window as unknown as { __axeTable?: SpotHooks }).__axeTable?.sceneBoard(),
+    undefined,
+    { timeout: 20000 }
+  );
+  return page.evaluate(() =>
+    (window as unknown as { __axeTable: SpotHooks }).__axeTable.project(25.5 * 50, 10 * 50, 0)!
+  );
+}
+
+/**
+ * Takes the first table's tutorial away, as the menu of its boards does, for a spec it would stand
+ * in the way of: the boards standing over the table's north edge, the note, and the dice, coin,
+ * crate and light. The sample pieces stay. Call once the page is open.
+ */
+export async function putAwayTutorial(page: Page): Promise<void> {
+  await page.waitForFunction(() => !!(window as { __axeTable?: unknown }).__axeTable, undefined, { timeout: 20000 });
+  await expect(page.locator('game-character').first()).toBeAttached({ timeout: 20000 });
+  await page.evaluate(() =>
+    (window as unknown as { __axeTable: { putAwayTutorial(): number } }).__axeTable.putAwayTutorial()
+  );
+  await expect(page.locator('[data-object-id^="tutorial"], white-board [data-surface^="tutorial"]')).toHaveCount(0, {
+    timeout: 10000,
+  });
+}
+
+/**
+ * Sets the size of the table in view, in cells, from its settings: for a spec that builds on a white
+ * board, which is made as wide and deep as the table, and is written for a board of the size given.
+ * Puts the camera near the board over its middle again, as the page first stood it, and leaves the
+ * settings open.
+ */
+export async function sizeTable(page: Page, width: number, height: number): Promise<void> {
+  await openPanel(page, 'テーブル設定');
+  const panel = page.locator('game-table-setting');
+  await expect(panel).toBeVisible({ timeout: 10000 });
+  for (const [name, value] of [
+    ['table-width', width],
+    ['table-height-num', height],
+  ] as const) {
+    const field = panel.locator(`input[name="${name}"]`);
+    await field.fill(String(value));
+    await field.press('Enter');
+    await field.blur();
+    await expect(field).toHaveValue(String(value));
+  }
+  await page.waitForFunction(
+    ({ width, height }) => {
+      const board = (window as unknown as { __axeTable: SpotHooks }).__axeTable.sceneBoard();
+      return board !== null && board.widthPx === width * 50 && board.depthPx === height * 50;
+    },
+    { width, height },
+    { timeout: 10000 }
+  );
+  await lookFromNear(page);
+}
 
 /**
  * Right-clicks the table to bring up context-menu.
  *
- * At start-up PeerMenu (left=80, width=460) and ChatWindow (left=80, width=660) open on their own,
- * and a click from the left to the middle of the viewport is taken by the resize handler of a
- * ui-panel. The right side (`TABLE_MENU_AT`) is the default as a safe area. PointerDeviceService
- * raises its flag allowing contextmenu only on a click that goes through mousedown, so a real
- * `.click()` is used rather than dispatchEvent.
+ * At start-up PeerMenu and ChatWindow open on their own over the left of the screen, and a click
+ * there is taken by a ui-panel; the default, {@link tableMenuSpot}, is a point of the bare board clear
+ * of them. PointerDeviceService raises its flag allowing contextmenu only on a click that goes
+ * through mousedown, so a real `.click()` is used rather than dispatchEvent.
  */
-export async function openTableContextMenu(page: Page, position = TABLE_MENU_AT) {
+export async function openTableContextMenu(page: Page, position?: { x: number; y: number }) {
   const table = page.locator('#app-table-layer');
-  await table.click({ button: 'right', position });
+  await table.click({ button: 'right', position: position ?? (await tableMenuSpot(page)) });
   // context-menu is made with createComponent by ContextMenuService.open() and destroyed by
   // close(). While the element is in the DOM its items are always rendered, so waiting for an <li>
   // inside to appear tells for sure that the menu has been drawn.

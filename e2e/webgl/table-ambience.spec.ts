@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from '../dungeon-helpers';
-import { openTableContextMenu, TABLE_MENU_AT, waitAppReady } from '../helpers';
+import { openTableContextMenu, waitAppReady } from '../helpers';
 
 /**
  * A look laid over the ground on a table drawn on a canvas, which lies on the screen where the canvas
@@ -32,7 +32,7 @@ async function idle(page: Page) {
 
 /** Lays a poisoned marsh from the table's menu, and answers its identifier. */
 async function layMarsh(page: Page): Promise<string> {
-  const menu = await openTableContextMenu(page, TABLE_MENU_AT);
+  const menu = await openTableContextMenu(page);
   await menu.getByText('環境エフェクトを置く').hover();
   await menu.getByText('毒沼', { exact: true }).click();
   const look = page.locator('table-ambience');

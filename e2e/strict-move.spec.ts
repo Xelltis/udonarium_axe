@@ -41,7 +41,7 @@ test.describe('strict movement', () => {
     expect(hintBox.y).toBeGreaterThan(viewport.height / 2);
     expect(hintBox.y + hintBox.height).toBeLessThanOrEqual(viewport.height);
 
-    for (const bar of await page.locator('.fixed.top-0').all()) {
+    for (const bar of await page.locator('.fixed.top-0:not(.opacity-0)').all()) {
       const barBox = await bar.boundingBox();
       if (!barBox) continue;
       const overlaps =

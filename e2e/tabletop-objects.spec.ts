@@ -1,7 +1,14 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { closePanels } from './dungeon-helpers';
-import { openTableContextMenu, revealMenuEntry, spotOnPiece, TABLE_MENU_AT, waitAppReady } from './helpers';
+import {
+  openTableContextMenu,
+  putAwayTutorial,
+  revealMenuEntry,
+  spotOnPiece,
+  tableMenuSpot,
+  waitAppReady,
+} from './helpers';
 import { piece, settle } from './see-through-helpers';
 
 async function createObject(page: Page, menuName: string, selector: string) {
@@ -13,6 +20,7 @@ async function createObject(page: Page, menuName: string, selector: string) {
 test.describe('shared notes (text-note)', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
+    await putAwayTutorial(page);
     await createObject(page, '共有メモを作成', 'text-note');
   });
 
@@ -69,6 +77,7 @@ test.describe('map masks (game-table-mask)', () => {
 test.describe('terrain', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
+    await putAwayTutorial(page);
     await createObject(page, '地形を作成', 'terrain');
   });
 
@@ -115,9 +124,10 @@ test.describe('pieces under the pointer', () => {
   test('lists the terrain under a character in the character menu', async ({ page }) => {
     await waitAppReady(page);
     await closePanels(page);
+    const spot = await tableMenuSpot(page);
     await createObject(page, '地形を作成', 'terrain');
     const layer = (await page.locator('#app-table-layer').boundingBox())!;
-    const terrain = { x: layer.x + TABLE_MENU_AT.x, y: layer.y + TABLE_MENU_AT.y };
+    const terrain = { x: layer.x + spot.x, y: layer.y + spot.y };
     const monster = piece(page, 'キャラクターB');
     await settle(monster);
     const from = await spotOnPiece(monster);

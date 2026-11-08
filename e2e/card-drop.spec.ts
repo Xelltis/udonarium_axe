@@ -1,7 +1,7 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
 import { closePanels } from './dungeon-helpers';
-import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
+import { openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } from './helpers';
 
 /**
  * A card or a deck let go of over a deck goes into it. The deck it lands on is worked out from
@@ -99,6 +99,7 @@ async function makeDeck(page: Page, at: Point) {
 test.describe('letting go of cards over a deck', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
+    await putAwayTutorial(page);
     await closePanels(page);
   });
 

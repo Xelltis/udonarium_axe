@@ -36,6 +36,7 @@ import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildTextNoteContextMenuModel } from '@axe/features/tabletop/text-note/text-note-context-menu';
+import { clearToBlankTable, putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
 import { AltitudeGuideComponent, altitudeGuideOf } from '@axe/ui/components/altitude-guide/altitude-guide.component';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
@@ -482,6 +483,14 @@ export class TextNoteComponent {
           this.textNote().isUpright = isUpright;
         },
         onShowDetail: () => this.showDetail(this.textNote()),
+        onPutAwayTutorial: () => {
+          putAwayTutorial(this.tabletopService);
+          SoundEffect.play(PresetSound.sweep);
+        },
+        onClearToBlankTable: () => {
+          clearToBlankTable(this.tabletopService);
+          SoundEffect.play(PresetSound.sweep);
+        },
       },
       this.translateFn,
       surfaceEntries

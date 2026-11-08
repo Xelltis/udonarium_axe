@@ -31,6 +31,7 @@ import { boardSurfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-ob
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { clearToBlankTable, putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
 import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
 import { detachAllFrom } from '@axe/features/tabletop/white-board/white-board-contents';
 import { buildWhiteBoardContextMenu } from '@axe/features/tabletop/white-board/white-board-context-menu';
@@ -263,6 +264,14 @@ export class WhiteBoardComponent {
       onCopy: (target) => this.copy(target),
       onSave: (target) => void this.save(target),
       onDelete: (target) => this.remove(target),
+      onPutAwayTutorial: () => {
+        putAwayTutorial(this.tabletopService);
+        SoundEffect.play(PresetSound.sweep);
+      },
+      onClearToBlankTable: () => {
+        clearToBlankTable(this.tabletopService);
+        SoundEffect.play(PresetSound.sweep);
+      },
     });
     this.contextMenuService.open(position, menu, board.name);
   }

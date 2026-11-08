@@ -56,8 +56,8 @@ test.describe('the cells and the music of a table', () => {
     const from = await spotOnPiece(hero);
     await page.mouse.move(from.x, from.y);
     await page.mouse.down();
-    await page.mouse.move(from.x + 60, from.y + 40, { steps: 6 });
-    await page.mouse.move(from.x + 130, from.y + 70, { steps: 8 });
+    await page.mouse.move(from.x + 60, from.y - 40, { steps: 6 });
+    await page.mouse.move(from.x + 130, from.y - 70, { steps: 8 });
     await page.mouse.up();
 
     await expect

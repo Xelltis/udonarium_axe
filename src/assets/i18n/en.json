@@ -2434,6 +2434,51 @@
       }
     },
     "tabletop": {
+      "tutorial": {
+        "putAway": "Put away the tutorial only",
+        "board": {
+          "name": "Getting started",
+          "title": "Welcome to Udonarium Axe",
+          "mouse": "Mouse",
+          "touch": "Phone",
+          "pan": "Pan",
+          "panMouse": "Left-drag",
+          "panTouch": "Drag one finger",
+          "turn": "Turn and tilt",
+          "turnMouse": "Right-drag",
+          "turnTouch": "Turn two fingers",
+          "zoom": "Zoom",
+          "zoomMouse": "Wheel",
+          "zoomTouch": "Pinch",
+          "menu": "Menu",
+          "menuMouse": "Right-click",
+          "menuTouch": "Long press",
+          "footer": "Press ? for the names of the buttons and the keys.\nThen read on from ① below.",
+          "rooms": "To play with others, make a room from Connection on the left.",
+          "tidy": "To clear up, right-click a board\nand choose Clear up for a blank table."
+        },
+        "pieces": {
+          "title": "① Pieces",
+          "text": "- Drag a piece to move it\n- Right-click it for its menu (long press on a phone)\n- Show details in the menu opens its sheet, where its name and HP are changed\n- The knobs that come out under the mouse turn it\n\nThe back row are monsters, the front row adventurers: 3D models on the left, flat pictures on the right."
+        },
+        "chat": {
+          "title": "② Chat and dice",
+          "text": "- Send 2d6 in the chat at the bottom left to roll dice\n- Put s in front to hide the result\n- Double-click the dice and the coin in front to roll them\n- Show chat palette in a piece's menu sends lines you use often with one click"
+        },
+        "battle": {
+          "title": "③ Battle",
+          "text": "- Lift a piece and the cells it can reach light up\n- Change HP on the sheet, or send :HP-5 with the piece as the speaker\n- Buffs & effects, then Edit buffs, in a piece's menu adds boosts and hindrances\n- The turn order is under Round in the Inventory\n- The GM turns engagement zones on under Movement in Room settings"
+        },
+        "vision": {
+          "title": "④ Darkness & terrain (GM)",
+          "text": "- Table settings turns on darkness and the fog of war\n- The adventurers are one party, so each sees what the others have seen\n- The crate in front is terrain. It blocks movement, sight and light. The bulb is a light\n- Map editor and Map generator make maps"
+        },
+        "clearToBlank": "Clear up for a blank table",
+        "note": {
+          "title": "Shared note",
+          "text": "Click to rewrite it where it lies."
+        }
+      },
       "ccfoliaImport": {
         "tableName": "CCFOLIA room",
         "imported": "Imported the CCFOLIA room ({{tables}} tables / {{panels}} panels / {{pieces}} pieces). Now showing \"{{table}}\".",

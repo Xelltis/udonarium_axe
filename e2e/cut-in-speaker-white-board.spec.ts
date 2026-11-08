@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel, openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
+import { openPanel, openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } from './helpers';
 
 const SPEAKER = 'キャラクターB';
 
@@ -124,6 +124,7 @@ test.describe('the cut-in position of a portrait', () => {
 test.describe('enlarging a whiteboard', () => {
   test('spreads over the whole screen from the zoom button of the pop-up, and closes on a click', async ({ page }) => {
     await waitAppReady(page);
+    await putAwayTutorial(page);
     const menu = await openTableContextMenu(page);
     await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
     const surface = page.locator('white-board [data-surface]');

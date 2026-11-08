@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from '../dungeon-helpers';
-import { waitAppReady } from '../helpers';
+import { putAwayTutorial, waitAppReady } from '../helpers';
 
 /**
  * The darkness over a table drawn on a canvas, which the canvas lays over its own scene from the
@@ -34,8 +34,8 @@ async function bareBoard(page: Page): Promise<Point[]> {
     const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
     const layer = document.querySelector('#app-table-layer')!;
     const points: Point[] = [];
-    for (let y = 100; y <= 900; y += 100) {
-      for (let x = 100; x <= 900; x += 100) {
+    for (let y = 50; y <= 600; y += 50) {
+      for (let x = 50; x <= 1150; x += 100) {
         const at = hooks.project(x, y, 0);
         if (!at || at.x < 0 || at.y < 0 || at.x >= innerWidth || at.y >= innerHeight) continue;
         const front = document.elementFromPoint(at.x, at.y);
@@ -73,6 +73,7 @@ async function brightnessAt(page: Page, points: Point[]): Promise<number[]> {
 test.describe('the darkness over a table drawn on a canvas', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
+    await putAwayTutorial(page);
     await becomeGm(page);
     await closePanels(page);
     await idle(page);

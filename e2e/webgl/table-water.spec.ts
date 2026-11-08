@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from '../dungeon-helpers';
-import { openTableContextMenu, TABLE_MENU_AT, waitAppReady } from '../helpers';
+import { openTableContextMenu, tableMenuSpot, waitAppReady } from '../helpers';
 
 /**
  * The water on a table drawn on a canvas, which the canvas draws in its own scene from the cells
@@ -55,7 +55,7 @@ test.describe('the water on a table drawn on a canvas', () => {
     await becomeGm(page);
     await closePanels(page);
     await idle(page);
-    const at = TABLE_MENU_AT;
+    const at = await tableMenuSpot(page);
     const table = (await page.locator('#app-table-layer').boundingBox())!;
     const onScreen = { x: table.x + at.x + 20, y: table.y + at.y + 20 };
     const before = await bluenessAt(page, onScreen);

@@ -264,8 +264,11 @@ export class GameTableGestureService {
 
   /** The view as the fields hold it now, or the camera that follows a piece while one is followed. */
   private currentView(): TableCameraView {
-    const followed = this.thirdPerson.view();
-    if (followed) return followed;
+    return this.thirdPerson.view() ?? this.tableView();
+  }
+
+  /** The table's own view as the fields hold it now, whether or not a camera follows a piece. */
+  tableView(): TableCameraView {
     return {
       positionX: this.viewPositionX,
       positionY: this.viewPositionY,
@@ -307,6 +310,18 @@ export class GameTableGestureService {
   private stopGlide(): void {
     if (this.glideFrame !== null) cancelAnimationFrame(this.glideFrame);
     this.glideFrame = null;
+  }
+
+  /** Puts the camera at a place outright, facing the way it faces. */
+  moveTo(place: Pick<TableCameraView, 'positionX' | 'positionY' | 'positionZ'>): void {
+    this.setTransform(
+      place.positionX - this.viewPositionX,
+      place.positionY - this.viewPositionY,
+      place.positionZ - this.viewPositionZ,
+      0,
+      0,
+      0
+    );
   }
 
   /**

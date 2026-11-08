@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { OPEN_GROUND_AT, openPanel, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
+import { openGroundAt, openPanel, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, pinnedPiece, placeOf, Point, settle } from './see-through-helpers';
 
 async function becomeGm(page: Page) {
@@ -79,7 +79,7 @@ test.describe('mounts', () => {
     const rider = await pinnedPiece(page, 'キャラクターA');
     const mount = piece(page, 'キャラクターB');
     await settle(mount);
-    await drag(page, await spotOnPiece(mount), OPEN_GROUND_AT);
+    await drag(page, await spotOnPiece(mount), await openGroundAt(page));
     await chooseRide(page, 'キャラクターB', '乗り物にする');
     await settle(rider);
     await settle(mount);
@@ -178,7 +178,7 @@ test.describe('mounts', () => {
     const rider = await pinnedPiece(page, 'モンスターB');
     await chooseRide(page, 'モンスターC', '乗り物にする');
     await settle(rider);
-    await drag(page, await centreOf(rider.locator('[data-part="picture"]')), await centreOf(pedestal(mount)));
+    await drag(page, await spotOnPiece(rider), await centreOf(pedestal(mount)));
     await settle(rider);
     const offer = page.getByTestId('snackbar');
     await expect(offer).toContainText('モンスターB は モンスターC の上にいます', { timeout: 5000 });

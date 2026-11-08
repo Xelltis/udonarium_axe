@@ -8,14 +8,22 @@ import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { Matrix3D } from '@axe/core/transform/matrix-3d';
+import {
+  DEFAULT_TABLE_CAMERA_VIEW,
+  pageOfTablePoint,
+  type TableCameraView,
+  tableSceneMatrix,
+} from '@axe/domain/tabletop/camera/table-camera';
 import { installTableTestHooks, TableTestHooks } from '@axe/features/tabletop/game-table/table-test-hooks';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 type Hooked = Window & { __axeTable?: TableTestHooks };
 
 describe('table test hooks', () => {
-  function install(webdriver: boolean): { win: Hooked; remove: () => void } {
+  function install(webdriver: boolean, moveCamera = vi.fn()): { win: Hooked; remove: () => void } {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     const win = { navigator: { webdriver } } as unknown as Hooked;
     const remove = installTableTestHooks(
@@ -29,7 +37,9 @@ describe('table test hooks', () => {
       TestBed.inject(PieceMotionsService),
       TestBed.inject(GroundService),
       TestBed.inject(PiecePicturesService),
-      TestBed.inject(DiceRenderService)
+      TestBed.inject(DiceRenderService),
+      TestBed.inject(TabletopService),
+      moveCamera
     );
     return { win, remove };
   }
@@ -41,6 +51,34 @@ describe('table test hooks', () => {
     expect(win.__axeTable?.renderer()).toBeNull();
     remove();
     expect(win.__axeTable).toBeUndefined();
+  });
+
+  it('put the camera near the board, at the default depth and angle, over the middle of the table', () => {
+    const moveCamera = vi.fn();
+    const { win, remove } = install(true, moveCamera);
+    TestBed.inject(TableCameraService).setLayout({
+      left: 0,
+      top: 0,
+      width: 1280,
+      height: 720,
+      boardWidth: 1600,
+      boardHeight: 1000,
+    });
+
+    win.__axeTable?.lookFromNear();
+
+    expect(moveCamera).toHaveBeenCalledTimes(1);
+    const view = moveCamera.mock.calls[0][0] as TableCameraView;
+    expect([view.positionZ, view.rotateX, view.rotateZ]).toEqual([
+      DEFAULT_TABLE_CAMERA_VIEW.positionZ,
+      DEFAULT_TABLE_CAMERA_VIEW.rotateX,
+      DEFAULT_TABLE_CAMERA_VIEW.rotateZ,
+    ]);
+    const scene = tableSceneMatrix(view, TestBed.inject(TableCameraService).layout!, new Matrix3D());
+    const middle = pageOfTablePoint(scene, 800, 500, 0);
+    expect(Math.abs(middle.x - 640)).toBeLessThan(100);
+    expect(Math.abs(middle.y - 360)).toBeLessThan(100);
+    remove();
   });
 
   it('are left off a window a person is using', () => {

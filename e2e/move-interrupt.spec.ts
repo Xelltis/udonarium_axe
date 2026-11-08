@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { OPEN_GROUND_AT, openPanel, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
+import { openPanel, putAwayTutorial, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, Point, settle } from './see-through-helpers';
 
 async function becomeGm(page: Page) {
@@ -20,6 +20,27 @@ async function closePanels(page: Page) {
   await expect(panels).toHaveCount(0);
 }
 
+/** Where the page draws a point of the table given in cells, on the floor. */
+async function onTable(page: Page, x: number, y: number): Promise<Point> {
+  return page.evaluate(
+    ([cellsX, cellsY]) => {
+      const table = (window as unknown as { __axeTable: { project(x: number, y: number, z: number): Point } })
+        .__axeTable;
+      return table.project(cellsX * 50, cellsY * 50, 0);
+    },
+    [x, y]
+  );
+}
+
+/**
+ * Where the page draws the middle of a cell of the open ground east of the sample room's pieces, near
+ * the back of the table: with room east of it for a move of four cells, and for an enemy put a cell or
+ * two off, with none of the other pieces in reach.
+ */
+function roomyGround(page: Page): Promise<Point> {
+  return onTable(page, 20.5, 4.5);
+}
+
 /**
  * Drags from one point to another and leaves the pointer off the table, where the card of the piece
  * let go of would cover the next one reached for.
@@ -36,6 +57,7 @@ async function drag(page: Page, from: Point, to: Point) {
 test.describe('interrupting a move', () => {
   test('stops where an enemy in reach of the path interrupts, and makes an engagement zone there', async ({ page }) => {
     await waitAppReady(page);
+    await putAwayTutorial(page);
     await becomeGm(page);
     await openPanel(page, '部屋設定');
     await page.getByTestId('room-settings-tab-move').click();
@@ -57,18 +79,16 @@ test.describe('interrupting a move', () => {
     await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
 
     await settle(hero);
-    await drag(page, await spotOnPiece(hero), OPEN_GROUND_AT);
+    await drag(page, await spotOnPiece(hero), await roomyGround(page));
     await settle(hero);
-    const start = await centreOf(pedestal(hero));
-    const cell = (await pedestal(hero).boundingBox())!.width;
     await settle(foe);
-    await drag(page, await spotOnPiece(foe), { x: start.x + cell * 2, y: start.y - cell });
+    await drag(page, await spotOnPiece(foe), await onTable(page, 22.5, 3.5));
     await settle(foe);
 
     await hero.dispatchEvent('contextmenu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await menu.getByText('移動', { exact: true }).click();
-    const target = { x: start.x + cell * 3.2, y: start.y };
+    const target = await onTable(page, 23.7, 4.5);
     await page.mouse.move(target.x, target.y, { steps: 4 });
     await page.mouse.click(target.x, target.y);
 
@@ -87,6 +107,7 @@ test.describe('interrupting a move', () => {
     page,
   }) => {
     await waitAppReady(page);
+    await putAwayTutorial(page);
     await becomeGm(page);
     await openPanel(page, '部屋設定');
     await page.getByTestId('room-settings-tab-move').click();
@@ -109,7 +130,7 @@ test.describe('interrupting a move', () => {
     await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
 
     await settle(hero);
-    await drag(page, await spotOnPiece(hero), OPEN_GROUND_AT);
+    await drag(page, await spotOnPiece(hero), await roomyGround(page));
     await settle(hero);
     const start = await centreOf(pedestal(hero));
     const cell = (await pedestal(hero).boundingBox())!.width;

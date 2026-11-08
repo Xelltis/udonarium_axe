@@ -1,7 +1,15 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from './dungeon-helpers';
-import { openTableContextMenu, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
+import {
+  cellSpot,
+  openTableContextMenu,
+  putAwayTutorial,
+  revealMenuEntry,
+  sizeTable,
+  spotOnPiece,
+  waitAppReady,
+} from './helpers';
 import { piece, placeOf, Point, settle } from './see-through-helpers';
 import { FaceHooks, faceOf, pageOfFace, showWall, whenDrawn } from './table-face-helpers';
 
@@ -21,19 +29,13 @@ async function drag(page: Page, from: Point, to: Point) {
 }
 
 /**
- * Where the board is made, on the right of the table, clear of the sample room's pieces in the
- * middle of it.
- */
-const BOARD_AT = { x: 1040, y: 440 };
-
-/**
  * The sample piece carried from face to face: one with nothing standing in front of it, whose picture
  * is pressed where it is drawn rather than where a piece before it is.
  */
 const CARRIED = '魔法使い';
 
 async function makeBoard(page: Page): Promise<string> {
-  const menu = await openTableContextMenu(page, BOARD_AT);
+  const menu = await openTableContextMenu(page, await cellSpot(page, 1.5, 1.5));
   await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
   const face = page.locator('white-board [data-surface]');
   // Over a table drawn on a canvas the face is put once the canvas draws the board.
@@ -105,7 +107,9 @@ async function standBack(page: Page) {
 test.describe('dropping a piece on another face', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
+    await putAwayTutorial(page);
     await becomeGm(page);
+    await sizeTable(page, 20, 15);
     await closePanels(page);
   });
 
@@ -167,6 +171,7 @@ test.describe('dropping a piece on another face', () => {
     page,
   }) => {
     const board = await makeBoard(page);
+    await standBack(page);
     const grabbed = await bareSpotOf(page, board);
     const to = { x: grabbed.onPage.x - 200, y: grabbed.onPage.y + 300 };
 

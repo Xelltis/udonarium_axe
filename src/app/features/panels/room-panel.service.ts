@@ -10,6 +10,12 @@ import { PanelWindowService } from '@axe/features/panels/panel-window.service';
  */
 const FIRST_PANEL_TOP = 64;
 
+/** How far in from the left of the screen the panels the room opens with stand, clear of the menu down that side. */
+export const START_PANEL_LEFT = 80;
+
+/** How wide the connection panel opens, the panel the room opens with in the top left corner. */
+export const PEER_MENU_WIDTH = 420;
+
 interface RoomPanel {
   load: () => Promise<Type<unknown>>;
   option: PanelOption;
@@ -136,7 +142,7 @@ export class RoomPanelService {
       case 'peerMenu':
         return {
           load: () => import('@axe/features/lobby/peer-menu/peer-menu.component').then((m) => m.PeerMenuComponent),
-          option: { width: 420, height: 300 },
+          option: { width: PEER_MENU_WIDTH, height: 300 },
         };
       case 'tableSetting':
         return {

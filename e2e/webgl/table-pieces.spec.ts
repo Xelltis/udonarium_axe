@@ -2,6 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 
 import { closePanels } from '../dungeon-helpers';
 import {
+  cellSpot,
   createCharacter,
   createDiceSymbol,
   openPanel,
@@ -96,10 +97,12 @@ async function newest(page: Page, tag: string): Promise<string> {
 }
 
 /**
- * A point of the bare board left of where the table's menu opens by default, with room to its
- * right for a card drawn off a deck and for a white board to lie on the screen whole.
+ * A point of the bare board south of the sample pieces, as an offset into the table's layer, with
+ * room to its right for a card drawn off a deck and for a white board to lie on the screen whole.
  */
-const OPEN_BOARD_AT = { x: 1000, y: 420 };
+function openBoardAt(page: Page): Promise<{ x: number; y: number }> {
+  return cellSpot(page, 13.5, 16.5);
+}
 
 async function createCoin(page: Page) {
   const menu = await openTableContextMenu(page);
@@ -109,7 +112,7 @@ async function createCoin(page: Page) {
 
 async function createDeck(page: Page) {
   const before = await page.locator('card-stack').count();
-  const menu = await openTableContextMenu(page, OPEN_BOARD_AT);
+  const menu = await openTableContextMenu(page, await openBoardAt(page));
   await (await revealMenuEntry(page, menu, 'トランプの山札を作成')).click();
   await expect(page.locator('card-stack')).toHaveCount(before + 1, { timeout: 10000 });
   await page.mouse.move(5, 400);
@@ -277,7 +280,7 @@ test.describe('pieces drawn on a canvas', () => {
   }
 
   test('lay a white board’s face where the page lays it out', async ({ page }) => {
-    const menu = await openTableContextMenu(page, OPEN_BOARD_AT);
+    const menu = await openTableContextMenu(page, await openBoardAt(page));
     await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
     const face = page.locator('white-board [data-surface]').last();
     await expect(face).toBeAttached({ timeout: 10000 });
@@ -395,7 +398,7 @@ test.describe('pieces drawn on a canvas', () => {
   });
 
   test('guide a character raised off the floor down to the middle of its pedestal', async ({ page }) => {
-    const character = page.locator('game-character', { has: page.getByText('キャラクターB', { exact: true }) });
+    const character = page.locator('game-character', { has: page.getByText('モンスターA', { exact: true }) });
     const id = (await character.getAttribute('data-object-id'))!;
     await idle(page);
     await expect(character.getByTestId('altitude-guide')).toHaveCount(0);

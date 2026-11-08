@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from '../dungeon-helpers';
-import { openPanel, waitAppReady } from '../helpers';
+import { openPanel, putAwayTutorial, waitAppReady } from '../helpers';
 import { showWall } from '../table-face-helpers';
 
 /**
@@ -45,6 +45,7 @@ async function grabScreen(page: Page): Promise<void> {
 test.describe('the grid over a wall of a table drawn on a canvas', () => {
   test('is laid over the wall’s picture once the table shows its grid', async ({ page }) => {
     await waitAppReady(page);
+    await putAwayTutorial(page);
     await becomeGm(page);
     await closePanels(page);
     await showWall(page, '北壁', 'north');

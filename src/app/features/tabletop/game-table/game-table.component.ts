@@ -93,6 +93,7 @@ import {
 } from '@axe/features/tabletop/game-table/background-layer-views';
 import { beamWallFaceGrid } from '@axe/features/tabletop/game-table/beam-top-grid';
 import { handCanvasPressesOn } from '@axe/features/tabletop/game-table/canvas-presses';
+import { firstTableView } from '@axe/features/tabletop/game-table/first-table-view';
 import { glideTransform } from '@axe/features/tabletop/game-table/game-table-camera';
 import { buildGameTableContextMenu, GameTableMenu } from '@axe/features/tabletop/game-table/game-table-context-menu';
 import { GameTableGestureService } from '@axe/features/tabletop/game-table/game-table-gesture.service';
@@ -406,12 +407,15 @@ export class GameTableComponent {
     // sample comes back only where that room cannot be read. A page opened with an invitation waits
     // on the room's own pieces, and is given the sample only if it goes into no room.
     const startsOnOwnRoom = this.startRoom.hasPending;
-    if (!startsOnOwnRoom && !this.startRoom.waitsOnInvite) this.tabletopActionService.makeDefaultTabletopObjects();
+    const setsOutSample = !startsOnOwnRoom && !this.startRoom.waitsOnInvite;
+    if (setsOutSample) this.tabletopActionService.makeDefaultTabletopObjects();
 
     afterNextRender(() => {
       if (startsOnOwnRoom) {
         void this.startRoom.loadPending().then((loaded) => {
-          if (!loaded) this.tabletopActionService.makeDefaultTabletopObjects();
+          if (loaded) return;
+          this.tabletopActionService.makeDefaultTabletopObjects();
+          this.frameFirstTable();
         });
       }
       this._initialized = true;
@@ -443,11 +447,24 @@ export class GameTableComponent {
           this.pieceMotions,
           this.ground,
           this.piecePictures,
-          this.diceRender
+          this.diceRender,
+          this.tabletopService,
+          (view) => this.gestureService.moveTo(view)
         )
       );
       this.syncMode2d();
+      if (setsOutSample) this.frameFirstTable();
     });
+  }
+
+  /** Brings the camera back until the first table and the tutorial board standing on it are in view. */
+  private frameFirstTable(): void {
+    const layout = this.tableCamera.layout;
+    if (!layout) return;
+    const panelsBeside = !this.viewport.isCompact();
+    this.gestureService.moveTo(
+      firstTableView(this.gestureService.tableView(), layout, this.currentTable, panelsBeside)
+    );
   }
 
   /**

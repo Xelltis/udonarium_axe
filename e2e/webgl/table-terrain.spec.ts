@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, buildDungeon, closePanels } from '../dungeon-helpers';
-import { openPanel, openTableContextMenu, revealMenuEntry, waitAppReady } from '../helpers';
+import { openPanel, openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } from '../helpers';
 import { showWall } from '../table-face-helpers';
 
 /**
@@ -9,6 +9,8 @@ import { showWall } from '../table-face-helpers';
  * canvas has to draw each block exactly there: what a change to the table changes on the screen is
  * held against where picking says a block is.
  */
+
+type Point = { x: number; y: number };
 
 type Hooks = {
   renderer(): string | null;
@@ -18,6 +20,7 @@ type Hooks = {
   edgesOnPage(): [number, number, number, number][];
   drawnAt(x: number, y: number): string | null;
   surfacePageOf(surface: string, localX: number, localY: number): { x: number; y: number } | null;
+  project(x: number, y: number, z: number): { x: number; y: number } | null;
 };
 
 /** What changed on the screen between two pictures of it, on blocks and off them. */
@@ -28,13 +31,16 @@ interface Changes {
   bareChanged: number;
 }
 
-/** Points of the table, where the blocks are set down, as offsets into the table's layer. */
-const BLOCK_SPOTS = [
-  { x: 1010, y: 420 },
-  { x: 1030, y: 250 },
-  { x: 990, y: 560 },
-  { x: 370, y: 508 },
-  { x: 765, y: 553 },
+/**
+ * Points of the sample room's table where the blocks are set down, in cells: on the open ground east
+ * and west of the pieces, each with room for a block two cells across.
+ */
+const BLOCK_CELLS = [
+  { x: 20.5, y: 3 },
+  { x: 21, y: 6.5 },
+  { x: 20, y: 9.5 },
+  { x: 2.5, y: 4 },
+  { x: 2, y: 8.5 },
 ];
 
 /** How near an edge of a block a point may lie and be left out, in pixels. */
@@ -74,14 +80,24 @@ async function grabScreen(page: Page): Promise<void> {
   }, shot.toString('base64'));
 }
 
+/** Where a cell of the table is drawn, on the page and as an offset into the table's layer. */
+async function spotOfCell(page: Page, cell: Point): Promise<{ onPage: Point; spot: Point }> {
+  const layer = (await page.locator('#app-table-layer').boundingBox())!;
+  const onPage = await page.evaluate(
+    ({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.project(x * 50, y * 50, 0)!,
+    cell
+  );
+  return { onPage, spot: { x: onPage.x - layer.x, y: onPage.y - layer.y } };
+}
+
 /** Sets a block down at each spot that is bare table, and answers how many were set down. */
 async function setBlocksDown(page: Page): Promise<number> {
   let placed = 0;
-  for (const spot of BLOCK_SPOTS) {
-    const layer = (await page.locator('#app-table-layer').boundingBox())!;
+  for (const cell of BLOCK_CELLS) {
+    const { onPage, spot } = await spotOfCell(page, cell);
     const bare = await page.evaluate(
       ({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.drawnAt(x, y) === null,
-      { x: layer.x + spot.x, y: layer.y + spot.y }
+      onPage
     );
     if (!bare) continue;
     const menu = await openTableContextMenu(page, spot);
@@ -143,8 +159,8 @@ async function pointOnBlock(page: Page): Promise<{ x: number; y: number; id: str
   const found = await page.evaluate(() => {
     const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
     const layer = document.querySelector('#app-table-layer')!;
-    for (let y = 200; y < innerHeight - 100; y += 7) {
-      for (let x = 200; x < innerWidth - 200; x += 7) {
+    for (let y = 120; y < innerHeight - 100; y += 7) {
+      for (let x = 140; x < innerWidth - 60; x += 7) {
         const front = document.elementFromPoint(x, y);
         if (!front || !layer.contains(front) || front.closest('[data-object-id]')) continue;
         const picked = hooks.pickAt(x, y);
@@ -172,6 +188,7 @@ test.describe('blocks drawn on a canvas', () => {
   test.beforeEach(async ({ page }) => {
     await drawWithoutShadows(page);
     await waitAppReady(page);
+    await putAwayTutorial(page);
     await becomeGm(page);
     await closePanels(page);
   });
@@ -243,7 +260,7 @@ test.describe('blocks drawn on a canvas', () => {
     await showWall(page, '北壁', 'north');
     await idle(page);
     await grabScreen(page);
-    const menu = await openTableContextMenu(page, BLOCK_SPOTS[0]);
+    const menu = await openTableContextMenu(page, (await spotOfCell(page, BLOCK_CELLS[0])).spot);
     await (await revealMenuEntry(page, menu, '地形を作成')).click();
     await expect(page.locator('terrain')).toHaveCount(1, { timeout: 10000 });
     await idle(page);

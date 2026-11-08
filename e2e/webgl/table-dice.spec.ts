@@ -91,10 +91,10 @@ test.describe('chat dice thrown on a table drawn on a canvas', () => {
     await page.getByTestId('dice-stage').selectOption('table');
     await closeThe(page, '部屋設定');
     await closeThe(page, '接続情報');
-    await speakAs(page, '魔法使い');
+    await speakAs(page, 'キャラクターC');
     const piece = (await page
       .locator('game-character')
-      .filter({ hasText: '魔法使い' })
+      .filter({ hasText: 'キャラクターC' })
       .locator('[data-location]')
       .first()
       .boundingBox())!;
