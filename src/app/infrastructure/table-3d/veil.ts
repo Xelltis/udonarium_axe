@@ -189,10 +189,12 @@ export class SceneVeil {
  * A canvas the page draws, laid over the board and read straight down onto it. The picture stays one
  * and the same, drawn from whichever canvas the page lays: a material holds on to the picture it was
  * first drawn with. The card keeps a picture at the size it was first sent at, so one sent again at
- * another size is let go there first, and sent anew.
+ * another size is let go there first, and sent anew. A canvas taken away is followed by the clear
+ * pixel the picture began with, so the card does not hold a board's size of nothing.
  */
 class BoardPicture {
-  private readonly picture: CanvasTexture = canvasPicture(clearCanvas());
+  private readonly clear = clearCanvas();
+  private readonly picture: CanvasTexture = canvasPicture(this.clear);
   private laidCanvas: HTMLCanvasElement | null = null;
   private laidRevision = 0;
   private readonly box = uniform(new Vector4(0, 0, 1, 1));
@@ -208,6 +210,7 @@ class BoardPicture {
       if (!this.laidCanvas) return false;
       this.laidCanvas = null;
       this.strength.value = 0;
+      retakeCanvasPicture(this.picture, this.clear);
       return true;
     }
     if (laid.canvas === this.laidCanvas && laid.revision === this.laidRevision) return false;

@@ -35,6 +35,11 @@ const SPILL_MARGIN_CAP_PX = 800;
 function withoutLights(scene: VisionScene, left: ReadonlySet<string>): VisionScene {
   return { ...scene, lights: scene.lights.filter((light) => !left.has(light.sourceId)) };
 }
+
+/** Whether a plan lays fog, or what is only remembered, over the table: without it the veil holds nothing. */
+function holdsFog(plan: OverlayPlan): boolean {
+  return plan.vision?.fogEnabled === true;
+}
 /** How often the flicker is redrawn, about twenty times a second. */
 export const VISION_ANIMATION_INTERVAL_MS = 50;
 
@@ -70,6 +75,11 @@ export class TableVisionOverlayComponent {
   private surfaceKey = '';
   private margin = 0;
   private scale = 1;
+  /** How many pixels across and down the canvases of the surface are drawn at, as the scene was last laid out. */
+  private pixelWidth = 0;
+  private pixelHeight = 0;
+  /** Where the canvases of the surface lie on the board, as the scene was last laid out, as their style places them. */
+  private box = { left: '0px', top: '0px', width: '0px', height: '0px' };
   private animated = false;
   private scratch: BakeCanvas | null = null;
   private scratchSize = '';
@@ -123,14 +133,17 @@ export class TableVisionOverlayComponent {
         : overlayScale(cw, ch);
       const pw = Math.ceil(cw * this.scale);
       const ph = Math.ceil(ch * this.scale);
-      if (canvas.width !== pw) canvas.width = pw;
-      if (canvas.height !== ph) canvas.height = ph;
-      canvas.style.left = this.surfaceOriginX - this.margin + 'px';
-      canvas.style.top = this.surfaceOriginY - this.margin + 'px';
-      canvas.style.width = cw + 'px';
-      canvas.style.height = ch + 'px';
+      this.pixelWidth = pw;
+      this.pixelHeight = ph;
+      this.box = {
+        left: this.surfaceOriginX - this.margin + 'px',
+        top: this.surfaceOriginY - this.margin + 'px',
+        width: cw + 'px',
+        height: ch + 'px',
+      };
       const vision = this.visionService.overlayVision();
       const plan = computeOverlayPlan(scene, viewer, vision);
+      this.sizeToSurface(canvas, holdsFog(plan));
       const lit = this.lightSlots.ids();
       const darkPlan = lit.size > 0 ? computeOverlayPlan(withoutLights(scene, lit), viewer, vision) : plan;
       const layout = `${pw}x${ph}@${this.scale}:${this.margin}:${this.surfaceOriginX}:${this.surfaceOriginY}:${[...lit]}`;
@@ -169,6 +182,8 @@ export class TableVisionOverlayComponent {
     this.scale = 1;
     this.surfaceCells = undefined;
     this.surfaceKey = '';
+    this.darkness = null;
+    this.glowing = null;
     this.stopLoop();
   }
 
@@ -196,7 +211,8 @@ export class TableVisionOverlayComponent {
   /**
    * Draws what a table drawn on a canvas lays over its own scene, out of sight: on this canvas the fog
    * and what is only remembered, and on another the darkness with the light carved out of it, black,
-   * which the scene takes as light. The glow of the lamps is left to the scene.
+   * which the scene takes as light. The glow of the lamps is left to the scene. A table with no fog
+   * lays no veil, and one that is not dark no darkness, nor holds a canvas of the board's size for it.
    */
   private drawForCanvas(): void {
     this.stopLoop();
@@ -206,14 +222,20 @@ export class TableVisionOverlayComponent {
     const canvas = this.canvasRef()?.nativeElement;
     const ctx = canvas?.getContext('2d');
     if (!plan || !canvas || !ctx) return;
-    const fog = { ...plan, darknessAlpha: 0, reveals: [], revealCells: [], glows: [], shadows: [] };
-    this.paint(ctx, fog);
-    this.tableVeil.show(canvas);
+    if (holdsFog(plan)) {
+      const fog = { ...plan, darknessAlpha: 0, reveals: [], revealCells: [], glows: [], shadows: [] };
+      this.paint(ctx, fog);
+      this.tableVeil.show(canvas);
+    } else {
+      this.tableVeil.forgetVeil();
+    }
     if (!(plan.darknessAlpha > 0)) {
       this.tableVeil.forgetDarkness();
+      this.darkness = null;
+      this.glowing = null;
       return;
     }
-    const dark = this.darkCanvas(canvas);
+    const dark = this.darkCanvas();
     const darkCtx = dark.getContext('2d');
     if (!darkCtx) return;
     const darkPlan = this.darkPlan ?? plan;
@@ -231,36 +253,36 @@ export class TableVisionOverlayComponent {
 
   /** Draws the glow of the lamps the scene does not light itself, out of sight, for the scene to add. */
   private drawGlow(): void {
-    const canvas = this.canvasRef()?.nativeElement;
-    if (!this.glowPlan || !canvas) {
+    if (!this.glowPlan || !this.canvasRef()) {
       this.tableVeil.forgetGlow();
+      this.glowing = null;
       return;
     }
     const glow = (this.glowing ??= document.createElement('canvas'));
-    this.sizeLike(glow, canvas);
+    this.sizeToSurface(glow);
     const ctx = glow.getContext('2d');
     if (!ctx) return;
     this.paint(ctx, this.glowPlan);
     this.tableVeil.showGlow(glow);
   }
 
-  /** A canvas of the same size and place as the one given, kept off the page, for the darkness to be drawn on. */
-  private darkCanvas(like: HTMLCanvasElement): HTMLCanvasElement {
+  /** A canvas of the surface, kept off the page, for the darkness to be drawn on. */
+  private darkCanvas(): HTMLCanvasElement {
     const dark = (this.darkness ??= document.createElement('canvas'));
-    this.sizeLike(dark, like);
+    this.sizeToSurface(dark);
     return dark;
   }
 
-  /** Sizes and places a canvas kept off the page as the one given lies on the board. */
-  private sizeLike(canvas: HTMLCanvasElement, like: HTMLCanvasElement): void {
-    if (canvas.width !== like.width) canvas.width = like.width;
-    if (canvas.height !== like.height) canvas.height = like.height;
-    Object.assign(canvas.style, {
-      left: like.style.left,
-      top: like.style.top,
-      width: like.style.width,
-      height: like.style.height,
-    });
+  /**
+   * Sizes a canvas to the surface as the scene was last laid out, and places it as the surface lies on
+   * the board; one that is to hold nothing is kept a pixel across, which the table can still be sent.
+   */
+  private sizeToSurface(canvas: HTMLCanvasElement, holds = true): void {
+    const width = holds ? this.pixelWidth : 1;
+    const height = holds ? this.pixelHeight : 1;
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    Object.assign(canvas.style, this.box);
   }
 
   private paint(ctx: CanvasRenderingContext2D, plan: OverlayPlan): void {

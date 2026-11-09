@@ -77,8 +77,13 @@ export class TableVeilService {
 
   /** Takes the veil, the darkness and the glow away. */
   forget(): void {
-    if (this.laid()) this.laid.set(null);
+    this.forgetVeil();
     this.forgetDarkness();
+  }
+
+  /** Takes the veil of the fog and what is only remembered away, leaving the darkness and the glow. */
+  forgetVeil(): void {
+    if (this.laid()) this.laid.set(null);
   }
 
   /** Takes the darkness and the glow away, leaving the table lit whole. */
