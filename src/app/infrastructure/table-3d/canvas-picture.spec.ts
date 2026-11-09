@@ -1,9 +1,5 @@
-import {
-  canvasOfPicture,
-  fitReadPicture,
-  LONGEST_PICTURE_PX,
-  retakeCanvasPicture,
-} from '@axe/infrastructure/table-3d/canvas-picture';
+import { canvasOfPicture, fitReadPicture, retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
+import { LONGEST_PICTURE_PX } from '@axe/infrastructure/table-3d/table-3d-port';
 import { CanvasTexture, Texture } from 'three/webgpu';
 
 function canvasOf(width: number, height: number): HTMLCanvasElement {

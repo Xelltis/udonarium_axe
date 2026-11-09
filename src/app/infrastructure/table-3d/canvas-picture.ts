@@ -1,10 +1,5 @@
+import { LONGEST_PICTURE_PX } from '@axe/infrastructure/table-3d/table-3d-port';
 import type { Texture } from 'three/webgpu';
-
-/**
- * The longest side of a picture sent to the graphics card, in pixels: the largest WebGPU promises on
- * any card. A picture sent any larger is refused there, and the frame it is in is drawn with nothing.
- */
-export const LONGEST_PICTURE_PX = 8192;
 
 /** The names a picture keeps, among its own data, the canvas it is drawn from and what it last sent of it. */
 const SOURCE = 'canvasSource';

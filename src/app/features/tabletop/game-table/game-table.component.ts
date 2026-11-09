@@ -102,6 +102,7 @@ import { glideTransform } from '@axe/features/tabletop/game-table/game-table-cam
 import { buildGameTableContextMenu, GameTableMenu } from '@axe/features/tabletop/game-table/game-table-context-menu';
 import { GameTableGestureService } from '@axe/features/tabletop/game-table/game-table-gesture.service';
 import { WALL_SIDES, WallSurface } from '@axe/features/tabletop/game-table/game-table-walls';
+import { gridCanvasScale } from '@axe/features/tabletop/game-table/grid-canvas-scale';
 import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { TableDropPreviewComponent } from '@axe/features/tabletop/game-table/table-drop-preview/table-drop-preview.component';
@@ -131,11 +132,6 @@ import { TerrainBatchService } from '@axe/features/tabletop/terrain-batch/terrai
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
 import { TableVisionVolumeOverlayComponent } from '@axe/features/tabletop/vision-volume/table-vision-volume-overlay.component';
 import { WhiteBoardComponent } from '@axe/features/tabletop/white-board/white-board.component';
-import {
-  LIGHT_MIN_OVERLAY_SCALE,
-  LIGHT_OVERLAY_PIXEL_BUDGET,
-  overlayScale,
-} from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { BackdropDirective } from '@axe/ui/directives/backdrop.directive';
 import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
@@ -1154,11 +1150,7 @@ export class GameTableComponent {
     const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
     const boardWidthPx = geo ? geo.pixelW : width * gridSize;
     const boardHeightPx = geo ? geo.pixelH : height * gridSize;
-    // Drawn the lighter way, the grid is held to a canvas the machine can carry; drawn the usual
-    // way it covers the board pixel for pixel, as it always has.
-    const scale = this.renderLite.active()
-      ? overlayScale(boardWidthPx, boardHeightPx, LIGHT_OVERLAY_PIXEL_BUDGET, LIGHT_MIN_OVERLAY_SCALE)
-      : 1;
+    const scale = gridCanvasScale(boardWidthPx, boardHeightPx, this.renderLite.active());
     const drawnFrom = `${width}|${height}|${gridSize}|${gridType}|${gridColor}|${gridFontColor}|${scale}|${squareSpan}`;
     if (drawnFrom !== this._gridDrawnFrom) {
       this._gridDrawnFrom = drawnFrom;
