@@ -1,5 +1,6 @@
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
+import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
@@ -197,7 +198,7 @@ export class ModelLayer {
     this.stood.clear();
     for (const herd of this.herds.values()) this.unherd(herd);
     this.herds.clear();
-    for (const loaded of this.loaded.values()) loaded?.gltf.scene.traverse(disposeMesh);
+    for (const loaded of this.loaded.values()) if (loaded) disposeObject(loaded.gltf.scene);
     this.loaded.clear();
     this.reader.dispose();
   }
@@ -690,10 +691,4 @@ function uniformScale(model: TableWorldModel, loaded: Pick<LoadedModel, 'size'>)
   );
   const scale = fitted * model.model.scale;
   return new Matrix4().makeScale(scale, scale, scale);
-}
-
-function disposeMesh(object: Object3D): void {
-  if (!(object instanceof Mesh)) return;
-  object.geometry.dispose();
-  for (const material of Array.isArray(object.material) ? object.material : [object.material]) material.dispose();
 }
