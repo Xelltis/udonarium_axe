@@ -293,19 +293,20 @@ export function appendBurst(
   progress: number,
   preset: EffectPreset
 ): void {
-  for (let ring = 0; ring < 2; ring++) {
-    const local = normalize((progress - ring * 0.16) / 0.8);
-    if (local <= 0 || local >= 1) continue;
-    const ringSize = base * (1.1 + easeOutCubic(local) * 3.6);
+  // One ring for the shock; the fireball is what a burst is, and a shock wave of rings is what an
+  // impact is, which a second ring here made a burst look like.
+  const shock = normalize(progress / 0.8);
+  if (shock > 0 && shock < 1) {
+    const ringSize = base * (1.1 + easeOutCubic(shock) * 3.6);
     sprites.push({
       ...blank(),
-      key: `${prefix}-ring-${ring}`,
+      key: `${prefix}-ring-0`,
       x: center.x,
       y: center.y,
       z: center.z + 2,
       width: ringSize,
       height: ringSize,
-      opacity: (1 - local) * 0.85,
+      opacity: (1 - shock) * 0.85,
       svg: ringSvg(colorsOf(preset), 3.5),
       flat: true,
     });
