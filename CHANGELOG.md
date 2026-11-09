@@ -1,3 +1,22 @@
+## [1.77.2](https://github.com/Xelltis/udonarium_axe/compare/v1.77.1...v1.77.2) (2026-11-09)
+
+### 🐛 Bug Fixes
+
+* **deps:** bump Angular to 22.2.6, Tiptap to 3.33.0, analog to 2.9.6 and Playwright to 1.65.0 ([5ce6974](https://github.com/Xelltis/udonarium_axe/commit/5ce69741a2ed46bfe48da9dbb1ca9fea24a30ead)), closes [#202](https://github.com/Xelltis/udonarium_axe/issues/202) [#203](https://github.com/Xelltis/udonarium_axe/issues/203)
+* **deps:** bump the Angular framework to 22.2.5 ([6808f7d](https://github.com/Xelltis/udonarium_axe/commit/6808f7da60ea588421e14a315350b64602a183e9))
+* **overview:** let a finger enlarge a white board or a card from its overview ([51e6729](https://github.com/Xelltis/udonarium_axe/commit/51e6729959e19f38c38ed953bc33db7e7384968b))
+* **tabletop:** draw a block's faces ahead of the board, so one made as high as nothing hides it ([440341b](https://github.com/Xelltis/udonarium_axe/commit/440341bb80fc51306ec93a7de5aa3f3489bbc105))
+* **tabletop:** draw a white board's picture whole and at its size in WebKit, as on an iPhone ([e1c66f8](https://github.com/Xelltis/udonarium_axe/commit/e1c66f85c412f0e84bf69ae7bd228ffdbef2d54a))
+* **tabletop:** keep the table's haze as the clock turns, so its sky moves on without a halt ([b6d051f](https://github.com/Xelltis/udonarium_axe/commit/b6d051f60d390074a21a2d26e32bd22838e0427a))
+* **widgets:** show the game clock widget from the start ([5b4eef4](https://github.com/Xelltis/udonarium_axe/commit/5b4eef47aebbde16951a99cb82ba48e38c069a94))
+* **widgets:** stand the game clock widget on the right, under the player ([c23ec05](https://github.com/Xelltis/udonarium_axe/commit/c23ec057fa7620950d4d50326955792ca58716ee))
+
+### 📝 Documentation
+
+* **release-notes:** add white boards on an iPhone and enlarging on a touch screen to v1.77.2 ([11e44a9](https://github.com/Xelltis/udonarium_axe/commit/11e44a9d4abdcec71224d0c0342e2ab0120f98f2))
+* **release-notes:** write the notes for v1.77.2 ([1254246](https://github.com/Xelltis/udonarium_axe/commit/1254246e14d7e064487f690b6ab8171f6085b54f))
+* **website:** add the recommended environment for playing Axe ([ecddd29](https://github.com/Xelltis/udonarium_axe/commit/ecddd29a301e0a630c5cb22434c6c274f98ac1ac))
+
 ## [1.77.1](https://github.com/Xelltis/udonarium_axe/compare/v1.77.0...v1.77.1) (2026-11-09)
 
 ### 🐛 Bug Fixes
