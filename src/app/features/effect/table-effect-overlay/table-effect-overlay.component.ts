@@ -1,7 +1,7 @@
 import { NgStyle } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { EffectFieldRenderable, EffectFieldService } from '@axe/application/effect/effect-field.service';
-import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { effectElapsedOf, EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { TABLE_SCREEN } from '@axe/application/tabletop/table-screen';
@@ -112,7 +112,7 @@ export class TableEffectOverlayComponent {
         key: String(active.key),
         preset: active.preset,
         cast: active.cast,
-        elapsed: now - active.startedAt,
+        elapsed: effectElapsedOf(active, now),
       })),
       ...this.fieldService.renderables(now),
     ];

@@ -1,6 +1,6 @@
 import { EffectKind } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import { effectFlashColor, effectShakeDelay, effectShakeOf } from '@axe/domain/effect/effect-shake';
+import { effectFlashColor, effectShakeOf } from '@axe/domain/effect/effect-shake';
 import { type EffectStage } from '@axe/domain/effect/effect-stage';
 
 describe('effectShakeOf()', () => {
@@ -36,16 +36,6 @@ describe('effectShakeOf()', () => {
 
     expect(effectShakeOf(staged([{ role: 'impact', kind: 'burst', durationMs: 400 }], 'heal'))).toBe('hard');
     expect(effectShakeOf(staged([{ role: 'field', kind: 'aura', durationMs: 400 }], 'burst'))).toBe('');
-  });
-
-  it('shakes when the stage that lands the blow begins', () => {
-    const preset = makePreset('burst', 3);
-    preset.stages = JSON.stringify([
-      { role: 'travel', kind: 'projectile', durationMs: 600 },
-      { role: 'impact', kind: 'burst', durationMs: 400 },
-    ]);
-
-    expect(effectShakeDelay(preset)).toBe(600);
   });
 });
 

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MotionService } from '@axe/application/ui/motion.service';
+import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import {
   EFFECT_PREVIEW_REST_MS,
@@ -17,12 +18,14 @@ function presetOf(kind: string, durationMs = 1000): EffectPreset {
 }
 
 describe('effectPreviewFrameAt', () => {
-  it('runs the effect, rests, and starts it over', () => {
+  it('runs the effect, holding still as it strikes, rests, and starts it over', () => {
     const preset = presetOf('burst', 1000);
-    const period = 1000 + EFFECT_PREVIEW_REST_MS;
+    const [blow] = effectBlowsOf(preset);
+    const period = 1000 + blow.holdMs + EFFECT_PREVIEW_REST_MS;
 
     expect(effectPreviewFrameAt(preset, 0)).toEqual({ round: 0, elapsed: 0 });
-    expect(effectPreviewFrameAt(preset, 400)).toEqual({ round: 0, elapsed: 400 });
+    expect(effectPreviewFrameAt(preset, blow.atMs + blow.holdMs / 2)).toEqual({ round: 0, elapsed: blow.atMs });
+    expect(effectPreviewFrameAt(preset, 400)).toEqual({ round: 0, elapsed: 400 - blow.holdMs });
     expect(effectPreviewFrameAt(preset, period + 10)).toEqual({ round: 1, elapsed: 10 });
     expect(effectPreviewFrameAt(preset, -50)).toEqual({ round: 0, elapsed: 0 });
   });
@@ -77,16 +80,18 @@ describe('EffectPreviewComponent', () => {
   });
 
   it('plays the effect on the stand-in in the middle of the board, frame by frame', () => {
-    show(presetOf('burst'));
+    const preset = presetOf('burst');
+    const [blow] = effectBlowsOf(preset);
+    show(preset);
 
     runFramesAt(300);
-    expect(component.frame()).toEqual({ round: 0, elapsed: 300 });
+    expect(component.frame()).toEqual({ round: 0, elapsed: 300 - blow.holdMs });
     const drawn = [...component.sprites(), ...component.canvases()];
     expect(drawn.length).toBeGreaterThan(0);
     expect(component.sprites().every((sprite) => Math.abs(sprite.x) < 50 && Math.abs(sprite.y) < 50)).toBe(true);
 
     runFramesAt(600);
-    expect(component.frame()).toEqual({ round: 0, elapsed: 600 });
+    expect(component.frame()).toEqual({ round: 0, elapsed: 600 - blow.holdMs });
   });
 
   it('draws each round afresh, so that what animates starts again', () => {

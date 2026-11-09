@@ -12,6 +12,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -630,7 +631,8 @@ describe('FirstPersonViewComponent', () => {
     expect(hidden.targeted).toBe(false);
   });
 
-  it('shakes and burns the view as it would the table', () => {
+  it('shakes and burns the view as it would the table, as the blow lands', () => {
+    vi.useFakeTimers();
     const preset = new EffectPreset();
     preset.kind = 'nova';
     preset.grade = 3;
@@ -644,11 +646,13 @@ describe('FirstPersonViewComponent', () => {
       targets: [{ identifier: 'somewhere', x: 0, y: 0, z: 0 }],
       seed: 3,
     });
+    vi.advanceTimersByTime(effectBlowsOf(preset)[0].atMs);
     fixture.detectChanges();
 
     expect(element(fixture).querySelector('.animate-effect-shake-hard')).not.toBeNull();
     expect(element(fixture).querySelector<HTMLElement>('.animate-effect-flash')?.style.background).toContain('#ffd27f');
     ObjectStore.instance.remove(preset);
+    vi.useRealTimers();
   });
 
   it('fires at what is aimed at with enter, and gives the aiming up with escape', () => {

@@ -1,6 +1,7 @@
 import { NgStyle } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal } from '@angular/core';
 import { MotionService } from '@axe/application/ui/motion.service';
+import { effectBlowsOf, heldEffectClock, heldMsOf } from '@axe/domain/effect/effect-blows';
 import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { effectParticlePlacements } from '@axe/domain/effect/effect-particle-placements';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -63,9 +64,10 @@ export interface EffectPreviewFrame {
  * the effect's own length and a short rest after it.
  */
 export function effectPreviewFrameAt(preset: EffectPreset, sinceStartMs: number): EffectPreviewFrame {
-  const period = preset.totalDuration(1) + EFFECT_PREVIEW_REST_MS;
+  const blows = effectBlowsOf(preset);
+  const period = preset.totalDuration(1) + heldMsOf(blows) + EFFECT_PREVIEW_REST_MS;
   const since = Math.max(0, sinceStartMs);
-  return { round: Math.floor(since / period), elapsed: since % period };
+  return { round: Math.floor(since / period), elapsed: heldEffectClock(blows, since % period) };
 }
 
 /**
