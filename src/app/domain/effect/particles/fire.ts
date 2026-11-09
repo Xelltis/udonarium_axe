@@ -134,13 +134,16 @@ export function emitExplosion(
   const sparks = Math.round(30 * power);
   for (let index = 0; index < sparks; index++) {
     const angle = random() * Math.PI * 2;
-    const speed = base * (1.6 + random() * 2.6) * power;
+    // A greater blast throws its sparks further, but only as the root of its power: thrown as far as
+    // the power itself, they flew off the canvas they are drawn on and were cut off at its edge.
+    const reach = Math.sqrt(power);
+    const speed = base * (1.3 + random() * 1.7) * reach;
     const born = random() * 0.1;
     const local = clamp01((progress - born) / 0.75);
     if (local <= 0 || local >= 1) continue;
     // Drag slows them and gravity brings them down; in straight even lines it is no firework.
     const travel = speed * (1 - Math.pow(1 - local, 2.2));
-    const drop = base * 1.9 * local * local * power;
+    const drop = base * 1.3 * local * local * reach;
     particles.push({
       x: Math.cos(angle) * travel,
       y: -base * 0.6 + Math.sin(angle) * travel * 0.72 + drop,

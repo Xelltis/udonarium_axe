@@ -68,7 +68,35 @@ export function effectParticles(
 
   const width = base * 9;
   const height = base * 9;
-  return { width, height, originX: width / 2, originY: height * 0.72, particles: graded };
+  const layer = { width, height, originX: width / 2, originY: height * 0.72, particles: graded };
+  return { ...layer, particles: fadedAtEdges(layer, base * EDGE_FADE_CELLS) };
+}
+
+/** How far in from the edge of its canvas a particle starts to fade, in cells. */
+const EDGE_FADE_CELLS = 0.6;
+
+/**
+ * The particles of a layer faded as they near the edge of its canvas, and gone before they reach it:
+ * a spark thrown past the edge, or smoke risen past the top, was cut off there in a hard line.
+ */
+function fadedAtEdges(
+  layer: Omit<EffectParticleLayer, 'particles'> & { particles: EffectParticle[] },
+  fade: number
+): EffectParticle[] {
+  const kept: EffectParticle[] = [];
+  for (const particle of layer.particles) {
+    const reach = (particle.size * Math.max(1, particle.stretch)) / 2;
+    const x = layer.originX + particle.x;
+    const y = layer.originY + particle.y;
+    const room = Math.min(x - reach, layer.width - x - reach, y - reach, layer.height - y - reach);
+    if (room >= fade) {
+      kept.push(particle);
+      continue;
+    }
+    if (room <= 0) continue;
+    kept.push({ ...particle, alpha: particle.alpha * (room / fade) });
+  }
+  return kept;
 }
 
 function emitFor(
