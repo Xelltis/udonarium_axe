@@ -2,7 +2,7 @@ import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-ch
 import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { squareGroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { FloorCanvasLayer } from '@axe/infrastructure/table-3d/floor-canvas-layer';
-import { Mesh } from 'three/webgpu';
+import { Mesh, MeshBasicNodeMaterial, Texture } from 'three/webgpu';
 
 const box = { x: 0, y: 0, width: 100, height: 50 };
 
@@ -30,6 +30,22 @@ describe('the canvases laid on the floor of a table drawn on a canvas', () => {
 
     layer.setGround(null);
     expect(mesh.geometry.getAttribute('position').count).toBe(4);
+    layer.dispose();
+  });
+
+  it('takes the picture of a canvas made larger afresh at its new size', () => {
+    const layer = new FloorCanvasLayer();
+    const canvas = document.createElement('canvas');
+    canvas.width = 100;
+    canvas.height = 50;
+    layer.set([{ id: 'reach', canvas, box, heightPx: 0, revision: 1 }]);
+    const picture = ((layer.group.children[0] as Mesh).material as MeshBasicNodeMaterial).map as Texture;
+    const letGo = vi.spyOn(picture, 'dispose');
+
+    canvas.width = 200;
+    layer.set([{ id: 'reach', canvas, box: { ...box, width: 200 }, heightPx: 0, revision: 2 }]);
+
+    expect(letGo).toHaveBeenCalledTimes(1);
     layer.dispose();
   });
 });

@@ -1,3 +1,4 @@
+import { retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
 import { litByLamps } from '@axe/infrastructure/table-3d/lamp-lighting';
 import type { Table3dLightMap, Table3dShadowLight, Table3dVeil } from '@axe/infrastructure/table-3d/table-3d-port';
 import {
@@ -194,7 +195,6 @@ class BoardPicture {
   private readonly picture: CanvasTexture = canvasPicture(clearCanvas());
   private laidCanvas: HTMLCanvasElement | null = null;
   private laidRevision = 0;
-  private laidSize = '1x1';
   private readonly box = uniform(new Vector4(0, 0, 1, 1));
   readonly strength = uniform(0);
   readonly sampled = texture(this.picture, this.boardUv());
@@ -211,16 +211,8 @@ class BoardPicture {
       return true;
     }
     if (laid.canvas === this.laidCanvas && laid.revision === this.laidRevision) return false;
-    const size = `${laid.canvas.width}x${laid.canvas.height}`;
-    if (size !== this.laidSize) {
-      this.picture.dispose();
-      this.laidSize = size;
-    }
-    if (laid.canvas !== this.laidCanvas) {
-      this.picture.image = laid.canvas;
-      this.laidCanvas = laid.canvas;
-    }
-    this.picture.needsUpdate = true;
+    retakeCanvasPicture(this.picture, laid.canvas);
+    this.laidCanvas = laid.canvas;
     this.laidRevision = laid.revision;
     this.box.value.set(laid.box.x, laid.box.y, Math.max(1, laid.box.width), Math.max(1, laid.box.height));
     this.strength.value = 1;
@@ -251,6 +243,7 @@ function canvasPicture(canvas: HTMLCanvasElement): CanvasTexture {
   picture.generateMipmaps = false;
   picture.minFilter = LinearFilter;
   picture.magFilter = LinearFilter;
+  retakeCanvasPicture(picture, canvas);
   return picture;
 }
 

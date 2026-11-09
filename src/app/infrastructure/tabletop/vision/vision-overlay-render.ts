@@ -3,6 +3,7 @@ import { CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { OverlayPlan, OverlayShape, OverlayVision, ShadowShape } from '@axe/domain/tabletop/vision-scene';
 import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
+import { LONGEST_PICTURE_PX } from '@axe/infrastructure/table-3d/table-3d-port';
 import { fogPattern } from '@axe/infrastructure/tabletop/fog/fog-texture';
 
 const TWO_PI = Math.PI * 2;
@@ -281,10 +282,19 @@ export const LIGHT_OVERLAY_PIXEL_BUDGET = 4_000_000;
 export const LIGHT_MIN_OVERLAY_SCALE = 0.35;
 
 /**
+ * The longest side an overlay past the budget is drawn at, in canvas pixels. A board of a hundred
+ * cells of 256 pixels drawn at the floor of half its size is an overlay of a hundred and eighty million
+ * pixels, which the table drawn on a canvas sends to the graphics card again at every change, as a
+ * piece is dragged, until the card gives up and draws nothing.
+ */
+export const OVERLAY_LONGEST_PX = 4096;
+
+/**
  * How many canvas pixels an overlay of this size is drawn with, to one pixel of the board.
  *
- * One while it fits inside the budget, and otherwise as much less as keeps it inside, but never
- * less than the floor.
+ * One while it fits inside the budget, though never longer than the graphics card takes a picture,
+ * and otherwise as much less as keeps it inside, but never less than the floor unless the floor
+ * would leave it longer than {@link OVERLAY_LONGEST_PX}.
  */
 export function overlayScale(
   width: number,
@@ -293,8 +303,9 @@ export function overlayScale(
   minScale = MIN_OVERLAY_SCALE
 ): number {
   const pixels = width * height;
-  if (!(pixels > budget)) return 1;
-  return Math.max(minScale, Math.sqrt(budget / pixels));
+  const side = Math.max(1, width, height);
+  if (!(pixels > budget)) return Math.min(1, LONGEST_PICTURE_PX / side);
+  return Math.min(OVERLAY_LONGEST_PX / side, Math.max(minScale, Math.sqrt(budget / pixels)));
 }
 
 export interface BakeCanvas {

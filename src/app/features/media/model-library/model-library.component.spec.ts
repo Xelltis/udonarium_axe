@@ -193,6 +193,19 @@ describe('ModelLibraryComponent', () => {
     ).toEqual(['樹木']);
   });
 
+  it('names a tag’s pill afresh in place where the only tag is changed, rather than making the pills again', () => {
+    const host = open();
+    const pill = host.querySelector('[data-testid="model-library-tag"]');
+
+    ModelTag.tagWith(oakId, '樹木');
+    TestBed.inject(ObjectChangeService).notifyChanged(ModelTag.get(oakId)!.identifier);
+    fixture.detectChanges();
+
+    const renamed = host.querySelector('[data-testid="model-library-tag"]');
+    expect(renamed?.textContent?.trim()).toBe('樹木');
+    expect(renamed).toBe(pill);
+  });
+
   it('offers nothing to change to a seat that only watches', () => {
     vi.spyOn(PeerCursor, 'myRole', 'get').mockReturnValue(PeerRole.Guest);
     const host = open();

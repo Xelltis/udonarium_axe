@@ -8,6 +8,12 @@ import type { WeatherFall } from '@axe/domain/tabletop/world/weather-fall';
 import type { ThrowToDraw } from '@axe/infrastructure/dice-3d/dice-3d-engine';
 import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 
+/**
+ * The longest side of a picture sent to the graphics card, in pixels: the largest WebGPU promises on
+ * any card. A picture sent any larger is refused there, and the frame it is in is drawn with nothing.
+ */
+export const LONGEST_PICTURE_PX = 8192;
+
 /** Which of the browser's graphics interfaces the table is drawn through. */
 export type Table3dBackend = 'webgpu' | 'webgl2';
 

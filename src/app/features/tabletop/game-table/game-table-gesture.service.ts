@@ -11,7 +11,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { type MarqueeRect, SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { CAMERA_GLIDE_MS, easeOut } from '@axe/domain/tabletop/camera/camera-glide';
-import { tableCameraAttribute, TableCameraView } from '@axe/domain/tabletop/camera/table-camera';
+import { tableCameraAttribute, TableCameraView, type TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { SwitchNoticeService } from '@axe/features/tabletop/board-switch/switch-notice.service';
@@ -47,9 +47,34 @@ export function zoomReachFor(gridSize: number): number {
   return Math.min(1.5, Math.max(0.75, Math.sqrt(gridSize / ZOOM_LIMITS_CELL_PX)));
 }
 
-/** How far back any gesture may take the camera over a table whose cells are `gridSize` across. */
-export function zoomOutLimitZ(gridSize: number): number {
-  return ZOOM_MIN_Z * zoomReachFor(gridSize);
+/** How much room is left round a board taken in whole, as a share of its width across. */
+const WHOLE_BOARD_MARGIN = 1.2;
+
+/**
+ * How far back any gesture may take the camera over a table whose cells are `gridSize` across: as
+ * far as {@link ZOOM_MIN_Z} reaches for its cells, and over a board too large to be seen whole from
+ * there, as a board of a hundred cells of 256 pixels, as far as it takes for the whole of it to fit
+ * across the screen's shorter side however it is turned.
+ */
+export function zoomOutLimitZ(
+  gridSize: number,
+  layout?: Pick<TableLayout, 'width' | 'height' | 'boardWidth' | 'boardHeight'> | null
+): number {
+  const usual = ZOOM_MIN_Z * zoomReachFor(gridSize);
+  if (!layout) return usual;
+  const across = Math.hypot(layout.boardWidth, layout.boardHeight) * WHOLE_BOARD_MARGIN;
+  const screen = Math.max(1, Math.min(layout.width, layout.height));
+  return Math.min(usual, TABLE_PERSPECTIVE_PX - (TABLE_PERSPECTIVE_PX * across) / screen);
+}
+
+/**
+ * How many times over a step of the wheel or a pinch takes the camera back or in, where it stands
+ * further back than the usual limit for its cells lets it: as many times as it stands that much
+ * further off, so a large board is crossed in as many steps as a usual one. Nearer, once.
+ */
+export function zoomStepFor(gridSize: number, positionZ: number): number {
+  const usualDepth = TABLE_PERSPECTIVE_PX - ZOOM_MIN_Z * zoomReachFor(gridSize);
+  return Math.max(1, (TABLE_PERSPECTIVE_PX - positionZ) / usualDepth);
 }
 
 /**
@@ -398,10 +423,11 @@ export class GameTableGestureService {
     if (rotateX + this.viewRotateX < 0) rotateX += 0 - (rotateX + this.viewRotateX);
 
     const gridSize = this.tabletopService.gridSize();
+    transformZ *= zoomStepFor(gridSize, this.viewPositionZ);
     const maxZ = touchZoomInLimitZ(gridSize);
     if (maxZ < transformZ + this.viewPositionZ) transformZ += maxZ - (transformZ + this.viewPositionZ);
 
-    const minZ = zoomOutLimitZ(gridSize);
+    const minZ = zoomOutLimitZ(gridSize, this.tableCamera.layout);
     if (transformZ + this.viewPositionZ < minZ) transformZ += minZ - (transformZ + this.viewPositionZ);
 
     this.setTransform(transformX, transformY, transformZ, rotateX, rotateY, rotateZ);
@@ -516,8 +542,9 @@ export class GameTableGestureService {
     transformY *= scale;
     transformZ *= 3;
     const gridSize = this.tabletopService.gridSize();
+    transformZ *= zoomStepFor(gridSize, this.viewPositionZ);
     const nearest = mouseZoomInLimitZ(gridSize);
-    const furthest = zoomOutLimitZ(gridSize);
+    const furthest = zoomOutLimitZ(gridSize, this.tableCamera.layout);
     if (0 < transformZ) transformZ = Math.min(transformZ, Math.max(0, nearest - this.viewPositionZ));
     if (transformZ < 0) transformZ = Math.max(transformZ, Math.min(0, furthest - this.viewPositionZ));
 

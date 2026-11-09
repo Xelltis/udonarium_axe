@@ -1,5 +1,6 @@
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { skyAmbienceFlash } from '@axe/domain/effect/ambience/ambience-sky';
+import { cameraDepthOver } from '@axe/domain/tabletop/camera/camera-depth';
 import { GROUND_PAINT_LAYERS } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
@@ -16,6 +17,7 @@ import type {
 } from '@axe/domain/tabletop/world/table-world';
 import { BackdropRing } from '@axe/infrastructure/table-3d/backdrop-ring';
 import { BoardLayers } from '@axe/infrastructure/table-3d/board-layers';
+import { canvasOfPicture, fitReadPicture, retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
 import { CoinLayer } from '@axe/infrastructure/table-3d/coin-layer';
 import { ConeLamp } from '@axe/infrastructure/table-3d/cone-lamp';
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
@@ -104,6 +106,11 @@ import {
  */
 const NEAR_PX = 100;
 const FAR_PX = 50000;
+/**
+ * The furthest off the table's camera draws from, standing far off the board: well within the sky
+ * that stands round it, which would otherwise be left out.
+ */
+const MOST_NEAR_PX = 10000;
 
 /** How much white the board is veiled with while nothing is laid under it, as the page veils it. */
 const BOARD_VEIL = 0.15;
@@ -658,7 +665,22 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.camera.matrix.copy(toCamera).invert();
     this.camera.updateMatrixWorld(true);
-    this.skyDome.follow(new Vector3().setFromMatrixPosition(this.camera.matrixWorld));
+    const at = new Vector3().setFromMatrixPosition(this.camera.matrixWorld);
+    const least = { near: view.nearPx ?? NEAR_PX, far: FAR_PX };
+    const depth = cameraDepthOver(
+      { x: at.x, y: at.z, z: at.y },
+      this.boardBox,
+      TALLEST_PX,
+      least,
+      view.nearPx === undefined && !view.orthographic ? MOST_NEAR_PX : least.near
+    );
+    const drawing = view.orthographic ? this.orthographic : this.perspective;
+    if (drawing.near !== depth.near || drawing.far !== depth.far) {
+      drawing.near = depth.near;
+      drawing.far = depth.far;
+      drawing.updateProjectionMatrix();
+    }
+    this.skyDome.follow(at);
     this.sprites.face(view.axes);
     this.fadePx = view.fadePx ?? 0;
     this.water.lookFromAmongPieces(view.nearPx !== undefined);
@@ -946,12 +968,12 @@ class ThreeTableEngine implements Table3dEngine {
       this.gridPicture = null;
       return;
     }
-    if (this.gridPicture?.image !== grid.canvas) {
+    if (!this.gridPicture || canvasOfPicture(this.gridPicture) !== grid.canvas) {
       this.gridPicture?.dispose();
       this.gridPicture = new CanvasTexture(grid.canvas);
       this.gridPicture.colorSpace = SRGBColorSpace;
     }
-    this.gridPicture.needsUpdate = true;
+    retakeCanvasPicture(this.gridPicture, grid.canvas);
     const geometry = this.boardGround
       ? gridOverGround(this.boardGround, grid.box, GRID_LIFT_PX)
       : gridOverBoard(this.boardHexes, grid.box, GRID_LIFT_PX);
@@ -1140,6 +1162,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.loading++;
     const settle = () => {
       this.loading--;
+      fitReadPicture(picture);
       came();
       this.changed = true;
       this.shadowsMoved();

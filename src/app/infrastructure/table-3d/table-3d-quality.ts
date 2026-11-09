@@ -13,13 +13,17 @@ export interface Table3dQualityPlan {
   readonly shadowedLights: number;
   /** Whether the sun and the moon throw shadows. */
   readonly skyShadows: boolean;
+  /**
+   * Whether the corners are shaded from the scene's depths. Off at every quality: worked out at the
+   * table's scale, the shading darkened a flat board from a distance on, in a band across it.
+   */
   readonly ambientOcclusion: boolean;
   readonly bloom: boolean;
   readonly antialias: 'smaa' | 'fxaa' | 'none';
 }
 
 export const TABLE_3D_QUALITY: Readonly<Record<Table3dQuality, Table3dQualityPlan>> = {
-  high: { shadowedLights: 4, skyShadows: true, ambientOcclusion: true, bloom: true, antialias: 'smaa' },
+  high: { shadowedLights: 4, skyShadows: true, ambientOcclusion: false, bloom: true, antialias: 'smaa' },
   standard: { shadowedLights: 2, skyShadows: true, ambientOcclusion: false, bloom: true, antialias: 'fxaa' },
   light: { shadowedLights: 0, skyShadows: false, ambientOcclusion: false, bloom: false, antialias: 'none' },
 };

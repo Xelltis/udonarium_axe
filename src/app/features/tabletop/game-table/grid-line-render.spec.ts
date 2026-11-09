@@ -158,6 +158,18 @@ describe('GridLineRender', () => {
       expect(context.setTransform).toHaveBeenCalledWith(0.25, 0, 0, 0.25, 0, 0);
     });
 
+    it('draws the lines a canvas pixel wide still, as thin as they are drawn at the board’s own size', () => {
+      const { canvas, context } = createCanvasMock();
+      const widths: number[] = [];
+      vi.mocked(context.stroke).mockImplementation(() => widths.push(context.lineWidth));
+      vi.mocked(context.strokeRect).mockImplementation(() => widths.push(context.lineWidth));
+
+      new GridLineRender(canvas, 0.25).render(4, 3, 50, GridType.SQUARE, '#000', '#000');
+
+      expect(widths.length).toBeGreaterThan(0);
+      expect(widths.every((width) => width * 0.25 === 1)).toBe(true);
+    });
+
     it('leaves a board drawn at its own size exactly as it was', () => {
       const { canvas, context } = createCanvasMock();
 

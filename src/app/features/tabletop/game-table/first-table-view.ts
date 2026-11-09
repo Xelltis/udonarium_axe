@@ -72,7 +72,7 @@ export function firstTableView(
   panelsBeside: boolean
 ): TableCameraView {
   return framingView(view, layout, firstViewPoints(table), firstViewInset(layout, panelsBeside), {
-    furthest: zoomOutLimitZ(table.gridSize),
+    furthest: zoomOutLimitZ(table.gridSize, layout),
     nearest: view.positionZ,
   });
 }
