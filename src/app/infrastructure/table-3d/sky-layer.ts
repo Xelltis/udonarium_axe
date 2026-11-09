@@ -74,6 +74,12 @@ export class SkyLayer {
   private laid: SkyDome | null = null;
   private readonly sunColour = uniform(new Color(SUN_COLOUR));
   private readonly moonColour = uniform(new Color(MOON_COLOUR));
+  /**
+   * The haze the scene is drawn with under the sky, kept one and the same as the hour goes by: a
+   * scene given another fog builds every material it draws again, which held the page up for most
+   * of half a second at every turn of the clock.
+   */
+  private readonly haze = new FogExp2(0x000000, 0);
 
   constructor() {
     const material = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false, depthTest: false });
@@ -110,7 +116,9 @@ export class SkyLayer {
     this.groundColour.set(sky.ground);
     (this.ground?.material as MeshLambertNodeMaterial | undefined)?.color.copy(this.groundColour);
     const across = board ? Math.hypot(board.width, board.height) : 3000;
-    return new FogExp2(sky.horizon, 1 / (3 * (across + 3000)));
+    this.haze.color.set(sky.horizon);
+    this.haze.density = 1 / (3 * (across + 3000));
+    return this.haze;
   }
 
   /** Stands the sky round the eye, in the scene's space. */
