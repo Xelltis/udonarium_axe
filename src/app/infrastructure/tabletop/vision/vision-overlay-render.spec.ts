@@ -10,6 +10,7 @@ import {
   LIGHT_MIN_OVERLAY_SCALE,
   LIGHT_OVERLAY_PIXEL_BUDGET,
   MIN_OVERLAY_SCALE,
+  OVERLAY_LONGEST_PX,
   OVERLAY_PIXEL_BUDGET,
   overlayScale,
 } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
@@ -613,8 +614,18 @@ describe('how big a surface the overlay is allowed', () => {
     expect(6600 * scale * (6600 * scale)).toBeCloseTo(OVERLAY_PIXEL_BUDGET, -4);
   });
 
-  it('never draws one at less than half, however big it gets', () => {
-    expect(overlayScale(40000, 40000)).toBe(MIN_OVERLAY_SCALE);
+  it('never draws one at less than half, so long as half is short enough', () => {
+    expect(overlayScale(7600, 7600)).toBe(MIN_OVERLAY_SCALE);
+  });
+
+  it('draws a board too large for half to be short enough no longer than the longest an overlay is drawn', () => {
+    const side = 100 * 256 + 2 * 400;
+
+    expect(side * overlayScale(side, side)).toBeCloseTo(OVERLAY_LONGEST_PX, 6);
+  });
+
+  it('draws a long thin board inside the budget no longer than the graphics card takes a picture', () => {
+    expect(overlayScale(20000, 400)).toBeCloseTo(8192 / 20000, 6);
   });
 
   it('draws a board smaller again while the table is drawn the lighter way', () => {
