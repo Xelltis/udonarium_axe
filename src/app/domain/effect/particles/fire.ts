@@ -5,6 +5,7 @@ import {
   type EffectParticle,
   fadeInOut,
   flameBodyColor,
+  flameBodyFade,
   flameColor,
 } from '@axe/domain/effect/particles/shared';
 
@@ -121,11 +122,11 @@ export function emitExplosion(
     particles.push({
       x: Math.cos(angle) * distance,
       y: -base * 0.6 + Math.sin(angle) * distance * 0.7 - base * local * 0.5,
-      size: base * (0.75 + random() * 0.5) * power * (0.6 + local * 0.9),
+      size: base * (0.6 + random() * 0.4) * power * (0.5 + local * 0.7),
       angle: 0,
       stretch: 1,
       color: flameBodyColor(local, ramp),
-      alpha: (1 - local) * 0.8,
+      alpha: flameBodyFade(local) * 0.75,
       shape: 'puff',
     });
   }
@@ -216,11 +217,11 @@ function emitEngulf(
       particles.push({
         x: Math.cos(angle) * radius,
         y: bodyY + Math.sin(angle) * radius * 0.7 - base * swallow * 0.5,
-        size: base * (1.6 + random() * 0.9) * power * (0.55 + swallow * 0.6),
+        size: base * (1.3 + random() * 0.7) * power * (0.5 + swallow * 0.5),
         angle: 0,
         stretch: 1,
         color: flameBodyColor(swallow, ramp),
-        alpha: hold * 0.85,
+        alpha: hold * 0.8 * (1 - swallow * 0.5),
         shape: 'puff',
       });
     }
@@ -296,7 +297,7 @@ export function emitMushroom(
       angle: 0,
       stretch: 1,
       color: root ? flameColor(height, ramp) : flameBodyColor(height, ramp),
-      alpha: (1 - local * 0.7) * (root ? 0.55 : 0.7),
+      alpha: root ? (1 - local * 0.7) * 0.55 : flameBodyFade(local) * 0.7,
       shape: root ? 'glow' : 'puff',
     });
   }

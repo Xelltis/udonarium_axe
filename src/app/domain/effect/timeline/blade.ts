@@ -230,12 +230,14 @@ export function appendSkyblade(
       x: center.x,
       y: center.y,
       z: center.z,
-      width: base * (2.4 + easeOutCubic(burst) * 6),
-      height: base * (2.4 + easeOutCubic(burst) * 6),
-      opacity: 1 - burst,
-      background: `radial-gradient(circle, #ffffff 0%, ${preset.colorPrimary} 40%, ${preset.colorSecondary} 64%, transparent 80%)`,
+      // The blade landing is a heart of light, quickly gone: the table round it is lit by the
+      // effect's own light, and a disc as wide as the blast hid the table under it.
+      width: base * (1.6 + easeOutCubic(burst) * 2.6),
+      height: base * (1.6 + easeOutCubic(burst) * 2.6),
+      opacity: (1 - burst) ** 2 * 0.75,
+      background: `radial-gradient(circle, #ffffff 0%, ${preset.colorPrimary} 30%, ${preset.colorSecondary} 52%, transparent 72%)`,
       borderRadius: '50%',
-      shadow: glow(base * 2 * (1 - burst), preset.colorPrimary),
+      shadow: glow(base * 0.8 * (1 - burst), preset.colorPrimary),
     });
     sprites.push({
       ...blank(),

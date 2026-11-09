@@ -30,6 +30,8 @@ import {
   type Point3,
 } from '@axe/domain/effect/timeline/shared';
 
+/** The colour of the smoke a launch leaves at its feet. */
+const LAUNCH_SMOKE = '#8c847c';
 /**
  * What flies.
  *
@@ -235,10 +237,11 @@ export function appendBallistic(
         z: origin.z,
         offsetX: Math.cos(puff * 1.9) * base * 2.4 * spread,
         offsetY: -Math.abs(Math.sin(puff * 1.9)) * base * 1.2 * spread,
-        width: base * (1.4 + spread * 3.4),
-        height: base * (1.4 + spread * 3.4),
-        opacity: (1 - pad) * 0.4,
-        background: `radial-gradient(circle, ${preset.colorSecondary} 0%, transparent 70%)`,
+        width: base * (1 + spread * 2),
+        height: base * (1 + spread * 2),
+        // Smoke, grey and thin: coloured as the flame and as wide as it spread, it dyed the whole table.
+        opacity: (1 - pad) * 0.28,
+        background: `radial-gradient(circle, ${LAUNCH_SMOKE} 0%, transparent 70%)`,
         borderRadius: '50%',
       });
     }
@@ -349,10 +352,12 @@ export function appendBallistic(
       x: center.x,
       y: center.y,
       z: center.z,
-      width: base * (3 + easeOutCubic(burst) * 8),
-      height: base * (3 + easeOutCubic(burst) * 8),
-      opacity: (1 - burst) * 0.9,
-      background: `radial-gradient(circle, #ffffff 0%, ${preset.colorPrimary} 38%, ${preset.colorSecondary} 62%, transparent 78%)`,
+      // A heart of light, quickly gone: the table round it is lit by the effect's own light, and a
+      // disc as wide as the blast hid the table under it.
+      width: base * (1.6 + easeOutCubic(burst) * 2.6),
+      height: base * (1.6 + easeOutCubic(burst) * 2.6),
+      opacity: (1 - burst) ** 2 * 0.75,
+      background: `radial-gradient(circle, #ffffff 0%, ${preset.colorPrimary} 30%, ${preset.colorSecondary} 52%, transparent 72%)`,
       borderRadius: '50%',
     });
     sprites.push({

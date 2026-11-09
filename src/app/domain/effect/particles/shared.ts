@@ -53,9 +53,21 @@ export function flameColor(local: number, ramp: ColorRamp): string {
   return ramp.cool;
 }
 
-/** The colour of a body of flame as it burns out: the light colour while young, the dark one after, never white. */
+/** What a body of flame turns to as it burns out. */
+export const EMBER_SMOKE = '#4a3a30';
+
+/**
+ * The colour of a body of flame as it burns out: the light colour while young, the dark one after,
+ * and smoke at the last, never white.
+ */
 export function flameBodyColor(local: number, ramp: ColorRamp): string {
-  return local < 0.45 ? ramp.mid : ramp.cool;
+  if (local < 0.35) return ramp.mid;
+  return local < 0.7 ? ramp.cool : EMBER_SMOKE;
+}
+
+/** How thick a body of flame is as it burns out, as a share of how thick it starts: thinning fast once it is old. */
+export function flameBodyFade(local: number): number {
+  return Math.pow(Math.max(0, 1 - local), 1.6);
 }
 
 /** Eases a 0 to 1 progress so it starts fast and slows to a stop; input outside that range is clamped. */
