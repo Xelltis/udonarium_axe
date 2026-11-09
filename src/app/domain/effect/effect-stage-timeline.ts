@@ -9,6 +9,7 @@ import {
   effectTargetCenter,
   type Point3,
   seededRandom,
+  targetScaleOf,
 } from '@axe/domain/effect/timeline/shared';
 
 /**
@@ -85,7 +86,8 @@ export function stagedEffectSprites(
         sprites,
         prefix: `${index}-${order}`,
         center: places.center,
-        base: base * (window.stage.scale ?? 1),
+        base:
+          base * (window.stage.scale ?? 1) * targetScaleOf(options, target.identifier, window.stage.role === 'travel'),
         progress,
         preset: view,
         random: seededRandom(cast.seed + index * 7919 + order * 104729),
@@ -147,7 +149,7 @@ export function stagedEffectParticles(
         views[order],
         cast.seed + index * 7919 + order * 104729,
         progress,
-        base * (window.stage.scale ?? 1)
+        base * (window.stage.scale ?? 1) * targetScaleOf(options, target.identifier, window.stage.role === 'travel')
       );
       if (layer.particles.length < 1) continue;
 

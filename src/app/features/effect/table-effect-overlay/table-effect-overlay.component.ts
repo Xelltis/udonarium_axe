@@ -131,6 +131,7 @@ export class TableEffectOverlayComponent {
         viewRotation: this.rotation(),
         resolvePosition: (identifier) => this.centerOf(identifier, gridSize),
         resolveImage: (identifier) => this.imageUrlOf(identifier),
+        resolveSize: (identifier) => this.sizeOf(identifier),
       });
       for (const part of parts) sprites.push({ ...part, key: `${active.key}-${part.key}` });
     }
@@ -152,6 +153,7 @@ export class TableEffectOverlayComponent {
           baseSize: gridSize,
           hiddenIdentifiers: active.hidden,
           resolvePosition: (identifier) => this.centerOf(identifier, gridSize),
+          resolveSize: (identifier) => this.sizeOf(identifier),
         },
         MAX_CANVASES - placements.length
       );
@@ -244,6 +246,12 @@ export class TableEffectOverlayComponent {
       if (!this.visionService.isTokenVisible(character)) hidden.add(identifier);
     }
     return hidden;
+  }
+
+  /** How many cells across a piece is, as it stands now; one where it is not on the table. */
+  private sizeOf(identifier: string): number {
+    const size = (this.objectStore.get<TabletopObject>(identifier) as { size?: unknown } | null)?.size;
+    return typeof size === 'number' && size > 0 ? size : 1;
   }
 
   private centerOf(identifier: string, gridSize: number): { x: number; y: number; z: number } | null {

@@ -41,6 +41,7 @@ import {
   type Point3,
   projectileOrigin,
   seededRandom,
+  targetScaleOf,
 } from '@axe/domain/effect/timeline/shared';
 
 /**
@@ -223,7 +224,7 @@ export function effectSprites(
       sprites,
       prefix: `${index}`,
       center,
-      base: base * areaShareOf(preset, cast, index),
+      base: base * areaShareOf(preset, cast, index) * targetScaleOf(options, target.identifier, isAimed(preset)),
       progress,
       preset,
       random: seededRandom(cast.seed + index * 7919),
@@ -242,6 +243,11 @@ export function effectSprites(
   });
 
   return sprites;
+}
+
+/** Whether a look is fired from the caster at the target, rather than going off about the target. */
+export function isAimed(preset: Pick<EffectPreset, 'effectKind'>): boolean {
+  return AIMED[preset.effectKind] !== undefined;
 }
 
 /** An unknown kind bursts, so a new one at least shows something. */

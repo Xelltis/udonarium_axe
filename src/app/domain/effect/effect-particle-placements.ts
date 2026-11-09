@@ -3,7 +3,13 @@ import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { effectParticles } from '@axe/domain/effect/effect-particles';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { stagedEffectParticles, StagedParticlePlacement } from '@axe/domain/effect/effect-stage-timeline';
-import { EffectSpriteOptions, effectTargetCenter, effectTargetProgress } from '@axe/domain/effect/effect-timeline';
+import {
+  EffectSpriteOptions,
+  effectTargetCenter,
+  effectTargetProgress,
+  isAimed,
+} from '@axe/domain/effect/effect-timeline';
+import { targetScaleOf } from '@axe/domain/effect/timeline/shared';
 
 /** One canvas of glowing particles in a cast, and where on the board it is centred. */
 export type EffectParticlePlacement = StagedParticlePlacement;
@@ -34,7 +40,8 @@ export function effectParticlePlacements(
     const progress = effectTargetProgress(preset, elapsedMs, index);
     if (progress < 0 || progress > 1) return;
 
-    const layer = effectParticles(preset, cast.seed + index * 7919, progress, base * areaShareOf(preset, cast, index));
+    const scale = areaShareOf(preset, cast, index) * targetScaleOf(options, target.identifier, isAimed(preset));
+    const layer = effectParticles(preset, cast.seed + index * 7919, progress, base * scale);
     if (layer.particles.length < 1) return;
 
     const center = effectTargetCenter(target, preset, {

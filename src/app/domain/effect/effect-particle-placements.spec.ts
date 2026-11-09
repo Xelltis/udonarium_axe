@@ -37,6 +37,24 @@ describe('effectParticlePlacements', () => {
     expect(placed.every((placement) => placement.layer.particles.length > 0)).toBe(true);
   });
 
+  it('draws what goes off on a piece of three cells as large as the piece, and what flies at it less so', () => {
+    const on = (kind: string, cells: number) =>
+      effectParticlePlacements(
+        presetOf(kind),
+        castOn({ identifier: 'dragon', x: 0, y: 0 }),
+        300,
+        {
+          ...options,
+          resolveSize: () => cells,
+        },
+        8
+      )[0].layer.width;
+
+    expect(on('burst', 3)).toBeCloseTo(on('burst', 1) * 3);
+    expect(on('heal', 3)).toBeCloseTo(on('heal', 1) * 3);
+    expect(on('gore', 3)).toBeCloseTo(on('gore', 1) * Math.sqrt(3));
+  });
+
   it('leaves out hidden targets, and stops at the limit', () => {
     const cast = castOn(
       { identifier: 'a', x: 0, y: 0 },

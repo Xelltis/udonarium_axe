@@ -86,6 +86,25 @@ export interface EffectSpriteOptions {
    * A piece with no picture makes do with shards of light.
    */
   resolveImage?: (identifier: string) => string;
+  /**
+   * How many cells across a target is, as a piece of two or three cells is: what strikes it is drawn
+   * as large as it is. Without it every target is one cell across.
+   */
+  resolveSize?: (identifier: string) => number;
+}
+
+/** The largest a target is counted, in cells, so a giant piece does not ask for a canvas past what a screen holds. */
+const LARGEST_COUNTED_CELLS = 4;
+
+/**
+ * How much larger an effect is drawn on a target than on a piece of one cell: as large as the target
+ * for what goes off about it, so a blast on a dragon three cells across covers the dragon rather than
+ * its foot, and by the root of that for what flies at it from the caster, whose flight it would
+ * otherwise blow up too.
+ */
+export function targetScaleOf(options: EffectSpriteOptions, identifier: string, aimed: boolean): number {
+  const cells = Math.min(LARGEST_COUNTED_CELLS, Math.max(1, options.resolveSize?.(identifier) ?? 1));
+  return aimed ? Math.sqrt(cells) : cells;
 }
 
 export interface Point3 {
