@@ -16,7 +16,7 @@ import type {
 } from '@axe/domain/tabletop/world/table-world';
 import { BackdropRing } from '@axe/infrastructure/table-3d/backdrop-ring';
 import { BoardLayers } from '@axe/infrastructure/table-3d/board-layers';
-import { canvasOfPicture, retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
+import { canvasOfPicture, fitReadPicture, retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
 import { CoinLayer } from '@axe/infrastructure/table-3d/coin-layer';
 import { ConeLamp } from '@axe/infrastructure/table-3d/cone-lamp';
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
@@ -1141,6 +1141,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.loading++;
     const settle = () => {
       this.loading--;
+      fitReadPicture(picture);
       came();
       this.changed = true;
       this.shadowsMoved();

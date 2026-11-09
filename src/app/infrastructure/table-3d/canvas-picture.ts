@@ -46,3 +46,23 @@ function sentOf(picture: Texture, canvas: HTMLCanvasElement): HTMLCanvasElement 
   copy.getContext('2d')?.drawImage(canvas, 0, 0, copy.width, copy.height);
   return copy;
 }
+
+/**
+ * Brings a picture read from a file, as the page's picture of a piece or a board's picture, down to
+ * the longest side the card takes, where it is longer: a white board as wide as a table of large
+ * cells, pictured at the screen's pixel ratio, is read larger than the card takes, and refused there
+ * with every frame after. One read whole, or not read at all, is left as it is.
+ */
+export function fitReadPicture(picture: Texture): void {
+  const image = picture.image as { width?: number; height?: number } | null | undefined;
+  const width = image?.width ?? 0;
+  const height = image?.height ?? 0;
+  const scale = Math.min(1, LONGEST_PICTURE_PX / Math.max(1, width, height));
+  if (scale === 1) return;
+  const copy = document.createElement('canvas');
+  copy.width = Math.min(LONGEST_PICTURE_PX, Math.max(1, Math.round(width * scale)));
+  copy.height = Math.min(LONGEST_PICTURE_PX, Math.max(1, Math.round(height * scale)));
+  copy.getContext('2d')?.drawImage(image as CanvasImageSource, 0, 0, copy.width, copy.height);
+  picture.image = copy;
+  picture.needsUpdate = true;
+}

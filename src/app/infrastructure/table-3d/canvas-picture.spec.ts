@@ -1,5 +1,10 @@
-import { canvasOfPicture, LONGEST_PICTURE_PX, retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
-import { CanvasTexture } from 'three/webgpu';
+import {
+  canvasOfPicture,
+  fitReadPicture,
+  LONGEST_PICTURE_PX,
+  retakeCanvasPicture,
+} from '@axe/infrastructure/table-3d/canvas-picture';
+import { CanvasTexture, Texture } from 'three/webgpu';
 
 function canvasOf(width: number, height: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
@@ -56,5 +61,28 @@ describe('a picture taken again from a canvas', () => {
     retakeCanvasPicture(picture, canvas);
 
     expect(picture.image).toBe(canvas);
+  });
+});
+
+describe('a picture read from a file', () => {
+  it('is brought down to the longest side the card takes where it was read longer', () => {
+    const picture = new Texture(canvasOf(16384, 7680));
+    const sent = picture.version;
+
+    fitReadPicture(picture);
+
+    const image = picture.image as HTMLCanvasElement;
+    expect([image.width, image.height]).toEqual([LONGEST_PICTURE_PX, LONGEST_PICTURE_PX * (7680 / 16384)]);
+    expect(picture.version).toBeGreaterThan(sent);
+  });
+
+  it('is left as it is where it was read whole, or not read at all', () => {
+    const whole = canvasOf(1600, 1000);
+    const picture = new Texture(whole);
+    fitReadPicture(picture);
+    expect(picture.image).toBe(whole);
+
+    const unread = new Texture();
+    expect(() => fitReadPicture(unread)).not.toThrow();
   });
 });
