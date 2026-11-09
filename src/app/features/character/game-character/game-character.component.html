@@ -176,7 +176,7 @@
           [appHudPlace]="{ owner: id, part: 'pedestal', place: 'below' }"
         >
           <div
-            class="bg-ui-panel text-ui-text shadow-ui-sm mt-1 rounded-full px-2 py-0.5 text-[12px] leading-snug font-medium tabular-nums"
+            class="bg-ui-panel text-ui-text shadow-ui-sm mt-1 rounded-full px-2 py-0.5 text-xs/snug font-medium tabular-nums"
             data-testid="turn-readout"
           >
             {{ turnAngle() }}°
@@ -486,7 +486,7 @@
                 </div>
                 @if (turning() === 'roll') {
                   <div
-                    class="bg-ui-panel text-ui-text shadow-ui-sm pointer-events-none absolute flex -translate-y-1/2 items-center gap-1 rounded-full py-0.5 pr-2 pl-1 text-[12px] leading-snug font-medium whitespace-nowrap tabular-nums"
+                    class="bg-ui-panel text-ui-text shadow-ui-sm pointer-events-none absolute flex -translate-y-1/2 items-center gap-1 rounded-full py-0.5 pr-2 pl-1 text-xs/snug font-medium whitespace-nowrap tabular-nums"
                     data-testid="roll-readout"
                     [style.left.px]="handle.dx + rollHandleSizePx() / 2 + 4"
                     [style.top.px]="handle.dy"

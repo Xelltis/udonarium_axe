@@ -126,7 +126,7 @@
         @for (cue of dj.cues(); track $index; let slot = $index) {
           <button
             type="button"
-            class="border-ui-border-panel text-ui-dim hover:bg-ui-hover m-0 flex h-8 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-transparent p-0 text-[10px] leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+            class="border-ui-border-panel text-ui-dim hover:bg-ui-hover m-0 flex h-8 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-transparent p-0 text-[10px]/tight transition-colors disabled:cursor-not-allowed disabled:opacity-30"
             [class.border-solid!]="cue !== null"
             [class.border-ui-accent!]="cue !== null"
             [class.bg-ui-accent-bg!]="cue !== null"
@@ -213,7 +213,7 @@
         @for (pad of dj.pads(); track pad.slot) {
           <button
             type="button"
-            class="border-ui-border-panel text-ui-dim hover:bg-ui-hover m-0 flex h-12 min-w-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-dashed bg-transparent px-1 py-0.5 text-[10px] leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+            class="border-ui-border-panel text-ui-dim hover:bg-ui-hover m-0 flex h-12 min-w-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-dashed bg-transparent px-1 py-0.5 text-[10px]/tight transition-colors disabled:cursor-not-allowed disabled:opacity-30"
             [class.border-solid!]="pad.identifier !== ''"
             [class.text-ui-text!]="pad.identifier !== ''"
             [class.bg-ui-elevated!]="pad.identifier !== '' && !padsSounding()[pad.slot]"

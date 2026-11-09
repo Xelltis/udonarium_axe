@@ -1,5 +1,5 @@
 <div
-  class="bg-ui-elevated border-ui-border-panel rounded-b-ui @container box-border grid w-full min-w-0 grid-cols-[80px_minmax(0,1fr)] items-stretch gap-x-2 gap-y-1.5 border-t border-solid p-2 @max-[420px]:grid-cols-[64px_minmax(0,1fr)] @max-[420px]:gap-x-1.5 @max-[420px]:p-1.5 @max-[320px]:grid-cols-[56px_minmax(0,1fr)]"
+  class="bg-ui-elevated border-ui-border-panel rounded-b-ui @container box-border grid w-full min-w-0 grid-cols-[80px_minmax(0,1fr)] items-stretch gap-x-2 gap-y-1.5 border-t border-solid p-2 @max-[420px]:grid-cols-[64px_minmax(0,1fr)] @max-[420px]:gap-x-1.5 @max-[420px]:p-1.5 @max-xs:grid-cols-[56px_minmax(0,1fr)]"
   [ngClass]="{ 'border-ui-accent bg-ui-accent-bg text-ui-text border-t border-solid': isDirect }"
   [class.grid-cols-[80px_minmax(0,1fr)]!]="dense() && !narrow()"
   [class.grid-cols-1!]="narrow()"
@@ -41,7 +41,7 @@
           <ng-option [value]="gameCharacter.identifier">{{ gameCharacter.name }}</ng-option>
         }
       </ng-select>
-      <span class="text-ui-muted flex-none text-[11px] leading-none @max-[320px]:hidden">▶</span>
+      <span class="text-ui-muted flex-none text-[11px] leading-none @max-xs:hidden">▶</span>
       <ng-select
         #toList
         (pointerdown)="aimList(toList, $event)"
@@ -142,7 +142,7 @@
       @if (0 < imageFile.url.length) {
         <img class="block size-full min-h-0 object-cover object-[50%_0%]" [src]="imageFile.url | safe: 'resourceUrl'" />
       } @else {
-        <i class="material-icons text-ui-dim text-[42px]! @max-[320px]:text-[28px]!">person</i>
+        <i class="material-icons text-ui-dim text-[42px]! @max-xs:text-[28px]!">person</i>
       }
       @if (1 <= portraitChoices().length) {
         <portrait-picker

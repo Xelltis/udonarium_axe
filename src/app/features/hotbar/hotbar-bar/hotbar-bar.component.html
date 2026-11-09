@@ -20,13 +20,13 @@
       @if (failure(); as reason) {
         <span
           data-testid="hotbar-reason"
-          class="text-ui-danger pointer-events-none min-w-0 flex-1 truncate text-[10px] leading-tight font-semibold"
+          class="text-ui-danger pointer-events-none min-w-0 flex-1 truncate text-[10px]/tight font-semibold"
           >{{ 'feature.hotbar.failure.' + reason | transloco }}</span
         >
       } @else if (preference.showsHint() && !mobile.isActive()) {
         <span
           data-testid="hotbar-hint"
-          class="text-ui-dim pointer-events-none min-w-0 flex-1 truncate text-[10px] leading-tight"
+          class="text-ui-dim pointer-events-none min-w-0 flex-1 truncate text-[10px]/tight"
           >{{ 'feature.hotbar.shortcutHint' | transloco }}</span
         >
       } @else {
