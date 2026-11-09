@@ -1,7 +1,7 @@
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { groundOverIce, ICE_BEARS_AT } from '@axe/domain/tabletop/ground/ground-over-ice';
 import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { groundOverIce, ICE_BEARS_AT } from '@axe/domain/tabletop/ground/ground-over-ice';
 import {
   FLAT_GROUND,
   groundLiftOfBlock,
