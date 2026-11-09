@@ -70,7 +70,9 @@ export class TablePost {
    * Readies the graphics card to draw things new to the scene through the finishing, drawing nothing,
    * so the frame that first draws them does not stop to build what drawing them asks for. A few are
    * readied one by one, as the dice of a roll, rather than the whole scene with them: readying gives
-   * way to the frames being drawn, and on a slow machine a whole scene takes many of them.
+   * way to the frames being drawn, and on a slow machine a whole scene takes many of them. One taken
+   * out of the scene while those before it were readied is passed over: readied after it was disposed
+   * of, what the renderer built for it would never be let go of.
    */
   async compileAsync(
     scene: Scene,
@@ -95,7 +97,9 @@ export class TablePost {
       renderer.setMRT(pass.getMRT());
     }
     try {
-      for (const thing of things) await renderer.compileAsync(thing, camera, scene);
+      for (const thing of things) {
+        if (isWithin(thing, scene)) await renderer.compileAsync(thing, camera, scene);
+      }
     } finally {
       renderer.setRenderTarget(target);
       renderer.setMRT(mrt);
@@ -144,4 +148,10 @@ export class TablePost {
     pipeline.outputNode = colour;
     return pipeline;
   }
+}
+
+/** Whether a thing stands in a scene, under it however deep. */
+function isWithin(thing: Object3D, scene: Scene): boolean {
+  for (let at: Object3D | null = thing; at; at = at.parent) if (at === scene) return true;
+  return false;
 }
