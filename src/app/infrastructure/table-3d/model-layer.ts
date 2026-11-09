@@ -2,6 +2,7 @@ import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
+import { picturesOf, releaseReadPictures } from '@axe/infrastructure/three-kit/read-pictures';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import {
@@ -17,13 +18,17 @@ import {
   MeshLambertNodeMaterial,
   type MeshStandardMaterial,
   type Object3D,
+  type Texture,
   Vector3,
   type WebGPURenderer,
 } from 'three/webgpu';
 
-/** What a model is drawn from: its scene once read, and how large it is as it was made. */
+/**
+ * What a model is drawn from: its scene once read, and how large it is as it was made. Only its scene
+ * and its motions are kept of what its file was read into, not the reader's own store of the file.
+ */
 interface LoadedModel {
-  readonly gltf: GLTF;
+  readonly gltf: Pick<GLTF, 'scene' | 'animations'>;
   readonly size: Vector3;
   /** The middle of its foot, as it was made: its box's middle across and its lowest point. */
   readonly foot: Vector3;
@@ -123,7 +128,8 @@ const RADIANS = Math.PI / 180;
  * standing still is not drawn again. Nothing a model names outside its own bytes is ever fetched,
  * and one that draws more triangles than a model may, or cannot be read, is left drawn as its
  * picture. The decoders for compressed meshes and textures are fetched, from the app's own assets,
- * only once a model that needs them comes.
+ * only once a model that needs them comes. The pixels its pictures were read into are let go of once
+ * the graphics card holds them.
  */
 export class ModelLayer {
   readonly group = new Group();
@@ -338,9 +344,15 @@ export class ModelLayer {
 
   /** A model read from bytes held here, or null for one that is not to be drawn. */
   private async parse(url: string): Promise<LoadedModel | null> {
-    const gltf = await this.reader.read(url);
-    if (!gltf) return null;
-    gltf.scene.traverse((object) => this.makeOver(object));
+    const read = await this.reader.read(url);
+    if (!read) return null;
+    const gltf = { scene: read.scene, animations: read.animations };
+    const drawn = new Set<Texture>();
+    const undrawn = new Set<Texture>();
+    gltf.scene.traverse((object) => this.makeOver(object, drawn, undrawn));
+    for (const picture of drawn) undrawn.delete(picture);
+    releaseReadPictures(drawn, undrawn);
+    for (const picture of undrawn) picture.dispose();
     gltf.scene.updateMatrixWorld(true);
     const box = new Box3().setFromObject(gltf.scene);
     const size = box.getSize(new Vector3());
@@ -382,13 +394,18 @@ export class ModelLayer {
     this.arrived();
   }
 
-  /** Makes a mesh's material over as the scene's own: lit as the board is, veiled and darkened with it, throwing shadows. */
-  private makeOver(object: Object3D): void {
+  /**
+   * Makes a mesh's material over as the scene's own: lit as the board is, veiled and darkened with
+   * it, throwing shadows. The picture of its colour is drawn with, and noted so; the rest of the
+   * pictures it wore, as its bumps and its shine, are noted as not drawn.
+   */
+  private makeOver(object: Object3D, drawn: Set<Texture>, undrawn: Set<Texture>): void {
     if (!(object instanceof Mesh)) return;
     object.castShadow = true;
     object.receiveShadow = true;
     const madeOver = (material: Material) => {
       const was = material as MeshStandardMaterial;
+      for (const picture of picturesOf(material)) (picture === was.map ? drawn : undrawn).add(picture);
       const lit = new MeshLambertNodeMaterial({
         color: was.color,
         map: was.map ?? null,
