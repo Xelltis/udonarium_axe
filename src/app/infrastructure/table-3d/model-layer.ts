@@ -1,5 +1,6 @@
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
+import { UnusedSince } from '@axe/infrastructure/table-3d/unused-since';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
 import { picturesOf, releaseReadPictures } from '@axe/infrastructure/three-kit/read-pictures';
@@ -121,6 +122,13 @@ interface StoodModel {
 const RADIANS = Math.PI / 180;
 
 /**
+ * How long a model read but no longer laid on the table is kept, in milliseconds, before what it
+ * holds is let go of: long enough that a piece the fog hides and shows again, or a table gone to and
+ * come back from, is drawn again at once.
+ */
+export const UNUSED_MODEL_KEEP_MS = 120_000;
+
+/**
  * The pieces and blocks drawn as 3D models: each a binary glTF file read from bytes held here, its
  * materials made over to be lit and veiled as the rest of the scene is, stood with its foot at the
  * piece's, fitted inside the piece's box, and turned as the piece is. A model that plays a walk
@@ -129,13 +137,18 @@ const RADIANS = Math.PI / 180;
  * and one that draws more triangles than a model may, or cannot be read, is left drawn as its
  * picture. The decoders for compressed meshes and textures are fetched, from the app's own assets,
  * only once a model that needs them comes. The pixels its pictures were read into are let go of once
- * the graphics card holds them.
+ * the graphics card holds them, and a model laid on the table no longer is let go of altogether once
+ * it has gone unused for `UNUSED_MODEL_KEEP_MS`, to be read again if it is laid again.
  */
 export class ModelLayer {
   readonly group = new Group();
   private readonly reader: HeldModelReader;
   private readonly loaded = new Map<string, LoadedModel | null>();
   private readonly loading = new Set<string>();
+  /** When each model read but no longer laid stopped being laid, by its URL. */
+  private readonly unused = new UnusedSince(UNUSED_MODEL_KEEP_MS);
+  private sweepTimer: ReturnType<typeof setTimeout> | null = null;
+  private sweepDueAt = 0;
   private stood = new Map<string, StoodModel>();
   private readonly herds = new Map<string, Herd>();
   private laid: readonly TableWorldModel[] = [];
@@ -206,6 +219,9 @@ export class ModelLayer {
     this.herds.clear();
     for (const loaded of this.loaded.values()) if (loaded) disposeObject(loaded.gltf.scene);
     this.loaded.clear();
+    this.unused.clear();
+    if (this.sweepTimer !== null) clearTimeout(this.sweepTimer);
+    this.sweepTimer = null;
     this.reader.dispose();
   }
 
@@ -235,7 +251,41 @@ export class ModelLayer {
       this.herds.delete(url);
     }
     for (const [url, flock] of flocks) this.herd(url, this.loaded.get(url)!, flock);
+    this.noteUnused();
     this.changed = true;
+  }
+
+  /**
+   * Notes when each model read stopped being laid, and has those that have gone unused long enough
+   * let go of then. A model laid again before that is kept as though it had never gone.
+   */
+  private noteUnused(): void {
+    const read = [...this.loaded].filter(([, loaded]) => loaded !== null).map(([url]) => url);
+    this.unused.note(read, new Set(this.laid.map((model) => model.url)), performance.now());
+    this.sweepLater();
+  }
+
+  /** Has the layer swept when the next model unused is due, keeping a sweep already set for no later. */
+  private sweepLater(): void {
+    const now = performance.now();
+    const wait = this.unused.nextDueIn(now);
+    if (wait === null || (this.sweepTimer !== null && this.sweepDueAt <= now + wait)) return;
+    if (this.sweepTimer !== null) clearTimeout(this.sweepTimer);
+    this.sweepDueAt = now + wait;
+    this.sweepTimer = setTimeout(() => {
+      this.sweepTimer = null;
+      this.sweep();
+    }, wait);
+  }
+
+  /** Lets go of every model that has gone unused for `UNUSED_MODEL_KEEP_MS`: its meshes, materials and pictures. */
+  private sweep(): void {
+    for (const url of this.unused.takeDue(performance.now())) {
+      const loaded = this.loaded.get(url);
+      this.loaded.delete(url);
+      if (loaded) disposeObject(loaded.gltf.scene);
+    }
+    this.sweepLater();
   }
 
   /** Stands a model that plays a motion where its piece is, as a copy of its own. */
