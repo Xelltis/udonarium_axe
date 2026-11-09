@@ -4,6 +4,7 @@ import {
   easeOutQuad,
   type EffectParticle,
   fadeInOut,
+  flameBodyColor,
   flameColor,
 } from '@axe/domain/effect/particles/shared';
 
@@ -34,15 +35,18 @@ export function emitFlame(
     const rise = easeOutQuad(local);
     const sway = Math.sin(swayPhase + local * Math.PI * 2.4) * base * 0.16 * local;
 
+    // The root of each tongue is hot and gives light; higher up it is a body of flame, coloured to
+    // its edge, so the flame keeps its colour and its shape rather than running together into white.
+    const hot = local < 0.28;
     particles.push({
       x: spread * (1 - local * 0.55) + sway,
       y: -base * (0.1 + rise * 2.1 * speed),
-      size: base * (0.5 + random() * 0.22) * (1 - local * 0.55),
+      size: base * (0.5 + random() * 0.22) * (1 - local * 0.55) * (hot ? 0.8 : 1),
       angle: 0,
       stretch: 1.35 - local * 0.4,
-      color: flameColor(local, ramp),
-      alpha: life * (1 - local) * 0.85,
-      shape: 'glow',
+      color: hot ? flameColor(local, ramp) : flameBodyColor(local, ramp),
+      alpha: life * (1 - local) * (hot ? 0.75 : 0.7),
+      shape: hot ? 'glow' : 'puff',
     });
   }
 
@@ -90,16 +94,18 @@ export function emitExplosion(
 ): void {
   if (engulf) emitEngulf(particles, random, progress, base, ramp, power);
 
+  // The heart of the blast gives the light; the table round it is lit by the effect's own light, so
+  // the heart stays small rather than burning the picture white.
   const flash = clamp01(progress / 0.12);
   if (flash < 1) {
     particles.push({
       x: 0,
       y: -base * 0.6,
-      size: base * (1.6 + flash * 2.4) * power,
+      size: base * (1.1 + flash * 1.1) * Math.sqrt(power),
       angle: 0,
       stretch: 1,
       color: ramp.hot,
-      alpha: (1 - flash) * 0.95,
+      alpha: (1 - flash) * 0.9,
       shape: 'glow',
     });
   }
@@ -118,9 +124,9 @@ export function emitExplosion(
       size: base * (0.75 + random() * 0.5) * power * (0.6 + local * 0.9),
       angle: 0,
       stretch: 1,
-      color: flameColor(local, ramp),
-      alpha: (1 - local) * 0.85,
-      shape: 'glow',
+      color: flameBodyColor(local, ramp),
+      alpha: (1 - local) * 0.8,
+      shape: 'puff',
     });
   }
 
@@ -210,11 +216,24 @@ function emitEngulf(
       particles.push({
         x: Math.cos(angle) * radius,
         y: bodyY + Math.sin(angle) * radius * 0.7 - base * swallow * 0.5,
-        size: base * (2.2 + random() * 1.1) * power * (0.55 + swallow * 0.7),
+        size: base * (1.6 + random() * 0.9) * power * (0.55 + swallow * 0.6),
         angle: 0,
         stretch: 1,
-        color: swallow < 0.3 ? ramp.hot : flameColor(swallow, ramp),
-        alpha: hold * 0.75,
+        color: flameBodyColor(swallow, ramp),
+        alpha: hold * 0.85,
+        shape: 'puff',
+      });
+    }
+    // Its heart, white-hot while it swells, is all of it that gives light.
+    if (swallow < 0.45) {
+      particles.push({
+        x: 0,
+        y: bodyY - base * swallow * 0.5,
+        size: base * 1.3 * Math.sqrt(power),
+        angle: 0,
+        stretch: 1,
+        color: ramp.hot,
+        alpha: (1 - swallow / 0.45) * 0.85,
         shape: 'glow',
       });
     }
@@ -246,21 +265,22 @@ export function emitMushroom(
   base: number,
   ramp: ColorRamp
 ): void {
+  // The flash is the table's light to give; drawn here it is only the heart of the blast.
   const flash = clamp01(progress / 0.08);
   if (flash < 1) {
     particles.push({
       x: 0,
       y: -base * 0.8,
-      size: base * (3 + flash * 4),
+      size: base * (1.6 + flash * 1.6),
       angle: 0,
       stretch: 1,
       color: ramp.hot,
-      alpha: (1 - flash) * 0.98,
+      alpha: (1 - flash) * 0.9,
       shape: 'glow',
     });
   }
 
-  // The column: thick and white-hot below, thinner and darker above.
+  // The column: hot and giving light at its root, a body of flame darkening as it rises.
   for (let index = 0; index < 40; index++) {
     const phase = random();
     const local = clamp01((progress - phase * 0.3) / 0.55);
@@ -268,15 +288,16 @@ export function emitMushroom(
     const height = easeOutQuad(local);
     const radius = base * (0.5 + random() * 0.4) * (1 - height * 0.35);
     const angle = random() * Math.PI * 2;
+    const root = height < 0.2;
     particles.push({
       x: Math.cos(angle) * radius,
       y: -base * (0.6 + height * 3.4),
-      size: base * (1 + random() * 0.6) * (1 - height * 0.3),
+      size: base * (1 + random() * 0.6) * (1 - height * 0.3) * (root ? 0.7 : 1),
       angle: 0,
       stretch: 1,
-      color: flameColor(height, ramp),
-      alpha: (1 - local * 0.7) * 0.7,
-      shape: 'glow',
+      color: root ? flameColor(height, ramp) : flameBodyColor(height, ramp),
+      alpha: (1 - local * 0.7) * (root ? 0.55 : 0.7),
+      shape: root ? 'glow' : 'puff',
     });
   }
 
@@ -294,9 +315,9 @@ export function emitMushroom(
         size: base * (1 + random() * 0.7),
         angle: 0,
         stretch: 1,
-        color: cap < 0.35 ? flameColor(cap + 0.2, ramp) : '#4a3a30',
-        alpha: (1 - cap * 0.85) * (cap < 0.3 ? 0.55 : 0.2),
-        shape: cap < 0.3 ? 'glow' : 'smoke',
+        color: cap < 0.35 ? flameBodyColor(cap + 0.2, ramp) : '#4a3a30',
+        alpha: (1 - cap * 0.85) * (cap < 0.3 ? 0.6 : 0.2),
+        shape: cap < 0.3 ? 'puff' : 'smoke',
       });
     }
   }

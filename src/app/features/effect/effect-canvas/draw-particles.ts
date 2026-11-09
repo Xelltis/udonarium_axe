@@ -13,8 +13,8 @@ export type TextureProvider = (shape: EffectParticle['shape'], color: string) =>
 /**
  * Clears the canvas and draws one frame of a particle layer at the given pixel ratio.
  *
- * Smoke and chunks are painted normally first, and every other shape is added over them with
- * additive blending. Textures come from the shared particle texture cache unless another provider
+ * Puffs, smoke and chunks are painted normally first, as colour, and every other shape is added over
+ * them with additive blending, as light. Textures come from the shared particle texture cache unless another provider
  * is passed; a particle whose texture cannot be made is skipped.
  */
 export function drawParticleLayer(
@@ -43,7 +43,7 @@ export function drawParticleLayer(
 }
 
 function isSolid(particle: EffectParticle): boolean {
-  return particle.shape === 'smoke' || particle.shape === 'chunk';
+  return particle.shape === 'smoke' || particle.shape === 'chunk' || particle.shape === 'puff';
 }
 
 function drawParticle(

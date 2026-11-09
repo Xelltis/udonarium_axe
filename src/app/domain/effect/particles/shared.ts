@@ -6,7 +6,13 @@ import { clamp01 } from '@axe/domain/effect/timeline/shared';
  * Only the shape of one particle and the smoothing of colour and time. It refers to no family of effects.
  */
 
-export type ParticleShape = 'glow' | 'streak' | 'smoke' | 'chunk' | 'bubble';
+/**
+ * How a particle is drawn. A glow, a streak and a bubble are light, added over what is drawn; a puff,
+ * smoke and a chunk are colour, laid over it: a fireball is a body of flame, coloured to its edge,
+ * with only its heart and its sparks giving light, or the light of its many puffs runs together into
+ * a white the colour is lost in.
+ */
+export type ParticleShape = 'glow' | 'streak' | 'smoke' | 'chunk' | 'bubble' | 'puff';
 
 export interface EffectParticle {
   x: number;
@@ -45,6 +51,11 @@ export function flameColor(local: number, ramp: ColorRamp): string {
   if (local < 0.2) return ramp.hot;
   if (local < 0.55) return ramp.mid;
   return ramp.cool;
+}
+
+/** The colour of a body of flame as it burns out: the light colour while young, the dark one after, never white. */
+export function flameBodyColor(local: number, ramp: ColorRamp): string {
+  return local < 0.45 ? ramp.mid : ramp.cool;
 }
 
 /** Eases a 0 to 1 progress so it starts fast and slows to a stop; input outside that range is clamped. */

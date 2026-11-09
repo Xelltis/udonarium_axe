@@ -99,16 +99,27 @@ describe('effectParticles()', () => {
     }
   });
 
-  it('burns white at the foot of a flame and darker towards the top', () => {
+  it('gives white light at the foot of a flame and burns as darker colour towards the top', () => {
     const layer = effectParticles(makePreset('flame'), 5, 0.5, base);
-    const glows = layer.particles.filter((particle) => particle.shape === 'glow');
-    const hottest = glows.filter((particle) => particle.color === '#ffffff');
+    const hottest = layer.particles.filter((particle) => particle.shape === 'glow' && particle.color === '#ffffff');
+    const cool = layer.particles.filter((particle) => particle.shape === 'puff' && particle.color === '#ff5a33');
 
     expect(hottest.length).toBeGreaterThan(0);
-    // The white particles sit lower on average than the red ones.
-    const meanY = (list: typeof glows) => list.reduce((sum, particle) => sum + particle.y, 0) / list.length;
-    const cool = glows.filter((particle) => particle.color === '#ff5a33');
+    expect(cool.length).toBeGreaterThan(0);
+    const meanY = (list: typeof hottest) => list.reduce((sum, particle) => sum + particle.y, 0) / list.length;
     expect(meanY(hottest)).toBeGreaterThan(meanY(cool));
+  });
+
+  it('lays the body of a fireball as colour, giving light only from a heart no wider than a few cells', () => {
+    for (const kind of ['burst', 'nova', 'mushroom'] as const) {
+      for (const progress of [0.02, 0.1, 0.3, 0.6]) {
+        const layer = effectParticles(makePreset(kind), 3, progress, base);
+        const widestLight = Math.max(0, ...layer.particles.filter((p) => p.shape === 'glow').map((p) => p.size));
+        expect(widestLight).toBeLessThanOrEqual(base * 3.2);
+      }
+    }
+    const body = effectParticles(makePreset('nova'), 3, 0.3, base).particles.filter((p) => p.shape === 'puff');
+    expect(body.length).toBeGreaterThan(0);
   });
 
   it('spreads the sparks of an explosion over time', () => {
