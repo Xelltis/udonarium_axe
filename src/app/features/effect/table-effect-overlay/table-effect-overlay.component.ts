@@ -14,6 +14,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { effectParticlePlacements } from '@axe/domain/effect/effect-particle-placements';
 import { EffectSprite, effectSprites } from '@axe/domain/effect/effect-timeline';
 import { ViewRotation } from '@axe/domain/effect/effect-view';
+import { isDrawnInScene } from '@axe/domain/effect/scene/effect-frame';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
@@ -96,7 +97,7 @@ export class TableEffectOverlayComponent {
   private readonly nothingToRender: (EffectFieldRenderable & { hidden: ReadonlySet<string> })[] = [];
 
   /**
-   * Everything to draw this frame.
+   * Everything to draw this frame, but for the casts drawn in the table's scene itself.
    *
    * With no cast playing and no field standing it reads no clock and hands back the same empty
    * list, so the weather keeping the frame loop running does not rebuild the sprites every frame.
@@ -108,12 +109,15 @@ export class TableEffectOverlayComponent {
     const now = this.playback.now();
     const hiddenByKey = this.hiddenByKey();
     const all: EffectFieldRenderable[] = [
-      ...this.playback.activeCasts().map((active) => ({
-        key: String(active.key),
-        preset: active.preset,
-        cast: active.cast,
-        elapsed: effectElapsedOf(active, now),
-      })),
+      ...this.playback
+        .activeCasts()
+        .flatMap((active) => (isDrawnInScene(active.preset) ? [] : [active]))
+        .map((active) => ({
+          key: String(active.key),
+          preset: active.preset,
+          cast: active.cast,
+          elapsed: effectElapsedOf(active, now),
+        })),
       ...this.fieldService.renderables(now),
     ];
     return all.map((active) => ({ ...active, hidden: hiddenByKey.get(active.key) ?? NOTHING_HIDDEN }));

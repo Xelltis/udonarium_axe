@@ -11,6 +11,7 @@ import { DefeatReaction, defeatReactionOf } from '@axe/domain/effect/effect-defe
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { EffectShake } from '@axe/domain/effect/effect-shake';
 import { impactSoundTimes, isEffectFinished, launchSoundTimes } from '@axe/domain/effect/effect-sound-times';
+import { sceneLingerMsOf } from '@axe/domain/effect/scene/effect-frame';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
 
 export interface ActiveEffectCast {
@@ -189,7 +190,8 @@ export class EffectPlaybackService {
     this.now.set(now);
 
     const remaining = this._activeCasts().filter(
-      (active) => !isEffectFinished(active.preset, active.cast, effectElapsedOf(active, now))
+      (active) =>
+        !isEffectFinished(active.preset, active.cast, effectElapsedOf(active, now) - sceneLingerMsOf(active.preset))
     );
     if (remaining.length !== this._activeCasts().length) this._activeCasts.set(remaining);
     if (remaining.length > 0 || this._persistentSources().size > 0) this.startLoop();

@@ -1,0 +1,109 @@
+import { type EffectCast } from '@axe/domain/effect/effect-cast';
+import { EffectKind } from '@axe/domain/effect/effect-kind';
+import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { nothingStaged, type Staged } from '@axe/domain/effect/scene/choreography';
+import {
+  type EffectStagingOptions,
+  isDrawnInScene,
+  sceneLingerMsOf,
+  stageEffect,
+} from '@axe/domain/effect/scene/effect-frame';
+
+const CELL = 50;
+
+function makePreset(kind: EffectKind, fields: Partial<EffectPreset> = {}): EffectPreset {
+  const preset = new EffectPreset('preset');
+  preset.kind = kind;
+  preset.grade = 2;
+  preset.durationMs = 1200;
+  preset.staggerMs = 100;
+  preset.colorPrimary = '#ffd27f';
+  preset.colorSecondary = '#ff5a33';
+  Object.assign(preset, fields);
+  return preset;
+}
+
+function castOn(...points: [number, number][]): EffectCast {
+  return {
+    presetIdentifier: 'preset',
+    casterIdentifier: '',
+    origin: null,
+    targets: points.map(([x, y], index) => ({ identifier: `t${index}`, x, y, z: 0 })),
+    seed: 11,
+  };
+}
+
+function staged(
+  preset: EffectPreset,
+  cast: EffectCast,
+  elapsedMs: number,
+  options: Partial<EffectStagingOptions> = {}
+): Staged {
+  const drawn = nothingStaged();
+  stageEffect(preset, cast, elapsedMs, { cellPx: CELL, ...options }, drawn);
+  return drawn;
+}
+
+describe('isDrawnInScene()', () => {
+  it('draws a burst in the scene, and leaves a look not yet made anew and a run of stages to be drawn over it', () => {
+    expect(isDrawnInScene(makePreset('burst'))).toBe(true);
+    expect(isDrawnInScene(makePreset('slash'))).toBe(false);
+    expect(isDrawnInScene({ isStaged: true, effectKind: 'burst' })).toBe(false);
+    expect(sceneLingerMsOf({ isStaged: true, effectKind: 'burst' })).toBe(0);
+    expect(sceneLingerMsOf(makePreset('slash'))).toBe(0);
+  });
+});
+
+describe('stageEffect()', () => {
+  it('draws on after its playback while what it leaves clears, then nothing, each target after the one before it', () => {
+    const preset = makePreset('burst');
+    const cast = castOn([100, 100], [300, 100]);
+    const lingers = sceneLingerMsOf(preset);
+
+    expect(lingers).toBeGreaterThan(0);
+    expect(staged(preset, cast, 1200 + 100 + lingers * 0.5).motes.length).toBeGreaterThan(0);
+    expect(staged(preset, cast, 1200 + 100 + lingers + 10).motes).toHaveLength(0);
+    const early = staged(preset, cast, 50);
+    expect(early.motes.length).toBeGreaterThan(0);
+    expect(early.motes.every((mote) => Math.abs(mote.x - 100) < CELL * 4)).toBe(true);
+    const both = staged(preset, cast, 150);
+    expect(both.motes.some((mote) => Math.abs(mote.x - 300) < CELL)).toBe(true);
+  });
+
+  it('skips a hidden target and plays where a target that is followed stands now', () => {
+    const preset = makePreset('burst');
+    const cast = castOn([100, 100]);
+
+    expect(staged(preset, cast, 100, { hiddenIdentifiers: new Set(['t0']) }).motes).toHaveLength(0);
+    const moved = staged(preset, cast, 30, { resolveFooting: () => ({ x: 900, y: 900, z: 0, groundZ: 0 }) });
+    expect(moved.floor.every((mark) => mark.x === 900 && mark.y === 900)).toBe(true);
+  });
+
+  it('lays its marks on the floor under a target that flies, and lets nothing fall through that floor', () => {
+    const preset = makePreset('burst');
+    const cast = castOn([100, 100]);
+    const flying = { resolveFooting: () => ({ x: 100, y: 100, z: 100, groundZ: 20 }) };
+
+    for (const at of [30, 300, 700, 1100]) {
+      const drawn = staged(preset, cast, at, flying);
+      expect(drawn.floor.every((mark) => mark.z === 20)).toBe(true);
+      expect(drawn.motes.every((mote) => mote.z >= 20)).toBe(true);
+    }
+  });
+
+  it('grows with a piece of more cells, as large as it is', () => {
+    const preset = makePreset('burst');
+    const cast = castOn([100, 100]);
+    const ringOf = (cells: number) =>
+      staged(preset, cast, 100, { resolveSize: () => cells }).floor.find((mark) => mark.shape === 'ring')!.radius;
+
+    expect(ringOf(3)).toBeCloseTo(ringOf(1) * 3, 5);
+  });
+
+  it('throws more for a higher grade and less for a lower one', () => {
+    const count = (grade: number) => staged(makePreset('burst', { grade }), castOn([100, 100]), 120).motes.length;
+
+    expect(count(3)).toBeGreaterThan(count(2));
+    expect(count(2)).toBeGreaterThan(count(1));
+  });
+});

@@ -22,6 +22,8 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { sceneLingerMsOf } from '@axe/domain/effect/scene/effect-frame';
+import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
 import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
 import { Config } from '@axe/domain/peer/config';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
@@ -65,6 +67,7 @@ class FakeEngine implements Table3dEngine {
   lightMaps: (Table3dLightMap | null)[] = [];
   shadowLights: (readonly Table3dShadowLight[])[] = [];
   effectLights: (readonly Table3dEffectLight[])[] = [];
+  effectFrames: EffectFrame[] = [];
   glows: (Table3dVeil | null)[] = [];
   fogAirSheets: (readonly Table3dFogAirSheet[])[] = [];
   weathers: (Table3dWeatherFall | null)[] = [];
@@ -150,6 +153,10 @@ class FakeEngine implements Table3dEngine {
 
   setEffectLights(lights: readonly Table3dEffectLight[]): void {
     this.effectLights.push(lights);
+  }
+
+  setEffects(frame: EffectFrame): void {
+    this.effectFrames.push(frame);
   }
 
   setQuality(plan: Table3dQualityPlan): void {
@@ -843,7 +850,7 @@ describe('Table3dService', () => {
     TestBed.tick();
     const engine = engines[0];
     const preset = new EffectPreset();
-    preset.kind = 'burst';
+    preset.kind = 'impact';
     preset.grade = 3;
     preset.durationMs = 600;
     preset.colorPrimary = '#ff7733';
@@ -863,6 +870,41 @@ describe('Table3dService', () => {
 
     playback.now.set(active.startedAt + 5000);
     TestBed.tick();
+    expect(engine.effectLights.at(-1)).toEqual([]);
+    ObjectStore.instance.remove(preset);
+  });
+
+  it('draws a look made for the scene among the pieces, lit by its own light, until what it leaves has cleared', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    const engine = engines[0];
+    const preset = new EffectPreset();
+    preset.kind = 'burst';
+    preset.durationMs = 600;
+    ObjectStore.instance.add(preset, false);
+    const playback = TestBed.inject(EffectPlaybackService);
+    const active = playback.play({
+      presetIdentifier: preset.identifier,
+      targets: [{ identifier: 'somewhere', x: 120, y: 80, z: 0 }],
+      seed: 1,
+    })!;
+
+    playback.now.set(active.startedAt + effectBlowsOf(preset)[0].atMs + 20);
+    TestBed.tick();
+    const drawn = engine.effectFrames.at(-1)!;
+    expect(drawn.motes.length).toBeGreaterThan(0);
+    expect(drawn.floor.length).toBeGreaterThan(0);
+    expect(engine.effectLights.at(-1)!.length).toBeGreaterThan(0);
+
+    playback.now.set(active.startedAt + 600 + sceneLingerMsOf(preset) * 0.5);
+    TestBed.tick();
+    expect(engine.effectFrames.at(-1)!.motes.length).toBeGreaterThan(0);
+
+    playback.now.set(active.startedAt + 600 + sceneLingerMsOf(preset) + 500);
+    TestBed.tick();
+    expect(engine.effectFrames.at(-1)!.motes).toHaveLength(0);
     expect(engine.effectLights.at(-1)).toEqual([]);
     ObjectStore.instance.remove(preset);
   });

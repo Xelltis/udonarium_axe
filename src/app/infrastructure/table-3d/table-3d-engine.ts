@@ -1,6 +1,7 @@
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { skyAmbienceFlash } from '@axe/domain/effect/ambience/ambience-sky';
 import { MAX_EFFECT_LIGHTS } from '@axe/domain/effect/effect-light';
+import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
 import { cameraDepthOver } from '@axe/domain/tabletop/camera/camera-depth';
 import { GROUND_PAINT_LAYERS } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
@@ -22,6 +23,7 @@ import { canvasOfPicture, fitReadPicture, retakeCanvasPicture } from '@axe/infra
 import { CoinLayer } from '@axe/infrastructure/table-3d/coin-layer';
 import { ConeLamp } from '@axe/infrastructure/table-3d/cone-lamp';
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
+import { EffectLayer } from '@axe/infrastructure/table-3d/effect-layer';
 import { changedChunks, chunkSignatures, facesByOwner, OwnedFaces } from '@axe/infrastructure/table-3d/face-chunks';
 import {
   boardGeometry,
@@ -288,6 +290,7 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly floorCanvases = new FloorCanvasLayer();
   private readonly fogAir = new FogAirLayer();
   private readonly weather = new WeatherLayer();
+  private readonly effects = new EffectLayer();
   /** How hard lightning lights the scene now, from 0 to 1. */
   private flash = 0;
   private readonly models = new ModelLayer(
@@ -343,6 +346,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.water.group);
     this.scene.add(this.fogAir.group);
     this.scene.add(this.weather.group);
+    this.scene.add(this.effects.group);
     this.scene.add(this.models.group);
     this.scene.add(this.dice.group);
     this.scene.add(this.skyDome.group);
@@ -807,6 +811,11 @@ class ThreeTableEngine implements Table3dEngine {
     this.takeChanges();
   }
 
+  setEffects(frame: EffectFrame): void {
+    this.effects.set(frame);
+    this.takeChanges();
+  }
+
   setWeather(weather: Table3dWeatherFall | null): void {
     this.laidWeather = weather;
     this.weather.set(weather);
@@ -890,7 +899,8 @@ class ThreeTableEngine implements Table3dEngine {
     const stood = this.backdrops.takeChanged();
     const modelled = this.models.takeChanged();
     const thrown = this.dice.takeChanged();
-    if (drifted || flowed || hung || stood || modelled || thrown) this.changed = true;
+    const played = this.effects.takeChanged();
+    if (drifted || flowed || hung || stood || modelled || thrown || played) this.changed = true;
   }
 
   dispose(): void {
@@ -903,6 +913,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.water.dispose();
     this.fogAir.dispose();
     this.weather.dispose();
+    this.effects.dispose();
     this.skyDome.dispose();
     this.backdrops.dispose();
     this.models.dispose();

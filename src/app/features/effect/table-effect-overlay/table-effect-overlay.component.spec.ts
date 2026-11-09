@@ -34,7 +34,7 @@ describe('TableEffectOverlayComponent', () => {
     playback = TestBed.inject(EffectPlaybackService);
 
     preset = new EffectPreset();
-    preset.kind = 'burst';
+    preset.kind = 'bash';
     preset.durationMs = 5000;
     preset.staggerMs = 0;
     ObjectStore.instance.add(preset, false);
@@ -120,6 +120,21 @@ describe('TableEffectOverlayComponent', () => {
       expect(element.style.pointerEvents).toBe('none');
       expect(element.style.transform).toContain('translate(');
     }
+  });
+
+  it('leaves a look drawn in the table scene itself to the scene, and draws nothing of it over the table', () => {
+    preset.kind = 'burst';
+    playback.play({
+      presetIdentifier: preset.identifier,
+      targets: [{ identifier: 'char', x: 100, y: 200, z: 0 }],
+      seed: 3,
+    });
+    playback.now.set(playback.activeCasts()[0].startedAt + 200);
+    fixture.detectChanges();
+
+    expect(standing()).toHaveLength(0);
+    expect(lying()).toHaveLength(0);
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('canvas')).toHaveLength(0);
   });
 
   it('leaves a sprite lying flat rather than turning it to the camera', () => {
