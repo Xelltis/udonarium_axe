@@ -1,3 +1,4 @@
+import { areaShareOf } from '@axe/domain/effect/effect-area';
 import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { effectParticles } from '@axe/domain/effect/effect-particles';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -33,7 +34,7 @@ export function effectParticlePlacements(
     const progress = effectTargetProgress(preset, elapsedMs, index);
     if (progress < 0 || progress > 1) return;
 
-    const layer = effectParticles(preset, cast.seed + index * 7919, progress, base);
+    const layer = effectParticles(preset, cast.seed + index * 7919, progress, base * areaShareOf(preset, cast, index));
     if (layer.particles.length < 1) return;
 
     const center = effectTargetCenter(target, preset, {

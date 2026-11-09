@@ -1,3 +1,4 @@
+import { areaShareOf } from '@axe/domain/effect/effect-area';
 import { type EffectCast, type EffectCastTarget } from '@axe/domain/effect/effect-cast';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -222,7 +223,7 @@ export function effectSprites(
       sprites,
       prefix: `${index}`,
       center,
-      base,
+      base: base * areaShareOf(preset, cast, index),
       progress,
       preset,
       random: seededRandom(cast.seed + index * 7919),
@@ -237,7 +238,7 @@ export function effectSprites(
       aimed(context);
       return;
     }
-    paintCentered(preset.effectKind, sprites, context.prefix, center, base, progress, preset, context.random);
+    paintCentered(preset.effectKind, sprites, context.prefix, center, context.base, progress, preset, context.random);
   });
 
   return sprites;
