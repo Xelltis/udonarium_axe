@@ -1,5 +1,4 @@
 import { signal } from '@angular/core';
-import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { EffectReactionService } from '@axe/application/effect/effect-reaction.service';
 import { ImageService } from '@axe/application/storage/image.service';
