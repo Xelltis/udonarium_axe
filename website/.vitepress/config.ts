@@ -204,6 +204,7 @@ export default defineConfig({
       '/start/': [
         { text: 'はじめに', link: '/start/' },
         { text: 'Axeでできること', link: '/start/features' },
+        { text: '推奨環境', link: '/start/requirements' },
         { text: '招待リンクで参加する', link: '/start/join' },
         { text: 'はじめてのセッション（GM）', link: '/start/first-session' },
         { text: '用語集', link: '/start/glossary' },
