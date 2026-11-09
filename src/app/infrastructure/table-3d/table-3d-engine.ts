@@ -1,5 +1,6 @@
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { skyAmbienceFlash } from '@axe/domain/effect/ambience/ambience-sky';
+import { cameraDepthOver } from '@axe/domain/tabletop/camera/camera-depth';
 import { GROUND_PAINT_LAYERS } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
@@ -105,6 +106,11 @@ import {
  */
 const NEAR_PX = 100;
 const FAR_PX = 50000;
+/**
+ * The furthest off the table's camera draws from, standing far off the board: well within the sky
+ * that stands round it, which would otherwise be left out.
+ */
+const MOST_NEAR_PX = 10000;
 
 /** How much white the board is veiled with while nothing is laid under it, as the page veils it. */
 const BOARD_VEIL = 0.15;
@@ -659,7 +665,22 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.camera.matrix.copy(toCamera).invert();
     this.camera.updateMatrixWorld(true);
-    this.skyDome.follow(new Vector3().setFromMatrixPosition(this.camera.matrixWorld));
+    const at = new Vector3().setFromMatrixPosition(this.camera.matrixWorld);
+    const least = { near: view.nearPx ?? NEAR_PX, far: FAR_PX };
+    const depth = cameraDepthOver(
+      { x: at.x, y: at.z, z: at.y },
+      this.boardBox,
+      TALLEST_PX,
+      least,
+      view.nearPx === undefined && !view.orthographic ? MOST_NEAR_PX : least.near
+    );
+    const drawing = view.orthographic ? this.orthographic : this.perspective;
+    if (drawing.near !== depth.near || drawing.far !== depth.far) {
+      drawing.near = depth.near;
+      drawing.far = depth.far;
+      drawing.updateProjectionMatrix();
+    }
+    this.skyDome.follow(at);
     this.sprites.face(view.axes);
     this.fadePx = view.fadePx ?? 0;
     this.water.lookFromAmongPieces(view.nearPx !== undefined);

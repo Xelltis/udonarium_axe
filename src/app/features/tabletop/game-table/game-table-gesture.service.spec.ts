@@ -20,6 +20,7 @@ import {
   ZOOM_MIN_Z,
   zoomOutLimitZ,
   zoomReachFor,
+  zoomStepFor,
 } from '@axe/features/tabletop/game-table/game-table-gesture.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -376,6 +377,27 @@ describe('GameTableGestureService', () => {
   });
 
   describe('how far the zoom limits follow the size of a cell', () => {
+    it('goes back far enough to take in the whole of a board too large for the usual limit', () => {
+      const layout = { width: 1280, height: 720, boardWidth: 100 * 256, boardHeight: 100 * 256 };
+      const furthest = zoomOutLimitZ(256, layout);
+      const depth = TABLE_PERSPECTIVE_PX - furthest;
+
+      expect(furthest).toBeLessThan(zoomOutLimitZ(256));
+      expect((720 * depth) / TABLE_PERSPECTIVE_PX).toBeGreaterThan(Math.hypot(25600, 25600));
+    });
+
+    it('keeps the usual limit over a board it takes in whole from there', () => {
+      const layout = { width: 1920, height: 1080, boardWidth: 32 * 50, boardHeight: 20 * 50 };
+
+      expect(zoomOutLimitZ(50, layout)).toBe(ZOOM_MIN_Z);
+    });
+
+    it('takes the usual step nearer than the usual limit, and longer ones as far again back past it', () => {
+      expect(zoomStepFor(50, 0)).toBe(1);
+      expect(zoomStepFor(50, ZOOM_MIN_Z)).toBe(1);
+      expect(zoomStepFor(50, ZOOM_MIN_Z * 3 - TABLE_PERSPECTIVE_PX * 2)).toBeCloseTo(3);
+    });
+
     it('keeps the limits set for the usual cell', () => {
       expect(zoomReachFor(50)).toBe(1);
       expect(zoomOutLimitZ(50)).toBe(ZOOM_MIN_Z);
