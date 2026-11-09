@@ -16,7 +16,7 @@ import type {
 } from '@axe/domain/tabletop/world/table-world';
 import { BackdropRing } from '@axe/infrastructure/table-3d/backdrop-ring';
 import { BoardLayers } from '@axe/infrastructure/table-3d/board-layers';
-import { retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
+import { canvasOfPicture, retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
 import { CoinLayer } from '@axe/infrastructure/table-3d/coin-layer';
 import { ConeLamp } from '@axe/infrastructure/table-3d/cone-lamp';
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
@@ -947,12 +947,12 @@ class ThreeTableEngine implements Table3dEngine {
       this.gridPicture = null;
       return;
     }
-    if (this.gridPicture?.image !== grid.canvas) {
+    if (!this.gridPicture || canvasOfPicture(this.gridPicture) !== grid.canvas) {
       this.gridPicture?.dispose();
       this.gridPicture = new CanvasTexture(grid.canvas);
       this.gridPicture.colorSpace = SRGBColorSpace;
     }
-    retakeCanvasPicture(this.gridPicture);
+    retakeCanvasPicture(this.gridPicture, grid.canvas);
     const geometry = this.boardGround
       ? gridOverGround(this.boardGround, grid.box, GRID_LIFT_PX)
       : gridOverBoard(this.boardHexes, grid.box, GRID_LIFT_PX);

@@ -1,5 +1,5 @@
 import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
-import { retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
+import { canvasOfPicture, retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
 import { gridOverGround } from '@axe/infrastructure/table-3d/face-geometry';
 import type { Table3dFloorCanvas } from '@axe/infrastructure/table-3d/table-3d-port';
 import {
@@ -57,7 +57,7 @@ export class FloorCanvasLayer {
     for (const floor of canvases) {
       wanted.add(floor.id);
       let laid = this.laid.get(floor.id);
-      if (laid && laid.picture.image !== floor.canvas) {
+      if (laid && canvasOfPicture(laid.picture) !== floor.canvas) {
         this.drop(floor.id, laid);
         laid = undefined;
       }
@@ -80,7 +80,7 @@ export class FloorCanvasLayer {
       }
       if (laid.revision !== floor.revision) {
         laid.revision = floor.revision;
-        retakeCanvasPicture(laid.picture);
+        retakeCanvasPicture(laid.picture, floor.canvas);
       }
       laid.floor = floor;
       this.place(laid, floor);
