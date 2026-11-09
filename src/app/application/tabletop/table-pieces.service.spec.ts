@@ -1,5 +1,7 @@
 import { signal } from '@angular/core';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { EffectReactionService } from '@axe/application/effect/effect-reaction.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -17,6 +19,7 @@ import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import type { EffectJolt } from '@axe/domain/effect/effect-reaction';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -541,6 +544,17 @@ describe('TablePiecesService', () => {
     if (picture.facing === 'eye') return;
     expect(picture.facing.across.x).toBeCloseTo(0, 6);
     expect(picture.facing.across.y).toBeCloseTo(1, 6);
+  });
+
+  it('draws a piece an effect strikes off where it stands for a moment, and where it stands once it is not', () => {
+    const die = dieAt(100, 200);
+    const jolts = signal<ReadonlyMap<string, EffectJolt>>(new Map([[die.identifier, { x: 6, y: -4, z: 0 }]]));
+    Object.defineProperty(TestBed.inject(EffectReactionService), 'jolts', { value: jolts });
+
+    expect(pieces.sprites()[0].centre).toEqual({ x: 131, y: 221, z: 1 });
+
+    jolts.set(new Map());
+    expect(pieces.sprites()[0].centre).toEqual({ x: 125, y: 225, z: 1 });
   });
 
   it('turns a flipping coin over from the side it starts on, whichever it is to land on', () => {

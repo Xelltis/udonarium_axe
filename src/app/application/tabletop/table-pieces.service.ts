@@ -1,4 +1,5 @@
 import { computed, inject, Injectable, type Signal, untracked } from '@angular/core';
+import { EffectReactionService } from '@axe/application/effect/effect-reaction.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
@@ -26,6 +27,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
+import type { EffectJolt } from '@axe/domain/effect/effect-reaction';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -204,13 +206,22 @@ export class TablePiecesService {
   private readonly pagePictures = inject(PiecePicturesService);
   private readonly roomRules = inject(RoomRulesService);
   private readonly motions = inject(PieceMotionsService);
+  private readonly reactions = inject(EffectReactionService);
   private readonly modelStorage = inject(ModelStorage);
 
   /**
    * The characters this seat may see that are drawn as 3D models, held here in full, standing on the
    * floor: each stood at the middle of its footprint, walking while the seat moves it.
    */
-  readonly models = computed<readonly TableWorldModel[]>(() => this.drawnNow(this.standingModels()));
+  readonly models = computed<readonly TableWorldModel[]>(() => {
+    const drawn = this.drawnNow(this.standingModels());
+    const jolts = this.reactions.jolts();
+    if (!jolts.size) return drawn;
+    return drawn.map((model) => {
+      const jolt = jolts.get(model.owner);
+      return jolt ? { ...model, foot: jolted(model.foot, jolt) } : model;
+    });
+  });
 
   private readonly standingModels = computed<StandingParts<TableWorldModel>>(() => {
     this.tableInView();
@@ -397,10 +408,24 @@ export class TablePiecesService {
 
   /**
    * Every sprite of every piece drawn on the table in view, a piece playing a move where the move
+   * has it now, and a piece an effect strikes thrown off where it stands for a moment.
+   */
+  readonly sprites = computed<readonly TableWorldSprite[]>(() => {
+    const posed = this.posedSprites();
+    const jolts = this.reactions.jolts();
+    if (!jolts.size) return posed;
+    return posed.map((sprite) => {
+      const jolt = jolts.get(sprite.owner);
+      return jolt ? { ...sprite, centre: jolted(sprite.centre, jolt) } : sprite;
+    });
+  });
+
+  /**
+   * Every sprite of every piece drawn on the table in view, a piece playing a move where the move
    * has it now. A piece moves about the middle of the first sprite of it lying on its face, as the
    * page moves it about the middle of where it stands.
    */
-  readonly sprites = computed<readonly TableWorldSprite[]>(() => {
+  private readonly posedSprites = computed<readonly TableWorldSprite[]>(() => {
     const standing = this.standing();
     const poses = this.motions.posesNow();
     if (!poses.size) return standing;
@@ -1063,4 +1088,9 @@ function cellOf(position: number, cellPx: number): number {
 /** One number for a cell of the floor, for cells on and some way off the table alike. */
 function cellKey(across: number, down: number): number {
   return (across + 0x8000) * 0x10000 + (down + 0x8000);
+}
+
+/** A point drawn off where it is by a jolt. */
+function jolted(point: { x: number; y: number; z: number }, jolt: EffectJolt): { x: number; y: number; z: number } {
+  return { x: point.x + jolt.x, y: point.y + jolt.y, z: point.z + jolt.z };
 }
