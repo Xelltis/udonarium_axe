@@ -949,7 +949,6 @@ export class GameTableComponent {
 
   /** The jolt of an effect, which shakes the camera with it. */
   readonly screenShake = computed(() => this.effectPlaybackService.shake());
-  readonly screenFlash = computed(() => this.effectPlaybackService.flash());
 
   readonly isPickingTarget = computed(() => this.cardTargetService.isPicking());
   readonly isPickingEffectTarget = computed(() => this.effectTargetingService.isPicking());

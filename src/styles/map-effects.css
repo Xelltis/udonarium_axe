@@ -108,19 +108,6 @@
   }
 }
 
-/* Flash. It burns in, then falls away quickly. */
-@keyframes effectFlash {
-  0% {
-    opacity: 0;
-  }
-  12% {
-    opacity: 0.55;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
 /* Lightning flicker. The discharge runs a few times before it goes. */
 @keyframes effectBoltStrike {
   0% {

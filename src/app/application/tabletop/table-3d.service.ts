@@ -10,6 +10,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { EffectLightService } from '@axe/application/effect/effect-light.service';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
@@ -136,6 +137,7 @@ export class Table3dService {
   private readonly floorCanvases = inject(FloorCanvasesService);
   private readonly tableVeil = inject(TableVeilService);
   private readonly lightSlots = inject(LightSlotsService);
+  private readonly effectLights = inject(EffectLightService);
   private readonly flickerClock = inject(LightFlickerClockService);
   private readonly bundledModels = inject(BundledModelsService);
   private readonly quality = inject(Table3dQualityService);
@@ -756,6 +758,13 @@ export class Table3dService {
       effect(
         () => {
           engine.setGlow(this.tableVeil.glow());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
+          engine.setEffectLights(this.effectLights.lights());
           this.drawSoon(engine);
         },
         { injector: this.injector }

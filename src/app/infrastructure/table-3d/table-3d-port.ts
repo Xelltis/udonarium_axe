@@ -1,4 +1,5 @@
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
+import type { EffectLight } from '@axe/domain/effect/effect-light';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
 import type { SkyDome } from '@axe/domain/tabletop/world/sky-dome';
 import type { SkyLight } from '@axe/domain/tabletop/world/sky-light';
@@ -95,6 +96,9 @@ export interface Table3dLightMap {
 }
 
 /** A light the scene lights itself with, throwing shadows of its own: where it stands, how far it reaches and in what colour. */
+/** A light an effect throws over the table for a while, which lights the scene without throwing shadows. */
+export type Table3dEffectLight = EffectLight;
+
 export type Table3dShadowLight = Pick<
   SceneLight,
   'x' | 'y' | 'z' | 'brightPx' | 'dimPx' | 'color' | 'animation' | 'angle' | 'direction' | 'pitch'
@@ -224,6 +228,11 @@ export interface Table3dEngine {
   setShadowLights(lights: readonly Table3dShadowLight[]): void;
   /** Brightens and dims the lights the scene lights itself with as they flicker at a moment, in milliseconds. */
   flicker(timeMs: number): void;
+  /**
+   * Lights the scene with the lights effects throw over the table now, as many as it has room for,
+   * without shadows, over the lamps and the sky; none takes them all away.
+   */
+  setEffectLights(lights: readonly Table3dEffectLight[]): void;
   /**
    * Adds the glow of a dark table's lamps, in their colours, as the page draws it on a canvas of its
    * own, or takes it away with null.

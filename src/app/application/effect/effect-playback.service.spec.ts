@@ -85,7 +85,6 @@ describe('EffectPlaybackService', () => {
 
     // Shaking for everything would leave the impact meaning nothing.
     expect(service.shake()).toBe('');
-    expect(service.flash()).toBe('');
   });
 
   it('takes the stronger of two casts in quick succession', () => {

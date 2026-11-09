@@ -1,5 +1,6 @@
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { skyAmbienceFlash } from '@axe/domain/effect/ambience/ambience-sky';
+import { MAX_EFFECT_LIGHTS } from '@axe/domain/effect/effect-light';
 import { cameraDepthOver } from '@axe/domain/tabletop/camera/camera-depth';
 import { GROUND_PAINT_LAYERS } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
@@ -42,6 +43,7 @@ import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/
 import type {
   Table3dCamera,
   Table3dDiceThrow,
+  Table3dEffectLight,
   Table3dEngine,
   Table3dEngineOptions,
   Table3dFloorCanvas,
@@ -91,6 +93,7 @@ import {
   type Node,
   OrthographicCamera,
   PerspectiveCamera,
+  PointLight,
   RepeatWrapping,
   Scene,
   SRGBColorSpace,
@@ -249,10 +252,16 @@ class ThreeTableEngine implements Table3dEngine {
   private topsGrid: Mesh | null = null;
   private laidWalls: readonly TableWorldWall[] | null = null;
   private laidCaps: readonly TableWorldCap[] | null = null;
-  private readonly veil = new SceneVeil(SHADOW_LIGHTS);
+  private readonly veil = new SceneVeil(SHADOW_LIGHTS, MAX_EFFECT_LIGHTS);
   /** The lamps of the slots, each throwing its light all round or one way, so the scene never has to be built again as lamps change. */
   private readonly lamps = Array.from({ length: SHADOW_LIGHTS }, () => new ConeLamp(0xffffff, 0, 1, 0));
   private laidLamps: readonly Table3dShadowLight[] = [];
+  /**
+   * The lights effects throw over the table, which throw no shadows: in the scene from the start and
+   * left dark while no effect lights, so the scene is not built again as effects come and go.
+   */
+  private readonly effectLamps = Array.from({ length: MAX_EFFECT_LIGHTS }, () => new PointLight(0xffffff, 0, 1, 0));
+  private laidEffectLights = '[]';
   private askedLamps: readonly Table3dShadowLight[] = [];
   /** How many lamps of each kind the quality the table is drawn at lets light the scene. */
   private lampSlots = -1;
@@ -355,6 +364,7 @@ class ThreeTableEngine implements Table3dEngine {
       lamp.shadow.camera.layers.enable(SHADOW_CASTERS_LAYER);
       this.scene.add(lamp, lamp.target);
     }
+    for (const lamp of this.effectLamps) this.scene.add(lamp);
     this.setQuality(TABLE_3D_QUALITY.standard);
     this.setSkyLight(skyLightAt(0.5));
   }
@@ -379,6 +389,23 @@ class ThreeTableEngine implements Table3dEngine {
     if (laid === JSON.stringify(this.laidLamps)) return;
     this.laidLamps = lights.slice(0, this.lampSlots);
     this.lightLamps();
+    this.changed = true;
+  }
+
+  setEffectLights(lights: readonly Table3dEffectLight[]): void {
+    const laid = JSON.stringify(lights.slice(0, MAX_EFFECT_LIGHTS));
+    if (laid === this.laidEffectLights) return;
+    this.laidEffectLights = laid;
+    const strengths = this.effectLamps.map((lamp, index) => {
+      const light = lights[index];
+      lamp.intensity = light ? light.strength * LIGHT_SCALE : 0;
+      if (!light) return lampColour({ r: 0, g: 0, b: 0 }, 0);
+      lamp.position.set(light.x, light.z, light.y);
+      lamp.distance = Math.max(1, light.reachPx);
+      lamp.color.set(light.color || '#ffffff');
+      return lampColour(lamp.color, light.strength);
+    });
+    this.veil.setEffectLamps(lights, strengths);
     this.changed = true;
   }
 

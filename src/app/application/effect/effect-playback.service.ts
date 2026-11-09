@@ -9,7 +9,7 @@ import { type EffectBlow, effectBlowsOf, heldEffectClock, wallClockOf } from '@a
 import { EffectCast, normalizeEffectCast } from '@axe/domain/effect/effect-cast';
 import { DefeatReaction, defeatReactionOf } from '@axe/domain/effect/effect-defeat';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import { effectFlashColor, EffectShake } from '@axe/domain/effect/effect-shake';
+import { EffectShake } from '@axe/domain/effect/effect-shake';
 import { impactSoundTimes, isEffectFinished, launchSoundTimes } from '@axe/domain/effect/effect-sound-times';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
 
@@ -31,7 +31,7 @@ export function effectElapsedOf(active: ActiveEffectCast, now: number): number {
 }
 
 const MAX_ACTIVE_CASTS = 12;
-/** How long the shake and the flash last. Separate from the effect's own length, and kept short or the screen turns queasy. */
+/** How long the shake lasts. Separate from the effect's own length, and kept short or the screen turns queasy. */
 const SHAKE_MS = 340;
 
 @Injectable({ providedIn: 'root' })
@@ -62,9 +62,6 @@ export class EffectPlaybackService {
   /** How hard the screen shakes. Empty means not at all. */
   private readonly _shake = signal<EffectShake>('');
   readonly shake = this._shake.asReadonly();
-  /** The colour of the flash. Empty means none. */
-  private readonly _flash = signal('');
-  readonly flash = this._flash.asReadonly();
   /**
    * Who is holding a standing effect. One is enough to keep the draw loop running.
    * Fields and ambience come and go separately, so a single flag would let the later one cancel the earlier.
@@ -72,7 +69,6 @@ export class EffectPlaybackService {
   private readonly _persistentSources = signal<ReadonlySet<string>>(new Set());
   private readonly settleShake = debounce(() => {
     this._shake.set('');
-    this._flash.set('');
   }, SHAKE_MS);
 
   /**
@@ -126,7 +122,7 @@ export class EffectPlaybackService {
     this.scheduleImpactSound(preset, blows);
     if (!this.motion.enabled()) return null;
 
-    this.startScreenShake(preset, blows);
+    this.startScreenShake(blows);
 
     const active: ActiveEffectCast = { key: ++this.nextKey, cast, preset, startedAt: clock(), blows };
     this._activeCasts.update((casts) => [...casts, active].slice(-MAX_ACTIVE_CASTS));
@@ -136,18 +132,15 @@ export class EffectPlaybackService {
   }
 
   /**
-   * Shakes the screen as each blow that holds lands, and burns it white with the first.
-   * Two in a row take the stronger and only extend the time; restarting would read as a stall.
-   * Shaking anywhere but the moment of a blow makes the one who fired look struck.
+   * Shakes the screen as each blow that holds lands. Two in a row take the stronger and only extend
+   * the time; restarting would read as a stall. Shaking anywhere but the moment of a blow makes the
+   * one who fired look struck.
    */
-  private startScreenShake(preset: EffectPreset, blows: readonly EffectBlow[]): void {
-    let flash = effectFlashColor(preset);
+  private startScreenShake(blows: readonly EffectBlow[]): void {
     for (const blow of blows) {
-      if (blow.holdMs <= 0 || (blow.shake.length < 1 && flash.length < 1)) continue;
+      if (blow.holdMs <= 0 || blow.shake.length < 1) continue;
       const shake = blow.shake;
-      const burn = flash;
-      flash = '';
-      this.after(wallClockOf(blows, blow.atMs), () => this.shakeNow(shake, burn));
+      this.after(wallClockOf(blows, blow.atMs), () => this.shakeNow(shake));
     }
   }
 
@@ -164,10 +157,8 @@ export class EffectPlaybackService {
     this.impactTimers.add(timer);
   }
 
-  private shakeNow(shake: EffectShake, flash: string): void {
+  private shakeNow(shake: EffectShake): void {
     this._shake.update((current) => (current === 'hard' || shake === 'hard' ? 'hard' : shake || current));
-    if (flash.length > 0) this._flash.set(flash);
-
     this.settleShake();
   }
 

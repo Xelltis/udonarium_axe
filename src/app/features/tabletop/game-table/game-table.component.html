@@ -166,9 +166,6 @@
   <ng-container appReloadNotice />
 }
 <scene-fade-overlay></scene-fade-overlay>
-@if (screenFlash()) {
-  <div class="animate-effect-flash pointer-events-none absolute inset-0 z-10" [style.background]="screenFlash()"></div>
-}
 <!-- The band saying how a move is worked out is drawn over the panels, by the root: see move-plan-band. -->
 <!--
   Said in the same band the planned move speaks from, and only when that band is quiet, so a

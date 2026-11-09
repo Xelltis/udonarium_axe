@@ -454,8 +454,6 @@ export class FirstPersonViewComponent {
 
   protected readonly shake = this.playback.shake;
 
-  protected readonly flash = this.playback.flash;
-
   /**
    * The roof over the ground the board shuts in, each room's raised clear over the tallest piece this
    * seat sees standing in it, so a great piece is not cut off at the top of the walls. A piece the

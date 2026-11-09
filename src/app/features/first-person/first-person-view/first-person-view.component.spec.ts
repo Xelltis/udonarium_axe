@@ -631,7 +631,7 @@ describe('FirstPersonViewComponent', () => {
     expect(hidden.targeted).toBe(false);
   });
 
-  it('shakes and burns the view as it would the table, as the blow lands', () => {
+  it('shakes the view as it would the table, as the blow lands', () => {
     vi.useFakeTimers();
     const preset = new EffectPreset();
     preset.kind = 'nova';
@@ -650,7 +650,6 @@ describe('FirstPersonViewComponent', () => {
     fixture.detectChanges();
 
     expect(element(fixture).querySelector('.animate-effect-shake-hard')).not.toBeNull();
-    expect(element(fixture).querySelector<HTMLElement>('.animate-effect-flash')?.style.background).toContain('#ffd27f');
     ObjectStore.instance.remove(preset);
     vi.useRealTimers();
   });
