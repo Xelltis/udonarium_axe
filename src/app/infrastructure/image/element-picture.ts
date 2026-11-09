@@ -73,8 +73,9 @@ async function fontsSettled(): Promise<void> {
 /**
  * Copies an element and everything in it with every style the page gives each written on it, so
  * the copy looks the same where no style sheet reaches. The pictures it shows are carried in it,
- * and what is drawn on a canvas in it is carried as a picture. Everything is copied seen, as the
- * element may be hidden from the screen while it is pictured.
+ * and what is drawn on a canvas in it is carried as a picture, each read before it is drawn: WebKit
+ * otherwise reads a large one only as the copy is first drawn, and leaves it out of that drawing.
+ * Everything is copied seen, as the element may be hidden from the screen while it is pictured.
  */
 async function styledCopyOf(element: Element, families: Set<string>): Promise<Element> {
   const copy =
@@ -106,6 +107,10 @@ async function styledCopyOf(element: Element, families: Set<string>): Promise<El
     const data = await dataUrlOf(copy.src);
     if (data) copy.src = data;
   }
+  if (copy instanceof HTMLImageElement) {
+    copy.setAttribute('decoding', 'sync');
+    copy.removeAttribute('loading');
+  }
   for (const child of Array.from(element.childNodes)) {
     if (child instanceof Element) copy.appendChild(await styledCopyOf(child, families));
     else if (child.nodeType === Node.TEXT_NODE) copy.appendChild(child.cloneNode());
@@ -116,6 +121,8 @@ async function styledCopyOf(element: Element, families: Set<string>): Promise<El
 /**
  * A picture of an element as the page lays it out, flat, drawn finer than the page draws it: of its
  * own box, or of the region of it given, which may reach past its box to take in what overflows it.
+ * The copy is laid out at the page's size and drawn finer onto the canvas, as WebKit lays the inside
+ * of a `foreignObject` out at its own size whatever the `viewBox` scales it to.
  * The element is drawn as it would be with nothing turning or hiding it: its own transform and
  * clearness are left out, and it does not scroll. Null where it cannot be drawn, as for a region of
  * no size.
@@ -138,8 +145,8 @@ export async function pictureOfElement(element: HTMLElement, region?: PictureReg
   copy.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
   const fonts = (await Promise.all([...families].map(fontRuleOf))).join('');
   const markup =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width * DETAIL}" height="${height * DETAIL}" ` +
-    `viewBox="0 0 ${width} ${height}"><foreignObject width="${width}" height="${height}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+    `<foreignObject width="${width}" height="${height}">` +
     (fonts ? `<style xmlns="http://www.w3.org/1999/xhtml">${fonts}</style>` : '') +
     `<div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;left:${-left}px;top:${-top}px">` +
     new XMLSerializer().serializeToString(copy) +
