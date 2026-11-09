@@ -58,6 +58,7 @@
       <button
         class="absolute -bottom-5.25 left-2 z-3 size-10.5 rounded-full p-1"
         data-testid="overview-white-board-zoom"
+        data-tooltip-control
         [title]="'feature.inventory.overview.enlarge' | transloco"
         [attr.aria-label]="'feature.inventory.overview.enlarge' | transloco"
         (click)="chanageImageView(true)"
@@ -93,6 +94,8 @@
         }
         <button
           class="absolute -bottom-5.25 left-2 z-3 size-10.5 rounded-full p-1"
+          data-testid="overview-card-zoom"
+          data-tooltip-control
           [title]="'feature.inventory.overview.enlarge' | transloco"
           [attr.aria-label]="'feature.inventory.overview.enlarge' | transloco"
           (click)="chanageImageView(true)"
@@ -648,6 +651,8 @@
 <ng-template #imageView>
   <div
     class="text-ui-text animate-fade-in absolute inset-0 z-9900 bg-[color-mix(in_srgb,var(--ui-panel-bg)_80%,transparent)]"
+    data-tooltip-control
+    data-testid="enlarged-view"
     (click)="chanageImageView(false)"
   >
     <div class="pointer-events-none absolute top-4 right-4"><i class="material-icons text-[36px]!">close</i></div>
