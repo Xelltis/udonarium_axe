@@ -4,10 +4,10 @@ import { refuseLocalStorage } from '@axe/testing/refused-storage';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 describe('parseWidgetVisibility', () => {
-  it('shows only the mini player with nothing saved', () => {
+  it('shows the mini player and the game clock with nothing saved', () => {
     expect(parseWidgetVisibility(null)).toEqual({
       clock: false,
-      gameClock: false,
+      gameClock: true,
       compass: false,
       miniPlayer: true,
       connectionQuality: false,
@@ -21,7 +21,9 @@ describe('parseWidgetVisibility', () => {
 
   it('reads the saved state', () => {
     expect(
-      parseWidgetVisibility('{"clock":true,"miniPlayer":false,"connectionQuality":true,"recording":false}')
+      parseWidgetVisibility(
+        '{"clock":true,"gameClock":false,"miniPlayer":false,"connectionQuality":true,"recording":false,"review":1}'
+      )
     ).toEqual({
       clock: true,
       gameClock: false,
@@ -39,7 +41,7 @@ describe('parseWidgetVisibility', () => {
   it('falls back to the defaults for a broken value', () => {
     expect(parseWidgetVisibility('{')).toEqual({
       clock: false,
-      gameClock: false,
+      gameClock: true,
       compass: false,
       miniPlayer: true,
       connectionQuality: false,
@@ -51,7 +53,7 @@ describe('parseWidgetVisibility', () => {
     });
     expect(parseWidgetVisibility('null')).toEqual({
       clock: false,
-      gameClock: false,
+      gameClock: true,
       compass: false,
       miniPlayer: true,
       connectionQuality: false,
@@ -72,10 +74,15 @@ describe('parseWidgetVisibility', () => {
     });
   });
 
+  it('shows the game clock once to a seat saved before it was shown from the start, which may hide it again', () => {
+    expect(parseWidgetVisibility('{"clock":true,"gameClock":false}')).toMatchObject({ clock: true, gameClock: true });
+    expect(parseWidgetVisibility('{"gameClock":false,"review":1}')).toMatchObject({ gameClock: false });
+  });
+
   it('fills in only the missing entries', () => {
-    expect(parseWidgetVisibility('{"clock":true}')).toEqual({
+    expect(parseWidgetVisibility('{"clock":true,"review":1}')).toEqual({
       clock: true,
-      gameClock: false,
+      gameClock: true,
       compass: false,
       miniPlayer: true,
       connectionQuality: false,
@@ -109,6 +116,15 @@ describe('WidgetVisibilityService', () => {
     expect(service.hotbar()).toBe(false);
     expect(service.plToolbar()).toBe(true);
     expect(service.gmToolbar()).toBe(true);
+  });
+
+  it('shows the game clock from the start, and keeps it hidden once the seat hides it', () => {
+    expect(service.gameClock()).toBe(true);
+
+    service.toggleGameClock();
+    TestBed.tick();
+
+    expect(parseWidgetVisibility(localStorage.getItem('ui-widgets')).gameClock).toBe(false);
   });
 
   it('toggles each one independently', () => {
