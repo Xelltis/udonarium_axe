@@ -27,13 +27,22 @@ const withoutSampleModels = {
  */
 const playsAlone = { name: 'ui-local-mode', value: '1' };
 
+/**
+ * A browser whose seat hid the game clock widget, shown from the start, which stands over the table
+ * and the panels the specs press on and is the subject of none of them.
+ */
+const hidesGameClock = { name: 'ui-widgets', value: '{"gameClock":false,"review":1}' };
+
 /** A browser set to play alone and nothing else. */
-const alone = { cookies: [], origins: [{ origin: 'http://localhost:4300', localStorage: [playsAlone] }] };
+const alone = {
+  cookies: [],
+  origins: [{ origin: 'http://localhost:4300', localStorage: [playsAlone, hidesGameClock] }],
+};
 
 /** A browser that draws the table on a canvas as a seat does by default, with the sample room's pieces drawn as their pictures. */
 const drawsOnCanvasPictures = {
   cookies: [withoutSampleModels],
-  origins: [{ origin: 'http://localhost:4300', localStorage: [playsAlone] }],
+  origins: [{ origin: 'http://localhost:4300', localStorage: [playsAlone, hidesGameClock] }],
 };
 
 /**
@@ -43,7 +52,10 @@ const drawsOnCanvasPictures = {
 const drawsNothing = {
   cookies: [withoutSampleModels],
   origins: [
-    { origin: 'http://localhost:4300', localStorage: [playsAlone, { name: 'axe.table.renderer', value: 'none' }] },
+    {
+      origin: 'http://localhost:4300',
+      localStorage: [playsAlone, hidesGameClock, { name: 'axe.table.renderer', value: 'none' }],
+    },
   ],
 };
 
@@ -51,7 +63,10 @@ const drawsNothing = {
 const drawsOnCanvas = {
   cookies: [],
   origins: [
-    { origin: 'http://localhost:4300', localStorage: [playsAlone, { name: 'axe.table.renderer', value: 'three' }] },
+    {
+      origin: 'http://localhost:4300',
+      localStorage: [playsAlone, hidesGameClock, { name: 'axe.table.renderer', value: 'three' }],
+    },
   ],
 };
 
@@ -64,7 +79,7 @@ const drawsThroughWebGl2 = {
   origins: [
     {
       origin: 'http://localhost:4300',
-      localStorage: [playsAlone, { name: 'axe.table.renderer', value: 'three-webgl2' }],
+      localStorage: [playsAlone, hidesGameClock, { name: 'axe.table.renderer', value: 'three-webgl2' }],
     },
   ],
 };

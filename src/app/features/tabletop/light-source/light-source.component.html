@@ -42,14 +42,15 @@
 </div>
 <div class="pointer-events-none fixed top-0 left-0 opacity-0">
   @if (skinUrl().length > 0) {
-    <div
-      class="bg-contain bg-center bg-no-repeat"
+    <img
+      class="object-contain object-center"
       #mark
       [class.opacity-40]="!enabled()"
       [style.width.px]="gridSize"
       [style.height.px]="gridSize"
-      [style.background-image]="'url(' + skinUrl() + ')' | safe: 'style'"
-    ></div>
+      [src]="skinUrl() | safe: 'resourceUrl'"
+      alt=""
+    />
   } @else {
     <div
       class="flex size-9 items-center justify-center rounded-full border border-white/40 bg-black/40"

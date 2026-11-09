@@ -32,7 +32,9 @@ import {
   mergedFaces,
   wallGeometry,
 } from '@axe/infrastructure/table-3d/face-geometry';
+import { type FaceLook, faceMaterialOf, lookOf } from '@axe/infrastructure/table-3d/face-materials';
 import { FloorCanvasLayer } from '@axe/infrastructure/table-3d/floor-canvas-layer';
+import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
 import { ModelLayer } from '@axe/infrastructure/table-3d/model-layer';
 import { SkyLayer } from '@axe/infrastructure/table-3d/sky-layer';
@@ -115,16 +117,6 @@ const MOST_NEAR_PX = 10000;
 /** How much white the board is veiled with while nothing is laid under it, as the page veils it. */
 const BOARD_VEIL = 0.15;
 
-/** What a face wears: the picture, how it is laid, and whether it is glass, or else the colour it is painted. */
-type FaceLook = { pictureUrl: string; tilePx: number; glass: boolean; colour?: string; laidOver?: boolean };
-
-/** The key faces drawn with one material share. */
-function lookOf(face: FaceLook): string {
-  if (face.laidOver) return `over|${face.pictureUrl}`;
-  if (!face.glass && !face.pictureUrl && face.colour) return `colour|${face.colour}`;
-  return face.glass || !face.pictureUrl ? 'glass' : `${face.pictureUrl}|${face.tilePx > 0}`;
-}
-
 /**
  * Where the board and the blocks come in the order things are drawn: before everything standing on
  * them, so the soft edge of a picture standing at the far side of the board is laid over the board
@@ -133,15 +125,8 @@ function lookOf(face: FaceLook): string {
 const BOARD_ORDER = -2;
 const BLOCKS_ORDER = -1;
 
-/** Draws a face laid flat on another in front of it, as the grid on the board, past the depth's rounding. */
-const PULLED_FORWARD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 };
-
 /** How far above the board the grid is laid, as the page lifts it. */
 const GRID_LIFT_PX = 0.15;
-
-/** How a glass face is drawn: a pale blue, mostly clear. */
-const GLASS_COLOUR = 0xcfe6ff;
-const GLASS_OPACITY = 0.25;
 
 /**
  * How much stronger the lights are made than the shares of the sky's light they give: a surface the
@@ -983,7 +968,7 @@ class ThreeTableEngine implements Table3dEngine {
       opacity: grid.opacity,
       depthWrite: false,
       side: DoubleSide,
-      ...PULLED_FORWARD,
+      ...LAID_OVER_FACES,
     });
     this.veil.cover(material);
     this.grid = new Mesh(geometry, material);
@@ -1074,7 +1059,7 @@ class ThreeTableEngine implements Table3dEngine {
       opacity: grid.opacity,
       depthWrite: false,
       side: DoubleSide,
-      ...PULLED_FORWARD,
+      ...LAID_OVER_FACES,
     });
     this.veil.cover(material);
     this.topsGrid = new Mesh(griddedTops(this.gridded, grid.box, GRID_LIFT_PX), material);
@@ -1084,35 +1069,11 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   private faceMaterial(face: FaceLook): MeshBasicNodeMaterial | MeshLambertNodeMaterial {
-    if (face.laidOver) {
-      const over = new MeshBasicNodeMaterial({
-        map: this.sharedPicture(face.pictureUrl, false),
-        transparent: true,
-        depthWrite: false,
-        side: DoubleSide,
-        ...PULLED_FORWARD,
-      });
-      this.veil.cover(over);
-      return over;
-    }
-    if (!face.glass && !face.pictureUrl && face.colour) {
-      const painted = new MeshLambertNodeMaterial({ color: new Color(face.colour), side: DoubleSide });
-      this.veil.cover(painted, 'lit');
-      return painted;
-    }
-    const material =
-      face.glass || !face.pictureUrl
-        ? new MeshBasicNodeMaterial({
-            color: GLASS_COLOUR,
-            transparent: true,
-            opacity: GLASS_OPACITY,
-            depthWrite: false,
-            side: DoubleSide,
-          })
-        : new MeshLambertNodeMaterial({ side: DoubleSide, transparent: true, alphaTest: 0.01 });
-    if (!face.glass && face.pictureUrl) material.map = this.sharedPicture(face.pictureUrl, face.tilePx > 0);
-    this.veil.cover(material, face.glass || !face.pictureUrl ? 'unlit' : 'lit');
-    return material;
+    return faceMaterialOf(
+      face,
+      (url, tiled) => this.sharedPicture(url, tiled),
+      (material, taking) => this.veil.cover(material, taking)
+    );
   }
 
   /** A picture shared by every face that wears it the same way, tiled or stretched. */

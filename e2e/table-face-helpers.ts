@@ -71,9 +71,15 @@ export function faceOf(piece: Locator): Promise<string | null> {
 /**
  * Draws the camera back from the table, so a board or a wall standing behind it is on the screen
  * whole, above the pieces on the table rather than over them, and waits for the camera to come to rest.
+ *
+ * A piece's detail comes up where the pointer rests on a piece, as where a panel closed over one,
+ * and would take the wheel turned over it; the pointer is taken to the edge of the table until no
+ * detail is up, and the wheel is turned as soon as it is over the middle again.
  */
 export async function standBack(page: Page) {
   const layer = (await page.locator('#app-table-layer').boundingBox())!;
+  await page.mouse.move(layer.x + 5, layer.y + layer.height / 2);
+  await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
   await page.mouse.move(layer.x + layer.width / 2, layer.y + layer.height / 2);
   const camera = () =>
     page.evaluate(() =>

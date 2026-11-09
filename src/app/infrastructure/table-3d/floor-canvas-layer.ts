@@ -1,6 +1,7 @@
 import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { canvasOfPicture, retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
 import { gridOverGround } from '@axe/infrastructure/table-3d/face-geometry';
+import { CANVASES_OVER_ALL } from '@axe/infrastructure/table-3d/floor-order';
 import type { Table3dFloorCanvas } from '@axe/infrastructure/table-3d/table-3d-port';
 import {
   CanvasTexture,
@@ -69,9 +70,7 @@ export class FloorCanvasLayer {
           transparent: true,
           depthWrite: false,
           side: DoubleSide,
-          polygonOffset: true,
-          polygonOffsetFactor: -1,
-          polygonOffsetUnits: -8,
+          ...CANVASES_OVER_ALL,
         });
         laid = { mesh: new Mesh(this.square, material), picture, revision: -1, draped: '', floor };
         laid.mesh.renderOrder = FLOOR_CANVAS_ORDER;

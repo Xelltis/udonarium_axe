@@ -1,5 +1,6 @@
 import { backgroundScrollAnimation, backgroundTileSize } from '@axe/domain/tabletop/background-scroll';
 import type { TableWorldLayer } from '@axe/domain/tabletop/world/table-layers';
+import { LAYERS_OVER_BOARD } from '@axe/infrastructure/table-3d/floor-order';
 import { float, positionWorld, texture, uniform, vec2, vec4 } from 'three/tsl';
 import {
   type BufferGeometry,
@@ -20,9 +21,6 @@ import {
 const UNDER_ORDER = -3;
 const OVER_ORDER = 1.5;
 const ORDER_STEP = 0.01;
-
-/** Draws a layer laid over the board in front of it, as the grid is, past the depth's rounding. */
-const PULLED_FORWARD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 };
 
 /** How wide and deep the board is that a layer's pictures are laid over, in table pixels. */
 export interface LayerBoard {
@@ -88,7 +86,7 @@ export class BoardLayers {
         transparent: true,
         depthWrite: false,
         side: DoubleSide,
-        ...(layer.over ? PULLED_FORWARD : {}),
+        ...(layer.over ? LAYERS_OVER_BOARD : {}),
       });
       const across = positionWorld.x.div(tile.x).add(phase.x);
       const down = positionWorld.z.div(tile.y).add(phase.y);
