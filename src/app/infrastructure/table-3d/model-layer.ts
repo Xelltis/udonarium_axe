@@ -1,7 +1,7 @@
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
 import { UnusedSince } from '@axe/infrastructure/table-3d/unused-since';
-import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
+import { disposeObject, forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
 import { picturesOf, releaseReadPictures } from '@axe/infrastructure/three-kit/read-pictures';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
@@ -213,7 +213,10 @@ export class ModelLayer {
   }
 
   dispose(): void {
-    for (const stood of this.stood.values()) this.group.remove(stood.root);
+    for (const stood of this.stood.values()) {
+      this.group.remove(stood.root);
+      forgetDrawn(stood.root);
+    }
     this.stood.clear();
     for (const herd of this.herds.values()) this.unherd(herd);
     this.herds.clear();
@@ -234,6 +237,7 @@ export class ModelLayer {
     for (const [owner, stood] of this.stood) {
       if (wanted.get(owner)?.url === stood.url) continue;
       this.group.remove(stood.root);
+      forgetDrawn(stood.root);
       stood.mixer.stopAllAction();
       this.stood.delete(owner);
     }

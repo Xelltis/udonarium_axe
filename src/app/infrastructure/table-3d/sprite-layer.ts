@@ -5,6 +5,7 @@ import {
   type TableWorldLook,
   type TableWorldSprite,
 } from '@axe/domain/tabletop/world/table-sprites';
+import { forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
   CanvasTexture,
@@ -137,6 +138,7 @@ export class SpriteLayer {
       let drawn = this.drawn.get(sprite.id);
       if (drawn && drawn.look !== look) {
         this.group.remove(drawn.mesh);
+        forgetDrawn(drawn.mesh);
         drawn = undefined;
       }
       if (!drawn) {
@@ -160,6 +162,7 @@ export class SpriteLayer {
     for (const [id, drawn] of this.drawn) {
       if (wanted.has(id)) continue;
       this.group.remove(drawn.mesh);
+      forgetDrawn(drawn.mesh);
       this.drawn.delete(id);
     }
     this.layCasters(sprites);
@@ -196,6 +199,7 @@ export class SpriteLayer {
       let caster = this.casters.get(sprite.id);
       if (caster && caster.look !== look) {
         this.group.remove(caster.group);
+        forgetDrawn(caster.group);
         caster = undefined;
       }
       if (!caster) {
@@ -218,6 +222,7 @@ export class SpriteLayer {
     for (const [id, caster] of this.casters) {
       if (wanted.has(id)) continue;
       this.group.remove(caster.group);
+      forgetDrawn(caster.group);
       this.casters.delete(id);
     }
     const worn = new Set([...this.casters.values()].map((caster) => caster.look));

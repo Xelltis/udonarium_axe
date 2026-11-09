@@ -59,7 +59,7 @@ import { TablePost } from '@axe/infrastructure/table-3d/table-post';
 import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
 import { WeatherLayer } from '@axe/infrastructure/table-3d/weather-layer';
-import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
+import { disposeObject, forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import {
   attribute,
   float,
@@ -995,6 +995,7 @@ class ThreeTableEngine implements Table3dEngine {
     const old = this.chunks.get(key);
     if (old) {
       this.facesRoot.remove(old.meshes);
+      forgetDrawn(old.meshes);
       old.meshes.traverse((object) => (object as Mesh).geometry?.dispose());
       this.chunks.delete(key);
     }
