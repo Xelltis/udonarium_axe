@@ -74,16 +74,22 @@
   >
     <div class="pointer-events-none size-full" [appSelectable]="textNote()">
       <div
-        class="bg-ui-panel border-ui-border-panel text-ui-text rounded-b-ui-sm shadow-ui-md pointer-events-auto box-border flex flex-col overflow-hidden border border-solid bg-size-[100%_100%] bg-no-repeat"
+        class="bg-ui-panel border-ui-border-panel text-ui-text rounded-b-ui-sm shadow-ui-md pointer-events-auto relative isolate box-border flex flex-col overflow-hidden border border-solid"
         #panel
         data-part="panel"
         [class.opacity-0]="!isEditing()"
         [appHudPlace]="{ owner: id, part: 'panel', place: 'face' }"
-        [style.background-image]="'url(' + imageFile().url + ')' | safe: 'style'"
         [style.width.px]="width * gridSize"
         [style.min-height.px]="height * gridSize"
         [style.max-height.px]="limitHeight() ? height * gridSize : null"
       >
+        @if (imageFile().url) {
+          <img
+            class="pointer-events-none absolute inset-0 -z-10 size-full object-fill"
+            [src]="imageFile().url | safe: 'resourceUrl'"
+            alt=""
+          />
+        }
         <ng-container [ngTemplateOutlet]="panelContent"></ng-container>
       </div>
     </div>

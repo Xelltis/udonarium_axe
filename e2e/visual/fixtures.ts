@@ -41,7 +41,7 @@ export async function prepare(page: Page) {
       }) as `${string}-${string}-${string}-${string}-${string}`;
     localStorage.setItem('ui-theme', 'light');
     localStorage.setItem('ui-motion', 'on');
-    localStorage.setItem('ui-widgets', JSON.stringify({}));
+    localStorage.setItem('ui-widgets', JSON.stringify({ gameClock: false, review: 1 }));
     localStorage.removeItem('ui-widget-layout');
   });
   await waitAppReady(page);

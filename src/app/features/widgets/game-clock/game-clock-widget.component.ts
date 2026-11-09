@@ -33,6 +33,9 @@ let skiesDrawn = 0;
 /** How long the sky takes to move on to a new hour. */
 const SKY_MOVE_MS = 700;
 
+/** How far down the screen the widget stands until it is dragged, under the player at the top right. */
+export const GAME_CLOCK_TOP_PX = 136;
+
 /**
  * The time the room keeps in its story, as a widget each seat shows or hides for itself: the day
  * and the hour of it written over a sky of that hour, the sun or the moon crossing it, which the
@@ -50,12 +53,13 @@ export class GameClockWidgetComponent {
 
   protected readonly widgetName = WIDGET_GAME_CLOCK;
   /**
-   * Where it stands until it is dragged: in the middle at the top, under the toolbars that stand
-   * there, clear of the menu down the left and the clock and the player on the right.
+   * Where it stands until it is dragged: on the right, under the player that stands at the top
+   * there. Shown from the start, it keeps clear of the middle of the screen, where the panels open
+   * and would lie under it.
    */
   protected readonly fallback = (el: HTMLElement) => ({
-    left: Math.max(8, Math.round((window.innerWidth - el.offsetWidth) / 2)),
-    top: 64,
+    left: Math.max(8, window.innerWidth - el.offsetWidth - 8),
+    top: GAME_CLOCK_TOP_PX,
   });
 
   protected readonly steps = GAME_CLOCK_STEPS;

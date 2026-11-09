@@ -7,7 +7,11 @@ import { pictureOfElement, PictureRegion } from '@axe/infrastructure/image/eleme
 export interface PictureForCanvas {
   /** The piece the picture is of. */
   readonly identifier: () => string;
-  /** The part of the page to picture, once it is there. */
+  /**
+   * The part of the page to picture, once it is there. The pictures it shows are images, not
+   * backgrounds: WebKit draws a large background image only once it has read it, after the picture
+   * of the part has been taken.
+   */
   readonly element: () => HTMLElement | undefined;
   /** Whether the canvas is to draw the piece from a picture now; while not, the canvas has none of it. */
   readonly pictured: () => boolean;

@@ -204,6 +204,7 @@ export default defineConfig({
       '/start/': [
         { text: 'はじめに', link: '/start/' },
         { text: 'Axeでできること', link: '/start/features' },
+        { text: '推奨環境', link: '/start/requirements' },
         { text: '招待リンクで参加する', link: '/start/join' },
         { text: 'はじめてのセッション（GM）', link: '/start/first-session' },
         { text: '用語集', link: '/start/glossary' },
@@ -350,6 +351,7 @@ export default defineConfig({
           text: 'リリースノート',
           items: [
             { text: '一覧', link: '/release-notes/' },
+            { text: 'v1.77.2', link: '/release-notes/v1.77.2' },
             { text: 'v1.77.1', link: '/release-notes/v1.77.1' },
             { text: 'v1.77.0', link: '/release-notes/v1.77.0' },
             { text: 'v1.76.1', link: '/release-notes/v1.76.1' },

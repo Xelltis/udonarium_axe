@@ -8,10 +8,11 @@
   @if (imageUrl().length > 0) {
     <!-- Whatever is drawn on the board is not the board: it hangs at its own weight over a
          face that may be faded to nothing, so a plan can float in the air over the table. -->
-    <div
-      class="pointer-events-none absolute inset-0 bg-contain bg-center bg-no-repeat backface-visible"
-      [style.background-image]="'url(' + imageUrl() + ')' | safe: 'style'"
-    ></div>
+    <img
+      class="pointer-events-none absolute inset-0 size-full object-contain object-center backface-visible"
+      [src]="imageUrl() | safe: 'resourceUrl'"
+      alt=""
+    />
   }
 </ng-template>
 <ng-template #livePictureLayer>

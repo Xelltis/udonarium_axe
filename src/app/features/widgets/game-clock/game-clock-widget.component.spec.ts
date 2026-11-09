@@ -6,7 +6,10 @@ import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { GameClockWidgetComponent } from '@axe/features/widgets/game-clock/game-clock-widget.component';
+import {
+  GAME_CLOCK_TOP_PX,
+  GameClockWidgetComponent,
+} from '@axe/features/widgets/game-clock/game-clock-widget.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('GameClockWidgetComponent', () => {
@@ -35,6 +38,15 @@ describe('GameClockWidgetComponent', () => {
     Config.instance.gameClock = DEFAULT_GAME_CLOCK;
     Config.instance.gameClockSkies = [];
     vi.restoreAllMocks();
+  });
+
+  it('stands on the right under the player at the top until it is dragged, clear of where the panels open', () => {
+    const root = open(PeerRole.Player);
+    TestBed.tick();
+
+    const widget = root.querySelector<HTMLElement>('[data-testid="game-clock"]')!;
+    expect(widget.style.top).toBe(`${GAME_CLOCK_TOP_PX}px`);
+    expect(widget.style.left).toBe(`${Math.max(8, window.innerWidth - widget.offsetWidth - 8)}px`);
   });
 
   it('shows the day and the part of it to everyone, and the means to move it to the master alone', () => {

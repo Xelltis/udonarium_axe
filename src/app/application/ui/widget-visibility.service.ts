@@ -17,7 +17,7 @@ export interface WidgetVisibility {
 
 const DEFAULT_VISIBILITY: WidgetVisibility = {
   clock: false,
-  gameClock: false,
+  gameClock: true,
   compass: false,
   miniPlayer: true,
   connectionQuality: false,
@@ -29,16 +29,26 @@ const DEFAULT_VISIBILITY: WidgetVisibility = {
 };
 
 /**
+ * Which review of the defaults the widgets shown are saved under. A state saved under an earlier one
+ * takes what the reviews since changed, once: from review 1 the game clock is shown from the start,
+ * as the sky over the table follows it, and a seat saved before then is shown it once, which it may
+ * hide again.
+ */
+const DEFAULTS_REVIEW = 1;
+
+/**
  * Reads which widgets are shown from storage text, taking the default for any field missing or
- * mistyped and for text that cannot be read.
+ * mistyped and for text that cannot be read, and what the reviews of the defaults since it was saved
+ * changed.
  */
 export function parseWidgetVisibility(raw: string | null): WidgetVisibility {
   if (!raw) return DEFAULT_VISIBILITY;
   try {
-    const parsed = JSON.parse(raw) as Partial<WidgetVisibility>;
+    const parsed = JSON.parse(raw) as Partial<WidgetVisibility> & { readonly review?: unknown };
+    const review = typeof parsed.review === 'number' ? parsed.review : 0;
     return {
       clock: typeof parsed.clock === 'boolean' ? parsed.clock : DEFAULT_VISIBILITY.clock,
-      gameClock: typeof parsed.gameClock === 'boolean' ? parsed.gameClock : DEFAULT_VISIBILITY.gameClock,
+      gameClock: review >= 1 && typeof parsed.gameClock === 'boolean' ? parsed.gameClock : DEFAULT_VISIBILITY.gameClock,
       compass: typeof parsed.compass === 'boolean' ? parsed.compass : DEFAULT_VISIBILITY.compass,
       miniPlayer: typeof parsed.miniPlayer === 'boolean' ? parsed.miniPlayer : DEFAULT_VISIBILITY.miniPlayer,
       connectionQuality:
@@ -83,7 +93,7 @@ export class WidgetVisibilityService {
         plToolbar: this.plToolbar(),
         gmToolbar: this.gmToolbar(),
       };
-      writeLocal(STORAGE_KEYS.widgets, JSON.stringify(state));
+      writeLocal(STORAGE_KEYS.widgets, JSON.stringify({ ...state, review: DEFAULTS_REVIEW }));
     });
   }
 

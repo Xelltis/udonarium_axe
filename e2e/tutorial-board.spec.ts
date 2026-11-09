@@ -40,7 +40,7 @@ test.describe('the tutorial the first table opens with', () => {
     page,
   }) => {
     await expect(page.locator('white-board [data-surface^="tutorialBoard"]')).toHaveCount(1, { timeout: 20000 });
-    await expect(page.locator('white-board [data-part="face"] [style*="background-image"]')).toHaveCount(1, {
+    await expect(page.locator('white-board [data-part="face"] img[src^="blob:"]')).toHaveCount(1, {
       timeout: 20000,
     });
     await expect(page.locator('text-note[data-object-id="tutorialNote"]')).toContainText('クリックすると', {

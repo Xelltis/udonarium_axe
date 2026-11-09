@@ -61,4 +61,40 @@ test.describe('a piece’s overview opened on a phone', () => {
     await expect(page.locator('overview-panel input[name="data-current-value"]').first()).not.toHaveValue('5');
     await expect(slider).toBeVisible();
   });
+
+  test('enlarges a white board from the overview a tap brings up, and closes it at a tap', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
+    const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
+    if (await closeStartupPanel.count()) await closeStartupPanel.tap();
+
+    // The welcome board at the back of the table, tapped with touches alone as the piece above is.
+    const face = page.locator('white-board [data-surface]').first();
+    await expect(face).toBeAttached({ timeout: 20000 });
+    const box = (await face.boundingBox())!;
+    await face.evaluate(
+      (target, point) => {
+        const touch = { identifier: 1, target, clientX: point.x, clientY: point.y, pageX: point.x, pageY: point.y };
+        const send = (type: string, touches: object[]) => {
+          const event = new Event(type, { bubbles: true, cancelable: true, composed: true });
+          Object.defineProperties(event, { touches: { value: touches }, changedTouches: { value: [touch] } });
+          target.dispatchEvent(event);
+        };
+        send('touchstart', [touch]);
+        send('touchend', []);
+      },
+      { x: Math.max(box.x, 0) + 40, y: Math.max(box.y, 0) + 40 }
+    );
+    const overview = page.getByTestId('overview-white-board');
+    await expect(overview).toBeVisible({ timeout: 5000 });
+
+    const zoom = (await overview.getByTestId('overview-white-board-zoom').boundingBox())!;
+    await page.touchscreen.tap(zoom.x + zoom.width / 2, zoom.y + zoom.height / 2);
+    const enlarged = page.getByTestId('enlarged-white-board');
+    await expect(enlarged).toBeVisible();
+
+    const view = (await page.getByTestId('enlarged-view').boundingBox())!;
+    await page.touchscreen.tap(view.x + view.width / 2, view.y + view.height / 2);
+    await expect(enlarged).toHaveCount(0);
+  });
 });
