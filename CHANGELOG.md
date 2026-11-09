@@ -1,3 +1,21 @@
+## [1.77.1](https://github.com/Xelltis/udonarium_axe/compare/v1.77.0...v1.77.1) (2026-11-09)
+
+### 🐛 Bug Fixes
+
+* **media:** rename a tag's pill in place rather than make the pills again ([0fd8b5d](https://github.com/Xelltis/udonarium_axe/commit/0fd8b5d6c541ced5b0f7715a2622c0e8397dc4fb))
+* **tabletop:** bring a picture read larger than the graphics card takes down to it ([71e2771](https://github.com/Xelltis/udonarium_axe/commit/71e2771302d2e3bc98192d935274ec6bc29d7997))
+* **tabletop:** draw a board longer than the graphics card takes a picture ([8a9e023](https://github.com/Xelltis/udonarium_axe/commit/8a9e023c4b25df57770c755478dcc6f2834131d6))
+* **tabletop:** draw the grid again at a table's new size ([9985cd3](https://github.com/Xelltis/udonarium_axe/commit/9985cd308bfb915e456241dcbde6fa334ba9a948))
+* **tabletop:** draw the grid of a board of large cells, and its lines a pixel wide ([7814b83](https://github.com/Xelltis/udonarium_axe/commit/7814b83d176a36daf51bb2b33802543c97734fda))
+* **tabletop:** hold the overlays of a board of large cells to a size the card can take ([33ea06f](https://github.com/Xelltis/udonarium_axe/commit/33ea06fbb6d12b8fc69a0d668a9243e9ca9229d5))
+* **tabletop:** let the camera back far enough to take in a board of large cells whole ([ff8120f](https://github.com/Xelltis/udonarium_axe/commit/ff8120f420908937cd3d2ba85e51751f66556286))
+* **tabletop:** read the shading of corners from the scene's normals as they were drawn ([ff35e9f](https://github.com/Xelltis/udonarium_axe/commit/ff35e9fb1b5f87ef174cefd9cdad63242d3ca34c))
+* **tabletop:** shade no corners at the best quality, which darkened a large board ([886fc2d](https://github.com/Xelltis/udonarium_axe/commit/886fc2d785dc7d404aa86161329d7a6b528de7d3))
+
+### 📝 Documentation
+
+* **release-notes:** write the notes for v1.77.1 ([e09b0d9](https://github.com/Xelltis/udonarium_axe/commit/e09b0d9ea113add3af5dc8d1308b3a5431934bdc))
+
 ## [1.77.0](https://github.com/Xelltis/udonarium_axe/compare/v1.76.1...v1.77.0) (2026-11-08)
 
 ### ✨ Features
