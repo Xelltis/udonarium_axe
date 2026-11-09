@@ -13,6 +13,10 @@ describe('the qualities the table is drawn at', () => {
     expect(table3dQualityOf('auto', false)).toBe('standard');
   });
 
+  it('shades no corners at any quality, as the shading darkened a flat board from a distance on', () => {
+    for (const plan of Object.values(TABLE_3D_QUALITY)) expect(plan.ambientOcclusion).toBe(false);
+  });
+
   it('casts fewer shadows the lighter it draws', () => {
     expect(TABLE_3D_QUALITY.high.shadowedLights).toBeGreaterThan(TABLE_3D_QUALITY.standard.shadowedLights);
     expect(TABLE_3D_QUALITY.light.shadowedLights).toBe(0);
