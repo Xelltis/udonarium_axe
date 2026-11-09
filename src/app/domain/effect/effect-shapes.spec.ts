@@ -7,6 +7,7 @@ import {
   crackSvg,
   crescentSvg,
   impactStarSvg,
+  inkOf,
   kindGlyphSvg,
   magicCircleSvg,
   paintableColor,
@@ -188,5 +189,16 @@ describe('the shapes of the effects', () => {
       expect(perfCounters.drain().get(PERF_SVG_BUILD)).toBe(1);
       perfCounters.enabled = false;
     });
+  });
+});
+
+describe('inkOf()', () => {
+  it('takes a colour most of the way to black, for a line of it to be drawn over', () => {
+    expect(inkOf('#ffe98a')).toBe('#474127');
+    expect(inkOf('not a colour')).toBe('#1a1410');
+  });
+
+  it('lays every ring over the ink of its colour, so a pale ring reads on pale ground', () => {
+    expect(ringSvg({ core: '#ffe98a', edge: '#ffe98a' })).toContain('stroke="#474127"');
   });
 });

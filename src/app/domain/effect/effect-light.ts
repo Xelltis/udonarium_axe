@@ -44,6 +44,7 @@ const GLOWS: Partial<Record<EffectKind, number>> = {
   raybeam: 0.7,
   breath: 0.55,
   arc: 0.5,
+  curse: 0.3,
 };
 /** The looks whose glow wavers as a fire does. */
 const FLICKERING: ReadonlySet<EffectKind> = new Set<EffectKind>(['flame', 'mushroom', 'breath']);

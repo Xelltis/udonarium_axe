@@ -61,7 +61,7 @@ describe('effectLightsOf()', () => {
   });
 
   it('throws no light for what neither strikes nor glows', () => {
-    expect(strengthAt(makePreset('curse'), 500)).toBe(0);
+    expect(strengthAt(makePreset('miasma'), 500)).toBe(0);
   });
 
   it('hangs the light over the target, in the colour of the effect, high enough to light the ground round it', () => {

@@ -1,3 +1,4 @@
+import { hexChannels } from '@axe/core/util/hex-color';
 import { PERF_SVG_BUILD, perfCounters } from '@axe/core/util/perf-counters';
 
 /**
@@ -101,6 +102,23 @@ export const crescentSvg = remembered<[colors: ShapeColors, thickness?: number]>
   }
 );
 
+/**
+ * The ink a line of a colour is drawn over: the colour taken most of the way to black. A light line
+ * alone is lost on light ground, as a pale ring on grass; laid over its ink it reads on any ground,
+ * as a sprite reads by the one clean dark line round it.
+ */
+export function inkOf(color: string): string {
+  const rgb = hexChannels(color);
+  if (!rgb) return '#1a1410';
+  return `#${rgb
+    .map((channel) =>
+      Math.round(channel * 0.28)
+        .toString(16)
+        .padStart(2, '0')
+    )
+    .join('')}`;
+}
+
 /** The ring of a shock wave, drawn as a line so its edge stays sharp however large it grows. */
 export const ringSvg = remembered<[colors: ShapeColors, thickness?: number, dashed?: boolean]>(
   'ringSvg',
@@ -108,7 +126,9 @@ export const ringSvg = remembered<[colors: ShapeColors, thickness?: number, dash
     const radius = 50 - thickness;
     const dash = dashed ? ` stroke-dasharray="${round(radius * 0.32)} ${round(radius * 0.16)}"` : '';
     return svg(
-      `<circle cx="50" cy="50" r="${round(radius)}" fill="none" stroke="${colors.edge}"` +
+      `<circle cx="50" cy="50" r="${round(radius)}" fill="none" stroke="${inkOf(colors.edge)}"` +
+        ` stroke-width="${round(thickness * 2.6)}" stroke-opacity="0.38"${dash}/>` +
+        `<circle cx="50" cy="50" r="${round(radius)}" fill="none" stroke="${colors.edge}"` +
         ` stroke-width="${round(thickness * 1.8)}" stroke-opacity="0.45"${dash}/>` +
         `<circle cx="50" cy="50" r="${round(radius)}" fill="none" stroke="#ffffff"` +
         ` stroke-width="${round(thickness * 0.6)}"${dash}/>`,
@@ -135,8 +155,11 @@ export const magicCircleSvg = remembered('magicCircleSvg', (colors: ShapeColors)
     const angle = (vertex / 3) * Math.PI * 2 - Math.PI / 2;
     triangle.push(`${round(50 + Math.cos(angle) * 26)},${round(50 + Math.sin(angle) * 26)}`);
   }
+  const ink = inkOf(colors.edge);
   return svg(
-    `<circle cx="50" cy="50" r="46" fill="none" stroke="${colors.edge}" stroke-width="2"/>` +
+    `<circle cx="50" cy="50" r="46" fill="none" stroke="${ink}" stroke-width="4.6" stroke-opacity="0.4"/>` +
+      `<polygon points="${triangle.join(' ')}" fill="none" stroke="${ink}" stroke-width="3.8" stroke-opacity="0.35"/>` +
+      `<circle cx="50" cy="50" r="46" fill="none" stroke="${colors.edge}" stroke-width="2"/>` +
       `<circle cx="50" cy="50" r="31" fill="none" stroke="${colors.core}" stroke-width="1.6" stroke-opacity="0.8"/>` +
       `<polygon points="${triangle.join(' ')}" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-opacity="0.85"/>` +
       ticks.join(''),
