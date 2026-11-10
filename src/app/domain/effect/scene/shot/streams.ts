@@ -74,13 +74,13 @@ function beamRibbons(from: Point, to: Point, width: number, ramp: readonly strin
   const points = [from, lerpPoint(from, to, 0.08), lerpPoint(from, to, 0.5), to];
   const swell = [0.6, 1, 1, 1];
   return [
-    { points, widths: swell.map((share) => width * 2.6 * share), color: ramp[2], alpha: 0.35 * alpha, blend: 'light' },
+    { points, widths: swell.map((share) => width * 1.8 * share), color: ramp[2], alpha: 0.22 * alpha, blend: 'light' },
     {
       points,
       widths: swell.map((share) => width * share),
       color: ramp[3],
       core: ramp[5],
-      alpha: alpha,
+      alpha: 0.7 * alpha,
       blend: 'light',
     },
     {
@@ -147,17 +147,17 @@ function beamOf(thick: number, gathers: number, great: boolean): Choreography {
           });
         }
         // Light at both ends and splashing where it strikes.
-        drawn.motes.push(glow(from, width * 3, ramp[4], 0.7 * (1 - ending), forward));
+        drawn.motes.push(glow(from, cell * (great ? 1.2 : 0.6), ramp[4], 0.5 * (1 - ending), forward));
         if (reached >= 1) {
-          drawn.motes.push(glow(to, width * 4.5, ramp[4], 0.8 * (1 - ending), forward * 1.5));
+          drawn.motes.push(glow(to, cell * (great ? 1.6 : 0.8), ramp[4], 0.6 * (1 - ending), forward * 1.5));
           drawn.motes.push({
-            ...glow(to, width * 3, '#ffffff', 0.8 * (1 - ending), forward * 1.6),
+            ...glow(to, cell * (great ? 1 : 0.5), '#ffffff', 0.7 * (1 - ending), forward * 1.6),
             shape: 'star',
             spin: t * 3,
           });
           const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
           drawn.floor.push(
-            floorMark('disc', floor, cell * (great ? 2 : 1.2), 1, ramp[4], 0.35 * (1 - ending), 'light', 0)
+            floorMark('disc', floor, cell * (great ? 1.6 : 1), 1, ramp[4], 0.2 * (1 - ending), 'light', 0)
           );
           layScorch(drawn, floor, cell * (great ? 0.9 : 0.5), ramp, t - fires, duration, 1, (stage.seed % 89) + 1);
         }
@@ -178,8 +178,8 @@ function beamOf(thick: number, gathers: number, great: boolean): Choreography {
         drawn.lights.push({
           ...to,
           color: ramp[4],
-          strength: (great ? 1.6 : 1.1) * (1 - ending),
-          reachPx: cell * (great ? 3.5 : 2.2),
+          strength: (great ? 1 : 0.8) * (1 - ending),
+          reachPx: cell * (great ? 2.5 : 2),
         });
       }
       for (const [index, spark] of sparks.entries()) drawSpark(drawn, spark, t, cell * 0.7, ramp, index, forward);
@@ -189,7 +189,7 @@ function beamOf(thick: number, gathers: number, great: boolean): Choreography {
 }
 
 /** A great beam, thick and gathered long, shaking the light out of the scene: 極太ビーム. */
-export const beam = beamOf(0.85, 0.3, true);
+export const beam = beamOf(0.5, 0.3, true);
 /** A laser, thin and quick to fire: レーザー照射. */
 export const raybeam = beamOf(0.22, 0.28, false);
 
@@ -311,9 +311,9 @@ export const drain: Choreography = {
         z: at.z + side.z * bow + lift.z * rise,
       };
       const fade = Math.min(1, along * 6, (1 - along) * 6) * flowing;
-      drawn.motes.push(glow(point, cell * 0.22, ramp[3], fade * 0.8, forward));
+      drawn.motes.push(glow(point, cell * 0.38, ramp[4], fade, forward));
       drawn.motes.push({
-        ...glow(point, cell * 0.08, ramp[5], fade, forward),
+        ...glow(point, cell * 0.12, '#ffffff', fade, forward),
         shape: 'spark',
         velocity: { x: way.x * length, y: way.y * length, z: way.z * length },
         trail: 0.06,

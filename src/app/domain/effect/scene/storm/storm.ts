@@ -1,4 +1,11 @@
-import { type Choreography, nothingStaged, outCubic, within } from '@axe/domain/effect/scene/choreography';
+import {
+  type Choreography,
+  nothingStaged,
+  outCubic,
+  type Stage,
+  type Staged,
+  within,
+} from '@axe/domain/effect/scene/choreography';
 import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { ThrownMote } from '@axe/domain/effect/scene/effect-sim';
 import {
@@ -290,6 +297,27 @@ export const frost: Choreography = {
   },
 };
 
+/** A piece caught round a whirlwind: dust swirling at its feet while the wind blows. */
+function buffeted(stage: Stage, ramp: readonly string[]): Staged {
+  const drawn = nothingStaged();
+  const { cell, duration } = stage;
+  const t = stage.seconds;
+  const blowing = Math.min(within(t, 0, 0.3), 1 - within(t, duration * 0.8, duration + 0.3));
+  if (blowing <= 0) return drawn;
+  const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
+  for (let index = 0; index < 10; index++) {
+    const turn = t * 6 + index * 0.63;
+    const out = cell * (0.35 + (index % 3) * 0.12);
+    const at = {
+      x: floor.x + Math.cos(turn) * out,
+      y: floor.y + Math.sin(turn) * out,
+      z: floor.z + cell * (0.1 + (index % 4) * 0.12),
+    };
+    drawn.motes.push(smokePuff(at, cell * 0.3, mixColor('#a89a88', ramp[3], 0.3), 0.35 * blowing, cell * 0.2));
+  }
+  return drawn;
+}
+
 interface VortexThrow {
   readonly specks: readonly {
     readonly phase: number;
@@ -311,6 +339,9 @@ export const vortex: Choreography = {
     const t = stage.seconds;
     const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
     const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
+    // Over an area one whirlwind stands at its centre, as wide as the area; a piece caught round it
+    // is only buffeted, dust swirling at its feet.
+    if (stage.index > 0) return buffeted(stage, ramp);
     const ends = duration + 0.8;
     const standing = Math.min(outCubic(within(t, 0, 0.35)), 1 - within(t, duration * 0.8, duration + 0.3));
     const forward = cell * 0.2;

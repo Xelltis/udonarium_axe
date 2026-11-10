@@ -179,8 +179,23 @@ export const gravity: Choreography = {
     const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
     const heart = { x: stage.x, y: stage.y, z: stage.z + cell * 1 };
     const collapses = stage.blowsAt[0] ?? duration * 0.5;
-    const ends = duration + 0.8;
+    // Over an area the singularity opens at its centre alone; a piece caught round it is dragged,
+    // dust drawn off it towards the centre, and struck as it collapses.
     const forward = cell * 0.4;
+    if (stage.index > 0) {
+      const dragged = within(t, 0, collapses);
+      if (t < collapses) {
+        for (let index = 0; index < 6; index++) {
+          const rise = (t * 1.3 + index / 6) % 1;
+          const at = { x: floor.x, y: floor.y, z: floor.z + cell * (0.1 + rise * 0.8) };
+          drawn.motes.push(smokePuff(at, cell * 0.3, '#7a6f66', 0.4 * dragged * (1 - rise), forward));
+        }
+      } else {
+        layShockRing(drawn, floor, cell * 0.2, cell * 1.2, cell * 0.1, ramp[5], t - collapses, 0.3);
+      }
+      return drawn;
+    }
+    const ends = duration + 0.8;
     const thrown = keptFor(gravityByStage, stageKey(stage, ends), () => {
       const th = throwerFor(stage, ends);
       return {

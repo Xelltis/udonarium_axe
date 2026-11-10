@@ -156,6 +156,7 @@ function throwBreath(
       // Narrow at the mouth and widening as it goes: a ball grows as it flies rather than shrinking.
       taper: -1,
       streak: 0.05,
+      soft: !fiery,
     });
   }
   // The fire licking out over the floor round the target while the stream strikes it.
@@ -182,6 +183,7 @@ function throwBreath(
       burns: smokes ? th.range(0.45, 0.6) : 1,
       variant: th.range(0, 6),
       hottest: 4,
+      soft: !fiery,
     });
   }
   // Smoke rising off the fire at the target.

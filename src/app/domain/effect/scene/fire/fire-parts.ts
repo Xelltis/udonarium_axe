@@ -37,6 +37,11 @@ export interface FireBall {
    * streaming from a mouth; nothing for a ball that is only round.
    */
   readonly streak?: number;
+  /**
+   * Whether it is drawn as soft light rather than as a hard ball of colour: a breath of frost, of
+   * lightning or of light, which is no flame and has no stepped body.
+   */
+  readonly soft?: boolean;
 }
 
 /** A cloud of smoke or dust: where it drifts and how wide it is, in cells. */
@@ -121,6 +126,28 @@ export function drawFire(
     const size = cell * fire.size * (1 - (fire.taper ?? 0.4) * burnt) * (smokes ? 1 : 1 - 0.75 * dying);
     const alpha = smokes ? 1 - dying : 1 - dying * dying * dying;
     const near = Math.max(forward, size * 0.6);
+    if (fire.soft) {
+      // Soft light: a wide glow of the colour and a white heart, drawn out behind it as it streams.
+      const velocity = { x: now.vx, y: now.vy, z: now.vz };
+      const streaming = fire.streak ? fire.streak : 0;
+      drawn.motes.push(glow(at, size * 1.6, ramp[3], 0.45 * alpha, near));
+      drawn.motes.push({
+        ...glow(at, size * 0.7, ramp[4], 0.8 * alpha, near),
+        shape: streaming ? 'comet' : 'puff',
+        velocity,
+        trail: streaming,
+        blend: 'light',
+      });
+      if (burnt < 0.5)
+        drawn.motes.push({
+          ...glow(at, size * 0.3, '#ffffff', alpha, near + 1),
+          shape: streaming ? 'comet' : 'puff',
+          velocity,
+          trail: streaming * 0.6,
+          blend: 'light',
+        });
+      return;
+    }
     if (burnt < 0.45) drawn.motes.push(glow(at, size * 1.5, ramp[step], 0.2 * (1 - burnt / 0.45), near));
     const drawnOut = fire.streak ? Math.hypot(now.vx, now.vy, now.vz) * fire.streak : 0;
     if (drawnOut > size * 0.5) {
