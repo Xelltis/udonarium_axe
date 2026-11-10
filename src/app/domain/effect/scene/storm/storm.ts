@@ -71,6 +71,7 @@ export const bolt: Choreography = {
             cell,
             ramp,
             0.4,
+            stage.groundZ,
             0.4
           )
         );
@@ -95,6 +96,7 @@ export const bolt: Choreography = {
           cell,
           ramp,
           strength * left,
+          stage.groundZ,
           1.6 * strength
         )
       );

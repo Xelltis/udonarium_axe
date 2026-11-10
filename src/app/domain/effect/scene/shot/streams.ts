@@ -228,7 +228,7 @@ export const arc: Choreography = {
       // A current is never steady: now and then it drops out for a beat.
       const on = (Math.sin(flicker * 12.9898 + stage.seed) * 43758.5453) % 1;
       if (Math.abs(on) > 0.18) {
-        drawn.ribbons.push(...lightningRibbons(from, to, stage.seed, flicker, cell, ramp, 1));
+        drawn.ribbons.push(...lightningRibbons(from, to, stage.seed, flicker, cell, ramp, 1, stage.groundZ));
         drawn.motes.push(haze(to, cell * 1.6, hueOf(ramp), 0.45, forward * 1.4));
         drawn.motes.push(glow(to, cell * 1.1, ramp[4], 0.7, forward * 1.5));
         drawn.motes.push({ ...glow(to, cell * 0.6, '#ffffff', 0.9, forward * 1.6), shape: 'star', spin: flicker });
@@ -259,7 +259,10 @@ export const arc: Choreography = {
   },
 };
 
-/** A bolt of lightning between two points as bands: a pale light about it, the bolt white-hot, and its forks thinner. */
+/**
+ * A bolt of lightning between two points as bands: a pale light about it, the bolt white-hot, and its
+ * forks thinner, none of it below the floor it strikes.
+ */
 export function lightningRibbons(
   from: Point,
   to: Point,
@@ -268,9 +271,10 @@ export function lightningRibbons(
   cell: number,
   ramp: readonly string[],
   alpha: number,
+  floorZ: number,
   thick = 1
 ): EffectRibbon[] {
-  const { main, forks } = lightningPaths(from, to, seed, flicker);
+  const { main, forks } = lightningPaths(from, to, seed, flicker, { floorZ: floorZ + cell * 0.05 });
   const ribbons: EffectRibbon[] = [
     { points: main, widths: cell * 0.7 * thick, color: hueOf(ramp), alpha: 0.3 * alpha, blend: 'color' },
     { points: main, widths: cell * 0.5 * thick, color: hueOf(ramp), alpha: 0.45 * alpha, blend: 'light' },

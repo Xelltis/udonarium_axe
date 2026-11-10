@@ -63,6 +63,12 @@ function flungDrops(th: Thrower, wound: Point, count: number, from: number, unti
   });
 }
 
+/**
+ * How many of the drops that land on one target leave a splat of their own on the floor: past that,
+ * splats lie over one another and are not told apart, and only every so many is laid.
+ */
+const SPLATS_AT_MOST = 32;
+
 /** Drops of blood at a moment: flying as streaks of red, and once landed, splats on the floor fading slowly. */
 function drawDrops(
   drawn: Staged,
@@ -73,11 +79,13 @@ function drawDrops(
   fade: number,
   forward: number
 ): void {
+  const splatEvery = Math.ceil(drops.length / SPLATS_AT_MOST);
   for (const [index, drop] of drops.entries()) {
     const at = moteAt(drop.mote, t);
     if (!at) continue;
     const colour = drop.dark > 0.5 ? blood[0] : blood[1];
     if (at.landed) {
+      if (index % splatEvery !== 0) continue;
       const splat = Math.min(1, (t - drop.mote.bornAt) * 4);
       drawn.floor.push(
         floorMark(

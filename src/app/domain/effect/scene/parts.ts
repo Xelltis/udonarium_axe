@@ -72,6 +72,7 @@ export function stageKey(stage: Stage, ends: number): string {
     preset.effectKind,
     preset.slashLook,
     preset.gradeLevel,
+    preset.gradeDensity,
     stage.seed,
     stage.cell,
     ends,
@@ -166,19 +167,21 @@ export function circlePoints(middle: Point, radius: number, steps: number, from 
 
 /**
  * A bolt of lightning from one point to another: a jagged line, each bend thrown aside at random as
- * far as `jag` of its length, the middle bends the furthest, and forks branching off it. `flicker`
- * picks among the shapes the same bolt takes, so it can be made to dance.
+ * far as `jag` of its length, the middle bends the furthest, and forks branching off it, none of it
+ * thrown below `floorZ`. `flicker` picks among the shapes the same bolt takes, so it can be made to
+ * dance.
  */
 export function lightningPaths(
   from: Point,
   to: Point,
   seed: number,
   flicker: number,
-  options: { bends?: number; jag?: number; forks?: number } = {}
+  options: { bends?: number; jag?: number; forks?: number; floorZ?: number } = {}
 ): { readonly main: Point[]; readonly forks: Point[][] } {
   const next = seededRun(seed * 977 + flicker * 131);
   const bends = options.bends ?? 10;
   const jag = options.jag ?? 0.12;
+  const floorZ = options.floorZ ?? Number.NEGATIVE_INFINITY;
   const { way, length } = wayBetween(from, to);
   const { side, lift } = acrossOf(way);
   const throwAside = (point: Point, reach: number): Point => {
@@ -187,7 +190,7 @@ export function lightningPaths(
     return {
       x: point.x + side.x * a + lift.x * b,
       y: point.y + side.y * a + lift.y * b,
-      z: point.z + side.z * a + lift.z * b,
+      z: Math.max(floorZ, point.z + side.z * a + lift.z * b),
     };
   };
   const main = Array.from({ length: bends + 1 }, (_unused, index) => {

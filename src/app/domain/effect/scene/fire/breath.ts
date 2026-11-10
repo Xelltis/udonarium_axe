@@ -208,12 +208,13 @@ function throwBreath(
       alpha: fiery ? 0.6 : 0.35,
     });
   }
-  // Embers carried along the stream and up off the fire.
+  // Embers carried along the stream, slowed by the air as the stream is so as to come down about the
+  // target rather than far past it, and up off the fire.
   for (let born = 0.1; born < fails + REACHES_S; born += 1 / th.count(14)) {
     const atTarget = born > REACHES_S && th.chance(0.5);
     const from = atTarget ? { ...floor, z: floor.z + 0.4 * U } : mouth;
     const out = th.outward();
-    const fast = atTarget ? th.range(0.3, 1) * U : speed * th.range(0.6, 0.9);
+    const fast = atTarget ? th.range(0.3, 1) * U : speed * th.range(0.75, 1.05);
     embers.push(
       th.mote({
         ...from,
@@ -223,7 +224,7 @@ function throwBreath(
         bornAt: born,
         life: th.lifeOf(born, 0.7, 1.4),
         gravity: -th.range(0.3, 0.8) * U,
-        drag: 1.8,
+        drag: atTarget ? 1.8 : drag,
         bounce: 0,
       })
     );

@@ -100,6 +100,13 @@ export interface EffectFloorMark {
 export const EMPTY_EFFECT_FRAME: EffectFrame = { motes: [], ribbons: [], floor: [], lights: [] };
 
 /**
+ * How much the effects may draw in the scene in a frame, of each kind of blend: as many particles, as
+ * many marks on the floor, and as many points along their bands. What is drawn is laid out to keep
+ * within it, and what goes past it is not drawn.
+ */
+export const EFFECT_FRAME_BUDGET = { motes: 4096, marks: 256, ribbonPoints: 4096 } as const;
+
+/**
  * The height of the ground the board lies over, sampled on a grid from the board's corner, for the
  * marks of effects to lie over it rather than sink into it or float off it: how far apart the samples
  * are, in table pixels, how many there are across and down, and each height, in table pixels, row by

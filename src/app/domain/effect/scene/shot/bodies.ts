@@ -25,21 +25,24 @@ function along(tip: Point, way: Point, back: number, aside = 0, side: Point = { 
 }
 
 /**
- * An arrow flying, its head at `tip` and pointing the way it flies: a streak of light behind it, the
- * shaft, a head wider than the shaft and drawn to a point, and feathers flaring at the tail.
+ * An arrow flying, its head at `tip` and pointing the way it flies: a streak of light behind it, kept
+ * above the floor at `floorZ` as it leaves the bow, the shaft, a head wider than the shaft and drawn to
+ * a point, and feathers flaring at the tail.
  */
 export function arrowBody(
   tip: Point,
   way: Point,
   cell: number,
   ramp: readonly string[],
+  floorZ = Number.NEGATIVE_INFINITY,
   streak = true
 ): EffectRibbon[] {
   const long = cell * 1.1;
   const ribbons: EffectRibbon[] = [];
   if (streak) {
+    const tail = along(tip, way, long * 2.6);
     ribbons.push({
-      points: [along(tip, way, long * 2.6), along(tip, way, long * 0.9)],
+      points: [{ ...tail, z: Math.max(floorZ, tail.z) }, along(tip, way, long * 0.9)],
       widths: [0, cell * 0.14],
       color: hueOf(ramp),
       core: ramp[4],
@@ -106,7 +109,7 @@ export function stuckArrow(
   ramp: readonly string[],
   alpha: number
 ): EffectRibbon[] {
-  return arrowBody(tip, way, cell, ramp, false)
+  return arrowBody(tip, way, cell, ramp, Number.NEGATIVE_INFINITY, false)
     .slice(0, 4)
     .map((ribbon) => ({ ...ribbon, alpha: ribbon.alpha * alpha }));
 }

@@ -1,12 +1,13 @@
-import type {
-  EffectBlend,
-  EffectFloorMark,
-  EffectFloorShape,
-  EffectFrame,
-  EffectGround,
-  EffectMote,
-  EffectMoteShape,
-  EffectRibbon,
+import {
+  EFFECT_FRAME_BUDGET,
+  type EffectBlend,
+  type EffectFloorMark,
+  type EffectFloorShape,
+  type EffectFrame,
+  type EffectGround,
+  type EffectMote,
+  type EffectMoteShape,
+  type EffectRibbon,
 } from '@axe/domain/effect/scene/effect-scene';
 import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import {
@@ -68,9 +69,9 @@ import {
 } from 'three/webgpu';
 
 /** How many particles of each kind of blend the layer draws at most in a frame. */
-export const MAX_EFFECT_MOTES = 4096;
+const MAX_EFFECT_MOTES = EFFECT_FRAME_BUDGET.motes;
 /** How many marks on the floor of each kind of blend it draws at most. */
-export const MAX_EFFECT_MARKS = 96;
+const MAX_EFFECT_MARKS = EFFECT_FRAME_BUDGET.marks;
 
 /** Particles draw after the pieces and the lying pictures, and under the weather. */
 const MOTES_ORDER = 940;
@@ -117,7 +118,7 @@ interface RibbonBatch {
 }
 
 /** How many points along their bands the bands of each kind of blend may have in a frame. */
-const MAX_RIBBON_POINTS = 4096;
+const MAX_RIBBON_POINTS = EFFECT_FRAME_BUDGET.ribbonPoints;
 /** Bands draw with the particles. */
 const RIBBONS_ORDER = 941;
 /** How far nearer the eye a band is drawn along the line it is seen on, in table pixels, so a piece it passes does not cut it in two. */

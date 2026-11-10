@@ -1,3 +1,4 @@
+import type { EffectPreset } from '@axe/domain/effect/effect-preset';
 import {
   type Choreography,
   nothingStaged,
@@ -68,6 +69,18 @@ function addInto(drawn: Staged, landed: Staged): void {
   drawn.lights.push(...landed.lights);
 }
 
+/**
+ * The preset a landing of one shot of a volley is drawn with: a volley's landings are laid close
+ * together, so each is the thinner for it, and the shots of a burst together are not drawn as thick
+ * as that many single shots.
+ */
+function volleyLandingPreset(preset: EffectPreset, shots: number): EffectPreset {
+  if (shots <= 1) return preset;
+  const thinner = Object.create(preset) as EffectPreset;
+  Object.defineProperty(thinner, 'gradeDensity', { value: preset.gradeDensity / Math.sqrt(shots) });
+  return thinner;
+}
+
 /** The landing of one shot, on its own clock from the moment it lands, as large as a shot of a burst is. */
 function landing(
   stage: Stage,
@@ -86,6 +99,7 @@ function landing(
     blowsAt: [0],
     seed: stage.seed + shot * 101,
     cell: stage.cell * (shots > 1 ? 0.85 : 1.1),
+    preset: volleyLandingPreset(stage.preset, shots),
   });
 }
 
@@ -465,7 +479,7 @@ export const arrowrain: Choreography = {
         const rising = { x: from.x + spot.lean * cell * up * 2, y: from.y, z: from.z + cell * 0.8 + up * sky };
         const upward = { x: spot.lean * 0.2, y: 0, z: 1 };
         drawn.ribbons.push(
-          ...arrowBody(rising, upward, cell * 0.8, ramp).map((ribbon) => ({
+          ...arrowBody(rising, upward, cell * 0.8, ramp, floor.z).map((ribbon) => ({
             ...ribbon,
             alpha: ribbon.alpha * (1 - up),
           }))
@@ -476,7 +490,9 @@ export const arrowrain: Choreography = {
       const ground = { x: spot.x, y: spot.y, z: floor.z };
       const top = { x: spot.x + spot.lean * cell * 3, y: spot.y - cell * 2, z: floor.z + sky };
       const { way } = wayBetween(top, ground);
-      if (down >= 0 && down < 1) drawn.ribbons.push(...arrowBody(lerpPoint(top, ground, down), way, cell * 0.75, ramp));
+      if (down >= 0 && down < 1) {
+        drawn.ribbons.push(...arrowBody(lerpPoint(top, ground, down), way, cell * 0.75, ramp, floor.z));
+      }
       // Stuck where it landed, a puff of dust at its foot.
       if (t >= lands) {
         const since = t - lands;
