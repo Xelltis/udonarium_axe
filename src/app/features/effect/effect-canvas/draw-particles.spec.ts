@@ -1,4 +1,4 @@
-import { EffectParticle, EffectParticleLayer } from '@axe/domain/effect/effect-particles';
+import { EffectParticle, EffectParticleLayer } from '@axe/domain/effect/particles/shared';
 import { drawParticleLayer } from '@axe/features/effect/effect-canvas/draw-particles';
 import { pixelRatioFor } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 

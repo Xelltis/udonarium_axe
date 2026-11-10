@@ -1,9 +1,10 @@
-export { clamp01, fadeInOut, seededRandom } from '@axe/domain/effect/timeline/shared';
-import { clamp01 } from '@axe/domain/effect/timeline/shared';
-/**
- * The shared groundwork.
- *
- * Only the shape of one particle and the smoothing of colour and time. It refers to no family of effects.
+import { clamp01 } from '@axe/core/util/clamp';
+
+export { clamp01 };
+export { seededRandom } from '@axe/core/util/seeded-random';
+/*
+ * The particles the weather and the ambience lay onto a canvas: the shape of one, the canvas they
+ * lie on, and the smoothing of their time.
  */
 
 /**
@@ -37,41 +38,15 @@ export interface EffectParticleLayer {
   particles: EffectParticle[];
 }
 
-/** The ramp from white heat through the light colour to the dark. It always passes through white, since it is the difference in brightness that catches the eye. */
-export interface ColorRamp {
-  hot: string;
-  mid: string;
-  cool: string;
-}
-
+/** White heat, which the hottest particles are drawn in. */
 export const HOT = '#ffffff';
 
-/** The colour of flame, falling from white heat through the light and dark colours towards smoke. */
-export function flameColor(local: number, ramp: ColorRamp): string {
-  if (local < 0.2) return ramp.hot;
-  if (local < 0.55) return ramp.mid;
-  return ramp.cool;
-}
-
-/** What a body of flame turns to as it burns out. */
-export const EMBER_SMOKE = '#4a3a30';
-
 /**
- * The colour of a body of flame as it burns out: the light colour while young, the dark one after,
- * and smoke at the last, never white.
+ * It rises to full over the given share and falls away over the rest. A progress that is not a
+ * number falls back to nothing, rather than slipping past the guard that keeps a particle unmade.
  */
-export function flameBodyColor(local: number, ramp: ColorRamp): string {
-  if (local < 0.35) return ramp.mid;
-  return local < 0.7 ? ramp.cool : EMBER_SMOKE;
-}
-
-/** How thick a body of flame is as it burns out, as a share of how thick it starts: thinning fast once it is old. */
-export function flameBodyFade(local: number): number {
-  return Math.pow(Math.max(0, 1 - local), 1.6);
-}
-
-/** Eases a 0 to 1 progress so it starts fast and slows to a stop; input outside that range is clamped. */
-export function easeOutQuad(value: number): number {
+export function fadeInOut(value: number, rise: number): number {
   const clamped = clamp01(value);
-  return 1 - (1 - clamped) * (1 - clamped);
+  if (clamped < rise) return clamped / rise;
+  return 1 - (clamped - rise) / (1 - rise);
 }

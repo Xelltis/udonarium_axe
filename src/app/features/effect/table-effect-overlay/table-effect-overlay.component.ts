@@ -11,7 +11,7 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_EFFECT_RENDERABLES, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { EffectSprite, effectSprites } from '@axe/domain/effect/effect-timeline';
+import { cutPictureSprites, EffectSprite } from '@axe/domain/effect/effect-timeline';
 import { ViewRotation } from '@axe/domain/effect/effect-view';
 import { drawsOnlyPicturesOver } from '@axe/domain/effect/scene/scene-kinds';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -126,17 +126,14 @@ export class TableEffectOverlayComponent {
 
     for (const active of this.renderables()) {
       const hiddenIdentifiers = active.hidden;
-      const parts = effectSprites(active.preset, active.cast, active.elapsed, {
+      const parts = cutPictureSprites(active.preset, active.cast, active.elapsed, {
         baseSize: gridSize,
         hiddenIdentifiers,
-        viewRotation: this.rotation(),
         resolvePosition: (identifier) => this.centerOf(identifier, gridSize),
         resolveImage: (identifier) => this.imageUrlOf(identifier),
         resolveSize: (identifier) => this.sizeOf(identifier),
       });
-      for (const part of parts) {
-        if (part.background.includes('url(')) sprites.push({ ...part, key: `${active.key}-${part.key}` });
-      }
+      for (const part of parts) sprites.push({ ...part, key: `${active.key}-${part.key}` });
     }
     return sprites.length > MAX_SPRITES ? sprites.slice(0, MAX_SPRITES) : sprites;
   });

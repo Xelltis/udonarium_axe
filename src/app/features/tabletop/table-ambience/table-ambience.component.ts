@@ -20,7 +20,7 @@ import {
   vaporCellsOf,
   type VaporSheet,
 } from '@axe/domain/effect/ambience/ambience-ground';
-import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
+import { EffectParticleLayer } from '@axe/domain/effect/particles/shared';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';

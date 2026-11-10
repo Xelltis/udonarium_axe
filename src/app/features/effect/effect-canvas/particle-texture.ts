@@ -1,5 +1,5 @@
 import { withAlpha } from '@axe/core/util/hex-color';
-import { ParticleShape } from '@axe/domain/effect/effect-particles';
+import { ParticleShape } from '@axe/domain/effect/particles/shared';
 
 /**
  * Bakes a soft particle for each colour and keeps it.

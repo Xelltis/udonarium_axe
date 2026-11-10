@@ -1,5 +1,5 @@
 import { PERF_PARTICLES, perfCounters } from '@axe/core/util/perf-counters';
-import { EffectParticle, EffectParticleLayer } from '@axe/domain/effect/effect-particles';
+import { EffectParticle, EffectParticleLayer } from '@axe/domain/effect/particles/shared';
 import { particleTexture } from '@axe/features/effect/effect-canvas/particle-texture';
 
 /**

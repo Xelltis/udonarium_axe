@@ -1,5 +1,4 @@
-import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
-import { EffectSprite, Point3 } from '@axe/domain/effect/effect-timeline';
+import { EffectSprite } from '@axe/domain/effect/effect-timeline';
 import { ViewRotation } from '@axe/domain/effect/effect-view';
 
 /**
@@ -19,15 +18,6 @@ export interface EffectViewpoint {
   liftPx: number;
   risePx: number;
   flatRisePx: number;
-}
-
-/** A canvas of glowing particles placed on the board, facing the camera. */
-export interface EffectCanvasPlacement {
-  key: string;
-  layer: EffectParticleLayer;
-  transform: string;
-  width: number;
-  height: number;
 }
 
 /** Whether a sprite has an inner layer to carry its look and its animation. */
@@ -58,34 +48,6 @@ export function effectPaintStyle(sprite: EffectSprite): Record<string, string> {
   if (sprite.animation.length > 0) style['animation'] = sprite.animation;
   style['transform-origin'] = sprite.origin.length > 0 ? sprite.origin : '50% 50%';
   return style;
-}
-
-/** Where a canvas of particles stands, sized to its layer. */
-export function effectCanvasStyle(placement: EffectCanvasPlacement): Record<string, string> {
-  return {
-    position: 'absolute',
-    left: '0px',
-    top: '0px',
-    width: placement.width + 'px',
-    height: placement.height + 'px',
-    'transform-origin': '0 0',
-    transform: placement.transform,
-    'pointer-events': 'none',
-  };
-}
-
-/** Stands a layer of particles at a point on the board, facing the camera, its origin on the point. */
-export function effectBillboardTransform(
-  center: Point3,
-  layer: EffectParticleLayer,
-  viewpoint: EffectViewpoint
-): string {
-  const rotation = viewpoint.rotation;
-  return (
-    `translate3d(${center.x}px, ${center.y}px, ${center.z + viewpoint.risePx}px)` +
-    ` rotateZ(${-(rotation?.z ?? 10)}deg) rotateX(${-(rotation?.x ?? 50)}deg) rotateY(${-(rotation?.y ?? 0)}deg)` +
-    ` translateZ(${viewpoint.liftPx}px) translate(${-layer.originX}px, ${-layer.originY}px)`
-  );
 }
 
 function effectSpriteTransform(sprite: EffectSprite, viewpoint: EffectViewpoint): string {

@@ -54,7 +54,7 @@ import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { defeatPictureHeight, DefeatReaction, defeatReactionOf } from '@axe/domain/effect/effect-defeat';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { effectLandingTimes, impactSoundTimes, launchSoundTimes } from '@axe/domain/effect/effect-sound-times';
-import { EffectSpriteOptions, effectSprites, Point3 } from '@axe/domain/effect/effect-timeline';
+import { cutPictureSprites, EffectSpriteOptions, Point3 } from '@axe/domain/effect/effect-timeline';
 import { nothingStaged } from '@axe/domain/effect/scene/choreography';
 import type { EffectFooting } from '@axe/domain/effect/scene/effect-frame';
 import { type EffectFrame, EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
@@ -494,7 +494,6 @@ export class BattleCutInOverlayComponent {
     const views = this.views();
     return {
       baseSize: BATTLE_CELL_PX,
-      viewRotation: BATTLE_VIEW,
       resolvePosition: (identifier) => views.find((view) => view.fighter.identifier === identifier)?.point ?? null,
       resolveImage: (identifier) => {
         const view = views.find((held) => held.fighter.identifier === identifier);
@@ -579,14 +578,12 @@ export class BattleCutInOverlayComponent {
   readonly sprites = computed<SpriteFrame[]>(() =>
     this.layers().flatMap((layer) => {
       if (!drawsOnlyPicturesOver(layer.preset)) return [];
-      return effectSprites(layer.preset, layer.cast, layer.elapsed, layer.options)
-        .filter((sprite) => sprite.background.includes('url('))
-        .map((sprite) => ({
-          key: `${layer.prefix}-${sprite.key}`,
-          style: effectSpriteStyle(sprite, layer.viewpoint),
-          paint: hasEffectPaintLayer(sprite) ? effectPaintStyle(sprite) : null,
-          svg: sprite.svg,
-        }));
+      return cutPictureSprites(layer.preset, layer.cast, layer.elapsed, layer.options).map((sprite) => ({
+        key: `${layer.prefix}-${sprite.key}`,
+        style: effectSpriteStyle(sprite, layer.viewpoint),
+        paint: hasEffectPaintLayer(sprite) ? effectPaintStyle(sprite) : null,
+        svg: sprite.svg,
+      }));
     })
   );
 
