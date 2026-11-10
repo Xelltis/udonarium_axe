@@ -3,6 +3,15 @@ import { expect, Page, test } from '@playwright/test';
 import { createCharacter } from '../helpers';
 import { closePanels, freeze, prepare, settle, settleLazy, snap, untilStill } from './fixtures';
 
+/** How many particles and marks on the floor the effects draw in the table's scene now. */
+function effectsDrawn(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      (window as unknown as { __axeTable?: { sceneStats(): { effects: number } | null } }).__axeTable?.sceneStats()
+        ?.effects ?? 0
+  );
+}
+
 async function castOn(page: Page, preset: string) {
   await page.locator('[data-testid="fab-entry-media"]').click();
   await settle(page);
@@ -25,8 +34,9 @@ async function castOn(page: Page, preset: string) {
 }
 
 for (const [preset, name, at] of [
-  ['一閃', 'effect-slash', 300],
-  ['極太ビーム', 'effect-beam', 400],
+  // Each as it strikes: a drawing cut flashes once its stance is held, a great beam once it has gathered.
+  ['一閃', 'effect-slash', 1700],
+  ['極太ビーム', 'effect-beam', 1400],
 ] as const) {
   test(`${name} looks the same ${at}ms into the cast`, async ({ page }) => {
     await prepare(page);
@@ -36,7 +46,7 @@ for (const [preset, name, at] of [
     await freeze(page);
     await castOn(page, preset);
     await settle(page, at);
-    await expect(page.locator('table-effect-overlay *').first()).toBeAttached();
+    expect(await effectsDrawn(page)).toBeGreaterThan(0);
     await snap(page, name);
   });
 }
