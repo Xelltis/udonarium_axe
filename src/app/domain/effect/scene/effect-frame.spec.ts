@@ -460,4 +460,12 @@ describe('the looks the fourth review asked to be drawn again', () => {
     expect(diving.every((ribbon) => ribbon.points.every((point) => Math.abs(point.x - 400) < CELL * 3))).toBe(true);
     expect(staged(missile, cast, lands * 0.7).floor.some((mark) => mark.shape === 'sigil')).toBe(true);
   });
+
+  it('runs a current over the body of one paralysed, where a curse that does not run as one wraps it in shadow', () => {
+    const paralysis = makePreset('curse', { durationMs: 1500, staggerMs: 0, moteStyle: 'arc' });
+    const curse = makePreset('curse', { durationMs: 1500, staggerMs: 0, moteStyle: 'haze' });
+
+    expect(staged(paralysis, cast, 700).ribbons.length).toBeGreaterThan(0);
+    expect(staged(curse, cast, 700).ribbons).toHaveLength(0);
+  });
 });
