@@ -124,6 +124,8 @@ export interface TableTestHooks {
   spritesOf(identifier: string): { part: string; widthPx: number; heightPx: number }[];
   /** Keeps the dice at rest on the table on show until let go, however slowly frames are drawn. */
   keepDiceResting(on: boolean): void;
+  /** Whether the table holds dice and every one of them has come to rest. */
+  diceResting(): boolean;
   /** Takes the first table's tutorial away, as its menu does, for a spec the tutorial would stand in the way of. Answers how many things went. */
   putAwayTutorial(): number;
   /**
@@ -217,6 +219,7 @@ export function installTableTestHooks(
     },
     sceneStats: () => scene.stats(),
     keepDiceResting: (on) => dice.keepResting(on),
+    diceResting: () => dice.diceResting,
     putAwayTutorial: () => putAwayTutorial(tabletop),
     lookFromNear: () => {
       const layout = camera.layout;
