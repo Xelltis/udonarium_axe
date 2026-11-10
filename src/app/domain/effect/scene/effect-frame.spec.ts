@@ -481,3 +481,30 @@ describe('the looks the fourth review asked to be drawn again', () => {
     expect(Math.max(highest(900), highest(1000), highest(1100))).toBeGreaterThan(CELL * 1.45);
   });
 });
+
+describe('what a breath carries along its way', () => {
+  const cast = { ...castOn([400, 100]), origin: { x: 100, y: 100, z: 30 } };
+  const breathOf = (moteStyle: string) => makePreset('breath', { durationMs: 1500, staggerMs: 0, moteStyle });
+  const shapesAt = (moteStyle: string) => {
+    const shapes = new Set<string>();
+    for (const ms of [500, 700, 900])
+      for (const mote of staged(breathOf(moteStyle), cast, ms).motes) shapes.add(mote.shape);
+    return shapes;
+  };
+
+  it('carries what its kind of particle says: crystals of ice, leaves, or a current crackling along it', () => {
+    expect(shapesAt('frost').has('flake')).toBe(true);
+    expect(shapesAt('spark').has('flake')).toBe(false);
+    expect(shapesAt('leaf').has('chunk')).toBe(true);
+    expect(staged(breathOf('arc'), cast, 700).ribbons.length).toBeGreaterThan(0);
+    expect(staged(breathOf('spark'), cast, 700).ribbons).toHaveLength(0);
+  });
+
+  it('carries nothing along its way where it is told to carry none', () => {
+    const sparks = (moteStyle: string) =>
+      staged(breathOf(moteStyle), cast, 700).motes.filter((mote) => mote.shape === 'glow' && mote.size < CELL * 0.1)
+        .length;
+
+    expect(sparks('none')).toBeLessThan(sparks('spark'));
+  });
+});

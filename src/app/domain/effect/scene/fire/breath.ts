@@ -1,3 +1,4 @@
+import { type EffectMote as WayMote, effectMoteOf } from '@axe/domain/effect/effect-motes';
 import {
   type Choreography,
   nothingStaged,
@@ -6,7 +7,7 @@ import {
   within,
 } from '@axe/domain/effect/scene/choreography';
 import { isFiery, mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
-import type { ThrownMote } from '@axe/domain/effect/scene/effect-sim';
+import { moteAt, type ThrownMote } from '@axe/domain/effect/scene/effect-sim';
 import {
   type Cloud,
   drawFireThrow,
@@ -20,18 +21,22 @@ import {
   floorMark,
   glow,
   keptFor,
+  lerpPoint,
   type Point,
+  smokePuff,
   stageKey,
   type Thrower,
   throwerFor,
 } from '@axe/domain/effect/scene/parts';
+import { lightningRibbons } from '@axe/domain/effect/scene/shot/streams';
 
 /*
  * A breath of fire: it bursts out of the caster's mouth in a pulsing stream of flame, white-hot at the
  * mouth, widening, cooling and rolling as it goes; where it strikes the target it splashes, licks out
  * along the floor round it and burns there, and smoke rises off it. When the breath fails the stream
  * breaks off at the mouth, the last of it runs on to the target, and smoke and embers are left as the
- * fire on the floor dies.
+ * fire on the floor dies. What it carries along the way is as its kind of particle says: embers for
+ * fire, crystals of ice, a current crackling along it, leaves, or wisps of shadow.
  */
 
 /** How long it lingers after its playback while its smoke clears, in seconds. */
@@ -83,7 +88,12 @@ function drawBreath(stage: Stage): Staged {
     );
   if (burning > 0) drawn.floor.push(floorMark('disc', floor, cell * 1.6, 1, WARM, 0.3 * burning * flicker, 'light', 0));
 
-  drawFireThrow(drawn, thrown, t, cell, ramp, forward);
+  const carried = effectMoteOf(stage.preset);
+  drawFireThrow(drawn, carried === 'spark' ? thrown : { ...thrown, embers: [] }, t, cell, ramp, forward);
+  if (carried !== 'spark' && carried !== 'none') {
+    drawCarried(drawn, carried, thrown.embers, t, cell, ramp, forward);
+  }
+  if (carried === 'arc' && breathing > 0) drawCrackling(drawn, stage, mouth, struck, t, ramp, breathing);
 
   // The mouth glows while it breathes.
   if (breathing > 0) {
@@ -100,6 +110,75 @@ function drawBreath(stage: Stage): Staged {
     });
   }
   return drawn;
+}
+
+/** What a breath carries along its way, at a moment, where its embers would be, as its kind of particle says. */
+function drawCarried(
+  drawn: Staged,
+  carried: WayMote,
+  carriers: readonly ThrownMote[],
+  t: number,
+  cell: number,
+  ramp: readonly string[],
+  forward: number
+): void {
+  for (const [index, carrier] of carriers.entries()) {
+    const at = moteAt(carrier, t);
+    if (!at) continue;
+    const left = 1 - at.age;
+    const turn = (t - carrier.bornAt) * (4 + (index % 5)) + index;
+    if (carried === 'frost') {
+      drawn.motes.push({
+        ...glow(at, cell * 0.11, index % 3 === 0 ? '#ffffff' : ramp[4], left, forward),
+        shape: 'flake',
+        spin: turn,
+      });
+    } else if (carried === 'leaf') {
+      drawn.motes.push({
+        ...glow(at, cell * 0.12, mixColor(index % 2 === 0 ? '#7a8f3a' : '#9aa84a', ramp[2], 0.25), left, forward),
+        blend: 'color',
+        shape: 'chunk',
+        spin: turn * 1.5,
+        variant: index,
+      });
+    } else if (carried === 'haze') {
+      drawn.motes.push(
+        smokePuff(at, cell * (0.25 + at.age * 0.35), mixColor('#1a1020', ramp[1], 0.35), 0.55 * left, forward)
+      );
+    } else {
+      drawn.motes.push({ ...glow(at, cell * 0.06, '#ffffff', left, forward), shape: 'spark', trail: 0.04 });
+    }
+  }
+}
+
+/** Small bolts leaping along the stream between points of it, taking another shape every few hundredths of a second. */
+function drawCrackling(
+  drawn: Staged,
+  stage: Stage,
+  mouth: Point,
+  struck: Point,
+  t: number,
+  ramp: readonly string[],
+  breathing: number
+): void {
+  const flicker = Math.floor(t / 0.05);
+  for (let bolt = 0; bolt < 3; bolt++) {
+    const from = ((flicker * 0.37 + bolt * 0.31) % 0.8) + 0.05;
+    const to = Math.min(1, from + 0.2);
+    drawn.ribbons.push(
+      ...lightningRibbons(
+        lerpPoint(mouth, struck, from),
+        lerpPoint(mouth, struck, to),
+        stage.seed + bolt,
+        flicker,
+        stage.cell,
+        ramp,
+        0.8 * breathing,
+        stage.groundZ,
+        0.3
+      )
+    );
+  }
 }
 
 /** Throws the breath from its first burst to its failing: the stream from the mouth, the fire licking over the floor at the target, and its smoke. */
