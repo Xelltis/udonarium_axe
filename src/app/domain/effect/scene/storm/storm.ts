@@ -359,13 +359,22 @@ interface VortexThrow {
     readonly rise: number;
     readonly speed: number;
     readonly size: number;
-    readonly leaf: boolean;
+    readonly kind: 'dust' | 'stone' | 'leaf';
+    readonly out: number;
   }[];
   readonly dust: readonly Cloud[];
 }
 const vortexByStage = new Map<string, VortexThrow>();
 
-/** A whirlwind: see the header. */
+/** How tall a whirlwind stands, in cells. */
+const VORTEX_TALL_CELLS = 5;
+
+/**
+ * A whirlwind: a tall funnel of dust and wind, narrow where it grinds at the floor and wide where it
+ * opens into the sky, its body thick and dark at the middle and turning fast, swaying as it stands;
+ * thick streaks of wind wound round it; stones, dust and leaves wheeling up it and flung out off its
+ * rim; and a skirt of dust churning round its foot over a scoured ring of ground.
+ */
 export const vortex: Choreography = {
   lingerS: 0.8,
   draw: (stage) => {
@@ -383,85 +392,123 @@ export const vortex: Choreography = {
     const thrown = keptFor(vortexByStage, stageKey(stage, ends), () => {
       const th = throwerFor(stage, ends);
       return {
-        specks: Array.from({ length: th.count(70) }, (_unused, index) => ({
+        specks: Array.from({ length: th.count(90) }, (_unused, index) => ({
           phase: th.range(0, 1),
-          rise: th.range(0.6, 1.4),
-          speed: th.range(0.7, 1.3),
-          size: th.range(0.04, 0.1),
-          leaf: index % 5 === 0,
+          rise: th.range(0.5, 1.15),
+          speed: th.range(0.7, 1.4),
+          size: th.range(0.05, 0.12),
+          kind: (index % 4 === 0 ? 'stone' : index % 7 === 0 ? 'leaf' : 'dust') as 'dust' | 'stone' | 'leaf',
+          out: th.range(0.8, 1.35),
         })),
-        dust: rollingDust(th, floor, th.count(10), [1.5, 3.5], [0.6, 0.9]),
+        dust: rollingDust(th, floor, th.count(14), [2, 4.5], [0.7, 1]),
       };
     });
     if (standing <= 0) return drawn;
-    const tall = cell * 3.4;
-    const radiusAt = (height: number) => cell * (0.35 + 0.9 * (height / tall) ** 1.3);
-    const spin = t * 7;
-    // The funnel: a body of its colour and of dust, widening as it climbs.
-    for (let step = 0; step < 5; step++) {
-      const height = ((step + 0.5) / 5) * tall * standing;
-      drawn.motes.push(
-        haze(
-          { ...floor, z: floor.z + height },
-          radiusAt(height) * 2.2,
-          mixColor('#b8ab98', hueOf(ramp), 0.4),
-          0.22 * standing,
-          forward
-        )
-      );
+    const tall = cell * VORTEX_TALL_CELLS * standing;
+    const spin = t * 9;
+    const sway = (height: number) => ({
+      x: Math.sin(t * 1.7) * cell * 0.5 * (height / tall) ** 1.5,
+      y: Math.cos(t * 1.3) * cell * 0.3 * (height / tall) ** 1.5,
+    });
+    const radiusAt = (height: number) => cell * (0.3 + 1.2 * (height / Math.max(tall, 1)) ** 1.4);
+    const axis = (height: number): Point => {
+      const bend = sway(height);
+      return { x: floor.x + bend.x, y: floor.y + bend.y, z: floor.z + height };
+    };
+    const body = mixColor('#8a7e70', hueOf(ramp), 0.22);
+    const heart = mixColor('#4f473f', hueOf(ramp), 0.15);
+    // The body of the funnel: rings of dust round its axis, turning, thick and dark at its middle.
+    const levels = 12;
+    for (let level = 0; level < levels; level++) {
+      const height = ((level + 0.5) / levels) * tall;
+      const middle = axis(height);
+      const radius = radiusAt(height);
+      drawn.motes.push(haze(middle, radius * 1.6, heart, 0.5 * standing, forward));
+      for (let puff = 0; puff < 6; puff++) {
+        const turn = spin * (1.4 - height / (tall * 1.5)) + (puff / 6) * Math.PI * 2 + level * 0.7;
+        drawn.motes.push(
+          smokePuff(
+            { x: middle.x + Math.cos(turn) * radius * 0.8, y: middle.y + Math.sin(turn) * radius * 0.8, z: middle.z },
+            radius * 0.95,
+            body,
+            0.58 * standing,
+            forward
+          )
+        );
+      }
     }
-    // Streaks of wind wound round it, each a spiral band climbing and turning.
-    for (let streak = 0; streak < 5; streak++) {
+    // Thick streaks of wind wound round it, each a spiral band climbing and turning.
+    for (let streak = 0; streak < 8; streak++) {
       const points: Point[] = [];
       const widths: number[] = [];
-      const offset = (streak / 5) * Math.PI * 2 + spin;
-      for (let step = 0; step <= 24; step++) {
-        const height = (step / 24) * tall * standing;
-        const turn = offset + step * 0.42;
-        const radius = radiusAt(height);
-        points.push({
-          x: floor.x + Math.cos(turn) * radius,
-          y: floor.y + Math.sin(turn) * radius,
-          z: floor.z + height,
-        });
-        widths.push(cell * 0.18 * Math.sin((Math.PI * step) / 24));
+      const offset = (streak / 8) * Math.PI * 2 + spin * 1.3;
+      const steps = 30;
+      for (let step = 0; step <= steps; step++) {
+        const height = (step / steps) * tall;
+        const turn = offset + step * 0.38;
+        const radius = radiusAt(height) * 1.05;
+        const middle = axis(height);
+        points.push({ x: middle.x + Math.cos(turn) * radius, y: middle.y + Math.sin(turn) * radius, z: middle.z });
+        widths.push(cell * 0.2 * Math.sin((Math.PI * step) / steps));
       }
       drawn.ribbons.push({
         points,
         widths,
-        color: hueOf(ramp),
-        core: ramp[4],
-        alpha: 0.75 * standing,
-        alphas: points.map((_point, index) => Math.sin((Math.PI * index) / 24)),
+        color: mixColor('#cfc6b8', hueOf(ramp), 0.3),
+        core: mixColor('#f4efe6', hueOf(ramp), 0.15),
+        alpha: 0.5 * standing,
+        alphas: points.map((_point, index) => Math.sin((Math.PI * index) / steps) ** 0.7),
         blend: 'light',
       });
     }
-    // Dust and leaves wheeling up it.
+    // Stones, dust and leaves wheeling up it, flung out wider as they climb.
     for (const speck of thrown.specks) {
-      const climb = (t * 0.45 * speck.speed + speck.phase) % 1;
-      const height = climb * tall * speck.rise * standing;
-      const turn = spin * speck.speed * 1.4 + speck.phase * 40;
-      const radius = radiusAt(Math.min(height, tall)) * (0.85 + 0.3 * Math.sin(speck.phase * 20));
-      const at = { x: floor.x + Math.cos(turn) * radius, y: floor.y + Math.sin(turn) * radius, z: floor.z + height };
+      const climb = (t * 0.5 * speck.speed + speck.phase) % 1;
+      const height = Math.min(climb * tall * speck.rise, tall);
+      const turn = spin * speck.speed * 1.5 + speck.phase * 40;
+      const middle = axis(height);
+      const radius = radiusAt(height) * speck.out;
+      const at = { x: middle.x + Math.cos(turn) * radius, y: middle.y + Math.sin(turn) * radius, z: middle.z };
       const fade = Math.min(1, climb * 5, (1 - climb) * 4) * standing;
-      if (speck.leaf) {
+      if (speck.kind === 'stone') {
         drawn.motes.push({
-          ...glow(at, cell * speck.size * 1.6, mixColor('#7a8f3a', ramp[2], 0.3), fade, forward),
+          ...glow(at, cell * speck.size * 1.4, mixColor('#6f665c', ramp[1], 0.15), fade, forward),
           blend: 'color',
           shape: 'chunk',
           spin: turn * 2,
           variant: speck.phase * 6,
         });
+      } else if (speck.kind === 'leaf') {
+        drawn.motes.push({
+          ...glow(at, cell * speck.size * 1.6, mixColor('#7a8f3a', ramp[2], 0.3), fade, forward),
+          blend: 'color',
+          shape: 'chunk',
+          spin: turn * 3,
+          variant: speck.phase * 6,
+        });
       } else {
-        drawn.motes.push(
-          smokePuff(at, cell * speck.size * 6, mixColor('#a89a88', hueOf(ramp), 0.4), 0.5 * fade, forward)
-        );
+        drawn.motes.push(smokePuff(at, cell * speck.size * 6, body, 0.45 * fade, forward));
       }
+    }
+    // The skirt of dust churning round its foot.
+    for (let puff = 0; puff < 14; puff++) {
+      const turn = spin * 1.2 + (puff / 14) * Math.PI * 2;
+      const out = cell * (0.7 + (0.5 * ((puff * 7) % 5)) / 5);
+      drawn.motes.push(
+        smokePuff(
+          { x: floor.x + Math.cos(turn) * out, y: floor.y + Math.sin(turn) * out, z: floor.z + cell * 0.25 },
+          cell * 0.75,
+          body,
+          0.5 * standing,
+          forward
+        )
+      );
     }
     for (const cloud of thrown.dust) drawCloud(drawn, cloud, t, cell, forward);
     drawn.floor.push(
-      floorMark('ring', floor, cell * 1.1, 0.12, mixColor('#8c8074', ramp[2], 0.3), 0.5 * standing, 'color', 0)
+      floorMark('ring', floor, cell * 1.3, 0.3, mixColor('#5c5248', ramp[2], 0.2), 0.55 * standing, 'color', 0)
     );
+    drawn.floor.push(floorMark('disc', floor, cell * 1.6, 1, '#3f3831', 0.25 * standing, 'color', 0));
     return drawn;
   },
 };

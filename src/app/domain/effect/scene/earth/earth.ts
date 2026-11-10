@@ -19,22 +19,24 @@ import {
   thrownSparks,
 } from '@axe/domain/effect/scene/fire/fire-parts';
 import {
-  ball,
+  acrossOf,
   floorMark,
+  glow,
   haze,
   hueOf,
   keptFor,
   type Point,
   stageKey,
   starBurst,
+  type Thrower,
   throwerFor,
 } from '@axe/domain/effect/scene/parts';
 
 /*
  * What strikes the ground: an impact, a flash where it lands and a shock ring and dust thrown out,
- * grit and sparks flying; rubble, great rocks falling out of the air onto the target and bursting
- * into stones and dust as they strike; and an upheaval, spikes of stone bursting up out of the floor
- * round the target, standing a moment, and crumbling away into rocks and dust over cracked ground.
+ * grit and sparks flying; rubble, the ground bursting open under the target and blowing earth, stones
+ * and boulders up out of it; and an upheaval, hard blades of stone bursting up out of the floor round
+ * the target, standing a moment, and crumbling away into rocks and dust over cracked ground.
  */
 
 interface GroundThrow {
@@ -93,93 +95,173 @@ export const impact: Choreography = {
   },
 };
 
-interface RubbleThrow extends GroundThrow {
-  readonly boulders: readonly {
-    readonly from: Point;
-    readonly size: number;
-    readonly spin: number;
-    readonly delay: number;
-  }[];
+/** A vent the ground bursts open at, and when it bursts after the first. */
+interface Vent {
+  readonly at: Point;
+  readonly delay: number;
 }
-const rubbleByStage = new Map<string, RubbleThrow>();
 
-/** Rubble: see the header. */
+const rubbleByStage = new Map<string, GroundThrow & { readonly vents: readonly Vent[] }>();
+
+/** Stones shot up out of a vent, steeply, tumbling, falling back and bouncing where they land. */
+function ventStones(
+  th: Thrower,
+  vent: Vent,
+  count: number,
+  rise: readonly [number, number],
+  out: readonly [number, number],
+  size: readonly [number, number]
+): Bit[] {
+  const U = th.cell;
+  return Array.from({ length: count }, () => {
+    const way = th.outward();
+    const fast = th.range(out[0], out[1]) * U;
+    const bornAt = vent.delay + th.range(0, 0.06);
+    return {
+      mote: th.mote({
+        x: vent.at.x + th.range(-0.15, 0.15) * U,
+        y: vent.at.y + th.range(-0.15, 0.15) * U,
+        z: th.floorZ + 0.05 * U,
+        vx: way.cos * fast,
+        vy: way.sin * fast,
+        vz: th.range(rise[0], rise[1]) * U,
+        bornAt,
+        life: th.lifeOf(bornAt, 1.6, 2.4),
+        gravity: th.fall,
+        drag: 0.3,
+        bounce: 0.3,
+      }),
+      size: th.range(size[0], size[1]),
+      color: [mixColor(STONE, '#ffffff', 0.2), STONE, mixColor(STONE, '#000000', 0.3)][Math.floor(th.range(0, 2.99))],
+      turnRate: th.range(-14, 14),
+      variant: th.range(0, 6),
+    };
+  });
+}
+
+/** Earth blown up out of a vent in a column, thinning as it rises and spreads. */
+function ventPlume(th: Thrower, vent: Vent, count: number): Cloud[] {
+  const U = th.cell;
+  return Array.from({ length: count }, () => {
+    const bornAt = vent.delay + th.range(0, 0.12);
+    return {
+      mote: th.mote({
+        x: vent.at.x + th.range(-0.15, 0.15) * U,
+        y: vent.at.y + th.range(-0.15, 0.15) * U,
+        z: th.floorZ + th.range(0.1, 0.3) * U,
+        vx: th.range(-0.5, 0.5) * U,
+        vy: th.range(-0.5, 0.5) * U,
+        vz: th.range(9, 14) * U,
+        bornAt,
+        life: th.lifeOf(bornAt, 1.2, 2),
+        gravity: -0.1 * U,
+        drag: 2.2,
+        bounce: 0,
+      }),
+      size: th.range(0.8, 1.25),
+      color: mixColor(DUST, '#7a5a3a', 0.35),
+      alpha: 0.7,
+      plume: 2.4,
+    };
+  });
+}
+
+/**
+ * Rubble: the ground under the target shakes and cracks open, then bursts up through two or three
+ * vents one after another, each a column of earth and dust with stones and boulders shot up out of
+ * it, the cracks glowing with its colour; the stones fall back, bounce and lie, and the dust rolls out
+ * over the ground and settles.
+ */
 export const rubble: Choreography = {
   lingerS: 1,
   draw: (stage) => {
     const drawn = nothingStaged();
     const { cell } = stage;
-    const lands = stage.blowsAt[0] ?? stage.duration * 0.08;
+    const erupts = stage.blowsAt[0] ?? stage.duration * 0.08;
     const t = stage.seconds;
-    const since = t - lands;
+    const since = t - erupts;
     const ends = stage.duration + 1;
     const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
     const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
-    const stone = mixColor(STONE, ramp[1], 0.2);
     const forward = cell * 0.5;
     const thrown = keptFor(rubbleByStage, stageKey(stage, ends), () => {
       const th = throwerFor(stage, ends);
+      const spots = [
+        { x: 0, y: 0 },
+        { x: 0.6, y: -0.35 },
+        { x: -0.55, y: 0.4 },
+      ].slice(0, Math.max(1, Math.min(3, th.count(3))));
+      const vents = spots.map((spot, index) => ({
+        at: { x: floor.x + spot.x * cell, y: floor.y + spot.y * cell, z: floor.z },
+        delay: index * 0.09,
+      }));
       return {
-        boulders: Array.from({ length: th.count(4) }, (_unused, index) => ({
-          from: {
-            x: floor.x + th.range(-0.5, 0.5) * cell,
-            y: floor.y + th.range(-0.5, 0.5) * cell,
-            z: floor.z + cell * th.range(4, 6),
-          },
-          size: th.range(0.7, 1.1),
-          spin: th.range(-6, 6),
-          delay: index * 0.06,
-        })),
-        dust: [...rollingDust(th, floor, th.count(12), [2, 5], [0.6, 0.9]), ...dustColumn(th, floor, th.count(5))],
-        bits: [...thrownRocks(th, floor, th.count(12), [3, 6]), ...thrownGrit(th, floor, th.count(30))],
+        vents,
+        dust: [
+          ...vents.flatMap((vent) => ventPlume(th, vent, th.count(5))),
+          ...rollingDust(th, floor, th.count(12), [1.5, 4], [0.6, 0.9]),
+        ],
+        bits: vents.flatMap((vent) => [
+          ...ventStones(th, vent, th.count(7), [8, 12], [0.2, 1.1], [0.16, 0.3]),
+          ...ventStones(th, vent, th.count(2), [5, 7], [0.3, 0.8], [0.34, 0.5]),
+          ...ventStones(th, vent, th.count(5), [7, 12], [0.3, 1.6], [0.06, 0.1]),
+        ]),
         sparks: [],
       };
     });
-    // The boulders falling out of the air, each striking a moment after the one before.
-    for (const boulder of thrown.boulders) {
-      const falling = within(t, lands - 0.35 + boulder.delay, lands + boulder.delay);
-      if (falling <= 0 || falling >= 1) continue;
-      const at = {
-        x: boulder.from.x,
-        y: boulder.from.y,
-        z: boulder.from.z + (floor.z + cell * boulder.size * 0.4 - boulder.from.z) * falling * falling,
-      };
-      drawn.motes.push({
-        ...ball(at, cell * boulder.size, stone, 1, forward, boulder.spin),
-        shape: 'chunk',
-        spin: boulder.spin * t,
-      });
+    if (since < 0) {
+      // The ground shaking before it bursts: cracks running out and dust shaken off it.
+      const shaking = within(t, 0, erupts);
+      drawn.floor.push(
+        floorMark('cracks', floor, cell * 1.4 * shaking, 0.2, DUST, 0.6 * shaking, 'color', stage.seed % 89, stage.seed)
+      );
+      return drawn;
     }
-    if (since < 0) return drawn;
+    const clearing = 1 - within(t, ends - 0.4, ends);
     drawn.floor.push(
-      floorMark(
-        'cracks',
-        floor,
-        cell * 1.3 * Math.min(1, since / 0.08),
-        0.3,
-        DUST,
-        0.7 * (1 - within(t, ends - 0.4, ends)),
-        'color',
-        stage.seed % 89,
-        stage.seed
-      )
+      floorMark('cracks', floor, cell * 1.6, 0.3, DUST, 0.75 * clearing, 'color', stage.seed % 89, stage.seed)
     );
-    layShockRing(drawn, floor, cell * 0.3, cell * 2.8, cell * 0.18, hueOf(ramp), since, 0.4);
-    drawn.motes.push(
-      ...starBurst(
-        { ...floor, z: floor.z + cell * 0.4 },
-        cell * 2,
-        hueOf(ramp),
-        since / 0.25,
-        forward * 1.4,
-        6,
-        stage.seed
-      )
-    );
+    if (since < 0.9) {
+      drawn.floor.push(
+        floorMark('cracks', floor, cell * 1.6, 0.14, hueOf(ramp), 1 - since / 0.9, 'light', stage.seed % 89, stage.seed)
+      );
+    }
+    for (const vent of thrown.vents) {
+      const opened = since - vent.delay;
+      if (opened < 0) continue;
+      if (opened < 0.3) {
+        drawn.motes.push(
+          haze({ ...vent.at, z: vent.at.z + cell * 0.3 }, cell * 1.4, DUST, 0.7 * (1 - opened / 0.3), forward)
+        );
+        drawn.motes.push(
+          glow({ ...vent.at, z: vent.at.z + cell * 0.15 }, cell * 0.9, ramp[4], 0.8 * (1 - opened / 0.3), forward)
+        );
+      }
+      drawn.floor.push(
+        floorMark(
+          'scorch',
+          vent.at,
+          cell * 0.45,
+          1,
+          mixColor(DUST, '#000000', 0.45),
+          0.7 * clearing,
+          'color',
+          stage.seed % 13
+        )
+      );
+    }
+    layShockRing(drawn, floor, cell * 0.3, cell * 2.6, cell * 0.16, hueOf(ramp), since, 0.4);
     layDustBand(drawn, floor, cell * 2.4, cell * 0.25, ramp, since, 0.6);
     for (const cloud of thrown.dust) drawCloud(drawn, cloud, since, cell, forward);
-    for (const bit of thrown.bits)
-      drawBit(drawn, { ...bit, color: mixColor(bit.color, ramp[1], 0.15) }, since, cell, ramp, forward);
+    for (const bit of thrown.bits) drawBit(drawn, bit, since, cell, ramp, forward);
+    if (since < 0.15)
+      drawn.lights.push({
+        ...floor,
+        z: floor.z + cell,
+        color: ramp[4],
+        strength: 0.9 * (1 - since / 0.15),
+        reachPx: cell * 2.4,
+      });
     return drawn;
   },
 };
@@ -212,16 +294,17 @@ export const upheaval: Choreography = {
     const forward = cell * 0.3;
     const thrown = keptFor(upheavalByStage, stageKey(stage, ends), () => {
       const th = throwerFor(stage, ends);
-      const count = th.count(8);
+      const count = th.count(7);
       const spikes = Array.from({ length: count }, (_unused, index) => {
         const turn = ((index + th.range(-0.3, 0.3)) / count) * Math.PI * 2;
-        const out = th.range(0.2, 0.7) * cell;
-        const tilt = th.range(0.1, 0.45);
+        const outer = index % 3 === 2;
+        const out = (outer ? th.range(0.9, 1.3) : th.range(0.15, 0.7)) * cell;
+        const tilt = outer ? th.range(0.3, 0.6) : th.range(0.1, 0.4);
         return {
           at: { x: floor.x + Math.cos(turn) * out, y: floor.y + Math.sin(turn) * out, z: floor.z },
           lean: { x: Math.cos(turn) * tilt, y: Math.sin(turn) * tilt, z: 1 },
-          tall: th.range(1, 2),
-          wide: th.range(0.35, 0.55),
+          tall: outer ? th.range(0.8, 1.2) : th.range(1.3, 2.1),
+          wide: outer ? th.range(0.3, 0.42) : th.range(0.42, 0.6),
           delay: th.range(0, 0.15),
         };
       });
@@ -256,37 +339,49 @@ export const upheaval: Choreography = {
         floorMark('cracks', floor, cell * 1.5, 0.14, hueOf(ramp), 1 - t / 0.8, 'light', stage.seed % 89, stage.seed)
       );
     for (const cloud of thrown.dust) drawCloud(drawn, cloud, t, cell, forward);
-    // The spikes of stone: bursting up, standing, then crumbling away.
-    const crumbling = within(t, crumbles, crumbles + 0.25);
+    // The spikes of stone: bursting up past their height and settling, standing, then sinking away
+    // as they crumble. Each is a hard blade of rock seen face on: its body in shadow, its lit face
+    // and a bright edge down one side, so it reads as stone.
+    const crumbling = within(t, crumbles, crumbles + 0.3);
     if (crumbling < 1) {
-      for (const [colour, wide, high] of [
-        [mixColor(stone, '#000000', 0.45), 1.12, 1.03],
-        [stone, 1, 1],
-        [mixColor(stone, '#ffffff', 0.25), 0.5, 0.9],
-      ] as const) {
-        for (const spike of thrown.spikes) {
-          const grown = outCubic(within(t, spike.delay, spike.delay + 0.1));
-          if (grown <= 0) continue;
-          const tall = cell * spike.tall * grown * high * (1 - crumbling * 0.7);
-          const width = cell * spike.wide * wide;
-          const reach = Math.max(tall - width, 2);
-          const length = Math.hypot(spike.lean.x, spike.lean.y, 1);
-          const way = { x: spike.lean.x / length, y: spike.lean.y / length, z: 1 / length };
-          drawn.motes.push({
-            x: spike.at.x + way.x * tall,
-            y: spike.at.y + way.y * tall,
-            z: spike.at.z + way.z * tall,
-            size: width,
-            color: colour,
-            alpha: 1 - crumbling,
+      for (const spike of thrown.spikes) {
+        const shooting = within(t, spike.delay, spike.delay + 0.12);
+        if (shooting <= 0) continue;
+        const grown = Math.min(1.12, outCubic(shooting) + 0.12 * Math.sin(Math.PI * shooting));
+        const tall = cell * spike.tall * grown * (1 - crumbling * 0.75);
+        const width = cell * spike.wide;
+        const length = Math.hypot(spike.lean.x, spike.lean.y, 1);
+        const way = { x: spike.lean.x / length, y: spike.lean.y / length, z: 1 / length };
+        const { side } = acrossOf(way);
+        const along = (share: number, aside: number): Point => ({
+          x: spike.at.x + way.x * tall * share + side.x * aside,
+          y: spike.at.y + way.y * tall * share + side.y * aside,
+          z: spike.at.z + way.z * tall * share + side.z * aside,
+        });
+        const alpha = 1 - crumbling;
+        drawn.ribbons.push(
+          {
+            points: [along(-0.05, 0), along(0.45, 0), along(1, 0)],
+            widths: [width, width * 0.7, 0],
+            color: mixColor(stone, '#000000', 0.28),
+            alpha,
             blend: 'color',
-            shape: 'tongue',
-            velocity: { x: way.x * reach, y: way.y * reach, z: way.z * reach },
-            trail: 1,
-            variant: spike.tall * 7,
-            forward,
-          });
-        }
+          },
+          {
+            points: [along(-0.05, width * 0.22), along(0.45, width * 0.16), along(0.97, width * 0.02)],
+            widths: [width * 0.5, width * 0.36, 0],
+            color: mixColor(stone, '#ffffff', 0.42),
+            alpha,
+            blend: 'color',
+          },
+          {
+            points: [along(0, width * 0.46), along(1, 0)],
+            widths: [width * 0.07, 0],
+            color: mixColor(stone, '#ffffff', 0.7),
+            alpha: alpha * 0.9,
+            blend: 'color',
+          }
+        );
       }
     }
     for (const bit of thrown.bits) drawBit(drawn, bit, t, cell, ramp, forward);
