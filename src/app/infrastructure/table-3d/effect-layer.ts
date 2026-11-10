@@ -19,6 +19,7 @@ import {
   cos,
   cross,
   float,
+  floor,
   fract,
   fwidth,
   length,
@@ -73,6 +74,8 @@ const MAX_EFFECT_MOTES = EFFECT_FRAME_BUDGET.motes;
 /** How many marks on the floor of each kind of blend it draws at most. */
 const MAX_EFFECT_MARKS = EFFECT_FRAME_BUDGET.marks;
 
+/** How far nearer the eye a particle is drawn at the least, against its size. */
+const MOTE_NEARER_SIZE = 0.6;
 /** Particles draw after the pieces and the lying pictures, and under the weather. */
 const MOTES_ORDER = 940;
 /** Marks on the floor draw over the floor and its pictures, and under what stands on it. */
@@ -487,7 +490,10 @@ export class EffectLayer {
     const reach = speed.mul(motion.w).add(size);
     const corner = positionGeometry.xy;
     const spin = look.y;
-    const shape = look.x;
+    // Rounded, as it is told apart by being equal to a whole number: carried to each point of the
+    // board, a whole number may come out a hair off it at some points, which a look would then be
+    // drawn as another at, in thin stripes.
+    const shape = floor(look.x.add(0.5));
     // A flare is drawn out as long as its trail says, then turned by its spin, so a star of them
     // can be laid out at any angles on the screen.
     const stretch = select(shape.equal(8), max(motion.w, 1), float(1));
@@ -626,9 +632,12 @@ export class EffectLayer {
       ...this.blendingOf(blend),
     });
     // Drawn nearer the eye along the line it is seen on, so it is in the same place on the screen and
-    // only what stands in front of it by more than that hides it.
+    // only what stands in front of it by more than that hides it: by as much as it is set to, and by
+    // more than half its size for a large one, whose board, turned to the eye, would otherwise sink
+    // its lower half into the ground under it and be cut by every rise of the ground in thin stripes.
     const corner3 = at.add(select(streaked, drawnOut, faced));
-    material.positionNode = corner3.add(normalize(cameraPosition.sub(corner3)).mul(look.w));
+    const nearer = max(look.w, size.mul(MOTE_NEARER_SIZE));
+    material.positionNode = corner3.add(normalize(cameraPosition.sub(corner3)).mul(nearer));
     material.colorNode = vec4(shown, 1);
     material.opacityNode = alpha.mul(tint.w);
     return this.batchOf(['place', 'tint', 'motion', 'look'], MAX_EFFECT_MOTES, material, MOTES_ORDER);
@@ -654,7 +663,10 @@ export class EffectLayer {
       .and(abs(place.y.sub(MARK_LIFT_PX).sub(groundAt(place.x, place.z))).lessThan(MARK_ON_GROUND_PX));
     const laid = vec3(flat.x, select(onGround, groundAt(flat.x, flat.z).add(MARK_LIFT_PX), flat.y), flat.z);
 
-    const shape = look.x;
+    // Rounded, as it is told apart by being equal to a whole number: carried to each point of the
+    // board, a whole number may come out a hair off it at some points, which a look would then be
+    // drawn as another at, in thin stripes.
+    const shape = floor(look.x.add(0.5));
     const width = clamp(look.y, 0.01, 1);
     const turn = look.z;
     const seed = look.w;
