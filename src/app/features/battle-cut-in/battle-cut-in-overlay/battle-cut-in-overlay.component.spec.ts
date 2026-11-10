@@ -1,6 +1,8 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut-in-preference.service';
+import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -8,14 +10,26 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { BattleScene } from '@axe/domain/battle/battle-scene';
 import { BATTLE_STILL_MS } from '@axe/domain/battle/battle-timeline';
 import { createEffectPreset, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
+import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
 import { BattleCutInOverlayComponent } from '@axe/features/battle-cut-in/battle-cut-in-overlay/battle-cut-in-overlay.component';
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
+import type { EffectOverlay } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('BattleCutInOverlayComponent', () => {
   let fixture: ComponentFixture<BattleCutInOverlayComponent>;
   let state: BattleCutInStateService;
   const motion = signal(false);
+  /** Whether the browser can make the canvases the effects are drawn on as on the table. */
+  let drawsOverPage = false;
+  /** What each of those canvases was handed to draw, by the canvas's test id. */
+  let shown: Map<string, EffectFrame[]>;
+  const overPageOn = (canvas: HTMLCanvasElement): EffectOverlay | null => {
+    if (!drawsOverPage) return null;
+    const frames: EffectFrame[] = [];
+    shown.set(canvas.dataset['testid'] ?? '', frames);
+    return { show: (frame) => frames.push(frame), dispose: () => undefined };
+  };
 
   function scene(overrides: Partial<BattleScene> = {}): BattleScene {
     return {
@@ -62,7 +76,18 @@ describe('BattleCutInOverlayComponent', () => {
     motion.set(false);
     TestBed.configureTestingModule({
       imports: [BattleCutInOverlayComponent],
-      providers: [...TEST_PROVIDERS, { provide: MotionService, useValue: { enabled: motion } }],
+      providers: [
+        ...TEST_PROVIDERS,
+        { provide: MotionService, useValue: { enabled: motion } },
+        {
+          provide: EFFECT_STAGE_LOADER,
+          useValue: () =>
+            Promise.resolve({
+              createEffectStage: () => Promise.resolve(null),
+              createEffectOverlay: (canvas: HTMLCanvasElement) => Promise.resolve(overPageOn(canvas)),
+            }),
+        },
+      ],
     });
     for (const seed of DEFAULT_EFFECT_PRESET_SEEDS) createEffectPreset(seed, seed.identifier);
     state = TestBed.inject(BattleCutInStateService);
@@ -71,7 +96,9 @@ describe('BattleCutInOverlayComponent', () => {
   afterEach(() => {
     fixture?.destroy();
     state.clear();
+    drawsOverPage = false;
     vi.useRealTimers();
+    vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.delete(object, false);
     ObjectStore.instance.clearDeleteHistory();
   });
@@ -287,6 +314,104 @@ describe('BattleCutInOverlayComponent', () => {
 
       expect(preference.stageWindow().x).toBeLessThan(1);
       expect(preference.stageWindow().y).toBeGreaterThan(0);
+    });
+  });
+  describe('while motion is on', () => {
+    let frames: FrameRequestCallback[];
+
+    beforeEach(async () => {
+      vi.useRealTimers();
+      // The 2D context of happy-dom has no drawing functions; what is checked is what is placed.
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
+      frames = [];
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+        frames.push(callback);
+        return frames.length;
+      });
+      vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
+      vi.spyOn(performance, 'now').mockReturnValue(1000);
+      shown = new Map();
+      drawsOverPage = true;
+      motion.set(true);
+      await TestBed.inject(EffectSceneLooksService).load();
+    });
+
+    /** Plays a scene and waits for the canvas over the stage to be made, as what makes it is loaded. */
+    async function playMoving(played: BattleScene): Promise<BattleCutInOverlayComponent> {
+      play(played);
+      for (let turn = 0; turn < 5; turn++) {
+        await fixture.whenStable();
+        fixture.detectChanges();
+      }
+      return fixture.componentInstance;
+    }
+
+    /** Runs every frame asked for so far, at a time past the start of the stage. */
+    function runFramesAt(elapsedMs: number): void {
+      for (const frame of frames.splice(0)) frame(1000 + elapsedMs);
+      fixture.detectChanges();
+    }
+
+    const drawnIn = (frame: EffectFrame) => frame.motes.length + frame.ribbons.length + frame.floor.length;
+
+    it('draws the blow as on the table, its marks on the floor under the fighters and the rest over them', async () => {
+      const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
+      const timeline = stage.timeline()!;
+
+      runFramesAt(timeline.impact + 100);
+
+      const drawn = stage.sceneFrame();
+      expect(drawn.motes.length).toBeGreaterThan(0);
+      expect(drawn.floor.length).toBeGreaterThan(0);
+      const under = shown.get('battle-floor-effects')!.at(-1)!;
+      const over = shown.get('battle-effects')!.at(-1)!;
+      expect(under.floor).toBe(drawn.floor);
+      expect(drawnIn(under)).toBe(drawn.floor.length);
+      expect(over.motes).toBe(drawn.motes);
+      expect(over.ribbons).toBe(drawn.ribbons);
+      expect(over.floor).toEqual([]);
+      expect(stage.sprites()).toEqual([]);
+      expect(stage.canvases()).toEqual([]);
+    });
+
+    it('cuts up the picture of one brought down over the stage, and draws the rest of it on the canvas', async () => {
+      ImageStorage.instance.add({
+        identifier: 'falling-goblin',
+        name: 'goblin.webp',
+        type: 'image/webp',
+        blob: new Blob(['picture'], { type: 'image/webp' }),
+        url: 'blob:falling-goblin',
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+      try {
+        const played = scene({ defeatEffect: 'EffectPreset_defeat_dissolve' });
+        const stage = await playMoving({
+          ...played,
+          defenders: [{ ...played.defenders[0], image: 'falling-goblin' }],
+        });
+        const timeline = stage.timeline()!;
+
+        runFramesAt(timeline.defeatStart + 1000);
+
+        const sprites = stage.sprites();
+        expect(sprites.length).toBeGreaterThan(0);
+        expect(sprites.every((sprite) => JSON.stringify([sprite.style, sprite.paint]).includes('url('))).toBe(true);
+        expect(stage.canvases()).toEqual([]);
+        expect(drawnIn(stage.sceneFrame())).toBeGreaterThan(0);
+      } finally {
+        ImageStorage.instance.delete('falling-goblin');
+      }
+    });
+
+    it('draws the blow over the stage as before where the browser cannot make the canvas', async () => {
+      drawsOverPage = false;
+      const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
+      const timeline = stage.timeline()!;
+
+      runFramesAt(timeline.impact + 100);
+
+      expect(drawnIn(stage.sceneFrame())).toBe(0);
+      expect(stage.sprites().length + stage.canvases().length).toBeGreaterThan(0);
     });
   });
 });

@@ -64,7 +64,11 @@ describe('EffectPreviewComponent', () => {
         ...TEST_PROVIDERS,
         {
           provide: EFFECT_STAGE_LOADER,
-          useValue: () => Promise.resolve({ createEffectStage: () => Promise.resolve(stage) }),
+          useValue: () =>
+            Promise.resolve({
+              createEffectStage: () => Promise.resolve(stage),
+              createEffectOverlay: () => Promise.resolve(null),
+            }),
         },
       ],
     });

@@ -1,7 +1,12 @@
 import { MAX_EFFECT_LIGHTS } from '@axe/domain/effect/effect-light';
 import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
 import { EffectLayer } from '@axe/infrastructure/table-3d/effect-layer';
-import type { EffectStage, EffectStageOptions } from '@axe/infrastructure/table-3d/table-3d-port';
+import type {
+  EffectOverlay,
+  EffectOverlayView,
+  EffectStage,
+  EffectStageOptions,
+} from '@axe/infrastructure/table-3d/table-3d-port';
 import { abs, float, fract, max, min, mix, smoothstep, uv, vec2, vec3 } from 'three/tsl';
 import {
   Color,
@@ -14,6 +19,7 @@ import {
   PointLight,
   RingGeometry,
   Scene,
+  Vector3,
   WebGPURenderer,
 } from 'three/webgpu';
 
@@ -27,6 +33,7 @@ const LIGHT_SCALE = 2.2;
 const BOARD = new Color(0x2a2f38);
 const LINE = new Color(0x4a5260);
 const FIGURE = new Color(0x9fb0c4);
+const ACROSS = new Vector3(1, 0, 0);
 
 /**
  * A small stage an effect is played on, apart from the table: a board with its grid, a stand-in piece
@@ -122,6 +129,75 @@ class SmallStage implements EffectStage {
     this.effects.dispose();
     for (const thing of this.owned) thing.dispose();
     this.renderer.dispose();
+  }
+}
+
+/**
+ * A see-through canvas over a floor the page draws in 3D, effects drawn on it by the same layer the
+ * table draws them with, seen as the page sees that floor: the eye where the box's perspective puts
+ * it, the floor tipped and grown about its origin. Light adds to the page under it; nothing else of
+ * the canvas covers it.
+ */
+class OverPage implements EffectOverlay {
+  private readonly scene = new Scene();
+  private readonly camera = new PerspectiveCamera(FIELD_OF_VIEW, 1, 1, 10000);
+  private readonly effects = new EffectLayer(true);
+  private width = 0;
+  private height = 0;
+
+  constructor(private readonly renderer: WebGPURenderer) {
+    this.scene.add(this.effects.group);
+  }
+
+  show(frame: EffectFrame, view: EffectOverlayView): void {
+    this.fit(view);
+    this.effects.set(frame);
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * Stands the camera in the floor's own measure: where the page's eye is, a perspective's length in
+   * front of the middle of the box, brought into the floor by undoing its growing and its tipping.
+   */
+  private fit(view: EffectOverlayView): void {
+    const width = Math.max(1, view.width);
+    const height = Math.max(1, view.height);
+    if (width !== this.width || height !== this.height) {
+      this.renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
+      this.renderer.setSize(width, height, false);
+      this.width = width;
+      this.height = height;
+    }
+    const scale = Math.max(view.scale, 0.01);
+    const tipped = ((90 - view.tiltDeg) * Math.PI) / 180;
+    this.camera.quaternion.setFromAxisAngle(ACROSS, -tipped);
+    this.camera.position
+      .set(width / 2 - view.originX, view.originY - height / 2, view.perspectivePx)
+      .divideScalar(scale)
+      .applyQuaternion(this.camera.quaternion);
+    this.camera.fov = (2 * Math.atan(height / 2 / view.perspectivePx) * 180) / Math.PI;
+    this.camera.aspect = width / height;
+    this.camera.near = (view.perspectivePx * 0.02) / scale;
+    this.camera.far = (view.perspectivePx * 20) / scale;
+    this.camera.updateProjectionMatrix();
+    this.camera.updateMatrixWorld();
+  }
+
+  dispose(): void {
+    this.effects.dispose();
+    this.renderer.dispose();
+  }
+}
+
+/** Makes a see-through canvas to draw effects over a floor the page draws, or null where the browser cannot draw one. */
+export async function createEffectOverlay(canvas: HTMLCanvasElement): Promise<EffectOverlay | null> {
+  try {
+    const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: true });
+    await renderer.init();
+    renderer.setClearColor(0x000000, 0);
+    return new OverPage(renderer);
+  } catch {
+    return null;
   }
 }
 

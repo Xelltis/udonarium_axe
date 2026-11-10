@@ -319,7 +319,35 @@ export interface EffectStage {
   dispose(): void;
 }
 
+/**
+ * How a floor the page draws itself in 3D is seen, for effects drawn over it to stand where it does:
+ * the floor tipped away about its own origin and grown, seen through the perspective of the box the
+ * canvas fills, from the middle of that box.
+ */
+export interface EffectOverlayView {
+  /** How large the canvas is laid out, in pixels of the page. */
+  readonly width: number;
+  readonly height: number;
+  /** How far the eye is from the page, as the box's perspective says. */
+  readonly perspectivePx: number;
+  /** Where the floor's origin is, from the canvas's top left. */
+  readonly originX: number;
+  readonly originY: number;
+  /** How much the floor is grown. */
+  readonly scale: number;
+  /** How far the floor is tipped away from facing the eye, in degrees. */
+  readonly tiltDeg: number;
+}
+
+/** A see-through canvas over a floor the page draws, that effects are drawn on as if on that floor. */
+export interface EffectOverlay {
+  /** Draws what the effects draw at a moment, as the floor is seen now. */
+  show(frame: EffectFrame, view: EffectOverlayView): void;
+  dispose(): void;
+}
+
 /** What the module that makes small stages gives, loaded only once something asks for one. */
 export interface EffectStageModule {
   createEffectStage(canvas: HTMLCanvasElement, options: EffectStageOptions): Promise<EffectStage | null>;
+  createEffectOverlay(canvas: HTMLCanvasElement): Promise<EffectOverlay | null>;
 }

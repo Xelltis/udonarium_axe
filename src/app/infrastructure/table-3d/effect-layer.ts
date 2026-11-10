@@ -44,6 +44,7 @@ import {
   BufferGeometry,
   type Camera,
   Color,
+  CustomBlending,
   DataTexture,
   DataUtils,
   DoubleSide,
@@ -57,10 +58,13 @@ import {
   MeshBasicNodeMaterial,
   type Node,
   NormalBlending,
+  OneFactor,
   PlaneGeometry,
   RedFormat,
+  SrcAlphaFactor,
   Vector2,
   Vector3,
+  ZeroFactor,
 } from 'three/webgpu';
 
 /** How many particles of each kind of blend the layer draws at most in a frame. */
@@ -120,6 +124,10 @@ const RIBBONS_ORDER = 941;
 const RIBBON_NEARER_PX = 12;
 
 /** One instanced mesh of quads and the buffers it is drawn from, written afresh each frame. */
+type BlendingParameters = Partial<
+  Pick<MeshBasicNodeMaterial, 'blending' | 'blendSrc' | 'blendDst' | 'blendSrcAlpha' | 'blendDstAlpha'>
+>;
+
 interface Batch {
   readonly mesh: Mesh;
   readonly geometry: InstancedBufferGeometry;
@@ -150,7 +158,11 @@ export class EffectLayer {
   private changed = false;
   private drawing = false;
 
-  constructor() {
+  /**
+   * @param overPage Whether it is drawn on a canvas the page shows through, where light is to add to
+   *   the page under it rather than cover it.
+   */
+  constructor(private readonly overPage = false) {
     this.motes = { light: this.moteBatch('light'), color: this.moteBatch('color') };
     this.marks = { light: this.markBatch('light'), color: this.markBatch('color') };
     this.ribbons = { light: this.ribbonBatch('light'), color: this.ribbonBatch('color') };
@@ -188,6 +200,23 @@ export class EffectLayer {
   private face(camera: Camera): void {
     this.cameraRight.value.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
     this.cameraUp.value.setFromMatrixColumn(camera.matrixWorld, 1).normalize();
+  }
+
+  /**
+   * How a look of a blend is laid over what is drawn under it: light adds to it, colour covers it. Over
+   * a canvas the page shows through, light adds its colour and leaves the canvas as see-through as it
+   * was, so that the page under it is brightened rather than hidden.
+   */
+  private blendingOf(blend: EffectBlend): BlendingParameters {
+    if (blend !== 'light') return { blending: NormalBlending };
+    if (!this.overPage) return { blending: AdditiveBlending };
+    return {
+      blending: CustomBlending,
+      blendSrc: SrcAlphaFactor,
+      blendDst: OneFactor,
+      blendSrcAlpha: ZeroFactor,
+      blendDstAlpha: OneFactor,
+    };
   }
 
   /** Lays the marks on the floor over the ground as it rises and falls, or flat with null. */
@@ -422,7 +451,7 @@ export class EffectLayer {
       transparent: true,
       depthWrite: false,
       side: DoubleSide,
-      blending: blend === 'light' ? AdditiveBlending : NormalBlending,
+      ...this.blendingOf(blend),
     });
     material.positionNode = placed.add(normalize(cameraPosition.sub(placed)).mul(RIBBON_NEARER_PX));
     material.colorNode = vec4(mix(tintNode.rgb, coreNode.rgb, heart), 1);
@@ -593,7 +622,7 @@ export class EffectLayer {
       transparent: true,
       depthWrite: false,
       side: DoubleSide,
-      blending: blend === 'light' ? AdditiveBlending : NormalBlending,
+      ...this.blendingOf(blend),
     });
     // Drawn nearer the eye along the line it is seen on, so it is in the same place on the screen and
     // only what stands in front of it by more than that hides it.
@@ -676,7 +705,7 @@ export class EffectLayer {
       transparent: true,
       depthWrite: false,
       side: DoubleSide,
-      blending: blend === 'light' ? AdditiveBlending : NormalBlending,
+      ...this.blendingOf(blend),
       ...LAID_OVER_FACES,
     });
     // Drawn nearer the eye along the line it is seen on, so where the ground rises a little under it

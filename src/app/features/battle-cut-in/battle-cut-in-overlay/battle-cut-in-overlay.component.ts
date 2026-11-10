@@ -1,8 +1,10 @@
 import { NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   ElementRef,
   inject,
@@ -13,6 +15,8 @@ import {
 } from '@angular/core';
 import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut-in-preference.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
@@ -53,6 +57,10 @@ import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { effectLandingTimes, impactSoundTimes, launchSoundTimes } from '@axe/domain/effect/effect-sound-times';
 import { EffectSpriteOptions, effectSprites, Point3 } from '@axe/domain/effect/effect-timeline';
+import { nothingStaged } from '@axe/domain/effect/scene/choreography';
+import type { EffectFooting } from '@axe/domain/effect/scene/effect-frame';
+import { type EffectFrame, EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
+import { drawsOnlyPicturesOver, hasScenePart, sceneLingerMsOf } from '@axe/domain/effect/scene/scene-kinds';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
 import {
@@ -61,6 +69,9 @@ import {
   BATTLE_CELL_PX,
   BATTLE_EFFECT_RISE_PX,
   BATTLE_FIGURE_PX,
+  BATTLE_FLOOR_TOP,
+  BATTLE_PERSPECTIVE_PX,
+  BATTLE_SCENE_CELL_PX,
   BATTLE_VIEW,
   defenderPoints,
   fighterShift,
@@ -81,6 +92,7 @@ import {
   EffectViewpoint,
   hasEffectPaintLayer,
 } from '@axe/features/effect/effect-sprite-style';
+import type { EffectOverlay, EffectOverlayView } from '@axe/infrastructure/table-3d/table-3d-port';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { Z_BATTLE_CUT_IN } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -234,10 +246,21 @@ export class BattleCutInOverlayComponent {
   private readonly disclosure = inject(DisclosureService);
   private readonly preference = inject(BattleCutInPreferenceService);
   private readonly layout = inject(ViewportService);
+  private readonly sceneLooks = inject(EffectSceneLooksService);
+  private readonly loadStage = inject(EFFECT_STAGE_LOADER);
 
   protected readonly zIndex = Z_BATTLE_CUT_IN;
   protected readonly looks = LOOKS;
   private readonly root = viewChild<ElementRef<HTMLElement>>('root');
+  private readonly floorCanvas = viewChild<ElementRef<HTMLCanvasElement>>('floorCanvas');
+  private readonly effectCanvas = viewChild<ElementRef<HTMLCanvasElement>>('effectCanvas');
+  /**
+   * The see-through canvases the effects are drawn on as on the table, once they are made: one under
+   * the fighters for the marks on the floor, which they stand on, and one over them for the rest.
+   */
+  private readonly overPage = signal<{ floor: EffectOverlay; above: EffectOverlay } | null>(null);
+  /** Whether the browser could not draw those canvases, which leaves the effects drawn as they were before. */
+  private readonly overPageFailed = signal(false);
   private readonly viewport = signal({ width: 0, height: 0 });
   private readonly screen = signal(readScreen());
   private readonly dragPlace = signal<{ x: number; y: number } | null>(null);
@@ -312,9 +335,31 @@ export class BattleCutInOverlayComponent {
     this.windowBox() ? BATTLE_STAGE_CANVAS.height : bandHeight(this.viewport().height)
   );
 
+  private readonly boardScale = computed(() =>
+    stageScale(this.viewport().width, this.bandHeight(), this.scene()?.defenders.length ?? 1)
+  );
+
   readonly boardTransform = computed(() => {
-    const scale = stageScale(this.viewport().width, this.bandHeight(), this.scene()?.defenders.length ?? 1);
+    const scale = this.boardScale();
     return `scale3d(${scale}, ${scale}, ${scale}) rotateX(${BATTLE_VIEW.x}deg)`;
+  });
+
+  protected readonly perspective = BATTLE_PERSPECTIVE_PX;
+  protected readonly floorTop = BATTLE_FLOOR_TOP * 100;
+
+  /** How the canvas the effects are drawn on sees the floor: as the band does. */
+  private readonly overPageView = computed<EffectOverlayView>(() => {
+    const width = this.viewport().width;
+    const height = this.bandHeight();
+    return {
+      width,
+      height,
+      perspectivePx: BATTLE_PERSPECTIVE_PX,
+      originX: width / 2,
+      originY: height * BATTLE_FLOOR_TOP,
+      scale: this.boardScale(),
+      tiltDeg: BATTLE_VIEW.x,
+    };
   });
 
   /** Which of the tool's own stages is drawn where the room's own picture is not. */
@@ -538,40 +583,106 @@ export class BattleCutInOverlayComponent {
       });
     }
     return layers.filter(
-      (layer) => layer.elapsed >= 0 && layer.elapsed <= layer.preset.totalDuration(layer.cast.targets.length)
+      (layer) => layer.elapsed >= 0 && layer.elapsed <= this.playingMsOf(layer.preset, layer.cast.targets.length)
     );
   });
 
-  readonly sprites = computed<SpriteFrame[]>(() =>
-    this.layers().flatMap((layer) =>
-      effectSprites(layer.preset, layer.cast, layer.elapsed, layer.options).map((sprite) => ({
-        key: `${layer.prefix}-${sprite.key}`,
-        style: effectSpriteStyle(sprite, layer.viewpoint),
-        paint: hasEffectPaintLayer(sprite) ? effectPaintStyle(sprite) : null,
-        svg: sprite.svg,
-      }))
+  /** The effects drawn over the stage as they were before: those not drawn as on the table, and the pictures cut up. */
+  private readonly drawnOver = computed(() =>
+    this.layers().filter(
+      (layer) =>
+        (!this.inScene(layer.preset) || drawsOnlyPicturesOver(layer.preset)) &&
+        layer.elapsed <= layer.preset.totalDuration(layer.cast.targets.length)
     )
   );
 
+  readonly sprites = computed<SpriteFrame[]>(() =>
+    this.drawnOver().flatMap((layer) => {
+      const picturesOnly = this.inScene(layer.preset);
+      return effectSprites(layer.preset, layer.cast, layer.elapsed, layer.options)
+        .filter((sprite) => !picturesOnly || sprite.background.includes('url('))
+        .map((sprite) => ({
+          key: `${layer.prefix}-${sprite.key}`,
+          style: effectSpriteStyle(sprite, layer.viewpoint),
+          paint: hasEffectPaintLayer(sprite) ? effectPaintStyle(sprite) : null,
+          svg: sprite.svg,
+        }));
+    })
+  );
+
+  /** Where each fighter stands as the effects are drawn as on the table, the one striking a step in. */
+  private readonly footings = computed(() => {
+    const footings = new Map<string, EffectFooting>();
+    for (const view of this.views()) {
+      const x = view.point.x + (view.striking ? fighterShift(view.side, 1, 1) : 0);
+      footings.set(view.fighter.identifier, { x, y: view.point.y, z: view.point.z, groundZ: view.point.z });
+    }
+    return footings;
+  });
+
+  /** What the effects drawn as on the table draw at this moment, on the canvas over the stage. */
+  readonly sceneFrame = computed<EffectFrame>(() => {
+    const layers = this.layers().filter((layer) => this.inScene(layer.preset));
+    if (layers.length < 1) return EMPTY_EFFECT_FRAME;
+    const looks = this.sceneLooks.looks();
+    if (!looks) return EMPTY_EFFECT_FRAME;
+    const footings = this.footings();
+    const drawn = nothingStaged();
+    for (const layer of layers) {
+      looks.stageEffect(
+        layer.preset,
+        layer.cast,
+        layer.elapsed,
+        { cellPx: BATTLE_SCENE_CELL_PX, resolveFooting: (identifier) => footings.get(identifier) ?? null },
+        drawn
+      );
+    }
+    return drawn;
+  });
+
+  /** The marks the effects lay on the floor, drawn under the fighters standing on it. */
+  readonly floorFrame = computed<EffectFrame>(() => {
+    const frame = this.sceneFrame();
+    return frame.floor.length > 0 ? { ...EMPTY_EFFECT_FRAME, floor: frame.floor } : EMPTY_EFFECT_FRAME;
+  });
+
+  /** All else the effects draw, over the fighters. */
+  readonly aboveFrame = computed<EffectFrame>(() => {
+    const frame = this.sceneFrame();
+    return frame.floor.length > 0 ? { ...frame, floor: [] } : frame;
+  });
+
   readonly canvases = computed<CanvasFrame[]>(() =>
-    this.layers().flatMap((layer) =>
-      effectParticlePlacements(layer.preset, layer.cast, layer.elapsed, layer.options, MAX_CANVASES).map(
-        (placement) => ({
-          key: `${layer.prefix}-${placement.key}`,
-          layer: placement.layer,
-          style: effectCanvasStyle({
-            key: placement.key,
+    this.drawnOver()
+      .filter((layer) => !this.inScene(layer.preset))
+      .flatMap((layer) =>
+        effectParticlePlacements(layer.preset, layer.cast, layer.elapsed, layer.options, MAX_CANVASES).map(
+          (placement) => ({
+            key: `${layer.prefix}-${placement.key}`,
             layer: placement.layer,
-            width: placement.layer.width,
-            height: placement.layer.height,
-            transform: effectBillboardTransform(placement.center, placement.layer, layer.viewpoint),
-          }),
-        })
+            style: effectCanvasStyle({
+              key: placement.key,
+              layer: placement.layer,
+              width: placement.layer.width,
+              height: placement.layer.height,
+              transform: effectBillboardTransform(placement.center, placement.layer, layer.viewpoint),
+            }),
+          })
+        )
       )
-    )
   );
 
   constructor() {
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => void this.startOverPage(destroyRef));
+    destroyRef.onDestroy(() => {
+      const overPage = untracked(this.overPage);
+      overPage?.floor.dispose();
+      overPage?.above.dispose();
+    });
+    effect(() => this.overPage()?.floor.show(this.floorFrame(), this.overPageView()));
+    effect(() => this.overPage()?.above.show(this.aboveFrame(), this.overPageView()));
+
     effect((onCleanup) => {
       const root = this.root()?.nativeElement;
       if (!root) return;
@@ -604,6 +715,38 @@ export class BattleCutInOverlayComponent {
       handle = requestAnimationFrame(tick);
       onCleanup(() => cancelAnimationFrame(handle));
     });
+  }
+
+  /**
+   * Loads what draws the effects as on the table and makes the canvas over the stage, unless the
+   * stage is gone by then or plays as a still, which draws no effects.
+   */
+  private async startOverPage(destroyRef: DestroyRef): Promise<void> {
+    if (untracked(this.still)) return;
+    const module = await this.loadStage();
+    const floorCanvas = this.floorCanvas()?.nativeElement;
+    const aboveCanvas = this.effectCanvas()?.nativeElement;
+    if (destroyRef.destroyed || !floorCanvas || !aboveCanvas) return;
+    const [floor, above] = module
+      ? await Promise.all([module.createEffectOverlay(floorCanvas), module.createEffectOverlay(aboveCanvas)])
+      : [null, null];
+    if (destroyRef.destroyed || !floor || !above) {
+      floor?.dispose();
+      above?.dispose();
+      if (!destroyRef.destroyed) this.overPageFailed.set(true);
+      return;
+    }
+    this.overPage.set({ floor, above });
+  }
+
+  /** Whether an effect is drawn, wholly or in part, as on the table, on the canvas over the stage. */
+  private inScene(preset: EffectPreset): boolean {
+    return hasScenePart(preset) && !this.overPageFailed();
+  }
+
+  /** How long an effect goes on being drawn, with what it leaves clearing where it is drawn as on the table. */
+  private playingMsOf(preset: EffectPreset, targets: number): number {
+    return preset.totalDuration(targets) + (this.inScene(preset) ? sceneLingerMsOf(preset) : 0);
   }
 
   /** Moves on to the next scene, or closes the stage. */
