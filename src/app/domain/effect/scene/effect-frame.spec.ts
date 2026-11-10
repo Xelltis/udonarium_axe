@@ -443,3 +443,21 @@ describe('the looks that strike a piece down', () => {
     expect(sceneLingerMsOf(cut)).toBe(0);
   });
 });
+
+describe('the looks the fourth review asked to be drawn again', () => {
+  const cast = { ...castOn([400, 100]), origin: { x: 100, y: 100, z: 30 } };
+
+  it('launches a ballistic missile straight up off its pad before bringing it down on its mark', () => {
+    const missile = makePreset('ballistic', { durationMs: 4200, staggerMs: 0 });
+    const lands = effectBlowsOf(missile)[0].atMs;
+    const bodyAt = (ms: number) => staged(missile, cast, ms).ribbons.filter((ribbon) => ribbon.blend === 'color');
+
+    const climbing = bodyAt(lands * 0.2);
+    expect(climbing.length).toBeGreaterThan(0);
+    expect(climbing.every((ribbon) => ribbon.points.every((point) => Math.abs(point.x - 100) < CELL))).toBe(true);
+    const diving = bodyAt(lands * 0.9);
+    expect(diving.length).toBeGreaterThan(0);
+    expect(diving.every((ribbon) => ribbon.points.every((point) => Math.abs(point.x - 400) < CELL * 3))).toBe(true);
+    expect(staged(missile, cast, lands * 0.7).floor.some((mark) => mark.shape === 'sigil')).toBe(true);
+  });
+});

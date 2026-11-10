@@ -9,8 +9,8 @@ import { sceneLingerMsOf, stageEffect } from '@axe/domain/effect/scene/effect-fr
 import { EFFECT_FRAME_BUDGET } from '@axe/domain/effect/scene/effect-scene';
 
 const CELL = 50;
-/** How far from every target and the caster anything an effect draws may be, in cells. */
-const FARTHEST_CELLS = 8;
+/** How far from every target and the caster anything an effect draws may be, in cells: a ballistic missile's blast throws its fire furthest. */
+const FARTHEST_CELLS = 10;
 /** How far below the floor anything an effect draws may reach, in cells: a buried arrowhead, a sunk blade. */
 const DEEPEST_CELLS = 0.4;
 

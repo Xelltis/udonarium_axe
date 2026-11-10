@@ -11,7 +11,6 @@ import type { EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
 import { drawCloud, dustColumn, rollingDust } from '@axe/domain/effect/scene/fire/fire-parts';
 import {
   acrossOf,
-  ball,
   floorMark,
   glow,
   haze,
@@ -88,7 +87,8 @@ function landing(
   landsAt: number,
   shot: number,
   shots: number,
-  spot: { readonly x: number; readonly y: number } = stage
+  spot: { readonly x: number; readonly y: number } = stage,
+  grown = shots > 1 ? 0.85 : 1.1
 ): Staged {
   return landWith({
     ...stage,
@@ -98,7 +98,7 @@ function landing(
     duration: Math.max(0.6, stage.duration - landsAt),
     blowsAt: [0],
     seed: stage.seed + shot * 101,
-    cell: stage.cell * (shots > 1 ? 0.85 : 1.1),
+    cell: stage.cell * grown,
     preset: volleyLandingPreset(stage.preset, shots),
   });
 }
@@ -397,9 +397,18 @@ function drawTracerLine(
   });
 }
 
+/** How high a ballistic missile climbs out of sight before it turns over and dives, in cells. */
+const BALLISTIC_CLIMB_CELLS = 7;
+/** How long a ballistic missile is drawn, against the cell. */
+const BALLISTIC_BODY = 1.35;
+/** The red of the ring that marks where a ballistic missile will come down. */
+const TARGETED = '#ff4a3a';
+
 /**
- * A lobbed shot: fired with a flash and a puff of smoke, it climbs high and falls on the target in a
- * steep arc, trailing smoke, its fuse sparking, and lands with its preset's look.
+ * A ballistic missile: launched straight up off its pad in a blast of flame and smoke, it climbs out of
+ * sight on a column of smoke, while a red ring closes on the ground where it will come down; then it
+ * falls nose first out of the sky onto the target, its motor burning, and goes off in a blast larger
+ * than a shot's.
  */
 function drawBallistic(stage: Stage, landWith: LandingLook): Staged {
   const drawn = nothingStaged();
@@ -407,34 +416,116 @@ function drawBallistic(stage: Stage, landWith: LandingLook): Staged {
   const t = stage.seconds;
   const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
   const from = originOf(stage);
-  const to = { x: stage.x, y: stage.y, z: stage.groundZ + cell * 0.2 };
-  const { length } = wayBetween(from, to);
+  const pad = { x: from.x, y: from.y, z: stage.groundZ };
+  const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
   const lands = stage.blowsAt[0] ?? stage.duration * 0.86;
-  const height = Math.max(cell * 2.5, length * 0.7);
-  const pathAt = (along: number): Point => {
-    const straight = lerpPoint(from, to, along);
-    return { ...straight, z: straight.z + Math.sin(Math.PI * along) * height };
-  };
+  const climbs = lands * 0.4;
+  const dives = lands * 0.64;
+  const sky = cell * BALLISTIC_CLIMB_CELLS;
+  const body = cell * BALLISTIC_BODY;
   const forward = cell * 0.4;
-  if (t < 0.12) {
-    drawMuzzle(drawn, from, cell, ramp, t / 0.12, forward);
-    drawn.motes.push(smokePuff(from, cell * (0.4 + t * 4), '#cfc9c2', 0.6 * (1 - t / 0.12), forward));
-  }
-  const share = t / lands;
-  if (share >= 0 && share < 1) {
-    for (let back = 14; back >= 1; back--) {
-      const was = share - back * 0.03;
-      if (was < 0) continue;
-      const age = back / 14;
-      drawn.motes.push(smokePuff(pathAt(was), cell * (0.15 + age * 0.4), '#bdb6ae', (1 - age) * 0.5, forward));
+
+  // The blast off the pad as it lights, and the smoke rolling out over the ground round it.
+  if (t >= 0 && t < 0.5) {
+    const lit = t / 0.5;
+    drawn.motes.push(glow({ ...pad, z: pad.z + cell * 0.3 }, cell * (1.4 + lit), ramp[4], 0.9 * (1 - lit), forward));
+    for (let puff = 0; puff < 8; puff++) {
+      const turn = (puff / 8) * Math.PI * 2 + stage.seed;
+      const out = cell * (0.3 + lit * 1.6);
+      drawn.motes.push(
+        smokePuff(
+          { x: pad.x + Math.cos(turn) * out, y: pad.y + Math.sin(turn) * out, z: pad.z + cell * 0.25 },
+          cell * (0.5 + lit * 0.7),
+          '#cfc8bf',
+          0.75 * (1 - lit * 0.7),
+          forward
+        )
+      );
     }
-    const at = pathAt(share);
-    drawn.motes.push(ball(at, cell * 0.28, '#2b2a2e', 1, forward, stage.seed));
+    drawn.lights.push({ ...pad, z: pad.z + cell, color: ramp[4], strength: 1.8 * (1 - lit), reachPx: cell * 4 });
+  }
+  // The column of smoke it climbs on, each puff left where the missile was, spreading and thinning.
+  const puffs = 22;
+  for (let puff = 0; puff < puffs; puff++) {
+    const born = (climbs * puff) / puffs;
+    const age = (t - born) / 1.8;
+    if (age < 0 || age >= 1) continue;
+    const up = born / climbs;
+    const height = up * up * sky;
+    const drift = cell * age * 0.6;
     drawn.motes.push(
-      glow({ ...at, z: at.z + cell * 0.18 }, cell * 0.25, ramp[5], 0.6 + 0.4 * Math.sin(t * 40), forward + 2)
+      smokePuff(
+        { x: pad.x + drift, y: pad.y - drift * 0.4, z: pad.z + body * 0.4 + height },
+        cell * (0.35 + age * 0.9),
+        '#d8d2ca',
+        0.6 * (1 - age) ** 1.4,
+        forward
+      )
     );
   }
-  if (t >= lands) addInto(drawn, landing(stage, landWith, lands, 0, 1));
+  // The climb, nose up, quickening as it goes.
+  if (t >= 0 && t < climbs) {
+    const up = t / climbs;
+    const tip = { x: pad.x, y: pad.y, z: pad.z + body * 1.4 + up * up * sky };
+    const speed = (2 * up * sky) / climbs;
+    const missile = missileBody(
+      tip,
+      { x: 0, y: 0, z: 1 },
+      body,
+      ramp,
+      { x: 0, y: 0, z: speed },
+      speed,
+      forward,
+      t * 60
+    );
+    drawn.ribbons.push(...missile.ribbons);
+    drawn.motes.push(...missile.motes);
+  }
+  // The ring closing on where it will come down, pulsing red, and the cross at its middle.
+  if (t >= climbs * 0.7 && t < lands) {
+    const closing = (t - climbs * 0.7) / (lands - climbs * 0.7);
+    const pulse = 0.6 + 0.4 * Math.sin(t * 22);
+    drawn.floor.push(
+      floorMark('sigil', floor, cell * (1.3 - closing * 0.6), 0.12, TARGETED, 0.75 * pulse, 'light', t * 0.8)
+    );
+    drawn.floor.push(floorMark('ring', floor, cell * 0.3, 0.35, TARGETED, 0.85 * pulse, 'light', 0));
+    drawn.floor.push(floorMark('disc', floor, cell * 0.8, 1, TARGETED, 0.2 * closing, 'light', 0));
+  }
+  // The dive, nose first out of the sky, gathering speed, a white trail behind it.
+  if (t >= dives && t < lands) {
+    const share = (t - dives) / (lands - dives);
+    const eased = share ** 1.6;
+    const high = { x: floor.x - cell * 2.2, y: floor.y - cell * 1.2, z: floor.z + sky };
+    const at = (along: number): Point => lerpPoint(high, floor, along);
+    const { way, length } = wayBetween(high, floor);
+    const tip = at(eased);
+    const speed = (1.6 * share ** 0.6 * length) / (lands - dives);
+    const missile = missileBody(
+      tip,
+      way,
+      body,
+      ramp,
+      { x: way.x * speed, y: way.y * speed, z: way.z * speed },
+      speed,
+      forward,
+      t * 60
+    );
+    drawn.ribbons.push(...missile.ribbons);
+    drawn.motes.push(...missile.motes);
+    for (let back = 1; back <= 10; back++) {
+      const was = eased - back * 0.035;
+      if (was <= 0) break;
+      drawn.motes.push(smokePuff(at(was), cell * (0.22 + back * 0.05), '#e6e2dc', 0.5 * (1 - back / 10), forward));
+    }
+  }
+  if (t >= lands) {
+    addInto(drawn, landing(stage, landWith, lands, 0, 1, stage, 1.5));
+    const since = t - lands;
+    if (since < 0.25)
+      drawn.motes.push(
+        ...starBurst({ ...floor, z: floor.z + cell * 0.6 }, cell * 3, hueOf(ramp), since / 0.25, forward, 8)
+      );
+  }
   return drawn;
 }
 
