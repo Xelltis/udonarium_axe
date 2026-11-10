@@ -170,7 +170,7 @@ function drawStroke(
   const tail = Math.max(-SWEEP, head - TAIL * (1 - catching));
   if (head - tail < 0.02) return;
   const radius = (hit.reach / 2) * cell;
-  const thick = cell * Math.min(hit.thickness / 60, 0.5) * (1 - catching * 0.7);
+  const thick = cell * Math.min(Math.max(hit.thickness / 60, 0.38), 0.5) * (1 - catching * 0.7);
   drawn.ribbons.push(...bladeRibbons(centre, frame, hit, radius, tail, head, thick, ramp, 1 - catching));
 }
 

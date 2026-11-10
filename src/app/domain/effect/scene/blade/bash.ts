@@ -78,7 +78,7 @@ function drawBash(stage: Stage): Staged {
         };
       });
     return {
-      spikes: outward(heavy ? 10 : 8, [0.6, 1.15], [0.16, 0.26]),
+      spikes: outward(heavy ? 12 : 9, [0.9, 1.6], [0.2, 0.32]),
       lines: outward(th.count(12), [1.2, 2.2], [0.03, 0.05]),
       sparks: thrownSparks(th, struck, th.count(18), [3.5, 8], [0, 0.02]),
       dust: rollingDust(th, floor, th.count(heavy ? 12 : 6), [2, 5], [0.45, 0.7]),
