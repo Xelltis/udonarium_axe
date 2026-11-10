@@ -4,7 +4,9 @@ import { EffectKind } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { nothingStaged, type Staged } from '@axe/domain/effect/scene/choreography';
 import {
+  drawsOnlyPicturesOver,
   type EffectStagingOptions,
+  hasScenePart,
   isDrawnInScene,
   sceneLingerMsOf,
   stageEffect,
@@ -48,10 +50,16 @@ function staged(
 describe('isDrawnInScene()', () => {
   it('draws a burst in the scene, and leaves a look not yet made anew and a run of stages to be drawn over it', () => {
     expect(isDrawnInScene(makePreset('burst'))).toBe(true);
-    expect(isDrawnInScene(makePreset('gore'))).toBe(false);
+    expect(isDrawnInScene(makePreset('bisect'))).toBe(false);
     expect(isDrawnInScene({ isStaged: true, effectKind: 'burst' })).toBe(false);
+    const runOver = makePreset('burst');
+    runOver.stages = JSON.stringify([
+      { role: 'impact', kind: 'burst', durationMs: 400 },
+      { role: 'impact', kind: 'bisect', durationMs: 400 },
+    ]);
+    expect(isDrawnInScene(runOver)).toBe(false);
     expect(sceneLingerMsOf({ isStaged: true, effectKind: 'burst' })).toBe(0);
-    expect(sceneLingerMsOf(makePreset('gore'))).toBe(0);
+    expect(sceneLingerMsOf(makePreset('bisect'))).toBe(0);
   });
 });
 
@@ -233,7 +241,7 @@ describe('the cuts and blows drawn in the scene', () => {
     const blade = makePreset('skyblade', { durationMs: 3000 });
     blade.impactKind = 'flame';
     expect(isDrawnInScene(blade)).toBe(true);
-    blade.impactKind = 'gore';
+    blade.impactKind = 'bisect';
     expect(isDrawnInScene(blade)).toBe(false);
     expect(sceneLingerMsOf(blade)).toBe(0);
   });
@@ -348,5 +356,63 @@ describe('the things that fly', () => {
 
     expect(pointed(falling)).toBe(true);
     expect(stuck.ribbons.length).toBeGreaterThan(20);
+  });
+});
+
+describe('a run of stages drawn in the scene', () => {
+  it('draws each stage where and when it runs: the shot flying, then what it bursts into at the target', () => {
+    const run = makePreset('projectile', { durationMs: 1200 });
+    run.stages = JSON.stringify([
+      { role: 'travel', kind: 'projectile', durationMs: 500 },
+      { role: 'impact', kind: 'burst', durationMs: 400 },
+    ]);
+    const cast = { ...castOn([100, 100]), origin: { x: 600, y: 100, z: 30 } };
+
+    expect(isDrawnInScene(run)).toBe(true);
+    const flying = staged(run, cast, 250);
+    expect(flying.motes.length + flying.ribbons.length).toBeGreaterThan(0);
+    expect(flying.floor.filter((mark) => mark.shape === 'scorch')).toHaveLength(0);
+    const burst = staged(run, cast, 650);
+    expect(burst.floor.some((mark) => mark.shape === 'scorch' && Math.abs(mark.x - 100) < 1)).toBe(true);
+    expect(sceneLingerMsOf(run)).toBeGreaterThan(0);
+  });
+
+  it('throws each branch of a spawn its own way', () => {
+    const run = makePreset('projectile', { durationMs: 1200 });
+    run.stages = JSON.stringify([
+      { role: 'travel', kind: 'projectile', durationMs: 300 },
+      {
+        role: 'spawn',
+        kind: 'burst',
+        durationMs: 120,
+        branches: 3,
+        spreadDeg: 120,
+        children: [{ role: 'impact', kind: 'burst', durationMs: 400 }],
+      },
+    ]);
+    const cast = { ...castOn([100, 100]), origin: { x: 600, y: 100, z: 30 } };
+    const scorches = staged(run, cast, 420).floor.filter((mark) => mark.shape === 'scorch');
+
+    expect(new Set(scorches.map((mark) => `${Math.round(mark.x)}|${Math.round(mark.y)}`)).size).toBeGreaterThan(2);
+  });
+});
+
+describe('the looks that strike a piece down', () => {
+  const cast = { ...castOn([100, 100]), origin: { x: 600, y: 100, z: 30 } };
+
+  it('draws blood wholly in the scene: drops flying, then splats where they land', () => {
+    const gore = makePreset('gore', { durationMs: 1300 });
+    expect(isDrawnInScene(gore)).toBe(true);
+    expect(staged(gore, cast, 100).motes.length).toBeGreaterThan(10);
+    expect(staged(gore, cast, 1200).floor.filter((mark) => mark.shape === 'scorch').length).toBeGreaterThan(5);
+  });
+
+  it('leaves the picture of a piece cut in two over the table and draws the rest in the scene', () => {
+    const cut = makePreset('bisect', { durationMs: 2000 });
+    expect(isDrawnInScene(cut)).toBe(false);
+    expect(hasScenePart(cut)).toBe(true);
+    expect(drawsOnlyPicturesOver(cut)).toBe(true);
+    expect(staged(cut, cast, 300).motes.length).toBeGreaterThan(0);
+    expect(sceneLingerMsOf(cut)).toBe(0);
   });
 });

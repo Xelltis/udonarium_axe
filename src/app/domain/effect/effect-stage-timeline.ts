@@ -178,7 +178,7 @@ function progressIn(window: StageWindow, localMs: number): number | null {
  * branch happens away from it: it is thrown from the point the run reached, out along its
  * own share of the spread, and lands where it gets to.
  */
-function placesFor(
+export function placesFor(
   window: StageWindow,
   cast: EffectCast,
   center: Point3,
@@ -216,7 +216,7 @@ function headingOf(origin: Point3 | null, center: Point3): number {
  * top. They are laid on as plain properties rather than written, because writing to a
  * synchronised field would change the effect for everybody at the table.
  */
-function stageView(preset: EffectPreset, window: StageWindow): EffectPreset {
+export function stageView(preset: EffectPreset, window: StageWindow): EffectPreset {
   const stage = window.stage;
   const view = Object.create(preset) as EffectPreset;
   const length = Math.max(window.endMs - window.startMs, 1);

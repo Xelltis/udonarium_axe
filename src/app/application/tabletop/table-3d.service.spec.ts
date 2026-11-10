@@ -852,7 +852,7 @@ describe('Table3dService', () => {
     TestBed.tick();
     const engine = engines[0];
     const preset = new EffectPreset();
-    preset.kind = 'gore';
+    preset.kind = 'bisect';
     preset.grade = 3;
     preset.durationMs = 600;
     preset.colorPrimary = '#ff7733';

@@ -14,7 +14,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { effectParticlePlacements } from '@axe/domain/effect/effect-particle-placements';
 import { EffectSprite, effectSprites } from '@axe/domain/effect/effect-timeline';
 import { ViewRotation } from '@axe/domain/effect/effect-view';
-import { isDrawnInScene } from '@axe/domain/effect/scene/effect-frame';
+import { drawsOnlyPicturesOver, isDrawnInScene } from '@axe/domain/effect/scene/effect-frame';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
@@ -137,7 +137,12 @@ export class TableEffectOverlayComponent {
         resolveImage: (identifier) => this.imageUrlOf(identifier),
         resolveSize: (identifier) => this.sizeOf(identifier),
       });
-      for (const part of parts) sprites.push({ ...part, key: `${active.key}-${part.key}` });
+      // A look that cuts the piece's picture leaves all but the picture to the table's scene.
+      const picturesOnly = drawsOnlyPicturesOver(active.preset);
+      for (const part of parts) {
+        if (picturesOnly && !part.background.includes('url(')) continue;
+        sprites.push({ ...part, key: `${active.key}-${part.key}` });
+      }
     }
     return sprites.length > MAX_SPRITES ? sprites.slice(0, MAX_SPRITES) : sprites;
   });
@@ -149,6 +154,7 @@ export class TableEffectOverlayComponent {
 
     for (const active of this.renderables()) {
       if (placements.length >= MAX_CANVASES) break;
+      if (drawsOnlyPicturesOver(active.preset)) continue;
       const placed = effectParticlePlacements(
         active.preset,
         active.cast,

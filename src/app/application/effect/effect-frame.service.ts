@@ -7,7 +7,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { nothingStaged } from '@axe/domain/effect/scene/choreography';
-import { type EffectFooting, isDrawnInScene, stageEffect } from '@axe/domain/effect/scene/effect-frame';
+import { type EffectFooting, hasScenePart, stageEffect } from '@axe/domain/effect/scene/effect-frame';
 import { type EffectFrame, EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
@@ -29,7 +29,7 @@ export class EffectFrameService {
 
   readonly frame = computed<EffectFrame>(
     () => {
-      const casts = this.playback.activeCasts().filter((active) => isDrawnInScene(active.preset));
+      const casts = this.playback.activeCasts().filter((active) => hasScenePart(active.preset));
       if (casts.length < 1) return EMPTY_EFFECT_FRAME;
       const now = this.playback.now();
       const cellPx = this.tabletop.gridSize();

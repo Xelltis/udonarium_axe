@@ -3,10 +3,13 @@ import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import type { EffectCast } from '@axe/domain/effect/effect-cast';
 import type { EffectKind } from '@axe/domain/effect/effect-kind';
 import type { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { type EffectStage, stageLayoutOf } from '@axe/domain/effect/effect-stage';
+import { placesFor, stageView } from '@axe/domain/effect/effect-stage-timeline';
 import { isAimed } from '@axe/domain/effect/effect-timeline';
 import { bash } from '@axe/domain/effect/scene/blade/bash';
 import { skybladeWith } from '@axe/domain/effect/scene/blade/skyblade';
 import { slash } from '@axe/domain/effect/scene/blade/slash';
+import { bisect, dissolve, gore } from '@axe/domain/effect/scene/body/body';
 import { type Choreography, nothingStaged, type Stage, type Staged } from '@axe/domain/effect/scene/choreography';
 import { curse, gravity, miasma } from '@axe/domain/effect/scene/dark/dark';
 import { impact, rubble, upheaval } from '@axe/domain/effect/scene/earth/earth';
@@ -19,6 +22,7 @@ import { aura, barrier, heal, warp } from '@axe/domain/effect/scene/holy/holy';
 import { arrowrain, ballisticWith, projectileWith } from '@axe/domain/effect/scene/shot/shots';
 import { arc, beam, drain, raybeam } from '@axe/domain/effect/scene/shot/streams';
 import { bolt, frost, vortex } from '@axe/domain/effect/scene/storm/storm';
+import { projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
 import { targetScaleOf } from '@axe/domain/effect/timeline/shared';
 
 /** The looks drawn in the table's scene, among the pieces, rather than over it. */
@@ -36,6 +40,7 @@ const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = {
   drain,
   flame,
   frost,
+  gore,
   gravity,
   heal,
   impact,
@@ -49,6 +54,12 @@ const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = {
   vortex,
   warp,
 };
+
+/**
+ * The looks that cut a piece's own picture, which is still drawn over the table: what is drawn about
+ * the picture, the flash, the blood and the light, is drawn in the scene alongside it.
+ */
+const ALONGSIDE_PICTURES: Partial<Record<EffectKind, Choreography>> = { bisect, dissolve };
 
 /** The looks that strike with another look, which are drawn in the scene only once the look they strike with is. */
 const STRIKING_WITH: ReadonlySet<EffectKind> = new Set<EffectKind>(['skyblade', 'projectile', 'ballistic']);
@@ -89,12 +100,28 @@ export interface EffectStagingOptions {
 
 /** Whether an effect is drawn in the table's scene: a look of a single kind that has been made anew for it. */
 export function isDrawnInScene(
-  preset: Pick<EffectPreset, 'isStaged' | 'effectKind'> & Partial<Pick<EffectPreset, 'impactEffectKind'>>
+  preset: Pick<EffectPreset, 'isStaged' | 'effectKind'> & Partial<Pick<EffectPreset, 'impactEffectKind' | 'stageList'>>
 ): boolean {
-  if (preset.isStaged || CHOREOGRAPHIES[preset.effectKind] === undefined) return false;
+  if (preset.isStaged) return preset.stageList !== undefined && runDrawnInScene(preset.stageList);
+  if (CHOREOGRAPHIES[preset.effectKind] === undefined) return false;
   if (!STRIKING_WITH.has(preset.effectKind)) return true;
   const strikesWith = preset.impactEffectKind;
   return strikesWith !== undefined && !STRIKING_WITH.has(strikesWith) && CHOREOGRAPHIES[strikesWith] !== undefined;
+}
+
+/**
+ * Whether any of an effect is drawn in the table's scene: one drawn there wholly, or one that cuts a
+ * piece's picture, whose picture is drawn over the table and the rest of it in the scene.
+ */
+export function hasScenePart(
+  preset: Pick<EffectPreset, 'isStaged' | 'effectKind'> & Partial<Pick<EffectPreset, 'impactEffectKind'>>
+): boolean {
+  return isDrawnInScene(preset) || (!preset.isStaged && ALONGSIDE_PICTURES[preset.effectKind] !== undefined);
+}
+
+/** Whether an effect is drawn over the table only as the piece's own picture cut up, the rest of it in the scene. */
+export function drawsOnlyPicturesOver(preset: Pick<EffectPreset, 'isStaged' | 'effectKind'>): boolean {
+  return !preset.isStaged && ALONGSIDE_PICTURES[preset.effectKind] !== undefined;
 }
 
 /**
@@ -102,10 +129,105 @@ export function isDrawnInScene(
  * what it leaves clears: smoke rising away and embers dying. Nothing for one drawn over it.
  */
 export function sceneLingerMsOf(
-  preset: Pick<EffectPreset, 'isStaged' | 'effectKind'> & Partial<Pick<EffectPreset, 'impactEffectKind'>>
+  preset: Pick<EffectPreset, 'isStaged' | 'effectKind'> & Partial<Pick<EffectPreset, 'impactEffectKind' | 'stageList'>>
 ): number {
   if (!isDrawnInScene(preset)) return 0;
+  if (preset.isStaged && preset.stageList) {
+    const layout = stageLayoutOf(preset.stageList);
+    const last = Math.max(
+      ...layout.windows.map((window) => window.endMs + (stageLookOf(window.stage.kind)?.lingerS ?? 0) * 1000)
+    );
+    return Math.max(0, last - layout.totalMs);
+  }
   return (CHOREOGRAPHIES[preset.effectKind]?.lingerS ?? 0) * 1000;
+}
+
+/**
+ * The looks a stage of a run draws. A shot or a blade that travels lands nothing of its own: the
+ * stage after it is its landing, and drawing both would burst twice.
+ */
+const TRAVELLING: Partial<Record<EffectKind, Choreography>> = {
+  projectile: projectileWith(() => nothingStaged()),
+  ballistic: ballisticWith(() => nothingStaged()),
+  skyblade: skybladeWith(() => nothingStaged(), 0),
+};
+
+/** The look one stage of a run draws in the scene, or nothing for a look not drawn there. */
+function stageLookOf(kind: EffectKind): Choreography | undefined {
+  return STRIKING_WITH.has(kind) ? TRAVELLING[kind] : CHOREOGRAPHIES[kind];
+}
+
+/** Whether every stage of a run, and every branch it throws, is a look drawn in the scene. */
+function runDrawnInScene(stages: readonly EffectStage[]): boolean {
+  return (
+    stages.length > 0 && stageLayoutOf(stages).windows.every((window) => stageLookOf(window.stage.kind) !== undefined)
+  );
+}
+
+/**
+ * How far into its own flight a stage that travels is, as a shot of its kind would be: a shot flies
+ * the whole of its stage, from where it is thrown at the start of it to where it lands at its end.
+ */
+function flightShareOf(view: EffectPreset, kind: EffectKind, blowsAt: readonly number[], duration: number): number {
+  if (kind === 'projectile') return projectileTiming(view).shots.at(-1)?.land ?? 1;
+  if (kind === 'ballistic') return duration > 0 && blowsAt[0] !== undefined ? blowsAt[0] / duration : 0.86;
+  return 1;
+}
+
+/** Adds what a run of stages draws in the scene at a moment, each stage where and when it runs; see {@link stageEffect}. */
+function stageRun(
+  preset: EffectPreset,
+  cast: EffectCast,
+  elapsedMs: number,
+  options: EffectStagingOptions,
+  into: Staged
+): void {
+  const { windows } = stageLayoutOf(preset.stageList);
+  const base = options.cellPx * preset.sizeScale;
+  const caster = originOf(cast, options);
+  const views = windows.map((window) => stageView(preset, window));
+  cast.targets.forEach((target, index) => {
+    if (options.hiddenIdentifiers?.has(target.identifier)) return;
+    const localMs = elapsedMs - preset.stagger * index;
+    if (localMs < 0) return;
+    const footing = footingOf(target, preset, options);
+    windows.forEach((window, order) => {
+      const look = stageLookOf(window.stage.kind);
+      if (!look) return;
+      const duration = Math.max(window.endMs - window.startMs, 1) / 1000;
+      const seconds = (localMs - window.startMs) / 1000;
+      if (seconds < 0 || seconds >= duration + look.lingerS) return;
+      const view = views[order];
+      const blowsAt = effectBlowsOf(view).map((blow) => blow.atMs / 1000);
+      const places = placesFor(window, cast, footing, base);
+      const travels = window.stage.role === 'travel';
+      const scale = targetScaleOf(
+        { baseSize: options.cellPx, resolveSize: options.resolveSize },
+        target.identifier,
+        travels
+      );
+      const flies = travels ? flightShareOf(view, window.stage.kind, blowsAt, duration) : 1;
+      const staged = look.draw({
+        x: places.center.x,
+        y: places.center.y,
+        z: places.center.z,
+        groundZ: footing.groundZ,
+        cell: base * (window.stage.scale ?? 1) * scale,
+        seconds: seconds * flies,
+        duration,
+        blowsAt,
+        index,
+        areaPx: 0,
+        origin: places.origin ?? caster,
+        seed: cast.seed + index * 7919 + order * 104729,
+        preset: view,
+      });
+      into.motes.push(...staged.motes);
+      into.ribbons.push(...staged.ribbons);
+      into.floor.push(...staged.floor);
+      into.lights.push(...staged.lights);
+    });
+  });
 }
 
 /**
@@ -120,8 +242,16 @@ export function stageEffect(
   options: EffectStagingOptions,
   into: Staged
 ): void {
-  const choreography = CHOREOGRAPHIES[preset.effectKind];
-  if (!choreography || !isDrawnInScene(preset)) return;
+  if (preset.isStaged) {
+    if (isDrawnInScene(preset)) stageRun(preset, cast, elapsedMs, options, into);
+    return;
+  }
+  const choreography = isDrawnInScene(preset)
+    ? CHOREOGRAPHIES[preset.effectKind]
+    : drawsOnlyPicturesOver(preset)
+      ? ALONGSIDE_PICTURES[preset.effectKind]
+      : undefined;
+  if (!choreography) return;
   const duration = preset.duration / 1000;
   const base = options.cellPx * preset.sizeScale;
   const blowsAt = effectBlowsOf(preset).map((blow) => blow.atMs / 1000);
