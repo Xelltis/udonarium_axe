@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { trackLazyLoad } from '@axe/core/util/lazy-loads';
 
 /** The module that draws the looks of effects in a scene: loaded only once one is wanted, as it is large. */
 export type EffectSceneLooks = typeof import('@axe/domain/effect/scene/effect-frame');
@@ -22,7 +23,7 @@ export class EffectSceneLooksService {
 
   /** Loads the looks, once, and says when they are ready, or null where they could not be loaded. */
   load(): Promise<EffectSceneLooks | null> {
-    this.loading ??= import('@axe/domain/effect/scene/effect-frame').then(
+    this.loading ??= trackLazyLoad(import('@axe/domain/effect/scene/effect-frame')).then(
       (looks) => {
         this.loaded.set(looks);
         return looks;
