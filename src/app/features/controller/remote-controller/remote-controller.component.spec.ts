@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BattleLaunchService } from '@axe/application/battle/battle-launch.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -49,6 +50,25 @@ describe('RemoteControllerComponent', () => {
 
   it('closes once its seat is made a guest, who may no longer write what it writes', () => {
     expectClosesForAGuest(() => TestBed.createComponent(RemoteControllerComponent));
+  });
+
+  it('lists a piece this seat may not view by its name alone, and takes it only where it is ticked', () => {
+    const open = createChar('勇者');
+    const kept = createChar('秘密の魔物');
+    open.setLocation('table');
+    kept.setLocation('table');
+    vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockImplementation((character) => character !== kept);
+    component.selectTab.set('table');
+    fixture.detectChanges();
+
+    expect(component.getGameObjects('table')).toContain(kept);
+    expect(component.getTargetCharacters(false)).toContain(open);
+    expect(component.getTargetCharacters(false)).not.toContain(kept);
+    kept.targeted = true;
+    expect(component.getTargetCharacters(true)).toEqual([kept]);
+    const card = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="remote-target-秘密の魔物"]')!;
+    expect(card.parentElement!.textContent).not.toContain('バフ');
+    kept.targeted = false;
   });
 
   it('should create', () => {

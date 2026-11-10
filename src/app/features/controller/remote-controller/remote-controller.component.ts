@@ -547,19 +547,21 @@ export class RemoteControllerComponent {
   }
 
   /**
-   * The pieces listed under an inventory tab that this user may view, re-read as the inventory,
-   * files, characters or this user's cursor change.
+   * The pieces listed under an inventory tab, re-read as the inventory, files, characters or this
+   * user's cursor change. A piece this user may not view is listed too, by its name and picture
+   * alone, so it can still be ticked as a target.
    */
   getGameObjects(inventoryType: string): TabletopObject[] {
     this.inventoryService.inventoryVersion();
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('character')();
     this.objectChange.trackMyCursor();
-    return getGameObjects(inventoryType, this.inventoryService).filter((object) => this.canView(object));
+    return getGameObjects(inventoryType, this.inventoryService);
   }
 
   /**
-   * Whether this user may see a piece in the target list; only characters can be hidden from them.
+   * Whether this user may see what a piece in the target list holds; only characters can be hidden
+   * from them.
    */
   canView(object: TabletopObject): boolean {
     return object instanceof GameCharacter ? this.disclosureService.canView(object) : true;
@@ -658,11 +660,13 @@ export class RemoteControllerComponent {
 
   /**
    * The characters in the selected tab that the panel's operations apply to: only the ticked ones
-   * with `checkedOnly`, otherwise all of them.
+   * with `checkedOnly`, otherwise all of those this user may view, as one they may not is taken only
+   * where they ticked it.
    */
   getTargetCharacters(checkedOnly: boolean): GameCharacter[] {
     this.uiSignalService.targetChange();
-    const objectList = this.getGameObjects(this.selectTab());
+    const listed = this.getGameObjects(this.selectTab());
+    const objectList = checkedOnly ? listed : listed.filter((object) => this.canView(object));
     return getTargetCharacters(objectList, checkedOnly);
   }
 

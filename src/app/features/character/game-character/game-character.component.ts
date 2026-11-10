@@ -1325,7 +1325,6 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     if (!char) return;
 
-    if (!this.disclosureService.canView(char)) return;
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
 
     this.menu.open(char, this.menuHost, this.pointerDeviceService.pointers[0]);

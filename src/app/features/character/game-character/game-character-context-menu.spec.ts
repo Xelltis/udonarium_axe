@@ -15,6 +15,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   buildGameCharacterContextMenu,
   buildGameCharacterContextMenuModel,
+  buildUnviewableCharacterContextMenu,
   collectRegisteredEffects,
   collectRegisteredRangeShapes,
 } from '@axe/features/character/game-character/game-character-context-menu';
@@ -638,5 +639,27 @@ describe('what a piece can fire from its sheet', () => {
 
     expect(collectRegisteredEffects(piece)).toEqual([]);
     expect(collectRegisteredRangeShapes(piece)).toEqual([]);
+  });
+});
+
+describe('the menu of a piece the reader may not view', () => {
+  it('offers only to aim at it, and to let go of every aim while there is one', () => {
+    const char = { targeted: false } as GameCharacter;
+    const toggle = vi.fn();
+    const clear = vi.fn();
+
+    const aiming = buildUnviewableCharacterContextMenu(char, { onToggleTarget: toggle, onClearTargets: clear }, t);
+    expect(aiming.map((entry) => entry.name)).toEqual([
+      t('feature.character.contextMenu.target'),
+      t('feature.character.contextMenu.clearTargets'),
+    ]);
+    (aiming[0] as { action: () => void }).action();
+    (aiming[1] as { action: () => void }).action();
+    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(clear).toHaveBeenCalledTimes(1);
+
+    char.targeted = true;
+    const aimed = buildUnviewableCharacterContextMenu(char, { onToggleTarget: toggle }, t);
+    expect(aimed.map((entry) => entry.name)).toEqual(['✔ ' + t('feature.character.contextMenu.target')]);
   });
 });

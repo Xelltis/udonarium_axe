@@ -93,6 +93,26 @@ export interface GameCharacterContextMenuModel {
 }
 
 /**
+ * The menu of a piece the reader may not view, as one kept to the game master: only what aims at it,
+ * which says nothing of what it holds, so a player can still take it for a target.
+ */
+export function buildUnviewableCharacterContextMenu(
+  char: GameCharacter,
+  callbacks: Pick<GameCharacterContextMenuCallbacks, 'onToggleTarget' | 'onClearTargets'>,
+  t: TranslateFn
+): ContextMenuAction[] {
+  return [
+    {
+      name: (char.targeted ? '✔ ' : '') + t('feature.character.contextMenu.target'),
+      action: () => callbacks.onToggleTarget?.(),
+    },
+    ...(callbacks.onClearTargets
+      ? [{ name: t('feature.character.contextMenu.clearTargets'), action: () => callbacks.onClearTargets?.() }]
+      : []),
+  ];
+}
+
+/**
  * Collects the range shapes registered on a character sheet, in sheet order, for the menu's
  * invoke-range entry.
  *

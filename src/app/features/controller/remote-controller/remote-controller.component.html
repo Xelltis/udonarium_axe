@@ -488,14 +488,16 @@
             [appTextTooltip]="gameObject.name"
             >{{ gameObject.name }}</span
           >
-          <button
-            class="bg-ui-input border-ui-border-panel text-ui-text hover:bg-ui-hover hover:border-ui-muted rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-1.75 py-0.75 text-[11px] whitespace-nowrap transition-[background,border-color] select-none [&_.material-icons]:text-[14px]!"
-            (click)="buffEdit(gameObject)"
-          >
-            <i class="material-icons">auto_fix_high</i>{{ 'feature.controller.remote.buffEdit' | transloco }}
-          </button>
+          @if (canView(gameObject)) {
+            <button
+              class="bg-ui-input border-ui-border-panel text-ui-text hover:bg-ui-hover hover:border-ui-muted rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-1.75 py-0.75 text-[11px] whitespace-nowrap transition-[background,border-color] select-none [&_.material-icons]:text-[14px]!"
+              (click)="buffEdit(gameObject)"
+            >
+              <i class="material-icons">auto_fix_high</i>{{ 'feature.controller.remote.buffEdit' | transloco }}
+            </button>
+          }
         </div>
-        @if (gameObject.rootDataElement) {
+        @if (gameObject.rootDataElement && canView(gameObject)) {
           <div class="grid grid-cols-2 items-end gap-x-2 gap-y-1">
             @for (dataElm of getInventoryTags(gameObject); track dataElm?.identifier ?? $index) {
               <ng-container *ngTemplateOutlet="dataElmTag; context: { dataElm: dataElm }"></ng-container>

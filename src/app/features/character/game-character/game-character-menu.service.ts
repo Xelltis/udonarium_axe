@@ -36,6 +36,7 @@ import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font
 import { buildConditionContextMenu } from '@axe/features/character/game-character/condition-context-menu';
 import {
   buildGameCharacterContextMenuModel,
+  buildUnviewableCharacterContextMenu,
   FightMenuEntries,
 } from '@axe/features/character/game-character/game-character-context-menu';
 import { buildRideContextMenu, RideMenuEntries } from '@axe/features/character/game-character/ride-context-menu';
@@ -126,7 +127,10 @@ export class GameCharacterMenuService {
     radialCenter?: { x: number; y: number },
     radialAnchor?: { x: number; y: number }
   ): void {
-    if (!this.disclosureService.canView(char)) return;
+    if (!this.disclosureService.canView(char)) {
+      this.openUnviewable(char, position, host);
+      return;
+    }
 
     const gridSize = this.tabletopService.gridSize();
     if (this.pieceContextMenu.openForSelection(char, gridSize, position)) return;
@@ -219,6 +223,19 @@ export class GameCharacterMenuService {
     } else {
       this.contextMenuService.openRadial(...args);
     }
+  }
+
+  /** Opens the menu of a piece the reader may not view: only what aims at it. */
+  private openUnviewable(char: GameCharacter, position: PointerCoordinate, host: GameCharacterMenuHost): void {
+    const actions = buildUnviewableCharacterContextMenu(
+      char,
+      {
+        onToggleTarget: () => this.pieceTarget.toggle(char),
+        onClearTargets: this.pieceTarget.anything() ? () => this.pieceTarget.clear() : undefined,
+      },
+      this.translateFn
+    );
+    this.contextMenuService.open(position, actions, host.name());
   }
 
   /**

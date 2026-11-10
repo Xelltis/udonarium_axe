@@ -5,6 +5,7 @@ import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { SPEECH_BUBBLE_WAIT_MS, SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
@@ -768,6 +769,21 @@ describe('GameCharacterComponent', () => {
       component.onContextMenu(new Event('contextmenu', { cancelable: true }));
       return character;
     }
+
+    it('opens on a piece the reader may not view with only what aims at it', () => {
+      const menus = TestBed.inject(ContextMenuService);
+      const open = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockReturnValue(false);
+      const character = openMenu(false, 'standard');
+
+      try {
+        expect(open).toHaveBeenCalledTimes(1);
+        const names = (open.mock.calls[0][1] as readonly { name?: string }[]).map((entry) => entry.name);
+        expect(names).toEqual(['ターゲット']);
+      } finally {
+        character.destroy();
+      }
+    });
 
     it('uses the ordinary downward menu outside 2D mode', () => {
       const menus = TestBed.inject(ContextMenuService);
