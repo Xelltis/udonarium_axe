@@ -91,6 +91,14 @@ test.describe('the battle cut-in', () => {
     await expect(stage).toBeVisible({ timeout: 10000 });
     const struck = stage.getByTestId('battle-plate').last();
     await expect(struck).toContainText('モンスターA');
-    await expect(stage.getByTestId('battle-pop')).toContainText('-5', { timeout: 5000 });
+    // The number pops up for a moment only, so it is looked for at every frame.
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll('[data-testid="battle-cut-in"] [data-testid="battle-pop"]')].some((pop) =>
+          pop.textContent?.includes('-5')
+        ),
+      undefined,
+      { polling: 'raf', timeout: 10000 }
+    );
   });
 });
