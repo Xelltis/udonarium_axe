@@ -13,6 +13,7 @@ import {
   getTabTitle,
   getTargetCharacters,
   RemoteControllerInventoryContext,
+  shownChangeDetail,
 } from '@axe/features/controller/remote-controller/remote-controller-helpers';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -220,5 +221,20 @@ describe('remote-controller-helpers', () => {
       const result = getTargetCharacters([mockChar], false);
       expect(result.length).toBe(0);
     });
+  });
+});
+
+describe('shownChangeDetail()', () => {
+  const piece = (disclosureMode: string) => ({ name: 'ゴブリン', disclosureMode }) as GameCharacter;
+
+  it('says a change as it was reported of a piece disclosed to all', () => {
+    expect(shownChangeDetail(piece('all'), '[ゴブリン 10>7] ', 'now', 7)).toBe('[ゴブリン 10>7] ');
+  });
+
+  it('names a piece kept from anyone alone, until its current value runs out', () => {
+    expect(shownChangeDetail(piece('gm'), '[ゴブリン 10>7] ', 'now', 7)).toBe('[ゴブリン] ');
+    expect(shownChangeDetail(piece('selected'), '[ゴブリン 10>7] ', 'max', 0)).toBe('[ゴブリン] ');
+    expect(shownChangeDetail(piece('gm'), '[ゴブリン 3>0] ', 'now', 0)).toBe('[ゴブリン 3>0] ');
+    expect(shownChangeDetail(piece('gm'), '', 'now', 7)).toBe('');
   });
 });

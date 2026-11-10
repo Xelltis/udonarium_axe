@@ -178,7 +178,7 @@ describe('ResourceEditProcessor', () => {
         targeted: false,
       };
 
-      const result = processor.resourceEdit(edit, character);
+      const result = processor.resourceEdit(edit, character).full;
       expect(result).toContain('HP');
       expect(result).toContain('200'); // the initial value
     });
@@ -200,7 +200,7 @@ describe('ResourceEditProcessor', () => {
         targeted: false,
       };
 
-      const result = processor.resourceEdit(edit, character);
+      const result = processor.resourceEdit(edit, character).full;
       expect(result).toContain('50');
       expect(character.status.getValue('HP', 'now')).toBe(50);
     });
@@ -222,7 +222,7 @@ describe('ResourceEditProcessor', () => {
         targeted: false,
       };
 
-      const result = processor.resourceEdit(edit, character);
+      const result = processor.resourceEdit(edit, character).full;
       expect(result).toContain('(最大)');
       expect(character.status.getValue('HP', 'now')).toBe(200);
     });
@@ -244,7 +244,7 @@ describe('ResourceEditProcessor', () => {
         targeted: false,
       };
 
-      const result = processor.resourceEdit(edit, character);
+      const result = processor.resourceEdit(edit, character).full;
       expect(result).toContain('(0制限)');
     });
   });
@@ -382,6 +382,61 @@ describe('ResourceEditProcessor', () => {
 
         expect(character.status.getValue('HP', 'now')).toBe(hp - 1);
         expect(character.status.getValue('MP', 'now')).toBe(mp - 2);
+      });
+    });
+
+    describe('a piece whose contents are kept from anyone', () => {
+      let master: PeerCursor;
+
+      beforeEach(() => {
+        master = new PeerCursor();
+        master.initialize();
+        master.userId = 'u-gm';
+        master.role = PeerRole.GameMaster;
+        character.disclosureMode = 'gm';
+      });
+
+      afterEach(() => master.destroy());
+
+      function lines() {
+        return tab.chatMessages.filter((message) => message.tags.includes('system'));
+      }
+
+      it('says only the change to everyone, and the whole line to the game master alone', async () => {
+        await processor.checkResourceEditCommand(speak(':HP-5', character.identifier), [
+          { text: ':HP-5', object: character },
+        ]);
+
+        expect(character.status.getValue('HP', 'now')).toBe(195);
+        const [said, told] = lines();
+        expect(said.text).toMatch(/^HP:/);
+        expect(said.text).not.toMatch(/200|＞|195/);
+        expect(said.sendTo).toEqual([]);
+        expect(told.text).toMatch(/^HP:200.*＞195$/);
+        expect(told.sendTo).toEqual(['u-gm']);
+        expect(told.isSentBy(said.originFrom)).toBe(false);
+      });
+
+      it('says what is left to everyone once the piece is beaten', async () => {
+        character.status.setValue('HP', 'now', 3);
+
+        await processor.checkResourceEditCommand(speak(':HP-5', character.identifier), [
+          { text: ':HP-5', object: character },
+        ]);
+
+        expect(lines()).toHaveLength(1);
+        expect(lines()[0].text).toMatch(/^HP:3.*＞-2$/);
+      });
+
+      it('says everything to everyone for a piece disclosed to all', async () => {
+        character.disclosureMode = 'all';
+
+        await processor.checkResourceEditCommand(speak(':HP-5', character.identifier), [
+          { text: ':HP-5', object: character },
+        ]);
+
+        expect(lines()).toHaveLength(1);
+        expect(lines()[0].text).toMatch(/^HP:200.*＞195$/);
       });
     });
 

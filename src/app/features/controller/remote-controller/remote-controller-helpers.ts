@@ -3,6 +3,8 @@ import { ObjectInventory } from '@axe/application/inventory/object-inventory';
 import { Network } from '@axe/core/index';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import type { ResourceSlot } from '@axe/domain/data/resource-slot';
+import { isKeptFromAnyone } from '@axe/domain/disclosure/disclosure';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export interface RemoteControllerInventoryContext {
@@ -100,4 +102,20 @@ export function getTargetCharacters(objectList: TabletopObject[], checkedOnly: b
     }
   }
   return gameCharacters;
+}
+
+/**
+ * What a change to a piece's value says to everyone, of the report the piece's status gave of it: the
+ * report as it is, or for a piece whose contents are kept from anyone, its name alone, until its current
+ * value runs down to nothing and it is beaten.
+ */
+export function shownChangeDetail(
+  character: GameCharacter,
+  report: string,
+  slot: ResourceSlot,
+  valueNow: number | null
+): string {
+  if (!report || !isKeptFromAnyone(character)) return report;
+  if (slot === 'now' && valueNow !== null && valueNow <= 0) return report;
+  return `[${character.name}] `;
 }

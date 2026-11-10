@@ -490,6 +490,39 @@ describe('RemoteControllerComponent', () => {
       expect(reading?.current).toBe(hpBefore - 3);
     });
 
+    it('says only the change to a piece kept from anyone, and what is left to the game masters alone', () => {
+      const hero = createChar('勇者');
+      const goblin = createChar('ゴブリン');
+      goblin.disclosureMode = 'gm';
+      const hpBefore = Number(goblin.detailDataElement?.getFirstElementByName('HP')?.currentValue);
+      component.character.set(hero);
+      fixture.detectChanges();
+      vi.spyOn(component, 'getTargetCharacters').mockReturnValue([goblin]);
+      const said = { tabIdentifier: 'tab', timestamp: 10, name: '勇者' };
+      const announce = vi
+        .spyOn(component as unknown as { announce: (text: string) => unknown }, 'announce')
+        .mockReturnValue(said);
+      const told = vi
+        .spyOn(component as unknown as { tellGameMasters: (line: unknown, text: string) => void }, 'tellGameMasters')
+        .mockImplementation(() => undefined);
+      component.remoteControllerSelect.set({ name: 'HP', nowOrMax: 'now', dispName: 'HP' });
+      component.remoteNumber = -3;
+
+      component.remoteChangeValue();
+
+      expect(announce.mock.calls[0][0]).toContain('[ゴブリン]');
+      expect(announce.mock.calls[0][0]).not.toContain(`${hpBefore - 3}`);
+      expect(told).toHaveBeenCalledWith(said, expect.stringContaining(`[ゴブリン ${hpBefore}>${hpBefore - 3}]`));
+
+      announce.mockClear();
+      told.mockClear();
+      component.remoteNumber = -hpBefore;
+      component.remoteChangeValue();
+
+      expect(announce.mock.calls[0][0]).toContain(`[ゴブリン ${hpBefore - 3}>`);
+      expect(told).not.toHaveBeenCalled();
+    });
+
     it('remembers whether changes are played on the stage', () => {
       component.setBattleOnChange(true);
 

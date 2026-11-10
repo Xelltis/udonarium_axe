@@ -37,10 +37,12 @@ import { ControllerResourcePick, controllerShowsResource } from '@axe/domain/cha
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { type ResourceCatalogEntry, resourceCatalogOf } from '@axe/domain/character/resource-catalog';
 import { isChangeableElementType } from '@axe/domain/character/status-accessor';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatPalette } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
+import { tellGameMasters } from '@axe/domain/chat/game-master-lines';
 import { PaletteRow, paletteRowsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
@@ -64,6 +66,7 @@ import {
   getInventoryTags,
   getTabTitleKey,
   getTargetCharacters,
+  shownChangeDetail,
 } from '@axe/features/controller/remote-controller/remote-controller-helpers';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -644,11 +647,11 @@ export class RemoteControllerComponent {
   }
 
   /** Everything this panel says is already worked out, so none of it is evaluated again. */
-  private announce(text: string, options: { portraitIndex: number; color?: string }): void {
+  private announce(text: string, options: { portraitIndex: number; color?: string }): ChatMessage | null {
     // Without a tab it may speak in, the panel says nothing rather than fall back on another.
     const tab = this.sendableChatTabs().find((candidate) => candidate.identifier === this.chatTabidentifier());
-    if (!tab) return;
-    this.characterMacro.announce(this.character(), text, {
+    if (!tab) return null;
+    return this.characterMacro.announce(this.character(), text, {
       tab,
       gameSystem: this._gameSystem,
       sendFrom: this.sendFrom,
@@ -656,6 +659,28 @@ export class RemoteControllerComponent {
       color: options.color ?? '#000000',
       bubbles: null,
     });
+  }
+  /**
+   * Tells the game masters alone what a line said to everyone says in full, as a line of the tool's
+   * own: the change to a piece whose contents are kept from anyone, with what is left of it.
+   */
+  private tellGameMasters(said: ChatMessage, text: string): void {
+    const tab = this.sendableChatTabs().find((candidate) => candidate.identifier === said.tabIdentifier);
+    if (!tab) return;
+    tellGameMasters(
+      tab,
+      {
+        identifier: '',
+        tabIdentifier: tab.identifier,
+        from: 'System',
+        timestamp: said.timestamp + 1,
+        imageIdentifier: '',
+        tag: 'system',
+        name: said.name,
+        text,
+      },
+      text
+    );
   }
 
   /**
@@ -742,27 +767,37 @@ export class RemoteControllerComponent {
     }
     const take = this.takeBattle(gameCharacters);
     const parts: string[] = [];
+    const shownParts: string[] = [];
     const name = chosen.name;
     const nowOrMax = chosen.nowOrMax;
     const addValue = this.remoteNumber;
     for (const object of gameCharacters) {
-      parts.push(
-        object.status.changeValue(name, nowOrMax, addValue, this.recoveryLimitFlagMin, this.recoveryLimitFlag)
+      const report = object.status.changeValue(
+        name,
+        nowOrMax,
+        addValue,
+        this.recoveryLimitFlagMin,
+        this.recoveryLimitFlag
       );
+      parts.push(report);
+      shownParts.push(shownChangeDetail(object, report, nowOrMax, object.status.getValue(name, nowOrMax)));
     }
     const text = parts.join('');
     if (text != '') {
       const sign = this.remoteNumber < 0 ? '' : '+';
-      const mess = this.t('feature.controller.remote.changeValueMessage', {
-        name: chosen.dispName,
-        sign,
-        value: this.remoteNumber,
-        detail: text,
-      });
-      this.announce(mess, {
+      const messageOf = (detail: string) =>
+        this.t('feature.controller.remote.changeValueMessage', {
+          name: chosen.dispName,
+          sign,
+          value: this.remoteNumber,
+          detail,
+        });
+      const shown = shownParts.join('');
+      const said = this.announce(messageOf(shown), {
         portraitIndex: this.controllerInputComponent().portraitIndex(),
         color: this.controllerInputComponent().selectChatColor,
       });
+      if (said && shown !== text) this.tellGameMasters(said, messageOf(text));
       if (take) this.battle.finish(take);
       this.errorMessageController = '';
     } else {
