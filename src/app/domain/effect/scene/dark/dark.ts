@@ -48,10 +48,18 @@ export const curse: Choreography = {
     if (shown <= 0) return drawn;
     const shadow = mixColor(hueOf(ramp), '#120a18', 0.45);
     // The dark circle on the floor, turning, ringed in its colour.
-    drawn.floor.push(floorMark('disc', floor, cell * 1.3, 1, shadow, 0.5 * shown, 'color', 0));
+    drawn.floor.push(floorMark('disc', floor, cell * 1.8, 1, hueOf(ramp), 0.55 * shown, 'color', 0));
+    drawn.floor.push(floorMark('disc', floor, cell * 1.1, 1, shadow, 0.6 * shown, 'color', 0));
     drawn.floor.push(
-      floorMark('sigil', floor, cell * 1.1, 0.08, ramp[3], 0.8 * shown, 'light', stage.seed % 13, -t * 0.5)
+      floorMark('sigil', floor, cell * 1.2, 0.09, ramp[3], 0.85 * shown, 'light', stage.seed % 13, -t * 0.5)
     );
+    // A cloud of its colour crawling low round the piece, turning slowly.
+    for (let index = 0; index < 9; index++) {
+      const turn = (index / 9) * Math.PI * 2 + t * 0.6;
+      const out = cell * (0.55 + 0.25 * Math.sin(index * 2.1 + t));
+      const at = { x: floor.x + Math.cos(turn) * out, y: floor.y + Math.sin(turn) * out, z: floor.z + cell * 0.25 };
+      drawn.motes.push(smokePuff(at, cell * 1.1, index % 2 === 0 ? hueOf(ramp) : shadow, 0.6 * shown, forward));
+    }
     // Tendrils of shadow rising round the piece, swaying.
     for (let index = 0; index < 7; index++) {
       const rise = (t * 0.5 + index / 7) % 1;
@@ -117,7 +125,7 @@ export const miasma: Choreography = {
     const thrown = keptFor(miasmaByStage, stageKey(stage, ends), () => {
       const th = throwerFor(stage, ends);
       const clouds: Cloud[] = [];
-      for (let born = 0; born < duration; born += 1 / th.count(9)) {
+      for (let born = 0; born < duration; born += 1 / th.count(15)) {
         const way = th.outward();
         const out = Math.sqrt(th.range(0, 1)) * reach * 0.8;
         clouds.push({
@@ -143,9 +151,7 @@ export const miasma: Choreography = {
     });
     for (const cloud of thrown.clouds) drawCloud(drawn, cloud, t, cell, forward);
     if (shown > 0) {
-      drawn.floor.push(
-        floorMark('disc', floor, reach + cell * 0.4, 1, mixColor(ramp[1], SMOKE, 0.4), 0.3 * shown, 'color', 0)
-      );
+      drawn.floor.push(floorMark('disc', floor, reach + cell * 0.6, 1, hueOf(ramp), 0.5 * shown, 'color', 0));
       // Bubbles rising out of it and bursting.
       for (let index = 0; index < 12; index++) {
         const rise = (t * 0.7 + index / 12) % 1;
