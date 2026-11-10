@@ -4,6 +4,7 @@ import { GroundService } from '@axe/application/tabletop/ground.service';
 import { GroundBrushService, GroundBrushSettings } from '@axe/application/tabletop/ground-brush.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { GroundBrushKind } from '@axe/domain/tabletop/ground/ground-brush';
 import { GROUND_PAINT_LAYERS, GroundPaintLayer } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { Z_TABLE_BANDS } from '@axe/ui/z-layers';
@@ -30,6 +31,7 @@ export class GroundBrushBandComponent {
   private readonly surfaces = inject(TableSurfaceService);
   private readonly tabletop = inject(TabletopService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly viewport = inject(ViewportService);
 
   protected readonly zIndex = Z_TABLE_BANDS;
   protected readonly settings = this.brush.settings;
@@ -38,6 +40,10 @@ export class GroundBrushBandComponent {
   protected readonly unaware = computed(() => this.ground.unawarePeers().length);
   protected readonly kinds: readonly GroundBrushKind[] = ['raise', 'lower', 'smooth', 'flatten', 'paint', 'erase'];
   protected readonly layers = GROUND_PAINT_LAYERS;
+  /** How the brush and the view are worked, with a finger or with the mouse and the keys. */
+  protected readonly hintKey = computed(() =>
+    this.viewport.isTouch() ? 'feature.tabletop.groundBrush.hintTouch' : 'feature.tabletop.groundBrush.hint'
+  );
   /** Whether the band shows: the brush is on, for a master. */
   protected readonly shown = computed(() => this.brush.active() && this.rolePermission.canEditShared());
 
@@ -72,6 +78,14 @@ export class GroundBrushBandComponent {
   protected chooseNumber(key: 'radius' | 'strength', event: Event): void {
     const value = Number((event.target as HTMLInputElement).value);
     if (Number.isFinite(value) && value > 0) this.choose({ [key]: value });
+  }
+
+  /**
+   * Gives the keys back to the view once a slider has been set with the pointer: the slider took them
+   * as it was pressed, and the arrow keys the band says move the view would move it instead.
+   */
+  protected handBackKeys(event: Event): void {
+    (event.target as HTMLElement).blur();
   }
 
   protected chooseLayer(layer: GroundPaintLayer): void {

@@ -3161,7 +3161,9 @@
         "strength": "Strength",
         "undo": "Take back the last stroke",
         "close": "Stop shaping the ground",
-        "unaware": "{{count}} in the room are on a version that knows nothing of the ground; the table stays flat for them."
+        "unaware": "{{count}} in the room are on a version that knows nothing of the ground; the table stays flat for them.",
+        "hint": "Drag on the board to shape the ground / arrow keys move the view / Shift+←→ turns it, Shift+↑↓ tilts it / the wheel or Ctrl+↑↓ zooms / right-drag turns, wheel-button drag moves",
+        "hintTouch": "Trace with a finger to shape the ground"
       },
       "movePlan": {
         "hint": "Click to walk there / right-click to set a corner (again on the same spot takes it back) / Enter to go / Esc to leave it",

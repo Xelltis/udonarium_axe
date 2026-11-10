@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { GroundBrushBandComponent } from '@axe/features/tabletop/ground-brush-band/ground-brush-band.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -62,5 +63,31 @@ describe('GroundBrushBandComponent', () => {
     render().querySelector<HTMLButtonElement>('[data-testid="ground-brush-close"]')!.click();
 
     expect(brush.active()).toBe(false);
+  });
+
+  it('says how the view is moved while the brush takes the presses on the board, with the mouse or a finger', () => {
+    brush.active.set(true);
+    const viewport = TestBed.inject(ViewportService);
+    const touch = vi.spyOn(viewport, 'isTouch').mockReturnValue(false);
+
+    const hint = render().querySelector('[data-testid="ground-brush-hint"]')!.textContent!;
+    expect(hint).toContain('←↑↓→ で視点を動かす');
+    expect(hint).toContain('Shift+↑↓ で傾ける');
+
+    touch.mockReturnValue(true);
+    expect(render().querySelector('[data-testid="ground-brush-hint"]')!.textContent).toContain('指でなぞって');
+  });
+
+  it('gives the arrow keys back to the view once a slider has been set with the pointer', () => {
+    brush.active.set(true);
+    const slider = render().querySelector<HTMLInputElement>('[data-testid="ground-brush-radius"]')!;
+    document.body.append(slider.closest('[data-testid="ground-brush-band"]')!);
+    slider.focus();
+    expect(document.activeElement).toBe(slider);
+
+    slider.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+
+    expect(document.activeElement).not.toBe(slider);
+    slider.closest('[data-testid="ground-brush-band"]')!.remove();
   });
 });

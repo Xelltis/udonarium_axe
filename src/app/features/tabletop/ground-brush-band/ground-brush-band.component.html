@@ -50,6 +50,7 @@
         data-testid="ground-brush-radius"
         [value]="settings().radius"
         (input)="chooseNumber('radius', $event)"
+        (pointerup)="handBackKeys($event)"
       />
     </label>
     <label class="flex items-center gap-1 text-[0.86em]">
@@ -63,8 +64,12 @@
         data-testid="ground-brush-strength"
         [value]="settings().strength"
         (input)="chooseNumber('strength', $event)"
+        (pointerup)="handBackKeys($event)"
       />
     </label>
+    <span class="text-ui-muted basis-full text-[0.8em] leading-snug" data-testid="ground-brush-hint">
+      {{ hintKey() | transloco }}
+    </span>
     @if (unaware() > 0) {
       <span class="text-ui-warning basis-full text-[0.8em]" data-testid="ground-brush-unaware">
         {{ 'feature.tabletop.groundBrush.unaware' | transloco: { count: unaware() } }}
