@@ -1,6 +1,6 @@
 import { NgStyle } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { EffectFieldRenderable, EffectFieldService } from '@axe/application/effect/effect-field.service';
+import { type EffectFieldRenderable, EffectFieldService } from '@axe/application/effect/effect-field.service';
 import { effectElapsedOf, EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
@@ -40,6 +40,9 @@ const EYE_FLAT_RISE_PX = 1;
 const MAX_SPRITES = 400;
 const NOTHING_HIDDEN: ReadonlySet<string> = new Set<string>();
 const MAX_CANVASES = 24;
+
+/** One effect to draw over the table at a moment, a cast or a field, with the targets out of sight. */
+type Renderable = Pick<EffectFieldRenderable, 'key' | 'preset' | 'cast' | 'elapsed'> & { hidden: ReadonlySet<string> };
 
 @Component({
   selector: 'table-effect-overlay',
@@ -94,21 +97,21 @@ export class TableEffectOverlayComponent {
     return hidden;
   });
 
-  private readonly nothingToRender: (EffectFieldRenderable & { hidden: ReadonlySet<string> })[] = [];
+  private readonly nothingToRender: Renderable[] = [];
 
   /**
-   * Everything to draw this frame, but for the casts drawn in the table's scene itself.
+   * Everything to draw this frame, but for the casts and the fields drawn in the table's scene itself.
    *
    * With no cast playing and no field standing it reads no clock and hands back the same empty
    * list, so the weather keeping the frame loop running does not rebuild the sprites every frame.
    */
-  private readonly renderables = computed<(EffectFieldRenderable & { hidden: ReadonlySet<string> })[]>(() => {
+  private readonly renderables = computed<Renderable[]>(() => {
     if (!this.eye() && this.firstPerson.showing()) return this.nothingToRender;
     if (this.playback.activeCasts().length < 1 && this.fieldService.fields().length < 1) return this.nothingToRender;
     perfCounters.bump(PERF_EFFECT_RENDERABLES);
     const now = this.playback.now();
     const hiddenByKey = this.hiddenByKey();
-    const all: EffectFieldRenderable[] = [
+    const all: Omit<Renderable, 'hidden'>[] = [
       ...this.playback
         .activeCasts()
         .flatMap((active) => (isDrawnInScene(active.preset) ? [] : [active]))
@@ -118,7 +121,7 @@ export class TableEffectOverlayComponent {
           cast: active.cast,
           elapsed: effectElapsedOf(active, now),
         })),
-      ...this.fieldService.renderables(now),
+      ...this.fieldService.renderables(now).filter((field) => !isDrawnInScene(field.preset)),
     ];
     return all.map((active) => ({ ...active, hidden: hiddenByKey.get(active.key) ?? NOTHING_HIDDEN }));
   });

@@ -1,8 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { EffectFieldService } from '@axe/application/effect/effect-field.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { MotionService } from '@axe/application/ui/motion.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -88,6 +90,29 @@ describe('TableEffectOverlayComponent', () => {
 
     expect(seen).toHaveBeenCalledTimes(1);
     ObjectStore.instance.remove(character);
+  });
+
+  it('leaves an effect left standing to the table’s scene where its look is drawn there', () => {
+    const motion = TestBed.inject(MotionService);
+    motion.setting.set('on');
+    const burst = new EffectPreset();
+    burst.kind = 'burst';
+    burst.durationMs = 600;
+    ObjectStore.instance.add(burst, false);
+    const fields = TestBed.inject(EffectFieldService);
+    const drawnInScene = fields.place(burst, 100, 200, 0);
+    const drawnOver = fields.place(preset, 300, 200, 0);
+    try {
+      playback.now.set(200);
+
+      const drawn = (component['renderables'] as () => { preset: EffectPreset }[])();
+      expect(drawn.map((renderable) => renderable.preset)).toEqual([preset]);
+    } finally {
+      drawnInScene.destroy();
+      drawnOver.destroy();
+      ObjectStore.instance.remove(burst);
+      motion.setting.set('auto');
+    }
   });
 
   it('draws nothing with no effect playing', () => {
