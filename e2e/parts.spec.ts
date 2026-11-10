@@ -41,7 +41,7 @@ async function chooseFrom(page: Page, on: ReturnType<Page['locator']>, entry: st
 }
 
 test.describe('the parts of a piece', () => {
-  test('makes a piece a part of one it stands on, lists it under the body to aim at, carries it along, and takes it off', async ({
+  test('makes a piece a part of one it stands on, lists it under the body to aim at, lays its picture over the body, carries it along, and takes it off', async ({
     page,
   }) => {
     await waitAppReady(page);
@@ -64,6 +64,15 @@ test.describe('the parts of a piece', () => {
 
     await row.click();
     await expect(row).toHaveClass(/ring-2/);
+
+    await chooseFrom(page, row, '部位の見た目を編集');
+    const editor = page.getByTestId('part-look-editor');
+    await expect(editor).toBeVisible({ timeout: 10000 });
+    await editor.getByTestId('part-look-lay').click();
+    await expect(editor.getByTestId('part-look-layer')).toHaveCount(1);
+    await editor.getByTestId('part-look-mode-paint').click();
+    await expect(editor.getByTestId('part-look-paint-layer')).toBeVisible();
+    await closePanels(page);
 
     await settle(body);
     const from = await centreOf(pedestal(body));
