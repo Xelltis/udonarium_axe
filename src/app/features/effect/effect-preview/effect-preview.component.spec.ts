@@ -41,6 +41,7 @@ describe('EffectPreviewComponent', () => {
   let motion: MotionService;
   let frames: FrameRequestCallback[];
   let shown: EffectFrame[];
+  let zooms: number[];
 
   beforeEach(async () => {
     // The 2D context of happy-dom has no drawing functions; what is checked is what is placed.
@@ -53,9 +54,11 @@ describe('EffectPreviewComponent', () => {
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
     vi.spyOn(performance, 'now').mockReturnValue(1000);
     shown = [];
+    zooms = [];
     const stage = {
       show: (frame: EffectFrame) => shown.push(frame),
       resize: () => undefined,
+      zoom: (out: number) => zooms.push(out),
       dispose: () => undefined,
     };
     TestBed.configureTestingModule({
@@ -106,8 +109,6 @@ describe('EffectPreviewComponent', () => {
     show(null);
     runFramesAt(300);
 
-    expect(component.sprites()).toEqual([]);
-    expect(component.canvases()).toEqual([]);
     expect(drawnOnStage()).toBe(0);
   });
 
@@ -123,7 +124,6 @@ describe('EffectPreviewComponent', () => {
 
     runFramesAt(300);
     expect(component.frame()).toEqual({ round: 0, elapsed: 300 - blow.holdMs });
-    expect(component.sprites()).toEqual([]);
     expect(drawnOnStage()).toBeGreaterThan(0);
     expect(component.sceneFrame().floor.every((mark) => Math.abs(mark.x) < 1 && Math.abs(mark.y) < 1)).toBe(true);
     expect(shown.at(-1)).toBe(component.sceneFrame());
@@ -182,23 +182,22 @@ describe('EffectPreviewComponent', () => {
 
     runFramesAt(300);
 
-    expect(component.inScene()).toBe(true);
     expect(drawnOnStage()).toBeGreaterThan(0);
-    expect(component.sprites()).toEqual([]);
-    expect(component.canvases()).toEqual([]);
   });
 
-  it('draws the board smaller for a larger effect, so that it stays in the box', () => {
-    const scaleOf = () => Number(/scale\(([\d.]+)\)/.exec(component['boardTransform']())![1]);
-    const usual = presetOf('nova');
-    show(usual);
-    const usualScale = scaleOf();
+  it('stands the camera further off for a larger effect, so that it stays in the box', async () => {
+    show(presetOf('nova'));
+    for (let turn = 0; turn < 5; turn++) {
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
+    const usual = zooms.at(-1)!;
 
     const large = presetOf('nova');
     large.scale = 2;
     show(large);
 
-    expect(scaleOf()).toBeCloseTo(usualScale / 2);
+    expect(zooms.at(-1)).toBeCloseTo(usual * 2);
   });
 
   it('holds one still halfway through while motion is turned off', () => {

@@ -371,7 +371,6 @@ describe('BattleCutInOverlayComponent', () => {
       expect(over.ribbons).toBe(drawn.ribbons);
       expect(over.floor).toEqual([]);
       expect(stage.sprites()).toEqual([]);
-      expect(stage.canvases()).toEqual([]);
     });
 
     it('cuts up the picture of one brought down over the stage, and draws the rest of it on the canvas', async () => {
@@ -396,22 +395,22 @@ describe('BattleCutInOverlayComponent', () => {
         const sprites = stage.sprites();
         expect(sprites.length).toBeGreaterThan(0);
         expect(sprites.every((sprite) => JSON.stringify([sprite.style, sprite.paint]).includes('url('))).toBe(true);
-        expect(stage.canvases()).toEqual([]);
         expect(drawnIn(stage.sceneFrame())).toBeGreaterThan(0);
       } finally {
         ImageStorage.instance.delete('falling-goblin');
       }
     });
 
-    it('draws the blow over the stage as before where the browser cannot make the canvas', async () => {
+    it('plays on where the browser cannot make the canvases, the blow going undrawn', async () => {
       drawsOverPage = false;
       const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
       const timeline = stage.timeline()!;
 
       runFramesAt(timeline.impact + 100);
 
-      expect(drawnIn(stage.sceneFrame())).toBe(0);
-      expect(stage.sprites().length + stage.canvases().length).toBeGreaterThan(0);
+      expect(shown.size).toBe(0);
+      expect(stage.sprites()).toEqual([]);
+      expect(fixture.nativeElement.querySelectorAll('[data-testid="battle-figure-d-goblin"]')).toHaveLength(1);
     });
   });
 });

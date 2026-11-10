@@ -318,6 +318,8 @@ export interface EffectStage {
   show(frame: EffectFrame): void;
   /** Fits the drawing to the canvas as it is laid out now. */
   resize(): void;
+  /** Stands the camera this much further off than to fit the board, for a larger effect to stay in sight. */
+  zoom(out: number): void;
   dispose(): void;
 }
 

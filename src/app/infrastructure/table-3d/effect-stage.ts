@@ -46,6 +46,7 @@ class SmallStage implements EffectStage {
   private readonly effects = new EffectLayer();
   private readonly lamps = Array.from({ length: MAX_EFFECT_LIGHTS }, () => new PointLight(0xffffff, 0, 1, 1));
   private readonly owned: { dispose(): void }[] = [];
+  private zoomOut: number;
 
   constructor(
     private readonly renderer: WebGPURenderer,
@@ -53,6 +54,7 @@ class SmallStage implements EffectStage {
     private readonly options: EffectStageOptions
   ) {
     const { cellPx, across, down } = options;
+    this.zoomOut = options.zoomOut ?? 1;
     this.scene.add(new HemisphereLight(0xdfe8ff, 0x20242c, 1.6));
     for (const lamp of this.lamps) this.scene.add(lamp);
     this.scene.add(this.board(cellPx, across, down));
@@ -107,6 +109,12 @@ class SmallStage implements EffectStage {
     this.renderer.render(this.scene, this.camera);
   }
 
+  zoom(out: number): void {
+    if (out === this.zoomOut) return;
+    this.zoomOut = out;
+    this.resize();
+  }
+
   resize(): void {
     const width = Math.max(1, this.canvas.clientWidth);
     const height = Math.max(1, this.canvas.clientHeight);
@@ -116,7 +124,7 @@ class SmallStage implements EffectStage {
     // Far enough off for the board to fill the width, a little over the stand-in's middle.
     const { cellPx, across } = this.options;
     const across2 = (across * cellPx * 0.5) / Math.tan(((FIELD_OF_VIEW / 2) * Math.PI) / 180) / this.camera.aspect;
-    const distance = across2 * 0.85 * (this.options.zoomOut ?? 1);
+    const distance = across2 * 0.85 * this.zoomOut;
     const down = (LOOK_DOWN_DEG * Math.PI) / 180;
     const round = (LOOK_ROUND_DEG * Math.PI) / 180;
     const level = Math.cos(down) * distance;

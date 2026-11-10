@@ -52,15 +52,13 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { gaugeColor, gaugeRatio, HIDDEN_GAUGE_NUMBERS } from '@axe/domain/character/piece-gauge';
 import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { defeatPictureHeight, DefeatReaction, defeatReactionOf } from '@axe/domain/effect/effect-defeat';
-import { effectParticlePlacements } from '@axe/domain/effect/effect-particle-placements';
-import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { effectLandingTimes, impactSoundTimes, launchSoundTimes } from '@axe/domain/effect/effect-sound-times';
 import { EffectSpriteOptions, effectSprites, Point3 } from '@axe/domain/effect/effect-timeline';
 import { nothingStaged } from '@axe/domain/effect/scene/choreography';
 import type { EffectFooting } from '@axe/domain/effect/scene/effect-frame';
 import { type EffectFrame, EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
-import { drawsOnlyPicturesOver, hasScenePart, sceneLingerMsOf } from '@axe/domain/effect/scene/scene-kinds';
+import { drawsOnlyPicturesOver, sceneLingerMsOf } from '@axe/domain/effect/scene/scene-kinds';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
 import {
@@ -82,11 +80,8 @@ import {
 } from '@axe/features/battle-cut-in/battle-stage-layout';
 import { BATTLE_PICTURE_LOOK, BattleBandLook, battleThemeLook } from '@axe/features/battle-cut-in/battle-themes';
 import { MirroredPictureService } from '@axe/features/battle-cut-in/mirrored-picture.service';
-import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   EFFECT_CAMERA_LIFT_PX,
-  effectBillboardTransform,
-  effectCanvasStyle,
   effectPaintStyle,
   effectSpriteStyle,
   EffectViewpoint,
@@ -97,7 +92,6 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { Z_BATTLE_CUT_IN } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
 
-const MAX_CANVASES = 8;
 /** How long after the blow lands the struck stay lit by it. */
 const HIT_FLASH_MS = 200;
 
@@ -126,12 +120,6 @@ export interface SpriteFrame {
   /** The inner layer that carries the look and the animation, where the sprite has one. */
   paint: Record<string, string> | null;
   svg: string;
-}
-
-export interface CanvasFrame {
-  key: string;
-  layer: EffectParticleLayer;
-  style: Record<string, string>;
 }
 
 /**
@@ -232,7 +220,7 @@ export interface PlateFrame {
   selector: 'battle-cut-in-overlay',
   templateUrl: './battle-cut-in-overlay.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgStyle, NgTemplateOutlet, SafePipe, EffectCanvasComponent, TranslocoModule],
+  imports: [NgStyle, NgTemplateOutlet, SafePipe, TranslocoModule],
   host: { class: 'contents', '(document:keydown.escape)': 'pressEscape()', '(window:resize)': 'measureScreen()' },
 })
 export class BattleCutInOverlayComponent {
@@ -259,8 +247,6 @@ export class BattleCutInOverlayComponent {
    * the fighters for the marks on the floor, which they stand on, and one over them for the rest.
    */
   private readonly overPage = signal<{ floor: EffectOverlay; above: EffectOverlay } | null>(null);
-  /** Whether the browser could not draw those canvases, which leaves the effects drawn as they were before. */
-  private readonly overPageFailed = signal(false);
   private readonly viewport = signal({ width: 0, height: 0 });
   private readonly screen = signal(readScreen());
   private readonly dragPlace = signal<{ x: number; y: number } | null>(null);
@@ -583,24 +569,18 @@ export class BattleCutInOverlayComponent {
       });
     }
     return layers.filter(
-      (layer) => layer.elapsed >= 0 && layer.elapsed <= this.playingMsOf(layer.preset, layer.cast.targets.length)
+      (layer) =>
+        layer.elapsed >= 0 &&
+        layer.elapsed <= layer.preset.totalDuration(layer.cast.targets.length) + sceneLingerMsOf(layer.preset)
     );
   });
 
-  /** The effects drawn over the stage as they were before: those not drawn as on the table, and the pictures cut up. */
-  private readonly drawnOver = computed(() =>
-    this.layers().filter(
-      (layer) =>
-        (!this.inScene(layer.preset) || drawsOnlyPicturesOver(layer.preset)) &&
-        layer.elapsed <= layer.preset.totalDuration(layer.cast.targets.length)
-    )
-  );
-
+  /** The pieces of the pictures of the fighters a look cuts up, drawn over the stage where they stand. */
   readonly sprites = computed<SpriteFrame[]>(() =>
-    this.drawnOver().flatMap((layer) => {
-      const picturesOnly = this.inScene(layer.preset);
+    this.layers().flatMap((layer) => {
+      if (!drawsOnlyPicturesOver(layer.preset)) return [];
       return effectSprites(layer.preset, layer.cast, layer.elapsed, layer.options)
-        .filter((sprite) => !picturesOnly || sprite.background.includes('url('))
+        .filter((sprite) => sprite.background.includes('url('))
         .map((sprite) => ({
           key: `${layer.prefix}-${sprite.key}`,
           style: effectSpriteStyle(sprite, layer.viewpoint),
@@ -620,9 +600,9 @@ export class BattleCutInOverlayComponent {
     return footings;
   });
 
-  /** What the effects drawn as on the table draw at this moment, on the canvas over the stage. */
+  /** What the effects draw at this moment, as the table's scene draws them, on the canvases over the stage. */
   readonly sceneFrame = computed<EffectFrame>(() => {
-    const layers = this.layers().filter((layer) => this.inScene(layer.preset));
+    const layers = this.layers();
     if (layers.length < 1) return EMPTY_EFFECT_FRAME;
     const looks = this.sceneLooks.looks();
     if (!looks) return EMPTY_EFFECT_FRAME;
@@ -651,26 +631,6 @@ export class BattleCutInOverlayComponent {
     const frame = this.sceneFrame();
     return frame.floor.length > 0 ? { ...frame, floor: [] } : frame;
   });
-
-  readonly canvases = computed<CanvasFrame[]>(() =>
-    this.drawnOver()
-      .filter((layer) => !this.inScene(layer.preset))
-      .flatMap((layer) =>
-        effectParticlePlacements(layer.preset, layer.cast, layer.elapsed, layer.options, MAX_CANVASES).map(
-          (placement) => ({
-            key: `${layer.prefix}-${placement.key}`,
-            layer: placement.layer,
-            style: effectCanvasStyle({
-              key: placement.key,
-              layer: placement.layer,
-              width: placement.layer.width,
-              height: placement.layer.height,
-              transform: effectBillboardTransform(placement.center, placement.layer, layer.viewpoint),
-            }),
-          })
-        )
-      )
-  );
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -718,8 +678,9 @@ export class BattleCutInOverlayComponent {
   }
 
   /**
-   * Loads what draws the effects as on the table and makes the canvas over the stage, unless the
-   * stage is gone by then or plays as a still, which draws no effects.
+   * Loads what draws the effects as the table's scene does and makes the canvases under and over
+   * the fighters, unless the stage is gone by then or plays as a still, which draws no effects.
+   * Where the browser cannot make them, the effects go undrawn but for the pictures they cut.
    */
   private async startOverPage(destroyRef: DestroyRef): Promise<void> {
     if (untracked(this.still)) return;
@@ -733,20 +694,9 @@ export class BattleCutInOverlayComponent {
     if (destroyRef.destroyed || !floor || !above) {
       floor?.dispose();
       above?.dispose();
-      if (!destroyRef.destroyed) this.overPageFailed.set(true);
       return;
     }
     this.overPage.set({ floor, above });
-  }
-
-  /** Whether an effect is drawn, wholly or in part, as on the table, on the canvas over the stage. */
-  private inScene(preset: EffectPreset): boolean {
-    return hasScenePart(preset) && !this.overPageFailed();
-  }
-
-  /** How long an effect goes on being drawn, with what it leaves clearing where it is drawn as on the table. */
-  private playingMsOf(preset: EffectPreset, targets: number): number {
-    return preset.totalDuration(targets) + (this.inScene(preset) ? sceneLingerMsOf(preset) : 0);
   }
 
   /** Moves on to the next scene, or closes the stage. */
