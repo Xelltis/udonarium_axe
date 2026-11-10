@@ -313,3 +313,40 @@ describe('a volley of missiles', () => {
     expect(new Set(landed.map((mark) => `${Math.round(mark.x)}|${Math.round(mark.y)}`)).size).toBeGreaterThan(1);
   });
 });
+
+describe('the things that fly', () => {
+  const cast = { ...castOn([100, 100]), origin: { x: 600, y: 100, z: 30 } };
+  /** Whether what is drawn holds a band drawn to a point: the head of an arrow or the nose of a missile. */
+  const pointed = (drawn: Staged) =>
+    drawn.ribbons.some(
+      (ribbon) =>
+        Array.isArray(ribbon.widths) && ribbon.widths.at(-1) === 0 && ribbon.widths[0] > 0 && ribbon.blend === 'color'
+    );
+
+  it('flies an arrow as an arrow, with its shaft, its head and its feathers', () => {
+    const arrow = makePreset('projectile', { durationMs: 1000 });
+    arrow.projectileStyle = 'arrow';
+    const flying = staged(arrow, cast, 120);
+
+    expect(pointed(flying)).toBe(true);
+    expect(flying.ribbons.filter((ribbon) => ribbon.blend === 'color').length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('flies a cruise missile as a missile, with its nose, its fins and its flame', () => {
+    const missile = makePreset('projectile', { durationMs: 2600 });
+    missile.projectileStyle = 'cruise';
+    const flying = staged(missile, cast, 600);
+
+    expect(pointed(flying)).toBe(true);
+    expect(flying.motes.some((mote) => mote.shape === 'comet' && mote.blend === 'light')).toBe(true);
+  });
+
+  it('rains arrows as arrows, falling and then standing where they struck', () => {
+    const rain = makePreset('arrowrain', { durationMs: 2400 });
+    const falling = staged(rain, cast, 1300);
+    const stuck = staged(rain, cast, 2300);
+
+    expect(pointed(falling)).toBe(true);
+    expect(stuck.ribbons.length).toBeGreaterThan(20);
+  });
+});

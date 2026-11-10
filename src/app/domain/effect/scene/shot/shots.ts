@@ -24,6 +24,7 @@ import {
   throwerFor,
   wayBetween,
 } from '@axe/domain/effect/scene/parts';
+import { arrowBody, missileBody, stuckArrow } from '@axe/domain/effect/scene/shot/bodies';
 import { ARROW_RAIN_FALL, arrowRainShots, projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
 
 /*
@@ -214,27 +215,9 @@ function drawFlying(
   });
   const velocity = { x: way.x * speed, y: way.y * speed, z: way.z * speed };
   switch (style) {
-    case 'arrow': {
-      const shaft = [behind(cell * 0.75), at];
-      drawn.ribbons.push({
-        points: [behind(cell * 2.4), behind(cell * 0.2)],
-        widths: [0, cell * 0.16],
-        color: hueOf(ramp),
-        core: ramp[4],
-        alpha: 0.8,
-        blend: 'light',
-      });
-      drawn.ribbons.push({ points: shaft, widths: cell * 0.045, color: '#6b4a2b', alpha: 1, blend: 'color' });
-      drawn.ribbons.push({
-        points: [behind(cell * 0.75), behind(cell * 0.6)],
-        widths: cell * 0.12,
-        color: '#e8e2d0',
-        alpha: 1,
-        blend: 'color',
-      });
-      drawn.motes.push({ ...ball(at, cell * 0.09, '#9aa0a8', 1, forward, seed), shape: 'chunk', spin: 0.8 });
+    case 'arrow':
+      drawn.ribbons.push(...arrowBody(at, way, cell, ramp));
       return;
-    }
     case 'bullet':
       drawn.motes.push(glow(at, cell * 0.5, hueOf(ramp), 0.6, forward));
       drawn.motes.push({
@@ -290,28 +273,10 @@ function drawFlying(
         const age = back / 14;
         drawn.motes.push(smokePuff(pathAt(was), cell * (0.24 + age * 0.45), '#cfc8c2', (1 - age) * 0.6, forward));
       }
-      // Its exhaust: a flame of its colour streaming behind it and a hot light.
-      drawn.motes.push(haze(behind(cell * 0.25), cell * 0.9, hueOf(ramp), 0.55, forward));
-      drawn.motes.push({
-        ...ball(behind(cell * 0.12), cell * 0.3, ramp[4], 1, forward, seed),
-        shape: 'comet',
-        velocity,
-        trail: (cell * 0.6) / speed,
-      });
-      drawn.motes.push(glow(behind(cell * 0.2), cell * 0.7, ramp[5], 0.9, forward));
-      // Its body, light on top and dark beneath, with a coloured nose.
-      drawn.motes.push({
-        ...ball(at, cell * 0.24, '#e4e7ea', 1, forward + 1, seed),
-        shape: 'comet',
-        velocity,
-        trail: (cell * 0.55) / speed,
-      });
-      drawn.motes.push({
-        ...ball(at, cell * 0.14, hueOf(ramp), 1, forward + 2, seed),
-        shape: 'comet',
-        velocity,
-        trail: (cell * 0.12) / speed,
-      });
+      // The missile itself: body, nose, fins and the flame of its motor.
+      const missile = missileBody(at, way, cell, ramp, velocity, speed, forward, share * 90 + seed);
+      drawn.ribbons.push(...missile.ribbons);
+      drawn.motes.push(...missile.motes);
       return;
     }
     default: {
@@ -494,56 +459,35 @@ export const arrowrain: Choreography = {
       const falls = shot.fall * duration;
       const lands = shot.land * duration;
       const spot = thrown.lands[index];
-      // Loosed up out of sight.
+      // Loosed up out of sight, each an arrow pointing up as it climbs.
       const up = (t - loose) / 0.35;
       if (up >= 0 && up < 1) {
-        const at = { x: from.x + spot.lean * cell * up * 2, y: from.y, z: from.z + up * sky };
-        drawn.motes.push({
-          ...glow(at, cell * 0.1, hueOf(ramp), 1 - up, forward),
-          shape: 'spark',
-          velocity: { x: 0, y: 0, z: sky / 0.35 },
-          trail: 0.1,
-        });
+        const rising = { x: from.x + spot.lean * cell * up * 2, y: from.y, z: from.z + cell * 0.8 + up * sky };
+        const upward = { x: spot.lean * 0.2, y: 0, z: 1 };
+        drawn.ribbons.push(
+          ...arrowBody(rising, upward, cell * 0.8, ramp).map((ribbon) => ({
+            ...ribbon,
+            alpha: ribbon.alpha * (1 - up),
+          }))
+        );
       }
-      // Falling steeply on the target.
+      // Falling steeply on the target, head first.
       const down = (t - falls) / Math.max(lands - falls, ARROW_RAIN_FALL * duration * 0.5);
       const ground = { x: spot.x, y: spot.y, z: floor.z };
       const top = { x: spot.x + spot.lean * cell * 3, y: spot.y - cell * 2, z: floor.z + sky };
-      if (down >= 0 && down < 1) {
-        const at = lerpPoint(top, ground, down);
-        const { way } = wayBetween(top, ground);
-        drawn.ribbons.push({
-          points: [{ x: at.x - way.x * cell * 0.7, y: at.y - way.y * cell * 0.7, z: at.z - way.z * cell * 0.7 }, at],
-          widths: cell * 0.07,
-          color: '#5c3f25',
-          alpha: 1,
-          blend: 'color',
-        });
-        drawn.ribbons.push({
-          points: [{ x: at.x - way.x * cell * 2.6, y: at.y - way.y * cell * 2.6, z: at.z - way.z * cell * 2.6 }, at],
-          widths: [0, cell * 0.18],
-          color: hueOf(ramp),
-          core: ramp[4],
-          alpha: 0.85,
-          blend: 'light',
-        });
-      }
+      const { way } = wayBetween(top, ground);
+      if (down >= 0 && down < 1) drawn.ribbons.push(...arrowBody(lerpPoint(top, ground, down), way, cell * 0.75, ramp));
       // Stuck where it landed, a puff of dust at its foot.
       if (t >= lands) {
         const since = t - lands;
         const fade = 1 - within(t, ends - 0.4, ends);
-        const { way } = wayBetween(top, ground);
         const tip = { x: ground.x, y: ground.y, z: ground.z + cell * 0.05 };
-        drawn.ribbons.push({
-          points: [
-            tip,
-            { x: tip.x - way.x * cell * 0.55, y: tip.y - way.y * cell * 0.55, z: tip.z - way.z * cell * 0.55 },
-          ],
-          widths: cell * 0.06,
-          color: '#5c3f25',
-          alpha: fade,
-          blend: 'color',
-        });
+        const buried = {
+          x: tip.x + way.x * cell * 0.25,
+          y: tip.y + way.y * cell * 0.25,
+          z: tip.z + way.z * cell * 0.25,
+        };
+        drawn.ribbons.push(...stuckArrow(buried, way, cell * 0.7, ramp, fade));
         if (since < 0.12) drawn.motes.push(...starBurst(tip, cell * 0.7, hueOf(ramp), since / 0.12, forward, 3, index));
         if (since < 0.3)
           drawn.motes.push(
