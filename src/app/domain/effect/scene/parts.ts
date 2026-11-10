@@ -63,9 +63,22 @@ export function keptFor<T>(cache: Map<string, T>, key: string, make: () => T, mo
   return made;
 }
 
-/** What tells one stage's throw from another's: the same key throws the same parts. */
+/** What tells one stage's throw from another's, its preset and its look among them: the same key throws the same parts. */
 export function stageKey(stage: Stage, ends: number): string {
-  return [stage.seed, stage.cell, ends, stage.preset.gradeLevel, stage.x, stage.y, stage.z, stage.groundZ].join('|');
+  const { preset } = stage;
+  return [
+    preset.identifier,
+    preset.effectKind,
+    preset.slashLook,
+    preset.gradeLevel,
+    stage.seed,
+    stage.cell,
+    ends,
+    stage.x,
+    stage.y,
+    stage.z,
+    stage.groundZ,
+  ].join('|');
 }
 
 /**

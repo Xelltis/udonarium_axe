@@ -400,8 +400,12 @@ export class EffectLayer {
     const coreNode = attribute<'vec4'>('core', 'vec4');
     const along = normalize(flowNode.xyz.add(vec3(0, 0.0001, 0)));
     const toEye = normalize(cameraPosition.sub(spineNode.xyz));
-    const across = normalize(cross(along, toEye));
-    const placed = spineNode.xyz.add(across.mul(spineNode.w.mul(0.5).mul(flowNode.w)));
+    // Seen end on, a band is drawn narrow, as it is, rather than as a stub as wide as its width.
+    const sideways = cross(along, toEye);
+    const seen = length(sideways);
+    const across = sideways.div(max(seen, 0.0001));
+    const broad = clamp(seen.div(0.6), 0, 1);
+    const placed = spineNode.xyz.add(across.mul(spineNode.w.mul(0.5).mul(broad).mul(flowNode.w)));
     const side = abs(flowNode.w);
     const edge = clamp(
       float(1)

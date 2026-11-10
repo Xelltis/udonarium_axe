@@ -33,6 +33,10 @@ import { type SlashHit, slashHits } from '@axe/domain/effect/timeline/blade';
 const LINGER_S = 0.6;
 /** How far through its stroke the blade crosses the target. */
 const CROSSES_AT = 0.3;
+/** How far over the floor a blade stays at its lowest, in cells. */
+const OVER_FLOOR = 0.12;
+/** How much of a slanting stroke's rise is kept, so it lies nearly level. */
+const SLANT_KEPT = 0.3;
 /** How deep the arc curves back towards the caster, as a share of its reach. */
 const ARC_DEPTH = 0.5;
 /** How far round the arc the blade sweeps, either side of the target, in radians. */
@@ -65,6 +69,8 @@ interface Frame {
   readonly across: Point;
   readonly up: Point;
   readonly toward: Point;
+  /** The lowest a blade may go, in table pixels: a little over the floor under the target. */
+  readonly lowestZ: number;
 }
 
 function drawSlash(stage: Stage): Staged {
@@ -137,20 +143,13 @@ function frameOf(stage: Stage): Frame {
     across: { x: -heading.y, y: heading.x, z: 0 },
     up: { x: 0, y: 0, z: 1 },
     toward: { x: -heading.x, y: -heading.y, z: 0 },
+    lowestZ: stage.groundZ + stage.cell * OVER_FLOOR,
   };
 }
 
 /** A point on a stroke's arc, a turn round from where it crosses the target, in the plane its angle tilts it to. */
 function onArc(centre: Point, frame: Frame, hit: SlashHit, radius: number, turn: number): Point {
-  const angle = (hit.angle * Math.PI) / 180;
-  // The way the blade travels: across, tilted up or down by its angle; a blow brought down steeply
-  // travels down, from above.
-  const steep = -Math.sin(angle) > 0.5 ? -1 : 1;
-  const travel = {
-    x: frame.across.x * Math.cos(angle) * steep,
-    y: frame.across.y * Math.cos(angle) * steep,
-    z: -Math.sin(angle) * steep,
-  };
+  const travel = travelOf(frame, hit);
   // The blade swings about its caster's side: the arc passes through the target at its middle and
   // curves back towards the caster at its ends, so the target is cut, not wrapped round.
   const along = Math.sin(turn) * radius;
@@ -158,8 +157,37 @@ function onArc(centre: Point, frame: Frame, hit: SlashHit, radius: number, turn:
   return {
     x: centre.x + travel.x * along + frame.toward.x * back,
     y: centre.y + travel.y * along + frame.toward.y * back,
-    z: centre.z + travel.z * along + frame.toward.z * back,
+    z: Math.max(frame.lowestZ, centre.z + travel.z * along + frame.toward.z * back),
   };
+}
+
+/**
+ * The way a blade travels: across, tilted up or down by its angle; a blow brought down steeply
+ * travels down, from above. A slanting stroke is laid nearly level, so the table, seen from above,
+ * sees the whole of it, and neither end rises behind the piece or its name.
+ */
+function travelOf(frame: Frame, hit: SlashHit): Point {
+  const angle = (hit.angle * Math.PI) / 180;
+  const steep = -Math.sin(angle) > 0.9 ? -1 : 1;
+  const rise = steep < 0 ? -Math.sin(angle) : -Math.sin(angle) * SLANT_KEPT;
+  return normalised({
+    x: frame.across.x * Math.cos(angle) * steep,
+    y: frame.across.y * Math.cos(angle) * steep,
+    z: rise * steep,
+  });
+}
+
+/**
+ * How far round its arc a stroke sweeps, either way from where it crosses the target: as far as it
+ * may, but stopping short where it would go down into the floor, so every blade stays over it.
+ */
+function sweepOf(centre: Point, frame: Frame, hit: SlashHit, radius: number): { lo: number; hi: number } {
+  const fall = travelOf(frame, hit).z * radius;
+  const room = centre.z - frame.lowestZ;
+  if (Math.abs(fall) < 0.001) return { lo: -SWEEP, hi: SWEEP };
+  // Going the way the blade falls, it stops where it reaches the lowest it may go.
+  const stop = Math.asin(Math.min(1, Math.max(-1, room / Math.abs(fall))));
+  return fall > 0 ? { lo: Math.max(-SWEEP, -stop), hi: SWEEP } : { lo: -SWEEP, hi: Math.min(SWEEP, stop) };
 }
 
 /**
@@ -176,12 +204,13 @@ function drawStroke(
   share: number
 ): void {
   if (share <= 0 || share >= 1 + FADES) return;
-  const head = -SWEEP + 2 * SWEEP * outCubic(Math.min(1, share));
-  const tail = Math.max(-SWEEP, head - TAIL);
+  const radius = (hit.reach / 2) * cell;
+  const { lo, hi } = sweepOf(centre, frame, hit, radius);
+  const head = lo + (hi - lo) * outCubic(Math.min(1, share));
+  const tail = Math.max(lo, head - TAIL * ((hi - lo) / (2 * SWEEP)));
   if (head - tail < 0.02) return;
   // Once the blade has passed, the arc it left thins and fades where it lies, a crescent to the last.
   const fading = within(share, 1, 1 + FADES);
-  const radius = (hit.reach / 2) * cell;
   const thick = cell * Math.min(Math.max(hit.thickness / 60, 0.38), 0.5) * (1 - fading * 0.8);
   const alpha = Math.pow(1 - fading, 1.5);
   drawn.ribbons.push(...bladeRibbons(centre, frame, hit, radius, tail, head, thick, ramp, alpha));
@@ -273,7 +302,8 @@ function drawGathering(
   }
   // The line the stroke will take, drawn taut.
   const radius = (hit.reach / 2) * cell;
-  const line = [onArc(chest, frame, hit, radius, -SWEEP), onArc(chest, frame, hit, radius, SWEEP)];
+  const { lo, hi } = sweepOf(chest, frame, hit, radius);
+  const line = [onArc(chest, frame, hit, radius, lo), onArc(chest, frame, hit, radius, hi)];
   drawn.ribbons.push({
     points: line,
     widths: cell * 0.03,
@@ -337,7 +367,7 @@ function drawDrawingCut(
   const lineAt = (share: number, apart = 0): Point => ({
     x: centre.x + travel.x * share * half + frame.toward.x * apart,
     y: centre.y + travel.y * share * half + frame.toward.y * apart,
-    z: centre.z + travel.z * share * half + apart * 0.6,
+    z: Math.max(frame.lowestZ, centre.z + travel.z * share * half + apart * 0.6),
   });
   const steps = 12;
   const shares = Array.from({ length: steps + 1 }, (_unused, index) => (index / steps) * 2 - 1);
@@ -480,4 +510,9 @@ function drawBreaking(
   }
   layShockRing(drawn, floor, cell * 0.3, cell * 2.2, cell * 0.1, ramp[4], since, 0.35);
   for (const cloud of dust) drawCloud(drawn, cloud, since, cell, forward);
+}
+
+function normalised(v: Point): Point {
+  const length = Math.hypot(v.x, v.y, v.z) || 1;
+  return { x: v.x / length, y: v.y / length, z: v.z / length };
 }

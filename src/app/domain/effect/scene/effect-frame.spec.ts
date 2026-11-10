@@ -202,6 +202,20 @@ describe('the cuts and blows drawn in the scene', () => {
     expect(Math.max(...(later.widths as number[]))).toBeLessThan(Math.max(...(passed.widths as number[])));
   });
 
+  it.each(['single', 'combo', 'iai', 'wide', 'heavy'] as const)(
+    'keeps every blade of a %s cut over the floor',
+    (style) => {
+      const cut = makePreset('slash', { durationMs: 2500, grade: 3 });
+      cut.slashStyle = style;
+      const cast = { ...castOn([100, 100]), origin: { x: 300, y: 100, z: 30 } };
+      for (let at = 0; at < 3000; at += 25) {
+        for (const ribbon of staged(cut, cast, at).ribbons) {
+          expect(ribbon.points.every((point) => point.z >= CELL * 0.1)).toBe(true);
+        }
+      }
+    }
+  );
+
   it('brings a cleave down from above', () => {
     const cleave = makePreset('slash', { durationMs: 2000, grade: 3 });
     cleave.slashStyle = 'heavy';
