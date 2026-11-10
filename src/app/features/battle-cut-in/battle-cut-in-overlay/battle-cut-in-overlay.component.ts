@@ -104,6 +104,20 @@ const VIEWPOINT: EffectViewpoint = {
 /** The fallen go down where they stand, rather than raised to where a blow lands on them. */
 const DEFEAT_VIEWPOINT: EffectViewpoint = { ...VIEWPOINT, risePx: 0 };
 
+/**
+ * How much larger a cut is drawn on the stage than on the table: a fighter stands taller against a
+ * cell than a piece does, and a cut is to cross the whole of it.
+ */
+const STAGE_CUT_SCALE = 1.8;
+
+/** The preset an effect is drawn with on the stage: a cut drawn the larger, any other as it is. */
+function onStage(preset: EffectPreset): EffectPreset {
+  if (preset.effectKind !== 'slash') return preset;
+  const larger = Object.create(preset) as EffectPreset;
+  Object.defineProperty(larger, 'sizeScale', { value: preset.sizeScale * STAGE_CUT_SCALE });
+  return larger;
+}
+
 /** One effect playing on the stage, with how it is drawn. */
 interface EffectLayer {
   preset: EffectPreset;
@@ -607,7 +621,7 @@ export class BattleCutInOverlayComponent {
     const drawn = nothingStaged();
     for (const layer of layers) {
       looks.stageEffect(
-        layer.preset,
+        onStage(layer.preset),
         layer.cast,
         layer.elapsed,
         { cellPx: BATTLE_SCENE_CELL_PX, resolveFooting: (identifier) => footings.get(identifier) ?? null },
