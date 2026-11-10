@@ -584,6 +584,7 @@ class ThreeTableEngine implements Table3dEngine {
       backdrops: this.backdrops.shown,
       models: this.models.shown,
       dice: this.dice.shown,
+      effects: this.effects.shown,
       modelMeshes: this.models.meshes,
       veilRevision: this.veil.revision,
       lightMapRevision: this.veil.lightRevision,

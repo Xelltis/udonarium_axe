@@ -100,6 +100,7 @@ export interface TableTestHooks {
     fogAirSheets: number;
     sky: boolean;
     backdrops: number;
+    effects: number;
     models: number;
     modelMeshes: number;
     veilRevision: number;
