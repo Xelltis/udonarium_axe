@@ -338,7 +338,7 @@ describe('GameTableGestureService', () => {
       document.body.focus();
     });
 
-    it('comes in past life size and stops short of the board passing behind the camera', () => {
+    it('comes in past life size and stops well short of the eye', () => {
       for (let notch = 0; notch < 40; notch++) wheel(180);
 
       expect(service.viewPositionZ).toBe(MOUSE_ZOOM_MAX_Z);

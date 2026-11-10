@@ -26,10 +26,12 @@ import { TableMouseGesture, TableMouseGestureEvent } from '@axe/features/tableto
 import { TableTouchGesture, TableTouchGestureEvent } from '@axe/features/tabletop/game-table/table-touch-gesture';
 
 /**
- * How near the wheel and the keys may bring the camera: well past life size, but short of the
- * plane the camera stands on, where the board would pass behind it and vanish from the screen.
+ * How near the wheel and the keys may bring the camera: five times life size, a piece standing a good
+ * part of the screen high, but well short of the eye. Brought nearer, the pictures standing up off
+ * the board and the floor at the foot of a tilted view come nearer the eye than the table is drawn
+ * from, and are cut away.
  */
-export const MOUSE_ZOOM_MAX_Z = TABLE_PERSPECTIVE_PX * 0.9;
+export const MOUSE_ZOOM_MAX_Z = TABLE_PERSPECTIVE_PX * 0.8;
 
 /** How far back any gesture may take the camera. */
 export const ZOOM_MIN_Z = -6000;
