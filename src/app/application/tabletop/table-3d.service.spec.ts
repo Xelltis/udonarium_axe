@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { EffectFrameService } from '@axe/application/effect/effect-frame.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
@@ -21,6 +22,7 @@ import { TableGraphics } from '@axe/core/util/graphics-acceleration';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
+import { strongestEffectLights } from '@axe/domain/effect/effect-light';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { sceneLingerMsOf } from '@axe/domain/effect/scene/effect-frame';
 import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
@@ -845,7 +847,7 @@ describe('Table3dService', () => {
     expect(engine.skies.at(-1)).toEqual(skyLightAt(0));
   });
 
-  it('lights the scene with the light an effect throws as its blow lands, and with none once it has faded', async () => {
+  it('lights the scene with the light a look that cuts a piece’s picture throws there, once, and with none once it has faded', async () => {
     const scene = service();
     scene.attach(document.createElement('canvas'));
     await scene.whenIdle();
@@ -864,11 +866,11 @@ describe('Table3dService', () => {
       seed: 1,
     })!;
 
-    playback.now.set(active.startedAt + effectBlowsOf(preset)[0].atMs);
+    playback.now.set(active.startedAt + effectBlowsOf(preset)[0].atMs + 20);
     TestBed.tick();
-    const [light] = engine.effectLights.at(-1)!;
-    expect([light.x, light.y, light.color]).toEqual([120, 80, '#ff7733']);
-    expect(light.strength).toBeGreaterThan(1);
+    const thrown = engine.effectLights.at(-1)!;
+    expect(thrown.length).toBeGreaterThan(0);
+    expect(thrown).toEqual(strongestEffectLights(TestBed.inject(EffectFrameService).frame().lights));
 
     playback.now.set(active.startedAt + 5000);
     TestBed.tick();
