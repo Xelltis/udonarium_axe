@@ -223,10 +223,15 @@ export async function openPanel(page: Page, dataLabel: string) {
     await page.locator(`[data-label="${dataLabel}"]`).click();
     return;
   }
+  await openPanelFrom(page, page.locator(`[data-label="${dataLabel}"]`));
+}
+
+/** Clicks an entry that opens a panel, and waits for the panel it opens to come to rest. */
+export async function openPanelFrom(page: Page, entry: Locator) {
   await page.locator('.draggable-panel').evaluateAll((panels) => {
     for (const panel of panels) panel.setAttribute('data-e2e-opened-before', '');
   });
-  await page.locator(`[data-label="${dataLabel}"]`).click();
+  await entry.click();
   await panelAtRest(page.locator('.draggable-panel:not([data-e2e-opened-before])').first());
 }
 
