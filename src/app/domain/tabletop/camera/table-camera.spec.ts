@@ -111,7 +111,7 @@ describe('table camera', () => {
       scene.invert(inverse);
       const raised = pageOfTablePoint(scene, 420, 260, 120);
 
-      const ray = tableRayOfPage(inverse, raised.x, raised.y, orthographic ? null : 3000);
+      const ray = tableRayOfPage(inverse, raised.x, raised.y, !orthographic);
 
       if (orthographic) {
         expect(ray.from).toBeUndefined();
@@ -126,6 +126,30 @@ describe('table camera', () => {
         };
         expect(Math.hypot(eye.x - 420, eye.y - 260, eye.z - 120)).toBeGreaterThan(1000);
       }
+    }
+  });
+
+  it('reaches what stands on the table however near the table is brought to the eye', () => {
+    const eyeOf = (ray: ReturnType<typeof tableRayOfPage>) => ({
+      x: ray.origin.x + ray.direction.x * ray.from!,
+      y: ray.origin.y + ray.direction.y * ray.from!,
+      z: ray.origin.z + ray.direction.z * ray.from!,
+    });
+    for (const positionZ of [0, 1620, 2160, 2700]) {
+      const view = { ...DEFAULT_TABLE_CAMERA_VIEW, positionZ };
+      const scene = tableSceneMatrix(view, screen);
+      const inverse = new Matrix3D();
+      scene.invert(inverse);
+      const raised = pageOfTablePoint(scene, 500, 375, 50);
+
+      const ray = tableRayOfPage(inverse, raised.x, raised.y, true);
+
+      const along = (raised.z - ray.origin.z) / ray.direction.z;
+      expect(ray.from).toBeLessThan(along);
+      // Every line of sight runs from the one eye.
+      const eye = eyeOf(ray);
+      const other = eyeOf(tableRayOfPage(inverse, 100, 700, true));
+      expect(Math.hypot(eye.x - other.x, eye.y - other.y, eye.z - other.z)).toBeLessThan(0.01);
     }
   });
 

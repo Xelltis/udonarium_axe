@@ -230,14 +230,12 @@ function intoBoard(inverseScene: Matrix3D, pageX: number, pageY: number, depth: 
  *
  * The page keeps a depth of its own through the matrix, which grows towards the eye; two depths
  * at the same page point give two points of the board's space on the one line of sight. Seen in
- * perspective, the eye stands `eyeDepthPx` up that depth, and the line meets nothing behind it.
+ * perspective, the line meets nothing behind the eye. The depth runs out at the eye, which the
+ * matrix carries no page point to, so the eye is the point of the board's space the matrix takes
+ * to that depth's own way: the one place every line of sight through the page runs from, however
+ * near the table is brought to it.
  */
-export function tableRayOfPage(
-  inverseScene: Matrix3D,
-  pageX: number,
-  pageY: number,
-  eyeDepthPx: number | null = null
-): TableRay {
+export function tableRayOfPage(inverseScene: Matrix3D, pageX: number, pageY: number, perspective = false): TableRay {
   const near = intoBoard(inverseScene, pageX, pageY, 0);
   const far = intoBoard(inverseScene, pageX, pageY, -1000);
   const dx = far.x - near.x;
@@ -245,10 +243,20 @@ export function tableRayOfPage(
   const dz = far.z - near.z;
   const length = Math.hypot(dx, dy, dz);
   const direction = { x: dx / length, y: dy / length, z: dz / length };
-  if (eyeDepthPx === null || !(eyeDepthPx > 1)) return { origin: near, direction };
-  const eye = intoBoard(inverseScene, pageX, pageY, eyeDepthPx - 1);
+  const eye = perspective ? eyeOfBoard(inverseScene) : null;
+  if (!eye) return { origin: near, direction };
   const from = (eye.x - near.x) * direction.x + (eye.y - near.y) * direction.y + (eye.z - near.z) * direction.z;
   return Number.isFinite(from) ? { origin: near, direction, from } : { origin: near, direction };
+}
+
+/**
+ * Where the eye stands in the board's space, through the inverse of a matrix from
+ * `tableSceneMatrix`, or null for a matrix that sees from infinitely far.
+ */
+function eyeOfBoard(inverseScene: Matrix3D): TablePoint | null {
+  const m = inverseScene;
+  if (Math.abs(m.m34) < 1e-12) return null;
+  return { x: m.m31 / m.m34, y: m.m32 / m.m34, z: m.m33 / m.m34 };
 }
 
 /**
