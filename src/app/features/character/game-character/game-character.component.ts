@@ -29,6 +29,7 @@ import { MovePlannerService } from '@axe/application/tabletop/move-planner.servi
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { PiecePartPickService } from '@axe/application/tabletop/piece-part-pick.service';
 import { PiecePartsService } from '@axe/application/tabletop/piece-parts.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
@@ -257,6 +258,7 @@ export class GameCharacterComponent {
   private readonly links = inject(PieceLinksService);
   private readonly ride = inject(RideService);
   private readonly parts = inject(PiecePartsService);
+  private readonly partPick = inject(PiecePartPickService);
   private readonly snackbar = inject(SnackbarService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
@@ -1379,6 +1381,11 @@ export class GameCharacterComponent {
 
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
 
+    const part = this.partPressed(e);
+    if (part) {
+      this.menu.open(part, { ...this.menuHost, name: () => part.name }, this.pointerDeviceService.pointers[0]);
+      return;
+    }
     this.menu.open(char, this.menuHost, this.pointerDeviceService.pointers[0]);
   }
 
@@ -1611,8 +1618,17 @@ export class GameCharacterComponent {
     if (key_alt) {
       key_event.preventDefault();
       key_event.stopPropagation();
-      this.toggleTarget();
+      const part = this.partPressed(key_event);
+      if (part) this.pieceTarget.toggle(part);
+      else this.toggleTarget();
     }
+  }
+
+  /** The part of the piece a press lands on, where its parts are drawn as pieces of its picture; null otherwise. */
+  private partPressed(event: Event): GameCharacter | null {
+    const char = this.gameCharacter();
+    if (!char || !(event instanceof MouseEvent)) return null;
+    return this.partPick.partAt(char, event.clientX, event.clientY);
   }
 
   /** Marks the piece as one an effect is aimed at, or takes the mark off it. */

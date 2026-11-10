@@ -100,8 +100,26 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() grabbedBy: string = '';
   /** The mount the piece rides, as its identifier, or empty: it stands on that mount and goes where it goes. */
   @SyncVar() ridingOn: string = '';
-  /** Where the piece rides its mount: empty in front, `passenger` behind, `cargo` carried as a load. */
+  /**
+   * Where the piece rides its mount: empty in front, `passenger` behind, `cargo` carried as a load,
+   * or `part` where it is a part of the piece it rides, as a head is of a creature of many parts.
+   */
   @SyncVar() rideSeat: string = '';
+  /**
+   * For a part, where its own picture is laid over its body's, as `partLayerOf` reads it: empty for
+   * none. The body is drawn with the picture of each of its parts laid over its own, but a lost one.
+   */
+  @SyncVar() partLayer: string = '';
+  /**
+   * For a part, the piece of its body's picture it stands for, as `partMaskOf` reads it: empty for
+   * none. A lost part's piece is cut out of the body's picture.
+   */
+  @SyncVar() partMask: string = '';
+  /**
+   * For a part, the faces of its body's model it stands for, as `partFacesOf` reads it: empty for
+   * none. A lost part's faces are left out of the body's model.
+   */
+  @SyncVar() partFaces: string = '';
   /** `1` while the piece is a mount others may ride; empty otherwise. */
   @SyncVar() mountable: string = '';
   /** `1` where a mount takes a second rider behind the one in front; empty otherwise. */

@@ -6001,7 +6001,25 @@
       "offerActionUp_cargo": "Get up and be loaded",
       "part": {
         "attach": "Make a part of {{body}}",
-        "detach": "Take off {{body}} as a part"
+        "detach": "Take off {{body}} as a part",
+        "editLook": "Edit how the parts look",
+        "look": {
+          "title": "How the parts look - {{name}}",
+          "noParts": "No parts",
+          "mode_layer": "Lay pictures over",
+          "mode_paint": "Paint pieces",
+          "size": "Size",
+          "forward": "Forward",
+          "back": "Back",
+          "unlay": "Stop laying it over",
+          "lay": "Lay this part's picture over",
+          "brush": "Brush",
+          "paintOn": "Paint",
+          "erase": "Erase",
+          "clearPaint": "Erase all the paint",
+          "hint_layer": "Drag the part's picture to where it goes. Once the part is beaten, its picture goes.",
+          "hint_paint": "Paint over the body's picture where the part is. Once the part is beaten, what is painted goes from the body's picture."
+        }
       }
     },
     "battleCutIn": {

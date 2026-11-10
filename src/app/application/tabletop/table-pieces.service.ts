@@ -6,6 +6,7 @@ import { PictureSizeService } from '@axe/application/storage/picture-size.servic
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceMotionsService, type PlayingPose } from '@axe/application/tabletop/piece-motions.service';
+import { PiecePartPicturesService } from '@axe/application/tabletop/piece-part-pictures.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
@@ -199,6 +200,7 @@ export class TablePiecesService {
   private readonly surfaces = inject(TableSurfaceService);
   private readonly vision = inject(VisionService);
   private readonly links = inject(PieceLinksService);
+  private readonly partPictures = inject(PiecePartPicturesService);
   private readonly eyes = inject(TableEyeService);
   private readonly ground = inject(StandingGroundService);
   private readonly transient = inject(TransientPlacementService);
@@ -573,7 +575,7 @@ export class TablePiecesService {
         lean: look.mode2d || !place.onFloor ? null : this.leanUnder(character, look.gridSize, place),
         altitudePx: character.altitude * look.gridSize,
         pedestal: this.pagePictures.pictureOf(character.identifier),
-        picture: this.sized(this.images.getEmptyOr(character.imageFile).url),
+        picture: this.partPictures.pictureOf(character) ?? this.sized(this.images.getEmptyOr(character.imageFile).url),
         pictureHeightPx: character.specifyKomaImageFlag ? character.komaImageHeight : null,
         pictureWidthPx: character.specifyKomaImageFlag ? pieceImageWidthApart(character.komaImageWidth) : null,
         fitsInCell: look.fitsInCell,

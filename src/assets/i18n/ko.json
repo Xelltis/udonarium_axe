@@ -6326,7 +6326,25 @@
       "offerActionUp_cargo": "일어나서 실리기",
       "part": {
         "attach": "{{body}}의 부위로 만들기",
-        "detach": "{{body}}의 부위에서 떼기"
+        "detach": "{{body}}의 부위에서 떼기",
+        "editLook": "부위의 모습 편집",
+        "look": {
+          "title": "부위의 모습 - {{name}}",
+          "noParts": "부위가 없습니다",
+          "mode_layer": "그림 겹치기",
+          "mode_paint": "칠해서 나누기",
+          "size": "크기",
+          "forward": "앞으로",
+          "back": "뒤로",
+          "unlay": "겹치지 않기",
+          "lay": "이 부위의 그림 겹치기",
+          "brush": "브러시",
+          "paintOn": "칠하기",
+          "erase": "지우기",
+          "clearPaint": "칠을 모두 지우기",
+          "hint_layer": "부위의 그림을 드래그해 놓을 곳을 정합니다. 부위가 쓰러지면 그 그림은 사라집니다.",
+          "hint_paint": "본체의 그림 위를 칠해 부위의 범위를 정합니다. 부위가 쓰러지면 칠한 곳이 본체의 그림에서 사라집니다."
+        }
       }
     },
     "battleCutIn": {

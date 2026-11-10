@@ -7,12 +7,18 @@ export interface PartMenuModel {
   readonly body: string | null;
   /** The pieces standing where this one stands that it could be made a part of. */
   readonly bodies: readonly { readonly id: string; readonly name: string }[];
+  /** Whether the piece has parts of its own, whose look over it may be worked on. */
+  readonly hasParts?: boolean;
+  /** Whether the reader may work on how the parts look. */
+  readonly canEditLook?: boolean;
 }
 
 /** What the part entries of a piece's menu do. */
 export interface PartMenuCallbacks {
   attach(bodyId: string): void;
   detach(): void;
+  /** Opens where the parts are drawn on their body's picture worked on. */
+  editLook?(): void;
 }
 
 /**
@@ -24,11 +30,18 @@ export function buildPartContextMenu(
   callbacks: PartMenuCallbacks,
   t: TranslateFn
 ): ContextMenuAction[] {
+  const look: ContextMenuAction[] =
+    model.canEditLook && callbacks.editLook && (model.body !== null || model.hasParts)
+      ? [{ name: t('feature.ride.part.editLook'), action: () => callbacks.editLook?.() }]
+      : [];
   if (model.body !== null) {
-    return [{ name: t('feature.ride.part.detach', { body: model.body }), action: () => callbacks.detach() }];
+    return [{ name: t('feature.ride.part.detach', { body: model.body }), action: () => callbacks.detach() }, ...look];
   }
-  return model.bodies.map((body) => ({
-    name: t('feature.ride.part.attach', { body: body.name }),
-    action: () => callbacks.attach(body.id),
-  }));
+  return [
+    ...model.bodies.map((body) => ({
+      name: t('feature.ride.part.attach', { body: body.name }),
+      action: () => callbacks.attach(body.id),
+    })),
+    ...look,
+  ];
 }

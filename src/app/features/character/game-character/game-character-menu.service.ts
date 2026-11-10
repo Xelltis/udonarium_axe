@@ -264,6 +264,8 @@ export class GameCharacterMenuService {
       {
         body: body?.name ?? null,
         bodies: body ? [] : this.parts.bodiesFor(char).map((one) => ({ id: one.identifier, name: one.name })),
+        hasParts: this.parts.partsOf(char).length > 0,
+        canEditLook: this.rolePermission.canEditTabletop(),
       },
       {
         attach: (bodyId) => {
@@ -271,6 +273,7 @@ export class GameCharacterMenuService {
           if (chosen instanceof GameCharacter) this.parts.attach(char, chosen);
         },
         detach: () => this.parts.detach(char),
+        editLook: () => this.showPartLook(body ?? char, body ? char : null),
       },
       this.translateFn
     );
@@ -472,6 +475,26 @@ export class GameCharacterMenuService {
   }
 
   /** Opens the line of fire from this piece to every piece it aims at. */
+  /** Opens where the parts of a body are drawn on its picture worked on, the part given chosen. */
+  private showPartLook(body: GameCharacter, part: GameCharacter | null) {
+    const coordinate = this.pointerDeviceService.pointers[0];
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/character/part-look-editor/part-look-editor.component').then(
+          (m) => m.PartLookEditorComponent
+        ),
+      {
+        title: this.translateFn('feature.ride.part.look.title', { name: body.name }),
+        ...sheetPanelBox(coordinate, 380, 560),
+        stillWanted: () => isInStore(body),
+      },
+      (component) => {
+        component.bodyIdentifier.set(body.identifier);
+        if (part) component.partIdentifier.set(part.identifier);
+      }
+    );
+  }
+
   private showLineOfFire(gameObject: GameCharacter) {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
