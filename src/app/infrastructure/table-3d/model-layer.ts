@@ -113,8 +113,11 @@ interface StoodModel {
   readonly url: string;
   readonly root: Group;
   readonly mixer: AnimationMixer;
-  readonly idle: AnimationAction | null;
-  readonly walk: AnimationAction | null;
+  idle: AnimationAction | null;
+  walk: AnimationAction | null;
+  /** The names of the motions the piece asked for when they were chosen, empty for the model's own. */
+  idleName: string;
+  walkName: string;
   walking: boolean;
 }
 
@@ -188,6 +191,14 @@ export class ModelLayer {
     if (models === this.laid) return;
     this.laid = models;
     this.lay();
+  }
+
+  /** The name of the motion the model of a piece plays now, or null where it plays none or stands in no copy of its own. */
+  motionOf(owner: string): string | null {
+    const stood = this.stood.get(owner);
+    if (!stood) return null;
+    const action = stood.walking ? (stood.walk ?? stood.idle) : stood.idle;
+    return action?.getClip().name ?? null;
   }
 
   /** Moves the walks on to a moment, in milliseconds; answers whether any model is walking. */
@@ -299,6 +310,9 @@ export class ModelLayer {
       stood = this.instanceOf(model, loaded);
       this.stood.set(model.owner, stood);
       this.group.add(stood.root);
+    } else if (stood.idleName !== model.model.idle || stood.walkName !== model.model.walk) {
+      chooseMotions(stood, model, loaded);
+      stood.walking = !model.walking;
     }
     const inner = stood.root.children[0];
     inner.position.set(-loaded.foot.x, -loaded.foot.y, -loaded.foot.z);
@@ -360,22 +374,18 @@ export class ModelLayer {
     const inner = cloneSkinned(loaded.gltf.scene) as Object3D;
     const root = new Group();
     root.add(inner);
-    const mixer = new AnimationMixer(inner);
-    const clip = (name: string, pattern: RegExp) =>
-      (name ? AnimationClip.findByName(loaded.gltf.animations, name) : null) ??
-      loaded.gltf.animations.find((candidate) => pattern.test(candidate.name)) ??
-      null;
-    const idleClip = clip(model.model.idle, /idle|stand|wait/i) ?? loaded.gltf.animations[0] ?? null;
-    const walkClip = clip(model.model.walk, /walk|run|move/i);
     const stood: StoodModel = {
       owner: model.owner,
       url: model.url,
       root,
-      mixer,
-      idle: idleClip ? mixer.clipAction(idleClip) : null,
-      walk: walkClip ? mixer.clipAction(walkClip) : null,
+      mixer: new AnimationMixer(inner),
+      idle: null,
+      walk: null,
+      idleName: '',
+      walkName: '',
       walking: true,
     };
+    chooseMotions(stood, model, loaded);
     this.walk(stood, false);
     return stood;
   }
@@ -475,6 +485,26 @@ export class ModelLayer {
     };
     object.material = Array.isArray(object.material) ? object.material.map(madeOver) : madeOver(object.material);
   }
+}
+
+/**
+ * Chooses the motions a copy of a model plays standing and walking, by the names its piece asks for
+ * or, where it names none or one the model lacks, by the model's own idle and walk; the idle falls
+ * back to its first motion. Chosen again whenever the piece names others, so a name changed once the
+ * piece is on the table takes at once.
+ */
+function chooseMotions(stood: StoodModel, model: TableWorldModel, loaded: LoadedModel): void {
+  const clip = (name: string, pattern: RegExp) =>
+    (name ? AnimationClip.findByName(loaded.gltf.animations, name) : null) ??
+    loaded.gltf.animations.find((candidate) => pattern.test(candidate.name)) ??
+    null;
+  const idleClip = clip(model.model.idle, /idle|stand|wait/i) ?? loaded.gltf.animations[0] ?? null;
+  const walkClip = clip(model.model.walk, /walk|run|move/i);
+  stood.mixer.stopAllAction();
+  stood.idle = idleClip ? stood.mixer.clipAction(idleClip) : null;
+  stood.walk = walkClip ? stood.mixer.clipAction(walkClip) : null;
+  stood.idleName = model.model.idle;
+  stood.walkName = model.model.walk;
 }
 
 /**
