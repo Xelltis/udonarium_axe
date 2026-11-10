@@ -48,10 +48,10 @@ function staged(
 describe('isDrawnInScene()', () => {
   it('draws a burst in the scene, and leaves a look not yet made anew and a run of stages to be drawn over it', () => {
     expect(isDrawnInScene(makePreset('burst'))).toBe(true);
-    expect(isDrawnInScene(makePreset('slash'))).toBe(false);
+    expect(isDrawnInScene(makePreset('frost'))).toBe(false);
     expect(isDrawnInScene({ isStaged: true, effectKind: 'burst' })).toBe(false);
     expect(sceneLingerMsOf({ isStaged: true, effectKind: 'burst' })).toBe(0);
-    expect(sceneLingerMsOf(makePreset('slash'))).toBe(0);
+    expect(sceneLingerMsOf(makePreset('frost'))).toBe(0);
   });
 });
 
@@ -153,5 +153,42 @@ describe('the looks of fire drawn in the scene', () => {
       resolveFooting: (identifier) => (identifier === 'caster' ? { x: 600, y: 100, z: 0, groundZ: 0 } : null),
     });
     expect(nearest(moved)).toBeGreaterThan(560);
+  });
+});
+
+describe('the cuts and blows drawn in the scene', () => {
+  it('draws a cut as bands of light sweeping across the target, and a blow as a star of spikes', () => {
+    const cut = makePreset('slash', { durationMs: 1000 });
+    cut.slashStyle = 'single';
+    const cast = { ...castOn([100, 100]), origin: { x: 300, y: 100, z: 30 } };
+    const crosses = effectBlowsOf(cut)[0].atMs;
+
+    expect(isDrawnInScene(cut)).toBe(true);
+    expect(staged(cut, cast, crosses).ribbons.length).toBeGreaterThan(0);
+    const blow = makePreset('bash', { durationMs: 1000 });
+    const struck = staged(blow, cast, effectBlowsOf(blow)[0].atMs + 30);
+    expect(struck.motes.some((mote) => mote.shape === 'tongue')).toBe(true);
+  });
+
+  it('brings a cleave down from above', () => {
+    const cleave = makePreset('slash', { durationMs: 2000, grade: 3 });
+    cleave.slashStyle = 'heavy';
+    const cast = { ...castOn([100, 100]), origin: { x: 300, y: 100, z: 30 } };
+    const crosses = effectBlowsOf(cleave)[0].atMs;
+    const headAt = (ms: number) => {
+      const edge = staged(cleave, cast, ms).ribbons.find((ribbon) => ribbon.blend === 'color' && ribbon.core);
+      return edge!.points[edge!.points.length - 1].z;
+    };
+
+    expect(headAt(crosses - 40)).toBeGreaterThan(headAt(crosses + 60));
+  });
+
+  it('draws the great blade in the scene only once the look it strikes with is drawn there', () => {
+    const blade = makePreset('skyblade', { durationMs: 3000 });
+    blade.impactKind = 'flame';
+    expect(isDrawnInScene(blade)).toBe(true);
+    blade.impactKind = 'frost';
+    expect(isDrawnInScene(blade)).toBe(false);
+    expect(sceneLingerMsOf(blade)).toBe(0);
   });
 });

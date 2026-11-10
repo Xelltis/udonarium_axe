@@ -32,6 +32,11 @@ export interface FireBall {
   readonly hottest?: number;
   /** How much narrower it is at the end of its burning than at its birth, as a share; 0.4 for none given. */
   readonly taper?: number;
+  /**
+   * How far it is drawn out behind it as it flies, in seconds of its flight, as a gout of flame
+   * streaming from a mouth; nothing for a ball that is only round.
+   */
+  readonly streak?: number;
 }
 
 /** A cloud of smoke or dust: where it drifts and how wide it is, in cells. */
@@ -40,6 +45,8 @@ export interface Cloud {
   readonly size: number;
   readonly color: string;
   readonly alpha: number;
+  /** How long it is drawn out the way it rises, in cells, as a plume of a column of smoke; nothing for a round cloud. */
+  readonly plume?: number;
 }
 
 /** A piece of rock or a speck of grit, which tumbles. */
@@ -115,12 +122,31 @@ export function drawFire(
     const alpha = smokes ? 1 - dying : 1 - dying * dying * dying;
     const near = Math.max(forward, size * 0.6);
     if (burnt < 0.45) drawn.motes.push(glow(at, size * 1.5, ramp[step], 0.2 * (1 - burnt / 0.45), near));
-    drawn.motes.push(ball(at, size, ramp[step - 1], alpha, near, fire.variant));
-    const body = { x: at.x, y: at.y, z: at.z + size * 0.09 };
-    drawn.motes.push(ball(body, size * 0.78, ramp[step], alpha, near + size * 0.05, fire.variant + 1.3));
-    if (burnt < 0.6) {
-      const core = { x: at.x, y: at.y, z: at.z + size * 0.16 };
-      drawn.motes.push(ball(core, size * 0.42, ramp[step + 1], alpha, near + size * 0.1, fire.variant + 2.9));
+    const drawnOut = fire.streak ? Math.hypot(now.vx, now.vy, now.vz) * fire.streak : 0;
+    if (drawnOut > size * 0.5) {
+      // Streaming fast it is drawn out behind it, round at its head: three comets a step apart.
+      const velocity = { x: now.vx, y: now.vy, z: now.vz };
+      for (const [share, lift, step2] of [
+        [1, 0, step - 1],
+        [0.72, 0.05, step],
+        [0.4, 0.1, step + 1],
+      ] as const) {
+        if (share < 0.5 && burnt >= 0.6) continue;
+        drawn.motes.push({
+          ...ball(at, size * share, ramp[step2], alpha, near + size * lift, fire.variant + share * 3),
+          shape: 'comet',
+          velocity,
+          trail: fire.streak! * share,
+        });
+      }
+    } else {
+      drawn.motes.push(ball(at, size, ramp[step - 1], alpha, near, fire.variant));
+      const body = { x: at.x, y: at.y, z: at.z + size * 0.09 };
+      drawn.motes.push(ball(body, size * 0.78, ramp[step], alpha, near + size * 0.05, fire.variant + 1.3));
+      if (burnt < 0.6) {
+        const core = { x: at.x, y: at.y, z: at.z + size * 0.16 };
+        drawn.motes.push(ball(core, size * 0.42, ramp[step + 1], alpha, near + size * 0.1, fire.variant + 2.9));
+      }
     }
   }
   if (!smokes || age < fire.burns * 0.6) return;
@@ -137,6 +163,16 @@ export function drawCloud(drawn: Staged, cloud: Cloud, t: number, cell: number, 
   const age = at.age;
   const size = cell * cloud.size * (0.7 + age * 0.9);
   const alpha = Math.min(within(age, 0, 0.15), 1 - age) * cloud.alpha;
+  const speed = Math.hypot(at.vx, at.vy, at.vz);
+  if (cloud.plume && speed > 1) {
+    drawn.motes.push({
+      ...smokePuff(at, size, cloud.color, alpha, forward),
+      shape: 'plume',
+      velocity: { x: at.vx, y: at.vy, z: at.vz },
+      trail: (cloud.plume * cell * (0.8 + age * 0.6)) / speed,
+    });
+    return;
+  }
   drawn.motes.push(smokePuff(at, size, cloud.color, alpha, forward));
   const left = { x: at.x - size * 0.3, y: at.y, z: at.z + size * 0.12 };
   const right = { x: at.x + size * 0.28, y: at.y, z: at.z + size * 0.22 };
@@ -510,6 +546,42 @@ export function billowingSmoke(
       size: th.range(small, large),
       color: SMOKE,
       alpha: 0.7,
+    };
+  });
+}
+
+/** Plumes of smoke rising from about a heart as a column, slowing as they climb and drifting apart. */
+export function risingPlumes(
+  th: Thrower,
+  heart: Point,
+  count: number,
+  bornAt: readonly [number, number],
+  rise: readonly [number, number],
+  length: number,
+  size: readonly [number, number] = [0.7, 1]
+): Cloud[] {
+  const U = th.cell;
+  return Array.from({ length: count }, () => {
+    const way = th.outward();
+    const born = th.range(bornAt[0], bornAt[1]);
+    return {
+      mote: th.mote({
+        x: heart.x + way.cos * th.range(0, 0.4) * U,
+        y: heart.y + way.sin * th.range(0, 0.4) * U,
+        z: heart.z + th.range(0, 0.4) * U,
+        vx: way.cos * th.range(0.1, 0.4) * U,
+        vy: way.sin * th.range(0.1, 0.4) * U,
+        vz: th.range(rise[0], rise[1]) * U,
+        bornAt: born,
+        life: th.lifeOf(born, 2, 3),
+        gravity: -0.15 * U,
+        drag: 0.5,
+        bounce: 0,
+      }),
+      size: th.range(size[0], size[1]),
+      color: SMOKE,
+      alpha: 0.6,
+      plume: length,
     };
   });
 }

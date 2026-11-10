@@ -34,7 +34,7 @@ describe('TableEffectOverlayComponent', () => {
     playback = TestBed.inject(EffectPlaybackService);
 
     preset = new EffectPreset();
-    preset.kind = 'bash';
+    preset.kind = 'frost';
     preset.durationMs = 5000;
     preset.staggerMs = 0;
     ObjectStore.instance.add(preset, false);
@@ -112,6 +112,7 @@ describe('TableEffectOverlayComponent', () => {
       targets: [{ identifier: 'char', x: 100, y: 200, z: 0 }],
       seed: 3,
     });
+    playback.now.set(playback.activeCasts()[0].startedAt + 200);
     fixture.detectChanges();
 
     const elements = standing();
@@ -194,6 +195,7 @@ describe('TableEffectOverlayComponent', () => {
       ],
       seed: 3,
     });
+    playback.now.set(playback.activeCasts()[0].startedAt + 200);
     fixture.detectChanges();
 
     const canvases = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('effect-canvas');
@@ -210,6 +212,7 @@ describe('TableEffectOverlayComponent', () => {
       targets: [{ identifier: 'char', x: 100, y: 200, z: 0 }],
       seed: 3,
     });
+    playback.now.set(playback.activeCasts()[0].startedAt + 200);
     fixture.detectChanges();
 
     const canvas = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('effect-canvas')!;
@@ -230,6 +233,7 @@ describe('TableEffectOverlayComponent', () => {
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('effect-canvas')).toHaveLength(0);
 
     fixture.componentRef.setInput('eye', { rotation: { x: 90, y: 0, z: 0 }, liftPx: 5, risePx: 40 });
+    playback.now.set(playback.activeCasts()[0].startedAt + 200);
     fixture.detectChanges();
 
     expect(standing().length).toBeGreaterThan(0);

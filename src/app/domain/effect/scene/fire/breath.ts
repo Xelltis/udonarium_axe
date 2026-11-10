@@ -123,8 +123,8 @@ function throwBreath(th: Thrower, mouth: Point, struck: Point, floor: Point, fai
     const bornAt = born + th.range(0, 0.4 / rate);
     // It pulses: breathed out in surges, never evenly.
     const surge = 1 + 0.18 * Math.sin(bornAt * 14);
-    const spread = th.range(-0.2, 0.2);
-    const rise = th.range(-0.12, 0.2);
+    const spread = th.range(-0.3, 0.3);
+    const rise = th.range(-0.15, 0.25);
     const fast = speed * th.range(0.92, 1.08);
     const smokes = th.chance(0.35);
     fire.push({
@@ -145,7 +145,8 @@ function throwBreath(th: Thrower, mouth: Point, struck: Point, floor: Point, fai
       burns: smokes ? th.range(0.5, 0.62) : 1,
       variant: th.range(0, 6),
       // Narrow at the mouth and widening as it goes: a ball grows as it flies rather than shrinking.
-      taper: -0.6,
+      taper: -1,
+      streak: 0.05,
     });
   }
   // The fire licking out over the floor round the target while the stream strikes it.

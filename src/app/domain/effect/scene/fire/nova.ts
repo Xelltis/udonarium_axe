@@ -18,6 +18,7 @@ import {
   layScorch,
   layShockRing,
   risingEmbers,
+  risingPlumes,
   rollingDust,
   SMOKE,
   thrownBrands,
@@ -245,6 +246,7 @@ function throwNova(th: Thrower, heart: Point, floor: Point): NovaThrow {
       bornAt: [0.3, 0.9],
       life: [2.4, 3.6],
     }),
+    ...risingPlumes(th, heart, th.count(6), [0.5, 1.2], [1.2, 1.8], 1.4),
     ...rollingDust(th, floor, th.count(14), [3, 9], [0.7, 1]),
     ...dustColumn(th, floor, th.count(6)),
   ];

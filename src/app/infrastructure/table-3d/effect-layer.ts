@@ -6,6 +6,7 @@ import type {
   EffectGround,
   EffectMote,
   EffectMoteShape,
+  EffectRibbon,
 } from '@axe/domain/effect/scene/effect-scene';
 import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import {
@@ -39,6 +40,8 @@ import {
 } from 'three/tsl';
 import {
   AdditiveBlending,
+  BufferAttribute,
+  BufferGeometry,
   type Camera,
   Color,
   DataTexture,
@@ -93,8 +96,28 @@ const MOTE_SHAPES: readonly EffectMoteShape[] = [
   'star',
   'tongue',
   'flare',
+  'comet',
+  'plume',
 ];
 const MARK_SHAPES: readonly EffectFloorShape[] = ['ring', 'disc', 'sigil', 'cracks', 'scorch'];
+
+/** One mesh of bands, two points to each point along a band, and the buffers it is drawn from, written afresh each frame. */
+interface RibbonBatch {
+  readonly mesh: Mesh;
+  readonly geometry: BufferGeometry;
+  readonly spine: BufferAttribute;
+  readonly flow: BufferAttribute;
+  readonly tint: BufferAttribute;
+  readonly core: BufferAttribute;
+  readonly index: BufferAttribute;
+}
+
+/** How many points along their bands the bands of each kind of blend may have in a frame. */
+const MAX_RIBBON_POINTS = 4096;
+/** Bands draw with the particles. */
+const RIBBONS_ORDER = 941;
+/** How far nearer the eye a band is drawn along the line it is seen on, in table pixels, so a piece it passes does not cut it in two. */
+const RIBBON_NEARER_PX = 12;
 
 /** One instanced mesh of quads and the buffers it is drawn from, written afresh each frame. */
 interface Batch {
@@ -122,6 +145,7 @@ export class EffectLayer {
   private readonly groundOn = uniform(0);
   private readonly motes: Record<EffectBlend, Batch>;
   private readonly marks: Record<EffectBlend, Batch>;
+  private readonly ribbons: Record<EffectBlend, RibbonBatch>;
   private readonly colour = new Color();
   private changed = false;
   private drawing = false;
@@ -129,6 +153,7 @@ export class EffectLayer {
   constructor() {
     this.motes = { light: this.moteBatch('light'), color: this.moteBatch('color') };
     this.marks = { light: this.markBatch('light'), color: this.markBatch('color') };
+    this.ribbons = { light: this.ribbonBatch('light'), color: this.ribbonBatch('color') };
   }
 
   /** How many particles and marks are drawn now. */
@@ -141,12 +166,13 @@ export class EffectLayer {
 
   /** Lays what the effects draw at a moment. */
   set(frame: EffectFrame): void {
-    const empty = frame.motes.length === 0 && frame.floor.length === 0;
+    const empty = frame.motes.length === 0 && frame.floor.length === 0 && frame.ribbons.length === 0;
     if (empty && !this.drawing) return;
     this.drawing = !empty;
     for (const blend of ['light', 'color'] as const) {
       this.fillMotes(this.motes[blend], frame.motes, blend);
       this.fillMarks(this.marks[blend], frame.floor, blend);
+      this.fillRibbons(this.ribbons[blend], frame.ribbons, blend);
     }
     this.changed = true;
   }
@@ -187,6 +213,10 @@ export class EffectLayer {
 
   dispose(): void {
     for (const batch of [this.motes.light, this.motes.color, this.marks.light, this.marks.color]) {
+      batch.geometry.dispose();
+      (batch.mesh.material as MeshBasicNodeMaterial).dispose();
+    }
+    for (const batch of [this.ribbons.light, this.ribbons.color]) {
       batch.geometry.dispose();
       (batch.mesh.material as MeshBasicNodeMaterial).dispose();
     }
@@ -282,6 +312,123 @@ export class EffectLayer {
     return { mesh, geometry, buffers };
   }
 
+  private fillRibbons(batch: RibbonBatch, ribbons: readonly EffectRibbon[], blend: EffectBlend): void {
+    const { spine, flow, tint, core, index } = batch;
+    let points = 0;
+    let indices = 0;
+    for (const ribbon of ribbons) {
+      const count = ribbon.points.length;
+      if (ribbon.blend !== blend || count < 2 || points + count > MAX_RIBBON_POINTS) continue;
+      this.colour.setStyle(ribbon.color);
+      const [r, g, b] = [this.colour.r, this.colour.g, this.colour.b];
+      this.colour.setStyle(ribbon.core ?? ribbon.color);
+      const [cr, cg, cb] = [this.colour.r, this.colour.g, this.colour.b];
+      for (let at = 0; at < count; at++) {
+        const point = ribbon.points[at];
+        const before = ribbon.points[Math.max(0, at - 1)];
+        const after = ribbon.points[Math.min(count - 1, at + 1)];
+        const width = typeof ribbon.widths === 'number' ? ribbon.widths : (ribbon.widths[at] ?? 0);
+        const alpha = ribbon.alpha * (ribbon.alphas?.[at] ?? 1);
+        for (const side of [-1, 1]) {
+          const vertex = (points + at) * 2 + (side > 0 ? 1 : 0);
+          const at4 = vertex * 4;
+          spine.array[at4] = point.x;
+          spine.array[at4 + 1] = point.z;
+          spine.array[at4 + 2] = point.y;
+          spine.array[at4 + 3] = width;
+          flow.array[at4] = after.x - before.x;
+          flow.array[at4 + 1] = after.z - before.z;
+          flow.array[at4 + 2] = after.y - before.y;
+          flow.array[at4 + 3] = side;
+          tint.array[at4] = r;
+          tint.array[at4 + 1] = g;
+          tint.array[at4 + 2] = b;
+          tint.array[at4 + 3] = alpha;
+          core.array[at4] = cr;
+          core.array[at4 + 1] = cg;
+          core.array[at4 + 2] = cb;
+          core.array[at4 + 3] = ribbon.core ? 1 : 0;
+        }
+        if (at < count - 1) {
+          const a = (points + at) * 2;
+          index.array.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], indices);
+          indices += 6;
+        }
+      }
+      points += count;
+    }
+    for (const attribute of [spine, flow, tint, core]) {
+      attribute.clearUpdateRanges();
+      attribute.addUpdateRange(0, points * 2 * 4);
+      attribute.needsUpdate = true;
+    }
+    index.clearUpdateRanges();
+    index.addUpdateRange(0, indices);
+    index.needsUpdate = true;
+    batch.geometry.setDrawRange(0, indices);
+    batch.mesh.visible = indices > 0;
+  }
+
+  /**
+   * The bands of a blend: each point of a band laid out either side of its line by half its width,
+   * across the way the band runs and the way to the eye, so the band turns about its line to face
+   * the eye; hard at its edge, its colour taken to its core's in its middle.
+   */
+  private ribbonBatch(blend: EffectBlend): RibbonBatch {
+    const geometry = new BufferGeometry();
+    const vertices = MAX_RIBBON_POINTS * 2;
+    const made = (name: string) => {
+      const buffer = new BufferAttribute(new Float32Array(vertices * 4), 4);
+      buffer.setUsage(DynamicDrawUsage);
+      geometry.setAttribute(name, buffer);
+      return buffer;
+    };
+    // The geometry wants a position to count its points by; where each is drawn comes of the spine.
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices * 3), 3));
+    const spine = made('spine');
+    const flow = made('flow');
+    const tint = made('tint');
+    const core = made('core');
+    const index = new BufferAttribute(new Uint32Array((MAX_RIBBON_POINTS - 1) * 6), 1);
+    index.setUsage(DynamicDrawUsage);
+    geometry.setIndex(index);
+    geometry.setDrawRange(0, 0);
+
+    const spineNode = attribute<'vec4'>('spine', 'vec4');
+    const flowNode = attribute<'vec4'>('flow', 'vec4');
+    const tintNode = attribute<'vec4'>('tint', 'vec4');
+    const coreNode = attribute<'vec4'>('core', 'vec4');
+    const along = normalize(flowNode.xyz.add(vec3(0, 0.0001, 0)));
+    const toEye = normalize(cameraPosition.sub(spineNode.xyz));
+    const across = normalize(cross(along, toEye));
+    const placed = spineNode.xyz.add(across.mul(spineNode.w.mul(0.5).mul(flowNode.w)));
+    const side = abs(flowNode.w);
+    const edge = clamp(
+      float(1)
+        .sub(side)
+        .div(max(fwidth(side), 0.001))
+        .add(0.5),
+      0,
+      1
+    );
+    const heart = smoothstep(0.75, 0.05, side).mul(coreNode.w);
+    const material = new MeshBasicNodeMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: DoubleSide,
+      blending: blend === 'light' ? AdditiveBlending : NormalBlending,
+    });
+    material.positionNode = placed.add(normalize(cameraPosition.sub(placed)).mul(RIBBON_NEARER_PX));
+    material.colorNode = vec4(mix(tintNode.rgb, coreNode.rgb, heart), 1);
+    material.opacityNode = edge.mul(tintNode.w);
+    const mesh = new Mesh(geometry, material);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = RIBBONS_ORDER;
+    mesh.visible = false;
+    this.group.add(mesh);
+    return { mesh, geometry, spine, flow, tint, core, index };
+  }
+
   /**
    * The particles of a blend: each a quad at its place, as wide as its size, turned to the eye and
    * about its middle by its spin; a spark drawn out behind it along the way it flies, as far as it
@@ -362,6 +509,25 @@ export class EffectLayer {
       0,
       1
     );
+    // A comet: a tongue the other way about, round at its head and drawn to a point behind it.
+    const cometWidth = sqrt(clamp(float(1).sub(up).mul(3.5), 0, 1))
+      .mul(pow(up, 0.7))
+      .mul(
+        sin(up.mul(7).add(variant.mul(5)))
+          .mul(0.06)
+          .add(1)
+      );
+    const comet = clamp(
+      cometWidth
+        .sub(abs(point.x))
+        .div(max(fwidth(point.x), 0.001))
+        .add(0.5),
+      0,
+      1
+    );
+    // A plume of smoke drawn out the way it rises: soft, round at both ends and thinning to its edge.
+    const plumeWidth = pow(sin(up.mul(Math.PI)), 0.6).add(0.001);
+    const plume = pow(clamp(float(1).sub(abs(point.x).div(plumeWidth)), 0, 1), 1.4).mul(0.85);
     const alpha = select(
       shape.equal(0),
       glow,
@@ -377,7 +543,15 @@ export class EffectLayer {
             select(
               shape.equal(4),
               chunk,
-              select(shape.equal(5), flake, select(shape.equal(6), star, select(shape.equal(7), tongue, flare)))
+              select(
+                shape.equal(5),
+                flake,
+                select(
+                  shape.equal(6),
+                  star,
+                  select(shape.equal(7), tongue, select(shape.equal(8), flare, select(shape.equal(9), comet, plume)))
+                )
+              )
             )
           )
         )
@@ -394,7 +568,7 @@ export class EffectLayer {
     const lit = select(
       shape.equal(4),
       chunkShade,
-      select(shape.equal(3), float(1.12).sub(uv().y.oneMinus().mul(0.4)), float(1))
+      select(shape.equal(3).or(shape.equal(10)), float(1.12).sub(uv().y.oneMinus().mul(0.4)), float(1))
     );
     const hot = select(
       shape.equal(0),

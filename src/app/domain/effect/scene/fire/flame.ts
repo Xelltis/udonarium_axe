@@ -234,29 +234,30 @@ function throwFire(th: Thrower, floor: Point, footZ: number, duration: number): 
       taper: 0.5,
     });
   }
-  // Smoke rising off the top of the fire, dark over it, drifting as it rises.
-  for (let born = 0.25; born < duration; born += 1 / th.count(3)) {
+  // Smoke rolling off the top of the fire, dark over it, spreading out as it rises slowly, so it is
+  // seen round the piece rather than only over its head.
+  for (let born = 0.25; born < duration; born += 1 / th.count(4)) {
     const bornAt = born + th.range(0, 0.2);
     const fierce = fierceness(bornAt, duration);
     if (fierce < 0.15) continue;
     const drift = th.outward();
     clouds.push({
       mote: th.mote({
-        x: floor.x + th.range(-0.2, 0.2) * U,
-        y: floor.y + th.range(-0.2, 0.2) * U,
-        z: footZ + th.range(0.8, 1.05) * U,
-        vx: drift.cos * th.range(0.3, 0.7) * U,
-        vy: drift.sin * th.range(0.3, 0.7) * U,
-        vz: th.range(0.5, 0.8) * U,
+        x: floor.x + drift.cos * 0.2 * U,
+        y: floor.y + drift.sin * 0.2 * U,
+        z: footZ + th.range(0.45, 0.7) * U,
+        vx: drift.cos * th.range(0.7, 1.2) * U,
+        vy: drift.sin * th.range(0.7, 1.2) * U,
+        vz: th.range(0.15, 0.3) * U,
         bornAt,
         life: th.lifeOf(bornAt, 1.6, 2.4),
-        gravity: -0.2 * U,
-        drag: 0.8,
+        gravity: -0.15 * U,
+        drag: 0.6,
         bounce: 0,
       }),
-      size: th.range(0.55, 0.9) * (0.6 + 0.4 * fierce),
+      size: th.range(0.6, 1) * (0.6 + 0.4 * fierce),
       color: SMOKE,
-      alpha: 0.65,
+      alpha: 0.75,
     });
   }
   // Embers carried up out of the fire.

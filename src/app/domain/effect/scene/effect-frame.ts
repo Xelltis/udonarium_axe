@@ -4,7 +4,10 @@ import type { EffectCast } from '@axe/domain/effect/effect-cast';
 import type { EffectKind } from '@axe/domain/effect/effect-kind';
 import type { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { isAimed } from '@axe/domain/effect/effect-timeline';
-import { type Choreography, type Staged } from '@axe/domain/effect/scene/choreography';
+import { bash } from '@axe/domain/effect/scene/blade/bash';
+import { skybladeWith } from '@axe/domain/effect/scene/blade/skyblade';
+import { slash } from '@axe/domain/effect/scene/blade/slash';
+import { type Choreography, nothingStaged, type Staged } from '@axe/domain/effect/scene/choreography';
 import { breath } from '@axe/domain/effect/scene/fire/breath';
 import { burst } from '@axe/domain/effect/scene/fire/burst';
 import { flame } from '@axe/domain/effect/scene/fire/flame';
@@ -13,7 +16,19 @@ import { nova } from '@axe/domain/effect/scene/fire/nova';
 import { targetScaleOf } from '@axe/domain/effect/timeline/shared';
 
 /** The looks drawn in the table's scene, among the pieces, rather than over it. */
-const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = { breath, burst, flame, mushroom, nova };
+const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = { bash, breath, burst, flame, mushroom, nova, slash };
+
+/** The looks that strike with another look, which are drawn in the scene only once the look they strike with is. */
+const STRIKING_WITH: ReadonlySet<EffectKind> = new Set<EffectKind>(['skyblade']);
+
+/** How long the great blade lingers after its playback, long enough for the look it strikes with to clear. */
+const SKYBLADE_LINGER_S = 1.8;
+
+CHOREOGRAPHIES.skyblade = skybladeWith((stage) => {
+  const kind = stage.preset.impactEffectKind;
+  const look = STRIKING_WITH.has(kind) ? undefined : CHOREOGRAPHIES[kind];
+  return look ? look.draw(stage) : nothingStaged();
+}, SKYBLADE_LINGER_S);
 
 /** Where a target stands for an effect: its foot, and the floor under it. */
 export interface EffectFooting {
@@ -36,16 +51,23 @@ export interface EffectStagingOptions {
 }
 
 /** Whether an effect is drawn in the table's scene: a look of a single kind that has been made anew for it. */
-export function isDrawnInScene(preset: Pick<EffectPreset, 'isStaged' | 'effectKind'>): boolean {
-  return !preset.isStaged && CHOREOGRAPHIES[preset.effectKind] !== undefined;
+export function isDrawnInScene(
+  preset: Pick<EffectPreset, 'isStaged' | 'effectKind'> & Partial<Pick<EffectPreset, 'impactEffectKind'>>
+): boolean {
+  if (preset.isStaged || CHOREOGRAPHIES[preset.effectKind] === undefined) return false;
+  if (!STRIKING_WITH.has(preset.effectKind)) return true;
+  const strikesWith = preset.impactEffectKind;
+  return strikesWith !== undefined && !STRIKING_WITH.has(strikesWith) && CHOREOGRAPHIES[strikesWith] !== undefined;
 }
 
 /**
  * How long an effect drawn in the scene goes on being drawn after its playback, in milliseconds, as
  * what it leaves clears: smoke rising away and embers dying. Nothing for one drawn over it.
  */
-export function sceneLingerMsOf(preset: Pick<EffectPreset, 'isStaged' | 'effectKind'>): number {
-  if (preset.isStaged) return 0;
+export function sceneLingerMsOf(
+  preset: Pick<EffectPreset, 'isStaged' | 'effectKind'> & Partial<Pick<EffectPreset, 'impactEffectKind'>>
+): number {
+  if (!isDrawnInScene(preset)) return 0;
   return (CHOREOGRAPHIES[preset.effectKind]?.lingerS ?? 0) * 1000;
 }
 
@@ -62,7 +84,7 @@ export function stageEffect(
   into: Staged
 ): void {
   const choreography = CHOREOGRAPHIES[preset.effectKind];
-  if (!choreography || preset.isStaged) return;
+  if (!choreography || !isDrawnInScene(preset)) return;
   const duration = preset.duration / 1000;
   const base = options.cellPx * preset.sizeScale;
   const blowsAt = effectBlowsOf(preset).map((blow) => blow.atMs / 1000);

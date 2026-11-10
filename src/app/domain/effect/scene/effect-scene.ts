@@ -25,9 +25,12 @@ export type EffectBlend = 'light' | 'color';
  * top; a chunk of debris, hard-edged, outlined and lit on one face, which tumbles; a flake or a shard,
  * which glints; a star, a cross that twinkles; a tongue of flame, drawn up from its root along the way
  * it is given to lean, as long as that way is fast, round at the root and pointed at the tip; a flare,
- * a streak of light drawn out across the screen as many times its size as its trail says.
+ * a streak of light drawn out across the screen as many times its size as its trail says; a comet, a
+ * tongue the other way about, round at its head and pointed behind; a plume of smoke, soft and drawn
+ * out the way it rises.
  */
-export type EffectMoteShape = 'glow' | 'spark' | 'puff' | 'smoke' | 'chunk' | 'flake' | 'star' | 'tongue' | 'flare';
+export type EffectMoteShape =
+  'glow' | 'spark' | 'puff' | 'smoke' | 'chunk' | 'flake' | 'star' | 'tongue' | 'flare' | 'comet' | 'plume';
 
 /** One particle of an effect at a moment. */
 export interface EffectMote {
@@ -55,7 +58,10 @@ export interface EffectMote {
   readonly forward?: number;
 }
 
-/** A band drawn through points, as a blade's arc, a bolt of lightning, a beam or the trail of a shot. */
+/**
+ * A band drawn through points, as a blade's arc, a bolt of lightning, a beam or the trail of a shot,
+ * turned about its line to face the eye: hard-edged, its colour taken to its core's in its middle.
+ */
 export interface EffectRibbon {
   readonly points: readonly { readonly x: number; readonly y: number; readonly z: number }[];
   /** How wide it is at each point, or all along, in table pixels. */
@@ -64,9 +70,9 @@ export interface EffectRibbon {
   /** The colour of its middle, hotter than its edge, where it has one. */
   readonly core?: string;
   readonly alpha: number;
+  /** How much of its alpha it has at each point, as a tail fades; whole all along without them. */
+  readonly alphas?: readonly number[];
   readonly blend: EffectBlend;
-  /** Whether it turns to face the eye, as a bolt does, or lies as drawn, as a cut through the air does. */
-  readonly facing: 'eye' | 'as-drawn';
 }
 
 /** The kinds of mark laid on the floor. */

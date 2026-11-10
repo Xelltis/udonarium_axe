@@ -20,6 +20,7 @@ import {
   layScorch,
   layShockRing,
   risingEmbers,
+  risingPlumes,
   rollingDust,
   SMOKE,
   thrownBrands,
@@ -121,6 +122,7 @@ function drawMushroom(stage: Stage): Staged {
 
   drawFireThrow(drawn, thrown, t, cell, ramp, forward);
   for (const fire of thrown.column) drawFire(drawn, fire, t, cell, ramp, forward);
+  drawColumn(drawn, floor, t, cell, ramp, forward, stage.seed);
   drawCap(drawn, thrown.cap, floor, t, cell, ramp, forward);
 
   // The root of the column gives light while it rises.
@@ -158,6 +160,50 @@ function drawMushroom(stage: Stage): Staged {
  * The cap at a moment: balls on a ring rolling up and out over the top of the column, the ring
  * widening as it rolls; fire while it is young, cooling to black smoke that thins away.
  */
+/**
+ * The column standing at a moment: four tongues of flame a step apart in colour, from a red edge to a
+ * white heart, shooting up to the cap and flickering, narrowing and dying as the column breaks.
+ */
+function drawColumn(
+  drawn: Staged,
+  floor: Point,
+  t: number,
+  cell: number,
+  ramp: readonly string[],
+  forward: number,
+  seed: number
+): void {
+  const standing = Math.min(outCubic(within(t, 0, 0.6)), 1 - within(t, COLUMN_S * 0.6, COLUMN_S + 0.4));
+  if (standing <= 0.02) return;
+  const breaking = within(t, COLUMN_S * 0.6, COLUMN_S + 0.4);
+  const flicker = 0.92 + 0.06 * Math.sin(t * 19 + seed) + 0.04 * Math.sin(t * 41 + seed * 1.3);
+  const lean = 0.05 * Math.sin(t * 3 + seed);
+  for (const [step, wide, tall] of [
+    [1, 1, 1],
+    [2, 0.86, 0.94],
+    [4, 0.56, 0.78],
+    [5, 0.28, 0.55],
+  ] as const) {
+    const height = cell * CAP_HEIGHT * tall * flicker * (0.4 + 0.6 * standing);
+    const width = cell * 0.95 * wide * (1 - 0.6 * breaking);
+    const reach = Math.max(height - width, 2);
+    drawn.motes.push({
+      x: floor.x + lean * height,
+      y: floor.y,
+      z: floor.z + height,
+      size: width,
+      color: ramp[step],
+      alpha: Math.min(1, standing * 1.5),
+      blend: 'color',
+      shape: 'tongue',
+      velocity: { x: lean * reach, y: 0, z: reach },
+      trail: 1,
+      variant: seed + t * 2.3,
+      forward,
+    });
+  }
+}
+
 function drawCap(
   drawn: Staged,
   cap: readonly CapBall[],
@@ -237,6 +283,7 @@ function throwMushroom(th: Thrower, heart: Point, floor: Point): MushroomThrow {
     variant: th.range(0, 6),
   }));
   const clouds: Cloud[] = [
+    ...risingPlumes(th, { ...heart, z: floor.z + U * 2.6 }, th.count(6), [1, 3], [0.4, 0.8], 1.3, [1, 1.4]),
     ...billowingSmoke(th, { ...heart, z: floor.z + U * 3 }, th.count(10), {
       spread: 1.6,
       size: [1, 1.6],
