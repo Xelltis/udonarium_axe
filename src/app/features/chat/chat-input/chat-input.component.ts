@@ -28,6 +28,7 @@ import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.se
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
@@ -334,6 +335,7 @@ export class ChatInputComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly vision = inject(VisionService);
+  private readonly disclosure = inject(DisclosureService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly uiSignalService = inject(UiSignalService);
   /**
@@ -1061,18 +1063,22 @@ export class ChatInputComponent {
 
   /**
    * The characters this seat may speak as. A piece on the table it cannot see is left out, so the
-   * list does not name what the dark or the fog is keeping back; the one already chosen stays.
+   * list does not name what the dark or the fog is keeping back; the one already chosen stays. Where
+   * only characters are listed, as a chat palette lists the pieces whose palettes it opens, a piece
+   * whose contents this seat may not view is left out too, as its palette may not be opened.
    */
   readonly gameCharacters = computed(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     const all = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const c of all) this.objectChange.versionOf(c.identifier)();
+    this.objectChange.trackMyCursor();
     const ignoreNonTalk = this.onlyCharacters();
     const chosen = this.sendFrom;
     return all.filter(
       (character) =>
         allowsChat(character, this.myPeer.peerId, ignoreNonTalk) &&
-        (character.identifier === chosen || this.vision.mayBeListed(character))
+        (character.identifier === chosen || this.vision.mayBeListed(character)) &&
+        (!ignoreNonTalk || this.disclosure.canView(character))
     );
   });
 

@@ -25,6 +25,7 @@ import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -101,6 +102,7 @@ export class ChatPaletteComponent {
   chatMessageService = inject(ChatMessageService);
   private readonly panelService = inject(PanelService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly disclosure = inject(DisclosureService);
   private readonly characterMacro = inject(CharacterMacroService);
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly uiSignalService = inject(UiSignalService);
@@ -455,11 +457,13 @@ export class ChatPaletteComponent {
    *
    * An open edit is saved first, and the character's dice bot is taken up when it has one. An
    * identifier that is not a character leaves the selection as it was but still refreshes the
-   * title.
+   * title. A character whose contents this seat may not view is not switched to, as its palette may
+   * not be opened from its piece either.
    */
   onSelectedCharacter(identifier: string) {
-    if (this.isEdit()) this.toggleEditMode();
     const object = this.objectStore.get(identifier);
+    if (object instanceof GameCharacter && !this.disclosure.canView(object)) return;
+    if (this.isEdit()) this.toggleEditMode();
     if (object instanceof GameCharacter) {
       this.character.set(object);
       const char = this.character()!;

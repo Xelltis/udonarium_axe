@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatLintService } from '@axe/application/chat/chat-lint.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -59,6 +60,17 @@ describe('ChatPaletteComponent', () => {
 
   it('should be created', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('does not switch to a character whose contents this seat may not view', () => {
+    const open = createChar('勇者');
+    const kept = createChar('秘密の魔物');
+    vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockImplementation((character) => character !== kept);
+    component.onSelectedCharacter(open.identifier);
+
+    component.onSelectedCharacter(kept.identifier);
+
+    expect(component.character()).toBe(open);
   });
 
   it('lets the panel take the pointer again once the drag ends', async () => {

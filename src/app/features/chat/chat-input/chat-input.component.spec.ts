@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatLintService } from '@axe/application/chat/chat-lint.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -243,6 +244,19 @@ describe('ChatInputComponent', () => {
   });
 
   describe('the characters on offer', () => {
+    it('leaves out of a chat palette’s list a piece whose contents this seat may not view, as the chat keeps it', () => {
+      const open = speaker('勇者');
+      const kept = speaker('秘密の魔物');
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockImplementation((character) => character !== kept);
+
+      expect(component.gameCharacters()).toContain(kept);
+      fixture.componentRef.setInput('onlyCharacters', true);
+      expect(component.gameCharacters()).toContain(open);
+      expect(component.gameCharacters()).not.toContain(kept);
+      open.destroy();
+      kept.destroy();
+    });
+
     it('leaves out a piece on the table this seat cannot see, but keeps the one it speaks as', () => {
       const seen = speaker('勇者');
       seen.setLocation('table');
