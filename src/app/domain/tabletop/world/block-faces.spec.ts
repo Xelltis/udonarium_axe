@@ -1,6 +1,6 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
-import { blockFacesOf } from '@axe/domain/tabletop/world/block-faces';
+import { blockFacesOf, SHEET_LIFT_PX } from '@axe/domain/tabletop/world/block-faces';
 
 const GRID = 50;
 const picture = (identifier: string) => `blob:${identifier}`;
@@ -29,6 +29,37 @@ describe('the faces of the blocks', () => {
     expect(walls.map((wall) => wall.id.split(':')[1])).toEqual(['north', 'east', 'south', 'west']);
     expect(caps).toHaveLength(1);
     expect(caps[0]).toMatchObject({ zPx: 100, facing: 'up', pictureUrl: 'blob:grass' });
+  });
+
+  it('stands the two sides of a block with no thickness a hair apart, so a sheet stood on a wall is in front of it', () => {
+    const sheet = Terrain.create('sheet', 2, 0, 2, 'poster', 'grass');
+    sheet.location = { name: 'table', x: 100, y: 100 };
+    made.push(sheet);
+    const wall = Terrain.create('wall', 2, 1, 2, 'stone', 'grass');
+    wall.location = { name: 'table', x: 100, y: 50 };
+    made.push(wall);
+
+    const sheetFaces = faces(sheet).walls;
+    const north = sheetFaces.find((face) => face.id.endsWith(':north'))!;
+    const south = sheetFaces.find((face) => face.id.endsWith(':south'))!;
+    expect([north.ay, north.by]).toEqual([100 - SHEET_LIFT_PX, 100 - SHEET_LIFT_PX]);
+    expect([south.ay, south.by]).toEqual([100 + SHEET_LIFT_PX, 100 + SHEET_LIFT_PX]);
+    expect([Math.min(south.ax, south.bx), Math.max(south.ax, south.bx)]).toEqual([100, 200]);
+    // The wall's face it is stood against lies behind the sheet's face looking out from it.
+    const wallSouth = faces(wall).walls.find((face) => face.id.endsWith(':south'))!;
+    expect(wallSouth.ay).toBe(100);
+    expect(south.ay).toBeGreaterThan(wallSouth.ay);
+    expect(faces(sheet).caps[0].uvs!.every((uv) => Number.isFinite(uv.x) && Number.isFinite(uv.y))).toBe(true);
+  });
+
+  it('lays the top of a block as high as nothing a hair over what it lies on, and leaves one with height as it is', () => {
+    const tile = Terrain.create('tile', 1, 1, 0, 'stone', 'rug');
+    tile.location = { name: 'table', x: 100, y: 50 };
+    made.push(tile);
+
+    expect(faces(tile).caps[0]).toMatchObject({ zPx: SHEET_LIFT_PX, facing: 'up' });
+    expect(faces(tile).walls).toEqual([]);
+    expect(faces(block()).caps[0].zPx).toBe(100);
   });
 
   it('lifts a block by as far as the raised ground under it lifts it', () => {

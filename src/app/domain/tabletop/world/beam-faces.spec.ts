@@ -1,5 +1,6 @@
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { beamFacesOf } from '@axe/domain/tabletop/world/beam-faces';
+import { SHEET_LIFT_PX } from '@axe/domain/tabletop/world/block-faces';
 
 const GRID = 50;
 const DIMS = { widthPx: 1000, depthPx: 750, wallHeightPx: 500 };
@@ -33,6 +34,16 @@ describe('the faces of the blocks put on the walls', () => {
     const above = caps.find((cap) => cap.id.endsWith(':beam-north'))!;
     expect(above).toMatchObject({ zPx: 400, facing: 'up', pictureUrl: 'blob:planks' });
     expect(caps.find((cap) => cap.id.endsWith(':beam-south'))).toMatchObject({ zPx: 350, facing: 'down' });
+  });
+
+  it('draws a block standing out from the wall by nothing as a picture a hair off the wall', () => {
+    const poster = beam();
+    poster.height = 0;
+
+    const top = faces(poster).walls.find((wall) => wall.id.endsWith(':beam-top'))!;
+    expect(top).toBeDefined();
+    expect([top.ay, top.by]).toEqual([SHEET_LIFT_PX, SHEET_LIFT_PX]);
+    expect(top.pictureUrl).toBe('blob:boards');
   });
 
   it('wears each picture as the page’s own table does, running back along the wall', () => {

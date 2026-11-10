@@ -2,6 +2,7 @@ import { SurfaceDims, surfaceFrame, Vec3 } from '@axe/domain/tabletop/surface-sp
 import { isTableWall } from '@axe/domain/tabletop/table-walls';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain, TerrainImageSlot } from '@axe/domain/tabletop/terrain';
+import { SHEET_LIFT_PX } from '@axe/domain/tabletop/world/block-faces';
 import type { TableWorldCap, TableWorldPoint, TableWorldWall } from '@axe/domain/tabletop/world/table-world';
 
 /** A corner of a beam, in its wall's own axes: along the wall, down it, and out from it, each 0 or 1. */
@@ -80,7 +81,8 @@ const SAME_PX = 1e-6;
 /**
  * The faces of the blocks put on the walls of the table, beams standing out from a wall into the
  * room: each the box the block fills, its faces wearing their pictures as the page's own table draws
- * them, read the same way. The faces running along the wall's height stand upright and the faces
+ * them, read the same way. One standing out by nothing is a picture put on the wall, its front a
+ * hair off the wall so the wall does not show through it. The faces running along the wall's height stand upright and the faces
  * across it lie flat, the one above with the table's grid over it where the block asks for one. Only
  * blocks on the walls the table draws are drawn.
  */
@@ -97,12 +99,13 @@ export function beamFacesOf(
     const surface = surfaceOf(terrain);
     if (!isTableWall(surface) || !drawsWall(surface)) continue;
     const frame = surfaceFrame(surface, dims);
+    // One standing out from the wall by nothing is a picture put flat on it, drawn a hair off it.
     const size = {
       width: terrain.width * gridSize,
       depth: terrain.depth * gridSize,
-      height: terrain.height * gridSize,
+      height: Math.max(terrain.height * gridSize, SHEET_LIFT_PX),
     };
-    if (size.width <= 0 || size.depth <= 0 || size.height <= 0) continue;
+    if (size.width <= 0 || size.depth <= 0) continue;
     const base = terrain.altitude * gridSize + terrain.posZ;
     const corner = ([along, down, out]: BeamCorner): Vec3 => {
       const x = terrain.location.x + along * size.width;
