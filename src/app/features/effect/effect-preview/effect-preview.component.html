@@ -3,7 +3,17 @@
   data-testid="effect-preview-stage"
   aria-hidden="true"
 >
-  <div class="absolute top-[64%] left-1/2 size-0 transform-3d" [style.transform]="boardTransform()">
+  <canvas
+    #stageCanvas
+    class="absolute inset-0 block size-full"
+    data-testid="effect-preview-scene"
+    [class.invisible]="!onStage()"
+  ></canvas>
+  <div
+    class="absolute top-[64%] left-1/2 size-0 transform-3d"
+    [class.invisible]="onStage()"
+    [style.transform]="boardTransform()"
+  >
     <div
       class="absolute bg-[linear-gradient(to_right,rgb(255_255_255/0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgb(255_255_255/0.08)_1px,transparent_1px)]"
       [ngStyle]="boardStyle"

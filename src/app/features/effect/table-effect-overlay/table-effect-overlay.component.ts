@@ -14,7 +14,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { effectParticlePlacements } from '@axe/domain/effect/effect-particle-placements';
 import { EffectSprite, effectSprites } from '@axe/domain/effect/effect-timeline';
 import { ViewRotation } from '@axe/domain/effect/effect-view';
-import { drawsOnlyPicturesOver, isDrawnInScene } from '@axe/domain/effect/scene/effect-frame';
+import { drawsOnlyPicturesOver, isDrawnInScene } from '@axe/domain/effect/scene/scene-kinds';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {

@@ -1,7 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { sceneLingerMsOf } from '@axe/domain/effect/scene/effect-frame';
+import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
 import {
   EFFECT_PREVIEW_REST_MS,
   EffectPreviewComponent,
@@ -21,7 +25,7 @@ describe('effectPreviewFrameAt', () => {
   it('runs the effect, holding still as it strikes, rests, and starts it over', () => {
     const preset = presetOf('burst', 1000);
     const [blow] = effectBlowsOf(preset);
-    const period = 1000 + blow.holdMs + EFFECT_PREVIEW_REST_MS;
+    const period = 1000 + blow.holdMs + sceneLingerMsOf(preset) + EFFECT_PREVIEW_REST_MS;
 
     expect(effectPreviewFrameAt(preset, 0)).toEqual({ round: 0, elapsed: 0 });
     expect(effectPreviewFrameAt(preset, blow.atMs + blow.holdMs / 2)).toEqual({ round: 0, elapsed: blow.atMs });
@@ -36,8 +40,9 @@ describe('EffectPreviewComponent', () => {
   let component: EffectPreviewComponent;
   let motion: MotionService;
   let frames: FrameRequestCallback[];
+  let shown: EffectFrame[];
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // The 2D context of happy-dom has no drawing functions; what is checked is what is placed.
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
     frames = [];
@@ -47,9 +52,25 @@ describe('EffectPreviewComponent', () => {
     });
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
     vi.spyOn(performance, 'now').mockReturnValue(1000);
-    TestBed.configureTestingModule({ imports: [EffectPreviewComponent], providers: [...TEST_PROVIDERS] });
+    shown = [];
+    const stage = {
+      show: (frame: EffectFrame) => shown.push(frame),
+      resize: () => undefined,
+      dispose: () => undefined,
+    };
+    TestBed.configureTestingModule({
+      imports: [EffectPreviewComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: EFFECT_STAGE_LOADER,
+          useValue: () => Promise.resolve({ createEffectStage: () => Promise.resolve(stage) }),
+        },
+      ],
+    });
     motion = TestBed.inject(MotionService);
     motion.setting.set('on');
+    await TestBed.inject(EffectSceneLooksService).load();
     fixture = TestBed.createComponent(EffectPreviewComponent);
     component = fixture.componentInstance;
   });
@@ -71,50 +92,60 @@ describe('EffectPreviewComponent', () => {
     fixture.detectChanges();
   }
 
+  /** How much the small stage draws at this moment: its particles, bands and marks on the floor. */
+  const drawnOnStage = () => {
+    const frame = component.sceneFrame();
+    return frame.motes.length + frame.ribbons.length + frame.floor.length;
+  };
+
   it('plays nothing without an effect', () => {
     show(null);
     runFramesAt(300);
 
     expect(component.sprites()).toEqual([]);
     expect(component.canvases()).toEqual([]);
+    expect(drawnOnStage()).toBe(0);
   });
 
-  it('plays the effect on the stand-in in the middle of the board, frame by frame', () => {
+  it('plays a look drawn in the scene on a small stage, about the stand-in, frame by frame', async () => {
     const preset = presetOf('burst');
     const [blow] = effectBlowsOf(preset);
     show(preset);
+    // The stage is made once the preview is drawn, as what makes it is loaded.
+    for (let turn = 0; turn < 5; turn++) {
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
 
     runFramesAt(300);
     expect(component.frame()).toEqual({ round: 0, elapsed: 300 - blow.holdMs });
-    const drawn = [...component.sprites(), ...component.canvases()];
-    expect(drawn.length).toBeGreaterThan(0);
-    expect(component.sprites().every((sprite) => Math.abs(sprite.x) < 50 && Math.abs(sprite.y) < 50)).toBe(true);
+    expect(component.sprites()).toEqual([]);
+    expect(drawnOnStage()).toBeGreaterThan(0);
+    expect(component.sceneFrame().floor.every((mark) => Math.abs(mark.x) < 1 && Math.abs(mark.y) < 1)).toBe(true);
+    expect(shown.at(-1)).toBe(component.sceneFrame());
 
     runFramesAt(600);
     expect(component.frame()).toEqual({ round: 0, elapsed: 600 - blow.holdMs });
   });
 
-  it('draws each round afresh, so that what animates starts again', () => {
+  it('plays it again from the start each round', () => {
+    const preset = presetOf('burst');
+    show(preset);
+    const period = 1000 + effectBlowsOf(preset)[0].holdMs + sceneLingerMsOf(preset) + EFFECT_PREVIEW_REST_MS;
+
+    runFramesAt(period + 300);
+
+    expect(component.frame().round).toBe(1);
+    expect(drawnOnStage()).toBeGreaterThan(0);
+  });
+
+  it('draws nothing in the rest between rounds, once what it leaves has cleared', () => {
     const preset = presetOf('burst');
     show(preset);
 
-    runFramesAt(300);
-    const first = component.sprites().map((sprite) => sprite.key);
-    runFramesAt(1000 + EFFECT_PREVIEW_REST_MS + 300);
-    const second = component.sprites().map((sprite) => sprite.key);
+    runFramesAt(1000 + effectBlowsOf(preset)[0].holdMs + sceneLingerMsOf(preset) + EFFECT_PREVIEW_REST_MS / 2);
 
-    expect(first.length).toBeGreaterThan(0);
-    expect(first.every((key) => key.startsWith('0-'))).toBe(true);
-    expect(second.every((key) => key.startsWith('1-'))).toBe(true);
-  });
-
-  it('draws nothing in the rest between rounds', () => {
-    show(presetOf('burst'));
-
-    runFramesAt(1000 + EFFECT_PREVIEW_REST_MS / 2);
-
-    expect(component.sprites()).toEqual([]);
-    expect(component.canvases()).toEqual([]);
+    expect(drawnOnStage()).toBe(0);
   });
 
   it('starts again from the beginning when another effect is chosen', () => {
@@ -130,9 +161,26 @@ describe('EffectPreviewComponent', () => {
   it('fires an aimed effect from a caster off to the front left of the stand-in', () => {
     show(presetOf('projectile'));
 
+    runFramesAt(120);
+
+    const frame = component.sceneFrame();
+    const points = [...frame.motes, ...frame.ribbons.flatMap((ribbon) => ribbon.points)];
+    expect(points.some((point) => point.x < -20 && point.y > 10)).toBe(true);
+  });
+
+  it('draws a look still drawn over the table over the little board, as it always was', () => {
+    const run = presetOf('burst');
+    run.stages = JSON.stringify([
+      { role: 'impact', kind: 'frost', durationMs: 800 },
+      { role: 'field', kind: 'dissolve', durationMs: 200 },
+    ]);
+    show(run);
+
     runFramesAt(300);
 
-    expect(component.sprites().some((sprite) => sprite.x < -20 && sprite.y > 10)).toBe(true);
+    expect(component.inScene()).toBe(false);
+    expect(drawnOnStage()).toBe(0);
+    expect(component.sprites().length + component.canvases().length).toBeGreaterThan(0);
   });
 
   it('draws the board smaller for a larger effect, so that it stays in the box', () => {
@@ -154,6 +202,6 @@ describe('EffectPreviewComponent', () => {
     runFramesAt(300);
 
     expect(component.frame()).toEqual({ round: 0, elapsed: 500 });
-    expect(component.sprites().length + component.canvases().length).toBeGreaterThan(0);
+    expect(drawnOnStage()).toBeGreaterThan(0);
   });
 });

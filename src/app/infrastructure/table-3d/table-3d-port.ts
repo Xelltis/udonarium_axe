@@ -291,3 +291,35 @@ export interface Table3dEngineOptions {
 export interface Table3dEngineModule {
   createTable3dEngine(canvas: HTMLCanvasElement, options: Table3dEngineOptions): Promise<Table3dEngine>;
 }
+
+/** A figure standing on a small stage an effect is played on, in table pixels from its middle. */
+export interface EffectStageFigure {
+  readonly x: number;
+  readonly y: number;
+  /** Whether it is drawn faint, as the one an aimed effect is fired from. */
+  readonly dim: boolean;
+}
+
+/** How a small stage an effect is played on is laid out: its board, in cells, and who stands on it. */
+export interface EffectStageOptions {
+  readonly cellPx: number;
+  readonly across: number;
+  readonly down: number;
+  readonly figures: readonly EffectStageFigure[];
+  /** How much further off the camera stands than to fit the board, for a larger effect. */
+  readonly zoomOut?: number;
+}
+
+/** A small stage apart from the table that an effect is played on, as an editor previews it. */
+export interface EffectStage {
+  /** Draws what the effect draws at a moment. */
+  show(frame: EffectFrame): void;
+  /** Fits the drawing to the canvas as it is laid out now. */
+  resize(): void;
+  dispose(): void;
+}
+
+/** What the module that makes small stages gives, loaded only once something asks for one. */
+export interface EffectStageModule {
+  createEffectStage(canvas: HTMLCanvasElement, options: EffectStageOptions): Promise<EffectStage | null>;
+}

@@ -1,5 +1,6 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { effectElapsedOf, EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -7,8 +8,9 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { nothingStaged } from '@axe/domain/effect/scene/choreography';
-import { type EffectFooting, hasScenePart, stageEffect } from '@axe/domain/effect/scene/effect-frame';
+import type { EffectFooting } from '@axe/domain/effect/scene/effect-frame';
 import { type EffectFrame, EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
+import { hasScenePart } from '@axe/domain/effect/scene/scene-kinds';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 const NOTHING_HIDDEN: ReadonlySet<string> = new Set<string>();
@@ -26,16 +28,24 @@ export class EffectFrameService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);
   private readonly pieces = inject(TablePiecesService);
+  private readonly sceneLooks = inject(EffectSceneLooksService);
+
+  constructor() {
+    // The looks are loaded as the table is first drawn, so the first effect does not wait for them.
+    void this.sceneLooks.load();
+  }
 
   readonly frame = computed<EffectFrame>(
     () => {
       const casts = this.playback.activeCasts().filter((active) => hasScenePart(active.preset));
       if (casts.length < 1) return EMPTY_EFFECT_FRAME;
+      const looks = this.sceneLooks.looks();
+      if (!looks) return EMPTY_EFFECT_FRAME;
       const now = this.playback.now();
       const cellPx = this.tabletop.gridSize();
       const drawn = nothingStaged();
       for (const active of casts) {
-        stageEffect(
+        looks.stageEffect(
           active.preset,
           active.cast,
           effectElapsedOf(active, now),

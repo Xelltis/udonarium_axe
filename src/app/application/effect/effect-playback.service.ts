@@ -11,7 +11,7 @@ import { DefeatReaction, defeatReactionOf } from '@axe/domain/effect/effect-defe
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { EffectShake } from '@axe/domain/effect/effect-shake';
 import { impactSoundTimes, isEffectFinished, launchSoundTimes } from '@axe/domain/effect/effect-sound-times';
-import { sceneLingerMsOf } from '@axe/domain/effect/scene/effect-frame';
+import { sceneLingerMsOf } from '@axe/domain/effect/scene/scene-kinds';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
 
 export interface ActiveEffectCast {

@@ -3,7 +3,7 @@ import { EffectFrameService } from '@axe/application/effect/effect-frame.service
 import { effectElapsedOf, EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { type EffectLight, effectLightsOf, strongestEffectLights } from '@axe/domain/effect/effect-light';
-import { isDrawnInScene } from '@axe/domain/effect/scene/effect-frame';
+import { isDrawnInScene } from '@axe/domain/effect/scene/scene-kinds';
 
 const NO_LIGHTS: readonly EffectLight[] = [];
 
