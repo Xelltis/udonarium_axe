@@ -41,6 +41,8 @@ const SWEEP = 1.35;
 const TAIL = 1.6;
 /** The longest a stroke takes to sweep, in seconds. */
 const STROKE_S = 0.32;
+/** How long the arc a stroke leaves takes to fade, as a share of the stroke. */
+const FADES = 0.6;
 /** How far a drawing cut's wound opens after the line, in seconds. */
 const WOUND_OPENS_S = 0.16;
 
@@ -168,17 +170,27 @@ function drawStroke(
   ramp: readonly string[],
   share: number
 ): void {
-  if (share <= 0 || share >= 1.35) return;
+  if (share <= 0 || share >= 1 + FADES) return;
   const head = -SWEEP + 2 * SWEEP * outCubic(Math.min(1, share));
-  const catching = within(share, 1, 1.35);
-  const tail = Math.max(-SWEEP, head - TAIL * (1 - catching));
+  const tail = Math.max(-SWEEP, head - TAIL);
   if (head - tail < 0.02) return;
+  // Once the blade has passed, the arc it left thins and fades where it lies, a crescent to the last.
+  const fading = within(share, 1, 1 + FADES);
   const radius = (hit.reach / 2) * cell;
-  const thick = cell * Math.min(Math.max(hit.thickness / 60, 0.38), 0.5) * (1 - catching * 0.7);
-  drawn.ribbons.push(...bladeRibbons(centre, frame, hit, radius, tail, head, thick, ramp, 1 - catching));
+  const thick = cell * Math.min(Math.max(hit.thickness / 60, 0.38), 0.5) * (1 - fading * 0.8);
+  const alpha = Math.pow(1 - fading, 1.5);
+  drawn.ribbons.push(...bladeRibbons(centre, frame, hit, radius, tail, head, thick, ramp, alpha));
 }
 
-/** The bands of a blade's arc between two turns: a soft light about it, and a hard edge with a white core, both thinning to the tail. */
+/**
+ * How wide a crescent is along it, from nothing at its tail to nothing at its head, widest a little
+ * behind the head, where the blade has just been.
+ */
+function crescent(share: number): number {
+  return Math.pow(Math.sin(Math.PI * Math.pow(share, 1.6)), 0.85);
+}
+
+/** The bands of a blade's arc between two turns, each a crescent: a soft light about it, a dark rim, and a hard edge with a white core. */
 function bladeRibbons(
   centre: Point,
   frame: Frame,
@@ -199,7 +211,7 @@ function bladeRibbons(
     // A soft light about the blade.
     {
       points,
-      widths: shares.map((share) => thick * 2 * Math.pow(share, 0.8)),
+      widths: shares.map((share) => thick * 2 * crescent(share)),
       color: ramp[2],
       core: ramp[4],
       alpha: 0.55 * alpha,
@@ -209,7 +221,7 @@ function bladeRibbons(
     // A dark rim, so the edge holds on a bright table.
     {
       points,
-      widths: shares.map((share) => thick * 0.72 * Math.pow(share, 0.6)),
+      widths: shares.map((share) => thick * 0.72 * crescent(share)),
       color: ramp[1],
       alpha: 0.9 * alpha,
       alphas: shares.map((share) => Math.min(1, share * 1.4)),
@@ -218,7 +230,7 @@ function bladeRibbons(
     // The edge itself: light colour, white at its core.
     {
       points,
-      widths: shares.map((share) => thick * 0.5 * Math.pow(share, 0.6)),
+      widths: shares.map((share) => thick * 0.5 * crescent(share)),
       color: ramp[4],
       core: '#ffffff',
       alpha,

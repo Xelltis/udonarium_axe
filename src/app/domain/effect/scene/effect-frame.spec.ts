@@ -183,6 +183,25 @@ describe('the cuts and blows drawn in the scene', () => {
     expect(xs[xs.length - 1]).toBeGreaterThan(110);
   });
 
+  it('draws a cut as a crescent, thin at both ends, which thins and fades where it lies once the blade has passed', () => {
+    const cut = makePreset('slash', { durationMs: 1000 });
+    cut.slashStyle = 'single';
+    const cast = { ...castOn([100, 100]), origin: { x: 300, y: 100, z: 30 } };
+    const crosses = effectBlowsOf(cut)[0].atMs;
+    const edgeAt = (ms: number) =>
+      staged(cut, cast, ms).ribbons.find((ribbon) => ribbon.blend === 'color' && ribbon.core)!;
+
+    const swinging = edgeAt(crosses);
+    const widths = swinging.widths as number[];
+    expect(widths[0]).toBeLessThan(Math.max(...widths) * 0.15);
+    expect(widths[widths.length - 1]).toBeLessThan(Math.max(...widths) * 0.15);
+    const passed = edgeAt(crosses + 240);
+    const later = edgeAt(crosses + 300);
+    expect(later.points.at(-1)).toEqual(passed.points.at(-1));
+    expect(later.alpha).toBeLessThan(passed.alpha);
+    expect(Math.max(...(later.widths as number[]))).toBeLessThan(Math.max(...(passed.widths as number[])));
+  });
+
   it('brings a cleave down from above', () => {
     const cleave = makePreset('slash', { durationMs: 2000, grade: 3 });
     cleave.slashStyle = 'heavy';
