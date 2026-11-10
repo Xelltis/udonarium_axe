@@ -48,10 +48,10 @@ function staged(
 describe('isDrawnInScene()', () => {
   it('draws a burst in the scene, and leaves a look not yet made anew and a run of stages to be drawn over it', () => {
     expect(isDrawnInScene(makePreset('burst'))).toBe(true);
-    expect(isDrawnInScene(makePreset('frost'))).toBe(false);
+    expect(isDrawnInScene(makePreset('gore'))).toBe(false);
     expect(isDrawnInScene({ isStaged: true, effectKind: 'burst' })).toBe(false);
     expect(sceneLingerMsOf({ isStaged: true, effectKind: 'burst' })).toBe(0);
-    expect(sceneLingerMsOf(makePreset('frost'))).toBe(0);
+    expect(sceneLingerMsOf(makePreset('gore'))).toBe(0);
   });
 });
 
@@ -233,8 +233,65 @@ describe('the cuts and blows drawn in the scene', () => {
     const blade = makePreset('skyblade', { durationMs: 3000 });
     blade.impactKind = 'flame';
     expect(isDrawnInScene(blade)).toBe(true);
-    blade.impactKind = 'frost';
+    blade.impactKind = 'gore';
     expect(isDrawnInScene(blade)).toBe(false);
     expect(sceneLingerMsOf(blade)).toBe(0);
+  });
+});
+
+describe('every look drawn in the scene', () => {
+  const KINDS: readonly EffectKind[] = [
+    'projectile',
+    'ballistic',
+    'arrowrain',
+    'beam',
+    'raybeam',
+    'arc',
+    'drain',
+    'bolt',
+    'frost',
+    'vortex',
+    'heal',
+    'aura',
+    'barrier',
+    'warp',
+    'curse',
+    'miasma',
+    'gravity',
+    'impact',
+    'rubble',
+    'upheaval',
+  ];
+
+  it.each(KINDS)('draws %s while it plays, finite and over the floor, and nothing once it has cleared', (kind) => {
+    const preset = makePreset(kind, { durationMs: 2000, grade: 2 });
+    const cast = { ...castOn([100, 100]), origin: { x: 300, y: 100, z: 30 } };
+
+    expect(isDrawnInScene(preset)).toBe(true);
+    let drew = 0;
+    for (let at = 0; at < 2000 + sceneLingerMsOf(preset); at += 50) {
+      const drawn = staged(preset, cast, at);
+      drew += drawn.motes.length + drawn.ribbons.length;
+      for (const mote of drawn.motes) {
+        expect([mote.x, mote.y, mote.z, mote.size, mote.alpha].every(Number.isFinite)).toBe(true);
+        expect(mote.z).toBeGreaterThanOrEqual(-0.001);
+      }
+      for (const ribbon of drawn.ribbons) {
+        expect(ribbon.points.every((point) => [point.x, point.y, point.z].every(Number.isFinite))).toBe(true);
+      }
+    }
+    expect(drew).toBeGreaterThan(0);
+    const cleared = staged(preset, cast, 2000 + sceneLingerMsOf(preset) + 10);
+    expect(cleared.motes.length + cleared.ribbons.length + cleared.floor.length).toBe(0);
+  });
+
+  it('lands a shot with the look its preset gives for landing', () => {
+    const shot = makePreset('projectile', { durationMs: 1000 });
+    shot.impactKind = 'frost';
+    const cast = { ...castOn([100, 100]), origin: { x: 300, y: 100, z: 30 } };
+    const landed = staged(shot, cast, 900);
+
+    expect(isDrawnInScene(shot)).toBe(true);
+    expect(landed.motes.some((mote) => mote.shape === 'tongue')).toBe(true);
   });
 });

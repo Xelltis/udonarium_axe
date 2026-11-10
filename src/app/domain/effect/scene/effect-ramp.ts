@@ -49,3 +49,17 @@ function hexOf(channels: readonly number[]): string {
     )
     .join('')}`;
 }
+
+/**
+ * Whether a colour is the colour of fire: red, orange or yellow, and coloured enough to tell; a
+ * look of an element is drawn as fire, smoke and all, only for one.
+ */
+export function isFiery(color: string): boolean {
+  const [r, g, b] = channelsOf(color, [128, 128, 128]).map((channel) => channel / 255);
+  const high = Math.max(r, g, b);
+  const low = Math.min(r, g, b);
+  if (high - low < 0.25) return false;
+  const span = high - low;
+  const hue = high === r ? ((g - b) / span + 6) % 6 : high === g ? (b - r) / span + 2 : (r - g) / span + 4;
+  return hue * 60 < 60 || hue * 60 > 330;
+}

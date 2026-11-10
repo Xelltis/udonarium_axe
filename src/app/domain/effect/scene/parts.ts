@@ -124,3 +124,88 @@ export function throwerFor(stage: Stage, ends: number): Thrower {
     mote: (fields) => ({ ...fields, floorZ: stage.groundZ }),
   };
 }
+
+/** A point a share of the way from one to another. */
+export function lerpPoint(from: Point, to: Point, share: number): Point {
+  return {
+    x: from.x + (to.x - from.x) * share,
+    y: from.y + (to.y - from.y) * share,
+    z: from.z + (to.z - from.z) * share,
+  };
+}
+
+/** The way from one point to another, of length one, and how far it is. */
+export function wayBetween(from: Point, to: Point): { readonly way: Point; readonly length: number } {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const dz = to.z - from.z;
+  const length = Math.hypot(dx, dy, dz) || 1;
+  return { way: { x: dx / length, y: dy / length, z: dz / length }, length };
+}
+
+/** Two ways across a line running one way: one level, and one up as near as may be. */
+export function acrossOf(way: Point): { readonly side: Point; readonly lift: Point } {
+  const flat = Math.hypot(way.x, way.y);
+  const side = flat > 0.001 ? { x: -way.y / flat, y: way.x / flat, z: 0 } : { x: 1, y: 0, z: 0 };
+  const lift = {
+    x: side.y * way.z - side.z * way.y,
+    y: side.z * way.x - side.x * way.z,
+    z: side.x * way.y - side.y * way.x,
+  };
+  return { side, lift: lift.z < 0 ? { x: -lift.x, y: -lift.y, z: -lift.z } : lift };
+}
+
+/** Points round a level circle about a middle, from one turn to another, in radians. */
+export function circlePoints(middle: Point, radius: number, steps: number, from = 0, to = Math.PI * 2): Point[] {
+  return Array.from({ length: steps + 1 }, (_unused, index) => {
+    const turn = from + ((to - from) * index) / steps;
+    return { x: middle.x + Math.cos(turn) * radius, y: middle.y + Math.sin(turn) * radius, z: middle.z };
+  });
+}
+
+/**
+ * A bolt of lightning from one point to another: a jagged line, each bend thrown aside at random as
+ * far as `jag` of its length, the middle bends the furthest, and forks branching off it. `flicker`
+ * picks among the shapes the same bolt takes, so it can be made to dance.
+ */
+export function lightningPaths(
+  from: Point,
+  to: Point,
+  seed: number,
+  flicker: number,
+  options: { bends?: number; jag?: number; forks?: number } = {}
+): { readonly main: Point[]; readonly forks: Point[][] } {
+  const next = seededRun(seed * 977 + flicker * 131);
+  const bends = options.bends ?? 10;
+  const jag = options.jag ?? 0.12;
+  const { way, length } = wayBetween(from, to);
+  const { side, lift } = acrossOf(way);
+  const throwAside = (point: Point, reach: number): Point => {
+    const a = (next() - 0.5) * 2 * reach;
+    const b = (next() - 0.5) * 2 * reach;
+    return {
+      x: point.x + side.x * a + lift.x * b,
+      y: point.y + side.y * a + lift.y * b,
+      z: point.z + side.z * a + lift.z * b,
+    };
+  };
+  const main = Array.from({ length: bends + 1 }, (_unused, index) => {
+    const share = index / bends;
+    const point = lerpPoint(from, to, share);
+    return index === 0 || index === bends ? point : throwAside(point, length * jag * Math.sin(Math.PI * share));
+  });
+  const forks: Point[][] = [];
+  for (let fork = 0; fork < (options.forks ?? 3); fork++) {
+    const at = 1 + Math.floor(next() * (bends - 2));
+    const start = main[at];
+    const reach = length * (0.12 + next() * 0.18);
+    const aside = throwAside(lerpPoint(start, to, 0), reach);
+    const end = {
+      x: aside.x + way.x * reach * 0.6,
+      y: aside.y + way.y * reach * 0.6,
+      z: aside.z + way.z * reach * 0.6,
+    };
+    forks.push([start, throwAside(lerpPoint(start, end, 0.5), reach * 0.25), end]);
+  }
+  return { main, forks };
+}

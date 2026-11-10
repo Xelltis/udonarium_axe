@@ -7,28 +7,65 @@ import { isAimed } from '@axe/domain/effect/effect-timeline';
 import { bash } from '@axe/domain/effect/scene/blade/bash';
 import { skybladeWith } from '@axe/domain/effect/scene/blade/skyblade';
 import { slash } from '@axe/domain/effect/scene/blade/slash';
-import { type Choreography, nothingStaged, type Staged } from '@axe/domain/effect/scene/choreography';
+import { type Choreography, nothingStaged, type Stage, type Staged } from '@axe/domain/effect/scene/choreography';
+import { curse, gravity, miasma } from '@axe/domain/effect/scene/dark/dark';
+import { impact, rubble, upheaval } from '@axe/domain/effect/scene/earth/earth';
 import { breath } from '@axe/domain/effect/scene/fire/breath';
 import { burst } from '@axe/domain/effect/scene/fire/burst';
 import { flame } from '@axe/domain/effect/scene/fire/flame';
 import { mushroom } from '@axe/domain/effect/scene/fire/mushroom';
 import { nova } from '@axe/domain/effect/scene/fire/nova';
+import { aura, barrier, heal, warp } from '@axe/domain/effect/scene/holy/holy';
+import { arrowrain, ballisticWith, projectileWith } from '@axe/domain/effect/scene/shot/shots';
+import { arc, beam, drain, raybeam } from '@axe/domain/effect/scene/shot/streams';
+import { bolt, frost, vortex } from '@axe/domain/effect/scene/storm/storm';
 import { targetScaleOf } from '@axe/domain/effect/timeline/shared';
 
 /** The looks drawn in the table's scene, among the pieces, rather than over it. */
-const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = { bash, breath, burst, flame, mushroom, nova, slash };
+const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = {
+  arc,
+  arrowrain,
+  aura,
+  barrier,
+  bash,
+  beam,
+  bolt,
+  breath,
+  burst,
+  curse,
+  drain,
+  flame,
+  frost,
+  gravity,
+  heal,
+  impact,
+  miasma,
+  mushroom,
+  nova,
+  raybeam,
+  rubble,
+  slash,
+  upheaval,
+  vortex,
+  warp,
+};
 
 /** The looks that strike with another look, which are drawn in the scene only once the look they strike with is. */
-const STRIKING_WITH: ReadonlySet<EffectKind> = new Set<EffectKind>(['skyblade']);
+const STRIKING_WITH: ReadonlySet<EffectKind> = new Set<EffectKind>(['skyblade', 'projectile', 'ballistic']);
 
 /** How long the great blade lingers after its playback, long enough for the look it strikes with to clear. */
 const SKYBLADE_LINGER_S = 1.8;
 
-CHOREOGRAPHIES.skyblade = skybladeWith((stage) => {
+/** The look a preset strikes with, drawn on its own clock, or nothing where that look is not drawn in the scene. */
+function strikeWith(stage: Stage): Staged {
   const kind = stage.preset.impactEffectKind;
   const look = STRIKING_WITH.has(kind) ? undefined : CHOREOGRAPHIES[kind];
   return look ? look.draw(stage) : nothingStaged();
-}, SKYBLADE_LINGER_S);
+}
+
+CHOREOGRAPHIES.skyblade = skybladeWith(strikeWith, SKYBLADE_LINGER_S);
+CHOREOGRAPHIES.projectile = projectileWith(strikeWith);
+CHOREOGRAPHIES.ballistic = ballisticWith(strikeWith);
 
 /** Where a target stands for an effect: its foot, and the floor under it. */
 export interface EffectFooting {

@@ -33,8 +33,10 @@ describe('TableEffectOverlayComponent', () => {
     component = fixture.componentInstance;
     playback = TestBed.inject(EffectPlaybackService);
 
+    // Every look of a single kind is drawn in the table's scene; a run of stages is still drawn over it.
     preset = new EffectPreset();
     preset.kind = 'frost';
+    preset.stages = JSON.stringify([{ role: 'impact', kind: 'frost', durationMs: 5000 }]);
     preset.durationMs = 5000;
     preset.staggerMs = 0;
     ObjectStore.instance.add(preset, false);
@@ -125,6 +127,7 @@ describe('TableEffectOverlayComponent', () => {
 
   it('leaves a look drawn in the table scene itself to the scene, and draws nothing of it over the table', () => {
     preset.kind = 'burst';
+    preset.stages = '';
     playback.play({
       presetIdentifier: preset.identifier,
       targets: [{ identifier: 'char', x: 100, y: 200, z: 0 }],

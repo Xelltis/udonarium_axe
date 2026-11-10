@@ -5,7 +5,7 @@ import {
   type Staged,
   within,
 } from '@axe/domain/effect/scene/choreography';
-import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
+import { isFiery, mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { ThrownMote } from '@axe/domain/effect/scene/effect-sim';
 import {
   type Cloud,
@@ -59,7 +59,7 @@ function drawBreath(stage: Stage): Staged {
   const fails = duration * FAILS_AT;
   const forward = cell * 0.4;
   const thrown = keptFor(thrownByStage, `${stageKey(stage, ends)}|${mouth.x}|${mouth.y}|${mouth.z}`, () =>
-    throwBreath(throwerFor(stage, ends), mouth, struck, floor, fails)
+    throwBreath(throwerFor(stage, ends), mouth, struck, floor, fails, isFiery(stage.preset.colorSecondary), ramp)
   );
   const breathing = Math.min(within(t, 0, 0.08), 1 - within(t, fails - 0.1, fails));
   const burning = Math.min(
@@ -103,7 +103,15 @@ function drawBreath(stage: Stage): Staged {
 }
 
 /** Throws the breath from its first burst to its failing: the stream from the mouth, the fire licking over the floor at the target, and its smoke. */
-function throwBreath(th: Thrower, mouth: Point, struck: Point, floor: Point, fails: number): FireThrow {
+function throwBreath(
+  th: Thrower,
+  mouth: Point,
+  struck: Point,
+  floor: Point,
+  fails: number,
+  fiery: boolean,
+  ramp: readonly string[]
+): FireThrow {
   const U = th.cell;
   const fire: FireBall[] = [];
   const clouds: Cloud[] = [];
@@ -126,7 +134,8 @@ function throwBreath(th: Thrower, mouth: Point, struck: Point, floor: Point, fai
     const spread = th.range(-0.3, 0.3);
     const rise = th.range(-0.15, 0.25);
     const fast = speed * th.range(0.92, 1.08);
-    const smokes = th.chance(0.35);
+    // A breath of anything but fire leaves no smoke.
+    const smokes = fiery && th.chance(0.35);
     fire.push({
       mote: th.mote({
         x: mouth.x,
@@ -154,7 +163,7 @@ function throwBreath(th: Thrower, mouth: Point, struck: Point, floor: Point, fai
     const bornAt = born + th.range(0, 0.04);
     const out = th.outward();
     const fast = th.range(1.2, 2.8) * U;
-    const smokes = th.chance(0.4);
+    const smokes = fiery && th.chance(0.4);
     fire.push({
       mote: th.mote({
         x: floor.x + out.cos * th.range(0, 0.3) * U,
@@ -193,8 +202,8 @@ function throwBreath(th: Thrower, mouth: Point, struck: Point, floor: Point, fai
         bounce: 0,
       }),
       size: th.range(0.6, 0.95),
-      color: SMOKE,
-      alpha: 0.6,
+      color: fiery ? SMOKE : mixColor(ramp[4], '#ffffff', 0.4),
+      alpha: fiery ? 0.6 : 0.35,
     });
   }
   // Embers carried along the stream and up off the fire.
