@@ -330,6 +330,7 @@ describe('BattleCutInOverlayComponent', () => {
       });
       vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
       vi.spyOn(performance, 'now').mockReturnValue(1000);
+      now = 1000;
       shown = new Map();
       drawsOverPage = true;
       motion.set(true);
@@ -346,9 +347,21 @@ describe('BattleCutInOverlayComponent', () => {
       return fixture.componentInstance;
     }
 
-    /** Runs every frame asked for so far, at a time past the start of the stage. */
+    let now: number;
+
+    /** Runs the frames of the stage one after another, as a page drawing smoothly does, up to a time past its start. */
     function runFramesAt(elapsedMs: number): void {
-      for (const frame of frames.splice(0)) frame(1000 + elapsedMs);
+      while (now < 1000 + elapsedMs) {
+        now = Math.min(now + 16, 1000 + elapsedMs);
+        for (const frame of frames.splice(0)) frame(now);
+      }
+      fixture.detectChanges();
+    }
+
+    /** Runs the next frame of the stage only after the page has stood still for a while. */
+    function runFrameAfterWait(waitMs: number): void {
+      now += waitMs;
+      for (const frame of frames.splice(0)) frame(now);
       fixture.detectChanges();
     }
 
@@ -399,6 +412,21 @@ describe('BattleCutInOverlayComponent', () => {
       } finally {
         ImageStorage.instance.delete('falling-goblin');
       }
+    });
+
+    it('stands still while the page does, so that the blow and the numbers it pops up are not passed over', async () => {
+      const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
+      const timeline = stage.timeline()!;
+      runFramesAt(timeline.impact - 100);
+
+      runFrameAfterWait(3000);
+      const struckPops = () => stage.pops().filter((pop) => !pop.small);
+      expect(stage.elapsed()).toBeLessThan(timeline.impact);
+      expect(struckPops()).toEqual([]);
+      runFramesAt(timeline.impact + 3000 - 100 + 200);
+
+      expect(stage.elapsed()).toBeGreaterThan(timeline.impact);
+      expect(struckPops()).toHaveLength(1);
     });
 
     it('plays on where the browser cannot make the canvases, the blow going undrawn', async () => {

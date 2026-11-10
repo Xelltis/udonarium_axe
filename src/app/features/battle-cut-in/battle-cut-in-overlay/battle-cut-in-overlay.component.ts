@@ -24,6 +24,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { HeldClock } from '@axe/core/util/held-clock';
 import { observeSize } from '@axe/core/util/observe-size';
 import { BattleSide, oppositeBattleSide } from '@axe/domain/battle/battle-lineup';
 import { battleChangeLabel, BattleFighter, battleGaugeChanges } from '@axe/domain/battle/battle-scene';
@@ -122,6 +123,12 @@ function onStage(preset: EffectPreset): EffectPreset {
   const larger = Object.create(preset) as EffectPreset;
   Object.defineProperty(larger, 'sizeScale', { value: preset.sizeScale * STAGE_CUT_SCALE });
   return larger;
+}
+
+/** A sound the stage plays, and the moment of the stage it is heard at, in milliseconds. */
+interface BattleSound {
+  readonly at: number;
+  readonly identifier: string;
 }
 
 /** One effect playing on the stage, with how it is drawn. */
@@ -674,7 +681,24 @@ export class BattleCutInOverlayComponent {
       if (this.serial() === 0) return;
       const timeline = untracked(this.timeline);
       if (!timeline) return;
-      const timers = this.scheduleSounds(timeline);
+      const sounds = this.soundsOf(timeline);
+      const played = new Set<BattleSound>();
+      let timers: ReturnType<typeof setTimeout>[] = [];
+      const playSoundsFrom = (elapsed: number) => {
+        timers.forEach((timer) => clearTimeout(timer));
+        timers = sounds
+          .filter((sound) => !played.has(sound))
+          .map((sound) =>
+            setTimeout(
+              () => {
+                played.add(sound);
+                SoundEffect.playLocal(sound.identifier, VolumeType.EFFECT);
+              },
+              Math.max(0, sound.at - elapsed)
+            )
+          );
+      };
+      playSoundsFrom(0);
       onCleanup(() => timers.forEach((timer) => clearTimeout(timer)));
 
       if (this.still() || typeof requestAnimationFrame !== 'function') {
@@ -682,10 +706,16 @@ export class BattleCutInOverlayComponent {
         onCleanup(() => clearTimeout(timer));
         return;
       }
-      const startedAt = performance.now();
+      const clock = new HeldClock(performance.now());
+      const leaving = () => {
+        if (document.hidden) clock.leftView();
+      };
+      document.addEventListener('visibilitychange', leaving);
+      onCleanup(() => document.removeEventListener('visibilitychange', leaving));
       let handle = 0;
       const tick = (now: number) => {
-        const elapsed = now - startedAt;
+        const { elapsed, held } = clock.read(now);
+        if (held) playSoundsFrom(elapsed);
         this.clock.set(elapsed);
         if (elapsed >= timeline.end) {
           this.state.next();
@@ -792,11 +822,12 @@ export class BattleCutInOverlayComponent {
    * they fall, and the sounds of going down. With motion off only the landing and the going down
    * sound, at once, with the still.
    */
-  private scheduleSounds(timeline: BattleTimeline): ReturnType<typeof setTimeout>[] {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const at = (delay: number, identifier: string) => {
+  /** The sounds the stage plays, each at the moment of the stage it is heard at. */
+  private soundsOf(timeline: BattleTimeline): BattleSound[] {
+    const sounds: BattleSound[] = [];
+    const at = (moment: number, identifier: string) => {
       if (identifier.length < 1) return;
-      timers.push(setTimeout(() => SoundEffect.playLocal(identifier, VolumeType.EFFECT), Math.max(0, delay)));
+      sounds.push({ at: moment, identifier });
     };
     const blow = untracked(this.blow);
     const defeat = untracked(this.defeatEffect);
@@ -805,7 +836,7 @@ export class BattleCutInOverlayComponent {
     if (this.still()) {
       if (blow) at(0, blow.impactSoundIdentifier || blow.soundIdentifier);
       if (defeat && someoneFalls) at(0, defeat.soundIdentifier);
-      return timers;
+      return sounds;
     }
 
     at(0, PresetSound.windSmall);
@@ -819,7 +850,7 @@ export class BattleCutInOverlayComponent {
       for (const delay of launchSoundTimes(defeat)) at(timeline.defeatStart + delay, defeat.soundIdentifier);
       for (const delay of impactSoundTimes(defeat)) at(timeline.defeatStart + delay, defeat.impactSoundIdentifier);
     }
-    return timers;
+    return sounds;
   }
 
   private viewOf(
