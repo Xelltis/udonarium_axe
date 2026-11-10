@@ -43,6 +43,10 @@ const TAIL = 1.6;
 const STROKE_S = 0.32;
 /** How long the arc a stroke leaves takes to fade, as a share of the stroke. */
 const FADES = 0.6;
+/** How long a drawing cut lasts from its instant, in seconds, and how many lines race along it and glints it leaves. */
+const IAI_LASTS_S = 1;
+const IAI_SPEED_LINES = 14;
+const IAI_GLINTS = 9;
 /** How far a drawing cut's wound opens after the line, in seconds. */
 const WOUND_OPENS_S = 0.16;
 
@@ -79,7 +83,8 @@ function drawSlash(stage: Stage): Staged {
     return {
       sparks: hits.map((hit) => {
         const at = (hit.at + hit.span * CROSSES_AT) * duration + (style === 'iai' ? WOUND_OPENS_S : 0);
-        return thrownSparks(th, chest, th.count(hits.length > 1 ? 10 : 20), [3.5, 9], [at, at + 0.02]);
+        const count = style === 'iai' ? 40 : hits.length > 1 ? 10 : 20;
+        return thrownSparks(th, chest, th.count(count), style === 'iai' ? [5, 13] : [3.5, 9], [at, at + 0.02]);
       }),
       dust: style === 'heavy' || style === 'wide' ? rollingDust(th, floor, th.count(10), [2, 5]) : [],
     };
@@ -99,7 +104,7 @@ function drawSlash(stage: Stage): Staged {
       y: chest.y + frame.across.y * hit.offsetX * cell,
       z: chest.z - hit.offsetY * cell,
     };
-    if (style === 'iai') drawDrawingCut(drawn, hit, centre, frame, cell, ramp, t - from, takes);
+    if (style === 'iai') drawDrawingCut(drawn, hit, centre, frame, cell, ramp, t - from - takes * CROSSES_AT, forward);
     else drawStroke(drawn, hit, centre, frame, cell, ramp, local);
     // Where it crosses: light flashing in a cross and the sparks thrown off.
     const crossing = t - (from + takes * CROSSES_AT) - (style === 'iai' ? WOUND_OPENS_S : 0);
@@ -290,7 +295,7 @@ function drawStillness(
   forward: number
 ): void {
   const { cell } = stage;
-  const hold = within(stage.seconds, 0, hit.at * stage.duration);
+  const hold = within(stage.seconds, 0, stage.blowsAt[0] ?? hit.at * stage.duration);
   if (hold <= 0 || hold >= 1) return;
   const half = cell * (0.3 + hold * 0.9);
   const travel = { x: frame.across.x, y: frame.across.y, z: Math.sin((-hit.angle * Math.PI) / 180) };
@@ -310,8 +315,10 @@ function drawStillness(
 }
 
 /**
- * A drawing cut: the line drawn at once, long and thin and nearly level, held an instant and thinning
- * away; and after it the wound opening, a moment later, where the sparks fly.
+ * A drawing cut: an instant, held through the blow's stop. The line is drawn at once, long and thin
+ * and nearly level, white-hot, with a streak of light across the screen and lines racing along it;
+ * it thins and leaves glints twinkling along where it was; a beat later the wound opens, the line
+ * flaring wide and parting as light bursts out of it.
  */
 function drawDrawingCut(
   drawn: Staged,
@@ -321,48 +328,118 @@ function drawDrawingCut(
   cell: number,
   ramp: readonly string[],
   since: number,
-  takes: number
+  forward: number
 ): void {
-  if (since < 0) return;
-  const lasts = takes + 0.35;
-  const left = 1 - since / lasts;
-  if (left <= 0) return;
-  const half = (hit.reach / 2) * cell;
+  if (since < 0 || since > IAI_LASTS_S) return;
+  const half = (hit.reach / 2) * cell * 1.3;
   const angle = (hit.angle * Math.PI) / 180;
   const travel = { x: frame.across.x * Math.cos(angle), y: frame.across.y * Math.cos(angle), z: -Math.sin(angle) };
-  const drawnOut = Math.min(1, since / Math.max(takes * 0.3, 0.02));
-  const points = Array.from({ length: 9 }, (_unused, index) => {
-    const share = (index / 8) * 2 - 1;
-    const reach = share * half * drawnOut;
-    return { x: centre.x + travel.x * reach, y: centre.y + travel.y * reach, z: centre.z + travel.z * reach };
+  const lineAt = (share: number, apart = 0): Point => ({
+    x: centre.x + travel.x * share * half + frame.toward.x * apart,
+    y: centre.y + travel.y * share * half + frame.toward.y * apart,
+    z: centre.z + travel.z * share * half + apart * 0.6,
   });
-  const across = points.map((_point, index) => Math.sin((index / 8) * Math.PI));
-  drawn.ribbons.push({
-    points,
-    widths: across.map((share) => cell * 0.12 * share * left),
-    color: ramp[3],
-    core: '#ffffff',
-    alpha: left,
-    blend: 'color',
-  });
-  drawn.ribbons.push({
-    points,
-    widths: across.map((share) => cell * 0.4 * share * left),
-    color: ramp[2],
-    alpha: 0.5 * left,
-    blend: 'light',
-  });
-  // The wound opening after the line: a brief burst of light along it.
-  const wound = (since - WOUND_OPENS_S) / 0.25;
-  if (wound > 0 && wound < 1) {
+  const steps = 12;
+  const shares = Array.from({ length: steps + 1 }, (_unused, index) => (index / steps) * 2 - 1);
+  const across = shares.map((share) => Math.pow(1 - Math.abs(share), 0.6));
+  const points = shares.map((share) => lineAt(share));
+
+  // The line: drawn at once and thinning away.
+  const thinning = within(since, 0.03, 0.45);
+  const line = Math.pow(1 - thinning, 0.7);
+  if (line > 0.01) {
+    const shock = within(since, 0, 0.16);
     drawn.ribbons.push({
       points,
-      widths: across.map((share) => cell * 0.28 * share * (1 - wound)),
-      color: ramp[4],
-      core: '#ffffff',
-      alpha: 1 - wound,
+      widths: across.map((width) => cell * 1.6 * width * (0.4 + shock)),
+      color: ramp[3],
+      alpha: 0.35 * (1 - shock),
       blend: 'light',
     });
+    drawn.ribbons.push({
+      points,
+      widths: across.map((width) => cell * 0.9 * width * line),
+      color: ramp[3],
+      core: ramp[5],
+      alpha: 0.6 * line,
+      blend: 'light',
+    });
+    drawn.ribbons.push({
+      points,
+      widths: across.map((width) => cell * 0.2 * width * line),
+      color: ramp[1],
+      alpha: line,
+      blend: 'color',
+    });
+    drawn.ribbons.push({
+      points,
+      widths: across.map((width) => cell * 0.13 * width * line),
+      color: ramp[4],
+      core: '#ffffff',
+      alpha: line,
+      blend: 'color',
+    });
+  }
+  // The instant: a streak of light across the screen, and lines racing along the cut.
+  const instant = within(since, 0, 0.22);
+  if (instant < 1) {
+    drawn.motes.push({
+      ...glow(centre, cell * 0.7, '#ffffff', 1 - instant, forward * 1.6),
+      shape: 'flare',
+      trail: 18 - instant * 12,
+    });
+    drawn.motes.push(glow(centre, cell * 1.4, ramp[5], 0.7 * (1 - instant), forward * 1.5));
+    drawn.lights.push({ ...centre, color: '#ffffff', strength: 1.8 * (1 - instant), reachPx: cell * 3 });
+    for (let index = 0; index < IAI_SPEED_LINES; index++) {
+      const side = index % 2 === 0 ? 1 : -1;
+      const apart = side * cell * (0.25 + ((index * 37) % 10) / 14);
+      const from = ((index * 53) % 20) / 10 - 1.4;
+      const at = lineAt(from + instant * 1.8, apart);
+      const speed = cell * 14;
+      drawn.motes.push({
+        ...glow(at, cell * 0.035, ramp[5], 1 - instant, forward),
+        shape: 'spark',
+        velocity: { x: travel.x * speed, y: travel.y * speed, z: travel.z * speed },
+        trail: 0.05,
+      });
+    }
+  }
+  // Glints left twinkling along where the line was.
+  const glinting = within(since, 0.1, 0.9);
+  if (glinting > 0 && glinting < 1) {
+    for (let index = 0; index < IAI_GLINTS; index++) {
+      const share = ((index * 7) % IAI_GLINTS) / (IAI_GLINTS - 1) - 0.5;
+      const twinkle = Math.abs(Math.sin(since * 22 + index * 1.9));
+      drawn.motes.push({
+        ...glow(lineAt(share * 1.6), cell * 0.3, ramp[5], (1 - glinting) * twinkle, forward),
+        shape: 'star',
+        spin: index,
+      });
+    }
+  }
+  // The wound opening a beat after: the line flaring wide and parting as light bursts out of it.
+  const wound = within(since, WOUND_OPENS_S, WOUND_OPENS_S + 0.35);
+  if (wound > 0 && wound < 1) {
+    const flare = Math.pow(1 - wound, 1.5);
+    drawn.ribbons.push({
+      points,
+      widths: across.map((width) => cell * 0.9 * width * (0.5 + wound)),
+      color: ramp[4],
+      core: '#ffffff',
+      alpha: flare,
+      blend: 'light',
+    });
+    const parting = cell * 0.14 * wound;
+    for (const side of [-1, 1]) {
+      drawn.ribbons.push({
+        points: shares.map((share) => lineAt(share * 0.8, side * parting)),
+        widths: across.map((width) => cell * 0.07 * width),
+        color: ramp[5],
+        core: '#ffffff',
+        alpha: flare,
+        blend: 'color',
+      });
+    }
   }
 }
 
