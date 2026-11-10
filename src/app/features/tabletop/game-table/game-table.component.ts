@@ -35,6 +35,7 @@ import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { PiecePartPickService } from '@axe/application/tabletop/piece-part-pick.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
@@ -268,6 +269,7 @@ export class GameTableComponent {
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChangeService = inject(ObjectChangeService);
   private readonly pieceLinks = inject(PieceLinksService);
+  private readonly partPick = inject(PiecePartPickService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly appRef = inject(ApplicationRef);
   private readonly t = inject(TRANSLATE_FN);
@@ -475,7 +477,13 @@ export class GameTableComponent {
           this.diceRender,
           this.tabletopService,
           (view) => this.gestureService.moveTo(view),
-          () => this.appRef.tick()
+          () => this.appRef.tick(),
+          (identifier, pageX, pageY) => {
+            const body = this.objectStore.get<GameCharacter>(identifier);
+            return body instanceof GameCharacter
+              ? (this.partPick.partAt(body, pageX, pageY)?.identifier ?? null)
+              : null;
+          }
         )
       );
       this.syncMode2d();

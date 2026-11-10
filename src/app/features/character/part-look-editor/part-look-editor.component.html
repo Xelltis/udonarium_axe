@@ -17,7 +17,7 @@
   </div>
 
   <div class="border-ui-border-panel flex w-max rounded-full border border-solid p-0.5" role="group">
-    @for (each of ['layer', 'paint']; track each) {
+    @for (each of modes(); track each) {
       <button
         type="button"
         class="rounded-full border-none px-3 py-0.5"
@@ -26,7 +26,7 @@
         [class.bg-transparent]="mode() !== each"
         [attr.aria-pressed]="mode() === each"
         [attr.data-testid]="'part-look-mode-' + each"
-        (click)="setMode($any(each))"
+        (click)="setMode(each)"
       >
         {{ 'feature.ride.part.look.mode_' + each | transloco }}
       </button>
@@ -100,7 +100,12 @@
             {{ 'feature.ride.part.look.erase' | transloco }}
           </button>
         </div>
-        <button type="button" class="rounded-ui-sm px-2" data-testid="part-look-clear" (click)="clearMask()">
+        <button
+          type="button"
+          class="rounded-ui-sm px-2"
+          data-testid="part-look-clear"
+          (click)="mode() === 'faces' ? clearFaces() : clearMask()"
+        >
           {{ 'feature.ride.part.look.clearPaint' | transloco }}
         </button>
       }
@@ -108,7 +113,19 @@
     <p class="text-ui-dim m-0 leading-snug">{{ 'feature.ride.part.look.hint_' + mode() | transloco }}</p>
   }
 
-  @if (bodyUrl()) {
+  @if (mode() === 'faces' && modelUrl()) {
+    <canvas
+      #model
+      class="block aspect-square w-full touch-none"
+      data-testid="part-look-model"
+      [class.cursor-crosshair]="canEdit()"
+      (pointerdown)="pressModel($event)"
+      (pointermove)="moveModel($event)"
+      (pointerup)="letGoOfModel()"
+      (pointercancel)="letGoOfModel()"
+      (contextmenu)="$event.preventDefault()"
+    ></canvas>
+  } @else if (bodyUrl()) {
     <div #stage class="relative isolate w-full select-none" data-testid="part-look-stage">
       <img class="relative z-0 block h-auto w-full" alt="" draggable="false" [src]="bodyUrl() | safe: 'resourceUrl'" />
       @for (one of layers(); track one.part.id) {

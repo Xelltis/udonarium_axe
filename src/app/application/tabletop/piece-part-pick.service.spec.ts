@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { PiecePartPickService } from '@axe/application/tabletop/piece-part-pick.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -71,6 +72,19 @@ describe('PiecePartPickService', () => {
 
     head.downed = '1';
     pressing(dragon.identifier, 1, 0.5, 0.2);
+    expect(service.partAt(dragon, 0, 0)).toBeNull();
+  });
+
+  it('finds the part a press on the body’s model lands on by the face it lands on, and none lost', () => {
+    head.partFaces = '0:5-9;2:1';
+    const face = vi.spyOn(TestBed.inject(Table3dService), 'modelFaceAt');
+
+    face.mockReturnValue({ owner: dragon.identifier, mesh: 0, triangle: 7 });
+    expect(service.partAt(dragon, 0, 0)).toBe(head);
+    face.mockReturnValue({ owner: dragon.identifier, mesh: 2, triangle: 3 });
+    expect(service.partAt(dragon, 0, 0)).toBeNull();
+    head.downed = '1';
+    face.mockReturnValue({ owner: dragon.identifier, mesh: 0, triangle: 7 });
     expect(service.partAt(dragon, 0, 0)).toBeNull();
   });
 });

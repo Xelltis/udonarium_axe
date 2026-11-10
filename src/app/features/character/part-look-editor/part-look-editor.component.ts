@@ -3,15 +3,19 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   type ElementRef,
   inject,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
+import { MODEL_VIEWER_LOADER } from '@axe/application/media/model-viewer-loader';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -19,18 +23,26 @@ import {
   DEFAULT_PART_LAYER,
   emptyPartMask,
   paintPartMask,
+  type PartFaces,
+  partFacesOf,
   type PartLayer,
   partLayerOf,
   type PartMask,
   partMaskOf,
+  writePartFaces,
   writePartLayer,
   writePartMask,
 } from '@axe/domain/character/part-look';
+import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
+import type { ModelStage } from '@axe/infrastructure/model-viewer/model-viewer-port';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
-/** How a part is worked on: its own picture laid over the body's, or its piece of the body's picture painted. */
-export type PartLookMode = 'layer' | 'paint';
+/**
+ * How a part is worked on: its own picture laid over the body's, its piece of the body's picture
+ * painted, or the faces of the body's model it stands for painted.
+ */
+export type PartLookMode = 'layer' | 'paint' | 'faces';
 
 /** How wide a brush may be, as a share of the body's picture. */
 export const BRUSH_WIDTH_RANGE = { min: 0.02, max: 0.5 } as const;
@@ -42,6 +54,7 @@ interface EditedPart {
   readonly url: string;
   readonly layer: PartLayer | null;
   readonly mask: PartMask | null;
+  readonly faces: PartFaces;
 }
 
 /**
@@ -63,6 +76,8 @@ export class PartLookEditorComponent {
   private readonly links = inject(PieceLinksService);
   private readonly images = inject(ImageService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly tablePieces = inject(TablePiecesService);
+  private readonly loadViewer = inject(MODEL_VIEWER_LOADER);
 
   /** The body whose parts are worked on, and the part chosen of them. */
   readonly bodyIdentifier = signal('');
@@ -91,6 +106,19 @@ export class PartLookEditorComponent {
     return body ? this.images.getEmptyOr(body.imageFile).url : '';
   });
 
+  /** The URL of the body's model, where it is drawn as one and the model is read; empty otherwise. */
+  protected readonly modelUrl = computed(() => {
+    const body = this.body();
+    this.objectChange.fileVersion();
+    const model = body ? pieceModelOf(body) : null;
+    return model ? this.tablePieces.modelUrlOf(model.identifier) : '';
+  });
+
+  /** The ways the parts may be worked on: the body's model's faces as well, where it is drawn as one. */
+  protected readonly modes = computed<PartLookMode[]>(() =>
+    this.modelUrl() ? ['layer', 'paint', 'faces'] : ['layer', 'paint']
+  );
+
   protected readonly parts = computed<EditedPart[]>(() => {
     const body = this.body();
     if (!body) return [];
@@ -105,6 +133,7 @@ export class PartLookEditorComponent {
       url: this.images.getEmptyOr(part.imageFile).url,
       layer: partLayerOf(part.partLayer),
       mask: partMaskOf(part.partMask),
+      faces: partFacesOf(part.partFaces),
     }));
   });
 
@@ -127,11 +156,112 @@ export class PartLookEditorComponent {
 
   private readonly stage = viewChild<ElementRef<HTMLElement>>('stage');
   private readonly paintCanvas = viewChild<ElementRef<HTMLCanvasElement>>('paint');
+  private readonly modelCanvas = viewChild<ElementRef<HTMLCanvasElement>>('model');
   private dragging: { from: { x: number; y: number }; layer: PartLayer } | null = null;
   private painting = false;
+  /** The stage the body's model is shown on to paint its faces, and the faces being painted. */
+  private readonly modelStage = signal<ModelStage | null>(null);
+  private readonly draftFaces = signal<Map<number, Set<number>> | null>(null);
+  private turningFrom: { x: number; y: number } | null = null;
 
   constructor() {
     afterRenderEffect(() => this.drawMasks());
+    afterRenderEffect(() => this.followModel());
+    afterRenderEffect(() => this.showModelFaces());
+    inject(DestroyRef).onDestroy(() => untracked(this.modelStage)?.dispose());
+  }
+
+  /** Starts the stage the body's model is painted on as its canvas comes, and lets it go as it goes. */
+  private followModel(): void {
+    const canvas = this.modelCanvas()?.nativeElement ?? null;
+    const url = this.modelUrl();
+    const stage = untracked(this.modelStage);
+    if (!canvas || !url) {
+      if (stage) {
+        stage.dispose();
+        this.modelStage.set(null);
+      }
+      return;
+    }
+    if (stage) return;
+    void this.loadViewer().then((viewer) => {
+      if (untracked(this.modelStage) || this.modelCanvas()?.nativeElement !== canvas) return;
+      const made = viewer?.createModelStage(canvas) ?? null;
+      if (!made) return;
+      made.setTurning(false);
+      void made.show(url).then(() => this.modelStage.set(made));
+    });
+  }
+
+  /** Shows the faces painted on the body's model: the chosen part's strongly, the others' faintly. */
+  private showModelFaces(): void {
+    const stage = this.modelStage();
+    if (!stage) return;
+    const chosen = this.chosen();
+    stage.showFaces(
+      this.draftFaces() ?? chosen?.faces ?? new Map(),
+      this.parts()
+        .filter((part) => part.id !== chosen?.id)
+        .map((part) => part.faces)
+    );
+  }
+
+  protected pressModel(event: PointerEvent): void {
+    (event.target as Element).setPointerCapture?.(event.pointerId);
+    if (event.button !== 0) {
+      event.preventDefault();
+      this.turningFrom = { x: event.clientX, y: event.clientY };
+      return;
+    }
+    if (!this.canEdit() || !this.chosen()) return;
+    this.painting = true;
+    this.draftFaces.set(new Map([...this.chosen()!.faces].map(([mesh, triangles]) => [mesh, new Set(triangles)])));
+    this.paintModelAt(event);
+  }
+
+  protected moveModel(event: PointerEvent): void {
+    if (this.turningFrom) {
+      this.modelStage()?.turnBy(event.clientX - this.turningFrom.x, event.clientY - this.turningFrom.y);
+      this.turningFrom = { x: event.clientX, y: event.clientY };
+      return;
+    }
+    if (this.painting) this.paintModelAt(event);
+  }
+
+  protected letGoOfModel(): void {
+    this.turningFrom = null;
+    if (!this.painting) return;
+    this.painting = false;
+    const draft = this.draftFaces();
+    this.draftFaces.set(null);
+    const part = this.chosenPiece();
+    if (draft && part) part.partFaces = writePartFaces(draft);
+  }
+
+  protected clearFaces(): void {
+    const part = this.chosenPiece();
+    if (part) part.partFaces = '';
+  }
+
+  private paintModelAt(event: PointerEvent): void {
+    const stage = this.modelStage();
+    const draft = this.draftFaces();
+    const canvas = this.modelCanvas()?.nativeElement;
+    if (!stage || !draft || !canvas) return;
+    const box = canvas.getBoundingClientRect();
+    const near = stage.facesNear(event.clientX - box.left, event.clientY - box.top, this.brushWidth());
+    if (near.size < 1) return;
+    const next = new Map([...draft].map(([mesh, triangles]) => [mesh, new Set(triangles)]));
+    for (const [mesh, triangles] of near) {
+      const set = next.get(mesh) ?? new Set<number>();
+      for (const triangle of triangles) {
+        if (this.erasing()) set.delete(triangle);
+        else set.add(triangle);
+      }
+      if (set.size > 0) next.set(mesh, set);
+      else next.delete(mesh);
+    }
+    this.draftFaces.set(next);
   }
 
   protected choose(id: string): void {

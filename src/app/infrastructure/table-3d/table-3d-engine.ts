@@ -93,9 +93,11 @@ import {
   MeshBasicNodeMaterial,
   MeshLambertNodeMaterial,
   type Node,
+  type Object3D,
   OrthographicCamera,
   PerspectiveCamera,
   PointLight,
+  Raycaster,
   RepeatWrapping,
   Scene,
   SRGBColorSpace,
@@ -555,6 +557,22 @@ class ThreeTableEngine implements Table3dEngine {
 
   isLoading(): boolean {
     return this.loading > 0 || this.shadowTimer !== null || this.models.isLoading || this.readying !== null;
+  }
+
+  modelFaceAt(pageX: number, pageY: number): { owner: string; mesh: number; triangle: number } | null {
+    const box = this.renderer.domElement.getBoundingClientRect();
+    if (!(box.width > 0) || !(box.height > 0)) return null;
+    const ndc = new Vector2(((pageX - box.left) / box.width) * 2 - 1, -((pageY - box.top) / box.height) * 2 + 1);
+    const ray = new Raycaster();
+    ray.setFromCamera(ndc, this.camera);
+    for (const hit of ray.intersectObject(this.models.group, true)) {
+      const mesh = hit.object.userData['partMesh'];
+      if (typeof mesh !== 'number' || hit.faceIndex === undefined || hit.faceIndex === null) continue;
+      let at: Object3D | null = hit.object;
+      while (at && typeof at.userData['owner'] !== 'string') at = at.parent;
+      if (at) return { owner: at.userData['owner'] as string, mesh, triangle: hit.faceIndex };
+    }
+    return null;
   }
 
   heldMs(): number {

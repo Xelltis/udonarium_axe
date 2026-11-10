@@ -1,6 +1,16 @@
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import { ModelLayer, partPlacementsOf, placementOf } from '@axe/infrastructure/table-3d/model-layer';
-import { AnimationClip, Group, Matrix4, Mesh, Vector3, type WebGPURenderer } from 'three/webgpu';
+import { meshesOf, triangleCountOf } from '@axe/infrastructure/three-kit/model-faces';
+import {
+  AnimationClip,
+  BufferAttribute,
+  BufferGeometry,
+  Group,
+  Matrix4,
+  Mesh,
+  Vector3,
+  type WebGPURenderer,
+} from 'three/webgpu';
 
 /** A model one unit across and two tall, as it was made. */
 const MADE = { size: new Vector3(1, 2, 1) };
@@ -280,5 +290,37 @@ describe('ModelLayer', () => {
 
     layer.set([knight({ model: { ...running, idle: '' }, walking: false })]);
     expect(layer.motionOf('knight')).toBe('Idle');
+  });
+
+  it('stands a model a part is painted over as a copy of its own, leaving out the faces of the lost parts', () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const shape = new BufferGeometry();
+    shape.setAttribute('position', new BufferAttribute(new Float32Array(4 * 9), 3));
+    shape.setIndex([...Array(12).keys()]);
+    const scene = new Group();
+    scene.add(new Mesh(shape));
+    (layer as unknown as { loaded: Map<string, unknown> }).loaded.set('blob:knight', {
+      gltf: { scene, animations: [] },
+      size: new Vector3(1, 2, 1),
+      foot: new Vector3(0, 0, 0),
+      animated: false,
+    });
+    const stood = () => (layer as unknown as { stood: Map<string, { root: Group }> }).stood.get('knight')?.root;
+    const triangles = () => meshesOf(stood()!).map((mesh) => triangleCountOf(mesh.geometry));
+
+    layer.set([knight({ ownCopy: true })]);
+    expect(triangles()).toEqual([4]);
+    expect(stood()!.userData['owner']).toBe('knight');
+
+    layer.set([knight({ ownCopy: true, cutFaces: '0:1-2' })]);
+    expect(triangles()).toEqual([2]);
+    expect(triangleCountOf(shape)).toBe(4);
+
+    layer.set([knight({ ownCopy: true })]);
+    expect(triangles()).toEqual([4]);
   });
 });

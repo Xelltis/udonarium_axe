@@ -11,6 +11,17 @@ export interface ModelStage {
   setTurning(on: boolean): void;
   /** Fits the drawing to the canvas as it is laid out now. */
   resize(): void;
+  /**
+   * The faces of the model a round brush covers, laid where a point of the canvas lands on the model
+   * and as wide across as the share of the model given: for each mesh, by its order in the model, its
+   * triangles by their order in the mesh. Empty where the point lands on none of the model.
+   */
+  facesNear(canvasX: number, canvasY: number, widthShare: number): ReadonlyMap<number, readonly number[]>;
+  /** Shows faces of the model painted over it: one set strongly, the others faintly. */
+  showFaces(
+    chosen: ReadonlyMap<number, ReadonlySet<number>>,
+    others: readonly ReadonlyMap<number, ReadonlySet<number>>[]
+  ): void;
   dispose(): void;
 }
 

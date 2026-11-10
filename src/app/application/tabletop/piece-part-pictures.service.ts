@@ -4,7 +4,16 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { isPartLost, type PartLayer, partLayerOf, type PartMask, partMaskOf } from '@axe/domain/character/part-look';
+import {
+  isPartLost,
+  joinedPartFaces,
+  partFacesOf,
+  type PartLayer,
+  partLayerOf,
+  type PartMask,
+  partMaskOf,
+  writePartFaces,
+} from '@axe/domain/character/part-look';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
 
 /** A picture drawn for a piece, and how large it is. */
@@ -29,6 +38,12 @@ export interface PartLookToDraw {
 export const PART_PICTURE_DRAWER = new InjectionToken<
   (own: string, looks: readonly PartLookToDraw[]) => Promise<PartPicture | null>
 >('PART_PICTURE_DRAWER', { providedIn: 'root', factory: () => drawWithParts });
+
+/** What a body's parts stand for of its model; see `PiecePartPicturesService.modelFacesOf`. */
+export interface PartModelFaces {
+  readonly painted: boolean;
+  readonly cut: string;
+}
 
 /** The longest side a body's picture is drawn at with its parts, in pixels, however large its own. */
 const LONGEST_SIDE_PX = 1024;
@@ -128,6 +143,38 @@ export class PiecePartPicturesService {
       this.keys.set(body.identifier, key);
     }
     return key;
+  }
+
+  private readonly faces = new Map<string, Signal<PartModelFaces>>();
+
+  /**
+   * What a piece's parts stand for of its model: whether any part is painted over it, which has it
+   * drawn as a copy of its own to be picked by its faces, and the faces of the lost parts, written as
+   * `writePartFaces` writes them, which the copy leaves out. Follows the parts as `pictureOf` does.
+   */
+  modelFacesOf(body: GameCharacter): PartModelFaces {
+    let faces = this.faces.get(body.identifier);
+    if (!faces) {
+      faces = computed(
+        () => {
+          this.objectChange.collectionOf('character')();
+          for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+            this.objectChange.versionOf(piece.identifier)();
+          }
+          const parts = this.links
+            .partsOf(body)
+            .map((part) => ({ faces: partFacesOf(part.partFaces), lost: this.lookOf(part).lost }))
+            .filter((part) => part.faces.size > 0);
+          return {
+            painted: parts.length > 0,
+            cut: writePartFaces(joinedPartFaces(parts.filter((part) => part.lost).map((part) => part.faces))),
+          };
+        },
+        { equal: (a, b) => a.painted === b.painted && a.cut === b.cut }
+      );
+      this.faces.set(body.identifier, faces);
+    }
+    return faces();
   }
 
   /** A piece's own picture, and the looks of the parts that lay anything over or cut anything out of it. */

@@ -15,6 +15,8 @@ describe('ModelStageComponent', () => {
       turnBy: () => {},
       setTurning: () => {},
       resize: () => {},
+      facesNear: () => new Map(),
+      showFaces: () => {},
       dispose: () => {},
     };
     TestBed.configureTestingModule({

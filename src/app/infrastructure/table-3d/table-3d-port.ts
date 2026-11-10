@@ -266,6 +266,12 @@ export interface Table3dEngine {
    * as on first drawing such a thing without readying it.
    */
   heldMs(): number;
+  /**
+   * The face a point of the page lands on first of the models drawn as copies of their own: the piece
+   * it is drawn for, the mesh by its order in the model and the triangle by its order in the mesh;
+   * null where it lands on none.
+   */
+  modelFaceAt(pageX: number, pageY: number): { owner: string; mesh: number; triangle: number } | null;
   /** Draws at once on the next frame what it holds back to draw a moment later, as the shadows of pieces that moved. */
   stopHoldingBack(): void;
   /**

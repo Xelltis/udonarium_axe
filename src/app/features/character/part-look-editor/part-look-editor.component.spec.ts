@@ -1,13 +1,18 @@
 import { TestBed } from '@angular/core/testing';
+import { MODEL_VIEWER_LOADER } from '@axe/application/media/model-viewer-loader';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { maskCovers, partLayerOf, partMaskOf, writePartLayer } from '@axe/domain/character/part-look';
+import { maskCovers, partFacesOf, partLayerOf, partMaskOf, writePartLayer } from '@axe/domain/character/part-look';
 import { PartLookEditorComponent } from '@axe/features/character/part-look-editor/part-look-editor.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+/** What the stage a body's model is painted on is made by, in each test. */
+let viewer: { createModelStage: () => unknown; createModelPainter: () => null } | null = null;
 
 describe('PartLookEditorComponent', () => {
   let dragon: GameCharacter;
@@ -35,7 +40,10 @@ describe('PartLookEditorComponent', () => {
   }
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [PartLookEditorComponent], providers: [...TEST_PROVIDERS] });
+    TestBed.configureTestingModule({
+      imports: [PartLookEditorComponent],
+      providers: [...TEST_PROVIDERS, { provide: MODEL_VIEWER_LOADER, useValue: async () => viewer }],
+    });
     vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
     dragon = GameCharacter.create('ドラゴン', 2, picture('dragon'));
     dragon.setLocation('table');
@@ -44,6 +52,7 @@ describe('PartLookEditorComponent', () => {
   });
 
   afterEach(() => {
+    viewer = null;
     vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
     for (const identifier of ['dragon', 'head', 'tail']) ImageStorage.instance.delete(identifier);
@@ -125,5 +134,59 @@ describe('PartLookEditorComponent', () => {
 
     root.querySelector<HTMLButtonElement>('[data-testid="part-look-clear"]')!.click();
     expect(head.partMask).toBe('');
+  });
+
+  describe('on a body drawn as a model', () => {
+    let shown: { chosen: ReadonlyMap<number, ReadonlySet<number>> }[];
+
+    beforeEach(() => {
+      shown = [];
+      const stage = {
+        show: async () => true,
+        turnBy: vi.fn(),
+        setTurning: vi.fn(),
+        resize: () => undefined,
+        facesNear: () =>
+          new Map([
+            [0, [3, 4]],
+            [1, [0]],
+          ]),
+        showFaces: (chosen: ReadonlyMap<number, ReadonlySet<number>>) => shown.push({ chosen }),
+        dispose: vi.fn(),
+      };
+      viewer = { createModelStage: () => stage, createModelPainter: () => null };
+      dragon.modelIdentifier = 'dragon-model';
+      vi.spyOn(TestBed.inject(TablePiecesService), 'modelUrlOf').mockReturnValue('blob:dragon-model');
+    });
+
+    it('offers to paint the model’s faces, painting them for the part chosen and wiping them off', async () => {
+      const { root, fixture } = open(head.identifier);
+      root.querySelector<HTMLButtonElement>('[data-testid="part-look-mode-faces"]')!.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      await new Promise((resolve) => setTimeout(resolve));
+      fixture.detectChanges();
+      const canvas = root.querySelector<HTMLCanvasElement>('[data-testid="part-look-model"]')!;
+
+      canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 5, clientY: 5 }));
+      canvas.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, clientX: 5, clientY: 5 }));
+      expect(partFacesOf(head.partFaces)).toEqual(
+        new Map([
+          [0, new Set([3, 4])],
+          [1, new Set([0])],
+        ])
+      );
+      expect(shown.length).toBeGreaterThan(0);
+
+      root.querySelector<HTMLButtonElement>('[data-testid="part-look-clear"]')!.click();
+      expect(head.partFaces).toBe('');
+    });
+
+    it('offers no model to paint for a body drawn as its picture', () => {
+      vi.spyOn(TestBed.inject(TablePiecesService), 'modelUrlOf').mockReturnValue('');
+      dragon.modelIdentifier = '';
+      const { root } = open();
+      expect(root.querySelector('[data-testid="part-look-mode-faces"]')).toBeNull();
+    });
   });
 });

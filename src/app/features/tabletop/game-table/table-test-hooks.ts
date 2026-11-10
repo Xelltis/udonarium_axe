@@ -126,6 +126,10 @@ export interface TableTestHooks {
   keepDiceResting(on: boolean): void;
   /** Whether the table holds dice and every one of them has come to rest. */
   diceResting(): boolean;
+  /** The face of a model drawn as a copy of its own a point of the page lands on first, or null. */
+  modelFaceAt(pageX: number, pageY: number): { owner: string; mesh: number; triangle: number } | null;
+  /** The part of a piece a press at a point of the page lands on, by its identifier, or null. */
+  partAt(identifier: string, pageX: number, pageY: number): string | null;
   /** Takes the first table's tutorial away, as its menu does, for a spec the tutorial would stand in the way of. Answers how many things went. */
   putAwayTutorial(): number;
   /**
@@ -176,7 +180,8 @@ export function installTableTestHooks(
   dice: DiceRenderService,
   tabletop: TabletopService,
   moveCamera: (view: TableCameraView) => void,
-  refresh: () => void
+  refresh: () => void,
+  partAt: (identifier: string, pageX: number, pageY: number) => string | null = () => null
 ): () => void {
   if (!win.navigator.webdriver) return () => undefined;
   const hooked = win as HookedWindow;
@@ -220,6 +225,8 @@ export function installTableTestHooks(
     sceneStats: () => scene.stats(),
     keepDiceResting: (on) => dice.keepResting(on),
     diceResting: () => dice.diceResting,
+    modelFaceAt: (pageX, pageY) => scene.modelFaceAt(pageX, pageY),
+    partAt,
     putAwayTutorial: () => putAwayTutorial(tabletop),
     lookFromNear: () => {
       const layout = camera.layout;

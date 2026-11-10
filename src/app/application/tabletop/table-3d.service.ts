@@ -531,6 +531,14 @@ export class Table3dService {
     return this.engine?.heldMs() ?? 0;
   }
 
+  /**
+   * The face of a model drawn as a copy of its own a point of the page lands on first, as the engine
+   * finds it; null where it lands on none, or before the engine has started.
+   */
+  modelFaceAt(pageX: number, pageY: number): { owner: string; mesh: number; triangle: number } | null {
+    return this.engine?.modelFaceAt(pageX, pageY) ?? null;
+  }
+
   /** Has the shaders of the dice of these materials built ahead, now or once the engine has started. */
   warmDice(materials: readonly DiceMaterial[]): void {
     const fresh = materials.filter((material) => !this.diceWarmed.has(material));

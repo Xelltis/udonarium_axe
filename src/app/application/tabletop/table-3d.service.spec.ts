@@ -215,6 +215,10 @@ class FakeEngine implements Table3dEngine {
     return this.held;
   }
 
+  modelFaceAt(): null {
+    return null;
+  }
+
   readiesFirst: boolean[] = [];
 
   readyBeforeDrawing(on: boolean): void {

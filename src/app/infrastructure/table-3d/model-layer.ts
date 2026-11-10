@@ -1,8 +1,10 @@
+import { partFacesOf } from '@axe/domain/character/part-look';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
 import { UnusedSince } from '@axe/infrastructure/table-3d/unused-since';
 import { disposeObject, forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
+import { cutGeometry, meshesOf } from '@axe/infrastructure/three-kit/model-faces';
 import { picturesOf, releaseReadPictures } from '@axe/infrastructure/three-kit/read-pictures';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
@@ -111,6 +113,8 @@ interface Herd {
 interface StoodModel {
   readonly owner: string;
   readonly url: string;
+  /** The faces the copy leaves out, as written on what it was laid for. */
+  readonly cut: string;
   readonly root: Group;
   readonly mixer: AnimationMixer;
   idle: AnimationAction | null;
@@ -246,7 +250,15 @@ export class ModelLayer {
   private lay(): void {
     const wanted = new Map(this.laid.map((model) => [model.owner, model]));
     for (const [owner, stood] of this.stood) {
-      if (wanted.get(owner)?.url === stood.url) continue;
+      const one = wanted.get(owner);
+      if (
+        one &&
+        one.url === stood.url &&
+        (one.cutFaces ?? '') === stood.cut &&
+        (one.ownCopy || this.loaded.get(one.url)?.animated)
+      ) {
+        continue;
+      }
       this.group.remove(stood.root);
       forgetDrawn(stood.root);
       stood.mixer.stopAllAction();
@@ -257,7 +269,7 @@ export class ModelLayer {
       const loaded = this.loaded.get(model.url);
       if (loaded === undefined) this.read(model.url);
       if (!loaded) continue;
-      if (loaded.animated) this.stand(model, loaded);
+      if (loaded.animated || model.ownCopy) this.stand(model, loaded);
       else flocks.set(model.url, [...(flocks.get(model.url) ?? []), model]);
     }
     for (const [url, herd] of this.herds) {
@@ -374,9 +386,17 @@ export class ModelLayer {
     const inner = cloneSkinned(loaded.gltf.scene) as Object3D;
     const root = new Group();
     root.add(inner);
+    root.userData['owner'] = model.owner;
+    const cut = partFacesOf(model.cutFaces ?? '');
+    meshesOf(inner).forEach((mesh, index) => {
+      mesh.userData['partMesh'] = index;
+      const triangles = cut.get(index);
+      if (triangles) mesh.geometry = cutGeometry(mesh.geometry, triangles);
+    });
     const stood: StoodModel = {
       owner: model.owner,
       url: model.url,
+      cut: model.cutFaces ?? '',
       root,
       mixer: new AnimationMixer(inner),
       idle: null,

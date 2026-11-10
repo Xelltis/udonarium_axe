@@ -271,10 +271,18 @@ export class TablePiecesService {
           pivotPx: size / 2,
           altitudePx: character.altitude * gridSize,
           walking: moving,
+          ...this.partFacesFor(character),
         },
       ];
     },
   });
+
+  /** What the parts of a piece stand for of its model, put on what the model is drawn with only where any is painted. */
+  private partFacesFor(character: GameCharacter): Pick<TableWorldModel, 'ownCopy' | 'cutFaces'> {
+    const faces = this.partPictures.modelFacesOf(character);
+    if (!faces.painted) return {};
+    return faces.cut ? { ownCopy: true, cutFaces: faces.cut } : { ownCopy: true };
+  }
 
   /** How big a cell of the table in view is, which most kinds of piece are drawn with alike. */
   private readonly gridLook = computed<GridLook>(() => ({ gridSize: this.tableShape().gridSize }), {

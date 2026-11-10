@@ -6008,6 +6008,7 @@
           "noParts": "No parts",
           "mode_layer": "Lay pictures over",
           "mode_paint": "Paint pieces",
+          "mode_faces": "Paint the model's faces",
           "size": "Size",
           "forward": "Forward",
           "back": "Back",
@@ -6018,7 +6019,8 @@
           "erase": "Erase",
           "clearPaint": "Erase all the paint",
           "hint_layer": "Drag the part's picture to where it goes. Once the part is beaten, its picture goes.",
-          "hint_paint": "Paint over the body's picture where the part is. Once the part is beaten, what is painted goes from the body's picture."
+          "hint_paint": "Paint over the body's picture where the part is. Once the part is beaten, what is painted goes from the body's picture.",
+          "hint_faces": "Paint over the model where the part is; a right-drag turns it. Once the part is beaten, its faces go."
         }
       }
     },
