@@ -22,15 +22,39 @@ const LOW_THRESHOLD = 0.25;
 /** What stands in for the numbers beside a bar nobody may read. */
 export const HIDDEN_GAUGE_NUMBERS = '???/???';
 
+/** The colour a bar kept from the reader stands in, full: how much is left is not to be told. */
+export const HIDDEN_GAUGE_COLOR = '#9e9e9e';
+
 /**
- * The numbers beside a bar, or marks where the piece is not the reader's to look at.
- *
- * The bar itself is left as it is. How full it stands can be guessed at from across the
- * table, and a bar that told nothing would not be worth drawing; what is kept back is the
- * reading of it, which is the part that can be written down and counted on.
+ * Whether a resource has run out: down to nothing, or for one that counts up to its end, at its
+ * maximum. A piece whose resource has run out is beaten, and what it held is no longer kept back.
  */
-export function gaugeNumbersOf(gauge: PieceGauge, readable: boolean): string {
-  return readable ? `${gauge.current}/${gauge.max}` : HIDDEN_GAUGE_NUMBERS;
+export function isGaugeSpent(current: number, max: number, inverted: boolean): boolean {
+  return inverted ? current >= max : current <= 0;
+}
+
+/**
+ * How a bar is drawn for a reader: how full it stands, its colour and the numbers beside it, as they
+ * are, or, for a piece whose contents are kept from the reader, full and grey with marks for the
+ * numbers until the resource runs out, so how much is left is not told by how long the bar is.
+ */
+export function shownGaugeReading(
+  current: number,
+  max: number,
+  inverted: boolean,
+  color: string,
+  readable: boolean
+): { readonly ratio: number; readonly color: string; readonly numbers: string } {
+  if (readable || isGaugeSpent(current, max, inverted)) {
+    return { ratio: gaugeRatio(current, max), color, numbers: `${current}/${max}` };
+  }
+  return { ratio: 1, color: HIDDEN_GAUGE_COLOR, numbers: HIDDEN_GAUGE_NUMBERS };
+}
+
+/** A bar of a piece as a reader is shown it, and the numbers beside it; see {@link shownGaugeReading}. */
+export function shownGauge(gauge: PieceGauge, readable: boolean): { gauge: PieceGauge; numbers: string } {
+  const shown = shownGaugeReading(gauge.current, gauge.max, gauge.inverted, gauge.color, readable);
+  return { gauge: { ...gauge, ratio: shown.ratio, color: shown.color }, numbers: shown.numbers };
 }
 
 /**

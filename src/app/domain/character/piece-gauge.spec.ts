@@ -1,11 +1,13 @@
 import {
   fixedGaugeColor,
   gaugeColor,
-  gaugeNumbersOf,
   gaugeRatio,
+  HIDDEN_GAUGE_COLOR,
   HIDDEN_GAUGE_NUMBERS,
   isGaugeInverted,
+  type PieceGauge,
   selectPieceGauges,
+  shownGauge,
 } from '@axe/domain/character/piece-gauge';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 
@@ -134,14 +136,38 @@ describe('selectPieceGauges()', () => {
   });
 });
 
-describe('gaugeNumbersOf()', () => {
-  const gauge = { current: 7, max: 12 } as Parameters<typeof gaugeNumbersOf>[0];
-
-  it('reads out the numbers for whoever may read the piece', () => {
-    expect(gaugeNumbersOf(gauge, true)).toBe('7/12');
+describe('shownGauge()', () => {
+  const gauge = (current: number, inverted = false): PieceGauge => ({
+    identifier: 'hp',
+    name: 'HP',
+    initial: 'H',
+    current,
+    max: 12,
+    ratio: gaugeRatio(current, 12),
+    inverted,
+    color: '#4caf50',
   });
 
-  it('keeps them back from whoever may not', () => {
-    expect(gaugeNumbersOf(gauge, false)).toBe(HIDDEN_GAUGE_NUMBERS);
+  it('shows the bar and its numbers as they stand to whoever may read the piece', () => {
+    const shown = shownGauge(gauge(7), true);
+    expect(shown.numbers).toBe('7/12');
+    expect(shown.gauge.ratio).toBeCloseTo(7 / 12);
+    expect(shown.gauge.color).toBe('#4caf50');
+  });
+
+  it('keeps how much is left back from whoever may not, the bar full and grey, until it runs out', () => {
+    const kept = shownGauge(gauge(7), false);
+    expect(kept.numbers).toBe(HIDDEN_GAUGE_NUMBERS);
+    expect(kept.gauge.ratio).toBe(1);
+    expect(kept.gauge.color).toBe(HIDDEN_GAUGE_COLOR);
+
+    const beaten = shownGauge(gauge(-3), false);
+    expect(beaten.numbers).toBe('-3/12');
+    expect(beaten.gauge.ratio).toBe(0);
+  });
+
+  it('counts a resource that runs up to its end as run out at its maximum', () => {
+    expect(shownGauge(gauge(11, true), false).numbers).toBe(HIDDEN_GAUGE_NUMBERS);
+    expect(shownGauge(gauge(12, true), false).numbers).toBe('12/12');
   });
 });

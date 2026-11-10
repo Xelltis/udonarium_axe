@@ -37,7 +37,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { gaugeNumbersOf, selectPieceGauges } from '@axe/domain/character/piece-gauge';
+import { selectPieceGauges, shownGauge } from '@axe/domain/character/piece-gauge';
 import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { DataElement } from '@axe/domain/data/data-element';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
@@ -621,14 +621,17 @@ export class FirstPersonViewComponent {
     const readable = this.disclosure.canView(piece);
     return selectPieceGauges(detail)
       .slice(0, MAX_MULTI_ANGLE_RESOURCE_GAUGES)
-      .map((gauge) => ({
-        id: gauge.identifier,
-        name: gauge.name,
-        initial: gauge.initial,
-        percent: gauge.ratio * 100,
-        color: gauge.color,
-        numbers: gaugeNumbersOf(gauge, readable),
-      }));
+      .map((gauge) => {
+        const shown = shownGauge(gauge, readable);
+        return {
+          id: gauge.identifier,
+          name: gauge.name,
+          initial: gauge.initial,
+          percent: shown.gauge.ratio * 100,
+          color: shown.gauge.color,
+          numbers: shown.numbers,
+        };
+      });
   }
 
   private badgesOf(piece: GameCharacter): BuffBadge[] {

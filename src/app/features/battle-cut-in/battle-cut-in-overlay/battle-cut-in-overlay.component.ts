@@ -49,7 +49,13 @@ import {
   stageOpenness,
 } from '@axe/domain/battle/battle-timeline';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { gaugeColor, gaugeRatio, HIDDEN_GAUGE_NUMBERS } from '@axe/domain/character/piece-gauge';
+import {
+  gaugeColor,
+  gaugeRatio,
+  HIDDEN_GAUGE_COLOR,
+  HIDDEN_GAUGE_NUMBERS,
+  isGaugeSpent,
+} from '@axe/domain/character/piece-gauge';
 import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { defeatPictureHeight, DefeatReaction, defeatReactionOf } from '@axe/domain/effect/effect-defeat';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -469,6 +475,10 @@ export class BattleCutInOverlayComponent {
         striking: view.striking,
         defeated: view.fighter.defeated && defeatProgress(elapsed, timeline) > 0,
         gauges: view.fighter.gauges.map((gauge) => {
+          // Kept from the reader, a bar is told only once the strike has spent it.
+          if (!readable && !isGaugeSpent(gauge.after, gauge.max, gauge.inverted)) {
+            return { name: gauge.name, percent: 100, color: HIDDEN_GAUGE_COLOR, numbers: HIDDEN_GAUGE_NUMBERS };
+          }
           const reading = gaugeReadingAt(gauge.before, gauge.after, progress);
           const ratio = gaugeRatio(reading, gauge.max);
           return {

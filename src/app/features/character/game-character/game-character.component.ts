@@ -58,7 +58,7 @@ import { sameFields } from '@axe/core/util/same-fields';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { gaugeNumbersOf, isGaugeInverted, PieceGauge, selectPieceGauges } from '@axe/domain/character/piece-gauge';
+import { isGaugeInverted, PieceGauge, selectPieceGauges, shownGauge } from '@axe/domain/character/piece-gauge';
 import { isResourceElement } from '@axe/domain/character/resource-catalog';
 import {
   diffResourceSnapshots,
@@ -784,7 +784,7 @@ export class GameCharacterComponent {
     const readable = this.disclosureService.canView(piece);
     const gauges =
       detail && this.followedTree(detail) !== null
-        ? selectPieceGauges(detail).map((gauge) => ({ gauge, numbers: gaugeNumbersOf(gauge, readable) }))
+        ? selectPieceGauges(detail).map((gauge) => shownGauge(gauge, readable))
         : [];
     const buffs = this.overlay.buffs() && !piece.hideBuff ? (piece.buffDataElement ?? null) : null;
     const badges = buffs && this.followedTree(buffs) !== null ? toBuffBadges(buffs) : [];
@@ -1045,7 +1045,7 @@ export class GameCharacterComponent {
 
   readonly gaugeRows = computed<{ gauge: PieceGauge; numbers: string }[]>(() => {
     const readable = this.gaugeNumbersReadable();
-    return this.pieceGauges().map((gauge) => ({ gauge, numbers: gaugeNumbersOf(gauge, readable) }));
+    return this.pieceGauges().map((gauge) => shownGauge(gauge, readable));
   });
 
   readonly buffBadges = computed<BuffBadge[]>(
