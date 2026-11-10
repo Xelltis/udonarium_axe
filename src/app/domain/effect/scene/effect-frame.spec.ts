@@ -468,4 +468,16 @@ describe('the looks the fourth review asked to be drawn again', () => {
     expect(staged(paralysis, cast, 700).ribbons.length).toBeGreaterThan(0);
     expect(staged(curse, cast, 700).ribbons).toHaveLength(0);
   });
+
+  it('sets a piece ablaze up its body as well as round its feet', () => {
+    const fire = makePreset('flame', { durationMs: 2000, staggerMs: 0 });
+    const highest = (ms: number) =>
+      Math.max(
+        ...staged(fire, castOn([400, 100]), ms)
+          .motes.filter((mote) => mote.shape === 'tongue')
+          .map((mote) => mote.z)
+      );
+
+    expect(Math.max(highest(900), highest(1000), highest(1100))).toBeGreaterThan(CELL * 1.45);
+  });
 });

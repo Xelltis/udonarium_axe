@@ -28,9 +28,9 @@ import {
 } from '@axe/domain/effect/scene/parts';
 
 /*
- * A fire catching about a piece's feet: tongues of flame stand in a ring round it, leaning in over it,
- * flickering in height and swaying; red at their edge, yellow within and white at the heart of the
- * fire. Blobs of flame break off their tips and rise, cooling, some to smoke, which rises away dark
+ * A piece set ablaze: tongues of flame stand in a ring round its feet, leaning in over it, and more
+ * lick up its body from its waist and shoulders past its head, all flickering in height and swaying;
+ * red at their edge, yellow within and white at the heart of the fire. Blobs of flame break off their tips and rise, cooling, some to smoke, which rises away dark
  * over the fire. Embers are carried up, sparks pop, the floor under it is lit warm and blackens as it
  * burns. Near its end the fire sinks, the tongues shorten, and coals are left glowing on the floor
  * while the last smoke clears.
@@ -38,8 +38,10 @@ import {
 
 /** How long a fire lingers after its playback while its smoke clears and its coals die, in seconds. */
 const LINGER_S = 1.6;
-/** How many tongues of flame stand round a piece at the middle grade. */
+/** How many tongues of flame stand round a piece's feet at the middle grade. */
 const TONGUES = 5;
+/** How many lick up its body at the middle grade. */
+const BODY_TONGUES = 4;
 /** How many blobs of flame break off the tongues a second at the middle grade. */
 const BLOBS_A_SECOND = 12;
 /** How long the fire takes to catch, and the longest it takes to die down, in seconds. */
@@ -111,6 +113,8 @@ function drawFlame(stage: Stage): Staged {
 interface Tongue {
   readonly angle: number;
   readonly out: number;
+  /** How high up the piece it is rooted, in cells: nothing for one standing on the floor. */
+  readonly rise: number;
   readonly width: number;
   readonly height: number;
   readonly phases: readonly [number, number, number];
@@ -134,7 +138,7 @@ function tongueAt(tongue: Tongue, floor: Point, t: number, fierce: number, cell:
   const root = {
     x: floor.x + Math.cos(tongue.angle) * tongue.out * cell,
     y: floor.y + Math.sin(tongue.angle) * tongue.out * cell,
-    z: floor.z + cell * 0.02,
+    z: floor.z + cell * (0.02 + tongue.rise),
   };
   return { root, tall, leanX, leanY, tip: { x: root.x + leanX * tall, y: root.y + leanY * tall, z: root.z + tall } };
 }
@@ -196,15 +200,28 @@ function throwFire(th: Thrower, floor: Point, footZ: number, duration: number): 
   const embers: ThrownMote[] = [];
   const sparks: ThrownMote[] = [];
   const count = th.count(TONGUES);
-  const tongues: Tongue[] = Array.from({ length: count }, (_unused, index) => ({
+  const onFloor: Tongue[] = Array.from({ length: count }, (_unused, index) => ({
     angle: ((index + th.range(-0.3, 0.3)) / count) * Math.PI * 2,
     out: th.range(0.2, 0.42),
+    rise: 0,
     width: th.range(0.24, 0.34),
     height: th.range(0.85, 1.3),
     phases: [th.range(0, 6.3), th.range(0, 6.3), th.range(0, 6.3)],
     rates: [th.range(9, 14), th.range(17, 25), th.range(4, 7)],
     variant: th.range(0, 6),
   }));
+  const onBody = th.count(BODY_TONGUES);
+  const upBody: Tongue[] = Array.from({ length: onBody }, (_unused, index) => ({
+    angle: ((index + 0.5 + th.range(-0.3, 0.3)) / onBody) * Math.PI * 2,
+    out: th.range(0.14, 0.24),
+    rise: th.range(0.3, 0.85),
+    width: th.range(0.18, 0.26),
+    height: th.range(0.6, 0.95),
+    phases: [th.range(0, 6.3), th.range(0, 6.3), th.range(0, 6.3)],
+    rates: [th.range(10, 15), th.range(18, 26), th.range(4, 7)],
+    variant: th.range(0, 6),
+  }));
+  const tongues = [...onFloor, ...upBody];
   // Blobs of flame breaking off the tips of the tongues and rising, cooling, some to smoke.
   for (let born = 0.15; born < duration; born += 1 / th.count(BLOBS_A_SECOND)) {
     const bornAt = born + th.range(0, 0.05);
@@ -245,7 +262,7 @@ function throwFire(th: Thrower, floor: Point, footZ: number, duration: number): 
       mote: th.mote({
         x: floor.x + drift.cos * 0.2 * U,
         y: floor.y + drift.sin * 0.2 * U,
-        z: footZ + th.range(0.45, 0.7) * U,
+        z: footZ + th.range(0.9, 1.3) * U,
         vx: drift.cos * th.range(0.7, 1.2) * U,
         vy: drift.sin * th.range(0.7, 1.2) * U,
         vz: th.range(0.15, 0.3) * U,
