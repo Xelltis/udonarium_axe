@@ -5,6 +5,7 @@ import { FirstPersonService } from '@axe/application/tabletop/first-person.servi
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { MotionService } from '@axe/application/ui/motion.service';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -19,6 +20,7 @@ describe('TableEffectOverlayComponent', () => {
   let component: TableEffectOverlayComponent;
   let playback: EffectPlaybackService;
   let preset: EffectPreset;
+  let piece: GameCharacter;
 
   beforeEach(() => {
     // The 2D context of happy-dom has no drawing functions, so nothing is handed back to
@@ -35,34 +37,47 @@ describe('TableEffectOverlayComponent', () => {
     component = fixture.componentInstance;
     playback = TestBed.inject(EffectPlaybackService);
 
-    // Nearly every look is drawn in the table's scene; a run with a stage that cuts a piece's picture is still drawn over it.
+    // Every look is drawn in the table's scene; one that cuts a piece's picture has the picture cut over it.
     preset = new EffectPreset();
-    preset.kind = 'frost';
-    preset.stages = JSON.stringify([
-      { role: 'impact', kind: 'frost', durationMs: 5000 },
-      { role: 'field', kind: 'dissolve', durationMs: 80 },
-    ]);
-    preset.durationMs = 5000;
+    preset.kind = 'bisect';
+    preset.durationMs = 1000;
     preset.staggerMs = 0;
     ObjectStore.instance.add(preset, false);
+    ImageStorage.instance.add({
+      identifier: 'piece-picture',
+      name: 'piece.webp',
+      type: 'image/webp',
+      blob: new Blob(['picture'], { type: 'image/webp' }),
+      url: 'blob:piece-picture',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    piece = GameCharacter.create('的', 1, 'piece-picture');
+    piece.location.name = 'table';
+    piece.location.x = 100;
+    piece.location.y = 200;
   });
 
   afterEach(() => {
     fixture.destroy();
     ObjectStore.instance.remove(preset);
+    ObjectStore.instance.remove(piece);
+    ImageStorage.instance.delete('piece-picture');
     vi.restoreAllMocks();
   });
+
+  /** Cuts the piece, and sets the clock to halfway through, as the halves of its picture part. */
+  function cutThePiece(): void {
+    playback.play({
+      presetIdentifier: preset.identifier,
+      targets: [{ identifier: piece.identifier, x: 125, y: 225, z: 0 }],
+      seed: 3,
+    });
+    playback.now.set(playback.activeCasts()[0].startedAt + 500);
+  }
 
   /** The outer layer of each sprite standing up, which places it; the inner one carries the look and the animation. */
   function standing(): HTMLElement[] {
     return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[data-effect-sprite]'));
-  }
-
-  /** The outer layer of each sprite lying flat on the floor. */
-  function lying(): HTMLElement[] {
-    return Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="effect-floor-plane"] > div')
-    );
   }
 
   /** Where the screen draws a point of the board, lifted towards the eye, as the translation that puts something there. */
@@ -72,11 +87,10 @@ describe('TableEffectOverlayComponent', () => {
   }
 
   it('settles which targets are hidden once per cast, not once per frame', () => {
-    const character = GameCharacter.create('的', 1, '');
     const seen = vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible');
     playback.play({
       presetIdentifier: preset.identifier,
-      targets: [{ identifier: character.identifier, x: 100, y: 200, z: 0 }],
+      targets: [{ identifier: piece.identifier, x: 100, y: 200, z: 0 }],
       seed: 3,
     });
     const frames = component['renderables'] as () => unknown[];
@@ -89,7 +103,6 @@ describe('TableEffectOverlayComponent', () => {
     expect(frames()).toHaveLength(1);
 
     expect(seen).toHaveBeenCalledTimes(1);
-    ObjectStore.instance.remove(character);
   });
 
   it('leaves an effect left standing to the table’s scene where its look is drawn there', () => {
@@ -119,34 +132,28 @@ describe('TableEffectOverlayComponent', () => {
     fixture.detectChanges();
 
     expect(standing()).toHaveLength(0);
-    expect(lying()).toHaveLength(0);
-    expect(fixture.nativeElement.querySelectorAll('effect-canvas')).toHaveLength(0);
   });
 
   it('builds nothing anew while nothing plays, however the clock moves on', () => {
     playback.now.set(16);
-    const canvases = component['canvasesOnScreen'] as () => unknown;
+    const onScreen = component['standingOnScreen'] as () => unknown;
     const sprites = component.sprites();
-    const placed = canvases();
+    const placed = onScreen();
 
     playback.now.set(32);
     playback.now.set(48);
 
     expect(component.sprites()).toBe(sprites);
-    expect(canvases()).toBe(placed);
+    expect(onScreen()).toBe(placed);
   });
 
-  it('draws the sprites on a firing', () => {
-    playback.play({
-      presetIdentifier: preset.identifier,
-      targets: [{ identifier: 'char', x: 100, y: 200, z: 0 }],
-      seed: 3,
-    });
-    playback.now.set(playback.activeCasts()[0].startedAt + 200);
+  it('draws the halves of a piece’s picture parted by a cut, and nothing else of the cut', () => {
+    cutThePiece();
     fixture.detectChanges();
 
     const elements = standing();
     expect(elements.length).toBeGreaterThan(0);
+    expect(component.sprites().every((sprite) => sprite.background.includes('url(blob:piece-picture)'))).toBe(true);
     for (const element of elements) {
       expect(element.style.pointerEvents).toBe('none');
       expect(element.style.transform).toContain('translate(');
@@ -165,32 +172,11 @@ describe('TableEffectOverlayComponent', () => {
     fixture.detectChanges();
 
     expect(standing()).toHaveLength(0);
-    expect(lying()).toHaveLength(0);
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('canvas')).toHaveLength(0);
   });
 
-  it('leaves a sprite lying flat rather than turning it to the camera', () => {
-    // Ice puts up crystals facing the camera and lays a ring of frost flat.
-    preset.kind = 'frost';
-    playback.play({
-      presetIdentifier: preset.identifier,
-      targets: [{ identifier: 'char', x: 0, y: 0, z: 0 }],
-      seed: 3,
-    });
-    playback.now.set(playback.activeCasts()[0].startedAt + 1000);
-    fixture.detectChanges();
-
-    expect(lying().length).toBeGreaterThan(0);
-    expect(standing().length).toBeGreaterThan(0);
-    for (const flat of lying()) expect(flat.style.transform).not.toContain('rotateX(');
-  });
-
   it('keeps the blending modes that flatten the board out of the document', () => {
-    playback.play({
-      presetIdentifier: preset.identifier,
-      targets: [{ identifier: 'char', x: 0, y: 0, z: 0 }],
-      seed: 3,
-    });
+    cutThePiece();
     fixture.detectChanges();
 
     const elements = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('div'));
@@ -202,11 +188,7 @@ describe('TableEffectOverlayComponent', () => {
   });
 
   it('does not promote the sprites to layers of their own', () => {
-    playback.play({
-      presetIdentifier: preset.identifier,
-      targets: [{ identifier: 'char', x: 0, y: 0, z: 0 }],
-      seed: 3,
-    });
+    cutThePiece();
     fixture.detectChanges();
 
     // A loud effect puts hundreds of sprites up in one frame, and promoting every one of
@@ -217,54 +199,25 @@ describe('TableEffectOverlayComponent', () => {
     expect(promoted).toHaveLength(0);
   });
 
-  it('draws the glowing particles on a canvas of their own for each target', () => {
-    playback.play({
-      presetIdentifier: preset.identifier,
-      targets: [
-        { identifier: 'a', x: 0, y: 0, z: 0 },
-        { identifier: 'b', x: 200, y: 0, z: 0 },
-      ],
-      seed: 3,
-    });
-    playback.now.set(playback.activeCasts()[0].startedAt + 200);
-    fixture.detectChanges();
-
-    const canvases = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('effect-canvas');
-    expect(canvases).toHaveLength(2);
-    for (const host of Array.from(canvases)) {
-      expect(host.style.transform).toContain('scale(');
-      expect(host.querySelector('canvas')).not.toBeNull();
-    }
-  });
-  it('holds the effects up off the floor towards an eye it is given, and lifts them towards it', () => {
+  it('holds the pictures up off the floor towards an eye it is given, and lifts them towards it', () => {
     fixture.componentRef.setInput('eye', { rotation: { x: 90, y: 0, z: -30 }, liftPx: 5, risePx: 40 });
-    playback.play({
-      presetIdentifier: preset.identifier,
-      targets: [{ identifier: 'char', x: 100, y: 200, z: 0 }],
-      seed: 3,
-    });
-    playback.now.set(playback.activeCasts()[0].startedAt + 200);
+    cutThePiece();
     fixture.detectChanges();
 
-    const canvas = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('effect-canvas')!;
+    const [sprite] = component.sprites();
+    const [element] = standing();
 
-    expect(canvas.style.transform).toContain(drawnAt(100, 200, 40, 5));
+    expect(element.style.transform).toContain(drawnAt(sprite.x, sprite.y, sprite.z + 40, 5));
   });
 
   it('leaves the effects to the first-person view while the table is out of sight', () => {
     vi.spyOn(TestBed.inject(FirstPersonService), 'showing').mockReturnValue(true);
-    playback.play({
-      presetIdentifier: preset.identifier,
-      targets: [{ identifier: 'char', x: 100, y: 200, z: 0 }],
-      seed: 3,
-    });
+    cutThePiece();
     fixture.detectChanges();
 
     expect(standing()).toHaveLength(0);
-    expect((fixture.nativeElement as HTMLElement).querySelectorAll('effect-canvas')).toHaveLength(0);
 
     fixture.componentRef.setInput('eye', { rotation: { x: 90, y: 0, z: 0 }, liftPx: 5, risePx: 40 });
-    playback.now.set(playback.activeCasts()[0].startedAt + 200);
     fixture.detectChanges();
 
     expect(standing().length).toBeGreaterThan(0);

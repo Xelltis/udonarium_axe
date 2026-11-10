@@ -1,19 +1,7 @@
-<div class="pointer-events-none" data-testid="effect-floor-plane" appFloorPlane>
-  @for (sprite of flatSprites(); track sprite.key) {
-    <div class="backface-visible" [ngStyle]="spriteStyle(sprite)">
-      @if (hasPaintLayer(sprite)) {
-        <div class="size-full" [ngStyle]="paintStyle(sprite)" [innerHTML]="sprite.svg | safe: 'html'"></div>
-      }
-    </div>
-  }
-</div>
 @for (placed of standingOnScreen(); track placed.sprite.key) {
   <div data-effect-sprite [ngStyle]="placed.style">
     @if (hasPaintLayer(placed.sprite)) {
       <div class="size-full" [ngStyle]="paintStyle(placed.sprite)" [innerHTML]="placed.sprite.svg | safe: 'html'"></div>
     }
   </div>
-}
-@for (placement of canvasesOnScreen(); track placement.key) {
-  <effect-canvas [ngStyle]="canvasStyle(placement)" [layer]="placement.layer"></effect-canvas>
 }

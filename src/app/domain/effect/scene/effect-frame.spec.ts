@@ -48,18 +48,30 @@ function staged(
 }
 
 describe('isDrawnInScene()', () => {
-  it('draws a burst in the scene, and leaves a look not yet made anew and a run of stages to be drawn over it', () => {
+  it('draws a burst wholly in the scene, and a look that cuts a piece’s picture all but the picture', () => {
     expect(isDrawnInScene(makePreset('burst'))).toBe(true);
     expect(isDrawnInScene(makePreset('bisect'))).toBe(false);
+    expect(hasScenePart(makePreset('bisect'))).toBe(true);
     expect(isDrawnInScene({ isStaged: true, effectKind: 'burst' })).toBe(false);
-    const runOver = makePreset('burst');
-    runOver.stages = JSON.stringify([
+    expect(hasScenePart({ isStaged: true, effectKind: 'burst' })).toBe(false);
+    expect(sceneLingerMsOf({ isStaged: true, effectKind: 'burst' })).toBe(0);
+    expect(sceneLingerMsOf(makePreset('bisect'))).toBe(0);
+  });
+
+  it('draws a run with a stage that cuts a piece’s picture in the scene, but for the picture', () => {
+    const run = makePreset('burst', { staggerMs: 0 });
+    run.stages = JSON.stringify([
       { role: 'impact', kind: 'burst', durationMs: 400 },
       { role: 'impact', kind: 'bisect', durationMs: 400 },
     ]);
-    expect(isDrawnInScene(runOver)).toBe(false);
-    expect(sceneLingerMsOf({ isStaged: true, effectKind: 'burst' })).toBe(0);
-    expect(sceneLingerMsOf(makePreset('bisect'))).toBe(0);
+    const cast = castOn([100, 100]);
+
+    expect(isDrawnInScene(run)).toBe(false);
+    expect(hasScenePart(run)).toBe(true);
+    expect(drawsOnlyPicturesOver(run)).toBe(true);
+    expect(sceneLingerMsOf(run)).toBeGreaterThan(0);
+    expect(staged(run, cast, 200).motes.length).toBeGreaterThan(0);
+    expect(staged(run, cast, 600).motes.length).toBeGreaterThan(0);
   });
 });
 
@@ -237,13 +249,28 @@ describe('the cuts and blows drawn in the scene', () => {
     expect(headAt(crosses - 40)).toBeGreaterThan(headAt(crosses + 60));
   });
 
-  it('draws the great blade in the scene only once the look it strikes with is drawn there', () => {
+  it('draws the great blade in the scene with the look it strikes with, a picture it cuts left over the table', () => {
     const blade = makePreset('skyblade', { durationMs: 3000 });
     blade.impactKind = 'flame';
     expect(isDrawnInScene(blade)).toBe(true);
     blade.impactKind = 'bisect';
     expect(isDrawnInScene(blade)).toBe(false);
-    expect(sceneLingerMsOf(blade)).toBe(0);
+    expect(drawsOnlyPicturesOver(blade)).toBe(true);
+    expect(sceneLingerMsOf(blade)).toBe(sceneLingerMsOf(makePreset('skyblade', { impactKind: 'flame' })));
+    const cast = { ...castOn([100, 100]), origin: { x: 400, y: 100, z: 30 } };
+    expect(staged(blade, cast, 1000).ribbons.length + staged(blade, cast, 1000).motes.length).toBeGreaterThan(0);
+  });
+
+  it('strikes as a burst where a shot names a look that itself strikes with another', () => {
+    const shot = makePreset('projectile', { durationMs: 1200, staggerMs: 0 });
+    shot.impactKind = 'ballistic';
+    const burstShot = makePreset('projectile', { durationMs: 1200, staggerMs: 0 });
+    burstShot.impactKind = 'burst';
+    const cast = { ...castOn([100, 100]), origin: { x: 400, y: 100, z: 30 } };
+    const landsAt = effectBlowsOf(shot)[0].atMs;
+
+    expect(isDrawnInScene(shot)).toBe(true);
+    expect(staged(shot, cast, landsAt + 200)).toEqual(staged(burstShot, cast, landsAt + 200));
   });
 });
 

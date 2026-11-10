@@ -11,23 +11,18 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_EFFECT_RENDERABLES, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { effectParticlePlacements } from '@axe/domain/effect/effect-particle-placements';
 import { EffectSprite, effectSprites } from '@axe/domain/effect/effect-timeline';
 import { ViewRotation } from '@axe/domain/effect/effect-view';
-import { drawsOnlyPicturesOver, isDrawnInScene } from '@axe/domain/effect/scene/scene-kinds';
+import { drawsOnlyPicturesOver } from '@axe/domain/effect/scene/scene-kinds';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   EFFECT_CAMERA_LIFT_PX,
-  EffectCanvasPlacement,
-  effectCanvasStyle,
   effectPaintStyle,
   effectSpriteStyle,
   EffectViewpoint,
   hasEffectPaintLayer,
 } from '@axe/features/effect/effect-sprite-style';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { FloorPlaneDirective } from '@axe/ui/tabletop/floor-plane.directive';
 
 export interface EffectEye {
   rotation: ViewRotation;
@@ -35,21 +30,23 @@ export interface EffectEye {
   risePx: number;
 }
 
-const EYE_FLAT_RISE_PX = 1;
-
 const MAX_SPRITES = 400;
 const NOTHING_HIDDEN: ReadonlySet<string> = new Set<string>();
-const MAX_CANVASES = 24;
 
 /** One effect to draw over the table at a moment, a cast or a field, with the targets out of sight. */
 type Renderable = Pick<EffectFieldRenderable, 'key' | 'preset' | 'cast' | 'elapsed'> & { hidden: ReadonlySet<string> };
 
+/**
+ * Draws over the table what the effects that cut a piece's own picture do with it: the picture cut up
+ * and flown apart or parted, laid on the screen where the piece stands. All else an effect draws is
+ * drawn in the table's scene itself, among the pieces.
+ */
 @Component({
   selector: 'table-effect-overlay',
   templateUrl: './table-effect-overlay.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents' },
-  imports: [NgStyle, SafePipe, EffectCanvasComponent, FloorPlaneDirective],
+  imports: [NgStyle, SafePipe],
 })
 export class TableEffectOverlayComponent {
   private readonly playback = inject(EffectPlaybackService);
@@ -71,20 +68,16 @@ export class TableEffectOverlayComponent {
 
   private readonly risePx = computed(() => this.eye()?.risePx ?? 0);
 
-  private readonly flatRisePx = computed(() => (this.eye() ? EYE_FLAT_RISE_PX : 0));
-
   private readonly viewpoint = computed<EffectViewpoint>(() => ({
     rotation: this.rotation(),
     liftPx: this.liftPx(),
     risePx: this.risePx(),
-    flatRisePx: this.flatRisePx(),
+    flatRisePx: 0,
   }));
 
   /**
-   * Gathers the effects playing and the fields left standing into one thing to draw.
-   *
-   * Whether a target can be seen is settled once here; asking separately for the billboards
-   * and the particles would run that check twice a frame for every target.
+   * Which targets of each effect playing and each field left standing are out of sight, settled once
+   * a cast rather than once a frame for every target.
    */
   private readonly hiddenByKey = computed<ReadonlyMap<string, ReadonlySet<string>>>(() => {
     const hidden = new Map<string, ReadonlySet<string>>();
@@ -100,7 +93,8 @@ export class TableEffectOverlayComponent {
   private readonly nothingToRender: Renderable[] = [];
 
   /**
-   * Everything to draw this frame, but for the casts and the fields drawn in the table's scene itself.
+   * The effects that cut a piece's own picture, whose picture is drawn over the table this frame; all
+   * else of them, and every other effect, is drawn in the table's scene itself.
    *
    * With no cast playing and no field standing it reads no clock and hands back the same empty
    * list, so the weather keeping the frame loop running does not rebuild the sprites every frame.
@@ -114,14 +108,14 @@ export class TableEffectOverlayComponent {
     const all: Omit<Renderable, 'hidden'>[] = [
       ...this.playback
         .activeCasts()
-        .flatMap((active) => (isDrawnInScene(active.preset) ? [] : [active]))
+        .flatMap((active) => (drawsOnlyPicturesOver(active.preset) ? [active] : []))
         .map((active) => ({
           key: String(active.key),
           preset: active.preset,
           cast: active.cast,
           elapsed: effectElapsedOf(active, now),
         })),
-      ...this.fieldService.renderables(now).filter((field) => !isDrawnInScene(field.preset)),
+      ...this.fieldService.renderables(now).filter((field) => drawsOnlyPicturesOver(field.preset)),
     ];
     return all.map((active) => ({ ...active, hidden: hiddenByKey.get(active.key) ?? NOTHING_HIDDEN }));
   });
@@ -140,102 +134,32 @@ export class TableEffectOverlayComponent {
         resolveImage: (identifier) => this.imageUrlOf(identifier),
         resolveSize: (identifier) => this.sizeOf(identifier),
       });
-      // A look that cuts the piece's picture leaves all but the picture to the table's scene.
-      const picturesOnly = drawsOnlyPicturesOver(active.preset);
       for (const part of parts) {
-        if (picturesOnly && !part.background.includes('url(')) continue;
-        sprites.push({ ...part, key: `${active.key}-${part.key}` });
+        if (part.background.includes('url(')) sprites.push({ ...part, key: `${active.key}-${part.key}` });
       }
     }
     return sprites.length > MAX_SPRITES ? sprites.slice(0, MAX_SPRITES) : sprites;
   });
 
-  /** The canvases of particles to draw, one per target, with the point of the board each stands at. */
-  private readonly placed = computed(() => {
-    const gridSize = this.tabletopService.gridSize();
-    const placements: { placement: EffectCanvasPlacement; center: { x: number; y: number; z: number } }[] = [];
-
-    for (const active of this.renderables()) {
-      if (placements.length >= MAX_CANVASES) break;
-      if (drawsOnlyPicturesOver(active.preset)) continue;
-      const placed = effectParticlePlacements(
-        active.preset,
-        active.cast,
-        active.elapsed,
-        {
-          baseSize: gridSize,
-          hiddenIdentifiers: active.hidden,
-          resolvePosition: (identifier) => this.centerOf(identifier, gridSize),
-          resolveSize: (identifier) => this.sizeOf(identifier),
-        },
-        MAX_CANVASES - placements.length
-      );
-      for (const placement of placed) {
-        placements.push({
-          center: placement.center,
-          placement: {
-            key: `${active.key}-${placement.key}`,
-            layer: placement.layer,
-            width: placement.layer.width,
-            height: placement.layer.height,
-            transform: '',
-          },
-        });
-      }
-    }
-    return placements.length > MAX_CANVASES ? placements.slice(0, MAX_CANVASES) : placements;
-  });
-
-  /** The sprites that lie flat on the floor, laid on the plane of the floor on the screen. */
-  protected readonly flatSprites = computed(() => this.sprites().filter((sprite) => sprite.flat));
-
-  /** The sprites that stand up, each with the style that lays it on the screen where the point it stands at is drawn. */
+  /** The pieces of the pictures, each with the style that lays it on the screen where the point it stands at is drawn. */
   protected readonly standingOnScreen = computed(() => {
     const screen = this.camera.screenOf();
     if (!screen) return [];
     const viewpoint = this.viewpoint();
-    return this.sprites()
-      .filter((sprite) => !sprite.flat)
-      .map((sprite) => {
-        const at = screen(sprite.x, sprite.y, sprite.z + viewpoint.risePx, viewpoint.liftPx);
-        const parts = [`translate(${at.x}px, ${at.y}px)`, `scale(${at.scale})`];
-        if (sprite.offsetX !== 0 || sprite.offsetY !== 0) {
-          parts.push(`translate(${sprite.offsetX.toFixed(2)}px, ${sprite.offsetY.toFixed(2)}px)`);
-        }
-        if (sprite.rotate !== 0) parts.push(`rotateZ(${sprite.rotate.toFixed(2)}deg)`);
-        parts.push('translate(-50%, -50%)');
-        return { sprite, style: { ...effectSpriteStyle(sprite, viewpoint), transform: parts.join(' ') } };
-      });
-  });
-
-  /**
-   * The canvases of particles, one per target, where the additive blending stays, each laid on the
-   * screen where the point it stands at is drawn.
-   */
-  protected readonly canvasesOnScreen = computed<EffectCanvasPlacement[]>(() => {
-    const screen = this.camera.screenOf();
-    if (!screen) return [];
-    const viewpoint = this.viewpoint();
-    return this.placed().map(({ placement, center }) => {
-      const at = screen(center.x, center.y, center.z + viewpoint.risePx, viewpoint.liftPx);
-      return {
-        ...placement,
-        transform: `translate(${at.x}px, ${at.y}px) scale(${at.scale}) translate(${-placement.layer.originX}px, ${-placement.layer.originY}px)`,
-      };
+    return this.sprites().map((sprite) => {
+      const at = screen(sprite.x, sprite.y, sprite.z + viewpoint.risePx, viewpoint.liftPx);
+      const parts = [`translate(${at.x}px, ${at.y}px)`, `scale(${at.scale})`];
+      if (sprite.offsetX !== 0 || sprite.offsetY !== 0) {
+        parts.push(`translate(${sprite.offsetX.toFixed(2)}px, ${sprite.offsetY.toFixed(2)}px)`);
+      }
+      if (sprite.rotate !== 0) parts.push(`rotateZ(${sprite.rotate.toFixed(2)}deg)`);
+      parts.push('translate(-50%, -50%)');
+      return { sprite, style: { ...effectSpriteStyle(sprite, viewpoint), transform: parts.join(' ') } };
     });
   });
 
-  protected canvasStyle(placement: EffectCanvasPlacement): Record<string, string> {
-    return effectCanvasStyle(placement);
-  }
-
   protected hasPaintLayer(sprite: EffectSprite): boolean {
     return hasEffectPaintLayer(sprite);
-  }
-
-  /** The outer layer, which only places it in space and fades it out. */
-  protected spriteStyle(sprite: EffectSprite): Record<string, string> {
-    return effectSpriteStyle(sprite, this.viewpoint());
   }
 
   /** The inner layer, which carries the look and the animation. */

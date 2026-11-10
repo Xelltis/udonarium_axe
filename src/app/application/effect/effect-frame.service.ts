@@ -11,7 +11,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { nothingStaged, type Staged } from '@axe/domain/effect/scene/choreography';
 import type { EffectFooting, EffectStagingOptions } from '@axe/domain/effect/scene/effect-frame';
 import { type EffectFrame, EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
-import { hasScenePart, isDrawnInScene, sceneLingerMsOf } from '@axe/domain/effect/scene/scene-kinds';
+import { hasScenePart, sceneLingerMsOf } from '@axe/domain/effect/scene/scene-kinds';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 const NOTHING_HIDDEN: ReadonlySet<string> = new Set<string>();
@@ -50,7 +50,7 @@ export class EffectFrameService {
       const looks = this.sceneLooks.looks();
       if (!looks) return EMPTY_EFFECT_FRAME;
       const now = this.playback.now();
-      const fields = this.fields.renderables(now).filter((field) => isDrawnInScene(field.preset));
+      const fields = this.fields.renderables(now).filter((field) => hasScenePart(field.preset));
       if (casts.length < 1 && fields.length < 1) return EMPTY_EFFECT_FRAME;
       const cellPx = this.tabletop.gridSize();
       const drawn = nothingStaged();

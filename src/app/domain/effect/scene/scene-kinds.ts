@@ -72,9 +72,27 @@ export function stageLingerS(kind: EffectKind): number {
   return (STRIKING_WITH.has(kind) ? TRAVELLING_LINGER_S[kind] : SCENE_LINGER_S[kind]) ?? 0;
 }
 
-/** Whether every stage of a run, and every branch it throws, is a look drawn in the scene. */
-function runDrawnInScene(stages: readonly EffectStage[]): boolean {
-  return stages.length > 0 && stageLayoutOf(stages).windows.every((window) => stageDrawnInScene(window.stage.kind));
+/**
+ * The look a shot or a blade strikes with in the scene: the one it names, but where that is a look
+ * that itself strikes with another, a burst, as a shot that names itself does.
+ */
+export function strikesInSceneWith(kind: EffectKind | undefined): EffectKind {
+  return kind === undefined || STRIKING_WITH.has(kind) ? 'burst' : kind;
+}
+
+/** The kinds of the stages of a run, and of the branches it throws. */
+function runKindsOf(stages: readonly EffectStage[] | undefined): EffectKind[] {
+  return stages && stages.length > 0 ? stageLayoutOf(stages).windows.map((window) => window.stage.kind) : [];
+}
+
+/**
+ * Whether an effect cuts a piece's own picture, which is drawn over the table: a look of such a kind,
+ * a shot or a blade that strikes with one, or a run with a stage of one.
+ */
+function cutsPicture(preset: SceneQuestion): boolean {
+  if (preset.isStaged) return runKindsOf(preset.stageList).some((kind) => ALONGSIDE_PICTURES.has(kind));
+  if (ALONGSIDE_PICTURES.has(preset.effectKind)) return true;
+  return STRIKING_WITH.has(preset.effectKind) && ALONGSIDE_PICTURES.has(strikesInSceneWith(preset.impactEffectKind));
 }
 
 /**
@@ -82,11 +100,11 @@ function runDrawnInScene(stages: readonly EffectStage[]): boolean {
  * one that strikes with such a look, or a run every stage of which is.
  */
 export function isDrawnInScene(preset: SceneQuestion): boolean {
-  if (preset.isStaged) return preset.stageList !== undefined && runDrawnInScene(preset.stageList);
-  if (SCENE_LINGER_S[preset.effectKind] === undefined) return false;
-  if (!STRIKING_WITH.has(preset.effectKind)) return true;
-  const strikesWith = preset.impactEffectKind;
-  return strikesWith !== undefined && !STRIKING_WITH.has(strikesWith) && SCENE_LINGER_S[strikesWith] !== undefined;
+  if (preset.isStaged) {
+    const kinds = runKindsOf(preset.stageList);
+    return kinds.length > 0 && kinds.every(stageDrawnInScene);
+  }
+  return SCENE_LINGER_S[preset.effectKind] !== undefined && !cutsPicture(preset);
 }
 
 /**
@@ -97,9 +115,12 @@ export function hasScenePart(preset: SceneQuestion): boolean {
   return isDrawnInScene(preset) || drawsOnlyPicturesOver(preset);
 }
 
-/** Whether an effect is drawn over the table only as the piece's own picture cut up, the rest of it in the scene. */
-export function drawsOnlyPicturesOver(preset: Pick<EffectPreset, 'isStaged' | 'effectKind'>): boolean {
-  return !preset.isStaged && ALONGSIDE_PICTURES.has(preset.effectKind);
+/**
+ * Whether an effect is drawn over the table only as a piece's own picture cut up, the rest of it in
+ * the scene: one that cuts a picture, alone, as the blow of a shot or a blade, or as a stage of a run.
+ */
+export function drawsOnlyPicturesOver(preset: SceneQuestion): boolean {
+  return cutsPicture(preset);
 }
 
 /**
@@ -107,7 +128,7 @@ export function drawsOnlyPicturesOver(preset: Pick<EffectPreset, 'isStaged' | 'e
  * what it leaves clears: smoke rising away and embers dying. Nothing for one drawn over it.
  */
 export function sceneLingerMsOf(preset: SceneQuestion): number {
-  if (!isDrawnInScene(preset)) return 0;
+  if (!hasScenePart(preset)) return 0;
   if (preset.isStaged && preset.stageList) {
     const layout = stageLayoutOf(preset.stageList);
     const last = Math.max(...layout.windows.map((window) => window.endMs + stageLingerS(window.stage.kind) * 1000));

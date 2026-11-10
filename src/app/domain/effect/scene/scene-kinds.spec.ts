@@ -1,3 +1,4 @@
+import { EFFECT_KINDS } from '@axe/domain/effect/effect-kind';
 import { sceneLooks } from '@axe/domain/effect/scene/effect-frame';
 import {
   ALONGSIDE_PICTURES,
@@ -14,6 +15,12 @@ describe('the list of looks drawn in the scene', () => {
     for (const [kind, look] of Object.entries(wholly)) {
       expect([kind, SCENE_LINGER_S[kind as keyof typeof SCENE_LINGER_S]]).toEqual([kind, look!.lingerS]);
     }
+  });
+
+  it('has every kind of look drawn in the scene, wholly or all but the piece’s picture it cuts', () => {
+    const { wholly, alongside } = sceneLooks();
+
+    expect(EFFECT_KINDS.filter((kind) => !wholly[kind] && !alongside[kind])).toEqual([]);
   });
 
   it('names the looks drawn alongside a piece’s picture and those that travel as a stage, as the scene has them', () => {

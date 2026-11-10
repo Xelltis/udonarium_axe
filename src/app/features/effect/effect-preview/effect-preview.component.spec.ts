@@ -172,7 +172,7 @@ describe('EffectPreviewComponent', () => {
     expect(points.some((point) => point.x < -20 && point.y > 10)).toBe(true);
   });
 
-  it('draws a look still drawn over the table over the little board, as it always was', () => {
+  it('plays a run with a stage that cuts a piece’s picture on the small stage, all but the picture', () => {
     const run = presetOf('burst');
     run.stages = JSON.stringify([
       { role: 'impact', kind: 'frost', durationMs: 800 },
@@ -182,9 +182,10 @@ describe('EffectPreviewComponent', () => {
 
     runFramesAt(300);
 
-    expect(component.inScene()).toBe(false);
-    expect(drawnOnStage()).toBe(0);
-    expect(component.sprites().length + component.canvases().length).toBeGreaterThan(0);
+    expect(component.inScene()).toBe(true);
+    expect(drawnOnStage()).toBeGreaterThan(0);
+    expect(component.sprites()).toEqual([]);
+    expect(component.canvases()).toEqual([]);
   });
 
   it('draws the board smaller for a larger effect, so that it stays in the box', () => {

@@ -19,12 +19,7 @@ import { flame } from '@axe/domain/effect/scene/fire/flame';
 import { mushroom } from '@axe/domain/effect/scene/fire/mushroom';
 import { nova } from '@axe/domain/effect/scene/fire/nova';
 import { aura, barrier, heal, warp } from '@axe/domain/effect/scene/holy/holy';
-import {
-  drawsOnlyPicturesOver,
-  isDrawnInScene,
-  SCENE_LINGER_S,
-  STRIKING_WITH,
-} from '@axe/domain/effect/scene/scene-kinds';
+import { hasScenePart, SCENE_LINGER_S, strikesInSceneWith, STRIKING_WITH } from '@axe/domain/effect/scene/scene-kinds';
 import { arrowrain, ballisticWith, projectileWith } from '@axe/domain/effect/scene/shot/shots';
 import { arc, beam, drain, raybeam } from '@axe/domain/effect/scene/shot/streams';
 import { bolt, frost, vortex } from '@axe/domain/effect/scene/storm/storm';
@@ -83,10 +78,13 @@ const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = {
  */
 const ALONGSIDE: Partial<Record<EffectKind, Choreography>> = { bisect, dissolve };
 
-/** The look a preset strikes with, drawn on its own clock, or nothing where that look is not drawn in the scene. */
+/**
+ * The look a preset strikes with, drawn on its own clock: one that cuts a piece's picture draws all
+ * but the picture, which is drawn over the table.
+ */
 function strikeWith(stage: Stage): Staged {
-  const kind = stage.preset.impactEffectKind;
-  const look = STRIKING_WITH.has(kind) ? undefined : CHOREOGRAPHIES[kind];
+  const kind = strikesInSceneWith(stage.preset.impactEffectKind);
+  const look = CHOREOGRAPHIES[kind] ?? ALONGSIDE[kind];
   return look ? look.draw(stage) : nothingStaged();
 }
 
@@ -124,9 +122,12 @@ const TRAVELLING: Partial<Record<EffectKind, Choreography>> = {
   skyblade: skybladeWith(() => nothingStaged(), 0),
 };
 
-/** The look one stage of a run draws in the scene, or nothing for a look not drawn there. */
+/**
+ * The look one stage of a run draws in the scene, all but the picture for one that cuts a piece's
+ * picture, or nothing for a look not drawn there.
+ */
 function stageLookOf(kind: EffectKind): Choreography | undefined {
-  return STRIKING_WITH.has(kind) ? TRAVELLING[kind] : CHOREOGRAPHIES[kind];
+  return STRIKING_WITH.has(kind) ? TRAVELLING[kind] : (CHOREOGRAPHIES[kind] ?? ALONGSIDE[kind]);
 }
 
 /**
@@ -208,14 +209,12 @@ export function stageEffect(
   into: Staged
 ): void {
   if (preset.isStaged) {
-    if (isDrawnInScene(preset)) stageRun(preset, cast, elapsedMs, options, into);
+    if (hasScenePart(preset)) stageRun(preset, cast, elapsedMs, options, into);
     return;
   }
-  const choreography = isDrawnInScene(preset)
-    ? CHOREOGRAPHIES[preset.effectKind]
-    : drawsOnlyPicturesOver(preset)
-      ? ALONGSIDE[preset.effectKind]
-      : undefined;
+  const choreography = hasScenePart(preset)
+    ? (CHOREOGRAPHIES[preset.effectKind] ?? ALONGSIDE[preset.effectKind])
+    : undefined;
   if (!choreography) return;
   const duration = preset.duration / 1000;
   const base = options.cellPx * preset.sizeScale;
