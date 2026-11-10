@@ -82,37 +82,46 @@
     }
   </div>
 
-  @if (turns.sides().length > 0) {
-    <div class="flex flex-col items-center gap-2 p-3">
-      @for (group of turns.sides(); track group.side) {
-        <div class="flex w-full flex-col items-center gap-2">
-          <span
-            class="flex max-w-full items-center gap-1 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold drop-shadow-sm"
-            [class.bg-ui-accent-bg]="turns.currentSide() === group.side"
-            [class.text-ui-accent]="turns.currentSide() === group.side"
-            [class.text-ui-dim]="turns.currentSide() !== group.side"
-            [title]="group.name"
-          >
-            <span class="size-2 shrink-0 rounded-full" [style.background]="group.color || 'var(--ui-dim)'"></span>
-            <span class="truncate">{{ group.name }}</span>
-          </span>
-          @for (character of group.members; track character.identifier) {
-            <ng-container *ngTemplateOutlet="turnPiece; context: { $implicit: character }"></ng-container>
-          }
-        </div>
-      }
-    </div>
-  } @else {
-    <div class="flex flex-col items-center gap-2.5 p-3">
-      @for (character of turns.order(); track character.identifier) {
-        <ng-container *ngTemplateOutlet="turnPiece; context: { $implicit: character }"></ng-container>
-      } @empty {
-        <span class="text-ui-dim px-1 py-2 text-center text-[11px] drop-shadow-sm">{{
-          'feature.turnOrder.empty' | transloco
-        }}</span>
-      }
-    </div>
-  }
+  <div
+    #pieces
+    class="max-h-[min(70dvh,calc(100dvh-10rem))] overflow-y-auto overscroll-contain"
+    data-testid="turn-pieces"
+    [attr.data-density]="density()"
+  >
+    @if (turns.sides().length > 0) {
+      <div class="flex flex-col items-center gap-2 p-3">
+        @for (group of turns.sides(); track group.side) {
+          <div class="flex w-full flex-col items-center gap-2">
+            <span
+              class="flex max-w-full items-center gap-1 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold drop-shadow-sm"
+              [class.bg-ui-accent-bg]="turns.currentSide() === group.side"
+              [class.text-ui-accent]="turns.currentSide() === group.side"
+              [class.text-ui-dim]="turns.currentSide() !== group.side"
+              [title]="group.name"
+            >
+              <span class="size-2 shrink-0 rounded-full" [style.background]="group.color || 'var(--ui-dim)'"></span>
+              <span class="truncate">{{ group.name }}</span>
+            </span>
+            <div [class]="piecesLayout()">
+              @for (character of group.members; track character.identifier) {
+                <ng-container *ngTemplateOutlet="turnPiece; context: { $implicit: character }"></ng-container>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="p-3" [class]="piecesLayout()">
+        @for (character of turns.order(); track character.identifier) {
+          <ng-container *ngTemplateOutlet="turnPiece; context: { $implicit: character }"></ng-container>
+        } @empty {
+          <span class="text-ui-dim col-span-full px-1 py-2 text-center text-[11px] drop-shadow-sm">{{
+            'feature.turnOrder.empty' | transloco
+          }}</span>
+        }
+      </div>
+    }
+  </div>
 
   <ng-template #turnPiece let-character>
     <button
@@ -125,10 +134,12 @@
       "
       [disabled]="!canEdit()"
       [title]="character.name"
+      [attr.data-turn-piece]="character.identifier"
       (click)="turns.giveTurnTo(character.identifier)"
     >
       <span
-        class="bg-ui-input border-ui-border-panel ring-ui-accent shadow-ui-sm flex size-12 items-center justify-center overflow-hidden rounded-full border border-solid transition-shadow"
+        class="bg-ui-input border-ui-border-panel ring-ui-accent shadow-ui-sm flex items-center justify-center overflow-hidden rounded-full border border-solid transition-shadow"
+        [class]="faceSize()"
         [class.ring-2]="turns.progress().currentIdentifier === character.identifier"
         [class.shadow-[0_0_8px_var(--ui-accent-glow)]]="turns.progress().currentIdentifier === character.identifier"
       >
