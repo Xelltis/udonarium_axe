@@ -182,6 +182,51 @@ describe('PartLookEditorComponent', () => {
       expect(head.partFaces).toBe('');
     });
 
+    it('lets go of a stage still loading the model as the painting of faces is left or the editor closed', async () => {
+      const made: { dispose: ReturnType<typeof vi.fn>; shown: () => void }[] = [];
+      viewer = {
+        createModelStage: () => {
+          let shown = () => undefined as void;
+          const stage = {
+            show: () => new Promise<boolean>((resolve) => (shown = () => resolve(true))),
+            turnBy: vi.fn(),
+            setTurning: vi.fn(),
+            resize: () => undefined,
+            facesNear: () => new Map(),
+            showFaces: vi.fn(),
+            dispose: vi.fn(),
+          };
+          made.push({ dispose: stage.dispose, shown: () => shown() });
+          return stage;
+        },
+        createModelPainter: () => null,
+      };
+      const settle = async () => {
+        await new Promise((resolve) => setTimeout(resolve));
+        fixture.detectChanges();
+      };
+      const { root, fixture } = open(head.identifier);
+      const mode = (name: string) => {
+        root.querySelector<HTMLButtonElement>(`[data-testid="part-look-mode-${name}"]`)!.click();
+        fixture.detectChanges();
+      };
+
+      mode('faces');
+      await settle();
+      expect(made).toHaveLength(1);
+      mode('layer');
+      await settle();
+      made[0].shown();
+      await settle();
+      expect(made[0].dispose).toHaveBeenCalled();
+
+      mode('faces');
+      await settle();
+      expect(made).toHaveLength(2);
+      fixture.destroy();
+      expect(made[1].dispose).toHaveBeenCalled();
+    });
+
     it('offers no model to paint for a body drawn as its picture', () => {
       vi.spyOn(TestBed.inject(TablePiecesService), 'modelUrlOf').mockReturnValue('');
       dragon.modelIdentifier = '';

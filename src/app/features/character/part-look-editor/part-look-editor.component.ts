@@ -7,7 +7,6 @@ import {
   type ElementRef,
   inject,
   signal,
-  untracked,
   viewChild,
 } from '@angular/core';
 import { MODEL_VIEWER_LOADER } from '@axe/application/media/model-viewer-loader';
@@ -161,6 +160,8 @@ export class PartLookEditorComponent {
   private painting = false;
   /** The stage the body's model is shown on to paint its faces, and the faces being painted. */
   private readonly modelStage = signal<ModelStage | null>(null);
+  /** What the stage is being made for, and the stage once made, while the model is still loading on it. */
+  private stageFor: { canvas: HTMLCanvasElement; url: string; made: ModelStage | null } | null = null;
   private readonly draftFaces = signal<Map<number, Set<number>> | null>(null);
   private turningFrom: { x: number; y: number } | null = null;
 
@@ -168,29 +169,35 @@ export class PartLookEditorComponent {
     afterRenderEffect(() => this.drawMasks());
     afterRenderEffect(() => this.followModel());
     afterRenderEffect(() => this.showModelFaces());
-    inject(DestroyRef).onDestroy(() => untracked(this.modelStage)?.dispose());
+    inject(DestroyRef).onDestroy(() => this.letGoOfStage());
   }
 
   /** Starts the stage the body's model is painted on as its canvas comes, and lets it go as it goes. */
   private followModel(): void {
     const canvas = this.modelCanvas()?.nativeElement ?? null;
     const url = this.modelUrl();
-    const stage = untracked(this.modelStage);
-    if (!canvas || !url) {
-      if (stage) {
-        stage.dispose();
-        this.modelStage.set(null);
-      }
-      return;
-    }
-    if (stage) return;
+    if (this.stageFor && this.stageFor.canvas === canvas && this.stageFor.url === url) return;
+    this.letGoOfStage();
+    if (!canvas || !url) return;
+    const making = { canvas, url, made: null as ModelStage | null };
+    this.stageFor = making;
     void this.loadViewer().then((viewer) => {
-      if (untracked(this.modelStage) || this.modelCanvas()?.nativeElement !== canvas) return;
+      if (this.stageFor !== making) return;
       const made = viewer?.createModelStage(canvas) ?? null;
       if (!made) return;
+      making.made = made;
       made.setTurning(false);
-      void made.show(url).then(() => this.modelStage.set(made));
+      void made.show(url).then(() => {
+        if (this.stageFor === making) this.modelStage.set(made);
+      });
     });
+  }
+
+  /** Lets go of the stage the body's model is painted on, made or still being made. */
+  private letGoOfStage(): void {
+    this.stageFor?.made?.dispose();
+    this.stageFor = null;
+    this.modelStage.set(null);
   }
 
   /** Shows the faces painted on the body's model: the chosen part's strongly, the others' faintly. */
