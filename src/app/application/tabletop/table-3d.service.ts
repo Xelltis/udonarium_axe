@@ -522,6 +522,15 @@ export class Table3dService {
     this.drawSoon(engine);
   }
 
+  /**
+   * How long, in milliseconds all told, the scene on the canvas has stood still on the screen while
+   * the graphics card was readied for something new in it or a frame took long: what is handed to
+   * it meanwhile is not seen to move.
+   */
+  heldMs(): number {
+    return this.engine?.heldMs() ?? 0;
+  }
+
   /** Has the shaders of the dice of these materials built ahead, now or once the engine has started. */
   warmDice(materials: readonly DiceMaterial[]): void {
     const fresh = materials.filter((material) => !this.diceWarmed.has(material));

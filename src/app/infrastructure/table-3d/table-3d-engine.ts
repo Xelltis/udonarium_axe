@@ -149,6 +149,9 @@ const FLASH_SKY = 0.8;
 /** How far the light of a strike has to have changed before the scene is drawn again for it. */
 const FLASH_STEP = 0.004;
 
+/** How long a frame takes, in milliseconds, past which the scene is held to have stood still over it. */
+const LONG_FRAME_MS = 200;
+
 /** How dark the ground is that the sky lights a surface facing down with, beside the sky itself. */
 const GROUND_BOUNCE = 0.6;
 
@@ -235,6 +238,10 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly kinds = new DrawnKinds();
   /** The graphics card being readied for kinds of thing it has not drawn, which nothing is drawn during. */
   private readying: Promise<void> | null = null;
+  /** When the engine began readying the graphics card for what it is readying it for now. */
+  private readyingFrom = 0;
+  /** How long the scene stood still on the screen, readying the graphics card or over long frames, until now. */
+  private held = 0;
   /** Whether the graphics card is readied for a new kind of thing before the frame that first draws it. */
   private readiesFirst = true;
   private needsFrame: () => void = () => undefined;
@@ -550,6 +557,10 @@ class ThreeTableEngine implements Table3dEngine {
     return this.loading > 0 || this.shadowTimer !== null || this.models.isLoading || this.readying !== null;
   }
 
+  heldMs(): number {
+    return this.held + (this.readying !== null ? performance.now() - this.readyingFrom : 0);
+  }
+
   readyBeforeDrawing(on: boolean): void {
     this.readiesFirst = on;
   }
@@ -847,7 +858,10 @@ class ThreeTableEngine implements Table3dEngine {
     if (this.readying !== null || (this.readiesFirst && this.readyForNewKinds())) return false;
     this.changed = false;
     this.renderer.info.reset();
+    const began = performance.now();
     this.post.render(this.scene, this.camera, this.finishing());
+    const spent = performance.now() - began;
+    if (spent > LONG_FRAME_MS) this.held += spent;
     this.drawCalls = this.renderer.info.render.drawCalls;
     this.draws++;
     return true;
@@ -871,12 +885,16 @@ class ThreeTableEngine implements Table3dEngine {
   private readyForNewKinds(): boolean {
     const fresh = this.kinds.unreadied(this.scene);
     if (fresh.kinds.length === 0) return false;
+    this.readyingFrom = performance.now();
     const readying = this.post
       .compileAsync(this.scene, this.camera, this.finishing(), fresh.things)
       .catch(() => undefined)
       .then(() => {
         this.kinds.markReadied(fresh.kinds);
-        if (this.readying === readying) this.readying = null;
+        if (this.readying === readying) {
+          this.held += performance.now() - this.readyingFrom;
+          this.readying = null;
+        }
         this.needsFrame();
       });
     this.readying = readying;

@@ -629,6 +629,56 @@ describe('DiceRenderService', () => {
       expect(shown).toHaveBeenLastCalledWith([]);
     });
 
+    it('holds the dice on the table where they are while the table’s scene stands still on the screen', async () => {
+      const scene = TestBed.inject(Table3dService);
+      const shown = vi.spyOn(scene, 'showDice');
+      const held = vi.spyOn(scene, 'heldMs').mockReturnValue(0);
+      throws.set(new Map([['a', onTable('a', { startedAt: 0, phase: 'settled' })]]));
+      await nextFrame(0);
+      await nextFrame(100);
+      const before = shown.mock.lastCall![0][0].seconds;
+
+      for (let at = 200; at <= 1700; at += 100) {
+        held.mockReturnValue(at - 100);
+        await nextFrame(at);
+      }
+      await nextFrame(1800);
+
+      expect(shown.mock.lastCall![0][0].seconds).toBeCloseTo(before + 0.1);
+      const end = (ROLL_SECONDS + TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000 + 1600;
+      await nextFrame(end - 200);
+      expect(shown.mock.lastCall![0][0].opacity).toBeGreaterThan(0);
+      await nextFrame(end + 10);
+      expect(shown).toHaveBeenLastCalledWith([]);
+    });
+
+    it('has the dice on the table played out by a long wait between frames where the table’s scene stood ready', async () => {
+      const scene = TestBed.inject(Table3dService);
+      const shown = vi.spyOn(scene, 'showDice');
+      vi.spyOn(scene, 'heldMs').mockReturnValue(0);
+      throws.set(new Map([['a', onTable('a', { startedAt: 0, phase: 'settled' })]]));
+      await nextFrame(0);
+      await nextFrame(100);
+
+      await nextFrame((ROLL_SECONDS + TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000 + 10);
+
+      expect(shown).toHaveBeenLastCalledWith([]);
+    });
+
+    it('tells whether the dice on the table have all come to rest', async () => {
+      throws.set(new Map([['a', onTable('a', { startedAt: 0, phase: 'settled' })]]));
+      await nextFrame(0);
+      await nextFrame(100);
+      expect(service.diceResting).toBe(false);
+
+      await nextFrame(ROLL_SECONDS * 1000 + 50);
+      expect(service.diceResting).toBe(true);
+
+      throws.set(new Map());
+      await nextFrame(ROLL_SECONDS * 1000 + 100);
+      expect(service.diceResting).toBe(false);
+    });
+
     it('keeps dice at rest on the table on show while asked to, and has them stay their while and fade once let go', async () => {
       const shown = vi.spyOn(TestBed.inject(Table3dService), 'showDice');
       throws.set(new Map([['a', onTable('a', { startedAt: 0, phase: 'settled' })]]));

@@ -210,6 +210,11 @@ class FakeEngine implements Table3dEngine {
     return this.loading;
   }
 
+  held = 0;
+  heldMs(): number {
+    return this.held;
+  }
+
   readiesFirst: boolean[] = [];
 
   readyBeforeDrawing(on: boolean): void {

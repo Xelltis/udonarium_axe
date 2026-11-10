@@ -129,6 +129,10 @@ export class DiceRenderService {
   private readonly stages = new Set<Stage>();
   /** Whether the table's scene was last handed any dice, which it is to be told once they are gone. */
   private sceneHoldsDice = false;
+  /** How long the table's scene had stood still at the last frame drawn while it held dice, or null while it holds none. */
+  private sceneHeldAt: number | null = null;
+  /** Whether the dice the table's scene was last handed have all come to rest. */
+  private sceneDiceResting = false;
   private readonly prepared = new Map<
     string,
     { result: DiceThrow['result']; picture: string; prepared: PreparedThrow }
@@ -243,13 +247,45 @@ export class DiceRenderService {
     this.wake();
   }
 
-  /** Draws a frame, holding the dice on show back by the time it took where that was long. */
+  /** Whether every die on the table has come to rest, for the end-to-end suite to take its picture of them at. */
+  get diceResting(): boolean {
+    return this.sceneHoldsDice && this.sceneDiceResting;
+  }
+
+  /**
+   * Draws a frame, holding the dice on show back by the time it took where that was long, and the
+   * dice on the table by the time the table's scene stood still on the screen since the last.
+   */
   private draw(now: number): void {
     if (this.keepsResting) this.holdRests(now);
+    const held = this.table3d.heldMs();
+    if (this.sceneHoldsDice && this.sceneHeldAt !== null) this.holdBackOnTable(held - this.sceneHeldAt);
     const began = performance.now();
     this.drawFrame(now);
     const spent = performance.now() - began;
     if (spent > STALL_MS) this.holdBack(spent);
+    this.sceneHeldAt = this.sceneHoldsDice ? this.table3d.heldMs() : null;
+  }
+
+  /**
+   * Has every throw on the table carry on from where it was after a while the table's scene drew
+   * nothing, readying the graphics card for something new in it, as for the first dice of a
+   * material: the scene would otherwise show them already at rest, or fading, the first it drew of
+   * them.
+   */
+  private holdBackOnTable(ms: number): void {
+    if (ms <= 0) return;
+    const onTable = new Set(
+      [...this.throws.throws().values()]
+        .filter((diceThrow) => diceThrow.stage === 'table')
+        .map((diceThrow) => diceThrow.key)
+    );
+    for (const [key, from] of this.playFrom) {
+      if (!onTable.has(key)) continue;
+      this.playFrom.set(key, from + ms);
+      this.throws.played(key, from + ms);
+    }
+    for (const [key, rest] of this.restedAt) if (onTable.has(key)) this.restedAt.set(key, rest + ms);
   }
 
   /**
@@ -332,20 +368,21 @@ export class DiceRenderService {
   private showInScene(throws: ReadonlyMap<string, DiceThrow>, now: number): boolean {
     const rests = this.restsOnTable(throws, now);
     const showing = [...throws.values()].filter((diceThrow) => this.isOnTable(diceThrow, rests, now));
-    this.table3d.showDice(
-      showing.map((diceThrow) => {
-        const draw = this.drawOf(diceThrow);
-        const { endSeconds } = throwSecondsOf(draw.result, !!draw.accent);
-        const played = (now - this.playedFrom(diceThrow, now)) / 1000;
-        return {
-          key: diceThrow.key,
-          draw,
-          model: diceThrow.placement!.model,
-          seconds: diceThrow.still ? endSeconds : Math.min(played, endSeconds),
-          opacity: fadeOf((now - rests.get(diceThrow.messageIdentifier)!) / 1000),
-        };
-      })
-    );
+    const handed = showing.map((diceThrow) => {
+      const draw = this.drawOf(diceThrow);
+      const { endSeconds } = throwSecondsOf(draw.result, !!draw.accent);
+      const played = (now - this.playedFrom(diceThrow, now)) / 1000;
+      return {
+        key: diceThrow.key,
+        draw,
+        model: diceThrow.placement!.model,
+        seconds: diceThrow.still ? endSeconds : Math.min(played, endSeconds),
+        opacity: fadeOf((now - rests.get(diceThrow.messageIdentifier)!) / 1000),
+        resting: diceThrow.still || played >= endSeconds,
+      };
+    });
+    this.sceneDiceResting = handed.every((dice) => dice.resting);
+    this.table3d.showDice(handed.map(({ resting: _resting, ...dice }) => dice));
     this.sceneHoldsDice = showing.length > 0;
     return showing.length > 0;
   }

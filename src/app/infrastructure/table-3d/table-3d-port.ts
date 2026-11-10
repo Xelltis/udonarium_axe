@@ -260,6 +260,12 @@ export interface Table3dEngine {
   onNeedsFrame(listener: () => void): void;
   /** Whether the engine is still loading something it was told to draw, or holds something back to draw a moment later. */
   isLoading(): boolean;
+  /**
+   * How long, in milliseconds all told, the scene has stood still on the screen while the engine
+   * readied the graphics card for something new in it, drawing nothing, or took long over a frame,
+   * as on first drawing such a thing without readying it.
+   */
+  heldMs(): number;
   /** Draws at once on the next frame what it holds back to draw a moment later, as the shadows of pieces that moved. */
   stopHoldingBack(): void;
   /**
