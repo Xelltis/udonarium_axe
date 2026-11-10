@@ -1,6 +1,6 @@
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import type { EffectLight } from '@axe/domain/effect/effect-light';
-import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
+import type { EffectFrame, EffectGround } from '@axe/domain/effect/scene/effect-scene';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
 import type { SkyDome } from '@axe/domain/tabletop/world/sky-dome';
 import type { SkyLight } from '@axe/domain/tabletop/world/sky-light';
@@ -209,6 +209,8 @@ export interface Table3dEngine {
   setWeather(weather: Table3dWeatherFall | null): void;
   /** Draws what the effects being played draw at a moment, among the pieces and the walls. */
   setEffects(frame: EffectFrame): void;
+  /** Lays the marks effects leave on the floor over the ground as it rises and falls, or flat with null. */
+  setEffectGround(ground: EffectGround | null): void;
   /** Puts the dice of the rolls thrown on the table where their trays lie, each as far into its throw as given. */
   setDice(throws: readonly Table3dDiceThrow[]): void;
   /** Builds the shaders of the dice of these materials ahead, so the first throw that wears one does not wait for them. */

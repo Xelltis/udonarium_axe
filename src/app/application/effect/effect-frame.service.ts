@@ -1,6 +1,7 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { effectElapsedOf, EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -24,6 +25,7 @@ export class EffectFrameService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);
+  private readonly pieces = inject(TablePiecesService);
 
   readonly frame = computed<EffectFrame>(
     () => {
@@ -72,16 +74,19 @@ export class EffectFrameService {
     return typeof size === 'number' && size > 0 ? size : 1;
   }
 
-  /** The middle of a piece's foot as it stands now, raised as far as it flies, and the floor under it. */
+  /**
+   * The middle of a piece's foot as it is drawn now, on the raised ground or the block under it and
+   * following it while it is moved, raised as far as it flies, and the floor under it.
+   */
   private footingOf(identifier: string, cellPx: number): EffectFooting | null {
     const object = this.objectStore.get<TabletopObject>(identifier);
     if (!(object instanceof TabletopObject) || !object.isVisibleOnTable) return null;
     const half = (cellPx * this.sizeOf(identifier)) / 2;
-    return {
-      x: object.location.x + half,
-      y: object.location.y + half,
-      z: object.posZ + object.altitude * cellPx,
-      groundZ: object.posZ,
-    };
+    const foot = this.pieces.footOf(object);
+    const onFloor = foot.surface === 'floor';
+    const x = onFloor ? foot.x : object.location.x;
+    const y = onFloor ? foot.y : object.location.y;
+    const groundZ = onFloor ? foot.height : object.posZ;
+    return { x: x + half, y: y + half, z: groundZ + object.altitude * cellPx, groundZ };
   }
 }

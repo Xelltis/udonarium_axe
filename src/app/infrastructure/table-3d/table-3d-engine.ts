@@ -1,7 +1,7 @@
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { skyAmbienceFlash } from '@axe/domain/effect/ambience/ambience-sky';
 import { MAX_EFFECT_LIGHTS } from '@axe/domain/effect/effect-light';
-import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
+import type { EffectFrame, EffectGround } from '@axe/domain/effect/scene/effect-scene';
 import { cameraDepthOver } from '@axe/domain/tabletop/camera/camera-depth';
 import { GROUND_PAINT_LAYERS } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
@@ -814,6 +814,10 @@ class ThreeTableEngine implements Table3dEngine {
   setEffects(frame: EffectFrame): void {
     this.effects.set(frame);
     this.takeChanges();
+  }
+
+  setEffectGround(ground: EffectGround | null): void {
+    this.effects.setGround(ground);
   }
 
   setWeather(weather: Table3dWeatherFall | null): void {

@@ -3,12 +3,17 @@ import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import type { EffectCast } from '@axe/domain/effect/effect-cast';
 import type { EffectKind } from '@axe/domain/effect/effect-kind';
 import type { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { isAimed } from '@axe/domain/effect/effect-timeline';
 import { type Choreography, type Staged } from '@axe/domain/effect/scene/choreography';
+import { breath } from '@axe/domain/effect/scene/fire/breath';
 import { burst } from '@axe/domain/effect/scene/fire/burst';
+import { flame } from '@axe/domain/effect/scene/fire/flame';
+import { mushroom } from '@axe/domain/effect/scene/fire/mushroom';
+import { nova } from '@axe/domain/effect/scene/fire/nova';
 import { targetScaleOf } from '@axe/domain/effect/timeline/shared';
 
 /** The looks drawn in the table's scene, among the pieces, rather than over it. */
-const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = { burst };
+const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = { breath, burst, flame, mushroom, nova };
 
 /** Where a target stands for an effect: its foot, and the floor under it. */
 export interface EffectFooting {
@@ -61,6 +66,7 @@ export function stageEffect(
   const duration = preset.duration / 1000;
   const base = options.cellPx * preset.sizeScale;
   const blowsAt = effectBlowsOf(preset).map((blow) => blow.atMs / 1000);
+  const origin = originOf(cast, options);
   cast.targets.forEach((target, index) => {
     if (options.hiddenIdentifiers?.has(target.identifier)) return;
     const seconds = (elapsedMs - preset.stagger * index) / 1000;
@@ -69,7 +75,7 @@ export function stageEffect(
     const scale = targetScaleOf(
       { baseSize: options.cellPx, resolveSize: options.resolveSize },
       target.identifier,
-      false
+      isAimed(preset)
     );
     const staged = choreography.draw({
       x: footing.x,
@@ -80,6 +86,9 @@ export function stageEffect(
       seconds,
       duration,
       blowsAt,
+      index,
+      areaPx: preset.areaRadiusCells * options.cellPx,
+      origin,
       seed: cast.seed + index * 7919,
       preset,
     });
@@ -88,6 +97,19 @@ export function stageEffect(
     into.floor.push(...staged.floor);
     into.lights.push(...staged.lights);
   });
+}
+
+/** How high over a caster's foot an effect aimed from it leaves it, in cells of the table: from its hands or its mouth. */
+const AIMED_FROM_CELLS = 0.6;
+
+/**
+ * Where an effect aimed from its caster leaves it: from the caster as it is drawn now, or else where
+ * it stood as it was cast; null for one cast from nowhere.
+ */
+function originOf(cast: EffectCast, options: EffectStagingOptions) {
+  const caster = cast.casterIdentifier ? options.resolveFooting?.(cast.casterIdentifier) : null;
+  if (caster) return { x: caster.x, y: caster.y, z: caster.z + options.cellPx * AIMED_FROM_CELLS };
+  return cast.origin ? { x: cast.origin.x, y: cast.origin.y, z: cast.origin.z } : null;
 }
 
 function footingOf(

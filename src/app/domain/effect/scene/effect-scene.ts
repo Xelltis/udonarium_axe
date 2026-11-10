@@ -23,9 +23,11 @@ export type EffectBlend = 'light' | 'color';
  * The kinds of particle: a soft round glow; a spark, drawn out along the way it flies by how fast it
  * goes; a ball of flame, hard-edged and wavering, lit on its cap; a cloud of smoke, soft and lit on
  * top; a chunk of debris, hard-edged, outlined and lit on one face, which tumbles; a flake or a shard,
- * which glints; a star, a cross that twinkles.
+ * which glints; a star, a cross that twinkles; a tongue of flame, drawn up from its root along the way
+ * it is given to lean, as long as that way is fast, round at the root and pointed at the tip; a flare,
+ * a streak of light drawn out across the screen as many times its size as its trail says.
  */
-export type EffectMoteShape = 'glow' | 'spark' | 'puff' | 'smoke' | 'chunk' | 'flake' | 'star';
+export type EffectMoteShape = 'glow' | 'spark' | 'puff' | 'smoke' | 'chunk' | 'flake' | 'star' | 'tongue' | 'flare';
 
 /** One particle of an effect at a moment. */
 export interface EffectMote {
@@ -90,3 +92,16 @@ export interface EffectFloorMark {
 }
 
 export const EMPTY_EFFECT_FRAME: EffectFrame = { motes: [], ribbons: [], floor: [], lights: [] };
+
+/**
+ * The height of the ground the board lies over, sampled on a grid from the board's corner, for the
+ * marks of effects to lie over it rather than sink into it or float off it: how far apart the samples
+ * are, in table pixels, how many there are across and down, and each height, in table pixels, row by
+ * row from the north.
+ */
+export interface EffectGround {
+  readonly stepPx: number;
+  readonly across: number;
+  readonly down: number;
+  readonly heights: Float32Array;
+}

@@ -3,6 +3,7 @@ import type {
   EffectFloorMark,
   EffectFloorShape,
   EffectFrame,
+  EffectGround,
   EffectMote,
   EffectMoteShape,
 } from '@axe/domain/effect/scene/effect-scene';
@@ -28,6 +29,8 @@ import {
   select,
   sin,
   smoothstep,
+  sqrt,
+  texture,
   uniform,
   uv,
   vec2,
@@ -38,16 +41,22 @@ import {
   AdditiveBlending,
   type Camera,
   Color,
+  DataTexture,
+  DataUtils,
   DoubleSide,
   DynamicDrawUsage,
   Group,
+  HalfFloatType,
   InstancedBufferAttribute,
   InstancedBufferGeometry,
+  LinearFilter,
   Mesh,
   MeshBasicNodeMaterial,
   type Node,
   NormalBlending,
   PlaneGeometry,
+  RedFormat,
+  Vector2,
   Vector3,
 } from 'three/webgpu';
 
@@ -62,8 +71,29 @@ const MOTES_ORDER = 940;
 const MARKS_ORDER = 2.5;
 /** How far over the floor a mark lies, in table pixels, so the floor never shows through it. */
 const MARK_LIFT_PX = 0.4;
+/** How near the ground a mark's middle lies for it to be laid over the ground rather than flat, in table pixels. */
+const MARK_ON_GROUND_PX = 3;
+/** How many times a mark is split each way, to follow the ground over it. */
+const MARK_SEGMENTS = 16;
+/** The heights of flat ground, which no mark is laid over. */
+const NO_GROUND = new DataTexture(new Uint16Array([0]), 1, 1, RedFormat, HalfFloatType);
+/**
+ * How far nearer the eye a mark on the floor is drawn, in table pixels, along the line it is seen on:
+ * more than the ground painted high or low rises over a mark's breadth, and less than a wall stands off it.
+ */
+const MARK_NEARER_PX = 6;
 
-const MOTE_SHAPES: readonly EffectMoteShape[] = ['glow', 'spark', 'puff', 'smoke', 'chunk', 'flake', 'star'];
+const MOTE_SHAPES: readonly EffectMoteShape[] = [
+  'glow',
+  'spark',
+  'puff',
+  'smoke',
+  'chunk',
+  'flake',
+  'star',
+  'tongue',
+  'flare',
+];
 const MARK_SHAPES: readonly EffectFloorShape[] = ['ring', 'disc', 'sigil', 'cracks', 'scorch'];
 
 /** One instanced mesh of quads and the buffers it is drawn from, written afresh each frame. */
@@ -85,6 +115,11 @@ export class EffectLayer {
   readonly group = new Group();
   private readonly cameraRight = uniform(new Vector3(1, 0, 0));
   private readonly cameraUp = uniform(new Vector3(0, 1, 0));
+  /** The heights of the ground the marks lie over, how far apart its samples are and how many, and whether there is any. */
+  private readonly groundHeights = texture(NO_GROUND);
+  private readonly groundStep = uniform(1);
+  private readonly groundSize = uniform(new Vector2(1, 1));
+  private readonly groundOn = uniform(0);
   private readonly motes: Record<EffectBlend, Batch>;
   private readonly marks: Record<EffectBlend, Batch>;
   private readonly colour = new Color();
@@ -129,11 +164,33 @@ export class EffectLayer {
     this.cameraUp.value.setFromMatrixColumn(camera.matrixWorld, 1).normalize();
   }
 
+  /** Lays the marks on the floor over the ground as it rises and falls, or flat with null. */
+  setGround(ground: EffectGround | null): void {
+    if (!ground) {
+      this.groundOn.value = 0;
+      return;
+    }
+    const halves = new Uint16Array(ground.heights.length);
+    for (let index = 0; index < halves.length; index++) halves[index] = DataUtils.toHalfFloat(ground.heights[index]);
+    const previous = this.groundHeights.value;
+    const heights = new DataTexture(halves, ground.across, ground.down, RedFormat, HalfFloatType);
+    heights.minFilter = LinearFilter;
+    heights.magFilter = LinearFilter;
+    heights.needsUpdate = true;
+    this.groundHeights.value = heights;
+    if (previous !== NO_GROUND) previous.dispose();
+    this.groundStep.value = ground.stepPx;
+    this.groundSize.value.set(ground.across, ground.down);
+    this.groundOn.value = 1;
+    this.changed = true;
+  }
+
   dispose(): void {
     for (const batch of [this.motes.light, this.motes.color, this.marks.light, this.marks.color]) {
       batch.geometry.dispose();
       (batch.mesh.material as MeshBasicNodeMaterial).dispose();
     }
+    if (this.groundHeights.value !== NO_GROUND) this.groundHeights.value.dispose();
   }
 
   private fillMotes(batch: Batch, motes: readonly EffectMote[], blend: EffectBlend): void {
@@ -197,8 +254,14 @@ export class EffectLayer {
     }
   }
 
-  private batchOf(names: readonly string[], max: number, material: MeshBasicNodeMaterial, order: number): Batch {
-    const plane = new PlaneGeometry(1, 1);
+  private batchOf(
+    names: readonly string[],
+    max: number,
+    material: MeshBasicNodeMaterial,
+    order: number,
+    segments = 1
+  ): Batch {
+    const plane = new PlaneGeometry(1, 1, segments, segments);
     const geometry = new InstancedBufferGeometry();
     geometry.index = plane.index;
     geometry.setAttribute('position', plane.getAttribute('position'));
@@ -245,10 +308,12 @@ export class EffectLayer {
       corner.x.mul(cos(spin)).sub(corner.y.mul(sin(spin))),
       corner.x.mul(sin(spin)).add(corner.y.mul(cos(spin)))
     );
-    const faced = this.cameraRight.mul(turned.x).add(this.cameraUp.mul(turned.y)).mul(size);
+    const shape = look.x;
+    // A flare is drawn out across the screen, as wide as its trail says.
+    const stretch = select(shape.equal(8), max(motion.w, 1), float(1));
+    const faced = this.cameraRight.mul(turned.x.mul(stretch)).add(this.cameraUp.mul(turned.y)).mul(size);
     const drawnOut = across.mul(corner.x.mul(size)).add(along.mul(corner.y.sub(0.5).mul(reach)));
 
-    const shape = look.x;
     const point = uv().sub(0.5).mul(2);
     const away = length(point);
     const blur = max(fwidth(away), 0.001);
@@ -275,6 +340,28 @@ export class EffectLayer {
       clamp(float(1).sub(abs(point.y).mul(6)), 0, 1)
     ).mul(round);
     const star = clamp(float(1).sub(abs(point.x.mul(point.y)).mul(28)), 0, 1).mul(round);
+    // A flare: a streak of light across the screen, thin and soft, brightest along its middle.
+    const flare = pow(clamp(float(1).sub(abs(point.y)), 0, 1), 3).mul(
+      pow(clamp(float(1).sub(abs(point.x)), 0, 1), 1.5)
+    );
+    // A tongue of flame, drawn out from its root up along the way it leans: round at the root,
+    // widest a little above it and drawn to a point at its tip, its edge wavering.
+    const up = uv().y;
+    const tongueWidth = sqrt(clamp(up.mul(3.5), 0, 1))
+      .mul(pow(float(1).sub(up), 0.7))
+      .mul(
+        sin(up.mul(9).add(variant.mul(5)))
+          .mul(0.08)
+          .add(1)
+      );
+    const tongue = clamp(
+      tongueWidth
+        .sub(abs(point.x))
+        .div(max(fwidth(point.x), 0.001))
+        .add(0.5),
+      0,
+      1
+    );
     const alpha = select(
       shape.equal(0),
       glow,
@@ -284,7 +371,15 @@ export class EffectLayer {
         select(
           shape.equal(2),
           puff,
-          select(shape.equal(3), smoke, select(shape.equal(4), chunk, select(shape.equal(5), flake, star)))
+          select(
+            shape.equal(3),
+            smoke,
+            select(
+              shape.equal(4),
+              chunk,
+              select(shape.equal(5), flake, select(shape.equal(6), star, select(shape.equal(7), tongue, flare)))
+            )
+          )
         )
       )
     );
@@ -304,7 +399,11 @@ export class EffectLayer {
     const hot = select(
       shape.equal(0),
       heart.mul(0.7),
-      select(shape.equal(1), smoothstep(0.6, 1, uv().y).mul(0.6), float(0))
+      select(
+        shape.equal(1),
+        smoothstep(0.6, 1, uv().y).mul(0.6),
+        select(shape.equal(8), pow(clamp(float(1).sub(abs(point.y).mul(2.5)), 0, 1), 2).mul(0.8), float(0))
+      )
     );
     const shown = mix(tint.rgb.mul(lit), vec3(1, 1, 1), blend === 'light' ? hot : float(0));
 
@@ -333,7 +432,15 @@ export class EffectLayer {
     const tint = attribute<'vec4'>('tint', 'vec4');
     const look = attribute<'vec4'>('look', 'vec4');
     const corner = positionGeometry.xy;
-    const lying = vec3(corner.x, 0, corner.y.negate()).mul(place.w.mul(2));
+    const flat = place.xyz.add(vec3(corner.x, 0, corner.y.negate()).mul(place.w.mul(2)));
+    // A mark laid where the ground under it is lies over the ground as it rises and falls; one laid
+    // above it, on a block, lies flat.
+    const groundAt = (x: Node<'float'>, z: Node<'float'>) =>
+      this.groundHeights.sample(vec2(x, z).div(this.groundStep).add(0.5).div(this.groundSize)).level(float(0)).r;
+    const onGround = this.groundOn
+      .greaterThan(0.5)
+      .and(abs(place.y.sub(MARK_LIFT_PX).sub(groundAt(place.x, place.z))).lessThan(MARK_ON_GROUND_PX));
+    const laid = vec3(flat.x, select(onGround, groundAt(flat.x, flat.z).add(MARK_LIFT_PX), flat.y), flat.z);
 
     const shape = look.x;
     const width = clamp(look.y, 0.01, 1);
@@ -390,9 +497,11 @@ export class EffectLayer {
       blending: blend === 'light' ? AdditiveBlending : NormalBlending,
       ...LAID_OVER_FACES,
     });
-    material.positionNode = place.xyz.add(lying);
+    // Drawn nearer the eye along the line it is seen on, so where the ground rises a little under it
+    // the mark is not lost in the ground; anything standing over it is drawn after it and covers it.
+    material.positionNode = laid.add(normalize(cameraPosition.sub(laid)).mul(MARK_NEARER_PX));
     material.colorNode = vec4(tint.rgb, 1);
     material.opacityNode = alpha.mul(tint.w);
-    return this.batchOf(['place', 'tint', 'look'], MAX_EFFECT_MARKS, material, MARKS_ORDER);
+    return this.batchOf(['place', 'tint', 'look'], MAX_EFFECT_MARKS, material, MARKS_ORDER, MARK_SEGMENTS);
   }
 }

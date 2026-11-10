@@ -1,3 +1,4 @@
+import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { EffectKind } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -105,5 +106,52 @@ describe('stageEffect()', () => {
 
     expect(count(3)).toBeGreaterThan(count(2));
     expect(count(2)).toBeGreaterThan(count(1));
+  });
+});
+
+describe('the looks of fire drawn in the scene', () => {
+  const FIRE: readonly EffectKind[] = ['flame', 'nova', 'mushroom', 'breath'];
+
+  it.each(FIRE)('draws %s in the scene while it plays, over the floor, and nothing once it has cleared', (kind) => {
+    const preset = makePreset(kind, { durationMs: 3000 });
+    const cast = { ...castOn([100, 100]), origin: { x: 400, y: 100, z: 30 } };
+
+    expect(isDrawnInScene(preset)).toBe(true);
+    for (const at of [600, 1500, 2600]) {
+      const drawn = staged(preset, cast, at);
+      expect(drawn.motes.length).toBeGreaterThan(0);
+      expect(drawn.motes.every((mote) => mote.z >= 0 && Number.isFinite(mote.x) && Number.isFinite(mote.size))).toBe(
+        true
+      );
+    }
+    const cleared = staged(preset, cast, 3000 + sceneLingerMsOf(preset) + 10);
+    expect(cleared.motes).toHaveLength(0);
+    expect(cleared.floor).toHaveLength(0);
+  });
+
+  it('strikes a piece caught round a great blast smaller and a moment after its heart', () => {
+    for (const kind of ['nova', 'mushroom'] as const) {
+      const preset = makePreset(kind, { durationMs: 3000, areaRadius: 3, grade: 3 });
+      const cast = castOn([100, 100], [200, 100]);
+      const goesOff = effectBlowsOf(preset)[0].atMs;
+      const caughtAt = (elapsed: number) => staged(preset, cast, elapsed).motes.filter((mote) => mote.x > 160);
+
+      expect(caughtAt(goesOff + 20)).toHaveLength(0);
+      expect(caughtAt(goesOff + 400).length).toBeGreaterThan(0);
+      const heart = staged(preset, castOn([100, 100]), goesOff + 400).motes.length;
+      expect(caughtAt(goesOff + 400).length).toBeLessThan(heart);
+    }
+  });
+
+  it('breathes fire out of the caster towards the target, from the caster as it stands now', () => {
+    const preset = makePreset('breath', { durationMs: 3000 });
+    const cast = { ...castOn([100, 100]), casterIdentifier: 'caster', origin: { x: 400, y: 100, z: 30 } };
+    const nearest = (drawn: Staged) => Math.max(...drawn.motes.map((mote) => mote.x));
+
+    expect(nearest(staged(preset, cast, 40))).toBeGreaterThan(360);
+    const moved = staged(preset, cast, 40, {
+      resolveFooting: (identifier) => (identifier === 'caster' ? { x: 600, y: 100, z: 0, groundZ: 0 } : null),
+    });
+    expect(nearest(moved)).toBeGreaterThan(560);
   });
 });

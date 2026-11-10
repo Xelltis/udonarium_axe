@@ -159,6 +159,8 @@ class FakeEngine implements Table3dEngine {
     this.effectFrames.push(frame);
   }
 
+  setEffectGround(): void {}
+
   setQuality(plan: Table3dQualityPlan): void {
     this.qualities.push(plan);
     this.changed = true;

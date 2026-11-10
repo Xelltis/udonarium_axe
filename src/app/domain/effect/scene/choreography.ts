@@ -18,6 +18,15 @@ export interface Stage {
    */
   readonly seconds: number;
   readonly duration: number;
+  /**
+   * The target's place in the cast: the first is where an effect over an area is centred, and the
+   * rest are those caught in it.
+   */
+  readonly index: number;
+  /** How far an effect over an area reaches from its centre, in table pixels; nothing for one on its targets alone. */
+  readonly areaPx: number;
+  /** Where an effect aimed from its caster leaves it, in table pixels: its hands or its mouth; null for one cast from nowhere. */
+  readonly origin: { readonly x: number; readonly y: number; readonly z: number } | null;
   /** When its blows land on the target, in seconds of its playback: the moment it goes off. */
   readonly blowsAt: readonly number[];
   readonly seed: number;
