@@ -271,25 +271,46 @@ function drawFlying(
       return;
     case 'missile':
     case 'cruise': {
-      // Its trail of smoke, left where it was and swelling as it thins.
-      for (let back = 12; back >= 1; back--) {
-        const was = share - back * 0.035;
-        if (was < 0) continue;
-        const age = back / 12;
-        drawn.motes.push(smokePuff(pathAt(was), cell * (0.18 + age * 0.35), '#d8d4d0', (1 - age) * 0.55, forward));
-      }
-      drawn.motes.push({
-        ...ball(behind(cell * 0.05), cell * 0.16, ramp[4], 1, forward, seed),
-        shape: 'comet',
-        velocity,
-        trail: (cell * 0.3) / speed,
+      // A streak of its colour along the way it has come, and its trail of smoke, left where it was
+      // and swelling as it thins.
+      const streak = Array.from({ length: 8 }, (_unused, index) => pathAt(Math.max(0, share - (7 - index) * 0.025)));
+      const shares = streak.map((_point, index) => index / 7);
+      drawn.ribbons.push({
+        points: streak,
+        widths: shares.map((part) => cell * 0.22 * part),
+        color: hueOf(ramp),
+        core: ramp[4],
+        alpha: 0.85,
+        alphas: shares,
+        blend: 'light',
       });
-      drawn.motes.push(glow(behind(cell * 0.2), cell * 0.4, ramp[5], 0.9, forward));
+      for (let back = 14; back >= 1; back--) {
+        const was = share - back * 0.03;
+        if (was < 0) continue;
+        const age = back / 14;
+        drawn.motes.push(smokePuff(pathAt(was), cell * (0.24 + age * 0.45), '#cfc8c2', (1 - age) * 0.6, forward));
+      }
+      // Its exhaust: a flame of its colour streaming behind it and a hot light.
+      drawn.motes.push(haze(behind(cell * 0.25), cell * 0.9, hueOf(ramp), 0.55, forward));
       drawn.motes.push({
-        ...ball(at, cell * 0.13, '#d9dde2', 1, forward + 1, seed),
+        ...ball(behind(cell * 0.12), cell * 0.3, ramp[4], 1, forward, seed),
         shape: 'comet',
         velocity,
-        trail: (cell * 0.35) / speed,
+        trail: (cell * 0.6) / speed,
+      });
+      drawn.motes.push(glow(behind(cell * 0.2), cell * 0.7, ramp[5], 0.9, forward));
+      // Its body, light on top and dark beneath, with a coloured nose.
+      drawn.motes.push({
+        ...ball(at, cell * 0.24, '#e4e7ea', 1, forward + 1, seed),
+        shape: 'comet',
+        velocity,
+        trail: (cell * 0.55) / speed,
+      });
+      drawn.motes.push({
+        ...ball(at, cell * 0.14, hueOf(ramp), 1, forward + 2, seed),
+        shape: 'comet',
+        velocity,
+        trail: (cell * 0.12) / speed,
       });
       return;
     }
