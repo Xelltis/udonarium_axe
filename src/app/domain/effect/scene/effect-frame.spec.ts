@@ -295,3 +295,21 @@ describe('every look drawn in the scene', () => {
     expect(landed.motes.some((mote) => mote.shape === 'tongue')).toBe(true);
   });
 });
+
+describe('a volley of missiles', () => {
+  it('flies each missile on its own course and lands them apart', () => {
+    const volley = makePreset('projectile', { durationMs: 2100 });
+    volley.projectileStyle = 'missile';
+    volley.shots = 4;
+    volley.shotInterval = 120;
+    volley.impactKind = 'burst';
+    const cast = { ...castOn([100, 100]), origin: { x: 500, y: 100, z: 30 } };
+    // Two missiles in the air at once: their heads, the comets of their bodies, are in different places.
+    const flying = staged(volley, cast, 330).motes.filter((mote) => mote.shape === 'comet' && mote.color !== '#d9dde2');
+    const ys = flying.map((mote) => Math.round(mote.y));
+    expect(new Set(ys).size).toBeGreaterThan(1);
+    // Every one has landed by the end: the marks they leave are not all on one spot.
+    const landed = staged(volley, cast, 2000).floor.filter((mark) => mark.shape === 'scorch');
+    expect(new Set(landed.map((mark) => `${Math.round(mark.x)}|${Math.round(mark.y)}`)).size).toBeGreaterThan(1);
+  });
+});

@@ -68,9 +68,18 @@ function addInto(drawn: Staged, landed: Staged): void {
 }
 
 /** The landing of one shot, on its own clock from the moment it lands, as large as a shot of a burst is. */
-function landing(stage: Stage, landWith: LandingLook, landsAt: number, shot: number, shots: number): Staged {
+function landing(
+  stage: Stage,
+  landWith: LandingLook,
+  landsAt: number,
+  shot: number,
+  shots: number,
+  spot: { readonly x: number; readonly y: number } = stage
+): Staged {
   return landWith({
     ...stage,
+    x: spot.x,
+    y: spot.y,
     seconds: stage.seconds - landsAt,
     duration: Math.max(0.6, stage.duration - landsAt),
     blowsAt: [0],
@@ -97,14 +106,8 @@ function drawProjectile(stage: Stage, landWith: LandingLook): Staged {
     const lands = shot.land * duration;
     const flies = Math.max(lands - launch, 0.02);
     const share = (t - launch) / flies;
-    const pathAt = (along: number): Point => {
-      const straight = lerpPoint(from, to, along);
-      if (style !== 'missile' && style !== 'cruise') return straight;
-      const { side } = acrossOf(wayBetween(from, to).way);
-      const arch = Math.sin(Math.PI * along) * length * (style === 'cruise' ? 0.3 : 0.22);
-      const sway = style === 'cruise' ? Math.sin(Math.PI * 2 * along) * weave * 0.18 : 0;
-      return { x: straight.x + side.x * sway, y: straight.y + side.y * sway, z: straight.z + arch };
-    };
+    const course = courseOf(style, from, to, cell, length, index, timing.shots.length, weave);
+    const pathAt = course.at;
     if (GUNS.has(style) && t >= launch && t < launch + 0.09)
       drawMuzzle(drawn, from, cell, ramp, (t - launch) / 0.09, forward);
     if (share >= 0 && share < 1) {
@@ -116,9 +119,78 @@ function drawProjectile(stage: Stage, landWith: LandingLook): Staged {
     }
     if (style === 'tracer' && t >= launch && t < launch + 0.3)
       drawTracerLine(drawn, from, to, cell, ramp, (t - launch) / 0.3);
-    if (t >= lands) addInto(drawn, landing(stage, landWith, lands, index, timing.shots.length));
+    if (t >= lands) addInto(drawn, landing(stage, landWith, lands, index, timing.shots.length, course.lands));
   });
   return drawn;
+}
+
+/** Each shot of a volley strays to its own side and lands a little apart, so they read as many, not one. */
+const SWERVE_SIDE = [1, -1, 0.55, -0.55, 1.4, -1.4, 0.8, -0.8];
+
+/**
+ * The way one shot of a volley flies, and where it lands. A shot of light or a bullet flies straight,
+ * a burst of them a little apart where they strike. A missile is kicked up and out to its own side
+ * as it leaves, then curves in to strike, each of a volley on its own course and landing apart; a
+ * cruise missile climbs higher, swings wider and weaves as it closes.
+ */
+function courseOf(
+  style: string,
+  from: Point,
+  to: Point,
+  cell: number,
+  length: number,
+  index: number,
+  shots: number,
+  weave: number
+): { at: (along: number) => Point; lands: Point } {
+  const { way, side } = (() => {
+    const between = wayBetween(from, to);
+    return { way: between.way, side: acrossOf(between.way).side };
+  })();
+  const sideOf = SWERVE_SIDE[index % SWERVE_SIDE.length];
+  // Every shot after the first of a burst lands a little apart from the others.
+  const apart = shots > 1 ? cell * 0.35 : 0;
+  const spread = {
+    x: side.x * sideOf * apart + way.x * (((index * 37) % 7) / 7 - 0.5) * apart,
+    y: side.y * sideOf * apart + way.y * (((index * 37) % 7) / 7 - 0.5) * apart,
+  };
+  const lands = { x: to.x + spread.x, y: to.y + spread.y, z: to.z };
+  if (style !== 'missile' && style !== 'cruise') {
+    return { at: (along) => lerpPoint(from, lands, along), lands };
+  }
+  const cruise = style === 'cruise';
+  const swerve = sideOf * Math.max(cell * (cruise ? 2.4 : 1.2), length * (cruise ? 0.35 : 0.22));
+  const climb =
+    Math.max(cell * (cruise ? 3 : 1.6), length * (cruise ? 0.45 : 0.28)) * (0.75 + 0.5 * (((index * 53) % 11) / 11));
+  // Kicked up and out to its side as it leaves, then curving in on the target from above.
+  const kick = {
+    x: from.x + side.x * swerve + way.x * length * 0.15,
+    y: from.y + side.y * swerve + way.y * length * 0.15,
+    z: from.z + climb,
+  };
+  const dive = {
+    x: lands.x + side.x * swerve * 0.35 - way.x * length * 0.2,
+    y: lands.y + side.y * swerve * 0.35 - way.y * length * 0.2,
+    z: lands.z + climb * 0.8,
+  };
+  return {
+    at: (along) => {
+      const u = 1 - along;
+      const a = u * u * u;
+      const b = 3 * u * u * along;
+      const c = 3 * u * along * along;
+      const d = along * along * along;
+      const point = {
+        x: a * from.x + b * kick.x + c * dive.x + d * lands.x,
+        y: a * from.y + b * kick.y + c * dive.y + d * lands.y,
+        z: a * from.z + b * kick.z + c * dive.z + d * lands.z,
+      };
+      if (!cruise) return point;
+      const sway = Math.sin(Math.PI * 3 * along) * Math.sin(Math.PI * along) * weave * 0.12;
+      return { x: point.x + side.x * sway, y: point.y + side.y * sway, z: point.z };
+    },
+    lands,
+  };
 }
 
 /** A shot in flight, drawn as its look is. */
