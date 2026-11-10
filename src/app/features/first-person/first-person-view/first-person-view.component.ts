@@ -20,6 +20,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop/ambience.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
@@ -234,6 +235,7 @@ export class FirstPersonViewComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly vision = inject(VisionService);
+  private readonly pieceLinks = inject(PieceLinksService);
   private readonly water = inject(WaterService);
   private readonly ambience = inject(AmbienceService);
   private readonly rolePermission = inject(RolePermissionService);
@@ -502,6 +504,8 @@ export class FirstPersonViewComponent {
       this.objectChange.versionOf(piece.identifier)();
       if (!piece.isVisibleOnTable || surfaceOf(piece) !== 'floor' || boardSurfaceOf(piece) !== '') continue;
       if (!this.vision.isTokenVisible(piece)) continue;
+      // A part is drawn as its body alone.
+      if (this.pieceLinks.bodyOf(piece)) continue;
       const drawnCells = Math.max(0, piece.size);
       if (drawnCells <= 0) continue;
       const size = Math.max(1, drawnCells) * gridSize;

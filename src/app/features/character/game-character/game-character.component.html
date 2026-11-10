@@ -672,7 +672,17 @@
                   @if (!first) {
                     <div class="my-[0.35em] h-[0.1em] w-full shrink-0 bg-white/40"></div>
                   }
-                  <div class="flex flex-col items-center gap-[0.15em]" data-testid="riding-label-piece">
+                  <div
+                    class="ring-ui-accent flex flex-col items-center gap-[0.15em] rounded-[0.6em]"
+                    data-testid="riding-label-piece"
+                    [attr.data-body-part]="label.part ? label.identifier : null"
+                    [attr.data-hud-control]="label.part ? '' : null"
+                    [class.pointer-events-auto]="label.part"
+                    [class.cursor-pointer]="label.part"
+                    [class.ring-2]="label.targeted"
+                    (click)="label.part && aimAtPart(label.identifier, $event)"
+                    (contextmenu)="label.part && openPartMenu(label.identifier, $event)"
+                  >
                     @if (label.badges.length > 0) {
                       <div
                         class="grid w-max items-end gap-[0.8em]"
@@ -707,10 +717,12 @@
                           @if (isLock) {
                             <i class="material-icons inline align-middle text-[1em]!">lock</i>
                           }
-                          <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
-                            ><i class="material-icons inline align-middle text-[1em]!">person</i
-                            >{{ label.aboard }}</span
-                          >
+                          @if (label.aboard > 0) {
+                            <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
+                              ><i class="material-icons inline align-middle text-[1em]!">person</i
+                              >{{ label.aboard }}</span
+                            >
+                          }
                         </div>
                       </div>
                     }

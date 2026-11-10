@@ -5998,7 +5998,11 @@
       "stayedOn": "{{name}} already got on or off this turn and was put back on {{mount}}",
       "offerActionUp_rider": "Get up and ride",
       "offerActionUp_passenger": "Get up and ride behind",
-      "offerActionUp_cargo": "Get up and be loaded"
+      "offerActionUp_cargo": "Get up and be loaded",
+      "part": {
+        "attach": "Make a part of {{body}}",
+        "detach": "Take off {{body}} as a part"
+      }
     },
     "battleCutIn": {
       "title": "Battle cut-in",

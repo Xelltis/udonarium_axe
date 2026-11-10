@@ -5998,7 +5998,11 @@
       "stayedOn": "{{name}} はこの手番にもう乗り降りしたので、{{mount}} の上に戻しました",
       "offerActionUp_rider": "起き上がって乗る",
       "offerActionUp_passenger": "起き上がって同乗する",
-      "offerActionUp_cargo": "起き上がって積まれる"
+      "offerActionUp_cargo": "起き上がって積まれる",
+      "part": {
+        "attach": "{{body}} の部位にする",
+        "detach": "{{body}} の部位から外す"
+      }
     },
     "battleCutIn": {
       "title": "戦闘カットイン",

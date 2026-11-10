@@ -8,6 +8,7 @@ import {
   frontRefusal,
   frontRidersOf,
   inTheWayOf,
+  isPartOf,
   mountHeightOf,
   pictureHeightOf,
   readSeatHeight,
@@ -34,6 +35,41 @@ describe('riding a mount', () => {
     expect(seatOf('roof')).toBe('rider');
     expect(writtenSeat('rider')).toBe('');
     expect(writtenSeat('cargo')).toBe('cargo');
+  });
+
+  it('reads a piece written down as a part of another, and nothing riding itself as one', () => {
+    expect(seatOf('part')).toBe('part');
+    expect(writtenSeat('part')).toBe('part');
+    expect(isPartOf({ id: 'head', ridingOn: 'dragon', rideSeat: 'part' })).toBe(true);
+    expect(isPartOf({ id: 'knight', ridingOn: 'horse', rideSeat: '' })).toBe(false);
+    expect(isPartOf({ id: 'head', ridingOn: '', rideSeat: 'part' })).toBe(false);
+    expect(isPartOf({ id: 'head', ridingOn: 'head', rideSeat: 'part' })).toBe(false);
+  });
+
+  it('never frees a seat as a part, which is no seat of a mount', () => {
+    expect(freeSeats({ passenger: true, cargo: 3 }, ['part', 'part'])).toEqual(['rider', 'cargo']);
+  });
+
+  it('has a part act in its body’s turn, and in the turn of whoever rides the body in front', () => {
+    const pieces = [
+      { id: 'dragon', ridingOn: '', rideSeat: '', mountable: false },
+      { id: 'head', ridingOn: 'dragon', rideSeat: 'part', mountable: false },
+      { id: 'wing', ridingOn: 'dragon', rideSeat: 'part', mountable: false },
+      { id: 'wyvern', ridingOn: '', rideSeat: '', mountable: true },
+      { id: 'tail', ridingOn: 'wyvern', rideSeat: 'part', mountable: false },
+      { id: 'knight', ridingOn: 'wyvern', rideSeat: '', mountable: false },
+      { id: 'idol', ridingOn: '', rideSeat: '', mountable: false, takesTurns: false },
+      { id: 'arm', ridingOn: 'idol', rideSeat: 'part', mountable: false },
+      { id: 'stray', ridingOn: 'gone', rideSeat: 'part', mountable: false },
+    ];
+
+    expect(turnCarrierOf('head', pieces)).toBe('dragon');
+    expect(turnCarrierOf('wing', pieces)).toBe('dragon');
+    expect(turnCarrierOf('dragon', pieces)).toBe('');
+    expect(turnCarrierOf('tail', pieces)).toBe('knight');
+    expect(turnCarrierOf('wyvern', pieces)).toBe('knight');
+    expect(turnCarrierOf('arm', pieces)).toBe('');
+    expect(turnCarrierOf('stray', pieces)).toBe('');
   });
 
   it('frees the front, a second rider behind one in front, and room for loads', () => {
@@ -244,6 +280,13 @@ describe('riding a mount', () => {
       expect(fallersWhenDown('horse', pieces)).toEqual(['knight', 'squire', 'crate']);
       expect(fallersWhenDown('walker', pieces)).toEqual([]);
       expect(fallersWhenDown('nobody', pieces)).toEqual([]);
+    });
+
+    it('throws no part off its body, mount or not', () => {
+      const withParts = [...pieces, { id: 'mane', ridingOn: 'horse', rideSeat: 'part', mountable: false }];
+
+      expect(fallersWhenDown('horse', withParts)).toEqual(['knight', 'squire', 'crate']);
+      expect(fallersWhenDown('mane', withParts)).toEqual([]);
     });
 
     it('takes a load off with the one riding in front, and leaves whoever sits behind on', () => {

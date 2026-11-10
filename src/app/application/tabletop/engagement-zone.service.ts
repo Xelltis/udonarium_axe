@@ -798,7 +798,8 @@ export class EngagementZoneService {
     const onFloor = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((piece) => piece.isVisibleOnTable && surfaceOf(piece) === 'floor');
-    const mounts = new Map(onFloor.map((piece) => [piece.identifier, this.links.mountOf(piece)?.identifier ?? '']));
+    // A part goes with its body as one riding goes with its mount.
+    const mounts = new Map(onFloor.map((piece) => [piece.identifier, this.links.bondOf(piece).ridingOn ?? '']));
     const pieces: ZonePieceInput[] = onFloor.map((piece) => ({
       id: piece.identifier,
       point: pieceCentreOf(piece, gridSize),

@@ -33,6 +33,7 @@ import { GroundService } from '@axe/application/tabletop/ground.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
@@ -266,6 +267,7 @@ export class GameTableComponent {
   private readonly mobileLayout = inject(MobileLayoutService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChangeService = inject(ObjectChangeService);
+  private readonly pieceLinks = inject(PieceLinksService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly appRef = inject(ApplicationRef);
   private readonly t = inject(TRANSLATE_FN);
@@ -761,7 +763,14 @@ export class GameTableComponent {
    */
   readonly diceSymbolsOverCanvas = computed(() => this.diceSymbols());
   readonly coinsOverCanvas = computed(() => this.coins());
-  readonly charactersOverCanvas = computed(() => this.characters());
+  /** The characters laid over the table, all but those drawn as a part of another, which show in the body's card. */
+  readonly charactersOverCanvas = computed(() =>
+    this.characters().filter((character) => {
+      this.objectChangeService.versionOf(character.identifier)();
+      if (character.ridingOn !== '') this.objectChangeService.versionOf(character.ridingOn)();
+      return this.pieceLinks.bodyOf(character) === null;
+    })
+  );
   readonly textNotesOverCanvas = computed(() => this.textNotes());
   readonly cardsOverCanvas = computed(() => this.cards());
   readonly cardStacksOverCanvas = computed(() => this.cardStacks());

@@ -156,6 +156,31 @@ describe('TablePiecesService', () => {
     expect(pieces.footOf(die)).toEqual({ surface: 'floor', x: 100, y: 200, height: 0 });
   });
 
+  it('draws a part of another piece as its body alone, and again as itself once the body has gone', async () => {
+    const dragon = GameCharacter.create('ドラゴン', 3, '');
+    dragon.location = { name: 'table', x: 100, y: 200 };
+    const head = GameCharacter.create('頭', 1, '');
+    head.location = { name: 'table', x: 100, y: 200 };
+    head.ridingOn = dragon.identifier;
+    head.rideSeat = 'part';
+    for (const piece of [dragon, head]) {
+      TestBed.inject(PiecePicturesService).show(piece.identifier, { url: 'blob:pedestal', widthPx: 50, heightPx: 50 });
+    }
+    const owners = () => new Set(pieces.sprites().map((sprite) => sprite.owner));
+
+    try {
+      expect(owners().has(dragon.identifier)).toBe(true);
+      expect(owners().has(head.identifier)).toBe(false);
+
+      dragon.setLocation('graveyard');
+      await Promise.resolve();
+      expect(owners().has(head.identifier)).toBe(true);
+    } finally {
+      head.destroy();
+      dragon.destroy();
+    }
+  });
+
   it('draws a die this seat is moving where it is being moved to', () => {
     const die = dieAt(100, 200);
     pieces.sprites();

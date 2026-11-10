@@ -29,6 +29,7 @@ import { MovePlannerService } from '@axe/application/tabletop/move-planner.servi
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { PiecePartsService } from '@axe/application/tabletop/piece-parts.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
@@ -168,6 +169,7 @@ const RIDING_SEAT_ICONS: Readonly<Record<RideSeat, string>> = {
   rider: 'upgrade',
   passenger: 'group',
   cargo: 'backpack',
+  part: 'extension',
 };
 
 /** One piece in a mount's riding card: one riding it, or the mount itself. */
@@ -179,6 +181,10 @@ interface RidingLabel {
   readonly icon: string;
   /** How many ride it, for the mount; 0 for one riding. */
   readonly aboard: number;
+  /** Whether it is a part of the piece, listed under it, which is aimed at by pressing its row. */
+  readonly part: boolean;
+  /** Whether this seat aims at it. */
+  readonly targeted: boolean;
   readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string }[];
   readonly badges: readonly BuffBadge[];
 }
@@ -250,6 +256,7 @@ export class GameCharacterComponent {
   private readonly engagementZones = inject(EngagementZoneService);
   private readonly links = inject(PieceLinksService);
   private readonly ride = inject(RideService);
+  private readonly parts = inject(PiecePartsService);
   private readonly snackbar = inject(SnackbarService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
@@ -769,11 +776,33 @@ export class GameCharacterComponent {
       const char = this.gameCharacter();
       if (!char || this.ridersAboard() < 1) return [];
       this.objectChange.trackMyCursor();
-      const order: Record<RideSeat, number> = { rider: 0, passenger: 1, cargo: 2 };
+      const order: Record<RideSeat, number> = { rider: 0, passenger: 1, cargo: 2, part: 3 };
       return this.ride
         .aboard(char)
         .sort((a, b) => order[seatOf(a.rideSeat)] - order[seatOf(b.rideSeat)])
         .map((piece) => this.ridingLabelOf(piece));
+    },
+    { equal: sameRidingLabels }
+  );
+
+  /**
+   * The parts of this piece, listed under its own labels as those riding it are listed over them:
+   * their names, bars and buffs, each as it would show over itself.
+   */
+  readonly partLabels = computed<RidingLabel[]>(
+    () => {
+      const char = this.gameCharacter();
+      if (!char) return [];
+      // Any piece may be made a part of this one, so every piece is followed, as for those riding it.
+      this.objectChange.collectionOf(GameCharacter.aliasName)();
+      for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+        this.objectChange.versionOf(piece.identifier)();
+      }
+      const parts = this.parts.partsOf(char);
+      if (parts.length < 1) return [];
+      this.objectChange.trackMyCursor();
+      this.uiSignalService.targetChange();
+      return parts.map((piece) => this.ridingLabelOf(piece));
     },
     { equal: sameRidingLabels }
   );
@@ -793,6 +822,8 @@ export class GameCharacterComponent {
       name: showsName ? piece.name : '',
       icon: RIDING_SEAT_ICONS[seatOf(piece.rideSeat)],
       aboard: 0,
+      part: seatOf(piece.rideSeat) === 'part',
+      targeted: piece.targeted,
       gauges,
       badges,
     };
@@ -805,8 +836,9 @@ export class GameCharacterComponent {
   readonly ridingCard = computed<RidingLabel[]>(
     () => {
       const riders = this.ridingLabels();
+      const parts = this.partLabels();
       const char = this.gameCharacter();
-      if (riders.length < 1 || !char) return [];
+      if ((riders.length < 1 && parts.length < 1) || !char) return [];
       return [
         ...[...riders].reverse(),
         {
@@ -814,13 +846,33 @@ export class GameCharacterComponent {
           name: this.hideName() ? '' : this.name(),
           icon: '',
           aboard: this.ridersAboard(),
+          part: false,
+          targeted: false,
           gauges: this.gaugeRows(),
           badges: this.hideBuff() ? [] : this.buffBadges(),
         },
+        ...parts,
       ];
     },
     { equal: sameRidingLabels }
   );
+
+  /** Aims at a part listed in the piece's card, or lets go of it, from a press on its row. */
+  protected aimAtPart(identifier: string, event: Event): void {
+    event.stopPropagation();
+    const part = this.objectStore.get<GameCharacter>(identifier);
+    if (part instanceof GameCharacter && this.parts.bodyOf(part) === this.gameCharacter())
+      this.pieceTarget.toggle(part);
+  }
+
+  /** Opens the menu of a part listed in the piece's card, as a right-click on the part would. */
+  protected openPartMenu(identifier: string, event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const part = this.objectStore.get<GameCharacter>(identifier);
+    if (!(part instanceof GameCharacter) || this.parts.bodyOf(part) !== this.gameCharacter()) return;
+    this.menu.open(part, { ...this.menuHost, name: () => part.name }, { x: event.clientX, y: event.clientY, z: 0 });
+  }
 
   /** Whether the mount's own labels are drawn in its riding card rather than over it. */
   protected readonly labelsInRidingCard = computed(
@@ -1621,6 +1673,8 @@ function sameRidingLabels(a: readonly RidingLabel[], b: readonly RidingLabel[]):
       label.name === other.name &&
       label.icon === other.icon &&
       label.aboard === other.aboard &&
+      label.part === other.part &&
+      label.targeted === other.targeted &&
       label.gauges.length === other.gauges.length &&
       label.gauges.every(
         (row, at) => row.numbers === other.gauges[at].numbers && sameFields(row.gauge, other.gauges[at].gauge)

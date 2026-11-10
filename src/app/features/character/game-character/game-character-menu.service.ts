@@ -16,6 +16,7 @@ import { EngagementZoneService, ZoneMenuModel } from '@axe/application/tabletop/
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { PiecePartsService } from '@axe/application/tabletop/piece-parts.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { RideMenuModel, RideService } from '@axe/application/tabletop/ride.service';
@@ -39,6 +40,7 @@ import {
   buildUnviewableCharacterContextMenu,
   FightMenuEntries,
 } from '@axe/features/character/game-character/game-character-context-menu';
+import { buildPartContextMenu } from '@axe/features/character/game-character/part-context-menu';
 import { buildRideContextMenu, RideMenuEntries } from '@axe/features/character/game-character/ride-context-menu';
 import {
   buildZoneContextMenu,
@@ -107,6 +109,7 @@ export class GameCharacterMenuService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly engagementZones = inject(EngagementZoneService);
   private readonly ride = inject(RideService);
+  private readonly parts = inject(PiecePartsService);
   private readonly stealth = inject(StealthService);
   private readonly resourceSliders = inject(ResourceSliderService);
   private readonly disclosureService = inject(DisclosureService);
@@ -247,11 +250,30 @@ export class GameCharacterMenuService {
     const rideModel = this.ride.menuOf(char);
     const ride = this.rideMenuOf(char, rideModel);
     return {
-      onAndOff: ride.onAndOff,
+      onAndOff: [...ride.onAndOff, ...this.partMenuOf(char)],
       fight: this.zoneMenuOf(char, zoneModel),
       handling: [...this.conditionMenuOf(char, zoneModel, rideModel), ...ride.group],
       manage: this.zoneManageMenuOf(char, zoneModel),
     };
+  }
+
+  /** Taking a piece off the body it is a part of, or making it a part of one it stands on. */
+  private partMenuOf(char: GameCharacter): ContextMenuAction[] {
+    const body = this.parts.bodyOf(char);
+    return buildPartContextMenu(
+      {
+        body: body?.name ?? null,
+        bodies: body ? [] : this.parts.bodiesFor(char).map((one) => ({ id: one.identifier, name: one.name })),
+      },
+      {
+        attach: (bodyId) => {
+          const chosen = this.objectStore.get<GameCharacter>(bodyId);
+          if (chosen instanceof GameCharacter) this.parts.attach(char, chosen);
+        },
+        detach: () => this.parts.detach(char),
+      },
+      this.translateFn
+    );
   }
 
   private zoneMenuOf(char: GameCharacter, model: ZoneMenuModel): ContextMenuAction[] {

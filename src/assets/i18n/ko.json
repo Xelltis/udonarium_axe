@@ -6323,7 +6323,11 @@
       "stayedOn": "{{name}}은(는) 이번 차례에 이미 타거나 내렸으므로 {{mount}} 위로 되돌렸습니다",
       "offerActionUp_rider": "일어나서 타기",
       "offerActionUp_passenger": "일어나서 동승하기",
-      "offerActionUp_cargo": "일어나서 실리기"
+      "offerActionUp_cargo": "일어나서 실리기",
+      "part": {
+        "attach": "{{body}}의 부위로 만들기",
+        "detach": "{{body}}의 부위에서 떼기"
+      }
     },
     "battleCutIn": {
       "title": "전투 컷인",

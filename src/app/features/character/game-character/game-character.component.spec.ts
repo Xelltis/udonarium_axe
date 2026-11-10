@@ -226,6 +226,40 @@ describe('GameCharacterComponent', () => {
       );
     });
 
+    it('lists the parts of a piece under its own labels, a row pressed aiming at the part and right-clicked opening its menu', async () => {
+      const dragon = GameCharacter.create('ドラゴン', 3, '');
+      dragon.setLocation('table');
+      const head = GameCharacter.create('頭', 1, '');
+      head.setLocation('table');
+      fixture.componentRef.setInput('gameCharacter', dragon);
+      const opened = vi.spyOn(TestBed.inject(GameCharacterMenuService), 'open').mockImplementation(() => undefined);
+
+      try {
+        expect((await draw(fixture)).querySelector('[data-testid="riding-label"]')).toBeNull();
+        // Worked out once with no parts, the card has to hear of a part made afterwards.
+        expect(fixture.componentInstance.ridingCard()).toEqual([]);
+        head.ridingOn = dragon.identifier;
+        head.rideSeat = 'part';
+        TestBed.inject(ObjectChangeService).notifyChanged(head.identifier);
+        const element = await draw(fixture);
+        const card = element.querySelector('[data-testid="riding-label"]')!;
+        const names = [...card.querySelectorAll('[data-testid="riding-label-name"], [data-testid="piece-name"]')].map(
+          (name) => name.textContent?.replace(/\s+/g, ' ').trim()
+        );
+        expect(names).toEqual(['ドラゴン', 'extension 頭']);
+
+        const row = card.querySelector<HTMLElement>(`[data-body-part="${head.identifier}"]`)!;
+        row.click();
+        expect(head.targeted).toBe(true);
+        row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 20 }));
+        expect(opened).toHaveBeenCalledWith(head, expect.anything(), { x: 10, y: 20, z: 0 });
+      } finally {
+        head.targeted = false;
+        head.destroy();
+        dragon.destroy();
+      }
+    });
+
     it('draws no labels of its own over a piece riding a mount, and its labels again once it is off', async () => {
       const { knight } = ride();
       fixture.componentRef.setInput('gameCharacter', knight);

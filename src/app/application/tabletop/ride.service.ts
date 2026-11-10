@@ -137,11 +137,17 @@ export class RideService {
     return this.mountOf(piece) ? seatOf(piece.rideSeat) : null;
   }
 
-  /** The pieces on the table riding a mount. */
+  /** The pieces on the table riding a mount, its parts left out. */
   aboard(mount: GameCharacter): GameCharacter[] {
     return this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
-      .filter((piece) => piece.ridingOn === mount.identifier && piece.isVisibleOnTable && piece !== mount);
+      .filter(
+        (piece) =>
+          piece.ridingOn === mount.identifier &&
+          piece.isVisibleOnTable &&
+          piece !== mount &&
+          seatOf(piece.rideSeat) !== 'part'
+      );
   }
 
   /** The piece riding a mount in front, steering it, or null. */
@@ -580,6 +586,7 @@ export class RideService {
    */
   private offersFor(piece: GameCharacter): RideOffer[] {
     if (!piece.isVisibleOnTable || piece.offField === '1' || piece.mountable === '1') return [];
+    if (this.links.bodyOf(piece)) return [];
     if (this.aboard(piece).length > 0) return [];
     const own = this.stateRefusal(piece);
     const getsUpFirst = own === 'prone' && this.proneRefusal(piece) === null;

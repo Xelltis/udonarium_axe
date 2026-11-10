@@ -4,6 +4,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { BondedPiece, bondGroupOf, boundBelow, boundTo } from '@axe/domain/tabletop/move/piece-bonds';
 import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
+import { isPartOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 
 /**
@@ -34,14 +35,33 @@ export class PieceLinksService {
 
   /** The mount a piece rides, where it is on the table and still a mount; null otherwise. */
   mountOf(piece: GameCharacter): GameCharacter | null {
-    if (piece.ridingOn === '' || piece.ridingOn === piece.identifier) return null;
+    if (piece.ridingOn === '' || piece.ridingOn === piece.identifier || writtenAsPart(piece)) return null;
     const mount = this.objectStore.get<GameCharacter>(piece.ridingOn);
     return mount instanceof GameCharacter && mount.isVisibleOnTable && mount.mountable === '1' ? mount : null;
   }
 
-  /** A piece as the bonds between pieces see it: whoever holds on to it, and the mount it rides. */
+  /**
+   * The piece this one is a part of, as a head or an arm is of a creature of many parts, where the
+   * body is on the table; null otherwise. A body need not be a mount.
+   */
+  bodyOf(piece: GameCharacter): GameCharacter | null {
+    if (!writtenAsPart(piece)) return null;
+    const body = this.objectStore.get<GameCharacter>(piece.ridingOn);
+    // A body is no part itself: parts of parts, and two pieces each a part of the other, make none.
+    return body instanceof GameCharacter && body.isVisibleOnTable && !writtenAsPart(body) ? body : null;
+  }
+
+  /** The pieces on the table that are parts of this one, in the order they were made. */
+  partsOf(body: GameCharacter): GameCharacter[] {
+    return this.objectStore
+      .getObjects<GameCharacter>(GameCharacter)
+      .filter((piece) => piece !== body && piece.isVisibleOnTable && this.bodyOf(piece) === body);
+  }
+
+  /** A piece as the bonds between pieces see it: whoever holds on to it, and the mount it rides or the body it is a part of. */
   bondOf(piece: GameCharacter): BondedPiece {
-    return { id: piece.identifier, grabbedBy: piece.grabbedBy, ridingOn: this.mountOf(piece)?.identifier ?? '' };
+    const carrier = this.mountOf(piece) ?? this.bodyOf(piece);
+    return { id: piece.identifier, grabbedBy: piece.grabbedBy, ridingOn: carrier?.identifier ?? '' };
   }
 
   /**
@@ -117,4 +137,9 @@ export class PieceLinksService {
     piece.location.x = at.location.x + offset;
     piece.location.y = at.location.y + offset;
   }
+}
+
+/** Whether a piece is written down as a part of another; see `isPartOf`. */
+function writtenAsPart(piece: GameCharacter): boolean {
+  return isPartOf({ id: piece.identifier, ridingOn: piece.ridingOn, rideSeat: piece.rideSeat });
 }

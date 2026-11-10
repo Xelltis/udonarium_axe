@@ -4,6 +4,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceMotionsService, type PlayingPose } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
@@ -197,6 +198,7 @@ export class TablePiecesService {
   private readonly pictureSizes = inject(PictureSizeService);
   private readonly surfaces = inject(TableSurfaceService);
   private readonly vision = inject(VisionService);
+  private readonly links = inject(PieceLinksService);
   private readonly eyes = inject(TableEyeService);
   private readonly ground = inject(StandingGroundService);
   private readonly transient = inject(TransientPlacementService);
@@ -236,7 +238,12 @@ export class TablePiecesService {
     },
     shown: (character) => {
       const model = pieceModelOf(character);
-      return !!model && this.modelUrlOf(model.identifier) !== '' && this.vision.isTokenVisible(character);
+      return (
+        !!model &&
+        this.modelUrlOf(model.identifier) !== '' &&
+        this.vision.isTokenVisible(character) &&
+        this.drawnAsItself(character)
+      );
     },
     draw: (character, place, moving, { gridSize }) => {
       const model = pieceModelOf(character);
@@ -552,7 +559,7 @@ export class TablePiecesService {
       this.myUserId();
       return this.characterLook();
     },
-    shown: (character) => this.vision.isTokenVisible(character),
+    shown: (character) => this.vision.isTokenVisible(character) && this.drawnAsItself(character),
     draw: (character, place, _moving, look) => {
       const model = pieceModelOf(character);
       const modelled = !!model && place.onFloor && this.modelUrlOf(model.identifier) !== '';
@@ -843,6 +850,15 @@ export class TablePiecesService {
       });
     },
   });
+
+  /**
+   * Whether a character is drawn as itself: not as one of the parts of another, which is drawn as its
+   * body alone. Follows the body, so a part is drawn again once the body leaves the table.
+   */
+  private drawnAsItself(character: GameCharacter): boolean {
+    if (character.ridingOn !== '') this.objectChange.versionOf(character.ridingOn)();
+    return this.links.bodyOf(character) === null;
+  }
 
   /**
    * How to draw the pieces of a kind where each stands: each piece once, and again only when it or
