@@ -9,7 +9,16 @@ import {
 import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { ThrownMote } from '@axe/domain/effect/scene/effect-sim';
 import { drawEmber, layShockRing, risingEmbers } from '@axe/domain/effect/scene/fire/fire-parts';
-import { glow, keptFor, type Point, stageKey, throwerFor } from '@axe/domain/effect/scene/parts';
+import {
+  glow,
+  haze,
+  hueOf,
+  keptFor,
+  type Point,
+  stageKey,
+  starBurst,
+  throwerFor,
+} from '@axe/domain/effect/scene/parts';
 
 /*
  * A great blade of light: light rises in a column from the caster's feet and gathers into a vast
@@ -74,7 +83,7 @@ function drawSkyblade(stage: Stage, impactOf: (stage: Stage) => Staged): Staged 
     // Falling, it is drawn in to just reach the target, so its tip comes down on it rather than past it.
     const standing = rising < 1 ? length * 0.6 * outCubic(rising) : length * (0.6 + 0.4 * outCubic(forming));
     const tall = standing + (Math.hypot(span, cell * 0.3) - standing) * falling * falling;
-    const wide = cell * (rising < 1 ? 0.45 * rising : 0.45 + 0.45 * forming) * (1 - breaking);
+    const wide = cell * (rising < 1 ? 0.6 * rising : 0.6 + 0.6 * forming) * (1 - breaking);
     const flash = breaking > 0 ? 1 - breaking : 1;
     const dir = pointing(tilt);
     for (const [colour, share] of [
@@ -99,15 +108,18 @@ function drawSkyblade(stage: Stage, impactOf: (stage: Stage) => Staged): Staged 
         forward,
       });
     }
-    drawn.motes.push(
-      glow(
-        { x: foot.x + dir.x * tall * 0.5, y: foot.y + dir.y * tall * 0.5, z: foot.z + dir.z * tall * 0.5 },
-        cell * 2.2,
-        ramp[4],
-        0.35 * flash * Math.max(rising, forming),
-        forward
-      )
-    );
+    // A halo of its colour all along the blade.
+    const shining = flash * Math.max(rising, forming);
+    for (let along = 1; along <= 4; along++) {
+      const share = along / 4;
+      const at = {
+        x: foot.x + dir.x * tall * share * 0.9,
+        y: foot.y + dir.y * tall * share * 0.9,
+        z: foot.z + dir.z * tall * share * 0.9,
+      };
+      drawn.motes.push(haze(at, wide * 4, hueOf(ramp), 0.3 * shining, forward));
+      drawn.motes.push(glow(at, wide * 3, ramp[4], 0.3 * shining, forward));
+    }
     // As it falls its tip sweeps a trail of light behind it.
     if (falling > 0 && falling < 1) {
       const points: Point[] = [];
@@ -120,10 +132,10 @@ function drawSkyblade(stage: Stage, impactOf: (stage: Stage) => Staged): Staged 
       const shares = points.map((_point, index) => index / (points.length - 1));
       drawn.ribbons.push({
         points,
-        widths: shares.map((share) => cell * 0.9 * share),
-        color: ramp[3],
-        core: '#ffffff',
-        alpha: 0.8,
+        widths: shares.map((share) => cell * 1.6 * share),
+        color: hueOf(ramp),
+        core: ramp[5],
+        alpha: 0.9,
         alphas: shares,
         blend: 'light',
       });
@@ -131,7 +143,18 @@ function drawSkyblade(stage: Stage, impactOf: (stage: Stage) => Staged): Staged 
   }
   if (t >= strikes) {
     drawn.motes.push(...lightAt(target, cell, ramp, t - strikes, forward));
-    layShockRing(drawn, target, cell * 0.4, cell * 3, cell * 0.16, ramp[5], t - strikes, 0.45);
+    layShockRing(drawn, target, cell * 0.4, cell * 3.4, cell * 0.2, hueOf(ramp), t - strikes, 0.5);
+    drawn.motes.push(
+      ...starBurst(
+        { ...target, z: target.z + cell * 0.5 },
+        cell * 3,
+        hueOf(ramp),
+        (t - strikes) / 0.3,
+        forward * 2,
+        8,
+        stage.seed
+      )
+    );
     const impact = impactOf({
       ...stage,
       seconds: t - strikes,

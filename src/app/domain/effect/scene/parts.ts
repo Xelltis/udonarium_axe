@@ -1,4 +1,5 @@
 import type { Stage } from '@axe/domain/effect/scene/choreography';
+import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import type { EffectBlend, EffectFloorMark, EffectFloorShape, EffectMote } from '@axe/domain/effect/scene/effect-scene';
 import { seededRun, type ThrownMote } from '@axe/domain/effect/scene/effect-sim';
 
@@ -208,4 +209,56 @@ export function lightningPaths(
     forks.push([start, throwAside(lerpPoint(start, end, 0.5), reach * 0.25), end]);
   }
   return { main, forks };
+}
+
+/**
+ * A soft volume of colour laid over what is behind it, not added as light: a coloured cloud, a halo
+ * or the body of an aura, which keeps its colour on a bright table where light would wash to white.
+ */
+export function haze(at: Point, size: number, color: string, alpha: number, forward: number): EffectMote {
+  return { x: at.x, y: at.y, z: at.z, size, color, alpha: Math.max(0, alpha), blend: 'color', shape: 'glow', forward };
+}
+
+/**
+ * A star of light at the moment something strikes: thin white streaks shooting out every way from it
+ * and a wider coloured glare under them, shrinking and fading as `share` runs from 0 to 1.
+ */
+export function starBurst(
+  at: Point,
+  size: number,
+  color: string,
+  share: number,
+  forward: number,
+  spikes = 6,
+  turn = 0
+): EffectMote[] {
+  if (share < 0 || share >= 1) return [];
+  const left = 1 - share;
+  const motes: EffectMote[] = [];
+  // Turned within one round: the graphics card keeps too few figures to turn by a seed's worth.
+  const round = Math.PI * 2;
+  const from = ((turn % round) + round) % round;
+  for (let spike = 0; spike < spikes; spike++) {
+    const angle = from + (spike * Math.PI) / spikes;
+    const long = spike % 2 === 0 ? 1 : 0.55;
+    motes.push({
+      ...glow(at, size * 0.3 * left, color, left, forward),
+      shape: 'flare',
+      trail: 4.5 * long,
+      spin: angle,
+    });
+    motes.push({
+      ...glow(at, size * 0.14 * left, '#ffffff', left, forward + 1),
+      shape: 'flare',
+      trail: 6 * long,
+      spin: angle,
+    });
+  }
+  motes.push(glow(at, size * (0.8 + 0.4 * share), color, 0.7 * left, forward));
+  return motes;
+}
+
+/** The saturated colour of an effect's ramp, for its bodies and halos: its dark colour taken a little towards its light one. */
+export function hueOf(ramp: readonly string[]): string {
+  return mixColor(ramp[1], ramp[2], 0.3);
 }

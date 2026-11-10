@@ -1,7 +1,17 @@
 import { outCubic, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import { moteAt, type ThrownMote } from '@axe/domain/effect/scene/effect-sim';
-import { ball, floorMark, glow, lightBall, type Point, smokePuff, type Thrower } from '@axe/domain/effect/scene/parts';
+import {
+  ball,
+  floorMark,
+  glow,
+  haze,
+  hueOf,
+  lightBall,
+  type Point,
+  smokePuff,
+  type Thrower,
+} from '@axe/domain/effect/scene/parts';
 
 /*
  * The parts of what burns and blows apart, each thrown once from a seed and drawn as it flies:
@@ -130,6 +140,7 @@ export function drawFire(
       // Soft light: a wide glow of the colour and a white heart, drawn out behind it as it streams.
       const velocity = { x: now.vx, y: now.vy, z: now.vz };
       const streaming = fire.streak ? fire.streak : 0;
+      drawn.motes.push(haze(at, size * 2, hueOf(ramp), 0.4 * alpha, near));
       drawn.motes.push(glow(at, size * 1.6, ramp[3], 0.45 * alpha, near));
       drawn.motes.push({
         ...glow(at, size * 0.7, ramp[4], 0.8 * alpha, near),

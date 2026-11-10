@@ -14,6 +14,8 @@ import {
   circlePoints,
   floorMark,
   glow,
+  haze,
+  hueOf,
   keptFor,
   smokePuff,
   stageKey,
@@ -44,7 +46,7 @@ export const curse: Choreography = {
     const shown = swell(t, duration);
     const forward = cell * 0.2;
     if (shown <= 0) return drawn;
-    const shadow = mixColor(ramp[0], '#120a18', 0.5);
+    const shadow = mixColor(hueOf(ramp), '#120a18', 0.45);
     // The dark circle on the floor, turning, ringed in its colour.
     drawn.floor.push(floorMark('disc', floor, cell * 1.3, 1, shadow, 0.5 * shown, 'color', 0));
     drawn.floor.push(
@@ -62,7 +64,7 @@ export const curse: Choreography = {
       };
       const fade = Math.min(1, rise * 4, (1 - rise) * 2.5) * shown;
       drawn.motes.push({
-        ...smokePuff(at, cell * 0.55, shadow, 0.7 * fade, forward),
+        ...smokePuff(at, cell * 0.7, shadow, 0.8 * fade, forward),
         shape: 'plume',
         velocity: { x: -Math.cos(turn) * cell * 0.3, y: -Math.sin(turn) * cell * 0.3, z: cell },
         trail: 0.8,
@@ -85,6 +87,9 @@ export const curse: Choreography = {
         trail: 0.08,
       });
     }
+    // A cloud of its colour wrapping the piece, darker within.
+    drawn.motes.push(haze({ ...floor, z: floor.z + cell * 0.5 }, cell * 3.2, hueOf(ramp), 0.75 * shown, forward));
+    drawn.motes.push(haze({ ...floor, z: floor.z + cell * 0.4 }, cell * 2, shadow, 0.6 * shown, forward + 1));
     drawn.motes.push(glow({ ...floor, z: floor.z + cell * 0.6 }, cell * 1.2, ramp[2], 0.3 * shown, forward));
     drawn.lights.push({ ...floor, z: floor.z + cell * 0.6, color: ramp[3], strength: 0.6 * shown, reachPx: cell * 2 });
     return drawn;
@@ -129,9 +134,9 @@ export const miasma: Choreography = {
             drag: 0.8,
             bounce: 0,
           }),
-          size: th.range(0.7, 1.1),
-          color: th.chance(0.5) ? mixColor(ramp[1], SMOKE, 0.35) : mixColor(ramp[2], '#2a3a1a', 0.3),
-          alpha: 0.5,
+          size: th.range(0.9, 1.4),
+          color: th.chance(0.5) ? hueOf(ramp) : mixColor(ramp[1], SMOKE, 0.25),
+          alpha: 0.7,
         });
       }
       return { clouds };
@@ -209,6 +214,7 @@ export const gravity: Choreography = {
     if (t < collapses) {
       // The sphere opening, dark with a rim of its colour, and the rings and dust it drags in.
       const size = cell * (0.4 + 0.6 * outCubic(opening));
+      drawn.motes.push(haze(heart, size * 3.2, hueOf(ramp), 0.5 * opening, forward));
       drawn.motes.push(glow(heart, size * 2.4, ramp[3], 0.5 * opening, forward));
       drawn.motes.push(ball(heart, size * 1.08, ramp[4], 1, forward + 2, 0));
       drawn.motes.push(ball(heart, size, '#0a0610', 1, forward + 3, 0));

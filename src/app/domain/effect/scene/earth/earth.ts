@@ -18,7 +18,17 @@ import {
   thrownRocks,
   thrownSparks,
 } from '@axe/domain/effect/scene/fire/fire-parts';
-import { ball, floorMark, keptFor, type Point, stageKey, throwerFor } from '@axe/domain/effect/scene/parts';
+import {
+  ball,
+  floorMark,
+  haze,
+  hueOf,
+  keptFor,
+  type Point,
+  stageKey,
+  starBurst,
+  throwerFor,
+} from '@axe/domain/effect/scene/parts';
 
 /*
  * What strikes the ground: an impact, a flash where it lands and a shock ring and dust thrown out,
@@ -70,12 +80,14 @@ export const impact: Choreography = {
         stage.seed
       )
     );
-    layShockRing(drawn, floor, cell * 0.25, cell * 2, cell * 0.12, ramp[5], t, 0.3);
+    layShockRing(drawn, floor, cell * 0.25, cell * 2.4, cell * 0.16, hueOf(ramp), t, 0.35);
     layDustBand(drawn, floor, cell * 1.8, cell * 0.15, ramp, t, 0.45);
     for (const cloud of thrown.dust) drawCloud(drawn, cloud, t, cell, forward);
     for (const bit of thrown.bits) drawBit(drawn, bit, t, cell, ramp, forward);
     for (const [index, spark] of thrown.sparks.entries()) drawSpark(drawn, spark, t, cell, ramp, index, forward);
     drawFlashDisc(drawn, struck, cell * 0.8, ramp, t, 0.06);
+    drawn.motes.push(haze(struck, cell * 2, hueOf(ramp), 0.45 * Math.max(0, 1 - t / 0.4), forward));
+    drawn.motes.push(...starBurst(struck, cell * 1.8, hueOf(ramp), t / 0.25, forward * 1.4, 6, stage.seed));
     if (t < 0.1) drawn.lights.push({ ...struck, color: ramp[5], strength: 1.2 * (1 - t / 0.1), reachPx: cell * 2 });
     return drawn;
   },
@@ -114,7 +126,7 @@ export const rubble: Choreography = {
             y: floor.y + th.range(-0.5, 0.5) * cell,
             z: floor.z + cell * th.range(4, 6),
           },
-          size: th.range(0.45, 0.75),
+          size: th.range(0.7, 1.1),
           spin: th.range(-6, 6),
           delay: index * 0.06,
         })),
@@ -152,7 +164,18 @@ export const rubble: Choreography = {
         stage.seed
       )
     );
-    layShockRing(drawn, floor, cell * 0.3, cell * 2.4, cell * 0.14, mixColor(ramp[4], '#ffffff', 0.3), since, 0.35);
+    layShockRing(drawn, floor, cell * 0.3, cell * 2.8, cell * 0.18, hueOf(ramp), since, 0.4);
+    drawn.motes.push(
+      ...starBurst(
+        { ...floor, z: floor.z + cell * 0.4 },
+        cell * 2,
+        hueOf(ramp),
+        since / 0.25,
+        forward * 1.4,
+        6,
+        stage.seed
+      )
+    );
     layDustBand(drawn, floor, cell * 2.4, cell * 0.25, ramp, since, 0.6);
     for (const cloud of thrown.dust) drawCloud(drawn, cloud, since, cell, forward);
     for (const bit of thrown.bits)
@@ -197,8 +220,8 @@ export const upheaval: Choreography = {
         return {
           at: { x: floor.x + Math.cos(turn) * out, y: floor.y + Math.sin(turn) * out, z: floor.z },
           lean: { x: Math.cos(turn) * tilt, y: Math.sin(turn) * tilt, z: 1 },
-          tall: th.range(0.7, 1.5),
-          wide: th.range(0.25, 0.42),
+          tall: th.range(1, 2),
+          wide: th.range(0.35, 0.55),
           delay: th.range(0, 0.15),
         };
       });
@@ -223,7 +246,15 @@ export const upheaval: Choreography = {
     drawn.floor.push(
       floorMark('cracks', floor, cell * 1.5, 0.3, DUST, 0.75 * clearing, 'color', stage.seed % 89, stage.seed)
     );
-    layShockRing(drawn, floor, cell * 0.3, cell * 2.4, cell * 0.14, mixColor(ramp[4], '#ffffff', 0.3), t, 0.4);
+    layShockRing(drawn, floor, cell * 0.3, cell * 2.8, cell * 0.18, hueOf(ramp), t, 0.45);
+    drawn.motes.push(
+      ...starBurst({ ...floor, z: floor.z + cell * 0.4 }, cell * 2, hueOf(ramp), t / 0.25, forward * 1.4, 6, stage.seed)
+    );
+    // The cracks glow with its colour as the stone bursts up.
+    if (t < 0.8)
+      drawn.floor.push(
+        floorMark('cracks', floor, cell * 1.5, 0.14, hueOf(ramp), 1 - t / 0.8, 'light', stage.seed % 89, stage.seed)
+      );
     for (const cloud of thrown.dust) drawCloud(drawn, cloud, t, cell, forward);
     // The spikes of stone: bursting up, standing, then crumbling away.
     const crumbling = within(t, crumbles, crumbles + 0.25);

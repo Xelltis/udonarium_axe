@@ -1,7 +1,7 @@
 import { type Choreography, nothingStaged, outCubic, within } from '@axe/domain/effect/scene/choreography';
 import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
-import { circlePoints, floorMark, glow, type Point } from '@axe/domain/effect/scene/parts';
+import { circlePoints, floorMark, glow, haze, hueOf, type Point } from '@axe/domain/effect/scene/parts';
 
 /*
  * What blesses, guards or carries a piece: a circle of healing light turning on the floor, rings of
@@ -42,9 +42,9 @@ export const heal: Choreography = {
     if (shown <= 0) return drawn;
     // The circle on the floor, turning, and its glow.
     drawn.floor.push(
-      floorMark('sigil', floor, cell * 1.15, 0.07, ramp[4], 0.9 * shown, 'light', stage.seed % 13, t * 0.6)
+      floorMark('sigil', floor, cell * 1.15, 0.07, hueOf(ramp), 0.9 * shown, 'light', stage.seed % 13, t * 0.6)
     );
-    drawn.floor.push(floorMark('ring', floor, cell * 0.75, 0.05, ramp[5], 0.8 * shown, 'light', 0, -t * 0.9));
+    drawn.floor.push(floorMark('ring', floor, cell * 0.75, 0.05, hueOf(ramp), 0.8 * shown, 'light', 0, -t * 0.9));
     drawn.floor.push(floorMark('disc', floor, cell * 1.4, 1, ramp[3], 0.35 * shown, 'light', 0));
     // Rings of light rising up through the piece, one after another.
     for (let ring = 0; ring < 4; ring++) {
@@ -52,7 +52,7 @@ export const heal: Choreography = {
       const height = floor.z + rise * cell * 2;
       const fade = Math.min(1, rise * 4, (1 - rise) * 3) * shown;
       drawn.ribbons.push(
-        ringRibbon({ ...floor, z: height }, cell * (0.6 - rise * 0.2), cell * 0.05, ramp[4], '#ffffff', fade)
+        ringRibbon({ ...floor, z: height }, cell * (0.6 - rise * 0.2), cell * 0.08, hueOf(ramp), ramp[4], fade)
       );
     }
     // Motes of light drifting up round the piece and twinkling.
@@ -74,6 +74,14 @@ export const heal: Choreography = {
           spin: index,
         });
     }
+    // A column of its colour over the piece, and a soft light in it.
+    drawn.motes.push(haze({ ...floor, z: floor.z + cell * 0.6 }, cell * 1.8, hueOf(ramp), 0.4 * shown, forward));
+    drawn.motes.push({
+      ...haze({ ...floor, z: floor.z + cell }, cell * 1.1, hueOf(ramp), 0.3 * shown, forward),
+      shape: 'plume',
+      velocity: { x: 0, y: 0, z: cell },
+      trail: 2,
+    });
     // A soft column of light over it.
     drawn.motes.push({
       ...glow({ ...floor, z: floor.z + cell }, cell * 0.9, ramp[3], 0.35 * shown, forward),
@@ -98,6 +106,8 @@ export const aura: Choreography = {
     const shown = swell(t, duration, 0.2, 0.4);
     const forward = cell * 0.1;
     if (shown <= 0) return drawn;
+    // A body of its colour round the piece, burning.
+    drawn.motes.push(haze({ ...floor, z: floor.z + cell * 0.6 }, cell * 1.9, hueOf(ramp), 0.45 * shown, forward));
     // Tongues of light flaring up round the piece, flickering, the outer ones first.
     const tongues = 9;
     for (const [colour, wide, high] of [
@@ -145,7 +155,7 @@ export const aura: Choreography = {
         trail: 0.06,
       });
     }
-    drawn.floor.push(floorMark('ring', floor, cell * 0.65, 0.1, ramp[4], 0.7 * shown, 'light', 0));
+    drawn.floor.push(floorMark('ring', floor, cell * 0.65, 0.1, hueOf(ramp), 0.7 * shown, 'light', 0));
     drawn.floor.push(floorMark('disc', floor, cell * 1.2, 1, ramp[3], 0.3 * shown, 'light', 0));
     drawn.lights.push({
       ...floor,
@@ -179,9 +189,9 @@ export const barrier: Choreography = {
         ringRibbon(
           at,
           Math.cos(lat) * radius,
-          cell * (ring === 0 ? 0.07 : 0.035),
-          ramp[4],
-          ring === 0 ? '#ffffff' : undefined,
+          cell * (ring === 0 ? 0.1 : 0.05),
+          hueOf(ramp),
+          ring === 0 ? ramp[4] : undefined,
           0.6 * shown * shimmer
         )
       );
@@ -199,9 +209,9 @@ export const barrier: Choreography = {
       });
       drawn.ribbons.push({
         points,
-        widths: cell * 0.03,
-        color: ramp[3],
-        alpha: 0.45 * shown * shimmer,
+        widths: cell * 0.045,
+        color: hueOf(ramp),
+        alpha: 0.55 * shown * shimmer,
         blend: 'light',
       });
     }
@@ -212,15 +222,17 @@ export const barrier: Choreography = {
       ringRibbon(
         { ...floor, z: floor.z + Math.sin(lat) * radius * 1.1 },
         Math.cos(lat) * radius,
-        cell * 0.08,
+        cell * 0.1,
+        hueOf(ramp),
         ramp[5],
-        '#ffffff',
         (1 - ripple) * shown
       )
     );
+    // The dome filled with a veil of its colour.
+    drawn.motes.push(haze({ ...floor, z: floor.z + radius * 0.6 }, radius * 2.3, hueOf(ramp), 0.3 * shown, cell * 0.2));
     drawn.motes.push(glow({ ...floor, z: floor.z + radius * 0.6 }, radius * 2.4, ramp[2], 0.18 * shown, cell * 0.2));
     drawn.floor.push(
-      floorMark('sigil', floor, radius * 1.05, 0.06, ramp[4], 0.7 * shown, 'light', stage.seed % 13, -t * 0.4)
+      floorMark('sigil', floor, radius * 1.05, 0.06, hueOf(ramp), 0.7 * shown, 'light', stage.seed % 13, -t * 0.4)
     );
     drawn.lights.push({
       ...floor,
@@ -246,6 +258,16 @@ export const warp: Choreography = {
     const gathering = within(t, 0, flashes);
     const after = t - flashes;
     const forward = cell * 0.3;
+    // A column of its colour while it gathers.
+    if (after < 0.3) {
+      const filling = gathering * (after < 0 ? 1 : 1 - after / 0.3);
+      drawn.motes.push({
+        ...haze({ ...floor, z: floor.z + cell * 0.2 }, cell * 1.2, hueOf(ramp), 0.5 * filling, forward),
+        shape: 'plume',
+        velocity: { x: 0, y: 0, z: cell },
+        trail: 2.4,
+      });
+    }
     // Light gathering in a column, rings racing up it, sparks drawn in.
     if (after < 0.3) {
       const column = gathering * (after < 0 ? 1 : 1 - after / 0.3);
@@ -261,9 +283,9 @@ export const warp: Choreography = {
           ringRibbon(
             { ...floor, z: floor.z + rise * cell * 2.4 },
             cell * (0.7 - rise * 0.3) * (1.2 - gathering * 0.4),
-            cell * 0.05,
+            cell * 0.08,
+            hueOf(ramp),
             ramp[4],
-            '#ffffff',
             Math.min(1, (1 - rise) * 2) * column
           )
         );
@@ -284,7 +306,7 @@ export const warp: Choreography = {
         });
       }
       drawn.floor.push(
-        floorMark('sigil', floor, cell * 1.1, 0.07, ramp[4], 0.8 * column, 'light', stage.seed % 13, t * 2)
+        floorMark('sigil', floor, cell * 1.1, 0.07, hueOf(ramp), 0.8 * column, 'light', stage.seed % 13, t * 2)
       );
     }
     // A flash, and sparks scattering from it.
@@ -316,7 +338,7 @@ export const warp: Choreography = {
         drawn.motes.push({ ...glow(at, cell * 0.16, ramp[5], left, forward), shape: 'star', spin: index + after * 8 });
       }
       drawn.floor.push(
-        floorMark('ring', floor, cell * (0.4 + outCubic(after / 0.6) * 1.6), 0.08, ramp[5], left, 'light', 0)
+        floorMark('ring', floor, cell * (0.4 + outCubic(after / 0.6) * 1.6), 0.08, hueOf(ramp), left, 'light', 0)
       );
     }
     return drawn;

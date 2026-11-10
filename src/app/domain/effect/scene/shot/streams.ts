@@ -13,11 +13,14 @@ import {
   acrossOf,
   floorMark,
   glow,
+  haze,
+  hueOf,
   keptFor,
   lerpPoint,
   lightningPaths,
   type Point,
   stageKey,
+  starBurst,
   throwerFor,
   wayBetween,
 } from '@axe/domain/effect/scene/parts';
@@ -73,14 +76,17 @@ function drawGathering(
 function beamRibbons(from: Point, to: Point, width: number, ramp: readonly string[], alpha: number): EffectRibbon[] {
   const points = [from, lerpPoint(from, to, 0.08), lerpPoint(from, to, 0.5), to];
   const swell = [0.6, 1, 1, 1];
+  const hue = hueOf(ramp);
   return [
-    { points, widths: swell.map((share) => width * 1.8 * share), color: ramp[2], alpha: 0.22 * alpha, blend: 'light' },
+    // A body of its colour laid over the table, which keeps its colour where light would wash out.
+    { points, widths: swell.map((share) => width * 2.2 * share), color: hue, alpha: 0.4 * alpha, blend: 'color' },
+    { points, widths: swell.map((share) => width * 1.5 * share), color: hue, alpha: 0.45 * alpha, blend: 'light' },
     {
       points,
       widths: swell.map((share) => width * share),
       color: ramp[3],
       core: ramp[5],
-      alpha: 0.7 * alpha,
+      alpha: 0.8 * alpha,
       blend: 'light',
     },
     {
@@ -147,9 +153,16 @@ function beamOf(thick: number, gathers: number, great: boolean): Choreography {
           });
         }
         // Light at both ends and splashing where it strikes.
+        drawn.motes.push(haze(from, cell * (great ? 1.8 : 0.9), hueOf(ramp), 0.5 * (1 - ending), forward));
         drawn.motes.push(glow(from, cell * (great ? 1.2 : 0.6), ramp[4], 0.5 * (1 - ending), forward));
         if (reached >= 1) {
-          drawn.motes.push(glow(to, cell * (great ? 1.6 : 0.8), ramp[4], 0.6 * (1 - ending), forward * 1.5));
+          // A sphere of its colour where it strikes, a glare over it and a star of light.
+          drawn.motes.push(haze(to, cell * (great ? 4 : 1.6), hueOf(ramp), 0.8 * (1 - ending), forward * 1.4));
+          drawn.motes.push(glow(to, cell * (great ? 2 : 1), ramp[3], 0.7 * (1 - ending), forward * 1.5));
+          const flicker = (t * 12) % 1;
+          drawn.motes.push(
+            ...starBurst(to, cell * (great ? 2.2 : 1.1), hueOf(ramp), flicker * 0.6, forward * 1.6, 4, t * 2)
+          );
           drawn.motes.push({
             ...glow(to, cell * (great ? 1 : 0.5), '#ffffff', 0.7 * (1 - ending), forward * 1.6),
             shape: 'star',
@@ -216,6 +229,7 @@ export const arc: Choreography = {
       const on = (Math.sin(flicker * 12.9898 + stage.seed) * 43758.5453) % 1;
       if (Math.abs(on) > 0.18) {
         drawn.ribbons.push(...lightningRibbons(from, to, stage.seed, flicker, cell, ramp, 1));
+        drawn.motes.push(haze(to, cell * 1.6, hueOf(ramp), 0.45, forward * 1.4));
         drawn.motes.push(glow(to, cell * 1.1, ramp[4], 0.7, forward * 1.5));
         drawn.motes.push({ ...glow(to, cell * 0.6, '#ffffff', 0.9, forward * 1.6), shape: 'star', spin: flicker });
         drawn.motes.push(glow(from, cell * 0.6, ramp[4], 0.6, forward));
@@ -258,8 +272,9 @@ export function lightningRibbons(
 ): EffectRibbon[] {
   const { main, forks } = lightningPaths(from, to, seed, flicker);
   const ribbons: EffectRibbon[] = [
-    { points: main, widths: cell * 0.5 * thick, color: ramp[2], alpha: 0.35 * alpha, blend: 'light' },
-    { points: main, widths: cell * 0.14 * thick, color: ramp[4], core: '#ffffff', alpha, blend: 'light' },
+    { points: main, widths: cell * 0.7 * thick, color: hueOf(ramp), alpha: 0.3 * alpha, blend: 'color' },
+    { points: main, widths: cell * 0.5 * thick, color: hueOf(ramp), alpha: 0.45 * alpha, blend: 'light' },
+    { points: main, widths: cell * 0.16 * thick, color: ramp[3], core: '#ffffff', alpha, blend: 'light' },
     { points: main, widths: cell * 0.05 * thick, color: '#ffffff', alpha, blend: 'color' },
   ];
   for (const fork of forks) {
@@ -296,6 +311,7 @@ export const drain: Choreography = {
     );
     const forward = cell * 0.4;
     if (flowing <= 0) return drawn;
+    drawn.motes.push(haze(target, cell * 1.6, hueOf(ramp), 0.45 * flowing, forward));
     drawn.motes.push(glow(target, cell * 1.3, ramp[1], 0.5 * flowing, forward));
     drawn.motes.push(glow(caster, cell * (0.7 + 0.2 * Math.sin(t * 9)), ramp[4], 0.7 * flowing, forward));
     drawn.lights.push({ ...caster, color: ramp[4], strength: 0.9 * flowing, reachPx: cell * 2 });
@@ -311,6 +327,7 @@ export const drain: Choreography = {
         z: at.z + side.z * bow + lift.z * rise,
       };
       const fade = Math.min(1, along * 6, (1 - along) * 6) * flowing;
+      drawn.motes.push(haze(point, cell * 0.5, hueOf(ramp), 0.55 * fade, forward));
       drawn.motes.push(glow(point, cell * 0.38, ramp[4], fade, forward));
       drawn.motes.push({
         ...glow(point, cell * 0.12, '#ffffff', fade, forward),

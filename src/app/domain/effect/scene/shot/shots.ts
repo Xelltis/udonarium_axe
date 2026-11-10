@@ -11,12 +11,16 @@ import { drawCloud, dustColumn, rollingDust } from '@axe/domain/effect/scene/fir
 import {
   acrossOf,
   ball,
+  floorMark,
   glow,
+  haze,
+  hueOf,
   keptFor,
   lerpPoint,
   type Point,
   smokePuff,
   stageKey,
+  starBurst,
   throwerFor,
   wayBetween,
 } from '@axe/domain/effect/scene/parts';
@@ -71,7 +75,7 @@ function landing(stage: Stage, landWith: LandingLook, landsAt: number, shot: num
     duration: Math.max(0.6, stage.duration - landsAt),
     blowsAt: [0],
     seed: stage.seed + shot * 101,
-    cell: stage.cell * (shots > 1 ? 0.6 : 1),
+    cell: stage.cell * (shots > 1 ? 0.85 : 1.1),
   });
 }
 
@@ -141,10 +145,11 @@ function drawFlying(
     case 'arrow': {
       const shaft = [behind(cell * 0.75), at];
       drawn.ribbons.push({
-        points: [behind(cell * 1.6), behind(cell * 0.2)],
-        widths: [0, cell * 0.07],
-        color: ramp[4],
-        alpha: 0.5,
+        points: [behind(cell * 2.4), behind(cell * 0.2)],
+        widths: [0, cell * 0.16],
+        color: hueOf(ramp),
+        core: ramp[4],
+        alpha: 0.8,
         blend: 'light',
       });
       drawn.ribbons.push({ points: shaft, widths: cell * 0.045, color: '#6b4a2b', alpha: 1, blend: 'color' });
@@ -159,31 +164,34 @@ function drawFlying(
       return;
     }
     case 'bullet':
+      drawn.motes.push(glow(at, cell * 0.5, hueOf(ramp), 0.6, forward));
       drawn.motes.push({
-        ...glow(at, cell * 0.06, ramp[5], 1, forward),
+        ...glow(at, cell * 0.12, ramp[5], 1, forward),
         shape: 'spark',
         velocity,
-        trail: (cell * 0.9) / speed,
+        trail: (cell * 1.6) / speed,
       });
       return;
     case 'crescent':
-      drawn.ribbons.push(...flyingCrescent(at, way, cell, ramp));
-      drawn.motes.push(glow(at, cell * 0.9, ramp[3], 0.35, forward));
+      drawn.motes.push(haze(at, cell * 1.6, hueOf(ramp), 0.35, forward));
+      drawn.ribbons.push(...flyingCrescent(at, way, cell * 1.4, ramp));
+      drawn.motes.push(glow(at, cell * 1.4, ramp[3], 0.5, forward));
       return;
     case 'blaster':
       drawn.ribbons.push({
         points: [behind(cell * 0.9), behind(cell * 0.45), at],
-        widths: [0, cell * 0.22, cell * 0.12],
-        color: ramp[3],
+        widths: [0, cell * 0.36, cell * 0.2],
+        color: hueOf(ramp),
         core: '#ffffff',
         alpha: 1,
         blend: 'light',
       });
-      drawn.motes.push(glow(at, cell * 0.5, ramp[4], 0.6, forward));
+      drawn.motes.push(glow(at, cell * 0.9, hueOf(ramp), 0.7, forward));
       return;
     case 'tracer':
+      drawn.motes.push(glow(at, cell * 0.6, hueOf(ramp), 0.6, forward));
       drawn.motes.push({
-        ...glow(at, cell * 0.08, '#ffffff', 1, forward),
+        ...glow(at, cell * 0.14, '#ffffff', 1, forward),
         shape: 'spark',
         velocity,
         trail: (cell * 1.4) / speed,
@@ -256,8 +264,8 @@ function flyingCrescent(at: Point, way: Point, cell: number, ramp: readonly stri
     const u = (index / steps) * 2 - 1;
     const back = (1 - Math.cos(u * 1.2)) * cell * 0.5;
     return {
-      x: at.x + side.x * u * cell * 0.75 - way.x * back,
-      y: at.y + side.y * u * cell * 0.75 - way.y * back,
+      x: at.x + side.x * u * cell * 0.6 - way.x * back,
+      y: at.y + side.y * u * cell * 0.6 - way.y * back,
       z: at.z - way.z * back,
     };
   });
@@ -279,9 +287,8 @@ function drawMuzzle(
   forward: number
 ): void {
   const left = 1 - share;
-  drawn.motes.push({ ...glow(at, cell * 0.5 * left, '#ffffff', left, forward), shape: 'flare', trail: 3 });
-  drawn.motes.push({ ...glow(at, cell * 0.55, ramp[5], left, forward), shape: 'star', spin: 0.4 });
-  drawn.lights.push({ ...at, color: ramp[5], strength: 1.1 * left, reachPx: cell * 2 });
+  drawn.motes.push(...starBurst(at, cell * 1.2, hueOf(ramp), share, forward, 4, 0.3));
+  drawn.lights.push({ ...at, color: ramp[4], strength: 1.2 * left, reachPx: cell * 2.2 });
 }
 
 /** A sniper's line, drawn at once from the muzzle to the target and fading. */
@@ -296,7 +303,14 @@ function drawTracerLine(
   const left = Math.pow(1 - share, 1.5);
   drawn.ribbons.push({
     points: [from, to],
-    widths: cell * 0.05 * left,
+    widths: cell * 0.5 * left,
+    color: hueOf(ramp),
+    alpha: 0.4 * left,
+    blend: 'light',
+  });
+  drawn.ribbons.push({
+    points: [from, to],
+    widths: cell * 0.09 * left,
     color: ramp[4],
     core: '#ffffff',
     alpha: left,
@@ -392,10 +406,10 @@ export const arrowrain: Choreography = {
       if (up >= 0 && up < 1) {
         const at = { x: from.x + spot.lean * cell * up * 2, y: from.y, z: from.z + up * sky };
         drawn.motes.push({
-          ...glow(at, cell * 0.05, ramp[4], 1 - up, forward),
+          ...glow(at, cell * 0.1, hueOf(ramp), 1 - up, forward),
           shape: 'spark',
           velocity: { x: 0, y: 0, z: sky / 0.35 },
-          trail: 0.06,
+          trail: 0.1,
         });
       }
       // Falling steeply on the target.
@@ -407,16 +421,17 @@ export const arrowrain: Choreography = {
         const { way } = wayBetween(top, ground);
         drawn.ribbons.push({
           points: [{ x: at.x - way.x * cell * 0.7, y: at.y - way.y * cell * 0.7, z: at.z - way.z * cell * 0.7 }, at],
-          widths: cell * 0.04,
+          widths: cell * 0.07,
           color: '#5c3f25',
           alpha: 1,
           blend: 'color',
         });
         drawn.ribbons.push({
-          points: [{ x: at.x - way.x * cell * 1.6, y: at.y - way.y * cell * 1.6, z: at.z - way.z * cell * 1.6 }, at],
-          widths: [0, cell * 0.06],
-          color: ramp[4],
-          alpha: 0.5,
+          points: [{ x: at.x - way.x * cell * 2.6, y: at.y - way.y * cell * 2.6, z: at.z - way.z * cell * 2.6 }, at],
+          widths: [0, cell * 0.18],
+          color: hueOf(ramp),
+          core: ramp[4],
+          alpha: 0.85,
           blend: 'light',
         });
       }
@@ -431,11 +446,12 @@ export const arrowrain: Choreography = {
             tip,
             { x: tip.x - way.x * cell * 0.55, y: tip.y - way.y * cell * 0.55, z: tip.z - way.z * cell * 0.55 },
           ],
-          widths: cell * 0.04,
+          widths: cell * 0.06,
           color: '#5c3f25',
           alpha: fade,
           blend: 'color',
         });
+        if (since < 0.12) drawn.motes.push(...starBurst(tip, cell * 0.7, hueOf(ramp), since / 0.12, forward, 3, index));
         if (since < 0.3)
           drawn.motes.push(
             smokePuff(
@@ -449,6 +465,11 @@ export const arrowrain: Choreography = {
       }
     });
     const firstLands = arrowRainShots()[0].land * duration;
+    const lastLands = arrowRainShots().at(-1)!.land * duration;
+    // A glow over the ground the volley falls on while it falls.
+    const raining = Math.min(within(t, firstLands - 0.2, firstLands), 1 - within(t, lastLands, lastLands + 0.4));
+    if (raining > 0)
+      drawn.floor.push(floorMark('disc', floor, reach + cell * 0.5, 1, hueOf(ramp), 0.3 * raining, 'light', 0));
     for (const cloud of thrown.dust) drawCloud(drawn, cloud, t - firstLands, cell, forward);
     return drawn;
   },

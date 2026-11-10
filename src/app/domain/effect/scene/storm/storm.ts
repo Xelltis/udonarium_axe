@@ -19,7 +19,18 @@ import {
   rollingDust,
   thrownSparks,
 } from '@axe/domain/effect/scene/fire/fire-parts';
-import { floorMark, glow, keptFor, type Point, smokePuff, stageKey, throwerFor } from '@axe/domain/effect/scene/parts';
+import {
+  floorMark,
+  glow,
+  haze,
+  hueOf,
+  keptFor,
+  type Point,
+  smokePuff,
+  stageKey,
+  starBurst,
+  throwerFor,
+} from '@axe/domain/effect/scene/parts';
 import { lightningRibbons } from '@axe/domain/effect/scene/shot/streams';
 
 /*
@@ -100,9 +111,10 @@ export const bolt: Choreography = {
         trail: 8,
       });
     }
-    drawn.motes.push(
-      glow({ ...floor, z: floor.z + cell * 0.3 }, cell * 1.6, ramp[4], Math.max(0, 1 - t / 0.4), forward)
-    );
+    const struck = { ...floor, z: floor.z + cell * 0.4 };
+    drawn.motes.push(haze(struck, cell * 2.4, hueOf(ramp), 0.55 * Math.max(0, 1 - t / 0.6), forward));
+    drawn.motes.push(glow(struck, cell * 1.6, ramp[4], Math.max(0, 1 - t / 0.4), forward));
+    drawn.motes.push(...starBurst(struck, cell * 2.2, hueOf(ramp), t / 0.3, forward * 1.5, 6, stage.seed));
     layScorch(drawn, floor, cell * 0.7, ramp, t, 1.2, 1 - within(t, ends - 0.4, ends), (stage.seed % 89) + 1);
     drawn.floor.push(
       floorMark(
@@ -117,7 +129,7 @@ export const bolt: Choreography = {
         stage.seed
       )
     );
-    layShockRing(drawn, floor, cell * 0.3, cell * 2.4, cell * 0.12, ramp[5], t, 0.3);
+    layShockRing(drawn, floor, cell * 0.3, cell * 2.6, cell * 0.16, hueOf(ramp), t, 0.35);
     for (const [index, spark] of sparks.entries()) drawSpark(drawn, spark, t, cell, ramp, index, forward);
     // A wisp of smoke off the scorch.
     if (t > 0.15 && t < ends)
@@ -174,8 +186,8 @@ export const frost: Choreography = {
         return {
           at: { x: floor.x + Math.cos(turn) * out, y: floor.y + Math.sin(turn) * out, z: floor.z },
           lean: { x: Math.cos(turn) * tilt, y: Math.sin(turn) * tilt, z: 1 },
-          tall: th.range(0.5, 1.2),
-          wide: th.range(0.16, 0.28),
+          tall: th.range(0.8, 1.6),
+          wide: th.range(0.22, 0.36),
           bornAt: th.range(0, 0.12),
         };
       });
@@ -230,9 +242,30 @@ export const frost: Choreography = {
       )
     );
     drawn.floor.push(
-      floorMark('sigil', floor, cell * 1.25, 0.08, ramp[4], 0.6 * clearing, 'light', stage.seed % 13, t * 0.3)
+      floorMark('sigil', floor, cell * 1.25, 0.08, hueOf(ramp), 0.7 * clearing, 'light', stage.seed % 13, t * 0.3)
     );
-    layShockRing(drawn, floor, cell * 0.3, cell * 1.8, cell * 0.1, ramp[5], t, 0.3);
+    layShockRing(drawn, floor, cell * 0.3, cell * 2.2, cell * 0.14, hueOf(ramp), t, 0.35);
+    // A cold haze of its colour over the ice while it stands, and a star of light as it bursts up.
+    drawn.motes.push(
+      haze(
+        { ...floor, z: floor.z + cell * 0.5 },
+        cell * 2.4,
+        hueOf(ramp),
+        0.4 * clearing * (1 - within(t, breaks, breaks + 0.3)),
+        forward
+      )
+    );
+    drawn.motes.push(
+      ...starBurst(
+        { ...floor, z: floor.z + cell * 0.5 },
+        cell * 1.8,
+        hueOf(ramp),
+        t / 0.25,
+        forward * 1.5,
+        6,
+        stage.seed
+      )
+    );
     for (const cloud of thrown.mist) drawCloud(drawn, cloud, t, cell, forward);
     // The shards: bursting up fast, standing, then cracking and falling away.
     const breaking = within(t, breaks, breaks + 0.15);
@@ -362,6 +395,19 @@ export const vortex: Choreography = {
     const tall = cell * 3.4;
     const radiusAt = (height: number) => cell * (0.35 + 0.9 * (height / tall) ** 1.3);
     const spin = t * 7;
+    // The funnel: a body of its colour and of dust, widening as it climbs.
+    for (let step = 0; step < 5; step++) {
+      const height = ((step + 0.5) / 5) * tall * standing;
+      drawn.motes.push(
+        haze(
+          { ...floor, z: floor.z + height },
+          radiusAt(height) * 2.2,
+          mixColor('#b8ab98', hueOf(ramp), 0.4),
+          0.22 * standing,
+          forward
+        )
+      );
+    }
     // Streaks of wind wound round it, each a spiral band climbing and turning.
     for (let streak = 0; streak < 5; streak++) {
       const points: Point[] = [];
@@ -376,14 +422,14 @@ export const vortex: Choreography = {
           y: floor.y + Math.sin(turn) * radius,
           z: floor.z + height,
         });
-        widths.push(cell * 0.09 * Math.sin((Math.PI * step) / 24));
+        widths.push(cell * 0.18 * Math.sin((Math.PI * step) / 24));
       }
       drawn.ribbons.push({
         points,
         widths,
-        color: ramp[4],
-        core: '#ffffff',
-        alpha: 0.55 * standing,
+        color: hueOf(ramp),
+        core: ramp[4],
+        alpha: 0.75 * standing,
         alphas: points.map((_point, index) => Math.sin((Math.PI * index) / 24)),
         blend: 'light',
       });
@@ -405,7 +451,9 @@ export const vortex: Choreography = {
           variant: speck.phase * 6,
         });
       } else {
-        drawn.motes.push(smokePuff(at, cell * speck.size * 5, mixColor('#a89a88', ramp[3], 0.3), 0.35 * fade, forward));
+        drawn.motes.push(
+          smokePuff(at, cell * speck.size * 6, mixColor('#a89a88', hueOf(ramp), 0.4), 0.5 * fade, forward)
+        );
       }
     }
     for (const cloud of thrown.dust) drawCloud(drawn, cloud, t, cell, forward);

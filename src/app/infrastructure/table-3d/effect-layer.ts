@@ -243,8 +243,10 @@ export class EffectLayer {
       motion.array[at + 2] = mote.velocity?.y ?? 0;
       motion.array[at + 3] = mote.trail ?? 0;
       look.array[at] = MOTE_SHAPES.indexOf(mote.shape);
-      look.array[at + 1] = mote.spin ?? 0;
-      look.array[at + 2] = mote.variant ?? 0;
+      // Turned within one round, as the shapes only take whole multiples of them: a graphics card
+      // keeps too few figures to turn by a seed's worth.
+      look.array[at + 1] = withinRound(mote.spin ?? 0);
+      look.array[at + 2] = withinRound(mote.variant ?? 0);
       look.array[at + 3] = mote.forward ?? 0;
       count++;
     }
@@ -455,14 +457,16 @@ export class EffectLayer {
     const reach = speed.mul(motion.w).add(size);
     const corner = positionGeometry.xy;
     const spin = look.y;
-    const turned = vec2(
-      corner.x.mul(cos(spin)).sub(corner.y.mul(sin(spin))),
-      corner.x.mul(sin(spin)).add(corner.y.mul(cos(spin)))
-    );
     const shape = look.x;
-    // A flare is drawn out across the screen, as wide as its trail says.
+    // A flare is drawn out as long as its trail says, then turned by its spin, so a star of them
+    // can be laid out at any angles on the screen.
     const stretch = select(shape.equal(8), max(motion.w, 1), float(1));
-    const faced = this.cameraRight.mul(turned.x.mul(stretch)).add(this.cameraUp.mul(turned.y)).mul(size);
+    const long = vec2(corner.x.mul(stretch), corner.y);
+    const turned = vec2(
+      long.x.mul(cos(spin)).sub(long.y.mul(sin(spin))),
+      long.x.mul(sin(spin)).add(long.y.mul(cos(spin)))
+    );
+    const faced = this.cameraRight.mul(turned.x).add(this.cameraUp.mul(turned.y)).mul(size);
     const drawnOut = across.mul(corner.x.mul(size)).add(along.mul(corner.y.sub(0.5).mul(reach)));
 
     const point = uv().sub(0.5).mul(2);
@@ -682,4 +686,10 @@ export class EffectLayer {
     material.opacityNode = alpha.mul(tint.w);
     return this.batchOf(['place', 'tint', 'look'], MAX_EFFECT_MARKS, material, MARKS_ORDER, MARK_SEGMENTS);
   }
+}
+
+/** An angle taken within one round, from 0 to two pi. */
+function withinRound(angle: number): number {
+  const round = Math.PI * 2;
+  return ((angle % round) + round) % round;
 }
