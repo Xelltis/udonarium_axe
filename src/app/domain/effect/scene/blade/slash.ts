@@ -33,6 +33,8 @@ import { type SlashHit, slashHits } from '@axe/domain/effect/timeline/blade';
 const LINGER_S = 0.6;
 /** How far through its stroke the blade crosses the target. */
 const CROSSES_AT = 0.3;
+/** How deep the arc curves back towards the caster, as a share of its reach. */
+const ARC_DEPTH = 0.5;
 /** How far round the arc the blade sweeps, either side of the target, in radians. */
 const SWEEP = 1.35;
 /** How much of the arc its tail trails behind the blade, in radians. */
@@ -131,7 +133,7 @@ function frameOf(stage: Stage): Frame {
   };
 }
 
-/** A point on a stroke's arc, a turn round from its middle, in the plane its angle tilts it to. */
+/** A point on a stroke's arc, a turn round from where it crosses the target, in the plane its angle tilts it to. */
 function onArc(centre: Point, frame: Frame, hit: SlashHit, radius: number, turn: number): Point {
   const angle = (hit.angle * Math.PI) / 180;
   // The way the blade travels: across, tilted up or down by its angle; a blow brought down steeply
@@ -142,12 +144,14 @@ function onArc(centre: Point, frame: Frame, hit: SlashHit, radius: number, turn:
     y: frame.across.y * Math.cos(angle) * steep,
     z: -Math.sin(angle) * steep,
   };
+  // The blade swings about its caster's side: the arc passes through the target at its middle and
+  // curves back towards the caster at its ends, so the target is cut, not wrapped round.
   const along = Math.sin(turn) * radius;
-  const bulge = (Math.cos(turn) - 0.75) * radius * 0.5;
+  const back = (1 - Math.cos(turn)) * radius * ARC_DEPTH;
   return {
-    x: centre.x + travel.x * along + frame.toward.x * bulge,
-    y: centre.y + travel.y * along + frame.toward.y * bulge,
-    z: centre.z + travel.z * along + frame.toward.z * bulge,
+    x: centre.x + travel.x * along + frame.toward.x * back,
+    y: centre.y + travel.y * along + frame.toward.y * back,
+    z: centre.z + travel.z * along + frame.toward.z * back,
   };
 }
 

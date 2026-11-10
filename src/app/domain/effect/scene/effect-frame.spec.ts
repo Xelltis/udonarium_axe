@@ -170,6 +170,19 @@ describe('the cuts and blows drawn in the scene', () => {
     expect(struck.motes.some((mote) => mote.shape === 'tongue')).toBe(true);
   });
 
+  it('swings its arc about its caster, through the target, not round it', () => {
+    const cut = makePreset('slash', { durationMs: 1000 });
+    cut.slashStyle = 'single';
+    const cast = { ...castOn([100, 100]), origin: { x: 300, y: 100, z: 30 } };
+    const crosses = effectBlowsOf(cut)[0].atMs;
+    const edge = staged(cut, cast, crosses + 250).ribbons.find((ribbon) => ribbon.blend === 'color' && ribbon.core)!;
+    const xs = edge.points.map((point) => point.x);
+
+    // The caster stands to the east: the arc reaches no further west than the target, and curves back east.
+    expect(Math.min(...xs)).toBeCloseTo(100, 0);
+    expect(xs[xs.length - 1]).toBeGreaterThan(110);
+  });
+
   it('brings a cleave down from above', () => {
     const cleave = makePreset('slash', { durationMs: 2000, grade: 3 });
     cleave.slashStyle = 'heavy';
