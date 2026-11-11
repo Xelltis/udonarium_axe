@@ -3,7 +3,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { aimedAt, aimLine } from '@axe/domain/chat/character-macro';
+import { aimedAt, aimedAtNamesOf, aimLine } from '@axe/domain/chat/character-macro';
 import { ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { evaluateCharacterReferences } from '@axe/domain/chat/chat-palette';
@@ -77,9 +77,10 @@ export class ChatSendService {
         return evaluated.text;
       };
 
-      const aimed = aimLine(value.text, speaker);
+      const marked = this.targetedGameCharacterList();
+      const aimed = aimLine(value.text, speaker, aimedAtNamesOf(marked));
       if (aimed.targeted) {
-        objects = this.targetedGameCharacterList();
+        objects = marked;
         if (objects.length == 0) {
           outtext += this.t('feature.chat.window.noTarget');
         } else {

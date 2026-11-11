@@ -1,4 +1,5 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
+import { isAimedAtStatus } from '@axe/domain/character/aimed-at-buff';
 import { parseBuffAppearance } from '@axe/domain/character/buff-appearance';
 import {
   buffCommandKind,
@@ -385,10 +386,13 @@ function grantCalculatedBuff(
 
     const data = character.buffs.find(rowName);
     if (!data) return;
-    const applied = rowStacking
-      ? character.buffs.stackModifier(data, request)
-      : character.buffs.applyModifier(data, request);
-    if (!applied) missing.push(request.target);
+    // A status moved for whoever aims at the piece is the note's to tell, not the piece's to move.
+    if (!isAimedAtStatus(request.target)) {
+      const applied = rowStacking
+        ? character.buffs.stackModifier(data, request)
+        : character.buffs.applyModifier(data, request);
+      if (!applied) missing.push(request.target);
+    }
     effects.push(rowStacking ? `${data.currentValue ?? effect}` : effect);
   });
 

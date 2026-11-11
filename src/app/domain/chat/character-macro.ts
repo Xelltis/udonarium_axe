@@ -1,3 +1,4 @@
+import { aimedAtBonusesOf } from '@axe/domain/character/aimed-at-buff';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import {
@@ -41,12 +42,25 @@ export interface AimedLine {
   attachmentImageIdentifiers: string[];
 }
 
-/** Reads how a line is aimed; see {@link AimedLine}. */
-export function aimLine(line: string, speaker: GameCharacter | null): AimedLine {
-  const filled = /[{｛]/.test(line)
+/**
+ * Reads how a line is aimed; see {@link AimedLine}. The speaker's references named in
+ * `leftForTargets` are left for each target to fill in, with what its buffs give whoever aims at it
+ * (see {@link aimedAtNamesOf}).
+ */
+export function aimLine(
+  line: string,
+  speaker: GameCharacter | null,
+  leftForTargets: ReadonlySet<string> = new Set()
+): AimedLine {
+  const holdsReference = /[{｛]/.test(line);
+  const whole = holdsReference
     ? evaluateCharacterReferences(line, speaker, undefined, 'always')
     : { text: line, attachmentImageIdentifiers: [] };
-  const targeted = textTargetsCharacter(line) || textTargetsCharacter(filled.text);
+  const filled =
+    holdsReference && leftForTargets.size > 0
+      ? evaluateCharacterReferences(line, speaker, undefined, 'always', leftForTargets)
+      : whole;
+  const targeted = textTargetsCharacter(line) || textTargetsCharacter(whole.text);
   const said = targeted ? withoutAimMarks(filled.text) : filled.text;
   return {
     targeted,
@@ -55,6 +69,18 @@ export function aimLine(line: string, speaker: GameCharacter | null): AimedLine 
     repeated: targeted ? DiceBot.deleteMyselfResourceBuff(said) : said,
     attachmentImageIdentifiers: filled.attachmentImageIdentifiers,
   };
+}
+
+/**
+ * The names of the speaker's references that the buffs of any of the pieces marked give whoever aims
+ * at them something for, `相手の物理特攻+2` naming 物理特攻: left for each of them to fill in.
+ */
+export function aimedAtNamesOf(targets: readonly GameCharacter[]): Set<string> {
+  const names = new Set<string>();
+  for (const target of targets) {
+    for (const name of aimedAtBonusesOf(target.buffs.list()).keys()) names.add(name);
+  }
+  return names;
 }
 
 /**
@@ -117,7 +143,7 @@ export function buildMacroMessage(
       ? palette.evaluateWithAttachments(text, character.rootDataElement ?? undefined, target)
       : evaluateCharacterReferences(text, character, target);
 
-  const aimed = aimLine(line, character);
+  const aimed = aimLine(line, character, aimedAtNamesOf(targets));
   if (!aimed.targeted) {
     const evaluated = evaluate(line);
     collect(evaluated.attachmentImageIdentifiers);

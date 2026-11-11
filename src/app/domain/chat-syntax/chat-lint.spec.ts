@@ -179,6 +179,11 @@ describe('lintChatSyntax', () => {
       expect(codes('&!猛攻撃/HP/+/2/3')).toEqual([]);
     });
 
+    it("says nothing of a status a buff moves for whoever aims at the piece, which is none of the piece's own", () => {
+      expect(codes('&!弱点/相手の物理特攻+2/none')).toEqual([]);
+      expect(codes('&!弱点/相手の物理特攻/+/2/none')).toEqual([]);
+    });
+
     it('finds a buff to take off that the piece does not have', () => {
       expect(codes('&加護-')).toEqual(['buff.notFound']);
       expect(codes('＆加護－')).toEqual(['buff.notFound']);

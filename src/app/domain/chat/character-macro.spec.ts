@@ -50,6 +50,19 @@ describe('building a macro message', () => {
     expect(message.targetContexts.map((context) => context.text)).toEqual(['2d6+8 魔法行使', '2d6+8 魔法行使']);
   });
 
+  it("adds what each marked piece's 相手の buffs give whoever aims at it to the speaker's value, piece by piece", () => {
+    const character = speaker('術者', '//物理特攻=3');
+    const weak = speaker('弱いゴブリン');
+    weak.addBuffDataElement();
+    applyBuffEdit({ command: '&!弱点/相手の物理特攻+2/none', object: weak, targeted: false }, weak);
+    const plain = speaker('ゴブリン');
+
+    const message = buildMacroMessage(character, 'k20+{物理特攻} 物理 t:', [weak, plain], '対象なし');
+
+    expect(message.text).toBe('k20+5 物理 [弱いゴブリン]\nk20+3 物理 [ゴブリン]');
+    expect(buildMacroMessage(character, 'k20+{物理特攻} 物理', [weak], '対象なし').text).toBe('k20+3 物理');
+  });
+
   it('rolls a line marked with a t:範囲 once for every marked piece at once, their names after it', () => {
     const character = speaker('術者', '');
     const first = speaker('相手A');

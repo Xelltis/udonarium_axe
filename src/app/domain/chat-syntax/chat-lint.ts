@@ -1,4 +1,5 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
+import { isAimedAtStatus } from '@axe/domain/character/aimed-at-buff';
 import {
   buffCommandKind,
   halfWidthBuffCommand,
@@ -423,6 +424,7 @@ function lintBuff(source: string, span: TextRange, pieces: readonly GameCharacte
     if (read.name.length < 1) return add(span, 'error', 'buff.noName');
     if (!read.requests) return add(span, 'error', 'buff.unreadable');
     for (const request of read.requests) {
+      if (isAimedAtStatus(request.target)) continue;
       if (pieces.some((piece) => piece.status.getValue(request.target, request.slot) == null)) {
         add(span, 'warning', 'buff.missingStatus', { params: { name: request.target } });
       }
