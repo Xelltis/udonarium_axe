@@ -3,6 +3,8 @@ import { PiecePartPickService } from '@axe/application/tabletop/piece-part-pick.
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { PictureSizeService } from '@axe/application/storage/picture-size.service';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { emptyPartMask, paintPartMask, writePartLayer, writePartMask } from '@axe/domain/character/part-look';
@@ -73,6 +75,28 @@ describe('PiecePartPickService', () => {
     head.downed = '1';
     pressing(dragon.identifier, 1, 0.5, 0.2);
     expect(service.partAt(dragon, 0, 0)).toBeNull();
+  });
+
+  it('asks for the body’s picture so that how see-through it is comes to be known for the next press', () => {
+    ImageStorage.instance.add({
+      identifier: 'dragon-picture',
+      name: 'dragon.png',
+      type: 'image/png',
+      blob: null,
+      url: 'blob:dragon-picture',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    dragon.imageDataElement!.getFirstElementByName('imageIdentifier')!.value = 'dragon-picture';
+    const sizeOf = vi.spyOn(TestBed.inject(PictureSizeService), 'sizeOf');
+    pressing(dragon.identifier, 1, 0.5, 0.7);
+
+    try {
+      service.partAt(dragon, 0, 0);
+
+      expect(sizeOf).toHaveBeenCalledWith('blob:dragon-picture');
+    } finally {
+      ImageStorage.instance.delete('dragon-picture');
+    }
   });
 
   it('finds the part a press on the body’s model lands on by the face it lands on, and none lost', () => {

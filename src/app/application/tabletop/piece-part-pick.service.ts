@@ -54,8 +54,10 @@ export class PiecePartPickService {
         const mask = this.sizes.maskOf(url);
         return mask ? !seesThroughAt(mask, { u, v }) : null;
       };
+      const bodyUrl = this.images.getEmptyOr(body.imageFile).url;
+      this.sizes.sizeOf(bodyUrl);
       const opacity: PartPictureOpacity = {
-        body: (x, y) => drawnAt(this.images.getEmptyOr(body.imageFile).url, x, y),
+        body: (x, y) => drawnAt(bodyUrl, x, y),
         part: (id, u, v) => {
           const part = parts.find((one) => one.identifier === id);
           return part ? drawnAt(this.images.getEmptyOr(part.imageFile).url, u, v) : null;
