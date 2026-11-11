@@ -790,7 +790,7 @@ export class RemoteControllerComponent {
         this.recoveryLimitFlag
       );
       parts.push(report);
-      shownParts.push(shownChangeDetail(object, report, nowOrMax, object.status.getValue(name, nowOrMax)));
+      shownParts.push(shownChangeDetail(object, report, name, nowOrMax));
     }
     const text = parts.join('');
     if (text != '') {

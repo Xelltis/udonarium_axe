@@ -4,6 +4,7 @@ import { Network } from '@axe/core/index';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DataElement, DataElementAttribute, DataElementRole, DataElementType } from '@axe/domain/data/data-element';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { parseBuffInput } from '@axe/features/controller/remote-controller/remote-controller-buff';
 import {
@@ -225,16 +226,40 @@ describe('remote-controller-helpers', () => {
 });
 
 describe('shownChangeDetail()', () => {
-  const piece = (disclosureMode: string) => ({ name: 'ゴブリン', disclosureMode }) as GameCharacter;
+  const made: GameCharacter[] = [];
+
+  afterEach(() => {
+    for (const one of made.splice(0)) one.destroy();
+  });
+
+  /** A goblin with a resource standing at a value out of 10, disclosed as given, counting up where told. */
+  function piece(disclosureMode: string, now: number, countsUp = false): GameCharacter {
+    const goblin = GameCharacter.create('ゴブリン', 1, '');
+    made.push(goblin);
+    goblin.disclosureMode = disclosureMode;
+    const hp = DataElement.create('傷', 10, {
+      [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+      type: DataElementType.NUMBER_RESOURCE,
+      currentValue: now,
+    });
+    if (countsUp) hp.setAttribute(DataElementAttribute.GAUGE_INVERTED, 'true');
+    goblin.detailDataElement!.appendChild(hp);
+    return goblin;
+  }
 
   it('says a change as it was reported of a piece disclosed to all', () => {
-    expect(shownChangeDetail(piece('all'), '[ゴブリン 10>7] ', 'now', 7)).toBe('[ゴブリン 10>7] ');
+    expect(shownChangeDetail(piece('all', 7), '[ゴブリン 10>7] ', '傷', 'now')).toBe('[ゴブリン 10>7] ');
   });
 
   it('names a piece kept from anyone alone, until its current value runs out', () => {
-    expect(shownChangeDetail(piece('gm'), '[ゴブリン 10>7] ', 'now', 7)).toBe('[ゴブリン] ');
-    expect(shownChangeDetail(piece('selected'), '[ゴブリン 10>7] ', 'max', 0)).toBe('[ゴブリン] ');
-    expect(shownChangeDetail(piece('gm'), '[ゴブリン 3>0] ', 'now', 0)).toBe('[ゴブリン 3>0] ');
-    expect(shownChangeDetail(piece('gm'), '', 'now', 7)).toBe('');
+    expect(shownChangeDetail(piece('gm', 7), '[ゴブリン 10>7] ', '傷', 'now')).toBe('[ゴブリン] ');
+    expect(shownChangeDetail(piece('selected', 0), '[ゴブリン 10>7] ', '傷', 'max')).toBe('[ゴブリン] ');
+    expect(shownChangeDetail(piece('gm', 0), '[ゴブリン 3>0] ', '傷', 'now')).toBe('[ゴブリン 3>0] ');
+    expect(shownChangeDetail(piece('gm', 7), '', '傷', 'now')).toBe('');
+  });
+
+  it('judges a resource counting up to its end run out at its maximum, not at nothing', () => {
+    expect(shownChangeDetail(piece('gm', 0, true), '[ゴブリン 3>0] ', '傷', 'now')).toBe('[ゴブリン] ');
+    expect(shownChangeDetail(piece('gm', 10, true), '[ゴブリン 9>10] ', '傷', 'now')).toBe('[ゴブリン 9>10] ');
   });
 });

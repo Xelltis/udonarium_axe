@@ -34,6 +34,16 @@ export function isGaugeSpent(current: number, max: number, inverted: boolean): b
 }
 
 /**
+ * Whether a resource set to a value has run out, as {@link isGaugeSpent} judges it: by its own
+ * direction, against the maximum it has, where it counts up to its end. One counting up without a
+ * maximum never runs out; anything else runs out at nothing.
+ */
+export function isResourceSpentAt(element: DataElement | null, current: number, max: number | null): boolean {
+  const inverted = element ? isGaugeInverted(element) : false;
+  return isGaugeSpent(current, max ?? Number.POSITIVE_INFINITY, inverted);
+}
+
+/**
  * How a bar is drawn for a reader: how full it stands, its colour and the numbers beside it, as they
  * are, or, for a piece whose contents are kept from the reader, full and grey with marks for the
  * numbers until the resource runs out, so how much is left is not told by how long the bar is.

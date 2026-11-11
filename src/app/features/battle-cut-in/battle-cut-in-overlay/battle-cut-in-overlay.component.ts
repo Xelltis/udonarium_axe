@@ -492,7 +492,8 @@ export class BattleCutInOverlayComponent {
             name: gauge.name,
             percent: ratio * 100,
             color: gauge.color || gaugeColor(ratio, gauge.inverted),
-            numbers: readable ? `${Math.round(reading)}/${gauge.max}` : HIDDEN_GAUGE_NUMBERS,
+            // A bar kept from the reader that the strike spends tells its numbers, as one on the table does.
+            numbers: readable || !scene.secret ? `${Math.round(reading)}/${gauge.max}` : HIDDEN_GAUGE_NUMBERS,
           };
         }),
       };

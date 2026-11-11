@@ -19,6 +19,7 @@ import {
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { buffExpires } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { plantStatusAilment, statusAilmentAsCommanded } from '@axe/domain/character/status-ailment-plant';
@@ -231,7 +232,8 @@ export interface ResourceEditReport {
 /**
  * Applies a worked-out resource change to the character and returns the chat text reporting old and new
  * values, and the text said to everyone, which is the same but for a piece whose contents are kept from
- * anyone: of that, only the change is said, until its current value runs down to nothing and it is beaten.
+ * anyone: of that, only the change is said, until its current value runs out, down to nothing or for a
+ * resource counting up to its end at its maximum, and it is beaten.
  *
  * The text notes when an option or the stored bounds held the value back, and when changing a base or
  * correction moved the effective bounds or the current maximum. An edit of the maximum on a status without
@@ -315,7 +317,8 @@ export function applyResourceEditReport(edit: ResourceEdit, character: GameChara
   const label = resourceSlotLabel(nowOrMax);
   const suffix = label.length > 0 ? `(${label})` : '';
   const full = `${edit.target}${suffix}:${oldNum}${operatorText}${edit.diceResult}＞${newNum}${optionText}${sideEffectText}    `;
-  const beaten = nowOrMax === 'now' && newNum <= 0;
+  const beaten =
+    nowOrMax === 'now' && isResourceSpentAt(targetElement, newNum, character.status.getValue(edit.target, 'max'));
   if (!isKeptFromAnyone(character) || beaten) return { full, shown: full };
   const change = edit.operator === '=' ? `=${KEPT_VALUE}` : `${operatorText}${edit.diceResult}`;
   return { full, shown: `${edit.target}${suffix}:${change}    ` };

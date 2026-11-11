@@ -2,6 +2,7 @@ import { diceBotUnreachable$, DiceBotUnreachableEvent } from '@axe/core/event/do
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 import { ResourceEdit, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -426,6 +427,26 @@ describe('ResourceEditProcessor', () => {
 
         expect(lines()).toHaveLength(1);
         expect(lines()[0].text).toMatch(/^HP:3.*＞-2$/);
+      });
+
+      it('judges a resource counting up to its end beaten at its maximum, not at nothing', async () => {
+        const hp = DataElement.findElementByReference(character.detailDataElement!, 'HP')!;
+        hp.setAttribute(DataElementAttribute.GAUGE_INVERTED, 'true');
+        const max = character.status.getValue('HP', 'max')!;
+        character.status.setValue('HP', 'now', 3);
+
+        await processor.checkResourceEditCommand(speak(':HP-5', character.identifier), [
+          { text: ':HP-5', object: character },
+        ]);
+        expect(lines()[0].text).not.toMatch(/＞-2/);
+
+        for (const message of [...tab.chatMessages]) message.destroy();
+        character.status.setValue('HP', 'now', max - 1);
+        await processor.checkResourceEditCommand(speak(':HP+5', character.identifier), [
+          { text: ':HP+5', object: character },
+        ]);
+        expect(lines()).toHaveLength(1);
+        expect(lines()[0].text).toMatch(new RegExp(`^HP:${max - 1}.*＞${max}`));
       });
 
       it('says everything to everyone for a piece disclosed to all', async () => {

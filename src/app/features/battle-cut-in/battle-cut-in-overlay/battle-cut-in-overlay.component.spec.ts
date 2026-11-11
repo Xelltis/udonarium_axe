@@ -3,12 +3,14 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut-in-preference.service';
 import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
 import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BattleScene } from '@axe/domain/battle/battle-scene';
 import { BATTLE_STILL_MS } from '@axe/domain/battle/battle-timeline';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { createEffectPreset, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
 import { BattleCutInOverlayComponent } from '@axe/features/battle-cut-in/battle-cut-in-overlay/battle-cut-in-overlay.component';
@@ -217,6 +219,36 @@ describe('BattleCutInOverlayComponent', () => {
 
     expect(textsOf(root, '[data-testid="battle-plate"]')[1]).toContain('???/???');
     expect(root.querySelectorAll('[data-testid="battle-pop"]')).toHaveLength(0);
+  });
+
+  describe('a piece kept from the reader', () => {
+    let goblin: GameCharacter;
+
+    beforeEach(() => {
+      goblin = new GameCharacter('goblin');
+      goblin.initialize();
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockReturnValue(false);
+    });
+
+    afterEach(() => goblin.destroy());
+
+    it('tells the numbers of a bar the strike spends', () => {
+      const beaten = textsOf(play(scene()), '[data-testid="battle-plate"]')[1];
+
+      expect(beaten).not.toContain('???/???');
+      expect(beaten).toContain('/12');
+    });
+
+    it('keeps the numbers of a bar the strike leaves standing back', () => {
+      const standing = scene();
+      standing.defenders[0] = {
+        ...standing.defenders[0],
+        gauges: [{ name: 'HP', before: 12, after: 5, max: 12, inverted: false }],
+        defeated: false,
+      };
+
+      expect(textsOf(play(standing), '[data-testid="battle-plate"]')[1]).toContain('???/???');
+    });
   });
 
   it('brings nobody down where nobody fell', () => {

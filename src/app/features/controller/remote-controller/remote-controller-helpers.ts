@@ -2,6 +2,7 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ObjectInventory } from '@axe/application/inventory/object-inventory';
 import { Network } from '@axe/core/index';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { DataElement } from '@axe/domain/data/data-element';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 import { isKeptFromAnyone } from '@axe/domain/disclosure/disclosure';
@@ -107,15 +108,17 @@ export function getTargetCharacters(objectList: TabletopObject[], checkedOnly: b
 /**
  * What a change to a piece's value says to everyone, of the report the piece's status gave of it: the
  * report as it is, or for a piece whose contents are kept from anyone, its name alone, until its current
- * value runs down to nothing and it is beaten.
+ * value runs out, down to nothing or for a resource counting up to its end at its maximum, and it is
+ * beaten.
  */
-export function shownChangeDetail(
-  character: GameCharacter,
-  report: string,
-  slot: ResourceSlot,
-  valueNow: number | null
-): string {
+export function shownChangeDetail(character: GameCharacter, report: string, name: string, slot: ResourceSlot): string {
   if (!report || !isKeptFromAnyone(character)) return report;
-  if (slot === 'now' && valueNow !== null && valueNow <= 0) return report;
+  const now = character.status.getValue(name, 'now');
+  if (slot === 'now' && now !== null) {
+    const element = character.detailDataElement
+      ? DataElement.findElementByReference(character.detailDataElement, name)
+      : null;
+    if (isResourceSpentAt(element, now, character.status.getValue(name, 'max'))) return report;
+  }
   return `[${character.name}] `;
 }
