@@ -4,6 +4,7 @@ import { By } from '@angular/platform-browser';
 import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { SPEECH_BUBBLE_WAIT_MS, SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -256,6 +257,29 @@ describe('GameCharacterComponent', () => {
         expect(opened).toHaveBeenCalledWith(head, expect.anything(), { x: 10, y: 20, z: 0 });
       } finally {
         head.targeted = false;
+        head.destroy();
+        dragon.destroy();
+      }
+    });
+
+    it('picks a part among an effect’s targets from its row while they are being picked, rather than aiming at it', async () => {
+      const dragon = GameCharacter.create('ドラゴン', 3, '');
+      dragon.setLocation('table');
+      const head = GameCharacter.create('頭', 1, '');
+      head.setLocation('table');
+      head.ridingOn = dragon.identifier;
+      head.rideSeat = 'part';
+      fixture.componentRef.setInput('gameCharacter', dragon);
+      vi.spyOn(TestBed.inject(EffectTargetingService), 'isPicking').mockReturnValue(true);
+      const selected = vi.spyOn(TestBed.inject(SelectionSignalService), 'selectObject');
+
+      try {
+        const element = await draw(fixture);
+        element.querySelector<HTMLElement>(`[data-body-part="${head.identifier}"]`)!.click();
+
+        expect(selected).toHaveBeenCalledWith(head.identifier, head.aliasName);
+        expect(head.targeted).toBe(false);
+      } finally {
         head.destroy();
         dragon.destroy();
       }

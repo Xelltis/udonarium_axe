@@ -17,6 +17,7 @@ import {
 import { SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { EffectAutoPlayService } from '@axe/application/effect/effect-auto-play.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
@@ -244,6 +245,7 @@ export class GameCharacterComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly effectTargeting = inject(EffectTargetingService);
   private readonly rotationGuide = inject(RotationGuideService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly pieceTarget = inject(PieceTargetService);
@@ -866,8 +868,19 @@ export class GameCharacterComponent {
   protected aimAtPart(identifier: string, event: Event): void {
     event.stopPropagation();
     const part = this.objectStore.get<GameCharacter>(identifier);
-    if (part instanceof GameCharacter && this.parts.bodyOf(part) === this.gameCharacter())
-      this.pieceTarget.toggle(part);
+    if (part instanceof GameCharacter && this.parts.bodyOf(part) === this.gameCharacter()) this.aimAtPiece(part);
+  }
+
+  /**
+   * Aims at a part, or lets go of it; while an effect's targets are being picked, picks it among them
+   * instead, as a press on a piece drawn as itself does.
+   */
+  private aimAtPiece(part: GameCharacter): void {
+    if (this.effectTargeting.isPicking()) {
+      this.selectionSignalService.selectObject(part.identifier, part.aliasName);
+      return;
+    }
+    this.pieceTarget.toggle(part);
   }
 
   /** Opens the menu of a part listed in the piece's card, as a right-click on the part would. */
@@ -1652,7 +1665,7 @@ export class GameCharacterComponent {
       key_event.preventDefault();
       key_event.stopPropagation();
       const part = this.partPressed(key_event);
-      if (part) this.pieceTarget.toggle(part);
+      if (part) this.aimAtPiece(part);
       else this.toggleTarget();
     }
   }
