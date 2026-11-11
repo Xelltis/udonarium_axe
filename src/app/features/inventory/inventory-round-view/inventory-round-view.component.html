@@ -4,7 +4,7 @@
   [class.flex-col]="!across()"
   [class.items-center]="across()"
 >
-  <div #head class="flex shrink-0 flex-col items-center gap-1 px-2 pt-1.5 pb-1" [class.w-30]="across()">
+  <div #head class="flex shrink-0 flex-col items-center gap-1 px-1 pt-1.5 pb-1" [class.w-30]="across()">
     @if (turns.progress().round > 0) {
       <span class="text-ui-accent text-[11px] font-bold whitespace-nowrap drop-shadow-sm">{{
         'feature.turnOrder.round' | transloco: { n: turns.progress().round }
@@ -12,10 +12,10 @@
     }
     @if (canEdit()) {
       <div class="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
-        <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-1">
           <button
             type="button"
-            class="bg-ui-panel/80 text-ui-text border-ui-border-panel hover:border-ui-accent hover:text-ui-accent shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid backdrop-blur-sm transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
+            class="bg-ui-panel/80 text-ui-text border-ui-border-panel hover:border-ui-accent hover:text-ui-accent shadow-ui-sm m-0 flex size-7 cursor-pointer items-center justify-center rounded-full border border-solid backdrop-blur-sm transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
             [disabled]="!turns.progress().canUndo"
             [attr.aria-label]="'feature.turnOrder.undo' | transloco"
             [title]="'feature.turnOrder.undo' | transloco"
@@ -27,7 +27,7 @@
           </button>
           <button
             type="button"
-            class="bg-ui-accent-solid shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border-none text-white transition-opacity hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[18px]!"
+            class="bg-ui-accent-solid shadow-ui-sm m-0 flex size-8 cursor-pointer items-center justify-center rounded-full border-none text-white transition-opacity hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[18px]!"
             [attr.aria-label]="'feature.turnOrder.next' | transloco"
             [title]="'feature.turnOrder.next' | transloco"
             (click)="turns.next()"
@@ -38,7 +38,7 @@
           </button>
           <button
             type="button"
-            class="bg-ui-panel/80 text-ui-text border-ui-border-panel hover:border-ui-accent hover:text-ui-accent shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid backdrop-blur-sm transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
+            class="bg-ui-panel/80 text-ui-text border-ui-border-panel hover:border-ui-accent hover:text-ui-accent shadow-ui-sm m-0 flex size-7 cursor-pointer items-center justify-center rounded-full border border-solid backdrop-blur-sm transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
             data-testid="turn-hold"
             [disabled]="!turns.mayHoldCurrent()"
             [attr.aria-label]="'feature.turnOrder.holdCurrent' | transloco"
@@ -48,10 +48,10 @@
             <i class="material-icons" aria-hidden="true">pause</i>
           </button>
         </div>
-        <div class="flex items-center gap-1.5">
+        <div class="grid grid-cols-2 place-items-center gap-1">
           <button
             type="button"
-            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[17px]!"
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[17px]!"
             [disabled]="!turns.progress().canUndo"
             [attr.aria-label]="'feature.turnOrder.retreatRound' | transloco"
             [title]="'feature.turnOrder.retreatRound' | transloco"
@@ -61,7 +61,7 @@
           </button>
           <button
             type="button"
-            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none [&_.material-icons]:text-[17px]!"
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none [&_.material-icons]:text-[17px]!"
             [attr.aria-label]="'feature.turnOrder.advanceRound' | transloco"
             [title]="'feature.turnOrder.advanceRound' | transloco"
             (click)="turns.advanceRound()"
@@ -70,7 +70,7 @@
           </button>
           <button
             type="button"
-            class="hover:bg-ui-hover flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none [&_.material-icons]:text-[17px]!"
+            class="hover:bg-ui-hover m-0 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none [&_.material-icons]:text-[17px]!"
             [class.text-ui-accent]="turns.progress().buffDecay"
             [class.text-ui-dim]="!turns.progress().buffDecay"
             [attr.aria-label]="
@@ -88,7 +88,7 @@
           </button>
           <button
             type="button"
-            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[17px]!"
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[17px]!"
             [disabled]="turns.progress().round === 0"
             [attr.aria-label]="'feature.turnOrder.reset' | transloco"
             [title]="'feature.turnOrder.reset' | transloco"
