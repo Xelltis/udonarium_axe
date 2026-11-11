@@ -440,6 +440,19 @@ describe('FirstPersonService', () => {
       expect(piece.location.y).toBe(5 * GRID);
     });
 
+    it('takes the parts of a piece along as it steps, and walks no part away from its body', async () => {
+      const piece = pieceAt(5, 5, 90);
+      const head = pieceAt(5, 5, 90);
+      head.ridingOn = piece.identifier;
+      head.rideSeat = 'part';
+      service().enterSeat(piece.identifier);
+
+      await service().walk('forward');
+
+      expect(head.location).toMatchObject({ x: piece.location.x, y: piece.location.y });
+      expect(service().mayWalk(head)).toBe(false);
+    });
+
     it('carries the eye along with the piece as it steps and turns', async () => {
       const piece = pieceAt(5, 5, 90);
       service().enterSeat(piece.identifier);

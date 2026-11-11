@@ -4,6 +4,7 @@ import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.s
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
@@ -89,6 +90,7 @@ export class FirstPersonService {
   private readonly pieceStep = inject(PieceStepService);
   private readonly replay = inject(ReplayPlaybackService);
   private readonly raisedGround = inject(StandingGroundService);
+  private readonly links = inject(PieceLinksService);
 
   private readonly worldEpoch = signal(0);
 
@@ -366,6 +368,8 @@ export class FirstPersonService {
     const me = PeerCursor.myCursor;
     if (!me || me.isGuest) return false;
     if (piece.isLock || this.movePlan.isPlanning() || this.replay.isOpen()) return false;
+    // A part goes where its body goes, and is walked about as its body.
+    if (this.links.bodyOf(piece)) return false;
     if (me.isGameMaster) return true;
     if (forced) {
       return (piece.owner.length > 0 && isControllableByUser(piece, me.userId)) || this.plays(piece, me.userId);
@@ -581,16 +585,18 @@ export class FirstPersonService {
       };
       if (!freeStepClear(from, to, ground)) return this.blocked();
       await this.pieceStep.stepToPoint(piece, table, to, true);
-      return this.stepped();
+      return this.stepped(piece);
     }
     const from = pieceCellOf(grid, piece, table.gridSize);
     const to = moveNeighbourToward(grid, from, direction);
     if (to < 0 || !this.moveRange.canStepTo(piece, to)) return this.blocked();
     await this.pieceStep.step(piece, table, grid, to, true);
-    return this.stepped();
+    return this.stepped(piece);
   }
 
-  private stepped(): true {
+  /** Brings what goes where the piece goes along to where it stepped, its parts, riders and those it holds. */
+  private stepped(piece: GameCharacter): true {
+    this.links.carryBound(piece);
     SoundEffect.play(PresetSound.piecePut);
     return true;
   }
