@@ -182,6 +182,30 @@ describe('PartLookEditorComponent', () => {
       expect(head.partFaces).toBe('');
     });
 
+    it('turns the model with two fingers, taking back what the first had begun to paint', async () => {
+      const { root, fixture } = open(head.identifier);
+      root.querySelector<HTMLButtonElement>('[data-testid="part-look-mode-faces"]')!.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      await new Promise((resolve) => setTimeout(resolve));
+      fixture.detectChanges();
+      const canvas = root.querySelector<HTMLCanvasElement>('[data-testid="part-look-model"]')!;
+      const finger = (type: string, pointerId: number, x: number) =>
+        canvas.dispatchEvent(
+          new PointerEvent(type, { bubbles: true, button: 0, pointerId, pointerType: 'touch', clientX: x, clientY: 5 })
+        );
+      const stage = await (viewer!.createModelStage() as Promise<{ turnBy: ReturnType<typeof vi.fn> }>);
+
+      finger('pointerdown', 1, 10);
+      finger('pointerdown', 2, 30);
+      finger('pointermove', 2, 50);
+      finger('pointerup', 1, 10);
+      finger('pointerup', 2, 50);
+
+      expect(stage.turnBy).toHaveBeenCalledWith(10, 0);
+      expect(head.partFaces).toBe('');
+    });
+
     it('lets go of a stage still loading the model as the painting of faces is left or the editor closed', async () => {
       const made: { dispose: ReturnType<typeof vi.fn>; shown: () => void }[] = [];
       viewer = {

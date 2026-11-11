@@ -121,12 +121,12 @@
       [class.cursor-crosshair]="canEdit()"
       (pointerdown)="pressModel($event)"
       (pointermove)="moveModel($event)"
-      (pointerup)="letGoOfModel()"
-      (pointercancel)="letGoOfModel()"
+      (pointerup)="letGoOfModel($event)"
+      (pointercancel)="letGoOfModel($event)"
       (contextmenu)="$event.preventDefault()"
     ></canvas>
   } @else if (bodyUrl()) {
-    <div #stage class="relative isolate w-full select-none" data-testid="part-look-stage">
+    <div #stage class="relative isolate w-full touch-none select-none" data-testid="part-look-stage">
       <img class="relative z-0 block h-auto w-full" alt="" draggable="false" [src]="bodyUrl() | safe: 'resourceUrl'" />
       @for (one of layers(); track one.part.id) {
         <img

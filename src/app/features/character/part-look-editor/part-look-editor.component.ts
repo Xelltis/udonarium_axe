@@ -164,6 +164,8 @@ export class PartLookEditorComponent {
   private stageFor: { canvas: HTMLCanvasElement; url: string; made: ModelStage | null } | null = null;
   private readonly draftFaces = signal<Map<number, Set<number>> | null>(null);
   private turningFrom: { x: number; y: number } | null = null;
+  /** The fingers on the model, where each is now: two of them turn it, as a right-drag does. */
+  private readonly fingers = new Map<number, { x: number; y: number }>();
 
   constructor() {
     afterRenderEffect(() => this.drawMasks());
@@ -213,8 +215,21 @@ export class PartLookEditorComponent {
     );
   }
 
+  /**
+   * Paints the faces a press lands on, or turns the model with a right-drag, or with two fingers: a
+   * second finger takes back what the first had begun to paint, as the two are there to turn it.
+   */
   protected pressModel(event: PointerEvent): void {
     (event.target as Element).setPointerCapture?.(event.pointerId);
+    if (event.pointerType === 'touch') {
+      this.fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (this.fingers.size >= 2) {
+        this.painting = false;
+        this.draftFaces.set(null);
+        this.turningFrom = this.middleOfFingers();
+        return;
+      }
+    }
     if (event.button !== 0) {
       event.preventDefault();
       this.turningFrom = { x: event.clientX, y: event.clientY };
@@ -227,15 +242,31 @@ export class PartLookEditorComponent {
   }
 
   protected moveModel(event: PointerEvent): void {
+    if (this.fingers.has(event.pointerId)) this.fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (this.turningFrom) {
-      this.modelStage()?.turnBy(event.clientX - this.turningFrom.x, event.clientY - this.turningFrom.y);
-      this.turningFrom = { x: event.clientX, y: event.clientY };
+      const now = this.fingers.size >= 2 ? this.middleOfFingers() : { x: event.clientX, y: event.clientY };
+      this.modelStage()?.turnBy(now.x - this.turningFrom.x, now.y - this.turningFrom.y);
+      this.turningFrom = now;
       return;
     }
     if (this.painting) this.paintModelAt(event);
   }
 
-  protected letGoOfModel(): void {
+  /** The middle of the fingers on the model. */
+  private middleOfFingers(): { x: number; y: number } {
+    let x = 0;
+    let y = 0;
+    for (const finger of this.fingers.values()) {
+      x += finger.x;
+      y += finger.y;
+    }
+    return { x: x / this.fingers.size, y: y / this.fingers.size };
+  }
+
+  protected letGoOfModel(event?: PointerEvent): void {
+    if (event) this.fingers.delete(event.pointerId);
+    // Fingers that turned the model paint nothing as they are lifted one by one.
+    if (this.fingers.size > 0) return;
     this.turningFrom = null;
     if (!this.painting) return;
     this.painting = false;
