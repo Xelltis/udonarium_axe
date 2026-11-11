@@ -35,8 +35,8 @@ test.describe('the turn on the player tools', () => {
     const focus = bar.getByTestId('pl-turn-focus');
     await expect(focus).toHaveText(name);
     const viewport = page.viewportSize()!;
-    /** How far the middle of the piece whose turn it is lies from the middle of the screen. */
-    const offCentre = async () => {
+    /** How far the middle of a piece, the one whose turn it is unless another is named, lies from the middle of the screen. */
+    const offCentre = async (of = identifier) => {
       const boxes = await page.evaluate(
         (id) =>
           (
@@ -44,7 +44,7 @@ test.describe('the turn on the player tools', () => {
               __axeTable: { pieceBoxesOnPage(id: string): { x: number; y: number; width: number; height: number }[] };
             }
           ).__axeTable.pieceBoxesOnPage(id),
-        identifier
+        of
       );
       const box = boxes[0];
       if (!box) return Number.POSITIVE_INFINITY;
@@ -58,12 +58,17 @@ test.describe('the turn on the player tools', () => {
     expect(await offCentre()).toBeGreaterThanOrEqual(250);
 
     await focus.click();
-    await expect.poll(offCentre, { timeout: 10000 }).toBeLessThan(80);
+    await expect.poll(() => offCentre(), { timeout: 10000 }).toBeLessThan(80);
 
     const next = bar.getByTestId('pl-turn-next');
     await expect(next).toBeVisible();
     await next.click();
     await expect(focus).not.toHaveText(name);
     await expect(next).toBeHidden();
+
+    // The view goes on to the piece whose turn begins, as every screen's does by default.
+    const up = (await round.locator('[data-turn-piece][data-current]').getAttribute('data-turn-piece'))!;
+    expect(up).not.toBe(identifier);
+    await expect.poll(() => offCentre(up), { timeout: 10000 }).toBeLessThan(80);
   });
 });
