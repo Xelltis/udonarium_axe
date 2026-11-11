@@ -148,7 +148,7 @@ export class EffectTargetingService {
    */
   begin(preset: EffectPreset): void {
     const targeted = this.tabletopService.characters
-      .filter((character) => character.isVisibleOnTable && character.targeted)
+      .filter((character) => character.isVisibleOnTable && character.targeted && this.vision.isTokenVisible(character))
       .map((character) => character.identifier);
 
     this.previousTargets = targeted;
@@ -250,11 +250,15 @@ export class EffectTargetingService {
     return effectAreaTargets(origin, candidates, preset.areaRadiusCells * gridSize, preset.targetLimit);
   }
 
-  /** Copies the ordered array onto each piece's `targeted` flag. */
+  /**
+   * Copies the ordered array onto each piece's `targeted` flag: a piece this reader cannot see is
+   * struck all the same but not marked as aimed at, as the mark would name it wherever aims are read,
+   * in the chat's lines aimed at targets among them.
+   */
   private mirror(): void {
     const picked = new Set(this._picks());
     for (const character of this.tabletopService.characters) {
-      const next = picked.has(character.identifier);
+      const next = picked.has(character.identifier) && this.vision.isTokenVisible(character);
       if (character.targeted === next) continue;
       character.targeted = next;
       this.uiSignalService.notifyTargetChange(character.identifier, character.aliasName);

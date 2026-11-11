@@ -763,7 +763,8 @@ export class FirstPersonViewComponent {
 
   protected readonly picking = this.effectTargeting.isPicking;
 
-  protected readonly pickCount = computed(() => this.effectTargeting.picks().length);
+  /** How many targets this reader is shown picked, which a piece out of their sight is not counted among. */
+  protected readonly pickCount = computed(() => this.effectTargeting.marks().length);
 
   protected readonly anyTargeted = computed(() => {
     this.uiSignal.targetChange();

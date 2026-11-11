@@ -171,6 +171,13 @@ describe('EffectTargetingService', () => {
         [characters[1].identifier, 1],
         [characters[2].identifier, 2],
       ]);
+      // Nor marked as aimed at, which the chat's aimed lines and the next aim would read.
+      expect(characters[0].targeted).toBe(false);
+      expect(characters[1].targeted).toBe(true);
+      service.cancel();
+      characters[0].targeted = true;
+      service.begin(preset);
+      expect(service.picks()).not.toContain(characters[0].identifier);
       vi.restoreAllMocks();
     });
 
