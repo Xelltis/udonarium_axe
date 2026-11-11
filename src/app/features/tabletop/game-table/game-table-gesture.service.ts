@@ -2,10 +2,12 @@ import { inject, Injectable, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { type MarqueeRect, SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -100,6 +102,8 @@ const ORBIT_DEG_PER_PX = 0.25;
 @Injectable()
 export class GameTableGestureService {
   private readonly contextMenuService = inject(ContextMenuService);
+  private readonly vision = inject(VisionService);
+  private readonly links = inject(PieceLinksService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly backdropFrame = inject(BackdropFrameService);
@@ -588,9 +592,15 @@ export class GameTableGestureService {
     this.selectionSignalService.replaceSelection(next);
   }
 
+  /**
+   * What a drawn box takes in: of the pieces, those this reader can see drawn, not one kept from sight
+   * in the dark, under the fog or in stealth, nor a part, which is drawn as its body.
+   */
   private collectSelectableObjects(): TabletopObject[] {
     return [
-      ...this.tabletopService.characters,
+      ...this.tabletopService.characters.filter(
+        (character) => this.vision.isTokenVisible(character) && !this.links.bodyOf(character)
+      ),
       ...this.tabletopService.diceSymbols,
       ...this.tabletopService.tableMasks,
       ...this.tabletopService.terrains,

@@ -2,9 +2,11 @@ import { TestBed } from '@angular/core/testing';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { type MarqueeRect, SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { orthographicScale } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
@@ -225,6 +227,27 @@ describe('GameTableGestureService', () => {
       end({ shift: false, ctrl: true, touch: false });
       expect(selection.selectedObjects().size).toBe(0);
       expect(selection.touchedObject()).toBeNull();
+    });
+
+    it('takes no piece kept from this reader’s sight into a drawn box, nor a part drawn as its body', () => {
+      const seen = GameCharacter.create('勇者', 1, '');
+      const hidden = GameCharacter.create('潜む魔物', 1, '');
+      const head = GameCharacter.create('頭', 1, '');
+      for (const piece of [seen, hidden, head]) piece.setLocation('table');
+      head.ridingOn = seen.identifier;
+      head.rideSeat = 'part';
+      vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockImplementation((piece) => piece !== hidden);
+      try {
+        const taken = (
+          service as unknown as { collectSelectableObjects(): TabletopObject[] }
+        ).collectSelectableObjects();
+
+        expect(taken).toContain(seen);
+        expect(taken).not.toContain(hidden);
+        expect(taken).not.toContain(head);
+      } finally {
+        for (const piece of [head, hidden, seen]) piece.destroy();
+      }
     });
 
     it('hands a marquee waiting on a press where the pointer went, and stops once the table goes', () => {
