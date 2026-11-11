@@ -231,13 +231,27 @@ describe('PlToolbarComponent', () => {
     it('offers the next press only while the piece up is the player’s own, and hands the turn on with it', async () => {
       const next = vi.spyOn(TestBed.inject(TurnOrderService), 'next').mockImplementation(() => undefined);
       piece.owner = 'someone-else';
-      expect((await draw()).querySelector('[data-testid="pl-turn-next"]')).toBeNull();
+      const others = (await draw()).querySelector<HTMLButtonElement>('[data-testid="pl-turn-next"]')!;
+      expect(others.classList.contains('invisible')).toBe(true);
+      expect(others.disabled).toBe(true);
 
       piece.owner = 'me';
       const root = await draw();
-      root.querySelector<HTMLButtonElement>('[data-testid="pl-turn-next"]')!.click();
+      const own = root.querySelector<HTMLButtonElement>('[data-testid="pl-turn-next"]')!;
+      expect(own.classList.contains('invisible')).toBe(false);
+      expect(own.getAttribute('aria-label')).toBe('自分のキャラクターの手番を終えて、次へ渡す');
+      own.click();
 
       expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    it('names a piece off the table as nothing to press, as the view has nowhere to go', async () => {
+      piece.setLocation('common');
+
+      const root = await draw();
+
+      expect(root.querySelector('[data-testid="pl-turn-focus"]')).toBeNull();
+      expect(root.textContent).toContain('アルト');
     });
 
     it('names a piece this player cannot see as nothing to press', async () => {

@@ -187,9 +187,17 @@ export class PlToolbarComponent {
     return isOwnedByUser(piece, PeerCursor.myCursor?.userId ?? '');
   });
 
-  /** Glides the view over to the piece whose turn it is. */
-  protected focusTurnPiece(): void {
+  /** The piece whose turn it is, while it stands on the table for the view to go to. */
+  protected readonly turnPieceOnTable = computed<GameCharacter | null>(() => {
     const piece = this.turnPiece();
+    if (!piece) return null;
+    this.objectChange.versionOf(piece.identifier)();
+    return piece.isVisibleOnTable ? piece : null;
+  });
+
+  /** Glides the view over to the piece whose turn it is, where it stands on the table. */
+  protected focusTurnPiece(): void {
+    const piece = this.turnPieceOnTable();
     if (piece) this.tableFocus.focusOn(piece);
   }
 
