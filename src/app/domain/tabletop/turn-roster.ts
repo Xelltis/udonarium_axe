@@ -1,4 +1,4 @@
-import { turnCarriers } from '@axe/domain/tabletop/ride/ride-rules';
+import { isPartOf, turnCarriers } from '@axe/domain/tabletop/ride/ride-rules';
 import { TurnOrderMode } from '@axe/domain/tabletop/turn-order-mode';
 import { groupBySide, SidedPiece, SideGroup } from '@axe/domain/tabletop/turn-side';
 import { TurnHolding, TurnPhase } from '@axe/domain/tabletop/turn-state';
@@ -53,8 +53,14 @@ export function buildTurnRoster<T extends TurnPiece>(pieces: readonly T[], terms
       takesTurns: !piece.noTurn && !piece.hideInventory,
     }))
   );
+  // A part is listed as its body is: kept out of the inventory with it, as it is drawn as the body.
+  const byId = new Map(pieces.map((piece) => [piece.identifier, piece]));
+  const keptOut = (piece: T) =>
+    piece.hideInventory ||
+    (isPartOf({ id: piece.identifier, ridingOn: piece.ridingOn, rideSeat: piece.rideSeat }) &&
+      byId.get(piece.ridingOn)?.hideInventory === true);
   const taking = pieces.filter(
-    (piece) => !piece.noTurn && !carried.has(piece.identifier) && (terms.includeHidden || !piece.hideInventory)
+    (piece) => !piece.noTurn && !carried.has(piece.identifier) && (terms.includeHidden || !keptOut(piece))
   );
   const sides = terms.mode === 'faction' ? groupBySide(taking, terms.sideOrder) : [];
   const order = terms.mode === 'faction' ? sides.flatMap((group) => group.members) : taking;

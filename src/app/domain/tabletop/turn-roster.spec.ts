@@ -34,6 +34,21 @@ describe('the turn roster', () => {
     expect(roster.sides).toEqual([]);
   });
 
+  it('keeps the parts of a body kept out of view out with it, listing them where the hidden are asked for', () => {
+    const pieces = [
+      piece('a'),
+      piece('boss', { hideInventory: true }),
+      piece('head', { ridingOn: 'boss', rideSeat: 'part' }),
+      piece('idol', { noTurn: true }),
+      piece('arm', { ridingOn: 'idol', rideSeat: 'part' }),
+    ];
+
+    expect(ids(buildTurnRoster(pieces, { mode: 'initiative', sideOrder: [] }).order)).toEqual(['a', 'arm']);
+    expect(ids(buildTurnRoster(pieces, { mode: 'initiative', sideOrder: [], includeHidden: true }).order)).toContain(
+      'head'
+    );
+  });
+
   it('lists the pieces kept out of view where it is asked to', () => {
     const roster = buildTurnRoster([piece('a'), piece('c', { hideInventory: true })], {
       mode: 'initiative',
