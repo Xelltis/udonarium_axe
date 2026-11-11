@@ -20,7 +20,7 @@ import { framingView } from '@axe/domain/tabletop/camera/table-framing';
 import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { partOf } from '@axe/domain/tabletop/world/page-boxes';
 import { pointOnFace } from '@axe/domain/tabletop/world/table-sprites';
-import { putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
+import { clearToBlankTable, putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
 
 /** What the end-to-end suite can ask the table, in a browser driven by automation. */
 export interface TableTestHooks {
@@ -132,6 +132,8 @@ export interface TableTestHooks {
   partAt(identifier: string, pageX: number, pageY: number): string | null;
   /** Takes the first table's tutorial away, as its menu does, for a spec the tutorial would stand in the way of. Answers how many things went. */
   putAwayTutorial(): number;
+  /** Clears the first table down to a blank one, the sample pieces and their parties going with the tutorial, as the tutorial's menu does. */
+  clearToBlankTable(): void;
   /**
    * Puts the camera near the board, at the default view's depth and angle, over the middle of the
    * table, in place of the first view that brings the whole first table in: the view specs that
@@ -228,6 +230,7 @@ export function installTableTestHooks(
     modelFaceAt: (pageX, pageY) => scene.modelFaceAt(pageX, pageY),
     partAt,
     putAwayTutorial: () => putAwayTutorial(tabletop),
+    clearToBlankTable: () => clearToBlankTable(tabletop),
     lookFromNear: () => {
       const layout = camera.layout;
       if (layout) moveCamera(nearView(layout));

@@ -20,6 +20,15 @@ export const SYSTEM_CHAT_TAB_IDENTIFIER = 'SystemTab';
 export const SYSTEM_CHAT_TAB_NAME = 'システム';
 
 /**
+ * The conversation tabs every page starts with before it is in any room, under the same names on
+ * every page, so a room that still has them is joined into rather than added to.
+ */
+export const DEFAULT_CHAT_TABS: readonly { readonly name: string; readonly identifier: string }[] = [
+  { name: 'メインタブ', identifier: 'MainTab' },
+  { name: 'サブタブ', identifier: 'SubTab' },
+];
+
+/**
  * The tag on a line that belongs to the room's record but not to the story being read.
  *
  * Novel mode reads a tab as a script, one line at a time. Housekeeping a game master does to

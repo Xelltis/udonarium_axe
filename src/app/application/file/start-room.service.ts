@@ -5,6 +5,8 @@ import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.serv
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
+import { SAMPLE_PARTIES, SAMPLE_PIECES } from '@axe/application/tabletop/tabletop-default-setup';
+import { TUTORIAL_PARTS } from '@axe/application/tabletop/tutorial-board';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Logger } from '@axe/core/logging/logger';
@@ -16,7 +18,10 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { StartRoomStore } from '@axe/core/storage/start-room-store';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { withdraw } from '@axe/core/sync/object-synchronizer';
 import { isOrSitsUnder, restoreStore, snapshotStore, StoreSnapshot } from '@axe/core/sync/store-snapshot';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { DEFAULT_CHAT_TABS } from '@axe/domain/chat/constants';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { parseInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -30,6 +35,15 @@ const SEAT_OWN = new Set(['PeerCursor', 'hotbar', 'hotbar-slot']);
 
 /** Whether an object is of a kind that travels with the seat. */
 const isSeatOwnKind = (object: GameObject): boolean => SEAT_OWN.has(object.aliasName);
+
+/** The things the page sets out of its own, the sample pieces, their parties and the tutorial, by their names. */
+const SAMPLE_THINGS: readonly string[] = [...SAMPLE_PIECES, ...SAMPLE_PARTIES, ...TUTORIAL_PARTS];
+
+/** What a join set aside of the page's own things: the sample, the tutorial and the first tabs. */
+interface SetAside {
+  readonly sample: boolean;
+  readonly tabs: boolean;
+}
 
 /** The table as the page first set it out, before the start room went in. */
 interface TableBefore {
@@ -71,6 +85,7 @@ export class StartRoomService {
   private readonly saveDataService = inject(SaveDataService);
   private readonly fileArchiver = inject(FileArchiver);
   private readonly objectStore = inject(ObjectStore);
+  private readonly chatTabList = inject(ChatTabList);
   private readonly imageStorage = inject(ImageStorage);
   private readonly audioStorage = inject(AudioStorage);
   private readonly snackbar = inject(SnackbarService);
@@ -95,6 +110,8 @@ export class StartRoomService {
   private startRoomOut = false;
   /** Whether the start room was put away for joins that came to nothing, and waits to be set out again. */
   private putAway = false;
+  /** What joins set aside of the page's own things, to set out again should they all come to nothing. */
+  private setAside: SetAside | null = null;
   private brought: { images: readonly string[]; audios: readonly string[] } = { images: [], audios: [] };
   /** How many joins are under way, whether or not they put a start room away. */
   private joinsUnderWay = 0;
@@ -138,7 +155,7 @@ export class StartRoomService {
   inviteEnded(): void {
     if (!this.invited) return;
     this.invited = false;
-    if (!isInOrGoingIntoRoom()) this.tabletopAction.makeDefaultTabletopObjects();
+    if (!isInOrGoingIntoRoom() && !this.sampleHeld()) this.tabletopAction.makeDefaultTabletopObjects();
   }
 
   /** Whether the room to start on found at launch is being set out just now. */
@@ -159,13 +176,20 @@ export class StartRoomService {
    * Puts the start room away before this seat goes into somebody else's room, and answers what to
    * call once the join is over. Every join calls it, whether or not a start room is out.
    *
-   * The track playing stops, the table goes back to how the page set it out, versions and all, the
-   * pictures and sounds the start room brought go, and the sample is set out, so the room joined
-   * finds this seat as it finds a browser that never kept a room. The seat's own cursor and bar
-   * stay, and so do the pictures they show, though not the start room's speaker the cursor last
-   * spoke as. Told the join came to something, it lets the start room go; told it came to nothing,
-   * it sets the kept start room out again, as at launch, once no join is under way and the seat
-   * waits outside any room. See {@link comeBackIfOutside}.
+   * The track playing stops, the table goes back to how the page set it out, versions and all, and
+   * the pictures and sounds the start room brought go. The seat's own cursor and bar stay, and so do
+   * the pictures they show, though not the start room's speaker the cursor last spoke as.
+   *
+   * The things every page sets out of its own, the sample pieces, their parties, the tutorial and
+   * the first two chat tabs, are taken off this page alone too, marking nothing deleted: the room
+   * joined would otherwise take in whichever of them it holds no record of having deleted, as one a
+   * room server keeps that never held them does, or one whose game master started on a room of
+   * their own, and they would turn up in it as the seat came in. A room that holds them gives them
+   * back. What the seat made of its own before the join still goes in with it.
+   *
+   * Told the join came to something, it lets the start room and what it set aside go; told it came
+   * to nothing, it sets the kept start room out again, as at launch, or what it set aside, once no
+   * join is under way and the seat waits outside any room. See {@link comeBackIfOutside}.
    */
   putAwayForJoin(): (joined: boolean) => void {
     this.joinsUnderWay++;
@@ -175,9 +199,13 @@ export class StartRoomService {
       const jukebox = this.objectStore.get<Jukebox>('Jukebox');
       if (jukebox?.isPlaying) jukebox.stop();
       this.takeAway(original);
-      this.tabletopAction.makeDefaultTabletopObjects();
       this.startRoomOut = false;
       this.putAway = true;
+    }
+    const sample = this.withdrawHeld(SAMPLE_THINGS);
+    const tabs = this.withdrawHeld(DEFAULT_CHAT_TABS.map((tab) => tab.identifier));
+    if (sample || tabs) {
+      this.setAside = { sample: sample || !!this.setAside?.sample, tabs: tabs || !!this.setAside?.tabs };
     }
     let over = false;
     return (joined) => {
@@ -366,28 +394,74 @@ export class StartRoomService {
     }
   }
 
-  /** Forgets the table the page first set out, and any start room put away, once the seat is in a room. */
+  /**
+   * Forgets the table the page first set out, any start room put away, and what joins set aside of
+   * the page's own things, once the seat is in a room.
+   */
   private letGo(): void {
     this.original = null;
     this.putAway = false;
+    this.setAside = null;
   }
 
   /**
-   * Sets a start room put away for joins that came to nothing out again, once none is under way
-   * and the seat waits outside any room, and lets it go where the seat is open in a room. A seat
-   * still asked into a room, as one whose failed join leaves it trying again after a while, or
-   * given up on, is left to the next time the network opens: into a room, or outside any.
+   * Sets a start room put away for joins that came to nothing out again, or else what they set aside
+   * of the page's own things, once none is under way and the seat waits outside any room, and lets
+   * them go where the seat is open in a room. A seat still asked into a room, as one whose failed join
+   * leaves it trying again after a while, or given up on, is left to the next time the network opens:
+   * into a room, or outside any.
    */
   private comeBackIfOutside(): void {
-    if (!this.putAway || this.joinsUnderWay > 0) return;
+    if ((!this.putAway && !this.setAside) || this.joinsUnderWay > 0) return;
     const self = Network.peerContext;
     if (self?.isRoom && self.isOpen) {
       this.letGo();
       return;
     }
     if (Network.requestedRoomId !== '') return;
+    if (!this.putAway) {
+      this.setOutWhatWasSetAside();
+      return;
+    }
     this.putAway = false;
     void this.setOutAgain();
+  }
+
+  /**
+   * Sets out again what joins that came to nothing set aside of the page's own things, the first
+   * tabs where they are not there and the sample and tutorial where none of them is, as a page
+   * outside any room shows them.
+   */
+  private setOutWhatWasSetAside(): void {
+    const aside = this.setAside;
+    this.setAside = null;
+    if (!aside) return;
+    if (aside.tabs) {
+      for (const tab of DEFAULT_CHAT_TABS) {
+        if (!this.objectStore.get(tab.identifier)) this.chatTabList.addChatTab(tab.name, tab.identifier);
+      }
+    }
+    if (aside.sample && !this.sampleHeld()) this.tabletopAction.makeDefaultTabletopObjects();
+  }
+
+  /**
+   * Takes the objects held under some names off this page alone, marking nothing deleted and telling
+   * nobody, so a room that holds them under those names gives them back. Answers whether any was held.
+   */
+  private withdrawHeld(identifiers: readonly string[]): boolean {
+    let held = false;
+    for (const identifier of identifiers) {
+      const object = this.objectStore.get(identifier);
+      if (!object) continue;
+      withdraw(object);
+      held = true;
+    }
+    return held;
+  }
+
+  /** Whether any of the sample pieces, their parties or the tutorial is on this page. */
+  private sampleHeld(): boolean {
+    return SAMPLE_THINGS.some((identifier) => this.objectStore.get(identifier) !== null);
   }
 
   /**
@@ -405,8 +479,11 @@ export class StartRoomService {
       const result = await this.setOutKept(blob);
       if (result?.dataRead) {
         this.startRoomOut = true;
+        this.setAside = null;
         this.snackbar.show(this.t('feature.roomArchive.startRoom.backAfterJoin'));
       } else if (hasTableToItself() && !isInOrGoingIntoRoom()) {
+        this.setAside = { sample: true, tabs: true };
+        this.setOutWhatWasSetAside();
         this.snackbar.show(this.t('feature.roomArchive.startRoom.loadFailed'));
       }
     } finally {
