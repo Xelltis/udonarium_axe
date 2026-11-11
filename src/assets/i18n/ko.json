@@ -3166,6 +3166,8 @@
         }
       },
       "groundBrush": {
+        "kindGroup": "브러시 종류",
+        "layerGroup": "칠할 지면",
         "kind_raise": "높이기",
         "kind_lower": "파기",
         "kind_smooth": "다듬기",

@@ -192,6 +192,36 @@ describe('GroundBrushBandComponent', () => {
     expect(band.querySelector('[data-testid="ground-brush-strength-value"]')!.textContent).toContain('30%');
   });
 
+  it('gives the keys back to the view once a press of the band is clicked, but not once it is pressed from the keys', () => {
+    brush.active.set(true);
+    const band = render().querySelector<HTMLElement>('[data-testid="ground-brush-band"]')!;
+    document.body.append(band);
+    const smooth = band.querySelector<HTMLButtonElement>('[data-testid="ground-brush-smooth"]')!;
+
+    smooth.focus();
+    smooth.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    expect(document.activeElement).not.toBe(smooth);
+
+    smooth.focus();
+    smooth.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+    expect(document.activeElement).toBe(smooth);
+    band.remove();
+  });
+
+  it('marks the ground chosen to paint as the kind chosen is marked, and names the groups of presses', () => {
+    brush.active.set(true);
+    brush.settings.update((settings) => ({ ...settings, kind: 'paint', layer: 'rock' }));
+    const band = render();
+
+    expect(
+      band.querySelector('[data-testid="ground-brush-layer-rock"]')!.classList.contains('bg-ui-accent-solid')
+    ).toBe(true);
+    expect([...band.querySelectorAll('[role="group"]')].map((group) => group.getAttribute('aria-label'))).toEqual([
+      'ブラシの種類',
+      '塗る地面',
+    ]);
+  });
+
   it('gives the arrow keys back to the view once a slider has been set with the pointer', () => {
     brush.active.set(true);
     const slider = render().querySelector<HTMLInputElement>('[data-testid="ground-brush-radius"]')!;

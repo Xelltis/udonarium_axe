@@ -1,14 +1,18 @@
 <!-- Said at the foot of the screen, as the band of a move is: see move-plan-band. -->
 @if (shown()) {
   <div
-    class="bg-ui-panel shadow-ui-md text-ui-text fixed inset-x-0 bottom-28 mx-auto flex w-max max-w-[94vw] flex-col gap-1.5 rounded-2xl px-3 py-2 text-sm opacity-95"
+    class="bg-ui-panel shadow-ui-md text-ui-text border-ui-border-panel fixed inset-x-0 bottom-28 mx-auto flex w-max max-w-[94vw] flex-col gap-1.5 rounded-2xl border border-solid px-3 py-2 text-sm"
     data-testid="ground-brush-band"
     data-ground-brush-band
     [style.zIndex]="zIndex"
   >
     <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
       <div class="flex flex-wrap items-center gap-2">
-        <div class="border-ui-border-panel flex shrink-0 rounded-full border border-solid p-0.5" role="group">
+        <div
+          class="border-ui-border-panel flex shrink-0 rounded-full border border-solid p-0.5"
+          role="group"
+          [attr.aria-label]="'feature.tabletop.groundBrush.kindGroup' | transloco"
+        >
           @for (kind of kinds; track kind) {
             <button
               type="button"
@@ -19,22 +23,29 @@
               [class.text-ui-muted]="settings().kind !== kind"
               [attr.aria-pressed]="settings().kind === kind"
               [attr.data-testid]="'ground-brush-' + kind"
-              (click)="choose({ kind })"
+              (click)="choose({ kind }); handBackKeys($event)"
             >
               {{ 'feature.tabletop.groundBrush.kind_' + kind | transloco }}
             </button>
           }
         </div>
         @if (settings().kind === 'paint') {
-          <div class="flex shrink-0 gap-1" role="group">
+          <div
+            class="flex shrink-0 gap-1"
+            role="group"
+            [attr.aria-label]="'feature.tabletop.groundBrush.layerGroup' | transloco"
+          >
             @for (layer of layers; track layer) {
               <button
                 type="button"
-                class="border-ui-border-panel inline-flex min-h-8 cursor-pointer items-center rounded-full border border-solid px-2.5 text-[0.86em]"
-                [class.bg-ui-accent-bg]="settings().layer === layer"
+                class="border-ui-border-panel inline-flex min-h-8 cursor-pointer items-center rounded-full border border-solid px-2.5 text-[0.86em] transition-[background,color]"
+                [class.bg-ui-accent-solid]="settings().layer === layer"
+                [class.text-white]="settings().layer === layer"
+                [class.bg-transparent]="settings().layer !== layer"
+                [class.text-ui-muted]="settings().layer !== layer"
                 [attr.aria-pressed]="settings().layer === layer"
                 [attr.data-testid]="'ground-brush-layer-' + layer"
-                (click)="chooseLayer(layer)"
+                (click)="chooseLayer(layer); handBackKeys($event)"
               >
                 {{ 'feature.tabletop.groundBrush.layer_' + layer | transloco }}
               </button>
@@ -42,7 +53,7 @@
           </div>
         }
       </div>
-      <div class="ml-auto flex items-center gap-3">
+      <div class="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
         @let radius = 'feature.tabletop.groundBrush.radiusValue' | transloco: { n: settings().radius };
         <label class="text-ui-muted flex items-center gap-1.5 text-[0.86em] whitespace-nowrap">
           {{ 'feature.tabletop.groundBrush.radius' | transloco }}
@@ -90,7 +101,7 @@
             [disabled]="undoable() < 1"
             [attr.aria-label]="'feature.tabletop.groundBrush.undo' | transloco"
             [title]="'feature.tabletop.groundBrush.undo' | transloco"
-            (click)="undo()"
+            (click)="undo(); handBackKeys($event)"
           >
             <i class="material-icons" aria-hidden="true">undo</i>
           </button>

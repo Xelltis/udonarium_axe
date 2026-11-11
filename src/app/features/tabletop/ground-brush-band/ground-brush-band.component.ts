@@ -125,11 +125,13 @@ export class GroundBrushBandComponent {
   }
 
   /**
-   * Gives the keys back to the view once a slider has been set with the pointer: the slider took them
-   * as it was pressed, and the arrow keys the band says move the view would move it instead.
+   * Gives the keys back to the view once a slider has been set or a press pressed with the pointer: it
+   * took them as it was pressed, and the arrow keys the band says move the view would move it instead,
+   * or Enter press it again. A press from the keys keeps them, as the reader is going along the band.
    */
   protected handBackKeys(event: Event): void {
-    (event.target as HTMLElement).blur();
+    if (event.type === 'click' && (event as MouseEvent).detail === 0) return;
+    (event.currentTarget as HTMLElement | null)?.blur();
   }
 
   protected chooseLayer(layer: GroundPaintLayer): void {

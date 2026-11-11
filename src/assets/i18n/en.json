@@ -3166,6 +3166,8 @@
         }
       },
       "groundBrush": {
+        "kindGroup": "What the brush does",
+        "layerGroup": "Ground to paint",
         "kind_raise": "Raise",
         "kind_lower": "Dig",
         "kind_smooth": "Smooth",
