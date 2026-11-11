@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { chatInput, expectChatText } from '../helpers';
 
 test.describe('the chat editor on a phone', () => {
-  test('lays its selects in one row and its edit buttons along the top of the box, writes at a size the phone does not zoom onto, and takes a line tapped in and sends it, kept to its share of the screen', async ({
+  test('lays the speaker and whom it is said to in a row, the dice bot with the stamp and colour under them, and the box the width of the screen with the send button in it, writes at a size the phone does not zoom onto, and takes a line tapped in and sends it, kept to its share of the screen', async ({
     page,
   }) => {
     await page.goto('/');
@@ -17,16 +17,25 @@ test.describe('the chat editor on a phone', () => {
     await expect(editor.locator('ng-select[name="send-from"]')).toBeVisible({ timeout: 20000 });
     await expect(editor.locator('ng-select[name="game-type"]')).toBeVisible();
     await expect(editor.getByRole('button', { name: '?' })).toBeVisible();
-    const edits = editor.getByTestId('chat-input-frame').getByTestId('chat-input-edits');
-    await expect(edits.getByTestId('chat-input-color')).toBeVisible();
+    await expect(editor.getByTestId('chat-input-avatar')).toBeVisible();
+    await expect(editor.getByTestId('chat-input-line-tools').getByTestId('chat-input-color')).toBeVisible();
+    const frame = editor.getByTestId('chat-input-frame');
+    const edits = frame.getByTestId('chat-input-edits');
     await expect(edits.getByTestId('chat-toolbar-bold')).toBeVisible();
+    const from = (await editor.locator('ng-select[name="send-from"]').boundingBox())!;
+    const to = (await editor.locator('ng-select[name="send-to"]').boundingBox())!;
+    const diceBot = (await editor.locator('ng-select[name="game-type"]').boundingBox())!;
     const selects = (await editor.getByTestId('chat-input-selects').boundingBox())!;
     const band = (await edits.boundingBox())!;
-    const frame = (await editor.locator('[data-chat-input-box]').boundingBox())!;
-    expect(selects.height).toBeLessThan(48);
+    const framed = (await frame.boundingBox())!;
+    const send = (await frame.getByTestId('chat-input-send').boundingBox())!;
+    const screen = page.viewportSize()!;
+    expect(Math.abs(from.y - to.y)).toBeLessThan(1);
+    expect(diceBot.y).toBeGreaterThan(from.y + from.height - 1);
     expect(band.height).toBeLessThan(84);
     expect(band.y).toBeGreaterThan(selects.y + selects.height);
-    expect(Math.abs(band.x - frame.x)).toBeLessThan(1);
+    expect(framed.width).toBeGreaterThan(screen.width - 24);
+    expect(send.x + send.width).toBeLessThanOrEqual(framed.x + framed.width + 1);
 
     const input = chatInput(pane);
     expect(await input.evaluate((box) => getComputedStyle(box).fontSize)).toBe('16px');
