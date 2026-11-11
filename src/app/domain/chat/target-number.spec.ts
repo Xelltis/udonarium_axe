@@ -53,12 +53,23 @@ describe('target-number', () => {
     });
 
     it('reads none from a number counting something or worked on, but one before words or 以上', () => {
-      expect(presentedTotalOf('ダメージは目標値2倍')).toBeNull();
-      expect(presentedTotalOf('目標値3つのうち1つ')).toBeNull();
-      expect(presentedTotalOf('目標値10+2で')).toBeNull();
-      expect(presentedTotalOf('目標値25倍')).toBeNull();
+      for (const counted of ['ダメージは目標値2倍', '目標値3つのうち1つ', '目標値10+2で', '目標値25倍']) {
+        expect(presentedTotalOf(counted)).toBeNull();
+      }
+      for (const worked of ['目標値10−2', '目標値10÷2', '目標値12／2', '目標値10x2', '目標値13〜15', '目標値13-15']) {
+        expect(presentedTotalOf(worked)).toBeNull();
+      }
       expect(presentedTotalOf('危険感知：目標値13以上で成功')).toBe(13);
       expect(presentedTotalOf('目標値 14 です')).toBe(14);
+      expect(presentedTotalOf('目標値60%')).toBe(60);
+    });
+
+    it('reads the number before words a counter starts, a dash or a stop, set off from it', () => {
+      expect(presentedTotalOf('目標値12 回避判定')).toBe(12);
+      expect(presentedTotalOf('目標値13 体力判定')).toBe(13);
+      expect(presentedTotalOf('目標値13 - 敏捷で判定')).toBe(13);
+      expect(presentedTotalOf('目標値：13 -> 失敗で転倒')).toBe(13);
+      expect(presentedTotalOf('知力判定 目標値は12.')).toBe(12);
     });
   });
 
