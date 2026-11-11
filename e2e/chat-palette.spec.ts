@@ -90,6 +90,14 @@ test.describe('the chat palette', () => {
     await palette.getByRole('button', { name: '確定' }).click();
     await expect(palette.getByTestId('chat-input-target-number-idle')).toBeVisible();
 
+    // With nothing rolled yet the line is found wanting, and the mark saying so takes no more room.
+    const line = palette.getByTestId('chat-palette-list').getByText('2d6>={目標値} 抵抗');
+    const before = (await line.boundingBox())!.y;
+    await line.click();
+    await expect(palette.getByTestId('chat-input-findings')).toBeVisible({ timeout: 5000 });
+    // The line typed in may sit a fraction of a pixel lower in the box than the hint did.
+    expect(Math.abs((await line.boundingBox())!.y - before)).toBeLessThan(1);
+
     const input = chatInput(page).first();
     await input.fill('2d6+8 火球');
     await input.press('Enter');
@@ -103,8 +111,6 @@ test.describe('the chat palette', () => {
       .filter((step) => /^-?\d+$/.test(step))
       .at(-1);
 
-    const line = palette.getByTestId('chat-palette-list').getByText('2d6>={目標値} 抵抗');
-    const before = (await line.boundingBox())!.y;
     // Each press held as a hand holds it, so that the page draws between the two clicks.
     await line.dblclick({ delay: 60 });
     await expect(page.locator('chat-tab chat-message').filter({ hasText: `(2D6>=${total})` })).toHaveCount(1, {
