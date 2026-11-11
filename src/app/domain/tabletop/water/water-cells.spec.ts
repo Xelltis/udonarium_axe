@@ -162,6 +162,19 @@ describe('waterCellsOf()', () => {
       }
     });
 
+    it('fills a ditch shallower than a sunk pond’s floor, up to the pond’s surface', () => {
+      const grid = cellGridOf(10, 10, G, GridType.SQUARE);
+      const ground = new Map([
+        [cellIndexOf(grid, 0, 0), -40],
+        [cellIndexOf(grid, 1, 0), -20],
+      ]);
+      const shallow = (index: number) => ground.get(index) ?? 0;
+
+      const cells = waterCellsOf(grid, [area({ floorPx: -40, surfacePx: -5 })], shallow);
+
+      expect(cells.get(cellIndexOf(grid, 1, 0))).toMatchObject({ floorPx: -20, surfacePx: -5 });
+    });
+
     it('fills from the higher of two waters a ditch dug between them', () => {
       const grid = cellGridOf(10, 10, G, GridType.SQUARE);
       const cells = waterCellsOf(
