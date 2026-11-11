@@ -474,7 +474,6 @@ export class GameCharacterMenuService {
     );
   }
 
-  /** Opens the line of fire from this piece to every piece it aims at. */
   /** Opens where the parts of a body are drawn on its picture worked on, the part given chosen. */
   private showPartLook(body: GameCharacter, part: GameCharacter | null) {
     const coordinate = this.pointerDeviceService.pointers[0];
@@ -495,6 +494,7 @@ export class GameCharacterMenuService {
     );
   }
 
+  /** Opens the line of fire from this piece to every piece it aims at. */
   private showLineOfFire(gameObject: GameCharacter) {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
