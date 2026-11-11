@@ -96,33 +96,36 @@
     #pieces
     class="max-h-[min(70dvh,calc(100dvh-10rem))] overflow-y-auto overscroll-contain"
     data-testid="turn-pieces"
-    [attr.data-gathers]="gathers()"
+    [attr.data-density]="density()"
   >
     @if (turns.sides().length > 0) {
       <div class="flex flex-col items-center gap-2 p-3">
-        @for (group of sideRows(); track group.side) {
+        @for (group of turns.sides(); track group.side) {
           <div class="flex w-full flex-col items-center gap-2">
             <span
               class="flex max-w-full items-center gap-1 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold drop-shadow-sm"
-              [class.bg-ui-accent-bg]="group.current"
-              [class.text-ui-accent]="group.current"
-              [class.text-ui-dim]="!group.current"
+              [class.bg-ui-accent-bg]="turns.currentSide() === group.side"
+              [class.text-ui-accent]="turns.currentSide() === group.side"
+              [class.text-ui-dim]="turns.currentSide() !== group.side"
               [title]="group.name"
             >
               <span class="size-2 shrink-0 rounded-full" [style.background]="group.color || 'var(--ui-dim)'"></span>
               <span class="truncate">{{ group.name }}</span>
             </span>
-            <div class="flex flex-col items-center gap-2">
-              <ng-container *ngTemplateOutlet="roundRowList; context: { $implicit: group.rows }"></ng-container>
+            <div [class]="piecesLayout()">
+              @for (character of group.members; track character.identifier) {
+                <ng-container *ngTemplateOutlet="turnPiece; context: { $implicit: character }"></ng-container>
+              }
             </div>
           </div>
         }
       </div>
     } @else {
-      <div class="flex flex-col items-center gap-2 p-3">
-        <ng-container *ngTemplateOutlet="roundRowList; context: { $implicit: rows() }"></ng-container>
-        @if (rows().length < 1) {
-          <span class="text-ui-dim px-1 py-2 text-center text-[11px] drop-shadow-sm">{{
+      <div class="p-3" [class]="piecesLayout()">
+        @for (character of turns.order(); track character.identifier) {
+          <ng-container *ngTemplateOutlet="turnPiece; context: { $implicit: character }"></ng-container>
+        } @empty {
+          <span class="text-ui-dim col-span-full px-1 py-2 text-center text-[11px] drop-shadow-sm">{{
             'feature.turnOrder.empty' | transloco
           }}</span>
         }
@@ -130,70 +133,7 @@
     }
   </div>
 
-  <ng-template #roundRowList let-rows>
-    @for (row of rows; track row.kind === 'piece' ? row.piece.identifier : row.kind + row.key) {
-      @switch (row.kind) {
-        @case ('piece') {
-          <ng-container
-            *ngTemplateOutlet="turnPiece; context: { $implicit: row.piece, large: row.current || !gathers() }"
-          ></ng-container>
-        }
-        @case ('gathered') {
-          @let label = 'feature.turnOrder.gathered_' + row.what | transloco: { n: row.pieces.length };
-          <button
-            type="button"
-            class="bg-ui-panel/80 border-ui-border-panel hover:border-ui-accent shadow-ui-sm flex max-w-full cursor-pointer items-center gap-1 rounded-full border border-solid py-0.5 pr-2 pl-0.5 backdrop-blur-sm transition-colors hover:shadow-none"
-            data-testid="turn-gathered"
-            aria-expanded="false"
-            [attr.data-gathered]="row.what"
-            [attr.aria-label]="label + ' ' + ('feature.turnOrder.gatheredOpen' | transloco)"
-            [title]="label + ' — ' + ('feature.turnOrder.gatheredOpen' | transloco)"
-            (click)="toggle(row.key)"
-          >
-            @if (row.what === 'acted') {
-              <i class="material-icons text-ui-dim text-[13px]!" aria-hidden="true">check</i>
-            }
-            <span class="flex shrink-0 -space-x-3" aria-hidden="true">
-              @for (piece of row.pieces.slice(0, 3); track piece.identifier) {
-                <span
-                  class="bg-ui-input border-ui-border-panel flex size-6 items-center justify-center overflow-hidden rounded-full border border-solid"
-                  [class.opacity-60]="row.what === 'acted'"
-                >
-                  @if (piece.imageFile.url) {
-                    <img
-                      class="size-full object-cover object-top"
-                      [src]="piece.imageFile.url | safe: 'resourceUrl'"
-                      alt=""
-                    />
-                  } @else {
-                    <i class="material-icons text-ui-dim text-[13px]! opacity-50">person</i>
-                  }
-                </span>
-              }
-            </span>
-            <span class="text-ui-muted text-[11px] font-semibold whitespace-nowrap tabular-nums" aria-hidden="true">{{
-              row.what === 'later' ? '+' + row.pieces.length : row.pieces.length
-            }}</span>
-          </button>
-        }
-        @case ('fold') {
-          <button
-            type="button"
-            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex cursor-pointer items-center gap-0.5 rounded-full border-none bg-transparent px-2 py-0.5 text-[11px] drop-shadow-sm transition-colors [&_.material-icons]:text-[15px]!"
-            data-testid="turn-fold"
-            aria-expanded="true"
-            [attr.data-gathered]="row.what"
-            (click)="toggle(row.key)"
-          >
-            <i class="material-icons" aria-hidden="true">expand_less</i
-            >{{ 'feature.turnOrder.gatheredFold' | transloco }}
-          </button>
-        }
-      }
-    }
-  </ng-template>
-
-  <ng-template #turnPiece let-character let-large="large">
+  <ng-template #turnPiece let-character>
     <button
       type="button"
       class="relative shrink-0 rounded-full border-none bg-transparent p-0 transition-transform"
@@ -209,8 +149,7 @@
     >
       <span
         class="bg-ui-input border-ui-border-panel ring-ui-accent shadow-ui-sm flex items-center justify-center overflow-hidden rounded-full border border-solid transition-shadow"
-        [class.size-12]="large"
-        [class.size-10]="!large"
+        [class]="faceSize()"
         [class.ring-2]="turns.progress().currentIdentifier === character.identifier"
         [class.shadow-[0_0_8px_var(--ui-accent-glow)]]="turns.progress().currentIdentifier === character.identifier"
       >

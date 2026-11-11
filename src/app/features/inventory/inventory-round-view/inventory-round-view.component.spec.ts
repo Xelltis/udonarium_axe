@@ -2,7 +2,10 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { InventoryRoundService } from '@axe/features/inventory/inventory-round.service';
-import { InventoryRoundViewComponent } from '@axe/features/inventory/inventory-round-view/inventory-round-view.component';
+import {
+  InventoryRoundViewComponent,
+  turnPieceDensity,
+} from '@axe/features/inventory/inventory-round-view/inventory-round-view.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,16 +16,6 @@ function piece(identifier: string) {
 
 describe('InventoryRoundViewComponent', () => {
   const order = signal<ReturnType<typeof piece>[]>([]);
-  const sides = signal<
-    {
-      side: string;
-      name: string;
-      color: string;
-      members: ReturnType<typeof piece>[];
-    }[]
-  >([]);
-  const currentSide = signal('');
-  const given: string[] = [];
   const progress = signal({
     round: 1,
     phase: 'turns',
@@ -43,108 +36,43 @@ describe('InventoryRoundViewComponent', () => {
           useValue: {
             order,
             progress,
-            sides,
+            sides: signal([]),
             companions: signal(new Map()),
-            currentSide,
+            currentSide: signal(''),
             mayHoldCurrent: signal(false),
-            giveTurnTo: (identifier: string) => given.push(identifier),
+            giveTurnTo: () => undefined,
           },
         },
       ],
     });
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-    sides.set([]);
-    currentSide.set('');
-    given.length = 0;
-  });
+  afterEach(() => vi.restoreAllMocks());
 
-  const pieces = (count: number, prefix = 'p') =>
-    Array.from({ length: count }, (_, index) => piece(`${prefix}${index}`));
-
-  function render(count: number, current = '', acted: string[] = []) {
-    order.set(pieces(count));
-    progress.update((value) => ({
-      ...value,
-      currentIdentifier: current,
-      acted: new Set(acted),
-    }));
+  function render(count: number, current = ''): HTMLElement {
+    order.set(Array.from({ length: count }, (_, index) => piece(`p${index}`)));
+    progress.update((value) => ({ ...value, currentIdentifier: current }));
     const fixture = TestBed.createComponent(InventoryRoundViewComponent);
     fixture.detectChanges();
-    const root = fixture.nativeElement as HTMLElement;
-    const laid = () =>
-      [...root.querySelectorAll('[data-turn-piece]')].map((one) => one.getAttribute('data-turn-piece'));
-    const gathered = (what: string) =>
-      root.querySelector<HTMLButtonElement>(`[data-testid="turn-gathered"][data-gathered="${what}"]`);
-    return { fixture, root, laid, gathered };
+    return fixture.nativeElement as HTMLElement;
   }
 
-  it('lays every piece of a round of a few at full size', () => {
-    const { root, laid } = render(8, 'p2', ['p0', 'p1']);
+  it('lays a few pieces one to a row, and more smaller and two or three to a row', () => {
+    expect(turnPieceDensity(6)).toBe('roomy');
+    expect(turnPieceDensity(7)).toBe('pair');
+    expect(turnPieceDensity(16)).toBe('pair');
+    expect(turnPieceDensity(17)).toBe('trio');
 
-    expect(laid()).toEqual(['p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7']);
-    expect(root.querySelector('[data-testid="turn-gathered"]')).toBeNull();
-    expect(root.querySelectorAll('[data-turn-piece] .size-12')).toHaveLength(8);
-  });
-
-  it('gathers the pieces done and those far off of a round of many, laying the one up and the next few', () => {
-    const acted = pieces(8).map((one) => one.identifier);
-    const { root, laid, gathered } = render(40, 'p8', acted);
-
-    expect(laid()).toEqual(['p8', 'p9', 'p10', 'p11', 'p12']);
-    expect(gathered('acted')!.getAttribute('aria-label')).toContain('済み 8');
-    expect(gathered('acted')!.textContent!.trim()).toMatch(/8$/);
-    expect(gathered('later')!.getAttribute('aria-label')).toContain('あと 27');
-    expect(gathered('later')!.textContent).toContain('+27');
-    expect(root.querySelector('[data-turn-piece="p8"] .size-12')).not.toBeNull();
-    expect(root.querySelector('[data-turn-piece="p9"] .size-10')).not.toBeNull();
-  });
-
-  it('opens a gathered row in place to hand one of its pieces the turn, and gathers it up again', () => {
-    const { fixture, root, laid, gathered } = render(12, 'p0');
-
-    gathered('later')!.click();
-    fixture.detectChanges();
-    expect(laid()).toEqual(['p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11']);
-    root.querySelector<HTMLButtonElement>('[data-turn-piece="p10"]')!.click();
-    expect(given).toEqual(['p10']);
-
-    root.querySelector<HTMLButtonElement>('[data-testid="turn-fold"]')!.click();
-    fixture.detectChanges();
-    expect(laid()).toEqual(['p0', 'p1', 'p2', 'p3', 'p4']);
-  });
-
-  it('gathers every side that is not up into one row, laying the side that is up', () => {
-    sides.set([
-      { side: 'friends', name: '味方', color: '', members: pieces(4, 'f') },
-      { side: 'foes', name: '敵', color: '', members: pieces(10, 'e') },
-    ]);
-    currentSide.set('foes');
-    order.set([...pieces(4, 'f'), ...pieces(10, 'e')]);
-    progress.update((value) => ({
-      ...value,
-      currentIdentifier: 'e0',
-      acted: new Set(['f0', 'f1', 'f2', 'f3']),
-    }));
-    const fixture = TestBed.createComponent(InventoryRoundViewComponent);
-    fixture.detectChanges();
-    const root = fixture.nativeElement as HTMLElement;
-
-    expect(root.querySelector('[data-gathered="side"]')!.getAttribute('aria-label')).toContain('4体');
-    expect([...root.querySelectorAll('[data-turn-piece]')].map((one) => one.getAttribute('data-turn-piece'))).toEqual([
-      'e0',
-      'e1',
-      'e2',
-      'e3',
-      'e4',
-    ]);
+    expect(render(4).querySelector('[data-testid="turn-pieces"]')!.getAttribute('data-density')).toBe('roomy');
+    const many = render(20);
+    expect(many.querySelector('[data-testid="turn-pieces"]')!.getAttribute('data-density')).toBe('trio');
+    expect(many.querySelector('[data-testid="turn-pieces"] .grid-cols-3')).not.toBeNull();
+    expect(many.querySelectorAll('[data-turn-piece]')).toHaveLength(20);
   });
 
   it('stands no higher than the screen leaves room for, scrolling within', () => {
-    const list = render(30).root.querySelector<HTMLElement>('[data-testid="turn-pieces"]')!;
+    const list = render(30).querySelector<HTMLElement>('[data-testid="turn-pieces"]')!;
 
     expect(list.classList).toContain('overflow-y-auto');
     expect([...list.classList].some((name) => name.startsWith('max-h-'))).toBe(true);
