@@ -84,7 +84,7 @@
 }
 
 .chat-selects--phone > .ng-select.ud-select.chat-select.chat-select--to {
-  min-width: 48px;
+  min-width: 68px;
 }
 
 /* The novel mode toolbar is packed tight across, so the speaker select keeps its width down and shrinks. */

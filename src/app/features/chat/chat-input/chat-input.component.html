@@ -101,7 +101,7 @@
             class="material-icons text-ui-danger shrink-0 text-[18px]!"
             role="img"
             data-testid="chat-input-dice-bot-not-found"
-            [title]="'feature.chat.input.diceBotNotFound' | transloco"
+            [appTextTooltip]="'feature.chat.input.diceBotNotFound' | transloco"
             [attr.aria-label]="'feature.chat.input.diceBotNotFound' | transloco"
             >error</i
           >
@@ -356,7 +356,8 @@
                 data-chat-input-box
                 data-chat-input-mode="rich"
                 [ngStyle]="lineLook()"
-                [class.pb-5]="findings().length > 0 || dense()"
+                [class.pb-5]="findings().length > 0 && !dense()"
+                [class.pr-16]="dense()"
                 [class.min-h-15!]="onPhone() && !dense()"
                 class="panel-no-drag bg-ui-input text-ui-text box-border flex max-h-60 min-h-10 w-full min-w-0 grow resize-y flex-col overflow-y-auto"
               >
