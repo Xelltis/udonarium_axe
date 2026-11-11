@@ -65,12 +65,16 @@ describe('TableFocusService', () => {
     expect(focused()).toEqual({ x: 300, y: 200 });
   });
 
-  it('glides straight to a piece on the floor', () => {
+  it('glides straight to the middle of a piece on the floor, at the height it stands', () => {
     lookAtTable(GridType.SQUARE);
+    const giant = standOn('', 120, 80);
+    giant.size = 3;
+    giant.posZ = 150;
 
-    service.focusOn(standOn('', 120, 80));
+    service.focusOn(giant);
 
-    expect(focused()).toEqual({ x: 120, y: 80 });
+    expect(focused()).toEqual({ x: 195, y: 155 });
+    expect(TestBed.inject(SelectionSignalService).focusCoordinate()?.z).toBe(150);
   });
 
   it('takes a piece at its own coordinates when no table is in view', () => {

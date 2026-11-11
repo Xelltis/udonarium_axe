@@ -14,6 +14,8 @@ export interface TabletopObjectHighlight {
 export interface TabletopCoordinate {
   x: number;
   y: number;
+  /** How high above the floor the spot stands, in table px; the floor where not said. */
+  z?: number;
   timestamp: number;
 }
 
@@ -76,9 +78,9 @@ export class SelectionSignalService {
     this.highlightedObject.set({ identifier, timestamp: Date.now() });
   }
 
-  /** Asks the game table to glide its view over to a point on the table. */
-  focusToCoordinate(x: number, y: number): void {
-    this.focusCoordinate.set({ x, y, timestamp: Date.now() });
+  /** Asks the game table to glide its view over to a point on the table, standing `z` above the floor. */
+  focusToCoordinate(x: number, y: number, z = 0): void {
+    this.focusCoordinate.set({ x, y, z, timestamp: Date.now() });
   }
 
   /** Asks the game table to drop whatever pointer gesture it is in the middle of. */
