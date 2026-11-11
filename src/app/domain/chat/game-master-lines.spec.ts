@@ -1,5 +1,5 @@
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { gameMasterUserIds, tellThoseWhoMaySee } from '@axe/domain/chat/game-master-lines';
+import { tellThoseWhoMaySee } from '@axe/domain/chat/game-master-lines';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -37,15 +37,6 @@ describe('telling those who may see what a piece keeps back', () => {
   afterEach(() => {
     for (const cursor of seated.splice(0)) cursor.destroy();
     tab.destroy();
-  });
-
-  it('names each seat of a game master once', () => {
-    seat('u-gm', PeerRole.GameMaster);
-    seat('u-gm', PeerRole.GameMaster);
-    seat('u-gm2', PeerRole.GameMaster);
-    seat('u-pl', PeerRole.Player);
-
-    expect(gameMasterUserIds().sort()).toEqual(['u-gm', 'u-gm2']);
   });
 
   const keptFromAll = { disclosureMode: 'gm', disclosureUserIds: [] as string[], owner: '' };

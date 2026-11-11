@@ -4,15 +4,6 @@ import type { ChatTab } from '@axe/domain/chat/chat-tab';
 import { canViewDisclosable, type Disclosable } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
-/** The users seated as game master in the room now, each once. */
-export function gameMasterUserIds(): string[] {
-  const masters = ObjectStore.instance
-    .getObjects<PeerCursor>(PeerCursor)
-    .filter((cursor) => cursor.isGameMaster && cursor.userId.length > 0)
-    .map((cursor) => cursor.userId);
-  return [...new Set(masters)];
-}
-
 /** A piece as {@link tellThoseWhoMaySee} reads it: who it is disclosed to, and who owns it. */
 export type SeenPiece = Disclosable & { readonly owner?: string };
 
