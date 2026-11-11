@@ -90,6 +90,7 @@ const FAB: MenuLayout = {
         'skin',
         'soundSettings',
         'motion',
+        'turnFocus',
         'renderLite',
         'tableQuality',
         'language',

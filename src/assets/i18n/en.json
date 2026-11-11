@@ -1604,6 +1604,11 @@
         "spawn": "Throw off"
       }
     },
+    "turnFocus": {
+      "all": "Move the view to whose turn it is: Every turn",
+      "own": "Move the view to whose turn it is: My characters only",
+      "none": "Move the view to whose turn it is: Off"
+    },
     "turnOrder": {
       "title": "Turn order",
       "roundShort": "R{{n}}",

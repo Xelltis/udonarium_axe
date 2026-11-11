@@ -22,6 +22,7 @@ import { NpcBarService } from '@axe/application/ui/npc-bar.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { RenderLiteService, RenderLiteSetting } from '@axe/application/ui/render-lite.service';
 import { Theme, ThemeService } from '@axe/application/ui/theme.service';
+import { TurnFocusPreferenceService, TurnFocusSetting } from '@axe/application/ui/turn-focus-preference.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
@@ -55,6 +56,11 @@ const MOTION_ICONS: Readonly<Record<MotionSetting, string>> = {
   auto: 'motion_photos_auto',
   on: 'motion_photos_on',
   off: 'motion_photos_off',
+};
+const TURN_FOCUS_ICONS: Readonly<Record<TurnFocusSetting, string>> = {
+  all: 'center_focus_strong',
+  own: 'person_pin_circle',
+  none: 'location_disabled',
 };
 const RENDER_LITE_ICONS: Readonly<Record<RenderLiteSetting, string>> = {
   auto: 'blur_circular',
@@ -144,6 +150,7 @@ export class MenuCommandService {
   private readonly viewMode = inject(ViewModePreferenceService);
   private readonly theme = inject(ThemeService);
   private readonly motion = inject(MotionService);
+  private readonly turnFocus = inject(TurnFocusPreferenceService);
   private readonly renderLite = inject(RenderLiteService);
   private readonly tableQuality = inject(Table3dQualityService);
   private readonly language = inject(LanguageService);
@@ -270,6 +277,8 @@ export class MenuCommandService {
           return THEME_ICONS[this.theme.theme()];
         case 'motion':
           return MOTION_ICONS[this.motion.setting()];
+        case 'turnFocus':
+          return TURN_FOCUS_ICONS[this.turnFocus.setting()];
         case 'renderLite':
           return RENDER_LITE_ICONS[this.renderLite.setting()];
         case 'tableQuality':
@@ -313,6 +322,8 @@ export class MenuCommandService {
           return `common.theme.${this.theme.theme()}`;
         case 'motion':
           return `common.motion.${this.motion.setting()}`;
+        case 'turnFocus':
+          return `feature.turnFocus.${this.turnFocus.setting()}`;
         case 'renderLite':
           return `common.renderLite.${this.renderLite.setting()}`;
         case 'tableQuality':
@@ -559,6 +570,9 @@ export class MenuCommandService {
         return;
       case 'motion':
         this.motion.cycle();
+        return;
+      case 'turnFocus':
+        this.turnFocus.cycle();
         return;
       case 'renderLite':
         this.renderLite.cycle();

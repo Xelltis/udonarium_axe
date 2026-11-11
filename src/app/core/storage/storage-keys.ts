@@ -62,6 +62,7 @@ export const STORAGE_KEYS = {
   skinRecipeDark: 'ui-skin-recipe-dark',
   skinRecipeLight: 'ui-skin-recipe-light',
   tableFollow: 'axe.table.follow',
+  turnFocus: 'ui-turn-focus',
   tableQuality: 'axe.table.quality',
   tableRenderer: 'axe.table.renderer',
   tabletopDisplay: 'ui-tabletop-display',
