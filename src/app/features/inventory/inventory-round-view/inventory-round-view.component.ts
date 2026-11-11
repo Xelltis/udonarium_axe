@@ -5,6 +5,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  DOCUMENT,
   effect,
   type ElementRef,
   inject,
@@ -196,9 +197,18 @@ export class InventoryRoundViewComponent {
     return last ? last.at + last.size : 0;
   });
 
-  /** The piece drawn out beside the turn order, and whether a pointer or the keys brought it there. */
+  /**
+   * The piece drawn out beside the turn order, and whether a pointer or the keys brought it there, or
+   * a touch left it there to be looked at before the turn is handed over.
+   */
   protected readonly peekKey = signal<string | null>(null);
-  private peekBy: 'pointer' | 'keys' | null = null;
+  private peekBy: 'pointer' | 'keys' | 'pinned' | null = null;
+  /** Whether a touch has left a face drawn out, with a press to hand it the turn. */
+  protected readonly pinned = signal(false);
+  /** Whether a touch, rather than a mouse or the keys, drew the face out, which a lift does not hand the turn. */
+  protected readonly peekByTouch = signal(false);
+  /** The face a touch had left drawn out when the press now on the turn order came down, if any. */
+  private pinnedAtPress: string | null = null;
   protected readonly peekPlace = signal<PeekPlace | null>(null);
   protected readonly peek = computed(() => {
     const key = this.peekKey();
@@ -244,6 +254,24 @@ export class InventoryRoundViewComponent {
       });
     });
     destroyRef.onDestroy(() => this.peekBox()?.nativeElement.remove());
+    // A face a touch left drawn out is put away by a press anywhere but on it or on the turn order.
+    const page = inject(DOCUMENT);
+    const letGoOfPinned = (event: Event) => {
+      if (!this.pinned()) return;
+      const target = event.target as Node | null;
+      if (target && (this.strip()?.nativeElement.contains(target) || this.peekBox()?.nativeElement.contains(target)))
+        return;
+      this.hidePeek();
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && this.pinned()) this.hidePeek();
+    };
+    page.addEventListener('pointerdown', letGoOfPinned, true);
+    page.addEventListener('keydown', escape);
+    destroyRef.onDestroy(() => {
+      page.removeEventListener('pointerdown', letGoOfPinned, true);
+      page.removeEventListener('keydown', escape);
+    });
     // Laid across, the panel stands as wide as the turn order runs, rather than as the narrow bar.
     const panel = inject(PanelService, { optional: true });
     if (panel) {
@@ -273,6 +301,7 @@ export class InventoryRoundViewComponent {
     if (event.button !== 0) return;
     event.preventDefault();
     this.pressing = event.pointerId;
+    this.pinnedAtPress = this.pinned() ? this.peekKey() : null;
     (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
     this.pointAt(event);
   }
@@ -283,17 +312,33 @@ export class InventoryRoundViewComponent {
     }
   }
 
+  /**
+   * Hands the turn to the face a mouse is let go over. A touch first only leaves the face it is lifted
+   * from drawn out, as a finger hides what it lands on: the turn goes over from the press drawn out
+   * with it, or from the same face pressed again.
+   */
   protected onPointerUp(event: PointerEvent): void {
     if (this.pressing !== event.pointerId) return;
     this.pressing = null;
     const key = this.peekBy === 'pointer' ? this.peekKey() : null;
-    if (key) this.give(key);
-    if (event.pointerType !== 'mouse') this.hidePeek();
+    if (event.pointerType === 'mouse') {
+      if (key) this.give(key);
+      return;
+    }
+    if (key && key === this.pinnedAtPress) {
+      this.give(key);
+      this.hidePeek();
+    } else if (key) {
+      this.peekBy = 'pinned';
+      this.pinned.set(true);
+    } else {
+      this.hidePeek();
+    }
   }
 
   protected onPointerCancel(): void {
     this.pressing = null;
-    this.hidePeek();
+    if (!this.pinned()) this.hidePeek();
   }
 
   protected onPointerLeave(event: PointerEvent): void {
@@ -309,11 +354,13 @@ export class InventoryRoundViewComponent {
     const along = across ? event.clientX - rect.left : event.clientY - rect.top;
     const aside = across ? event.clientY - (rect.top + rect.height / 2) : event.clientX - (rect.left + rect.width / 2);
     const key = Math.abs(aside) > CROSS_SLACK ? null : pieceAt(this.layout(), along);
+    this.peekByTouch.set(event.pointerType !== 'mouse');
     this.showPeek(key, 'pointer', rect);
   }
 
   protected onFocus(identifier: string): void {
     this.keyed.set(identifier);
+    this.peekByTouch.set(false);
     const strip = this.strip()?.nativeElement;
     if (strip) this.showPeek(identifier, 'keys', strip.getBoundingClientRect());
   }
@@ -360,10 +407,19 @@ export class InventoryRoundViewComponent {
     return one.companions.map((companion) => companion.name).join(', ');
   }
 
-  /** Hands a piece the turn, where this reader may move the round on. */
+  /** Hands a piece the turn, where this reader may move the round on and it is not its turn already. */
   protected give(identifier: string): void {
     if (!this.canEdit()) return;
+    const one = this.laid().find((laid) => laid.kind === 'piece' && laid.piece.identifier === identifier);
+    if (one?.kind === 'piece' && one.current) return;
     this.turns.giveTurnTo(identifier);
+  }
+
+  /** Hands the turn to the face a touch left drawn out, from the press drawn out with it. */
+  protected giveShown(): void {
+    const key = this.peekKey();
+    if (key) this.give(key);
+    this.hidePeek();
   }
 
   private showPeek(key: string | null, by: 'pointer' | 'keys', rect: DOMRect): void {
@@ -395,6 +451,7 @@ export class InventoryRoundViewComponent {
 
   private hidePeek(): void {
     this.peekBy = null;
+    this.pinned.set(false);
     this.peekKey.set(null);
     this.peekPlace.set(null);
   }

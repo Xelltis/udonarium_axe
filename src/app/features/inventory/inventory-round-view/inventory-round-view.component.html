@@ -254,9 +254,10 @@
 
   <div
     #peekBox
-    class="bg-ui-panel border-ui-border-panel text-ui-text shadow-ui-md pointer-events-none fixed flex max-w-60 items-center gap-2 rounded-xl border border-solid p-2 text-[12px]"
-    role="status"
+    class="bg-ui-panel border-ui-border-panel text-ui-text shadow-ui-md fixed flex max-w-60 items-center gap-2 rounded-xl border border-solid p-2 text-[12px]"
     data-testid="turn-peek"
+    [class.pointer-events-none]="!pinned()"
+    [attr.aria-hidden]="pinned() ? null : 'true'"
     [hidden]="!peek()"
     [style.left.px]="peekPlace()?.x ?? 0"
     [style.top.px]="peekPlace()?.y ?? 0"
@@ -298,7 +299,18 @@
           }}</span>
         }
         @if (canEdit() && !one.current) {
-          <span class="text-ui-dim text-[10px]">{{ 'feature.turnOrder.peekGive' | transloco }}</span>
+          @if (pinned()) {
+            <button
+              type="button"
+              class="bg-ui-accent-bg text-ui-accent border-ui-accent mt-1 self-start rounded-md border border-solid px-2 py-1 text-[12px] font-semibold"
+              data-testid="turn-peek-give"
+              (click)="giveShown()"
+            >
+              {{ 'feature.turnOrder.peekGiveNow' | transloco }}
+            </button>
+          } @else if (!peekByTouch()) {
+            <span class="text-ui-dim text-[10px]">{{ 'feature.turnOrder.peekGive' | transloco }}</span>
+          }
         }
       </span>
     }

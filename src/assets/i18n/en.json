@@ -1642,6 +1642,7 @@
       "peekSide": "Side: {{name}}",
       "peekWith": "Moving with: {{names}}",
       "peekGive": "Press to give them the turn",
+      "peekGiveNow": "Give the turn",
       "length": "Length of the turn order (drag to change, double-click to fit the screen)",
       "hold": "Hold",
       "holdCurrent": "Have the piece whose turn it is wait, to step in later",

@@ -17,6 +17,8 @@ const pieces = (count: number, prefix = 'p') => Array.from({ length: count }, (_
 
 /** How tall the screen is in these tests. */
 const SCREEN = 600;
+const MOUSE: PointerEventInit = { pointerType: 'mouse' };
+const TOUCH: PointerEventInit = { pointerType: 'touch' };
 
 describe('InventoryRoundViewComponent', () => {
   const order = signal<ReturnType<typeof piece>[]>([]);
@@ -133,27 +135,84 @@ describe('InventoryRoundViewComponent', () => {
     expect(parseFloat(face('p0').style.width)).toBeLessThan(DOCK_FACE);
   });
 
-  it('hands the turn to the face a press lands on, wherever on the turn order it lies', () => {
+  it('hands the turn to the face a click lands on, wherever on the turn order it lies', () => {
     const { on, press } = render(40, 'p10');
 
-    press('pointerdown', on('p37'));
-    press('pointerup', on('p37'));
+    press('pointerdown', on('p37'), MOUSE);
+    press('pointerup', on('p37'), MOUSE);
 
     expect(given).toEqual(['p37']);
   });
 
-  it('hands the turn to the face a press is slid along to, and to none where it is drawn off', () => {
+  it('hands the turn to the face a click is slid along to, and to none where it is drawn off', () => {
     const { on, press } = render(40, 'p10');
 
-    press('pointerdown', on('p3'));
-    press('pointermove', on('p20'));
-    press('pointerup', on('p20'));
+    press('pointerdown', on('p3'), MOUSE);
+    press('pointermove', on('p20'), MOUSE);
+    press('pointerup', on('p20'), MOUSE);
     expect(given).toEqual(['p20']);
 
-    press('pointerdown', on('p3'));
-    press('pointermove', on('p5'), { clientX: 300 });
-    press('pointerup', on('p5'), { clientX: 300 });
+    press('pointerdown', on('p3'), MOUSE);
+    press('pointermove', on('p5'), { ...MOUSE, clientX: 300 });
+    press('pointerup', on('p5'), { ...MOUSE, clientX: 300 });
     expect(given).toEqual(['p20']);
+  });
+
+  it('hands no turn to the piece whose turn it is already', () => {
+    const { on, press } = render(20, 'p5');
+
+    press('pointerdown', on('p5'), MOUSE);
+    press('pointerup', on('p5'), MOUSE);
+
+    expect(given).toEqual([]);
+  });
+
+  describe('on a touch screen', () => {
+    const give = () => document.body.querySelector<HTMLButtonElement>('[data-testid="turn-peek-give"]');
+
+    it('only draws out the face a first touch is lifted from, and hands it the turn from the press beside it', () => {
+      const { fixture, on, press, peek } = render(40, 'p10');
+
+      press('pointerdown', on('p3'), TOUCH);
+      press('pointermove', on('p37'), TOUCH);
+      press('pointerup', on('p37'), TOUCH);
+
+      expect(given).toEqual([]);
+      expect(peek().hidden).toBe(false);
+      expect(peek().textContent).toContain('name-p37');
+      give()!.click();
+      fixture.detectChanges();
+
+      expect(given).toEqual(['p37']);
+      expect(peek().hidden).toBe(true);
+    });
+
+    it('hands the turn to a face touched again, and only draws out another touched instead', () => {
+      const { on, press, peek } = render(40, 'p10');
+
+      press('pointerdown', on('p20'), TOUCH);
+      press('pointerup', on('p20'), TOUCH);
+      press('pointerdown', on('p30'), TOUCH);
+      press('pointerup', on('p30'), TOUCH);
+      expect(given).toEqual([]);
+      expect(peek().textContent).toContain('name-p30');
+
+      press('pointerdown', on('p30'), TOUCH);
+      press('pointerup', on('p30'), TOUCH);
+      expect(given).toEqual(['p30']);
+    });
+
+    it('puts the face it drew out away at a touch elsewhere', () => {
+      const { fixture, on, press, peek } = render(40, 'p10');
+
+      press('pointerdown', on('p20'), TOUCH);
+      press('pointerup', on('p20'), TOUCH);
+      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 2, ...TOUCH }));
+      fixture.detectChanges();
+
+      expect(peek().hidden).toBe(true);
+      expect(give()).toBeNull();
+    });
   });
 
   it('draws out the face a pointer is over beside it, with its name and how it stands', () => {
@@ -189,9 +248,9 @@ describe('InventoryRoundViewComponent', () => {
     canEdit = false;
     const { on, press, peek } = render(20, 'p5');
 
-    press('pointerdown', on('p9'));
+    press('pointerdown', on('p9'), MOUSE);
     expect(peek().textContent).toContain('name-p9');
-    press('pointerup', on('p9'));
+    press('pointerup', on('p9'), MOUSE);
 
     expect(given).toEqual([]);
   });
