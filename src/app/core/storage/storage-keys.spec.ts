@@ -60,6 +60,7 @@ describe('the keys the app keeps settings under in the browser', () => {
       skinRecipeLight: 'ui-skin-recipe-light',
       tableFollow: 'axe.table.follow',
       turnFocus: 'ui-turn-focus',
+      turnFocusTold: 'ui-turn-focus-told',
       tableQuality: 'axe.table.quality',
       tableRenderer: 'axe.table.renderer',
       tabletopDisplay: 'ui-tabletop-display',

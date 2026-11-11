@@ -28,6 +28,16 @@ export class TurnFocusPreferenceService {
     this.setting.set(setting);
     writeLocal(STORAGE_KEYS.turnFocus, setting);
   }
+
+  /**
+   * Whether this reader is yet to be told the view goes to the piece whose turn begins, which they are
+   * the first time it does, in this browser; answers so once, and no more after.
+   */
+  takeFirstTelling(): boolean {
+    if (readLocal(STORAGE_KEYS.turnFocusTold) === '1') return false;
+    writeLocal(STORAGE_KEYS.turnFocusTold, '1');
+    return true;
+  }
 }
 
 function storedSetting(): TurnFocusSetting {

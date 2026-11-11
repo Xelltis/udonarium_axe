@@ -1,4 +1,5 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
@@ -8,6 +9,7 @@ import { TableFocusService } from '@axe/application/tabletop/table-focus.service
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { TurnFocusPreferenceService } from '@axe/application/ui/turn-focus-preference.service';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -24,6 +26,9 @@ import { readTurnStart, TurnState } from '@axe/domain/tabletop/turn-state';
  * that began before it was there. The same span the turn's sound allows.
  */
 const JUST_BEGUN_MS = 30_000;
+
+/** How long the first telling that the view goes to the turn stays, long enough to read and answer. */
+const FIRST_NOTICE_MS = 10_000;
 
 /**
  * Glides the view to the piece whose turn begins, as this reader has it: for every turn, for their
@@ -49,6 +54,8 @@ export class TurnFocusEventHandlerService {
   private readonly groundBrush = inject(GroundBrushService);
   private readonly firstPerson = inject(FirstPersonService);
   private readonly thirdPerson = inject(ThirdPersonService);
+  private readonly snackbar = inject(SnackbarService);
+  private readonly t = inject(TRANSLATE_FN);
   private lastFocused = '';
 
   constructor() {
@@ -71,6 +78,15 @@ export class TurnFocusEventHandlerService {
     if (setting === 'own' && !isOwnedByUser(piece, PeerCursor.myUserId)) return;
     if (this.busy()) return;
     this.tableFocus.focusOn(piece);
+    if (this.preference.takeFirstTelling()) this.tellOfIt();
+  }
+
+  /** Tells the reader, the first time the view goes to a turn, that it does, and how to keep it still. */
+  private tellOfIt(): void {
+    this.snackbar.show(this.t('feature.turnFocus.firstNotice'), {
+      action: { label: this.t('feature.turnFocus.stop'), run: () => this.preference.set('none') },
+      ms: FIRST_NOTICE_MS,
+    });
   }
 
   /** Whether the reader is in the middle of something on the table a gliding view would spoil. */

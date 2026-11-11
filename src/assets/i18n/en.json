@@ -1607,7 +1607,9 @@
     "turnFocus": {
       "all": "Move the view to whose turn it is: Every turn",
       "own": "Move the view to whose turn it is: My characters only",
-      "none": "Move the view to whose turn it is: Off"
+      "none": "Move the view to whose turn it is: Off",
+      "firstNotice": "The view moved to whose turn it is. Change it from \"Move the view to whose turn it is\" in the menu: your characters only, or off",
+      "stop": "Turn off"
     },
     "turnOrder": {
       "title": "Turn order",

@@ -5,6 +5,7 @@ import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { TurnFocusPreferenceService } from '@axe/application/ui/turn-focus-preference.service';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -25,6 +26,7 @@ describe('TurnFocusEventHandlerService', () => {
     beMyself('me');
     PeerCursor.myCursor = null!;
     localStorage.removeItem('ui-turn-focus');
+    localStorage.setItem('ui-turn-focus-told', '1');
     focused = vi.spyOn(TestBed.inject(TableFocusService), 'focusOn').mockImplementation(() => undefined);
     vi.spyOn(TestBed.inject(VisionService), 'mayBeListed').mockReturnValue(true);
     TestBed.inject(TurnFocusEventHandlerService);
@@ -36,6 +38,7 @@ describe('TurnFocusEventHandlerService', () => {
     for (const piece of pieces) piece.destroy();
     TurnState.instance.turnStart = '';
     localStorage.removeItem('ui-turn-focus');
+    localStorage.removeItem('ui-turn-focus-told');
     vi.restoreAllMocks();
   });
 
@@ -63,6 +66,22 @@ describe('TurnFocusEventHandlerService', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(focused).toHaveBeenCalledExactlyOnceWith(piece);
+  });
+
+  it('tells the reader the first time the view goes to a turn, with a press that keeps it still, and not after', async () => {
+    localStorage.removeItem('ui-turn-focus-told');
+    const snackbar = TestBed.inject(SnackbarService);
+    const shown = vi.spyOn(snackbar, 'show');
+
+    await turnOf(pieceOf());
+    expect(shown).toHaveBeenCalledTimes(1);
+    snackbar.runAction();
+    expect(TestBed.inject(TurnFocusPreferenceService).setting()).toBe('none');
+
+    TestBed.inject(TurnFocusPreferenceService).set('all');
+    await turnOf(pieceOf());
+    expect(focused).toHaveBeenCalledTimes(2);
+    expect(shown).toHaveBeenCalledTimes(1);
   });
 
   it('goes to none the reader cannot see, nor off the table', async () => {
