@@ -31,6 +31,7 @@ const FOUND_KEYS: Readonly<Record<TargetNumberFrom, string>> = {
   aimed: 'feature.chat.input.targetNumberAimed',
   pinned: 'feature.chat.input.targetNumberPinned',
   byOthers: 'feature.chat.input.targetNumberByOthers',
+  presented: 'feature.chat.input.targetNumberPresented',
 };
 
 /**

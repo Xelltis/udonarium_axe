@@ -3964,6 +3964,7 @@
         "targetNumberAimed": "Auto: {{total}} (rolled at {{speaker}}: {{by}})",
         "targetNumberPinned": "Auto: {{total}} (set for this tab: {{by}})",
         "targetNumberByOthers": "Auto: {{total}} (latest roll: {{by}})",
+        "targetNumberPresented": "Auto: {{total}} (set out by {{by}})",
         "targetNumberNotFound": "Auto: none found ({目標値} is sent as typed)",
         "targetNumberIdle": "Used by a line with {目標値}",
         "targetNumberChoice": "{{total}} ({{by}})"
@@ -4065,9 +4066,10 @@
         "edit": "Edit",
         "serverRoll": "The room server rolled these dice, so the roller could not change them.",
         "pinTargetNumber": "Use this result as the target number",
+        "pinPresentedTargetNumber": "Use this as the target number",
         "unpinTargetNumber": "Stop using it as the target number",
         "pinnedTargetNumber": "Target",
-        "pinnedTargetNumberTitle": "Every {目標値} in this tab takes this result until it is taken off"
+        "pinnedTargetNumberTitle": "Every {目標値} in this tab takes this number until it is taken off"
       },
       "stream": {
         "title": "Stream chat",

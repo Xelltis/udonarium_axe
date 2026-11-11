@@ -66,6 +66,7 @@ import {
 import {
   buildChatBookmarkMenu,
   buildChatMessageContextMenu,
+  type ChatMessageMenuState,
 } from '@axe/features/chat/chat-message/chat-message-context-menu';
 import { isChatTextHidden, readableChatText } from '@axe/features/chat/chat-message/chat-readable-text';
 import { formatChatTickerMessage } from '@axe/features/chat/chat-ticker/chat-ticker-layout';
@@ -465,16 +466,17 @@ export class ChatMessageComponent {
   }
 
   /**
-   * Whether the reader may set the line as its tab's number to beat, or take it off as that: a roll
-   * shown to all that comes to a number, to a reader who may do so in its tab (see
-   * {@link mayPinTargetNumber}); null where neither.
+   * Whether the reader may set the line as its tab's number to beat, or take it off as that: a line
+   * shown to all that comes to a number, a roll or one writing out a number to beat, to a reader who
+   * may do so in its tab (see {@link mayPinTargetNumber}); null where neither.
    */
-  private targetNumberPin(): 'pin' | 'unpin' | null {
+  private targetNumberPin(): ChatMessageMenuState['targetNumberPin'] {
     const message = this.chatMessage;
     if (this.readOnly() || !canPinAsTargetNumber(message)) return null;
     const tab = this.objectStore.get<ChatTab>(message.tabIdentifier);
     if (!tab || !mayPinTargetNumber(tab, PeerCursor.myRole)) return null;
-    return tab.pinnedTargetNumber === message.identifier ? 'unpin' : 'pin';
+    if (tab.pinnedTargetNumber === message.identifier) return 'unpin';
+    return message.isDicebot ? 'pin' : 'pinPresented';
   }
 
   /** Sets the line as its tab's number to beat, or takes it off as that where it is already. */
@@ -486,12 +488,12 @@ export class ChatMessageComponent {
   }
 
   /**
-   * Whether the line is set as its tab's number to beat, which it shows beside it. Only a dice bot's
-   * answer can be, so no other line follows its tab.
+   * Whether the line is set as its tab's number to beat, which it shows beside it. Only a line that
+   * comes to a number can be, so no other line follows its tab.
    */
   readonly isPinnedTargetNumber = computed(() => {
     const message = this.chatMessageInput();
-    if (!message?.isDicebot) return false;
+    if (!message || !canPinAsTargetNumber(message)) return false;
     const tab = this.objectStore.get<ChatTab>(message.tabIdentifier);
     if (!tab) return false;
     this.objectChange.versionOf(tab.identifier)();

@@ -6,6 +6,7 @@ import {
   findTargetNumberSource,
   holdsTargetNumber,
   mayPinTargetNumber,
+  presentedTotalOf,
   rolledOf,
   rollerOf,
   rollTotalOf,
@@ -34,6 +35,21 @@ describe('target-number', () => {
     it('answers null for an answer that comes to no number', () => {
       expect(rollTotalOf('DiceBot : (choice[a,b]) → b')).toBeNull();
       expect(rollTotalOf('2d6')).toBeNull();
+    });
+  });
+
+  describe('presentedTotalOf()', () => {
+    it('reads the number written after the word, after a colon, an equals sign or a は, in either width', () => {
+      expect(presentedTotalOf('探索判定：目標値13')).toBe(13);
+      expect(presentedTotalOf('目標値: 9 で振ってください')).toBe(9);
+      expect(presentedTotalOf('目標値は１５')).toBe(15);
+      expect(presentedTotalOf('見識判定 目標値＝12、目標値12以上で成功')).toBe(12);
+    });
+
+    it('reads none from a reference to the number, a word with no number after it, or two different numbers', () => {
+      expect(presentedTotalOf('2d6>={目標値} 抵抗')).toBeNull();
+      expect(presentedTotalOf('目標値を教えてください')).toBeNull();
+      expect(presentedTotalOf('探索は目標値13、見識は目標値15')).toBeNull();
     });
   });
 
@@ -168,6 +184,56 @@ describe('target-number', () => {
 
     /** The answer last added to the tab. */
     const lastAnswer = () => tab.chatMessages[tab.chatMessages.length - 1];
+
+    /** Says a line, as a seat of a role said it, or as a room that never wrote down roles. */
+    function say(by: { identifier: string; name: string }, text: string, role?: PeerRole): void {
+      at += 10;
+      tab.addMessage({
+        from: `user-${by.identifier}`,
+        sendFrom: by.identifier,
+        name: by.name,
+        text,
+        timestamp: at,
+        ...(role ? { senderRole: role } : {}),
+      });
+    }
+
+    const master = { identifier: 'gm', name: 'GM' };
+
+    it('takes the number a game master wrote out, or the newest roll at nobody, whichever came last', () => {
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+      say(master, '探索判定：目標値13', PeerRole.GameMaster);
+
+      expect(findTargetNumberSource(tab, speaker)).toMatchObject({ total: 13, from: 'presented' });
+
+      roll(enemy, 'DiceBot : (1D6) → 3');
+      expect(findTargetNumberSource(tab, speaker)).toMatchObject({ total: 3, from: 'byOthers' });
+    });
+
+    it('still takes a roll aimed at the speaker over a number a game master wrote out after it', () => {
+      roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]');
+      say(master, '目標値13', PeerRole.GameMaster);
+
+      expect(findTargetNumber(tab, speaker)).toBe(14);
+    });
+
+    it('passes over a number written out by a player, by the speaker or in a room that wrote down no roles', () => {
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+      say({ identifier: 'pc2', name: 'PC2' }, '目標値13だっけ？', PeerRole.Player);
+      say(speaker, '目標値12', PeerRole.GameMaster);
+      say(master, '目標値11');
+
+      expect(findTargetNumber(tab, speaker)).toBe(15);
+    });
+
+    it("takes a number a player wrote out once it is set as the tab's number to beat", () => {
+      say({ identifier: 'pc2', name: 'PC2' }, '探索判定：目標値13', PeerRole.Player);
+      tab.pinnedTargetNumber = lastAnswer().identifier;
+      roll(enemy, 'DiceBot : (1D6) → 3');
+
+      expect(findTargetNumberSource(tab, speaker)).toMatchObject({ total: 13, from: 'pinned' });
+      expect(targetNumberChoices(tab, 5).map((choice) => choice.total)).toEqual([3, 13]);
+    });
 
     it("takes the answer set as the tab's number to beat over any newer roll at nobody and any older one at the speaker", () => {
       roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]');

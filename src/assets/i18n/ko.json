@@ -3964,6 +3964,7 @@
         "targetNumberAimed": "자동: {{total}} ({{speaker}}에게 굴린 결과: {{by}})",
         "targetNumberPinned": "자동: {{total}} (이 탭에 고정한 결과: {{by}})",
         "targetNumberByOthers": "자동: {{total}} (직전 결과: {{by}})",
+        "targetNumberPresented": "자동: {{total}} ({{by}}이(가) 제시한 목표값)",
         "targetNumberNotFound": "자동: 찾을 수 없음 ({目標値} 그대로 보냅니다)",
         "targetNumberIdle": "{目標値}가 있는 줄에서 씁니다",
         "targetNumberChoice": "{{total}} ({{by}})"
@@ -4065,9 +4066,10 @@
         "edit": "편집",
         "serverRoll": "방 서버가 굴린 주사위입니다. 굴린 사람은 눈을 바꿀 수 없습니다.",
         "pinTargetNumber": "이 결과를 목표값으로 하기",
+        "pinPresentedTargetNumber": "이 목표값을 고정",
         "unpinTargetNumber": "목표값 고정 해제",
         "pinnedTargetNumber": "목표값",
-        "pinnedTargetNumberTitle": "이 탭의 {目標値}는 해제할 때까지 이 결과가 됩니다"
+        "pinnedTargetNumberTitle": "이 탭의 {目標値}는 해제할 때까지 이 수가 됩니다"
       },
       "stream": {
         "title": "스트림 채팅",

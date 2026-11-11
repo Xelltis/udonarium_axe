@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { chatInput, expectChatText, revealMenuEntry, waitAppReady } from './helpers';
+import { chatInput, createCharacter, expectChatText, revealMenuEntry, waitAppReady } from './helpers';
 
 /** Says each line into the chat window, waiting for the box to empty after each. */
 async function say(page: Page, lines: string[]) {
@@ -74,5 +74,47 @@ test.describe('the number to beat', () => {
 
     await fromMenuOf(page, fireball, '目標値の固定を外す');
     await expect(fireball.getByTestId('chat-message-target-number-mark')).toHaveCount(0);
+  });
+
+  /**
+   * A game master writes the number to beat out in so many words, and a piece speaking from its
+   * palette fills its `{目標値}` in with it. A player's line writing one out is not taken of itself,
+   * but may be set as the tab's number to beat from its menu.
+   */
+  test("fills {目標値} in with the number a game master wrote out, and with a player's once it is set as the tab's", async ({
+    page,
+  }) => {
+    const seat = (role: 'GM' | 'PL') =>
+      page
+        .locator('ui-panel')
+        .filter({ hasText: '接続情報' })
+        .getByRole('button', { name: new RegExp(`^\\s*${role}\\s*$`) })
+        .click();
+    await seat('GM');
+    await say(page, ['探索判定：目標値13']);
+    await createCharacter(page);
+    await page.locator('game-character').first().dispatchEvent('contextmenu');
+    await page.locator('context-menu').getByText('チャットパレットを表示').click();
+    const palette = page.locator('chat-palette');
+    const box = chatInput(palette);
+    const found = palette.getByTestId('chat-input-target-number-select').locator('option').first();
+
+    await box.fill('2d6>={目標値} 探索');
+    await expect(found).toHaveText(/13.*示した目標値/);
+    await box.press('Enter');
+    await expect(answerTo(page, '2D6>=13')).toHaveCount(1, { timeout: 15000 });
+
+    await seat('PL');
+    await say(page, ['見識判定：目標値15']);
+    await box.fill('2d6>={目標値} 見識');
+    await expect(found).toHaveText(/13/);
+    await fromMenuOf(
+      page,
+      page.locator('chat-tab chat-message').filter({ hasText: '見識判定：目標値15' }),
+      'この目標値を固定する'
+    );
+    await expect(found).toHaveText(/15.*固定/);
+    await box.press('Enter');
+    await expect(answerTo(page, '2D6>=15')).toHaveCount(1, { timeout: 15000 });
   });
 });

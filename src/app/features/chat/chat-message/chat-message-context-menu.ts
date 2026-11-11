@@ -32,11 +32,19 @@ export interface ChatMessageMenuState {
   /** Whether the pointer is a touch, under which the words of a line are picked out only on asking. */
   isTouch: boolean;
   /**
-   * Whether the reader may set the line as its tab's number to beat, or take it off as that, as a roll
-   * it is; null where neither, as for a line that is no such roll or a reader who may not.
+   * Whether the reader may set the line as its tab's number to beat, as a roll it is (`pin`) or as a
+   * line writing one out (`pinPresented`), or take it off as that; null where neither, as for a line
+   * that comes to no number or a reader who may not.
    */
-  targetNumberPin: 'pin' | 'unpin' | null;
+  targetNumberPin: 'pin' | 'pinPresented' | 'unpin' | null;
 }
+
+/** The entry setting a line as its tab's number to beat, or taking it off, by what it does. */
+const TARGET_NUMBER_PIN_KEYS: Readonly<Record<NonNullable<ChatMessageMenuState['targetNumberPin']>, string>> = {
+  pin: 'pinTargetNumber',
+  pinPresented: 'pinPresentedTargetNumber',
+  unpin: 'unpinTargetNumber',
+};
 
 export interface ChatMessageMenuCallbacks {
   reply: () => void;
@@ -94,7 +102,7 @@ export function buildChatMessageContextMenu(
 
   if (state.targetNumberPin) {
     answer.push({
-      name: t(`feature.chat.message.${state.targetNumberPin === 'pin' ? 'pinTargetNumber' : 'unpinTargetNumber'}`),
+      name: t(`feature.chat.message.${TARGET_NUMBER_PIN_KEYS[state.targetNumberPin]}`),
       action: () => callbacks.toggleTargetNumberPin(),
     });
   }
