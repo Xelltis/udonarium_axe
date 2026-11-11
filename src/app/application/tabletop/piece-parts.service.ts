@@ -38,12 +38,15 @@ export class PiecePartsService {
 
   /**
    * The pieces a piece could be made a part of: those on the table whose base its middle stands on,
-   * none of them a part itself, and none where the piece rides, is ridden or has parts of its own.
+   * none of them a part itself, and none where the piece rides, is ridden, has parts of its own, or
+   * holds on to another or is held.
    * None for one who may not change the table.
    */
   bodiesFor(piece: GameCharacter): GameCharacter[] {
     if (!this.rolePermission.canEditTabletop() || !piece.isVisibleOnTable || this.bodyOf(piece)) return [];
     if (this.links.mountOf(piece) || this.partsOf(piece).length > 0 || this.isRidden(piece)) return [];
+    // One held on to, or holding on to another, goes where the hold takes it, not where a body goes.
+    if (this.links.holderOf(piece) || this.links.captivesOf(piece).length > 0) return [];
     return this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((body) => body !== piece && body.isVisibleOnTable && !this.bodyOf(body))

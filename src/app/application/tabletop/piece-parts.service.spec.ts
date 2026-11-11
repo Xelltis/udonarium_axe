@@ -80,6 +80,16 @@ describe('PiecePartsService', () => {
     expect(reads).toBe(1);
   });
 
+  it('offers no body to a piece held on to, or holding on to another', () => {
+    pieceAt('ドラゴン', 4, 4, 3);
+    const held = pieceAt('捕虜', 5, 5);
+    const holder = pieceAt('看守', 5, 5);
+    held.grabbedBy = holder.identifier;
+
+    expect(parts.bodiesFor(held)).toEqual([]);
+    expect(parts.bodiesFor(holder)).toEqual([]);
+  });
+
   it('offers the pieces a piece stands on as bodies, none of them parts, and makes it a part of one', () => {
     const dragon = pieceAt('ドラゴン', 4, 4, 3);
     const head = pieceAt('頭', 5, 5);
