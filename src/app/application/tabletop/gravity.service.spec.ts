@@ -441,6 +441,25 @@ describe('applying gravity through the spatial index', () => {
     expect(pilot.object.posZ).toBe(50);
   });
 
+  it('stands a part where its body stands, whether or not the body is a mount', () => {
+    const base = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 1, identifier: 'base' });
+    const dragon = makeCharacter({ x: 0, y: 0, size: 2, posZ: 300 });
+    const head = makeCharacter({ x: 25, y: 25, posZ: 400 });
+    const body = dragon.object as GameCharacter;
+    body.mountable = '1';
+    (head.object as GameCharacter).ridingOn = body.identifier;
+    (head.object as GameCharacter).rideSeat = 'part';
+    const svc = setup([base, dragon, head]);
+
+    applyNow(svc);
+    expect(dragon.object.posZ).toBe(50);
+    expect(head.object.posZ).toBe(50);
+
+    body.mountable = '';
+    applyNow(svc);
+    expect(head.object.posZ).toBe(50);
+  });
+
   it('lets a piece riding nothing it can stand on come down to what is under it', () => {
     const horse = makeCharacter({ x: 0, y: 0, size: 2 });
     const rider = makeCharacter({ x: 25, y: 25, posZ: 200 });
