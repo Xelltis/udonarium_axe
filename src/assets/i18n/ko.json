@@ -3194,6 +3194,10 @@
         "guideKey": {
           "drag": "판 드래그",
           "swipe": "손가락으로 쓸기",
+          "twoThenOne": "두 손가락을 댄 뒤 하나를 떼고 밀기",
+          "twist": "두 손가락으로 비틀기",
+          "twoUpDown": "두 손가락으로 위아래",
+          "pinch": "두 손가락으로 벌리기·좁히기",
           "arrows": "←↑↓→",
           "shift": "Shift",
           "ctrl": "Ctrl",

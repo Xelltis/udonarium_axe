@@ -68,6 +68,21 @@ describe('GroundBrushService', () => {
     expect(ground.surface().heightAt(4, 4)).toBe(0.5);
   });
 
+  it('takes back the stroke under way as though it had not been laid, leaving the earlier one to take back', async () => {
+    brush.settings.set({ kind: 'raise', radius: 1, strength: 0.5, layer: 'grass' });
+    await stroke([[4, 4]]);
+    brush.begin(4, 4);
+    brush.dab(5, 4);
+    await settle();
+    expect(ground.surface().heightAt(4, 4)).toBe(1);
+
+    brush.cancel();
+    await settle();
+
+    expect(ground.surface().heightAt(4, 4)).toBe(0.5);
+    expect(brush.undoable()).toBe(1);
+  });
+
   it('flattens towards the height the stroke started at', async () => {
     brush.settings.set({ kind: 'raise', radius: 1, strength: 1, layer: 'grass' });
     await stroke([[4, 4]]);

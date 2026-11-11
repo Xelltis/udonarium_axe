@@ -1,4 +1,4 @@
-type Callback = (srcEvent: TouchEvent | MouseEvent | PointerEvent) => void;
+type Callback = (srcEvent: Event) => void;
 type OnGestureCallback = (srcEvent: TouchEvent | MouseEvent | PointerEvent) => void;
 type OnTransformCallback = (
   transformX: number,
@@ -19,6 +19,20 @@ export enum TableTouchGestureEvent {
 }
 
 export const TABLE_LONG_PRESS_MS = 400;
+
+/**
+ * The event a finger held on the table by something else is handed over to the table's gesture by,
+ * as the ground brush hands its finger over once a second comes down: sent from where the finger was
+ * pressed, it joins the gesture where it stands now.
+ */
+export const ADOPT_TOUCH_EVENT = 'table-touch-adopt';
+
+/** A finger handed over to the table's gesture: which it is, and where on the page it stands now. */
+export interface AdoptedTouch {
+  readonly pointerId: number;
+  readonly clientX: number;
+  readonly clientY: number;
+}
 
 export class TableTouchGesture {
   shouldSynthesizeContextMenu: (() => boolean) | null = null;
@@ -57,6 +71,7 @@ export class TableTouchGesture {
   private readonly onPointerMoveBound = (ev: PointerEvent) => this.onPointerMove(ev);
   private readonly onPointerUpBound = (ev: PointerEvent) => this.onPointerUp(ev);
   private readonly onPointerCancelBound = (ev: PointerEvent) => this.onPointerCancel(ev);
+  private readonly onAdoptBound = (ev: Event) => this.adopt(ev as CustomEvent<AdoptedTouch>);
 
   onstart: Callback | null = null;
   onend: Callback | null = null;
@@ -83,6 +98,7 @@ export class TableTouchGesture {
     element.removeEventListener('pointermove', this.onPointerMoveBound);
     element.removeEventListener('pointerup', this.onPointerUpBound);
     element.removeEventListener('pointercancel', this.onPointerCancelBound);
+    element.removeEventListener(ADOPT_TOUCH_EVENT, this.onAdoptBound);
   }
 
   private initializeGesture() {
@@ -92,6 +108,32 @@ export class TableTouchGesture {
     element.addEventListener('pointermove', this.onPointerMoveBound, { passive: false });
     element.addEventListener('pointerup', this.onPointerUpBound, { passive: true });
     element.addEventListener('pointercancel', this.onPointerCancelBound, { passive: true });
+    element.addEventListener(ADOPT_TOUCH_EVENT, this.onAdoptBound);
+  }
+
+  /**
+   * Takes in a finger something else held until now, where it stands, as though it had just come down
+   * there and already moved: no long press or tap comes of it.
+   */
+  private adopt(ev: CustomEvent<AdoptedTouch>): void {
+    const { pointerId, clientX: x, clientY: y } = ev.detail;
+    if (this.activePointers.has(pointerId)) return;
+    this.activePointers.set(pointerId, {
+      x,
+      y,
+      startX: x,
+      startY: y,
+      startAt: Date.now(),
+      moved: true,
+      target: ev.target,
+    });
+    if (!this.isGestureActive) {
+      this.isGestureActive = true;
+      this.prevCenter = { x, y };
+      if (this.onstart) this.onstart(ev);
+    }
+    this.clearLongPressTimer();
+    this.resetMultiTouchReferenceIfNeeded();
   }
 
   private onPointerDown(ev: PointerEvent) {

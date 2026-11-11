@@ -7,6 +7,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { GroundBrushKind } from '@axe/domain/tabletop/ground/ground-brush';
 import { GROUND_PAINT_LAYERS, GroundPaintLayer } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { ADOPT_TOUCH_EVENT, type AdoptedTouch } from '@axe/features/tabletop/game-table/table-touch-gesture';
 import { Z_TABLE_BANDS } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -28,8 +29,17 @@ const MOUSE_GUIDE: readonly GuideItem[] = [
   { ways: [['wheel'], ['ctrl', 'upDown']], does: 'zoom' },
 ];
 
-/** How the brush is worked with a finger. */
-const TOUCH_GUIDE: readonly GuideItem[] = [{ ways: [['swipe']], does: 'shape' }];
+/**
+ * How the brush and the view are worked with fingers: one shapes the ground, and a second hands both
+ * to the view, which they turn, tilt and zoom together and move once one of them is lifted.
+ */
+const TOUCH_GUIDE: readonly GuideItem[] = [
+  { ways: [['swipe']], does: 'shape' },
+  { ways: [['twoThenOne']], does: 'move' },
+  { ways: [['twist']], does: 'turn' },
+  { ways: [['twoUpDown']], does: 'tilt' },
+  { ways: [['pinch']], does: 'zoom' },
+];
 
 /** How many times the point pressed is read again at the height of the ground found there. */
 const GROUND_REFINEMENTS = 4;
@@ -74,7 +84,14 @@ export class GroundBrushBandComponent {
   protected readonly shown = computed(() => this.brush.active() && this.rolePermission.canEditShared());
 
   private pressed: number | null = null;
+  /** Whether a finger, rather than a mouse or a pen, is shaping the ground. */
+  private pressedByTouch = false;
+  /** Where the press shaping the ground came down, and where on the page it stands now. */
+  private pressedOn: Element | null = null;
+  private pressedAt: { x: number; y: number } | null = null;
   private last: { x: number; y: number } | null = null;
+  /** The fingers handed over to the view, which shape no ground until every one is lifted. */
+  private readonly handedOver = new Set<number>();
 
   constructor() {
     const onDown = (event: PointerEvent) => this.press(event);
@@ -92,6 +109,7 @@ export class GroundBrushBandComponent {
         window.removeEventListener('pointerup', onUp, true);
         window.removeEventListener('pointercancel', onUp, true);
         this.endStroke();
+        this.handedOver.clear();
       });
     });
     inject(DestroyRef).onDestroy(() => this.endStroke());
@@ -126,9 +144,20 @@ export class GroundBrushBandComponent {
     this.brush.active.set(false);
   }
 
-  /** Starts a stroke where a press on the table lands on the ground, and keeps the press from the table. */
+  /**
+   * Starts a stroke where a press on the table lands on the ground, and keeps the press from the table.
+   * A second finger on the table hands both over to the view instead, and any more go to it with them.
+   */
   private press(event: PointerEvent): void {
-    if (event.button !== 0 || this.pressed !== null) return;
+    if (this.handedOver.size > 0) {
+      if (event.pointerType === 'touch') this.handedOver.add(event.pointerId);
+      return;
+    }
+    if (this.pressed !== null) {
+      if (this.pressedByTouch && event.pointerType === 'touch') this.handOver(event.pointerId);
+      return;
+    }
+    if (event.button !== 0) return;
     const target = event.target as Element | null;
     if (!target?.closest('#app-table-layer') || target.closest('[data-ground-brush-band]')) return;
     const at = this.groundPointAt(event.clientX, event.clientY);
@@ -136,8 +165,32 @@ export class GroundBrushBandComponent {
     event.preventDefault();
     event.stopImmediatePropagation();
     this.pressed = event.pointerId;
+    this.pressedByTouch = event.pointerType === 'touch';
+    this.pressedOn = target;
+    this.pressedAt = { x: event.clientX, y: event.clientY };
     this.last = at;
     this.brush.begin(at.x, at.y);
+  }
+
+  /**
+   * Hands the finger shaping the ground over to the view once a second comes down, as two fingers are
+   * there to turn, tilt or zoom it: the stroke is taken back, and the first finger joins the table's
+   * gesture where it stands, the second coming down on the table as it would.
+   */
+  private handOver(second: number): void {
+    const first = this.pressed!;
+    const on = this.pressedOn;
+    const at = this.pressedAt;
+    this.pressed = null;
+    this.pressedOn = null;
+    this.pressedAt = null;
+    this.last = null;
+    this.brush.cancel();
+    this.handedOver.add(first);
+    this.handedOver.add(second);
+    if (!on || !at) return;
+    const detail: AdoptedTouch = { pointerId: first, clientX: at.x, clientY: at.y };
+    on.dispatchEvent(new CustomEvent(ADOPT_TOUCH_EVENT, { bubbles: true, detail }));
   }
 
   /** Lays the stroke on as the press moves, a dab each time it has gone a quarter of the brush. */
@@ -145,6 +198,7 @@ export class GroundBrushBandComponent {
     if (this.pressed !== event.pointerId) return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    this.pressedAt = { x: event.clientX, y: event.clientY };
     const at = this.groundPointAt(event.clientX, event.clientY);
     if (!at || !this.last) return;
     if (Math.hypot(at.x - this.last.x, at.y - this.last.y) < this.settings().radius / 4) return;
@@ -153,6 +207,7 @@ export class GroundBrushBandComponent {
   }
 
   private letGo(event: PointerEvent): void {
+    if (this.handedOver.delete(event.pointerId)) return;
     if (this.pressed !== event.pointerId) return;
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -162,6 +217,8 @@ export class GroundBrushBandComponent {
   private endStroke(): void {
     if (this.pressed === null) return;
     this.pressed = null;
+    this.pressedOn = null;
+    this.pressedAt = null;
     this.last = null;
     this.brush.end();
   }

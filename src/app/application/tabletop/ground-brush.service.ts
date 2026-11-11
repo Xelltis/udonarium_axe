@@ -72,12 +72,24 @@ export class GroundBrushService {
     this.undoable.set(this.strokes.length);
   }
 
+  /** Takes back the stroke under way as though it had not been laid, leaving nothing more to take back. */
+  cancel(): void {
+    const stroke = this.stroke;
+    this.stroke = null;
+    if (stroke) this.restore(stroke.before);
+  }
+
   /** Takes the last stroke back: every chunk it changed goes back to what it was, flat where it was not kept. */
   undo(): void {
     const before = this.strokes.pop();
     this.undoable.set(this.strokes.length);
+    if (before) this.restore(before);
+  }
+
+  /** Puts the chunks a stroke changed back as they were, flat where they were not kept. */
+  private restore(before: Map<string, GroundChunkData | null>): void {
     const table = this.tabletop.currentTable;
-    if (!before || !table.identifier) return;
+    if (before.size < 1 || !table.identifier) return;
     const field = ensureGroundFieldOn(table);
     for (const [key, chunk] of before) {
       const [cx, cy] = key.split(',').map(Number);

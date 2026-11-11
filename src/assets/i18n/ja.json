@@ -3194,6 +3194,10 @@
         "guideKey": {
           "drag": "盤をドラッグ",
           "swipe": "指でなぞる",
+          "twoThenOne": "2本指で触れて1本を離し、滑らせる",
+          "twist": "2本指でひねる",
+          "twoUpDown": "2本指で上下",
+          "pinch": "2本指で広げる・狭める",
           "arrows": "←↑↓→",
           "shift": "Shift",
           "ctrl": "Ctrl",

@@ -3194,6 +3194,10 @@
         "guideKey": {
           "drag": "Drag the board",
           "swipe": "Swipe",
+          "twoThenOne": "Two fingers, lift one and slide",
+          "twist": "Twist two fingers",
+          "twoUpDown": "Two fingers up or down",
+          "pinch": "Pinch",
           "arrows": "←↑↓→",
           "shift": "Shift",
           "ctrl": "Ctrl",

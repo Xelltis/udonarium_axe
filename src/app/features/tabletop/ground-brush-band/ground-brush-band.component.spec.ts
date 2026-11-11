@@ -1,7 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { GroundService } from '@axe/application/tabletop/ground.service';
 import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { ADOPT_TOUCH_EVENT, type AdoptedTouch } from '@axe/features/tabletop/game-table/table-touch-gesture';
 import { GroundBrushBandComponent } from '@axe/features/tabletop/ground-brush-band/ground-brush-band.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -82,8 +86,85 @@ describe('GroundBrushBandComponent', () => {
     expect(guide().querySelectorAll('kbd').length).toBeGreaterThan(5);
 
     touch.mockReturnValue(true);
-    expect(guide().textContent).toContain('指でなぞる');
-    expect(guide().textContent).not.toContain('Shift');
+    const fingers = [...guide().children].map((item) => item.textContent!.replace(/\s+/g, ' ').trim());
+    expect(fingers).toEqual([
+      '指でなぞる地面を変える',
+      '2本指で触れて1本を離し、滑らせる動かす',
+      '2本指でひねる回す',
+      '2本指で上下傾ける',
+      '2本指で広げる・狭める寄る・引く',
+    ]);
+  });
+
+  describe('with two fingers on the table', () => {
+    let table: HTMLElement;
+    let adopted: CustomEvent<AdoptedTouch>[];
+    let reachedTable: number[];
+
+    beforeEach(() => {
+      table = document.createElement('div');
+      table.id = 'app-table-layer';
+      document.body.append(table);
+      adopted = [];
+      reachedTable = [];
+      table.addEventListener(ADOPT_TOUCH_EVENT, (event) => adopted.push(event as CustomEvent<AdoptedTouch>));
+      table.addEventListener('pointerdown', (event) => reachedTable.push(event.pointerId));
+      brush.active.set(true);
+      render();
+      TestBed.tick();
+      vi.spyOn(TestBed.inject(TableSurfaceService), 'pointOn').mockImplementation(
+        (_surface, x, y) =>
+          ({
+            localX: x,
+            localY: y,
+          }) as never
+      );
+      vi.spyOn(TestBed.inject(TabletopService), 'currentTableVersion').mockReturnValue({ gridSize: 50 } as never);
+      vi.spyOn(TestBed.inject(GroundService), 'heightPxAt').mockReturnValue(0);
+      for (const step of ['begin', 'dab', 'cancel'] as const) vi.spyOn(brush, step).mockImplementation(() => {});
+    });
+
+    afterEach(() => table.remove());
+
+    const finger = (type: string, pointerId: number, x: number, y = 100) =>
+      table.dispatchEvent(
+        new PointerEvent(type, { bubbles: true, pointerId, pointerType: 'touch', button: 0, clientX: x, clientY: y })
+      );
+
+    it('takes the stroke back once a second finger comes down, handing both fingers to the view', () => {
+      const begin = vi.mocked(brush.begin);
+      const cancel = vi.mocked(brush.cancel);
+
+      finger('pointerdown', 1, 100);
+      finger('pointermove', 1, 140);
+      expect(begin).toHaveBeenCalledTimes(1);
+      expect(reachedTable).toEqual([]);
+
+      finger('pointerdown', 2, 300);
+
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(adopted.map((event) => event.detail)).toEqual([{ pointerId: 1, clientX: 140, clientY: 100 }]);
+      expect(reachedTable).toEqual([2]);
+    });
+
+    it('shapes no ground while a finger handed to the view stays down, and again once every one is lifted', () => {
+      const begin = vi.mocked(brush.begin);
+      const dab = vi.mocked(brush.dab);
+      finger('pointerdown', 1, 100);
+      finger('pointerdown', 2, 300);
+
+      finger('pointermove', 1, 400);
+      finger('pointerup', 2, 300);
+      finger('pointerdown', 3, 200);
+      expect(dab).not.toHaveBeenCalled();
+      expect(begin).toHaveBeenCalledTimes(1);
+      expect(reachedTable).toEqual([2, 3]);
+
+      finger('pointerup', 1, 400);
+      finger('pointerup', 3, 200);
+      finger('pointerdown', 4, 100);
+      expect(begin).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('keeps the presses that take back and close at the end of the row of what the brush does', () => {
