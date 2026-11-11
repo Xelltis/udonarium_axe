@@ -404,12 +404,18 @@ export class EngagementZoneService {
     piece.heldFast = held ? '1' : '';
   }
 
+  /** Whether a piece is a part of a body on the table, which goes where its body goes and is held by none. */
+  private isPart(identifier: string): boolean {
+    const piece = this.objectStore.get<GameCharacter>(identifier);
+    return piece instanceof GameCharacter && this.links.bodyOf(piece) !== null;
+  }
+
   /**
    * Has one piece take hold of another at the same point. The one held cannot move of its own will,
    * goes where the one holding it goes, and is in a zone only while the one holding it is.
    */
   grab(holder: GameCharacter, captive: GameCharacter): void {
-    if (holder === captive || captive.grabbedBy === holder.identifier) return;
+    if (holder === captive || captive.grabbedBy === holder.identifier || this.links.bodyOf(captive)) return;
     GameObject.batch(() => {
       captive.grabbedBy = holder.identifier;
       this.links.standAt(captive, holder);
@@ -528,7 +534,8 @@ export class EngagementZoneService {
                 !other.offField &&
                 other.side !== null &&
                 other.side !== self.side &&
-                !this.objectStore.get<GameCharacter>(other.id)?.grabbedBy
+                !this.objectStore.get<GameCharacter>(other.id)?.grabbedBy &&
+                !this.isPart(other.id)
             )
             .filter((other) => {
               const there = state.pointOf(other.id);

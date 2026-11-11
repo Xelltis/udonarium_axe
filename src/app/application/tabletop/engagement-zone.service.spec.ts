@@ -518,6 +518,17 @@ describe('EngagementZoneService', () => {
         expect(said).toHaveLength(2);
       });
 
+      it('offers no taking hold of a part, which goes where its body goes, and takes none', () => {
+        const { hero, foe } = fight();
+        const head = pieceAt(10, 10, true);
+        head.ridingOn = foe.identifier;
+        head.rideSeat = 'part';
+
+        expect(service.menuOf(hero).grabbable.map((one) => one.id)).not.toContain(head.identifier);
+        service.grab(hero, head);
+        expect(head.grabbedBy).toBe('');
+      });
+
       it('offers taking hold of an enemy at the same point only, and joining no zone of its own will', () => {
         const { hero, foe } = fight();
         pieceAt(16, 16, true);
