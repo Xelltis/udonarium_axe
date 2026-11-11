@@ -1,5 +1,6 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { coalesce } from '@axe/core/util/debounce';
 import {
@@ -204,6 +205,7 @@ export class VisionService {
   private readonly objectStore = inject(ObjectStore);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly links = inject(PieceLinksService);
 
   readonly previewAsUserId = signal<string | null>(null);
   private readonly geometryEpoch = signal(0);
@@ -1015,10 +1017,13 @@ export class VisionService {
    *
    * A list would otherwise name what the table keeps in the dark or under the fog, so a piece on
    * the table is listed only where it is drawn. Anything off the table, in a tab of its own or in
-   * the graveyard, is not the table's to hide.
+   * the graveyard, is not the table's to hide. A part is drawn as its body, so it is listed only
+   * where its body would be: a body in stealth hides its parts with it.
    */
   mayBeListed(character: GameCharacter): boolean {
-    return character.location.name !== 'table' || this.isTokenVisible(character);
+    if (character.location.name !== 'table') return true;
+    const judged = this.links.bodyOf(character) ?? character;
+    return this.isTokenVisible(judged);
   }
 
   /**
