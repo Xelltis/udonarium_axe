@@ -704,9 +704,14 @@ export class BattleCutInOverlayComponent {
       onCleanup(() => document.removeEventListener('visibilitychange', leaving));
       let handle = 0;
       const tick = (now: number) => {
-        const { elapsed } = clock.read(now);
+        const { elapsed, away } = clock.read(now);
         // Heard as the stage reaches them on its own clock, which a stall holds still, not on the wall's.
-        for (const sound of sounds) if (!played.has(sound) && sound.at <= elapsed) play(sound);
+        // Those passed while the page was out of view are let go of unheard, not all heard at once.
+        for (const sound of sounds) {
+          if (played.has(sound) || sound.at > elapsed) continue;
+          if (away) played.add(sound);
+          else play(sound);
+        }
         this.clock.set(elapsed);
         if (elapsed >= timeline.end) {
           this.state.next();

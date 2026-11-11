@@ -419,6 +419,27 @@ describe('BattleCutInOverlayComponent', () => {
       expect(heard).toHaveBeenCalledWith('the-blow', expect.anything());
     });
 
+    it('lets the sounds passed while the page was out of view go unheard, not all at once on its return', async () => {
+      const heard = vi.spyOn(SoundEffect, 'playLocal').mockImplementation(() => undefined);
+      vi.spyOn(
+        BattleCutInOverlayComponent.prototype as unknown as { soundsOf: (timeline: { impact: number }) => unknown },
+        'soundsOf'
+      ).mockImplementation((timeline) => [
+        { at: timeline.impact, identifier: 'the-blow' },
+        { at: timeline.impact + 50, identifier: 'the-echo' },
+      ]);
+      const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
+      const timeline = stage.timeline()!;
+      runFramesAt(timeline.impact - 200);
+
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      runFrameAfterWait(1000);
+
+      expect(heard).not.toHaveBeenCalled();
+    });
+
     it('draws the blow as on the table, its marks on the floor under the fighters and the rest over them', async () => {
       const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
       const timeline = stage.timeline()!;

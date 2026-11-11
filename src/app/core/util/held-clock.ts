@@ -14,6 +14,8 @@ const HELD_IN_A_ROW = 2;
 export interface HeldClockReading {
   readonly elapsed: number;
   readonly held: boolean;
+  /** Whether the wait before this frame was spent out of view, which counts in full. */
+  readonly away: boolean;
 }
 
 /**
@@ -51,8 +53,9 @@ export class HeldClock {
     const held = long && this.longInARow <= HELD_IN_A_ROW;
     if (held) this.held += wait - this.usual;
     else if (!this.away) this.usual += (wait - this.usual) * USUAL_FOLLOWS;
+    const away = this.away;
     this.last = now;
     this.away = false;
-    return { elapsed: now - this.startedAt - this.held, held };
+    return { elapsed: now - this.startedAt - this.held, held, away };
   }
 }

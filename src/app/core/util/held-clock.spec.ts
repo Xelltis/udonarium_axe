@@ -15,7 +15,7 @@ describe('HeldClock', () => {
     const clock = new HeldClock(1000);
     const at = framesOf(clock, 1000, 30, 16);
 
-    expect(clock.read(at + LONG_FRAME_MS)).toEqual({ elapsed: at + LONG_FRAME_MS - 1000, held: false });
+    expect(clock.read(at + LONG_FRAME_MS)).toEqual({ elapsed: at + LONG_FRAME_MS - 1000, held: false, away: false });
   });
 
   it('stands still over a long wait between smooth frames, counting it as about one frame', () => {
@@ -44,7 +44,7 @@ describe('HeldClock', () => {
     const at = framesOf(clock, 1000, 30, 16);
     clock.leftView();
 
-    expect(clock.read(at + 4000)).toEqual({ elapsed: at + 4000 - 1000, held: false });
+    expect(clock.read(at + 4000)).toEqual({ elapsed: at + 4000 - 1000, held: false, away: true });
   });
 
   it('stands still over a stall that comes soon after another', () => {
