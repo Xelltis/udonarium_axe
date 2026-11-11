@@ -3,6 +3,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { loadImage } from '@axe/core/util/load-image';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   isPartLost,
@@ -222,18 +223,15 @@ export class PiecePartPicturesService {
   }
 }
 
-/** Reads a picture, or answers null where it cannot be read. */
+/**
+ * Reads a picture, or answers null where it cannot be read. One from another site is asked for
+ * across origins, as the canvas it is drawn on is read back; one that site will not share is drawn
+ * without, as one that cannot be read.
+ */
 function read(url: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    if (!url) {
-      resolve(null);
-      return;
-    }
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => resolve(null);
-    image.src = url;
-  });
+  if (!url) return Promise.resolve(null);
+  const options = /^https?:/i.test(url) ? { crossOrigin: 'anonymous' } : {};
+  return loadImage(url, options).catch(() => null);
 }
 
 /**
