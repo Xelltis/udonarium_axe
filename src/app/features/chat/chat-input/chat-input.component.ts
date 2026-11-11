@@ -35,6 +35,7 @@ import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-displ
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
@@ -129,6 +130,7 @@ const LIST_ROOM = 240;
 })
 export class ChatInputComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
+  private readonly mobileLayout = inject(MobileLayoutService);
   protected readonly barButtonClass =
     'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent aria-expanded:bg-ui-hover rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]! pointer-coarse:h-8 pointer-coarse:min-w-8';
   protected readonly barWordButtonClass =
@@ -641,6 +643,12 @@ export class ChatInputComponent {
    * it, from the left, so that nothing in it is pushed out of line.
    */
   readonly narrow = input(false);
+  /**
+   * Whether the input is laid out narrow: where it is asked to be, and on a phone, where the
+   * portrait's column beside the box and the send button after it would leave the box too little
+   * of the screen's width to write in.
+   */
+  protected readonly laidNarrow = computed(() => this.narrow() || this.mobileLayout.isActive());
   /**
    * Keeps the room of the bar over the box telling what `{目標値}` comes to while the line holds
    * none, the bar standing faded in it, for a palette some of whose lines hold one: a line clicked
