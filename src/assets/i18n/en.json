@@ -3965,6 +3965,7 @@
         "targetNumberPinned": "Auto: {{total}} (set for this tab: {{by}})",
         "targetNumberByOthers": "Auto: {{total}} (latest roll: {{by}})",
         "targetNumberNotFound": "Auto: none found ({目標値} is sent as typed)",
+        "targetNumberIdle": "Used by a line with {目標値}",
         "targetNumberChoice": "{{total}} ({{by}})"
       },
       "decoration": {

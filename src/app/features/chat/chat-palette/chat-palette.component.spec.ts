@@ -382,6 +382,21 @@ describe('ChatPaletteComponent', () => {
     });
   });
 
+  it('uses the number to beat where any of its lines holds one, a variable or a line under another tab among them', () => {
+    const speaker = createChar('術者');
+    speaker.chatPalette!.setPalette('2d6+3 攻撃\n◆◆抵抗\n2d6+{生命抵抗} 生命抵抗');
+    component.character.set(speaker);
+    expect(component.usesTargetNumber()).toBe(false);
+
+    speaker.chatPalette!.setPalette('//抵抗=2d6>={目標値}\n2d6+3 攻撃');
+    TestBed.inject(ObjectChangeService).notifyChanged(speaker.chatPalette!.identifier);
+    expect(component.usesTargetNumber()).toBe(true);
+
+    speaker.chatPalette!.setPalette('2d6+3 攻撃\n◆◆抵抗\n2d6>={目標値} 生命抵抗');
+    TestBed.inject(ObjectChangeService).notifyChanged(speaker.chatPalette!.identifier);
+    expect(component.usesTargetNumber()).toBe(true);
+  });
+
   describe('a palette parted into tabs', () => {
     function speakerWithTabs(name = '術者'): GameCharacter {
       const speaker = createChar(name);

@@ -42,6 +42,7 @@ import { tabBeside } from '@axe/domain/chat/chat-tab-cycle';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PaletteRow, paletteRowsOf, paletteTabsOf } from '@axe/domain/chat/palette-rows';
+import { holdsTargetNumber } from '@axe/domain/chat/target-number';
 import { DataElement } from '@axe/domain/data/data-element';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -213,6 +214,14 @@ export class ChatPaletteComponent {
     this.objectChange.versionOf(palette.identifier)();
     return paletteRowsOf(palette.getPalette());
   });
+
+  /**
+   * Whether a line of the palette, a variable among them, holds a `{目標値}`: the input keeps the room
+   * of the bar telling what it comes to for as long as one does, so a line clicked moves no other.
+   */
+  readonly usesTargetNumber = computed(() =>
+    this.paletteRows().some((row) => (row.kind === 'command' || row.kind === 'variable') && holdsTargetNumber(row.text))
+  );
 
   /**
    * The headings, for the list a panel in its own window is given instead of the menu.

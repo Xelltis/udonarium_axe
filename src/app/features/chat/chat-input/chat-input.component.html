@@ -209,7 +209,7 @@
     @if (targetNumberBar(); as bar) {
       <div
         data-testid="chat-input-target-number"
-        class="border-ui-border-panel text-ui-text rounded-ui-sm mb-1.5 flex min-w-0 items-center gap-2 border border-solid px-2 py-0.5 text-[11px]"
+        [class]="targetNumberBandClass"
         [title]="'feature.chat.input.targetNumberHint' | transloco"
       >
         <i class="material-icons text-ui-accent text-[14px]!" aria-hidden="true">my_location</i>
@@ -241,6 +241,24 @@
             <i class="material-icons">close</i>
           </button>
         }
+      </div>
+    } @else if (keepsTargetNumberPlace() && canSpeak()) {
+      <div
+        data-testid="chat-input-target-number-idle"
+        [class]="targetNumberBandClass"
+        class="opacity-55"
+        [title]="'feature.chat.input.targetNumberIdle' | transloco"
+      >
+        <i class="material-icons text-ui-accent text-[14px]!" aria-hidden="true">my_location</i>
+        <span class="text-ui-accent shrink-0 font-semibold">{{ 'feature.chat.input.targetNumber' | transloco }}</span>
+        <select
+          disabled
+          name="targetNumberIdle"
+          [attr.aria-label]="'feature.chat.input.targetNumber' | transloco"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-dim min-w-0 flex-1 truncate border border-solid px-1 py-0.5 text-[11px]"
+        >
+          <option>{{ 'feature.chat.input.targetNumberIdle' | transloco }}</option>
+        </select>
       </div>
     }
 

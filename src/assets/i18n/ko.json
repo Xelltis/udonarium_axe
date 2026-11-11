@@ -3965,6 +3965,7 @@
         "targetNumberPinned": "자동: {{total}} (이 탭에 고정한 결과: {{by}})",
         "targetNumberByOthers": "자동: {{total}} (직전 결과: {{by}})",
         "targetNumberNotFound": "자동: 찾을 수 없음 ({目標値} 그대로 보냅니다)",
+        "targetNumberIdle": "{目標値}가 있는 줄에서 씁니다",
         "targetNumberChoice": "{{total}} ({{by}})"
       },
       "decoration": {

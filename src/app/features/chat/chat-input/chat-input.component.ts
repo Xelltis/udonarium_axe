@@ -140,6 +140,12 @@ export class ChatInputComponent {
     'text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px]';
   protected readonly findingsChipClass =
     'border-ui-border-panel bg-ui-elevated text-ui-muted shadow-ui-sm data-[severity=error]:text-ui-danger data-[severity=warning]:text-ui-warning data-[severity=info]:text-ui-accent absolute right-5 bottom-1 z-1 m-0 flex h-4.5 cursor-pointer items-center gap-0.5 rounded-full border border-solid px-1.5 text-[11px] leading-none font-semibold hover:shadow-none [&_i]:text-[13px]!';
+  /**
+   * The bar over the box telling what `{目標値}` comes to, as tall whichever controls it holds, so that
+   * the room it keeps for one does not change as it fills.
+   */
+  protected readonly targetNumberBandClass =
+    'border-ui-border-panel text-ui-text rounded-ui-sm mb-1.5 box-border flex min-h-7 min-w-0 items-center gap-2 border border-solid px-2 py-0 text-[11px]';
   protected readonly findingRowClass =
     'text-ui-text hover:bg-ui-hover data-[severity=error]:[&_i]:text-ui-danger data-[severity=warning]:[&_i]:text-ui-warning data-[severity=info]:[&_i]:text-ui-accent rounded-ui-sm m-0 flex w-full cursor-pointer items-start gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px] leading-snug [&_i]:mt-px [&_i]:text-[15px]!';
 
@@ -635,6 +641,12 @@ export class ChatInputComponent {
    * it, from the left, so that nothing in it is pushed out of line.
    */
   readonly narrow = input(false);
+  /**
+   * Keeps the room of the bar over the box telling what `{目標値}` comes to while the line holds
+   * none, the bar standing faded in it, for a palette some of whose lines hold one: a line clicked
+   * in its list then moves nothing under the pointer, and a second click lands on the same line.
+   */
+  readonly keepsTargetNumberPlace = input(false);
   /**
    * Whether the bar of tools over the box keeps to one row, scrolling sideways where its tools run past
    * the box's width, as on a small screen, where rows of tools would leave little of the box to write in.

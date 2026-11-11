@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { createCharacter, waitAppReady } from './helpers';
+import { chatInput, createCharacter, expectChatText, waitAppReady } from './helpers';
 
 async function openChatPalette(page: import('@playwright/test').Page) {
   await waitAppReady(page);
@@ -70,5 +70,39 @@ test.describe('the chat palette', () => {
     });
     expect(edges.resultsTop).toBeGreaterThanOrEqual(edges.searchBottom);
     expect(edges.resultsTop).toBeLessThan(edges.firstLineTop);
+  });
+
+  /**
+   * A palette some of whose lines hold `{目標値}` keeps the room of the bar telling what it comes to
+   * from the start, so the first click of a double click on such a line moves nothing under the
+   * pointer and the second lands on the same line, sending it.
+   */
+  test('sends a line holding {目標値} on a double click, the list holding still as the bar fills', async ({ page }) => {
+    const palette = page.locator('chat-palette');
+    await palette.getByRole('button', { name: '編集', exact: true }).click();
+    await palette.locator('textarea[name="edit-palette"]').fill('2d6+1 命中\n2d6>={目標値} 抵抗\n2d6+2 回避');
+    await palette.getByRole('button', { name: '確定' }).click();
+    await expect(palette.getByTestId('chat-input-target-number-idle')).toBeVisible();
+
+    const input = chatInput(page).first();
+    await input.fill('2d6+8 火球');
+    await input.press('Enter');
+    await expectChatText(input, '');
+    const fireball = page.locator('chat-tab chat-message').filter({ hasText: '(2D6+8)' });
+    await expect(fireball).toHaveCount(1, { timeout: 15000 });
+    const text = (await fireball.locator('.msg-text').innerText()).trim();
+    const total = text
+      .split('→')
+      .map((step) => step.trim())
+      .filter((step) => /^-?\d+$/.test(step))
+      .at(-1);
+
+    const line = palette.getByTestId('chat-palette-list').getByText('2d6>={目標値} 抵抗');
+    const before = (await line.boundingBox())!.y;
+    await line.dblclick();
+    await expect(page.locator('chat-tab chat-message').filter({ hasText: `(2D6>=${total})` })).toHaveCount(1, {
+      timeout: 15000,
+    });
+    expect((await line.boundingBox())!.y).toBe(before);
   });
 });

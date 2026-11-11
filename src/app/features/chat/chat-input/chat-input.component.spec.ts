@@ -722,6 +722,23 @@ describe('ChatInputComponent', () => {
         expect(bar()).toBeNull();
       });
 
+      it('keeps the room of the bar, faded, while the line holds none, for a palette using it', () => {
+        const idle = () => fixture.nativeElement.querySelector('[data-testid="chat-input-target-number-idle"]');
+        component.text = '2d6>=12';
+        fixture.detectChanges();
+        expect(idle()).toBeNull();
+
+        fixture.componentRef.setInput('keepsTargetNumberPlace', true);
+        fixture.detectChanges();
+        expect(idle()).not.toBeNull();
+        expect(bar()).toBeNull();
+
+        component.text = '2d6>={目標値}';
+        fixture.detectChanges();
+        expect(idle()).toBeNull();
+        expect(bar()).not.toBeNull();
+      });
+
       it("takes the tab's own number to beat off from the bar, for a seat that may set it", async () => {
         PeerCursor.myCursor.role = PeerRole.Player;
         tab.pinnedTargetNumber = tab.chatMessages[0].identifier;

@@ -3965,6 +3965,7 @@
         "targetNumberPinned": "自動: {{total}}（このタブに固定した結果: {{by}}）",
         "targetNumberByOthers": "自動: {{total}}（直前の結果: {{by}}）",
         "targetNumberNotFound": "自動: 見つかりません（{目標値}のまま送ります）",
+        "targetNumberIdle": "{目標値}のある行で使います",
         "targetNumberChoice": "{{total}}（{{by}}）"
       },
       "decoration": {
