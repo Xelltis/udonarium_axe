@@ -139,6 +139,25 @@ describe('PiecePartsService', () => {
     expect([head.partLayer, head.partMask, head.partFaces]).toEqual(['', '', '']);
   });
 
+  it('puts back how a part was drawn while it is still a part of the body it was made a part of, and only then', () => {
+    const dragon = pieceAt('ドラゴン', 4, 4, 3);
+    const head = pieceAt('頭', 5, 5);
+    head.partLayer = '{"x":0.5,"y":0.2,"width":0.3,"order":1}';
+    head.partMask = '10:5.3';
+    head.partFaces = '0:120-300';
+    const was = parts.lookOf(head);
+    parts.attach(head, dragon);
+
+    expect(parts.putBackLook(head, dragon, was)).toBe(true);
+    expect(parts.lookOf(head)).toEqual(was);
+
+    parts.detach(head);
+    parts.attach(head, dragon);
+    parts.detach(head);
+    expect(parts.putBackLook(head, dragon, was)).toBe(false);
+    expect(parts.lookOf(head)).toEqual({ layer: '', mask: '', faces: '' });
+  });
+
   it('moves the parts wherever the body goes, and takes them off where it stands', () => {
     const dragon = pieceAt('ドラゴン', 4, 4, 3);
     const head = pieceAt('頭', 5, 5);

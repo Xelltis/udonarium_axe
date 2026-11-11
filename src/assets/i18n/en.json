@@ -6073,6 +6073,7 @@
           "clearPaint": "Erase all the paint",
           "paintCleared": "Erased the paint of {{name}}",
           "unlaid": "Stopped laying {{name}} over",
+          "letGo": "Cleared what {{name}} laid over and painted on its body",
           "putBack": "Put back",
           "hint_layer": "Drag the part's picture to where it goes. Once the part is beaten, its picture goes.",
           "hint_paint": "Paint over the body's picture where the part is. Once the part is beaten, what is painted goes from the body's picture.",

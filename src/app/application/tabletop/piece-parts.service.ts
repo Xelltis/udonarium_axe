@@ -9,6 +9,18 @@ import { pieceCentreOf, pieceCentreOffsetPx } from '@axe/domain/tabletop/move/pi
 import { writtenSeat } from '@axe/domain/tabletop/ride/ride-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 
+/** How a part is drawn on its body, as its look is written down; all empty for none. */
+export interface PartLookWritten {
+  readonly layer: string;
+  readonly mask: string;
+  readonly faces: string;
+}
+
+/** Whether a part is drawn on its body in any way. */
+export function hasPartLook(look: PartLookWritten): boolean {
+  return look.layer !== '' || look.mask !== '' || look.faces !== '';
+}
+
 /**
  * The parts of a piece, as the head and the arms of a creature of many parts are each a piece of
  * their own: a part rides its body as a part, goes where the body goes, is drawn as the body alone
@@ -72,6 +84,26 @@ export class PiecePartsService {
       part.partFaces = '';
       this.links.standAt(part, body);
       part.update();
+    });
+    return true;
+  }
+
+  /** How a piece is drawn on its body: laid over its picture, painted on it, and painted on its model's faces. */
+  lookOf(part: GameCharacter): PartLookWritten {
+    return { layer: part.partLayer, mask: part.partMask, faces: part.partFaces };
+  }
+
+  /**
+   * Puts back how a part was drawn, as {@link lookOf} read it before {@link attach} let go of it,
+   * while it is still in the room and a part of the body it was made a part of. Answers whether it was.
+   */
+  putBackLook(part: GameCharacter, body: GameCharacter, look: PartLookWritten): boolean {
+    if (!this.rolePermission.canEditTabletop()) return false;
+    if (this.objectStore.get(part.identifier) !== part || this.bodyOf(part) !== body) return false;
+    GameObject.batch(() => {
+      part.partLayer = look.layer;
+      part.partMask = look.mask;
+      part.partFaces = look.faces;
     });
     return true;
   }

@@ -16,7 +16,7 @@ import { EngagementZoneService, ZoneMenuModel } from '@axe/application/tabletop/
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
-import { PiecePartsService } from '@axe/application/tabletop/piece-parts.service';
+import { hasPartLook, PiecePartsService } from '@axe/application/tabletop/piece-parts.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { RideMenuModel, RideService } from '@axe/application/tabletop/ride.service';
@@ -27,6 +27,7 @@ import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-men
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
@@ -99,6 +100,7 @@ export class GameCharacterMenuService {
   private readonly tabletopService = inject(TabletopService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly snackbar = inject(SnackbarService);
   private readonly rangeShapeInvoke = inject(RangeShapeInvokeService);
   private readonly moveRangeService = inject(MoveRangeService);
   private readonly movePlan = inject(MovePlannerService);
@@ -275,13 +277,28 @@ export class GameCharacterMenuService {
       {
         attach: (bodyId) => {
           const chosen = this.objectStore.get<GameCharacter>(bodyId);
-          if (chosen instanceof GameCharacter) this.parts.attach(char, chosen);
+          if (chosen instanceof GameCharacter) this.attachPart(char, chosen);
         },
         detach: this.rolePermission.canEditTabletop() ? () => this.parts.detach(char) : undefined,
         editLook: () => this.showPartLook(body ?? char, body ? char : null),
       },
       this.translateFn
     );
+  }
+
+  /**
+   * Makes a piece a part of a body, saying so where how it was drawn on a body before was let go of,
+   * with a press that puts that back while it is still a part of this body.
+   */
+  private attachPart(part: GameCharacter, body: GameCharacter): void {
+    const was = this.parts.lookOf(part);
+    if (!this.parts.attach(part, body) || !hasPartLook(was)) return;
+    this.snackbar.show(this.translateFn('feature.ride.part.look.letGo', { name: this.shownName(part) }), {
+      action: {
+        label: this.translateFn('feature.ride.part.look.putBack'),
+        run: () => this.parts.putBackLook(part, body, was),
+      },
+    });
   }
 
   private zoneMenuOf(char: GameCharacter, model: ZoneMenuModel): ContextMenuAction[] {
