@@ -68,6 +68,22 @@ describe('PiecePartPicturesService', () => {
     return { body, part };
   }
 
+  it('lets go of the picture drawn for a piece once it is taken out of the room', async () => {
+    const { body, part } = bodyWithPart();
+    part.partLayer = writePartLayer({ x: 0.5, y: 0.2, width: 0.3, order: 1 });
+    pictures.pictureOf(body);
+    finish[0]();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(pictures.pictureOf(body)?.url).toBe('blob:drawn-1');
+
+    body.destroy();
+    await Promise.resolve();
+    TestBed.tick();
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:drawn-1');
+  });
+
   it('draws nothing of its own for a piece whose parts lay nothing over its picture', async () => {
     const { body } = bodyWithPart();
 

@@ -41,6 +41,24 @@ describe('PiecePartsService', () => {
     return piece;
   }
 
+  it('works out the parts of every body once for all that ask, and again as a piece is made a part', async () => {
+    const dragon = pieceAt('ドラゴン', 4, 4, 3);
+    const golem = pieceAt('ゴーレム', 12, 12, 3);
+    const head = pieceAt('頭', 5, 5);
+    const arm = pieceAt('腕', 13, 13);
+    parts.attach(head, dragon);
+    await Promise.resolve();
+    const read = vi.spyOn(ObjectStore.instance, 'getObjects');
+
+    expect(parts.partsOfFollowed(dragon)).toEqual([head]);
+    expect(parts.partsOfFollowed(golem)).toEqual([]);
+    expect(read).toHaveBeenCalledTimes(1);
+
+    parts.attach(arm, golem);
+    await Promise.resolve();
+    expect(parts.partsOfFollowed(golem)).toEqual([arm]);
+  });
+
   it('offers the pieces a piece stands on as bodies, none of them parts, and makes it a part of one', () => {
     const dragon = pieceAt('ドラゴン', 4, 4, 3);
     const head = pieceAt('頭', 5, 5);

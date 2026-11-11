@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, InjectionToken, type Signal, signal, untracked } from '@angular/core';
+import { computed, effect, inject, Injectable, InjectionToken, type Signal, signal, untracked } from '@angular/core';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
@@ -72,11 +72,30 @@ export class PiecePartPicturesService {
   /** Moves on as each picture is made, for whatever drew a piece before its picture came. */
   private readonly made = signal(0);
 
+  constructor() {
+    // A piece taken out of the room is drawn no more: what was kept for it, its picture with it, goes.
+    effect(() => {
+      this.objectChange.collectionOf(GameCharacter.aliasName)();
+      untracked(() => this.forgetTheGone());
+    });
+  }
+
+  /** Lets go of everything kept for pieces no longer in the room. */
+  private forgetTheGone(): void {
+    const ids = new Set([...this.drawn.keys(), ...this.keys.keys(), ...this.faces.keys()]);
+    for (const id of ids) {
+      if (this.objectStore.get(id)) continue;
+      this.forget(id);
+      this.keys.delete(id);
+      this.faces.delete(id);
+    }
+  }
+
   /**
    * What each piece's parts lay over and cut out of its picture, by the piece, as a key that is the
    * same as long as they are: worked out apart from the drawing of the piece, so that a change to
    * any piece, which any may come to be a part of another by, draws the piece again only where its
-   * parts' look changed.
+   * parts' look changed. Each follows the parts the links work out once for all.
    */
   private readonly keys = new Map<string, Signal<string>>();
 
@@ -127,11 +146,7 @@ export class PiecePartPicturesService {
     let key = this.keys.get(body.identifier);
     if (!key) {
       key = computed(() => {
-        this.objectChange.collectionOf('character')();
         this.objectChange.fileVersion();
-        for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
-          this.objectChange.versionOf(piece.identifier)();
-        }
         this.objectChange.versionOf(body.identifier)();
         const { own, looks } = this.looksOf(body);
         if (!own || looks.length < 1) return '';
@@ -157,12 +172,8 @@ export class PiecePartPicturesService {
     if (!faces) {
       faces = computed(
         () => {
-          this.objectChange.collectionOf('character')();
-          for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
-            this.objectChange.versionOf(piece.identifier)();
-          }
           const parts = this.links
-            .partsOf(body)
+            .followedPartsOf(body)
             .map((part) => ({ faces: partFacesOf(part.partFaces), lost: this.lookOf(part).lost }))
             .filter((part) => part.faces.size > 0);
           return {
@@ -182,7 +193,7 @@ export class PiecePartPicturesService {
     return {
       own: this.images.getEmptyOr(body.imageFile).url,
       looks: this.links
-        .partsOf(body)
+        .followedPartsOf(body)
         .map((part) => this.lookOf(part))
         .filter((look) => look.layer !== null || look.mask !== null),
     };

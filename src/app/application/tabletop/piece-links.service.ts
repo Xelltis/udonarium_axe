@@ -1,4 +1,5 @@
-import { inject, Injectable } from '@angular/core';
+import { computed, inject, Injectable } from '@angular/core';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -18,6 +19,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 export class PieceLinksService {
   private readonly objectStore = inject(ObjectStore);
   private readonly tableSelecter = inject(TableSelecter);
+  private readonly objectChange = inject(ObjectChangeService);
 
   /** The piece holding on to this one, where it is on the table and in the fight; null otherwise. */
   holderOf(piece: GameCharacter): GameCharacter | null {
@@ -56,6 +58,32 @@ export class PieceLinksService {
     return this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((piece) => piece !== body && piece.isVisibleOnTable && this.bodyOf(piece) === body);
+  }
+
+  /**
+   * The parts of each body on the table, by the body's identifier, read again as any piece changes:
+   * worked out once for all, so whatever follows the parts of many pieces follows this rather than
+   * every piece in the room once for each of them.
+   */
+  private readonly partsByBody = computed<ReadonlyMap<string, readonly GameCharacter[]>>(() => {
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    const pieces = this.objectStore.getObjects<GameCharacter>(GameCharacter);
+    for (const piece of pieces) this.objectChange.versionOf(piece.identifier)();
+    const byBody = new Map<string, GameCharacter[]>();
+    for (const piece of pieces) {
+      if (!piece.isVisibleOnTable) continue;
+      const body = this.bodyOf(piece);
+      if (!body || body === piece) continue;
+      const parts = byBody.get(body.identifier);
+      if (parts) parts.push(piece);
+      else byBody.set(body.identifier, [piece]);
+    }
+    return byBody;
+  });
+
+  /** The parts of a body on the table, as {@link partsOf} finds them, followed as any piece changes. */
+  followedPartsOf(body: GameCharacter): readonly GameCharacter[] {
+    return this.partsByBody().get(body.identifier) ?? [];
   }
 
   /** A piece as the bonds between pieces see it: whoever holds on to it, and the mount it rides or the body it is a part of. */

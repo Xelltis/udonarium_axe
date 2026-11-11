@@ -795,12 +795,8 @@ export class GameCharacterComponent {
     () => {
       const char = this.gameCharacter();
       if (!char) return [];
-      // Any piece may be made a part of this one, so every piece is followed, as for those riding it.
-      this.objectChange.collectionOf(GameCharacter.aliasName)();
-      for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
-        this.objectChange.versionOf(piece.identifier)();
-      }
-      const parts = this.parts.partsOf(char);
+      // Any piece may be made a part of this one: the parts of every body are worked out once for all.
+      const parts = this.parts.partsOfFollowed(char);
       if (parts.length < 1) return [];
       this.objectChange.trackMyCursor();
       this.uiSignalService.targetChange();

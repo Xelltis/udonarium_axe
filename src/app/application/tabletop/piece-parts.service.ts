@@ -31,6 +31,11 @@ export class PiecePartsService {
     return this.links.partsOf(body);
   }
 
+  /** The parts of a body on the table, as {@link partsOf} finds them, followed as any piece changes. */
+  partsOfFollowed(body: GameCharacter): readonly GameCharacter[] {
+    return this.links.followedPartsOf(body);
+  }
+
   /**
    * The pieces a piece could be made a part of: those on the table whose base its middle stands on,
    * none of them a part itself, and none where the piece rides, is ridden or has parts of its own.
