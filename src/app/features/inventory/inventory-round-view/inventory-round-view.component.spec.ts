@@ -89,4 +89,16 @@ describe('InventoryRoundViewComponent', () => {
 
     expect(scrolled).toContain('p25');
   });
+
+  it('names the presses that move the round on by what they do, not by their icons', () => {
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
+    const fixture = TestBed.createComponent(InventoryRoundViewComponent);
+    fixture.detectChanges();
+    const names = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].map((button) =>
+      button.getAttribute('aria-label')
+    );
+
+    expect(names).toEqual(expect.arrayContaining(['1つ前に戻す', '次へ', 'ラウンドを戻す', 'ラウンドを進める']));
+    expect(names.some((name) => name?.includes('keyboard_arrow'))).toBe(false);
+  });
 });
