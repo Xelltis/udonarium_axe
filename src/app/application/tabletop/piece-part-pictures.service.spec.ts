@@ -68,7 +68,7 @@ describe('PiecePartPicturesService', () => {
     return { body, part };
   }
 
-  it('lets go of the picture drawn for a piece once it is taken out of the room', async () => {
+  it('lets go of the picture drawn for a piece a while after it is taken out of the room, as the table may still read it', async () => {
     const { body, part } = bodyWithPart();
     part.partLayer = writePartLayer({ x: 0.5, y: 0.2, width: 0.3, order: 1 });
     pictures.pictureOf(body);
@@ -77,11 +77,18 @@ describe('PiecePartPicturesService', () => {
     await Promise.resolve();
     expect(pictures.pictureOf(body)?.url).toBe('blob:drawn-1');
 
-    body.destroy();
-    await Promise.resolve();
-    TestBed.tick();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      body.destroy();
+      await Promise.resolve();
+      TestBed.tick();
+      expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:drawn-1');
 
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:drawn-1');
+      vi.advanceTimersByTime(5000);
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:drawn-1');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('draws nothing of its own for a piece whose parts lay nothing over its picture', async () => {

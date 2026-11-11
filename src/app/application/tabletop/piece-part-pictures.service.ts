@@ -220,11 +220,16 @@ export class PiecePartPicturesService {
     };
   }
 
+  /**
+   * Lets go of what was kept for a piece, its picture a while later, as the table may still be
+   * reading it in the frame it is drawn without its parts in, as it is when one is replaced.
+   */
   private forget(identifier: string): void {
     const known = this.drawn.get(identifier);
     if (!known) return;
     this.drawn.delete(identifier);
-    if (known.picture) URL.revokeObjectURL(known.picture.url);
+    const picture = known.picture;
+    if (picture) setTimeout(() => URL.revokeObjectURL(picture.url), REPLACED_PICTURE_KEPT_MS);
   }
 }
 
