@@ -972,11 +972,13 @@ export class VisionService {
    * Always for the game master, for a piece of the reader's own or their party's, for a piece off
    * the floor, and for a piece the party has already found. Under fog a piece answers to the cells
    * the fog is drawn from; otherwise to a line of sight to its eyes. A piece in stealth is seen
-   * only by the game master, its owner and its party, whatever the light.
+   * only by the game master, its owner and its party, whatever the light. A part is drawn as its
+   * body, so it is seen where its body is: a body in stealth hides its parts with it.
    */
   isTokenVisible(character: GameCharacter): boolean {
     const scene = this.scene();
     const viewer = this.viewer();
+    const judged = this.links.bodyOf(character) ?? character;
     return tokenVisibleTo(
       {
         scene,
@@ -985,7 +987,7 @@ export class VisionService {
         fog: () => this.overlayVision(),
         pointVisible: (x, y, z) => this.recall(`tok:${x}:${y}:${z}`, () => isPointVisible(scene!, x, y, viewer, z)),
       },
-      character
+      judged
     );
   }
 
@@ -1017,13 +1019,10 @@ export class VisionService {
    *
    * A list would otherwise name what the table keeps in the dark or under the fog, so a piece on
    * the table is listed only where it is drawn. Anything off the table, in a tab of its own or in
-   * the graveyard, is not the table's to hide. A part is drawn as its body, so it is listed only
-   * where its body would be: a body in stealth hides its parts with it.
+   * the graveyard, is not the table's to hide. A part is listed where its body would be.
    */
   mayBeListed(character: GameCharacter): boolean {
-    if (character.location.name !== 'table') return true;
-    const judged = this.links.bodyOf(character) ?? character;
-    return this.isTokenVisible(judged);
+    return character.location.name !== 'table' || this.isTokenVisible(character);
   }
 
   /**
