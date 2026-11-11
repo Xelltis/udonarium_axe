@@ -131,7 +131,7 @@ export class GameCharacterMenuService {
     radialAnchor?: { x: number; y: number }
   ): void {
     if (!this.disclosureService.canView(char)) {
-      this.openUnviewable(char, position, host);
+      this.openUnviewable(char, position);
       return;
     }
 
@@ -202,7 +202,7 @@ export class GameCharacterMenuService {
       this.fightMenuOf(char)
     );
     if (!this.tabletopService.mode2d() || display.tabletopMenuStyle === 'standard') {
-      this.contextMenuService.open(position, menu.actions, host.name());
+      this.contextMenuService.open(position, menu.actions, this.shownName(char));
       return;
     }
 
@@ -214,7 +214,7 @@ export class GameCharacterMenuService {
       menuCenter,
       menu.actions,
       menu.radialGroups,
-      host.name(),
+      this.shownName(char),
       display.tabletopMenuStyle === 'radial',
       display.radialMenuRotationSpeed,
       multiAngleFontScaleFactor(display.multiAngleFontScale),
@@ -229,7 +229,7 @@ export class GameCharacterMenuService {
   }
 
   /** Opens the menu of a piece the reader may not view: only what aims at it. */
-  private openUnviewable(char: GameCharacter, position: PointerCoordinate, host: GameCharacterMenuHost): void {
+  private openUnviewable(char: GameCharacter, position: PointerCoordinate): void {
     const actions = buildUnviewableCharacterContextMenu(
       char,
       {
@@ -238,7 +238,12 @@ export class GameCharacterMenuService {
       },
       this.translateFn
     );
-    this.contextMenuService.open(position, actions, host.name());
+    this.contextMenuService.open(position, actions, this.shownName(char));
+  }
+
+  /** A piece's name as the reader may be told it: one whose name is kept from them goes unnamed. */
+  private shownName(char: GameCharacter): string {
+    return char.hideName && !this.rolePermission.canSeeHidden() ? this.translateFn('common.hiddenName') : char.name;
   }
 
   /**
@@ -262,7 +267,7 @@ export class GameCharacterMenuService {
     const body = this.parts.bodyOf(char);
     return buildPartContextMenu(
       {
-        body: body?.name ?? null,
+        body: body ? this.shownName(body) : null,
         bodies: body ? [] : this.parts.bodiesFor(char).map((one) => ({ id: one.identifier, name: one.name })),
         hasParts: this.parts.partsOf(char).length > 0,
         canEditLook: this.rolePermission.canEditTabletop(),
@@ -272,7 +277,7 @@ export class GameCharacterMenuService {
           const chosen = this.objectStore.get<GameCharacter>(bodyId);
           if (chosen instanceof GameCharacter) this.parts.attach(char, chosen);
         },
-        detach: () => this.parts.detach(char),
+        detach: this.rolePermission.canEditTabletop() ? () => this.parts.detach(char) : undefined,
         editLook: () => this.showPartLook(body ?? char, body ? char : null),
       },
       this.translateFn
@@ -483,7 +488,7 @@ export class GameCharacterMenuService {
           (m) => m.PartLookEditorComponent
         ),
       {
-        title: this.translateFn('feature.ride.part.look.title', { name: body.name }),
+        title: this.translateFn('feature.ride.part.look.title', { name: this.shownName(body) }),
         ...sheetPanelBox(coordinate, 380, 560),
         stillWanted: () => isInStore(body),
       },

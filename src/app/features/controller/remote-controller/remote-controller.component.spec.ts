@@ -3,6 +3,7 @@ import { BattleLaunchService } from '@axe/application/battle/battle-launch.servi
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -70,6 +71,19 @@ describe('RemoteControllerComponent', () => {
     const card = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="remote-target-秘密の魔物"]')!;
     expect(card.parentElement!.textContent).not.toContain('バフ');
     kept.targeted = false;
+  });
+
+  it('names a piece whose name is kept from this seat by no name in the list', () => {
+    const masked = createChar('黒幕');
+    masked.setLocation('table');
+    masked.hideName = true;
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
+    component.selectTab.set('table');
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).not.toContain('黒幕');
+    expect(root.querySelector('[data-testid="remote-target-？？？"]')).not.toBeNull();
   });
 
   it('leaves out a piece the table does not draw for this seat, in the dark, under the fog or in stealth', () => {

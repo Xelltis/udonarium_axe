@@ -462,7 +462,7 @@
     <ng-template #gameObjectCard let-gameObject="gameObject">
       <div
         class="bg-ui-input border-ui-border-panel rounded-ui-sm [&_.material-icons]:text-ui-dim relative flex size-10.5 shrink-0 cursor-pointer items-center justify-center overflow-hidden border border-solid [&_.material-icons]:text-[24px]!"
-        [attr.data-testid]="'remote-target-' + gameObject.name"
+        [attr.data-testid]="'remote-target-' + shownName(gameObject)"
         (click)="targetBlockClick(gameObject)"
       >
         @if (gameObject.imageFile.url) {
@@ -485,8 +485,8 @@
           <span
             class="text-ui-text flex-1 truncate text-[13px] font-semibold"
             [class.text-ui-accent!]="$any(gameObject).targeted"
-            [appTextTooltip]="gameObject.name"
-            >{{ gameObject.name }}</span
+            [appTextTooltip]="shownName(gameObject)"
+            >{{ shownName(gameObject) }}</span
           >
           @if (canView(gameObject)) {
             <button

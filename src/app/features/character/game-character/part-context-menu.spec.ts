@@ -37,6 +37,10 @@ describe('buildPartContextMenu()', () => {
     expect(detach).toHaveBeenCalled();
   });
 
+  it('offers no taking off to a reader who may not change the table', () => {
+    expect(buildPartContextMenu({ body: 'ドラゴン', bodies: [] }, { attach: vi.fn() }, t)).toEqual([]);
+  });
+
   it('offers nothing for a piece standing on no other', () => {
     expect(buildPartContextMenu({ body: null, bodies: [] }, { attach: vi.fn(), detach: vi.fn() }, t)).toEqual([]);
   });

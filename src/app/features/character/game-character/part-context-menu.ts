@@ -16,7 +16,8 @@ export interface PartMenuModel {
 /** What the part entries of a piece's menu do. */
 export interface PartMenuCallbacks {
   attach(bodyId: string): void;
-  detach(): void;
+  /** Takes the piece off its body; none for a reader who may not, who is not offered it. */
+  detach?(): void;
   /** Opens where the parts are drawn on their body's picture worked on. */
   editLook?(): void;
 }
@@ -35,7 +36,11 @@ export function buildPartContextMenu(
       ? [{ name: t('feature.ride.part.editLook'), action: () => callbacks.editLook?.() }]
       : [];
   if (model.body !== null) {
-    return [{ name: t('feature.ride.part.detach', { body: model.body }), action: () => callbacks.detach() }, ...look];
+    const detach = callbacks.detach;
+    return [
+      ...(detach ? [{ name: t('feature.ride.part.detach', { body: model.body }), action: () => detach() }] : []),
+      ...look,
+    ];
   }
   return [
     ...model.bodies.map((body) => ({

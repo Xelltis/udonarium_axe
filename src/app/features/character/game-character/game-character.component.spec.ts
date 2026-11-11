@@ -918,6 +918,23 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    it('titles the menu of a piece whose name is kept from the reader by no name', () => {
+      const menus = TestBed.inject(ContextMenuService);
+      const open = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
+      const character = openMenu(false, 'standard');
+      character.hideName = true;
+      open.mockClear();
+
+      try {
+        component.onContextMenu(new Event('contextmenu', { cancelable: true }));
+        expect(open.mock.calls[0][2]).toBe('？？？');
+      } finally {
+        character.destroy();
+      }
+    });
+
     it('uses the ordinary downward menu outside 2D mode', () => {
       const menus = TestBed.inject(ContextMenuService);
       const open = vi.spyOn(menus, 'open').mockImplementation(() => undefined);

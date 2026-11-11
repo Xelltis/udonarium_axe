@@ -567,6 +567,12 @@ export class RemoteControllerComponent {
     );
   }
 
+  /** A piece's name in the target list as this user may be told it: one whose name is kept from them goes unnamed. */
+  shownName(object: TabletopObject): string {
+    const hidden = object instanceof GameCharacter && object.hideName && !this.rolePermission.canSeeHidden();
+    return hidden ? this.t('common.hiddenName') : object.name;
+  }
+
   /**
    * Whether this user may see what a piece in the target list holds; only characters can be hidden
    * from them.
