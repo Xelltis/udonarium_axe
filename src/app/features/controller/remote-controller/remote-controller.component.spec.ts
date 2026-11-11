@@ -4,6 +4,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -69,6 +70,17 @@ describe('RemoteControllerComponent', () => {
     const card = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="remote-target-秘密の魔物"]')!;
     expect(card.parentElement!.textContent).not.toContain('バフ');
     kept.targeted = false;
+  });
+
+  it('leaves out a piece the table does not draw for this seat, in the dark, under the fog or in stealth', () => {
+    const seen = createChar('勇者');
+    const unseen = createChar('潜む魔物');
+    seen.setLocation('table');
+    unseen.setLocation('table');
+    vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockImplementation((character) => character !== unseen);
+
+    expect(component.getGameObjects('table')).toContain(seen);
+    expect(component.getGameObjects('table')).not.toContain(unseen);
   });
 
   it('should create', () => {
@@ -227,6 +239,20 @@ describe('RemoteControllerComponent', () => {
 
       expect(offeredNames()).toContain('正気度');
       expect(offeredNames()).not.toContain('弾薬');
+    });
+
+    it('keeps the items of a ticked piece whose contents are kept from this seat off the buttons', () => {
+      const open = createChar('勇者');
+      const kept = createChar('秘密の魔物');
+      addResource(open, '正気度');
+      addResource(kept, '隠し玉');
+      kept.targeted = true;
+      vi.spyOn(component, 'getGameObjects').mockReturnValue([open, kept]);
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockImplementation((character) => character !== kept);
+
+      expect(offeredNames()).toContain('正気度');
+      expect(offeredNames()).not.toContain('隠し玉');
+      kept.targeted = false;
     });
 
     it('stands in with every piece in the tab while none is targeted', () => {

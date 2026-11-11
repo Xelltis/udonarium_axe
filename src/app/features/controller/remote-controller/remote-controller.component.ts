@@ -22,6 +22,7 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -105,6 +106,7 @@ export class RemoteControllerComponent {
   private readonly panelService = inject(PanelService);
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly disclosureService = inject(DisclosureService);
+  private readonly vision = inject(VisionService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly selectionSignalService = inject(SelectionSignalService);
@@ -552,14 +554,17 @@ export class RemoteControllerComponent {
   /**
    * The pieces listed under an inventory tab, re-read as the inventory, files, characters or this
    * user's cursor change. A piece this user may not view is listed too, by its name and picture
-   * alone, so it can still be ticked as a target.
+   * alone, so it can still be ticked as a target; one the table does not draw for them, in the dark,
+   * under the fog or in stealth, is not listed at all.
    */
   getGameObjects(inventoryType: string): TabletopObject[] {
     this.inventoryService.inventoryVersion();
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('character')();
     this.objectChange.trackMyCursor();
-    return getGameObjects(inventoryType, this.inventoryService);
+    return getGameObjects(inventoryType, this.inventoryService).filter(
+      (object) => !(object instanceof GameCharacter) || this.vision.mayBeListed(object)
+    );
   }
 
   /**
@@ -599,8 +604,13 @@ export class RemoteControllerComponent {
     return Config.instance.controllerResources;
   });
 
+  /**
+   * The pieces whose items name the buttons: the ticked ones this user may view, or with none of
+   * those, every one in the tab they may view. A piece whose contents are kept from them is still
+   * operated on, but by the names the others carry, so its own never reach the buttons.
+   */
   private resourceTargets(): GameCharacter[] {
-    const targeted = this.getTargetCharacters(true);
+    const targeted = this.getTargetCharacters(true).filter((character) => this.canView(character));
     return targeted.length > 0 ? targeted : this.getTargetCharacters(false);
   }
 
