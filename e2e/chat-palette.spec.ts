@@ -80,7 +80,13 @@ test.describe('the chat palette', () => {
   test('sends a line holding {目標値} on a double click, the list holding still as the bar fills', async ({ page }) => {
     const palette = page.locator('chat-palette');
     await palette.getByRole('button', { name: '編集', exact: true }).click();
-    await palette.locator('textarea[name="edit-palette"]').fill('2d6+1 命中\n2d6>={目標値} 抵抗\n2d6+2 回避');
+    const editor = palette.locator('[data-chat-palette-editor] .ProseMirror');
+    await expect(editor).toBeVisible({ timeout: 10000 });
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    await editor.fill('2d6+1 命中\n2d6>={目標値} 抵抗\n2d6+2 回避');
+    await expectChatText(editor, '2d6+1 命中\n2d6>={目標値} 抵抗\n2d6+2 回避');
     await palette.getByRole('button', { name: '確定' }).click();
     await expect(palette.getByTestId('chat-input-target-number-idle')).toBeVisible();
 
@@ -99,7 +105,8 @@ test.describe('the chat palette', () => {
 
     const line = palette.getByTestId('chat-palette-list').getByText('2d6>={目標値} 抵抗');
     const before = (await line.boundingBox())!.y;
-    await line.dblclick();
+    // Each press held as a hand holds it, so that the page draws between the two clicks.
+    await line.dblclick({ delay: 60 });
     await expect(page.locator('chat-tab chat-message').filter({ hasText: `(2D6>=${total})` })).toHaveCount(1, {
       timeout: 15000,
     });
