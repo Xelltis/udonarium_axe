@@ -269,8 +269,12 @@ export class PartLookEditorComponent {
 
   protected letGoOfModel(event?: PointerEvent): void {
     if (event) this.fingers.delete(event.pointerId);
-    // Fingers that turned the model paint nothing as they are lifted one by one.
-    if (this.fingers.size > 0) return;
+    // Fingers that turned the model paint nothing as they are lifted one by one, and the one left turns
+    // it on from where it stands rather than from the middle the two were turning it by.
+    if (this.fingers.size > 0) {
+      if (this.turningFrom) this.turningFrom = this.middleOfFingers();
+      return;
+    }
     this.turningFrom = null;
     if (!this.painting) return;
     this.painting = false;

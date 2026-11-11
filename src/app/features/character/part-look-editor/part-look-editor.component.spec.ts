@@ -217,9 +217,13 @@ describe('PartLookEditorComponent', () => {
       finger('pointerdown', 2, 30);
       finger('pointermove', 2, 50);
       finger('pointerup', 1, 10);
-      finger('pointerup', 2, 50);
+      finger('pointermove', 2, 52);
+      finger('pointerup', 2, 52);
 
-      expect(stage.turnBy).toHaveBeenCalledWith(10, 0);
+      expect(stage.turnBy.mock.calls).toEqual([
+        [10, 0],
+        [2, 0],
+      ]);
       expect(head.partFaces).toBe('');
     });
 
