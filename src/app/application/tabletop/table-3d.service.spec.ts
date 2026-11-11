@@ -888,6 +888,14 @@ describe('Table3dService', () => {
     playback.now.set(active.startedAt + effectBlowsOf(preset)[0].atMs + 60);
     TestBed.tick();
     expect(engine.grounds).toBe(1);
+
+    // Something on the table changes, the board standing as large as it was: the size it is read at holds.
+    const board = (scene as unknown as { boardSize: () => unknown }).boardSize;
+    const before = board();
+    TestBed.inject(TabletopService).currentTable.gridColor = '#123456';
+    TestBed.inject(ObjectChangeService).notifyChanged(TestBed.inject(TabletopService).currentTable.identifier);
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(board()).toBe(before);
     ObjectStore.instance.remove(preset);
   });
 

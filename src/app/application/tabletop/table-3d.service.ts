@@ -262,11 +262,20 @@ export class Table3dService {
   /** Whether any effect is drawn in the scene, which changes only as the first begins and the last ends. */
   private readonly drawingEffects = computed(() => this.effectFrames.frame() !== EMPTY_EFFECT_FRAME);
 
+  /** How large the board is, which tells only as it grows or shrinks, not as anything on the table changes. */
+  private readonly boardSize = computed(
+    () => {
+      const table = this.tabletop.currentTableVersion();
+      const gridSize = table.gridSize > 0 ? table.gridSize : 50;
+      return { widthPx: table.width * gridSize, depthPx: table.height * gridSize, gridSize };
+    },
+    { equal: (a, b) => a.widthPx === b.widthPx && a.depthPx === b.depthPx && a.gridSize === b.gridSize }
+  );
+
   /** The heights of the ground under the board, for the marks effects leave on the floor to lie over. */
   private readonly effectGround = computed(() => {
-    const table = this.tabletop.currentTableVersion();
-    const gridSize = table.gridSize > 0 ? table.gridSize : 50;
-    return effectGroundOf(this.standing.surface(), table.width * gridSize, table.height * gridSize, gridSize);
+    const board = this.boardSize();
+    return effectGroundOf(this.standing.surface(), board.widthPx, board.depthPx, board.gridSize);
   });
 
   /**
