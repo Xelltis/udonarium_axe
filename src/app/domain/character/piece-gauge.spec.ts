@@ -160,10 +160,12 @@ describe('shownGauge()', () => {
     expect(kept.numbers).toBe(HIDDEN_GAUGE_NUMBERS);
     expect(kept.gauge.ratio).toBe(1);
     expect(kept.gauge.color).toBe(HIDDEN_GAUGE_COLOR);
+    expect(kept.kept).toBe(true);
 
     const beaten = shownGauge(gauge(-3), false);
     expect(beaten.numbers).toBe('-3/12');
     expect(beaten.gauge.ratio).toBe(0);
+    expect(beaten.kept).toBe(false);
   });
 
   it('counts a resource that runs up to its end as run out at its maximum', () => {

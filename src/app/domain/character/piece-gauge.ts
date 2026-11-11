@@ -26,6 +26,12 @@ export const HIDDEN_GAUGE_NUMBERS = '???/???';
 export const HIDDEN_GAUGE_COLOR = '#9e9e9e';
 
 /**
+ * How a bar kept from the reader is filled on the page: slanting stripes of its grey, so it does not
+ * read as a resource standing full.
+ */
+export const HIDDEN_GAUGE_STRIPES = `repeating-linear-gradient(135deg, ${HIDDEN_GAUGE_COLOR} 0 0.3em, #6b6b6b 0.3em 0.6em)`;
+
+/**
  * Whether a resource has run out: down to nothing, or for one that counts up to its end, at its
  * maximum. A piece whose resource has run out is beaten, and what it held is no longer kept back.
  */
@@ -54,17 +60,23 @@ export function shownGaugeReading(
   inverted: boolean,
   color: string,
   readable: boolean
-): { readonly ratio: number; readonly color: string; readonly numbers: string } {
+): { readonly ratio: number; readonly color: string; readonly numbers: string; readonly kept: boolean } {
   if (readable || isGaugeSpent(current, max, inverted)) {
-    return { ratio: gaugeRatio(current, max), color, numbers: `${current}/${max}` };
+    return { ratio: gaugeRatio(current, max), color, numbers: `${current}/${max}`, kept: false };
   }
-  return { ratio: 1, color: HIDDEN_GAUGE_COLOR, numbers: HIDDEN_GAUGE_NUMBERS };
+  return { ratio: 1, color: HIDDEN_GAUGE_COLOR, numbers: HIDDEN_GAUGE_NUMBERS, kept: true };
 }
 
-/** A bar of a piece as a reader is shown it, and the numbers beside it; see {@link shownGaugeReading}. */
-export function shownGauge(gauge: PieceGauge, readable: boolean): { gauge: PieceGauge; numbers: string } {
+/**
+ * A bar of a piece as a reader is shown it, the numbers beside it, and whether how much is left is kept
+ * from them; see {@link shownGaugeReading}.
+ */
+export function shownGauge(
+  gauge: PieceGauge,
+  readable: boolean
+): { gauge: PieceGauge; numbers: string; kept: boolean } {
   const shown = shownGaugeReading(gauge.current, gauge.max, gauge.inverted, gauge.color, readable);
-  return { gauge: { ...gauge, ratio: shown.ratio, color: shown.color }, numbers: shown.numbers };
+  return { gauge: { ...gauge, ratio: shown.ratio, color: shown.color }, numbers: shown.numbers, kept: shown.kept };
 }
 
 /**

@@ -1188,6 +1188,20 @@ describe('GameCharacterComponent', () => {
           component.orbitPieceGauges().map(() => 1)
         );
         expect(component.orbitPieceGauges()[0].color).toBe(HIDDEN_GAUGE_COLOR);
+        expect(component['keptGaugeIds']().has(component.orbitPieceGauges()[0].identifier)).toBe(true);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('fills the bars kept from the reader with stripes, so they do not read as full', () => {
+      const character = GameCharacter.create('秘密', 1, '');
+      character.disclosureMode = DisclosureMode.GameMaster;
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        expect(component.gaugeRows().every((row) => row.kept)).toBe(true);
+        expect(component['keptStripes']).toContain('repeating-linear-gradient');
       } finally {
         character.destroy();
       }

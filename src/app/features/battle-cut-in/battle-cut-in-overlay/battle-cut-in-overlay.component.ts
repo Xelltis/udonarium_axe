@@ -53,8 +53,8 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   gaugeColor,
   gaugeRatio,
-  HIDDEN_GAUGE_COLOR,
   HIDDEN_GAUGE_NUMBERS,
+  HIDDEN_GAUGE_STRIPES,
   isGaugeSpent,
 } from '@axe/domain/character/piece-gauge';
 import { EffectCast } from '@axe/domain/effect/effect-cast';
@@ -484,7 +484,7 @@ export class BattleCutInOverlayComponent {
         gauges: view.fighter.gauges.map((gauge) => {
           // Kept from the reader, a bar is told only once the strike has spent it.
           if (!readable && !isGaugeSpent(gauge.after, gauge.max, gauge.inverted)) {
-            return { name: gauge.name, percent: 100, color: HIDDEN_GAUGE_COLOR, numbers: HIDDEN_GAUGE_NUMBERS };
+            return { name: gauge.name, percent: 100, color: HIDDEN_GAUGE_STRIPES, numbers: HIDDEN_GAUGE_NUMBERS };
           }
           const reading = gaugeReadingAt(gauge.before, gauge.after, progress);
           const ratio = gaugeRatio(reading, gauge.max);

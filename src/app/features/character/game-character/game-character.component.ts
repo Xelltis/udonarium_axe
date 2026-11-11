@@ -60,7 +60,13 @@ import { sameFields } from '@axe/core/util/same-fields';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { isGaugeInverted, PieceGauge, selectPieceGauges, shownGauge } from '@axe/domain/character/piece-gauge';
+import {
+  HIDDEN_GAUGE_STRIPES,
+  isGaugeInverted,
+  PieceGauge,
+  selectPieceGauges,
+  shownGauge,
+} from '@axe/domain/character/piece-gauge';
 import { isResourceElement } from '@axe/domain/character/resource-catalog';
 import {
   diffResourceSnapshots,
@@ -186,7 +192,7 @@ interface RidingLabel {
   readonly part: boolean;
   /** Whether this seat aims at it. */
   readonly targeted: boolean;
-  readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string }[];
+  readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string; readonly kept: boolean }[];
   readonly badges: readonly BuffBadge[];
 }
 /** How large the handles that turn and tip a piece are drawn, whatever the size of the piece. */
@@ -1093,7 +1099,7 @@ export class GameCharacterComponent {
     return this.disclosureService.canView(char);
   });
 
-  readonly gaugeRows = computed<{ gauge: PieceGauge; numbers: string }[]>(() => {
+  readonly gaugeRows = computed<{ gauge: PieceGauge; numbers: string; kept: boolean }[]>(() => {
     const readable = this.gaugeNumbersReadable();
     return this.pieceGauges().map((gauge) => shownGauge(gauge, readable));
   });
@@ -1176,6 +1182,18 @@ export class GameCharacterComponent {
     const leadingBuff = Array.from(buffNames).slice(0, 5).join('');
     return `${this.name()}/${leadingBuff}`;
   });
+
+  /** How a bar kept from this reader is filled: slanting stripes rather than a full bar. */
+  protected readonly keptStripes = HIDDEN_GAUGE_STRIPES;
+  /** The bars on the ring round the piece kept from this reader, which are drawn striped. */
+  protected readonly keptGaugeIds = computed(
+    () =>
+      new Set(
+        this.gaugeRows()
+          .filter((row) => row.kept)
+          .map((row) => row.gauge.identifier)
+      )
+  );
 
   readonly multiAngleResourceGaugeLayout = computed(() =>
     makeMultiAngleResourceGauge(this.orbitPieceGauges(), this.size() * this.gridSize)

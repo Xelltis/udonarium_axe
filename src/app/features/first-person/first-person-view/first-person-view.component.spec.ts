@@ -737,6 +737,8 @@ describe('FirstPersonViewComponent', () => {
     const billboard = element(mount()).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
 
     expect(billboard.querySelector('[data-testid="first-person-gauge"]')?.textContent).toContain('???/???');
+    const bar = billboard.querySelector<HTMLElement>('[data-testid="first-person-gauge"] .relative > span')!;
+    expect(bar.style.background).toContain('repeating-linear-gradient');
   });
 
   it('draws a piece on the next cell at its own size, to grow as the eye sees it come near', () => {

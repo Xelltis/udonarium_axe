@@ -38,7 +38,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { selectPieceGauges, shownGauge } from '@axe/domain/character/piece-gauge';
+import { HIDDEN_GAUGE_STRIPES, selectPieceGauges, shownGauge } from '@axe/domain/character/piece-gauge';
 import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { DataElement } from '@axe/domain/data/data-element';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
@@ -632,7 +632,7 @@ export class FirstPersonViewComponent {
           name: gauge.name,
           initial: gauge.initial,
           percent: shown.gauge.ratio * 100,
-          color: shown.gauge.color,
+          color: shown.kept ? HIDDEN_GAUGE_STRIPES : shown.gauge.color,
           numbers: shown.numbers,
         };
       });
