@@ -39,6 +39,22 @@ describe('HeldClock', () => {
     expect(next.elapsed).toBeGreaterThan(at + 1000 - 1000 - 2000);
   });
 
+  it('plays on in time on a page stalling every other frame, as one slow all along', () => {
+    const clock = new HeldClock(1000);
+    let at = framesOf(clock, 1000, 30, 16);
+    for (let pair = 0; pair < 20; pair++) {
+      at += 250;
+      clock.read(at);
+      at += 16;
+      clock.read(at);
+    }
+
+    const next = clock.read(at + 250);
+
+    expect(next.held).toBe(false);
+    expect(next.elapsed).toBeGreaterThan((at + 250 - 1000) * 0.8);
+  });
+
   it('counts in full a wait while the page was out of view', () => {
     const clock = new HeldClock(1000);
     const at = framesOf(clock, 1000, 30, 16);
