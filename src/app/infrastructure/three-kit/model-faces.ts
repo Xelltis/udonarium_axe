@@ -29,6 +29,18 @@ export function triangleCountOf(geometry: BufferGeometry): number {
   return Math.floor(count / 3);
 }
 
+/** Where a shape cut from another keeps which of the other's triangles each of its own is. */
+const KEPT_TRIANGLES = 'keptTriangles';
+
+/**
+ * The triangle of the shape a model was read with that a triangle of a shape drawn from it is: the
+ * same one, but in a shape cut from it, whose triangles are counted afresh without those left out.
+ */
+export function sourceTriangleOf(geometry: BufferGeometry, triangle: number): number {
+  const kept = geometry.userData[KEPT_TRIANGLES] as readonly number[] | undefined;
+  return kept ? (kept[triangle] ?? triangle) : triangle;
+}
+
 /**
  * A shape drawn with the triangles of another but those given, which it shares the points of: only
  * the list of which points the triangles join is its own, so it costs little beside the shape it is
@@ -45,6 +57,7 @@ export function cutGeometry(source: BufferGeometry, cut: ReadonlySet<number>): B
   const triangles = triangleCountOf(source);
   const runs = source.groups.length > 0 ? source.groups : [{ start: 0, count: triangles * 3, materialIndex: 0 }];
   const kept: number[] = [];
+  const keptTriangles: number[] = [];
   for (const run of runs) {
     const start = kept.length;
     const first = Math.floor(run.start / 3);
@@ -52,10 +65,12 @@ export function cutGeometry(source: BufferGeometry, cut: ReadonlySet<number>): B
     for (let triangle = first; triangle < last; triangle++) {
       if (cut.has(triangle)) continue;
       kept.push(pointOf(triangle * 3), pointOf(triangle * 3 + 1), pointOf(triangle * 3 + 2));
+      keptTriangles.push(triangle);
     }
     if (source.groups.length > 0) cutShape.addGroup(start, kept.length - start, run.materialIndex);
   }
   cutShape.setIndex(kept);
+  cutShape.userData[KEPT_TRIANGLES] = keptTriangles;
   if (source.boundingBox) cutShape.boundingBox = source.boundingBox.clone();
   if (source.boundingSphere) cutShape.boundingSphere = source.boundingSphere.clone();
   return cutShape;

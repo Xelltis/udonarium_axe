@@ -1,4 +1,4 @@
-import { cutGeometry, meshesOf, triangleCountOf } from '@axe/infrastructure/three-kit/model-faces';
+import { cutGeometry, meshesOf, sourceTriangleOf, triangleCountOf } from '@axe/infrastructure/three-kit/model-faces';
 import { BufferAttribute, BufferGeometry, Group, Mesh, Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
 
@@ -33,6 +33,14 @@ describe('the faces of a model', () => {
       expect([...cut.getIndex()!.array]).toEqual([0, 1, 2, 6, 7, 8]);
       expect(cut.getAttribute('position')).toBe(source.getAttribute('position'));
     }
+  });
+
+  it('tells which triangle of the shape it was cut from each of a cut shape’s triangles is', () => {
+    const source = triangles(6, true);
+    const cut = cutGeometry(source, new Set([0, 1, 4]));
+
+    expect([0, 1, 2].map((triangle) => sourceTriangleOf(cut, triangle))).toEqual([2, 3, 5]);
+    expect(sourceTriangleOf(source, 4)).toBe(4);
   });
 
   it('cuts each run a material draws, keeping the runs in their order', () => {

@@ -64,6 +64,7 @@ import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
 import { WeatherLayer } from '@axe/infrastructure/table-3d/weather-layer';
 import { disposeObject, forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
+import { sourceTriangleOf } from '@axe/infrastructure/three-kit/model-faces';
 import {
   attribute,
   float,
@@ -570,7 +571,11 @@ class ThreeTableEngine implements Table3dEngine {
       if (typeof mesh !== 'number' || hit.faceIndex === undefined || hit.faceIndex === null) continue;
       let at: Object3D | null = hit.object;
       while (at && typeof at.userData['owner'] !== 'string') at = at.parent;
-      if (at) return { owner: at.userData['owner'] as string, mesh, triangle: hit.faceIndex };
+      // A copy with the faces of a lost part cut out counts its triangles afresh; the parts are told
+      // by the triangles of the model as it was read.
+      const geometry = (hit.object as Partial<Mesh>).geometry;
+      const triangle = geometry ? sourceTriangleOf(geometry, hit.faceIndex) : hit.faceIndex;
+      if (at) return { owner: at.userData['owner'] as string, mesh, triangle };
     }
     return null;
   }
