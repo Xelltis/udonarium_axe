@@ -161,7 +161,12 @@ class FakeEngine implements Table3dEngine {
     this.effectFrames.push(frame);
   }
 
-  setEffectGround(): void {}
+  /** How often it was handed the ground's heights for the marks effects leave on the floor. */
+  grounds = 0;
+
+  setEffectGround(): void {
+    this.grounds++;
+  }
 
   setQuality(plan: Table3dQualityPlan): void {
     this.qualities.push(plan);
@@ -855,6 +860,32 @@ describe('Table3dService', () => {
 
     await atHour(0);
     expect(engine.skies.at(-1)).toEqual(skyLightAt(0));
+  });
+
+  it('reads the heights of the ground for the floor marks of effects only while an effect is drawn', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    const engine = engines[0];
+    expect(engine.grounds).toBe(0);
+    const preset = new EffectPreset();
+    preset.kind = 'bisect';
+    preset.grade = 3;
+    preset.durationMs = 600;
+    ObjectStore.instance.add(preset, false);
+    const playback = TestBed.inject(EffectPlaybackService);
+    const active = playback.play({
+      presetIdentifier: preset.identifier,
+      targets: [{ identifier: 'somewhere', x: 120, y: 80, z: 0 }],
+      seed: 1,
+    })!;
+
+    playback.now.set(active.startedAt + effectBlowsOf(preset)[0].atMs + 20);
+    TestBed.tick();
+
+    expect(engine.grounds).toBeGreaterThan(0);
+    ObjectStore.instance.remove(preset);
   });
 
   it('lights the scene with the light a look that cuts a piece’s picture throws there, once, and with none once it has faded', async () => {

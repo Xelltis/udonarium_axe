@@ -38,6 +38,7 @@ import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-acceleration';
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { effectGroundOf } from '@axe/domain/effect/scene/effect-ground';
+import { EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
 import { dayFractionOf } from '@axe/domain/game-clock/game-clock';
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import { type DoorMotion, movedByDoor, openDoorMotion } from '@axe/domain/tabletop/door-motion';
@@ -258,11 +259,6 @@ export class Table3dService {
     { equal: sameTableWorld }
   );
 
-  /**
-   * The blocks this seat may see that are drawn as 3D models held here in full: each stood on the
-   * middle of its box, at the foot of the block, as wide as the box is wide or deep, and a block drawn
-   * as a model made as a joined wall with the arms it reaches out to the walls and doors beside it with.
-   */
   /** The heights of the ground under the board, for the marks effects leave on the floor to lie over. */
   private readonly effectGround = computed(() => {
     const table = this.tabletop.currentTableVersion();
@@ -270,6 +266,11 @@ export class Table3dService {
     return effectGroundOf(this.standing.surface(), table.width * gridSize, table.height * gridSize, gridSize);
   });
 
+  /**
+   * The blocks this seat may see that are drawn as 3D models held here in full: each stood on the
+   * middle of its box, at the foot of the block, as wide as the box is wide or deep, and a block drawn
+   * as a model made as a joined wall with the arms it reaches out to the walls and doors beside it with.
+   */
   private readonly terrainModels = computed<readonly TableWorldModel[]>(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf(Terrain.aliasName)();
@@ -805,6 +806,9 @@ export class Table3dService {
       ),
       effect(
         () => {
+          // Read only while an effect is drawn, as the heights are read over the whole board, which
+          // shaping the ground with the brush would have done at every dab.
+          if (this.effectFrames.frame() === EMPTY_EFFECT_FRAME) return;
           engine.setEffectGround(this.effectGround());
         },
         { injector: this.injector }
