@@ -11,7 +11,10 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import { CutInSoundService } from '@axe/features/media/cut-in-sound.service';
-import { CutInWindowComponent } from '@axe/features/media/cut-in-window/cut-in-window.component';
+import {
+  CUT_IN_VIDEO_START_LIMIT_MS,
+  CutInWindowComponent,
+} from '@axe/features/media/cut-in-window/cut-in-window.component';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -228,7 +231,7 @@ describe('CutInWindowComponent', () => {
     expect(target.playVideo).toHaveBeenCalled();
   });
 
-  it('seeks a replicated YouTube face to the shared playback clock', () => {
+  it('seeks a replicated YouTube face as far into the video as another face has played it', () => {
     vi.useFakeTimers();
     vi.setSystemTime(10_000);
     const cutIn = new CutIn('replicated-video-test');
@@ -238,13 +241,66 @@ describe('CutInWindowComponent', () => {
     component.cutIn = cutIn;
     const target = { setVolume: vi.fn(), seekTo: vi.fn(), playVideo: vi.fn() };
 
-    component.startCutIn(9_500);
+    component.startCutIn(9_000, undefined, { startedAtMs: 9_500 });
     vi.setSystemTime(10_500);
     component.onPlayerReady({ target });
     component.onPlayerStateChange({ data: 5, target });
 
     expect(target.seekTo).toHaveBeenCalledWith(13, true);
     vi.useRealTimers();
+  });
+
+  describe('the play time of a video', () => {
+    let close: ReturnType<typeof vi.spyOn>;
+    const target = () => ({ setVolume: vi.fn(), seekTo: vi.fn(), playVideo: vi.fn() });
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      close = vi.spyOn(TestBed.inject(PanelService), 'close').mockImplementation(() => {});
+      const cutIn = new CutIn('video-play-time-test');
+      cutIn.initialize();
+      cutIn.isVideoCutIn = true;
+      cutIn.videoUrl = 'https://youtu.be/abcdefghijk';
+      cutIn.outTime = 5;
+      component.cutIn = cutIn;
+    });
+
+    afterEach(() => vi.useRealTimers());
+
+    it('counts from when the video begins to play, however long it took to load', () => {
+      const player = target();
+      component.startCutIn();
+      vi.advanceTimersByTime(8_000);
+      component.onPlayerReady({ target: player });
+      component.onPlayerStateChange({ data: 5, target: player });
+      component.onPlayerStateChange({ data: 1, target: player });
+
+      vi.advanceTimersByTime(4_999);
+      expect(close).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(2);
+      expect(close).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts a face joining late from when the first face of the cut-in began to play', () => {
+      const clock = { startedAtMs: Date.now() };
+      component.startCutIn(Date.now(), undefined, clock);
+      vi.advanceTimersByTime(2_000);
+      component.onPlayerStateChange({ data: 1, target: target() });
+
+      vi.advanceTimersByTime(2_999);
+      expect(close).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(2);
+      expect(close).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes all the same once a video that never plays has waited long enough', () => {
+      component.startCutIn();
+
+      vi.advanceTimersByTime(CUT_IN_VIDEO_START_LIMIT_MS + 4_999);
+      expect(close).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(2);
+      expect(close).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('waits for the video to be cued before starting it, and starts it once', () => {

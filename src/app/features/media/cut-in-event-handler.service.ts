@@ -14,7 +14,7 @@ import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
 import { mixLevelOf } from '@axe/domain/media/mix-level';
 import { asCutInMultiDirectionMode } from '@axe/domain/tabletop/cut-in-multi-direction';
 import { makeCutInMultiDirectionLayout } from '@axe/features/media/cut-in-multi-direction-layout';
-import type { CutInWindowComponent } from '@axe/features/media/cut-in-window/cut-in-window.component';
+import type { CutInVideoClock, CutInWindowComponent } from '@axe/features/media/cut-in-window/cut-in-window.component';
 import { CUT_IN_WINDOW_LOADER, type CutInWindowType } from '@axe/features/media/cut-in-window-loader';
 
 export const CUT_IN_MULTI_DIRECTION_PREPARE_TIMEOUT_MS = 500;
@@ -190,12 +190,13 @@ export class CutInEventHandlerService {
     await this.waitForPanelPreparation(panels.map(({ component }) => component.prepareCutIn()));
 
     const startedAtMs = Date.now();
+    const videoClock: CutInVideoClock = { startedAtMs: null };
     // South is opened last so that it is drawn on top, but it starts first here so its
     // one audio session owns the exact zero of the shared clock. Signals raised in this
     // loop are rendered together after the current task, so every face starts as one frame.
     const primaryFirst = [...panels].sort((left, right) => Number(right.primary) - Number(left.primary));
     for (const { component, primary } of primaryFirst) {
-      component.startCutIn(startedAtMs, primary ? 0 : undefined);
+      component.startCutIn(startedAtMs, primary ? 0 : undefined, videoClock);
     }
   }
 

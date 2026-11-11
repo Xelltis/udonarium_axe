@@ -41,6 +41,20 @@ interface CutInVideoTarget {
   seekTo?: (seconds: number, allowSeekAhead: boolean) => void;
 }
 
+/**
+ * When the video of a cut-in began to play, shared between the windows opened for one cut-in: the
+ * first of them to play starts it, and the rest join that far into the video.
+ */
+export interface CutInVideoClock {
+  startedAtMs: number | null;
+}
+
+/**
+ * How long a video cut-in waits for its video to begin playing, on top of its play time, before it
+ * closes all the same, as one that never plays would stay open for good.
+ */
+export const CUT_IN_VIDEO_START_LIMIT_MS = 30_000;
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-cut-in-window',
@@ -182,6 +196,11 @@ export class CutInWindowComponent {
   panelLayout: { left: number; top: number; width: number; height: number } | null = null;
   playbackStartedAtMs: number | null = null;
   playbackOffsetMs = 0;
+  /** When this cut-in's video began to play, shared with the other windows of the cut-in. */
+  private videoClock: CutInVideoClock = { startedAtMs: null };
+  /** How long the window stays open once its video plays, 0 for as long as the video runs. */
+  private videoPlaybackMs = 0;
+  private isVideoPlaying = false;
   protected readonly playbackStarted = signal(false);
 
   cutIn: CutIn | null = null;
@@ -244,13 +263,16 @@ export class CutInWindowComponent {
    * time runs out.
    *
    * Given the moment a shared start was taken, playback joins that far in, so the windows opened
-   * for one cut-in stay together; the scene sounds can be given an offset of their own. Does
-   * nothing without a cut-in or once the window is gone.
+   * for one cut-in stay together; the scene sounds can be given an offset of their own. A video's
+   * play time counts from when the video begins to play rather than from here, as loading it may
+   * take longer than it plays: the windows of one cut-in share when that was through `videoClock`.
+   * Does nothing without a cut-in or once the window is gone.
    */
-  startCutIn(startedAtMs?: number, sceneSoundOffsetMs?: number) {
+  startCutIn(startedAtMs?: number, sceneSoundOffsetMs?: number, videoClock?: CutInVideoClock) {
     if (!this.cutIn || this.destroyed) return;
     this.playbackStartedAtMs = startedAtMs ?? null;
     this.playbackOffsetMs = startedAtMs === undefined ? 0 : Math.max(0, Date.now() - startedAtMs);
+    if (videoClock) this.videoClock = videoClock;
 
     if (this.cutIn.videoId) {
       this._videoId = this.cutIn.videoId;
@@ -277,15 +299,36 @@ export class CutInWindowComponent {
     if (this.readyVideoTarget && this.isVideoCued) this.startVideo(this.readyVideoTarget);
 
     const playbackMs = cutInPlaybackMs(this.cutIn, this.cutIn.scene);
-    if (playbackMs > 0) {
-      this.cutInTimeOut = setTimeout(
-        () => {
-          this.cutInTimeOut = null;
-          this.panelService.close();
-        },
-        Math.max(0, playbackMs - this.playbackOffsetMs)
-      );
+    if (this.cutIn.videoId) {
+      this.videoPlaybackMs = playbackMs;
+      if (playbackMs > 0 && !this.isVideoPlaying) this.closeIn(CUT_IN_VIDEO_START_LIMIT_MS + playbackMs);
+    } else if (playbackMs > 0) {
+      this.closeIn(playbackMs - this.playbackOffsetMs);
     }
+  }
+
+  /** Closes the window once a time has passed, in place of any close already waiting. */
+  private closeIn(ms: number): void {
+    if (this.cutInTimeOut) clearTimeout(this.cutInTimeOut);
+    this.cutInTimeOut = setTimeout(
+      () => {
+        this.cutInTimeOut = null;
+        this.panelService.close();
+      },
+      Math.max(0, ms)
+    );
+  }
+
+  /**
+   * Starts counting the play time from the video beginning to play, or from when the first window of
+   * the cut-in's did, the first time it plays.
+   */
+  private countFromPlaying(): void {
+    if (this.isVideoPlaying) return;
+    this.isVideoPlaying = true;
+    const now = Date.now();
+    this.videoClock.startedAtMs ??= now;
+    if (this.videoPlaybackMs > 0) this.closeIn(this.videoPlaybackMs - (now - this.videoClock.startedAtMs));
   }
 
   /** Stops this window's sound and scene sounds. */
@@ -372,12 +415,9 @@ export class CutInWindowComponent {
     return this.areaSize().height;
   }
 
-  /**
-   * Where in the video playback begins: the cut-in's start time plus however far into a shared
-   * start this window joined.
-   */
+  /** Where in the video it is cued: the cut-in's start time, from which it begins to play. */
   get videoStartSeconds(): number {
-    return +(this.cutIn?.videoStart ?? 0) + this.playbackOffsetMs / 1000;
+    return +(this.cutIn?.videoStart ?? 0);
   }
 
   /**
@@ -396,8 +436,10 @@ export class CutInWindowComponent {
     if (this.isVideoStarted) return;
     this.isVideoStarted = true;
     target.setVolume(this.videoVolume);
-    if (this.playbackStartedAtMs !== null && target.seekTo) {
-      const elapsedSeconds = Math.max(0, Date.now() - this.playbackStartedAtMs) / 1000;
+    // Another window of the cut-in already playing its video is joined that far in.
+    const startedAtMs = this.videoClock.startedAtMs;
+    if (startedAtMs !== null && target.seekTo) {
+      const elapsedSeconds = Math.max(0, Date.now() - startedAtMs) / 1000;
       target.seekTo(+(this.cutIn?.videoStart ?? 0) + elapsedSeconds, true);
     }
     target.playVideo();
@@ -407,7 +449,7 @@ export class CutInWindowComponent {
    * Follows the YouTube player's state.
    *
    * Playing, pausing and cueing each mark a short transition. Once the video is cued it starts, if
-   * playback has begun. When the video ends, a looping cut-in plays again from its start time unless
+   * playback has begun, and the play time counts from when it first plays. When the video ends, a looping cut-in plays again from its start time unless
    * looping is forced off, and otherwise the window closes.
    */
   onPlayerStateChange($event: {
@@ -416,6 +458,7 @@ export class CutInWindowComponent {
   }) {
     const state = $event.data;
     if (state == 1) {
+      if (this.playbackStarted()) this.countFromPlaying();
       this.videoStateTransition = true;
       this._timeoutIdVideo = setTimeout(() => {
         this.videoStateTransition = false;
