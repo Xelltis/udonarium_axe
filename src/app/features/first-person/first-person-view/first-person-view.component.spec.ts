@@ -728,6 +728,30 @@ describe('FirstPersonViewComponent', () => {
     expect(gauges[0].textContent).toContain('3/');
   });
 
+  it('lists the parts of a piece under it, each with its readings, a press on one aiming at that part', () => {
+    const dragon = pieceAt(4, 4);
+    const head = pieceAt(4, 4);
+    head.name = '頭';
+    head.ridingOn = dragon.identifier;
+    head.rideSeat = 'part';
+    lookOutOf(pieceAt(4, 7));
+    const fixture = mount();
+
+    const billboard = element(fixture).querySelector<HTMLElement>(`[data-piece="${dragon.identifier}"]`)!;
+    const row = billboard.querySelector<HTMLElement>(
+      `[data-testid="first-person-part"][data-part-id="${head.identifier}"]`
+    )!;
+    expect(row.textContent).toContain('頭');
+    expect(row.querySelectorAll('[data-testid="first-person-gauge"]').length).toBeGreaterThan(0);
+    expect(element(fixture).querySelector(`[data-piece="${head.identifier}"]`)).toBeNull();
+
+    row.click();
+
+    expect(head.targeted).toBe(true);
+    expect(dragon.targeted).toBe(false);
+    head.targeted = false;
+  });
+
   it('keeps back the readings of a piece that is not the reader to look at', () => {
     const enemy = pieceAt(4, 4);
     enemy.owner = 'somebody-else';

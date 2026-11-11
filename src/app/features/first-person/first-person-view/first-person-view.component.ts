@@ -182,6 +182,15 @@ interface StandingPiece {
   basePx: number;
 }
 
+/** A part of a piece, listed under the piece as the table lists it: its name and readings, aimed at by a press. */
+interface PartView {
+  id: string;
+  label: string;
+  targeted: boolean;
+  pick: number;
+  gauges: GaugeView[];
+}
+
 interface PieceView {
   id: string;
   label: string;
@@ -194,6 +203,8 @@ interface PieceView {
   /** Whether the eye has a line of sight to it, which aiming straight ahead asks for. */
   inLine: boolean;
   gauges: GaugeView[];
+  /** The parts of the piece, each with its own name and readings. */
+  parts: PartView[];
   badges: BuffBadge[];
   moreBadges: number;
   style: QuadStyle;
@@ -587,7 +598,22 @@ export class FirstPersonViewComponent {
       const gauges = this.gaugesOf(piece);
       const label = piece.hideName && !master ? '' : piece.name;
       const pick = picks.indexOf(piece.identifier) + 1;
-      const chromeRows = { badges: badges.length > 0, gauges: gauges.length, label: label !== '' || pick > 0 };
+      const parts = this.pieceLinks.followedPartsOf(piece).map((part) => {
+        this.objectChange.versionOf(part.identifier)();
+        return {
+          id: part.identifier,
+          label: part.hideName && !master ? '' : part.name,
+          targeted: part.targeted,
+          pick: picks.indexOf(part.identifier) + 1,
+          gauges: this.gaugesOf(part),
+        };
+      });
+      const chromeRows = {
+        badges: badges.length > 0,
+        gauges: gauges.length + parts.reduce((count, part) => count + part.gauges.length, 0),
+        label: label !== '' || pick > 0,
+        parts: parts.length,
+      };
       views.push({
         id: piece.identifier,
         label,
@@ -598,6 +624,7 @@ export class FirstPersonViewComponent {
         bearing: Math.abs((Math.atan2(lateralOf(eye, centre), depth) * 180) / Math.PI),
         inLine: !inLine || !grid || inLine.get(cellIndexAt(grid, centre.x, centre.y)),
         gauges,
+        parts,
         badges: badges.slice(0, BUFF_BADGES_PER_ROW),
         moreBadges: Math.max(0, badges.length - BUFF_BADGES_PER_ROW),
         style: inTheMurk(withBillboardCut(laid, kept, lifted, stand.heightPx), under ? this.shadeAt(depth, reach) : 0),
@@ -742,6 +769,12 @@ export class FirstPersonViewComponent {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     return this.pieceTarget.anything();
   });
+
+  /** Aims at a part listed under its body, from a press on its row, rather than at the body. */
+  protected clickPart(identifier: string, event: Event): void {
+    event.stopPropagation();
+    this.clickPiece(identifier);
+  }
 
   /** Aims at a piece clicked in the view, unless the click only ends a look about. */
   protected clickPiece(identifier: string): void {

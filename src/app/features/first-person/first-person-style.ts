@@ -170,6 +170,8 @@ export interface PieceChromeRows {
   readonly badges: boolean;
   readonly gauges: number;
   readonly label: boolean;
+  /** How many parts are listed under the piece, each by its name. */
+  readonly parts?: number;
 }
 
 /** How tall what is told about a piece stands, in the box's own pixels before it is scaled. */
@@ -178,7 +180,8 @@ export function pieceChromeHeightPx(rows: PieceChromeRows): number {
     CHROME_PAD_PX +
     (rows.badges ? CHROME_BADGE_ROW_PX : 0) +
     rows.gauges * CHROME_GAUGE_ROW_PX +
-    (rows.label ? CHROME_LABEL_ROW_PX : 0)
+    (rows.label ? CHROME_LABEL_ROW_PX : 0) +
+    (rows.parts ?? 0) * CHROME_LABEL_ROW_PX
   );
 }
 
