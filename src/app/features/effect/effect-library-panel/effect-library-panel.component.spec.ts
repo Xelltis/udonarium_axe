@@ -1,9 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -123,6 +126,29 @@ describe('EffectLibraryPanelComponent', () => {
     (fixture.componentInstance as unknown as { addToHotbar(preset: EffectPreset): void }).addToHotbar(preset);
 
     expect(fill.mock.calls[0][0]).toMatchObject({ kind: 'effect', value: '爆炎', valueName: '爆炎' });
+  });
+
+  it('counts and names every piece picked, a part picked with its body among them, though only the body is marked on the table', () => {
+    const targeting = TestBed.inject(EffectTargetingService);
+    const body = GameCharacter.create('ドラゴン', 2, '');
+    const part = GameCharacter.create('頭', 1, '');
+    part.ridingOn = body.identifier;
+    part.rideSeat = 'part';
+    TestBed.inject(ObjectChangeService).notifyChanged(part.identifier);
+    preset.targeting = 'multi';
+    preset.maxTargets = 3;
+    try {
+      targeting.begin(preset);
+      targeting.pick(body.identifier);
+      targeting.pick(part.identifier);
+
+      expect(targeting.marks().map((mark) => mark.identifier)).toEqual([body.identifier]);
+      expect(fixture.componentInstance.pickedNames()).toEqual(['ドラゴン', '頭']);
+    } finally {
+      targeting.cancel();
+      part.destroy();
+      body.destroy();
+    }
   });
 
   it('does nothing when it is fired with nothing to aim at', () => {

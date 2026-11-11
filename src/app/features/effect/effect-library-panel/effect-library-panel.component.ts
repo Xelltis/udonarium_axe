@@ -129,7 +129,10 @@ export class EffectLibraryPanelComponent {
   readonly pickingName = computed<string>(() => this.targeting.preset()?.name ?? '');
   readonly pickLimit = computed<number>(() => this.targeting.limit());
 
-  readonly pickedNames = computed<string[]>(() => this.targeting.marks().map((mark) => this.nameOf(mark.identifier)));
+  /** The names of the pieces picked that this reader is shown, in the order picked, a part picked with its body among them. */
+  readonly pickedNames = computed<string[]>(() =>
+    [...this.targeting.pickOrder().keys()].map((identifier) => this.nameOf(identifier))
+  );
 
   protected isPickingPreset(preset: EffectPreset): boolean {
     return this.targeting.preset()?.identifier === preset.identifier;
