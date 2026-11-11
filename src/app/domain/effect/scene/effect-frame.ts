@@ -152,6 +152,8 @@ function stageRun(
   const base = options.cellPx * preset.sizeScale;
   const caster = originOf(cast, options);
   const views = windows.map((window) => stageView(preset, window));
+  // When each stage's blows land, worked out once a frame for every target the run strikes.
+  const blowsAtOf = views.map((view) => effectBlowsOf(view).map((blow) => blow.atMs / 1000));
   cast.targets.forEach((target, index) => {
     if (options.hiddenIdentifiers?.has(target.identifier)) return;
     const localMs = elapsedMs - preset.stagger * index;
@@ -164,7 +166,7 @@ function stageRun(
       const seconds = (localMs - window.startMs) / 1000;
       if (seconds < 0 || seconds >= duration + look.lingerS) return;
       const view = views[order];
-      const blowsAt = effectBlowsOf(view).map((blow) => blow.atMs / 1000);
+      const blowsAt = blowsAtOf[order];
       const places = placesFor(window, cast, footing, base);
       const travels = window.stage.role === 'travel';
       const scale = targetScaleOf(

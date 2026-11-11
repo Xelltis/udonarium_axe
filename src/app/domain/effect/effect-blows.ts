@@ -100,11 +100,14 @@ export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
 /** When the effect strikes, in milliseconds on its own clock, earliest first. */
 function strikeTimes(preset: EffectPreset): number[] {
   if (preset.isStaged) {
+    // The windows come in the order the stages are laid out, which a branch longer than its stage
+    // puts out of the order they strike in.
     return stageLayoutOf(preset.stageList)
       .windows.filter((window) => window.stage.role === 'impact' && STRIKING_KINDS.has(window.stage.kind))
       .map((window) =>
         Math.round(window.startMs + (window.endMs - window.startMs) * (GOES_OFF_AT[window.stage.kind] ?? 0))
-      );
+      )
+      .sort((a, b) => a - b);
   }
   if (!STRIKING_KINDS.has(preset.effectKind)) return [];
   if (preset.effectKind === 'slash') {
