@@ -550,7 +550,8 @@ export class FirstPersonViewComponent {
     this.objectChange.trackMyCursor();
     this.objectChange.collectionOf('data')();
     const master = this.rolePermission.canSeeHidden();
-    const picks = this.effectTargeting.picks();
+    // Numbered as the marks are, among the picks this reader is shown.
+    const picks = this.effectTargeting.marks().map((mark) => mark.identifier);
     const eye = eyeFrameOf(camera);
     const pitch = camera.pitch ?? 0;
     const nearPx = gridSize * NEAR_CELLS;

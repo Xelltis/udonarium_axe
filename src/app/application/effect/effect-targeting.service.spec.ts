@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -156,6 +157,21 @@ describe('EffectTargetingService', () => {
 
       expect(service.picks()).toEqual([characters[1].identifier, characters[0].identifier, characters[2].identifier]);
       expect(service.areaCenter()).not.toBeNull();
+    });
+
+    it('strikes a piece this reader cannot see without marking it, numbering the marks among those shown', () => {
+      vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockImplementation(
+        (character) => character !== characters[0]
+      );
+      service.begin(preset);
+      service.pick(characters[1].identifier);
+
+      expect(service.picks()).toContain(characters[0].identifier);
+      expect(service.marks().map((mark) => [mark.identifier, mark.order])).toEqual([
+        [characters[1].identifier, 1],
+        [characters[2].identifier, 2],
+      ]);
+      vi.restoreAllMocks();
     });
 
     it('does not cast on gathering a group', () => {

@@ -4,6 +4,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService, TabletopObjectSelection } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -44,6 +45,7 @@ export class EffectTargetingService {
   private readonly castService = inject(EffectCastService);
   private readonly zones = inject(EngagementZoneService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly vision = inject(VisionService);
 
   private readonly _preset = signal<EffectPreset | null>(null);
   private readonly _picks = signal<readonly string[]>([]);
@@ -78,20 +80,28 @@ export class EffectTargetingService {
   /** The pieces already chosen at the start, which do not count as chosen again. */
   private beganWithSelection: TabletopObjectSelection | null = null;
 
+  /**
+   * The marks of the pieces picked, in order, as this reader is shown them: a piece this reader
+   * cannot see, in the dark, under the fog or in stealth, is struck all the same but given no mark,
+   * and the marks are numbered among those shown, so no gap tells of it.
+   */
   readonly marks = computed<EffectTargetMark[]>(() => {
     if (!this.isPicking()) return [];
     this.objectChange.collectionOf('character')();
 
     const gridSize = this.tabletopService.gridSize();
     const marks: EffectTargetMark[] = [];
-    for (const identifier of this._picks()) {
+    const shown = this._picks().filter((identifier) => {
       const character = this.characterOf(identifier);
-      if (!character) continue;
+      if (!character) return false;
       this.objectChange.versionOf(identifier)();
+      return this.vision.isTokenVisible(character);
+    });
+    for (const identifier of shown) {
       marks.push({
         identifier,
-        order: effectPickOrder(this._picks(), identifier),
-        ...this.centerOf(character, gridSize),
+        order: effectPickOrder(shown, identifier),
+        ...this.centerOf(this.characterOf(identifier)!, gridSize),
       });
     }
     return marks;
