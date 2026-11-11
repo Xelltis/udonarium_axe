@@ -12,7 +12,11 @@
     [class.gap-x-1!]="onPhone()"
     data-testid="chat-input-selects"
   >
-    <div class="flex min-w-0 grow basis-60 items-center gap-1" [class.chat-selects--narrow]="boxFullWidth()">
+    <div
+      class="flex min-w-0 grow basis-60 items-center gap-1"
+      [class.chat-selects--narrow]="boxFullWidth()"
+      [class.chat-selects--phone]="onPhone()"
+    >
       @if (boxFullWidth()) {
         <div
           class="rounded-ui-sm border-ui-border-panel bg-ui-input flex size-6 flex-none items-center justify-center overflow-hidden border border-solid"
@@ -92,9 +96,20 @@
       </ng-select>
       <button type="button" [class]="barWordButtonClass" (click)="showDicebotHelp()">?</button>
       @if (!isGameTypeInList()) {
-        <span class="text-ui-danger min-w-0 flex-[0_1_auto] text-[11px]">{{
-          'feature.chat.input.diceBotNotFound' | transloco
-        }}</span>
+        @if (onPhone()) {
+          <i
+            class="material-icons text-ui-danger shrink-0 text-[18px]!"
+            role="img"
+            data-testid="chat-input-dice-bot-not-found"
+            [title]="'feature.chat.input.diceBotNotFound' | transloco"
+            [attr.aria-label]="'feature.chat.input.diceBotNotFound' | transloco"
+            >error</i
+          >
+        } @else {
+          <span class="text-ui-danger min-w-0 flex-[0_1_auto] text-[11px]">{{
+            'feature.chat.input.diceBotNotFound' | transloco
+          }}</span>
+        }
       }
       @if (narrow() && hasPortraitSlider()) {
         <portrait-slider
@@ -215,6 +230,7 @@
     @if (targetNumberBar(); as bar) {
       <div
         data-testid="chat-input-target-number"
+        data-own-mobile-layout
         [class]="targetNumberBandClass"
         [title]="'feature.chat.input.targetNumberHint' | transloco"
       >
@@ -251,6 +267,7 @@
     } @else if (keepsTargetNumberPlace() && canSpeak()) {
       <div
         data-testid="chat-input-target-number-idle"
+        data-own-mobile-layout
         [class]="targetNumberBandClass"
         class="opacity-55"
         [title]="'feature.chat.input.targetNumberIdle' | transloco"
@@ -504,6 +521,7 @@
     data-testid="chat-input-send"
     class="border-ui-accent bg-ui-accent-solid hover:border-ui-accent hover:bg-ui-accent-solid m-0 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid p-0 text-[12px] font-semibold text-white transition-[background,border-color,filter] hover:text-white hover:shadow-none hover:brightness-110 [&_i]:text-[18px] [&_i]:leading-none"
     [class.size-8!]="oneRowBar()"
+    [class.min-h-8!]="oneRowBar()"
     [ngClass]="{ '[&_i]:text-[16px]': oneRowBar() }"
     [class.m-1!]="boxFullWidth()"
     (click)="sendChat(null)"

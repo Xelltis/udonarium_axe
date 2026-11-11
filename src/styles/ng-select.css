@@ -72,10 +72,19 @@
   flex-basis: 112px;
 }
 
-/* On a phone the dice bot shares the one row above the box with the speaker and whom it is said to. */
+/* On a phone the dice bot shares the one row above the box with the speaker and whom it is said to,
+   and each of the three gives way to a least width that still fits the row on a screen 320px wide. */
 .chat-line-row--phone > .ng-select.ud-select.chat-select.chat-select--game-type {
   flex: 0 1 96px;
-  min-width: 80px;
+  min-width: 64px;
+}
+
+.chat-selects--phone > .ng-select.ud-select.chat-select {
+  min-width: 64px;
+}
+
+.chat-selects--phone > .ng-select.ud-select.chat-select.chat-select--to {
+  min-width: 48px;
 }
 
 /* The novel mode toolbar is packed tight across, so the speaker select keeps its width down and shrinks. */

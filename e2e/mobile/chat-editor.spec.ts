@@ -39,6 +39,22 @@ test.describe('the chat editor on a phone', () => {
     expect(framed.width).toBeGreaterThan(screen.width - 24);
     expect(send.x + send.width).toBeLessThanOrEqual(framed.x + framed.width + 1);
     expect(typed.height).toBeGreaterThanOrEqual(56);
+    expect(Math.abs(send.width - send.height)).toBeLessThan(1);
+
+    // On a screen 320px wide the row still fits, every select giving way to its least width.
+    await page.setViewportSize({ width: 320, height: screen.height });
+    await expect
+      .poll(() =>
+        editor.getByTestId('chat-input-selects').evaluate((row) => {
+          const edges = [...row.querySelectorAll('[data-testid="chat-input-avatar"], ng-select, button')].map(
+            (control) => control.getBoundingClientRect()
+          );
+          const apart = edges.every((edge, index) => index < 1 || edges[index - 1].right <= edge.left + 0.5);
+          return apart && edges.at(-1)!.right <= row.getBoundingClientRect().right + 0.5;
+        })
+      )
+      .toBe(true);
+    await page.setViewportSize(screen);
 
     const input = chatInput(pane);
     expect(await input.evaluate((box) => getComputedStyle(box).fontSize)).toBe('16px');
