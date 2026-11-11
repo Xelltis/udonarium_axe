@@ -43,7 +43,11 @@
       } @error {
         <ng-container appReloadNotice />
       }
-      <app-hand-rail></app-hand-rail>
+      @defer (when handRail.isOpen()) {
+        <app-hand-rail />
+      } @error {
+        <ng-container appReloadNotice />
+      }
     }
   } @else {
     @defer (when widgets.miniPlayer()) {
@@ -73,7 +77,11 @@
     } @error {
       <ng-container appReloadNotice />
     }
-    <app-hand-rail></app-hand-rail>
+    @defer (when handRail.isOpen()) {
+      <app-hand-rail />
+    } @error {
+      <ng-container appReloadNotice />
+    }
   }
   <app-hotbar />
   @defer (when voteCalled()) {
@@ -112,7 +120,11 @@
 } @error {
   <ng-container appReloadNotice />
 }
-<app-invite-join />
+@defer (when invited) {
+  <app-invite-join />
+} @error {
+  <ng-container appReloadNotice />
+}
 <app-switch-notice />
 <move-plan-band />
 <ground-brush-band />

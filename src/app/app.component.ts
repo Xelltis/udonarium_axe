@@ -38,6 +38,7 @@ import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.se
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { parseInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
@@ -161,7 +162,10 @@ export class AppComponent {
   private readonly language = inject(LanguageService);
   readonly visualNovel = inject(VisualNovelModeService);
   protected readonly battleCutIn = inject(BattleCutInStateService);
-  private readonly handRail = inject(HandRailService);
+  /** Whose hand rail is open, which the rail is fetched for only once it first is. */
+  protected readonly handRail = inject(HandRailService);
+  /** Whether the page was opened from an invitation, which the join is fetched for only then. */
+  protected readonly invited = parseInviteLink(location.hash) !== null;
   readonly widgets = inject(WidgetVisibilityService);
   private readonly rolePermission = inject(RolePermissionService);
   /**
