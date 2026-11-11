@@ -6054,7 +6054,7 @@
       "part": {
         "attach": "Make a part of {{body}}",
         "someone": "Part",
-        "detach": "Take off {{body}} as a part",
+        "detach": "Stop being a part of {{body}}",
         "editLook": "Edit how the parts look",
         "look": {
           "title": "How the parts look - {{name}}",
