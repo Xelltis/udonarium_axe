@@ -8,6 +8,7 @@ import {
 } from '@axe/application/tabletop/piece-part-pictures.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { putBackQuietly, takeOutQuietly } from '@axe/core/sync/store-snapshot';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { writePartLayer } from '@axe/domain/character/part-look';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -43,7 +44,7 @@ describe('PiecePartPicturesService', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
-    for (const identifier of ['dragon', 'head']) ImageStorage.instance.delete(identifier);
+    for (const identifier of ['dragon', 'head', 'wyvern']) ImageStorage.instance.delete(identifier);
   });
 
   function picture(identifier: string): string {
@@ -144,6 +145,22 @@ describe('PiecePartPicturesService', () => {
     // The picture before is kept a while for what may still be reading it, then let go of.
     expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:drawn-1');
     await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:drawn-1'), { timeout: 7000 });
+  });
+
+  it('draws a piece put back under the same identifier from the piece as it now is, not the one taken out', () => {
+    const { body, part } = bodyWithPart();
+    part.partLayer = writePartLayer({ x: 0.5, y: 0.2, width: 0.3, order: 1 });
+    pictures.pictureOf(body);
+    expect(drawn.at(-1)?.own).toBe('blob:dragon');
+
+    putBackQuietly(takeOutQuietly([body, part]));
+    const again = ObjectStore.instance.get<GameCharacter>(body.identifier)!;
+    again.imageDataElement!.getFirstElementByName('imageIdentifier')!.value = picture('wyvern');
+    TestBed.inject(ObjectChangeService).notifyChanged(again.identifier);
+    pictures.pictureOf(again);
+
+    expect(again).not.toBe(body);
+    expect(drawn.at(-1)?.own).toBe('blob:wyvern');
   });
 
   it('hears of a part made after the piece was first drawn, as the drawing of the piece asks for it', () => {

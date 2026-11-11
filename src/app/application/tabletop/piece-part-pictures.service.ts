@@ -32,6 +32,12 @@ export interface PartLookToDraw {
   readonly lost: boolean;
 }
 
+/** What is kept for a piece, with the piece it was made for. */
+interface KeptFor<T> {
+  readonly body: GameCharacter;
+  readonly value: Signal<T>;
+}
+
 /** A part's look along with its piece of the picture as written down, which keys the picture cheaply. */
 type PartLookWritten = PartLookToDraw & { readonly maskWritten: string };
 
@@ -99,12 +105,25 @@ export class PiecePartPicturesService {
   }
 
   /**
+   * What is kept for a piece by its identifier, made anew where none is kept or it was made for
+   * another piece under the same identifier, one taken out of the room and put back as a new object.
+   */
+  private keptFor<T>(kept: Map<string, KeptFor<T>>, body: GameCharacter, make: () => Signal<T>): Signal<T> {
+    let held = kept.get(body.identifier);
+    if (!held || held.body !== body) {
+      held = { body, value: make() };
+      kept.set(body.identifier, held);
+    }
+    return held.value;
+  }
+
+  /**
    * What each piece's parts lay over and cut out of its picture, by the piece, as a key that is the
    * same as long as they are: worked out apart from the drawing of the piece, so that a change to
    * any piece, which any may come to be a part of another by, draws the piece again only where its
    * parts' look changed. Each follows the parts the links work out once for all.
    */
-  private readonly keys = new Map<string, Signal<string>>();
+  private readonly keys = new Map<string, KeptFor<string>>();
 
   /**
    * The picture a piece is drawn with, its parts laid over and cut out of its own, or null where it
@@ -152,9 +171,8 @@ export class PiecePartPicturesService {
 
   /** The key of what a piece's parts lay over and cut out of its picture, empty for nothing. */
   private keyOf(body: GameCharacter): Signal<string> {
-    let key = this.keys.get(body.identifier);
-    if (!key) {
-      key = computed(() => {
+    return this.keptFor(this.keys, body, () =>
+      computed(() => {
         this.objectChange.fileVersion();
         this.objectChange.versionOf(body.identifier)();
         const { own, looks } = this.looksOf(body);
@@ -163,13 +181,11 @@ export class PiecePartPicturesService {
           JSON.stringify([own, looks.map((look) => [look.url, look.layer, look.lost, look.mask ? 1 : 0])]) +
           looks.map((look) => (look.mask ? look.maskWritten : '')).join('|')
         );
-      });
-      this.keys.set(body.identifier, key);
-    }
-    return key;
+      })
+    );
   }
 
-  private readonly faces = new Map<string, Signal<PartModelFaces>>();
+  private readonly faces = new Map<string, KeptFor<PartModelFaces>>();
 
   /**
    * What a piece's parts stand for of its model: whether any part is painted over it, which has it
@@ -177,9 +193,8 @@ export class PiecePartPicturesService {
    * `writePartFaces` writes them, which the copy leaves out. Follows the parts as `pictureOf` does.
    */
   modelFacesOf(body: GameCharacter): PartModelFaces {
-    let faces = this.faces.get(body.identifier);
-    if (!faces) {
-      faces = computed(
+    const faces = this.keptFor(this.faces, body, () =>
+      computed(
         () => {
           const parts = this.links
             .followedPartsOf(body)
@@ -191,9 +206,8 @@ export class PiecePartPicturesService {
           };
         },
         { equal: (a, b) => a.painted === b.painted && a.cut === b.cut }
-      );
-      this.faces.set(body.identifier, faces);
-    }
+      )
+    );
     return faces();
   }
 
