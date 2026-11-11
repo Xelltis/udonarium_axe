@@ -306,6 +306,7 @@ describe('GameCharacterComponent', () => {
         picked.set(new Map([[head.identifier, 2]]));
         await draw(fixture);
         expect(row()?.textContent?.trim()).toBe('2');
+        expect(row()?.getAttribute('style')).toMatch(/background: (#ffd27f|rgb\(255, 210, 127\))/);
       } finally {
         head.destroy();
         dragon.destroy();

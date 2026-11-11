@@ -872,7 +872,8 @@
     @if (label.pick > 0) {
       <div
         data-testid="part-pick-order"
-        class="bg-ui-accent flex size-[1.6em] items-center justify-center rounded-full text-[0.9em] leading-none font-bold text-[#1b1b1b]"
+        class="flex size-[1.6em] items-center justify-center rounded-full leading-none font-bold text-[#1b1b1b]"
+        [style.background]="pickColor()"
         [style.font-size.em]="ridingNameEm"
       >
         {{ label.pick }}

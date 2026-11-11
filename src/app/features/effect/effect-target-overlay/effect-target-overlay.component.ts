@@ -73,7 +73,7 @@ export class EffectTargetOverlayComponent {
   });
   readonly links = computed<EffectTargetLink[]>(() => this.targeting.links());
 
-  protected readonly color = computed<string>(() => this.targeting.preset()?.colorPrimary ?? '#ffd27f');
+  protected readonly color = this.targeting.markColor;
   protected readonly accent = computed<string>(() => this.targeting.preset()?.colorSecondary ?? '#ff5a33');
 
   /** The corners of a square lying flat round a middle, round from its top left. */

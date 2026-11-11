@@ -78,6 +78,8 @@ export class EffectTargetingService {
     return this.centerOf(character, this.tabletopService.gridSize());
   });
   readonly isPicking = computed(() => this._preset() != null);
+  /** The colour the numbers of the picks are drawn in: the effect's own first colour. */
+  readonly markColor = computed(() => this._preset()?.colorPrimary ?? '#ffd27f');
   readonly limit = computed(() => this._preset()?.targetLimit ?? 0);
 
   /** The targets from before the choosing began, restored on cancel. */
