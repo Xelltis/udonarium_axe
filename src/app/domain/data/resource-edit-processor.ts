@@ -11,7 +11,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { tellGameMasters } from '@axe/domain/chat/game-master-lines';
+import { tellThoseWhoMaySee } from '@axe/domain/chat/game-master-lines';
 import {
   findEmbeddedRolls,
   isDicelessArithmetic,
@@ -367,9 +367,10 @@ export class ResourceEditProcessor {
     buffSweeps: readonly string[] = []
   ) {
     // What is said to everyone, and the same in full, which differs only where a piece's contents
-    // are kept from anyone; the full one is then told the game master alone.
+    // are kept from anyone; the full one is then told those who may see what every such piece keeps.
     let text = '';
     let full = '';
+    const kept = new Set<GameCharacter>();
     const add = (said: string, inFull = said) => {
       text += said;
       full += inFull;
@@ -385,6 +386,7 @@ export class ResourceEditProcessor {
       } else {
         const report = this.resourceEdit(edit, character);
         add(report.shown, report.full);
+        if (report.shown !== report.full) kept.add(character);
       }
       if (edit.embeddedRolls.length > 0) {
         text = text.replace(/[ ]+$/, '');
@@ -434,7 +436,7 @@ export class ResourceEditProcessor {
     if (chatTab) {
       chatTab.addMessage(resourceMessage);
       if (full !== text)
-        tellGameMasters(chatTab, { ...resourceMessage, timestamp: originalMessage.timestamp + 3 }, full);
+        tellThoseWhoMaySee(chatTab, { ...resourceMessage, timestamp: originalMessage.timestamp + 3 }, full, [...kept]);
     }
   }
 

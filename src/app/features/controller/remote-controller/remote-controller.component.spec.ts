@@ -529,7 +529,10 @@ describe('RemoteControllerComponent', () => {
         .spyOn(component as unknown as { announce: (text: string) => unknown }, 'announce')
         .mockReturnValue(said);
       const told = vi
-        .spyOn(component as unknown as { tellGameMasters: (line: unknown, text: string) => void }, 'tellGameMasters')
+        .spyOn(
+          component as unknown as { tellThoseWhoMaySee: (line: unknown, text: string, pieces: unknown) => void },
+          'tellThoseWhoMaySee'
+        )
         .mockImplementation(() => undefined);
       component.remoteControllerSelect.set({ name: 'HP', nowOrMax: 'now', dispName: 'HP' });
       component.remoteNumber = -3;
@@ -538,7 +541,9 @@ describe('RemoteControllerComponent', () => {
 
       expect(announce.mock.calls[0][0]).toContain('[ゴブリン]');
       expect(announce.mock.calls[0][0]).not.toContain(`${hpBefore - 3}`);
-      expect(told).toHaveBeenCalledWith(said, expect.stringContaining(`[ゴブリン ${hpBefore}>${hpBefore - 3}]`));
+      expect(told).toHaveBeenCalledWith(said, expect.stringContaining(`[ゴブリン ${hpBefore}>${hpBefore - 3}]`), [
+        goblin,
+      ]);
 
       announce.mockClear();
       told.mockClear();

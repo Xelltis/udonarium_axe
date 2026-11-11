@@ -43,7 +43,7 @@ import { ChatPalette } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
-import { tellGameMasters } from '@axe/domain/chat/game-master-lines';
+import { tellThoseWhoMaySee } from '@axe/domain/chat/game-master-lines';
 import { PaletteRow, paletteRowsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
@@ -671,13 +671,14 @@ export class RemoteControllerComponent {
     });
   }
   /**
-   * Tells the game masters alone what a line said to everyone says in full, as a line of the tool's
-   * own: the change to a piece whose contents are kept from anyone, with what is left of it.
+   * Tells those who may see what the pieces keep back what a line said to everyone says in full, as a
+   * line of the tool's own: the change to the pieces whose contents are kept from anyone, with what
+   * is left of them.
    */
-  private tellGameMasters(said: ChatMessage, text: string): void {
+  private tellThoseWhoMaySee(said: ChatMessage, text: string, pieces: readonly GameCharacter[]): void {
     const tab = this.sendableChatTabs().find((candidate) => candidate.identifier === said.tabIdentifier);
     if (!tab) return;
-    tellGameMasters(
+    tellThoseWhoMaySee(
       tab,
       {
         identifier: '',
@@ -689,7 +690,8 @@ export class RemoteControllerComponent {
         name: said.name,
         text,
       },
-      text
+      text,
+      pieces
     );
   }
 
@@ -807,7 +809,10 @@ export class RemoteControllerComponent {
         portraitIndex: this.controllerInputComponent().portraitIndex(),
         color: this.controllerInputComponent().selectChatColor,
       });
-      if (said && shown !== text) this.tellGameMasters(said, messageOf(text));
+      if (said && shown !== text) {
+        const kept = gameCharacters.filter((piece, index) => parts[index] !== shownParts[index]);
+        this.tellThoseWhoMaySee(said, messageOf(text), kept);
+      }
       if (take) this.battle.finish(take);
       this.errorMessageController = '';
     } else {
