@@ -16,7 +16,9 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { StartRoomStore } from '@axe/core/storage/start-room-store';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Jukebox } from '@axe/domain/media/jukebox';
@@ -726,7 +728,9 @@ describe('StartRoomService', () => {
         if (!ObjectStore.instance.get(identifier)) ChatTabList.instance.addChatTab(name, identifier);
       }
       const piece = new GameCharacter('testCharacter_1');
+      piece.createDataElements();
       piece.initialize();
+      CharacterTemplateFactory.createDefault(piece, '動かした見本', 1, '');
       const own = new GameCharacter('own-piece');
       own.initialize();
     });
@@ -747,28 +751,36 @@ describe('StartRoomService', () => {
       expect(ObjectStore.instance.get('own-piece')).not.toBeNull();
     });
 
-    it('sets the first tabs and the sample out again once the join comes to nothing outside any room', () => {
+    it('puts back the very things it set aside once the join comes to nothing, the lines said and the changes made', () => {
+      const main = ObjectStore.instance.get<ChatTab>('MainTab')!;
+      main.addMessage({ from: 'me', name: '自分', text: '入る前の発言', timestamp: 1 });
+
       service.putAwayForJoin()(false);
 
-      expect(ObjectStore.instance.get('MainTab')).not.toBeNull();
-      expect(ObjectStore.instance.get('SubTab')).not.toBeNull();
-      expect(sample).toHaveBeenCalledTimes(1);
+      const back = ObjectStore.instance.get<ChatTab>('MainTab')!;
+      expect(back.chatMessages.map((message) => message.text)).toEqual(['入る前の発言']);
+      expect(ChatTabList.instance.chatTabs).toContain(back);
+      expect(ObjectStore.instance.get<GameCharacter>('testCharacter_1')?.name).toBe('動かした見本');
+      expect(sample).not.toHaveBeenCalled();
     });
 
-    it('lets them go once the join comes to something, and sets nothing out after', () => {
+    it('puts them back once joined into a room nobody else is in, which has nothing to hand back', () => {
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([]);
+
+      service.putAwayForJoin()(true);
+
+      expect(ObjectStore.instance.get('MainTab')).not.toBeNull();
+      expect(ObjectStore.instance.get('testCharacter_1')).not.toBeNull();
+    });
+
+    it('lets them go once joined into a room somebody else is in, and puts nothing back after', () => {
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{ peerId: 'other' }] as never);
+
       service.putAwayForJoin()(true);
       service.putAwayForJoin()(false);
 
       expect(ObjectStore.instance.get('MainTab')).toBeNull();
-      expect(sample).not.toHaveBeenCalled();
-    });
-
-    it('sets out no sample after a failed join where the page had none to set aside', () => {
-      ObjectStore.instance.get('testCharacter_1')?.destroy();
-
-      service.putAwayForJoin()(false);
-
-      expect(ObjectStore.instance.get('MainTab')).not.toBeNull();
+      expect(ObjectStore.instance.get('testCharacter_1')).toBeNull();
       expect(sample).not.toHaveBeenCalled();
     });
   });
