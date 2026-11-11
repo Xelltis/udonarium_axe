@@ -1,4 +1,11 @@
-import { type CellGrid, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import {
+  cellCenterOf,
+  cellColRow,
+  type CellGrid,
+  forEachCellInBox,
+  forEachNeighbourCell,
+} from '@axe/domain/tabletop/fog/cell-grid';
+import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 
 /** A body of water laid on the table, in table pixels. */
 export interface WaterArea {
@@ -119,5 +126,37 @@ export function waterCellsOf(
       }
     );
   }
+  spillIntoDugGround(grid, cells, groundOf);
   return cells;
+}
+
+/**
+ * Lets the water run out of its areas into the ground dug below their floors that it touches, cell
+ * by cell along their sides, as far as the dug ground runs on: a ditch or a pit dug from a pond fills
+ * from it. The water stands there at the surface of the water it ran from, which the dug ground takes
+ * none away from, and is drawn as that water is. Ground not dug below the floor stays dry, as does a
+ * pit the water does not reach. Corners are not run through on a grid of squares; the sides of a hex
+ * are all sides.
+ */
+function spillIntoDugGround(grid: CellGrid, cells: Map<number, WaterCell>, groundOf: (index: number) => number): void {
+  const running = [...cells.values()];
+  const hex = isHexGrid(grid.type);
+  for (let at = 0; at < running.length; at++) {
+    const from = running[at];
+    const here = cellColRow(grid, from.index);
+    forEachNeighbourCell(grid, from.index, (index) => {
+      if (!hex) {
+        const there = cellColRow(grid, index);
+        if (there.col !== here.col && there.row !== here.row) return;
+      }
+      const ground = groundOf(index);
+      if (ground >= Math.min(0, from.areaFloorPx) - LEVEL_PX) return;
+      const held = cells.get(index);
+      if (held && held.surfacePx >= from.surfacePx) return;
+      const centre = cellCenterOf(grid, index);
+      const spilt: WaterCell = { ...from, index, cx: centre.x, cy: centre.y, floorPx: ground, flat: false };
+      cells.set(index, spilt);
+      running.push(spilt);
+    });
+  }
 }
