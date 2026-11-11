@@ -146,6 +146,32 @@ describe('InventoryRoundViewComponent', () => {
     expect(parseFloat(strip().style.height)).toBeLessThanOrEqual(SCREEN - 12);
   });
 
+  it('reads the room again a frame after a press is let go, and not for one let go of outside its panel', () => {
+    const panel = document.createElement('ui-panel');
+    document.body.appendChild(panel);
+    try {
+      order.set(pieces(5));
+      const fixture = TestBed.createComponent(InventoryRoundViewComponent);
+      panel.appendChild(fixture.nativeElement);
+      settle(fixture);
+      const strip = fixture.nativeElement.querySelector('[data-testid="turn-pieces"]') as HTMLElement;
+      const read = vi.spyOn(strip, 'getBoundingClientRect');
+      const frames = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+        callback(0);
+        return 0;
+      });
+
+      document.body.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+      expect(read).not.toHaveBeenCalled();
+
+      panel.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+      expect(frames).toHaveBeenCalled();
+      expect(read).toHaveBeenCalled();
+    } finally {
+      panel.remove();
+    }
+  });
+
   it('hands the turn to the face a click lands on, wherever on the turn order it lies', () => {
     const { on, press } = render(40, 'p10');
 

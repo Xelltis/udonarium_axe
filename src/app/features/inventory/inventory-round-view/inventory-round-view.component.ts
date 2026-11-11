@@ -7,7 +7,7 @@ import {
   DestroyRef,
   DOCUMENT,
   effect,
-  type ElementRef,
+  ElementRef,
   inject,
   signal,
   untracked,
@@ -248,6 +248,7 @@ export class InventoryRoundViewComponent {
   private readonly head = viewChild<ElementRef<HTMLElement>>('head');
   private readonly strip = viewChild<ElementRef<HTMLElement>>('strip');
   private readonly peekBox = viewChild<ElementRef<HTMLElement>>('peekBox');
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private pressing: number | null = null;
   private dragging: { pointerId: number; start: number } | null = null;
 
@@ -263,15 +264,22 @@ export class InventoryRoundViewComponent {
       if (!view) return;
       const measure = () => this.measure();
       view.addEventListener('resize', measure);
-      // The panel is moved by dragging its bar, and the room it leaves is read again once it is let go.
-      view.addEventListener('pointerup', measure, true);
+      // The panel is moved by dragging its bar, and the room it leaves is read again once it is let go:
+      // at the next frame, which lays the page out anyway, and only for a press let go of on the panel
+      // the turn order stands in, rather than at every press anywhere on the page.
+      const panel = this.host.nativeElement.closest('ui-panel');
+      const afterDrag = (event: PointerEvent) => {
+        if (panel && event.target instanceof Node && !panel.contains(event.target)) return;
+        view.requestAnimationFrame(measure);
+      };
+      view.addEventListener('pointerup', afterDrag, true);
       // The presses above it come and go, and the round's number with them, moving where it begins.
       const head = this.head()?.nativeElement;
       const stopWatchingHead = head ? observeSize(head, measure) : () => undefined;
       destroyRef.onDestroy(() => {
         stopWatchingHead();
         view.removeEventListener('resize', measure);
-        view.removeEventListener('pointerup', measure, true);
+        view.removeEventListener('pointerup', afterDrag, true);
       });
     });
     destroyRef.onDestroy(() => this.peekBox()?.nativeElement.remove());
