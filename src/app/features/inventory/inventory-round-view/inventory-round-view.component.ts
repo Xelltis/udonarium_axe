@@ -240,14 +240,14 @@ export class InventoryRoundViewComponent {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
+    const page = inject(DOCUMENT);
     afterNextRender(() => {
       const box = this.peekBox()?.nativeElement;
       // Drawn on the page itself, so the panel the turn order stands in neither clips it nor places it.
       if (box) box.ownerDocument.body.appendChild(box);
-      const view = this.strip()?.nativeElement.ownerDocument.defaultView;
-      this.measure();
+      // Listened for from the first, as the turn order may come only once the first piece joins the round.
+      const view = page.defaultView;
       if (!view) return;
-      view.requestAnimationFrame(() => this.moving.set(true));
       const measure = () => this.measure();
       view.addEventListener('resize', measure);
       // The panel is moved by dragging its bar, and the room it leaves is read again once it is let go.
@@ -263,7 +263,6 @@ export class InventoryRoundViewComponent {
     });
     destroyRef.onDestroy(() => this.peekBox()?.nativeElement.remove());
     // A face a touch left drawn out is put away by a press anywhere but on it or on the turn order.
-    const page = inject(DOCUMENT);
     const letGoOfPinned = (event: Event) => {
       if (!this.pinned()) return;
       const target = event.target as Node | null;
@@ -287,9 +286,15 @@ export class InventoryRoundViewComponent {
       destroyRef.onDestroy(() => panel.shrunkToContentWidth.set(false));
     }
     // Laid the other way, the turn order runs towards another edge of the screen.
+    // The room is read as the turn order first comes, which an empty round puts off until a piece
+    // joins it, and again as it is laid the other way; the faces move only once it has been read.
     afterRenderEffect(() => {
       this.across();
-      untracked(() => this.measure());
+      if (!this.strip()) return;
+      untracked(() => {
+        this.measure();
+        if (!this.moving()) page.defaultView?.requestAnimationFrame(() => this.moving.set(true));
+      });
     });
   }
 

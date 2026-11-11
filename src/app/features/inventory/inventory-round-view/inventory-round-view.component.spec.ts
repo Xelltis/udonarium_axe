@@ -135,6 +135,17 @@ describe('InventoryRoundViewComponent', () => {
     expect(parseFloat(face('p0').style.width)).toBeLessThan(DOCK_FACE);
   });
 
+  it('reads the room the screen leaves once the first pieces join a round it was shrunk to while empty', () => {
+    const { fixture, strip } = render(0);
+    expect(fixture.nativeElement.querySelector('[data-testid="turn-pieces"]')).toBeNull();
+
+    order.set(pieces(40));
+    settle(fixture);
+    settle(fixture);
+
+    expect(parseFloat(strip().style.height)).toBeLessThanOrEqual(SCREEN - 12);
+  });
+
   it('hands the turn to the face a click lands on, wherever on the turn order it lies', () => {
     const { on, press } = render(40, 'p10');
 
