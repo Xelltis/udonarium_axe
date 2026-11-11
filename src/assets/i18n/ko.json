@@ -1360,7 +1360,6 @@
       "restoreDefaults": "기본값 반영",
       "picking": "\"{{name}}\"의 대상 선택 중 {{count}}/{{max}}",
       "pickingHint": "말을 클릭해 차례로 선택(다시 누르면 해제) / Enter로 발동 / Esc로 중지",
-      "hiddenName": "???",
       "cancelPicking": "중지",
       "fire": "대상에게 발동",
       "targets": "대상: {{names}}",

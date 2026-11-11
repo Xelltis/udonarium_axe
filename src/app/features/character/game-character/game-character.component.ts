@@ -14,6 +14,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { EffectAutoPlayService } from '@axe/application/effect/effect-auto-play.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
@@ -257,6 +258,7 @@ export class GameCharacterComponent {
   private readonly tabletopService = inject(TabletopService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly names = inject(PieceNameService);
   private readonly moveRangeService = inject(MoveRangeService);
   private readonly triggerFire = inject(TriggerFireService);
   private readonly movePlan = inject(MovePlannerService);
@@ -1585,7 +1587,12 @@ export class GameCharacterComponent {
       if (carriedBy || unridden) {
         queueMicrotask(() => this.movableRef()?.cancel());
         const why = carriedBy ? 'feature.ride.carriedInPlace' : 'feature.ride.noRider';
-        this.snackbar.show(this.translateFn(why, { name: character.name, mount: carriedBy?.name ?? '' }));
+        this.snackbar.show(
+          this.translateFn(why, {
+            name: this.names.shown(character),
+            mount: carriedBy ? this.names.shown(carriedBy) : '',
+          })
+        );
         return;
       }
       const rideRefusal = this.ride.moveRefusal(character);
@@ -1593,7 +1600,10 @@ export class GameCharacterComponent {
         queueMicrotask(() => this.movableRef()?.cancel());
         const mount = this.ride.mountOf(character) ?? this.ride.leftMountOf(character);
         this.snackbar.show(
-          this.translateFn(`feature.ride.${rideRefusal}`, { name: character.name, mount: mount?.name ?? '' })
+          this.translateFn(`feature.ride.${rideRefusal}`, {
+            name: this.names.shown(character),
+            mount: mount ? this.names.shown(mount) : '',
+          })
         );
         return;
       }
@@ -1608,7 +1618,12 @@ export class GameCharacterComponent {
               : holder instanceof GameCharacter
                 ? 'feature.zone.grabbedInPlace'
                 : 'feature.zone.heldInPlace';
-        this.snackbar.show(this.translateFn(why, { name: character.name, holder: holder?.name ?? '' }));
+        this.snackbar.show(
+          this.translateFn(why, {
+            name: this.names.shown(character),
+            holder: holder instanceof GameCharacter ? this.names.shown(holder) : '',
+          })
+        );
       }
       return;
     }

@@ -2,6 +2,7 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ObjectInventory } from '@axe/application/inventory/object-inventory';
 import { Network } from '@axe/core/index';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { DataElement } from '@axe/domain/data/data-element';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
@@ -120,5 +121,5 @@ export function shownChangeDetail(character: GameCharacter, report: string, name
       : null;
     if (isResourceSpentAt(element, now, character.status.getValue(name, 'max'))) return report;
   }
-  return `[${character.name}] `;
+  return `[${saidNameOf(character)}] `;
 }

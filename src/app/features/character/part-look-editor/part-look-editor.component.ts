@@ -9,6 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { MODEL_VIEWER_LOADER } from '@axe/application/media/model-viewer-loader';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -80,6 +81,7 @@ export class PartLookEditorComponent {
   private readonly tablePieces = inject(TablePiecesService);
   private readonly loadViewer = inject(MODEL_VIEWER_LOADER);
   private readonly snackbar = inject(SnackbarService);
+  private readonly names = inject(PieceNameService);
   private readonly t = inject(TRANSLATE_FN);
 
   /** The body whose parts are worked on, and the part chosen of them. */
@@ -132,7 +134,7 @@ export class PartLookEditorComponent {
     }
     return this.links.partsOf(body).map((part) => ({
       id: part.identifier,
-      name: part.name,
+      name: this.names.shown(part),
       url: this.images.getEmptyOr(part.imageFile).url,
       layer: partLayerOf(part.partLayer),
       mask: partMaskOf(part.partMask),
@@ -294,7 +296,7 @@ export class PartLookEditorComponent {
 
   /** Says what was just taken off a part, with a press that puts it back, as long as the part is there. */
   private offerToPutBack(part: GameCharacter, said: string, putBack: () => void): void {
-    this.snackbar.show(this.t(said, { name: part.name }), {
+    this.snackbar.show(this.t(said, { name: this.names.shown(part) }), {
       action: {
         label: this.t('feature.ride.part.look.putBack'),
         run: () => {

@@ -14,6 +14,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { StealthService } from '@axe/application/character/stealth.service';
@@ -208,6 +209,7 @@ export class GameObjectInventoryComponent {
   }
 
   private readonly panelService = inject(PanelService);
+  protected readonly names = inject(PieceNameService);
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly contextMenuService = inject(ContextMenuService);
@@ -930,7 +932,7 @@ export class GameObjectInventoryComponent {
       }
     );
 
-    this.contextMenuService.open(position, actions, gameObject.name);
+    this.contextMenuService.open(position, actions, this.names.shown(gameObject));
   }
 
   /**

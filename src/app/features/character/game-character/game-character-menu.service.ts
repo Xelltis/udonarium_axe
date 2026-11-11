@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { BattleLaunchLoaderService } from '@axe/application/battle/battle-launch-loader.service';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { StealthService } from '@axe/application/character/stealth.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
@@ -101,6 +102,7 @@ export class GameCharacterMenuService {
   private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly snackbar = inject(SnackbarService);
+  private readonly names = inject(PieceNameService);
   private readonly rangeShapeInvoke = inject(RangeShapeInvokeService);
   private readonly moveRangeService = inject(MoveRangeService);
   private readonly movePlan = inject(MovePlannerService);
@@ -245,7 +247,7 @@ export class GameCharacterMenuService {
 
   /** A piece's name as the reader may be told it: one whose name is kept from them goes unnamed. */
   private shownName(char: GameCharacter): string {
-    return char.hideName && !this.rolePermission.canSeeHidden() ? this.translateFn('common.hiddenName') : char.name;
+    return this.names.shown(char);
   }
 
   /**

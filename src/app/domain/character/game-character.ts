@@ -5,6 +5,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
 import { BuffManager } from '@axe/domain/character/buff-manager';
 import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { shownImageIdentifier } from '@axe/domain/character/shown-image';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { BuffPalette, ChatPalette, SubPalette } from '@axe/domain/chat/chat-palette';
@@ -480,7 +481,7 @@ export class GameCharacter extends OwnedTabletopObject {
    * and cached.
    */
   get status(): StatusAccessor {
-    return (this._status ??= new StatusAccessor(this.detailDataElement ?? null, () => this.name));
+    return (this._status ??= new StatusAccessor(this.detailDataElement ?? null, () => saidNameOf(this)));
   }
 
   /**

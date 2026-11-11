@@ -13,7 +13,7 @@
       (change)="chooseOther($event)"
     >
       @for (piece of others(); track piece.identifier) {
-        <option [value]="piece.identifier" [selected]="piece === other()">{{ piece.name }}</option>
+        <option [value]="piece.identifier" [selected]="piece === other()">{{ names.shown(piece) }}</option>
       }
     </select>
 
@@ -124,7 +124,7 @@
           [checked]="entry.out"
           (change)="toggleOut(entry.piece)"
         />
-        {{ entry.piece.name }}
+        {{ names.shown(entry.piece) }}
       </label>
     }
   </div>

@@ -10,6 +10,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { sameSet } from '@axe/core/util/same-set';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { evaluateReferences, type PaletteVariable } from '@axe/domain/chat/chat-palette';
@@ -371,7 +372,7 @@ export class ChatLintService {
     this.objectChange.versionOf(tab.identifier)();
     const sendFrom = source.sendFrom();
     const speaker = this.objectStore.get(sendFrom);
-    const name = speaker instanceof GameCharacter ? speaker.name : '';
+    const name = speaker instanceof GameCharacter ? saidNameOf(speaker) : '';
     const found = findTargetNumberSource(tab, { identifier: sendFrom, name });
     const picked = this.objectStore.get(source.chosenTargetNumber?.() ?? '');
     const chosen = picked instanceof ChatMessage && picked.parent === tab ? targetNumberChoiceOf(picked) : null;

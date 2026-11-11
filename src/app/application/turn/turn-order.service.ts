@@ -1,4 +1,5 @@
 import { computed, DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
@@ -90,6 +91,7 @@ export class TurnOrderService {
   private readonly selection = inject(SelectionSignalService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
+  private readonly names = inject(PieceNameService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly hooks = inject(TurnHooksService);
   private readonly t = inject(TRANSLATE_FN);
@@ -467,7 +469,7 @@ export class TurnOrderService {
   private async mayLeaveTheseBehind(): Promise<boolean> {
     const waiting = this.unactedCharacters();
     if (waiting.length < 1) return true;
-    const shown = waiting.slice(0, UNACTED_NAMES_SHOWN).map((piece) => piece.name);
+    const shown = waiting.slice(0, UNACTED_NAMES_SHOWN).map((piece) => this.names.shown(piece));
     if (waiting.length > shown.length) {
       shown.push(this.t('feature.turnOrder.unactedMore', { n: waiting.length - shown.length }));
     }
@@ -718,7 +720,7 @@ export class TurnOrderService {
         const step = this.ranOut;
         if (step) step.set(character.identifier, new Map([...(step.get(character.identifier) ?? []), ...ranOut]));
       }
-      if (buffNames.length > 0) entries.push({ characterName: character.name, buffNames });
+      if (buffNames.length > 0) entries.push({ characterName: this.names.said(character), buffNames });
     }
     if (opening) this.turnState.turnOpening = writeTurnOpening(opening);
 
@@ -745,7 +747,8 @@ export class TurnOrderService {
 
   /**
    * Says in chat whose turn it is. A piece the players cannot see goes unnamed, since everyone
-   * reads the line and a name would give away what is standing in the dark.
+   * reads the line and a name would give away what is standing in the dark, and a piece whose name
+   * is hidden goes by the label for a hidden name.
    */
   private announceCharacter(identifier: string, announcement: TurnAnnouncement | 'buffsGivenBack'): void {
     const character = this.objectStore.get<GameCharacter>(identifier);
@@ -753,7 +756,7 @@ export class TurnOrderService {
     this.chat.sendSystemNotice(
       'round',
       this.vision.isSeenByParty(character)
-        ? this.t(`feature.turnOrder.${announcement}`, { name: character.name })
+        ? this.t(`feature.turnOrder.${announcement}`, { name: this.names.said(character) })
         : this.t(`feature.turnOrder.${announcement}Unseen`)
     );
   }

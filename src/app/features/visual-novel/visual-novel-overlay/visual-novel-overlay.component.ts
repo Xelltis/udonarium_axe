@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPaletteHandle, ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
 import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
@@ -151,6 +152,7 @@ export class VisualNovelOverlayComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectStore = inject(ObjectStore);
   private readonly vision = inject(VisionService);
+  private readonly names = inject(PieceNameService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly imageService = inject(ImageService);
@@ -635,7 +637,8 @@ export class VisualNovelOverlayComponent {
     const chosen = this.sendFrom;
     return all.filter(
       (character) =>
-        allowsChat(character, myPeerId) && (character.identifier === chosen || this.vision.mayBeListed(character))
+        allowsChat(character, myPeerId) &&
+        (character.identifier === chosen || (this.vision.mayBeListed(character) && !this.names.isKept(character)))
     );
   });
 
@@ -652,7 +655,7 @@ export class VisualNovelOverlayComponent {
     const current = this.objectStore.get(this._sendFrom());
     const cast =
       current instanceof GameCharacter && !characters.includes(current) ? [current, ...characters] : characters;
-    const options = cast.map((character) => ({ identifier: character.identifier, name: character.name }));
+    const options = cast.map((character) => ({ identifier: character.identifier, name: this.names.shown(character) }));
     const cursor = PeerCursor.myCursor;
     if (this.isGameMaster() && cursor) {
       options.unshift({ identifier: cursor.identifier, name: cursor.name + this.t('feature.chat.input.you') });

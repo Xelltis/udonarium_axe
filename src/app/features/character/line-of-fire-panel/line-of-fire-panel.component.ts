@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -39,6 +40,7 @@ export class LineOfFirePanelComponent {
   private readonly uiSignal = inject(UiSignalService);
   private readonly macro = inject(CharacterMacroService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly names = inject(PieceNameService);
 
   /** The piece firing, by its identifier. */
   readonly shooterIdentifier = signal('');
@@ -56,7 +58,7 @@ export class LineOfFirePanelComponent {
     const nameOf = (id: string) => {
       const piece = this.objectStore.get<GameCharacter>(id);
       return piece instanceof GameCharacter && this.vision.isTokenVisible(piece)
-        ? piece.name
+        ? this.names.shown(piece)
         : this.t('feature.zone.fire.unseen');
     };
     const rows: FireRow[] = [];

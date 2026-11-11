@@ -1,5 +1,6 @@
 import { aimedAtBonusesOf } from '@axe/domain/character/aimed-at-buff';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import {
   aimsAtOnce,
@@ -88,7 +89,8 @@ export function aimedAtNamesOf(targets: readonly GameCharacter[]): Set<string> {
  * once for each, its name after it, and from the second onwards with the commands acting on the
  * speaker taken out, or the speaker would be acted on once per target. A line aimed at them all at
  * once is said once, filled in against the first of them, with all their names after it, and goes
- * to each of them as the one line, to be rolled once for them all.
+ * to each of them as the one line, to be rolled once for them all. A piece whose name is hidden is
+ * named as {@link saidNameOf} names it, as everyone reads the line.
  */
 export function aimedAt(
   aimed: AimedLine,
@@ -97,7 +99,7 @@ export function aimedAt(
 ): { text: string; contexts: ChatMessageTargetContext[] } {
   if (aimed.atOnce && targets.length > 0) {
     const said = fill(aimed.filled, targets[0]);
-    const together = targets.map((target) => target.name);
+    const together = targets.map((target) => saidNameOf(target));
     const contexts = targets.map((target, index) => ({
       text: index === 0 ? said : fill(aimed.repeated, target),
       object: target,
@@ -109,7 +111,7 @@ export function aimedAt(
   const contexts: ChatMessageTargetContext[] = [];
   targets.forEach((target, index) => {
     const filled = fill(index === 0 ? aimed.filled : aimed.repeated, target);
-    lines.push(`${filled} [${target.name}]`);
+    lines.push(`${filled} [${saidNameOf(target)}]`);
     contexts.push({ text: filled, object: target });
   });
   return { text: lines.join('\n'), contexts };

@@ -8,6 +8,7 @@ import {
 } from '@axe/domain/character/buff-bulk-removal';
 import { halfWidthBuffCommand } from '@axe/domain/character/buff-command';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -180,7 +181,7 @@ export class ResourceEditProcessor {
           continue;
         }
         const outcome = await this.workOutAmount(oneResourceEdit, gameSystem);
-        const named = `${targeted ? `[${object.name}] ` : ''}${oneText}`;
+        const named = `${targeted ? `[${saidNameOf(object)}] ` : ''}${oneText}`;
         if (outcome === 'unreadable') {
           unreadableCommands.push(`${named}を計算できません    `);
           continue;
@@ -379,7 +380,7 @@ export class ResourceEditProcessor {
     for (const edit of allEditList) {
       const character = edit.object!;
       if (edit.targeted) {
-        add(`[${character.name}] `);
+        add(`[${saidNameOf(character)}] `);
       }
       if (edit.operator == '>') {
         add(this.textEdit(edit, character));

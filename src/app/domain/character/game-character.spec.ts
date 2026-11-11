@@ -24,6 +24,16 @@ describe('GameCharacter', () => {
     ObjectStore.instance.clearDeleteHistory();
   });
 
+  it('names a piece whose name is hidden by the label in the report of a change to its status', () => {
+    const villain = GameCharacter.create('黒幕', 1, '');
+    villain.hideName = true;
+
+    const report = villain.status.changeValue('HP', 'now', -1);
+
+    expect(report).toMatch(/^\[？？？ /);
+    expect(report).not.toContain('黒幕');
+  });
+
   describe('the parts that go with it', () => {
     function partOf(body: GameCharacter, at = 'table'): GameCharacter {
       const part = GameCharacter.create('腕', 1, '');

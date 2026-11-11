@@ -260,6 +260,24 @@ describe('ChatMessageService', () => {
     });
   });
 
+  it('names a line said as a piece whose name is hidden by the label', () => {
+    const service = TestBed.inject(ChatMessageService);
+    PeerCursor.createMyCursor();
+    const tab = new ChatTab();
+    tab.initialize();
+    ObjectStore.instance.add(tab);
+    const villain = GameCharacter.create('黒幕', 1, '');
+    villain.hideName = true;
+    try {
+      const message = service.sendMessage(tab, 'ふふふ', null, villain.identifier);
+
+      expect(message.name).toBe('？？？');
+    } finally {
+      villain.destroy();
+      tab.destroy();
+    }
+  });
+
   describe('sending a stamp with words', () => {
     function said(text: string, stampId: string, words: string): ChatMessage {
       const service = TestBed.inject(ChatMessageService);

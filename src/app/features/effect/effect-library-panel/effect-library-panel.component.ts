@@ -1,6 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { EffectAutoPlayService } from '@axe/application/effect/effect-auto-play.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectFieldService } from '@axe/application/effect/effect-field.service';
@@ -66,6 +67,7 @@ export class EffectLibraryPanelComponent {
   private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
+  private readonly names = inject(PieceNameService);
 
   protected readonly gradeLevels = GRADE_LEVELS;
 
@@ -147,8 +149,7 @@ export class EffectLibraryPanelComponent {
 
   /** A piece's name as this reader may be told it: one whose name is kept from them goes unnamed. */
   private shownName(character: GameCharacter): string {
-    if (character.hideName && !this.rolePermission.canSeeHidden()) return this.t('feature.effect.hiddenName');
-    return character.name;
+    return this.names.shown(character);
   }
 
   private readonly storage = browserLocalStorage();

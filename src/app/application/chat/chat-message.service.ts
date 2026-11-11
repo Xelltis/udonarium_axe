@@ -18,6 +18,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { chatBubbleOf, chatColorOf } from '@axe/domain/chat/chat-color';
 import { keptFromDecoration } from '@axe/domain/chat/chat-decoration';
 import { liftImageReferences } from '@axe/domain/chat/chat-image-references';
@@ -331,7 +332,7 @@ export class ChatMessageService {
         ? () => targetNumber
         : targetNumberOnce(chatTab, {
             identifier: sendFrom,
-            name: speaker instanceof GameCharacter ? speaker.name : '',
+            name: speaker instanceof GameCharacter ? saidNameOf(speaker) : '',
           });
     const answers =
       holdsTargetNumber(text) || (messageTargetContext ?? []).some((context) => holdsTargetNumber(context.text));
@@ -658,7 +659,7 @@ export class ChatMessageService {
   private findObjectName(identifier: string): string {
     const object = this.objectStore.get(identifier);
     if (object instanceof GameCharacter) {
-      return object.name;
+      return saidNameOf(object);
     } else if (object instanceof PeerCursor) {
       return object.name;
     }

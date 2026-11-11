@@ -1,9 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { PieceDragGhostComponent } from '@axe/ui/components/piece-drag-ghost/piece-drag-ghost.component';
 
 describe('PieceDragGhostComponent', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+  });
+
   function render() {
     const fixture = TestBed.createComponent(PieceDragGhostComponent);
     fixture.detectChanges();

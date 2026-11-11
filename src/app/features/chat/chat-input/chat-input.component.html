@@ -47,7 +47,7 @@
           <ng-option [value]="myPeer.identifier">{{ myPeer.name }}{{ 'feature.chat.input.you' | transloco }}</ng-option>
         }
         @for (gameCharacter of gameCharacters(); track gameCharacter.identifier) {
-          <ng-option [value]="gameCharacter.identifier">{{ gameCharacter.name }}</ng-option>
+          <ng-option [value]="gameCharacter.identifier">{{ names.shown(gameCharacter) }}</ng-option>
         }
       </ng-select>
       <span class="text-ui-muted flex-none text-[11px] leading-none @max-xs:hidden" [class.hidden]="onPhone()">▶</span>

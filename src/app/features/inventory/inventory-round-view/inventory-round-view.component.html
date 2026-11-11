@@ -296,7 +296,7 @@
         }
       </span>
       <span class="flex min-w-0 flex-col gap-0.5">
-        <span class="truncate font-semibold" data-testid="turn-peek-name">{{ one.piece.name }}</span>
+        <span class="truncate font-semibold" data-testid="turn-peek-name">{{ names.shown(one.piece) }}</span>
         @if (one.current) {
           <span class="text-ui-accent text-[11px]">{{ 'feature.turnOrder.peekCurrent' | transloco }}</span>
         } @else if (one.next) {

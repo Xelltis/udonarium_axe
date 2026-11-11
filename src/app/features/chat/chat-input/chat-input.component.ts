@@ -18,6 +18,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatLintService } from '@axe/application/chat/chat-lint.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
@@ -343,6 +344,7 @@ export class ChatInputComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly vision = inject(VisionService);
+  protected readonly names = inject(PieceNameService);
   private readonly disclosure = inject(DisclosureService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly uiSignalService = inject(UiSignalService);
@@ -1094,7 +1096,8 @@ export class ChatInputComponent {
    * The characters this seat may speak as. A piece on the table it cannot see is left out, so the
    * list does not name what the dark or the fog is keeping back; the one already chosen stays. Where
    * only characters are listed, as a chat palette lists the pieces whose palettes it opens, a piece
-   * whose contents this seat may not view is left out too, as its palette may not be opened.
+   * whose contents this seat may not view is left out too, as its palette may not be opened. A piece
+   * whose name is kept from this seat is left out, as the list would name it.
    */
   readonly gameCharacters = computed(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
@@ -1108,7 +1111,9 @@ export class ChatInputComponent {
       (character) =>
         allowsChat(character, this.myPeer.peerId, ignoreNonTalk) &&
         (character.identifier === chosen ||
-          (this.vision.mayBeListed(character) && (!ignoreNonTalk || this.disclosure.canView(character))))
+          (this.vision.mayBeListed(character) &&
+            !this.names.isKept(character) &&
+            (!ignoreNonTalk || this.disclosure.canView(character))))
     );
   });
 

@@ -13,6 +13,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -110,6 +111,7 @@ export class InventoryRoundViewComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly preference = inject(InventoryViewPreferenceService);
   private readonly t = inject(TRANSLATE_FN);
+  protected readonly names = inject(PieceNameService);
 
   /** Whether this reader may press the round on, which a seat that is only watching may not. */
   protected readonly canEdit = computed<boolean>(() => this.rolePermission.canEditTabletop());
@@ -428,7 +430,7 @@ export class InventoryRoundViewComponent {
 
   /** What a face says of itself to a screen reader: its name, and how it stands. */
   protected pieceLabel(one: DockPiece): string {
-    const told = [one.piece.name];
+    const told = [this.names.shown(one.piece)];
     if (one.current) told.push(this.t('feature.turnOrder.peekCurrent'));
     else if (one.next) told.push(this.t('feature.turnOrder.peekNext'));
     if (one.acted && !one.current) told.push(this.t('feature.turnOrder.acted'));
@@ -439,7 +441,7 @@ export class InventoryRoundViewComponent {
 
   /** The names of the pieces taking their turn in a piece's, as its face drawn out says them. */
   protected companionNames(one: DockPiece): string {
-    return one.companions.map((companion) => companion.name).join(', ');
+    return one.companions.map((companion) => this.names.shown(companion)).join(', ');
   }
 
   /** Hands a piece the turn, where this reader may move the round on and it is not its turn already. */

@@ -1,4 +1,5 @@
 import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { gaugeFixedColorOf, isGaugeInverted, isGaugeShownOnPiece } from '@axe/domain/character/piece-gauge';
 import { resourceElementsOf } from '@axe/domain/character/resource-catalog';
 import { shownImageIdentifier } from '@axe/domain/character/shown-image';
@@ -8,6 +9,8 @@ import { DataElement } from '@axe/domain/data/data-element';
 export interface FighterSource {
   identifier: string;
   name: string;
+  /** Whether its name is hidden, which the stage then names it by the label for. */
+  hideName?: boolean;
   detailDataElement: DataElement | null;
   imageDataElement: DataElement | null;
   /** Which way the picture faces, `left` or `right`; anything else stands it as drawn. */
@@ -53,7 +56,7 @@ export function readFighter(source: FighterSource): FighterReading {
   }
   return {
     identifier: source.identifier,
-    name: source.name,
+    name: saidNameOf(source),
     image: shownImageIdentifier(source.imageDataElement, source.detailDataElement),
     facing: asBattleSide(source.battleFacing),
     resources,

@@ -1,4 +1,5 @@
 import { computed, inject, type Signal } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -16,13 +17,14 @@ export function turnIndicatorSignal(): Signal<TurnIndicator | null> {
   const objectStore = inject(ObjectStore);
   const turnOrder = inject(TurnOrderService);
   const vision = inject(VisionService);
+  const names = inject(PieceNameService);
 
   return computed(() => {
     objectChange.versionOf('TurnState')();
     const currentIdentifier = turnOrder.currentIdentifier;
     if (currentIdentifier) objectChange.versionOf(currentIdentifier)();
     const current = currentIdentifier ? objectStore.get(currentIdentifier) : null;
-    const name = current instanceof GameCharacter ? current.name : '';
+    const name = current instanceof GameCharacter ? names.shown(current) : '';
     const unseen = current instanceof GameCharacter && !vision.mayBeListed(current);
     // The sides come from the room's rules and from the parties themselves, names and all, so
     // a mode switched back or a party renamed has to reach the heading without waiting for a turn.

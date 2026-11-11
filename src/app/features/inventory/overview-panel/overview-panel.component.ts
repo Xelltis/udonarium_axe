@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
@@ -87,6 +88,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class OverviewPanelComponent {
   private readonly inventoryService = inject(GameObjectInventoryService);
+  protected readonly names = inject(PieceNameService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly domSanitizer = inject(DomSanitizer);
   private readonly imageStorage = inject(ImageStorage);

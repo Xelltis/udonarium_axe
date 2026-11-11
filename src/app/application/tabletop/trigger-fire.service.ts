@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -51,6 +52,7 @@ export class TriggerFireService {
   private readonly objectStore = inject(ObjectStore);
   private readonly tableBgm = inject(TableBgmService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly names = inject(PieceNameService);
 
   /** Where each piece was lifted from, so putting it down knows what it crossed to get here. */
   private readonly lifted = new Map<string, number>();
@@ -391,7 +393,7 @@ export class TriggerFireService {
         trigger,
         this.t('feature.tabletop.trigger.rolled', {
           trigger: called,
-          piece: piece.name,
+          piece: this.names.said(piece),
           rolled: firing.rolled,
           target: trigger.checkTarget.trim(),
           outcome: this.t(firing.made ? 'feature.tabletop.trigger.made' : 'feature.tabletop.trigger.missed'),
@@ -404,7 +406,7 @@ export class TriggerFireService {
         trigger,
         this.t('feature.tabletop.trigger.tookFrom', {
           trigger: called,
-          piece: piece.name,
+          piece: this.names.said(piece),
           amount: Math.abs(firing.taken),
           element: firing.from,
           verb: this.t(firing.taken < 0 ? 'feature.tabletop.trigger.gave' : 'feature.tabletop.trigger.took'),
@@ -415,7 +417,7 @@ export class TriggerFireService {
     // Ground that took nothing and described nothing still says it was walked into, or a table
     // would have no way of telling a trap that did nothing from ground that is not trapped.
     if (said.length < 1)
-      this.tell(trigger, this.t('feature.tabletop.trigger.sprang', { trigger: called, piece: piece.name }));
+      this.tell(trigger, this.t('feature.tabletop.trigger.sprang', { trigger: called, piece: this.names.said(piece) }));
   }
 
   /**
@@ -433,7 +435,7 @@ export class TriggerFireService {
     if (trigger.checkRoll.trim().length > 0 && trigger.checkTarget.trim().length > 0) return;
     const target = trigger.checkTarget.trim();
     const key = target.length > 0 ? 'feature.tabletop.trigger.asksFor' : 'feature.tabletop.trigger.asks';
-    this.tell(trigger, this.t(key, { trigger: called, piece: piece.name, check: asked, target }));
+    this.tell(trigger, this.t(key, { trigger: called, piece: this.names.said(piece), check: asked, target }));
   }
 
   /**

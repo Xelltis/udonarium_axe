@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BattleLaunchService } from '@axe/application/battle/battle-launch.service';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
@@ -36,6 +37,7 @@ import { BattleTake } from '@axe/domain/battle/battle-take';
 import { BUFF_COLORS, resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { ControllerResourcePick, controllerShowsResource } from '@axe/domain/character/controller-resource-pick';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { type ResourceCatalogEntry, resourceCatalogOf } from '@axe/domain/character/resource-catalog';
 import { isChangeableElementType } from '@axe/domain/character/status-accessor';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -115,6 +117,7 @@ export class RemoteControllerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
   private readonly battle = inject(BattleLaunchService);
+  private readonly names = inject(PieceNameService);
   protected readonly rolePermission = inject(RolePermissionService);
 
   /**
@@ -360,7 +363,7 @@ export class RemoteControllerComponent {
 
   protected targetNames(): string {
     return this.getTargetCharacters(true)
-      .map((character) => character.name)
+      .map((character) => this.shownName(character))
       .join('、');
   }
 
@@ -395,7 +398,7 @@ export class RemoteControllerComponent {
       return;
     }
     const ci = this.controllerInputComponent();
-    const parts = gameCharacters.map((o) => `[${o.name}]`).join('');
+    const parts = gameCharacters.map((o) => `[${saidNameOf(o)}]`).join('');
     const appearance = { ...parsed.appearance };
     let bufftext = parsed.bufftext;
     if (appearance.color === undefined && this.buffColorId().length > 0) {
@@ -569,8 +572,7 @@ export class RemoteControllerComponent {
 
   /** A piece's name in the target list as this user may be told it: one whose name is kept from them goes unnamed. */
   shownName(object: TabletopObject): string {
-    const hidden = object instanceof GameCharacter && object.hideName && !this.rolePermission.canSeeHidden();
-    return hidden ? this.t('common.hiddenName') : object.name;
+    return this.names.shown(object);
   }
 
   /**
