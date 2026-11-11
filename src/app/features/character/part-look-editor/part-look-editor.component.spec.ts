@@ -3,6 +3,7 @@ import { MODEL_VIEWER_LOADER } from '@axe/application/media/model-viewer-loader'
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -134,6 +135,22 @@ describe('PartLookEditorComponent', () => {
 
     root.querySelector<HTMLButtonElement>('[data-testid="part-look-clear"]')!.click();
     expect(head.partMask).toBe('');
+
+    const snackbar = TestBed.inject(SnackbarService);
+    expect(snackbar.current()?.message).toContain('head');
+    snackbar.runAction();
+    expect(partMaskOf(head.partMask)).toEqual(painted);
+  });
+
+  it('offers to put a part’s picture back over the body once it is no longer laid over it', () => {
+    tail.partLayer = writePartLayer({ x: 0.5, y: 0.5, width: 0.2, order: 1 });
+    const { root } = open(tail.identifier);
+
+    root.querySelector<HTMLButtonElement>('[data-testid="part-look-unlay"]')!.click();
+    expect(tail.partLayer).toBe('');
+    TestBed.inject(SnackbarService).runAction();
+
+    expect(partLayerOf(tail.partLayer)).toEqual({ x: 0.5, y: 0.5, width: 0.2, order: 1 });
   });
 
   describe('on a body drawn as a model', () => {

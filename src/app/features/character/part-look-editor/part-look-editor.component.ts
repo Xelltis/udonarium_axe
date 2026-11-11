@@ -9,12 +9,14 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { MODEL_VIEWER_LOADER } from '@axe/application/media/model-viewer-loader';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -77,6 +79,8 @@ export class PartLookEditorComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tablePieces = inject(TablePiecesService);
   private readonly loadViewer = inject(MODEL_VIEWER_LOADER);
+  private readonly snackbar = inject(SnackbarService);
+  private readonly t = inject(TRANSLATE_FN);
 
   /** The body whose parts are worked on, and the part chosen of them. */
   readonly bodyIdentifier = signal('');
@@ -278,7 +282,22 @@ export class PartLookEditorComponent {
 
   protected clearFaces(): void {
     const part = this.chosenPiece();
-    if (part) part.partFaces = '';
+    if (!part || part.partFaces === '') return;
+    const was = part.partFaces;
+    part.partFaces = '';
+    this.offerToPutBack(part, 'feature.ride.part.look.paintCleared', () => (part.partFaces = was));
+  }
+
+  /** Says what was just taken off a part, with a press that puts it back, as long as the part is there. */
+  private offerToPutBack(part: GameCharacter, said: string, putBack: () => void): void {
+    this.snackbar.show(this.t(said, { name: part.name }), {
+      action: {
+        label: this.t('feature.ride.part.look.putBack'),
+        run: () => {
+          if (this.objectStore.get(part.identifier) === part) putBack();
+        },
+      },
+    });
   }
 
   private paintModelAt(event: PointerEvent): void {
@@ -319,7 +338,10 @@ export class PartLookEditorComponent {
 
   protected clearLayer(): void {
     const part = this.chosenPiece();
-    if (part) part.partLayer = '';
+    if (!part || part.partLayer === '') return;
+    const was = part.partLayer;
+    part.partLayer = '';
+    this.offerToPutBack(part, 'feature.ride.part.look.unlaid', () => (part.partLayer = was));
   }
 
   protected resize(event: Event): void {
@@ -344,7 +366,10 @@ export class PartLookEditorComponent {
 
   protected clearMask(): void {
     const part = this.chosenPiece();
-    if (part) part.partMask = '';
+    if (!part || part.partMask === '') return;
+    const was = part.partMask;
+    part.partMask = '';
+    this.offerToPutBack(part, 'feature.ride.part.look.paintCleared', () => (part.partMask = was));
   }
 
   protected pressLayer(event: PointerEvent): void {
