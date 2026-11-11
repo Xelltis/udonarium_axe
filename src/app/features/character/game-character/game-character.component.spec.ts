@@ -1215,6 +1215,7 @@ describe('GameCharacterComponent', () => {
         );
         expect(component.orbitPieceGauges()[0].color).toBe(HIDDEN_GAUGE_COLOR);
         expect(component['keptGaugeIds']().has(component.orbitPieceGauges()[0].identifier)).toBe(true);
+        expect(component['keptStripesId']()).toBe(`kept-gauge-stripes-${character.identifier}`);
       } finally {
         character.destroy();
       }

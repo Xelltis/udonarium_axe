@@ -215,7 +215,7 @@
                     @if (keptGaugeIds().size > 0) {
                       <defs>
                         <pattern
-                          id="kept-gauge-stripes"
+                          [attr.id]="keptStripesId()"
                           patternUnits="userSpaceOnUse"
                           width="6"
                           height="6"
@@ -256,7 +256,7 @@
                         fill="none"
                         [attr.stroke]="
                           keptGaugeIds().has(segment.gauge.identifier)
-                            ? 'url(#kept-gauge-stripes)'
+                            ? 'url(#' + keptStripesId() + ')'
                             : segment.gauge.color
                         "
                         [attr.stroke-width]="gaugeLayout.strokeWidth"

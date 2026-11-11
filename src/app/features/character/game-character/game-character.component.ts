@@ -1193,6 +1193,11 @@ export class GameCharacterComponent {
 
   /** How a bar kept from this reader is filled: slanting stripes rather than a full bar. */
   protected readonly keptStripes = HIDDEN_GAUGE_STRIPES;
+  /**
+   * The name of the stripes the ring round this piece is drawn with, its own: another piece's, in a
+   * part of the page that is not drawn, would leave the ring unpainted.
+   */
+  protected readonly keptStripesId = computed(() => `kept-gauge-stripes-${this.gameCharacter()?.identifier ?? ''}`);
   /** The bars on the ring round the piece kept from this reader, which are drawn striped. */
   protected readonly keptGaugeIds = computed(
     () =>
