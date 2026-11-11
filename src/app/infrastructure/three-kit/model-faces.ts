@@ -75,3 +75,18 @@ export function cutGeometry(source: BufferGeometry, cut: ReadonlySet<number>): B
   if (source.boundingSphere) cutShape.boundingSphere = source.boundingSphere.clone();
   return cutShape;
 }
+
+/**
+ * Gives back what the shapes cut from others under an object hold on the graphics card of their own:
+ * the list of which points their triangles join. The points themselves are the shapes' they were cut
+ * from, still drawn, so they are taken off a cut shape before it is let go of, and only its own list
+ * goes with it.
+ */
+export function releaseCutShapes(root: Object3D): void {
+  for (const mesh of meshesOf(root)) {
+    const geometry = mesh.geometry;
+    if (!geometry.userData[KEPT_TRIANGLES]) continue;
+    for (const name of Object.keys(geometry.attributes)) geometry.deleteAttribute(name);
+    geometry.dispose();
+  }
+}

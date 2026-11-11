@@ -4,7 +4,7 @@ import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
 import { UnusedSince } from '@axe/infrastructure/table-3d/unused-since';
 import { disposeObject, forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
-import { cutGeometry, meshesOf } from '@axe/infrastructure/three-kit/model-faces';
+import { cutGeometry, meshesOf, releaseCutShapes } from '@axe/infrastructure/three-kit/model-faces';
 import { picturesOf, releaseReadPictures } from '@axe/infrastructure/three-kit/read-pictures';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
@@ -231,6 +231,7 @@ export class ModelLayer {
     for (const stood of this.stood.values()) {
       this.group.remove(stood.root);
       forgetDrawn(stood.root);
+      releaseCutShapes(stood.root);
     }
     this.stood.clear();
     for (const herd of this.herds.values()) this.unherd(herd);
@@ -261,6 +262,7 @@ export class ModelLayer {
       }
       this.group.remove(stood.root);
       forgetDrawn(stood.root);
+      releaseCutShapes(stood.root);
       stood.mixer.stopAllAction();
       this.stood.delete(owner);
     }

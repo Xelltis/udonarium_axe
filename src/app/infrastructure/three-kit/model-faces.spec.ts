@@ -1,4 +1,10 @@
-import { cutGeometry, meshesOf, sourceTriangleOf, triangleCountOf } from '@axe/infrastructure/three-kit/model-faces';
+import {
+  cutGeometry,
+  meshesOf,
+  releaseCutShapes,
+  sourceTriangleOf,
+  triangleCountOf,
+} from '@axe/infrastructure/three-kit/model-faces';
 import { BufferAttribute, BufferGeometry, Group, Mesh, Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
 
@@ -41,6 +47,26 @@ describe('the faces of a model', () => {
 
     expect([0, 1, 2].map((triangle) => sourceTriangleOf(cut, triangle))).toEqual([2, 3, 5]);
     expect(sourceTriangleOf(source, 4)).toBe(4);
+  });
+
+  it('lets go of the shapes cut from others under an object, but not of the points they share', () => {
+    const source = triangles(4, true);
+    const kept = new Mesh(triangles(2, true));
+    const cutMesh = new Mesh(cutGeometry(source, new Set([1])));
+    const root = new Group();
+    root.add(kept, cutMesh);
+    const cutShape = cutMesh.geometry;
+    const disposed: BufferGeometry[] = [];
+    for (const geometry of [cutShape, kept.geometry, source]) {
+      geometry.addEventListener('dispose', () => disposed.push(geometry));
+    }
+    const position = source.getAttribute('position');
+
+    releaseCutShapes(root);
+
+    expect(disposed).toEqual([cutShape]);
+    expect(Object.keys(cutShape.attributes)).toEqual([]);
+    expect(source.getAttribute('position')).toBe(position);
   });
 
   it('cuts each run a material draws, keeping the runs in their order', () => {
