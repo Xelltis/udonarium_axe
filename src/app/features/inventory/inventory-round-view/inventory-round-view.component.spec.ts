@@ -294,6 +294,26 @@ describe('InventoryRoundViewComponent', () => {
     expect(strip().style.width).not.toBe('');
   });
 
+  it('runs the head along the row laid across on a wide screen, and stands it in a column on a narrow one', () => {
+    const innerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+    const head = (root: HTMLElement) => root.querySelector<HTMLElement>('[data-testid="turn-dock"] > div')!;
+    try {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1280 });
+      const wide = render(5, 'p1');
+      TestBed.inject(InventoryViewPreferenceService).setRoundAcross(true);
+      settle(wide.fixture);
+      expect(head(wide.root).classList.contains('flex-col')).toBe(false);
+
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
+      window.dispatchEvent(new Event('resize'));
+      settle(wide.fixture);
+      expect(head(wide.root).classList.contains('flex-col')).toBe(true);
+      expect(head(wide.root).classList.contains('w-30')).toBe(true);
+    } finally {
+      if (innerWidth) Object.defineProperty(window, 'innerWidth', innerWidth);
+    }
+  });
+
   it('draws a face out under itself near the screen’s edge, held to the edge whole rather than squeezed', () => {
     const innerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 260 });

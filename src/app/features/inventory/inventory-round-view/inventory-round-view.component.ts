@@ -40,6 +40,8 @@ const STRIP_WIDTH_DOWN = 104;
 const STRIP_HEIGHT_ACROSS = DOCK_FACE + 8;
 /** The shortest the turn order is made, however little room the screen leaves. */
 const LEAST_LENGTH = 160;
+/** How wide a screen has to be for the head of a turn order laid across to run along its row, in px. */
+const HEAD_ALONG_SCREEN = 640;
 /** Half the widest a face drawn out stands, in px. */
 const PEEK_HALF_WIDTH = 120;
 /** How far a face drawn out keeps from the edge of the screen, in px. */
@@ -115,6 +117,13 @@ export class InventoryRoundViewComponent {
   protected readonly across = this.preference.roundAcross;
   protected readonly peekLayer = Z_POINTER_PEEK;
   protected readonly leastLength = LEAST_LENGTH;
+  /** How wide the screen is, read again as the turn order measures its room. */
+  private readonly screenWidth = signal(typeof innerWidth === 'number' ? innerWidth : 1280);
+  /**
+   * Whether the head runs along the row with the faces, laid across on a screen wide enough to leave
+   * them their room beside it; on a narrower one it stands in a column at the row's start.
+   */
+  protected readonly headAlong = computed(() => this.across() && this.screenWidth() >= HEAD_ALONG_SCREEN);
   /** How long the turn order runs now, rounded for a screen reader to say. */
   protected readonly lengthNow = computed(() => Math.round(this.laidLength()));
   /** The most the turn order may run, as the screen leaves it room, rounded for a screen reader to say. */
@@ -307,6 +316,7 @@ export class InventoryRoundViewComponent {
     const strip = this.strip()?.nativeElement;
     const view = strip?.ownerDocument.defaultView;
     if (!strip || !view) return;
+    if (view.innerWidth !== this.screenWidth()) this.screenWidth.set(view.innerWidth);
     const rect = strip.getBoundingClientRect();
     const room = this.across()
       ? view.innerWidth - rect.left - SCREEN_MARGIN

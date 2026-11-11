@@ -4,12 +4,16 @@
   [class.flex-col]="!across()"
   [class.items-center]="across()"
 >
-  <!-- Laid across, the head runs along the row too, so the plate stands no taller than the faces. -->
+  <!--
+    Laid across on a wide screen, the head runs along the row too, so the turn order stands no taller
+    than its faces; on a narrow one it stands in a column, leaving the faces the width.
+  -->
   <div
     #head
     class="flex shrink-0 items-center gap-1 px-1 pt-1.5 pb-1"
-    [class.flex-col]="!across()"
-    [class.pl-2]="across()"
+    [class.flex-col]="!headAlong()"
+    [class.pl-2]="headAlong()"
+    [class.w-30]="across() && !headAlong()"
   >
     @if (turns.progress().round > 0) {
       <span class="text-ui-accent text-[11px] font-bold whitespace-nowrap drop-shadow-sm">{{
@@ -17,7 +21,7 @@
       }}</span>
     }
     @if (canEdit()) {
-      <div class="flex items-center justify-center gap-x-1.5 gap-y-1" [class.flex-wrap]="!across()">
+      <div class="flex items-center justify-center gap-x-1.5 gap-y-1" [class.flex-wrap]="!headAlong()">
         <div class="flex items-center gap-1">
           <button
             type="button"
