@@ -333,9 +333,28 @@ describe('riding a mount', () => {
       { id: 'horse', ridingOn: '', rideSeat: '', mountable: true },
       { id: 'squire', ridingOn: 'horse', rideSeat: 'passenger', mountable: false },
       { id: 'guard', ridingOn: '', rideSeat: '', mountable: false },
+      { id: 'cart', ridingOn: '', rideSeat: '', mountable: true },
+      { id: 'driver', ridingOn: 'cart', rideSeat: '', mountable: false },
     ];
 
     expect(inTheWayOf(pieces[0], pieces).map((piece) => piece.id)).toEqual(['knight', 'guard']);
-    expect(inTheWayOf(pieces[1], pieces).map((piece) => piece.id)).toEqual(['knight', 'horse', 'squire', 'guard']);
+    expect(inTheWayOf(pieces[1], pieces).map((piece) => piece.id)).toEqual([
+      'knight',
+      'horse',
+      'guard',
+      'cart',
+      'driver',
+    ]);
+  });
+
+  it('leaves the parts of a piece out of its way, as they go where it goes', () => {
+    const pieces = [
+      { id: 'dragon', ridingOn: '', rideSeat: '', mountable: false },
+      { id: 'head', ridingOn: 'dragon', rideSeat: 'part', mountable: false },
+      { id: 'guard', ridingOn: '', rideSeat: '', mountable: false },
+    ];
+
+    expect(inTheWayOf(pieces[0], pieces).map((piece) => piece.id)).toEqual(['dragon', 'guard']);
+    expect(inTheWayOf(pieces[2], pieces).map((piece) => piece.id)).toEqual(['dragon', 'head', 'guard']);
   });
 });
