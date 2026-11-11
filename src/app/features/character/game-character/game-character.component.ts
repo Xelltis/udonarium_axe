@@ -878,6 +878,14 @@ export class GameCharacterComponent {
     this.menu.open(part, { ...this.menuHost, name: () => part.name }, { x: event.clientX, y: event.clientY, z: 0 });
   }
 
+  /**
+   * The parts of the piece, listed in a card of their own under it while its name and bars run round
+   * it, where its riding card is not drawn: each part is still aimed at by pressing its row.
+   */
+  protected readonly partCardInOrbit = computed<RidingLabel[]>(() =>
+    this.multiAngleNameOrbitEnabled() ? this.partLabels() : []
+  );
+
   /** Whether the mount's own labels are drawn in its riding card rather than over it. */
   protected readonly labelsInRidingCard = computed(
     () => this.ridingCard().length > 0 && !this.multiAngleNameOrbitEnabled()

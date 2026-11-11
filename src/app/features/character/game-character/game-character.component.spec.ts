@@ -261,6 +261,32 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    it('lists the parts in a card of their own while the name runs round the piece, a row still aiming at its part', async () => {
+      const dragon = GameCharacter.create('ドラゴン', 3, '');
+      dragon.setLocation('table');
+      const head = GameCharacter.create('頭', 1, '');
+      head.setLocation('table');
+      head.ridingOn = dragon.identifier;
+      head.rideSeat = 'part';
+      TestBed.inject(ViewModePreferenceService).choose('flat');
+      TestBed.inject(TabletopService).currentTable.multiAngleEnabled = true;
+      fixture.componentRef.setInput('gameCharacter', dragon);
+
+      try {
+        const element = await draw(fixture);
+        expect(element.querySelector('[data-testid="riding-label"]')).toBeNull();
+        const row = element.querySelector<HTMLElement>(
+          `[data-testid="part-label-card"] [data-body-part="${head.identifier}"]`
+        )!;
+        row.click();
+        expect(head.targeted).toBe(true);
+      } finally {
+        head.targeted = false;
+        head.destroy();
+        dragon.destroy();
+      }
+    });
+
     it('draws no labels of its own over a piece riding a mount, and its labels again once it is off', async () => {
       const { knight } = ride();
       fixture.componentRef.setInput('gameCharacter', knight);

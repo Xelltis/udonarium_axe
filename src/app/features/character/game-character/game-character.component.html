@@ -690,61 +690,20 @@
                   @if (!first) {
                     <div class="my-[0.35em] h-[0.1em] w-full shrink-0 bg-white/40"></div>
                   }
-                  <div
-                    class="ring-ui-accent flex flex-col items-center gap-[0.15em] rounded-[0.6em]"
-                    data-testid="riding-label-piece"
-                    [attr.data-body-part]="label.part ? label.identifier : null"
-                    [attr.data-hud-control]="label.part ? '' : null"
-                    [class.pointer-events-auto]="label.part"
-                    [class.cursor-pointer]="label.part"
-                    [class.ring-2]="label.targeted"
-                    (click)="label.part && aimAtPart(label.identifier, $event)"
-                    (contextmenu)="label.part && openPartMenu(label.identifier, $event)"
-                  >
-                    @if (label.badges.length > 0) {
-                      <div
-                        class="grid w-max items-end gap-[0.8em]"
-                        [style.grid-template-columns]="buffBadgeColumns"
-                        [style.font-size.em]="buffIconScale()"
-                      >
-                        @for (badge of label.badges; track badge.identifier) {
-                          <buff-badge [badge]="badge"></buff-badge>
-                        }
-                      </div>
-                    }
-                    @for (row of label.gauges; track row.gauge.identifier) {
-                      <ng-container *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"></ng-container>
-                    }
-                    @if (label.name && label.icon) {
-                      <div
-                        class="bg-ui-panel text-ui-text box-border max-w-[24em] truncate rounded-[1.6em] px-[0.6em] py-[0.2em]"
-                        data-testid="riding-label-name"
-                        [style.font-size.em]="ridingNameEm"
-                      >
-                        <i class="material-icons text-ui-muted inline align-middle text-[1em]!">{{ label.icon }}</i>
-                        {{ label.name }}
-                      </div>
-                    } @else if (label.name) {
-                      <div
-                        class="bg-ui-panel text-ui-text pointer-events-auto box-border rounded-[1.6em] px-[0.6em] py-[0.2em]"
-                        data-testid="piece-name"
-                        [style.font-size.em]="ridingNameEm"
-                      >
-                        <div class="max-w-[24em] truncate">
-                          {{ label.name }}
-                          @if (isLock) {
-                            <i class="material-icons inline align-middle text-[1em]!">lock</i>
-                          }
-                          @if (label.aboard > 0) {
-                            <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
-                              ><i class="material-icons inline align-middle text-[1em]!">person</i
-                              >{{ label.aboard }}</span
-                            >
-                          }
-                        </div>
-                      </div>
-                    }
-                  </div>
+                  <ng-container *ngTemplateOutlet="ridingLabelView; context: { $implicit: label }"></ng-container>
+                }
+              </div>
+            }
+            @if (partCardInOrbit().length > 0) {
+              <div
+                data-testid="part-label-card"
+                class="box-border flex flex-col items-center rounded-[0.9em] bg-black/35 px-[0.6em] py-[0.35em]"
+              >
+                @for (label of partCardInOrbit(); track label.identifier; let first = $first) {
+                  @if (!first) {
+                    <div class="my-[0.35em] h-[0.1em] w-full shrink-0 bg-white/40"></div>
+                  }
+                  <ng-container *ngTemplateOutlet="ridingLabelView; context: { $implicit: label }"></ng-container>
                 }
               </div>
             }
@@ -895,5 +854,62 @@
     <span class="shrink-0 text-[0.9em] leading-none text-white/85 [text-shadow:0_0.1em_0.2em_#000]">{{
       row.numbers
     }}</span>
+  </div>
+</ng-template>
+
+<ng-template #ridingLabelView let-label>
+  <div
+    class="ring-ui-accent flex flex-col items-center gap-[0.15em] rounded-[0.6em]"
+    data-testid="riding-label-piece"
+    [attr.data-body-part]="label.part ? label.identifier : null"
+    [attr.data-hud-control]="label.part ? '' : null"
+    [class.pointer-events-auto]="label.part"
+    [class.cursor-pointer]="label.part"
+    [class.ring-2]="label.targeted"
+    (click)="label.part && aimAtPart(label.identifier, $event)"
+    (contextmenu)="label.part && openPartMenu(label.identifier, $event)"
+  >
+    @if (label.badges.length > 0) {
+      <div
+        class="grid w-max items-end gap-[0.8em]"
+        [style.grid-template-columns]="buffBadgeColumns"
+        [style.font-size.em]="buffIconScale()"
+      >
+        @for (badge of label.badges; track badge.identifier) {
+          <buff-badge [badge]="badge"></buff-badge>
+        }
+      </div>
+    }
+    @for (row of label.gauges; track row.gauge.identifier) {
+      <ng-container *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"></ng-container>
+    }
+    @if (label.name && label.icon) {
+      <div
+        class="bg-ui-panel text-ui-text box-border max-w-[24em] truncate rounded-[1.6em] px-[0.6em] py-[0.2em]"
+        data-testid="riding-label-name"
+        [style.font-size.em]="ridingNameEm"
+      >
+        <i class="material-icons text-ui-muted inline align-middle text-[1em]!">{{ label.icon }}</i>
+        {{ label.name }}
+      </div>
+    } @else if (label.name) {
+      <div
+        class="bg-ui-panel text-ui-text pointer-events-auto box-border rounded-[1.6em] px-[0.6em] py-[0.2em]"
+        data-testid="piece-name"
+        [style.font-size.em]="ridingNameEm"
+      >
+        <div class="max-w-[24em] truncate">
+          {{ label.name }}
+          @if (isLock) {
+            <i class="material-icons inline align-middle text-[1em]!">lock</i>
+          }
+          @if (label.aboard > 0) {
+            <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
+              ><i class="material-icons inline align-middle text-[1em]!">person</i>{{ label.aboard }}</span
+            >
+          }
+        </div>
+      </div>
+    }
   </div>
 </ng-template>
