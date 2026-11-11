@@ -358,6 +358,7 @@
                 [ngStyle]="lineLook()"
                 [class.pb-5]="findings().length > 0 && !dense()"
                 [class.pr-16]="dense() && hasText()"
+                [class.h-10]="dense()"
                 [class.min-h-15!]="onPhone() && !dense()"
                 class="panel-no-drag bg-ui-input text-ui-text box-border flex max-h-60 min-h-10 w-full min-w-0 grow resize-y flex-col overflow-y-auto"
               >
@@ -372,6 +373,7 @@
                 [attr.data-chat-input-mode]="inputMode()"
                 [ngStyle]="lineLook()"
                 [attr.rows]="dense() || narrow() ? 1 : onPhone() ? 2 : null"
+                [class.pr-16]="dense() && hasText()"
                 class="chat-input bg-ui-input text-ui-text m-0 box-border block max-h-60 min-h-10 w-full min-w-0 grow resize-y border-none px-2 py-1.5 font-[inherit] text-[13px] leading-[1.4] placeholder:text-current/65 focus:outline-none"
                 [placeholder]="placeholderText()"
                 [(ngModel)]="text"

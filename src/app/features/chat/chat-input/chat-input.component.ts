@@ -1338,8 +1338,12 @@ export class ChatInputComponent {
     }
   }
 
-  /** Grows or shrinks the box to its content, unless the user has resized it by hand. */
+  /**
+   * Grows or shrinks the box to its content, unless the user has resized it by hand. A palette's box
+   * keeps its height, so that the lines under it hold still whatever is picked into it.
+   */
   calcFitHeight() {
+    if (this.dense()) return;
     this.textField()?.refit();
   }
 

@@ -77,6 +77,33 @@ test.describe('the chat palette', () => {
    * from the start, so the first click of a double click on such a line moves nothing under the
    * pointer and the second lands on the same line, sending it.
    */
+  test('holds the list still as a line of two lines or one longer than the box is picked into it', async ({ page }) => {
+    const palette = page.locator('chat-palette');
+    await palette.getByRole('button', { name: '編集', exact: true }).click();
+    const editor = palette.locator('[data-chat-palette-editor] .ProseMirror');
+    await expect(editor).toBeVisible({ timeout: 10000 });
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    const long = `長い行${'あ'.repeat(90)}`;
+    await editor.fill(`2d6 攻撃\\n命中したら追加\n${long}\n2d6+2 回避`);
+    await palette.getByRole('button', { name: '確定' }).click();
+
+    const list = palette.getByTestId('chat-palette-list');
+    const last = list.getByText('2d6+2 回避');
+    await expect(last).toBeVisible();
+    const before = (await last.boundingBox())!.y;
+    const input = chatInput(palette);
+    for (const [picked, text] of [
+      [list.getByText('2d6 攻撃'), '2d6 攻撃\n命中したら追加'],
+      [list.getByText('長い行'), long],
+    ] as const) {
+      await picked.click();
+      await expectChatText(input, text);
+      expect(Math.abs((await last.boundingBox())!.y - before)).toBeLessThan(1);
+    }
+  });
+
   test('sends a line holding {目標値} on a double click, the list holding still as the bar fills', async ({ page }) => {
     const palette = page.locator('chat-palette');
     await palette.getByRole('button', { name: '編集', exact: true }).click();
