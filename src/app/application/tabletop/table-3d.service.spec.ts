@@ -862,7 +862,7 @@ describe('Table3dService', () => {
     expect(engine.skies.at(-1)).toEqual(skyLightAt(0));
   });
 
-  it('reads the heights of the ground for the floor marks of effects only while an effect is drawn', async () => {
+  it('reads the heights of the ground for the floor marks of effects only while an effect is drawn, once as it begins', async () => {
     const scene = service();
     scene.attach(document.createElement('canvas'));
     await scene.whenIdle();
@@ -883,8 +883,11 @@ describe('Table3dService', () => {
 
     playback.now.set(active.startedAt + effectBlowsOf(preset)[0].atMs + 20);
     TestBed.tick();
+    expect(engine.grounds).toBe(1);
 
-    expect(engine.grounds).toBeGreaterThan(0);
+    playback.now.set(active.startedAt + effectBlowsOf(preset)[0].atMs + 60);
+    TestBed.tick();
+    expect(engine.grounds).toBe(1);
     ObjectStore.instance.remove(preset);
   });
 

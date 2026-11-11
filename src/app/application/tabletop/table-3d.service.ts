@@ -259,6 +259,9 @@ export class Table3dService {
     { equal: sameTableWorld }
   );
 
+  /** Whether any effect is drawn in the scene, which changes only as the first begins and the last ends. */
+  private readonly drawingEffects = computed(() => this.effectFrames.frame() !== EMPTY_EFFECT_FRAME);
+
   /** The heights of the ground under the board, for the marks effects leave on the floor to lie over. */
   private readonly effectGround = computed(() => {
     const table = this.tabletop.currentTableVersion();
@@ -807,8 +810,9 @@ export class Table3dService {
       effect(
         () => {
           // Read only while an effect is drawn, as the heights are read over the whole board, which
-          // shaping the ground with the brush would have done at every dab.
-          if (this.effectFrames.frame() === EMPTY_EFFECT_FRAME) return;
+          // shaping the ground with the brush would have done at every dab; and handed over once as
+          // effects begin to be drawn, not with every frame of them.
+          if (!this.drawingEffects()) return;
           engine.setEffectGround(this.effectGround());
         },
         { injector: this.injector }
