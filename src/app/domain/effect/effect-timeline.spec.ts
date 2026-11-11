@@ -1,3 +1,4 @@
+import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { EFFECT_KINDS, EffectKind } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -71,6 +72,17 @@ describe('cutPictureSprites()', () => {
     const early = cutPictureSprites(preset, makeCast(2), 250, PICTURED);
     expect(early.length).toBeGreaterThan(0);
     expect(early.every((piece) => piece.key.startsWith('0-'))).toBe(true);
+  });
+
+  it('cuts the picture as a shot or a blade that strikes with a look that cuts it first lands, and not before', () => {
+    for (const kind of ['projectile', 'ballistic', 'skyblade'] as const) {
+      const shot = makePreset(kind);
+      shot.impactKind = 'dissolve';
+      const landsAt = effectBlowsOf(shot)[0].atMs;
+
+      expect([kind, cutPictureSprites(shot, makeCast(), landsAt - 50, PICTURED)]).toEqual([kind, []]);
+      expect([kind, cutPictureSprites(shot, makeCast(), landsAt + 200, PICTURED).length > 0]).toEqual([kind, true]);
+    }
   });
 
   it('cuts nothing of a target out of sight', () => {

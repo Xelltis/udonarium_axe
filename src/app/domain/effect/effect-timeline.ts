@@ -1,8 +1,10 @@
 import { areaShareOf } from '@axe/domain/effect/effect-area';
+import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { type EffectCast, type EffectCastTarget } from '@axe/domain/effect/effect-cast';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
 import { stagedCutPictures } from '@axe/domain/effect/effect-stage-timeline';
+import { strikesInSceneWith, STRIKING_WITH } from '@axe/domain/effect/scene/scene-kinds';
 import { appendBisect } from '@axe/domain/effect/timeline/blade';
 import { appendDissolve } from '@axe/domain/effect/timeline/body';
 import {
@@ -103,9 +105,28 @@ function cutPicture(kind: EffectKind, context: CutPictureContext): void {
   CUTTING[kind]?.(context);
 }
 
+/** The shortest a shot's landing plays, as the scene plays it, in milliseconds. */
+const LANDING_LEAST_MS = 600;
+
+/**
+ * How an effect not run in stages cuts a piece's picture: the look that cuts it, and when and for how
+ * long on the effect's own clock. A look that cuts it does so over the whole playback; a shot or a
+ * blade that strikes with one cuts it as it first lands, as the scene draws the rest of that landing.
+ * Null for an effect that cuts none.
+ */
+function pictureCutOf(preset: EffectPreset): { kind: EffectKind; fromMs: number; forMs: number } | null {
+  if (CUTTING[preset.effectKind]) return { kind: preset.effectKind, fromMs: 0, forMs: preset.duration };
+  if (!STRIKING_WITH.has(preset.effectKind)) return null;
+  const kind = strikesInSceneWith(preset.impactEffectKind);
+  if (!CUTTING[kind]) return null;
+  const fromMs = effectBlowsOf(preset)[0]?.atMs ?? preset.duration;
+  return { kind, fromMs, forMs: Math.max(LANDING_LEAST_MS, preset.duration - fromMs) };
+}
+
 /**
  * The pieces of the pictures a cast cuts up at a moment in its playback, for every target whose own
- * playback is under way: a look that cuts a piece's picture alone, or a run with stages that do.
+ * playback is under way: a look that cuts a piece's picture alone, a shot or a blade that lands with
+ * one, or a run with stages that do.
  * Hidden targets are skipped, and a target with no picture has nothing cut.
  */
 export function cutPictureSprites(
@@ -116,14 +137,15 @@ export function cutPictureSprites(
 ): EffectSprite[] {
   if (preset.isStaged) return stagedCutPictures(preset, preset.stageList, cast, elapsedMs, options, cutPicture);
   const sprites: EffectSprite[] = [];
-  if (!CUTTING[preset.effectKind]) return sprites;
+  const cut = pictureCutOf(preset);
+  if (!cut) return sprites;
   const base = Math.max(options.baseSize, 1) * preset.sizeScale;
 
   cast.targets.forEach((target, index) => {
     if (options.hiddenIdentifiers?.has(target.identifier)) return;
-    const progress = (elapsedMs - preset.stagger * index) / preset.duration;
+    const progress = (elapsedMs - preset.stagger * index - cut.fromMs) / cut.forMs;
     if (progress < 0 || progress > 1) return;
-    cutPicture(preset.effectKind, {
+    cutPicture(cut.kind, {
       sprites,
       prefix: `${index}`,
       center: effectTargetCenter(target, preset, options),
