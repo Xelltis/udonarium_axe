@@ -60,5 +60,20 @@ describe('EffectReactionService', () => {
 
     expect(jolts.get(dragon.identifier)?.x).toBeGreaterThan(0);
     expect(jolts.has(head.identifier)).toBe(false);
+    const once = jolts.get(dragon.identifier)!.x;
+
+    casts.update(([active]) => [
+      {
+        ...active,
+        cast: {
+          ...active.cast,
+          targets: [...active.cast.targets, { identifier: dragon.identifier, x: 100, y: 0, z: 0 }],
+          // Struck together, as one blow.
+        },
+        preset: Object.assign(preset, { staggerMs: 0 }),
+      },
+    ]);
+
+    expect(TestBed.inject(EffectReactionService).jolts().get(dragon.identifier)!.x).toBeCloseTo(once);
   });
 });

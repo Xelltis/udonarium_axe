@@ -37,8 +37,14 @@ export class EffectReactionService {
       for (const active of casts) {
         // Each cast keeps the blows it lands from when it was played, rather than working them out each frame.
         const jolts = effectJoltsOf(active.preset, active.cast, effectElapsedOf(active, now), cellPx, active.blows);
+        // A cast that strikes a body and its parts throws the body once, by the hardest of the blows.
+        const thrown = new Map<string, EffectJolt>();
         for (const [struck, jolt] of jolts) {
           const identifier = this.drawnAs(struck);
+          const was = thrown.get(identifier);
+          if (!was || reachOf(jolt) > reachOf(was)) thrown.set(identifier, jolt);
+        }
+        for (const [identifier, jolt] of thrown) {
           const was = all.get(identifier);
           all.set(identifier, was ? { x: was.x + jolt.x, y: was.y + jolt.y, z: was.z + jolt.z } : jolt);
         }
@@ -47,4 +53,9 @@ export class EffectReactionService {
     },
     { equal: (a, b) => a === b || (a.size === 0 && b.size === 0) }
   );
+}
+
+/** How far a jolt throws a piece, whichever way. */
+function reachOf(jolt: EffectJolt): number {
+  return Math.hypot(jolt.x, jolt.y, jolt.z);
 }
