@@ -38,7 +38,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatPalette, PaletteIndex } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { tabBeside } from '@axe/domain/chat/chat-tab-cycle';
+import { tabBeside, tabToShow } from '@axe/domain/chat/chat-tab-cycle';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PaletteRow, paletteRowsOf, paletteTabsOf } from '@axe/domain/chat/palette-rows';
@@ -315,14 +315,32 @@ export class ChatPaletteComponent {
     this.onSelectedCharacter(sendFrom);
   }
 
-  /** The tab the palette speaks into, moved to the first tab in view where the one chosen is no longer. */
+  /**
+   * The tab the palette spoke into when it went away or out of view, gone back to once it is back, as
+   * a tab a join sets aside comes back once the room hands it over. Forgotten once another is picked.
+   */
+  private lostTab = '';
+
+  /**
+   * The tab the palette speaks into, moved off one gone away or out of view and back onto it once it
+   * is back; see {@link tabToShow}.
+   */
   readonly chatTabidentifier = linkedSignal<ChatTab[], string>({
     source: () => this.visibleChatTabs(),
-    computation: (visible, previous) =>
-      previous && visible.some((tab) => tab.identifier === previous.value)
-        ? previous.value
-        : (visible[0]?.identifier ?? ''),
+    computation: (visible, previous) => {
+      const current = previous?.value ?? '';
+      if (current && !this.lostTab && !visible.some((tab) => tab.identifier === current)) this.lostTab = current;
+      const next = tabToShow(visible, current, this.lostTab);
+      if (next === this.lostTab) this.lostTab = '';
+      return next;
+    },
   });
+
+  /** Speaks into the tab the reader picked, forgetting any tab lost. */
+  protected pickTab(identifier: string): void {
+    this.lostTab = '';
+    this.chatTabidentifier.set(identifier);
+  }
   readonly text = signal<string>('');
   sendTo: string = '';
 
@@ -394,7 +412,6 @@ export class ChatPaletteComponent {
   constructor() {
     this.chatPaletteRegistry.register(this);
     queueMicrotask(() => this.updatePanelTitle());
-    this.chatTabidentifier.set(this.visibleChatTabs()[0]?.identifier ?? '');
     this._timeId = Date.now() + '_chat-palette';
     this.objectChange.objectDeleted$.subscribe((e) => {
       if (this.character() && this.character()!.identifier === e.identifier) {
@@ -502,7 +519,7 @@ export class ChatPaletteComponent {
    */
   chatTabSwitchRelative(direction: number) {
     const next = tabBeside(this.visibleChatTabs(), this.chatTabidentifier(), direction);
-    if (next) this.chatTabidentifier.set(next.identifier);
+    if (next) this.pickTab(next.identifier);
   }
 
   /**

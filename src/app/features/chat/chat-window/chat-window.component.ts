@@ -30,7 +30,7 @@ import { delay } from '@axe/core/util/delay';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { tabBeside } from '@axe/domain/chat/chat-tab-cycle';
+import { tabBeside, tabToShow } from '@axe/domain/chat/chat-tab-cycle';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -151,11 +151,37 @@ export class ChatWindowComponent {
     return this._chatTabidentifier();
   }
   set chatTabidentifier(chatTabidentifier: string) {
+    this.lostTab = '';
+    this.show(chatTabidentifier);
+  }
+
+  /**
+   * The tab this window was showing when it went away or out of view, gone back to once it is back,
+   * as a tab a join sets aside comes back once the room hands it over. Forgotten once the reader picks
+   * a tab.
+   */
+  private lostTab = '';
+
+  /** Shows a tab, as the reader picking it does, but for forgetting a tab lost. */
+  private show(chatTabidentifier: string): void {
     const hasChanged: boolean = this._chatTabidentifier() !== chatTabidentifier;
     this._chatTabidentifier.set(chatTabidentifier);
     this.activeChatTab.set(chatTabidentifier);
     this.updatePanelTitle();
     if (hasChanged) this.scrollToBottom(true);
+  }
+
+  /**
+   * Moves off a tab gone away or out of view, remembering it to go back to, and back onto it once it
+   * is in view again; see {@link tabToShow}.
+   */
+  private settleTab(): void {
+    const visible = this.visibleChatTabs();
+    const current = this._chatTabidentifier();
+    if (current && !this.lostTab && !visible.some((tab) => tab.identifier === current)) this.lostTab = current;
+    const next = tabToShow(visible, current, this.lostTab);
+    if (next === this.lostTab) this.lostTab = '';
+    if (next !== current) this.show(next);
   }
 
   private readonly logScroll = viewChild.required<ElementRef<HTMLDivElement>>('logScroll');
@@ -461,20 +487,12 @@ export class ChatWindowComponent {
     }, this.destroyRef);
     this.objectChange.onObjectChangedForAlias(
       [ChatTab.aliasName, ChatTabList.aliasName],
-      () => {
-        if (!this.objectStore.get<ChatTab>(this._chatTabidentifier())) {
-          const chatTabs = this.chatMessageService.chatTabs;
-          this.chatTabidentifier = chatTabs.length > 0 ? chatTabs[0].identifier : '';
-        }
-      },
+      () => this.settleTab(),
       this.destroyRef
     );
     this.objectChange.objectDeleted$.subscribe((event) => {
       if (event.aliasName !== 'chat-tab') return;
-      if (this._chatTabidentifier() === event.identifier) {
-        const chatTabs = this.chatMessageService.chatTabs;
-        this.chatTabidentifier = chatTabs.length > 0 ? chatTabs[0].identifier : '';
-      }
+      if (this._chatTabidentifier() === event.identifier) this.settleTab();
     }, this.destroyRef);
     queueMicrotask(() => this.updatePanelTitle());
     // The title carries a count where the reader asked for one, so it is retitled as lines come
@@ -490,20 +508,10 @@ export class ChatWindowComponent {
       untracked(() => this.updatePanelTitle());
     });
     effect(() => {
-      const tab = this.chatTab();
-      if (!tab) {
-        const chatTabs = this.chatMessageService.chatTabs;
-        if (chatTabs.length > 0) {
-          this.chatTabidentifier = chatTabs[0].identifier;
-        }
-      }
-    });
-    effect(() => {
-      const visible = this.visibleChatTabs();
-      const current = this._chatTabidentifier();
-      if (current && !visible.some((tab) => tab.identifier === current)) {
-        this.chatTabidentifier = visible.length > 0 ? visible[0].identifier : '';
-      }
+      this.chatTab();
+      this.visibleChatTabs();
+      this._chatTabidentifier();
+      untracked(() => this.settleTab());
     });
     afterNextRender({
       write: () => {

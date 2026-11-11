@@ -9,6 +9,8 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Network } from '@axe/core/network/network';
 import { childrenChanged$, objectChanged$ } from '@axe/core/sync/object-event-extension';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { withdraw } from '@axe/core/sync/object-synchronizer';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -425,6 +427,40 @@ describe('ChatWindowComponent', () => {
       });
 
       expect(priv._chatTabidentifier()).not.toBe(oldIdentifier);
+    });
+
+    it('goes back to the tab it showed once that comes back after going away, as a tab a join set aside does', () => {
+      const list = ChatTabList.instance;
+      list.addChatTab('戻るタブ', 'coming-back-tab');
+      list.addChatTab('別のタブ', 'other-tab');
+      component.chatTabidentifier = 'coming-back-tab';
+      fixture.detectChanges();
+
+      withdraw(ObjectStore.instance.get('coming-back-tab')!);
+      fixture.detectChanges();
+      expect(component.chatTabidentifier).toBe('other-tab');
+
+      list.addChatTab('戻るタブ', 'coming-back-tab');
+      fixture.detectChanges();
+      expect(component.chatTabidentifier).toBe('coming-back-tab');
+      for (const identifier of ['coming-back-tab', 'other-tab']) ObjectStore.instance.get(identifier)?.destroy();
+    });
+
+    it('stays on a tab the reader picked meanwhile when the one it lost comes back', () => {
+      const list = ChatTabList.instance;
+      list.addChatTab('戻るタブ', 'coming-back-tab');
+      const other = list.addChatTab('別のタブ', 'picked-tab');
+      component.chatTabidentifier = 'coming-back-tab';
+      fixture.detectChanges();
+
+      withdraw(ObjectStore.instance.get('coming-back-tab')!);
+      fixture.detectChanges();
+      component.chatTabidentifier = other.identifier;
+      list.addChatTab('戻るタブ', 'coming-back-tab');
+      fixture.detectChanges();
+
+      expect(component.chatTabidentifier).toBe('picked-tab');
+      for (const identifier of ['coming-back-tab', 'picked-tab']) ObjectStore.instance.get(identifier)?.destroy();
     });
 
     it('scrolls to the bottom after moving on an update', () => {

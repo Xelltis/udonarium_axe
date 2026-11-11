@@ -1,7 +1,12 @@
 <div class="@container flex h-full flex-col" #root>
   <div class="grow-0">
     <div class="-mt-1.5 flex min-w-0 items-center px-1.5" data-testid="palette-tabs">
-      <chat-tab-strip tone="panel" [tabs]="visibleChatTabs()" [(selected)]="chatTabidentifier" />
+      <chat-tab-strip
+        tone="panel"
+        [tabs]="visibleChatTabs()"
+        [selected]="chatTabidentifier()"
+        (selectedChange)="pickTab($event)"
+      />
     </div>
     <chat-input
       [onlyCharacters]="true"
