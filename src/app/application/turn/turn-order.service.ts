@@ -331,13 +331,11 @@ export class TurnOrderService {
     });
   }
 
-  /** The round's pieces by identifier, as the state machine reads them for a press made now. */
   /**
-   * What the state machine reads of the round's pieces and rules. With `peeking`, as only working out
-   * a step rather than taking it, nothing is written down, this seat's mark of the version of the
-   * turns it runs among it.
+   * The round's pieces and rules as the state machine reads them, for a press made now or one only
+   * worked out; reading them writes nothing down.
    */
-  private turnTable(peeking = false): TurnTable {
+  private turnTable(): TurnTable {
     const mode = this.turnOrderMode;
     const sideOrder = mode === 'faction' ? this.sideOrder() : [];
     const companions = this.companionsByCarrier();
@@ -353,7 +351,7 @@ export class TurnOrderService {
         return piece ? sideOfPiece(piece, sideOrder) : null;
       },
       now: Date.now(),
-      givesBackOnHold: this.givesBackOnHold(peeking),
+      givesBackOnHold: this.givesBackOnHold(),
     };
   }
 
@@ -361,9 +359,7 @@ export class TurnOrderService {
    * Whether a wait gives back what its turn's opening counted down: only where every seat that may
    * take turns runs a version that counts it down again when the turn comes back.
    */
-  private givesBackOnHold(peeking = false): boolean {
-    const mine = PeerCursor.myCursor;
-    if (!peeking && mine && mine.turnProtocol !== '1') mine.turnProtocol = '1';
+  private givesBackOnHold(): boolean {
     return this.objectStore
       .getObjects<PeerCursor>(PeerCursor)
       .filter((cursor) => cursor.peerId.length > 0 && canRoleEdit(cursor.role))
@@ -440,7 +436,7 @@ export class TurnOrderService {
    */
   peekNextIdentifier(): string {
     if (this.turnState.phase === 'idle') return '';
-    return roundNext(this.snapshot(), this.turnTable(true)).state.currentIdentifier;
+    return roundNext(this.snapshot(), this.turnTable()).state.currentIdentifier;
   }
 
   /**
@@ -545,6 +541,9 @@ export class TurnOrderService {
   /** Carries a press of the round out from where it stands, as one step of the record. */
   private press(work: (state: TurnSnapshot, table: TurnTable, live: TurnLive) => TurnOutcome | null): void {
     this.opening = null;
+    // This seat's mark of the version of the turns it runs, said before the round it steps is read.
+    const mine = PeerCursor.myCursor;
+    if (mine && mine.turnProtocol !== '1') mine.turnProtocol = '1';
     this.step(() => work(this.snapshot(), this.turnTable(), this.live) !== null);
   }
 
