@@ -456,8 +456,7 @@ export class ChatWindowComponent {
             ]
       );
     });
-    this.chatTabidentifier =
-      0 < this.chatMessageService.chatTabs.length ? this.chatMessageService.chatTabs[0].identifier : '';
+    this.show(tabToShow(this.visibleChatTabs(), '', ''));
     this.objectChange.messageAdded$.subscribe((event) => {
       if (event.tabIdentifier !== this.chatTabidentifier) return;
       const message = this.objectStore.get<ChatMessage>(event.messageIdentifier);

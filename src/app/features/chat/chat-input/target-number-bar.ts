@@ -58,7 +58,11 @@ export function targetNumberBarOf(number: ChatLintTargetNumber, speaker: string,
   };
 }
 
-/** Who rolled an answer and what they rolled, as the bar names it. */
+/**
+ * Who rolled an answer and what they rolled, as the bar names it; for a line writing a number out, who
+ * said it alone, as it rolled nothing.
+ */
 function rolledBy(answer: ChatMessage): string {
+  if (!answer.isDicebot) return rollerOf(answer);
   return [rollerOf(answer), rolledOf(answer)].filter((part) => part.length > 0).join(' ');
 }

@@ -565,7 +565,7 @@
       "turn": {
         "focus": "Move the view to {{name}}",
         "next": "Next",
-        "nextHint": "End your character’s turn and hand it on"
+        "nextHint": "Next: end your character’s turn and hand it on"
       },
       "active": {
         "title": "Character being moved",
