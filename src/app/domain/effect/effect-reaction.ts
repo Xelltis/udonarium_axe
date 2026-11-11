@@ -1,4 +1,4 @@
-import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
+import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -49,15 +49,16 @@ export function effectJoltsOf(
   preset: EffectPreset,
   cast: EffectCast,
   elapsedMs: number,
-  cellPx: number
+  cellPx: number,
+  blows: readonly EffectBlow[] = effectBlowsOf(preset)
 ): Map<string, EffectJolt> {
   const jolts = new Map<string, EffectJolt>();
+  if (elapsedMs >= joltsEndOf(preset, cast, blows)) return jolts;
   const add = (identifier: string, jolt: EffectJolt) => {
     if (identifier.length < 1) return;
     const was = jolts.get(identifier);
     jolts.set(identifier, was ? { x: was.x + jolt.x, y: was.y + jolt.y, z: was.z + jolt.z } : jolt);
   };
-  const blows = effectBlowsOf(preset);
   cast.targets.forEach((target, index) => {
     const local = elapsedMs - preset.stagger * index;
     let thrown = 0;
@@ -77,6 +78,16 @@ export function effectJoltsOf(
     add(cast.casterIdentifier, { x: towards.x * lean, y: towards.y * lean, z: 0 });
   }
   return jolts;
+}
+
+/**
+ * When, on an effect's own clock, the last piece it strikes stands still again and the one who cast
+ * it is back where it stands: after that, the effect moves no piece.
+ */
+export function joltsEndOf(preset: EffectPreset, cast: EffectCast, blows: readonly EffectBlow[]): number {
+  const lastBlow = blows.reduce((last, blow) => Math.max(last, blow.atMs), Number.NEGATIVE_INFINITY);
+  const lastTarget = preset.stagger * Math.max(0, cast.targets.length - 1);
+  return Math.max(LEAN_FOR_MS, lastBlow + lastTarget + THROWN_FOR_MS);
 }
 
 /** How far a struck piece is thrown some time after its hold, as a share of the blow's push: out fast and back slower. */

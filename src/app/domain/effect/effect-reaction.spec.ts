@@ -2,7 +2,7 @@ import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { EffectKind } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import { effectJoltsOf } from '@axe/domain/effect/effect-reaction';
+import { effectJoltsOf, joltsEndOf } from '@axe/domain/effect/effect-reaction';
 
 const CELL = 50;
 
@@ -61,6 +61,25 @@ describe('effectJoltsOf()', () => {
 
     expect(effectJoltsOf(slash, from, 140, CELL).get('caster')!.x).toBeGreaterThan(0);
     expect(effectJoltsOf(slash, from, 1000, CELL).get('caster')).toBeUndefined();
+  });
+
+  it('throws by the blows it is handed, as a cast keeps those it lands from when it was played', () => {
+    const heal = makePreset('heal');
+    const from = cast({ x: 0, y: 0, z: 0 });
+    const [blow] = effectBlowsOf(makePreset('bash'));
+    const kept = [{ ...blow, atMs: 500 }];
+
+    expect(effectJoltsOf(heal, from, 560, CELL, kept).get('target')!.x).toBeGreaterThan(0);
+  });
+
+  it('moves no piece once the last struck stands still again and the one who struck stands back', () => {
+    const bash = makePreset('bash');
+    const from = cast({ x: 0, y: 0, z: 0 });
+    const blows = effectBlowsOf(bash);
+    const end = joltsEndOf(bash, from, blows);
+
+    expect(end).toBeGreaterThan(blows[0].atMs);
+    expect(effectJoltsOf(bash, from, end, CELL, blows).size).toBe(0);
   });
 
   it('throws nothing for what neither strikes nor sets off at a target', () => {

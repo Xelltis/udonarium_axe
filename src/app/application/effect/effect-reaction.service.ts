@@ -23,7 +23,8 @@ export class EffectReactionService {
       const cellPx = this.tabletop.gridSize();
       const all = new Map<string, EffectJolt>();
       for (const active of casts) {
-        const jolts = effectJoltsOf(active.preset, active.cast, effectElapsedOf(active, now), cellPx);
+        // Each cast keeps the blows it lands from when it was played, rather than working them out each frame.
+        const jolts = effectJoltsOf(active.preset, active.cast, effectElapsedOf(active, now), cellPx, active.blows);
         for (const [identifier, jolt] of jolts) {
           const was = all.get(identifier);
           all.set(identifier, was ? { x: was.x + jolt.x, y: was.y + jolt.y, z: was.z + jolt.z } : jolt);
