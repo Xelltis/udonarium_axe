@@ -65,17 +65,50 @@ describe('GroundBrushBandComponent', () => {
     expect(brush.active()).toBe(false);
   });
 
-  it('says how the view is moved while the brush takes the presses on the board, with the mouse or a finger', () => {
+  it('says how the view is moved while the brush takes the presses on the board, as keys and what they do', () => {
     brush.active.set(true);
     const viewport = TestBed.inject(ViewportService);
     const touch = vi.spyOn(viewport, 'isTouch').mockReturnValue(false);
 
-    const hint = render().querySelector('[data-testid="ground-brush-hint"]')!.textContent!;
-    expect(hint).toContain('←↑↓→ で視点を動かす');
-    expect(hint).toContain('Shift+↑↓ で傾ける');
+    const guide = () => render().querySelector('[data-testid="ground-brush-hint"]')!;
+    const items = [...guide().children].map((item) => item.textContent!.replace(/\s+/g, ' ').trim());
+    expect(items).toEqual([
+      '盤をドラッグ地面を変える',
+      '←↑↓→/ホイールボタンでドラッグ動かす',
+      'Shift+←→/右ドラッグ回す',
+      'Shift+↑↓傾ける',
+      'ホイール/Ctrl+↑↓寄る・引く',
+    ]);
+    expect(guide().querySelectorAll('kbd').length).toBeGreaterThan(5);
 
     touch.mockReturnValue(true);
-    expect(render().querySelector('[data-testid="ground-brush-hint"]')!.textContent).toContain('指でなぞって');
+    expect(guide().textContent).toContain('指でなぞる');
+    expect(guide().textContent).not.toContain('Shift');
+  });
+
+  it('keeps the presses that take back and close at the end of the row of what the brush does', () => {
+    brush.active.set(true);
+    const band = render().querySelector('[data-testid="ground-brush-band"]')!;
+    const row = band.querySelector('[data-testid="ground-brush-raise"]')!.closest('.flex-wrap')!.parentElement!;
+
+    expect(row.querySelector('[data-testid="ground-brush-undo"]')).not.toBeNull();
+    expect(row.querySelector('[data-testid="ground-brush-close"]')).not.toBeNull();
+    expect(row.contains(band.querySelector('[data-testid="ground-brush-hint"]'))).toBe(false);
+    expect(band.querySelector('[data-testid="ground-brush-close"]')!.getAttribute('aria-label')).toBe(
+      '地面の編集を終える'
+    );
+  });
+
+  it('says how wide and how hard the brush is, a raise or a cut as a height and the rest as a share', () => {
+    brush.active.set(true);
+    brush.settings.update((settings) => ({ ...settings, kind: 'raise', radius: 2, strength: 0.3 }));
+    let band = render();
+    expect(band.querySelector('[data-testid="ground-brush-radius-value"]')!.textContent).toContain('半径2マス');
+    expect(band.querySelector('[data-testid="ground-brush-strength-value"]')!.textContent).toContain('0.3マス');
+
+    brush.settings.update((settings) => ({ ...settings, kind: 'smooth' }));
+    band = render();
+    expect(band.querySelector('[data-testid="ground-brush-strength-value"]')!.textContent).toContain('30%');
   });
 
   it('gives the arrow keys back to the view once a slider has been set with the pointer', () => {

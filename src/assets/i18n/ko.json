@@ -3170,8 +3170,28 @@
         "undo": "직전 획 취소",
         "close": "지형 편집 끝내기",
         "unaware": "지형을 모르는 버전의 참가자가 {{count}}명 있습니다. 그 화면에서는 테이블이 평평하게 보입니다.",
-        "hint": "보드를 드래그해 지면을 바꿈 / ←↑↓→로 시점 이동 / Shift+←→로 회전·Shift+↑↓로 기울이기 / 휠이나 Ctrl+↑↓로 확대·축소 / 우클릭 드래그로 회전·휠 버튼 드래그로 이동",
-        "hintTouch": "손가락으로 훑어 지면을 바꿈"
+        "radiusValue": "반지름 {{n}}칸",
+        "strengthHeight": "{{n}}칸",
+        "strengthShare": "{{n}}%",
+        "guide": {
+          "shape": "지면 바꾸기",
+          "move": "이동",
+          "turn": "회전",
+          "tilt": "기울이기",
+          "zoom": "확대·축소"
+        },
+        "guideKey": {
+          "drag": "판 드래그",
+          "swipe": "손가락으로 쓸기",
+          "arrows": "←↑↓→",
+          "shift": "Shift",
+          "ctrl": "Ctrl",
+          "leftRight": "←→",
+          "upDown": "↑↓",
+          "wheel": "휠",
+          "rightDrag": "오른쪽 드래그",
+          "middleDrag": "휠 버튼 드래그"
+        }
       },
       "movePlan": {
         "hint": "클릭하면 이동 / 우클릭으로 경유지 지정(같은 자리를 다시 누르면 취소) / Enter로 확정 / Esc로 중지",

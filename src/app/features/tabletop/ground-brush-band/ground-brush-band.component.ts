@@ -10,6 +10,27 @@ import { GROUND_PAINT_LAYERS, GroundPaintLayer } from '@axe/domain/tabletop/grou
 import { Z_TABLE_BANDS } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/**
+ * One thing the band says the brush or the view is worked by: the ways it is done, each the keys or
+ * the presses pressed together, and what it does.
+ */
+interface GuideItem {
+  readonly ways: readonly (readonly string[])[];
+  readonly does: string;
+}
+
+/** How the brush and the view are worked with the mouse and the keys. */
+const MOUSE_GUIDE: readonly GuideItem[] = [
+  { ways: [['drag']], does: 'shape' },
+  { ways: [['arrows'], ['middleDrag']], does: 'move' },
+  { ways: [['shift', 'leftRight'], ['rightDrag']], does: 'turn' },
+  { ways: [['shift', 'upDown']], does: 'tilt' },
+  { ways: [['wheel'], ['ctrl', 'upDown']], does: 'zoom' },
+];
+
+/** How the brush is worked with a finger. */
+const TOUCH_GUIDE: readonly GuideItem[] = [{ ways: [['swipe']], does: 'shape' }];
+
 /** How many times the point pressed is read again at the height of the ground found there. */
 const GROUND_REFINEMENTS = 4;
 
@@ -41,9 +62,14 @@ export class GroundBrushBandComponent {
   protected readonly kinds: readonly GroundBrushKind[] = ['raise', 'lower', 'smooth', 'flatten', 'paint', 'erase'];
   protected readonly layers = GROUND_PAINT_LAYERS;
   /** How the brush and the view are worked, with a finger or with the mouse and the keys. */
-  protected readonly hintKey = computed(() =>
-    this.viewport.isTouch() ? 'feature.tabletop.groundBrush.hintTouch' : 'feature.tabletop.groundBrush.hint'
-  );
+  protected readonly guide = computed(() => (this.viewport.isTouch() ? TOUCH_GUIDE : MOUSE_GUIDE));
+  /** Whether the strength reads as how high a raise or a cut goes, in cells, rather than as how far the rest go. */
+  protected readonly strengthIsHeight = computed(() => {
+    const kind = this.settings().kind;
+    return kind === 'raise' || kind === 'lower';
+  });
+  /** The strength as the share of the way the rest take the ground, in hundredths. */
+  protected readonly sharePercent = computed(() => Math.round(this.settings().strength * 100));
   /** Whether the band shows: the brush is on, for a master. */
   protected readonly shown = computed(() => this.brush.active() && this.rolePermission.canEditShared());
 

@@ -3170,8 +3170,28 @@
         "undo": "直前のひと塗りを取り消す",
         "close": "地面の編集を終える",
         "unaware": "起伏を知らない版の参加者が{{count}}人います。その画面では卓は平らなままです。",
-        "hint": "盤をドラッグして地面を変える / ←↑↓→ で視点を動かす / Shift+←→ で回す・Shift+↑↓ で傾ける / ホイールか Ctrl+↑↓ で寄る・引く / 右ドラッグで回す・ホイールボタンのドラッグで動かす",
-        "hintTouch": "指でなぞって地面を変える"
+        "radiusValue": "半径{{n}}マス",
+        "strengthHeight": "{{n}}マス",
+        "strengthShare": "{{n}}%",
+        "guide": {
+          "shape": "地面を変える",
+          "move": "動かす",
+          "turn": "回す",
+          "tilt": "傾ける",
+          "zoom": "寄る・引く"
+        },
+        "guideKey": {
+          "drag": "盤をドラッグ",
+          "swipe": "指でなぞる",
+          "arrows": "←↑↓→",
+          "shift": "Shift",
+          "ctrl": "Ctrl",
+          "leftRight": "←→",
+          "upDown": "↑↓",
+          "wheel": "ホイール",
+          "rightDrag": "右ドラッグ",
+          "middleDrag": "ホイールボタンでドラッグ"
+        }
       },
       "movePlan": {
         "hint": "クリックで移動 / 右クリックで経由地点（同じ場所をもう一度で取り消し）/ Enter で確定 / Esc で中止",
