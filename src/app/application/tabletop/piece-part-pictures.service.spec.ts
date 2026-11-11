@@ -134,7 +134,9 @@ describe('PiecePartPicturesService', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(pictures.pictureOf(body)?.url).toBe('blob:drawn-2');
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:drawn-1');
+    // The picture before is kept a while for what may still be reading it, then let go of.
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:drawn-1');
+    await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:drawn-1'), { timeout: 7000 });
   });
 
   it('hears of a part made after the piece was first drawn, as the drawing of the piece asks for it', () => {

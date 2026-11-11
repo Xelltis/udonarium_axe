@@ -46,6 +46,9 @@ export interface PartModelFaces {
   readonly cut: string;
 }
 
+/** How long a body's picture made with its parts is kept once a newer one takes its place, for what still reads it. */
+const REPLACED_PICTURE_KEPT_MS = 5000;
+
 /** The longest side a body's picture is drawn at with its parts, in pixels, however large its own. */
 const LONGEST_SIDE_PX = 1024;
 
@@ -133,7 +136,8 @@ export class PiecePartPicturesService {
         held.picture = picture;
         held.key = key;
         held.making = null;
-        if (before) URL.revokeObjectURL(before.url);
+        // The table may still be reading the picture before it, so it is let go of a while later.
+        if (before) setTimeout(() => URL.revokeObjectURL(before.url), REPLACED_PICTURE_KEPT_MS);
         this.made.update((count) => count + 1);
       },
       () => {
