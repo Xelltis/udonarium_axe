@@ -57,9 +57,11 @@ export function rollTotalOf(text: string): number | null {
 /**
  * A number to beat written out in so many words, as `探索判定：目標値13` writes 13: what follows the
  * word, after a colon, an equals sign or a は, in figures of either width. A reference to the number
- * in braces, `{目標値}`, writes none.
+ * in braces, `{目標値}`, writes none, and nor does a number counting something or worked on, as
+ * `目標値2倍`, `目標値3つ` and `目標値10+2` are.
  */
-const PRESENTED_PATTERN = /(?<![{｛])目標値\s*[:：=＝は]?\s*([0-9０-９]+)/g;
+const PRESENTED_PATTERN =
+  /(?<![{｛])目標値\s*[:：=＝は]?\s*([0-9０-９]+)(?![0-9０-９]|\s*[倍つ個回人点体枚割分%％dDｄＤ+＋\-－×*/.．])/g;
 
 /**
  * The number to beat a line that is not a roll writes out in so many words (see

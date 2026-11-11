@@ -51,6 +51,15 @@ describe('target-number', () => {
       expect(presentedTotalOf('目標値を教えてください')).toBeNull();
       expect(presentedTotalOf('探索は目標値13、見識は目標値15')).toBeNull();
     });
+
+    it('reads none from a number counting something or worked on, but one before words or 以上', () => {
+      expect(presentedTotalOf('ダメージは目標値2倍')).toBeNull();
+      expect(presentedTotalOf('目標値3つのうち1つ')).toBeNull();
+      expect(presentedTotalOf('目標値10+2で')).toBeNull();
+      expect(presentedTotalOf('目標値25倍')).toBeNull();
+      expect(presentedTotalOf('危険感知：目標値13以上で成功')).toBe(13);
+      expect(presentedTotalOf('目標値 14 です')).toBe(14);
+    });
   });
 
   describe('fillTargetNumber()', () => {
