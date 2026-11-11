@@ -644,11 +644,18 @@ export class ChatInputComponent {
    */
   readonly narrow = input(false);
   /**
-   * Whether the input is laid out narrow: where it is asked to be, and on a phone, where the
-   * portrait's column beside the box and the send button after it would leave the box too little
-   * of the screen's width to write in.
+   * Whether the input is laid out for a phone, where the room above the box is one row and no more:
+   * a small picture of the speaker, the speaker, whom it is said to and the dice bot along it, the
+   * buttons for how the line goes out along the top of the box with those for what it says, and the
+   * box the full width of the screen and two lines high, with the send button inside it.
    */
-  protected readonly laidNarrow = computed(() => this.narrow() || this.mobileLayout.isActive());
+  protected readonly onPhone = computed(() => !this.narrow() && this.mobileLayout.isActive());
+  /**
+   * Whether the box runs the full width, a small picture of the speaker before the speaker's name in
+   * place of the portrait's column beside it and the send button inside it: where the input is
+   * narrow, and on a phone.
+   */
+  protected readonly boxFullWidth = computed(() => this.narrow() || this.onPhone());
   /**
    * Keeps the room of the bar over the box telling what `{目標値}` comes to while the line holds
    * none, the bar standing faded in it, for a palette some of whose lines hold one: a line clicked
