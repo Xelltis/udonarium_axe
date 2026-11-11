@@ -582,11 +582,11 @@ export class GameCharacterComponent {
       if (!previous) return;
 
       const names = untracked(this.resourceNames);
-      // A part's change is told by the part's name, as it is shown on its body.
+      // A part's change is told as the part's, each seat naming the part as it shows it.
       const changes = diffResourceSnapshots(previous, snapshot, (identifier) => names.get(identifier)?.name ?? '').map(
         (change) => {
           const part = names.get(change.identifier)?.part ?? '';
-          return part ? { ...change, label: `${part} ${change.label}` } : change;
+          return part ? { ...change, part } : change;
         }
       );
       if (changes.length < 1) return;
@@ -1177,7 +1177,7 @@ export class GameCharacterComponent {
     return snapshot;
   });
 
-  /** The names of the resources of the piece and of its parts, and of the part each of the latter is of. */
+  /** The names of the resources of the piece and of its parts, and the part each of the latter is of. */
   private readonly resourceNames = computed(() => {
     const char = this.gameCharacter();
     const names = new Map<string, { name: string; part: string }>();
@@ -1185,7 +1185,7 @@ export class GameCharacterComponent {
     for (const piece of [char, ...this.parts.partsOfFollowed(char)]) {
       const detail = piece.detailDataElement;
       if (!detail) continue;
-      const part = piece === char ? '' : piece.name;
+      const part = piece === char ? '' : piece.identifier;
       for (const element of collectDataElements(detail)) names.set(element.identifier, { name: element.name, part });
     }
     return names;
@@ -1480,7 +1480,11 @@ export class GameCharacterComponent {
   });
 
   private showResourceChanges(changes: ResourceChange[]) {
-    const entries = changes.map((change) => ({ ...change, key: ++this.floatingKey }));
+    const entries = changes.map((change) => ({
+      ...change,
+      label: change.part ? `${this.partNameOf(change.part)} ${change.label}` : change.label,
+      key: ++this.floatingKey,
+    }));
     this.floatingChanges.update((current) => [...current, ...entries].slice(-FLOATING_CHANGE_LIMIT));
 
     const kind = entries.some((entry) => entry.kind === 'damage') ? 'damage' : 'heal';
@@ -1504,6 +1508,20 @@ export class GameCharacterComponent {
       this.floatingChanges.update((current) => current.filter((entry) => !keys.has(entry.key)));
     }, FLOATING_CHANGE_MS);
     this.floatingTimers.add(floatTimer);
+  }
+
+  /**
+   * How a part is named over its body where a change to it is shown: its name as its row shows it, or
+   * the word for a part where this seat is not shown its name.
+   */
+  private partNameOf(identifier: string): string {
+    const part = this.objectStore.get<GameCharacter>(identifier);
+    const shown =
+      part instanceof GameCharacter &&
+      part.name !== '' &&
+      this.overlay.names() &&
+      (!part.hideName || this.rolePermission.canSeeHidden());
+    return shown ? part.name : this.translateFn('feature.ride.part.someone');
   }
 
   readonly stackIndex = computed(() => {

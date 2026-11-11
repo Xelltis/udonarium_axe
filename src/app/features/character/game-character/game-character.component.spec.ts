@@ -1734,9 +1734,16 @@ describe('GameCharacterComponent', () => {
         await fixture.whenStable();
 
         expect(component.floatingChanges()).toEqual([
-          expect.objectContaining({ kind: 'damage', label: '頭 -30', name: 'HP' }),
+          expect.objectContaining({ kind: 'damage', label: '頭 -30', name: 'HP', part: head.identifier }),
         ]);
         expect(component.hitFlash()).toBe('damage');
+
+        head.hideName = true;
+        hp.currentValue = Number(hp.currentValue) - 5;
+        objectChange.notifyChanged(head.identifier);
+        objectChange.notifyChanged(hp.identifier);
+        await fixture.whenStable();
+        expect(component.floatingChanges().at(-1)).toEqual(expect.objectContaining({ label: '部位 -5' }));
       } finally {
         head.destroy();
         character.destroy();

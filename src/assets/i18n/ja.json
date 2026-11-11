@@ -6048,6 +6048,7 @@
       "offerActionUp_cargo": "起き上がって積まれる",
       "part": {
         "attach": "{{body}} の部位にする",
+        "someone": "部位",
         "detach": "{{body}} の部位から外す",
         "editLook": "部位の見た目を編集",
         "look": {

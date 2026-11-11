@@ -6048,6 +6048,7 @@
       "offerActionUp_cargo": "Get up and be loaded",
       "part": {
         "attach": "Make a part of {{body}}",
+        "someone": "Part",
         "detach": "Take off {{body}} as a part",
         "editLook": "Edit how the parts look",
         "look": {

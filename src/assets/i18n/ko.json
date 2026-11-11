@@ -6373,6 +6373,7 @@
       "offerActionUp_cargo": "일어나서 실리기",
       "part": {
         "attach": "{{body}}의 부위로 만들기",
+        "someone": "부위",
         "detach": "{{body}}의 부위에서 떼기",
         "editLook": "부위의 모습 편집",
         "look": {
