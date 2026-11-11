@@ -1,3 +1,10 @@
+import {
+  orthographicScale,
+  type TableCameraView,
+  tableEyeMatrix,
+  type TableLayout,
+} from '@axe/domain/tabletop/camera/table-camera';
+
 /** How long the camera takes to glide to a point it is sent to, in milliseconds. */
 export const CAMERA_GLIDE_MS = 200;
 
@@ -27,4 +34,24 @@ export function easeOut(t: number): number {
     s = (low + high) / 2;
   }
   return along(s, y1, y2);
+}
+
+/**
+ * How far to move the camera, across and down, to bring a point of the board to the middle of the
+ * view, turned and tilted as it is and no nearer.
+ *
+ * The camera turns the board about its middle and then moves it by its position, so a point the
+ * camera stands still over lies where the turned board puts it with no position at all: the
+ * position that brings it to the middle is that place taken away, shrunk back by the scale an
+ * orthographic view draws at.
+ */
+export function glideToCentre(
+  view: TableCameraView,
+  layout: TableLayout,
+  point: { readonly x: number; readonly y: number; readonly z?: number }
+): { x: number; y: number } {
+  const unmoved = tableEyeMatrix({ ...view, positionX: 0, positionY: 0 }, layout);
+  const eye = unmoved.project({ x: point.x, y: point.y, z: point.z ?? 0, w: 1 });
+  const scale = view.orthographic ? orthographicScale(view.positionZ) : 1;
+  return { x: -eye.x / scale - view.positionX, y: -eye.y / scale - view.positionY };
 }

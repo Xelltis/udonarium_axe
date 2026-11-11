@@ -67,6 +67,7 @@ import { trackLazyLoad } from '@axe/core/util/lazy-loads';
 import { observeSize } from '@axe/core/util/observe-size';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { glideToCentre } from '@axe/domain/tabletop/camera/camera-glide';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
@@ -100,7 +101,6 @@ import {
 import { beamWallFaceGrid } from '@axe/features/tabletop/game-table/beam-top-grid';
 import { handCanvasPressesOn } from '@axe/features/tabletop/game-table/canvas-presses';
 import { firstTableView } from '@axe/features/tabletop/game-table/first-table-view';
-import { glideTransform } from '@axe/features/tabletop/game-table/game-table-camera';
 import { buildGameTableContextMenu, GameTableMenu } from '@axe/features/tabletop/game-table/game-table-context-menu';
 import { GameTableGestureService } from '@axe/features/tabletop/game-table/game-table-gesture.service';
 import { WALL_SIDES, WallSurface } from '@axe/features/tabletop/game-table/game-table-walls';
@@ -358,14 +358,12 @@ export class GameTableComponent {
       if (!focus) return;
       this.glideTimer = setTimeout(() => {
         this.glideTimer = null;
-        const moved = glideTransform(focus, this.tableVisualCenter(), {
-          rotateX: this.gestureService.viewRotateX,
-          rotateZ: this.gestureService.viewRotateZ,
-          positionX: this.gestureService.viewPositionX,
-          positionY: this.gestureService.viewPositionY,
-          positionZ: this.gestureService.viewPositionZ,
-        });
-        this.gestureService.glideBy(moved.x, moved.y, moved.z);
+        const view = this.tableCamera.view;
+        const layout = this.tableCamera.layout;
+        if (!view || !layout) return;
+        // Brought to the middle of the view as the camera stands, turned and tilted, and no nearer.
+        const moved = glideToCentre(view, layout, focus);
+        this.gestureService.glideBy(moved.x, moved.y, 0);
       }, 50);
     });
 
@@ -1120,18 +1118,6 @@ export class GameTableComponent {
       boardWidth: this.boardPx.width,
       boardHeight: this.boardPx.height,
     });
-  }
-
-  private tableVisualCenter(): { x: number; y: number } {
-    const table = this.currentTable;
-    const geo = computeHexMaskGeometry(table.width, table.height, table.gridSize, table.gridType);
-    if (geo) {
-      return {
-        x: -geo.offsetX + geo.pixelW / 2,
-        y: -geo.offsetY + geo.pixelH / 2,
-      };
-    }
-    return { x: (table.width * table.gridSize) / 2, y: (table.height * table.gridSize) / 2 };
   }
 
   /** Draws the grid from the table as it stands now. */
