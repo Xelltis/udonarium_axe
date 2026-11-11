@@ -8,12 +8,11 @@ const STILL_FACTOR = 3;
 const USUAL_FOLLOWS = 0.2;
 
 /**
- * How many long waits among the last frames are held still before the page is taken to be slow all
- * along, and how many of the last frames that is counted over: a page stalling every other frame is
- * as slow as one stalling at every frame.
+ * How many stalls the clock stands still over in all: past them, a long wait is the page's own pace,
+ * which the clock then follows. Stalls readying what plays come first and few, however long each, and
+ * are held; a page that keeps stalling, every other frame or every few, plays out no later than these.
  */
-const HELD_AMONG_RECENT = 2;
-const RECENT_FRAMES = 8;
+const MOST_STALLS_HELD = 3;
 
 /** How long something has played at a frame, and whether the clock stood still over the wait before it. */
 export interface HeldClockReading {
@@ -36,8 +35,7 @@ export class HeldClock {
   private held = 0;
   private usual = 1000 / 60;
   private away = false;
-  /** Whether each of the last frames came after a long wait, the latest last. */
-  private readonly recentLong: boolean[] = [];
+  private stallsHeld = 0;
 
   constructor(private readonly startedAt: number) {
     this.last = startedAt;
@@ -52,12 +50,12 @@ export class HeldClock {
   read(now: number): HeldClockReading {
     const wait = now - this.last;
     const long = !this.away && wait > LONG_FRAME_MS && wait > this.usual * STILL_FACTOR;
-    this.recentLong.push(long);
-    if (this.recentLong.length > RECENT_FRAMES) this.recentLong.shift();
-    // A long wait or two is the page standing still, and no wait it usually makes: taken into the
-    // usual one, it would hide a stall coming soon after. Long waits again and again are a slow page,
-    // whose pace the usual wait then follows; and a wait out of view tells nothing of the page's pace.
-    const held = long && this.recentLong.filter(Boolean).length <= HELD_AMONG_RECENT;
+    // A long wait is the page standing still, and no wait it usually makes: taken into the usual one,
+    // it would hide a stall coming soon after. Once as many have been held as the clock holds in all,
+    // long waits are the page's pace, which the usual wait then follows; and a wait out of view tells
+    // nothing of the page's pace.
+    const held = long && this.stallsHeld < MOST_STALLS_HELD;
+    if (held) this.stallsHeld++;
     if (held) this.held += wait - this.usual;
     else if (!this.away) this.usual += (wait - this.usual) * USUAL_FOLLOWS;
     const away = this.away;

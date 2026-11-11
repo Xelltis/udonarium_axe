@@ -36,23 +36,34 @@ describe('HeldClock', () => {
     const next = clock.read(at + 1000);
 
     expect(next.held).toBe(false);
-    expect(next.elapsed).toBeGreaterThan(at + 1000 - 1000 - 2000);
+    expect(next.elapsed).toBeGreaterThan(at + 1000 - 1000 - 3000);
   });
 
-  it('plays on in time on a page stalling every other frame, as one slow all along', () => {
-    const clock = new HeldClock(1000);
-    let at = framesOf(clock, 1000, 30, 16);
-    for (let pair = 0; pair < 20; pair++) {
-      at += 250;
-      clock.read(at);
-      at += 16;
-      clock.read(at);
+  it('plays out late by no more than three stalls on a page that keeps stalling, every other frame or every few', () => {
+    for (const between of [1, 3, 5]) {
+      const clock = new HeldClock(1000);
+      let at = framesOf(clock, 1000, 30, 16);
+      for (let stall = 0; stall < 20; stall++) {
+        at += 250;
+        clock.read(at);
+        at = framesOf(clock, at, between, 16);
+      }
+
+      const next = clock.read(at + 250);
+
+      expect(next.held).toBe(false);
+      expect(at + 250 - 1000 - next.elapsed).toBeLessThanOrEqual(3 * 250);
     }
+  });
 
-    const next = clock.read(at + 250);
-
-    expect(next.held).toBe(false);
-    expect(next.elapsed).toBeGreaterThan((at + 250 - 1000) * 0.8);
+  it('holds still over every stall readying what plays as it begins, a few of them close together', () => {
+    const clock = new HeldClock(1000);
+    let at = 1000;
+    for (const stall of [240, 230, 240]) {
+      at = framesOf(clock, at, 2, 16);
+      at += stall;
+      expect(clock.read(at).held).toBe(true);
+    }
   });
 
   it('counts in full a wait while the page was out of view', () => {
