@@ -127,6 +127,18 @@ describe('PiecePartsService', () => {
     expect(parts.bodiesFor(tail)).toEqual([nameless]);
   });
 
+  it('lets go of how a piece was drawn on another body as it is made a part of this one', () => {
+    const dragon = pieceAt('ドラゴン', 4, 4, 3);
+    const head = pieceAt('頭', 5, 5);
+    head.partLayer = '{"x":0.5,"y":0.2,"width":0.3,"order":1}';
+    head.partMask = 'mask-of-another-body';
+    head.partFaces = '0:120-300';
+
+    expect(parts.attach(head, dragon)).toBe(true);
+
+    expect([head.partLayer, head.partMask, head.partFaces]).toEqual(['', '', '']);
+  });
+
   it('moves the parts wherever the body goes, and takes them off where it stands', () => {
     const dragon = pieceAt('ドラゴン', 4, 4, 3);
     const head = pieceAt('頭', 5, 5);

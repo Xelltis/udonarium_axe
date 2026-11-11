@@ -57,12 +57,19 @@ export class PiecePartsService {
       .filter((body) => this.vision.isTokenVisible(body) && (!body.hideName || this.rolePermission.canSeeHidden()));
   }
 
-  /** Makes a piece a part of one it may be made a part of, its middle put on the body's. Answers whether it was. */
+  /**
+   * Makes a piece a part of one it may be made a part of, its middle put on the body's. Answers whether
+   * it was. How it was drawn on a body before, laid over its picture, painted on it or on its model's
+   * faces, is let go of: it was worked out on that body's picture and model, not this one's.
+   */
   attach(part: GameCharacter, body: GameCharacter): boolean {
     if (!this.bodiesFor(part).includes(body)) return false;
     GameObject.batch(() => {
       part.ridingOn = body.identifier;
       part.rideSeat = writtenSeat('part');
+      part.partLayer = '';
+      part.partMask = '';
+      part.partFaces = '';
       this.links.standAt(part, body);
       part.update();
     });
