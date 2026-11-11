@@ -2,8 +2,11 @@ import {
   buildAltitudeAction,
   buildCopyAction,
   buildLockToggleAction,
+  copyBeside,
 } from '@axe/application/ui/tabletop-context-menu-actions';
 import { Network } from '@axe/core/network/network';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { beMyself } from '@axe/testing/peer-context-stub';
@@ -133,5 +136,53 @@ describe('buildAltitudeAction()', () => {
     });
 
     expect(action.subActions?.map((sub) => sub.name)).toContain('影');
+  });
+});
+
+/**
+ * Stands in for a piece's copy, which is made through its XML: happy-dom refuses the dotted attribute
+ * names a piece is written with, so the copy is made by hand of what the test reads.
+ */
+function copiedByHand(piece: GameCharacter): void {
+  vi.spyOn(piece, 'clone').mockImplementation(() => {
+    const copy = GameCharacter.create(piece.name, 1, '');
+    copy.ridingOn = piece.ridingOn;
+    copy.rideSeat = piece.rideSeat;
+    copy.location.name = piece.location.name;
+    copy.location.x = piece.location.x;
+    copy.location.y = piece.location.y;
+    return copy as never;
+  });
+}
+
+describe('copyBeside', () => {
+  afterEach(() => {
+    for (const piece of ObjectStore.instance.getObjects(GameCharacter)) ObjectStore.instance.delete(piece, false);
+    ObjectStore.instance.clearDeleteHistory();
+  });
+
+  it('copies the parts standing with a piece onto its copy, each where it stood against the piece', () => {
+    const body = GameCharacter.create('竜', 3, '');
+    body.location.x = 100;
+    body.location.y = 100;
+    body.setLocation('table');
+    const arm = GameCharacter.create('腕', 1, '');
+    arm.ridingOn = body.identifier;
+    arm.rideSeat = 'part';
+    arm.location.x = 150;
+    arm.location.y = 125;
+    arm.setLocation('table');
+    copiedByHand(body);
+    copiedByHand(arm);
+
+    const copy = copyBeside(body, 50);
+
+    const copiedParts = ObjectStore.instance
+      .getObjects(GameCharacter)
+      .filter((piece) => piece.ridingOn === copy.identifier);
+    expect(copiedParts).toHaveLength(1);
+    expect(copiedParts[0].rideSeat).toBe('part');
+    expect(copiedParts[0].location).toMatchObject({ name: 'table', x: 200, y: 175 });
+    expect(body.partsAlong()).toEqual([arm]);
   });
 });

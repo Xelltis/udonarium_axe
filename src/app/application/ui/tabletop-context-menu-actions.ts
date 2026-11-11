@@ -1,5 +1,6 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { isWithheldHere } from '@axe/domain/tabletop/withheld';
@@ -106,7 +107,24 @@ export function copyBeside<T extends TabletopObject>(obj: T, gridSize: number, a
   // Anything the table keeps as a child of its own is nowhere until it is hung there too.
   obj.parent?.appendChild(copy);
   copy.update();
+  copyPartsAlong(obj, copy);
   return copy;
+}
+
+/**
+ * Copies the parts that stand with a piece onto its copy, each set where it stood against the piece,
+ * so a creature of many parts is copied whole rather than as a body alone. Nothing for anything else.
+ */
+export function copyPartsAlong(original: TabletopObject, copy: TabletopObject): void {
+  if (!(original instanceof GameCharacter) || !(copy instanceof GameCharacter)) return;
+  for (const part of original.partsAlong()) {
+    const partCopy = part.clone();
+    partCopy.ridingOn = copy.identifier;
+    partCopy.location.x = copy.location.x + (part.location.x - original.location.x);
+    partCopy.location.y = copy.location.y + (part.location.y - original.location.y);
+    part.parent?.appendChild(partCopy);
+    partCopy.update();
+  }
 }
 
 /**

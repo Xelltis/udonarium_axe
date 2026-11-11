@@ -156,7 +156,7 @@ describe('TablePiecesService', () => {
     expect(pieces.footOf(die)).toEqual({ surface: 'floor', x: 100, y: 200, height: 0 });
   });
 
-  it('draws a part of another piece as its body alone, and again as itself once the body has gone', async () => {
+  it('draws a part of another piece as its body alone, takes it away with the body, and draws it as itself left alone', async () => {
     const dragon = GameCharacter.create('ドラゴン', 3, '');
     dragon.location = { name: 'table', x: 100, y: 200 };
     const head = GameCharacter.create('頭', 1, '');
@@ -173,6 +173,11 @@ describe('TablePiecesService', () => {
       expect(owners().has(head.identifier)).toBe(false);
 
       dragon.setLocation('graveyard');
+      await Promise.resolve();
+      expect(head.location.name).toBe('graveyard');
+      expect(owners().has(head.identifier)).toBe(false);
+
+      head.setLocation('table');
       await Promise.resolve();
       expect(owners().has(head.identifier)).toBe(true);
     } finally {

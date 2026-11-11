@@ -19,6 +19,7 @@ import {
   DataElementType,
 } from '@axe/domain/data/data-element';
 import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
+import { isPartOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { moveToBottommost, moveToTopmost } from '@axe/domain/tabletop/tabletop-object-util';
 import {
   asVisionShape,
@@ -396,6 +397,43 @@ export class GameCharacter extends OwnedTabletopObject {
   /** The `buff` element in the piece's data that holds its buffs, or null when it has none yet. */
   get buffDataElement(): DataElement | null {
     return this.getElement('buff');
+  }
+
+  /** Whether the piece is written down as a part of another, wherever that one is. */
+  get isWrittenAsPart(): boolean {
+    return isPartOf({ id: this.identifier, ridingOn: this.ridingOn, rideSeat: this.rideSeat });
+  }
+
+  /**
+   * The pieces written down as parts of this one that stand in the same place as it, the table, an
+   * inventory, the graveyard or out of sight: those that go with it as one piece. None for a part.
+   */
+  partsAlong(): GameCharacter[] {
+    if (this.isWrittenAsPart) return [];
+    const here = this.location.name;
+    return ObjectStore.instance
+      .getObjects(GameCharacter)
+      .filter(
+        (piece) =>
+          piece !== this && piece.ridingOn === this.identifier && piece.isWrittenAsPart && piece.location.name === here
+      );
+  }
+
+  /**
+   * Moves the piece to a named place, and its parts that stood where it stood with it, so a creature
+   * of many parts leaves the table, is put away or out of sight, and comes back, whole.
+   */
+  override setLocation(location: string): void {
+    const parts = location === this.location.name ? [] : this.partsAlong();
+    super.setLocation(location);
+    for (const part of parts) part.setLocation(location);
+  }
+
+  /** Takes the piece out of the room, and its parts that stood where it stood with it. */
+  override destroy(): void {
+    const parts = this.partsAlong();
+    super.destroy();
+    for (const part of parts) part.destroy();
   }
 
   /** Raises the piece above the other pieces it overlaps on the table. */

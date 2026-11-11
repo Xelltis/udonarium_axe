@@ -24,6 +24,59 @@ describe('GameCharacter', () => {
     ObjectStore.instance.clearDeleteHistory();
   });
 
+  describe('the parts that go with it', () => {
+    function partOf(body: GameCharacter, at = 'table'): GameCharacter {
+      const part = GameCharacter.create('腕', 1, '');
+      part.ridingOn = body.identifier;
+      part.rideSeat = 'part';
+      part.setLocation(at);
+      return part;
+    }
+
+    it('takes the parts standing with it wherever it goes, and brings them back with it', () => {
+      const body = GameCharacter.create('竜', 3, '');
+      body.setLocation('table');
+      const arm = partOf(body);
+      const away = partOf(body, 'common');
+      const rider = GameCharacter.create('騎手', 1, '');
+      rider.ridingOn = body.identifier;
+      rider.setLocation('table');
+
+      body.setLocation('graveyard');
+
+      expect(arm.location.name).toBe('graveyard');
+      expect(away.location.name).toBe('common');
+      expect(rider.location.name).toBe('table');
+
+      body.setLocation('table');
+
+      expect(arm.location.name).toBe('table');
+    });
+
+    it('takes none along for a part, which goes alone', () => {
+      const body = GameCharacter.create('竜', 3, '');
+      body.setLocation('table');
+      const arm = partOf(body);
+
+      arm.setLocation('graveyard');
+
+      expect(body.location.name).toBe('table');
+      expect(arm.partsAlong()).toEqual([]);
+    });
+
+    it('takes the parts standing with it out of the room with it', () => {
+      const body = GameCharacter.create('竜', 3, '');
+      body.setLocation('table');
+      const arm = partOf(body);
+      const away = partOf(body, 'graveyard');
+
+      body.destroy();
+
+      expect(ObjectStore.instance.get(arm.identifier)).toBeNull();
+      expect(ObjectStore.instance.get(away.identifier)).toBe(away);
+    });
+  });
+
   // ----------------------------------------------------------------
   // aliasName
   // ----------------------------------------------------------------

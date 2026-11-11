@@ -33,6 +33,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelHeaderControl, PanelService } from '@axe/application/ui/panel.service';
 import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { SelectionSignalService, TabletopObjectSelection } from '@axe/application/ui/selection-signal.service';
+import { copyPartsAlong } from '@axe/application/ui/tabletop-context-menu-actions';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -1168,7 +1169,7 @@ export class GameObjectInventoryComponent {
 
   private cloneGameObject(gameObject: TabletopObject) {
     if (!this.rolePermission.canEditTabletop() || isWithheldHere(gameObject)) return;
-    gameObject.clone();
+    copyPartsAlong(gameObject, gameObject.clone());
   }
 
   private showDetail(gameObject: GameCharacter) {

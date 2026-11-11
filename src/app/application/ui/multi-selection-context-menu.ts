@@ -3,6 +3,7 @@ import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/con
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { copyBeside } from '@axe/application/ui/tabletop-context-menu-actions';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { isLockedInPlace } from '@axe/domain/tabletop/lockable';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -66,7 +67,12 @@ export function buildMultiSelectionContextMenu(
     {
       name: t('feature.tabletop.selection.copyAll'),
       action: () => {
-        const cloned = movable.filter((obj) => !isWithheldHere(obj)).map((obj) => copyBeside(obj, gridSize).identifier);
+        // A part whose body is copied too comes with the body's copy, not as one more part of the body.
+        const withBody = (obj: TabletopObject) =>
+          obj instanceof GameCharacter && obj.isWrittenAsPart && movable.some((one) => one.identifier === obj.ridingOn);
+        const cloned = movable
+          .filter((obj) => !isWithheldHere(obj) && !withBody(obj))
+          .map((obj) => copyBeside(obj, gridSize).identifier);
         if (cloned.length > 0) selectionSignalService.replaceSelection(cloned);
       },
     },
