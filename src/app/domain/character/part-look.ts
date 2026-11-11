@@ -232,22 +232,46 @@ export interface PartOnPicture {
 }
 
 /**
+ * Whether anything is drawn at a point of a body's own picture, and of each part's own, from 0 to 1
+ * across and down it: null where that is not known, as for a picture not read yet.
+ */
+export interface PartPictureOpacity {
+  readonly body: (x: number, y: number) => boolean | null;
+  readonly part: (id: string, u: number, v: number) => boolean | null;
+}
+
+/** Nothing known of what is drawn where, which leaves each picture laid to be landed on all over its box. */
+const OPACITY_UNKNOWN: PartPictureOpacity = { body: () => null, part: () => null };
+
+/**
  * The part a point across and down its body's picture, as shares of it, lands on: the picture laid
  * over the body's highest there, then the piece painted on the body's picture, then a picture laid
- * behind it; null where it lands on none. A lost part is not there to land on.
+ * behind it where the body's own picture does not hide it; null where it lands on none. A picture
+ * laid is landed on only where it is drawn, its clear margins passing the press on, where `opacity`
+ * knows that. A lost part is not there to land on.
  */
-export function partAtPicturePoint(parts: readonly PartOnPicture[], x: number, y: number): string | null {
-  const inLayer = (part: PartOnPicture) => {
+export function partAtPicturePoint(
+  parts: readonly PartOnPicture[],
+  x: number,
+  y: number,
+  opacity: PartPictureOpacity = OPACITY_UNKNOWN
+): string | null {
+  const shows = (part: PartOnPicture) => {
     const layer = part.layer!;
     const halfWidth = layer.width / 2;
     const halfHeight = (layer.width * part.aspect) / part.bodyAspect / 2;
-    return Math.abs(x - layer.x) <= halfWidth && Math.abs(y - layer.y) <= halfHeight;
+    if (Math.abs(x - layer.x) > halfWidth || Math.abs(y - layer.y) > halfHeight) return false;
+    const u = (x - layer.x + halfWidth) / (2 * halfWidth);
+    const v = (y - layer.y + halfHeight) / (2 * halfHeight);
+    return opacity.part(part.id, u, v) !== false;
   };
   const standing = parts.filter((part) => !part.lost);
   const layered = standing.filter((part) => part.layer !== null).sort((a, b) => b.layer!.order - a.layer!.order);
-  const over = layered.find((part) => part.layer!.order > 0 && inLayer(part));
+  const over = layered.find((part) => part.layer!.order > 0 && shows(part));
   if (over) return over.id;
   const painted = standing.find((part) => part.mask !== null && maskCovers(part.mask, x, y));
   if (painted) return painted.id;
-  return layered.find((part) => part.layer!.order <= 0 && inLayer(part))?.id ?? null;
+  // The body's own picture is drawn over what is laid behind it.
+  if (opacity.body(x, y) === true) return null;
+  return layered.find((part) => part.layer!.order <= 0 && shows(part))?.id ?? null;
 }

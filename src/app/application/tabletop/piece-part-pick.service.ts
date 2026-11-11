@@ -7,7 +7,15 @@ import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { isPartLost, partAtPicturePoint, partFacesOf, partLayerOf, partMaskOf } from '@axe/domain/character/part-look';
+import {
+  isPartLost,
+  partAtPicturePoint,
+  partFacesOf,
+  partLayerOf,
+  partMaskOf,
+  type PartPictureOpacity,
+} from '@axe/domain/character/part-look';
+import { seesThroughAt } from '@axe/domain/ui/see-through';
 
 /**
  * The part of a piece a press on the piece lands on, where its parts are drawn as pieces of its
@@ -42,6 +50,17 @@ export class PiecePartPickService {
       if (drawn[hit.shapeIndex]?.id !== `${body.identifier}#picture`) return null;
       const picture = drawn[hit.shapeIndex];
       const bodyAspect = picture.heightPx / Math.max(1e-6, picture.widthPx);
+      const drawnAt = (url: string, u: number, v: number): boolean | null => {
+        const mask = this.sizes.maskOf(url);
+        return mask ? !seesThroughAt(mask, { u, v }) : null;
+      };
+      const opacity: PartPictureOpacity = {
+        body: (x, y) => drawnAt(this.images.getEmptyOr(body.imageFile).url, x, y),
+        part: (id, u, v) => {
+          const part = parts.find((one) => one.identifier === id);
+          return part ? drawnAt(this.images.getEmptyOr(part.imageFile).url, u, v) : null;
+        },
+      };
       const id = partAtPicturePoint(
         parts.map((part) => {
           const size = this.sizes.sizeOf(this.images.getEmptyOr(part.imageFile).url);
@@ -55,7 +74,8 @@ export class PiecePartPickService {
           };
         }),
         hit.u,
-        hit.v
+        hit.v,
+        opacity
       );
       const part = id ? this.objectStore.get<GameCharacter>(id) : null;
       return part instanceof GameCharacter ? part : null;

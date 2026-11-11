@@ -107,4 +107,22 @@ describe('the look of a part over its body', () => {
       )
     ).toBeNull();
   });
+
+  it('lands on a picture laid only where it is drawn, and on one behind only where the body does not hide it', () => {
+    const base = { aspect: 1, bodyAspect: 1, mask: null, lost: false };
+    const parts = [
+      { ...base, id: 'horn', layer: { x: 0.5, y: 0.2, width: 0.4, order: 1 } },
+      { ...base, id: 'tail', layer: { x: 0.8, y: 0.8, width: 0.4, order: 0 } },
+    ];
+    // The horn is drawn in the left half of its own picture alone, and the body in its left half.
+    const opacity = {
+      body: (x: number) => x < 0.5,
+      part: (id: string, u: number) => (id === 'horn' ? u < 0.5 : true),
+    };
+
+    expect(partAtPicturePoint(parts, 0.4, 0.2, opacity)).toBe('horn');
+    expect(partAtPicturePoint(parts, 0.6, 0.2, opacity)).toBeNull();
+    expect(partAtPicturePoint(parts, 0.9, 0.8, opacity)).toBe('tail');
+    expect(partAtPicturePoint(parts, 0.65, 0.8, { ...opacity, body: () => true })).toBeNull();
+  });
 });
