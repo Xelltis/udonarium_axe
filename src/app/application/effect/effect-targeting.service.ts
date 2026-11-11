@@ -164,14 +164,18 @@ export class EffectTargetingService {
    * remote or from chat can be cast at straight away.
    */
   begin(preset: EffectPreset): void {
-    const targeted = this.tabletopService.characters
-      .filter((character) => character.isVisibleOnTable && character.targeted && this.vision.isTokenVisible(character))
+    const targeted = this.tabletopService.characters.filter(
+      (character) => character.isVisibleOnTable && character.targeted
+    );
+    const shown = targeted
+      .filter((character) => this.vision.isTokenVisible(character))
       .map((character) => character.identifier);
 
-    this.previousTargets = targeted;
+    // Every piece aimed at, one gone out of sight since among them, is put back as aimed at on cancel.
+    this.previousTargets = targeted.map((character) => character.identifier);
     this.beganWithSelection = untracked(this.selectionSignalService.selectedObject);
     this._preset.set(preset);
-    this._picks.set(targeted.slice(0, Math.max(preset.targetLimit, 1)));
+    this._picks.set(shown.slice(0, Math.max(preset.targetLimit, 1)));
     // The shooter is the selected piece, caught at the start because choosing moves the selection onto the targets.
     this._casterIdentifier.set(this.selectedCasterIdentifier());
     this.mirror();
@@ -228,12 +232,20 @@ export class EffectTargetingService {
     return cast;
   }
 
-  /** Cancels, putting back the targets from before it began. */
+  /**
+   * Cancels, putting back the targets from before it began as they were, one this reader can no longer
+   * see among them, which picking left unmarked.
+   */
   cancel(): boolean {
     if (!this.isPicking()) return false;
 
-    this._picks.set(this.previousTargets);
-    this.mirror();
+    const before = new Set(this.previousTargets);
+    for (const character of this.tabletopService.characters) {
+      const next = before.has(character.identifier);
+      if (character.targeted === next) continue;
+      character.targeted = next;
+      this.uiSignalService.notifyTargetChange(character.identifier, character.aliasName);
+    }
     this.reset();
     return true;
   }

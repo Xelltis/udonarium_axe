@@ -200,6 +200,24 @@ describe('EffectTargetingService', () => {
       vi.restoreAllMocks();
     });
 
+    it('puts back on cancel a piece aimed at before the picking that this reader can no longer see', () => {
+      characters[0].targeted = true;
+      vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockImplementation(
+        (character) => character !== characters[0]
+      );
+      service.begin(preset);
+      expect(service.picks()).not.toContain(characters[0].identifier);
+      service.pick(characters[1].identifier);
+      expect(characters[0].targeted).toBe(false);
+
+      service.cancel();
+
+      expect(characters[0].targeted).toBe(true);
+      expect(characters[1].targeted).toBe(false);
+      characters[0].targeted = false;
+      vi.restoreAllMocks();
+    });
+
     it('does not cast on gathering a group', () => {
       service.begin(preset);
 
