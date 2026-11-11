@@ -1,3 +1,4 @@
+import { LONG_FRAME_MS } from '@axe/core/util/held-clock';
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { skyAmbienceFlash } from '@axe/domain/effect/ambience/ambience-sky';
 import { MAX_EFFECT_LIGHTS } from '@axe/domain/effect/effect-light';
@@ -151,9 +152,6 @@ const FLASH_SKY = 0.8;
 
 /** How far the light of a strike has to have changed before the scene is drawn again for it. */
 const FLASH_STEP = 0.004;
-
-/** How long a frame takes, in milliseconds, past which the scene is held to have stood still over it. */
-const LONG_FRAME_MS = 200;
 
 /** How dark the ground is that the sky lights a surface facing down with, beside the sky itself. */
 const GROUND_BOUNCE = 0.6;
