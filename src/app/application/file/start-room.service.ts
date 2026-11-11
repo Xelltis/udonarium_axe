@@ -26,6 +26,7 @@ import {
   StoreSnapshot,
   takeOutQuietly,
 } from '@axe/core/sync/store-snapshot';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DEFAULT_CHAT_TABS } from '@axe/domain/chat/constants';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { parseInviteLink } from '@axe/domain/peer/invite-link';
@@ -188,9 +189,11 @@ export class StartRoomService {
    * their own, and they would turn up in it as the seat came in. A room that holds them gives them
    * back. What the seat made of its own before the join still goes in with it.
    *
-   * Told the join came to something, it lets the start room and what it set aside go; told it came
-   * to nothing, it sets the kept start room out again, as at launch, or what it set aside, once no
-   * join is under way and the seat waits outside any room. See {@link comeBackIfOutside}.
+   * Told the join came to something, it lets the start room and what it set aside go, but for a room
+   * nobody else is in, which hands nothing back: there what it set aside is put back, and the sample
+   * set out where a start room had stood in for it. Told the join came to nothing, it sets the kept
+   * start room out again, as at launch, or what it set aside, once no join is under way and the seat
+   * waits outside any room. See {@link comeBackIfOutside}.
    */
   putAwayForJoin(): (joined: boolean) => void {
     this.joinsUnderWay++;
@@ -213,8 +216,12 @@ export class StartRoomService {
       over = true;
       this.joinsUnderWay--;
       if (joined) {
-        // A room nobody else is in, as one's own come back to alone, has nothing to hand back.
-        if (Network.authorityPeerId == null && hasTableToItself()) this.putBackWhatWasSetAside();
+        // A room nobody else is in, as one's own come back to alone, has nothing to hand back: what was
+        // set aside goes back, and a page whose start room stood in for the sample is given the sample.
+        if (Network.authorityPeerId == null && hasTableToItself()) {
+          this.putBackWhatWasSetAside();
+          if (this.putAway && !this.sampleHeld()) this.tabletopAction.makeDefaultTabletopObjects();
+        }
         this.letGo();
       } else this.comeBackIfOutside();
     };
@@ -430,11 +437,16 @@ export class StartRoomService {
     void this.setOutAgain();
   }
 
-  /** Puts back what joins set aside of the page's own things, as they were when set aside. */
+  /**
+   * Puts back what joins set aside of the page's own things, as they were when set aside, the lines
+   * of the tabs put back counted as read rather than as lines come in anew.
+   */
   private putBackWhatWasSetAside(): void {
     const aside = this.setAside;
     this.setAside = null;
-    if (aside) putBackQuietly(aside);
+    if (!aside) return;
+    putBackQuietly(aside);
+    for (const tab of DEFAULT_CHAT_TABS) this.objectStore.get<ChatTab>(tab.identifier)?.markForRead();
   }
 
   /** Whether any of the sample pieces, their parties or the tutorial is on this page. */

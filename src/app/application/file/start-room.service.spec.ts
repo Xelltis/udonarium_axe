@@ -441,8 +441,18 @@ describe('StartRoomService', () => {
       expect(sample).not.toHaveBeenCalled();
     });
 
+    it('sets the sample out on joining alone a room nobody else is in, where the start room stood in for it', async () => {
+      await setOut();
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([]);
+
+      service.putAwayForJoin()(true);
+
+      expect(sample).toHaveBeenCalledTimes(1);
+    });
+
     it('lets the start room go once the join comes to something, and puts nothing away again', async () => {
       await setOut();
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{ peerId: 'other' }] as never);
 
       service.putAwayForJoin()(true);
       service.putAwayForJoin();
@@ -759,6 +769,7 @@ describe('StartRoomService', () => {
 
       const back = ObjectStore.instance.get<ChatTab>('MainTab')!;
       expect(back.chatMessages.map((message) => message.text)).toEqual(['入る前の発言']);
+      expect(back.hasUnread).toBe(false);
       expect(ChatTabList.instance.chatTabs).toContain(back);
       expect(ObjectStore.instance.get<GameCharacter>('testCharacter_1')?.name).toBe('動かした見本');
       expect(sample).not.toHaveBeenCalled();
@@ -771,6 +782,16 @@ describe('StartRoomService', () => {
 
       expect(ObjectStore.instance.get('MainTab')).not.toBeNull();
       expect(ObjectStore.instance.get('testCharacter_1')).not.toBeNull();
+    });
+
+    it('puts nothing back once joined into a room server’s room, which hands back what it holds', () => {
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([]);
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+
+      service.putAwayForJoin()(true);
+
+      expect(ObjectStore.instance.get('MainTab')).toBeNull();
+      expect(ObjectStore.instance.get('testCharacter_1')).toBeNull();
     });
 
     it('lets them go once joined into a room somebody else is in, and puts nothing back after', () => {
