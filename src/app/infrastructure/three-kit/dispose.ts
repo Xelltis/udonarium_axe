@@ -27,3 +27,25 @@ export function disposeObject(root: Object3D): void {
     }
   });
 }
+
+/** What of a renderer {@link letGoOfRenderer} reaches: its own letting go, and what it draws through. */
+export interface HandedCanvasRenderer {
+  dispose(): Promise<void> | void;
+  readonly backend: unknown;
+}
+
+/**
+ * Gives back a renderer that draws on a canvas it was handed, and the drawing context with it. Three
+ * lets go of a WebGL context itself only on a canvas it made, and a page keeps few contexts at once:
+ * one too many loses the oldest, which may be the table's. Only for a canvas that goes with the
+ * renderer, as one drawn on again would be handed the lost context.
+ */
+export function letGoOfRenderer(renderer: HandedCanvasRenderer): Promise<void> {
+  const backend = renderer.backend as { isWebGLBackend?: boolean; gl?: WebGLRenderingContext | null } | undefined;
+  const lose = () => {
+    if (backend?.isWebGLBackend) backend.gl?.getExtension('WEBGL_lose_context')?.loseContext();
+  };
+  return Promise.resolve()
+    .then(() => renderer.dispose())
+    .then(lose, lose);
+}

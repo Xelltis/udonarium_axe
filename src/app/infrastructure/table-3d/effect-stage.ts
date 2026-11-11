@@ -7,6 +7,7 @@ import type {
   EffectStage,
   EffectStageOptions,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { letGoOfRenderer } from '@axe/infrastructure/three-kit/dispose';
 import { abs, float, fract, max, min, mix, smoothstep, uv, vec2, vec3 } from 'three/tsl';
 import {
   Color,
@@ -136,7 +137,7 @@ class SmallStage implements EffectStage {
   dispose(): void {
     this.effects.dispose();
     for (const thing of this.owned) thing.dispose();
-    this.renderer.dispose();
+    void letGoOfRenderer(this.renderer);
   }
 }
 
@@ -193,7 +194,7 @@ class OverPage implements EffectOverlay {
 
   dispose(): void {
     this.effects.dispose();
-    this.renderer.dispose();
+    void letGoOfRenderer(this.renderer);
   }
 }
 
