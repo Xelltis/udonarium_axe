@@ -34,6 +34,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
 import { BUFF_BADGES_PER_ROW } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { HIDDEN_GAUGE_COLOR } from '@axe/domain/character/piece-gauge';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
@@ -1170,6 +1171,23 @@ describe('GameCharacterComponent', () => {
         expect(component.gaugeRows().map((row) => row.numbers)).toEqual(['???/???', '???/???']);
         // The bar itself still stands, since how full it is can be guessed at anyway.
         expect(component.gaugeRows()[0].gauge.ratio).toBe(1);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('keeps how full the bars round a piece kept from the reader stand, as its rows do', () => {
+      const character = GameCharacter.create('秘密', 1, '');
+      character.disclosureMode = DisclosureMode.GameMaster;
+      character.detailDataElement!.getFirstElementByName('HP')!.currentValue = 1;
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        expect(component.orbitPieceGauges().length).toBeGreaterThan(0);
+        expect(component.orbitPieceGauges().map((gauge) => gauge.ratio)).toEqual(
+          component.orbitPieceGauges().map(() => 1)
+        );
+        expect(component.orbitPieceGauges()[0].color).toBe(HIDDEN_GAUGE_COLOR);
       } finally {
         character.destroy();
       }

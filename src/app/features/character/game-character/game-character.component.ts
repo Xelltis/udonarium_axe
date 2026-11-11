@@ -1112,7 +1112,12 @@ export class GameCharacterComponent {
     { equal: sameEntries }
   );
 
-  readonly orbitPieceGauges = computed(() => this.pieceGauges().slice(0, MAX_MULTI_ANGLE_RESOURCE_GAUGES));
+  /** The bars drawn round the piece, as the reader is shown them: those of a piece kept from them full and grey. */
+  readonly orbitPieceGauges = computed(() =>
+    this.gaugeRows()
+      .slice(0, MAX_MULTI_ANGLE_RESOURCE_GAUGES)
+      .map((row) => row.gauge)
+  );
 
   private readonly resourceSnapshot = computed<Map<string, ResourceSnapshot>>(() => {
     const snapshot = new Map<string, ResourceSnapshot>();
