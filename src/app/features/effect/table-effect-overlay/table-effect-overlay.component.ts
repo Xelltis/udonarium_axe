@@ -4,6 +4,8 @@ import { type EffectFieldRenderable, EffectFieldService } from '@axe/application
 import { effectElapsedOf, EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { PiecePartPicturesService } from '@axe/application/tabletop/piece-part-pictures.service';
 import { TABLE_SCREEN } from '@axe/application/tabletop/table-screen';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -57,6 +59,8 @@ export class TableEffectOverlayComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly firstPerson = inject(FirstPersonService);
+  private readonly links = inject(PieceLinksService);
+  private readonly partPictures = inject(PiecePartPicturesService);
 
   readonly eye = input<EffectEye | null>(null);
 
@@ -164,11 +168,22 @@ export class TableEffectOverlayComponent {
     return effectPaintStyle(sprite);
   }
 
-  /** Collapsing and cleaving cut the picture of the piece itself and move the parts. */
+  /**
+   * Collapsing and cleaving cut the picture of the piece itself, as it is drawn with any parts laid on
+   * it, and move the pieces of it.
+   */
   private imageUrlOf(identifier: string): string {
-    const object = this.objectStore.get<TabletopObject>(identifier);
+    const object = this.drawnAs(identifier);
     if (!(object instanceof TabletopObject)) return '';
+    if (object instanceof GameCharacter) return this.partPictures.pictureOf(object)?.url ?? object.imageFile.url;
     return object.imageFile?.url ?? '';
+  }
+
+  /** The piece a target is drawn as: the body a part is a part of, which is drawn for it; itself otherwise. */
+  private drawnAs(identifier: string): TabletopObject | null {
+    const object = this.objectStore.get<TabletopObject>(identifier);
+    if (!(object instanceof GameCharacter)) return object;
+    return this.links.bodyOf(object) ?? object;
   }
 
   private hiddenIdentifiersOf(identifiers: readonly string[]): ReadonlySet<string> {
@@ -184,12 +199,12 @@ export class TableEffectOverlayComponent {
 
   /** How many cells across a piece is, as it stands now; one where it is not on the table. */
   private sizeOf(identifier: string): number {
-    const size = (this.objectStore.get<TabletopObject>(identifier) as { size?: unknown } | null)?.size;
+    const size = (this.drawnAs(identifier) as { size?: unknown } | null)?.size;
     return typeof size === 'number' && size > 0 ? size : 1;
   }
 
   private centerOf(identifier: string, gridSize: number): { x: number; y: number; z: number } | null {
-    const object = this.objectStore.get<TabletopObject>(identifier);
+    const object = this.drawnAs(identifier);
     if (!(object instanceof TabletopObject) || !object.isVisibleOnTable) return null;
     const size = (object as { size?: number }).size;
     const half = (gridSize * (typeof size === 'number' && size > 0 ? size : 1)) / 2;

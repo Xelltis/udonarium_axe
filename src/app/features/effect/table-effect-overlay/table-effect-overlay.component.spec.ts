@@ -160,6 +160,31 @@ describe('TableEffectOverlayComponent', () => {
     }
   });
 
+  it('cuts the picture of the body a part is drawn as, where the body stands, for a cut aimed at the part', () => {
+    const head = GameCharacter.create('頭', 1, '');
+    head.location.name = 'table';
+    head.location.x = 700;
+    head.location.y = 700;
+    head.ridingOn = piece.identifier;
+    head.rideSeat = 'part';
+    try {
+      playback.play({
+        presetIdentifier: preset.identifier,
+        targets: [{ identifier: head.identifier, x: 725, y: 725, z: 0 }],
+        seed: 3,
+      });
+      playback.now.set(playback.activeCasts()[0].startedAt + 500);
+
+      const sprites = component.sprites();
+
+      expect(sprites.length).toBeGreaterThan(0);
+      expect(sprites.every((sprite) => sprite.background.includes('url(blob:piece-picture)'))).toBe(true);
+      expect(sprites.every((sprite) => sprite.x === 125 && sprite.y === 225)).toBe(true);
+    } finally {
+      ObjectStore.instance.remove(head);
+    }
+  });
+
   it('leaves a look drawn in the table scene itself to the scene, and draws nothing of it over the table', () => {
     preset.kind = 'burst';
     preset.stages = '';
