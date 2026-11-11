@@ -6,17 +6,17 @@
     data-ground-brush-band
     [style.zIndex]="zIndex"
   >
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-2" data-testid="ground-brush-row">
       <div class="flex flex-wrap items-center gap-2">
         <div
-          class="border-ui-border-panel flex shrink-0 rounded-full border border-solid p-0.5"
+          class="border-ui-border-panel flex flex-wrap rounded-2xl border border-solid p-0.5"
           role="group"
           [attr.aria-label]="'feature.tabletop.groundBrush.kindGroup' | transloco"
         >
           @for (kind of kinds; track kind) {
             <button
               type="button"
-              class="inline-flex min-h-8 cursor-pointer items-center rounded-full border-none px-3 text-[0.86em] whitespace-nowrap transition-[background,color]"
+              class="m-0 inline-flex min-h-8 cursor-pointer items-center rounded-full border-none px-3 text-[0.86em] whitespace-nowrap transition-[background,color]"
               [class.bg-ui-accent-solid]="settings().kind === kind"
               [class.text-white]="settings().kind === kind"
               [class.bg-transparent]="settings().kind !== kind"
@@ -31,7 +31,7 @@
         </div>
         @if (settings().kind === 'paint') {
           <div
-            class="flex shrink-0 gap-1"
+            class="flex flex-wrap gap-1"
             role="group"
             [attr.aria-label]="'feature.tabletop.groundBrush.layerGroup' | transloco"
           >

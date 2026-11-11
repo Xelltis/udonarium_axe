@@ -170,7 +170,8 @@ describe('GroundBrushBandComponent', () => {
   it('keeps the presses that take back and close at the end of the row of what the brush does', () => {
     brush.active.set(true);
     const band = render().querySelector('[data-testid="ground-brush-band"]')!;
-    const row = band.querySelector('[data-testid="ground-brush-raise"]')!.closest('.flex-wrap')!.parentElement!;
+    const row = band.querySelector('[data-testid="ground-brush-row"]')!;
+    expect(row.contains(band.querySelector('[data-testid="ground-brush-raise"]'))).toBe(true);
 
     expect(row.querySelector('[data-testid="ground-brush-undo"]')).not.toBeNull();
     expect(row.querySelector('[data-testid="ground-brush-close"]')).not.toBeNull();
