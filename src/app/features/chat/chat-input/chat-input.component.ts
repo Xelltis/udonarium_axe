@@ -1101,11 +1101,12 @@ export class ChatInputComponent {
     this.objectChange.trackMyCursor();
     const ignoreNonTalk = this.onlyCharacters();
     const chosen = this.sendFrom;
+    // The one chosen stays listed, so the select does not go blank where it is kept from view since.
     return all.filter(
       (character) =>
         allowsChat(character, this.myPeer.peerId, ignoreNonTalk) &&
-        (character.identifier === chosen || this.vision.mayBeListed(character)) &&
-        (!ignoreNonTalk || this.disclosure.canView(character))
+        (character.identifier === chosen ||
+          (this.vision.mayBeListed(character) && (!ignoreNonTalk || this.disclosure.canView(character))))
     );
   });
 

@@ -257,6 +257,17 @@ describe('ChatInputComponent', () => {
       kept.destroy();
     });
 
+    it('keeps in a chat palette’s list the piece it speaks as, once that is kept from view since', () => {
+      const kept = speaker('秘密の魔物');
+      fixture.componentRef.setInput('onlyCharacters', true);
+      component.sendFrom = kept.identifier;
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockReturnValue(false);
+      TestBed.inject(ObjectChangeService).notifyChanged(kept.identifier);
+
+      expect(component.gameCharacters()).toContain(kept);
+      kept.destroy();
+    });
+
     it('leaves out a piece on the table this seat cannot see, but keeps the one it speaks as', () => {
       const seen = speaker('勇者');
       seen.setLocation('table');
