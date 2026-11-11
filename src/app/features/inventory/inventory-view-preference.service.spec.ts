@@ -113,4 +113,35 @@ describe('InventoryViewPreferenceService', () => {
     expect(preference.mode()).toBe('table');
     setItem.mockRestore();
   });
+
+  describe('the turn order', () => {
+    afterEach(() => {
+      localStorage.removeItem('ui-inventory-round-across');
+      localStorage.removeItem('ui-inventory-round-length');
+    });
+
+    it('lays it down, as long as there is room, until the reader says otherwise', () => {
+      expect(service().roundAcross()).toBe(false);
+      expect(service().roundLength()).toEqual({ down: null, across: null });
+    });
+
+    it('remembers which way it is laid and how long it was made each way', () => {
+      const first = service();
+      first.setRoundAcross(true);
+      first.setRoundLength(true, 420);
+      first.setRoundLength(false, 300);
+      first.setRoundLength(false, null);
+
+      expect(service().roundAcross()).toBe(true);
+      expect(service().roundLength()).toEqual({ down: null, across: 420 });
+    });
+
+    it('takes a length written wrong as none', () => {
+      localStorage.setItem('ui-inventory-round-length', '{"down":"tall","across":-3}');
+      expect(service().roundLength()).toEqual({ down: null, across: null });
+
+      localStorage.setItem('ui-inventory-round-length', 'not json');
+      expect(service().roundLength()).toEqual({ down: null, across: null });
+    });
+  });
 });

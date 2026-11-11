@@ -490,6 +490,16 @@ export class GameObjectInventoryComponent {
         press: () => this.toggleGhost(),
       });
     }
+    // The turn order is laid down or across, as it suits where the reader puts it on the screen.
+    if (showing === 'round') {
+      const across = this.viewPreference.roundAcross();
+      controls.push({
+        icon: across ? 'swap_vert' : 'swap_horiz',
+        label: this.t(across ? 'feature.inventory.panel.roundDown' : 'feature.inventory.panel.roundAcross'),
+        active: across,
+        press: () => this.viewPreference.setRoundAcross(!across),
+      });
+    }
     // A way into the settings that no setting can take away: the button beside the tabs goes
     // with them when the tabs are put away.
     if (showing !== 'round') {

@@ -13,7 +13,7 @@
   [style.-webkit-backdrop-filter]="unboxed ? 'none' : null"
   [style.left.px]="left"
   [style.top.px]="top"
-  [style.width.px]="width"
+  [style.width]="isShrunk() && activePanel().shrunkToContentWidth() ? 'max-content' : width + 'px'"
   [style.height]="contentMinimized ? 'auto' : isCompact() ? 'calc(100dvh - ' + keyboardInset() + 'px)' : height + 'px'"
   [style.rotate]="rotationDegrees() + 'deg'"
   [style.transform-origin]="'center center'"

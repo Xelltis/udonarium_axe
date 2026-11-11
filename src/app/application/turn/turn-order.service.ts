@@ -430,6 +430,15 @@ export class TurnOrderService {
   }
 
   /**
+   * The piece the next press of the round would hand the turn to, worked out without pressing it:
+   * empty where it would hand it to nobody, as when it opens or closes a round.
+   */
+  peekNextIdentifier(): string {
+    if (this.turnState.phase === 'idle') return '';
+    return roundNext(this.snapshot(), this.turnTable()).state.currentIdentifier;
+  }
+
+  /**
    * The pieces that have not had their turn, in the order the round would reach them.
    *
    * Only the ones it would reach: a piece kept out of the inventory is never given a turn,

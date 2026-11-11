@@ -233,6 +233,21 @@ describe('TurnOrderService', () => {
     expect(turnState.round).toBe(2);
   });
 
+  it('tells who the next press would hand the turn to, without pressing it', () => {
+    expect(service.peekNextIdentifier()).toBe('');
+    service.next(); // round 1 begins
+    expect(service.peekNextIdentifier()).toBe(chars[0].identifier);
+    expect(turnState.phase).toBe('roundStart');
+    service.setCurrent(chars[1].identifier);
+    expect(service.peekNextIdentifier()).toBe(chars[0].identifier);
+    service.next();
+    service.next();
+    expect(turnState.currentIdentifier).toBe(chars[2].identifier);
+    expect(service.peekNextIdentifier()).toBe('');
+    expect(turnState.currentIdentifier).toBe(chars[2].identifier);
+    expect(sendSpy).toHaveBeenCalledTimes(4);
+  });
+
   it('setCurrent jumps straight to a character in the acting phase', () => {
     service.setCurrent(chars[1].identifier);
     expect(turnState.phase).toBe('acting');

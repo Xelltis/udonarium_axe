@@ -187,14 +187,14 @@ describe('GameObjectInventoryComponent', () => {
       fixture.detectChanges();
       await fixture.whenStable();
       const element = fixture.nativeElement as HTMLElement;
-      const rounds = [...element.querySelectorAll<HTMLButtonElement>('button[title]')].map((button) => button.title);
-      const companions = [...element.querySelectorAll('[data-testid="turn-companions"] [title]')].map((round) =>
-        round.getAttribute('title')
+      const rounds = [...element.querySelectorAll('[data-turn-piece]')].map((round) =>
+        round.getAttribute('aria-label')!
       );
+      const riding = rounds.find((round) => round.startsWith('騎士'));
 
-      expect(rounds).toContain('騎士');
-      expect(rounds).not.toContain('馬');
-      expect(companions).toEqual(['馬', '従者']);
+      expect(riding).toContain('一緒に動く: 馬, 従者');
+      expect(rounds.some((round) => round.startsWith('馬'))).toBe(false);
+      expect(element.querySelectorAll('[data-testid="turn-companions"] > span')).toHaveLength(2);
       TestBed.inject(PanelService).isShrunk.set(false);
     });
   });
@@ -2416,7 +2416,9 @@ describe('GameObjectInventoryComponent', () => {
         expect([...element.querySelectorAll('i.material-icons')].map((icon) => icon.textContent?.trim())).toContain(
           'restart_alt'
         );
-        const rounds = [...element.querySelectorAll<HTMLButtonElement>('button[title]')].map((button) => button.title);
+        const rounds = [...element.querySelectorAll('[data-turn-piece]')].map(
+          (round) => round.getAttribute('aria-label')!.split(' / ')[0]
+        );
         expect(rounds).toEqual(expect.arrayContaining(['先手', '後手']));
       } finally {
         off();
