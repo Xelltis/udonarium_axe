@@ -770,13 +770,10 @@ export class GameTableComponent {
   readonly diceSymbolsOverCanvas = computed(() => this.diceSymbols());
   readonly coinsOverCanvas = computed(() => this.coins());
   /** The characters laid over the table, all but those drawn as a part of another, which show in the body's card. */
-  readonly charactersOverCanvas = computed(() =>
-    this.characters().filter((character) => {
-      this.objectChangeService.versionOf(character.identifier)();
-      if (character.ridingOn !== '') this.objectChangeService.versionOf(character.ridingOn)();
-      return this.pieceLinks.bodyOf(character) === null;
-    })
-  );
+  readonly charactersOverCanvas = computed(() => {
+    const parts = this.pieceLinks.partIdentifiers();
+    return this.characters().filter((character) => !parts.has(character.identifier));
+  });
   readonly textNotesOverCanvas = computed(() => this.textNotes());
   readonly cardsOverCanvas = computed(() => this.cards());
   readonly cardStacksOverCanvas = computed(() => this.cardStacks());

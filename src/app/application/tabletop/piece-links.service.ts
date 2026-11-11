@@ -90,6 +90,17 @@ export class PieceLinksService {
     return this.partsByBody().get(body.identifier) ?? [];
   }
 
+  /**
+   * The identifiers of every part on the table, followed as any piece changes but telling of a change
+   * only where the parts did, so what is drawn of every piece but the parts is not worked out again as
+   * a piece moves.
+   */
+  readonly partIdentifiers = computed<ReadonlySet<string>>(() => {
+    const identifiers = new Set<string>();
+    for (const parts of this.partsByBody().values()) for (const part of parts) identifiers.add(part.identifier);
+    return identifiers;
+  });
+
   /** A piece as the bonds between pieces see it: whoever holds on to it, and the mount it rides or the body it is a part of. */
   bondOf(piece: GameCharacter): BondedPiece {
     const carrier = this.mountOf(piece) ?? this.bodyOf(piece);

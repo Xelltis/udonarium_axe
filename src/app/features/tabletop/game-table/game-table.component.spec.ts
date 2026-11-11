@@ -407,6 +407,23 @@ describe('GameTableComponent', () => {
       body.destroy();
     });
 
+    it('hands the overlay the same list while a piece only moves, and a new one only as the parts change', () => {
+      const body = makeCharacter('いち');
+      const part = makeCharacter('に');
+      const first = component.charactersOverCanvas();
+
+      body.location.x += 50;
+      TestBed.inject(ObjectChangeService).notifyChanged(body.identifier);
+      expect(component.charactersOverCanvas()).toBe(first);
+
+      part.ridingOn = body.identifier;
+      part.rideSeat = 'part';
+      TestBed.inject(ObjectChangeService).notifyChanged(part.identifier);
+      expect(component.charactersOverCanvas()).not.toBe(first);
+      part.destroy();
+      body.destroy();
+    });
+
     it('lays the pieces out in the order they are stacked', () => {
       const under = makeCharacter('いち');
       const over = makeCharacter('に');
