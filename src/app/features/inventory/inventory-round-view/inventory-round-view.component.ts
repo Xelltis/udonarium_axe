@@ -40,8 +40,10 @@ const STRIP_WIDTH_DOWN = 104;
 const STRIP_HEIGHT_ACROSS = DOCK_FACE + 8;
 /** The shortest the turn order is made, however little room the screen leaves. */
 const LEAST_LENGTH = 160;
-/** Half the widest a face drawn out stands, with a margin from the screen's edge, in px. */
-const PEEK_HALF_WIDTH = 128;
+/** Half the widest a face drawn out stands, in px. */
+const PEEK_HALF_WIDTH = 120;
+/** How far a face drawn out keeps from the edge of the screen, in px. */
+const PEEK_EDGE = 8;
 /**
  * How far the turn order keeps from the edge of the screen it runs towards: room for the end that
  * is dragged to make it shorter, and the panel's own edge after it.
@@ -449,14 +451,22 @@ export class InventoryRoundViewComponent {
     const middle = slot.at + slot.size / 2;
     if (this.across()) {
       const below = !view || rect.bottom + 120 < view.innerHeight;
-      // Kept on the screen at either end, as the bubble is drawn round the middle of its face.
-      const x = view
-        ? Math.min(Math.max(rect.left + middle, PEEK_HALF_WIDTH), view.innerWidth - PEEK_HALF_WIDTH)
-        : rect.left + middle;
+      // Drawn round the middle of its face, but near either end of the screen held to that end by its
+      // own edge, so it stays under the face and whole.
+      const centre = rect.left + middle;
+      let x = centre;
+      let sideways = '-50%';
+      if (view && centre + PEEK_HALF_WIDTH > view.innerWidth - PEEK_EDGE) {
+        x = view.innerWidth - PEEK_EDGE;
+        sideways = '-100%';
+      } else if (centre - PEEK_HALF_WIDTH < PEEK_EDGE) {
+        x = PEEK_EDGE;
+        sideways = '0';
+      }
       this.peekPlace.set({
         x,
         y: below ? rect.bottom + 8 : rect.top - 8,
-        transform: below ? 'translateX(-50%)' : 'translate(-50%, -100%)',
+        transform: below ? `translateX(${sideways})` : `translate(${sideways}, -100%)`,
       });
     } else {
       const right = !view || rect.right + 240 < view.innerWidth;

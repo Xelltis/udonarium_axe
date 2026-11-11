@@ -294,6 +294,29 @@ describe('InventoryRoundViewComponent', () => {
     expect(strip().style.width).not.toBe('');
   });
 
+  it('draws a face out under itself near the screen’s edge, held to the edge whole rather than squeezed', () => {
+    const innerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 260 });
+    try {
+      const { fixture, strip, face, peek } = render(5, 'p1');
+      TestBed.inject(InventoryViewPreferenceService).setRoundAcross(true);
+      settle(fixture);
+      const at = parseFloat(face('p4').style.left) + 2;
+
+      strip().dispatchEvent(
+        new PointerEvent('pointermove', { bubbles: true, pointerId: 1, pointerType: 'mouse', clientX: at, clientY: 28 })
+      );
+      fixture.detectChanges();
+
+      expect(peek().textContent).toContain('name-p4');
+      expect(peek().style.left).toBe('252px');
+      expect(peek().style.transform).toBe('translateX(-100%)');
+      expect(peek().classList.contains('w-max')).toBe(true);
+    } finally {
+      if (innerWidth) Object.defineProperty(window, 'innerWidth', innerWidth);
+    }
+  });
+
   it('stands as long as its end is dragged to, and as long as there is room again on a double click', () => {
     const { fixture, root, strip } = render(40, 'p10');
     const end = root.querySelector<HTMLElement>('[data-testid="turn-length"]')!;

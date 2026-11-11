@@ -269,7 +269,7 @@
 
   <div
     #peekBox
-    class="bg-ui-panel border-ui-border-panel text-ui-text shadow-ui-md fixed flex max-w-60 items-center gap-2 rounded-xl border border-solid p-2 text-[12px]"
+    class="bg-ui-panel border-ui-border-panel text-ui-text shadow-ui-md fixed flex w-max max-w-60 items-center gap-2 rounded-xl border border-solid p-2 text-[12px]"
     data-testid="turn-peek"
     [class.pointer-events-none]="!pinned()"
     [attr.aria-hidden]="pinned() ? null : 'true'"
