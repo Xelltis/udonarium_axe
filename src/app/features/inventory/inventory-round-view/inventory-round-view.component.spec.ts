@@ -255,6 +255,18 @@ describe('InventoryRoundViewComponent', () => {
     expect(given).toEqual([]);
   });
 
+  it('draws the faces of those who have acted grey, and says how long the turn order runs to a screen reader', () => {
+    const { root, face } = render(5, 'p2', ['p0']);
+
+    expect(face('p0').querySelector('span')!.classList.contains('grayscale')).toBe(true);
+    expect(face('p1').querySelector('span')!.classList.contains('grayscale')).toBe(false);
+    const grip = root.querySelector<HTMLElement>('[data-testid="turn-length"]')!;
+    expect(Number(grip.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+    expect(grip.getAttribute('aria-valuemin')).toBe('160');
+    expect(grip.getAttribute('aria-label')).toContain('Home');
+    expect(grip.classList.contains('touch-none')).toBe(true);
+  });
+
   it('lays the turn order across once the reader turns it', () => {
     const { fixture, strip, face } = render(5, 'p1');
 

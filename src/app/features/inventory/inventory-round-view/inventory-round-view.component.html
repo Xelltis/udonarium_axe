@@ -1,4 +1,9 @@
-<div class="text-ui-text flex text-[13px]" [class.flex-col]="!across()" [class.items-center]="across()">
+<div
+  class="text-ui-text bg-ui-panel/70 border-ui-border-panel/60 shadow-ui-sm flex rounded-2xl border border-solid text-[13px] backdrop-blur-sm"
+  data-testid="turn-dock"
+  [class.flex-col]="!across()"
+  [class.items-center]="across()"
+>
   <div #head class="flex shrink-0 flex-col items-center gap-1 px-2 pt-1.5 pb-1" [class.w-30]="across()">
     @if (turns.progress().round > 0) {
       <span class="text-ui-accent text-[11px] font-bold whitespace-nowrap drop-shadow-sm">{{
@@ -167,7 +172,8 @@
                 [class.shadow-[0_0_8px_var(--ui-accent-glow)]]="one.current"
                 [class.ring-1]="one.next && !one.current"
                 [class.ring-offset-1]="one.next && !one.current"
-                [class.opacity-45]="one.acted && !one.current"
+                [class.opacity-60]="one.acted && !one.current"
+                [class.grayscale]="one.acted && !one.current"
               >
                 @if (one.piece.imageFile.url) {
                   <img
@@ -221,17 +227,20 @@
         }
       </div>
       <div
-        class="group flex shrink-0 items-center justify-center opacity-40 transition-opacity hover:opacity-100 focus-visible:opacity-100"
+        class="group flex shrink-0 touch-none items-center justify-center opacity-40 transition-opacity hover:opacity-100 focus-visible:opacity-100"
         role="separator"
         tabindex="0"
         data-testid="turn-length"
-        [class.h-3]="!across()"
+        [class.h-5]="!across()"
         [class.w-full]="!across()"
         [class.cursor-ns-resize]="!across()"
-        [class.w-3]="across()"
+        [class.w-5]="across()"
         [class.self-stretch]="across()"
         [class.cursor-ew-resize]="across()"
         [attr.aria-orientation]="across() ? 'vertical' : 'horizontal'"
+        [attr.aria-valuenow]="lengthNow()"
+        [attr.aria-valuemin]="leastLength"
+        [attr.aria-valuemax]="mostLength()"
         [attr.aria-label]="'feature.turnOrder.length' | transloco"
         [title]="'feature.turnOrder.length' | transloco"
         (pointerdown)="onLengthDown($event)"

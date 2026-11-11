@@ -110,6 +110,14 @@ export class InventoryRoundViewComponent {
   /** Whether the turn order is laid across rather than down. */
   protected readonly across = this.preference.roundAcross;
   protected readonly peekLayer = Z_POINTER_PEEK;
+  protected readonly leastLength = LEAST_LENGTH;
+  /** How long the turn order runs now, rounded for a screen reader to say. */
+  protected readonly lengthNow = computed(() => Math.round(this.laidLength()));
+  /** The most the turn order may run, as the screen leaves it room, rounded for a screen reader to say. */
+  protected readonly mostLength = computed(() => {
+    const room = this.room();
+    return Number.isFinite(room) ? Math.round(room) : null;
+  });
   protected readonly stripWidthDown = STRIP_WIDTH_DOWN;
   protected readonly stripHeightAcross = STRIP_HEIGHT_ACROSS;
 
