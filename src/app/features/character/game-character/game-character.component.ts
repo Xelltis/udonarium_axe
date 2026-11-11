@@ -582,7 +582,13 @@ export class GameCharacterComponent {
       if (!previous) return;
 
       const names = untracked(this.resourceNames);
-      const changes = diffResourceSnapshots(previous, snapshot, (identifier) => names.get(identifier) ?? '');
+      // A part's change is told by the part's name, as it is shown on its body.
+      const changes = diffResourceSnapshots(previous, snapshot, (identifier) => names.get(identifier)?.name ?? '').map(
+        (change) => {
+          const part = names.get(change.identifier)?.part ?? '';
+          return part ? { ...change, label: `${part} ${change.label}` } : change;
+        }
+      );
       if (changes.length < 1) return;
 
       // It is drawn here and announced elsewhere. Watching for the difference at each end
@@ -1143,31 +1149,45 @@ export class GameCharacterComponent {
       .map((row) => row.gauge)
   );
 
+  /**
+   * The resources of the piece and of its parts, as they stand: a part is drawn as its body, so a
+   * blow to a part is shown on the body, as one to the body is.
+   */
   private readonly resourceSnapshot = computed<Map<string, ResourceSnapshot>>(() => {
     const snapshot = new Map<string, ResourceSnapshot>();
-    const elements = this.followedTree(this.gameCharacter()?.detailDataElement ?? null);
-    if (elements === null) return snapshot;
+    const char = this.gameCharacter();
+    const elements = this.followedTree(char?.detailDataElement ?? null);
+    if (elements === null || !char) return snapshot;
 
-    for (const element of elements) {
-      if (!isResourceElement(element)) continue;
-      snapshot.set(element.identifier, {
-        current: Number(element.currentValue),
-        max: Number(element.value),
-        inverted: isGaugeInverted(element),
-        playsEffect: playsEffectOnChange(element),
-        playsSound: playsSoundOnChange(element),
-        soundSet: soundSetOnChange(element),
-        changedBySelf: this.objectStore.localChangeCountOf(element.identifier),
-      });
+    for (const piece of [char, ...this.parts.partsOfFollowed(char)]) {
+      const own = piece === char ? elements : this.followedTree(piece.detailDataElement ?? null);
+      for (const element of own ?? []) {
+        if (!isResourceElement(element)) continue;
+        snapshot.set(element.identifier, {
+          current: Number(element.currentValue),
+          max: Number(element.value),
+          inverted: isGaugeInverted(element),
+          playsEffect: playsEffectOnChange(element),
+          playsSound: playsSoundOnChange(element),
+          soundSet: soundSetOnChange(element),
+          changedBySelf: this.objectStore.localChangeCountOf(element.identifier),
+        });
+      }
     }
     return snapshot;
   });
 
+  /** The names of the resources of the piece and of its parts, and of the part each of the latter is of. */
   private readonly resourceNames = computed(() => {
-    const detail = this.gameCharacter()?.detailDataElement;
-    const names = new Map<string, string>();
-    if (!detail) return names;
-    for (const element of collectDataElements(detail)) names.set(element.identifier, element.name);
+    const char = this.gameCharacter();
+    const names = new Map<string, { name: string; part: string }>();
+    if (!char) return names;
+    for (const piece of [char, ...this.parts.partsOfFollowed(char)]) {
+      const detail = piece.detailDataElement;
+      if (!detail) continue;
+      const part = piece === char ? '' : piece.name;
+      for (const element of collectDataElements(detail)) names.set(element.identifier, { name: element.name, part });
+    }
     return names;
   });
 

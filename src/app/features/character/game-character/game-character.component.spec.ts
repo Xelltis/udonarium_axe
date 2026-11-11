@@ -1713,6 +1713,36 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    it('shows a blow to a part on its body, told by the part’s name', async () => {
+      const character = GameCharacter.create('ドラゴン', 3, '');
+      character.setLocation('table');
+      const head = GameCharacter.create('頭', 1, '');
+      head.setLocation('table');
+      head.ridingOn = character.identifier;
+      head.rideSeat = 'part';
+      fixture.componentRef.setInput('gameCharacter', character);
+      const objectChange = TestBed.inject(ObjectChangeService);
+      const hp = DataElement.findElementByReference(head.rootDataElement!, 'HP')!;
+
+      try {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(component.floatingChanges()).toEqual([]);
+
+        hp.currentValue = Number(hp.currentValue) - 30;
+        objectChange.notifyChanged(hp.identifier);
+        await fixture.whenStable();
+
+        expect(component.floatingChanges()).toEqual([
+          expect.objectContaining({ kind: 'damage', label: '頭 -30', name: 'HP' }),
+        ]);
+        expect(component.hitFlash()).toBe('damage');
+      } finally {
+        head.destroy();
+        character.destroy();
+      }
+    });
+
     it('stays quiet for a value replaced by a load or a sync', async () => {
       const character = GameCharacter.create('復元', 1, '');
       fixture.componentRef.setInput('gameCharacter', character);
