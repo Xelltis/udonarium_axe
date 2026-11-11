@@ -32,6 +32,9 @@ export interface PartLookToDraw {
   readonly lost: boolean;
 }
 
+/** A part's look along with its piece of the picture as written down, which keys the picture cheaply. */
+type PartLookWritten = PartLookToDraw & { readonly maskWritten: string };
+
 /**
  * How a body's picture is drawn with its parts: from the body's own picture and the parts' looks, a
  * picture of its own the caller lets go of once it is done with it, or null where it cannot be drawn.
@@ -158,7 +161,7 @@ export class PiecePartPicturesService {
         if (!own || looks.length < 1) return '';
         return (
           JSON.stringify([own, looks.map((look) => [look.url, look.layer, look.lost, look.mask ? 1 : 0])]) +
-          looks.map((look) => (look.mask ? look.mask.cells.join('') : '')).join('|')
+          looks.map((look) => (look.mask ? look.maskWritten : '')).join('|')
         );
       });
       this.keys.set(body.identifier, key);
@@ -195,7 +198,7 @@ export class PiecePartPicturesService {
   }
 
   /** A piece's own picture, and the looks of the parts that lay anything over or cut anything out of it. */
-  private looksOf(body: GameCharacter): { own: string; looks: PartLookToDraw[] } {
+  private looksOf(body: GameCharacter): { own: string; looks: PartLookWritten[] } {
     return {
       own: this.images.getEmptyOr(body.imageFile).url,
       looks: this.links
@@ -205,7 +208,7 @@ export class PiecePartPicturesService {
     };
   }
 
-  private lookOf(part: GameCharacter): PartLookToDraw {
+  private lookOf(part: GameCharacter): PartLookWritten {
     this.objectChange.versionOf(part.identifier)();
     const detail = part.detailDataElement ?? null;
     if (detail) {
@@ -216,6 +219,7 @@ export class PiecePartPicturesService {
       url: this.images.getEmptyOr(part.imageFile).url,
       layer: partLayerOf(part.partLayer),
       mask: partMaskOf(part.partMask),
+      maskWritten: part.partMask,
       lost: isPartLost(part),
     };
   }
