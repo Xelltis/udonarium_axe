@@ -54,6 +54,25 @@ describe('EffectTargetingService', () => {
     expect(service.marks().map((mark) => mark.order)).toEqual([1, 2]);
   });
 
+  it('numbers a part picked with its body on its row alone, and marks one picked without its body on the table', () => {
+    const [, , body, part] = characters;
+    part.ridingOn = body.identifier;
+    part.rideSeat = 'part';
+    const objectChange = TestBed.inject(ObjectChangeService);
+    objectChange.notifyChanged(part.identifier);
+
+    service.begin(preset);
+    service.pick(part.identifier);
+    expect(service.marks().map((mark) => mark.identifier)).toEqual([part.identifier]);
+
+    service.pick(body.identifier);
+    expect([...service.pickOrder()]).toEqual([
+      [part.identifier, 1],
+      [body.identifier, 2],
+    ]);
+    expect(service.marks().map((mark) => [mark.identifier, mark.order])).toEqual([[body.identifier, 2]]);
+  });
+
   it('copies the chosen targets onto the piece', () => {
     service.begin(preset);
     service.pick(characters[1].identifier);

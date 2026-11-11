@@ -3,6 +3,7 @@ import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService, TabletopObjectSelection } from '@axe/application/ui/selection-signal.service';
@@ -14,6 +15,9 @@ import { effectAreaTargets } from '@axe/domain/effect/effect-area';
 import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { effectPickOrder, reachedEffectPickLimit, toggleEffectPick } from '@axe/domain/effect/effect-target-picks';
+
+/** No piece picked. */
+const NO_PICKS: ReadonlyMap<string, number> = new Map();
 
 /** The order mark shown on a chosen piece. */
 export interface EffectTargetMark {
@@ -46,6 +50,7 @@ export class EffectTargetingService {
   private readonly zones = inject(EngagementZoneService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
+  private readonly pieceLinks = inject(PieceLinksService);
 
   private readonly _preset = signal<EffectPreset | null>(null);
   private readonly _picks = signal<readonly string[]>([]);
@@ -81,28 +86,38 @@ export class EffectTargetingService {
   private beganWithSelection: TabletopObjectSelection | null = null;
 
   /**
-   * The marks of the pieces picked, in order, as this reader is shown them: a piece this reader
-   * cannot see, in the dark, under the fog or in stealth, is struck all the same but given no mark,
-   * and the marks are numbered among those shown, so no gap tells of it.
+   * The number each piece picked is given, by its identifier, in the order picked, as this reader is
+   * shown them: a piece this reader cannot see, in the dark, under the fog or in stealth, is struck
+   * all the same but given no number, and the numbers are counted among those shown, so no gap
+   * tells of it.
    */
-  readonly marks = computed<EffectTargetMark[]>(() => {
-    if (!this.isPicking()) return [];
+  readonly pickOrder = computed<ReadonlyMap<string, number>>(() => {
+    if (!this.isPicking()) return NO_PICKS;
     this.objectChange.collectionOf('character')();
-
-    const gridSize = this.tabletopService.gridSize();
-    const marks: EffectTargetMark[] = [];
     const shown = this._picks().filter((identifier) => {
       const character = this.characterOf(identifier);
       if (!character) return false;
       this.objectChange.versionOf(identifier)();
       return this.vision.isTokenVisible(character);
     });
-    for (const identifier of shown) {
-      marks.push({
-        identifier,
-        order: effectPickOrder(shown, identifier),
-        ...this.centerOf(this.characterOf(identifier)!, gridSize),
-      });
+    return new Map(shown.map((identifier) => [identifier, effectPickOrder(shown, identifier)]));
+  });
+
+  /**
+   * The marks laid on the table for the pieces picked, numbered as {@link pickOrder} numbers them. A
+   * part picked with its body is given none, as it is drawn with the body and its mark would lie over
+   * the body's: its number shows on its row under the body's name instead.
+   */
+  readonly marks = computed<EffectTargetMark[]>(() => {
+    const order = this.pickOrder();
+    if (order.size < 1) return [];
+    const gridSize = this.tabletopService.gridSize();
+    const marks: EffectTargetMark[] = [];
+    for (const [identifier, number] of order) {
+      const character = this.characterOf(identifier)!;
+      const body = this.pieceLinks.bodyOf(character);
+      if (body && order.has(body.identifier)) continue;
+      marks.push({ identifier, order: number, ...this.centerOf(character, gridSize) });
     }
     return marks;
   });

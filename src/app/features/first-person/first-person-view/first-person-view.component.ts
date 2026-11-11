@@ -551,7 +551,7 @@ export class FirstPersonViewComponent {
     this.objectChange.collectionOf('data')();
     const master = this.rolePermission.canSeeHidden();
     // Numbered as the marks are, among the picks this reader is shown.
-    const picks = this.effectTargeting.marks().map((mark) => mark.identifier);
+    const picks = this.effectTargeting.pickOrder();
     const eye = eyeFrameOf(camera);
     const pitch = camera.pitch ?? 0;
     const nearPx = gridSize * NEAR_CELLS;
@@ -598,14 +598,14 @@ export class FirstPersonViewComponent {
       };
       const gauges = this.gaugesOf(piece);
       const label = piece.hideName && !master ? '' : piece.name;
-      const pick = picks.indexOf(piece.identifier) + 1;
+      const pick = picks.get(piece.identifier) ?? 0;
       const parts = this.pieceLinks.followedPartsOf(piece).map((part) => {
         this.objectChange.versionOf(part.identifier)();
         return {
           id: part.identifier,
           label: part.hideName && !master ? '' : part.name,
           targeted: part.targeted,
-          pick: picks.indexOf(part.identifier) + 1,
+          pick: picks.get(part.identifier) ?? 0,
           gauges: this.gaugesOf(part),
         };
       });
@@ -764,7 +764,7 @@ export class FirstPersonViewComponent {
   protected readonly picking = this.effectTargeting.isPicking;
 
   /** How many targets this reader is shown picked, which a piece out of their sight is not counted among. */
-  protected readonly pickCount = computed(() => this.effectTargeting.marks().length);
+  protected readonly pickCount = computed(() => this.effectTargeting.pickOrder().size);
 
   protected readonly anyTargeted = computed(() => {
     this.uiSignal.targetChange();

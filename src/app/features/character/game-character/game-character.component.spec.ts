@@ -285,6 +285,33 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    it('shows the number a part is picked as on its row while an effect is being aimed', async () => {
+      const dragon = GameCharacter.create('ドラゴン', 3, '');
+      dragon.setLocation('table');
+      const head = GameCharacter.create('頭', 1, '');
+      head.setLocation('table');
+      head.ridingOn = dragon.identifier;
+      head.rideSeat = 'part';
+      fixture.componentRef.setInput('gameCharacter', dragon);
+      const picked = signal<ReadonlyMap<string, number>>(new Map());
+      const targeting = TestBed.inject(EffectTargetingService);
+      Object.defineProperty(targeting, 'pickOrder', { value: picked, configurable: true });
+
+      try {
+        const row = () =>
+          fixture.nativeElement.querySelector(`[data-body-part="${head.identifier}"] [data-testid="part-pick-order"]`);
+        await draw(fixture);
+        expect(row()).toBeNull();
+
+        picked.set(new Map([[head.identifier, 2]]));
+        await draw(fixture);
+        expect(row()?.textContent?.trim()).toBe('2');
+      } finally {
+        head.destroy();
+        dragon.destroy();
+      }
+    });
+
     it('tells the row of a part again as the part changes, its body unchanged', async () => {
       const dragon = GameCharacter.create('ドラゴン', 3, '');
       dragon.setLocation('table');

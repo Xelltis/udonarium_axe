@@ -193,6 +193,8 @@ interface RidingLabel {
   readonly part: boolean;
   /** Whether this seat aims at it. */
   readonly targeted: boolean;
+  /** The number it is picked as while an effect is being aimed, for a part; 0 where it is not picked. */
+  readonly pick: number;
   readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string; readonly kept: boolean }[];
   readonly badges: readonly BuffBadge[];
 }
@@ -837,6 +839,7 @@ export class GameCharacterComponent {
       aboard: 0,
       part: seatOf(piece.rideSeat) === 'part',
       targeted: piece.targeted,
+      pick: seatOf(piece.rideSeat) === 'part' ? (this.effectTargeting.pickOrder().get(piece.identifier) ?? 0) : 0,
       gauges,
       badges,
     };
@@ -861,6 +864,7 @@ export class GameCharacterComponent {
           aboard: this.ridersAboard(),
           part: false,
           targeted: false,
+          pick: 0,
           gauges: this.gaugeRows(),
           badges: this.hideBuff() ? [] : this.buffBadges(),
         },
@@ -1775,6 +1779,7 @@ function sameRidingLabels(a: readonly RidingLabel[], b: readonly RidingLabel[]):
       label.aboard === other.aboard &&
       label.part === other.part &&
       label.targeted === other.targeted &&
+      label.pick === other.pick &&
       label.gauges.length === other.gauges.length &&
       label.gauges.every(
         (row, at) => row.numbers === other.gauges[at].numbers && sameFields(row.gauge, other.gauges[at].gauge)
