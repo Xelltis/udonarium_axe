@@ -106,7 +106,7 @@ export class EffectLibraryPanelComponent {
     this.selectionSignalService.selectedObject();
     this.objectChange.collectionOf('character')();
     if (this.targeting.isPicking()) return this.pickedNames();
-    return this.castService.candidateTargets().map((character) => character.name);
+    return this.castService.candidateTargets().map((character) => this.shownName(character));
   });
 
   /** Where a projectile is fired from: the selected piece, which is not among the targets. */
@@ -115,7 +115,8 @@ export class EffectLibraryPanelComponent {
     this.selectionSignalService.selectedObject();
     this.objectChange.collectionOf('character')();
     const targets = this.castService.candidateTargets();
-    return this.castService.resolveCaster(targets)?.name ?? '';
+    const caster = this.castService.resolveCaster(targets);
+    return caster ? this.shownName(caster) : '';
   });
 
   /** An effect left standing, which stays on the board unless it can be taken away. */
@@ -138,10 +139,14 @@ export class EffectLibraryPanelComponent {
     return this.targeting.preset()?.identifier === preset.identifier;
   }
 
-  /** A piece's name as this reader may be told it: one whose name is kept from them goes unnamed. */
+  /** The name of the piece under an identifier as this reader may be told it; see {@link shownName}. */
   private nameOf(identifier: string): string {
     const character = this.objectStore.get<GameCharacter>(identifier);
-    if (!(character instanceof GameCharacter)) return '';
+    return character instanceof GameCharacter ? this.shownName(character) : '';
+  }
+
+  /** A piece's name as this reader may be told it: one whose name is kept from them goes unnamed. */
+  private shownName(character: GameCharacter): string {
     if (character.hideName && !this.rolePermission.canSeeHidden()) return this.t('feature.effect.hiddenName');
     return character.name;
   }
@@ -249,7 +254,7 @@ export class EffectLibraryPanelComponent {
       this.castService.fire(preset, targets);
       this.reportFired(
         preset,
-        targets.map((target) => target.name)
+        targets.map((target) => this.shownName(target))
       );
       return;
     }

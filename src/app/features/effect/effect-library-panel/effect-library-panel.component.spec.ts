@@ -170,6 +170,21 @@ describe('EffectLibraryPanelComponent', () => {
     }
   });
 
+  it('names a piece whose name is kept from the reader as no one in particular when aimed at or fired from', () => {
+    const castService = TestBed.inject(EffectCastService);
+    const masked = GameCharacter.create('黒幕', 1, '');
+    masked.hideName = true;
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
+    vi.spyOn(castService, 'candidateTargets').mockReturnValue([masked]);
+    vi.spyOn(castService, 'resolveCaster').mockReturnValue(masked);
+    try {
+      expect(fixture.componentInstance.targetNames()).toEqual(['？？？']);
+      expect(fixture.componentInstance.casterName()).toBe('？？？');
+    } finally {
+      masked.destroy();
+    }
+  });
+
   it('does nothing when it is fired with nothing to aim at', () => {
     fixture.detectChanges();
 
