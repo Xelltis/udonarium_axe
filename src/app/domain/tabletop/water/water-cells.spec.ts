@@ -186,5 +186,25 @@ describe('waterCellsOf()', () => {
       expect(cells.get(cellIndexOf(grid, 2, 0))).toMatchObject({ surfacePx: 30, area: 'high' });
       expect(cells.get(cellIndexOf(grid, 0, 0))).toMatchObject({ surfacePx: 10, area: 'low' });
     });
+
+    it('runs no higher water over a lower pond sunk in dug ground, which keeps its own ice and look', () => {
+      const grid = cellGridOf(10, 10, G, GridType.SQUARE);
+      const cells = waterCellsOf(
+        grid,
+        [
+          area({ identifier: 'pit', floorPx: -40, surfacePx: -10, ice: 1, color: '#ddeeff' }),
+          area({ identifier: 'open', left: 2 * G, surfacePx: 25 }),
+        ],
+        dugAt(grid, [0, 0], [1, 0])
+      );
+
+      expect(cells.get(cellIndexOf(grid, 0, 0))).toMatchObject({
+        surfacePx: -10,
+        ice: 1,
+        color: '#ddeeff',
+        area: 'pit',
+      });
+      expect(cells.get(cellIndexOf(grid, 1, 0))).toMatchObject({ surfacePx: 25, area: 'open' });
+    });
   });
 });

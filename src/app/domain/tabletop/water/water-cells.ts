@@ -136,10 +136,13 @@ export function waterCellsOf(
  * from it, whether the pond stands on the ground or is sunk into it. The water stands there at the
  * surface of the water it ran from, which the dug ground takes none away from, and is drawn as that
  * water is. Ground not dug, or not below that surface, stays dry, as does a pit the water does not
- * reach. Corners are not run through on a grid of squares; the sides of a hex are all sides.
+ * reach. Water an area is laid over stays that area's, its ice and its look with it, though a higher
+ * water runs up to it. Corners are not run through on a grid of squares; the sides of a hex are all
+ * sides.
  */
 function spillIntoDugGround(grid: CellGrid, cells: Map<number, WaterCell>, groundOf: (index: number) => number): void {
   const running = [...cells.values()];
+  const laid = new Set(cells.keys());
   const hex = isHexGrid(grid.type);
   for (let at = 0; at < running.length; at++) {
     const from = running[at];
@@ -152,7 +155,7 @@ function spillIntoDugGround(grid: CellGrid, cells: Map<number, WaterCell>, groun
       const ground = groundOf(index);
       if (ground >= Math.min(0, from.surfacePx) - LEVEL_PX) return;
       const held = cells.get(index);
-      if (held && held.surfacePx >= from.surfacePx) return;
+      if (held && (laid.has(index) || held.surfacePx >= from.surfacePx)) return;
       const centre = cellCenterOf(grid, index);
       const spilt: WaterCell = { ...from, index, cx: centre.x, cy: centre.y, floorPx: ground, flat: false };
       cells.set(index, spilt);
