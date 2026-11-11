@@ -1,9 +1,11 @@
-import type { BufferGeometry, Object3D } from 'three';
+import type { BufferGeometry, Object3D, Vector3 } from 'three';
 
 /** A mesh as `meshesOf` finds one: anything with a shape and a material of its own. */
 interface FacedMesh extends Object3D {
   readonly isMesh: true;
   geometry: BufferGeometry;
+  /** Where a corner of the mesh stands in its own space, posed by its bones and morphs as it is drawn. */
+  getVertexPosition(index: number, target: Vector3): Vector3;
 }
 
 function isFaced(object: Object3D): object is FacedMesh {
@@ -27,6 +29,29 @@ export function triangleCountOf(geometry: BufferGeometry): number {
   const index = geometry.getIndex();
   const count = index ? index.count : (geometry.getAttribute('position')?.count ?? 0);
   return Math.floor(count / 3);
+}
+
+/**
+ * The middle of each triangle of a mesh in the scene, three numbers a triangle, its corners posed as
+ * the mesh is drawn and picked, by its bones and its morphs, rather than as it was bound. The mesh's
+ * place in the scene is read as it last stood. `corner` is worked in, as this is used with either
+ * build of the library.
+ */
+export function triangleCentresOf(mesh: FacedMesh, corner: Vector3): Float32Array {
+  const position = mesh.geometry.getAttribute('position');
+  const indices = mesh.geometry.getIndex();
+  const count = triangleCountOf(mesh.geometry);
+  const centres = new Float32Array(count * 3);
+  for (let triangle = 0; triangle < count; triangle++) {
+    for (let at = 0; at < 3; at++) {
+      const point = indices ? indices.getX(triangle * 3 + at) : triangle * 3 + at;
+      mesh.getVertexPosition(Math.min(point, position.count - 1), corner).applyMatrix4(mesh.matrixWorld);
+      centres[triangle * 3] += corner.x / 3;
+      centres[triangle * 3 + 1] += corner.y / 3;
+      centres[triangle * 3 + 2] += corner.z / 3;
+    }
+  }
+  return centres;
 }
 
 /** Where a shape cut from another keeps which of the other's triangles each of its own is. */

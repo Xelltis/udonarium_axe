@@ -3,9 +3,23 @@ import {
   meshesOf,
   releaseCutShapes,
   sourceTriangleOf,
+  triangleCentresOf,
   triangleCountOf,
 } from '@axe/infrastructure/three-kit/model-faces';
-import { BufferAttribute, BufferGeometry, Group, Mesh, Object3D } from 'three';
+import {
+  Bone,
+  BufferAttribute,
+  BufferGeometry,
+  Float32BufferAttribute,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
+  Skeleton,
+  SkinnedMesh,
+  Uint16BufferAttribute,
+  Vector3,
+} from 'three';
 import { describe, expect, it } from 'vitest';
 
 /** A shape of as many triangles as given, each its own three points. */
@@ -81,5 +95,24 @@ describe('the faces of a model', () => {
       { start: 0, count: 3, materialIndex: 0 },
       { start: 3, count: 3, materialIndex: 1 },
     ]);
+  });
+});
+
+describe('triangleCentresOf', () => {
+  it('finds the middle of each triangle as the mesh is posed by its bones, not as it was bound', () => {
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new Float32BufferAttribute([0, 0, 0, 3, 0, 0, 0, 3, 0], 3));
+    geometry.setAttribute('skinIndex', new Uint16BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 4));
+    geometry.setAttribute('skinWeight', new Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], 4));
+    const bone = new Bone();
+    const mesh = new SkinnedMesh(geometry, new MeshBasicMaterial());
+    mesh.add(bone);
+    mesh.bind(new Skeleton([bone]));
+    bone.position.set(10, 0, 0);
+    mesh.updateMatrixWorld(true);
+
+    const centres = triangleCentresOf(mesh, new Vector3());
+
+    expect([...centres].map((value) => Math.round(value))).toEqual([11, 1, 0]);
   });
 });

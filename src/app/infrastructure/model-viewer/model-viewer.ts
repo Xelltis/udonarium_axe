@@ -1,7 +1,7 @@
 import type { ModelPainter, ModelStage } from '@axe/infrastructure/model-viewer/model-viewer-port';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
-import { meshesOf, triangleCountOf } from '@axe/infrastructure/three-kit/model-faces';
+import { meshesOf, triangleCentresOf } from '@axe/infrastructure/three-kit/model-faces';
 import {
   Box3,
   BufferAttribute,
@@ -195,7 +195,8 @@ class Stage implements ModelStage {
           for (let at = 0; at < 3; at++) {
             const point = indices ? indices.getX(triangle * 3 + at) : triangle * 3 + at;
             if (point >= position.count) continue;
-            corner.fromBufferAttribute(position, point).applyMatrix4(mesh.matrixWorld);
+            // Posed as it is drawn and picked, by its bones and its morphs, rather than as it was bound.
+            mesh.getVertexPosition(point, corner).applyMatrix4(mesh.matrixWorld);
             points.push(corner.x, corner.y, corner.z);
           }
         }
@@ -256,22 +257,7 @@ class Stage implements ModelStage {
     if (!model) return [];
     model.updateMatrixWorld(true);
     const corner = new Vector3();
-    this.centres = meshesOf(model).map((mesh) => {
-      const position = mesh.geometry.getAttribute('position');
-      const indices = mesh.geometry.getIndex();
-      const count = triangleCountOf(mesh.geometry);
-      const centres = new Float32Array(count * 3);
-      for (let triangle = 0; triangle < count; triangle++) {
-        for (let at = 0; at < 3; at++) {
-          const point = indices ? indices.getX(triangle * 3 + at) : triangle * 3 + at;
-          corner.fromBufferAttribute(position, Math.min(point, position.count - 1)).applyMatrix4(mesh.matrixWorld);
-          centres[triangle * 3] += corner.x / 3;
-          centres[triangle * 3 + 1] += corner.y / 3;
-          centres[triangle * 3 + 2] += corner.z / 3;
-        }
-      }
-      return centres;
-    });
+    this.centres = meshesOf(model).map((mesh) => triangleCentresOf(mesh, corner));
     return this.centres;
   }
 
