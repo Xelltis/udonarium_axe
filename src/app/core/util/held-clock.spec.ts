@@ -46,4 +46,23 @@ describe('HeldClock', () => {
 
     expect(clock.read(at + 4000)).toEqual({ elapsed: at + 4000 - 1000, held: false });
   });
+
+  it('stands still over a stall that comes soon after another', () => {
+    const clock = new HeldClock(1000);
+    let at = framesOf(clock, 1000, 30, 16);
+    expect(clock.read(at + 1000).held).toBe(true);
+    at = framesOf(clock, at + 1000, 1, 16);
+
+    expect(clock.read(at + 400).held).toBe(true);
+  });
+
+  it('stands still over a stall soon after the page came back into view', () => {
+    const clock = new HeldClock(1000);
+    let at = framesOf(clock, 1000, 30, 16);
+    clock.leftView();
+    clock.read(at + 10_000);
+    at = framesOf(clock, at + 10_000, 3, 16);
+
+    expect(clock.read(at + 300).held).toBe(true);
+  });
 });
