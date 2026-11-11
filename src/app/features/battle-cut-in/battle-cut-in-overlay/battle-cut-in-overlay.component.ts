@@ -684,27 +684,16 @@ export class BattleCutInOverlayComponent {
       if (!timeline) return;
       const sounds = this.soundsOf(timeline);
       const played = new Set<BattleSound>();
-      let timers: ReturnType<typeof setTimeout>[] = [];
-      const playSoundsFrom = (elapsed: number) => {
-        timers.forEach((timer) => clearTimeout(timer));
-        timers = sounds
-          .filter((sound) => !played.has(sound))
-          .map((sound) =>
-            setTimeout(
-              () => {
-                played.add(sound);
-                SoundEffect.playLocal(sound.identifier, VolumeType.EFFECT);
-              },
-              Math.max(0, sound.at - elapsed)
-            )
-          );
+      const play = (sound: BattleSound) => {
+        played.add(sound);
+        SoundEffect.playLocal(sound.identifier, VolumeType.EFFECT);
       };
-      playSoundsFrom(0);
-      onCleanup(() => timers.forEach((timer) => clearTimeout(timer)));
 
       if (this.still() || typeof requestAnimationFrame !== 'function') {
+        // Nothing moves, so the sounds keep to the wall clock.
+        const timers = sounds.map((sound) => setTimeout(() => play(sound), sound.at));
         const timer = setTimeout(() => this.state.next(), BATTLE_STILL_MS);
-        onCleanup(() => clearTimeout(timer));
+        onCleanup(() => [...timers, timer].forEach((one) => clearTimeout(one)));
         return;
       }
       const clock = new HeldClock(performance.now());
@@ -715,8 +704,9 @@ export class BattleCutInOverlayComponent {
       onCleanup(() => document.removeEventListener('visibilitychange', leaving));
       let handle = 0;
       const tick = (now: number) => {
-        const { elapsed, held } = clock.read(now);
-        if (held) playSoundsFrom(elapsed);
+        const { elapsed } = clock.read(now);
+        // Heard as the stage reaches them on its own clock, which a stall holds still, not on the wall's.
+        for (const sound of sounds) if (!played.has(sound) && sound.at <= elapsed) play(sound);
         this.clock.set(elapsed);
         if (elapsed >= timeline.end) {
           this.state.next();

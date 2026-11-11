@@ -13,6 +13,7 @@ import { BATTLE_STILL_MS } from '@axe/domain/battle/battle-timeline';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { createEffectPreset, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
+import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { BattleCutInOverlayComponent } from '@axe/features/battle-cut-in/battle-cut-in-overlay/battle-cut-in-overlay.component';
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
 import type { EffectOverlay } from '@axe/infrastructure/table-3d/table-3d-port';
@@ -398,6 +399,25 @@ describe('BattleCutInOverlayComponent', () => {
     }
 
     const drawnIn = (frame: EffectFrame) => frame.motes.length + frame.ribbons.length + frame.floor.length;
+
+    it('sounds the blow as the stage reaches it on its own clock, held still through a stall, not by the wall’s', async () => {
+      const heard = vi.spyOn(SoundEffect, 'playLocal').mockImplementation(() => undefined);
+      vi.spyOn(
+        BattleCutInOverlayComponent.prototype as unknown as { soundsOf: (timeline: { impact: number }) => unknown },
+        'soundsOf'
+      ).mockImplementation((timeline) => [{ at: timeline.impact, identifier: 'the-blow' }]);
+      const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
+      const timeline = stage.timeline()!;
+
+      runFramesAt(timeline.impact - 200);
+      expect(heard).not.toHaveBeenCalled();
+      // The page stands still past the blow's time on the wall clock; the stage holds the wait.
+      runFrameAfterWait(1500);
+      expect(heard).not.toHaveBeenCalled();
+
+      runFramesAt(now - 1000 + 400);
+      expect(heard).toHaveBeenCalledWith('the-blow', expect.anything());
+    });
 
     it('draws the blow as on the table, its marks on the floor under the fighters and the rest over them', async () => {
       const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
