@@ -85,6 +85,22 @@ describe('target-number', () => {
       expect(presentedTotalOf('目標値：13 -> 失敗で転倒')).toBe(13);
       expect(presentedTotalOf('知力判定 目標値は12.')).toBe(12);
     });
+
+    it('reads the number before a slash and words, which only part it from what follows', () => {
+      expect(presentedTotalOf('探索判定：目標値12／成功で情報')).toBe(12);
+      expect(presentedTotalOf('目標値１２／ダメージ２Ｄ６')).toBe(12);
+      expect(presentedTotalOf('目標値12/回避は11')).toBe(12);
+    });
+
+    it('reads a number put right with an arrow as the one the arrow points to', () => {
+      expect(presentedTotalOf('目標値13→15に修正')).toBe(15);
+      expect(presentedTotalOf('目標値13 → 15')).toBe(15);
+      expect(presentedTotalOf('目標値13⇒１５')).toBe(15);
+      expect(presentedTotalOf('目標値13->15')).toBe(15);
+      expect(presentedTotalOf('目標値13→15→17')).toBe(17);
+      expect(presentedTotalOf('目標値13→15、あらためて目標値15')).toBe(15);
+      expect(presentedTotalOf('目標値13→15、別の判定は目標値13')).toBeNull();
+    });
   });
 
   describe('fillTargetNumber()', () => {

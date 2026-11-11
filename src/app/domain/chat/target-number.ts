@@ -60,11 +60,24 @@ export function rollTotalOf(text: string): number | null {
  * reference to the number in braces, `{目標値}`, writes none, and nor does a number a counter
  * follows right after, as `目標値2倍` and `目標値3つ` do, nor one worked on or running to another,
  * as `目標値10+2`, `目標値10+{修正}`, `目標値12／2`, `目標値13〜15`, `目標値13ー15` and
- * `目標値13から15` are, the marks a Japanese keyboard writes among them. A percent after it is the
- * number itself, as a percentile roll writes it.
+ * `目標値13から15` are, the marks a Japanese keyboard writes among them. A slash before words, as in
+ * `目標値12／成功で情報`, only parts it from what follows. A percent after it is the number itself,
+ * as a percentile roll writes it. A number put right with an arrow, as `目標値13→15に修正` puts it,
+ * is read as the one the arrow points to; see {@link CORRECTED_PATTERN}.
  */
 const PRESENTED_PATTERN =
-  /(?<![{｛])目標値\s*[:：=＝は]?\s*([0-9０-９]+)(?![0-9０-９]|[倍つ個回人点体枚割分dDｄＤ]|\s*[+＋\-－−×*/／÷xXｘＸ＊]\s*[0-9０-９(（{｛]|[+＋\-－−×*/／÷ｘＸ＊]\p{L}|[.．][0-9０-９]|\s*[〜～~ー‐–—]\s*[0-9０-９]|\s*から\s*[0-9０-９])/gu;
+  /(?<![{｛])目標値\s*[:：=＝は]?\s*([0-9０-９]+)(?![0-9０-９]|[倍つ個回人点体枚割分dDｄＤ]|\s*[+＋\-－−×*/／÷xXｘＸ＊]\s*[0-9０-９(（{｛]|[+＋\-－−×*÷ｘＸ＊]\p{L}|[.．][0-9０-９]|\s*[〜～~ー‐–—]\s*[0-9０-９]|\s*から\s*[0-9０-９])/gu;
+
+/** An arrow and the number a number to beat is put right to, as `→15` follows `目標値13`. */
+const CORRECTED_PATTERN = /\s*(?:→|⇒|➡|->|=>)\s*([0-9０-９]+)(?![0-9０-９])/y;
+
+/** The number written at `at` and on, or the last one it is put right to with arrows after it. */
+function correctedOf(text: string, at: number, written: string): string {
+  let number = written;
+  CORRECTED_PATTERN.lastIndex = at;
+  for (let arrow = CORRECTED_PATTERN.exec(text); arrow; arrow = CORRECTED_PATTERN.exec(text)) number = arrow[1];
+  return number;
+}
 
 /**
  * The number to beat a line that is not a roll writes out in so many words (see
@@ -76,7 +89,7 @@ export function presentedTotalOf(text: string): number | null {
   if (!text.includes(TARGET_NUMBER_REFERENCE)) return null;
   let found: number | null = null;
   for (const matched of text.matchAll(PRESENTED_PATTERN)) {
-    const total = Number(toHalfWidth(matched[1]));
+    const total = Number(toHalfWidth(correctedOf(text, matched.index + matched[0].length, matched[1])));
     if (found != null && found !== total) return null;
     found = total;
   }
