@@ -288,6 +288,7 @@
           @if (hasPortraitSlider() && !narrow()) {
             <portrait-slider
               class="min-w-28 grow basis-0"
+              [class.min-w-44!]="onPhone()"
               data-testid="chat-input-portraits"
               [choices]="portraitChoices()"
               [selectedIndex]="portraitIndex"
