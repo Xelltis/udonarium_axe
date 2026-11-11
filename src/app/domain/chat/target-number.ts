@@ -59,11 +59,12 @@ export function rollTotalOf(text: string): number | null {
  * word, after a colon, an equals sign or a は, in figures of either width, words after it or not. A
  * reference to the number in braces, `{目標値}`, writes none, and nor does a number a counter
  * follows right after, as `目標値2倍` and `目標値3つ` do, nor one worked on or running to another,
- * as `目標値10+2`, `目標値12／2` and `目標値13〜15` are. A percent after it is the number itself,
- * as a percentile roll writes it.
+ * as `目標値10+2`, `目標値10+{修正}`, `目標値12／2`, `目標値13〜15`, `目標値13ー15` and
+ * `目標値13から15` are, the marks a Japanese keyboard writes among them. A percent after it is the
+ * number itself, as a percentile roll writes it.
  */
 const PRESENTED_PATTERN =
-  /(?<![{｛])目標値\s*[:：=＝は]?\s*([0-9０-９]+)(?![0-9０-９]|[倍つ個回人点体枚割分dDｄＤ]|\s*[+＋\-－−×*/／÷xX]\s*[0-9０-９(（]|[.．][0-9０-９]|\s*[〜～~]\s*[0-9０-９])/g;
+  /(?<![{｛])目標値\s*[:：=＝は]?\s*([0-9０-９]+)(?![0-9０-９]|[倍つ個回人点体枚割分dDｄＤ]|\s*[+＋\-－−×*/／÷xXｘＸ＊]\s*[0-9０-９(（{｛]|[+＋\-－−×*/／÷ｘＸ＊]\p{L}|[.．][0-9０-９]|\s*[〜～~ー‐–—]\s*[0-9０-９]|\s*から\s*[0-9０-９])/gu;
 
 /**
  * The number to beat a line that is not a roll writes out in so many words (see

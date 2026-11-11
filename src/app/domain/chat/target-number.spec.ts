@@ -56,7 +56,21 @@ describe('target-number', () => {
       for (const counted of ['ダメージは目標値2倍', '目標値3つのうち1つ', '目標値10+2で', '目標値25倍']) {
         expect(presentedTotalOf(counted)).toBeNull();
       }
-      for (const worked of ['目標値10−2', '目標値10÷2', '目標値12／2', '目標値10x2', '目標値13〜15', '目標値13-15']) {
+      for (const worked of [
+        '目標値10−2',
+        '目標値10÷2',
+        '目標値12／2',
+        '目標値10x2',
+        '目標値13〜15',
+        '目標値13-15',
+        '目標値13ー15',
+        '目標値13–15',
+        '目標値13から15',
+        '目標値10+{修正}',
+        '目標値10+α',
+        '目標値10ｘ2',
+        '目標値10＊2',
+      ]) {
         expect(presentedTotalOf(worked)).toBeNull();
       }
       expect(presentedTotalOf('危険感知：目標値13以上で成功')).toBe(13);
