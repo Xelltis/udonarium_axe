@@ -4,6 +4,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PiecePartsService } from '@axe/application/tabletop/piece-parts.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -105,6 +106,25 @@ describe('PiecePartsService', () => {
     expect(links.mountOf(head)).toBeNull();
     expect(parts.bodiesFor(pieceAt('尾', 5, 5))).toEqual([dragon]);
     expect(parts.bodiesFor(dragon)).toEqual([]);
+  });
+
+  it('offers no body kept from the reader’s sight, nor one whose name is kept from them, to a player', () => {
+    const lurking = pieceAt('潜む魔物', 4, 4, 3);
+    const nameless = pieceAt('名もなき魔物', 10, 10, 3);
+    nameless.hideName = true;
+    const head = pieceAt('頭', 5, 5);
+    const tail = pieceAt('尾', 11, 11);
+    const vision = TestBed.inject(VisionService);
+    vi.spyOn(vision, 'isTokenVisible').mockImplementation((piece) => piece !== lurking);
+    PeerCursor.myCursor.role = PeerRole.Player;
+
+    expect(parts.bodiesFor(head)).toEqual([]);
+    expect(parts.attach(head, lurking)).toBe(false);
+    expect(parts.bodiesFor(tail)).toEqual([]);
+
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+    expect(parts.bodiesFor(tail)).toEqual([nameless]);
   });
 
   it('moves the parts wherever the body goes, and takes them off where it stands', () => {

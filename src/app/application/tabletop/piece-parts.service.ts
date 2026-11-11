@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -20,6 +21,7 @@ export class PiecePartsService {
   private readonly links = inject(PieceLinksService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly vision = inject(VisionService);
 
   /** The piece this one is a part of, where the body is on the table; null otherwise. */
   bodyOf(piece: GameCharacter): GameCharacter | null {
@@ -39,7 +41,8 @@ export class PiecePartsService {
   /**
    * The pieces a piece could be made a part of: those on the table whose base its middle stands on,
    * none of them a part itself, and none where the piece rides, is ridden, has parts of its own, or
-   * holds on to another or is held.
+   * holds on to another or is held. A piece kept from the reader's sight, or whose name is kept from
+   * them, is not offered, as the menu would name it.
    * None for one who may not change the table.
    */
   bodiesFor(piece: GameCharacter): GameCharacter[] {
@@ -50,7 +53,8 @@ export class PiecePartsService {
     return this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((body) => body !== piece && body.isVisibleOnTable && !this.bodyOf(body))
-      .filter((body) => body.ridingOn !== piece.identifier && this.standsOn(piece, body));
+      .filter((body) => body.ridingOn !== piece.identifier && this.standsOn(piece, body))
+      .filter((body) => this.vision.isTokenVisible(body) && (!body.hideName || this.rolePermission.canSeeHidden()));
   }
 
   /** Makes a piece a part of one it may be made a part of, its middle put on the body's. Answers whether it was. */
