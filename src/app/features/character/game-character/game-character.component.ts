@@ -804,6 +804,7 @@ export class GameCharacterComponent {
       // Any piece may be made a part of this one: the parts of every body are worked out once for all.
       const parts = this.parts.partsOfFollowed(char);
       if (parts.length < 1) return [];
+      for (const part of parts) this.objectChange.versionOf(part.identifier)();
       this.objectChange.trackMyCursor();
       this.uiSignalService.targetChange();
       return parts.map((piece) => this.ridingLabelOf(piece));

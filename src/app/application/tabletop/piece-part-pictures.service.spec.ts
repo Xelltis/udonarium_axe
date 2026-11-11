@@ -91,6 +91,27 @@ describe('PiecePartPicturesService', () => {
     expect(drawn).toEqual([]);
   });
 
+  it('draws a piece without such parts again for nothing another piece’s picture is made for', async () => {
+    const { body, part } = bodyWithPart();
+    part.partLayer = writePartLayer({ x: 0.5, y: 0.2, width: 0.3, order: 1 });
+    const plain = GameCharacter.create('ゴブリン', 1, '');
+    plain.setLocation('table');
+    let reads = 0;
+    const plainPicture = computed(() => {
+      reads++;
+      return pictures.pictureOf(plain);
+    });
+    pictures.pictureOf(body);
+    plainPicture();
+
+    finish[0]();
+    await Promise.resolve();
+    await Promise.resolve();
+    plainPicture();
+
+    expect(reads).toBe(1);
+  });
+
   it('draws the body’s picture with its parts once, and again only as they change, keeping the last meanwhile', async () => {
     const { body, part } = bodyWithPart();
     part.partLayer = writePartLayer({ x: 0.5, y: 0.2, width: 0.3, order: 1 });

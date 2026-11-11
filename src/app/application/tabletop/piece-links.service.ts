@@ -63,23 +63,27 @@ export class PieceLinksService {
   /**
    * The parts of each body on the table, by the body's identifier, read again as any piece changes:
    * worked out once for all, so whatever follows the parts of many pieces follows this rather than
-   * every piece in the room once for each of them.
+   * every piece in the room once for each of them. It tells of a change only where a body's parts
+   * changed, so what follows how a part stands follows the part itself as well.
    */
-  private readonly partsByBody = computed<ReadonlyMap<string, readonly GameCharacter[]>>(() => {
-    this.objectChange.collectionOf(GameCharacter.aliasName)();
-    const pieces = this.objectStore.getObjects<GameCharacter>(GameCharacter);
-    for (const piece of pieces) this.objectChange.versionOf(piece.identifier)();
-    const byBody = new Map<string, GameCharacter[]>();
-    for (const piece of pieces) {
-      if (!piece.isVisibleOnTable) continue;
-      const body = this.bodyOf(piece);
-      if (!body || body === piece) continue;
-      const parts = byBody.get(body.identifier);
-      if (parts) parts.push(piece);
-      else byBody.set(body.identifier, [piece]);
-    }
-    return byBody;
-  });
+  private readonly partsByBody = computed<ReadonlyMap<string, readonly GameCharacter[]>>(
+    () => {
+      this.objectChange.collectionOf(GameCharacter.aliasName)();
+      const pieces = this.objectStore.getObjects<GameCharacter>(GameCharacter);
+      for (const piece of pieces) this.objectChange.versionOf(piece.identifier)();
+      const byBody = new Map<string, GameCharacter[]>();
+      for (const piece of pieces) {
+        if (!piece.isVisibleOnTable) continue;
+        const body = this.bodyOf(piece);
+        if (!body || body === piece) continue;
+        const parts = byBody.get(body.identifier);
+        if (parts) parts.push(piece);
+        else byBody.set(body.identifier, [piece]);
+      }
+      return byBody;
+    },
+    { equal: sameParts }
+  );
 
   /** The parts of a body on the table, as {@link partsOf} finds them, followed as any piece changes. */
   followedPartsOf(body: GameCharacter): readonly GameCharacter[] {
@@ -170,4 +174,18 @@ export class PieceLinksService {
 /** Whether a piece is written down as a part of another; see `isPartOf`. */
 function writtenAsPart(piece: GameCharacter): boolean {
   return isPartOf({ id: piece.identifier, ridingOn: piece.ridingOn, rideSeat: piece.rideSeat });
+}
+
+/** Whether two tables of the parts of each body hold the same parts of the same bodies, in order. */
+function sameParts(
+  a: ReadonlyMap<string, readonly GameCharacter[]>,
+  b: ReadonlyMap<string, readonly GameCharacter[]>
+): boolean {
+  if (a === b) return true;
+  if (a.size !== b.size) return false;
+  for (const [body, parts] of a) {
+    const other = b.get(body);
+    if (!other || other.length !== parts.length || parts.some((part, index) => part !== other[index])) return false;
+  }
+  return true;
 }

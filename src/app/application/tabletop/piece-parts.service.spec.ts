@@ -1,4 +1,6 @@
+import { computed } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PiecePartsService } from '@axe/application/tabletop/piece-parts.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
@@ -57,6 +59,25 @@ describe('PiecePartsService', () => {
     parts.attach(arm, golem);
     await Promise.resolve();
     expect(parts.partsOfFollowed(golem)).toEqual([arm]);
+  });
+
+  it('tells those following the parts of the bodies of nothing where no body’s parts changed', async () => {
+    const dragon = pieceAt('ドラゴン', 4, 4, 3);
+    const head = pieceAt('頭', 5, 5);
+    parts.attach(head, dragon);
+    await Promise.resolve();
+    let reads = 0;
+    const followed = computed(() => {
+      reads++;
+      return parts.partsOfFollowed(dragon);
+    });
+    followed();
+
+    head.name = '竜の頭';
+    TestBed.inject(ObjectChangeService).notifyChanged(head.identifier);
+    followed();
+
+    expect(reads).toBe(1);
   });
 
   it('offers the pieces a piece stands on as bodies, none of them parts, and makes it a part of one', () => {

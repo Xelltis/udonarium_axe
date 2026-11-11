@@ -261,6 +261,26 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    it('tells the row of a part again as the part changes, its body unchanged', async () => {
+      const dragon = GameCharacter.create('ドラゴン', 3, '');
+      dragon.setLocation('table');
+      const head = GameCharacter.create('頭', 1, '');
+      head.setLocation('table');
+      head.ridingOn = dragon.identifier;
+      head.rideSeat = 'part';
+      fixture.componentRef.setInput('gameCharacter', dragon);
+
+      try {
+        expect(component.partLabels().map((label) => label.name)).toEqual(['頭']);
+        head.name = '竜の頭';
+        TestBed.inject(ObjectChangeService).notifyChanged(head.identifier);
+        expect(component.partLabels().map((label) => label.name)).toEqual(['竜の頭']);
+      } finally {
+        head.destroy();
+        dragon.destroy();
+      }
+    });
+
     it('lists the parts in a card of their own while the name runs round the piece, a row still aiming at its part', async () => {
       const dragon = GameCharacter.create('ドラゴン', 3, '');
       dragon.setLocation('table');

@@ -107,11 +107,12 @@ export class PiecePartPicturesService {
    */
   pictureOf(body: GameCharacter): PartPicture | null {
     const key = this.keyOf(body)();
-    this.made();
     if (!key) {
       this.forget(body.identifier);
       return null;
     }
+    // Only a piece with such parts hears of the pictures made, so the rest are not drawn again for them.
+    this.made();
     let drawn = this.drawn.get(body.identifier);
     if (drawn && (drawn.key === key || drawn.making === key)) return drawn.picture;
     if (!drawn) {
