@@ -244,6 +244,19 @@ describe('TabletopActionService', () => {
       expect(cells).not.toContain(pieceCellOf(grid(), members[0], table.gridSize, { x: 0, y: 0 }));
     });
 
+    it('brings a member’s parts along to where it now stands', () => {
+      const party = makeParty('パーティA');
+      const dragon = makeMember(party, '竜');
+      const head = makeMember(null, '頭');
+      head.ridingOn = dragon.identifier;
+      head.rideSeat = 'part';
+
+      service.gatherParty(position, party);
+
+      expect(cellOf(dragon)).toBe(askedCell());
+      expect([head.location.x, head.location.y]).toEqual([dragon.location.x, dragon.location.y]);
+    });
+
     it('leaves a member that is not on the table where it is', () => {
       const party = makeParty('パーティA');
       const here = makeMember(party, '花子');

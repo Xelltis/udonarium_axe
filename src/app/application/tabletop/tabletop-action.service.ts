@@ -5,6 +5,7 @@ import { PointerCoordinate } from '@axe/application/input/pointer-device.service
 import { PartyService } from '@axe/application/party/party.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import {
   bundledTerrainImage,
@@ -68,6 +69,7 @@ export class TabletopActionService {
   private readonly tagLock = inject(ImageTagLockService);
   private readonly partyService = inject(PartyService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly links = inject(PieceLinksService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly viewMode = inject(ViewModePreferenceService);
   private readonly t = inject(TRANSLATE_FN);
@@ -416,7 +418,8 @@ export class TabletopActionService {
    * asked to gather where it already stands does not have to squeeze past itself.
    *
    * A member that is not on the table is left where it is unless it was asked for by name: a
-   * piece that was put away was put away on purpose. Answers with how many were placed.
+   * piece that was put away was put away on purpose. What goes where a member goes, its parts and
+   * what rides it, goes along. Answers with how many were placed.
    */
   gatherParty(position: PointerCoordinate, party: Party, bringInAway = false): number {
     const table = this.getViewTable();
@@ -445,6 +448,7 @@ export class TabletopActionService {
       }
       return placed;
     });
+    for (const spot of spots) this.links.carryBound(spot.character);
     for (const spot of spots) this.objectChange.notifyChanged(spot.character.identifier);
     if (spots.length > 0) SoundEffect.play(PresetSound.piecePut);
     return spots.length;
