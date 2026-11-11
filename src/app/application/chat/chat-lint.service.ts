@@ -195,7 +195,12 @@ export class ChatLintService {
     const variables = computed(() => (mode === 'palette' ? this.variablesWritten(scan()) : null), {
       equal: sameVariables,
     });
-    const holdsTargetNumberNow = computed(() => holdsTargetNumber(source.text()));
+    // A `{目標値}` may come in through a reference, as a palette's variable `//抵抗=2d6>={目標値}` brings it.
+    const holdsTargetNumberNow = computed(() => {
+      const text = source.text();
+      if (holdsTargetNumber(text)) return true;
+      return /[{｛]/.test(text) && this.leavesTargetNumber(source, variables());
+    });
     const lookup = computed(() => (holdsTargetNumberNow() ? this.targetNumberOf(source) : null));
     const toBeat = computed(() => {
       const found = lookup();
