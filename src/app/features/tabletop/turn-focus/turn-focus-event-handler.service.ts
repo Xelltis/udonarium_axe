@@ -1,4 +1,5 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
@@ -36,7 +37,8 @@ const FIRST_NOTICE_MS = 10_000;
  *
  * Only to a piece this reader can see on the table: a view carried off to a piece in the dark would
  * tell where it stands. Not while the reader is in the middle of something on the table, holding a
- * piece, planning a move, shaping the ground, or looking out of or after a piece; nor while a
+ * piece, planning a move, picking an effect's targets, shaping the ground, or looking out of or after
+ * a piece; nor while a
  * recording is played back here or the screen is an overlay for streaming. A turn is gone to once,
  * however often it is told.
  */
@@ -55,6 +57,7 @@ export class TurnFocusEventHandlerService {
   private readonly firstPerson = inject(FirstPersonService);
   private readonly thirdPerson = inject(ThirdPersonService);
   private readonly snackbar = inject(SnackbarService);
+  private readonly effectTargeting = inject(EffectTargetingService);
   private readonly t = inject(TRANSLATE_FN);
   private lastFocused = '';
 
@@ -94,6 +97,7 @@ export class TurnFocusEventHandlerService {
     return (
       this.held.held() !== null ||
       this.movePlanner.isPlanning() ||
+      this.effectTargeting.isPicking() ||
       this.groundBrush.active() ||
       this.firstPerson.showing() ||
       this.thirdPerson.following()

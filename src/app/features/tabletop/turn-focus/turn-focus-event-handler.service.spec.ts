@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
@@ -115,6 +116,14 @@ describe('TurnFocusEventHandlerService', () => {
     await turnOf(pieceOf());
     setNetworkIsolated(false);
     vi.spyOn(TestBed.inject(OverlayModeService), 'active').mockReturnValue(true);
+    await turnOf(pieceOf());
+
+    expect(focused).not.toHaveBeenCalled();
+  });
+
+  it('leaves the view alone while the reader picks the targets of an effect', async () => {
+    vi.spyOn(TestBed.inject(EffectTargetingService), 'isPicking').mockReturnValue(true);
+
     await turnOf(pieceOf());
 
     expect(focused).not.toHaveBeenCalled();
