@@ -12,6 +12,7 @@ import { ActiveCharacterService } from '@axe/application/character/active-charac
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { getRangeMenuItems } from '@axe/application/tabletop/tabletop-action-helpers';
@@ -167,6 +168,35 @@ export class PlToolbarComponent {
   });
 
   readonly turnIndicator = turnIndicatorSignal();
+
+  private readonly tableFocus = inject(TableFocusService);
+
+  /** The piece whose turn it is, where the bar names it: one this reader can see on the table. */
+  protected readonly turnPiece = computed<GameCharacter | null>(() => {
+    if (!this.turnIndicator()?.name) return null;
+    const piece = this.objectStore.get(this.turnOrder.currentIdentifier);
+    return piece instanceof GameCharacter ? piece : null;
+  });
+
+  /** Whether the piece whose turn it is is this player's own, whose turn they may hand on themselves. */
+  protected readonly ownTurn = computed<boolean>(() => {
+    const piece = this.turnPiece();
+    if (!piece) return false;
+    this.objectChange.versionOf(piece.identifier)();
+    this.objectChange.trackMyCursor();
+    return isOwnedByUser(piece, PeerCursor.myCursor?.userId ?? '');
+  });
+
+  /** Glides the view over to the piece whose turn it is. */
+  protected focusTurnPiece(): void {
+    const piece = this.turnPiece();
+    if (piece) this.tableFocus.focusOn(piece);
+  }
+
+  /** Ends this player's own piece's turn, handing it on as the round's next press does. */
+  protected passTurn(): void {
+    if (this.ownTurn()) this.turnOrder.next();
+  }
 
   protected activeImageUrl(): string {
     return this.activeCharacter()?.imageFile?.url ?? '';

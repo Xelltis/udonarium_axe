@@ -562,6 +562,11 @@
     "plTools": {
       "buffView": "バフ表示（全体）",
       "buffIconSize": "バフアイコンの大きさ",
+      "turn": {
+        "focus": "{{name}} の場所へ画面を移す",
+        "next": "次へ",
+        "nextHint": "自分のキャラクターの手番を終えて、次へ渡す"
+      },
       "active": {
         "title": "操作対象キャラクター",
         "openChatPalette": "{{name}} のチャットパレットを開く"

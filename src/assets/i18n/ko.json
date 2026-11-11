@@ -562,6 +562,11 @@
     "plTools": {
       "buffView": "버프 표시(전체)",
       "buffIconSize": "버프 아이콘 크기",
+      "turn": {
+        "focus": "{{name}}의 위치로 화면 이동",
+        "next": "다음",
+        "nextHint": "내 캐릭터의 차례를 끝내고 다음으로 넘기기"
+      },
       "active": {
         "title": "조작 대상 캐릭터",
         "openChatPalette": "{{name}}의 채팅 팔레트 열기"

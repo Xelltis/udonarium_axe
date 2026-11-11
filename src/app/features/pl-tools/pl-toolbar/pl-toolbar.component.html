@@ -96,10 +96,34 @@
                 }
                 @if (turn.statusKey) {
                   <span class="truncate">{{ turn.statusKey | transloco }}</span>
+                } @else if (turnPiece()) {
+                  <button
+                    type="button"
+                    class="text-ui-text hover:text-ui-accent cursor-pointer truncate border-none bg-transparent p-0 font-semibold underline-offset-2 transition-colors hover:underline"
+                    data-testid="pl-turn-focus"
+                    [attr.aria-label]="'feature.plTools.turn.focus' | transloco: { name: turn.name }"
+                    [title]="'feature.plTools.turn.focus' | transloco: { name: turn.name }"
+                    (click)="focusTurnPiece()"
+                  >
+                    {{ turn.name }}
+                  </button>
                 } @else {
                   <span class="text-ui-text truncate font-semibold">{{ turn.name }}</span>
                 }
               </span>
+              @if (ownTurn()) {
+                <button
+                  type="button"
+                  class="bg-ui-accent-solid shadow-ui-sm inline-flex h-7 shrink-0 cursor-pointer items-center gap-0.5 rounded-full border-none pr-1.5 pl-2.5 text-[12px] font-semibold whitespace-nowrap text-white transition-opacity hover:opacity-85 [&_.material-icons]:text-[16px]!"
+                  data-testid="pl-turn-next"
+                  [title]="'feature.plTools.turn.nextHint' | transloco"
+                  [attr.data-guide-label]="'feature.plTools.turn.nextHint' | transloco"
+                  (click)="passTurn()"
+                >
+                  {{ 'feature.plTools.turn.next' | transloco }}
+                  <i class="material-icons" aria-hidden="true">chevron_right</i>
+                </button>
+              }
             }
           }
           @case ('activeCharacter') {
