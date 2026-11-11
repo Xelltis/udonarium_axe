@@ -248,6 +248,17 @@ describe('TurnOrderService', () => {
     expect(sendSpy).toHaveBeenCalledTimes(4);
   });
 
+  it('writes nothing down as it works out the next turn, this seat’s mark of its version among it', () => {
+    PeerCursor.createMyCursor();
+    service.next();
+    const mine = PeerCursor.myCursor!;
+    mine.turnProtocol = '';
+
+    service.peekNextIdentifier();
+
+    expect(mine.turnProtocol).toBe('');
+  });
+
   it('setCurrent jumps straight to a character in the acting phase', () => {
     service.setCurrent(chars[1].identifier);
     expect(turnState.phase).toBe('acting');

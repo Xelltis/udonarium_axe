@@ -332,7 +332,12 @@ export class TurnOrderService {
   }
 
   /** The round's pieces by identifier, as the state machine reads them for a press made now. */
-  private turnTable(): TurnTable {
+  /**
+   * What the state machine reads of the round's pieces and rules. With `peeking`, as only working out
+   * a step rather than taking it, nothing is written down, this seat's mark of the version of the
+   * turns it runs among it.
+   */
+  private turnTable(peeking = false): TurnTable {
     const mode = this.turnOrderMode;
     const sideOrder = mode === 'faction' ? this.sideOrder() : [];
     const companions = this.companionsByCarrier();
@@ -348,7 +353,7 @@ export class TurnOrderService {
         return piece ? sideOfPiece(piece, sideOrder) : null;
       },
       now: Date.now(),
-      givesBackOnHold: this.givesBackOnHold(),
+      givesBackOnHold: this.givesBackOnHold(peeking),
     };
   }
 
@@ -356,9 +361,9 @@ export class TurnOrderService {
    * Whether a wait gives back what its turn's opening counted down: only where every seat that may
    * take turns runs a version that counts it down again when the turn comes back.
    */
-  private givesBackOnHold(): boolean {
+  private givesBackOnHold(peeking = false): boolean {
     const mine = PeerCursor.myCursor;
-    if (mine && mine.turnProtocol !== '1') mine.turnProtocol = '1';
+    if (!peeking && mine && mine.turnProtocol !== '1') mine.turnProtocol = '1';
     return this.objectStore
       .getObjects<PeerCursor>(PeerCursor)
       .filter((cursor) => cursor.peerId.length > 0 && canRoleEdit(cursor.role))
@@ -435,7 +440,7 @@ export class TurnOrderService {
    */
   peekNextIdentifier(): string {
     if (this.turnState.phase === 'idle') return '';
-    return roundNext(this.snapshot(), this.turnTable()).state.currentIdentifier;
+    return roundNext(this.snapshot(), this.turnTable(true)).state.currentIdentifier;
   }
 
   /**
