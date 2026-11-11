@@ -33,10 +33,11 @@ export const HIDDEN_GAUGE_STRIPES = `repeating-linear-gradient(135deg, ${HIDDEN_
 
 /**
  * Whether a resource has run out: down to nothing, or for one that counts up to its end, at its
- * maximum. A piece whose resource has run out is beaten, and what it held is no longer kept back.
+ * maximum. One counting up with no maximum above nothing, as a bar left without one reads, never runs
+ * out. A piece whose resource has run out is beaten, and what it held is no longer kept back.
  */
 export function isGaugeSpent(current: number, max: number, inverted: boolean): boolean {
-  return inverted ? current >= max : current <= 0;
+  return inverted ? max > 0 && current >= max : current <= 0;
 }
 
 /**

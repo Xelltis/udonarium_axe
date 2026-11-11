@@ -5,6 +5,7 @@ import {
   HIDDEN_GAUGE_COLOR,
   HIDDEN_GAUGE_NUMBERS,
   isGaugeInverted,
+  isGaugeSpent,
   type PieceGauge,
   selectPieceGauges,
   shownGauge,
@@ -171,5 +172,13 @@ describe('shownGauge()', () => {
   it('counts a resource that runs up to its end as run out at its maximum', () => {
     expect(shownGauge(gauge(11, true), false).numbers).toBe(HIDDEN_GAUGE_NUMBERS);
     expect(shownGauge(gauge(12, true), false).numbers).toBe('12/12');
+  });
+
+  it('never counts a resource that runs up with no maximum as run out, as the chat does not', () => {
+    const noMaximum = { ...gauge(3, true), max: 0 };
+
+    expect(shownGauge(noMaximum, false).numbers).toBe(HIDDEN_GAUGE_NUMBERS);
+    expect(isGaugeSpent(3, 0, true)).toBe(false);
+    expect(isGaugeSpent(0, 0, false)).toBe(true);
   });
 });
