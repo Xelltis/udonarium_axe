@@ -803,13 +803,13 @@ export class GameCharacterComponent {
     { equal: sameRidingLabels }
   );
 
+  /** The colour a part's number is drawn in while an effect is aimed, as the marks on the table are. */
+  protected readonly pickColor = computed(() => this.effectTargeting.markColor());
+
   /**
    * The parts of this piece, listed under its own labels as those riding it are listed over them:
    * their names, bars and buffs, each as it would show over itself.
    */
-  /** The colour a part's number is drawn in while an effect is aimed, as the marks on the table are. */
-  protected readonly pickColor = computed(() => this.effectTargeting.markColor());
-
   readonly partLabels = computed<RidingLabel[]>(
     () => {
       const char = this.gameCharacter();

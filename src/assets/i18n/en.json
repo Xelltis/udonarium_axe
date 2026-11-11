@@ -1359,6 +1359,7 @@
       "restoreDefaults": "Apply defaults",
       "picking": "Choosing targets for \"{{name}}\" {{count}}/{{max}}",
       "pickingHint": "Click tokens to pick in order (click again to remove) / Enter to cast / Esc to cancel",
+      "hiddenName": "???",
       "cancelPicking": "Cancel",
       "fire": "Play on the targets",
       "targets": "Targets: {{names}}",

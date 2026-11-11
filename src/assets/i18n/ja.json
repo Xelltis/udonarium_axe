@@ -1359,6 +1359,7 @@
       "restoreDefaults": "既定を反映",
       "picking": "「{{name}}」の対象を選択中 {{count}}/{{max}}",
       "pickingHint": "コマをクリックで順に選択（もう一度で解除）／Enter で発動／Esc で中止",
+      "hiddenName": "？？？",
       "cancelPicking": "中止",
       "fire": "対象に発動する",
       "targets": "対象: {{names}}",

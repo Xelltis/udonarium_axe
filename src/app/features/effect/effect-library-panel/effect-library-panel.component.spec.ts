@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -148,6 +149,24 @@ describe('EffectLibraryPanelComponent', () => {
       targeting.cancel();
       part.destroy();
       body.destroy();
+    }
+  });
+
+  it('names a piece picked whose name is kept from the reader as no one in particular', () => {
+    const targeting = TestBed.inject(EffectTargetingService);
+    const masked = GameCharacter.create('黒幕', 1, '');
+    masked.hideName = true;
+    preset.targeting = 'multi';
+    preset.maxTargets = 3;
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
+    try {
+      targeting.begin(preset);
+      targeting.pick(masked.identifier);
+
+      expect(fixture.componentInstance.pickedNames()).toEqual(['？？？']);
+    } finally {
+      targeting.cancel();
+      masked.destroy();
     }
   });
 

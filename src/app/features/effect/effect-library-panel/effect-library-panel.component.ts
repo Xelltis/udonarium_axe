@@ -138,9 +138,12 @@ export class EffectLibraryPanelComponent {
     return this.targeting.preset()?.identifier === preset.identifier;
   }
 
+  /** A piece's name as this reader may be told it: one whose name is kept from them goes unnamed. */
   private nameOf(identifier: string): string {
     const character = this.objectStore.get<GameCharacter>(identifier);
-    return character instanceof GameCharacter ? character.name : '';
+    if (!(character instanceof GameCharacter)) return '';
+    if (character.hideName && !this.rolePermission.canSeeHidden()) return this.t('feature.effect.hiddenName');
+    return character.name;
   }
 
   private readonly storage = browserLocalStorage();
