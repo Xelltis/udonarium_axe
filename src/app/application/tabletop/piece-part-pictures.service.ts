@@ -194,16 +194,13 @@ export class PiecePartPicturesService {
    */
   modelFacesOf(body: GameCharacter): PartModelFaces {
     const faces = this.keptFor(this.faces, body, () => {
-      const model = computed(
-        () => {
-          this.objectChange.versionOf(body.identifier)();
-          return { modelIdentifier: `${body.modelIdentifier ?? ''}` };
-        },
-        { equal: (a, b) => a.modelIdentifier === b.modelIdentifier }
-      );
+      const model = computed(() => {
+        this.objectChange.versionOf(body.identifier)();
+        return `${body.modelIdentifier ?? ''}`;
+      });
       return computed(
         () => {
-          const drawnAs = model();
+          const drawnAs = { modelIdentifier: model() };
           const parts = this.links
             .followedPartsOf(body)
             .map((part) => ({ faces: partFacesOn(part, drawnAs), lost: this.lookOf(part).lost }))
