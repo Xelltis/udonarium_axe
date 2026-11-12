@@ -751,8 +751,10 @@ export class ChatInputComponent {
   /** The height a palette's box is held at while it holds a line put into it; null to fit its line. */
   protected readonly heldHeight = signal<number | null>(null);
   private readonly richBox = viewChild<ElementRef<HTMLElement>>('richBox');
-  /** Whether the reader has sized the box by its corner, whose height is then theirs and left alone. */
-  private richBoxSizedByHand = false;
+  /** The box the reader has sized by its corner, whose height is then theirs and left alone. */
+  private sizedBox: HTMLElement | null = null;
+  /** The box a height was last written on, and the height as the box then read it back. */
+  private written: { box: HTMLElement; height: string } | null = null;
   /** The line last told through `textChange`, which coming back in is not one put in from outside. */
   private told: string | null = null;
   /** The line being written; setting it reports through `textChange`. */
@@ -856,12 +858,18 @@ export class ChatInputComponent {
     });
     effect(() => this.followEditorHost());
     // Written on the box itself rather than bound, so that letting go of it leaves a height the
-    // reader gave the box by its corner as it is.
+    // reader gave the box by its corner as it is: a height on the box other than the one last written
+    // there was given it by hand, as the browser writes one as the corner is dragged.
     effect(() => {
       const held = this.dense() ? this.heldHeight() : null;
       const box = this.richBox()?.nativeElement;
-      if (!box || this.richBoxSizedByHand) return;
+      if (!box || box === this.sizedBox) return;
+      if (this.written?.box === box && box.style.height !== this.written.height) {
+        this.sizedBox = box;
+        return;
+      }
       box.style.height = held === null ? '' : `${held}px`;
+      this.written = { box, height: box.style.height };
     });
     effect(() => {
       const incoming = this.textInput();
@@ -1388,16 +1396,13 @@ export class ChatInputComponent {
   }
 
   /**
-   * Notes a press on the rich box: on its resize corner, its bottom-right 16 pixels, after which its
-   * height is the reader's; anywhere else, as the box being taken up to be written in.
+   * Takes a press on the rich box as the box being taken up to be written in, but for one by a mouse
+   * or a pen on its resize corner, its bottom-right 16 pixels, which sizes it by hand instead.
    */
   protected onRichBoxPointerDown(event: PointerEvent): void {
-    const box = this.richBox()?.nativeElement;
-    const rect = box?.getBoundingClientRect();
-    if (rect && event.clientX > rect.right - 16 && event.clientY > rect.bottom - 16) {
-      this.richBoxSizedByHand = true;
-      return;
-    }
+    const rect = this.richBox()?.nativeElement.getBoundingClientRect();
+    const onCorner = rect && event.clientX > rect.right - 16 && event.clientY > rect.bottom - 16;
+    if (onCorner && event.pointerType !== 'touch') return;
     this.openUp();
   }
 
