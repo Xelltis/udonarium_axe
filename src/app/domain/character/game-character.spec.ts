@@ -37,9 +37,9 @@ describe('GameCharacter', () => {
   describe('the parts that go with it', () => {
     function partOf(body: GameCharacter, at = 'table'): GameCharacter {
       const part = GameCharacter.create('腕', 1, '');
+      part.setLocation(at);
       part.ridingOn = body.identifier;
       part.rideSeat = 'part';
-      part.setLocation(at);
       return part;
     }
 
@@ -72,6 +72,20 @@ describe('GameCharacter', () => {
 
       expect(body.location.name).toBe('table');
       expect(arm.partsAlong()).toEqual([]);
+    });
+
+    it('stands a part brought back on its own on its body, which moved on without it', () => {
+      const body = GameCharacter.create('竜', 3, '');
+      body.setLocation('table');
+      const arm = partOf(body);
+      arm.setLocation('common');
+      body.location.x = 400;
+      body.location.y = 250;
+
+      arm.setLocation('table');
+
+      expect(arm.isWrittenAsPart).toBe(true);
+      expect([arm.location.x, arm.location.y]).toEqual([400, 250]);
     });
 
     it('takes the parts standing with it out of the room with it', () => {

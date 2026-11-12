@@ -422,12 +422,22 @@ export class GameCharacter extends OwnedTabletopObject {
 
   /**
    * Moves the piece to a named place, and its parts that stood where it stood with it, so a creature
-   * of many parts leaves the table, is put away or out of sight, and comes back, whole.
+   * of many parts leaves the table, is put away or out of sight, and comes back, whole. A part brought
+   * on its own to where its body stands is stood on its body, where it is drawn as, rather than where
+   * it was left when the body moved on without it.
    */
   override setLocation(location: string): void {
-    const parts = location === this.location.name ? [] : this.partsAlong();
+    const moves = location !== this.location.name;
+    const parts = moves ? this.partsAlong() : [];
     super.setLocation(location);
     for (const part of parts) part.setLocation(location);
+    if (moves && this.isWrittenAsPart) {
+      const body = ObjectStore.instance.get(this.ridingOn);
+      if (body instanceof GameCharacter && body.location.name === location) {
+        this.location.x = body.location.x;
+        this.location.y = body.location.y;
+      }
+    }
   }
 
   /** Takes the piece out of the room, and its parts that stood where it stood with it. */
