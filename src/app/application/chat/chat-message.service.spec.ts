@@ -278,6 +278,23 @@ describe('ChatMessageService', () => {
     }
   });
 
+  it('marks the lines sent as a game master’s words as such, and no line sent after', () => {
+    const service = TestBed.inject(ChatMessageService);
+    PeerCursor.createMyCursor();
+    const tab = new ChatTab();
+    tab.initialize();
+    ObjectStore.instance.add(tab);
+    try {
+      const switchLine = service.asMastersWords(() => service.sendAsNamed(tab, '解錠：目標値13', null, '宝箱'));
+      const afterwards = service.sendAsNamed(tab, 'ギィ', null, '宝箱');
+
+      expect(switchLine.mastersWords).toBe('1');
+      expect(afterwards.mastersWords ?? '').toBe('');
+    } finally {
+      tab.destroy();
+    }
+  });
+
   describe('sending a stamp with words', () => {
     function said(text: string, stampId: string, words: string): ChatMessage {
       const service = TestBed.inject(ChatMessageService);

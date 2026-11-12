@@ -297,6 +297,21 @@ describe('target-number', () => {
 
     const master = { identifier: 'gm', name: 'GM' };
 
+    it('takes the number a game master wrote for a player to say, as a switch says it, as the master’s', () => {
+      at += 10;
+      tab.addMessage({
+        from: 'user-pc2',
+        sendFrom: 'pc2',
+        name: 'PC2',
+        text: '解錠：目標値13',
+        timestamp: at,
+        senderRole: PeerRole.Player,
+        mastersWords: '1',
+      });
+
+      expect(findTargetNumberSource(tab, speaker)).toMatchObject({ total: 13, from: 'presented' });
+    });
+
     it('takes the number a game master wrote out as a named thing for another named thing', () => {
       say({ identifier: '', name: '宝箱' }, '解錠：目標値13', PeerRole.GameMaster);
 

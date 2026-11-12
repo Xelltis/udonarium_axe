@@ -321,10 +321,12 @@ function answeredOne(tab: ChatTab, answer: ChatMessage): boolean {
 
 /**
  * Whether a line writing out a number to beat was said by a game master, as they were when they said
- * it, and not by the speaker: a line of a room that never wrote down who said it is nobody's.
+ * it, or is one a master wrote for another to say, as a switch's line is, and not by the speaker: a
+ * line of a room that never wrote down who said it is nobody's.
  */
 function presentedByGameMaster(message: ChatMessage, speaker: TargetNumberSpeaker): boolean {
-  return message.senderRole === PeerRole.GameMaster && !saidBy(message, speaker);
+  const masters = message.senderRole === PeerRole.GameMaster || `${message.mastersWords ?? ''}` === '1';
+  return masters && !saidBy(message, speaker);
 }
 
 /** Whether the speaker said the line an answer answers. */

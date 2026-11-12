@@ -67,6 +67,7 @@ export interface ChatMessageContext {
   answersTargetNumber?: string;
   aimedTogether?: string;
   rolledAt?: string;
+  mastersWords?: string;
 }
 
 @SyncObject('chat')
@@ -140,6 +141,14 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    * once, and one of a room or a version that never wrote one, read back empty and read by its name.
    */
   @SyncVar() rolledAt: string;
+  /**
+   * Set on a line a game master wrote for whoever sets it off to say, as a switch's line is, so that
+   * a number to beat it writes out is taken as the master's, whoever pressed it.
+   *
+   * Left without an initialiser, as `rolledAt` is: any other line, and one of a room or a version
+   * that never wrote it, reads back empty.
+   */
+  @SyncVar() mastersWords: string;
   @SyncVar() messColor: string;
   /** The bubble the sender asked for on each theme. Empty is worked out from the colour. */
   @SyncVar() messBubbleLight: string = '';

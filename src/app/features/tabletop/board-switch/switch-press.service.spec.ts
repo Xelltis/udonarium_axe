@@ -175,6 +175,28 @@ describe('SwitchPressService', () => {
     expect(system).toHaveBeenCalledWith(tab, 'the floor gives way');
   });
 
+  it('says its lines as the game master’s words, whoever presses it, for each way it speaks', async () => {
+    const asked: unknown[] = [];
+    for (const send of ['sendAsSelf', 'sendAsCharacter', 'sendAsNamed'] as const) {
+      vi.spyOn(macro, send).mockImplementation(async (...args: unknown[]) => {
+        asked.push(args[args.length - 1]);
+        return null;
+      });
+    }
+    const chat = TestBed.inject(ChatMessageService);
+    const marked: boolean[] = [];
+    vi.spyOn(chat, 'sendSystemMessageToTab').mockImplementation(() => {
+      marked.push((chat as unknown as { mastersWordsDepth: number }).mastersWordsDepth > 0);
+      return null!;
+    });
+
+    await presses.press(switchWith({ speaker: 'host', label: 'lever', actions: [say('解錠：目標値13')] }));
+    await presses.press(switchWith({ speaker: 'system', actions: [say('解錠：目標値13')] }));
+
+    expect(asked).toEqual([expect.objectContaining({ mastersWords: true })]);
+    expect(marked).toEqual([true]);
+  });
+
   it('turns a watcher away without saying anything', async () => {
     PeerCursor.myCursor.role = PeerRole.Guest;
 
