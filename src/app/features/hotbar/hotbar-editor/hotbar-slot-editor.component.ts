@@ -475,21 +475,28 @@ export class HotbarSlotEditorComponent {
 
   protected setActor(identifier: string): void {
     const named = this.actors().find((actor) => actor.value === identifier);
-    this.draft.update((draft) => ({ ...draft, characterIdentifier: identifier, characterName: named?.name ?? '' }));
+    // The slot keeps the name it had for the piece it acts as already, rather than the label shown.
+    this.draft.update((draft) => ({
+      ...draft,
+      characterIdentifier: identifier,
+      characterName: identifier === draft.characterIdentifier ? draft.characterName : (named?.name ?? ''),
+    }));
   }
 
   /**
    * The pieces a slot may be told to act as, with an entry for leaving it to the moment; not one whose
-   * name is kept from the reader, which the list would name.
+   * name is kept from the reader, which the list would name, but the one the slot acts as already,
+   * under the label for a hidden name, so the list shows what the slot does.
    */
   protected readonly actors = computed<{ value: string; name: string }[]>(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
+    const bound = this.draft().characterIdentifier;
     return selectControllableCharacters(
       this.objectStore.getObjects<GameCharacter>(GameCharacter),
       PeerCursor.myCursor?.userId ?? ''
     )
-      .filter((character) => !this.names.isKept(character))
-      .map((character) => ({ value: character.identifier, name: character.name }));
+      .filter((character) => !this.names.isKept(character) || character.identifier === bound)
+      .map((character) => ({ value: character.identifier, name: this.names.shown(character) }));
   });
 
   protected readonly panelLabelKey = panelLabelKey;
