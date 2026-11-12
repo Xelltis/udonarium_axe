@@ -135,6 +135,17 @@ describe('RangeComponent', () => {
     });
   });
 
+  it('draws itself anew as its length, width or opacity is edited in its sheet', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const drawn = vi.spyOn(component as unknown as { setRange(): void }, 'setRange');
+
+    given.commonDataElement!.getFirstElementByName('width')!.value = 7;
+    await Promise.resolve();
+
+    expect(drawn).toHaveBeenCalled();
+  });
+
   describe('the clip version signal', () => {
     type PrivClipVersion = { _clipVersion: { (): number; update(fn: (v: number) => number): void } };
 

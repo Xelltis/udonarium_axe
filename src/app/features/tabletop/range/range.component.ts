@@ -28,6 +28,7 @@ import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_RANGE_RENDER, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { cellPatternBoundingBox, parseCellPattern } from '@axe/domain/tabletop/cell-pattern';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -260,7 +261,12 @@ export class RangeComponent {
       () => {
         if (!this._initialized) return [];
         const range = this.range();
-        return [range.identifier, range.followingCharacterIdentifier, this.currentTable.identifier];
+        return [
+          range.identifier,
+          ...collectDataElements(range.rootDataElement).map((element) => element.identifier),
+          range.followingCharacterIdentifier,
+          this.currentTable.identifier,
+        ];
       },
       (e) => {
         if (!this._initialized) return;
