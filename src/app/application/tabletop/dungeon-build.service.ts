@@ -1,7 +1,9 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { BundledModelIntakeService } from '@axe/application/tabletop/bundled-model-intake.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { GameObject } from '@axe/core/sync/game-object';
 import { delay } from '@axe/core/util/delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { AmbienceKind } from '@axe/domain/effect/ambience/ambience-kind';
@@ -181,6 +183,7 @@ export class DungeonBuildService {
   private readonly imageStorage = inject(ImageStorage);
   private readonly bundledModels = inject(BundledModelIntakeService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly links = inject(PieceLinksService);
 
   /** Register a bundled picture once and hand back the identifier a terrain stores. */
   registerAsset(url: string): string {
@@ -289,18 +292,33 @@ export class DungeonBuildService {
    * Stands the party on the ground it was given, on the table and on the floor of it.
    *
    * Wherever a piece was before this — another table, a board, somebody's hand — it is on the
-   * dungeon floor once the party has walked in, since that is what walking in means.
+   * dungeon floor once the party has walked in, since that is what walking in means. What goes where
+   * a member goes comes with it, as the party gathered on a table brings it: the parts put away with
+   * a member come out with it, and its parts, those riding it and those it holds are stood on it, by
+   * the dungeon's cells, as the table is not yet looked at, and on its floor.
    */
   private musterParty(table: GameTable, party: readonly MusterStand[]): void {
     if (party.length < 1) return;
     const grid = cellGridOf(table.width, table.height, GRID_SIZE, table.gridType);
-    for (const { piece, cell } of party) {
-      const centre = cellCenterOf(grid, cellIndexOf(grid, cell.x, cell.y));
-      const corner = cornerShiftOf(piece, GRID_SIZE);
-      piece.location = { name: 'table', x: centre.x - corner, y: centre.y - corner };
-      piece.posZ = 0;
-      piece.update();
-    }
+    GameObject.batch(() => {
+      for (const { piece, cell } of party) {
+        if (piece.location.name !== 'table') piece.setLocation('table');
+        const centre = cellCenterOf(grid, cellIndexOf(grid, cell.x, cell.y));
+        const corner = cornerShiftOf(piece, GRID_SIZE);
+        piece.location = { name: 'table', x: centre.x - corner, y: centre.y - corner };
+        piece.posZ = 0;
+        piece.update();
+      }
+      const carried = this.links.carryBoundAll(
+        party.map((stand) => stand.piece),
+        GRID_SIZE
+      );
+      for (const piece of carried) {
+        if (!piece.location.surface) continue;
+        piece.location = { name: 'table', x: piece.location.x, y: piece.location.y };
+        piece.update();
+      }
+    });
   }
 
   private createTerrain(

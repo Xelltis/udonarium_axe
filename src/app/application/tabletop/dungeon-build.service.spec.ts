@@ -22,6 +22,7 @@ import { SYNC_OBJECTS_PER_TERRAIN } from '@axe/domain/tabletop/map-blocks';
 import { terrainBlocksMovement } from '@axe/domain/tabletop/move/blocked-cells';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -405,6 +406,58 @@ describe('DungeonBuildService', () => {
 
     expect(golem.location.x).toBe(4 * GRID);
     expect(golem.location.y).toBe(4 * GRID);
+  });
+
+  describe('what goes with a member of the party', () => {
+    /** A dragon three cells wide, a mount, with a head and a rider, all standing on another table. */
+    function dragonWithHeadAndRider(): { dragon: GameCharacter; head: GameCharacter; rider: GameCharacter } {
+      const viewed = new GameTable('table-of-sixty');
+      viewed.gridSize = 60;
+      viewed.initialize();
+      TestBed.inject(TableSelecter).viewTableIdentifier = viewed.identifier;
+      const dragon = GameCharacter.create('竜', 3, '');
+      dragon.location = { name: 'table', x: 1000, y: 1000 };
+      dragon.mountable = '1';
+      const head = GameCharacter.create('頭', 1, '');
+      head.location = { name: 'table', x: 1000, y: 1000 };
+      head.ridingOn = dragon.identifier;
+      head.rideSeat = 'part';
+      const rider = GameCharacter.create('騎手', 1, '');
+      rider.location = { name: 'table', x: 1000, y: 1000 };
+      rider.ridingOn = dragon.identifier;
+      return { dragon, head, rider };
+    }
+
+    it('stands its parts and riders on it at the way in, by the dungeon’s cells rather than those in view', async () => {
+      const { dragon, head, rider } = dragonWithHeadAndRider();
+
+      await build({ muster: [{ piece: dragon, cell: { x: 5, y: 5 } }] });
+
+      expect([dragon.location.x, dragon.location.y]).toEqual([4 * GRID, 4 * GRID]);
+      expect([head.location.x, head.location.y]).toEqual([5 * GRID, 5 * GRID]);
+      expect([rider.location.x, rider.location.y]).toEqual([5 * GRID, 5 * GRID]);
+    });
+
+    it('brings the parts put away with it out with it', async () => {
+      const { dragon, head } = dragonWithHeadAndRider();
+      dragon.location = { name: 'common', x: 0, y: 0 };
+      head.location = { name: 'common', x: 0, y: 0 };
+
+      await build({ muster: [{ piece: dragon, cell: { x: 5, y: 5 } }] });
+
+      expect(head.location).toMatchObject({ name: 'table', x: 5 * GRID, y: 5 * GRID });
+    });
+
+    it('takes those riding it off the board it stood on with them, onto the dungeon’s floor', async () => {
+      const { dragon, rider } = dragonWithHeadAndRider();
+      dragon.location = { name: 'table', x: 40, y: 40, surface: 'a-board' };
+      rider.location = { name: 'table', x: 40, y: 40, surface: 'a-board' };
+
+      await build({ muster: [{ piece: dragon, cell: { x: 5, y: 5 } }] });
+
+      expect(rider.location.surface).toBeUndefined();
+      expect([rider.location.x, rider.location.y]).toEqual([5 * GRID, 5 * GRID]);
+    });
   });
 
   it('leaves every piece alone where no party was asked for', async () => {

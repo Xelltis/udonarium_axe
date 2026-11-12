@@ -139,7 +139,7 @@ describe('MultiMovableService', () => {
     service.register(follower);
     service.register(note);
     selection.replaceSelection(['board', dragon.identifier, 'note']);
-    const carry = vi.spyOn(TestBed.inject(PieceLinksService), 'carryBoundAll').mockImplementation(() => undefined);
+    const carry = vi.spyOn(TestBed.inject(PieceLinksService), 'carryBoundAll').mockReturnValue([]);
 
     try {
       service.beginDrag(leader);
@@ -199,7 +199,7 @@ describe('MultiMovableService', () => {
     service.register(leader);
     service.register(follower);
     selection.replaceSelection(['leader', dragon.identifier]);
-    const carry = vi.spyOn(TestBed.inject(PieceLinksService), 'carryBoundAll').mockImplementation(() => undefined);
+    const carry = vi.spyOn(TestBed.inject(PieceLinksService), 'carryBoundAll').mockReturnValue([]);
 
     try {
       service.beginDrag(leader);

@@ -161,27 +161,35 @@ export class PieceLinksService {
 
   /**
    * Brings along what goes where each of several pieces goes, as {@link carryBound} does for one,
-   * the bonds of the room read once for them all and every move told together.
+   * the bonds of the room read once for them all and every move told together. Answers the pieces
+   * brought along. Stood by the cells of the table in view, or `cellPx` across where given, as for a
+   * table not yet looked at.
    */
-  carryBoundAll(anchors: readonly GameCharacter[]): void {
-    if (anchors.length < 1) return;
+  carryBoundAll(anchors: readonly GameCharacter[], cellPx?: number): GameCharacter[] {
+    if (anchors.length < 1) return [];
     const onTable = this.objectStore.getObjects<GameCharacter>(GameCharacter).filter((piece) => piece.isVisibleOnTable);
     const bonds = onTable.map((piece) => this.bondOf(piece));
+    const carried = new Set<GameCharacter>();
     GameObject.batch(() => {
       for (const anchor of anchors) {
         const below = new Set(boundBelow(anchor.identifier, bonds));
         for (const piece of onTable) {
           if (!below.has(piece.identifier) || piece.heldFast === '1') continue;
-          this.standAt(piece, anchor);
+          this.standAt(piece, anchor, cellPx);
           piece.update();
+          carried.add(piece);
         }
       }
     });
+    return [...carried];
   }
 
-  /** Puts a piece's middle on another's, whatever the two sizes. */
-  standAt(piece: GameCharacter, at: GameCharacter): void {
-    const gridSize = this.tableSelecter.viewTable?.gridSize ?? 50;
+  /**
+   * Puts a piece's middle on another's, whatever the two sizes, by the cells of the table in view, or
+   * `cellPx` across where given.
+   */
+  standAt(piece: GameCharacter, at: GameCharacter, cellPx?: number): void {
+    const gridSize = cellPx ?? this.tableSelecter.viewTable?.gridSize ?? 50;
     const offset = pieceCentreOffsetPx(at, gridSize) - pieceCentreOffsetPx(piece, gridSize);
     piece.location.x = at.location.x + offset;
     piece.location.y = at.location.y + offset;
