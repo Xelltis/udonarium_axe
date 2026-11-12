@@ -93,6 +93,11 @@ export interface MovableOption {
    * is. Read each time the piece is pressed.
    */
   readonly footprint?: () => PieceFootprint;
+  /**
+   * Whether the piece is set to be put down wherever it is let go, off the table's grid whatever the
+   * table snaps to, as a range set to be placed freely. Read each time the piece is let go.
+   */
+  readonly freeOfGrid?: () => boolean;
 }
 
 @Directive({
@@ -222,13 +227,22 @@ export class MovableDirective implements MovableInteractionContext {
   /**
    * Whether a piece let go of snaps to the grid of the table being viewed.
    *
-   * Follows the table's setting, on when there is no table; never for a piece stuck to a board.
+   * Follows the table's setting, on when there is no table; never for a piece stuck to a board, nor
+   * for one set to be put down freely moved alone. One set so that leads others in a group drag is
+   * snapped as they are, which follow it by as much as it moves and would be left off the grid.
    */
   get isGridSnap(): boolean {
     // A board is not ruled into squares. What is stuck to one keeps the spot it was put on
     // it, the way a sticker does, rather than jumping to the nearest line of the table.
     if (this.tabletopObject && boardSurfaceOf(this.tabletopObject)) return false;
+    if (this.option().freeOfGrid?.() && !this.leadsGroup()) return false;
     return this.tableSelecter.viewTable?.gridSnap ?? true;
+  }
+
+  /** Whether the piece leads others in a group drag now. */
+  private leadsGroup(): boolean {
+    const identifier = this.tabletopObject?.identifier ?? '';
+    return this.multiMovableService.followerTabletopObjectsFor(identifier).length > 0;
   }
 
   constructor() {

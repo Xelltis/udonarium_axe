@@ -298,6 +298,7 @@ export class RangeComponent {
         return { x: snapXY, y: snapXY };
       },
       footprint: () => ({ width: this.gridSize, height: this.gridSize }),
+      freeOfGrid: (range) => range.placesFreely,
       turnsAbout: () => this.turnPoint(),
     });
     afterNextRender(() => {

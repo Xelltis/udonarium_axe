@@ -127,6 +127,29 @@ describe('RangeArea', () => {
       expect(saved).not.toContain('DIAMOND');
     });
 
+    it('reads free placement as it was saved, off where it was never saved, and off from the text false a version that does not know it passes on', () => {
+      const free = RangeArea.create('test', 1, 1, 50);
+      free.placesFreely = true;
+      const saved = free.toXml();
+      const parse = (xml: string) => ObjectSerializer.instance.parseXml(xml) as RangeArea;
+
+      expect(saved).toContain('freePlacement="true"');
+      expect(parse('<range type="CORN"></range>').placesFreely).toBe(false);
+      expect(parse('<range type="CORN" freePlacement="false"></range>').placesFreely).toBe(false);
+      expect(parse('<range type="CORN" freePlacement="true"></range>').placesFreely).toBe(true);
+      const told = RangeArea.create('test', 1, 1, 50);
+      (told as unknown as { freePlacement: unknown }).freePlacement = 'false';
+      expect(told.placesFreely).toBe(false);
+    });
+
+    it('never places a shape of its own cells freely, as they keep to the cell its point is in', () => {
+      const range = RangeArea.create('test', 1, 1, 50);
+      range.placesFreely = true;
+      range.type = 'CUSTOM';
+
+      expect(range.placesFreely).toBe(false);
+    });
+
     it('reads a square saved turned an eighth as that turned square', () => {
       const range = ObjectSerializer.instance.parseXml('<range type="SQUARE" rotate="45"></range>') as RangeArea;
 

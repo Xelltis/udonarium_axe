@@ -72,6 +72,18 @@ export function buildRangeContextMenuModel(
     onChanged: () => inventoryService.notifyInventoryUpdate(),
   });
   const lockAction = buildLockToggleAction(range.isLock, (next) => (range.isLock = next), t);
+  const freeActions: ContextMenuAction[] =
+    range.type === 'CUSTOM'
+      ? []
+      : [
+          {
+            name: (range.placesFreely ? '✔ ' : '') + t('feature.tabletop.contextMenu.freePlacement'),
+            action: () => {
+              range.placesFreely = !range.placesFreely;
+              SoundEffect.play(range.placesFreely ? PresetSound.unlock : PresetSound.lock);
+            },
+          },
+        ];
   const followAction = buildFollowAction(range, objectStore, onDockingWindowOpen, t);
   const shapeAction = buildShapeAction(range, t);
   const customActions = buildCustomActions(range, onEditCells, t);
@@ -107,7 +119,7 @@ export function buildRangeContextMenuModel(
     subActions: createMenu.menuAt(objectPosition),
   };
 
-  const positionActions = [altitudeAction, lockAction, ...(followAction ? [followAction] : [])];
+  const positionActions = [altitudeAction, lockAction, ...freeActions, ...(followAction ? [followAction] : [])];
   const shapeActions = [shapeAction, ...customActions, ...targetActions];
   const actions: ContextMenuAction[] = [
     ...positionActions,

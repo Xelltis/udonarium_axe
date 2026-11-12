@@ -35,8 +35,29 @@ export class RangeArea extends TabletopObject {
   @SyncVar() cellPattern: string = '';
   @SyncVar() customGridType: string = '';
   @SyncVar() isRotatable: boolean = false;
+  /**
+   * Whether it is put down wherever it is let go, off the table's grid whatever the table snaps to;
+   * read through {@link placesFreely}.
+   */
+  @SyncVar() freePlacement: boolean = false;
   /** The hotbar slot that laid this out, so the same slot can take it down again later. */
   @SyncVar() laidByHotbarSlot: string = '';
+
+  /**
+   * Whether it is put down wherever it is let go, as {@link freePlacement} is set: true alone, or the
+   * text a version that does not know the field passes on, so that `false` passed on as text is not
+   * taken to be set. A shape of its own cells never is, as they keep to the cell its point is in.
+   */
+  get placesFreely(): boolean {
+    if (this.type === 'CUSTOM') return false;
+    const set: unknown = this.freePlacement;
+    return set === true || set === 'true';
+  }
+
+  /** Sets it to be put down wherever it is let go, or not; see {@link placesFreely}. */
+  set placesFreely(free: boolean) {
+    this.freePlacement = free;
+  }
 
   /**
    * The range's shape: `LINE`, `CORN`, `TRIANGLE`, `SQUARE`, `RHOMBUS` (the diamond: the cells a
