@@ -57,7 +57,8 @@ export function groundGeometry(ground: GroundMesh): BufferGeometry {
 
 /**
  * The same mesh lifted a little off the ground, with a picture laid over the box given rather than
- * the board's: as the grid, drawn over the ground it follows.
+ * the board's: as the grid, drawn over the ground it follows, or a range, over the ground's mesh cut
+ * to its box.
  */
 export function gridOverGround(
   ground: GroundMesh,
@@ -65,47 +66,6 @@ export function gridOverGround(
   liftPx: number
 ): BufferGeometry {
   return overGround(ground, liftPx, box);
-}
-
-/**
- * The part of the ground's mesh that reaches over a box, lifted off the ground by as much, with a
- * picture laid over the box: what of the board a sheet lying over the ground covers, as a range does,
- * rather than the whole of it. Its triangles reaching past the box show the picture's edge.
- */
-export function boxOverGround(
-  ground: GroundMesh,
-  box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
-  liftPx: number
-): BufferGeometry {
-  const right = box.x + box.width;
-  const bottom = box.y + box.height;
-  const kept = new Map<number, number>();
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  const triangles: number[] = [];
-  const corner = (index: number): number => {
-    const known = kept.get(index);
-    if (known !== undefined) return known;
-    const [x, y, z] = [ground.points[index * 3], ground.points[index * 3 + 1], ground.points[index * 3 + 2]];
-    positions.push(x, z + liftPx, y);
-    uvs.push((x - box.x) / box.width, 1 - (y - box.y) / box.height);
-    kept.set(index, kept.size);
-    return kept.size - 1;
-  };
-  for (let at = 0; at + 2 < ground.triangles.length; at += 3) {
-    const indices = [ground.triangles[at], ground.triangles[at + 1], ground.triangles[at + 2]];
-    const xs = indices.map((index) => ground.points[index * 3]);
-    const ys = indices.map((index) => ground.points[index * 3 + 1]);
-    if (Math.max(...xs) < box.x || Math.min(...xs) > right || Math.max(...ys) < box.y || Math.min(...ys) > bottom) {
-      continue;
-    }
-    triangles.push(...indices.map(corner));
-  }
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(new BufferAttribute(new Uint32Array(triangles), 1));
-  return geometry;
 }
 
 function overGround(

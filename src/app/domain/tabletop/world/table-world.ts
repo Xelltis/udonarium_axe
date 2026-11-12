@@ -55,6 +55,8 @@ export interface TableWorldBoard {
    * lifted to the ice wherever water is frozen over it; null where that is flat.
    */
   readonly floorGround: GroundMesh | null;
+  /** The ground what is laid on the floor lies over, as {@link floorGround} is drawn from, flat or not. */
+  readonly floorSurface: GroundSurface;
 }
 
 /**
@@ -246,6 +248,7 @@ export function tableWorldOf(
       veiled: !laidUnder,
       ground: groundMesh,
       floorGround: standing === ground ? groundMesh : meshOf(standing),
+      floorSurface: standing,
     },
     ...facesOf(table, terrains, pictureOf, coverOf, standing),
     sprites: [],

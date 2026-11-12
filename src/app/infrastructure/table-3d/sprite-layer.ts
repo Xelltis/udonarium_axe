@@ -1,4 +1,6 @@
-import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
+import type { GridType } from '@axe/domain/tabletop/grid-type';
+import type { GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
+import { groundMeshOver } from '@axe/domain/tabletop/world/ground-mesh';
 import { lyingDrawOrder } from '@axe/domain/tabletop/world/lying-order';
 import {
   type EyeAxes,
@@ -6,7 +8,7 @@ import {
   type TableWorldLook,
   type TableWorldSprite,
 } from '@axe/domain/tabletop/world/table-sprites';
-import { boxOverGround } from '@axe/infrastructure/table-3d/face-geometry';
+import { gridOverGround } from '@axe/infrastructure/table-3d/face-geometry';
 import { forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
@@ -87,6 +89,13 @@ function turnToEye(mesh: Mesh, sprite: TableWorldSprite, eye: EyeAxes): void {
   mesh.quaternion.setFromRotationMatrix(turnAlong(across, down));
 }
 
+/** The raised ground of the floor, and how the table's cells are laid, which a sprite following it is laid over. */
+export interface DrapedFloor {
+  readonly surface: GroundSurface;
+  readonly gridSize: number;
+  readonly gridType: GridType;
+}
+
 interface Drawn {
   readonly mesh: Mesh;
   readonly look: string;
@@ -111,7 +120,7 @@ export class SpriteLayer {
   private facingEye: readonly { readonly mesh: Mesh; readonly sprite: TableWorldSprite }[] = [];
   private eye: EyeAxes | null = null;
   /** The raised ground of the floor a sprite that follows it lies over, or null where the floor is flat. */
-  private ground: GroundMesh | null = null;
+  private floor: DrapedFloor | null = null;
   private groundGeneration = 0;
 
   constructor(
@@ -123,9 +132,19 @@ export class SpriteLayer {
    * Lays the sprites that follow the ground over the floor's raised ground from the next time they are
    * laid out, or flat again where there is none.
    */
-  setGround(ground: GroundMesh | null): void {
-    if (ground === this.ground) return;
-    this.ground = ground;
+  setGround(floor: DrapedFloor | null): void {
+    const was = this.floor;
+    if (floor === was) return;
+    if (
+      floor &&
+      was &&
+      floor.surface === was.surface &&
+      floor.gridSize === was.gridSize &&
+      floor.gridType === was.gridType
+    ) {
+      return;
+    }
+    this.floor = floor;
     this.groundGeneration++;
   }
 
@@ -189,13 +208,14 @@ export class SpriteLayer {
   }
 
   /**
-   * Lays a sprite that follows the ground over the floor's raised ground, on the part of the ground's
-   * mesh its box reaches, made anew only as the ground, its box or its lift changes; or back on the
-   * square it is otherwise laid on. Answers whether it lies over the ground.
+   * Lays a sprite that follows the ground over the floor's raised ground, on the ground's mesh cut to
+   * its box, on the board and off it alike, made anew only as the ground, its box or its lift changes;
+   * or back on the square it is otherwise laid on. Answers whether it lies over the ground.
    */
   private drape(drawn: Drawn, sprite: TableWorldSprite): boolean {
     const mesh = drawn.mesh;
-    if (!sprite.drapes || !this.ground) {
+    const floor = this.floor;
+    if (!sprite.drapes || !floor) {
       if (drawn.draped) {
         drawn.draped.geometry.dispose();
         drawn.draped = undefined;
@@ -212,7 +232,8 @@ export class SpriteLayer {
     const key = `${this.groundGeneration}|${box.x}|${box.y}|${box.width}|${box.height}|${sprite.drapes.liftPx}`;
     if (drawn.draped?.key !== key) {
       drawn.draped?.geometry.dispose();
-      drawn.draped = { key, geometry: boxOverGround(this.ground, box, sprite.drapes.liftPx) };
+      const ground = groundMeshOver(box, floor.surface, floor.gridSize, floor.gridType);
+      drawn.draped = { key, geometry: gridOverGround(ground, box, sprite.drapes.liftPx) };
       mesh.geometry = drawn.draped.geometry;
     }
     mesh.position.set(0, 0, 0);

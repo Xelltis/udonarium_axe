@@ -1,6 +1,12 @@
+import { GridType } from '@axe/domain/tabletop/grid-type';
 import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
-import { hexGroundMesh, squareGroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
+import {
+  type GroundMesh,
+  groundMeshOver,
+  hexGroundMesh,
+  squareGroundMesh,
+} from '@axe/domain/tabletop/world/ground-mesh';
 
 const GRID = 50;
 
@@ -9,6 +15,30 @@ function hill() {
   const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
   heights[1 * GROUND_CHUNK_SAMPLES + 1] = 64;
   return groundSurfaceOf([{ cx: 0, cy: 0, heights, paint: null }]);
+}
+
+/** How much of the floor a mesh's triangles cover together, seen from above, each counted every time it is covered. */
+function coveredArea(mesh: GroundMesh): number {
+  let area = 0;
+  for (let at = 0; at < mesh.triangles.length; at += 3) {
+    const [a, b, c] = [mesh.triangles[at], mesh.triangles[at + 1], mesh.triangles[at + 2]].map((point) => [
+      mesh.points[point * 3],
+      mesh.points[point * 3 + 1],
+    ]);
+    area += Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])) / 2;
+  }
+  return area;
+}
+
+/** Whether every point of a mesh lies in a box. */
+function liesIn(mesh: GroundMesh, box: { x: number; y: number; width: number; height: number }): boolean {
+  for (let at = 0; at < mesh.points.length; at += 3) {
+    const [x, y] = [mesh.points[at], mesh.points[at + 1]];
+    if (x < box.x - 1e-6 || x > box.x + box.width + 1e-6 || y < box.y - 1e-6 || y > box.y + box.height + 1e-6) {
+      return false;
+    }
+  }
+  return true;
 }
 
 describe('the board laid over raised ground', () => {
@@ -79,5 +109,49 @@ describe('the board laid over raised ground', () => {
     );
 
     expect([...mesh.paint!.subarray(0, 4)]).toEqual([0.75, 0.25, 0, 0]);
+  });
+
+  it('covers a box reaching off a square board once, on the ground the board is drawn over and flat off it', () => {
+    const ground = hill();
+    const box = { x: -30, y: 10, width: 80, height: 40 };
+
+    const mesh = groundMeshOver(box, ground, GRID, GridType.SQUARE);
+
+    expect(coveredArea(mesh)).toBeCloseTo(box.width * box.height, 6);
+    expect(liesIn(mesh, box)).toBe(true);
+    for (let at = 0; at < mesh.points.length; at += 3) {
+      const [x, y, z] = [mesh.points[at], mesh.points[at + 1], mesh.points[at + 2]];
+      expect(z).toBeCloseTo(ground.heightAt(x / GRID, y / GRID) * GRID, 3);
+    }
+    expect(Math.max(...mesh.points.filter((_, at) => at % 3 === 2))).toBeCloseTo(GRID);
+    expect(mesh.uvs[0]).toBeGreaterThanOrEqual(0);
+    expect(mesh.uvs[0]).toBeLessThanOrEqual(1);
+  });
+
+  it('lays the same points as the board’s ground where a box lies on a square board', () => {
+    const ground = hill();
+    const board = squareGroundMesh({ x: 0, y: 0, width: 100, height: 100 }, ground, GRID);
+    const onBoard = new Set<string>();
+    for (let at = 0; at < board.points.length; at += 3) {
+      onBoard.add([board.points[at], board.points[at + 1], board.points[at + 2]].join());
+    }
+
+    const mesh = groundMeshOver({ x: 0, y: 0, width: 50, height: 50 }, ground, GRID, GridType.SQUARE);
+
+    for (let at = 0; at < mesh.points.length; at += 3) {
+      expect(onBoard.has([mesh.points[at], mesh.points[at + 1], mesh.points[at + 2]].join())).toBe(true);
+    }
+  });
+
+  it.each([
+    ['flat-topped', GridType.HEX_VERTICAL],
+    ['pointy-topped', GridType.HEX_HORIZONTAL],
+  ])('covers a box reaching off a %s hex board once, its cells not lying over each other', (_name, gridType) => {
+    const box = { x: -40, y: -20, width: 120, height: 90 };
+
+    const mesh = groundMeshOver(box, hill(), GRID, gridType);
+
+    expect(coveredArea(mesh)).toBeCloseTo(box.width * box.height, 3);
+    expect(liesIn(mesh, box)).toBe(true);
   });
 });
