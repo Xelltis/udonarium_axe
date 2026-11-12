@@ -46,6 +46,9 @@ import {
 /** The name the memo kept with a piece goes by, as another fork names it. */
 const INNER_NOTE_NAME = 'inner-note';
 
+/** How deep a body is in moving its parts along with it, which then stand where they stood on it. */
+let carriedAlong = 0;
+
 @SyncObject('character')
 export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() owner: string = '';
@@ -423,22 +426,35 @@ export class GameCharacter extends OwnedTabletopObject {
   /**
    * Moves the piece to a named place, and its parts that stood where it stood with it, so a creature
    * of many parts leaves the table, is put away or out of sight, and comes back, whole. A part brought
-   * on its own to where its body stands is stood on its body, where it is drawn as, rather than where
-   * it was left when the body moved on without it.
+   * on its own to where its body stands stands where it stood on its body as it left, rather than
+   * where it was left when the body moved on without it.
    */
   override setLocation(location: string): void {
     const moves = location !== this.location.name;
     const parts = moves ? this.partsAlong() : [];
+    const body = moves && this.isWrittenAsPart && carriedAlong === 0 ? ObjectStore.instance.get(this.ridingOn) : null;
+    if (body instanceof GameCharacter && body.location.name === this.location.name) {
+      this.standingOnBody = { x: this.location.x - body.location.x, y: this.location.y - body.location.y };
+    }
     super.setLocation(location);
-    for (const part of parts) part.setLocation(location);
-    if (moves && this.isWrittenAsPart) {
-      const body = ObjectStore.instance.get(this.ridingOn);
-      if (body instanceof GameCharacter && body.location.name === location) {
-        this.location.x = body.location.x;
-        this.location.y = body.location.y;
-      }
+    carriedAlong++;
+    try {
+      for (const part of parts) part.setLocation(location);
+    } finally {
+      carriedAlong--;
+    }
+    if (body instanceof GameCharacter && body.location.name === location) {
+      const offset = this.standingOnBody ?? { x: 0, y: 0 };
+      this.location.x = body.location.x + offset.x;
+      this.location.y = body.location.y + offset.y;
     }
   }
+
+  /**
+   * Where a part stood on its body as it was last moved away from it on its own, kept on this screen
+   * alone, so that brought back on its own it stands there again.
+   */
+  private standingOnBody: { x: number; y: number } | null = null;
 
   /** Takes the piece out of the room, and its parts that stood where it stood with it. */
   override destroy(): void {

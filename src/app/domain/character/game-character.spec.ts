@@ -74,10 +74,12 @@ describe('GameCharacter', () => {
       expect(arm.partsAlong()).toEqual([]);
     });
 
-    it('stands a part brought back on its own on its body, which moved on without it', () => {
+    it('stands a part brought back on its own where it stood on its body, which moved on without it', () => {
       const body = GameCharacter.create('竜', 3, '');
       body.setLocation('table');
       const arm = partOf(body);
+      arm.location.x = body.location.x + 50;
+      arm.location.y = body.location.y + 50;
       arm.setLocation('common');
       body.location.x = 400;
       body.location.y = 250;
@@ -85,7 +87,20 @@ describe('GameCharacter', () => {
       arm.setLocation('table');
 
       expect(arm.isWrittenAsPart).toBe(true);
-      expect([arm.location.x, arm.location.y]).toEqual([400, 250]);
+      expect([arm.location.x, arm.location.y]).toEqual([450, 300]);
+    });
+
+    it('leaves a part moved along with its body where it stood', () => {
+      const body = GameCharacter.create('竜', 3, '');
+      body.setLocation('table');
+      const arm = partOf(body);
+      arm.location.x = 150;
+      arm.location.y = 120;
+
+      body.setLocation('graveyard');
+      body.setLocation('table');
+
+      expect([arm.location.x, arm.location.y]).toEqual([150, 120]);
     });
 
     it('takes the parts standing with it out of the room with it', () => {
