@@ -294,6 +294,9 @@ export class MovableDirective implements MovableInteractionContext {
       set posY(v: number) {
         self.posY = v;
       },
+      commitPosition() {
+        self.commitPosition();
+      },
     };
     this.multiMovableService.register(this._multiAdapter);
   }

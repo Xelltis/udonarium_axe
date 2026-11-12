@@ -113,6 +113,20 @@ describe('MultiMovableService', () => {
     expect(followers.map((o) => o.identifier)).toEqual(['f1', 'f2']);
   });
 
+  it('writes each follower where it stands before listing it, for a put down to read', () => {
+    const leader = makeMovable({ id: 'leader' });
+    const f1 = { ...makeMovable({ id: 'f1' }), commitPosition: vi.fn() };
+    service.register(leader);
+    service.register(f1);
+    selection.replaceSelection(['leader', 'f1']);
+    service.beginDrag(leader);
+
+    expect(service.settledFollowersFor('other')).toEqual([]);
+    expect(f1.commitPosition).not.toHaveBeenCalled();
+    expect(service.settledFollowersFor('leader').map((o) => o.identifier)).toEqual(['f1']);
+    expect(f1.commitPosition).toHaveBeenCalledTimes(1);
+  });
+
   it('lists nothing for another leader or after the drag', () => {
     const leader = makeMovable({ id: 'leader' });
     const f1 = makeMovable({ id: 'f1' });

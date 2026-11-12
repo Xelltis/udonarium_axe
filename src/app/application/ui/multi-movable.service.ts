@@ -8,6 +8,8 @@ export interface MovableLike {
   readonly tabletopObject: TabletopObject | undefined;
   posX: number;
   posY: number;
+  /** Writes where it stands to its object now, rather than when it next would; none for one that writes at once. */
+  commitPosition?(): void;
 }
 
 interface FollowerSnapshot {
@@ -96,6 +98,17 @@ export class MultiMovableService {
   endDrag(leader: MovableLike): void {
     if (this.leaderId !== leader.identifier) return;
     this.clear();
+  }
+
+  /**
+   * The objects following a leader in the current group drag, as {@link followerTabletopObjectsFor}
+   * lists them, each written where it now stands first, so what reads them as the drag is let go of
+   * reads where they were let go.
+   */
+  settledFollowersFor(leaderIdentifier: string): readonly TabletopObject[] {
+    if (!leaderIdentifier || this.leaderId !== leaderIdentifier) return [];
+    for (const f of this.followers) f.ref.commitPosition?.();
+    return this.followerTabletopObjectsFor(leaderIdentifier);
   }
 
   /**

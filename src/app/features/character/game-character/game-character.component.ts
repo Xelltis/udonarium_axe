@@ -45,6 +45,7 @@ import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.servi
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
@@ -268,6 +269,7 @@ export class GameCharacterComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly engagementZones = inject(EngagementZoneService);
   private readonly links = inject(PieceLinksService);
+  private readonly multiMovable = inject(MultiMovableService);
   private readonly ride = inject(RideService);
   private readonly parts = inject(PiecePartsService);
   private readonly partPick = inject(PiecePartPickService);
@@ -1685,13 +1687,17 @@ export class GameCharacterComponent {
   private putDownPending = false;
 
   /**
-   * Settles where a piece was put down: those it carries come along, it gets off a mount it was put
-   * down off, its put-down triggers fire, and a fight or a seat on a mount where it stands is offered.
+   * Settles where a piece was put down: those it carries come along, and those the pieces moved with
+   * it in a selection carry, it gets off a mount it was put down off, its put-down triggers fire, and
+   * a fight or a seat on a mount where it stands is offered.
    */
   private settlePutDown() {
     const character = this.gameCharacter();
     if (!character) return;
     this.links.carryBound(character);
+    for (const follower of this.multiMovable.settledFollowersFor(character.identifier)) {
+      if (follower instanceof GameCharacter) this.links.carryBound(follower);
+    }
     this.ride.afterPutDown(character);
     this.triggerFire.putDown(character);
     this.engagementZones.offerFight(character);

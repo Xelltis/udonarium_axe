@@ -13,6 +13,7 @@ import { GroundService } from '@axe/application/tabletop/ground.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
@@ -21,6 +22,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
@@ -47,6 +49,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { GameCharacterMenuService } from '@axe/features/character/game-character/game-character-menu.service';
@@ -691,6 +694,31 @@ describe('GameCharacterComponent', () => {
       table.gridSnapStyle = GridSnapStyle.GRID;
 
       expect(letGoAt(50, 50, 2)).toEqual({ x: 100, y: 100 });
+    });
+  });
+
+  describe('putting a piece down', () => {
+    it('brings along what the pieces moved with it in a selection carry, each where it was let go', () => {
+      const character = GameCharacter.create('先頭', 1, '');
+      const dragon = GameCharacter.create('竜', 3, '');
+      const goblin = new Terrain();
+      fixture.componentRef.setInput('gameCharacter', character);
+      fixture.detectChanges();
+      const settled = vi
+        .spyOn(TestBed.inject(MultiMovableService), 'settledFollowersFor')
+        .mockReturnValue([dragon, goblin]);
+      const carry = vi.spyOn(TestBed.inject(PieceLinksService), 'carryBound');
+
+      try {
+        component.onPutDown();
+        component.onLetGo();
+
+        expect(settled).toHaveBeenCalledWith(character.identifier);
+        expect(carry.mock.calls.map(([piece]) => piece)).toEqual([character, dragon]);
+      } finally {
+        character.destroy();
+        dragon.destroy();
+      }
     });
   });
 
