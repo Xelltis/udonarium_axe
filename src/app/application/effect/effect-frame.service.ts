@@ -122,6 +122,8 @@ export class EffectFrameService {
   private footingOf(identifier: string, cellPx: number): EffectFooting | null {
     const object = this.objectStore.get<TabletopObject>(identifier);
     if (!(object instanceof TabletopObject) || !object.isVisibleOnTable) return null;
+    // A piece out of the reader's sight is not followed, or where it goes while the look plays would show.
+    if (object instanceof GameCharacter && !this.vision.isTokenVisible(object)) return null;
     const half = (cellPx * this.sizeOf(identifier)) / 2;
     const foot = this.pieces.footOf(object);
     const onFloor = foot.surface === 'floor';
