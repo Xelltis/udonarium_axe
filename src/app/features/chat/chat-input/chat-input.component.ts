@@ -744,10 +744,13 @@ export class ChatInputComponent {
   protected readonly hasText = computed(() => this._text().length > 0);
   /**
    * Whether the box holds what was put into it from outside, as a palette's line picked, rather than
-   * what is typed in it since. A palette's box then keeps its height, so that the list under it holds
-   * still; what is typed grows it as before.
+   * what is typed in it since. A palette's box then keeps the height it had as the line came in, so
+   * that the list under it holds still; what is typed grows it as before.
    */
   protected readonly putIn = signal(true);
+  /** The height a palette's box is held at while it holds a line put into it; null to fit its line. */
+  protected readonly heldHeight = signal<number | null>(null);
+  private readonly richBox = viewChild<ElementRef<HTMLElement>>('richBox');
   /** The line last told through `textChange`, which coming back in is not one put in from outside. */
   private told: string | null = null;
   /** The line being written; setting it reports through `textChange`. */
@@ -757,6 +760,7 @@ export class ChatInputComponent {
   set text(text: string) {
     this._text.set(text);
     this.told = text;
+    if (text.length < 1) this.heldHeight.set(null);
     this.textChange.emit(text);
   }
 
@@ -852,7 +856,10 @@ export class ChatInputComponent {
     effect(() => {
       const incoming = this.textInput();
       untracked(() => {
-        if (incoming !== this.told) this.putIn.set(true);
+        if (incoming === this.told) return;
+        this.putIn.set(true);
+        const box = this.richBox()?.nativeElement;
+        this.heldHeight.set(this.dense() && incoming.length > 0 && box ? box.offsetHeight || null : null);
       });
     });
     effect(() => {
@@ -1175,7 +1182,7 @@ export class ChatInputComponent {
    * whisper only notifies the peer being whispered to.
    */
   onInput() {
-    this.putIn.set(false);
+    this.openUp();
     if (this.writingEventInterval === null && this.previousWritingLength <= this.text.length) {
       let sendTo: string | undefined;
       if (this.isDirect) {
@@ -1359,12 +1366,19 @@ export class ChatInputComponent {
     }
   }
 
+  /** Lets a palette's box fit what it holds again, as something is typed in it or it is touched to be. */
+  protected openUp(): void {
+    if (!this.putIn() && this.heldHeight() === null) return;
+    this.putIn.set(false);
+    this.heldHeight.set(null);
+  }
+
   /**
    * Grows or shrinks the box to its content, unless the user has resized it by hand. A palette's box
    * keeps its height while it holds a line picked into it (see {@link putIn}).
    */
   calcFitHeight() {
-    if (this.dense() && this.putIn()) return;
+    if (this.dense() && this.putIn() && this.text.length > 0) return;
     this.textField()?.refit();
   }
 

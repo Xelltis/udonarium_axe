@@ -102,6 +102,23 @@ test.describe('the chat palette', () => {
       await expectChatText(input, text);
       expect(Math.abs((await last.boundingBox())!.y - before)).toBeLessThan(1);
     }
+
+    // Typed over several lines, the box grows; a line picked into it then leaves the list where it
+    // stood, so a double click on it sends it rather than landing on another.
+    await input.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type(`打った行${'い'.repeat(90)}`);
+    const grown = (await last.boundingBox())!.y;
+    expect(grown).toBeGreaterThan(before);
+    await last.click();
+    await expectChatText(input, '2d6+2 回避');
+    expect(Math.abs((await last.boundingBox())!.y - grown)).toBeLessThan(1);
+    await last.dblclick({ delay: 60 });
+    await expect(page.locator('chat-tab chat-message').filter({ hasText: '(2D6+2)' })).toHaveCount(1, {
+      timeout: 15000,
+    });
+    // Sent, the box is empty and one line tall again.
+    await expect.poll(async () => Math.abs((await last.boundingBox())!.y - before)).toBeLessThan(1);
   });
 
   test('sends a line holding {目標値} on a double click, the list holding still as the bar fills', async ({ page }) => {
