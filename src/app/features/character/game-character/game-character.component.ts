@@ -904,7 +904,7 @@ export class GameCharacterComponent {
     event.stopPropagation();
     const part = this.objectStore.get<GameCharacter>(identifier);
     if (!(part instanceof GameCharacter) || this.parts.bodyOf(part) !== this.gameCharacter()) return;
-    this.menu.open(part, { ...this.menuHost, name: () => part.name }, { x: event.clientX, y: event.clientY, z: 0 });
+    this.menu.open(part, this.menuHost, { x: event.clientX, y: event.clientY, z: 0 });
   }
 
   /**
@@ -1407,7 +1407,6 @@ export class GameCharacterComponent {
 
   /** The piece's menu, which a right-click or a right-drag on it opens. */
   private readonly menuHost: GameCharacterMenuHost = {
-    name: () => this.name(),
     buffViewMode: () => this.buffViewMode(),
     setBuffViewMode: (mode) => this.buffViewMode.set(mode),
     bounds: () => this.rootElementRef()?.nativeElement.getBoundingClientRect(),
@@ -1458,7 +1457,7 @@ export class GameCharacterComponent {
 
     const part = this.partPressed(e);
     if (part) {
-      this.menu.open(part, { ...this.menuHost, name: () => part.name }, this.pointerDeviceService.pointers[0]);
+      this.menu.open(part, this.menuHost, this.pointerDeviceService.pointers[0]);
       return;
     }
     this.menu.open(char, this.menuHost, this.pointerDeviceService.pointers[0]);

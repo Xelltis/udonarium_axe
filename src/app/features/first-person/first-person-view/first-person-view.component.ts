@@ -15,7 +15,6 @@ import { PieceNameService } from '@axe/application/character/piece-name.service'
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop/ambience.service';
@@ -251,7 +250,6 @@ export class FirstPersonViewComponent {
   private readonly pieceLinks = inject(PieceLinksService);
   private readonly water = inject(WaterService);
   private readonly ambience = inject(AmbienceService);
-  private readonly rolePermission = inject(RolePermissionService);
   private readonly disclosure = inject(DisclosureService);
   private readonly pieceTarget = inject(PieceTargetService);
   private readonly effectTargeting = inject(EffectTargetingService);

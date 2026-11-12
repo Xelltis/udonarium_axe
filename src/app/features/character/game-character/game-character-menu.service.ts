@@ -60,8 +60,6 @@ interface BattleCutInPanelHandle {
 
 /** What a character's menu reads of the piece as it is drawn on the table. */
 export interface GameCharacterMenuHost {
-  /** The name the piece is shown under, which heads its menu. */
-  name(): string;
   /** How the buffs over the piece are drawn, which its menu switches. */
   buffViewMode(): BuffViewMode;
   setBuffViewMode(mode: BuffViewMode): void;
