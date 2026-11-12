@@ -124,6 +124,7 @@ class Stage implements ModelStage {
       if (gltf) disposeObject(gltf.scene);
       return false;
     }
+    this.clearFaces();
     if (!gltf) {
       this.showcase.letGo();
       this.draw();
@@ -172,16 +173,21 @@ class Stage implements ModelStage {
     return found;
   }
 
-  showFaces(
-    chosen: ReadonlyMap<number, ReadonlySet<number>>,
-    others: readonly ReadonlyMap<number, ReadonlySet<number>>[]
-  ): void {
+  /** Takes off the faces laid over the model, which were laid for the model shown as they were. */
+  private clearFaces(): void {
     for (const shown of this.painted) {
       this.showcase.scene.remove(shown);
       shown.geometry.dispose();
       (shown.material as MeshBasicMaterial).dispose();
     }
     this.painted = [];
+  }
+
+  showFaces(
+    chosen: ReadonlyMap<number, ReadonlySet<number>>,
+    others: readonly ReadonlyMap<number, ReadonlySet<number>>[]
+  ): void {
+    this.clearFaces();
     const meshes = this.showcase.model ? meshesOf(this.showcase.model) : [];
     const lay = (faces: ReadonlyMap<number, ReadonlySet<number>>, colour: number, opacity: number) => {
       const points: number[] = [];
@@ -245,6 +251,7 @@ class Stage implements ModelStage {
     this.disposed = true;
     if (this.frame !== null) cancelAnimationFrame(this.frame);
     this.frame = null;
+    this.clearFaces();
     this.showcase.letGo();
     this.reader.dispose();
     this.renderer.dispose();
