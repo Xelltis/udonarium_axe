@@ -1,3 +1,4 @@
+import { MAX_MODEL_TRIANGLES } from '@axe/core/storage/gltf-facts';
 import { isGaugeSpent, selectPieceGauges } from '@axe/domain/character/piece-gauge';
 import type { DataElement } from '@axe/domain/data/data-element';
 
@@ -145,30 +146,27 @@ export function maskCovers(mask: PartMask, x: number, y: number): boolean {
 export type PartFaces = ReadonlyMap<number, ReadonlySet<number>>;
 
 /**
- * The most triangles a part's faces are read to, all its meshes together: far more than a model a
- * table draws holds, and few enough that a value written to stall whoever reads it cannot.
- */
-const MOST_PART_FACES = 1_000_000;
-
-/**
  * A part's faces of its body's model as written down, each mesh as `mesh:` and its triangles as
- * runs `first-last` or single ones, joined by `,`, the meshes joined by `;`; empty for none. A run
- * missing either end is passed over, and reading stops at {@link MOST_PART_FACES} triangles.
+ * runs `first-last` or single ones, joined by `,`, the meshes joined by `;`; empty for none. No
+ * model a table takes holds more than {@link MAX_MODEL_TRIANGLES} triangles, so a run missing either
+ * end or reaching past that is passed over, and reading stops at that many in all: what any seat
+ * that may change the table writes is read on every seat, and must not stall it.
  */
 export function partFacesOf(written: string): PartFaces {
   const faces = new Map<number, Set<number>>();
-  let left = MOST_PART_FACES;
+  let left = MAX_MODEL_TRIANGLES;
   for (const entry of written.split(';')) {
-    const match = /^(\d+):([\d,-]+)$/.exec(entry.trim());
+    const match = /^(\d{1,6}):([\d,-]+)$/.exec(entry.trim());
     if (!match) continue;
     const triangles = faces.get(Number(match[1])) ?? new Set<number>();
     for (const run of match[2].split(',')) {
       const ends = run.split('-');
-      if (ends.length > 2 || ends.some((end) => end.length < 1)) continue;
-      const [first, last] = ends.map(Number);
-      const end = Math.min(last !== undefined && last >= first ? last : first, first + left - 1);
+      if (ends.length > 2 || ends.some((end) => end.length < 1 || end.length > 7)) continue;
+      const [first, last = first] = ends.map(Number);
+      if (first >= MAX_MODEL_TRIANGLES || last >= MAX_MODEL_TRIANGLES) continue;
+      const end = Math.min(last >= first ? last : first, first + left - 1);
       for (let triangle = first; triangle <= end; triangle++) triangles.add(triangle);
-      left -= Math.max(0, end - first + 1);
+      left -= end - first + 1;
       if (left < 1) break;
     }
     if (triangles.size > 0) faces.set(Number(match[1]), triangles);
