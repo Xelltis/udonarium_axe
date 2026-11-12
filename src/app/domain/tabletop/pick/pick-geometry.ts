@@ -357,8 +357,9 @@ export function hitShape(ray: TableRay, shape: PickShape): PickShapeHit | null {
 
 /**
  * Where the line first comes down onto a sheet following the ground, walked over the stretch of it
- * above the box as a sloping roof is, with how far across and down the box the point lies. A sheet has
- * no sides: a line already under it where it comes over the box meets none of it.
+ * above the box as a sloping roof is, from the eye where the eye is over the box, with how far across
+ * and down the box the point lies. A sheet has no sides: a line already under it where it comes over
+ * the box, or where it leaves the eye, meets none of it.
  */
 function hitDraped(ray: TableRay, shape: PickDraped): PickShapeHit | null {
   const { x, y, width, height } = shape.box;
@@ -371,7 +372,9 @@ function hitDraped(ray: TableRay, shape: PickDraped): PickShapeHit | null {
   ];
   const span = spanInside(ray, { kind: 'prism', outline, base: shape.low, top: shape.high });
   if (!span) return null;
-  const [from, to] = span;
+  const from = Math.max(span[0], ray.from ?? -Infinity);
+  const to = span[1];
+  if (from > to) return null;
   const under = (t: number) => {
     const point = at(ray, t);
     return insideOutline(outline, point.x, point.y) && point.z <= shape.heightAt(point.x, point.y);

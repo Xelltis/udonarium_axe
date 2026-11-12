@@ -135,6 +135,23 @@ describe('pick geometry', () => {
     expect(hitShape({ origin: { x: 120, y: 50, z: 20 }, direction: { x: -1, y: 0, z: 0 } }, sheet)).toBeNull();
   });
 
+  it('meets a sheet over the ground from an eye standing over its box, below the highest of it', () => {
+    const valley: PickDraped = {
+      kind: 'draped',
+      box: { x: 0, y: 0, width: 200, height: 100 },
+      heightAt: (x) => Math.abs(x - 100),
+      low: -1,
+      high: 101,
+    };
+    const upward = { x: 0.8, y: 0, z: 0.6 };
+
+    const hit = hitShape({ origin: { x: 100, y: 50, z: 20 }, direction: upward, from: 0 }, valley);
+
+    expect(hit?.t).toBeCloseTo(100, 3);
+    expect(hit?.point.z).toBeCloseTo(80, 3);
+    expect(hitShape({ origin: { x: 100, y: 50, z: -5 }, direction: upward, from: 0 }, valley)).toBeNull();
+  });
+
   it('takes a point within a little of an outline’s sides as within it', () => {
     const square = [
       { x: 0, y: 0 },
