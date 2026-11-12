@@ -46,6 +46,7 @@ describe('FirstPersonViewComponent', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 

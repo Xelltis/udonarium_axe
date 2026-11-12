@@ -20,6 +20,7 @@ describe('EffectPlaybackService', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     ObjectStore.instance.remove(preset);
   });
 
