@@ -19,6 +19,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { PanelService } from '@axe/application/ui/panel.service';
 import { observeSize } from '@axe/core/util/observe-size';
 import type { GameCharacter } from '@axe/domain/character/game-character';
+import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { InventoryRoundService } from '@axe/features/inventory/inventory-round.service';
 import {
   DOCK_FACE,
@@ -257,34 +258,7 @@ export class InventoryRoundViewComponent {
   constructor() {
     const destroyRef = inject(DestroyRef);
     const page = inject(DOCUMENT);
-    afterNextRender(() => {
-      const box = this.peekBox()?.nativeElement;
-      // Drawn on the page itself, so the panel the turn order stands in neither clips it nor places it.
-      if (box) box.ownerDocument.body.appendChild(box);
-      // Listened for from the first, as the turn order may come only once the first piece joins the round.
-      const view = page.defaultView;
-      if (!view) return;
-      const measure = () => this.measure();
-      view.addEventListener('resize', measure);
-      // The panel is moved by dragging its bar, and the room it leaves is read again once it is let go:
-      // at the next frame, which lays the page out anyway, and only for a press let go of on the panel
-      // the turn order stands in, rather than at every press anywhere on the page.
-      const panel = this.host.nativeElement.closest('ui-panel');
-      const afterDrag = (event: PointerEvent) => {
-        if (panel && event.target instanceof Node && !panel.contains(event.target)) return;
-        view.requestAnimationFrame(measure);
-      };
-      view.addEventListener('pointerup', afterDrag, true);
-      // The presses above it come and go, and the round's number with them, moving where it begins.
-      const head = this.head()?.nativeElement;
-      const stopWatchingHead = head ? observeSize(head, measure) : () => undefined;
-      destroyRef.onDestroy(() => {
-        stopWatchingHead();
-        view.removeEventListener('resize', measure);
-        view.removeEventListener('pointerup', afterDrag, true);
-      });
-    });
-    destroyRef.onDestroy(() => this.peekBox()?.nativeElement.remove());
+    const measure = () => this.measure();
     // A face a touch left drawn out is put away by a press anywhere but on it or on the turn order.
     const letGoOfPinned = (event: Event) => {
       if (!this.pinned()) return;
@@ -296,11 +270,48 @@ export class InventoryRoundViewComponent {
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && this.pinned()) this.hidePeek();
     };
-    page.addEventListener('pointerdown', letGoOfPinned, true);
-    page.addEventListener('keydown', escape);
+    // The panel is moved by dragging its bar, and the room it leaves is read again once it is let go:
+    // at the next frame, which lays the page out anyway, and only for a press let go of on the panel
+    // the turn order stands in, rather than at every press anywhere on the page.
+    const afterDrag = (event: PointerEvent) => {
+      const panel = this.host.nativeElement.closest('ui-panel');
+      if (panel && event.target instanceof Node && !panel.contains(event.target)) return;
+      (event.view ?? page.defaultView)?.requestAnimationFrame(measure);
+    };
+    // Listened for in every window the app draws into, as the panel the turn order stands in may be
+    // taken out into a window of its own and brought back, and from the first, as the turn order may
+    // come only once the first piece joins the round.
+    const listenedTo = new Set<Document>();
+    const listenIn = (doc: Document) => {
+      doc.addEventListener('pointerdown', letGoOfPinned, true);
+      doc.addEventListener('keydown', escape);
+      doc.defaultView?.addEventListener('resize', measure);
+      doc.defaultView?.addEventListener('pointerup', afterDrag, true);
+    };
+    const stopListeningIn = (doc: Document) => {
+      doc.removeEventListener('pointerdown', letGoOfPinned, true);
+      doc.removeEventListener('keydown', escape);
+      doc.defaultView?.removeEventListener('resize', measure);
+      doc.defaultView?.removeEventListener('pointerup', afterDrag, true);
+    };
+    const stopFollowingWindows = AttachedDocuments.onChange((documents) => {
+      const now = new Set([page, ...documents]);
+      for (const doc of listenedTo) if (!now.has(doc)) stopListeningIn(doc);
+      for (const doc of now) if (!listenedTo.has(doc)) listenIn(doc);
+      listenedTo.clear();
+      for (const doc of now) listenedTo.add(doc);
+    });
+    afterNextRender(() => {
+      this.keepPeekBoxBeside();
+      // The presses above it come and go, and the round's number with them, moving where it begins.
+      const head = this.head()?.nativeElement;
+      const stopWatchingHead = head ? observeSize(head, measure) : () => undefined;
+      destroyRef.onDestroy(stopWatchingHead);
+    });
     destroyRef.onDestroy(() => {
-      page.removeEventListener('pointerdown', letGoOfPinned, true);
-      page.removeEventListener('keydown', escape);
+      stopFollowingWindows();
+      for (const doc of listenedTo) stopListeningIn(doc);
+      this.peekBox()?.nativeElement.remove();
     });
     // Laid across, the panel stands as wide as the turn order runs, rather than as the narrow bar.
     const panel = inject(PanelService, { optional: true });
@@ -459,12 +470,23 @@ export class InventoryRoundViewComponent {
     this.hidePeek();
   }
 
+  /**
+   * Draws the box a face is drawn out in on the page the turn order stands on, outside the panel, so
+   * the panel neither clips it nor places it: the page the panel was taken out into, too.
+   */
+  private keepPeekBoxBeside(): void {
+    const box = this.peekBox()?.nativeElement;
+    const page = this.host.nativeElement.ownerDocument;
+    if (box && box.parentNode !== page.body) page.body.appendChild(box);
+  }
+
   private showPeek(key: string | null, by: 'pointer' | 'keys', rect: DOMRect): void {
     const slot = key ? this.layout().slots.find((one) => one.key === key) : undefined;
     if (!key || !slot) {
       this.hidePeek();
       return;
     }
+    this.keepPeekBoxBeside();
     this.peekBy = by;
     this.peekKey.set(key);
     const view = this.strip()?.nativeElement.ownerDocument.defaultView;

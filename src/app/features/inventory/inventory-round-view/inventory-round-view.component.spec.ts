@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { InventoryRoundService } from '@axe/features/inventory/inventory-round.service';
 import { InventoryRoundViewComponent } from '@axe/features/inventory/inventory-round-view/inventory-round-view.component';
 import { DOCK_FACE } from '@axe/features/inventory/inventory-round-view/round-dock';
@@ -249,6 +250,22 @@ describe('InventoryRoundViewComponent', () => {
 
       expect(peek().hidden).toBe(true);
       expect(give()).toBeNull();
+    });
+
+    it('puts it away at a touch or Escape in a window the panel was taken out into', () => {
+      const { fixture, on, press, peek } = render(40, 'p10');
+      const outside = document.implementation.createHTMLDocument('outside');
+      AttachedDocuments.attach(outside);
+      try {
+        press('pointerdown', on('p20'), TOUCH);
+        press('pointerup', on('p20'), TOUCH);
+        outside.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        fixture.detectChanges();
+
+        expect(peek().hidden).toBe(true);
+      } finally {
+        AttachedDocuments.detach(outside);
+      }
     });
   });
 
