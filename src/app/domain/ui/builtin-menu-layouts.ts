@@ -145,14 +145,6 @@ const PL_TOOLBAR: MenuLayout = {
 };
 
 /**
- * How each menu is arranged before anybody has arranged it.
- *
- * A screen that has never been told otherwise draws these, and putting a menu back the way it came
- * writes them again. They are also what the arrangement of a menu is measured against: a screen
- * that has emptied one keeps it empty, since having said nothing and having said none are not the
- * same thing.
- */
-/**
  * The chat tools as they have always stood over a line: the answers people reach for most, the
  * marks they keep, and what the speaker does to their own line.
  */
@@ -167,6 +159,14 @@ const CHAT_TOOLS_ROW: MenuLayout = {
   ],
 };
 
+/**
+ * How each menu is arranged before anybody has arranged it.
+ *
+ * A screen that has never been told otherwise draws these, and putting a menu back the way it came
+ * writes them again. They are also what the arrangement of a menu is measured against: a screen
+ * that has emptied one keeps it empty, since having said nothing and having said none are not the
+ * same thing.
+ */
 export const DEFAULT_MENU_LAYOUTS: MenuLayouts = {
   fab: FAB,
   gmToolbar: GM_TOOLBAR,

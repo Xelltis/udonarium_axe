@@ -153,8 +153,17 @@ export class ChatMessageComponent {
   private readonly drawing = ++linesDrawn;
   private readonly stampPacks = inject(StampPackService);
   private readonly t = inject(TRANSLATE_FN);
-  /** The chat tools as this screen has arranged them. */
-  private readonly chatTools = inject(MenuLayoutService).layoutOf('chatTools');
+  /** The chat tools as this screen has arranged them, each entry with the tool it stands for and its mark. */
+  private readonly chatToolEntries = (() => {
+    const layout = inject(MenuLayoutService).layoutOf('chatTools');
+    return computed(() =>
+      menuItemsOf(layout()).flatMap((node) => {
+        const command = menuCommandOf(node.command);
+        const tool = command && chatToolOf(command);
+        return tool ? [{ node, tool, icon: node.icon ?? command.icon }] : [];
+      })
+    );
+  })();
   private readonly language = inject(LanguageService);
   private readonly uiSignalService = inject(UiSignalService);
   /** The panel this line is being read in, where it is being read in one that can answer. */
@@ -545,12 +554,9 @@ export class ChatMessageComponent {
     const message = this.chatMessage;
     if (!message || this.readOnly() || this.isEditing()) return null;
     const tools: ChatToolButton[] = [];
-    for (const node of menuItemsOf(this.chatTools())) {
-      const command = menuCommandOf(node.command);
-      const tool = command && chatToolOf(command);
-      const button = tool && this.chatToolButton(tool);
-      if (!button) continue;
-      tools.push({ ...button, id: node.id, icon: node.icon ?? command.icon, title: node.label ?? button.title });
+    for (const { node, tool, icon } of this.chatToolEntries()) {
+      const button = this.chatToolButton(tool);
+      if (button) tools.push({ ...button, id: node.id, icon, title: node.label ?? button.title });
     }
     // Asked of every drawn line on every pass, so it is told from these few answers rather than by
     // building the menu: the menu holds at least the words of any line whose words are shown.
