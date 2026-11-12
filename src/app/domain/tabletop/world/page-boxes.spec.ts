@@ -238,7 +238,7 @@ describe('drawnRanks', () => {
     expect(ranks).toEqual({ card: 1, deck: 2 });
   });
 
-  it('leaves where it was a piece standing among cards, and stacks the cards among the places left', () => {
+  it('draws the cards on the ground under a piece standing and a card posted on a wall, and stacks them among themselves', () => {
     const ranks = ranksOf([
       lyingAt('under#face', 400, 0.15),
       sprite('hero#pedestal', { centre: { x: 100, y: 300, z: 0.5 }, facing: ON_FLOOR, order: 0.5 }),
@@ -247,7 +247,33 @@ describe('drawnRanks', () => {
       lyingAt('over#face', 50, 0.16),
     ]);
 
-    expect(ranks).toEqual({ under: 1, over: 2, hero: 3, posted: 4 });
+    expect(ranks).toEqual({ under: 1, over: 2, posted: 3, hero: 4 });
+  });
+
+  it('draws a piece standing on a range over the range, however much nearer the eye the range reaches', () => {
+    const ranks = ranksOf([
+      sprite('range#picture', {
+        centre: { x: 100, y: 300, z: 0.25 },
+        widthPx: 400,
+        heightPx: 400,
+        facing: ON_FLOOR,
+        order: 0.25,
+        drapes: { liftPx: 0.25 },
+      }),
+      sprite('hero#picture', { centre: { x: 100, y: 300, z: 30 } }),
+      lyingAt('flat#face', 450, 0.15),
+    ]);
+
+    expect(ranks).toEqual({ flat: 1, range: 2, hero: 3 });
+  });
+
+  it('draws a card lying on a block’s top among the pieces by how near the eye it reaches', () => {
+    const ranks = ranksOf([
+      sprite('hero#picture', { centre: { x: 100, y: 300, z: 30 } }),
+      lyingAt('raised#face', 350, 50),
+    ]);
+
+    expect(ranks).toEqual({ hero: 1, raised: 2 });
   });
 });
 
