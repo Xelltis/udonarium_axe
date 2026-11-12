@@ -1,6 +1,6 @@
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { GameCharacter, standPartsOnBodiesBy } from '@axe/domain/character/game-character';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { paletteRowsOf, paletteTabsOf } from '@axe/domain/chat/palette-rows';
 import {
   DataElement,
@@ -74,34 +74,33 @@ describe('GameCharacter', () => {
       expect(arm.partsAlong()).toEqual([]);
     });
 
-    it('stands a part coming to where its body stands on it, alone or along with it, before the move is told', () => {
-      const stood: string[] = [];
-      const before = standPartsOnBodiesBy((part, body) => {
-        stood.push(`${part.name}@${part.location.name}`);
-        part.location.x = body.location.x + 25;
-        part.location.y = body.location.y + 25;
-      });
-      try {
-        const body = GameCharacter.create('竜', 3, '');
-        body.setLocation('table');
-        const arm = partOf(body);
-        const leg = partOf(body, 'graveyard');
-        arm.setLocation('common');
-        body.location.x = 400;
-        body.location.y = 250;
+    it('stands a part coming to where its body stands on its middle, alone, along with it or ahead of it', () => {
+      // No table is viewed here, so a cell is 50 pixels wide: a 1-cell part stands 50 in on a 3-cell body.
+      const body = GameCharacter.create('竜', 3, '');
+      body.setLocation('table');
+      const arm = partOf(body);
+      const leg = partOf(body, 'graveyard');
+      arm.setLocation('common');
+      body.location.x = 400;
+      body.location.y = 250;
 
-        arm.setLocation('table');
-        expect([arm.location.x, arm.location.y]).toEqual([425, 275]);
+      arm.setLocation('table');
+      expect([arm.location.x, arm.location.y]).toEqual([450, 300]);
 
-        body.setLocation('graveyard');
-        body.location.x = 100;
-        body.location.y = 100;
-        body.setLocation('table');
-        expect([leg.location.name, leg.location.x, leg.location.y]).toEqual(['table', 125, 125]);
-        expect(stood).toEqual(['腕@common', '腕@table', '腕@graveyard', '腕@graveyard']);
-      } finally {
-        standPartsOnBodiesBy(before);
-      }
+      body.setLocation('graveyard');
+      body.location.x = 100;
+      body.location.y = 100;
+      body.setLocation('table');
+      expect([leg.location.name, leg.location.x, leg.location.y]).toEqual(['table', 150, 150]);
+
+      body.setLocation('common');
+      arm.setLocation('table');
+      arm.location.x = 0;
+      arm.location.y = 0;
+      body.location.x = 600;
+      body.location.y = 600;
+      body.setLocation('table');
+      expect([arm.location.x, arm.location.y]).toEqual([650, 650]);
     });
 
     it('takes the parts standing with it out of the room with it', () => {

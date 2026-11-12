@@ -47,21 +47,29 @@ import {
 const INNER_NOTE_NAME = 'inner-note';
 
 /**
- * How a part is stood on its body, its middle on the body's: set by what knows how wide a cell of the
- * table is (see {@link standPartsOnBodiesBy}); until then, on the body's corner.
+ * How wide a cell of the table being viewed is, in table pixels: read off the room's table selecter
+ * and the table it names by their identifiers, without the classes, which would make the piece
+ * depend on the table and the table, through its lights, on the piece. 50 where there is none yet.
  */
-let standOnBody = (part: GameCharacter, body: GameCharacter): void => {
-  part.location.x = body.location.x;
-  part.location.y = body.location.y;
-};
+function viewedCellPx(): number {
+  const selecter = ObjectStore.instance.get('TableSelecter') as { viewTableIdentifier?: unknown } | null;
+  const table = ObjectStore.instance.get(`${selecter?.viewTableIdentifier ?? ''}`) as { gridSize?: unknown } | null;
+  const cell = Number(table?.gridSize);
+  return cell > 0 ? cell : 50;
+}
 
-/** Sets how a part is stood on its body as it comes to where its body stands, answering how it was before. */
-export function standPartsOnBodiesBy(
-  stand: (part: GameCharacter, body: GameCharacter) => void
-): (part: GameCharacter, body: GameCharacter) => void {
-  const before = standOnBody;
-  standOnBody = stand;
-  return before;
+/** How far a piece's middle is from its corner, in table pixels, across and down alike. */
+function middleOffsetPx(piece: GameCharacter, cellPx: number): number {
+  const size = Number(piece.size);
+  return ((size > 0 ? size : 0) * cellPx) / 2;
+}
+
+/** Stands a part on its body, middle on middle, as a move of the body stands its parts. */
+function standOnBody(part: GameCharacter, body: GameCharacter): void {
+  const cellPx = viewedCellPx();
+  const offset = middleOffsetPx(body, cellPx) - middleOffsetPx(part, cellPx);
+  part.location.x = body.location.x + offset;
+  part.location.y = body.location.y + offset;
 }
 
 @SyncObject('character')
@@ -441,8 +449,9 @@ export class GameCharacter extends OwnedTabletopObject {
   /**
    * Moves the piece to a named place, and its parts that stood where it stood with it, so a creature
    * of many parts leaves the table, is put away or out of sight, and comes back, whole. A part that
-   * comes to where its body stands, along with it or on its own, is stood on its body before the move
-   * is told, so every seat has it where the body is drawn, rather than where it was left.
+   * comes to where its body stands, along with it, on its own or ahead of it, is stood on its body,
+   * middle on middle, before that is told, so every seat has it where the body is drawn, rather than
+   * where it was left.
    */
   override setLocation(location: string): void {
     const moves = location !== this.location.name;
@@ -453,6 +462,13 @@ export class GameCharacter extends OwnedTabletopObject {
     }
     super.setLocation(location);
     for (const part of parts) part.setLocation(location);
+    // Parts that came on ahead of their body, to where it now stands, are stood on it as it comes.
+    if (!moves || this.isWrittenAsPart) return;
+    for (const part of this.partsAlong()) {
+      if (parts.includes(part)) continue;
+      standOnBody(part, this);
+      part.update();
+    }
   }
 
   /** Takes the piece out of the room, and its parts that stood where it stood with it. */
