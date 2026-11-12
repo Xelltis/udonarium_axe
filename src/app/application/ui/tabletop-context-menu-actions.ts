@@ -112,8 +112,13 @@ export function copyBeside<T extends TabletopObject>(obj: T, gridSize: number, a
 }
 
 /**
- * Copies the parts that stand with a piece onto its copy, each set where it stood against the piece,
- * so a creature of many parts is copied whole rather than as a body alone. Nothing for anything else.
+ * Copies the parts that stand with a piece onto its copy, so a creature of many parts is copied whole
+ * rather than as a body alone. Nothing for anything else.
+ *
+ * Each part's copy is set where the part stood against the piece and put where the copy is, stood on
+ * it where it comes there from somewhere else, as from the graveyard a copy is set out from. It is put
+ * there before the next part is copied: the numbering a copy is named by passes over the graveyard, so
+ * parts of one name left there until all were copied would take the same number.
  */
 export function copyPartsAlong(original: TabletopObject, copy: TabletopObject): void {
   if (!(original instanceof GameCharacter) || !(copy instanceof GameCharacter)) return;
@@ -123,7 +128,7 @@ export function copyPartsAlong(original: TabletopObject, copy: TabletopObject): 
     partCopy.location.x = copy.location.x + (part.location.x - original.location.x);
     partCopy.location.y = copy.location.y + (part.location.y - original.location.y);
     part.parent?.appendChild(partCopy);
-    partCopy.update();
+    partCopy.setLocation(copy.location.name);
   }
 }
 

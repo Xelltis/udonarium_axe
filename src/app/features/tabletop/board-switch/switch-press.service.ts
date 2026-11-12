@@ -379,11 +379,7 @@ export class SwitchPressService {
     for (const spot of spots) {
       spot.character.location = { name: 'table', x: spot.x, y: spot.y };
       placed.add(spot.character);
-      // A creature of many parts is set out whole, its parts copied with it and stood on it.
       copyPartsAlong(template, spot.character);
-      for (const part of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
-        if (part.ridingOn === spot.character.identifier && part.isWrittenAsPart) part.setLocation('table');
-      }
     }
     for (const copy of copies) if (!placed.has(copy)) copy.destroy();
   }

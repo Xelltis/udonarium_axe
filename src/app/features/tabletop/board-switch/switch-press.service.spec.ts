@@ -423,19 +423,26 @@ describe('SwitchPressService', () => {
       expect(goblin.location.name).toBe('graveyard');
     });
 
-    it('sets a creature of many parts out whole, its parts copied with it and stood on it', async () => {
-      const dragon = GameCharacter.create('竜', 1, '');
+    it('sets a creature of many parts out whole, each part copied once the last is out of the graveyard and stood on its middle', async () => {
+      const dragon = GameCharacter.create('竜', 3, '');
       dragon.location = { name: 'graveyard', x: 0, y: 0 } as never;
-      const head = GameCharacter.create('頭', 1, '');
-      head.location = { name: 'graveyard', x: 0, y: 0 } as never;
-      head.ridingOn = dragon.identifier;
-      head.rideSeat = 'part';
       copiesOf(dragon);
-      vi.spyOn(head, 'clone').mockImplementation(() => {
-        const copy = GameCharacter.create('頭', 1, '');
-        copy.location = { name: 'graveyard', x: 0, y: 0 } as never;
-        copy.rideSeat = 'part';
-        return copy;
+      const copiedSoFar: GameCharacter[] = [];
+      const leftInGraveyard: number[] = [];
+      const arms = [0, 1].map(() => {
+        const arm = GameCharacter.create('腕', 1, '');
+        arm.location = { name: 'graveyard', x: 0, y: 0 } as never;
+        arm.ridingOn = dragon.identifier;
+        arm.rideSeat = 'part';
+        vi.spyOn(arm, 'clone').mockImplementation(() => {
+          leftInGraveyard.push(copiedSoFar.filter((one) => one.location.name === 'graveyard').length);
+          const copy = GameCharacter.create(`腕_${copiedSoFar.length + 2}`, 1, '');
+          copy.location = { name: 'graveyard', x: 0, y: 0 } as never;
+          copy.rideSeat = 'part';
+          copiedSoFar.push(copy);
+          return copy as never;
+        });
+        return arm;
       });
 
       await presses.press(
@@ -454,10 +461,15 @@ describe('SwitchPressService', () => {
       );
 
       const [copy] = onTable('竜');
-      const [headCopy] = onTable('頭');
-      expect(headCopy?.ridingOn).toBe(copy.identifier);
-      expect([headCopy.location.x, headCopy.location.y]).toEqual([copy.location.x, copy.location.y]);
-      expect(head.location.name).toBe('graveyard');
+      const copiedArms = ObjectStore.instance
+        .getObjects<GameCharacter>(GameCharacter)
+        .filter((piece) => piece.ridingOn === copy.identifier);
+      expect(copiedArms.map((arm) => arm.name).sort()).toEqual(['腕_2', '腕_3']);
+      expect(leftInGraveyard).toEqual([0, 0]);
+      for (const arm of copiedArms) {
+        expect(arm.location).toMatchObject({ name: 'table', x: copy.location.x + GRID, y: copy.location.y + GRID });
+      }
+      expect(arms.map((arm) => arm.location.name)).toEqual(['graveyard', 'graveyard']);
     });
 
     it('has each copy out of the graveyard before the next is made, so each is numbered after the last', async () => {
