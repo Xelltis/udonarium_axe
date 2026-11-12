@@ -319,7 +319,10 @@ export class TriggerFireService {
         })
       : pieceCornerOn(grid, piece, table.gridSize, to);
     const there = keeps ? standsAt(piece, corner) : pieceCellOf(grid, piece, table.gridSize) === to;
-    if (!floors && there) return;
+    if (!floors && there) {
+      this.links.carryBound(piece);
+      return;
+    }
     piece.location = { name: piece.location.name, x: corner.x, y: corner.y };
     piece.update();
     // Turned to last, so that the room arrives to find the piece already standing where it fell.

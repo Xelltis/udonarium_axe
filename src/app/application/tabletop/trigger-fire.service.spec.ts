@@ -87,6 +87,20 @@ describe('TriggerFireService', () => {
     expect([head.location.x, head.location.y]).toEqual([dragon.location.x + GRID, dragon.location.y + GRID]);
   });
 
+  it('stands what goes with a piece on it where it is carried to the ground it already stands on', () => {
+    const dragon = GameCharacter.create('竜', 3, '');
+    dragon.location = { name: 'table', x: 0, y: 0 };
+    service.carryTo(dragon, 6, 6, table);
+    const head = GameCharacter.create('頭', 1, '');
+    head.location = { name: 'table', x: 0, y: 0 };
+    head.ridingOn = dragon.identifier;
+    head.rideSeat = 'part';
+
+    service.carryTo(dragon, 6, 6, table);
+
+    expect([head.location.x, head.location.y]).toEqual([dragon.location.x + GRID, dragon.location.y + GRID]);
+  });
+
   describe('on a table that counts two cells as one square', () => {
     it('springs ground under any cell of a square the piece enters, once', () => {
       table.squareSpan = 2;
