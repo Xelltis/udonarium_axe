@@ -1,3 +1,4 @@
+import { ApplicationRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -21,6 +22,7 @@ import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 
 describe('CardStackComponent', () => {
   let component: CardStackComponent;
+  let given: { destroy(): void };
   let fixture: ComponentFixture<CardStackComponent>;
 
   beforeEach(async () => {
@@ -33,10 +35,20 @@ describe('CardStackComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(CardStackComponent);
     component = fixture.componentInstance;
+    // Given its piece at once, as a template gives it, so that no drawing of the page made before a
+    // test gives its own reads the required input unset.
+    given = CardStack.create('山札');
+    fixture.componentRef.setInput('cardStack', given);
   });
+
+  afterEach(() => given.destroy());
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('lets the page be drawn as soon as it is made, before any test sets it up', () => {
+    expect(() => TestBed.inject(ApplicationRef).tick()).not.toThrow();
   });
 
   describe('dealing the whole stack out', () => {

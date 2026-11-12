@@ -43,6 +43,7 @@ function createDragEvent(clientY: number = 15): DragEvent {
 describe('GameDataElementComponent', () => {
   let component: GameDataElementComponent;
   let fixture: ComponentFixture<GameDataElementComponent>;
+  let given: DataElement;
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
@@ -54,7 +55,13 @@ describe('GameDataElementComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(GameDataElementComponent);
     component = fixture.componentInstance;
+    // Given its item at once, as a template gives it, so that no drawing of the page made before a
+    // test gives its own reads the required input unset.
+    given = DataElement.create('項目', '', {});
+    fixture.componentRef.setInput('gameDataElement', given);
   });
+
+  afterEach(() => given.destroy());
 
   it('should create', () => {
     expect(component).toBeTruthy();

@@ -20,6 +20,7 @@ import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 
 describe('TextNoteComponent', () => {
   let component: TextNoteComponent;
+  let given: { destroy(): void };
   let fixture: ComponentFixture<TextNoteComponent>;
 
   beforeEach(async () => {
@@ -32,7 +33,13 @@ describe('TextNoteComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(TextNoteComponent);
     component = fixture.componentInstance;
+    // Given its piece at once, as a template gives it, so that no drawing of the page made before a
+    // test gives its own reads the required input unset.
+    given = TextNote.create('メモ', '本文');
+    fixture.componentRef.setInput('textNote', given);
   });
+
+  afterEach(() => given.destroy());
 
   afterEach(() => {
     fixture.destroy();

@@ -19,6 +19,7 @@ import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 
 describe('RangeComponent', () => {
   let component: RangeComponent;
+  let given: { destroy(): void };
   let fixture: ComponentFixture<RangeComponent>;
 
   beforeEach(async () => {
@@ -34,7 +35,13 @@ describe('RangeComponent', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
     fixture = TestBed.createComponent(RangeComponent);
     component = fixture.componentInstance;
+    // Given its piece at once, as a template gives it, so that no drawing of the page made before a
+    // test gives its own reads the required input unset.
+    given = RangeArea.create('テスト範囲', 3, 5, 1);
+    fixture.componentRef.setInput('range', given);
   });
+
+  afterEach(() => given.destroy());
 
   afterEach(() => {
     fixture.destroy();

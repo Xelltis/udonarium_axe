@@ -20,6 +20,7 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('DiceSymbolComponent', () => {
   let component: DiceSymbolComponent;
+  let given: { destroy(): void };
   let fixture: ComponentFixture<DiceSymbolComponent>;
 
   beforeEach(async () => {
@@ -32,7 +33,13 @@ describe('DiceSymbolComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(DiceSymbolComponent);
     component = fixture.componentInstance;
+    // Given its piece at once, as a template gives it, so that no drawing of the page made before a
+    // test gives its own reads the required input unset.
+    given = DiceSymbol.create('D6', 0, 1);
+    fixture.componentRef.setInput('diceSymbol', given);
   });
+
+  afterEach(() => given.destroy());
 
   it('reads the face and the owner through the signals rather than off the die', () => {
     const die = DiceSymbol.create('D6', 0, 1);

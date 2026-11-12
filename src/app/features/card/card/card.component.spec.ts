@@ -16,6 +16,7 @@ import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 
 describe('CardComponent', () => {
   let component: CardComponent;
+  let given: { destroy(): void };
   let fixture: ComponentFixture<CardComponent>;
 
   beforeEach(async () => {
@@ -28,7 +29,13 @@ describe('CardComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(CardComponent);
     component = fixture.componentInstance;
+    // Given its piece at once, as a template gives it, so that no drawing of the page made before a
+    // test gives its own reads the required input unset.
+    given = Card.create('テストカード', 'front', 'back');
+    fixture.componentRef.setInput('card', given);
   });
+
+  afterEach(() => given.destroy());
 
   it('should create', () => {
     expect(component).toBeTruthy();
