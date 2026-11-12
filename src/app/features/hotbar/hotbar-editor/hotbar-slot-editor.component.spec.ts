@@ -150,6 +150,13 @@ describe('HotbarSlotEditorComponent', () => {
       expect(actors.find((actor) => actor.value === villain.identifier)?.name).toBe('？？？');
       expect(actors.some((actor) => actor.value === shade.identifier)).toBe(false);
       expect(actors.some((actor) => actor.name === '黒幕')).toBe(false);
+
+      // Set to nobody and back within the editor, the hidden piece stays on offer and keeps its name.
+      (component as unknown as { setActor: (identifier: string) => void }).setActor('');
+      const again = (component as unknown as { actors: () => { value: string }[] }).actors();
+      expect(again.some((actor) => actor.value === villain.identifier)).toBe(true);
+      (component as unknown as { setActor: (identifier: string) => void }).setActor(villain.identifier);
+      expect((component as unknown as { draft: () => { characterName: string } }).draft().characterName).toBe('黒幕');
     } finally {
       villain.destroy();
       shade.destroy();

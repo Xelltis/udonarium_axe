@@ -471,15 +471,20 @@ export class HotbarSlotEditorComponent {
   setFrom(cell: HotbarCell, draft: HotbarSlotDraft): void {
     this.cell.set(cell);
     this.draft.set({ ...draft, payload: { ...draft.payload } });
+    this.opened.set({ identifier: draft.characterIdentifier, name: draft.characterName });
   }
+
+  /** Whom the slot acted as as its editor opened, which it may be set back to while the editor is open. */
+  private readonly opened = signal({ identifier: '', name: '' });
 
   protected setActor(identifier: string): void {
     const named = this.actors().find((actor) => actor.value === identifier);
-    // The slot keeps the name it had for the piece it acts as already, rather than the label shown.
+    // The slot keeps the name it had for the piece it acted as, rather than the label shown.
+    const opened = this.opened();
     this.draft.update((draft) => ({
       ...draft,
       characterIdentifier: identifier,
-      characterName: identifier === draft.characterIdentifier ? draft.characterName : (named?.name ?? ''),
+      characterName: identifier === opened.identifier ? opened.name : (named?.name ?? ''),
     }));
   }
 
@@ -490,7 +495,7 @@ export class HotbarSlotEditorComponent {
    */
   protected readonly actors = computed<{ value: string; name: string }[]>(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
-    const bound = this.draft().characterIdentifier;
+    const bound = this.opened().identifier;
     return selectControllableCharacters(
       this.objectStore.getObjects<GameCharacter>(GameCharacter),
       PeerCursor.myCursor?.userId ?? ''
