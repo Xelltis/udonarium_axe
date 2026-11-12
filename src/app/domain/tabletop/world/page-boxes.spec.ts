@@ -303,6 +303,47 @@ describe('drawnRanks', () => {
     expect(ranks).toEqual({ onHill: 1, hero: 2, floating: 3 });
   });
 
+  it('draws a range lying on a floor tile over the tile, and under a block standing up, however near each reaches', () => {
+    const pieces = piecePageBoxes(
+      [
+        sprite('range#picture', {
+          centre: { x: 100, y: 300, z: 0.25 },
+          widthPx: 400,
+          heightPx: 400,
+          facing: ON_FLOOR,
+          order: 0.25,
+          drapes: { liftPx: 0.25 },
+        }),
+      ],
+      [],
+      tilted,
+      EYE
+    );
+    const block = (id: string, top: number, y: number) => ({
+      id,
+      layer: 'terrain',
+      order: 0,
+      shapes: [
+        {
+          kind: 'prism' as const,
+          outline: [
+            { x: 0, y },
+            { x: 600, y },
+            { x: 600, y: y + 100 },
+            { x: 0, y: y + 100 },
+          ],
+          base: 0,
+          top,
+        },
+      ],
+    });
+    const blocks = blockPageBoxes([block('tile', 0.5, 450), block('wall', 50, 50)], tilted, EYE);
+
+    const ranks = Object.fromEntries(drawnRanks(new Map([...pieces, ...blocks])));
+
+    expect(ranks).toEqual({ tile: 1, range: 2, wall: 3 });
+  });
+
   it('draws a card lying on a block’s top among the pieces by how near the eye it reaches', () => {
     const ranks = ranksOf([
       sprite('hero#picture', { centre: { x: 100, y: 300, z: 30 } }),

@@ -51,8 +51,8 @@ export interface PiecePageBoxes {
   readonly lyingPlace?: number;
   /**
    * For a piece drawn only with sprites lying flat on the floor, on the ground, as a range or a card
-   * on the floor: that it lies on the ground, under everything standing on the floor, however far it
-   * reaches.
+   * on the floor, or a block lying flat on the ground, as a floor tile: that it lies on the ground,
+   * under everything standing on the floor, however far it reaches.
    */
   readonly onGround?: true;
 }
@@ -228,13 +228,19 @@ export function piecePageBoxes(
  * The order the pieces are drawn over each other in on the page, from 1 for the one under all the
  * rest. Of two pieces, the nearer the eye is drawn over the other; but a piece lying on the ground,
  * as a range or a card on the floor, is drawn under every piece that does not, however near the eye
- * it reaches, as nothing standing on the floor is seen through the ground. Pieces drawn only lying
- * flat, as cards on the table, are drawn over each other in the order the canvas draws them in,
- * wherever they overlap and however near the eye the rest of them reaches, and are stacked so among
- * the places their nearness gives them, those on the ground among their own.
+ * it reaches, as nothing standing on the floor is seen through the ground, and a block lying flat on
+ * the ground, as a floor tile, under every sheet lying on it. Pieces drawn only lying flat, as cards
+ * on the table, are drawn over each other in the order the canvas draws them in, wherever they
+ * overlap and however near the eye the rest of them reaches, and are stacked so among the places
+ * their nearness gives them, those on the ground among their own.
  */
 export function drawnRanks(boxes: ReadonlyMap<string, PiecePageBoxes>): Map<string, number> {
-  const order = [...boxes].sort(([, a], [, b]) => Number(!a.onGround) - Number(!b.onGround) || a.nearness - b.nearness);
+  const order = [...boxes].sort(
+    ([, a], [, b]) =>
+      Number(!a.onGround) - Number(!b.onGround) ||
+      (a.onGround ? Number(a.lyingPlace !== undefined) - Number(b.lyingPlace !== undefined) : 0) ||
+      a.nearness - b.nearness
+  );
   const ranks = new Map(order.map(([owner], rank) => [owner, rank + 1]));
   for (const onGround of [true, false]) {
     const lying = order.filter(([, piece]) => piece.lyingPlace !== undefined && !!piece.onGround === onGround);
@@ -250,7 +256,9 @@ export const TOP_PART = 'top';
 
 /**
  * Where the blocks are drawn on the page, from the shapes picking finds them by: for each, the box
- * round all of it, and its top as the part `top`, with its corners where its top has four.
+ * round all of it, and its top as the part `top`, with its corners where its top has four. A block
+ * whose top lies no higher off the floor than a sheet lying on the ground does, as a floor tile,
+ * lies on the ground.
  */
 export function blockPageBoxes(
   targets: readonly PickTarget[],
@@ -261,10 +269,12 @@ export function blockPageBoxes(
   for (const target of targets) {
     const all: TablePoint[] = [];
     const tops: TablePoint[] = [];
+    let onGround = true;
     for (const shape of target.shapes) {
       const onFace = shape.kind === 'on-face' ? shape : null;
       const prism = onFace ? onFace.shape : shape;
       if (prism.kind !== 'prism') continue;
+      if (onFace || prism.roofAt || prism.top > ON_GROUND_PX) onGround = false;
       const at = (x: number, y: number, z: number): TablePoint =>
         onFace ? pointOnFace(onFace.frame, x, y, z) : { x, y, z };
       for (const corner of prism.outline) {
@@ -287,6 +297,7 @@ export function blockPageBoxes(
       whole: boxRound(onPage(all)),
       parts: new Map([[TOP_PART, tops.length === 4 ? { ...top, corners: [a, b, c, d] } : top]]),
       nearness: Math.max(...all.map((point) => nearnessOf(scene, point))),
+      ...(onGround ? { onGround: true } : {}),
     });
   }
   return boxes;
