@@ -17,6 +17,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import { saidWithStamp } from '@axe/domain/chat/stamp-line';
+import { presentedTotalOf } from '@axe/domain/chat/target-number';
 import { type DiceRollDetail, parseDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
 import { VN_PORTRAIT_POS_UNSET } from '@axe/domain/visual-novel/vn-portrait-position';
@@ -143,7 +144,8 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   @SyncVar() rolledAt: string;
   /**
    * Set on a line a game master wrote for whoever sets it off to say, as a switch's line is, so that
-   * a number to beat it writes out is taken as the master's, whoever pressed it.
+   * a number to beat it writes out is taken as the master's, whoever pressed it. Taken off once the
+   * line is written over to another number to beat, or none.
    *
    * Left without an initialiser, as `rolledAt` is: any other line, and one of a room or a version
    * that never wrote it, reads back empty.
@@ -480,8 +482,9 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
     this.text = text;
     if (stagedBefore !== staging) this.vnEmote = staging;
     this.fixd = true;
-    // Written over, the words are no longer the game master's words a switch said.
-    if (before !== text && `${this.mastersWords ?? ''}`.length > 0) this.mastersWords = '';
+    if (`${this.mastersWords ?? ''}`.length > 0 && presentedTotalOf(before) !== presentedTotalOf(text)) {
+      this.mastersWords = '';
+    }
   }
 
   /** Whether the one who said the line made it an after-the-fact whisper. */

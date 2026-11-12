@@ -796,11 +796,13 @@ describe('ChatMessage', () => {
       ]);
     });
 
-    it('takes off the mark of a game master’s words once its words are written over, and keeps it for a staging alone', () => {
+    it('takes off the mark of a game master’s words once its number to beat is written over, and keeps it for other words', () => {
       const message = said('解錠：目標値13');
       message.mastersWords = '1';
 
       message.edit('解錠：目標値13', 'smile', 2000);
+      expect(message.mastersWords).toBe('1');
+      message.edit('扉の解錠：目標値13', 'smile', 2500);
       expect(message.mastersWords).toBe('1');
       message.edit('解錠：目標値3', 'smile', 3000);
       expect(message.mastersWords).toBe('');
