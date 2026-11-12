@@ -27,7 +27,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { HeldClock } from '@axe/core/util/held-clock';
 import { observeSize } from '@axe/core/util/observe-size';
 import { BattleSide, oppositeBattleSide } from '@axe/domain/battle/battle-lineup';
-import { battleChangeLabel, BattleFighter, battleGaugeChanges } from '@axe/domain/battle/battle-scene';
+import { battleChangeLabel, BattleFighter, BattleGauge, battleGaugeChanges } from '@axe/domain/battle/battle-scene';
 import { DEFAULT_BATTLE_THEME } from '@axe/domain/battle/battle-settings';
 import {
   BATTLE_STAGE_CANVAS,
@@ -219,6 +219,25 @@ export interface PlateGauge {
   percent: number;
   color: string;
   numbers: string;
+}
+
+/**
+ * A bar on a fighter's plate as far into its fall as `progress` is. Kept from the reader, it is drawn
+ * full and grey with marks for its numbers until it runs out, so neither how much there was nor that
+ * the blow will spend it shows before; from the moment it does, it is told as one on the table is.
+ */
+export function plateGaugeAt(gauge: BattleGauge, progress: number, readable: boolean, secret: boolean): PlateGauge {
+  const reading = gaugeReadingAt(gauge.before, gauge.after, progress);
+  if (!readable && !isGaugeSpent(reading, gauge.max, gauge.inverted)) {
+    return { name: gauge.name, percent: 100, color: HIDDEN_GAUGE_STRIPES, numbers: HIDDEN_GAUGE_NUMBERS };
+  }
+  const ratio = gaugeRatio(reading, gauge.max);
+  return {
+    name: gauge.name,
+    percent: ratio * 100,
+    color: gauge.color || gaugeColor(ratio, gauge.inverted),
+    numbers: readable || !secret ? `${Math.round(reading)}/${gauge.max}` : HIDDEN_GAUGE_NUMBERS,
+  };
 }
 
 export interface PlateFrame {
@@ -481,21 +500,7 @@ export class BattleCutInOverlayComponent {
         name: view.fighter.name,
         striking: view.striking,
         defeated: view.fighter.defeated && defeatProgress(elapsed, timeline) > 0,
-        gauges: view.fighter.gauges.map((gauge) => {
-          // Kept from the reader, a bar is told only once the strike has spent it.
-          if (!readable && !isGaugeSpent(gauge.after, gauge.max, gauge.inverted)) {
-            return { name: gauge.name, percent: 100, color: HIDDEN_GAUGE_STRIPES, numbers: HIDDEN_GAUGE_NUMBERS };
-          }
-          const reading = gaugeReadingAt(gauge.before, gauge.after, progress);
-          const ratio = gaugeRatio(reading, gauge.max);
-          return {
-            name: gauge.name,
-            percent: ratio * 100,
-            color: gauge.color || gaugeColor(ratio, gauge.inverted),
-            // A bar kept from the reader that the strike spends tells its numbers, as one on the table does.
-            numbers: readable || !scene.secret ? `${Math.round(reading)}/${gauge.max}` : HIDDEN_GAUGE_NUMBERS,
-          };
-        }),
+        gauges: view.fighter.gauges.map((gauge) => plateGaugeAt(gauge, progress, readable, scene.secret)),
       };
       (view.side === 'left' ? left : right).push(plate);
     }

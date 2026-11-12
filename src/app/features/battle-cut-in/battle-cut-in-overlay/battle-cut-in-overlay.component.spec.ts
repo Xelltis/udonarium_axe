@@ -14,7 +14,10 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { createEffectPreset, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
-import { BattleCutInOverlayComponent } from '@axe/features/battle-cut-in/battle-cut-in-overlay/battle-cut-in-overlay.component';
+import {
+  BattleCutInOverlayComponent,
+  plateGaugeAt,
+} from '@axe/features/battle-cut-in/battle-cut-in-overlay/battle-cut-in-overlay.component';
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
 import type { EffectOverlay } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -220,6 +223,19 @@ describe('BattleCutInOverlayComponent', () => {
 
     expect(textsOf(root, '[data-testid="battle-plate"]')[1]).toContain('???/???');
     expect(root.querySelectorAll('[data-testid="battle-pop"]')).toHaveLength(0);
+  });
+
+  describe('a bar kept from the reader', () => {
+    const lethal = { name: 'HP', before: 37, after: -3, max: 50, inverted: false, color: '' };
+
+    it('stays full and grey with no numbers until it runs out, however far the blow will take it', () => {
+      expect(plateGaugeAt(lethal, 0, false, false)).toMatchObject({ percent: 100, numbers: '???/???' });
+      expect(plateGaugeAt(lethal, 0.5, false, false)).toMatchObject({ percent: 100, numbers: '???/???' });
+    });
+
+    it('is told from the moment it runs out', () => {
+      expect(plateGaugeAt(lethal, 1, false, false)).toMatchObject({ percent: 0, numbers: '-3/50' });
+    });
   });
 
   describe('a piece kept from the reader', () => {
