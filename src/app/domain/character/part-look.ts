@@ -145,23 +145,34 @@ export function maskCovers(mask: PartMask, x: number, y: number): boolean {
 export type PartFaces = ReadonlyMap<number, ReadonlySet<number>>;
 
 /**
+ * The most triangles a part's faces are read to, all its meshes together: far more than a model a
+ * table draws holds, and few enough that a value written to stall whoever reads it cannot.
+ */
+const MOST_PART_FACES = 1_000_000;
+
+/**
  * A part's faces of its body's model as written down, each mesh as `mesh:` and its triangles as
- * runs `first-last` or single ones, joined by `,`, the meshes joined by `;`; empty for none.
+ * runs `first-last` or single ones, joined by `,`, the meshes joined by `;`; empty for none. A run
+ * missing either end is passed over, and reading stops at {@link MOST_PART_FACES} triangles.
  */
 export function partFacesOf(written: string): PartFaces {
   const faces = new Map<number, Set<number>>();
+  let left = MOST_PART_FACES;
   for (const entry of written.split(';')) {
     const match = /^(\d+):([\d,-]+)$/.exec(entry.trim());
     if (!match) continue;
     const triangles = faces.get(Number(match[1])) ?? new Set<number>();
     for (const run of match[2].split(',')) {
-      const [first, last] = run.split('-').map(Number);
-      if (!Number.isInteger(first)) continue;
-      const end = Number.isInteger(last) && last >= first ? last : first;
-      if (end - first > 1_000_000) continue;
+      const ends = run.split('-');
+      if (ends.length > 2 || ends.some((end) => end.length < 1)) continue;
+      const [first, last] = ends.map(Number);
+      const end = Math.min(last !== undefined && last >= first ? last : first, first + left - 1);
       for (let triangle = first; triangle <= end; triangle++) triangles.add(triangle);
+      left -= Math.max(0, end - first + 1);
+      if (left < 1) break;
     }
     if (triangles.size > 0) faces.set(Number(match[1]), triangles);
+    if (left < 1) break;
   }
   return faces;
 }

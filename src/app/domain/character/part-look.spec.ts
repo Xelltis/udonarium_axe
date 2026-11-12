@@ -61,6 +61,11 @@ describe('the look of a part over its body', () => {
     expect(partFacesOf(written)).toEqual(new Map([...faces].sort(([a], [b]) => a - b)));
     expect(partFacesOf('')).toEqual(new Map());
     expect(partFacesOf('x:1;2:5-3')).toEqual(new Map([[2, new Set([5])]]));
+    expect(partFacesOf('2:-40;3:7-,9')).toEqual(new Map([[3, new Set([9])]]));
+    const flood = `0:${Array.from({ length: 50 }, () => '0-999999').join(',')};1:${'0-999999,'.repeat(50)}0`;
+    const read = partFacesOf(flood);
+    expect([...read.values()].reduce((count, triangles) => count + triangles.size, 0)).toBeLessThanOrEqual(1_000_000);
+    expect(read.has(1)).toBe(false);
     expect(joinedPartFaces([partFacesOf('0:1-2'), partFacesOf('0:2-3;1:0')])).toEqual(
       new Map([
         [0, new Set([1, 2, 3])],
