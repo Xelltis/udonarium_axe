@@ -327,6 +327,59 @@ describe('TabletopActionService', () => {
       expect(cellOf(outsider)).toBe(stood);
     });
 
+    it('brings the mount a member rides along with it, the member on it, rather than leaving it ridden far off', () => {
+      const party = makeParty('パーティA');
+      const knight = makeMember(party, '騎士');
+      const horse = makeMember(null, '馬');
+      horse.size = 2;
+      horse.mountable = '1';
+      horse.location.x = horse.location.y = 400;
+      knight.location.x = knight.location.y = 425;
+      knight.ridingOn = horse.identifier;
+
+      const placed = service.gatherParty(position, party);
+
+      expect(placed).toBe(1);
+      expect(knight.ridingOn).toBe(horse.identifier);
+      expect([knight.location.x, knight.location.y]).toEqual([horse.location.x + 25, horse.location.y + 25]);
+      expect(horse.location.x).toBeLessThan(400);
+    });
+
+    it('brings the body a member is a part of along with it', () => {
+      const party = makeParty('パーティA');
+      const arm = makeMember(party, '腕');
+      const dragon = makeMember(null, '竜');
+      dragon.size = 3;
+      dragon.location.x = dragon.location.y = 400;
+      arm.ridingOn = dragon.identifier;
+      arm.rideSeat = 'part';
+
+      service.gatherParty(position, party);
+
+      expect(dragon.location.x).toBeLessThan(400);
+      expect([arm.location.x, arm.location.y]).toEqual([dragon.location.x + 50, dragon.location.y + 50]);
+    });
+
+    it('lets go of a member, or the mount it rides, held by a piece left where it stands', () => {
+      const party = makeParty('パーティA');
+      const hero = makeMember(party, '勇者');
+      const ogre = makeMember(null, 'オーガ');
+      ogre.location.x = ogre.location.y = 450;
+      hero.grabbedBy = ogre.identifier;
+      const knight = makeMember(party, '騎士');
+      const horse = makeMember(null, '馬');
+      horse.mountable = '1';
+      knight.ridingOn = horse.identifier;
+      horse.grabbedBy = ogre.identifier;
+
+      service.gatherParty(position, party);
+
+      expect(hero.grabbedBy).toBe('');
+      expect(horse.grabbedBy).toBe('');
+      expect([ogre.location.x, ogre.location.y]).toEqual([450, 450]);
+      expect([knight.location.x, knight.location.y]).toEqual([horse.location.x, horse.location.y]);
+    });
+
     it('does not stand the party on ground somebody else holds', () => {
       const party = makeParty('パーティA');
       const member = makeMember(party, '花子');

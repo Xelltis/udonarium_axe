@@ -448,6 +448,25 @@ describe('DungeonBuildService', () => {
       expect(head.location).toMatchObject({ name: 'table', x: 5 * GRID, y: 5 * GRID });
     });
 
+    it('brings the mount a member rides in with it, set down on the ground given that member', async () => {
+      const { dragon, rider } = dragonWithHeadAndRider();
+      const knight = GameCharacter.create('騎士', 1, '');
+      knight.location = { name: 'table', x: 1000, y: 1000 };
+      knight.ridingOn = dragon.identifier;
+      knight.rideSeat = 'passenger';
+
+      await build({
+        muster: [
+          { piece: rider, cell: { x: 5, y: 5 } },
+          { piece: knight, cell: { x: 6, y: 5 } },
+        ],
+      });
+
+      expect([dragon.location.x, dragon.location.y]).toEqual([4 * GRID, 4 * GRID]);
+      expect([rider.location.x, rider.location.y]).toEqual([5 * GRID, 5 * GRID]);
+      expect([knight.location.x, knight.location.y]).toEqual([5 * GRID, 5 * GRID]);
+    });
+
     it('takes those riding it off the board it stood on with them, onto the dungeon’s floor', async () => {
       const { dragon, rider } = dragonWithHeadAndRider();
       dragon.location = { name: 'table', x: 40, y: 40, surface: 'a-board' };
