@@ -33,6 +33,7 @@ import { TabletopActionService } from '@axe/application/tabletop/tabletop-action
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { MenuLayoutService } from '@axe/application/ui/menu-layout.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
@@ -56,6 +57,8 @@ import { aimedTogetherIdentifiers, canPinAsTargetNumber, mayPinTargetNumber } fr
 import { TOGETHER_SEPARATOR } from '@axe/domain/dice/roll-target-suffix';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { type ChatToolName, chatToolOf, menuCommandOf } from '@axe/domain/ui/menu-command';
+import { menuItemsOf } from '@axe/domain/ui/menu-layout';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
 import { vnEmoteLabels } from '@axe/domain/visual-novel/vn-emote-label';
 import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
@@ -70,6 +73,7 @@ import {
   buildChatBookmarkMenu,
   buildChatMessageContextMenu,
   type ChatMessageMenuState,
+  TARGET_NUMBER_PIN_KEYS,
 } from '@axe/features/chat/chat-message/chat-message-context-menu';
 import { isChatTextHidden, readableChatText } from '@axe/features/chat/chat-message/chat-readable-text';
 import { formatChatTickerMessage } from '@axe/features/chat/chat-ticker/chat-ticker-layout';
@@ -93,6 +97,20 @@ const BOOKMARK_KINDS: readonly ChatBookmarkKind[] = ['shared', 'personal'];
 
 /** How many lines have been drawn, for the seals in each to take filter ids no other drawing of the line has. */
 let linesDrawn = 0;
+
+/** One chat tool as the toolbar over a line draws it: its mark, what it is called, and what pressing it does. */
+interface ChatToolButton {
+  readonly tool: ChatToolName;
+  /** What the tests reach the button by, after `chat-message-action-`. */
+  readonly testId: string;
+  readonly icon: string;
+  readonly title: string;
+  /** The kind of thing the press opens, for the screen reader, where it opens one. */
+  readonly popup?: 'menu' | 'listbox';
+  /** Whether the button warns of what it does, as deleting does. */
+  readonly danger?: boolean;
+  readonly press: (event: MouseEvent) => void;
+}
 
 @Component({
   selector: 'chat-message',
@@ -133,6 +151,7 @@ export class ChatMessageComponent {
   private readonly drawing = ++linesDrawn;
   private readonly stampPacks = inject(StampPackService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly menuLayouts = inject(MenuLayoutService);
   private readonly language = inject(LanguageService);
   private readonly uiSignalService = inject(UiSignalService);
   /** The panel this line is being read in, where it is being read in one that can answer. */
@@ -512,34 +531,129 @@ export class ChatMessageComponent {
   }
 
   /**
-   * The answers the toolbar over the line offers at once, or null where it offers nothing: a line
-   * only to be read, a line being edited, or one nothing can be done with.
+   * The chat tools the toolbar over the line offers at once, in the order this screen has arranged
+   * them, each only where the reader may do it with this line, or null where the toolbar is to be
+   * left out: a line only to be read, a line being edited, or one nothing can be done with.
    *
-   * Deleting stands there beside editing, both being what the speaker does to their own line; it
-   * asks before it deletes, so having it at hand does not make it easy to do by mistake.
+   * Deleting may stand there beside editing, both being what the speaker does to their own line;
+   * it asks before it deletes, so having it at hand does not make it easy to do by mistake.
    */
-  protected toolbarActions(): {
-    answer: boolean;
-    react: boolean;
-    bookmark: boolean;
-    edit: boolean;
-    delete: boolean;
-  } | null {
+  protected toolbarTools(): ChatToolButton[] | null {
     const message = this.chatMessage;
     if (!message || this.readOnly() || this.isEditing()) return null;
-    const actions = {
-      answer: this.canInteract,
-      react: this.canReact,
-      bookmark: this.canBookmarkAny,
-      edit: this.canChange,
-      delete: this.canPseudoDelete,
-    };
+    const tools: ChatToolButton[] = [];
+    for (const node of menuItemsOf(this.menuLayouts.layoutOf('chatTools')())) {
+      const command = menuCommandOf(node.command);
+      const tool = command && chatToolOf(command);
+      const button = tool && this.chatToolButton(tool);
+      if (!button) continue;
+      tools.push({ ...button, icon: node.icon ?? command.icon, title: node.label ?? button.title });
+    }
     // Asked of every drawn line on every pass, so it is told from these few answers rather than by
     // building the menu: the menu holds at least the words of any line whose words are shown.
     const words = !isChatTextHidden(message, this.canRevealSecret) && (message.text ?? '').trim().length > 0;
-    return actions.answer || actions.react || actions.bookmark || actions.edit || actions.delete || words
-      ? actions
-      : null;
+    return tools.length > 0 || words ? tools : null;
+  }
+
+  /** A chat tool as a button over this line, or null where the reader may not do that with the line. */
+  private chatToolButton(tool: ChatToolName): Omit<ChatToolButton, 'icon'> | null {
+    const text = this.readableText(this.chatMessage);
+    const named = (key: string) => this.t(key);
+    switch (tool) {
+      case 'reply':
+        return this.canInteract
+          ? { tool, testId: 'reply', title: named('feature.chat.message.reply'), press: () => this.clickReply() }
+          : null;
+      case 'quote':
+        return this.canInteract
+          ? { tool, testId: 'quote', title: named('feature.chat.message.quote'), press: () => this.clickQuote() }
+          : null;
+      case 'react':
+        return this.canReact
+          ? {
+              tool,
+              testId: 'react',
+              title: named('feature.chat.message.react'),
+              popup: 'listbox',
+              press: (event) => this.openReactionPicker(event.currentTarget),
+            }
+          : null;
+      case 'bookmark':
+        return this.canBookmarkAny
+          ? {
+              tool,
+              testId: 'bookmark',
+              title: named('feature.chat.message.bookmarks.button'),
+              popup: 'menu',
+              press: (event) => this.openBookmarkMenu(event),
+            }
+          : null;
+      case 'copyText':
+        return text.length > 0
+          ? { tool, testId: 'copy', title: named('feature.chat.message.copyText'), press: () => this.copyText(text) }
+          : null;
+      case 'shareAsMemo':
+        return this.canInteract && this.canShareAsMemo
+          ? {
+              tool,
+              testId: 'memo',
+              title: named('feature.chat.message.shareAsMemo'),
+              press: () => this.clickShareAsMemo(),
+            }
+          : null;
+      case 'ticker':
+        return this.canShowInTicker()
+          ? {
+              tool,
+              testId: 'ticker',
+              title: named('feature.chat.message.ticker'),
+              press: () => this.clickShowInTicker(),
+            }
+          : null;
+      case 'targetNumber': {
+        const pin = this.targetNumberPin();
+        return pin
+          ? {
+              tool,
+              testId: 'target-number',
+              title: named(`feature.chat.message.${TARGET_NUMBER_PIN_KEYS[pin]}`),
+              press: () => this.toggleTargetNumberPin(),
+            }
+          : null;
+      }
+      case 'history':
+        return this.versions().length > 0
+          ? {
+              tool,
+              testId: 'history',
+              title: named(`feature.chat.message.history.${this.isHistoryOpen() ? 'close' : 'open'}`),
+              press: () => this.toggleHistory(),
+            }
+          : null;
+      case 'original':
+        return this.replyPreview() || this.quotePreview()
+          ? {
+              tool,
+              testId: 'original',
+              title: named('feature.chat.message.jumpToOriginal'),
+              press: () => (this.replyPreview() ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
+            }
+          : null;
+      case 'edit':
+        return this.canChange
+          ? { tool, testId: 'edit', title: named('feature.chat.message.edit'), press: () => this.startEdit() }
+          : null;
+      case 'delete':
+        return this.canPseudoDelete
+          ? {
+              tool,
+              testId: 'delete',
+              title: named('feature.chat.message.deleteLine'),
+              danger: true,
+              press: () => void this.pseudoDelete(),
+            }
+          : null;
+    }
   }
 
   /** Opens everything that can be done with the line under the toolbar's last button. */

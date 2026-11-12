@@ -40,7 +40,7 @@ export interface ChatMessageMenuState {
 }
 
 /** The entry setting a line as its tab's number to beat, or taking it off, by what it does. */
-const TARGET_NUMBER_PIN_KEYS: Readonly<Record<NonNullable<ChatMessageMenuState['targetNumberPin']>, string>> = {
+export const TARGET_NUMBER_PIN_KEYS: Readonly<Record<NonNullable<ChatMessageMenuState['targetNumberPin']>, string>> = {
   pin: 'pinTargetNumber',
   pinPresented: 'pinPresentedTargetNumber',
   unpin: 'unpinTargetNumber',

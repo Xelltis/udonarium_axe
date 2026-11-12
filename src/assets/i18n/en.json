@@ -4113,6 +4113,9 @@
         "tabsLabel": "Palette tabs"
       },
       "messageSetting": {
+        "sectionChatTools": "Chat tools",
+        "chatToolsHint": "The row of buttons the pointer resting on a line brings out. This device’s own arrangement: add, remove and reorder them.",
+        "arrangeChatTools": "Arrange the chat tools",
         "sectionText": "Text",
         "fontSize": "Font size",
         "sectionPortrait": "Standing portrait",
@@ -5798,11 +5801,12 @@
       "reset": "Put it back the way it came",
       "resetConfirm": "This puts the menu back the way it came. Go ahead?",
       "resetAll": "Put every menu back the way it came",
-      "resetAllConfirm": "This puts the drawer and both toolbars back the way they came. Go ahead?",
+      "resetAllConfirm": "This puts the drawer, both toolbars and the chat tools back the way they came. Go ahead?",
       "surface": {
         "fab": "Fav menu",
         "gmToolbar": "GM tools",
-        "plToolbar": "PL tools"
+        "plToolbar": "PL tools",
+        "chatTools": "Chat tools"
       },
       "writeOut": "Write out",
       "readIn": "Read in",

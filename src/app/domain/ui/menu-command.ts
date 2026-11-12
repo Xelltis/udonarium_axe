@@ -1,8 +1,11 @@
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
 
-/** The menus somebody can arrange: the drawer, and the two toolbars. */
-export const MENU_SURFACES = ['fab', 'gmToolbar', 'plToolbar'] as const;
+/**
+ * The menus somebody can arrange: the drawer, the two toolbars, and the chat tools, the row of
+ * buttons over a line said in chat that the pointer resting on the line brings out.
+ */
+export const MENU_SURFACES = ['fab', 'gmToolbar', 'plToolbar', 'chatTools'] as const;
 
 export type MenuSurface = (typeof MENU_SURFACES)[number];
 
@@ -98,13 +101,35 @@ export const MENU_CUSTOMS = [
 
 export type MenuCustomName = (typeof MENU_CUSTOMS)[number];
 
+/**
+ * The things done with one line said in chat, as the chat tools over the line offer them: each is
+ * pressed on a line and does nothing apart from one, so a menu away from the chat never holds them.
+ */
+export const CHAT_TOOLS = [
+  'reply',
+  'quote',
+  'react',
+  'bookmark',
+  'copyText',
+  'shareAsMemo',
+  'ticker',
+  'targetNumber',
+  'history',
+  'original',
+  'edit',
+  'delete',
+] as const;
+
+export type ChatToolName = (typeof CHAT_TOOLS)[number];
+
 /** What pressing an entry does. */
 export type MenuAction =
   | { kind: 'panel'; panel: RoomPanelName }
   | { kind: 'toggle'; toggle: MenuToggleName }
   | { kind: 'cycle'; cycle: MenuCycleName }
   | { kind: 'act'; act: MenuActName }
-  | { kind: 'custom'; custom: MenuCustomName };
+  | { kind: 'custom'; custom: MenuCustomName }
+  | { kind: 'chatTool'; tool: ChatToolName };
 
 export interface MenuCommand {
   /** Tells the command apart from every other, and is what an arrangement writes down. */
@@ -129,8 +154,10 @@ export interface MenuCommand {
   stays?: boolean;
 }
 
-const EVERYWHERE: readonly MenuSurface[] = MENU_SURFACES;
+/** The menus away from the chat, which every command but the chat tools may be put on. */
+const EVERYWHERE: readonly MenuSurface[] = ['fab', 'gmToolbar', 'plToolbar'];
 const TOOLBARS: readonly MenuSurface[] = ['gmToolbar', 'plToolbar'];
+const CHAT: readonly MenuSurface[] = ['chatTools'];
 
 type CommandOptions = {
   audience?: MenuAudience;
@@ -189,6 +216,10 @@ function act(key: MenuActName, icon: string, labelKey: string, options: CommandO
 
 function custom(key: MenuCustomName, icon: string, labelKey: string, options: CommandOptions): MenuCommand {
   return make(key, icon, labelKey, { kind: 'custom', custom: key }, options);
+}
+/** A thing done with one line said in chat, named `chat:` apart from the rest and put on the chat tools alone. */
+function chatTool(tool: ChatToolName, icon: string, labelKey: string): MenuCommand {
+  return make(`chat:${tool}`, icon, labelKey, { kind: 'chatTool', tool }, { surfaces: CHAT });
 }
 
 /**
@@ -324,7 +355,24 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
     surfaces: ['gmToolbar'],
     testId: 'first-person-share',
   }),
+  chatTool('reply', 'reply', 'feature.chat.message.reply'),
+  chatTool('quote', 'format_quote', 'feature.chat.message.quote'),
+  chatTool('react', 'add_reaction', 'feature.chat.message.react'),
+  chatTool('bookmark', 'bookmark_add', 'feature.chat.message.bookmarks.button'),
+  chatTool('copyText', 'content_copy', 'feature.chat.message.copyText'),
+  chatTool('shareAsMemo', 'note_add', 'feature.chat.message.shareAsMemo'),
+  chatTool('ticker', 'campaign', 'feature.chat.message.ticker'),
+  chatTool('targetNumber', 'push_pin', 'feature.chat.message.pinTargetNumber'),
+  chatTool('history', 'history', 'feature.chat.message.history.title'),
+  chatTool('original', 'subdirectory_arrow_left', 'feature.chat.message.jumpToOriginal'),
+  chatTool('edit', 'edit', 'feature.chat.message.edit'),
+  chatTool('delete', 'delete_outline', 'feature.chat.message.deleteLine'),
 ];
+
+/** The chat tool a command stands for, or null for a command that is not one. */
+export function chatToolOf(command: MenuCommand): ChatToolName | null {
+  return command.action.kind === 'chatTool' ? command.action.tool : null;
+}
 
 const BY_KEY: ReadonlyMap<string, MenuCommand> = new Map(MENU_COMMANDS.map((command) => [command.key, command]));
 

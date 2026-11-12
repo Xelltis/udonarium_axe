@@ -4113,6 +4113,9 @@
         "tabsLabel": "팔레트 탭"
       },
       "messageSetting": {
+        "sectionChatTools": "채팅 도구",
+        "chatToolsHint": "발언에 마우스를 올렸을 때 나오는 버튼의 배열입니다. 이 기기만의 배열로, 추가·제거·순서 변경을 할 수 있습니다.",
+        "arrangeChatTools": "채팅 도구 배열하기",
         "sectionText": "글자",
         "fontSize": "글자 크기",
         "sectionPortrait": "입화",
@@ -6123,11 +6126,12 @@
       "reset": "초기 배치로 되돌리기",
       "resetConfirm": "이 메뉴를 초기 배치로 되돌립니다. 계속할까요?",
       "resetAll": "모든 메뉴를 초기 배치로 되돌리기",
-      "resetAllConfirm": "Fav 메뉴와 GM／PL 도구를 모두 초기 배치로 되돌립니다. 계속할까요?",
+      "resetAllConfirm": "Fav 메뉴와 GM／PL 도구와 채팅 도구를 모두 초기 배치로 되돌립니다. 계속할까요?",
       "surface": {
         "fab": "Fav 메뉴",
         "gmToolbar": "GM 도구",
-        "plToolbar": "PL 도구"
+        "plToolbar": "PL 도구",
+        "chatTools": "채팅 도구"
       },
       "writeOut": "내보내기",
       "readIn": "불러오기",

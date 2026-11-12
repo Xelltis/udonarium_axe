@@ -17,6 +17,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { MenuLayoutService } from '@axe/application/ui/menu-layout.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -1963,6 +1964,31 @@ describe('ChatMessageComponent', () => {
       expect(itemOf(actions, 'feature.chat.message.bookmarks.shared.add')).toBeUndefined();
       expect(itemOf(actions, 'feature.chat.message.shareAsMemo')).toBeUndefined();
       expect(itemOf(actions, 'feature.chat.message.ticker')).toBeUndefined();
+    });
+
+    it('draws the chat tools as this screen has arranged them, each only where the reader may do it with the line', () => {
+      const layouts = TestBed.inject(MenuLayoutService);
+      layouts.save('chatTools', {
+        nodes: [
+          { id: 'd', command: 'chat:delete' },
+          { id: 'c', command: 'chat:copyText', label: '写す', icon: 'content_paste' },
+          { id: 'o', command: 'chat:original' },
+          { id: 'x', command: 'nothing' },
+          { id: 'r', command: 'chat:reply' },
+        ],
+      });
+      try {
+        shown('me');
+
+        expect(actionsShown()).toEqual(['delete', 'copy', 'reply', 'more']);
+        const copy = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+          '[data-testid="chat-message-action-copy"]'
+        )!;
+        expect(copy.title).toBe('写す');
+        expect(copy.querySelector('i')!.textContent).toBe('content_paste');
+      } finally {
+        layouts.reset('chatTools');
+      }
     });
 
     it('stands on the bubble itself in either layout, so it floats over the line it belongs to', () => {

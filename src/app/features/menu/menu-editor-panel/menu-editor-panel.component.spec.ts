@@ -95,6 +95,16 @@ describe('MenuEditorPanelComponent', () => {
     expect(rowIds()).toContain('mapEditor');
   });
 
+  it('arranges the chat tools under a tab of their own, offering only what is done with a line', async () => {
+    fixture.componentInstance.surface.set('chatTools');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query('menu-editor-surface-chatTools')).toBeTruthy();
+    expect(rowIds()).toEqual(['chat:reply', 'chat:quote', 'chat:react', 'chat:bookmark', 'chat:edit', 'chat:delete']);
+    expect(query('menu-editor-add-group')).toBeNull();
+  });
+
   it('puts a command on the menu, and keeps it', async () => {
     const choice: HTMLElement = fixture.nativeElement.querySelector('[data-testid^="menu-command-choice-"]');
     choice.click();

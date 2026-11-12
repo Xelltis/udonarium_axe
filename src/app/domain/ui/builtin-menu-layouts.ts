@@ -152,10 +152,26 @@ const PL_TOOLBAR: MenuLayout = {
  * that has emptied one keeps it empty, since having said nothing and having said none are not the
  * same thing.
  */
+/**
+ * The chat tools as they have always stood over a line: the answers people reach for most, the
+ * marks they keep, and what the speaker does to their own line.
+ */
+const CHAT_TOOLS_ROW: MenuLayout = {
+  nodes: [
+    item('chat:reply'),
+    item('chat:quote'),
+    item('chat:react'),
+    item('chat:bookmark'),
+    item('chat:edit'),
+    item('chat:delete'),
+  ],
+};
+
 export const DEFAULT_MENU_LAYOUTS: MenuLayouts = {
   fab: FAB,
   gmToolbar: GM_TOOLBAR,
   plToolbar: PL_TOOLBAR,
+  chatTools: CHAT_TOOLS_ROW,
 };
 
 /** A fresh copy of the way a menu came, for a screen about to change it. */

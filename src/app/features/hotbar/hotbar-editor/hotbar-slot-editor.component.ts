@@ -268,12 +268,16 @@ export class HotbarSlotEditorComponent {
   });
   /**
    * The menu entries a menu slot may press: every one this seat's role is offered, from the
-   * floating menu and the toolbars alike, but not those that draw a menu of their own.
+   * floating menu and the toolbars alike, but not those that draw a menu of their own, nor the chat
+   * tools, which are pressed on a line said in chat.
    */
   protected readonly menuChoices = computed(() => {
     this.objectChange.trackMyCursor();
     const role = PeerCursor.myRole;
-    return MENU_COMMANDS.filter((command) => command.action.kind !== 'custom' && isMenuCommandOffered(command, role));
+    return MENU_COMMANDS.filter(
+      (command) =>
+        command.action.kind !== 'custom' && command.action.kind !== 'chatTool' && isMenuCommandOffered(command, role)
+    );
   });
   /** The scenes a scene slot may put on. */
   protected readonly sceneChoices = computed(() => {

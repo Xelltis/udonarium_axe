@@ -495,6 +495,8 @@ export class MenuCommandService {
         return this.act(action.act);
       case 'custom':
         return 'drawsItself';
+      case 'chatTool':
+        return 'unavailable';
     }
   }
 

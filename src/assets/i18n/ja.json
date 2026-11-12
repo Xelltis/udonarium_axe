@@ -4113,6 +4113,9 @@
         "tabsLabel": "パレットのタブ"
       },
       "messageSetting": {
+        "sectionChatTools": "チャットツール",
+        "chatToolsHint": "発言にマウスを乗せたときに出るボタンの並びです。この端末だけの並びで、足す・外す・並べ替えができます。",
+        "arrangeChatTools": "チャットツールを並べ替える",
         "sectionText": "文字",
         "fontSize": "文字サイズ",
         "sectionPortrait": "立ち絵",
@@ -5798,11 +5801,12 @@
       "reset": "初期配置に戻す",
       "resetConfirm": "このメニューを初期配置に戻します。よろしいですか？",
       "resetAll": "すべてのメニューを初期配置に戻す",
-      "resetAllConfirm": "Fav メニューと GM／PL ツールを、すべて初期配置に戻します。よろしいですか？",
+      "resetAllConfirm": "Fav メニューと GM／PL ツールとチャットツールを、すべて初期配置に戻します。よろしいですか？",
       "surface": {
         "fab": "Fav メニュー",
         "gmToolbar": "GM ツール",
-        "plToolbar": "PL ツール"
+        "plToolbar": "PL ツール",
+        "chatTools": "チャットツール"
       },
       "writeOut": "書き出す",
       "readIn": "読み込む",
