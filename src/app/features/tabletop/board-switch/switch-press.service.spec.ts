@@ -423,6 +423,43 @@ describe('SwitchPressService', () => {
       expect(goblin.location.name).toBe('graveyard');
     });
 
+    it('sets a creature of many parts out whole, its parts copied with it and stood on it', async () => {
+      const dragon = GameCharacter.create('竜', 1, '');
+      dragon.location = { name: 'graveyard', x: 0, y: 0 } as never;
+      const head = GameCharacter.create('頭', 1, '');
+      head.location = { name: 'graveyard', x: 0, y: 0 } as never;
+      head.ridingOn = dragon.identifier;
+      head.rideSeat = 'part';
+      copiesOf(dragon);
+      vi.spyOn(head, 'clone').mockImplementation(() => {
+        const copy = GameCharacter.create('頭', 1, '');
+        copy.location = { name: 'graveyard', x: 0, y: 0 } as never;
+        copy.rideSeat = 'part';
+        return copy;
+      });
+
+      await presses.press(
+        chestAt(5, 5, {
+          actions: [
+            {
+              kind: 'spawn',
+              target: { identifier: dragon.identifier, name: '竜' },
+              count: 1,
+              place: 'host',
+              delayMs: 0,
+              extra: {},
+            },
+          ],
+        })
+      );
+
+      const [copy] = onTable('竜');
+      const [headCopy] = onTable('頭');
+      expect(headCopy?.ridingOn).toBe(copy.identifier);
+      expect([headCopy.location.x, headCopy.location.y]).toEqual([copy.location.x, copy.location.y]);
+      expect(head.location.name).toBe('graveyard');
+    });
+
     it('has each copy out of the graveyard before the next is made, so each is numbered after the last', async () => {
       const goblin = GameCharacter.create('ゴブリン', 1, '');
       goblin.location = { name: 'graveyard', x: 0, y: 0 } as never;
@@ -569,6 +606,22 @@ describe('SwitchPressService', () => {
       );
 
       expect(hero.location).toMatchObject({ name: 'table', x: 8 * GRID, y: 3 * GRID });
+    });
+
+    it('carries the parts of the presser’s piece along with it', async () => {
+      const hero = speakAs(1, 1);
+      const arm = GameCharacter.create('腕', 1, '');
+      arm.location = { name: 'table', x: 1 * GRID, y: 1 * GRID } as never;
+      arm.ridingOn = hero.identifier;
+      arm.rideSeat = 'part';
+
+      await presses.press(
+        switchWith({
+          actions: [{ kind: 'carry', col: 8, row: 3, table: { identifier: '', name: '' }, delayMs: 0, extra: {} }],
+        })
+      );
+
+      expect(arm.location).toMatchObject({ name: 'table', x: 8 * GRID, y: 3 * GRID });
     });
 
     it('turns the darkness and the fog on or off, lays a picture on the table and puts music on', async () => {
