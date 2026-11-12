@@ -100,6 +100,8 @@ let linesDrawn = 0;
 
 /** One chat tool as the toolbar over a line draws it: its mark, what it is called, and what pressing it does. */
 interface ChatToolButton {
+  /** The entry of the arrangement it stands for, which tells two entries of one tool apart. */
+  readonly id: string;
   readonly tool: ChatToolName;
   /** What the tests reach the button by, after `chat-message-action-`. */
   readonly testId: string;
@@ -151,7 +153,8 @@ export class ChatMessageComponent {
   private readonly drawing = ++linesDrawn;
   private readonly stampPacks = inject(StampPackService);
   private readonly t = inject(TRANSLATE_FN);
-  private readonly menuLayouts = inject(MenuLayoutService);
+  /** The chat tools as this screen has arranged them. */
+  private readonly chatTools = inject(MenuLayoutService).layoutOf('chatTools');
   private readonly language = inject(LanguageService);
   private readonly uiSignalService = inject(UiSignalService);
   /** The panel this line is being read in, where it is being read in one that can answer. */
@@ -542,12 +545,12 @@ export class ChatMessageComponent {
     const message = this.chatMessage;
     if (!message || this.readOnly() || this.isEditing()) return null;
     const tools: ChatToolButton[] = [];
-    for (const node of menuItemsOf(this.menuLayouts.layoutOf('chatTools')())) {
+    for (const node of menuItemsOf(this.chatTools())) {
       const command = menuCommandOf(node.command);
       const tool = command && chatToolOf(command);
       const button = tool && this.chatToolButton(tool);
       if (!button) continue;
-      tools.push({ ...button, icon: node.icon ?? command.icon, title: node.label ?? button.title });
+      tools.push({ ...button, id: node.id, icon: node.icon ?? command.icon, title: node.label ?? button.title });
     }
     // Asked of every drawn line on every pass, so it is told from these few answers rather than by
     // building the menu: the menu holds at least the words of any line whose words are shown.
@@ -556,8 +559,7 @@ export class ChatMessageComponent {
   }
 
   /** A chat tool as a button over this line, or null where the reader may not do that with the line. */
-  private chatToolButton(tool: ChatToolName): Omit<ChatToolButton, 'icon'> | null {
-    const text = this.readableText(this.chatMessage);
+  private chatToolButton(tool: ChatToolName): Omit<ChatToolButton, 'icon' | 'id'> | null {
     const named = (key: string) => this.t(key);
     switch (tool) {
       case 'reply':
@@ -588,10 +590,12 @@ export class ChatMessageComponent {
               press: (event) => this.openBookmarkMenu(event),
             }
           : null;
-      case 'copyText':
+      case 'copyText': {
+        const text = this.readableText(this.chatMessage);
         return text.length > 0
           ? { tool, testId: 'copy', title: named('feature.chat.message.copyText'), press: () => this.copyText(text) }
           : null;
+      }
       case 'shareAsMemo':
         return this.canInteract && this.canShareAsMemo
           ? {

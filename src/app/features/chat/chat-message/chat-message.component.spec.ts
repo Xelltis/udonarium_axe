@@ -1991,6 +1991,23 @@ describe('ChatMessageComponent', () => {
       }
     });
 
+    it('draws one tool put on the chat tools twice as two buttons, told apart by their entries', () => {
+      const layouts = TestBed.inject(MenuLayoutService);
+      layouts.save('chatTools', {
+        nodes: [
+          { id: 'a', command: 'chat:quote' },
+          { id: 'b', command: 'chat:quote', label: 'もう一度引用' },
+        ],
+      });
+      try {
+        shown('me');
+
+        expect(actionsShown()).toEqual(['quote', 'quote', 'more']);
+      } finally {
+        layouts.reset('chatTools');
+      }
+    });
+
     it('stands on the bubble itself in either layout, so it floats over the line it belongs to', () => {
       shown('me');
       const toolbar = () =>

@@ -374,7 +374,7 @@
       class="border-ui-border-panel bg-ui-panel rounded-ui shadow-ui-md pointer-events-none absolute -top-3.5 right-2 z-20 flex items-center gap-px border border-solid p-px opacity-0 transition-opacity duration-150 group-hover/body:pointer-events-auto group-hover/body:opacity-100 group-has-focus-visible/body:pointer-events-auto group-has-focus-visible/body:opacity-100 pointer-coarse:hidden"
       [attr.aria-label]="'feature.chat.message.actions' | transloco"
     >
-      @for (tool of tools; track tool.tool) {
+      @for (tool of tools; track tool.id) {
         <button
           type="button"
           class="text-ui-muted rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"

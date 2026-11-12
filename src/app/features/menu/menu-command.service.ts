@@ -257,9 +257,11 @@ export class MenuCommandService {
    * Whether the command is worth drawing now.
    *
    * The switch to the small-screen layout answers no on a screen wide enough for the desktop one,
-   * or on a screen already using it.
+   * or on a screen already using it. A chat tool is pressed on a line said in chat and does nothing
+   * on a menu, so one carried into a menu's arrangement is not drawn there.
    */
   isAvailable(command: MenuCommand): boolean {
+    if (command.action.kind === 'chatTool') return false;
     if (command.action.kind === 'act' && command.action.act === 'useMobileLayout') {
       return this.viewport.isCompact() && this.mobile.prefersDesktop();
     }

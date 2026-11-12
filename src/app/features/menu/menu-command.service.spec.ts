@@ -59,6 +59,19 @@ describe('MenuCommandService', () => {
 
       expect(commands.entriesOf(WITH_A_GROUP).map((entry) => entry.command.key)).toEqual(['chat', 'tableSetting']);
     });
+
+    it('draws no chat tool carried into a menu, which is pressed on a line and does nothing there', () => {
+      seatAs(PeerRole.Player);
+      const carried = {
+        nodes: [
+          { id: 'reply', command: 'chat:reply' },
+          { id: 'chat', command: 'chat' },
+        ],
+      };
+
+      expect(commands.entriesOf(carried).map((entry) => entry.command.key)).toEqual(['chat']);
+      expect(commands.run(menuCommandOf('chat:reply')!)).toBe('unavailable');
+    });
   });
 
   describe('what it will do', () => {
