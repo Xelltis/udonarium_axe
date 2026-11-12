@@ -86,6 +86,22 @@ describe('RemoteControllerComponent', () => {
     expect(root.querySelector('[data-testid="remote-target-？？？"]')).not.toBeNull();
   });
 
+  it('names the piece anew in its title once its name is hidden while the remote is open', async () => {
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
+    const villain = createChar('黒幕');
+    component.character.set(villain);
+    TestBed.tick();
+    const panel = (component as unknown as { panelService: { title: string } }).panelService;
+    expect(panel.title).toContain('黒幕');
+
+    villain.hideName = true;
+    await Promise.resolve();
+    TestBed.tick();
+
+    expect(panel.title).toContain('？？？');
+    expect(panel.title).not.toContain('黒幕');
+  });
+
   it('leaves out a piece the table does not draw for this seat, in the dark, under the fog or in stealth', () => {
     const seen = createChar('勇者');
     const unseen = createChar('潜む魔物');
