@@ -1,6 +1,6 @@
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { GameCharacter } from '@axe/domain/character/game-character';
+import { GameCharacter, standPartsOnBodiesBy } from '@axe/domain/character/game-character';
 import { paletteRowsOf, paletteTabsOf } from '@axe/domain/chat/palette-rows';
 import {
   DataElement,
@@ -74,33 +74,34 @@ describe('GameCharacter', () => {
       expect(arm.partsAlong()).toEqual([]);
     });
 
-    it('stands a part brought back on its own where it stood on its body, which moved on without it', () => {
-      const body = GameCharacter.create('竜', 3, '');
-      body.setLocation('table');
-      const arm = partOf(body);
-      arm.location.x = body.location.x + 50;
-      arm.location.y = body.location.y + 50;
-      arm.setLocation('common');
-      body.location.x = 400;
-      body.location.y = 250;
+    it('stands a part coming to where its body stands on it, alone or along with it, before the move is told', () => {
+      const stood: string[] = [];
+      const before = standPartsOnBodiesBy((part, body) => {
+        stood.push(`${part.name}@${part.location.name}`);
+        part.location.x = body.location.x + 25;
+        part.location.y = body.location.y + 25;
+      });
+      try {
+        const body = GameCharacter.create('竜', 3, '');
+        body.setLocation('table');
+        const arm = partOf(body);
+        const leg = partOf(body, 'graveyard');
+        arm.setLocation('common');
+        body.location.x = 400;
+        body.location.y = 250;
 
-      arm.setLocation('table');
+        arm.setLocation('table');
+        expect([arm.location.x, arm.location.y]).toEqual([425, 275]);
 
-      expect(arm.isWrittenAsPart).toBe(true);
-      expect([arm.location.x, arm.location.y]).toEqual([450, 300]);
-    });
-
-    it('leaves a part moved along with its body where it stood', () => {
-      const body = GameCharacter.create('竜', 3, '');
-      body.setLocation('table');
-      const arm = partOf(body);
-      arm.location.x = 150;
-      arm.location.y = 120;
-
-      body.setLocation('graveyard');
-      body.setLocation('table');
-
-      expect([arm.location.x, arm.location.y]).toEqual([150, 120]);
+        body.setLocation('graveyard');
+        body.location.x = 100;
+        body.location.y = 100;
+        body.setLocation('table');
+        expect([leg.location.name, leg.location.x, leg.location.y]).toEqual(['table', 125, 125]);
+        expect(stood).toEqual(['腕@common', '腕@table', '腕@graveyard', '腕@graveyard']);
+      } finally {
+        standPartsOnBodiesBy(before);
+      }
     });
 
     it('takes the parts standing with it out of the room with it', () => {

@@ -2,7 +2,7 @@ import { computed, inject, Injectable } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { GameCharacter } from '@axe/domain/character/game-character';
+import { GameCharacter, standPartsOnBodiesBy } from '@axe/domain/character/game-character';
 import { BondedPiece, bondGroupOf, boundBelow, boundTo } from '@axe/domain/tabletop/move/piece-bonds';
 import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { isPartOf } from '@axe/domain/tabletop/ride/ride-rules';
@@ -20,6 +20,12 @@ export class PieceLinksService {
   private readonly objectStore = inject(ObjectStore);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectChange = inject(ObjectChangeService);
+
+  constructor() {
+    // A part coming to where its body stands is stood on it as a move of the body stands it, middle on
+    // middle, which the piece itself cannot do, knowing nothing of how wide a cell of the table is.
+    standPartsOnBodiesBy((part, body) => this.standAt(part, body));
+  }
 
   /** The piece holding on to this one, where it is on the table and in the fight; null otherwise. */
   holderOf(piece: GameCharacter): GameCharacter | null {

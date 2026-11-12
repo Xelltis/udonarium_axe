@@ -158,6 +158,19 @@ describe('PiecePartsService', () => {
     expect(parts.lookOf(head)).toEqual({ layer: '', mask: '', faces: '' });
   });
 
+  it('stands a part brought back to the table on its own on its body’s middle, wherever the body went since', () => {
+    const dragon = pieceAt('ドラゴン', 4, 4, 3);
+    const head = pieceAt('頭', 5, 5);
+    parts.attach(head, dragon);
+    head.setLocation('common');
+    dragon.location.x = 10 * GRID;
+    dragon.location.y = 2 * GRID;
+
+    head.setLocation('table');
+
+    expect([head.location.x, head.location.y]).toEqual([11 * GRID, 3 * GRID]);
+  });
+
   it('moves the parts wherever the body goes, and takes them off where it stands', () => {
     const dragon = pieceAt('ドラゴン', 4, 4, 3);
     const head = pieceAt('頭', 5, 5);
