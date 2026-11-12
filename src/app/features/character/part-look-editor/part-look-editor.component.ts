@@ -143,7 +143,7 @@ export class PartLookEditorComponent {
   });
 
   /** The part chosen, the first where none is or the one chosen is gone. */
-  protected readonly chosen = computed(() => {
+  protected readonly chosen = computed<EditedPart | null>(() => {
     const parts = this.parts();
     return parts.find((part) => part.id === this.partIdentifier()) ?? parts[0] ?? null;
   });
