@@ -192,9 +192,10 @@ class Stage implements ModelStage {
         const position = mesh.geometry.getAttribute('position');
         const indices = mesh.geometry.getIndex();
         for (const triangle of triangles) {
-          for (let at = 0; at < 3; at++) {
-            const point = indices ? indices.getX(triangle * 3 + at) : triangle * 3 + at;
-            if (point >= position.count) continue;
+          const corners = [0, 1, 2].map((at) => (indices ? indices.getX(triangle * 3 + at) : triangle * 3 + at));
+          // A face the model does not hold is passed over whole, so the faces after it keep their corners.
+          if (corners.some((point) => !(point < position.count))) continue;
+          for (const point of corners) {
             // Posed as it is drawn and picked, by its bones and its morphs, rather than as it was bound.
             mesh.getVertexPosition(point, corner).applyMatrix4(mesh.matrixWorld);
             points.push(corner.x, corner.y, corner.z);
