@@ -9,6 +9,7 @@ import {
   DataElementRole,
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightCategory, LightPreset, VisionType } from '@axe/domain/tabletop/vision-types';
 
 describe('GameCharacter', () => {
@@ -101,6 +102,28 @@ describe('GameCharacter', () => {
       body.location.y = 600;
       body.setLocation('table');
       expect([arm.location.x, arm.location.y]).toEqual([650, 650]);
+    });
+
+    it('stands a part by the cells of the first table where no table is viewed, leaving one held fast and any not on the table', () => {
+      const table = new GameTable('only-table');
+      table.initialize();
+      table.gridSize = 60;
+      const body = GameCharacter.create('竜', 3, '');
+      body.setLocation('graveyard');
+      const arm = partOf(body);
+      const leg = partOf(body);
+      const tail = partOf(body, 'common');
+      leg.heldFast = '1';
+      arm.location.x = leg.location.x = tail.location.x = 0;
+      body.location.x = 300;
+      body.location.y = 300;
+
+      body.setLocation('table');
+      expect([arm.location.x, arm.location.y]).toEqual([360, 360]);
+      expect(leg.location.x).toBe(0);
+
+      body.setLocation('common');
+      expect(tail.location.x).toBe(0);
     });
 
     it('takes the parts standing with it out of the room with it', () => {

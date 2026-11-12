@@ -1,6 +1,7 @@
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
+import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
 import { BuffManager } from '@axe/domain/character/buff-manager';
@@ -48,12 +49,14 @@ const INNER_NOTE_NAME = 'inner-note';
 
 /**
  * How wide a cell of the table being viewed is, in table pixels: read off the room's table selecter
- * and the table it names by their identifiers, without the classes, which would make the piece
- * depend on the table and the table, through its lights, on the piece. 50 where there is none yet.
+ * and the table it names, or the first table where it names none, as the selecter reads it, by their
+ * identifiers and names, without the classes, which would make the piece depend on the table and the
+ * table, through its lights, on the piece. 50 where there is no table yet.
  */
 function viewedCellPx(): number {
   const selecter = ObjectStore.instance.get('TableSelecter') as { viewTableIdentifier?: unknown } | null;
-  const table = ObjectStore.instance.get(`${selecter?.viewTableIdentifier ?? ''}`) as { gridSize?: unknown } | null;
+  const named = ObjectStore.instance.get(`${selecter?.viewTableIdentifier ?? ''}`) as { gridSize?: unknown } | null;
+  const table = named ?? (ObjectStore.instance.getObjects('game-table')[0] as { gridSize?: unknown } | undefined);
   const cell = Number(table?.gridSize);
   return cell > 0 ? cell : 50;
 }
@@ -449,26 +452,28 @@ export class GameCharacter extends OwnedTabletopObject {
   /**
    * Moves the piece to a named place, and its parts that stood where it stood with it, so a creature
    * of many parts leaves the table, is put away or out of sight, and comes back, whole. A part that
-   * comes to where its body stands, along with it, on its own or ahead of it, is stood on its body,
-   * middle on middle, before that is told, so every seat has it where the body is drawn, rather than
-   * where it was left.
+   * comes to where its body stands, along with it or on its own, is stood on its body, middle on
+   * middle, and so is one that came to the table ahead of it, unless held fast where it stands. All of
+   * it is told together, so every seat has the parts where the body is drawn, rather than where they
+   * were left.
    */
   override setLocation(location: string): void {
-    const moves = location !== this.location.name;
-    const parts = moves ? this.partsAlong() : [];
-    if (moves && this.isWrittenAsPart) {
-      const body = ObjectStore.instance.get(this.ridingOn);
-      if (body instanceof GameCharacter && body.location.name === location) standOnBody(this, body);
-    }
-    super.setLocation(location);
-    for (const part of parts) part.setLocation(location);
-    // Parts that came on ahead of their body, to where it now stands, are stood on it as it comes.
-    if (!moves || this.isWrittenAsPart) return;
-    for (const part of this.partsAlong()) {
-      if (parts.includes(part)) continue;
-      standOnBody(part, this);
-      part.update();
-    }
+    GameObject.batch(() => {
+      const moves = location !== this.location.name;
+      const parts = moves ? this.partsAlong() : [];
+      if (moves && this.isWrittenAsPart) {
+        const body = ObjectStore.instance.get(this.ridingOn);
+        if (body instanceof GameCharacter && body.location.name === location) standOnBody(this, body);
+      }
+      super.setLocation(location);
+      for (const part of parts) part.setLocation(location);
+      if (!moves || this.isWrittenAsPart || location !== 'table') return;
+      for (const part of this.partsAlong()) {
+        if (parts.includes(part) || part.heldFast === '1') continue;
+        standOnBody(part, this);
+        part.update();
+      }
+    });
   }
 
   /** Takes the piece out of the room, and its parts that stood where it stood with it. */
