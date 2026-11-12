@@ -226,6 +226,17 @@ describe('target-number', () => {
       expect(findTargetNumber(tab, { identifier: 'villain', name: '？？？', ownName: '黒幕' })).toBe(14);
     });
 
+    it('reads an answer kept as rolled at a piece by it, its name hidden or shown since, or no name at all', () => {
+      roll(speaker, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [？？？]', { rolledAt: 'boss' });
+      expect(findTargetNumber(tab, { identifier: 'boss', name: 'ボス', ownName: 'ボス' })).toBe(14);
+
+      roll(speaker, 'DiceBot : (2D6+5) → 7[3,4]+5 → 12 [ボス]', { rolledAt: 'boss' });
+      expect(findTargetNumber(tab, { identifier: 'boss', name: '？？？', ownName: 'ボス' })).toBe(12);
+
+      roll(speaker, 'DiceBot : (2D6+1) → 6[3,3]+1 → 7', { rolledAt: 'nameless' });
+      expect(findTargetNumber(tab, { identifier: 'nameless', name: '' })).toBe(7);
+    });
+
     it('takes no answer as rolled at a piece whose name after it is another’s, whomever it says it was rolled at', () => {
       roll(speaker, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC2]', { rolledAt: 'pc1' });
 
@@ -285,6 +296,15 @@ describe('target-number', () => {
     }
 
     const master = { identifier: 'gm', name: 'GM' };
+
+    it('takes the number a game master wrote out as a named thing for another named thing', () => {
+      say({ identifier: '', name: '宝箱' }, '解錠：目標値13', PeerRole.GameMaster);
+
+      expect(findTargetNumberSource(tab, { identifier: '', name: '罠' })).toMatchObject({
+        total: 13,
+        from: 'presented',
+      });
+    });
 
     it('takes the number a game master wrote out, or the newest roll at nobody, whichever came last', () => {
       roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');

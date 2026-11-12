@@ -1,4 +1,5 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
+import { SAID_HIDDEN_NAME } from '@axe/domain/character/hidden-name';
 import type { ChatMessage } from '@axe/domain/chat/chat-message';
 import type { ChatTab } from '@axe/domain/chat/chat-tab';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
@@ -150,6 +151,7 @@ export interface TargetNumberSource {
 export function findTargetNumberSource(tab: ChatTab, speaker: TargetNumberSpeaker): TargetNumberSource | null {
   const aims = aimsAt(speaker.name);
   const aimsOfOld = speaker.ownName && speaker.ownName !== speaker.name ? [...aims, ...aimsAt(speaker.ownName)] : aims;
+  const aimsAtHidden = aimsAt(SAID_HIDDEN_NAME);
   const pinned = `${tab.pinnedTargetNumber ?? ''}`;
   const messages = tab.chatMessages;
   let byOthers: TargetNumberSource | null = null;
@@ -169,16 +171,18 @@ export function findTargetNumberSource(tab: ChatTab, speaker: TargetNumberSpeake
     const total = rollTotalOf(text);
     if (total == null) continue;
     // An answer to a line aimed at everyone at once is read by whom the line was aimed at alone, and
-    // one that keeps whom it was rolled at by that as well as by the name after it: two pieces whose
-    // names are hidden show the same label in their brackets. One keeping neither, as an earlier
-    // version's, is read by the name after it, the speaker's own among them.
+    // one that keeps whom it was rolled at by that, where the name after it, if any, is the piece's by
+    // either name it may have gone by, its own or the label for a hidden one, as its name may have
+    // been hidden or shown since: two pieces whose names are hidden show the same label in their
+    // brackets. One keeping neither, as an earlier version's, is read by the name after it, the
+    // speaker's own among them.
     const together = aimedTogetherOf(tab, message);
     const rolledAt = `${message.rolledAt ?? ''}`;
     const named = (names: readonly string[]) => names.some((aim) => text.endsWith(aim));
     const aimedHere = together
       ? speaker.identifier.length > 0 && together.includes(speaker.identifier)
       : rolledAt.length > 0
-        ? rolledAt === speaker.identifier && named(aims)
+        ? rolledAt === speaker.identifier && (named(aimsOfOld) || named(aimsAtHidden) || aimOf(text) == null)
         : named(aimsOfOld);
     if (aimedHere) return { total, answer: message, from: 'aimed' };
     if (pinned.length > 0 && message.identifier === pinned) return { total, answer: message, from: 'pinned' };
@@ -315,7 +319,9 @@ function answeredOne(tab: ChatTab, answer: ChatMessage): boolean {
  * it, and not by the speaker: a line of a room that never wrote down who said it is nobody's.
  */
 function presentedByGameMaster(message: ChatMessage, speaker: TargetNumberSpeaker): boolean {
-  return message.senderRole === PeerRole.GameMaster && `${message.sendFrom ?? ''}` !== speaker.identifier;
+  if (message.senderRole !== PeerRole.GameMaster) return false;
+  // A line said as nobody, as a named thing says one, is not the speaker's own for being said as nobody too.
+  return speaker.identifier.length < 1 || `${message.sendFrom ?? ''}` !== speaker.identifier;
 }
 
 /** Whether the speaker said the line an answer answers. */
