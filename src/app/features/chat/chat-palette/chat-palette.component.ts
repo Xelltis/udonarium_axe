@@ -15,6 +15,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatLintService } from '@axe/application/chat/chat-lint.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
@@ -98,6 +99,7 @@ export class ChatPaletteComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly names = inject(PieceNameService);
   private readonly hotbarFill = inject(HotbarFillService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   chatMessageService = inject(ChatMessageService);
@@ -474,7 +476,7 @@ export class ChatPaletteComponent {
    */
   updatePanelTitle() {
     this.panelService.title = this.character()
-      ? this.t('feature.chat.palette.panelTitleWith', { name: this.character()!.name })
+      ? this.t('feature.chat.palette.panelTitleWith', { name: this.names.shown(this.character()!) })
       : this.t('feature.chat.palette.panelTitle');
   }
 

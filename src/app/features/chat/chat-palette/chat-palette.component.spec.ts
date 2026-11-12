@@ -62,6 +62,19 @@ describe('ChatPaletteComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('titles itself by the name the reader is shown, so a hidden name stays hidden', () => {
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
+    const villain = createChar('黒幕');
+    villain.hideName = true;
+    component.character.set(villain);
+
+    component.updatePanelTitle();
+
+    const title = (component as unknown as { panelService: { title: string } }).panelService.title;
+    expect(title).toContain('？？？');
+    expect(title).not.toContain('黒幕');
+  });
+
   it('does not switch to a character whose contents this seat may not view', () => {
     const open = createChar('勇者');
     const kept = createChar('秘密の魔物');
