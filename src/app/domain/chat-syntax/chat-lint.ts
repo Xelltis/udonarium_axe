@@ -144,6 +144,8 @@ export interface ChatLintContext {
    * to be sent now, in the palette's own box among them, is not.
    */
   readonly sentLater?: boolean;
+  /** The name a piece is told by in what is found; its own where this is not told. */
+  nameOf?(piece: GameCharacter): string;
 }
 
 /**
@@ -202,6 +204,7 @@ function lintMessage(
   const aimsThrough = (site: ReferenceSite) =>
     textTargetsCharacter(speakerFilled(text.slice(site.from - message.from, site.to - message.from)));
   const later = context.sentLater === true;
+  const nameOf = (piece: GameCharacter) => context.nameOf?.(piece) ?? piece.name;
   const add = (span: TextRange, severity: ChatDiagnosticSeverity, code: ChatLintCode, extra = {}) =>
     found.push({ from: span.from, to: span.to, severity, code, ...extra });
   const portrait = spans.find((span) => span.kind === 'portrait');
@@ -249,8 +252,9 @@ function lintMessage(
           if (!later) add(span, 'error', 'target.none');
         } else if (context.keptOffTable) add(span, 'warning', 'edit.keptOffTable');
         else if (!span.targeted && !context.speaker) add(span, 'warning', 'edit.noSpeaker');
-        else if (span.kind === 'resource') lintResource(span.command, span, piecesFor(span.targeted, context), add);
-        else lintBuff(span.command, span, piecesFor(span.targeted, context), add);
+        else if (span.kind === 'resource')
+          lintResource(span.command, span, piecesFor(span.targeted, context), add, nameOf);
+        else lintBuff(span.command, span, piecesFor(span.targeted, context), add, nameOf);
         break;
       case 'sweep':
         if (context.keptOffTable) add(span, 'warning', 'edit.keptOffTable');
@@ -386,7 +390,13 @@ function holdsReference(command: string): boolean {
  * Checks a `:` command the way it is read into an edit, in the same order, for each piece it is aimed
  * at. The status and the amount of one holding a reference are read only once it is filled in.
  */
-function lintResource(command: string, span: TextRange, pieces: readonly GameCharacter[], add: Report): void {
+function lintResource(
+  command: string,
+  span: TextRange,
+  pieces: readonly GameCharacter[],
+  add: Report,
+  nameOf: (piece: GameCharacter) => string
+): void {
   const parts = resourceCommandParts(command);
   if (!parts) return add(span, 'error', 'res.noOperator');
   if (parts.operator !== '>' && parts.amount === '') return add(span, 'error', 'res.noAmount');
@@ -397,7 +407,7 @@ function lintResource(command: string, span: TextRange, pieces: readonly GameCha
   );
   if (missing.length > 0) {
     return add(span, 'error', 'res.unknownStatus', {
-      params: { name, piece: missing.map((piece) => piece.name).join('・') },
+      params: { name, piece: missing.map(nameOf).join('・') },
     });
   }
   if (parts.operator !== '>' && parseResourceEditOption(parts.amount).isErr) add(span, 'error', 'res.badOption');
@@ -407,7 +417,13 @@ function lintResource(command: string, span: TextRange, pieces: readonly GameCha
  * Checks a `&` command the way laying it would go, for each piece it is aimed at. The buff and the
  * statuses one holding a reference names are read only once it is filled in.
  */
-function lintBuff(source: string, span: TextRange, pieces: readonly GameCharacter[], add: Report): void {
+function lintBuff(
+  source: string,
+  span: TextRange,
+  pieces: readonly GameCharacter[],
+  add: Report,
+  nameOf: (piece: GameCharacter) => string
+): void {
   const { command } = readBuffStacking(halfWidthBuffCommand(source));
   const kind = buffCommandKind(command);
   if (holdsReference(command) && (kind === 'remove' || kind === 'calculated')) return;
@@ -415,7 +431,7 @@ function lintBuff(source: string, span: TextRange, pieces: readonly GameCharacte
     const name = removedBuffName(command);
     const without = pieces.filter((piece) => piece.buffs.find(name) == null);
     if (without.length > 0) {
-      add(span, 'warning', 'buff.notFound', { params: { name, piece: without.map((piece) => piece.name).join('・') } });
+      add(span, 'warning', 'buff.notFound', { params: { name, piece: without.map(nameOf).join('・') } });
     }
     return;
   }

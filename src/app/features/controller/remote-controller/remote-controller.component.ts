@@ -471,7 +471,7 @@ export class RemoteControllerComponent {
   updatePanelTitle() {
     const char = this.character();
     this.panelService.title = char
-      ? this.t('feature.controller.remote.panelTitleWithName', { name: char.name })
+      ? this.t('feature.controller.remote.panelTitleWithName', { name: this.shownName(char) })
       : this.t('feature.controller.remote.panelTitle');
   }
 
@@ -848,7 +848,7 @@ export class RemoteControllerComponent {
       width: 420,
       height: 300,
     };
-    option.title = this.t('feature.controller.remote.buffEditWithName', { name: gameCharacter.name });
+    option.title = this.t('feature.controller.remote.buffEditWithName', { name: this.shownName(gameCharacter) });
     this.panelService.openLazy(
       () =>
         import('@axe/features/character/game-character-buff-view/game-character-buff-view.component').then(

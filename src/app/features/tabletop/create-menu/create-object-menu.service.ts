@@ -1,4 +1,5 @@
 import { inject, Injectable, InjectionToken, Type } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { PartyService } from '@axe/application/party/party.service';
@@ -10,6 +11,7 @@ import {
   type DiceCreateRequest,
   getDiceMenuItems,
 } from '@axe/application/tabletop/tabletop-action-helpers';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -42,6 +44,8 @@ export class CreateObjectMenuService implements CreateObjectMenu {
   private readonly selection = inject(SelectionSignalService);
   private readonly modalService = inject(ModalService);
   private readonly tabletopService = inject(TabletopService);
+  private readonly vision = inject(VisionService);
+  private readonly names = inject(PieceNameService);
   private readonly partyService = inject(PartyService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly loadDiceCreateDialog = inject(DICE_CREATE_DIALOG_LOADER);
@@ -79,10 +83,9 @@ export class CreateObjectMenuService implements CreateObjectMenu {
     const option: DiceCreateDialogOption = {
       defaultCount: 2,
       // The same pieces the menu of a die already offers to give it to.
-      ownerCandidates: this.tabletopService.characters.map((character) => ({
-        identifier: character.identifier,
-        name: character.name,
-      })),
+      ownerCandidates: this.tabletopService.characters
+        .filter((character) => this.vision.isTokenVisible(character) && !this.names.isKept(character))
+        .map((character) => ({ identifier: character.identifier, name: character.name })),
     };
     const request = await this.modalService
       .openLazy<DiceCreateRequest | null>(this.loadDiceCreateDialog, {

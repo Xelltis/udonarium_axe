@@ -9,6 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -62,6 +63,7 @@ export class LightSourceComponent {
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly visionService = inject(VisionService);
+  private readonly names = inject(PieceNameService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
 
@@ -225,7 +227,8 @@ export class LightSourceComponent {
 
     const characters = this.objectStore
       .getObjects(GameCharacter)
-      .filter((character) => character.isVisibleOnTable)
+      .filter((character) => character.isVisibleOnTable && this.visionService.isTokenVisible(character))
+      .filter((character) => !this.names.isKept(character))
       .map((character) => ({ identifier: character.identifier, name: character.name }));
     const menu = buildLightSourceContextMenuModel(
       light,

@@ -770,7 +770,8 @@ export class GameObjectInventoryComponent {
       inventorySearchText(
         row,
         row.object instanceof OwnedTabletopObject ? row.object.ownerName : '',
-        this.canView(row.object) ? this.elementTextsOf(inventoryType, row.object) : []
+        this.canView(row.object) ? this.elementTextsOf(inventoryType, row.object) : [],
+        this.names.shown(row.object)
       )
     );
   });

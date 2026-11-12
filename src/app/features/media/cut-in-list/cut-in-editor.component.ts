@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -10,6 +11,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitElementAt } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
@@ -35,6 +37,7 @@ export class CutInEditorComponent {
   private readonly imageStorage = inject(ImageStorage);
   private readonly audioStorage = inject(AudioStorage);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly names = inject(PieceNameService);
   private readonly t = inject(TRANSLATE_FN);
 
   readonly cutIn = input<CutIn | null>(null);
@@ -68,7 +71,7 @@ export class CutInEditorComponent {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     return this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
-      .filter((character) => character.location.name !== 'graveyard')
+      .filter((character) => character.location.name !== 'graveyard' && !this.names.isKept(character))
       .map((character) => ({ identifier: character.identifier, name: character.name }));
   });
 
@@ -84,7 +87,7 @@ export class CutInEditorComponent {
     return {
       characterId: character.identifier,
       imageIdentifier,
-      name: character.name,
+      name: saidNameOf(character),
       fit: portraitFitFor(character.cutInPortraitFits, imageIdentifier),
     };
   }

@@ -20,6 +20,7 @@ import {
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { buffExpires } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -418,7 +419,7 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
   const { piles, command } = readBuffStacking(buff.command);
   let text = '';
   if (buff.targeted) {
-    text += `[${character.name}] `;
+    text += `[${saidNameOf(character)}] `;
   }
 
   const kind = buffCommandKind(command);

@@ -68,6 +68,11 @@ export interface GameCharacterContextMenuCallbacks {
   onFollowFromBehind?: () => void;
   /** Gives the table its own camera back, where the piece is followed from behind. */
   onStopFollowing?: () => void;
+  /**
+   * Hides the piece's name from all but the game masters, or shows it again. Left out but for one
+   * who may see what is kept back, or a player could show a name the master hid.
+   */
+  onSetNameHidden?: (hidden: boolean) => void;
 }
 
 /**
@@ -380,22 +385,21 @@ export function buildGameCharacterContextMenuModel(
       ),
     ],
   });
-  const lookToggles: ContextMenuAction[] = [
-    char.hideName
-      ? {
-          name: t('feature.character.contextMenu.hideNameOn'),
+  const nameToggle: ContextMenuAction[] = callbacks.onSetNameHidden
+    ? [
+        {
+          name: t(
+            char.hideName ? 'feature.character.contextMenu.hideNameOn' : 'feature.character.contextMenu.hideNameOff'
+          ),
           action: () => {
-            char.hideName = false;
-            SoundEffect.play(PresetSound.sweep);
-          },
-        }
-      : {
-          name: t('feature.character.contextMenu.hideNameOff'),
-          action: () => {
-            char.hideName = true;
+            callbacks.onSetNameHidden?.(!char.hideName);
             SoundEffect.play(PresetSound.sweep);
           },
         },
+      ]
+    : [];
+  const lookToggles: ContextMenuAction[] = [
+    ...nameToggle,
     char.hideBuff
       ? {
           name: t('feature.character.contextMenu.hideBuffOn'),

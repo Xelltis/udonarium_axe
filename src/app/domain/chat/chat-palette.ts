@@ -5,6 +5,7 @@ import { toHalfWidth } from '@axe/core/util/string-util';
 import { aimedAtBonusesOf } from '@axe/domain/character/aimed-at-buff';
 import { parseBuffStrength } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { SAID_HIDDEN_NAME } from '@axe/domain/character/hidden-name';
 import { CHARACTER_REFERENCE, readReferenceName } from '@axe/domain/chat/chat-reference';
 import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
@@ -263,6 +264,19 @@ export function paletteVariableSite(line: string): PaletteVariableSite | null {
 }
 
 /**
+ * Whether a sheet's item is the name of a piece whose name is hidden, which a line names as
+ * {@link SAID_HIDDEN_NAME} names it, as everyone reads the line.
+ */
+function isHiddenNameElement(element: DataElement): boolean {
+  if (element.name !== 'name') return false;
+  let node: ObjectNode | null = element.parent;
+  while (node && !(node instanceof GameCharacter)) node = node.parent;
+  return (
+    node instanceof GameCharacter && node.hideName && node.commonDataElement?.getFirstElementByName('name') === element
+  );
+}
+
+/**
  * Fills in the references in a line of text.
  *
  * `{name}` reads from the speaker, `t{name}` from the target it is aimed at, and a reference
@@ -305,6 +319,7 @@ export function evaluateReferences(
   const calcPass = createCalcPass();
 
   const evaluateElementText = (element: DataElement, useMax: boolean, formula: FormulaPlace): string | null => {
+    if (isHiddenNameElement(element)) return SAID_HIDDEN_NAME;
     if (collectImageAttachments && element.fieldType === DataElementFieldType.IMAGE) {
       const imageIdentifier = String(element.value ?? '').trim();
       if (imageIdentifier.length > 0 && !attachmentImageIdentifiers.includes(imageIdentifier)) {

@@ -110,6 +110,13 @@ describe('lintChatSyntax', () => {
         params: { name: '気力', piece: 'ゴブリン' },
       });
     });
+
+    it('names the pieces it finds wanting as the reader is told them', () => {
+      const told = { targets: [target], nameOf: () => '？？？' };
+
+      expect(lint('t:気力-1', told)[0]).toMatchObject({ params: { piece: '？？？' } });
+      expect(lint('t&加護-', told)[0]).toMatchObject({ code: 'buff.notFound', params: { piece: '？？？' } });
+    });
   });
 
   describe('references', () => {

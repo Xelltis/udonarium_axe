@@ -9,9 +9,10 @@ describe('PieceNameService', () => {
   const original = PeerCursor.myCursor;
   let names: PieceNameService;
 
-  function seatAs(role: PeerRole): void {
+  function seatAs(role: PeerRole, userId = 'player-1'): void {
     PeerCursor.myCursor = {
       identifier: 'piece-name-spec-cursor',
+      userId,
       role,
       isGameMaster: role === PeerRole.GameMaster,
     } as PeerCursor;
@@ -34,5 +35,14 @@ describe('PieceNameService', () => {
 
     seatAs(PeerRole.Player);
     expect([names.shown(villain), names.said(villain), names.isKept(villain)]).toEqual(['？？？', '？？？', true]);
+  });
+
+  it('shows a player the hidden name of their own piece, and still says the label to the room', () => {
+    const mine = { name: '仮面の剣士', hideName: true, owner: 'player-1' };
+    seatAs(PeerRole.Player);
+
+    expect([names.shown(mine), names.said(mine), names.isKept(mine)]).toEqual(['仮面の剣士', '？？？', false]);
+    seatAs(PeerRole.Player, 'player-2');
+    expect(names.isKept(mine)).toBe(true);
   });
 });

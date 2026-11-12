@@ -56,6 +56,8 @@ export class GameCharacterSettingsTabComponent {
   private readonly ride = inject(RideService);
 
   readonly isReadOnly = computed(() => !this.rolePermission.canEditTabletop());
+  /** Whether the reader may hide the piece's name, or show one hidden: a game master alone. */
+  protected readonly canHideName = computed(() => this.rolePermission.canSeeHidden());
 
   readonly character = input.required<GameCharacter>();
 

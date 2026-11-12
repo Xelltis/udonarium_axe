@@ -2,6 +2,8 @@
 export interface NamedPiece {
   readonly name: string;
   readonly hideName?: boolean;
+  /** The user the piece belongs to, who knows its name; empty or absent for nobody. */
+  readonly owner?: string;
 }
 
 /**

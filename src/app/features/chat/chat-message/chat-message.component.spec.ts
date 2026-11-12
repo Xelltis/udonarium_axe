@@ -25,6 +25,7 @@ import { Network } from '@axe/core/network/network';
 import { Transport } from '@axe/core/network/transport';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -255,6 +256,26 @@ describe('ChatMessageComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('→ 4');
+  });
+
+  it('tells a game master which piece a line said as a hidden name was said as, and nobody else', () => {
+    const villain = GameCharacter.create('黒幕', 1, '');
+    villain.hideName = true;
+    const tab = new ChatTab();
+    tab.initialize();
+    try {
+      const line = tab.addMessage({ sendFrom: villain.identifier, name: '？？？', text: 'ふふふ', timestamp: 1000 });
+      fixture.componentRef.setInput('chatMessage', line);
+      const seesHidden = vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden');
+
+      seesHidden.mockReturnValue(true);
+      expect(component.displayName(line.name)).toBe('？？？（黒幕）');
+      seesHidden.mockReturnValue(false);
+      expect(component.displayName(line.name)).toBe('？？？');
+    } finally {
+      tab.destroy();
+      villain.destroy();
+    }
   });
 
   describe('opening a line that was kept back', () => {

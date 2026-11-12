@@ -41,6 +41,14 @@ describe('collectReplayCast()', () => {
     ]);
   });
 
+  it('names a piece whose name was hidden as everyone was told it', () => {
+    const [villain, ...rest] = characterTree('c3', '黒幕', 'img-3');
+    const attributes = { ...(villain.syncData['attributes'] as Record<string, unknown>), hideName: true };
+    const hidden = { ...villain, syncData: { ...villain.syncData, attributes } };
+
+    expect(collectReplayCast([hidden, ...rest])[0].name).toBe('？？？');
+  });
+
   it('picks up a piece that appears in no event', () => {
     const cast = collectReplayCast([...characterTree('quiet', '沈黙の人', '')]);
     expect(cast.map((member) => member.name)).toEqual(['沈黙の人']);

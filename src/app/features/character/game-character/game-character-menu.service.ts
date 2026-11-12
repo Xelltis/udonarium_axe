@@ -198,6 +198,7 @@ export class GameCharacterMenuService {
             ? () => this.thirdPerson.follow(char.identifier)
             : undefined,
         onStopFollowing: this.thirdPerson.isFollowing(char.identifier) ? () => this.thirdPerson.stop() : undefined,
+        onSetNameHidden: this.rolePermission.canSeeHidden() ? (hidden) => (char.hideName = hidden) : undefined,
       },
       this.translateFn,
       overlapEntries,
@@ -535,7 +536,7 @@ export class GameCharacterMenuService {
       width: 360,
       height: 280,
     };
-    option.title = this.translateFn('feature.zone.fire.title', { name: gameObject.name });
+    option.title = this.translateFn('feature.zone.fire.title', { name: this.names.shown(gameObject) });
     this.panelService.openLazy(
       () =>
         import('@axe/features/character/line-of-fire-panel/line-of-fire-panel.component').then(

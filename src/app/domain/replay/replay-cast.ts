@@ -1,3 +1,4 @@
+import { SAID_HIDDEN_NAME } from '@axe/domain/character/hidden-name';
 import { groupReplayChildren, replayValueOfNamed } from '@axe/domain/replay/replay-data-tree';
 import { syncValueOf } from '@axe/domain/replay/replay-diff';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
@@ -13,7 +14,10 @@ export interface ReplayCastMember {
 
 const CHARACTER_ALIAS = 'character';
 
-/** Every character in the snapshots, with its name, picture, first chat colour and whether it was on the table. */
+/**
+ * Every character in the snapshots, with its name, picture, first chat colour and whether it was on the
+ * table; a piece whose name was hidden is named as everyone was told it.
+ */
 export function collectReplayCast(snapshots: readonly ReplayObjectSnapshot[]): ReplayCastMember[] {
   const childrenOf = groupReplayChildren(snapshots);
 
@@ -22,7 +26,9 @@ export function collectReplayCast(snapshots: readonly ReplayObjectSnapshot[]): R
     if (snapshot.aliasName !== CHARACTER_ALIAS) continue;
     cast.push({
       identifier: snapshot.identifier,
-      name: replayValueOfNamed(childrenOf, snapshot.identifier, ['common', 'name']),
+      name: hidesName(snapshot)
+        ? SAID_HIDDEN_NAME
+        : replayValueOfNamed(childrenOf, snapshot.identifier, ['common', 'name']),
       imageIdentifier: replayValueOfNamed(childrenOf, snapshot.identifier, ['image', 'imageIdentifier']),
       chatColor: firstChatColor(snapshot),
       onTable: locationNameOf(snapshot) === 'table',
@@ -40,6 +46,12 @@ export function collectReplayCast(snapshots: readonly ReplayObjectSnapshot[]): R
 export function replayCastOnTable(cast: readonly ReplayCastMember[]): ReplayCastMember[] {
   const onTable = cast.filter((member) => member.onTable);
   return onTable.length > 0 ? onTable : [...cast];
+}
+
+/** Whether the piece's name was hidden, which a replay shows as everyone was told it. */
+function hidesName(snapshot: ReplayObjectSnapshot): boolean {
+  const hidden = syncValueOf(snapshot.syncData, 'hideName');
+  return hidden === true || hidden === 'true';
 }
 
 function locationNameOf(snapshot: ReplayObjectSnapshot): string {

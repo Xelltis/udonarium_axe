@@ -33,7 +33,7 @@
           >
         }
         @for (gameCharacter of gameCharacters(); track gameCharacter.identifier) {
-          <ng-option [value]="gameCharacter.identifier">{{ gameCharacter.name }}</ng-option>
+          <ng-option [value]="gameCharacter.identifier">{{ names.shown(gameCharacter) }}</ng-option>
         }
       </ng-select>
     </div>

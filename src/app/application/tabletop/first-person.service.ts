@@ -1,4 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -79,6 +80,7 @@ type Action = () => Promise<boolean>;
 @Injectable({ providedIn: 'root' })
 export class FirstPersonService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly names = inject(PieceNameService);
   private readonly roomRules = inject(RoomRulesService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -418,7 +420,10 @@ export class FirstPersonService {
       userId,
       (character) => this.canLookOutOf(character),
       new Set(this.playedParties(userId))
-    );
+    ).map((seat) => {
+      const piece = this.objectStore.get<GameCharacter>(seat.identifier);
+      return piece ? { ...seat, name: this.names.shown(piece) } : seat;
+    });
   });
 
   /** Whether a user is named among the players of the party the piece is in. */

@@ -487,20 +487,15 @@ describe('buildGameCharacterContextMenu()', () => {
   });
 
   it('ticks hiding the name and the buffs in the display submenu', () => {
-    const def = buildGameCharacterContextMenu(
-      makeChar() as unknown as GameCharacter,
-      50,
-      makeService(),
-      callbacks(),
-      t
-    );
+    const master = { ...callbacks(), onSetNameHidden: vi.fn() };
+    const def = buildGameCharacterContextMenu(makeChar() as unknown as GameCharacter, 50, makeService(), master, t);
     expect(names(groupOf(def, '表示と扱い')).slice(0, 2)).toEqual(['☐ 名前を隠す', '☐ バフを隠す']);
 
     const hidden = buildGameCharacterContextMenu(
       makeChar({ hideName: true, hideBuff: true }) as unknown as GameCharacter,
       50,
       makeService(),
-      callbacks(),
+      master,
       t
     );
     expect(names(groupOf(hidden, '表示と扱い')).slice(0, 2)).toEqual(['☑ 名前を隠す', '☑ バフを隠す']);
@@ -527,12 +522,32 @@ describe('buildGameCharacterContextMenu()', () => {
 
   it('hides and shows the name and the buffs', () => {
     const char = makeChar();
-    const menu = buildGameCharacterContextMenu(char as unknown as GameCharacter, 50, makeService(), callbacks(), t);
+    const onSetNameHidden = vi.fn();
+    const menu = buildGameCharacterContextMenu(
+      char as unknown as GameCharacter,
+      50,
+      makeService(),
+      { ...callbacks(), onSetNameHidden },
+      t
+    );
     const display = groupOf(menu, '表示と扱い');
     display.find((s) => s.name === '☐ 名前を隠す')!.action!();
     display.find((s) => s.name === '☐ バフを隠す')!.action!();
-    expect(char.hideName).toBe(true);
+    expect(onSetNameHidden).toHaveBeenCalledWith(true);
     expect(char.hideBuff).toBe(true);
+  });
+
+  it('offers hiding the name only where it may be hidden, so a player cannot show a name the master hid', () => {
+    const menu = buildGameCharacterContextMenu(
+      makeChar({ hideName: true }) as unknown as GameCharacter,
+      50,
+      makeService(),
+      callbacks(),
+      t
+    );
+
+    expect(names(groupOf(menu, '表示と扱い'))).not.toContain('☑ 名前を隠す');
+    expect(names(groupOf(menu, '表示と扱い'))).toContain('☐ バフを隠す');
   });
 
   it('always offers the shared table, your own hands and the graveyard, and moves it to each', () => {

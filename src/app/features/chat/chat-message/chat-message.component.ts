@@ -42,6 +42,8 @@ import { Network } from '@axe/core/network/network';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { SAID_HIDDEN_NAME } from '@axe/domain/character/hidden-name';
 import { ChatBookmarkKind } from '@axe/domain/chat/chat-bookmark';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -1098,8 +1100,19 @@ export class ChatMessageComponent {
   /** The speaker's name as shown, translated for a system line and redrawn when the language changes. */
   displayName(name: string): string {
     this.language.currentLang();
-    if (!this.isSystemMessage) return name;
+    if (!this.isSystemMessage) return this.withHiddenNameTold(name);
     return decodeI18nMessage(name, this.t);
+  }
+
+  /**
+   * A line said as a piece whose name is hidden names it {@link SAID_HIDDEN_NAME}, as everyone reads
+   * it; one who may see what is kept back is told which piece it was beside that.
+   */
+  private withHiddenNameTold(name: string): string {
+    if (!name.includes(SAID_HIDDEN_NAME) || !this.rolePermission.canSeeHidden()) return name;
+    const speaker = this.objectStore.get(`${this.chatMessage?.sendFrom ?? ''}`);
+    if (!(speaker instanceof GameCharacter) || speaker.name.length < 1) return name;
+    return name.replace(SAID_HIDDEN_NAME, `${SAID_HIDDEN_NAME}（${speaker.name}）`);
   }
 
   /**
