@@ -539,6 +539,33 @@ describe('TablePiecesService', () => {
     expect(pieces.sprites()).toMatchObject([{ id: `${range.identifier}#picture`, centre: { x: 100, y: 200 } }]);
   });
 
+  it('lays a range on the floor over the raised ground, flat while it is moved onto a block, and over the ground again when moved off one', () => {
+    TestBed.inject(GroundService).dab({ kind: 'raise', x: 2.5, y: 4.5, radius: 3, strength: 1 });
+    const range = RangeArea.create('range', 1, 3, 0.5);
+    range.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(PiecePicturesService).show(range.identifier, {
+      url: 'blob:cells',
+      widthPx: 300,
+      heightPx: 200,
+      offsetX: -150,
+      offsetY: -100,
+    });
+    const transient = TestBed.inject(TransientPlacementService);
+    const drapes = () => pieces.sprites().find((sprite) => sprite.owner === range.identifier)?.drapes;
+
+    expect(drapes()).toBeDefined();
+
+    transient.place(range.identifier, { surface: 'floor', x: 100, y: 200, z: gridSize });
+    expect(drapes()).toBeUndefined();
+
+    transient.release(range.identifier);
+    range.posZ = gridSize;
+    expect(drapes()).toBeUndefined();
+
+    transient.place(range.identifier, { surface: 'floor', x: 100, y: 200, z: 0 });
+    expect(drapes()).toBeDefined();
+  });
+
   it('stands a white board where its face is, from the picture the page takes of what it wears', () => {
     const board = WhiteBoard.create('board', 4, 2, 1);
     board.location = { name: 'table', x: 100, y: 200 };

@@ -77,6 +77,11 @@ interface DrawnPlace {
   readonly x: number;
   readonly y: number;
   readonly z: number;
+  /**
+   * How far off its face it is placed, where it stands or where this seat is moving it, before the
+   * raised ground lifts it.
+   */
+  readonly placedZ: number;
 }
 
 /** A piece drawn where it stands, on the face it stands on, with how to draw it again elsewhere. */
@@ -681,7 +686,7 @@ export class TablePiecesService {
         ...place,
         altitudePx: range.altitude * gridSize,
         picture: this.pagePictures.pictureOf(range.identifier),
-        ...(place.onFloor && Math.abs(range.posZ) < 1 ? { overGroundPx: range.altitude * gridSize } : {}),
+        ...(place.onFloor && Math.abs(place.placedZ) < 1 ? { overGroundPx: range.altitude * gridSize } : {}),
       }),
   });
 
@@ -988,7 +993,7 @@ export class TablePiecesService {
     const y = moving?.y ?? piece.location.y;
     const z = moving?.z ?? piece.posZ;
     const onFloor = surface === 'floor';
-    return { frame, onFloor, x, y, z: onFloor ? z + this.groundLiftOf(piece, x, y, z) : z };
+    return { frame, onFloor, x, y, z: onFloor ? z + this.groundLiftOf(piece, x, y, z) : z, placedZ: z };
   }
 
   /**
