@@ -480,6 +480,8 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
     this.text = text;
     if (stagedBefore !== staging) this.vnEmote = staging;
     this.fixd = true;
+    // Written over, the words are no longer the game master's words a switch said.
+    if (before !== text && `${this.mastersWords ?? ''}`.length > 0) this.mastersWords = '';
   }
 
   /** Whether the one who said the line made it an after-the-fact whisper. */

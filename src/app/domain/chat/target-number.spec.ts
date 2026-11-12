@@ -97,6 +97,7 @@ describe('target-number', () => {
       expect(presentedTotalOf('目標値13 → 15')).toBe(15);
       expect(presentedTotalOf('目標値13⇒１５')).toBe(15);
       expect(presentedTotalOf('目標値13->15')).toBe(15);
+      expect(presentedTotalOf('目標値13➡️15に修正')).toBe(15);
       expect(presentedTotalOf('目標値13→15→17')).toBe(17);
       expect(presentedTotalOf('目標値13→15、あらためて目標値15')).toBe(15);
       expect(presentedTotalOf('目標値13→15、別の判定は目標値13')).toBeNull();
@@ -310,6 +311,10 @@ describe('target-number', () => {
       });
 
       expect(findTargetNumberSource(tab, speaker)).toMatchObject({ total: 13, from: 'presented' });
+      expect(findTargetNumberSource(tab, { identifier: 'pc2', name: 'PC2' })).toMatchObject({
+        total: 13,
+        from: 'presented',
+      });
     });
 
     it('takes the number a game master wrote out as a named thing for another named thing', () => {

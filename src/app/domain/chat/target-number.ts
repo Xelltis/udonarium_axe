@@ -86,7 +86,7 @@ const PRESENTED_PATTERN = new RegExp(
  * An arrow and the number a number to beat is put right to, as `→15` follows `目標値13`: one read as
  * a number to beat is, so that `目標値13→2d6ダメージ` puts nothing right.
  */
-const CORRECTED_PATTERN = new RegExp(String.raw`\s*(?:→|⇒|➡|->|=>)\s*([0-9０-９]+)` + NOT_ALONE_AFTER, 'uy');
+const CORRECTED_PATTERN = new RegExp(String.raw`\s*(?:→|⇒|➡\uFE0F?|->|=>)\s*([0-9０-９]+)` + NOT_ALONE_AFTER, 'uy');
 
 /** The number written at `at` and on, or the last one it is put right to with arrows after it. */
 function correctedOf(text: string, at: number, written: string): string {
@@ -320,13 +320,14 @@ function answeredOne(tab: ChatTab, answer: ChatMessage): boolean {
 }
 
 /**
- * Whether a line writing out a number to beat was said by a game master, as they were when they said
- * it, or is one a master wrote for another to say, as a switch's line is, and not by the speaker: a
- * line of a room that never wrote down who said it is nobody's.
+ * Whether a line writing out a number to beat was set by a game master: one a master wrote for
+ * whoever sets it off to say, as a switch's line is, which is the number to beat for anybody, the one
+ * who pressed it most of all; or one a master said, as they were when they said it, and not by the
+ * speaker. A line of a room that never wrote down who said it is nobody's.
  */
 function presentedByGameMaster(message: ChatMessage, speaker: TargetNumberSpeaker): boolean {
-  const masters = message.senderRole === PeerRole.GameMaster || `${message.mastersWords ?? ''}` === '1';
-  return masters && !saidBy(message, speaker);
+  if (`${message.mastersWords ?? ''}` === '1') return true;
+  return message.senderRole === PeerRole.GameMaster && !saidBy(message, speaker);
 }
 
 /** Whether the speaker said the line an answer answers. */
