@@ -53,7 +53,8 @@ describe('ContextMenuComponent', () => {
     unavailable.click();
 
     expect(unavailable.getAttribute('aria-disabled')).toBe('true');
-    expect(unavailable.classList.contains('opacity-50')).toBe(true);
+    expect(unavailable.querySelector('span')?.classList.contains('opacity-50')).toBe(true);
+    expect(unavailable.classList.contains('hover:bg-ui-menu-hover')).toBe(false);
     expect(available.hasAttribute('aria-disabled')).toBe(false);
     expect(action).not.toHaveBeenCalled();
     expect(close).not.toHaveBeenCalled();

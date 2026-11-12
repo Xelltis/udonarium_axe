@@ -169,16 +169,15 @@
 <ng-template #actionMenu let-action="action">
   <li
     data-context-menu-item
-    class="rounded-ui-sm text-ui-text hover:text-ui-accent relative my-0 cursor-default px-5 py-1.25 text-[calc(12px*var(--menu-font-scale,1))] transition-colors"
+    class="rounded-ui-sm text-ui-text relative my-0 cursor-default px-5 py-1.25 text-[calc(12px*var(--menu-font-scale,1))] transition-colors"
     [class.context-menu-detached-item]="detachedItems()"
     [class.border-ui-border-menu]="detachedItems()"
     [class.bg-ui-menu]="detachedItems()"
     [class.border]="detachedItems()"
     [class.border-solid]="detachedItems()"
-    [class.hover:bg-ui-menu-hover]="!detachedItems()"
+    [class.hover:text-ui-accent]="action.enabled !== false"
+    [class.hover:bg-ui-menu-hover]="!detachedItems() && action.enabled !== false"
     [class.mx-1]="!detachedItems()"
-    [class.opacity-50]="action.enabled === false"
-    [class.pointer-events-none]="action.enabled === false"
     [attr.aria-disabled]="action.enabled === false ? true : null"
     (click)="doAction(action, row)"
     (mouseenter)="showSubMenu(action, false, row)"
@@ -197,7 +196,9 @@
       @if (action.name && action.name.indexOf('○') === 0) {
         <input class="m-0 shrink-0 align-middle" type="radio" [disabled]="action.enabled === false" />
       }
-      <span>{{ action.name.replace('☑', '').replace('☐', '').replace('◉', '').replace('○', '') }}</span>
+      <span [class.opacity-50]="action.enabled === false">{{
+        action.name.replace('☑', '').replace('☐', '').replace('◉', '').replace('○', '')
+      }}</span>
     </div>
     @if (action.subActions) {
       <div class="absolute top-0.5 right-px bottom-0 inline-block">
