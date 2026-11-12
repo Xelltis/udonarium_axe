@@ -6401,7 +6401,7 @@
     },
     "remote": {
       "panelTitle": "Remote",
-      "panelTitleWithName": "{{name}} remote",
+      "panelTitleWithName": "{{name}} remote controller",
       "sendTarget": "Target",
       "buffSectionTitle": "Apply buff",
       "counterSectionTitle": "Resource control",
