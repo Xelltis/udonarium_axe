@@ -62,7 +62,7 @@ describe('CardDropService', () => {
     const deck = stack(100, 100);
     const leader = card(110, 100);
     const follower = card(400, 400);
-    vi.spyOn(TestBed.inject(MultiMovableService), 'followerTabletopObjectsFor').mockReturnValue([follower]);
+    vi.spyOn(TestBed.inject(MultiMovableService), 'settledFollowersFor').mockReturnValue([follower]);
 
     service.drop(leader);
 

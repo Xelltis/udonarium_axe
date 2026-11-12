@@ -1,5 +1,7 @@
 import { inject, Injectable } from '@angular/core';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { isLockedInPlace } from '@axe/domain/tabletop/lockable';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
@@ -21,6 +23,7 @@ interface FollowerSnapshot {
 @Injectable({ providedIn: 'root' })
 export class MultiMovableService {
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly links = inject(PieceLinksService);
 
   private readonly registry = new Map<string, MovableLike>();
 
@@ -94,9 +97,17 @@ export class MultiMovableService {
     }
   }
 
-  /** Ends the group drag, if this piece is the one leading it. */
+  /**
+   * Ends the group drag, if this piece is the one leading it. Where it moved, whatever it is, each
+   * piece that followed it is written where it stands and brings along what goes with it, its parts,
+   * those riding it and those it holds, as a piece let go of on its own does.
+   */
   endDrag(leader: MovableLike): void {
     if (this.leaderId !== leader.identifier) return;
+    if (leader.posX !== this.leaderStartX || leader.posY !== this.leaderStartY) {
+      const followers = this.settledFollowersFor(leader.identifier);
+      this.links.carryBoundAll(followers.filter((object) => object instanceof GameCharacter));
+    }
     this.clear();
   }
 

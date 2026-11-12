@@ -1,8 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { MovableLike, MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { makeFakeTabletopObject } from '@axe/testing/factories/tabletop-object.factory';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function makeMovable(opts: { id: string; x?: number; y?: number; isLock?: boolean }): MovableLike {
   const obj = makeFakeTabletopObject({ identifier: opts.id, isLock: opts.isLock ?? false });
@@ -19,7 +22,7 @@ describe('MultiMovableService', () => {
   let selection: SelectionSignalService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     service = TestBed.inject(MultiMovableService);
     selection = TestBed.inject(SelectionSignalService);
   });
@@ -125,6 +128,32 @@ describe('MultiMovableService', () => {
     expect(f1.commitPosition).not.toHaveBeenCalled();
     expect(service.settledFollowersFor('leader').map((o) => o.identifier)).toEqual(['f1']);
     expect(f1.commitPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it('has each piece that followed a leader, whatever led, bring along what goes with it as the drag ends', () => {
+    const leader = makeMovable({ id: 'board', x: 0, y: 0 });
+    const dragon = GameCharacter.create('竜', 3, '');
+    const follower: MovableLike = { identifier: dragon.identifier, tabletopObject: dragon, posX: 0, posY: 0 };
+    const note = makeMovable({ id: 'note' });
+    service.register(leader);
+    service.register(follower);
+    service.register(note);
+    selection.replaceSelection(['board', dragon.identifier, 'note']);
+    const carry = vi.spyOn(TestBed.inject(PieceLinksService), 'carryBoundAll').mockImplementation(() => undefined);
+
+    try {
+      service.beginDrag(leader);
+      service.endDrag(leader);
+      expect(carry).not.toHaveBeenCalled();
+
+      service.beginDrag(leader);
+      leader.posX = 100;
+      service.applyLeaderDelta(leader);
+      service.endDrag(leader);
+      expect(carry).toHaveBeenCalledWith([dragon]);
+    } finally {
+      dragon.destroy();
+    }
   });
 
   it('lists nothing for another leader or after the drag', () => {

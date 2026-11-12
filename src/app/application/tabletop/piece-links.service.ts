@@ -156,19 +156,25 @@ export class PieceLinksService {
    * stands is left there.
    */
   carryBound(anchor: GameCharacter): void {
+    this.carryBoundAll([anchor]);
+  }
+
+  /**
+   * Brings along what goes where each of several pieces goes, as {@link carryBound} does for one,
+   * the bonds of the room read once for them all and every move told together.
+   */
+  carryBoundAll(anchors: readonly GameCharacter[]): void {
+    if (anchors.length < 1) return;
     const onTable = this.objectStore.getObjects<GameCharacter>(GameCharacter).filter((piece) => piece.isVisibleOnTable);
-    const below = new Set(
-      boundBelow(
-        anchor.identifier,
-        onTable.map((piece) => this.bondOf(piece))
-      )
-    );
-    const carried = onTable.filter((piece) => below.has(piece.identifier) && piece.heldFast !== '1');
-    if (carried.length < 1) return;
+    const bonds = onTable.map((piece) => this.bondOf(piece));
     GameObject.batch(() => {
-      for (const piece of carried) {
-        this.standAt(piece, anchor);
-        piece.update();
+      for (const anchor of anchors) {
+        const below = new Set(boundBelow(anchor.identifier, bonds));
+        for (const piece of onTable) {
+          if (!below.has(piece.identifier) || piece.heldFast === '1') continue;
+          this.standAt(piece, anchor);
+          piece.update();
+        }
       }
     });
   }

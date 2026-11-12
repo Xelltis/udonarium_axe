@@ -49,7 +49,6 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { Terrain } from '@axe/domain/tabletop/terrain';
 import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { GameCharacterMenuService } from '@axe/features/character/game-character/game-character-menu.service';
@@ -698,26 +697,26 @@ describe('GameCharacterComponent', () => {
   });
 
   describe('putting a piece down', () => {
-    it('brings along what the pieces moved with it in a selection carry, each where it was let go', () => {
+    it('writes the pieces moved with it in a selection where they stand before bringing its own along', () => {
       const character = GameCharacter.create('先頭', 1, '');
-      const dragon = GameCharacter.create('竜', 3, '');
-      const goblin = new Terrain();
       fixture.componentRef.setInput('gameCharacter', character);
       fixture.detectChanges();
-      const settled = vi
-        .spyOn(TestBed.inject(MultiMovableService), 'settledFollowersFor')
-        .mockReturnValue([dragon, goblin]);
-      const carry = vi.spyOn(TestBed.inject(PieceLinksService), 'carryBound');
+      const order: string[] = [];
+      vi.spyOn(TestBed.inject(MultiMovableService), 'settledFollowersFor').mockImplementation(() => {
+        order.push('settled');
+        return [];
+      });
+      vi.spyOn(TestBed.inject(PieceLinksService), 'carryBound').mockImplementation((piece) => {
+        order.push(piece === character ? 'carried' : 'other');
+      });
 
       try {
         component.onPutDown();
         component.onLetGo();
 
-        expect(settled).toHaveBeenCalledWith(character.identifier);
-        expect(carry.mock.calls.map(([piece]) => piece)).toEqual([character, dragon]);
+        expect(order).toEqual(['settled', 'carried']);
       } finally {
         character.destroy();
-        dragon.destroy();
       }
     });
   });
