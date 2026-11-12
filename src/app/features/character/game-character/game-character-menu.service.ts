@@ -447,7 +447,7 @@ export class GameCharacterMenuService {
           (loaded) => loaded.CharacterMemoComponent
         ),
       {
-        title: this.translateFn('feature.character.memo.title', { name: gameObject.name }),
+        title: this.translateFn('feature.character.memo.title', { name: this.names.shown(gameObject) }),
         left: at.x - 160,
         top: at.y - 120,
         width: 320,
@@ -485,7 +485,7 @@ export class GameCharacterMenuService {
       width: 420,
       height: 300,
     };
-    option.title = this.translateFn('feature.character.panel.buffEditWithName', { name: gameObject.name });
+    option.title = this.translateFn('feature.character.panel.buffEditWithName', { name: this.names.shown(gameObject) });
     const component = this.panelService.open<GameCharacterBuffViewComponent>(GameCharacterBuffViewComponent, option);
     component.character.set(gameObject);
   }
