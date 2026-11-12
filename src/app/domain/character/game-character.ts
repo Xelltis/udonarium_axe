@@ -144,8 +144,8 @@ export class GameCharacter extends OwnedTabletopObject {
    */
   @SyncVar() partMask: string = '';
   /**
-   * For a part, the faces of its body's model it stands for, as `partFacesOf` reads it: empty for
-   * none. A lost part's faces are left out of the body's model.
+   * For a part, the faces of its body's model it stands for, as `keptPartFaces` keeps them with the
+   * model they were picked on: empty for none. A lost part's faces are left out of the body's model.
    */
   @SyncVar() partFaces: string = '';
   /** `1` while the piece is a mount others may ride; empty otherwise. */

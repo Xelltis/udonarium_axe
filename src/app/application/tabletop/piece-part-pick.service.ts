@@ -10,7 +10,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   isPartLost,
   partAtPicturePoint,
-  partFacesOf,
+  partFacesOn,
   partLayerOf,
   partMaskOf,
   type PartPictureOpacity,
@@ -40,8 +40,7 @@ export class PiecePartPickService {
       const face = this.table3d.modelFaceAt(pageX, pageY);
       if (face && face.owner === body.identifier) {
         return (
-          parts.find((part) => !isPartLost(part) && partFacesOf(part.partFaces).get(face.mesh)?.has(face.triangle)) ??
-          null
+          parts.find((part) => !isPartLost(part) && partFacesOn(part, body).get(face.mesh)?.has(face.triangle)) ?? null
         );
       }
       const hit = this.pick.pressedAt(pageX, pageY);

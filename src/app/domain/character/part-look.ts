@@ -198,6 +198,32 @@ export function writePartFaces(faces: PartFaces): string {
   return meshes.join(';');
 }
 
+/** The model a body is drawn as, by its identifier, which its parts' faces are picked on; empty for none. */
+function facedModelOf(body: { modelIdentifier: unknown }): string {
+  return `${body.modelIdentifier ?? ''}`.trim();
+}
+
+/**
+ * A part's faces of its body's model as the part keeps them: the model they were picked on, `|`, then
+ * the faces as {@link writePartFaces} writes them; empty for none. A triangle's place says which face
+ * it is only on the model it was picked on.
+ */
+export function keptPartFaces(faces: PartFaces, body: { modelIdentifier: unknown }): string {
+  const written = writePartFaces(faces);
+  return written ? `${facedModelOf(body)}|${written}` : '';
+}
+
+/**
+ * The faces a part keeps of its body's model, as {@link keptPartFaces} keeps them, where they were
+ * picked on the model its body is drawn as now; none where they were picked on another.
+ */
+export function partFacesOn(part: { partFaces: string }, body: { modelIdentifier: unknown }): PartFaces {
+  const kept = `${part.partFaces ?? ''}`;
+  const at = kept.lastIndexOf('|');
+  if (at < 0 || kept.slice(0, at) !== facedModelOf(body)) return new Map();
+  return partFacesOf(kept.slice(at + 1));
+}
+
 /** The faces of several parts together, as the faces their body leaves out where they are lost. */
 export function joinedPartFaces(all: readonly PartFaces[]): PartFaces {
   const joined = new Map<number, Set<number>>();

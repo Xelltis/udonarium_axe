@@ -8,7 +8,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   isPartLost,
   joinedPartFaces,
-  partFacesOf,
+  partFacesOn,
   type PartLayer,
   partLayerOf,
   type PartMask,
@@ -196,9 +196,10 @@ export class PiecePartPicturesService {
     const faces = this.keptFor(this.faces, body, () =>
       computed(
         () => {
+          this.objectChange.versionOf(body.identifier)();
           const parts = this.links
             .followedPartsOf(body)
-            .map((part) => ({ faces: partFacesOf(part.partFaces), lost: this.lookOf(part).lost }))
+            .map((part) => ({ faces: partFacesOn(part, body), lost: this.lookOf(part).lost }))
             .filter((part) => part.faces.size > 0);
           return {
             painted: parts.length > 0,

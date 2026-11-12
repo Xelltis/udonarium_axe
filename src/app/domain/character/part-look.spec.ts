@@ -3,10 +3,12 @@ import {
   emptyPartMask,
   isPartLost,
   joinedPartFaces,
+  keptPartFaces,
   maskCovers,
   paintPartMask,
   partAtPicturePoint,
   partFacesOf,
+  partFacesOn,
   partLayerOf,
   partMaskOf,
   writePartFaces,
@@ -73,6 +75,19 @@ describe('the look of a part over its body', () => {
         [1, new Set([0])],
       ])
     );
+  });
+
+  it('keeps a part’s faces with the model they were picked on, and reads none on another model', () => {
+    const faces = new Map([[0, new Set([4, 5])]]);
+    const dragon = { modelIdentifier: 'dragon-model' };
+    const part = { partFaces: keptPartFaces(faces, dragon) };
+
+    expect(part.partFaces).toBe('dragon-model|0:4-5');
+    expect(partFacesOn(part, dragon)).toEqual(faces);
+    expect(partFacesOn(part, { modelIdentifier: 'golem-model' })).toEqual(new Map());
+    expect(partFacesOn(part, { modelIdentifier: '' })).toEqual(new Map());
+    expect(partFacesOn({ partFaces: '0:4-5' }, dragon)).toEqual(new Map());
+    expect(keptPartFaces(new Map(), dragon)).toBe('');
   });
 
   it('counts a part lost once its first resource runs out or it is marked down, and whole again once healed', () => {

@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { PiecePartPickService } from '@axe/application/tabletop/piece-part-pick.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
-import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -100,7 +100,8 @@ describe('PiecePartPickService', () => {
   });
 
   it('finds the part a press on the body’s model lands on by the face it lands on, and none lost', () => {
-    head.partFaces = '0:5-9;2:1';
+    dragon.modelIdentifier = 'dragon-model';
+    head.partFaces = 'dragon-model|0:5-9;2:1';
     const face = vi.spyOn(TestBed.inject(Table3dService), 'modelFaceAt');
 
     face.mockReturnValue({ owner: dragon.identifier, mesh: 0, triangle: 7 });
@@ -110,5 +111,20 @@ describe('PiecePartPickService', () => {
     head.downed = '1';
     face.mockReturnValue({ owner: dragon.identifier, mesh: 0, triangle: 7 });
     expect(service.partAt(dragon, 0, 0)).toBeNull();
+  });
+
+  it('finds no part by the faces it was given on a model the body is no longer drawn as', () => {
+    dragon.modelIdentifier = 'dragon-model';
+    head.partFaces = 'dragon-model|0:5-9';
+    vi.spyOn(TestBed.inject(Table3dService), 'modelFaceAt').mockReturnValue({
+      owner: dragon.identifier,
+      mesh: 0,
+      triangle: 7,
+    });
+
+    dragon.modelIdentifier = 'golem-model';
+    expect(service.partAt(dragon, 0, 0)).toBeNull();
+    dragon.modelIdentifier = 'dragon-model';
+    expect(service.partAt(dragon, 0, 0)).toBe(head);
   });
 });

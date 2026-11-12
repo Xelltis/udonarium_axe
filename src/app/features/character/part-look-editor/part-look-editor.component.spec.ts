@@ -7,7 +7,7 @@ import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { maskCovers, partFacesOf, partLayerOf, partMaskOf, writePartLayer } from '@axe/domain/character/part-look';
+import { maskCovers, partFacesOn, partLayerOf, partMaskOf, writePartLayer } from '@axe/domain/character/part-look';
 import { PartLookEditorComponent } from '@axe/features/character/part-look-editor/part-look-editor.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -187,7 +187,7 @@ describe('PartLookEditorComponent', () => {
 
       canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 5, clientY: 5 }));
       canvas.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, clientX: 5, clientY: 5 }));
-      expect(partFacesOf(head.partFaces)).toEqual(
+      expect(partFacesOn(head, dragon)).toEqual(
         new Map([
           [0, new Set([3, 4])],
           [1, new Set([0])],

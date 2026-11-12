@@ -24,14 +24,14 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   DEFAULT_PART_LAYER,
   emptyPartMask,
+  keptPartFaces,
   paintPartMask,
   type PartFaces,
-  partFacesOf,
+  partFacesOn,
   type PartLayer,
   partLayerOf,
   type PartMask,
   partMaskOf,
-  writePartFaces,
   writePartLayer,
   writePartMask,
 } from '@axe/domain/character/part-look';
@@ -138,7 +138,7 @@ export class PartLookEditorComponent {
       url: this.images.getEmptyOr(part.imageFile).url,
       layer: partLayerOf(part.partLayer),
       mask: partMaskOf(part.partMask),
-      faces: partFacesOf(part.partFaces),
+      faces: partFacesOn(part, body),
     }));
   });
 
@@ -283,7 +283,8 @@ export class PartLookEditorComponent {
     const draft = this.draftFaces();
     this.draftFaces.set(null);
     const part = this.chosenPiece();
-    if (draft && part) part.partFaces = writePartFaces(draft);
+    const body = this.body();
+    if (draft && part && body) part.partFaces = keptPartFaces(draft, body);
   }
 
   protected clearFaces(): void {
