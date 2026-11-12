@@ -53,6 +53,7 @@ import { inlineStampsAlone, inlineStampSites } from '@axe/domain/chat/inline-sta
 import { IMAGE_STAMP_PREFIX, isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { saidWithStamp } from '@axe/domain/chat/stamp-line';
 import { aimedTogetherIdentifiers, canPinAsTargetNumber, mayPinTargetNumber } from '@axe/domain/chat/target-number';
+import { TOGETHER_SEPARATOR } from '@axe/domain/dice/roll-target-suffix';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
@@ -1134,18 +1135,25 @@ export class ChatMessageComponent {
   protected rolledAtTold(): string {
     const message = this.chatMessage;
     if (!message?.isDicebot || !this.rolePermission.canSeeHidden()) return '';
-    const text = `${message.text ?? ''}`.trimEnd();
-    if (!text.includes(SAID_HIDDEN_NAME)) return '';
+    const said = /\s\[([^[\]]*)\]$/.exec(`${message.text ?? ''}`.trimEnd())?.[1];
+    if (said === undefined || !said.includes(SAID_HIDDEN_NAME)) return '';
     const rolledAt = `${message.rolledAt ?? ''}`;
     const line =
       rolledAt.length < 1 && message.parent instanceof ChatTab ? message.parent.findRollSource(message) : null;
     const identifiers = rolledAt.length > 0 ? [rolledAt] : aimedTogetherIdentifiers(line);
-    return identifiers
+    const names = said.split(TOGETHER_SEPARATOR);
+    // Read by where each ？？？ stands in the brackets, as the names were hidden as the answer was said;
+    // where the brackets hold fewer, cut short by a room server, those hidden now are told in order.
+    const hidden =
+      names.length === identifiers.length
+        ? identifiers.filter((_, at) => names[at] === SAID_HIDDEN_NAME)
+        : identifiers.filter((identifier) => this.objectStore.get<GameCharacter>(identifier)?.hideName);
+    return hidden
       .map((identifier) => this.objectStore.get(identifier))
-      .filter((piece): piece is GameCharacter => piece instanceof GameCharacter && piece.hideName)
+      .filter((piece): piece is GameCharacter => piece instanceof GameCharacter)
       .map((piece) => piece.name)
       .filter((name) => name.length > 0 && !name.includes(SAID_HIDDEN_NAME))
-      .join('、');
+      .join(TOGETHER_SEPARATOR);
   }
 
   /**

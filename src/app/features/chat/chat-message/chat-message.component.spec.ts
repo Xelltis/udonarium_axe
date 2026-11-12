@@ -340,6 +340,9 @@ describe('ChatMessageComponent', () => {
       vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(true);
 
       expect(component['rolledAtTold']()).toBe('黒幕、影');
+      // As the answer was said, whatever has been shown since.
+      villain.hideName = false;
+      expect(component['rolledAtTold']()).toBe('黒幕、影');
     } finally {
       tab.destroy();
       for (const piece of [villain, shade, hero]) piece.destroy();
