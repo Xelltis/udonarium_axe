@@ -296,14 +296,19 @@ export class GameCharacterMenuService {
   private attachPart(part: GameCharacter, body: GameCharacter): void {
     const was = this.parts.lookOf(part);
     if (!this.parts.attach(part, body) || !hasPartLook(was)) return;
-    const what = [
+    const kinds = [
       was.layer ? 'feature.ride.part.look.lookLayer' : '',
       was.mask ? 'feature.ride.part.look.lookMask' : '',
       was.faces ? 'feature.ride.part.look.lookFaces' : '',
     ]
       .filter((key) => key.length > 0)
-      .map((key) => this.translateFn(key))
-      .join(this.translateFn('feature.ride.part.look.lookJoin'));
+      .map((key) => this.translateFn(key));
+    const what =
+      kinds.length > 1
+        ? kinds.slice(0, -1).join(this.translateFn('feature.ride.part.look.lookJoin')) +
+          this.translateFn('feature.ride.part.look.lookJoinLast') +
+          kinds[kinds.length - 1]
+        : (kinds[0] ?? '');
     this.snackbar.show(this.translateFn('feature.ride.part.look.letGo', { name: this.shownName(part), what }), {
       action: {
         label: this.translateFn('feature.ride.part.look.putBack'),
