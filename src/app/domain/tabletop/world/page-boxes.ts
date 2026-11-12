@@ -257,13 +257,14 @@ export const TOP_PART = 'top';
 /**
  * Where the blocks are drawn on the page, from the shapes picking finds them by: for each, the box
  * round all of it, and its top as the part `top`, with its corners where its top has four. A block
- * whose top lies no higher off the floor than a sheet lying on the ground does, as a floor tile,
- * lies on the ground.
+ * whose top lies no higher off the ground under it than a sheet lying on the ground does, as a floor
+ * tile, lies on the ground, as `groundAt` tells how high the ground stands at a point, where given.
  */
 export function blockPageBoxes(
   targets: readonly PickTarget[],
   scene: Matrix3D,
-  eye: EyeAxes
+  eye: EyeAxes,
+  groundAt?: (x: number, y: number) => number
 ): Map<string, PiecePageBoxes> {
   const boxes = new Map<string, PiecePageBoxes>();
   for (const target of targets) {
@@ -274,7 +275,10 @@ export function blockPageBoxes(
       const onFace = shape.kind === 'on-face' ? shape : null;
       const prism = onFace ? onFace.shape : shape;
       if (prism.kind !== 'prism') continue;
-      if (onFace || prism.roofAt || prism.top > ON_GROUND_PX) onGround = false;
+      if (onFace || prism.roofAt) onGround = false;
+      else if (prism.outline.some((corner) => prism.top - (groundAt?.(corner.x, corner.y) ?? 0) > ON_GROUND_PX)) {
+        onGround = false;
+      }
       const at = (x: number, y: number, z: number): TablePoint =>
         onFace ? pointOnFace(onFace.frame, x, y, z) : { x, y, z };
       for (const corner of prism.outline) {

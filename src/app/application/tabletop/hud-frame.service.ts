@@ -157,16 +157,13 @@ export class HudFrameService {
     const eye = eyeAxesOf(tableEyeMatrix(view, layout));
     const ground = untracked(this.standing.surface);
     const gridSize = this.tabletop.currentTable.gridSize > 0 ? this.tabletop.currentTable.gridSize : 50;
-    const boxes = piecePageBoxes(
-      untracked(this.pieces.sprites),
-      untracked(this.pieces.coins),
-      scene,
-      eye,
-      ground.isFlat ? undefined : (x, y) => ground.heightAt(x / gridSize, y / gridSize) * gridSize
-    );
+    const groundAt = ground.isFlat
+      ? undefined
+      : (x: number, y: number) => ground.heightAt(x / gridSize, y / gridSize) * gridSize;
+    const boxes = piecePageBoxes(untracked(this.pieces.sprites), untracked(this.pieces.coins), scene, eye, groundAt);
     const owners = new Set<string>();
     for (const { anchor } of this.placed.values()) if (!boxes.has(anchor.owner)) owners.add(anchor.owner);
-    for (const [id, block] of blockPageBoxes(this.pick.targetsOf(owners), scene, eye)) boxes.set(id, block);
+    for (const [id, block] of blockPageBoxes(this.pick.targetsOf(owners), scene, eye, groundAt)) boxes.set(id, block);
     return boxes;
   }
 
