@@ -413,7 +413,13 @@ export class ChatPaletteComponent {
 
   constructor() {
     this.chatPaletteRegistry.register(this);
-    queueMicrotask(() => this.updatePanelTitle());
+    // The title names the piece as this seat is told it, so it follows the piece and the seat's role.
+    effect(() => {
+      const character = this.character();
+      if (character) this.objectChange.versionOf(character.identifier)();
+      this.objectChange.trackMyCursor();
+      untracked(() => this.updatePanelTitle());
+    });
     this._timeId = Date.now() + '_chat-palette';
     this.objectChange.objectDeleted$.subscribe((e) => {
       if (this.character() && this.character()!.identifier === e.identifier) {

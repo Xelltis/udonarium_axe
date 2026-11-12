@@ -239,7 +239,13 @@ export class RemoteControllerComponent {
   constructor() {
     // Made a guest meanwhile, the seat may no longer write what this panel writes.
     closeWhenOffTheTable();
-    queueMicrotask(() => this.updatePanelTitle());
+    // The title names the piece as this seat is told it, so it follows the piece and the seat's role.
+    effect(() => {
+      const character = this.character();
+      if (character) this.objectChange.versionOf(character.identifier)();
+      this.objectChange.trackMyCursor();
+      untracked(() => this.updatePanelTitle());
+    });
     this.chatTabidentifier.set(this.sendableChatTabs()[0]?.identifier ?? '');
     // A tab gone, or one this seat may no longer speak in, gives way to the first it may.
     effect(() => {
