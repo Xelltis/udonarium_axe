@@ -59,6 +59,16 @@ describe('ContextMenuComponent', () => {
     expect(close).not.toHaveBeenCalled();
   });
 
+  it('draws the tick of an item that is not enabled as one that cannot be ticked', () => {
+    component.contextMenuService.actions = [{ name: '☑ 名前を隠す（GMのみ）', enabled: false }];
+    fixture.detectChanges();
+
+    const tick = component.rootElementRef().nativeElement.querySelector<HTMLInputElement>('input[type="checkbox"]');
+
+    expect(tick?.checked).toBe(true);
+    expect(tick?.disabled).toBe(true);
+  });
+
   it('renders radial descendants as separate rounded rows with real transparent spacers', () => {
     component.contextMenuService.actions = [
       { name: 'Action 1', action: vi.fn() },
