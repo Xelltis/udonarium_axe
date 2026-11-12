@@ -7,7 +7,6 @@ import { NamedCueService } from '@axe/application/media/named-cue.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { BoardSceneLoader } from '@axe/application/tabletop/board-scene-loader';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
-import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { TableTriggerService } from '@axe/application/tabletop/table-trigger.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -107,7 +106,6 @@ export class SwitchPressService {
   private readonly triggers = inject(TableTriggerService);
   private readonly concealment = inject(ConcealmentService);
   private readonly fire = inject(TriggerFireService);
-  private readonly links = inject(PieceLinksService);
   private readonly images = inject(ImageStorage);
   private readonly audios = inject(AudioStorage);
   private readonly tableBgm = inject(TableBgmService);
@@ -280,8 +278,6 @@ export class SwitchPressService {
           action.row,
           named ? this.tableNamed(action.table) : this.tableSelecter.viewTable
         );
-        // What goes where the piece goes, its parts and what rides it, goes along, as a move takes it.
-        this.links.carryBound(piece);
         return;
       }
       case 'tableSetting':

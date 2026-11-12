@@ -6,6 +6,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { NamedCueService } from '@axe/application/media/named-cue.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -53,6 +54,7 @@ export class TriggerFireService {
   private readonly tableBgm = inject(TableBgmService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly names = inject(PieceNameService);
+  private readonly links = inject(PieceLinksService);
 
   /** Where each piece was lifted from, so putting it down knows what it crossed to get here. */
   private readonly lifted = new Map<string, number>();
@@ -297,6 +299,8 @@ export class TriggerFireService {
    *
    * On a table counting squares of several cells the piece goes on the square holding the cell, and
    * where the table keeps its pieces to the cells, on the cell itself as near as the square allows.
+   * What goes where the piece goes, its parts, what rides it and what it holds, goes along, stood by
+   * the cells of the table the room then looks at.
    */
   carryTo(piece: GameCharacter, col: number, row: number, table: GameTable | null): void {
     if (!table || table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return;
@@ -323,6 +327,7 @@ export class TriggerFireService {
       this.tableSelecter.viewTableIdentifier = table.identifier;
       this.tableBgm.playFor(table);
     }
+    this.links.carryBound(piece);
   }
 
   /**
