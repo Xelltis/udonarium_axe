@@ -39,4 +39,13 @@ describe('the sprites of pieces the page draws flat', () => {
 
     expect(cells).toMatchObject({ id: 'range#picture', kind: 'range', centre: { x: 100, y: 200, z: 50.25 } });
   });
+
+  it('has a range lying on the ground follow it, as far over it as it floats and the page lifts a range, and nothing else', () => {
+    const [onGround] = rangeSprites({ ...mask, id: 'range', overGroundPx: 50 });
+    const [maskSprite] = maskSprites({ ...mask, overGroundPx: 50 });
+
+    expect(onGround.drapes).toEqual({ liftPx: 50.25 });
+    expect(rangeSprites({ ...mask, id: 'range' })[0].drapes).toBeUndefined();
+    expect(maskSprite.drapes).toBeUndefined();
+  });
 });

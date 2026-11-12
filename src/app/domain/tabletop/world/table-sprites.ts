@@ -74,6 +74,12 @@ export interface TableWorldSprite {
    * painted. The whole sprite where not given.
    */
   readonly pickAreas?: readonly (readonly PickPoint2[])[];
+  /**
+   * For a sprite lying on the floor that follows the raised ground, as a range does: how far over the
+   * ground it lies, in table pixels. It lies flat at its centre's height where not given, or where the
+   * ground is flat.
+   */
+  readonly drapes?: { readonly liftPx: number };
 }
 
 /** Which way the eye's right and the eye's up run in the board's space. */

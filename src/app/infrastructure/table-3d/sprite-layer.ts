@@ -1,3 +1,4 @@
+import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { lyingDrawOrder } from '@axe/domain/tabletop/world/lying-order';
 import {
   type EyeAxes,
@@ -5,9 +6,11 @@ import {
   type TableWorldLook,
   type TableWorldSprite,
 } from '@axe/domain/tabletop/world/table-sprites';
+import { boxOverGround } from '@axe/infrastructure/table-3d/face-geometry';
 import { forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
+  type BufferGeometry,
   CanvasTexture,
   DoubleSide,
   FrontSide,
@@ -87,6 +90,8 @@ function turnToEye(mesh: Mesh, sprite: TableWorldSprite, eye: EyeAxes): void {
 interface Drawn {
   readonly mesh: Mesh;
   readonly look: string;
+  /** The mesh it lies on over the raised ground, and what it was made for, while it follows the ground. */
+  draped?: { readonly key: string; readonly geometry: BufferGeometry };
 }
 
 /**
@@ -105,11 +110,24 @@ export class SpriteLayer {
   private readonly casterMaterials = new Map<string, MeshBasicNodeMaterial>();
   private facingEye: readonly { readonly mesh: Mesh; readonly sprite: TableWorldSprite }[] = [];
   private eye: EyeAxes | null = null;
+  /** The raised ground of the floor a sprite that follows it lies over, or null where the floor is flat. */
+  private ground: GroundMesh | null = null;
+  private groundGeneration = 0;
 
   constructor(
     private readonly pictureOf: (url: string) => Texture,
     private readonly dress: (material: MeshBasicNodeMaterial) => void = () => undefined
   ) {}
+
+  /**
+   * Lays the sprites that follow the ground over the floor's raised ground from the next time they are
+   * laid out, or flat again where there is none.
+   */
+  setGround(ground: GroundMesh | null): void {
+    if (ground === this.ground) return;
+    this.ground = ground;
+    this.groundGeneration++;
+  }
 
   /** How many standing pictures throw a shadow with boards of their own. */
   get casterCount(): number {
@@ -137,8 +155,7 @@ export class SpriteLayer {
       const look = lookKey(sprite);
       let drawn = this.drawn.get(sprite.id);
       if (drawn && drawn.look !== look) {
-        this.group.remove(drawn.mesh);
-        forgetDrawn(drawn.mesh);
+        this.forget(drawn);
         drawn = undefined;
       }
       if (!drawn) {
@@ -149,6 +166,7 @@ export class SpriteLayer {
       const mesh = drawn.mesh;
       mesh.renderOrder = STANDING_ORDER;
       mesh.visible = !sprite.hidden;
+      if (this.drape(drawn, sprite)) continue;
       mesh.position.copy(sceneDirection(sprite.centre));
       mesh.scale.set(sprite.widthPx, sprite.heightPx, 1);
       if (sprite.facing === 'eye') {
@@ -161,14 +179,53 @@ export class SpriteLayer {
     }
     for (const [id, drawn] of this.drawn) {
       if (wanted.has(id)) continue;
-      this.group.remove(drawn.mesh);
-      forgetDrawn(drawn.mesh);
+      this.forget(drawn);
       this.drawn.delete(id);
     }
     this.layCasters(sprites);
     this.facingEye = facingEye;
     this.stackLying(sprites);
     this.forgetUnused();
+  }
+
+  /**
+   * Lays a sprite that follows the ground over the floor's raised ground, on the part of the ground's
+   * mesh its box reaches, made anew only as the ground, its box or its lift changes; or back on the
+   * square it is otherwise laid on. Answers whether it lies over the ground.
+   */
+  private drape(drawn: Drawn, sprite: TableWorldSprite): boolean {
+    const mesh = drawn.mesh;
+    if (!sprite.drapes || !this.ground) {
+      if (drawn.draped) {
+        drawn.draped.geometry.dispose();
+        drawn.draped = undefined;
+        mesh.geometry = this.square;
+      }
+      return false;
+    }
+    const box = {
+      x: sprite.centre.x - sprite.widthPx / 2,
+      y: sprite.centre.y - sprite.heightPx / 2,
+      width: sprite.widthPx,
+      height: sprite.heightPx,
+    };
+    const key = `${this.groundGeneration}|${box.x}|${box.y}|${box.width}|${box.height}|${sprite.drapes.liftPx}`;
+    if (drawn.draped?.key !== key) {
+      drawn.draped?.geometry.dispose();
+      drawn.draped = { key, geometry: boxOverGround(this.ground, box, sprite.drapes.liftPx) };
+      mesh.geometry = drawn.draped.geometry;
+    }
+    mesh.position.set(0, 0, 0);
+    mesh.scale.set(1, 1, 1);
+    mesh.quaternion.identity();
+    return true;
+  }
+
+  /** Takes a sprite's mesh out of the scene, and the mesh it lay on over the ground with it. */
+  private forget(drawn: Drawn): void {
+    this.group.remove(drawn.mesh);
+    forgetDrawn(drawn.mesh);
+    drawn.draped?.geometry.dispose();
   }
 
   /** Draws the sprites lying flat on a face one after another, in the order {@link lyingDrawOrder} gives. */
@@ -256,6 +313,7 @@ export class SpriteLayer {
     for (const frame of this.frames.values()) frame.dispose();
     this.materials.clear();
     this.frames.clear();
+    for (const drawn of this.drawn.values()) drawn.draped?.geometry.dispose();
     this.drawn.clear();
   }
 
@@ -268,7 +326,7 @@ export class SpriteLayer {
       alphaTest: 0.01,
       opacity: sprite.opacity ?? 1,
       depthWrite: !lying,
-      side: sprite.twoSided ? DoubleSide : FrontSide,
+      side: sprite.twoSided || sprite.drapes ? DoubleSide : FrontSide,
       ...(lying ? PULLED_FORWARD : {}),
     });
     material.map = this.texture(sprite.look, sprite.widthPx, sprite.heightPx);
@@ -353,7 +411,7 @@ function showOnceCome(material: MeshBasicNodeMaterial): void {
 function lookKey(sprite: TableWorldSprite): string {
   const shown =
     sprite.look.kind === 'picture' ? sprite.look.url : frameKey(sprite.look, sprite.widthPx, sprite.heightPx);
-  return `${shown}|${sprite.brightness}|${sprite.opacity ?? 1}|${sprite.twoSided}|${sprite.order !== undefined}`;
+  return `${shown}|${sprite.brightness}|${sprite.opacity ?? 1}|${sprite.twoSided}|${sprite.order !== undefined}|${!!sprite.drapes}`;
 }
 
 function frameKey(look: Extract<TableWorldLook, { kind: 'frame' }>, width: number, height: number): string {

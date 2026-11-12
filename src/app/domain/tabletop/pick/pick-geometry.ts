@@ -58,7 +58,20 @@ export interface PickOnFace {
   readonly shape: PickPrism | PickQuad | PickCylinder | PickFloor;
 }
 
-export type PickShape = PickPrism | PickQuad | PickCylinder | PickFloor | PickOnFace;
+/**
+ * A sheet laid over a box of the board that follows the raised ground, as a range lying over it does:
+ * how high it lies over each point of the box, between a lowest and a highest. A picture laid on it
+ * is read across the box from its left edge and down it from its top edge.
+ */
+export interface PickDraped {
+  readonly kind: 'draped';
+  readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly heightAt: (x: number, y: number) => number;
+  readonly low: number;
+  readonly high: number;
+}
+
+export type PickShape = PickPrism | PickQuad | PickCylinder | PickFloor | PickOnFace | PickDraped;
 
 /** Where a line of sight meets a shape. */
 export interface PickShapeHit {
@@ -337,5 +350,51 @@ export function hitShape(ray: TableRay, shape: PickShape): PickShapeHit | null {
       return hitFloor(ray, shape);
     case 'on-face':
       return hitOnFace(ray, shape);
+    case 'draped':
+      return hitDraped(ray, shape);
   }
+}
+
+/**
+ * Where the line first comes down onto a sheet following the ground, walked over the stretch of it
+ * above the box as a sloping roof is, with how far across and down the box the point lies. A sheet has
+ * no sides: a line already under it where it comes over the box meets none of it.
+ */
+function hitDraped(ray: TableRay, shape: PickDraped): PickShapeHit | null {
+  const { x, y, width, height } = shape.box;
+  if (!(width > 0) || !(height > 0)) return null;
+  const outline = [
+    { x, y },
+    { x: x + width, y },
+    { x: x + width, y: y + height },
+    { x, y: y + height },
+  ];
+  const span = spanInside(ray, { kind: 'prism', outline, base: shape.low, top: shape.high });
+  if (!span) return null;
+  const [from, to] = span;
+  const under = (t: number) => {
+    const point = at(ray, t);
+    return insideOutline(outline, point.x, point.y) && point.z <= shape.heightAt(point.x, point.y);
+  };
+  const start = at(ray, from);
+  const startX = Math.min(Math.max(start.x, x), x + width);
+  const startY = Math.min(Math.max(start.y, y), y + height);
+  if (start.z <= shape.heightAt(startX, startY)) return null;
+  let previous = from;
+  for (let i = 1; i <= ROOF_STEPS; i++) {
+    const t = from + ((to - from) * i) / ROOF_STEPS;
+    if (under(t)) {
+      let low = previous;
+      let high = t;
+      for (let j = 0; j < ROOF_REFINES; j++) {
+        const middle = (low + high) / 2;
+        if (under(middle)) high = middle;
+        else low = middle;
+      }
+      const point = at(ray, high);
+      return { t: high, point, u: (point.x - x) / width, v: (point.y - y) / height };
+    }
+    previous = t;
+  }
+  return null;
 }

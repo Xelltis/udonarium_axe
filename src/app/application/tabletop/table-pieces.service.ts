@@ -681,6 +681,7 @@ export class TablePiecesService {
         ...place,
         altitudePx: range.altitude * gridSize,
         picture: this.pagePictures.pictureOf(range.identifier),
+        ...(place.onFloor && Math.abs(range.posZ) < 1 ? { overGroundPx: range.altitude * gridSize } : {}),
       }),
   });
 

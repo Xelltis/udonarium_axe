@@ -990,6 +990,7 @@ class ThreeTableEngine implements Table3dEngine {
         ])
       : '';
     this.floorCanvases.setGround(board?.floorGround ?? null);
+    this.sprites.setGround(board?.floorGround ?? null);
     if (shape === this.boardShape && board?.ground === this.boardGround) return;
     this.boardShape = shape;
     if (this.boardGround !== (board?.ground ?? null)) this.groundGeneration++;

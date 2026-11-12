@@ -1,10 +1,12 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
+import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { squareGroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { boardShapeOf } from '@axe/domain/tabletop/world/table-world';
 import {
   boardGeometry,
+  boxOverGround,
   capGeometry,
   griddedTops,
   gridOverBoard,
@@ -186,5 +188,26 @@ describe('the shapes of the faces drawn on the canvas', () => {
 
     expect(Array.from(painted.getAttribute('paint').array.slice(0, 4))).toEqual([0, 1, 0, 0]);
     expect(bare.getAttribute('paint')).toBeUndefined();
+  });
+
+  it('lays a box over the part of the ground’s mesh reaching over it alone, lifted off it, wearing its picture across the box', () => {
+    const ground: GroundMesh = {
+      points: new Float32Array([
+        0, 0, 10, 50, 0, 20, 100, 0, 30, 150, 0, 40, 0, 50, 10, 50, 50, 20, 100, 50, 30, 150, 50, 40,
+      ]),
+      uvs: new Float32Array(16),
+      triangles: new Uint32Array([0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6]),
+      paint: null,
+    };
+
+    const geometry = boxOverGround(ground, { x: 60, y: 0, width: 30, height: 50 }, 2);
+
+    expect(geometry.index!.count).toBe(6);
+    const positions = geometry.getAttribute('position');
+    expect(positions.count).toBe(4);
+    expect([positions.getX(0), positions.getY(0), positions.getZ(0)]).toEqual([50, 22, 0]);
+    const uvs = geometry.getAttribute('uv');
+    expect(uvs.getX(0)).toBeCloseTo(-10 / 30);
+    expect(uvs.getY(0)).toBeCloseTo(1);
   });
 });

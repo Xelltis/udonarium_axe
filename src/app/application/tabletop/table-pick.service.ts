@@ -13,10 +13,10 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { pageOfTablePoint, tableEyeMatrix, TableRay, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
-import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
+import { groundLiftOfBlock, GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { AMBIENCE_PICK_LAYER, ambiencePickTarget } from '@axe/domain/tabletop/pick/ambience-pick';
 import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
-import { PickCylinder, PickShape, withinOutline } from '@axe/domain/tabletop/pick/pick-geometry';
+import { PickCylinder, PickDraped, PickShape, withinOutline } from '@axe/domain/tabletop/pick/pick-geometry';
 import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { beamPickTarget, TERRAIN_PICK_LAYER, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
@@ -80,11 +80,12 @@ export class TablePickService {
 
   /** Each object's target, kept until the object or the table's grid changes. */
   private readonly made = new Map<string, { key: string; target: PickTarget }>();
-  /** The pieces' targets, kept until the pieces or the camera change. */
+  /** The pieces' targets, kept until the pieces, the camera or the ground change. */
   private pieceTargetsMade: {
     sprites: readonly TableWorldSprite[];
     coins: readonly TableWorldCoin[];
     camera: number;
+    ground: GroundSurface;
     targets: readonly PickTarget[];
   } | null = null;
 
@@ -286,17 +287,26 @@ export class TablePickService {
   /**
    * The targets of the pieces drawn on the table in view, as the canvas lays them out for this
    * seat: a piece drawn from sprites is made of a flat shape for each, a sprite turned to the eye
-   * picked where it is turned to now, and a coin is a disc on the face it lies on. Of two pieces lying
-   * flat the same distance off, as cards one on another, the one the canvas draws over the other is
-   * in front.
+   * picked where it is turned to now, a sprite following the raised ground over the ground, and a coin
+   * is a disc on the face it lies on. Of two pieces lying flat the same distance off, as cards one on
+   * another, the one the canvas draws over the other is in front.
    */
   pieceTargets(): readonly PickTarget[] {
     return untracked(() => {
       const sprites = this.pieces.sprites();
       const coins = this.pieces.coins();
       const camera = this.camera.version();
+      const ground = this.ground.surface();
       const made = this.pieceTargetsMade;
-      if (made && made.sprites === sprites && made.coins === coins && made.camera === camera) return made.targets;
+      if (
+        made &&
+        made.sprites === sprites &&
+        made.coins === coins &&
+        made.camera === camera &&
+        made.ground === ground
+      ) {
+        return made.targets;
+      }
       const view = this.camera.view;
       const layout = this.camera.layout;
       if (!view || !layout) return [];
@@ -304,7 +314,7 @@ export class TablePickService {
       const byOwner = new Map<string, { kind: string; shapes: PickShape[]; solids: (SolidAt | null)[] }>();
       for (const sprite of sprites) {
         const owner = byOwner.get(sprite.owner) ?? { kind: sprite.kind, shapes: [], solids: [] };
-        owner.shapes.push({ kind: 'quad', corners: spritePickCorners(sprite, eye) });
+        owner.shapes.push(this.draped(sprite, ground) ?? { kind: 'quad', corners: spritePickCorners(sprite, eye) });
         owner.solids.push(this.spriteSolidAt(sprite));
         byOwner.set(sprite.owner, owner);
       }
@@ -336,9 +346,43 @@ export class TablePickService {
             : {}),
         };
       });
-      this.pieceTargetsMade = { sprites, coins, camera, targets };
+      this.pieceTargetsMade = { sprites, coins, camera, ground, targets };
       return targets;
     });
+  }
+
+  /**
+   * The sheet a sprite that follows the raised ground lies on, over the ground as far as it lies off
+   * it, between the lowest and the highest of the ground under its box; null for any other sprite, or
+   * where the ground is flat.
+   */
+  private draped(sprite: TableWorldSprite, ground: GroundSurface): PickDraped | null {
+    const lift = sprite.drapes?.liftPx;
+    if (lift === undefined || ground.isFlat) return null;
+    const gridSize = this.tabletop.currentTable.gridSize > 0 ? this.tabletop.currentTable.gridSize : 50;
+    const box = {
+      x: sprite.centre.x - sprite.widthPx / 2,
+      y: sprite.centre.y - sprite.heightPx / 2,
+      width: sprite.widthPx,
+      height: sprite.heightPx,
+    };
+    const sample = gridSize / 2;
+    let lowest = Infinity;
+    let highest = -Infinity;
+    for (let i = Math.floor(box.x / sample); i <= Math.ceil((box.x + box.width) / sample); i++) {
+      for (let j = Math.floor(box.y / sample); j <= Math.ceil((box.y + box.height) / sample); j++) {
+        const height = ground.sampleAt(i, j) * gridSize;
+        lowest = Math.min(lowest, height);
+        highest = Math.max(highest, height);
+      }
+    }
+    return {
+      kind: 'draped',
+      box,
+      heightAt: (x, y) => ground.heightAt(x / gridSize, y / gridSize) * gridSize + lift,
+      low: lowest + lift - 1,
+      high: highest + lift + 1,
+    };
   }
 
   /**
