@@ -1,4 +1,5 @@
 import { ObjectNode } from '@axe/core/sync/object-node';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { DataElement } from '@axe/domain/data/data-element';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
@@ -14,9 +15,12 @@ export function pieceOf(object: unknown): ObjectNode | null {
   return null;
 }
 
-/** What a recording calls an object: a piece by its name, a data element by its own. */
+/**
+ * What a recording calls an object: a piece by its name as everyone is told it, a hidden one as
+ * {@link saidNameOf} names it, and a data element by its own.
+ */
 export function targetNameOf(object: unknown): string {
-  if (object instanceof TabletopObject) return object.name;
+  if (object instanceof TabletopObject) return saidNameOf(object);
   if (object instanceof DataElement) return String(object.getAttribute('name') ?? '');
   const named = object as { name?: unknown };
   return typeof named?.name === 'string' ? named.name : '';
