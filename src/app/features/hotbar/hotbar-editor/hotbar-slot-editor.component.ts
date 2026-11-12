@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { HotbarStoreService } from '@axe/application/hotbar/hotbar-store.service';
@@ -94,6 +95,7 @@ interface PalettePick {
 })
 export class HotbarSlotEditorComponent {
   private readonly panelService = inject(PanelService);
+  private readonly names = inject(PieceNameService);
   private readonly runner = inject(HotbarRunnerService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -476,13 +478,18 @@ export class HotbarSlotEditorComponent {
     this.draft.update((draft) => ({ ...draft, characterIdentifier: identifier, characterName: named?.name ?? '' }));
   }
 
-  /** The pieces a slot may be told to act as, with an entry for leaving it to the moment. */
+  /**
+   * The pieces a slot may be told to act as, with an entry for leaving it to the moment; not one whose
+   * name is kept from the reader, which the list would name.
+   */
   protected readonly actors = computed<{ value: string; name: string }[]>(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     return selectControllableCharacters(
       this.objectStore.getObjects<GameCharacter>(GameCharacter),
       PeerCursor.myCursor?.userId ?? ''
-    ).map((character) => ({ value: character.identifier, name: character.name }));
+    )
+      .filter((character) => !this.names.isKept(character))
+      .map((character) => ({ value: character.identifier, name: character.name }));
   });
 
   protected readonly panelLabelKey = panelLabelKey;

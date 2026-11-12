@@ -28,6 +28,8 @@ export interface HotbarCellContext {
   /** The icon of what a slot points at, for a slot that wears it rather than its kind's. */
   referencedIcon?(slot: HotbarSlot): string;
   keyOf(slotIndex: number): string;
+  /** The name a piece a slot acts as is shown by to this reader; its own where this is not told. */
+  nameOf?(piece: GameCharacter): string;
 }
 
 /** Whether a slot names a piece of its own rather than acting as whoever is speaking. */
@@ -84,6 +86,6 @@ export function hotbarCellView(slot: HotbarSlot | null, slotIndex: number, conte
     // A slot that names a piece acts as that piece or as nobody. Falling back to whoever the
     // chat is set to speak as would send someone else's attack under the reader's own name.
     actor: bindsCharacter(slot) ? named : context.speaker,
-    actorName: named?.name ?? slot.characterName,
+    actorName: named ? (context.nameOf?.(named) ?? named.name) : slot.characterName,
   };
 }

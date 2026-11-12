@@ -65,6 +65,15 @@ describe('hotbar cell view', () => {
     expect(cell.key).toBe('1');
   });
 
+  it('names the piece it acts as by the name the reader is shown', () => {
+    const slot = slotFor({ characterIdentifier: scout.identifier, characterName: '斥候' });
+
+    const cell = hotbarCellView(slot, 0, context({ nameOf: () => '？？？' }));
+
+    expect(cell.actor).toBe(scout);
+    expect(cell.actorName).toBe('？？？');
+  });
+
   it('acts as nobody when the piece it names is not one this reader may work', () => {
     const slot = slotFor({ characterIdentifier: 'gone', characterName: '居ない人' });
 
