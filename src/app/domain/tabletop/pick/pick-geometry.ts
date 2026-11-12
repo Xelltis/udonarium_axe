@@ -83,6 +83,24 @@ function at(ray: TableRay, t: number): TablePoint {
   };
 }
 
+/**
+ * Whether a point lies inside an outline or no further than `reach` off any of its sides, as a line
+ * drawn round it and the softened edge of its picture reach past it.
+ */
+export function withinOutline(outline: readonly PickPoint2[], x: number, y: number, reach: number): boolean {
+  if (insideOutline(outline, x, y)) return true;
+  for (let i = 0, j = outline.length - 1; i < outline.length; j = i++) {
+    const a = outline[j];
+    const b = outline[i];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const length = dx * dx + dy * dy;
+    const share = length > 0 ? Math.min(1, Math.max(0, ((x - a.x) * dx + (y - a.y) * dy) / length)) : 0;
+    if (Math.hypot(x - (a.x + dx * share), y - (a.y + dy * share)) <= reach) return true;
+  }
+  return false;
+}
+
 /** Whether a point lies inside an outline, by how many of its sides a line to the east crosses. */
 export function insideOutline(outline: readonly PickPoint2[], x: number, y: number): boolean {
   let inside = false;

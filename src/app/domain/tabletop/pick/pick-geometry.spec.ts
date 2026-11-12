@@ -1,5 +1,5 @@
 import { TableRay } from '@axe/domain/tabletop/camera/table-camera';
-import { hitShape, insideOutline, PickPoint2 } from '@axe/domain/tabletop/pick/pick-geometry';
+import { hitShape, insideOutline, PickPoint2, withinOutline } from '@axe/domain/tabletop/pick/pick-geometry';
 
 /** Looking straight down onto a point of the board from high above it. */
 function downOnto(x: number, y: number): TableRay {
@@ -110,5 +110,18 @@ describe('pick geometry', () => {
     expect(hit.point.z).toBeCloseTo(150, 9);
     expect(hitShape(northward(150, 150), onFace)).toBeNull();
     expect(hitShape(northward(50, 250), onFace)).toBeNull();
+  });
+
+  it('takes a point within a little of an outline’s sides as within it', () => {
+    const square = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ];
+
+    expect(withinOutline(square, 12, 5, 3)).toBe(true);
+    expect(withinOutline(square, 14, 5, 3)).toBe(false);
+    expect(withinOutline(square, 5, 5, 0)).toBe(true);
   });
 });

@@ -16,7 +16,7 @@ import { pageOfTablePoint, tableEyeMatrix, TableRay, tableRayOfPage } from '@axe
 import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
 import { AMBIENCE_PICK_LAYER, ambiencePickTarget } from '@axe/domain/tabletop/pick/ambience-pick';
 import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
-import { insideOutline, PickCylinder, PickShape } from '@axe/domain/tabletop/pick/pick-geometry';
+import { PickCylinder, PickShape, withinOutline } from '@axe/domain/tabletop/pick/pick-geometry';
 import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { beamPickTarget, TERRAIN_PICK_LAYER, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
@@ -40,6 +40,13 @@ export interface PictureSight {
   /** Where a corner of the picture lies on the page, round from its top left as the picture is read. */
   cornerOnPage(corner: 0 | 1 | 2 | 3): { x: number; y: number };
 }
+
+/**
+ * How far past the edge of one of a sprite's areas a press still lands on it, in table pixels: the
+ * line a range's shape is drawn round with is two pixels wide on its edge, and the edge of its picture
+ * is softened by a pixel more.
+ */
+const AREA_REACH_PX = 3;
 
 /** Whether a quad is solid at a point across and down it, each from 0 to 1. */
 type SolidAt = (u: number, v: number) => boolean;
@@ -345,7 +352,7 @@ export class TablePickService {
       return (u, v) => {
         const x = u * sprite.widthPx;
         const y = v * sprite.heightPx;
-        return areas.some((area) => insideOutline(area, x, y));
+        return areas.some((area) => withinOutline(area, x, y, AREA_REACH_PX));
       };
     }
     const mask = this.spritePickMask(sprite);
