@@ -742,12 +742,21 @@ export class ChatInputComponent {
   private readonly _text = linkedSignal(() => this.textInput());
   /** Whether anything is written, so a palette's box keeps room for the mark on findings beside it. */
   protected readonly hasText = computed(() => this._text().length > 0);
+  /**
+   * Whether the box holds what was put into it from outside, as a palette's line picked, rather than
+   * what is typed in it since. A palette's box then keeps its height, so that the list under it holds
+   * still; what is typed grows it as before.
+   */
+  protected readonly putIn = signal(true);
+  /** The line last told through `textChange`, which coming back in is not one put in from outside. */
+  private told: string | null = null;
   /** The line being written; setting it reports through `textChange`. */
   get text(): string {
     return this._text();
   }
   set text(text: string) {
     this._text.set(text);
+    this.told = text;
     this.textChange.emit(text);
   }
 
@@ -840,6 +849,12 @@ export class ChatInputComponent {
       if (this.canSpeak() && this.chatPreferences.richInput()) untracked(() => this.requestEditor());
     });
     effect(() => this.followEditorHost());
+    effect(() => {
+      const incoming = this.textInput();
+      untracked(() => {
+        if (incoming !== this.told) this.putIn.set(true);
+      });
+    });
     effect(() => {
       const text = this._text();
       const field = this.richField();
@@ -1160,6 +1175,7 @@ export class ChatInputComponent {
    * whisper only notifies the peer being whispered to.
    */
   onInput() {
+    this.putIn.set(false);
     if (this.writingEventInterval === null && this.previousWritingLength <= this.text.length) {
       let sendTo: string | undefined;
       if (this.isDirect) {
@@ -1345,10 +1361,10 @@ export class ChatInputComponent {
 
   /**
    * Grows or shrinks the box to its content, unless the user has resized it by hand. A palette's box
-   * keeps its height, so that the lines under it hold still whatever is picked into it.
+   * keeps its height while it holds a line picked into it (see {@link putIn}).
    */
   calcFitHeight() {
-    if (this.dense()) return;
+    if (this.dense() && this.putIn()) return;
     this.textField()?.refit();
   }
 
