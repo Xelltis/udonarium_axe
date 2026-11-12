@@ -546,8 +546,11 @@ describe('buildGameCharacterContextMenu()', () => {
       t
     );
 
-    expect(names(groupOf(menu, '表示と扱い'))).not.toContain('☑ 名前を隠す');
-    expect(names(groupOf(menu, '表示と扱い'))).toContain('☐ バフを隠す');
+    const display = groupOf(menu, '表示と扱い');
+    expect(names(display)).not.toContain('☑ 名前を隠す');
+    const told = display.find((entry) => entry.name === '☑ 名前を隠す（GMだけが切り替えられます）');
+    expect(told?.enabled).toBe(false);
+    expect(names(display)).toContain('☐ バフを隠す');
   });
 
   it('always offers the shared table, your own hands and the graveyard, and moves it to each', () => {

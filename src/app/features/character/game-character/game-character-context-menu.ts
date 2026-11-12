@@ -385,6 +385,7 @@ export function buildGameCharacterContextMenuModel(
       ),
     ],
   });
+  // One who may not hide a name still sees that it is hidden, and that the master alone may show it.
   const nameToggle: ContextMenuAction[] = callbacks.onSetNameHidden
     ? [
         {
@@ -397,7 +398,14 @@ export function buildGameCharacterContextMenuModel(
           },
         },
       ]
-    : [];
+    : char.hideName
+      ? [
+          {
+            name: t('feature.character.contextMenu.hideNameOn') + t('feature.character.contextMenu.hideNameGmOnly'),
+            enabled: false,
+          },
+        ]
+      : [];
   const lookToggles: ContextMenuAction[] = [
     ...nameToggle,
     char.hideBuff

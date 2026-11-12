@@ -2157,6 +2157,7 @@
         "displaySettings": "表示",
         "hideNameOn": "☑ 名前を隠す",
         "hideNameOff": "☐ 名前を隠す",
+        "hideNameGmOnly": "（GMだけが切り替えられます）",
         "hideBuffOn": "☑ バフを隠す",
         "hideBuffOff": "☐ バフを隠す",
         "npcOn": "☑ NPC にする",
