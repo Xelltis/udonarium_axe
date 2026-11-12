@@ -311,6 +311,41 @@ describe('ChatMessageComponent', () => {
     }
   });
 
+  it('tells a game master whom an answer to a line aimed at everyone at once was rolled at among hidden names', () => {
+    const villain = GameCharacter.create('黒幕', 1, '');
+    villain.hideName = true;
+    const shade = GameCharacter.create('影', 1, '');
+    shade.hideName = true;
+    const hero = GameCharacter.create('勇者', 1, '');
+    const tab = new ChatTab();
+    tab.initialize();
+    try {
+      tab.addMessage({
+        from: 'me',
+        sendFrom: hero.identifier,
+        name: '勇者',
+        text: '2d6 t:範囲',
+        timestamp: 1000,
+        aimedTogether: JSON.stringify([villain.identifier, hero.identifier, shade.identifier]),
+      });
+      const answer = tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'me',
+        name: '<BCDice：勇者>',
+        text: 'DiceBot : (2D6) → 7 [？？？、勇者、？？？]',
+        tag: 'system',
+        timestamp: 1001,
+      });
+      fixture.componentRef.setInput('chatMessage', answer);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(true);
+
+      expect(component['rolledAtTold']()).toBe('黒幕、影');
+    } finally {
+      tab.destroy();
+      for (const piece of [villain, shade, hero]) piece.destroy();
+    }
+  });
+
   it('tells a game master nothing more of a piece whose own name holds the label for a hidden one', () => {
     const shadow = GameCharacter.create('謎の影？？？', 1, '');
     const tab = new ChatTab();

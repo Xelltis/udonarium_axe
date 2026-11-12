@@ -286,6 +286,11 @@ function aimedTogetherOf(tab: ChatTab, answer: ChatMessage): string[] | null {
   return aimedTogetherAt(line);
 }
 
+/** The identifiers of the pieces a line was aimed at all at once; none for no line, any other line, or a list that cannot be read. */
+export function aimedTogetherIdentifiers(line: ChatMessage | null): string[] {
+  return line ? aimedTogetherAt(line) : [];
+}
+
 /** The identifiers of the pieces a line was aimed at all at once; none for any other line, or a list that cannot be read. */
 function aimedTogetherAt(line: ChatMessage): string[] {
   const written = `${line.aimedTogether ?? ''}`;

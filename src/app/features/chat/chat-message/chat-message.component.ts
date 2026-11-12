@@ -52,7 +52,7 @@ import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { inlineStampsAlone, inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { IMAGE_STAMP_PREFIX, isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { saidWithStamp } from '@axe/domain/chat/stamp-line';
-import { canPinAsTargetNumber, mayPinTargetNumber } from '@axe/domain/chat/target-number';
+import { aimedTogetherIdentifiers, canPinAsTargetNumber, mayPinTargetNumber } from '@axe/domain/chat/target-number';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
@@ -1127,15 +1127,25 @@ export class ChatMessageComponent {
   }
 
   /**
-   * The name of the piece a dice bot's answer was rolled at, for one who may see what is kept back
-   * where the answer names it {@link SAID_HIDDEN_NAME}; empty otherwise.
+   * The names of the pieces whose names are hidden a dice bot's answer was rolled at, for one who may
+   * see what is kept back: the one it keeps it was rolled at, or those its line was aimed at all at
+   * once, in the order its brackets name them. Empty where it names no hidden one.
    */
   protected rolledAtTold(): string {
     const message = this.chatMessage;
     if (!message?.isDicebot || !this.rolePermission.canSeeHidden()) return '';
-    const target = this.objectStore.get(`${message.rolledAt ?? ''}`);
-    if (!(target instanceof GameCharacter) || target.name.includes(SAID_HIDDEN_NAME)) return '';
-    return `${message.text ?? ''}`.trimEnd().endsWith(` [${SAID_HIDDEN_NAME}]`) ? target.name : '';
+    const text = `${message.text ?? ''}`.trimEnd();
+    if (!text.includes(SAID_HIDDEN_NAME)) return '';
+    const rolledAt = `${message.rolledAt ?? ''}`;
+    const line =
+      rolledAt.length < 1 && message.parent instanceof ChatTab ? message.parent.findRollSource(message) : null;
+    const identifiers = rolledAt.length > 0 ? [rolledAt] : aimedTogetherIdentifiers(line);
+    return identifiers
+      .map((identifier) => this.objectStore.get(identifier))
+      .filter((piece): piece is GameCharacter => piece instanceof GameCharacter && piece.hideName)
+      .map((piece) => piece.name)
+      .filter((name) => name.length > 0 && !name.includes(SAID_HIDDEN_NAME))
+      .join('、');
   }
 
   /**
