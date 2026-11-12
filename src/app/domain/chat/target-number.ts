@@ -157,7 +157,7 @@ export function findTargetNumberSource(tab: ChatTab, speaker: TargetNumberSpeake
   let byOthers: TargetNumberSource | null = null;
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index];
-    if (message.isSecret || !message.isDisplayable) continue;
+    if (message.isSecret || !message.isShownInChat) continue;
     if (!message.isDicebot) {
       const total = presentedTotalOf(`${message.text ?? ''}`);
       if (total == null) continue;
@@ -238,7 +238,7 @@ export function targetNumberChoices(tab: ChatTab, count: number): TargetNumberCh
 
 /** An answer as a number to beat a reader may pick, where it is one they may see that could be set as the tab's; null otherwise. */
 export function targetNumberChoiceOf(answer: ChatMessage): TargetNumberChoice | null {
-  if (!answer.isDisplayable || !canPinAsTargetNumber(answer)) return null;
+  if (!answer.isShownInChat || !canPinAsTargetNumber(answer)) return null;
   const total = totalOfLine(answer);
   return total == null ? null : { total, answer };
 }

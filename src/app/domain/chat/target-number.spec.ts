@@ -337,6 +337,19 @@ describe('target-number', () => {
       expect(findTargetNumberSource(tab, speaker)).toMatchObject({ total: 3, from: 'byOthers' });
     });
 
+    it('passes over a number written out or rolled on a line taken back since', () => {
+      roll(enemy, 'DiceBot : (1D6) → 3');
+      say(master, '探索判定：目標値13', PeerRole.GameMaster);
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+      const [, , said, , answer] = tab.chatMessages;
+
+      answer.pseudoDelete(5000);
+      expect(findTargetNumberSource(tab, speaker)).toMatchObject({ total: 13, from: 'presented' });
+      said.pseudoDelete(5000);
+      expect(findTargetNumberSource(tab, speaker)).toMatchObject({ total: 3, from: 'byOthers' });
+      expect(targetNumberChoices(tab, 5).map((choice) => choice.total)).toEqual([3]);
+    });
+
     it('still takes a roll aimed at the speaker over a number a game master wrote out after it', () => {
       roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]');
       say(master, '目標値13', PeerRole.GameMaster);
