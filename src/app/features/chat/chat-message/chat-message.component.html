@@ -97,6 +97,9 @@
               </div>
             } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
               <ng-container [ngTemplateOutlet]="lineWords" />
+              @if (rolledAtTold(); as told) {
+                <span class="text-ui-dim ml-0.5 text-[0.9em]" data-testid="chat-message-rolled-at">（{{ told }}）</span>
+              }
               @if (sentStamp(); as stampId) {
                 <div class="py-0.5" data-testid="chat-message-stamp">
                   <ui-stamp
@@ -218,6 +221,11 @@
                 </span>
               } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
                 <ng-container [ngTemplateOutlet]="lineWords" />
+                @if (rolledAtTold(); as told) {
+                  <span class="text-ui-dim ml-0.5 text-[0.9em]" data-testid="chat-message-rolled-at"
+                    >（{{ told }}）</span
+                  >
+                }
                 @if (sentStamp(); as stampId) {
                   <span class="inline-block align-middle" data-testid="chat-message-stamp">
                     <ui-stamp

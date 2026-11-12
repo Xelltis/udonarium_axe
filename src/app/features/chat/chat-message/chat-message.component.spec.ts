@@ -278,6 +278,55 @@ describe('ChatMessageComponent', () => {
     }
   });
 
+  it('tells a game master whom an answer naming a hidden name was rolled at and rolled by', () => {
+    const villain = GameCharacter.create('黒幕', 1, '');
+    villain.hideName = true;
+    const hero = GameCharacter.create('勇者', 1, '');
+    const tab = new ChatTab();
+    tab.initialize();
+    try {
+      tab.addMessage({ from: 'me', sendFrom: villain.identifier, name: '？？？', text: '2d6 t:', timestamp: 1000 });
+      const answer = tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'me',
+        name: '<BCDice：？？？>',
+        text: 'DiceBot : (2D6) → 7 [？？？]',
+        tag: 'system',
+        timestamp: 1001,
+        rolledAt: villain.identifier,
+      });
+      fixture.componentRef.setInput('chatMessage', answer);
+      const seesHidden = vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden');
+
+      seesHidden.mockReturnValue(true);
+      expect(component.displayName(answer.name)).toBe('<BCDice：？？？（黒幕）>');
+      expect(component['rolledAtTold']()).toBe('黒幕');
+      seesHidden.mockReturnValue(false);
+      expect(component.displayName(answer.name)).toBe('<BCDice：？？？>');
+      expect(component['rolledAtTold']()).toBe('');
+    } finally {
+      tab.destroy();
+      villain.destroy();
+      hero.destroy();
+    }
+  });
+
+  it('tells a game master nothing more of a piece whose own name holds the label for a hidden one', () => {
+    const shadow = GameCharacter.create('謎の影？？？', 1, '');
+    const tab = new ChatTab();
+    tab.initialize();
+    try {
+      const line = tab.addMessage({ sendFrom: shadow.identifier, name: '謎の影？？？', text: '……', timestamp: 1000 });
+      fixture.componentRef.setInput('chatMessage', line);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(true);
+
+      expect(component.displayName(line.name)).toBe('謎の影？？？');
+    } finally {
+      tab.destroy();
+      shadow.destroy();
+    }
+  });
+
   describe('opening a line that was kept back', () => {
     function saySecret(tab: ChatTab, text: string, timestamp: number): ChatMessage {
       return tab.addMessage({ from: 'me', name: text, text, timestamp, tag: 'system-message secret' });

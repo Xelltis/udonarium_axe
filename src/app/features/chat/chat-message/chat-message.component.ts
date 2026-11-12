@@ -1106,13 +1106,36 @@ export class ChatMessageComponent {
 
   /**
    * A line said as a piece whose name is hidden names it {@link SAID_HIDDEN_NAME}, as everyone reads
-   * it; one who may see what is kept back is told which piece it was beside that.
+   * it, and so does a dice bot's answer to one; one who may see what is kept back is told which piece
+   * it was beside that. A piece whose own name holds the label is told nothing more.
    */
   private withHiddenNameTold(name: string): string {
     if (!name.includes(SAID_HIDDEN_NAME) || !this.rolePermission.canSeeHidden()) return name;
-    const speaker = this.objectStore.get(`${this.chatMessage?.sendFrom ?? ''}`);
-    if (!(speaker instanceof GameCharacter) || speaker.name.length < 1) return name;
+    const speaker = this.speakerPiece();
+    if (!speaker || speaker.name.length < 1 || speaker.name.includes(SAID_HIDDEN_NAME)) return name;
     return name.replace(SAID_HIDDEN_NAME, `${SAID_HIDDEN_NAME}（${speaker.name}）`);
+  }
+
+  /** The piece a line was said as, or for a dice bot's answer the piece its line was said as. */
+  private speakerPiece(): GameCharacter | null {
+    const message = this.chatMessage;
+    if (!message) return null;
+    const said =
+      message.isDicebot && message.parent instanceof ChatTab ? message.parent.findRollSource(message) : message;
+    const speaker = this.objectStore.get(`${said?.sendFrom ?? ''}`);
+    return speaker instanceof GameCharacter ? speaker : null;
+  }
+
+  /**
+   * The name of the piece a dice bot's answer was rolled at, for one who may see what is kept back
+   * where the answer names it {@link SAID_HIDDEN_NAME}; empty otherwise.
+   */
+  protected rolledAtTold(): string {
+    const message = this.chatMessage;
+    if (!message?.isDicebot || !this.rolePermission.canSeeHidden()) return '';
+    const target = this.objectStore.get(`${message.rolledAt ?? ''}`);
+    if (!(target instanceof GameCharacter) || target.name.includes(SAID_HIDDEN_NAME)) return '';
+    return `${message.text ?? ''}`.trimEnd().endsWith(` [${SAID_HIDDEN_NAME}]`) ? target.name : '';
   }
 
   /**
