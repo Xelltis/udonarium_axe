@@ -100,6 +100,8 @@ describe('target-number', () => {
       expect(presentedTotalOf('目標値13→15→17')).toBe(17);
       expect(presentedTotalOf('目標値13→15、あらためて目標値15')).toBe(15);
       expect(presentedTotalOf('目標値13→15、別の判定は目標値13')).toBeNull();
+      expect(presentedTotalOf('目標値13→2d6ダメージ')).toBe(13);
+      expect(presentedTotalOf('目標値13→2回目は15')).toBe(13);
     });
   });
 

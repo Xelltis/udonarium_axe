@@ -55,6 +55,12 @@ export function rollTotalOf(text: string): number | null {
 }
 
 /**
+ * What may not follow a number to beat written out, for it to be read as one: more figures, a counter,
+ * a sum, a decimal, or a range running on to another number.
+ */
+const NOT_ALONE_AFTER = String.raw`(?![0-9０-９]|[倍つ個回人点体枚割分dDｄＤ]|\s*[+＋\-－−×*/／÷xXｘＸ＊]\s*[0-9０-９(（{｛]|[+＋\-－−×*÷ｘＸ＊]\p{L}|[.．][0-9０-９]|\s*[〜～~ー‐–—]\s*[0-9０-９]|\s*から\s*[0-9０-９])`;
+
+/**
  * A number to beat written out in so many words, as `探索判定：目標値13` writes 13: what follows the
  * word, after a colon, an equals sign or a は, in figures of either width, words after it or not. A
  * reference to the number in braces, `{目標値}`, writes none, and nor does a number a counter
@@ -65,11 +71,16 @@ export function rollTotalOf(text: string): number | null {
  * as a percentile roll writes it. A number put right with an arrow, as `目標値13→15に修正` puts it,
  * is read as the one the arrow points to; see {@link CORRECTED_PATTERN}.
  */
-const PRESENTED_PATTERN =
-  /(?<![{｛])目標値\s*[:：=＝は]?\s*([0-9０-９]+)(?![0-9０-９]|[倍つ個回人点体枚割分dDｄＤ]|\s*[+＋\-－−×*/／÷xXｘＸ＊]\s*[0-9０-９(（{｛]|[+＋\-－−×*÷ｘＸ＊]\p{L}|[.．][0-9０-９]|\s*[〜～~ー‐–—]\s*[0-9０-９]|\s*から\s*[0-9０-９])/gu;
+const PRESENTED_PATTERN = new RegExp(
+  String.raw`(?<![{｛])目標値\s*[:：=＝は]?\s*([0-9０-９]+)` + NOT_ALONE_AFTER,
+  'gu'
+);
 
-/** An arrow and the number a number to beat is put right to, as `→15` follows `目標値13`. */
-const CORRECTED_PATTERN = /\s*(?:→|⇒|➡|->|=>)\s*([0-9０-９]+)(?![0-9０-９])/y;
+/**
+ * An arrow and the number a number to beat is put right to, as `→15` follows `目標値13`: one read as
+ * a number to beat is, so that `目標値13→2d6ダメージ` puts nothing right.
+ */
+const CORRECTED_PATTERN = new RegExp(String.raw`\s*(?:→|⇒|➡|->|=>)\s*([0-9０-９]+)` + NOT_ALONE_AFTER, 'uy');
 
 /** The number written at `at` and on, or the last one it is put right to with arrows after it. */
 function correctedOf(text: string, at: number, written: string): string {
