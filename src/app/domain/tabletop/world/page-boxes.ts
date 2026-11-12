@@ -89,16 +89,46 @@ interface GatheredPart {
   readonly size: { readonly width: number; readonly height: number } | null;
 }
 
+/** How many points along each side of its box a sprite lying over the raised ground is boxed round by. */
+const DRAPED_SIDE_POINTS = 16;
+
+/**
+ * The corners and the rim of a sprite lying over the raised ground, as `groundAt` tells how high the
+ * ground stands at a point: the corners first, in the order its own corners go round.
+ */
+function drapedPoints(
+  sprite: TableWorldSprite,
+  eye: EyeAxes,
+  liftPx: number,
+  groundAt: (x: number, y: number) => number
+): TablePoint[] {
+  const over = (x: number, y: number): TablePoint => ({ x, y, z: groundAt(x, y) + liftPx });
+  const corners = spriteBoxCorners(sprite, eye).map((corner) => over(corner.x, corner.y));
+  const rim: TablePoint[] = [];
+  for (let side = 0; side < 4; side++) {
+    const from = corners[side];
+    const to = corners[(side + 1) % 4];
+    for (let i = 1; i < DRAPED_SIDE_POINTS; i++) {
+      const share = i / DRAPED_SIDE_POINTS;
+      rim.push(over(from.x + (to.x - from.x) * share, from.y + (to.y - from.y) * share));
+    }
+  }
+  return [...corners, ...rim];
+}
+
 /**
  * Where the pieces drawn on the table show on the page, through a matrix from `tableSceneMatrix`: for
  * each piece, the box round all of it and a box round each of its parts, a part made of more than one
- * sprite boxed whole. A coin is boxed round its rims, as the part `coin`.
+ * sprite boxed whole. A coin is boxed round its rims, as the part `coin`. A sprite following the
+ * raised ground is boxed round where it lies over it, as `groundAt` tells how high the ground stands
+ * at a point, where given.
  */
 export function piecePageBoxes(
   sprites: readonly TableWorldSprite[],
   coins: readonly TableWorldCoin[],
   scene: Matrix3D,
-  eye: EyeAxes
+  eye: EyeAxes,
+  groundAt?: (x: number, y: number) => number
 ): Map<string, PiecePageBoxes> {
   const corners = new Map<string, Map<string, GatheredPart>>();
   const add = (
@@ -121,7 +151,10 @@ export function piecePageBoxes(
   const standing = new Set<string>();
   for (const sprite of sprites) {
     if (sprite.order === undefined) standing.add(sprite.owner);
-    const corners = spriteBoxCorners(sprite, eye);
+    const corners =
+      sprite.drapes && groundAt
+        ? drapedPoints(sprite, eye, sprite.drapes.liftPx, groundAt)
+        : spriteBoxCorners(sprite, eye);
     const size = sprite.box
       ? { width: sprite.box.width, height: sprite.box.height }
       : { width: sprite.widthPx, height: sprite.heightPx };

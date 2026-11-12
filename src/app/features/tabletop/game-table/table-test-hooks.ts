@@ -17,6 +17,7 @@ import {
   TableLayout,
 } from '@axe/domain/tabletop/camera/table-camera';
 import { framingView } from '@axe/domain/tabletop/camera/table-framing';
+import type { PickDraped } from '@axe/domain/tabletop/pick/pick-geometry';
 import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { partOf } from '@axe/domain/tabletop/world/page-boxes';
 import { pointOnFace } from '@axe/domain/tabletop/world/table-sprites';
@@ -276,6 +277,15 @@ export function installTableTestHooks(
           });
           return [boxRound(rim)];
         }
+        if (shape.kind === 'draped') {
+          return [
+            boxRound(
+              drapedRim(shape).map((point) =>
+                pageOfTablePoint(scene, point.x, point.y, shape.heightAt(point.x, point.y))
+              )
+            ),
+          ];
+        }
         return [];
       });
     },
@@ -291,6 +301,18 @@ export function installTableTestHooks(
   return () => {
     delete hooked.__axeTable;
   };
+}
+
+/** Points round the edge of the box a sheet over the ground lies over, close enough to follow the ground by. */
+function drapedRim(shape: PickDraped): { x: number; y: number }[] {
+  const { x, y, width, height } = shape.box;
+  const steps = 16;
+  const rim: { x: number; y: number }[] = [];
+  for (let i = 0; i < steps; i++) rim.push({ x: x + (width * i) / steps, y });
+  for (let i = 0; i < steps; i++) rim.push({ x: x + width, y: y + (height * i) / steps });
+  for (let i = 0; i < steps; i++) rim.push({ x: x + width - (width * i) / steps, y: y + height });
+  for (let i = 0; i < steps; i++) rim.push({ x, y: y + height - (height * i) / steps });
+  return rim;
 }
 
 /**
@@ -326,6 +348,8 @@ function edgesOf(
           })
         );
       }
+    } else if (shape.kind === 'draped') {
+      round(drapedRim(shape).map((point) => onPage(point.x, point.y, shape.heightAt(point.x, point.y))));
     } else if (shape.kind === 'prism') {
       const tops = shape.outline.map((point) => onPage(point.x, point.y, shape.top));
       const bases = shape.outline.map((point) => onPage(point.x, point.y, shape.base));

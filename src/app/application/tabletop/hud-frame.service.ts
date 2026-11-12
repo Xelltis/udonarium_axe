@@ -1,10 +1,12 @@
 import { effect, EffectRef, inject, Injectable, Injector, untracked } from '@angular/core';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import {
   blockPageBoxes,
@@ -108,6 +110,8 @@ export class HudFrameService {
   private readonly pick = inject(TablePickService);
   private readonly scene = inject(Table3dService);
   private readonly surfaces = inject(TableSurfaceService);
+  private readonly standing = inject(StandingGroundService);
+  private readonly tabletop = inject(TabletopService);
   private readonly injector = inject(Injector);
   private readonly placed = new Map<HTMLElement, Placed>();
   private following: EffectRef | null = null;
@@ -144,7 +148,15 @@ export class HudFrameService {
     const layout = this.camera.layout;
     if (!scene || !view || !layout) return null;
     const eye = eyeAxesOf(tableEyeMatrix(view, layout));
-    const boxes = piecePageBoxes(untracked(this.pieces.sprites), untracked(this.pieces.coins), scene, eye);
+    const ground = untracked(this.standing.surface);
+    const gridSize = this.tabletop.currentTable.gridSize > 0 ? this.tabletop.currentTable.gridSize : 50;
+    const boxes = piecePageBoxes(
+      untracked(this.pieces.sprites),
+      untracked(this.pieces.coins),
+      scene,
+      eye,
+      ground.isFlat ? undefined : (x, y) => ground.heightAt(x / gridSize, y / gridSize) * gridSize
+    );
     const owners = new Set<string>();
     for (const { anchor } of this.placed.values()) if (!boxes.has(anchor.owner)) owners.add(anchor.owner);
     for (const [id, block] of blockPageBoxes(this.pick.targetsOf(owners), scene, eye)) boxes.set(id, block);

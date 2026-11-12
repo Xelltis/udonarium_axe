@@ -66,6 +66,33 @@ describe('piecePageBoxes', () => {
     expect(die.nearness).toBe(25);
   });
 
+  it('boxes a range following the raised ground round where it lies over the ground', () => {
+    const tilted = new Matrix3D().identity();
+    tilted.m32 = -1;
+    const range = sprite('range#picture', {
+      kind: 'range',
+      centre: { x: 100, y: 100, z: 1 },
+      widthPx: 50,
+      heightPx: 50,
+      facing: { across: FLOOR.u, down: FLOOR.v },
+      order: 1,
+      drapes: { liftPx: 1 },
+    });
+    const groundAt = (x: number) => (x >= 100 ? 20 : 0);
+
+    const flat = piecePageBoxes([range], [], tilted, EYE).get('range')!.parts.get('picture')!;
+    const over = piecePageBoxes([range], [], tilted, EYE, groundAt).get('range')!.parts.get('picture')!;
+
+    expect(flat.top).toBe(74);
+    expect(over.top).toBe(54);
+    expect(over.corners).toEqual([
+      { x: 75, y: 74 },
+      { x: 125, y: 54 },
+      { x: 125, y: 104 },
+      { x: 75, y: 124 },
+    ]);
+  });
+
   it('boxes a part by the box of the piece its picture stands for, where the picture reaches past it', () => {
     const boxes = piecePageBoxes(
       [

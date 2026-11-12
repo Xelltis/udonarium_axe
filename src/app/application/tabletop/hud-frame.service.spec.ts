@@ -1,13 +1,16 @@
 import { effect, Injector, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
+import { FLAT_GROUND } from '@axe/domain/tabletop/ground/ground-surface';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,6 +48,8 @@ describe('HudFrameService', () => {
       providers: [
         { provide: TablePiecesService, useValue: { sprites, coins: signal([]) } },
         { provide: TablePickService, useValue: { targets: () => [], targetsOf: () => [] } },
+        { provide: StandingGroundService, useValue: { surface: signal(FLAT_GROUND) } },
+        { provide: TabletopService, useValue: { currentTable: { gridSize: 50 } } },
         { provide: Table3dService, useValue: { world: sprites } },
         {
           provide: TableCameraService,
