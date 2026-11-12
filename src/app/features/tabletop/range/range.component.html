@@ -48,7 +48,7 @@
     }
     @if (!isLock() && isRotatableRangeType()) {
       <div
-        class="rotate-grab border-ui-border-panel bg-ui-elevated text-ui-muted pointer-events-auto box-border flex size-10.5 cursor-default items-center justify-center rounded-full border-2 border-solid p-0 text-[24px] opacity-0 group-hover:opacity-86 group-active:opacity-86 [&_.material-icons]:text-[28px]!"
+        class="rotate-grab border-ui-border-panel bg-ui-elevated text-ui-muted pointer-events-none box-border flex size-10.5 cursor-default items-center justify-center rounded-full border-2 border-solid p-0 text-[24px] opacity-0 group-hover:pointer-events-auto group-hover:opacity-86 group-active:pointer-events-auto group-active:opacity-86 [&_.material-icons]:text-[28px]!"
         [class.range-rotate-grab--single]="usesSingleRotateGrab()"
         [appHudPlace]="{ owner: id, at: grabPoint() }"
       >

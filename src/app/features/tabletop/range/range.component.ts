@@ -17,9 +17,11 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -110,6 +112,8 @@ export class RangeComponent {
 
   private readonly pieces = inject(TablePiecesService);
   private readonly pictures = inject(PiecePicturesService);
+  private readonly standing = inject(StandingGroundService);
+  private readonly transient = inject(TransientPlacementService);
 
   /**
    * What the box the pointer rests on over the range's picture is cut to, as CSS: the shape the range
@@ -231,17 +235,22 @@ export class RangeComponent {
     return { ...foot, height: foot.height + this.altitude() * this.gridSize };
   });
 
-  /** Where the range's handle stands over a table drawn on a canvas: off its point, turned as it is. */
+  /**
+   * Where the range's handle stands over a table drawn on a canvas: off its point, turned as it is,
+   * and on the ground there where the range lies on the ground, as the range follows the raised ground.
+   */
   readonly grabPoint = computed(() => {
+    const range = this.range();
     const about = this.turnPoint();
     const across = this.usesSingleRotateGrab() ? this.singleRotateGrabX : this.rotateGrabDistancePx();
     const down = this.usesSingleRotateGrab() ? this.singleRotateGrabY() : 0;
-    const turn = (this.range().rotate * Math.PI) / 180;
-    return {
-      ...about,
-      x: about.x + across * Math.cos(turn) - down * Math.sin(turn),
-      y: about.y + across * Math.sin(turn) + down * Math.cos(turn),
-    };
+    const turn = (range.rotate * Math.PI) / 180;
+    const x = about.x + across * Math.cos(turn) - down * Math.sin(turn);
+    const y = about.y + across * Math.sin(turn) + down * Math.cos(turn);
+    const placedZ = this.transient.placed().get(range.identifier)?.z ?? range.posZ;
+    const onGround = about.surface === 'floor' && Math.abs(placedZ) < 1;
+    const height = onGround ? this.standing.heightPxAt(x, y) + this.altitude() * this.gridSize : about.height;
+    return { ...about, x, y, height };
   });
 
   readonly singleRotateGrabY = computed(() => -Math.max(1, this.length()) * this.tabletopService.squarePx());

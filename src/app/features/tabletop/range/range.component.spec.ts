@@ -5,6 +5,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import type { HudAnchor } from '@axe/application/tabletop/hud-frame.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -217,6 +218,36 @@ describe('RangeComponent', () => {
   });
 
   describe('the turn handle', () => {
+    it('stands on the ground under it where the range lies on the ground, as the range follows the raised ground', () => {
+      const table = new GameTable();
+      table.width = 20;
+      table.height = 20;
+      table.initialize();
+      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      const range = RangeArea.create('テスト', 3, 3, 1);
+      range.type = 'SQUARE';
+      range.location = { name: 'table', x: 100, y: 200 };
+      fixture.componentRef.setInput('range', range);
+      fixture.detectChanges();
+      const flat = component.grabPoint();
+      expect(flat.height).toBe(component.turnPoint().height);
+
+      TestBed.inject(GroundService).dab({ kind: 'raise', x: flat.x / 50, y: flat.y / 50, radius: 1, strength: 1 });
+
+      const raised = component.grabPoint();
+      expect(raised.height).toBeCloseTo(TestBed.inject(StandingGroundService).heightPxAt(flat.x, flat.y), 6);
+      expect(raised.height).toBeGreaterThan(component.turnPoint().height);
+
+      const onBlock = RangeArea.create('テスト', 3, 3, 1);
+      onBlock.type = 'SQUARE';
+      onBlock.location = { name: 'table', x: 100, y: 200 };
+      onBlock.posZ = 50;
+      fixture.componentRef.setInput('range', onBlock);
+      expect(component.grabPoint().height).toBe(component.turnPoint().height);
+      range.destroy();
+      onBlock.destroy();
+    });
+
     it('keeps rotation enabled for a rotatable shape in 2D mode', () => {
       const range = RangeArea.create('テスト', 3, 3, 1);
       range.type = 'SQUARE';
