@@ -142,7 +142,7 @@ describe('target-number', () => {
     function roll(
       by: { identifier: string; name: string },
       result: string,
-      extra: { tag?: string; answers?: boolean; together?: string[] } = {}
+      extra: { tag?: string; answers?: boolean; together?: string[]; rolledAt?: string } = {}
     ): void {
       at += 10;
       tab.addMessage({
@@ -161,6 +161,7 @@ describe('target-number', () => {
         text: result,
         tag: extra.tag ?? 'system',
         timestamp: at + 1,
+        ...(extra.rolledAt ? { rolledAt: extra.rolledAt } : {}),
       });
     }
 
@@ -196,6 +197,17 @@ describe('target-number', () => {
       expect(findTargetNumber(tab, speaker)).toBe(15);
       expect(findTargetNumber(tab, { identifier: 'pc3', name: 'ゴブリン、弓兵' })).toBe(15);
       expect(findTargetNumber(tab, { identifier: 'pc4', name: 'PC2' })).toBe(3);
+    });
+
+    it('tells apart rolls at two pieces whose names are hidden by whom each answer keeps it was rolled at', () => {
+      const first = { identifier: 'hidden-1', name: '？？？' };
+      const second = { identifier: 'hidden-2', name: '？？？' };
+      roll(speaker, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [？？？]', { rolledAt: 'hidden-1' });
+      roll(speaker, 'DiceBot : (2D6+5) → 7[3,4]+5 → 12 [？？？]', { rolledAt: 'hidden-2' });
+
+      expect(findTargetNumber(tab, first)).toBe(14);
+      expect(findTargetNumber(tab, second)).toBe(12);
+      expect(findTargetNumber(tab, { identifier: 'pc9', name: 'PC9' })).toBeNull();
     });
 
     it('reads a roll at a piece whose name holds a comma as rolled at that piece alone', () => {

@@ -216,6 +216,25 @@ describe('DiceBot', () => {
       tab.destroy();
     });
 
+    it('says a hidden name as the label after the answer, and keeps whom the answer was rolled at', async () => {
+      const bot = new DiceBot();
+      bot.initialize();
+      const { tab, asked, requests } = await askedRoll(bot);
+
+      await bot['handleSendMessage']({
+        messageIdentifier: asked.identifier,
+        messageTarget: { text: '2d6', object: { name: '黒幕', identifier: 'villain', hideName: true } },
+      });
+
+      const request = requests()[1];
+      const attributes = (request['message'] as { syncData: { attributes: Record<string, unknown> } }).syncData
+        .attributes;
+      expect(request['suffix']).toBe(' [？？？]');
+      expect(attributes['rolledAt']).toBe('villain');
+      bot.destroy();
+      tab.destroy();
+    });
+
     it('names everyone a line is aimed at all at once after its one answer', async () => {
       const bot = new DiceBot();
       bot.initialize();

@@ -162,11 +162,21 @@ export function findTargetNumberSource(tab: ChatTab, speaker: TargetNumberSpeake
     const text = `${message.text ?? ''}`.trimEnd();
     const total = rollTotalOf(text);
     if (total == null) continue;
-    if (aims.some((aim) => text.endsWith(aim)) || aimedAmong(tab, message, speaker)) {
+    // An answer that keeps whom it was rolled at is read by that, two pieces whose names are hidden
+    // showing the same label in its brackets; one that keeps none, by the name after it.
+    const rolledAt = `${message.rolledAt ?? ''}`;
+    const aimedHere = rolledAt.length > 0 ? rolledAt === speaker.identifier : aims.some((aim) => text.endsWith(aim));
+    if (aimedHere || aimedAmong(tab, message, speaker)) {
       return { total, answer: message, from: 'aimed' };
     }
     if (pinned.length > 0 && message.identifier === pinned) return { total, answer: message, from: 'pinned' };
-    if (byOthers == null && aimOf(text) == null && !rolledBy(tab, message, speaker) && !answeredOne(tab, message)) {
+    if (
+      byOthers == null &&
+      rolledAt.length < 1 &&
+      aimOf(text) == null &&
+      !rolledBy(tab, message, speaker) &&
+      !answeredOne(tab, message)
+    ) {
       byOthers = { total, answer: message, from: 'byOthers' };
     }
   }
