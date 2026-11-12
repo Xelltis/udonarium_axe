@@ -62,11 +62,11 @@ const ON_GROUND_PX = 4;
 
 /**
  * Whether a sprite lies flat on the ground: lying on a face that is level, as the floor is, within a
- * little of the ground under its middle, or following the raised ground.
+ * little of the ground under its middle, or following the raised ground as little off it.
  */
 function liesOnGround(sprite: TableWorldSprite, groundAt?: (x: number, y: number) => number): boolean {
   if (sprite.order === undefined || sprite.facing === 'eye') return false;
-  if (sprite.drapes) return true;
+  if (sprite.drapes) return sprite.drapes.liftPx <= ON_GROUND_PX;
   if (Math.abs(sprite.facing.across.z) > 0.5 || Math.abs(sprite.facing.down.z) > 0.5) return false;
   const ground = groundAt?.(sprite.centre.x, sprite.centre.y) ?? 0;
   return Math.abs(sprite.centre.z - ground) <= ON_GROUND_PX;

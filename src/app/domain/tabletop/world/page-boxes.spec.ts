@@ -197,8 +197,8 @@ describe('drawnRanks', () => {
     return scene;
   })();
 
-  function ranksOf(sprites: TableWorldSprite[]): Record<string, number> {
-    return Object.fromEntries(drawnRanks(piecePageBoxes(sprites, [], tilted, EYE)));
+  function ranksOf(sprites: TableWorldSprite[], groundAt?: (x: number, y: number) => number): Record<string, number> {
+    return Object.fromEntries(drawnRanks(piecePageBoxes(sprites, [], tilted, EYE, groundAt)));
   }
 
   function lyingAt(id: string, y: number, order: number, facing = ON_FLOOR): TableWorldSprite {
@@ -265,6 +265,42 @@ describe('drawnRanks', () => {
     ]);
 
     expect(ranks).toEqual({ flat: 1, range: 2, hero: 3 });
+  });
+
+  it('draws a range raised over the ground it follows among the pieces by how near the eye it reaches', () => {
+    const ranks = ranksOf([
+      sprite('range#picture', {
+        centre: { x: 100, y: 300, z: 100.25 },
+        widthPx: 400,
+        heightPx: 400,
+        facing: ON_FLOOR,
+        order: 100.25,
+        drapes: { liftPx: 100.25 },
+      }),
+      sprite('hero#picture', { centre: { x: 100, y: 300, z: 30 } }),
+    ]);
+
+    expect(ranks).toEqual({ hero: 1, range: 2 });
+  });
+
+  it('takes a card lying on the raised ground as on the ground, and one floating over a hollow as not', () => {
+    const groundAt = (x: number) => (x < 150 ? 50 : 0);
+    const ranks = ranksOf(
+      [
+        lyingAt('onHill#face', 450, 50.15),
+        sprite('hero#picture', { centre: { x: 100, y: 300, z: 80 } }),
+        sprite('floating#face', {
+          centre: { x: 200, y: 450, z: 50.15 },
+          widthPx: 60,
+          heightPx: 90,
+          facing: ON_FLOOR,
+          order: 50.15,
+        }),
+      ],
+      groundAt
+    );
+
+    expect(ranks).toEqual({ onHill: 1, hero: 2, floating: 3 });
   });
 
   it('draws a card lying on a block’s top among the pieces by how near the eye it reaches', () => {
