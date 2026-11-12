@@ -53,7 +53,7 @@ interface HalfPlane {
 }
 
 /** How a hex table's cells are laid, and the corners of a cell as the board cuts it and as it is. */
-interface HexLayout {
+interface HexCellLayout {
   readonly colSpacing: number;
   readonly rowSpacing: number;
   readonly isFlatTop: boolean;
@@ -81,14 +81,14 @@ export class GroundCells {
   private readonly cells = new Map<string, Cell>();
   /** The cells a sheet has been laid over since the last settling. */
   private readonly used = new Set<string>();
-  private readonly hex: HexLayout | null;
+  private readonly hex: HexCellLayout | null;
 
   constructor(
     private readonly ground: GroundSurface,
     private readonly gridSize: number,
     gridType: GridType
   ) {
-    this.hex = isHexGrid(gridType) ? hexLayoutOf(gridSize, isFlatTopGrid(gridType)) : null;
+    this.hex = isHexGrid(gridType) ? hexCellLayoutOf(gridSize, isFlatTopGrid(gridType)) : null;
   }
 
   /** The ground's mesh over a box of the floor, on the board and off it alike, cut to the box. */
@@ -173,7 +173,7 @@ export class GroundCells {
   }
 
   /** A cell of a hex table: the cell as the board cuts it over the ground, cut back to the cell itself. */
-  private hexCell(hex: HexLayout, middle: Corner): Cell {
+  private hexCell(hex: HexCellLayout, middle: Corner): Cell {
     const cut = hex.cut.map((corner) => ({ x: middle.x + corner.x, y: middle.y + corner.y }));
     const own = hex.own.map((corner) => ({ x: middle.x + corner.x, y: middle.y + corner.y }));
     const mesh = bareHexGroundMesh(
@@ -193,7 +193,7 @@ export class GroundCells {
 }
 
 /** How a hex table's cells of this size are laid. */
-function hexLayoutOf(gridSize: number, isFlatTop: boolean): HexLayout {
+function hexCellLayoutOf(gridSize: number, isFlatTop: boolean): HexCellLayout {
   const own = hexCornerOffsets(hexCircumradius(gridSize), isFlatTop);
   return {
     ...hexSpacing(gridSize, isFlatTop),
