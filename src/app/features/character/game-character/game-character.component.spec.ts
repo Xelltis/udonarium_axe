@@ -13,16 +13,16 @@ import { GroundService } from '@axe/application/tabletop/ground.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
-import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
+import { MovableLike, MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
@@ -697,26 +697,106 @@ describe('GameCharacterComponent', () => {
   });
 
   describe('putting a piece down', () => {
-    it('writes the pieces moved with it in a selection where they stand before bringing its own along', () => {
-      const character = GameCharacter.create('先頭', 1, '');
-      fixture.componentRef.setInput('gameCharacter', character);
+    /** A piece following a group drag, which writes where it was dragged to once told to, as a piece's own does. */
+    function followerOf(piece: GameCharacter): MovableLike {
+      let x = piece.location.x;
+      let y = piece.location.y;
+      let pending = false;
+      return {
+        identifier: piece.identifier,
+        tabletopObject: piece,
+        get posX() {
+          return x;
+        },
+        set posX(value: number) {
+          x = value;
+          pending = true;
+        },
+        get posY() {
+          return y;
+        },
+        set posY(value: number) {
+          y = value;
+          pending = true;
+        },
+        commitPosition() {
+          if (!pending) return;
+          pending = false;
+          piece.location.x = x;
+          piece.location.y = y;
+        },
+      };
+    }
+
+    function mountWithRider(): { horse: GameCharacter; knight: GameCharacter } {
+      const horse = GameCharacter.create('馬', 2, '');
+      horse.location = { name: 'table', x: 100, y: 100 };
+      horse.mountable = '1';
+      const knight = GameCharacter.create('騎士', 1, '');
+      knight.location = { name: 'table', x: 125, y: 125 };
+      knight.ridingOn = horse.identifier;
+      return { horse, knight };
+    }
+
+    it('leaves a rider dragged with its mount where ground it was put down on carried it off', () => {
+      const { horse, knight } = mountWithRider();
+      fixture.componentRef.setInput('gameCharacter', knight);
       fixture.detectChanges();
-      const order: string[] = [];
-      vi.spyOn(TestBed.inject(MultiMovableService), 'settledFollowersFor').mockImplementation(() => {
-        order.push('settled');
+      const multi = TestBed.inject(MultiMovableService);
+      const leader: MovableLike = { identifier: knight.identifier, tabletopObject: knight, posX: 125, posY: 125 };
+      multi.register(leader);
+      multi.register(followerOf(horse));
+      TestBed.inject(SelectionSignalService).replaceSelection([knight.identifier, horse.identifier]);
+      vi.spyOn(TestBed.inject(TriggerFireService), 'putDown').mockImplementation((piece) => {
+        piece.location.x = 900;
+        piece.location.y = 900;
         return [];
-      });
-      vi.spyOn(TestBed.inject(PieceLinksService), 'carryBound').mockImplementation((piece) => {
-        order.push(piece === character ? 'carried' : 'other');
       });
 
       try {
+        multi.beginDrag(leader);
+        leader.posX = knight.location.x = 325;
+        leader.posY = knight.location.y = 325;
+        multi.applyLeaderDelta(leader);
         component.onPutDown();
         component.onLetGo();
+        multi.endDrag(leader);
 
-        expect(order).toEqual(['settled', 'carried']);
+        expect([horse.location.x, horse.location.y]).toEqual([300, 300]);
+        expect([knight.location.x, knight.location.y]).toEqual([900, 900]);
       } finally {
-        character.destroy();
+        knight.destroy();
+        horse.destroy();
+      }
+    });
+
+    it('stands a piece it holds, dragged with it, on it rather than where it was dragged to, as it is let go', () => {
+      const ogre = GameCharacter.create('オーガ', 2, '');
+      ogre.location = { name: 'table', x: 100, y: 100 };
+      const captive = GameCharacter.create('捕虜', 1, '');
+      captive.location = { name: 'table', x: 125, y: 125 };
+      captive.grabbedBy = ogre.identifier;
+      fixture.componentRef.setInput('gameCharacter', ogre);
+      fixture.detectChanges();
+      const multi = TestBed.inject(MultiMovableService);
+      const leader: MovableLike = { identifier: ogre.identifier, tabletopObject: ogre, posX: 100, posY: 100 };
+      multi.register(leader);
+      multi.register(followerOf(captive));
+      TestBed.inject(SelectionSignalService).replaceSelection([ogre.identifier, captive.identifier]);
+
+      try {
+        multi.beginDrag(leader);
+        leader.posX = leader.posY = 300;
+        multi.applyLeaderDelta(leader);
+        ogre.location.x = ogre.location.y = 350;
+        component.onPutDown();
+        component.onLetGo();
+        multi.endDrag(leader);
+
+        expect([captive.location.x, captive.location.y]).toEqual([375, 375]);
+      } finally {
+        captive.destroy();
+        ogre.destroy();
       }
     });
   });

@@ -1687,16 +1687,16 @@ export class GameCharacterComponent {
   private putDownPending = false;
 
   /**
-   * Settles where a piece was put down: those it carries come along, it gets off a mount it was put
-   * down off, its put-down triggers fire, and a fight or a seat on a mount where it stands is offered.
-   * The pieces moved with it in a selection are written where they stand first, so one carried with it
-   * is stood on it rather than left where it was dragged; they bring their own along as the drag ends.
+   * Settles where a piece was put down: those it carries come along, and those the pieces moved with
+   * it in a selection carry, these written where they stand first, so one carried with it is stood on
+   * it rather than left where it was dragged; it gets off a mount it was put down off, its put-down
+   * triggers fire, and a fight or a seat on a mount where it stands is offered. All that comes along
+   * is brought before the triggers fire, so ground that carries the piece off has the last word.
    */
   private settlePutDown() {
     const character = this.gameCharacter();
     if (!character) return;
-    this.multiMovable.settledFollowersFor(character.identifier);
-    this.links.carryBound(character);
+    this.links.carryBoundAll([character, ...this.multiMovable.carriedFollowersFor(character.identifier)]);
     this.ride.afterPutDown(character);
     this.triggerFire.putDown(character);
     this.engagementZones.offerFight(character);

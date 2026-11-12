@@ -156,6 +156,70 @@ describe('MultiMovableService', () => {
     }
   });
 
+  it('stands the parts of a piece that followed a board on it as the drag ends', () => {
+    const board = makeMovable({ id: 'board', x: 0, y: 0 });
+    const dragon = GameCharacter.create('竜', 3, '');
+    dragon.location = { name: 'table', x: 100, y: 100 };
+    const head = GameCharacter.create('頭', 1, '');
+    head.location = { name: 'table', x: 150, y: 150 };
+    head.ridingOn = dragon.identifier;
+    head.rideSeat = 'part';
+    const follower: MovableLike = {
+      identifier: dragon.identifier,
+      tabletopObject: dragon,
+      posX: 100,
+      posY: 100,
+      commitPosition() {
+        dragon.location.x = this.posX;
+        dragon.location.y = this.posY;
+      },
+    };
+    service.register(board);
+    service.register(follower);
+    selection.replaceSelection(['board', dragon.identifier]);
+
+    try {
+      service.beginDrag(board);
+      board.posX = board.posY = 200;
+      service.applyLeaderDelta(board);
+      service.endDrag(board);
+
+      expect([dragon.location.x, dragon.location.y]).toEqual([300, 300]);
+      expect([head.location.x, head.location.y]).toEqual([350, 350]);
+    } finally {
+      head.destroy();
+      dragon.destroy();
+    }
+  });
+
+  it('leaves the followers a leading piece took to bring along to it, and forgets that by the next drag', () => {
+    const leader = makeMovable({ id: 'leader' });
+    const dragon = GameCharacter.create('竜', 3, '');
+    const follower: MovableLike = { identifier: dragon.identifier, tabletopObject: dragon, posX: 0, posY: 0 };
+    service.register(leader);
+    service.register(follower);
+    selection.replaceSelection(['leader', dragon.identifier]);
+    const carry = vi.spyOn(TestBed.inject(PieceLinksService), 'carryBoundAll').mockImplementation(() => undefined);
+
+    try {
+      service.beginDrag(leader);
+      leader.posX = 100;
+      expect(service.carriedFollowersFor('leader')).toEqual([dragon]);
+      expect(service.carriedFollowersFor('leader')).toEqual([]);
+      service.endDrag(leader);
+      expect(carry).not.toHaveBeenCalled();
+
+      service.beginDrag(leader);
+      service.carriedFollowersFor('leader');
+      service.beginDrag(leader);
+      leader.posX = 200;
+      service.endDrag(leader);
+      expect(carry).toHaveBeenCalledWith([dragon]);
+    } finally {
+      dragon.destroy();
+    }
+  });
+
   it('lists nothing for another leader or after the drag', () => {
     const leader = makeMovable({ id: 'leader' });
     const f1 = makeMovable({ id: 'f1' });
