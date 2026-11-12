@@ -69,11 +69,11 @@ export interface TableWorldSprite {
    */
   readonly box?: { readonly left: number; readonly top: number; readonly width: number; readonly height: number };
   /**
-   * Where its picture is the piece, as an outline off the picture's top left corner, in pixels: a
-   * press elsewhere on it passes through, as one on a range's picture outside the range's shape. The
-   * whole sprite where not given.
+   * Where its picture is the piece, as polygons off the picture's top left corner, in pixels: a press
+   * inside none of them passes through, as one on a range's picture outside what of the range is
+   * painted. The whole sprite where not given.
    */
-  readonly pickOutline?: readonly PickPoint2[];
+  readonly pickAreas?: readonly (readonly PickPoint2[])[];
 }
 
 /** Which way the eye's right and the eye's up run in the board's space. */
@@ -204,8 +204,8 @@ export interface PagePicture {
   readonly heightPx: number;
   readonly offsetX?: number;
   readonly offsetY?: number;
-  /** Where the picture is the piece, off its top left corner, in pixels; the whole picture where not given. */
-  readonly outline?: readonly PickPoint2[];
+  /** Where the picture is the piece, as polygons off its top left corner, in pixels; the whole picture where not given. */
+  readonly pickAreas?: readonly (readonly PickPoint2[])[];
 }
 
 /**
@@ -238,6 +238,6 @@ export function lyingPicture(
     brightness: 1,
     twoSided: false,
     order: out,
-    ...(picture.outline ? { pickOutline: picture.outline } : {}),
+    ...(picture.pickAreas ? { pickAreas: picture.pickAreas } : {}),
   };
 }

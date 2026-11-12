@@ -95,6 +95,33 @@ describe('range-render-polygon', () => {
     expect(cells).toContain('2,2');
   });
 
+  it('notes what of a diamond it paints: its shape and each cell it fills, and nothing of the clip round it', () => {
+    const painted: { x: number; y: number }[][] = [];
+    renderDiamond(
+      createCanvasMock().canvas,
+      createCanvasMock().canvas,
+      makeSetting({ range: 2, centerX: 5, centerY: 5, fillOutLine: false, painted })
+    );
+    const inPainted = (x: number, y: number) =>
+      painted.some((area) => {
+        const xs = area.map((point) => point.x);
+        const ys = area.map((point) => point.y);
+        return area.length === 4
+          ? x >= Math.min(...xs) && x <= Math.max(...xs) && y >= Math.min(...ys) && y <= Math.max(...ys)
+          : Math.abs(x) + Math.abs(y) <= 20;
+      });
+
+    expect(painted).toHaveLength(1 + 13);
+    expect(painted[0]).toEqual([
+      { x: -20, y: 0 },
+      { x: 0, y: -20 },
+      { x: 20, y: 0 },
+      { x: 0, y: 20 },
+    ]);
+    expect(inPainted(14, 14)).toBe(true);
+    expect(inPainted(0, 28)).toBe(false);
+  });
+
   it('keeps a diamond the same cells when it is turned a quarter', () => {
     expect(cellsFilled(renderDiamond, { degree: 90 })).toEqual(cellsFilled(renderDiamond));
   });

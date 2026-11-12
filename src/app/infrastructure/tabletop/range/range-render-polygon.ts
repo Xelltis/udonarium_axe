@@ -11,6 +11,7 @@ import {
   chkOuterProduct,
   fillGridCells,
   makeBrush,
+  notePainted,
 } from '@axe/infrastructure/tabletop/range/range-render-util';
 
 type Point = { x: number; y: number };
@@ -88,6 +89,12 @@ export function renderLine(
     clip04y: clip04x_ * Math.sin(rad) + clip04y_ * Math.cos(rad),
   };
 
+  notePainted(setting, [
+    { x: p1x, y: p1y },
+    { x: p2x, y: p2y },
+    { x: p3x, y: p3y },
+    { x: p4x, y: p4y },
+  ]);
   makeBrush(context, gridSize, setting.gridColor);
 
   if (setting.fillOutLine) {
@@ -217,6 +224,7 @@ function renderQuadrilateral(
 
   const p = rotatePoints(corners, setting.degree);
   const [p1, p2, p3, p4] = p;
+  notePainted(setting, p);
   const clipPoints = rotatePoints(clipCorners, setting.degree);
 
   const clip: ClipAreaSquare = {
@@ -307,6 +315,7 @@ export function renderTriangle(
 
   const r = setting.range * gridSize;
   const verts = regularPolygonVertices(3, r, setting.degree);
+  notePainted(setting, verts);
 
   const clip: ClipAreaTriangle = {
     clip01x: verts[0].x * 1.2,
@@ -364,6 +373,7 @@ export function renderPentagon(
 
   const r = setting.range * gridSize;
   const verts = regularPolygonVertices(5, r, setting.degree);
+  notePainted(setting, verts);
 
   const clip: ClipAreaPentagon = {
     clip01x: verts[0].x * 1.2,
@@ -425,6 +435,7 @@ export function renderHexagon(
 
   const r = setting.range * gridSize;
   const verts = regularPolygonVertices(6, r, setting.degree);
+  notePainted(setting, verts);
 
   const clip: ClipAreaHexagon = {
     clip01x: verts[0].x * 1.2,

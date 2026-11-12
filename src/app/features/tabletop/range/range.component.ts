@@ -127,6 +127,20 @@ export class RangeComponent {
     return usableOutline(rangeClipOutline(this.clip(), this.range(), this.squarePx));
   }
 
+  /**
+   * Where the range is painted, as polygons in the pixels of the box its cells are cut in: its shape
+   * and each cell filled, as last painted, which a press must land in to take it; before the first
+   * paint, or where nothing that can be told was painted, what the cells are cut to.
+   */
+  private paintedAreas(): { x: number; y: number }[][] | null {
+    const painted = (this.painted()?.painted ?? [])
+      .map((area) => usableOutline(area))
+      .filter((area): area is { x: number; y: number }[] => area !== null);
+    if (painted.length > 0) return painted;
+    const outline = this.clipOutline();
+    return outline ? [outline] : null;
+  }
+
   /** What the canvases were last painted to be cut to, or nothing before the first paint. */
   private readonly painted = signal<RangeClip | null>(null);
 
@@ -292,7 +306,7 @@ export class RangeComponent {
         const outline = this.clipOutline();
         return (outline && regionWithinOutline(covering, outline)) ?? covering;
       },
-      outline: () => this.clipOutline(),
+      pickAreas: () => this.paintedAreas(),
     });
     setupMovableRotableForPiece(this, {
       target: this.range,

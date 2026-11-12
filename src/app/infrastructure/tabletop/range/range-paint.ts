@@ -24,10 +24,17 @@ type ClipArea = ClipAreaLine | ClipAreaSquare | ClipAreaTriangle | ClipAreaPenta
  * What a painted range is cut to: a polygon for most shapes, a circle for a circle, and for a
  * custom shape a box as far out as its cells reach.
  */
-export type RangeClip =
+export type RangeClip = (
   | { kind: 'polygon'; area: ClipArea }
   | { kind: 'circle' }
-  | { kind: 'custom'; halfWidthPx: number; halfHeightPx: number };
+  | { kind: 'custom'; halfWidthPx: number; halfHeightPx: number }
+) & {
+  /**
+   * What is painted within it, where it was painted: the shape and each cell filled, as polygons in
+   * pixels from the range's origin.
+   */
+  readonly painted?: readonly (readonly { x: number; y: number }[])[];
+};
 
 /** What a range is painted with beyond the range itself. */
 export interface RangePaintOptions {
@@ -82,7 +89,8 @@ export function rangeRenderSettingOf(range: RangeArea, options: RangePaintOption
 
 /**
  * Paints a range into its pair of canvases, the cells it covers into the first and its outline
- * into the second, sizing both, and gives back what the first is to be cut to.
+ * into the second, sizing both, and gives back what the first is to be cut to, with what was painted
+ * within it.
  */
 export function paintRange(
   gridCanvas: HTMLCanvasElement,
@@ -91,30 +99,31 @@ export function paintRange(
   options: RangePaintOptions
 ): RangeClip {
   const render = new RangeRender(gridCanvas, rangeCanvas);
-  const setting = rangeRenderSettingOf(range, options);
+  const painted: { x: number; y: number }[][] = [];
+  const setting = { ...rangeRenderSettingOf(range, options), painted };
   switch (range.type) {
     case 'LINE':
-      return { kind: 'polygon', area: render.renderLine(setting) };
+      return { kind: 'polygon', area: render.renderLine(setting), painted };
     case 'CIRCLE':
       render.renderCircle(setting);
-      return { kind: 'circle' };
+      return { kind: 'circle', painted };
     case 'SQUARE':
-      return { kind: 'polygon', area: render.renderSquare(setting) };
+      return { kind: 'polygon', area: render.renderSquare(setting), painted };
     case 'RHOMBUS':
-      return { kind: 'polygon', area: render.renderDiamond(setting) };
+      return { kind: 'polygon', area: render.renderDiamond(setting), painted };
     case 'TRIANGLE':
-      return { kind: 'polygon', area: render.renderTriangle(setting) };
+      return { kind: 'polygon', area: render.renderTriangle(setting), painted };
     case 'PENTAGON':
-      return { kind: 'polygon', area: render.renderPentagon(setting) };
+      return { kind: 'polygon', area: render.renderPentagon(setting), painted };
     case 'HEXAGON':
-      return { kind: 'polygon', area: render.renderHexagon(setting) };
+      return { kind: 'polygon', area: render.renderHexagon(setting), painted };
     case 'CUSTOM': {
       const box = render.renderCustom(setting, { cellPattern: range.cellPattern, rotationDegrees: setting.degree });
-      return { kind: 'custom', halfWidthPx: box.halfWidthPx, halfHeightPx: box.halfHeightPx };
+      return { kind: 'custom', halfWidthPx: box.halfWidthPx, halfHeightPx: box.halfHeightPx, painted };
     }
     case 'CORN':
     default:
-      return { kind: 'polygon', area: render.renderCorn(setting) };
+      return { kind: 'polygon', area: render.renderCorn(setting), painted };
   }
 }
 

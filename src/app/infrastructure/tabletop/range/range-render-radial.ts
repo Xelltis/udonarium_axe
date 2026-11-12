@@ -4,6 +4,8 @@ import {
   chkOuterProduct,
   fillGridCells,
   makeBrush,
+  notePainted,
+  notePaintedCircle,
 } from '@axe/infrastructure/tabletop/range/range-render-util';
 
 /**
@@ -25,6 +27,7 @@ export function renderCircle(
   canvasElement.height = setting.areaHeight * gridSize;
   let context: CanvasRenderingContext2D = canvasElement.getContext('2d')!;
 
+  notePaintedCircle(setting, setting.range * gridSize);
   if (setting.fillOutLine) {
     makeBrush(context, gridSize, setting.gridColor);
     context.beginPath();
@@ -109,6 +112,11 @@ export function renderCorn(
   const p1y = p1x_ * sinRad + p1y_ * cosRad;
   const p2x = p2x_ * cosRad - p2y_ * sinRad;
   const p2y = p2x_ * sinRad + p2y_ * cosRad;
+  notePainted(setting, [
+    { x: cx, y: cy },
+    { x: p1x, y: p1y },
+    { x: p2x, y: p2y },
+  ]);
 
   const clip: ClipAreaCorn = {
     clip01x: clip01x_ * cosRad - clip01y_ * sinRad, // where the root starts

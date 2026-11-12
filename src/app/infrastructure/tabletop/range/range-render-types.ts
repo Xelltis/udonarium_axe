@@ -19,6 +19,11 @@ export interface RangeRenderSetting {
   fillOutLine: boolean;
   gridType: number;
   isDocking: boolean;
+  /**
+   * Where what is painted is noted, where given: the shape and each cell filled, as polygons in pixels
+   * from the range's origin, for a press to take the range only where it is painted.
+   */
+  painted?: { x: number; y: number }[][];
 }
 
 export interface ClipAreaLine {

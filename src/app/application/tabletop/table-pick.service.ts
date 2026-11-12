@@ -335,13 +335,19 @@ export class TablePickService {
   }
 
   /**
-   * Where a sprite is solid, across and down it from 0 to 1: inside its outline where it has one, as
-   * a range's picture is its shape alone, and where its picture is not clear where it is see-through;
-   * null where every part of it is solid.
+   * Where a sprite is solid, across and down it from 0 to 1: inside its areas where it has them, as a
+   * range's picture is what of the range is painted alone, and where its picture is not clear where
+   * it is see-through; null where every part of it is solid.
    */
   private spriteSolidAt(sprite: TableWorldSprite): SolidAt | null {
-    const outline = sprite.pickOutline;
-    if (outline) return (u, v) => insideOutline(outline, u * sprite.widthPx, v * sprite.heightPx);
+    const areas = sprite.pickAreas;
+    if (areas) {
+      return (u, v) => {
+        const x = u * sprite.widthPx;
+        const y = v * sprite.heightPx;
+        return areas.some((area) => insideOutline(area, x, y));
+      };
+    }
     const mask = this.spritePickMask(sprite);
     return mask ? (u, v) => !seesThroughAt(mask, { u, v }) : null;
   }

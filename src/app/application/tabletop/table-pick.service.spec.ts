@@ -426,26 +426,34 @@ describe('TablePickService', () => {
     return { solid, clear };
   }
 
-  it('lands on a picture lying flat only inside the outline it is the piece within, as a range’s shape', () => {
+  it('lands on a picture lying flat only inside the areas it is the piece within, as what of a range is painted', () => {
     const frame = surfaceFrame('floor', { widthPx: table.width * GRID, depthPx: table.height * GRID, wallHeightPx: 0 });
-    const outline = [
+    const shape = [
       { x: 0, y: 0 },
-      { x: 4 * GRID, y: 0 },
-      { x: 0, y: 4 * GRID },
+      { x: 3 * GRID, y: 0 },
+      { x: 0, y: 3 * GRID },
+    ];
+    const cell = [
+      { x: 3 * GRID, y: 3 * GRID },
+      { x: 4 * GRID, y: 3 * GRID },
+      { x: 4 * GRID, y: 4 * GRID },
+      { x: 3 * GRID, y: 4 * GRID },
     ];
     vi.spyOn(TestBed.inject(TablePiecesService), 'sprites').mockReturnValue([
       lyingPicture({ id: 'range-1', kind: 'range', frame, x: 5 * GRID, y: 5 * GRID }, 0.25, {
         url: 'blob:range',
         widthPx: 4 * GRID,
         heightPx: 4 * GRID,
-        outline,
+        pickAreas: [shape, cell],
       }),
     ]);
 
-    const inside = onPage(5, 5, 0.25);
-    const outside = onPage(8, 8, 0.25);
-    expect(service.pickAt(inside.x, inside.y)?.target.id).toBe('range-1');
-    expect(service.pickAt(outside.x, outside.y)).toBeNull();
+    const inShape = onPage(5, 5, 0.25);
+    const inCell = onPage(8, 8, 0.25);
+    const between = onPage(7, 6, 0.25);
+    expect(service.pickAt(inShape.x, inShape.y)?.target.id).toBe('range-1');
+    expect(service.pickAt(inCell.x, inCell.y)?.target.id).toBe('range-1');
+    expect(service.pickAt(between.x, between.y)).toBeNull();
   });
 
   it('passes a press through the clear parts of a character’s picture, and lands on it where it is drawn', async () => {

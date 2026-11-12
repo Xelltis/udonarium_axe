@@ -25,10 +25,10 @@ export interface PictureForCanvas {
    */
   readonly region?: (element: HTMLElement) => PictureRegion | null;
   /**
-   * Where the part is the piece, in the part's own pixels as the region is: a press on the picture
-   * elsewhere passes through it. The whole picture where not given.
+   * Where the part is the piece, as polygons in the part's own pixels as the region is: a press on the
+   * picture inside none of them passes through it. The whole picture where not given.
    */
-  readonly outline?: () => readonly PickPoint2[] | null;
+  readonly pickAreas?: () => readonly (readonly PickPoint2[])[] | null;
 }
 
 /**
@@ -63,7 +63,7 @@ export function pictureForCanvas(part: PictureForCanvas): void {
         ? part.region(element)
         : { left: 0, top: 0, width: element.offsetWidth, height: element.offsetHeight };
       if (!region) return;
-      const outline = part.outline?.() ?? null;
+      const areas = part.pickAreas?.() ?? null;
       const ask = ++asked;
       void pictures.whileTaking(pictureOfElement(element, region)).then((picture) => {
         if (ask !== asked || !picture) return;
@@ -75,7 +75,9 @@ export function pictureForCanvas(part: PictureForCanvas): void {
           heightPx: region.height,
           offsetX: region.left,
           offsetY: region.top,
-          ...(outline ? { outline: outline.map(({ x, y }) => ({ x: x - region.left, y: y - region.top })) } : {}),
+          ...(areas
+            ? { pickAreas: areas.map((area) => area.map(({ x, y }) => ({ x: x - region.left, y: y - region.top }))) }
+            : {}),
         });
       });
     },
