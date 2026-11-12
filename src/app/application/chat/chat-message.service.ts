@@ -333,6 +333,7 @@ export class ChatMessageService {
         : targetNumberOnce(chatTab, {
             identifier: sendFrom,
             name: speaker instanceof GameCharacter ? saidNameOf(speaker) : '',
+            ownName: speaker instanceof GameCharacter ? speaker.name : '',
           });
     const answers =
       holdsTargetNumber(text) || (messageTargetContext ?? []).some((context) => holdsTargetNumber(context.text));

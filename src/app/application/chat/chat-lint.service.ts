@@ -377,7 +377,8 @@ export class ChatLintService {
     const sendFrom = source.sendFrom();
     const speaker = this.objectStore.get(sendFrom);
     const name = speaker instanceof GameCharacter ? saidNameOf(speaker) : '';
-    const found = findTargetNumberSource(tab, { identifier: sendFrom, name });
+    const ownName = speaker instanceof GameCharacter ? speaker.name : '';
+    const found = findTargetNumberSource(tab, { identifier: sendFrom, name, ownName });
     const picked = this.objectStore.get(source.chosenTargetNumber?.() ?? '');
     const chosen = picked instanceof ChatMessage && picked.parent === tab ? targetNumberChoiceOf(picked) : null;
     return { tab, found, chosen };

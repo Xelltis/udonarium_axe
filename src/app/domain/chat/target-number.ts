@@ -19,6 +19,11 @@ const HOLDS_TARGET_NUMBER = new RegExp(TARGET_NUMBER_PATTERN.source);
 export interface TargetNumberSpeaker {
   identifier: string;
   name: string;
+  /**
+   * The speaker's own name where the room is told another, as a piece whose name is hidden is: what
+   * an answer of an earlier version, keeping nobody it was rolled at, named it after the roll.
+   */
+  ownName?: string;
 }
 
 /** Whether a reference, its braces taken off, is the one filled in with the number to beat. */
@@ -144,6 +149,7 @@ export interface TargetNumberSource {
 /** The number to beat for a speaker in a tab, with where it was found; see {@link findTargetNumber}. */
 export function findTargetNumberSource(tab: ChatTab, speaker: TargetNumberSpeaker): TargetNumberSource | null {
   const aims = aimsAt(speaker.name);
+  const aimsOfOld = speaker.ownName && speaker.ownName !== speaker.name ? [...aims, ...aimsAt(speaker.ownName)] : aims;
   const pinned = `${tab.pinnedTargetNumber ?? ''}`;
   const messages = tab.chatMessages;
   let byOthers: TargetNumberSource | null = null;
@@ -162,13 +168,19 @@ export function findTargetNumberSource(tab: ChatTab, speaker: TargetNumberSpeake
     const text = `${message.text ?? ''}`.trimEnd();
     const total = rollTotalOf(text);
     if (total == null) continue;
-    // An answer that keeps whom it was rolled at is read by that, two pieces whose names are hidden
-    // showing the same label in its brackets; one that keeps none, by the name after it.
+    // An answer to a line aimed at everyone at once is read by whom the line was aimed at alone, and
+    // one that keeps whom it was rolled at by that as well as by the name after it: two pieces whose
+    // names are hidden show the same label in their brackets. One keeping neither, as an earlier
+    // version's, is read by the name after it, the speaker's own among them.
+    const together = aimedTogetherOf(tab, message);
     const rolledAt = `${message.rolledAt ?? ''}`;
-    const aimedHere = rolledAt.length > 0 ? rolledAt === speaker.identifier : aims.some((aim) => text.endsWith(aim));
-    if (aimedHere || aimedAmong(tab, message, speaker)) {
-      return { total, answer: message, from: 'aimed' };
-    }
+    const named = (names: readonly string[]) => names.some((aim) => text.endsWith(aim));
+    const aimedHere = together
+      ? speaker.identifier.length > 0 && together.includes(speaker.identifier)
+      : rolledAt.length > 0
+        ? rolledAt === speaker.identifier && named(aims)
+        : named(aimsOfOld);
+    if (aimedHere) return { total, answer: message, from: 'aimed' };
     if (pinned.length > 0 && message.identifier === pinned) return { total, answer: message, from: 'pinned' };
     if (
       byOthers == null &&
@@ -260,14 +272,14 @@ function aimsAt(name: string): string[] {
 }
 
 /**
- * Whether an answer was rolled at the speaker among everyone a line was aimed at all at once, as
- * `t:範囲` aims it: the line it answers keeps who they were, the names after the answer being only
- * what fitted in its brackets.
+ * Whom an answer was rolled at among everyone a line was aimed at all at once, as `t:範囲` aims it,
+ * one of them or many: the line it answers keeps who they were, the names after the answer being
+ * only what fitted in its brackets. Null for an answer to any other line.
  */
-function aimedAmong(tab: ChatTab, answer: ChatMessage, speaker: TargetNumberSpeaker): boolean {
-  if (speaker.identifier.length < 1) return false;
+function aimedTogetherOf(tab: ChatTab, answer: ChatMessage): string[] | null {
   const line = tab.findRollSource(answer);
-  return line != null && aimedTogetherAt(line).includes(speaker.identifier);
+  if (line == null || `${line.aimedTogether ?? ''}`.length < 1) return null;
+  return aimedTogetherAt(line);
 }
 
 /** The identifiers of the pieces a line was aimed at all at once; none for any other line, or a list that cannot be read. */

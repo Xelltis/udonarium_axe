@@ -210,6 +210,28 @@ describe('target-number', () => {
       expect(findTargetNumber(tab, { identifier: 'pc9', name: 'PC9' })).toBeNull();
     });
 
+    it('reads an answer to a line aimed at one piece all at once by whom it was aimed at alone', () => {
+      const first = { identifier: 'hidden-1', name: '？？？' };
+      const second = { identifier: 'hidden-2', name: '？？？' };
+      roll(speaker, 'DiceBot : (2D6+5) → 7[3,4]+5 → 12 [？？？]', { rolledAt: 'hidden-2' });
+      roll(speaker, 'DiceBot : (2D6+8) → 9[4,5]+8 → 17 [？？？]', { together: ['hidden-1'] });
+
+      expect(findTargetNumber(tab, second)).toBe(12);
+      expect(findTargetNumber(tab, first)).toBe(17);
+    });
+
+    it('reads an earlier version’s answer at a piece whose name is hidden by the piece’s own name', () => {
+      roll(speaker, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [黒幕]');
+
+      expect(findTargetNumber(tab, { identifier: 'villain', name: '？？？', ownName: '黒幕' })).toBe(14);
+    });
+
+    it('takes no answer as rolled at a piece whose name after it is another’s, whomever it says it was rolled at', () => {
+      roll(speaker, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC2]', { rolledAt: 'pc1' });
+
+      expect(findTargetNumber(tab, { identifier: 'pc1', name: 'PC1' })).toBeNull();
+    });
+
     it('reads a roll at a piece whose name holds a comma as rolled at that piece alone', () => {
       roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [ゴブリン、弓兵]');
       roll(enemy, 'DiceBot : (1D6) → 3');
