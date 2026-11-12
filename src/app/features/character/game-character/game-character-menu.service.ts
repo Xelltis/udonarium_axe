@@ -295,7 +295,15 @@ export class GameCharacterMenuService {
   private attachPart(part: GameCharacter, body: GameCharacter): void {
     const was = this.parts.lookOf(part);
     if (!this.parts.attach(part, body) || !hasPartLook(was)) return;
-    this.snackbar.show(this.translateFn('feature.ride.part.look.letGo', { name: this.shownName(part) }), {
+    const what = [
+      was.layer ? 'feature.ride.part.look.lookLayer' : '',
+      was.mask ? 'feature.ride.part.look.lookMask' : '',
+      was.faces ? 'feature.ride.part.look.lookFaces' : '',
+    ]
+      .filter((key) => key.length > 0)
+      .map((key) => this.translateFn(key))
+      .join(this.translateFn('feature.ride.part.look.lookJoin'));
+    this.snackbar.show(this.translateFn('feature.ride.part.look.letGo', { name: this.shownName(part), what }), {
       action: {
         label: this.translateFn('feature.ride.part.look.putBack'),
         run: () => this.parts.putBackLook(part, body, was),
