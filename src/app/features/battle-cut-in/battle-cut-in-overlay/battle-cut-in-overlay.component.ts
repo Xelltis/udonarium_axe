@@ -813,11 +813,6 @@ export class BattleCutInOverlayComponent {
   protected readonly figureHeight = BATTLE_FIGURE_PX;
   protected readonly shadowWidth = BATTLE_CELL_PX * 1.6;
 
-  /**
-   * Sounds the scene on this screen: a rush of air as the stage opens, the blow's own sounds where
-   * they fall, and the sounds of going down. With motion off only the landing and the going down
-   * sound, at once, with the still.
-   */
   /** The sounds the stage plays, each at the moment of the stage it is heard at. */
   private soundsOf(timeline: BattleTimeline): BattleSound[] {
     const sounds: BattleSound[] = [];
