@@ -828,7 +828,7 @@ export class GameCharacterComponent {
   );
 
   private ridingLabelOf(piece: GameCharacter): RidingLabel {
-    const showsName = this.overlay.names() && (!piece.hideName || this.rolePermission.canSeeHidden());
+    const showsName = this.overlay.names() && !this.names.isKept(piece);
     const detail = this.overlay.resourceBars() ? (piece.detailDataElement ?? null) : null;
     const readable = this.disclosureService.canView(piece);
     const gauges =
@@ -930,7 +930,7 @@ export class GameCharacterComponent {
     if (!this.overlay.names()) return true;
     this.objectChange.versionOf(char.identifier)();
     this.objectChange.trackMyCursor();
-    return char.hideName && !this.rolePermission.canSeeHidden();
+    return this.names.isKept(char);
   });
   /** Buffs go unshown for a piece set to hide them, and for every piece while this seat has them switched off. */
   readonly hideBuff = computed(() => {
@@ -1525,11 +1525,7 @@ export class GameCharacterComponent {
    */
   private partNameOf(identifier: string): string {
     const part = this.objectStore.get<GameCharacter>(identifier);
-    const shown =
-      part instanceof GameCharacter &&
-      part.name !== '' &&
-      this.overlay.names() &&
-      (!part.hideName || this.rolePermission.canSeeHidden());
+    const shown = part instanceof GameCharacter && part.name !== '' && this.overlay.names() && !this.names.isKept(part);
     return shown ? part.name : this.translateFn('feature.ride.part.someone');
   }
 

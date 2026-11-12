@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -34,6 +35,7 @@ export class PiecePartsService {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
+  private readonly names = inject(PieceNameService);
 
   /** The piece this one is a part of, where the body is on the table; null otherwise. */
   bodyOf(piece: GameCharacter): GameCharacter | null {
@@ -66,7 +68,7 @@ export class PiecePartsService {
       .getObjects<GameCharacter>(GameCharacter)
       .filter((body) => body !== piece && body.isVisibleOnTable && !this.bodyOf(body))
       .filter((body) => body.ridingOn !== piece.identifier && this.standsOn(piece, body))
-      .filter((body) => this.vision.isTokenVisible(body) && (!body.hideName || this.rolePermission.canSeeHidden()));
+      .filter((body) => this.vision.isTokenVisible(body) && !this.names.isKept(body));
   }
 
   /**

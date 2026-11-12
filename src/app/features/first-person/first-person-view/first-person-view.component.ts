@@ -11,6 +11,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
@@ -246,6 +247,7 @@ export class FirstPersonViewComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly vision = inject(VisionService);
+  private readonly names = inject(PieceNameService);
   private readonly pieceLinks = inject(PieceLinksService);
   private readonly water = inject(WaterService);
   private readonly ambience = inject(AmbienceService);
@@ -549,7 +551,6 @@ export class FirstPersonViewComponent {
     this.uiSignal.targetChange();
     this.objectChange.trackMyCursor();
     this.objectChange.collectionOf('data')();
-    const master = this.rolePermission.canSeeHidden();
     // Numbered as the marks are, among the picks this reader is shown.
     const picks = this.effectTargeting.pickOrder();
     const eye = eyeFrameOf(camera);
@@ -597,13 +598,13 @@ export class FirstPersonViewComponent {
         ).toCss(),
       };
       const gauges = this.gaugesOf(piece);
-      const label = piece.hideName && !master ? '' : piece.name;
+      const label = this.names.isKept(piece) ? '' : piece.name;
       const pick = picks.get(piece.identifier) ?? 0;
       const parts = this.pieceLinks.followedPartsOf(piece).map((part) => {
         this.objectChange.versionOf(part.identifier)();
         return {
           id: part.identifier,
-          label: part.hideName && !master ? '' : part.name,
+          label: this.names.isKept(part) ? '' : part.name,
           targeted: part.targeted,
           pick: picks.get(part.identifier) ?? 0,
           gauges: this.gaugesOf(part),
@@ -740,7 +741,7 @@ export class FirstPersonViewComponent {
     if (!piece) return '';
     this.objectChange.versionOf(piece.identifier)();
     this.objectChange.trackMyCursor();
-    return piece.hideName && !this.rolePermission.canSeeHidden() ? '' : piece.name;
+    return this.names.isKept(piece) ? '' : piece.name;
   });
 
   protected readonly facing = computed(() => facingNameOf(this.firstPerson.pose()?.yaw ?? 0));

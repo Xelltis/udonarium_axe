@@ -410,6 +410,28 @@ describe('GameCharacterComponent', () => {
       element = await draw(fixture);
       expect(element.querySelectorAll('[data-testid="riding-label-piece"] [data-testid="buff-badge"]').length).toBe(0);
     });
+
+    it('shows a rider whose name is hidden by its name to the player it belongs to', async () => {
+      const { horse, knight } = ride();
+      knight.hideName = true;
+      knight.owner = 'me';
+      fixture.componentRef.setInput('gameCharacter', horse);
+      const cursor = new PeerCursor();
+      cursor.userId = 'me';
+      cursor.role = PeerRole.Player;
+      cursor.initialize();
+      PeerCursor.myCursor = cursor;
+      onTestFinished(() => {
+        PeerCursor.myCursor = null!;
+      });
+
+      const element = await draw(fixture);
+
+      const names = [...element.querySelectorAll('[data-testid="riding-label-name"]')].map((name) =>
+        name.textContent?.trim()
+      );
+      expect(names).toContain('upgrade 騎士');
+    });
   });
 
   describe('showing where the piece could walk', () => {
