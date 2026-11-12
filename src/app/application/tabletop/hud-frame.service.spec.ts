@@ -10,7 +10,8 @@ import { TableSurfaceService } from '@axe/application/tabletop/table-surface.ser
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
-import { FLAT_GROUND } from '@axe/domain/tabletop/ground/ground-surface';
+import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { FLAT_GROUND, type GroundSurface, groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -34,6 +35,7 @@ function lying(id: string, x: number, y: number, z: number, size: number): Table
 describe('HudFrameService', () => {
   let frame: HudFrameService;
   const sprites = signal<readonly TableWorldSprite[]>([]);
+  const ground = signal<GroundSurface>(FLAT_GROUND);
   const elements: HTMLElement[] = [];
 
   function element(): HTMLElement {
@@ -44,11 +46,15 @@ describe('HudFrameService', () => {
 
   beforeEach(() => {
     sprites.set([lying('die#frame', 100, 100, 0, 50), lying('die#picture', 100, 60, 10, 20)]);
+    ground.set(FLAT_GROUND);
     TestBed.configureTestingModule({
       providers: [
         { provide: TablePiecesService, useValue: { sprites, coins: signal([]) } },
         { provide: TablePickService, useValue: { targets: () => [], targetsOf: () => [] } },
-        { provide: StandingGroundService, useValue: { surface: signal(FLAT_GROUND) } },
+        {
+          provide: StandingGroundService,
+          useValue: { surface: ground, heightPxAt: (x: number, y: number) => ground().heightAt(x / 50, y / 50) * 50 },
+        },
         { provide: TabletopService, useValue: { currentTable: { gridSize: 50 } } },
         { provide: Table3dService, useValue: { world: sprites } },
         {
@@ -285,6 +291,33 @@ describe('HudFrameService', () => {
     expect(root.style.transform).toBe('translate(200px, 200px)');
     expect(handle.style.transform).toBe('translate(60px, 40px) translate(-50%, -50%)');
     expect(targetsOf).toHaveBeenLastCalledWith(new Set(['block']));
+  });
+
+  it('hands the raised ground to the blocks it boxes, so a floor tile on it lies on the ground', () => {
+    const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT).fill(64);
+    ground.set(groundSurfaceOf([{ cx: 0, cy: 0, heights, paint: null }]));
+    const tile = {
+      id: 'tile',
+      layer: 'terrain',
+      order: 0,
+      shapes: [
+        {
+          kind: 'prism' as const,
+          outline: [
+            { x: 100, y: 100 },
+            { x: 150, y: 100 },
+            { x: 150, y: 150 },
+            { x: 100, y: 150 },
+          ],
+          base: 50,
+          top: 50.5,
+        },
+      ],
+    };
+    vi.spyOn(TestBed.inject(TablePickService), 'targetsOf').mockReturnValue([tile]);
+    frame.place(element(), { owner: 'tile' });
+
+    expect(frame.boxesNow()!.get('tile')!.onGround).toBe(true);
   });
 
   it('draws the root of a nearer piece over the root of one further off', () => {

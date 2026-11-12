@@ -344,7 +344,7 @@ describe('drawnRanks', () => {
     expect(ranks).toEqual({ tile: 1, range: 2, wall: 3 });
   });
 
-  it('takes a floor tile on the raised ground as on the ground, by the ground under it', () => {
+  it('takes a floor tile on the raised ground as on the ground, by the ground under any corner of it', () => {
     const tile = {
       id: 'tile',
       layer: 'terrain',
@@ -364,9 +364,10 @@ describe('drawnRanks', () => {
       ],
     };
 
-    expect(blockPageBoxes([tile], tilted, EYE).get('tile')?.onGround).toBeUndefined();
-    expect(blockPageBoxes([tile], tilted, EYE, () => 30).get('tile')?.onGround).toBe(true);
-    expect(blockPageBoxes([tile], tilted, EYE, (x) => (x < 50 ? 30 : 0)).get('tile')?.onGround).toBeUndefined();
+    expect(blockPageBoxes([tile], tilted, EYE).get('tile')!.onGround).toBeUndefined();
+    expect(blockPageBoxes([tile], tilted, EYE, () => 30).get('tile')!.onGround).toBe(true);
+    expect(blockPageBoxes([tile], tilted, EYE, (x) => (x < 50 ? 30 : 0)).get('tile')!.onGround).toBe(true);
+    expect(blockPageBoxes([tile], tilted, EYE, () => 0).get('tile')!.onGround).toBeUndefined();
   });
 
   it('draws a card lying on a block’s top among the pieces by how near the eye it reaches', () => {

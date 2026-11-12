@@ -257,8 +257,10 @@ export const TOP_PART = 'top';
 /**
  * Where the blocks are drawn on the page, from the shapes picking finds them by: for each, the box
  * round all of it, and its top as the part `top`, with its corners where its top has four. A block
- * whose top lies no higher off the ground under it than a sheet lying on the ground does, as a floor
- * tile, lies on the ground, as `groundAt` tells how high the ground stands at a point, where given.
+ * whose top lies, at some corner of it, no higher off the ground under it than a sheet lying on the
+ * ground does, as a floor tile, lies on the ground, as `groundAt` tells how high the ground stands
+ * at a point, where given: a tile at the edge of raised ground is lifted by the ground within it,
+ * whatever lies under a corner reaching past it.
  */
 export function blockPageBoxes(
   targets: readonly PickTarget[],
@@ -270,23 +272,23 @@ export function blockPageBoxes(
   for (const target of targets) {
     const all: TablePoint[] = [];
     const tops: TablePoint[] = [];
-    let onGround = true;
+    let flat = true;
+    let lowCorner = false;
     for (const shape of target.shapes) {
       const onFace = shape.kind === 'on-face' ? shape : null;
       const prism = onFace ? onFace.shape : shape;
       if (prism.kind !== 'prism') continue;
-      if (onFace || prism.roofAt) onGround = false;
-      else if (prism.outline.some((corner) => prism.top - (groundAt?.(corner.x, corner.y) ?? 0) > ON_GROUND_PX)) {
-        onGround = false;
-      }
+      if (onFace || prism.roofAt) flat = false;
       const at = (x: number, y: number, z: number): TablePoint =>
         onFace ? pointOnFace(onFace.frame, x, y, z) : { x, y, z };
       for (const corner of prism.outline) {
         const top = at(corner.x, corner.y, prism.roofAt ? prism.roofAt(corner.x, corner.y) : prism.top);
         tops.push(top);
         all.push(top, at(corner.x, corner.y, prism.base));
+        if (flat && prism.top - (groundAt?.(corner.x, corner.y) ?? 0) <= ON_GROUND_PX) lowCorner = true;
       }
     }
+    const onGround = flat && lowCorner;
     if (!tops.length) continue;
     const onPage = (points: TablePoint[]) => points.map((point) => pageOfTablePoint(scene, point.x, point.y, point.z));
     const topOnPage = onPage(tops);

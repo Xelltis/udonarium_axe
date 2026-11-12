@@ -156,10 +156,7 @@ export class HudFrameService {
     if (!scene || !view || !layout) return null;
     const eye = eyeAxesOf(tableEyeMatrix(view, layout));
     const ground = untracked(this.standing.surface);
-    const gridSize = this.tabletop.currentTable.gridSize > 0 ? this.tabletop.currentTable.gridSize : 50;
-    const groundAt = ground.isFlat
-      ? undefined
-      : (x: number, y: number) => ground.heightAt(x / gridSize, y / gridSize) * gridSize;
+    const groundAt = ground.isFlat ? undefined : (x: number, y: number) => this.standing.heightPxAt(x, y);
     const boxes = piecePageBoxes(untracked(this.pieces.sprites), untracked(this.pieces.coins), scene, eye, groundAt);
     const owners = new Set<string>();
     for (const { anchor } of this.placed.values()) if (!boxes.has(anchor.owner)) owners.add(anchor.owner);
