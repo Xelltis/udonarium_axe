@@ -15,6 +15,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
@@ -107,6 +108,20 @@ export class RangeComponent {
   private readonly cells = viewChild<ElementRef<HTMLElement>>('cells');
 
   private readonly pieces = inject(TablePiecesService);
+  private readonly pictures = inject(PiecePicturesService);
+
+  /**
+   * What the box the pointer rests on over the range's picture is cut to, as CSS: the shape the range
+   * is painted as, noted first of what is painted, in the picture's pixels, so the pointer rests on the
+   * range only over its shape; nothing for a range of its own cells, which the whole picture serves.
+   */
+  readonly pointerClipPath = computed<string | null>(() => {
+    const range = this.range();
+    const shape = this.pictures.pictureOf(range.identifier)?.pickAreas?.[0];
+    if (!shape || shape.length < 3 || range.type === 'CUSTOM') return null;
+    const px = (value: number) => `${Math.round(value * 100) / 100}px`;
+    return `polygon(${shape.map((point) => `${px(point.x)} ${px(point.y)}`).join(', ')})`;
+  });
 
   /** What the cells are cut to now: as they were last painted, or by the range's type before the first paint. */
   private clip(): RangeClip {

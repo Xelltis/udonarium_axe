@@ -18,8 +18,9 @@
   <div
     data-part="picture"
     class="pointer-events-auto"
+    [style.clip-path]="pointerClipPath()"
     [appTooltip]="range()"
-    [appHudPlace]="{ owner: id, part: 'picture' }"
+    [appHudPlace]="{ owner: id, part: 'picture', place: 'cover' }"
   ></div>
   <div
     class="pointer-events-none size-0"

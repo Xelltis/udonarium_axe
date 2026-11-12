@@ -1,4 +1,5 @@
 import { Injectable, signal, type WritableSignal } from '@angular/core';
+import type { PickPoint2 } from '@axe/domain/tabletop/pick/pick-geometry';
 
 /**
  * A part of a piece as a picture: where the picture is, how big the page lays the part out, and
@@ -10,6 +11,11 @@ export interface PiecePicture {
   readonly heightPx: number;
   readonly offsetX?: number;
   readonly offsetY?: number;
+  /**
+   * The parts of the picture a press takes the piece by, as polygons in its pixels from its top left
+   * corner, where only what is painted takes it; the whole picture where not given.
+   */
+  readonly pickAreas?: readonly (readonly PickPoint2[])[];
 }
 
 /**

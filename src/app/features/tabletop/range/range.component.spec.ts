@@ -3,6 +3,7 @@ import { By } from '@angular/platform-browser';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
+import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -121,6 +122,35 @@ describe('RangeComponent', () => {
       expect(option!.stillWanted!()).toBe(true);
       ObjectStore.instance.remove(range);
       expect(option!.stillWanted!()).toBe(false);
+    });
+  });
+
+  describe('the box the pointer rests on over the picture', () => {
+    it('is cut to the one shape the range is painted as, and left whole for a range of its own cells', () => {
+      const pictures = TestBed.inject(PiecePicturesService);
+      const range = given as RangeArea;
+      const picture = { url: 'blob:cells', widthPx: 100, heightPx: 100 };
+      fixture.detectChanges();
+
+      expect(component.pointerClipPath()).toBeNull();
+
+      const shape = [
+        { x: 50, y: 0 },
+        { x: 100, y: 100.004 },
+        { x: 0, y: 100 },
+      ];
+      const cell = [
+        { x: 40, y: 40 },
+        { x: 60, y: 40 },
+        { x: 60, y: 60 },
+      ];
+      pictures.show(range.identifier, { ...picture, pickAreas: [shape, cell] });
+      expect(component.pointerClipPath()).toBe('polygon(50px 0px, 100px 100px, 0px 100px)');
+
+      range.type = 'CUSTOM';
+      fixture.componentRef.setInput('range', range);
+      pictures.show(range.identifier, { ...picture, url: 'blob:cells-2', pickAreas: [cell] });
+      expect(component.pointerClipPath()).toBeNull();
     });
   });
 
