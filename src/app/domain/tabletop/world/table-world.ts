@@ -2,6 +2,7 @@ import { firstPersonWorldOf } from '@axe/domain/tabletop/first-person/first-pers
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { FLAT_GROUND, groundLiftOfBlock, GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import {
+  HEX_CUT_OVERLAP_PX,
   hexCellCenter,
   hexCircumradius,
   hexCornerOffsets,
@@ -199,9 +200,6 @@ export const EMPTY_TABLE_WORLD: TableWorld = {
   backdrops: [],
   models: [],
 };
-
-/** How much bigger than a cell each hex a board is cut to is, so the cut leaves no seam between cells. */
-const HEX_CUT_OVERLAP_PX = 1;
 
 /**
  * The scene of a table, or the empty scene where there is none in view, with the blocks given

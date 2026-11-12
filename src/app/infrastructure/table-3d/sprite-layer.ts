@@ -1,6 +1,6 @@
 import type { GridType } from '@axe/domain/tabletop/grid-type';
 import type { GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
-import { groundMeshOver } from '@axe/domain/tabletop/world/ground-mesh';
+import { GroundCells } from '@axe/domain/tabletop/world/ground-cells';
 import { lyingDrawOrder } from '@axe/domain/tabletop/world/lying-order';
 import {
   type EyeAxes,
@@ -8,7 +8,7 @@ import {
   type TableWorldLook,
   type TableWorldSprite,
 } from '@axe/domain/tabletop/world/table-sprites';
-import { gridOverGround } from '@axe/infrastructure/table-3d/face-geometry';
+import { boxOverGround } from '@axe/infrastructure/table-3d/face-geometry';
 import { forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
@@ -121,6 +121,8 @@ export class SpriteLayer {
   private eye: EyeAxes | null = null;
   /** The raised ground of the floor a sprite that follows it lies over, or null where the floor is flat. */
   private floor: DrapedFloor | null = null;
+  /** The floor's raised ground cell by cell, as the sprites that follow it are laid over it. */
+  private groundCells: GroundCells | null = null;
   private groundGeneration = 0;
 
   constructor(
@@ -145,6 +147,7 @@ export class SpriteLayer {
       return;
     }
     this.floor = floor;
+    this.groundCells = floor ? new GroundCells(floor.surface, floor.gridSize, floor.gridType) : null;
     this.groundGeneration++;
   }
 
@@ -201,6 +204,7 @@ export class SpriteLayer {
       this.forget(drawn);
       this.drawn.delete(id);
     }
+    this.groundCells?.settle();
     this.layCasters(sprites);
     this.facingEye = facingEye;
     this.stackLying(sprites);
@@ -214,8 +218,8 @@ export class SpriteLayer {
    */
   private drape(drawn: Drawn, sprite: TableWorldSprite): boolean {
     const mesh = drawn.mesh;
-    const floor = this.floor;
-    if (!sprite.drapes || !floor) {
+    const cells = this.groundCells;
+    if (!sprite.drapes || !cells) {
       if (drawn.draped) {
         drawn.draped.geometry.dispose();
         drawn.draped = undefined;
@@ -232,8 +236,7 @@ export class SpriteLayer {
     const key = `${this.groundGeneration}|${box.x}|${box.y}|${box.width}|${box.height}|${sprite.drapes.liftPx}`;
     if (drawn.draped?.key !== key) {
       drawn.draped?.geometry.dispose();
-      const ground = groundMeshOver(box, floor.surface, floor.gridSize, floor.gridType);
-      drawn.draped = { key, geometry: gridOverGround(ground, box, sprite.drapes.liftPx) };
+      drawn.draped = { key, geometry: boxOverGround(cells.meshOver(box), box, sprite.drapes.liftPx) };
       mesh.geometry = drawn.draped.geometry;
     }
     mesh.position.set(0, 0, 0);

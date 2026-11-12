@@ -5,6 +5,7 @@ import { squareGroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { boardShapeOf } from '@axe/domain/tabletop/world/table-world';
 import {
   boardGeometry,
+  boxOverGround,
   capGeometry,
   griddedTops,
   gridOverBoard,
@@ -187,5 +188,21 @@ describe('the shapes of the faces drawn on the canvas', () => {
 
     expect(Array.from(painted.getAttribute('paint').array.slice(0, 4))).toEqual([0, 1, 0, 0]);
     expect(bare.getAttribute('paint')).toBeUndefined();
+  });
+
+  it('lifts a part of the floor’s mesh off the ground by as much, wearing a picture over a box', () => {
+    const mesh = {
+      points: new Float32Array([60, 0, 10, 90, 0, 20, 60, 50, 30]),
+      triangles: new Uint32Array([0, 1, 2]),
+    };
+
+    const geometry = boxOverGround(mesh, { x: 60, y: 0, width: 30, height: 50 }, 2);
+
+    const positions = geometry.getAttribute('position');
+    expect([positions.getX(1), positions.getY(1), positions.getZ(1)]).toEqual([90, 22, 0]);
+    const uvs = geometry.getAttribute('uv');
+    expect([uvs.getX(1), uvs.getY(1)]).toEqual([1, 1]);
+    expect([uvs.getX(2), uvs.getY(2)]).toEqual([0, 0]);
+    expect(Array.from(geometry.index!.array)).toEqual([0, 1, 2]);
   });
 });
