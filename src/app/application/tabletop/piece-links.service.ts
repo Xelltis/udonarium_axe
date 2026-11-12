@@ -151,6 +151,70 @@ export class PieceLinksService {
   }
 
   /**
+   * The pieces a piece is carried off with, from it up to the one they are carried as: the mount it
+   * rides or the body it is a part of, the one that one rides or is a part of in turn, and so on, up
+   * to one riding nothing. One held on to by a piece on the table is carried alone, as a captive is,
+   * and the climb stops there. The piece alone where it rides nothing; the last is always carried.
+   */
+  rideChainOf(piece: GameCharacter): GameCharacter[] {
+    const chain = [piece];
+    let at = piece;
+    while (!this.boundHolderOf(at)) {
+      const next = this.mountOf(at) ?? this.bodyOf(at);
+      if (!next || chain.includes(next)) break;
+      chain.push(next);
+      at = next;
+    }
+    return chain;
+  }
+
+  /**
+   * The piece holding on to this one as the bonds between pieces count it: one on the table, in the
+   * fight or not, unlike {@link holderOf}; null where none is.
+   */
+  boundHolderOf(piece: GameCharacter): GameCharacter | null {
+    if (piece.grabbedBy === '' || piece.grabbedBy === piece.identifier) return null;
+    const holder = this.objectStore.get<GameCharacter>(piece.grabbedBy);
+    return holder instanceof GameCharacter && holder.isVisibleOnTable ? holder : null;
+  }
+
+  /**
+   * Brings along what goes where each of several pieces goes, as {@link carryBoundAll} does, for
+   * pieces set on the floor: one brought along off a board or a wall is set on the floor with them.
+   * Answers the pieces brought along.
+   */
+  carryBoundOntoFloor(anchors: readonly GameCharacter[], cellPx?: number): GameCharacter[] {
+    return GameObject.batch(() => {
+      const carried = this.carryBoundAll(anchors, cellPx);
+      for (const piece of carried) {
+        if (!piece.location.surface) continue;
+        piece.location = { name: piece.location.name, x: piece.location.x, y: piece.location.y };
+        piece.update();
+      }
+      return carried;
+    });
+  }
+
+  /**
+   * Stands the pieces of a chain {@link rideChainOf} answers on the one they are carried as, held
+   * fast or not, and on the floor where it stands on the floor: the carrying took them as it took
+   * the piece itself, which nothing held fast holds back.
+   */
+  standChainOn(chain: readonly GameCharacter[], cellPx?: number): void {
+    const carrier = chain[chain.length - 1];
+    GameObject.batch(() => {
+      for (const piece of chain) {
+        if (piece === carrier || piece.heldFast !== '1') continue;
+        this.standAt(piece, carrier, cellPx);
+        if (piece.location.surface !== carrier.location.surface) {
+          piece.location = { ...piece.location, surface: carrier.location.surface };
+        }
+        piece.update();
+      }
+    });
+  }
+
+  /**
    * Brings the pieces that go where a piece goes along to where it now stands, as a move of it does:
    * those it holds on to, those riding it, and those bound to them in turn. One held fast where it
    * stands is left there.

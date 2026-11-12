@@ -540,13 +540,17 @@ export class TurnOrderService {
     read: () => this.snapshot(),
   };
 
-  /** Carries a press of the round out from where it stands, as one step of the record. */
+  /**
+   * Carries a press of the round out from where it stands, as one step of the record. Ground that
+   * carries a piece off carries it once the press is done, so ground under a rider, its mount and its
+   * parts all goes off where they stood before any of them is carried.
+   */
   private press(work: (state: TurnSnapshot, table: TurnTable, live: TurnLive) => TurnOutcome | null): void {
     this.opening = null;
     // This seat's mark of the version of the turns it runs, said before the round it steps is read.
     const mine = PeerCursor.myCursor;
     if (mine && mine.turnProtocol !== '1') mine.turnProtocol = '1';
-    this.step(() => work(this.snapshot(), this.turnTable(), this.live) !== null);
+    this.triggerFire.carryingAfter(() => this.step(() => work(this.snapshot(), this.turnTable(), this.live) !== null));
   }
 
   /**
