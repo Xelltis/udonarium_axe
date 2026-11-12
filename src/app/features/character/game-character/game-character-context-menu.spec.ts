@@ -548,7 +548,7 @@ describe('buildGameCharacterContextMenu()', () => {
 
     const display = groupOf(menu, '表示と扱い');
     expect(names(display)).not.toContain('☑ 名前を隠す');
-    const told = display.find((entry) => entry.name === '☑ 名前を隠す（GMだけが切り替えられます）');
+    const told = display.find((entry) => entry.name === '☑ 名前を隠す（GMのみ）');
     expect(told?.enabled).toBe(false);
     expect(names(display)).toContain('☐ バフを隠す');
   });

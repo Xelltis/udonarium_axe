@@ -2157,7 +2157,7 @@
         "displaySettings": "표시",
         "hideNameOn": "☑ 이름 숨기기",
         "hideNameOff": "☐ 이름 숨기기",
-        "hideNameGmOnly": " (GM만 바꿀 수 있습니다)",
+        "hideNameGmOnly": " (GM 전용)",
         "hideBuffOn": "☑ 버프 숨기기",
         "hideBuffOff": "☐ 버프 숨기기",
         "npcOn": "☑ NPC로 지정",

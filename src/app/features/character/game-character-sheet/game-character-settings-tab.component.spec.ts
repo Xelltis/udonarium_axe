@@ -52,7 +52,7 @@ describe('GameCharacterSettingsTabComponent', () => {
 
     const told = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="settings-hide-name-gm-only"]');
     expect(told?.querySelector('input')?.disabled).toBe(true);
-    expect(told?.textContent).toContain('GMだけが切り替えられます');
+    expect(told?.textContent).toContain('GMのみ');
   });
 
   describe("how high a mount's riders stand", () => {

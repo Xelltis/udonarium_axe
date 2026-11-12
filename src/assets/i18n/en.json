@@ -2157,7 +2157,7 @@
         "displaySettings": "Display",
         "hideNameOn": "☑ Hide name",
         "hideNameOff": "☐ Hide name",
-        "hideNameGmOnly": " (only a game master can change this)",
+        "hideNameGmOnly": " (GM only)",
         "hideBuffOn": "☑ Hide buffs",
         "hideBuffOff": "☐ Hide buffs",
         "npcOn": "☑ Mark as NPC",
