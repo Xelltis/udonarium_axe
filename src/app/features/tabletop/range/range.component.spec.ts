@@ -140,7 +140,7 @@ describe('RangeComponent', () => {
     await fixture.whenStable();
     const drawn = vi.spyOn(component as unknown as { setRange(): void }, 'setRange');
 
-    given.commonDataElement!.getFirstElementByName('width')!.value = 7;
+    (given as RangeArea).commonDataElement!.getFirstElementByName('width')!.value = 7;
     await Promise.resolve();
 
     expect(drawn).toHaveBeenCalled();
