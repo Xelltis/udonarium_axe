@@ -6,6 +6,7 @@ import {
   HIDDEN_GAUGE_NUMBERS,
   isGaugeInverted,
   isGaugeSpent,
+  isResourceSpentAt,
   type PieceGauge,
   selectPieceGauges,
   shownGauge,
@@ -180,5 +181,16 @@ describe('shownGauge()', () => {
     expect(shownGauge(noMaximum, false).numbers).toBe(HIDDEN_GAUGE_NUMBERS);
     expect(isGaugeSpent(3, 0, true)).toBe(false);
     expect(isGaugeSpent(0, 0, false)).toBe(true);
+  });
+});
+
+describe('isResourceSpentAt()', () => {
+  it('runs a resource out at nothing, and never a number standing alone, however low', () => {
+    const hp = DataElement.create('HP', 10, { type: DataElementType.NUMBER_RESOURCE, currentValue: 0 });
+    const evasion = DataElement.create('回避修正', 2, {});
+
+    expect(isResourceSpentAt(hp, 0, 10)).toBe(true);
+    expect(isResourceSpentAt(evasion, -1, null)).toBe(false);
+    expect(isResourceSpentAt(null, -1, null)).toBe(false);
   });
 });

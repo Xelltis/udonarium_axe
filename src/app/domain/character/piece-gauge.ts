@@ -43,10 +43,12 @@ export function isGaugeSpent(current: number, max: number, inverted: boolean): b
 /**
  * Whether a resource set to a value has run out, as {@link isGaugeSpent} judges it: by its own
  * direction, against the maximum it has, where it counts up to its end. One counting up without a
- * maximum never runs out; anything else runs out at nothing.
+ * maximum never runs out; anything else runs out at nothing. An item that is no resource, as a
+ * number standing alone, never runs out, however low it goes.
  */
 export function isResourceSpentAt(element: DataElement | null, current: number, max: number | null): boolean {
-  const inverted = element ? isGaugeInverted(element) : false;
+  if (!element?.isNumberResource) return false;
+  const inverted = isGaugeInverted(element);
   return isGaugeSpent(current, max ?? Number.POSITIVE_INFINITY, inverted);
 }
 
