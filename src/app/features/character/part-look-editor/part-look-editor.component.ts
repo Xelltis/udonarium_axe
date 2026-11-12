@@ -284,14 +284,18 @@ export class PartLookEditorComponent {
     this.draftFaces.set(null);
     const part = this.chosenPiece();
     const body = this.body();
-    if (draft && part && body) part.partFaces = keptPartFaces(draft, body);
+    if (draft && part && body) part.partFaces = keptPartFaces(part, draft, body);
   }
 
+  /** Wipes the chosen part's faces off the model its body is drawn as, leaving those of other models. */
   protected clearFaces(): void {
     const part = this.chosenPiece();
-    if (!part || part.partFaces === '') return;
+    const body = this.body();
+    if (!part || !body) return;
     const was = part.partFaces;
-    part.partFaces = '';
+    const wiped = keptPartFaces(part, new Map(), body);
+    if (wiped === was) return;
+    part.partFaces = wiped;
     this.offerToPutBack(part, 'feature.ride.part.look.paintCleared', () => (part.partFaces = was));
   }
 

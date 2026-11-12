@@ -77,17 +77,33 @@ describe('the look of a part over its body', () => {
     );
   });
 
-  it('keeps a part’s faces with the model they were picked on, and reads none on another model', () => {
-    const faces = new Map([[0, new Set([4, 5])]]);
+  it('keeps a part’s faces model by model, reading those of the model its body is drawn as', () => {
     const dragon = { modelIdentifier: 'dragon-model' };
-    const part = { partFaces: keptPartFaces(faces, dragon) };
+    const golem = { modelIdentifier: 'golem-model' };
+    const part = { partFaces: '' };
 
+    part.partFaces = keptPartFaces(part, new Map([[0, new Set([4, 5])]]), dragon);
     expect(part.partFaces).toBe('dragon-model|0:4-5');
-    expect(partFacesOn(part, dragon)).toEqual(faces);
-    expect(partFacesOn(part, { modelIdentifier: 'golem-model' })).toEqual(new Map());
+    expect(partFacesOn(part, dragon)).toEqual(new Map([[0, new Set([4, 5])]]));
+    expect(partFacesOn(part, golem)).toEqual(new Map());
     expect(partFacesOn(part, { modelIdentifier: '' })).toEqual(new Map());
     expect(partFacesOn({ partFaces: '0:4-5' }, dragon)).toEqual(new Map());
-    expect(keptPartFaces(new Map(), dragon)).toBe('');
+
+    part.partFaces = keptPartFaces(part, new Map(), golem);
+    expect(part.partFaces).toBe('dragon-model|0:4-5');
+    part.partFaces = keptPartFaces(part, new Map([[1, new Set([7])]]), golem);
+    expect(part.partFaces).toBe('golem-model|1:7 dragon-model|0:4-5');
+    expect(partFacesOn(part, golem)).toEqual(new Map([[1, new Set([7])]]));
+    expect(partFacesOn(part, dragon)).toEqual(new Map([[0, new Set([4, 5])]]));
+
+    part.partFaces = keptPartFaces(part, new Map(), dragon);
+    expect(part.partFaces).toBe('golem-model|1:7');
+    expect(keptPartFaces(part, new Map([[0, new Set([1])]]), { modelIdentifier: '' })).toBe('golem-model|1:7');
+    for (let model = 0; model < 10; model++) {
+      part.partFaces = keptPartFaces(part, new Map([[0, new Set([model])]]), { modelIdentifier: `model-${model}` });
+    }
+    expect(part.partFaces.split(' ')).toHaveLength(8);
+    expect(partFacesOn(part, { modelIdentifier: 'model-9' })).toEqual(new Map([[0, new Set([9])]]));
   });
 
   it('counts a part lost once its first resource runs out or it is marked down, and whole again once healed', () => {

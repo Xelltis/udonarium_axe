@@ -203,25 +203,49 @@ function facedModelOf(body: { modelIdentifier: unknown }): string {
   return `${body.modelIdentifier ?? ''}`.trim();
 }
 
-/**
- * A part's faces of its body's model as the part keeps them: the model they were picked on, `|`, then
- * the faces as {@link writePartFaces} writes them; empty for none. A triangle's place says which face
- * it is only on the model it was picked on.
- */
-export function keptPartFaces(faces: PartFaces, body: { modelIdentifier: unknown }): string {
-  const written = writePartFaces(faces);
-  return written ? `${facedModelOf(body)}|${written}` : '';
+/** The most models a part keeps faces of, the one painted on last first. */
+const MAX_FACED_MODELS = 8;
+
+/** The faces a part keeps, model by model, as {@link keptPartFaces} writes them. */
+function facesByModel(kept: unknown): { model: string; faces: string }[] {
+  const entries: { model: string; faces: string }[] = [];
+  for (const entry of `${kept ?? ''}`.split(' ')) {
+    const at = entry.lastIndexOf('|');
+    if (at > 0) entries.push({ model: entry.slice(0, at), faces: entry.slice(at + 1) });
+  }
+  return entries;
 }
 
 /**
- * The faces a part keeps of its body's model, as {@link keptPartFaces} keeps them, where they were
- * picked on the model its body is drawn as now; none where they were picked on another.
+ * What a part keeps of its body's models' faces once the faces of the model its body is drawn as are
+ * these: for each model faces were painted on, the model, `|`, then the faces as {@link writePartFaces}
+ * writes them, the models apart by a space, the one painted on last first; empty for none. A
+ * triangle's place says which face it is only on the model it was picked on, so the faces painted on
+ * a model the body is no longer drawn as are kept for it, for when it is drawn as that one again.
+ */
+export function keptPartFaces(
+  part: { partFaces: string },
+  faces: PartFaces,
+  body: { modelIdentifier: unknown }
+): string {
+  const model = facedModelOf(body);
+  const others = facesByModel(part.partFaces).filter((entry) => entry.model !== model);
+  const written = model ? writePartFaces(faces) : '';
+  const entries = written ? [{ model, faces: written }, ...others] : others;
+  return entries
+    .slice(0, MAX_FACED_MODELS)
+    .map((entry) => `${entry.model}|${entry.faces}`)
+    .join(' ');
+}
+
+/**
+ * The faces a part keeps of the model its body is drawn as now, as {@link keptPartFaces} keeps them;
+ * none where it keeps none painted on that model.
  */
 export function partFacesOn(part: { partFaces: string }, body: { modelIdentifier: unknown }): PartFaces {
-  const kept = `${part.partFaces ?? ''}`;
-  const at = kept.lastIndexOf('|');
-  if (at < 0 || kept.slice(0, at) !== facedModelOf(body)) return new Map();
-  return partFacesOf(kept.slice(at + 1));
+  const model = facedModelOf(body);
+  const entry = model ? facesByModel(part.partFaces).find((one) => one.model === model) : undefined;
+  return entry ? partFacesOf(entry.faces) : new Map();
 }
 
 /** The faces of several parts together, as the faces their body leaves out where they are lost. */

@@ -193,13 +193,20 @@ export class PiecePartPicturesService {
    * `writePartFaces` writes them, which the copy leaves out. Follows the parts as `pictureOf` does.
    */
   modelFacesOf(body: GameCharacter): PartModelFaces {
-    const faces = this.keptFor(this.faces, body, () =>
-      computed(
+    const faces = this.keptFor(this.faces, body, () => {
+      const model = computed(
         () => {
           this.objectChange.versionOf(body.identifier)();
+          return { modelIdentifier: `${body.modelIdentifier ?? ''}` };
+        },
+        { equal: (a, b) => a.modelIdentifier === b.modelIdentifier }
+      );
+      return computed(
+        () => {
+          const drawnAs = model();
           const parts = this.links
             .followedPartsOf(body)
-            .map((part) => ({ faces: partFacesOn(part, body), lost: this.lookOf(part).lost }))
+            .map((part) => ({ faces: partFacesOn(part, drawnAs), lost: this.lookOf(part).lost }))
             .filter((part) => part.faces.size > 0);
           return {
             painted: parts.length > 0,
@@ -207,8 +214,8 @@ export class PiecePartPicturesService {
           };
         },
         { equal: (a, b) => a.painted === b.painted && a.cut === b.cut }
-      )
-    );
+      );
+    });
     return faces();
   }
 

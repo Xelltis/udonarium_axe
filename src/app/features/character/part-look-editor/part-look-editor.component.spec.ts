@@ -272,6 +272,26 @@ describe('PartLookEditorComponent', () => {
       expect(made[1].dispose).toHaveBeenCalled();
     });
 
+    it('keeps the faces painted on the body’s earlier model as it is painted and wiped on another', async () => {
+      head.partFaces = 'old-model|0:8-9';
+      const { root, fixture } = open(head.identifier);
+      root.querySelector<HTMLButtonElement>('[data-testid="part-look-mode-faces"]')!.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      await new Promise((resolve) => setTimeout(resolve));
+      fixture.detectChanges();
+      const canvas = root.querySelector<HTMLCanvasElement>('[data-testid="part-look-model"]')!;
+
+      root.querySelector<HTMLButtonElement>('[data-testid="part-look-clear"]')!.click();
+      expect(head.partFaces).toBe('old-model|0:8-9');
+      canvas.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 5, clientY: 5 }));
+      canvas.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, clientX: 5, clientY: 5 }));
+      root.querySelector<HTMLButtonElement>('[data-testid="part-look-clear"]')!.click();
+      expect(head.partFaces).toBe('old-model|0:8-9');
+      dragon.modelIdentifier = 'old-model';
+      expect(partFacesOn(head, dragon)).toEqual(new Map([[0, new Set([8, 9])]]));
+    });
+
     it('offers no model to paint for a body drawn as its picture', () => {
       vi.spyOn(TestBed.inject(TablePiecesService), 'modelUrlOf').mockReturnValue('');
       dragon.modelIdentifier = '';
