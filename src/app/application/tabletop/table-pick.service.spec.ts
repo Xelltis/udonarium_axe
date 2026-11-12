@@ -17,11 +17,13 @@ import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
 import { DEFAULT_TABLE_CAMERA_VIEW, pageOfTablePoint, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { lyingPicture } from '@axe/domain/tabletop/world/table-sprites';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -423,6 +425,28 @@ describe('TablePickService', () => {
     );
     return { solid, clear };
   }
+
+  it('lands on a picture lying flat only inside the outline it is the piece within, as a range’s shape', () => {
+    const frame = surfaceFrame('floor', { widthPx: table.width * GRID, depthPx: table.height * GRID, wallHeightPx: 0 });
+    const outline = [
+      { x: 0, y: 0 },
+      { x: 4 * GRID, y: 0 },
+      { x: 0, y: 4 * GRID },
+    ];
+    vi.spyOn(TestBed.inject(TablePiecesService), 'sprites').mockReturnValue([
+      lyingPicture({ id: 'range-1', kind: 'range', frame, x: 5 * GRID, y: 5 * GRID }, 0.25, {
+        url: 'blob:range',
+        widthPx: 4 * GRID,
+        heightPx: 4 * GRID,
+        outline,
+      }),
+    ]);
+
+    const inside = onPage(5, 5, 0.25);
+    const outside = onPage(8, 8, 0.25);
+    expect(service.pickAt(inside.x, inside.y)?.target.id).toBe('range-1');
+    expect(service.pickAt(outside.x, outside.y)).toBeNull();
+  });
 
   it('passes a press through the clear parts of a character’s picture, and lands on it where it is drawn', async () => {
     const character = await standHero();

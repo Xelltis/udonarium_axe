@@ -1,5 +1,6 @@
 import { cellPatternBoundingBox, parseCellPattern } from '@axe/domain/tabletop/cell-pattern';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import type { PictureRegion } from '@axe/infrastructure/image/element-picture';
 import {
   ClipAreaCorn,
   ClipAreaHexagon,
@@ -10,7 +11,12 @@ import {
   RangeRender,
   RangeRenderSetting,
 } from '@axe/infrastructure/tabletop/range/range-render';
-import { clipAreaToPolygonCss, clipCircleCss } from '@axe/infrastructure/tabletop/range/range-render-util';
+import {
+  clipAreaPoints,
+  clipAreaToPolygonCss,
+  clipCircleCss,
+  clipCircleRadiusPx,
+} from '@axe/infrastructure/tabletop/range/range-render-util';
 
 type ClipArea = ClipAreaLine | ClipAreaSquare | ClipAreaTriangle | ClipAreaPentagon | ClipAreaHexagon | ClipAreaCorn;
 
@@ -125,6 +131,60 @@ export function rangeClipPathCss(clip: RangeClip, range: RangeArea, gridSize: nu
     case 'polygon':
       return clipAreaToPolygonCss(clip.area);
   }
+}
+
+/** How many corners the outline of a circle range is drawn round with, close enough to pick by. */
+const CIRCLE_OUTLINE_CORNERS = 64;
+
+/**
+ * The outline a range's cell canvas is cut to, as {@link rangeClipPathCss} cuts it, in pixels from
+ * the range's origin: the corners of the polygon, or of a circle walked round finely.
+ */
+export function rangeClipOutline(clip: RangeClip, range: RangeArea, gridSize: number): { x: number; y: number }[] {
+  switch (clip.kind) {
+    case 'circle': {
+      const radius = clipCircleRadiusPx(range.length, gridSize);
+      return Array.from({ length: CIRCLE_OUTLINE_CORNERS }, (_, at) => {
+        const angle = (at / CIRCLE_OUTLINE_CORNERS) * Math.PI * 2;
+        return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+      });
+    }
+    case 'custom': {
+      const hx = Math.max(gridSize, clip.halfWidthPx) + gridSize;
+      const hy = Math.max(gridSize, clip.halfHeightPx) + gridSize;
+      return [
+        { x: -hx, y: -hy },
+        { x: hx, y: -hy },
+        { x: hx, y: hy },
+        { x: -hx, y: hy },
+      ];
+    }
+    case 'polygon':
+      return clipAreaPoints(clip.area);
+  }
+}
+
+/**
+ * The part of a box an outline reaches, the box itself where the outline reaches past it all round:
+ * what of a range's canvases its cells are cut to, so that its picture and where it is pressed keep
+ * to its shape rather than to canvases far enough for it at any turn. Null where none of it is.
+ */
+export function regionWithinOutline(
+  box: PictureRegion,
+  outline: readonly { x: number; y: number }[]
+): PictureRegion | null {
+  if (outline.length < 3) return box;
+  const left = Math.max(box.left, Math.floor(Math.min(...outline.map((point) => point.x))));
+  const top = Math.max(box.top, Math.floor(Math.min(...outline.map((point) => point.y))));
+  const right = Math.min(box.left + box.width, Math.ceil(Math.max(...outline.map((point) => point.x))));
+  const bottom = Math.min(box.top + box.height, Math.ceil(Math.max(...outline.map((point) => point.y))));
+  return right > left && bottom > top ? { left, top, width: right - left, height: bottom - top } : null;
+}
+
+/** An outline to picture and pick a range by, or null where any corner of it is no number or it has too few. */
+export function usableOutline(outline: readonly { x: number; y: number }[]): { x: number; y: number }[] | null {
+  if (outline.length < 3) return null;
+  return outline.every(({ x, y }) => Number.isFinite(x) && Number.isFinite(y)) ? [...outline] : null;
 }
 
 /** What a range is cut to before it has first been painted, by its type. */

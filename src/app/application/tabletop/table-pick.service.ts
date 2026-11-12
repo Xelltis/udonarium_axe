@@ -16,7 +16,7 @@ import { pageOfTablePoint, tableEyeMatrix, TableRay, tableRayOfPage } from '@axe
 import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
 import { AMBIENCE_PICK_LAYER, ambiencePickTarget } from '@axe/domain/tabletop/pick/ambience-pick';
 import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
-import { PickCylinder, PickShape } from '@axe/domain/tabletop/pick/pick-geometry';
+import { insideOutline, PickCylinder, PickShape } from '@axe/domain/tabletop/pick/pick-geometry';
 import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { beamPickTarget, TERRAIN_PICK_LAYER, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
@@ -40,6 +40,9 @@ export interface PictureSight {
   /** Where a corner of the picture lies on the page, round from its top left as the picture is read. */
   cornerOnPage(corner: 0 | 1 | 2 | 3): { x: number; y: number };
 }
+
+/** Whether a quad is solid at a point across and down it, each from 0 to 1. */
+type SolidAt = (u: number, v: number) => boolean;
 
 /**
  * Says what a point of the page lands on among the things on the table, by running the line of
@@ -291,11 +294,11 @@ export class TablePickService {
       const layout = this.camera.layout;
       if (!view || !layout) return [];
       const eye = eyeAxesOf(tableEyeMatrix(view, layout));
-      const byOwner = new Map<string, { kind: string; shapes: PickShape[]; masks: (AlphaMask | null)[] }>();
+      const byOwner = new Map<string, { kind: string; shapes: PickShape[]; solids: (SolidAt | null)[] }>();
       for (const sprite of sprites) {
-        const owner = byOwner.get(sprite.owner) ?? { kind: sprite.kind, shapes: [], masks: [] };
+        const owner = byOwner.get(sprite.owner) ?? { kind: sprite.kind, shapes: [], solids: [] };
         owner.shapes.push({ kind: 'quad', corners: spritePickCorners(sprite, eye) });
-        owner.masks.push(this.spritePickMask(sprite));
+        owner.solids.push(this.spriteSolidAt(sprite));
         byOwner.set(sprite.owner, owner);
       }
       for (const coin of coins) {
@@ -310,25 +313,37 @@ export class TablePickService {
         byOwner.set(coin.id, {
           kind: COIN_KIND,
           shapes: [{ kind: 'on-face', frame: coin.face, shape: disc }],
-          masks: [null],
+          solids: [null],
         });
       }
       const places = lyingPlaceOfOwners(sprites);
       const targets = [...byOwner].map(([id, owner]): PickTarget => {
-        const masks = owner.masks;
+        const solids = owner.solids;
         return {
           id,
           layer: owner.kind,
           order: (places.get(id) ?? -1) + 1,
           shapes: owner.shapes,
-          ...(masks.some((mask) => mask !== null)
-            ? { opaqueAt: (shape, u, v) => !masks[shape] || !seesThroughAt(masks[shape]!, { u, v }) }
+          ...(solids.some((solid) => solid !== null)
+            ? { opaqueAt: (shape, u, v) => solids[shape]?.(u, v) ?? true }
             : {}),
         };
       });
       this.pieceTargetsMade = { sprites, coins, camera, targets };
       return targets;
     });
+  }
+
+  /**
+   * Where a sprite is solid, across and down it from 0 to 1: inside its outline where it has one, as
+   * a range's picture is its shape alone, and where its picture is not clear where it is see-through;
+   * null where every part of it is solid.
+   */
+  private spriteSolidAt(sprite: TableWorldSprite): SolidAt | null {
+    const outline = sprite.pickOutline;
+    if (outline) return (u, v) => insideOutline(outline, u * sprite.widthPx, v * sprite.heightPx);
+    const mask = this.spritePickMask(sprite);
+    return mask ? (u, v) => !seesThroughAt(mask, { u, v }) : null;
   }
 
   /** The mask a sprite is picked through where it is see-through, or null where every part of it is solid. */

@@ -24,22 +24,34 @@ type ClipArea = ClipAreaLine | ClipAreaSquare | ClipAreaTriangle | ClipAreaPenta
 
 /** Turns the numbered clip fields into a css polygon, stopping at the first gap. Three points to nine. */
 export function clipAreaToPolygonCss(clip: ClipArea): string {
+  return `polygon(${clipAreaPoints(clip)
+    .map(({ x, y }) => `${x}px ${y}px`)
+    .join(', ')})`;
+}
+
+/** The corners of a clip area, in order, in pixels from the origin of the range. */
+export function clipAreaPoints(clip: ClipArea): { x: number; y: number }[] {
   // The clip interfaces carry no index signature, so they are read through a record.
   const c = clip as unknown as Record<string, number>;
-  const points: string[] = [];
+  const points: { x: number; y: number }[] = [];
   for (let i = 1; ; i++) {
     const key = `clip${i.toString().padStart(2, '0')}`;
     const x = c[`${key}x`];
     const y = c[`${key}y`];
     if (typeof x !== 'number' || typeof y !== 'number') break;
-    points.push(`${x}px ${y}px`);
+    points.push({ x, y });
   }
-  return `polygon(${points.join(', ')})`;
+  return points;
+}
+
+/** How far a circle range is cut out to from its origin: its length plus half a cell of margin, in pixels. */
+export function clipCircleRadiusPx(lengthCells: number, gridSize: number): number {
+  return (lengthCells + 1.5) * gridSize;
 }
 
 /** A circle of the given length plus half a cell of margin. */
 export function clipCircleCss(lengthCells: number, gridSize: number): string {
-  return `circle(${(lengthCells + 1.5) * gridSize}px)`;
+  return `circle(${clipCircleRadiusPx(lengthCells, gridSize)}px)`;
 }
 
 export interface GridOffsets {

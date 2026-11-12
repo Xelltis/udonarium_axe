@@ -45,8 +45,11 @@ import {
   initialRangeClip,
   paintRange,
   RangeClip,
+  rangeClipOutline,
   rangeClipPathCss,
   rangeQuadrantCells,
+  regionWithinOutline,
+  usableOutline,
 } from '@axe/infrastructure/tabletop/range/range-paint';
 import { AltitudeGuideComponent, altitudeGuideOf } from '@axe/ui/components/altitude-guide/altitude-guide.component';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
@@ -104,11 +107,24 @@ export class RangeComponent {
 
   private readonly pieces = inject(TablePiecesService);
 
+  /** What the cells are cut to now: as they were last painted, or by the range's type before the first paint. */
+  private clip(): RangeClip {
+    return this.painted() ?? initialRangeClip(this.range().type);
+  }
+
   readonly clipPath = computed<string>(() => {
     this._clipVersion();
-    const range = this.range();
-    return rangeClipPathCss(this.painted() ?? initialRangeClip(range.type), range, this.squarePx);
+    return rangeClipPathCss(this.clip(), this.range(), this.squarePx);
   });
+
+  /**
+   * The outline the cells are cut to, as {@link clipPath} cuts them, in the pixels of the box they are
+   * cut in; null where it cannot be told, as for a length that is no number, which pictures and picks
+   * the whole of the canvases as before.
+   */
+  private clipOutline(): { x: number; y: number }[] | null {
+    return usableOutline(rangeClipOutline(this.clip(), this.range(), this.squarePx));
+  }
 
   /** What the canvases were last painted to be cut to, or nothing before the first paint. */
   private readonly painted = signal<RangeClip | null>(null);
@@ -266,8 +282,11 @@ export class RangeComponent {
       region: (cells) => {
         const canvases = [this.gridCanvas(), this.rangeCanvas()].map((canvas) => canvas?.nativeElement);
         if (!canvases[0] || !canvases[1]) return null;
-        return regionCovering(canvases.map((canvas) => boxWithin(canvas!, cells)));
+        const covering = regionCovering(canvases.map((canvas) => boxWithin(canvas!, cells)));
+        const outline = this.clipOutline();
+        return (outline && regionWithinOutline(covering, outline)) ?? covering;
       },
+      outline: () => this.clipOutline(),
     });
     setupMovableRotableForPiece(this, {
       target: this.range,

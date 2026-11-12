@@ -1,5 +1,6 @@
 import type { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { TablePoint } from '@axe/domain/tabletop/camera/table-camera';
+import type { PickPoint2 } from '@axe/domain/tabletop/pick/pick-geometry';
 import { SurfaceFrame, Vec3 } from '@axe/domain/tabletop/surface-space';
 
 /** A band of colour round the inside of a sprite's edge, drawn over the bands before it. */
@@ -67,6 +68,12 @@ export interface TableWorldSprite {
    * to the box; the whole picture is drawn. The whole sprite where not given.
    */
   readonly box?: { readonly left: number; readonly top: number; readonly width: number; readonly height: number };
+  /**
+   * Where its picture is the piece, as an outline off the picture's top left corner, in pixels: a
+   * press elsewhere on it passes through, as one on a range's picture outside the range's shape. The
+   * whole sprite where not given.
+   */
+  readonly pickOutline?: readonly PickPoint2[];
 }
 
 /** Which way the eye's right and the eye's up run in the board's space. */
@@ -197,6 +204,8 @@ export interface PagePicture {
   readonly heightPx: number;
   readonly offsetX?: number;
   readonly offsetY?: number;
+  /** Where the picture is the piece, off its top left corner, in pixels; the whole picture where not given. */
+  readonly outline?: readonly PickPoint2[];
 }
 
 /**
@@ -229,5 +238,6 @@ export function lyingPicture(
     brightness: 1,
     twoSided: false,
     order: out,
+    ...(picture.outline ? { pickOutline: picture.outline } : {}),
   };
 }
