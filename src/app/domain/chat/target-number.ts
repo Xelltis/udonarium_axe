@@ -324,14 +324,22 @@ function answeredOne(tab: ChatTab, answer: ChatMessage): boolean {
  * it, and not by the speaker: a line of a room that never wrote down who said it is nobody's.
  */
 function presentedByGameMaster(message: ChatMessage, speaker: TargetNumberSpeaker): boolean {
-  if (message.senderRole !== PeerRole.GameMaster) return false;
-  // A line said as nobody, as a named thing says one, is not the speaker's own for being said as nobody too.
-  return speaker.identifier.length < 1 || `${message.sendFrom ?? ''}` !== speaker.identifier;
+  return message.senderRole === PeerRole.GameMaster && !saidBy(message, speaker);
 }
 
 /** Whether the speaker said the line an answer answers. */
 function rolledBy(tab: ChatTab, answer: ChatMessage, speaker: TargetNumberSpeaker): boolean {
   const source = tab.findRollSource(answer);
-  if (source) return source.sendFrom === speaker.identifier;
+  if (source) return saidBy(source, speaker);
   return answer.name === `<BCDice：${speaker.name}>`;
+}
+
+/**
+ * Whether the speaker said a line: as the piece it is, or, for a named thing, which is no piece and
+ * says its lines as nobody, by its name, so that one named thing's lines are not taken for another's.
+ */
+function saidBy(line: ChatMessage, speaker: TargetNumberSpeaker): boolean {
+  const sendFrom = `${line.sendFrom ?? ''}`;
+  if (speaker.identifier.length > 0) return sendFrom === speaker.identifier;
+  return sendFrom.length < 1 && `${line.name ?? ''}` === speaker.name;
 }

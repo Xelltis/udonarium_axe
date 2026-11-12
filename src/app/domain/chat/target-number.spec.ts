@@ -304,6 +304,7 @@ describe('target-number', () => {
         total: 13,
         from: 'presented',
       });
+      expect(findTargetNumberSource(tab, { identifier: '', name: '宝箱' })).toBeNull();
     });
 
     it('takes the number a game master wrote out, or the newest roll at nobody, whichever came last', () => {
