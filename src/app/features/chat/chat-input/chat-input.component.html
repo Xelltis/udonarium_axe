@@ -358,10 +358,9 @@
                 [ngStyle]="lineLook()"
                 [class.pb-5]="findings().length > 0 && !dense()"
                 [class.pr-16]="dense() && hasText()"
-                [style.height.px]="dense() ? heldHeight() : null"
                 [class.min-h-15!]="onPhone() && !dense()"
                 class="panel-no-drag bg-ui-input text-ui-text box-border flex max-h-60 min-h-10 w-full min-w-0 grow resize-y flex-col overflow-y-auto"
-                (focusin)="openUp()"
+                (pointerdown)="onRichBoxPointerDown($event)"
                 #richBox
               >
                 <div #editorHost class="flex min-w-0 flex-1 flex-col"></div>
@@ -382,7 +381,7 @@
                 [ngModelOptions]="{ standalone: true }"
                 (input)="onInput()"
                 (pointerdown)="onTextAreaPointerDown($event)"
-                (focus)="requestEditor(true); openUp()"
+                (focus)="requestEditor(true)"
                 (keydown.enter)="sendChat($event)"
                 (keydown.control.arrowup)="moveHistory($event, -1)"
                 (keydown.control.arrowdown)="moveHistory($event, 1)"

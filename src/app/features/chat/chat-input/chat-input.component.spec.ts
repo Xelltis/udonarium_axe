@@ -452,6 +452,20 @@ describe('ChatInputComponent', () => {
       expect(textBox().getAttribute('rows')).toBe('1');
     });
 
+    it('holds a line picked into it until the box is pressed or written in, not as it is merely focused', () => {
+      fixture.componentRef.setInput('dense', true);
+      fixture.detectChanges();
+      fixture.componentRef.setInput('text', '2d6+2 回避');
+      fixture.detectChanges();
+      const held = () => (component as unknown as { putIn: () => boolean }).putIn();
+
+      expect(held()).toBe(true);
+      textBox().dispatchEvent(new FocusEvent('focus'));
+      expect(held()).toBe(true);
+      textBox().dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      expect(held()).toBe(false);
+    });
+
     it('says what the panel asks for in the empty box, in place of its keys', () => {
       fixture.componentRef.setInput('placeholder', '行をクリックで入力');
       fixture.detectChanges();

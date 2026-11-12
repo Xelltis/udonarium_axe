@@ -121,6 +121,33 @@ test.describe('the chat palette', () => {
     await expect.poll(async () => Math.abs((await last.boundingBox())!.y - before)).toBeLessThan(1);
   });
 
+  test('keeps the height the box was given by its corner as a line is picked into it and sent', async ({ page }) => {
+    const palette = page.locator('chat-palette');
+    await palette.getByRole('button', { name: '編集', exact: true }).click();
+    const editor = palette.locator('[data-chat-palette-editor] .ProseMirror');
+    await expect(editor).toBeVisible({ timeout: 10000 });
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    await editor.fill('2d6+2 回避\n2d6+1 命中');
+    await palette.getByRole('button', { name: '確定' }).click();
+
+    const box = palette.locator('[data-chat-input-box]');
+    const rect = (await box.boundingBox())!;
+    await page.mouse.move(rect.x + rect.width - 4, rect.y + rect.height - 4);
+    await page.mouse.down();
+    await page.mouse.move(rect.x + rect.width - 4, rect.y + rect.height + 76, { steps: 8 });
+    await page.mouse.up();
+    const sized = (await box.boundingBox())!.height;
+    expect(sized).toBeGreaterThan(rect.height + 40);
+
+    await palette.getByTestId('chat-palette-list').getByText('2d6+2 回避').dblclick({ delay: 60 });
+    await expect(page.locator('chat-tab chat-message').filter({ hasText: '(2D6+2)' })).toHaveCount(1, {
+      timeout: 15000,
+    });
+    expect(Math.abs((await box.boundingBox())!.height - sized)).toBeLessThan(2);
+  });
+
   test('sends a line holding {目標値} on a double click, the list holding still as the bar fills', async ({ page }) => {
     const palette = page.locator('chat-palette');
     await palette.getByRole('button', { name: '編集', exact: true }).click();

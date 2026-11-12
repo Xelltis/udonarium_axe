@@ -751,6 +751,8 @@ export class ChatInputComponent {
   /** The height a palette's box is held at while it holds a line put into it; null to fit its line. */
   protected readonly heldHeight = signal<number | null>(null);
   private readonly richBox = viewChild<ElementRef<HTMLElement>>('richBox');
+  /** Whether the reader has sized the box by its corner, whose height is then theirs and left alone. */
+  private richBoxSizedByHand = false;
   /** The line last told through `textChange`, which coming back in is not one put in from outside. */
   private told: string | null = null;
   /** The line being written; setting it reports through `textChange`. */
@@ -853,6 +855,14 @@ export class ChatInputComponent {
       if (this.canSpeak() && this.chatPreferences.richInput()) untracked(() => this.requestEditor());
     });
     effect(() => this.followEditorHost());
+    // Written on the box itself rather than bound, so that letting go of it leaves a height the
+    // reader gave the box by its corner as it is.
+    effect(() => {
+      const held = this.dense() ? this.heldHeight() : null;
+      const box = this.richBox()?.nativeElement;
+      if (!box || this.richBoxSizedByHand) return;
+      box.style.height = held === null ? '' : `${held}px`;
+    });
     effect(() => {
       const incoming = this.textInput();
       untracked(() => {
@@ -1366,11 +1376,29 @@ export class ChatInputComponent {
     }
   }
 
-  /** Lets a palette's box fit what it holds again, as something is typed in it or it is touched to be. */
+  /**
+   * Lets a palette's box fit what it holds again, as something is typed in it or it is pressed: not as
+   * it is focused, which picking the number to beat does too, without the reader touching it.
+   */
   protected openUp(): void {
     if (!this.putIn() && this.heldHeight() === null) return;
     this.putIn.set(false);
     this.heldHeight.set(null);
+    this.kickCalcFitHeight();
+  }
+
+  /**
+   * Notes a press on the rich box: on its resize corner, its bottom-right 16 pixels, after which its
+   * height is the reader's; anywhere else, as the box being taken up to be written in.
+   */
+  protected onRichBoxPointerDown(event: PointerEvent): void {
+    const box = this.richBox()?.nativeElement;
+    const rect = box?.getBoundingClientRect();
+    if (rect && event.clientX > rect.right - 16 && event.clientY > rect.bottom - 16) {
+      this.richBoxSizedByHand = true;
+      return;
+    }
+    this.openUp();
   }
 
   /**
@@ -1387,6 +1415,7 @@ export class ChatInputComponent {
    */
   onTextAreaPointerDown(event: PointerEvent) {
     this.plainField()?.notePointerDown(event);
+    this.openUp();
   }
 
   /** The dice bot help text last fetched for the help panel. */
