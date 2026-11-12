@@ -185,8 +185,13 @@ export class TextareaChatField implements ChatTextField {
     }
   }
 
-  /** Notes a press on the box's resize corner, its bottom-right 16 pixels, after which its height is the reader's. */
+  /**
+   * Notes a press by a mouse or a pen on the box's resize corner, its bottom-right 16 pixels, after
+   * which its height is the reader's. A touch there sizes nothing, a touch screen having no corner to
+   * drag, and only puts the caret at the end of what is written.
+   */
   notePointerDown(event: PointerEvent): void {
+    if (event.pointerType === 'touch') return;
     const rect = this.element.getBoundingClientRect();
     if (event.offsetX > rect.width - 16 && event.offsetY > rect.height - 16) this.sizedByHand = true;
   }
