@@ -443,6 +443,20 @@ describe('RemoteControllerComponent', () => {
       expect(char1.targeted).toBe(false);
       expect(char2.targeted).toBe(false);
     });
+
+    it('leaves a piece kept from the reader to its own row, and still takes it off with the rest', () => {
+      const shown = createChar('a');
+      const keptBack = createChar('b');
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockImplementation((character) => character !== keptBack);
+      vi.spyOn(component, 'getGameObjects').mockReturnValue([shown, keptBack]);
+
+      component.allBoxCheck({ check: true });
+      expect([shown.targeted, keptBack.targeted]).toEqual([true, false]);
+
+      keptBack.targeted = true;
+      component.allBoxCheck({ check: false });
+      expect([shown.targeted, keptBack.targeted]).toEqual([false, false]);
+    });
   });
   describe('the battle stage', () => {
     let battle: { play: ReturnType<typeof vi.fn>; playLineupAs: ReturnType<typeof vi.fn> };

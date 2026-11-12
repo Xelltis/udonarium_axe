@@ -860,7 +860,8 @@ export class RemoteControllerComponent {
   }
 
   /**
-   * Ticks or unticks every character in the selected tab as a target, from the select-all box.
+   * Ticks or unticks every character in the selected tab as a target, from the select-all box: every
+   * one whose contents the reader may view, as a piece kept from them is ticked only by its own row.
    *
    * The tick stays in this browser: `targeted` is not synced, and the change is announced only to
    * this client's views.
@@ -868,7 +869,7 @@ export class RemoteControllerComponent {
   allBoxCheck(value: { check: boolean }) {
     const objectList = this.getGameObjects(this.selectTab());
     for (const object of objectList) {
-      if (object instanceof GameCharacter) {
+      if (object instanceof GameCharacter && (this.canView(object) || !value.check)) {
         object.targeted = value.check;
         this.uiSignalService.notifyTargetChange(object.identifier, object.aliasName);
       }
