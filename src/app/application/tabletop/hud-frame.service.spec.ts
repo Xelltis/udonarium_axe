@@ -298,6 +298,21 @@ describe('HudFrameService', () => {
     expect(Number(near.style.zIndex)).toBeGreaterThan(Number(far.style.zIndex));
   });
 
+  it('draws a raised root over the root of every piece, its own piece’s among them', () => {
+    sprites.update((drawn) => [...drawn, lying('near#frame', 300, 300, 40, 50)]);
+    const near = element();
+    const own = element();
+    const raised = element();
+    frame.place(near, { owner: 'near' });
+    frame.place(own, { owner: 'die' });
+    frame.place(raised, { owner: 'die', raised: true });
+    frame.writeNow();
+
+    expect(Number(own.style.zIndex)).toBeLessThan(Number(near.style.zIndex));
+    expect(Number(raised.style.zIndex)).toBeGreaterThan(Number(near.style.zIndex));
+    expect(raised.style.transform).toBe(own.style.transform);
+  });
+
   it('hides what goes with a piece or a part not drawn, and shows it again once drawn', () => {
     const part = element();
     frame.place(part, { owner: 'die', part: 'pedestal' });

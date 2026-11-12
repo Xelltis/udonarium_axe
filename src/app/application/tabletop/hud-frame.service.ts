@@ -55,6 +55,12 @@ export interface HudAnchor {
    */
   readonly edge?: 'top' | 'right' | 'bottom' | 'left';
   /**
+   * For a root of a piece holding its controls rather than the piece, as the handle that turns a
+   * range: drawn over the roots of every piece, those raised so among themselves as their pieces, so
+   * that no piece drawn over its own covers a control of it.
+   */
+  readonly raised?: boolean;
+  /**
    * A rectangle lying on a face, its corners round from its top left in the face's own pixels and
    * lifted some way off it, to lay the element on in perspective at the size given in those pixels,
    * rather than a part: as the frame round the foot of a thing that turns it, which none of the
@@ -99,6 +105,7 @@ const FOLLOWING_LARGEST_SCALE = 1.25;
  *
  * The element put against a whole piece is its root, put on the page; it is drawn over the root of
  * a piece drawn further off. Every other element of a piece lies in that root and is put against it.
+ * A piece may have a second root raised over every piece's, for controls no other piece is to cover.
  * An element whose piece or part is not drawn is hidden, as is all of the piece the table's camera
  * follows from behind.
  */
@@ -225,7 +232,14 @@ export class HudFrameService {
             ? point && end && laidBetween(point, end, piece)
             : at
               ? point && centredOn(point, piece, scale)
-              : styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element), origin, largest);
+              : styleOf(
+                  placed.anchor,
+                  piece,
+                  (ranks.get(placed.anchor.owner) ?? 0) + (placed.anchor.raised ? ranks.size : 0),
+                  sizes.get(element),
+                  origin,
+                  largest
+                );
       const written = style ? JSON.stringify(style) : '';
       if (written === placed.written) continue;
       placed.written = written;

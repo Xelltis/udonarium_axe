@@ -77,6 +77,7 @@ import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop
     SelectableDirective,
   ],
   host: {
+    class: 'group',
     '[attr.data-object-id]': 'range().identifier',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',

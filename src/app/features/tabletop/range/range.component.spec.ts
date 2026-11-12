@@ -3,6 +3,7 @@ import { By } from '@angular/platform-browser';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
+import type { HudAnchor } from '@axe/application/tabletop/hud-frame.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -17,6 +18,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 
 describe('RangeComponent', () => {
   let component: RangeComponent;
@@ -235,6 +237,29 @@ describe('RangeComponent', () => {
 
       expect(component.usesSingleRotateGrab()).toBe(true);
       expect(fixture.nativeElement.querySelector('.rotate-grab')).toBeTruthy();
+    });
+
+    it('puts the turn handle in a root raised over every piece, and the shape in a root among them', () => {
+      const range = RangeArea.create('テスト', 3, 3, 1);
+      range.type = 'SQUARE';
+      fixture.componentRef.setInput('range', range);
+      fixture.detectChanges();
+      const placed = fixture.debugElement.queryAll(By.directive(HudPlaceDirective)).map((found) => ({
+        element: found.nativeElement as HTMLElement,
+        anchor: found.injector.get(HudPlaceDirective).anchor() as HudAnchor,
+      }));
+      const rootOf = (element: Element) =>
+        placed.find(
+          (one) => one.element !== element && one.element.contains(element) && !one.anchor.part && !one.anchor.at
+        );
+
+      const handle = fixture.nativeElement.querySelector('.rotate-grab') as HTMLElement;
+      const picture = fixture.nativeElement.querySelector('[data-part="picture"]') as HTMLElement;
+      expect(rootOf(handle)?.anchor).toEqual({ owner: range.identifier, raised: true });
+      expect(rootOf(picture)?.anchor).toEqual({ owner: range.identifier });
+      expect(rootOf(picture)?.element.matches('[data-hud-box]')).toBe(true);
+      expect((fixture.nativeElement as HTMLElement).classList).toContain('group');
+      range.destroy();
     });
 
     it('shows none on a circle', () => {
