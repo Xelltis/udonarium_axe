@@ -112,4 +112,4 @@
 - **[GitHub Releases](https://github.com/Xelltis/udonarium_axe/releases)** — 配布物（`axe_x.y.z.zip`）とリリースごとの概要
 - **[CHANGELOG.md](https://github.com/Xelltis/udonarium_axe/blob/main/CHANGELOG.md)** — Conventional Commitsから生成された全変更履歴
 
-> リリースは`package.json`の`version`を基準に管理されています。
+版の番号は`package.json`の`version`です。
