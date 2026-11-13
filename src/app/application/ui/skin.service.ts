@@ -110,7 +110,7 @@ export class SkinService {
   /** Where each layer's bytes are reachable, once they have been fetched out of the store. */
   private readonly urls = signal<Readonly<Record<string, string>>>({});
 
-  private readonly images = SkinImageStore.instance;
+  private readonly images = inject(SkinImageStore);
 
   /** Which ladder is on screen, settled the same way the light/dark switch settles it. */
   readonly mode = computed<SkinMode>(() => this.theme.resolved());

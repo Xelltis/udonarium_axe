@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { SkinImageStore } from '@axe/core/storage/skin-image-store';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
 import { SkinPanelComponent } from '@axe/features/skin/skin-panel/skin-panel.component';
@@ -40,7 +41,12 @@ describe('SkinPanelComponent', () => {
 
     TestBed.configureTestingModule({
       imports: [SkinPanelComponent],
-      providers: [ThemeService, SkinService, { provide: FileArchiver, useFactory: () => FileArchiver.instance }],
+      providers: [
+        ThemeService,
+        SkinService,
+        { provide: FileArchiver, useFactory: () => FileArchiver.instance },
+        { provide: SkinImageStore, useFactory: () => SkinImageStore.instance },
+      ],
     });
     skins = TestBed.inject(SkinService);
     fixture = TestBed.createComponent(SkinPanelComponent);

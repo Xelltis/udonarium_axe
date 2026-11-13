@@ -58,7 +58,12 @@ describe('SkinPickerComponent', () => {
 
     TestBed.configureTestingModule({
       imports: [SkinPickerComponent],
-      providers: [ThemeService, SkinService, { provide: FileArchiver, useFactory: () => FileArchiver.instance }],
+      providers: [
+        ThemeService,
+        SkinService,
+        { provide: FileArchiver, useFactory: () => FileArchiver.instance },
+        { provide: SkinImageStore, useFactory: () => SkinImageStore.instance },
+      ],
     });
     skins = TestBed.inject(SkinService);
     fixture = TestBed.createComponent(SkinPickerComponent);

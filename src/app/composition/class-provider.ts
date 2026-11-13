@@ -12,6 +12,8 @@ import { ModelSharingSystem } from '@axe/core/storage/model-sharing-system';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ReplayLogStore } from '@axe/core/storage/replay-log-store';
 import { RoomSnapshotStore } from '@axe/core/storage/room-snapshot-store';
+import { SkinImageStore } from '@axe/core/storage/skin-image-store';
+import { StartRoomStore } from '@axe/core/storage/start-room-store';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -34,4 +36,6 @@ export const CLASS_SINGLETON_PROVIDERS: Provider[] = [
   { provide: ModelSharingSystem, useFactory: () => ModelSharingSystem.instance },
   { provide: RoomSnapshotStore, useFactory: () => IndexedDbRoomSnapshotStore.instance },
   { provide: ReplayLogStore, useFactory: () => IndexedDbReplayLogStore.instance },
+  { provide: StartRoomStore, useFactory: () => StartRoomStore.instance },
+  { provide: SkinImageStore, useFactory: () => SkinImageStore.instance },
 ];

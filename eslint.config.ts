@@ -122,6 +122,8 @@ const PROCESS_SINGLETONS = [
   'ObjectSerializer',
   'ObjectStore',
   'ObjectSynchronizer',
+  'SkinImageStore',
+  'StartRoomStore',
   'VideoEncoderGateway',
 ];
 

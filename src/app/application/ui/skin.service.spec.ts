@@ -50,7 +50,12 @@ describe('SkinService', () => {
         }) as unknown as MediaQueryList
     );
     TestBed.configureTestingModule({
-      providers: [ThemeService, SkinService, { provide: FileArchiver, useFactory: () => FileArchiver.instance }],
+      providers: [
+        ThemeService,
+        SkinService,
+        { provide: FileArchiver, useFactory: () => FileArchiver.instance },
+        { provide: SkinImageStore, useFactory: () => SkinImageStore.instance },
+      ],
     });
     const theme = TestBed.inject(ThemeService);
     const skins = TestBed.inject(SkinService);

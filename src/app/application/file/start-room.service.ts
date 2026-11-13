@@ -81,7 +81,7 @@ function hasTableToItself(): boolean {
  */
 @Injectable({ providedIn: 'root' })
 export class StartRoomService {
-  private readonly store = StartRoomStore.instance;
+  private readonly store = inject(StartRoomStore);
   private readonly saveDataService = inject(SaveDataService);
   private readonly fileArchiver = inject(FileArchiver);
   private readonly objectStore = inject(ObjectStore);
