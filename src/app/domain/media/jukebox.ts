@@ -147,6 +147,11 @@ export class Jukebox extends GameObject {
     this.followInitialSync();
   }
 
+  /** Takes a playback off the room as it is let go of, so the room plays through none until another is attached. */
+  dropPlayback(playback: JukeboxPlayback): void {
+    if (this.playback === playback) this.playback = SILENT_PLAYBACK;
+  }
+
   private followInitialSync(): void {
     if (this.isPlaying) this.playback.play();
     else this.playback.applyEffects();

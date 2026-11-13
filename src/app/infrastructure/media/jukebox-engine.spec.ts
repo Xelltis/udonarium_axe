@@ -14,6 +14,7 @@ import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { DEFAULT_DJ_SETTINGS, type DjSettings } from '@axe/domain/media/dj-settings';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import { SILENT_PLAYBACK } from '@axe/domain/media/jukebox-playback';
 import { Playlist } from '@axe/domain/media/playlist';
 import { Config } from '@axe/domain/peer/config';
 import { JukeboxEngine } from '@axe/infrastructure/media/jukebox-engine';
@@ -101,6 +102,38 @@ describe('Jukebox', () => {
       jukebox.stop();
       expect(jukebox.audioIdentifier).toBe('');
       expect(jukebox.isPlaying).toBe(false);
+    });
+  });
+
+  describe('letting the engine go', () => {
+    it('stops the players kept spare and lets them go, and takes itself off the room', () => {
+      stubAudioPlayerPlay();
+      const stop = stubAudioPlayerStop();
+      const jukebox = heard(new Jukebox());
+      jukebox.initialize();
+      const engine = engineOf(jukebox);
+      const spares = (engine as unknown as { sparePlayers: AudioPlayer[] }).sparePlayers;
+      const spare = new AudioPlayer();
+      spares.push(spare);
+
+      engine.dispose();
+
+      expect(stop.mock.instances).toContain(spare);
+      expect(spares).toHaveLength(0);
+      expect((jukebox as unknown as { playback: unknown }).playback).toBe(SILENT_PLAYBACK);
+    });
+
+    it('leaves a playback attached since in place', () => {
+      stubAudioPlayerStop();
+      const jukebox = heard(new Jukebox());
+      jukebox.initialize();
+      const before = engineOf(jukebox);
+      const since = new JukeboxEngine(jukebox);
+      since.attach();
+
+      before.dispose();
+
+      expect((jukebox as unknown as { playback: unknown }).playback).toBe(since);
     });
   });
 

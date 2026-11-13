@@ -83,10 +83,13 @@ export class JukeboxEngine implements JukeboxPlayback {
     this.room.usePlayback(this);
   }
 
+  /** Stops whatever sounds, lets go of the players kept spare, and takes itself off the room. */
   dispose(): void {
     this.releaseGestures?.();
     this.releaseGestures = null;
     this.stop();
+    for (const player of this.sparePlayers.splice(0)) player.stop();
+    this.room.dropPlayback(this);
   }
 
   get currentTime(): number {
