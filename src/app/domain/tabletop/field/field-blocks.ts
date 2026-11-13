@@ -26,7 +26,7 @@ import { MapAmbience, MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } fr
  * How wide a clump of the same thing is allowed to grow before it is broken in two.
  *
  * A wood merged without limit becomes one canopy the size of the board, which reads as a
- * plateau rather than trees. Three cells is a stand of trees.
+ * plateau rather than trees. Four cells is a stand of trees.
  */
 export const FIELD_MERGE_SPAN = 4;
 

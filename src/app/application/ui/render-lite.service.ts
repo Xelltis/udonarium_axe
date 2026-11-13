@@ -34,8 +34,10 @@ export function prefersLightRendering(capability: RenderCapability): boolean {
 /**
  * Whether the table and the panels over it are drawn the lighter way.
  *
- * Lighter means no frosted glass behind panels and the ambience moved at about half its frame
- * rate. Auto decides by the browser and the machine; on and off are the reader's own choice.
+ * Lighter means no frosted glass behind panels, the ambience moved at about half its frame rate,
+ * the grid, the darkness and the weather drawn smaller, fewer dice at a lower pixel ratio, and
+ * glass dice drawn as resin. Auto decides by the browser and the machine; on and off are the
+ * reader's own choice.
  */
 @Injectable({ providedIn: 'root' })
 export class RenderLiteService {

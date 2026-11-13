@@ -161,8 +161,9 @@ const STRIKE_SPAN_MS = 460;
 /**
  * How hard the lightning flashes. Only weather that carries it flashes at all.
  *
- * It is worked out from the elapsed time alone, so every screen flashes on the same beat.
- * It flashes twice rather than once; once alone it is a camera rather than lightning.
+ * It is worked out from the elapsed time alone, with nothing kept between frames; each screen counts
+ * its own time, so the beat is its own. It flashes twice rather than once; once alone it is a camera
+ * rather than lightning.
  */
 export function skyAmbienceFlash(kind: AmbienceKind, elapsed: number, density: number): number {
   if (kind !== 'storm') return 0;

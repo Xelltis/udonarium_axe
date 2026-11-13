@@ -56,8 +56,8 @@ export class RoomScreenSettingsComponent {
   /**
    * Whether this screen carries everything a table with seats around it asks for.
    *
-   * The switch that lays the view flat as well is on the tabletop display panel; here the settings
-   * alone are asked for, since this panel does not answer for the view.
+   * Turning it on lays the view flat as well, as the switch on the tabletop display panel does;
+   * turning it off lets the settings go without touching the view.
    */
   readonly tabletopRecommended = this.access.field(
     () => {

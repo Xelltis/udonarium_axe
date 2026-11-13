@@ -3,8 +3,8 @@ import type { ReplayStoryboard } from '@axe/domain/replay/replay-storyboard';
 /**
  * Writes a recording out as something to read.
  *
- * It works from the same storyboard as the video; that one draws to a canvas and this one to text.
- * Built apart, the chapter breaks and the handling of narration would drift between them.
+ * It works from the storyboard, which cuts the recording into shots and chapters, so the chapter
+ * breaks and the handling of narration are decided in one place rather than here.
  */
 
 export enum ReplayScriptFormat {
