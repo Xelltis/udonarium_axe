@@ -141,7 +141,8 @@ export interface PreparedThrow extends PosedThrow {
   readonly owned: readonly MeshPhysicalMaterial[];
 }
 
-const TEXTURE_CACHE_SIZE = 24;
+/** How many materials for dice of a colour and finish are kept at the most, the least recently worn let go first. */
+const MATERIAL_CACHE_SIZE = 24;
 /** Every shape and way of numbering it a roll can throw, whose engravings are cut ahead. */
 const ENGRAVINGS: readonly (readonly [DieShape, DieLabels])[] = [
   ['d6', 'standard'],
@@ -623,7 +624,7 @@ export class Dice3dEngine {
   private textureOf(picture: DicePicture): Texture {
     let texture = this.pictures.get(picture.key);
     if (!texture) {
-      texture = new Texture(picture.source as TexImageSource);
+      texture = new Texture(picture.source);
       texture.colorSpace = SRGBColorSpace;
       texture.wrapS = texture.wrapT = RepeatWrapping;
       texture.flipY = false;
@@ -685,7 +686,7 @@ export class Dice3dEngine {
     if (made === 'glass') material.attenuationColor = new Color(look.body);
     if (made !== 'resin') this.dress(material, made, shape, labels, look, 0);
     this.materials.set(key, material);
-    if (this.materials.size > TEXTURE_CACHE_SIZE) {
+    if (this.materials.size > MATERIAL_CACHE_SIZE) {
       const [oldest, dropped] = this.materials.entries().next().value!;
       this.materials.delete(oldest);
       disposeMaterial(dropped);

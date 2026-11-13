@@ -335,7 +335,7 @@ export class TableDiceLayer {
   private textureOf(picture: DicePicture): Texture {
     let texture = this.pictures.get(picture.key);
     if (!texture) {
-      texture = new Texture(picture.source as TexImageSource);
+      texture = new Texture(picture.source);
       texture.colorSpace = SRGBColorSpace;
       texture.wrapS = texture.wrapT = RepeatWrapping;
       texture.flipY = false;

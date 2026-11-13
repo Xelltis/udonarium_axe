@@ -41,8 +41,11 @@ export function lookFor(body: string, inkAskedFor = ''): DiceColors {
   return { body: rgbText(rgb), ink, accent: reddish ? ink : ACCENT };
 }
 
-/** A picture as the faces are drawn with it: anything a canvas can draw, with its size. */
-export type FacePicture = CanvasImageSource & { readonly width: number; readonly height: number };
+/** A picture as the faces are drawn with it: anything a canvas can draw and a graphics card can take, with its size. */
+export type FacePicture = Exclude<CanvasImageSource, SVGImageElement> & {
+  readonly width: number;
+  readonly height: number;
+};
 
 /**
  * Draws the faces of a die: every face's cell in the body's colour, with its marks in the ink. A
