@@ -23,6 +23,13 @@ export function lookOf(face: FaceLook): string {
   return face.glass || !face.pictureUrl ? 'glass' : `${face.pictureUrl}|${face.tilePx > 0}`;
 }
 
+/** The picture the faces sharing a key wear, or null for glass and for a painted colour, which wear none. */
+export function pictureOfLook(look: string): string | null {
+  if (look === 'glass' || look.startsWith('colour|')) return null;
+  if (look.startsWith('over|')) return look.slice('over|'.length);
+  return look.slice(0, look.lastIndexOf('|'));
+}
+
 /**
  * The material a face of a block or of the table's walls is drawn with: the picture laid over another
  * face, the colour it is painted, glass, or its picture, tiled or stretched. Every face is drawn

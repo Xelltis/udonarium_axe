@@ -1,4 +1,4 @@
-import { type FaceLook, faceMaterialOf } from '@axe/infrastructure/table-3d/face-materials';
+import { type FaceLook, faceMaterialOf, lookOf, pictureOfLook } from '@axe/infrastructure/table-3d/face-materials';
 import { type Material, Texture } from 'three/webgpu';
 
 /** How far ahead a material is pulled, in steps of the slant and of the depth; the board is not pulled. */
@@ -39,5 +39,22 @@ describe('the materials the faces of the blocks are drawn with', () => {
     const over = pullOf(made({ pictureUrl: 'moss.png', tilePx: 0, glass: false, laidOver: true }));
 
     expect(ahead(over, face)).toBe(true);
+  });
+});
+
+describe('the picture the faces sharing a key wear', () => {
+  it('is read back off the key of every look that wears one, tiled, stretched or laid over', () => {
+    const faces: FaceLook[] = [
+      { pictureUrl: 'blob:crate|1', tilePx: 0, glass: false },
+      { pictureUrl: 'blob:stone', tilePx: 50, glass: false },
+      { pictureUrl: 'blob:grid', tilePx: 0, glass: false, laidOver: true },
+    ];
+
+    expect(faces.map((face) => pictureOfLook(lookOf(face)))).toEqual(['blob:crate|1', 'blob:stone', 'blob:grid']);
+  });
+
+  it('is none for glass and for a painted colour', () => {
+    expect(pictureOfLook(lookOf({ pictureUrl: '', tilePx: 0, glass: true }))).toBeNull();
+    expect(pictureOfLook(lookOf({ pictureUrl: '', tilePx: 0, glass: false, colour: '#884422' }))).toBeNull();
   });
 });

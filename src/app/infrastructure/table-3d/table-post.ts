@@ -87,6 +87,30 @@ export class TablePost {
       await (pass ? pass.compileAsync(renderer) : renderer.compileAsync(scene, camera));
       return;
     }
+    await this.throughFinishing(async () => {
+      for (const thing of things) {
+        if (isWithin(thing, scene)) await renderer.compileAsync(thing, camera, scene);
+      }
+    });
+  }
+
+  /**
+   * Readies the graphics card to draw a thing standing apart from the scene, in a scene of its own, as
+   * it would be drawn in the scene through the finishing: a die built ahead of the first that wears
+   * its material, which no frame drawn meanwhile shows.
+   */
+  async compileApart(scene: Scene, camera: Camera, plan: Table3dQualityPlan, thing: Object3D): Promise<void> {
+    this.lay(scene, camera, plan);
+    await this.throughFinishing(() => this.renderer.compileAsync(thing, camera, scene));
+  }
+
+  /**
+   * Has the card readied with the scene's pass of the finishing as what is drawn into, and the outputs
+   * it writes, as the frames are drawn, and drawing onto the canvas again after.
+   */
+  private async throughFinishing(ready: () => Promise<unknown>): Promise<void> {
+    const renderer = this.renderer;
+    const pass = this.scenePass;
     const target = renderer.getRenderTarget();
     const mrt = renderer.getMRT();
     if (pass) {
@@ -97,9 +121,7 @@ export class TablePost {
       renderer.setMRT(pass.getMRT());
     }
     try {
-      for (const thing of things) {
-        if (isWithin(thing, scene)) await renderer.compileAsync(thing, camera, scene);
-      }
+      await ready();
     } finally {
       renderer.setRenderTarget(target);
       renderer.setMRT(mrt);

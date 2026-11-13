@@ -36,7 +36,7 @@ import {
   mergedFaces,
   wallGeometry,
 } from '@axe/infrastructure/table-3d/face-geometry';
-import { type FaceLook, faceMaterialOf, lookOf } from '@axe/infrastructure/table-3d/face-materials';
+import { type FaceLook, faceMaterialOf, lookOf, pictureOfLook } from '@axe/infrastructure/table-3d/face-materials';
 import { FloorCanvasLayer } from '@axe/infrastructure/table-3d/floor-canvas-layer';
 import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
@@ -682,13 +682,18 @@ class ThreeTableEngine implements Table3dEngine {
     for (const wall of world.walls) if (wall.gridUrl) worn.add(wall.gridUrl);
     for (const sprite of world.sprites) if (sprite.look.kind === 'picture') worn.add(sprite.look.url);
     for (const layer of [...world.layers, ...world.backdrops]) worn.add(layer.pictureUrl);
+    if (world.board?.pictureUrl) worn.add(world.board.pictureUrl);
     for (const [key, picture] of this.loaded) {
       const url = key.slice(0, key.lastIndexOf('|'));
       if (worn.has(url)) continue;
       picture.dispose();
       this.loaded.delete(key);
-      this.looks.get(key)?.dispose();
-      this.looks.delete(key);
+    }
+    for (const [look, material] of this.looks) {
+      const url = pictureOfLook(look);
+      if (url === null || worn.has(url)) continue;
+      material.dispose();
+      this.looks.delete(look);
     }
   }
 
@@ -835,7 +840,9 @@ class ThreeTableEngine implements Table3dEngine {
 
   warmDice(materials: readonly DiceMaterial[]): void {
     for (const material of materials) {
-      void this.dice.warm(material, (staging) => this.renderer.compileAsync(staging, this.camera, this.scene));
+      void this.dice.warm(material, (staging) =>
+        this.post.compileApart(this.scene, this.camera, this.finishing(), staging)
+      );
     }
   }
 
@@ -1010,7 +1017,7 @@ class ThreeTableEngine implements Table3dEngine {
     if (!board) return;
     const material = new MeshLambertNodeMaterial({ transparent: true, side: DoubleSide });
     material.colorNode = boardColour(
-      board.pictureUrl ? this.picture(board.pictureUrl) : null,
+      board.pictureUrl ? this.sharedPicture(board.pictureUrl, false) : null,
       board.veiled,
       board.ground?.paint ? { pictures: this.paintedGround(), tilePx: board.gridSize * GROUND_PAINT_TILE_CELLS } : null
     );
