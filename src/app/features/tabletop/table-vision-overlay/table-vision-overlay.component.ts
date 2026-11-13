@@ -288,18 +288,14 @@ export class TableVisionOverlayComponent {
   private paint(ctx: CanvasRenderingContext2D, plan: OverlayPlan): void {
     perfCounters.bump('overlayDraw');
     perfTimed('overlay', () =>
-      drawOverlayPlan(
-        ctx,
-        plan,
-        this.surfaceWidth,
-        this.surfaceHeight,
-        this.flickerClock.now(),
-        this.images,
-        this.margin,
-        this.surfaceOf(),
-        this.scale,
-        this.scratch
-      )
+      drawOverlayPlan(ctx, plan, this.surfaceWidth, this.surfaceHeight, {
+        timeMs: this.flickerClock.now(),
+        images: this.images,
+        margin: this.margin,
+        surface: this.surfaceOf(),
+        scale: this.scale,
+        scratch: this.scratch,
+      })
     );
   }
 
