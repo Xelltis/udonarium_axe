@@ -8,6 +8,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { BoundedMap } from '@axe/core/util/bounded-map';
 import { sameList } from '@axe/core/util/same-list';
 import { sameSet } from '@axe/core/util/same-set';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
@@ -191,7 +192,7 @@ export class ChatLintService {
     },
     { equal: sameList }
   );
-  private readonly rollChecks = new Map<string, RollCheck>();
+  private readonly rollChecks = new BoundedMap<string, RollCheck>(ROLL_CHECKS_KEPT);
 
   /** Starts checking a text, for as long as its signals are read. */
   watch(source: ChatLintSource): ChatLintWatch {
@@ -439,7 +440,6 @@ export class ChatLintService {
     }
     const check = checkRollLine(system, unreachable, text);
     this.rollChecks.set(key, check);
-    if (this.rollChecks.size > ROLL_CHECKS_KEPT) this.rollChecks.delete(this.rollChecks.keys().next().value!);
     return check;
   }
 

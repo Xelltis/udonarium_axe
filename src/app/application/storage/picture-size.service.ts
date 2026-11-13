@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { BoundedMap } from '@axe/core/util/bounded-map';
 import { AlphaMask } from '@axe/domain/ui/see-through';
 import { readAlphaMask } from '@axe/infrastructure/image/alpha-mask-reader';
 
@@ -22,8 +23,8 @@ export interface PictureSize {
  */
 @Injectable({ providedIn: 'root' })
 export class PictureSizeService {
-  private readonly sizes = new Map<string, PictureSize | null>();
   private readonly masks = new Map<string, AlphaMask | null>();
+  private readonly sizes = new BoundedMap<string, PictureSize | null>(KEPT, (url) => this.masks.delete(url));
   private readonly changes = signal(0);
 
   /** Goes up each time a picture's size comes to be known. */
@@ -35,11 +36,6 @@ export class PictureSizeService {
     if (!url) return null;
     if (this.sizes.has(url)) return this.sizes.get(url) ?? null;
     this.sizes.set(url, null);
-    if (this.sizes.size > KEPT) {
-      const oldest = this.sizes.keys().next().value!;
-      this.sizes.delete(oldest);
-      this.masks.delete(oldest);
-    }
     this.load(url);
     return null;
   }
