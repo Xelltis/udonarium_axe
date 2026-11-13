@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
 import { debounce } from '@axe/core/util/debounce';
 
 const HOURS = 60 * 60 * 1000;
@@ -27,7 +27,7 @@ export class ChatClockService {
    * while a check is already scheduled does nothing.
    */
   calibrate() {
-    const serverOffset = Network.serverClockOffset;
+    const serverOffset = Network.instance.serverClockOffset;
     if (serverOffset !== null) {
       this.timeOffset = Date.now() + serverOffset;
       this.performanceOffset = performance.now();

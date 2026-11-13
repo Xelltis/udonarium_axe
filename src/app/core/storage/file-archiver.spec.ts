@@ -7,7 +7,7 @@ import {
   type ImageDroppedEvent,
   xmlLoaded$,
 } from '@axe/core/event/domain-events';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -83,7 +83,7 @@ describe('FileArchiver', () => {
       answerWithheldCheck: () => true,
       answerCheck: () => true,
     } as unknown as ReturnType<typeof ObjectStore.instance.get>);
-    Object.defineProperty(Network, 'peerContext', {
+    Object.defineProperty(Network.instance, 'peerContext', {
       get: () => ({ roomName: '' }),
       configurable: true,
     });

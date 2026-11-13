@@ -1,4 +1,4 @@
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { allowsChat, editsTextInPlace, lineStartOf } from '@axe/features/chat/chat-input/chat-input-helpers';
 
@@ -12,7 +12,7 @@ function makeCharacter(locationName: string, nonTalkFlag = false): MutableCharac
 }
 
 function setPeerContexts(contexts: Array<{ peerId: string; isOpen: boolean }>): void {
-  vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue(contexts as never);
+  vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue(contexts as never);
 }
 
 describe('allowsChat()', () => {
@@ -64,7 +64,7 @@ describe('allowsChat()', () => {
 
   it('sees the swapped peer contexts through the real network reference', () => {
     setPeerContexts([{ peerId: 'p1', isOpen: true }]);
-    expect(Network.peerContexts).toEqual([{ peerId: 'p1', isOpen: true }]);
+    expect(Network.instance.peerContexts).toEqual([{ peerId: 'p1', isOpen: true }]);
   });
 });
 

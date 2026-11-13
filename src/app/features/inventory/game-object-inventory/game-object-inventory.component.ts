@@ -36,7 +36,7 @@ import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.serv
 import { SelectionSignalService, TabletopObjectSelection } from '@axe/application/ui/selection-signal.service';
 import { copyPartsAlong } from '@axe/application/ui/tabletop-context-menu-actions';
 import { ViewportService } from '@axe/application/ui/viewport.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { turnCache } from '@axe/core/util/turn-cache';
@@ -294,12 +294,12 @@ export class GameObjectInventoryComponent {
 
   /** Where the pieces of a tab stand: this connection's peer id for the personal tab, the tab's own name otherwise. */
   private locationOfTab(tab: string): string {
-    return tab === PERSONAL_INVENTORY_TAB ? Network.peerId : tab;
+    return tab === PERSONAL_INVENTORY_TAB ? Network.instance.peerId : tab;
   }
 
   /** The tab a piece standing at a location is listed on: the personal tab for this connection's peer id. */
   private tabOfLocation(location: string): string {
-    return location === Network.peerId ? PERSONAL_INVENTORY_TAB : location;
+    return location === Network.instance.peerId ? PERSONAL_INVENTORY_TAB : location;
   }
 
   readonly selectTab = signal('table');
@@ -659,7 +659,7 @@ export class GameObjectInventoryComponent {
     const all = [
       { name: 'table', labelKey: 'feature.inventory.tabs.table' },
       { name: 'common', labelKey: 'feature.inventory.tabs.common' },
-      { name: Network.peerId, labelKey: 'feature.inventory.tabs.personal' },
+      { name: Network.instance.peerId, labelKey: 'feature.inventory.tabs.personal' },
       { name: 'graveyard', labelKey: 'feature.inventory.tabs.graveyard' },
     ];
     return all.filter((loc) => loc.name !== this.locationOfTab(this.selectTab()));

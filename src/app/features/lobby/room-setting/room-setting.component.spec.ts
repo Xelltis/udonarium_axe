@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { clearIdentity, loadIdentity } from '@axe/core/storage/identity-storage';
@@ -47,7 +47,7 @@ describe('RoomSettingComponent', () => {
   });
 
   it('makes no room among peers while joined with even one other, the peers listed being the others', () => {
-    const peers = vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['other']);
+    const peers = vi.spyOn(Network.instance, 'peerIds', 'get').mockReturnValue(['other']);
     fixture = TestBed.createComponent(RoomSettingComponent);
 
     expect(fixture.componentInstance.isConnected()).toBe(true);
@@ -68,9 +68,9 @@ describe('RoomSettingComponent', () => {
   it('makes whoever creates a room its game master, a guest as well as a player', () => {
     PeerCursor.createMyCursor();
     PeerCursor.myCursor.role = PeerRole.Guest;
-    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: false } as PeerContext);
-    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(true);
-    vi.spyOn(Network, 'open').mockImplementation(() => {});
+    vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: false } as PeerContext);
+    vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(true);
+    vi.spyOn(Network.instance, 'open').mockImplementation(() => {});
     component.roomName.set('月夜の卓');
 
     component.createRoom();
@@ -84,9 +84,9 @@ describe('RoomSettingComponent', () => {
 
   it('makes a room with a table holding withheld parts only once the reader says to', async () => {
     PeerCursor.createMyCursor();
-    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: false } as PeerContext);
-    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(true);
-    const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
+    vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: false } as PeerContext);
+    vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(true);
+    const open = vi.spyOn(Network.instance, 'open').mockImplementation(() => {});
     const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
     markLoadedWithheld(true, false);
     try {
@@ -107,8 +107,8 @@ describe('RoomSettingComponent', () => {
   });
 
   it('makes no SkyWay room before the connection it is opened through is, and says so', () => {
-    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
-    const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
+    vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(false);
+    const open = vi.spyOn(Network.instance, 'open').mockImplementation(() => {});
     component.roomName.set('月夜の卓');
     fixture.detectChanges();
 
@@ -124,8 +124,8 @@ describe('RoomSettingComponent', () => {
   });
 
   it('makes no SkyWay room once the connection has gone since the form was opened, and says so after the word', async () => {
-    const isOpen = vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(true);
-    const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
+    const isOpen = vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(true);
+    const open = vi.spyOn(Network.instance, 'open').mockImplementation(() => {});
     component.roomName.set('月夜の卓');
     fixture.detectChanges();
 
@@ -146,7 +146,7 @@ describe('RoomSettingComponent', () => {
   });
 
   it('says to reload rather than to wait once the tries to connect have run out', () => {
-    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+    vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(false);
     TestBed.inject(NetworkReachService).giveUp();
     fixture.detectChanges();
 
@@ -161,8 +161,8 @@ describe('RoomSettingComponent', () => {
 
     beforeEach(() => {
       PeerCursor.createMyCursor();
-      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user' } as PeerContext);
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'user' } as PeerContext);
     });
 
     afterEach(() => {
@@ -173,7 +173,7 @@ describe('RoomSettingComponent', () => {
 
     it('offers a room to make outside any room, saying how long the server keeps it, and none from inside one', () => {
       const where = vi
-        .spyOn(Network, 'peerContext', 'get')
+        .spyOn(Network.instance, 'peerContext', 'get')
         .mockReturnValue({ userId: 'user', isRoom: false } as PeerContext);
       const textOf = () => {
         fixture = TestBed.createComponent(RoomSettingComponent);
@@ -191,8 +191,8 @@ describe('RoomSettingComponent', () => {
     });
 
     it('makes no room once the seat has come into one while the form was open', async () => {
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: true } as PeerContext);
-      const create = vi.spyOn(Network, 'createRoom').mockResolvedValue({ roomKey: KEY, roomId: 'Ab3' });
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'user', isRoom: true } as PeerContext);
+      const create = vi.spyOn(Network.instance, 'createRoom').mockResolvedValue({ roomKey: KEY, roomId: 'Ab3' });
       component.roomName.set('月夜の卓');
 
       component.createRoom();
@@ -203,25 +203,25 @@ describe('RoomSettingComponent', () => {
 
     it('opens no new room once the seat has come into another while it was being made', async () => {
       const where = vi
-        .spyOn(Network, 'peerContext', 'get')
+        .spyOn(Network.instance, 'peerContext', 'get')
         .mockReturnValue({ userId: 'user', isRoom: false } as PeerContext);
-      vi.spyOn(Network, 'createRoom').mockImplementation(async () => {
+      vi.spyOn(Network.instance, 'createRoom').mockImplementation(async () => {
         where.mockReturnValue({ userId: 'user', isRoom: true } as PeerContext);
         return { roomKey: KEY, roomId: 'Ab3' };
       });
-      const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
+      const open = vi.spyOn(Network.instance, 'open').mockImplementation(() => {});
       component.roomName.set('月夜の卓');
 
       component.createRoom();
-      await vi.waitFor(() => expect(Network.createRoom).toHaveBeenCalled());
+      await vi.waitFor(() => expect(Network.instance.createRoom).toHaveBeenCalled());
       await Promise.resolve();
 
       expect(open).not.toHaveBeenCalled();
     });
 
     it('creates the room on the server and opens it by its key, leaving the role for the server to give', async () => {
-      const create = vi.spyOn(Network, 'createRoom').mockResolvedValue({ roomKey: KEY, roomId: 'Ab3' });
-      const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
+      const create = vi.spyOn(Network.instance, 'createRoom').mockResolvedValue({ roomKey: KEY, roomId: 'Ab3' });
+      const open = vi.spyOn(Network.instance, 'open').mockImplementation(() => {});
       const resolve = vi.spyOn(TestBed.inject(ModalService), 'resolve').mockImplementation(() => {});
       component.roomName.set('月夜の卓');
       component.password.set('pw');
@@ -237,8 +237,8 @@ describe('RoomSettingComponent', () => {
     });
 
     it('says why when the server will not create it, and opens nothing', async () => {
-      vi.spyOn(Network, 'createRoom').mockRejectedValue(new ServerRoomApiError(429, 'rate-limited'));
-      const open = vi.spyOn(Network, 'open').mockImplementation(() => {});
+      vi.spyOn(Network.instance, 'createRoom').mockRejectedValue(new ServerRoomApiError(429, 'rate-limited'));
+      const open = vi.spyOn(Network.instance, 'open').mockImplementation(() => {});
 
       component.createRoom();
 
@@ -247,8 +247,8 @@ describe('RoomSettingComponent', () => {
     });
 
     it('says a login is needed when the server asks for one', async () => {
-      vi.spyOn(Network, 'createRoom').mockRejectedValue(new ServerRoomApiError(401, 'login-required'));
-      vi.spyOn(Network, 'open').mockImplementation(() => {});
+      vi.spyOn(Network.instance, 'createRoom').mockRejectedValue(new ServerRoomApiError(401, 'login-required'));
+      vi.spyOn(Network.instance, 'open').mockImplementation(() => {});
 
       component.createRoom();
 
@@ -259,8 +259,8 @@ describe('RoomSettingComponent', () => {
       [503, 'paused', '部屋を作ることを一時的に止めています'],
       [403, 'banned', 'このアカウントか回線を止めているため'],
     ])('says in words when the room server’s operator answers %i %s', async (status, code, words) => {
-      vi.spyOn(Network, 'createRoom').mockRejectedValue(new ServerRoomApiError(status, code));
-      vi.spyOn(Network, 'open').mockImplementation(() => {});
+      vi.spyOn(Network.instance, 'createRoom').mockRejectedValue(new ServerRoomApiError(status, code));
+      vi.spyOn(Network.instance, 'open').mockImplementation(() => {});
 
       component.createRoom();
 
@@ -270,10 +270,10 @@ describe('RoomSettingComponent', () => {
     });
 
     it('links the operator’s contact under the word, where the refusal came with one', async () => {
-      vi.spyOn(Network, 'createRoom').mockRejectedValue(
+      vi.spyOn(Network.instance, 'createRoom').mockRejectedValue(
         new ServerRoomApiError(503, 'paused', 'https://example.com/contact')
       );
-      vi.spyOn(Network, 'open').mockImplementation(() => {});
+      vi.spyOn(Network.instance, 'open').mockImplementation(() => {});
 
       component.createRoom();
       await vi.waitFor(() => expect(component.createContact()).toBe('https://example.com/contact'));

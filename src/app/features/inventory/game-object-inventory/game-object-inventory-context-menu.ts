@@ -1,7 +1,7 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -301,7 +301,7 @@ function inventoryLocations(t: TranslateFn): Array<{ name: string; alias: string
   return [
     { name: 'table', alias: t('feature.inventory.contextMenu.moveTable') },
     { name: 'common', alias: t('feature.inventory.contextMenu.moveCommon') },
-    { name: Network.peerId, alias: t('feature.inventory.contextMenu.movePersonal') },
+    { name: Network.instance.peerId, alias: t('feature.inventory.contextMenu.movePersonal') },
     { name: 'graveyard', alias: t('feature.inventory.contextMenu.moveGraveyard') },
   ];
 }

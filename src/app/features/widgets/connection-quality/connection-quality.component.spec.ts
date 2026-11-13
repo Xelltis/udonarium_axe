@@ -3,7 +3,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RESUME_GRACE_MS } from '@axe/application/lobby/link-watch.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
 import { pageActivity } from '@axe/core/network/server/page-activity';
 import { PeerLinkQuality, POOR_SILENCE_MS } from '@axe/domain/peer/peer-link-quality';
@@ -74,21 +74,21 @@ describe('ConnectionQualityComponent', () => {
   });
 
   it('draws nothing while the widget is hidden', () => {
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
     create(false);
 
     expect(panel()).toBeNull();
   });
 
   it('draws the panel while the widget is shown', () => {
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
     create();
 
     expect(panel()).not.toBeNull();
   });
 
   it('hides the widget on close', () => {
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
     create();
 
     internals.close();
@@ -99,14 +99,17 @@ describe('ConnectionQualityComponent', () => {
   });
 
   it('gives every connected peer a row', () => {
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a'), peerContext('peer-b')] as never);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
+      peerContext('peer-a'),
+      peerContext('peer-b'),
+    ] as never);
     create();
 
     expect(internals.links().map((link) => link.peerId)).toEqual(['peer-a', 'peer-b']);
   });
 
   it('stays open with nobody connected, and says nobody is', () => {
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([] as never);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([] as never);
     create();
 
     expect(internals.links()).toEqual([]);
@@ -115,7 +118,7 @@ describe('ConnectionQualityComponent', () => {
   });
 
   it('heads the panel with the worst link', () => {
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
       peerContext('peer-a'),
       peerContext('peer-b', { session: { ping: 800 } }),
     ] as never);
@@ -125,7 +128,7 @@ describe('ConnectionQualityComponent', () => {
   });
 
   it('marks a link that goes through a relay', () => {
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
       peerContext('peer-a', { session: { grade: PeerSessionGrade.LOW } }),
     ] as never);
     create();
@@ -135,10 +138,10 @@ describe('ConnectionQualityComponent', () => {
   });
 
   it('grades the link to the room server by how long its answers take, as down while it is being tried again', () => {
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([] as never);
-    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
-    const open = vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
-    const roundTrip = vi.spyOn(Network, 'roundTripMs', 'get').mockReturnValue(0);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([] as never);
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    const open = vi.spyOn(Network.instance, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    const roundTrip = vi.spyOn(Network.instance, 'roundTripMs', 'get').mockReturnValue(0);
     create();
 
     expect(internals.links().map((link) => [link.peerId, link.quality, link.ping])).toEqual([
@@ -160,14 +163,17 @@ describe('ConnectionQualityComponent', () => {
   it('gives each of the others on a room server a row, graded by how long the server has not heard from them', () => {
     vi.useFakeTimers({ now: new Date('2026-11-07T12:00:00') });
     pageActivity.noteInput();
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a'), peerContext('peer-b')] as never);
-    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
-    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
-    vi.spyOn(Network, 'roundTripMs', 'get').mockReturnValue(40);
-    vi.spyOn(Network, 'askSeen').mockImplementation(() => undefined);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
+      peerContext('peer-a'),
+      peerContext('peer-b'),
+    ] as never);
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network.instance, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    vi.spyOn(Network.instance, 'roundTripMs', 'get').mockReturnValue(40);
+    vi.spyOn(Network.instance, 'askSeen').mockImplementation(() => undefined);
     const heardA = Date.now() - 5_000;
-    vi.spyOn(Network, 'seenAnsweredAt', 'get').mockReturnValue(Date.now());
-    vi.spyOn(Network, 'heardAt').mockImplementation((peerId) => (peerId === 'peer-a' ? heardA : null));
+    vi.spyOn(Network.instance, 'seenAnsweredAt', 'get').mockReturnValue(Date.now());
+    vi.spyOn(Network.instance, 'heardAt').mockImplementation((peerId) => (peerId === 'peer-a' ? heardA : null));
     create();
 
     expect(internals.links().map((link) => [link.peerId, link.quality])).toEqual([
@@ -190,13 +196,13 @@ describe('ConnectionQualityComponent', () => {
   it('holds how the others are graded as the server last said while nobody looks and nothing is asked', () => {
     vi.useFakeTimers({ now: new Date('2026-11-07T12:00:00') });
     pageActivity.noteInput();
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
-    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
-    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
-    vi.spyOn(Network, 'askSeen').mockImplementation(() => undefined);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network.instance, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    vi.spyOn(Network.instance, 'askSeen').mockImplementation(() => undefined);
     const heardA = Date.now() - 5_000;
-    vi.spyOn(Network, 'seenAnsweredAt', 'get').mockReturnValue(Date.now());
-    vi.spyOn(Network, 'heardAt').mockReturnValue(heardA);
+    vi.spyOn(Network.instance, 'seenAnsweredAt', 'get').mockReturnValue(Date.now());
+    vi.spyOn(Network.instance, 'heardAt').mockReturnValue(heardA);
     create();
 
     vi.advanceTimersByTime(POOR_SILENCE_MS * 2);
@@ -208,13 +214,13 @@ describe('ConnectionQualityComponent', () => {
   it('weighs the others as the server last said for a while after asking again, rather than every seat reading as gone', () => {
     vi.useFakeTimers({ now: new Date('2026-11-08T12:00:00') });
     pageActivity.noteInput();
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
-    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
-    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
-    vi.spyOn(Network, 'askSeen').mockImplementation(() => undefined);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network.instance, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    vi.spyOn(Network.instance, 'askSeen').mockImplementation(() => undefined);
     const answeredAt = Date.now() - 3_600_000;
-    vi.spyOn(Network, 'seenAnsweredAt', 'get').mockReturnValue(answeredAt);
-    vi.spyOn(Network, 'heardAt').mockReturnValue(answeredAt - 5_000);
+    vi.spyOn(Network.instance, 'seenAnsweredAt', 'get').mockReturnValue(answeredAt);
+    vi.spyOn(Network.instance, 'heardAt').mockReturnValue(answeredAt - 5_000);
     create();
 
     expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Good);
@@ -227,12 +233,12 @@ describe('ConnectionQualityComponent', () => {
   });
 
   it('watches the links closely only while it is shown', () => {
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([] as never);
-    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
-    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([] as never);
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network.instance, 'isAuthorityOpen', 'get').mockReturnValue(true);
     pageActivity.noteInput();
-    const watch = vi.spyOn(Network, 'watchLink');
-    const ask = vi.spyOn(Network, 'askSeen');
+    const watch = vi.spyOn(Network.instance, 'watchLink');
+    const ask = vi.spyOn(Network.instance, 'askSeen');
     create(false);
     expect(ask).not.toHaveBeenCalled();
 
@@ -247,7 +253,7 @@ describe('ConnectionQualityComponent', () => {
   });
 
   it('falls back to the head of the peer id when the name is unknown', () => {
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('abcdef123456')] as never);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([peerContext('abcdef123456')] as never);
     create();
 
     expect(internals.links()[0].name).toBe('abcdef');
@@ -255,7 +261,7 @@ describe('ConnectionQualityComponent', () => {
 
   it('recalculates when the statistics change', () => {
     const contexts = [peerContext('peer-a')];
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue(contexts as never);
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue(contexts as never);
     create();
     expect(internals.worst()).toBe(PeerLinkQuality.Good);
 

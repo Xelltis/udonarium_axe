@@ -4,7 +4,7 @@ import { LinkWatchService } from '@axe/application/lobby/link-watch.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { WIDGET_CONNECTION_QUALITY } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   isRelayedLink,
@@ -69,21 +69,21 @@ export class ConnectionQualityComponent {
     this.objectChange.peerStatsVersion();
     this.objectChange.networkVersion();
     this.linkWatch.asked();
-    const authority = Network.authorityPeerId;
+    const authority = Network.instance.authorityPeerId;
     if (authority !== null) {
-      const roundTripMs = Network.roundTripMs;
+      const roundTripMs = Network.instance.roundTripMs;
       const weighedAt = this.linkWatch.weighedAt();
       return [
         {
           peerId: authority,
           name: '',
-          quality: roundTripQualityOf(roundTripMs, Network.isAuthorityOpen),
+          quality: roundTripQualityOf(roundTripMs, Network.instance.isAuthorityOpen),
           ping: Math.round(roundTripMs),
           isRelayed: false,
           isRoomServer: true,
         },
-        ...Network.peerContexts.map((peer) => {
-          const heardAt = Network.heardAt(peer.peerId);
+        ...Network.instance.peerContexts.map((peer) => {
+          const heardAt = Network.instance.heardAt(peer.peerId);
           return {
             peerId: peer.peerId,
             name: PeerCursor.findByPeerId(peer.peerId)?.name || peer.peerId.slice(0, 6),
@@ -95,7 +95,7 @@ export class ConnectionQualityComponent {
         }),
       ];
     }
-    return Network.peerContexts.map((peer) => ({
+    return Network.instance.peerContexts.map((peer) => ({
       peerId: peer.peerId,
       name: PeerCursor.findByPeerId(peer.peerId)?.name || peer.peerId.slice(0, 6),
       quality: linkQualityOf(peer.session, peer.isOpen),

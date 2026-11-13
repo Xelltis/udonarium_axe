@@ -13,7 +13,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { resourceElementsOf } from '@axe/domain/character/resource-catalog';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -517,7 +517,7 @@ describe('GameObjectInventoryComponent', () => {
 
       it('folds the shared folders after the reader has been through their own', () => {
         const mine = putInShared('相棒');
-        mine.setLocation(Network.peerId);
+        mine.setLocation(Network.instance.peerId);
         mine.folderName = '手持ち';
         const villager = putInShared('村長');
         villager.folderName = '村';
@@ -557,7 +557,7 @@ describe('GameObjectInventoryComponent', () => {
         const shared = putInShared('村長');
         shared.folderName = '村';
         const mine = putInShared('相棒');
-        mine.setLocation(Network.peerId);
+        mine.setLocation(Network.instance.peerId);
         mine.folderName = '村';
         TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
         const panel = opened();
@@ -881,7 +881,7 @@ describe('GameObjectInventoryComponent', () => {
       const shared = putInShared('ゴブリン');
       shared.folderName = '第1話';
       const mine = GameCharacter.create('相棒', 1, '');
-      mine.setLocation(Network.peerId);
+      mine.setLocation(Network.instance.peerId);
       mine.folderName = '第1話';
 
       component.selectTab.set(PERSONAL_INVENTORY_TAB);
@@ -895,7 +895,7 @@ describe('GameObjectInventoryComponent', () => {
       const shared = putInShared('ゴブリン');
       shared.folderName = '第1話';
       const mine = GameCharacter.create('相棒', 1, '');
-      mine.setLocation(Network.peerId);
+      mine.setLocation(Network.instance.peerId);
       mine.folderName = '第1話';
       vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
 
@@ -1078,7 +1078,7 @@ describe('GameObjectInventoryComponent', () => {
 
       dragOnto(goblin, tab(PERSONAL_INVENTORY_TAB));
 
-      expect(goblin.location.name).toBe(Network.peerId);
+      expect(goblin.location.name).toBe(Network.instance.peerId);
     });
 
     it('moves the ticked selection along and lets it go from the selection', () => {
@@ -1761,7 +1761,7 @@ describe('GameObjectInventoryComponent', () => {
 
       it('shows the display items of a piece on the personal tab too', () => {
         const mine = putOnTable('相棒');
-        mine.setLocation(Network.peerId);
+        mine.setLocation(Network.instance.peerId);
         TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
         component.selectTab.set(PERSONAL_INVENTORY_TAB);
         fixture.detectChanges();
@@ -2341,7 +2341,7 @@ describe('GameObjectInventoryComponent', () => {
 
     beforeEach(() => {
       peerId = 'peer-before';
-      vi.spyOn(Network, 'peerId', 'get').mockImplementation(() => peerId);
+      vi.spyOn(Network.instance, 'peerId', 'get').mockImplementation(() => peerId);
       fixture.detectChanges();
     });
 

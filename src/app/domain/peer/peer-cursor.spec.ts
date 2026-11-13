@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { domainPeerDisconnect$ } from '@axe/core/event/domain-events';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import {
   PeerContextProvider,
@@ -185,7 +185,7 @@ describe('PeerCursor', () => {
 
     it('against the peer you are connected as', () => {
       const cursor = PeerCursor.createMyCursor();
-      expect(cursor.peerId).toBe(Network.peerId);
+      expect(cursor.peerId).toBe(Network.instance.peerId);
     });
 
     it('builds a new one rather than handing back the one already there', () => {
@@ -298,7 +298,7 @@ describe('PeerCursor', () => {
       ['is cleared away half a minute after it drops', [], false],
       ['stays when its peer is back within that time', ['peer-x'], true],
     ] as const)('%s', (_case, linkedThen, stays) => {
-      const peerIds = vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['peer-x']);
+      const peerIds = vi.spyOn(Network.instance, 'peerIds', 'get').mockReturnValue(['peer-x']);
       const cursor = arrive('peer-x', 'user-x');
 
       domainPeerDisconnect$.emit({ peerId: 'peer-x' });
@@ -309,7 +309,7 @@ describe('PeerCursor', () => {
     });
 
     it('is cleared away when its peer came back with a new cursor under the same peer id', () => {
-      vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['peer-x']);
+      vi.spyOn(Network.instance, 'peerIds', 'get').mockReturnValue(['peer-x']);
       const before = arrive('peer-x', 'user-x');
       const after = arrive('peer-x', 'user-x');
 
@@ -324,8 +324,8 @@ describe('PeerCursor', () => {
     });
 
     it('deletes for every peer a cursor under this seat’s own peer id that is not its own', async () => {
-      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('peer-me');
-      const send = vi.spyOn(Network, 'send').mockImplementation(() => {});
+      vi.spyOn(Network.instance, 'peerId', 'get').mockReturnValue('peer-me');
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
       PeerCursor.createMyCursor();
       const leftBehind = arrive('peer-me', 'user-me');
       const other = arrive('peer-x', 'user-x');
@@ -340,7 +340,7 @@ describe('PeerCursor', () => {
     });
 
     it('counts each seat linked now once, this one included', () => {
-      vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['peer-x']);
+      vi.spyOn(Network.instance, 'peerIds', 'get').mockReturnValue(['peer-x']);
       PeerCursor.createMyCursor();
       arrive('peer-x', 'user-x');
       const after = arrive('peer-x', 'user-x');

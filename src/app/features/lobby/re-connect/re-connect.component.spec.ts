@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -46,7 +46,7 @@ describe('ReConnectComponent', () => {
     };
     expect(textOf()).toContain('データが破棄された上に失敗します');
 
-    vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+    vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
     const onServer = textOf();
     expect(onServer).toContain('卓はサーバーに残ります');
     expect(onServer).not.toContain('データが破棄された上に失敗します');
@@ -82,7 +82,7 @@ describe('ReConnectComponent', () => {
   it('deletes nothing without being told to clean up', () => {
     component.networkService = {
       peerContext: { userId: 'current-user' },
-    } as unknown as typeof Network;
+    } as unknown as Network;
     component.roomId = 'room-id';
     component.roomName = 'room-name';
     component.rooms = [{ alias: 'room-idroom-name', roomName: 'room-name', peerContexts: [] }];
@@ -102,7 +102,7 @@ describe('ReConnectComponent', () => {
   it('deletes when it is', () => {
     component.networkService = {
       peerContext: { userId: 'current-user' },
-    } as unknown as typeof Network;
+    } as unknown as Network;
     component.roomId = 'room-id';
     component.roomName = 'room-name';
     component.rooms = [{ alias: 'room-idroom-name', roomName: 'room-name', peerContexts: [] }];
@@ -121,10 +121,10 @@ describe('ReConnectComponent', () => {
     afterEach(() => vi.restoreAllMocks());
 
     it('takes the pieces off this screen alone in a room server’s room, deleting and moving nothing', () => {
-      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
       const character = GameCharacter.create('勇者', 1, '');
       const location = character.location.name;
-      const send = vi.spyOn(Network, 'send');
+      const send = vi.spyOn(Network.instance, 'send');
 
       component.deleteObject();
 
@@ -135,15 +135,15 @@ describe('ReConnectComponent', () => {
     });
 
     it('takes them away as the room server would, so the panels showing them close too', () => {
-      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
-      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
       ObjectSynchronizer.instance.initialize();
       const character = GameCharacter.create('勇者', 1, '');
       const closed: string[] = [];
       const off = TestBed.inject(ObjectChangeService).objectDeleted$.subscribe((event) =>
         closed.push(event.identifier)
       );
-      const send = vi.spyOn(Network, 'send');
+      const send = vi.spyOn(Network.instance, 'send');
 
       component.deleteObject();
       off();
@@ -156,7 +156,7 @@ describe('ReConnectComponent', () => {
     });
 
     it('hands a room without a key no password, one kept from another room included', async () => {
-      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
       vi.spyOn(component, 'myPeer', 'get').mockReturnValue({ reConnectPass: 'other-room' } as PeerCursor);
       const roomJoin = TestBed.inject(RoomJoinService);
       const join = vi.spyOn(roomJoin, 'joinServerRoom').mockResolvedValue(false);
@@ -177,10 +177,10 @@ describe('ReConnectComponent', () => {
     });
 
     it('asks first when changes have yet to reach the room server, and stays when the reader says no', async () => {
-      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true, userId: 'u' } as PeerContext);
-      vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
-      vi.spyOn(Network, 'hasSendsPending', 'get').mockReturnValue(true);
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ isRoom: true, userId: 'u' } as PeerContext);
+      vi.spyOn(Network.instance, 'isAuthorityOpen', 'get').mockReturnValue(true);
+      vi.spyOn(Network.instance, 'hasSendsPending', 'get').mockReturnValue(true);
       const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
       const find = vi.spyOn(TestBed.inject(RoomJoinService), 'findServerRoom');
       const disconnect = vi.spyOn(component, 'disConnect').mockImplementation(() => undefined);
@@ -193,10 +193,10 @@ describe('ReConnectComponent', () => {
     });
 
     it('says the pieces’ changes are lost too when asked to drop inconsistent data with the link down', async () => {
-      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true, userId: 'u' } as PeerContext);
-      vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(false);
-      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ isRoom: true, userId: 'u' } as PeerContext);
+      vi.spyOn(Network.instance, 'isAuthorityOpen', 'get').mockReturnValue(false);
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
       const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
       vi.spyOn(component, 'disConnect').mockImplementation(() => undefined);
       component.forceCleanup.set(true);
@@ -210,7 +210,7 @@ describe('ReConnectComponent', () => {
     });
 
     it('takes nothing away until it has found the room to get back into', async () => {
-      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
       vi.spyOn(component, 'myPeer', 'get').mockReturnValue({ reConnectPass: '' } as PeerCursor);
       const clean = vi.spyOn(component, 'deleteObject').mockImplementation(() => undefined);
       const roomJoin = TestBed.inject(RoomJoinService);
@@ -236,7 +236,7 @@ describe('ReConnectComponent', () => {
     });
 
     it('sends the pieces to the graveyard and deletes them among peers, as before', () => {
-      vi.spyOn(Network, 'transport', 'get').mockReturnValue('skyway');
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('skyway');
       const character = GameCharacter.create('勇者', 1, '');
 
       component.deleteObject();

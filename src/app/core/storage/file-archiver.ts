@@ -6,8 +6,8 @@ import {
   emitXmlLoaded,
   type FileTooLarge,
 } from '@axe/core/event/domain-events';
-import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
@@ -108,7 +108,7 @@ export class FileArchiver {
     return FileArchiver._instance;
   }
 
-  networkService = Network;
+  networkService = Network.instance;
 
   /**
    * Whether the reader may bring dropped files in, asked at each drop. A guest may not. Until the

@@ -1,6 +1,6 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,7 +29,7 @@ export class NetworkIndicatorComponent {
       };
 
       this.objectChange.eventActivity$.subscribe(() => {
-        if (this.needRepeat || Network.bandwidthUsage < 3 * 1024) return;
+        if (this.needRepeat || Network.instance.bandwidthUsage < 3 * 1024) return;
         if (this.timer === null) {
           this.elementRef.nativeElement.style.display = 'block';
           this.timer = setTimeout(repeatFunc, 650);

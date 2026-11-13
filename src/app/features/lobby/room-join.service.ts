@@ -1,7 +1,7 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { StartRoomService } from '@axe/application/file/start-room.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { SAME_NAME_MEMBER_WAIT_MS, sameNameMemberWait$ } from '@axe/core/network/skyway/same-name-member';
@@ -31,7 +31,7 @@ export function wasLastIn(roomId: string): boolean {
  * asked for, as the room's own peer id comes only once it is opening.
  */
 export function isInAnotherRoom(roomId: string): boolean {
-  const requested = Network.requestedRoomId;
+  const requested = Network.instance.requestedRoomId;
   return requested !== '' && requested !== roomId;
 }
 
@@ -45,7 +45,7 @@ function wasGameMasterIn(roomId: string): boolean {
  * room, rather than the standby connection or another member.
  */
 function isOwnConnectionTo(roomId: string, peerId: string): boolean {
-  return peerId === Network.peerId && PeerContext.parse(peerId).roomId === roomId;
+  return peerId === Network.instance.peerId && PeerContext.parse(peerId).roomId === roomId;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -73,12 +73,12 @@ export class RoomJoinService {
   async findServerRoom(roomKey: string, roomId: string, roomName: string): Promise<IRoomInfo | null> {
     if (roomKey.length > 0) {
       try {
-        return await Network.findRoom(roomKey);
+        return await Network.instance.findRoom(roomKey);
       } catch {
         // asked again below, in the list
       }
     }
-    const rooms = await Network.listAllRooms();
+    const rooms = await Network.instance.listAllRooms();
     return (
       (roomKey.length > 0 ? rooms.find((room) => room.roomKey === roomKey) : undefined) ??
       rooms.find((room) => room.id === roomId && room.name === roomName) ??
@@ -99,9 +99,9 @@ export class RoomJoinService {
     if (this.startRoom.isSettling) return this.afterStartRoom(() => this.joinServerRoom(room, password));
     const putBackUnlessJoined = this.startRoom.putAwayForJoin();
 
-    const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
-    Network.open(userId, room.id, room.name, password, roomKey);
-    PeerCursor.myCursor.peerId = Network.peerId;
+    const userId = Network.instance.peerContext ? Network.instance.peerContext.userId : PeerContext.generateUserId();
+    Network.instance.open(userId, room.id, room.name, password, roomKey);
+    PeerCursor.myCursor.peerId = Network.instance.peerId;
 
     return new Promise<boolean>((resolve) => {
       let isSettled = false;
@@ -148,13 +148,15 @@ export class RoomJoinService {
     return this.startRoom
       .whenSettled()
       .then(() =>
-        asked !== this.joinAsked || Network.requestedRoomId !== '' || Network.peerContext?.isRoom ? false : join()
+        asked !== this.joinAsked || Network.instance.requestedRoomId !== '' || Network.instance.peerContext?.isRoom
+          ? false
+          : join()
       );
   }
 
   /** Looks a room up by its id in the lobby listing, or null when no open room has that id. */
   async findRoom(roomId: string): Promise<IRoomInfo | null> {
-    const rooms = await Network.listAllRooms();
+    const rooms = await Network.instance.listAllRooms();
     return rooms.find((room) => room.id === roomId) ?? null;
   }
 
@@ -197,9 +199,9 @@ export class RoomJoinService {
     if (roleBefore === PeerRole.GameMaster && !wasGameMasterIn(context.roomId)) {
       PeerCursor.myCursor.role = PeerRole.Player;
     }
-    const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
-    Network.open(userId, context.roomId, context.roomName, password);
-    PeerCursor.myCursor.peerId = Network.peerId;
+    const userId = Network.instance.peerContext ? Network.instance.peerContext.userId : PeerContext.generateUserId();
+    Network.instance.open(userId, context.roomId, context.roomName, password);
+    PeerCursor.myCursor.peerId = Network.instance.peerId;
     let others: readonly IPeerContext[] = peerContexts;
 
     return new Promise<boolean>((resolve) => {
@@ -221,7 +223,7 @@ export class RoomJoinService {
         offError();
         offConnect();
         offDisconnect();
-        const joined = isJoined || Network.peerContexts.length > 0;
+        const joined = isJoined || Network.instance.peerContexts.length > 0;
         if (!joined) {
           this.resetNetwork(context.roomId, userId);
           if (!isInAnotherRoom(context.roomId)) this.takeBackTry(identityBefore, roleBefore);
@@ -241,7 +243,7 @@ export class RoomJoinService {
         }
         wait(ROOM_CONNECT_TIMEOUT_MS);
         for (const peerContext of others) {
-          Network.connect(peerContext);
+          Network.instance.connect(peerContext);
         }
       }, this.destroyRef);
 
@@ -277,11 +279,11 @@ export class RoomJoinService {
    * walk into the room once the login comes.
    */
   private resetNetwork(roomId: string, userId: string, stopUnopened = false): void {
-    const unopened = stopUnopened && Network.peerId === UNOPENED_PEER_ID;
-    if (Network.peerContexts.length > 0 || isInAnotherRoom(roomId)) return;
-    if (!unopened && PeerContext.parse(Network.peerId).roomId !== roomId) return;
-    Network.openStandby(userId);
-    PeerCursor.myCursor.peerId = Network.peerId;
+    const unopened = stopUnopened && Network.instance.peerId === UNOPENED_PEER_ID;
+    if (Network.instance.peerContexts.length > 0 || isInAnotherRoom(roomId)) return;
+    if (!unopened && PeerContext.parse(Network.instance.peerId).roomId !== roomId) return;
+    Network.instance.openStandby(userId);
+    PeerCursor.myCursor.peerId = Network.instance.peerId;
   }
 
   /** Puts back who this tab was and the role it held before a join that came to nothing. */

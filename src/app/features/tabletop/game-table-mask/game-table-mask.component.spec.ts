@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { PERF_HEX_MASK_SVG, perfCounters } from '@axe/core/util/perf-counters';
@@ -83,7 +83,10 @@ describe('GameTableMaskComponent', () => {
   });
 
   it('keeps the name of whoever scratches it upright on the screen, however the table is turned', () => {
-    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: true } as IPeerContext);
+    vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+      userId: 'my-user',
+      isOpen: true,
+    } as IPeerContext);
     const mask = GameTableMask.create('testMask', 10, 10, 1);
     mask.owner = 'my-user';
     fixture.componentRef.setInput('gameTableMask', mask);
@@ -212,7 +215,10 @@ describe('GameTableMaskComponent', () => {
     let mask: GameTableMask;
 
     beforeEach(() => {
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: true } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: 'my-user',
+        isOpen: true,
+      } as IPeerContext);
       vi.spyOn(SoundEffect, 'play').mockImplementation(() => {});
       mask = GameTableMask.create('testMask', 10, 10, 1);
       mask.owner = 'my-user';
@@ -281,14 +287,20 @@ describe('GameTableMaskComponent', () => {
     }
 
     it('shows the scratcher the buttons to finish or call it off with no connection open, as offline', () => {
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: false } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: 'my-user',
+        isOpen: false,
+      } as IPeerContext);
       mask.scratchingGrids = '0:0';
 
       expect(bandButtons()).toEqual(['done', 'clear']);
     });
 
     it("shows nobody else's scratching once its scratcher is gone", () => {
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: false } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: 'my-user',
+        isOpen: false,
+      } as IPeerContext);
       mask.owner = 'someone-else';
 
       expect(bandButtons()).toEqual([]);
@@ -453,7 +465,10 @@ describe('GameTableMaskComponent', () => {
     let selecter: TableSelecter;
 
     beforeEach(async () => {
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: true } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: 'my-user',
+        isOpen: true,
+      } as IPeerContext);
       selecter = TableSelecter.instance;
       table = new GameTable('mask-strings-hex-table');
       table.gridType = GridType.HEX_VERTICAL;

@@ -13,7 +13,7 @@ import { MyDiceService } from '@axe/application/dice/my-dice.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { emitDiceTableMessage, emitResourceEditMessage, emitSendMessage } from '@axe/core/event/domain-events';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
@@ -270,7 +270,7 @@ export class ChatMessageService {
 
     const imgIndex = resolvePortraitIndex(portraitIndex);
     const chatMessage: ChatMessageContext = {
-      from: Network.peerContext.userId,
+      from: Network.instance.peerContext.userId,
       to: sendTo != null ? this.whisperTo(sendTo) : undefined,
       name: this.makeMessageName(sendFrom, sendTo),
       imageIdentifier: this.findImageIdentifier(sendFrom, imgIndex),
@@ -361,7 +361,7 @@ export class ChatMessageService {
     const chatMessageTag = resolveChatMessageTag(gameSystem, text, dicebot);
 
     const chatMessage: ChatMessageContext = {
-      from: Network.peerContext.userId,
+      from: Network.instance.peerContext.userId,
       to: sendTo != null ? this.whisperTo(sendTo) : undefined,
       name: this.makeMessageName(sendFrom, sendTo),
       imageIdentifier: this.findImageIdentifier(sendFrom, imgIndex),
@@ -451,7 +451,7 @@ export class ChatMessageService {
     text = stamped.text;
     const dicebot = this.objectStore.get<DiceBot>('DiceBot')!;
     const chatMessage: ChatMessageContext = {
-      from: Network.peerContext.userId,
+      from: Network.instance.peerContext.userId,
       name,
       imageIdentifier: '',
       timestamp: this.calcTimeStamp(chatTab),
@@ -495,7 +495,7 @@ export class ChatMessageService {
     const toNames = to.map((identifier) => this.findObjectName(identifier)).join(', ');
     const named = (name: string) => (toNames ? `${name} > ${toNames}` : name);
     const chatMessage: ChatMessageContext = {
-      from: Network.peerContext.userId,
+      from: Network.instance.peerContext.userId,
       name: '',
       imageIdentifier: '',
       timestamp: this.calcTimeStamp(chatTab),

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EventChannel } from '@axe/core/event/event-channel';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { NetworkIndicatorComponent } from '@axe/features/lobby/network-indicator/network-indicator.component';
 
 describe('NetworkIndicatorComponent', () => {
@@ -31,7 +31,7 @@ describe('NetworkIndicatorComponent', () => {
   it('comes out while the traffic runs heavy, and goes again once it has quieted', () => {
     vi.useFakeTimers();
     try {
-      const bandwidth = vi.spyOn(Network, 'bandwidthUsage', 'get').mockReturnValue(1024);
+      const bandwidth = vi.spyOn(Network.instance, 'bandwidthUsage', 'get').mockReturnValue(1024);
       fixture.detectChanges();
       TestBed.tick();
       const host = fixture.nativeElement as HTMLElement;

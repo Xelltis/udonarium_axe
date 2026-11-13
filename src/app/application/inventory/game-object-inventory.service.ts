@@ -2,7 +2,7 @@ import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { ObjectInventory } from '@axe/application/inventory/object-inventory';
 import { readPersonalFolders, writePersonalFolders } from '@axe/application/inventory/personal-folders';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { browserLocalStorage } from '@axe/core/storage/local-preference';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isHandLocation } from '@axe/domain/card/hand-location';
@@ -133,7 +133,7 @@ export class GameObjectInventoryService {
   }
 
   private reloadPersonalFolders(): void {
-    this.personalRoomId = Network.peerContext?.roomId ?? '';
+    this.personalRoomId = Network.instance.peerContext?.roomId ?? '';
     this._personalFolderPaths.set(readPersonalFolders(this.personalStorage, this.personalRoomId));
   }
 
@@ -142,7 +142,7 @@ export class GameObjectInventoryService {
     return !this.isAnyLocation(object.location.name);
   });
   privateInventory: ObjectInventory = new ObjectInventory((object) => {
-    return object.location.name === Network.peerId;
+    return object.location.name === Network.instance.peerId;
   });
   graveyardInventory: ObjectInventory = new ObjectInventory((object) => {
     return object.location.name === 'graveyard';
@@ -310,9 +310,9 @@ export class GameObjectInventoryService {
 
   private isAnyLocation(location: string): boolean {
     if (isHandLocation(location)) return true;
-    if (location === 'table' || location === Network.peerId || location === 'graveyard') return true;
+    if (location === 'table' || location === Network.instance.peerId || location === 'graveyard') return true;
     if (location === CONCEALED_LOCATION) return true;
-    for (const conn of Network.peerContexts) {
+    for (const conn of Network.instance.peerContexts) {
       if (conn.isOpen && location === conn.peerId) {
         return true;
       }

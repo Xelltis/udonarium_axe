@@ -12,7 +12,7 @@ import {
   buildLockToggleAction,
   buildToggleAction,
 } from '@axe/application/ui/tabletop-context-menu-actions';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import type { BattleSide } from '@axe/domain/battle/battle-lineup';
 import { BUFF_VIEW_MODES } from '@axe/domain/character/buff-view-mode';
 import { heldDiceOf } from '@axe/domain/character/character-dice';
@@ -529,7 +529,7 @@ export function buildGameCharacterContextMenuModel(
     {
       name: t('feature.character.contextMenu.movePersonal'),
       action: () => {
-        char.setLocation(Network.peerId);
+        char.setLocation(Network.instance.peerId);
         SoundEffect.play(PresetSound.piecePut);
       },
     },

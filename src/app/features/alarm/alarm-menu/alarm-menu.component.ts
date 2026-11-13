@@ -6,7 +6,7 @@ import { encodeI18nList, encodeI18nMessage } from '@axe/application/i18n/i18n-me
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Alarm } from '@axe/domain/alarm/alarm';
@@ -30,7 +30,7 @@ export class AlarmMenuComponent {
   private readonly t = inject(TRANSLATE_FN);
 
   protected checkedPeers = new Set<string>();
-  networkService = Network;
+  networkService = Network.instance;
   voteContentsText = '';
   alarmTitle = this.t('feature.alarm.defaultTitle');
   alarmTime = 60;

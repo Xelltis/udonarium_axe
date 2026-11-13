@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -13,7 +13,7 @@ describe('ChatMessage', () => {
     TestBed.configureTestingModule({});
     store = ObjectStore.instance;
 
-    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({
+    vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
       peerId: 'test-peer',
       userId: 'test-user',
       isOpen: true,

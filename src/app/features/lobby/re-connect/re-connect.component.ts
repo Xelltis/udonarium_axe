@@ -5,8 +5,8 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
@@ -72,13 +72,13 @@ export class ReConnectComponent {
   private readonly roomJoin = inject(RoomJoinService);
   private readonly confirm = inject(ConfirmService);
   /** Whether the table is kept by a room server, which a reconnect leaves as it is. */
-  protected readonly onRoomServer = Network.transport === 'server';
+  protected readonly onRoomServer = Network.instance.transport === 'server';
 
   rooms: { alias: string; roomName: string; peerContexts: PeerContext[] }[] = [];
 
   readonly forceCleanup = signal(false);
 
-  networkService = Network;
+  networkService = Network.instance;
   roomName = '';
   roomId = '';
   reconnectUserId = '';
@@ -116,7 +116,7 @@ export class ReConnectComponent {
    * copies replace them.
    */
   async reConnect(): Promise<void> {
-    if (Network.transport === 'server') {
+    if (Network.instance.transport === 'server') {
       const cleanUp = this.forceCleanup();
       const lost = leavingLoss()
         .filter((loss) => loss === 'unsent' || loss === 'sending')
@@ -126,7 +126,7 @@ export class ReConnectComponent {
     }
     this.reconnectUserId = resolveReconnectUserId(this.reconnectUserId, this.networkService.peerContext.userId);
     this.disConnect();
-    if (Network.transport === 'server') {
+    if (Network.instance.transport === 'server') {
       void this.reConnectThroughServer(this.forceCleanup());
       return;
     }
@@ -151,7 +151,7 @@ export class ReConnectComponent {
    * Pieces are cleaned up only once the room is found, for the room to hand them back.
    */
   private async reConnectThroughServer(cleanUp: boolean): Promise<void> {
-    const roomKey = Network.roomKey ?? loadIdentity()?.roomKey ?? '';
+    const roomKey = Network.instance.roomKey ?? loadIdentity()?.roomKey ?? '';
     const room = await this.roomJoin.findServerRoom(roomKey, this.roomId, this.roomName).catch(() => null);
     if (!room) {
       Logger.warn(`[Network] reconnect target not found (room: ${this.roomName}/${this.roomId})`);
@@ -170,7 +170,7 @@ export class ReConnectComponent {
   async reload() {
     this.rooms = [];
     try {
-      const roomInfos = await Network.listAllRooms();
+      const roomInfos = await Network.instance.listAllRooms();
       for (const room of roomInfos) {
         this.rooms.push({
           alias: room.id + room.name,
@@ -209,8 +209,8 @@ export class ReConnectComponent {
 
     const userId = resolveReconnectUserId(this.reconnectUserId, this.networkService.peerContext.userId);
     this.reconnectUserId = userId;
-    Network.open(userId, context.roomId, context.roomName, password);
-    PeerCursor.myCursor.peerId = Network.peerId;
+    Network.instance.open(userId, context.roomId, context.roomName, password);
+    PeerCursor.myCursor.peerId = Network.instance.peerId;
 
     const expectedPeerIds = createExpectedPeerIdSet(peerContexts, this.networkService.peerId);
     const observedPeerIds: Set<string> = new Set();
@@ -219,7 +219,7 @@ export class ReConnectComponent {
       Logger.info('[Network] peer connection started');
       this.objectStore.clearDeleteHistory();
       for (const context of peerContexts) {
-        Network.connect(context);
+        Network.instance.connect(context);
       }
       const timeoutTimer = setTimeout(() => {
         Logger.warn('[Network] reconnect wait timed out');
@@ -251,16 +251,16 @@ export class ReConnectComponent {
   }
 
   private resetNetwork() {
-    if (Network.peerContexts.length < 1) {
+    if (Network.instance.peerContexts.length < 1) {
       const userId = resolveReconnectUserId(this.reconnectUserId, this.networkService.peerContext.userId);
       this.reconnectUserId = userId;
-      Network.openStandby(userId);
-      PeerCursor.myCursor.peerId = Network.peerId;
+      Network.instance.openStandby(userId);
+      PeerCursor.myCursor.peerId = Network.instance.peerId;
     }
   }
 
   private closeIfConnected() {
-    if (0 < Network.peerContexts.length) this.modalService.resolve();
+    if (0 < Network.instance.peerContexts.length) this.modalService.resolve();
   }
 
   /** Closes the connection to every peer. */
@@ -318,8 +318,8 @@ export class ReConnectComponent {
   }
 
   private deleteGameObject(gameObject: TabletopObject) {
-    if (Network.transport === 'server') {
-      const authority = Network.authorityPeerId;
+    if (Network.instance.transport === 'server') {
+      const authority = Network.instance.authorityPeerId;
       const { identifier, aliasName } = gameObject;
       if (authority) localDispatch(AuthorityEvent.WITHDRAW, { identifier, aliasName }, authority);
       else withdraw(gameObject);

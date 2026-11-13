@@ -24,8 +24,8 @@ import { LocalModePreferenceService } from '@axe/application/ui/local-mode-prefe
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
-import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
 import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
@@ -131,7 +131,7 @@ export class PeerMenuComponent {
     await this.roomArchive.flush();
     this.localModePreference.set(mode === 'offline');
     if (mode === 'offline') dropInvitationFromAddress();
-    Network.letPageGo();
+    Network.instance.letPageGo();
     this.reload();
   }
 
@@ -147,7 +147,7 @@ export class PeerMenuComponent {
   private readonly watching = inject(ServerWatchService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly destroyRef = inject(DestroyRef);
-  networkService = Network;
+  networkService = Network.instance;
   gameRoomService = this.objectStore;
   readonly help = signal('');
   readonly isPasswordVisible = signal(false);
@@ -158,7 +158,7 @@ export class PeerMenuComponent {
    * Whether a room server decides the roles, which nobody then takes for themselves. Followed from
    * the config, which may load after the panel opens at startup.
    */
-  protected readonly isServerTransport = signal(Network.transport === 'server');
+  protected readonly isServerTransport = signal(Network.instance.transport === 'server');
   private readonly auth = inject(ServerAuthService);
   private readonly imageStorage = inject(ImageStorage);
   /**
@@ -223,7 +223,7 @@ export class PeerMenuComponent {
   private readonly serverInvite = computed(() => {
     this.objectChange.networkVersion();
     if (!this.isServerTransport() || !this.amGameMaster()) return null;
-    return this.serverInvites().get(inviteKey(Network.roomKey, this.inviteRole())) ?? null;
+    return this.serverInvites().get(inviteKey(Network.instance.roomKey, this.inviteRole())) ?? null;
   });
   /** When the invitation in the link runs out, on a room server; null without one. */
   protected readonly serverInviteExpiresAt = computed(() => this.serverInvite()?.expiresAt ?? null);
@@ -233,13 +233,13 @@ export class PeerMenuComponent {
 
   protected readonly inviteLink = computed(() => {
     this.objectChange.networkVersion();
-    const peer = Network.peerContext;
+    const peer = Network.instance.peerContext;
     if (!peer?.isRoom) return '';
 
     return buildInviteLink(location.origin + location.pathname, {
       roomId: peer.roomId,
       roomName: peer.roomName,
-      roomKey: Network.roomKey ?? '',
+      roomKey: Network.instance.roomKey ?? '',
       password: this.includePasswordInInvite() ? peer.password : '',
       role: this.isServerTransport() ? null : this.inviteRole(),
       overlay: this.inviteOverlay(),
@@ -264,16 +264,16 @@ export class PeerMenuComponent {
   /** Asks the reader why they report this room to the room server's operator, and sends it. */
   protected reportRoom(): void {
     if (!this.canReport()) return;
-    void this.modalService.open(ReportDialogComponent, { target: 'room', name: Network.peerContext.roomName });
+    void this.modalService.open(ReportDialogComponent, { target: 'room', name: Network.instance.peerContext.roomName });
   }
 
   async deleteRoom(): Promise<void> {
-    const roomKey = Network.roomKey;
+    const roomKey = Network.instance.roomKey;
     if (!roomKey || this.isDeletingRoom()) return;
     this.isDeletingRoom.set(true);
     this.roomDeletionFailure.set('');
     try {
-      const { roomName, roomId } = Network.peerContext;
+      const { roomName, roomId } = Network.instance.peerContext;
       const outcome = await this.roomDeletion.delete({ roomKey, name: roomName, id: roomId });
       const key = outcome === 'deleted' ? null : roomDeletionMessageKey(outcome);
       if (key) this.roomDeletionFailure.set(this.t(key));
@@ -324,7 +324,7 @@ export class PeerMenuComponent {
     if (!this.isRoleSelfAssignable(role)) return;
     this.myPeer.role = role;
     this.myPeer.update();
-    const peer = Network.peerContext;
+    const peer = Network.instance.peerContext;
     if (isNetworkIsolated()) return;
     if (!peer.isRoom) {
       const saved = loadIdentity();
@@ -341,7 +341,7 @@ export class PeerMenuComponent {
       roomName: peer.roomName,
       role,
       reConnectPass: this.myPeer.reConnectPass,
-      roomKey: Network.roomKey ?? '',
+      roomKey: Network.instance.roomKey ?? '',
     });
   }
 
@@ -350,14 +350,14 @@ export class PeerMenuComponent {
    * that role is in hand with a day still to run. Anybody else's link carries none.
    */
   private async requestServerInvite(role: PeerRole): Promise<void> {
-    if (!this.isServerTransport() || !Network.peerContext.isRoom || !this.isMyselfGameMaster) return;
-    const key = inviteKey(Network.roomKey, role);
+    if (!this.isServerTransport() || !Network.instance.peerContext.isRoom || !this.isMyselfGameMaster) return;
+    const key = inviteKey(Network.instance.roomKey, role);
     const held = this.serverInvites().get(key);
     if (held && held.expiresAt - Date.now() > INVITE_RENEW_MARGIN_MS) return;
     if (this.askingInvites.has(key)) return;
     this.askingInvites.add(key);
     try {
-      const answer = await Network.requestInvite(role);
+      const answer = await Network.instance.requestInvite(role);
       if (!answer.invite || answer.expiresAt == null) {
         this.serverInviteFailed.set(true);
         return;
@@ -408,7 +408,7 @@ export class PeerMenuComponent {
     if (!cursor || cursor.isMine) return;
     // A room server keeps the roles, so the game master asks it, and it changes the cursor
     // for everybody or says why not.
-    const authority = Network.authorityPeerId;
+    const authority = Network.instance.authorityPeerId;
     if (authority) {
       networkSend(AuthorityEvent.ROLE_REQUEST, { peerId, role }, authority);
       return;
@@ -547,7 +547,7 @@ export class PeerMenuComponent {
    * which sends none, when the server last heard from it. Zero or less while neither is known.
    */
   findPeerTimeReceive(peerId: string) {
-    if (this.isServerTransport()) return Network.heardAt(peerId) ?? 0;
+    if (this.isServerTransport()) return Network.instance.heardAt(peerId) ?? 0;
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.timestampReceive : 0;
   }

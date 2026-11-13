@@ -16,7 +16,7 @@ import { LocalModePreferenceService } from '@axe/application/ui/local-mode-prefe
 import { ModalService } from '@axe/application/ui/modal.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { isBanned, ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { InviteLinkParams, parseInviteLink } from '@axe/domain/peer/invite-link';
@@ -140,7 +140,7 @@ export class InviteJoinComponent {
       if (this.auth.account() && untracked(this.state) === 'askLogin') this.answerLogin?.();
     });
 
-    if (Network.isOpen) {
+    if (Network.instance.isOpen) {
       void this.joinOrSayFailed(params);
       return;
     }
@@ -240,7 +240,7 @@ export class InviteJoinComponent {
    * made, where its role is that room's.
    */
   private async join(params: InviteLinkParams): Promise<void> {
-    if (Network.transport === 'server') {
+    if (Network.instance.transport === 'server') {
       await this.joinThroughServer(params);
       return;
     }
@@ -307,7 +307,7 @@ export class InviteJoinComponent {
     if (this.movedOn(params)) return;
 
     PeerCursor.myCursor.reConnectPass = password;
-    if (params.invite) Network.setServerInvite(params.invite, room.roomKey ?? '');
+    if (params.invite) Network.instance.setServerInvite(params.invite, room.roomKey ?? '');
     if (!(await this.roomJoin.joinServerRoom(room, password))) {
       this.state.set('failed');
       return;

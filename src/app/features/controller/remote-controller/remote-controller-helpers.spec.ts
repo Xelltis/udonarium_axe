@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectInventory } from '@axe/application/inventory/object-inventory';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -29,7 +29,7 @@ describe('remote-controller-helpers', () => {
     inventoryContext = {
       tableInventory: new ObjectInventory((object) => object.location.name === 'table'),
       commonInventory: new ObjectInventory(() => false),
-      privateInventory: new ObjectInventory((object) => object.location.name === Network.peerId),
+      privateInventory: new ObjectInventory((object) => object.location.name === Network.instance.peerId),
       graveyardInventory: new ObjectInventory((object) => object.location.name === 'graveyard'),
     };
   });
@@ -108,7 +108,7 @@ describe('remote-controller-helpers', () => {
     });
 
     it('names your own hands', () => {
-      expect(getTabTitle(Network.peerId)).toBe('個人');
+      expect(getTabTitle(Network.instance.peerId)).toBe('個人');
     });
 
     it('names the graveyard', () => {
@@ -126,8 +126,8 @@ describe('remote-controller-helpers', () => {
       expect(inventory).toBe(inventoryContext.tableInventory);
     });
 
-    it('should return privateInventory for Network.peerId type', () => {
-      const inventory = getInventory(Network.peerId, inventoryContext);
+    it('should return privateInventory for Network.instance.peerId type', () => {
+      const inventory = getInventory(Network.instance.peerId, inventoryContext);
       expect(inventory).toBe(inventoryContext.privateInventory);
     });
 

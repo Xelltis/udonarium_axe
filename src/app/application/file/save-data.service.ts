@@ -6,8 +6,8 @@ import { stampLabel } from '@axe/application/chat/stamp-words';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
-import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
@@ -467,7 +467,7 @@ export class SaveDataService {
       imageSrcResolver: images.resolver,
       textDecoder: this.chatLogTextDecoder,
       showTime: this.chatTabList.simpleDispFlagTime,
-      roomName: Network.peerContext?.roomName || undefined,
+      roomName: Network.instance.peerContext?.roomName || undefined,
       labels: this.chatLogLabels(),
       lang: document.documentElement.lang || undefined,
       exportedAt: Date.now(),
@@ -484,7 +484,7 @@ export class SaveDataService {
   }
 
   private chatLogRoomName(): string {
-    return Network.peerContext?.roomName || this.translate('app.roomDataDefault');
+    return Network.instance.peerContext?.roomName || this.translate('app.roomDataDefault');
   }
 
   private chatLogLabels(): ChatLogLabels {

@@ -1,7 +1,8 @@
-import { Network as LiveNetwork } from '@axe/core/index';
 import { Network } from '@axe/core/network/network';
 
 const singleton = Network as unknown as Record<string, unknown>;
+/** The instance the app holds, taken before any test swaps it out. */
+const liveNetwork = Network.instance;
 
 describe('Network', () => {
   let heldByTheApp: unknown;
@@ -357,7 +358,7 @@ describe('Network', () => {
 });
 
 describe('Network, once its own tests are done', () => {
-  it('is the instance the rest of the app imported, so a stand-in for it is read where the app reads it', () => {
-    expect(Network.instance).toBe(LiveNetwork);
+  it('is the instance the rest of the app holds, so a stand-in for it is read where the app reads it', () => {
+    expect(Network.instance).toBe(liveNetwork);
   });
 });

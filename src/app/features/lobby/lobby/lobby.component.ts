@@ -13,8 +13,8 @@ import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
@@ -63,7 +63,7 @@ export class LobbyComponent {
   private readonly withheldEntry = inject(WithheldEntryService);
 
   /** Whether rooms are on a room server, where creating one takes a login. */
-  protected readonly isServerTransport = Network.transport === 'server';
+  protected readonly isServerTransport = Network.instance.transport === 'server';
   /** Whether the reader would have to log in before creating a room. */
   protected readonly mustLogInToCreate = computed(() => this.isServerTransport && !this.auth.isLoggedIn());
   /** Whether rooms can be created here at all: a room server without a login keeps none. */
@@ -94,11 +94,11 @@ export class LobbyComponent {
    * outside a room.
    */
   get currentRoom(): string {
-    return Network.peerContext.roomId;
+    return Network.instance.peerContext.roomId;
   }
   /** This peer's id on the network. */
   get peerId(): string {
-    return Network.peerId;
+    return Network.instance.peerId;
   }
   /**
    * Whether this seat is in a room it would have to leave before going to another: among peers,
@@ -108,8 +108,8 @@ export class LobbyComponent {
    */
   readonly isConnected = computed(() => {
     this.objectChange.networkVersion();
-    if (Network.transport === 'server') return Network.peerContext.isRoom;
-    return Network.peerIds.length > 0;
+    if (Network.instance.transport === 'server') return Network.instance.peerContext.isRoom;
+    return Network.instance.peerIds.length > 0;
   });
 
   /** The reader's own cursor, which keeps the password of a joined room for reconnecting. */
@@ -122,10 +122,11 @@ export class LobbyComponent {
     // Coming into a room closes the lobby, but not going into the same room again, as on a login or
     // a logout made here, which would take away what the account section has to say about it.
     // Only a room the seat is in already counts, not one it is still getting into.
-    let roomIn = Network.isOpen && Network.peerContext?.isRoom ? Network.peerContext.roomId : '';
+    let roomIn =
+      Network.instance.isOpen && Network.instance.peerContext?.isRoom ? Network.instance.peerContext.roomId : '';
     this.objectChange.networkOpen$.subscribe(() => {
       this.changeTitle();
-      const peer = Network.peerContext;
+      const peer = Network.instance.peerContext;
       const cameBack = peer.isRoom && peer.roomId === roomIn;
       roomIn = peer.isRoom ? peer.roomId : '';
       if (peer.isRoom) {
@@ -137,9 +138,9 @@ export class LobbyComponent {
     this.objectChange.peerConnect$.subscribe(() => {
       this.changeTitle();
     }, this.destroyRef);
-    if (Network.isOpen) {
+    if (Network.instance.isOpen) {
       this.reload();
-    } else if (Network.transport !== 'server') {
+    } else if (Network.instance.transport !== 'server') {
       this.help.set(this.t('feature.lobby.lobby.hintConnecting'));
     }
     effect(() => {
@@ -156,9 +157,9 @@ export class LobbyComponent {
   private changeTitle() {
     this.modalService.title = this.panelService.title = this.t('feature.lobby.lobby.title');
     this.modalService.titleTooltip = this.panelService.titleTooltip = '';
-    if (Network.peerContext.roomName.length) {
-      const name = Network.peerContext.roomName;
-      const roomId = Network.peerContext.roomId;
+    if (Network.instance.peerContext.roomName.length) {
+      const name = Network.instance.peerContext.roomName;
+      const roomId = Network.instance.peerContext.roomId;
       const truncated = name.length > 16 ? name.slice(0, 16) + '…' : name;
       this.modalService.title = this.panelService.title = '＜' + truncated + '/' + roomId + '＞';
       this.modalService.titleTooltip = this.panelService.titleTooltip = name + '/' + roomId;
@@ -179,7 +180,7 @@ export class LobbyComponent {
       this.sayUnreachable();
       return;
     }
-    if (Network.transport !== 'server' && !Network.isOpen) {
+    if (Network.instance.transport !== 'server' && !Network.instance.isOpen) {
       this.rooms.set([]);
       this.help.set(this.t('feature.lobby.lobby.hintConnecting'));
       return;
@@ -191,7 +192,7 @@ export class LobbyComponent {
     this.rooms.set([]);
     try {
       const roomInfos = await Promise.race([
-        Network.listAllRooms(),
+        Network.instance.listAllRooms(),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
       ]);
       const roomsList: LobbyRoom[] = roomInfos.map((room) => ({
@@ -253,7 +254,7 @@ export class LobbyComponent {
       if (!(await context.verifyPassword(password))) return;
       // Joined by somebody while the password was asked for, the seat stays in that room, its own
       // password kept for reconnecting, rather than carry the table off into this one.
-      if (Network.peerIds.length > 0) return;
+      if (Network.instance.peerIds.length > 0) return;
       if (context.hasPassword) this.myPeer.reConnectPass = password;
 
       isJoinStarted = true;
@@ -270,7 +271,7 @@ export class LobbyComponent {
 
   /** Joins the room a row stands for, through the room server or among the SkyWay peers in it. */
   connectRoom(row: LobbyRoom): Promise<void> {
-    return Network.transport === 'server' ? this.connectServer(row.info) : this.connect(row.peerContexts);
+    return Network.instance.transport === 'server' ? this.connectServer(row.info) : this.connect(row.peerContexts);
   }
 
   /**
@@ -291,7 +292,7 @@ export class LobbyComponent {
         password = typed;
       }
       // A room this seat came into while the password was asked for would go along into this one.
-      if (Network.peerContext.isRoom) return;
+      if (Network.instance.peerContext.isRoom) return;
       // Kept for reconnecting, a room without a key keeping none, so another room's is not carried in.
       this.myPeer.reConnectPass = password;
 
