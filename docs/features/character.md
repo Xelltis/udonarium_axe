@@ -9,12 +9,18 @@
 - **範囲エリア設定パネル**と高度（altitude）コントロール
 - **スキルテーブル** — GAP判定モード、判定候補ロジック
 - **端数サイズ対応** — マルチヘクスの頂点スナップ、端数サイズ向けの頂点クラスタ台座
+- **コマ画像の幅と縦横比** — 設定タブの「コマ画像の大きさを指定」を入れると、高さ（`komaImageHeight`、50〜750px）に加えて幅も指定できる。幅は`GameCharacter.komaImageWidth`（SyncVar、既定0）に持ち、0や正の数でない値は画像の縦横比を保つ。幅の欄を持たない古い保存も、見た目は変わらない。幅と高さの欄の間にある鎖のアイコンのボタンで、幅を別に持つ（10〜2000px）か、縦横比に戻すかを切り替える。縦横比を保っている間に幅を変えると、高さが比に合わせて動く。3Dモデルで描くコマでは、モデルの箱の大きさにも効く（`domain/character/piece-image-size`、`features/character/game-character-sheet/game-character-settings-tab.component`）
+
+## ステルスと名前を隠す
+
+- **ステルス** — コマの右クリックの「コマの状態」→「ステルス（GMと持ち主・仲間にだけ見える）」で、`GameCharacter.stealth`（SyncVar、`'1'`か`''`）を切り替える。切り替えられるのはGMと、そのコマの持ち主だけ（`StealthService.mayToggle`、`application/character/stealth.service`）。見えるのはGM・持ち主・そのコマのパーティの席だけで、暗闇や霧の有無にかかわらず、`tokenVisibleTo`と`seenByParty`（`domain/tabletop/token-sight`）が最初にこれを判定する。見える席では、絵を半分の不透明度で描き、印を付ける。コマのデータは全員に届き、隠すのは各席の表示だけ。部位は本体と同じに扱うので、本体がステルスなら部位も隠れる
+- **名前を隠す** — `GameCharacter.hideName`（SyncVar、既定`false`）。切り替えはGMだけで（`RolePermissionService.canSeeHidden`）、コマの右クリックの「☐ 名前を隠す」で切り替える。GM以外の席では、名前を隠したコマに「☑ 名前を隠す（GMのみ）」を押せない項目として出す。名前が見えるのはGMと持ち主の画面で、ほかの画面では`common.hiddenName`の「？？？」に置き換える（`PieceNameService`、`application/character/piece-name.service`）。システムメッセージのように全員が読む行には、書く人が誰でも`SAID_HIDDEN_NAME`（「？？？」）を書く。どの言語で読んでも同じ記号にしてある（`domain/character/hidden-name`）
 
 ## キャラクターの取り込み
 
-- **取り込みパイプライン** — ココフォリア コマJSON / キャラクター保管所 / キャラクターシート倉庫 / CharaXivからキャラコマを生成（`domain/character/import`、`application/character/character-import.service`、`features/character/import-character`）
-- **取得経路** — 保管所は直fetch（`Access-Control-Allow-Origin: *`）、倉庫はJSONP（CORS不可のためscriptタグ注入）。CharaXivはココフォリア形式の貼り付け
-- **正規化モデル** — `ImportedCharacter`（statuses / params / system固有sections）へ正規化し、`ImportedCharacterFactory`がdata-elementツリーを構築。保管所CoCは`NA1..NA14`を能力値・SANへ写像、倉庫は`base` / 配列（技能・コンボ・武器）をセクションへ展開
+- **取り込みパイプライン** — ココフォリア コマJSON / キャラクター保管所 / キャラクターシート倉庫 / ゆとシート / CharaXivからキャラコマを生成（`domain/character/import`、`features/character/import-character`。取得と画像の解決は同じフォルダの`character-import.service`）
+- **取得経路** — 保管所は直fetch（`Access-Control-Allow-Origin: *`）、倉庫はJSONP（CORS不可のためscriptタグ注入）。ゆとシートはキャラクターのURLを`mode=json`のアドレスに直して直fetchする（このサービスはJSONの取得をどのオリジンにも許している）。CharaXivはココフォリア形式の貼り付け。URLから取得の仕方を選ぶのは`detectImportFetchPlan`（`domain/character/import/import-source`）
+- **正規化モデル** — `ImportedCharacter`（statuses / params / system固有sections）へ正規化し、`ImportedCharacterFactory`がdata-elementツリーを構築。保管所CoCは`NA1..NA14`を能力値・SANへ写像、倉庫は`base` / 配列（技能・コンボ・武器）をセクションへ展開。ゆとシートは、`weapon1Name`のように種類・番号・欄を並べたキーを、種類ごとのセクションと番号ごとのグループにまとめる。専用のプロファイル（`system-profiles/ytsheet-sw25-profile`）に合う形なら、そちらで読む
 
 ## データ要素（ゲームデータ）
 
@@ -24,6 +30,7 @@
 - **表示項目は引用符でパス参照・空白入りの名前を書ける** — `domain/data/summary-tag-list`の`splitSummaryTags`が引用符付きトークンを1項目として切り出し、**引用を外して下流へ渡す**ので`DataElement.findElementByReference`のパス解決がそのまま効く（`"リソース/正気度"` / `"所持金 合計"`）。裸の`/`は従来どおり改行マーカー。改名追従の発火条件は`tagLeafNames`でパス末尾の名前と照合する（途中のグループを改名するとパスは切れる。名前で参照している以上の制約）
 - **リソースの棚卸しは1か所** — 「何がリソースか」「コマの集合で何を名前で操作できるか」は`domain/character/resource-catalog`（`isResourceElement` / `isResourceField` / `resourceElementsOf` / `resourceNamesOf` / `resourceCatalogOf`）。リモコン・PLツールのインライン編集・コマのバーの増減演出・マップエディターの項目名一覧が同じ判定を使い、ICON/POS（シート内部のUI状態）の除外もここだけに書いてある。画面ごとに判定が違っていたのを揃えたもの
 - **リソースのスロットは1つの語彙** — 現在値・最大値・上下限のベースと補正値を`domain/data/resource-slot`の`ResourceSlot`に統一。`StatusAccessor`・チャットの`:`記法・バフの`&!`修整・リモコンが同じ語彙を使い、`HP^` / `HP_MAX` / `HP_MAX_BUFF` / `HP_MIN` / `HP_MIN_BUFF`の読み取りも`readNamedResourceSlot`の1か所。知らないスロット名は現在値として読むので、古いピアが書いたバフもそのまま動く
+- **オーバーリソース** — リソースの項目の設定で「オーバーリソース」を入れると、現在値が最大値を超えられる。一時的な補正などを、最大値を戻り先にして扱うためのもの。属性`cs-over-resource`（`DataElementAttribute.OVER_RESOURCE`）が`'true'`のときだけ効き、印のない古い保存は今までどおり最大値で止まる（`allowsOverResource`、`domain/character/over-resource`）。上限を外すのは`StatusAccessor`の`clampToBounds`で、シートの現在値の入力欄も最大値を上限にしない。切ると、最大値を超えていた現在値を最大値に戻す（`features/data-element/game-data-element-field-options`）
 - **チェック表（check-table）型** — 旧Markdownレンダラを置換
 - 要素単位の原寸表示オプション（ポップアップ画像）
 - 型ピッカーを`ng-select`化
