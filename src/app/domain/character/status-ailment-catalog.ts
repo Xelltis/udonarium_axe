@@ -14,7 +14,7 @@ const CATALOG_IDENTIFIER = 'StatusAilmentCatalog';
  */
 @SyncObject('status-ailment-catalog')
 export class StatusAilmentCatalog extends ObjectNode {
-  private static _instance: StatusAilmentCatalog;
+  private static _instance: StatusAilmentCatalog | undefined;
   /**
    * The room's single catalog: the one in the object store, or one made and initialized under the
    * fixed identifier when there is none yet.
@@ -33,8 +33,7 @@ export class StatusAilmentCatalog extends ObjectNode {
    */
   override onStoreRemoved() {
     super.onStoreRemoved();
-    if (StatusAilmentCatalog._instance === this)
-      StatusAilmentCatalog._instance = undefined as unknown as StatusAilmentCatalog;
+    if (StatusAilmentCatalog._instance === this) StatusAilmentCatalog._instance = undefined;
   }
 
   /**

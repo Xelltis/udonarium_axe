@@ -47,7 +47,7 @@ export function writeSortKeys(keys: readonly SortKey[]): string {
 
 @SyncObject('summary-setting')
 export class DataSummarySetting extends GameObject implements InnerXml {
-  private static _instance: DataSummarySetting;
+  private static _instance: DataSummarySetting | undefined;
   /**
    * The room's one summary setting, shared by every peer under a fixed identifier.
    *
@@ -70,7 +70,7 @@ export class DataSummarySetting extends GameObject implements InnerXml {
    * is read. Only a test between two of its own has any reason to say this.
    */
   static forget(): void {
-    DataSummarySetting._instance = undefined as unknown as DataSummarySetting;
+    DataSummarySetting._instance = undefined;
   }
 
   /**

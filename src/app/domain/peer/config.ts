@@ -534,7 +534,7 @@ export class Config extends withRuleAnswers() implements InnerXml {
     return answers as RoomRuleAnswers;
   }
 
-  private static _instance: Config;
+  private static _instance: Config | undefined;
   /**
    * The room's one config, shared by every peer under a fixed identifier.
    *
@@ -555,7 +555,7 @@ export class Config extends withRuleAnswers() implements InnerXml {
    */
   override onStoreRemoved() {
     super.onStoreRemoved();
-    if (Config._instance === this) Config._instance = undefined as unknown as Config;
+    if (Config._instance === this) Config._instance = undefined;
   }
 
   /**

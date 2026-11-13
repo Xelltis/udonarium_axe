@@ -6,7 +6,7 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 
 @SyncObject('TableSelecter')
 export class TableSelecter extends GameObject {
-  private static _instance: TableSelecter;
+  private static _instance: TableSelecter | undefined;
   /**
    * The room's one table selecter: the synced one once it has arrived, otherwise a local one made
    * on first use.
@@ -42,7 +42,7 @@ export class TableSelecter extends GameObject {
   /** Stops following table selection, and lets go of the one held here, for the next reader to make anew. */
   override onStoreRemoved() {
     super.onStoreRemoved();
-    if (TableSelecter._instance === this) TableSelecter._instance = undefined as unknown as TableSelecter;
+    if (TableSelecter._instance === this) TableSelecter._instance = undefined;
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
   }

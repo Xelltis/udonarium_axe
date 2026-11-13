@@ -6,7 +6,7 @@ export type TurnPhase = 'idle' | 'roundStart' | 'acting' | 'roundEnd';
 
 @SyncObject('TurnState')
 export class TurnState extends GameObject {
-  private static _instance: TurnState;
+  private static _instance: TurnState | undefined;
   /**
    * The room's one turn state: the synced one once it has arrived, otherwise a local one made on
    * first use.
@@ -25,7 +25,7 @@ export class TurnState extends GameObject {
    */
   override onStoreRemoved() {
     super.onStoreRemoved();
-    if (TurnState._instance === this) TurnState._instance = undefined as unknown as TurnState;
+    if (TurnState._instance === this) TurnState._instance = undefined;
   }
 
   @SyncVar() currentIdentifier: string = '';
