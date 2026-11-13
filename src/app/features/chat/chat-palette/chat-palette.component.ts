@@ -615,6 +615,7 @@ export class ChatPaletteComponent {
       this.doubleClickTimer = null;
       this.chatInputComponent().sendChat(null);
     } else {
+      if (this.doubleClickTimer) clearTimeout(this.doubleClickTimer);
       this.text.set(multiLine);
       this.doubleClickTimer = setTimeout(() => {
         this.doubleClickTimer = null;

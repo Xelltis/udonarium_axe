@@ -141,6 +141,42 @@ describe('ChatPaletteComponent', () => {
     });
   });
 
+  describe('clicking a palette line', () => {
+    it('sends a line clicked twice within 400 ms, even right after another line was clicked', () => {
+      vi.useFakeTimers();
+      try {
+        const send = vi.spyOn(component.chatInputComponent(), 'sendChat').mockImplementation(() => undefined);
+
+        component.clickPalette('2d6 攻撃');
+        vi.advanceTimersByTime(300);
+        component.clickPalette('2d6+2 回避');
+        vi.advanceTimersByTime(150);
+        component.clickPalette('2d6+2 回避');
+
+        expect(component.text()).toBe('2d6+2 回避');
+        expect(send).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('puts a line clicked again after 400 ms into the input without sending it', () => {
+      vi.useFakeTimers();
+      try {
+        const send = vi.spyOn(component.chatInputComponent(), 'sendChat').mockImplementation(() => undefined);
+
+        component.clickPalette('2d6+2 回避');
+        vi.advanceTimersByTime(401);
+        component.clickPalette('2d6+2 回避');
+
+        expect(component.text()).toBe('2d6+2 回避');
+        expect(send).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   describe('speaking a line', () => {
     it('carries the bubble the sender picked, as the chat window does', () => {
       const speaker = createChar('術者');
