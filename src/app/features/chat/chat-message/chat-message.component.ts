@@ -816,7 +816,7 @@ export class ChatMessageComponent {
 
   /** The room's list of chat tabs, which the tabs a line can be copied into are chosen from. */
   get chatTabList(): ChatTabList {
-    return this.objectStore.get<ChatTabList>('ChatTabList')!;
+    return ChatTabList.instance;
   }
 
   /** Whether the button to show a kept-back roll is this reader's to press. */

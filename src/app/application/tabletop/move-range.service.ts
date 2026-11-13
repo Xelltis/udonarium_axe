@@ -73,7 +73,9 @@ function gridKeyOf(grid: CellGrid): string {
 
 @Injectable({ providedIn: 'root' })
 export class MoveRangeService {
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly roomRules = inject(RoomRulesService);
   private readonly objectStore = inject(ObjectStore);
   private readonly ground = inject(StandingGroundService);

@@ -117,7 +117,7 @@ describe('TextNoteComponent', () => {
       table.width = 20;
       table.height = 20;
       table.initialize();
-      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
       note = TextNote.create('浮くメモ', '本文', 5, 4, 3);
       note.location = { name: 'table', x: 120, y: 80 };
       note.posZ = 10;

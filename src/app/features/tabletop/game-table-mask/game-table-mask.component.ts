@@ -103,7 +103,9 @@ export class GameTableMaskComponent {
   private readonly modalService = inject(ModalService);
   private readonly coordinateService = inject(CoordinateService);
   private readonly tablePick = inject(TablePickService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly pieces = inject(TablePiecesService);
   private readonly tabletopService = inject(TabletopService);

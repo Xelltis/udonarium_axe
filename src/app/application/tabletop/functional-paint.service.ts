@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { ambienceKindOf } from '@axe/domain/effect/ambience/ambience-kind';
@@ -335,7 +335,9 @@ function moveCostSpecOf(area: TableMoveCost): MoveCostPaintSpec {
 
 @Injectable({ providedIn: 'root' })
 export class FunctionalPaintService {
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
 
   /** Lays what was painted on the table, making and unmaking only the blocks the plan names. */
   apply(plan: FunctionPaintPlan): boolean {

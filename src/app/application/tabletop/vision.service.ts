@@ -203,7 +203,9 @@ export const GUEST_PERSONA = '@guest';
 export class VisionService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly destroyRef = inject(DestroyRef);
   private readonly links = inject(PieceLinksService);
 

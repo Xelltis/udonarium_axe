@@ -17,7 +17,9 @@ export class ImageDropEventHandlerService {
   private readonly tabletopActionService = inject(TabletopActionService);
   private readonly tablePick = inject(TablePickService);
   private readonly rolePermission = inject(RolePermissionService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly t = inject(TRANSLATE_FN);
 
   constructor() {

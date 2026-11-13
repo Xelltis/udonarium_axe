@@ -22,7 +22,9 @@ type ElementName = string;
 })
 export class GameObjectInventoryService {
   private readonly objectStore = inject(ObjectStore);
-  private readonly dataSummarySetting = inject(DataSummarySetting);
+  private get dataSummarySetting(): DataSummarySetting {
+    return DataSummarySetting.instance;
+  }
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
 

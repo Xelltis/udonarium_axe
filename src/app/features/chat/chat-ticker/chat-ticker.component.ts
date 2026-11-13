@@ -46,7 +46,9 @@ export class ChatTickerComponent {
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly tabletopService = inject(TabletopService);
   private readonly objectStore = inject(ObjectStore);
-  private readonly chatTabList = inject(ChatTabList);
+  private get chatTabList(): ChatTabList {
+    return ChatTabList.instance;
+  }
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly canvas = viewChild<ElementRef<HTMLCanvasElement>>('canvas');

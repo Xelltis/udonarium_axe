@@ -209,7 +209,7 @@ describe('SaveDataService', () => {
     const kept = 'e'.repeat(64);
 
     afterEach(() => {
-      TestBed.inject(Config).battleSettings = { ...DEFAULT_BATTLE_SETTINGS };
+      Config.instance.battleSettings = { ...DEFAULT_BATTLE_SETTINGS };
       ImageStorage.instance.delete(kept);
     });
 
@@ -222,7 +222,7 @@ describe('SaveDataService', () => {
         url: 'blob:arena',
         thumbnail: { type: '', blob: null, url: '' },
       });
-      TestBed.inject(Config).battleSettings = { ...DEFAULT_BATTLE_SETTINGS, pictures: [kept] };
+      Config.instance.battleSettings = { ...DEFAULT_BATTLE_SETTINGS, pictures: [kept] };
       const privateApi = TestBed.inject(SaveDataService) as unknown as {
         buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
       };

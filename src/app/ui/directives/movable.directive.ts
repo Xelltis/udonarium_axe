@@ -109,7 +109,9 @@ export class MovableDirective implements MovableInteractionContext {
   private readonly batchService = inject(BatchService);
   readonly pointerDeviceService = inject(PointerDeviceService);
   readonly coordinateService = inject(CoordinateService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly heldPiece = inject(HeldPieceService);
   private readonly multiMovableService = inject(MultiMovableService);

@@ -107,9 +107,8 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
 
 /* Angular builds the services, components, directives and pipes, so they take the app's singletons
    through inject() (bridged in composition/class-provider.ts) rather than reading them off the class.
-   The synced singletons (Config, ChatTabList, DataSummarySetting, TurnState) are left out on purpose:
-   their `instance` answers for whichever object stands in the room at the time, which an injected
-   copy would not follow. */
+   The synced singletons are left out on purpose: their `instance` answers for whichever object stands
+   in the room at the time, which an injected copy would not follow. */
 const PROCESS_SINGLETONS = [
   'AssetHttpStore',
   'AudioSharingSystem',
@@ -145,6 +144,19 @@ function assertNoCycle(dependencies: Record<string, readonly string[]>): void {
 }
 assertNoCycle(FEATURE_DEPENDENCIES);
 
+/* The room's synced singletons, read through `instance` everywhere and never provided for inject(). */
+const SYNCED_SINGLETONS = [
+  'ChatTabList',
+  'Config',
+  'DataSummarySetting',
+  'StatusAilmentCatalog',
+  'TableSelecter',
+  'TurnState',
+];
+const NO_SYNCED_SINGLETON_INJECT = {
+  selector: `CallExpression[callee.name='inject'][arguments.0.name=/^(${SYNCED_SINGLETONS.join('|')})$/]`,
+  message: '部屋に同期される単一物は`inject()`で受けず`.instance`で読む（部屋の物が差し替わっても今の物を引く）',
+};
 const NO_SINGLETON_INSTANCE = {
   selector: `MemberExpression[object.name=/^(${PROCESS_SINGLETONS.join('|')})$/][property.name='instance']`,
   message:
@@ -184,13 +196,13 @@ const FEATURE_RULES = Object.entries(FEATURE_DEPENDENCIES).flatMap(([feature, al
             ],
           },
         ],
-        'no-restricted-syntax': ['error', ...lazyImports],
+        'no-restricted-syntax': ['error', ...lazyImports, NO_SYNCED_SINGLETON_INJECT],
       },
     },
     {
       files: [`src/app/features/${feature}/**/${ANGULAR_CLASS_FILES}`],
       ignores: [`src/app/features/${feature}/**/*.spec.ts`],
-      rules: { 'no-restricted-syntax': ['error', ...lazyImports, NO_SINGLETON_INSTANCE] },
+      rules: { 'no-restricted-syntax': ['error', ...lazyImports, NO_SINGLETON_INSTANCE, NO_SYNCED_SINGLETON_INJECT] },
     },
   ];
 });
@@ -264,9 +276,14 @@ export default defineConfig([
     },
   },
   {
+    files: ['src/app/{application,ui,composition}/**/*.ts', 'src/app/*.ts'],
+    ignores: ['src/app/**/*.spec.ts'],
+    rules: { 'no-restricted-syntax': ['error', NO_SYNCED_SINGLETON_INJECT] },
+  },
+  {
     files: [`src/app/{application,ui}/**/${ANGULAR_CLASS_FILES}`],
     ignores: ['src/app/**/*.spec.ts'],
-    rules: { 'no-restricted-syntax': ['error', NO_SINGLETON_INSTANCE] },
+    rules: { 'no-restricted-syntax': ['error', NO_SINGLETON_INSTANCE, NO_SYNCED_SINGLETON_INJECT] },
   },
   ...FEATURE_RULES,
   /* composition root: may depend on every layer (features included).

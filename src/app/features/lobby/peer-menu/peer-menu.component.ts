@@ -140,7 +140,9 @@ export class PeerMenuComponent {
   }
   private readonly panelService = inject(PanelService);
   private readonly objectStore = inject(ObjectStore);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectChange = inject(ObjectChangeService);
   private readonly watching = inject(ServerWatchService);
   private readonly chatMessageService = inject(ChatMessageService);

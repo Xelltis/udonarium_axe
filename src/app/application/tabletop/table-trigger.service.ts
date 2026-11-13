@@ -17,7 +17,9 @@ import { TableTrigger, triggersOn } from '@axe/domain/tabletop/table-trigger';
  */
 @Injectable({ providedIn: 'root' })
 export class TableTriggerService {
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);

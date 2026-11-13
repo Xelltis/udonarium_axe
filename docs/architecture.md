@@ -134,9 +134,8 @@ featureに紐付かない汎用UI部品。
 - ドメインモデルは`@SyncObject(alias)`クラス + `@SyncVar()`プロパティで宣言
   ([src/app/core/sync/decorator.ts](../src/app/core/sync/decorator.ts))
 - `@SyncObject`クラス群は**Angular DI外**（`ObjectFactory`が`new`で生成）
-- それらシングルトン（`ObjectStore` / `ObjectFactory` / `ObjectSerializer` /
-  `ObjectSynchronizer` / `ImageStorage` / `AudioStorage` / `FileArchiver` / `AssetHttpStore` /
-  `ChatTabList` / `Config` / `DataSummarySetting` / `TableSelecter`等）は
+- プロセスに1つの部品（`ObjectStore` / `ObjectFactory` / `ObjectSerializer` /
+  `ObjectSynchronizer` / `ImageStorage` / `AudioStorage` / `FileArchiver` / `AssetHttpStore`等）は
   `CLASS_SINGLETON_PROVIDERS`でDIに橋渡しされている
   ([src/app/composition/class-provider.ts](../src/app/composition/class-provider.ts))。
   Angular側は`inject(ObjectStore)`等で取得する
@@ -144,7 +143,8 @@ featureに紐付かない汎用UI部品。
   （`ObjectStore` / `ImageStorage` / `AudioStorage` / `AssetHttpStore`等）を`.instance`で読まず`inject()`で受け取る。
   ESLintで検査する（対象の一覧は[eslint.config.ts](../eslint.config.ts)の`PROCESS_SINGLETONS`）
 - 同期される`Config` / `ChatTabList` / `DataSummarySetting` / `StatusAilmentCatalog` / `TableSelecter` / `TurnState`は対象外で、`.instance`のまま読む。
-  `.instance`は読むたびに部屋にある今の物を引き直す。注入した参照は、部屋の物が差し替わった後も古い物を指しうる
+  `.instance`は読むたびに部屋にある今の物を引き直す。注入した参照は、部屋の物が差し替わった後も古い物を指しうる。
+  そのためこの6つはDIに橋渡ししない。`inject()`で受けるとESLintが止める（`eslint.config.ts`の`SYNCED_SINGLETONS`）
 - **ドメインモデルからDIサービスを呼ばない**。サービス側からモデルを操作する向きを保つ。
   DIの外にある純関数がサービスの値を要るときは、呼び出し側が引数で渡す
 

@@ -401,7 +401,7 @@ describe('GameTableSettingComponent', () => {
 
       component.duplicate();
 
-      const shown = TestBed.inject(TableSelecter).viewTable!;
+      const shown = TableSelecter.instance.viewTable!;
       expect(shown.identifier).not.toBe(table.identifier);
       expect(shown.name).toBe('村のコピー');
       expect(component.selectedTable).toBe(shown);
@@ -434,7 +434,7 @@ describe('GameTableSettingComponent', () => {
     it('plays what the table asks for', () => {
       const shown = new GameTable();
       shown.initialize();
-      TestBed.inject(TableSelecter).viewTableIdentifier = shown.identifier;
+      TableSelecter.instance.viewTableIdentifier = shown.identifier;
       const launchForTable = watchLaunch();
       const music = vi.spyOn(TestBed.inject(TableBgmService), 'playFor').mockImplementation(() => undefined);
 

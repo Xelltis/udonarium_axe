@@ -44,7 +44,7 @@ describe('GameTableMaskComponent', () => {
       table.width = 20;
       table.height = 20;
       table.initialize();
-      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
       mask = GameTableMask.create('浮くマスク', 4, 2, 1);
       mask.location = { name: 'table', x: 100, y: 200 };
       mask.isAltitudeIndicate = true;
@@ -427,7 +427,7 @@ describe('GameTableMaskComponent', () => {
     });
 
     it('is cut to the open hexes on a hex table', async () => {
-      const selecter = TestBed.inject(TableSelecter);
+      const selecter = TableSelecter.instance;
       const table = new GameTable('mask-layer-hex-table');
       table.gridType = GridType.HEX_VERTICAL;
       table.initialize();
@@ -454,7 +454,7 @@ describe('GameTableMaskComponent', () => {
 
     beforeEach(async () => {
       vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: true } as IPeerContext);
-      selecter = TestBed.inject(TableSelecter);
+      selecter = TableSelecter.instance;
       table = new GameTable('mask-strings-hex-table');
       table.gridType = GridType.HEX_VERTICAL;
       table.gridSize = 50;

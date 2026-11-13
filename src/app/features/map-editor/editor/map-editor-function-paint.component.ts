@@ -108,7 +108,9 @@ export class MapEditorFunctionPaintComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tagLock = inject(ImageTagLockService);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectStore = inject(ObjectStore);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly modalService = inject(ModalService);

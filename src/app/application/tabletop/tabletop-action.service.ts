@@ -69,7 +69,9 @@ export class TabletopActionService {
   private readonly partyService = inject(PartyService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly setOut = inject(PartySetOutService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly viewMode = inject(ViewModePreferenceService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly startupLoading = inject(StartupLoadingService);

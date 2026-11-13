@@ -19,7 +19,9 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 export class ChatLineEditService {
   private readonly objectStore = inject(ObjectStore);
   private readonly rolePermission = inject(RolePermissionService);
-  private readonly chatTabList = inject(ChatTabList);
+  private get chatTabList(): ChatTabList {
+    return ChatTabList.instance;
+  }
   private readonly clock = inject(ChatClockService);
 
   /**

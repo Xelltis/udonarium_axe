@@ -42,7 +42,7 @@ describe('TriggerFireService', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     service = TestBed.inject(TriggerFireService);
   });
 
@@ -324,7 +324,7 @@ describe('TriggerFireService', () => {
         hex.gridSize = GRID;
         hex.gridType = GridType.HEX_VERTICAL;
         hex.initialize();
-        TestBed.inject(TableSelecter).viewTableIdentifier = hex.identifier;
+        TableSelecter.instance.viewTableIdentifier = hex.identifier;
 
         const board = cellGridOf(hex.width, hex.height, GRID, GridType.HEX_VERTICAL);
         const between = new TableTrigger();
@@ -633,7 +633,7 @@ describe('TriggerFireService and what the room is told', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     service = TestBed.inject(TriggerFireService);
     chat = TestBed.inject(ChatMessageService);
     vi.spyOn(chat, 'sendSystemNotice').mockReturnValue(null);
@@ -741,7 +741,7 @@ describe('TriggerFireService and the state it leaves a piece in', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     service = TestBed.inject(TriggerFireService);
     ailments = TestBed.inject(StatusAilmentService);
   });
@@ -839,7 +839,7 @@ describe('TriggerFireService and the roll it asks for', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     service = TestBed.inject(TriggerFireService);
     chat = TestBed.inject(ChatMessageService);
     vi.spyOn(chat, 'sendSystemNotice').mockReturnValue(null);
@@ -913,7 +913,7 @@ describe('TriggerFireService and what is heard and seen', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     service = TestBed.inject(TriggerFireService);
     cutIns = TestBed.inject(CutInService);
     vi.spyOn(cutIns, 'launch').mockReturnValue(true);
@@ -1004,7 +1004,7 @@ describe('TriggerFireService and the ground that carries a piece away', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     service = TestBed.inject(TriggerFireService);
   });
 
@@ -1107,7 +1107,7 @@ describe('TriggerFireService and the ground that carries a piece away', () => {
 
       service.walked(piece, grid(), [at(4, 5), at(5, 5)]);
 
-      expect(TestBed.inject(TableSelecter).viewTableIdentifier).toBe(below.identifier);
+      expect(TableSelecter.instance.viewTableIdentifier).toBe(below.identifier);
       expect(pieceCellOf(cellGridOf(below.width, below.height, GRID, GridType.SQUARE), piece, GRID)).toBe(
         cellIndexOf(cellGridOf(below.width, below.height, GRID, GridType.SQUARE), 2, 9)
       );
@@ -1140,7 +1140,7 @@ describe('TriggerFireService and the ground that carries a piece away', () => {
 
       service.walked(piece, grid(), [at(4, 5), at(5, 5)]);
 
-      expect(TestBed.inject(TableSelecter).viewTableIdentifier).toBe(table.identifier);
+      expect(TableSelecter.instance.viewTableIdentifier).toBe(table.identifier);
     });
 
     it('opens onto the table it lies on where the one it names is not in this room', () => {
@@ -1149,7 +1149,7 @@ describe('TriggerFireService and the ground that carries a piece away', () => {
 
       service.walked(piece, grid(), [at(4, 5), at(5, 5)]);
 
-      expect(TestBed.inject(TableSelecter).viewTableIdentifier).toBe(table.identifier);
+      expect(TableSelecter.instance.viewTableIdentifier).toBe(table.identifier);
       expect(cellOf(piece)).toBe(at(2, 9));
     });
   });
@@ -1169,7 +1169,7 @@ describe('TriggerFireService and the ground a turn brings round', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     service = TestBed.inject(TriggerFireService);
   });
 
@@ -1271,8 +1271,8 @@ describe('TriggerFireService and how often ground has another go', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
-    turnState = TestBed.inject(TurnState);
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
+    turnState = TurnState.instance;
     turnState.round = 1;
     service = TestBed.inject(TriggerFireService);
   });

@@ -63,7 +63,7 @@
 - ドメインモデル（`@SyncObject`クラス）からDIサービスを呼ばない
 - サービス側からモデルを操作する向きを保つ。DIの外の純関数が要る値は、呼び出し側が引数で渡す
 - Angularが作るクラスは、プロセスに1つの部品（`ObjectStore`、`ImageStorage`等）を`.instance`で読まず`inject()`で受け取る（ESLintで検査）。
-  同期される`Config` / `ChatTabList` / `DataSummarySetting` / `StatusAilmentCatalog` / `TableSelecter` / `TurnState`は`.instance`のまま読む
+  同期される`Config` / `ChatTabList` / `DataSummarySetting` / `StatusAilmentCatalog` / `TableSelecter` / `TurnState`は`.instance`のまま読み、`inject()`では受けない（DIに橋渡ししておらず、ESLintで検査）
 - オーバーレイの部品（パネルの枠・モーダル・右クリックメニュー等）は`application/ui/overlay-components.ts`のトークンで受け取る
 
 ### 横断の部品

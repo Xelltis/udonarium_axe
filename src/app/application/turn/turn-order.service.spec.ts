@@ -40,7 +40,7 @@ describe('TurnOrderService', () => {
 
     askedToLeaveBehind = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
 
-    turnState = TestBed.inject(TurnState);
+    turnState = TurnState.instance;
     turnState.currentIdentifier = '';
     turnState.currentSide = '';
     turnState.round = 0;

@@ -118,7 +118,7 @@ describe('GameObjectInventoryComponent', () => {
     beforeEach(() => {
       PeerCursor.myCursor = { role: PeerRole.GameMaster, identifier: 'seat-cursor' } as PeerCursor;
       vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(undefined as never);
-      const turnState = TestBed.inject(TurnState);
+      const turnState = TurnState.instance;
       Object.assign(turnState, {
         round: 0,
         phase: 'idle',
@@ -140,7 +140,7 @@ describe('GameObjectInventoryComponent', () => {
 
     afterEach(() => {
       turnOrder.reset();
-      TestBed.inject(TurnState).history = '[]';
+      TurnState.instance.history = '[]';
       vi.restoreAllMocks();
     });
 
@@ -1636,7 +1636,7 @@ describe('GameObjectInventoryComponent', () => {
 
         afterEach(() => {
           localStorage.removeItem('ui-inventory-round-in-play');
-          TestBed.inject(TurnState).round = 0;
+          TurnState.instance.round = 0;
           vi.restoreAllMocks();
         });
 
@@ -1658,7 +1658,7 @@ describe('GameObjectInventoryComponent', () => {
         });
 
         it('comes back once a round has begun', async () => {
-          TestBed.inject(TurnState).round = 2;
+          TurnState.instance.round = 2;
           await Promise.resolve();
           viewPreference().setRoundInPlay(true);
           fixture.detectChanges();

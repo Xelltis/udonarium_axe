@@ -164,7 +164,7 @@ export class ChatMessageSettingComponent {
    * here.
    */
   get chatTabList(): ChatTabList {
-    return this.objectStore.get<ChatTabList>('ChatTabList')!;
+    return ChatTabList.instance;
   }
 
   /**

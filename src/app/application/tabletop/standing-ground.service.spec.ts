@@ -19,7 +19,7 @@ describe('StandingGroundService', () => {
     table.height = 20;
     table.gridSize = gridSize;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     standing = TestBed.inject(StandingGroundService);
   });
 

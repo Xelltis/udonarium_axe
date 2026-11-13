@@ -12,7 +12,9 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
  */
 @Injectable({ providedIn: 'root' })
 export class TableMoveCostService {
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectChange = inject(ObjectChangeService);
 
   /** Every stretch of dear ground on the table, dearest last so the dearest is drawn on top. */

@@ -56,12 +56,24 @@ export class AppInitializationService {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly audioStorage = inject(AudioStorage);
-  private readonly chatTabList = inject(ChatTabList);
-  private readonly tableSelecter = inject(TableSelecter);
-  private readonly turnState = inject(TurnState);
-  private readonly config = inject(Config);
-  private readonly dataSummarySetting = inject(DataSummarySetting);
-  private readonly statusAilmentCatalog = inject(StatusAilmentCatalog);
+  private get chatTabList(): ChatTabList {
+    return ChatTabList.instance;
+  }
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
+  private get turnState(): TurnState {
+    return TurnState.instance;
+  }
+  private get config(): Config {
+    return Config.instance;
+  }
+  private get dataSummarySetting(): DataSummarySetting {
+    return DataSummarySetting.instance;
+  }
+  private get statusAilmentCatalog(): StatusAilmentCatalog {
+    return StatusAilmentCatalog.instance;
+  }
   private readonly keyboardInset = inject(KeyboardInsetService);
   private readonly personalVolumes = inject(PersonalVolumeService);
   /** Made before the room's jukebox, so the jukebox is heard on this peer from the moment it is. */

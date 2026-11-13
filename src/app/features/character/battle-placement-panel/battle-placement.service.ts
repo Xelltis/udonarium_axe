@@ -39,7 +39,9 @@ import {
 export class BattlePlacementService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly zones = inject(EngagementZoneService);
   private readonly links = inject(PieceLinksService);
   private readonly chat = inject(ChatMessageService);

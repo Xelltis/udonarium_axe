@@ -79,7 +79,7 @@ describe('SwitchPressService', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     presses = TestBed.inject(SwitchPressService);
     macro = TestBed.inject(CharacterMacroService);
     said = [];
@@ -543,7 +543,7 @@ describe('SwitchPressService', () => {
         })
       );
 
-      expect(TestBed.inject(TableSelecter).viewTableIdentifier).toBe(cellar.identifier);
+      expect(TableSelecter.instance.viewTableIdentifier).toBe(cellar.identifier);
     });
 
     it('puts on the music of the table it turns to, unless the switch sets the music itself', async () => {
@@ -562,7 +562,7 @@ describe('SwitchPressService', () => {
       expect(music).toHaveBeenCalledWith(cellar);
 
       music.mockClear();
-      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
       await presses.press(
         switchWith({
           actions: [

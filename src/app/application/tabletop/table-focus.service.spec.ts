@@ -23,7 +23,7 @@ describe('TableFocusService', () => {
     table.wallHeight = 4;
     table.gridSize = 50;
     table.gridType = gridType;
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
   }
 
   function standOn(surface: string, x: number, y: number): GameCharacter {

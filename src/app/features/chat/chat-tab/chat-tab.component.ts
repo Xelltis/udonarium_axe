@@ -277,8 +277,8 @@ export class ChatTabComponent {
     return this.chatTabInput();
   }
   /** The room's chat tab list, whose display settings apply to every message shown. */
-  get chatTabList(): ChatTabList | null {
-    return this.objectStore.get<ChatTabList>('ChatTabList');
+  get chatTabList(): ChatTabList {
+    return ChatTabList.instance;
   }
 
   readonly addMessage = output<void>();

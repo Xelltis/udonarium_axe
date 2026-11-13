@@ -26,7 +26,9 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class UiChatSoundSettingsComponent {
   private readonly chatPrefs = inject(ChatPreferencesService);
-  private readonly chatTabList = inject(ChatTabList);
+  private get chatTabList(): ChatTabList {
+    return ChatTabList.instance;
+  }
   private readonly objectChange = inject(ObjectChangeService);
 
   readonly scopes: readonly ChatSettingScope[] = ['all', 'perTab'];

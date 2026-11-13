@@ -42,7 +42,7 @@ describe('TableAltitudeGuideOverlayComponent', () => {
     table.width = 20;
     table.height = 20;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     walker = GameCharacter.create('walker', 1, '');
     walker.location = { name: 'table', x: 100, y: 200 };
     fixture = TestBed.createComponent(TableAltitudeGuideOverlayComponent);

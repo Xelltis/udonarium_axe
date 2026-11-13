@@ -52,8 +52,12 @@ export class TabletopService {
   private readonly injector = inject(Injector);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectSerializer = inject(ObjectSerializer);
-  private readonly chatTabList = inject(ChatTabList);
-  readonly tableSelecter = inject(TableSelecter);
+  private get chatTabList(): ChatTabList {
+    return ChatTabList.instance;
+  }
+  get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly viewMode = inject(ViewModePreferenceService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly seatDisplay = inject(TabletopDisplayPreferenceService);

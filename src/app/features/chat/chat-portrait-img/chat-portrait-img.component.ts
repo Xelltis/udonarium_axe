@@ -82,7 +82,7 @@ export class ChatPortraitImageComponent {
 
   /** The room's chat tab list, which holds the portrait settings every tab shares. */
   get chatTabList(): ChatTabList {
-    return this.objectStore.get<ChatTabList>('ChatTabList')!;
+    return ChatTabList.instance;
   }
 
   readonly isPortraitInWindow = computed<boolean>(() => {

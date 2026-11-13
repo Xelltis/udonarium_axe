@@ -62,7 +62,9 @@ export class RotableDirective {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly rotationGuide = inject(RotationGuideService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly destroyRef = inject(DestroyRef);
 
   private tabletopObject: RotableTabletopObject | null = null;

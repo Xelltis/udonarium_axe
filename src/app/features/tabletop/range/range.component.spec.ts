@@ -67,7 +67,7 @@ describe('RangeComponent', () => {
       table.width = 20;
       table.height = 20;
       table.initialize();
-      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
       range = RangeArea.create('浮く範囲', 3, 3, 1);
       range.location = { name: 'table', x: 300, y: 250 };
       range.isAltitudeIndicate = true;
@@ -223,7 +223,7 @@ describe('RangeComponent', () => {
       table.width = 20;
       table.height = 20;
       table.initialize();
-      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
       const range = RangeArea.create('テスト', 3, 3, 1);
       range.type = 'SQUARE';
       range.location = { name: 'table', x: 100, y: 200 };

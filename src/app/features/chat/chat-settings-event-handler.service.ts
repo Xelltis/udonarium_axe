@@ -11,7 +11,9 @@ export class ChatSettingsEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly chatTabList = inject(ChatTabList);
+  private get chatTabList(): ChatTabList {
+    return ChatTabList.instance;
+  }
   private readonly preferences = inject(ChatPreferencesService);
 
   constructor() {

@@ -32,7 +32,9 @@ export function hasPartLook(look: PartLookWritten): boolean {
 export class PiecePartsService {
   private readonly objectStore = inject(ObjectStore);
   private readonly links = inject(PieceLinksService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
   private readonly names = inject(PieceNameService);

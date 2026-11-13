@@ -15,7 +15,9 @@ import { plantStatusAilment } from '@axe/domain/character/status-ailment-plant';
  */
 @Injectable({ providedIn: 'root' })
 export class StatusAilmentService {
-  private readonly catalog = inject(StatusAilmentCatalog);
+  private get catalog(): StatusAilmentCatalog {
+    return StatusAilmentCatalog.instance;
+  }
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
 

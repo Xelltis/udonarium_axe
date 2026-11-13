@@ -198,7 +198,7 @@ describe('PlToolbarComponent', () => {
       PeerCursor.myCursor.userId = 'me';
       piece = GameCharacter.create('アルト', 1, '');
       piece.setLocation('table');
-      const turn = TestBed.inject(TurnState);
+      const turn = TurnState.instance;
       turn.round = 2;
       turn.phase = 'acting';
       turn.currentIdentifier = piece.identifier;
@@ -206,7 +206,7 @@ describe('PlToolbarComponent', () => {
     });
 
     afterEach(() => {
-      const turn = TestBed.inject(TurnState);
+      const turn = TurnState.instance;
       turn.round = 0;
       turn.phase = 'idle';
       turn.currentIdentifier = '';

@@ -414,7 +414,7 @@ describe('DungeonBuildService', () => {
       const viewed = new GameTable('table-of-sixty');
       viewed.gridSize = 60;
       viewed.initialize();
-      TestBed.inject(TableSelecter).viewTableIdentifier = viewed.identifier;
+      TableSelecter.instance.viewTableIdentifier = viewed.identifier;
       const dragon = GameCharacter.create('竜', 3, '');
       dragon.location = { name: 'table', x: 1000, y: 1000 };
       dragon.mountable = '1';

@@ -44,7 +44,7 @@ describe('TablePickService', () => {
     table.height = 20;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     camera = TestBed.inject(TableCameraService);
     camera.setLayout(layout);
     camera.showView(DEFAULT_TABLE_CAMERA_VIEW);

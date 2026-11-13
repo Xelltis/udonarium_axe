@@ -106,7 +106,7 @@ describe('TableMoveRangeOverlayComponent', () => {
     table.initialize();
     // Chosen outright: a table first read for is adopted then and there, and the writing that
     // takes would reach the overlay later as a change to the table.
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     return table;
   }
 

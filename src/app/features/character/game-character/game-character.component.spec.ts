@@ -3264,7 +3264,7 @@ describe('GameCharacterComponent', () => {
     table.width = 20;
     table.height = 20;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     TestBed.inject(GroundService).dab({ kind: 'raise', x: 2.5, y: 4.5, radius: 3, strength: 1 });
     const character = GameCharacter.create('浮く人', 1, '');
     character.location = { name: 'table', x: 100, y: 200 };

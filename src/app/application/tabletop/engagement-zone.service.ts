@@ -126,7 +126,9 @@ export class EngagementZoneService {
   private readonly objectStore = inject(ObjectStore);
   private readonly roomRules = inject(RoomRulesService);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly chat = inject(ChatMessageService);
   private readonly snackbar = inject(SnackbarService);
   private readonly vision = inject(VisionService);

@@ -158,7 +158,9 @@ type DrawnWay = { grid: CellGrid; way: number[] };
 export class TableMoveRangeOverlayComponent {
   private readonly moveRange = inject(MoveRangeService);
   private readonly movePlan = inject(MovePlanService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);

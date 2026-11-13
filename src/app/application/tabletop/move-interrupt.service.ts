@@ -129,7 +129,9 @@ export class MoveInterruptService {
   private readonly objectStore = inject(ObjectStore);
   private readonly roomRules = inject(RoomRulesService);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly zones = inject(EngagementZoneService);
   private readonly vision = inject(VisionService);
   private readonly chat = inject(ChatMessageService);

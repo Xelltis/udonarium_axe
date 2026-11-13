@@ -121,7 +121,7 @@ describe('TerrainComponent', () => {
       table.width = 20;
       table.height = 20;
       table.initialize();
-      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
     });
 
     afterEach(() => table.destroy());

@@ -6,7 +6,7 @@ import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { MODEL_DRAG_TYPE } from '@axe/features/media/model-library/attach-model';
 import { ModelDropEventHandlerService } from '@axe/features/media/model-library/model-drop-event-handler.service';
@@ -40,6 +40,11 @@ describe('ModelDropEventHandlerService', () => {
     landing = { x: 100, y: 200, z: 0 };
     document.body.innerHTML = '<div id="app-table-layer"></div>';
     vi.spyOn(document, 'elementFromPoint').mockImplementation(() => document.querySelector('#app-table-layer'));
+    // The drop lands on the table in view, one of 10 by 10 cells of 50 px.
+    const table = new GameTable();
+    table.width = 10;
+    table.height = 10;
+    table.initialize();
     TestBed.configureTestingModule({
       providers: [
         ...TEST_PROVIDERS,
@@ -48,7 +53,6 @@ describe('ModelDropEventHandlerService', () => {
           provide: TablePickService,
           useValue: { pressedAt: () => pressed, landingAt: () => landing },
         },
-        { provide: TableSelecter, useValue: { viewTable: { width: 10, height: 10, gridSize: 50 } } },
         {
           provide: TabletopActionService,
           useValue: {

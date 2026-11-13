@@ -22,7 +22,6 @@ import { BatchService } from '@axe/application/ui/batch.service';
 import { callCursorMove, callHeartBeat } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { getPeerContexts, getPeerIds } from '@axe/core/network/peer-context-source';
-import { ObjectStore } from '@axe/core/sync/object-store';
 import { ResettableTimeout } from '@axe/core/util/resettable-timeout';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -44,7 +43,6 @@ export class PeerCursorComponent {
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly objectStore = inject(ObjectStore);
   private readonly t = inject(TRANSLATE_FN);
 
   private readonly camera = inject(TableCameraService);
@@ -84,9 +82,6 @@ export class PeerCursorComponent {
    * The room's chat tab list, which holds the system tab that connection notices about this peer
    * are posted to.
    */
-  get chatTabList(): ChatTabList {
-    return this.objectStore.get<ChatTabList>('ChatTabList')!;
-  }
 
   private cursorElement: HTMLElement | null = null;
   private opacityElement: HTMLElement | null = null;
@@ -218,8 +213,7 @@ export class PeerCursorComponent {
     const timeout = PeerCursor.myCursor.timeout * 1000;
     const elapsedTime = Date.now() - this.cursor().timestampReceive;
 
-    const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
-    const sysTab = chatTabList!.systemMessageTab;
+    const sysTab = ChatTabList.instance.systemMessageTab;
 
     if (timeout <= elapsedTime) {
       if (!this.cursor().isDisConnect) {
@@ -254,9 +248,7 @@ export class PeerCursorComponent {
     if (PeerCursorComponent._sentLogoutIdentifiers.has(identifier)) return;
     PeerCursorComponent._sentLogoutIdentifiers.add(identifier);
     setTimeout(() => PeerCursorComponent._sentLogoutIdentifiers.delete(identifier), 60_000);
-    const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
-    if (!chatTabList) return;
-    const sysTab = chatTabList.systemMessageTab;
+    const sysTab = ChatTabList.instance.systemMessageTab;
     if (sysTab) {
       const text = encodeI18nMessage('feature.lobby.peerCursor.loggedOut', {
         name: this.cursor().name || this.cursor().userId.slice(0, 6),

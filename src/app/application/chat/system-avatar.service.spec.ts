@@ -15,7 +15,7 @@ describe('SystemAvatarService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
-    config = TestBed.inject(Config);
+    config = Config.instance;
     config.systemAvatarIdentifier = '';
     config.systemDiceAvatarIdentifier = '';
     config.isSystemAvatarVisible = true;

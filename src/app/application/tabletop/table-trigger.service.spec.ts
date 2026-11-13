@@ -32,7 +32,7 @@ describe('the ground that goes off, as a seat is allowed to see it', () => {
     table.gridSize = GRID;
     table.darknessEnabled = true;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     service = TestBed.inject(TableTriggerService);
   });
 

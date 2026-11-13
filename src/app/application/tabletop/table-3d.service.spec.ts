@@ -557,7 +557,7 @@ describe('Table3dService', () => {
     const scene = service();
     const table = new GameTable();
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     const die = DiceSymbol.create('D6', DiceType.D6, 1);
     die.location = { name: 'table', x: 100, y: 100 };
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -969,7 +969,7 @@ describe('Table3dService', () => {
     const scene = service();
     const table = new GameTable();
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     const block = Terrain.create('箱', 1, 1, 2, 'wall-picture', 'floor-picture');
     block.location = { name: 'table', x: 100, y: 150 };
     table.appendChild(block);
@@ -988,7 +988,7 @@ describe('Table3dService', () => {
     const scene = service();
     const table = new GameTable();
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     const blank = Terrain.create('見えない壁', 1, 1, 2, '', '');
     table.appendChild(blank);
     const sees = vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
@@ -1014,7 +1014,7 @@ describe('Table3dService', () => {
     vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:tree' } as never);
     const table = new GameTable();
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     const block = Terrain.create('木', 1, 1, 2, '', '');
     block.location = { name: 'table', x: 100, y: 150 };
     block.modelIdentifier = 'tree';
@@ -1043,7 +1043,7 @@ describe('Table3dService', () => {
     );
     const table = new GameTable();
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     const row = Terrain.create('壁', 2, 1, 2, '', '');
     row.location = { name: 'table', x: 50, y: 50 };
     row.modelIdentifier = 'timber_frame_wall';
@@ -1104,7 +1104,7 @@ describe('Table3dService', () => {
     vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:wall' } as never);
     const table = new GameTable();
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     for (const x of [50, 100]) {
       const wall = Terrain.create('壁', 1, 1, 2, '', '');
       wall.location = { name: 'table', x, y: 50 };
@@ -1133,7 +1133,7 @@ describe('Table3dService', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>((resolve) => (answer = resolve)));
     const table = new GameTable();
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     const piece = GameCharacter.create('ゴブリン', 1, '');
     piece.location.name = 'table';
     piece.modelIdentifier = BUNDLED_PIECE_MODELS.goblin;
@@ -1159,7 +1159,7 @@ describe('Table3dService', () => {
     const table = new GameTable();
     table.gridType = GridType.HEX_VERTICAL;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
     const standOn = (terrain: Terrain, col: number, row: number) => {
       const middle = cellCenterOf(grid, cellIndexOf(grid, col, row));
@@ -1199,7 +1199,7 @@ describe('Table3dService', () => {
     vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:container' } as never);
     const table = new GameTable();
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     const upper = Terrain.create('コンテナ', 4, 2, 1.7, '', '');
     upper.location = { name: 'table', x: 0, y: 0 };
     upper.altitude = 1.7;
@@ -1216,7 +1216,7 @@ describe('Table3dService', () => {
     vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:door' } as never);
     const table = new GameTable();
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     const door = Terrain.create('扉', 1, 0.2, 2, '', '');
     door.location = { name: 'table', x: 100, y: 150 };
     door.doorStyle = DoorStyle.SWING;

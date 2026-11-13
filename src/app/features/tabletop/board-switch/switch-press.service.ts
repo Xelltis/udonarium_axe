@@ -101,7 +101,9 @@ export class SwitchPressService {
   private readonly speaker = inject(ChatSpeakerService);
   private readonly cues = inject(NamedCueService);
   private readonly vision = inject(VisionService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectStore = inject(ObjectStore);
   private readonly triggers = inject(TableTriggerService);
   private readonly concealment = inject(ConcealmentService);

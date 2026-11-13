@@ -30,7 +30,9 @@ export class FogMemoryEventHandlerService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly localMode = inject(LocalModePreferenceService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly destroyRef = inject(DestroyRef);
 
   private held: FogRecord | null = null;

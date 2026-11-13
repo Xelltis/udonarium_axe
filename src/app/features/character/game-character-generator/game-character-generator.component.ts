@@ -31,7 +31,9 @@ export class GameCharacterGeneratorComponent {
   private readonly roomPanels = inject(RoomPanelService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly objectSerializer = inject(ObjectSerializer);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly rolePermission = inject(RolePermissionService);

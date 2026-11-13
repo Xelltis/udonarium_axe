@@ -60,7 +60,9 @@ export class ChatMessageService {
   private readonly objectStore = inject(ObjectStore);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly imageStorage = inject(ImageStorage);
-  private readonly chatTabList = inject(ChatTabList);
+  private get chatTabList(): ChatTabList {
+    return ChatTabList.instance;
+  }
   private readonly myDice = inject(MyDiceService);
   private readonly stampRules = inject(StampRulesService);
   private readonly clock = inject(ChatClockService);
@@ -74,8 +76,7 @@ export class ChatMessageService {
 
   /** Writes a notice into the system tab under the system's name, in green unless a colour is given. */
   sendSystemMessage(text: string, color?: string, from?: string): ChatMessage {
-    const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
-    const sysTab = chatTabList!.systemMessageTab!;
+    const sysTab = this.chatTabList.systemMessageTab!;
     const messageColor = resolveMessageColor(color, '#006633');
     const chatMessage: ChatMessageContext = {
       from,
@@ -143,8 +144,7 @@ export class ChatMessageService {
 
   /** A kept-back notice, as `sendSecretSystemMessageToTab` writes it, in the first tab of the room. */
   sendSecretSystemMessageToMainTab(text: string, from?: string, dieIdentifiers: readonly string[] = []): ChatMessage {
-    const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
-    return this.sendSecretSystemMessageToTab(chatTabList!.chatTabs[0], text, from, undefined, dieIdentifiers);
+    return this.sendSecretSystemMessageToTab(this.chatTabList.chatTabs[0], text, from, undefined, dieIdentifiers);
   }
 
   /**
@@ -168,8 +168,7 @@ export class ChatMessageService {
 
   /** The tab a kind of notice goes to now, or null for a kind the room sends nowhere. */
   noticeTabOf(kind: SystemNoticeKind): ChatTab | null {
-    const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
-    if (!chatTabList) return null;
+    const chatTabList = this.chatTabList;
     const config = Config.instance;
     const route = noticeRouteOf(config.systemNotices, kind);
     if (route === NOTICE_OFF) return null;
@@ -214,8 +213,7 @@ export class ChatMessageService {
    * on a room server says nothing in a tab guests may not speak in, which the server would take back.
    */
   sendSystemMessageAsLastSpeaker(text: string, chatTabIdentifier?: string) {
-    const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
-    const sysTab = this.resolveChatTab(chatTabIdentifier) ?? chatTabList!.systemMessageTab!;
+    const sysTab = this.resolveChatTab(chatTabIdentifier) ?? this.chatTabList.systemMessageTab!;
     if (PeerCursor.isMyselfKeptOffTable && !sysTab?.guestCanSpeak) return;
     const sendFrom = PeerCursor.myCursor.lastControlSendFrom
       ? PeerCursor.myCursor.lastControlSendFrom

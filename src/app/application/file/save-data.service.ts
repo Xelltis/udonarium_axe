@@ -82,10 +82,18 @@ export class SaveDataService {
   private readonly audioStorage = inject(AudioStorage);
   private readonly modelStorage = inject(ModelStorage);
   private readonly fileArchiver = inject(FileArchiver);
-  private readonly chatTabList = inject(ChatTabList);
-  private readonly appConfig = inject(Config);
-  private readonly dataSummarySetting = inject(DataSummarySetting);
-  private readonly statusAilmentCatalog = inject(StatusAilmentCatalog);
+  private get chatTabList(): ChatTabList {
+    return ChatTabList.instance;
+  }
+  private get appConfig(): Config {
+    return Config.instance;
+  }
+  private get dataSummarySetting(): DataSummarySetting {
+    return DataSummarySetting.instance;
+  }
+  private get statusAilmentCatalog(): StatusAilmentCatalog {
+    return StatusAilmentCatalog.instance;
+  }
   private readonly translate = inject(TRANSLATE_FN);
   private readonly snackbar = inject(SnackbarService);
   private readonly chatReactions = inject(ChatReactionService);

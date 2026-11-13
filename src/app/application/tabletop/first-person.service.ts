@@ -85,7 +85,9 @@ export class FirstPersonService {
   private readonly roomRules = inject(RoomRulesService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly preference = inject(FirstPersonPreferenceService);
   private readonly vision = inject(VisionService);
   private readonly moveRange = inject(MoveRangeService);

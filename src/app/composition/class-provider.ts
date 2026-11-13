@@ -16,12 +16,6 @@ import { ObjectFactory } from '@axe/core/sync/object-factory';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
-import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
-import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
-import { Config } from '@axe/domain/peer/config';
-import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { TurnState } from '@axe/domain/tabletop/turn-state';
 
 export const CLASS_SINGLETON_PROVIDERS: Provider[] = [
   { provide: ObjectFactory, useFactory: () => ObjectFactory.instance },
@@ -40,11 +34,4 @@ export const CLASS_SINGLETON_PROVIDERS: Provider[] = [
   { provide: ModelSharingSystem, useFactory: () => ModelSharingSystem.instance },
   { provide: RoomSnapshotStore, useFactory: () => IndexedDbRoomSnapshotStore.instance },
   { provide: ReplayLogStore, useFactory: () => IndexedDbReplayLogStore.instance },
-
-  { provide: ChatTabList, useFactory: () => ChatTabList.instance },
-  { provide: Config, useFactory: () => Config.instance },
-  { provide: DataSummarySetting, useFactory: () => DataSummarySetting.instance },
-  { provide: StatusAilmentCatalog, useFactory: () => StatusAilmentCatalog.instance },
-  { provide: TableSelecter, useFactory: () => TableSelecter.instance },
-  { provide: TurnState, useFactory: () => TurnState.instance },
 ];

@@ -21,9 +21,11 @@ import { whiteBoardFrame } from '@axe/domain/tabletop/white-board-frame';
 export class TableSurfaceService {
   // The table in view is read off the selecter rather than through TabletopService, which reads
   // points through the coordinate service that reads them through this one. Where nothing provides
-  // the selecter or the store, no face is known and points are read back from the page's styles
-  // instead.
-  private readonly tableSelecter = inject(TableSelecter, { optional: true });
+  // the store, or no table stands in the room, no face is known and points are read back from the
+  // page's styles instead.
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly camera = inject(TableCameraService);
   private readonly objectStore = inject(ObjectStore, { optional: true });
   private readonly transient = inject(TransientPlacementService);
@@ -33,7 +35,7 @@ export class TableSurfaceService {
    * board. A board this seat is moving is where it is being moved to, as it is drawn.
    */
   frameOf(surface: string): SurfaceFrame | null {
-    const table = this.tableSelecter?.viewTable;
+    const table = this.tableSelecter.viewTable;
     if (!table) return null;
     if ((TABLE_SURFACES as readonly string[]).includes(surface)) {
       return surfaceFrame(surface as TableSurface, {
@@ -52,7 +54,7 @@ export class TableSurfaceService {
 
   /** How far a face runs across and down, in pixels, or null for a face it does not know. */
   sizeOf(surface: string): { width: number; height: number } | null {
-    const table = this.tableSelecter?.viewTable;
+    const table = this.tableSelecter.viewTable;
     if (!table) return null;
     if (surface === 'floor') return { width: table.width * table.gridSize, height: table.height * table.gridSize };
     const wall = tableWallSettings(table).find((setting) => setting.surface === surface);

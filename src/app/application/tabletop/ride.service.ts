@@ -118,7 +118,9 @@ export interface RideMenuModel {
 export class RideService {
   private readonly objectStore = inject(ObjectStore);
   private readonly roomRules = inject(RoomRulesService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly zones = inject(EngagementZoneService);
   private readonly links = inject(PieceLinksService);
   private readonly chat = inject(ChatMessageService);

@@ -21,7 +21,7 @@ describe('ConcealmentService', () => {
     table.height = 10;
     table.gridSize = 50;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     concealment = TestBed.inject(ConcealmentService);
   });
 

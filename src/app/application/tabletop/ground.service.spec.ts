@@ -22,7 +22,7 @@ describe('GroundService', () => {
     table.height = 20;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     ground = TestBed.inject(GroundService);
   });
 

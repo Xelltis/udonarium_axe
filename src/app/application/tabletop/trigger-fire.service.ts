@@ -44,7 +44,9 @@ export interface TriggerFiring {
  */
 @Injectable({ providedIn: 'root' })
 export class TriggerFireService {
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly roomRules = inject(RoomRulesService);
   private readonly chat = inject(ChatMessageService);
   private readonly ailments = inject(StatusAilmentService);
