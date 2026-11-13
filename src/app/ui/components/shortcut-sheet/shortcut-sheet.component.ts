@@ -20,7 +20,7 @@ import { TranslocoModule } from '@jsverse/transloco';
  * Marks what the cheat sheet keeps clear of: the names the guide to the buttons writes beside them,
  * and the bars that stand over the sheet. The buttons named in place are kept clear of as well.
  */
-export const SHORTCUT_SHEET_AVOID_ATTRIBUTE = 'data-shortcut-sheet-avoid';
+const SHORTCUT_SHEET_AVOID_ATTRIBUTE = 'data-shortcut-sheet-avoid';
 
 /** How long the menu's drawer takes to come out, after which the names it writes stay where they are. */
 const SETTLE_MS = 300;

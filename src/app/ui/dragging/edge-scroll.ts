@@ -1,8 +1,8 @@
 /** The band at the top and the bottom of a scrolling area that scrolls it while a drag is held there. */
-export const EDGE_SCROLL_BAND_PX = 56;
+const EDGE_SCROLL_BAND_PX = 56;
 
 /** The most a held drag scrolls its area in one frame. */
-export const EDGE_SCROLL_MAX_STEP_PX = 18;
+const EDGE_SCROLL_MAX_STEP_PX = 18;
 
 /**
  * How far to scroll an area this frame for a drag held at `y`: upward near its top, downward near

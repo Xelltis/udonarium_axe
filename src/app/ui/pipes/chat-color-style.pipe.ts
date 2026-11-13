@@ -10,7 +10,7 @@ import {
 import { chatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 
 /** What the bubble aims for when it is worked out: the reading standard for body text. */
-export const CHAT_TARGET_RATIO = 4.5;
+const CHAT_TARGET_RATIO = 4.5;
 
 /**
  * How badly a pair has to read before the panel says anything about it.
@@ -63,7 +63,7 @@ function searchChatBubble(color: string, baseTone: number): string {
   const textLum = relativeLuminance(rgb);
   // Measured on the colour as it will be written out, so what is returned is what was tested:
   // a tone that clears the standard as a float can fall a hair under it once it is a byte.
-  const shown = (tone: number) => parseHexColor(cssToHex(rgbToCss(lchToRgb({ tone, chroma: tint, hue }))))!;
+  const shown = (tone: number) => parseHexColor(cssToHex(rgbToCss(lchToRgb({ tone, chroma: tint, hue })))) ?? rgb;
   const at = (tone: number) => relativeLuminance(shown(tone));
   const reads = (tone: number) => contrastRatio(textLum, at(tone)) >= CHAT_TARGET_RATIO;
 
@@ -129,8 +129,8 @@ export class ChatColorStylePipe implements PipeTransform {
     if (!color) return null;
     if (!parseHexColor(color)) return null;
 
-    const chosen =
-      bubble && parseHexColor(bubble) ? rgbToCss(parseHexColor(bubble)!) : autoChatBubble(color, theme, base);
+    const chosenRgb = bubble ? parseHexColor(bubble) : null;
+    const chosen = chosenRgb ? rgbToCss(chosenRgb) : autoChatBubble(color, theme, base);
 
     return {
       color,

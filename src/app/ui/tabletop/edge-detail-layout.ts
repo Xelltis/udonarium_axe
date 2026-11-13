@@ -1,7 +1,7 @@
 import { MULTI_ANGLE_SEATS, MultiAngleSeatKey } from '@axe/domain/tabletop/multi-angle';
 
 /** A screen this much longer than it is wide seats two along each of its long edges. */
-export const EDGE_DETAIL_SPLIT_ASPECT_RATIO = 1.5;
+const EDGE_DETAIL_SPLIT_ASPECT_RATIO = 1.5;
 
 /**
  * How far a detail sits from the edge it belongs to.
