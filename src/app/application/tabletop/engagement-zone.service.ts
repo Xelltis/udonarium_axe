@@ -257,17 +257,17 @@ export class EngagementZoneService {
     if (!world) return null;
     const state = this.stateNow();
     const joining = state.zoneOf(target.identifier) ?? state.zoneOf(attacker.identifier);
-    let zone: EngagementZone | null = joining ? this.zoneById(joining.id) : null;
+    const found = joining ? this.zoneById(joining.id) : null;
+    const zone = found ?? new EngagementZone();
     GameObject.batch(() => {
-      if (!zone) {
-        zone = new EngagementZone();
+      if (!found) {
         zone.initialize();
         zone.centre = world.snap(state.pointOf(target.identifier) ?? pieceCentreOf(target, world.table.gridSize));
         world.table.appendChild(zone);
       }
       for (const piece of this.links.withPartners([attacker, target])) this.putInZone(piece, zone.identifier);
     });
-    this.settle([zone!.identifier]);
+    this.settle([zone.identifier]);
     this.chat.sendSystemNotice(
       'movement',
       encodeI18nMessage('feature.zone.chat.declared', {

@@ -781,7 +781,8 @@ export class TablePiecesService {
     if (again.size === 0) return standing.all;
     const drawn: T[] = [];
     for (const owner of standing.owners) {
-      const piece = standing.pieces.get(owner)!;
+      const piece = standing.pieces.get(owner);
+      if (!piece) continue;
       drawn.push(...(again.has(owner) ? piece.again(placed.get(owner) ?? null) : piece.parts));
     }
     return drawn;

@@ -984,7 +984,8 @@ export class VisionService {
         viewer,
         found: () => this.foundPieces(),
         fog: () => this.overlayVision(),
-        pointVisible: (x, y, z) => this.recall(`tok:${x}:${y}:${z}`, () => isPointVisible(scene!, x, y, viewer, z)),
+        pointVisible: (x, y, z) =>
+          !scene || this.recall(`tok:${x}:${y}:${z}`, () => isPointVisible(scene, x, y, viewer, z)),
       },
       judged
     );

@@ -281,7 +281,10 @@ export class MoveInterruptService {
     const claims = this.claimsFor(id, responders);
     const byId = new Map(candidates.map((candidate) => [candidate.id, candidate]));
     const reaches = (claim: InterruptClaim) =>
-      claim.pieces.every((piece) => byId.has(piece) && inSpans(byId.get(piece)!.spans, claim.along));
+      claim.pieces.every((piece) => {
+        const candidate = byId.get(piece);
+        return candidate !== undefined && inSpans(candidate.spans, claim.along);
+      });
     const outsideStop = resolveClaims(
       claims.filter((claim) => claim.pieces.every((piece) => byId.get(piece)?.zones.length === 0)),
       reaches,
@@ -337,7 +340,7 @@ export class MoveInterruptService {
   ): ZoneClaim | null {
     const point = pointAtLength(path, claim.along);
     const fits = this.zonesFitting(
-      claim.pieces.map((piece) => byId.get(piece)!),
+      claim.pieces.flatMap((piece) => byId.get(piece) ?? []),
       point,
       terms
     );
@@ -353,11 +356,11 @@ export class MoveInterruptService {
     const inZones = [...new Set(pieces.filter((piece) => piece.member).flatMap((piece) => piece.zones))];
     if (inZones.length > 0) return inZones;
     if (pieces.length < 1 || !point) return [];
-    return pieces[0].zones.filter(
-      (zone) =>
-        pieces.every((piece) => piece.zones.includes(zone)) &&
-        zoneCovers(terms.holding.find((hold) => hold.id === zone)!.shape, point)
-    );
+    return pieces[0].zones.filter((zone) => {
+      if (!pieces.every((piece) => piece.zones.includes(zone))) return false;
+      const held = terms.holding.find((hold) => hold.id === zone);
+      return held !== undefined && zoneCovers(held.shape, point);
+    });
   }
 
   /**

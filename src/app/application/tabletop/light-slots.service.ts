@@ -41,7 +41,7 @@ export class LightSlotsService {
       }
       const chosen = lightSlotsOf(scene.lights, this.focus(scene), this.count(), this.held);
       this.held = chosen;
-      return chosen.map((id) => scene.lights.find((light) => light.sourceId === id)!);
+      return chosen.flatMap((id) => scene.lights.find((light) => light.sourceId === id) ?? []);
     },
     { equal: sameLights }
   );
