@@ -140,7 +140,7 @@ export class PointerDeviceService {
     } else {
       this.onMouseMove(e as MouseEvent);
     }
-    this.targetElement = e.target as HTMLElement;
+    this.targetElement = e.target instanceof HTMLElement ? e.target : this.targetElement;
   }
 
   private onPointerUp(e: MouseEvent | TouchEvent) {
@@ -192,10 +192,10 @@ export class PointerDeviceService {
     }
   }
 
-  private isSyntheticEvent(mosuePointer: PointerData, threshold: number = 15): boolean {
+  private isSyntheticEvent(mousePointer: PointerData, threshold: number = 15): boolean {
     for (const pointer of this.pointers) {
-      if (pointer.identifier === mosuePointer.identifier) continue;
-      const distance = (mosuePointer.x - pointer.x) ** 2 + (mosuePointer.y - pointer.y) ** 2;
+      if (pointer.identifier === mousePointer.identifier) continue;
+      const distance = (mousePointer.x - pointer.x) ** 2 + (mousePointer.y - pointer.y) ** 2;
       if (distance < threshold ** 2) return true;
     }
     return false;

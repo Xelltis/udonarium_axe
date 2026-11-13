@@ -77,8 +77,6 @@ export class TabletopActionService {
   private readonly t = inject(TRANSLATE_FN);
   private readonly startupLoading = inject(StartupLoadingService);
 
-  constructor() {}
-
   /** Makes a character with the default name and no picture, centred on a point; see `createGameCharacterWith`. */
   createGameCharacter(position: PointerCoordinate): GameCharacter {
     return this.createGameCharacterWith(position, this.t('feature.tabletop.action.defaultCharacterName'), '');

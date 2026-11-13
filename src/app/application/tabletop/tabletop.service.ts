@@ -300,15 +300,13 @@ export class TabletopService {
         this.chatTabList.addChatTab(gameObject);
       }
 
-      //adds what a dropped room archive is missing
-      const objects: TabletopObject[] = this.objectStore.getObjects(GameCharacter);
-      for (const gameObject of objects) {
-        if (gameObject instanceof GameCharacter) {
-          const gameCharacter: GameCharacter = gameObject;
-          gameCharacter.addExtendData();
-        }
-      }
+      this.addWhatRoomArchiveLacks();
     }, this.destroyRef);
+  }
+
+  /** Gives every character the data a room archive dropped in from an older version leaves out. */
+  private addWhatRoomArchiveLacks(): void {
+    for (const character of this.objectStore.getObjects(GameCharacter)) character.addExtendData();
   }
 
   /**
