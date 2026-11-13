@@ -6,13 +6,21 @@ import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { GameObject } from '@axe/core/sync/game-object';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
+import { CATALOG_TICK_MS, ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { SynchronizeRequest, SynchronizeTask } from '@axe/core/sync/synchronize-task';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DataElement } from '@axe/domain/data/data-element';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import type { MockInstance } from 'vitest';
+
+/** The peers the spied send was told to send an event to, in order; undefined for everybody. */
+function sentTo(send: MockInstance<Network['send']>, eventName: string): (string | undefined)[] {
+  return send.mock.calls
+    .filter(([context]) => (context as { eventName: string }).eventName === eventName)
+    .map(([, sendTo]) => sendTo);
+}
 
 describe('ObjectSynchronizer', () => {
   describe('instance (singleton)', () => {
@@ -36,6 +44,8 @@ describe('ObjectSynchronizer', () => {
 
   describe('requestFullSync', () => {
     afterEach(() => {
+      ObjectSynchronizer.instance.destroy();
+      vi.useRealTimers();
       vi.restoreAllMocks();
     });
 
@@ -64,23 +74,25 @@ describe('ObjectSynchronizer', () => {
     });
 
     it('answers another peer asking for a catalogue', () => {
+      vi.useFakeTimers();
       ObjectSynchronizer.instance.initialize();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
-      const sendCatalogSpy = vi.spyOn(ObjectSynchronizer.instance as any, 'sendCatalog').mockImplementation(() => {});
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
 
       localDispatch('REQUEST_CATALOG', {}, 'peer-a');
+      vi.advanceTimersByTime(CATALOG_TICK_MS);
 
-      expect(sendCatalogSpy).toHaveBeenCalledWith('peer-a');
+      expect(sentTo(send, 'SYNCHRONIZE_GAME_OBJECT')).toEqual(['peer-a']);
     });
 
     it('does not answer its own request', () => {
+      vi.useFakeTimers();
       ObjectSynchronizer.instance.initialize();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
-      const sendCatalogSpy = vi.spyOn(ObjectSynchronizer.instance as any, 'sendCatalog').mockImplementation(() => {});
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
 
       localDispatch('REQUEST_CATALOG', {});
+      vi.advanceTimersByTime(CATALOG_TICK_MS);
 
-      expect(sendCatalogSpy).not.toHaveBeenCalled();
+      expect(sentTo(send, 'SYNCHRONIZE_GAME_OBJECT')).toEqual([]);
     });
   });
 
@@ -131,48 +143,41 @@ describe('ObjectSynchronizer', () => {
 
   describe('through a room server', () => {
     const AUTHORITY = '@authority';
-    let sendCatalog: ReturnType<typeof vi.fn>;
-
-    const sentTo = (eventName: string) =>
-      vi
-        .mocked(Network.instance.send)
-        .mock.calls.filter(([context]) => (context as { eventName: string }).eventName === eventName)
-        .map(([, sendTo]) => sendTo);
 
     beforeEach(() => {
       vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(AUTHORITY);
       vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-a', isOpen: true }] as never);
       vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
-      sendCatalog = vi.fn();
       ObjectSynchronizer.instance.initialize();
     });
 
     afterEach(() => {
       localDispatch('DISCONNECT_PEER', { peerId: AUTHORITY }, AUTHORITY);
       ObjectSynchronizer.instance.destroy();
+      vi.useRealTimers();
       vi.restoreAllMocks();
     });
 
     it('trades catalogs with the server alone as peers connect', () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      vi.spyOn(ObjectSynchronizer.instance as any, 'sendCatalog').mockImplementation(sendCatalog);
+      vi.useFakeTimers();
 
       localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
       localDispatch('CONNECT_PEER', { peerId: AUTHORITY });
+      vi.advanceTimersByTime(CATALOG_TICK_MS);
 
-      expect(sendCatalog.mock.calls).toEqual([[AUTHORITY]]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'SYNCHRONIZE_GAME_OBJECT')).toEqual([AUTHORITY]);
     });
 
     it('asks the server alone for a full sync', () => {
       expect(ObjectSynchronizer.instance.requestFullSync()).toBe(1);
 
-      expect(sentTo('REQUEST_CATALOG')).toEqual([AUTHORITY]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'REQUEST_CATALOG')).toEqual([AUTHORITY]);
     });
 
     it('asks the server for what its catalog offers', () => {
       localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'kept-by-the-server', version: 1 }], AUTHORITY);
 
-      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
     });
 
     it('asks the server for a change it passes on of what this seat saw deleted, never deleting it', () => {
@@ -182,8 +187,8 @@ describe('ObjectSynchronizer', () => {
 
       localDispatch('UPDATE_GAME_OBJECT', { ...gone.toContext(), majorVersion: 5 }, 'peer-a');
 
-      expect(sentTo('DELETE_GAME_OBJECT')).toEqual([]);
-      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'DELETE_GAME_OBJECT')).toEqual([]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
       expect(ObjectStore.instance.isDeleted('lost-here')).toBe(false);
       ObjectStore.instance.clearDeleteHistory();
     });
@@ -266,7 +271,7 @@ describe('ObjectSynchronizer', () => {
 
       localDispatch('UPDATE_GAME_OBJECT', { ...gone.toContext(), majorVersion: 5 });
 
-      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'REQUEST_GAME_OBJECT')).toEqual([]);
       expect(ObjectStore.instance.isDeleted('deleted-by-me')).toBe(true);
       ObjectStore.instance.clearDeleteHistory();
     });
@@ -278,8 +283,8 @@ describe('ObjectSynchronizer', () => {
 
       localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'brought-back', version: 1 }], AUTHORITY);
 
-      expect(sentTo('DELETE_GAME_OBJECT')).toEqual([]);
-      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'DELETE_GAME_OBJECT')).toEqual([]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
       expect(ObjectStore.instance.isDeleted('brought-back')).toBe(false);
       ObjectStore.instance.clearDeleteHistory();
     });

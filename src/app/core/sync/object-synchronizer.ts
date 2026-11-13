@@ -26,7 +26,8 @@ const OBJECT_SYNC_EVENTS: ReadonlySet<string> = new Set([
   AuthorityEvent.WITHDRAW,
 ]);
 
-const CATALOG_TICK_MS = 16;
+/** How often one batch of a catalogue goes out. */
+export const CATALOG_TICK_MS = 16;
 
 export class ObjectSynchronizer {
   private static _instance: ObjectSynchronizer;
