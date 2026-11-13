@@ -14,11 +14,12 @@ import { TurnState } from '@axe/domain/tabletop/turn-state';
  * gone out of sight, into the dark or under the fog, put into stealth or left behind as the reader's
  * own eyes move away, cannot be pressed to take the aim off it; an aim is only ever put on a piece
  * the reader can see, so it is taken off on the same terms. The game master sees everything and
- * loses no aim to sight, nor while looking at the table as a player, which is a look rather than a
- * change of who is looking. A turn handed on ends what the aims were for, so they are all taken off,
- * for everyone; the aim that outlived its turn is the one that strikes the wrong piece. A tick on a
- * piece kept off the table, in a tab of the inventory, is not the fight's and is left as it is; nor
- * are the targets of an effect being picked, which are that reader's to let go of.
+ * loses no aim to sight; looking at the table as a player, they lose what that player would, as
+ * the look is for seeing what the players see. A turn handed on ends what the aims were for, so
+ * they are all taken off, for everyone; the aim that outlived its turn is the one that strikes the
+ * wrong piece. A tick on a piece kept off the table, in a tab of the inventory, is not the fight's
+ * and is left as it is; nor are the targets of an effect being picked, which are that reader's to
+ * let go of.
  */
 @Injectable({ providedIn: 'root' })
 export class TargetReleaseEventHandlerService {
@@ -34,7 +35,7 @@ export class TargetReleaseEventHandlerService {
   constructor() {
     effect(() => {
       const aimed = this.pieceTarget.onTable();
-      if (aimed.length < 1 || this.vision.previewAsUserId()) return;
+      if (aimed.length < 1) return;
       const unseen = aimed.filter((piece) => !this.vision.isTokenVisible(piece));
       if (unseen.length > 0) untracked(() => this.pieceTarget.drop(unseen));
     });

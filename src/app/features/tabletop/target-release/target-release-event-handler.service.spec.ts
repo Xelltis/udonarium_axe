@@ -186,7 +186,7 @@ describe('TargetReleaseEventHandlerService', () => {
     expect(enemy.targeted).toBe(true);
   });
 
-  it('takes no aim off the game master looking at the table as a player', async () => {
+  it('takes the aim off the game master looking at the table as a player who cannot see the piece', async () => {
     makeMyCursor('gm', PeerRole.GameMaster);
     addPeer('p1', PeerRole.Player);
     enemy.location.x = 800;
@@ -197,7 +197,7 @@ describe('TargetReleaseEventHandlerService', () => {
     TestBed.inject(VisionService).previewAsUserId.set('p1');
     await settle();
 
-    expect(enemy.targeted).toBe(true);
+    expect(enemy.targeted).toBe(false);
   });
 
   describe('as the turn passes', () => {
