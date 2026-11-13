@@ -22,7 +22,23 @@ import {
 
 interface Sheet {
   layer: FogAirLayer;
+  /** The style of the frame that lifts the sheet to the layer's height over the board. */
+  wrapperStyle: Record<string, string>;
   style: Record<string, string>;
+}
+
+/** The frame a sheet hangs in, lifted to the height of its layer and keeping the sheet's depth under it. */
+function wrapperStyle(layer: FogAirLayer): Record<string, string> {
+  return {
+    position: 'absolute',
+    left: '0px',
+    top: '0px',
+    width: '0px',
+    height: '0px',
+    'transform-style': 'preserve-3d',
+    transform: `translateZ(${layer.heightPx}px)`,
+    'pointer-events': 'none',
+  };
 }
 
 /**
@@ -61,6 +77,7 @@ export class TableFogAirOverlayComponent {
     const marginY = heightPx * FOG_AIR_SHEET_MARGIN;
     return fogAirLayers(table.gridSize).map((layer) => ({
       layer,
+      wrapperStyle: wrapperStyle(layer),
       style: {
         position: 'absolute',
         left: -marginX + 'px',
@@ -96,18 +113,5 @@ export class TableFogAirOverlayComponent {
       untracked(() => this.tableVeil.showFogAir(hung));
     });
     inject(DestroyRef).onDestroy(() => this.tableVeil.forgetFogAir());
-  }
-
-  protected wrapperStyle(layer: FogAirLayer): Record<string, string> {
-    return {
-      position: 'absolute',
-      left: '0px',
-      top: '0px',
-      width: '0px',
-      height: '0px',
-      'transform-style': 'preserve-3d',
-      transform: `translateZ(${layer.heightPx}px)`,
-      'pointer-events': 'none',
-    };
   }
 }

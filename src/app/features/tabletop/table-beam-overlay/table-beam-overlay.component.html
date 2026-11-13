@@ -1,8 +1,8 @@
 @for (placed of beamsOnScreen(); track $index) {
   @for (fin of placed.fins; track $index) {
-    <div [style.background]="beamBackground(placed.beam) | safe: 'style'" [ngStyle]="finStyle(placed.beam, fin)"></div>
+    <div [style.background]="placed.background | safe: 'style'" [ngStyle]="fin"></div>
   }
 }
 @for (placed of glowsOnScreen(); track $index) {
-  <div [style.background]="glowBackground(placed.glow) | safe: 'style'" [ngStyle]="placed.style"></div>
+  <div [style.background]="placed.background | safe: 'style'" [ngStyle]="placed.style"></div>
 }

@@ -61,5 +61,6 @@ describe('TableFogAirOverlayComponent', () => {
     const sheets = fixture.componentInstance.sheets();
     expect(sheets).toHaveLength(FOG_AIR_LAYER_COUNT);
     expect(sheets[0].style['animation-name']).toBe('fogDrift');
+    expect(sheets[1].wrapperStyle['transform']).toBe(`translateZ(${sheets[1].layer.heightPx}px)`);
   });
 });
