@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { CAUSTIC_SEED } from '@axe/domain/effect/ambience/caustics';
 import { seededRandom } from '@axe/domain/effect/particles/shared';
 
@@ -191,7 +192,7 @@ function toAlpha(values: Float32Array, shape: (value: number, index: number) => 
 }
 
 function smoothstep(from: number, to: number, value: number): number {
-  const t = Math.min(Math.max((value - from) / (to - from), 0), 1);
+  const t = clamp((value - from) / (to - from), 0, 1);
   return t * t * (3 - 2 * t);
 }
 

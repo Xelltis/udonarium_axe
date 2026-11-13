@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import type { SkyCurrent } from '@axe/domain/effect/ambience/ambience-sky';
 
 /** The longest step one pass counts, in milliseconds, so a screen coming back from a pause does not jump. */
@@ -26,7 +27,7 @@ export class CurrentCarry {
       this.toward = 0;
       return null;
     }
-    const step = this.at === null ? 0 : Math.min(Math.max(now - this.at, 0), LONGEST_STEP_MS) / 1000;
+    const step = this.at === null ? 0 : clamp(now - this.at, 0, LONGEST_STEP_MS) / 1000;
     this.at = now;
     this.across += flow.across * step;
     this.toward += flow.toward * step;

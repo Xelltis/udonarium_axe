@@ -1,4 +1,5 @@
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
+import { clamp } from '@axe/core/util/clamp';
 import { boardOffset, type TableCameraView, type TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 
 /** A point of the board, in table pixels: x to the east, y to the south and z up. */
@@ -65,7 +66,7 @@ export function eyeBackFrom(target: BoardPoint, yawDeg: number, downDeg: number,
 
 /** How far in front of the box the camera looks through its eye stands, for it to see as tall as `fovDeg`. */
 export function perspectiveForFov(heightPx: number, fovDeg: number): number {
-  return Math.max(1, heightPx) / 2 / Math.tan((Math.min(Math.max(fovDeg, 1), 179) * Math.PI) / 360);
+  return Math.max(1, heightPx) / 2 / Math.tan((clamp(fovDeg, 1, 179) * Math.PI) / 360);
 }
 
 /**

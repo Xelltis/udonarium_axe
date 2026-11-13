@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
 import { hexCircumradius, hexStartAngle } from '@axe/domain/tabletop/hex-geometry';
 
@@ -220,7 +221,7 @@ function buildHexFlowerParams(size: number, gridSize: number, isFlatTop: boolean
   const outline =
     size % 1 !== 0
       ? buildVertexClusterOutline(size, gridSize, isFlatTop)
-      : buildHexFlowerOutline(Math.min(Math.max(Math.round(size), 1), 6), gridSize, isFlatTop);
+      : buildHexFlowerOutline(clamp(Math.round(size), 1, 6), gridSize, isFlatTop);
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;

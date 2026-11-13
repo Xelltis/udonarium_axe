@@ -1,4 +1,4 @@
-import { clamp01 } from '@axe/core/util/clamp';
+import { clamp, clamp01 } from '@axe/core/util/clamp';
 import { seededRandom } from '@axe/core/util/seeded-random';
 
 export { clamp01 };
@@ -137,6 +137,6 @@ export function normalize(value: number): number {
  * is clamped.
  */
 export function easeOutCubic(value: number): number {
-  const clamped = Math.min(Math.max(value, 0), 1);
+  const clamped = clamp(value, 0, 1);
   return 1 - Math.pow(1 - clamped, 3);
 }

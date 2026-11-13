@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /** A point of the board's space: across the board, down it, and up off it, in table pixels. */
 export interface BoardSpacePoint {
   readonly x: number;
@@ -38,8 +39,8 @@ export function cameraDepthOver(
       for (const z of [0, tallestPx]) furthest = Math.max(furthest, Math.hypot(eye.x - x, eye.y - y, eye.z - z));
     }
   }
-  const nearestX = Math.min(Math.max(eye.x, board.x), board.x + board.width);
-  const nearestY = Math.min(Math.max(eye.y, board.y), board.y + board.height);
+  const nearestX = clamp(eye.x, board.x, board.x + board.width);
+  const nearestY = clamp(eye.y, board.y, board.y + board.height);
   const nearest = Math.hypot(eye.x - nearestX, eye.y - nearestY, Math.max(0, eye.z - tallestPx));
   return {
     near: nearest > mostNear ? Math.max(least.near, Math.min(mostNear, nearest * NEAR_SHARE)) : least.near,

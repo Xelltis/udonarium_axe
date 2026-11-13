@@ -1,6 +1,7 @@
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { DataElement } from '@axe/domain/data/data-element';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
@@ -70,8 +71,8 @@ export function legacyScratchedGridsOf(legacy: {
   const cells = new Set<string>();
   const map = legacy.M;
   if (Array.isArray(map)) {
-    const rows = Math.min(Math.max(1, legacy.height), LEGACY_MAP_SIDE);
-    const cols = Math.min(Math.max(1, legacy.width), LEGACY_MAP_SIDE);
+    const rows = clamp(legacy.height, 1, LEGACY_MAP_SIDE);
+    const cols = clamp(legacy.width, 1, LEGACY_MAP_SIDE);
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         if (OPEN_CELL_VALUES.has(map[LEGACY_MAP_SIDE * y + x])) cells.add(`${x}:${y}`);

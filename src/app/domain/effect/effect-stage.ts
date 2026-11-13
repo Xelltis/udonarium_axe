@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { type EffectKind, isEffectKind } from '@axe/domain/effect/effect-kind';
 
 /**
@@ -209,17 +210,17 @@ function readRole(value: unknown, allowSpawn: boolean): EffectStageRole {
 function clampMs(value: unknown): number {
   const length = Number(value);
   if (!Number.isFinite(length)) return DEFAULT_STAGE_MS;
-  return Math.min(Math.max(Math.round(length), MIN_STAGE_MS), MAX_STAGE_MS);
+  return clamp(Math.round(length), MIN_STAGE_MS, MAX_STAGE_MS);
 }
 
 function clampBranches(value: unknown): number {
   const count = Number(value);
   if (!Number.isFinite(count)) return 3;
-  return Math.min(Math.max(Math.round(count), 2), MAX_BRANCHES);
+  return clamp(Math.round(count), 2, MAX_BRANCHES);
 }
 
 function clampSpread(value: unknown): number {
   const spread = Number(value);
   if (!Number.isFinite(spread)) return 120;
-  return Math.min(Math.max(Math.round(spread), 10), 360);
+  return clamp(Math.round(spread), 10, 360);
 }

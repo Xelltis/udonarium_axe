@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { withAlpha } from '@axe/core/util/hex-color';
 import { PERF_AMBIENCE_LAYER, perfCounters } from '@axe/core/util/perf-counters';
 import {
@@ -502,8 +503,8 @@ function carriedMote(
   const pace = Math.hypot(vx, vy);
   if (r.d < 0.55 && pace > STREAK_FROM_PX_PER_SECOND) {
     // A streak is a disc drawn long, whose bright core is a fraction of its width; thinner than this, it is not seen.
-    const size = (5 + 3 * r.a) * Math.min(Math.max(near, 0.8), 2);
-    const length = Math.min(Math.max(pace * STREAK_SECONDS, 3 * size), 180);
+    const size = (5 + 3 * r.a) * clamp(near, 0.8, 2);
+    const length = clamp(pace * STREAK_SECONDS, 3 * size, 180);
     return {
       x,
       y,

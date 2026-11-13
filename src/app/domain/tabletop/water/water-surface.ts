@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /** How high water stands over its own floor when nobody has said, in cells: about knee deep. */
 export const DEFAULT_SURFACE_CELLS = 0.5;
 
@@ -15,7 +16,7 @@ export function surfaceCellsOf(value: unknown): number {
   if (value === '' || value === null || value === undefined) return DEFAULT_SURFACE_CELLS;
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return DEFAULT_SURFACE_CELLS;
-  return Math.min(Math.max(numeric, 0), MAX_SURFACE_CELLS);
+  return clamp(numeric, 0, MAX_SURFACE_CELLS);
 }
 
 /** How murky water is when nobody has said, from 0 for clear to 1 for mud: a little, as most water is. */
@@ -29,7 +30,7 @@ export function turbidityOf(value: unknown): number {
   if (value === '' || value === null || value === undefined) return DEFAULT_TURBIDITY;
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return DEFAULT_TURBIDITY;
-  return Math.min(Math.max(numeric, 0), 1);
+  return clamp(numeric, 0, 1);
 }
 
 /** How dirty water is when nobody has said: not at all. */
@@ -43,7 +44,7 @@ export function dirtOf(value: unknown): number {
   if (value === '' || value === null || value === undefined) return DEFAULT_DIRT;
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return DEFAULT_DIRT;
-  return Math.min(Math.max(numeric, 0), 1);
+  return clamp(numeric, 0, 1);
 }
 
 /** How much of the water is frozen over when nobody has said: none of it. */
@@ -57,7 +58,7 @@ export function iceOf(value: unknown): number {
   if (value === '' || value === null || value === undefined) return DEFAULT_ICE;
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return DEFAULT_ICE;
-  return Math.min(Math.max(numeric, 0), 1);
+  return clamp(numeric, 0, 1);
 }
 
 /** How much of the water floating leaves cover when nobody has said: none. */
@@ -71,7 +72,7 @@ export function leavesOf(value: unknown): number {
   if (value === '' || value === null || value === undefined) return DEFAULT_LEAVES;
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return DEFAULT_LEAVES;
-  return Math.min(Math.max(numeric, 0), 1);
+  return clamp(numeric, 0, 1);
 }
 
 /**
@@ -82,7 +83,7 @@ export function flowSpeedOf(value: unknown): number {
   if (value === '' || value === null || value === undefined) return 0;
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return 0;
-  return Math.min(Math.max(numeric, 0), 1);
+  return clamp(numeric, 0, 1);
 }
 
 /**

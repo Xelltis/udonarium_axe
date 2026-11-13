@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import {
   type Choreography,
   nothingStaged,
@@ -211,7 +212,7 @@ function drawStroke(
   if (head - tail < 0.02) return;
   // Once the blade has passed, the arc it left thins and fades where it lies, a crescent to the last.
   const fading = within(share, 1, 1 + FADES);
-  const thick = cell * Math.min(Math.max(hit.thickness / 60, 0.38), 0.5) * (1 - fading * 0.8);
+  const thick = cell * clamp(hit.thickness / 60, 0.38, 0.5) * (1 - fading * 0.8);
   const alpha = Math.pow(1 - fading, 1.5);
   drawn.ribbons.push(...bladeRibbons(centre, frame, hit, radius, tail, head, thick, ramp, alpha));
 }

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { withAlpha } from '@axe/core/util/hex-color';
 import { PERF_AMBIENCE_LAYER, perfCounters } from '@axe/core/util/perf-counters';
 import {
@@ -68,7 +69,7 @@ export interface VaporSheet {
 /** How many sheets the rise is split into, by how deep the area runs away from the camera. One is enough while it is shallow. */
 export function vaporSliceCount(depth: number, unit: number): number {
   const cells = unit > 0 ? depth / unit : 0;
-  return Math.min(Math.max(Math.round(cells / 2.5), 1), MAX_VAPOR_SLICES);
+  return clamp(Math.round(cells / 2.5), 1, MAX_VAPOR_SLICES);
 }
 
 /** How tall each sheet is, in cells. A wall of flame is no wall unless it reaches. */
@@ -277,7 +278,7 @@ export function groundVaporSheets(spec: GroundVaporSpec): VaporSheet[] {
     const dx = point.x - width / 2;
     const dy = point.y - depth / 2;
     const ahead = dx * toward.x + dy * toward.y;
-    const sheet = band > 0 ? Math.min(Math.max(Math.floor((ahead + reach) / band), 0), count - 1) : 0;
+    const sheet = band > 0 ? clamp(Math.floor((ahead + reach) / band), 0, count - 1) : 0;
     particle.x += dx * across.x + dy * across.y;
     particle.y += (ahead - nearEdgeOf(sheet)) * lean;
     sheets[sheet].layer.particles.push(particle);
@@ -646,7 +647,7 @@ function vaporOptionsOf(kind: AmbienceKind, r: Randoms): RisingOptions | null {
 
 /** How many clumps a run of the area gathers its vents into, across or in depth. */
 function clusterCount(span: number, unit: number): number {
-  return Math.min(Math.max(Math.round(span / (unit * 1.8)), 1), 8);
+  return clamp(Math.round(span / (unit * 1.8)), 1, 8);
 }
 
 /** The point of the area a particle rises from, in pixels from its top left: in a clump, or anywhere on it. */
@@ -665,7 +666,7 @@ function vaporPointOf(
   const y = ((row + 0.5) / rows) * depth + (deep * rows - row - 0.5) * unit * 0.4;
   return {
     x: ((Math.floor(r.b * columns) + 0.5) / columns) * width + (r.c - 0.5) * unit * 0.4,
-    y: Math.min(Math.max(y, 0), depth),
+    y: clamp(y, 0, depth),
   };
 }
 

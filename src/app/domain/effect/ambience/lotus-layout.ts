@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { seededRandom } from '@axe/domain/effect/particles/shared';
 
 /** How many pixels a side of the floating-leaf tile is drawn at. */
@@ -29,7 +30,7 @@ export interface LotusPad {
  * a smaller amount lays.
  */
 export function lotusPadsOf(seed: number, amount: number, size = LOTUS_TILE_PX): LotusPad[] {
-  const wanted = Math.round(MOST_PADS * Math.min(Math.max(Number.isFinite(amount) ? amount : 0, 0), 1));
+  const wanted = Math.round(MOST_PADS * clamp(Number.isFinite(amount) ? amount : 0, 0, 1));
   const random = seededRandom(seed);
   const pads: LotusPad[] = [];
   for (let index = 0; index < MOST_PADS && pads.length < wanted; index++) {

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { Point, Segment } from '@axe/domain/tabletop/los/segments';
 import { lightReaches, occludersFor } from '@axe/domain/tabletop/vision-scene/light-reach';
 import { withinCone } from '@axe/domain/tabletop/vision-scene/light-shape';
@@ -62,7 +63,7 @@ export function computeWallSilhouettes(scene: VisionScene, face: WallFace, caste
       if (center + width / 2 <= 0 || center - width / 2 >= len) continue;
       const height = Math.min(casterHeightPx * t, face.heightPx);
       occluders ??= nearbyOccluders(occludersFor(scene, light, true), light, face);
-      const at = Math.min(Math.max(center, 0), len);
+      const at = clamp(center, 0, len);
       if (shadeHeightAt(light, face, occluders, ux, uy, at) >= height) continue;
       result.push({ localX: center, width, height, alpha: 0.75, imageUrl: caster.imageUrl });
     }

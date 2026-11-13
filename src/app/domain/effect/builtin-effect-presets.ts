@@ -1,5 +1,6 @@
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { EffectKind, EffectTargeting, ProjectileStyle, SlashStyle } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { type EffectStage, encodeEffectStages } from '@axe/domain/effect/effect-stage';
@@ -1636,7 +1637,7 @@ export function applyEffectPresetSeed(preset: EffectPreset, seed: EffectPresetSe
   preset.colorSecondary = seed.colorSecondary;
   // An effect runs as long as its sound; ending sooner leaves the sound playing on.
   // A projectile is the exception: dragged out by the sound of the shot it would fly slowly, so its own length is used.
-  preset.durationMs = Math.min(Math.max(seed.durationMs ?? seed.soundMs, MIN_EFFECT_MS), MAX_EFFECT_MS);
+  preset.durationMs = clamp(seed.durationMs ?? seed.soundMs, MIN_EFFECT_MS, MAX_EFFECT_MS);
   preset.impactSoundIdentifier = seed.impactSoundKey ? PresetSound[seed.impactSoundKey] : '';
   preset.staggerMs = seed.staggerMs;
   preset.scale = seed.scale;

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { type ProjectileStyle } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
 
@@ -37,7 +38,7 @@ export interface ProjectileShot {
  * land after the effect ends.
  */
 export function projectileTiming(preset: EffectPreset): { travel: number; shots: ProjectileShot[] } {
-  const travel = Math.min(Math.max(PROJECTILE_TRAVEL_MS[preset.projectileLook] / preset.duration, 0.05), 0.6);
+  const travel = clamp(PROJECTILE_TRAVEL_MS[preset.projectileLook] / preset.duration, 0.05, 0.6);
   const count = preset.shotCount;
   if (count === 1) return { travel, shots: [{ launch: 0, land: travel }] };
 
