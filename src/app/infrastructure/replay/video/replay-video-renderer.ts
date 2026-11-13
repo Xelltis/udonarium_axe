@@ -234,7 +234,11 @@ export class ReplayVideoRenderer {
 
   // Camera --------------------------------------------------------------------------------------
 
-  private cameraAt(index: number, localMs: number): ReplayCameraFrame {
+  /**
+   * Where the camera stands `localMs` into the segment at `index`: on its way from wherever the
+   * segment before left it to the segment's own target, and at the target from the first segment on.
+   */
+  cameraAt(index: number, localMs: number): ReplayCameraFrame {
     const target = this.cameraTarget(index);
     if (index < 1) return target;
     const from = this.cameraAtEndOf(index - 1);
