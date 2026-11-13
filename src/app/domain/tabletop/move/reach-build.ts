@@ -15,7 +15,7 @@ import {
 } from '@axe/domain/tabletop/move/engagement';
 import { isWalkableStep } from '@axe/domain/tabletop/move/landing-height';
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
-import { moveModeTermsOf } from '@axe/domain/tabletop/move/move-mode';
+import { MoveModeTerms, moveModeTermsOf } from '@axe/domain/tabletop/move/move-mode';
 import { STEPS_PER_CELL, stepsFor } from '@axe/domain/tabletop/move/move-steps';
 import { pieceFitsOn } from '@axe/domain/tabletop/move/piece-footprint';
 import { PassageCells, passageCells, PiecePassageMode } from '@axe/domain/tabletop/move/piece-passage';
@@ -139,51 +139,21 @@ export function piecePassageOf(
 
 /** Works out a piece's reach from what was read of the board, and what it was walked under. */
 export function buildReach(inputs: ReachInputs): BuiltReach {
-  const {
-    character,
-    table,
-    rules,
-    grid,
-    start,
-    walk,
-    zones,
-    closed,
-    heights,
-    standingPx,
-    groundHeights,
-    standing,
-    inTheWay,
-    allied,
-    dearGround,
-  } = inputs;
+  const { character, table, rules, grid, start, walk, zones, closed, standing, allied } = inputs;
   const going = moveModeTermsOf(character.moveMode);
   let blocked = closed.blocked;
   // Only the terrain differs between walking and jumping; everything else stands in the way
   // of both, so it is gathered once and laid over each of them.
   const leapt = closed.leapt;
-  // What a piece can step to is ground rather than something to walk around: the tops of
-  // the blocks it is already standing on, and anything within a cell of them, up or down.
-  // A wall is only a wall to somebody it rises over.
-  for (let cell = 0; cell < heights.length; cell++) {
-    if (!blocked.get(cell)) continue;
-    // A face too sheer to be stood on is the one thing a step does not answer.
-    if (leapt.get(cell)) continue;
-    if (!isWalkableStep(heights[cell], standingPx, table.gridSize)) continue;
-    blocked.unset(cell);
-  }
-  const otherwise = new CellBits(cellCount(grid));
-  const painted = moveBlockMapOn(table)?.read(grid);
-  if (painted) otherwise.or(painted);
-  if (zones?.blocked) otherwise.or(zones.blocked);
-
-  const passage = piecePassageOf(grid, character, inTheWay, rules, allied);
-  otherwise.or(passage.blocked);
+  openStandableTops(blocked, leapt, inputs);
+  const passage = piecePassageOf(grid, character, inputs.inTheWay, rules, allied);
+  const otherwise = groundInTheWay(inputs, passage);
 
   // What the ground itself charges, which is owed by whoever enters it whatever else is
   // happening on the board.
   // A piece over the ground owes the ground nothing: a bog is no harder to cross than a
   // floor when the feet are not in it.
-  const dear = going.paysGround ? dearGround() : null;
+  const dear = going.paysGround ? inputs.dearGround() : null;
 
   const mode = rules.zocMode;
   const ground = mode === 'none' ? null : heldGroundAround(grid, character, standing, rules, allied);
@@ -193,69 +163,16 @@ export function buildReach(inputs: ReachInputs): BuiltReach {
   leapt.or(otherwise);
   // What stops a jump is what stops a piece that goes over things rather than round them.
   if (going.clears) blocked = leapt;
-  const extra = Math.max(0, Math.floor(rules.zocExtraCost));
   const fights = rules.breakOutMode === 'free' ? null : (ground?.fights ?? null);
-  const flat = Math.max(0, Math.floor(rules.breakOutCost));
-  const crossing = passage.costly.isEmpty ? 0 : Math.max(0, Math.floor(rules.piecePassageCost));
-  const noStop = passage.noStop.isEmpty ? null : passage.noStop;
-  // A wide piece is answered for the cell its middle would be over, so where every cell it
-  // covers has to be clear is asked here rather than by the search, which knows of one cell
-  // at a time.
-  const fits = pieceFitsOn(grid, character, table.gridSize, blocked);
-  // Folding through a gap too small: the piece stands there as though it were a size
-  // smaller. A piece two cells across folds down to one, which any clear cell holds, so
-  // there is nothing left to ask and the answer is yes.
-  const tight =
-    fits && rules.squeezes
-      ? (pieceFitsOn(grid, character, table.gridSize, blocked, Math.round(character.size) - 1) ?? (() => true))
-      : null;
-  // A piece wider than one cell cannot pass through a gap it could not stand in. The search
-  // asks about the cell its middle would be over, so a golem three across would otherwise
-  // thread a one-cell doorway and come out the far side of it. Worked out in full before any
-  // of it is written down, since each answer is read off the ground as it stands.
-  // Which cells are reached only folded up is written down here rather than asked again once
-  // the search is running: folding the too-narrow cells into `blocked` just below changes what
-  // `fits` and `tight` answer, since both read that set as it stands rather than as it stood.
-  const squeezed = tight ? new CellBits(cellCount(grid)) : null;
-  if (fits) {
-    const total = cellCount(grid);
-    const tooNarrow = new CellBits(total);
-    for (let cell = 0; cell < total; cell++) {
-      if (blocked.get(cell) || fits(cell)) continue;
-      if (tight?.(cell) ?? false) {
-        squeezed?.set(cell);
-        continue;
-      }
-      tooNarrow.set(cell);
-    }
-    blocked.or(tooNarrow);
-  }
-  const charges =
-    dear !== null ||
-    going.toll > 0 ||
-    crossing > 0 ||
-    squeezed !== null ||
-    (held !== null && mode === 'cost') ||
-    fights !== null;
+  const squeezed = foldTooNarrow(inputs, blocked);
+  const priced = pricing({ inputs, going, dear, passage, held, fights, squeezed });
 
   // Everything the search is handed is in steps rather than in cells, since a road is
   // crossed in half of one. Prices are worked out in cells, the way a table talks about
   // them, and turned at the last moment.
   // A piece that goes over what is in its way goes over a cliff of the ground as well.
-  const cliffs = groundHeights && !going.clears ? groundHeights : null;
-  const priced: (index: number, from: number) => number = charges
-    ? (index, from) => {
-        let price = 1 + going.toll + (dear ? dear[index] : 0);
-        // Squeezing costs the step again, which is what makes a gap worth going round.
-        if (squeezed?.get(index)) price += 1;
-        if (crossing > 0 && passage.costly.get(index)) price += crossing;
-        if (held && mode === 'cost' && held.get(index)) price += extra;
-        if (fights && leavesFight(fights, from, index)) {
-          price += breakOutToll(rules.breakOutMode, fights.prices[from], flat);
-        }
-        return stepsFor(price);
-      }
-    : PLAIN_GOING;
+  const cliffs = inputs.groundHeights && !going.clears ? inputs.groundHeights : null;
+  const noStop = passage.noStop.isEmpty ? null : passage.noStop;
   const options: ReachOptions = {
     diagonals: rules.diagonalMove,
     costOf: cliffs
@@ -273,6 +190,117 @@ export function buildReach(inputs: ReachInputs): BuiltReach {
     view: { characterIdentifier: character.identifier, grid, cells, held, showsReach: true },
     terms: { walk: steps, blocked, leapt, options },
     start,
+  };
+}
+
+/**
+ * Opens the blocks a piece can step onto: the tops of the blocks it is already standing on, and
+ * anything within a cell of them, up or down. A wall is only a wall to somebody it rises over, and
+ * a face too sheer to be stood on is the one thing a step does not answer.
+ */
+function openStandableTops(blocked: CellBits, leapt: CellBits, inputs: ReachInputs): void {
+  const { heights, standingPx, table } = inputs;
+  for (let cell = 0; cell < heights.length; cell++) {
+    if (!blocked.get(cell)) continue;
+    if (leapt.get(cell)) continue;
+    if (!isWalkableStep(heights[cell], standingPx, table.gridSize)) continue;
+    blocked.unset(cell);
+  }
+}
+
+/** What stands in the way of a walk and a jump alike: painted blocks, the zones' ground and the pieces that shut their ground. */
+function groundInTheWay(inputs: ReachInputs, passage: PassageCells): CellBits {
+  const { grid, table, zones } = inputs;
+  const otherwise = new CellBits(cellCount(grid));
+  const painted = moveBlockMapOn(table)?.read(grid);
+  if (painted) otherwise.or(painted);
+  if (zones?.blocked) otherwise.or(zones.blocked);
+  otherwise.or(passage.blocked);
+  return otherwise;
+}
+
+/**
+ * Shuts to a wide piece the cells it could not stand on, and says which it reaches only folded up.
+ *
+ * A wide piece is answered for the cell its middle would be over, so where every cell it covers has
+ * to be clear is asked here rather than by the search, which knows of one cell at a time: a golem
+ * three across would otherwise thread a one-cell doorway and come out the far side of it. Folding
+ * through a gap too small, the piece stands there as though it were a size smaller; a piece two
+ * cells across folds down to one, which any clear cell holds, so there is nothing left to ask and
+ * the answer is yes. Worked out in full before any of it is written down, since each answer is read
+ * off the ground as it stands: folding the too-narrow cells into `blocked` changes what `fits` and
+ * `tight` answer, as both read that set as it stands rather than as it stood.
+ */
+function foldTooNarrow(inputs: ReachInputs, blocked: CellBits): CellBits | null {
+  const { grid, character, table, rules } = inputs;
+  const fits = pieceFitsOn(grid, character, table.gridSize, blocked);
+  const tight =
+    fits && rules.squeezes
+      ? (pieceFitsOn(grid, character, table.gridSize, blocked, Math.round(character.size) - 1) ?? (() => true))
+      : null;
+  const squeezed = tight ? new CellBits(cellCount(grid)) : null;
+  if (!fits) return squeezed;
+  const total = cellCount(grid);
+  const tooNarrow = new CellBits(total);
+  for (let cell = 0; cell < total; cell++) {
+    if (blocked.get(cell) || fits(cell)) continue;
+    if (tight?.(cell) ?? false) {
+      squeezed?.set(cell);
+      continue;
+    }
+    tooNarrow.set(cell);
+  }
+  blocked.or(tooNarrow);
+  return squeezed;
+}
+
+/** What a step is priced by: what the ground, the mode, the pieces in the way and the fights charge. */
+interface PricingTerms {
+  inputs: ReachInputs;
+  going: MoveModeTerms;
+  dear: Float64Array | null;
+  passage: PassageCells;
+  held: CellBits | null;
+  fights: Fights | null;
+  squeezed: CellBits | null;
+}
+
+/**
+ * What a step into a cell costs, in steps: plain going where nothing charges, else the ground's
+ * price with the mode's toll, the squeeze, the crossing, the held ground and the fight left added.
+ */
+function pricing({
+  inputs,
+  going,
+  dear,
+  passage,
+  held,
+  fights,
+  squeezed,
+}: PricingTerms): (index: number, from: number) => number {
+  const { rules } = inputs;
+  const mode = rules.zocMode;
+  const extra = Math.max(0, Math.floor(rules.zocExtraCost));
+  const flat = Math.max(0, Math.floor(rules.breakOutCost));
+  const crossing = passage.costly.isEmpty ? 0 : Math.max(0, Math.floor(rules.piecePassageCost));
+  const charges =
+    dear !== null ||
+    going.toll > 0 ||
+    crossing > 0 ||
+    squeezed !== null ||
+    (held !== null && mode === 'cost') ||
+    fights !== null;
+  if (!charges) return PLAIN_GOING;
+  return (index, from) => {
+    let price = 1 + going.toll + (dear ? dear[index] : 0);
+    // Squeezing costs the step again, which is what makes a gap worth going round.
+    if (squeezed?.get(index)) price += 1;
+    if (crossing > 0 && passage.costly.get(index)) price += crossing;
+    if (held && mode === 'cost' && held.get(index)) price += extra;
+    if (fights && leavesFight(fights, from, index)) {
+      price += breakOutToll(rules.breakOutMode, fights.prices[from], flat);
+    }
+    return stepsFor(price);
   };
 }
 
