@@ -318,15 +318,17 @@ class Painter implements ModelPainter {
     if (!gltf) return null;
     const showcase = new Showcase();
     showcase.turn = Math.PI / 6;
-    showcase.hold(gltf.scene);
-    this.renderer.setPixelRatio(1);
-    this.renderer.setSize(sizePx, sizePx, false);
-    showcase.camera.aspect = 1;
-    showcase.camera.updateProjectionMatrix();
-    this.renderer.render(showcase.scene, showcase.camera);
-    const picture = await new Promise<Blob | null>((resolve) => this.canvas.toBlob(resolve, 'image/webp', 0.9));
-    showcase.letGo();
-    return picture;
+    try {
+      showcase.hold(gltf.scene);
+      this.renderer.setPixelRatio(1);
+      this.renderer.setSize(sizePx, sizePx, false);
+      showcase.camera.aspect = 1;
+      showcase.camera.updateProjectionMatrix();
+      this.renderer.render(showcase.scene, showcase.camera);
+      return await new Promise<Blob | null>((resolve) => this.canvas.toBlob(resolve, 'image/webp', 0.9));
+    } finally {
+      showcase.letGo();
+    }
   }
 }
 
