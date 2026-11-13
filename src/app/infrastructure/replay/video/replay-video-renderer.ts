@@ -26,6 +26,7 @@ import {
   roundedRectPath,
 } from '@axe/infrastructure/replay/replay-canvas';
 import { paintReplayCutInScene } from '@axe/infrastructure/replay/replay-cut-in-painter';
+import { DarknessLayer } from '@axe/infrastructure/replay/replay-darkness-painter';
 import { paintReplayBoard } from '@axe/infrastructure/replay/video/replay-board-painter';
 
 /** Everything a replay video is drawn from. */
@@ -74,8 +75,16 @@ export class ReplayVideoRenderer {
   private readonly cameraEnds = new Map<number, ReplayCameraFrame>();
   private readonly scenes = new Map<number, ReplayBoardScene | null>();
   private layer: OffscreenCanvas | null = null;
+  /** The surface the board's darkness is painted on, frame after frame. */
+  private readonly darkness = new DarknessLayer();
 
   constructor(private readonly source: ReplayVideoSource) {}
+
+  /** Lets go of the surfaces the frames were painted on. */
+  dispose(): void {
+    this.darkness.dispose();
+    this.layer = null;
+  }
 
   get durationMs(): number {
     return this.source.timeline.totalMs;
@@ -212,7 +221,8 @@ export class ReplayVideoRenderer {
         popSize: layout.label.popSize,
         fontFamily: this.source.fontFamily,
       },
-      this.source.assets
+      this.source.assets,
+      (width, height) => this.darkness.layerOf(width, height)
     );
   }
 

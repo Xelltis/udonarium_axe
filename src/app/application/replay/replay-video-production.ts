@@ -221,8 +221,9 @@ export class ReplayVideoProduction {
     await this.images.ensure(this.imagesOf(index));
   }
 
-  /** Lets the pictures and boards go. */
+  /** Lets the pictures, the boards and the surfaces the frames were painted on go. */
   dispose(): void {
+    this.renderer.dispose();
     this.images.dispose();
     this.boards.clear();
     this.scenes.clear();

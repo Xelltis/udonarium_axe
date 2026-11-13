@@ -27,7 +27,12 @@ import {
   type ReplayFrameCanvas,
   roundedRectPath,
 } from '@axe/infrastructure/replay/replay-canvas';
-import { type DarknessCanvas, paintReplayDarkness } from '@axe/infrastructure/replay/replay-darkness-painter';
+import {
+  type DarknessCanvas,
+  defaultDarknessLayer,
+  type LayerFactory,
+  paintReplayDarkness,
+} from '@axe/infrastructure/replay/replay-darkness-painter';
 
 /** What to draw of the board for one frame. */
 export interface ReplayBoardPaint {
@@ -91,7 +96,12 @@ interface PlacedPiece {
  * Names are written under the figures, values rise over their pieces, effects are drawn from
  * caster to target, and the speaker is ringed where they stand.
  */
-export function paintReplayBoard(ctx: ReplayFrameCanvas, paint: ReplayBoardPaint, assets: ReplayFrameAssets): void {
+export function paintReplayBoard(
+  ctx: ReplayFrameCanvas,
+  paint: ReplayBoardPaint,
+  assets: ReplayFrameAssets,
+  darknessLayerOf: LayerFactory = defaultDarknessLayer
+): void {
   const { area, camera, scene } = paint;
   const scale = area.width / camera.width;
   const toScreen = (x: number, y: number) => ({
@@ -118,13 +128,18 @@ export function paintReplayBoard(ctx: ReplayFrameCanvas, paint: ReplayBoardPaint
   const standing = placed.filter((one) => !GROUND_SHAPES.has(one.piece.shape));
   for (const one of ground) paintPiece(ctx, one, scene.gridSize, scene.gridType, assets, scale);
   if (scene.overlay) {
-    paintReplayDarkness(ctx as unknown as DarknessCanvas, scene.overlay, {
-      left: 0,
-      top: 0,
-      width: scene.width * scene.gridSize,
-      height: scene.height * scene.gridSize,
-      onBoard: (value) => value,
-    });
+    paintReplayDarkness(
+      ctx as unknown as DarknessCanvas,
+      scene.overlay,
+      {
+        left: 0,
+        top: 0,
+        width: scene.width * scene.gridSize,
+        height: scene.height * scene.gridSize,
+        onBoard: (value) => value,
+      },
+      darknessLayerOf
+    );
   }
   if (paint.highlight) paintHighlight(ctx, standing, scene.gridSize, paint.highlight);
   for (const one of standing) paintPiece(ctx, one, scene.gridSize, scene.gridType, assets, scale);

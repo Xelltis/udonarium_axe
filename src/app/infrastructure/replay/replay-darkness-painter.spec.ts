@@ -1,6 +1,7 @@
 import type { OverlayPlan } from '@axe/domain/tabletop/vision-scene';
 import {
   type DarknessCanvas,
+  DarknessLayer,
   defaultDarknessLayer,
   paintReplayDarkness,
 } from '@axe/infrastructure/replay/replay-darkness-painter';
@@ -152,6 +153,58 @@ describe('paintReplayDarkness()', () => {
     paintReplayDarkness(ctx, plan(), { ...place, width: 0 }, () => recorder().ctx);
 
     expect(calls).toHaveLength(0);
+  });
+
+  describe('the surface kept for the frames of a video', () => {
+    /** An offscreen surface that only notes its size and gives a context that can draw. */
+    class FakeOffscreenCanvas {
+      static made: FakeOffscreenCanvas[] = [];
+      readonly context = {
+        fillRect: vi.fn(),
+        drawImage: vi.fn(),
+        clearRect: vi.fn(),
+        globalCompositeOperation: '',
+        globalAlpha: 0,
+      };
+      constructor(
+        public width: number,
+        public height: number
+      ) {
+        FakeOffscreenCanvas.made.push(this);
+      }
+      getContext(): unknown {
+        return this.context;
+      }
+    }
+
+    beforeEach(() => {
+      FakeOffscreenCanvas.made = [];
+      vi.stubGlobal('OffscreenCanvas', FakeOffscreenCanvas);
+    });
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('is washed and used again for a frame of the same size, and made afresh for another size', () => {
+      const layer = new DarknessLayer();
+
+      const first = layer.layerOf(64, 32);
+      const again = layer.layerOf(64, 32);
+      layer.layerOf(32, 32);
+
+      expect(again).toBe(first);
+      expect(FakeOffscreenCanvas.made[0].context.clearRect).toHaveBeenCalledWith(0, 0, 64, 32);
+      expect(FakeOffscreenCanvas.made).toHaveLength(2);
+    });
+
+    it('is let go of, shrunk to nothing, when the layer is', () => {
+      const layer = new DarknessLayer();
+      layer.layerOf(64, 32);
+
+      layer.dispose();
+
+      expect([FakeOffscreenCanvas.made[0].width, FakeOffscreenCanvas.made[0].height]).toEqual([0, 0]);
+      expect(layer.layerOf(64, 32)).toBe(FakeOffscreenCanvas.made[1].context);
+    });
   });
 
   describe('the surface it draws the shroud on', () => {

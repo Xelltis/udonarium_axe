@@ -48,7 +48,7 @@ export interface DarknessPlacement {
 }
 
 /** Whether a second surface can be made. Where it cannot, the board is drawn without darkness. */
-type LayerFactory = (width: number, height: number) => DarknessCanvas | null;
+export type LayerFactory = (width: number, height: number) => DarknessCanvas | null;
 
 /**
  * Longest side of the shroud surface. Table coordinates would ask for 6000px square, so it is
@@ -57,12 +57,47 @@ type LayerFactory = (width: number, height: number) => DarknessCanvas | null;
 export const DARKNESS_LAYER_MAX = 2048;
 
 /**
- * The shroud surface is reused.
+ * The surface the shroud of each frame of a video is painted on, kept the length of the export.
  *
  * A video draws thirty frames a second. Allocating and discarding a 2048-square surface per frame
- * churns 16MB for the length of the export, so a surface of the same size is washed and reused.
+ * churns 16MB for the length of the export, so a surface of the same size is washed and reused,
+ * and let go of with whatever drew the video.
  */
-let scratch: { canvas: OffscreenCanvas; context: DarknessCanvas } | null = null;
+export class DarknessLayer {
+  private scratch: { canvas: OffscreenCanvas; context: DarknessCanvas } | null = null;
+
+  /**
+   * A blank surface of the given size to paint the shroud on, only good until the next call. Falls
+   * back to a page canvas, and gives null for a size under one pixel or where nothing can be drawn.
+   */
+  layerOf(width: number, height: number): DarknessCanvas | null {
+    if (width < 1 || height < 1) return null;
+    if (typeof OffscreenCanvas === 'undefined') return domDarknessLayer(width, height);
+    if (!this.scratch || this.scratch.canvas.width !== width || this.scratch.canvas.height !== height) {
+      this.dispose();
+      const canvas = new OffscreenCanvas(width, height);
+      const created = canvas.getContext('2d');
+      if (!canDraw(created)) return domDarknessLayer(width, height);
+      this.scratch = { canvas, context: created };
+    } else {
+      // Re-assigning the size would clear it; at the same size, clear it explicitly.
+      const reused = this.scratch.canvas.getContext('2d');
+      reused?.clearRect(0, 0, width, height);
+    }
+    const context = this.scratch.context;
+    context.globalCompositeOperation = 'source-over';
+    context.globalAlpha = 1;
+    return context;
+  }
+
+  /** Lets go of the surface, which is made again at the next call. */
+  dispose(): void {
+    if (!this.scratch) return;
+    this.scratch.canvas.width = 0;
+    this.scratch.canvas.height = 0;
+    this.scratch = null;
+  }
+}
 
 /**
  * Whether a context that came back can actually be drawn on.
@@ -77,35 +112,11 @@ function canDraw(context: unknown): context is DarknessCanvas {
 }
 
 /**
- * A blank surface of the given size to paint the shroud on.
- *
- * One offscreen surface is kept and cleared between calls, so what this returns is only good
- * until the next call. Falls back to a page canvas, and gives null for a size under one pixel
- * or where nothing can be drawn.
+ * A blank surface of the given size to paint the shroud on, made for this one call: a frame drawn on
+ * its own. The frames of a video are painted on a {@link DarknessLayer} kept for the export instead.
  */
 export function defaultDarknessLayer(width: number, height: number): DarknessCanvas | null {
-  if (width < 1 || height < 1) return null;
-
-  if (typeof OffscreenCanvas !== 'undefined') {
-    if (!scratch || scratch.canvas.width !== width || scratch.canvas.height !== height) {
-      const canvas = new OffscreenCanvas(width, height);
-      const created = canvas.getContext('2d');
-      if (!canDraw(created)) {
-        scratch = null;
-        return domDarknessLayer(width, height);
-      }
-      scratch = { canvas, context: created };
-    } else {
-      // Re-assigning the size would clear it; at the same size, clear it explicitly.
-      const reused = scratch.canvas.getContext('2d');
-      reused?.clearRect(0, 0, width, height);
-    }
-    const context = scratch.context;
-    context.globalCompositeOperation = 'source-over';
-    context.globalAlpha = 1;
-    return context;
-  }
-  return domDarknessLayer(width, height);
+  return new DarknessLayer().layerOf(width, height);
 }
 
 function domDarknessLayer(width: number, height: number): DarknessCanvas | null {
