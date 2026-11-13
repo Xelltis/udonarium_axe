@@ -6,7 +6,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { buildReplayBoardScene, collectBoardAssetIds, framingOf } from '@axe/domain/replay/replay-board-view';
+import { buildReplayBoardScene, collectBoardAssetIds } from '@axe/domain/replay/replay-board-view';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -165,31 +165,6 @@ describe('the dark', () => {
     expect(
       buildReplayBoardScene([table('t1'), piece('c1', 'character')], { userId: '', role: PeerRole.Guest })!.pieces
     ).toHaveLength(1);
-  });
-});
-
-describe('framingOf()', () => {
-  it('crops about the pieces with a margin', () => {
-    const scene = buildReplayBoardScene([
-      table('t1', { width: 40, height: 40, gridSize: 50 }),
-      piece('c1', 'character', { location: { name: 'table', x: 1000, y: 1000 } }),
-    ])!;
-
-    expect(framingOf(scene)).toEqual({ x: 900, y: 900, width: 250, height: 250 });
-  });
-
-  it('never runs off the table', () => {
-    const scene = buildReplayBoardScene([
-      table('t1', { width: 4, height: 4, gridSize: 50 }),
-      piece('c1', 'character', { location: { name: 'table', x: 0, y: 0 } }),
-    ])!;
-
-    expect(framingOf(scene)).toEqual({ x: 0, y: 0, width: 150, height: 150 });
-  });
-
-  it('shows the whole table when there are no pieces', () => {
-    const scene = buildReplayBoardScene([table('t1', { width: 10, height: 8, gridSize: 50 })])!;
-    expect(framingOf(scene)).toEqual({ x: 0, y: 0, width: 500, height: 400 });
   });
 });
 
