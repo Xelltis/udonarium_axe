@@ -1,9 +1,9 @@
 import {
+  ACCENT_SECONDS,
   type DiceThrowResult,
   FRAME_STRIDE,
   FRAMES_PER_SECOND,
 } from '@axe/infrastructure/dice-3d/dice-physics-message';
-import { ACCENT_SECONDS } from '@axe/infrastructure/dice-3d/dice-physics-message';
 import { type BufferGeometry, CanvasTexture, type Group, type Material, type Mesh, Quaternion } from 'three';
 
 /**
