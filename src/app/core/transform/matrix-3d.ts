@@ -286,8 +286,10 @@ export class Matrix3D {
   }
 
   /** Adds a translation after the current transform, given as a point or as x, y and z. */
-  appendPosition(positionOrX: IPoint3D | number, y?: number, z?: number): Matrix3D {
-    const position = typeof positionOrX === 'number' ? { x: positionOrX, y: y!, z: z!, w: 1 } : positionOrX;
+  appendPosition(position: IPoint3D): Matrix3D;
+  appendPosition(x: number, y: number, z: number): Matrix3D;
+  appendPosition(positionOrX: IPoint3D | number, y = 0, z = 0): Matrix3D {
+    const position = typeof positionOrX === 'number' ? { x: positionOrX, y, z, w: 1 } : positionOrX;
     return this.append(Matrix3D.makePosition(position, Matrix3D._scratch));
   }
 

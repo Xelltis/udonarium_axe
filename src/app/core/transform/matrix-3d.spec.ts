@@ -93,6 +93,16 @@ describe('Matrix3D', () => {
     });
   });
 
+  describe('appendPosition()', () => {
+    it('adds the same translation given a point or x, y and z', () => {
+      const byPoint = new Matrix3D().appendPosition({ x: 5, y: 10, z: 15, w: 1 });
+      const byParts = new Matrix3D().appendPosition(5, 10, 15);
+
+      expect(byParts.getPosition()).toEqual(byPoint.getPosition());
+      expect(byPoint.getPosition()).toMatchObject({ x: 5, y: 10, z: 15 });
+    });
+  });
+
   describe('multiply()', () => {
     it('multiplying two identities gives the identity', () => {
       const a = new Matrix3D();
