@@ -34,10 +34,15 @@ function toHex([r, g, b]: [number, number, number]): string {
   return `#${part(r)}${part(g)}${part(b)}`;
 }
 
+/** The lightness of a colour, as HSL has it: halfway between its strongest and weakest channel, on the channels' own scale. */
+export function lightnessOf([r, g, b]: [number, number, number]): number {
+  return (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
+}
+
 function rgbToHsl([r, g, b]: [number, number, number]): [number, number, number] {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
-  const lightness = (max + min) / 2;
+  const lightness = lightnessOf([r, g, b]);
   if (max === min) return [0, 0, lightness];
 
   const delta = max - min;
