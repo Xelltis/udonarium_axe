@@ -5856,6 +5856,7 @@
       "unchosen": "（選んでください）",
       "missing": "{{name}}（この部屋にありません）",
       "unknownAction": "この版では扱えない動作（残しておきます）",
+      "actionFailed": "「{{kind}}」の動作に失敗しました",
       "noActions": "まだ何もしません。下のボタンで動作を足します。",
       "try": "試しに押す",
       "refused": {

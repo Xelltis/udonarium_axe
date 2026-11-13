@@ -6182,6 +6182,7 @@
       "unchosen": "(선택하세요)",
       "missing": "{{name}} (이 방에 없음)",
       "unknownAction": "이 버전에서 실행할 수 없는 동작 (그대로 남겨 둡니다)",
+      "actionFailed": "「{{kind}}」 동작에 실패했습니다",
       "noActions": "아직 아무것도 하지 않습니다. 아래 버튼으로 동작을 추가하세요.",
       "try": "시험 삼아 누르기",
       "refused": {

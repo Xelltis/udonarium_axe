@@ -32,6 +32,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger, triggersOn } from '@axe/domain/tabletop/table-trigger';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { SwitchNoticeService } from '@axe/features/tabletop/board-switch/switch-notice.service';
 import { SWITCH_COOLDOWN_MS, SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -237,10 +238,11 @@ describe('SwitchPressService', () => {
     expect(playLineup).toHaveBeenCalledWith(hero, 'everywhere');
   });
 
-  it('goes on with the rest where one thing goes wrong', async () => {
+  it('goes on with the rest where one thing goes wrong, and says beside the pointer which thing it was', async () => {
     vi.spyOn(TestBed.inject(NamedCueService), 'launchCutIn').mockImplementation(() => {
       throw new Error('no cut-in');
     });
+    const told = vi.spyOn(TestBed.inject(SwitchNoticeService), 'showAtPointer');
 
     const outcome = await presses.press(
       switchWith({ actions: [{ kind: 'cutIn', name: 'boom', delayMs: 0, extra: {} }, say('after')] })
@@ -248,6 +250,8 @@ describe('SwitchPressService', () => {
 
     expect(outcome).toBe('pressed');
     expect(said).toEqual(['self:after']);
+    expect(told).toHaveBeenCalledTimes(1);
+    expect(told.mock.calls[0][0]).toContain('カットイン');
   });
 
   describe('how often it can be pressed', () => {

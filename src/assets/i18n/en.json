@@ -5856,6 +5856,7 @@
       "unchosen": "(choose one)",
       "missing": "{{name}} (not in this room)",
       "unknownAction": "An action this version cannot run (kept as is)",
+      "actionFailed": "The action \"{{kind}}\" failed",
       "noActions": "It does nothing yet. Add actions with the buttons below.",
       "try": "Try it",
       "refused": {
