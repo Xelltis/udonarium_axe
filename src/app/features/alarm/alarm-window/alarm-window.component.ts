@@ -8,7 +8,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-alarm-window',
+  selector: 'alarm-window',
   templateUrl: './alarm-window.component.html',
   imports: [TranslocoModule],
 })

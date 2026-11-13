@@ -16,7 +16,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-alarm-menu',
+  selector: 'alarm-menu',
   templateUrl: './alarm-menu.component.html',
   imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
 })

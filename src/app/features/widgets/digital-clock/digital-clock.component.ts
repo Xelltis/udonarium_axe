@@ -8,7 +8,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-digital-clock',
+  selector: 'digital-clock',
   templateUrl: './digital-clock.component.html',
   imports: [DraggableDirective, WidgetPlaceDirective, TranslocoModule],
 })

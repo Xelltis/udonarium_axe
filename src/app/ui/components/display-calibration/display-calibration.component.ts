@@ -40,7 +40,7 @@ const MAX_FRAME_PX = 4000;
  * same width.
  */
 @Component({
-  selector: 'app-display-calibration',
+  selector: 'display-calibration',
   templateUrl: './display-calibration.component.html',
   host: { class: 'block text-ui-text' },
   changeDetection: ChangeDetectionStrategy.OnPush,

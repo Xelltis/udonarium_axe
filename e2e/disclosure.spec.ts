@@ -15,7 +15,7 @@ test.describe('how far information is disclosed', () => {
     const panel = page.locator('ui-panel').filter({ hasText: '接続情報' });
     await panel.getByRole('button', { name: new RegExp(`^\\s*${role}\\s*$`) }).click();
     // The toolbar is swapped once the role has gone round.
-    const toolbar = role === 'GM' ? 'app-gm-toolbar [title^="暗闇"]' : 'app-pl-toolbar [title="所有キャラクター一覧"]';
+    const toolbar = role === 'GM' ? 'gm-toolbar [title^="暗闇"]' : 'pl-toolbar [title="所有キャラクター一覧"]';
     if (role !== '見学') await expect(page.locator(toolbar)).toBeVisible({ timeout: 10000 });
   }
 

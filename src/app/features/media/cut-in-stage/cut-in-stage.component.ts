@@ -61,7 +61,7 @@ const LETTER_FRAME_BUDGET = 6000;
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-cut-in-stage',
+  selector: 'cut-in-stage',
   templateUrl: './cut-in-stage.component.html',
   host: { class: 'block' },
   imports: [SafePipe],

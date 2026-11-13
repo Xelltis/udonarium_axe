@@ -92,7 +92,7 @@ const SWITCHED_PARTS: readonly BoardScenePart[] = [
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-scene-editor',
+  selector: 'scene-editor',
   templateUrl: './scene-editor.component.html',
   imports: [
     ChatLineEditorComponent,

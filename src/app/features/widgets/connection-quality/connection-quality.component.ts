@@ -38,7 +38,7 @@ export interface PeerLinkView {
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-connection-quality',
+  selector: 'connection-quality',
   templateUrl: './connection-quality.component.html',
   imports: [DatePipe, DraggableDirective, WidgetPlaceDirective, TranslocoModule],
 })

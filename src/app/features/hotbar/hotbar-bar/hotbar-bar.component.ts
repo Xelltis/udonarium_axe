@@ -67,7 +67,7 @@ const EDITOR = { width: EDITOR_WIDTH, height: EDITOR_HEIGHT };
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-hotbar',
+  selector: 'hotbar',
   templateUrl: './hotbar-bar.component.html',
   host: { '(document:keydown)': 'onKeydown($event)' },
   imports: [DraggableDirective, WidgetPlaceDirective, TranslocoModule],

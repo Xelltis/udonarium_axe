@@ -16,7 +16,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-cut-in-bgm',
+  selector: 'cut-in-bgm',
   templateUrl: './cut-in-bgm.component.html',
   imports: [TranslocoModule],
 })

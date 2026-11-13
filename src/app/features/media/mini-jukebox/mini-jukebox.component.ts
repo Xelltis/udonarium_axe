@@ -34,7 +34,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-mini-jukebox',
+  selector: 'mini-jukebox',
   templateUrl: './mini-jukebox.component.html',
   imports: [TextTooltipDirective, FormsModule, DraggableDirective, TranslocoModule, DjDeckComponent],
 })

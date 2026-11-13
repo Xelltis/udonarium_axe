@@ -30,7 +30,7 @@ interface PreparedPreview {
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-chat-log-preview',
+  selector: 'chat-log-preview',
   templateUrl: './chat-log-preview.component.html',
   host: { class: 'block h-full' },
   imports: [TranslocoModule, SafePipe],

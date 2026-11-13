@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test.describe('a piece’s overview opened on a phone', () => {
   test('moves a resource with the slider in the overview a tap on the piece brings up', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('mobile-shell nav')).toBeVisible({ timeout: 20000 });
     const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
     if (await closeStartupPanel.count()) await closeStartupPanel.tap();
 
@@ -64,7 +64,7 @@ test.describe('a piece’s overview opened on a phone', () => {
 
   test('enlarges a white board from the overview a tap brings up, and closes it at a tap', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('mobile-shell nav')).toBeVisible({ timeout: 20000 });
     const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
     if (await closeStartupPanel.count()) await closeStartupPanel.tap();
 

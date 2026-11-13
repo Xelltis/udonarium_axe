@@ -51,7 +51,7 @@ function itemsOf(element: DataElement, visit: (element: DataElement) => void): D
 }
 
 @Component({
-  selector: 'app-dice-symbol-sheet',
+  selector: 'dice-symbol-sheet',
   templateUrl: './dice-symbol-sheet.component.html',
   host: { class: 'block box-border h-full overflow-y-auto p-3 text-ui-text bg-ui-panel' },
   changeDetection: ChangeDetectionStrategy.OnPush,

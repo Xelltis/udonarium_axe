@@ -114,7 +114,7 @@ import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directiv
 import { version as APP_VERSION } from '@pkg';
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-root',
+  selector: 'root',
   templateUrl: './app.component.html',
   imports: [
     BeatLightComponent,

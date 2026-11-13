@@ -48,7 +48,7 @@ const ROOM_ROWS: readonly RoomKindRow[] = ROOM_VOLUME_KINDS.map((kind) => {
  * the room.
  */
 @Component({
-  selector: 'app-sound-settings-panel',
+  selector: 'sound-settings-panel',
   templateUrl: './sound-settings-panel.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoModule, UiVolumeRowComponent, UiChatSoundSettingsComponent],

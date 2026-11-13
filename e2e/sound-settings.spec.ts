@@ -5,7 +5,7 @@ import { openPanel, openPanelFrom, openSeatDisplay, waitAppReady } from './helpe
 async function openSoundSettings(page: Page) {
   const display = await openSeatDisplay(page);
   await openPanelFrom(page, display.getByTestId('seat-sound-settings'));
-  const panel = page.locator('app-sound-settings-panel');
+  const panel = page.locator('sound-settings-panel');
   await expect(panel).toBeVisible({ timeout: 10000 });
   return panel;
 }
@@ -37,13 +37,13 @@ test.describe('sound settings', () => {
     const connection = page.locator('ui-panel').filter({ hasText: '接続情報' });
     await connection.getByRole('button', { name: /^\s*GM\s*$/ }).click();
     await openPanel(page, 'ジュークボックス');
-    const jukebox = page.locator('app-jukebox');
+    const jukebox = page.locator('jukebox');
     await expect(jukebox).toBeVisible({ timeout: 10000 });
     await jukebox.locator('input[name="bgm-volume"]').fill('0.3');
     await jukebox.locator('input[name="room-bgm-volume"]').fill('0.4');
 
     await jukebox.getByTestId('jukebox-open-sound-settings').click();
-    const panel = page.locator('app-sound-settings-panel');
+    const panel = page.locator('sound-settings-panel');
     await expect(panel).toBeVisible({ timeout: 10000 });
 
     await expect(panel.locator('input[name="bgm-volume"]')).toHaveValue('0.3');

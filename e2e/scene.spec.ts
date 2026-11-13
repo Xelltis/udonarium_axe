@@ -3,7 +3,7 @@ import { expect, type Page, test } from '@playwright/test';
 import { chatInputText, openPanel, waitAppReady } from './helpers';
 
 /** The darkness button of the GM toolbar while the table is dark, which says so in its name. */
-const darkened = (page: Page) => page.locator('app-gm-toolbar [title^="暗闇: オン"]');
+const darkened = (page: Page) => page.locator('gm-toolbar [title^="暗闇: オン"]');
 
 async function becomeGameMaster(page: Page) {
   await page
@@ -11,7 +11,7 @@ async function becomeGameMaster(page: Page) {
     .filter({ hasText: '接続情報' })
     .getByRole('button', { name: /^\s*GM\s*$/ })
     .click();
-  await expect(page.locator('app-gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
 }
 
 /** Opens the scenes as the game master and makes one of the board, darkened, saying a line as it is put on. */

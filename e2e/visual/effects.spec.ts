@@ -16,7 +16,7 @@ async function castOn(page: Page, preset: string) {
   await page.locator('[data-testid="fab-entry-media"]').click();
   await settle(page);
   await page.locator('[data-testid="fab-submenu-media"] [data-testid="fab-entry-effectLibrary"]').click();
-  const panel = page.locator('app-effect-library-panel');
+  const panel = page.locator('effect-library-panel');
   const filter = panel.getByPlaceholder('名前・系統で絞り込む');
   await settleLazy(page, filter);
   await expect(panel).toBeVisible();

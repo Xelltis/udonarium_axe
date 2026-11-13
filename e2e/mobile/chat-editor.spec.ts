@@ -7,10 +7,10 @@ test.describe('the chat editor on a phone', () => {
     page,
   }) => {
     await page.goto('/');
-    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('mobile-shell nav')).toBeVisible({ timeout: 20000 });
     const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
     if (await closeStartupPanel.count()) await closeStartupPanel.click();
-    const pane = page.locator('app-mobile-chat-pane');
+    const pane = page.locator('mobile-chat-pane');
     await expect(pane.locator('[data-chat-input-mode="rich"]')).toBeVisible({ timeout: 20000 });
 
     const editor = pane.locator('chat-input');

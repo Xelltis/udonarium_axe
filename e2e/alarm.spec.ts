@@ -8,7 +8,7 @@ test.describe('the alarm', () => {
   }) => {
     await waitAppReady(page);
     await page.locator('chat-window button[title="アラーム"]').click();
-    const menu = page.locator('app-alarm-menu');
+    const menu = page.locator('alarm-menu');
     await expect(menu).toBeVisible({ timeout: 5000 });
 
     await menu.locator('input[name="alarmTitle"]').fill('戦闘ラウンド');
@@ -16,7 +16,7 @@ test.describe('the alarm', () => {
     await menu.getByRole('button', { name: /セット/ }).click();
     await expect(menu).toHaveCount(0);
 
-    const alarm = page.locator('app-alarm-window');
+    const alarm = page.locator('alarm-window');
     await expect(alarm).toBeVisible({ timeout: 10000 });
     await expect(alarm).toContainText('戦闘ラウンド');
     await expect(alarm).toContainText('1秒経過');

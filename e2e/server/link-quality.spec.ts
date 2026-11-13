@@ -25,7 +25,7 @@ test.describe('the links of a room on the room server', () => {
 
     const widgets = await openSeatWidgets(gm.page);
     await widgets.getByTestId('seat-widget-connectionQuality').click();
-    const rows = gm.page.locator('app-connection-quality').getByTestId('link-quality-row');
+    const rows = gm.page.locator('connection-quality').getByTestId('link-quality-row');
     await expect(rows).toHaveCount(2, { timeout: 10_000 });
     await expect(rows.nth(0)).toContainText('部屋のサーバー');
     await expect(rows.nth(0).getByTestId('link-quality-value')).toHaveText(/^\s*\d+ms\s*$/, { timeout: 20_000 });

@@ -32,7 +32,7 @@ const TURNED_DOWN_WITHIN_MS = 30_000;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-chat-tab-setting',
+  selector: 'chat-tab-setting',
   templateUrl: './chat-tab-setting.component.html',
   host: { class: 'block h-full' },
   imports: [TextTooltipDirective, FormsModule, TranslocoModule],

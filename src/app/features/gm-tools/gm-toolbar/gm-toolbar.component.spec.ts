@@ -359,7 +359,7 @@ describe('GmToolbarComponent', () => {
 
       expect(tools()).toBe(1);
       expect(fixture.nativeElement.textContent).toContain('GMツール');
-      expect(fixture.nativeElement.querySelector('app-npc-bar')).toBeNull();
+      expect(fixture.nativeElement.querySelector('npc-bar')).toBeNull();
       expect(TestBed.inject(ToolbarFoldService).isFolded('gm')).toBe(true);
       expect(TestBed.inject(ToolbarFoldService).isFolded('pl')).toBe(false);
 

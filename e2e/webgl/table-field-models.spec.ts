@@ -34,7 +34,7 @@ test.describe('open country generated for a table drawn on a canvas', () => {
     await panel.locator('#seed').fill('1278372739');
     await panel.getByRole('button', { name: '生成する' }).click();
     await panel.getByRole('button', { name: 'このテーブルへ移動' }).click({ timeout: 120000 });
-    const later = page.locator('app-room-restore-banner button', { hasText: 'あとで' });
+    const later = page.locator('room-restore-banner button', { hasText: 'あとで' });
     if (await later.count()) await later.first().dispatchEvent('click');
     await closePanels(page);
 

@@ -9,7 +9,7 @@ export async function becomeGm(page: Page) {
     .filter({ hasText: '接続情報' })
     .getByRole('button', { name: /^\s*GM\s*$/ })
     .click();
-  await expect(page.locator('app-gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
 }
 
 async function typeInto(input: Locator, text: string) {
@@ -38,7 +38,7 @@ export async function buildDungeon(page: Page, gridLabel: string) {
       { timeout: 20000 }
     )
     .toBeGreaterThan(0);
-  const later = page.locator('app-room-restore-banner button', { hasText: 'あとで' });
+  const later = page.locator('room-restore-banner button', { hasText: 'あとで' });
   if (await later.count()) await later.first().dispatchEvent('click');
   await closePanels(page);
 }

@@ -15,7 +15,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-vote-menu',
+  selector: 'vote-menu',
   templateUrl: './vote-menu.component.html',
   imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
 })

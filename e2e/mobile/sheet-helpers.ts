@@ -6,7 +6,7 @@ import { expect, Locator, Page } from '@playwright/test';
  */
 export async function openCharacterSheet(page: Page): Promise<Locator> {
   await page.goto('/');
-  await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
+  await expect(page.locator('mobile-shell nav')).toBeVisible({ timeout: 20000 });
   const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
   if (await closeStartupPanel.count()) await closeStartupPanel.tap();
 

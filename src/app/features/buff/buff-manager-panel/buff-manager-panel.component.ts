@@ -57,7 +57,7 @@ const CHART_LABEL_WIDTH_PX = 176;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-buff-manager-panel',
+  selector: 'buff-manager-panel',
   templateUrl: './buff-manager-panel.component.html',
   imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
 })

@@ -145,7 +145,7 @@ describe('MiniJukeboxComponent', () => {
       (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
         '[data-testid="mini-jukebox-dj-deck-toggle"]'
       )!;
-    const deck = () => (fixture.nativeElement as HTMLElement).querySelector('app-dj-deck');
+    const deck = () => (fixture.nativeElement as HTMLElement).querySelector('dj-deck');
 
     it('is closed until opened, then opens under the player and is remembered in this browser', async () => {
       await fixture.whenStable();

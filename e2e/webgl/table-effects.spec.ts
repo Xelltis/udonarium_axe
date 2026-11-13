@@ -11,7 +11,7 @@ type Hooks = {
 
 async function openEffectLibrary(page: Page) {
   await openPanel(page, 'エフェクト');
-  await expect(page.locator('app-effect-library-panel')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('effect-library-panel')).toBeVisible({ timeout: 5000 });
 }
 
 /** How many particles and marks the effects draw in the table's scene now. */
@@ -34,7 +34,7 @@ test.describe('map effects', () => {
   test('starts picking targets when an effect is chosen, and plays it in the table’s scene once a piece is picked', async ({
     page,
   }) => {
-    const panel = page.locator('app-effect-library-panel');
+    const panel = page.locator('effect-library-panel');
     // A long single-target effect is used; a short one is gone right after it fires, before it can be checked.
     await panel.getByPlaceholder('名前・系統で絞り込む').fill('一閃');
     await panel.getByRole('button', { name: /一閃/ }).first().click();

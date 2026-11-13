@@ -48,7 +48,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-jukebox',
+  selector: 'jukebox',
   templateUrl: './jukebox.component.html',
   host: { class: 'block' },
   imports: [TextTooltipDirective, FormsModule, TranslocoModule, UiVolumeRowComponent],

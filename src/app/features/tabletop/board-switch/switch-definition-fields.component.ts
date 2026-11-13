@@ -21,7 +21,7 @@ import { TranslocoModule } from '@jsverse/transloco';
  * so whoever holds the switch writes it onto what the switch says at that moment.
  */
 @Component({
-  selector: 'app-switch-definition-fields',
+  selector: 'switch-definition-fields',
   templateUrl: './switch-definition-fields.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SwitchActionListComponent, TranslocoModule],

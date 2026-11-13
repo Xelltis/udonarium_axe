@@ -8,7 +8,7 @@ async function openEditor(page: Page): Promise<Locator> {
   await waitAppReady(page);
   await becomeGm(page);
   await openPanel(page, 'マップエディター');
-  const editor = page.locator('app-map-editor-panel');
+  const editor = page.locator('map-editor-panel');
   await expect(editor.locator('canvas').first()).toBeVisible({ timeout: 15000 });
   return editor;
 }

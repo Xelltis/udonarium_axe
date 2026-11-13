@@ -533,7 +533,7 @@
       <p class="text-ui-muted text-[10px] leading-snug">
         {{ 'feature.mapEditor.function.triggerPressHint' | transloco }}
       </p>
-      <app-switch-definition-fields
+      <switch-definition-fields
         data-testid="trigger-press-fields"
         [definition]="pressDefinition()"
         (changed)="setPressDefinition($event)"

@@ -13,7 +13,7 @@ const TOP_MARGIN = 12;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-room-restore-banner',
+  selector: 'room-restore-banner',
   templateUrl: './room-restore-banner.component.html',
   imports: [DraggableDirective, WidgetPlaceDirective, NgClass, TranslocoModule],
 })

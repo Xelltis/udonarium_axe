@@ -9,7 +9,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-room-snapshot-panel',
+  selector: 'room-snapshot-panel',
   templateUrl: './room-snapshot-panel.component.html',
   imports: [TranslocoModule],
 })

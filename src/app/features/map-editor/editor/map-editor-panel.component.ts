@@ -131,7 +131,7 @@ interface ToolDef {
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-map-editor-panel',
+  selector: 'map-editor-panel',
   templateUrl: './map-editor-panel.component.html',
   host: {
     class: 'block h-full',

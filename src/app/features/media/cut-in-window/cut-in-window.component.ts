@@ -57,7 +57,7 @@ export const CUT_IN_VIDEO_START_LIMIT_MS = 30_000;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-cut-in-window',
+  selector: 'cut-in-window',
   templateUrl: './cut-in-window.component.html',
   imports: [YouTubePlayer, SafePipe, CutInStageComponent],
 })

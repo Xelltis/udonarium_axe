@@ -52,7 +52,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-hand-rail',
+  selector: 'hand-rail',
   templateUrl: './hand-rail.component.html',
   imports: [DraggableDirective, NgClass, TranslocoModule, CardFacePreviewComponent],
 })

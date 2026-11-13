@@ -43,7 +43,7 @@ export const GAME_CLOCK_TOP_PX = 136;
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-game-clock-widget',
+  selector: 'game-clock-widget',
   templateUrl: './game-clock-widget.component.html',
   imports: [DraggableDirective, WidgetPlaceDirective, FormsModule, TranslocoModule],
 })

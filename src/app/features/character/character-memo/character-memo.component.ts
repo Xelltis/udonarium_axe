@@ -11,7 +11,7 @@ import { TranslocoModule } from '@jsverse/transloco';
  * only by a seat that may not change the table.
  */
 @Component({
-  selector: 'app-character-memo',
+  selector: 'character-memo',
   templateUrl: './character-memo.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, TranslocoModule],

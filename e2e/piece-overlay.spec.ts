@@ -11,7 +11,7 @@ test.describe('showing and hiding names, resource bars and buffs', () => {
     page,
   }) => {
     await waitAppReady(page);
-    const toolbar = page.locator('app-pl-toolbar');
+    const toolbar = page.locator('pl-toolbar');
     const names = page.locator('game-character [data-testid="piece-name"]');
     const gauges = page.locator('game-character [data-testid="piece-gauge"]');
     const badges = page.locator('game-character [data-testid="buff-badge"]');

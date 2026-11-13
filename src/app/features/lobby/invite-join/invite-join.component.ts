@@ -44,7 +44,7 @@ const WATCHED_WITHOUT_LOGIN_KEY = 'udonarium-axe.watched-without-login';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-invite-join',
+  selector: 'invite-join',
   templateUrl: './invite-join.component.html',
   imports: [OperatorContactComponent, TranslocoModule],
 })

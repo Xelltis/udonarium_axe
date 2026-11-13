@@ -33,7 +33,7 @@ const SWING_SECONDS = 0.06;
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-compass',
+  selector: 'compass',
   templateUrl: './compass.component.html',
   imports: [DraggableDirective, WidgetPlaceDirective, TranslocoModule],
 })

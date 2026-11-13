@@ -6,7 +6,7 @@ import { openPanelFrom, openSeatDisplay, waitAppReady } from './helpers';
 test.describe('showing the names of the buttons all at once', () => {
   async function ready(page: Page) {
     await waitAppReady(page);
-    await expect(page.locator('app-pl-toolbar [title="所有キャラクター一覧"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('pl-toolbar [title="所有キャラクター一覧"]')).toBeVisible({ timeout: 10000 });
     // The chat box can hold the focus after start-up, and a key typed there is text, not a shortcut.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   }
@@ -22,7 +22,7 @@ test.describe('showing the names of the buttons all at once', () => {
     await expect(target.locator('xpath=following-sibling::dd[1]')).toHaveText(
       '選んだキャラクターだけをターゲットにする'
     );
-    await expect(page.locator('app-pl-toolbar [data-testid="button-guide-label"]').first()).toBeVisible();
+    await expect(page.locator('pl-toolbar [data-testid="button-guide-label"]').first()).toBeVisible();
 
     // The names settle once the menu's drawer has come out, and the sheet places itself again then.
     await page.waitForTimeout(400);
@@ -53,11 +53,11 @@ test.describe('showing the names of the buttons all at once', () => {
     await editor.getByTestId('menu-editor-surface-plToolbar').click();
     await editor.getByTestId('menu-editor-add').click();
     await editor.getByTestId('menu-command-choice-buttonGuide').click();
-    const onBar = page.locator('app-pl-toolbar [data-testid="fab-entry-buttonGuide"]');
+    const onBar = page.locator('pl-toolbar [data-testid="fab-entry-buttonGuide"]');
     await onBar.click();
-    await expect(page.locator('app-pl-toolbar [data-testid="button-guide-label"]').first()).toBeVisible();
+    await expect(page.locator('pl-toolbar [data-testid="button-guide-label"]').first()).toBeVisible();
     await onBar.click();
-    await expect(page.locator('app-pl-toolbar [data-testid="button-guide-label"]').first()).toBeVisible();
+    await expect(page.locator('pl-toolbar [data-testid="button-guide-label"]').first()).toBeVisible();
 
     await page.keyboard.press('Escape');
     await editor.getByTestId('menu-editor-surface-fab').click();

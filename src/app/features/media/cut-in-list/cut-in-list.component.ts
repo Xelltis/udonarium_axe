@@ -22,7 +22,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-cut-in-list',
+  selector: 'cut-in-list',
   templateUrl: './cut-in-list.component.html',
   imports: [TextTooltipDirective, FormsModule, CutInEditorComponent, CutInSceneEditorComponent, TranslocoModule],
 })

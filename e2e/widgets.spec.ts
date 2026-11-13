@@ -20,13 +20,13 @@ test.describe('widgets and switching the language', () => {
 
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
-    await expect(page.locator('app-pl-toolbar [title="所有キャラクター一覧"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('pl-toolbar [title="所有キャラクター一覧"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('shows and hides the player tools from the widgets small menu, and keeps them hidden after a reload', async ({
     page,
   }) => {
-    const toolbar = page.locator('app-pl-toolbar .pl-toolbar');
+    const toolbar = page.locator('pl-toolbar .pl-toolbar');
     await expect(toolbar).toBeVisible();
 
     await toggleWidget(page, 'plToolbar');

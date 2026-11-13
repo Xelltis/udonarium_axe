@@ -28,7 +28,7 @@ test.describe('keeping unseen pieces out of the lists', () => {
   test('leaves pieces a player cannot see in the dark off the inventory’s table tab', async ({ page }) => {
     await waitAppReady(page);
     await setRole(page, 'GM');
-    const darkness = page.locator('app-gm-toolbar [title^="暗闇"]');
+    const darkness = page.locator('gm-toolbar [title^="暗闇"]');
     await expect(darkness).toBeVisible({ timeout: 10000 });
     await openPanel(page, 'インベントリ');
     await expect(listed(page).first()).toBeVisible({ timeout: 10000 });

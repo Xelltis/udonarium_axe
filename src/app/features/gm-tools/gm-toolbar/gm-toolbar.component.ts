@@ -43,7 +43,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-gm-toolbar',
+  selector: 'gm-toolbar',
   templateUrl: './gm-toolbar.component.html',
   imports: [DraggableDirective, NpcBarComponent, TranslocoModule, UiButtonGuideComponent, UiIconButtonComponent],
 })

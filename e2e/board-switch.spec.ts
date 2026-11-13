@@ -33,7 +33,7 @@ test.describe('switches', () => {
     await waitAppReady(page);
     await putAwayTutorial(page);
     await becomeRole(page, 'GM');
-    await expect(page.locator('app-gm-toolbar [data-testid="gm-toolbar-fold"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('gm-toolbar [data-testid="gm-toolbar-fold"]')).toBeVisible({ timeout: 10000 });
     const menu = await openTableContextMenu(page);
     await (await revealMenuEntry(page, menu, '地形を作成')).click();
     await expect(page.locator('terrain')).toHaveCount(1, { timeout: 10000 });

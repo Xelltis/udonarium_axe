@@ -45,7 +45,7 @@ const GRADE_LEVELS: readonly number[] = [1, 2, 3];
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-effect-library-panel',
+  selector: 'effect-library-panel',
   templateUrl: './effect-library-panel.component.html',
   imports: [FormsModule, NgTemplateOutlet, SafePipe, TranslocoModule],
 })

@@ -59,7 +59,7 @@ interface SoundOption {
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-effect-preset-editor',
+  selector: 'effect-preset-editor',
   templateUrl: './effect-preset-editor.component.html',
   imports: [FormsModule, SafePipe, TranslocoModule],
 })

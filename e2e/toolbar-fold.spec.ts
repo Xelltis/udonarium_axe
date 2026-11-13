@@ -6,7 +6,7 @@ import { waitAppReady } from './helpers';
 test.describe('folding the toolbars', () => {
   test('hides the tools when the player toolbar is folded, and keeps it folded after a reload', async ({ page }) => {
     await waitAppReady(page);
-    const toolbar = page.locator('app-pl-toolbar');
+    const toolbar = page.locator('pl-toolbar');
     await expect(toolbar.locator('[title="所有キャラクター一覧"]')).toBeVisible({ timeout: 10000 });
 
     await toolbar.getByTestId('pl-toolbar-fold').click();

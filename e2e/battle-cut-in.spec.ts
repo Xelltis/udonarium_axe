@@ -10,7 +10,7 @@ test.describe('the battle cut-in', () => {
       .filter({ hasText: '接続情報' })
       .getByRole('button', { name: /^\s*GM\s*$/ })
       .click();
-    await expect(page.locator('app-gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
   }
 
   /** Puts キャラクターA on the left and モンスターA on the right of the lineup, as the master. */

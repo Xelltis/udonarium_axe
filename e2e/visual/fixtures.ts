@@ -70,7 +70,7 @@ async function drawWhileClockHeld(page: Page) {
  * in the browser a little while after it changes, and the offer comes up once it has, at a moment
  * set by how fast the run goes.
  */
-const NO_RESTORE_OFFER = 'app-room-restore-banner { display: none !important; }';
+const NO_RESTORE_OFFER = 'room-restore-banner { display: none !important; }';
 
 /**
  * Has every change of style take effect at once on a table drawn on a canvas. The canvas draws a
@@ -101,7 +101,7 @@ export async function waitChatEditor(page: Page) {
 export async function becomeGm(page: Page) {
   const connection = page.locator('ui-panel').filter({ hasText: '接続情報' });
   await connection.getByRole('button', { name: /^\s*GM\s*$/ }).click();
-  await expect(page.locator('app-gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
 }
 
 export async function closePanels(page: Page) {

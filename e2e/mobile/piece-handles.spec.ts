@@ -26,7 +26,7 @@ test.describe('character pieces seen on a phone', () => {
     page,
   }) => {
     await page.goto('/');
-    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('mobile-shell nav')).toBeVisible({ timeout: 20000 });
 
     const piece = page
       .locator('game-character')
@@ -58,7 +58,7 @@ test.describe('character pieces seen on a phone', () => {
     page,
   }) => {
     await page.goto('/');
-    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('mobile-shell nav')).toBeVisible({ timeout: 20000 });
     await closePanels(page);
 
     const pieces = page

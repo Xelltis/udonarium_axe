@@ -88,7 +88,7 @@ function mostPainted(page: Page): Promise<number[]> {
 
 /** Lays a stroke of the brush across the editor's map, from a point a share of the way across and down it. */
 async function strokeAcrossMap(page: Page, across: number, down: number): Promise<void> {
-  const board = (await page.locator('app-map-editor-panel canvas').first().boundingBox())!;
+  const board = (await page.locator('map-editor-panel canvas').first().boundingBox())!;
   const from = { x: board.x + board.width * across, y: board.y + board.height * down };
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
@@ -97,7 +97,7 @@ async function strokeAcrossMap(page: Page, across: number, down: number): Promis
 }
 
 async function bringTableIn(page: Page): Promise<void> {
-  const editor = page.locator('app-map-editor-panel');
+  const editor = page.locator('map-editor-panel');
   await editor.getByRole('button', { name: 'テーブルを取り込む' }).click();
   await page.locator('confirm-dialog').getByRole('button', { name: 'OK' }).click();
   await expect(page.locator('confirm-dialog')).toHaveCount(0);
@@ -153,7 +153,7 @@ test.describe('the ground of a table', () => {
     const unpainted = await mostPainted(page);
 
     await openPanel(page, 'マップエディター');
-    const editor = page.locator('app-map-editor-panel');
+    const editor = page.locator('map-editor-panel');
     await expect(editor).toBeVisible({ timeout: 15000 });
     await bringTableIn(page);
 

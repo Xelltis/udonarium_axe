@@ -1,6 +1,6 @@
 @if (canEdit()) {
   <div class="flex h-full flex-col gap-2 overflow-y-auto p-2 text-[13px]" data-testid="board-switch-editor">
-    <app-switch-definition-fields [definition]="definition()" (changed)="update($event)" />
+    <switch-definition-fields [definition]="definition()" (changed)="update($event)" />
 
     <div class="border-ui-border-panel mt-auto flex items-center gap-2 border-t border-solid pt-2">
       <button

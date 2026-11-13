@@ -12,7 +12,7 @@ test.describe('the turn on the player tools', () => {
       .filter({ hasText: '接続情報' })
       .getByRole('button', { name: /^\s*PL\s*$/ })
       .click();
-    const bar = page.locator('app-pl-toolbar');
+    const bar = page.locator('pl-toolbar');
     const owned = bar.locator('[title="所有キャラクター一覧"]');
     await expect(owned).toBeVisible({ timeout: 10000 });
     await owned.click();

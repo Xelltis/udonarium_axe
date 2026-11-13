@@ -84,7 +84,7 @@ test.describe('the darkness over a table drawn on a canvas', () => {
     expect(points.length).toBeGreaterThan(3);
     const lit = await brightnessAt(page, points);
 
-    await page.locator('app-gm-toolbar [title^="暗闇"]').click();
+    await page.locator('gm-toolbar [title^="暗闇"]').click();
     await expect
       .poll(() =>
         page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.lightMapRevision)
@@ -99,7 +99,7 @@ test.describe('the darkness over a table drawn on a canvas', () => {
     // Where a piece's own light falls the board stays lit, so most of it darkens rather than all.
     expect(bright.filter((point) => point.dark < point.lit * 0.8).length).toBeGreaterThan(bright.length / 2);
 
-    await page.locator('app-gm-toolbar [title^="暗闇"]').click();
+    await page.locator('gm-toolbar [title^="暗闇"]').click();
     await idle(page);
     await expect
       .poll(async () => {

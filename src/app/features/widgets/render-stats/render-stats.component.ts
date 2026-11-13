@@ -9,7 +9,7 @@ import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive'
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-render-stats',
+  selector: 'render-stats',
   templateUrl: './render-stats.component.html',
   imports: [DecimalPipe, DraggableDirective, WidgetPlaceDirective],
 })

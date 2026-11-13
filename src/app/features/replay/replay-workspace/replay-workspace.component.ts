@@ -30,7 +30,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-replay-workspace',
+  selector: 'replay-workspace',
   host: { '(keydown)': 'onKeydown($event)', tabindex: '0' },
   templateUrl: './replay-workspace.component.html',
   imports: [

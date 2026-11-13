@@ -38,7 +38,7 @@ const MAX_DEVICE_PIXEL_RATIO = 2;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-chat-ticker',
+  selector: 'chat-ticker',
   templateUrl: './chat-ticker.component.html',
 })
 export class ChatTickerComponent {

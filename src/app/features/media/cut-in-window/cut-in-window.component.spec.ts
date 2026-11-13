@@ -447,7 +447,7 @@ describe('CutInWindowComponent', () => {
       fixture.detectChanges();
 
       expect(component.scene()).toBeNull();
-      expect(fixture.nativeElement.querySelector('app-cut-in-stage')).toBeNull();
+      expect(fixture.nativeElement.querySelector('cut-in-stage')).toBeNull();
     });
 
     it('shows no stage for a scene with nothing laid into it', () => {
@@ -464,7 +464,7 @@ describe('CutInWindowComponent', () => {
       fixture.detectChanges();
 
       expect(component.scene()).toBe(scene);
-      expect(fixture.nativeElement.querySelector('app-cut-in-stage')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('cut-in-stage')).not.toBeNull();
     });
 
     it('closes once the scene has run, without a play time being set', () => {

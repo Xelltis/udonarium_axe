@@ -25,7 +25,7 @@ export function fitCropStage(viewportWidth: number): number {
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-texture-crop-dialog',
+  selector: 'texture-crop-dialog',
   templateUrl: './texture-crop-dialog.component.html',
   host: { class: 'block text-ui-text' },
   imports: [TranslocoModule],

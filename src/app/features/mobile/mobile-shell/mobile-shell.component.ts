@@ -38,7 +38,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-mobile-shell',
+  selector: 'mobile-shell',
   templateUrl: './mobile-shell.component.html',
   imports: [MobileChatPaneComponent, TranslocoModule],
 })

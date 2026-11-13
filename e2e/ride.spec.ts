@@ -9,7 +9,7 @@ async function becomeGm(page: Page) {
     .filter({ hasText: '接続情報' })
     .getByRole('button', { name: /^\s*GM\s*$/ })
     .click();
-  await expect(page.locator('app-gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
 }
 
 async function closePanels(page: Page) {

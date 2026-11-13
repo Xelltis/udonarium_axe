@@ -59,7 +59,7 @@ const FAB_MARGIN_PX = 12;
  * them; a screen without the drawer has a picker of its own.
  */
 @Component({
-  selector: 'app-fab-drawer',
+  selector: 'fab-drawer',
   templateUrl: './fab-drawer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [

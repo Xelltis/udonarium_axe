@@ -58,7 +58,7 @@ type FrameHandle = 'fr' | 'fb';
 type DragMode = { kind: 'move' } | { kind: 'image'; handle: ImageHandle } | { kind: 'frame'; handle: FrameHandle };
 
 @Component({
-  selector: 'app-map-image-grid-adjuster',
+  selector: 'map-image-grid-adjuster',
   templateUrl: './map-image-grid-adjuster.component.html',
   host: { class: 'block text-ui-text' },
   changeDetection: ChangeDetectionStrategy.OnPush,

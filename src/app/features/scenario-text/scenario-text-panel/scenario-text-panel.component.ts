@@ -57,7 +57,7 @@ interface ScenarioTextRow {
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-scenario-text-panel',
+  selector: 'scenario-text-panel',
   templateUrl: './scenario-text-panel.component.html',
   imports: [
     FormsModule,

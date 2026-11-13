@@ -11,7 +11,7 @@ const SPEAKER = 'キャラクターB';
 async function makeSpeakerCutIn(page: Page): Promise<Locator> {
   await waitAppReady(page);
   await openPanel(page, 'カットイン');
-  const list = page.locator('app-cut-in-list');
+  const list = page.locator('cut-in-list');
   await expect(list).toBeVisible({ timeout: 10000 });
   await list.locator('button[title="新しいカットインを作る"]').click();
   await expect(list.locator('cut-in-editor')).toBeVisible({ timeout: 5000 });
@@ -38,7 +38,7 @@ async function makeSpeakerCutIn(page: Page): Promise<Locator> {
 }
 
 async function expectStageSays(page: Page, words: string) {
-  const stage = page.locator('app-cut-in-window app-cut-in-stage');
+  const stage = page.locator('cut-in-window cut-in-stage');
   await expect(stage).toBeVisible({ timeout: 5000 });
   await expect(stage).toHaveText(words);
   await expect(stage.locator('[data-letter-rank]')).toHaveText([...words]);

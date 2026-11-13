@@ -44,7 +44,7 @@ interface NameChoice {
  * such and kept where it stands, so writing the list back does not lose it.
  */
 @Component({
-  selector: 'app-switch-action-list',
+  selector: 'switch-action-list',
   templateUrl: './switch-action-list.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoModule],
