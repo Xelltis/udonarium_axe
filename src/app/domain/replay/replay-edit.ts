@@ -292,6 +292,71 @@ function withChatMoments(
     const answered = line?.answers ? lines.get(line.answers.seq) : undefined;
     return !!answered && answered.index < line!.index;
   };
+  const { leftBehind, retold } = retoldLinesOf(lines, moved, untied, followed);
+  if (retold.size < 1) return [...events];
+
+  const remade = remadeLinesOf(events, lines, retold, moved);
+  const answerTops = answerTopsOf(lines, followed);
+  const nextKept = nextKeptOf(events, lines, retold, followed);
+  const { roomWanted, stayWanted } = roomWantedOf(events, lines, retold, remade, followed, answerTops);
+  const book = saidBookOf(lines, retold, remade, followed);
+
+  const said = new Map<number, Said>();
+  const passed = new Map<string, number>();
+  return events.map((event) => {
+    const line = lines.get(event.seq);
+    if (!line) return event;
+    const answerTop = answerTops.get(event.seq) ?? 0;
+    const isFollower = retold.has(event.seq) && followed(event.seq) && !remade.has(event.seq);
+    let when: Said = { moment: line.moment, minor: line.minor };
+    if (!retold.has(event.seq)) book.passing(line);
+    if (remade.has(event.seq)) {
+      when = said.get(remade.get(event.seq)!)!;
+    } else if (isFollower) {
+      when = { moment: said.get(line.answers!.seq)!.moment + line.answers!.gap, minor: line.minor };
+    } else if (retold.has(event.seq)) {
+      const after = passed.get(line.tab);
+      const before = nextKept.get(event.seq);
+      const key = line.moment + line.minor;
+      const mayStay =
+        leftBehind.has(event.seq) &&
+        !moved.has(event.seq) &&
+        (after === undefined || after < key) &&
+        (before === undefined || key < before) &&
+        !book.clashes(line, answerTop)(line.moment);
+      const elsewhere = saidBetween(
+        after,
+        before,
+        answerTop,
+        when,
+        book.clashes(line, answerTop),
+        roomWanted.get(event.seq) ?? 0
+      );
+      const staysPut =
+        mayStay &&
+        (before === undefined ||
+          Math.ceil(before) - line.moment - 1 >= (stayWanted.get(event.seq) ?? 0) ||
+          elsewhere.moment + elsewhere.minor >= key);
+      if (!staysPut) when = elsewhere;
+    }
+    book.said(event.seq, line, when, retold.has(event.seq) && !isFollower);
+    said.set(event.seq, when);
+    const reach = Math.max(when.moment + when.minor, answerTop > 0 ? when.moment + answerTop : -Infinity);
+    passed.set(line.tab, Math.max(passed.get(line.tab) ?? reach, reach));
+    return when.moment === line.moment && when.minor === line.minor ? event : withMoment(event, when);
+  });
+}
+
+/**
+ * The lines to be said afresh: those moved, those left behind by the line they answered moving away
+ * (whose tie is cut), and the answers that follow a moved line. `untied` are left behind to begin with.
+ */
+function retoldLinesOf(
+  lines: Map<number, ChatLine>,
+  moved: ReadonlySet<number>,
+  untied: ReadonlySet<number>,
+  followed: (seq: number) => boolean
+): { leftBehind: Set<number>; retold: Set<number> } {
   const leftBehind = new Set(untied);
   for (const [seq, line] of lines) {
     if (line.answers && moved.has(line.answers.seq) && !followed(seq)) leftBehind.add(seq);
@@ -304,8 +369,19 @@ function withChatMoments(
   for (const [seq, line] of lines) {
     if (moved.has(seq) || leftBehind.has(seq) || (followed(seq) && moved.has(line.answers!.seq))) retold.add(seq);
   }
-  if (retold.size < 1) return [...events];
+  return { leftBehind, retold };
+}
 
+/**
+ * The lines that make a message again, by the line that first made it, where that first making is
+ * retold and the later one did not move itself. Each is added to `retold`.
+ */
+function remadeLinesOf(
+  events: readonly ReplayEvent[],
+  lines: ReadonlyMap<number, ChatLine>,
+  retold: Set<number>,
+  moved: ReadonlySet<number>
+): Map<number, number> {
   const firstMaking = new Map<string, number>();
   const remade = new Map<number, number>();
   for (const event of events) {
@@ -316,14 +392,27 @@ function withChatMoments(
     else if (retold.has(first) && !moved.has(event.seq)) remade.set(event.seq, first);
   }
   for (const seq of remade.keys()) retold.add(seq);
+  return remade;
+}
 
+/** How far past a line its answers reach, by the line: the furthest gap and fraction among those following it. */
+function answerTopsOf(lines: ReadonlyMap<number, ChatLine>, followed: (seq: number) => boolean): Map<number, number> {
   const answerTops = new Map<number, number>();
   for (const [seq, line] of lines) {
     if (!followed(seq)) continue;
     const top = line.answers!.gap + line.minor;
     answerTops.set(line.answers!.seq, Math.max(answerTops.get(line.answers!.seq) ?? 0, top));
   }
+  return answerTops;
+}
 
+/** For each retold line, the moment of the next line in its tab that keeps its moment, when there is one. */
+function nextKeptOf(
+  events: readonly ReplayEvent[],
+  lines: ReadonlyMap<number, ChatLine>,
+  retold: ReadonlySet<number>,
+  followed: (seq: number) => boolean
+): Map<number, number> {
   const nextKept = new Map<number, number>();
   const ahead = new Map<string, number>();
   for (let index = events.length - 1; index >= 0; index--) {
@@ -337,7 +426,21 @@ function withChatMoments(
       ahead.set(line.tab, line.moment + line.minor);
     }
   }
+  return nextKept;
+}
 
+/**
+ * How many moments each retold line wants kept free after it for the retold lines behind it in its
+ * tab, before the next line kept: `roomWanted` when it is placed afresh, `stayWanted` when it stays.
+ */
+function roomWantedOf(
+  events: readonly ReplayEvent[],
+  lines: ReadonlyMap<number, ChatLine>,
+  retold: ReadonlySet<number>,
+  remade: ReadonlyMap<number, number>,
+  followed: (seq: number) => boolean,
+  answerTops: ReadonlyMap<number, number>
+): { roomWanted: Map<number, number>; stayWanted: Map<number, number> } {
   const roomWanted = new Map<number, number>();
   const stayWanted = new Map<number, number>();
   const wantedAhead = new Map<string, number>();
@@ -362,7 +465,25 @@ function withChatMoments(
       stayAhead.set(line.tab, 0);
     }
   }
+  return { roomWanted, stayWanted };
+}
 
+/** Who has said what at which moment, kept as the lines are placed, to keep a retold line clear of them. */
+interface SaidBook {
+  /** Whether a retold line said at a moment would be taken for another line's answer, or take one. */
+  clashes(line: ChatLine, answerTop: number): (moment: number) => boolean;
+  /** A line that keeps its moment is being placed: it is no longer ahead. */
+  passing(line: ChatLine): void;
+  /** A line has been said at a moment; `asks` when it is retold and is no follower, so its answers are expected after it. */
+  said(seq: number, line: ChatLine, when: Said, asks: boolean): void;
+}
+
+function saidBookOf(
+  lines: ReadonlyMap<number, ChatLine>,
+  retold: ReadonlySet<number>,
+  remade: ReadonlyMap<number, number>,
+  followed: (seq: number) => boolean
+): SaidBook {
   const keyOf = (tab: string, speaker: string, moment: number) => `${tab}\0${speaker}\0${moment}`;
   const count = (counts: Map<string, number>, key: string, by: number) => counts.set(key, (counts.get(key) ?? 0) + by);
   const linesAhead = new Map<string, number>();
@@ -382,73 +503,33 @@ function withChatMoments(
       }
     }
   }
-  const clashes = (line: ChatLine, answerTop: number) => (moment: number) => {
-    const says = (speaker: string, at: number) =>
-      (linesAhead.get(keyOf(line.tab, speaker, at)) ?? 0) > 0 || linesBehind.has(keyOf(line.tab, speaker, at));
-    const answered = (at: number) => (answersAt.get(keyOf(line.tab, line.speaker, at)) ?? 0) > 0;
-    if (line.asker !== '' && (says(line.asker, moment - 1) || says(line.asker, moment - 2))) return true;
-    if (answerTop > 0) {
-      const noticed = answerTop >= ANSWER_GAPS[1];
-      return (
-        says(line.speaker, moment) ||
-        (noticed && says(line.speaker, moment + 1)) ||
-        answered(moment + 1) ||
-        answered(moment + 2)
-      );
-    }
-    if (linesBehind.has(keyOf(line.tab, line.speaker, moment))) return false;
-    return answered(moment + 1) || (answered(moment + 2) && !says(line.speaker, moment + 1));
+  return {
+    clashes: (line, answerTop) => (moment) => {
+      const says = (speaker: string, at: number) =>
+        (linesAhead.get(keyOf(line.tab, speaker, at)) ?? 0) > 0 || linesBehind.has(keyOf(line.tab, speaker, at));
+      const answered = (at: number) => (answersAt.get(keyOf(line.tab, line.speaker, at)) ?? 0) > 0;
+      if (line.asker !== '' && (says(line.asker, moment - 1) || says(line.asker, moment - 2))) return true;
+      if (answerTop > 0) {
+        const noticed = answerTop >= ANSWER_GAPS[1];
+        return (
+          says(line.speaker, moment) ||
+          (noticed && says(line.speaker, moment + 1)) ||
+          answered(moment + 1) ||
+          answered(moment + 2)
+        );
+      }
+      if (linesBehind.has(keyOf(line.tab, line.speaker, moment))) return false;
+      return answered(moment + 1) || (answered(moment + 2) && !says(line.speaker, moment + 1));
+    },
+    passing: (line) => count(linesAhead, keyOf(line.tab, line.speaker, line.moment), -1),
+    said: (seq, line, when, asks) => {
+      linesBehind.add(keyOf(line.tab, line.speaker, when.moment));
+      if (asks && line.asker !== '') count(answersAt, keyOf(line.tab, line.asker, when.moment), 1);
+      for (const follower of followers.get(seq) ?? []) {
+        count(answersAt, keyOf(follower.tab, follower.asker, when.moment + follower.answers!.gap), 1);
+      }
+    },
   };
-
-  const said = new Map<number, Said>();
-  const passed = new Map<string, number>();
-  return events.map((event) => {
-    const line = lines.get(event.seq);
-    if (!line) return event;
-    const answerTop = answerTops.get(event.seq) ?? 0;
-    const isFollower = retold.has(event.seq) && followed(event.seq) && !remade.has(event.seq);
-    let when: Said = { moment: line.moment, minor: line.minor };
-    if (!retold.has(event.seq)) count(linesAhead, keyOf(line.tab, line.speaker, line.moment), -1);
-    if (remade.has(event.seq)) {
-      when = said.get(remade.get(event.seq)!)!;
-    } else if (isFollower) {
-      when = { moment: said.get(line.answers!.seq)!.moment + line.answers!.gap, minor: line.minor };
-    } else if (retold.has(event.seq)) {
-      const after = passed.get(line.tab);
-      const before = nextKept.get(event.seq);
-      const key = line.moment + line.minor;
-      const mayStay =
-        leftBehind.has(event.seq) &&
-        !moved.has(event.seq) &&
-        (after === undefined || after < key) &&
-        (before === undefined || key < before) &&
-        !clashes(line, answerTop)(line.moment);
-      const elsewhere = saidBetween(
-        after,
-        before,
-        answerTop,
-        when,
-        clashes(line, answerTop),
-        roomWanted.get(event.seq) ?? 0
-      );
-      const staysPut =
-        mayStay &&
-        (before === undefined ||
-          Math.ceil(before) - line.moment - 1 >= (stayWanted.get(event.seq) ?? 0) ||
-          elsewhere.moment + elsewhere.minor >= key);
-      if (!staysPut) when = elsewhere;
-    }
-    linesBehind.add(keyOf(line.tab, line.speaker, when.moment));
-    if (retold.has(event.seq) && !isFollower && line.asker !== '')
-      count(answersAt, keyOf(line.tab, line.asker, when.moment), 1);
-    for (const follower of followers.get(event.seq) ?? []) {
-      count(answersAt, keyOf(follower.tab, follower.asker, when.moment + follower.answers!.gap), 1);
-    }
-    said.set(event.seq, when);
-    const reach = Math.max(when.moment + when.minor, answerTop > 0 ? when.moment + answerTop : -Infinity);
-    passed.set(line.tab, Math.max(passed.get(line.tab) ?? reach, reach));
-    return when.moment === line.moment && when.minor === line.minor ? event : withMoment(event, when);
-  });
 }
 
 /**
