@@ -15,10 +15,8 @@ export class TextViewComponent implements ModalContent {
 
   constructor() {
     const option = this.modalService.option as Record<string, unknown>;
-    if (option && option.title != null) {
-      this.title = option.title ? (option.title as string) : '';
-      this.text = option.text ? (option.text as string) : '';
-    }
+    this.title = option?.title ? (option.title as string) : '';
+    this.text = option?.text ? (option.text as string) : '';
   }
 
   /** The title it was opened with, which the frame it stands in shows. */
