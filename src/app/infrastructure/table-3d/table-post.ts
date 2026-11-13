@@ -154,17 +154,17 @@ export class TablePost {
         ...(plan.ambientOcclusion ? { normal: packNormalToRGB(normalView) } : {}),
       })
     );
-    let colour = scenePass.getTextureNode('output');
+    let colour: Node<'vec4'> = scenePass.getTextureNode('output');
     if (plan.ambientOcclusion) {
       const packed = scenePass.getTextureNode('normal');
       const normals = sample((uv) => unpackRGBToNormal(packed.sample(uv)));
       const shading = ao(scenePass.getTextureNode('depth'), normals, camera);
       shading.resolutionScale = AO_SCALE;
-      colour = vec4(colour.rgb.mul(shading.getTextureNode().r), colour.a) as unknown as typeof colour;
+      colour = vec4(colour.rgb.mul(shading.getTextureNode().r), colour.a);
     }
     if (plan.bloom) {
       const glow = bloom(scenePass.getTextureNode('glow'), BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
-      colour = vec4(colour.rgb.add(glow.rgb), colour.a) as unknown as typeof colour;
+      colour = vec4(colour.rgb.add(glow.rgb), colour.a);
     }
     const pipeline = new RenderPipeline(this.renderer);
     pipeline.outputNode = colour;

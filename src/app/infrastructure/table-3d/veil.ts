@@ -27,6 +27,8 @@ import {
   CanvasTexture,
   LinearFilter,
   type Material,
+  MeshLambertNodeMaterial,
+  MeshStandardNodeMaterial,
   NoColorSpace,
   type NodeMaterial,
   Vector3,
@@ -136,9 +138,8 @@ export class SceneVeil {
     const node = material as NodeMaterial;
     if (taking === 'lit') {
       litByLamps(material);
-      (material as unknown as { emissiveNode: unknown }).emissiveNode = diffuseColor.rgb.mul(
-        this.lifted.sub(this.ambientNode())
-      );
+      if (material instanceof MeshLambertNodeMaterial || material instanceof MeshStandardNodeMaterial)
+        material.emissiveNode = diffuseColor.rgb.mul(this.lifted.sub(this.ambientNode()));
       node.outputNode = this.fogged(vec4(output.rgb.add(this.glowing), output.a));
     } else {
       node.outputNode = this.fogged(
