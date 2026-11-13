@@ -50,6 +50,14 @@ export class GameObject {
   }
 
   /**
+   * Goes by another identifier from now on, as an object read back from a file takes up the one
+   * written with it. Only for an object not yet in the store, which keeps objects by identifier.
+   */
+  takeIdentifier(identifier: string): void {
+    this.context.identifier = identifier;
+  }
+
+  /**
    * Adds the object to the store, which runs onStoreAdded and sends the object to the room.
    *
    * Nothing happens when an object with the same identifier is already stored. An identifier that
