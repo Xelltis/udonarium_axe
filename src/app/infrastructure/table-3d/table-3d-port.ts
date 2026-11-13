@@ -102,7 +102,7 @@ export type Table3dEffectLight = EffectLight;
 /** A light the scene lights itself with, throwing shadows of its own: where it stands, how far it reaches and in what colour. */
 export type Table3dShadowLight = Pick<
   SceneLight,
-  'x' | 'y' | 'z' | 'brightPx' | 'dimPx' | 'color' | 'animation' | 'angle' | 'direction' | 'pitch'
+  'x' | 'y' | 'z' | 'dimPx' | 'color' | 'animation' | 'angle' | 'direction' | 'pitch'
 >;
 
 /**
