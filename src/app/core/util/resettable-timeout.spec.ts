@@ -112,6 +112,21 @@ describe('ResettableTimeout', () => {
       timer.clear();
     });
 
+    it('keeps the time when reset with a new callback alone', () => {
+      const callback1 = vi.fn();
+      const callback2 = vi.fn();
+      const timer = new ResettableTimeout(callback1, 1000);
+
+      timer.reset(callback2);
+
+      vi.advanceTimersByTime(999);
+      expect(callback2).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(callback1).not.toHaveBeenCalled();
+      expect(callback2).toHaveBeenCalledTimes(1);
+      timer.clear();
+    });
+
     it('becomes active again when reset after a stop', () => {
       const callback = vi.fn();
       const timer = new ResettableTimeout(callback, 1000);

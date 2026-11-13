@@ -44,7 +44,7 @@ export class ResettableTimeout {
 
   /**
    * Pushes the deadline to the full duration from now, optionally with a new callback
-   * or duration, and undoes `stop`.
+   * or duration, and undoes `stop`. A new callback given alone keeps the duration.
    *
    * When the deadline only moves later the running timer is kept and waits again when it fires,
    * so calling this often is cheap.
@@ -52,7 +52,7 @@ export class ResettableTimeout {
   reset(callbackOrMs?: TimerCallback | number, ms?: number): void {
     if (typeof callbackOrMs === 'function') {
       this.callback = callbackOrMs;
-      this.timerMilliSecond = ms!;
+      this.timerMilliSecond = ms ?? this.timerMilliSecond;
     } else if (typeof callbackOrMs === 'number') {
       this.timerMilliSecond = callbackOrMs;
     }
