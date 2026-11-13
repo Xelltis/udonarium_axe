@@ -1,6 +1,7 @@
 import { MAX_EFFECT_LIGHTS } from '@axe/domain/effect/effect-light';
 import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
 import { EffectLayer } from '@axe/infrastructure/table-3d/effect-layer';
+import { fieldOfViewDeg } from '@axe/infrastructure/table-3d/engine-rules';
 import type {
   EffectOverlay,
   EffectOverlayView,
@@ -210,7 +211,7 @@ class OverPage implements EffectOverlay {
       .set(width / 2 - view.originX, view.originY - height / 2, view.perspectivePx)
       .divideScalar(scale)
       .applyQuaternion(this.camera.quaternion);
-    this.camera.fov = (2 * Math.atan(height / 2 / view.perspectivePx) * 180) / Math.PI;
+    this.camera.fov = fieldOfViewDeg(height, view.perspectivePx);
     this.camera.aspect = width / height;
     this.camera.near = (view.perspectivePx * 0.02) / scale;
     this.camera.far = (view.perspectivePx * 20) / scale;

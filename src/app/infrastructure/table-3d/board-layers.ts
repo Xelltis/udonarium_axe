@@ -67,15 +67,20 @@ export class BoardLayers {
   }
 
   /**
-   * Lays the layers over the board's shape, the shape given anew for each, and builds them again only
-   * when any of them or the board changed.
+   * Lays the layers over the board's shape, the shape given anew for each and null with no board, and
+   * builds them again only when any of them or the board changed.
    */
-  place(layers: readonly TableWorldLayer[], board: LayerBoard | null, shape: () => BufferGeometry, key: string): void {
-    const laidKey = board ? JSON.stringify([layers, key]) : '';
+  place(
+    layers: readonly TableWorldLayer[],
+    board: LayerBoard | null,
+    shape: (() => BufferGeometry) | null,
+    key: string
+  ): void {
+    const laidKey = board && shape ? JSON.stringify([layers, key]) : '';
     if (laidKey === this.laidKey) return;
     this.laidKey = laidKey;
     this.clear();
-    if (!board) return;
+    if (!board || !shape) return;
     let under = 0;
     let over = 0;
     for (const layer of layers) {

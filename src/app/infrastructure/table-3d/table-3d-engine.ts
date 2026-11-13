@@ -25,6 +25,13 @@ import { CoinLayer } from '@axe/infrastructure/table-3d/coin-layer';
 import { ConeLamp } from '@axe/infrastructure/table-3d/cone-lamp';
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
 import { EffectLayer } from '@axe/infrastructure/table-3d/effect-layer';
+import {
+  fieldOfViewDeg,
+  finishingOf,
+  pictureKey,
+  unwornPictureKeys,
+  wornPictures,
+} from '@axe/infrastructure/table-3d/engine-rules';
 import { changedChunks, chunkSignatures, facesByOwner, OwnedFaces } from '@axe/infrastructure/table-3d/face-chunks';
 import {
   boardGeometry,
@@ -629,13 +636,11 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   setWorld(world: TableWorld): void {
-    this.placeBoard(world.board);
-    this.layers.place(
-      world.layers,
-      world.board,
-      () => (world.board!.ground ? groundGeometry(world.board!.ground) : boardGeometry(world.board!)),
-      `${this.boardShape}|${this.groundGeneration}`
-    );
+    const board = world.board;
+    this.placeBoard(board);
+    const shape = board ? () => (board.ground ? groundGeometry(board.ground) : boardGeometry(board)) : null;
+    const shapeKey = `${this.boardShape}|${this.groundGeneration}`;
+    this.layers.place(world.layers, board, shape, shapeKey);
     if (world.walls !== this.laidWalls || world.caps !== this.laidCaps) {
       this.laidWalls = world.walls;
       this.laidCaps = world.caps;
@@ -650,13 +655,7 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.laidBackdrops = world.backdrops;
     this.standBackdrops();
-    this.water.set(
-      world.water,
-      world.board
-        ? () => (world.board!.ground ? groundGeometry(world.board!.ground) : boardGeometry(world.board!))
-        : null,
-      `${this.boardShape}|${this.groundGeneration}`
-    );
+    this.water.set(world.water, shape, shapeKey);
     if (world.sprites !== this.laidSprites) {
       this.laidSprites = world.sprites;
       this.piecesMoved();
@@ -670,16 +669,9 @@ class ThreeTableEngine implements Table3dEngine {
    * written in again, and of the materials that wore them.
    */
   private forgetPictures(world: TableWorld): void {
-    const worn = new Set<string>();
-    for (const face of [...world.walls, ...world.caps]) worn.add(face.pictureUrl);
-    for (const wall of world.walls) if (wall.gridUrl) worn.add(wall.gridUrl);
-    for (const sprite of world.sprites) if (sprite.look.kind === 'picture') worn.add(sprite.look.url);
-    for (const layer of [...world.layers, ...world.backdrops]) worn.add(layer.pictureUrl);
-    if (world.board?.pictureUrl) worn.add(world.board.pictureUrl);
-    for (const [key, picture] of this.loaded) {
-      const url = key.slice(0, key.lastIndexOf('|'));
-      if (worn.has(url)) continue;
-      picture.dispose();
+    const worn = wornPictures(world);
+    for (const key of unwornPictureKeys(this.loaded.keys(), worn)) {
+      this.loaded.get(key)!.dispose();
       this.loaded.delete(key);
     }
     for (const [look, material] of this.looks) {
@@ -704,7 +696,7 @@ class ThreeTableEngine implements Table3dEngine {
       this.orthographic.updateProjectionMatrix();
       this.camera = this.orthographic;
     } else {
-      this.perspective.fov = (2 * Math.atan(view.height / 2 / focal) * 180) / Math.PI;
+      this.perspective.fov = fieldOfViewDeg(view.height, focal);
       this.perspective.aspect = view.width / Math.max(1, view.height);
       this.perspective.near = view.nearPx ?? NEAR_PX;
       this.perspective.updateProjectionMatrix();
@@ -922,14 +914,9 @@ class ThreeTableEngine implements Table3dEngine {
     return true;
   }
 
-  /**
-   * The finishing the scene is drawn through now: the glow spilled only where anything glows, the
-   * lamps of a dark table, so a table with nothing glowing on it is drawn straight onto the canvas at
-   * any quality short of the one that shades its corners.
-   */
+  /** The finishing the scene is drawn through now, as {@link finishingOf} has it. */
   private finishing(): Table3dQualityPlan {
-    const glowing = this.veil.glowRevision > 0;
-    return this.plan.bloom && !glowing ? { ...this.plan, bloom: false } : this.plan;
+    return finishingOf(this.plan, this.veil.glowRevision > 0);
   }
 
   /**
@@ -1049,16 +1036,7 @@ class ThreeTableEngine implements Table3dEngine {
     const geometry = this.boardGround
       ? gridOverGround(this.boardGround, grid.box, GRID_LIFT_PX)
       : gridOverBoard(this.boardHexes, grid.box, GRID_LIFT_PX);
-    const material = new MeshBasicNodeMaterial({
-      map: this.gridPicture,
-      transparent: true,
-      opacity: grid.opacity,
-      depthWrite: false,
-      side: DoubleSide,
-      ...LAID_OVER_FACES,
-    });
-    this.veil.cover(material);
-    this.grid = new Mesh(geometry, material);
+    this.grid = new Mesh(geometry, this.gridMaterial(grid.opacity));
     this.grid.renderOrder = 1;
     this.scene.add(this.grid);
   }
@@ -1141,19 +1119,24 @@ class ThreeTableEngine implements Table3dEngine {
     }
     const grid = this.lastGrid;
     if (!grid || !this.gridPicture || this.gridded.length === 0) return;
+    this.topsGrid = new Mesh(griddedTops(this.gridded, grid.box, GRID_LIFT_PX), this.gridMaterial(grid.opacity));
+    this.topsGrid.renderOrder = 1;
+    this.topsGrid.visible = grid.opacity > 0;
+    this.scene.add(this.topsGrid);
+  }
+
+  /** The material the grid is drawn with, on the board or on the tops of the blocks: its picture, as opaque as it is shown, laid over the faces. */
+  private gridMaterial(opacity: number): MeshBasicNodeMaterial {
     const material = new MeshBasicNodeMaterial({
       map: this.gridPicture,
       transparent: true,
-      opacity: grid.opacity,
+      opacity,
       depthWrite: false,
       side: DoubleSide,
       ...LAID_OVER_FACES,
     });
     this.veil.cover(material);
-    this.topsGrid = new Mesh(griddedTops(this.gridded, grid.box, GRID_LIFT_PX), material);
-    this.topsGrid.renderOrder = 1;
-    this.topsGrid.visible = grid.opacity > 0;
-    this.scene.add(this.topsGrid);
+    return material;
   }
 
   private faceMaterial(face: FaceLook): MeshBasicNodeMaterial | MeshLambertNodeMaterial {
@@ -1166,7 +1149,7 @@ class ThreeTableEngine implements Table3dEngine {
 
   /** A picture shared by every face that wears it the same way, tiled or stretched. */
   private sharedPicture(url: string, tiled: boolean): Texture {
-    const key = `${url}|${tiled}`;
+    const key = pictureKey(url, String(tiled));
     let picture = this.loaded.get(key);
     if (!picture) {
       picture = this.picture(url);
@@ -1182,7 +1165,7 @@ class ThreeTableEngine implements Table3dEngine {
    * white, into the edge of what is solid.
    */
   private spritePicture(url: string): Texture {
-    const key = `${url}|sprite`;
+    const key = pictureKey(url, 'sprite');
     let picture = this.loaded.get(key);
     if (!picture) {
       picture = this.picture(url, () => this.sprites.picturesCame());
