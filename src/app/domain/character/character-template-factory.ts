@@ -23,58 +23,7 @@ export class CharacterTemplateFactory {
    * extra data every character carries.
    */
   static createDefault(character: GameCharacter, name: string, size: number, imageIdentifier: string): void {
-    character.createDataElements();
-
-    const nameElement = DataElement.create('name', name, {}, `name_${character.identifier}`);
-    const sizeElement = DataElement.create('size', size, {}, `size_${character.identifier}`);
-    const altitudeElement = DataElement.create('altitude', 0, {}, `altitude_${character.identifier}`);
-
-    if (character.imageDataElement!.getFirstElementByName('imageIdentifier')) {
-      character.imageDataElement!.getFirstElementByName('imageIdentifier')!.value = imageIdentifier;
-    }
-
-    const resourceElement = CharacterTemplateFactory.createSectionElement(
-      'リソース',
-      `リソース${character.identifier}`
-    );
-    const resourceGroupElement = CharacterTemplateFactory.createGroupElement(
-      '基本',
-      `リソース基本${character.identifier}`
-    );
-    const hpElement = CharacterTemplateFactory.createFieldElement(
-      'HP',
-      200,
-      {
-        [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.RESOURCE,
-        [DataElementAttribute.PIECE_GAUGE]: 'true',
-        [DataElementAttribute.CHANGE_EFFECT]: 'true',
-        [DataElementAttribute.CHANGE_SOUND]: 'true',
-        type: DataElementType.NUMBER_RESOURCE,
-        currentValue: '200',
-      },
-      `HP_${character.identifier}`
-    );
-    const mpElement = CharacterTemplateFactory.createFieldElement(
-      'MP',
-      100,
-      {
-        [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.RESOURCE,
-        [DataElementAttribute.PIECE_GAUGE]: 'true',
-        [DataElementAttribute.CHANGE_EFFECT]: 'true',
-        [DataElementAttribute.CHANGE_SOUND]: 'true',
-        type: DataElementType.NUMBER_RESOURCE,
-        currentValue: '100',
-      },
-      `MP_${character.identifier}`
-    );
-    character.commonDataElement!.appendChild(nameElement);
-    character.commonDataElement!.appendChild(sizeElement);
-    character.commonDataElement!.appendChild(altitudeElement);
-
-    character.detailDataElement!.appendChild(resourceElement);
-    resourceElement.appendChild(resourceGroupElement);
-    resourceGroupElement.appendChild(hpElement);
-    resourceGroupElement.appendChild(mpElement);
+    CharacterTemplateFactory.appendBasics(character, name, size, imageIdentifier);
 
     CharacterTemplateFactory.appendCommonDetailElements(character);
     CharacterTemplateFactory.appendChatPalette(character);
@@ -86,59 +35,7 @@ export class CharacterTemplateFactory {
    * and a progress checklist, and widens its overview to fit them.
    */
   static createCheckTable(character: GameCharacter, name: string, size: number, imageIdentifier: string): void {
-    character.createDataElements();
-
-    const nameElement = DataElement.create('name', name, {}, `name_${character.identifier}`);
-    const sizeElement = DataElement.create('size', size, {}, `size_${character.identifier}`);
-    const altitudeElement = DataElement.create('altitude', 0, {}, `altitude_${character.identifier}`);
-
-    if (character.imageDataElement!.getFirstElementByName('imageIdentifier')) {
-      character.imageDataElement!.getFirstElementByName('imageIdentifier')!.value = imageIdentifier;
-    }
-
-    const resourceElement = CharacterTemplateFactory.createSectionElement(
-      'リソース',
-      `リソース${character.identifier}`
-    );
-    const resourceGroupElement = CharacterTemplateFactory.createGroupElement(
-      '基本',
-      `リソース基本${character.identifier}`
-    );
-    const hpElement = CharacterTemplateFactory.createFieldElement(
-      'HP',
-      200,
-      {
-        [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.RESOURCE,
-        [DataElementAttribute.PIECE_GAUGE]: 'true',
-        [DataElementAttribute.CHANGE_EFFECT]: 'true',
-        [DataElementAttribute.CHANGE_SOUND]: 'true',
-        type: DataElementType.NUMBER_RESOURCE,
-        currentValue: '200',
-      },
-      `HP_${character.identifier}`
-    );
-    const mpElement = CharacterTemplateFactory.createFieldElement(
-      'MP',
-      100,
-      {
-        [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.RESOURCE,
-        [DataElementAttribute.PIECE_GAUGE]: 'true',
-        [DataElementAttribute.CHANGE_EFFECT]: 'true',
-        [DataElementAttribute.CHANGE_SOUND]: 'true',
-        type: DataElementType.NUMBER_RESOURCE,
-        currentValue: '100',
-      },
-      `MP_${character.identifier}`
-    );
-
-    character.commonDataElement!.appendChild(nameElement);
-    character.commonDataElement!.appendChild(sizeElement);
-    character.commonDataElement!.appendChild(altitudeElement);
-
-    character.detailDataElement!.appendChild(resourceElement);
-    resourceElement.appendChild(resourceGroupElement);
-    resourceGroupElement.appendChild(hpElement);
-    resourceGroupElement.appendChild(mpElement);
+    CharacterTemplateFactory.appendBasics(character, name, size, imageIdentifier);
 
     const equipmentTable = `|消耗|使用|種別|コスト|射程|効果|
   |[]応急キット|[]|補助|1|接触|HPを少し回復|
@@ -152,6 +49,52 @@ export class CharacterTemplateFactory {
     character.detailDataElement!.appendChild(createStructuredCheckTableElement('進行チェック', '[][][][] 準備完了'));
     CharacterTemplateFactory.appendChatPalette(character);
     character.addExtendData();
+  }
+
+  /**
+   * Makes the character's data and fills in what every sample sheet starts with: its name, size and
+   * altitude, its picture, and the HP and MP resources.
+   */
+  private static appendBasics(character: GameCharacter, name: string, size: number, imageIdentifier: string): void {
+    character.createDataElements();
+
+    const picture = character.imageDataElement?.getFirstElementByName('imageIdentifier');
+    if (picture) picture.value = imageIdentifier;
+
+    const common = character.commonDataElement!;
+    common.appendChild(DataElement.create('name', name, {}, `name_${character.identifier}`));
+    common.appendChild(DataElement.create('size', size, {}, `size_${character.identifier}`));
+    common.appendChild(DataElement.create('altitude', 0, {}, `altitude_${character.identifier}`));
+
+    const resourceElement = CharacterTemplateFactory.createSectionElement(
+      'リソース',
+      `リソース${character.identifier}`
+    );
+    const resourceGroupElement = CharacterTemplateFactory.createGroupElement(
+      '基本',
+      `リソース基本${character.identifier}`
+    );
+    character.detailDataElement!.appendChild(resourceElement);
+    resourceElement.appendChild(resourceGroupElement);
+    resourceGroupElement.appendChild(CharacterTemplateFactory.createResourceElement(character, 'HP', 200));
+    resourceGroupElement.appendChild(CharacterTemplateFactory.createResourceElement(character, 'MP', 100));
+  }
+
+  /** A resource shown as a gauge on the piece, with effects and a sound on change, full to start with. */
+  private static createResourceElement(character: GameCharacter, name: string, full: number): DataElement {
+    return CharacterTemplateFactory.createFieldElement(
+      name,
+      full,
+      {
+        [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.RESOURCE,
+        [DataElementAttribute.PIECE_GAUGE]: 'true',
+        [DataElementAttribute.CHANGE_EFFECT]: 'true',
+        [DataElementAttribute.CHANGE_SOUND]: 'true',
+        type: DataElementType.NUMBER_RESOURCE,
+        currentValue: String(full),
+      },
+      `${name}_${character.identifier}`
+    );
   }
 
   private static appendCommonDetailElements(character: GameCharacter): void {
