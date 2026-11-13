@@ -64,7 +64,7 @@ export type ImageEditOutcome =
   | { readonly kind: 'closed' };
 
 /** The ratios offered for the part kept, width over height; null leaves it free, 0 takes the picture's own. */
-export const CROP_RATIOS: readonly { readonly key: string; readonly ratio: number | null }[] = [
+const CROP_RATIOS: readonly { readonly key: string; readonly ratio: number | null }[] = [
   { key: 'free', ratio: null },
   { key: 'original', ratio: 0 },
   { key: '1:1', ratio: 1 },
@@ -74,7 +74,7 @@ export const CROP_RATIOS: readonly { readonly key: string; readonly ratio: numbe
 ];
 
 /** What the buttons over the picture do to it, each with its mark and its name. */
-export const ORIENT_ACTIONS = [
+const ORIENT_ACTIONS = [
   { id: 'turn-left', icon: 'rotate_left', label: 'ui.imageEditor.turnLeft' },
   { id: 'turn-right', icon: 'rotate_right', label: 'ui.imageEditor.turnRight' },
   { id: 'flip-across', icon: 'flip', label: 'ui.imageEditor.flipAcross' },
@@ -85,7 +85,7 @@ export const ORIENT_ACTIONS = [
 export type OrientActionId = (typeof ORIENT_ACTIONS)[number]['id'];
 
 /** The shares of its size a picture can be put out at with one press. */
-export const SCALE_PRESETS = [25, 50, 75, 100] as const;
+const SCALE_PRESETS = [25, 50, 75, 100] as const;
 
 interface Picture {
   readonly width: number;
@@ -138,6 +138,9 @@ export class ImageEditorComponent {
   readonly cropRatios = CROP_RATIOS;
   readonly orientActions = ORIENT_ACTIONS;
   readonly scalePresets = SCALE_PRESETS;
+  /** What every button under the picture looks like; each adds its own size. */
+  protected readonly toolButtonClass =
+    'bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text cursor-pointer border border-solid transition-[background,color] disabled:cursor-default disabled:opacity-40';
 
   readonly state = signal<ImageEditorState>('loading');
   /** Whether the last try at storing the picture failed, which leaves it open to try again. */
@@ -505,7 +508,8 @@ export class ImageEditorComponent {
   /** Leaves this picture out; alone, that closes the panel. */
   skip(): void {
     this.finish({ kind: 'skipped' });
-    if (!this.request()?.position || this.request()!.position!.count <= 1) this.panelService.close();
+    const position = this.request()?.position;
+    if (!position || position.count <= 1) this.panelService.close();
   }
 
   /** Takes this picture and the rest still to come in as they are. */
