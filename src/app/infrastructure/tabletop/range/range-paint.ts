@@ -1,24 +1,12 @@
 import { cellPatternBoundingBox, parseCellPattern } from '@axe/domain/tabletop/cell-pattern';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import type { PictureRegion } from '@axe/infrastructure/image/element-picture';
+import { ClipArea, RangeRender, RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render';
 import {
-  ClipAreaCorn,
-  ClipAreaHexagon,
-  ClipAreaLine,
-  ClipAreaPentagon,
-  ClipAreaSquare,
-  ClipAreaTriangle,
-  RangeRender,
-  RangeRenderSetting,
-} from '@axe/infrastructure/tabletop/range/range-render';
-import {
-  clipAreaPoints,
   clipAreaToPolygonCss,
   clipCircleCss,
   clipCircleRadiusPx,
 } from '@axe/infrastructure/tabletop/range/range-render-util';
-
-type ClipArea = ClipAreaLine | ClipAreaSquare | ClipAreaTriangle | ClipAreaPentagon | ClipAreaHexagon | ClipAreaCorn;
 
 /**
  * What a painted range is cut to: a polygon for most shapes, a circle for a circle, and for a
@@ -149,7 +137,11 @@ const CIRCLE_OUTLINE_CORNERS = 64;
  * The outline a range's cell canvas is cut to, as {@link rangeClipPathCss} cuts it, in pixels from
  * the range's origin: the corners of the polygon, or of a circle walked round finely.
  */
-export function rangeClipOutline(clip: RangeClip, range: RangeArea, gridSize: number): { x: number; y: number }[] {
+export function rangeClipOutline(
+  clip: RangeClip,
+  range: RangeArea,
+  gridSize: number
+): readonly { x: number; y: number }[] {
   switch (clip.kind) {
     case 'circle': {
       const radius = clipCircleRadiusPx(range.length, gridSize);
@@ -169,7 +161,7 @@ export function rangeClipOutline(clip: RangeClip, range: RangeArea, gridSize: nu
       ];
     }
     case 'polygon':
-      return clipAreaPoints(clip.area);
+      return clip.area;
   }
 }
 
@@ -208,80 +200,60 @@ export function initialRangeClip(type: string): RangeClip {
     case 'RHOMBUS':
       return {
         kind: 'polygon',
-        area: {
-          clip01x: 0,
-          clip01y: 0,
-          clip02x: 0,
-          clip02y: -50,
-          clip03x: 100,
-          clip03y: -50,
-          clip04x: 100,
-          clip04y: 0,
-        },
+        area: [
+          { x: 0, y: 0 },
+          { x: 0, y: -50 },
+          { x: 100, y: -50 },
+          { x: 100, y: 0 },
+        ],
       };
     case 'TRIANGLE':
       return {
         kind: 'polygon',
-        area: { clip01x: 0, clip01y: -100, clip02x: 100, clip02y: 100, clip03x: -100, clip03y: 100 },
+        area: [
+          { x: 0, y: -100 },
+          { x: 100, y: 100 },
+          { x: -100, y: 100 },
+        ],
       };
     case 'PENTAGON':
       return {
         kind: 'polygon',
-        area: {
-          clip01x: 0,
-          clip01y: -100,
-          clip02x: 100,
-          clip02y: -30,
-          clip03x: 60,
-          clip03y: 100,
-          clip04x: -60,
-          clip04y: 100,
-          clip05x: -100,
-          clip05y: -30,
-        },
+        area: [
+          { x: 0, y: -100 },
+          { x: 100, y: -30 },
+          { x: 60, y: 100 },
+          { x: -60, y: 100 },
+          { x: -100, y: -30 },
+        ],
       };
     case 'HEXAGON':
       return {
         kind: 'polygon',
-        area: {
-          clip01x: 0,
-          clip01y: -100,
-          clip02x: 100,
-          clip02y: -50,
-          clip03x: 100,
-          clip03y: 50,
-          clip04x: 0,
-          clip04y: 100,
-          clip05x: -100,
-          clip05y: 50,
-          clip06x: -100,
-          clip06y: -50,
-        },
+        area: [
+          { x: 0, y: -100 },
+          { x: 100, y: -50 },
+          { x: 100, y: 50 },
+          { x: 0, y: 100 },
+          { x: -100, y: 50 },
+          { x: -100, y: -50 },
+        ],
       };
     case 'CORN':
     default:
       return {
         kind: 'polygon',
-        area: {
-          clip01x: 0,
-          clip01y: 0,
-          clip02x: 100,
-          clip02y: 0,
-          clip03x: 100,
-          clip03y: 100,
-          clip04x: 0,
-          clip04y: 100,
-          clip05x: 0,
-          clip05y: 0,
-          clip06x: 0,
-          clip06y: 0,
-          clip07x: 0,
-          clip07y: 0,
-          clip08x: 0,
-          clip08y: 0,
-          clip09x: 0,
-          clip09y: 0,
-        },
+        area: [
+          { x: 0, y: 0 },
+          { x: 100, y: 0 },
+          { x: 100, y: 100 },
+          { x: 0, y: 100 },
+          { x: 0, y: 0 },
+          { x: 0, y: 0 },
+          { x: 0, y: 0 },
+          { x: 0, y: 0 },
+          { x: 0, y: 0 },
+        ],
       };
   }
 }

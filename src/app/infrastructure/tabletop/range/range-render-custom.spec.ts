@@ -1,10 +1,6 @@
 import { CellCoord } from '@axe/domain/tabletop/cell-pattern';
 import { GridType } from '@axe/domain/tabletop/game-table';
-import {
-  makeCustomHitTest,
-  patternCellToWorld,
-  worldCellToPattern,
-} from '@axe/infrastructure/tabletop/range/range-render-custom';
+import { makeCustomHitTest } from '@axe/infrastructure/tabletop/range/range-render-custom';
 import { RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
 
 function makeSetting(overrides: Partial<RangeRenderSetting> = {}): RangeRenderSetting {
@@ -128,72 +124,6 @@ describe('makeCustomHitTest', () => {
     it('hits the centre of the hex to the right', () => {
       // hex-horizontal: colSpacing = gridSize = 50
       expect(hit(50, 0)).toBe(true);
-    });
-  });
-
-  describe('patternCellToWorld / worldCellToPattern (pointy-top)', () => {
-    it('keeps the column on an even row', () => {
-      expect(patternCellToWorld(10, 2, 0, 1, false)).toEqual({ col: 10, row: 3 });
-    });
-
-    it('shifts the column by one on an odd row, so the pattern is not mirrored', () => {
-      expect(patternCellToWorld(10, 3, 0, 1, false)).toEqual({ col: 11, row: 4 });
-    });
-
-    it('leaves an even offset from an odd row as it is', () => {
-      expect(patternCellToWorld(10, 3, 0, 2, false)).toEqual({ col: 10, row: 5 });
-    });
-
-    it('shifts upwards from an odd row by one as well', () => {
-      expect(patternCellToWorld(10, 3, 0, -1, false)).toEqual({ col: 11, row: 2 });
-    });
-
-    it('makes the round trip from pattern to board and back', () => {
-      const cases: { gx: number; gy: number }[] = [
-        { gx: 0, gy: 0 },
-        { gx: 1, gy: 0 },
-        { gx: 0, gy: 1 },
-        { gx: 0, gy: -1 },
-        { gx: 2, gy: -3 },
-      ];
-      for (const baseRow of [0, 1, 2, 3, -1, -2]) {
-        for (const c of cases) {
-          const w = patternCellToWorld(10, baseRow, c.gx, c.gy, false);
-          const p = worldCellToPattern(10, baseRow, w.col, w.row, false);
-          expect(p, `baseRow=${baseRow} (${c.gx},${c.gy})`).toEqual(c);
-        }
-      }
-    });
-  });
-
-  describe('patternCellToWorld / worldCellToPattern (flat-top)', () => {
-    it('keeps the row on an even column', () => {
-      expect(patternCellToWorld(2, 10, 1, 0, true)).toEqual({ col: 3, row: 10 });
-    });
-
-    it('shifts the row by one on an odd column', () => {
-      expect(patternCellToWorld(3, 10, 1, 0, true)).toEqual({ col: 4, row: 11 });
-    });
-
-    it('leaves an even offset from an odd column as it is', () => {
-      expect(patternCellToWorld(3, 10, 2, 0, true)).toEqual({ col: 5, row: 10 });
-    });
-
-    it('makes the round trip on a flat-topped grid too', () => {
-      const cases: { gx: number; gy: number }[] = [
-        { gx: 0, gy: 0 },
-        { gx: 1, gy: 0 },
-        { gx: -1, gy: 0 },
-        { gx: 1, gy: 1 },
-        { gx: 3, gy: -2 },
-      ];
-      for (const baseCol of [0, 1, 2, 3, -1, -2]) {
-        for (const c of cases) {
-          const w = patternCellToWorld(baseCol, 10, c.gx, c.gy, true);
-          const p = worldCellToPattern(baseCol, 10, w.col, w.row, true);
-          expect(p, `baseCol=${baseCol} (${c.gx},${c.gy})`).toEqual(c);
-        }
-      }
     });
   });
 

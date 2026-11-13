@@ -1,8 +1,7 @@
-import { ClipAreaCorn, RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
+import { chkInCircle, chkOuterProduct } from '@axe/domain/tabletop/range-geometry';
+import { ClipArea, RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
 import {
   calcGridOffsets,
-  chkOuterProduct,
-  clipAreaOf,
   fillGridCells,
   makeBrush,
   markOrigin,
@@ -37,8 +36,8 @@ export function renderCircle(
     context.arc(offSetX_px, offSetY_px, setting.range * gridSize, 0, 2 * Math.PI, true);
     context.fill();
   } else {
-    const radiusSq = (setting.range * gridSize) ** 2;
-    fillGridCells(context, setting, offsets, (gcx, gcy) => radiusSq >= gcx * gcx + gcy * gcy);
+    const radius = setting.range * gridSize;
+    fillGridCells(context, setting, offsets, (gcx, gcy) => chkInCircle(radius, gcx, gcy));
   }
 
   canvasElementRange.width = setting.areaWidth * gridSize;
@@ -64,7 +63,7 @@ export function renderCorn(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaCorn {
+): ClipArea {
   const offsets = calcGridOffsets(setting);
   const { gridSize, offSetX_px, offSetY_px } = offsets;
 
@@ -86,21 +85,19 @@ export function renderCorn(
 
   // The clip, running clockwise from the foot of the cone: its root, up its near edge to the tip,
   // across the far end and back down the other edge.
-  const clip = clipAreaOf<ClipAreaCorn>(
-    rotatePoints(
-      [
-        { x: -gridSize * 1.5, y: 0 },
-        { x: -gridSize, y: -gridSize },
-        { x: far - gridSize, y: -half - gridSize },
-        { x: far, y: -half - gridSize },
-        { x: far + gridSize, y: -half - gridSize },
-        { x: far + gridSize, y: half + gridSize },
-        { x: far, y: half + gridSize },
-        { x: far - gridSize, y: half + gridSize },
-        { x: -gridSize, y: gridSize },
-      ],
-      setting.degree
-    )
+  const clip = rotatePoints(
+    [
+      { x: -gridSize * 1.5, y: 0 },
+      { x: -gridSize, y: -gridSize },
+      { x: far - gridSize, y: -half - gridSize },
+      { x: far, y: -half - gridSize },
+      { x: far + gridSize, y: -half - gridSize },
+      { x: far + gridSize, y: half + gridSize },
+      { x: far, y: half + gridSize },
+      { x: far - gridSize, y: half + gridSize },
+      { x: -gridSize, y: gridSize },
+    ],
+    setting.degree
   );
   const { x: cx, y: cy } = c;
   const { x: p1x, y: p1y } = p1;

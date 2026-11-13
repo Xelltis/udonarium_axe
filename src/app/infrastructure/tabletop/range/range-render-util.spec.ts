@@ -1,14 +1,8 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import {
-  ClipAreaCorn,
-  ClipAreaSquare,
-  RangeRenderSetting,
-} from '@axe/infrastructure/tabletop/range/range-render-types';
+import { RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
 import {
   calcGridOffsets,
-  chkInCircle,
-  chkOuterProduct,
   clipAreaToPolygonCss,
   clipCircleCss,
   fillSquare,
@@ -100,11 +94,17 @@ describe('range-render-util', () => {
 
     it('offsets an odd column by half a row on a pointy-topped grid', () => {
       const fn = generateCalcGridPositionFunc(GridType.HEX_VERTICAL, 0, 0, 10, 10, 50);
-      // The grid position is a shared mutable object, so the numbers are taken out at once.
-      const evenGy = fn(0, 2).gy;
-      const oddGy = fn(1, 2).gy;
+      const even = fn(0, 2);
+      const odd = fn(1, 2);
       // puts half a cell between an even column and an odd one
-      expect(Math.abs(evenGy - oddGy)).toBe(25);
+      expect(Math.abs(even.gy - odd.gy)).toBe(25);
+    });
+
+    it('gives each position as its own object, so one kept is not overwritten by the next', () => {
+      const fn = generateCalcGridPositionFunc(GridType.SQUARE, 0, 0, 10, 10, 50);
+      const first = fn(1, 1);
+      fn(2, 2);
+      expect(first).toEqual({ gx: 50, gy: 50 });
     });
 
     it('offsets an odd row by half a column on a flat-topped grid', () => {
@@ -116,67 +116,22 @@ describe('range-render-util', () => {
     });
   });
 
-  describe('chkOuterProduct', () => {
-    it('is true inside a clockwise polygon', () => {
-      // a point inside a clockwise square
-      expect(chkOuterProduct(0, 0, 10, 0, 5, 5)).toBe(true);
-    });
-
-    it('is false outside one', () => {
-      // a point outside it
-      expect(chkOuterProduct(0, 0, 10, 0, 5, -5)).toBe(false);
-    });
-
-    it('is true on an edge, within rounding', () => {
-      expect(chkOuterProduct(0, 0, 10, 0, 5, 0)).toBe(true);
-    });
-  });
-
   describe('clipAreaToPolygonCss', () => {
     it('turns a four-point square into a polygon', () => {
-      const square: ClipAreaSquare = {
-        clip01x: 0,
-        clip01y: 0,
-        clip02x: 100,
-        clip02y: 0,
-        clip03x: 100,
-        clip03y: 100,
-        clip04x: 0,
-        clip04y: 100,
-      };
+      const square = [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+        { x: 100, y: 100 },
+        { x: 0, y: 100 },
+      ];
       expect(clipAreaToPolygonCss(square)).toBe('polygon(0px 0px, 100px 0px, 100px 100px, 0px 100px)');
     });
 
     it('turns a nine-point cone into one', () => {
-      const corn: ClipAreaCorn = {
-        clip01x: 1,
-        clip01y: 2,
-        clip02x: 3,
-        clip02y: 4,
-        clip03x: 5,
-        clip03y: 6,
-        clip04x: 7,
-        clip04y: 8,
-        clip05x: 9,
-        clip05y: 10,
-        clip06x: 11,
-        clip06y: 12,
-        clip07x: 13,
-        clip07y: 14,
-        clip08x: 15,
-        clip08y: 16,
-        clip09x: 17,
-        clip09y: 18,
-      };
+      const corn = Array.from({ length: 9 }, (_, at) => ({ x: at * 2 + 1, y: at * 2 + 2 }));
       expect(clipAreaToPolygonCss(corn)).toBe(
         'polygon(1px 2px, 3px 4px, 5px 6px, 7px 8px, 9px 10px, 11px 12px, 13px 14px, 15px 16px, 17px 18px)'
       );
-    });
-
-    it('stops at the first gap in the numbering', () => {
-      // with the third point missing
-      const partial = { clip01x: 1, clip01y: 2, clip02x: 3, clip02y: 4 } as unknown as ClipAreaSquare;
-      expect(clipAreaToPolygonCss(partial)).toBe('polygon(1px 2px, 3px 4px)');
     });
   });
 
@@ -188,24 +143,6 @@ describe('range-render-util', () => {
 
     it('keeps that much radius at no length at all', () => {
       expect(clipCircleCss(0, 50)).toBe('circle(75px)');
-    });
-  });
-
-  describe('chkInCircle', () => {
-    it('is true inside a circle', () => {
-      expect(chkInCircle(10, 3, 4)).toBe(true);
-    });
-
-    it('is false outside one', () => {
-      expect(chkInCircle(5, 4, 4)).toBe(false);
-    });
-
-    it('is true on the rim', () => {
-      expect(chkInCircle(5, 3, 4)).toBe(true);
-    });
-
-    it('is true at the centre', () => {
-      expect(chkInCircle(1, 0, 0)).toBe(true);
     });
   });
 

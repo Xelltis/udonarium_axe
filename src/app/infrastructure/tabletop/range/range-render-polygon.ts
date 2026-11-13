@@ -1,16 +1,7 @@
-import {
-  ClipAreaHexagon,
-  ClipAreaLine,
-  ClipAreaPentagon,
-  ClipAreaSquare,
-  ClipAreaTriangle,
-  RangeRenderSetting,
-} from '@axe/infrastructure/tabletop/range/range-render-types';
+import { insideConvexPolygon } from '@axe/domain/tabletop/range-geometry';
+import { ClipArea, RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
 import {
   calcGridOffsets,
-  chkOuterProduct,
-  type ClipArea,
-  clipAreaOf,
   fillGridCells,
   makeBrush,
   markOrigin,
@@ -31,11 +22,11 @@ export function renderLine(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaLine {
+): ClipArea {
   const g = setting.gridSize;
   const half = 0.5 * setting.width * g;
   const far = setting.range * g;
-  return renderConvexPolygon<ClipAreaLine>(
+  return renderConvexPolygon(
     canvasElement,
     canvasElementRange,
     setting,
@@ -65,10 +56,10 @@ export function renderSquare(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaSquare {
+): ClipArea {
   const r = setting.range * setting.gridSize;
   const g = setting.gridSize;
-  return renderConvexPolygon<ClipAreaSquare>(
+  return renderConvexPolygon(
     canvasElement,
     canvasElementRange,
     setting,
@@ -99,10 +90,10 @@ export function renderDiamond(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaSquare {
+): ClipArea {
   const r = setting.range * setting.gridSize;
   const reach = r + setting.gridSize * 1.2;
-  return renderConvexPolygon<ClipAreaSquare>(
+  return renderConvexPolygon(
     canvasElement,
     canvasElementRange,
     setting,
@@ -131,8 +122,8 @@ export function renderTriangle(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaTriangle {
-  return renderRegularPolygon<ClipAreaTriangle>(canvasElement, canvasElementRange, setting, 3);
+): ClipArea {
+  return renderRegularPolygon(canvasElement, canvasElementRange, setting, 3);
 }
 
 /**
@@ -144,8 +135,8 @@ export function renderPentagon(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaPentagon {
-  return renderRegularPolygon<ClipAreaPentagon>(canvasElement, canvasElementRange, setting, 5);
+): ClipArea {
+  return renderRegularPolygon(canvasElement, canvasElementRange, setting, 5);
 }
 
 /**
@@ -157,8 +148,8 @@ export function renderHexagon(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaHexagon {
-  return renderRegularPolygon<ClipAreaHexagon>(canvasElement, canvasElementRange, setting, 6);
+): ClipArea {
+  return renderRegularPolygon(canvasElement, canvasElementRange, setting, 6);
 }
 
 /** How much larger than a regular polygon its clip is. */
@@ -168,15 +159,15 @@ const REGULAR_CLIP_GROWTH = 1.2;
  * Draws a regular range of `n` corners lying `range` cells from its centre, the first straight up
  * before the turn by `degree`, with its clip the same shape grown by a fifth and its origin a dot.
  */
-function renderRegularPolygon<T extends ClipArea>(
+function renderRegularPolygon(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting,
   n: number
-): T {
+): ClipArea {
   const corners = regularPolygonVertices(n, setting.range * setting.gridSize, setting.degree);
   const clipCorners = corners.map(({ x, y }) => ({ x: x * REGULAR_CLIP_GROWTH, y: y * REGULAR_CLIP_GROWTH }));
-  return renderConvexPolygon<T>(canvasElement, canvasElementRange, setting, corners, clipCorners, false, 0);
+  return renderConvexPolygon(canvasElement, canvasElementRange, setting, corners, clipCorners, false, 0);
 }
 
 /**
@@ -187,7 +178,7 @@ function renderRegularPolygon<T extends ClipArea>(
  * `fillOutLine` is set; the outline canvas gets the shape's edge and the origin, marked with a
  * small square when `docking` or a dot otherwise.
  */
-function renderConvexPolygon<T extends ClipArea>(
+function renderConvexPolygon(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting,
@@ -195,7 +186,7 @@ function renderConvexPolygon<T extends ClipArea>(
   clipCorners: Point[],
   docking: boolean,
   degree = setting.degree
-): T {
+): ClipArea {
   const offsets = calcGridOffsets(setting);
   const { gridSize, offSetX_px, offSetY_px } = offsets;
 
@@ -205,7 +196,7 @@ function renderConvexPolygon<T extends ClipArea>(
 
   const points = rotatePoints(corners, degree);
   notePainted(setting, points);
-  const clip = clipAreaOf<T>(rotatePoints(clipCorners, degree));
+  const clip = rotatePoints(clipCorners, degree);
 
   const trace = () => {
     context.beginPath();
@@ -243,13 +234,4 @@ function regularPolygonVertices(n: number, radius: number, degree: number): Poin
     verts.push({ x: Math.cos(a) * radius, y: Math.sin(a) * radius });
   }
   return verts;
-}
-
-function insideConvexPolygon(verts: Point[], gcx: number, gcy: number): boolean {
-  for (let i = 0; i < verts.length; i++) {
-    const a = verts[i];
-    const b = verts[(i + 1) % verts.length];
-    if (!chkOuterProduct(a.x, a.y, b.x, b.y, gcx, gcy)) return false;
-  }
-  return true;
 }

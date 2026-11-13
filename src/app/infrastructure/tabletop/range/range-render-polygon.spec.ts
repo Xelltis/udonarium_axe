@@ -8,7 +8,6 @@ import {
   renderTriangle,
 } from '@axe/infrastructure/tabletop/range/range-render-polygon';
 import { RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
-import { clipAreaPoints } from '@axe/infrastructure/tabletop/range/range-render-util';
 import { contextThatRecords, RecordedCall } from '@axe/testing/fake-canvas-context';
 
 function createCanvasMock() {
@@ -57,8 +56,8 @@ describe('range-render-polygon', () => {
 
     const clip = renderSquare(grid.canvas, outline.canvas, makeSetting({ degree: 45 }));
 
-    expect(clip.clip01x).toBeCloseTo(-20 * Math.SQRT2);
-    expect(clip.clip01y).toBeCloseTo(0);
+    expect(clip[0].x).toBeCloseTo(-20 * Math.SQRT2);
+    expect(clip[0].y).toBeCloseTo(0);
     expect(argsOf(grid.calls, 'moveTo')).toContainEqual([50 - 10 * Math.SQRT2, 50]);
   });
 
@@ -129,16 +128,16 @@ describe('range-render-polygon', () => {
 
     const clip = renderDiamond(grid.canvas, outline.canvas, makeSetting({ range: 2 }));
     expect(argsOf(grid.calls, 'moveTo')).toContainEqual([50 - 20, 50]);
-    expect(clip.clip02x).toBeCloseTo(0);
-    expect(clip.clip02y).toBeCloseTo(-32);
+    expect(clip[1].x).toBeCloseTo(0);
+    expect(clip[1].y).toBeCloseTo(-32);
 
     const turned = renderDiamond(
       createCanvasMock().canvas,
       createCanvasMock().canvas,
       makeSetting({ range: 2, degree: 45 })
     );
-    expect(turned.clip02x).toBeCloseTo(32 * Math.SQRT1_2);
-    expect(turned.clip02y).toBeCloseTo(-32 * Math.SQRT1_2);
+    expect(turned[1].x).toBeCloseTo(32 * Math.SQRT1_2);
+    expect(turned[1].y).toBeCloseTo(-32 * Math.SQRT1_2);
   });
 
   it('turns both for a triangle', () => {
@@ -147,8 +146,8 @@ describe('range-render-polygon', () => {
 
     const clip = renderTriangle(grid.canvas, outline.canvas, makeSetting({ degree: 90, type: 'TRIANGLE' }));
 
-    expect(clip.clip01x).toBeCloseTo(12);
-    expect(clip.clip01y).toBeCloseTo(0);
+    expect(clip[0].x).toBeCloseTo(12);
+    expect(clip[0].y).toBeCloseTo(0);
     expect(argsOf(grid.calls, 'moveTo')).toContainEqual([60, 50]);
   });
 
@@ -162,8 +161,8 @@ describe('range-render-polygon', () => {
 
       const clip = render(grid.canvas, outline.canvas, makeSetting({ range: 2 }));
 
-      expect(clipAreaPoints(clip)).toHaveLength(corners);
-      expect(clipAreaPoints(clip)[0]).toEqual({ x: expect.closeTo(0, 6), y: -24 });
+      expect(clip).toHaveLength(corners);
+      expect(clip[0]).toEqual({ x: expect.closeTo(0, 6), y: -24 });
       expect(argsOf(outline.calls, 'lineTo')).toHaveLength(corners - 1);
       expect(argsOf(outline.calls, 'moveTo')).toEqual([[expect.closeTo(50, 6), 30]]);
     }
@@ -176,7 +175,7 @@ describe('range-render-polygon', () => {
 
     expect(argsOf(outline.calls, 'arc')).toEqual([[50, 50, 5, 0, 2 * Math.PI, true]]);
     expect(argsOf(outline.calls, 'strokeRect')).toEqual([]);
-    expect(clipAreaPoints(clip)).toEqual([
+    expect(clip).toEqual([
       { x: -10, y: 15 },
       { x: -10, y: -15 },
       { x: 40, y: -15 },
