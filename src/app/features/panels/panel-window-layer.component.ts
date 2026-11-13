@@ -13,7 +13,7 @@ import { ChangeDetectionStrategy, Component, viewChild, ViewContainerRef } from 
  */
 @Component({
   selector: 'app-panel-window-layer',
-  template: '<div class="contents" data-panel-window-frame><ng-container #layer /></div><ng-container #overlay />',
+  templateUrl: './panel-window-layer.component.html',
   host: { class: 'block h-dvh w-screen' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
