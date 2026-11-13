@@ -28,7 +28,6 @@ import {
   roundedRectPath,
 } from '@axe/infrastructure/replay/replay-canvas';
 import {
-  type DarknessCanvas,
   defaultDarknessLayer,
   type LayerFactory,
   paintReplayDarkness,
@@ -129,7 +128,7 @@ export function paintReplayBoard(
   for (const one of ground) paintPiece(ctx, one, scene.gridSize, scene.gridType, assets, scale);
   if (scene.overlay) {
     paintReplayDarkness(
-      ctx as unknown as DarknessCanvas,
+      ctx,
       scene.overlay,
       {
         left: 0,
@@ -145,13 +144,12 @@ export function paintReplayBoard(
   for (const one of standing) paintPiece(ctx, one, scene.gridSize, scene.gridType, assets, scale);
   ctx.restore();
 
-  const labelFont = `700 ${paint.labelSize}px ${paint.fontFamily}`;
   for (const one of placed) {
     if (!one.piece.showsName || one.piece.name.length < 1 || one.state.alpha <= 0.01) continue;
     const at = positionOf(one);
     const size = footprintOf(one.piece, scene.gridSize);
     const foot = toScreen(at.x + size.width / 2, at.y + size.height);
-    paintLabel(ctx, one.piece.name, foot.x, foot.y + paint.labelSize * 0.35, labelFont, one.state.alpha);
+    paintLabel(ctx, one.piece.name, foot.x, foot.y + paint.labelSize * 0.35, paint, one.state.alpha);
   }
 
   if (paint.beat) {
@@ -776,6 +774,22 @@ function openDoor(
 }
 
 /**
+ * The repeating pattern of each picture tiles are cut from, made once for the picture: a frame has a
+ * pattern to each tiled face, and a video thirty frames a second.
+ */
+const tilePatterns = new WeakMap<CanvasImageSource, CanvasPattern | null>();
+/** The one matrix every pattern is placed through, set anew for each face. */
+let tilePlacement: DOMMatrix | null = null;
+
+function tilePatternOf(ctx: ReplayFrameCanvas, picture: CanvasImageSource): CanvasPattern | null {
+  const held = tilePatterns.get(picture);
+  if (held !== undefined) return held;
+  const made = typeof ctx.createPattern === 'function' ? ctx.createPattern(picture, 'repeat') : null;
+  tilePatterns.set(picture, made);
+  return made;
+}
+
+/**
  * A picture laid over a face, stretched to it or, given a cell size, repeated a cell to a tile from
  * the face's top left corner.
  */
@@ -788,12 +802,17 @@ function paintSurface(
   height: number,
   cell: number
 ): void {
-  const pattern = cell > 0 && typeof ctx.createPattern === 'function' ? ctx.createPattern(picture, 'repeat') : null;
-  if (!pattern || typeof DOMMatrix === 'undefined') {
+  const pattern = cell > 0 && typeof DOMMatrix !== 'undefined' ? tilePatternOf(ctx, picture) : null;
+  if (!pattern) {
     ctx.drawImage(picture, left, top, width, height);
     return;
   }
-  pattern.setTransform(new DOMMatrix().translate(left, top).scale(cell / picture.width, cell / picture.height));
+  tilePlacement ??= new DOMMatrix();
+  tilePlacement.a = cell / picture.width;
+  tilePlacement.d = cell / picture.height;
+  tilePlacement.e = left;
+  tilePlacement.f = top;
+  pattern.setTransform(tilePlacement);
   ctx.fillStyle = pattern;
   ctx.fillRect(left, top, width, height);
 }
@@ -946,15 +965,22 @@ function paintHighlight(
 }
 
 /** A name set under a piece, white on a dark outline so it reads on any table. */
-function paintLabel(ctx: ReplayFrameCanvas, text: string, x: number, y: number, font: string, alpha: number): void {
+function paintLabel(
+  ctx: ReplayFrameCanvas,
+  text: string,
+  x: number,
+  y: number,
+  type: Pick<ReplayBoardPaint, 'labelSize' | 'fontFamily'>,
+  alpha: number
+): void {
   ctx.save();
   ctx.globalAlpha *= alpha;
-  ctx.font = font;
+  ctx.font = `700 ${type.labelSize}px ${type.fontFamily}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.lineJoin = 'round';
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
-  ctx.lineWidth = Math.max(3, parseFloat(font.split(' ')[1]) * 0.22);
+  ctx.lineWidth = Math.max(3, type.labelSize * 0.22);
   ctx.strokeText(text, x, y);
   ctx.fillStyle = '#ffffff';
   ctx.fillText(text, x, y);

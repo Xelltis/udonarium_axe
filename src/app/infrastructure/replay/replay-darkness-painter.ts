@@ -1,5 +1,6 @@
 import { clamp01 } from '@axe/core/util/clamp';
 import type { OverlayPlan, OverlayShape } from '@axe/domain/tabletop/vision-scene';
+import type { ReplayFrameCanvas } from '@axe/infrastructure/replay/replay-canvas';
 
 /**
  * Lays darkness and light over the board in a video.
@@ -8,33 +9,28 @@ import type { OverlayPlan, OverlayShape } from '@axe/domain/tabletop/vision-scen
  * cut-out, so the shroud is painted on its own surface, carved away in the shape of each light, and composited.
  */
 
-export interface DarknessCanvas {
-  save(): void;
-  restore(): void;
-  beginPath(): void;
-  moveTo(x: number, y: number): void;
-  lineTo(x: number, y: number): void;
-  closePath(): void;
-  clip(): void;
-  fill(): void;
-  fillRect(x: number, y: number, width: number, height: number): void;
-  translate(x: number, y: number): void;
-  rotate(angle: number): void;
-  arc(x: number, y: number, radius: number, from: number, to: number): void;
-  createRadialGradient(
-    x0: number,
-    y0: number,
-    r0: number,
-    x1: number,
-    y1: number,
-    r1: number
-  ): { addColorStop(offset: number, color: string): void };
-  drawImage(image: CanvasImageSource, x: number, y: number, width: number, height: number): void;
-  fillStyle: string | CanvasGradient | CanvasPattern | object;
-  globalAlpha: number;
-  globalCompositeOperation: string;
-  canvas: { width: number; height: number };
-}
+/** What of a 2D canvas the darkness is painted with: a frame's canvas, or the shroud's own surface. */
+export type DarknessCanvas = Pick<
+  ReplayFrameCanvas,
+  | 'save'
+  | 'restore'
+  | 'beginPath'
+  | 'moveTo'
+  | 'lineTo'
+  | 'closePath'
+  | 'clip'
+  | 'fill'
+  | 'fillRect'
+  | 'translate'
+  | 'rotate'
+  | 'arc'
+  | 'createRadialGradient'
+  | 'drawImage'
+  | 'fillStyle'
+  | 'globalAlpha'
+  | 'globalCompositeOperation'
+  | 'canvas'
+>;
 
 export interface DarknessPlacement {
   /** Top left of the board, in screen coordinates. */
@@ -188,7 +184,7 @@ export function paintReplayDarkness(
   layer.globalCompositeOperation = 'source-over';
 
   ctx.save();
-  ctx.drawImage(layer.canvas as unknown as CanvasImageSource, place.left, place.top, width, height);
+  ctx.drawImage(layer.canvas, place.left, place.top, width, height);
 
   // 3. The colour of the light, laid thinly over what was carved so it reads as lit.
   ctx.globalCompositeOperation = 'lighter';
@@ -230,7 +226,7 @@ function fillShape(
   gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
   target.globalAlpha = clamp01(strength);
-  target.fillStyle = gradient as unknown as CanvasGradient;
+  target.fillStyle = gradient;
 
   target.beginPath();
   if (shape.angle >= 360) {
