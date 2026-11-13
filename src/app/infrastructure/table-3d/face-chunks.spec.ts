@@ -36,6 +36,12 @@ describe('the chunks the table’s faces are drawn in', () => {
     expect(owned.get('a')!.caps).toHaveLength(1);
   });
 
+  it('owns a face whose name carries no colon by the whole of its name', () => {
+    const owned = facesByOwner([wall('table', 0, 0)], [], GRID);
+
+    expect([...owned.keys()]).toEqual(['table']);
+  });
+
   it('builds again only the chunks where a block came, went or changed', () => {
     const layout = (blockAt: number, other = 0) =>
       chunkSignatures(
