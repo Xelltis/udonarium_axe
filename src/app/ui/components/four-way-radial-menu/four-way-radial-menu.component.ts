@@ -62,8 +62,6 @@ const CHILD_LIST_WIDTH_PX = 128;
 const CHILD_ITEM_HEIGHT_PX = 28;
 const ROOT_LABEL_HEIGHT_PX = 28;
 const CHILD_ITEM_GAP_PX = 2;
-const CHILD_LIST_VERTICAL_PADDING_PX = 8;
-const DETACHED_BRANCH_ITEMS_ENABLED = true;
 const SECTOR_GAP_PX = 3;
 const MENU_VIEWPORT_MARGIN_PX = 12;
 const PARENT_CLICK_PAUSE_MS = 3000;
@@ -97,7 +95,6 @@ export class FourWayRadialMenuComponent {
   protected readonly manualRotationDegrees = signal(0);
   protected readonly manualRotationTransitionEnabled = signal(true);
   protected readonly manualRotationStyleDegrees = computed(() => Number(this.manualRotationDegrees().toFixed(6)));
-  protected readonly detachedBranchItemsEnabled = DETACHED_BRANCH_ITEMS_ENABLED;
   protected readonly pausedParentIndex = signal<number | null>(null);
   protected readonly flyout = signal<RadialFlyout | null>(null);
   protected readonly flyoutItems = computed(() => {
@@ -134,11 +131,7 @@ export class FourWayRadialMenuComponent {
     const childCount = this.maxChildCount();
     if (childCount < 1) return this.rootOuterRadius() + MENU_VIEWPORT_MARGIN_PX;
 
-    const listHeight =
-      childCount * this.childItemHeight() +
-      (DETACHED_BRANCH_ITEMS_ENABLED
-        ? Math.max(0, childCount - 1) * CHILD_ITEM_GAP_PX
-        : CHILD_LIST_VERTICAL_PADDING_PX);
+    const listHeight = childCount * this.childItemHeight() + Math.max(0, childCount - 1) * CHILD_ITEM_GAP_PX;
     const farEdge = this.childListAnchorRadius() + listHeight;
     return Math.hypot(farEdge, this.childListWidth() / 2) + MENU_VIEWPORT_MARGIN_PX;
   });
