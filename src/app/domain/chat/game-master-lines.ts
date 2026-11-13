@@ -11,7 +11,7 @@ export type SeenPiece = Disclosable & { readonly owner?: string };
  * The users seated in the room now who may see what every one of the pieces given keeps back, each
  * once: the game masters, and those each piece is owned by or disclosed to.
  */
-export function userIdsWhoMaySee(pieces: readonly SeenPiece[]): string[] {
+function userIdsWhoMaySee(pieces: readonly SeenPiece[]): string[] {
   const seen = ObjectStore.instance
     .getObjects<PeerCursor>(PeerCursor)
     .filter(

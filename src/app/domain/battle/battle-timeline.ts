@@ -32,8 +32,6 @@ export const BATTLE_HOLD_MS = 600;
 export const BATTLE_OUTRO_MS = 380;
 /** How long the stage stays up as one still picture, while motion is turned off. */
 export const BATTLE_STILL_MS = 2600;
-/** How far forward the one striking steps, in cells. */
-export const BATTLE_STEP_CELLS = 0.9;
 
 /** What a stage needs to know of the effects it draws to lay its beats out. */
 export interface BattleTimelineInput {

@@ -6,7 +6,6 @@ export type EffectCastMode = 'cast' | 'field' | 'preview';
 export type TurnAction = 'next' | 'prev' | 'reset';
 
 export type RangeSlotOptions = Extract<HotbarPayload, { kind: 'range' }>;
-export type GroupSlotOptions = Extract<HotbarPayload, { kind: 'group' }>;
 
 /** As long as a reader will wait for the next step of a group, and no longer. */
 export const MAX_STEP_DELAY_MS = 10_000;

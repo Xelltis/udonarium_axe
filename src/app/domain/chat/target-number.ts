@@ -117,7 +117,7 @@ export function presentedTotalOf(text: string): number | null {
  * What a line comes to as a number to beat: what a dice bot's answer came to, or the number another
  * line writes out (see {@link presentedTotalOf}). Null for a line that comes to none.
  */
-export function totalOfLine(message: ChatMessage): number | null {
+function totalOfLine(message: ChatMessage): number | null {
   const text = `${message.text ?? ''}`;
   return message.isDicebot ? rollTotalOf(text) : presentedTotalOf(text);
 }

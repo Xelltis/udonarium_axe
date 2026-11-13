@@ -22,7 +22,7 @@ export interface BuffRemovalCount {
  * Whether a buff is one the rule takes away. A buff held until cleared has no rounds left to match.
  * The further rows of a buff that moves several statuses go with it by its name.
  */
-export function matchesBuffRemoval(data: DataElement, rule: BuffRemovalRule): boolean {
+function matchesBuffRemoval(data: DataElement, rule: BuffRemovalRule): boolean {
   switch (rule.kind) {
     case 'held':
       return !buffExpires(data);

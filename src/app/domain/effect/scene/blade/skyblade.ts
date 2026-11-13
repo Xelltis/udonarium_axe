@@ -37,16 +37,16 @@ const SHORTEST = 6;
 const BREAKS_S = 0.35;
 
 /** How the look it strikes with is drawn, as the table of looks drawn in the scene gives it. */
-export type ImpactLook = (stage: Stage) => Staged;
+type ImpactLook = (stage: Stage) => Staged;
 
 const thrownByStage = new Map<string, readonly ThrownMote[]>();
 
 /** The great blade, striking with the look `impactOf` gives for its preset's kind of landing, which lingers `lingerS`. */
-export function skybladeWith(impactOf: (stage: Stage) => Staged, lingerS: number): Choreography {
+export function skybladeWith(impactOf: ImpactLook, lingerS: number): Choreography {
   return { lingerS, draw: (stage) => drawSkyblade(stage, impactOf) };
 }
 
-function drawSkyblade(stage: Stage, impactOf: (stage: Stage) => Staged): Staged {
+function drawSkyblade(stage: Stage, impactOf: ImpactLook): Staged {
   const drawn = nothingStaged();
   const { cell, duration } = stage;
   const t = stage.seconds;

@@ -60,7 +60,7 @@ const CORNER_STEPS = 5;
  * speaking. The tail hangs off the underside towards the lower left, which is where a speaker
  * usually stands relative to what they are being quoted about.
  */
-export function balloonPoints(x: number, y: number, w: number, h: number): number[] {
+function balloonPoints(x: number, y: number, w: number, h: number): number[] {
   const bottom = y + h * BALLOON_BODY;
   const round = Math.min(w, h * BALLOON_BODY) * BALLOON_ROUND;
   const right = x + w;

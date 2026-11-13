@@ -57,12 +57,6 @@ export function within(value: number, from: number, to: number): number {
   return Math.min(1, Math.max(0, (value - from) / (to - from)));
 }
 
-/** Fast out, slow to settle: how far a move has gone a share of the way through its time. */
-export function outQuart(share: number): number {
-  const left = 1 - Math.min(1, Math.max(0, share));
-  return 1 - left * left * left * left;
-}
-
 /** Fast out, slower to settle than a quartic. */
 export function outCubic(share: number): number {
   const left = 1 - Math.min(1, Math.max(0, share));

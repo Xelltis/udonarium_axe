@@ -57,7 +57,7 @@ export function isResourceSpentAt(element: DataElement | null, current: number, 
  * are, or, for a piece whose contents are kept from the reader, full and grey with marks for the
  * numbers until the resource runs out, so how much is left is not told by how long the bar is.
  */
-export function shownGaugeReading(
+function shownGaugeReading(
   current: number,
   max: number,
   inverted: boolean,
