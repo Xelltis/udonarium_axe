@@ -6,7 +6,6 @@ import {
   ElementRef,
   inject,
   signal,
-  untracked,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -109,8 +108,6 @@ export class MapImageGridAdjusterComponent {
     cols: number;
     rows: number;
   } | null = null;
-  private prevFrame: { fx: number; fy: number } | null = null;
-
   readonly imageScreenWidth = computed(() => this.imageWidth() * this.scaleX());
   readonly imageScreenHeight = computed(() => this.imageHeight() * this.scaleY());
 
@@ -176,32 +173,22 @@ export class MapImageGridAdjusterComponent {
       observer.observe(stage);
       onCleanup(() => observer.disconnect());
     });
-    effect(() => {
-      const f = this.frame();
-      const prev = untracked(this.prevFrameOf);
-      if (prev) {
-        untracked(() => {
-          this.tx.set(this.tx() + (f.fx - prev.fx));
-          this.ty.set(this.ty() + (f.fy - prev.fy));
-        });
-      }
-      this.prevFrame = { fx: f.fx, fy: f.fy };
-    });
     effect(() => this.renderHexOverlay());
-    effect(() => {
-      const ready = this.loadState() === 'ready';
-      const u = footprintSize(this.gridType(), this.cols(), this.rows(), 1);
-      const sw = this.stageW();
-      const sh = this.stageH();
-      if (!ready || !(u.w > 0) || !(u.h > 0)) return;
-      const dcFit = clamp(Math.min((sw - 24) / u.w, (sh - 24) / u.h), VIEW_CELL_MIN, VIEW_CELL_BASE);
-      untracked(() => {
-        if (this.viewCell() > dcFit) this.setViewCell(dcFit);
-      });
-    });
   }
 
-  private readonly prevFrameOf = () => this.prevFrame;
+  /**
+   * Makes a change that moves the frame, carrying the image along with it so the part of it the
+   * grid covers stays the same, and shrinks the view where the frame no longer fits the stage.
+   */
+  private moveFrame(change: () => void): void {
+    const before = this.frame();
+    change();
+    const after = this.frame();
+    this.tx.set(this.tx() + (after.fx - before.fx));
+    this.ty.set(this.ty() + (after.fy - before.fy));
+    const fit = this.fitViewCell();
+    if (this.viewCell() > fit) this.setViewCell(fit);
+  }
 
   private renderHexOverlay() {
     const type = this.gridType();
@@ -218,8 +205,10 @@ export class MapImageGridAdjusterComponent {
   private measureStage(stage: HTMLElement) {
     const w = stage.clientWidth;
     const h = stage.clientHeight;
-    if (w > 0) this.stageW.set(w);
-    if (h > 0) this.stageH.set(h);
+    this.moveFrame(() => {
+      if (w > 0) this.stageW.set(w);
+      if (h > 0) this.stageH.set(h);
+    });
   }
 
   private readOption(): MapImageGridAdjusterOption {
@@ -268,10 +257,7 @@ export class MapImageGridAdjusterComponent {
   }
 
   private initTransform() {
-    const gridSize = this.option.gridSize;
-    this.cols.set(clamp(Math.round(this.imageWidth() / gridSize), 1, MAX_CELLS));
-    this.rows.set(clamp(Math.round(this.imageHeight() / gridSize), 1, MAX_CELLS));
-    this.stretchFit();
+    this.reset();
   }
 
   private stretchFit() {
@@ -283,7 +269,6 @@ export class MapImageGridAdjusterComponent {
     this.scaleY.set(clamp(f.fh / imgH, MIN_SCALE, MAX_SCALE));
     this.tx.set(f.fx);
     this.ty.set(f.fy);
-    this.prevFrame = { fx: f.fx, fy: f.fy };
   }
 
   protected zoomAt(px: number, py: number, factor: number) {
@@ -316,7 +301,6 @@ export class MapImageGridAdjusterComponent {
     this.scaleY.set(clamp(this.scaleY() * ratio, MIN_SCALE, MAX_SCALE));
     this.tx.set(after.fx + (this.tx() - before.fx) * ratio);
     this.ty.set(after.fy + (this.ty() - before.fy) * ratio);
-    this.prevFrame = { fx: after.fx, fy: after.fy };
   }
 
   private fitViewCell(): number {
@@ -334,7 +318,7 @@ export class MapImageGridAdjusterComponent {
   /** Switches the grid laid over the image between square and the hex layouts. */
   setGridType(type: GridType) {
     if (type === this.gridType()) return;
-    this.gridType.set(type);
+    this.moveFrame(() => this.gridType.set(type));
   }
 
   /**
@@ -344,7 +328,7 @@ export class MapImageGridAdjusterComponent {
   setCols(value: number | string) {
     const num = Math.round(Number(value));
     if (!Number.isFinite(num) || num < 1) return;
-    this.cols.set(clamp(num, 1, MAX_CELLS));
+    this.moveFrame(() => this.cols.set(clamp(num, 1, MAX_CELLS)));
   }
 
   /**
@@ -354,7 +338,7 @@ export class MapImageGridAdjusterComponent {
   setRows(value: number | string) {
     const num = Math.round(Number(value));
     if (!Number.isFinite(num) || num < 1) return;
-    this.rows.set(clamp(num, 1, MAX_CELLS));
+    this.moveFrame(() => this.rows.set(clamp(num, 1, MAX_CELLS)));
   }
 
   /** Switches whether the image's width and height scale together. */
@@ -379,7 +363,6 @@ export class MapImageGridAdjusterComponent {
       this.scaleY.set(s);
       this.tx.set(f.fx + (f.fw - imgW * s) / 2);
       this.ty.set(f.fy + (f.fh - imgH * s) / 2);
-      this.prevFrame = { fx: f.fx, fy: f.fy };
       return;
     }
     this.stretchFit();
@@ -390,8 +373,10 @@ export class MapImageGridAdjusterComponent {
    * stretches the image over it.
    */
   reset() {
-    this.cols.set(clamp(Math.round(this.imageWidth() / this.option.gridSize), 1, MAX_CELLS));
-    this.rows.set(clamp(Math.round(this.imageHeight() / this.option.gridSize), 1, MAX_CELLS));
+    this.moveFrame(() => {
+      this.cols.set(clamp(Math.round(this.imageWidth() / this.option.gridSize), 1, MAX_CELLS));
+      this.rows.set(clamp(Math.round(this.imageHeight() / this.option.gridSize), 1, MAX_CELLS));
+    });
     this.stretchFit();
   }
 
@@ -559,10 +544,10 @@ export class MapImageGridAdjusterComponent {
     const f = footprintSize(this.gridType(), start.cols, start.rows, cell);
     if (handle === 'fr') {
       const next = clamp(colsForWidth(this.gridType(), Math.max(1, f.w + dx), cell), 1, MAX_CELLS);
-      if (next !== this.cols()) this.cols.set(next);
+      if (next !== this.cols()) this.moveFrame(() => this.cols.set(next));
     } else {
       const next = clamp(rowsForHeight(this.gridType(), Math.max(1, f.h + dy), cell), 1, MAX_CELLS);
-      if (next !== this.rows()) this.rows.set(next);
+      if (next !== this.rows()) this.moveFrame(() => this.rows.set(next));
     }
   }
 

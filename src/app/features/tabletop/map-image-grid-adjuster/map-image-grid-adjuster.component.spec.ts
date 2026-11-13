@@ -115,6 +115,18 @@ describe('MapImageGridAdjusterComponent', () => {
     expect(after).toBeCloseTo(before, 5);
   });
 
+  it('keeps the picture where it sits in the frame as the grid changes shape', async () => {
+    await setup({ imageIdentifier: 'x', gridSize: 48 });
+    makeReady(480, 240);
+
+    const before = { x: component.tx() - frame().fx, y: component.ty() - frame().fy };
+    component.setGridType(GridType.HEX_VERTICAL);
+    const after = { x: component.tx() - frame().fx, y: component.ty() - frame().fy };
+
+    expect(after.x).toBeCloseTo(before.x, 5);
+    expect(after.y).toBeCloseTo(before.y, 5);
+  });
+
   it('fits to cover with the axes locked, scaling both alike', async () => {
     await setup({ imageIdentifier: 'x', gridSize: 48 });
     makeReady(480, 240);
