@@ -27,23 +27,22 @@ describe('table test hooks', () => {
   function install(webdriver: boolean, moveCamera = vi.fn(), refresh = vi.fn()): { win: Hooked; remove: () => void } {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     const win = { navigator: { webdriver } } as unknown as Hooked;
-    const remove = installTableTestHooks(
-      win,
-      TestBed.inject(TablePickService),
-      TestBed.inject(TableCameraService),
-      TestBed.inject(TabletopOverlapService),
-      TestBed.inject(TableSurfaceService),
-      TestBed.inject(Table3dService),
-      TestBed.inject(HudFrameService),
-      TestBed.inject(PieceMotionsService),
-      TestBed.inject(GroundService),
-      TestBed.inject(PiecePicturesService),
-      TestBed.inject(DiceRenderService),
-      TestBed.inject(TabletopService),
-      TestBed.inject(ObjectStore),
+    const remove = installTableTestHooks(win, {
+      pick: TestBed.inject(TablePickService),
+      camera: TestBed.inject(TableCameraService),
+      overlap: TestBed.inject(TabletopOverlapService),
+      surfaces: TestBed.inject(TableSurfaceService),
+      scene: TestBed.inject(Table3dService),
+      hud: TestBed.inject(HudFrameService),
+      motions: TestBed.inject(PieceMotionsService),
+      ground: TestBed.inject(GroundService),
+      pictures: TestBed.inject(PiecePicturesService),
+      dice: TestBed.inject(DiceRenderService),
+      tabletop: TestBed.inject(TabletopService),
+      store: TestBed.inject(ObjectStore),
       moveCamera,
-      refresh
-    );
+      refresh,
+    });
     return { win, remove };
   }
 

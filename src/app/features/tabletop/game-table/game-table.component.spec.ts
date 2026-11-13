@@ -322,10 +322,6 @@ describe('GameTableComponent', () => {
     };
     const nextFrame = (): Promise<void> => new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
-    beforeEach(() => {
-      (component.gestureService as unknown as { gameTableEl: HTMLElement }).gameTableEl = document.createElement('div');
-    });
-
     it('straightens the table when entering 2D mode without locking later rotation', () => {
       component.gestureService.viewRotateX = 35;
       component.gestureService.viewRotateY = 12;
@@ -569,10 +565,6 @@ describe('GameTableComponent', () => {
       return (group?.actions ?? []).map((action) => action.name);
     };
     const flatNames = (): string[] => component.buildContextMenuActions(position).map((action) => action.name);
-
-    beforeEach(() => {
-      (component.gestureService as unknown as { gameTableEl: HTMLElement }).gameTableEl = document.createElement('div');
-    });
 
     it('offers the lock from both menus in 2D, since either one may be the one in use', () => {
       component.currentTable.mode2d = true;
@@ -885,7 +877,7 @@ describe('GameTableComponent', () => {
       table.westWallImageIdentifier = picture('blob:west');
       await Promise.resolve();
 
-      const walls = component.activeWalls();
+      const walls = component.gridFaces.activeWalls();
 
       expect(walls.map((wall) => wall.surface)).toEqual(['north-wall', 'west-wall']);
       expect(walls.map((wall) => wall.image.url)).toEqual(['blob:north', 'blob:west']);
@@ -902,7 +894,7 @@ describe('GameTableComponent', () => {
       table.southWallImageIdentifier = picture('blob:south');
       await Promise.resolve();
 
-      const [south] = component.activeWalls();
+      const [south] = component.gridFaces.activeWalls();
 
       expect(south.surface).toBe('south-wall');
       expect(south.gridUrl).toBe('data:image/png;base64,GRID');
@@ -914,10 +906,10 @@ describe('GameTableComponent', () => {
       table.northWallImageIdentifier = picture('blob:north');
       await Promise.resolve();
 
-      const walls = component.activeWalls();
+      const walls = component.gridFaces.activeWalls();
 
       expect(walls.map((wall) => wall.surface)).toEqual(['north-wall']);
-      expect(component.activeWalls()).toBe(walls);
+      expect(component.gridFaces.activeWalls()).toBe(walls);
     });
 
     it('hands the canvas the grid laid over a wall, by the wall of the scene it goes on', async () => {
@@ -935,42 +927,6 @@ describe('GameTableComponent', () => {
       const grids = handed.mock.calls.at(-1)![0];
       expect(grids.get('table:north')).toBe('data:image/png;base64,GRID');
       expect(grids.size).toBe(1);
-    });
-  });
-
-  describe('grid faces', () => {
-    it('rasterises a face once and hands the same picture back for the same geometry', () => {
-      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
-        () => new Proxy({}, { get: () => () => undefined, set: () => true }) as unknown as RenderingContext
-      );
-      const encode = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,GRID');
-      const table = component.currentTable;
-
-      const first = component['gridFaces'].dataUrl(table, 500, 200, 0, 0, 'N', null);
-      const again = component['gridFaces'].dataUrl(table, 500, 200, 0, 0, 'N', null);
-      const other = component['gridFaces'].dataUrl(table, 500, 200, 0, 0, 'S', [-1, 0, 0, 1]);
-      const face = component['gridFaces'].dataUrl(table, 100, 150, 0, 50, 'N', null);
-      const faceAgain = component['gridFaces'].dataUrl(table, 100, 150, 0, 50, 'N', null);
-
-      expect(first).toBe('data:image/png;base64,GRID');
-      expect(again).toBe(first);
-      expect(other).toBe('data:image/png;base64,GRID');
-      expect(faceAgain).toBe(face);
-      expect(encode).toHaveBeenCalledTimes(3);
-    });
-
-    it('rasterises again once the grid colour changes', () => {
-      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
-        () => new Proxy({}, { get: () => () => undefined, set: () => true }) as unknown as RenderingContext
-      );
-      const encode = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,GRID');
-      const table = component.currentTable;
-
-      component['gridFaces'].dataUrl(table, 500, 200, 0, 0, 'N', null);
-      table.gridColor = '#ff0000ff';
-      component['gridFaces'].dataUrl(table, 500, 200, 0, 0, 'N', null);
-
-      expect(encode).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -1019,7 +975,7 @@ describe('GameTableComponent', () => {
       terrainOn('east-wall', false);
       await Promise.resolve();
 
-      const faces = component.beamWallGrids();
+      const faces = component.gridFaces.beamWallGrids();
 
       expect(faces.map((grid) => grid.identifier)).toEqual([hung.identifier]);
       expect(faces[0]).toMatchObject({ width: 2 * table.gridSize, height: 3 * table.gridSize });
@@ -1032,7 +988,7 @@ describe('GameTableComponent', () => {
       terrainOn('north-wall', true);
       await Promise.resolve();
 
-      expect(component.beamWallGrids()).toEqual([]);
+      expect(component.gridFaces.beamWallGrids()).toEqual([]);
     });
   });
 

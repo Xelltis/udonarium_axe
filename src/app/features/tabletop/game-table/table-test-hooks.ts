@@ -165,29 +165,51 @@ function nearView(layout: TableLayout): TableCameraView {
   );
 }
 
+/** What the hooks answer from: the table's services, and what only the table's view can do. */
+export interface TableTestHookSources {
+  readonly pick: TablePickService;
+  readonly camera: TableCameraService;
+  readonly overlap: TabletopOverlapService;
+  readonly surfaces: TableSurfaceService;
+  readonly scene: Table3dService;
+  readonly hud: HudFrameService;
+  readonly motions: PieceMotionsService;
+  readonly ground: GroundService;
+  readonly pictures: PiecePicturesService;
+  readonly dice: DiceRenderService;
+  readonly tabletop: TabletopService;
+  readonly store: ObjectStore;
+  /** Puts the camera at a view, as the table's gestures would. */
+  readonly moveCamera: (view: TableCameraView) => void;
+  /** Brings the page up to date, as its own refresh would. */
+  readonly refresh: () => void;
+  /** The part of a piece a press at a point of the page lands on, or null; none where not given. */
+  readonly partAt?: (identifier: string, pageX: number, pageY: number) => string | null;
+}
+
 /**
  * Puts the table's test hooks on the window, in a browser that says automation drives it and in
  * no other. Answers the function that takes them off again.
  */
-export function installTableTestHooks(
-  win: Window,
-  pick: TablePickService,
-  camera: TableCameraService,
-  overlap: TabletopOverlapService,
-  surfaces: TableSurfaceService,
-  scene: Table3dService,
-  hud: HudFrameService,
-  motions: PieceMotionsService,
-  ground: GroundService,
-  pictures: PiecePicturesService,
-  dice: DiceRenderService,
-  tabletop: TabletopService,
-  store: ObjectStore,
-  moveCamera: (view: TableCameraView) => void,
-  refresh: () => void,
-  partAt: (identifier: string, pageX: number, pageY: number) => string | null = () => null
-): () => void {
+export function installTableTestHooks(win: Window, sources: TableTestHookSources): () => void {
   if (!win.navigator.webdriver) return () => undefined;
+  const {
+    pick,
+    camera,
+    overlap,
+    surfaces,
+    scene,
+    hud,
+    motions,
+    ground,
+    pictures,
+    dice,
+    tabletop,
+    store,
+    moveCamera,
+    refresh,
+    partAt = () => null,
+  } = sources;
   const hooked = win as HookedWindow;
   hooked.__axeTable = {
     pickAt: (pageX, pageY) => pick.pickAt(pageX, pageY)?.target.id ?? null,
