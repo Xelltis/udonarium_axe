@@ -68,7 +68,7 @@ export class SkyWayConnection implements Connection {
 
   /** Opens a session in no room, as the given user or a new one; callback reports the result. */
   openStandby(userId?: string): void {
-    PeerContext.create(userId ?? PeerContext.generateUserId()).then((peer) => this.openSkyWay(peer));
+    void this.openAs(PeerContext.create(userId ?? PeerContext.generateUserId()));
   }
 
   /**
@@ -77,7 +77,21 @@ export class SkyWayConnection implements Connection {
    * Opening is asynchronous and reported through callback.onOpen or onError. No peer is connected yet.
    */
   open(userId: string, roomId: string, roomName: string, password: string): void {
-    PeerContext.createRoom(userId, roomId, roomName, password).then((peer) => this.openSkyWay(peer));
+    void this.openAs(PeerContext.createRoom(userId, roomId, roomName, password));
+  }
+
+  /** Opens the session as the peer being made, or reports through callback.onError that it could not be made. */
+  private async openAs(making: Promise<PeerContext>): Promise<void> {
+    let peer: PeerContext;
+    try {
+      peer = await making;
+    } catch (reason) {
+      const error = reason instanceof Error ? reason : new Error(String(reason));
+      Logger.error('[SkyWay] ピアを作れませんでした', error);
+      this.callback.onError?.(this.peer, error.name, error.message, error);
+      return;
+    }
+    await this.openSkyWay(peer);
   }
 
   /** Disconnects every peer, cancels pending reconnects and leaves the SkyWay session. */

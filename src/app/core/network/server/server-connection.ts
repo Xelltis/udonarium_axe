@@ -257,13 +257,27 @@ export class ServerConnection implements Connection {
   openStandby(userId?: string): void {
     this.stopped = false;
     pageActivity.watch();
-    void PeerContext.create(userId ?? PeerContext.generateUserId()).then((peer) => {
-      if (this.stopped) return;
-      this.me = peer;
-      this.accountSeat = false;
-      peer.isOpen = true;
-      this.callback.onOpen?.(peer);
-    });
+    void this.standBy(userId ?? PeerContext.generateUserId());
+  }
+
+  private async standBy(userId: string): Promise<void> {
+    const peer = await this.makePeer(() => PeerContext.create(userId));
+    if (!peer || this.stopped) return;
+    this.me = peer;
+    this.accountSeat = false;
+    peer.isOpen = true;
+    this.callback.onOpen?.(peer);
+  }
+
+  /** The peer made, or null once the session has been ended for its failing to be made. */
+  private async makePeer(make: () => Promise<PeerContext>): Promise<PeerContext | null> {
+    try {
+      return await make();
+    } catch (reason) {
+      const error = reason instanceof Error ? reason : new Error(String(reason));
+      if (!this.stopped) this.fail(error.name, `the peer could not be made: ${error.message}`);
+      return null;
+    }
   }
 
   /** Gives the connection the login to say hello with; without one every seat is a guest's. */
@@ -295,8 +309,10 @@ export class ServerConnection implements Connection {
       if (!this.stopped) this.fail(isBanned(reason) ? BANNED : SERVER_UNREACHABLE, 'the login could not be refreshed');
       return;
     }
-    const peer = await PeerContext.createRoom(credentials?.userId ?? this.guestUserId(userId), roomId, roomName, '');
-    if (this.stopped) return;
+    const peer = await this.makePeer(() =>
+      PeerContext.createRoom(credentials?.userId ?? this.guestUserId(userId), roomId, roomName, '')
+    );
+    if (!peer || this.stopped) return;
     peer.password = password;
     this.me = peer;
     this.accountSeat = credentials != null;

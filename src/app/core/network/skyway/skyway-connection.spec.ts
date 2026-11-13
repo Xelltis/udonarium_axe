@@ -21,6 +21,23 @@ describe('SkyWayConnection', () => {
     expect(conn.bandwidthUsage).toBe(0);
   });
 
+  describe('opening', () => {
+    it('reports a peer that could not be made, in a room or on standby', async () => {
+      vi.spyOn(PeerContext, 'create').mockRejectedValue(new Error('no digest'));
+      vi.spyOn(PeerContext, 'createRoom').mockRejectedValue(new Error('no room digest'));
+      const conn = new SkyWayConnection();
+      const errors: string[] = [];
+      conn.callback.onError = (_peer, errorType, errorMessage) => errors.push(`${errorType}: ${errorMessage}`);
+
+      conn.openStandby('user');
+      conn.open('user', 'abc', 'room', '');
+      await flushMicrotasks();
+
+      expect(errors).toEqual(['Error: no digest', 'Error: no room digest']);
+      vi.restoreAllMocks();
+    });
+  });
+
   describe('sending', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
     let connAny: Record<string, any>;

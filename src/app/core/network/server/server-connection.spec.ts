@@ -1,4 +1,4 @@
-import { IPeerContext } from '@axe/core/network/peer-context';
+import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { peerStatsUpdated$ } from '@axe/core/network/peer-stats-events';
 import { IDLE_WARNING_MS } from '@axe/core/network/server/idle-watch';
 import {
@@ -2092,6 +2092,19 @@ describe('ServerConnection', () => {
     vi.advanceTimersByTime(INVITE_TIMEOUT_MS);
 
     await expect(answer).rejects.toThrow('did not answer');
+  });
+
+  it('reports a peer that could not be made, on standby or for a room, and opens nothing', async () => {
+    vi.spyOn(PeerContext, 'create').mockRejectedValue(new Error('no digest'));
+    vi.spyOn(PeerContext, 'createRoom').mockRejectedValue(new Error('no room digest'));
+
+    connection.openStandby('my-user');
+    await vi.waitFor(() => expect(errors).toEqual([{ code: 'Error' }]));
+    connection.open('my-user', 'Ab3', '月夜の卓', '', ROOM_KEY);
+    await vi.waitFor(() => expect(errors).toEqual([{ code: 'Error' }, { code: 'Error' }]));
+
+    expect(calls).toEqual([]);
+    expect(FakeWebSocket.instances.length).toBe(0);
   });
 
   it('opens on standby without connecting to anything', async () => {
