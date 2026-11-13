@@ -351,7 +351,7 @@ export class ChatTab extends ObjectNode implements InnerXml {
     ObjectSerializer.parseAttributes(this.attributes, attributes);
     const persistedIdentifier = this.attributes['identifier'];
     if (typeof persistedIdentifier === 'string' && persistedIdentifier.length > 0) {
-      (this as unknown as { context: { identifier: string } }).context.identifier = persistedIdentifier;
+      this.takeIdentifier(persistedIdentifier);
       delete (this.attributes as Record<string, unknown>)['identifier'];
     }
   }

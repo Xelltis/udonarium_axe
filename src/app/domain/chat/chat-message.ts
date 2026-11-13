@@ -382,8 +382,7 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
     ObjectSerializer.parseAttributes(this.attributes, attributes);
     const persistedId = this.attributes['identifier'];
     if (typeof persistedId === 'string' && persistedId.length > 0) {
-      (this as unknown as { context: { identifier: string } }).context.identifier = persistedId;
-      // it is removed from the attributes, the context being the one place it belongs
+      this.takeIdentifier(persistedId);
       delete (this.attributes as Record<string, unknown>)['identifier'];
     }
   }
