@@ -23,6 +23,8 @@ import {
   FacePicture,
   lookFor,
 } from '@axe/infrastructure/dice-3d/dice-textures';
+import { type BakedLight, bakeLight } from '@axe/infrastructure/three-kit/baked-light';
+import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import {
   AdditiveBlending,
   BufferAttribute,
@@ -188,6 +190,8 @@ export class Dice3dEngine {
   private readonly tableCamera = new PerspectiveCamera();
   private readonly light = new DirectionalLight(0xffffff, 2.4);
   private readonly shadowCatcher: Mesh;
+  /** The studio the dice mirror, baked into the light of the scene. */
+  private readonly studio: BakedLight;
   private readonly geometries = new Map<DieShape, BufferGeometry>();
   private readonly contactGeometry = new PlaneGeometry(1, 1);
   private readonly contactTexture = contactTexture();
@@ -197,7 +201,7 @@ export class Dice3dEngine {
   private readonly engravings = new Map<string, CanvasTexture>();
   /** Where the marks lie on every die of a shape numbered the same way, for the dice not of resin. */
   private readonly marks = new Map<string, CanvasTexture>();
-  private metalLight: Texture | null = null;
+  private metalLight: BakedLight | null = null;
   /** The pictures dice have worn, each made a texture once, by its key. */
   private readonly pictures = new Map<string, Texture>();
   /** The average colour of each picture, which the ink of a die wearing it stands out from. */
@@ -209,7 +213,10 @@ export class Dice3dEngine {
    * page's randomness for its name, which a quiet moment must leave as it found it.
    */
   private readonly carved = new Map<string, HTMLCanvasElement>();
+  /** Calls off the engraving waiting for a quiet moment, while one waits. */
+  private cancelEngraving: (() => void) | null = null;
   private lost = false;
+  private disposed = false;
 
   private constructor() {
     this.canvas = document.createElement('canvas');
@@ -227,13 +234,15 @@ export class Dice3dEngine {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFShadowMap;
     this.renderer.setClearColor(0x000000, 0);
-    this.canvas.addEventListener('webglcontextlost', (event) => {
-      event.preventDefault();
+    // The renderer asks the browser for the context back itself; this engine draws no more once it
+    // is lost, and is given up with the throws.
+    this.canvas.addEventListener('webglcontextlost', () => {
       this.lost = true;
     });
 
     const pmrem = new PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(diceStudio(), 0.02).texture;
+    this.studio = bakeLight(pmrem, diceStudio(), 0.02);
+    this.scene.environment = this.studio.texture;
     pmrem.dispose();
 
     this.light.castShadow = true;
@@ -268,6 +277,7 @@ export class Dice3dEngine {
     engine.layOut(warm.tray, { kind: 'frame' }, 2);
     await engine.renderer.compileAsync(engine.scene, engine.frameCamera);
     engine.scene.remove(warm.root);
+    engine.release(warm);
     engine.engraveAhead();
     return engine;
   }
@@ -417,16 +427,22 @@ export class Dice3dEngine {
 
   /** Lets the renderer and everything it holds go. */
   dispose(): void {
+    this.disposed = true;
+    this.cancelEngraving?.();
+    this.cancelEngraving = null;
     this.geometries.forEach((geometry) => geometry.dispose());
     this.materials.forEach(disposeMaterial);
     this.engravings.forEach((engraving) => engraving.dispose());
     this.marks.forEach((marks) => marks.dispose());
     this.metalLight?.dispose();
+    this.studio.dispose();
     this.pictures.forEach((picture) => picture.dispose());
     this.carved.clear();
     this.contactGeometry.dispose();
     this.contactTexture.dispose();
     this.haloTexture.dispose();
+    this.light.shadow.dispose();
+    disposeObject(this.shadowCatcher);
     this.renderer.dispose();
   }
 
@@ -538,11 +554,10 @@ export class Dice3dEngine {
       return !this.engravings.has(key) && !this.carved.has(key);
     });
     const next = pending[0];
-    if (!next || this.lost) return;
-    const idle = globalThis.requestIdleCallback;
-    const later = (work: () => void) =>
-      typeof idle === 'function' ? idle(work, { timeout: 2000 }) : setTimeout(work, 50);
-    later(() => {
+    if (!next || this.lost || this.disposed) return;
+    this.cancelEngraving = atQuietMoment(() => {
+      this.cancelEngraving = null;
+      if (this.disposed) return;
       this.carvingOf(next[0], next[1]);
       this.engraveAhead();
     });
@@ -622,10 +637,10 @@ export class Dice3dEngine {
   private metalStudio(): Texture {
     if (!this.metalLight) {
       const pmrem = new PMREMGenerator(this.renderer);
-      this.metalLight = pmrem.fromScene(diceStudio(true), 0.02).texture;
+      this.metalLight = bakeLight(pmrem, diceStudio(true), 0.02);
       pmrem.dispose();
     }
-    return this.metalLight;
+    return this.metalLight.texture;
   }
 
   private marksOf(shape: DieShape, labels: DieLabels): CanvasTexture {
@@ -722,6 +737,20 @@ function fitFrameCamera(camera: PerspectiveCamera, tray: Tray, aspect: number): 
   camera.far = far * 3;
   camera.updateMatrixWorld();
   camera.updateProjectionMatrix();
+}
+
+/**
+ * Has work done at a quiet moment of the page, or soon where the page has none to offer, and answers
+ * what calls it off.
+ */
+function atQuietMoment(work: () => void): () => void {
+  const idle = globalThis.requestIdleCallback;
+  if (typeof idle === 'function') {
+    const handle = idle(work, { timeout: 2000 });
+    return () => globalThis.cancelIdleCallback(handle);
+  }
+  const handle = setTimeout(work, 50);
+  return () => clearTimeout(handle);
 }
 
 /** Lets a die's material go with its faces' picture; its engraving is shared, and kept. */
