@@ -20,11 +20,11 @@ import { PERF_MOVE_RANGE_PAINT, perfCounters } from '@axe/core/util/perf-counter
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, cellCount, CellGrid, gridExtentPx, sameCellGrid } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellCount, CellGrid, sameCellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { cellPathsFor, wayRunsOn } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
-import { overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
+import { fitCanvasToGrid } from '@axe/ui/tabletop/fit-canvas-to-grid';
 import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
 export const MOVE_RANGE_FILL = 'rgba(90, 170, 255, 0.28)';
@@ -118,6 +118,19 @@ interface Painting {
   plan: MovePlan | null;
   reaches: readonly DrawnReach[];
   ways: readonly DrawnWay[];
+}
+
+/** Two paintings that would draw the same: each part the same, on a board that comes out the same. */
+function samePainting(a: Painting | null, b: Painting | null): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.cells === b.cells &&
+    a.held === b.held &&
+    a.plan === b.plan &&
+    a.reaches === b.reaches &&
+    a.ways === b.ways &&
+    sameBoard(a.grid, b.grid)
+  );
 }
 
 /** Whether a cell belongs on the layer being drawn. Everything does where there is no layer. */
@@ -248,6 +261,35 @@ export class TableMoveRangeOverlayComponent {
   );
 
   /**
+   * What there is to draw this time round, whichever of the three the table is showing.
+   *
+   * Held as long as every part of it stands: the layers are worked out from it and the canvases
+   * painted from it, and neither is to be done again for a painting that says the same.
+   */
+  private readonly painting = computed<Painting | null>(
+    () => {
+      const plan = this.plan();
+      const range = this.view();
+      const reaches = this.othersReach();
+      const ways = this.othersWays();
+      if (plan) return { grid: plan.grid, cells: plan.reach, held: null, plan, reaches, ways };
+      if (range) {
+        return {
+          grid: range.grid,
+          cells: range.showsReach ? range.cells : null,
+          held: range.held,
+          plan: null,
+          reaches,
+          ways,
+        };
+      }
+      if (reaches.length) return { grid: reaches[0].grid, cells: null, held: null, plan: null, reaches, ways };
+      return null;
+    },
+    { equal: samePainting }
+  );
+
+  /**
    * The ground above the table that the picture belongs on, a height at a time.
    *
    * The overlay lies on the table, so a reach worked out on top of a block is drawn under the
@@ -343,50 +385,14 @@ export class TableMoveRangeOverlayComponent {
     return union;
   }
 
-  /** What there is to draw this time round, whichever of the three the table is showing. */
-  private painting(): Painting | null {
-    const plan = this.plan();
-    const range = this.view();
-    const reaches = this.othersReach();
-    const ways = this.othersWays();
-    if (plan) return { grid: plan.grid, cells: plan.reach, held: null, plan, reaches, ways };
-    if (range) {
-      return {
-        grid: range.grid,
-        cells: range.showsReach ? range.cells : null,
-        held: range.held,
-        plan: null,
-        reaches,
-        ways,
-      };
-    }
-    if (reaches.length) return { grid: reaches[0].grid, cells: null, held: null, plan: null, reaches, ways };
-    return null;
-  }
-
   private paint(canvas: HTMLCanvasElement, painting: Painting, layer: Layer | null): void {
     perfCounters.bump(PERF_MOVE_RANGE_PAINT);
     const { grid, plan } = painting;
     const cells = this.partOf(painting.cells, layer);
     const held = this.partOf(painting.held, layer);
     const onLayer = layerTest(layer);
-    const extent = gridExtentPx(grid);
-    const width = Math.max(1, Math.ceil(extent.maxX - extent.minX));
-    const height = Math.max(1, Math.ceil(extent.maxY - extent.minY));
-    const scale = overlayScale(width, height);
-    const pixelWidth = Math.max(1, Math.ceil(width * scale));
-    const pixelHeight = Math.max(1, Math.ceil(height * scale));
-    if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
-    if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
-    canvas.style.left = extent.minX + 'px';
-    canvas.style.top = extent.minY + 'px';
-    canvas.style.width = width + 'px';
-    canvas.style.height = height + 'px';
-
-    const context = canvas.getContext('2d');
+    const context = fitCanvasToGrid(canvas, grid);
     if (!context) return;
-    context.setTransform(scale, 0, 0, scale, -extent.minX * scale, -extent.minY * scale);
-    context.clearRect(extent.minX, extent.minY, width, height);
 
     for (const other of painting.reaches) {
       const reach = this.partOf(other.reach, layer);

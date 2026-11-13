@@ -2,6 +2,7 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
+  cellAreaPath,
   cellPathsFor,
   moveRangeOutline,
   moveRangePolygons,
@@ -177,6 +178,45 @@ describe('the paths a drawn reach is kept as', () => {
 
     expect(hex.area).not.toBe(first.area);
     expect(traced).toBe(4);
+  });
+});
+
+describe('cellAreaPath', () => {
+  const grid = cellGridOf(4, 4, 50, GridType.SQUARE);
+  const drawn: string[] = [];
+
+  beforeEach(() => {
+    drawn.length = 0;
+    vi.stubGlobal(
+      'Path2D',
+      class {
+        moveTo(x: number, y: number): void {
+          drawn.push(`M${x},${y}`);
+        }
+        lineTo(x: number, y: number): void {
+          drawn.push(`L${x},${y}`);
+        }
+        closePath(): void {
+          drawn.push('Z');
+        }
+      }
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('traces each marked cell as a closed polygon, and nothing for the rest', () => {
+    cellAreaPath(grid, bitsOf(cellCount(grid), [cellIndexOf(grid, 1, 0), cellIndexOf(grid, 0, 1)]));
+
+    expect(drawn).toEqual(['M50,0', 'L100,0', 'L100,50', 'L50,50', 'Z', 'M0,50', 'L50,50', 'L50,100', 'L0,100', 'Z']);
+  });
+
+  it('traces nothing for no cells', () => {
+    cellAreaPath(grid, bitsOf(cellCount(grid), []));
+
+    expect(drawn).toEqual([]);
   });
 });
 

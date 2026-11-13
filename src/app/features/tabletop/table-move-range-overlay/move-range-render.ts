@@ -81,6 +81,17 @@ export function wayRunsOn(way: readonly number[], onLayer: (cell: number) => boo
   return runs;
 }
 
+/** The area of a set of cells as one path: the polygon of each marked cell, closed, one after another. */
+export function cellAreaPath(grid: CellGrid, cells: CellBits): Path2D {
+  const area = new Path2D();
+  for (const polygon of moveRangePolygons(grid, cells)) {
+    area.moveTo(polygon[0].x, polygon[0].y);
+    for (let corner = 1; corner < polygon.length; corner++) area.lineTo(polygon[corner].x, polygon[corner].y);
+    area.closePath();
+  }
+  return area;
+}
+
 interface CellPaths {
   grid: CellGrid;
   sizePx: number;
@@ -104,12 +115,7 @@ export function cellPathsFor(grid: CellGrid, cells: CellBits): { area: Path2D; b
   const held = drawn.get(cells);
   if (held && sameCellGrid(held.grid, grid) && held.sizePx === grid.sizePx) return held;
 
-  const area = new Path2D();
-  for (const polygon of moveRangePolygons(grid, cells)) {
-    area.moveTo(polygon[0].x, polygon[0].y);
-    for (let corner = 1; corner < polygon.length; corner++) area.lineTo(polygon[corner].x, polygon[corner].y);
-    area.closePath();
-  }
+  const area = cellAreaPath(grid, cells);
 
   const border = new Path2D();
   for (const edge of moveRangeOutline(grid, cells)) {

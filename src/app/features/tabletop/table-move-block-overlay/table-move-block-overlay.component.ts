@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { CellGrid, cellGridOf, gridExtentPx } from '@axe/domain/tabletop/fog/cell-grid';
+import { CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { MoveBlockService } from '@axe/features/tabletop/table-move-block-overlay/move-block.service';
-import { moveRangePolygons } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
-import { overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
+import { cellAreaPath } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
+import { fitCanvasToGrid } from '@axe/ui/tabletop/fit-canvas-to-grid';
 import { laidOnCanvasFloor } from '@axe/ui/tabletop/laid-on-canvas-floor';
 import { translateZCss, Z_OFFSET_MASK_PX } from '@axe/ui/tabletop/z-offset';
 
@@ -53,30 +53,10 @@ export class TableMoveBlockOverlayComponent {
   }
 
   private paint(canvas: HTMLCanvasElement, view: MoveBlockView): void {
-    const extent = gridExtentPx(view.grid);
-    const width = Math.max(1, Math.ceil(extent.maxX - extent.minX));
-    const height = Math.max(1, Math.ceil(extent.maxY - extent.minY));
-    const scale = overlayScale(width, height);
-    const pixelWidth = Math.max(1, Math.ceil(width * scale));
-    const pixelHeight = Math.max(1, Math.ceil(height * scale));
-    if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
-    if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
-    canvas.style.left = extent.minX + 'px';
-    canvas.style.top = extent.minY + 'px';
-    canvas.style.width = width + 'px';
-    canvas.style.height = height + 'px';
-
-    const context = canvas.getContext('2d');
+    const context = fitCanvasToGrid(canvas, view.grid);
     if (!context) return;
-    context.setTransform(scale, 0, 0, scale, -extent.minX * scale, -extent.minY * scale);
-    context.clearRect(extent.minX, extent.minY, width, height);
 
-    const area = new Path2D();
-    for (const polygon of moveRangePolygons(view.grid, view.cells)) {
-      area.moveTo(polygon[0].x, polygon[0].y);
-      for (let corner = 1; corner < polygon.length; corner++) area.lineTo(polygon[corner].x, polygon[corner].y);
-      area.closePath();
-    }
+    const area = cellAreaPath(view.grid, view.cells);
     context.fillStyle = MOVE_BLOCK_RESTING_FILL;
     context.fill(area);
     context.setTransform(1, 0, 0, 1, 0, 0);
