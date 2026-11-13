@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -81,6 +82,7 @@ function hasTableToItself(): boolean {
  */
 @Injectable({ providedIn: 'root' })
 export class StartRoomService {
+  private readonly document = inject(DOCUMENT);
   private readonly store = inject(StartRoomStore);
   private readonly saveDataService = inject(SaveDataService);
   private readonly fileArchiver = inject(FileArchiver);
@@ -123,8 +125,9 @@ export class StartRoomService {
   constructor() {
     const destroyRef = inject(DestroyRef);
     const refresh = () => void this.refreshKept();
-    window.addEventListener('focus', refresh);
-    destroyRef.onDestroy(() => window.removeEventListener('focus', refresh));
+    const view = this.document.defaultView;
+    view?.addEventListener('focus', refresh);
+    destroyRef.onDestroy(() => view?.removeEventListener('focus', refresh));
     inject(ObjectChangeService).networkOpen$.subscribe(() => {
       if (this.joinsUnderWay > 0) return;
       if (Network.peerContext?.isRoom) this.letGo();
@@ -237,7 +240,7 @@ export class StartRoomService {
    * invitation, which waits on the room it goes into (see {@link waitsOnInvite}). A browser too slow
    * to answer starts on the sample too, and is told whether it keeps a room once the answer comes.
    */
-  async prepare(hash: string = window.location.hash): Promise<void> {
+  async prepare(hash: string = this.document.defaultView?.location.hash ?? ''): Promise<void> {
     this.invited = parseInviteLink(hash) !== null;
     try {
       if (!this.store.isAvailable()) return;

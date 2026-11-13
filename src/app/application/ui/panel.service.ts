@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import { ComponentRef, inject, Injectable, reflectComponentType, signal, Type, ViewContainerRef } from '@angular/core';
 import { LOAD_FAILURE_NOTICE, PANEL_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
@@ -162,6 +163,7 @@ type PanelServiceAssignableKey =
 @Injectable()
 export class PanelService {
   private readonly overlays = inject(OverlayLayers);
+  private readonly document = inject(DOCUMENT);
   /** Told when the code of a panel opened by `openLazy` cannot be fetched. */
   private readonly loadFailureNotice = inject(LOAD_FAILURE_NOTICE);
   private frame: PanelFrame | null = null;
@@ -576,11 +578,12 @@ export class PanelService {
    * Outside a browser the option comes back as it is.
    */
   static clampPanelOptionToViewport(option: PanelOption, fallback: PanelService): PanelOption {
-    if (typeof window === 'undefined') return option;
+    const view = fallback.document.defaultView;
+    if (!view) return option;
     const width = option.width ?? fallback.width;
     const height = option.height ?? fallback.height;
-    const viewportW = window.innerWidth;
-    const viewportH = window.innerHeight;
+    const viewportW = view.innerWidth;
+    const viewportH = view.innerHeight;
     const adjusted: PanelOption = { ...option };
     const sideways = option.rotationDegrees === 90 || option.rotationDegrees === 270;
     if (sideways && option.left !== undefined && option.top !== undefined) {
