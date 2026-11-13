@@ -83,12 +83,7 @@ export class SceneVeil {
    * pixels, x to the east, y to the south and z up.
    */
   setLamps(lights: readonly Table3dShadowLight[], strengths: readonly ReturnType<typeof lampColour>[]): void {
-    this.lamps.slice(0, this.shadowSlots).forEach((lamp, index) => {
-      const light = lights[index];
-      lamp.at.value.set(light?.x ?? 0, light?.z ?? 0, light?.y ?? 0);
-      lamp.reach.value = Math.max(1, light?.dimPx ?? 1);
-      lamp.colour.value.copy(strengths[index] ?? NO_LIGHT);
-    });
+    this.stand(this.lamps.slice(0, this.shadowSlots), lights, (light) => light.dimPx, strengths);
   }
 
   /**
@@ -97,10 +92,20 @@ export class SceneVeil {
    * the east, y to the south and z up.
    */
   setEffectLamps(lights: readonly Table3dEffectLight[], strengths: readonly ReturnType<typeof lampColour>[]): void {
-    this.lamps.slice(this.shadowSlots).forEach((lamp, index) => {
+    this.stand(this.lamps.slice(this.shadowSlots), lights, (light) => light.reachPx, strengths);
+  }
+
+  /** Stands each of these lamps where its light is, reaching as far as the light does, in its strength; a lamp with no light goes dark. */
+  private stand<L extends { x: number; y: number; z: number }>(
+    lamps: readonly ShadowLamp[],
+    lights: readonly L[],
+    reachOf: (light: L) => number,
+    strengths: readonly ReturnType<typeof lampColour>[]
+  ): void {
+    lamps.forEach((lamp, index) => {
       const light = lights[index];
       lamp.at.value.set(light?.x ?? 0, light?.z ?? 0, light?.y ?? 0);
-      lamp.reach.value = Math.max(1, light?.reachPx ?? 1);
+      lamp.reach.value = Math.max(1, light ? reachOf(light) : 1);
       lamp.colour.value.copy(strengths[index] ?? NO_LIGHT);
     });
   }
