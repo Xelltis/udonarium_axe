@@ -21,7 +21,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import type { PeerRole } from '@axe/domain/peer/peer-role';
 import { collectReplayCast, type ReplayCastMember } from '@axe/domain/replay/replay-cast';
-import { cloneSyncValue, isSameSyncValue, mergeSyncData, type SyncData } from '@axe/domain/replay/replay-diff';
+import { cloneSyncData, isSameSyncValue, mergeSyncData, syncDataOf } from '@axe/domain/replay/replay-diff';
 import {
   type ReplayEvent,
   ReplayEventKind,
@@ -366,6 +366,7 @@ export class ReplayPlaybackService {
       this.objectStore.replaceDeleteHistory(this.savedDeleteHistory);
       this.savedDeleteHistory = null;
     }
+    // The notices of the restore are delivered in a microtask: they must go out before the room is let back in.
     await Promise.resolve();
     setNetworkIsolated(false);
     this.objectSynchronizer.requestFullSync();
@@ -520,7 +521,7 @@ export class ReplayPlaybackService {
   private layPatch(patch: ReplayPatch): void {
     const existing = this.objectStore.get(patch.identifier);
     if (existing) {
-      this.reviveObject(existing, applyReplayPatch(existing.toContext().syncData as SyncData, patch));
+      this.reviveObject(existing, applyReplayPatch(syncDataOf(existing), patch));
       return;
     }
     this.createObject({
@@ -544,7 +545,7 @@ export class ReplayPlaybackService {
     const length = routeLength(points);
     if (points.length < 2 || length <= 0) return false;
 
-    const syncData = applyReplayPatch(object.toContext().syncData as SyncData, event.patch);
+    const syncData = applyReplayPatch(syncDataOf(object), event.patch);
     const duration = Math.min(REPLAY_SLIDE_MAX_MS, REPLAY_SLIDE_BASE_MS + length * REPLAY_SLIDE_PER_PX_MS);
     const startedAt = performance.now();
     this.slideEndsAt = startedAt + duration;
@@ -628,7 +629,7 @@ export class ReplayPlaybackService {
       majorVersion: version?.major ?? 1,
       minorVersion: version?.minor ?? 0,
       // A snapshot also feeds the next scene, so handing a live object the reference would let a later edit corrupt it.
-      syncData: cloneSyncValue(mergeSyncData(object.toContext().syncData as SyncData, snapshot.syncData)) as SyncData,
+      syncData: cloneSyncData(mergeSyncData(syncDataOf(object), snapshot.syncData)),
     };
     this.objectStore.add(object, false, () => object.apply(context));
     markForChanged(object);
@@ -638,12 +639,7 @@ export class ReplayPlaybackService {
     return decodeReplayKeyframe(
       encodeReplayKeyframe(
         this.objectStore.getObjects().map((object) => {
-          const context = object.toContext();
-          return {
-            identifier: context.identifier,
-            aliasName: context.aliasName,
-            syncData: context.syncData as Record<string, unknown>,
-          };
+          return { identifier: object.identifier, aliasName: object.aliasName, syncData: syncDataOf(object) };
         })
       )
     );
@@ -688,7 +684,7 @@ export class ReplayPlaybackService {
       }
       const previous = before?.get(snapshot.identifier);
       if (!version && previous && isSameSyncValue(previous.syncData, snapshot.syncData)) continue;
-      this.reviveObject(existing, cloneSyncValue(snapshot.syncData) as Record<string, unknown>, version);
+      this.reviveObject(existing, cloneSyncData(snapshot.syncData), version);
     }
   }
 }

@@ -5,7 +5,7 @@ import type { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { canMergeReplayEvents, mergeReplayEvents } from '@axe/domain/replay/replay-coalescer';
-import { cloneSyncData, type SyncData } from '@axe/domain/replay/replay-diff';
+import { cloneSyncData, type SyncData, syncDataOf } from '@axe/domain/replay/replay-diff';
 import {
   PUBLIC_VISIBILITY,
   type ReplayEvent,
@@ -125,7 +125,7 @@ export class ReplayStagingService {
     this.shadows.clear();
     this.partOwners.clear();
     for (const object of this.objectStore.getObjects()) {
-      this.shadows.set(object.identifier, cloneSyncData(object.toContext().syncData as SyncData));
+      this.shadows.set(object.identifier, cloneSyncData(syncDataOf(object)));
       const piece = pieceOf(object);
       if (piece) this.partOwners.set(object.identifier, piece.identifier);
       this.namesAtStart.set(object.identifier, this.snapshotOf(object));
