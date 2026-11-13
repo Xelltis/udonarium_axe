@@ -1,4 +1,4 @@
-import { ComponentRef, inject, Injectable, reflectComponentType, signal, ViewContainerRef } from '@angular/core';
+import { ComponentRef, inject, Injectable, reflectComponentType, signal, Type, ViewContainerRef } from '@angular/core';
 import { LOAD_FAILURE_NOTICE, PANEL_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { isTabbablePanel } from '@axe/application/ui/panel-drag-helpers';
@@ -7,15 +7,10 @@ import { Logger } from '@axe/core/logging/logger';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 
-declare const Type: FunctionConstructor;
-interface Type<T> {
-  new (...args: unknown[]): T;
-}
-
 export type PanelRotationDegrees = 0 | 90 | 180 | 270;
 
 function panelKindOf(childComponent: Type<unknown>): string {
-  const selector = reflectComponentType(childComponent as never)?.selector;
+  const selector = reflectComponentType(childComponent)?.selector;
   return selector && selector.length > 0 ? selector : '';
 }
 
