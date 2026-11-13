@@ -358,9 +358,9 @@ export class Network {
     }
     const pending = this.pendingInvite;
     const invite = pending && pending.roomKey === roomKey ? pending.invite : '';
-    this.openAsync(() => {
-      if (invite) this.connection!.useInvite?.(invite);
-      this.connection!.open(userId, roomId, roomName, password, roomKey);
+    this.openAsync((connection) => {
+      if (invite) connection.useInvite?.(invite);
+      connection.open(userId, roomId, roomName, password, roomKey);
     });
   }
 
@@ -371,18 +371,19 @@ export class Network {
       Logger.warn('[Network] 既に接続済みです');
       this.close();
     }
-    this.openAsync(() => this.connection!.openStandby(userId));
+    this.openAsync((connection) => connection.openStandby(userId));
   }
 
-  private async openAsync(connectFn: () => void) {
+  private async openAsync(connectFn: (connection: Connection) => void) {
     const promise = this.dynamicImport();
     this.connectionClassPromise = promise;
     this.connectionClass = await promise;
     if (this.connectionClassPromise != promise) return;
 
     Logger.debug('[Network] open');
-    this.connection = this.initializeConnection();
-    connectFn();
+    const connection = this.initializeConnection();
+    this.connection = connection;
+    connectFn(connection);
 
     window.addEventListener('pagehide', this.callbackPageHide);
     window.addEventListener('pageshow', this.callbackPageShow);
