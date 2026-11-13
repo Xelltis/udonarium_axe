@@ -152,6 +152,7 @@ class SmallStage implements EffectStage {
     this.camera.updateProjectionMatrix();
   }
 
+  /** Lets go of the effects, of the board and stand-ins, and of the renderer. */
   dispose(): void {
     this.effects.dispose();
     for (const thing of this.owned) thing.dispose();
@@ -219,6 +220,7 @@ class OverPage implements EffectOverlay {
     this.camera.updateMatrixWorld();
   }
 
+  /** Lets go of the effects and of the renderer. */
   dispose(): void {
     this.effects.dispose();
     void letGoOfRenderer(this.renderer);

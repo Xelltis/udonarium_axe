@@ -197,6 +197,7 @@ export class WaterLayer {
     return changed;
   }
 
+  /** Takes every water away and lets go of the tiles and pictures it is drawn with. */
   dispose(): void {
     this.clear();
     this.netTile?.dispose();
@@ -485,7 +486,6 @@ function repeatingTile(alpha: Uint8ClampedArray, size: number): Texture {
   return tile;
 }
 
-/** Four figures of every eight, from the one given, as one attribute of a point carries them. */
 /**
  * Three figures to a point, the first from each list: the surface carries how strongly it glints, how
  * strongly a current streaks it and how much of it is frozen in one attribute, as a graphics card
@@ -547,6 +547,7 @@ function surfacesOf(water: TableWorldWater): { open: Surface; frozen: Surface } 
   return { open: kept(false), frozen: kept(true) };
 }
 
+/** Four figures of every eight, from the one given, as one attribute of a point carries them. */
 function everyOther(values: Float32Array, from: number): Float32Array {
   const picked = new Float32Array(values.length / 2);
   for (let i = 0, j = 0; i < values.length; i += 8, j += 4) picked.set(values.subarray(i + from, i + from + 4), j);

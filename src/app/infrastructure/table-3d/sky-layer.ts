@@ -127,6 +127,7 @@ export class SkyLayer {
     this.dome.position.copy(eye);
   }
 
+  /** Takes the ground away and lets go of the dome's shape and material. */
   dispose(): void {
     this.placeGround(null);
     this.dome.geometry.dispose();

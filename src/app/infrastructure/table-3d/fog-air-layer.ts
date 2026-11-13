@@ -44,6 +44,7 @@ export class FogAirLayer {
     return this.hung.length;
   }
 
+  /** Hangs these sheets in place of those hung before, each repainted where its painting changed, and drifting where things may move. */
   set(sheets: readonly Table3dFogAirSheet[], moving: boolean): void {
     const same =
       sheets.length === this.hung.length &&
@@ -84,6 +85,7 @@ export class FogAirLayer {
     return changed;
   }
 
+  /** Takes down every sheet and lets go of its picture. */
   dispose(): void {
     this.clear();
   }

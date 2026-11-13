@@ -70,12 +70,12 @@ function turnAlong(across: { x: number; y: number; z: number }, down: { x: numbe
   return new Matrix4().makeBasis(x, y, z);
 }
 
-/** An eye for working out the way a sprite lies that does not turn to the eye, which never reads it. */
 /** Whether a sprite stands up off what it stands on, turned to the eye or held upright, rather than lying on it. */
 function standsUp(sprite: TableWorldSprite): boolean {
   return sprite.facing === 'eye' || Math.abs(sprite.facing.down.z) > 0.5;
 }
 
+/** An eye for working out the way a sprite lies that does not turn to the eye, which never reads it. */
 const UNUSED_EYE: EyeAxes = { right: { x: 1, y: 0, z: 0 }, up: { x: 0, y: 0, z: 1 } };
 
 /** Turns a sprite that faces the eye to an eye looking along these axes, and on by its own turn. */
@@ -323,6 +323,7 @@ export class SpriteLayer {
     return material;
   }
 
+  /** Lets go of every sprite drawn, of the materials and frames they share, and of the square they are drawn on. */
   dispose(): void {
     this.square.dispose();
     for (const material of this.casterMaterials.values()) material.dispose();

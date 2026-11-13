@@ -166,6 +166,7 @@ export class SceneVeil {
     return changed;
   }
 
+  /** Lets go of the pictures the veil, the darkness and the glow are read from. */
   dispose(): void {
     this.fog.dispose();
     this.light.dispose();
@@ -249,6 +250,7 @@ class BoardPicture {
     return true;
   }
 
+  /** Lets go of the picture and forgets the canvas it was taken from. */
   dispose(): void {
     this.picture.dispose();
     this.laidCanvas = null;

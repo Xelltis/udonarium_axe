@@ -145,6 +145,7 @@ export class WeatherLayer {
     return changed;
   }
 
+  /** Lets go of the shape the fall is drawn with and of the materials made for each weather. */
   dispose(): void {
     this.geometry.dispose();
     for (const material of this.materials.values()) material.dispose();

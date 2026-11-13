@@ -247,6 +247,7 @@ export class EffectLayer {
     this.changed = true;
   }
 
+  /** Lets go of the shapes and materials the motes, marks and ribbons are drawn with, and of the ground heights they follow. */
   dispose(): void {
     for (const batch of [this.motes.light, this.motes.color, this.marks.light, this.marks.color]) {
       batch.geometry.dispose();

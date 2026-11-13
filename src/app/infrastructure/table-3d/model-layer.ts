@@ -188,6 +188,7 @@ export class ModelLayer {
     return meshes;
   }
 
+  /** Whether any model is still being read. */
   get isLoading(): boolean {
     return this.loading.size > 0;
   }
@@ -229,6 +230,7 @@ export class ModelLayer {
     return changed;
   }
 
+  /** Lets go of every model stood or herded, of the models read, and of the reader; nothing is drawn after. */
   dispose(): void {
     this.disposed = true;
     for (const stood of this.stood.values()) {

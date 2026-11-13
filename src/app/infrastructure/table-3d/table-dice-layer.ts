@@ -168,6 +168,7 @@ export class TableDiceLayer {
     return changed;
   }
 
+  /** Lets go of every throw shown, of the shapes and pictures the dice share, and of the studios they are lit in. */
   dispose(): void {
     for (const [key, shown] of this.shownThrows) this.letGo(key, shown);
     for (const geometry of this.geometries.values()) geometry.dispose();

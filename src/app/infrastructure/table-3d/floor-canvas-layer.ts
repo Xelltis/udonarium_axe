@@ -53,6 +53,7 @@ export class FloorCanvasLayer {
     for (const laid of this.laid.values()) this.place(laid, laid.floor);
   }
 
+  /** Lays these canvases over the floor and takes away any laid before that are not among them, each taken again where it was painted again. */
   set(canvases: readonly Table3dFloorCanvas[]): void {
     const wanted = new Set<string>();
     for (const floor of canvases) {
@@ -112,6 +113,7 @@ export class FloorCanvasLayer {
     laid.draped = draped;
   }
 
+  /** Lets go of every canvas laid and of the square they are laid on. */
   dispose(): void {
     for (const [id, laid] of this.laid) this.drop(id, laid);
     this.square.dispose();

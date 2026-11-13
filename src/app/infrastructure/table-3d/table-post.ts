@@ -128,6 +128,7 @@ export class TablePost {
     }
   }
 
+  /** Takes the finishing down, so the next frame is drawn plain until it is laid again. */
   dispose(): void {
     this.pipeline?.dispose();
     this.pipeline = null;

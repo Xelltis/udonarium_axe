@@ -79,6 +79,7 @@ export class CoinLayer {
     for (const [id, drawn] of this.drawn) if (!wanted.has(id)) this.forget(id, drawn);
   }
 
+  /** Lets go of every coin drawn and of the rim they share. */
   dispose(): void {
     for (const [id, drawn] of this.drawn) this.forget(id, drawn);
     this.rim.dispose();
