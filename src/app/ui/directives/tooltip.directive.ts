@@ -14,8 +14,10 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
+import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { observeTap, TapGestureHandle } from '@axe/core/input/tap-gesture';
+import { Logger } from '@axe/core/logging/logger';
 import { debounce } from '@axe/core/util/debounce';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { asHoverDetailPlacement } from '@axe/domain/tabletop/hover-detail-placement';
@@ -47,6 +49,11 @@ export class TooltipPanelSource {
   load = inject(TOOLTIP_PANEL_LOADER);
   /** The panel, once it has arrived. */
   panel: Type<TooltipPanelInstance> | null = null;
+  /**
+   * Whether the fetch failed, after which no piece asks for the panel again: the page's files have
+   * gone with a release, and the reader has been asked to reload.
+   */
+  failed = false;
 }
 
 /**
@@ -78,6 +85,7 @@ export class TooltipDirective {
   private readonly destroyRef = inject(DestroyRef);
   private readonly overlays = inject(OverlayLayers);
   private readonly panels = inject(TooltipPanelSource);
+  private readonly reloadNotice = inject(ReloadNoticeService);
 
   /** The one showing on screen, whichever piece raised it. */
   private static activeOwner: TooltipDirective | null = null;
@@ -222,10 +230,13 @@ export class TooltipDirective {
    *
    * A touch or a press anywhere but this piece while it is on its way means the reader has moved
    * on, so it is not shown then, the same as a showing would close.
+   *
+   * A fetch that fails asks the reader to reload the page, as any part of the app that cannot be
+   * fetched does, and is not tried again: every hover would fail the same way.
    */
   private fetchPanelThenOpen() {
     const load = this.panels.load;
-    if (!load) return;
+    if (!load || this.panels.failed) return;
     this.waitingForPanel = true;
     document.body.addEventListener('touchstart', this.callbackOnPressWhileWaiting, true);
     document.body.addEventListener('pointerdown', this.callbackOnPressWhileWaiting, true);
@@ -234,8 +245,11 @@ export class TooltipDirective {
         this.panels.panel = panelClass;
         if (this.waitingForPanel) this.open();
       })
-      .catch(() => {
+      .catch((reason: unknown) => {
+        Logger.warn('[Tooltip] コマの詳細を読み込めませんでした', reason);
+        this.panels.failed = true;
         this.stopWaitingForPanel();
+        this.reloadNotice.tellReloadNeeded();
       });
   }
 

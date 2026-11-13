@@ -11,6 +11,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService, ObjectDeleteEvent } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
+import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -200,6 +201,30 @@ describe('TooltipDirective', () => {
     fixture.detectChanges();
 
     expect(panels()).toHaveLength(0);
+  });
+
+  it('asks the reader to reload once when the detail cannot be fetched, and does not ask for it again', async () => {
+    const source = TestBed.inject(TooltipPanelSource);
+    source.panel = null;
+    const load = vi.fn(() => Promise.reject(new Error('chunk gone')));
+    source.load = load;
+    const tellReloadNeeded = vi
+      .spyOn(TestBed.inject(ReloadNoticeService), 'tellReloadNeeded')
+      .mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await hover('first-piece');
+    await fixture.whenStable();
+    await unhover('first-piece');
+    await hover('first-piece');
+    await fixture.whenStable();
+
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(tellReloadNeeded).toHaveBeenCalledTimes(1);
+    expect(source.failed).toBe(true);
+    expect(panels()).toHaveLength(0);
+    warn.mockRestore();
+    tellReloadNeeded.mockRestore();
   });
 
   describe('a detail still on its way on a touch screen', () => {
