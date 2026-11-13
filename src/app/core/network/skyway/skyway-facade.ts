@@ -109,10 +109,10 @@ export class SkyWayFacade {
   leaveImmediately() {
     try {
       if (this.roomPerson?.state !== 'left') {
-        this.roomPerson?.leave().catch(() => {});
+        this.roomPerson?.leave().catch((reason) => AppLogger.debug('[SkyWay] 部屋を抜けられませんでした', reason));
       }
       if (this.lobbyPerson?.state !== 'left') {
-        this.lobbyPerson?.leave().catch(() => {});
+        this.lobbyPerson?.leave().catch((reason) => AppLogger.debug('[SkyWay] ロビーを抜けられませんでした', reason));
       }
     } catch {
       /* unload-time errors swallowed */

@@ -30,7 +30,7 @@ export function isBanned(reason: unknown): boolean {
 }
 
 /** The backend url without the slashes it may end in; empty when none is configured. */
-export function trimBaseUrl(url: string): string {
+function trimBaseUrl(url: string): string {
   return url.trim().replace(/\/+$/, '');
 }
 

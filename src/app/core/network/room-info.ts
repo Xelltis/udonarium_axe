@@ -33,8 +33,8 @@ export class RoomInfo implements IRoomInfo {
 
   /** The peers whose id matches the password, which are the ones that password lets you join. */
   async filterByPassword(password: string): Promise<PeerContext[]> {
-    const results = await Promise.all(this.peers.map((p) => p.verifyPassword(password).then((ok) => (ok ? p : null))));
-    return results.filter((p) => p !== null);
+    const verified = await Promise.all(this.peers.map((peer) => peer.verifyPassword(password)));
+    return this.peers.filter((_, index) => verified[index]);
   }
 
   /**

@@ -385,7 +385,7 @@ export class SkyWayConnection implements Connection {
             this.pendingRelayMapUpdates.delete(stream.peer.peerId);
           }
         })
-        .catch(() => {});
+        .catch((reason) => Logger.debug('[SkyWay] 中継表の更新に失敗しました', reason));
     }
     if (container.ttl > 0) {
       const pending = this.pendingRelayMapUpdates.get(stream.peer.peerId);
