@@ -4,7 +4,8 @@ import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { ASSET_RETRY_DELAY_MS, ASSET_RETRY_LIMIT } from '@axe/core/storage/asset-retries';
 import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
-import { CatalogItem, ImageStorage } from '@axe/core/storage/image-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
+import { CatalogItem } from '@axe/core/storage/shared-asset-storage';
 import type { MockInstance } from 'vitest';
 
 type ImageSharingSystemPrivate = {
@@ -187,7 +188,7 @@ describe('ImageSharingSystem', () => {
       receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }]);
 
       await vi.waitFor(() => expect(ImageStorage.instance.get(pictureId)?.state).toBe(ImageState.COMPLETE));
-      expect(download).toHaveBeenCalledWith(pictureId);
+      expect(download).toHaveBeenCalledWith(pictureId, { first: false });
       expect(requestsSent()).toEqual([]);
     });
 
@@ -358,7 +359,7 @@ describe('ImageSharingSystem', () => {
       ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: 'map.png' }]);
 
       await vi.waitFor(() => expect(ImageStorage.instance.get(pictureId)?.state).toBe(ImageState.COMPLETE));
-      expect(download).toHaveBeenCalledWith(pictureId);
+      expect(download).toHaveBeenCalledWith(pictureId, { first: false });
       expect(ImageStorage.instance.get(pictureId)?.name).toBe('map.png');
     });
 

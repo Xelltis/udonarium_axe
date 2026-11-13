@@ -27,6 +27,14 @@ export interface SharedAssetContext {
   url: string;
 }
 
+/**
+ * A context as it travels to a peer: the bytes as an array, which the packing carries where a Blob
+ * would not go, until the receiver wraps them up again.
+ */
+export type WireContext<C extends SharedAssetContext> = Omit<C, 'blob'> & {
+  blob: Uint8Array<ArrayBuffer> | Blob | null;
+};
+
 /** A file traded between peers and put up to the room's asset store, kept under the SHA-256 of its bytes. */
 export interface SharedAssetFile<C extends SharedAssetContext> {
   readonly identifier: string;
