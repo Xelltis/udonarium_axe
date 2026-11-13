@@ -837,28 +837,8 @@ export class ServerConnection implements Connection {
     this.accessTokenRenewal.stop();
     this.assetTokenRenewal.stop();
     this.idleWatch.stop();
-    // What was still gathering to go out goes with the link, but for the requests kept for later,
-    // those already on their way out ahead of the rest.
-    this.keepRequests(this.unwritten);
-    this.unwritten = [];
-    this.stopPacing();
-    this.keepRequests(this.outbound);
-    this.dropQueued();
-    // The server asked the seat back on another link. It comes straight back, and nobody is told it
-    // went: the welcome sets the members right.
-    if (askedBack && !this.stopped && this.refusal == null) {
-      if (wasWelcomed) {
-        this.comingBack = true;
-        this.connectSocket();
-        return;
-      }
-      // Asked back before its first welcome, as while the room changes hands, a seat coming in tries
-      // again after the usual wait. One that was coming back unseen is told of the drop below, as
-      // after any link that failed.
-      if (!this.everWelcomed && this.reconnectScheduler.schedule(SOCKET_KEY, () => this.connectSocket()) != null) {
-        return;
-      }
-    }
+    this.keepUnsent();
+    if (askedBack && this.tryComingBack(wasWelcomed)) return;
     const wasComingBack = this.comingBack;
     this.comingBack = false;
     if ((wasWelcomed || wasComingBack) && this.authority) {
@@ -867,7 +847,45 @@ export class ServerConnection implements Connection {
     }
     for (const peerId of [...this.members.keys()]) this.removeMember(peerId);
     if (this.stopped) return;
+    this.decideAfterDrop();
+  }
 
+  /**
+   * Lets what was still gathering to go out go with the link, but for the requests kept for later,
+   * those already on their way out ahead of the rest.
+   */
+  private keepUnsent(): void {
+    this.keepRequests(this.unwritten);
+    this.unwritten = [];
+    this.stopPacing();
+    this.keepRequests(this.outbound);
+    this.dropQueued();
+  }
+
+  /**
+   * Whether a seat the server asked back on another link is on its way back, so that nobody is told
+   * it went. One that was in the room comes straight back: the welcome sets the members right. Asked
+   * back before its first welcome, as while the room changes hands, a seat coming in tries again
+   * after the usual wait. One that was coming back unseen, one stopped and one refused are told of
+   * the drop instead, as after any link that failed.
+   */
+  private tryComingBack(wasWelcomed: boolean): boolean {
+    if (this.stopped || this.refusal != null) return false;
+    if (wasWelcomed) {
+      this.comingBack = true;
+      this.connectSocket();
+      return true;
+    }
+    return !this.everWelcomed && this.reconnectScheduler.schedule(SOCKET_KEY, () => this.connectSocket()) != null;
+  }
+
+  /**
+   * What follows a link that dropped, for a seat not stopped: it leaves for the page left alone,
+   * tries the login again for a token turned down, ends the session for a refusal it cannot try
+   * again after or for a server never reached, and otherwise tries the link again, ending the
+   * session where no try is left.
+   */
+  private decideAfterDrop(): void {
     const refusal = this.refusal;
     this.refusal = null;
     if (refusal === IDLE) {
