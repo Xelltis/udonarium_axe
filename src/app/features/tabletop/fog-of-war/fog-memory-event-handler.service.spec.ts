@@ -2,10 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { FogMemoryWriterService } from '@axe/features/tabletop/fog-of-war/fog-memory-writer.service';
+import { FogMemoryEventHandlerService } from '@axe/features/tabletop/fog-of-war/fog-memory-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
-describe('FogMemoryWriterService', () => {
+describe('FogMemoryEventHandlerService', () => {
   let service: { isScribe(): boolean };
   const others: PeerCursor[] = [];
 
@@ -24,7 +24,7 @@ describe('FogMemoryWriterService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
-    service = TestBed.inject(FogMemoryWriterService) as unknown as { isScribe(): boolean };
+    service = TestBed.inject(FogMemoryEventHandlerService) as unknown as { isScribe(): boolean };
   });
 
   afterEach(() => {

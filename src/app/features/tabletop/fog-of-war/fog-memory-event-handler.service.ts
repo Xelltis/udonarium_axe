@@ -25,7 +25,7 @@ const FLUSH_DELAY_MS = 1000;
  * handover loses nothing.
  */
 @Injectable({ providedIn: 'root' })
-export class FogMemoryWriterService {
+export class FogMemoryEventHandlerService {
   private readonly vision = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);

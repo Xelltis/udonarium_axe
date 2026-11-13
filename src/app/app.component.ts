@@ -89,7 +89,7 @@ import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-
 import { RoomRestoreBannerComponent } from '@axe/features/room-archive/room-restore-banner/room-restore-banner.component';
 import { StreamingOverlayComponent } from '@axe/features/streaming-overlay/streaming-overlay.component';
 import { SwitchNoticeComponent } from '@axe/features/tabletop/board-switch/switch-notice.component';
-import { FogMemoryWriterService } from '@axe/features/tabletop/fog-of-war/fog-memory-writer.service';
+import { FogMemoryEventHandlerService } from '@axe/features/tabletop/fog-of-war/fog-memory-event-handler.service';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { GroundBrushBandComponent } from '@axe/features/tabletop/ground-brush-band/ground-brush-band.component';
 import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
@@ -243,7 +243,7 @@ export class AppComponent {
     inject(AssetRemovalEventHandlerService);
     inject(MovePlanEventHandlerService);
     inject(CcfoliaRoomImportEventHandlerService);
-    inject(FogMemoryWriterService);
+    inject(FogMemoryEventHandlerService);
     inject(CutInService);
     inject(AudioAnalysisService);
     inject(SpeechBubbleService);
