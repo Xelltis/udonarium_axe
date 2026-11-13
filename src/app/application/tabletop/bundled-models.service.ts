@@ -1,4 +1,4 @@
-import { inject, Injectable, OnDestroy } from '@angular/core';
+import { DestroyRef, inject, Injectable } from '@angular/core';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { bundledModelName, bundledPieceModelUrl } from '@axe/core/storage/bundled-models';
 import { calcSHA256Async } from '@axe/core/storage/file-reader-util';
@@ -14,7 +14,7 @@ export const BUNDLED_MODEL_RETRY_MS = 30_000;
  * a peer, and a room that never draws one never reads it.
  */
 @Injectable({ providedIn: 'root' })
-export class BundledModelsService implements OnDestroy {
+export class BundledModelsService {
   private readonly modelStorage = inject(ModelStorage);
   /** The models that could not be read, each with when it is asked for again. */
   private readonly retries = new Map<string, ReturnType<typeof setTimeout>>();
@@ -22,6 +22,13 @@ export class BundledModelsService implements OnDestroy {
   private readonly askedAt = new Map<string, number>();
   private readonly reading = new Set<string>();
   private readonly settled: (() => void)[] = [];
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      for (const retry of this.retries.values()) clearTimeout(retry);
+      this.retries.clear();
+    });
+  }
 
   /**
    * Whether a model is bundled, not held here yet and still to come: not asked for yet, or being read
@@ -75,12 +82,6 @@ export class BundledModelsService implements OnDestroy {
         for (const listener of this.settled) listener();
       }
     })();
-  }
-
-  /** Stops asking again for the models that could not be read, as the page lets the table go. */
-  ngOnDestroy(): void {
-    for (const retry of this.retries.values()) clearTimeout(retry);
-    this.retries.clear();
   }
 
   private askAgainLater(identifier: string): void {
