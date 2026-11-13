@@ -97,6 +97,19 @@ class SmallStage implements EffectStage {
     return [new Mesh(column, body), new Mesh(ring, foot)];
   }
 
+  /**
+   * Readies the graphics card to draw the stage's own board and stand-ins, so the frame that first
+   * shows an effect does not stop to build what drawing them asks for. A card that would not build
+   * them ahead builds them on that frame instead.
+   */
+  async ready(): Promise<void> {
+    try {
+      await this.renderer.compileAsync(this.scene, this.camera);
+    } catch {
+      // Built on the first frame instead.
+    }
+  }
+
   show(frame: EffectFrame): void {
     this.effects.set(frame);
     this.lamps.forEach((lamp, index) => {
@@ -158,6 +171,15 @@ class OverPage implements EffectOverlay {
     this.scene.add(this.effects.group);
   }
 
+  /** Readies the graphics card to draw the canvas, so the frame that first shows an effect does not stop to. */
+  async ready(): Promise<void> {
+    try {
+      await this.renderer.compileAsync(this.scene, this.camera);
+    } catch {
+      // Built on the first frame instead.
+    }
+  }
+
   show(frame: EffectFrame, view: EffectOverlayView): void {
     this.fit(view);
     this.effects.set(frame);
@@ -204,7 +226,9 @@ export async function createEffectOverlay(canvas: HTMLCanvasElement): Promise<Ef
     const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: true });
     await renderer.init();
     renderer.setClearColor(0x000000, 0);
-    return new OverPage(renderer);
+    const overlay = new OverPage(renderer);
+    await overlay.ready();
+    return overlay;
   } catch {
     return null;
   }
@@ -219,7 +243,9 @@ export async function createEffectStage(
     const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: false });
     await renderer.init();
     renderer.setClearColor(0x0b0d11, 1);
-    return new SmallStage(renderer, canvas, options);
+    const stage = new SmallStage(renderer, canvas, options);
+    await stage.ready();
+    return stage;
   } catch {
     return null;
   }
