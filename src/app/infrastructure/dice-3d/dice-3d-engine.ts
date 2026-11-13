@@ -23,6 +23,7 @@ import {
   FacePicture,
   lookFor,
 } from '@axe/infrastructure/dice-3d/dice-textures';
+import { placeFrameCamera } from '@axe/infrastructure/dice-3d/frame-camera';
 import { type BakedLight, bakeLight } from '@axe/infrastructure/three-kit/baked-light';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { letGoOfWebglRenderer, webglRendererOn } from '@axe/infrastructure/three-kit/webgl-renderer';
@@ -49,7 +50,6 @@ import {
   SRGBColorSpace,
   Texture,
   Vector2,
-  Vector3,
   type WebGLRenderer,
 } from 'three';
 
@@ -154,11 +154,6 @@ const ENGRAVINGS: readonly (readonly [DieShape, DieLabels])[] = [
   ['d6', 'd3'],
 ];
 const SHADOW_MAP_PX = 1024;
-/** How the frame's camera looks at the tray: its field of view, and how high above the floor it stands. */
-const FRAME_FOV = 18;
-const FRAME_ELEVATION = (72 * Math.PI) / 180;
-/** How high the tallest die stands as it rests, so one against the far wall keeps its top in the frame. */
-const TALLEST_DIE = 2;
 /**
  * How far past the tray shadows are cast: a little in a frame, whose edges are the tray's walls, and
  * further on the table, where a die flying in from outside the tray throws its shadow on the board.
@@ -191,6 +186,10 @@ export class Dice3dEngine {
   private readonly tableCamera = new PerspectiveCamera();
   private readonly light = new DirectionalLight(0xffffff, 2.4);
   private readonly shadowCatcher: Mesh;
+  /** The size of the renderer's canvas, read into the same vector each time. */
+  private readonly drawnSize = new Vector2();
+  /** The tray and the view the light's shadow was last laid out for, so it is laid out again only for another. */
+  private shadowLaidFor: { halfWidth: number; halfDepth: number; inFrame: boolean } | null = null;
   /** The studio the dice mirror, baked into the light of the scene. */
   private readonly studio: BakedLight;
   private readonly geometries = new Map<DieShape, BufferGeometry>();
@@ -444,11 +443,11 @@ export class Dice3dEngine {
     const width = Math.max(1, Math.round(size.width));
     const height = Math.max(1, Math.round(size.height));
     if (this.renderer.getPixelRatio() !== size.pixelRatio) this.renderer.setPixelRatio(size.pixelRatio);
-    const current = this.renderer.getSize(new Vector2());
+    const current = this.renderer.getSize(this.drawnSize);
     if (current.x < width || current.y < height) {
       this.renderer.setSize(Math.max(current.x, width), Math.max(current.y, height), false);
     }
-    const canvasHeight = this.renderer.getSize(new Vector2()).y;
+    const canvasHeight = this.renderer.getSize(this.drawnSize).y;
     // WebGL counts up from the foot of the canvas, so the top left corner is the canvas's height
     // less the picture's above its foot.
     this.renderer.setViewport(0, canvasHeight - height, width, height);
@@ -458,6 +457,29 @@ export class Dice3dEngine {
 
   private layOut(tray: Tray, view: ThrowView, aspect: number) {
     const inFrame = view.kind === 'frame';
+    const laid = this.shadowLaidFor;
+    if (!laid || laid.halfWidth !== tray.halfWidth || laid.halfDepth !== tray.halfDepth || laid.inFrame !== inFrame) {
+      this.layOutShadow(tray, inFrame);
+      this.shadowLaidFor = { halfWidth: tray.halfWidth, halfDepth: tray.halfDepth, inFrame };
+    }
+
+    if (view.kind === 'table') {
+      // The eye stands where the table is seen from, so the light shines off the dice toward it;
+      // the projection is the page's own, taken from there.
+      const camera = this.tableCamera;
+      const [ex, ey, ez] = view.eye ?? [0, 0, 0];
+      camera.matrixWorld.makeTranslation(ex, ey, ez);
+      camera.matrixWorldInverse.makeTranslation(-ex, -ey, -ez);
+      camera.projectionMatrix.fromArray(Array.from(view.projection)).multiply(camera.matrixWorld);
+      camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+      return camera;
+    }
+    placeFrameCamera(this.frameCamera, tray, aspect);
+    return this.frameCamera;
+  }
+
+  /** Lays the floor that takes the shadows and the light that casts them out for a tray, seen in a frame or on the table. */
+  private layOutShadow(tray: Tray, inFrame: boolean): void {
     (this.shadowCatcher.material as ShadowMaterial).opacity = inFrame ? FRAME_SHADOW_OPACITY : TABLE_SHADOW_OPACITY;
     if (inFrame) {
       this.shadowCatcher.scale.set(FRAME_FLOOR_REACH * 2, FRAME_FLOOR_REACH * 2, 1);
@@ -484,20 +506,6 @@ export class Dice3dEngine {
     shadow.far = span * 6;
     shadow.updateProjectionMatrix();
     this.light.shadow.radius = (PENUMBRA * SHADOW_MAP_PX) / (shadow.right - shadow.left);
-
-    if (view.kind === 'table') {
-      // The eye stands where the table is seen from, so the light shines off the dice toward it;
-      // the projection is the page's own, taken from there.
-      const camera = this.tableCamera;
-      const [ex, ey, ez] = view.eye ?? [0, 0, 0];
-      camera.matrixWorld.makeTranslation(ex, ey, ez);
-      camera.matrixWorldInverse.makeTranslation(-ex, -ey, -ez);
-      camera.projectionMatrix.fromArray(Array.from(view.projection)).multiply(camera.matrixWorld);
-      camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
-      return camera;
-    }
-    fitFrameCamera(this.frameCamera, tray, aspect);
-    return this.frameCamera;
   }
 
   private geometryOf(shape: DieShape): BufferGeometry {
@@ -696,41 +704,6 @@ const STILL_D6: DiceThrowResult = {
   attempt: 0,
   fault: null,
 };
-
-/**
- * Sets the frame's camera high above the tray and a little in front of it, looking down at it, as
- * far back as it needs to be for the whole floor and the dice resting against its walls to fit the frame.
- * The tray is the frame's own shape, so its walls stand about at the frame's edges.
- */
-function fitFrameCamera(camera: PerspectiveCamera, tray: Tray, aspect: number): void {
-  camera.aspect = aspect;
-  camera.fov = FRAME_FOV;
-  const direction = new Vector3(0, -Math.cos(FRAME_ELEVATION), Math.sin(FRAME_ELEVATION));
-  const corners = [-1, 1].flatMap((sx) =>
-    [-1, 1].flatMap((sy) => [0, TALLEST_DIE].map((z) => new Vector3(sx * tray.halfWidth, sy * tray.halfDepth, z)))
-  );
-  let near = 1;
-  let far = 400;
-  for (let i = 0; i < 40; i++) {
-    const distance = (near + far) / 2;
-    camera.position.copy(direction).multiplyScalar(distance);
-    camera.lookAt(0, 0, 0);
-    camera.updateMatrixWorld();
-    camera.updateProjectionMatrix();
-    const fits = corners.every((corner) => {
-      const p = corner.clone().project(camera);
-      return Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1;
-    });
-    if (fits) far = distance;
-    else near = distance;
-  }
-  camera.position.copy(direction).multiplyScalar(far);
-  camera.lookAt(0, 0, 0);
-  camera.near = Math.max(0.5, far * 0.2);
-  camera.far = far * 3;
-  camera.updateMatrixWorld();
-  camera.updateProjectionMatrix();
-}
 
 /**
  * Has work done at a quiet moment of the page, or soon where the page has none to offer, and answers
