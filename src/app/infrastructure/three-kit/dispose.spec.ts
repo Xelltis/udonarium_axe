@@ -1,5 +1,5 @@
-import { forgetDrawn, letGoOfRenderer } from '@axe/infrastructure/three-kit/dispose';
-import { BoxGeometry, Group, Material, Mesh, MeshBasicMaterial } from 'three';
+import { disposeObject, forgetDrawn, letGoOfRenderer } from '@axe/infrastructure/three-kit/dispose';
+import { Bone, BoxGeometry, Group, Material, Mesh, MeshBasicMaterial, Skeleton, SkinnedMesh } from 'three';
 
 describe('forgetDrawn', () => {
   it('tells the renderer every mesh under an object is disposed of, leaving the geometry and material they share', () => {
@@ -25,6 +25,28 @@ describe('forgetDrawn', () => {
     expect(told.map((listener) => listener.mock.calls.length)).toEqual([1, 1]);
     expect(geometryDisposed).not.toHaveBeenCalled();
     expect(materialDisposed).not.toHaveBeenCalled();
+  });
+});
+
+describe('disposeObject', () => {
+  it('gives back the texture a skinned mesh sends its bones in, with its geometry and material', () => {
+    const skeleton = new Skeleton([new Bone(), new Bone()]);
+    skeleton.computeBoneTexture();
+    const bones = vi.spyOn(skeleton.boneTexture!, 'dispose');
+    const geometry = new BoxGeometry();
+    const material = new MeshBasicMaterial();
+    const shape = vi.spyOn(geometry, 'dispose');
+    const look = vi.spyOn(material, 'dispose');
+    const skinned = new SkinnedMesh(geometry, material);
+    skinned.bind(skeleton);
+    const root = new Group();
+    root.add(skinned);
+
+    disposeObject(root);
+
+    expect(bones).toHaveBeenCalledTimes(1);
+    expect(shape).toHaveBeenCalledTimes(1);
+    expect(look).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -13,11 +13,19 @@ export function forgetDrawn(root: Object3D): void {
   );
 }
 
-/** Gives back what an object and everything under it hold on the graphics card: geometry, materials and their textures. */
+/**
+ * Gives back what an object and everything under it hold on the graphics card: geometry, materials
+ * and their textures, and the texture a skinned mesh's skeleton sends its bones in.
+ */
 export function disposeObject(root: Object3D): void {
   root.traverse((object) => {
-    const mesh = object as Object3D & { geometry?: { dispose(): void }; material?: Material | Material[] };
+    const mesh = object as Object3D & {
+      geometry?: { dispose(): void };
+      material?: Material | Material[];
+      skeleton?: { dispose(): void };
+    };
     mesh.geometry?.dispose();
+    mesh.skeleton?.dispose();
     const materials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
     for (const material of materials) {
       for (const value of Object.values(material)) {
