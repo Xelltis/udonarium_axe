@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   detectInitialLang,
   isSupportedLang,
@@ -20,7 +21,7 @@ export class LanguageService {
   readonly availableLangs = computed(() => [...SUPPORTED_LANGS]);
 
   constructor() {
-    this.transloco.langChanges$.subscribe((lang) => {
+    this.transloco.langChanges$.pipe(takeUntilDestroyed()).subscribe((lang) => {
       if (!isSupportedLang(lang)) return;
       this._currentLang.set(lang);
       this.document.documentElement.lang = lang;

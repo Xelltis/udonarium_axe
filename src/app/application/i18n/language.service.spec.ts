@@ -1,7 +1,9 @@
 import { DOCUMENT } from '@angular/common';
+import { createEnvironmentInjector, EnvironmentInjector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
+import { TranslocoService } from '@jsverse/transloco';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 describe('LanguageService', () => {
@@ -62,6 +64,23 @@ describe('LanguageService', () => {
   it('serves Korean to a Korean browser', async () => {
     await service.setLang('ko');
 
+    expect(service.currentLang()).toBe('ko');
+    expect(html.lang).toBe('ko');
+  });
+
+  it('stops marking the document once it is destroyed', async () => {
+    localStorage.setItem(STORAGE_KEYS.language, 'ja');
+    await service.initialize();
+    const transloco = TestBed.inject(TranslocoService);
+    const own = createEnvironmentInjector([LanguageService], TestBed.inject(EnvironmentInjector));
+    const destroyed = own.get(LanguageService);
+    await destroyed.setLang('en');
+    expect(destroyed.currentLang()).toBe('en');
+
+    own.destroy();
+    transloco.setActiveLang('ko');
+
+    expect(destroyed.currentLang()).toBe('en');
     expect(service.currentLang()).toBe('ko');
     expect(html.lang).toBe('ko');
   });
