@@ -95,7 +95,6 @@ import {
   hasEffectPaintLayer,
 } from '@axe/features/effect/effect-sprite-style';
 import type { EffectOverlay, EffectOverlayView } from '@axe/infrastructure/table-3d/table-3d-port';
-import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { Z_BATTLE_CUT_IN } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -146,7 +145,6 @@ export interface SpriteFrame {
   style: Record<string, string>;
   /** The inner layer that carries the look and the animation, where the sprite has one. */
   paint: Record<string, string> | null;
-  svg: string;
 }
 
 /**
@@ -266,7 +264,7 @@ export interface PlateFrame {
   selector: 'battle-cut-in-overlay',
   templateUrl: './battle-cut-in-overlay.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgStyle, NgTemplateOutlet, SafePipe, TranslocoModule],
+  imports: [NgStyle, NgTemplateOutlet, TranslocoModule],
   host: { class: 'contents', '(document:keydown.escape)': 'pressEscape()', '(window:resize)': 'measureScreen()' },
 })
 export class BattleCutInOverlayComponent {
@@ -619,7 +617,6 @@ export class BattleCutInOverlayComponent {
         key: `${layer.prefix}-${sprite.key}`,
         style: effectSpriteStyle(sprite, layer.viewpoint),
         paint: hasEffectPaintLayer(sprite) ? effectPaintStyle(sprite) : null,
-        svg: sprite.svg,
       }));
     })
   );

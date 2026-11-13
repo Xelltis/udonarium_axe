@@ -22,7 +22,7 @@ export interface EffectViewpoint {
 
 /** Whether a sprite has an inner layer to carry its look and its animation. */
 export function hasEffectPaintLayer(sprite: EffectSprite): boolean {
-  return sprite.animation.length > 0 || sprite.svg.length > 0;
+  return sprite.animation.length > 0;
 }
 
 /** The outer layer of a sprite, which only places it in space and fades it out. */
@@ -78,19 +78,6 @@ function effectPaint(sprite: EffectSprite): Record<string, string> {
   if (sprite.background.length > 0) style['background'] = sprite.background;
   if (sprite.borderRadius.length > 0) style['border-radius'] = sprite.borderRadius;
   if (sprite.clipPath.length > 0) style['clip-path'] = sprite.clipPath;
-  if (sprite.shadow.length > 0) {
-    // A drawing does not always fill its element, so a box shadow lights the box rather than
-    // the picture and shows a square edge. A drop shadow follows the outline instead.
-    if (sprite.svg.length > 0) style['filter'] = dropShadowOf(sprite.shadow);
-    else style['box-shadow'] = sprite.shadow;
-  }
+  if (sprite.shadow.length > 0) style['box-shadow'] = sprite.shadow;
   return style;
-}
-
-/** Reads a box shadow as a drop shadow of the same spread. */
-function dropShadowOf(shadow: string): string {
-  return shadow
-    .split(', ')
-    .map((layer) => `drop-shadow(${layer})`)
-    .join(' ');
 }

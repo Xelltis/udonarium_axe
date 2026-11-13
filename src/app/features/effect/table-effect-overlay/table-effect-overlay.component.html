@@ -1,7 +1,7 @@
 @for (placed of standingOnScreen(); track placed.sprite.key) {
   <div data-effect-sprite [ngStyle]="placed.style">
     @if (hasPaintLayer(placed.sprite)) {
-      <div class="size-full" [ngStyle]="paintStyle(placed.sprite)" [innerHTML]="placed.sprite.svg | safe: 'html'"></div>
+      <div class="size-full" [ngStyle]="paintStyle(placed.sprite)"></div>
     }
   </div>
 }

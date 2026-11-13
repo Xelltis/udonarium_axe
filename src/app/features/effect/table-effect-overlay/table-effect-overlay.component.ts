@@ -24,7 +24,6 @@ import {
   EffectViewpoint,
   hasEffectPaintLayer,
 } from '@axe/features/effect/effect-sprite-style';
-import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
 export interface EffectEye {
   rotation: ViewRotation;
@@ -48,7 +47,7 @@ type Renderable = Pick<EffectFieldRenderable, 'key' | 'preset' | 'cast' | 'elaps
   templateUrl: './table-effect-overlay.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents' },
-  imports: [NgStyle, SafePipe],
+  imports: [NgStyle],
 })
 export class TableEffectOverlayComponent {
   private readonly playback = inject(EffectPlaybackService);

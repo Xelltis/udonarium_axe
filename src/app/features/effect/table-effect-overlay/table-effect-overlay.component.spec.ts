@@ -247,34 +247,4 @@ describe('TableEffectOverlayComponent', () => {
 
     expect(standing().length).toBeGreaterThan(0);
   });
-
-  it('glows along the outline of a drawing rather than round its box', () => {
-    const sprite = {
-      key: 'shot',
-      x: 0,
-      y: 0,
-      z: 0,
-      offsetX: 0,
-      offsetY: 0,
-      width: 60,
-      height: 20,
-      rotate: 0,
-      opacity: 1,
-      background: '',
-      borderRadius: '',
-      clipPath: '',
-      shadow: '0 0 12px #ffffff, 0 0 30px #ff6a2b',
-      animation: '',
-      origin: '',
-      svg: '<svg viewBox="0 0 100 100"></svg>',
-      flat: false,
-    };
-
-    const painted = fixture.componentInstance['paintStyle'](sprite);
-
-    // A box shadow follows the element, so a drawing that does not fill its box shows a square edge.
-    expect(painted['box-shadow']).toBeUndefined();
-    expect(painted['filter']).toBe('drop-shadow(0 0 12px #ffffff) drop-shadow(0 0 30px #ff6a2b)');
-    expect(fixture.componentInstance['paintStyle']({ ...sprite, svg: '' })['box-shadow']).toBe(sprite.shadow);
-  });
 });

@@ -33,8 +33,6 @@ export interface EffectSprite {
   animation: string;
   /** What the animated layer turns about. Empty for its centre. */
   origin: string;
-  /** Anything but empty is drawn as a drawing, and must not change with the elapsed time. */
-  svg: string;
   /** True to lay it flat on the board, false to face it at the camera. */
   flat: boolean;
 }
@@ -113,7 +111,6 @@ export function blank(): EffectSprite {
     shadow: '',
     animation: '',
     origin: '',
-    svg: '',
     flat: false,
   };
 }
