@@ -96,6 +96,8 @@ import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/
 import { InterruptPromptComponent } from '@axe/features/tabletop/interrupt-prompt/interrupt-prompt.component';
 import { MovePlanBandComponent } from '@axe/features/tabletop/move-plan-band/move-plan-band.component';
 import { MovePlanEventHandlerService } from '@axe/features/tabletop/table-move-range-overlay/move-plan-event-handler.service';
+import { TargetBandComponent } from '@axe/features/tabletop/target-band/target-band.component';
+import { TargetReleaseEventHandlerService } from '@axe/features/tabletop/target-release/target-release-event-handler.service';
 import { TurnFocusEventHandlerService } from '@axe/features/tabletop/turn-focus/turn-focus-event-handler.service';
 import { VisualNovelEventHandlerService } from '@axe/features/visual-novel/visual-novel-event-handler.service';
 import { VisualNovelOverlayComponent } from '@axe/features/visual-novel/visual-novel-overlay/visual-novel-overlay.component';
@@ -145,6 +147,7 @@ import { version as APP_VERSION } from '@pkg';
     SwitchNoticeComponent,
     GroundBrushBandComponent,
     MovePlanBandComponent,
+    TargetBandComponent,
     InterruptPromptComponent,
     SnackbarComponent,
     ChatTickerComponent,
@@ -222,6 +225,7 @@ export class AppComponent {
     inject(ChatSoundEventHandlerService);
     inject(TurnSoundEventHandlerService);
     inject(TurnFocusEventHandlerService);
+    inject(TargetReleaseEventHandlerService);
     inject(EffectChatEventHandlerService);
     inject(BattleCutInEventHandlerService);
     inject(BattleChatEventHandlerService);

@@ -1,0 +1,26 @@
+<!--
+  A step above the band a move is worked out on, which sits at bottom-28 with the hints the table
+  gives while a piece is held, so an aim kept through a move is read beside it rather than under it.
+-->
+@if (count() > 0) {
+  <div
+    class="bg-ui-panel shadow-ui-md text-ui-text pointer-events-none fixed bottom-40 left-1/2 flex max-w-[92vw] -translate-x-1/2 items-center gap-2 rounded-full py-1.5 pr-1.5 pl-4 text-sm opacity-95"
+    data-testid="target-band"
+    [style.zIndex]="zIndex"
+  >
+    <i class="material-icons text-ui-accent text-[16px]!" aria-hidden="true">my_location</i>
+    <span class="whitespace-nowrap tabular-nums" data-testid="target-band-count">
+      {{ 'feature.tabletop.targetBand.count' | transloco: { count: count() } }}
+    </span>
+    <button
+      type="button"
+      class="border-ui-border-panel text-ui-muted hover:bg-ui-accent-solid pointer-events-auto inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-1 rounded-full border border-solid bg-transparent px-3 text-[0.86em] whitespace-nowrap transition-[background,color] hover:text-white [&_.material-icons]:text-[16px]!"
+      [attr.title]="'feature.tabletop.targetBand.clearHint' | transloco"
+      data-testid="target-band-clear"
+      (click)="clear($event)"
+    >
+      <i class="material-icons" aria-hidden="true">close</i>
+      {{ 'feature.tabletop.targetBand.clear' | transloco }}
+    </button>
+  </div>
+}
