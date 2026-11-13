@@ -722,51 +722,27 @@ export class Table3dService {
   /** Tells the engine the scene and the camera whenever either changes. */
   private follow(engine: Table3dEngine): EffectRef[] {
     let size = '';
+    const { injector } = this;
+    // One effect for each thing the engine is told, drawn again once it is told.
+    const told = (tell: () => void): EffectRef =>
+      effect(
+        () => {
+          tell();
+          this.drawSoon(engine);
+        },
+        { injector }
+      );
     return [
-      effect(
-        () => {
-          const world = this.world();
-          engine.setWorld(world);
-          this.laidWorld = world;
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
-      effect(
-        () => {
-          engine.setGrid(this.eyes.scene() ? null : this.grid());
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
-      effect(
-        () => {
-          engine.setFloorCanvases(this.floorCanvases.all());
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
-      effect(
-        () => {
-          engine.setVeil(this.tableVeil.veil());
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
-      effect(
-        () => {
-          engine.setLightMap(this.tableVeil.lightMap());
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
-      effect(
-        () => {
-          engine.setQuality(this.quality.plan());
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
+      told(() => {
+        const world = this.world();
+        engine.setWorld(world);
+        this.laidWorld = world;
+      }),
+      told(() => engine.setGrid(this.eyes.scene() ? null : this.grid())),
+      told(() => engine.setFloorCanvases(this.floorCanvases.all())),
+      told(() => engine.setVeil(this.tableVeil.veil())),
+      told(() => engine.setLightMap(this.tableVeil.lightMap())),
+      told(() => engine.setQuality(this.quality.plan())),
       effect(
         (onCleanup) => {
           const lights = this.lightSlots.lights();
@@ -779,43 +755,21 @@ export class Table3dService {
           }, FLICKER_INTERVAL_MS);
           onCleanup(() => clearInterval(timer));
         },
-        { injector: this.injector }
+        { injector }
       ),
       effect(
         () => {
           for (const identifier of this.pieces.missingModels()) this.bundledModels.read(identifier);
         },
-        { injector: this.injector }
+        { injector }
       ),
-      effect(
-        () => {
-          this.flickerClock.held();
-          engine.flicker(untracked(() => this.flickerClock.now()));
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
-      effect(
-        () => {
-          engine.setGlow(this.tableVeil.glow());
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
-      effect(
-        () => {
-          engine.setEffectLights(this.effectLights.lights());
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
-      effect(
-        () => {
-          engine.setEffects(this.effectFrames.frame());
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
+      told(() => {
+        this.flickerClock.held();
+        engine.flicker(untracked(() => this.flickerClock.now()));
+      }),
+      told(() => engine.setGlow(this.tableVeil.glow())),
+      told(() => engine.setEffectLights(this.effectLights.lights())),
+      told(() => engine.setEffects(this.effectFrames.frame())),
       effect(
         () => {
           // Read only while an effect is drawn, as the heights are read over the whole board, which
@@ -824,36 +778,12 @@ export class Table3dService {
           if (!this.drawingEffects()) return;
           engine.setEffectGround(this.effectGround());
         },
-        { injector: this.injector }
+        { injector }
       ),
-      effect(
-        () => {
-          engine.setFogAir(this.tableVeil.fogAir(), this.motion.enabled());
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
-      effect(
-        () => {
-          engine.setWeather(this.weatherFall());
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
-      effect(
-        () => {
-          engine.setSkyLight(this.skyLight());
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
-      effect(
-        () => {
-          engine.setSky(this.sky());
-          this.drawSoon(engine);
-        },
-        { injector: this.injector }
-      ),
+      told(() => engine.setFogAir(this.tableVeil.fogAir(), this.motion.enabled())),
+      told(() => engine.setWeather(this.weatherFall())),
+      told(() => engine.setSkyLight(this.skyLight())),
+      told(() => engine.setSky(this.sky())),
       effect(
         () => {
           this.camera.version();
@@ -868,7 +798,7 @@ export class Table3dService {
           engine.setCamera(camera);
           this.drawSoon(engine);
         },
-        { injector: this.injector }
+        { injector }
       ),
     ];
   }
