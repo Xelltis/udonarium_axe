@@ -1,11 +1,14 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
   renderDiamond,
+  renderHexagon,
   renderLine,
+  renderPentagon,
   renderSquare,
   renderTriangle,
 } from '@axe/infrastructure/tabletop/range/range-render-polygon';
 import { RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
+import { clipAreaPoints } from '@axe/infrastructure/tabletop/range/range-render-util';
 import { contextThatRecords, RecordedCall } from '@axe/testing/fake-canvas-context';
 
 function createCanvasMock() {
@@ -149,6 +152,38 @@ describe('range-render-polygon', () => {
     expect(argsOf(grid.calls, 'moveTo')).toContainEqual([60, 50]);
   });
 
+  it('draws a pentagon and a hexagon with as many corners, their clips grown by a fifth', () => {
+    for (const [render, corners] of [
+      [renderPentagon, 5],
+      [renderHexagon, 6],
+    ] as const) {
+      const grid = createCanvasMock();
+      const outline = createCanvasMock();
+
+      const clip = render(grid.canvas, outline.canvas, makeSetting({ range: 2 }));
+
+      expect(clipAreaPoints(clip)).toHaveLength(corners);
+      expect(clipAreaPoints(clip)[0]).toEqual({ x: expect.closeTo(0, 6), y: -24 });
+      expect(argsOf(outline.calls, 'lineTo')).toHaveLength(corners - 1);
+      expect(argsOf(outline.calls, 'moveTo')).toEqual([[expect.closeTo(50, 6), 30]]);
+    }
+  });
+
+  it('marks the origin of a line with a dot even while it follows a character, and clips a cell beyond the band', () => {
+    const outline = createCanvasMock();
+
+    const clip = renderLine(createCanvasMock().canvas, outline.canvas, makeSetting({ range: 3, isDocking: true }));
+
+    expect(argsOf(outline.calls, 'arc')).toEqual([[50, 50, 5, 0, 2 * Math.PI, true]]);
+    expect(argsOf(outline.calls, 'strokeRect')).toEqual([]);
+    expect(clipAreaPoints(clip)).toEqual([
+      { x: -10, y: 15 },
+      { x: -10, y: -15 },
+      { x: 40, y: -15 },
+      { x: 40, y: 15 },
+    ]);
+  });
+
   describe('on a canvas taller than it is wide', () => {
     const tall = { areaWidth: 10, areaHeight: 20 };
 
@@ -181,8 +216,8 @@ describe('range-render-polygon', () => {
         [40, 90],
         [60, 90],
         [60, 110],
-        [40, 110],
       ]);
+      expect(argsOf(outline.calls, 'closePath')).toHaveLength(1);
     });
   });
 });

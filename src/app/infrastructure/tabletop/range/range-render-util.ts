@@ -21,13 +21,47 @@ import {
   StrokeGridFunc,
 } from '@axe/infrastructure/tabletop/range/range-render-types';
 
-type ClipArea = ClipAreaLine | ClipAreaSquare | ClipAreaTriangle | ClipAreaPentagon | ClipAreaHexagon | ClipAreaCorn;
+/** Any of the clip areas a range is cut down to. */
+export type ClipArea =
+  ClipAreaLine | ClipAreaSquare | ClipAreaTriangle | ClipAreaPentagon | ClipAreaHexagon | ClipAreaCorn;
 
 /** Turns the numbered clip fields into a css polygon, stopping at the first gap. Three points to nine. */
 export function clipAreaToPolygonCss(clip: ClipArea): string {
   return `polygon(${clipAreaPoints(clip)
     .map(({ x, y }) => `${x}px ${y}px`)
     .join(', ')})`;
+}
+
+/**
+ * A clip area from its corners in order, as the numbered fields the clip interfaces carry: the first
+ * corner is `clip01x` and `clip01y`, and so on. The interfaces carry no index signature, so the clip
+ * is built as a record and read as the one asked for.
+ */
+export function clipAreaOf<T extends ClipArea>(corners: readonly { x: number; y: number }[]): T {
+  const clip: Record<string, number> = {};
+  for (const [at, corner] of corners.entries()) {
+    const key = `clip${String(at + 1).padStart(2, '0')}`;
+    clip[`${key}x`] = corner.x;
+    clip[`${key}y`] = corner.y;
+  }
+  return clip as unknown as T;
+}
+
+/** A point turned clockwise about the origin by so many degrees. */
+export function rotatePoint(point: { x: number; y: number }, degree: number): { x: number; y: number } {
+  const rad = (Math.PI / 180) * degree;
+  const cosRad = Math.cos(rad);
+  const sinRad = Math.sin(rad);
+  return {
+    x: point.x * cosRad - point.y * sinRad,
+    y: point.x * sinRad + point.y * cosRad,
+  };
+}
+
+/** Points turned clockwise about the origin by so many degrees; the same points when not turned at all. */
+export function rotatePoints(points: { x: number; y: number }[], degree: number): { x: number; y: number }[] {
+  if (degree === 0) return points;
+  return points.map((point) => rotatePoint(point, degree));
 }
 
 /** The corners of a clip area, in order, in pixels from the origin of the range. */
