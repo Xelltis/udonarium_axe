@@ -195,7 +195,7 @@ export async function recordVideo(request: VideoEncodeRequest): Promise<EncodedV
       const index = Math.max(0, Math.min(request.frameCount - 1, Math.floor(elapsed / msPerFrame)));
       if (index !== painted) {
         painted = index;
-        await request.paint(ctx as unknown as OffscreenCanvasRenderingContext2D, index);
+        await request.paint(ctx, index);
         request.onProgress?.(index + 1, request.frameCount);
       }
       await delay(Math.max(0, msPerFrame / 2));
