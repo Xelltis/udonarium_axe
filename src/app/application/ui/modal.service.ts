@@ -12,6 +12,16 @@ import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import type { PanelRotationDegrees } from '@axe/application/ui/panel.service';
 import { Logger } from '@axe/core/logging/logger';
 
+/**
+ * What a dialog's content tells the frame it stands in, read once the content is built.
+ *
+ * A content that names its title has it shown in the frame's bar, over whatever title the dialog
+ * was opened with: the content is the one that knows what it is, and what it was opened with.
+ */
+export interface ModalContent {
+  readonly modalTitle?: string;
+}
+
 class ModalContext {
   constructor(
     private _resolve: ((value: unknown) => void) | null,
@@ -146,7 +156,8 @@ export class ModalService {
 
       const frameRef = parent.createComponent(frameComponent, { index: parent.length, injector });
       panelComponentRef = frameRef;
-      frameRef.instance.content().createComponent(childComponent);
+      const content = frameRef.instance.content().createComponent(childComponent).instance as ModalContent;
+      if (typeof content.modalTitle === 'string') childModalService.title = content.modalTitle;
 
       panelComponentRef.onDestroy(() => {
         this.count--;

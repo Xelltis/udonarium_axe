@@ -5,8 +5,7 @@ import { ImageUploadPreferenceService } from '@axe/application/file/image-upload
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { ModalService } from '@axe/application/ui/modal.service';
-import { PanelService } from '@axe/application/ui/panel.service';
+import { ModalContent, ModalService } from '@axe/application/ui/modal.service';
 import { emitSelectFile } from '@axe/core/event/domain-events';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -24,8 +23,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
 })
-export class FileSelecterComponent {
-  private readonly panelService = inject(PanelService);
+export class FileSelecterComponent implements ModalContent {
   private readonly modalService = inject(ModalService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly editQueue = inject(ImageEditQueue);
@@ -36,6 +34,7 @@ export class FileSelecterComponent {
   private readonly t = inject(TRANSLATE_FN);
 
   isAllowedEmpty: boolean = false;
+  readonly modalTitle: string;
   /** The one account's avatar the picker may offer: the reader's own, as an icon is chosen; none else. */
   private ownAvatar: string | null = null;
 
@@ -163,7 +162,7 @@ export class FileSelecterComponent {
     const option = this.modalService.option as Record<string, unknown>;
     this.isAllowedEmpty = !!option?.isAllowedEmpty;
     this.ownAvatar = typeof option?.['ownAvatar'] === 'string' ? option['ownAvatar'] : null;
-    queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('ui.fileSelecter.panelTitle')));
+    this.modalTitle = this.t('ui.fileSelecter.panelTitle');
   }
 
   /**
