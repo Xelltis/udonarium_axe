@@ -43,7 +43,7 @@
 - `Ctrl + クリック`での選択トグルと一括操作（バッチ）メニュー
 - 選択した複数オブジェクトのグループドラッグ
 - 一括移動・複製など
-- **選んだコマへのキー** — `T`で選んだキャラクターだけをターゲットにし（`PieceTargetService.setOnly`）、`Shift+T`で全部外す。`G`は選んだキャラクター・カード・ダイス・共有メモのうち`DisclosureService.canEdit`が通るものの公開範囲を切り替える。1つでも全員以外があれば全員に、全部が全員ならGMのみに戻し、特定PLには行かない（`switchedDisclosureMode`）。判定は純関数`tabletopKeyDown`、受けは`features/keyboard/tabletop-shortcut-event-handler.service`。入力中・IME変換中・修飾キー併用・フォーカスがbody以外のとき、ノベルモード・モバイル・配信オーバーレイ・ダンジョンドリィマスターモード・リプレイの盤面再生のあいだは受けない。ターゲットは同期しない値なので、付くのは押した人の画面だけ
+- **選んだコマへのキー** — `T`で選んだキャラクターだけをターゲットにし（`PieceTargetService.setOnly`）、`Shift+T`で全部外す。`G`は選んだキャラクター・カード・ダイス・共有メモのうち`DisclosureService.canEdit`が通るものの公開範囲を切り替える。1つでも全員以外があれば全員に、全部が全員ならGMのみに戻し、特定PLには行かない（`switchedDisclosureMode`）。判定は純関数`tabletopKeyDown`、受けは`features/keyboard/tabletop-shortcut-event-handler.service`。入力中・IME変換中・修飾キー併用・フォーカスがbody以外のとき、ノベルモード・モバイル・配信オーバーレイ・ダンジョンドリィマスターモード・リプレイの盤面再生のあいだは受けない。ターゲットそのものの持ち方と外れ方は[行動順・ターゲット・バフ](turn-order.md#ターゲットと目標値)にある
 
 ## 回転の枠
 

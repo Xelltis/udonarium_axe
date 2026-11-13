@@ -165,6 +165,7 @@ npm run e2e        # Playwright E2E
 | [docs/features.md](docs/features.md)                         | Axeで追加・拡張した機能の一覧      |
 | [docs/features/multi-angle.md](docs/features/multi-angle.md) | 2D多方向閲覧と外周ティッカー       |
 | [docs/architecture.md](docs/architecture.md)                 | 7層アーキテクチャと設計思想        |
+| [docs/architecture/](docs/architecture/)                     | 同期・保存・権限・描画の仕組み     |
 | [docs/coding-guidelines.md](docs/coding-guidelines.md)       | コーディング規範・コードスタイル   |
 | [docs/contribution.md](docs/contribution.md)                 | コミット規約・lefthookフック       |
 
