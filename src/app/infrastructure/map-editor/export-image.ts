@@ -1,6 +1,5 @@
 import { imageStampIdentifier, isImageStampId } from '@axe/domain/map-editor/image-stamp';
 import {
-  FillStyle,
   ImageItem,
   ImageLayer,
   MapScene,
@@ -9,6 +8,7 @@ import {
   StampItem,
   StampLayer,
 } from '@axe/domain/map-editor/scene';
+import { forEachSceneFill } from '@axe/domain/map-editor/scene-fills';
 import { StampDef } from '@axe/domain/map-editor/stamp-types';
 import { imageTextureIdentifier, isImageTextureId, normalizeTextureId } from '@axe/domain/map-editor/textures';
 import { isTextureId, TEXTURE_ASSET_URLS } from '@axe/domain/media/texture-catalog';
@@ -43,45 +43,21 @@ function collectImageItems(scene: MapScene): ImageItem[] {
   return items;
 }
 
-function fillTextureIdentifier(fill: FillStyle | null | undefined, out: Set<string>): void {
-  if (fill && fill.type === 'texture' && isImageTextureId(fill.textureId)) {
-    out.add(imageTextureIdentifier(fill.textureId));
-  }
-}
-
 function collectImageTextureIdentifiers(scene: MapScene): string[] {
   const ids = new Set<string>();
-  for (const layer of scene.layers) {
-    if (layer.kind === 'cell') {
-      for (const fill of Object.values(layer.cells)) fillTextureIdentifier(fill, ids);
-    } else if (layer.kind === 'shape') {
-      for (const item of layer.items) {
-        fillTextureIdentifier(item.fill, ids);
-        fillTextureIdentifier(item.stroke?.fill, ids);
-      }
-    }
-  }
+  forEachSceneFill(scene, (fill) => {
+    if (fill.type === 'texture' && isImageTextureId(fill.textureId)) ids.add(imageTextureIdentifier(fill.textureId));
+  });
   return [...ids];
-}
-
-function fillBuiltinTextureUrl(fill: FillStyle | null | undefined, out: Set<string>): void {
-  if (!fill || fill.type !== 'texture') return;
-  const id = normalizeTextureId(fill.textureId);
-  if (isTextureId(id)) out.add(TEXTURE_ASSET_URLS[id]);
 }
 
 function collectBuiltinTextureUrls(scene: MapScene): string[] {
   const urls = new Set<string>();
-  for (const layer of scene.layers) {
-    if (layer.kind === 'cell') {
-      for (const fill of Object.values(layer.cells)) fillBuiltinTextureUrl(fill, urls);
-    } else if (layer.kind === 'shape') {
-      for (const item of layer.items) {
-        fillBuiltinTextureUrl(item.fill, urls);
-        fillBuiltinTextureUrl(item.stroke?.fill, urls);
-      }
-    }
-  }
+  forEachSceneFill(scene, (fill) => {
+    if (fill.type !== 'texture') return;
+    const id = normalizeTextureId(fill.textureId);
+    if (isTextureId(id)) urls.add(TEXTURE_ASSET_URLS[id]);
+  });
   return [...urls];
 }
 
