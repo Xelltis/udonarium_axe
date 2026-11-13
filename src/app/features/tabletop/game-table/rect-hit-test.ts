@@ -1,16 +1,11 @@
 import type { MarqueeRect } from '@axe/application/ui/selection-signal.service';
+import { placedCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export interface RectHitTestOptions {
   gridSize?: number;
   excludeAliases?: string[];
-}
-
-interface SizedObject {
-  width?: number;
-  height?: number;
-  size?: number;
 }
 
 const DEFAULT_GRID_SIZE = 50;
@@ -28,30 +23,13 @@ export function normalizeRect(rect: MarqueeRect): MarqueeRect {
   return { x1, y1, x2, y2 };
 }
 
-function getObjectExtent(obj: TabletopObject, gridSize: number): { width: number; height: number } {
-  const sized = obj as unknown as SizedObject;
-  const width =
-    typeof sized.width === 'number'
-      ? sized.width * gridSize
-      : typeof sized.size === 'number'
-        ? Math.max(1, sized.size) * gridSize
-        : gridSize;
-  const height =
-    typeof sized.height === 'number'
-      ? sized.height * gridSize
-      : typeof sized.size === 'number'
-        ? Math.max(1, sized.size) * gridSize
-        : gridSize;
-  return { width, height };
-}
-
 /**
  * The identifiers of pieces on the table whose centres fall inside a marquee rectangle.
  *
- * A piece's extent comes from its `width` and `height`, or its `size`, in grid cells, and is one
- * cell otherwise. Pieces off the table and the excluded aliases, ranges by default, are never
- * caught, and nor is a look on the ground locked in place, as the water a generator lays, which
- * nothing on the table is to move.
+ * A piece's centre is where `placedCentreOf` puts it: by its `width` and `height`, or its `size`,
+ * in grid cells, and one cell in otherwise. Pieces off the table and the excluded aliases, ranges
+ * by default, are never caught, and nor is a look on the ground locked in place, as the water a
+ * generator lays, which nothing on the table is to move.
  */
 export function selectByRect(
   objects: readonly TabletopObject[],
@@ -68,11 +46,9 @@ export function selectByRect(
     if (obj.location?.name !== 'table') continue;
     if (excludes.has(obj.aliasName)) continue;
     if (obj.aliasName === TableAmbience.aliasName && (obj as { isLock?: unknown }).isLock === true) continue;
-    const { width, height } = getObjectExtent(obj, gridSize);
-    const centerX = obj.location.x + width / 2;
-    const centerY = obj.location.y + height / 2;
-    if (centerX < normalized.x1 || centerX > normalized.x2) continue;
-    if (centerY < normalized.y1 || centerY > normalized.y2) continue;
+    const centre = placedCentreOf(obj, gridSize);
+    if (centre.x < normalized.x1 || centre.x > normalized.x2) continue;
+    if (centre.y < normalized.y1 || centre.y > normalized.y2) continue;
     hits.push(obj.identifier);
   }
   return hits;
