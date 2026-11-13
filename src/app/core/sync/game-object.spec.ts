@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { GameObject } from '@axe/core/sync/game-object';
+import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DataElement } from '@axe/domain/data/data-element';
 
@@ -190,6 +191,14 @@ describe('GameObject', () => {
       // travels in the xml the copy can end up with the same one
       expect(cloned).toBeTruthy();
       expect(cloned).not.toBe(obj);
+    });
+
+    it('throws when the copy cannot be read back from its XML', () => {
+      const obj = DataElement.create('test', 'value', {});
+      vi.spyOn(ObjectSerializer.instance, 'parseXml').mockReturnValue(null);
+
+      expect(() => obj.clone()).toThrow(/could not be read back/);
+      vi.restoreAllMocks();
     });
   });
 

@@ -190,8 +190,9 @@ export class GameObject {
    * the room like any new object, so it is not a scratch copy.
    */
   clone(): this {
-    const xmlString = this.toXml();
-    return ObjectSerializer.instance.parseXml(xmlString)! as this;
+    const copy = ObjectSerializer.instance.parseXml(this.toXml());
+    if (copy === null) throw new Error(`${this.aliasName} ${this.identifier} could not be read back from its XML`);
+    return copy as this;
   }
 
   /** How many changes the object has been through, without the random fraction that version adds. */
