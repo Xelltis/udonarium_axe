@@ -152,10 +152,27 @@ function scanPaletteLine(
   messages.push({ from: offset, to: offset + line.length });
 }
 
-function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decorations: PlacedChatDecoration[]): void {
-  const at = (index: number) => offset + index;
-  scanRoll(message, offset, spans);
+/** Where a character of a message stands in the whole text. */
+type At = (index: number) => number;
 
+function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decorations: PlacedChatDecoration[]): void {
+  const at: At = (index) => offset + index;
+  scanRoll(message, offset, spans);
+  scanReferences(message, at, spans);
+  scanAims(message, at, spans);
+  scanCommandWords(message, at, spans);
+  scanPortrait(message, at, spans);
+  scanCutInTail(message, at, spans);
+  scanEffectTokens(message, at, spans);
+  scanDiceToken(message, at, spans);
+  scanStamps(message, at, spans);
+  scanRuby(message, at, spans);
+  scanDecorations(message, at, spans, decorations);
+  scanQuotes(message, at, spans);
+  scanVnSuffix(message, at, spans);
+}
+
+function scanReferences(message: string, at: At, spans: SyntaxSpan[]): void {
   for (const site of referenceSites(message)) {
     const raw = message.slice(site.from, site.to);
     const open = raw.search(/[{｛]/) + 1;
@@ -171,7 +188,9 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
       ],
     });
   }
+}
 
+function scanAims(message: string, at: At, spans: SyntaxSpan[]): void {
   for (const mark of aimMarkSites(message)) {
     spans.push({
       kind: 'aim',
@@ -180,7 +199,10 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
       parts: [{ role: 'marker', from: at(mark.from), to: at(mark.to) }],
     });
   }
+}
 
+/** The resource, buff and sweep commands of a message, in that order. */
+function scanCommandWords(message: string, at: At, spans: SyntaxSpan[]): void {
   const words = resourceCommandSites(message);
   for (const site of words.resources) {
     const targeted = site.command.startsWith('t');
@@ -231,38 +253,43 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
       parts: [{ role: 'marker', from: at(site.markFrom), to: at(site.from + 2) }],
     });
   }
+}
 
+function scanPortrait(message: string, at: At, spans: SyntaxSpan[]): void {
   const portrait = portraitCommandSite(message);
-  if (portrait) {
-    spans.push({
-      kind: 'portrait',
-      command: portrait.command,
-      from: at(portrait.from),
-      to: at(portrait.to),
-      parts: [
-        { role: 'marker', from: at(portrait.from), to: at(portrait.from + 1) },
-        { role: 'name', from: at(portrait.from + 1), to: at(portrait.to) },
-      ],
-    });
-  }
-  const tail = readCutInChatTail(message);
-  if (tail) {
-    const nameFrom = tail.to - tail.name.length;
-    spans.push({
-      kind: 'cutIn',
-      name: tail.name,
-      soundOnly: tail.soundOnly,
-      from: at(tail.from),
-      to: at(tail.to),
-      parts: tail.soundOnly
-        ? [
-            { role: 'marker', from: at(tail.from), to: at(nameFrom) },
-            { role: 'name', from: at(nameFrom), to: at(tail.to) },
-          ]
-        : [{ role: 'name', from: at(tail.from), to: at(tail.to) }],
-    });
-  }
+  if (!portrait) return;
+  spans.push({
+    kind: 'portrait',
+    command: portrait.command,
+    from: at(portrait.from),
+    to: at(portrait.to),
+    parts: [
+      { role: 'marker', from: at(portrait.from), to: at(portrait.from + 1) },
+      { role: 'name', from: at(portrait.from + 1), to: at(portrait.to) },
+    ],
+  });
+}
 
+function scanCutInTail(message: string, at: At, spans: SyntaxSpan[]): void {
+  const tail = readCutInChatTail(message);
+  if (!tail) return;
+  const nameFrom = tail.to - tail.name.length;
+  spans.push({
+    kind: 'cutIn',
+    name: tail.name,
+    soundOnly: tail.soundOnly,
+    from: at(tail.from),
+    to: at(tail.to),
+    parts: tail.soundOnly
+      ? [
+          { role: 'marker', from: at(tail.from), to: at(nameFrom) },
+          { role: 'name', from: at(nameFrom), to: at(tail.to) },
+        ]
+      : [{ role: 'name', from: at(tail.from), to: at(tail.to) }],
+  });
+}
+
+function scanEffectTokens(message: string, at: At, spans: SyntaxSpan[]): void {
   let order = 0;
   for (const site of effectTokenSites(message)) {
     spans.push({
@@ -279,21 +306,24 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
       ],
     });
   }
+}
 
+function scanDiceToken(message: string, at: At, spans: SyntaxSpan[]): void {
   const diceToken = diceChatTokenSite(message);
-  if (diceToken) {
-    spans.push({
-      kind: 'diceToken',
-      name: diceToken.name,
-      from: at(diceToken.from),
-      to: at(diceToken.to),
-      parts: [
-        { role: 'marker', from: at(diceToken.from), to: at(diceToken.from + 5) },
-        { role: 'name', from: at(diceToken.from + 5), to: at(diceToken.to) },
-      ],
-    });
-  }
+  if (!diceToken) return;
+  spans.push({
+    kind: 'diceToken',
+    name: diceToken.name,
+    from: at(diceToken.from),
+    to: at(diceToken.to),
+    parts: [
+      { role: 'marker', from: at(diceToken.from), to: at(diceToken.from + 5) },
+      { role: 'name', from: at(diceToken.from + 5), to: at(diceToken.to) },
+    ],
+  });
+}
 
+function scanStamps(message: string, at: At, spans: SyntaxSpan[]): void {
   for (const site of inlineStampSites(message)) {
     spans.push({
       kind: 'stamp',
@@ -309,7 +339,9 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
       ],
     });
   }
+}
 
+function scanRuby(message: string, at: At, spans: SyntaxSpan[]): void {
   for (const ruby of message.matchAll(RUBY_NOTATION)) {
     const from = ruby.index;
     const baseTo = from + 1 + ruby[1].length;
@@ -327,7 +359,10 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
       ],
     });
   }
+}
 
+/** The decoration marks of a message, and the stretches they decorate. */
+function scanDecorations(message: string, at: At, spans: SyntaxSpan[], decorations: PlacedChatDecoration[]): void {
   const layout = chatDecorationLayout(message);
   for (const mark of layout.marks) {
     const placed = { ...mark, from: at(mark.from), to: at(mark.to) };
@@ -342,7 +377,9 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
     });
   }
   for (const run of layout.runs) decorations.push({ ...run, from: at(run.from), to: at(run.to) });
+}
 
+function scanQuotes(message: string, at: At, spans: SyntaxSpan[]): void {
   let lineStart = 0;
   for (const line of message.split('\n')) {
     const quote = /^>\s?/.exec(line);
@@ -357,29 +394,30 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
     }
     lineStart += line.length + 1;
   }
+}
 
+function scanVnSuffix(message: string, at: At, spans: SyntaxSpan[]): void {
   const vn = legacyVnSuffixSite(message);
-  if (vn) {
-    const site: LegacyVnSuffixSite = {
-      ...vn,
-      from: at(vn.from),
-      to: at(vn.to),
-      words: vn.words.map((word) => ({ ...word, from: at(word.from), to: at(word.to) })),
-    };
-    spans.push({
-      kind: 'vnSuffix',
-      site,
-      from: site.from,
-      to: site.to,
-      parts: site.read
-        ? [
-            { role: 'marker', from: site.from, to: site.from + 1 },
-            ...site.words.map((word): SyntaxPart => ({ role: 'name', from: word.from, to: word.to })),
-            { role: 'marker', from: site.to - 1, to: site.to },
-          ]
-        : [],
-    });
-  }
+  if (!vn) return;
+  const site: LegacyVnSuffixSite = {
+    ...vn,
+    from: at(vn.from),
+    to: at(vn.to),
+    words: vn.words.map((word) => ({ ...word, from: at(word.from), to: at(word.to) })),
+  };
+  spans.push({
+    kind: 'vnSuffix',
+    site,
+    from: site.from,
+    to: site.to,
+    parts: site.read
+      ? [
+          { role: 'marker', from: site.from, to: site.from + 1 },
+          ...site.words.map((word): SyntaxPart => ({ role: 'name', from: word.from, to: word.to })),
+          { role: 'marker', from: site.to - 1, to: site.to },
+        ]
+      : [],
+  });
 }
 
 function scanRoll(message: string, offset: number, spans: SyntaxSpan[]): void {
