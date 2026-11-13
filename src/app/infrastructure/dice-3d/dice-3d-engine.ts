@@ -25,6 +25,7 @@ import {
 } from '@axe/infrastructure/dice-3d/dice-textures';
 import { type BakedLight, bakeLight } from '@axe/infrastructure/three-kit/baked-light';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
+import { letGoOfWebglRenderer, webglRendererOn } from '@axe/infrastructure/three-kit/webgl-renderer';
 import {
   AdditiveBlending,
   BufferAttribute,
@@ -49,7 +50,7 @@ import {
   Texture,
   Vector2,
   Vector3,
-  WebGLRenderer,
+  type WebGLRenderer,
 } from 'three';
 
 /** One die of a throw: its shape and the numbers it wears. */
@@ -220,20 +221,12 @@ export class Dice3dEngine {
 
   private constructor() {
     this.canvas = document.createElement('canvas');
-    this.renderer = new WebGLRenderer({
-      canvas: this.canvas,
-      antialias: true,
-      alpha: true,
-      premultipliedAlpha: true,
-      powerPreference: 'high-performance',
-    });
-    this.renderer.outputColorSpace = SRGBColorSpace;
+    this.renderer = webglRendererOn(this.canvas, { premultipliedAlpha: true, powerPreference: 'high-performance' });
     // The neutral curve keeps a die the colour the roll was said in, where others wash it out.
     this.renderer.toneMapping = NeutralToneMapping;
     this.renderer.toneMappingExposure = 1;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFShadowMap;
-    this.renderer.setClearColor(0x000000, 0);
     // The renderer asks the browser for the context back itself; this engine draws no more once it
     // is lost, and is given up with the throws.
     this.canvas.addEventListener('webglcontextlost', () => {
@@ -443,7 +436,7 @@ export class Dice3dEngine {
     this.haloTexture.dispose();
     this.light.shadow.dispose();
     disposeObject(this.shadowCatcher);
-    this.renderer.dispose();
+    letGoOfWebglRenderer(this.renderer);
   }
 
   /** Grows the canvas to hold a picture of a size, and points the drawing at its top left corner. */

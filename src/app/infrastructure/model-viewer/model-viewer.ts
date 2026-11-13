@@ -2,6 +2,7 @@ import type { ModelPainter, ModelStage } from '@axe/infrastructure/model-viewer/
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
 import { meshesOf, triangleCentresOf } from '@axe/infrastructure/three-kit/model-faces';
+import { letGoOfWebglRenderer, webglRendererOn } from '@axe/infrastructure/three-kit/webgl-renderer';
 import {
   Box3,
   BufferAttribute,
@@ -15,7 +16,6 @@ import {
   Raycaster,
   Scene,
   Sphere,
-  SRGBColorSpace,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -87,10 +87,7 @@ class Showcase {
 /** A renderer on a canvas, or null where the browser cannot make one. */
 function rendererOn(canvas: HTMLCanvasElement, keepsDrawing: boolean): WebGLRenderer | null {
   try {
-    const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: keepsDrawing });
-    renderer.outputColorSpace = SRGBColorSpace;
-    renderer.setClearColor(0x000000, 0);
-    return renderer;
+    return webglRendererOn(canvas, { preserveDrawingBuffer: keepsDrawing });
   } catch {
     return null;
   }
@@ -254,8 +251,7 @@ class Stage implements ModelStage {
     this.clearFaces();
     this.showcase.letGo();
     this.reader.dispose();
-    this.renderer.dispose();
-    this.renderer.forceContextLoss();
+    letGoOfWebglRenderer(this.renderer);
   }
 
   /** The middle of each triangle of each mesh of the model, in the scene, three numbers a triangle. */
@@ -309,8 +305,7 @@ class Painter implements ModelPainter {
 
   dispose(): void {
     this.reader.dispose();
-    this.renderer.dispose();
-    this.renderer.forceContextLoss();
+    letGoOfWebglRenderer(this.renderer);
   }
 
   private async paintNow(url: string, sizePx: number): Promise<Blob | null> {
