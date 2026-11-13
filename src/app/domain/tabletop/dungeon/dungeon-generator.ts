@@ -3,9 +3,11 @@ import { generateCave } from '@axe/domain/tabletop/dungeon/cave-automata';
 import { DoorWidths, hangDoors, hideDoorsOf } from '@axe/domain/tabletop/dungeon/door-hanging';
 import {
   atmosphereById,
+  CaveShape,
   DungeonAtmosphere,
   DungeonAtmosphereId,
   DungeonEntranceStyle,
+  RoomPlan,
 } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import {
   DEFAULT_BLOCK_OPTIONS,
@@ -67,11 +69,20 @@ export function clampRoomCount(roomCount: number): number {
   return Math.min(MAX_ROOM_COUNT, Math.max(MIN_ROOM_COUNT, Math.round(roomCount)));
 }
 
+/** What an atmosphere digs with: the shape of its cave, or else the plan of its rooms. */
+type Digging = { cave: CaveShape; rooms?: undefined } | { cave?: undefined; rooms: RoomPlan };
+
+/** What the atmosphere digs with. Every atmosphere in the catalogue has what its algorithm asks for. */
+function diggingOf(atmosphere: DungeonAtmosphere): Digging {
+  if (atmosphere.algorithm === 'cave' && atmosphere.cave) return { cave: atmosphere.cave };
+  if (atmosphere.rooms) return { rooms: atmosphere.rooms };
+  throw new Error(`The ${atmosphere.id} atmosphere has neither a cave shape nor a room plan`);
+}
+
 /** How wide a passage this atmosphere cuts when the room has not said otherwise. */
 export function defaultCorridorWidth(atmosphere: DungeonAtmosphere): number {
-  return clampCorridorWidth(
-    atmosphere.algorithm === 'cave' ? atmosphere.cave!.tunnelWidth : (atmosphere.rooms?.corridor ?? 1)
-  );
+  const digging = diggingOf(atmosphere);
+  return clampCorridorWidth(digging.cave ? digging.cave.tunnelWidth : (digging.rooms.corridor ?? 1));
 }
 
 /**
@@ -133,42 +144,42 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
     sizePx: 1,
   });
   const rng = seededRandom(request.seed);
+  const digging = diggingOf(atmosphere);
 
-  const layout =
-    atmosphere.algorithm === 'cave'
-      ? generateCave(
-          {
-            width,
-            height,
-            chamberCount: rooms,
-            wallFill: atmosphere.cave!.wallFill,
-            iterations: atmosphere.cave!.iterations,
-            birth: atmosphere.cave!.birth,
-            survive: atmosphere.cave!.survive,
-            minTunnel: widths.least,
-            maxTunnel: widths.most,
-            hazardPools: Math.round(atmosphere.cave!.hazardPoolsPerRoom * rooms),
-            seed: request.seed,
-          },
-          rng
-        )
-      : generateRoomsAndMazes(
-          {
-            width,
-            height,
-            roomCount: rooms,
-            minRoom: atmosphere.rooms!.minRoom,
-            maxRoom: atmosphere.rooms!.maxRoom,
-            windingPercent: atmosphere.rooms!.windingPercent,
-            extraConnectorChance: atmosphere.rooms!.extraConnectorChance,
-            wallBreakChance: atmosphere.rooms!.wallBreakChance,
-            shapes: atmosphere.rooms!.shapes,
-            minCorridor: widths.least,
-            maxCorridor: widths.most,
-            seed: request.seed,
-          },
-          rng
-        );
+  const layout = digging.cave
+    ? generateCave(
+        {
+          width,
+          height,
+          chamberCount: rooms,
+          wallFill: digging.cave.wallFill,
+          iterations: digging.cave.iterations,
+          birth: digging.cave.birth,
+          survive: digging.cave.survive,
+          minTunnel: widths.least,
+          maxTunnel: widths.most,
+          hazardPools: Math.round(digging.cave.hazardPoolsPerRoom * rooms),
+          seed: request.seed,
+        },
+        rng
+      )
+    : generateRoomsAndMazes(
+        {
+          width,
+          height,
+          roomCount: rooms,
+          minRoom: digging.rooms.minRoom,
+          maxRoom: digging.rooms.maxRoom,
+          windingPercent: digging.rooms.windingPercent,
+          extraConnectorChance: digging.rooms.extraConnectorChance,
+          wallBreakChance: digging.rooms.wallBreakChance,
+          shapes: digging.rooms.shapes,
+          minCorridor: widths.least,
+          maxCorridor: widths.most,
+          seed: request.seed,
+        },
+        rng
+      );
 
   // Cut before the roles are given out, so depth is counted from the mouth the party walks in by.
   if ((request.entrance ?? atmosphere.entrance) === 'tunnel') openTunnelMouth(layout);
