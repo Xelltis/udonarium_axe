@@ -95,6 +95,11 @@ export class ImageFile {
     return this.state <= ImageState.NULL;
   }
 
+  /** Whether the picture is here in whole: its bytes, or a link to it; a thumbnail alone is not enough. */
+  get isReady(): boolean {
+    return ImageState.COMPLETE <= this.state;
+  }
+
   private constructor() {}
 
   /**

@@ -11,7 +11,8 @@ import {
   receivedUploadTurnMs,
 } from '@axe/core/storage/asset-retries';
 import { ImageContext, ImageFile } from '@axe/core/storage/image-file';
-import { CatalogItem, ImageStorage } from '@axe/core/storage/image-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
+import { CatalogItem } from '@axe/core/storage/shared-asset-storage';
 import type { MockInstance } from 'vitest';
 
 describe('ImageStorage', () => {
@@ -53,6 +54,12 @@ describe('ImageStorage', () => {
 
     it('returns nothing for an id it does not know', () => {
       expect(storage.get('nonexistent')).toBeFalsy();
+    });
+
+    it('finds nothing under a name every object has of its own', () => {
+      expect(storage.get('toString')).toBeNull();
+      expect(storage.get('constructor')).toBeNull();
+      expect(storage.get('__proto__')).toBeNull();
     });
 
     it('removes an image', () => {
@@ -199,6 +206,15 @@ describe('ImageStorage', () => {
       expect(catalog.length).toBeGreaterThanOrEqual(1);
       const item = catalog.find((c) => c.identifier === 'https://example.com/catalog.png');
       expect(item).toBeTruthy();
+    });
+
+    it('names no picture, as a room holds many', () => {
+      storage.add('https://example.com/unnamed.png');
+
+      const item = storage.getCatalog().find((c) => c.identifier === 'https://example.com/unnamed.png');
+
+      expect(item).toEqual({ identifier: 'https://example.com/unnamed.png', state: 1000 });
+      expect(item).not.toHaveProperty('name');
     });
   });
 
