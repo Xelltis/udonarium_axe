@@ -103,11 +103,13 @@ export class ReplayStagingService {
     });
     batch.forEach((message, index) => {
       const identifier = (message.data as { identifier?: unknown } | null)?.identifier;
-      const from = typeof identifier === 'string' ? first.get(identifier) : undefined;
-      if (from !== undefined && message.eventName === 'UPDATE_GAME_OBJECT') {
-        const to = last.get(identifier as string) as number;
-        if (index === from) return this.handleMessage(message.eventName, batch[to].data, message.at);
-        if (index <= to) return;
+      if (typeof identifier === 'string' && message.eventName === 'UPDATE_GAME_OBJECT') {
+        const from = first.get(identifier);
+        const to = last.get(identifier);
+        if (from !== undefined && to !== undefined) {
+          if (index === from) return this.handleMessage(message.eventName, batch[to].data, message.at);
+          if (index <= to) return;
+        }
       }
       this.handleMessage(message.eventName, message.data, message.at);
     });
