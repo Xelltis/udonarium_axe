@@ -1,3 +1,16 @@
+## [1.78.1](https://github.com/Xelltis/udonarium_axe/compare/v1.78.0...v1.78.1) (2026-11-13)
+
+### 🐛 Bug Fixes
+
+* **tabletop:** release aims on the table alone as the turn passes, and let go of picks on clear ([285d3c7](https://github.com/Xelltis/udonarium_axe/commit/285d3c7b39f82c9980011080f41b9a6b3b6158ce))
+* **tabletop:** take the aim off pieces out of sight or past their turn, with a band to clear them ([ffe46d7](https://github.com/Xelltis/udonarium_axe/commit/ffe46d7b824d4e4af34034891f6aecdb149faf92)), closes [#209](https://github.com/Xelltis/udonarium_axe/issues/209)
+* **tabletop:** take the aim off pieces the game master's player preview cannot see ([18fe78c](https://github.com/Xelltis/udonarium_axe/commit/18fe78cb0a355e96f828c7c42dcc6c156874cc1e))
+
+### 📝 Documentation
+
+* **website:** add v1.78.1 release notes and explain when an aim is taken off ([4b18b20](https://github.com/Xelltis/udonarium_axe/commit/4b18b2005ba3a9bf89b9adafe0efeef01bf6cb0b))
+* **website:** say the turn releases only the aims on the table ([5b8d88c](https://github.com/Xelltis/udonarium_axe/commit/5b8d88c06fce64b7ac640cfc18ee04885052fc0b))
+
 ## [1.78.0](https://github.com/Xelltis/udonarium_axe/compare/v1.77.2...v1.78.0) (2026-11-13)
 
 ### ✨ Features
