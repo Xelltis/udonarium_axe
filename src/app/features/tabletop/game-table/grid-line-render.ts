@@ -5,8 +5,8 @@ import {
   hexSpacing,
   hexStartAngle,
   isFlatTopGrid,
-  strokeHexPath,
 } from '@axe/domain/tabletop/hex-geometry';
+import { strokeHexPath } from '@axe/infrastructure/tabletop/hex-canvas';
 
 export class GridLineRender {
   /**

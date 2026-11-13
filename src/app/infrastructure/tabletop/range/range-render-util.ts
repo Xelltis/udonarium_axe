@@ -1,6 +1,5 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
-  fillHexPath,
   hexCellCenter,
   hexCircumradius,
   hexSpacing,
@@ -9,6 +8,7 @@ import {
   isHexGrid,
   traceHexPath,
 } from '@axe/domain/tabletop/hex-geometry';
+import { fillHexPath } from '@axe/infrastructure/tabletop/hex-canvas';
 import {
   ClipAreaCorn,
   ClipAreaHexagon,

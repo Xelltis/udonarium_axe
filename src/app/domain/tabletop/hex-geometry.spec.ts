@@ -1,6 +1,5 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
-  fillHexPath,
   hexCellCenter,
   hexCircumradius,
   hexSpacing,
@@ -9,7 +8,6 @@ import {
   isFlatTopGrid,
   isHexGrid,
   pixelToHexCell,
-  strokeHexPath,
 } from '@axe/domain/tabletop/hex-geometry';
 
 describe('hex-geometry', () => {
@@ -115,42 +113,6 @@ describe('hex-geometry', () => {
         const dist = Math.sqrt((v.x - 5) ** 2 + (v.y - 5) ** 2);
         expect(dist).toBeCloseTo(s);
       }
-    });
-  });
-
-  describe('strokeHexPath', () => {
-    it('strokes a closed six-sided path', () => {
-      const ctx = {
-        beginPath: vi.fn(),
-        moveTo: vi.fn(),
-        lineTo: vi.fn(),
-        closePath: vi.fn(),
-        stroke: vi.fn(),
-      } as unknown as CanvasRenderingContext2D;
-      strokeHexPath(ctx, 0, 0, 10, 0);
-      expect(ctx.beginPath).toHaveBeenCalledOnce();
-      expect(ctx.moveTo).toHaveBeenCalledOnce();
-      expect(ctx.lineTo).toHaveBeenCalledTimes(5);
-      expect(ctx.closePath).toHaveBeenCalledOnce();
-      expect(ctx.stroke).toHaveBeenCalledOnce();
-    });
-  });
-
-  describe('fillHexPath', () => {
-    it('fills one', () => {
-      const ctx = {
-        beginPath: vi.fn(),
-        moveTo: vi.fn(),
-        lineTo: vi.fn(),
-        closePath: vi.fn(),
-        fill: vi.fn(),
-      } as unknown as CanvasRenderingContext2D;
-      fillHexPath(ctx, 0, 0, 10, 0);
-      expect(ctx.beginPath).toHaveBeenCalledOnce();
-      expect(ctx.moveTo).toHaveBeenCalledOnce();
-      expect(ctx.lineTo).toHaveBeenCalledTimes(5);
-      expect(ctx.closePath).toHaveBeenCalledOnce();
-      expect(ctx.fill).toHaveBeenCalledOnce();
     });
   });
 

@@ -29,14 +29,13 @@ import {
   GROUND_SAMPLES_PER_CELL,
 } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import {
-  fillHexPath,
   hexCircumradius,
   hexStartAngle,
   isFlatTopGrid,
   isHexGrid,
-  strokeHexPath,
   traceHexPath,
 } from '@axe/domain/tabletop/hex-geometry';
+import { fillHexPath, strokeHexPath } from '@axe/infrastructure/tabletop/hex-canvas';
 export interface RenderHelpers {
   texturePattern(
     fill: { textureId: string; scale: number; rotation: number },
