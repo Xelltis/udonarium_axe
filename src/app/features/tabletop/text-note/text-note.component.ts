@@ -10,8 +10,8 @@ import {
   inject,
   Injector,
   input,
+  linkedSignal,
   signal,
-  untracked,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -81,6 +81,7 @@ const NOTE_FOOTPRINT = { width: 1, height: 0 } as const;
     class: 'block',
     '(dragstart)': 'onDragstart($event)',
     '(mousedown)': 'onMouseDown($event)',
+    '(document:mouseup)': 'onMouseUp($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },
 })
@@ -186,28 +187,8 @@ export class TextNoteComponent {
       this.writeTextSoon.cancel();
     });
     effect(() => {
-      const note = this.textNote();
-      this.objectChange.versionOf(note.identifier)();
-      const trackChildren = (elms: readonly DataElement[]) => {
-        for (const elm of elms) {
-          this.objectChange.versionOf(elm.identifier)();
-          if (elm.children.length) trackChildren(elm.children as DataElement[]);
-        }
-      };
-      if (note.commonDataElement) trackChildren(note.commonDataElement.children as DataElement[]);
-      this._text.set(note.text);
-      this._fontSize.set(note.fontSize);
+      this.noteVersion();
       this.calcFitHeightIfNeeded();
-    });
-    // A seat made a guest while it wrote leaves the note as the room has it, the draft unwritten.
-    effect(() => {
-      this.objectChange.trackMyCursor();
-      if (this.rolePermission.canEditTabletop() || !untracked(this.isEditing)) return;
-      untracked(() => {
-        this.writeTextSoon.cancel();
-        this._text.set(this.textNote().text);
-        this.isEditing.set(false);
-      });
     });
   }
 
@@ -215,7 +196,28 @@ export class TextNoteComponent {
 
   readonly textNote = input.required<TextNote>();
 
-  readonly isEditing = signal(false);
+  /** Follows the note and every element under it, however deep, which its text and font size are kept in. */
+  private readonly noteVersion = computed(() => {
+    const note = this.textNote();
+    let v = this.objectChange.versionOf(note.identifier)();
+    const trackChildren = (elms: readonly DataElement[]) => {
+      for (const elm of elms) {
+        v += this.objectChange.versionOf(elm.identifier)();
+        if (elm.children.length) trackChildren(elm.children as DataElement[]);
+      }
+    };
+    if (note.commonDataElement) trackChildren(note.commonDataElement.children as DataElement[]);
+    return v;
+  });
+
+  /** Whether this seat may write the note, which a seat made a guest loses, and with it its draft. */
+  private readonly mayWrite = computed(() => {
+    this.objectChange.trackMyCursor();
+    return this.rolePermission.canEditTabletop();
+  });
+
+  /** Whether the note is being edited; a seat that loses the right to write it is taken out of editing. */
+  readonly isEditing = linkedSignal<boolean, boolean>({ source: this.mayWrite, computation: () => false });
   readonly decoratedHtml = computed(() => {
     const note = this.textNote();
     this.objectChange.versionOf(note.identifier)();
@@ -299,8 +301,20 @@ export class TextNoteComponent {
     this.textNote().isLock = isLock;
   }
 
-  private readonly _text = signal('');
-  private readonly _fontSize = signal(9);
+  /**
+   * The note's text as held by the text area: the note's own, taken afresh whenever the note or
+   * this seat's right to write it changes, and in between whatever has been typed. A seat made a
+   * guest while it wrote is left with the note as the room has it, the draft unwritten.
+   */
+  private readonly _text = linkedSignal(() => {
+    this.noteVersion();
+    this.mayWrite();
+    return this.textNote().text;
+  });
+  private readonly _fontSize = computed(() => {
+    this.noteVersion();
+    return this.textNote().fontSize;
+  });
   private readonly writeTextSoon = debounce(() => {
     const note = this.textNote();
     if (note.text !== this._text()) note.text = this._text();
@@ -399,7 +413,8 @@ export class TextNoteComponent {
     return this.isEditing();
   }
 
-  private callbackOnMouseUp = (e: MouseEvent) => this.onMouseUp(e);
+  /** Whether a press on the note waits for its release, which is heard on the document. */
+  private pressed = false;
 
   /** The size of one table cell, in pixels. */
   get gridSize(): number {
@@ -418,7 +433,7 @@ export class TextNoteComponent {
     return altitudeGuideOf(this.pieces.footOf(note), this.textNoteAltitude, this.gridSize);
   });
 
-  private calcFitHeightTimer: ReturnType<typeof setTimeout> | null = null;
+  private fitHeightPending = false;
   readonly movableOption = signal<MovableOption>({});
   readonly rotableOption = signal<RotableOption>({});
 
@@ -450,21 +465,25 @@ export class TextNoteComponent {
     if (this.rolePermission.canEditTabletop()) this.textNote().toTopmost();
 
     if (e.button === 2) return;
-    this.addMouseEventListeners();
+    this.pressed = true;
   }
 
   /**
    * Starts editing when a press on the note is let go without the pointer having moved, clearing
    * any text selection first.
+   *
+   * Heard on the document, so a release off the note ends the press too; a release with no press
+   * on the note waiting is left alone.
    */
   onMouseUp(e: MouseEvent) {
+    if (!this.pressed) return;
+    this.pressed = false;
     if (this.pointerDeviceService.isAllowedToOpenContextMenu) {
       const selection = window.getSelection();
       if (!selection!.isCollapsed) selection!.removeAllRanges();
 
       this.enterEdit();
     }
-    this.removeMouseEventListeners();
     e.preventDefault();
   }
 
@@ -487,7 +506,7 @@ export class TextNoteComponent {
    * view with a radial menu style chosen, it opens as a radial menu.
    */
   onContextMenu(e: MouseEvent) {
-    this.removeMouseEventListeners();
+    this.pressed = false;
     if (this.isSelected) return;
     e.stopPropagation();
     e.preventDefault();
@@ -547,13 +566,17 @@ export class TextNoteComponent {
     SoundEffect.play(PresetSound.cardPut);
   }
 
-  /** Refits the text area's height on the next task, gathering repeated requests into one. */
+  /** Refits the text area's height once the note is next drawn, gathering repeated requests into one. */
   calcFitHeightIfNeeded() {
-    if (this.calcFitHeightTimer) return;
-    this.calcFitHeightTimer = setTimeout(() => {
-      this.calcFitHeight();
-      this.calcFitHeightTimer = null;
-    }, 0);
+    if (this.fitHeightPending) return;
+    this.fitHeightPending = true;
+    afterNextRender(
+      () => {
+        this.fitHeightPending = false;
+        this.calcFitHeight();
+      },
+      { injector: this.injector }
+    );
   }
 
   oldScrollHeight = 0;
@@ -586,14 +609,6 @@ export class TextNoteComponent {
       if (textAreaHeight > textAreaMax) textAreaHeight = textAreaMax;
       textArea.style.height = textAreaHeight + 'px';
     }
-  }
-
-  private addMouseEventListeners() {
-    document.body.addEventListener('mouseup', this.callbackOnMouseUp, false);
-  }
-
-  private removeMouseEventListeners() {
-    document.body.removeEventListener('mouseup', this.callbackOnMouseUp, false);
   }
 
   private showDetail(gameObject: TextNote) {

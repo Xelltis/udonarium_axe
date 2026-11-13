@@ -7,6 +7,8 @@ import { HudAnchor } from '@axe/application/tabletop/hud-frame.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { DataElement } from '@axe/domain/data/data-element';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -20,7 +22,7 @@ import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 
 describe('TextNoteComponent', () => {
   let component: TextNoteComponent;
-  let given: { destroy(): void };
+  let given: TextNote;
   let fixture: ComponentFixture<TextNoteComponent>;
 
   beforeEach(async () => {
@@ -87,6 +89,32 @@ describe('TextNoteComponent', () => {
     expect(placed.some(({ element }) => element.matches('.rotate-grab'))).toBe(false);
     expect((fixture.nativeElement as HTMLElement).querySelector('turn-frame')).toBeTruthy();
     note.destroy();
+  });
+
+  it('starts editing on a release anywhere on the page after a press on the note, and on no release without one', () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    vi.spyOn(TestBed.inject(PointerDeviceService), 'isAllowedToOpenContextMenu', 'get').mockReturnValue(true);
+    fixture.detectChanges();
+
+    document.dispatchEvent(new MouseEvent('mouseup', { button: 0 }));
+    expect(component.isEditing()).toBe(false);
+
+    component.onMouseDown(new MouseEvent('mousedown', { button: 0 }));
+    document.dispatchEvent(new MouseEvent('mouseup', { button: 0 }));
+    expect(component.isEditing()).toBe(true);
+  });
+
+  it('draws the text at the size the note is given, as the note changes', () => {
+    fixture.detectChanges();
+    const was = given.fontSize;
+    expect(component.fontSize).toBe(was);
+
+    const size = ObjectStore.instance.get<DataElement>(`fontsize_${given.identifier}`)!;
+    size.value = was + 4;
+    TestBed.inject(ObjectChangeService).notifyChanged(size.identifier);
+
+    expect(component.fontSize).toBe(was + 4);
   });
 
   it('leaves a note being written as the room has it once the seat is made a guest, the draft unwritten', async () => {
