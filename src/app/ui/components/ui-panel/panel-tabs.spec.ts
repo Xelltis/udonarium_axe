@@ -409,16 +409,18 @@ describe('a frame holding more than one panel', () => {
     const first = openFrame('Chat');
     const second = openFrame('Sheet');
     fold(first.frame, second);
-    const frame = first.frame.instance as unknown as { bodyTop(): string; barBottom(): string };
     const viewport = TestBed.inject(ViewportService) as unknown as { _isCompact: WritableSignal<boolean> };
+    const tops = () => grounds(first.frame).map((ground) => ground.style.top);
 
-    expect(frame.bodyTop()).toBe('calc(28px + 28px)');
+    expect(tops()).toEqual(['calc(28px + 28px)', 'calc(28px + 28px)']);
 
     viewport._isCompact.set(true);
     host.detectChanges();
 
-    expect(frame.bodyTop()).toBe(`calc(${frame.barBottom()} + 28px)`);
-    expect(frame.bodyTop()).toContain('safe-area-inset-top');
+    expect(tops()).toEqual([
+      'calc(calc(2.75rem + env(safe-area-inset-top)) + 28px)',
+      'calc(calc(2.75rem + env(safe-area-inset-top)) + 28px)',
+    ]);
   });
 
   it('puts its tab names away while it is folded', () => {

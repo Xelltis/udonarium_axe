@@ -49,8 +49,9 @@ describe('MovableDirective', () => {
       fixture = TestBed.createComponent(TestHostComponent);
     });
 
-    it('builds without a tabletop object', () => {
+    it('builds and draws without a tabletop object', async () => {
       expect(() => fixture.detectChanges()).not.toThrow();
+      await fixture.whenStable();
     });
 
     it('says which piece is moving only while it moves', () => {
@@ -60,23 +61,17 @@ describe('MovableDirective', () => {
 
       expect(element.style.willChange).toBe('');
 
-      directive['promoteWhileMoving'](true);
+      directive.onInputStart(new MouseEvent('mousedown', { button: 0 }));
       expect(element.style.willChange).toBe('transform');
 
       directive.cancel();
       expect(element.style.willChange).toBe('');
     });
 
-    it('sets a position with no tabletop object', () => {
-      fixture.detectChanges();
-      const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
-      expect(() => directive['setPosition'](null as unknown as TabletopObject)).not.toThrow();
-    });
-
-    it('sets a position for an object with no location', () => {
-      fixture.detectChanges();
-      const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
-      expect(() => directive['setPosition']({} as unknown as TabletopObject)).not.toThrow();
+    it('draws a piece that has no location without complaint', async () => {
+      fixture.componentInstance.movableOption.set({ tabletopObject: {} as TabletopObject });
+      expect(() => fixture.detectChanges()).not.toThrow();
+      await fixture.whenStable();
     });
 
     it('snaps to the cell under the grid snap on a table that has no squares to lay pieces out in', () => {
@@ -210,11 +205,13 @@ describe('MovableDirective', () => {
 
     function drawnAt(surface: string | undefined, x: number, y: number, z: number): HTMLElement {
       const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
-      directive['tabletopObject'] = { location: { name: 'table', x, y, surface } } as TabletopObject;
+      fixture.componentInstance.movableOption.set({
+        tabletopObject: { identifier: 'drawn', location: { name: 'table', x, y, surface } } as TabletopObject,
+      });
+      fixture.detectChanges();
       directive.posX = x;
       directive.posY = y;
       directive.posZ = z;
-      directive['markLocation']();
       return fixture.debugElement.children[0].nativeElement as HTMLElement;
     }
 
