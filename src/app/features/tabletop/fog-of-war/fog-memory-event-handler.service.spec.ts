@@ -1,7 +1,13 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
+import { CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
+import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { FogMemoryEventHandlerService } from '@axe/features/tabletop/fog-of-war/fog-memory-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -22,14 +28,72 @@ describe('FogMemoryEventHandlerService', () => {
     TestBed.inject(LocalModePreferenceService).set(local);
   }
 
+  const sharedVisibleCells = signal<{ grid: CellGrid; cells: CellBits } | null>(null);
+
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    sharedVisibleCells.set(null);
+    TestBed.configureTestingModule({
+      providers: [
+        ...TEST_PROVIDERS,
+        { provide: VisionService, useValue: { sharedVisibleCells, partyVisiblePieces: signal(new Set<string>()) } },
+      ],
+    });
     service = TestBed.inject(FogMemoryEventHandlerService) as unknown as { isScribe(): boolean };
   });
 
   afterEach(() => {
     for (const cursor of others.splice(0)) cursor.destroy();
     startRoom(false);
+  });
+
+  describe('writing it down', () => {
+    let table: GameTable;
+    const grid = cellGridOf(4, 3, 50, GridType.SQUARE);
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      startRoom(true);
+      PeerCursor.createMyCursor();
+      table = new GameTable();
+      table.fogEnabled = true;
+      table.fogMode = 'normal';
+      table.initialize();
+    });
+
+    afterEach(() => {
+      table.destroy();
+      vi.useRealTimers();
+    });
+
+    function see(...cells: number[]): void {
+      const bits = new CellBits(12);
+      for (const cell of cells) bits.set(cell);
+      sharedVisibleCells.set({ grid, cells: bits });
+      TestBed.tick();
+    }
+
+    it('writes what the party has seen after a moment, gathering what it sees meanwhile into one write', () => {
+      see(5);
+      vi.advanceTimersByTime(500);
+      see(5, 7);
+      expect(fogMemoryOn(table)).toBeNull();
+
+      vi.advanceTimersByTime(500);
+
+      const memory = fogMemoryOn(table)!;
+      expect(memory.read(grid).get(5)).toBe(true);
+      expect(memory.read(grid).get(7)).toBe(true);
+    });
+
+    it('drops a write still waiting once there is nothing to write', () => {
+      see(5);
+      sharedVisibleCells.set(null);
+      TestBed.tick();
+
+      vi.advanceTimersByTime(1000);
+
+      expect(fogMemoryOn(table)).toBeNull();
+    });
   });
 
   describe('who writes the fog down', () => {

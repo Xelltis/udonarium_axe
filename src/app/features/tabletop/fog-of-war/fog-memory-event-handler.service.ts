@@ -3,9 +3,10 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { coalesce } from '@axe/core/util/debounce';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { CellGrid, sameCellGrid } from '@axe/domain/tabletop/fog/cell-grid';
+import { CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { ensureFogMemoryOn, fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { fogRules } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -36,7 +37,7 @@ export class FogMemoryEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
 
   private held: FogRecord | null = null;
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly flushLater = coalesce(() => this.flush(), FLUSH_DELAY_MS);
 
   constructor() {
     effect(() => {
@@ -61,9 +62,7 @@ export class FogMemoryEventHandlerService {
 
   private forget(): void {
     this.held = null;
-    if (this.timer === null) return;
-    clearTimeout(this.timer);
-    this.timer = null;
+    this.flushLater.cancel();
   }
 
   private remember(table: GameTable, grid: CellGrid, visible: CellBits, met: ReadonlySet<string>): void {
@@ -74,22 +73,14 @@ export class FogMemoryEventHandlerService {
       ? { generation: memory.generation, bits: memory.read(grid), found: memory.readFound() }
       : null;
     this.held = mergeFogRecord(this.held, grid, stored, visible, met);
-    this.schedule(grid);
+    if (this.isScribe()) this.flushLater();
   }
 
-  private schedule(grid: CellGrid): void {
-    if (this.timer !== null || !this.isScribe()) return;
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      this.flush(grid);
-    }, FLUSH_DELAY_MS);
-  }
-
-  private flush(grid: CellGrid): void {
+  private flush(): void {
     const held = this.held;
     const table = this.tableSelecter.viewTable;
     if (!held || !table || !table.fogEnabled || !fogRules(table.fogMode).remembersGround) return;
-    if (!sameCellGrid(held.grid, grid)) return;
+    const grid = held.grid;
     const memory = fogMemoryOn(table);
     if (memory && memory.generation !== held.generation) return;
     const groundKnown = !!memory && memory.matches(grid) && memory.read(grid).covers(held.bits);
