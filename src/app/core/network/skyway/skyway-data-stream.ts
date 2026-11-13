@@ -3,6 +3,7 @@ import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
 import { ChunkBuffer, DataChunk } from '@axe/core/network/skyway/skyway-chunk-buffer';
 import { SkyWayFacade } from '@axe/core/network/skyway/skyway-facade';
+import { dataChannelOf, p2pConnectionOf } from '@axe/core/network/skyway/skyway-internals';
 import { CandidateType, WebRTCStats } from '@axe/core/network/webrtc/webrtc-stats';
 import { WebRTCConnection, WebRTCStatsMonitor } from '@axe/core/network/webrtc/webrtc-stats-monitor';
 import * as MessagePack from '@axe/core/util/message-pack';
@@ -11,7 +12,6 @@ import { setZeroTimeout } from '@axe/core/util/zero-timeout';
 import {
   isRemoteMember,
   LocalDataStream,
-  P2PConnection,
   Publication,
   RemoteDataStream,
   RemoteMember,
@@ -288,14 +288,12 @@ export class SkyWayDataStream extends EventEmitter implements WebRTCConnection {
   private refresh() {
     const member = this.member;
 
-    const p2pconnection = (
-      member as unknown as { _getOrCreateConnection?: (...args: unknown[]) => P2PConnection }
-    )?._getOrCreateConnection?.((this.skyWay.roomPerson as unknown as { _impl?: unknown })?._impl) as P2PConnection;
+    const p2pconnection = p2pConnectionOf(member, this.skyWay.roomPerson);
     const publication = member?.publications.find((publication) => publication.metadata === 'udonarium-data-stream');
 
     const dataChannel = this.isPublication
       ? p2pconnection?.sender.datachannels[this.skyWay.publication?.id ?? '']
-      : (p2pconnection?.receiver.streams[publication?.id ?? ''] as RemoteDataStream)?._datachannel;
+      : dataChannelOf(p2pconnection?.receiver.streams[publication?.id ?? '']);
 
     const isOpen = dataChannel?.readyState === 'open';
 
