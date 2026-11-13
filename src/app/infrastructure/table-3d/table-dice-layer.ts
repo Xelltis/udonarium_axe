@@ -297,14 +297,19 @@ export class TableDiceLayer {
     faces = new CanvasTexture(drawDiceFaces(shape, labels, colors, onFaces?.source ?? null));
     faces.colorSpace = SRGBColorSpace;
     this.faces.set(key, faces);
-    if (this.faces.size > FACES_KEPT) {
-      const [oldest, dropped] = this.faces.entries().next().value!;
-      if (![...this.shownThrows.values()].some((shown) => shown.materials.some((m) => usesMap(m, dropped)))) {
-        this.faces.delete(oldest);
-        dropped.dispose();
-      }
-    }
+    if (this.faces.size > FACES_KEPT) this.dropFaces(faces);
     return faces;
+  }
+
+  /** Lets go of the oldest faces' picture no die on the table wears, keeping the one just made. */
+  private dropFaces(made: CanvasTexture): void {
+    const worn = [...this.shownThrows.values()].flatMap((shown) => shown.materials);
+    for (const [key, kept] of this.faces) {
+      if (kept === made || worn.some((material) => usesMap(material, kept))) continue;
+      this.faces.delete(key);
+      kept.dispose();
+      return;
+    }
   }
 
   private engravingOf(shape: DieShape, labels: DieLabels): CanvasTexture {
