@@ -187,12 +187,9 @@
           [checked]="presentation.checked"
         />
       }
-      <span [class.opacity-50]="action.enabled === false">
-        @if (presentation.kind === 'selected') {
-          ✔
-        }
-        {{ presentation.label }}</span
-      >
+      <span [class.opacity-50]="action.enabled === false">{{
+        presentation.kind === 'selected' ? '✔ ' + presentation.label : presentation.label
+      }}</span>
     </div>
     @if (action.subActions) {
       <div class="absolute top-0.5 right-px bottom-0 inline-block">
