@@ -676,33 +676,54 @@ describe('UIPanelComponent', () => {
     });
   });
 
-  describe('timerCheckWindowSize cleanup', () => {
-    it('does not watch the window size for a panel that needs no least size', async () => {
-      const priv = component as unknown as { timerCheckWindowSize: ReturnType<typeof setInterval> | null };
+  describe('a panel whose content names a least size', () => {
+    function panel(): HTMLElement {
+      return fixture.nativeElement.querySelector('.draggable-panel');
+    }
+
+    async function draw(): Promise<void> {
       fixture.detectChanges();
       await fixture.whenStable();
+    }
 
-      expect(priv.timerCheckWindowSize).toBeNull();
+    it('leaves a panel that needs no least size as the reader sized it', async () => {
+      await draw();
+      panel().style.width = '100px';
+
+      window.dispatchEvent(new Event('resize'));
+
+      expect(panel().style.width).toBe('100px');
     });
 
-    it('watches the window size for a panel whose content needs a least size', async () => {
-      const priv = component as unknown as { timerCheckWindowSize: ReturnType<typeof setInterval> | null };
+    it('grows to the least size as it is drawn', async () => {
       component.panelService.leastSize = () => ({ width: 320, height: 180 });
-      fixture.detectChanges();
-      await fixture.whenStable();
 
-      expect(priv.timerCheckWindowSize).not.toBeNull();
+      await draw();
+
+      expect(panel().style.width).toBe('320px');
+      expect(panel().style.height).toBe('180px');
     });
 
-    it('clears the window size timer on teardown', () => {
-      const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
-      const priv = component as unknown as { timerCheckWindowSize: ReturnType<typeof setInterval> | null };
-      priv.timerCheckWindowSize = setInterval(() => {}, 999_999);
+    it('is kept at the least size as the window is resized', async () => {
+      component.panelService.leastSize = () => ({ width: 320, height: 180 });
+      await draw();
+      panel().style.width = '100px';
+
+      window.dispatchEvent(new Event('resize'));
+
+      expect(panel().style.width).toBe('320px');
+    });
+
+    it('stops watching once the frame goes', async () => {
+      component.panelService.leastSize = () => ({ width: 320, height: 180 });
+      await draw();
+      const element = panel();
 
       fixture.destroy();
+      element.style.width = '100px';
+      window.dispatchEvent(new Event('resize'));
 
-      expect(clearIntervalSpy).toHaveBeenCalled();
-      expect(priv.timerCheckWindowSize).toBeNull();
+      expect(element.style.width).toBe('100px');
     });
   });
 });

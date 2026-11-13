@@ -1,0 +1,13 @@
+<button
+  class="rounded-ui-sm text-ui-titlebar-muted hover:bg-ui-hover hover:text-ui-titlebar-text m-0 inline-flex h-5.5 transform-none items-center justify-center border-none bg-transparent px-1 py-0.5 leading-none shadow-none transition-colors outline-none hover:border-transparent hover:shadow-none"
+  [ngClass]="compact() ? 'size-10! rounded-full! [&>i]:text-[22px]!' : ''"
+  [class.text-ui-accent!]="active() === true"
+  [title]="label()"
+  [attr.aria-label]="label()"
+  [attr.aria-pressed]="active()"
+  [attr.data-testid]="testId()"
+  [disabled]="disabled()"
+  (click)="press.emit()"
+>
+  <i class="material-icons text-[14px]!" aria-hidden="true">{{ icon() }}</i>
+</button>
