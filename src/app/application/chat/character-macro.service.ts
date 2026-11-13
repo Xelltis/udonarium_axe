@@ -115,7 +115,7 @@ export class CharacterMacroService {
     const gameType =
       options.gameType ||
       chosenSystem(character.chatPalette?.dicebot) ||
-      chosenSystem(this.objectStore.get<Config>('Config')?.defaultDiceBot) ||
+      chosenSystem(Config.instance.defaultDiceBot) ||
       this.chatMessageService.gameType;
     const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
     return this.markedAs(options, () => this.send(character, line, { ...options, gameSystem }));
@@ -136,9 +136,7 @@ export class CharacterMacroService {
     const cursor = PeerCursor.myCursor;
     if (!tab || !cursor) return null;
     const gameType =
-      options.gameType ||
-      chosenSystem(this.objectStore.get<Config>('Config')?.defaultDiceBot) ||
-      this.chatMessageService.gameType;
+      options.gameType || chosenSystem(Config.instance.defaultDiceBot) || this.chatMessageService.gameType;
     const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
     return this.markedAs(options, () =>
       this.chatMessageService.sendMessage(tab, line, gameSystem, cursor.identifier, '', 0, cursor.chatColorCode[0])
@@ -163,7 +161,7 @@ export class CharacterMacroService {
     const gameType =
       options.gameType ||
       chosenSystem(character?.chatPalette?.dicebot) ||
-      chosenSystem(this.objectStore.get<Config>('Config')?.defaultDiceBot) ||
+      chosenSystem(Config.instance.defaultDiceBot) ||
       this.chatMessageService.gameType;
     const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
     const text = character ? evaluateCharacterReferences(line, character).text : line;
