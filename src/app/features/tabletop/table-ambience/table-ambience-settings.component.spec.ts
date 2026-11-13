@@ -55,6 +55,24 @@ describe('TableAmbienceSettingsComponent', () => {
     expect(fieldIn(fixture, 'ambienceSurface').value).toBe('3');
   });
 
+  it('writes each percentage as a whole share held between 0 and 1, reading what is no number as 0', () => {
+    const fixture = TestBed.createComponent(TableAmbienceSettingsComponent);
+    const component = fixture.componentInstance;
+    component.target = ambience;
+
+    component.turbidityPercent = 150;
+    component.dirtPercent = -20;
+    component.leavesPercent = 33.4;
+    component.flowSpeedPercent = '45' as unknown as number;
+    component.icePercent = Number.NaN;
+
+    expect(ambience.turbidity).toBe(1);
+    expect(ambience.dirtiness).toBe(0);
+    expect(ambience.floatingLeaves).toBeCloseTo(0.33, 10);
+    expect(ambience.flowSpeed).toBeCloseTo(0.45, 10);
+    expect(ambience.iceCover).toBe(0);
+  });
+
   it('leaves the water where it stands while its depth is emptied to type a new one', async () => {
     ambience.surfaceHeight = 2;
     const field = await depthField();

@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
+import { clamp, clamp01 } from '@axe/core/util/clamp';
 import {
   AMBIENCE_BRIGHTNESS,
   AmbienceBrightness,
@@ -45,6 +46,16 @@ export class TableAmbienceSettingsComponent {
     const target = this.target;
     if (target) this.objectChange.versionOf(target.identifier)();
     return target;
+  }
+
+  /** Writes a share of the ambience from a percentage, whole and held between 0 and 100, and sends it to the room. */
+  private setPercent(
+    key: 'turbidity' | 'dirtiness' | 'floatingLeaves' | 'flowSpeed' | 'iceCover',
+    value: number
+  ): void {
+    if (!this.target) return;
+    this.target[key] = clamp01(Math.round(Number(value)) / 100);
+    this.target.update();
   }
 
   readonly kinds = GROUND_AMBIENCE_KINDS;
@@ -95,7 +106,7 @@ export class TableAmbienceSettingsComponent {
     if (!this.target || value === null || `${value}`.trim() === '') return;
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return;
-    this.target.surfaceHeight = Math.min(Math.max(Math.round(numeric * 10) / 10, 0), MAX_SURFACE_CELLS);
+    this.target.surfaceHeight = clamp(Math.round(numeric * 10) / 10, 0, MAX_SURFACE_CELLS);
     this.target.update();
   }
 
@@ -104,9 +115,7 @@ export class TableAmbienceSettingsComponent {
     return Math.round((this.area()?.murk ?? 0) * 100);
   }
   set turbidityPercent(value: number) {
-    if (!this.target) return;
-    this.target.turbidity = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
-    this.target.update();
+    this.setPercent('turbidity', value);
   }
 
   /** How dirty the water is, as a percentage; a change is sent to the room. Only water shows it. */
@@ -114,9 +123,7 @@ export class TableAmbienceSettingsComponent {
     return Math.round((this.area()?.dirt ?? 0) * 100);
   }
   set dirtPercent(value: number) {
-    if (!this.target) return;
-    this.target.dirtiness = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
-    this.target.update();
+    this.setPercent('dirtiness', value);
   }
 
   protected readonly waterPresets = WATER_PRESET_IDS;
@@ -141,9 +148,7 @@ export class TableAmbienceSettingsComponent {
     return Math.round((this.area()?.leaves ?? 0) * 100);
   }
   set leavesPercent(value: number) {
-    if (!this.target) return;
-    this.target.floatingLeaves = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
-    this.target.update();
+    this.setPercent('floatingLeaves', value);
   }
 
   /** The ways water can be set to flow. */
@@ -154,9 +159,7 @@ export class TableAmbienceSettingsComponent {
     return Math.round((this.area()?.flow ?? 0) * 100);
   }
   set flowSpeedPercent(value: number) {
-    if (!this.target) return;
-    this.target.flowSpeed = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
-    this.target.update();
+    this.setPercent('flowSpeed', value);
   }
 
   /**
@@ -167,9 +170,7 @@ export class TableAmbienceSettingsComponent {
     return Math.round((this.area()?.ice ?? 0) * 100);
   }
   set icePercent(value: number) {
-    if (!this.target) return;
-    this.target.iceCover = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
-    this.target.update();
+    this.setPercent('iceCover', value);
   }
 
   /** Which way the water flows, in degrees clockwise from the top of the table; a change is sent to the room. */
@@ -279,5 +280,5 @@ export class TableAmbienceSettingsComponent {
 function clampCells(value: number): number {
   const numeric = Math.round(Number(value));
   if (!Number.isFinite(numeric)) return 1;
-  return Math.min(Math.max(numeric, 1), MAX_CELLS);
+  return clamp(numeric, 1, MAX_CELLS);
 }
