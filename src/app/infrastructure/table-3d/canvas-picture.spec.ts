@@ -72,6 +72,16 @@ describe('a picture read from a file', () => {
     expect(picture.version).toBeGreaterThan(sent);
   });
 
+  it('closes the bitmap it was read into once the copy stands in for it', () => {
+    const bitmap = { width: 16384, height: 7680, close: vi.fn() };
+    const picture = new Texture(bitmap as unknown as ImageBitmap);
+
+    fitReadPicture(picture);
+
+    expect(picture.image).not.toBe(bitmap);
+    expect(bitmap.close).toHaveBeenCalledTimes(1);
+  });
+
   it('is left as it is where it was read whole, or not read at all', () => {
     const whole = canvasOf(1600, 1000);
     const picture = new Texture(whole);

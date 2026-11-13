@@ -1,4 +1,5 @@
 import { LONGEST_PICTURE_PX } from '@axe/infrastructure/table-3d/table-3d-port';
+import { closeReadPixels } from '@axe/infrastructure/three-kit/read-pictures';
 import type { Texture } from 'three/webgpu';
 
 /** The names a picture keeps, among its own data, the canvas it is drawn from and what it last sent of it. */
@@ -46,7 +47,8 @@ function sentOf(picture: Texture, canvas: HTMLCanvasElement): HTMLCanvasElement 
  * Brings a picture read from a file, as the page's picture of a piece or a board's picture, down to
  * the longest side the card takes, where it is longer: a white board as wide as a table of large
  * cells, pictured at the screen's pixel ratio, is read larger than the card takes, and refused there
- * with every frame after. One read whole, or not read at all, is left as it is.
+ * with every frame after. The pixels it was read into are closed where they can be, as a decoded
+ * bitmap's, once the copy stands in for them. One read whole, or not read at all, is left as it is.
  */
 export function fitReadPicture(picture: Texture): void {
   const image = picture.image as { width?: number; height?: number } | null | undefined;
@@ -60,4 +62,5 @@ export function fitReadPicture(picture: Texture): void {
   copy.getContext('2d')?.drawImage(image as CanvasImageSource, 0, 0, copy.width, copy.height);
   picture.image = copy;
   picture.needsUpdate = true;
+  closeReadPixels(image);
 }
