@@ -32,6 +32,19 @@ export function isChangeableElementType(type: string): boolean {
   return CHANGEABLE_TYPES.has(type);
 }
 
+/** The whole number a value or current value holds, or null when it is empty or not a number. */
+function integerHeldIn(raw: number | string): number | null {
+  const number = parseInt(raw as string);
+  return Number.isFinite(number) ? number : null;
+}
+
+/** The number a value or current value holds, or null when it is empty or not a number. */
+function numberHeldIn(raw: number | string): number | null {
+  if (raw === '') return null;
+  const number = Number(raw);
+  return Number.isFinite(number) ? number : null;
+}
+
 export class StatusAccessor {
   constructor(
     private readonly detailDataElement: DataElement | null,
@@ -83,15 +96,16 @@ export class StatusAccessor {
 
   /**
    * The number held in a slot of the item, or null when there is no such item or slot. The value
-   * and current value are read as integers, and an unset base reads as 0.
+   * and current value are read as integers, null when empty or not a number, and an unset base
+   * reads as 0.
    */
   getValue(name: string, nowOrMax: ResourceSlot): number | null {
     const data = this.findData(name);
     if (!data) return null;
     const type = this.getType(name, nowOrMax) as SlotType | null;
     if (type == null) return null;
-    if (type === 'value') return parseInt(data.value as string);
-    if (type === 'currentValue') return parseInt(data.currentValue as string);
+    if (type === 'value') return integerHeldIn(data.value);
+    if (type === 'currentValue') return integerHeldIn(data.currentValue);
     if (type === 'maxBase') return data.maxBase ?? 0;
     if (type === 'maxCorrection') return data.maxCorrection;
     if (type === 'minBase') return data.minBase ?? 0;
@@ -141,11 +155,16 @@ export class StatusAccessor {
       }
     }
     // Re-clamp value (currentMax) / currentValue to the new effective bounds.
-    const reclampedValue = StatusAccessor.clampToBounds(data, 'value', Number(data.value));
-    if (Number.isFinite(reclampedValue) && reclampedValue !== Number(data.value)) data.value = reclampedValue;
-    const reclampedCurrent = StatusAccessor.clampToBounds(data, 'currentValue', Number(data.currentValue));
-    if (Number.isFinite(reclampedCurrent) && reclampedCurrent !== Number(data.currentValue))
-      data.currentValue = reclampedCurrent;
+    const heldValue = numberHeldIn(data.value);
+    if (heldValue != null) {
+      const reclampedValue = StatusAccessor.clampToBounds(data, 'value', heldValue);
+      if (reclampedValue !== heldValue) data.value = reclampedValue;
+    }
+    const heldCurrent = numberHeldIn(data.currentValue);
+    if (heldCurrent != null) {
+      const reclampedCurrent = StatusAccessor.clampToBounds(data, 'currentValue', heldCurrent);
+      if (reclampedCurrent !== heldCurrent) data.currentValue = reclampedCurrent;
+    }
     return true;
   }
 
@@ -154,8 +173,8 @@ export class StatusAccessor {
    * (= base + correction) configured on the element:
    *   currentValue ∈ [effectiveMin, value (currentMax)]
    *   value (currentMax) ∈ [effectiveMin, effectiveMax]
-   * `null` from getters means unbounded on that side. A resource set to go over its maximum has no
-   * upper bound on its current value.
+   * `null` from getters means unbounded on that side, as is a current maximum that is empty or not
+   * a number. A resource set to go over its maximum has no upper bound on its current value.
    */
   private static clampToBounds(data: DataElement, type: 'value' | 'currentValue', input: number): number {
     if (!Number.isFinite(input)) return input;
@@ -164,8 +183,8 @@ export class StatusAccessor {
     if (effectiveMin != null) result = Math.max(effectiveMin, result);
     let upper: number | null = null;
     if (type === 'currentValue') {
-      const currentMax = Number(data.value);
-      if (Number.isFinite(currentMax) && !allowsOverResource(data)) upper = currentMax;
+      const currentMax = numberHeldIn(data.value);
+      if (currentMax != null && !allowsOverResource(data)) upper = currentMax;
     } else {
       upper = data.effectiveMax;
     }
@@ -213,8 +232,8 @@ export class StatusAccessor {
       if (limitMin && data.effectiveMin == null && target < 0) target = 0;
       // Legacy ceiling for currentValue: limitMax flag caps at value SyncVar (currentMax).
       if (limitMax && type === 'currentValue') {
-        const currentMax = +data.value;
-        if (Number.isFinite(currentMax) && target > currentMax) target = currentMax;
+        const currentMax = numberHeldIn(data.value);
+        if (currentMax != null && target > currentMax) target = currentMax;
       }
     } else {
       // Base/correction targets: limit flags don't apply (they have no inherent bounds).

@@ -121,6 +121,41 @@ describe('StatusAccessor', () => {
     });
   });
 
+  describe('on a resource with no maximum', () => {
+    let hp: DataElement;
+
+    beforeEach(() => {
+      hp = detailDataElement.getFirstElementByName('HP')!;
+      hp.value = '';
+    });
+
+    it('reads the maximum as nothing', () => {
+      expect(accessor.getValue('HP', 'max')).toBeNull();
+    });
+
+    it('lets the current value go wherever it is written', () => {
+      accessor.setValue('HP', 'now', 300);
+      expect(accessor.getValue('HP', 'now')).toBe(300);
+    });
+
+    it('has no maximum to stop at when it is asked to', () => {
+      const result = accessor.changeValue('HP', 'now', 100, false, true);
+      expect(result).toContain('250');
+      expect(result).not.toContain('(最大)');
+      expect(accessor.getValue('HP', 'now')).toBe(250);
+    });
+
+    it('leaves the maximum empty rather than moving what is not a number', () => {
+      expect(accessor.changeValue('HP', 'max', 10)).toBe('');
+      expect(hp.value).toBe('');
+    });
+
+    it('leaves it empty when a minimum is set under it', () => {
+      accessor.setValue('HP', 'minBase', 5);
+      expect(hp.value).toBe('');
+    });
+  });
+
   describe('getTextType', () => {
     it('returns the current value for a resource', () => {
       expect(accessor.getTextType('HP')).toBe('currentValue');
