@@ -33,9 +33,8 @@ import type { EffectJolt } from '@axe/domain/effect/effect-reaction';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
+import { pieceGroundLiftAt } from '@axe/domain/tabletop/ground/piece-ground-lift';
 import { LightSource } from '@axe/domain/tabletop/light-source';
-import { canBeStoodOn } from '@axe/domain/tabletop/move/landing-height';
 import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
 import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
@@ -45,9 +44,7 @@ import { asTableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { terrainCovers } from '@axe/domain/tabletop/terrain-box';
 import { type TerrainBox, terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
-import { terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 import { SurfaceLean } from '@axe/domain/tabletop/terrain-slope-surface';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
@@ -1008,12 +1005,7 @@ export class TablePiecesService {
     const size = Number((piece as { size?: unknown }).size);
     const half = size > 0 ? (size * gridSize) / 2 : 0;
     const [middleX, middleY] = [x + half, y + half];
-    for (const terrain of this.blocksOver(middleX, middleY)) {
-      if (!canBeStoodOn(terrain) || !terrainCovers(terrain, gridSize, middleX, middleY)) continue;
-      const top = terrainTopPxAt(terrain, gridSize, table.gridType, middleX, middleY);
-      if (Math.abs(top - z) < 1) return groundLiftOfBlock(ground, gridSize, terrain);
-    }
-    return ground.heightAt(middleX / gridSize, middleY / gridSize) * gridSize;
+    return pieceGroundLiftAt(ground, gridSize, table.gridType, this.blocksOver(middleX, middleY), middleX, middleY, z);
   }
 
   /**

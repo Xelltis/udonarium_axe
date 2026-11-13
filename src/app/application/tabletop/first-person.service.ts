@@ -47,13 +47,14 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellGridOf, CellPoint, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
 import { computeVisibleCellsFor } from '@axe/domain/tabletop/fog/visible-cells';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { pieceGroundLiftAt } from '@axe/domain/tabletop/ground/piece-ground-lift';
 import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { moveNeighbourToward } from '@axe/domain/tabletop/move/move-neighbours';
 import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
+import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { SceneVisionSource } from '@axe/domain/tabletop/vision-scene';
@@ -174,6 +175,12 @@ export class FirstPersonService {
     return table ? firstPersonWorldOf(table, table.terrains) : null;
   });
 
+  /** The terrain blocks of the table in view, gathered again only when the board changes, not as the eye turns. */
+  private readonly blocks = computed<readonly Terrain[]>(() => {
+    this.worldEpoch();
+    return this.table()?.terrains ?? [];
+  });
+
   /** The roof over the ground the board's walls shut in, worked out from the board, not the eye. */
   readonly roof = computed<FirstPersonRoof | null>(() => {
     this.worldEpoch();
@@ -197,7 +204,10 @@ export class FirstPersonService {
       const standing = this.standingPoint(piece, table, grid);
       if (!standing) return null;
       const yaw = snappedRotate(this.lattice(), piece.rotate);
-      const eyeZ = (piece.altitude + FIRST_PERSON_EYE_HEIGHT_CELLS) * table.gridSize + piece.posZ;
+      const eyeZ =
+        (piece.altitude + FIRST_PERSON_EYE_HEIGHT_CELLS) * table.gridSize +
+        piece.posZ +
+        this.groundLiftOf(piece, table);
       return eyePoseAt(standing, yaw, eyeZ, table.gridSize);
     },
     { equal: samePose }
@@ -524,6 +534,21 @@ export class FirstPersonService {
       if (pieceCellOf(grid, piece, table.gridSize) < 0) return null;
     }
     return piece;
+  }
+
+  /**
+   * How far the raised ground lifts the piece looked out of, as the table draws it lifted
+   * (`pieceGroundLiftAt`): on a block's top as far as the block, else by the ground under its middle.
+   * A piece on a wall or a board is not lifted.
+   */
+  private groundLiftOf(piece: GameCharacter, table: GameTable): number {
+    if (surfaceOf(piece) !== 'floor' || boardSurfaceOf(piece)) return 0;
+    const ground = this.raisedGround.surface();
+    if (ground.isFlat) return 0;
+    const half = (piece.size * table.gridSize) / 2;
+    const middleX = piece.location.x + half;
+    const middleY = piece.location.y + half;
+    return pieceGroundLiftAt(ground, table.gridSize, table.gridType, this.blocks(), middleX, middleY, piece.posZ);
   }
 
   private standingPoint(piece: GameCharacter, table: GameTable, grid: CellGrid): CellPoint | null {
