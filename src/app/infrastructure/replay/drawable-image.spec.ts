@@ -1,4 +1,9 @@
-import { type DrawableImageSource, loadDrawableImages } from '@axe/infrastructure/replay/drawable-image';
+import {
+  type DrawableImageSource,
+  loadDrawableImages,
+  UnreadableImageError,
+} from '@axe/infrastructure/replay/drawable-image';
+import { stubUnloadableImages } from '@axe/testing/unloadable-image';
 
 /** A stand-in for the bitmap a blob decodes to, told apart by the blob's size. */
 function decoded(blob: Blob): { width: number; height: number } {
@@ -52,5 +57,20 @@ describe('loadDrawableImages()', () => {
 
     expect([...loaded.keys()]).toEqual(['fine']);
     expect(missing).toHaveBeenCalledWith('broken', expect.any(Error));
+  });
+
+  it('tells of a picture with no bytes whose address cannot be loaded, by name and address', async () => {
+    vi.unstubAllGlobals();
+    stubUnloadableImages();
+    const storage: DrawableImageSource = { get: () => ({ blob: null, url: 'blob:gone' }) };
+    const missing = vi.fn();
+
+    const loaded = await loadDrawableImages(storage, ['gone'], missing);
+
+    expect(loaded.size).toBe(0);
+    const [, reason] = missing.mock.calls[0];
+    expect(reason).toBeInstanceOf(UnreadableImageError);
+    expect((reason as UnreadableImageError).name).toBe('UnreadableImageError');
+    expect((reason as UnreadableImageError).url).toBe('blob:gone');
   });
 });
