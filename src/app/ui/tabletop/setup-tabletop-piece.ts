@@ -32,7 +32,7 @@ function applyMovableOption<T extends TabletopObject>(
   const snapOrigin = opts.snapOrigin?.(piece);
   signal.set({
     tabletopObject: piece,
-    colideLayers: opts.collideLayers ? [...opts.collideLayers] : undefined,
+    collideLayers: opts.collideLayers ? [...opts.collideLayers] : undefined,
     snapStyle,
     snapOrigin,
     snapToSquare: opts.snapToSquare ? (at) => opts.snapToSquare!(piece, at) : undefined,

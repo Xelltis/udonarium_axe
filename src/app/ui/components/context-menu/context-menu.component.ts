@@ -120,7 +120,7 @@ export class ContextMenuComponent {
         document.addEventListener('touchstart', this.callbackOnOutsideClick, true);
         document.addEventListener('mousedown', this.callbackOnOutsideClick, true);
       }
-      this.indexMenuPosion();
+      this.placeIndexMenu();
     });
     afterRenderEffect({
       mixedReadWrite: () => {
@@ -180,7 +180,7 @@ export class ContextMenuComponent {
   }
 
   /** Moves the index menu one menu-width to the left of where it opened; other menus are left alone. */
-  indexMenuPosion() {
+  placeIndexMenu() {
     if (this.title != this.indexTitle) return;
 
     const panel: HTMLElement = this.rootElementRef().nativeElement;

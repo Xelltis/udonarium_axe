@@ -290,7 +290,7 @@ describe('MovableDirective a piece drawn inside another', () => {
 describe('MovableDirective layers', () => {
   @Component({
     selector: 'layer-host',
-    template: `<div appMovable [movable.option]="{ layerName: 'character', colideLayers: ['terrain'] }"></div>`,
+    template: `<div appMovable [movable.option]="{ layerName: 'character', collideLayers: ['terrain'] }"></div>`,
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [MovableDirective],
   })

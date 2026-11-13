@@ -52,7 +52,7 @@ describe('setupMovableForPiece()', () => {
 
     const option = movableOption();
     expect(option.tabletopObject).toBe(piece);
-    expect(option.colideLayers).toEqual(['terrain']);
+    expect(option.collideLayers).toEqual(['terrain']);
     expect(option.layerName).toBe('character');
     expect(option.snapStyle).toBe(GridSnapStyle.GRID);
     expect(option.snapOrigin).toEqual({ x: 25, y: 25 });
@@ -72,7 +72,7 @@ describe('setupMovableForPiece()', () => {
 
     const option = movableOption();
     expect(option.snapStyle).toBe(GridSnapStyle.CENTER);
-    expect(option.colideLayers).toBeUndefined();
+    expect(option.collideLayers).toBeUndefined();
     expect(option.snapToSquare).toBeUndefined();
     expect(option.footprint).toBeUndefined();
     expect(option.freeOfGrid).toBeUndefined();

@@ -92,10 +92,10 @@ export class InputHandler {
   }
 
   private onMouse(e: MouseEvent) {
-    const mosuePointer: PointerData = { x: e.pageX, y: e.pageY, z: 0, identifier: MOUSE_IDENTIFIER };
-    if (this.isSyntheticEvent(mosuePointer)) return;
-    this.lastPointers = [mosuePointer];
-    this.primaryPointer = mosuePointer;
+    const mousePointer: PointerData = { x: e.pageX, y: e.pageY, z: 0, identifier: MOUSE_IDENTIFIER };
+    if (this.isSyntheticEvent(mousePointer)) return;
+    this.lastPointers = [mousePointer];
+    this.primaryPointer = mousePointer;
 
     this.onPointer(e);
   }
@@ -156,10 +156,10 @@ export class InputHandler {
     if (this.onContextMenu) this.onContextMenu(e);
   }
 
-  private isSyntheticEvent(mosuePointer: PointerData, threshold: number = 15): boolean {
+  private isSyntheticEvent(mousePointer: PointerData, threshold: number = 15): boolean {
     for (const pointer of this.lastPointers) {
-      if (pointer.identifier === mosuePointer.identifier) continue;
-      const distance = (mosuePointer.x - pointer.x) ** 2 + (mosuePointer.y - pointer.y) ** 2;
+      if (pointer.identifier === mousePointer.identifier) continue;
+      const distance = (mousePointer.x - pointer.x) ** 2 + (mousePointer.y - pointer.y) ** 2;
       if (distance < threshold ** 2) {
         return true;
       }

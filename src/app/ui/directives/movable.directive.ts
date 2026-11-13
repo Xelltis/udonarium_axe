@@ -75,7 +75,7 @@ const GRID_PX = 50;
 export interface MovableOption {
   readonly tabletopObject?: TabletopObject;
   readonly layerName?: string;
-  readonly colideLayers?: string[];
+  readonly collideLayers?: string[];
   readonly snapOrigin?: { x: number; y: number };
   readonly snapStyle?: GridSnapStyle;
   /**
@@ -142,7 +142,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private tabletopObject: TabletopObject | null = null;
   layerName: string = '';
-  private colideLayers: string[] = [];
+  private collideLayers: string[] = [];
   private footprint: (() => PieceFootprint) | undefined = undefined;
   private snapOrigin: { x: number; y: number } | undefined;
   private snapStyle: GridSnapStyle | undefined;
@@ -159,7 +159,7 @@ export class MovableDirective implements MovableInteractionContext {
     return !!identifier && this.selectionSignalService.pressedObject() === identifier;
   });
   readonly isDisable = input(false, { alias: 'movable.disable' });
-  readonly isScratcOwner = input(false, { alias: 'movable.scratch_owner' });
+  readonly isScratchOwner = input(false, { alias: 'movable.scratch_owner' });
 
   readonly onstart = output<PointerEvent>({ alias: 'movable.onstart' });
   readonly ondragstart = output<PointerEvent>({ alias: 'movable.ondragstart' });
@@ -248,7 +248,7 @@ export class MovableDirective implements MovableInteractionContext {
       const opt = this.option();
       if (opt.tabletopObject != null) this.tabletopObject = opt.tabletopObject;
       if (opt.layerName != null) this.layerName = opt.layerName;
-      if (opt.colideLayers != null) this.colideLayers = opt.colideLayers;
+      if (opt.collideLayers != null) this.collideLayers = opt.collideLayers;
       this.footprint = opt.footprint;
       this.snapOrigin = opt.snapOrigin;
       this.snapStyle = opt.snapStyle;
@@ -406,7 +406,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private liftByWheel(e: WheelEvent): void {
     if (!this.input?.isGrabbing) return;
-    if ((this.isDisable() && !this.isScratcOwner()) || this.isReadOnly()) return;
+    if ((this.isDisable() && !this.isScratchOwner()) || this.isReadOnly()) return;
     if (e.cancelable) e.preventDefault();
     e.stopPropagation();
 
@@ -678,7 +678,7 @@ export class MovableDirective implements MovableInteractionContext {
     return perfTimed('hitTest', () =>
       this.tablePick.faceAt(pointer.x, pointer.y, {
         excluding: new Set(self ? [self] : []),
-        stopsAt: (target) => target.layer !== this.layerName && this.colideLayers.includes(target.layer),
+        stopsAt: (target) => target.layer !== this.layerName && this.collideLayers.includes(target.layer),
       })
     );
   }
@@ -734,7 +734,7 @@ export class MovableDirective implements MovableInteractionContext {
    * including the snap to the grid, and the selection's shared drag is finished.
    */
   onInputEnd(e: MouseEvent | TouchEvent) {
-    if (this.input?.isDragging && !this.isScratcOwner()) {
+    if (this.input?.isDragging && !this.isScratchOwner()) {
       this.maybeSwitchSurfaceOnDrop();
     }
     this.clearDragPreview();
@@ -925,7 +925,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   /** Makes the other pieces hittable or not according to the layers this piece collides with. */
   setCollidableLayer(isCollidable: boolean) {
-    setLayerCollidable(MovableDirective.layerHash, this.colideLayers, this, !!this.input?.isGrabbing, isCollidable);
+    setLayerCollidable(MovableDirective.layerHash, this.collideLayers, this, !!this.input?.isGrabbing, isCollidable);
   }
 
   private register() {

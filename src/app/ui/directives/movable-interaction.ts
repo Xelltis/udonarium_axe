@@ -6,7 +6,7 @@ export interface MovableInteractionContext {
   isGridSnap: boolean;
   isDisable(): boolean;
   isReadOnly(): boolean;
-  isScratcOwner(): boolean;
+  isScratchOwner(): boolean;
   /** Nothing until the directive is set up, and set for as long as it is. */
   input: {
     isGrabbing: boolean;
@@ -72,7 +72,7 @@ export function takePress(e: Event): void {
 export function handleInputStart(context: MovableInteractionContext, e: MouseEvent | TouchEvent): void {
   const input = context.input;
   if (!input) return;
-  const isLocked = (context.isDisable() && !context.isScratcOwner()) || context.isReadOnly();
+  const isLocked = (context.isDisable() && !context.isScratchOwner()) || context.isReadOnly();
   const isContextMenuButton = (e as MouseEvent).button === 1 || (e as MouseEvent).button === 2;
   if (isLocked || isContextMenuButton) {
     if (isContextMenuButton && !isLocked) context.cancelTableGesture();
@@ -123,7 +123,7 @@ export function handleInputMove(context: MovableInteractionContext, e: MouseEven
     return context.cancel();
   }
 
-  if ((context.isDisable() && !context.isScratcOwner()) || context.isReadOnly() || !input.isGrabbing)
+  if ((context.isDisable() && !context.isScratchOwner()) || context.isReadOnly() || !input.isGrabbing)
     return context.cancel();
 
   if (e.cancelable) e.preventDefault();
@@ -155,7 +155,7 @@ export function handleInputMove(context: MovableInteractionContext, e: MouseEven
     if (ratio < context.ratio) context.ratio += (ratio - context.ratio) * 0.1;
   }
 
-  if (!context.isScratcOwner()) {
+  if (!context.isScratchOwner()) {
     context.posX = pointer3d.x;
     context.posY = pointer3d.y;
     context.posZ = pointer3d.z;
@@ -187,7 +187,7 @@ export function handleInputEnd(context: MovableInteractionContext, e: MouseEvent
   if (!input) return;
   if (context.isDisable() || context.isReadOnly()) return context.cancel();
   if (input.isDragging) context.ondragend.emit(e as PointerEvent);
-  if (context.isGridSnap && input.isDragging && !context.isScratcOwner()) context.snapToGrid();
+  if (context.isGridSnap && input.isDragging && !context.isScratchOwner()) context.snapToGrid();
   context.cancel();
   context.onend.emit(e as PointerEvent);
 }

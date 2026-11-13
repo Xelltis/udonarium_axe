@@ -15,7 +15,7 @@ describe('movable interaction', () => {
       isGridSnap: false,
       isDisable: () => false,
       isReadOnly: () => false,
-      isScratcOwner: () => false,
+      isScratchOwner: () => false,
       input: { isGrabbing: true, isDragging: true, pointer: { x: 400, y: 300, z: 0 }, cancel: () => undefined },
       pointerDeviceService: { isDragging: true },
       coordinateService: {
