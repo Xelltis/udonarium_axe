@@ -68,7 +68,7 @@ import type {
 import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { TableDiceLayer } from '@axe/infrastructure/table-3d/table-dice-layer';
 import { TablePost } from '@axe/infrastructure/table-3d/table-post';
-import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
+import { lampColour, NO_LIGHT, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
 import { WeatherLayer } from '@axe/infrastructure/table-3d/weather-layer';
 import { BOARD_TO_SCENE } from '@axe/infrastructure/three-kit/board-space';
@@ -206,10 +206,14 @@ const PIECE_SHADOWS_MS = 150;
 /** How high anything on the table is reckoned to stand, for the shadows of the sun and the moon to reach it, in table pixels. */
 const TALLEST_PX = 2000;
 
-/** The eye's space as the camera's: the eye stands `focalPx` out along z, and the camera's y runs up the page. */
-function eyeToCamera(focalPx: number): Matrix4 {
-  return new Matrix4().makeScale(1, -1, 1).multiply(new Matrix4().makeTranslation(0, 0, -focalPx));
-}
+/** The eye's y, which runs down the page, turned to run up it as the camera's does. */
+const PAGE_UP = new Matrix4().makeScale(1, -1, 1);
+
+/** The eye of the view the camera is set to, and the board's points carried into the camera's space, worked out afresh each time it is set. */
+const eyeOfView = new Matrix4();
+const toCamera = new Matrix4();
+/** Where the camera stands in the scene, read afresh each time it is set. */
+const cameraAt = new Vector3();
 
 /** Makes the engine that draws the table on a canvas, through WebGPU where it can and WebGL2 elsewhere. */
 export async function createTable3dEngine(
@@ -266,6 +270,8 @@ class ThreeTableEngine implements Table3dEngine {
   /** The lamps of the slots, each throwing its light all round or one way, so the scene never has to be built again as lamps change. */
   private readonly lamps = Array.from({ length: SHADOW_LIGHTS }, () => new ConeLamp(0xffffff, 0, 1, 0));
   private laidLamps: readonly Table3dShadowLight[] = [];
+  /** How strong each lamp lights in its colour, written anew each time the lamps are lit. */
+  private readonly lampStrengths = this.lamps.map(() => new Vector3());
   /**
    * The lights effects throw over the table, which throw no shadows: in the scene from the start and
    * left dark while no effect lights, so the scene is not built again as effects come and go.
@@ -411,7 +417,7 @@ class ThreeTableEngine implements Table3dEngine {
     const strengths = this.effectLamps.map((lamp, index) => {
       const light = lights[index];
       lamp.intensity = light ? light.strength * LIGHT_SCALE : 0;
-      if (!light) return lampColour({ r: 0, g: 0, b: 0 }, 0);
+      if (!light) return NO_LIGHT;
       lamp.position.set(light.x, light.z, light.y);
       lamp.distance = Math.max(1, light.reachPx);
       lamp.color.set(light.color || '#ffffff');
@@ -429,50 +435,54 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   /**
-   * Stands each lamp where its light is and lights it as strong as the dark leaves room for, so a
-   * board lit by one is as bright as the dark would let a lamp make it; a slot with no light in it is
-   * left dark, still in the scene, so the scene is not built again as lamps come and go. Has the
-   * shadows of a lamp that moved drawn again.
+   * Lights each lamp as strong as the dark leaves room for, so a board lit by one is as bright as the
+   * dark would let a lamp make it, and stands it where its light is where the lights moved; a slot
+   * with no light in it is left dark, still in the scene, so the scene is not built again as lamps
+   * come and go. A lamp that only flickers keeps its place and its shadows.
    */
   private lightLamps(moved = true): void {
     const room = Math.max(0, 1 - this.veil.ambient);
     const free = this.lamps.slice(0, this.lampSlots);
     for (const lamp of this.lamps) lamp.intensity = 0;
     this.litLamps.clear();
-    const strengths = this.laidLamps.map((light) => {
+    const strengths = this.laidLamps.map((light, index) => {
       const strength = room * animationIntensity(light.animation, this.flickeredAt);
       const lamp = free.shift();
-      if (!lamp) return lampColour({ r: 0, g: 0, b: 0 }, 0);
+      if (!lamp) return NO_LIGHT;
       lamp.intensity = strength * LIGHT_SCALE;
       this.litLamps.add(lamp);
-      lamp.position.set(light.x, light.z, light.y);
-      lamp.distance = Math.max(1, light.dimPx * LAMP_REACH);
-      lamp.color.set(light.color || '#ffffff');
-      if (light.angle < 360) {
-        const axis = lightAxis(light);
-        lamp.target.position.set(light.x + axis.x * 100, light.z + axis.z * 100, light.y + axis.y * 100);
-        lamp.target.updateMatrixWorld();
-        lamp.angle = ((light.angle / 2) * Math.PI) / 180;
-        lamp.penumbra = THROWN_LAMP_PENUMBRA;
-      } else {
-        lamp.target.position.set(light.x, light.z - 1, light.y);
-        lamp.target.updateMatrixWorld();
-        lamp.angle = Math.PI;
-        lamp.penumbra = 0;
-      }
-      this.placeShadow(lamp, moved);
-      return lampColour(lamp.color, strength);
+      if (moved) this.placeLamp(lamp, light);
+      return lampColour(lamp.color, strength, this.lampStrengths[index]);
     });
     this.veil.setLamps(this.laidLamps, strengths);
   }
 
-  /** Sets the box a lamp's shadows are worked out in to its reach, and has them drawn again where it moved. */
-  private placeShadow(lamp: ConeLamp, moved: boolean): void {
+  /**
+   * Stands a lamp where its light is, in its colour, reaching as far as its light dims, turned the
+   * way it throws where it throws one way, with the box its shadows are worked out in set to its
+   * reach, and has its shadows drawn again.
+   */
+  private placeLamp(lamp: ConeLamp, light: Table3dShadowLight): void {
+    lamp.position.set(light.x, light.z, light.y);
+    lamp.distance = Math.max(1, light.dimPx * LAMP_REACH);
+    lamp.color.set(light.color || '#ffffff');
+    if (light.angle < 360) {
+      const axis = lightAxis(light);
+      lamp.target.position.set(light.x + axis.x * 100, light.z + axis.z * 100, light.y + axis.y * 100);
+      lamp.target.updateMatrixWorld();
+      lamp.angle = ((light.angle / 2) * Math.PI) / 180;
+      lamp.penumbra = THROWN_LAMP_PENUMBRA;
+    } else {
+      lamp.target.position.set(light.x, light.z - 1, light.y);
+      lamp.target.updateMatrixWorld();
+      lamp.angle = Math.PI;
+      lamp.penumbra = 0;
+    }
     const camera = lamp.shadow.camera;
     camera.near = 1;
     camera.far = lamp.distance;
     camera.updateProjectionMatrix();
-    if (moved) lamp.shadow.needsUpdate = true;
+    lamp.shadow.needsUpdate = true;
   }
 
   /**
@@ -684,8 +694,8 @@ class ThreeTableEngine implements Table3dEngine {
 
   setCamera(view: Table3dCamera): void {
     const focal = view.focalPx ?? TABLE_PERSPECTIVE_PX;
-    const eye = new Matrix4().fromArray(view.eye as number[]);
-    const toCamera = eyeToCamera(focal).multiply(eye).multiply(BOARD_TO_SCENE);
+    eyeOfView.fromArray(view.eye as number[]);
+    toCamera.makeTranslation(0, 0, -focal).premultiply(PAGE_UP).multiply(eyeOfView).multiply(BOARD_TO_SCENE);
     if (view.orthographic) {
       Object.assign(this.orthographic, {
         left: -view.width / 2,
@@ -704,7 +714,7 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.camera.matrix.copy(toCamera).invert();
     this.camera.updateMatrixWorld(true);
-    const at = new Vector3().setFromMatrixPosition(this.camera.matrixWorld);
+    const at = cameraAt.setFromMatrixPosition(this.camera.matrixWorld);
     const least = { near: view.nearPx ?? NEAR_PX, far: FAR_PX };
     const depth = cameraDepthOver(
       { x: at.x, y: at.z, z: at.y },

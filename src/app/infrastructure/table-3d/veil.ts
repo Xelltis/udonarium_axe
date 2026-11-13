@@ -85,7 +85,7 @@ export class SceneVeil {
       const light = lights[index];
       lamp.at.value.set(light?.x ?? 0, light?.z ?? 0, light?.y ?? 0);
       lamp.reach.value = Math.max(1, light?.dimPx ?? 1);
-      lamp.colour.value.copy(strengths[index] ?? new Vector3());
+      lamp.colour.value.copy(strengths[index] ?? NO_LIGHT);
     });
   }
 
@@ -99,7 +99,7 @@ export class SceneVeil {
       const light = lights[index];
       lamp.at.value.set(light?.x ?? 0, light?.z ?? 0, light?.y ?? 0);
       lamp.reach.value = Math.max(1, light?.reachPx ?? 1);
-      lamp.colour.value.copy(strengths[index] ?? new Vector3());
+      lamp.colour.value.copy(strengths[index] ?? NO_LIGHT);
     });
   }
 
@@ -303,7 +303,17 @@ function numberUniform() {
   return uniform(1);
 }
 
-/** A light's colour as strong as a lamp lights with it, in the light the scene is worked out in. */
-export function lampColour(colour: { r: number; g: number; b: number }, strength: number): Vector3 {
-  return new Vector3(colour.r * strength, colour.g * strength, colour.b * strength);
+/** The strength of a slot with no lamp in it: no light of any colour. Read, never written to. */
+export const NO_LIGHT = new Vector3();
+
+/**
+ * A light's colour as strong as a lamp lights with it, in the light the scene is worked out in,
+ * written into the vector given or into a new one.
+ */
+export function lampColour(
+  colour: { r: number; g: number; b: number },
+  strength: number,
+  into: Vector3 = new Vector3()
+): Vector3 {
+  return into.set(colour.r * strength, colour.g * strength, colour.b * strength);
 }
