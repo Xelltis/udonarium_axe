@@ -28,6 +28,7 @@ import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { transportOf } from '@axe/core/network/transport';
 import { forgetIconChosenByHand, noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
@@ -407,7 +408,7 @@ export class PeerMenuComponent {
     // for everybody or says why not.
     const authority = Network.authorityPeerId;
     if (authority) {
-      networkSend('ROLE_REQUEST', { peerId, role }, authority);
+      networkSend(AuthorityEvent.ROLE_REQUEST, { peerId, role }, authority);
       return;
     }
     cursor.role = role;
