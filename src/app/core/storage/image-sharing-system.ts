@@ -9,6 +9,7 @@ import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { CatalogItem, ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
+import { shuffle } from '@axe/core/util/array-util';
 import { generateUuid } from '@axe/core/util/uuid';
 
 /**
@@ -344,11 +345,7 @@ export class ImageSharingSystem {
     const updateImages: ImageContext[] = [];
     let byteSize: number = 0;
 
-    // Fisher-Yates
-    for (let i = catalog.length - 1; 0 <= i; i--) {
-      const rand = Math.floor(Math.random() * (i + 1));
-      [catalog[i], catalog[rand]] = [catalog[rand], catalog[i]];
-    }
+    shuffle(catalog);
 
     catalog.sort((a, b) => {
       if (a.state < b.state) return -1;

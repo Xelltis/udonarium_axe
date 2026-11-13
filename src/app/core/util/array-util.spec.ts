@@ -1,4 +1,4 @@
-import { diff } from '@axe/core/util/array-util';
+import { diff, shuffle } from '@axe/core/util/array-util';
 
 describe('diff()', () => {
   it('should return empty diffs for identical arrays', () => {
@@ -222,5 +222,30 @@ describe('diff()', () => {
 
     expect(result.diff1).toContain(0);
     expect(result.diff2).toContain(3);
+  });
+});
+
+describe('shuffle()', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('keeps every item, in place, and gives the array back', () => {
+    const array = [1, 2, 3, 4, 5];
+
+    const shuffled = shuffle(array);
+
+    expect(shuffled).toBe(array);
+    expect([...shuffled].sort()).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('puts each item where the random draw says, from the last item down', () => {
+    const draws = [0, 0, 0];
+    vi.spyOn(Math, 'random').mockImplementation(() => draws.shift() ?? 0);
+
+    expect(shuffle(['a', 'b', 'c'])).toEqual(['b', 'c', 'a']);
+  });
+
+  it('leaves an empty array and one item alone', () => {
+    expect(shuffle([])).toEqual([]);
+    expect(shuffle(['only'])).toEqual(['only']);
   });
 });

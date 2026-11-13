@@ -10,6 +10,7 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { CatalogItem, ObjectStore } from '@axe/core/sync/object-store';
 import { isNewerVersion } from '@axe/core/sync/object-version';
 import { SynchronizeRequest, SynchronizeTask } from '@axe/core/sync/synchronize-task';
+import { shuffle } from '@axe/core/util/array-util';
 
 type PeerId = string;
 type ObjectIdentifier = string;
@@ -369,12 +370,7 @@ export class ObjectSynchronizer {
   private getTargetPeerId(exclude: ReadonlySet<PeerId>): PeerId | null {
     let min = Infinity;
     let selectPeerId: PeerId | null = null;
-    const peerIds = syncPeerIds();
-
-    for (let i = peerIds.length - 1; 0 <= i; i--) {
-      const rand = Math.floor(Math.random() * (i + 1));
-      [peerIds[i], peerIds[rand]] = [peerIds[rand], peerIds[i]];
-    }
+    const peerIds = shuffle(syncPeerIds());
 
     for (const peerId of peerIds) {
       if (exclude.has(peerId)) continue;
