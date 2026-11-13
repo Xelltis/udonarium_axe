@@ -57,9 +57,10 @@ export class DiceTrayFrameComponent {
     effect((onCleanup) => {
       const canvas = this.canvas()?.nativeElement;
       if (!canvas) return;
-      afterNextRender(() => keepAtFoot(canvas), { injector: this.injector });
+      const pending = afterNextRender(() => keepAtFoot(canvas), { injector: this.injector });
       const stop = watchView(canvas, (seen) => this.inView.set(seen));
       onCleanup(() => {
+        pending.destroy();
         stop();
         this.inView.set(false);
       });

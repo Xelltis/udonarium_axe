@@ -1,4 +1,5 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -255,7 +256,7 @@ export class ImageEditorComponent {
   constructor() {
     const destroyRef = inject(DestroyRef);
     destroyRef.onDestroy(() => this.finish({ kind: 'closed' }));
-    queueMicrotask(() => this.watchArea(destroyRef));
+    afterNextRender(() => this.watchArea(destroyRef));
   }
 
   private watchArea(destroyRef: DestroyRef): void {
