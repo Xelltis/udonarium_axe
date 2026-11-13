@@ -669,24 +669,11 @@ export class GameTableMaskComponent {
    *
    * While dragging, a cell is toggled once as the pointer enters it; a fresh press may toggle the
    * same cell again. Picks are written to the mask after 250 ms without a new one, so a drag
-   * reaches other peers as one change. A point off the mask is ignored. When the table's grid is
-   * hidden, its grid clip is cleared.
+   * reaches other peers as one change. A point off the mask is ignored.
    */
   scratching(isStart: boolean, position: { offsetX: number; offsetY: number } | null = null) {
     const mask = this.gameTableMask();
     if (!mask || !mask.isMine) return;
-    const tableSelecter = this.tableSelecter;
-
-    if (!tableSelecter.viewTable?.gridShow) {
-      const viewTable = tableSelecter.viewTable;
-      if (viewTable)
-        viewTable.gridClipRect = {
-          top: 0,
-          right: 0,
-          bottom: 0,
-          left: 0,
-        };
-    }
     let offsetX;
     let offsetY;
     if (position) {

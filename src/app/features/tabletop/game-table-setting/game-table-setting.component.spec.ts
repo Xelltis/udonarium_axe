@@ -5,6 +5,7 @@ import { CutInService } from '@axe/application/media/cut-in.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { Logger } from '@axe/core/logging/logger';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -828,6 +829,28 @@ describe('GameTableSettingComponent', () => {
       } finally {
         table.destroy();
       }
+    });
+  });
+
+  describe('restoring a deleted table', () => {
+    let table: GameTable;
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      table = new GameTable();
+      table.initialize();
+      component.selectGameTable(table.identifier);
+    });
+
+    it('forgets what it kept and stays on the picked table when the kept XML cannot be read', () => {
+      vi.spyOn(Logger, 'error').mockImplementation(() => undefined);
+      component.selectedTableXml = '<game-table';
+
+      expect(() => component.restore()).not.toThrow();
+
+      expect(component.selectedTableXml).toBe('');
+      expect(component.selectedTable).toBe(table);
     });
   });
 });

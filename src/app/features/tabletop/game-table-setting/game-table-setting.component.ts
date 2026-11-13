@@ -232,19 +232,13 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.gridFontColor = tableGridFontColor + 'e6';
   }
 
-  /**
-   * Whether the picked table shows its grid.
-   *
-   * Turning it on drops any clip set on the grid, and every change raises a local update so the
-   * grid redraws at once.
-   */
+  /** Whether the picked table shows its grid; every change raises a local update so the grid redraws at once. */
   get tableGridShow(): boolean {
     return this.selectedTable?.gridShow ?? false;
   }
   set tableGridShow(tableGridShow: boolean) {
     if (!this.selectedTable) return;
     this.selectedTable.gridShow = tableGridShow;
-    if (tableGridShow) this.selectedTable.gridClipRect = null;
     triggerUpdateGameObject(this.selectedTable.toContext()); // an event for this peer alone, so the grid redraws
   }
 
@@ -851,9 +845,10 @@ export class GameTableSettingComponent {
   restore() {
     if (!this.rolePermission.canEditTabletop()) return;
     if (this.selectedTable && this.selectedTableXml) {
-      const restoreTable = this.objectSerializer.parseXml(this.selectedTableXml)!;
-      this.selectGameTable(restoreTable.identifier);
+      const restored = this.objectSerializer.parseXml(this.selectedTableXml);
       this.selectedTableXml = '';
+      if (!restored) return;
+      this.selectGameTable(restored.identifier);
     }
   }
 
