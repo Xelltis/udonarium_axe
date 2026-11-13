@@ -21,12 +21,11 @@ import { TransientPlacementService } from '@axe/application/tabletop/transient-p
 import { BatchService } from '@axe/application/ui/batch.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
-import { footprintOf, PieceFootprint, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { PieceFootprint, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ALTITUDE_STEP_CELLS, steppedAltitude } from '@axe/domain/tabletop/altitude-step';
 import {
-  beamRestPosition,
   ContactFootprint,
   contactRestLevels,
   ContactRider,
@@ -36,20 +35,9 @@ import {
 } from '@axe/domain/tabletop/contact-support';
 import { GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { gridSnapPosition } from '@axe/domain/tabletop/grid-snap';
-import { clearRunAlong, MoveBlock, turnedMoveBlock } from '@axe/domain/tabletop/move/blocked-path';
-import { TERRAIN_PICK_LAYER } from '@axe/domain/tabletop/pick/terrain-pick';
-import { WorldBox } from '@axe/domain/tabletop/surface-space';
+import { clearRunAlong, MoveBlock } from '@axe/domain/tabletop/move/blocked-path';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { isTableWall } from '@axe/domain/tabletop/table-walls';
-import {
-  boardSurfaceOf,
-  surfaceKeyOf,
-  surfaceOf,
-  TableSurface,
-  TabletopObject,
-} from '@axe/domain/tabletop/tabletop-object';
-import { Terrain } from '@axe/domain/tabletop/terrain';
-import { terrainSlopeRoofOf, terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
+import { boardSurfaceOf, surfaceKeyOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { InputHandler, isTouchPress } from '@axe/ui/directives/input-handler';
 import {
   applyPointerEvents,
@@ -71,6 +59,14 @@ import {
   MovableInteractionContext,
   takePress,
 } from '@axe/ui/directives/movable-interaction';
+import {
+  buildClimbBlocks,
+  buildContactProbe,
+  climbSpread,
+  contactRiderOf,
+  ProbeTable,
+} from '@axe/ui/directives/piece-contact-probe';
+import { beamRestUnder, placeOnFace } from '@axe/ui/directives/surface-switch';
 
 /** How far short of a sheer face a piece is put down, so whole pixels keep it on the outside. */
 const BLOCK_GAP_PX = 1;
@@ -144,7 +140,7 @@ export class MovableDirective implements MovableInteractionContext {
     unregisterLayer(MovableDirective.layerHash, layerName, item);
   }
 
-  private tabletopObject!: TabletopObject;
+  private tabletopObject: TabletopObject | null = null;
   layerName: string = '';
   private colideLayers: string[] = [];
   private footprint: (() => PieceFootprint) | undefined = undefined;
@@ -296,7 +292,7 @@ export class MovableDirective implements MovableInteractionContext {
         return self.tabletopObject?.identifier ?? '';
       },
       get tabletopObject() {
-        return self.tabletopObject;
+        return self.tabletopObject ?? undefined;
       },
       get posX() {
         return self.posX;
@@ -356,7 +352,7 @@ export class MovableDirective implements MovableInteractionContext {
     if (!movedElsewhere(this.tabletopObject, this.posX, this.posY, this.posZ)) return;
     this.batchService.add(() => {
       if (event.isSendFromSelf && this.input?.isGrabbing) return;
-      if (this.input!.isGrabbing) this.cancel();
+      if (this.input?.isGrabbing) this.cancel();
       this.setPosition(this.tabletopObject);
     }, this);
   }
@@ -399,16 +395,11 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   private contactRider(self: TabletopObject): ContactRider {
-    const gridSize = this.tableGridSize();
-    const altitudePx = surfaceOf(self) === 'floor' ? self.altitude * gridSize : 0;
-    const ridesUp = !(self instanceof Terrain);
-    return {
-      altitudePx,
-      thicknessPx: self instanceof Terrain ? self.height * gridSize : 0,
-      ridesUp,
-      restingZ: this.dragReachZ ?? (ridesUp ? this.posZ : altitudePx + this.posZ),
+    return contactRiderOf(self, this.tableGridSize(), {
+      posZ: this.posZ,
+      reachZ: this.dragReachZ,
       restingOn: this.dragRestingOn,
-    };
+    });
   }
 
   private readonly onWheelWhileGrabbed = (e: WheelEvent) => this.liftByWheel(e);
@@ -491,48 +482,15 @@ export class MovableDirective implements MovableInteractionContext {
     this.showHeldPiece(self.altitude);
   }
 
-  /**
-   * How high a sloping block's surface stands over a point, for the probe to ask as the piece
-   * moves, or nothing for anything with a level top.
-   */
-  private slopeTopReader(
-    object: TabletopObject,
-    selfSurface: TableSurface,
-    gridSize: number
-  ): ((x: number, y: number) => number) | undefined {
-    if (!(object instanceof Terrain) || selfSurface !== 'floor' || surfaceOf(object) !== 'floor') return undefined;
-    const gridType = this.tableSelecter.viewTable?.gridType ?? GridType.SQUARE;
-    if (!terrainSlopeRoofOf(object, gridSize, gridType)) return undefined;
-    return (x, y) => terrainTopPxAt(object, gridSize, gridType, x, y);
-  }
-
   private buildContactProbe(): ContactFootprint[] {
     const self = this.tabletopObject;
     if (!self) return [];
-    const selfSurface = surfaceOf(self);
-    const gridSize = this.tableGridSize();
-    const sheer = this.walksTheTable();
-    const footprints: ContactFootprint[] = [];
-    for (const entry of this.tabletopOverlap.entries()) {
-      if (entry.object.identifier === self.identifier) continue;
-      if (surfaceOf(entry.object) !== selfSurface) continue;
-      const left = entry.object.location.x;
-      const top = entry.object.location.y;
-      const footprint = footprintOf(entry, gridSize);
-      footprints.push({
-        left,
-        top,
-        right: left + footprint.width,
-        bottom: top + footprint.height,
-        bottomZ: GravityService.contactBottomZ(entry.object, selfSurface, gridSize),
-        topZ: GravityService.contactTopZ(entry.object, selfSurface, gridSize),
-        rotate: entry.object instanceof Terrain ? entry.object.rotate : undefined,
-        climbable: !(sheer && entry.object instanceof Terrain && entry.object.blocksClimb),
-        topAt: this.slopeTopReader(entry.object, selfSurface, gridSize),
-        identifier: entry.object.identifier,
-      });
-    }
-    return footprints;
+    return buildContactProbe(self, this.tabletopOverlap.entries(), this.probeTable(), this.walksTheTable());
+  }
+
+  /** The table the piece is dragged over, as the probe asks of it. */
+  private probeTable(): ProbeTable {
+    return { gridSize: this.tableGridSize(), gridType: this.tableSelecter.viewTable?.gridType ?? GridType.SQUARE };
   }
 
   private clearContactProbe() {
@@ -552,43 +510,17 @@ export class MovableDirective implements MovableInteractionContext {
     return this.tabletopObject instanceof GameCharacter && !this.rolePermission.isGameMaster();
   }
 
-  /**
-   * How far a piece hangs over the cell it stands in, which is what the ground beside it owes.
-   *
-   * A piece is stopped by where its middle is, and a piece of one cell already owns the cell
-   * its middle is in, so the block itself is all that need stand in its way: grown by half a
-   * piece as well, a gap one cell wide would be a gap of no width at all and nothing would
-   * ever walk between two walls. What a piece wider than a cell hangs over is another matter,
-   * and that much is asked of the ground beside the block.
-   */
-  private climbSpread(): { x: number; y: number } {
-    const gridSize = this.tableGridSize();
-    return {
-      x: Math.max(0, (this.width - gridSize) / 2),
-      y: Math.max(0, (this.height - gridSize) / 2),
-    };
-  }
-
   /** The ground the piece in hand may not walk onto. */
   private buildClimbBlocks(): MoveBlock[] {
     const self = this.tabletopObject;
     if (!self) return [];
-    const selfSurface = surfaceOf(self);
     const gridSize = this.tableGridSize();
-    const spread = this.climbSpread();
-    const blocks: MoveBlock[] = [];
-    for (const entry of this.tabletopOverlap.entries()) {
-      const object = entry.object;
-      if (object.identifier === self.identifier) continue;
-      if (!(object instanceof Terrain) || !object.blocksClimb) continue;
-      if (surfaceOf(object) !== selfSurface) continue;
-      if (object.isDoor && object.isDoorOpen) continue;
-      const left = object.location.x;
-      const top = object.location.y;
-      const box = { minX: left, minY: top, maxX: left + object.width * gridSize, maxY: top + object.depth * gridSize };
-      blocks.push(turnedMoveBlock(box, object.rotate, spread.x, spread.y));
-    }
-    return blocks;
+    return buildClimbBlocks(
+      self,
+      this.tabletopOverlap.entries(),
+      gridSize,
+      climbSpread(this.width, this.height, gridSize)
+    );
   }
 
   /** Holds the piece at the near face of anything it may not walk over. */
@@ -761,25 +693,9 @@ export class MovableDirective implements MovableInteractionContext {
     return this.footprint ? this.footprint() : null;
   }
 
-  /**
-   * Where a point of the page lands on a face this piece could be moved onto, kept inside the face
-   * unless the face lets a piece hang over its edge, as the corner the piece would be put at; or
-   * null where the point is off the face altogether.
-   */
+  /** Where a point of the page lands on a face this piece could be moved onto; see {@link placeOnFace}. */
   private placeOnFace(surface: string, pointer: PointerCoordinate): { x: number; y: number } | null {
-    const onFace = this.tableSurfaces.pointOn(surface, pointer.x, pointer.y);
-    const size = this.tableSurfaces.sizeOf(surface);
-    if (!onFace || !size) return null;
-    if (onFace.localX < 0 || onFace.localX > size.width || onFace.localY < 0 || onFace.localY > size.height) {
-      return null;
-    }
-    const rawX = onFace.localX - this.width / 2;
-    const rawY = onFace.localY - this.height / 2;
-    if (this.tableSurfaces.overhangs(surface)) return { x: rawX, y: rawY };
-    return {
-      x: Math.max(0, Math.min(Math.max(0, size.width - this.width), rawX)),
-      y: Math.max(0, Math.min(Math.max(0, size.height - this.height), rawY)),
-    };
+    return placeOnFace(this.tableSurfaces, surface, pointer, { width: this.width, height: this.height });
   }
 
   private showsDropPreview = false;
@@ -827,10 +743,11 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   private maybeSwitchSurfaceOnDrop() {
-    if (!this.tabletopObject) return;
+    const self = this.tabletopObject;
+    if (!self) return;
     const pointer = this.input?.pointer;
     if (!pointer) return;
-    if (this.restOnBeamUnderPointer(pointer)) return;
+    if (this.restOnBeamUnderPointer(self, pointer)) return;
     const targetSurface = this.surfaceUnderPointer();
     if (!targetSurface || targetSurface === this.currentSurface()) return;
     const placed = this.placeOnFace(targetSurface, pointer);
@@ -844,14 +761,14 @@ export class MovableDirective implements MovableInteractionContext {
     this._posX = newX;
     this._posY = newY;
     this._posZ = 0;
-    this.tabletopObject.location.x = newX;
-    this.tabletopObject.location.y = newY;
-    this.tabletopObject.location.surface = targetSurface === 'floor' ? undefined : targetSurface;
-    this.tabletopObject.posZ = 0;
+    self.location.x = newX;
+    self.location.y = newY;
+    self.location.surface = targetSurface === 'floor' ? undefined : targetSurface;
+    self.posZ = 0;
     this.markLocation();
   }
 
-  private restOnBeamUnderPointer(pointer: PointerCoordinate): boolean {
+  private restOnBeamUnderPointer(self: TabletopObject, pointer: PointerCoordinate): boolean {
     const rest = this.computeBeamRest(pointer);
     if (!rest) return false;
     if (this.updateTimer !== null) {
@@ -861,10 +778,10 @@ export class MovableDirective implements MovableInteractionContext {
     this._posX = rest.x;
     this._posY = rest.y;
     this._posZ = rest.z;
-    this.tabletopObject.location.x = rest.x;
-    this.tabletopObject.location.y = rest.y;
-    this.tabletopObject.location.surface = undefined;
-    this.tabletopObject.posZ = rest.z;
+    self.location.x = rest.x;
+    self.location.y = rest.y;
+    self.location.surface = undefined;
+    self.posZ = rest.z;
     this.markLocation();
     return true;
   }
@@ -875,36 +792,12 @@ export class MovableDirective implements MovableInteractionContext {
     return size > 0 ? size : GRID_PX;
   }
 
+  /** Where the piece comes to rest on the highest beam under the pointer, or null with none there. */
   private computeBeamRest(pointer: PointerCoordinate): { x: number; y: number; z: number } | null {
-    const beam = this.highestBeamUnderPointer(pointer);
-    return beam ? beamRestPosition(beam.box, beam.at.x, beam.at.y, this.width, this.height) : null;
-  }
-
-  /**
-   * The highest beam, a block put on a wall, the line of sight through the pointer meets, and where
-   * it meets it.
-   */
-  private highestBeamUnderPointer(pointer: PointerCoordinate): { box: WorldBox; at: { x: number; y: number } } | null {
-    const self = this.tabletopObject.identifier;
-    let best: { box: WorldBox; at: { x: number; y: number } } | null = null;
-    for (const hit of this.tablePick.allAt(pointer.x, pointer.y)) {
-      const target = hit.target;
-      if (target.id === self || target.layer !== TERRAIN_PICK_LAYER || !isTableWall(target.surface)) continue;
-      const shape = target.shapes[0];
-      if (shape?.kind !== 'prism') continue;
-      const xs = shape.outline.map((point) => point.x);
-      const ys = shape.outline.map((point) => point.y);
-      const box: WorldBox = {
-        minX: Math.min(...xs),
-        maxX: Math.max(...xs),
-        minY: Math.min(...ys),
-        maxY: Math.max(...ys),
-        minZ: shape.base,
-        maxZ: shape.top,
-      };
-      if (!best || box.maxZ > best.box.maxZ) best = { box, at: hit.point };
-    }
-    return best;
+    return beamRestUnder(this.tablePick.allAt(pointer.x, pointer.y), this.tabletopObject?.identifier, {
+      width: this.width,
+      height: this.height,
+    });
   }
 
   /** Called when a context menu is opened while the piece is pressed; ends the drag first. */
@@ -958,7 +851,7 @@ export class MovableDirective implements MovableInteractionContext {
     this.posY = snapped.y;
   }
 
-  private setPosition(object: TabletopObject) {
+  private setPosition(object: TabletopObject | null) {
     if (!object?.location) return;
     this._posX = this.mathFloor ? Math.floor(object.location.x) : object.location.x;
     this._posY = this.mathFloor ? Math.floor(object.location.y) : object.location.y;
@@ -982,11 +875,12 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   private setUpdateTimer() {
-    if (this.updateTimer === null && this.tabletopObject) {
+    const self = this.tabletopObject;
+    if (this.updateTimer === null && self) {
       this.updateTimer = setTimeout(() => {
-        this.tabletopObject.location.x = this.posX;
-        this.tabletopObject.location.y = this.posY;
-        this.tabletopObject.posZ = this.posZ;
+        self.location.x = this.posX;
+        self.location.y = this.posY;
+        self.posZ = this.posZ;
         this.updateTimer = null;
         if (!this.input?.isGrabbing) this.releasePlacement();
       }, 66);
