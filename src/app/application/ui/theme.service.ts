@@ -55,6 +55,14 @@ export class ThemeService {
     }
   }
 
+  /** A colour of the theme on screen, as the page names its custom property, or the colour given where it cannot be read. */
+  cssColor(property: string, otherwise: string): string {
+    const view = this.document.defaultView;
+    if (typeof view?.getComputedStyle !== 'function') return otherwise;
+    const colour = view.getComputedStyle(this.document.documentElement).getPropertyValue(property).trim();
+    return colour || otherwise;
+  }
+
   /** Moves the theme on through auto, dark and light. The choice is written to localStorage. */
   cycle() {
     const idx = THEME_ORDER.indexOf(this.theme());

@@ -4,6 +4,25 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import {
+  type CardLook,
+  drawCard,
+  drawCardStack,
+  stackSizeOf,
+} from '@axe/application/tabletop/piece-drawings/card-drawings';
+import { type CharacterLook, drawCharacter } from '@axe/application/tabletop/piece-drawings/character-drawing';
+import { type CoinLook, coinSizeOf, drawCoin } from '@axe/application/tabletop/piece-drawings/coin-drawing';
+import { type DiceLook, drawDie } from '@axe/application/tabletop/piece-drawings/dice-drawing';
+import { drawMask, drawRange } from '@axe/application/tabletop/piece-drawings/flat-piece-drawings';
+import { drawLight } from '@axe/application/tabletop/piece-drawings/light-drawing';
+import { drawModel, type ModelSources } from '@axe/application/tabletop/piece-drawings/model-drawing';
+import {
+  type DrawnPlace,
+  type GridLook,
+  type PieceDrawing,
+  type PiecePictures,
+} from '@axe/application/tabletop/piece-drawings/piece-drawing';
+import { drawTextNote } from '@axe/application/tabletop/piece-drawings/text-note-drawing';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceMotionsService, type PlayingPose } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePartPicturesService } from '@axe/application/tabletop/piece-part-pictures.service';
@@ -27,7 +46,6 @@ import { sameSet } from '@axe/core/util/same-set';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import type { EffectJolt } from '@axe/domain/effect/effect-reaction';
@@ -40,7 +58,6 @@ import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
 import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { RangeArea } from '@axe/domain/tabletop/range';
-import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { asTableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -49,16 +66,12 @@ import { type TerrainBox, terrainBoxOf } from '@axe/domain/tabletop/terrain-box'
 import { SurfaceLean } from '@axe/domain/tabletop/terrain-slope-surface';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
-import { cardSprites, cardStackSprites, SizedPicture } from '@axe/domain/tabletop/world/card-sprites';
-import { characterRollPivot, characterSprites } from '@axe/domain/tabletop/world/character-sprites';
-import { DICE_FRAME_COLOUR, diceSymbolSprites } from '@axe/domain/tabletop/world/dice-symbol-sprites';
-import { maskSprites, rangeSprites } from '@axe/domain/tabletop/world/flat-piece-sprites';
-import { lightSourceSprites } from '@axe/domain/tabletop/world/light-source-sprites';
+import { characterRollPivot } from '@axe/domain/tabletop/world/character-sprites';
+import { DICE_FRAME_COLOUR } from '@axe/domain/tabletop/world/dice-symbol-sprites';
 import { MotionPivot, movedSprite } from '@axe/domain/tabletop/world/piece-motions';
-import { tableCoinOf, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
-import { characterModelBox, type TableWorldModel } from '@axe/domain/tabletop/world/table-models';
-import { type PagePicture, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
-import { textNoteSprites } from '@axe/domain/tabletop/world/text-note-sprites';
+import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
+import { type TableWorldModel } from '@axe/domain/tabletop/world/table-models';
+import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { whiteBoardSprites } from '@axe/domain/tabletop/world/white-board-sprites';
 
 /** The theme's colour a frame takes for a piece that is somebody's, as the page names it. */
@@ -67,20 +80,6 @@ const OWNED_FRAME_COLOUR_PROPERTY = '--ui-panel-border';
 const STACK_PLATE_COLOUR_PROPERTY = '--ui-elevated';
 /** The plate's colour where the theme cannot be read. */
 const STACK_PLATE_COLOUR = '#21262d';
-
-/** Where a piece is drawn: on which face, at which corner of it, and how far off it. */
-interface DrawnPlace {
-  readonly frame: SurfaceFrame;
-  readonly onFloor: boolean;
-  readonly x: number;
-  readonly y: number;
-  readonly z: number;
-  /**
-   * How far off its face it is placed, where it stands or where this seat is moving it, before the
-   * raised ground lifts it.
-   */
-  readonly placedZ: number;
-}
 
 /** A piece drawn where it stands, on the face it stands on, with how to draw it again elsewhere. */
 interface StandingPiece<T> {
@@ -105,20 +104,6 @@ interface StandingParts<T> {
   readonly riders: ReadonlyMap<string, readonly string[]>;
   /** Every part, in order, as the pieces stand. */
   readonly all: readonly T[];
-}
-
-/**
- * How each piece of a kind is drawn: what all of them are drawn with alike, whether one is drawn at
- * all, and its parts at a place.
- */
-interface PieceDrawing<P extends TabletopObject, T, L> {
-  /**
-   * What every piece of the kind is drawn with, read for each piece on its own, so that each is drawn
-   * again when what it reads changes.
-   */
-  readonly look: () => L;
-  readonly shown: (piece: P, look: L) => boolean;
-  readonly draw: (piece: P, place: DrawnPlace, moving: boolean, look: L) => readonly T[];
 }
 
 /**
@@ -147,44 +132,6 @@ const BOX_SLACK_PX = 1;
  * reaching over more is asked of by every point, so one vast block never fills the layout.
  */
 const MOST_CELLS_LAID_OUT = 256;
-
-/** What most kinds of piece are drawn with alike: how big a cell is. */
-interface GridLook {
-  readonly gridSize: number;
-}
-
-/** What every coin is drawn with alike: how big a cell is, and how the coins playing a move lie now. */
-interface CoinLook extends GridLook {
-  readonly poses: ReadonlyMap<string, PlayingPose>;
-}
-
-/** What every character is drawn with alike, as the table in view shows the pictures of pieces. */
-interface CharacterLook extends GridLook {
-  readonly mode2d: boolean;
-  readonly facesEye: boolean;
-  readonly fitsInCell: boolean;
-  readonly turnsWithPiece: boolean;
-  /** The character the table's camera looks through, or nothing. */
-  readonly lookedThrough: string;
-}
-
-/** What every card and stack of cards is drawn with alike. */
-interface CardLook extends GridLook {
-  readonly thick: boolean;
-  readonly plate: string;
-}
-
-/** What every die is drawn with alike. */
-interface DiceLook extends GridLook {
-  readonly facesEye: boolean;
-  /** Whether this seat may read the faces of the dice kept back from it. */
-  readonly seesHidden: boolean;
-  /** The colour of the frame of a die that is somebody's. */
-  readonly owned: string;
-}
-
-/** How faint the piece the table's camera follows is drawn while the camera stands near enough to look through it. */
-const SEEN_THROUGH = 0.3;
 
 /**
  * How the pieces on the table in view are drawn, worked out for this seat: the sprites most are
@@ -250,42 +197,29 @@ export class TablePiecesService {
         this.drawnAsItself(character)
       );
     },
-    draw: (character, place, moving, { gridSize }) => {
-      const model = pieceModelOf(character);
-      const url = model ? this.modelUrlOf(model.identifier) : '';
-      if (!model || !url || !place.onFloor) return [];
-      const size = Math.max(0, character.size) * gridSize;
-      const box = characterModelBox(
-        size,
-        character.specifyKomaImageFlag ? character.komaImageHeight : null,
-        character.specifyKomaImageFlag ? pieceImageWidthApart(character.komaImageWidth) : null
-      );
-      return [
-        {
-          owner: character.identifier,
-          kind: GameCharacter.aliasName,
-          url,
-          model,
-          foot: { x: place.x + size / 2, y: place.y + size / 2, z: place.z },
-          footprintPx: box.widthPx,
-          heightPx: box.heightPx,
-          rotateDeg: character.rotate,
-          rollDeg: character.roll,
-          pivotPx: size / 2,
-          altitudePx: character.altitude * gridSize,
-          walking: moving,
-          ...this.partFacesFor(character),
-        },
-      ];
-    },
+    draw: (character, place, moving, { gridSize }) => drawModel(character, place, moving, gridSize, this.modelSources),
   });
 
-  /** What the parts of a piece stand for of its model, put on what the model is drawn with only where any is painted. */
-  private partFacesFor(character: GameCharacter): Pick<TableWorldModel, 'ownCopy' | 'cutFaces'> {
-    const faces = this.partPictures.modelFacesOf(character);
-    if (!faces.painted) return {};
-    return faces.cut ? { ownCopy: true, cutFaces: faces.cut } : { ownCopy: true };
-  }
+  /** What this seat holds of the models the characters are drawn as. */
+  private readonly modelSources: ModelSources = {
+    modelUrlOf: (identifier) => this.modelUrlOf(identifier),
+    partFacesOf: (character) => {
+      const faces = this.partPictures.modelFacesOf(character);
+      if (!faces.painted) return {};
+      return faces.cut ? { ownCopy: true, cutFaces: faces.cut } : { ownCopy: true };
+    },
+  };
+
+  /** The pictures the pieces are drawn from, as this seat holds them. */
+  private readonly pictures: PiecePictures = {
+    pageOf: (identifier) => this.pagePictures.pictureOf(identifier),
+    sized: (url) => {
+      const size = url ? this.pictureSizes.sizeOf(url) : null;
+      return size ? { url, ...size } : null;
+    },
+    urlOf: (image) => this.images.getEmptyOr(image).url,
+    urlOrSkeletonOf: (image) => this.images.getSkeletonOr(image).url,
+  };
 
   /** How big a cell of the table in view is, which most kinds of piece are drawn with alike. */
   private readonly gridLook = computed<GridLook>(() => ({ gridSize: this.tableShape().gridSize }), {
@@ -502,20 +436,7 @@ export class TablePiecesService {
       return this.coinLook();
     },
     shown: (coin) => !this.vision.isPieceHiddenByFog(coin, coinSizeOf(coin)),
-    draw: (coin, place, _moving, { gridSize, poses }) => {
-      const drawn = tableCoinOf({
-        id: coin.identifier,
-        ...place,
-        sizePx: coinSizeOf(coin) * gridSize,
-        rotateDeg: coin.rotate,
-        backUp: poses.get(coin.identifier)?.backUp ?? coin.face === 'back',
-        frontPictureUrl: this.images.getEmptyOr(coin.frontImage).url,
-        backPictureUrl: this.images.getEmptyOr(coin.backImage).url,
-      });
-      const playing = poses.get(coin.identifier);
-      if (!drawn) return [];
-      return [playing ? { ...drawn, motion: playing.pose } : drawn];
-    },
+    draw: (coin, place, _moving, look) => drawCoin(coin, place, look, this.pictures),
   });
 
   /** The walls drawn on the table in view, which are drawn only with a picture. */
@@ -575,27 +496,13 @@ export class TablePiecesService {
     shown: (character) => this.vision.isTokenVisible(character) && this.drawnAsItself(character),
     draw: (character, place, _moving, look) => {
       const model = pieceModelOf(character);
-      const modelled = !!model && place.onFloor && this.modelUrlOf(model.identifier) !== '';
-      const drawn = characterSprites({
-        id: character.identifier,
-        ...place,
-        sizePx: Math.max(0, character.size) * look.gridSize,
-        rotateDeg: character.rotate,
-        rollDeg: character.roll,
-        dropShadow: character.isDropShadow,
+      return drawCharacter(character, place, look, {
+        pedestal: this.pictures.pageOf(character.identifier),
+        picture:
+          this.partPictures.pictureOf(character) ?? this.pictures.sized(this.pictures.urlOf(character.imageFile)),
         lean: look.mode2d || !place.onFloor ? null : this.leanUnder(character, look.gridSize, place),
-        altitudePx: character.altitude * look.gridSize,
-        pedestal: this.pagePictures.pictureOf(character.identifier),
-        picture: this.partPictures.pictureOf(character) ?? this.sized(this.images.getEmptyOr(character.imageFile).url),
-        pictureHeightPx: character.specifyKomaImageFlag ? character.komaImageHeight : null,
-        pictureWidthPx: character.specifyKomaImageFlag ? pieceImageWidthApart(character.komaImageWidth) : null,
-        fitsInCell: look.fitsInCell,
-        facesEye: look.facesEye,
-        turnsWithPiece: look.turnsWithPiece,
-        opacity:
-          (character.stealth === '1' ? 0.5 : 1) * (look.lookedThrough === character.identifier ? SEEN_THROUGH : 1),
+        modelled: !!model && place.onFloor && this.modelUrlOf(model.identifier) !== '',
       });
-      return modelled ? drawn.map(standInForModel) : drawn;
     },
   });
 
@@ -634,15 +541,7 @@ export class TablePiecesService {
       return this.gridLook();
     },
     shown: (light) => !this.vision.isPieceHiddenByFog(light, 1),
-    draw: (light, place, _moving, { gridSize }) =>
-      lightSourceSprites({
-        id: light.identifier,
-        ...place,
-        altitudePx: light.altitude * gridSize,
-        cellPx: gridSize,
-        lit: light.lightEnabled,
-        picture: this.ownPicture(light, gridSize) ?? this.pagePictures.pictureOf(light.identifier),
-      }),
+    draw: (light, place, _moving, { gridSize }) => drawLight(light, place, gridSize, this.pictures),
   });
 
   /** The map masks, drawn from the pictures the page takes of them cut to their open cells. */
@@ -657,13 +556,7 @@ export class TablePiecesService {
   private readonly maskDrawing = this.drawingOf<GameTableMask, TableWorldSprite, GridLook>({
     look: () => this.gridLook(),
     shown: () => true,
-    draw: (mask, place, _moving, { gridSize }) =>
-      maskSprites({
-        id: mask.identifier,
-        ...place,
-        altitudePx: mask.altitude * gridSize,
-        picture: this.pagePictures.pictureOf(mask.identifier),
-      }),
+    draw: (mask, place, _moving, { gridSize }) => drawMask(mask, place, gridSize, this.pictures),
   });
 
   /** The ranges, drawn from the pictures the page takes of their cells. */
@@ -678,14 +571,7 @@ export class TablePiecesService {
   private readonly rangeDrawing = this.drawingOf<RangeArea, TableWorldSprite, GridLook>({
     look: () => this.gridLook(),
     shown: () => true,
-    draw: (range, place, _moving, { gridSize }) =>
-      rangeSprites({
-        id: range.identifier,
-        ...place,
-        altitudePx: range.altitude * gridSize,
-        picture: this.pagePictures.pictureOf(range.identifier),
-        ...(place.onFloor && Math.abs(place.placedZ) < 1 ? { overGroundPx: range.altitude * gridSize } : {}),
-      }),
+    draw: (range, place, _moving, { gridSize }) => drawRange(range, place, gridSize, this.pictures),
   });
 
   /** The notes, drawn from the pictures the page takes of their panels. */
@@ -703,15 +589,7 @@ export class TablePiecesService {
       return this.gridLook();
     },
     shown: (note) => !this.vision.isPieceHiddenByFog(note, 1),
-    draw: (note, place, _moving, { gridSize }) =>
-      textNoteSprites({
-        id: note.identifier,
-        ...place,
-        altitudePx: note.altitude * gridSize,
-        rotateDeg: note.rotate,
-        upright: note.isUpright,
-        face: this.pagePictures.pictureOf(note.identifier),
-      }),
+    draw: (note, place, _moving, { gridSize }) => drawTextNote(note, place, gridSize, this.pictures),
   });
 
   private readonly cardSprites = computed(() => this.drawnNow(this.standingCards()));
@@ -729,7 +607,7 @@ export class TablePiecesService {
       return {
         gridSize: this.tabletop.currentTableVersion().gridSize,
         thick: !this.tabletop.mode2d(),
-        plate: this.themeColour(STACK_PLATE_COLOUR_PROPERTY, STACK_PLATE_COLOUR),
+        plate: this.theme.cssColor(STACK_PLATE_COLOUR_PROPERTY, STACK_PLATE_COLOUR),
       };
     },
     { equal: sameFields }
@@ -738,42 +616,13 @@ export class TablePiecesService {
   private readonly cardDrawing = this.drawingOf<Card, TableWorldSprite, CardLook>({
     look: () => this.cardsLook(),
     shown: (card) => !this.vision.isPieceHiddenByFog(card, Math.max(0, card.size)),
-    draw: (card, place, _moving, { gridSize }) =>
-      cardSprites({
-        id: card.identifier,
-        ...place,
-        zindex: card.zindex,
-        rotateDeg: card.rotate,
-        widthPx: Math.max(0, card.size) * gridSize,
-        picture:
-          this.pictured(card.identifier) ??
-          this.sized(this.images.getSkeletonOr(card.isFront ? card.frontImage : card.backImage).url),
-        peek: card.isPeeking ? this.sized(this.images.getSkeletonOr(card.frontImage).url) : null,
-      }),
+    draw: (card, place, _moving, look) => drawCard(card, place, look, this.pictures),
   });
 
   private readonly stackDrawing = this.drawingOf<CardStack, TableWorldSprite, CardLook>({
     look: () => this.cardsLook(),
     shown: (stack) => !this.vision.isPieceHiddenByFog(stack, stackSizeOf(stack)),
-    draw: (stack, place, _moving, { gridSize, thick, plate }) => {
-      const top = stack.topCard;
-      return cardStackSprites({
-        id: stack.identifier,
-        ...place,
-        zindex: stack.zindex,
-        rotateDeg: stack.rotate,
-        widthPx: stackSizeOf(stack) * gridSize,
-        cardCount: stack.cards.length,
-        thick: thick && surfaceOf(stack) === 'floor',
-        top: top
-          ? {
-              picture: this.pictured(stack.identifier) ?? this.sized(this.images.getSkeletonOr(stack.imageFile).url),
-              rotateDeg: top.rotate,
-            }
-          : null,
-        plateColour: plate,
-      });
-    },
+    draw: (stack, place, _moving, look) => drawCardStack(stack, place, look, this.pictures),
   });
 
   /** What a card or a stack of cards is drawn with, following the boards, the files held here and who may see what. */
@@ -796,26 +645,6 @@ export class TablePiecesService {
     return landingLeanAt(this.blocksOver(x, y), gridSize, x, y, this.tableShape().gridType);
   }
 
-  /** A light's own picture, held inside a cell keeping its shape as the page shows it, or null where it has none. */
-  private ownPicture(light: LightSource, cellPx: number): PagePicture | null {
-    const own = this.sized(this.images.getEmptyOr(light.imageFile).url);
-    if (!own || !(own.width > 0) || !(own.height > 0)) return null;
-    const scale = cellPx / Math.max(own.width, own.height);
-    return { url: own.url, widthPx: own.width * scale, heightPx: own.height * scale };
-  }
-
-  /** A picture with how big it is, or null while that is not known. */
-  private sized(url: string): SizedPicture | null {
-    const size = url ? this.pictureSizes.sizeOf(url) : null;
-    return size ? { url, ...size } : null;
-  }
-
-  /** The picture the page takes of a piece for the canvas, sized as a sprite's picture is, or null for none. */
-  private pictured(identifier: string): SizedPicture | null {
-    const picture = this.pagePictures.pictureOf(identifier);
-    return picture ? { url: picture.url, width: picture.widthPx, height: picture.heightPx } : null;
-  }
-
   private readonly diceSprites = computed(() => this.drawnNow(this.standingDice()));
 
   private readonly standingDice = computed<StandingParts<TableWorldSprite>>(() => {
@@ -830,7 +659,7 @@ export class TablePiecesService {
       return {
         gridSize: this.tabletop.currentTableVersion().gridSize,
         facesEye: this.tabletop.imageBillboard() || this.tabletop.mode2d() || this.eyes.scene() !== null,
-        owned: this.themeColour(OWNED_FRAME_COLOUR_PROPERTY, DICE_FRAME_COLOUR),
+        owned: this.theme.cssColor(OWNED_FRAME_COLOUR_PROPERTY, DICE_FRAME_COLOUR),
         seesHidden: this.rolePermission.canSeeHidden(),
       };
     },
@@ -846,23 +675,7 @@ export class TablePiecesService {
       return this.diceLook();
     },
     shown: (die) => !this.vision.isPieceHiddenByFog(die, Math.max(0, die.size)),
-    draw: (die, place, _moving, { gridSize, facesEye, owned, seesHidden }) => {
-      const url = this.images.getEmptyOr(die.imageFile).url;
-      const picture = url ? this.pictureSizes.sizeOf(url) : null;
-      const reads = die.isVisible || seesHidden;
-      return diceSymbolSprites({
-        id: die.identifier,
-        ...place,
-        sizePx: Math.max(0, die.size) * gridSize,
-        rotateDeg: die.rotate,
-        picture: picture ? { url, ...picture } : null,
-        pictureHeightPx: die.specifyKomaImageFlag ? +die.komaImageHeight : null,
-        facesEye,
-        pictureBrightness: !reads ? 0 : die.isMine ? 0.5 : die.isUsed ? 0.45 : 1,
-        frameBrightness: die.isUsed ? 0.45 : 1,
-        frameColour: die.hasOwner ? owned : DICE_FRAME_COLOUR,
-      });
-    },
+    draw: (die, place, _moving, look) => drawDie(die, place, look, this.pictures),
   });
 
   /**
@@ -1003,7 +816,7 @@ export class TablePiecesService {
     if (ground.isFlat) return 0;
     const table = this.tableShape();
     const gridSize = table.gridSize > 0 ? table.gridSize : 50;
-    const size = Number((piece as { size?: unknown }).size);
+    const size = 'size' in piece && typeof piece.size === 'number' ? piece.size : 0;
     const half = size > 0 ? (size * gridSize) / 2 : 0;
     const [middleX, middleY] = [x + half, y + half];
     return pieceGroundLiftAt(ground, gridSize, table.gridType, this.blocksOver(middleX, middleY), middleX, middleY, z);
@@ -1078,31 +891,6 @@ export class TablePiecesService {
       altitudePx: character.altitude * gridSize,
     });
   }
-
-  /** A colour of the theme on screen, as the page names it, or the colour given where it cannot be read. */
-  private themeColour(property: string, otherwise: string): string {
-    if (typeof getComputedStyle !== 'function') return otherwise;
-    const colour = getComputedStyle(document.documentElement).getPropertyValue(property).trim();
-    return colour || otherwise;
-  }
-}
-
-/**
- * A sprite of a character drawn as a 3D model: its picture and its shadow left undrawn, still picked
- * where they stand, and its pedestal drawn as it is.
- */
-function standInForModel(sprite: TableWorldSprite): TableWorldSprite {
-  return sprite.id.endsWith('#pedestal') ? sprite : { ...sprite, hidden: true };
-}
-
-/** How many cells across a coin is drawn, one of no size as one. */
-function coinSizeOf(coin: Coin): number {
-  return coin.size > 0 ? coin.size : 1;
-}
-
-/** How many cells across a stack of cards is drawn, as its top card is, or two while it has none. */
-function stackSizeOf(stack: CardStack): number {
-  return stack.topCard?.size ?? 2;
 }
 
 /** The column or row of the floor's cells a point lies in. */
