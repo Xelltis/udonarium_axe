@@ -112,7 +112,7 @@ export class CutInLauncher extends GameObject {
     const tagName = cutIn.tagName;
     const sameTagCutIn: CutIn[] = [];
     for (const cutIn_ of cutIns) {
-      if (cutIn_.tagName == tagName && cutIn_.identifier !== cutIn.identifier) {
+      if (cutIn_.tagName === tagName && cutIn_.identifier !== cutIn.identifier) {
         sameTagCutIn.push(cutIn_);
       }
     }
@@ -176,7 +176,7 @@ export class CutInLauncher extends GameObject {
       emitStopCutInByBgm();
     }
 
-    if (this.sendTo != '' && this.sendTo != getPeerContext().userId) {
+    if (this.sendTo !== '' && this.sendTo !== getPeerContext().userId) {
       return;
     }
 
