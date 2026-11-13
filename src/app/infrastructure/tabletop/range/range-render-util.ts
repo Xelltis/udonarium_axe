@@ -173,6 +173,21 @@ export function notePaintedCircle(setting: RangeRenderSetting, radius: number): 
   );
 }
 
+/**
+ * Marks the origin of a range on its outline canvas, with the brush as it is: a small square while
+ * the range follows a character, otherwise a dot.
+ */
+export function markOrigin(context: CanvasRenderingContext2D, offsets: GridOffsets, docking = false): void {
+  const { offSetX_px, offSetY_px } = offsets;
+  context.beginPath();
+  if (docking) {
+    context.strokeRect(offSetX_px - 6, offSetY_px - 6, 12, 12);
+    return;
+  }
+  context.arc(offSetX_px, offSetY_px, 5, 0, 2 * Math.PI, true);
+  context.fill();
+}
+
 /** Sets a canvas up to draw a range in one colour: stroke and fill, a 1px line, and a label font scaled to the grid. */
 export function makeBrush(
   context: CanvasRenderingContext2D,

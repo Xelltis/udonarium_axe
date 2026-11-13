@@ -1,28 +1,23 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { renderDiamond, renderSquare, renderTriangle } from '@axe/infrastructure/tabletop/range/range-render-polygon';
+import {
+  renderDiamond,
+  renderLine,
+  renderSquare,
+  renderTriangle,
+} from '@axe/infrastructure/tabletop/range/range-render-polygon';
 import { RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
+import { contextThatRecords, RecordedCall } from '@axe/testing/fake-canvas-context';
 
 function createCanvasMock() {
   const canvas = document.createElement('canvas');
-  const context = {
-    arc: vi.fn(),
-    beginPath: vi.fn(),
-    closePath: vi.fn(),
-    fill: vi.fn(),
-    fillRect: vi.fn(),
-    lineTo: vi.fn(),
-    moveTo: vi.fn(),
-    stroke: vi.fn(),
-    strokeRect: vi.fn(),
-    fillStyle: '',
-    font: '',
-    lineWidth: 0,
-    strokeStyle: '',
-    textAlign: '',
-    textBaseline: '',
-  } as unknown as CanvasRenderingContext2D;
+  const { context, calls } = contextThatRecords();
   vi.spyOn(canvas, 'getContext').mockReturnValue(context);
-  return { canvas, context };
+  return { canvas, calls };
+}
+
+/** The arguments of every call of one method, in order. */
+function argsOf(calls: RecordedCall[], name: string): (readonly unknown[])[] {
+  return calls.filter((call) => call.name === name).map((call) => call.args);
 }
 
 function makeSetting(overrides: Partial<RangeRenderSetting> = {}): RangeRenderSetting {
@@ -61,7 +56,7 @@ describe('range-render-polygon', () => {
 
     expect(clip.clip01x).toBeCloseTo(-20 * Math.SQRT2);
     expect(clip.clip01y).toBeCloseTo(0);
-    expect(grid.context.moveTo).toHaveBeenCalledWith(50 - 10 * Math.SQRT2, 50);
+    expect(argsOf(grid.calls, 'moveTo')).toContainEqual([50 - 10 * Math.SQRT2, 50]);
   });
 
   /** The cells a range filled, as steps from its origin cell, with the origin on a cell's centre. */
@@ -73,9 +68,8 @@ describe('range-render-polygon', () => {
       outline.canvas,
       makeSetting({ range: 2, centerX: 5, centerY: 5, fillOutLine: false, ...overrides })
     );
-    return vi
-      .mocked(grid.context.fillRect)
-      .mock.calls.map(([x, y]) => `${Math.round((x - 45) / 10)},${Math.round((y - 45) / 10)}`)
+    return argsOf(grid.calls, 'fillRect')
+      .map(([x, y]) => `${Math.round(((x as number) - 45) / 10)},${Math.round(((y as number) - 45) / 10)}`)
       .sort();
   }
 
@@ -131,7 +125,7 @@ describe('range-render-polygon', () => {
     const outline = createCanvasMock();
 
     const clip = renderDiamond(grid.canvas, outline.canvas, makeSetting({ range: 2 }));
-    expect(grid.context.moveTo).toHaveBeenCalledWith(50 - 20, 50);
+    expect(argsOf(grid.calls, 'moveTo')).toContainEqual([50 - 20, 50]);
     expect(clip.clip02x).toBeCloseTo(0);
     expect(clip.clip02y).toBeCloseTo(-32);
 
@@ -152,6 +146,43 @@ describe('range-render-polygon', () => {
 
     expect(clip.clip01x).toBeCloseTo(12);
     expect(clip.clip01y).toBeCloseTo(0);
-    expect(grid.context.moveTo).toHaveBeenCalledWith(60, 50);
+    expect(argsOf(grid.calls, 'moveTo')).toContainEqual([60, 50]);
+  });
+
+  describe('on a canvas taller than it is wide', () => {
+    const tall = { areaWidth: 10, areaHeight: 20 };
+
+    it('marks the origin of a line at the middle of the canvas', () => {
+      const outline = createCanvasMock();
+
+      renderLine(createCanvasMock().canvas, outline.canvas, makeSetting({ ...tall, type: 'LINE' }));
+
+      expect(argsOf(outline.calls, 'arc')).toEqual([[50, 100, 5, 0, 2 * Math.PI, true]]);
+    });
+
+    it('marks the origin of a square at the middle of the canvas, as a dot or as a square', () => {
+      const dotted = createCanvasMock();
+      renderSquare(createCanvasMock().canvas, dotted.canvas, makeSetting(tall));
+      expect(argsOf(dotted.calls, 'arc')).toEqual([[50, 100, 5, 0, 2 * Math.PI, true]]);
+
+      const docked = createCanvasMock();
+      renderSquare(createCanvasMock().canvas, docked.canvas, makeSetting({ ...tall, isDocking: true }));
+      expect(argsOf(docked.calls, 'strokeRect')).toEqual([[44, 94, 12, 12]]);
+      expect(argsOf(docked.calls, 'arc')).toEqual([]);
+    });
+
+    it('draws the outline of a square about the middle of the canvas', () => {
+      const outline = createCanvasMock();
+
+      renderSquare(createCanvasMock().canvas, outline.canvas, makeSetting(tall));
+
+      expect(argsOf(outline.calls, 'moveTo')).toEqual([[40, 110]]);
+      expect(argsOf(outline.calls, 'lineTo')).toEqual([
+        [40, 90],
+        [60, 90],
+        [60, 110],
+        [40, 110],
+      ]);
+    });
   });
 });

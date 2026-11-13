@@ -4,6 +4,7 @@ import {
   chkOuterProduct,
   fillGridCells,
   makeBrush,
+  markOrigin,
   notePainted,
   notePaintedCircle,
 } from '@axe/infrastructure/tabletop/range/range-render-util';
@@ -48,14 +49,7 @@ export function renderCircle(
   context.arc(offSetX_px, offSetY_px, setting.range * gridSize, 0, 2 * Math.PI, true);
   context.stroke();
 
-  if (setting.isDocking) {
-    context.beginPath();
-    context.strokeRect(offSetX_px - 6, offSetY_px - 6, 12, 12);
-  } else {
-    context.beginPath();
-    context.arc(offSetX_px, offSetX_px, 5, 0, 2 * Math.PI, true);
-    context.fill();
-  }
+  markOrigin(context, offsets, setting.isDocking);
 }
 
 /**
@@ -172,9 +166,7 @@ export function renderCorn(
   context.lineTo(cx + offSetX_px, cy + offSetY_px);
   context.stroke();
 
-  context.beginPath();
-  context.arc(offSetX_px, offSetX_px, 5, 0, 2 * Math.PI, true);
-  context.fill();
+  markOrigin(context, offsets);
 
   return clip;
 }

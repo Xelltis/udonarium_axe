@@ -11,6 +11,7 @@ import {
   chkOuterProduct,
   fillGridCells,
   makeBrush,
+  markOrigin,
   notePainted,
 } from '@axe/infrastructure/tabletop/range/range-render-util';
 
@@ -132,9 +133,7 @@ export function renderLine(
   context.lineTo(p1x + offSetX_px, p1y + offSetY_px);
   context.stroke();
 
-  context.beginPath();
-  context.arc(offSetX_px, offSetX_px, 5, 0, 2 * Math.PI, true);
-  context.fill();
+  markOrigin(context, offsets);
 
   return clip;
 }
@@ -266,14 +265,7 @@ function renderQuadrilateral(
   context.lineTo(p1.x + offSetX_px, p1.y + offSetY_px);
   context.stroke();
 
-  if (setting.isDocking) {
-    context.beginPath();
-    context.strokeRect(offSetX_px - 6, offSetY_px - 6, 12, 12);
-  } else {
-    context.beginPath();
-    context.arc(offSetX_px, offSetX_px, 5, 0, 2 * Math.PI, true);
-    context.fill();
-  }
+  markOrigin(context, offsets, setting.isDocking);
 
   return clip;
 }
@@ -347,9 +339,7 @@ export function renderTriangle(
   for (let i = 1; i < verts.length; i++) context.lineTo(verts[i].x + offSetX_px, verts[i].y + offSetY_px);
   context.closePath();
   context.stroke();
-  context.beginPath();
-  context.arc(offSetX_px, offSetY_px, 5, 0, 2 * Math.PI, true);
-  context.fill();
+  markOrigin(context, offsets);
 
   return clip;
 }
@@ -409,9 +399,7 @@ export function renderPentagon(
   for (let i = 1; i < verts.length; i++) context.lineTo(verts[i].x + offSetX_px, verts[i].y + offSetY_px);
   context.closePath();
   context.stroke();
-  context.beginPath();
-  context.arc(offSetX_px, offSetY_px, 5, 0, 2 * Math.PI, true);
-  context.fill();
+  markOrigin(context, offsets);
 
   return clip;
 }
@@ -473,9 +461,7 @@ export function renderHexagon(
   for (let i = 1; i < verts.length; i++) context.lineTo(verts[i].x + offSetX_px, verts[i].y + offSetY_px);
   context.closePath();
   context.stroke();
-  context.beginPath();
-  context.arc(offSetX_px, offSetY_px, 5, 0, 2 * Math.PI, true);
-  context.fill();
+  markOrigin(context, offsets);
 
   return clip;
 }
