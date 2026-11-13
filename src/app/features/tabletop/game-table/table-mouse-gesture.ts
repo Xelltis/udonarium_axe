@@ -31,14 +31,14 @@ export class TableMouseGesture {
   private currentPositionY: number = 0;
 
   private buttonCode: number = 0;
-  private input: InputHandler | null = null;
+  private readonly input = new InputHandler(this.targetElement, { capture: true });
   /** Whether a press on the table is being held, moved or not. */
   get isGrabbing(): boolean {
-    return this.input!.isGrabbing;
+    return this.input.isGrabbing;
   }
   /** Whether the held press has moved, which tells a drag from a click. */
   get isDragging(): boolean {
-    return this.input!.isDragging;
+    return this.input.isDragging;
   }
 
   private callbackOnWheel = (e: WheelEvent) => this.onWheel(e);
@@ -48,11 +48,6 @@ export class TableMouseGesture {
   onend: Callback | null = null;
   ontransform: OnTransformCallback | null = null;
   constructor(readonly targetElement: HTMLElement) {
-    this.initialize();
-  }
-
-  private initialize() {
-    this.input = new InputHandler(this.targetElement, { capture: true });
     this.addEventListeners();
     this.input.onStart = (e) => this.onInputStart(e);
     this.input.onMove = (e) => this.onInputMove(e);
@@ -61,19 +56,19 @@ export class TableMouseGesture {
 
   /** Drops the press under way, so moving the pointer further neither pans nor turns the view. */
   cancel() {
-    this.input!.cancel();
+    this.input.cancel();
   }
 
   /** Stops listening to the mouse, the wheel and the arrow keys for good. */
   destroy() {
-    this.input!.destroy();
+    this.input.destroy();
     this.removeEventListeners();
   }
 
   /** Notes where a press began and with which button, and passes the press on to `onstart`. */
   onInputStart(ev: MouseEvent | TouchEvent) {
-    this.currentPositionX = this.input!.pointer.x;
-    this.currentPositionY = this.input!.pointer.y;
+    this.currentPositionX = this.input.pointer.x;
+    this.currentPositionY = this.input.pointer.y;
     this.buttonCode = (ev as MouseEvent).button;
     if (this.onstart) this.onstart(ev);
   }
@@ -88,8 +83,8 @@ export class TableMouseGesture {
    * view, with any other it pans.
    */
   onInputMove(ev: MouseEvent | TouchEvent) {
-    const x = this.input!.pointer.x;
-    const y = this.input!.pointer.y;
+    const x = this.input.pointer.x;
+    const y = this.input.pointer.y;
     const deltaX = x - this.currentPositionX;
     const deltaY = y - this.currentPositionY;
 
