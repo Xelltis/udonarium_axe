@@ -44,10 +44,12 @@ export class ObjectStore {
    * Null when the identifier is already stored. A deleted identifier is refused for an object from
    * the network (shouldBroadcast false) but let back in for a local add, which is sent to the room.
    * beforeLifecycle runs once the object can be looked up and before onStoreAdded; received sync
-   * data is applied there. An object that takes itself out again in onStoreAdded, as a holder of
-   * loaded data does, is not sent, as nobody else, a room server included, has a use for it.
-   * Made here under the name of one deleted, it goes past that one's version, as a seat that was
-   * away may still hold it and would otherwise win with it.
+   * data is applied there, so that whatever applying it sets off, as a node linking up with its
+   * parent, finds the object in the store, and onStoreAdded sees the synced fields filled in. An
+   * object that takes itself out again in onStoreAdded, as a holder of loaded data does, is not
+   * sent, as nobody else, a room server included, has a use for it. Made here under the name of one
+   * deleted, it goes past that one's version, as a seat that was away may still hold it and would
+   * otherwise win with it.
    */
   add(object: GameObject, shouldBroadcast: boolean = true, beforeLifecycle?: () => void): GameObject | null {
     if (this.get(object.identifier) != null) return null;
@@ -68,9 +70,6 @@ export class ObjectStore {
       this.aliasNameMap.set(object.aliasName, objectsMap);
     }
     objectsMap.set(object.identifier, object);
-    // beforeLifecycle runs after identifier maps are populated so callbacks fired
-    // during apply (e.g. ObjectNode parent linkage → emitMessageAdded) can resolve
-    // the new object via ObjectStore.get. onStoreAdded then sees populated SyncVars.
     beforeLifecycle?.();
     object.onStoreAdded();
     if (shouldBroadcast && this.get(object.identifier) === object) this.update(object.toContext());

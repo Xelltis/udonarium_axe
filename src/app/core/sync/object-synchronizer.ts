@@ -225,11 +225,6 @@ export class ObjectSynchronizer {
       Logger.warn(`[ObjectSync] 未知のオブジェクト: ${context.aliasName}`, context);
       return null;
     }
-    // The order is: register in the maps, apply, then the store hook.
-    // Registering first means that the chain from applying through the parent and its child
-    // hooks can still look the object up in the store.
-    // the store hook runs after applying, so the sync vars are populated
-    // (e.g. GameTable.selected)。
     ObjectStore.instance.add(newObject, false, () => newObject.apply(context));
     return newObject;
   }
