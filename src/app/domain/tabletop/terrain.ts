@@ -2,6 +2,7 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { DataElement } from '@axe/domain/data/data-element';
 import { BoardSwitch, switchOf } from '@axe/domain/tabletop/board-switch/board-switch';
+import { appendPieceDataElements } from '@axe/domain/tabletop/piece-data-elements';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import {
   encodeSlopeSides,
@@ -349,16 +350,10 @@ export class Terrain extends TabletopObject {
     }
     object.createDataElements();
 
-    object.commonDataElement!.appendChild(DataElement.create('name', name, {}, `name_${object.identifier}`));
-    object.commonDataElement!.appendChild(DataElement.create('width', width, {}, `width_${object.identifier}`));
-    object.commonDataElement!.appendChild(DataElement.create('height', height, {}, `height_${object.identifier}`));
-    object.commonDataElement!.appendChild(DataElement.create('depth', depth, {}, `depth_${object.identifier}`));
-    object.imageDataElement!.appendChild(
-      DataElement.create('wall', wall, { type: 'image' }, `wall_${object.identifier}`)
-    );
-    object.imageDataElement!.appendChild(
-      DataElement.create('floor', floor, { type: 'image' }, `floor_${object.identifier}`)
-    );
+    appendPieceDataElements(object, name, { width, height, depth });
+    const image = object.imageDataElement!;
+    image.appendChild(DataElement.create('wall', wall, { type: 'image' }, `wall_${object.identifier}`));
+    image.appendChild(DataElement.create('floor', floor, { type: 'image' }, `floor_${object.identifier}`));
     object.initialize();
 
     return object;

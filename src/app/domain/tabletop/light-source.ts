@@ -2,9 +2,9 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { DataElement } from '@axe/domain/data/data-element';
 import { centerFollowerOnCharacter } from '@axe/domain/tabletop/following';
 import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
+import { appendPieceDataElements } from '@axe/domain/tabletop/piece-data-elements';
 import {
   DEFAULT_LIGHT_COLOR,
   LightAnimation,
@@ -88,7 +88,7 @@ export class LightSource extends OwnedTabletopObject {
   static create(name: string, identifier?: string): LightSource {
     const object = identifier ? new LightSource(identifier) : new LightSource();
     object.createDataElements();
-    object.commonDataElement!.appendChild(DataElement.create('name', name, {}, `name_${object.identifier}`));
+    appendPieceDataElements(object, name, {});
     object.initialize();
     return object;
   }
