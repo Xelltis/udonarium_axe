@@ -9,6 +9,7 @@ import {
   BufferAttribute,
   BufferGeometry,
   DirectionalLight,
+  DoubleSide,
   HemisphereLight,
   Mesh,
   MeshBasicMaterial,
@@ -96,6 +97,8 @@ function rendererOn(canvas: HTMLCanvasElement, keepsDrawing: boolean): WebGLRend
 
 class Stage implements ModelStage {
   private readonly showcase = new Showcase();
+  private readonly ray = new Raycaster();
+  private readonly pointer = new Vector2();
   /** The shapes the painted faces are shown with, over the model. */
   private painted: Mesh[] = [];
   /** The middles of the model's triangles in the scene, by mesh, worked out once the model is shown. */
@@ -152,9 +155,9 @@ class Stage implements ModelStage {
     const width = this.canvas.clientWidth;
     const height = this.canvas.clientHeight;
     if (!model || !(width > 0) || !(height > 0)) return new Map();
-    const ray = new Raycaster();
-    ray.setFromCamera(new Vector2((canvasX / width) * 2 - 1, -(canvasY / height) * 2 + 1), this.showcase.camera);
-    const hit = ray.intersectObject(model, true)[0];
+    this.pointer.set((canvasX / width) * 2 - 1, -(canvasY / height) * 2 + 1);
+    this.ray.setFromCamera(this.pointer, this.showcase.camera);
+    const hit = this.ray.intersectObject(model, true)[0];
     if (!hit) return new Map();
     const reach = (widthShare * this.showcase.radius) ** 2;
     const found = new Map<number, number[]>();
@@ -219,7 +222,7 @@ class Stage implements ModelStage {
           polygonOffset: true,
           polygonOffsetFactor: -1,
           polygonOffsetUnits: -4,
-          side: 2,
+          side: DoubleSide,
         })
       );
       this.painted.push(shown);
@@ -289,6 +292,8 @@ class Stage implements ModelStage {
 
 class Painter implements ModelPainter {
   private readonly reader: HeldModelReader;
+  /** The one lit scene every model is painted in, turned a little so a face and a side both show. */
+  private readonly showcase = new Showcase();
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(
@@ -296,6 +301,7 @@ class Painter implements ModelPainter {
     private readonly renderer: WebGLRenderer
   ) {
     this.reader = new HeldModelReader(() => this.renderer);
+    this.showcase.turn = Math.PI / 6;
   }
 
   paint(url: string, sizePx: number): Promise<Blob | null> {
@@ -312,8 +318,7 @@ class Painter implements ModelPainter {
   private async paintNow(url: string, sizePx: number): Promise<Blob | null> {
     const gltf = await this.reader.read(url);
     if (!gltf) return null;
-    const showcase = new Showcase();
-    showcase.turn = Math.PI / 6;
+    const showcase = this.showcase;
     try {
       showcase.hold(gltf.scene);
       this.renderer.setPixelRatio(1);
