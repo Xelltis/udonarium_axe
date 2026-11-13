@@ -106,6 +106,21 @@ interface Working {
   limitChanged: boolean;
 }
 
+/** What every stage of the reckoning reads: the world, and the pieces and sizes as it asks for them. */
+interface Reckoning {
+  readonly world: ZoneWorld;
+  readonly snap: (point: ZonePoint) => ZonePoint;
+  readonly pieces: ReadonlyMap<string, ZonePieceInput>;
+  /** A piece by its identifier, asked only of the identifiers in the world. */
+  readonly pieceOf: (id: string) => ZonePieceInput;
+  /** The bodies in a zone, counted as the pieces count themselves. */
+  readonly countOf: (zone: Working) => number;
+  /** The ground a zone covers for this many bodies, by the table's sizes. */
+  readonly shapeOf: (zone: Working, count?: number) => ZoneShape;
+  /** The zones found to be over, in the order they were found. */
+  readonly removeZones: string[];
+}
+
 /** A token further than this outside its zone, in metres, has been carried out of it. */
 const CARRIED_OUT_M = 1;
 
@@ -132,12 +147,58 @@ const MOVED_PX = 1e-3;
  * 5. Every other piece standing in a zone is inside it without being in it.
  */
 export function zoneStateOf(world: ZoneWorld): ZoneState {
-  const { rules, pxPerMetre } = world;
-  const snap = world.snap ?? ((point: ZonePoint) => point);
-  const pieces = new Map(world.pieces.map((piece) => [piece.id, piece]));
-  const removeZones: string[] = [];
-  const pieceZone = new Map<string, string>();
+  const reckoning = reckoningOf(world);
+  const { pieces, removeZones } = reckoning;
 
+  const working = readZones(reckoning);
+  dropCarriedOut(working, reckoning);
+  joinZones(working, reckoning);
+  dropUnbound(working, reckoning);
+
+  const pieceZone = new Map<string, string>();
+  const standing = standingZones(working, reckoning, pieceZone);
+  const views = viewsOf(standing, reckoning);
+  const insideByPiece = placeInside(views, reckoning, pieceZone);
+  const setPieceZones = pieceZoneWrites(reckoning, pieceZone);
+  const updateZones = zoneUpdateWrites(standing, world);
+
+  const viewById = new Map(views.map((view) => [view.id, view]));
+  return {
+    zones: views,
+    overlaps: overlapsOf(views),
+    writes: { removeZones: [...removeZones].sort(compareIds), updateZones, setPieceZones },
+    zoneOf: (pieceId) => viewById.get(pieceZone.get(pieceId) ?? '') ?? null,
+    insideOf: (pieceId) => insideByPiece.get(pieceId) ?? [],
+    pointOf: (pieceId) => {
+      const zone = viewById.get(pieceZone.get(pieceId) ?? '');
+      if (zone) return zone.shape.centre;
+      return pieces.get(pieceId)?.point ?? null;
+    },
+    isEmpty: views.length < 1 && removeZones.length < 1 && setPieceZones.length < 1,
+  };
+}
+
+function reckoningOf(world: ZoneWorld): Reckoning {
+  const { rules, pxPerMetre } = world;
+  const pieces = new Map(world.pieces.map((piece) => [piece.id, piece]));
+  const pieceOf = (id: string): ZonePieceInput => pieces.get(id)!;
+  const countOf = (zone: Working) => zone.members.reduce((sum, id) => sum + (pieces.get(id)?.count ?? 1), 0);
+  const shapeOf = (zone: Working, count = countOf(zone)): ZoneShape => {
+    const size = zoneSizeFor(rules.sizes, count);
+    return {
+      centre: zone.centre,
+      square: zone.square,
+      reach: (zone.square ? size.sideM / 2 : size.radiusM) * pxPerMetre,
+    };
+  };
+  return { world, snap: world.snap ?? ((point) => point), pieces, pieceOf, countOf, shapeOf, removeZones: [] };
+}
+
+/**
+ * The zones with a centre, lowest identifier first, each with the pieces naming it that are on the
+ * field, on a side and not down. A zone with no centre is over.
+ */
+function readZones({ world, removeZones }: Reckoning): Working[] {
   const working: Working[] = [];
   for (const zone of [...world.zones].sort((a, b) => compareIds(a.id, b.id))) {
     if (!zone.centre) {
@@ -157,28 +218,27 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
     });
   }
   const byId = new Map(working.map((zone) => [zone.id, zone]));
-
   for (const piece of [...world.pieces].sort((a, b) => compareIds(a.id, b.id))) {
     const zone = piece.zone.length > 0 ? byId.get(piece.zone) : undefined;
     if (zone && !piece.offField && !piece.down && piece.side !== null) zone.members.push(piece.id);
   }
+  return working;
+}
 
-  const countOf = (zone: Working) => zone.members.reduce((sum, id) => sum + (pieces.get(id)?.count ?? 1), 0);
-  const shapeOf = (zone: Working, count = countOf(zone)): ZoneShape => {
-    const size = zoneSizeFor(rules.sizes, count);
-    return {
-      centre: zone.centre,
-      square: zone.square,
-      reach: (zone.square ? size.sideM / 2 : size.radiusM) * pxPerMetre,
-    };
-  };
-
+/** Takes out of each zone the pieces whose token has been carried more than a metre outside it. */
+function dropCarriedOut(working: Working[], { world, pieceOf, shapeOf }: Reckoning): void {
   for (const zone of working) {
     const shape = shapeOf(zone);
-    const leeway = { ...shape, reach: shape.reach + CARRIED_OUT_M * pxPerMetre };
-    zone.members = zone.members.filter((id) => zoneCovers(leeway, pieces.get(id)!.point));
+    const leeway = { ...shape, reach: shape.reach + CARRIED_OUT_M * world.pxPerMetre };
+    zone.members = zone.members.filter((id) => zoneCovers(leeway, pieceOf(id).point));
   }
+}
 
+/**
+ * Joins zones while one's centre lies in another, lowest identifier first: the one kept moves half
+ * way to the other and takes in its pieces, those held fast left behind, and the other is over.
+ */
+function joinZones(working: Working[], { snap, pieceOf, shapeOf, removeZones }: Reckoning): void {
   let joined = true;
   while (joined) {
     joined = false;
@@ -189,7 +249,7 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
         if (!zoneCovers(shapeOf(keep), other.centre) && !zoneCovers(shapeOf(other), keep.centre)) continue;
         keep.centre = snap(midpointOf(keep.centre, other.centre));
         keep.moved = true;
-        keep.members = [...keep.members, ...other.members].filter((id) => !pieces.get(id)!.held).sort(compareIds);
+        keep.members = [...keep.members, ...other.members].filter((id) => !pieceOf(id).held).sort(compareIds);
         if (keep.forming && !other.forming) {
           keep.forming = false;
           keep.formingChanged = true;
@@ -203,9 +263,12 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
       }
     }
   }
+}
 
+/** Takes out of each zone the pieces bound to one that is not in it, until none is left. */
+function dropUnbound(working: Working[], { world, pieceOf }: Reckoning): void {
   const binding = new Set(world.pieces.filter((piece) => !piece.offField).map((piece) => piece.id));
-  const boundOf = (id: string): string => boundTo(pieces.get(id)!, binding);
+  const boundOf = (id: string): string => boundTo(pieceOf(id), binding);
   for (let dropped = true; dropped;) {
     dropped = false;
     for (const zone of working) {
@@ -214,11 +277,17 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
       zone.members = kept;
     }
   }
+}
 
-  const sideOf = (id: string) => pieces.get(id)!.side!;
+/** The zones with two sides in them, writing which zone each of their pieces is in; the rest are over. */
+function standingZones(
+  working: Working[],
+  { pieceOf, removeZones }: Reckoning,
+  pieceZone: Map<string, string>
+): Working[] {
   const standing: Working[] = [];
   for (const zone of working) {
-    const sides = new Set(zone.members.map(sideOf));
+    const sides = new Set(zone.members.map((id) => pieceOf(id).side));
     if (sides.size < 2) {
       removeZones.push(zone.id);
       continue;
@@ -226,12 +295,19 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
     standing.push(zone);
     for (const id of zone.members) pieceZone.set(id, zone.id);
   }
+  return standing;
+}
 
-  const views: ZoneView[] = standing.map((zone) => {
+/** The zones as they stand, before those only standing in them are counted. */
+function viewsOf(standing: readonly Working[], { world, pieceOf, countOf, shapeOf }: Reckoning): ZoneView[] {
+  return standing.map((zone) => {
     const count = countOf(zone);
-    const limit = zone.limit ?? zoneLimitOf(rules.sizes);
+    const limit = zone.limit ?? zoneLimitOf(world.rules.sizes);
     const sides = new Map<string, number>();
-    for (const id of zone.members) sides.set(sideOf(id), (sides.get(sideOf(id)) ?? 0) + pieces.get(id)!.count);
+    for (const id of zone.members) {
+      const side = pieceOf(id).side!;
+      sides.set(side, (sides.get(side) ?? 0) + pieceOf(id).count);
+    }
     return {
       id: zone.id,
       shape: shapeOf(zone, count),
@@ -245,7 +321,17 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
       sides,
     };
   });
+}
 
+/**
+ * Writes into each view the pieces standing in it without being in any zone, and counts them among
+ * its occupants. The zones each such piece stands in, by piece.
+ */
+function placeInside(
+  views: readonly ZoneView[],
+  { world, pieceOf }: Reckoning,
+  pieceZone: ReadonlyMap<string, string>
+): Map<string, ZoneView[]> {
   const insideByPiece = new Map<string, ZoneView[]>();
   for (const piece of world.pieces) {
     if (pieceZone.has(piece.id) || piece.offField || piece.side === null) continue;
@@ -257,22 +343,36 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
   }
   for (const view of views) {
     (view.inside as string[]).sort(compareIds);
-    const occupants = view.count + view.inside.reduce((sum, id) => sum + pieces.get(id)!.count, 0);
+    const occupants = view.count + view.inside.reduce((sum, id) => sum + pieceOf(id).count, 0);
     Object.assign(view, { occupants, overflowing: occupants > view.limit });
   }
+  return insideByPiece;
+}
 
+function overlapsOf(views: readonly ZoneView[]): [string, string][] {
   const overlaps: [string, string][] = [];
   for (let i = 0; i < views.length; i++) {
     for (let j = i + 1; j < views.length; j++) {
       if (shapesMeet(views[i].shape, views[j].shape)) overlaps.push([views[i].id, views[j].id]);
     }
   }
+  return overlaps;
+}
 
-  const setPieceZones = world.pieces
+/** The pieces whose zone is not what they say it is, with what it should be. */
+function pieceZoneWrites(
+  { world, pieceOf }: Reckoning,
+  pieceZone: ReadonlyMap<string, string>
+): ZoneWrites['setPieceZones'] {
+  return world.pieces
     .map((piece) => ({ id: piece.id, zone: pieceZone.get(piece.id) ?? '' }))
-    .filter((change) => change.zone !== pieces.get(change.id)!.zone)
+    .filter((change) => change.zone !== pieceOf(change.id).zone)
     .sort((a, b) => compareIds(a.id, b.id));
-  const updateZones = standing
+}
+
+/** The standing zones whose forming, limit or centre has to be written. */
+function zoneUpdateWrites(standing: readonly Working[], world: ZoneWorld): ZoneWrites['updateZones'] {
+  return standing
     .filter(
       (zone) =>
         zone.formingChanged ||
@@ -280,21 +380,6 @@ export function zoneStateOf(world: ZoneWorld): ZoneState {
         (zone.moved && distanceBetween(zone.centre, originalCentre(world, zone.id)) > MOVED_PX)
     )
     .map((zone) => ({ id: zone.id, centre: zone.centre, forming: zone.forming, limit: zone.limit }));
-
-  const viewById = new Map(views.map((view) => [view.id, view]));
-  return {
-    zones: views,
-    overlaps,
-    writes: { removeZones: [...removeZones].sort(compareIds), updateZones, setPieceZones },
-    zoneOf: (pieceId) => viewById.get(pieceZone.get(pieceId) ?? '') ?? null,
-    insideOf: (pieceId) => insideByPiece.get(pieceId) ?? [],
-    pointOf: (pieceId) => {
-      const zone = viewById.get(pieceZone.get(pieceId) ?? '');
-      if (zone) return zone.shape.centre;
-      return pieces.get(pieceId)?.point ?? null;
-    },
-    isEmpty: views.length < 1 && removeZones.length < 1 && setPieceZones.length < 1,
-  };
 }
 
 /** Whether a state asks for anything to be written. */
