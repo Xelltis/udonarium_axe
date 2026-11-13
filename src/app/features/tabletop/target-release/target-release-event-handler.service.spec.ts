@@ -8,7 +8,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
-import { TurnState } from '@axe/domain/tabletop/turn-state';
+import { turnStartMark, TurnState } from '@axe/domain/tabletop/turn-state';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
 import { TargetReleaseEventHandlerService } from '@axe/features/tabletop/target-release/target-release-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -75,6 +75,7 @@ describe('TargetReleaseEventHandlerService', () => {
   /** Hands the turn to a piece, as the round does, and lets this screen hear of it. */
   async function turnPassesTo(identifier: string): Promise<void> {
     TurnState.instance.currentIdentifier = identifier;
+    if (identifier) TurnState.instance.turnStart = turnStartMark(identifier, Date.now());
     objectChanged$.emit({ aliasName: 'TurnState', identifier: 'TurnState', isSendFromSelf: true });
     await settle();
   }
@@ -226,7 +227,20 @@ describe('TargetReleaseEventHandlerService', () => {
       expect(enemy.targeted).toBe(false);
     });
 
-    it('keeps the aims while the turn is told again without passing', async () => {
+    it('takes every aim off as the turn begins anew for the same piece, the only one in the order', async () => {
+      makeMyCursor('p1', PeerRole.Player);
+      await start();
+      await turnPassesTo(hero.identifier);
+      targets.toggle(enemy);
+      await settle();
+
+      vi.advanceTimersByTime(1000);
+      await turnPassesTo(hero.identifier);
+
+      expect(enemy.targeted).toBe(false);
+    });
+
+    it('keeps the aims while the round is told of without the turn passing', async () => {
       makeMyCursor('p1', PeerRole.Player);
       await start();
       await turnPassesTo(hero.identifier);
@@ -234,7 +248,21 @@ describe('TargetReleaseEventHandlerService', () => {
       await settle();
 
       TurnState.instance.round = 2;
+      objectChanged$.emit({ aliasName: 'TurnState', identifier: 'TurnState', isSendFromSelf: true });
+      await settle();
+
+      expect(enemy.targeted).toBe(true);
+    });
+
+    it('leaves a tick on a piece kept off the table, in a tab of the inventory, as it is', async () => {
+      makeMyCursor('gm', PeerRole.GameMaster);
+      await start();
       await turnPassesTo(hero.identifier);
+      enemy.location.name = 'graveyard';
+      targets.toggle(enemy);
+      await settle();
+
+      await turnPassesTo(hero.identifier + '-other');
 
       expect(enemy.targeted).toBe(true);
     });
@@ -242,11 +270,13 @@ describe('TargetReleaseEventHandlerService', () => {
     it('ends nothing on the turn as it stands when first heard of', async () => {
       makeMyCursor('p1', PeerRole.Player);
       TurnState.instance.currentIdentifier = hero.identifier;
+      TurnState.instance.turnStart = turnStartMark(hero.identifier, Date.now());
       await start();
       targets.toggle(enemy);
       await settle();
 
-      await turnPassesTo(hero.identifier);
+      objectChanged$.emit({ aliasName: 'TurnState', identifier: 'TurnState', isSendFromSelf: true });
+      await settle();
 
       expect(enemy.targeted).toBe(true);
     });

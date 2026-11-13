@@ -1,9 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
-import { ObjectStore } from '@axe/core/sync/object-store';
-import { GameCharacter } from '@axe/domain/character/game-character';
 import { Z_TABLE_BANDS } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -22,25 +18,12 @@ import { TranslocoModule } from '@jsverse/transloco';
   imports: [TranslocoModule],
 })
 export class TargetBandComponent {
-  private readonly objectStore = inject(ObjectStore);
-  private readonly objectChange = inject(ObjectChangeService);
-  private readonly uiSignal = inject(UiSignalService);
   private readonly pieceTarget = inject(PieceTargetService);
 
   protected readonly zIndex = Z_TABLE_BANDS;
 
   /** How many pieces on the table are aimed at, which is when the band speaks. */
-  protected readonly count = computed(() => {
-    this.uiSignal.targetChange();
-    this.objectChange.collectionOf(GameCharacter.aliasName)();
-    let count = 0;
-    for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
-      if (!piece.targeted) continue;
-      this.objectChange.versionOf(piece.identifier)();
-      if (piece.isVisibleOnTable) count++;
-    }
-    return count;
-  });
+  protected readonly count = computed(() => this.pieceTarget.onTable().length);
 
   /** Takes every aim off. The press is kept off the table underneath. */
   protected clear(event: Event): void {
