@@ -1,4 +1,4 @@
-import { hexChannels } from '@axe/core/util/hex-color';
+import { hexChannels, withAlpha } from '@axe/core/util/hex-color';
 import { CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { OverlayPlan, OverlayShape, OverlayVision, ShadowShape } from '@axe/domain/tabletop/vision-scene';
@@ -19,13 +19,11 @@ interface ResolvedSurface extends OverlaySurface {
   heightPx: number;
 }
 
-/**
- * A CSS `rgba()` colour from a hex colour of three or six digits, with or without the `#`; anything
- * unreadable gives white at the same alpha.
- */
+const WHITE = '#ffffff';
+
+/** A CSS `rgba()` colour from a hex colour at an alpha; anything not written in hex gives white at the same alpha. */
 export function hexToRgba(color: string, alpha: number): string {
-  const [r, g, b] = hexChannels(color) ?? [255, 255, 255];
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  return withAlpha(hexChannels(color) ? color : WHITE, alpha);
 }
 
 export { animationIntensity };

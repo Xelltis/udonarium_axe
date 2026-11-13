@@ -16,6 +16,7 @@ import type {
   WaterPart,
 } from '@axe/domain/tabletop/world/table-water';
 import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
+import type { DarknessTaking } from '@axe/infrastructure/table-3d/veil';
 import { lotusTileUrl } from '@axe/infrastructure/tabletop/water/lotus-texture';
 import { colourNode } from '@axe/infrastructure/three-kit/colour-node';
 import {
@@ -108,8 +109,6 @@ const SECOND_NET_SCALE = 1.45;
 const SECOND_NET_SHARE = 0.75;
 const GLINT_SECONDS = 57;
 
-type Taking = 'lit' | 'unlit';
-
 /**
  * The water on the table: its surfaces coloured by the depths under them and glinting, its floors
  * darkened and crossed by a moving net of light, its sides where it stands over lower ground, and the
@@ -137,7 +136,7 @@ export class WaterLayer {
   private changed = false;
 
   constructor(
-    private readonly dress: (material: Material, taking: Taking) => void,
+    private readonly dress: (material: Material, taking: DarknessTaking) => void,
     private readonly picture: (url: string) => Texture
   ) {}
 

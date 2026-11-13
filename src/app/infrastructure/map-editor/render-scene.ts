@@ -1,3 +1,4 @@
+import { clamp01 } from '@axe/core/util/clamp';
 import { catmullRomSegments } from '@axe/domain/map-editor/curve-geometry';
 import { functionInkOf } from '@axe/domain/map-editor/function-layer';
 import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
@@ -261,7 +262,7 @@ function drawImageItem(
   const image = helpers.rasterImage?.(item);
   if (!image) return;
   ctx.save();
-  ctx.globalAlpha = layerAlpha * (Number.isFinite(item.opacity) ? Math.max(0, Math.min(1, item.opacity)) : 1);
+  ctx.globalAlpha = layerAlpha * (Number.isFinite(item.opacity) ? clamp01(item.opacity) : 1);
   if (item.clipToCells) {
     const minX = item.x - item.w / 2;
     const minY = item.y - item.h / 2;

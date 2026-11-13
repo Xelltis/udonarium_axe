@@ -1,3 +1,5 @@
+import { clamp } from '@axe/core/util/clamp';
+
 /** The loading screen the page opens with, laid out in index.html, which the app moves on and takes away. */
 const SCREEN_ID = 'app-loading';
 
@@ -19,7 +21,7 @@ function fillBar(screen: HTMLElement, percent: number): void {
 export function showLoadingStage(share: number, words: string): void {
   const screen = document.getElementById(SCREEN_ID);
   if (!screen) return;
-  const percent = Math.round(Math.min(1, Math.max(0, share)) * 100);
+  const percent = Math.round(clamp(share, 0, 1) * 100);
   fillBar(screen, percent);
   const stage = screen.querySelector('.app-loading-stage');
   if (stage) stage.textContent = words;

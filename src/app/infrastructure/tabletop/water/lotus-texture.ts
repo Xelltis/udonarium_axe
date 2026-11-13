@@ -1,3 +1,4 @@
+import { clamp01 } from '@axe/core/util/clamp';
 import { LOTUS_TILE_PX, type LotusPad, lotusPadsOf } from '@axe/domain/effect/ambience/lotus-layout';
 
 const SEED = 20261016;
@@ -17,7 +18,7 @@ const tiles = new Map<number, string>();
  * under it. One tile is drawn for each tenth of the scale and kept for the life of the page.
  */
 export function lotusTileUrl(amount: number): string {
-  const step = Math.round(Math.min(Math.max(Number.isFinite(amount) ? amount : 0, 0), 1) * STEPS);
+  const step = Math.round(clamp01(amount) * STEPS);
   if (step < 1) return '';
   const held = tiles.get(step);
   if (held !== undefined) return held;
