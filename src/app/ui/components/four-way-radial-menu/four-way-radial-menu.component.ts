@@ -9,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ActionPresentation, actionPresentationOf } from '@axe/application/ui/action-presentation';
 import {
   ContextMenuAction,
   ContextMenuRadialGroup,
@@ -38,13 +39,6 @@ import {
   seatTextRotation,
 } from '@axe/ui/components/four-way-radial-menu/four-way-radial-menu-geometry';
 import { TranslocoModule } from '@jsverse/transloco';
-
-interface ActionPresentation {
-  label: string;
-  kind: 'checkbox' | 'radio' | 'selected' | 'none';
-  checked: boolean | null;
-  icon: string | null;
-}
 
 interface RadialFlyout {
   action: ContextMenuAction;
@@ -414,22 +408,7 @@ export class FourWayRadialMenuComponent {
   }
 
   protected actionPresentation(action: ContextMenuAction): ActionPresentation {
-    const match = action.name.match(/^([☑☐◉○✔])\s*/);
-    const label = match ? action.name.slice(match[0].length) : action.name;
-    switch (match?.[1]) {
-      case '☑':
-        return { label, kind: 'checkbox', checked: true, icon: 'check_box' };
-      case '☐':
-        return { label, kind: 'checkbox', checked: false, icon: 'check_box_outline_blank' };
-      case '◉':
-        return { label, kind: 'radio', checked: true, icon: 'radio_button_checked' };
-      case '○':
-        return { label, kind: 'radio', checked: false, icon: 'radio_button_unchecked' };
-      case '✔':
-        return { label, kind: 'selected', checked: true, icon: 'check' };
-      default:
-        return { label, kind: 'none', checked: null, icon: null };
-    }
+    return actionPresentationOf(action.name);
   }
 
   protected hasSubActions(action: ContextMenuAction): boolean {

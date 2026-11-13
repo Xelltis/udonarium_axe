@@ -15,10 +15,12 @@ import {
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { ActionPresentation, actionPresentationOf } from '@axe/application/ui/action-presentation';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { screenDeltaToElementDelta } from '@axe/core/transform/screen-delta';
 import { debounce } from '@axe/core/util/debounce';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -26,16 +28,6 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 const SUBMENU_OVERLAP_PX = 4;
 const SUBMENU_RISE_PX = 16;
-
-function screenDeltaToMenuDelta(x: number, y: number, rotationDegrees: number): { x: number; y: number } {
-  const radians = (-rotationDegrees * Math.PI) / 180;
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-  return {
-    x: x * cos - y * sin,
-    y: x * sin + y * cos,
-  };
-}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -143,6 +135,11 @@ export class ContextMenuComponent {
       document.removeEventListener('touchstart', this.callbackOnOutsideClick, true);
       document.removeEventListener('mousedown', this.callbackOnOutsideClick, true);
     });
+  }
+
+  /** How a row is drawn from the mark at the head of its name; see {@link actionPresentationOf}. */
+  protected actionPresentation(action: ContextMenuAction): ActionPresentation {
+    return actionPresentationOf(action.name);
   }
 
   /** Whether something is being dragged, during which the menu lets the pointer through. */
@@ -262,7 +259,7 @@ export class ContextMenuComponent {
         : placed.bottom > window.innerHeight - margin
           ? window.innerHeight - margin - placed.bottom
           : 0;
-    const localCorrection = screenDeltaToMenuDelta(screenX, screenY, this.contextMenuService.rotationDegrees);
+    const localCorrection = screenDeltaToElementDelta(screenX, screenY, this.contextMenuService.rotationDegrees);
     left += localCorrection.x;
     top += localCorrection.y;
     submenu.style.left = `${left}px`;

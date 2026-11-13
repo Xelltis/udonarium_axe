@@ -1,6 +1,7 @@
 import { afterNextRender, DestroyRef, Directive, ElementRef, inject, input, output } from '@angular/core';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { CSSNumber } from '@axe/core/transform/css-number';
+import { screenDeltaToElementDelta } from '@axe/core/transform/screen-delta';
 import { HandleType, ResizeHandler } from '@axe/ui/directives/resize-handler';
 
 interface BoxSize {
@@ -8,21 +9,6 @@ interface BoxSize {
   top: number;
   width: number;
   height: number;
-}
-
-/**
- * Turns a pointer movement on screen into the same movement along the axes of an element that
- * is turned by `rotationDegrees`, so dragging a turned panel's edge grows it the way it points.
- */
-export function screenDeltaToElementDelta(x: number, y: number, rotationDegrees: number): PointerCoordinate {
-  const radians = (-rotationDegrees * Math.PI) / 180;
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-  return {
-    x: x * cos - y * sin,
-    y: x * sin + y * cos,
-    z: 0,
-  };
 }
 
 /**
