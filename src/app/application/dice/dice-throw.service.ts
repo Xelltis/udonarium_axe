@@ -4,6 +4,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { MotionService } from '@axe/application/ui/motion.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { diceThrow$, messageAdded$ } from '@axe/core/event/domain-events';
+import { Logger } from '@axe/core/logging/logger';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BoundedMap, BoundedSet } from '@axe/core/util/bounded-map';
@@ -502,7 +503,8 @@ export class DiceThrowService {
         edge: 'left',
         away: [0, 1, 0],
       });
-    } catch {
+    } catch (reason) {
+      Logger.warn('[DiceThrow] the physics could not work out a throw', reason);
       this.fail(key);
       return null;
     }
