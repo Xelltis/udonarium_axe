@@ -30,6 +30,10 @@ describe('the interrupt band and overlay', () => {
   );
   const interrupts = {
     waiting: waiting.asReadonly(),
+    secondsLeft: computed(() => {
+      const move = waiting();
+      return move ? Math.max(0, Math.ceil((move.deadline - Date.now()) / 1000)) : 0;
+    }),
     offer: offer.asReadonly(),
     choice,
     togglePiece: vi.fn(),

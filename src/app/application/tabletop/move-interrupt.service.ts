@@ -148,6 +148,15 @@ export class MoveInterruptService {
   /** The move this peer has declared and is waiting on, for saying so at the foot of the screen. */
   readonly waiting = this.waitingMove.asReadonly();
 
+  /** When the waiting move last looked for its answers, which is as often as what is left of its wait is told. */
+  private readonly lookedAt = signal(Date.now());
+
+  /** How many whole seconds the move this peer declared has left to wait; none where no move waits. */
+  readonly secondsLeft = computed(() => {
+    const waiting = this.waitingMove();
+    return waiting ? Math.max(0, Math.ceil((waiting.deadline - this.lookedAt()) / 1000)) : 0;
+  });
+
   /** A declared move this peer may answer, or rule on as a game master; null where there is none. */
   readonly offer = computed<InterruptOffer | null>(() => {
     this.objectChange.collectionOf(PeerCursor.aliasName)();
@@ -484,6 +493,7 @@ export class MoveInterruptService {
     const deadline = Date.now() + INTERRUPT_WAIT_MS;
     return new Promise((resolve) => {
       const look = () => {
+        this.lookedAt.set(Date.now());
         const verdict = this.verdictFor(id);
         if (verdict) return resolve(verdict);
         if ([...responders].every((responder) => this.answerOf(responder, id) !== null)) return resolve('all');

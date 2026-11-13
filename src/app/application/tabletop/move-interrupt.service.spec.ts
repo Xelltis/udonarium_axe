@@ -122,6 +122,25 @@ describe('MoveInterruptService', () => {
     expect(service.waiting()).toBeNull();
   });
 
+  it('tells the mover how many whole seconds its wait has left, as it looks for the answers', async () => {
+    const hero = pieceAt(2, 2, 6);
+    pieceAt(5, 3, 2, true);
+    moving(hero);
+    expect(service.secondsLeft()).toBe(0);
+
+    const negotiated = service.negotiate(hero, WAY);
+    TestBed.tick();
+    expect(service.secondsLeft()).toBe(INTERRUPT_WAIT_MS / 1000);
+
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(service.secondsLeft()).toBe(INTERRUPT_WAIT_MS / 1000 - 2);
+
+    service.dropInterrupts();
+    await look();
+    expect(await negotiated).toBeNull();
+    expect(service.secondsLeft()).toBe(0);
+  });
+
   it('lets a move by at once, unasked, for a player who does not see the piece moving', async () => {
     PeerCursor.myCursor.role = PeerRole.Player;
     PeerCursor.myCursor.userId = 'user-a';
