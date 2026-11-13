@@ -33,7 +33,7 @@ describe('AudioTag', () => {
       AudioTag.create('aud001');
       const found = AudioTag.get('aud001');
       expect(found).toBeTruthy();
-      expect(found.audioIdentifier).toBe('aud001');
+      expect(found!.audioIdentifier).toBe('aud001');
     });
 
     it('returns nothing for an identifier that is not there', () => {

@@ -29,8 +29,8 @@ describe('the materials a room is built with', () => {
   it('files the floors and the walls alike as textures', () => {
     registerBuiltinMaterials(imageStorage);
 
-    expect(ImageTag.get(TEXTURE_ASSET_URLS.stone_tile).tag).toBe(TEXTURE_IMAGE_TAG);
-    expect(ImageTag.get(WALL_TEXTURE_ASSET_URLS.wall_brick).tag).toBe(TEXTURE_IMAGE_TAG);
+    expect(ImageTag.get(TEXTURE_ASSET_URLS.stone_tile)!.tag).toBe(TEXTURE_IMAGE_TAG);
+    expect(ImageTag.get(WALL_TEXTURE_ASSET_URLS.wall_brick)!.tag).toBe(TEXTURE_IMAGE_TAG);
   });
 
   it('names a picture after the material rather than the path it is kept at', () => {
@@ -62,7 +62,7 @@ describe('the materials a room is built with', () => {
 
     registerBuiltinMaterials(imageStorage);
 
-    expect(ImageTag.get(url).tag).toBe('わたしの床');
+    expect(ImageTag.get(url)!.tag).toBe('わたしの床');
   });
 
   it('files each picture once, however often the room is opened', () => {

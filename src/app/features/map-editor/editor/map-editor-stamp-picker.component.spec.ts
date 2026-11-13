@@ -67,7 +67,7 @@ describe('MapEditorStampPickerComponent', () => {
 
     const created = ImageTag.get('uploaded-stamp');
     expect(created).toBeTruthy();
-    expect(created.tag).toBe('マップスタンプ');
+    expect(created!.tag).toBe('マップスタンプ');
     expect(state.stampId()).toBe('media:uploaded-stamp');
     expect(input.value).toBe('');
   });

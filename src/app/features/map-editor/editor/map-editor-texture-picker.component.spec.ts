@@ -84,7 +84,7 @@ describe('MapEditorTexturePickerComponent', () => {
     await picker.onTextureFileSelected(upload());
 
     expect(imageStorage.addAsync).toHaveBeenCalledWith(blob, { putBack: true });
-    expect(ImageTag.get('cropped-1').tag).toBe('テクスチャ');
+    expect(ImageTag.get('cropped-1')!.tag).toBe('テクスチャ');
     expect(state.textureId()).toBe('image:cropped-1');
     expect(state.fillMode()).toBe('texture');
   });

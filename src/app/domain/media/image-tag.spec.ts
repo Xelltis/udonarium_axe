@@ -33,7 +33,7 @@ describe('ImageTag', () => {
       ImageTag.create('img001');
       const found = ImageTag.get('img001');
       expect(found).toBeTruthy();
-      expect(found.imageIdentifier).toBe('img001');
+      expect(found!.imageIdentifier).toBe('img001');
     });
 
     it('returns nothing for an identifier that is not there', () => {

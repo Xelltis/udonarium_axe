@@ -73,9 +73,9 @@ export class FileSelecterComponent {
     for (const imageFile of this.fileStorageService.images) {
       const identifier = imageFile.context.identifier;
 
-      if (ImageTag.get(identifier)) {
-        const tag: string = ImageTag.get(identifier).tag;
-        if (this.selectTag() == tag && this.mayShow(imageFile)) {
+      const imageTag = ImageTag.get(identifier);
+      if (imageTag) {
+        if (this.selectTag() == imageTag.tag && this.mayShow(imageFile)) {
           imageFileList.push(imageFile);
         }
       } else {

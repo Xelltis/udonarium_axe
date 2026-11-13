@@ -38,9 +38,9 @@ export class ImageTag extends ObjectNode {
       .filter((image): image is ImageFile => image !== null);
   }
 
-  /** The tag of a picture. Despite the type, it is null when the picture has never been tagged. */
-  static get(imageIdentifier: string): ImageTag {
-    return ObjectStore.instance.get<ImageTag>(`imagetag_${imageIdentifier}`)!;
+  /** The tag of a picture, or null when the picture has never been tagged. */
+  static get(imageIdentifier: string): ImageTag | null {
+    return ObjectStore.instance.get<ImageTag>(`imagetag_${imageIdentifier}`);
   }
 
   /** Whether the game master is keeping the picture back. An untagged picture is not. */

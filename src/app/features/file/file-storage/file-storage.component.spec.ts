@@ -612,7 +612,7 @@ describe('FileStorageComponent', () => {
 
       component.changeTag();
 
-      expect(ImageTag.get('a-goblin').tag).toBe('雑魚');
+      expect(ImageTag.get('a-goblin')!.tag).toBe('雑魚');
       expect(show).toHaveBeenCalledOnce();
     });
   });

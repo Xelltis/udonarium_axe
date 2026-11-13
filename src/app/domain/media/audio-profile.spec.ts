@@ -40,8 +40,8 @@ describe('AudioProfile', () => {
   it('shares a reading on the sound tag, making the tag when the sound had none', () => {
     AudioProfile.share('fresh', reading);
 
-    expect(AudioTag.get('fresh').tag).toBe('BGM');
-    expect(AudioTag.get('fresh').analysis).toBe(writeAudioAnalysis(reading));
+    expect(AudioTag.get('fresh')!.tag).toBe('BGM');
+    expect(AudioTag.get('fresh')!.analysis).toBe(writeAudioAnalysis(reading));
     expect(AudioProfile.analysisOf('fresh')).toEqual(reading);
   });
 
@@ -71,7 +71,7 @@ describe('AudioProfile', () => {
 
     AudioProfile.setGrid('beats', null);
 
-    expect(AudioTag.get('beats').beatGrid).toBe('');
+    expect(AudioTag.get('beats')!.beatGrid).toBe('');
     expect(AudioProfile.gridOf('beats')).toEqual({ bpm: 140, bar: 0.1 });
   });
 
@@ -86,8 +86,8 @@ describe('AudioProfile', () => {
     AudioProfile.share('saved', reading);
     AudioProfile.setGrid('saved', { bpm: 96, bar: 1.2 });
     AudioProfile.setCues('saved', [5, null, null, 80]);
-    const xml = ObjectSerializer.instance.toXml(AudioTag.get('saved'));
-    AudioTag.get('saved').analysis = '';
+    const xml = ObjectSerializer.instance.toXml(AudioTag.get('saved')!);
+    AudioTag.get('saved')!.analysis = '';
     AudioProfile.setGrid('saved', null);
     AudioProfile.setCues('saved', [null, null, null, null]);
 
