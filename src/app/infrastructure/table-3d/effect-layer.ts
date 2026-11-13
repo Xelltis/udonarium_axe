@@ -108,6 +108,9 @@ const MOTE_SHAPES: readonly EffectMoteShape[] = [
   'plume',
 ];
 const MARK_SHAPES: readonly EffectFloorShape[] = ['ring', 'disc', 'sigil', 'cracks', 'scorch'];
+/** The number each shape is told to the shaders by, from its place in the list, which the shaders tell the shapes apart by. */
+const MOTE_SHAPE = Object.fromEntries(MOTE_SHAPES.map((shape, at) => [shape, at])) as Record<EffectMoteShape, number>;
+const MARK_SHAPE = Object.fromEntries(MARK_SHAPES.map((shape, at) => [shape, at])) as Record<EffectFloorShape, number>;
 
 /** One mesh of bands, two points to each point along a band, and the buffers it is drawn from, written afresh each frame. */
 interface RibbonBatch {
@@ -275,7 +278,7 @@ export class EffectLayer {
       motion.array[at + 1] = mote.velocity?.z ?? 0;
       motion.array[at + 2] = mote.velocity?.y ?? 0;
       motion.array[at + 3] = mote.trail ?? 0;
-      look.array[at] = MOTE_SHAPES.indexOf(mote.shape);
+      look.array[at] = MOTE_SHAPE[mote.shape];
       // Turned within one round, as the shapes only take whole multiples of them: a graphics card
       // keeps too few figures to turn by a seed's worth.
       look.array[at + 1] = withinRound(mote.spin ?? 0);
@@ -301,7 +304,7 @@ export class EffectLayer {
       tint.array[at + 1] = this.colour.g;
       tint.array[at + 2] = this.colour.b;
       tint.array[at + 3] = mark.alpha;
-      look.array[at] = MARK_SHAPES.indexOf(mark.shape);
+      look.array[at] = MARK_SHAPE[mark.shape];
       look.array[at + 1] = mark.width;
       look.array[at + 2] = mark.turn;
       look.array[at + 3] = mark.seed;
@@ -496,7 +499,7 @@ export class EffectLayer {
     const shape = floor(look.x.add(0.5));
     // A flare is drawn out as long as its trail says, then turned by its spin, so a star of them
     // can be laid out at any angles on the screen.
-    const stretch = select(shape.equal(8), max(motion.w, 1), float(1));
+    const stretch = select(shape.equal(MOTE_SHAPE.flare), max(motion.w, 1), float(1));
     const long = vec2(corner.x.mul(stretch), corner.y);
     const turned = vec2(
       long.x.mul(cos(spin)).sub(long.y.mul(sin(spin))),
@@ -573,27 +576,31 @@ export class EffectLayer {
     const plumeWidth = pow(sin(up.mul(Math.PI)), 0.6).add(0.001);
     const plume = pow(clamp(float(1).sub(abs(point.x).div(plumeWidth)), 0, 1), 1.4).mul(0.85);
     const alpha = select(
-      shape.equal(0),
+      shape.equal(MOTE_SHAPE.glow),
       glow,
       select(
-        shape.equal(1),
+        shape.equal(MOTE_SHAPE.spark),
         spark,
         select(
-          shape.equal(2),
+          shape.equal(MOTE_SHAPE.puff),
           puff,
           select(
-            shape.equal(3),
+            shape.equal(MOTE_SHAPE.smoke),
             smoke,
             select(
-              shape.equal(4),
+              shape.equal(MOTE_SHAPE.chunk),
               chunk,
               select(
-                shape.equal(5),
+                shape.equal(MOTE_SHAPE.flake),
                 flake,
                 select(
-                  shape.equal(6),
+                  shape.equal(MOTE_SHAPE.star),
                   star,
-                  select(shape.equal(7), tongue, select(shape.equal(8), flare, select(shape.equal(9), comet, plume)))
+                  select(
+                    shape.equal(MOTE_SHAPE.tongue),
+                    tongue,
+                    select(shape.equal(MOTE_SHAPE.flare), flare, select(shape.equal(MOTE_SHAPE.comet), comet, plume))
+                  )
                 )
               )
             )
@@ -610,17 +617,25 @@ export class EffectLayer {
       select(facing.greaterThan(0.18), float(1.3), select(facing.lessThan(-0.25), float(0.7), float(1)))
     );
     const lit = select(
-      shape.equal(4),
+      shape.equal(MOTE_SHAPE.chunk),
       chunkShade,
-      select(shape.equal(3).or(shape.equal(10)), float(1.12).sub(uv().y.oneMinus().mul(0.4)), float(1))
+      select(
+        shape.equal(MOTE_SHAPE.smoke).or(shape.equal(MOTE_SHAPE.plume)),
+        float(1.12).sub(uv().y.oneMinus().mul(0.4)),
+        float(1)
+      )
     );
     const hot = select(
-      shape.equal(0),
+      shape.equal(MOTE_SHAPE.glow),
       heart.mul(0.7),
       select(
-        shape.equal(1),
+        shape.equal(MOTE_SHAPE.spark),
         smoothstep(0.6, 1, uv().y).mul(0.6),
-        select(shape.equal(8), pow(clamp(float(1).sub(abs(point.y).mul(2.5)), 0, 1), 2).mul(0.8), float(0))
+        select(
+          shape.equal(MOTE_SHAPE.flare),
+          pow(clamp(float(1).sub(abs(point.y).mul(2.5)), 0, 1), 2).mul(0.8),
+          float(0)
+        )
       )
     );
     const shown = mix(tint.rgb.mul(lit), vec3(1, 1, 1), blend === 'light' ? hot : float(0));
@@ -709,9 +724,13 @@ export class EffectLayer {
       .add(0.62);
     const scorch = clamp(ragged.add(0.2).sub(away).div(blur).add(0.5), 0, 1);
     const alpha = select(
-      shape.equal(0),
+      shape.equal(MARK_SHAPE.ring),
       ring,
-      select(shape.equal(1), disc, select(shape.equal(2), sigil, select(shape.equal(3), cracks, scorch)))
+      select(
+        shape.equal(MARK_SHAPE.disc),
+        disc,
+        select(shape.equal(MARK_SHAPE.sigil), sigil, select(shape.equal(MARK_SHAPE.cracks), cracks, scorch))
+      )
     );
 
     const material = new MeshBasicNodeMaterial({
