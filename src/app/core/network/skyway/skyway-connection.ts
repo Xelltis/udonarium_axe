@@ -1,4 +1,5 @@
 import { Logger } from '@axe/core/logging/logger';
+import { readBackendUrl } from '@axe/core/network/backend-url';
 import { Connection, ConnectionCallback } from '@axe/core/network/connection';
 import { compressIfSmaller, splitAtFileChunks } from '@axe/core/network/frame-codec';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
@@ -63,7 +64,7 @@ export class SkyWayConnection implements Connection {
 
   /** Takes the backend URL from the app config; token requests on the next open go there. */
   configure(config: Record<string, unknown>) {
-    this.skyWay.url = ((config.backend as Record<string, unknown>)?.url as string) ?? '';
+    this.skyWay.url = readBackendUrl(config);
   }
 
   /** Opens a session in no room, as the given user or a new one; callback reports the result. */

@@ -1,4 +1,5 @@
 import { Logger } from '@axe/core/logging/logger';
+import { readBackendUrl } from '@axe/core/network/backend-url';
 import {
   AssetAccess,
   Connection,
@@ -249,8 +250,7 @@ export class ServerConnection implements Connection {
 
   /** Takes the room server's address from the app config's backend url. */
   configure(config: Record<string, unknown>): void {
-    const url = (config['backend'] as { url?: unknown } | undefined)?.url;
-    this.baseUrl = typeof url === 'string' ? url : '';
+    this.baseUrl = readBackendUrl(config);
   }
 
   /** Opens a session in no room. Nothing connects; the lobby lists the rooms over HTTP. */
