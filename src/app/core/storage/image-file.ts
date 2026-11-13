@@ -268,14 +268,15 @@ export class ImageFile {
     if (fromWorker) {
       return { type: fromWorker.type, blob: fromWorker, url: window.URL.createObjectURL(fromWorker) };
     }
-    return ImageFile.createThumbnailOnMainThread(context);
+    return ImageFile.createThumbnailOnMainThread(context.url, type);
   }
 
   /**
-   * Draws the thumbnail on this page. Settles either way, as when the canvas makes no blob of an
-   * image that reads as having no size, so that whoever waits on it is not left waiting for ever.
+   * Draws the thumbnail on this page, from the image at the URL, as a picture of the type given.
+   * Settles either way, as when the canvas makes no blob of an image that reads as having no size,
+   * so that whoever waits on it is not left waiting for ever.
    */
-  private static createThumbnailOnMainThread(context: ImageContext): Promise<ThumbnailContext> {
+  private static createThumbnailOnMainThread(url: string, type: string): Promise<ThumbnailContext> {
     return new Promise((resolve, reject) => {
       const image: HTMLImageElement = new Image();
       image.onload = () => {
@@ -299,12 +300,12 @@ export class ImageFile {
             return;
           }
           resolve({ type: blob.type, blob, url: window.URL.createObjectURL(blob) });
-        }, context.blob!.type);
+        }, type);
       };
       image.onabort = image.onerror = () => {
         reject();
       };
-      image.src = context.url;
+      image.src = url;
     });
   }
 
