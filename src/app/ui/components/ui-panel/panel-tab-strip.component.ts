@@ -4,8 +4,6 @@ import { DRAG_THRESHOLD_PX } from '@axe/core/input/drag-threshold';
 import { capturePointer } from '@axe/core/input/pointer-capture';
 import { TranslocoModule } from '@jsverse/transloco';
 
-/** How far a name is carried before it counts as being dragged rather than pressed. */
-
 /**
  * The row of names along the top of a frame holding more than one panel.
  *

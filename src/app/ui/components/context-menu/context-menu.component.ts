@@ -181,7 +181,7 @@ export class ContextMenuComponent {
 
   /** Moves the index menu one menu-width to the left of where it opened; other menus are left alone. */
   placeIndexMenu() {
-    if (this.title != this.indexTitle) return;
+    if (this.title !== this.indexTitle) return;
 
     const panel: HTMLElement = this.rootElementRef().nativeElement;
     const panelBox = panel.getBoundingClientRect();
@@ -190,7 +190,6 @@ export class ContextMenuComponent {
     const newLeft = panelBox.left - w;
 
     panel.style.left = newLeft + 'px';
-    //    panel.style.right = newRight + 'px';
   }
 
   private adjustPositionRoot() {
@@ -340,6 +339,6 @@ export class ContextMenuComponent {
 
   /** Closes the whole context menu, submenus and all. */
   close() {
-    if (this.contextMenuService) this.contextMenuService.close();
+    this.contextMenuService.close();
   }
 }

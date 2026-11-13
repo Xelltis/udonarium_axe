@@ -67,18 +67,18 @@ export class FileSelecterComponent implements ModalContent {
     this.objectChange.fileVersion();
     this.tagLock.track();
     const imageFileList: ImageFile[] = [];
-    if (this.selectTag() == this.allTag) return this.getAllImage();
+    if (this.selectTag() === this.allTag) return this.getAllImage();
 
     for (const imageFile of this.imageStorage.images) {
       const identifier = imageFile.context.identifier;
 
       const imageTag = ImageTag.get(identifier);
       if (imageTag) {
-        if (this.selectTag() == imageTag.tag && this.mayShow(imageFile)) {
+        if (this.selectTag() === imageTag.tag && this.mayShow(imageFile)) {
           imageFileList.push(imageFile);
         }
       } else {
-        if (this.selectTag() == '' && this.mayShow(imageFile)) {
+        if (this.selectTag() === '' && this.mayShow(imageFile)) {
           imageFileList.push(imageFile);
         }
       }
@@ -110,9 +110,6 @@ export class FileSelecterComponent implements ModalContent {
   });
 
   readonly selectTag = signal('');
-
-  /** Called when a tag filter is chosen; does nothing. */
-  resetBtn() {}
 
   /** Only a seat that may edit the table may bring in new pictures, as in the media library. */
   get canUpload(): boolean {

@@ -730,11 +730,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame, PanelTabsFr
     if (this.isMinimized() || this.isShrunk()) return;
 
     const panel = this.draggablePanel().nativeElement;
-    if (this.isFullScreen()) {
-      this.isFullScreen.set(false);
-    } else {
-      this.isFullScreen.set(true);
-    }
+    this.isFullScreen.update((fullScreen) => !fullScreen);
 
     if (this.isFullScreen()) {
       this.preLeft = panel.offsetLeft;
