@@ -78,7 +78,7 @@ function resultMessageContextOf(
 
   if (originalMessage.to != null && 0 < originalMessage.to.length) {
     context.to = originalMessage.to;
-    if (originalMessage.to.indexOf(originalMessage.from) < 0) {
+    if (!originalMessage.to.includes(originalMessage.from)) {
       context.to += ` ${originalMessage.from}`;
     }
   }
