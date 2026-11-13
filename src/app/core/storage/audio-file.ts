@@ -124,7 +124,7 @@ export class AudioFile {
     audio.context.identifier = await FileReaderUtil.calcSHA256Async(arrayBuffer);
     audio.context.blob = new Blob([arrayBuffer], { type: blob.type });
     audio.context.type = audio.context.blob.type;
-    audio.context.url = window.URL.createObjectURL(audio.context.blob);
+    audio.context.url = URL.createObjectURL(audio.context.blob);
     audio.context.name = name ?? audio.context.identifier;
     audio._artworkUrl = extractArtworkUrl(arrayBuffer);
 
@@ -172,12 +172,12 @@ export class AudioFile {
   }
 
   private createURLs() {
-    if (this.context.blob && !this.context.url) this.context.url = window.URL.createObjectURL(this.context.blob);
+    if (this.context.blob && !this.context.url) this.context.url = URL.createObjectURL(this.context.blob);
   }
 
   private revokeURLs() {
     if (!this.context.blob) return;
-    window.URL.revokeObjectURL(this.context.url);
+    URL.revokeObjectURL(this.context.url);
   }
 
   /** A shallow copy of the fields, in the shape sent to peers and handed to `apply`. */
