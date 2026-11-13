@@ -23,7 +23,6 @@ import { TablePiecesService } from '@axe/application/tabletop/table-pieces.servi
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
@@ -37,9 +36,8 @@ import { cellPatternBoundingBox, parseCellPattern } from '@axe/domain/tabletop/c
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { squareCentreAt } from '@axe/domain/tabletop/move/move-grid';
-import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { RangeArea } from '@axe/domain/tabletop/range';
-import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
+import { rangeCovers, ROTATABLE_RANGE_TYPES, SINGLE_GRAB_RANGE_TYPES } from '@axe/domain/tabletop/range-coverage';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
@@ -87,7 +85,6 @@ import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop
 })
 export class RangeComponent {
   private readonly createMenu = inject(CreateObjectMenuService);
-  private readonly contextMenuService = inject(ContextMenuService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly panelService = inject(PanelService);
@@ -210,7 +207,7 @@ export class RangeComponent {
     this.rangeVersion();
     const range = this.range();
     if (range.type === 'CUSTOM') return range.isRotatable === true;
-    return ['LINE', 'CORN', 'SQUARE', 'RHOMBUS', 'TRIANGLE', 'PENTAGON', 'HEXAGON'].includes(range.type);
+    return ROTATABLE_RANGE_TYPES.includes(range.type);
   });
 
   readonly isCustomRangeType = computed(() => {
@@ -220,7 +217,7 @@ export class RangeComponent {
 
   readonly usesSingleRotateGrab = computed(() => {
     this.rangeVersion();
-    return ['SQUARE', 'RHOMBUS', 'TRIANGLE', 'PENTAGON', 'HEXAGON', 'CUSTOM'].includes(this.range().type);
+    return SINGLE_GRAB_RANGE_TYPES.includes(this.range().type);
   });
 
   readonly rotateGrabDistancePx = computed(() => Math.max(1, this.length()) * this.tabletopService.squarePx());
@@ -400,20 +397,7 @@ export class RangeComponent {
       (r) => this.openCellEditor(r),
       (r) => this.targetInside(r)
     );
-    const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
-      this.contextMenuService.openRadial(
-        menuPosition,
-        menu.actions,
-        menu.radialGroups,
-        this.name(),
-        display.tabletopMenuStyle === 'radial',
-        display.radialMenuRotationSpeed,
-        multiAngleFontScaleFactor(display.multiAngleFontScale)
-      );
-      return;
-    }
-    this.contextMenuService.open(menuPosition, menu.actions, this.name());
+    this.pieceContextMenu.openPieceMenu(menuPosition, menu, this.name());
   }
 
   /**

@@ -24,7 +24,6 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
@@ -33,7 +32,6 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { debounce } from '@axe/core/util/debounce';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildTextNoteContextMenuModel } from '@axe/features/tabletop/text-note/text-note-context-menu';
@@ -86,7 +84,6 @@ const NOTE_FOOTPRINT = { width: 1, height: 0 } as const;
   },
 })
 export class TextNoteComponent {
-  private readonly contextMenuService = inject(ContextMenuService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly disclosureService = inject(DisclosureService);
@@ -540,20 +537,7 @@ export class TextNoteComponent {
       this.translateFn,
       surfaceEntries
     );
-    const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
-      this.contextMenuService.openRadial(
-        position,
-        menu.actions,
-        menu.radialGroups,
-        this.title(),
-        display.tabletopMenuStyle === 'radial',
-        display.radialMenuRotationSpeed,
-        multiAngleFontScaleFactor(display.multiAngleFontScale)
-      );
-      return;
-    }
-    this.contextMenuService.open(position, menu.actions, this.title());
+    this.pieceContextMenu.openPieceMenu(position, menu, this.title());
   }
 
   /** Plays the pick-up sound when a drag or turn of the note starts. */

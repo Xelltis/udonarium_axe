@@ -7,7 +7,6 @@ import { AmbienceService } from '@axe/application/tabletop/ambience.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -22,7 +21,6 @@ import {
 } from '@axe/domain/effect/ambience/ambience-ground';
 import { EffectParticleLayer } from '@axe/domain/effect/particles/shared';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { quadMatrix } from '@axe/domain/tabletop/world/page-boxes';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
@@ -69,7 +67,6 @@ export class TableAmbienceComponent {
   private readonly ambienceService = inject(AmbienceService);
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly contextMenuService = inject(ContextMenuService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly uiSignalService = inject(UiSignalService);
@@ -243,20 +240,7 @@ export class TableAmbienceComponent {
     if (this.pieceContextMenu.openForSelection(area, this.gridSize(), menuPosition)) return;
 
     const menu = buildTableAmbienceContextMenuModel(area, this.gridSize(), () => this.openSettings(area), this.t);
-    const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
-      this.contextMenuService.openRadial(
-        menuPosition,
-        menu.actions,
-        menu.radialGroups,
-        area.name,
-        display.tabletopMenuStyle === 'radial',
-        display.radialMenuRotationSpeed,
-        multiAngleFontScaleFactor(display.multiAngleFontScale)
-      );
-      return;
-    }
-    this.contextMenuService.open(menuPosition, menu.actions, area.name);
+    this.pieceContextMenu.openPieceMenu(menuPosition, menu, area.name);
   }
 
   private openSettings(area: TableAmbience): void {

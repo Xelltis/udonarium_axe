@@ -16,7 +16,6 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
@@ -27,7 +26,6 @@ import { ImageTag } from '@axe/domain/media/image-tag';
 import { LIGHT_IMAGE_TAG, LIGHT_SKIN_ASSET_URLS, LightSkinId } from '@axe/domain/media/light-skins';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { LightSource } from '@axe/domain/tabletop/light-source';
-import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { buildLightSourceContextMenuModel } from '@axe/features/tabletop/light-source/light-source-context-menu';
 import { loadFileSelecter } from '@axe/ui/components/file-selecter/file-selecter-loader';
 import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
@@ -53,7 +51,6 @@ import { setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-pie
   },
 })
 export class LightSourceComponent {
-  private readonly contextMenuService = inject(ContextMenuService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
@@ -238,20 +235,7 @@ export class LightSourceComponent {
       this.translateFn,
       (skin) => this.applySkin(light, skin)
     );
-    const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
-      this.contextMenuService.openRadial(
-        menuPosition,
-        menu.actions,
-        menu.radialGroups,
-        light.name,
-        display.tabletopMenuStyle === 'radial',
-        display.radialMenuRotationSpeed,
-        multiAngleFontScaleFactor(display.multiAngleFontScale)
-      );
-      return;
-    }
-    this.contextMenuService.open(menuPosition, menu.actions, light.name);
+    this.pieceContextMenu.openPieceMenu(menuPosition, menu, light.name);
   }
 
   private openSettings(light: LightSource) {

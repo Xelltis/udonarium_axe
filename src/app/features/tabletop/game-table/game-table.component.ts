@@ -46,12 +46,13 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -71,7 +72,6 @@ import { glideToCentre } from '@axe/domain/tabletop/camera/camera-glide';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
-import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { zoomToViewPositionZ } from '@axe/domain/tabletop/physical-scale';
 import { SurfaceDims } from '@axe/domain/tabletop/surface-space';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
@@ -222,8 +222,8 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
   },
 })
 export class GameTableComponent {
-  private readonly contextMenuService = inject(ContextMenuService);
   private readonly createMenu = inject(CreateObjectMenuService);
+  private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly tableCamera = inject(TableCameraService);
   private readonly tablePick = inject(TablePickService);
@@ -916,21 +916,11 @@ export class GameTableComponent {
    */
   openTableContextMenu(menuPosition: PointerCoordinate, objectPosition: PointerCoordinate): void {
     const menu = this.buildContextMenuModel(objectPosition);
-    const table = this.currentTable;
-    const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
-      this.contextMenuService.openRadial(
-        menuPosition,
-        menu.actions,
-        menu.rotatingGroups,
-        table.name,
-        display.tabletopMenuStyle === 'radial',
-        display.radialMenuRotationSpeed,
-        multiAngleFontScaleFactor(display.multiAngleFontScale)
-      );
-      return;
-    }
-    this.contextMenuService.open(menuPosition, menu.actions, table.name);
+    this.pieceContextMenu.openPieceMenu(
+      menuPosition,
+      { actions: menu.actions, radialGroups: menu.rotatingGroups },
+      this.currentTable.name
+    );
   }
   /** Forgets that the last press moved the view, as any new mouse press begins. */
   onDocumentMouseDown(_e: MouseEvent) {
