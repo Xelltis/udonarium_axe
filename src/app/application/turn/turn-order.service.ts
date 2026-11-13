@@ -1,6 +1,7 @@
 import { computed, DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -162,6 +163,11 @@ export class TurnOrderService {
   /** What a side is called and the colour it is shown in. */
   sideName(side: string): string {
     return describeSide(side, this.parties(), this.t('feature.turnOrder.unassignedSide')).name;
+  }
+
+  /** The name a side goes by in a line said to the room, which each reader translates where it has none. */
+  private saidSideName(side: string): string {
+    return describeSide(side, this.parties(), '').name || encodeI18nMessage('feature.turnOrder.unassignedSide');
   }
 
   /** The colour a side is shown in, taken from the party it stands for. */
@@ -499,7 +505,10 @@ export class TurnOrderService {
       if (step.round < startedAt) break;
     }
     this.turnState.history = stringifyTurnHistory(steps);
-    this.chat.sendSystemNotice('round', this.t('feature.turnOrder.retreatRoundAnnounce', { n: this.turnState.round }));
+    this.chat.sendSystemNotice(
+      'round',
+      encodeI18nMessage('feature.turnOrder.retreatRoundAnnounce', { n: this.turnState.round })
+    );
   }
 
   /**
@@ -517,7 +526,7 @@ export class TurnOrderService {
 
     this.applyStep(last);
     this.turnState.history = stringifyTurnHistory(steps);
-    this.chat.sendSystemNotice('round', this.t('feature.turnOrder.undoAnnounce'));
+    this.chat.sendSystemNotice('round', encodeI18nMessage('feature.turnOrder.undoAnnounce'));
   }
 
   /**
@@ -599,19 +608,19 @@ export class TurnOrderService {
           this.announceCharacter(effect.identifier, effect.announcement);
           break;
         case 'roundStart':
-          this.chat.sendSystemNotice('round', this.t('feature.turnOrder.roundStart', { n: effect.round }));
+          this.chat.sendSystemNotice('round', encodeI18nMessage('feature.turnOrder.roundStart', { n: effect.round }));
           break;
         case 'roundEnd':
-          this.chat.sendSystemNotice('round', this.t('feature.turnOrder.roundEnd', { n: effect.round }));
+          this.chat.sendSystemNotice('round', encodeI18nMessage('feature.turnOrder.roundEnd', { n: effect.round }));
           break;
         case 'sidePhaseStart':
           this.chat.sendSystemNotice(
             'round',
-            this.t('feature.turnOrder.sidePhaseStart', { name: this.sideName(effect.side) })
+            encodeI18nMessage('feature.turnOrder.sidePhaseStart', { name: this.saidSideName(effect.side) })
           );
           break;
         case 'reset':
-          this.chat.sendSystemNotice('round', this.t('feature.turnOrder.resetAnnounce'));
+          this.chat.sendSystemNotice('round', encodeI18nMessage('feature.turnOrder.resetAnnounce'));
           break;
         case 'buffs':
           this.expireBuffs(effect.timing, this.actorOf(effect.identifier));
@@ -730,7 +739,7 @@ export class TurnOrderService {
 
     const detail = formatExpiredBuffs(entries);
     if (detail !== '') {
-      this.chat.sendSystemNotice('round', this.t('feature.turnOrder.buffExpired', { detail }));
+      this.chat.sendSystemNotice('round', encodeI18nMessage('feature.turnOrder.buffExpired', { detail }));
     }
   }
 
@@ -760,8 +769,8 @@ export class TurnOrderService {
     this.chat.sendSystemNotice(
       'round',
       this.vision.isSeenByParty(character)
-        ? this.t(`feature.turnOrder.${announcement}`, { name: this.names.said(character) })
-        : this.t(`feature.turnOrder.${announcement}Unseen`)
+        ? encodeI18nMessage(`feature.turnOrder.${announcement}`, { name: this.names.said(character) })
+        : encodeI18nMessage(`feature.turnOrder.${announcement}Unseen`)
     );
   }
 }

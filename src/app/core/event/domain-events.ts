@@ -66,7 +66,12 @@ export interface FinishVoteEvent {
 }
 
 export interface AlarmTimeUpEvent {
-  text: string;
+  /** How many seconds the alarm ran. */
+  seconds: number;
+  /** Who the alarm was for, as the words it was set with. */
+  target: string;
+  /** The alarm's title. */
+  title: string;
 }
 
 export interface AlarmPopEvent {

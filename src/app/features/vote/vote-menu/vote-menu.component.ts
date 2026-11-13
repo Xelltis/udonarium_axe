@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -108,11 +109,11 @@ export class VoteMenuComponent {
 
     if (this.isRollCall) {
       choicesInput = this.t('feature.vote.rollCallReady');
-      startMessage = this.t('feature.vote.rollCallStart');
+      startMessage = encodeI18nMessage('feature.vote.rollCallStart');
       voteTitle = this.t('feature.vote.rollCall');
     } else {
       choicesInput = choicesInput.length == 0 ? this.t('feature.vote.rollCallDefault') : choicesInput;
-      startMessage = this.t(this.isSecret ? 'feature.vote.voteStartSecret' : 'feature.vote.voteStart', {
+      startMessage = encodeI18nMessage(this.isSecret ? 'feature.vote.voteStartSecret' : 'feature.vote.voteStart', {
         title: this.voteTitle,
       });
       voteTitle = this.voteTitle;

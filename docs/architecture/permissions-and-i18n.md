@@ -152,12 +152,14 @@ TypeScriptで文を組むメソッドや`computed`は、`LanguageService.current
 チャットの行や名前のように同期する文は、部屋の全員がそれぞれの言語で読む。
 読み手の言語で読ませる文は、訳さずに鍵のまま持つ。`encodeI18nMessage(key, params)`（`application/i18n/i18n-message`）が`@i18n:<鍵>:<引数のJSON>`の文字列を作り、読む側が`decodeI18nMessage(text, t)`で自分の言語に戻す。
 包んでいない文と引数を読めない文は、そのまま返す。
+引数の値も包んであれば先に戻してから埋める。コインの面の名前や手番の行動の種類のように、文の中に訳す物が入るときはこれを使う。
+いくつかの文を1つの行にするときは`encodeI18nList(parts, separator)`で包む。読む側が各部分を戻してから区切りでつなぐ（投票の結果の行、アラームの開始の行）。
 
-戻すのはチャットのシステムの行の本文と名前、ノベルの表示、配信用の透過画面（`features/streaming-overlay`）、リプレイ、ログの書き出しである。書き出すログは、書き出す人の言語で戻す（`SaveDataService`）。
-システムの行は、`from`が`System`か、タグに`system-message`がある行である（`ChatMessage.isSystemMessage`）。ふつうの発言の本文は戻さないので、包んだ文は`ChatMessageService.sendSystemMessage`などで書く。
+戻すのはチャットの行の本文（システムの行でも発言でも）とシステムの行の名前、ノベルの表示、配信用の透過画面（`features/streaming-overlay`）、リプレイ、ログの書き出しである。書き出すログは、書き出す人の言語で戻す（`SaveDataService`）。
+システムの行は、`from`が`System`か、タグに`system-message`がある行である（`ChatMessage.isSystemMessage`）。投票とアラームは最後に発言した人の行として書く（`sendSystemMessageAsLastSpeaker`）ので、発言の本文も戻す。
 システムの行の名前も`common.chat.systemName`を包んで持つ。
 
-訳してから同期した文は、書いた席の言語で全員に届き、保存したログにもその言語で残る。読む人が言語を切り替えても、その文は変わらない。
-いまのコードには、書く席が`t()`で訳してからチャットに書くお知らせも多い（`features/card/card-game.service`・`application/game-clock/game-clock.service`・`application/tabletop/ride.service`）。これらは書いた席の言語のまま全員に残る。
-引数の値は訳さずにそのまま渡る。名前を隠したコマの名前を、どの言語で読んでも同じ記号の`SAID_HIDDEN_NAME`にしてあるのはこのためである（`domain/character/hidden-name`）。
+部屋に書くお知らせは全部この形で書く。書く席で`t()`に通してから書くと、書いた席の言語で全員に届き、保存したログにもその言語で残る。
+値だけを運ぶのはドメインの出来事も同じで、アラームの時間切れは`AlarmTimeUpEvent`に秒数・対象・題を載せ、文は`features/alarm`のイベントハンドラが鍵で包む。
+包んでいない引数の値は訳さずにそのまま渡る。名前を隠したコマの名前を、どの言語で読んでも同じ記号の`SAID_HIDDEN_NAME`にしてあるのはこのためである（`domain/character/hidden-name`）。
 包んだ文は鍵のまま部屋の保存とリプレイに残る。使っている鍵の名前を変えたり消したりすると、古い行には鍵の文字列が出る。

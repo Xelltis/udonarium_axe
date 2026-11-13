@@ -33,10 +33,10 @@ describe('what a line says in novel mode', () => {
     line.destroy();
   });
 
-  it('leaves what a person said exactly as they said it', () => {
-    const line = message('@i18n:common.chat.logClearedBy:{"user":"いたずら"}', 'アリス');
+  it('reads packed words a person speaks, as a vote or an alarm speaks them, under that person"s name', () => {
+    const line = message(encodeI18nMessage('common.chat.logClearedBy', { user: 'いたずら' }), 'アリス');
 
-    expect(readableMessageText(line, translate)).toBe('@i18n:common.chat.logClearedBy:{"user":"いたずら"}');
+    expect(readableMessageText(line, translate)).toBe('いたずら がログを消しました');
     expect(readableMessageName(line, translate)).toBe('アリス');
     line.destroy();
   });

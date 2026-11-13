@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
@@ -33,8 +35,9 @@ describe('RideService', () => {
     PeerCursor.myCursor.role = PeerRole.Player;
     service = TestBed.inject(RideService);
     said = [];
+    const t = TestBed.inject(TRANSLATE_FN);
     vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockImplementation((kind, text: string) => {
-      if (kind === 'movement') said.push(text);
+      if (kind === 'movement') said.push(decodeI18nMessage(text, t));
       return null as never;
     });
   });

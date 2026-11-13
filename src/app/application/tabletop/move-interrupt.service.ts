@@ -1,7 +1,7 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
@@ -135,7 +135,6 @@ export class MoveInterruptService {
   private readonly zones = inject(EngagementZoneService);
   private readonly vision = inject(VisionService);
   private readonly chat = inject(ChatMessageService);
-  private readonly t = inject(TRANSLATE_FN);
   private readonly names = inject(PieceNameService);
 
   private readonly waitingMove = signal<WaitingMove | null>(null);
@@ -403,7 +402,7 @@ export class MoveInterruptService {
     }
     this.chat.sendSystemNotice(
       'movement',
-      this.t('feature.zone.chat.interrupted', {
+      encodeI18nMessage('feature.zone.chat.interrupted', {
         names: pieces.map((piece) => this.names.said(piece)).join('、'),
         mover: this.names.said(mover),
       })

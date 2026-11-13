@@ -11,7 +11,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
  */
 export function readableMessageText(message: ChatMessage | null | undefined, translate: TranslateFn): string {
   const text = message?.text ?? '';
-  return message?.isSystemMessage ? decodeI18nMessage(text, translate) : text;
+  return decodeI18nMessage(text, translate);
 }
 
 /** The name a line is spoken under, read the same way. */

@@ -3,6 +3,7 @@ import { StatusAilmentService } from '@axe/application/character/status-ailment.
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN, TranslateFn } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
@@ -663,8 +664,10 @@ describe('TriggerFireService and what the room is told', () => {
   }
 
   const notices = () => vi.mocked(chat.sendSystemNotice).mock.calls;
-  const spoken = () => notices().flatMap(([, text, options]) => (options?.secret ? [] : [text]));
-  const kept = () => notices().flatMap(([, text, options]) => (options?.secret ? [text] : []));
+  const spoken = () =>
+    notices().flatMap(([, text, options]) => (options?.secret ? [] : [decodeI18nMessage(text, spell)]));
+  const kept = () =>
+    notices().flatMap(([, text, options]) => (options?.secret ? [decodeI18nMessage(text, spell)] : []));
 
   it('says only that the ground was stepped on where it was given no line', () => {
     trapAt(5, 5);
@@ -859,7 +862,7 @@ describe('TriggerFireService and the roll it asks for', () => {
     table.appendChild(trigger);
   }
 
-  const spoken = () => vi.mocked(chat.sendSystemNotice).mock.calls.map((call) => call[1]);
+  const spoken = () => vi.mocked(chat.sendSystemNotice).mock.calls.map((call) => decodeI18nMessage(call[1], spell));
   const walkOn = () => service.walked(GameCharacter.create('英雄', 1, ''), grid(), [at(4, 5), at(5, 5)]);
 
   it('asks for nothing where the ground wants no roll', () => {

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, signa
 import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -350,14 +351,14 @@ export class BuffManagerPanelComponent {
   });
 
   /** The sweep named for the confirmation and the chat line. */
-  private sweepLabel(rule: BuffRemovalRule): string {
+  private sweepLabel(rule: BuffRemovalRule): { key: string; params: Record<string, unknown> } {
     switch (rule.kind) {
       case 'held':
-        return this.t('feature.buffManager.sweepHeldWhat');
+        return { key: 'feature.buffManager.sweepHeldWhat', params: {} };
       case 'rounds':
-        return this.t('feature.buffManager.sweepRoundsWhat', { n: rule.rounds });
+        return { key: 'feature.buffManager.sweepRoundsWhat', params: { n: rule.rounds } };
       case 'name':
-        return this.t('feature.buffManager.sweepNameWhat', { name: rule.name });
+        return { key: 'feature.buffManager.sweepNameWhat', params: { name: rule.name } };
     }
   }
 
@@ -369,15 +370,21 @@ export class BuffManagerPanelComponent {
     const rule = this.sweepRule();
     const count = this.sweepCount();
     if (!rule || !this.isGameMaster() || count.buffs < 1) return;
-    const what = this.sweepLabel(rule);
-    const asked = this.t('feature.buffManager.sweepConfirm', { what, ...count });
+    const label = this.sweepLabel(rule);
+    const asked = this.t('feature.buffManager.sweepConfirm', { what: this.t(label.key, label.params), ...count });
     if (!(await this.confirm.ask(asked))) return;
 
     const removed = removeBuffsAcross(this.inventory.tableInventory.tabletopObjects as GameCharacter[], rule);
     this.selected.set('');
     this.refresh();
     if (removed.buffs > 0) {
-      this.chat.sendSystemNotice('round', this.t('feature.buffManager.sweepDone', { what, ...removed }));
+      this.chat.sendSystemNotice(
+        'round',
+        encodeI18nMessage('feature.buffManager.sweepDone', {
+          what: encodeI18nMessage(label.key, label.params),
+          ...removed,
+        })
+      );
     }
   }
 

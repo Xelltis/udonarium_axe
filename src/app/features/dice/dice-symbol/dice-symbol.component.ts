@@ -14,6 +14,7 @@ import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.servic
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { DiceRollService } from '@axe/application/dice/dice-roll.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
@@ -336,8 +337,8 @@ export class DiceSymbolComponent {
     const name = this.diceSymbol().name.trim();
     const message =
       name.length > 0
-        ? this.translateFn('feature.dice.log.reveal', { name, face })
-        : this.translateFn('feature.dice.log.revealNoName', { face });
+        ? encodeI18nMessage('feature.dice.log.reveal', { name, face })
+        : encodeI18nMessage('feature.dice.log.revealNoName', { face });
     this.chat.sendSystemNotice('diceReveal', message);
   }
 

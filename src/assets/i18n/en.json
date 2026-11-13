@@ -6488,7 +6488,8 @@
     "disconnected": "Disconnected",
     "setMessage": "Alarm set {{seconds}}s",
     "targetAll": " > all ",
-    "timeUnitSuffix": "s elapsed"
+    "timeUnitSuffix": "s elapsed",
+    "timeUpMessage": "Alarm ({{seconds}}s) elapsed{{target}}{{title}}"
   },
   "feature.vote": {
     "panelTitle": "Roll call / Vote",

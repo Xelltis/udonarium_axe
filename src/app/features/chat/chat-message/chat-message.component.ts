@@ -1302,7 +1302,7 @@ export class ChatMessageComponent {
   escapeHtmlAndRuby(text: string) {
     this.language.currentLang();
     this.objectChange.versionOf(this.chatMessage?.identifier)();
-    const decoded = this.isSystemMessage ? decodeI18nMessage(text, this.t) : text;
+    const decoded = decodeI18nMessage(text, this.t);
     const body = vnBodyOf(this.chatMessage?.vnEmote, decoded);
     return decorateChatStyleText(body, this.stampsIn(body));
   }

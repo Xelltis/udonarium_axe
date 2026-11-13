@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
@@ -45,7 +45,6 @@ export class BattlePlacementService {
   private readonly zones = inject(EngagementZoneService);
   private readonly links = inject(PieceLinksService);
   private readonly chat = inject(ChatMessageService);
-  private readonly t = inject(TRANSLATE_FN);
 
   /** The distances the room writes for two sides to start at. */
   distances(): PlacementDistance[] {
@@ -77,9 +76,9 @@ export class BattlePlacementService {
     ].filter((note): note is string => !!note);
     this.chat.sendSystemNotice(
       'movement',
-      this.t('feature.zone.placement.announce', {
+      encodeI18nMessage('feature.zone.placement.announce', {
         metres: metres.toFixed(1),
-        notes: notes.length > 0 ? notes.join(' / ') : this.t('feature.zone.placement.noNote'),
+        notes: notes.length > 0 ? notes.join(' / ') : encodeI18nMessage('feature.zone.placement.noNote'),
       })
     );
     return true;

@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { NamedCueService } from '@axe/application/media/named-cue.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
@@ -440,18 +441,19 @@ export class TriggerFireService {
   private announce(firing: TriggerFiring, piece: GameCharacter): void {
     const trigger = firing.trigger;
     const name = trigger.name.trim();
-    const called = name.length > 0 ? name : this.t('feature.tabletop.trigger.unnamed');
+    const called = name.length > 0 ? name : encodeI18nMessage('feature.tabletop.trigger.unnamed');
     const said = trigger.say.trim();
-    if (said.length > 0) this.tell(trigger, this.t('feature.tabletop.trigger.said', { trigger: called, say: said }));
+    if (said.length > 0)
+      this.tell(trigger, encodeI18nMessage('feature.tabletop.trigger.said', { trigger: called, say: said }));
     if (firing.rolled !== null) {
       this.tell(
         trigger,
-        this.t('feature.tabletop.trigger.rolled', {
+        encodeI18nMessage('feature.tabletop.trigger.rolled', {
           trigger: called,
           piece: this.names.said(piece),
           rolled: firing.rolled,
           target: trigger.checkTarget.trim(),
-          outcome: this.t(firing.made ? 'feature.tabletop.trigger.made' : 'feature.tabletop.trigger.missed'),
+          outcome: encodeI18nMessage(firing.made ? 'feature.tabletop.trigger.made' : 'feature.tabletop.trigger.missed'),
         })
       );
     }
@@ -459,12 +461,12 @@ export class TriggerFireService {
     if (firing.from.length > 0) {
       this.tell(
         trigger,
-        this.t('feature.tabletop.trigger.tookFrom', {
+        encodeI18nMessage('feature.tabletop.trigger.tookFrom', {
           trigger: called,
           piece: this.names.said(piece),
           amount: Math.abs(firing.taken),
           element: firing.from,
-          verb: this.t(firing.taken < 0 ? 'feature.tabletop.trigger.gave' : 'feature.tabletop.trigger.took'),
+          verb: encodeI18nMessage(firing.taken < 0 ? 'feature.tabletop.trigger.gave' : 'feature.tabletop.trigger.took'),
         })
       );
       return;
@@ -472,7 +474,10 @@ export class TriggerFireService {
     // Ground that took nothing and described nothing still says it was walked into, or a table
     // would have no way of telling a trap that did nothing from ground that is not trapped.
     if (said.length < 1)
-      this.tell(trigger, this.t('feature.tabletop.trigger.sprang', { trigger: called, piece: this.names.said(piece) }));
+      this.tell(
+        trigger,
+        encodeI18nMessage('feature.tabletop.trigger.sprang', { trigger: called, piece: this.names.said(piece) })
+      );
   }
 
   /**
@@ -490,7 +495,10 @@ export class TriggerFireService {
     if (trigger.checkRoll.trim().length > 0 && trigger.checkTarget.trim().length > 0) return;
     const target = trigger.checkTarget.trim();
     const key = target.length > 0 ? 'feature.tabletop.trigger.asksFor' : 'feature.tabletop.trigger.asks';
-    this.tell(trigger, this.t(key, { trigger: called, piece: this.names.said(piece), check: asked, target }));
+    this.tell(
+      trigger,
+      encodeI18nMessage(key, { trigger: called, piece: this.names.said(piece), check: asked, target })
+    );
   }
 
   /**

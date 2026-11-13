@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { callRollDiceSymbol } from '@axe/core/event/domain-events';
 import { diceRollLog, RolledDie } from '@axe/domain/dice/dice-roll-log';
@@ -26,7 +26,6 @@ export class DiceRollService {
   private readonly activeChatTab = inject(ActiveChatTabService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly t = inject(TRANSLATE_FN);
 
   /** Throws one die, or a handful together. Whatever cannot be seen stays as it was. */
   roll(dice: readonly DiceSymbol[]): RolledDie[] {
@@ -63,7 +62,7 @@ export class DiceRollService {
     if (!me) return;
     const tab = this.activeChatTab.current() ?? this.chatMessageService.chatTabs[0];
     if (!tab) return;
-    const text = this.t('feature.dice.message.notRolled', { count });
+    const text = encodeI18nMessage('feature.dice.message.notRolled', { count });
     this.chatMessageService.sendSystemMessageOnePlayer(tab, text, me.identifier, undefined, true);
   }
 
@@ -102,13 +101,16 @@ export class DiceRollService {
 
     const who = PeerCursor.myCursor?.name ?? '';
     return log.count === 1
-      ? this.t('feature.dice.message.rolled', { who, name: log.dice, face: log.results })
-      : this.t(log.total === null ? 'feature.dice.message.rolledMany' : 'feature.dice.message.rolledManyTotal', {
-          who,
-          count: log.count,
-          dice: log.dice,
-          results: log.results,
-          total: log.total ?? 0,
-        });
+      ? encodeI18nMessage('feature.dice.message.rolled', { who, name: log.dice, face: log.results })
+      : encodeI18nMessage(
+          log.total === null ? 'feature.dice.message.rolledMany' : 'feature.dice.message.rolledManyTotal',
+          {
+            who,
+            count: log.count,
+            dice: log.dice,
+            results: log.results,
+            total: log.total ?? 0,
+          }
+        );
   }
 }

@@ -5666,7 +5666,8 @@
       "disconnected": "접속 끊김",
       "setMessage": "알람 설정 {{seconds}}초",
       "targetAll": " >전원 ",
-      "timeUnitSuffix": "초 경과"
+      "timeUnitSuffix": "초 경과",
+      "timeUpMessage": "알람({{seconds}}초) 경과{{target}}{{title}}"
     },
     "vote": {
       "panelTitle": "점호/투표 설정",

@@ -6488,7 +6488,8 @@
     "disconnected": "接続切断中",
     "setMessage": "アラームセット {{seconds}}秒",
     "targetAll": " >全員 ",
-    "timeUnitSuffix": "秒経過"
+    "timeUnitSuffix": "秒経過",
+    "timeUpMessage": "アラーム({{seconds}}秒)経過{{target}}{{title}}"
   },
   "feature.vote": {
     "panelTitle": "点呼/投票設定",

@@ -1,5 +1,6 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -15,7 +16,13 @@ export class AlarmEventHandlerService {
 
   constructor() {
     this.objectChange.alarmTimeUp$.subscribe((event) => {
-      this.chatMessageService.sendSystemMessageAsLastSpeaker(event.text);
+      this.chatMessageService.sendSystemMessageAsLastSpeaker(
+        encodeI18nMessage('feature.alarm.timeUpMessage', {
+          seconds: event.seconds,
+          target: event.target,
+          title: event.title,
+        })
+      );
     }, this.destroyRef);
     this.objectChange.alarmPop$.subscribe((event) => {
       this.openAlarmPanel(event.title, String(event.time));

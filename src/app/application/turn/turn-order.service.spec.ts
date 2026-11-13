@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { TRANSLATE_FN, TranslateFn } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -23,6 +24,7 @@ describe('TurnOrderService', () => {
   let chars: GameCharacter[];
   let orderedSpy: ReturnType<typeof vi.spyOn>;
   let sendSpy: ReturnType<typeof vi.spyOn>;
+  let t: TranslateFn;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -56,6 +58,7 @@ describe('TurnOrderService', () => {
 
     service = TestBed.inject(TurnOrderService);
     orderedSpy = vi.spyOn(service, 'orderedCharacters').mockReturnValue(chars);
+    t = TestBed.inject(TRANSLATE_FN);
     sendSpy = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(undefined as never);
   });
 
@@ -346,7 +349,7 @@ describe('TurnOrderService', () => {
       expect(buffsOf(buffed[0]).map((buff: DataElement) => buff.name)).toEqual(['加速']);
       expect(buffsOf(buffed[0])[0].value).toBe(2);
       expect(buffsOf(buffed[1])).toHaveLength(0);
-      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(String(call[1]), t));
       expect(announced.some((text: string) => text.includes('feature.turnOrder.buffExpired'))).toBe(true);
     });
 
@@ -452,7 +455,7 @@ describe('TurnOrderService', () => {
         sendSpy.mockClear();
         service.hold(first.identifier);
         expect(roundsOf(first, '加護')).toBe(2);
-        const said = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
+        const said = sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(String(call[1]), t));
         expect(said.some((text: string) => text.includes('feature.turnOrder.buffsGivenBack'))).toBe(true);
 
         service.next(); // the second piece is done, and the first comes back
@@ -590,7 +593,7 @@ describe('TurnOrderService', () => {
 
       advanceToRoundEnd();
 
-      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(String(call[1]), t));
       expect(announced.some((text: string) => text.includes('feature.turnOrder.buffExpired'))).toBe(false);
       expect(buffsOf(buffed[0])[0].value).toBe(4);
     });
@@ -682,7 +685,7 @@ describe('TurnOrderService', () => {
       service.next(); // chars[0] is up
       service.next(); // chars[1] is up
 
-      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(String(call[1]), t));
       expect(announced).toEqual(['feature.turnOrder.announce', 'feature.turnOrder.announceUnseen']);
       seen.mockRestore();
     });
@@ -698,7 +701,7 @@ describe('TurnOrderService', () => {
       expect(turnState.round).toBe(2);
       expect(turnState.phase).toBe('roundStart');
       expect(turnState.currentIdentifier).toBe('');
-      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(String(call[1]), t));
       expect(announced).toContain('feature.turnOrder.roundEnd');
       expect(announced).toContain('feature.turnOrder.roundStart');
     });
@@ -719,7 +722,9 @@ describe('TurnOrderService', () => {
 
       expect(turnState.round).toBe(1);
       expect(turnState.phase).toBe('roundStart');
-      expect(sendSpy.mock.calls.map((call: unknown[]) => String(call[1]))).not.toContain('feature.turnOrder.roundEnd');
+      expect(sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(String(call[1]), t))).not.toContain(
+        'feature.turnOrder.roundEnd'
+      );
     });
   });
 
@@ -850,7 +855,7 @@ describe('TurnOrderService', () => {
   describe('waiting to step in', () => {
     const [a, b, c] = [0, 1, 2];
     const id = (index: number) => chars[index].identifier;
-    const said = () => sendSpy.mock.calls.map((call: unknown[]) => call[1] as string);
+    const said = () => sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(call[1] as string, t));
 
     beforeEach(() => {
       service.next(); // round 1 begins
@@ -1099,7 +1104,7 @@ describe('TurnOrderService', () => {
     let bystander: GameCharacter;
 
     function saidTo(): string[] {
-      return sendSpy.mock.calls.map((call: unknown[]) => call[1] as string);
+      return sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(call[1] as string, t));
     }
 
     function pressUntil(reached: () => boolean, limit = 30): void {

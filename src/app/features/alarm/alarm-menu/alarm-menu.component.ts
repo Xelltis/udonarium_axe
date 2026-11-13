@@ -2,6 +2,7 @@ import { afterNextRender, ChangeDetectionStrategy, Component, inject } from '@an
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { encodeI18nList, encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -115,21 +116,21 @@ export class AlarmMenuComponent {
 
     const alarm = this.alarm;
     const alarmTitle = this.alarmTitle;
-    let startMessage: string;
     let target: string;
     const peerIdList = this.selectedList();
 
-    startMessage = this.t('feature.alarm.setMessage', { seconds: this.alarmTime });
-
     if (this.peerList.length + 1 == this.selectedNum()) {
-      target = this.t('feature.alarm.targetAll');
+      target = encodeI18nMessage('feature.alarm.targetAll');
     } else {
       target = ' >';
       for (const peerId of peerIdList) {
         target += this.findPeerName(peerId) + ' ';
       }
     }
-    startMessage += target;
+    const startMessage = encodeI18nList(
+      [encodeI18nMessage('feature.alarm.setMessage', { seconds: this.alarmTime }), target],
+      ''
+    );
 
     alarm.makeAlarm(this.alarmTime, alarmTitle, peerIdList, this.myPeer.peerId, target, this.isSound, this.isPopUp);
     this.chatMessageService.sendSystemMessageAsLastSpeaker(startMessage);

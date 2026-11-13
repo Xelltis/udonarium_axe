@@ -1,5 +1,6 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -78,7 +79,7 @@ export class GameClockService {
     this.write(next);
     if (!next.announce) return;
     const key = direction > 0 ? 'feature.gameClock.announceOn' : 'feature.gameClock.announceBack';
-    this.chat.sendSystemNotice('clock', this.t(key, { day: this.dayText(), time: this.timeText() }));
+    this.chat.sendSystemNotice('clock', encodeI18nMessage(key, { day: this.dayText(), time: this.timeText() }));
   }
 
   /** Puts the clock to another day, the hour of it left as it was. */
