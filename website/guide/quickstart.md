@@ -1,10 +1,10 @@
 # Axeを置く
 
-このページは、Axe本体（リリースのzip）を静的ホスティングに置いて、ブラウザで開けるようにする手順です。
+このページはAxe本体（リリースのzip）を静的ホスティングに置いて、ブラウザで開けるようにする手順です。
 いちばん詳しく書いているのはCloudflare Pagesで、Cloudflareのアカウントを作るところから、コマンドで上げるところまで順に案内します。
-コマンドは、ターミナルに書き写して`Enter`を押すだけです。
+コマンドはターミナルに書き写して`Enter`を押すだけです。
 画面の操作だけで上げる方法と、レンタルサーバーなどほかの置き場所は、後ろに要点を書いています。
-かかる時間は、Node.jsを入れるところとCloudflareのアカウント作りを含めて30分ほどです。
+かかる時間はNode.jsを入れるところとCloudflareのアカウント作りを含めて30分ほどです。
 
 <SetupSteps here="axe" />
 
@@ -15,10 +15,10 @@
 - WindowsかMacのパソコンと、Chromeなどのブラウザ
 - テキストエディター（メモ帳やテキストエディットなど）
 
-Cloudflare Pagesは、無料のプラン（Free）のままで使えます。
+Cloudflare Pagesは無料のプラン（Free）のままで使えます。
 支払い方法の登録も要りません。
 
-この手順で使う値は、次のとおりです。
+この手順で使う値は次のとおりです。
 
 | 値                 | 手に入る場所                           | 使う手順 |
 | ------------------ | -------------------------------------- | -------- |
@@ -28,9 +28,9 @@ Cloudflare Pagesは、無料のプラン（Free）のままで使えます。
 | AxeのURL           | 手順6で出る                            | 手順7、8 |
 
 ::: warning httpsで配ってください
-Axeは、`https://`で始まるURLで配ります。
+Axeは`https://`で始まるURLで配ります。
 `http://`のページ（自分のパソコンの`localhost`を除く）では、部屋や画像を見分けるのに使うブラウザの機能が使えず、Axeは正しく動きません。
-Cloudflare Pagesは、最初から`https://`で配ります。
+Cloudflare Pagesは最初から`https://`で配ります。
 :::
 
 ## 1. zipを取ってくる
@@ -45,7 +45,7 @@ Cloudflare Pagesは、最初から`https://`で配ります。
 ## 2. config.jsonを書く
 
 展開したフォルダの`assets/config.json`を、テキストエディターで開きます。
-最初は、次のような中身になっています。
+最初は次のような中身になっています。
 
 ```json
 {
@@ -81,28 +81,28 @@ Cloudflare Pagesに上げたファイルは、その場では書き換えられ�
 ## 3. Cloudflareのアカウントを作る
 
 すでにCloudflareのアカウントがあれば、手順4に進みます。
-サーバーをCloudflareに置いたときのアカウントを、そのまま使えます。
+サーバーをCloudflareに置いたときのアカウントをそのまま使えます。
 
 1. [Cloudflareの登録ページ](https://dash.cloudflare.com/sign-up)を開きます。
 2. **Email**にメールアドレスを、**Password**にパスワードを入れます。パスワードは8文字以上にし、数字と記号（`$`・`!`・`@`など）を1つずつ以上含めます。
 3. その下の、人間であることを確かめる枠（「私はロボットではありません」）にチェックを入れて、**Sign up**を押します。
-4. Cloudflareから、確認のメールが届きます。メールの中のリンクを押して、メールアドレスを確かめます。届かないときは、迷惑メールのフォルダも見てください。
+4. Cloudflareから確認のメールが届きます。メールの中のリンクを押して、メールアドレスを確かめます。届かないときは、迷惑メールのフォルダも見てください。
 5. ログインすると、ダッシュボード（Cloudflareの管理画面）が開きます。
 
 Google・Apple・GitHubのアカウントで登録するときは、手順2の代わりに、上に並ぶ**Continue with**のボタンを押します。
-登録ページの言葉は、右上の**English**から日本語に切り替えられます。
+登録ページの言葉は右上の**English**から日本語に切り替えられます。
 
-ダッシュボードには、ドメインを追加する案内なども並んでいます。
+ダッシュボードにはドメインを追加する案内なども並んでいます。
 Axeを置くだけなら、ドメインは要りません。
 ここでは何も追加せずに、手順4に進みます。
 
 ## 4. Node.jsを入れる
 
-Cloudflare Pagesへは、CloudflareのコマンドラインツールWrangler（ラングラー）で上げます。
-Wranglerは、Node.jsの上で動きます。
-Wrangler自体は、手順5で初めて使うときに自動で入るので、ここではNode.jsだけを入れます。
+Cloudflare PagesへはCloudflareのコマンドラインツールWrangler（ラングラー）で上げます。
+WranglerはNode.jsの上で動きます。
+Wrangler自体は手順5で初めて使うときに自動で入るので、ここではNode.jsだけを入れます。
 
-1. [Node.jsのダウンロードページ](https://nodejs.org/ja/download)を開きます。版は、**LTS**の付いたものを選びます。
+1. [Node.jsのダウンロードページ](https://nodejs.org/ja/download)を開きます。版は**LTS**の付いたものを選びます。
 2. **Windows インストーラー (.msi)**（Macでは**macOS インストーラー (.pkg)**）を押して、ダウンロードします。
 3. ダウンロードしたファイルを開き、画面に従って入れます。途中の設定は変えずに進めて構いません。
 4. ターミナルを開きます（開きかたは下の表）。すでに開いていたターミナルは、閉じて開き直します。
@@ -129,21 +129,20 @@ npx wrangler login
 3. Wranglerにアカウントの操作を許すかを聞かれるので、許可します。
 4. ターミナルに`Successfully logged in.`と出れば、ログインできています。
 
-ログインは、このパソコンに残ります。
-次からは、この手順を飛ばせます。
+ログインはこのパソコンに残り、次からはこの手順を飛ばせます。
 
 ## 6. プロジェクトを作る
 
-プロジェクトは、Cloudflare Pagesの中の、サイト1つ分の単位です。
-プロジェクトの名前が、そのまま`https://<プロジェクトの名前>.pages.dev`の形で、AxeのURLになります。
-名前は、次のように決めます。
+プロジェクトはCloudflare Pagesの中の、サイト1つ分の単位です。
+プロジェクトの名前がそのまま`https://<プロジェクトの名前>.pages.dev`の形で、AxeのURLになります。
+名前は次のように決めます。
 
 - 英小文字・数字・`-`（ハイフン）で付けます（例：`my-axe`）
 - ほかの人がすでに使っている名前だと、URLは名前のあとに英数字が少し付いた形になります
-- `pages.dev`のURLは、あとから変えられません。変えたくなったときは、プロジェクトを作り直します
+- `pages.dev`のURLはあとから変えられません。変えたくなったときは、プロジェクトを作り直します
 
 ターミナルに次の1行を打ちます。
-`my-axe`のところは、決めた名前に変えます。
+`my-axe`のところは決めた名前に変えます。
 
 ```sh
 npx wrangler pages project create my-axe --production-branch main
@@ -155,7 +154,7 @@ npx wrangler pages project create my-axe --production-branch main
 ✨ Successfully created the 'my-axe' project. It will be available at https://my-axe.pages.dev/ once you create your first deployment.
 ```
 
-`https://`から`/`の手前までが、AxeのURLです。
+`https://`から`/`の手前までがAxeのURLです。
 名前に英数字が付いていたら、付いたほうのURLを控えます。
 このURLの部分がAxeのOriginで、サーバーの`ACCESS_CONTROL_ALLOW_ORIGIN`に書く値です。
 [設置の準備](/guide/requirements#axeのoriginを決める)で決めたOriginと違っていたら、サーバーの`ACCESS_CONTROL_ALLOW_ORIGIN`をこのOriginに書き換えます。
@@ -165,24 +164,24 @@ npx wrangler pages project create my-axe --production-branch main
 
 ## 7. 上げる
 
-上げるコマンドは、次の形です。
+上げるコマンドは次の形です。
 
 ```sh
 npx wrangler pages deploy <展開したフォルダ> --project-name my-axe --branch main
 ```
 
-`<展開したフォルダ>`は、手で打たずに、フォルダをドラッグして入れます。
+`<展開したフォルダ>`は手で打たずに、フォルダをドラッグして入れます。
 
 1. ターミナルに`npx wrangler pages deploy `まで打ちます（最後に空白を1つ入れます）。
 2. エクスプローラー（MacではFinder）で、手順2で`config.json`を書き換えたフォルダ（`index.html`のあるフォルダ）を表示し、ターミナルの窓にドラッグします。フォルダの場所が入ります。
-3. 続けて、空白を1つ空けてから`--project-name my-axe --branch main`を打ちます。`my-axe`は、手順6の名前に変えます。
+3. 続けて、空白を1つ空けてから`--project-name my-axe --branch main`を打ちます。`my-axe`は手順6の名前に変えます。
 4. `Enter`を押します。
 
 `Uploading... (839/839)`のように数が進み、最後に`✨ Deployment complete!`と出れば上がっています。
 
-::: warning 最後に出るURLは、この回だけのURLです
+::: warning 最後に出るURLはこの回だけのURLです
 `Take a peek over at`のあとに出るURLは、`https://1a2b3c4d.my-axe.pages.dev`のように、頭に英数字が付いています。
-これは、上げた回ごとに変わるURLです。
+これは上げた回ごとに変わるURLです。
 参加者に配るURLと、サーバーに書くOriginは、手順6で出た`https://my-axe.pages.dev`のほうです。
 :::
 
@@ -210,7 +209,7 @@ npx wrangler pages deploy <展開したフォルダ> --project-name my-axe --bra
 Cloudflareのダッシュボードで、展開したフォルダをドラッグ＆ドロップして上げることもできます。
 ただしCloudflareは、新しく作るサイトにはWorkersを勧めていて、ダッシュボードのPagesの入口は目立たない所にあります。
 画面が下の説明と違うときは、手順4から7のコマンドで上げてください。
-ボタンやメニューの名前は、英語の表示のものです。
+ボタンやメニューの名前は英語の表示のものです。
 
 1. ダッシュボードの左のメニューから、[Workers & Pages](https://dash.cloudflare.com/?to=/:account/workers-and-pages)を開きます。
 2. **Create application**を押し、Pagesの**Get started**を押して、**Drag and drop your files**を選びます。

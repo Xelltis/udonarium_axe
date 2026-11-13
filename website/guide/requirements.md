@@ -1,6 +1,6 @@
 # 設置の準備
 
-このページは、Axeを置く作業に入る前に、用意するものと決めておくことをまとめたものです。
+このページはAxeを置く作業に入る前に、用意するものと決めておくことをまとめたものです。
 アカウントを作り、Axeを置くURL（Origin）を決めておくと、あとの手順で迷いません。
 方式（SkyWay版かサーバー版か）は、先に[方式を選ぶ](/guide/choose)で決めておいてください。
 
@@ -16,7 +16,7 @@
 | 部屋のサーバー（サーバー版）      | [Discord](https://discord.com/developers/applications)と、置き場所（Cloudflare・Vercel）のアカウント |
 
 置き場所ごとに要るものは、バックエンドの文書の各手順の「0. 用意するもの」にあります。
-GitHubのアカウントは、VercelやCloudflareのボタンで置くときに使います（→ [GitHubのアカウントを作る](https://xelltis.github.io/udonarium_axe_backend/guide/prepare#githubのアカウントを作る)）。
+GitHubのアカウントはVercelやCloudflareのボタンで置くときに使います（→ [GitHubのアカウントを作る](https://xelltis.github.io/udonarium_axe_backend/guide/prepare#githubのアカウントを作る)）。
 
 ::: tip 同じ場所にまとめると楽です
 Axe本体とサーバーを同じサービスに置くと、アカウントが1つで済みます。
@@ -25,12 +25,12 @@ Axe本体とサーバーを同じサービスに置くと、アカウントが1�
 
 ## AxeのOriginを決める
 
-Origin（オリジン）は、URLのうち`https://`からドメイン（とポート）までの部分です。
+Origin（オリジン）はURLのうち`https://`からドメイン（とポート）までの部分です。
 Axeを`https://axe.example.com/`で配るなら、Originは`https://axe.example.com`です。
 
-サーバーは、決めたOriginから来たAxeだけを受け付けます。
-ほかのサイトに置かれたAxeから、あなたのサーバーを使われないようにするためです。
-そのため、サーバーを置くときに、AxeのOriginを書く欄（`ACCESS_CONTROL_ALLOW_ORIGIN`）があります。
+サーバーは決めたOriginから来たAxeだけを受け付けます。
+ほかのサイトに置かれたAxeが、あなたのサーバーを使えないようにするためです。
+そのため、サーバーを置くときにAxeのOriginを書く欄（`ACCESS_CONTROL_ALLOW_ORIGIN`）があります。
 
 | Axeを置く場所                    | Originの例                                             |
 | -------------------------------- | ------------------------------------------------------ |
@@ -38,7 +38,7 @@ Axeを`https://axe.example.com/`で配るなら、Originは`https://axe.example.
 | Cloudflare Pages（独自ドメイン） | `https://axe.example.com`                              |
 | レンタルサーバーのサブフォルダ   | `https://example.com`（`/axe/`のようなパスは含めない） |
 
-Originは、サーバーを置く前に決めておきます。
+Originはサーバーを置く前に決めておきます。
 Cloudflare Pagesのプロジェクトの名前を先に決めれば、URLも決まります。
 あとで独自ドメインに変えたときは、サーバーの`ACCESS_CONTROL_ALLOW_ORIGIN`も書き換えます。
 
@@ -46,7 +46,7 @@ URLからOriginを取り出すくわしい例は、バックエンドの文書�
 
 ## リリースのzip
 
-Axe本体は、[GitHubのReleases](https://github.com/Xelltis/udonarium_axe/releases)にある`axe_x.y.z.zip`（`x.y.z`は版の番号）です。
+Axe本体は[GitHubのReleases](https://github.com/Xelltis/udonarium_axe/releases)にある`axe_x.y.z.zip`（`x.y.z`は版の番号）です。
 展開すると、次のファイルが出てきます。
 
 | ファイル・フォルダ        | 中身                                                                                    |
@@ -63,7 +63,7 @@ Axe本体は、[GitHubのReleases](https://github.com/Xelltis/udonarium_axe/rele
 
 ## なぜサーバーが要るのか
 
-Axe本体は、HTMLとJavaScriptのファイルだけでできています。
+Axe本体はHTMLとJavaScriptのファイルだけでできています。
 ファイルを置けばブラウザで開けますが、参加者どうしをつなぐには、Axeの外にサーバーが要ります。
 
 SkyWay版では、ゲームデータそのものはブラウザ同士のP2Pでやりとりしますが、P2Pの接続を張るにはSkyWayの認証トークンが要ります。
@@ -82,7 +82,7 @@ SkyWayのアカウントは要りません。
 
 Axeを置くときは、`assets/config.json`を書き換えます。
 メモ帳やテキストエディットのようなテキストエディターで開いて書き換え、文字コードはUTF-8のまま保存します。
-くわしい手順は、バックエンドの文書の[テキストファイルを書く](https://xelltis.github.io/udonarium_axe_backend/guide/prepare#テキストファイルを書く)にあります。
+くわしい手順はバックエンドの文書の[テキストファイルを書く](https://xelltis.github.io/udonarium_axe_backend/guide/prepare#テキストファイルを書く)にあります。
 
 ## 次に読むもの
 
