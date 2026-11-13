@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
+import { clamp } from '@axe/core/util/clamp';
 
 export interface WidgetSpot {
   left: number;
@@ -67,8 +68,8 @@ export class WidgetLayoutService {
   keepInView(spot: WidgetSpot, width: number, height: number): WidgetSpot {
     const margin = 8;
     return {
-      left: Math.max(margin, Math.min(spot.left, Math.max(margin, window.innerWidth - width - margin))),
-      top: Math.max(margin, Math.min(spot.top, Math.max(margin, window.innerHeight - height - margin))),
+      left: clamp(spot.left, margin, Math.max(margin, window.innerWidth - width - margin)),
+      top: clamp(spot.top, margin, Math.max(margin, window.innerHeight - height - margin)),
     };
   }
 }

@@ -5,6 +5,7 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { clamp } from '@axe/core/util/clamp';
 import {
   carryPeriodSkies,
   cleanDayFormat,
@@ -96,13 +97,13 @@ export class GameClockService {
     if (!this.canEdit() && !options.trusted) return;
     if (options.trusted && this.clock().mode !== 'periods') return;
     const count = this.periods().length;
-    this.write({ ...this.clock(), period: Math.max(0, Math.min(count - 1, Math.floor(period))) });
+    this.write({ ...this.clock(), period: clamp(Math.floor(period), 0, Math.max(0, count - 1)) });
   }
 
   /** Puts the clock to a time of day, in minutes past midnight. */
   setMinutes(minutes: number): void {
     if (!this.canEdit() || !Number.isFinite(minutes)) return;
-    this.write({ ...this.clock(), minutes: Math.max(0, Math.min(24 * 60 - 1, Math.floor(minutes))) });
+    this.write({ ...this.clock(), minutes: clamp(Math.floor(minutes), 0, 24 * 60 - 1) });
   }
 
   setMode(mode: GameClockMode): void {

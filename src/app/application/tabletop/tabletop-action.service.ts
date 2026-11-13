@@ -23,6 +23,7 @@ import {
 import { StartupLoadingService } from '@axe/application/ui/startup-loading.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { clamp } from '@axe/core/util/clamp';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { toDeckCardSources } from '@axe/domain/card/deck-builder';
@@ -205,8 +206,8 @@ export class TabletopActionService {
     const title = speaker.trim() || this.t('feature.tabletop.action.defaultNoteName');
     const lines = text.split('\n');
     const longest = Math.max(...lines.map((line) => line.length));
-    const width = Math.max(3, Math.min(8, Math.ceil(longest / 12)));
-    const height = Math.max(2, Math.min(8, Math.ceil(lines.length / 3)));
+    const width = clamp(Math.ceil(longest / 12), 3, 8);
+    const height = clamp(Math.ceil(lines.length / 3), 2, 8);
     const note = TextNote.create(title, text, 14, width, height);
     note.isUpright = !this.tabletopService.mode2d();
     note.location.x = Math.floor(Math.random() * 200 - 100);

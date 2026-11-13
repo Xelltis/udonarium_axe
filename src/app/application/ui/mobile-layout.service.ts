@@ -3,6 +3,7 @@ import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
+import { clamp } from '@axe/core/util/clamp';
 
 export const MIN_TABLE_RATIO = 0.2;
 export const MAX_TABLE_RATIO = 0.85;
@@ -21,7 +22,7 @@ const DEFAULT_STATE: MobileLayoutState = { prefersDesktop: false, tableRatio: DE
  */
 export function clampTableRatio(ratio: number): number {
   if (!Number.isFinite(ratio)) return DEFAULT_TABLE_RATIO;
-  return Math.min(Math.max(ratio, MIN_TABLE_RATIO), MAX_TABLE_RATIO);
+  return clamp(ratio, MIN_TABLE_RATIO, MAX_TABLE_RATIO);
 }
 
 /**

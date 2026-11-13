@@ -2,6 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { computed, DestroyRef, effect, inject, Injectable, signal } from '@angular/core';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
+import { clamp } from '@axe/core/util/clamp';
 import {
   ChatSoundSetting,
   clampChatSoundVolume,
@@ -278,7 +279,7 @@ export class ChatPreferencesService {
 
 function clampFontSize(v: number): number {
   if (!Number.isFinite(v)) return CHAT_FONT_SIZE_DEFAULT;
-  return Math.min(CHAT_FONT_SIZE_MAX, Math.max(CHAT_FONT_SIZE_MIN, Math.round(v)));
+  return clamp(Math.round(v), CHAT_FONT_SIZE_MIN, CHAT_FONT_SIZE_MAX);
 }
 
 function readAutoFollow(): boolean {

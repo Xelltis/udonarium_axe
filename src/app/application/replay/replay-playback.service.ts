@@ -14,6 +14,7 @@ import { markForChanged } from '@axe/core/sync/object-event-extension';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
 import { DeleteHistory, ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
+import { clamp } from '@axe/core/util/clamp';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { CutIn } from '@axe/domain/media/cut-in';
@@ -195,7 +196,7 @@ export class ReplayPlaybackService {
   async seekTo(index: number): Promise<void> {
     const events = this._events();
     if (events.length < 1 || this.staging.isStaging()) return;
-    const clamped = Math.max(0, Math.min(events.length - 1, index));
+    const clamped = clamp(index, 0, events.length - 1);
     const isStepForward = clamped === this._cursor() + 1;
     this._cursor.set(clamped);
     if (!this._isBoardMode()) return;
@@ -444,7 +445,7 @@ export class ReplayPlaybackService {
 
     const targets = Array.isArray(event.detail['targets']) ? event.detail['targets'].length : 1;
     const total = preset.duration + preset.stagger * Math.max(0, targets - 1);
-    return Math.min(REPLAY_AUTO_PLAY_CUT_IN_MAX_MS, Math.max(total, REPLAY_AUTO_PLAY_EFFECT_MS));
+    return clamp(total, REPLAY_AUTO_PLAY_EFFECT_MS, REPLAY_AUTO_PLAY_CUT_IN_MAX_MS);
   }
 
   private slideRemainingMs(): number {

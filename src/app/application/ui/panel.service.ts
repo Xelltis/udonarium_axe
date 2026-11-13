@@ -4,6 +4,7 @@ import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { isTabbablePanel } from '@axe/application/ui/panel-drag-helpers';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Logger } from '@axe/core/logging/logger';
+import { clamp } from '@axe/core/util/clamp';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 
@@ -589,24 +590,20 @@ export class PanelService {
       const centerX = option.left + width / 2;
       const centerY = option.top + height / 2;
       const clampedCenterX =
-        visualWidth >= viewportW
-          ? viewportW / 2
-          : Math.max(visualWidth / 2, Math.min(centerX, viewportW - visualWidth / 2));
+        visualWidth >= viewportW ? viewportW / 2 : clamp(centerX, visualWidth / 2, viewportW - visualWidth / 2);
       const clampedCenterY =
-        visualHeight >= viewportH
-          ? viewportH / 2
-          : Math.max(visualHeight / 2, Math.min(centerY, viewportH - visualHeight / 2));
+        visualHeight >= viewportH ? viewportH / 2 : clamp(centerY, visualHeight / 2, viewportH - visualHeight / 2);
       adjusted.left = clampedCenterX - width / 2;
       adjusted.top = clampedCenterY - height / 2;
       return adjusted;
     }
     if (option.left !== undefined) {
       const maxLeft = Math.max(0, viewportW - width);
-      adjusted.left = Math.max(0, Math.min(option.left, maxLeft));
+      adjusted.left = clamp(option.left, 0, maxLeft);
     }
     if (option.top !== undefined) {
       const maxTop = Math.max(0, viewportH - height);
-      adjusted.top = Math.max(0, Math.min(option.top, maxTop));
+      adjusted.top = clamp(option.top, 0, maxTop);
     }
     return adjusted;
   }

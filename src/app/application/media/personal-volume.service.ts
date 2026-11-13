@@ -10,6 +10,7 @@ import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { Config } from '@axe/domain/peer/config';
 
 /** The channel each kind of sound plays through. */
@@ -55,7 +56,7 @@ export class PersonalVolumeService {
   /** Sets one of the listener's own volumes, makes it heard at once and remembers it in this browser. */
   set(kind: PersonalVolumeKind, volume: number): void {
     const current = this.sound();
-    this.save({ ...current, volumes: { ...current.volumes, [kind]: Math.min(1, Math.max(0, volume)) } });
+    this.save({ ...current, volumes: { ...current.volumes, [kind]: clamp(volume, 0, 1) } });
   }
 
   /** Turns a kind of sound off or back on for the listener, and remembers it in this browser. */

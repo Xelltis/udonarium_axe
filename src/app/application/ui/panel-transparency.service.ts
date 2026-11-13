@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
+import { clamp } from '@axe/core/util/clamp';
 
 @Injectable({ providedIn: 'root' })
 export class PanelTransparencyService {
@@ -19,7 +20,7 @@ export class PanelTransparencyService {
    */
   set(kind: string, value: number): void {
     if (!Number.isFinite(value)) return;
-    const held = Math.min(100, Math.max(0, Math.round(value)));
+    const held = clamp(Math.round(value), 0, 100);
     this.byKind.update((byKind) => ({ ...byKind, [kind]: held }));
     writeLocal(STORAGE_KEYS.panelTransparency, JSON.stringify(this.byKind()));
   }
@@ -34,7 +35,7 @@ function storedByKind(): Record<string, number> {
     const held: Record<string, number> = {};
     for (const [kind, value] of Object.entries(parsed as Record<string, unknown>)) {
       const number = Number(value);
-      if (Number.isFinite(number)) held[kind] = Math.min(100, Math.max(0, Math.round(number)));
+      if (Number.isFinite(number)) held[kind] = clamp(Math.round(number), 0, 100);
     }
     return held;
   } catch {

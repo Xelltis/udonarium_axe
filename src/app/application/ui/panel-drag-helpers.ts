@@ -1,3 +1,5 @@
+import { clamp } from '@axe/core/util/clamp';
+
 /** A box on the screen, in the terms `getBoundingClientRect` answers in. */
 export interface DragRect {
   left: number;
@@ -90,7 +92,7 @@ export function tearOffBox(
   size: { width: number; height: number },
   viewport: { width: number; height: number }
 ): { left: number; top: number } {
-  const left = Math.max(0, Math.min(pointer.x - size.width / 2, Math.max(0, viewport.width - size.width)));
-  const top = Math.max(0, Math.min(pointer.y - 14, Math.max(0, viewport.height - size.height)));
+  const left = clamp(pointer.x - size.width / 2, 0, Math.max(0, viewport.width - size.width));
+  const top = clamp(pointer.y - 14, 0, Math.max(0, viewport.height - size.height));
   return { left: Math.round(left), top: Math.round(top) };
 }

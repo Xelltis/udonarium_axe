@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
+import { clamp } from '@axe/core/util/clamp';
 import { HOTBAR_PAGES } from '@axe/domain/hotbar/hotbar-size';
 
 interface HotbarPreference {
@@ -37,7 +38,7 @@ export class HotbarPreferenceService {
    */
   gotoPage(page: number): void {
     if (!Number.isFinite(page)) return;
-    this.write({ page: Math.min(HOTBAR_PAGES - 1, Math.max(0, Math.floor(page))) });
+    this.write({ page: clamp(Math.floor(page), 0, HOTBAR_PAGES - 1) });
   }
 
   /** Turns the hotbar by a number of pages, wrapping round past either end. */
@@ -91,7 +92,7 @@ function storedPreference(): HotbarPreference {
     const held = parsed as Record<string, unknown>;
     const page = Number(held.page);
     return {
-      page: Number.isFinite(page) ? Math.min(HOTBAR_PAGES - 1, Math.max(0, Math.floor(page))) : 0,
+      page: Number.isFinite(page) ? clamp(Math.floor(page), 0, HOTBAR_PAGES - 1) : 0,
       locked: held.locked === true,
       pinned: held.pinned === true,
       showsLabel: held.showsLabel !== false,
