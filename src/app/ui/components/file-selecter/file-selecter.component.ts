@@ -60,8 +60,8 @@ export class FileSelecterComponent {
    *
    * Pictures the game master has kept back are left out for everyone else.
    */
-  getAllImage(): ImageFile[] {
-    return this.fileStorageService.images.filter((imageFile) => this.mayShow(imageFile));
+  private getAllImage(): ImageFile[] {
+    return this.imageStorage.images.filter((imageFile) => this.mayShow(imageFile));
   }
 
   readonly images = computed(() => {
@@ -70,7 +70,7 @@ export class FileSelecterComponent {
     const imageFileList: ImageFile[] = [];
     if (this.selectTag() == this.allTag) return this.getAllImage();
 
-    for (const imageFile of this.fileStorageService.images) {
+    for (const imageFile of this.imageStorage.images) {
       const identifier = imageFile.context.identifier;
 
       const imageTag = ImageTag.get(identifier);
@@ -88,29 +88,15 @@ export class FileSelecterComponent {
     return imageFileList;
   });
 
-  selectedFile: ImageFile | null = null;
-  /** Whether `selectedFile` holds an image; nothing in this picker sets it, so false unless a caller does. */
-  get isSelected(): boolean {
-    return this.selectedFile !== null;
-  }
-  /**
-   * The tag record of the chosen image, or null with nothing chosen.
-   *
-   * An image without one is given a new tag record, which is shared with the room.
-   */
-  get selectedImageTag(): ImageTag | null {
-    if (!this.isSelected || this.selectedFile === null) return null;
-    const imageTag = ImageTag.get(this.selectedFile.identifier);
-    return imageTag ? imageTag : ImageTag.create(this.selectedFile.identifier);
-  }
-
   /**
    * The tags offered as filters above the pictures: untagged first, then all, then each tag
    * that has at least one picture the local user may pick.
    */
-  get tagList(): string[] {
+  readonly tagList = computed<string[]>(() => {
+    this.objectChange.fileVersion();
+    this.tagLock.track();
     const tags: string[] = [];
-    for (const imageFile of this.fileStorageService.images) {
+    for (const imageFile of this.imageStorage.images) {
       // A tag whose pictures are every one of them kept back is not offered either: picking
       // it would open on nothing, and its name says there is something there to find.
       if (!this.mayShow(imageFile)) continue;
@@ -122,37 +108,12 @@ export class FileSelecterComponent {
     tags2.unshift(this.allTag);
     tags2.unshift('');
     return tags2;
-  }
+  });
 
   readonly selectTag = signal('');
-  fileStorageService = this.imageStorage;
-
-  identifierList: string[] = [];
-  newTagName: string = '';
 
   /** Called when a tag filter is chosen; does nothing. */
   resetBtn() {}
-
-  /**
-   * Adds an image to, or removes it from, the list of checked identifiers.
-   *
-   * An image without a tag record is given one first, which is shared with the room.
-   */
-  onChange(fileName: string, checked: boolean) {
-    const imageTag = ImageTag.get(fileName);
-    if (!imageTag) ImageTag.create(fileName);
-
-    if (checked) {
-      if (!this.identifierList.includes(fileName)) {
-        this.identifierList.push(fileName);
-      }
-    } else {
-      const index = this.identifierList.indexOf(fileName);
-      if (index >= 0) {
-        this.identifierList.splice(index, 1);
-      }
-    }
-  }
 
   /** Only a seat that may edit the table may bring in new pictures, as in the media library. */
   get canUpload(): boolean {
