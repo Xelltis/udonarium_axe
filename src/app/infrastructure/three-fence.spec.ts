@@ -1,9 +1,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { IMPORT_STATEMENTS, loadedBy } from '@axe/testing/module-imports';
+
 const APP = 'src/app';
 const LIBRARY = /^(three|three\/.*|cannon-es)$/;
-const IMPORT = /^(?:import|export)\s+(type\s+)?([^'";]*?)\s*from\s*'([^']+)'/gms;
 
 /**
  * The folders that may load three.js, each with the modules of it the rest of the page may load
@@ -26,23 +27,6 @@ function sources(dir: string): string[] {
     if (statSync(path).isDirectory()) return sources(path);
     return path.endsWith('.ts') && !path.endsWith('.spec.ts') ? [path] : [];
   });
-}
-
-/** What a file loads when it runs, leaving out what it imports for its types alone. */
-function loadedBy(file: string): string[] {
-  const loaded: string[] = [];
-  for (const [, typeOnly, clause, path] of readFileSync(file, 'utf8').matchAll(IMPORT)) {
-    if (typeOnly) continue;
-    const named = clause.match(/\{([^}]*)\}/)?.[1];
-    const bare = clause.replace(/\{[^}]*\}/, '').replace(/[,\s]/g, '');
-    const values = (named ?? '')
-      .split(',')
-      .map((name) => name.trim())
-      .filter((name) => name.length > 0 && !name.startsWith('type '));
-    if (named !== undefined && !bare && values.length === 0) continue;
-    loaded.push(path);
-  }
-  return loaded;
 }
 
 /** The fenced folder a file lies in, or a module path names, or null for neither. */
@@ -69,7 +53,7 @@ function staleShading(): ReadonlySet<string> {
 /** The names a file takes from the libraries, and those it calls as methods. */
 function namesUsedBy(file: string): string[] {
   const text = readFileSync(file, 'utf8');
-  const imported = [...text.matchAll(IMPORT)]
+  const imported = [...text.matchAll(IMPORT_STATEMENTS)]
     .filter(([, , , path]) => LIBRARY.test(path))
     .flatMap(([, , clause]) => (clause.match(/\{([^}]*)\}/)?.[1] ?? '').split(','))
     .map(
