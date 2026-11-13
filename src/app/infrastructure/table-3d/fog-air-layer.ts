@@ -144,7 +144,7 @@ export class FogAirLayer {
  * to the north-west and as far to the south-east, easing in and out at either end, as the page's
  * drift does.
  */
-function driftAt(sheet: Table3dFogAirSheet, seconds: number): { x: number; y: number } {
+export function driftAt(sheet: Table3dFogAirSheet, seconds: number): { x: number; y: number } {
   const duration = Math.max(sheet.durationSec, 1);
   const along = (seconds - sheet.delaySec) / duration;
   const lap = Math.floor(along);

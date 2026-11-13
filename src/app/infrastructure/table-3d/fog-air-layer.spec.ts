@@ -1,4 +1,4 @@
-import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
+import { driftAt, FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
 import { LONGEST_PICTURE_PX, type Table3dFogAirSheet } from '@axe/infrastructure/table-3d/table-3d-port';
 import type { Texture } from 'three/webgpu';
 
@@ -44,5 +44,46 @@ describe('the sheets of fog hanging in the air', () => {
     layer.set([sheetOf(1600, 600, 3, sheet.canvas)], false);
     expect(letGo).toHaveBeenCalledTimes(1);
     expect(pictureOf(layer)).toBe(picture);
+  });
+});
+
+describe('how far a sheet of fog has drifted', () => {
+  const sheet = sheetOf(1000, 1000);
+
+  it('drifts from the north-west end through the middle to as far south-east, and back', () => {
+    const start = driftAt(sheet, 0);
+    const middle = driftAt(sheet, 10);
+    const end = driftAt(sheet, 20);
+    const back = driftAt(sheet, 30);
+
+    expect(start.x).toBeLessThan(0);
+    expect(start.y).toBeLessThan(0);
+    expect(middle).toEqual({ x: 0, y: 0 });
+    expect(end).toEqual({ x: -start.x, y: -start.y });
+    expect(back.x).toBeCloseTo(0, 9);
+    expect(back.y).toBeCloseTo(0, 9);
+  });
+
+  it('eases out of either end, so a quarter of the way in it has come less than halfway to the middle', () => {
+    const start = driftAt(sheet, 0);
+    const quarter = driftAt(sheet, 5);
+
+    expect(quarter.x).toBeLessThan(start.x / 2);
+    expect(quarter.x).toBeGreaterThan(start.x);
+  });
+
+  it('starts its drift later by the delay, and drifts a wider sheet further', () => {
+    const delayed = { ...sheet, delaySec: 4 };
+    const wide = sheetOf(2000, 1000);
+
+    expect(driftAt(delayed, 4)).toEqual(driftAt(sheet, 0));
+    expect(driftAt(wide, 0).x).toBe(driftAt(sheet, 0).x * 2);
+    expect(driftAt(wide, 0).y).toBe(driftAt(sheet, 0).y);
+  });
+
+  it('takes a drift shorter than a second as one second long', () => {
+    const quick = { ...sheet, durationSec: 0 };
+
+    expect(driftAt(quick, 0.5)).toEqual({ x: 0, y: 0 });
   });
 });
