@@ -11,6 +11,7 @@ import {
   perfCounters,
   perfTimed,
 } from '@axe/core/util/perf-counters';
+import { sameList } from '@axe/core/util/same-list';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party } from '@axe/domain/party/party';
 import { partyIdsOwnedBy } from '@axe/domain/party/party-membership';
@@ -163,8 +164,7 @@ function faceKey(face: WallFace): string {
 
 function sameIds(a: readonly string[] | undefined, b: readonly string[] | undefined): boolean {
   if (a === b) return true;
-  if (!a || !b || a.length !== b.length) return false;
-  return a.every((id, index) => id === b[index]);
+  return !!a && !!b && sameList(a, b);
 }
 
 /** Who is looking, by what they are rather than by the object that says so. */

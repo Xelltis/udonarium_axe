@@ -7,6 +7,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_MOVE_REACH_BUILD, perfCounters } from '@axe/core/util/perf-counters';
+import { sameList } from '@axe/core/util/same-list';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party } from '@axe/domain/party/party';
 import { allianceOf, PartyAlliance } from '@axe/domain/party/party-alliance';
@@ -55,14 +56,6 @@ interface ReachEntry {
   built: BuiltReach | null;
   /** The same reach for a piece that means to jump, worked out only if it is asked for. */
   leapt?: CellBits;
-}
-
-function sameStrings(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index]);
-}
-
-function sameElements<T>(a: readonly T[], b: readonly T[]): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
 /** What tells one board from another, for anything rasterised over the cells of one. */
@@ -328,7 +321,7 @@ export class MoveRangeService {
       }
       return keys;
     },
-    { equal: sameStrings }
+    { equal: sameList }
   );
 
   private readonly terrainList = computed<readonly Terrain[]>(
@@ -339,7 +332,7 @@ export class MoveRangeService {
       this.objectChange.versionOf(table.identifier)();
       return table.terrains;
     },
-    { equal: sameElements }
+    { equal: sameList }
   );
 
   /** A fresh object whenever a terrain changes, which is what the rasterised ground is kept against. */
@@ -358,7 +351,7 @@ export class MoveRangeService {
       this.objectChange.versionOf(table.identifier)();
       return moveCostsOn(table);
     },
-    { equal: sameElements }
+    { equal: sameList }
   );
 
   /** A fresh object whenever dear ground changes, which is what the priced board is kept against. */

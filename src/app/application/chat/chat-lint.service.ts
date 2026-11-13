@@ -8,6 +8,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { sameList } from '@axe/core/util/same-list';
 import { sameSet } from '@axe/core/util/same-set';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -188,7 +189,7 @@ export class ChatLintService {
       const selectedPiece = selected ? this.objectStore.get(selected.identifier) : null;
       return selectedPiece instanceof GameCharacter && selectedPiece.isVisibleOnTable ? [selectedPiece] : [];
     },
-    { equal: (a, b) => a.length === b.length && a.every((piece, index) => piece === b[index]) }
+    { equal: sameList }
   );
   private readonly rollChecks = new Map<string, RollCheck>();
 

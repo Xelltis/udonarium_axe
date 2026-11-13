@@ -22,6 +22,7 @@ import { ThemeService } from '@axe/application/ui/theme.service';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { sameFields } from '@axe/core/util/same-fields';
+import { sameList } from '@axe/core/util/same-list';
 import { sameSet } from '@axe/core/util/same-set';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -404,7 +405,7 @@ export class TablePiecesService {
       }
       return [...missing];
     },
-    { equal: (a, b) => a.length === b.length && a.every((identifier, i) => identifier === b[i]) }
+    { equal: sameList }
   );
 
   /** Where the bytes of a model held here in full are read from, or nothing for one not held. */
