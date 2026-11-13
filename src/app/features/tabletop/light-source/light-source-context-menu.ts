@@ -7,6 +7,7 @@ import {
 import {
   buildAltitudeAction,
   buildCopyAction,
+  buildDeleteAction,
   buildLockToggleAction,
 } from '@axe/application/ui/tabletop-context-menu-actions';
 import { LIGHT_SKIN_IDS, LightSkinId } from '@axe/domain/media/light-skins';
@@ -130,13 +131,7 @@ export function buildLightSourceContextMenuModel(
     sound: PresetSound.cardPut,
     afterClone: (clone) => (clone.isLock = false),
   });
-  const deleteAction: ContextMenuAction = {
-    name: t('feature.tabletop.contextMenu.delete'),
-    action: () => {
-      light.destroy();
-      SoundEffect.play(PresetSound.sweep);
-    },
-  };
+  const deleteAction = buildDeleteAction(light, t);
 
   const appearanceActions = [settingsAction, ...(skinAction ? [skinAction] : []), toggleAction, presetAction];
   const positionActions = [followAction, altitudeAction];

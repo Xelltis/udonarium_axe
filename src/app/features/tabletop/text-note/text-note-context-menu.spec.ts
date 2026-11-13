@@ -34,7 +34,7 @@ function makeTextNote(
     isUpright: false,
     location: { x: 0, y: 0 },
     destroy: vi.fn(),
-    clone: vi.fn(() => ({ location: { x: 0, y: 0 }, toTopmost: vi.fn() })),
+    clone: vi.fn(() => ({ location: { x: 0, y: 0 }, toTopmost: vi.fn(), update: vi.fn() })),
     ...overrides,
   };
 }
@@ -148,7 +148,7 @@ describe('buildTextNoteContextMenu()', () => {
   });
 
   it('makes a copy a cell down and across, laid over the rest', () => {
-    const copy = { location: { x: 100, y: 150 }, toTopmost: vi.fn() };
+    const copy = { location: { x: 100, y: 150 }, toTopmost: vi.fn(), update: vi.fn() };
     const note = makeTextNote({ clone: vi.fn(() => copy) });
     const menu = buildTextNoteContextMenu(
       note as unknown as TextNote,
@@ -163,6 +163,7 @@ describe('buildTextNoteContextMenu()', () => {
     expect(note.clone).toHaveBeenCalledOnce();
     expect(copy.location).toEqual({ x: 150, y: 200 });
     expect(copy.toTopmost).toHaveBeenCalled();
+    expect(copy.update).toHaveBeenCalled();
   });
 
   it('draws exactly two separators without permission', () => {

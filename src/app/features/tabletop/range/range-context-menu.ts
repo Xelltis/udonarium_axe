@@ -6,11 +6,16 @@ import {
   ContextMenuRadialGroup,
   ContextMenuSeparator,
 } from '@axe/application/ui/context-menu.service';
-import { buildAltitudeAction, buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
+import {
+  buildAltitudeAction,
+  buildCopyAction,
+  buildDeleteAction,
+  buildLockToggleAction,
+} from '@axe/application/ui/tabletop-context-menu-actions';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { RangeArea } from '@axe/domain/tabletop/range';
-import { COVERED_RANGE_TYPES } from '@axe/domain/tabletop/range-coverage';
+import { COVERED_RANGE_TYPES, FOLLOWABLE_RANGE_TYPES } from '@axe/domain/tabletop/range-coverage';
 import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
 
 export interface RangeContextMenuModel {
@@ -95,24 +100,11 @@ export function buildRangeContextMenuModel(
     onTargetInside && COVERED_RANGE_TYPES.includes(range.type)
       ? [{ name: t('feature.tabletop.contextMenu.rangeTargetInside'), action: () => onTargetInside(range) }]
       : [];
-  const copyAction: ContextMenuAction = {
-    name: t('feature.tabletop.contextMenu.copy'),
-    action: () => {
-      const cloneObject = range.clone();
-      cloneObject.location.x += gridSize;
-      cloneObject.location.y += gridSize;
-      cloneObject.isLock = false;
-      if (range.parent) range.parent.appendChild(cloneObject);
-      SoundEffect.play(PresetSound.cardPut);
-    },
-  };
-  const deleteAction: ContextMenuAction = {
-    name: t('feature.tabletop.contextMenu.delete'),
-    action: () => {
-      range.destroy();
-      SoundEffect.play(PresetSound.sweep);
-    },
-  };
+  const copyAction = buildCopyAction(range, gridSize, t, {
+    sound: PresetSound.cardPut,
+    afterClone: (clone) => (clone.isLock = false),
+  });
+  const deleteAction = buildDeleteAction(range, t);
   const createAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.createObject'),
     action: undefined,
@@ -166,7 +158,7 @@ function buildFollowAction(
   onDockingWindowOpen: () => void,
   t: TranslateFn
 ): ContextMenuAction | null {
-  if (!['CIRCLE', 'SQUARE', 'RHOMBUS', 'TRIANGLE', 'PENTAGON', 'HEXAGON'].includes(range.type)) return null;
+  if (!FOLLOWABLE_RANGE_TYPES.includes(range.type)) return null;
   return objectStore.get(range.followingCharacterIdentifier) != null
     ? {
         name: t('feature.tabletop.contextMenu.unfollow'),

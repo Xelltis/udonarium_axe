@@ -60,7 +60,7 @@ function makeTerrain(overrides: Partial<MutableTerrain> = {}): MutableTerrain {
     isDoor: false,
     mode: TerrainViewState.ALL,
     parent: null,
-    clone: vi.fn(() => ({ location: { x: 0, y: 0 }, isLocked: false })),
+    clone: vi.fn(() => ({ location: { x: 0, y: 0 }, isLocked: false, update: vi.fn() })),
     destroy: vi.fn(),
     slopeSideNames: '',
     slopeSides: [],
