@@ -1,11 +1,13 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { PERF_VISION_VOLUME_PAINT, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { DEFAULT_TABLE_CAMERA_VIEW, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
@@ -69,6 +71,29 @@ describe('TableVisionVolumeOverlayComponent', () => {
     expect(volumes[0].rings.length).toBeGreaterThan(0);
     expect(volumes[0].ribs.length).toBeGreaterThan(0);
     expect(volumes[0].rings[0].clipPath).not.toBeNull();
+  });
+
+  it("draws the shape in its owner's colour, and follows a change of it", () => {
+    darkTable();
+    const owner = new PeerCursor();
+    owner.initialize();
+    owner.userId = 'owner';
+    owner.chatColorCode = ['#ffff00'];
+    const character = GameCharacter.create('見張り', 1, '');
+    character.owner = 'owner';
+    character.lightEnabled = true;
+    character.lightDimRadius = 6;
+    character.showVisionRange = true;
+
+    const fixture = TestBed.createComponent(TableVisionVolumeOverlayComponent);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.volumes()[0].color).toBe('#ffff00');
+
+    owner.chatColorCode = ['#00ffff'];
+    TestBed.inject(ObjectChangeService).notifyChanged(owner.identifier);
+
+    expect(fixture.componentInstance.volumes()[0].color).toBe('#00ffff');
+    owner.destroy();
   });
 
   describe('on the screen over the canvas', () => {

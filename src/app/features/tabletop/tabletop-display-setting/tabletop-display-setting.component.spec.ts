@@ -105,6 +105,13 @@ describe('TabletopDisplaySettingComponent', () => {
     });
   });
 
+  it("reads what a square comes to from the room's answer before the table's", () => {
+    table.cellDistance = 1;
+    Config.instance.cellDistance = 5;
+
+    expect(component.cellSummary().distance).toBe(5);
+  });
+
   it('hands the mark a piece faces by to the room', () => {
     component.facingMark = 'arrow';
 

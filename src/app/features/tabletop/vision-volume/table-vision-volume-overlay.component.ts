@@ -87,6 +87,7 @@ export class TableVisionVolumeOverlayComponent {
 
   readonly volumes = computed<VisionVolume[]>(() => {
     this.objectChange.collectionOf('character')();
+    this.objectChange.collectionOf(PeerCursor.aliasName)();
     const gridSize = this.tabletopService.gridSize();
     const darknessEnabled = this.darknessEnabled();
     const volumes: VisionVolume[] = [];
@@ -206,8 +207,10 @@ export class TableVisionVolumeOverlayComponent {
     context.globalAlpha = 1;
   }
 
+  /** The colour the piece's owner writes in, read through the cursor's version so a change of it reaches the shape. */
   private colorOf(character: GameCharacter): string {
     const cursor = character.owner ? PeerCursor.findByUserId(character.owner) : null;
+    if (cursor) this.objectChange.versionOf(cursor.identifier)();
     const owned = cursor?.chatColorCode?.[0];
     return owned && luminanceOf(owned) >= MIN_VOLUME_LUMINANCE ? owned : DEFAULT_VOLUME_COLOR;
   }
