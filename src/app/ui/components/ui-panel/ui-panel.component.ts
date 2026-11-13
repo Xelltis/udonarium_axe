@@ -48,6 +48,9 @@ const PANEL_FLOOR_OPACITY = 0.25;
 /** How tall the row of names is, which the strip itself is drawn at (`h-7`). */
 const TAB_STRIP_HEIGHT_PX = 28;
 
+/** How wide a panel is when it is shrunk to its title. */
+const SHRUNK_WIDTH_PX = 128;
+
 /** Tells one frame from another while a panel is dragged between them. */
 let framesOpened = 0;
 
@@ -697,7 +700,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame, PanelTabsFr
     if (shrunk) {
       this.preWidth = panel.offsetWidth;
       this.preHeight = unfolded ? this.height : panel.offsetHeight;
-      this.width = 128;
+      this.width = SHRUNK_WIDTH_PX;
     } else {
       this.width = this.preWidth;
       this.height = this.preHeight;

@@ -71,6 +71,8 @@ interface TooltipSession {
 }
 
 const OPEN_DELAY_MS = 100;
+/** How far the pointer may drift during the opening delay and still count as resting. */
+const HOVER_STILL_PX = 2;
 const CLOSE_DELAY_MS = 400;
 /** Later than the 250ms an orientation change gives DraggableDirective, so the seats are placed last. */
 const VIEWPORT_FOLLOW_DELAY_MS = 300;
@@ -199,7 +201,7 @@ export class TooltipDirective {
       this.openTooltipTimer = null;
       const magnitude =
         (pointerX - this.pointerDeviceService.pointerX) ** 2 + (pointerY - this.pointerDeviceService.pointerY) ** 2;
-      if (magnitude > 4) {
+      if (magnitude > HOVER_STILL_PX ** 2) {
         this.startOpenTimer();
       } else {
         this.open();

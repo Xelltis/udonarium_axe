@@ -12,6 +12,7 @@ import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { SYNC_WRITE_DELAY_MS } from '@axe/core/util/sync-write-delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable, GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { TERRAIN_PICK_LAYER } from '@axe/domain/tabletop/pick/terrain-pick';
@@ -1303,7 +1304,7 @@ describe('MovableDirective showing a dragged piece ahead of its object', () => {
     expect(transient.placementOf(piece.identifier)).toMatchObject({ surface: 'floor', x: 120 });
     expect(piece.location.x).not.toBe(120);
 
-    vi.advanceTimersByTime(66);
+    vi.advanceTimersByTime(SYNC_WRITE_DELAY_MS);
     expect(piece.location.x).toBe(120);
     expect(transient.placementOf(piece.identifier)).not.toBeNull();
   });
@@ -1318,7 +1319,7 @@ describe('MovableDirective showing a dragged piece ahead of its object', () => {
     directive.cancel();
     expect(transient.placementOf(piece.identifier)).not.toBeNull();
 
-    vi.advanceTimersByTime(66);
+    vi.advanceTimersByTime(SYNC_WRITE_DELAY_MS);
     expect(transient.placementOf(piece.identifier)).toBeNull();
   });
 

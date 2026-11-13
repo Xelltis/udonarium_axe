@@ -19,10 +19,11 @@ import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { BatchService } from '@axe/application/ui/batch.service';
-import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
+import { MovableLike, MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { PieceFootprint, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
+import { SYNC_WRITE_DELAY_MS } from '@axe/core/util/sync-write-delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ALTITUDE_STEP_CELLS, steppedAltitude } from '@axe/domain/tabletop/altitude-step';
 import {
@@ -71,6 +72,8 @@ import { beamRestUnder, placeOnFace } from '@axe/ui/directives/surface-switch';
 /** How far short of a sheer face a piece is put down, so whole pixels keep it on the outside. */
 const BLOCK_GAP_PX = 1;
 const GRID_PX = 50;
+/** How finely a piece's height off its surface is kept, in pixels. */
+const POS_Z_STEP = 1 / 8;
 
 export interface MovableOption {
   readonly tabletopObject?: TabletopObject;
@@ -141,6 +144,12 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   private tabletopObject: TabletopObject | null = null;
+
+  /** The piece the directive moves, or null before it is given one. */
+  get piece(): TabletopObject | null {
+    return this.tabletopObject;
+  }
+
   layerName: string = '';
   private collideLayers: string[] = [];
   private footprint: (() => PieceFootprint) | undefined = undefined;
@@ -205,7 +214,7 @@ export class MovableDirective implements MovableInteractionContext {
     return this._posZ;
   }
   set posZ(posZ: number) {
-    this._posZ = this.mathFloor ? Math.floor(posZ * 8) / 8 : posZ;
+    this._posZ = this.mathFloor ? Math.floor(posZ / POS_Z_STEP) * POS_Z_STEP : posZ;
     this.setUpdateTimer();
   }
 
@@ -275,7 +284,7 @@ export class MovableDirective implements MovableInteractionContext {
     });
   }
 
-  private _multiAdapter: import('@axe/application/ui/multi-movable.service').MovableLike | null = null;
+  private _multiAdapter: MovableLike | null = null;
   private _multiAdapterId: string | null = null;
 
   private refreshMultiMovableRegistration(): void {
@@ -285,31 +294,7 @@ export class MovableDirective implements MovableInteractionContext {
     this._multiAdapter = null;
     this._multiAdapterId = id;
     if (!id) return;
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
-    this._multiAdapter = {
-      get identifier() {
-        return self.tabletopObject?.identifier ?? '';
-      },
-      get tabletopObject() {
-        return self.tabletopObject ?? undefined;
-      },
-      get posX() {
-        return self.posX;
-      },
-      set posX(v: number) {
-        self.posX = v;
-      },
-      get posY() {
-        return self.posY;
-      },
-      set posY(v: number) {
-        self.posY = v;
-      },
-      commitPosition() {
-        self.commitPosition();
-      },
-    };
+    this._multiAdapter = new MultiMoveAdapter(this);
     this.multiMovableService.register(this._multiAdapter);
   }
 
@@ -855,7 +840,7 @@ export class MovableDirective implements MovableInteractionContext {
     if (!object?.location) return;
     this._posX = this.mathFloor ? Math.floor(object.location.x) : object.location.x;
     this._posY = this.mathFloor ? Math.floor(object.location.y) : object.location.y;
-    this._posZ = this.mathFloor ? Math.floor(object.posZ * 8) / 8 : object.posZ;
+    this._posZ = this.mathFloor ? Math.floor(object.posZ / POS_Z_STEP) * POS_Z_STEP : object.posZ;
 
     this.markLocation();
   }
@@ -883,7 +868,7 @@ export class MovableDirective implements MovableInteractionContext {
         self.posZ = this.posZ;
         this.updateTimer = null;
         if (!this.input?.isGrabbing) this.releasePlacement();
-      }, 66);
+      }, SYNC_WRITE_DELAY_MS);
     }
     if (this.tabletopObject) {
       this.transient.place(this.tabletopObject.identifier, {
@@ -934,5 +919,41 @@ export class MovableDirective implements MovableInteractionContext {
 
   private unregister() {
     unregisterLayer(MovableDirective.layerHash, this.layerName, this);
+  }
+}
+
+/**
+ * The face a piece shows to the service that moves several at once: where it stands, which it
+ * can be set, and its object, read through the directive so a piece swapped under it is followed.
+ */
+class MultiMoveAdapter implements MovableLike {
+  constructor(private readonly directive: MovableDirective) {}
+
+  get identifier(): string {
+    return this.directive.piece?.identifier ?? '';
+  }
+
+  get tabletopObject(): TabletopObject | undefined {
+    return this.directive.piece ?? undefined;
+  }
+
+  get posX(): number {
+    return this.directive.posX;
+  }
+
+  set posX(v: number) {
+    this.directive.posX = v;
+  }
+
+  get posY(): number {
+    return this.directive.posY;
+  }
+
+  set posY(v: number) {
+    this.directive.posY = v;
+  }
+
+  commitPosition(): void {
+    this.directive.commitPosition();
   }
 }

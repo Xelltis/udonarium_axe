@@ -17,6 +17,7 @@ import { BatchService } from '@axe/application/ui/batch.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { SYNC_WRITE_DELAY_MS } from '@axe/core/util/sync-write-delay';
 import { QUARTER_TURN_DEGREES, rotationSnapStep, shownAngle, snapAngle } from '@axe/domain/tabletop/rotation-snap';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -406,7 +407,7 @@ export class RotableDirective {
         this.valueChange.emit(this.rotate);
         if (this.tabletopObject) this.tabletopObject.rotate = this.rotate;
         this.updateTimer = null;
-      }, 66);
+      }, SYNC_WRITE_DELAY_MS);
     }
   }
 
