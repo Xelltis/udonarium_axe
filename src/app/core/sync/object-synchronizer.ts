@@ -75,118 +75,142 @@ export class ObjectSynchronizer {
             this.removePeerMap((msg as NetworkMessage<{ peerId: string }>).data.peerId);
             break;
           case 'REQUEST_CATALOG':
-            if (msg.isSendFromSelf) break;
-            this.sendCatalog(msg.sendFrom);
+            if (!msg.isSendFromSelf) this.sendCatalog(msg.sendFrom);
             break;
-          // A room server keeps what was deleted itself, so what its catalog lists it holds now,
-          // brought back since as it may have been while this seat was away; a peer's listing of
-          // something deleted here is answered with the deletion.
-          case 'SYNCHRONIZE_GAME_OBJECT': {
-            if (msg.isSendFromSelf) break;
-            const catalog: CatalogItem[] = msg.data as CatalogItem[];
-            const fromServer = msg.sendFrom === Network.authorityPeerId;
-            if (fromServer) ObjectStore.instance.forgetDeleted(catalog.map((item) => item.identifier));
-            for (const item of catalog) {
-              if (ObjectStore.instance.isDeleted(item.identifier)) {
-                networkSend('DELETE_GAME_OBJECT', { aliasName: '', identifier: item.identifier }, msg.sendFrom);
-              } else {
-                this.addRequestMap(item, msg.sendFrom);
-              }
-            }
-            this.synchronize();
+          case 'SYNCHRONIZE_GAME_OBJECT':
+            if (!msg.isSendFromSelf) this.answerCatalog(msg.data as CatalogItem[], msg.sendFrom);
             break;
-          }
-          case 'REQUEST_GAME_OBJECT': {
-            if (msg.isSendFromSelf) break;
-            const id = msg.data as string;
-            if (ObjectStore.instance.isDeleted(id)) {
-              networkSend('DELETE_GAME_OBJECT', { aliasName: '', identifier: id }, msg.sendFrom);
-            } else {
-              const obj = ObjectStore.instance.get(id);
-              if (obj) networkSend('UPDATE_GAME_OBJECT', obj.toContext(), msg.sendFrom);
-            }
+          case 'REQUEST_GAME_OBJECT':
+            if (!msg.isSendFromSelf) this.answerRequest(msg.data as string, msg.sendFrom);
             break;
-          }
-          // A seat's own update heard back is told as its own however its peer is called by now.
-          case 'UPDATE_GAME_OBJECT': {
-            const context: ObjectContext = msg.data as ObjectContext;
-            const origin = msg.isSendFromSelf ? Network.peerId : msg.sendFrom;
-            let object: GameObject | null = ObjectStore.instance.get(context.identifier);
-            if (object) {
-              if (!msg.isSendFromSelf) object = this.updateObject(object, context);
-              markForChanged(object, origin);
-            } else if (ObjectStore.instance.isDeleted(context.identifier)) {
-              if (!msg.isSendFromSelf) this.answerChangeOfDeleted(context, msg.sendFrom);
-            } else if (
-              Network.authorityPeerId == null ||
-              !this.askedOfServer.has(context.identifier) ||
-              isFromAuthority(msg.sendFrom)
-            ) {
-              this.askedOfServer.delete(context.identifier);
-              object = this.createObject(context);
-              if (object) markForChanged(object, origin);
-            }
+          case 'UPDATE_GAME_OBJECT':
+            this.takeUpdate(msg as NetworkMessage<ObjectContext>);
             break;
-          }
-          // A room being loaded takes objects away and puts some of them back under the names
-          // they were saved under. To a seat that only watched, each of those is a deletion
-          // being undone, and left to itself it has the loader delete it again, which takes the
-          // effect library and the sample cut-ins out of a room just loaded whenever somebody
-          // else is connected. The loader says which names are coming back, and they leave the
-          // graveyard before they arrive.
-          case 'FORGET_DELETED_OBJECTS': {
-            if (msg.isSendFromSelf) break;
-            const { identifiers } = msg.data as { identifiers?: ObjectIdentifier[] };
-            ObjectStore.instance.forgetDeleted(identifiers ?? []);
-            for (const identifier of identifiers ?? []) this.askedOfServer.delete(identifier);
+          case 'FORGET_DELETED_OBJECTS':
+            if (!msg.isSendFromSelf) this.forgetDeleted(msg.data as { identifiers?: ObjectIdentifier[] });
             break;
-          }
-          // The store took the object away before the word went out, so hearing it back
-          // does nothing but take away whatever has been put back under that name since:
-          // a room just loaded brings back its parties and effect library under the names
-          // they were saved under, and its own deletions arrive after them.
-          case 'DELETE_GAME_OBJECT': {
-            if (msg.isSendFromSelf) break;
-            const identifier: ObjectIdentifier = (msg.data as { identifier: string }).identifier;
-            this.askedOfServer.delete(identifier);
-            ObjectStore.instance.delete(identifier, false);
+          case 'DELETE_GAME_OBJECT':
+            if (!msg.isSendFromSelf) this.takeDeletion((msg.data as { identifier: string }).identifier);
             break;
-          }
-          // The room server's word on an object outranks any version: it undoes a change this
-          // seat may not make, and hands over what has just come into its view.
-          case AuthorityEvent.AUTHORITATIVE: {
-            if (!isFromAuthority(msg.sendFrom)) break;
-            const context = msg.data as ObjectContext;
-            this.askedOfServer.delete(context.identifier);
-            ObjectStore.instance.forgetDeleted([context.identifier]);
-            const object = ObjectStore.instance.get(context.identifier);
-            if (object) {
-              object.apply(context);
-              markForChanged(object, msg.sendFrom);
-            } else {
-              const created = this.createObject(context);
-              if (created) markForChanged(created, msg.sendFrom);
-            }
+          case AuthorityEvent.AUTHORITATIVE:
+            if (isFromAuthority(msg.sendFrom)) this.takeAuthoritative(msg.data as ObjectContext, msg.sendFrom);
             break;
-          }
-          // What has gone out of this seat's view, or what it made but may not, goes without
-          // being marked deleted, so it can come back.
-          case AuthorityEvent.WITHDRAW: {
-            if (!isFromAuthority(msg.sendFrom)) break;
-            const data = msg.data as { identifier: string; aliasName?: string };
-            // Something asked for that went out of view before it came is no longer waited on.
-            this.requestMap.delete(data.identifier);
-            this.askedOfServer.delete(data.identifier);
-            const object = ObjectStore.instance.get(data.identifier);
-            if (!object) break;
-            // Those who hear of it after this, such as the replay recorder, are told what it was.
-            data.aliasName = object.aliasName;
-            withdraw(object);
+          case AuthorityEvent.WITHDRAW:
+            if (isFromAuthority(msg.sendFrom))
+              this.takeWithdrawal(msg.data as { identifier: string; aliasName?: string });
             break;
-          }
         }
       })
     );
+  }
+
+  /**
+   * Answers a peer's catalog: asks for what it lists, but answers its listing of something deleted
+   * here with the deletion. A room server keeps what was deleted itself, so what its catalog lists it
+   * holds now, brought back since as it may have been while this seat was away.
+   */
+  private answerCatalog(catalog: CatalogItem[], sendFrom: PeerId): void {
+    const fromServer = sendFrom === Network.authorityPeerId;
+    if (fromServer) ObjectStore.instance.forgetDeleted(catalog.map((item) => item.identifier));
+    for (const item of catalog) {
+      if (ObjectStore.instance.isDeleted(item.identifier)) {
+        networkSend('DELETE_GAME_OBJECT', { aliasName: '', identifier: item.identifier }, sendFrom);
+      } else {
+        this.addRequestMap(item, sendFrom);
+      }
+    }
+    this.synchronize();
+  }
+
+  /** Sends a peer the object it asks for, or the deletion where it was deleted here. */
+  private answerRequest(identifier: string, sendFrom: PeerId): void {
+    if (ObjectStore.instance.isDeleted(identifier)) {
+      networkSend('DELETE_GAME_OBJECT', { aliasName: '', identifier }, sendFrom);
+      return;
+    }
+    const obj = ObjectStore.instance.get(identifier);
+    if (obj) networkSend('UPDATE_GAME_OBJECT', obj.toContext(), sendFrom);
+  }
+
+  /**
+   * Takes an update: into the object held, which is told as changed, or as a new object, unless it
+   * was deleted here, or this seat is waiting on the room server's answer about it. A seat's own
+   * update heard back is told as its own however its peer is called by now.
+   */
+  private takeUpdate(msg: NetworkMessage<ObjectContext>): void {
+    const context = msg.data;
+    const origin = msg.isSendFromSelf ? Network.peerId : msg.sendFrom;
+    let object: GameObject | null = ObjectStore.instance.get(context.identifier);
+    if (object) {
+      if (!msg.isSendFromSelf) object = this.updateObject(object, context);
+      markForChanged(object, origin);
+    } else if (ObjectStore.instance.isDeleted(context.identifier)) {
+      if (!msg.isSendFromSelf) this.answerChangeOfDeleted(context, msg.sendFrom);
+    } else if (
+      Network.authorityPeerId == null ||
+      !this.askedOfServer.has(context.identifier) ||
+      isFromAuthority(msg.sendFrom)
+    ) {
+      this.askedOfServer.delete(context.identifier);
+      object = this.createObject(context);
+      if (object) markForChanged(object, origin);
+    }
+  }
+
+  /**
+   * Lets the names a loader says are coming back out of the graveyard before they arrive.
+   *
+   * A room being loaded takes objects away and puts some of them back under the names they were
+   * saved under. To a seat that only watched, each of those is a deletion being undone, and left to
+   * itself it has the loader delete it again, which takes the effect library and the sample cut-ins
+   * out of a room just loaded whenever somebody else is connected.
+   */
+  private forgetDeleted(data: { identifiers?: ObjectIdentifier[] }): void {
+    const identifiers = data.identifiers ?? [];
+    ObjectStore.instance.forgetDeleted(identifiers);
+    for (const identifier of identifiers) this.askedOfServer.delete(identifier);
+  }
+
+  /**
+   * Takes a deletion heard from a peer. The store took the object away before the word went out, so
+   * hearing it back does nothing but take away whatever has been put back under that name since: a
+   * room just loaded brings back its parties and effect library under the names they were saved
+   * under, and its own deletions arrive after them.
+   */
+  private takeDeletion(identifier: ObjectIdentifier): void {
+    this.askedOfServer.delete(identifier);
+    ObjectStore.instance.delete(identifier, false);
+  }
+
+  /**
+   * Takes the room server's word on an object, which outranks any version: it undoes a change this
+   * seat may not make, and hands over what has just come into its view.
+   */
+  private takeAuthoritative(context: ObjectContext, sendFrom: PeerId): void {
+    this.askedOfServer.delete(context.identifier);
+    ObjectStore.instance.forgetDeleted([context.identifier]);
+    const object = ObjectStore.instance.get(context.identifier);
+    if (object) {
+      object.apply(context);
+      markForChanged(object, sendFrom);
+    } else {
+      const created = this.createObject(context);
+      if (created) markForChanged(created, sendFrom);
+    }
+  }
+
+  /**
+   * Lets go of what has gone out of this seat's view, or what it made but may not, without marking
+   * it deleted, so it can come back. Something asked for that went out of view before it came is no
+   * longer waited on. Those who hear of it after this, such as the replay recorder, are told what it was.
+   */
+  private takeWithdrawal(data: { identifier: string; aliasName?: string }): void {
+    this.requestMap.delete(data.identifier);
+    this.askedOfServer.delete(data.identifier);
+    const object = ObjectStore.instance.get(data.identifier);
+    if (!object) return;
+    data.aliasName = object.aliasName;
+    withdraw(object);
   }
 
   /** Stops handling sync messages and cancels catalogs still being sent out. */
