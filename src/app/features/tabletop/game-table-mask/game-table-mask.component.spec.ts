@@ -211,6 +211,43 @@ describe('GameTableMaskComponent', () => {
     });
   });
 
+  describe('the mark on a cell picked to be covered again', () => {
+    let table: GameTable;
+    let mask: GameTableMask;
+
+    beforeEach(async () => {
+      table = new GameTable('restore-mark-table');
+      table.gridSize = 100;
+      table.initialize();
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
+      mask = GameTableMask.create('testMask', 4, 3, 1);
+      mask.owner = 'someone';
+      mask.scratchedGrids = '1:2';
+      mask.scratchingGrids = '1:2';
+      fixture.componentRef.setInput('gameTableMask', mask);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    afterEach(() => {
+      TableSelecter.instance.viewTableIdentifier = '';
+      mask.destroy();
+      table.destroy();
+    });
+
+    it('draws its cross through the middle of the cell, however large the cell is', () => {
+      const lines = [...(fixture.nativeElement as HTMLElement).querySelectorAll('svg line')].map((line) => [
+        Number(line.getAttribute('x1')),
+        Number(line.getAttribute('y1')),
+        Number(line.getAttribute('x2')),
+        Number(line.getAttribute('y2')),
+      ]);
+
+      expect(lines).toContainEqual([130, 250, 170, 250]);
+      expect(lines).toContainEqual([150, 230, 150, 270]);
+    });
+  });
+
   describe('the scratching buttons', () => {
     let mask: GameTableMask;
 
