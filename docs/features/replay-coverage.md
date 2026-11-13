@@ -1,10 +1,10 @@
 # セッションログ — 記録範囲の棚卸し
 
 同期オブジェクト（`@SyncObject`）とローカル状態を全件洗い出し、
-セッションログ（[features.md](features.md#セッションログリプレイ基盤)）が
+セッションログ（[features.md](replay.md#セッションログリプレイ基盤)）が
 どこまで意味づけして記録できているかを突き合わせた表。
 
-規則は[replay-interpreter.ts](../src/app/domain/replay/replay-interpreter.ts)にある。
+規則は[replay-interpreter.ts](../../src/app/domain/replay/replay-interpreter.ts)にある。
 規則が無い変更は`object.update`に落ちる。既定の詳細度（`notable`）は
 `object.update`を捨てるため、**規則が無い = 標準設定では記録されない**。
 
@@ -84,7 +84,7 @@
 
 1. `@SyncObject`の一覧を取る
    （`grep -rn "@SyncObject(" src/app/domain src/app/core --include="*.ts" | grep -v spec`）
-2. そのaliasが[replay-interpreter.ts](../src/app/domain/replay/replay-interpreter.ts)
+2. そのaliasが[replay-interpreter.ts](../../src/app/domain/replay/replay-interpreter.ts)
    の規則にあるか確認する
 3. 無ければ`object.update`に落ちている。卓の出来事なら規則を足し、
    設定や素材なら本書の「意図的に規則を置いていない」へ追記する
