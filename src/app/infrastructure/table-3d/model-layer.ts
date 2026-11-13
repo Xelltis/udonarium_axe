@@ -161,6 +161,8 @@ export class ModelLayer {
   private laid: readonly TableWorldModel[] = [];
   private changed = false;
   private lastTimeMs: number | null = null;
+  /** Whether the layer has been let go of, after which a model still being read is let go of as it comes. */
+  private disposed = false;
 
   constructor(
     private readonly dress: (material: Material) => void,
@@ -228,6 +230,7 @@ export class ModelLayer {
   }
 
   dispose(): void {
+    this.disposed = true;
     for (const stood of this.stood.values()) {
       this.group.remove(stood.root);
       forgetDrawn(stood.root);
@@ -418,10 +421,15 @@ export class ModelLayer {
     this.loading.add(url);
     this.parse(url).then(
       (loaded) => {
+        if (this.disposed) {
+          if (loaded) disposeObject(loaded.gltf.scene);
+          return;
+        }
         this.loaded.set(url, loaded);
         this.settle(url);
       },
       () => {
+        if (this.disposed) return;
         this.loaded.set(url, null);
         this.settle(url);
       }
