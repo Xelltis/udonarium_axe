@@ -53,6 +53,7 @@ export class AppInitializationService {
   private readonly fileArchiver = inject(FileArchiver);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly appConfigService = inject(AppConfigService);
+  /** Made here so the mouse and touches are followed from the moment the app starts. */
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly audioStorage = inject(AudioStorage);
@@ -97,7 +98,6 @@ export class AppInitializationService {
     ModelSharingSystem.instance.initialize();
     ObjectSynchronizer.instance.initialize();
     this.appConfigService.initialize();
-    this.pointerDeviceService.initialize();
     this.keyboardInset.initialize();
     keepFocusFromZoomingOnAppleTouch(document, navigator);
 
