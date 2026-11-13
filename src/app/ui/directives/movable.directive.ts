@@ -820,7 +820,7 @@ export class MovableDirective implements MovableInteractionContext {
    * `gridSize` is used only when no table is being viewed. A player's character is still
    * stopped at terrain it may not walk over on the way to that spot.
    */
-  snapToGrid(gridSize: number = 25) {
+  snapToGrid(gridSize: number = GRID_PX) {
     const beforeX = this.posX;
     const beforeY = this.posY;
     this.snapToGridNow(gridSize);
@@ -829,7 +829,7 @@ export class MovableDirective implements MovableInteractionContext {
     if (this.walksTheTable()) this.holdAtBlocks(beforeX, beforeY);
   }
 
-  private snapToGridNow(gridSize: number = 25) {
+  private snapToGridNow(gridSize: number = GRID_PX) {
     const square = this.snapToSquare?.({ x: this.posX, y: this.posY });
     if (square) {
       this.posX = square.x;

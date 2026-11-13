@@ -15,6 +15,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable, GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { TERRAIN_PICK_LAYER } from '@axe/domain/tabletop/pick/terrain-pick';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -72,6 +73,18 @@ describe('MovableDirective', () => {
       fixture.componentInstance.movableOption.set({ tabletopObject: {} as TabletopObject });
       expect(() => fixture.detectChanges()).not.toThrow();
       await fixture.whenStable();
+    });
+
+    it('snaps to the usual fifty-pixel cell when no table is being viewed', () => {
+      vi.spyOn(TableSelecter.instance, 'viewTable', 'get').mockReturnValue(null);
+      fixture.detectChanges();
+      const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
+      directive.posX = 70;
+      directive.posY = 140;
+
+      directive.snapToGrid();
+
+      expect([directive.posX, directive.posY]).toEqual([50, 150]);
     });
 
     it('snaps to the cell under the grid snap on a table that has no squares to lay pieces out in', () => {
