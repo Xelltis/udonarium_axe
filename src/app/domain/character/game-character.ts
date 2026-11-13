@@ -601,67 +601,39 @@ export class GameCharacter extends OwnedTabletopObject {
     const detail = this.detailDataElement;
     if (!detail) return;
 
-    const portraitPosEl = detail.getElementsByName('立ち絵位置');
-    if (portraitPosEl.length == 0) {
-      const testElement: DataElement = this.createDetailSectionElement('立ち絵位置', `立ち絵位置${this.identifier}`);
-      const groupElement: DataElement = this.createDetailGroupElement('基本', `立ち絵位置基本${this.identifier}`);
-      detail.appendChild(testElement);
-      testElement.appendChild(groupElement);
-      groupElement.appendChild(
-        DataElement.create(
-          'POS',
-          11,
-          {
-            [DataElementAttribute.ROLE]: DataElementRole.FIELD,
-            type: DataElementType.NUMBER_RESOURCE,
-            currentValue: '0',
-          },
-          `POS_${this.identifier}`
-        )
-      );
-    }
-
-    const iconNum = detail.getElementsByName('コマ画像');
-    if (iconNum.length == 0) {
-      const elementKoma: DataElement = this.createDetailSectionElement('コマ画像', `コマ画像${this.identifier}`);
-      const groupElement: DataElement = this.createDetailGroupElement('基本', `コマ画像基本${this.identifier}`);
-      detail.appendChild(elementKoma);
-
-      //puts the piece picture in after the portrait
-      const portraitPosEls = detail.getElementsByName('立ち絵位置');
-      if (portraitPosEls.length != 0) {
-        const parentElement = portraitPosEls[0].parent;
-        if (!parentElement) return;
-        const index: number = parentElement.children.indexOf(portraitPosEls[0]);
-        if (index < parentElement.children.length - 1) {
-          const nextElement = parentElement.children[index + 1];
-
-          parentElement.insertBefore(elementKoma, nextElement);
-        }
-      }
-      elementKoma.appendChild(groupElement);
-      groupElement.appendChild(
-        DataElement.create(
-          'ICON',
-          (this.imageDataElement?.children.length ?? 1) - 1,
-          {
-            [DataElementAttribute.ROLE]: DataElementRole.FIELD,
-            type: DataElementType.NUMBER_RESOURCE,
-            currentValue: 0,
-          },
-          `ICON_${this.identifier}`
-        )
-      );
-    }
+    this.ensureDetailSection(detail, '立ち絵位置', null, () =>
+      DataElement.create(
+        'POS',
+        11,
+        {
+          [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+          type: DataElementType.NUMBER_RESOURCE,
+          currentValue: '0',
+        },
+        `POS_${this.identifier}`
+      )
+    );
+    this.ensureDetailSection(detail, 'コマ画像', '立ち絵位置', () =>
+      DataElement.create(
+        'ICON',
+        (this.imageDataElement?.children.length ?? 1) - 1,
+        {
+          [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+          type: DataElementType.NUMBER_RESOURCE,
+          currentValue: 0,
+        },
+        `ICON_${this.identifier}`
+      )
+    );
 
     const buff = this.buffDataElement;
     if (!buff) return;
     const isbuff = buff.getElementsByName('バフ/デバフ');
-    if (isbuff.length == 0) {
+    if (isbuff.length === 0) {
       const buffElement: DataElement = DataElement.create('バフ/デバフ', '', {}, `バフ/デバフ${this.identifier}`);
       buff.appendChild(buffElement);
     }
-    if (this.remoteController == null) {
+    if (this.remoteController === null) {
       const controller: BuffPalette = new BuffPalette(`RemotController_${this.identifier}`);
       controller.setPalette(`コントローラ入力例：
 マッスルベアー DB+2 3
@@ -759,6 +731,29 @@ export class GameCharacter extends OwnedTabletopObject {
     return child.fieldRole === DataElementRole.FIELD || child.children.length === 0;
   }
 
+  /**
+   * Adds a section of this name to the detail, holding one group `基本` with the field `makeField`
+   * makes, unless the detail already has a section of that name. The section goes at the end, or
+   * right after the first section named `after` when there is one.
+   */
+  private ensureDetailSection(
+    detail: DataElement,
+    name: string,
+    after: string | null,
+    makeField: () => DataElement
+  ): void {
+    if (detail.getElementsByName(name).length > 0) return;
+    const section = this.createDetailSectionElement(name, `${name}${this.identifier}`);
+    const group = this.createDetailGroupElement('基本', `${name}基本${this.identifier}`);
+    detail.appendChild(section);
+    const previous = after ? detail.getElementsByName(after)[0] : undefined;
+    const parent = previous?.parent;
+    const next = parent ? parent.children[parent.children.indexOf(previous) + 1] : undefined;
+    if (parent && next) parent.insertBefore(section, next);
+    section.appendChild(group);
+    group.appendChild(makeField());
+  }
+
   private createDetailSectionElement(name: string, identifier?: string): DataElement {
     return DataElement.create(
       name,
@@ -806,7 +801,7 @@ export class GameCharacter extends OwnedTabletopObject {
     let res = cloneObject.name.match(reg);
 
     let cloneNumber: number;
-    if (res != null && res.length == 3) {
+    if (res !== null && res.length === 3) {
       objectname = res[1];
       cloneNumber = parseInt(res[2]) + 1;
     } else {
@@ -816,10 +811,10 @@ export class GameCharacter extends OwnedTabletopObject {
 
     const list = ObjectStore.instance.getObjects(GameCharacter);
     for (const character of list) {
-      if (character.location.name == 'graveyard') continue;
+      if (character.location.name === 'graveyard') continue;
 
       res = character.name.match(reg);
-      if (res != null && res.length == 3 && res[1] == objectname) {
+      if (res !== null && res.length === 3 && res[1] === objectname) {
         const numberChk = parseInt(res[2]) + 1;
         if (cloneNumber <= numberChk) {
           cloneNumber = numberChk;
