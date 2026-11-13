@@ -3228,6 +3228,11 @@
         "unstoppable": "Unstoppable move",
         "unstoppableHint": "Nobody can stop this move, by stepping in or by an engagement zone. Switch it before the first corner is set"
       },
+      "targetBand": {
+        "count": "{{count}} targeted",
+        "clear": "Clear all",
+        "clearHint": "Takes the aim off every piece (Shift + T does too)"
+      },
       "displaySetting": {
         "title": "Tabletop display",
         "intro": "Settings for a large display several people sit around, playing in the same room. The recommended settings above put in all but the real size at once.",
