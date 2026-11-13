@@ -1,76 +1,14 @@
 import { buildTablePhotoLayout, type TablePhotoMember } from '@axe/domain/replay/table-photo';
-import type { ReplayFrameAssets, ReplayFrameCanvas, ReplayFrameImage } from '@axe/infrastructure/replay/replay-canvas';
+import type { ReplayFrameAssets } from '@axe/infrastructure/replay/replay-canvas';
 import { paintTablePhoto } from '@axe/infrastructure/replay/table-photo-painter';
-
-interface DrawnImage {
-  image: ReplayFrameImage;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-function recorder(): {
-  ctx: ReplayFrameCanvas;
-  texts: { text: string; x: number; y: number }[];
-  images: DrawnImage[];
-  fills: { x: number; y: number; width: number; height: number; color: string }[];
-  counts: () => { saves: number; restores: number; clips: number };
-} {
-  let saves = 0;
-  let restores = 0;
-  let clips = 0;
-  const texts: { text: string; x: number; y: number }[] = [];
-  const images: DrawnImage[] = [];
-  const fills: { x: number; y: number; width: number; height: number; color: string }[] = [];
-
-  const ctx = {
-    fillStyle: '',
-    strokeStyle: '',
-    lineWidth: 0,
-    font: '',
-    textAlign: 'left',
-    textBaseline: 'alphabetic',
-    save() {
-      saves++;
-    },
-    restore() {
-      restores++;
-    },
-    clip() {
-      clips++;
-    },
-    roundRect() {},
-    fillRect(x: number, y: number, width: number, height: number) {
-      fills.push({ x, y, width, height, color: String(ctx.fillStyle) });
-    },
-    beginPath() {},
-    moveTo() {},
-    lineTo() {},
-    quadraticCurveTo() {},
-    closePath() {},
-    stroke() {},
-    fill() {},
-    fillText(text: string, x: number, y: number) {
-      texts.push({ text, x, y });
-    },
-    measureText(text: string) {
-      return { width: [...text].length * 20 };
-    },
-    drawImage(image: ReplayFrameImage, x: number, y: number, width: number, height: number) {
-      images.push({ image, x, y, width, height });
-    },
-  } as unknown as ReplayFrameCanvas;
-
-  return { ctx, texts, images, fills, counts: () => ({ saves, restores, clips }) };
-}
+import { image, recorder } from '@axe/testing/canvas-recorder';
 
 function member(name: string, imageIdentifier = ''): TablePhotoMember {
   return { identifier: name, name, imageIdentifier };
 }
 
 const assets: ReplayFrameAssets = {
-  imageOf: (identifier) => (identifier.length > 0 ? ({ width: 400, height: 800 } as ReplayFrameImage) : null),
+  imageOf: (identifier) => (identifier.length > 0 ? image(400, 800) : null),
 };
 
 describe('paintTablePhoto()', () => {

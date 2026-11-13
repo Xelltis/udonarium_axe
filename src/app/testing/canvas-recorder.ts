@@ -17,9 +17,17 @@ export interface GradientLine {
   y1: number;
 }
 
+/** How many times a drawing saved and restored the canvas's state, and clipped to a path. */
+export interface StateCounts {
+  saves: number;
+  restores: number;
+  clips: number;
+}
+
 /**
  * A stand-in 2D canvas that writes down what is drawn on it, where it lands on screen once the
- * transform is applied: text, pictures, filled boxes, outlined text and gradients.
+ * transform is applied: text, pictures, filled boxes, outlined text and gradients, and how often the
+ * state was saved, restored and clipped.
  */
 export function recorder(): {
   ctx: ReplayFrameCanvas;
@@ -28,12 +36,14 @@ export function recorder(): {
   fills: { x: number; y: number; width: number; height: number; color: string }[];
   strokes: { text: string; x: number; y: number; color: string }[];
   gradients: GradientLine[];
+  counts: () => StateCounts;
 } {
   const texts: { text: string; x: number; y: number; font: string; color: string }[] = [];
   const images: DrawnImage[] = [];
   const fills: { x: number; y: number; width: number; height: number; color: string }[] = [];
   const strokes: { text: string; x: number; y: number; color: string }[] = [];
   const gradients: GradientLine[] = [];
+  const counted: StateCounts = { saves: 0, restores: 0, clips: 0 };
 
   // Anything flat on the ground is drawn through the matrix, so the spec applies the same
   // transform and checks where it lands on screen.
@@ -56,9 +66,11 @@ export function recorder(): {
     textAlign: 'left',
     textBaseline: 'alphabetic',
     save() {
+      counted.saves++;
       stack.push([...matrix] as typeof matrix);
     },
     restore() {
+      counted.restores++;
       matrix = stack.pop() ?? [1, 0, 0, 1, 0, 0];
     },
     setTransform(a: number, b: number, c: number, d: number, e: number, f: number) {
@@ -79,6 +91,8 @@ export function recorder(): {
     },
     strokeRect() {},
     rect() {},
+    roundRect() {},
+    quadraticCurveTo() {},
     transform(a: number, b: number, c: number, d: number, e: number, f: number) {
       matrix = compose(matrix, [a, b, c, d, e, f]);
     },
@@ -89,7 +103,9 @@ export function recorder(): {
     closePath() {},
     stroke() {},
     fill() {},
-    clip() {},
+    clip() {
+      counted.clips++;
+    },
     arc() {},
     translate(tx: number, ty: number) {
       matrix = compose(matrix, [1, 0, 0, 1, tx, ty]);
@@ -130,7 +146,7 @@ export function recorder(): {
     },
   } as unknown as ReplayFrameCanvas;
 
-  return { ctx, texts, images, fills, strokes, gradients };
+  return { ctx, texts, images, fills, strokes, gradients, counts: () => ({ ...counted }) };
 }
 
 type Matrix = [number, number, number, number, number, number];
