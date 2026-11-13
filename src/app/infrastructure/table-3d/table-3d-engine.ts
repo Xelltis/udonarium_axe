@@ -178,10 +178,18 @@ const GROUND_PAINT_TILE_CELLS = 2;
 const SKY_DISTANCE_BOARDS = 1.5;
 /** How many pixels a side the map of the shadows the sun and the moon throw is drawn in. */
 const SKY_SHADOW_PX = 2048;
+/**
+ * How far the shadows the sun and the moon throw are pulled back from the faces that throw them,
+ * in depth and then along their normals in table pixels, so a face does not shadow itself in stripes.
+ */
+const SKY_SHADOW_BIAS = -0.0005;
+const SKY_SHADOW_NORMAL_BIAS = 1;
 /** How many lights the scene lights itself with at the most, each throwing shadows of its own. */
 const SHADOW_LIGHTS = TABLE_3D_QUALITY.high.shadowedLights;
 /** How many pixels a side each face of the map of a lamp's shadows is drawn in. */
 const LAMP_SHADOW_PX = 512;
+/** How far a lamp's shadows are pulled back in depth from the faces that throw them. */
+const LAMP_SHADOW_BIAS = -0.002;
 /**
  * How many samples a picture laid on a face is read with along the way the face runs off from the
  * eye: the board and the blocks are seen aslant, and read with one they blur ever more towards the
@@ -199,6 +207,8 @@ const drawingRoom = new Vector2();
 
 /** How much of the cone of a lamp thrown one way, from its edge in, its light fades over. */
 const THROWN_LAMP_PENUMBRA = 0.3;
+/** How far along its way the target a lamp thrown one way is aimed at stands from it, in table pixels; only the way matters. */
+const THROWN_LAMP_AIM_PX = 100;
 
 /** How long at least the shadows are left as they are after they were drawn again for pieces that moved, in milliseconds. */
 const PIECE_SHADOWS_MS = 150;
@@ -369,8 +379,8 @@ class ThreeTableEngine implements Table3dEngine {
     this.sun.castShadow = true;
     this.sun.shadow.autoUpdate = false;
     this.sun.shadow.mapSize.set(SKY_SHADOW_PX, SKY_SHADOW_PX);
-    this.sun.shadow.bias = -0.0005;
-    this.sun.shadow.normalBias = 1;
+    this.sun.shadow.bias = SKY_SHADOW_BIAS;
+    this.sun.shadow.normalBias = SKY_SHADOW_NORMAL_BIAS;
     this.sun.shadow.camera.layers.enable(SHADOW_CASTERS_LAYER);
     for (const lamp of this.lamps) {
       lamp.target.position.set(0, -1, 0);
@@ -378,7 +388,7 @@ class ThreeTableEngine implements Table3dEngine {
       lamp.castShadow = true;
       lamp.shadow.autoUpdate = false;
       lamp.shadow.mapSize.set(LAMP_SHADOW_PX, LAMP_SHADOW_PX);
-      lamp.shadow.bias = -0.002;
+      lamp.shadow.bias = LAMP_SHADOW_BIAS;
       lamp.shadow.camera.layers.enable(SHADOW_CASTERS_LAYER);
       this.scene.add(lamp, lamp.target);
     }
@@ -468,7 +478,11 @@ class ThreeTableEngine implements Table3dEngine {
     lamp.color.set(light.color || '#ffffff');
     if (light.angle < 360) {
       const axis = lightAxis(light);
-      lamp.target.position.set(light.x + axis.x * 100, light.z + axis.z * 100, light.y + axis.y * 100);
+      lamp.target.position.set(
+        light.x + axis.x * THROWN_LAMP_AIM_PX,
+        light.z + axis.z * THROWN_LAMP_AIM_PX,
+        light.y + axis.y * THROWN_LAMP_AIM_PX
+      );
       lamp.target.updateMatrixWorld();
       lamp.angle = ((light.angle / 2) * Math.PI) / 180;
       lamp.penumbra = THROWN_LAMP_PENUMBRA;

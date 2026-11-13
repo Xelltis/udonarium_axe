@@ -34,6 +34,10 @@ const LOOK_ROUND_DEG = 10;
 const FIELD_OF_VIEW = 30;
 /** How strong the light of an effect is made against the scene's own light. */
 const LIGHT_SCALE = 2.2;
+/** How bright a lamp of full strength is, in candela, as its light falls off over table pixels rather than metres. */
+const LAMP_BRIGHTNESS = 10000;
+/** How much further than its reach a lamp's light is let fall off to nothing. */
+const LAMP_REACH = 1.5;
 /** The colour the stage clears to about its board. */
 const STAGE_BACKGROUND = 0x0b0d11;
 const BOARD = new Color(0x2a2f38);
@@ -119,11 +123,11 @@ class SmallStage implements EffectStage {
     this.effects.set(frame);
     this.lamps.forEach((lamp, index) => {
       const light = frame.lights[index];
-      lamp.intensity = light ? light.strength * LIGHT_SCALE * 10000 : 0;
+      lamp.intensity = light ? light.strength * LIGHT_SCALE * LAMP_BRIGHTNESS : 0;
       if (!light) return;
       lamp.position.set(light.x, light.z, light.y);
       lamp.color.set(light.color);
-      lamp.distance = light.reachPx * 1.5;
+      lamp.distance = light.reachPx * LAMP_REACH;
     });
     this.renderer.render(this.scene, this.camera);
   }
