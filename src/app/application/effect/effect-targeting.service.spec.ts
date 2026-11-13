@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -51,6 +52,25 @@ describe('EffectTargetingService', () => {
 
     expect(service.picks()).toEqual([characters[1].identifier, characters[0].identifier]);
     expect(service.marks().map((mark) => mark.order)).toEqual([1, 2]);
+  });
+
+  it('numbers a part picked with its body on its row alone, and marks one picked without its body on the table', () => {
+    const [, , body, part] = characters;
+    part.ridingOn = body.identifier;
+    part.rideSeat = 'part';
+    const objectChange = TestBed.inject(ObjectChangeService);
+    objectChange.notifyChanged(part.identifier);
+
+    service.begin(preset);
+    service.pick(part.identifier);
+    expect(service.marks().map((mark) => mark.identifier)).toEqual([part.identifier]);
+
+    service.pick(body.identifier);
+    expect([...service.pickOrder()]).toEqual([
+      [part.identifier, 1],
+      [body.identifier, 2],
+    ]);
+    expect(service.marks().map((mark) => [mark.identifier, mark.order])).toEqual([[body.identifier, 2]]);
   });
 
   it('copies the chosen targets onto the piece', () => {
@@ -156,6 +176,46 @@ describe('EffectTargetingService', () => {
 
       expect(service.picks()).toEqual([characters[1].identifier, characters[0].identifier, characters[2].identifier]);
       expect(service.areaCenter()).not.toBeNull();
+    });
+
+    it('strikes a piece this reader cannot see without marking it, numbering the marks among those shown', () => {
+      vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockImplementation(
+        (character) => character !== characters[0]
+      );
+      service.begin(preset);
+      service.pick(characters[1].identifier);
+
+      expect(service.picks()).toContain(characters[0].identifier);
+      expect(service.marks().map((mark) => [mark.identifier, mark.order])).toEqual([
+        [characters[1].identifier, 1],
+        [characters[2].identifier, 2],
+      ]);
+      // Nor marked as aimed at, which the chat's aimed lines and the next aim would read.
+      expect(characters[0].targeted).toBe(false);
+      expect(characters[1].targeted).toBe(true);
+      service.cancel();
+      characters[0].targeted = true;
+      service.begin(preset);
+      expect(service.picks()).not.toContain(characters[0].identifier);
+      vi.restoreAllMocks();
+    });
+
+    it('puts back on cancel a piece aimed at before the picking that this reader can no longer see', () => {
+      characters[0].targeted = true;
+      vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockImplementation(
+        (character) => character !== characters[0]
+      );
+      service.begin(preset);
+      expect(service.picks()).not.toContain(characters[0].identifier);
+      service.pick(characters[1].identifier);
+      expect(characters[0].targeted).toBe(false);
+
+      service.cancel();
+
+      expect(characters[0].targeted).toBe(true);
+      expect(characters[1].targeted).toBe(false);
+      characters[0].targeted = false;
+      vi.restoreAllMocks();
     });
 
     it('does not cast on gathering a group', () => {

@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { HotbarStoreService } from '@axe/application/hotbar/hotbar-store.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -130,6 +131,36 @@ describe('HotbarSlotEditorComponent', () => {
       expect(component.draft().payload).toEqual({ kind: 'menu', command: 'jukebox' });
       expect(component.draft().value).toBe('');
     });
+  });
+
+  it('lists the hidden piece a slot already acts as under the label, and no other hidden one', () => {
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
+    const villain = GameCharacter.create('黒幕', 1, '');
+    villain.hideName = true;
+    const shade = GameCharacter.create('影', 1, '');
+    shade.hideName = true;
+    try {
+      component.setFrom(
+        { page: 1, slotIndex: 3 },
+        { ...emptyHotbarSlotDraft('prefill'), characterIdentifier: villain.identifier, characterName: '黒幕' }
+      );
+      fixture.detectChanges();
+
+      const actors = (component as unknown as { actors: () => { value: string; name: string }[] }).actors();
+      expect(actors.find((actor) => actor.value === villain.identifier)?.name).toBe('？？？');
+      expect(actors.some((actor) => actor.value === shade.identifier)).toBe(false);
+      expect(actors.some((actor) => actor.name === '黒幕')).toBe(false);
+
+      // Set to nobody and back within the editor, the hidden piece stays on offer and keeps its name.
+      (component as unknown as { setActor: (identifier: string) => void }).setActor('');
+      const again = (component as unknown as { actors: () => { value: string }[] }).actors();
+      expect(again.some((actor) => actor.value === villain.identifier)).toBe(true);
+      (component as unknown as { setActor: (identifier: string) => void }).setActor(villain.identifier);
+      expect((component as unknown as { draft: () => { characterName: string } }).draft().characterName).toBe('黒幕');
+    } finally {
+      villain.destroy();
+      shade.destroy();
+    }
   });
 
   it('opens on the settings the slot already holds', () => {

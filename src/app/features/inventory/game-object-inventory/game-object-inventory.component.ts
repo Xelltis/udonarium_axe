@@ -14,6 +14,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { StealthService } from '@axe/application/character/stealth.service';
@@ -33,6 +34,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelHeaderControl, PanelService } from '@axe/application/ui/panel.service';
 import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { SelectionSignalService, TabletopObjectSelection } from '@axe/application/ui/selection-signal.service';
+import { copyPartsAlong } from '@axe/application/ui/tabletop-context-menu-actions';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -207,6 +209,7 @@ export class GameObjectInventoryComponent {
   }
 
   private readonly panelService = inject(PanelService);
+  protected readonly names = inject(PieceNameService);
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly contextMenuService = inject(ContextMenuService);
@@ -490,6 +493,16 @@ export class GameObjectInventoryComponent {
         press: () => this.toggleGhost(),
       });
     }
+    // The turn order is laid down or across, as it suits where the reader puts it on the screen.
+    if (showing === 'round') {
+      const across = this.viewPreference.roundAcross();
+      controls.push({
+        icon: across ? 'swap_vert' : 'swap_horiz',
+        label: this.t(across ? 'feature.inventory.panel.roundDown' : 'feature.inventory.panel.roundAcross'),
+        active: across,
+        press: () => this.viewPreference.setRoundAcross(!across),
+      });
+    }
     // A way into the settings that no setting can take away: the button beside the tabs goes
     // with them when the tabs are put away.
     if (showing !== 'round') {
@@ -757,7 +770,8 @@ export class GameObjectInventoryComponent {
       inventorySearchText(
         row,
         row.object instanceof OwnedTabletopObject ? row.object.ownerName : '',
-        this.canView(row.object) ? this.elementTextsOf(inventoryType, row.object) : []
+        this.canView(row.object) ? this.elementTextsOf(inventoryType, row.object) : [],
+        this.names.shown(row.object)
       )
     );
   });
@@ -919,7 +933,7 @@ export class GameObjectInventoryComponent {
       }
     );
 
-    this.contextMenuService.open(position, actions, gameObject.name);
+    this.contextMenuService.open(position, actions, this.names.shown(gameObject));
   }
 
   /**
@@ -1158,7 +1172,7 @@ export class GameObjectInventoryComponent {
 
   private cloneGameObject(gameObject: TabletopObject) {
     if (!this.rolePermission.canEditTabletop() || isWithheldHere(gameObject)) return;
-    gameObject.clone();
+    copyPartsAlong(gameObject, gameObject.clone());
   }
 
   private showDetail(gameObject: GameCharacter) {

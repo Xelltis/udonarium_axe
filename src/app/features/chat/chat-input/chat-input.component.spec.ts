@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatLintService } from '@axe/application/chat/chat-lint.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -243,6 +244,30 @@ describe('ChatInputComponent', () => {
   });
 
   describe('the characters on offer', () => {
+    it('leaves out of a chat palette’s list a piece whose contents this seat may not view, as the chat keeps it', () => {
+      const open = speaker('勇者');
+      const kept = speaker('秘密の魔物');
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockImplementation((character) => character !== kept);
+
+      expect(component.gameCharacters()).toContain(kept);
+      fixture.componentRef.setInput('onlyCharacters', true);
+      expect(component.gameCharacters()).toContain(open);
+      expect(component.gameCharacters()).not.toContain(kept);
+      open.destroy();
+      kept.destroy();
+    });
+
+    it('keeps in a chat palette’s list the piece it speaks as, once that is kept from view since', () => {
+      const kept = speaker('秘密の魔物');
+      fixture.componentRef.setInput('onlyCharacters', true);
+      component.sendFrom = kept.identifier;
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockReturnValue(false);
+      TestBed.inject(ObjectChangeService).notifyChanged(kept.identifier);
+
+      expect(component.gameCharacters()).toContain(kept);
+      kept.destroy();
+    });
+
     it('leaves out a piece on the table this seat cannot see, but keeps the one it speaks as', () => {
       const seen = speaker('勇者');
       seen.setLocation('table');
@@ -425,6 +450,20 @@ describe('ChatInputComponent', () => {
       fixture.detectChanges();
 
       expect(textBox().getAttribute('rows')).toBe('1');
+    });
+
+    it('holds a line picked into it until the box is pressed or written in, not as it is merely focused', () => {
+      fixture.componentRef.setInput('dense', true);
+      fixture.detectChanges();
+      fixture.componentRef.setInput('text', '2d6+2 回避');
+      fixture.detectChanges();
+      const held = () => (component as unknown as { putIn: () => boolean }).putIn();
+
+      expect(held()).toBe(true);
+      textBox().dispatchEvent(new FocusEvent('focus'));
+      expect(held()).toBe(true);
+      textBox().dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      expect(held()).toBe(false);
     });
 
     it('says what the panel asks for in the empty box, in place of its keys', () => {
@@ -706,6 +745,23 @@ describe('ChatInputComponent', () => {
         component.text = '2d6>=12';
         fixture.detectChanges();
         expect(bar()).toBeNull();
+      });
+
+      it('keeps the room of the bar, faded, while the line holds none, for a palette using it', () => {
+        const idle = () => fixture.nativeElement.querySelector('[data-testid="chat-input-target-number-idle"]');
+        component.text = '2d6>=12';
+        fixture.detectChanges();
+        expect(idle()).toBeNull();
+
+        fixture.componentRef.setInput('keepsTargetNumberPlace', true);
+        fixture.detectChanges();
+        expect(idle()).not.toBeNull();
+        expect(bar()).toBeNull();
+
+        component.text = '2d6>={目標値}';
+        fixture.detectChanges();
+        expect(idle()).toBeNull();
+        expect(bar()).not.toBeNull();
       });
 
       it("takes the tab's own number to beat off from the bar, for a seat that may set it", async () => {

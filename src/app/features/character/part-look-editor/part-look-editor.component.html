@@ -1,0 +1,167 @@
+<div class="text-ui-text flex h-full flex-col gap-2 overflow-y-auto p-2 text-[12px]" data-testid="part-look-editor">
+  <div class="flex flex-wrap gap-1" role="group">
+    @for (part of parts(); track part.id) {
+      <button
+        type="button"
+        class="border-ui-border-panel rounded-full border border-solid px-2.5 py-0.5"
+        [class.bg-ui-accent-bg]="chosen()?.id === part.id"
+        [attr.aria-pressed]="chosen()?.id === part.id"
+        data-testid="part-look-part"
+        (click)="choose(part.id)"
+      >
+        {{ part.name }}
+      </button>
+    } @empty {
+      <span class="text-ui-dim">{{ 'feature.ride.part.look.noParts' | transloco }}</span>
+    }
+  </div>
+
+  <div class="border-ui-border-panel flex w-max rounded-full border border-solid p-0.5" role="group">
+    @for (each of modes(); track each) {
+      <button
+        type="button"
+        class="rounded-full border-none px-3 py-0.5"
+        [class.bg-ui-accent-solid]="mode() === each"
+        [class.text-white]="mode() === each"
+        [class.bg-transparent]="mode() !== each"
+        [attr.aria-pressed]="mode() === each"
+        [attr.data-testid]="'part-look-mode-' + each"
+        (click)="setMode(each)"
+      >
+        {{ 'feature.ride.part.look.mode_' + each | transloco }}
+      </button>
+    }
+  </div>
+
+  @if (canEdit() && chosen()) {
+    <div class="flex flex-wrap items-center gap-2">
+      @if (mode() === 'layer') {
+        @if (chosenLayer(); as layer) {
+          <label class="flex items-center gap-1">
+            {{ 'feature.ride.part.look.size' | transloco }}
+            <input
+              type="range"
+              min="0.02"
+              max="2"
+              step="0.01"
+              class="w-28"
+              data-testid="part-look-size"
+              [value]="layer.width"
+              (change)="resize($event)"
+            />
+          </label>
+          <button type="button" class="rounded-ui-sm px-2" data-testid="part-look-forward" (click)="reorder(1)">
+            {{ 'feature.ride.part.look.forward' | transloco }}
+          </button>
+          <button type="button" class="rounded-ui-sm px-2" data-testid="part-look-back" (click)="reorder(-1)">
+            {{ 'feature.ride.part.look.back' | transloco }}
+          </button>
+          <button type="button" class="rounded-ui-sm px-2" data-testid="part-look-unlay" (click)="clearLayer()">
+            {{ 'feature.ride.part.look.unlay' | transloco }}
+          </button>
+        } @else {
+          <button type="button" class="rounded-ui-sm px-2" data-testid="part-look-lay" (click)="layChosen()">
+            {{ 'feature.ride.part.look.lay' | transloco }}
+          </button>
+        }
+      } @else {
+        <label class="flex items-center gap-1">
+          {{ 'feature.ride.part.look.brush' | transloco }}
+          <input
+            type="range"
+            class="w-28"
+            step="0.01"
+            data-testid="part-look-brush"
+            [min]="brushRange.min"
+            [max]="brushRange.max"
+            [value]="brushWidth()"
+            (input)="setBrush($event)"
+          />
+        </label>
+        <div class="border-ui-border-panel flex rounded-full border border-solid p-0.5" role="group">
+          <button
+            type="button"
+            class="rounded-full border-none px-2.5"
+            [class.bg-ui-accent-bg]="!erasing()"
+            [attr.aria-pressed]="!erasing()"
+            data-testid="part-look-paint"
+            (click)="erasing.set(false)"
+          >
+            {{ 'feature.ride.part.look.paintOn' | transloco }}
+          </button>
+          <button
+            type="button"
+            class="rounded-full border-none px-2.5"
+            [class.bg-ui-accent-bg]="erasing()"
+            [attr.aria-pressed]="erasing()"
+            data-testid="part-look-erase"
+            (click)="erasing.set(true)"
+          >
+            {{ 'feature.ride.part.look.erase' | transloco }}
+          </button>
+        </div>
+        <button
+          type="button"
+          class="rounded-ui-sm px-2"
+          data-testid="part-look-clear"
+          (click)="mode() === 'faces' ? clearFaces() : clearMask()"
+        >
+          {{ 'feature.ride.part.look.clearPaint' | transloco }}
+        </button>
+      }
+    </div>
+    <p class="text-ui-dim m-0 leading-snug">{{ 'feature.ride.part.look.hint_' + mode() | transloco }}</p>
+  }
+
+  @if (mode() === 'faces' && modelUrl()) {
+    <canvas
+      #model
+      class="block aspect-square w-full touch-none"
+      data-testid="part-look-model"
+      [class.cursor-crosshair]="canEdit()"
+      (pointerdown)="pressModel($event)"
+      (pointermove)="moveModel($event)"
+      (pointerup)="letGoOfModel($event)"
+      (pointercancel)="letGoOfModel($event)"
+      (contextmenu)="$event.preventDefault()"
+    ></canvas>
+  } @else if (bodyUrl()) {
+    <div #stage class="relative isolate w-full touch-none select-none" data-testid="part-look-stage">
+      <img class="relative z-0 block h-auto w-full" alt="" draggable="false" [src]="bodyUrl() | safe: 'resourceUrl'" />
+      @for (one of layers(); track one.part.id) {
+        <img
+          class="absolute block h-auto max-w-none -translate-1/2"
+          alt=""
+          draggable="false"
+          data-testid="part-look-layer"
+          [attr.data-part-id]="one.part.id"
+          [class.outline-2]="one.part.id === chosen()?.id"
+          [class.outline-dashed]="one.part.id === chosen()?.id"
+          [class.outline-ui-accent]="one.part.id === chosen()?.id"
+          [class.cursor-move]="one.part.id === chosen()?.id && mode() === 'layer' && canEdit()"
+          [class.pointer-events-none]="one.part.id !== chosen()?.id || mode() !== 'layer'"
+          [style.left.%]="one.layer.x * 100"
+          [style.top.%]="one.layer.y * 100"
+          [style.width.%]="one.layer.width * 100"
+          [style.z-index]="one.layer.order"
+          [src]="one.part.url | safe: 'resourceUrl'"
+          (pointerdown)="pressLayer($event)"
+          (pointermove)="moveLayer($event)"
+          (pointerup)="letGoOfLayer()"
+          (pointercancel)="letGoOfLayer()"
+        />
+      }
+      <canvas
+        #paint
+        class="absolute inset-0 z-50 size-full"
+        data-testid="part-look-paint-layer"
+        [class.pointer-events-none]="mode() !== 'paint'"
+        [class.cursor-crosshair]="mode() === 'paint' && canEdit()"
+        (pointerdown)="pressPaint($event)"
+        (pointermove)="movePaint($event)"
+        (pointerup)="letGoOfPaint()"
+        (pointercancel)="letGoOfPaint()"
+      ></canvas>
+    </div>
+  }
+</div>

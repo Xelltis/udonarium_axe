@@ -20,11 +20,16 @@ export function buildInventoryRow(object: TabletopObject, folderName: string): I
 }
 
 /**
- * The normalised text a row is searched by: the piece's name, its owner's name, its folder path and
- * the given data element texts.
+ * The normalised text a row is searched by: the piece's name as the reader is shown it, its owner's
+ * name, its folder path and the given data element texts.
  */
-export function inventorySearchText(row: InventoryRow, ownerName: string, elementTexts: readonly string[]): string {
-  return normalizeSearchText([row.object.name, ownerName, row.folderPath, ...elementTexts].join(' '));
+export function inventorySearchText(
+  row: InventoryRow,
+  ownerName: string,
+  elementTexts: readonly string[],
+  shownName = row.object.name
+): string {
+  return normalizeSearchText([shownName, ownerName, row.folderPath, ...elementTexts].join(' '));
 }
 
 /** The rows whose search text matches the search terms; with no terms, a copy of every row. */

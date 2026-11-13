@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, ElementRef, input, viewChild } from '@angular/core';
-import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
+import { EffectParticleLayer } from '@axe/domain/effect/particles/shared';
 import { drawParticleLayer } from '@axe/features/effect/effect-canvas/draw-particles';
 
 const MAX_PIXEL_RATIO = 2;

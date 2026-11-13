@@ -58,7 +58,20 @@ export interface PickOnFace {
   readonly shape: PickPrism | PickQuad | PickCylinder | PickFloor;
 }
 
-export type PickShape = PickPrism | PickQuad | PickCylinder | PickFloor | PickOnFace;
+/**
+ * A sheet laid over a box of the board that follows the raised ground, as a range lying over it does:
+ * how high it lies over each point of the box, between a lowest and a highest. A picture laid on it
+ * is read across the box from its left edge and down it from its top edge.
+ */
+export interface PickDraped {
+  readonly kind: 'draped';
+  readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly heightAt: (x: number, y: number) => number;
+  readonly low: number;
+  readonly high: number;
+}
+
+export type PickShape = PickPrism | PickQuad | PickCylinder | PickFloor | PickOnFace | PickDraped;
 
 /** Where a line of sight meets a shape. */
 export interface PickShapeHit {
@@ -81,6 +94,24 @@ function at(ray: TableRay, t: number): TablePoint {
     y: ray.origin.y + ray.direction.y * t,
     z: ray.origin.z + ray.direction.z * t,
   };
+}
+
+/**
+ * Whether a point lies inside an outline or no further than `reach` off any of its sides, as a line
+ * drawn round it and the softened edge of its picture reach past it.
+ */
+export function withinOutline(outline: readonly PickPoint2[], x: number, y: number, reach: number): boolean {
+  if (insideOutline(outline, x, y)) return true;
+  for (let i = 0, j = outline.length - 1; i < outline.length; j = i++) {
+    const a = outline[j];
+    const b = outline[i];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const length = dx * dx + dy * dy;
+    const share = length > 0 ? Math.min(1, Math.max(0, ((x - a.x) * dx + (y - a.y) * dy) / length)) : 0;
+    if (Math.hypot(x - (a.x + dx * share), y - (a.y + dy * share)) <= reach) return true;
+  }
+  return false;
 }
 
 /** Whether a point lies inside an outline, by how many of its sides a line to the east crosses. */
@@ -319,5 +350,54 @@ export function hitShape(ray: TableRay, shape: PickShape): PickShapeHit | null {
       return hitFloor(ray, shape);
     case 'on-face':
       return hitOnFace(ray, shape);
+    case 'draped':
+      return hitDraped(ray, shape);
   }
+}
+
+/**
+ * Where the line first comes down onto a sheet following the ground, walked over the stretch of it
+ * above the box as a sloping roof is, from the eye where the eye is over the box, with how far across
+ * and down the box the point lies. A sheet has no sides: a line already under it where it comes over
+ * the box, or where it leaves the eye, meets none of it.
+ */
+function hitDraped(ray: TableRay, shape: PickDraped): PickShapeHit | null {
+  const { x, y, width, height } = shape.box;
+  if (!(width > 0) || !(height > 0)) return null;
+  const outline = [
+    { x, y },
+    { x: x + width, y },
+    { x: x + width, y: y + height },
+    { x, y: y + height },
+  ];
+  const span = spanInside(ray, { kind: 'prism', outline, base: shape.low, top: shape.high });
+  if (!span) return null;
+  const from = Math.max(span[0], ray.from ?? -Infinity);
+  const to = span[1];
+  if (from > to) return null;
+  const under = (t: number) => {
+    const point = at(ray, t);
+    return insideOutline(outline, point.x, point.y) && point.z <= shape.heightAt(point.x, point.y);
+  };
+  const start = at(ray, from);
+  const startX = Math.min(Math.max(start.x, x), x + width);
+  const startY = Math.min(Math.max(start.y, y), y + height);
+  if (start.z <= shape.heightAt(startX, startY)) return null;
+  let previous = from;
+  for (let i = 1; i <= ROOF_STEPS; i++) {
+    const t = from + ((to - from) * i) / ROOF_STEPS;
+    if (under(t)) {
+      let low = previous;
+      let high = t;
+      for (let j = 0; j < ROOF_REFINES; j++) {
+        const middle = (low + high) / 2;
+        if (under(middle)) high = middle;
+        else low = middle;
+      }
+      const point = at(ray, high);
+      return { t: high, point, u: (point.x - x) / width, v: (point.y - y) / height };
+    }
+    previous = t;
+  }
+  return null;
 }

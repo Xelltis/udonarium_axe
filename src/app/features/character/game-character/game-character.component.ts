@@ -14,9 +14,11 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { EffectAutoPlayService } from '@axe/application/effect/effect-auto-play.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
@@ -29,6 +31,8 @@ import { MovePlannerService } from '@axe/application/tabletop/move-planner.servi
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { PiecePartPickService } from '@axe/application/tabletop/piece-part-pick.service';
+import { PiecePartsService } from '@axe/application/tabletop/piece-parts.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
@@ -41,6 +45,7 @@ import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.servi
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
@@ -58,7 +63,13 @@ import { sameFields } from '@axe/core/util/same-fields';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { gaugeNumbersOf, isGaugeInverted, PieceGauge, selectPieceGauges } from '@axe/domain/character/piece-gauge';
+import {
+  HIDDEN_GAUGE_STRIPES,
+  isGaugeInverted,
+  PieceGauge,
+  selectPieceGauges,
+  shownGauge,
+} from '@axe/domain/character/piece-gauge';
 import { isResourceElement } from '@axe/domain/character/resource-catalog';
 import {
   diffResourceSnapshots,
@@ -168,6 +179,7 @@ const RIDING_SEAT_ICONS: Readonly<Record<RideSeat, string>> = {
   rider: 'upgrade',
   passenger: 'group',
   cargo: 'backpack',
+  part: 'extension',
 };
 
 /** One piece in a mount's riding card: one riding it, or the mount itself. */
@@ -179,7 +191,13 @@ interface RidingLabel {
   readonly icon: string;
   /** How many ride it, for the mount; 0 for one riding. */
   readonly aboard: number;
-  readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string }[];
+  /** Whether it is a part of the piece, listed under it, which is aimed at by pressing its row. */
+  readonly part: boolean;
+  /** Whether this seat aims at it. */
+  readonly targeted: boolean;
+  /** The number it is picked as while an effect is being aimed, for a part; 0 where it is not picked. */
+  readonly pick: number;
+  readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string; readonly kept: boolean }[];
   readonly badges: readonly BuffBadge[];
 }
 /** How large the handles that turn and tip a piece are drawn, whatever the size of the piece. */
@@ -231,6 +249,7 @@ export class GameCharacterComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly effectTargeting = inject(EffectTargetingService);
   private readonly rotationGuide = inject(RotationGuideService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly pieceTarget = inject(PieceTargetService);
@@ -240,6 +259,7 @@ export class GameCharacterComponent {
   private readonly tabletopService = inject(TabletopService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly names = inject(PieceNameService);
   private readonly moveRangeService = inject(MoveRangeService);
   private readonly triggerFire = inject(TriggerFireService);
   private readonly movePlan = inject(MovePlannerService);
@@ -249,7 +269,10 @@ export class GameCharacterComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly engagementZones = inject(EngagementZoneService);
   private readonly links = inject(PieceLinksService);
+  private readonly multiMovable = inject(MultiMovableService);
   private readonly ride = inject(RideService);
+  private readonly parts = inject(PiecePartsService);
+  private readonly partPick = inject(PiecePartPickService);
   private readonly snackbar = inject(SnackbarService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
@@ -565,7 +588,13 @@ export class GameCharacterComponent {
       if (!previous) return;
 
       const names = untracked(this.resourceNames);
-      const changes = diffResourceSnapshots(previous, snapshot, (identifier) => names.get(identifier) ?? '');
+      // A part's change is told as the part's, each seat naming the part as it shows it.
+      const changes = diffResourceSnapshots(previous, snapshot, (identifier) => names.get(identifier)?.name ?? '').map(
+        (change) => {
+          const part = names.get(change.identifier)?.part ?? '';
+          return part ? { ...change, part } : change;
+        }
+      );
       if (changes.length < 1) return;
 
       // It is drawn here and announced elsewhere. Watching for the difference at each end
@@ -769,7 +798,7 @@ export class GameCharacterComponent {
       const char = this.gameCharacter();
       if (!char || this.ridersAboard() < 1) return [];
       this.objectChange.trackMyCursor();
-      const order: Record<RideSeat, number> = { rider: 0, passenger: 1, cargo: 2 };
+      const order: Record<RideSeat, number> = { rider: 0, passenger: 1, cargo: 2, part: 3 };
       return this.ride
         .aboard(char)
         .sort((a, b) => order[seatOf(a.rideSeat)] - order[seatOf(b.rideSeat)])
@@ -778,13 +807,35 @@ export class GameCharacterComponent {
     { equal: sameRidingLabels }
   );
 
+  /** The colour a part's number is drawn in while an effect is aimed, as the marks on the table are. */
+  protected readonly pickColor = computed(() => this.effectTargeting.markColor());
+
+  /**
+   * The parts of this piece, listed under its own labels as those riding it are listed over them:
+   * their names, bars and buffs, each as it would show over itself.
+   */
+  readonly partLabels = computed<RidingLabel[]>(
+    () => {
+      const char = this.gameCharacter();
+      if (!char) return [];
+      // Any piece may be made a part of this one: the parts of every body are worked out once for all.
+      const parts = this.parts.partsOfFollowed(char);
+      if (parts.length < 1) return [];
+      for (const part of parts) this.objectChange.versionOf(part.identifier)();
+      this.objectChange.trackMyCursor();
+      this.uiSignalService.targetChange();
+      return parts.map((piece) => this.ridingLabelOf(piece));
+    },
+    { equal: sameRidingLabels }
+  );
+
   private ridingLabelOf(piece: GameCharacter): RidingLabel {
-    const showsName = this.overlay.names() && (!piece.hideName || this.rolePermission.canSeeHidden());
+    const showsName = this.overlay.names() && !this.names.isKept(piece);
     const detail = this.overlay.resourceBars() ? (piece.detailDataElement ?? null) : null;
     const readable = this.disclosureService.canView(piece);
     const gauges =
       detail && this.followedTree(detail) !== null
-        ? selectPieceGauges(detail).map((gauge) => ({ gauge, numbers: gaugeNumbersOf(gauge, readable) }))
+        ? selectPieceGauges(detail).map((gauge) => shownGauge(gauge, readable))
         : [];
     const buffs = this.overlay.buffs() && !piece.hideBuff ? (piece.buffDataElement ?? null) : null;
     const badges = buffs && this.followedTree(buffs) !== null ? toBuffBadges(buffs) : [];
@@ -793,6 +844,9 @@ export class GameCharacterComponent {
       name: showsName ? piece.name : '',
       icon: RIDING_SEAT_ICONS[seatOf(piece.rideSeat)],
       aboard: 0,
+      part: seatOf(piece.rideSeat) === 'part',
+      targeted: piece.targeted,
+      pick: seatOf(piece.rideSeat) === 'part' ? (this.effectTargeting.pickOrder().get(piece.identifier) ?? 0) : 0,
       gauges,
       badges,
     };
@@ -805,8 +859,9 @@ export class GameCharacterComponent {
   readonly ridingCard = computed<RidingLabel[]>(
     () => {
       const riders = this.ridingLabels();
+      const parts = this.partLabels();
       const char = this.gameCharacter();
-      if (riders.length < 1 || !char) return [];
+      if ((riders.length < 1 && parts.length < 1) || !char) return [];
       return [
         ...[...riders].reverse(),
         {
@@ -814,12 +869,52 @@ export class GameCharacterComponent {
           name: this.hideName() ? '' : this.name(),
           icon: '',
           aboard: this.ridersAboard(),
+          part: false,
+          targeted: false,
+          pick: 0,
           gauges: this.gaugeRows(),
           badges: this.hideBuff() ? [] : this.buffBadges(),
         },
+        ...parts,
       ];
     },
     { equal: sameRidingLabels }
+  );
+
+  /** Aims at a part listed in the piece's card, or lets go of it, from a press on its row. */
+  protected aimAtPart(identifier: string, event: Event): void {
+    event.stopPropagation();
+    const part = this.objectStore.get<GameCharacter>(identifier);
+    if (part instanceof GameCharacter && this.parts.bodyOf(part) === this.gameCharacter()) this.aimAtPiece(part);
+  }
+
+  /**
+   * Aims at a part, or lets go of it; while an effect's targets are being picked, picks it among them
+   * instead, as a press on a piece drawn as itself does.
+   */
+  private aimAtPiece(part: GameCharacter): void {
+    if (this.effectTargeting.isPicking()) {
+      this.selectionSignalService.selectObject(part.identifier, part.aliasName);
+      return;
+    }
+    this.pieceTarget.toggle(part);
+  }
+
+  /** Opens the menu of a part listed in the piece's card, as a right-click on the part would. */
+  protected openPartMenu(identifier: string, event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const part = this.objectStore.get<GameCharacter>(identifier);
+    if (!(part instanceof GameCharacter) || this.parts.bodyOf(part) !== this.gameCharacter()) return;
+    this.menu.open(part, this.menuHost, { x: event.clientX, y: event.clientY, z: 0 });
+  }
+
+  /**
+   * The parts of the piece, listed in a card of their own under it while its name and bars run round
+   * it, where its riding card is not drawn: each part is still aimed at by pressing its row.
+   */
+  protected readonly partCardInOrbit = computed<RidingLabel[]>(() =>
+    this.multiAngleNameOrbitEnabled() ? this.partLabels() : []
   );
 
   /** Whether the mount's own labels are drawn in its riding card rather than over it. */
@@ -837,7 +932,7 @@ export class GameCharacterComponent {
     if (!this.overlay.names()) return true;
     this.objectChange.versionOf(char.identifier)();
     this.objectChange.trackMyCursor();
-    return char.hideName && !this.rolePermission.canSeeHidden();
+    return this.names.isKept(char);
   });
   /** Buffs go unshown for a piece set to hide them, and for every piece while this seat has them switched off. */
   readonly hideBuff = computed(() => {
@@ -1043,9 +1138,9 @@ export class GameCharacterComponent {
     return this.disclosureService.canView(char);
   });
 
-  readonly gaugeRows = computed<{ gauge: PieceGauge; numbers: string }[]>(() => {
+  readonly gaugeRows = computed<{ gauge: PieceGauge; numbers: string; kept: boolean }[]>(() => {
     const readable = this.gaugeNumbersReadable();
-    return this.pieceGauges().map((gauge) => ({ gauge, numbers: gaugeNumbersOf(gauge, readable) }));
+    return this.pieceGauges().map((gauge) => shownGauge(gauge, readable));
   });
 
   readonly buffBadges = computed<BuffBadge[]>(
@@ -1058,33 +1153,52 @@ export class GameCharacterComponent {
     { equal: sameEntries }
   );
 
-  readonly orbitPieceGauges = computed(() => this.pieceGauges().slice(0, MAX_MULTI_ANGLE_RESOURCE_GAUGES));
+  /** The bars drawn round the piece, as the reader is shown them: those of a piece kept from them full and grey. */
+  readonly orbitPieceGauges = computed(() =>
+    this.gaugeRows()
+      .slice(0, MAX_MULTI_ANGLE_RESOURCE_GAUGES)
+      .map((row) => row.gauge)
+  );
 
+  /**
+   * The resources of the piece and of its parts, as they stand: a part is drawn as its body, so a
+   * blow to a part is shown on the body, as one to the body is.
+   */
   private readonly resourceSnapshot = computed<Map<string, ResourceSnapshot>>(() => {
     const snapshot = new Map<string, ResourceSnapshot>();
-    const elements = this.followedTree(this.gameCharacter()?.detailDataElement ?? null);
-    if (elements === null) return snapshot;
+    const char = this.gameCharacter();
+    const elements = this.followedTree(char?.detailDataElement ?? null);
+    if (elements === null || !char) return snapshot;
 
-    for (const element of elements) {
-      if (!isResourceElement(element)) continue;
-      snapshot.set(element.identifier, {
-        current: Number(element.currentValue),
-        max: Number(element.value),
-        inverted: isGaugeInverted(element),
-        playsEffect: playsEffectOnChange(element),
-        playsSound: playsSoundOnChange(element),
-        soundSet: soundSetOnChange(element),
-        changedBySelf: this.objectStore.localChangeCountOf(element.identifier),
-      });
+    for (const piece of [char, ...this.parts.partsOfFollowed(char)]) {
+      const own = piece === char ? elements : this.followedTree(piece.detailDataElement ?? null);
+      for (const element of own ?? []) {
+        if (!isResourceElement(element)) continue;
+        snapshot.set(element.identifier, {
+          current: Number(element.currentValue),
+          max: Number(element.value),
+          inverted: isGaugeInverted(element),
+          playsEffect: playsEffectOnChange(element),
+          playsSound: playsSoundOnChange(element),
+          soundSet: soundSetOnChange(element),
+          changedBySelf: this.objectStore.localChangeCountOf(element.identifier),
+        });
+      }
     }
     return snapshot;
   });
 
+  /** The names of the resources of the piece and of its parts, and the part each of the latter is of. */
   private readonly resourceNames = computed(() => {
-    const detail = this.gameCharacter()?.detailDataElement;
-    const names = new Map<string, string>();
-    if (!detail) return names;
-    for (const element of collectDataElements(detail)) names.set(element.identifier, element.name);
+    const char = this.gameCharacter();
+    const names = new Map<string, { name: string; part: string }>();
+    if (!char) return names;
+    for (const piece of [char, ...this.parts.partsOfFollowed(char)]) {
+      const detail = piece.detailDataElement;
+      if (!detail) continue;
+      const part = piece === char ? '' : piece.identifier;
+      for (const element of collectDataElements(detail)) names.set(element.identifier, { name: element.name, part });
+    }
     return names;
   });
 
@@ -1121,6 +1235,23 @@ export class GameCharacterComponent {
     const leadingBuff = Array.from(buffNames).slice(0, 5).join('');
     return `${this.name()}/${leadingBuff}`;
   });
+
+  /** How a bar kept from this reader is filled: slanting stripes rather than a full bar. */
+  protected readonly keptStripes = HIDDEN_GAUGE_STRIPES;
+  /**
+   * The name of the stripes the ring round this piece is drawn with, its own: another piece's, in a
+   * part of the page that is not drawn, would leave the ring unpainted.
+   */
+  protected readonly keptStripesId = computed(() => `kept-gauge-stripes-${this.gameCharacter()?.identifier ?? ''}`);
+  /** The bars on the ring round the piece kept from this reader, which are drawn striped. */
+  protected readonly keptGaugeIds = computed(
+    () =>
+      new Set(
+        this.gaugeRows()
+          .filter((row) => row.kept)
+          .map((row) => row.gauge.identifier)
+      )
+  );
 
   readonly multiAngleResourceGaugeLayout = computed(() =>
     makeMultiAngleResourceGauge(this.orbitPieceGauges(), this.size() * this.gridSize)
@@ -1278,7 +1409,6 @@ export class GameCharacterComponent {
 
   /** The piece's menu, which a right-click or a right-drag on it opens. */
   private readonly menuHost: GameCharacterMenuHost = {
-    name: () => this.name(),
     buffViewMode: () => this.buffViewMode(),
     setBuffViewMode: (mode) => this.buffViewMode.set(mode),
     bounds: () => this.rootElementRef()?.nativeElement.getBoundingClientRect(),
@@ -1325,9 +1455,13 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     if (!char) return;
 
-    if (!this.disclosureService.canView(char)) return;
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
 
+    const part = this.partPressed(e);
+    if (part) {
+      this.menu.open(part, this.menuHost, this.pointerDeviceService.pointers[0]);
+      return;
+    }
     this.menu.open(char, this.menuHost, this.pointerDeviceService.pointers[0]);
   }
 
@@ -1356,7 +1490,11 @@ export class GameCharacterComponent {
   });
 
   private showResourceChanges(changes: ResourceChange[]) {
-    const entries = changes.map((change) => ({ ...change, key: ++this.floatingKey }));
+    const entries = changes.map((change) => ({
+      ...change,
+      label: change.part ? `${this.partNameOf(change.part)} ${change.label}` : change.label,
+      key: ++this.floatingKey,
+    }));
     this.floatingChanges.update((current) => [...current, ...entries].slice(-FLOATING_CHANGE_LIMIT));
 
     const kind = entries.some((entry) => entry.kind === 'damage') ? 'damage' : 'heal';
@@ -1380,6 +1518,16 @@ export class GameCharacterComponent {
       this.floatingChanges.update((current) => current.filter((entry) => !keys.has(entry.key)));
     }, FLOATING_CHANGE_MS);
     this.floatingTimers.add(floatTimer);
+  }
+
+  /**
+   * How a part is named over its body where a change to it is shown: its name as its row shows it, or
+   * the word for a part where this seat is not shown its name.
+   */
+  private partNameOf(identifier: string): string {
+    const part = this.objectStore.get<GameCharacter>(identifier);
+    const shown = part instanceof GameCharacter && part.name !== '' && this.overlay.names() && !this.names.isKept(part);
+    return shown ? part.name : this.translateFn('feature.ride.part.someone');
   }
 
   readonly stackIndex = computed(() => {
@@ -1436,7 +1584,12 @@ export class GameCharacterComponent {
       if (carriedBy || unridden) {
         queueMicrotask(() => this.movableRef()?.cancel());
         const why = carriedBy ? 'feature.ride.carriedInPlace' : 'feature.ride.noRider';
-        this.snackbar.show(this.translateFn(why, { name: character.name, mount: carriedBy?.name ?? '' }));
+        this.snackbar.show(
+          this.translateFn(why, {
+            name: this.names.shown(character),
+            mount: carriedBy ? this.names.shown(carriedBy) : '',
+          })
+        );
         return;
       }
       const rideRefusal = this.ride.moveRefusal(character);
@@ -1444,7 +1597,10 @@ export class GameCharacterComponent {
         queueMicrotask(() => this.movableRef()?.cancel());
         const mount = this.ride.mountOf(character) ?? this.ride.leftMountOf(character);
         this.snackbar.show(
-          this.translateFn(`feature.ride.${rideRefusal}`, { name: character.name, mount: mount?.name ?? '' })
+          this.translateFn(`feature.ride.${rideRefusal}`, {
+            name: this.names.shown(character),
+            mount: mount ? this.names.shown(mount) : '',
+          })
         );
         return;
       }
@@ -1459,7 +1615,12 @@ export class GameCharacterComponent {
               : holder instanceof GameCharacter
                 ? 'feature.zone.grabbedInPlace'
                 : 'feature.zone.heldInPlace';
-        this.snackbar.show(this.translateFn(why, { name: character.name, holder: holder?.name ?? '' }));
+        this.snackbar.show(
+          this.translateFn(why, {
+            name: this.names.shown(character),
+            holder: holder instanceof GameCharacter ? this.names.shown(holder) : '',
+          })
+        );
       }
       return;
     }
@@ -1526,13 +1687,16 @@ export class GameCharacterComponent {
   private putDownPending = false;
 
   /**
-   * Settles where a piece was put down: those it carries come along, it gets off a mount it was put
-   * down off, its put-down triggers fire, and a fight or a seat on a mount where it stands is offered.
+   * Settles where a piece was put down: those it carries come along, and those the pieces moved with
+   * it in a selection carry, these written where they stand first, so one carried with it is stood on
+   * it rather than left where it was dragged; it gets off a mount it was put down off, its put-down
+   * triggers fire, and a fight or a seat on a mount where it stands is offered. All that comes along
+   * is brought before the triggers fire, so ground that carries the piece off has the last word.
    */
   private settlePutDown() {
     const character = this.gameCharacter();
     if (!character) return;
-    this.links.carryBound(character);
+    this.links.carryBoundAll([character, ...this.multiMovable.carriedFollowersFor(character.identifier)]);
     this.ride.afterPutDown(character);
     this.triggerFire.putDown(character);
     this.engagementZones.offerFight(character);
@@ -1560,8 +1724,17 @@ export class GameCharacterComponent {
     if (key_alt) {
       key_event.preventDefault();
       key_event.stopPropagation();
-      this.toggleTarget();
+      const part = this.partPressed(key_event);
+      if (part) this.aimAtPiece(part);
+      else this.toggleTarget();
     }
+  }
+
+  /** The part of the piece a press lands on, where its parts are drawn as pieces of its picture; null otherwise. */
+  private partPressed(event: Event): GameCharacter | null {
+    const char = this.gameCharacter();
+    if (!char || !(event instanceof MouseEvent)) return null;
+    return this.partPick.partAt(char, event.clientX, event.clientY);
   }
 
   /** Marks the piece as one an effect is aimed at, or takes the mark off it. */
@@ -1622,6 +1795,9 @@ function sameRidingLabels(a: readonly RidingLabel[], b: readonly RidingLabel[]):
       label.name === other.name &&
       label.icon === other.icon &&
       label.aboard === other.aboard &&
+      label.part === other.part &&
+      label.targeted === other.targeted &&
+      label.pick === other.pick &&
       label.gauges.length === other.gauges.length &&
       label.gauges.every(
         (row, at) => row.numbers === other.gauges[at].numbers && sameFields(row.gauge, other.gauges[at].gauge)

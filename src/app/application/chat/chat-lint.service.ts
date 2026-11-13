@@ -1,4 +1,5 @@
 import { computed, DestroyRef, inject, Injectable, type Signal, signal } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { GameSystemPrefetchService } from '@axe/application/dice/game-system-prefetch.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
@@ -10,6 +11,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { sameSet } from '@axe/core/util/same-set';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { evaluateReferences, type PaletteVariable } from '@axe/domain/chat/chat-palette';
@@ -127,6 +129,7 @@ const ROLL_CHECKS_KEPT = 1024;
 export class ChatLintService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly names = inject(PieceNameService);
   private readonly uiSignal = inject(UiSignalService);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly imageStorage = inject(ImageStorage);
@@ -160,12 +163,13 @@ export class ChatLintService {
     return PeerCursor.isMyselfKeptOffTable;
   });
   /**
-   * The names the pieces in the room go by, for the dice tokens put onto them: read again as any
-   * piece changes, but a change that leaves every name as it was checks no text again.
+   * The names the pieces in the room go by, for the dice tokens put onto them, leaving out a name
+   * kept from the reader, which a token's finding would give away: read again as any piece changes,
+   * but a change that leaves every name as it was checks no text again.
    */
   private readonly pieceNames = computed(
     () => {
-      const pieces = this.trackedPieces();
+      const pieces = this.trackedPieces().filter((piece) => !this.names.isKept(piece));
       return new Set(pieces.map((piece) => piece.name.trim()));
     },
     { equal: sameSet }
@@ -195,7 +199,12 @@ export class ChatLintService {
     const variables = computed(() => (mode === 'palette' ? this.variablesWritten(scan()) : null), {
       equal: sameVariables,
     });
-    const holdsTargetNumberNow = computed(() => holdsTargetNumber(source.text()));
+    // A `{目標値}` may come in through a reference, as a palette's variable `//抵抗=2d6>={目標値}` brings it.
+    const holdsTargetNumberNow = computed(() => {
+      const text = source.text();
+      if (holdsTargetNumber(text)) return true;
+      return /[{｛]/.test(text) && this.leavesTargetNumber(source, variables());
+    });
     const lookup = computed(() => (holdsTargetNumberNow() ? this.targetNumberOf(source) : null));
     const toBeat = computed(() => {
       const found = lookup();
@@ -298,6 +307,7 @@ export class ChatLintService {
         return presets.some((preset) => preset.name.trim() === needle && (!preset.gmOnly || isGameMaster));
       },
       hasPieceNamed: (name: string) => pieceNames.has(name.trim()),
+      nameOf: (piece: GameCharacter) => this.names.shown(piece),
       rollCheck: (message: TextRange) => {
         const line = sent(message);
         if (tableCommands.has(rollableText(line).trim().split(/\s/)[0])) return null;
@@ -366,8 +376,9 @@ export class ChatLintService {
     this.objectChange.versionOf(tab.identifier)();
     const sendFrom = source.sendFrom();
     const speaker = this.objectStore.get(sendFrom);
-    const name = speaker instanceof GameCharacter ? speaker.name : '';
-    const found = findTargetNumberSource(tab, { identifier: sendFrom, name });
+    const name = speaker instanceof GameCharacter ? saidNameOf(speaker) : '';
+    const ownName = speaker instanceof GameCharacter ? speaker.name : '';
+    const found = findTargetNumberSource(tab, { identifier: sendFrom, name, ownName });
     const picked = this.objectStore.get(source.chosenTargetNumber?.() ?? '');
     const chosen = picked instanceof ChatMessage && picked.parent === tab ? targetNumberChoiceOf(picked) : null;
     return { tab, found, chosen };

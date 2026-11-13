@@ -216,13 +216,23 @@
           'feature.inventory.settingsTab.showShadow' | transloco
         }}
       </label>
-      <label
-        class="text-ui-muted inline-flex cursor-pointer items-center gap-1.25 text-[0.82em] select-none [&_input[type=checkbox]]:cursor-pointer [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
-      >
-        <input type="checkbox" [(ngModel)]="character().hideName" />{{
-          'feature.inventory.settingsTab.hideName' | transloco
-        }}
-      </label>
+      @if (canHideName()) {
+        <label
+          class="text-ui-muted inline-flex cursor-pointer items-center gap-1.25 text-[0.82em] select-none [&_input[type=checkbox]]:cursor-pointer [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
+        >
+          <input type="checkbox" [(ngModel)]="character().hideName" />{{
+            'feature.inventory.settingsTab.hideName' | transloco
+          }}
+        </label>
+      } @else if (character().hideName) {
+        <label
+          class="text-ui-dim inline-flex cursor-default items-center gap-1.25 text-[0.82em] select-none [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
+          data-testid="settings-hide-name-gm-only"
+        >
+          <input type="checkbox" checked disabled />{{ 'feature.inventory.settingsTab.hideName' | transloco
+          }}{{ 'feature.character.contextMenu.hideNameGmOnly' | transloco }}
+        </label>
+      }
       <label
         class="text-ui-muted inline-flex cursor-pointer items-center gap-1.25 text-[0.82em] select-none [&_input[type=checkbox]]:cursor-pointer [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
       >

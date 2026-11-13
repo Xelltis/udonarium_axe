@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
@@ -11,6 +12,7 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 })
 export class PieceDragGhostComponent {
   protected readonly ghost = inject(PieceDragGhostService);
+  protected readonly names = inject(PieceNameService);
 
   protected imageUrl(): string {
     return this.ghost.character()?.imageFile?.url ?? '';

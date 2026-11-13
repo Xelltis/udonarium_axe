@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
@@ -25,6 +26,7 @@ export const PLACEMENT_BEARINGS = [0, 45, 90, 135, 180, 225, 270, 315] as const;
 })
 export class BattlePlacementPanelComponent {
   private readonly objectStore = inject(ObjectStore);
+  protected readonly names = inject(PieceNameService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly placement = inject(BattlePlacementService);
 

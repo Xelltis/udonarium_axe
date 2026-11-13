@@ -53,10 +53,21 @@ describe('ContextMenuComponent', () => {
     unavailable.click();
 
     expect(unavailable.getAttribute('aria-disabled')).toBe('true');
-    expect(unavailable.classList.contains('opacity-50')).toBe(true);
+    expect(unavailable.querySelector('span')?.classList.contains('opacity-50')).toBe(true);
+    expect(unavailable.classList.contains('hover:bg-ui-menu-hover')).toBe(false);
     expect(available.hasAttribute('aria-disabled')).toBe(false);
     expect(action).not.toHaveBeenCalled();
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it('draws the tick of an item that is not enabled as one that cannot be ticked', () => {
+    component.contextMenuService.actions = [{ name: '☑ 名前を隠す（GMのみ）', enabled: false }];
+    fixture.detectChanges();
+
+    const tick = component.rootElementRef().nativeElement.querySelector<HTMLInputElement>('input[type="checkbox"]');
+
+    expect(tick?.checked).toBe(true);
+    expect(tick?.disabled).toBe(true);
   });
 
   it('renders radial descendants as separate rounded rows with real transparent spacers', () => {

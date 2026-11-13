@@ -16,6 +16,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { RUBY_ALIGNS, RUBY_SHOWS, RUBY_SIZES, RUBY_SPACINGS, RubyDisplay } from '@axe/domain/chat/ruby-display';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import type { MenuSurface } from '@axe/domain/ui/menu-command';
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { UiChatSoundSettingsComponent } from '@axe/ui/components/chat-sound-settings/chat-sound-settings.component';
@@ -250,6 +251,13 @@ export class ChatMessageSettingComponent {
   /** Opens the panel holding every one of the reader's sound settings, the chat's note among them. */
   openSoundSettings(): void {
     this.roomPanels.open('soundSettings');
+  }
+
+  /** Opens the menu editor on the chat tools, the row of buttons the pointer resting on a line brings out. */
+  openChatTools(): void {
+    this.roomPanels.open<{ surface: { set(surface: MenuSurface): void } }>('menuEditor', {}, (panel) =>
+      panel.surface.set('chatTools')
+    );
   }
 
   /** Shows or hides portraits on one tab. Does nothing for a tab that is gone. */

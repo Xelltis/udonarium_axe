@@ -7,6 +7,7 @@ import {
   hexStartAngle,
   isFlatTopGrid,
   isHexGrid,
+  traceHexPath,
 } from '@axe/domain/tabletop/hex-geometry';
 import {
   ClipAreaCorn,
@@ -24,22 +25,34 @@ type ClipArea = ClipAreaLine | ClipAreaSquare | ClipAreaTriangle | ClipAreaPenta
 
 /** Turns the numbered clip fields into a css polygon, stopping at the first gap. Three points to nine. */
 export function clipAreaToPolygonCss(clip: ClipArea): string {
+  return `polygon(${clipAreaPoints(clip)
+    .map(({ x, y }) => `${x}px ${y}px`)
+    .join(', ')})`;
+}
+
+/** The corners of a clip area, in order, in pixels from the origin of the range. */
+export function clipAreaPoints(clip: ClipArea): { x: number; y: number }[] {
   // The clip interfaces carry no index signature, so they are read through a record.
   const c = clip as unknown as Record<string, number>;
-  const points: string[] = [];
+  const points: { x: number; y: number }[] = [];
   for (let i = 1; ; i++) {
     const key = `clip${i.toString().padStart(2, '0')}`;
     const x = c[`${key}x`];
     const y = c[`${key}y`];
     if (typeof x !== 'number' || typeof y !== 'number') break;
-    points.push(`${x}px ${y}px`);
+    points.push({ x, y });
   }
-  return `polygon(${points.join(', ')})`;
+  return points;
+}
+
+/** How far a circle range is cut out to from its origin: its length plus half a cell of margin, in pixels. */
+export function clipCircleRadiusPx(lengthCells: number, gridSize: number): number {
+  return (lengthCells + 1.5) * gridSize;
 }
 
 /** A circle of the given length plus half a cell of margin. */
 export function clipCircleCss(lengthCells: number, gridSize: number): string {
-  return `circle(${(lengthCells + 1.5) * gridSize}px)`;
+  return `circle(${clipCircleRadiusPx(lengthCells, gridSize)}px)`;
 }
 
 export interface GridOffsets {
@@ -132,6 +145,34 @@ export function generateCalcGridPositionFunc(
   }
 }
 
+/** How many corners a circle is noted with as painted, close enough to press by. */
+const PAINTED_CIRCLE_CORNERS = 64;
+
+/** Notes a polygon, in pixels from the range's origin, as painted, where the setting takes such notes. */
+export function notePainted(setting: RangeRenderSetting, polygon: readonly { x: number; y: number }[]): void {
+  setting.painted?.push(polygon.map(({ x, y }) => ({ x, y })));
+}
+
+/** The corners of a hex about a point, as a canvas traces them. */
+function hexCorners(cx: number, cy: number, s: number, startAngle: number): { x: number; y: number }[] {
+  const corners: { x: number; y: number }[] = [];
+  const note = (x: number, y: number) => corners.push({ x, y });
+  traceHexPath({ moveTo: note, lineTo: note, closePath: () => undefined }, cx, cy, s, startAngle);
+  return corners;
+}
+
+/** Notes a circle about the range's origin as painted, as a polygon of many corners. */
+export function notePaintedCircle(setting: RangeRenderSetting, radius: number): void {
+  if (!setting.painted) return;
+  notePainted(
+    setting,
+    Array.from({ length: PAINTED_CIRCLE_CORNERS }, (_, at) => {
+      const angle = (at / PAINTED_CIRCLE_CORNERS) * Math.PI * 2;
+      return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+    })
+  );
+}
+
 /** Sets a canvas up to draw a range in one colour: stroke and fill, a 1px line, and a label font scaled to the grid. */
 export function makeBrush(
   context: CanvasRenderingContext2D,
@@ -220,6 +261,7 @@ export function fillHexCellsWhere(
 
       if (keep(col, row, gcx, gcy)) {
         fillHexPath(context, gcx + offsetX, gcy + offsetY, s, startAngle);
+        if (setting.painted) notePainted(setting, hexCorners(gcx, gcy, s, startAngle));
       }
     }
   }
@@ -258,6 +300,16 @@ function fillSquareGridCells(
       const { gx, gy } = calcGridPosition(w, h);
       if (hitTest(gx + adjX, gy + adjY)) {
         fillSquare(context, gx + gridOffX, gy + gridOffY, gridSize);
+        if (setting.painted) {
+          const left = gx + gridOffX - offSetX_px;
+          const top = gy + gridOffY - offSetY_px;
+          notePainted(setting, [
+            { x: left, y: top },
+            { x: left + gridSize, y: top },
+            { x: left + gridSize, y: top + gridSize },
+            { x: left, y: top + gridSize },
+          ]);
+        }
       }
     }
   }

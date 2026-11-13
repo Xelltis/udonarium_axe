@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { HotbarStoreService } from '@axe/application/hotbar/hotbar-store.service';
@@ -94,6 +95,7 @@ interface PalettePick {
 })
 export class HotbarSlotEditorComponent {
   private readonly panelService = inject(PanelService);
+  private readonly names = inject(PieceNameService);
   private readonly runner = inject(HotbarRunnerService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -266,12 +268,16 @@ export class HotbarSlotEditorComponent {
   });
   /**
    * The menu entries a menu slot may press: every one this seat's role is offered, from the
-   * floating menu and the toolbars alike, but not those that draw a menu of their own.
+   * floating menu and the toolbars alike, but not those that draw a menu of their own, nor the chat
+   * tools, which are pressed on a line said in chat.
    */
   protected readonly menuChoices = computed(() => {
     this.objectChange.trackMyCursor();
     const role = PeerCursor.myRole;
-    return MENU_COMMANDS.filter((command) => command.action.kind !== 'custom' && isMenuCommandOffered(command, role));
+    return MENU_COMMANDS.filter(
+      (command) =>
+        command.action.kind !== 'custom' && command.action.kind !== 'chatTool' && isMenuCommandOffered(command, role)
+    );
   });
   /** The scenes a scene slot may put on. */
   protected readonly sceneChoices = computed(() => {
@@ -469,20 +475,37 @@ export class HotbarSlotEditorComponent {
   setFrom(cell: HotbarCell, draft: HotbarSlotDraft): void {
     this.cell.set(cell);
     this.draft.set({ ...draft, payload: { ...draft.payload } });
+    this.opened.set({ identifier: draft.characterIdentifier, name: draft.characterName });
   }
+
+  /** Whom the slot acted as as its editor opened, which it may be set back to while the editor is open. */
+  private readonly opened = signal({ identifier: '', name: '' });
 
   protected setActor(identifier: string): void {
     const named = this.actors().find((actor) => actor.value === identifier);
-    this.draft.update((draft) => ({ ...draft, characterIdentifier: identifier, characterName: named?.name ?? '' }));
+    // The slot keeps the name it had for the piece it acted as, rather than the label shown.
+    const opened = this.opened();
+    this.draft.update((draft) => ({
+      ...draft,
+      characterIdentifier: identifier,
+      characterName: identifier === opened.identifier ? opened.name : (named?.name ?? ''),
+    }));
   }
 
-  /** The pieces a slot may be told to act as, with an entry for leaving it to the moment. */
+  /**
+   * The pieces a slot may be told to act as, with an entry for leaving it to the moment; not one whose
+   * name is kept from the reader, which the list would name, but the one the slot acts as already,
+   * under the label for a hidden name, so the list shows what the slot does.
+   */
   protected readonly actors = computed<{ value: string; name: string }[]>(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
+    const bound = this.opened().identifier;
     return selectControllableCharacters(
       this.objectStore.getObjects<GameCharacter>(GameCharacter),
       PeerCursor.myCursor?.userId ?? ''
-    ).map((character) => ({ value: character.identifier, name: character.name }));
+    )
+      .filter((character) => !this.names.isKept(character) || character.identifier === bound)
+      .map((character) => ({ value: character.identifier, name: this.names.shown(character) }));
   });
 
   protected readonly panelLabelKey = panelLabelKey;

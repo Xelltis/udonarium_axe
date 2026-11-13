@@ -1,10 +1,12 @@
 import { effect, EffectRef, inject, Injectable, Injector, untracked } from '@angular/core';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import {
   blockPageBoxes,
@@ -53,6 +55,12 @@ export interface HudAnchor {
    */
   readonly edge?: 'top' | 'right' | 'bottom' | 'left';
   /**
+   * For a root of a piece holding its controls rather than the piece, as the handle that turns a
+   * range: drawn over the roots of every piece, those raised so among themselves as their pieces, so
+   * that no piece drawn over its own covers a control of it.
+   */
+  readonly raised?: boolean;
+  /**
    * A rectangle lying on a face, its corners round from its top left in the face's own pixels and
    * lifted some way off it, to lay the element on in perspective at the size given in those pixels,
    * rather than a part: as the frame round the foot of a thing that turns it, which none of the
@@ -97,6 +105,7 @@ const FOLLOWING_LARGEST_SCALE = 1.25;
  *
  * The element put against a whole piece is its root, put on the page; it is drawn over the root of
  * a piece drawn further off. Every other element of a piece lies in that root and is put against it.
+ * A piece may have a second root raised over every piece's, for controls no other piece is to cover.
  * An element whose piece or part is not drawn is hidden, as is all of the piece the table's camera
  * follows from behind.
  */
@@ -108,6 +117,8 @@ export class HudFrameService {
   private readonly pick = inject(TablePickService);
   private readonly scene = inject(Table3dService);
   private readonly surfaces = inject(TableSurfaceService);
+  private readonly standing = inject(StandingGroundService);
+  private readonly tabletop = inject(TabletopService);
   private readonly injector = inject(Injector);
   private readonly placed = new Map<HTMLElement, Placed>();
   private following: EffectRef | null = null;
@@ -144,10 +155,12 @@ export class HudFrameService {
     const layout = this.camera.layout;
     if (!scene || !view || !layout) return null;
     const eye = eyeAxesOf(tableEyeMatrix(view, layout));
-    const boxes = piecePageBoxes(untracked(this.pieces.sprites), untracked(this.pieces.coins), scene, eye);
+    const ground = untracked(this.standing.surface);
+    const groundAt = ground.isFlat ? undefined : (x: number, y: number) => this.standing.heightPxAt(x, y);
+    const boxes = piecePageBoxes(untracked(this.pieces.sprites), untracked(this.pieces.coins), scene, eye, groundAt);
     const owners = new Set<string>();
     for (const { anchor } of this.placed.values()) if (!boxes.has(anchor.owner)) owners.add(anchor.owner);
-    for (const [id, block] of blockPageBoxes(this.pick.targetsOf(owners), scene, eye)) boxes.set(id, block);
+    for (const [id, block] of blockPageBoxes(this.pick.targetsOf(owners), scene, eye, groundAt)) boxes.set(id, block);
     return boxes;
   }
 
@@ -213,7 +226,14 @@ export class HudFrameService {
             ? point && end && laidBetween(point, end, piece)
             : at
               ? point && centredOn(point, piece, scale)
-              : styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element), origin, largest);
+              : styleOf(
+                  placed.anchor,
+                  piece,
+                  (ranks.get(placed.anchor.owner) ?? 0) + (placed.anchor.raised ? ranks.size : 0),
+                  sizes.get(element),
+                  origin,
+                  largest
+                );
       const written = style ? JSON.stringify(style) : '';
       if (written === placed.written) continue;
       placed.written = written;

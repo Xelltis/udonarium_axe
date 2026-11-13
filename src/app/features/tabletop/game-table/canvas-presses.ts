@@ -3,8 +3,11 @@ import type { TabletopOverlapRegistryEntry } from '@axe/application/ui/tabletop-
 /** The screen of pieces laid over the canvas. */
 const HUD = '[data-testid="table-hud"]';
 
-/** What on the screen over the canvas is pressed for itself, wherever it lies. */
-const CONTROLS = 'button, a, input, select, textarea, [contenteditable], .rotate-grab';
+/**
+ * What on the screen over the canvas is pressed for itself, wherever it lies: the controls, and
+ * whatever a piece marks as pressed for itself, as the row of a part in its body's card.
+ */
+const CONTROLS = 'button, a, input, select, textarea, [contenteditable], .rotate-grab, [data-hud-control]';
 
 /**
  * The presses a block drawn on the canvas is handed, as the page would have handed them to it: a

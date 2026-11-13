@@ -5,6 +5,7 @@ import { PointerCoordinate } from '@axe/application/input/pointer-device.service
 import { PartyService } from '@axe/application/party/party.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PartySetOutService } from '@axe/application/tabletop/party-set-out.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import {
   bundledTerrainImage,
@@ -22,7 +23,6 @@ import {
 import { StartupLoadingService } from '@axe/application/ui/startup-loading.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { GameObject } from '@axe/core/sync/game-object';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { toDeckCardSources } from '@axe/domain/card/deck-builder';
@@ -68,6 +68,7 @@ export class TabletopActionService {
   private readonly tagLock = inject(ImageTagLockService);
   private readonly partyService = inject(PartyService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly setOut = inject(PartySetOutService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly viewMode = inject(ViewModePreferenceService);
   private readonly t = inject(TRANSLATE_FN);
@@ -416,7 +417,10 @@ export class TabletopActionService {
    * asked to gather where it already stands does not have to squeeze past itself.
    *
    * A member that is not on the table is left where it is unless it was asked for by name: a
-   * piece that was put away was put away on purpose. Answers with how many were placed.
+   * piece that was put away was put away on purpose. A member is set down as what it is carried off
+   * with, the mount it rides or the body it is a part of, and what goes with that, its parts, what
+   * rides it and what it holds, goes along; see `PartySetOutService`. Answers with how many members
+   * were placed.
    */
   gatherParty(position: PointerCoordinate, party: Party, bringInAway = false): number {
     const table = this.getViewTable();
@@ -431,23 +435,19 @@ export class TabletopActionService {
     const start = cellIndexAt(grid, position.x, position.y);
     if (start < 0) return 0;
 
-    const moving = new Set(gathering.map((member) => member.identifier));
-    const standing = this.partyService.characters().filter((character) => !moving.has(character.identifier));
-    const spots = GameObject.batch(() => {
-      const placed = gatherSpotsAround(grid, table.gridSize, start, gathering, occupiedCells(grid, standing, ''));
-      for (const spot of placed) {
-        if (!spot.character.isVisibleOnTable) spot.character.setLocation('table');
-        spot.character.location.x = spot.x;
-        spot.character.location.y = spot.y;
-        spot.character.location.surface = undefined;
-        spot.character.posZ = 0;
-        spot.character.update();
-      }
-      return placed;
-    });
-    for (const spot of spots) this.objectChange.notifyChanged(spot.character.identifier);
+    const chains = this.setOut.chainsOf(gathering);
+    const carriers = this.setOut.carriersOf(chains);
+    const moving = this.setOut.movingWith(carriers, gathering);
+    const standing = this.partyService.characters().filter((character) => !moving.has(character));
+    const spots = gatherSpotsAround(grid, table.gridSize, start, carriers, occupiedCells(grid, standing, ''));
+    const moved = this.setOut.setOut(
+      spots.map((spot) => ({ carrier: spot.character, x: spot.x, y: spot.y })),
+      chains
+    );
+    for (const piece of moved) this.objectChange.notifyChanged(piece.identifier);
     if (spots.length > 0) SoundEffect.play(PresetSound.piecePut);
-    return spots.length;
+    const placed = new Set(spots.map((spot) => spot.character));
+    return gathering.filter((member) => placed.has(chains.get(member)?.at(-1) ?? member)).length;
   }
 
   /**

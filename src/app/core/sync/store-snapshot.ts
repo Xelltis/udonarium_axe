@@ -3,6 +3,7 @@ import { markForChanged } from '@axe/core/sync/object-event-extension';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { DeleteHistory, ObjectStore } from '@axe/core/sync/object-store';
+import { withdraw } from '@axe/core/sync/object-synchronizer';
 
 /** What the store held at one moment: the context of every object, version and all, and what had been deleted. */
 export interface StoreSnapshot {
@@ -68,4 +69,33 @@ function applyAsData(object: GameObject, context: ObjectContext): void {
   const copy = structuredClone(context);
   if (object instanceof ObjectNode) ObjectNode.prototype.apply.call(object, copy);
   else GameObject.prototype.apply.call(object, copy);
+}
+
+/**
+ * Takes objects and everything beneath them off this device alone, marking nothing deleted and
+ * telling nobody, and answers them as they were, each before what it holds, to be put back by
+ * {@link putBackQuietly}.
+ */
+export function takeOutQuietly(objects: readonly GameObject[]): ObjectContext[] {
+  const contexts: ObjectContext[] = [];
+  const takeDown = (object: GameObject): void => {
+    contexts.push(object.toContext());
+    if (object instanceof ObjectNode) for (const child of object.children) takeDown(child);
+  };
+  for (const object of objects) takeDown(object);
+  for (const object of objects) withdraw(object);
+  return contexts;
+}
+
+/**
+ * Puts objects taken out by {@link takeOutQuietly} back as they were, versions and all, telling
+ * nobody. One held under its name again meanwhile is left as it is.
+ */
+export function putBackQuietly(contexts: readonly ObjectContext[]): void {
+  const store = ObjectStore.instance;
+  for (const context of contexts) {
+    if (store.get(context.identifier)) continue;
+    const made = ObjectFactory.instance.create(context.aliasName, context.identifier);
+    if (made) store.add(made, false, () => applyAsData(made, context));
+  }
 }

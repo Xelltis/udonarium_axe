@@ -1,6 +1,6 @@
 import { Page } from '@playwright/test';
 
-import { chatInput } from '../helpers';
+import { chatInput, openChatSettingsMenuItem } from '../helpers';
 import {
   chatTabText,
   createRoom,
@@ -13,6 +13,7 @@ import {
   openSeat,
   reloadLobby,
   roleShown,
+  say,
   serverRole,
   test,
   uniqueName,
@@ -160,6 +161,79 @@ test.describe('rooms and roles on the room server', () => {
       .poll(() => chatTabText(seat.page, 'システム'), { timeout: 20_000 })
       .toContain('ログインの期限が切れた');
     await leaveAll(gm, seat);
+  });
+});
+
+test.describe('joining a room', () => {
+  /**
+   * A page sets out its sample pieces, the tutorial and two chat tabs of its own before it is in any
+   * room. A game master who took the pieces, the tutorial and a tab away before making the room
+   * leaves the server no record of them, and a player and a guest joining from the lobby, their own
+   * still out, bring none of them in: every seat ends with the game master's table and tabs, the
+   * joining seats on the room's main tab.
+   */
+  test('keeps the sample pieces, the tutorial and the first tabs of a joining page out of the room, for a player and a guest alike', async ({
+    browser,
+    roomServer,
+  }) => {
+    const gm = await openSeat(browser, roomServer, 'GMさん');
+    const pl = await openSeat(browser, roomServer, 'PLさん');
+    const guest = await openSeat(browser, roomServer, '見学さん', null);
+    const room = uniqueName('見本の卓');
+    const things = (page: Page) =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('[data-object-id]')]
+          .filter((element) => element.closest('peer-cursor, app-peer-cursor') === null)
+          .map((element) => element.getAttribute('data-object-id')!)
+          .sort()
+      );
+    const tabs = (page: Page) => page.locator('chat-window .chat-tab-pill').allInnerTexts();
+    const samplePieces = (page: Page) => page.locator('[data-object-id^="testCharacter_"]');
+
+    await expect(samplePieces(gm.page)).not.toHaveCount(0, { timeout: 20_000 });
+    await gm.page.evaluate(() =>
+      (window as { __axeTable?: { clearToBlankTable(): void } }).__axeTable!.clearToBlankTable()
+    );
+    await expect(samplePieces(gm.page)).toHaveCount(0);
+    await openChatSettingsMenuItem(gm.page, 'タブ設定');
+    await gm.page.locator('app-chat-tab-setting li[role="option"]').filter({ hasText: 'サブタブ' }).click();
+    await gm.page.locator('app-chat-tab-setting input[name="allow-delete-tab"]').check();
+    await gm.page
+      .locator('app-chat-tab-setting')
+      .getByRole('button', { name: /タブ削除/ })
+      .click();
+    await expect(gm.page.locator('chat-window .chat-tab-pill', { hasText: 'サブタブ' })).toHaveCount(0);
+    const table = await things(gm.page);
+    const tabsOfRoom = await tabs(gm.page);
+
+    await createRoom(gm.page, room);
+    for (const seat of [pl, guest]) {
+      await expect(samplePieces(seat.page)).not.toHaveCount(0);
+      await expect(seat.page.locator('chat-window .chat-tab-pill', { hasText: 'サブタブ' })).toHaveCount(1);
+    }
+    await joinRoom(pl.page, room);
+    await joinRoom(guest.page, room);
+
+    for (const seat of [pl, guest]) {
+      await expect
+        .poll(() =>
+          seat.page
+            .locator('chat-window input[name^="chat-tab"]:checked')
+            .first()
+            .evaluate((input) => input.parentElement!.textContent!.trim())
+        )
+        .toBe('メインタブ');
+    }
+    await say(pl.page, '入りました');
+    for (const seat of [gm, guest]) {
+      await expect(seat.page.locator('chat-window').first()).toContainText('入りました', { timeout: 20_000 });
+    }
+    for (const seat of [gm, pl, guest]) {
+      await expect.poll(() => things(seat.page), { timeout: 10_000 }).toEqual(table);
+      await expect.poll(() => tabs(seat.page)).toEqual(tabsOfRoom);
+      await expect(samplePieces(seat.page)).toHaveCount(0);
+    }
+    await leaveAll(gm, pl, guest);
   });
 });
 

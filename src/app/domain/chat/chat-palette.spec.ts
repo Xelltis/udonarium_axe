@@ -401,6 +401,45 @@ describe('ChatPalette', () => {
       });
     });
 
+    describe('what the target gives whoever aims at it', () => {
+      function wearing(character: GameCharacter, command: string): GameCharacter {
+        character.addBuffDataElement();
+        applyBuffEdit({ command, object: character, targeted: false }, character);
+        return character;
+      }
+
+      it("adds a 相手の buff of the target's to the speaker's value in a number worked out, and only aimed at it", () => {
+        const speaker = makeCharacter(false);
+        const weak = wearing(makeCharacter(false, '4'), '&!弱点/相手の HP+2/none');
+        const plain = makeCharacter(false, '4');
+
+        expect(evaluateCharacterReferences('2d6+{HP}', speaker, weak).text).toBe('2d6+15');
+        expect(evaluateCharacterReferences('2d6+{HP}', speaker, plain).text).toBe('2d6+13');
+        expect(evaluateCharacterReferences('2d6+{HP}', speaker).text).toBe('2d6+13');
+        expect(weak.rootDataElement?.getFirstElementByName('HP')?.value).toBe('4');
+      });
+
+      it('adds up the 相手の items of every buff, a plain buff and those of several at once among them', () => {
+        const speaker = makeCharacter(false);
+        const weak = wearing(
+          wearing(makeCharacter(false, '4'), '&!弱点/相手の物理特攻+2,相手の命中修正+1/none'),
+          '&看破/相手の物理特攻+1'
+        );
+
+        expect(evaluateCharacterReferences('k20+{物理特攻}', speaker, weak).text).toBe('k20+3');
+        expect(evaluateCharacterReferences('2d6+{命中修正}', speaker, weak).text).toBe('2d6+1');
+      });
+
+      it('brackets a sum below nought after an operator, joins one on with its sign, and leaves words alone', () => {
+        const speaker = makeCharacter(false);
+        const tough = wearing(makeCharacter(false, '4'), '&硬い/相手の HP-20/none');
+
+        expect(evaluateCharacterReferences('2d6+{HP}', speaker, tough).text).toBe('2d6+(-7)');
+        expect(evaluateCharacterReferences('2d6+10{HP}', speaker, tough).text).toBe('2d6+10-7');
+        expect(evaluateCharacterReferences('2d6 {HP}', speaker, tough).text).toBe('2d6 13');
+      });
+    });
+
     it('leaves the line alone when nobody is speaking it', () => {
       expect(evaluateCharacterReferences('2d6+{HP}', null).text).toBe('2d6+{HP}');
     });

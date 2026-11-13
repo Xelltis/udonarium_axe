@@ -17,6 +17,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { MenuLayoutService } from '@axe/application/ui/menu-layout.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -25,6 +26,7 @@ import { Network } from '@axe/core/network/network';
 import { Transport } from '@axe/core/network/transport';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -255,6 +257,113 @@ describe('ChatMessageComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('→ 4');
+  });
+
+  it('tells a game master which piece a line said as a hidden name was said as, and nobody else', () => {
+    const villain = GameCharacter.create('黒幕', 1, '');
+    villain.hideName = true;
+    const tab = new ChatTab();
+    tab.initialize();
+    try {
+      const line = tab.addMessage({ sendFrom: villain.identifier, name: '？？？', text: 'ふふふ', timestamp: 1000 });
+      fixture.componentRef.setInput('chatMessage', line);
+      const seesHidden = vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden');
+
+      seesHidden.mockReturnValue(true);
+      expect(component.displayName(line.name)).toBe('？？？（黒幕）');
+      seesHidden.mockReturnValue(false);
+      expect(component.displayName(line.name)).toBe('？？？');
+    } finally {
+      tab.destroy();
+      villain.destroy();
+    }
+  });
+
+  it('tells a game master whom an answer naming a hidden name was rolled at and rolled by', () => {
+    const villain = GameCharacter.create('黒幕', 1, '');
+    villain.hideName = true;
+    const hero = GameCharacter.create('勇者', 1, '');
+    const tab = new ChatTab();
+    tab.initialize();
+    try {
+      tab.addMessage({ from: 'me', sendFrom: villain.identifier, name: '？？？', text: '2d6 t:', timestamp: 1000 });
+      const answer = tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'me',
+        name: '<BCDice：？？？>',
+        text: 'DiceBot : (2D6) → 7 [？？？]',
+        tag: 'system',
+        timestamp: 1001,
+        rolledAt: villain.identifier,
+      });
+      fixture.componentRef.setInput('chatMessage', answer);
+      const seesHidden = vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden');
+
+      seesHidden.mockReturnValue(true);
+      expect(component.displayName(answer.name)).toBe('<BCDice：？？？（黒幕）>');
+      expect(component['rolledAtTold']()).toBe('黒幕');
+      seesHidden.mockReturnValue(false);
+      expect(component.displayName(answer.name)).toBe('<BCDice：？？？>');
+      expect(component['rolledAtTold']()).toBe('');
+    } finally {
+      tab.destroy();
+      villain.destroy();
+      hero.destroy();
+    }
+  });
+
+  it('tells a game master whom an answer to a line aimed at everyone at once was rolled at among hidden names', () => {
+    const villain = GameCharacter.create('黒幕', 1, '');
+    villain.hideName = true;
+    const shade = GameCharacter.create('影', 1, '');
+    shade.hideName = true;
+    const hero = GameCharacter.create('勇者', 1, '');
+    const tab = new ChatTab();
+    tab.initialize();
+    try {
+      tab.addMessage({
+        from: 'me',
+        sendFrom: hero.identifier,
+        name: '勇者',
+        text: '2d6 t:範囲',
+        timestamp: 1000,
+        aimedTogether: JSON.stringify([villain.identifier, hero.identifier, shade.identifier]),
+      });
+      const answer = tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'me',
+        name: '<BCDice：勇者>',
+        text: 'DiceBot : (2D6) → 7 [？？？、勇者、？？？]',
+        tag: 'system',
+        timestamp: 1001,
+      });
+      fixture.componentRef.setInput('chatMessage', answer);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(true);
+
+      expect(component['rolledAtTold']()).toBe('黒幕、影');
+      // As the answer was said, whatever has been shown since.
+      villain.hideName = false;
+      expect(component['rolledAtTold']()).toBe('黒幕、影');
+    } finally {
+      tab.destroy();
+      for (const piece of [villain, shade, hero]) piece.destroy();
+    }
+  });
+
+  it('tells a game master nothing more of a piece whose own name holds the label for a hidden one', () => {
+    const shadow = GameCharacter.create('謎の影？？？', 1, '');
+    const tab = new ChatTab();
+    tab.initialize();
+    try {
+      const line = tab.addMessage({ sendFrom: shadow.identifier, name: '謎の影？？？', text: '……', timestamp: 1000 });
+      fixture.componentRef.setInput('chatMessage', line);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(true);
+
+      expect(component.displayName(line.name)).toBe('謎の影？？？');
+    } finally {
+      tab.destroy();
+      shadow.destroy();
+    }
   });
 
   describe('opening a line that was kept back', () => {
@@ -1855,6 +1964,48 @@ describe('ChatMessageComponent', () => {
       expect(itemOf(actions, 'feature.chat.message.bookmarks.shared.add')).toBeUndefined();
       expect(itemOf(actions, 'feature.chat.message.shareAsMemo')).toBeUndefined();
       expect(itemOf(actions, 'feature.chat.message.ticker')).toBeUndefined();
+    });
+
+    it('draws the chat tools as this screen has arranged them, each only where the reader may do it with the line', () => {
+      const layouts = TestBed.inject(MenuLayoutService);
+      layouts.save('chatTools', {
+        nodes: [
+          { id: 'd', command: 'chat:delete' },
+          { id: 'c', command: 'chat:copyText', label: '写す', icon: 'content_paste' },
+          { id: 'o', command: 'chat:original' },
+          { id: 'x', command: 'nothing' },
+          { id: 'r', command: 'chat:reply' },
+        ],
+      });
+      try {
+        shown('me');
+
+        expect(actionsShown()).toEqual(['delete', 'copy', 'reply', 'more']);
+        const copy = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+          '[data-testid="chat-message-action-copy"]'
+        )!;
+        expect(copy.title).toBe('写す');
+        expect(copy.querySelector('i')!.textContent).toBe('content_paste');
+      } finally {
+        layouts.reset('chatTools');
+      }
+    });
+
+    it('draws one tool put on the chat tools twice as two buttons, told apart by their entries', () => {
+      const layouts = TestBed.inject(MenuLayoutService);
+      layouts.save('chatTools', {
+        nodes: [
+          { id: 'a', command: 'chat:quote' },
+          { id: 'b', command: 'chat:quote', label: 'もう一度引用' },
+        ],
+      });
+      try {
+        shown('me');
+
+        expect(actionsShown()).toEqual(['quote', 'quote', 'more']);
+      } finally {
+        layouts.reset('chatTools');
+      }
     });
 
     it('stands on the bubble itself in either layout, so it floats over the line it belongs to', () => {

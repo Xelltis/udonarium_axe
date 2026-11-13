@@ -1,93 +1,151 @@
 <!-- Said at the foot of the screen, as the band of a move is: see move-plan-band. -->
 @if (shown()) {
   <div
-    class="bg-ui-panel shadow-ui-md text-ui-text fixed bottom-28 left-1/2 flex max-w-[94vw] -translate-x-1/2 flex-wrap items-center gap-2 rounded-2xl px-3 py-2 text-sm opacity-95"
+    class="bg-ui-panel shadow-ui-md text-ui-text border-ui-border-panel fixed inset-x-0 bottom-28 mx-auto flex w-max max-w-[94vw] flex-col gap-1.5 rounded-2xl border border-solid px-3 py-2 text-sm"
     data-testid="ground-brush-band"
     data-ground-brush-band
     [style.zIndex]="zIndex"
   >
-    <div class="border-ui-border-panel flex shrink-0 rounded-full border border-solid p-0.5" role="group">
-      @for (kind of kinds; track kind) {
-        <button
-          type="button"
-          class="inline-flex min-h-8 cursor-pointer items-center rounded-full border-none px-3 text-[0.86em] whitespace-nowrap transition-[background,color]"
-          [class.bg-ui-accent-solid]="settings().kind === kind"
-          [class.text-white]="settings().kind === kind"
-          [class.bg-transparent]="settings().kind !== kind"
-          [class.text-ui-muted]="settings().kind !== kind"
-          [attr.aria-pressed]="settings().kind === kind"
-          [attr.data-testid]="'ground-brush-' + kind"
-          (click)="choose({ kind })"
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-2" data-testid="ground-brush-row">
+      <div class="flex flex-wrap items-center gap-2">
+        <div
+          class="border-ui-border-panel flex flex-wrap rounded-2xl border border-solid p-0.5"
+          role="group"
+          [attr.aria-label]="'feature.tabletop.groundBrush.kindGroup' | transloco"
         >
-          {{ 'feature.tabletop.groundBrush.kind_' + kind | transloco }}
-        </button>
-      }
-    </div>
-    @if (settings().kind === 'paint') {
-      <div class="flex shrink-0 gap-1" role="group">
-        @for (layer of layers; track layer) {
-          <button
-            type="button"
-            class="border-ui-border-panel inline-flex min-h-8 cursor-pointer items-center rounded-full border border-solid px-2.5 text-[0.86em]"
-            [class.bg-ui-accent-bg]="settings().layer === layer"
-            [attr.aria-pressed]="settings().layer === layer"
-            [attr.data-testid]="'ground-brush-layer-' + layer"
-            (click)="chooseLayer(layer)"
+          @for (kind of kinds; track kind) {
+            <button
+              type="button"
+              class="m-0 inline-flex min-h-8 cursor-pointer items-center rounded-full border-none px-3 text-[0.86em] whitespace-nowrap transition-[background,color]"
+              [class.bg-ui-accent-solid]="settings().kind === kind"
+              [class.text-white]="settings().kind === kind"
+              [class.bg-transparent]="settings().kind !== kind"
+              [class.text-ui-muted]="settings().kind !== kind"
+              [attr.aria-pressed]="settings().kind === kind"
+              [attr.data-testid]="'ground-brush-' + kind"
+              (click)="choose({ kind }); handBackKeys($event)"
+            >
+              {{ 'feature.tabletop.groundBrush.kind_' + kind | transloco }}
+            </button>
+          }
+        </div>
+        @if (settings().kind === 'paint') {
+          <div
+            class="flex flex-wrap gap-1"
+            role="group"
+            [attr.aria-label]="'feature.tabletop.groundBrush.layerGroup' | transloco"
           >
-            {{ 'feature.tabletop.groundBrush.layer_' + layer | transloco }}
-          </button>
+            @for (layer of layers; track layer) {
+              <button
+                type="button"
+                class="border-ui-border-panel inline-flex min-h-8 cursor-pointer items-center rounded-full border border-solid px-2.5 text-[0.86em] transition-[background,color]"
+                [class.bg-ui-accent-solid]="settings().layer === layer"
+                [class.text-white]="settings().layer === layer"
+                [class.bg-transparent]="settings().layer !== layer"
+                [class.text-ui-muted]="settings().layer !== layer"
+                [attr.aria-pressed]="settings().layer === layer"
+                [attr.data-testid]="'ground-brush-layer-' + layer"
+                (click)="chooseLayer(layer); handBackKeys($event)"
+              >
+                {{ 'feature.tabletop.groundBrush.layer_' + layer | transloco }}
+              </button>
+            }
+          </div>
         }
       </div>
-    }
-    <label class="flex items-center gap-1 text-[0.86em]">
-      {{ 'feature.tabletop.groundBrush.radius' | transloco }}
-      <input
-        type="range"
-        min="0.5"
-        max="8"
-        step="0.5"
-        class="w-24"
-        data-testid="ground-brush-radius"
-        [value]="settings().radius"
-        (input)="chooseNumber('radius', $event)"
-      />
-    </label>
-    <label class="flex items-center gap-1 text-[0.86em]">
-      {{ 'feature.tabletop.groundBrush.strength' | transloco }}
-      <input
-        type="range"
-        min="0.05"
-        max="1"
-        step="0.05"
-        class="w-24"
-        data-testid="ground-brush-strength"
-        [value]="settings().strength"
-        (input)="chooseNumber('strength', $event)"
-      />
-    </label>
+      <div class="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
+        @let radius = 'feature.tabletop.groundBrush.radiusValue' | transloco: { n: settings().radius };
+        <label class="text-ui-muted flex items-center gap-1.5 text-[0.86em] whitespace-nowrap">
+          {{ 'feature.tabletop.groundBrush.radius' | transloco }}
+          <input
+            type="range"
+            min="0.5"
+            max="8"
+            step="0.5"
+            class="w-24"
+            data-testid="ground-brush-radius"
+            [value]="settings().radius"
+            [attr.aria-valuetext]="radius"
+            (input)="chooseNumber('radius', $event)"
+            (pointerup)="handBackKeys($event)"
+          />
+          <span class="text-ui-text w-[6em] tabular-nums" data-testid="ground-brush-radius-value">{{ radius }}</span>
+        </label>
+        @let strength =
+          strengthIsHeight()
+            ? ('feature.tabletop.groundBrush.strengthHeight' | transloco: { n: settings().strength })
+            : ('feature.tabletop.groundBrush.strengthShare' | transloco: { n: sharePercent() });
+        <label class="text-ui-muted flex items-center gap-1.5 text-[0.86em] whitespace-nowrap">
+          {{ 'feature.tabletop.groundBrush.strength' | transloco }}
+          <input
+            type="range"
+            min="0.05"
+            max="1"
+            step="0.05"
+            class="w-24"
+            data-testid="ground-brush-strength"
+            [value]="settings().strength"
+            [attr.aria-valuetext]="strength"
+            (input)="chooseNumber('strength', $event)"
+            (pointerup)="handBackKeys($event)"
+          />
+          <span class="text-ui-text w-[6em] tabular-nums" data-testid="ground-brush-strength-value">{{
+            strength
+          }}</span>
+        </label>
+        <div class="border-ui-border-panel flex items-center gap-0.5 border-l border-solid pl-2">
+          <button
+            type="button"
+            class="text-ui-muted hover:bg-ui-hover inline-flex size-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[18px]!"
+            data-testid="ground-brush-undo"
+            [disabled]="undoable() < 1"
+            [attr.aria-label]="'feature.tabletop.groundBrush.undo' | transloco"
+            [title]="'feature.tabletop.groundBrush.undo' | transloco"
+            (click)="undo(); handBackKeys($event)"
+          >
+            <i class="material-icons" aria-hidden="true">undo</i>
+          </button>
+          <button
+            type="button"
+            class="text-ui-muted hover:bg-ui-hover inline-flex size-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 [&_.material-icons]:text-[18px]!"
+            data-testid="ground-brush-close"
+            [attr.aria-label]="'feature.tabletop.groundBrush.close' | transloco"
+            [title]="'feature.tabletop.groundBrush.close' | transloco"
+            (click)="close()"
+          >
+            <i class="material-icons" aria-hidden="true">close</i>
+          </button>
+        </div>
+      </div>
+    </div>
+    <p
+      class="text-ui-muted m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.78em] leading-none"
+      data-testid="ground-brush-hint"
+    >
+      @for (item of guide(); track item.does) {
+        <span class="inline-flex items-center gap-1 whitespace-nowrap">
+          @for (way of item.ways; track $index; let last = $last) {
+            @for (key of way; track key; let lastKey = $last) {
+              <kbd
+                class="border-ui-border-panel bg-ui-elevated text-ui-text rounded-sm border border-solid px-1 py-0.5 font-sans text-[0.95em] leading-none"
+                >{{ 'feature.tabletop.groundBrush.guideKey.' + key | transloco }}</kbd
+              >
+              @if (!lastKey) {
+                <span aria-hidden="true">+</span>
+              }
+            }
+            @if (!last) {
+              <span class="text-ui-dim" aria-hidden="true">/</span>
+            }
+          }
+          <span>{{ 'feature.tabletop.groundBrush.guide.' + item.does | transloco }}</span>
+        </span>
+      }
+    </p>
     @if (unaware() > 0) {
-      <span class="text-ui-warning basis-full text-[0.8em]" data-testid="ground-brush-unaware">
+      <span class="text-ui-warning text-[0.8em]" data-testid="ground-brush-unaware">
         {{ 'feature.tabletop.groundBrush.unaware' | transloco: { count: unaware() } }}
       </span>
     }
-    <button
-      type="button"
-      class="text-ui-muted hover:bg-ui-hover inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-full border-none bg-transparent px-2.5 disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[18px]!"
-      data-testid="ground-brush-undo"
-      [disabled]="undoable() < 1"
-      [title]="'feature.tabletop.groundBrush.undo' | transloco"
-      (click)="undo()"
-    >
-      <i class="material-icons">undo</i>
-    </button>
-    <button
-      type="button"
-      class="text-ui-muted hover:bg-ui-hover inline-flex min-h-8 cursor-pointer items-center rounded-full border-none bg-transparent px-2.5 [&_.material-icons]:text-[18px]!"
-      data-testid="ground-brush-close"
-      [title]="'feature.tabletop.groundBrush.close' | transloco"
-      (click)="close()"
-    >
-      <i class="material-icons">close</i>
-    </button>
   </div>
 }

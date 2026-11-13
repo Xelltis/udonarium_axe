@@ -3,6 +3,7 @@ import { CardTargetService } from '@axe/application/card/card-target.service';
 import { DiceRenderService } from '@axe/application/dice/dice-render.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
@@ -385,6 +386,43 @@ describe('GameTableComponent', () => {
         .characters()
         .map((c) => c.name)
         .filter((name) => MINE.includes(name));
+
+    it('lays no part of another piece over the table, its body showing it, and lays it again once off', () => {
+      const body = makeCharacter('いち');
+      const part = makeCharacter('に');
+      part.ridingOn = body.identifier;
+      part.rideSeat = 'part';
+      const over = () =>
+        component
+          .charactersOverCanvas()
+          .map((c) => c.name)
+          .filter((name) => MINE.includes(name));
+
+      expect(over()).toEqual(['いち']);
+      part.rideSeat = '';
+      part.ridingOn = '';
+      TestBed.inject(ObjectChangeService).notifyChanged(part.identifier);
+      expect(over().sort()).toEqual(['いち', 'に']);
+      part.destroy();
+      body.destroy();
+    });
+
+    it('hands the overlay the same list while a piece only moves, and a new one only as the parts change', () => {
+      const body = makeCharacter('いち');
+      const part = makeCharacter('に');
+      const first = component.charactersOverCanvas();
+
+      body.location.x += 50;
+      TestBed.inject(ObjectChangeService).notifyChanged(body.identifier);
+      expect(component.charactersOverCanvas()).toBe(first);
+
+      part.ridingOn = body.identifier;
+      part.rideSeat = 'part';
+      TestBed.inject(ObjectChangeService).notifyChanged(part.identifier);
+      expect(component.charactersOverCanvas()).not.toBe(first);
+      part.destroy();
+      body.destroy();
+    });
 
     it('lays the pieces out in the order they are stacked', () => {
       const under = makeCharacter('いち');

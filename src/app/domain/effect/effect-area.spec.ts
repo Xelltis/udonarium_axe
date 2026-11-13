@@ -1,4 +1,6 @@
-import { effectAreaTargets } from '@axe/domain/effect/effect-area';
+import { areaShareOf, effectAreaTargets } from '@axe/domain/effect/effect-area';
+import { type EffectKind } from '@axe/domain/effect/effect-kind';
+import { EffectPreset } from '@axe/domain/effect/effect-preset';
 
 describe('effectAreaTargets()', () => {
   const candidates = [
@@ -24,5 +26,29 @@ describe('effectAreaTargets()', () => {
 
   it('takes in what sits exactly on the edge', () => {
     expect(effectAreaTargets({ x: 0, y: 0 }, [{ identifier: 'edge', x: 100, y: 0 }], 100, 10)).toEqual(['edge']);
+  });
+});
+
+describe('areaShareOf()', () => {
+  function makePreset(kind: EffectKind, areaRadius: number): EffectPreset {
+    const preset = new EffectPreset('preset');
+    preset.kind = kind;
+    preset.targeting = 'multi';
+    preset.maxTargets = 8;
+    preset.areaRadius = areaRadius;
+    return preset;
+  }
+  const three = { targets: [0, 1, 2].map((index) => ({ identifier: `t${index}`, x: index * 50, y: 0, z: 0 })) };
+
+  it('sets an area blast off whole at its centre only, and strikes the rest round it with small ones', () => {
+    const nova = makePreset('nova', 3);
+
+    expect([0, 1, 2].map((index) => areaShareOf(nova, three, index))).toEqual([1, 0.4, 0.4]);
+  });
+
+  it('draws whole on every target what is not an area blast', () => {
+    expect(areaShareOf(makePreset('nova', 0), three, 2)).toBe(1);
+    expect(areaShareOf(makePreset('heal', 3), three, 2)).toBe(1);
+    expect(areaShareOf(makePreset('nova', 3), { targets: three.targets.slice(0, 1) }, 0)).toBe(1);
   });
 });

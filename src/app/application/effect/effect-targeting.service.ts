@@ -3,7 +3,9 @@ import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService, TabletopObjectSelection } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -13,6 +15,9 @@ import { effectAreaTargets } from '@axe/domain/effect/effect-area';
 import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { effectPickOrder, reachedEffectPickLimit, toggleEffectPick } from '@axe/domain/effect/effect-target-picks';
+
+/** No piece picked. */
+const NO_PICKS: ReadonlyMap<string, number> = new Map();
 
 /** The order mark shown on a chosen piece. */
 export interface EffectTargetMark {
@@ -44,6 +49,8 @@ export class EffectTargetingService {
   private readonly castService = inject(EffectCastService);
   private readonly zones = inject(EngagementZoneService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly vision = inject(VisionService);
+  private readonly pieceLinks = inject(PieceLinksService);
 
   private readonly _preset = signal<EffectPreset | null>(null);
   private readonly _picks = signal<readonly string[]>([]);
@@ -71,6 +78,8 @@ export class EffectTargetingService {
     return this.centerOf(character, this.tabletopService.gridSize());
   });
   readonly isPicking = computed(() => this._preset() != null);
+  /** The colour the numbers of the picks are drawn in: the effect's own first colour. */
+  readonly markColor = computed(() => this._preset()?.colorPrimary ?? '#ffd27f');
   readonly limit = computed(() => this._preset()?.targetLimit ?? 0);
 
   /** The targets from before the choosing began, restored on cancel. */
@@ -78,21 +87,39 @@ export class EffectTargetingService {
   /** The pieces already chosen at the start, which do not count as chosen again. */
   private beganWithSelection: TabletopObjectSelection | null = null;
 
-  readonly marks = computed<EffectTargetMark[]>(() => {
-    if (!this.isPicking()) return [];
+  /**
+   * The number each piece picked is given, by its identifier, in the order picked, as this reader is
+   * shown them: a piece this reader cannot see, in the dark, under the fog or in stealth, is struck
+   * all the same but given no number, and the numbers are counted among those shown, so no gap
+   * tells of it.
+   */
+  readonly pickOrder = computed<ReadonlyMap<string, number>>(() => {
+    if (!this.isPicking()) return NO_PICKS;
     this.objectChange.collectionOf('character')();
+    const shown = this._picks().filter((identifier) => {
+      const character = this.characterOf(identifier);
+      if (!character) return false;
+      this.objectChange.versionOf(identifier)();
+      return this.vision.isTokenVisible(character);
+    });
+    return new Map(shown.map((identifier) => [identifier, effectPickOrder(shown, identifier)]));
+  });
 
+  /**
+   * The marks laid on the table for the pieces picked, numbered as {@link pickOrder} numbers them. A
+   * part picked with its body is given none, as it is drawn with the body and its mark would lie over
+   * the body's: its number shows on its row under the body's name instead.
+   */
+  readonly marks = computed<EffectTargetMark[]>(() => {
+    const order = this.pickOrder();
+    if (order.size < 1) return [];
     const gridSize = this.tabletopService.gridSize();
     const marks: EffectTargetMark[] = [];
-    for (const identifier of this._picks()) {
-      const character = this.characterOf(identifier);
-      if (!character) continue;
-      this.objectChange.versionOf(identifier)();
-      marks.push({
-        identifier,
-        order: effectPickOrder(this._picks(), identifier),
-        ...this.centerOf(character, gridSize),
-      });
+    for (const [identifier, number] of order) {
+      const character = this.characterOf(identifier)!;
+      const body = this.pieceLinks.bodyOf(character);
+      if (body && order.has(body.identifier)) continue;
+      marks.push({ identifier, order: number, ...this.centerOf(character, gridSize) });
     }
     return marks;
   });
@@ -137,14 +164,18 @@ export class EffectTargetingService {
    * remote or from chat can be cast at straight away.
    */
   begin(preset: EffectPreset): void {
-    const targeted = this.tabletopService.characters
-      .filter((character) => character.isVisibleOnTable && character.targeted)
+    const targeted = this.tabletopService.characters.filter(
+      (character) => character.isVisibleOnTable && character.targeted
+    );
+    const shown = targeted
+      .filter((character) => this.vision.isTokenVisible(character))
       .map((character) => character.identifier);
 
-    this.previousTargets = targeted;
+    // Every piece aimed at, one gone out of sight since among them, is put back as aimed at on cancel.
+    this.previousTargets = targeted.map((character) => character.identifier);
     this.beganWithSelection = untracked(this.selectionSignalService.selectedObject);
     this._preset.set(preset);
-    this._picks.set(targeted.slice(0, Math.max(preset.targetLimit, 1)));
+    this._picks.set(shown.slice(0, Math.max(preset.targetLimit, 1)));
     // The shooter is the selected piece, caught at the start because choosing moves the selection onto the targets.
     this._casterIdentifier.set(this.selectedCasterIdentifier());
     this.mirror();
@@ -201,12 +232,20 @@ export class EffectTargetingService {
     return cast;
   }
 
-  /** Cancels, putting back the targets from before it began. */
+  /**
+   * Cancels, putting back the targets from before it began as they were, one this reader can no longer
+   * see among them, which picking left unmarked.
+   */
   cancel(): boolean {
     if (!this.isPicking()) return false;
 
-    this._picks.set(this.previousTargets);
-    this.mirror();
+    const before = new Set(this.previousTargets);
+    for (const character of this.tabletopService.characters) {
+      const next = before.has(character.identifier);
+      if (character.targeted === next) continue;
+      character.targeted = next;
+      this.uiSignalService.notifyTargetChange(character.identifier, character.aliasName);
+    }
     this.reset();
     return true;
   }
@@ -240,11 +279,15 @@ export class EffectTargetingService {
     return effectAreaTargets(origin, candidates, preset.areaRadiusCells * gridSize, preset.targetLimit);
   }
 
-  /** Copies the ordered array onto each piece's `targeted` flag. */
+  /**
+   * Copies the ordered array onto each piece's `targeted` flag: a piece this reader cannot see is
+   * struck all the same but not marked as aimed at, as the mark would name it wherever aims are read,
+   * in the chat's lines aimed at targets among them.
+   */
   private mirror(): void {
     const picked = new Set(this._picks());
     for (const character of this.tabletopService.characters) {
-      const next = picked.has(character.identifier);
+      const next = picked.has(character.identifier) && this.vision.isTokenVisible(character);
       if (character.targeted === next) continue;
       character.targeted = next;
       this.uiSignalService.notifyTargetChange(character.identifier, character.aliasName);

@@ -210,7 +210,7 @@
       class="text-ui-text flex h-8 items-center gap-1 px-[1em] text-[1em]/8 [grid-area:3/2/4/3]"
       [ngClass]="pointerEventsStyle"
     >
-      <span class="min-w-0 flex-1 truncate">{{ character.name }}</span>
+      <span class="min-w-0 flex-1 truncate">{{ names.shown(character) }}</span>
       @if (hasMemo(character)) {
         <button
           type="button"

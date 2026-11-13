@@ -16,6 +16,10 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { StartRoomStore } from '@axe/core/storage/start-room-store';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -426,7 +430,7 @@ describe('StartRoomService', () => {
       await service.loadPending();
     }
 
-    it('takes the table back to how the page set it out, drops what the start room brought, and sets out the sample', async () => {
+    it('takes the table back to how the page set it out and drops what the start room brought, setting out no sample in its place', async () => {
       await setOut();
 
       service.putAwayForJoin();
@@ -434,16 +438,27 @@ describe('StartRoomService', () => {
       expect(ObjectStore.instance.get('brought-piece')).toBeNull();
       expect(droppedPictures).toHaveBeenCalledWith('brought-picture');
       expect(droppedSounds).toHaveBeenCalledWith('brought-sound');
+      expect(sample).not.toHaveBeenCalled();
+    });
+
+    it('sets the sample out on joining alone a room nobody else is in, where the start room stood in for it', async () => {
+      await setOut();
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([]);
+
+      service.putAwayForJoin()(true);
+
       expect(sample).toHaveBeenCalledTimes(1);
     });
 
     it('lets the start room go once the join comes to something, and puts nothing away again', async () => {
       await setOut();
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{ peerId: 'other' }] as never);
 
       service.putAwayForJoin()(true);
       service.putAwayForJoin();
 
-      expect(sample).toHaveBeenCalledTimes(1);
+      expect(sample).not.toHaveBeenCalled();
+      expect(load).toHaveBeenCalledTimes(1);
     });
 
     it('sets the kept start room out again when the join comes to nothing, and says so', async () => {
@@ -461,10 +476,10 @@ describe('StartRoomService', () => {
         '部屋に入れなかったので、開始時の部屋を読み込み直しました。保存していない変更は戻っていません。'
       );
       service.putAwayForJoin();
-      expect(sample).toHaveBeenCalledTimes(2);
+      expect(sample).not.toHaveBeenCalled();
     });
 
-    it('says so, and leaves the sample, where the kept start room cannot be set out again', async () => {
+    it('says so, and sets the sample out, where the kept start room cannot be set out again', async () => {
       await setOut();
       const joined = service.putAwayForJoin();
       load.mockResolvedValue({ dataRead: false, images: [], audios: [] });
@@ -473,6 +488,7 @@ describe('StartRoomService', () => {
       await service.whenSettled();
 
       expect(shown).toHaveBeenCalledWith('開始時の部屋を読み込めなかったので、サンプルの部屋で始めました。');
+      expect(sample).toHaveBeenCalledTimes(1);
     });
 
     it('says so where the kept start room is gone by the time the join comes to nothing', async () => {
@@ -485,6 +501,7 @@ describe('StartRoomService', () => {
 
       expect(load).toHaveBeenCalledTimes(1);
       expect(shown).toHaveBeenCalledWith('開始時の部屋を読み込めなかったので、サンプルの部屋で始めました。');
+      expect(sample).toHaveBeenCalledTimes(1);
     });
 
     it('leaves a seat going into another room, not yet open, as it is', async () => {
@@ -537,8 +554,10 @@ describe('StartRoomService', () => {
       await service.whenSettled();
 
       expect(load).toHaveBeenCalledTimes(1);
-      service.putAwayForJoin();
-      expect(sample).toHaveBeenCalledTimes(1);
+      service.putAwayForJoin()(false);
+      await service.whenSettled();
+      expect(load).toHaveBeenCalledTimes(1);
+      expect(sample).not.toHaveBeenCalled();
     });
 
     it('sets the start room out again once the last of joins made one over another comes to nothing', async () => {
@@ -600,8 +619,10 @@ describe('StartRoomService', () => {
       await service.whenSettled();
 
       expect(load).toHaveBeenCalledTimes(1);
-      service.putAwayForJoin();
-      expect(sample).toHaveBeenCalledTimes(1);
+      service.putAwayForJoin()(false);
+      await service.whenSettled();
+      expect(load).toHaveBeenCalledTimes(1);
+      expect(sample).not.toHaveBeenCalled();
     });
 
     it('keeps nothing as the start room while a join is under way, with the sample out in its place', async () => {
@@ -700,6 +721,88 @@ describe('StartRoomService', () => {
       expect(service.isSettling).toBe(true);
       await service.loadPending();
       expect(service.isSettling).toBe(false);
+    });
+  });
+
+  describe("setting the page's own things aside before going into somebody else's room", () => {
+    let sample: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      sample = vi
+        .spyOn(TestBed.inject(TabletopActionService), 'makeDefaultTabletopObjects')
+        .mockImplementation(() => {});
+      for (const [name, identifier] of [
+        ['メインタブ', 'MainTab'],
+        ['サブタブ', 'SubTab'],
+      ]) {
+        if (!ObjectStore.instance.get(identifier)) ChatTabList.instance.addChatTab(name, identifier);
+      }
+      const piece = new GameCharacter('testCharacter_1');
+      piece.createDataElements();
+      piece.initialize();
+      CharacterTemplateFactory.createDefault(piece, '動かした見本', 1, '');
+      const own = new GameCharacter('own-piece');
+      own.initialize();
+    });
+
+    afterEach(() => {
+      for (const identifier of ['testCharacter_1', 'own-piece']) ObjectStore.instance.get(identifier)?.destroy();
+      ObjectStore.instance.clearDeleteHistory();
+    });
+
+    it('takes the sample and the first tabs off this page alone, marking nothing deleted, and leaves what the seat made', () => {
+      service.putAwayForJoin();
+
+      for (const identifier of ['testCharacter_1', 'MainTab', 'SubTab']) {
+        expect(ObjectStore.instance.get(identifier)).toBeNull();
+        expect(ObjectStore.instance.isDeleted(identifier)).toBe(false);
+      }
+      expect(ChatTabList.instance.chatTabs.some((tab) => tab.identifier === 'MainTab')).toBe(false);
+      expect(ObjectStore.instance.get('own-piece')).not.toBeNull();
+    });
+
+    it('puts back the very things it set aside once the join comes to nothing, the lines said and the changes made', () => {
+      const main = ObjectStore.instance.get<ChatTab>('MainTab')!;
+      main.addMessage({ from: 'me', name: '自分', text: '入る前の発言', timestamp: 1 });
+
+      service.putAwayForJoin()(false);
+
+      const back = ObjectStore.instance.get<ChatTab>('MainTab')!;
+      expect(back.chatMessages.map((message) => message.text)).toEqual(['入る前の発言']);
+      expect(back.hasUnread).toBe(false);
+      expect(ChatTabList.instance.chatTabs).toContain(back);
+      expect(ObjectStore.instance.get<GameCharacter>('testCharacter_1')?.name).toBe('動かした見本');
+      expect(sample).not.toHaveBeenCalled();
+    });
+
+    it('puts them back once joined into a room nobody else is in, which has nothing to hand back', () => {
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([]);
+
+      service.putAwayForJoin()(true);
+
+      expect(ObjectStore.instance.get('MainTab')).not.toBeNull();
+      expect(ObjectStore.instance.get('testCharacter_1')).not.toBeNull();
+    });
+
+    it('puts nothing back once joined into a room server’s room, which hands back what it holds', () => {
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([]);
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+
+      service.putAwayForJoin()(true);
+
+      expect(ObjectStore.instance.get('MainTab')).toBeNull();
+      expect(ObjectStore.instance.get('testCharacter_1')).toBeNull();
+    });
+
+    it('lets them go once joined into a room somebody else is in, and puts nothing back after', () => {
+      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{ peerId: 'other' }] as never);
+
+      service.putAwayForJoin()(true);
+      service.putAwayForJoin()(false);
+
+      expect(ObjectStore.instance.get('MainTab')).toBeNull();
+      expect(ObjectStore.instance.get('testCharacter_1')).toBeNull();
+      expect(sample).not.toHaveBeenCalled();
     });
   });
 });

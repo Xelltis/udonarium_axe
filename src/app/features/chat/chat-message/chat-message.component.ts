@@ -33,6 +33,7 @@ import { TabletopActionService } from '@axe/application/tabletop/tabletop-action
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { MenuLayoutService } from '@axe/application/ui/menu-layout.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
@@ -42,6 +43,8 @@ import { Network } from '@axe/core/network/network';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { SAID_HIDDEN_NAME } from '@axe/domain/character/hidden-name';
 import { ChatBookmarkKind } from '@axe/domain/chat/chat-bookmark';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -50,9 +53,12 @@ import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { inlineStampsAlone, inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { IMAGE_STAMP_PREFIX, isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { saidWithStamp } from '@axe/domain/chat/stamp-line';
-import { canPinAsTargetNumber, mayPinTargetNumber } from '@axe/domain/chat/target-number';
+import { aimedTogetherIdentifiers, canPinAsTargetNumber, mayPinTargetNumber } from '@axe/domain/chat/target-number';
+import { TOGETHER_SEPARATOR } from '@axe/domain/dice/roll-target-suffix';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { type ChatToolName, chatToolOf, menuCommandOf } from '@axe/domain/ui/menu-command';
+import { menuItemsOf } from '@axe/domain/ui/menu-layout';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
 import { vnEmoteLabels } from '@axe/domain/visual-novel/vn-emote-label';
 import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
@@ -66,6 +72,8 @@ import {
 import {
   buildChatBookmarkMenu,
   buildChatMessageContextMenu,
+  type ChatMessageMenuState,
+  TARGET_NUMBER_PIN_KEYS,
 } from '@axe/features/chat/chat-message/chat-message-context-menu';
 import { isChatTextHidden, readableChatText } from '@axe/features/chat/chat-message/chat-readable-text';
 import { formatChatTickerMessage } from '@axe/features/chat/chat-ticker/chat-ticker-layout';
@@ -89,6 +97,22 @@ const BOOKMARK_KINDS: readonly ChatBookmarkKind[] = ['shared', 'personal'];
 
 /** How many lines have been drawn, for the seals in each to take filter ids no other drawing of the line has. */
 let linesDrawn = 0;
+
+/** One chat tool as the toolbar over a line draws it: its mark, what it is called, and what pressing it does. */
+interface ChatToolButton {
+  /** The entry of the arrangement it stands for, which tells two entries of one tool apart. */
+  readonly id: string;
+  readonly tool: ChatToolName;
+  /** What the tests reach the button by, after `chat-message-action-`. */
+  readonly testId: string;
+  readonly icon: string;
+  readonly title: string;
+  /** The kind of thing the press opens, for the screen reader, where it opens one. */
+  readonly popup?: 'menu' | 'listbox';
+  /** Whether the button warns of what it does, as deleting does. */
+  readonly danger?: boolean;
+  readonly press: (event: MouseEvent) => void;
+}
 
 @Component({
   selector: 'chat-message',
@@ -129,6 +153,17 @@ export class ChatMessageComponent {
   private readonly drawing = ++linesDrawn;
   private readonly stampPacks = inject(StampPackService);
   private readonly t = inject(TRANSLATE_FN);
+  /** The chat tools as this screen has arranged them, each entry with the tool it stands for and its mark. */
+  private readonly chatToolEntries = (() => {
+    const layout = inject(MenuLayoutService).layoutOf('chatTools');
+    return computed(() =>
+      menuItemsOf(layout()).flatMap((node) => {
+        const command = menuCommandOf(node.command);
+        const tool = command && chatToolOf(command);
+        return tool ? [{ node, tool, icon: node.icon ?? command.icon }] : [];
+      })
+    );
+  })();
   private readonly language = inject(LanguageService);
   private readonly uiSignalService = inject(UiSignalService);
   /** The panel this line is being read in, where it is being read in one that can answer. */
@@ -465,16 +500,17 @@ export class ChatMessageComponent {
   }
 
   /**
-   * Whether the reader may set the line as its tab's number to beat, or take it off as that: a roll
-   * shown to all that comes to a number, to a reader who may do so in its tab (see
-   * {@link mayPinTargetNumber}); null where neither.
+   * Whether the reader may set the line as its tab's number to beat, or take it off as that: a line
+   * shown to all that comes to a number, a roll or one writing out a number to beat, to a reader who
+   * may do so in its tab (see {@link mayPinTargetNumber}); null where neither.
    */
-  private targetNumberPin(): 'pin' | 'unpin' | null {
+  private targetNumberPin(): ChatMessageMenuState['targetNumberPin'] {
     const message = this.chatMessage;
     if (this.readOnly() || !canPinAsTargetNumber(message)) return null;
     const tab = this.objectStore.get<ChatTab>(message.tabIdentifier);
     if (!tab || !mayPinTargetNumber(tab, PeerCursor.myRole)) return null;
-    return tab.pinnedTargetNumber === message.identifier ? 'unpin' : 'pin';
+    if (tab.pinnedTargetNumber === message.identifier) return 'unpin';
+    return message.isDicebot ? 'pin' : 'pinPresented';
   }
 
   /** Sets the line as its tab's number to beat, or takes it off as that where it is already. */
@@ -486,12 +522,12 @@ export class ChatMessageComponent {
   }
 
   /**
-   * Whether the line is set as its tab's number to beat, which it shows beside it. Only a dice bot's
-   * answer can be, so no other line follows its tab.
+   * Whether the line is set as its tab's number to beat, which it shows beside it. Only a line that
+   * comes to a number can be, so no other line follows its tab.
    */
   readonly isPinnedTargetNumber = computed(() => {
     const message = this.chatMessageInput();
-    if (!message?.isDicebot) return false;
+    if (!message || !canPinAsTargetNumber(message)) return false;
     const tab = this.objectStore.get<ChatTab>(message.tabIdentifier);
     if (!tab) return false;
     this.objectChange.versionOf(tab.identifier)();
@@ -507,34 +543,127 @@ export class ChatMessageComponent {
   }
 
   /**
-   * The answers the toolbar over the line offers at once, or null where it offers nothing: a line
-   * only to be read, a line being edited, or one nothing can be done with.
+   * The chat tools the toolbar over the line offers at once, in the order this screen has arranged
+   * them, each only where the reader may do it with this line, or null where the toolbar is to be
+   * left out: a line only to be read, a line being edited, or one nothing can be done with.
    *
-   * Deleting stands there beside editing, both being what the speaker does to their own line; it
-   * asks before it deletes, so having it at hand does not make it easy to do by mistake.
+   * Deleting may stand there beside editing, both being what the speaker does to their own line;
+   * it asks before it deletes, so having it at hand does not make it easy to do by mistake.
    */
-  protected toolbarActions(): {
-    answer: boolean;
-    react: boolean;
-    bookmark: boolean;
-    edit: boolean;
-    delete: boolean;
-  } | null {
+  protected toolbarTools(): ChatToolButton[] | null {
     const message = this.chatMessage;
     if (!message || this.readOnly() || this.isEditing()) return null;
-    const actions = {
-      answer: this.canInteract,
-      react: this.canReact,
-      bookmark: this.canBookmarkAny,
-      edit: this.canChange,
-      delete: this.canPseudoDelete,
-    };
+    const tools: ChatToolButton[] = [];
+    for (const { node, tool, icon } of this.chatToolEntries()) {
+      const button = this.chatToolButton(tool);
+      if (button) tools.push({ ...button, id: node.id, icon, title: node.label ?? button.title });
+    }
     // Asked of every drawn line on every pass, so it is told from these few answers rather than by
     // building the menu: the menu holds at least the words of any line whose words are shown.
     const words = !isChatTextHidden(message, this.canRevealSecret) && (message.text ?? '').trim().length > 0;
-    return actions.answer || actions.react || actions.bookmark || actions.edit || actions.delete || words
-      ? actions
-      : null;
+    return tools.length > 0 || words ? tools : null;
+  }
+
+  /** A chat tool as a button over this line, or null where the reader may not do that with the line. */
+  private chatToolButton(tool: ChatToolName): Omit<ChatToolButton, 'icon' | 'id'> | null {
+    const named = (key: string) => this.t(key);
+    switch (tool) {
+      case 'reply':
+        return this.canInteract
+          ? { tool, testId: 'reply', title: named('feature.chat.message.reply'), press: () => this.clickReply() }
+          : null;
+      case 'quote':
+        return this.canInteract
+          ? { tool, testId: 'quote', title: named('feature.chat.message.quote'), press: () => this.clickQuote() }
+          : null;
+      case 'react':
+        return this.canReact
+          ? {
+              tool,
+              testId: 'react',
+              title: named('feature.chat.message.react'),
+              popup: 'listbox',
+              press: (event) => this.openReactionPicker(event.currentTarget),
+            }
+          : null;
+      case 'bookmark':
+        return this.canBookmarkAny
+          ? {
+              tool,
+              testId: 'bookmark',
+              title: named('feature.chat.message.bookmarks.button'),
+              popup: 'menu',
+              press: (event) => this.openBookmarkMenu(event),
+            }
+          : null;
+      case 'copyText': {
+        const text = this.readableText(this.chatMessage);
+        return text.length > 0
+          ? { tool, testId: 'copy', title: named('feature.chat.message.copyText'), press: () => this.copyText(text) }
+          : null;
+      }
+      case 'shareAsMemo':
+        return this.canInteract && this.canShareAsMemo
+          ? {
+              tool,
+              testId: 'memo',
+              title: named('feature.chat.message.shareAsMemo'),
+              press: () => this.clickShareAsMemo(),
+            }
+          : null;
+      case 'ticker':
+        return this.canShowInTicker()
+          ? {
+              tool,
+              testId: 'ticker',
+              title: named('feature.chat.message.ticker'),
+              press: () => this.clickShowInTicker(),
+            }
+          : null;
+      case 'targetNumber': {
+        const pin = this.targetNumberPin();
+        return pin
+          ? {
+              tool,
+              testId: 'target-number',
+              title: named(`feature.chat.message.${TARGET_NUMBER_PIN_KEYS[pin]}`),
+              press: () => this.toggleTargetNumberPin(),
+            }
+          : null;
+      }
+      case 'history':
+        return this.versions().length > 0
+          ? {
+              tool,
+              testId: 'history',
+              title: named(`feature.chat.message.history.${this.isHistoryOpen() ? 'close' : 'open'}`),
+              press: () => this.toggleHistory(),
+            }
+          : null;
+      case 'original':
+        return this.replyPreview() || this.quotePreview()
+          ? {
+              tool,
+              testId: 'original',
+              title: named('feature.chat.message.jumpToOriginal'),
+              press: () => (this.replyPreview() ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
+            }
+          : null;
+      case 'edit':
+        return this.canChange
+          ? { tool, testId: 'edit', title: named('feature.chat.message.edit'), press: () => this.startEdit() }
+          : null;
+      case 'delete':
+        return this.canPseudoDelete
+          ? {
+              tool,
+              testId: 'delete',
+              title: named('feature.chat.message.deleteLine'),
+              danger: true,
+              press: () => void this.pseudoDelete(),
+            }
+          : null;
+    }
   }
 
   /** Opens everything that can be done with the line under the toolbar's last button. */
@@ -1096,8 +1225,59 @@ export class ChatMessageComponent {
   /** The speaker's name as shown, translated for a system line and redrawn when the language changes. */
   displayName(name: string): string {
     this.language.currentLang();
-    if (!this.isSystemMessage) return name;
+    if (!this.isSystemMessage) return this.withHiddenNameTold(name);
     return decodeI18nMessage(name, this.t);
+  }
+
+  /**
+   * A line said as a piece whose name is hidden names it {@link SAID_HIDDEN_NAME}, as everyone reads
+   * it, and so does a dice bot's answer to one; one who may see what is kept back is told which piece
+   * it was beside that. A piece whose own name holds the label is told nothing more.
+   */
+  private withHiddenNameTold(name: string): string {
+    if (!name.includes(SAID_HIDDEN_NAME) || !this.rolePermission.canSeeHidden()) return name;
+    const speaker = this.speakerPiece();
+    if (!speaker || speaker.name.length < 1 || speaker.name.includes(SAID_HIDDEN_NAME)) return name;
+    return name.replace(SAID_HIDDEN_NAME, `${SAID_HIDDEN_NAME}（${speaker.name}）`);
+  }
+
+  /** The piece a line was said as, or for a dice bot's answer the piece its line was said as. */
+  private speakerPiece(): GameCharacter | null {
+    const message = this.chatMessage;
+    if (!message) return null;
+    const said =
+      message.isDicebot && message.parent instanceof ChatTab ? message.parent.findRollSource(message) : message;
+    const speaker = this.objectStore.get(`${said?.sendFrom ?? ''}`);
+    return speaker instanceof GameCharacter ? speaker : null;
+  }
+
+  /**
+   * The names of the pieces whose names are hidden a dice bot's answer was rolled at, for one who may
+   * see what is kept back: the one it keeps it was rolled at, or those its line was aimed at all at
+   * once, in the order its brackets name them. Empty where it names no hidden one.
+   */
+  protected rolledAtTold(): string {
+    const message = this.chatMessage;
+    if (!message?.isDicebot || !this.rolePermission.canSeeHidden()) return '';
+    const said = /\s\[([^[\]]*)\]$/.exec(`${message.text ?? ''}`.trimEnd())?.[1];
+    if (said === undefined || !said.includes(SAID_HIDDEN_NAME)) return '';
+    const rolledAt = `${message.rolledAt ?? ''}`;
+    const line =
+      rolledAt.length < 1 && message.parent instanceof ChatTab ? message.parent.findRollSource(message) : null;
+    const identifiers = rolledAt.length > 0 ? [rolledAt] : aimedTogetherIdentifiers(line);
+    const names = said.split(TOGETHER_SEPARATOR);
+    // Read by where each ？？？ stands in the brackets, as the names were hidden as the answer was said;
+    // where the brackets hold fewer, cut short by a room server, those hidden now are told in order.
+    const hidden =
+      names.length === identifiers.length
+        ? identifiers.filter((_, at) => names[at] === SAID_HIDDEN_NAME)
+        : identifiers.filter((identifier) => this.objectStore.get<GameCharacter>(identifier)?.hideName);
+    return hidden
+      .map((identifier) => this.objectStore.get(identifier))
+      .filter((piece): piece is GameCharacter => piece instanceof GameCharacter)
+      .map((piece) => piece.name)
+      .filter((name) => name.length > 0 && !name.includes(SAID_HIDDEN_NAME))
+      .join(TOGETHER_SEPARATOR);
   }
 
   /**

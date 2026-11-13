@@ -211,14 +211,47 @@ async function openFabSubmenu(page: Page, openerTestId: string, menuTestId: stri
 }
 
 /**
- * Opens the FAB and clicks the menu entry with that data-label. It replaces the places where
- * earlier tests called `getByText('インベントリ')` and the like.
+ * Opens the FAB and clicks the menu entry with that data-label, and waits for the panel it opens
+ * to come to rest. It replaces the places where earlier tests called `getByText('インベントリ')`
+ * and the like.
  */
 export async function openPanel(page: Page, dataLabel: string) {
   await openFabMenu(page);
   const submenu = Object.entries(SUBMENU_LABELS).find(([, labels]) => labels.includes(dataLabel))?.[0];
   if (submenu) await openFabSubmenu(page, `fab-entry-${submenu}`, `fab-submenu-${submenu}`);
-  await page.locator(`[data-label="${dataLabel}"]`).click();
+  if (TOGGLE_LABELS.includes(dataLabel)) {
+    await page.locator(`[data-label="${dataLabel}"]`).click();
+    return;
+  }
+  await openPanelFrom(page, page.locator(`[data-label="${dataLabel}"]`));
+}
+
+/** Clicks an entry that opens a panel, and waits for the panel it opens to come to rest. */
+export async function openPanelFrom(page: Page, entry: Locator) {
+  await page.locator('.draggable-panel').evaluateAll((panels) => {
+    for (const panel of panels) panel.setAttribute('data-e2e-opened-before', '');
+  });
+  await entry.click();
+  await panelAtRest(page.locator('.draggable-panel:not([data-e2e-opened-before])').first());
+}
+
+/** The FAB entries that turn something on or off rather than open a panel. */
+const TOGGLE_LABELS: readonly string[] = ['ノベルモード', '手札'];
+
+/**
+ * Waits for the panel a locator finds, or the panel it lies in, to have flown in. A panel opens
+ * from smaller and see-through, and while the page is busy it can stand at that start for a while
+ * before it moves: its box holds for long enough to be taken as still, and a press there lands
+ * where the panel no longer is by the time the button is let go.
+ */
+export async function panelAtRest(within: Locator) {
+  await within.evaluate((element) => {
+    const panel = element.closest('.draggable-panel') ?? element;
+    const ending = panel
+      .getAnimations({ subtree: true })
+      .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity);
+    return Promise.all(ending.map((animation) => animation.finished.catch(() => undefined)));
+  });
 }
 
 /**

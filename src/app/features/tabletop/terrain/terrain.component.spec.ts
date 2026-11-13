@@ -1,3 +1,4 @@
+import { ApplicationRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ImageService } from '@axe/application/storage/image.service';
@@ -21,6 +22,7 @@ import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 
 describe('TerrainComponent', () => {
   let component: TerrainComponent;
+  let given: { destroy(): void };
   let fixture: ComponentFixture<TerrainComponent>;
 
   beforeEach(async () => {
@@ -33,12 +35,22 @@ describe('TerrainComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(TerrainComponent);
     component = fixture.componentInstance;
+    // Given its piece at once, as a template gives it, so that no drawing of the page made before a
+    // test gives its own reads the required input unset.
+    given = Terrain.create('wall', 1, 1, 2, '', '');
+    fixture.componentRef.setInput('terrain', given);
   });
+
+  afterEach(() => given.destroy());
 
   afterEach(() => vi.restoreAllMocks());
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('lets the page be drawn as soon as it is made, before any test sets it up', () => {
+    expect(() => TestBed.inject(ApplicationRef).tick()).not.toThrow();
   });
 
   it('lets the pointer through the top of a block locked in place, but not of one free to move, nor of a door', () => {

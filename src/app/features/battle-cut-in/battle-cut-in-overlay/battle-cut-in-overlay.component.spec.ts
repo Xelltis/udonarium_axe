@@ -1,21 +1,41 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut-in-preference.service';
+import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BattleScene } from '@axe/domain/battle/battle-scene';
 import { BATTLE_STILL_MS } from '@axe/domain/battle/battle-timeline';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { createEffectPreset, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
-import { BattleCutInOverlayComponent } from '@axe/features/battle-cut-in/battle-cut-in-overlay/battle-cut-in-overlay.component';
+import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
+import { SoundEffect } from '@axe/domain/media/sound-effect';
+import {
+  BattleCutInOverlayComponent,
+  plateGaugeAt,
+} from '@axe/features/battle-cut-in/battle-cut-in-overlay/battle-cut-in-overlay.component';
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
+import type { EffectOverlay } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('BattleCutInOverlayComponent', () => {
   let fixture: ComponentFixture<BattleCutInOverlayComponent>;
   let state: BattleCutInStateService;
   const motion = signal(false);
+  /** Whether the browser can make the canvases the effects are drawn on as on the table. */
+  let drawsOverPage = false;
+  /** What each of those canvases was handed to draw, by the canvas's test id. */
+  let shown: Map<string, EffectFrame[]>;
+  const overPageOn = (canvas: HTMLCanvasElement): EffectOverlay | null => {
+    if (!drawsOverPage) return null;
+    const frames: EffectFrame[] = [];
+    shown.set(canvas.dataset['testid'] ?? '', frames);
+    return { show: (frame) => frames.push(frame), dispose: () => undefined };
+  };
 
   function scene(overrides: Partial<BattleScene> = {}): BattleScene {
     return {
@@ -62,7 +82,18 @@ describe('BattleCutInOverlayComponent', () => {
     motion.set(false);
     TestBed.configureTestingModule({
       imports: [BattleCutInOverlayComponent],
-      providers: [...TEST_PROVIDERS, { provide: MotionService, useValue: { enabled: motion } }],
+      providers: [
+        ...TEST_PROVIDERS,
+        { provide: MotionService, useValue: { enabled: motion } },
+        {
+          provide: EFFECT_STAGE_LOADER,
+          useValue: () =>
+            Promise.resolve({
+              createEffectStage: () => Promise.resolve(null),
+              createEffectOverlay: (canvas: HTMLCanvasElement) => Promise.resolve(overPageOn(canvas)),
+            }),
+        },
+      ],
     });
     for (const seed of DEFAULT_EFFECT_PRESET_SEEDS) createEffectPreset(seed, seed.identifier);
     state = TestBed.inject(BattleCutInStateService);
@@ -71,7 +102,9 @@ describe('BattleCutInOverlayComponent', () => {
   afterEach(() => {
     fixture?.destroy();
     state.clear();
+    drawsOverPage = false;
     vi.useRealTimers();
+    vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.delete(object, false);
     ObjectStore.instance.clearDeleteHistory();
   });
@@ -192,6 +225,49 @@ describe('BattleCutInOverlayComponent', () => {
     expect(root.querySelectorAll('[data-testid="battle-pop"]')).toHaveLength(0);
   });
 
+  describe('a bar kept from the reader', () => {
+    const lethal = { name: 'HP', before: 37, after: -3, max: 50, inverted: false, color: '' };
+
+    it('stays full and grey with no numbers until it runs out, however far the blow will take it', () => {
+      expect(plateGaugeAt(lethal, 0, false, false)).toMatchObject({ percent: 100, numbers: '???/???' });
+      expect(plateGaugeAt(lethal, 0.5, false, false)).toMatchObject({ percent: 100, numbers: '???/???' });
+    });
+
+    it('is told from the moment it runs out', () => {
+      expect(plateGaugeAt(lethal, 1, false, false)).toMatchObject({ percent: 0, numbers: '-3/50' });
+    });
+  });
+
+  describe('a piece kept from the reader', () => {
+    let goblin: GameCharacter;
+
+    beforeEach(() => {
+      goblin = new GameCharacter('goblin');
+      goblin.initialize();
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockReturnValue(false);
+    });
+
+    afterEach(() => goblin.destroy());
+
+    it('tells the numbers of a bar the strike spends', () => {
+      const beaten = textsOf(play(scene()), '[data-testid="battle-plate"]')[1];
+
+      expect(beaten).not.toContain('???/???');
+      expect(beaten).toContain('/12');
+    });
+
+    it('keeps the numbers of a bar the strike leaves standing back', () => {
+      const standing = scene();
+      standing.defenders[0] = {
+        ...standing.defenders[0],
+        gauges: [{ name: 'HP', before: 12, after: 5, max: 12, inverted: false }],
+        defeated: false,
+      };
+
+      expect(textsOf(play(standing), '[data-testid="battle-plate"]')[1]).toContain('???/???');
+    });
+  });
+
   it('brings nobody down where nobody fell', () => {
     const standing = scene();
     standing.defenders[0] = { ...standing.defenders[0], defeated: false };
@@ -287,6 +363,171 @@ describe('BattleCutInOverlayComponent', () => {
 
       expect(preference.stageWindow().x).toBeLessThan(1);
       expect(preference.stageWindow().y).toBeGreaterThan(0);
+    });
+  });
+  describe('while motion is on', () => {
+    let frames: FrameRequestCallback[];
+
+    beforeEach(async () => {
+      vi.useRealTimers();
+      // The 2D context of happy-dom has no drawing functions; what is checked is what is placed.
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
+      frames = [];
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+        frames.push(callback);
+        return frames.length;
+      });
+      vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
+      vi.spyOn(performance, 'now').mockReturnValue(1000);
+      now = 1000;
+      shown = new Map();
+      drawsOverPage = true;
+      motion.set(true);
+      await TestBed.inject(EffectSceneLooksService).load();
+    });
+
+    /** Plays a scene and waits for the canvas over the stage to be made, as what makes it is loaded. */
+    async function playMoving(played: BattleScene): Promise<BattleCutInOverlayComponent> {
+      play(played);
+      for (let turn = 0; turn < 5; turn++) {
+        await fixture.whenStable();
+        fixture.detectChanges();
+      }
+      return fixture.componentInstance;
+    }
+
+    let now: number;
+
+    /** Runs the frames of the stage one after another, as a page drawing smoothly does, up to a time past its start. */
+    function runFramesAt(elapsedMs: number): void {
+      while (now < 1000 + elapsedMs) {
+        now = Math.min(now + 16, 1000 + elapsedMs);
+        for (const frame of frames.splice(0)) frame(now);
+      }
+      fixture.detectChanges();
+    }
+
+    /** Runs the next frame of the stage only after the page has stood still for a while. */
+    function runFrameAfterWait(waitMs: number): void {
+      now += waitMs;
+      for (const frame of frames.splice(0)) frame(now);
+      fixture.detectChanges();
+    }
+
+    const drawnIn = (frame: EffectFrame) => frame.motes.length + frame.ribbons.length + frame.floor.length;
+
+    it('sounds the blow as the stage reaches it on its own clock, held still through a stall, not by the wall’s', async () => {
+      const heard = vi.spyOn(SoundEffect, 'playLocal').mockImplementation(() => undefined);
+      vi.spyOn(
+        BattleCutInOverlayComponent.prototype as unknown as { soundsOf: (timeline: { impact: number }) => unknown },
+        'soundsOf'
+      ).mockImplementation((timeline) => [{ at: timeline.impact, identifier: 'the-blow' }]);
+      const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
+      const timeline = stage.timeline()!;
+
+      runFramesAt(timeline.impact - 200);
+      expect(heard).not.toHaveBeenCalled();
+      // The page stands still past the blow's time on the wall clock; the stage holds the wait.
+      runFrameAfterWait(1500);
+      expect(heard).not.toHaveBeenCalled();
+
+      runFramesAt(now - 1000 + 400);
+      expect(heard).toHaveBeenCalledWith('the-blow', expect.anything());
+    });
+
+    it('lets the sounds passed while the page was out of view go unheard, not all at once on its return', async () => {
+      const heard = vi.spyOn(SoundEffect, 'playLocal').mockImplementation(() => undefined);
+      vi.spyOn(
+        BattleCutInOverlayComponent.prototype as unknown as { soundsOf: (timeline: { impact: number }) => unknown },
+        'soundsOf'
+      ).mockImplementation((timeline) => [
+        { at: timeline.impact, identifier: 'the-blow' },
+        { at: timeline.impact + 50, identifier: 'the-echo' },
+      ]);
+      const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
+      const timeline = stage.timeline()!;
+      runFramesAt(timeline.impact - 200);
+
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      runFrameAfterWait(1000);
+
+      expect(heard).not.toHaveBeenCalled();
+    });
+
+    it('draws the blow as on the table, its marks on the floor under the fighters and the rest over them', async () => {
+      const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
+      const timeline = stage.timeline()!;
+
+      runFramesAt(timeline.impact + 100);
+
+      const drawn = stage.sceneFrame();
+      expect(drawn.motes.length).toBeGreaterThan(0);
+      expect(drawn.floor.length).toBeGreaterThan(0);
+      const under = shown.get('battle-floor-effects')!.at(-1)!;
+      const over = shown.get('battle-effects')!.at(-1)!;
+      expect(under.floor).toBe(drawn.floor);
+      expect(drawnIn(under)).toBe(drawn.floor.length);
+      expect(over.motes).toBe(drawn.motes);
+      expect(over.ribbons).toBe(drawn.ribbons);
+      expect(over.floor).toEqual([]);
+      expect(stage.sprites()).toEqual([]);
+    });
+
+    it('cuts up the picture of one brought down over the stage, and draws the rest of it on the canvas', async () => {
+      ImageStorage.instance.add({
+        identifier: 'falling-goblin',
+        name: 'goblin.webp',
+        type: 'image/webp',
+        blob: new Blob(['picture'], { type: 'image/webp' }),
+        url: 'blob:falling-goblin',
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+      try {
+        const played = scene({ defeatEffect: 'EffectPreset_defeat_dissolve' });
+        const stage = await playMoving({
+          ...played,
+          defenders: [{ ...played.defenders[0], image: 'falling-goblin' }],
+        });
+        const timeline = stage.timeline()!;
+
+        runFramesAt(timeline.defeatStart + 1000);
+
+        const sprites = stage.sprites();
+        expect(sprites.length).toBeGreaterThan(0);
+        expect(sprites.every((sprite) => JSON.stringify([sprite.style, sprite.paint]).includes('url('))).toBe(true);
+        expect(drawnIn(stage.sceneFrame())).toBeGreaterThan(0);
+      } finally {
+        ImageStorage.instance.delete('falling-goblin');
+      }
+    });
+
+    it('stands still while the page does, so that the blow and the numbers it pops up are not passed over', async () => {
+      const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
+      const timeline = stage.timeline()!;
+      runFramesAt(timeline.impact - 100);
+
+      runFrameAfterWait(3000);
+      const struckPops = () => stage.pops().filter((pop) => !pop.small);
+      expect(stage.elapsed()).toBeLessThan(timeline.impact);
+      expect(struckPops()).toEqual([]);
+      runFramesAt(timeline.impact + 3000 - 100 + 200);
+
+      expect(stage.elapsed()).toBeGreaterThan(timeline.impact);
+      expect(struckPops()).toHaveLength(1);
+    });
+
+    it('plays on where the browser cannot make the canvases, the blow going undrawn', async () => {
+      drawsOverPage = false;
+      const stage = await playMoving(scene({ effect: 'EffectPreset_burst_2', defeatEffect: '' }));
+      const timeline = stage.timeline()!;
+
+      runFramesAt(timeline.impact + 100);
+
+      expect(shown.size).toBe(0);
+      expect(stage.sprites()).toEqual([]);
+      expect(fixture.nativeElement.querySelectorAll('[data-testid="battle-figure-d-goblin"]')).toHaveLength(1);
     });
   });
 });

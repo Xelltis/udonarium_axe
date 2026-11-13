@@ -1,3 +1,7 @@
+import { type EffectCast } from '@axe/domain/effect/effect-cast';
+import { type EffectKind } from '@axe/domain/effect/effect-kind';
+import { type EffectPreset } from '@axe/domain/effect/effect-preset';
+
 /**
  * What an area attack takes in.
  *
@@ -34,4 +38,34 @@ export function effectAreaTargets(
 
   withDistance.sort((left, right) => left.distance - right.distance);
   return withDistance.slice(0, Math.max(limit, 1)).map((entry) => entry.identifier);
+}
+
+/** The looks that go off where they land, which an area attack sets off whole only at its centre. */
+const BLASTS: ReadonlySet<EffectKind> = new Set<EffectKind>([
+  'burst',
+  'nova',
+  'mushroom',
+  'impact',
+  'rubble',
+  'upheaval',
+  'gravity',
+  'frost',
+]);
+
+/** How large the blast an area attack strikes each target round its centre with is, as a share of the whole. */
+const STRUCK_ROUND_SHARE = 0.4;
+
+/**
+ * How large an effect is drawn on one of its targets, as a share of its size. An area attack that
+ * goes off where it lands goes off whole at the piece at its centre, the first of its targets, and
+ * strikes each of the rest with a small blast of its own: gone off whole over every one of them, its
+ * blasts would run together into a wall that hides the table.
+ */
+export function areaShareOf(
+  preset: Pick<EffectPreset, 'areaRadiusCells' | 'effectKind'>,
+  cast: Pick<EffectCast, 'targets'>,
+  index: number
+): number {
+  if (index === 0 || cast.targets.length < 2 || preset.areaRadiusCells <= 0) return 1;
+  return BLASTS.has(preset.effectKind) ? STRUCK_ROUND_SHARE : 1;
 }

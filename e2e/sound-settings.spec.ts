@@ -1,10 +1,10 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, openSeatDisplay, waitAppReady } from './helpers';
+import { openPanel, openPanelFrom, openSeatDisplay, waitAppReady } from './helpers';
 
 async function openSoundSettings(page: Page) {
   const display = await openSeatDisplay(page);
-  await display.getByTestId('seat-sound-settings').click();
+  await openPanelFrom(page, display.getByTestId('seat-sound-settings'));
   const panel = page.locator('app-sound-settings-panel');
   await expect(panel).toBeVisible({ timeout: 10000 });
   return panel;

@@ -1,6 +1,16 @@
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
-import { partPlacementsOf, placementOf } from '@axe/infrastructure/table-3d/model-layer';
-import { Matrix4, Vector3 } from 'three/webgpu';
+import { ModelLayer, partPlacementsOf, placementOf } from '@axe/infrastructure/table-3d/model-layer';
+import { meshesOf, triangleCountOf } from '@axe/infrastructure/three-kit/model-faces';
+import {
+  AnimationClip,
+  BufferAttribute,
+  BufferGeometry,
+  Group,
+  Matrix4,
+  Mesh,
+  Vector3,
+  type WebGPURenderer,
+} from 'three/webgpu';
 
 /** A model one unit across and two tall, as it was made. */
 const MADE = { size: new Vector3(1, 2, 1) };
@@ -239,5 +249,78 @@ describe('placementOf', () => {
 
   it('tips a floating piece’s model over at the height it floats', () => {
     expect(drawnAt(knight({ rollDeg: 90, altitudePx: 30 }), 0, 0, 0)).toEqual([75, 55, 200]);
+  });
+});
+
+describe('ModelLayer', () => {
+  /** A model of one mesh that plays the motions named, read at once in place of a file. */
+  function layerOf(motions: readonly string[]): ModelLayer {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const scene = new Group();
+    scene.add(new Mesh());
+    const loaded = {
+      gltf: { scene, animations: motions.map((name) => new AnimationClip(name, 1, [])) },
+      size: new Vector3(1, 2, 1),
+      foot: new Vector3(0, 0, 0),
+      animated: true,
+    };
+    (layer as unknown as { loaded: Map<string, unknown> }).loaded.set('blob:knight', loaded);
+    return layer;
+  }
+
+  it('plays the motions a piece names standing and walking, and the others it names once they are changed', () => {
+    const layer = layerOf(['Idle', 'Guard', 'Walk', 'Run']);
+
+    layer.set([knight()]);
+    expect(layer.motionOf('knight')).toBe('Idle');
+
+    layer.set([knight({ model: { identifier: 'knight-model', scale: 1, turnDeg: 0, idle: 'Guard', walk: '' } })]);
+    expect(layer.motionOf('knight')).toBe('Guard');
+
+    const running = { identifier: 'knight-model', scale: 1, turnDeg: 0, idle: 'Guard', walk: 'Run' };
+    layer.set([knight({ model: running, walking: true })]);
+    expect(layer.motionOf('knight')).toBe('Run');
+
+    layer.set([knight({ model: { ...running, walk: 'Walk' }, walking: true })]);
+    expect(layer.motionOf('knight')).toBe('Walk');
+
+    layer.set([knight({ model: { ...running, idle: '' }, walking: false })]);
+    expect(layer.motionOf('knight')).toBe('Idle');
+  });
+
+  it('stands a model a part is painted over as a copy of its own, leaving out the faces of the lost parts', () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const shape = new BufferGeometry();
+    shape.setAttribute('position', new BufferAttribute(new Float32Array(4 * 9), 3));
+    shape.setIndex([...Array(12).keys()]);
+    const scene = new Group();
+    scene.add(new Mesh(shape));
+    (layer as unknown as { loaded: Map<string, unknown> }).loaded.set('blob:knight', {
+      gltf: { scene, animations: [] },
+      size: new Vector3(1, 2, 1),
+      foot: new Vector3(0, 0, 0),
+      animated: false,
+    });
+    const stood = () => (layer as unknown as { stood: Map<string, { root: Group }> }).stood.get('knight')?.root;
+    const triangles = () => meshesOf(stood()!).map((mesh) => triangleCountOf(mesh.geometry));
+
+    layer.set([knight({ ownCopy: true })]);
+    expect(triangles()).toEqual([4]);
+    expect(stood()!.userData['owner']).toBe('knight');
+
+    layer.set([knight({ ownCopy: true, cutFaces: '0:1-2' })]);
+    expect(triangles()).toEqual([2]);
+    expect(triangleCountOf(shape)).toBe(4);
+
+    layer.set([knight({ ownCopy: true })]);
+    expect(triangles()).toEqual([4]);
   });
 });

@@ -60,7 +60,7 @@ test.describe('how far information is disclosed', () => {
     await setRole(page, 'GM');
   });
 
-  test('keeps a player from a piece made GM-only, which the GM can still open and the inventory shows locked', async ({
+  test('keeps a player from a piece made GM-only but for aiming at it, which the GM can still open and the inventory shows locked', async ({
     page,
   }) => {
     const total = await page.locator('game-character').count();
@@ -77,11 +77,13 @@ test.describe('how far information is disclosed', () => {
     await expect(page.locator('context-menu li').filter({ hasText: '詳細を表示' })).toBeVisible({ timeout: 5000 });
     await dismissMenu(page);
 
-    // The hidden piece does not even open its menu.
+    // The hidden piece opens a menu that only aims at it.
     await page.locator('game-character').nth(HIDDEN).dispatchEvent('contextmenu');
-    await expect(page.locator('context-menu')).toHaveCount(0);
-    await page.waitForTimeout(500);
-    await expect(page.locator('context-menu')).toHaveCount(0);
+    const menu = page.locator('context-menu');
+    await expect(menu.locator('li').filter({ hasText: 'ターゲット' }).first()).toBeVisible({ timeout: 5000 });
+    await expect(menu.locator('li').filter({ hasText: '詳細を表示' })).toHaveCount(0);
+    await expect(menu.locator('li').filter({ hasText: 'チャットパレット' })).toHaveCount(0);
+    await dismissMenu(page);
 
     // It does not vanish, though; it stays on the table.
     await expect(page.locator('game-character')).toHaveCount(total);

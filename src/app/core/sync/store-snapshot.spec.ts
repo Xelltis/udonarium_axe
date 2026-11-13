@@ -1,7 +1,7 @@
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { restoreStore, snapshotStore } from '@axe/core/sync/store-snapshot';
+import { putBackQuietly, restoreStore, snapshotStore, takeOutQuietly } from '@axe/core/sync/store-snapshot';
 import { DataElement } from '@axe/domain/data/data-element';
 
 /** Counts the changes it takes in from peers, which a store put back must not count as one. */
@@ -113,5 +113,45 @@ describe('putting the store back as a snapshot found it', () => {
     restoreStore(snapshot, (object) => object.identifier === 'kept-gone');
 
     expect(store.get('kept-gone')).toBeNull();
+  });
+});
+
+describe('taking objects out quietly and putting them back', () => {
+  const store = ObjectStore.instance;
+
+  it('takes an object and what it holds off this device alone, and puts them back as they were', () => {
+    const parent = DataElement.create('親', '', {}, 'quiet-parent');
+    const child = DataElement.create('子', '7', {}, 'quiet-child');
+    parent.appendChild(child);
+    child.value = '8';
+    const version = child.version;
+
+    const contexts = takeOutQuietly([parent]);
+
+    expect(store.get('quiet-parent')).toBeNull();
+    expect(store.get('quiet-child')).toBeNull();
+    expect(store.isDeleted('quiet-parent')).toBe(false);
+
+    putBackQuietly(contexts);
+
+    const back = store.get<DataElement>('quiet-parent')!;
+    const backChild = store.get<DataElement>('quiet-child')!;
+    expect(backChild.parent).toBe(back);
+    expect(backChild.value).toBe('8');
+    expect(backChild.version).toBe(version);
+    back.destroy();
+    store.clearDeleteHistory();
+  });
+
+  it('leaves alone what is held under a name taken out again meanwhile', () => {
+    const element = DataElement.create('元', 'old', {}, 'quiet-taken');
+    const contexts = takeOutQuietly([element]);
+    const again = DataElement.create('新', 'new', {}, 'quiet-taken');
+
+    putBackQuietly(contexts);
+
+    expect(store.get('quiet-taken')).toBe(again);
+    again.destroy();
+    store.clearDeleteHistory();
   });
 });

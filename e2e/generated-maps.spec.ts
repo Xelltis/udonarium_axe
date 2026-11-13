@@ -155,8 +155,18 @@ test.describe('pieces on a field just generated', () => {
       const from = await spotBehindOf(page, hidden!.id);
       expect(from, `the piece is still taken up, from ${await placeOf(page, hidden!.id)}`).not.toBeNull();
       const was = await placeOf(page, hidden!.id);
+      await page.waitForTimeout(600);
+      // What a press there takes just before it is made, told if the piece is not moved by it.
+      const pressed = await page.evaluate(
+        ([x, y]) => (window as unknown as { __axeTable: Hooks }).__axeTable.pressedAt(x, y),
+        [from!.x, from!.y]
+      );
       await dragTo(page, from!, { x: from!.x + by.x, y: from!.y + by.y });
-      await expect.poll(() => placeOf(page, hidden!.id)).not.toBe(was);
+      await expect
+        .poll(() => placeOf(page, hidden!.id), {
+          message: `the piece moved from ${was} by ${by.x},${by.y}; a press at ${from!.x},${from!.y} took ${pressed}`,
+        })
+        .not.toBe(was);
     }
   });
 });

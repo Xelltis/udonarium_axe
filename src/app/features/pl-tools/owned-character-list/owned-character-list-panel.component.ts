@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActiveCharacterService } from '@axe/application/character/active-character.service';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PartyService } from '@axe/application/party/party.service';
@@ -32,6 +33,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class OwnedCharacterListPanelComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly names = inject(PieceNameService);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly tableFocus = inject(TableFocusService);
   private readonly objectPanels = inject(ObjectPanelService);
@@ -64,7 +66,9 @@ export class OwnedCharacterListPanelComponent {
     this.objectChange.trackMyCursor();
     const all = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const character of all) this.objectChange.versionOf(character.identifier)();
-    return selectClaimableCharacters(all).filter((character) => this.disclosure.canSetOwner(character));
+    return selectClaimableCharacters(all).filter(
+      (character) => this.disclosure.canSetOwner(character) && !this.names.isKept(character)
+    );
   });
 
   readonly search = signal('');
@@ -99,7 +103,8 @@ export class OwnedCharacterListPanelComponent {
   }
 
   protected displayName(character: GameCharacter): string {
-    return character.name.length ? character.name : this.t('feature.plTools.ownedCharacters.unnamed');
+    const name = this.names.shown(character);
+    return name.length ? name : this.t('feature.plTools.ownedCharacters.unnamed');
   }
 
   protected party(character: GameCharacter): Party | null {

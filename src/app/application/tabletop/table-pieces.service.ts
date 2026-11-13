@@ -1,9 +1,12 @@
 import { computed, inject, Injectable, type Signal, untracked } from '@angular/core';
+import { EffectReactionService } from '@axe/application/effect/effect-reaction.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceMotionsService, type PlayingPose } from '@axe/application/tabletop/piece-motions.service';
+import { PiecePartPicturesService } from '@axe/application/tabletop/piece-part-pictures.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
@@ -26,6 +29,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
+import type { EffectJolt } from '@axe/domain/effect/effect-reaction';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -73,6 +77,11 @@ interface DrawnPlace {
   readonly x: number;
   readonly y: number;
   readonly z: number;
+  /**
+   * How far off its face it is placed, where it stands or where this seat is moving it, before the
+   * raised ground lifts it.
+   */
+  readonly placedZ: number;
 }
 
 /** A piece drawn where it stands, on the face it stands on, with how to draw it again elsewhere. */
@@ -195,6 +204,8 @@ export class TablePiecesService {
   private readonly pictureSizes = inject(PictureSizeService);
   private readonly surfaces = inject(TableSurfaceService);
   private readonly vision = inject(VisionService);
+  private readonly links = inject(PieceLinksService);
+  private readonly partPictures = inject(PiecePartPicturesService);
   private readonly eyes = inject(TableEyeService);
   private readonly ground = inject(StandingGroundService);
   private readonly transient = inject(TransientPlacementService);
@@ -204,13 +215,22 @@ export class TablePiecesService {
   private readonly pagePictures = inject(PiecePicturesService);
   private readonly roomRules = inject(RoomRulesService);
   private readonly motions = inject(PieceMotionsService);
+  private readonly reactions = inject(EffectReactionService);
   private readonly modelStorage = inject(ModelStorage);
 
   /**
    * The characters this seat may see that are drawn as 3D models, held here in full, standing on the
    * floor: each stood at the middle of its footprint, walking while the seat moves it.
    */
-  readonly models = computed<readonly TableWorldModel[]>(() => this.drawnNow(this.standingModels()));
+  readonly models = computed<readonly TableWorldModel[]>(() => {
+    const drawn = this.drawnNow(this.standingModels());
+    const jolts = this.reactions.jolts();
+    if (!jolts.size) return drawn;
+    return drawn.map((model) => {
+      const jolt = jolts.get(model.owner);
+      return jolt ? { ...model, foot: jolted(model.foot, jolt) } : model;
+    });
+  });
 
   private readonly standingModels = computed<StandingParts<TableWorldModel>>(() => {
     this.tableInView();
@@ -225,7 +245,12 @@ export class TablePiecesService {
     },
     shown: (character) => {
       const model = pieceModelOf(character);
-      return !!model && this.modelUrlOf(model.identifier) !== '' && this.vision.isTokenVisible(character);
+      return (
+        !!model &&
+        this.modelUrlOf(model.identifier) !== '' &&
+        this.vision.isTokenVisible(character) &&
+        this.drawnAsItself(character)
+      );
     },
     draw: (character, place, moving, { gridSize }) => {
       const model = pieceModelOf(character);
@@ -251,10 +276,18 @@ export class TablePiecesService {
           pivotPx: size / 2,
           altitudePx: character.altitude * gridSize,
           walking: moving,
+          ...this.partFacesFor(character),
         },
       ];
     },
   });
+
+  /** What the parts of a piece stand for of its model, put on what the model is drawn with only where any is painted. */
+  private partFacesFor(character: GameCharacter): Pick<TableWorldModel, 'ownCopy' | 'cutFaces'> {
+    const faces = this.partPictures.modelFacesOf(character);
+    if (!faces.painted) return {};
+    return faces.cut ? { ownCopy: true, cutFaces: faces.cut } : { ownCopy: true };
+  }
 
   /** How big a cell of the table in view is, which most kinds of piece are drawn with alike. */
   private readonly gridLook = computed<GridLook>(() => ({ gridSize: this.tableShape().gridSize }), {
@@ -397,10 +430,24 @@ export class TablePiecesService {
 
   /**
    * Every sprite of every piece drawn on the table in view, a piece playing a move where the move
+   * has it now, and a piece an effect strikes thrown off where it stands for a moment.
+   */
+  readonly sprites = computed<readonly TableWorldSprite[]>(() => {
+    const posed = this.posedSprites();
+    const jolts = this.reactions.jolts();
+    if (!jolts.size) return posed;
+    return posed.map((sprite) => {
+      const jolt = jolts.get(sprite.owner);
+      return jolt ? { ...sprite, centre: jolted(sprite.centre, jolt) } : sprite;
+    });
+  });
+
+  /**
+   * Every sprite of every piece drawn on the table in view, a piece playing a move where the move
    * has it now. A piece moves about the middle of the first sprite of it lying on its face, as the
    * page moves it about the middle of where it stands.
    */
-  readonly sprites = computed<readonly TableWorldSprite[]>(() => {
+  private readonly posedSprites = computed<readonly TableWorldSprite[]>(() => {
     const standing = this.standing();
     const poses = this.motions.posesNow();
     if (!poses.size) return standing;
@@ -527,7 +574,7 @@ export class TablePiecesService {
       this.myUserId();
       return this.characterLook();
     },
-    shown: (character) => this.vision.isTokenVisible(character),
+    shown: (character) => this.vision.isTokenVisible(character) && this.drawnAsItself(character),
     draw: (character, place, _moving, look) => {
       const model = pieceModelOf(character);
       const modelled = !!model && place.onFloor && this.modelUrlOf(model.identifier) !== '';
@@ -541,7 +588,7 @@ export class TablePiecesService {
         lean: look.mode2d || !place.onFloor ? null : this.leanUnder(character, look.gridSize, place),
         altitudePx: character.altitude * look.gridSize,
         pedestal: this.pagePictures.pictureOf(character.identifier),
-        picture: this.sized(this.images.getEmptyOr(character.imageFile).url),
+        picture: this.partPictures.pictureOf(character) ?? this.sized(this.images.getEmptyOr(character.imageFile).url),
         pictureHeightPx: character.specifyKomaImageFlag ? character.komaImageHeight : null,
         pictureWidthPx: character.specifyKomaImageFlag ? pieceImageWidthApart(character.komaImageWidth) : null,
         fitsInCell: look.fitsInCell,
@@ -639,6 +686,7 @@ export class TablePiecesService {
         ...place,
         altitudePx: range.altitude * gridSize,
         picture: this.pagePictures.pictureOf(range.identifier),
+        ...(place.onFloor && Math.abs(place.placedZ) < 1 ? { overGroundPx: range.altitude * gridSize } : {}),
       }),
   });
 
@@ -820,6 +868,15 @@ export class TablePiecesService {
   });
 
   /**
+   * Whether a character is drawn as itself: not as one of the parts of another, which is drawn as its
+   * body alone. Follows the body, so a part is drawn again once the body leaves the table.
+   */
+  private drawnAsItself(character: GameCharacter): boolean {
+    if (character.ridingOn !== '') this.objectChange.versionOf(character.ridingOn)();
+    return this.links.bodyOf(character) === null;
+  }
+
+  /**
    * How to draw the pieces of a kind where each stands: each piece once, and again only when it or
    * what it reads changes, so that a piece another seat drags is drawn again alone. Nothing here
    * reads what this seat is moving, so its own drags draw none of it again.
@@ -936,7 +993,7 @@ export class TablePiecesService {
     const y = moving?.y ?? piece.location.y;
     const z = moving?.z ?? piece.posZ;
     const onFloor = surface === 'floor';
-    return { frame, onFloor, x, y, z: onFloor ? z + this.groundLiftOf(piece, x, y, z) : z };
+    return { frame, onFloor, x, y, z: onFloor ? z + this.groundLiftOf(piece, x, y, z) : z, placedZ: z };
   }
 
   /**
@@ -1063,4 +1120,9 @@ function cellOf(position: number, cellPx: number): number {
 /** One number for a cell of the floor, for cells on and some way off the table alike. */
 function cellKey(across: number, down: number): number {
   return (across + 0x8000) * 0x10000 + (down + 0x8000);
+}
+
+/** A point drawn off where it is by a jolt. */
+function jolted(point: { x: number; y: number; z: number }, jolt: EffectJolt): { x: number; y: number; z: number } {
+  return { x: point.x + jolt.x, y: point.y + jolt.y, z: point.z + jolt.z };
 }

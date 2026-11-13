@@ -40,6 +40,17 @@ export class InventoryRoundService {
       .filter((character) => this.vision.mayBeListed(character));
   });
 
+  /** The piece the next press of the round would hand the turn to, empty where it is none this reader can see. */
+  readonly nextIdentifier = computed<string>(() => {
+    this.progress();
+    this.inventory.inventoryVersion();
+    this.objectChange.versionOf('Config')();
+    this.objectChange.collectionOf('party')();
+    this.objectChange.trackMyCursor();
+    const next = this.turnOrder.peekNextIdentifier();
+    return this.order().some((piece) => piece.identifier === next) ? next : '';
+  });
+
   /** The pieces this reader can see that take their turn in another's, under the one whose turn it is. */
   readonly companions = computed<ReadonlyMap<string, GameCharacter[]>>(() => {
     this.inventory.inventoryVersion();

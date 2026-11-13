@@ -3,6 +3,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
@@ -17,11 +18,14 @@ import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
 import { DEFAULT_TABLE_CAMERA_VIEW, pageOfTablePoint, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
+import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { lyingPicture } from '@axe/domain/tabletop/world/table-sprites';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -423,6 +427,57 @@ describe('TablePickService', () => {
     );
     return { solid, clear };
   }
+
+  it('lands on a picture lying flat only inside the areas it is the piece within, as what of a range is painted', () => {
+    const frame = surfaceFrame('floor', { widthPx: table.width * GRID, depthPx: table.height * GRID, wallHeightPx: 0 });
+    const shape = [
+      { x: 0, y: 0 },
+      { x: 3 * GRID, y: 0 },
+      { x: 0, y: 3 * GRID },
+    ];
+    const cell = [
+      { x: 3 * GRID, y: 3 * GRID },
+      { x: 4 * GRID, y: 3 * GRID },
+      { x: 4 * GRID, y: 4 * GRID },
+      { x: 3 * GRID, y: 4 * GRID },
+    ];
+    vi.spyOn(TestBed.inject(TablePiecesService), 'sprites').mockReturnValue([
+      lyingPicture({ id: 'range-1', kind: 'range', frame, x: 5 * GRID, y: 5 * GRID }, 0.25, {
+        url: 'blob:range',
+        widthPx: 4 * GRID,
+        heightPx: 4 * GRID,
+        pickAreas: [shape, cell],
+      }),
+    ]);
+
+    const inShape = onPage(5, 5, 0.25);
+    const inCell = onPage(8, 8, 0.25);
+    const between = onPage(7, 6, 0.25);
+    expect(service.pickAt(inShape.x, inShape.y)?.target.id).toBe('range-1');
+    expect(service.pickAt(inCell.x, inCell.y)?.target.id).toBe('range-1');
+    expect(service.pickAt(between.x, between.y)).toBeNull();
+  });
+
+  it('lands on a range following the raised ground where the ground lifts it', () => {
+    const frame = surfaceFrame('floor', { widthPx: table.width * GRID, depthPx: table.height * GRID, wallHeightPx: 0 });
+    const raised: GroundSurface = {
+      isFlat: false,
+      sampleAt: () => 2,
+      paintAt: () => null,
+      heightAt: () => 2,
+      extent: null,
+    };
+    vi.spyOn(TestBed.inject(StandingGroundService), 'surface').mockReturnValue(raised);
+    const lying = lyingPicture({ id: 'range-1', kind: 'range', frame, x: 5 * GRID, y: 5 * GRID }, 0.25, {
+      url: 'blob:range',
+      widthPx: 2 * GRID,
+      heightPx: 2 * GRID,
+    });
+    vi.spyOn(TestBed.inject(TablePiecesService), 'sprites').mockReturnValue([{ ...lying, drapes: { liftPx: 0.25 } }]);
+
+    const onGround = onPage(5, 5, 2 * GRID + 0.25);
+    expect(service.pickAt(onGround.x, onGround.y)?.target.id).toBe('range-1');
+  });
 
   it('passes a press through the clear parts of a character’s picture, and lands on it where it is drawn', async () => {
     const character = await standHero();

@@ -73,6 +73,116 @@ describe('TriggerFireService', () => {
     return Number(DataElement.findElementByReference(piece.rootDataElement!, 'ライフ')!.currentValue);
   }
 
+  it('carries a creature of many parts off whole, its parts stood on it where it lands', () => {
+    const dragon = GameCharacter.create('竜', 3, '');
+    dragon.location = { name: 'table', x: 0, y: 0 };
+    const head = GameCharacter.create('頭', 1, '');
+    head.location = { name: 'table', x: GRID, y: GRID };
+    head.ridingOn = dragon.identifier;
+    head.rideSeat = 'part';
+
+    service.carryTo(dragon, 6, 6, table);
+
+    expect(dragon.location.x).toBeGreaterThan(GRID);
+    expect([head.location.x, head.location.y]).toEqual([dragon.location.x + GRID, dragon.location.y + GRID]);
+  });
+
+  it('stands what goes with a piece on it where it is carried to the ground it already stands on', () => {
+    const dragon = GameCharacter.create('竜', 3, '');
+    dragon.location = { name: 'table', x: 0, y: 0 };
+    service.carryTo(dragon, 6, 6, table);
+    const head = GameCharacter.create('頭', 1, '');
+    head.location = { name: 'table', x: 0, y: 0 };
+    head.ridingOn = dragon.identifier;
+    head.rideSeat = 'part';
+
+    service.carryTo(dragon, 6, 6, table);
+
+    expect([head.location.x, head.location.y]).toEqual([dragon.location.x + GRID, dragon.location.y + GRID]);
+  });
+
+  describe('a piece carried off with what it rides', () => {
+    function horseWithRider(): { horse: GameCharacter; rider: GameCharacter } {
+      const horse = heroWith(10);
+      horse.size = 2;
+      horse.mountable = '1';
+      horse.location = { name: 'table', x: 0, y: 0 };
+      const rider = heroWith(10);
+      rider.location = { name: 'table', x: 25, y: 25 };
+      rider.ridingOn = horse.identifier;
+      return { horse, rider };
+    }
+
+    it('carries a rider off on its mount, the mount set down where the rider would be', () => {
+      const { horse, rider } = horseWithRider();
+
+      service.carryTo(rider, 6, 6, table);
+
+      expect(horse.location.x).toBeGreaterThan(GRID);
+      expect([rider.location.x, rider.location.y]).toEqual([horse.location.x + 25, horse.location.y + 25]);
+      expect(rider.ridingOn).toBe(horse.identifier);
+    });
+
+    it('carries a part off as its body and the mount the body rides', () => {
+      const { horse, rider } = horseWithRider();
+      const arm = heroWith(10);
+      arm.location = { name: 'table', x: 25, y: 25 };
+      arm.ridingOn = rider.identifier;
+      arm.rideSeat = 'part';
+
+      service.carryTo(arm, 6, 6, table);
+
+      expect(horse.location.x).toBeGreaterThan(GRID);
+      expect([rider.location.x, rider.location.y]).toEqual([horse.location.x + 25, horse.location.y + 25]);
+      expect([arm.location.x, arm.location.y]).toEqual([rider.location.x, rider.location.y]);
+    });
+
+    it('carries a rider held fast on its mount all the same', () => {
+      const { horse, rider } = horseWithRider();
+      rider.heldFast = '1';
+
+      service.carryTo(rider, 6, 6, table);
+
+      expect([rider.location.x, rider.location.y]).toEqual([horse.location.x + 25, horse.location.y + 25]);
+    });
+
+    it('carries a rider held on to by another alone, as a captive is', () => {
+      const { horse, rider } = horseWithRider();
+      const ogre = heroWith(10);
+      ogre.location = { name: 'table', x: 400, y: 400 };
+      rider.grabbedBy = ogre.identifier;
+
+      service.carryTo(rider, 6, 6, table);
+
+      expect([horse.location.x, horse.location.y]).toEqual([0, 0]);
+      expect(rider.location.x).toBeGreaterThan(GRID);
+    });
+
+    it('springs the ground under a rider and its mount alike before carrying them off once', () => {
+      const { horse, rider } = horseWithRider();
+      const squares = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
+      for (const piece of [rider, horse]) {
+        const cell = pieceCellOf(squares, piece, GRID);
+        trapAt(cell % table.width, Math.floor(cell / table.width), {
+          moment: 'turnStart',
+          warps: true,
+          warpCol: 6,
+          warpRow: 6,
+        });
+      }
+      trapAt(6, 6, { moment: 'turnStart', warps: true, warpCol: 9, warpRow: 9 });
+
+      service.carryingAfter(() => {
+        service.standingOn(rider, 'turnStart');
+        service.standingOn(horse, 'turnStart');
+      });
+
+      expect([hpOf(rider), hpOf(horse)]).toEqual([7, 7]);
+      expect(pieceCellOf(cellGridOf(table.width, table.height, GRID, GridType.SQUARE), horse, GRID)).toBe(at(6, 6));
+      expect([rider.location.x, rider.location.y]).toEqual([horse.location.x + 25, horse.location.y + 25]);
+    });
+  });
+
   describe('on a table that counts two cells as one square', () => {
     it('springs ground under any cell of a square the piece enters, once', () => {
       table.squareSpan = 2;

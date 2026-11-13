@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
@@ -64,6 +65,7 @@ export class BuffManagerPanelComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
+  private readonly names = inject(PieceNameService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly inventory = inject(GameObjectInventoryService);
   private readonly panelService = inject(PanelService);
@@ -97,7 +99,7 @@ export class BuffManagerPanelComponent {
       if (bars.length < 1) continue;
       rows.push({
         characterIdentifier: character.identifier,
-        characterName: character.name,
+        characterName: this.names.shown(character),
         imageUrl: character.imageFile?.url ?? '',
         bars,
       });
@@ -109,7 +111,7 @@ export class BuffManagerPanelComponent {
     this.objectChange.collectionOf('character')();
     this.bumped();
     return (this.inventory.tableInventory.tabletopObjects as GameCharacter[])
-      .filter((character) => this.vision.mayBeListed(character))
+      .filter((character) => this.vision.mayBeListed(character) && !this.names.isKept(character))
       .map((character) => ({ identifier: character.identifier, name: character.name }));
   });
 

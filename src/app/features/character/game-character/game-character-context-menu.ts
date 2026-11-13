@@ -68,6 +68,11 @@ export interface GameCharacterContextMenuCallbacks {
   onFollowFromBehind?: () => void;
   /** Gives the table its own camera back, where the piece is followed from behind. */
   onStopFollowing?: () => void;
+  /**
+   * Hides the piece's name from all but the game masters, or shows it again. Left out but for one
+   * who may see what is kept back, or a player could show a name the master hid.
+   */
+  onSetNameHidden?: (hidden: boolean) => void;
 }
 
 /**
@@ -90,6 +95,26 @@ const NO_FIGHT_ENTRIES: FightMenuEntries = { onAndOff: [], fight: [], handling: 
 export interface GameCharacterContextMenuModel {
   actions: ContextMenuAction[];
   radialGroups: ContextMenuRadialGroup[];
+}
+
+/**
+ * The menu of a piece the reader may not view, as one kept to the game master: only what aims at it,
+ * which says nothing of what it holds, so a player can still take it for a target.
+ */
+export function buildUnviewableCharacterContextMenu(
+  char: GameCharacter,
+  callbacks: Pick<GameCharacterContextMenuCallbacks, 'onToggleTarget' | 'onClearTargets'>,
+  t: TranslateFn
+): ContextMenuAction[] {
+  return [
+    {
+      name: (char.targeted ? '✔ ' : '') + t('feature.character.contextMenu.target'),
+      action: () => callbacks.onToggleTarget?.(),
+    },
+    ...(callbacks.onClearTargets
+      ? [{ name: t('feature.character.contextMenu.clearTargets'), action: () => callbacks.onClearTargets?.() }]
+      : []),
+  ];
 }
 
 /**
@@ -360,22 +385,29 @@ export function buildGameCharacterContextMenuModel(
       ),
     ],
   });
-  const lookToggles: ContextMenuAction[] = [
-    char.hideName
-      ? {
-          name: t('feature.character.contextMenu.hideNameOn'),
+  // One who may not hide a name still sees that it is hidden, and that the master alone may show it.
+  const nameToggle: ContextMenuAction[] = callbacks.onSetNameHidden
+    ? [
+        {
+          name: t(
+            char.hideName ? 'feature.character.contextMenu.hideNameOn' : 'feature.character.contextMenu.hideNameOff'
+          ),
           action: () => {
-            char.hideName = false;
-            SoundEffect.play(PresetSound.sweep);
-          },
-        }
-      : {
-          name: t('feature.character.contextMenu.hideNameOff'),
-          action: () => {
-            char.hideName = true;
+            callbacks.onSetNameHidden?.(!char.hideName);
             SoundEffect.play(PresetSound.sweep);
           },
         },
+      ]
+    : char.hideName
+      ? [
+          {
+            name: t('feature.character.contextMenu.hideNameOn') + t('feature.character.contextMenu.hideNameGmOnly'),
+            enabled: false,
+          },
+        ]
+      : [];
+  const lookToggles: ContextMenuAction[] = [
+    ...nameToggle,
     char.hideBuff
       ? {
           name: t('feature.character.contextMenu.hideBuffOn'),

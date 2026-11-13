@@ -1,14 +1,26 @@
 /**
  * Where a piece rides a mount: in front, steering it; behind the one in front, as a second rider;
- * or carried, as a load the mount takes in place of a second rider.
+ * or carried, as a load the mount takes in place of a second rider. A piece may also be a part of
+ * another, as a head or an arm of a creature of many parts: it goes where its body goes, is drawn
+ * as the body alone, and acts in the body's turn, whether or not the body is a mount.
  */
-export type RideSeat = 'rider' | 'passenger' | 'cargo';
+export type RideSeat = 'rider' | 'passenger' | 'cargo' | 'part';
 
 /** The seat a piece is written down as riding in: empty is the front. */
 export function seatOf(written: string): RideSeat {
   if (written === 'passenger') return 'passenger';
   if (written === 'cargo') return 'cargo';
+  if (written === 'part') return 'part';
   return 'rider';
+}
+
+/** Whether a piece is written down as a part of the piece it is written down as riding. */
+export function isPartOf(piece: {
+  readonly id: string;
+  readonly ridingOn: string;
+  readonly rideSeat: string;
+}): boolean {
+  return piece.ridingOn !== '' && piece.ridingOn !== piece.id && seatOf(piece.rideSeat) === 'part';
 }
 
 /** The seat as it is written down on the piece riding. */
@@ -223,11 +235,19 @@ export function turnCarriers(pieces: readonly RideTurnPiece[]): Map<string, stri
   };
   const carriers = new Map<string, string>();
   for (const piece of byId.values()) {
+    if (isPartOf(piece)) continue;
     const carrier = piece.mountable
       ? frontOf(piece.id)
       : piece.ridingOn !== '' && seatOf(piece.rideSeat) === 'passenger'
         ? frontOf(piece.ridingOn)
         : '';
+    if (carrier !== '') carriers.set(piece.id, carrier);
+  }
+  // A part acts in its body's turn, wherever the body takes its own.
+  for (const piece of byId.values()) {
+    const body = isPartOf(piece) ? byId.get(piece.ridingOn) : undefined;
+    if (!body || isPartOf(body)) continue;
+    const carrier = carriers.get(body.id) ?? (body.takesTurns !== false ? body.id : '');
     if (carrier !== '') carriers.set(piece.id, carrier);
   }
   return carriers;
@@ -317,7 +337,8 @@ export function fallersWhenDown(id: string, pieces: readonly RideTurnPiece[]): s
   const byId = new Map(pieces.map((piece) => [piece.id, piece]));
   const piece = byId.get(id);
   if (!piece) return [];
-  const rides = (one: RideTurnPiece) => one.id !== one.ridingOn && byId.get(one.ridingOn)?.mountable === true;
+  const rides = (one: RideTurnPiece) =>
+    one.id !== one.ridingOn && byId.get(one.ridingOn)?.mountable === true && seatOf(one.rideSeat) !== 'part';
   const inFront = rides(piece) && seatOf(piece.rideSeat) === 'rider';
   return pieces
     .filter((one) => rides(one))
@@ -377,11 +398,15 @@ export function buffNameOf(command: string): string | null {
 }
 
 /**
- * The pieces whose ground stands in the way of a piece's move, leaving out, for a piece that is no
- * mount, the mounts and those riding them: ground the piece may walk onto to get on one.
+ * The pieces whose ground stands in the way of a piece's move, leaving out those riding it or parts
+ * of it, which go where it goes, and, for a piece that is no mount, the mounts and those riding them:
+ * ground the piece may walk onto to get on one.
  */
 export function inTheWayOf<T extends RideTurnPiece>(mover: RideTurnPiece, pieces: readonly T[]): T[] {
-  if (mover.mountable) return [...pieces];
+  const carried = (piece: T) => piece.id !== mover.id && piece.ridingOn === mover.id;
+  if (mover.mountable) return pieces.filter((piece) => !carried(piece));
   const mounts = new Set(pieces.filter((piece) => piece.mountable).map((piece) => piece.id));
-  return pieces.filter((piece) => piece.id === mover.id || (!mounts.has(piece.id) && !mounts.has(piece.ridingOn)));
+  return pieces.filter(
+    (piece) => piece.id === mover.id || (!carried(piece) && !mounts.has(piece.id) && !mounts.has(piece.ridingOn))
+  );
 }

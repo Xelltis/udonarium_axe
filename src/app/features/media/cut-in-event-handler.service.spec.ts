@@ -162,8 +162,10 @@ describe('CutInEventHandlerService', () => {
     );
     const startedAt = components.map((component) => component.startCutIn.mock.calls[0][0]);
     expect(new Set(startedAt).size).toBe(1);
-    expect(components[0].startCutIn).toHaveBeenCalledWith(startedAt[0], undefined);
-    expect(components[1].startCutIn).toHaveBeenCalledWith(startedAt[0], 0);
+    const clock = components[0].startCutIn.mock.calls[0][2];
+    expect(clock).toEqual({ startedAtMs: null });
+    expect(components[0].startCutIn).toHaveBeenCalledWith(startedAt[0], undefined, clock);
+    expect(components[1].startCutIn).toHaveBeenCalledWith(startedAt[0], 0, clock);
     expect(components[1].startCutIn.mock.invocationCallOrder[0]).toBeLessThan(
       components[0].startCutIn.mock.invocationCallOrder[0]
     );

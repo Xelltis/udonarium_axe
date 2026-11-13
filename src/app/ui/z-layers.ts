@@ -85,3 +85,10 @@ export const Z_VISUAL_NOVEL_PANEL_ABOVE = Z_VISUAL_NOVEL_PANEL + 1;
  * and anything above them, which the reader opened and is in the middle of using.
  */
 export const Z_BATTLE_CUT_IN = 900;
+
+/**
+ * A face of the turn order drawn out beside it, under the pointer or the keys, with its name and how
+ * it stands. With the dropdowns and text tooltips at 2000000: it answers what the reader is pointing
+ * at, over whatever panel or bar it lies against.
+ */
+export const Z_POINTER_PEEK = 2_000_000;

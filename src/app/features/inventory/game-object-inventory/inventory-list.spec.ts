@@ -33,6 +33,12 @@ describe('buildInventoryRow()', () => {
 });
 
 describe('inventorySearchText()', () => {
+  it('searches by the name the reader is shown where one is given, not the piece’s own', () => {
+    const row = { object: { name: '村長' }, folderPath: '' } as unknown as InventoryRow;
+
+    expect(inventorySearchText(row, '', [], '？？？')).not.toContain('村長');
+  });
+
   it('gathers the name, the owner and the folder', () => {
     const text = textOf(makeRow('ゴブリン', '第1話'), '田中');
 

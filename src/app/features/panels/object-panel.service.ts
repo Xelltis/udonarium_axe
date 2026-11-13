@@ -1,4 +1,5 @@
 import { inject, Injectable, Injector, ViewContainerRef, WritableSignal } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -38,6 +39,7 @@ interface DetachRequest {
 @Injectable({ providedIn: 'root' })
 export class ObjectPanelService {
   private readonly panelService = inject(PanelService);
+  private readonly names = inject(PieceNameService);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly t = inject(TRANSLATE_FN);
@@ -113,7 +115,7 @@ export class ObjectPanelService {
       import('@axe/features/chat/chat-palette/chat-palette.component').then((m) => m.ChatPaletteComponent);
     const option = this.option(
       character,
-      this.t('feature.character.panel.chatPaletteWithName', { name: character.name }),
+      this.t('feature.character.panel.chatPaletteWithName', { name: this.names.shown(character) }),
       CHAT_PALETTE_SIZE,
       place,
       {
@@ -139,7 +141,7 @@ export class ObjectPanelService {
       );
     const option = this.option(
       character,
-      this.t('feature.character.panel.remoteControllerWithName', { name: character.name }),
+      this.t('feature.character.panel.remoteControllerWithName', { name: this.names.shown(character) }),
       REMOTE_CONTROLLER_SIZE,
       { offset: REMOTE_CONTROLLER_OFFSET, ...place },
       {

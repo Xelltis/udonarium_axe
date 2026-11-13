@@ -14,6 +14,7 @@ import {
   viewChild,
   viewChildren,
 } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -65,6 +66,7 @@ export class ChatTabComponent {
   private renderVersion = signal(0);
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly names = inject(PieceNameService);
   private readonly panelService = inject(PanelService);
   private readonly objectStore = inject(ObjectStore);
   private readonly uiSignalService = inject(UiSignalService);
@@ -404,7 +406,7 @@ export class ChatTabComponent {
       return {
         peerId,
         speakerIdentifier,
-        name: object.name || this.t('feature.chat.tab.unnamedCharacter'),
+        name: this.names.shown(object) || this.t('feature.chat.tab.unnamedCharacter'),
         imageFile: object.imageFile ?? ImageFile.Empty,
       };
     }

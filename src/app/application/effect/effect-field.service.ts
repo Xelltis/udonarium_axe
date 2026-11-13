@@ -14,6 +14,8 @@ export interface EffectFieldRenderable {
   preset: EffectPreset;
   cast: EffectCast;
   elapsed: number;
+  /** How long it has been playing, its loop not folded back, from a moment of its own. */
+  playedMs: number;
 }
 
 /**
@@ -99,6 +101,7 @@ export class EffectFieldService {
           seed: field.phaseOffset,
         },
         elapsed: (now + field.phaseOffset) % preset.duration,
+        playedMs: now + field.phaseOffset,
       });
     }
     return renderables;

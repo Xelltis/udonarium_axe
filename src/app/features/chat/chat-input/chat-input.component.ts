@@ -18,6 +18,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatLintService } from '@axe/application/chat/chat-lint.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
@@ -28,12 +29,14 @@ import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.se
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
@@ -128,6 +131,7 @@ const LIST_ROOM = 240;
 })
 export class ChatInputComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
+  private readonly mobileLayout = inject(MobileLayoutService);
   protected readonly barButtonClass =
     'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent aria-expanded:bg-ui-hover rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]! pointer-coarse:h-8 pointer-coarse:min-w-8';
   protected readonly barWordButtonClass =
@@ -138,7 +142,13 @@ export class ChatInputComponent {
   protected readonly panelRowClass =
     'text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px]';
   protected readonly findingsChipClass =
-    'border-ui-border-panel bg-ui-elevated text-ui-muted shadow-ui-sm data-[severity=error]:text-ui-danger data-[severity=warning]:text-ui-warning data-[severity=info]:text-ui-accent absolute right-5 bottom-1 z-1 m-0 flex h-4.5 cursor-pointer items-center gap-0.5 rounded-full border border-solid px-1.5 text-[11px] leading-none font-semibold hover:shadow-none [&_i]:text-[13px]!';
+    'border-ui-border-panel bg-ui-elevated text-ui-muted shadow-ui-sm data-[severity=error]:text-ui-danger data-[severity=warning]:text-ui-warning data-[severity=info]:text-ui-accent absolute right-5 bottom-1 z-1 m-0 flex h-4.5 min-h-4.5! cursor-pointer after:absolute after:-inset-x-1 after:-inset-y-2 items-center gap-0.5 rounded-full border border-solid px-1.5 text-[11px] leading-none font-semibold hover:shadow-none [&_i]:text-[13px]!';
+  /**
+   * The bar over the box telling what `{目標値}` comes to, as tall whichever controls it holds, so that
+   * the room it keeps for one does not change as it fills.
+   */
+  protected readonly targetNumberBandClass =
+    'border-ui-border-panel text-ui-text rounded-ui-sm mb-1.5 box-border flex min-h-7 min-w-0 items-center gap-2 border border-solid px-2 py-0 text-[11px]';
   protected readonly findingRowClass =
     'text-ui-text hover:bg-ui-hover data-[severity=error]:[&_i]:text-ui-danger data-[severity=warning]:[&_i]:text-ui-warning data-[severity=info]:[&_i]:text-ui-accent rounded-ui-sm m-0 flex w-full cursor-pointer items-start gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px] leading-snug [&_i]:mt-px [&_i]:text-[15px]!';
 
@@ -334,6 +344,8 @@ export class ChatInputComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly vision = inject(VisionService);
+  protected readonly names = inject(PieceNameService);
+  private readonly disclosure = inject(DisclosureService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly uiSignalService = inject(UiSignalService);
   /**
@@ -634,6 +646,25 @@ export class ChatInputComponent {
    */
   readonly narrow = input(false);
   /**
+   * Whether the input is laid out for a phone, where the room above the box is one row and no more:
+   * a small picture of the speaker, the speaker, whom it is said to and the dice bot along it, the
+   * buttons for how the line goes out along the top of the box with those for what it says, and the
+   * box the full width of the screen and two lines high, with the send button inside it.
+   */
+  protected readonly onPhone = computed(() => !this.narrow() && this.mobileLayout.isActive());
+  /**
+   * Whether the box runs the full width, a small picture of the speaker before the speaker's name in
+   * place of the portrait's column beside it and the send button inside it: where the input is
+   * narrow, and on a phone.
+   */
+  protected readonly boxFullWidth = computed(() => this.narrow() || this.onPhone());
+  /**
+   * Keeps the room of the bar over the box telling what `{目標値}` comes to while the line holds
+   * none, the bar standing faded in it, for a palette some of whose lines hold one: a line clicked
+   * in its list then moves nothing under the pointer, and a second click lands on the same line.
+   */
+  readonly keepsTargetNumberPlace = input(false);
+  /**
    * Whether the bar of tools over the box keeps to one row, scrolling sideways where its tools run past
    * the box's width, as on a small screen, where rows of tools would leave little of the box to write in.
    */
@@ -709,12 +740,31 @@ export class ChatInputComponent {
   readonly textInput = input('', { alias: 'text' });
   readonly textChange = output<string>();
   private readonly _text = linkedSignal(() => this.textInput());
+  /** Whether anything is written, so a palette's box keeps room for the mark on findings beside it. */
+  protected readonly hasText = computed(() => this._text().length > 0);
+  /**
+   * Whether the box holds what was put into it from outside, as a palette's line picked, rather than
+   * what is typed in it since. A palette's box then keeps the height it had as the line came in, so
+   * that the list under it holds still; what is typed grows it as before.
+   */
+  protected readonly putIn = signal(true);
+  /** The height a palette's box is held at while it holds a line put into it; null to fit its line. */
+  protected readonly heldHeight = signal<number | null>(null);
+  private readonly richBox = viewChild<ElementRef<HTMLElement>>('richBox');
+  /** The box the reader has sized by its corner, whose height is then theirs and left alone. */
+  private sizedBox: HTMLElement | null = null;
+  /** The box a height was last written on, and the height as the box then read it back. */
+  private written: { box: HTMLElement; height: string } | null = null;
+  /** The line last told through `textChange`, which coming back in is not one put in from outside. */
+  private told: string | null = null;
   /** The line being written; setting it reports through `textChange`. */
   get text(): string {
     return this._text();
   }
   set text(text: string) {
     this._text.set(text);
+    this.told = text;
+    if (text.length < 1) this.heldHeight.set(null);
     this.textChange.emit(text);
   }
 
@@ -807,6 +857,29 @@ export class ChatInputComponent {
       if (this.canSpeak() && this.chatPreferences.richInput()) untracked(() => this.requestEditor());
     });
     effect(() => this.followEditorHost());
+    // Written on the box itself rather than bound, so that letting go of it leaves a height the
+    // reader gave the box by its corner as it is: a height on the box other than the one last written
+    // there was given it by hand, as the browser writes one as the corner is dragged.
+    effect(() => {
+      const held = this.dense() ? this.heldHeight() : null;
+      const box = this.richBox()?.nativeElement;
+      if (!box || box === this.sizedBox) return;
+      if (this.written?.box === box && box.style.height !== this.written.height) {
+        this.sizedBox = box;
+        return;
+      }
+      box.style.height = held === null ? '' : `${held}px`;
+      this.written = { box, height: box.style.height };
+    });
+    effect(() => {
+      const incoming = this.textInput();
+      untracked(() => {
+        if (incoming === this.told) return;
+        this.putIn.set(true);
+        const box = this.richBox()?.nativeElement;
+        this.heldHeight.set(this.dense() && incoming.length > 0 && box ? box.offsetHeight || null : null);
+      });
+    });
     effect(() => {
       const text = this._text();
       const field = this.richField();
@@ -1061,18 +1134,26 @@ export class ChatInputComponent {
 
   /**
    * The characters this seat may speak as. A piece on the table it cannot see is left out, so the
-   * list does not name what the dark or the fog is keeping back; the one already chosen stays.
+   * list does not name what the dark or the fog is keeping back; the one already chosen stays. Where
+   * only characters are listed, as a chat palette lists the pieces whose palettes it opens, a piece
+   * whose contents this seat may not view is left out too, as its palette may not be opened. A piece
+   * whose name is kept from this seat is left out, as the list would name it.
    */
   readonly gameCharacters = computed(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     const all = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const c of all) this.objectChange.versionOf(c.identifier)();
+    this.objectChange.trackMyCursor();
     const ignoreNonTalk = this.onlyCharacters();
     const chosen = this.sendFrom;
+    // The one chosen stays listed, so the select does not go blank where it is kept from view since.
     return all.filter(
       (character) =>
         allowsChat(character, this.myPeer.peerId, ignoreNonTalk) &&
-        (character.identifier === chosen || this.vision.mayBeListed(character))
+        (character.identifier === chosen ||
+          (this.vision.mayBeListed(character) &&
+            !this.names.isKept(character) &&
+            (!ignoreNonTalk || this.disclosure.canView(character))))
     );
   });
 
@@ -1119,6 +1200,7 @@ export class ChatInputComponent {
    * whisper only notifies the peer being whispered to.
    */
   onInput() {
+    this.openUp();
     if (this.writingEventInterval === null && this.previousWritingLength <= this.text.length) {
       let sendTo: string | undefined;
       if (this.isDirect) {
@@ -1302,8 +1384,34 @@ export class ChatInputComponent {
     }
   }
 
-  /** Grows or shrinks the box to its content, unless the user has resized it by hand. */
+  /**
+   * Lets a palette's box fit what it holds again, as something is typed in it or it is pressed: not as
+   * it is focused, which picking the number to beat does too, without the reader touching it.
+   */
+  protected openUp(): void {
+    if (!this.putIn() && this.heldHeight() === null) return;
+    this.putIn.set(false);
+    this.heldHeight.set(null);
+    this.kickCalcFitHeight();
+  }
+
+  /**
+   * Takes a press on the rich box as the box being taken up to be written in, but for one by a mouse
+   * or a pen on its resize corner, its bottom-right 16 pixels, which sizes it by hand instead.
+   */
+  protected onRichBoxPointerDown(event: PointerEvent): void {
+    const rect = this.richBox()?.nativeElement.getBoundingClientRect();
+    const onCorner = rect && event.clientX > rect.right - 16 && event.clientY > rect.bottom - 16;
+    if (onCorner && event.pointerType !== 'touch') return;
+    this.openUp();
+  }
+
+  /**
+   * Grows or shrinks the box to its content, unless the user has resized it by hand. A palette's box
+   * keeps its height while it holds a line picked into it (see {@link putIn}).
+   */
   calcFitHeight() {
+    if (this.dense() && this.putIn() && this.text.length > 0) return;
     this.textField()?.refit();
   }
 
@@ -1312,6 +1420,7 @@ export class ChatInputComponent {
    */
   onTextAreaPointerDown(event: PointerEvent) {
     this.plainField()?.notePointerDown(event);
+    this.openUp();
   }
 
   /** The dice bot help text last fetched for the help panel. */

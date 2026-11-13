@@ -677,6 +677,18 @@ describe('resource-edit-helpers', () => {
       expect(text).toBe('石化を加算 MP=0/3R (MPが見つかりません)    ');
     });
 
+    it('lays a buff of a status moved for whoever aims at the piece as a note, moving nothing and missing nothing', () => {
+      const hpBefore = character.status.getValue('HP', 'now');
+      const text = applyBuffEdit(
+        { command: '&!弱点/相手のHP+2,相手の物理特攻+3/none', object: character, targeted: false },
+        character
+      );
+
+      expect(text).toBe('弱点を付与 相手のHP+2,相手の物理特攻+3    ');
+      expect(character.buffs.find('弱点')!.currentValue).toBe('相手のHP+2');
+      expect(character.status.getValue('HP', 'now')).toBe(hpBefore);
+    });
+
     it('writes an unmarked calculated buff over the one standing', () => {
       character.status.changeValue('HP', 'now', -100);
       const before = character.status.getValue('HP', 'now')!;

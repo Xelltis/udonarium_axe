@@ -25,8 +25,13 @@ test('rolls a line aimed with t:範囲 once for every marked piece, naming them 
   await input.fill('2d6+5 魔法行使 t:範囲');
   await input.press('Enter');
 
-  const answers = page.locator('chat-message').filter({ hasText: '2D6+5' });
+  // The answers of the dice alone: the line said holds "2d6+5" as well, and a match on text does not
+  // tell the case of the letters apart.
+  const answers = page.locator('chat-message').filter({ hasText: 'DiceBot : (2D6+5)' });
   await expect(answers.last()).toContainText(/\[モンスター[AB]、モンスター[AB]\]/, { timeout: 15000 });
+  // The line said comes after the answer; once it is there, everything the press sent has arrived.
+  const said = page.locator('chat-message').filter({ hasText: '魔法行使' });
+  await expect(said).toHaveCount(1);
+  await expect(said).not.toContainText('t:範囲');
   await expect(answers).toHaveCount(1);
-  await expect(page.locator('chat-message').filter({ hasText: '魔法行使' }).last()).not.toContainText('t:範囲');
 });

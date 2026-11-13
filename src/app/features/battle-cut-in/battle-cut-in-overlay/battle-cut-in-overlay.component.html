@@ -52,8 +52,18 @@
         [style.opacity]="1 - sweep()"
       ></div>
 
-      <div class="absolute inset-0 perspective-distant">
-        <div class="absolute top-[72%] left-1/2 size-0 transform-3d" [style.transform]="boardTransform()">
+      <canvas
+        #floorCanvas
+        class="pointer-events-none absolute inset-0 size-full"
+        data-testid="battle-floor-effects"
+      ></canvas>
+
+      <div class="absolute inset-0" [style.perspective.px]="perspective">
+        <div
+          class="absolute left-1/2 size-0 transform-3d"
+          [style.top.%]="floorTop"
+          [style.transform]="boardTransform()"
+        >
           @for (figure of figures(); track figure.key) {
             <div
               class="absolute top-0 left-0 origin-top-left rounded-[50%]"
@@ -104,9 +114,21 @@
               }
             </div>
           }
-          @for (canvas of canvases(); track canvas.key) {
-            <effect-canvas class="backface-visible" [ngStyle]="canvas.style" [layer]="canvas.layer"></effect-canvas>
-          }
+        </div>
+      </div>
+
+      <canvas
+        #effectCanvas
+        class="pointer-events-none absolute inset-0 size-full"
+        data-testid="battle-effects"
+      ></canvas>
+
+      <div class="pointer-events-none absolute inset-0" [style.perspective.px]="perspective">
+        <div
+          class="absolute left-1/2 size-0 transform-3d"
+          [style.top.%]="floorTop"
+          [style.transform]="boardTransform()"
+        >
           @for (pop of pops(); track pop.key) {
             <div
               class="absolute top-0 left-0 flex origin-top-left flex-col items-center whitespace-nowrap"

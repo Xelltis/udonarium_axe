@@ -136,18 +136,28 @@ export function parseBuffModifierRequest(
  * read, or none is written.
  */
 export function parseBuffModifierItems(text: string): ParsedBuffModifierRequest[] | null {
-  const items = splitOutsideBrackets(text ?? '')
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
+  const items = buffNoteItems(text);
   if (items.length < 1) return null;
   const requests: ParsedBuffModifierRequest[] = [];
   for (const item of items) {
-    const parts = /^(.+?)(＋＋|−−|－－|\+\+|--|[+\-=＋−－＝])(.*)$/.exec(item);
-    const request = parts ? parseBuffModifierRequest(parts[1], parts[2], parts[3]) : null;
+    const request = parseBuffModifierItem(item);
     if (!request) return null;
     requests.push(request);
   }
   return requests;
+}
+
+/** The items of a buff's note, parted at its commas as {@link parseBuffModifierItems} parts them, each trimmed. */
+export function buffNoteItems(text: string): string[] {
+  return splitOutsideBrackets(text ?? '')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+/** One status a buff moves, written with its operator and amount, as `追D+4`; null where it cannot be read. */
+export function parseBuffModifierItem(item: string): ParsedBuffModifierRequest | null {
+  const parts = /^(.+?)(＋＋|−−|－－|\+\+|--|[+\-=＋−－＝])(.*)$/.exec(item);
+  return parts ? parseBuffModifierRequest(parts[1], parts[2], parts[3]) : null;
 }
 
 /**

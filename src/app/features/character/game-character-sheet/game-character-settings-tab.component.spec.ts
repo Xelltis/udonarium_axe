@@ -1,6 +1,7 @@
 import { ComponentRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import {
@@ -42,6 +43,16 @@ describe('GameCharacterSettingsTabComponent', () => {
 
   it('can be created', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('shows one who may not hide a name that it is hidden, and that the master alone may show it', () => {
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
+    character.hideName = true;
+    fixture.detectChanges();
+
+    const told = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="settings-hide-name-gm-only"]');
+    expect(told?.querySelector('input')?.disabled).toBe(true);
+    expect(told?.textContent).toContain('GMのみ');
   });
 
   describe("how high a mount's riders stand", () => {

@@ -1,3 +1,6 @@
+import { GridType } from '@axe/domain/tabletop/grid-type';
+import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
 import { type Material, type Mesh, Texture } from 'three/webgpu';
@@ -65,5 +68,54 @@ describe('SpriteLayer', () => {
     layer.picturesCame();
 
     expect(partsOf(layer).shown).toBe(0);
+  });
+
+  it('lays a range over the raised ground under its box, made anew only as the ground or its box changes, and flat again once the ground is flat', () => {
+    const layer = new SpriteLayer(() => new Texture());
+    const range: TableWorldSprite = {
+      id: 'range#picture',
+      owner: 'range',
+      kind: 'range',
+      centre: { x: 25, y: 25, z: 0.25 },
+      widthPx: 30,
+      heightPx: 30,
+      facing: { across: { x: 1, y: 0, z: 0 }, down: { x: 0, y: 1, z: 0 } },
+      look: { kind: 'picture', url: 'blob:range' },
+      brightness: 1,
+      twoSided: false,
+      order: 0.25,
+      drapes: { liftPx: 0.25 },
+    };
+    const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+    heights[1 * GROUND_CHUNK_SAMPLES + 1] = 64;
+    const floor = {
+      surface: groundSurfaceOf([{ cx: 0, cy: 0, heights, paint: null }]),
+      gridSize: 50,
+      gridType: GridType.SQUARE,
+    };
+    const laid = () => layer.group.children[0] as Mesh;
+    const highest = () => {
+      const positions = laid().geometry.getAttribute('position');
+      return Math.max(...Array.from({ length: positions.count }, (_, at) => positions.getY(at)));
+    };
+
+    layer.set([range]);
+    const square = laid().geometry;
+    expect(square.getAttribute('position').count).toBe(4);
+
+    layer.setGround(floor);
+    layer.set([range]);
+    const draped = laid().geometry;
+    expect(draped).not.toBe(square);
+    expect(highest()).toBeCloseTo(50.25);
+    expect(laid().position.toArray()).toEqual([0, 0, 0]);
+
+    layer.setGround({ ...floor });
+    layer.set([range]);
+    expect(laid().geometry).toBe(draped);
+
+    layer.setGround(null);
+    layer.set([range]);
+    expect(laid().geometry).toBe(square);
   });
 });

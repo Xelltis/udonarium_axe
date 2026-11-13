@@ -1,5 +1,5 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { buildMacroMessage } from '@axe/domain/chat/character-macro';
+import { aimedAt, aimLine, buildMacroMessage } from '@axe/domain/chat/character-macro';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 
@@ -48,6 +48,19 @@ describe('building a macro message', () => {
 
     expect(message.text).toBe('2d6+8 魔法行使 [相手A]\n2d6+8 魔法行使 [相手B]');
     expect(message.targetContexts.map((context) => context.text)).toEqual(['2d6+8 魔法行使', '2d6+8 魔法行使']);
+  });
+
+  it("adds what each marked piece's 相手の buffs give whoever aims at it to the speaker's value, piece by piece", () => {
+    const character = speaker('術者', '//物理特攻=3');
+    const weak = speaker('弱いゴブリン');
+    weak.addBuffDataElement();
+    applyBuffEdit({ command: '&!弱点/相手の物理特攻+2/none', object: weak, targeted: false }, weak);
+    const plain = speaker('ゴブリン');
+
+    const message = buildMacroMessage(character, 'k20+{物理特攻} 物理 t:', [weak, plain], '対象なし');
+
+    expect(message.text).toBe('k20+5 物理 [弱いゴブリン]\nk20+3 物理 [ゴブリン]');
+    expect(buildMacroMessage(character, 'k20+{物理特攻} 物理', [weak], '対象なし').text).toBe('k20+3 物理');
   });
 
   it('rolls a line marked with a t:範囲 once for every marked piece at once, their names after it', () => {
@@ -163,5 +176,21 @@ describe('building a macro message', () => {
 
     expect(message.text).toBe('こんばんは');
     expect(message.targetContexts).toHaveLength(1);
+  });
+});
+
+describe('naming the pieces a line is aimed at', () => {
+  it('names a piece whose name is hidden by the label, one at a time or all at once', () => {
+    const villain = GameCharacter.create('黒幕', 1, '');
+    villain.hideName = true;
+    const hero = GameCharacter.create('勇者', 1, '');
+    const fill = (text: string) => text;
+
+    const each = aimedAt(aimLine('2d6', null), [villain, hero], fill);
+    const together = aimedAt({ ...aimLine('2d6', null), atOnce: true }, [villain, hero], fill);
+
+    expect(each.text).toBe('2d6 [？？？]\n2d6 [勇者]');
+    expect(together.text).not.toContain('黒幕');
+    expect(together.contexts[0].together).toEqual(['？？？', '勇者']);
   });
 });

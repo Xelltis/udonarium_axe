@@ -225,6 +225,11 @@ export class PanelService {
   readonly isMinimized = signal(false);
   /** Whether the panel is shrunk to its content, which the content asks for with `shrinkRequest$`. */
   readonly isShrunk = signal(false);
+  /**
+   * Whether the panel, shrunk to its content, stands as wide as the content is, as the turn order
+   * laid across does, rather than as the narrow bar every shrunk panel is. The content says so.
+   */
+  readonly shrunkToContentWidth = signal(false);
   /** Buttons the content put in the title bar, beside the ones every panel wears. */
   readonly headerControls = signal<readonly PanelHeaderControl[]>([]);
 

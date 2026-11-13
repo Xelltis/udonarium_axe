@@ -1,5 +1,6 @@
 {
   "common": {
+    "hiddenName": "???",
     "button": {
       "ok": "확인",
       "cancel": "취소",
@@ -562,6 +563,11 @@
     "plTools": {
       "buffView": "버프 표시(전체)",
       "buffIconSize": "버프 아이콘 크기",
+      "turn": {
+        "focus": "{{name}}의 위치로 화면 이동",
+        "next": "다음",
+        "nextHint": "다음: 내 캐릭터의 차례를 끝내고 다음으로 넘기기"
+      },
       "active": {
         "title": "조작 대상 캐릭터",
         "openChatPalette": "{{name}}의 채팅 팔레트 열기"
@@ -1599,6 +1605,13 @@
         "spawn": "파생"
       }
     },
+    "turnFocus": {
+      "all": "차례인 말로 화면 이동: 모든 차례",
+      "own": "차례인 말로 화면 이동: 내 캐릭터만",
+      "none": "차례인 말로 화면 이동: 이동하지 않음",
+      "firstNotice": "차례인 말로 화면을 옮겼습니다. 메뉴의 \"차례인 말로 화면 이동\"에서 내 캐릭터만 또는 이동하지 않음으로 바꿀 수 있습니다",
+      "stop": "이동하지 않음"
+    },
     "turnOrder": {
       "title": "행동 순서",
       "roundShort": "R{{n}}",
@@ -1627,6 +1640,13 @@
       "undoAnnounce": "차례를 한 단계 되돌렸습니다.",
       "acted": "행동 완료",
       "held": "대기 중",
+      "peekCurrent": "지금 차례",
+      "peekNext": "다음 차례",
+      "peekSide": "진영: {{name}}",
+      "peekWith": "함께 움직임: {{names}}",
+      "peekGive": "누르면 이 말에게 차례를 넘깁니다",
+      "peekGiveNow": "차례 넘기기",
+      "length": "행동 순서의 길이 (드래그나 화살표 키로 변경, 더블클릭이나 Home 키로 화면에 맞춤)",
       "hold": "대기시키기",
       "holdCurrent": "차례인 말을 대기시키기 (나중에 끼어들 수 있습니다)",
       "interrupt": "끼어들기",
@@ -1773,6 +1793,7 @@
         "fillOptions": "채우기 옵션",
         "rotateSnap": "회전 스냅 세분",
         "fillOutline": "윤곽을 따라 채우기",
+        "freePlacement": "자유 배치 (칸에 맞추지 않음)",
         "halfCellShift": "반 칸 어긋내기",
         "shiftHorizontal": "가로",
         "shiftVertical": "세로",
@@ -1910,6 +1931,8 @@
         "displayCandidatesEmpty": "테이블에 캐릭터가 없습니다",
         "inventoryVisibility": "표시",
         "viewRound": "라운드 표시",
+        "roundAcross": "행동 순서를 가로로 놓기",
+        "roundDown": "행동 순서를 세로로 놓기",
         "showParts": "표시할 행",
         "showTabs": "탭",
         "showFilterLine": "좁히기",
@@ -2135,6 +2158,7 @@
         "displaySettings": "표시",
         "hideNameOn": "☑ 이름 숨기기",
         "hideNameOff": "☐ 이름 숨기기",
+        "hideNameGmOnly": " (GM 전용)",
         "hideBuffOn": "☑ 버프 숨기기",
         "hideBuffOff": "☐ 버프 숨기기",
         "npcOn": "☑ NPC로 지정",
@@ -2660,6 +2684,7 @@
         "shapeHexagon": "육각형",
         "shapeCircle": "원형",
         "shapeCustom": "임의 칸",
+        "freePlacement": "자유 배치",
         "rangeEdit": "사거리 범위 편집",
         "scratchStart": "스크래치 시작",
         "scratchFinish": "스크래치 확정",
@@ -3078,7 +3103,7 @@
           "corridorWidth": "넓힐수록 방과 간격도 커져서 놓을 수 있는 방이 줄어듭니다",
           "doorWidth": "문이 통로보다 넓으면 그만큼 입구의 벽을 깎습니다. 입구가 더 넓으면 문이 나란히 놓입니다",
           "doubleDoors": "양문은 폭을 절반씩 나눈 문 2개가 됩니다. 폭이 4라면 2칸짜리 문 2개입니다",
-          "muster": "선택한 파티의 말을 입구 근처에 세웁니다. 다른 말은 움직이지 않습니다",
+          "muster": "선택한 파티의 말을 입구 근처에 세웁니다. 타고 있는 탈것, 부위, 태운 말, 붙잡은 말도 함께 옵니다",
           "traps": "방과 통로에 설치합니다. 첫 방과 계단 발밑에는 두지 않습니다"
         },
         "entrance": {
@@ -3147,6 +3172,8 @@
         }
       },
       "groundBrush": {
+        "kindGroup": "브러시 종류",
+        "layerGroup": "칠할 지면",
         "kind_raise": "높이기",
         "kind_lower": "파기",
         "kind_smooth": "다듬기",
@@ -3161,7 +3188,33 @@
         "strength": "세기",
         "undo": "직전 획 취소",
         "close": "지형 편집 끝내기",
-        "unaware": "지형을 모르는 버전의 참가자가 {{count}}명 있습니다. 그 화면에서는 테이블이 평평하게 보입니다."
+        "unaware": "지형을 모르는 버전의 참가자가 {{count}}명 있습니다. 그 화면에서는 테이블이 평평하게 보입니다.",
+        "radiusValue": "반지름 {{n}}칸",
+        "strengthHeight": "{{n}}칸",
+        "strengthShare": "{{n}}%",
+        "guide": {
+          "shape": "지면 바꾸기",
+          "move": "이동",
+          "turn": "회전",
+          "tilt": "기울이기",
+          "zoom": "확대·축소"
+        },
+        "guideKey": {
+          "drag": "판 드래그",
+          "swipe": "손가락으로 쓸기",
+          "twoThenOne": "두 손가락을 댄 뒤 하나를 떼고 밀기",
+          "twist": "두 손가락으로 비틀기",
+          "twoUpDown": "두 손가락으로 위아래",
+          "pinch": "두 손가락으로 벌리기·좁히기",
+          "arrows": "←↑↓→",
+          "shift": "Shift",
+          "ctrl": "Ctrl",
+          "leftRight": "←→",
+          "upDown": "↑↓",
+          "wheel": "휠",
+          "rightDrag": "오른쪽 드래그",
+          "middleDrag": "휠 버튼 드래그"
+        }
       },
       "movePlan": {
         "hint": "클릭하면 이동 / 우클릭으로 경유지 지정(같은 자리를 다시 누르면 취소) / Enter로 확정 / Esc로 중지",
@@ -3915,7 +3968,9 @@
         "targetNumberAimed": "자동: {{total}} ({{speaker}}에게 굴린 결과: {{by}})",
         "targetNumberPinned": "자동: {{total}} (이 탭에 고정한 결과: {{by}})",
         "targetNumberByOthers": "자동: {{total}} (직전 결과: {{by}})",
+        "targetNumberPresented": "자동: {{total}} ({{by}}이(가) 제시한 목표값)",
         "targetNumberNotFound": "자동: 찾을 수 없음 ({目標値} 그대로 보냅니다)",
+        "targetNumberIdle": "{目標値}가 있는 줄에서 씁니다",
         "targetNumberChoice": "{{total}} ({{by}})"
       },
       "decoration": {
@@ -4015,9 +4070,10 @@
         "edit": "편집",
         "serverRoll": "방 서버가 굴린 주사위입니다. 굴린 사람은 눈을 바꿀 수 없습니다.",
         "pinTargetNumber": "이 결과를 목표값으로 하기",
+        "pinPresentedTargetNumber": "이 목표값을 고정",
         "unpinTargetNumber": "목표값 고정 해제",
         "pinnedTargetNumber": "목표값",
-        "pinnedTargetNumberTitle": "이 탭의 {目標値}는 해제할 때까지 이 결과가 됩니다"
+        "pinnedTargetNumberTitle": "이 탭의 {目標値}는 해제할 때까지 이 수가 됩니다"
       },
       "stream": {
         "title": "스트림 채팅",
@@ -4057,6 +4113,9 @@
         "tabsLabel": "팔레트 탭"
       },
       "messageSetting": {
+        "sectionChatTools": "채팅 도구",
+        "chatToolsHint": "발언에 마우스를 올렸을 때 나오는 버튼의 배열입니다. 이 기기만의 배열로, 추가·제거·순서 변경을 할 수 있습니다.",
+        "arrangeChatTools": "채팅 도구 배열하기",
         "sectionText": "글자",
         "fontSize": "글자 크기",
         "sectionPortrait": "입화",
@@ -6067,11 +6126,12 @@
       "reset": "초기 배치로 되돌리기",
       "resetConfirm": "이 메뉴를 초기 배치로 되돌립니다. 계속할까요?",
       "resetAll": "모든 메뉴를 초기 배치로 되돌리기",
-      "resetAllConfirm": "Fav 메뉴와 GM／PL 도구를 모두 초기 배치로 되돌립니다. 계속할까요?",
+      "resetAllConfirm": "Fav 메뉴와 GM／PL 도구와 채팅 도구를 모두 초기 배치로 되돌립니다. 계속할까요?",
       "surface": {
         "fab": "Fav 메뉴",
         "gmToolbar": "GM 도구",
-        "plToolbar": "PL 도구"
+        "plToolbar": "PL 도구",
+        "chatTools": "채팅 도구"
       },
       "writeOut": "내보내기",
       "readIn": "불러오기",
@@ -6321,7 +6381,41 @@
       "stayedOn": "{{name}}은(는) 이번 차례에 이미 타거나 내렸으므로 {{mount}} 위로 되돌렸습니다",
       "offerActionUp_rider": "일어나서 타기",
       "offerActionUp_passenger": "일어나서 동승하기",
-      "offerActionUp_cargo": "일어나서 실리기"
+      "offerActionUp_cargo": "일어나서 실리기",
+      "part": {
+        "attach": "{{body}}의 부위로 만들기",
+        "someone": "부위",
+        "detach": "{{body}}의 부위에서 떼기",
+        "editLook": "부위의 모습 편집",
+        "look": {
+          "title": "부위의 모습 - {{name}}",
+          "noParts": "부위가 없습니다",
+          "mode_layer": "그림 겹치기",
+          "mode_paint": "칠해서 나누기",
+          "mode_faces": "모델의 면 칠하기",
+          "size": "크기",
+          "forward": "앞으로",
+          "back": "뒤로",
+          "unlay": "겹치지 않기",
+          "lay": "이 부위의 그림 겹치기",
+          "brush": "브러시",
+          "paintOn": "칠하기",
+          "erase": "지우기",
+          "clearPaint": "칠을 모두 지우기",
+          "paintCleared": "{{name}}의 칠을 지웠습니다",
+          "unlaid": "{{name}}의 그림을 겹치지 않게 했습니다",
+          "letGo": "{{name}}의 {{what}}을(를) 지웠습니다",
+          "lookLayer": "겹친 그림",
+          "lookMask": "칠",
+          "lookFaces": "모델의 면",
+          "lookJoin": "·",
+          "lookJoinLast": "·",
+          "putBack": "되돌리기",
+          "hint_layer": "부위의 그림을 드래그해 놓을 곳을 정합니다. 부위가 쓰러지면 그 그림은 사라집니다.",
+          "hint_paint": "본체의 그림 위를 칠해 부위의 범위를 정합니다. 부위가 쓰러지면 칠한 곳이 본체의 그림에서 사라집니다.",
+          "hint_faces": "모델 위를 칠해 부위의 면을 정합니다. 우클릭 드래그나 두 손가락으로 돌릴 수 있습니다. 부위가 쓰러지면 칠한 면이 사라집니다."
+        }
+      }
     },
     "battleCutIn": {
       "title": "전투 컷인",

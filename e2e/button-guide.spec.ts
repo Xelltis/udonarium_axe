@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openSeatDisplay, waitAppReady } from './helpers';
+import { openPanelFrom, openSeatDisplay, waitAppReady } from './helpers';
 
 /** Every button in the drawer and on the toolbar says what it is at once, and goes quiet again. */
 test.describe('showing the names of the buttons all at once', () => {
@@ -47,7 +47,7 @@ test.describe('showing the names of the buttons all at once', () => {
   }) => {
     await ready(page);
     const display = await openSeatDisplay(page);
-    await display.getByTestId('fab-entry-menuEditor').click();
+    await openPanelFrom(page, display.getByTestId('fab-entry-menuEditor'));
     const editor = page.locator('ui-panel').filter({ has: page.getByTestId('menu-editor-rows') });
 
     await editor.getByTestId('menu-editor-surface-plToolbar').click();

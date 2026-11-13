@@ -97,6 +97,9 @@
               </div>
             } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
               <ng-container [ngTemplateOutlet]="lineWords" />
+              @if (rolledAtTold(); as told) {
+                <span class="text-ui-dim ml-0.5 text-[0.9em]" data-testid="chat-message-rolled-at">（{{ told }}）</span>
+              }
               @if (sentStamp(); as stampId) {
                 <div class="py-0.5" data-testid="chat-message-stamp">
                   <ui-stamp
@@ -218,6 +221,11 @@
                 </span>
               } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
                 <ng-container [ngTemplateOutlet]="lineWords" />
+                @if (rolledAtTold(); as told) {
+                  <span class="text-ui-dim ml-0.5 text-[0.9em]" data-testid="chat-message-rolled-at"
+                    >（{{ told }}）</span
+                  >
+                }
                 @if (sentStamp(); as stampId) {
                   <span class="inline-block align-middle" data-testid="chat-message-stamp">
                     <ui-stamp
@@ -327,10 +335,12 @@
   height. A button pressed with the mouse keeps the focus without showing it, and so does not hold
   the toolbar up once the pointer has gone.
 
-  The answers people reach for most stand in it, and what the speaker does to their own line:
-  editing it, and deleting it, which asks first and is told apart by its colour. Everything, those
-  included, is under its last button, in the same menu a right click or a press held on the line
-  opens. A touch screen has no hover, so it reaches the line through that press alone.
+  The chat tools stand in it as this screen has arranged them, each only where the reader may do it
+  with the line: as they come, the answers people reach for most, and what the speaker does to their
+  own line, editing it, and deleting it, which asks first and is told apart by its colour.
+  Everything, those included, is under its last button, in the same menu a right click or a press
+  held on the line opens. A touch screen has no hover, so it reaches the line through that press
+  alone.
 -->
 <ng-template #reactionRow>
   @if (reactionChips().length > 0) {
@@ -357,83 +367,27 @@
 </ng-template>
 
 <ng-template #actionToolbar>
-  @if (toolbarActions(); as actions) {
+  @if (toolbarTools(); as tools) {
     <div
       role="toolbar"
       data-testid="chat-message-toolbar"
       class="border-ui-border-panel bg-ui-panel rounded-ui shadow-ui-md pointer-events-none absolute -top-3.5 right-2 z-20 flex items-center gap-px border border-solid p-px opacity-0 transition-opacity duration-150 group-hover/body:pointer-events-auto group-hover/body:opacity-100 group-has-focus-visible/body:pointer-events-auto group-has-focus-visible/body:opacity-100 pointer-coarse:hidden"
       [attr.aria-label]="'feature.chat.message.actions' | transloco"
     >
-      @if (actions.answer) {
+      @for (tool of tools; track $index) {
         <button
           type="button"
-          data-testid="chat-message-action-reply"
-          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
-          [title]="'feature.chat.message.reply' | transloco"
-          [attr.aria-label]="'feature.chat.message.reply' | transloco"
-          (click)="clickReply()"
+          class="text-ui-muted rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
+          [class]="
+            tool.danger ? 'hover:bg-ui-danger-bg hover:text-ui-danger' : 'hover:bg-ui-hover hover:text-ui-accent'
+          "
+          [attr.data-testid]="'chat-message-action-' + tool.testId"
+          [title]="tool.title"
+          [attr.aria-label]="tool.title"
+          [attr.aria-haspopup]="tool.popup ?? null"
+          (click)="tool.press($event)"
         >
-          <i class="material-icons" aria-hidden="true">reply</i>
-        </button>
-        <button
-          type="button"
-          data-testid="chat-message-action-quote"
-          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
-          [title]="'feature.chat.message.quote' | transloco"
-          [attr.aria-label]="'feature.chat.message.quote' | transloco"
-          (click)="clickQuote()"
-        >
-          <i class="material-icons" aria-hidden="true">format_quote</i>
-        </button>
-      }
-      @if (actions.react) {
-        <button
-          type="button"
-          data-testid="chat-message-action-react"
-          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
-          [title]="'feature.chat.message.react' | transloco"
-          [attr.aria-label]="'feature.chat.message.react' | transloco"
-          aria-haspopup="listbox"
-          (click)="openReactionPicker($event.currentTarget)"
-        >
-          <i class="material-icons" aria-hidden="true">add_reaction</i>
-        </button>
-      }
-      @if (actions.bookmark) {
-        <button
-          type="button"
-          data-testid="chat-message-action-bookmark"
-          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
-          [title]="'feature.chat.message.bookmarks.button' | transloco"
-          [attr.aria-label]="'feature.chat.message.bookmarks.button' | transloco"
-          aria-haspopup="menu"
-          (click)="openBookmarkMenu($event)"
-        >
-          <i class="material-icons" aria-hidden="true">bookmark_add</i>
-        </button>
-      }
-      @if (actions.edit) {
-        <button
-          type="button"
-          data-testid="chat-message-action-edit"
-          class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
-          [title]="'feature.chat.message.edit' | transloco"
-          [attr.aria-label]="'feature.chat.message.edit' | transloco"
-          (click)="startEdit()"
-        >
-          <i class="material-icons" aria-hidden="true">edit</i>
-        </button>
-      }
-      @if (actions.delete) {
-        <button
-          type="button"
-          data-testid="chat-message-action-delete"
-          class="text-ui-muted hover:bg-ui-danger-bg hover:text-ui-danger rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
-          [title]="'feature.chat.message.deleteLine' | transloco"
-          [attr.aria-label]="'feature.chat.message.deleteLine' | transloco"
-          (click)="pseudoDelete()"
-        >
-          <i class="material-icons" aria-hidden="true">delete_outline</i>
+          <i class="material-icons" aria-hidden="true">{{ tool.icon }}</i>
         </button>
       }
       <span class="bg-ui-border-panel mx-0.5 h-4 w-px" aria-hidden="true"></span>

@@ -15,6 +15,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   buildGameCharacterContextMenu,
   buildGameCharacterContextMenuModel,
+  buildUnviewableCharacterContextMenu,
   collectRegisteredEffects,
   collectRegisteredRangeShapes,
 } from '@axe/features/character/game-character/game-character-context-menu';
@@ -486,20 +487,15 @@ describe('buildGameCharacterContextMenu()', () => {
   });
 
   it('ticks hiding the name and the buffs in the display submenu', () => {
-    const def = buildGameCharacterContextMenu(
-      makeChar() as unknown as GameCharacter,
-      50,
-      makeService(),
-      callbacks(),
-      t
-    );
+    const master = { ...callbacks(), onSetNameHidden: vi.fn() };
+    const def = buildGameCharacterContextMenu(makeChar() as unknown as GameCharacter, 50, makeService(), master, t);
     expect(names(groupOf(def, '表示と扱い')).slice(0, 2)).toEqual(['☐ 名前を隠す', '☐ バフを隠す']);
 
     const hidden = buildGameCharacterContextMenu(
       makeChar({ hideName: true, hideBuff: true }) as unknown as GameCharacter,
       50,
       makeService(),
-      callbacks(),
+      master,
       t
     );
     expect(names(groupOf(hidden, '表示と扱い')).slice(0, 2)).toEqual(['☑ 名前を隠す', '☑ バフを隠す']);
@@ -526,12 +522,35 @@ describe('buildGameCharacterContextMenu()', () => {
 
   it('hides and shows the name and the buffs', () => {
     const char = makeChar();
-    const menu = buildGameCharacterContextMenu(char as unknown as GameCharacter, 50, makeService(), callbacks(), t);
+    const onSetNameHidden = vi.fn();
+    const menu = buildGameCharacterContextMenu(
+      char as unknown as GameCharacter,
+      50,
+      makeService(),
+      { ...callbacks(), onSetNameHidden },
+      t
+    );
     const display = groupOf(menu, '表示と扱い');
     display.find((s) => s.name === '☐ 名前を隠す')!.action!();
     display.find((s) => s.name === '☐ バフを隠す')!.action!();
-    expect(char.hideName).toBe(true);
+    expect(onSetNameHidden).toHaveBeenCalledWith(true);
     expect(char.hideBuff).toBe(true);
+  });
+
+  it('offers hiding the name only where it may be hidden, so a player cannot show a name the master hid', () => {
+    const menu = buildGameCharacterContextMenu(
+      makeChar({ hideName: true }) as unknown as GameCharacter,
+      50,
+      makeService(),
+      callbacks(),
+      t
+    );
+
+    const display = groupOf(menu, '表示と扱い');
+    expect(names(display)).not.toContain('☑ 名前を隠す');
+    const told = display.find((entry) => entry.name === '☑ 名前を隠す（GMのみ）');
+    expect(told?.enabled).toBe(false);
+    expect(names(display)).toContain('☐ バフを隠す');
   });
 
   it('always offers the shared table, your own hands and the graveyard, and moves it to each', () => {
@@ -638,5 +657,27 @@ describe('what a piece can fire from its sheet', () => {
 
     expect(collectRegisteredEffects(piece)).toEqual([]);
     expect(collectRegisteredRangeShapes(piece)).toEqual([]);
+  });
+});
+
+describe('the menu of a piece the reader may not view', () => {
+  it('offers only to aim at it, and to let go of every aim while there is one', () => {
+    const char = { targeted: false } as GameCharacter;
+    const toggle = vi.fn();
+    const clear = vi.fn();
+
+    const aiming = buildUnviewableCharacterContextMenu(char, { onToggleTarget: toggle, onClearTargets: clear }, t);
+    expect(aiming.map((entry) => entry.name)).toEqual([
+      t('feature.character.contextMenu.target'),
+      t('feature.character.contextMenu.clearTargets'),
+    ]);
+    (aiming[0] as { action: () => void }).action();
+    (aiming[1] as { action: () => void }).action();
+    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(clear).toHaveBeenCalledTimes(1);
+
+    char.targeted = true;
+    const aimed = buildUnviewableCharacterContextMenu(char, { onToggleTarget: toggle }, t);
+    expect(aimed.map((entry) => entry.name)).toEqual(['✔ ' + t('feature.character.contextMenu.target')]);
   });
 });

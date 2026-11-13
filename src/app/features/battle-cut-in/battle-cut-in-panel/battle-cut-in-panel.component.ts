@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal, sig
 import { FormsModule } from '@angular/forms';
 import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut-in-preference.service';
 import { BattleLaunchService } from '@axe/application/battle/battle-launch.service';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { PartyService } from '@axe/application/party/party.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
@@ -92,6 +93,7 @@ export class BattleCutInPanelComponent {
   private readonly permission = inject(RolePermissionService);
   private readonly disclosure = inject(DisclosureService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly names = inject(PieceNameService);
   private readonly objectStore = inject(ObjectStore);
   private readonly modal = inject(ModalService);
   private readonly images = inject(ImageStorage);
@@ -154,7 +156,7 @@ export class BattleCutInPanelComponent {
       const partyPlaced = placed.has(character.partyIdentifier);
       return {
         identifier: character.identifier,
-        name: character.name,
+        name: this.names.shown(character),
         imageUrl: character.imageFile.url,
         side: standingBattleSide(character),
         withParty: partyPlaced && character.battleSide === '',

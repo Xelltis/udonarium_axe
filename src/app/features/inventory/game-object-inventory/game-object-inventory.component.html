@@ -539,8 +539,8 @@
                   </span>
                 </td>
                 <td class="border-ui-border-panel border-b border-solid px-1 py-0.5">
-                  <span class="flex items-center gap-1 font-semibold" [title]="row.object.name">
-                    <span class="max-w-40 truncate">{{ row.object.name }}</span>
+                  <span class="flex items-center gap-1 font-semibold" [title]="names.shown(row.object)">
+                    <span class="max-w-40 truncate">{{ names.shown(row.object) }}</span>
                     @if (!canView(row.object)) {
                       <i class="material-icons text-ui-dim shrink-0 text-[12px]!">lock</i>
                     }
@@ -795,7 +795,7 @@
           class="text-ui-text flex items-center gap-1 truncate pr-13 text-[13px] font-semibold"
           [class.text-ui-accent!]="selectedIdentifier() === gameObject.identifier"
         >
-          <span class="truncate" [appTextTooltip]="gameObject.name">{{ gameObject.name }}</span>
+          <span class="truncate" [appTextTooltip]="names.shown(gameObject)">{{ names.shown(gameObject) }}</span>
           @if (!canView(gameObject)) {
             <i class="material-icons text-ui-dim shrink-0 text-[13px]!">lock</i>
           }

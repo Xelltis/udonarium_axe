@@ -49,6 +49,27 @@ export interface PiecePageBoxes {
    * drawn in the order the canvas draws such sprites in, one over another.
    */
   readonly lyingPlace?: number;
+  /**
+   * For a piece drawn only with sprites lying flat on the floor, on the ground, as a range or a card
+   * on the floor, or a block lying flat on the ground, as a floor tile: that it lies on the ground,
+   * under everything standing on the floor, however far it reaches.
+   */
+  readonly onGround?: true;
+}
+
+/** How far off the ground under it a sprite lying flat may lie and still lie on the ground, in table pixels. */
+const ON_GROUND_PX = 4;
+
+/**
+ * Whether a sprite lies flat on the ground: lying on a face that is level, as the floor is, within a
+ * little of the ground under its middle, or following the raised ground as little off it.
+ */
+function liesOnGround(sprite: TableWorldSprite, groundAt?: (x: number, y: number) => number): boolean {
+  if (sprite.order === undefined || sprite.facing === 'eye') return false;
+  if (sprite.drapes) return sprite.drapes.liftPx <= ON_GROUND_PX;
+  if (Math.abs(sprite.facing.across.z) > 0.5 || Math.abs(sprite.facing.down.z) > 0.5) return false;
+  const ground = groundAt?.(sprite.centre.x, sprite.centre.y) ?? 0;
+  return Math.abs(sprite.centre.z - ground) <= ON_GROUND_PX;
 }
 
 /** The name of the part of a piece a sprite draws, as its identifier names it after its `#`. */
@@ -89,16 +110,46 @@ interface GatheredPart {
   readonly size: { readonly width: number; readonly height: number } | null;
 }
 
+/** How many points along each side of its box a sprite lying over the raised ground is boxed round by. */
+const DRAPED_SIDE_POINTS = 16;
+
+/**
+ * The corners and the rim of a sprite lying over the raised ground, as `groundAt` tells how high the
+ * ground stands at a point: the corners first, in the order its own corners go round.
+ */
+function drapedPoints(
+  sprite: TableWorldSprite,
+  eye: EyeAxes,
+  liftPx: number,
+  groundAt: (x: number, y: number) => number
+): TablePoint[] {
+  const over = (x: number, y: number): TablePoint => ({ x, y, z: groundAt(x, y) + liftPx });
+  const corners = spriteBoxCorners(sprite, eye).map((corner) => over(corner.x, corner.y));
+  const rim: TablePoint[] = [];
+  for (let side = 0; side < 4; side++) {
+    const from = corners[side];
+    const to = corners[(side + 1) % 4];
+    for (let i = 1; i < DRAPED_SIDE_POINTS; i++) {
+      const share = i / DRAPED_SIDE_POINTS;
+      rim.push(over(from.x + (to.x - from.x) * share, from.y + (to.y - from.y) * share));
+    }
+  }
+  return [...corners, ...rim];
+}
+
 /**
  * Where the pieces drawn on the table show on the page, through a matrix from `tableSceneMatrix`: for
  * each piece, the box round all of it and a box round each of its parts, a part made of more than one
- * sprite boxed whole. A coin is boxed round its rims, as the part `coin`.
+ * sprite boxed whole. A coin is boxed round its rims, as the part `coin`. A sprite following the
+ * raised ground is boxed round where it lies over it, as `groundAt` tells how high the ground stands
+ * at a point, where given.
  */
 export function piecePageBoxes(
   sprites: readonly TableWorldSprite[],
   coins: readonly TableWorldCoin[],
   scene: Matrix3D,
-  eye: EyeAxes
+  eye: EyeAxes,
+  groundAt?: (x: number, y: number) => number
 ): Map<string, PiecePageBoxes> {
   const corners = new Map<string, Map<string, GatheredPart>>();
   const add = (
@@ -119,9 +170,14 @@ export function piecePageBoxes(
   };
   const places = lyingPlaceOfOwners(sprites);
   const standing = new Set<string>();
+  const offGround = new Set<string>();
   for (const sprite of sprites) {
     if (sprite.order === undefined) standing.add(sprite.owner);
-    const corners = spriteBoxCorners(sprite, eye);
+    if (!liesOnGround(sprite, groundAt)) offGround.add(sprite.owner);
+    const corners =
+      sprite.drapes && groundAt
+        ? drapedPoints(sprite, eye, sprite.drapes.liftPx, groundAt)
+        : spriteBoxCorners(sprite, eye);
     const size = sprite.box
       ? { width: sprite.box.width, height: sprite.box.height }
       : { width: sprite.widthPx, height: sprite.heightPx };
@@ -162,6 +218,7 @@ export function piecePageBoxes(
       parts: pageParts,
       nearness,
       ...(lyingPlace === undefined ? {} : { lyingPlace }),
+      ...(lyingPlace === undefined || offGround.has(owner) ? {} : { onGround: true }),
     });
   }
   return boxes;
@@ -169,18 +226,28 @@ export function piecePageBoxes(
 
 /**
  * The order the pieces are drawn over each other in on the page, from 1 for the one under all the
- * rest. Of two pieces, the nearer the eye is drawn over the other; but pieces drawn only lying flat,
- * as cards on the table, are drawn over each other in the order the canvas draws them in, wherever
- * they overlap and however near the eye the rest of them reaches, and are stacked so among the places
- * their nearness gives them.
+ * rest. Of two pieces, the nearer the eye is drawn over the other; but a piece lying on the ground,
+ * as a range or a card on the floor, is drawn under every piece that does not, however near the eye
+ * it reaches, as nothing standing on the floor is seen through the ground, and a block lying flat on
+ * the ground, as a floor tile, under every sheet lying on it. Pieces drawn only lying flat, as cards
+ * on the table, are drawn over each other in the order the canvas draws them in, wherever they
+ * overlap and however near the eye the rest of them reaches, and are stacked so among the places
+ * their nearness gives them, those on the ground among their own.
  */
 export function drawnRanks(boxes: ReadonlyMap<string, PiecePageBoxes>): Map<string, number> {
-  const order = [...boxes].sort(([, a], [, b]) => a.nearness - b.nearness);
+  const order = [...boxes].sort(
+    ([, a], [, b]) =>
+      Number(!a.onGround) - Number(!b.onGround) ||
+      (a.onGround ? Number(a.lyingPlace !== undefined) - Number(b.lyingPlace !== undefined) : 0) ||
+      a.nearness - b.nearness
+  );
   const ranks = new Map(order.map(([owner], rank) => [owner, rank + 1]));
-  const lying = order.filter(([, piece]) => piece.lyingPlace !== undefined);
-  const slots = lying.map(([owner]) => ranks.get(owner)!);
-  const byPlace = [...lying].sort(([, a], [, b]) => a.lyingPlace! - b.lyingPlace!);
-  byPlace.forEach(([owner], index) => ranks.set(owner, slots[index]));
+  for (const onGround of [true, false]) {
+    const lying = order.filter(([, piece]) => piece.lyingPlace !== undefined && !!piece.onGround === onGround);
+    const slots = lying.map(([owner]) => ranks.get(owner)!);
+    const byPlace = [...lying].sort(([, a], [, b]) => a.lyingPlace! - b.lyingPlace!);
+    byPlace.forEach(([owner], index) => ranks.set(owner, slots[index]));
+  }
   return ranks;
 }
 
@@ -189,29 +256,39 @@ export const TOP_PART = 'top';
 
 /**
  * Where the blocks are drawn on the page, from the shapes picking finds them by: for each, the box
- * round all of it, and its top as the part `top`, with its corners where its top has four.
+ * round all of it, and its top as the part `top`, with its corners where its top has four. A block
+ * whose top lies, at some corner of it, no higher off the ground under it than a sheet lying on the
+ * ground does, as a floor tile, lies on the ground, as `groundAt` tells how high the ground stands
+ * at a point, where given: a tile at the edge of raised ground is lifted by the ground within it,
+ * whatever lies under a corner reaching past it.
  */
 export function blockPageBoxes(
   targets: readonly PickTarget[],
   scene: Matrix3D,
-  eye: EyeAxes
+  eye: EyeAxes,
+  groundAt?: (x: number, y: number) => number
 ): Map<string, PiecePageBoxes> {
   const boxes = new Map<string, PiecePageBoxes>();
   for (const target of targets) {
     const all: TablePoint[] = [];
     const tops: TablePoint[] = [];
+    let flat = true;
+    let lowCorner = false;
     for (const shape of target.shapes) {
       const onFace = shape.kind === 'on-face' ? shape : null;
       const prism = onFace ? onFace.shape : shape;
       if (prism.kind !== 'prism') continue;
+      if (onFace || prism.roofAt) flat = false;
       const at = (x: number, y: number, z: number): TablePoint =>
         onFace ? pointOnFace(onFace.frame, x, y, z) : { x, y, z };
       for (const corner of prism.outline) {
         const top = at(corner.x, corner.y, prism.roofAt ? prism.roofAt(corner.x, corner.y) : prism.top);
         tops.push(top);
         all.push(top, at(corner.x, corner.y, prism.base));
+        if (flat && prism.top - (groundAt?.(corner.x, corner.y) ?? 0) <= ON_GROUND_PX) lowCorner = true;
       }
     }
+    const onGround = flat && lowCorner;
     if (!tops.length) continue;
     const onPage = (points: TablePoint[]) => points.map((point) => pageOfTablePoint(scene, point.x, point.y, point.z));
     const topOnPage = onPage(tops);
@@ -226,6 +303,7 @@ export function blockPageBoxes(
       whole: boxRound(onPage(all)),
       parts: new Map([[TOP_PART, tops.length === 4 ? { ...top, corners: [a, b, c, d] } : top]]),
       nearness: Math.max(...all.map((point) => nearnessOf(scene, point))),
+      ...(onGround ? { onGround: true } : {}),
     });
   }
   return boxes;

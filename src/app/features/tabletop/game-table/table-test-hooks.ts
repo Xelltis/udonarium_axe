@@ -17,10 +17,11 @@ import {
   TableLayout,
 } from '@axe/domain/tabletop/camera/table-camera';
 import { framingView } from '@axe/domain/tabletop/camera/table-framing';
+import type { PickDraped } from '@axe/domain/tabletop/pick/pick-geometry';
 import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { partOf } from '@axe/domain/tabletop/world/page-boxes';
 import { pointOnFace } from '@axe/domain/tabletop/world/table-sprites';
-import { putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
+import { clearToBlankTable, putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
 
 /** What the end-to-end suite can ask the table, in a browser driven by automation. */
 export interface TableTestHooks {
@@ -100,6 +101,7 @@ export interface TableTestHooks {
     fogAirSheets: number;
     sky: boolean;
     backdrops: number;
+    effects: number;
     models: number;
     modelMeshes: number;
     veilRevision: number;
@@ -123,8 +125,16 @@ export interface TableTestHooks {
   spritesOf(identifier: string): { part: string; widthPx: number; heightPx: number }[];
   /** Keeps the dice at rest on the table on show until let go, however slowly frames are drawn. */
   keepDiceResting(on: boolean): void;
+  /** Whether the table holds dice and every one of them has come to rest. */
+  diceResting(): boolean;
+  /** The face of a model drawn as a copy of its own a point of the page lands on first, or null. */
+  modelFaceAt(pageX: number, pageY: number): { owner: string; mesh: number; triangle: number } | null;
+  /** The part of a piece a press at a point of the page lands on, by its identifier, or null. */
+  partAt(identifier: string, pageX: number, pageY: number): string | null;
   /** Takes the first table's tutorial away, as its menu does, for a spec the tutorial would stand in the way of. Answers how many things went. */
   putAwayTutorial(): number;
+  /** Clears the first table down to a blank one, the sample pieces and their parties going with the tutorial, as the tutorial's menu does. */
+  clearToBlankTable(): void;
   /**
    * Puts the camera near the board, at the default view's depth and angle, over the middle of the
    * table, in place of the first view that brings the whole first table in: the view specs that
@@ -173,7 +183,8 @@ export function installTableTestHooks(
   dice: DiceRenderService,
   tabletop: TabletopService,
   moveCamera: (view: TableCameraView) => void,
-  refresh: () => void
+  refresh: () => void,
+  partAt: (identifier: string, pageX: number, pageY: number) => string | null = () => null
 ): () => void {
   if (!win.navigator.webdriver) return () => undefined;
   const hooked = win as HookedWindow;
@@ -216,7 +227,11 @@ export function installTableTestHooks(
     },
     sceneStats: () => scene.stats(),
     keepDiceResting: (on) => dice.keepResting(on),
+    diceResting: () => dice.diceResting,
+    modelFaceAt: (pageX, pageY) => scene.modelFaceAt(pageX, pageY),
+    partAt,
     putAwayTutorial: () => putAwayTutorial(tabletop),
+    clearToBlankTable: () => clearToBlankTable(tabletop),
     lookFromNear: () => {
       const layout = camera.layout;
       if (layout) moveCamera(nearView(layout));
@@ -262,6 +277,15 @@ export function installTableTestHooks(
           });
           return [boxRound(rim)];
         }
+        if (shape.kind === 'draped') {
+          return [
+            boxRound(
+              drapedRim(shape).map((point) =>
+                pageOfTablePoint(scene, point.x, point.y, shape.heightAt(point.x, point.y))
+              )
+            ),
+          ];
+        }
         return [];
       });
     },
@@ -277,6 +301,18 @@ export function installTableTestHooks(
   return () => {
     delete hooked.__axeTable;
   };
+}
+
+/** Points round the edge of the box a sheet over the ground lies over, close enough to follow the ground by. */
+function drapedRim(shape: PickDraped): { x: number; y: number }[] {
+  const { x, y, width, height } = shape.box;
+  const steps = 16;
+  const rim: { x: number; y: number }[] = [];
+  for (let i = 0; i < steps; i++) rim.push({ x: x + (width * i) / steps, y });
+  for (let i = 0; i < steps; i++) rim.push({ x: x + width, y: y + (height * i) / steps });
+  for (let i = 0; i < steps; i++) rim.push({ x: x + width - (width * i) / steps, y: y + height });
+  for (let i = 0; i < steps; i++) rim.push({ x, y: y + height - (height * i) / steps });
+  return rim;
 }
 
 /**
@@ -312,6 +348,8 @@ function edgesOf(
           })
         );
       }
+    } else if (shape.kind === 'draped') {
+      round(drapedRim(shape).map((point) => onPage(point.x, point.y, shape.heightAt(point.x, point.y))));
     } else if (shape.kind === 'prism') {
       const tops = shape.outline.map((point) => onPage(point.x, point.y, shape.top));
       const bases = shape.outline.map((point) => onPage(point.x, point.y, shape.base));

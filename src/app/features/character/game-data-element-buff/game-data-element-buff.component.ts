@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -33,6 +34,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class GameDataElementBuffComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);
+  private readonly names = inject(PieceNameService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly inventory = inject(GameObjectInventoryService);
   private readonly modalService = inject(ModalService);
@@ -150,11 +152,14 @@ export class GameDataElementBuffComponent {
     return buffTriggerOf(element);
   });
 
-  /** The pieces a buff may be timed by, leaving out those on the table this reader cannot see. */
+  /**
+   * The pieces a buff may be timed by, leaving out those on the table this reader cannot see and those
+   * whose name is kept from them.
+   */
   private readonly candidates = computed(() => {
     this.objectChange.collectionOf('character')();
     return (this.inventory.tableInventory.tabletopObjects as GameCharacter[])
-      .filter((character) => this.vision.mayBeListed(character))
+      .filter((character) => this.vision.mayBeListed(character) && !this.names.isKept(character))
       .map((character) => ({ identifier: character.identifier, name: character.name }));
   });
 

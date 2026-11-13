@@ -16,7 +16,7 @@ import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { observeSize } from '@axe/core/util/observe-size';
 import { skyAmbienceLayer, skyAmbienceWash } from '@axe/domain/effect/ambience/ambience-sky';
 import { CurrentCarry } from '@axe/domain/effect/ambience/current-carry';
-import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
+import { EffectParticleLayer } from '@axe/domain/effect/particles/shared';
 import { pageOfTablePoint } from '@axe/domain/tabletop/camera/table-camera';
 import { fallsInScene } from '@axe/domain/tabletop/world/weather-fall';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';

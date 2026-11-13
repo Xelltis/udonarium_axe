@@ -1,5 +1,6 @@
 {
   "common": {
+    "hiddenName": "？？？",
     "button": {
       "ok": "OK",
       "cancel": "キャンセル",
@@ -562,6 +563,11 @@
     "plTools": {
       "buffView": "バフ表示（全体）",
       "buffIconSize": "バフアイコンの大きさ",
+      "turn": {
+        "focus": "{{name}} の場所へ画面を移す",
+        "next": "次へ",
+        "nextHint": "自分のキャラクターの手番を終えて、次へ渡す"
+      },
       "active": {
         "title": "操作対象キャラクター",
         "openChatPalette": "{{name}} のチャットパレットを開く"
@@ -1599,6 +1605,13 @@
         "spawn": "派生"
       }
     },
+    "turnFocus": {
+      "all": "手番のコマへ画面を移す: 全員の手番",
+      "own": "手番のコマへ画面を移す: 自分のキャラクターだけ",
+      "none": "手番のコマへ画面を移す: 移さない",
+      "firstNotice": "手番のコマへ画面を移しました。メニューの「手番のコマへ画面を移す」で、自分のキャラクターだけにしたり移さないようにしたりできます",
+      "stop": "移さない"
+    },
     "turnOrder": {
       "title": "行動順",
       "roundShort": "R{{n}}",
@@ -1627,6 +1640,13 @@
       "undoAnnounce": "手番を1つ前に戻しました。",
       "acted": "行動済み",
       "held": "待機中",
+      "peekCurrent": "今の手番",
+      "peekNext": "次の手番",
+      "peekSide": "陣営: {{name}}",
+      "peekWith": "一緒に動く: {{names}}",
+      "peekGive": "押すとこのコマに手番を渡す",
+      "peekGiveNow": "手番を渡す",
+      "length": "行動順の長さ（ドラッグか矢印キーで変える・ダブルクリックかHomeキーで画面に合わせる）",
       "hold": "待機させる",
       "holdCurrent": "手番のコマを待機させる（あとで割り込めます）",
       "interrupt": "割り込む",
@@ -1773,6 +1793,7 @@
         "fillOptions": "塗りオプション",
         "rotateSnap": "回転スナップ細分",
         "fillOutline": "輪郭に沿って塗る",
+        "freePlacement": "自由配置（マス目に合わせない）",
         "halfCellShift": "半マスずらす",
         "shiftHorizontal": "横",
         "shiftVertical": "縦",
@@ -1910,6 +1931,8 @@
         "displayCandidatesEmpty": "卓にキャラクターがいません",
         "inventoryVisibility": "表示",
         "viewRound": "ラウンド表示",
+        "roundAcross": "行動順を横に並べる",
+        "roundDown": "行動順を縦に並べる",
         "showParts": "表示する行",
         "showTabs": "タブ",
         "showFilterLine": "絞り込み",
@@ -2135,6 +2158,7 @@
         "displaySettings": "表示",
         "hideNameOn": "☑ 名前を隠す",
         "hideNameOff": "☐ 名前を隠す",
+        "hideNameGmOnly": "（GMのみ）",
         "hideBuffOn": "☑ バフを隠す",
         "hideBuffOff": "☐ バフを隠す",
         "npcOn": "☑ NPC にする",
@@ -2660,6 +2684,7 @@
         "shapeHexagon": "六角形",
         "shapeCircle": "円形",
         "shapeCustom": "任意マス",
+        "freePlacement": "自由配置",
         "rangeEdit": "射程範囲を編集",
         "scratchStart": "スクラッチ開始",
         "scratchFinish": "スクラッチ確定",
@@ -3078,7 +3103,7 @@
           "corridorWidth": "広くするほど部屋も間隔も大きくなり、置ける部屋は減ります",
           "doorWidth": "扉が通路より広いときは、その分だけ入口の壁を削ります。入口のほうが広いときは扉が並びます",
           "doubleDoors": "両開きは、幅を半分ずつ分けた 2 枚の扉になります。幅 4 なら 2 マスの扉が 2 枚です",
-          "muster": "選んだパーティのコマを入口の近くに並べます。ほかのコマは動かしません",
+          "muster": "選んだパーティのコマを入口の近くに並べます。乗っている乗り物、部位、乗せているコマ、つかんでいるコマも一緒に来ます",
           "traps": "部屋と通路に仕掛けます。最初の部屋と階段の足元には置きません"
         },
         "entrance": {
@@ -3147,6 +3172,8 @@
         }
       },
       "groundBrush": {
+        "kindGroup": "ブラシの種類",
+        "layerGroup": "塗る地面",
         "kind_raise": "盛る",
         "kind_lower": "削る",
         "kind_smooth": "ならす",
@@ -3161,7 +3188,33 @@
         "strength": "強さ",
         "undo": "直前のひと塗りを取り消す",
         "close": "地面の編集を終える",
-        "unaware": "起伏を知らない版の参加者が{{count}}人います。その画面では卓は平らなままです。"
+        "unaware": "起伏を知らない版の参加者が{{count}}人います。その画面では卓は平らなままです。",
+        "radiusValue": "半径{{n}}マス",
+        "strengthHeight": "{{n}}マス",
+        "strengthShare": "{{n}}%",
+        "guide": {
+          "shape": "地面を変える",
+          "move": "動かす",
+          "turn": "回す",
+          "tilt": "傾ける",
+          "zoom": "寄る・引く"
+        },
+        "guideKey": {
+          "drag": "盤をドラッグ",
+          "swipe": "指でなぞる",
+          "twoThenOne": "2本指で触れて1本を離し、滑らせる",
+          "twist": "2本指でひねる",
+          "twoUpDown": "2本指で上下",
+          "pinch": "2本指で広げる・狭める",
+          "arrows": "←↑↓→",
+          "shift": "Shift",
+          "ctrl": "Ctrl",
+          "leftRight": "←→",
+          "upDown": "↑↓",
+          "wheel": "ホイール",
+          "rightDrag": "右ドラッグ",
+          "middleDrag": "ホイールボタンでドラッグ"
+        }
       },
       "movePlan": {
         "hint": "クリックで移動 / 右クリックで経由地点（同じ場所をもう一度で取り消し）/ Enter で確定 / Esc で中止",
@@ -3915,7 +3968,9 @@
         "targetNumberAimed": "自動: {{total}}（{{speaker}}に振った結果: {{by}}）",
         "targetNumberPinned": "自動: {{total}}（このタブに固定した結果: {{by}}）",
         "targetNumberByOthers": "自動: {{total}}（直前の結果: {{by}}）",
+        "targetNumberPresented": "自動: {{total}}（{{by}}が示した目標値）",
         "targetNumberNotFound": "自動: 見つかりません（{目標値}のまま送ります）",
+        "targetNumberIdle": "{目標値}のある行で使います",
         "targetNumberChoice": "{{total}}（{{by}}）"
       },
       "decoration": {
@@ -4015,9 +4070,10 @@
         "edit": "編集",
         "serverRoll": "部屋のサーバーが振ったダイスです。振った人には出目を変えられません",
         "pinTargetNumber": "この結果を目標値にする",
+        "pinPresentedTargetNumber": "この目標値を固定する",
         "unpinTargetNumber": "目標値の固定を外す",
         "pinnedTargetNumber": "目標値",
-        "pinnedTargetNumberTitle": "このタブの{目標値}は、外すまでこの結果になります"
+        "pinnedTargetNumberTitle": "このタブの{目標値}は、外すまでこの数になります"
       },
       "stream": {
         "title": "ストリームチャット",
@@ -4057,6 +4113,9 @@
         "tabsLabel": "パレットのタブ"
       },
       "messageSetting": {
+        "sectionChatTools": "チャットツール",
+        "chatToolsHint": "発言にマウスを乗せたときに出るボタンの並びです。この端末だけの並びで、足す・外す・並べ替えができます。",
+        "arrangeChatTools": "チャットツールを並べ替える",
         "sectionText": "文字",
         "fontSize": "文字サイズ",
         "sectionPortrait": "立ち絵",
@@ -5742,11 +5801,12 @@
       "reset": "初期配置に戻す",
       "resetConfirm": "このメニューを初期配置に戻します。よろしいですか？",
       "resetAll": "すべてのメニューを初期配置に戻す",
-      "resetAllConfirm": "Fav メニューと GM／PL ツールを、すべて初期配置に戻します。よろしいですか？",
+      "resetAllConfirm": "Fav メニューと GM／PL ツールとチャットツールを、すべて初期配置に戻します。よろしいですか？",
       "surface": {
         "fab": "Fav メニュー",
         "gmToolbar": "GM ツール",
-        "plToolbar": "PL ツール"
+        "plToolbar": "PL ツール",
+        "chatTools": "チャットツール"
       },
       "writeOut": "書き出す",
       "readIn": "読み込む",
@@ -5996,7 +6056,41 @@
       "stayedOn": "{{name}} はこの手番にもう乗り降りしたので、{{mount}} の上に戻しました",
       "offerActionUp_rider": "起き上がって乗る",
       "offerActionUp_passenger": "起き上がって同乗する",
-      "offerActionUp_cargo": "起き上がって積まれる"
+      "offerActionUp_cargo": "起き上がって積まれる",
+      "part": {
+        "attach": "{{body}} の部位にする",
+        "someone": "部位",
+        "detach": "{{body}} の部位から外す",
+        "editLook": "部位の見た目を編集",
+        "look": {
+          "title": "部位の見た目 - {{name}}",
+          "noParts": "部位がありません",
+          "mode_layer": "絵を重ねる",
+          "mode_paint": "塗って切り分ける",
+          "mode_faces": "モデルの面を塗る",
+          "size": "大きさ",
+          "forward": "前へ",
+          "back": "後ろへ",
+          "unlay": "重ねるのをやめる",
+          "lay": "この部位の絵を重ねる",
+          "brush": "ブラシ",
+          "paintOn": "塗る",
+          "erase": "消す",
+          "clearPaint": "塗りを全部消す",
+          "paintCleared": "{{name}}の塗りを消しました",
+          "unlaid": "{{name}}の絵を重ねるのをやめました",
+          "letGo": "{{name}}の{{what}}を消しました",
+          "lookLayer": "重ねた絵",
+          "lookMask": "塗り",
+          "lookFaces": "モデルの面",
+          "lookJoin": "・",
+          "lookJoinLast": "・",
+          "putBack": "元に戻す",
+          "hint_layer": "部位の絵をドラッグして置き場所を決めます。部位が倒されると、その絵は消えます。",
+          "hint_paint": "本体の絵の上を塗って、部位の範囲を決めます。部位が倒されると、塗った所が本体の絵から消えます。",
+          "hint_faces": "モデルの上を塗って、部位の面を決めます。右ドラッグか2本指で回せます。部位が倒されると、塗った面が消えます。"
+        }
+      }
     },
     "battleCutIn": {
       "title": "戦闘カットイン",

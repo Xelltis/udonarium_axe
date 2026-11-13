@@ -1,6 +1,11 @@
 import { retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
 import { litByLamps } from '@axe/infrastructure/table-3d/lamp-lighting';
-import type { Table3dLightMap, Table3dShadowLight, Table3dVeil } from '@axe/infrastructure/table-3d/table-3d-port';
+import type {
+  Table3dEffectLight,
+  Table3dLightMap,
+  Table3dShadowLight,
+  Table3dVeil,
+} from '@axe/infrastructure/table-3d/table-3d-port';
 import {
   diffuseColor,
   float,
@@ -51,9 +56,15 @@ export class SceneVeil {
   private readonly lifted = this.liftedOut();
   private readonly glowing = this.glowLight();
 
-  /** As many lamps as the scene has slots for lights of its own, which light what the scene draws unlit. */
-  constructor(slots: number) {
-    this.lamps = Array.from({ length: slots }, () => ({
+  /**
+   * As many lamps as the scene has slots for lights of its own, and then as many as effects may throw
+   * lights over the table, which light what the scene draws unlit.
+   */
+  constructor(
+    private readonly shadowSlots: number,
+    effectSlots = 0
+  ) {
+    this.lamps = Array.from({ length: shadowSlots + effectSlots }, () => ({
       at: vectorUniform(),
       reach: numberUniform(),
       colour: vectorUniform(),
@@ -69,10 +80,24 @@ export class SceneVeil {
    * pixels, x to the east, y to the south and z up.
    */
   setLamps(lights: readonly Table3dShadowLight[], strengths: readonly ReturnType<typeof lampColour>[]): void {
-    this.lamps.forEach((lamp, index) => {
+    this.lamps.slice(0, this.shadowSlots).forEach((lamp, index) => {
       const light = lights[index];
       lamp.at.value.set(light?.x ?? 0, light?.z ?? 0, light?.y ?? 0);
       lamp.reach.value = Math.max(1, light?.dimPx ?? 1);
+      lamp.colour.value.copy(strengths[index] ?? new Vector3());
+    });
+  }
+
+  /**
+   * Lights what the scene draws unlit with the lights effects throw over the table, as their light
+   * falls off with distance alone, in the colour and strength given: points are in table pixels, x to
+   * the east, y to the south and z up.
+   */
+  setEffectLamps(lights: readonly Table3dEffectLight[], strengths: readonly ReturnType<typeof lampColour>[]): void {
+    this.lamps.slice(this.shadowSlots).forEach((lamp, index) => {
+      const light = lights[index];
+      lamp.at.value.set(light?.x ?? 0, light?.z ?? 0, light?.y ?? 0);
+      lamp.reach.value = Math.max(1, light?.reachPx ?? 1);
       lamp.colour.value.copy(strengths[index] ?? new Vector3());
     });
   }
@@ -189,10 +214,12 @@ export class SceneVeil {
  * A canvas the page draws, laid over the board and read straight down onto it. The picture stays one
  * and the same, drawn from whichever canvas the page lays: a material holds on to the picture it was
  * first drawn with. The card keeps a picture at the size it was first sent at, so one sent again at
- * another size is let go there first, and sent anew.
+ * another size is let go there first, and sent anew. A canvas taken away is followed by the clear
+ * pixel the picture began with, so the card does not hold a board's size of nothing.
  */
 class BoardPicture {
-  private readonly picture: CanvasTexture = canvasPicture(clearCanvas());
+  private readonly clear = clearCanvas();
+  private readonly picture: CanvasTexture = canvasPicture(this.clear);
   private laidCanvas: HTMLCanvasElement | null = null;
   private laidRevision = 0;
   private readonly box = uniform(new Vector4(0, 0, 1, 1));
@@ -208,6 +235,7 @@ class BoardPicture {
       if (!this.laidCanvas) return false;
       this.laidCanvas = null;
       this.strength.value = 0;
+      retakeCanvasPicture(this.picture, this.clear);
       return true;
     }
     if (laid.canvas === this.laidCanvas && laid.revision === this.laidRevision) return false;

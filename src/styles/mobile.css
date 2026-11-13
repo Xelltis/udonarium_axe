@@ -177,21 +177,23 @@ body.touch-input :is(light-source, range, card) .rotate-grab {
   pointer-events: none;
 }
 
-body.touch-input :is(light-source, range, card) [data-pressed] .rotate-grab {
+/* A range's handle stands in a box of its own beside the one that is pressed, so the range as a whole is looked at. */
+body.touch-input :is(light-source, card) [data-pressed] .rotate-grab,
+body.touch-input range:has([data-pressed]) .rotate-grab {
   opacity: 1;
   pointer-events: auto;
 }
 
 /* As faint as a pointer passing over it brings it out. */
-body.touch-input [data-pressed] .rotate-grab.group-hover\:opacity-50 {
+body.touch-input :is([data-pressed], range:has([data-pressed])) .rotate-grab.group-hover\:opacity-50 {
   opacity: 0.5;
 }
 
-body.touch-input [data-pressed] .rotate-grab.group-hover\:opacity-86 {
+body.touch-input :is([data-pressed], range:has([data-pressed])) .rotate-grab.group-hover\:opacity-86 {
   opacity: 0.86;
 }
 
-body.touch-input [data-pressed] .rotate-grab.group-hover\:opacity-90 {
+body.touch-input :is([data-pressed], range:has([data-pressed])) .rotate-grab.group-hover\:opacity-90 {
   opacity: 0.9;
 }
 

@@ -76,11 +76,9 @@
         class="absolute inset-x-0 bottom-1.5 flex flex-col items-center text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]"
         aria-live="polite"
       >
-        <span
-          class="text-[10px] leading-tight font-semibold tracking-[0.2em] text-white/80"
-          data-testid="game-clock-day"
-          >{{ clock.dayText() }}</span
-        >
+        <span class="text-[10px]/tight font-semibold tracking-[0.2em] text-white/80" data-testid="game-clock-day">{{
+          clock.dayText()
+        }}</span>
         <span
           class="text-[26px] leading-none font-bold tracking-wide [font-variant-numeric:tabular-nums]"
           data-testid="game-clock-time"

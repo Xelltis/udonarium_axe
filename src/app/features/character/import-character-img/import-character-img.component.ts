@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -26,6 +27,7 @@ export class ImportCharacterImgComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly imageStorage = inject(ImageStorage);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly names = inject(PieceNameService);
 
   tabletopObject: GameCharacter | null = null;
 
@@ -35,7 +37,7 @@ export class ImportCharacterImgComponent {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     const all = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const c of all) this.objectChange.versionOf(c.identifier)();
-    return all.filter((character) => character.isVisibleOnTable);
+    return all.filter((character) => character.isVisibleOnTable && !this.names.isKept(character));
   });
 
   constructor() {

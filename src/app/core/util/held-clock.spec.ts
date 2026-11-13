@@ -1,0 +1,95 @@
+import { HeldClock, LONG_FRAME_MS } from '@axe/core/util/held-clock';
+import { describe, expect, it } from 'vitest';
+
+describe('HeldClock', () => {
+  function framesOf(clock: HeldClock, from: number, count: number, waitMs: number): number {
+    let at = from;
+    for (let frame = 0; frame < count; frame++) {
+      at += waitMs;
+      clock.read(at);
+    }
+    return at;
+  }
+
+  it('runs on with the frames as they come', () => {
+    const clock = new HeldClock(1000);
+    const at = framesOf(clock, 1000, 30, 16);
+
+    expect(clock.read(at + LONG_FRAME_MS)).toEqual({ elapsed: at + LONG_FRAME_MS - 1000, held: false, away: false });
+  });
+
+  it('stands still over a long wait between smooth frames, counting it as about one frame', () => {
+    const clock = new HeldClock(1000);
+    const at = framesOf(clock, 1000, 30, 16);
+
+    const after = clock.read(at + 2000);
+
+    expect(after.held).toBe(true);
+    expect(after.elapsed).toBeGreaterThan(at - 1000);
+    expect(after.elapsed).toBeLessThan(at - 1000 + 20);
+  });
+
+  it('plays on in time on a page slow all along, holding only its first frames', () => {
+    const clock = new HeldClock(1000);
+    const at = framesOf(clock, 1000, 10, 1000);
+
+    const next = clock.read(at + 1000);
+
+    expect(next.held).toBe(false);
+    expect(next.elapsed).toBeGreaterThan(at + 1000 - 1000 - 3000);
+  });
+
+  it('plays out late by no more than three stalls on a page that keeps stalling, every other frame or every few', () => {
+    for (const between of [1, 3, 5]) {
+      const clock = new HeldClock(1000);
+      let at = framesOf(clock, 1000, 30, 16);
+      for (let stall = 0; stall < 20; stall++) {
+        at += 250;
+        clock.read(at);
+        at = framesOf(clock, at, between, 16);
+      }
+
+      const next = clock.read(at + 250);
+
+      expect(next.held).toBe(false);
+      expect(at + 250 - 1000 - next.elapsed).toBeLessThanOrEqual(3 * 250);
+    }
+  });
+
+  it('holds still over every stall readying what plays as it begins, a few of them close together', () => {
+    const clock = new HeldClock(1000);
+    let at = 1000;
+    for (const stall of [240, 230, 240]) {
+      at = framesOf(clock, at, 2, 16);
+      at += stall;
+      expect(clock.read(at).held).toBe(true);
+    }
+  });
+
+  it('counts in full a wait while the page was out of view', () => {
+    const clock = new HeldClock(1000);
+    const at = framesOf(clock, 1000, 30, 16);
+    clock.leftView();
+
+    expect(clock.read(at + 4000)).toEqual({ elapsed: at + 4000 - 1000, held: false, away: true });
+  });
+
+  it('stands still over a stall that comes soon after another', () => {
+    const clock = new HeldClock(1000);
+    let at = framesOf(clock, 1000, 30, 16);
+    expect(clock.read(at + 1000).held).toBe(true);
+    at = framesOf(clock, at + 1000, 1, 16);
+
+    expect(clock.read(at + 400).held).toBe(true);
+  });
+
+  it('stands still over a stall soon after the page came back into view', () => {
+    const clock = new HeldClock(1000);
+    let at = framesOf(clock, 1000, 30, 16);
+    clock.leftView();
+    clock.read(at + 10_000);
+    at = framesOf(clock, at + 10_000, 3, 16);
+
+    expect(clock.read(at + 300).held).toBe(true);
+  });
+});

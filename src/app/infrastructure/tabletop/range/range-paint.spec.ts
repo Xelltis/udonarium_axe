@@ -1,9 +1,11 @@
 import { RangeArea } from '@axe/domain/tabletop/range';
 import {
   initialRangeClip,
+  rangeClipOutline,
   rangeClipPathCss,
   rangeQuadrantCells,
   rangeRenderSettingOf,
+  regionWithinOutline,
 } from '@axe/infrastructure/tabletop/range/range-paint';
 
 describe('range-paint', () => {
@@ -20,6 +22,45 @@ describe('range-paint', () => {
     made.push(range);
     return range;
   }
+
+  it('outlines a range as its cells are cut, a circle walked round finely and a polygon by its corners', () => {
+    const circle = rangeClipOutline({ kind: 'circle' }, rangeOf('CIRCLE', 3), 50);
+    expect(circle).toHaveLength(64);
+    for (const { x, y } of circle) expect(Math.hypot(x, y)).toBeCloseTo(225);
+
+    const square = rangeOf('SQUARE', 2);
+    const clip = initialRangeClip('SQUARE');
+    const corners = rangeClipOutline(clip, square, 50);
+    expect(rangeClipPathCss(clip, square, 50)).toBe(
+      `polygon(${corners.map(({ x, y }) => `${x}px ${y}px`).join(', ')})`
+    );
+    expect(rangeClipOutline({ kind: 'custom', halfWidthPx: 75, halfHeightPx: 20 }, square, 50)).toEqual([
+      { x: -125, y: -100 },
+      { x: 125, y: -100 },
+      { x: 125, y: 100 },
+      { x: -125, y: 100 },
+    ]);
+  });
+
+  it('pictures only the part of the canvases a range’s outline reaches, and none where it reaches none', () => {
+    const canvases = { left: -1600, top: -1600, width: 3200, height: 3200 };
+    const line = [
+      { x: -10.5, y: -25 },
+      { x: 500.2, y: -25 },
+      { x: 500.2, y: 25 },
+      { x: -10.5, y: 25 },
+    ];
+
+    expect(regionWithinOutline(canvases, line)).toEqual({ left: -11, top: -25, width: 512, height: 50 });
+    expect(regionWithinOutline({ left: 0, top: 0, width: 100, height: 100 }, line)).toEqual({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 25,
+    });
+    expect(regionWithinOutline({ left: 600, top: 0, width: 100, height: 100 }, line)).toBeNull();
+    expect(regionWithinOutline(canvases, [])).toEqual(canvases);
+  });
 
   it('reaches as far out as the shape could at any turn, and a cell more', () => {
     expect(rangeQuadrantCells(rangeOf('CIRCLE', 3))).toBe(5);

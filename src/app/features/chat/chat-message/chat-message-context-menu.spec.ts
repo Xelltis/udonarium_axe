@@ -64,6 +64,8 @@ describe('buildChatMessageContextMenu()', () => {
       names(pin).indexOf('feature.chat.message.copyText')
     );
 
+    const presented = buildChatMessageContextMenu(state({ targetNumberPin: 'pinPresented' }), callbacks(), translate);
+    expect(names(presented)).toContain('feature.chat.message.pinPresentedTargetNumber');
     const unpin = buildChatMessageContextMenu(state({ targetNumberPin: 'unpin' }), callbacks(), translate);
     expect(names(unpin)).toContain('feature.chat.message.unpinTargetNumber');
     const none = names(buildChatMessageContextMenu(state(), callbacks(), translate));

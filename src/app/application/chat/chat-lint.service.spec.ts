@@ -182,6 +182,18 @@ describe('ChatLintService', () => {
       await vi.waitFor(() => expect(session.targetNumber()?.found).toMatchObject({ total: 15, from: 'pinned' }));
     });
 
+    it('tells the number for a line a variable of the palette brings a {目標値} into', () => {
+      answer('DiceBot : (2D6+8) → 7[3,4]+8 → 15', 1001);
+      speaker.chatPalette!.setPalette('//抵抗=2d6>={目標値}\n{抵抗} 生命抵抗');
+      const { session } = watch('{抵抗} 生命抵抗', {
+        sendFrom: signal(speaker.identifier),
+        tabIdentifier: signal(tab.identifier),
+        path: 'palette',
+      });
+
+      expect(session.targetNumber()?.found).toMatchObject({ total: 15 });
+    });
+
     it("tells nothing for a line that holds none, or one the speaker's own sheet answers", () => {
       answer('DiceBot : (2D6+8) → 7[3,4]+8 → 15', 1001);
       const text = signal('2d6>=12');

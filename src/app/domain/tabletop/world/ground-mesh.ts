@@ -53,6 +53,9 @@ interface Box {
   readonly height: number;
 }
 
+/** The corners of a hex cell, in table pixels. */
+export type Hex = readonly { readonly x: number; readonly y: number }[];
+
 /** How many smaller triangles a side of a hex's triangle is split into, to follow the ground over it. */
 const HEX_SPLITS = 4;
 
@@ -71,7 +74,13 @@ function samplesAlong(from: number, length: number, step: number): number[] {
  * piece stands on the ground the reader sees.
  */
 export function squareGroundMesh(box: Box, ground: GroundSurface, gridSize: number): GroundMesh {
-  const step = gridSize / 2;
+  const mesh = bareSquareGroundMesh(box, ground, gridSize);
+  return { ...mesh, paint: paintOf(mesh.points, ground, gridSize) };
+}
+
+/** The mesh of {@link squareGroundMesh}, unpainted. */
+export function bareSquareGroundMesh(box: Box, ground: GroundSurface, gridSize: number): GroundMesh {
+  const step = gridSize / GROUND_SAMPLES_PER_CELL;
   const across = samplesAlong(box.x, box.width, step);
   const down = samplesAlong(box.y, box.height, step);
   const points = new Float32Array(across.length * down.length * 3);
@@ -95,15 +104,21 @@ export function squareGroundMesh(box: Box, ground: GroundSurface, gridSize: numb
       written += 6;
     }
   }
-  return { points, uvs, triangles, paint: paintOf(points, ground, gridSize) };
+  return { points, uvs, triangles, paint: null };
 }
 
 /**
  * A hex board's cells over the ground: each cell's outline kept, its triangles split smaller and each
  * point raised to the ground under it.
  */
-export function hexGroundMesh(
-  hexes: readonly (readonly { readonly x: number; readonly y: number }[])[],
+export function hexGroundMesh(hexes: readonly Hex[], box: Box, ground: GroundSurface, gridSize: number): GroundMesh {
+  const mesh = bareHexGroundMesh(hexes, box, ground, gridSize);
+  return { ...mesh, paint: paintOf(mesh.points, ground, gridSize) };
+}
+
+/** The mesh of {@link hexGroundMesh}, unpainted. */
+export function bareHexGroundMesh(
+  hexes: readonly Hex[],
   box: Box,
   ground: GroundSurface,
   gridSize: number
@@ -135,11 +150,10 @@ export function hexGroundMesh(
       }
     }
   }
-  const laid = new Float32Array(points);
   return {
-    points: laid,
+    points: new Float32Array(points),
     uvs: new Float32Array(uvs),
     triangles: new Uint32Array(triangles),
-    paint: paintOf(laid, ground, gridSize),
+    paint: null,
   };
 }

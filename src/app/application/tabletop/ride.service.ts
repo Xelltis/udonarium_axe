@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -126,6 +127,7 @@ export class RideService {
   private readonly turns = inject(TurnOrderService);
   private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly names = inject(PieceNameService);
 
   /** The mount a piece rides, where it is on the table and still a mount; null otherwise. */
   mountOf(piece: GameCharacter): GameCharacter | null {
@@ -137,11 +139,17 @@ export class RideService {
     return this.mountOf(piece) ? seatOf(piece.rideSeat) : null;
   }
 
-  /** The pieces on the table riding a mount. */
+  /** The pieces on the table riding a mount, its parts left out. */
   aboard(mount: GameCharacter): GameCharacter[] {
     return this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
-      .filter((piece) => piece.ridingOn === mount.identifier && piece.isVisibleOnTable && piece !== mount);
+      .filter(
+        (piece) =>
+          piece.ridingOn === mount.identifier &&
+          piece.isVisibleOnTable &&
+          piece !== mount &&
+          seatOf(piece.rideSeat) !== 'part'
+      );
   }
 
   /** The piece riding a mount in front, steering it, or null. */
@@ -183,7 +191,7 @@ export class RideService {
   menuOf(piece: GameCharacter): RideMenuModel {
     const mount = this.mountOf(piece);
     return {
-      riding: mount ? { mount: mount.name, seat: seatOf(piece.rideSeat) } : null,
+      riding: mount ? { mount: this.names.shown(mount), seat: seatOf(piece.rideSeat) } : null,
       offers: mount ? [] : this.offersFor(piece),
       changeRefusal: this.changeRefusal(piece),
       prone: { on: piece.prone === '1', refusal: this.proneRefusal(piece) },
@@ -268,8 +276,8 @@ export class RideService {
     this.chat.sendSystemNotice(
       'movement',
       this.t(`feature.ride.chat.on_${seat}`, {
-        name: piece.name,
-        mount: mount.name,
+        name: this.names.said(piece),
+        mount: this.names.said(mount),
         action: this.actionOf(piece, seat, 'on'),
       })
     );
@@ -293,8 +301,8 @@ export class RideService {
       this.chat.sendSystemNotice(
         'movement',
         this.t('feature.ride.chat.off', {
-          name: piece.name,
-          mount: mount.name,
+          name: this.names.said(piece),
+          mount: this.names.said(mount),
           action: this.actionOf(piece, seat, 'off'),
         })
       );
@@ -322,7 +330,9 @@ export class RideService {
     }
     if (this.dismount(piece)) return;
     this.links.carryBound(mount);
-    this.snackbar.show(this.t('feature.ride.stayedOn', { name: piece.name, mount: mount.name }));
+    this.snackbar.show(
+      this.t('feature.ride.stayedOn', { name: this.names.shown(piece), mount: this.names.shown(mount) })
+    );
   }
 
   /**
@@ -339,15 +349,18 @@ export class RideService {
       const mount = this.objectStore.get<GameCharacter>(offer.id);
       if (!free || !(mount instanceof GameCharacter)) continue;
       const label = free.getsUp ? `feature.ride.offerActionUp_${free.seat}` : `feature.ride.offerAction_${free.seat}`;
-      this.snackbar.show(this.t('feature.ride.offer', { name: piece.name, mount: mount.name }), {
-        action: { label: this.t(label), run: () => this.mount(piece, mount, free.seat) },
-      });
+      this.snackbar.show(
+        this.t('feature.ride.offer', { name: this.names.shown(piece), mount: this.names.shown(mount) }),
+        {
+          action: { label: this.t(label), run: () => this.mount(piece, mount, free.seat) },
+        }
+      );
       return;
     }
     const why = refusal ?? offers[0].seats.find((one) => one.refusal !== null)?.refusal ?? null;
     if (why) {
       this.snackbar.show(
-        this.t('feature.ride.offerRefused', { name: piece.name, mount: offers[0].name }) +
+        this.t('feature.ride.offerRefused', { name: this.names.shown(piece), mount: offers[0].name }) +
           this.t(`feature.ride.menu.refusal_${why}`)
       );
     }
@@ -398,7 +411,7 @@ export class RideService {
     });
     this.chat.sendSystemNotice(
       'movement',
-      this.t(prone ? 'feature.ride.chat.prone' : 'feature.ride.chat.up', { name: piece.name })
+      this.t(prone ? 'feature.ride.chat.prone' : 'feature.ride.chat.up', { name: this.names.said(piece) })
     );
     for (const one of thrown) this.fall(one);
     return true;
@@ -450,7 +463,7 @@ export class RideService {
     });
     this.chat.sendSystemNotice(
       'movement',
-      this.t('feature.ride.chat.fell', { name: piece.name, mount: mount.name, metres })
+      this.t('feature.ride.chat.fell', { name: this.names.said(piece), mount: this.names.said(mount), metres })
     );
     this.settleTwoUp(mount.identifier);
     const damage = this.config()?.fallDamage ?? null;
@@ -494,7 +507,10 @@ export class RideService {
       piece.rideTwoUpBuff = given;
     });
     if (given !== '')
-      this.chat.sendSystemNotice('movement', this.t('feature.ride.chat.twoUpOn', { name: piece.name, buff: name }));
+      this.chat.sendSystemNotice(
+        'movement',
+        this.t('feature.ride.chat.twoUpOn', { name: this.names.said(piece), buff: name })
+      );
   }
 
   /** Takes the buff for riding two up off a piece, where it is still the one given. */
@@ -507,7 +523,10 @@ export class RideService {
     if (!given) return;
     const name = given.name;
     piece.buffs.remove(given);
-    this.chat.sendSystemNotice('movement', this.t('feature.ride.chat.twoUpOff', { name: piece.name, buff: name }));
+    this.chat.sendSystemNotice(
+      'movement',
+      this.t('feature.ride.chat.twoUpOff', { name: this.names.said(piece), buff: name })
+    );
   }
 
   /**
@@ -580,6 +599,7 @@ export class RideService {
    */
   private offersFor(piece: GameCharacter): RideOffer[] {
     if (!piece.isVisibleOnTable || piece.offField === '1' || piece.mountable === '1') return [];
+    if (this.links.bodyOf(piece)) return [];
     if (this.aboard(piece).length > 0) return [];
     const own = this.stateRefusal(piece);
     const getsUpFirst = own === 'prone' && this.proneRefusal(piece) === null;
@@ -592,7 +612,7 @@ export class RideService {
         const mountState = this.mountStateRefusal(mount);
         return {
           id: mount.identifier,
-          name: mount.name,
+          name: this.names.shown(mount),
           seats: freeSeats(
             { passenger: mount.mountPassenger === '1', cargo: cargoRoomOf(mount.mountCargo) },
             this.aboard(mount).map((rider) => seatOf(rider.rideSeat))

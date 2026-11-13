@@ -110,6 +110,13 @@ describe('lintChatSyntax', () => {
         params: { name: '気力', piece: 'ゴブリン' },
       });
     });
+
+    it('names the pieces it finds wanting as the reader is told them', () => {
+      const told = { targets: [target], nameOf: () => '？？？' };
+
+      expect(lint('t:気力-1', told)[0]).toMatchObject({ params: { piece: '？？？' } });
+      expect(lint('t&加護-', told)[0]).toMatchObject({ code: 'buff.notFound', params: { piece: '？？？' } });
+    });
   });
 
   describe('references', () => {
@@ -177,6 +184,11 @@ describe('lintChatSyntax', () => {
       expect(codes('&!猛攻撃/攻撃/+/たくさん/3')).toEqual(['buff.unreadable']);
       expect(lint('&!猛攻撃/気力/+/2/3')[0]).toMatchObject({ code: 'buff.missingStatus', params: { name: '気力' } });
       expect(codes('&!猛攻撃/HP/+/2/3')).toEqual([]);
+    });
+
+    it("says nothing of a status a buff moves for whoever aims at the piece, which is none of the piece's own", () => {
+      expect(codes('&!弱点/相手の物理特攻+2/none')).toEqual([]);
+      expect(codes('&!弱点/相手の物理特攻/+/2/none')).toEqual([]);
     });
 
     it('finds a buff to take off that the piece does not have', () => {

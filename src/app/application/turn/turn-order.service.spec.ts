@@ -233,6 +233,36 @@ describe('TurnOrderService', () => {
     expect(turnState.round).toBe(2);
   });
 
+  it('tells who the next press would hand the turn to, without pressing it', () => {
+    expect(service.peekNextIdentifier()).toBe('');
+    service.next(); // round 1 begins
+    expect(service.peekNextIdentifier()).toBe(chars[0].identifier);
+    expect(turnState.phase).toBe('roundStart');
+    service.setCurrent(chars[1].identifier);
+    expect(service.peekNextIdentifier()).toBe(chars[0].identifier);
+    service.next();
+    service.next();
+    expect(turnState.currentIdentifier).toBe(chars[2].identifier);
+    expect(service.peekNextIdentifier()).toBe('');
+    expect(turnState.currentIdentifier).toBe(chars[2].identifier);
+    expect(sendSpy).toHaveBeenCalledTimes(4);
+  });
+
+  it('writes nothing down as it works out a step without taking it, and its version’s mark as it takes one', () => {
+    PeerCursor.createMyCursor();
+    service.next();
+    const mine = PeerCursor.myCursor!;
+    mine.turnProtocol = '';
+
+    service.peekNextIdentifier();
+    service.mayHold(chars[1].identifier);
+    service.mayInterrupt(chars[1].identifier);
+
+    expect(mine.turnProtocol).toBe('');
+    service.next();
+    expect(mine.turnProtocol).toBe('1');
+  });
+
   it('setCurrent jumps straight to a character in the acting phase', () => {
     service.setCurrent(chars[1].identifier);
     expect(turnState.phase).toBe('acting');
@@ -705,6 +735,31 @@ describe('TurnOrderService', () => {
       service.next();
 
       expect(sprang).toHaveBeenCalledWith(chars[0], 'turnStart');
+    });
+
+    it('springs the ground of a whole press before any of it carries a piece off', () => {
+      const fire = TestBed.inject(TriggerFireService);
+      const carryingAfter = fire.carryingAfter.bind(fire);
+      let inside = 0;
+      vi.spyOn(fire, 'carryingAfter').mockImplementation(<T>(work: () => T): T => {
+        inside++;
+        try {
+          return carryingAfter(work);
+        } finally {
+          inside--;
+        }
+      });
+      const held: boolean[] = [];
+      sprang.mockImplementation(() => {
+        held.push(inside > 0);
+        return [];
+      });
+
+      service.next();
+      service.next();
+
+      expect(held.length).toBeGreaterThan(0);
+      expect(held.every(Boolean)).toBe(true);
     });
 
     it('springs what the piece leaving a turn is standing on before the next takes one', () => {

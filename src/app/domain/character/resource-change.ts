@@ -24,6 +24,8 @@ export interface ResourceSnapshot {
 export interface ResourceChange {
   identifier: string;
   name: string;
+  /** The part of the piece the change is to, as its identifier, where it is to a part rather than the piece. */
+  part?: string;
   kind: ResourceChangeKind;
   delta: number;
   label: string;

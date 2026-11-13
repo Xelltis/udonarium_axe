@@ -18,6 +18,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { chatBubbleOf, chatColorOf } from '@axe/domain/chat/chat-color';
 import { keptFromDecoration } from '@axe/domain/chat/chat-decoration';
 import { liftImageReferences } from '@axe/domain/chat/chat-image-references';
@@ -108,6 +109,7 @@ export class ChatMessageService {
       text,
       imagePos: -1,
       messColor: messageColor,
+      ...this.mastersMark(),
     };
     return chatTab.addMessage(chatMessage);
   }
@@ -280,6 +282,7 @@ export class ChatMessageService {
       messColor: resolveMessageColor(color, '#000000'),
       sendFrom,
       senderRole: PeerCursor.myRole,
+      ...this.mastersMark(),
       stamp: stampId,
     };
     if (stamp.kind === 'image') chatMessage.attachmentImageIdentifiers = JSON.stringify([stamp.imageIdentifier]);
@@ -331,7 +334,8 @@ export class ChatMessageService {
         ? () => targetNumber
         : targetNumberOnce(chatTab, {
             identifier: sendFrom,
-            name: speaker instanceof GameCharacter ? speaker.name : '',
+            name: speaker instanceof GameCharacter ? saidNameOf(speaker) : '',
+            ownName: speaker instanceof GameCharacter ? speaker.name : '',
           });
     const answers =
       holdsTargetNumber(text) || (messageTargetContext ?? []).some((context) => holdsTargetNumber(context.text));
@@ -371,6 +375,7 @@ export class ChatMessageService {
       messColor: messageColor,
       sendFrom: sendFrom,
       senderRole: PeerCursor.myRole,
+      ...this.mastersMark(),
     };
     if (attachments.length > 0) {
       chatMessage.attachmentImageIdentifiers = JSON.stringify(attachments);
@@ -458,6 +463,7 @@ export class ChatMessageService {
       messColor: resolveMessageColor(color, '#000000'),
       sendFrom: '',
       senderRole: PeerCursor.myRole,
+      ...this.mastersMark(),
     };
     if (answers) chatMessage.answersTargetNumber = '1';
     if (stamped.pictures.length > 0) {
@@ -500,6 +506,7 @@ export class ChatMessageService {
       imagePos: -1,
       messColor: resolveMessageColor(options.color, as.kind === 'system' ? '#006633' : '#000000'),
       senderRole: PeerCursor.myRole,
+      ...this.mastersMark(),
     };
     if (as.kind === 'system') {
       chatMessage.name = encodeI18nMessage('common.chat.systemName');
@@ -655,10 +662,31 @@ export class ChatMessageService {
     return tab instanceof ChatTab ? tab : null;
   }
 
+  /** How deep the sending is in lines a game master wrote for another to say; see {@link asMastersWords}. */
+  private mastersWordsDepth = 0;
+
+  /**
+   * Sends, through `send`, which sends at once, lines a game master wrote for whoever sets them off to
+   * say, as a switch's lines are: each is marked as the master's words, so that a number to beat it
+   * writes out is taken as the master's, whoever pressed it.
+   */
+  asMastersWords<T>(send: () => T): T {
+    this.mastersWordsDepth++;
+    try {
+      return send();
+    } finally {
+      this.mastersWordsDepth--;
+    }
+  }
+
+  private mastersMark(): Pick<ChatMessageContext, 'mastersWords'> {
+    return this.mastersWordsDepth > 0 ? { mastersWords: '1' } : {};
+  }
+
   private findObjectName(identifier: string): string {
     const object = this.objectStore.get(identifier);
     if (object instanceof GameCharacter) {
-      return object.name;
+      return saidNameOf(object);
     } else if (object instanceof PeerCursor) {
       return object.name;
     }

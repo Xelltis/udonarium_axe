@@ -27,6 +27,7 @@ function stored(surface: MenuSurface): MenuLayout | null {
 @Injectable({ providedIn: 'root' })
 export class MenuLayoutService {
   private readonly held = new Map<MenuSurface, ReturnType<typeof signal<MenuLayout | null>>>();
+  private readonly layouts = new Map<MenuSurface, Signal<MenuLayout>>();
 
   constructor() {
     for (const surface of MENU_SURFACES) this.held.set(surface, signal<MenuLayout | null>(stored(surface)));
@@ -37,10 +38,15 @@ export class MenuLayoutService {
     return this.slot(surface)() !== null;
   }
 
-  /** The menu as this screen has it, which is the way it came until somebody says otherwise. */
+  /** The menu as this screen has it, which is the way it came until somebody says otherwise: one signal for each menu. */
   layoutOf(surface: MenuSurface): Signal<MenuLayout> {
-    const slot = this.slot(surface);
-    return computed(() => slot() ?? defaultMenuLayout(surface));
+    let layout = this.layouts.get(surface);
+    if (!layout) {
+      const slot = this.slot(surface);
+      layout = computed(() => slot() ?? defaultMenuLayout(surface));
+      this.layouts.set(surface, layout);
+    }
+    return layout;
   }
 
   /** Writes the menu down as it now stands. */

@@ -17,6 +17,8 @@ export interface MovableSetup<T extends TabletopObject> {
   readonly layerName?: string;
   /** How much of its face the piece covers; see {@link MovableOption}. */
   readonly footprint?: (t: T) => PieceFootprint;
+  /** Whether the piece is put down wherever it is let go, off the table's grid; see `MovableOption.freeOfGrid`. */
+  readonly freeOfGrid?: (t: T) => boolean;
   /** Where the piece turns about, for one that does not turn about its middle; see {@link RotableOption}. */
   readonly turnsAbout?: (t: T) => TurnAbout | null;
 }
@@ -36,6 +38,7 @@ function applyMovableOption<T extends TabletopObject>(
     snapToSquare: opts.snapToSquare ? (at) => opts.snapToSquare!(piece, at) : undefined,
     layerName: opts.layerName,
     footprint: opts.footprint ? () => opts.footprint!(piece) : undefined,
+    freeOfGrid: opts.freeOfGrid ? () => opts.freeOfGrid!(piece) : undefined,
   });
 }
 

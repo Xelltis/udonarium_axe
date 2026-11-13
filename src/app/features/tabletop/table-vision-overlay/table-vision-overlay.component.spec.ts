@@ -3,6 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { PERF_HEX_SURFACE_CELLS, perfCounters } from '@axe/core/util/perf-counters';
+import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
+import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import type { OverlayVision, SceneViewer, VisionScene } from '@axe/domain/tabletop/vision-scene';
 import { TableVisionOverlayComponent } from '@axe/features/tabletop/table-vision-overlay/table-vision-overlay.component';
@@ -31,6 +33,24 @@ function hexScene(partial: Partial<VisionScene> = {}): VisionScene {
   };
 }
 
+/** The fog over the hex scene's board, ten cells across and eight down, none of them seen yet. */
+function fogVision(): OverlayVision {
+  return {
+    grid: cellGridOf(10, 8, 50, GridType.HEX_VERTICAL),
+    visible: new CellBits(80),
+    explored: new CellBits(80),
+    clipReveals: false,
+    fogEnabled: true,
+    fogColor: '#aeb9c4',
+    veilColor: '#000000',
+    veilAlpha: 0.3,
+    unexploredAlpha: 1,
+    blurPx: 17.5,
+    rememberSeen: true,
+    clearedStaysLit: false,
+  };
+}
+
 describe('TableVisionOverlayComponent on a hex table', () => {
   let fixture: ComponentFixture<TableVisionOverlayComponent>;
   let borrowed: BorrowedGlobals;
@@ -42,6 +62,7 @@ describe('TableVisionOverlayComponent on a hex table', () => {
     borrowed = new BorrowedGlobals();
     borrowed.lendOn(HTMLCanvasElement.prototype, 'getContext', () => contextThatTakesAnything());
     scene.set(null);
+    overlayVision.set(null);
     TestBed.configureTestingModule({
       imports: [TableVisionOverlayComponent],
       providers: [...TEST_PROVIDERS, { provide: VisionService, useValue: { scene, viewer, overlayVision } }],
@@ -99,6 +120,7 @@ describe('TableVisionOverlayComponent on a hex table', () => {
 
   it('keeps its canvas out of sight, and hands the table’s canvas the fog and the darkness apart', async () => {
     const veil = TestBed.inject(TableVeilService);
+    overlayVision.set(fogVision());
     await show(hexScene());
     const canvas = (fixture.nativeElement as HTMLElement).querySelector('canvas')!;
     const first = veil.veil()?.revision ?? 0;
@@ -140,10 +162,32 @@ describe('TableVisionOverlayComponent on a hex table', () => {
     await show(hexScene({ lights: [lamp] }));
 
     expect(veil.glow()?.canvas).not.toBe(veil.lightMap()?.canvas);
-    expect(veil.glow()!.box).toEqual(veil.veil()!.box);
+    expect(veil.glow()!.box).toEqual(veil.lightMap()!.box);
 
     await show(hexScene());
 
     expect(veil.glow()).toBeNull();
+  });
+
+  it('lays no veil over a table without fog, nor holds a canvas of the board’s size for one', async () => {
+    const veil = TestBed.inject(TableVeilService);
+    await show(hexScene());
+    const canvas = (fixture.nativeElement as HTMLElement).querySelector('canvas')!;
+
+    expect(veil.veil()).toBeNull();
+    expect([canvas.width, canvas.height]).toEqual([1, 1]);
+    expect(veil.lightMap()!.canvas.width).toBeGreaterThan(1);
+
+    overlayVision.set(fogVision());
+    await show(hexScene({ darknessLevel: 0.5 }));
+
+    expect(veil.veil()?.canvas).toBe(canvas);
+    expect([canvas.width, canvas.height]).toEqual([veil.lightMap()!.canvas.width, veil.lightMap()!.canvas.height]);
+
+    overlayVision.set(null);
+    await show(hexScene({ darknessLevel: 0.6 }));
+
+    expect(veil.veil()).toBeNull();
+    expect([canvas.width, canvas.height]).toEqual([1, 1]);
   });
 });

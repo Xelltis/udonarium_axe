@@ -161,6 +161,15 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
       expect(pressOn(label).reached).toEqual(['root:mousedown']);
     });
 
+    it('keeps a press on what it marks as pressed for itself, as the row of a part, wherever picking says it lands', () => {
+      const row = document.createElement('div');
+      row.setAttribute('data-hud-control', '');
+      const name = document.createElement('span');
+      row.appendChild(name);
+      label.appendChild(row);
+      expect(pressOn(name).reached).toEqual(['root:mousedown']);
+    });
+
     it('keeps a press on a control of it, wherever picking says it lands', () => {
       const button = document.createElement('button');
       label.appendChild(button);

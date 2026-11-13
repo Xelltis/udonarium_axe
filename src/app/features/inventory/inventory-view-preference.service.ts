@@ -88,6 +88,30 @@ export class InventoryViewPreferenceService {
   }
 
   /**
+   * Whether the turn order the inventory shrinks to is laid across, as along the top of the screen,
+   * rather than down, as it is until the reader turns it.
+   */
+  readonly roundAcross = signal<boolean>(storedFlag(STORAGE_KEYS.inventoryRoundAcross));
+
+  /** Says whether the turn order is laid across, and writes it down for the next window. */
+  setRoundAcross(across: boolean): void {
+    setStoredFlag(this.roundAcross, STORAGE_KEYS.inventoryRoundAcross, across);
+  }
+
+  /**
+   * How long the reader has made the turn order, down and across, in pixels; null for as long as the
+   * screen leaves room for, which it is until the reader drags its end.
+   */
+  readonly roundLength = signal<RoundLengths>(storedRoundLengths());
+
+  /** Says how long the turn order stands one way, or null for as long as the screen leaves room for. */
+  setRoundLength(across: boolean, length: number | null): void {
+    const next = { ...this.roundLength(), [across ? 'across' : 'down']: length };
+    this.roundLength.set(next);
+    writeLocal(STORAGE_KEYS.inventoryRoundLength, JSON.stringify(next));
+  }
+
+  /**
    * Whether the rows of the rich view fold down to a name and thin gauges until one is picked. Off
    * until the reader asks for it, so every row opens out as it always has.
    */
@@ -96,6 +120,23 @@ export class InventoryViewPreferenceService {
   /** Says whether the rows of the rich view fold down, and writes it down for the next window. */
   setCompact(compact: boolean): void {
     setStoredFlag(this.compact, STORAGE_KEYS.inventoryCompact, compact);
+  }
+}
+
+/** How long the turn order stands down and across, in pixels, or null for as long as there is room. */
+export interface RoundLengths {
+  readonly down: number | null;
+  readonly across: number | null;
+}
+
+function storedRoundLengths(): RoundLengths {
+  try {
+    const stored = JSON.parse(readLocal(STORAGE_KEYS.inventoryRoundLength) || '{}') as Partial<Record<string, unknown>>;
+    const length = (value: unknown) =>
+      typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+    return { down: length(stored['down']), across: length(stored['across']) };
+  } catch {
+    return { down: null, across: null };
   }
 }
 

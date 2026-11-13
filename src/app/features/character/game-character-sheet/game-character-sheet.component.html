@@ -414,6 +414,20 @@
               <input type="checkbox" [(ngModel)]="rangeArea.fillOutLine" name="fillOutLine" (click)="fillOutLine()" />
               {{ 'feature.inventory.sheet.fillOutline' | transloco }}
             </label>
+            @if (rangeArea.type !== 'CUSTOM') {
+              <label
+                class="text-ui-muted inline-flex cursor-pointer items-center gap-1.25 text-[0.82em] select-none [&_input[type=checkbox]]:cursor-pointer [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
+              >
+                <input
+                  type="checkbox"
+                  [ngModel]="rangeArea.placesFreely"
+                  (ngModelChange)="rangeArea.placesFreely = $event"
+                  name="freePlacement"
+                  data-testid="range-free-placement"
+                />
+                {{ 'feature.inventory.sheet.freePlacement' | transloco }}
+              </label>
+            }
           </div>
           <div class="flex items-center gap-1.5 text-[0.82em]">
             <span class="text-ui-muted min-w-[6em] shrink-0 text-[0.85em] whitespace-nowrap">{{

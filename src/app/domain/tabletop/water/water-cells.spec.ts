@@ -99,4 +99,112 @@ describe('waterCellsOf()', () => {
     const grid = cellGridOf(2, 2, G, GridType.SQUARE);
     expect(waterCellsOf(grid, [area({ left: 5 * G })]).size).toBe(0);
   });
+
+  describe('running into dug ground', () => {
+    /** Ground dug 40 pixels down at the cells given, by column and row, and flat elsewhere. */
+    function dugAt(grid: ReturnType<typeof cellGridOf>, ...at: [number, number][]) {
+      const dug = new Set(at.map(([col, row]) => cellIndexOf(grid, col, row)));
+      return (index: number) => (dug.has(index) ? -40 : 0);
+    }
+
+    it('fills a ditch dug from a pond at the pond’s surface, as far as it runs, and no further', () => {
+      const grid = cellGridOf(10, 10, G, GridType.SQUARE);
+      const ditch: [number, number][] = [
+        [1, 0],
+        [2, 0],
+        [3, 0],
+        [3, 1],
+      ];
+
+      const cells = waterCellsOf(grid, [area({})], dugAt(grid, ...ditch));
+
+      for (const [col, row] of ditch) {
+        expect(cells.get(cellIndexOf(grid, col, row))).toMatchObject({
+          floorPx: -40,
+          surfacePx: 25,
+          flat: false,
+          area: 'pond',
+        });
+      }
+      expect(cells.size).toBe(1 + ditch.length);
+      expect(cells.get(cellIndexOf(grid, 0, 0))!.surfacePx).toBe(25);
+    });
+
+    it('leaves dry a pit the water does not reach, ground not dug, and a pit touching it by a corner', () => {
+      const grid = cellGridOf(10, 10, G, GridType.SQUARE);
+
+      const cells = waterCellsOf(grid, [area({})], dugAt(grid, [1, 1], [5, 5]));
+
+      expect([...cells.keys()]).toEqual([cellIndexOf(grid, 0, 0)]);
+    });
+
+    it('runs along the six sides of a hex', () => {
+      for (const type of [GridType.HEX_VERTICAL, GridType.HEX_HORIZONTAL]) {
+        const grid = cellGridOf(10, 10, G, type);
+        const pond = cellIndexOf(grid, 4, 5);
+        const centre = cellCenterOf(grid, pond);
+        const around: number[] = [];
+        for (let col = 3; col <= 5; col++) {
+          for (let row = 4; row <= 6; row++) {
+            const index = cellIndexOf(grid, col, row);
+            const there = cellCenterOf(grid, index);
+            if (index !== pond && Math.hypot(there.x - centre.x, there.y - centre.y) < G * 1.2) around.push(index);
+          }
+        }
+        const dug = new Set(around);
+
+        const cells = waterCellsOf(grid, [area({ left: centre.x - G / 2, top: centre.y - G / 2 })], (index) =>
+          dug.has(index) ? -40 : 0
+        );
+
+        expect(around).toHaveLength(6);
+        expect([...cells.keys()].sort((a, b) => a - b)).toEqual([pond, ...around].sort((a, b) => a - b));
+      }
+    });
+
+    it('fills a ditch shallower than a sunk pond’s floor, up to the pond’s surface', () => {
+      const grid = cellGridOf(10, 10, G, GridType.SQUARE);
+      const ground = new Map([
+        [cellIndexOf(grid, 0, 0), -40],
+        [cellIndexOf(grid, 1, 0), -20],
+      ]);
+      const shallow = (index: number) => ground.get(index) ?? 0;
+
+      const cells = waterCellsOf(grid, [area({ floorPx: -40, surfacePx: -5 })], shallow);
+
+      expect(cells.get(cellIndexOf(grid, 1, 0))).toMatchObject({ floorPx: -20, surfacePx: -5 });
+    });
+
+    it('fills from the higher of two waters a ditch dug between them', () => {
+      const grid = cellGridOf(10, 10, G, GridType.SQUARE);
+      const cells = waterCellsOf(
+        grid,
+        [area({ identifier: 'low', surfacePx: 10 }), area({ identifier: 'high', left: 4 * G, surfacePx: 30 })],
+        dugAt(grid, [1, 0], [2, 0], [3, 0])
+      );
+
+      expect(cells.get(cellIndexOf(grid, 2, 0))).toMatchObject({ surfacePx: 30, area: 'high' });
+      expect(cells.get(cellIndexOf(grid, 0, 0))).toMatchObject({ surfacePx: 10, area: 'low' });
+    });
+
+    it('runs no higher water over a lower pond sunk in dug ground, which keeps its own ice and look', () => {
+      const grid = cellGridOf(10, 10, G, GridType.SQUARE);
+      const cells = waterCellsOf(
+        grid,
+        [
+          area({ identifier: 'pit', floorPx: -40, surfacePx: -10, ice: 1, color: '#ddeeff' }),
+          area({ identifier: 'open', left: 2 * G, surfacePx: 25 }),
+        ],
+        dugAt(grid, [0, 0], [1, 0])
+      );
+
+      expect(cells.get(cellIndexOf(grid, 0, 0))).toMatchObject({
+        surfacePx: -10,
+        ice: 1,
+        color: '#ddeeff',
+        area: 'pit',
+      });
+      expect(cells.get(cellIndexOf(grid, 1, 0))).toMatchObject({ surfacePx: 25, area: 'open' });
+    });
+  });
 });

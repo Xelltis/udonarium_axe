@@ -13,10 +13,10 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { pageOfTablePoint, tableEyeMatrix, TableRay, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
-import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
+import { groundLiftOfBlock, GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { AMBIENCE_PICK_LAYER, ambiencePickTarget } from '@axe/domain/tabletop/pick/ambience-pick';
 import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
-import { PickCylinder, PickShape } from '@axe/domain/tabletop/pick/pick-geometry';
+import { PickCylinder, PickDraped, PickShape, withinOutline } from '@axe/domain/tabletop/pick/pick-geometry';
 import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { beamPickTarget, TERRAIN_PICK_LAYER, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
@@ -40,6 +40,16 @@ export interface PictureSight {
   /** Where a corner of the picture lies on the page, round from its top left as the picture is read. */
   cornerOnPage(corner: 0 | 1 | 2 | 3): { x: number; y: number };
 }
+
+/**
+ * How far past the edge of one of a sprite's areas a press still lands on it, in table pixels: the
+ * line a range's shape is drawn round with is two pixels wide on its edge, and the edge of its picture
+ * is softened by a pixel more.
+ */
+const AREA_REACH_PX = 3;
+
+/** Whether a quad is solid at a point across and down it, each from 0 to 1. */
+type SolidAt = (u: number, v: number) => boolean;
 
 /**
  * Says what a point of the page lands on among the things on the table, by running the line of
@@ -70,18 +80,19 @@ export class TablePickService {
 
   /** Each object's target, kept until the object or the table's grid changes. */
   private readonly made = new Map<string, { key: string; target: PickTarget }>();
-  /** The pieces' targets, kept until the pieces or the camera change. */
+  /** The pieces' targets, kept until the pieces, the camera or the ground change. */
   private pieceTargetsMade: {
     sprites: readonly TableWorldSprite[];
     coins: readonly TableWorldCoin[];
     camera: number;
+    ground: GroundSurface;
     targets: readonly PickTarget[];
   } | null = null;
 
   /** The line of sight through a point of the page, or null before the table has a camera. */
   rayAt(pageX: number, pageY: number): TableRay | null {
     const inverse = this.camera.inverseSceneMatrix();
-    return inverse ? tableRayOfPage(inverse, pageX, pageY, this.camera.eyeDepth()) : null;
+    return inverse ? tableRayOfPage(inverse, pageX, pageY, this.camera.eyeDepth() !== null) : null;
   }
 
   /**
@@ -276,26 +287,35 @@ export class TablePickService {
   /**
    * The targets of the pieces drawn on the table in view, as the canvas lays them out for this
    * seat: a piece drawn from sprites is made of a flat shape for each, a sprite turned to the eye
-   * picked where it is turned to now, and a coin is a disc on the face it lies on. Of two pieces lying
-   * flat the same distance off, as cards one on another, the one the canvas draws over the other is
-   * in front.
+   * picked where it is turned to now, a sprite following the raised ground over the ground, and a coin
+   * is a disc on the face it lies on. Of two pieces lying flat the same distance off, as cards one on
+   * another, the one the canvas draws over the other is in front.
    */
   pieceTargets(): readonly PickTarget[] {
     return untracked(() => {
       const sprites = this.pieces.sprites();
       const coins = this.pieces.coins();
       const camera = this.camera.version();
+      const ground = this.ground.surface();
       const made = this.pieceTargetsMade;
-      if (made && made.sprites === sprites && made.coins === coins && made.camera === camera) return made.targets;
+      if (
+        made &&
+        made.sprites === sprites &&
+        made.coins === coins &&
+        made.camera === camera &&
+        made.ground === ground
+      ) {
+        return made.targets;
+      }
       const view = this.camera.view;
       const layout = this.camera.layout;
       if (!view || !layout) return [];
       const eye = eyeAxesOf(tableEyeMatrix(view, layout));
-      const byOwner = new Map<string, { kind: string; shapes: PickShape[]; masks: (AlphaMask | null)[] }>();
+      const byOwner = new Map<string, { kind: string; shapes: PickShape[]; solids: (SolidAt | null)[] }>();
       for (const sprite of sprites) {
-        const owner = byOwner.get(sprite.owner) ?? { kind: sprite.kind, shapes: [], masks: [] };
-        owner.shapes.push({ kind: 'quad', corners: spritePickCorners(sprite, eye) });
-        owner.masks.push(this.spritePickMask(sprite));
+        const owner = byOwner.get(sprite.owner) ?? { kind: sprite.kind, shapes: [], solids: [] };
+        owner.shapes.push(this.draped(sprite, ground) ?? { kind: 'quad', corners: spritePickCorners(sprite, eye) });
+        owner.solids.push(this.spriteSolidAt(sprite));
         byOwner.set(sprite.owner, owner);
       }
       for (const coin of coins) {
@@ -310,25 +330,77 @@ export class TablePickService {
         byOwner.set(coin.id, {
           kind: COIN_KIND,
           shapes: [{ kind: 'on-face', frame: coin.face, shape: disc }],
-          masks: [null],
+          solids: [null],
         });
       }
       const places = lyingPlaceOfOwners(sprites);
       const targets = [...byOwner].map(([id, owner]): PickTarget => {
-        const masks = owner.masks;
+        const solids = owner.solids;
         return {
           id,
           layer: owner.kind,
           order: (places.get(id) ?? -1) + 1,
           shapes: owner.shapes,
-          ...(masks.some((mask) => mask !== null)
-            ? { opaqueAt: (shape, u, v) => !masks[shape] || !seesThroughAt(masks[shape]!, { u, v }) }
+          ...(solids.some((solid) => solid !== null)
+            ? { opaqueAt: (shape, u, v) => solids[shape]?.(u, v) ?? true }
             : {}),
         };
       });
-      this.pieceTargetsMade = { sprites, coins, camera, targets };
+      this.pieceTargetsMade = { sprites, coins, camera, ground, targets };
       return targets;
     });
+  }
+
+  /**
+   * The sheet a sprite that follows the raised ground lies on, over the ground as far as it lies off
+   * it, between the lowest and the highest of the ground under its box; null for any other sprite, or
+   * where the ground is flat.
+   */
+  private draped(sprite: TableWorldSprite, ground: GroundSurface): PickDraped | null {
+    const lift = sprite.drapes?.liftPx;
+    if (lift === undefined || ground.isFlat) return null;
+    const gridSize = this.tabletop.currentTable.gridSize > 0 ? this.tabletop.currentTable.gridSize : 50;
+    const box = {
+      x: sprite.centre.x - sprite.widthPx / 2,
+      y: sprite.centre.y - sprite.heightPx / 2,
+      width: sprite.widthPx,
+      height: sprite.heightPx,
+    };
+    const sample = gridSize / 2;
+    let lowest = Infinity;
+    let highest = -Infinity;
+    for (let i = Math.floor(box.x / sample); i <= Math.ceil((box.x + box.width) / sample); i++) {
+      for (let j = Math.floor(box.y / sample); j <= Math.ceil((box.y + box.height) / sample); j++) {
+        const height = ground.sampleAt(i, j) * gridSize;
+        lowest = Math.min(lowest, height);
+        highest = Math.max(highest, height);
+      }
+    }
+    return {
+      kind: 'draped',
+      box,
+      heightAt: (x, y) => ground.heightAt(x / gridSize, y / gridSize) * gridSize + lift,
+      low: lowest + lift - 1,
+      high: highest + lift + 1,
+    };
+  }
+
+  /**
+   * Where a sprite is solid, across and down it from 0 to 1: inside its areas where it has them, as a
+   * range's picture is what of the range is painted alone, and where its picture is not clear where
+   * it is see-through; null where every part of it is solid.
+   */
+  private spriteSolidAt(sprite: TableWorldSprite): SolidAt | null {
+    const areas = sprite.pickAreas;
+    if (areas) {
+      return (u, v) => {
+        const x = u * sprite.widthPx;
+        const y = v * sprite.heightPx;
+        return areas.some((area) => withinOutline(area, x, y, AREA_REACH_PX));
+      };
+    }
+    const mask = this.spritePickMask(sprite);
+    return mask ? (u, v) => !seesThroughAt(mask, { u, v }) : null;
   }
 
   /** The mask a sprite is picked through where it is see-through, or null where every part of it is solid. */

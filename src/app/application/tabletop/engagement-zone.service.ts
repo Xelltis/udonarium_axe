@@ -1,4 +1,5 @@
 import { computed, DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -130,6 +131,7 @@ export class EngagementZoneService {
   private readonly snackbar = inject(SnackbarService);
   private readonly vision = inject(VisionService);
   private readonly links = inject(PieceLinksService);
+  private readonly names = inject(PieceNameService);
   private readonly t = inject(TRANSLATE_FN);
 
   /** The rules the room plays zones by. */
@@ -265,7 +267,7 @@ export class EngagementZoneService {
     this.settle([zone!.identifier]);
     this.chat.sendSystemNotice(
       'movement',
-      this.t('feature.zone.chat.declared', { attacker: attacker.name, target: target.name })
+      this.t('feature.zone.chat.declared', { attacker: this.names.said(attacker), target: this.names.said(target) })
     );
     return zone;
   }
@@ -309,7 +311,7 @@ export class EngagementZoneService {
       }
     });
     this.settle([crowded.id]);
-    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.pulledIn', { name: piece.name }));
+    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.pulledIn', { name: this.names.said(piece) }));
   }
 
   /** Puts every zone still forming in force, as a turn ends. */
@@ -352,7 +354,7 @@ export class EngagementZoneService {
       for (const one of this.links.withPartners([piece])) this.putInZone(one, zoneId);
     });
     this.settle([zoneId]);
-    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.joined', { name: piece.name }));
+    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.joined', { name: this.names.said(piece) }));
   }
 
   /** Takes a piece out of its zone, leaving its token standing where it is. */
@@ -360,7 +362,7 @@ export class EngagementZoneService {
     if (piece.engagementZone.length < 1) return;
     this.putInZone(piece, '');
     this.settle([]);
-    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.left', { name: piece.name }));
+    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.left', { name: this.names.said(piece) }));
   }
 
   /** Takes a piece out of the fight altogether, or puts it back in. */
@@ -373,7 +375,7 @@ export class EngagementZoneService {
     this.settle([]);
     this.chat.sendSystemNotice(
       'movement',
-      this.t(off ? 'feature.zone.chat.offField' : 'feature.zone.chat.onField', { name: piece.name })
+      this.t(off ? 'feature.zone.chat.offField' : 'feature.zone.chat.onField', { name: this.names.said(piece) })
     );
   }
 
@@ -396,7 +398,8 @@ export class EngagementZoneService {
       }
     });
     this.settle([]);
-    if (down && wasIn) this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.down', { name: piece.name }));
+    if (down && wasIn)
+      this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.down', { name: this.names.said(piece) }));
   }
 
   /** Says that a piece is held fast where it stands, or that it may move again. */
@@ -404,12 +407,18 @@ export class EngagementZoneService {
     piece.heldFast = held ? '1' : '';
   }
 
+  /** Whether a piece is a part of a body on the table, which goes where its body goes and is held by none. */
+  private isPart(identifier: string): boolean {
+    const piece = this.objectStore.get<GameCharacter>(identifier);
+    return piece instanceof GameCharacter && this.links.bodyOf(piece) !== null;
+  }
+
   /**
    * Has one piece take hold of another at the same point. The one held cannot move of its own will,
    * goes where the one holding it goes, and is in a zone only while the one holding it is.
    */
   grab(holder: GameCharacter, captive: GameCharacter): void {
-    if (holder === captive || captive.grabbedBy === holder.identifier) return;
+    if (holder === captive || captive.grabbedBy === holder.identifier || this.links.bodyOf(captive)) return;
     GameObject.batch(() => {
       captive.grabbedBy = holder.identifier;
       this.links.standAt(captive, holder);
@@ -417,7 +426,7 @@ export class EngagementZoneService {
     this.settle([]);
     this.chat.sendSystemNotice(
       'movement',
-      this.t('feature.zone.chat.grabbed', { holder: holder.name, captive: captive.name })
+      this.t('feature.zone.chat.grabbed', { holder: this.names.said(holder), captive: this.names.said(captive) })
     );
   }
 
@@ -429,7 +438,10 @@ export class EngagementZoneService {
     this.settle([]);
     this.chat.sendSystemNotice(
       'movement',
-      this.t('feature.zone.chat.released', { captive: captive.name, holder: holder?.name ?? '' })
+      this.t('feature.zone.chat.released', {
+        captive: this.names.said(captive),
+        holder: holder ? this.names.said(holder) : '',
+      })
     );
   }
 
@@ -442,9 +454,12 @@ export class EngagementZoneService {
     if (!menu.enabled || menu.zone || menu.down || menu.foes.length < 1) return;
     const foe = this.objectStore.get<GameCharacter>(menu.foes[0].id);
     if (!(foe instanceof GameCharacter)) return;
-    this.snackbar.show(this.t('feature.zone.offerFight', { name: piece.name, foe: foe.name }), {
-      action: { label: this.t('feature.zone.offerFightAction'), run: () => this.declare(piece, foe) },
-    });
+    this.snackbar.show(
+      this.t('feature.zone.offerFight', { name: this.names.shown(piece), foe: this.names.shown(foe) }),
+      {
+        action: { label: this.t('feature.zone.offerFightAction'), run: () => this.declare(piece, foe) },
+      }
+    );
   }
 
   /** Sets the most a zone may hold, or null for as many as the size table allows. */
@@ -510,14 +525,14 @@ export class EngagementZoneService {
               return there !== null && Math.hypot(there.x - here.x, there.y - here.y) <= reach;
             })
             .filter(seen)
-            .map((other) => ({ id: other.id, name: this.objectStore.get<GameCharacter>(other.id)?.name ?? '' }))
+            .map((other) => ({ id: other.id, name: this.shownNameOf(other.id) }))
         : [];
     const standing = own ? [] : state.insideOf(piece.identifier);
     const acting = this.mayAct(piece);
     const holder = this.links.holderOf(piece);
     const named = (one: { id: string }) => ({
       id: one.id,
-      name: this.objectStore.get<GameCharacter>(one.id)?.name ?? '',
+      name: this.shownNameOf(one.id),
     });
     const grabbable =
       self && self.side !== null && !self.offField && here && acting && !holder
@@ -528,7 +543,8 @@ export class EngagementZoneService {
                 !other.offField &&
                 other.side !== null &&
                 other.side !== self.side &&
-                !this.objectStore.get<GameCharacter>(other.id)?.grabbedBy
+                !this.objectStore.get<GameCharacter>(other.id)?.grabbedBy &&
+                !this.isPart(other.id)
             )
             .filter((other) => {
               const there = state.pointOf(other.id);
@@ -554,8 +570,10 @@ export class EngagementZoneService {
       unseen: piece.unseen === '1',
       down: piece.downed === '1',
       held: piece.heldFast === '1',
-      grabbedBy: holder ? { id: holder.identifier, name: holder.name } : null,
-      grabbing: this.links.captivesOf(piece).map((captive) => ({ id: captive.identifier, name: captive.name })),
+      grabbedBy: holder ? { id: holder.identifier, name: this.names.shown(holder) } : null,
+      grabbing: this.links
+        .captivesOf(piece)
+        .map((captive) => ({ id: captive.identifier, name: this.names.shown(captive) })),
       grabbable,
     };
   }
@@ -596,7 +614,7 @@ export class EngagementZoneService {
   prepareLeave(piece: GameCharacter): void {
     const turn = this.turnState();
     piece.zoneLeaveRound = turn && turn.phase !== 'idle' ? `${turn.round}` : '0';
-    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.prepareLeave', { name: piece.name }));
+    this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.prepareLeave', { name: this.names.said(piece) }));
   }
 
   /** Takes back a piece's word that it will leave its zone. */
@@ -761,7 +779,7 @@ export class EngagementZoneService {
         piece.zoneLeaveRound = '';
       });
       this.settle([]);
-      this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.left', { name: piece.name }));
+      this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.left', { name: this.names.said(piece) }));
     } else if (outcome.kind === 'forgetLeave') {
       piece.zoneLeaveRound = '';
     } else if (outcome.kind === 'held') {
@@ -778,8 +796,14 @@ export class EngagementZoneService {
         }
       });
       this.settle([stopped.id]);
-      this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.held', { name: piece.name }));
+      this.chat.sendSystemNotice('movement', this.t('feature.zone.chat.held', { name: this.names.said(piece) }));
     }
+  }
+
+  /** The name a piece is shown by on this reader's screen, found by its identifier; empty where it is gone. */
+  private shownNameOf(identifier: string): string {
+    const piece = this.objectStore.get<GameCharacter>(identifier);
+    return piece ? this.names.shown(piece) : '';
   }
 
   private turnState(): TurnState | null {
@@ -798,7 +822,8 @@ export class EngagementZoneService {
     const onFloor = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((piece) => piece.isVisibleOnTable && surfaceOf(piece) === 'floor');
-    const mounts = new Map(onFloor.map((piece) => [piece.identifier, this.links.mountOf(piece)?.identifier ?? '']));
+    // A part goes with its body as one riding goes with its mount.
+    const mounts = new Map(onFloor.map((piece) => [piece.identifier, this.links.bondOf(piece).ridingOn ?? '']));
     const pieces: ZonePieceInput[] = onFloor.map((piece) => ({
       id: piece.identifier,
       point: pieceCentreOf(piece, gridSize),

@@ -1,33 +1,40 @@
-import { NgStyle } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal } from '@angular/core';
-import { MotionService } from '@axe/application/ui/motion.service';
-import { EffectCast } from '@axe/domain/effect/effect-cast';
-import { effectParticlePlacements } from '@axe/domain/effect/effect-particle-placements';
-import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import { EffectSprite, EffectSpriteOptions, effectSprites, Point3 } from '@axe/domain/effect/effect-timeline';
-import { DEFAULT_VIEW_ROTATION } from '@axe/domain/effect/effect-view';
-import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
-  EFFECT_CAMERA_LIFT_PX,
-  effectBillboardTransform,
-  EffectCanvasPlacement,
-  effectCanvasStyle,
-  effectPaintStyle,
-  effectSpriteStyle,
-  EffectViewpoint,
-  hasEffectPaintLayer,
-} from '@axe/features/effect/effect-sprite-style';
-import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
+import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
+import { MotionService } from '@axe/application/ui/motion.service';
+import { observeSize } from '@axe/core/util/observe-size';
+import { effectBlowsOf, heldEffectClock, heldMsOf } from '@axe/domain/effect/effect-blows';
+import { EffectCast } from '@axe/domain/effect/effect-cast';
+import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { Point3 } from '@axe/domain/effect/effect-timeline';
+import { nothingStaged } from '@axe/domain/effect/scene/choreography';
+import { type EffectFrame, EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
+import { sceneLingerMsOf } from '@axe/domain/effect/scene/scene-kinds';
+import type { EffectStage } from '@axe/infrastructure/table-3d/table-3d-port';
 
 /** The size of a cell on the preview's board, the table's own default. */
 const CELL_PX = 50;
-/**
- * How small the board is drawn for an effect of the usual size, so that one fired from a few cells
- * away fits the box. A larger effect draws the board smaller still, the piece with it.
- */
-const BOARD_SCALE = 0.7;
 /** How many cells the board shows across and down. */
-const BOARD_CELLS = { across: 8, down: 5 };
+const BOARD_CELLS = { across: 10, down: 7 };
+/**
+ * How much further off the camera stands than to fit the board, for an effect of the usual size; a
+ * larger effect has it stand further off still, so that the effect stays in the box.
+ */
+const USUAL_ZOOM_OUT = 1.1;
 /** The stand-in the effect plays on, at the middle of the board. */
 const TARGET: Point3 & { identifier: string } = { identifier: 'effect-preview-target', x: 0, y: 0, z: 0 };
 /** Where an aimed effect is fired from: a few cells off to the front left. */
@@ -36,21 +43,6 @@ const CASTER_POINT: Point3 = { x: -3 * CELL_PX, y: 1.5 * CELL_PX, z: 0 };
 export const EFFECT_PREVIEW_REST_MS = 600;
 /** How far through the effect the still is taken while motion is turned off. */
 const STILL_AT = 0.5;
-const MAX_CANVASES = 8;
-
-const VIEWPOINT: EffectViewpoint = {
-  rotation: DEFAULT_VIEW_ROTATION,
-  liftPx: EFFECT_CAMERA_LIFT_PX,
-  risePx: 0,
-  flatRisePx: 0,
-};
-
-const SPRITE_OPTIONS: EffectSpriteOptions = {
-  baseSize: CELL_PX,
-  viewRotation: DEFAULT_VIEW_ROTATION,
-  resolvePosition: (identifier) => (identifier === TARGET.identifier ? TARGET : null),
-  resolveImage: () => '',
-};
 
 /** One moment of the preview: which round of the playback it is in, and how far into that round. */
 export interface EffectPreviewFrame {
@@ -63,29 +55,39 @@ export interface EffectPreviewFrame {
  * the effect's own length and a short rest after it.
  */
 export function effectPreviewFrameAt(preset: EffectPreset, sinceStartMs: number): EffectPreviewFrame {
-  const period = preset.totalDuration(1) + EFFECT_PREVIEW_REST_MS;
+  const blows = effectBlowsOf(preset);
+  // A look drawn in the scene lingers while what it leaves clears, and is let finish before the rest.
+  const period = preset.totalDuration(1) + heldMsOf(blows) + sceneLingerMsOf(preset) + EFFECT_PREVIEW_REST_MS;
   const since = Math.max(0, sinceStartMs);
-  return { round: Math.floor(since / period), elapsed: since % period };
+  return { round: Math.floor(since / period), elapsed: heldEffectClock(blows, since % period) };
 }
 
+/** Where the stand-in's foot is on the small stage, and where the caster's hands are. */
+const TARGET_FOOTING = { x: 0, y: 0, z: 0, groundZ: 0 };
+const CASTER_HANDS: Point3 = { ...CASTER_POINT, z: CELL_PX * 0.6 };
+
 /**
- * Plays an effect over and over on a stand-in piece in the middle of a small board, tilted as the
- * table is by default, so that it can be seen before it is put to use. An aimed effect is fired
- * from a few cells off. Nothing sounds. While motion is turned off, it shows one still halfway
- * through the effect.
+ * Plays an effect over and over on a stand-in piece in the middle of a small board, seen as the
+ * table is by default and drawn as the table's scene draws it, so that it can be seen before it is
+ * put to use. An aimed effect is fired from a stand-in a few cells off. Nothing sounds. While motion
+ * is turned off, it shows one still halfway through the effect.
  */
 @Component({
   selector: 'effect-preview',
   templateUrl: './effect-preview.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
-  imports: [NgStyle, SafePipe, EffectCanvasComponent],
 })
 export class EffectPreviewComponent {
   private readonly motion = inject(MotionService);
+  private readonly loadStage = inject(EFFECT_STAGE_LOADER);
+  private readonly sceneLooks = inject(EffectSceneLooksService);
 
   /** The effect to play; nothing plays without one. */
   readonly preset = input<EffectPreset | null>(null);
+
+  private readonly stageCanvas = viewChild<ElementRef<HTMLCanvasElement>>('stageCanvas');
+  private readonly stage = signal<EffectStage | null>(null);
 
   /** Whether the preview moves, as the room's effects do only while motion is on. */
   private readonly moving = computed(() => this.motion.enabled());
@@ -109,62 +111,38 @@ export class EffectPreviewComponent {
     return {
       presetIdentifier: preset.identifier,
       casterIdentifier: '',
-      origin: CASTER_POINT,
+      origin: CASTER_HANDS,
       targets: [{ ...TARGET }],
       seed: this.frame().round + 1,
     };
   });
 
-  readonly sprites = computed<EffectSprite[]>(() => {
+  /** What the effect draws on the small stage at this moment of the playback, as the table would draw it. */
+  readonly sceneFrame = computed<EffectFrame>(() => {
     const preset = this.preset();
     const cast = this.cast();
-    if (!preset || !cast) return [];
-    const { round, elapsed } = this.frame();
-    return effectSprites(preset, cast, elapsed, SPRITE_OPTIONS).map((sprite) => ({
-      ...sprite,
-      key: `${round}-${sprite.key}`,
-    }));
-  });
-
-  readonly canvases = computed<EffectCanvasPlacement[]>(() => {
-    const preset = this.preset();
-    const cast = this.cast();
-    if (!preset || !cast) return [];
-    const { round, elapsed } = this.frame();
-    return effectParticlePlacements(preset, cast, elapsed, SPRITE_OPTIONS, MAX_CANVASES).map((placement) => ({
-      key: `${round}-${placement.key}`,
-      layer: placement.layer,
-      width: placement.layer.width,
-      height: placement.layer.height,
-      transform: effectBillboardTransform(placement.center, placement.layer, VIEWPOINT),
-    }));
-  });
-
-  protected readonly boardTransform = computed(() => {
-    const scale = BOARD_SCALE / Math.max(1, this.preset()?.sizeScale ?? 1);
-    return (
-      `scale(${scale}) rotateY(${DEFAULT_VIEW_ROTATION.y}deg)` +
-      ` rotateX(${DEFAULT_VIEW_ROTATION.x}deg) rotateZ(${DEFAULT_VIEW_ROTATION.z}deg)`
+    const looks = this.sceneLooks.looks();
+    if (!preset || !cast || !looks) return EMPTY_EFFECT_FRAME;
+    const drawn = nothingStaged();
+    looks.stageEffect(
+      preset,
+      cast,
+      this.frame().elapsed,
+      { cellPx: CELL_PX, resolveFooting: (identifier) => (identifier === TARGET.identifier ? TARGET_FOOTING : null) },
+      drawn
     );
+    return drawn;
   });
 
-  protected readonly boardStyle: Record<string, string> = {
-    left: `${(-BOARD_CELLS.across * CELL_PX) / 2}px`,
-    top: `${(-BOARD_CELLS.down * CELL_PX) / 2}px`,
-    width: `${BOARD_CELLS.across * CELL_PX}px`,
-    height: `${BOARD_CELLS.down * CELL_PX}px`,
-    'background-size': `${CELL_PX}px ${CELL_PX}px`,
-    'background-position': `${CELL_PX / 2}px ${CELL_PX / 2}px`,
-  };
-
-  protected readonly targetStyle: Record<string, string> = {
-    left: `${-CELL_PX / 2}px`,
-    top: `${-CELL_PX / 2}px`,
-    width: `${CELL_PX}px`,
-    height: `${CELL_PX}px`,
-  };
+  /** How far off the camera stands, further for a larger effect so that it stays in the box. */
+  readonly zoomOut = computed(() => USUAL_ZOOM_OUT * Math.max(1, this.preset()?.sizeScale ?? 1));
 
   constructor() {
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => void this.startStage(destroyRef));
+    effect(() => this.stage()?.zoom(this.zoomOut()));
+    effect(() => this.stage()?.show(this.sceneFrame()));
+    destroyRef.onDestroy(() => untracked(this.stage)?.dispose());
     effect((onCleanup) => {
       if (!this.preset() || !this.moving() || typeof requestAnimationFrame !== 'function') return;
       const startedAt = performance.now();
@@ -178,19 +156,34 @@ export class EffectPreviewComponent {
     });
   }
 
-  protected canvasStyle(placement: EffectCanvasPlacement): Record<string, string> {
-    return effectCanvasStyle(placement);
-  }
-
-  protected hasPaintLayer(sprite: EffectSprite): boolean {
-    return hasEffectPaintLayer(sprite);
-  }
-
-  protected spriteStyle(sprite: EffectSprite): Record<string, string> {
-    return effectSpriteStyle(sprite, VIEWPOINT);
-  }
-
-  protected paintStyle(sprite: EffectSprite): Record<string, string> {
-    return effectPaintStyle(sprite);
+  /** Loads what makes the small stage and makes it on the canvas, unless the preview is gone by then. */
+  private async startStage(destroyRef: DestroyRef): Promise<void> {
+    const module = await this.loadStage();
+    const canvas = this.stageCanvas()?.nativeElement;
+    if (destroyRef.destroyed || !canvas) return;
+    const stage = module
+      ? await module.createEffectStage(canvas, {
+          cellPx: CELL_PX,
+          across: BOARD_CELLS.across,
+          down: BOARD_CELLS.down,
+          figures: [
+            { x: TARGET.x, y: TARGET.y, dim: false },
+            { x: CASTER_POINT.x, y: CASTER_POINT.y, dim: true },
+          ],
+          zoomOut: untracked(this.zoomOut),
+        })
+      : null;
+    if (destroyRef.destroyed) {
+      stage?.dispose();
+      return;
+    }
+    if (!stage) return;
+    destroyRef.onDestroy(
+      observeSize(canvas, () => {
+        stage.resize();
+        stage.show(untracked(this.sceneFrame));
+      })
+    );
+    this.stage.set(stage);
   }
 }

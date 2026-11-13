@@ -4,7 +4,9 @@ import { By } from '@angular/platform-browser';
 import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { SPEECH_BUBBLE_WAIT_MS, SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
@@ -17,8 +19,10 @@ import { TablePiecesService } from '@axe/application/tabletop/table-pieces.servi
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
+import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { MovableLike, MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
@@ -33,6 +37,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_HEX_PEDESTAL_OUTLINE, perfCounters } from '@axe/core/util/perf-counters';
 import { BUFF_BADGES_PER_ROW } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { HIDDEN_GAUGE_COLOR } from '@axe/domain/character/piece-gauge';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
@@ -225,6 +230,137 @@ describe('GameCharacterComponent', () => {
       );
     });
 
+    it('lists the parts of a piece under its own labels, a row pressed aiming at the part and right-clicked opening its menu', async () => {
+      const dragon = GameCharacter.create('ドラゴン', 3, '');
+      dragon.setLocation('table');
+      const head = GameCharacter.create('頭', 1, '');
+      head.setLocation('table');
+      fixture.componentRef.setInput('gameCharacter', dragon);
+      const opened = vi.spyOn(TestBed.inject(GameCharacterMenuService), 'open').mockImplementation(() => undefined);
+
+      try {
+        expect((await draw(fixture)).querySelector('[data-testid="riding-label"]')).toBeNull();
+        // Worked out once with no parts, the card has to hear of a part made afterwards.
+        expect(fixture.componentInstance.ridingCard()).toEqual([]);
+        head.ridingOn = dragon.identifier;
+        head.rideSeat = 'part';
+        TestBed.inject(ObjectChangeService).notifyChanged(head.identifier);
+        const element = await draw(fixture);
+        const card = element.querySelector('[data-testid="riding-label"]')!;
+        const names = [...card.querySelectorAll('[data-testid="riding-label-name"], [data-testid="piece-name"]')].map(
+          (name) => name.textContent?.replace(/\s+/g, ' ').trim()
+        );
+        expect(names).toEqual(['ドラゴン', 'extension 頭']);
+
+        const row = card.querySelector<HTMLElement>(`[data-body-part="${head.identifier}"]`)!;
+        row.click();
+        expect(head.targeted).toBe(true);
+        row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 20 }));
+        expect(opened).toHaveBeenCalledWith(head, expect.anything(), { x: 10, y: 20, z: 0 });
+      } finally {
+        head.targeted = false;
+        head.destroy();
+        dragon.destroy();
+      }
+    });
+
+    it('picks a part among an effect’s targets from its row while they are being picked, rather than aiming at it', async () => {
+      const dragon = GameCharacter.create('ドラゴン', 3, '');
+      dragon.setLocation('table');
+      const head = GameCharacter.create('頭', 1, '');
+      head.setLocation('table');
+      head.ridingOn = dragon.identifier;
+      head.rideSeat = 'part';
+      fixture.componentRef.setInput('gameCharacter', dragon);
+      vi.spyOn(TestBed.inject(EffectTargetingService), 'isPicking').mockReturnValue(true);
+      const selected = vi.spyOn(TestBed.inject(SelectionSignalService), 'selectObject');
+
+      try {
+        const element = await draw(fixture);
+        element.querySelector<HTMLElement>(`[data-body-part="${head.identifier}"]`)!.click();
+
+        expect(selected).toHaveBeenCalledWith(head.identifier, head.aliasName);
+        expect(head.targeted).toBe(false);
+      } finally {
+        head.destroy();
+        dragon.destroy();
+      }
+    });
+
+    it('shows the number a part is picked as on its row while an effect is being aimed', async () => {
+      const dragon = GameCharacter.create('ドラゴン', 3, '');
+      dragon.setLocation('table');
+      const head = GameCharacter.create('頭', 1, '');
+      head.setLocation('table');
+      head.ridingOn = dragon.identifier;
+      head.rideSeat = 'part';
+      fixture.componentRef.setInput('gameCharacter', dragon);
+      const picked = signal<ReadonlyMap<string, number>>(new Map());
+      const targeting = TestBed.inject(EffectTargetingService);
+      Object.defineProperty(targeting, 'pickOrder', { value: picked, configurable: true });
+
+      try {
+        const row = () =>
+          fixture.nativeElement.querySelector(`[data-body-part="${head.identifier}"] [data-testid="part-pick-order"]`);
+        await draw(fixture);
+        expect(row()).toBeNull();
+
+        picked.set(new Map([[head.identifier, 2]]));
+        await draw(fixture);
+        expect(row()?.textContent?.trim()).toBe('2');
+        expect(row()?.getAttribute('style')).toMatch(/background: (#ffd27f|rgb\(255, 210, 127\))/);
+      } finally {
+        head.destroy();
+        dragon.destroy();
+      }
+    });
+
+    it('tells the row of a part again as the part changes, its body unchanged', async () => {
+      const dragon = GameCharacter.create('ドラゴン', 3, '');
+      dragon.setLocation('table');
+      const head = GameCharacter.create('頭', 1, '');
+      head.setLocation('table');
+      head.ridingOn = dragon.identifier;
+      head.rideSeat = 'part';
+      fixture.componentRef.setInput('gameCharacter', dragon);
+
+      try {
+        expect(component.partLabels().map((label) => label.name)).toEqual(['頭']);
+        head.name = '竜の頭';
+        TestBed.inject(ObjectChangeService).notifyChanged(head.identifier);
+        expect(component.partLabels().map((label) => label.name)).toEqual(['竜の頭']);
+      } finally {
+        head.destroy();
+        dragon.destroy();
+      }
+    });
+
+    it('lists the parts in a card of their own while the name runs round the piece, a row still aiming at its part', async () => {
+      const dragon = GameCharacter.create('ドラゴン', 3, '');
+      dragon.setLocation('table');
+      const head = GameCharacter.create('頭', 1, '');
+      head.setLocation('table');
+      head.ridingOn = dragon.identifier;
+      head.rideSeat = 'part';
+      TestBed.inject(ViewModePreferenceService).choose('flat');
+      TestBed.inject(TabletopService).currentTable.multiAngleEnabled = true;
+      fixture.componentRef.setInput('gameCharacter', dragon);
+
+      try {
+        const element = await draw(fixture);
+        expect(element.querySelector('[data-testid="riding-label"]')).toBeNull();
+        const row = element.querySelector<HTMLElement>(
+          `[data-testid="part-label-card"] [data-body-part="${head.identifier}"]`
+        )!;
+        row.click();
+        expect(head.targeted).toBe(true);
+      } finally {
+        head.targeted = false;
+        head.destroy();
+        dragon.destroy();
+      }
+    });
+
     it('draws no labels of its own over a piece riding a mount, and its labels again once it is off', async () => {
       const { knight } = ride();
       fixture.componentRef.setInput('gameCharacter', knight);
@@ -275,6 +411,28 @@ describe('GameCharacterComponent', () => {
       knight.hideBuff = true;
       element = await draw(fixture);
       expect(element.querySelectorAll('[data-testid="riding-label-piece"] [data-testid="buff-badge"]').length).toBe(0);
+    });
+
+    it('shows a rider whose name is hidden by its name to the player it belongs to', async () => {
+      const { horse, knight } = ride();
+      knight.hideName = true;
+      knight.owner = 'me';
+      fixture.componentRef.setInput('gameCharacter', horse);
+      const cursor = new PeerCursor();
+      cursor.userId = 'me';
+      cursor.role = PeerRole.Player;
+      cursor.initialize();
+      PeerCursor.myCursor = cursor;
+      onTestFinished(() => {
+        PeerCursor.myCursor = null!;
+      });
+
+      const element = await draw(fixture);
+
+      const names = [...element.querySelectorAll('[data-testid="riding-label-name"]')].map((name) =>
+        name.textContent?.trim()
+      );
+      expect(names).toContain('upgrade 騎士');
     });
   });
 
@@ -538,6 +696,111 @@ describe('GameCharacterComponent', () => {
     });
   });
 
+  describe('putting a piece down', () => {
+    /** A piece following a group drag, which writes where it was dragged to once told to, as a piece's own does. */
+    function followerOf(piece: GameCharacter): MovableLike {
+      let x = piece.location.x;
+      let y = piece.location.y;
+      let pending = false;
+      return {
+        identifier: piece.identifier,
+        tabletopObject: piece,
+        get posX() {
+          return x;
+        },
+        set posX(value: number) {
+          x = value;
+          pending = true;
+        },
+        get posY() {
+          return y;
+        },
+        set posY(value: number) {
+          y = value;
+          pending = true;
+        },
+        commitPosition() {
+          if (!pending) return;
+          pending = false;
+          piece.location.x = x;
+          piece.location.y = y;
+        },
+      };
+    }
+
+    function mountWithRider(): { horse: GameCharacter; knight: GameCharacter } {
+      const horse = GameCharacter.create('馬', 2, '');
+      horse.location = { name: 'table', x: 100, y: 100 };
+      horse.mountable = '1';
+      const knight = GameCharacter.create('騎士', 1, '');
+      knight.location = { name: 'table', x: 125, y: 125 };
+      knight.ridingOn = horse.identifier;
+      return { horse, knight };
+    }
+
+    it('leaves a rider dragged with its mount where ground it was put down on carried it off', () => {
+      const { horse, knight } = mountWithRider();
+      fixture.componentRef.setInput('gameCharacter', knight);
+      fixture.detectChanges();
+      const multi = TestBed.inject(MultiMovableService);
+      const leader: MovableLike = { identifier: knight.identifier, tabletopObject: knight, posX: 125, posY: 125 };
+      multi.register(leader);
+      multi.register(followerOf(horse));
+      TestBed.inject(SelectionSignalService).replaceSelection([knight.identifier, horse.identifier]);
+      vi.spyOn(TestBed.inject(TriggerFireService), 'putDown').mockImplementation((piece) => {
+        piece.location.x = 900;
+        piece.location.y = 900;
+        return [];
+      });
+
+      try {
+        multi.beginDrag(leader);
+        leader.posX = knight.location.x = 325;
+        leader.posY = knight.location.y = 325;
+        multi.applyLeaderDelta(leader);
+        component.onPutDown();
+        component.onLetGo();
+        multi.endDrag(leader);
+
+        expect([horse.location.x, horse.location.y]).toEqual([300, 300]);
+        expect([knight.location.x, knight.location.y]).toEqual([900, 900]);
+      } finally {
+        knight.destroy();
+        horse.destroy();
+      }
+    });
+
+    it('stands a piece it holds, dragged with it, on it rather than where it was dragged to, as it is let go', () => {
+      const ogre = GameCharacter.create('オーガ', 2, '');
+      ogre.location = { name: 'table', x: 100, y: 100 };
+      const captive = GameCharacter.create('捕虜', 1, '');
+      captive.location = { name: 'table', x: 125, y: 125 };
+      captive.grabbedBy = ogre.identifier;
+      fixture.componentRef.setInput('gameCharacter', ogre);
+      fixture.detectChanges();
+      const multi = TestBed.inject(MultiMovableService);
+      const leader: MovableLike = { identifier: ogre.identifier, tabletopObject: ogre, posX: 100, posY: 100 };
+      multi.register(leader);
+      multi.register(followerOf(captive));
+      TestBed.inject(SelectionSignalService).replaceSelection([ogre.identifier, captive.identifier]);
+
+      try {
+        multi.beginDrag(leader);
+        leader.posX = leader.posY = 300;
+        multi.applyLeaderDelta(leader);
+        ogre.location.x = ogre.location.y = 350;
+        component.onPutDown();
+        component.onLetGo();
+        multi.endDrag(leader);
+
+        expect([captive.location.x, captive.location.y]).toEqual([375, 375]);
+      } finally {
+        captive.destroy();
+        ogre.destroy();
+      }
+    });
+  });
+
   describe('standing up or lying flat', () => {
     function pieceOn(surface?: string) {
       const character = GameCharacter.create('コマ', 1, '');
@@ -768,6 +1031,38 @@ describe('GameCharacterComponent', () => {
       component.onContextMenu(new Event('contextmenu', { cancelable: true }));
       return character;
     }
+
+    it('opens on a piece the reader may not view with only what aims at it', () => {
+      const menus = TestBed.inject(ContextMenuService);
+      const open = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockReturnValue(false);
+      const character = openMenu(false, 'standard');
+
+      try {
+        expect(open).toHaveBeenCalledTimes(1);
+        const names = (open.mock.calls[0][1] as readonly { name?: string }[]).map((entry) => entry.name);
+        expect(names).toEqual(['ターゲット']);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('titles the menu of a piece whose name is kept from the reader by no name', () => {
+      const menus = TestBed.inject(ContextMenuService);
+      const open = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
+      const character = openMenu(false, 'standard');
+      character.hideName = true;
+      open.mockClear();
+
+      try {
+        component.onContextMenu(new Event('contextmenu', { cancelable: true }));
+        expect(open.mock.calls[0][2]).toBe('？？？');
+      } finally {
+        character.destroy();
+      }
+    });
 
     it('uses the ordinary downward menu outside 2D mode', () => {
       const menus = TestBed.inject(ContextMenuService);
@@ -1120,6 +1415,38 @@ describe('GameCharacterComponent', () => {
         expect(component.gaugeRows().map((row) => row.numbers)).toEqual(['???/???', '???/???']);
         // The bar itself still stands, since how full it is can be guessed at anyway.
         expect(component.gaugeRows()[0].gauge.ratio).toBe(1);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('keeps how full the bars round a piece kept from the reader stand, as its rows do', () => {
+      const character = GameCharacter.create('秘密', 1, '');
+      character.disclosureMode = DisclosureMode.GameMaster;
+      character.detailDataElement!.getFirstElementByName('HP')!.currentValue = 1;
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        expect(component.orbitPieceGauges().length).toBeGreaterThan(0);
+        expect(component.orbitPieceGauges().map((gauge) => gauge.ratio)).toEqual(
+          component.orbitPieceGauges().map(() => 1)
+        );
+        expect(component.orbitPieceGauges()[0].color).toBe(HIDDEN_GAUGE_COLOR);
+        expect(component['keptGaugeIds']().has(component.orbitPieceGauges()[0].identifier)).toBe(true);
+        expect(component['keptStripesId']()).toBe(`kept-gauge-stripes-${character.identifier}`);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('fills the bars kept from the reader with stripes, so they do not read as full', () => {
+      const character = GameCharacter.create('秘密', 1, '');
+      character.disclosureMode = DisclosureMode.GameMaster;
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        expect(component.gaugeRows().every((row) => row.kept)).toBe(true);
+        expect(component['keptStripes']).toContain('repeating-linear-gradient');
       } finally {
         character.destroy();
       }
@@ -1556,6 +1883,43 @@ describe('GameCharacterComponent', () => {
         ]);
         expect(component.hitFlash()).toBe('damage');
       } finally {
+        character.destroy();
+      }
+    });
+
+    it('shows a blow to a part on its body, told by the part’s name', async () => {
+      const character = GameCharacter.create('ドラゴン', 3, '');
+      character.setLocation('table');
+      const head = GameCharacter.create('頭', 1, '');
+      head.setLocation('table');
+      head.ridingOn = character.identifier;
+      head.rideSeat = 'part';
+      fixture.componentRef.setInput('gameCharacter', character);
+      const objectChange = TestBed.inject(ObjectChangeService);
+      const hp = DataElement.findElementByReference(head.rootDataElement!, 'HP')!;
+
+      try {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(component.floatingChanges()).toEqual([]);
+
+        hp.currentValue = Number(hp.currentValue) - 30;
+        objectChange.notifyChanged(hp.identifier);
+        await fixture.whenStable();
+
+        expect(component.floatingChanges()).toEqual([
+          expect.objectContaining({ kind: 'damage', label: '頭 -30', name: 'HP', part: head.identifier }),
+        ]);
+        expect(component.hitFlash()).toBe('damage');
+
+        head.hideName = true;
+        hp.currentValue = Number(hp.currentValue) - 5;
+        objectChange.notifyChanged(head.identifier);
+        objectChange.notifyChanged(hp.identifier);
+        await fixture.whenStable();
+        expect(component.floatingChanges().at(-1)).toEqual(expect.objectContaining({ label: '部位 -5' }));
+      } finally {
+        head.destroy();
         character.destroy();
       }
     });

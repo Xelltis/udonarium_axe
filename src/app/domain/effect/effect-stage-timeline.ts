@@ -1,64 +1,48 @@
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
 import { type EffectStage, stageLayoutOf, type StageWindow } from '@axe/domain/effect/effect-stage';
-import type { EffectPaintContext } from '@axe/domain/effect/effect-timeline';
-import type { EffectParticleLayer } from '@axe/domain/effect/particles/shared';
+import type { CutPictureContext } from '@axe/domain/effect/effect-timeline';
 import {
   type EffectSprite,
   type EffectSpriteOptions,
   effectTargetCenter,
   type Point3,
   seededRandom,
+  targetScaleOf,
 } from '@axe/domain/effect/timeline/shared';
 
 /**
- * What paints one look. It is handed in rather than reached for: the dispatch plays a
- * single-look effect as well, and each calling the other would tie them in a knot.
+ * What cuts up the picture one look cuts, if it cuts one. It is handed in rather than reached for:
+ * the cutting of a single look goes through it as well, and each calling the other would tie them
+ * in a knot.
  */
-export type EffectKindPainter = (kind: EffectStage['kind'], context: EffectPaintContext) => void;
+export type CutPicturePainter = (kind: EffectStage['kind'], context: CutPictureContext) => void;
 
-/** What makes the particles of one look, handed in for the same reason the painter is. */
-export type StageParticleEmitter = (
-  preset: EffectPreset,
-  seed: number,
-  progress: number,
-  base: number
-) => EffectParticleLayer;
-
-export interface StagedParticlePlacement {
-  key: string;
-  layer: EffectParticleLayer;
-  /** Where that stage is happening, which is not the target for what a branch throws off. */
-  center: Point3;
-}
-
-/**
- * Drawing an effect that runs in stages.
+/*
+ * The pictures a run of stages cuts up over the table, and where and when its stages run, which the
+ * table's scene lays its looks out by as well.
  *
- * Each stage is one of the looks the tool already draws, so nothing here paints: it works
- * out when a stage runs, where it runs from and where it runs to, and hands that to the
- * same dispatch a single-look effect goes through.
- *
- * A stage that travels paints no landing of its own — the stage after it is the landing,
- * and painting both would burst twice.
+ * Each stage is one of the looks of a single kind, so nothing here paints: it works out when a stage
+ * runs, where it runs from and where it runs to, and hands that to the same cutting a single look
+ * goes through.
  */
 
 /** How far a thrown branch flies from where it was thrown, against the size of a piece. */
 const BRANCH_REACH = 1.6;
 
 /**
- * The outlined sprites of a staged effect at a moment in its playback, for every target.
+ * The pieces of the pictures a run of stages cuts up at a moment in its playback, for every target.
  *
- * Only the stages running at that moment are painted, each through the painter handed in.
- * Targets that are hidden, or whose staggered start has not come yet, are skipped.
+ * Only the stages running at that moment are cut, each through the painter handed in. Targets that
+ * are hidden, or whose staggered start has not come yet, are skipped.
  */
-export function stagedEffectSprites(
+export function stagedCutPictures(
   preset: EffectPreset,
   stages: readonly EffectStage[],
   cast: EffectCast,
   elapsedMs: number,
   options: EffectSpriteOptions,
-  paint: EffectKindPainter
+  paint: CutPicturePainter
 ): EffectSprite[] {
   const sprites: EffectSprite[] = [];
   if (stages.length < 1) return sprites;
@@ -81,81 +65,23 @@ export function stagedEffectSprites(
 
       const view = views[order];
       const places = placesFor(window, cast, center, base);
-      const context: EffectPaintContext = {
+      const context: CutPictureContext = {
         sprites,
         prefix: `${index}-${order}`,
         center: places.center,
-        base: base * (window.stage.scale ?? 1),
+        base:
+          base * (window.stage.scale ?? 1) * targetScaleOf(options, target.identifier, window.stage.role === 'travel'),
         progress,
         preset: view,
         random: seededRandom(cast.seed + index * 7919 + order * 104729),
-        cast,
         target,
         options,
-        view: options.viewRotation,
-        origin: places.origin,
-        // The stage after it is the landing, so a stage that travels paints none of its own.
-        impactPainter: () => undefined,
       };
       paint(window.stage.kind, context);
     });
   });
 
   return sprites;
-}
-
-/**
- * The glowing particles of a run, one canvas for every stage that is showing.
- *
- * A single-look effect paints one canvas at the target. A run paints one per stage that is
- * up, each where that stage is happening, so what a branch throws off glows where it went
- * rather than back at the target.
- */
-export function stagedEffectParticles(
-  preset: EffectPreset,
-  stages: readonly EffectStage[],
-  cast: EffectCast,
-  elapsedMs: number,
-  base: number,
-  options: EffectSpriteOptions,
-  emit: StageParticleEmitter,
-  limit = Number.POSITIVE_INFINITY
-): StagedParticlePlacement[] {
-  const placements: StagedParticlePlacement[] = [];
-  if (stages.length < 1 || limit < 1) return placements;
-
-  const { windows } = stageLayoutOf(stages);
-  const views = windows.map((window) => stageView(preset, window));
-
-  for (const [index, target] of cast.targets.entries()) {
-    if (options.hiddenIdentifiers?.has(target.identifier)) continue;
-
-    const localMs = elapsedMs - preset.stagger * index;
-    if (localMs < 0) continue;
-
-    const center = effectTargetCenter(target, preset, options);
-    for (const [order, window] of windows.entries()) {
-      // Particles are drawn onto a canvas apiece and only so many are kept, so what is
-      // over the count is never made rather than made and thrown away.
-      if (placements.length >= limit) return placements;
-
-      const progress = progressIn(window, localMs);
-      if (progress === null) continue;
-
-      const places = placesFor(window, cast, center, base);
-      const layer = emit(
-        views[order],
-        cast.seed + index * 7919 + order * 104729,
-        progress,
-        base * (window.stage.scale ?? 1)
-      );
-      if (layer.particles.length < 1) continue;
-
-      placements.push({ key: `${index}-${order}`, layer, center: places.center });
-    }
-  }
-
-  return placements;
 }
 
 /** How long the whole run takes, which is what the last stage to finish decides. */
@@ -176,7 +102,7 @@ function progressIn(window: StageWindow, localMs: number): number | null {
  * branch happens away from it: it is thrown from the point the run reached, out along its
  * own share of the spread, and lands where it gets to.
  */
-function placesFor(
+export function placesFor(
   window: StageWindow,
   cast: EffectCast,
   center: Point3,
@@ -214,7 +140,7 @@ function headingOf(origin: Point3 | null, center: Point3): number {
  * top. They are laid on as plain properties rather than written, because writing to a
  * synchronised field would change the effect for everybody at the table.
  */
-function stageView(preset: EffectPreset, window: StageWindow): EffectPreset {
+export function stageView(preset: EffectPreset, window: StageWindow): EffectPreset {
   const stage = window.stage;
   const view = Object.create(preset) as EffectPreset;
   const length = Math.max(window.endMs - window.startMs, 1);

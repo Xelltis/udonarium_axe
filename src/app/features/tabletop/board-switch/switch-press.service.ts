@@ -10,6 +10,7 @@ import { ConcealmentService } from '@axe/application/tabletop/concealment.servic
 import { TableTriggerService } from '@axe/application/tabletop/table-trigger.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { copyPartsAlong } from '@axe/application/ui/tabletop-context-menu-actions';
 import { emitSelectGameTable } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -294,7 +295,8 @@ export class SwitchPressService {
     const line = text.trim();
     if (line.length < 1 || !context.tab) return;
     const { definition, character, tab } = context;
-    const options = { tab, gameType: definition.gameType || undefined };
+    // A switch's lines are the game master's words, whoever presses it: only a master makes switches.
+    const options = { tab, gameType: definition.gameType || undefined, mastersWords: true };
     switch (definition.speaker) {
       case 'presser':
         if (character) await this.macro.sendAsCharacter(character, line, options);
@@ -304,7 +306,7 @@ export class SwitchPressService {
         await this.macro.sendAsNamed(this.hostName(context), line, character, options);
         return;
       case 'system':
-        this.chat.sendSystemMessageToTab(tab, line);
+        this.chat.asMastersWords(() => this.chat.sendSystemMessageToTab(tab, line));
         return;
     }
   }
@@ -377,6 +379,7 @@ export class SwitchPressService {
     for (const spot of spots) {
       spot.character.location = { name: 'table', x: spot.x, y: spot.y };
       placed.add(spot.character);
+      copyPartsAlong(template, spot.character);
     }
     for (const copy of copies) if (!placed.has(copy)) copy.destroy();
   }

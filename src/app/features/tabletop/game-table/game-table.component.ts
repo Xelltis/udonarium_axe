@@ -33,7 +33,9 @@ import { GroundService } from '@axe/application/tabletop/ground.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { PiecePartPickService } from '@axe/application/tabletop/piece-part-pick.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
@@ -65,6 +67,7 @@ import { trackLazyLoad } from '@axe/core/util/lazy-loads';
 import { observeSize } from '@axe/core/util/observe-size';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { glideToCentre } from '@axe/domain/tabletop/camera/camera-glide';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
@@ -98,7 +101,6 @@ import {
 import { beamWallFaceGrid } from '@axe/features/tabletop/game-table/beam-top-grid';
 import { handCanvasPressesOn } from '@axe/features/tabletop/game-table/canvas-presses';
 import { firstTableView } from '@axe/features/tabletop/game-table/first-table-view';
-import { glideTransform } from '@axe/features/tabletop/game-table/game-table-camera';
 import { buildGameTableContextMenu, GameTableMenu } from '@axe/features/tabletop/game-table/game-table-context-menu';
 import { GameTableGestureService } from '@axe/features/tabletop/game-table/game-table-gesture.service';
 import { WALL_SIDES, WallSurface } from '@axe/features/tabletop/game-table/game-table-walls';
@@ -266,6 +268,8 @@ export class GameTableComponent {
   private readonly mobileLayout = inject(MobileLayoutService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChangeService = inject(ObjectChangeService);
+  private readonly pieceLinks = inject(PieceLinksService);
+  private readonly partPick = inject(PiecePartPickService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly appRef = inject(ApplicationRef);
   private readonly t = inject(TRANSLATE_FN);
@@ -354,14 +358,12 @@ export class GameTableComponent {
       if (!focus) return;
       this.glideTimer = setTimeout(() => {
         this.glideTimer = null;
-        const moved = glideTransform(focus, this.tableVisualCenter(), {
-          rotateX: this.gestureService.viewRotateX,
-          rotateZ: this.gestureService.viewRotateZ,
-          positionX: this.gestureService.viewPositionX,
-          positionY: this.gestureService.viewPositionY,
-          positionZ: this.gestureService.viewPositionZ,
-        });
-        this.gestureService.glideBy(moved.x, moved.y, moved.z);
+        const view = this.tableCamera.view;
+        const layout = this.tableCamera.layout;
+        if (!view || !layout) return;
+        // Brought to the middle of the view as the camera stands, turned and tilted, and no nearer.
+        const moved = glideToCentre(view, layout, focus);
+        this.gestureService.glideBy(moved.x, moved.y, 0);
       }, 50);
     });
 
@@ -473,7 +475,13 @@ export class GameTableComponent {
           this.diceRender,
           this.tabletopService,
           (view) => this.gestureService.moveTo(view),
-          () => this.appRef.tick()
+          () => this.appRef.tick(),
+          (identifier, pageX, pageY) => {
+            const body = this.objectStore.get<GameCharacter>(identifier);
+            return body instanceof GameCharacter
+              ? (this.partPick.partAt(body, pageX, pageY)?.identifier ?? null)
+              : null;
+          }
         )
       );
       this.syncMode2d();
@@ -761,7 +769,11 @@ export class GameTableComponent {
    */
   readonly diceSymbolsOverCanvas = computed(() => this.diceSymbols());
   readonly coinsOverCanvas = computed(() => this.coins());
-  readonly charactersOverCanvas = computed(() => this.characters());
+  /** The characters laid over the table, all but those drawn as a part of another, which show in the body's card. */
+  readonly charactersOverCanvas = computed(() => {
+    const parts = this.pieceLinks.partIdentifiers();
+    return this.characters().filter((character) => !parts.has(character.identifier));
+  });
   readonly textNotesOverCanvas = computed(() => this.textNotes());
   readonly cardsOverCanvas = computed(() => this.cards());
   readonly cardStacksOverCanvas = computed(() => this.cardStacks());
@@ -949,7 +961,6 @@ export class GameTableComponent {
 
   /** The jolt of an effect, which shakes the camera with it. */
   readonly screenShake = computed(() => this.effectPlaybackService.shake());
-  readonly screenFlash = computed(() => this.effectPlaybackService.flash());
 
   readonly isPickingTarget = computed(() => this.cardTargetService.isPicking());
   readonly isPickingEffectTarget = computed(() => this.effectTargetingService.isPicking());
@@ -1104,18 +1115,6 @@ export class GameTableComponent {
       boardWidth: this.boardPx.width,
       boardHeight: this.boardPx.height,
     });
-  }
-
-  private tableVisualCenter(): { x: number; y: number } {
-    const table = this.currentTable;
-    const geo = computeHexMaskGeometry(table.width, table.height, table.gridSize, table.gridType);
-    if (geo) {
-      return {
-        x: -geo.offsetX + geo.pixelW / 2,
-        y: -geo.offsetY + geo.pixelH / 2,
-      };
-    }
-    return { x: (table.width * table.gridSize) / 2, y: (table.height * table.gridSize) / 2 };
   }
 
   /** Draws the grid from the table as it stands now. */

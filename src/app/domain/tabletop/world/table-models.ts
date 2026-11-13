@@ -37,6 +37,13 @@ export interface TableWorldModel {
   readonly pivotPx: number;
   /** How high the piece floats over its foot, in table pixels. */
   readonly altitudePx: number;
+  /**
+   * Whether the model is drawn as a copy of its own, though it plays no motion: as one a part of the
+   * piece is painted over, which is picked by its faces.
+   */
+  readonly ownCopy?: boolean;
+  /** The faces the copy leaves out, as `writePartFaces` writes them: those of the piece's lost parts. */
+  readonly cutFaces?: string;
   /** Whether the piece is being moved now, which plays its walk. */
   readonly walking: boolean;
   /**

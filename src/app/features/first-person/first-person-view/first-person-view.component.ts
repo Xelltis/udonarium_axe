@@ -11,15 +11,16 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop/ambience.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
@@ -37,7 +38,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { gaugeNumbersOf, selectPieceGauges } from '@axe/domain/character/piece-gauge';
+import { HIDDEN_GAUGE_STRIPES, selectPieceGauges, shownGauge } from '@axe/domain/character/piece-gauge';
 import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { DataElement } from '@axe/domain/data/data-element';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
@@ -181,6 +182,15 @@ interface StandingPiece {
   basePx: number;
 }
 
+/** A part of a piece, listed under the piece as the table lists it: its name and readings, aimed at by a press. */
+interface PartView {
+  id: string;
+  label: string;
+  targeted: boolean;
+  pick: number;
+  gauges: GaugeView[];
+}
+
 interface PieceView {
   id: string;
   label: string;
@@ -193,6 +203,8 @@ interface PieceView {
   /** Whether the eye has a line of sight to it, which aiming straight ahead asks for. */
   inLine: boolean;
   gauges: GaugeView[];
+  /** The parts of the piece, each with its own name and readings. */
+  parts: PartView[];
   badges: BuffBadge[];
   moreBadges: number;
   style: QuadStyle;
@@ -234,9 +246,10 @@ export class FirstPersonViewComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly vision = inject(VisionService);
+  private readonly names = inject(PieceNameService);
+  private readonly pieceLinks = inject(PieceLinksService);
   private readonly water = inject(WaterService);
   private readonly ambience = inject(AmbienceService);
-  private readonly rolePermission = inject(RolePermissionService);
   private readonly disclosure = inject(DisclosureService);
   private readonly pieceTarget = inject(PieceTargetService);
   private readonly effectTargeting = inject(EffectTargetingService);
@@ -454,8 +467,6 @@ export class FirstPersonViewComponent {
 
   protected readonly shake = this.playback.shake;
 
-  protected readonly flash = this.playback.flash;
-
   /**
    * The roof over the ground the board shuts in, each room's raised clear over the tallest piece this
    * seat sees standing in it, so a great piece is not cut off at the top of the walls. A piece the
@@ -504,6 +515,8 @@ export class FirstPersonViewComponent {
       this.objectChange.versionOf(piece.identifier)();
       if (!piece.isVisibleOnTable || surfaceOf(piece) !== 'floor' || boardSurfaceOf(piece) !== '') continue;
       if (!this.vision.isTokenVisible(piece)) continue;
+      // A part is drawn as its body alone.
+      if (this.pieceLinks.bodyOf(piece)) continue;
       const drawnCells = Math.max(0, piece.size);
       if (drawnCells <= 0) continue;
       const size = Math.max(1, drawnCells) * gridSize;
@@ -536,8 +549,8 @@ export class FirstPersonViewComponent {
     this.uiSignal.targetChange();
     this.objectChange.trackMyCursor();
     this.objectChange.collectionOf('data')();
-    const master = this.rolePermission.canSeeHidden();
-    const picks = this.effectTargeting.picks();
+    // Numbered as the marks are, among the picks this reader is shown.
+    const picks = this.effectTargeting.pickOrder();
     const eye = eyeFrameOf(camera);
     const pitch = camera.pitch ?? 0;
     const nearPx = gridSize * NEAR_CELLS;
@@ -583,9 +596,24 @@ export class FirstPersonViewComponent {
         ).toCss(),
       };
       const gauges = this.gaugesOf(piece);
-      const label = piece.hideName && !master ? '' : piece.name;
-      const pick = picks.indexOf(piece.identifier) + 1;
-      const chromeRows = { badges: badges.length > 0, gauges: gauges.length, label: label !== '' || pick > 0 };
+      const label = this.names.isKept(piece) ? '' : piece.name;
+      const pick = picks.get(piece.identifier) ?? 0;
+      const parts = this.pieceLinks.followedPartsOf(piece).map((part) => {
+        this.objectChange.versionOf(part.identifier)();
+        return {
+          id: part.identifier,
+          label: this.names.isKept(part) ? '' : part.name,
+          targeted: part.targeted,
+          pick: picks.get(part.identifier) ?? 0,
+          gauges: this.gaugesOf(part),
+        };
+      });
+      const chromeRows = {
+        badges: badges.length > 0,
+        gauges: gauges.length + parts.reduce((count, part) => count + part.gauges.length, 0),
+        label: label !== '' || pick > 0,
+        parts: parts.length,
+      };
       views.push({
         id: piece.identifier,
         label,
@@ -596,6 +624,7 @@ export class FirstPersonViewComponent {
         bearing: Math.abs((Math.atan2(lateralOf(eye, centre), depth) * 180) / Math.PI),
         inLine: !inLine || !grid || inLine.get(cellIndexAt(grid, centre.x, centre.y)),
         gauges,
+        parts,
         badges: badges.slice(0, BUFF_BADGES_PER_ROW),
         moreBadges: Math.max(0, badges.length - BUFF_BADGES_PER_ROW),
         style: inTheMurk(withBillboardCut(laid, kept, lifted, stand.heightPx), under ? this.shadeAt(depth, reach) : 0),
@@ -623,14 +652,17 @@ export class FirstPersonViewComponent {
     const readable = this.disclosure.canView(piece);
     return selectPieceGauges(detail)
       .slice(0, MAX_MULTI_ANGLE_RESOURCE_GAUGES)
-      .map((gauge) => ({
-        id: gauge.identifier,
-        name: gauge.name,
-        initial: gauge.initial,
-        percent: gauge.ratio * 100,
-        color: gauge.color,
-        numbers: gaugeNumbersOf(gauge, readable),
-      }));
+      .map((gauge) => {
+        const shown = shownGauge(gauge, readable);
+        return {
+          id: gauge.identifier,
+          name: gauge.name,
+          initial: gauge.initial,
+          percent: shown.gauge.ratio * 100,
+          color: shown.kept ? HIDDEN_GAUGE_STRIPES : shown.gauge.color,
+          numbers: shown.numbers,
+        };
+      });
   }
 
   private badgesOf(piece: GameCharacter): BuffBadge[] {
@@ -707,7 +739,7 @@ export class FirstPersonViewComponent {
     if (!piece) return '';
     this.objectChange.versionOf(piece.identifier)();
     this.objectChange.trackMyCursor();
-    return piece.hideName && !this.rolePermission.canSeeHidden() ? '' : piece.name;
+    return this.names.isKept(piece) ? '' : piece.name;
   });
 
   protected readonly facing = computed(() => facingNameOf(this.firstPerson.pose()?.yaw ?? 0));
@@ -730,13 +762,20 @@ export class FirstPersonViewComponent {
 
   protected readonly picking = this.effectTargeting.isPicking;
 
-  protected readonly pickCount = computed(() => this.effectTargeting.picks().length);
+  /** How many targets this reader is shown picked, which a piece out of their sight is not counted among. */
+  protected readonly pickCount = computed(() => this.effectTargeting.pickOrder().size);
 
   protected readonly anyTargeted = computed(() => {
     this.uiSignal.targetChange();
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     return this.pieceTarget.anything();
   });
+
+  /** Aims at a part listed under its body, from a press on its row, rather than at the body. */
+  protected clickPart(identifier: string, event: Event): void {
+    event.stopPropagation();
+    this.clickPiece(identifier);
+  }
 
   /** Aims at a piece clicked in the view, unless the click only ends a look about. */
   protected clickPiece(identifier: string): void {

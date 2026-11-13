@@ -1,6 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { EffectAutoPlayService } from '@axe/application/effect/effect-auto-play.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectFieldService } from '@axe/application/effect/effect-field.service';
@@ -66,6 +67,7 @@ export class EffectLibraryPanelComponent {
   private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
+  private readonly names = inject(PieceNameService);
 
   protected readonly gradeLevels = GRADE_LEVELS;
 
@@ -106,7 +108,7 @@ export class EffectLibraryPanelComponent {
     this.selectionSignalService.selectedObject();
     this.objectChange.collectionOf('character')();
     if (this.targeting.isPicking()) return this.pickedNames();
-    return this.castService.candidateTargets().map((character) => character.name);
+    return this.castService.candidateTargets().map((character) => this.shownName(character));
   });
 
   /** Where a projectile is fired from: the selected piece, which is not among the targets. */
@@ -115,7 +117,8 @@ export class EffectLibraryPanelComponent {
     this.selectionSignalService.selectedObject();
     this.objectChange.collectionOf('character')();
     const targets = this.castService.candidateTargets();
-    return this.castService.resolveCaster(targets)?.name ?? '';
+    const caster = this.castService.resolveCaster(targets);
+    return caster ? this.shownName(caster) : '';
   });
 
   /** An effect left standing, which stays on the board unless it can be taken away. */
@@ -129,15 +132,24 @@ export class EffectLibraryPanelComponent {
   readonly pickingName = computed<string>(() => this.targeting.preset()?.name ?? '');
   readonly pickLimit = computed<number>(() => this.targeting.limit());
 
-  readonly pickedNames = computed<string[]>(() => this.targeting.marks().map((mark) => this.nameOf(mark.identifier)));
+  /** The names of the pieces picked that this reader is shown, in the order picked, a part picked with its body among them. */
+  readonly pickedNames = computed<string[]>(() =>
+    [...this.targeting.pickOrder().keys()].map((identifier) => this.nameOf(identifier))
+  );
 
   protected isPickingPreset(preset: EffectPreset): boolean {
     return this.targeting.preset()?.identifier === preset.identifier;
   }
 
+  /** The name of the piece under an identifier as this reader may be told it; see {@link shownName}. */
   private nameOf(identifier: string): string {
     const character = this.objectStore.get<GameCharacter>(identifier);
-    return character instanceof GameCharacter ? character.name : '';
+    return character instanceof GameCharacter ? this.shownName(character) : '';
+  }
+
+  /** A piece's name as this reader may be told it: one whose name is kept from them goes unnamed. */
+  private shownName(character: GameCharacter): string {
+    return this.names.shown(character);
   }
 
   private readonly storage = browserLocalStorage();
@@ -243,7 +255,7 @@ export class EffectLibraryPanelComponent {
       this.castService.fire(preset, targets);
       this.reportFired(
         preset,
-        targets.map((target) => target.name)
+        targets.map((target) => this.shownName(target))
       );
       return;
     }

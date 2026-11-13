@@ -1,6 +1,6 @@
 import { EffectKind } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import { effectFlashColor, effectShakeDelay, effectShakeOf } from '@axe/domain/effect/effect-shake';
+import { effectShakeOf } from '@axe/domain/effect/effect-shake';
 import { type EffectStage } from '@axe/domain/effect/effect-stage';
 
 describe('effectShakeOf()', () => {
@@ -36,40 +36,5 @@ describe('effectShakeOf()', () => {
 
     expect(effectShakeOf(staged([{ role: 'impact', kind: 'burst', durationMs: 400 }], 'heal'))).toBe('hard');
     expect(effectShakeOf(staged([{ role: 'field', kind: 'aura', durationMs: 400 }], 'burst'))).toBe('');
-  });
-
-  it('shakes when the stage that lands the blow begins', () => {
-    const preset = makePreset('burst', 3);
-    preset.stages = JSON.stringify([
-      { role: 'travel', kind: 'projectile', durationMs: 600 },
-      { role: 'impact', kind: 'burst', durationMs: 400 },
-    ]);
-
-    expect(effectShakeDelay(preset)).toBe(600);
-  });
-});
-
-describe('effectFlashColor()', () => {
-  function makePreset(kind: EffectKind, grade: number): EffectPreset {
-    const preset = new EffectPreset('preset');
-    preset.kind = kind;
-    preset.grade = grade;
-    preset.colorPrimary = '#dff2ff';
-    return preset;
-  }
-
-  it('burns the screen only for the highest flash, the mushroom cloud and the heaviest beam', () => {
-    expect(effectFlashColor(makePreset('nova', 3))).toBe('#dff2ff');
-    expect(effectFlashColor(makePreset('mushroom', 3))).toBe('#dff2ff');
-    expect(effectFlashColor(makePreset('beam', 3))).toBe('#dff2ff');
-    expect(effectFlashColor(makePreset('nova', 2))).toBe('');
-    expect(effectFlashColor(makePreset('burst', 3))).toBe('');
-  });
-
-  it('burns the screen for a run that draws one of them', () => {
-    const preset = makePreset('burst', 3);
-    preset.stages = JSON.stringify([{ role: 'impact', kind: 'nova', durationMs: 400 }]);
-
-    expect(effectFlashColor(preset)).toBe('#dff2ff');
   });
 });

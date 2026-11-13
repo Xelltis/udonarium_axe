@@ -21,6 +21,11 @@ export interface FlatPieceLayout {
   readonly altitudePx: number;
   /** The picture the page takes of it, or null while there is none. */
   readonly picture: PagePicture | null;
+  /**
+   * For a range lying on the ground: how far over the ground it lies, in table pixels, which it
+   * follows where the ground is raised. Where not given it lies flat at its height.
+   */
+  readonly overGroundPx?: number;
 }
 
 function flatSprites(piece: FlatPieceLayout, kind: string, lift: number): TableWorldSprite[] {
@@ -34,7 +39,13 @@ export function maskSprites(mask: FlatPieceLayout): TableWorldSprite[] {
   return flatSprites(mask, MASK_KIND, MASK_LIFT_PX);
 }
 
-/** The sprite a range is drawn with: the picture of its cells, flat at its altitude round its place. */
+/**
+ * The sprite a range is drawn with: the picture of its cells, flat at its altitude round its place,
+ * or following the raised ground, as far over it, where it lies on the ground.
+ */
 export function rangeSprites(range: FlatPieceLayout): TableWorldSprite[] {
-  return flatSprites(range, RANGE_KIND, RANGE_LIFT_PX);
+  const over = range.overGroundPx;
+  return flatSprites(range, RANGE_KIND, RANGE_LIFT_PX).map((sprite) =>
+    over === undefined ? sprite : { ...sprite, drapes: { liftPx: over + RANGE_LIFT_PX } }
+  );
 }

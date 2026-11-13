@@ -9,6 +9,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
@@ -88,6 +89,7 @@ export class DiceSymbolComponent {
   private readonly disclosureService = inject(DisclosureService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly names = inject(PieceNameService);
 
   private readonly motions = inject(PieceMotionsService);
   private readonly pieces = inject(TablePiecesService);
@@ -388,10 +390,9 @@ export class DiceSymbolComponent {
       {
         onDiceRoll: () => this.diceRoll(),
         onShowDetail: () => this.showDetail(this.diceSymbol()),
-        ownerCandidates: this.tabletopService.characters.map((character) => ({
-          identifier: character.identifier,
-          name: character.name,
-        })),
+        ownerCandidates: this.tabletopService.characters
+          .filter((character) => this.visionService.isTokenVisible(character) && !this.names.isKept(character))
+          .map((character) => ({ identifier: character.identifier, name: character.name })),
         onStoreToOwner: (ownerIdentifier) => this.storeToOwner(ownerIdentifier),
         onRevealed: (face) => this.onDiceRevealed(face),
         canRevealHidden: this.rolePermission.canSeeHidden(),

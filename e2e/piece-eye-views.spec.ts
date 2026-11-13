@@ -45,7 +45,7 @@ async function enterTheView(page: Page): Promise<Locator> {
 }
 
 test.describe('Dungeondry Master mode', () => {
-  test('plays an effect on a piece in the view where the view puts it, laid on the view through the eye', async ({
+  test('cuts the picture of a piece in the view where the view puts it, laid on the view through the eye', async ({
     page,
   }) => {
     await waitAppReady(page);
@@ -70,15 +70,17 @@ test.describe('Dungeondry Master mode', () => {
 
     await openPanel(page, 'エフェクト');
     const panel = page.locator('app-effect-library-panel');
-    await panel.getByPlaceholder('名前・系統で絞り込む').fill('一閃');
-    await panel.getByRole('button', { name: /一閃/ }).first().click();
+    // Every look is drawn in the table's scene; what one that cuts a piece's picture does with the
+    // picture is laid over the view, where the view draws the piece.
+    await panel.getByPlaceholder('名前・系統で絞り込む').fill('両断');
+    await panel.getByRole('button', { name: /両断/ }).first().click();
     await closePanels(page);
     await target.dispatchEvent('click');
 
     const effects = view.getByTestId('first-person-effects');
-    await expect(effects.locator('[data-effect-sprite], effect-canvas').first()).toBeAttached({ timeout: 5000 });
+    await expect(effects.locator('[data-effect-sprite]').first()).toBeAttached({ timeout: 5000 });
     const middle = await effects
-      .locator('[data-effect-sprite], effect-canvas')
+      .locator('[data-effect-sprite]')
       .first()
       .evaluate((element) => {
         const box = element.getBoundingClientRect();

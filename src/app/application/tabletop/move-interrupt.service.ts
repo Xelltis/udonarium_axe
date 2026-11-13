@@ -1,4 +1,5 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -133,6 +134,7 @@ export class MoveInterruptService {
   private readonly vision = inject(VisionService);
   private readonly chat = inject(ChatMessageService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly names = inject(PieceNameService);
 
   private readonly waitingMove = signal<WaitingMove | null>(null);
   private readonly picked = signal<{
@@ -169,13 +171,13 @@ export class MoveInterruptService {
             .filter((candidate) => candidate.responder === mine.identifier)
             .map((candidate) => ({
               id: candidate.id,
-              name: this.objectStore.get<GameCharacter>(candidate.id)?.name ?? '',
+              name: this.shownNameOf(candidate.id),
               spans: candidate.spans,
               zones: candidate.zones,
               member: candidate.member,
             }));
       if (pieces.length > 0 || (mine.isGameMaster && cursor !== mine)) {
-        return { id, moverName: mover.name, path, pieces };
+        return { id, moverName: this.names.shown(mover), path, pieces };
       }
     }
     return null;
@@ -400,8 +402,8 @@ export class MoveInterruptService {
     this.chat.sendSystemNotice(
       'movement',
       this.t('feature.zone.chat.interrupted', {
-        names: pieces.map((piece) => piece.name).join('、'),
-        mover: mover.name,
+        names: pieces.map((piece) => this.names.said(piece)).join('、'),
+        mover: this.names.said(mover),
       })
     );
   }
@@ -563,6 +565,12 @@ export class MoveInterruptService {
     return candidates;
   }
 
+  /** The name a piece is shown by on this reader's screen, found by its identifier; empty where it is gone. */
+  private shownNameOf(identifier: string): string {
+    const piece = this.objectStore.get<GameCharacter>(identifier);
+    return piece ? this.names.shown(piece) : '';
+  }
+
   /**
    * The zones the chosen pieces may pull the piece into at the point they stop it, each named by a
    * piece in it, for asking which one where there is more than one.
@@ -572,7 +580,7 @@ export class MoveInterruptService {
     const state = this.zones.stateNow();
     const named = (id: string) => {
       const view = state.zones.find((zone) => zone.id === id);
-      const first = view?.members.map((member) => this.objectStore.get<GameCharacter>(member)?.name ?? '')[0] ?? '';
+      const first = view?.members.map((member) => this.shownNameOf(member))[0] ?? '';
       return { id, name: first };
     };
     if (inZones.length > 0) return inZones.map(named);

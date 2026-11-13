@@ -8,6 +8,15 @@ export const BATTLE_CELL_PX = 50;
 export const BATTLE_VIEW: ViewRotation = { x: 64, y: 0, z: 0 };
 /** How tall a fighter stands on the floor. */
 export const BATTLE_FIGURE_PX = 110;
+/**
+ * How wide a cell the effects drawn as on the table are made against: as wide against a fighter as a
+ * cell is against a piece standing on the table, which stands about one and a half cells tall.
+ */
+export const BATTLE_SCENE_CELL_PX = Math.round(BATTLE_FIGURE_PX / 1.5);
+/** How far off the band the eye is that sees the floor, as the band's perspective has it. */
+export const BATTLE_PERSPECTIVE_PX = 1200;
+/** How far down the band the middle of the floor lies, from its top, as a part of its height. */
+export const BATTLE_FLOOR_TOP = 0.72;
 /** How high off the floor an effect plays, so that it lands on the body rather than at the feet. */
 export const BATTLE_EFFECT_RISE_PX = 46;
 /** How far each side stands from the middle, in cells. */

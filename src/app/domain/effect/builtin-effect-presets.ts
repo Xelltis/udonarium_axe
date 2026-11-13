@@ -191,6 +191,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     maxTargets: 6,
     soundKey: 'thunderBolt',
     grade: 2,
+    moteStyle: 'arc',
   },
   {
     identifier: 'EffectPreset_status_sleep',

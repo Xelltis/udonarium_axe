@@ -19,6 +19,9 @@ export function hexCircumradius(gridSize: number): number {
   return gridSize / Math.sqrt(3);
 }
 
+/** How much bigger than a cell each hex a board is cut to is, so the cut leaves no seam between cells. */
+export const HEX_CUT_OVERLAP_PX = 1;
+
 /** Whether the grid is the flat-topped hex grid, whose columns line up vertically. */
 export function isFlatTopGrid(gridType: GridType): boolean {
   return gridType === GridType.HEX_VERTICAL;

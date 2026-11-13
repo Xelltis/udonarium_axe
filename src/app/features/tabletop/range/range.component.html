@@ -1,13 +1,15 @@
 <!--
-  The range is a box on the screen round where the table's canvas draws its cells, with its handle
-  and its lock on the point it turns about. Its cells are drawn here, out of sight, for the canvas
-  to draw a picture of.
+  The range is a box on the screen round where the table's canvas draws its cells, stacked among the
+  pieces, and a box over every piece's with its handle and its lock on the point it turns about, so
+  no piece standing on the range covers its handle. Its cells are drawn here, out of sight, for the
+  canvas to draw a picture of.
 -->
 @let id = range().identifier;
 <div
-  class="group pointer-events-none size-full select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
+  class="pointer-events-none select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
   [class.cursor-grab]="!isLock()"
   data-hud-box
+  [appHudPlace]="{ owner: id }"
   appMovable
   [movable.option]="movableOption()"
   [movable.disable]="isLock()"
@@ -18,9 +20,15 @@
   <div
     data-part="picture"
     class="pointer-events-auto"
+    [style.clip-path]="pointerClipPath()"
     [appTooltip]="range()"
-    [appHudPlace]="{ owner: id, part: 'picture' }"
+    [appHudPlace]="{ owner: id, part: 'picture', place: 'cover' }"
   ></div>
+  @if (altitudeGuide(); as guide) {
+    <altitude-guide [owner]="id" [guide]="guide" [colour]="range().rangeColor" />
+  }
+</div>
+<div class="pointer-events-none" [appHudPlace]="{ owner: id, raised: true }">
   <div
     class="pointer-events-none size-0"
     appRotable
@@ -40,7 +48,7 @@
     }
     @if (!isLock() && isRotatableRangeType()) {
       <div
-        class="rotate-grab border-ui-border-panel bg-ui-elevated text-ui-muted pointer-events-auto box-border flex size-10.5 cursor-default items-center justify-center rounded-full border-2 border-solid p-0 text-[24px] opacity-0 group-hover:opacity-86 group-active:opacity-86 [&_.material-icons]:text-[28px]!"
+        class="rotate-grab border-ui-border-panel bg-ui-elevated text-ui-muted pointer-events-none box-border flex size-10.5 cursor-default items-center justify-center rounded-full border-2 border-solid p-0 text-[24px] opacity-0 group-hover:pointer-events-auto group-hover:opacity-86 group-active:pointer-events-auto group-active:opacity-86 [&_.material-icons]:text-[28px]!"
         [class.range-rotate-grab--single]="usesSingleRotateGrab()"
         [appHudPlace]="{ owner: id, at: grabPoint() }"
       >
@@ -48,9 +56,6 @@
       </div>
     }
   </div>
-  @if (altitudeGuide(); as guide) {
-    <altitude-guide [owner]="id" [guide]="guide" [colour]="range().rangeColor" />
-  }
 </div>
 <div class="pointer-events-none fixed top-0 left-0 opacity-0">
   <div class="absolute" #cells [style.width.px]="0" [style.height.px]="0" [style.clip-path]="clipPath()">

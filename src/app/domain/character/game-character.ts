@@ -1,10 +1,12 @@
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
+import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
 import { BuffManager } from '@axe/domain/character/buff-manager';
 import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { shownImageIdentifier } from '@axe/domain/character/shown-image';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { BuffPalette, ChatPalette, SubPalette } from '@axe/domain/chat/chat-palette';
@@ -19,6 +21,7 @@ import {
   DataElementType,
 } from '@axe/domain/data/data-element';
 import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
+import { isPartOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { moveToBottommost, moveToTopmost } from '@axe/domain/tabletop/tabletop-object-util';
 import {
   asVisionShape,
@@ -43,6 +46,34 @@ import {
 
 /** The name the memo kept with a piece goes by, as another fork names it. */
 const INNER_NOTE_NAME = 'inner-note';
+
+/**
+ * How wide a cell of the table being viewed is, in table pixels: read off the room's table selecter
+ * and the table it names, or the first table where it names none, as the selecter reads it, by their
+ * identifiers and names, without the classes, which would make the piece depend on the table and the
+ * table, through its lights, on the piece. 50 where there is no table yet.
+ */
+function viewedCellPx(): number {
+  const selecter = ObjectStore.instance.get('TableSelecter') as { viewTableIdentifier?: unknown } | null;
+  const named = ObjectStore.instance.get(`${selecter?.viewTableIdentifier ?? ''}`) as { gridSize?: unknown } | null;
+  const table = named ?? (ObjectStore.instance.getObjects('game-table')[0] as { gridSize?: unknown } | undefined);
+  const cell = Number(table?.gridSize);
+  return cell > 0 ? cell : 50;
+}
+
+/** How far a piece's middle is from its corner, in table pixels, across and down alike. */
+function middleOffsetPx(piece: GameCharacter, cellPx: number): number {
+  const size = Number(piece.size);
+  return ((size > 0 ? size : 0) * cellPx) / 2;
+}
+
+/** Stands a part on its body, middle on middle, as a move of the body stands its parts. */
+function standOnBody(part: GameCharacter, body: GameCharacter): void {
+  const cellPx = viewedCellPx();
+  const offset = middleOffsetPx(body, cellPx) - middleOffsetPx(part, cellPx);
+  part.location.x = body.location.x + offset;
+  part.location.y = body.location.y + offset;
+}
 
 @SyncObject('character')
 export class GameCharacter extends OwnedTabletopObject {
@@ -100,8 +131,26 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() grabbedBy: string = '';
   /** The mount the piece rides, as its identifier, or empty: it stands on that mount and goes where it goes. */
   @SyncVar() ridingOn: string = '';
-  /** Where the piece rides its mount: empty in front, `passenger` behind, `cargo` carried as a load. */
+  /**
+   * Where the piece rides its mount: empty in front, `passenger` behind, `cargo` carried as a load,
+   * or `part` where it is a part of the piece it rides, as a head is of a creature of many parts.
+   */
   @SyncVar() rideSeat: string = '';
+  /**
+   * For a part, where its own picture is laid over its body's, as `partLayerOf` reads it: empty for
+   * none. The body is drawn with the picture of each of its parts laid over its own, but a lost one.
+   */
+  @SyncVar() partLayer: string = '';
+  /**
+   * For a part, the piece of its body's picture it stands for, as `partMaskOf` reads it: empty for
+   * none. A lost part's piece is cut out of the body's picture.
+   */
+  @SyncVar() partMask: string = '';
+  /**
+   * For a part, the faces of its body's model it stands for, as `keptPartFaces` keeps them with the
+   * model they were picked on: empty for none. A lost part's faces are left out of the body's model.
+   */
+  @SyncVar() partFaces: string = '';
   /** `1` while the piece is a mount others may ride; empty otherwise. */
   @SyncVar() mountable: string = '';
   /** `1` where a mount takes a second rider behind the one in front; empty otherwise. */
@@ -380,6 +429,60 @@ export class GameCharacter extends OwnedTabletopObject {
     return this.getElement('buff');
   }
 
+  /** Whether the piece is written down as a part of another, wherever that one is. */
+  get isWrittenAsPart(): boolean {
+    return isPartOf({ id: this.identifier, ridingOn: this.ridingOn, rideSeat: this.rideSeat });
+  }
+
+  /**
+   * The pieces written down as parts of this one that stand in the same place as it, the table, an
+   * inventory, the graveyard or out of sight: those that go with it as one piece. None for a part.
+   */
+  partsAlong(): GameCharacter[] {
+    if (this.isWrittenAsPart) return [];
+    const here = this.location.name;
+    return ObjectStore.instance
+      .getObjects(GameCharacter)
+      .filter(
+        (piece) =>
+          piece !== this && piece.ridingOn === this.identifier && piece.isWrittenAsPart && piece.location.name === here
+      );
+  }
+
+  /**
+   * Moves the piece to a named place, and its parts that stood where it stood with it, so a creature
+   * of many parts leaves the table, is put away or out of sight, and comes back, whole. A part that
+   * comes to where its body stands, along with it or on its own, is stood on its body, middle on
+   * middle, and so is one that came to the table ahead of it, unless held fast where it stands. All of
+   * it is told together, so every seat has the parts where the body is drawn, rather than where they
+   * were left.
+   */
+  override setLocation(location: string): void {
+    GameObject.batch(() => {
+      const moves = location !== this.location.name;
+      const parts = moves ? this.partsAlong() : [];
+      if (moves && this.isWrittenAsPart) {
+        const body = ObjectStore.instance.get(this.ridingOn);
+        if (body instanceof GameCharacter && body.location.name === location) standOnBody(this, body);
+      }
+      super.setLocation(location);
+      for (const part of parts) part.setLocation(location);
+      if (!moves || this.isWrittenAsPart || location !== 'table') return;
+      for (const part of this.partsAlong()) {
+        if (parts.includes(part) || part.heldFast === '1') continue;
+        standOnBody(part, this);
+        part.update();
+      }
+    });
+  }
+
+  /** Takes the piece out of the room, and its parts that stood where it stood with it. */
+  override destroy(): void {
+    const parts = this.partsAlong();
+    super.destroy();
+    for (const part of parts) part.destroy();
+  }
+
   /** Raises the piece above the other pieces it overlaps on the table. */
   toTopmost() {
     moveToTopmost(this);
@@ -424,7 +527,7 @@ export class GameCharacter extends OwnedTabletopObject {
    * and cached.
    */
   get status(): StatusAccessor {
-    return (this._status ??= new StatusAccessor(this.detailDataElement ?? null, () => this.name));
+    return (this._status ??= new StatusAccessor(this.detailDataElement ?? null, () => saidNameOf(this)));
   }
 
   /**

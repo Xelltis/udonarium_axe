@@ -57,6 +57,19 @@ describe('UIPanelComponent', () => {
       expect(press).toHaveBeenCalled();
     });
 
+    it('names each by what it does, for a screen reader, rather than by its icon', () => {
+      component.panelService.headerControls.set([{ icon: 'inventory', label: '荷物', active: false, press: vi.fn() }]);
+      component.panelService.panelControls.set([
+        { icon: 'open_in_new', label: '別ウィンドウ', press: () => undefined },
+      ]);
+      fixture.detectChanges();
+      const opener = fixture.nativeElement.querySelector('[data-testid="panel-control-open_in_new"]') as HTMLElement;
+
+      expect(controls()[0].getAttribute('aria-label')).toBe('荷物');
+      expect(opener.getAttribute('aria-label')).toBe('別ウィンドウ');
+      expect(opener.querySelector('.material-icons')!.getAttribute('aria-hidden')).toBe('true');
+    });
+
     it('shows which of them is on', () => {
       component.panelService.headerControls.set([
         { icon: 'inventory', label: '荷物', active: true, press: () => undefined },

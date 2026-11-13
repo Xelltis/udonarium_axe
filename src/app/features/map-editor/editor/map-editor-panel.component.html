@@ -341,7 +341,7 @@
             <div class="grid grid-cols-5 gap-1">
               @for (kind of dashKinds; track kind) {
                 <button
-                  class="rounded-ui-sm border border-solid p-1 text-[10px] leading-tight"
+                  class="rounded-ui-sm border border-solid p-1 text-[10px]/tight"
                   [class.border-ui-accent]="state.strokeDash() === kind"
                   [class.bg-ui-accent-bg]="state.strokeDash() === kind"
                   [class.border-ui-border-panel]="state.strokeDash() !== kind"

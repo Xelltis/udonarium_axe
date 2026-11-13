@@ -1,33 +1,54 @@
-<div class="text-ui-text flex flex-col text-[13px]">
-  <div class="flex shrink-0 flex-col items-center gap-1 px-2 pt-1.5 pb-1">
+<div
+  class="text-ui-text flex text-[13px]"
+  data-testid="turn-dock"
+  [class.flex-col]="!across()"
+  [class.items-center]="across()"
+>
+  <!--
+    Laid across on a wide screen, the head runs along the row too, so the turn order stands no taller
+    than its faces; on a narrow one it stands in a column, leaving the faces the width.
+  -->
+  <div
+    #head
+    class="flex shrink-0 items-center gap-1 px-1 pt-1.5 pb-1"
+    [class.flex-col]="!headAlong()"
+    [class.pl-2]="headAlong()"
+    [class.w-30]="across() && !headAlong()"
+  >
     @if (turns.progress().round > 0) {
       <span class="text-ui-accent text-[11px] font-bold whitespace-nowrap drop-shadow-sm">{{
         'feature.turnOrder.round' | transloco: { n: turns.progress().round }
       }}</span>
     }
     @if (canEdit()) {
-      <div class="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
-        <div class="flex items-center gap-1.5">
+      <div class="flex items-center justify-center gap-x-1.5 gap-y-1" [class.flex-wrap]="!headAlong()">
+        <div class="flex items-center gap-1">
           <button
             type="button"
-            class="bg-ui-panel/80 text-ui-text border-ui-border-panel hover:border-ui-accent hover:text-ui-accent shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid backdrop-blur-sm transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
+            class="bg-ui-panel/80 text-ui-text border-ui-border-panel hover:border-ui-accent hover:text-ui-accent shadow-ui-sm m-0 flex size-7 cursor-pointer items-center justify-center rounded-full border border-solid backdrop-blur-sm transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
             [disabled]="!turns.progress().canUndo"
+            [attr.aria-label]="'feature.turnOrder.undo' | transloco"
             [title]="'feature.turnOrder.undo' | transloco"
             (click)="turns.prev()"
           >
-            <i class="material-icons">keyboard_arrow_up</i>
+            <i class="material-icons" aria-hidden="true">{{
+              across() ? 'keyboard_arrow_left' : 'keyboard_arrow_up'
+            }}</i>
           </button>
           <button
             type="button"
-            class="bg-ui-accent-solid shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border-none text-white transition-opacity hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[18px]!"
+            class="bg-ui-accent-solid shadow-ui-sm m-0 flex size-8 cursor-pointer items-center justify-center rounded-full border-none text-white transition-opacity hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[18px]!"
+            [attr.aria-label]="'feature.turnOrder.next' | transloco"
             [title]="'feature.turnOrder.next' | transloco"
             (click)="turns.next()"
           >
-            <i class="material-icons">keyboard_arrow_down</i>
+            <i class="material-icons" aria-hidden="true">{{
+              across() ? 'keyboard_arrow_right' : 'keyboard_arrow_down'
+            }}</i>
           </button>
           <button
             type="button"
-            class="bg-ui-panel/80 text-ui-text border-ui-border-panel hover:border-ui-accent hover:text-ui-accent shadow-ui-sm flex size-8 cursor-pointer items-center justify-center rounded-full border border-solid backdrop-blur-sm transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
+            class="bg-ui-panel/80 text-ui-text border-ui-border-panel hover:border-ui-accent hover:text-ui-accent shadow-ui-sm m-0 flex size-7 cursor-pointer items-center justify-center rounded-full border border-solid backdrop-blur-sm transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[18px]!"
             data-testid="turn-hold"
             [disabled]="!turns.mayHoldCurrent()"
             [attr.aria-label]="'feature.turnOrder.holdCurrent' | transloco"
@@ -37,144 +58,280 @@
             <i class="material-icons" aria-hidden="true">pause</i>
           </button>
         </div>
-        <div class="flex items-center gap-1.5">
+        <div class="grid grid-cols-2 place-items-center gap-1">
           <button
             type="button"
-            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[17px]!"
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[17px]!"
             [disabled]="!turns.progress().canUndo"
+            [attr.aria-label]="'feature.turnOrder.retreatRound' | transloco"
             [title]="'feature.turnOrder.retreatRound' | transloco"
             (click)="turns.retreatRound()"
           >
-            <i class="material-icons">fast_rewind</i>
+            <i class="material-icons" aria-hidden="true">fast_rewind</i>
           </button>
           <button
             type="button"
-            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none [&_.material-icons]:text-[17px]!"
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none [&_.material-icons]:text-[17px]!"
+            [attr.aria-label]="'feature.turnOrder.advanceRound' | transloco"
             [title]="'feature.turnOrder.advanceRound' | transloco"
             (click)="turns.advanceRound()"
           >
-            <i class="material-icons">fast_forward</i>
+            <i class="material-icons" aria-hidden="true">fast_forward</i>
           </button>
           <button
             type="button"
-            class="hover:bg-ui-hover flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none [&_.material-icons]:text-[17px]!"
+            class="hover:bg-ui-hover m-0 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none [&_.material-icons]:text-[17px]!"
             [class.text-ui-accent]="turns.progress().buffDecay"
             [class.text-ui-dim]="!turns.progress().buffDecay"
+            [attr.aria-label]="
+              (turns.progress().buffDecay ? 'feature.turnOrder.buffDecayOn' : 'feature.turnOrder.buffDecayOff')
+                | transloco
+            "
+            [attr.aria-pressed]="turns.progress().buffDecay"
             [title]="
               (turns.progress().buffDecay ? 'feature.turnOrder.buffDecayOn' : 'feature.turnOrder.buffDecayOff')
                 | transloco
             "
             (click)="turns.toggleBuffDecay()"
           >
-            <i class="material-icons">hourglass_bottom</i>
+            <i class="material-icons" aria-hidden="true">hourglass_bottom</i>
           </button>
           <button
             type="button"
-            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[17px]!"
+            class="text-ui-muted hover:bg-ui-hover hover:text-ui-text m-0 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 drop-shadow-sm transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[17px]!"
             [disabled]="turns.progress().round === 0"
+            [attr.aria-label]="'feature.turnOrder.reset' | transloco"
             [title]="'feature.turnOrder.reset' | transloco"
             (click)="turns.reset()"
           >
-            <i class="material-icons">restart_alt</i>
+            <i class="material-icons" aria-hidden="true">restart_alt</i>
           </button>
         </div>
       </div>
     }
   </div>
 
-  @if (turns.sides().length > 0) {
-    <div class="flex flex-col items-center gap-2 p-3">
-      @for (group of turns.sides(); track group.side) {
-        <div class="flex w-full flex-col items-center gap-2">
-          <span
-            class="flex max-w-full items-center gap-1 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold drop-shadow-sm"
-            [class.bg-ui-accent-bg]="turns.currentSide() === group.side"
-            [class.text-ui-accent]="turns.currentSide() === group.side"
-            [class.text-ui-dim]="turns.currentSide() !== group.side"
-            [title]="group.name"
-          >
-            <span class="size-2 shrink-0 rounded-full" [style.background]="group.color || 'var(--ui-dim)'"></span>
-            <span class="truncate">{{ group.name }}</span>
-          </span>
-          @for (character of group.members; track character.identifier) {
-            <ng-container *ngTemplateOutlet="turnPiece; context: { $implicit: character }"></ng-container>
-          }
-        </div>
-      }
-    </div>
-  } @else {
-    <div class="flex flex-col items-center gap-2.5 p-3">
-      @for (character of turns.order(); track character.identifier) {
-        <ng-container *ngTemplateOutlet="turnPiece; context: { $implicit: character }"></ng-container>
-      } @empty {
-        <span class="text-ui-dim px-1 py-2 text-center text-[11px] drop-shadow-sm">{{
-          'feature.turnOrder.empty' | transloco
-        }}</span>
-      }
-    </div>
-  }
-
-  <ng-template #turnPiece let-character>
-    <button
-      type="button"
-      class="relative shrink-0 rounded-full border-none bg-transparent p-0 transition-transform"
-      [class.cursor-pointer]="canEdit()"
-      [class.scale-105]="turns.progress().currentIdentifier === character.identifier"
-      [class.opacity-50]="
-        turns.progress().currentIdentifier && turns.progress().currentIdentifier !== character.identifier
-      "
-      [disabled]="!canEdit()"
-      [title]="character.name"
-      (click)="turns.giveTurnTo(character.identifier)"
-    >
-      <span
-        class="bg-ui-input border-ui-border-panel ring-ui-accent shadow-ui-sm flex size-12 items-center justify-center overflow-hidden rounded-full border border-solid transition-shadow"
-        [class.ring-2]="turns.progress().currentIdentifier === character.identifier"
-        [class.shadow-[0_0_8px_var(--ui-accent-glow)]]="turns.progress().currentIdentifier === character.identifier"
+  <div class="flex shrink-0 p-2" [class.flex-col]="!across()" [class.items-center]="true">
+    @if (laid().length < 1) {
+      <span class="text-ui-dim px-1 py-2 text-center text-[11px] drop-shadow-sm">{{
+        'feature.turnOrder.empty' | transloco
+      }}</span>
+    } @else {
+      <div
+        #strip
+        class="relative shrink-0 touch-none select-none"
+        role="group"
+        data-testid="turn-pieces"
+        [attr.data-across]="across()"
+        [attr.aria-label]="'feature.turnOrder.title' | transloco"
+        [style.width.px]="across() ? laidLength() : stripWidthDown"
+        [style.height.px]="across() ? stripHeightAcross : laidLength()"
+        (pointerdown)="onPointerDown($event)"
+        (pointermove)="onPointerMove($event)"
+        (pointerup)="onPointerUp($event)"
+        (pointercancel)="onPointerCancel()"
+        (pointerleave)="onPointerLeave($event)"
+        (keydown)="onKeyDown($event)"
       >
-        @if (character.imageFile.url) {
-          <img class="size-full object-cover object-top" [src]="character.imageFile.url | safe: 'resourceUrl'" alt="" />
+        @for (one of laid(); track one.slot.key) {
+          @if (one.kind === 'heading') {
+            <span
+              class="absolute flex items-center gap-1 overflow-hidden rounded-full text-[10px] font-semibold whitespace-nowrap drop-shadow-sm"
+              [class.justify-center]="!across()"
+              [class.flex-col]="across()"
+              [class.py-1]="across()"
+              [class.px-2]="!across()"
+              [class.bg-ui-accent-bg]="one.current"
+              [class.text-ui-accent]="one.current"
+              [class.text-ui-dim]="!one.current"
+              [style.top.px]="across() ? 0 : one.slot.at"
+              [style.left.px]="across() ? one.slot.at : 0"
+              [style.width.px]="across() ? one.slot.size : stripWidthDown"
+              [style.height.px]="across() ? stripHeightAcross : one.slot.size"
+              [title]="one.name"
+            >
+              <span class="size-2 shrink-0 rounded-full" [style.background]="one.color || 'var(--ui-dim)'"></span>
+              <span class="min-w-0 truncate" [style.writing-mode]="across() ? 'vertical-rl' : null">{{
+                one.name
+              }}</span>
+            </span>
+          } @else {
+            <button
+              type="button"
+              class="pointer-events-none absolute rounded-full border-none bg-transparent p-0 outline-offset-2 duration-200 ease-out motion-reduce:transition-none"
+              [style.transition-property]="moving() ? 'top, left, width, height' : 'none'"
+              [attr.data-turn-piece]="one.piece.identifier"
+              [attr.data-current]="one.current || null"
+              [attr.data-next]="one.next || null"
+              [attr.aria-current]="one.current ? 'step' : null"
+              [attr.aria-disabled]="!canEdit() || null"
+              [attr.aria-label]="pieceLabel(one)"
+              [attr.tabindex]="tabStop() === one.piece.identifier ? 0 : -1"
+              [style.top.px]="across() ? (stripHeightAcross - one.slot.size) / 2 : one.slot.at"
+              [style.left.px]="across() ? one.slot.at : (stripWidthDown - one.slot.size) / 2"
+              [style.width.px]="one.slot.size"
+              [style.height.px]="one.slot.size"
+              [style.z-index]="one.current ? 1000 : one.order + 1"
+              (click)="give(one.piece.identifier)"
+              (focus)="onFocus(one.piece.identifier)"
+              (blur)="onBlur()"
+            >
+              <span
+                class="bg-ui-input border-ui-border-panel ring-ui-accent shadow-ui-sm flex size-full items-center justify-center overflow-hidden rounded-full border border-solid transition-shadow"
+                [class.ring-2]="one.current"
+                [class.shadow-[0_0_8px_var(--ui-accent-glow)]]="one.current"
+                [class.ring-1]="one.next && !one.current"
+                [class.ring-offset-1]="one.next && !one.current"
+                [class.opacity-60]="one.acted && !one.current"
+                [class.grayscale]="one.acted && !one.current"
+              >
+                @if (one.piece.imageFile.url) {
+                  <img
+                    class="size-full object-cover object-top"
+                    [src]="one.piece.imageFile.url | safe: 'resourceUrl'"
+                    alt=""
+                  />
+                } @else {
+                  <i class="material-icons text-ui-dim opacity-50" [style.font-size.px]="one.slot.size * 0.55"
+                    >person</i
+                  >
+                }
+              </span>
+              @if (!one.slot.covered) {
+                @if (one.companions.length > 0) {
+                  <span class="absolute -top-1 -left-1 flex -space-x-2" data-testid="turn-companions">
+                    @for (companion of one.companions; track companion.identifier) {
+                      <span
+                        class="bg-ui-input border-ui-border-panel shadow-ui-sm flex size-5 items-center justify-center overflow-hidden rounded-full border border-solid"
+                      >
+                        @if (companion.imageFile.url) {
+                          <img
+                            class="size-full object-cover object-top"
+                            [src]="companion.imageFile.url | safe: 'resourceUrl'"
+                            alt=""
+                          />
+                        } @else {
+                          <i class="material-icons text-ui-dim text-[12px]! opacity-50">person</i>
+                        }
+                      </span>
+                    }
+                  </span>
+                }
+                @if (one.acted && !one.current) {
+                  <i
+                    class="material-icons bg-ui-panel text-ui-dim absolute right-0 bottom-0 rounded-full text-[14px]!"
+                    aria-hidden="true"
+                    >check</i
+                  >
+                } @else if (one.held) {
+                  <i
+                    class="material-icons bg-ui-panel text-ui-accent absolute right-0 bottom-0 rounded-full text-[14px]!"
+                    data-testid="turn-held"
+                    aria-hidden="true"
+                    >pause</i
+                  >
+                }
+              }
+            </button>
+          }
+        }
+      </div>
+      <div
+        class="group flex shrink-0 touch-none items-center justify-center opacity-40 transition-opacity hover:opacity-100 focus-visible:opacity-100"
+        role="separator"
+        tabindex="0"
+        data-testid="turn-length"
+        [class.h-5]="!across()"
+        [class.w-full]="!across()"
+        [class.cursor-ns-resize]="!across()"
+        [class.w-5]="across()"
+        [class.self-stretch]="across()"
+        [class.cursor-ew-resize]="across()"
+        [attr.aria-orientation]="across() ? 'vertical' : 'horizontal'"
+        [attr.aria-valuenow]="lengthNow()"
+        [attr.aria-valuemin]="leastLength"
+        [attr.aria-valuemax]="mostLength()"
+        [attr.aria-label]="'feature.turnOrder.length' | transloco"
+        [title]="'feature.turnOrder.length' | transloco"
+        (pointerdown)="onLengthDown($event)"
+        (pointermove)="onLengthMove($event)"
+        (pointerup)="onLengthUp($event)"
+        (pointercancel)="onLengthUp($event)"
+        (dblclick)="resetLength()"
+        (keydown)="onLengthKey($event)"
+      >
+        <span
+          class="bg-ui-dim rounded-full"
+          [class.h-1]="!across()"
+          [class.w-6]="!across()"
+          [class.w-1]="across()"
+          [class.h-6]="across()"
+        ></span>
+      </div>
+    }
+  </div>
+
+  <div
+    #peekBox
+    class="bg-ui-panel border-ui-border-panel text-ui-text shadow-ui-md fixed flex w-max max-w-60 items-center gap-2 rounded-xl border border-solid p-2 text-[12px]"
+    data-testid="turn-peek"
+    [class.pointer-events-none]="!pinned()"
+    [attr.aria-hidden]="pinned() ? null : 'true'"
+    [hidden]="!peek()"
+    [style.left.px]="peekPlace()?.x ?? 0"
+    [style.top.px]="peekPlace()?.y ?? 0"
+    [style.transform]="peekPlace()?.transform ?? null"
+    [style.z-index]="peekLayer"
+  >
+    @if (peek(); as one) {
+      <span
+        class="bg-ui-input border-ui-border-panel flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-solid"
+        [class.ring-2]="one.current"
+        [class.ring-ui-accent]="one.current"
+      >
+        @if (one.piece.imageFile.url) {
+          <img class="size-full object-cover object-top" [src]="one.piece.imageFile.url | safe: 'resourceUrl'" alt="" />
         } @else {
           <i class="material-icons text-ui-dim text-[26px]! opacity-50">person</i>
         }
       </span>
-      @let companions = turns.companions().get(character.identifier) ?? [];
-      @if (companions.length > 0) {
-        <span class="absolute -top-1 -left-1 flex -space-x-2" data-testid="turn-companions">
-          @for (companion of companions; track companion.identifier) {
-            <span
-              class="bg-ui-input border-ui-border-panel shadow-ui-sm flex size-5 items-center justify-center overflow-hidden rounded-full border border-solid"
-              [title]="companion.name"
+      <span class="flex min-w-0 flex-col gap-0.5">
+        <span class="truncate font-semibold" data-testid="turn-peek-name">{{ names.shown(one.piece) }}</span>
+        @if (one.current) {
+          <span class="text-ui-accent text-[11px]">{{ 'feature.turnOrder.peekCurrent' | transloco }}</span>
+        } @else if (one.next) {
+          <span class="text-ui-accent text-[11px]">{{ 'feature.turnOrder.peekNext' | transloco }}</span>
+        }
+        @if (one.acted && !one.current) {
+          <span class="text-ui-dim text-[11px]">{{ 'feature.turnOrder.acted' | transloco }}</span>
+        } @else if (one.held) {
+          <span class="text-ui-dim text-[11px]">{{ 'feature.turnOrder.held' | transloco }}</span>
+        }
+        @if (one.side) {
+          <span class="text-ui-dim truncate text-[11px]">{{
+            'feature.turnOrder.peekSide' | transloco: { name: one.side }
+          }}</span>
+        }
+        @if (one.companions.length > 0) {
+          <span class="text-ui-dim truncate text-[11px]">{{
+            'feature.turnOrder.peekWith' | transloco: { names: companionNames(one) }
+          }}</span>
+        }
+        @if (canEdit() && !one.current) {
+          @if (pinned()) {
+            <button
+              type="button"
+              class="bg-ui-accent-bg text-ui-accent border-ui-accent mt-1 self-start rounded-md border border-solid px-2 py-1 text-[12px] font-semibold"
+              data-testid="turn-peek-give"
+              (click)="giveShown()"
             >
-              @if (companion.imageFile.url) {
-                <img
-                  class="size-full object-cover object-top"
-                  [src]="companion.imageFile.url | safe: 'resourceUrl'"
-                  alt=""
-                />
-              } @else {
-                <i class="material-icons text-ui-dim text-[12px]! opacity-50">person</i>
-              }
-            </span>
+              {{ 'feature.turnOrder.peekGiveNow' | transloco }}
+            </button>
+          } @else if (!peekByTouch()) {
+            <span class="text-ui-dim text-[10px]">{{ 'feature.turnOrder.peekGive' | transloco }}</span>
           }
-        </span>
-      }
-      @if (
-        turns.progress().acted.has(character.identifier) && turns.progress().currentIdentifier !== character.identifier
-      ) {
-        <i
-          class="material-icons bg-ui-panel text-ui-dim absolute right-0 bottom-0 rounded-full text-[14px]!"
-          [title]="'feature.turnOrder.acted' | transloco"
-          >check</i
-        >
-      } @else if (turns.progress().held.has(character.identifier)) {
-        <i
-          class="material-icons bg-ui-panel text-ui-accent absolute right-0 bottom-0 rounded-full text-[14px]!"
-          data-testid="turn-held"
-          [title]="'feature.turnOrder.held' | transloco"
-          >pause</i
-        >
-      }
-    </button>
-  </ng-template>
+        }
+      </span>
+    }
+  </div>
 </div>

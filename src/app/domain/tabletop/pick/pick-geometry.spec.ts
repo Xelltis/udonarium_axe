@@ -1,5 +1,11 @@
 import { TableRay } from '@axe/domain/tabletop/camera/table-camera';
-import { hitShape, insideOutline, PickPoint2 } from '@axe/domain/tabletop/pick/pick-geometry';
+import {
+  hitShape,
+  insideOutline,
+  PickDraped,
+  PickPoint2,
+  withinOutline,
+} from '@axe/domain/tabletop/pick/pick-geometry';
 
 /** Looking straight down onto a point of the board from high above it. */
 function downOnto(x: number, y: number): TableRay {
@@ -110,5 +116,52 @@ describe('pick geometry', () => {
     expect(hit.point.z).toBeCloseTo(150, 9);
     expect(hitShape(northward(150, 150), onFace)).toBeNull();
     expect(hitShape(northward(50, 250), onFace)).toBeNull();
+  });
+
+  it('meets a sheet over the ground where the line comes down onto it, read across and down its box', () => {
+    const sheet: PickDraped = {
+      kind: 'draped',
+      box: { x: 0, y: 0, width: 100, height: 100 },
+      heightAt: (x) => (x < 50 ? 10 : 40),
+      low: 9,
+      high: 41,
+    };
+
+    const hit = hitShape({ origin: { x: 75, y: 25, z: 500 }, direction: { x: 0, y: 0, z: -1 } }, sheet);
+    expect(hit?.point.z).toBeCloseTo(40, 1);
+    expect(hit?.u).toBeCloseTo(0.75);
+    expect(hit?.v).toBeCloseTo(0.25);
+
+    expect(hitShape({ origin: { x: 120, y: 50, z: 20 }, direction: { x: -1, y: 0, z: 0 } }, sheet)).toBeNull();
+  });
+
+  it('meets a sheet over the ground from an eye standing over its box, below the highest of it', () => {
+    const valley: PickDraped = {
+      kind: 'draped',
+      box: { x: 0, y: 0, width: 200, height: 100 },
+      heightAt: (x) => Math.abs(x - 100),
+      low: -1,
+      high: 101,
+    };
+    const upward = { x: 0.8, y: 0, z: 0.6 };
+
+    const hit = hitShape({ origin: { x: 100, y: 50, z: 20 }, direction: upward, from: 0 }, valley);
+
+    expect(hit?.t).toBeCloseTo(100, 3);
+    expect(hit?.point.z).toBeCloseTo(80, 3);
+    expect(hitShape({ origin: { x: 100, y: 50, z: -5 }, direction: upward, from: 0 }, valley)).toBeNull();
+  });
+
+  it('takes a point within a little of an outline’s sides as within it', () => {
+    const square = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ];
+
+    expect(withinOutline(square, 12, 5, 3)).toBe(true);
+    expect(withinOutline(square, 14, 5, 3)).toBe(false);
+    expect(withinOutline(square, 5, 5, 0)).toBe(true);
   });
 });

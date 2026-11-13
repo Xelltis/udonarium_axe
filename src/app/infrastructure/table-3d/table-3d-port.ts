@@ -1,4 +1,6 @@
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
+import type { EffectLight } from '@axe/domain/effect/effect-light';
+import type { EffectFrame, EffectGround } from '@axe/domain/effect/scene/effect-scene';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
 import type { SkyDome } from '@axe/domain/tabletop/world/sky-dome';
 import type { SkyLight } from '@axe/domain/tabletop/world/sky-light';
@@ -94,6 +96,9 @@ export interface Table3dLightMap {
   readonly darkness: number;
 }
 
+/** A light an effect throws over the table for a while, which lights the scene without throwing shadows. */
+export type Table3dEffectLight = EffectLight;
+
 /** A light the scene lights itself with, throwing shadows of its own: where it stands, how far it reaches and in what colour. */
 export type Table3dShadowLight = Pick<
   SceneLight,
@@ -153,6 +158,8 @@ export interface Table3dStats {
   readonly models: number;
   /** The rolls whose dice are on the table now. */
   readonly dice: number;
+  /** How many particles and marks on the floor the effects draw in the scene now. */
+  readonly effects: number;
   /** How many meshes the models are drawn with, the copies of a model that plays no motion sharing theirs. */
   readonly modelMeshes: number;
   /** How many times the veil has been laid anew, 0 while there is none. */
@@ -202,6 +209,10 @@ export interface Table3dEngine {
    * the scene in a storm, or stops it with null.
    */
   setWeather(weather: Table3dWeatherFall | null): void;
+  /** Draws what the effects being played draw at a moment, among the pieces and the walls. */
+  setEffects(frame: EffectFrame): void;
+  /** Lays the marks effects leave on the floor over the ground as it rises and falls, or flat with null. */
+  setEffectGround(ground: EffectGround | null): void;
   /** Puts the dice of the rolls thrown on the table where their trays lie, each as far into its throw as given. */
   setDice(throws: readonly Table3dDiceThrow[]): void;
   /** Builds the shaders of the dice of these materials ahead, so the first throw that wears one does not wait for them. */
@@ -225,6 +236,11 @@ export interface Table3dEngine {
   /** Brightens and dims the lights the scene lights itself with as they flicker at a moment, in milliseconds. */
   flicker(timeMs: number): void;
   /**
+   * Lights the scene with the lights effects throw over the table now, as many as it has room for,
+   * without shadows, over the lamps and the sky; none takes them all away.
+   */
+  setEffectLights(lights: readonly Table3dEffectLight[]): void;
+  /**
    * Adds the glow of a dark table's lamps, in their colours, as the page draws it on a canvas of its
    * own, or takes it away with null.
    */
@@ -244,6 +260,18 @@ export interface Table3dEngine {
   onNeedsFrame(listener: () => void): void;
   /** Whether the engine is still loading something it was told to draw, or holds something back to draw a moment later. */
   isLoading(): boolean;
+  /**
+   * How long, in milliseconds all told, the scene has stood still on the screen while the engine
+   * readied the graphics card for something new in it, drawing nothing, or took long over a frame,
+   * as on first drawing such a thing without readying it.
+   */
+  heldMs(): number;
+  /**
+   * The face a point of the page lands on first of the models drawn as copies of their own: the piece
+   * it is drawn for, the mesh by its order in the model and the triangle by its order in the mesh;
+   * null where it lands on none.
+   */
+  modelFaceAt(pageX: number, pageY: number): { owner: string; mesh: number; triangle: number } | null;
   /** Draws at once on the next frame what it holds back to draw a moment later, as the shadows of pieces that moved. */
   stopHoldingBack(): void;
   /**
@@ -276,4 +304,66 @@ export interface Table3dEngineOptions {
 /** The module the engine is made in, which the page loads only once the table is to be drawn on a canvas. */
 export interface Table3dEngineModule {
   createTable3dEngine(canvas: HTMLCanvasElement, options: Table3dEngineOptions): Promise<Table3dEngine>;
+}
+
+/** A figure standing on a small stage an effect is played on, in table pixels from its middle. */
+export interface EffectStageFigure {
+  readonly x: number;
+  readonly y: number;
+  /** Whether it is drawn faint, as the one an aimed effect is fired from. */
+  readonly dim: boolean;
+}
+
+/** How a small stage an effect is played on is laid out: its board, in cells, and who stands on it. */
+export interface EffectStageOptions {
+  readonly cellPx: number;
+  readonly across: number;
+  readonly down: number;
+  readonly figures: readonly EffectStageFigure[];
+  /** How much further off the camera stands than to fit the board, for a larger effect. */
+  readonly zoomOut?: number;
+}
+
+/** A small stage apart from the table that an effect is played on, as an editor previews it. */
+export interface EffectStage {
+  /** Draws what the effect draws at a moment. */
+  show(frame: EffectFrame): void;
+  /** Fits the drawing to the canvas as it is laid out now. */
+  resize(): void;
+  /** Stands the camera this much further off than to fit the board, for a larger effect to stay in sight. */
+  zoom(out: number): void;
+  dispose(): void;
+}
+
+/**
+ * How a floor the page draws itself in 3D is seen, for effects drawn over it to stand where it does:
+ * the floor tipped away about its own origin and grown, seen through the perspective of the box the
+ * canvas fills, from the middle of that box.
+ */
+export interface EffectOverlayView {
+  /** How large the canvas is laid out, in pixels of the page. */
+  readonly width: number;
+  readonly height: number;
+  /** How far the eye is from the page, as the box's perspective says. */
+  readonly perspectivePx: number;
+  /** Where the floor's origin is, from the canvas's top left. */
+  readonly originX: number;
+  readonly originY: number;
+  /** How much the floor is grown. */
+  readonly scale: number;
+  /** How far the floor is tipped away from facing the eye, in degrees. */
+  readonly tiltDeg: number;
+}
+
+/** A see-through canvas over a floor the page draws, that effects are drawn on as if on that floor. */
+export interface EffectOverlay {
+  /** Draws what the effects draw at a moment, as the floor is seen now. */
+  show(frame: EffectFrame, view: EffectOverlayView): void;
+  dispose(): void;
+}
+
+/** What the module that makes small stages gives, loaded only once something asks for one. */
+export interface EffectStageModule {
+  createEffectStage(canvas: HTMLCanvasElement, options: EffectStageOptions): Promise<EffectStage | null>;
+  createEffectOverlay(canvas: HTMLCanvasElement): Promise<EffectOverlay | null>;
 }

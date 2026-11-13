@@ -90,16 +90,43 @@
                 }}</span>
                 @if (turn.sideName) {
                   <span
-                    class="rounded-ui-sm bg-ui-accent-bg text-ui-accent shrink-0 truncate px-1.5 py-0.5 text-[11px] font-semibold"
+                    class="rounded-ui-sm bg-ui-accent-bg text-ui-accent max-w-20 min-w-0 shrink truncate px-1.5 py-0.5 text-[11px] font-semibold"
                     >{{ turn.sideName }}</span
                   >
                 }
                 @if (turn.statusKey) {
                   <span class="truncate">{{ turn.statusKey | transloco }}</span>
+                } @else if (turnPieceOnTable()) {
+                  <button
+                    type="button"
+                    class="text-ui-text hover:text-ui-accent w-24 shrink-0 cursor-pointer truncate border-none bg-transparent p-0 text-left font-semibold underline-offset-2 transition-colors hover:underline"
+                    data-testid="pl-turn-focus"
+                    [attr.aria-label]="'feature.plTools.turn.focus' | transloco: { name: turn.name }"
+                    [title]="'feature.plTools.turn.focus' | transloco: { name: turn.name }"
+                    (click)="focusTurnPiece()"
+                  >
+                    {{ turn.name }}
+                  </button>
                 } @else {
-                  <span class="text-ui-text truncate font-semibold">{{ turn.name }}</span>
+                  <span class="text-ui-text w-24 shrink-0 truncate font-semibold">{{ turn.name }}</span>
                 }
               </span>
+              <!-- Its room is kept while it is another's turn, so the bar does not shift as turns pass. -->
+              <button
+                type="button"
+                class="bg-ui-accent-solid shadow-ui-sm inline-flex h-7 shrink-0 cursor-pointer items-center gap-0.5 rounded-full border-none pr-1.5 pl-2.5 text-[12px] font-semibold whitespace-nowrap text-white transition-opacity hover:opacity-85 [&_.material-icons]:text-[16px]!"
+                data-testid="pl-turn-next"
+                [class.invisible]="!ownTurn()"
+                [disabled]="!ownTurn()"
+                [attr.aria-hidden]="ownTurn() ? null : 'true'"
+                [attr.aria-label]="'feature.plTools.turn.nextHint' | transloco"
+                [title]="'feature.plTools.turn.nextHint' | transloco"
+                [attr.data-guide-label]="ownTurn() ? ('feature.plTools.turn.nextHint' | transloco) : null"
+                (click)="passTurn()"
+              >
+                {{ 'feature.plTools.turn.next' | transloco }}
+                <i class="material-icons" aria-hidden="true">chevron_right</i>
+              </button>
             }
           }
           @case ('activeCharacter') {

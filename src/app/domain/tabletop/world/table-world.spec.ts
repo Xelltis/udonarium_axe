@@ -1,6 +1,6 @@
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
-import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { FLAT_GROUND, type GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
+import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import {
   boardShapeOf,

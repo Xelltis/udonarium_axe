@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { EffectReactionService } from '@axe/application/effect/effect-reaction.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -17,6 +18,7 @@ import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import type { EffectJolt } from '@axe/domain/effect/effect-reaction';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -152,6 +154,36 @@ describe('TablePiecesService', () => {
     pond.iceCover = 0;
     await Promise.resolve();
     expect(pieces.footOf(die)).toEqual({ surface: 'floor', x: 100, y: 200, height: 0 });
+  });
+
+  it('draws a part of another piece as its body alone, takes it away with the body, and draws it as itself left alone', async () => {
+    const dragon = GameCharacter.create('ドラゴン', 3, '');
+    dragon.location = { name: 'table', x: 100, y: 200 };
+    const head = GameCharacter.create('頭', 1, '');
+    head.location = { name: 'table', x: 100, y: 200 };
+    head.ridingOn = dragon.identifier;
+    head.rideSeat = 'part';
+    for (const piece of [dragon, head]) {
+      TestBed.inject(PiecePicturesService).show(piece.identifier, { url: 'blob:pedestal', widthPx: 50, heightPx: 50 });
+    }
+    const owners = () => new Set(pieces.sprites().map((sprite) => sprite.owner));
+
+    try {
+      expect(owners().has(dragon.identifier)).toBe(true);
+      expect(owners().has(head.identifier)).toBe(false);
+
+      dragon.setLocation('graveyard');
+      await Promise.resolve();
+      expect(head.location.name).toBe('graveyard');
+      expect(owners().has(head.identifier)).toBe(false);
+
+      head.setLocation('table');
+      await Promise.resolve();
+      expect(owners().has(head.identifier)).toBe(true);
+    } finally {
+      head.destroy();
+      dragon.destroy();
+    }
   });
 
   it('draws a die this seat is moving where it is being moved to', () => {
@@ -507,6 +539,33 @@ describe('TablePiecesService', () => {
     expect(pieces.sprites()).toMatchObject([{ id: `${range.identifier}#picture`, centre: { x: 100, y: 200 } }]);
   });
 
+  it('lays a range on the floor over the raised ground, flat while it is moved onto a block, and over the ground again when moved off one', () => {
+    TestBed.inject(GroundService).dab({ kind: 'raise', x: 2.5, y: 4.5, radius: 3, strength: 1 });
+    const range = RangeArea.create('range', 1, 3, 0.5);
+    range.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(PiecePicturesService).show(range.identifier, {
+      url: 'blob:cells',
+      widthPx: 300,
+      heightPx: 200,
+      offsetX: -150,
+      offsetY: -100,
+    });
+    const transient = TestBed.inject(TransientPlacementService);
+    const drapes = () => pieces.sprites().find((sprite) => sprite.owner === range.identifier)?.drapes;
+
+    expect(drapes()).toBeDefined();
+
+    transient.place(range.identifier, { surface: 'floor', x: 100, y: 200, z: gridSize });
+    expect(drapes()).toBeUndefined();
+
+    transient.release(range.identifier);
+    range.posZ = gridSize;
+    expect(drapes()).toBeUndefined();
+
+    transient.place(range.identifier, { surface: 'floor', x: 100, y: 200, z: 0 });
+    expect(drapes()).toBeDefined();
+  });
+
   it('stands a white board where its face is, from the picture the page takes of what it wears', () => {
     const board = WhiteBoard.create('board', 4, 2, 1);
     board.location = { name: 'table', x: 100, y: 200 };
@@ -541,6 +600,17 @@ describe('TablePiecesService', () => {
     if (picture.facing === 'eye') return;
     expect(picture.facing.across.x).toBeCloseTo(0, 6);
     expect(picture.facing.across.y).toBeCloseTo(1, 6);
+  });
+
+  it('draws a piece an effect strikes off where it stands for a moment, and where it stands once it is not', () => {
+    const die = dieAt(100, 200);
+    const jolts = signal<ReadonlyMap<string, EffectJolt>>(new Map([[die.identifier, { x: 6, y: -4, z: 0 }]]));
+    Object.defineProperty(TestBed.inject(EffectReactionService), 'jolts', { value: jolts });
+
+    expect(pieces.sprites()[0].centre).toEqual({ x: 131, y: 221, z: 1 });
+
+    jolts.set(new Map());
+    expect(pieces.sprites()[0].centre).toEqual({ x: 125, y: 225, z: 1 });
   });
 
   it('turns a flipping coin over from the side it starts on, whichever it is to land on', () => {

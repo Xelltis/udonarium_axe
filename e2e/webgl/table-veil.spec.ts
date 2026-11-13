@@ -15,7 +15,7 @@ type Hooks = {
   whenIdle(): Promise<void>;
   project(x: number, y: number, z: number): Point | null;
   pickAt(pageX: number, pageY: number): string | null;
-  sceneStats(): { veilRevision: number } | null;
+  sceneStats(): { lightMapRevision: number } | null;
 };
 
 async function idle(page: Page) {
@@ -87,7 +87,7 @@ test.describe('the darkness over a table drawn on a canvas', () => {
     await page.locator('app-gm-toolbar [title^="暗闇"]').click();
     await expect
       .poll(() =>
-        page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.veilRevision)
+        page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.lightMapRevision)
       )
       .toBeGreaterThan(0);
     await expect(page.locator('table-vision-overlay canvas')).toHaveClass(/invisible/);

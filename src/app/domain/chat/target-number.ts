@@ -1,8 +1,10 @@
+import { toHalfWidth } from '@axe/core/util/string-util';
+import { SAID_HIDDEN_NAME } from '@axe/domain/character/hidden-name';
 import type { ChatMessage } from '@axe/domain/chat/chat-message';
 import type { ChatTab } from '@axe/domain/chat/chat-tab';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { rollTargetSuffix } from '@axe/domain/dice/roll-target-suffix';
-import { canRoleEdit, type PeerRole } from '@axe/domain/peer/peer-role';
+import { canRoleEdit, PeerRole } from '@axe/domain/peer/peer-role';
 
 /**
  * The reference a line fills in with the number it has to beat: what was last rolled against the
@@ -18,6 +20,11 @@ const HOLDS_TARGET_NUMBER = new RegExp(TARGET_NUMBER_PATTERN.source);
 export interface TargetNumberSpeaker {
   identifier: string;
   name: string;
+  /**
+   * The speaker's own name where the room is told another, as a piece whose name is hidden is: what
+   * an answer of an earlier version, keeping nobody it was rolled at, named it after the roll.
+   */
+  ownName?: string;
 }
 
 /** Whether a reference, its braces taken off, is the one filled in with the number to beat. */
@@ -54,19 +61,84 @@ export function rollTotalOf(text: string): number | null {
 }
 
 /**
+ * What may not follow a number to beat written out, for it to be read as one: more figures, a counter,
+ * a sum, a decimal, or a range running on to another number.
+ */
+const NOT_ALONE_AFTER = String.raw`(?![0-9０-９]|[倍つ個回人点体枚割分dDｄＤ]|\s*[+＋\-－−×*/／÷xXｘＸ＊]\s*[0-9０-９(（{｛]|[+＋\-－−×*÷ｘＸ＊]\p{L}|[.．][0-9０-９]|\s*[〜～~ー‐–—]\s*[0-9０-９]|\s*から\s*[0-9０-９])`;
+
+/**
+ * A number to beat written out in so many words, as `探索判定：目標値13` writes 13: what follows the
+ * word, after a colon, an equals sign or a は, in figures of either width, words after it or not. A
+ * reference to the number in braces, `{目標値}`, writes none, and nor does a number a counter
+ * follows right after, as `目標値2倍` and `目標値3つ` do, nor one worked on or running to another,
+ * as `目標値10+2`, `目標値10+{修正}`, `目標値12／2`, `目標値13〜15`, `目標値13ー15` and
+ * `目標値13から15` are, the marks a Japanese keyboard writes among them. A slash before words, as in
+ * `目標値12／成功で情報`, only parts it from what follows. A percent after it is the number itself,
+ * as a percentile roll writes it. A number put right with an arrow, as `目標値13→15に修正` puts it,
+ * is read as the one the arrow points to; see {@link CORRECTED_PATTERN}.
+ */
+const PRESENTED_PATTERN = new RegExp(
+  String.raw`(?<![{｛])目標値\s*[:：=＝は]?\s*([0-9０-９]+)` + NOT_ALONE_AFTER,
+  'gu'
+);
+
+/**
+ * An arrow and the number a number to beat is put right to, as `→15` follows `目標値13`: one read as
+ * a number to beat is, so that `目標値13→2d6ダメージ` puts nothing right.
+ */
+const CORRECTED_PATTERN = new RegExp(String.raw`\s*(?:→|⇒|➡\uFE0F?|->|=>)\s*([0-9０-９]+)` + NOT_ALONE_AFTER, 'uy');
+
+/** The number written at `at` and on, or the last one it is put right to with arrows after it. */
+function correctedOf(text: string, at: number, written: string): string {
+  let number = written;
+  CORRECTED_PATTERN.lastIndex = at;
+  for (let arrow = CORRECTED_PATTERN.exec(text); arrow; arrow = CORRECTED_PATTERN.exec(text)) number = arrow[1];
+  return number;
+}
+
+/**
+ * The number to beat a line that is not a roll writes out in so many words (see
+ * {@link PRESENTED_PATTERN}), where it writes out one: a line naming two different numbers, as one
+ * setting two checks at once does, names none to be read as its. Null for a line that names none.
+ */
+export function presentedTotalOf(text: string): number | null {
+  // Most lines say nothing of a number to beat, and are passed over before the pattern is run.
+  if (!text.includes(TARGET_NUMBER_REFERENCE)) return null;
+  let found: number | null = null;
+  for (const matched of text.matchAll(PRESENTED_PATTERN)) {
+    const total = Number(toHalfWidth(correctedOf(text, matched.index + matched[0].length, matched[1])));
+    if (found != null && found !== total) return null;
+    found = total;
+  }
+  return found;
+}
+
+/**
+ * What a line comes to as a number to beat: what a dice bot's answer came to, or the number another
+ * line writes out (see {@link presentedTotalOf}). Null for a line that comes to none.
+ */
+export function totalOfLine(message: ChatMessage): number | null {
+  const text = `${message.text ?? ''}`;
+  return message.isDicebot ? rollTotalOf(text) : presentedTotalOf(text);
+}
+
+/**
  * The number to beat for a speaker in a tab: the newest answer rolled at them with `t:`, or else
  * the answer set as the tab's number to beat where it is newer, or else the newest one rolled at
- * nobody by someone else. An answer kept secret, or one they may not see, is passed over, and so is
- * one rolled at somebody else, which is that one's number to beat, and one to a line that beat a
- * number of its own, as a resistance does, which is nobody's number to beat. Null where none is
- * found.
+ * nobody by someone else, or written out by a game master (see {@link presentedTotalOf}), whichever
+ * came last. An answer kept secret, or one they may not see, is passed over, and so is one rolled at
+ * somebody else, which is that one's number to beat, and one to a line that beat a number of its own,
+ * as a resistance does, which is nobody's number to beat. Null where none is found.
  */
 export function findTargetNumber(tab: ChatTab, speaker: TargetNumberSpeaker): number | null {
   return findTargetNumberSource(tab, speaker)?.total ?? null;
 }
 
-/** Where the number to beat was found: rolled at the speaker, set as the tab's, or rolled at nobody by someone else. */
-export type TargetNumberFrom = 'aimed' | 'pinned' | 'byOthers';
+/**
+ * Where the number to beat was found: rolled at the speaker, set as the tab's, rolled at nobody by
+ * someone else, or written out by a game master.
+ */
+export type TargetNumberFrom = 'aimed' | 'pinned' | 'byOthers' | 'presented';
 
 /** The number to beat for a speaker, with the answer it was read from and how that answer was found. */
 export interface TargetNumberSource {
@@ -78,20 +150,49 @@ export interface TargetNumberSource {
 /** The number to beat for a speaker in a tab, with where it was found; see {@link findTargetNumber}. */
 export function findTargetNumberSource(tab: ChatTab, speaker: TargetNumberSpeaker): TargetNumberSource | null {
   const aims = aimsAt(speaker.name);
+  const aimsOfOld = speaker.ownName && speaker.ownName !== speaker.name ? [...aims, ...aimsAt(speaker.ownName)] : aims;
+  const aimsAtHidden = aimsAt(SAID_HIDDEN_NAME);
   const pinned = `${tab.pinnedTargetNumber ?? ''}`;
   const messages = tab.chatMessages;
   let byOthers: TargetNumberSource | null = null;
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index];
-    if (!message.isDicebot || message.isSecret || !message.isDisplayable) continue;
+    if (message.isSecret || !message.isShownInChat) continue;
+    if (!message.isDicebot) {
+      const total = presentedTotalOf(`${message.text ?? ''}`);
+      if (total == null) continue;
+      if (pinned.length > 0 && message.identifier === pinned) return { total, answer: message, from: 'pinned' };
+      if (byOthers == null && presentedByGameMaster(message, speaker)) {
+        byOthers = { total, answer: message, from: 'presented' };
+      }
+      continue;
+    }
     const text = `${message.text ?? ''}`.trimEnd();
     const total = rollTotalOf(text);
     if (total == null) continue;
-    if (aims.some((aim) => text.endsWith(aim)) || aimedAmong(tab, message, speaker)) {
-      return { total, answer: message, from: 'aimed' };
-    }
+    // An answer to a line aimed at everyone at once is read by whom the line was aimed at alone, and
+    // one that keeps whom it was rolled at by that, where the name after it, if any, is the piece's by
+    // either name it may have gone by, its own or the label for a hidden one, as its name may have
+    // been hidden or shown since: two pieces whose names are hidden show the same label in their
+    // brackets. One keeping neither, as an earlier version's, is read by the name after it, the
+    // speaker's own among them.
+    const together = aimedTogetherOf(tab, message);
+    const rolledAt = `${message.rolledAt ?? ''}`;
+    const named = (names: readonly string[]) => names.some((aim) => text.endsWith(aim));
+    const aimedHere = together
+      ? speaker.identifier.length > 0 && together.includes(speaker.identifier)
+      : rolledAt.length > 0
+        ? rolledAt === speaker.identifier && (named(aimsOfOld) || named(aimsAtHidden) || aimOf(text) == null)
+        : named(aimsOfOld);
+    if (aimedHere) return { total, answer: message, from: 'aimed' };
     if (pinned.length > 0 && message.identifier === pinned) return { total, answer: message, from: 'pinned' };
-    if (byOthers == null && aimOf(text) == null && !rolledBy(tab, message, speaker) && !answeredOne(tab, message)) {
+    if (
+      byOthers == null &&
+      rolledAt.length < 1 &&
+      aimOf(text) == null &&
+      !rolledBy(tab, message, speaker) &&
+      !answeredOne(tab, message)
+    ) {
       byOthers = { total, answer: message, from: 'byOthers' };
     }
   }
@@ -99,11 +200,11 @@ export function findTargetNumberSource(tab: ChatTab, speaker: TargetNumberSpeake
 }
 
 /**
- * Whether a line is an answer that may be set as its tab's number to beat: a roll shown to all,
- * neither kept secret nor whispered, that comes to a number.
+ * Whether a line may be set as its tab's number to beat: one shown to all, neither kept secret nor
+ * whispered, that comes to a number, a roll or a line writing one out (see {@link totalOfLine}).
  */
 export function canPinAsTargetNumber(message: ChatMessage): boolean {
-  return message.isDicebot && !message.isSecret && !message.isDirect && rollTotalOf(`${message.text ?? ''}`) != null;
+  return !message.isSecret && !message.isDirect && totalOfLine(message) != null;
 }
 
 /**
@@ -137,8 +238,8 @@ export function targetNumberChoices(tab: ChatTab, count: number): TargetNumberCh
 
 /** An answer as a number to beat a reader may pick, where it is one they may see that could be set as the tab's; null otherwise. */
 export function targetNumberChoiceOf(answer: ChatMessage): TargetNumberChoice | null {
-  if (!answer.isDisplayable || !canPinAsTargetNumber(answer)) return null;
-  const total = rollTotalOf(`${answer.text ?? ''}`);
+  if (!answer.isShownInChat || !canPinAsTargetNumber(answer)) return null;
+  const total = totalOfLine(answer);
   return total == null ? null : { total, answer };
 }
 
@@ -175,14 +276,19 @@ function aimsAt(name: string): string[] {
 }
 
 /**
- * Whether an answer was rolled at the speaker among everyone a line was aimed at all at once, as
- * `t:範囲` aims it: the line it answers keeps who they were, the names after the answer being only
- * what fitted in its brackets.
+ * Whom an answer was rolled at among everyone a line was aimed at all at once, as `t:範囲` aims it,
+ * one of them or many: the line it answers keeps who they were, the names after the answer being
+ * only what fitted in its brackets. Null for an answer to any other line.
  */
-function aimedAmong(tab: ChatTab, answer: ChatMessage, speaker: TargetNumberSpeaker): boolean {
-  if (speaker.identifier.length < 1) return false;
+function aimedTogetherOf(tab: ChatTab, answer: ChatMessage): string[] | null {
   const line = tab.findRollSource(answer);
-  return line != null && aimedTogetherAt(line).includes(speaker.identifier);
+  if (line == null || `${line.aimedTogether ?? ''}`.length < 1) return null;
+  return aimedTogetherAt(line);
+}
+
+/** The identifiers of the pieces a line was aimed at all at once; none for no line, any other line, or a list that cannot be read. */
+export function aimedTogetherIdentifiers(line: ChatMessage | null): string[] {
+  return line ? aimedTogetherAt(line) : [];
 }
 
 /** The identifiers of the pieces a line was aimed at all at once; none for any other line, or a list that cannot be read. */
@@ -213,9 +319,30 @@ function answeredOne(tab: ChatTab, answer: ChatMessage): boolean {
   return tab.findRollSource(answer)?.answersTargetNumber === '1';
 }
 
+/**
+ * Whether a line writing out a number to beat was set by a game master: one a master wrote for
+ * whoever sets it off to say, as a switch's line is, which is the number to beat for anybody, the one
+ * who pressed it most of all; or one a master said, as they were when they said it, and not by the
+ * speaker. A line of a room that never wrote down who said it is nobody's.
+ */
+function presentedByGameMaster(message: ChatMessage, speaker: TargetNumberSpeaker): boolean {
+  if (`${message.mastersWords ?? ''}` === '1') return true;
+  return message.senderRole === PeerRole.GameMaster && !saidBy(message, speaker);
+}
+
 /** Whether the speaker said the line an answer answers. */
 function rolledBy(tab: ChatTab, answer: ChatMessage, speaker: TargetNumberSpeaker): boolean {
   const source = tab.findRollSource(answer);
-  if (source) return source.sendFrom === speaker.identifier;
+  if (source) return saidBy(source, speaker);
   return answer.name === `<BCDice：${speaker.name}>`;
+}
+
+/**
+ * Whether the speaker said a line: as the piece it is, or, for a named thing, which is no piece and
+ * says its lines as nobody, by its name, so that one named thing's lines are not taken for another's.
+ */
+function saidBy(line: ChatMessage, speaker: TargetNumberSpeaker): boolean {
+  const sendFrom = `${line.sendFrom ?? ''}`;
+  if (speaker.identifier.length > 0) return sendFrom === speaker.identifier;
+  return sendFrom.length < 1 && `${line.name ?? ''}` === speaker.name;
 }

@@ -10,6 +10,8 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { EffectFrameService } from '@axe/application/effect/effect-frame.service';
+import { EffectLightService } from '@axe/application/effect/effect-light.service';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
@@ -35,6 +37,8 @@ import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-acceleration';
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
+import { effectGroundOf } from '@axe/domain/effect/scene/effect-ground';
+import { EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
 import { dayFractionOf } from '@axe/domain/game-clock/game-clock';
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import { type DoorMotion, movedByDoor, openDoorMotion } from '@axe/domain/tabletop/door-motion';
@@ -136,6 +140,8 @@ export class Table3dService {
   private readonly floorCanvases = inject(FloorCanvasesService);
   private readonly tableVeil = inject(TableVeilService);
   private readonly lightSlots = inject(LightSlotsService);
+  private readonly effectLights = inject(EffectLightService);
+  private readonly effectFrames = inject(EffectFrameService);
   private readonly flickerClock = inject(LightFlickerClockService);
   private readonly bundledModels = inject(BundledModelsService);
   private readonly quality = inject(Table3dQualityService);
@@ -252,6 +258,25 @@ export class Table3dService {
     },
     { equal: sameTableWorld }
   );
+
+  /** Whether any effect is drawn in the scene, which changes only as the first begins and the last ends. */
+  private readonly drawingEffects = computed(() => this.effectFrames.frame() !== EMPTY_EFFECT_FRAME);
+
+  /** How large the board is, which tells only as it grows or shrinks, not as anything on the table changes. */
+  private readonly boardSize = computed(
+    () => {
+      const table = this.tabletop.currentTableVersion();
+      const gridSize = table.gridSize > 0 ? table.gridSize : 50;
+      return { widthPx: table.width * gridSize, depthPx: table.height * gridSize, gridSize };
+    },
+    { equal: (a, b) => a.widthPx === b.widthPx && a.depthPx === b.depthPx && a.gridSize === b.gridSize }
+  );
+
+  /** The heights of the ground under the board, for the marks effects leave on the floor to lie over. */
+  private readonly effectGround = computed(() => {
+    const board = this.boardSize();
+    return effectGroundOf(this.standing.surface(), board.widthPx, board.depthPx, board.gridSize);
+  });
 
   /**
    * The blocks this seat may see that are drawn as 3D models held here in full: each stood on the
@@ -510,6 +535,23 @@ export class Table3dService {
     this.drawSoon(engine);
   }
 
+  /**
+   * How long, in milliseconds all told, the scene on the canvas has stood still on the screen while
+   * the graphics card was readied for something new in it or a frame took long: what is handed to
+   * it meanwhile is not seen to move.
+   */
+  heldMs(): number {
+    return this.engine?.heldMs() ?? 0;
+  }
+
+  /**
+   * The face of a model drawn as a copy of its own a point of the page lands on first, as the engine
+   * finds it; null where it lands on none, or before the engine has started.
+   */
+  modelFaceAt(pageX: number, pageY: number): { owner: string; mesh: number; triangle: number } | null {
+    return this.engine?.modelFaceAt(pageX, pageY) ?? null;
+  }
+
   /** Has the shaders of the dice of these materials built ahead, now or once the engine has started. */
   warmDice(materials: readonly DiceMaterial[]): void {
     const fresh = materials.filter((material) => !this.diceWarmed.has(material));
@@ -757,6 +799,30 @@ export class Table3dService {
         () => {
           engine.setGlow(this.tableVeil.glow());
           this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
+          engine.setEffectLights(this.effectLights.lights());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
+          engine.setEffects(this.effectFrames.frame());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
+          // Read only while an effect is drawn, as the heights are read over the whole board, which
+          // shaping the ground with the brush would have done at every dab; and handed over once as
+          // effects begin to be drawn, not with every frame of them.
+          if (!this.drawingEffects()) return;
+          engine.setEffectGround(this.effectGround());
         },
         { injector: this.injector }
       ),

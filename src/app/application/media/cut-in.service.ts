@@ -3,6 +3,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { readCutInChatTail } from '@axe/domain/media/cut-in-chat-tail';
@@ -51,7 +52,7 @@ export class CutInService {
   speakerOf(message: ChatMessage): CutInSpeaker {
     const speaker = this.objectStore.get(message.sendFrom);
     const isCharacter = speaker instanceof GameCharacter;
-    const name = isCharacter || speaker instanceof PeerCursor ? speaker.name : message.name;
+    const name = isCharacter ? saidNameOf(speaker) : speaker instanceof PeerCursor ? speaker.name : message.name;
     const imageIdentifier = message.imageIdentifier ?? '';
     return {
       characterId: isCharacter ? speaker.identifier : '',

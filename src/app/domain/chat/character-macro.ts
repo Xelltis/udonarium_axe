@@ -1,4 +1,6 @@
+import { aimedAtBonusesOf } from '@axe/domain/character/aimed-at-buff';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import {
   aimsAtOnce,
@@ -41,12 +43,25 @@ export interface AimedLine {
   attachmentImageIdentifiers: string[];
 }
 
-/** Reads how a line is aimed; see {@link AimedLine}. */
-export function aimLine(line: string, speaker: GameCharacter | null): AimedLine {
-  const filled = /[{｛]/.test(line)
+/**
+ * Reads how a line is aimed; see {@link AimedLine}. The speaker's references named in
+ * `leftForTargets` are left for each target to fill in, with what its buffs give whoever aims at it
+ * (see {@link aimedAtNamesOf}).
+ */
+export function aimLine(
+  line: string,
+  speaker: GameCharacter | null,
+  leftForTargets: ReadonlySet<string> = new Set()
+): AimedLine {
+  const holdsReference = /[{｛]/.test(line);
+  const whole = holdsReference
     ? evaluateCharacterReferences(line, speaker, undefined, 'always')
     : { text: line, attachmentImageIdentifiers: [] };
-  const targeted = textTargetsCharacter(line) || textTargetsCharacter(filled.text);
+  const filled =
+    holdsReference && leftForTargets.size > 0
+      ? evaluateCharacterReferences(line, speaker, undefined, 'always', leftForTargets)
+      : whole;
+  const targeted = textTargetsCharacter(line) || textTargetsCharacter(whole.text);
   const said = targeted ? withoutAimMarks(filled.text) : filled.text;
   return {
     targeted,
@@ -58,11 +73,24 @@ export function aimLine(line: string, speaker: GameCharacter | null): AimedLine 
 }
 
 /**
+ * The names of the speaker's references that the buffs of any of the pieces marked give whoever aims
+ * at them something for, `相手の物理特攻+2` naming 物理特攻: left for each of them to fill in.
+ */
+export function aimedAtNamesOf(targets: readonly GameCharacter[]): Set<string> {
+  const names = new Set<string>();
+  for (const target of targets) {
+    for (const name of aimedAtBonusesOf(target.buffs.list()).keys()) names.add(name);
+  }
+  return names;
+}
+
+/**
  * What a line aimed at the pieces marked says, and what goes to each of them: the line filled in
  * once for each, its name after it, and from the second onwards with the commands acting on the
  * speaker taken out, or the speaker would be acted on once per target. A line aimed at them all at
  * once is said once, filled in against the first of them, with all their names after it, and goes
- * to each of them as the one line, to be rolled once for them all.
+ * to each of them as the one line, to be rolled once for them all. A piece whose name is hidden is
+ * named as {@link saidNameOf} names it, as everyone reads the line.
  */
 export function aimedAt(
   aimed: AimedLine,
@@ -71,7 +99,7 @@ export function aimedAt(
 ): { text: string; contexts: ChatMessageTargetContext[] } {
   if (aimed.atOnce && targets.length > 0) {
     const said = fill(aimed.filled, targets[0]);
-    const together = targets.map((target) => target.name);
+    const together = targets.map((target) => saidNameOf(target));
     const contexts = targets.map((target, index) => ({
       text: index === 0 ? said : fill(aimed.repeated, target),
       object: target,
@@ -83,7 +111,7 @@ export function aimedAt(
   const contexts: ChatMessageTargetContext[] = [];
   targets.forEach((target, index) => {
     const filled = fill(index === 0 ? aimed.filled : aimed.repeated, target);
-    lines.push(`${filled} [${target.name}]`);
+    lines.push(`${filled} [${saidNameOf(target)}]`);
     contexts.push({ text: filled, object: target });
   });
   return { text: lines.join('\n'), contexts };
@@ -117,7 +145,7 @@ export function buildMacroMessage(
       ? palette.evaluateWithAttachments(text, character.rootDataElement ?? undefined, target)
       : evaluateCharacterReferences(text, character, target);
 
-  const aimed = aimLine(line, character);
+  const aimed = aimLine(line, character, aimedAtNamesOf(targets));
   if (!aimed.targeted) {
     const evaluated = evaluate(line);
     collect(evaluated.attachmentImageIdentifiers);

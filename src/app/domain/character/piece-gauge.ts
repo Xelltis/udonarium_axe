@@ -22,15 +22,64 @@ const LOW_THRESHOLD = 0.25;
 /** What stands in for the numbers beside a bar nobody may read. */
 export const HIDDEN_GAUGE_NUMBERS = '???/???';
 
+/** The colour a bar kept from the reader stands in, full: how much is left is not to be told. */
+export const HIDDEN_GAUGE_COLOR = '#9e9e9e';
+
 /**
- * The numbers beside a bar, or marks where the piece is not the reader's to look at.
- *
- * The bar itself is left as it is. How full it stands can be guessed at from across the
- * table, and a bar that told nothing would not be worth drawing; what is kept back is the
- * reading of it, which is the part that can be written down and counted on.
+ * How a bar kept from the reader is filled on the page: slanting stripes of its grey, so it does not
+ * read as a resource standing full.
  */
-export function gaugeNumbersOf(gauge: PieceGauge, readable: boolean): string {
-  return readable ? `${gauge.current}/${gauge.max}` : HIDDEN_GAUGE_NUMBERS;
+export const HIDDEN_GAUGE_STRIPES = `repeating-linear-gradient(135deg, ${HIDDEN_GAUGE_COLOR} 0 0.3em, #6b6b6b 0.3em 0.6em)`;
+
+/**
+ * Whether a resource has run out: down to nothing, or for one that counts up to its end, at its
+ * maximum. One counting up with no maximum above nothing, as a bar left without one reads, never runs
+ * out. A piece whose resource has run out is beaten, and what it held is no longer kept back.
+ */
+export function isGaugeSpent(current: number, max: number, inverted: boolean): boolean {
+  return inverted ? max > 0 && current >= max : current <= 0;
+}
+
+/**
+ * Whether a resource set to a value has run out, as {@link isGaugeSpent} judges it: by its own
+ * direction, against the maximum it has, where it counts up to its end. One counting up without a
+ * maximum never runs out; anything else runs out at nothing. An item that is no resource, as a
+ * number standing alone, never runs out, however low it goes.
+ */
+export function isResourceSpentAt(element: DataElement | null, current: number, max: number | null): boolean {
+  if (!element?.isNumberResource) return false;
+  const inverted = isGaugeInverted(element);
+  return isGaugeSpent(current, max ?? Number.POSITIVE_INFINITY, inverted);
+}
+
+/**
+ * How a bar is drawn for a reader: how full it stands, its colour and the numbers beside it, as they
+ * are, or, for a piece whose contents are kept from the reader, full and grey with marks for the
+ * numbers until the resource runs out, so how much is left is not told by how long the bar is.
+ */
+export function shownGaugeReading(
+  current: number,
+  max: number,
+  inverted: boolean,
+  color: string,
+  readable: boolean
+): { readonly ratio: number; readonly color: string; readonly numbers: string; readonly kept: boolean } {
+  if (readable || isGaugeSpent(current, max, inverted)) {
+    return { ratio: gaugeRatio(current, max), color, numbers: `${current}/${max}`, kept: false };
+  }
+  return { ratio: 1, color: HIDDEN_GAUGE_COLOR, numbers: HIDDEN_GAUGE_NUMBERS, kept: true };
+}
+
+/**
+ * A bar of a piece as a reader is shown it, the numbers beside it, and whether how much is left is kept
+ * from them; see {@link shownGaugeReading}.
+ */
+export function shownGauge(
+  gauge: PieceGauge,
+  readable: boolean
+): { gauge: PieceGauge; numbers: string; kept: boolean } {
+  const shown = shownGaugeReading(gauge.current, gauge.max, gauge.inverted, gauge.color, readable);
+  return { gauge: { ...gauge, ratio: shown.ratio, color: shown.color }, numbers: shown.numbers, kept: shown.kept };
 }
 
 /**

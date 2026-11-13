@@ -1,3 +1,4 @@
+import type { FloorMesh } from '@axe/domain/tabletop/world/ground-cells';
 import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import type {
   TableWorldBoard,
@@ -65,6 +66,33 @@ export function gridOverGround(
   liftPx: number
 ): BufferGeometry {
   return overGround(ground, liftPx, box);
+}
+
+/**
+ * A part of the floor's mesh lifted off the ground by as much, wearing a picture laid over a box: a
+ * sheet lying over the ground, as a range does, over the ground's mesh cut to its box.
+ */
+export function boxOverGround(
+  mesh: FloorMesh,
+  box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  liftPx: number
+): BufferGeometry {
+  const count = mesh.points.length / 3;
+  const positions = new Float32Array(count * 3);
+  const uvs = new Float32Array(count * 2);
+  for (let i = 0; i < count; i++) {
+    const [x, y, z] = [mesh.points[i * 3], mesh.points[i * 3 + 1], mesh.points[i * 3 + 2]];
+    positions[i * 3] = x;
+    positions[i * 3 + 1] = z + liftPx;
+    positions[i * 3 + 2] = y;
+    uvs[i * 2] = (x - box.x) / box.width;
+    uvs[i * 2 + 1] = 1 - (y - box.y) / box.height;
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(new BufferAttribute(mesh.triangles, 1));
+  return geometry;
 }
 
 function overGround(

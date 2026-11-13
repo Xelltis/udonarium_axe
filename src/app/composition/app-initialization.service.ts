@@ -22,6 +22,7 @@ import { Alarm } from '@axe/domain/alarm/alarm';
 import { createDefaultStatusAilments } from '@axe/domain/character/builtin-status-ailments';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { DEFAULT_CHAT_TABS } from '@axe/domain/chat/constants';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { MarkDown } from '@axe/domain/data/mark-down';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -167,8 +168,7 @@ export class AppInitializationService {
   }
 
   private initializeChatTabs(): void {
-    this.chatTabList.addChatTab('メインタブ', 'MainTab');
-    this.chatTabList.addChatTab('サブタブ', 'SubTab');
+    for (const tab of DEFAULT_CHAT_TABS) this.chatTabList.addChatTab(tab.name, tab.identifier);
     this.chatTabList.ensureSystemTab();
   }
 

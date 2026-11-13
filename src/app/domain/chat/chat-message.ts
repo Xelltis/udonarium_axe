@@ -17,6 +17,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import { saidWithStamp } from '@axe/domain/chat/stamp-line';
+import { presentedTotalOf } from '@axe/domain/chat/target-number';
 import { type DiceRollDetail, parseDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
 import { VN_PORTRAIT_POS_UNSET } from '@axe/domain/visual-novel/vn-portrait-position';
@@ -66,6 +67,8 @@ export interface ChatMessageContext {
   diceImageIdentifier?: string;
   answersTargetNumber?: string;
   aimedTogether?: string;
+  rolledAt?: string;
+  mastersWords?: string;
 }
 
 @SyncObject('chat')
@@ -130,6 +133,24 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    * or at nobody, and a line of a room or a version that never wrote one, read back empty.
    */
   @SyncVar() aimedTogether: string;
+  /**
+   * The identifier of the piece a dice bot's answer was rolled at, for a line aimed at each target in
+   * turn: whose number to beat it is, whatever name its brackets show, as a hidden name shows only
+   * the label for one.
+   *
+   * Left without an initialiser, as `aimedTogether` is: an answer rolled at nobody, or at everyone at
+   * once, and one of a room or a version that never wrote one, read back empty and read by its name.
+   */
+  @SyncVar() rolledAt: string;
+  /**
+   * Set on a line a game master wrote for whoever sets it off to say, as a switch's line is, so that
+   * a number to beat it writes out is taken as the master's, whoever pressed it. Taken off once the
+   * line is written over to another number to beat, or none.
+   *
+   * Left without an initialiser, as `rolledAt` is: any other line, and one of a room or a version
+   * that never wrote it, reads back empty.
+   */
+  @SyncVar() mastersWords: string;
   @SyncVar() messColor: string;
   /** The bubble the sender asked for on each theme. Empty is worked out from the colour. */
   @SyncVar() messBubbleLight: string = '';
@@ -461,6 +482,9 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
     this.text = text;
     if (stagedBefore !== staging) this.vnEmote = staging;
     this.fixd = true;
+    if (`${this.mastersWords ?? ''}`.length > 0 && presentedTotalOf(before) !== presentedTotalOf(text)) {
+      this.mastersWords = '';
+    }
   }
 
   /** Whether the one who said the line made it an after-the-fact whisper. */

@@ -20,6 +20,7 @@ describe('EffectPlaybackService', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     ObjectStore.instance.remove(preset);
   });
 
@@ -65,12 +66,17 @@ describe('EffectPlaybackService', () => {
     expect(service.activeCasts()).toHaveLength(12);
   });
 
-  it('shakes the screen only for an effect that lands', () => {
+  it('shakes the screen as an effect lands its blow, and not before', () => {
+    vi.useFakeTimers();
     preset.kind = 'burst';
     preset.grade = 3;
     service.play(cast());
+    expect(service.shake()).toBe('');
+
+    vi.advanceTimersByTime(60);
 
     expect(service.shake()).toBe('hard');
+    vi.useRealTimers();
   });
 
   it('never shakes for healing', () => {
@@ -80,19 +86,22 @@ describe('EffectPlaybackService', () => {
 
     // Shaking for everything would leave the impact meaning nothing.
     expect(service.shake()).toBe('');
-    expect(service.flash()).toBe('');
   });
 
   it('takes the stronger of two casts in quick succession', () => {
+    vi.useFakeTimers();
     preset.kind = 'burst';
     preset.grade = 2;
     service.play(cast());
+    vi.advanceTimersByTime(60);
     expect(service.shake()).toBe('soft');
 
     preset.grade = 3;
     service.play(cast());
+    vi.advanceTimersByTime(60);
 
     expect(service.shake()).toBe('hard');
+    vi.useRealTimers();
   });
 
   it('tells the piece how to fall when the effect fells it', () => {

@@ -1,12 +1,19 @@
-export { clamp01, fadeInOut, seededRandom } from '@axe/domain/effect/timeline/shared';
-import { clamp01 } from '@axe/domain/effect/timeline/shared';
-/**
- * The shared groundwork.
- *
- * Only the shape of one particle and the smoothing of colour and time. It refers to no family of effects.
+import { clamp01 } from '@axe/core/util/clamp';
+
+export { clamp01 };
+export { seededRandom } from '@axe/core/util/seeded-random';
+/*
+ * The particles the weather and the ambience lay onto a canvas: the shape of one, the canvas they
+ * lie on, and the smoothing of their time.
  */
 
-export type ParticleShape = 'glow' | 'streak' | 'smoke' | 'chunk' | 'bubble';
+/**
+ * How a particle is drawn. A glow, a streak and a bubble are light, added over what is drawn; a puff,
+ * smoke and a chunk are colour, laid over it: a fireball is a body of flame, coloured to its edge,
+ * with only its heart and its sparks giving light, or the light of its many puffs runs together into
+ * a white the colour is lost in.
+ */
+export type ParticleShape = 'glow' | 'streak' | 'smoke' | 'chunk' | 'bubble' | 'puff';
 
 export interface EffectParticle {
   x: number;
@@ -31,24 +38,15 @@ export interface EffectParticleLayer {
   particles: EffectParticle[];
 }
 
-/** The ramp from white heat through the light colour to the dark. It always passes through white, since it is the difference in brightness that catches the eye. */
-export interface ColorRamp {
-  hot: string;
-  mid: string;
-  cool: string;
-}
-
+/** White heat, which the hottest particles are drawn in. */
 export const HOT = '#ffffff';
 
-/** The colour of flame, falling from white heat through the light and dark colours towards smoke. */
-export function flameColor(local: number, ramp: ColorRamp): string {
-  if (local < 0.2) return ramp.hot;
-  if (local < 0.55) return ramp.mid;
-  return ramp.cool;
-}
-
-/** Eases a 0 to 1 progress so it starts fast and slows to a stop; input outside that range is clamped. */
-export function easeOutQuad(value: number): number {
+/**
+ * It rises to full over the given share and falls away over the rest. A progress that is not a
+ * number falls back to nothing, rather than slipping past the guard that keeps a particle unmade.
+ */
+export function fadeInOut(value: number, rise: number): number {
   const clamped = clamp01(value);
-  return 1 - (1 - clamped) * (1 - clamped);
+  if (clamped < rise) return clamped / rise;
+  return 1 - (clamped - rise) / (1 - rise);
 }

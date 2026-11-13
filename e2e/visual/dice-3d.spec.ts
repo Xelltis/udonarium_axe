@@ -149,23 +149,24 @@ function diceInScene(page: Page): Promise<number> {
 }
 
 /**
- * Holds the moment the page draws at once the dice of a roll have been in the scene of a canvas
- * table for a while, long enough for them to come to rest and short of their fading, so they lie at
- * rest for as long as the shot takes.
+ * Holds the moment the page draws at once the dice of a roll in the scene of a canvas table have all
+ * come to rest, and keeps them from fading, so they lie at rest for as long as the shot takes
+ * however long the page went without a frame on the way there, as it can when tests run side by side.
  */
-async function holdDiceInScene(page: Page, ms: number) {
-  await page.evaluate((after) => {
+async function holdDiceInScene(page: Page) {
+  await page.evaluate(() => {
+    const scene = (window as unknown as { __axeTable: { keepDiceResting(on: boolean): void; diceResting(): boolean } })
+      .__axeTable;
+    scene.keepDiceResting(true);
     const requestFrame = window.requestAnimationFrame.bind(window);
-    const kept = { first: -1, held: -1 };
+    const kept = { held: -1 };
     Object.assign(window, { diceKept: kept });
     window.requestAnimationFrame = (callback) =>
       requestFrame((now) => {
-        const scene = (window as unknown as { __axeTable?: { sceneStats(): { dice: number } | null } }).__axeTable;
-        if (kept.first < 0 && (scene?.sceneStats()?.dice ?? 0) > 0) kept.first = now;
-        if (kept.first >= 0 && kept.held < 0 && now - kept.first >= after) kept.held = now;
+        if (kept.held < 0 && scene.diceResting()) kept.held = now;
         callback(kept.held >= 0 ? kept.held : now);
       });
-  }, ms);
+  });
 }
 
 test('the dice of a chat roll come to rest in the scene of a table drawn on a canvas', async ({ page }) => {
@@ -176,7 +177,7 @@ test('the dice of a chat roll come to rest in the scene of a table drawn on a ca
   await roll(page, '1d6');
   await expect.poll(() => diceInScene(page), { timeout: 30_000 }).toBe(1);
   await expect.poll(() => diceInScene(page), { timeout: 30_000 }).toBe(0);
-  await holdDiceInScene(page, 3000);
+  await holdDiceInScene(page);
   await rollSeededAtOnce(page, '2d6+1d20');
   await closePanels(page);
   await page.waitForFunction(() => (window as unknown as { diceKept: { held: number } }).diceKept.held >= 0, null, {

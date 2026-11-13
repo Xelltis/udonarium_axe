@@ -66,6 +66,33 @@ describe('piecePageBoxes', () => {
     expect(die.nearness).toBe(25);
   });
 
+  it('boxes a range following the raised ground round where it lies over the ground', () => {
+    const tilted = new Matrix3D().identity();
+    tilted.m32 = -1;
+    const range = sprite('range#picture', {
+      kind: 'range',
+      centre: { x: 100, y: 100, z: 1 },
+      widthPx: 50,
+      heightPx: 50,
+      facing: { across: FLOOR.u, down: FLOOR.v },
+      order: 1,
+      drapes: { liftPx: 1 },
+    });
+    const groundAt = (x: number) => (x >= 100 ? 20 : 0);
+
+    const flat = piecePageBoxes([range], [], tilted, EYE).get('range')!.parts.get('picture')!;
+    const over = piecePageBoxes([range], [], tilted, EYE, groundAt).get('range')!.parts.get('picture')!;
+
+    expect(flat.top).toBe(74);
+    expect(over.top).toBe(54);
+    expect(over.corners).toEqual([
+      { x: 75, y: 74 },
+      { x: 125, y: 54 },
+      { x: 125, y: 104 },
+      { x: 75, y: 124 },
+    ]);
+  });
+
   it('boxes a part by the box of the piece its picture stands for, where the picture reaches past it', () => {
     const boxes = piecePageBoxes(
       [
@@ -170,8 +197,8 @@ describe('drawnRanks', () => {
     return scene;
   })();
 
-  function ranksOf(sprites: TableWorldSprite[]): Record<string, number> {
-    return Object.fromEntries(drawnRanks(piecePageBoxes(sprites, [], tilted, EYE)));
+  function ranksOf(sprites: TableWorldSprite[], groundAt?: (x: number, y: number) => number): Record<string, number> {
+    return Object.fromEntries(drawnRanks(piecePageBoxes(sprites, [], tilted, EYE, groundAt)));
   }
 
   function lyingAt(id: string, y: number, order: number, facing = ON_FLOOR): TableWorldSprite {
@@ -211,7 +238,7 @@ describe('drawnRanks', () => {
     expect(ranks).toEqual({ card: 1, deck: 2 });
   });
 
-  it('leaves where it was a piece standing among cards, and stacks the cards among the places left', () => {
+  it('draws the cards on the ground under a piece standing and a card posted on a wall, and stacks them among themselves', () => {
     const ranks = ranksOf([
       lyingAt('under#face', 400, 0.15),
       sprite('hero#pedestal', { centre: { x: 100, y: 300, z: 0.5 }, facing: ON_FLOOR, order: 0.5 }),
@@ -220,7 +247,136 @@ describe('drawnRanks', () => {
       lyingAt('over#face', 50, 0.16),
     ]);
 
-    expect(ranks).toEqual({ under: 1, over: 2, hero: 3, posted: 4 });
+    expect(ranks).toEqual({ under: 1, over: 2, posted: 3, hero: 4 });
+  });
+
+  it('draws a piece standing on a range over the range, however much nearer the eye the range reaches', () => {
+    const ranks = ranksOf([
+      sprite('range#picture', {
+        centre: { x: 100, y: 300, z: 0.25 },
+        widthPx: 400,
+        heightPx: 400,
+        facing: ON_FLOOR,
+        order: 0.25,
+        drapes: { liftPx: 0.25 },
+      }),
+      sprite('hero#picture', { centre: { x: 100, y: 300, z: 30 } }),
+      lyingAt('flat#face', 450, 0.15),
+    ]);
+
+    expect(ranks).toEqual({ flat: 1, range: 2, hero: 3 });
+  });
+
+  it('draws a range raised over the ground it follows among the pieces by how near the eye it reaches', () => {
+    const ranks = ranksOf([
+      sprite('range#picture', {
+        centre: { x: 100, y: 300, z: 100.25 },
+        widthPx: 400,
+        heightPx: 400,
+        facing: ON_FLOOR,
+        order: 100.25,
+        drapes: { liftPx: 100.25 },
+      }),
+      sprite('hero#picture', { centre: { x: 100, y: 300, z: 30 } }),
+    ]);
+
+    expect(ranks).toEqual({ hero: 1, range: 2 });
+  });
+
+  it('takes a card lying on the raised ground as on the ground, and one floating over a hollow as not', () => {
+    const groundAt = (x: number) => (x < 150 ? 50 : 0);
+    const ranks = ranksOf(
+      [
+        lyingAt('onHill#face', 450, 50.15),
+        sprite('hero#picture', { centre: { x: 100, y: 300, z: 80 } }),
+        sprite('floating#face', {
+          centre: { x: 200, y: 450, z: 50.15 },
+          widthPx: 60,
+          heightPx: 90,
+          facing: ON_FLOOR,
+          order: 50.15,
+        }),
+      ],
+      groundAt
+    );
+
+    expect(ranks).toEqual({ onHill: 1, hero: 2, floating: 3 });
+  });
+
+  it('draws a range lying on a floor tile over the tile, and under a block standing up, however near each reaches', () => {
+    const pieces = piecePageBoxes(
+      [
+        sprite('range#picture', {
+          centre: { x: 100, y: 300, z: 0.25 },
+          widthPx: 400,
+          heightPx: 400,
+          facing: ON_FLOOR,
+          order: 0.25,
+          drapes: { liftPx: 0.25 },
+        }),
+      ],
+      [],
+      tilted,
+      EYE
+    );
+    const block = (id: string, top: number, y: number) => ({
+      id,
+      layer: 'terrain',
+      order: 0,
+      shapes: [
+        {
+          kind: 'prism' as const,
+          outline: [
+            { x: 0, y },
+            { x: 600, y },
+            { x: 600, y: y + 100 },
+            { x: 0, y: y + 100 },
+          ],
+          base: 0,
+          top,
+        },
+      ],
+    });
+    const blocks = blockPageBoxes([block('tile', 0.5, 450), block('wall', 50, 50)], tilted, EYE);
+
+    const ranks = Object.fromEntries(drawnRanks(new Map([...pieces, ...blocks])));
+
+    expect(ranks).toEqual({ tile: 1, range: 2, wall: 3 });
+  });
+
+  it('takes a floor tile on the raised ground as on the ground, by the ground under any corner of it', () => {
+    const tile = {
+      id: 'tile',
+      layer: 'terrain',
+      order: 0,
+      shapes: [
+        {
+          kind: 'prism' as const,
+          outline: [
+            { x: 0, y: 0 },
+            { x: 100, y: 0 },
+            { x: 100, y: 100 },
+            { x: 0, y: 100 },
+          ],
+          base: 30,
+          top: 30.5,
+        },
+      ],
+    };
+
+    expect(blockPageBoxes([tile], tilted, EYE).get('tile')!.onGround).toBeUndefined();
+    expect(blockPageBoxes([tile], tilted, EYE, () => 30).get('tile')!.onGround).toBe(true);
+    expect(blockPageBoxes([tile], tilted, EYE, (x) => (x < 50 ? 30 : 0)).get('tile')!.onGround).toBe(true);
+    expect(blockPageBoxes([tile], tilted, EYE, () => 0).get('tile')!.onGround).toBeUndefined();
+  });
+
+  it('draws a card lying on a block’s top among the pieces by how near the eye it reaches', () => {
+    const ranks = ranksOf([
+      sprite('hero#picture', { centre: { x: 100, y: 300, z: 30 } }),
+      lyingAt('raised#face', 350, 50),
+    ]);
+
+    expect(ranks).toEqual({ hero: 1, raised: 2 });
   });
 });
 

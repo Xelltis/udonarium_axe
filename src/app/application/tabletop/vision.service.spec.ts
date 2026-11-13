@@ -635,6 +635,24 @@ describe('VisionService', () => {
       expect(service.isTokenVisible(lurkerInStealth())).toBe(true);
     });
 
+    it('hides its parts from another player with it, and leaves them off their lists, as they are drawn as the body', () => {
+      makeMyCursor('p1', PeerRole.Player);
+      const lurker = lurkerInStealth();
+      const claw = GameCharacter.create('Claw', 1, '');
+      claw.location.name = 'table';
+      claw.location.x = 100;
+      claw.location.y = 100;
+      claw.ridingOn = lurker.identifier;
+      claw.rideSeat = 'part';
+
+      expect(service.mayBeListed(claw)).toBe(false);
+      expect(service.isTokenVisible(claw)).toBe(false);
+
+      lurker.stealth = '';
+      expect(service.mayBeListed(claw)).toBe(true);
+      expect(service.isTokenVisible(claw)).toBe(true);
+    });
+
     it('is seen by its owner and by its party', () => {
       makeMyCursor('p1', PeerRole.Player);
       const hero = GameCharacter.create('Hero', 1, '');

@@ -79,6 +79,55 @@
           [style.bottom.%]="piece.chromeBottom"
           [style.transform]="piece.hud"
         >
+          <!-- The parts stand apart, above the body's own marks, readings and name by the picture. -->
+          @if (piece.parts.length > 0) {
+            <span class="flex w-full flex-col gap-1 rounded-lg bg-black/35 p-1.5" data-testid="first-person-parts">
+              @for (part of piece.parts; track part.id; let first = $first) {
+                <span
+                  class="pointer-events-auto flex w-full cursor-pointer flex-col items-center gap-1 rounded-md border-white/30 pt-1"
+                  data-testid="first-person-part"
+                  [attr.data-part-id]="part.id"
+                  [class.border-t-2]="!first"
+                  [class.border-solid]="!first"
+                  [class.ring-4]="part.targeted"
+                  [class.ring-red-500]="part.targeted"
+                  (click)="clickPart(part.id, $event)"
+                >
+                  @for (row of part.gauges; track row.id) {
+                    <span
+                      class="flex w-full items-center gap-1.5 text-xl leading-none whitespace-nowrap text-white [text-shadow:0_2px_3px_#000]"
+                      data-testid="first-person-gauge"
+                      [attr.title]="row.name"
+                    >
+                      <span class="w-5 shrink-0 text-center">{{ row.initial }}</span>
+                      <span class="relative block h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-black/60">
+                        <span
+                          class="absolute inset-y-0 left-0 block rounded-full"
+                          [style.width.%]="row.percent"
+                          [style.background]="row.color"
+                        ></span>
+                      </span>
+                      <span class="shrink-0 tabular-nums">{{ row.numbers }}</span>
+                    </span>
+                  }
+                  <span class="flex items-center gap-2">
+                    @if (part.pick) {
+                      <span
+                        class="grid size-10 shrink-0 place-items-center rounded-full bg-amber-400 text-xl font-bold text-black"
+                        >{{ part.pick }}</span
+                      >
+                    }
+                    <span
+                      class="rounded-sm bg-black/60 px-3 py-1 text-xl whitespace-nowrap text-white"
+                      [class.bg-red-700]="part.targeted"
+                      ><i class="material-icons align-middle text-[1em]! opacity-70" aria-hidden="true">extension</i>
+                      {{ part.label }}</span
+                    >
+                  </span>
+                </span>
+              }
+            </span>
+          }
           @if (piece.badges.length > 0) {
             <span class="flex flex-nowrap justify-center gap-1.5" data-testid="first-person-buffs">
               @for (badge of piece.badges; track badge.identifier) {
@@ -168,10 +217,6 @@
 </div>
 
 <table-weather-overlay [fromInside]="true" [weather]="screenWeather()" />
-
-@if (flash()) {
-  <div class="animate-effect-flash pointer-events-none absolute inset-0" [style.background]="flash()"></div>
-}
 
 @if (picking()) {
   <div class="absolute top-16 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">

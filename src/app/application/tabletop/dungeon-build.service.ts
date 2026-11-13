@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { BundledModelIntakeService } from '@axe/application/tabletop/bundled-model-intake.service';
+import { PartySetOutService, type PartySpot } from '@axe/application/tabletop/party-set-out.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { delay } from '@axe/core/util/delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -181,6 +182,7 @@ export class DungeonBuildService {
   private readonly imageStorage = inject(ImageStorage);
   private readonly bundledModels = inject(BundledModelIntakeService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly setOut = inject(PartySetOutService);
 
   /** Register a bundled picture once and hand back the identifier a terrain stores. */
   registerAsset(url: string): string {
@@ -289,18 +291,26 @@ export class DungeonBuildService {
    * Stands the party on the ground it was given, on the table and on the floor of it.
    *
    * Wherever a piece was before this — another table, a board, somebody's hand — it is on the
-   * dungeon floor once the party has walked in, since that is what walking in means.
+   * dungeon floor once the party has walked in, since that is what walking in means. A member walks
+   * in whole, as the party gathered on a table does (see `PartySetOutService`): set down as the mount
+   * it rides or the body it is a part of, on the ground given the first member set down as it, with
+   * its parts, those riding it and those it holds stood on it by the dungeon's cells, as the table is
+   * not yet looked at.
    */
   private musterParty(table: GameTable, party: readonly MusterStand[]): void {
     if (party.length < 1) return;
     const grid = cellGridOf(table.width, table.height, GRID_SIZE, table.gridType);
+    const chains = this.setOut.chainsOf(party.map((stand) => stand.piece));
+    const spots: PartySpot[] = [];
     for (const { piece, cell } of party) {
+      const chain = chains.get(piece) ?? [piece];
+      const carrier = chain[chain.length - 1];
+      if (spots.some((spot) => spot.carrier === carrier)) continue;
       const centre = cellCenterOf(grid, cellIndexOf(grid, cell.x, cell.y));
-      const corner = cornerShiftOf(piece, GRID_SIZE);
-      piece.location = { name: 'table', x: centre.x - corner, y: centre.y - corner };
-      piece.posZ = 0;
-      piece.update();
+      const corner = cornerShiftOf(carrier, GRID_SIZE);
+      spots.push({ carrier, x: centre.x - corner, y: centre.y - corner });
     }
+    this.setOut.setOut(spots, chains, GRID_SIZE);
   }
 
   private createTerrain(

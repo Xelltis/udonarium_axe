@@ -3,8 +3,8 @@ import { GridType } from '@axe/domain/tabletop/grid-type';
 import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
 import {
   floorWashAlpha,
-  ICE_ALPHA,
   flowStreakOpacity,
+  ICE_ALPHA,
   scumOpacity,
   siltOpacity,
   surfaceWashAlpha,

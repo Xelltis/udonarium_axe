@@ -11,6 +11,7 @@ import {
   output,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -49,6 +50,7 @@ import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 export class ControllerInputComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectChange = inject(ObjectChangeService);
+  protected readonly names = inject(PieceNameService);
   private readonly panelService = inject(PanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
@@ -152,7 +154,7 @@ export class ControllerInputComponent {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     const all = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const c of all) this.objectChange.versionOf(c.identifier)();
-    return all.filter((character) => this.isVisibleToMe(character));
+    return all.filter((character) => this.isVisibleToMe(character) && !this.names.isKept(character));
   });
 
   /** The reader's own cursor, which is spoken as when no character is chosen. */

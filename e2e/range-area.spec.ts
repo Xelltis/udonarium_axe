@@ -34,10 +34,11 @@ test.describe('square and diamond ranges', () => {
         ).__axeTable.surfacePageOf('floor', x, y, z),
       [x, y, z]
     );
-    await page.mouse.move(centre.x, centre.y);
     const grab = range.locator('.rotate-grab').first();
-    // Over a table drawn on a canvas the handle is put once the canvas draws the range.
+    // Over a table drawn on a canvas the handle is put once the canvas draws the range, and takes a
+    // press only while the range is pointed at, so the range is pointed at once it is laid out.
     await expect(grab).toBeVisible();
+    await page.mouse.move(centre.x, centre.y);
     const box = await grab.boundingBox();
     if (!box) throw new Error('the range is not on screen');
     const cx = centre.x;

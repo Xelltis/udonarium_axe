@@ -1,6 +1,7 @@
 import type { TableWorldCoin, TableWorldCoinSide } from '@axe/domain/tabletop/world/table-coins';
 import { pointOnFace, turnedAbout, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
 import { paintCoinSide } from '@axe/infrastructure/table-3d/coin-sides';
+import { forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import {
   BufferGeometry,
   CanvasTexture,
@@ -132,6 +133,7 @@ export class CoinLayer {
 
   private forget(id: string, drawn: DrawnCoin): void {
     this.group.remove(drawn.body);
+    forgetDrawn(drawn.body);
     drawn.body.traverse((object) => (object as Mesh).geometry?.dispose());
     this.drawn.delete(id);
     for (const key of drawn.sides) {

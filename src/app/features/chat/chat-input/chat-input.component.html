@@ -1,14 +1,23 @@
 <div
-  class="bg-ui-elevated border-ui-border-panel rounded-b-ui @container box-border grid w-full min-w-0 grid-cols-[80px_minmax(0,1fr)] items-stretch gap-x-2 gap-y-1.5 border-t border-solid p-2 @max-[420px]:grid-cols-[64px_minmax(0,1fr)] @max-[420px]:gap-x-1.5 @max-[420px]:p-1.5 @max-[320px]:grid-cols-[56px_minmax(0,1fr)]"
+  class="bg-ui-elevated border-ui-border-panel rounded-b-ui @container box-border grid w-full min-w-0 grid-cols-[80px_minmax(0,1fr)] items-stretch gap-x-2 gap-y-1.5 border-t border-solid p-2 @max-[420px]:grid-cols-[64px_minmax(0,1fr)] @max-[420px]:gap-x-1.5 @max-[420px]:p-1.5 @max-xs:grid-cols-[56px_minmax(0,1fr)]"
   [ngClass]="{ 'border-ui-accent bg-ui-accent-bg text-ui-text border-t border-solid': isDirect }"
-  [class.grid-cols-[80px_minmax(0,1fr)]!]="dense() && !narrow()"
-  [class.grid-cols-1!]="narrow()"
-  [class.gap-x-1.5!]="dense() || narrow()"
-  [class.p-1.5!]="dense() || narrow()"
+  [class.grid-cols-[80px_minmax(0,1fr)]!]="dense() && !boxFullWidth()"
+  [class.grid-cols-1!]="boxFullWidth()"
+  [class.gap-x-1.5!]="dense() || boxFullWidth()"
+  [class.p-1.5!]="dense() || boxFullWidth()"
 >
-  <div class="col-span-full flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1" data-testid="chat-input-selects">
-    <div class="flex min-w-0 grow basis-60 items-center gap-1" [class.chat-selects--narrow]="narrow()">
-      @if (narrow()) {
+  <div
+    class="col-span-full flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1"
+    [class.flex-nowrap!]="onPhone()"
+    [class.gap-x-1!]="onPhone()"
+    data-testid="chat-input-selects"
+  >
+    <div
+      class="flex min-w-0 grow basis-60 items-center gap-1"
+      [class.chat-selects--narrow]="boxFullWidth()"
+      [class.chat-selects--phone]="onPhone()"
+    >
+      @if (boxFullWidth()) {
         <div
           class="rounded-ui-sm border-ui-border-panel bg-ui-input flex size-6 flex-none items-center justify-center overflow-hidden border border-solid"
           data-testid="chat-input-avatar"
@@ -38,10 +47,10 @@
           <ng-option [value]="myPeer.identifier">{{ myPeer.name }}{{ 'feature.chat.input.you' | transloco }}</ng-option>
         }
         @for (gameCharacter of gameCharacters(); track gameCharacter.identifier) {
-          <ng-option [value]="gameCharacter.identifier">{{ gameCharacter.name }}</ng-option>
+          <ng-option [value]="gameCharacter.identifier">{{ names.shown(gameCharacter) }}</ng-option>
         }
       </ng-select>
-      <span class="text-ui-muted flex-none text-[11px] leading-none @max-[320px]:hidden">▶</span>
+      <span class="text-ui-muted flex-none text-[11px] leading-none @max-xs:hidden" [class.hidden]="onPhone()">▶</span>
       <ng-select
         #toList
         (pointerdown)="aimList(toList, $event)"
@@ -69,6 +78,7 @@
       [class.min-w-0]="narrow()"
       [class.shrink!]="narrow()"
       [class.chat-line-row--narrow]="narrow()"
+      [class.chat-line-row--phone]="onPhone()"
     >
       <ng-select
         #gameTypeList
@@ -86,9 +96,20 @@
       </ng-select>
       <button type="button" [class]="barWordButtonClass" (click)="showDicebotHelp()">?</button>
       @if (!isGameTypeInList()) {
-        <span class="text-ui-danger min-w-0 flex-[0_1_auto] text-[11px]">{{
-          'feature.chat.input.diceBotNotFound' | transloco
-        }}</span>
+        @if (onPhone()) {
+          <i
+            class="material-icons text-ui-danger shrink-0 text-[18px]!"
+            role="img"
+            data-testid="chat-input-dice-bot-not-found"
+            [appTextTooltip]="'feature.chat.input.diceBotNotFound' | transloco"
+            [attr.aria-label]="'feature.chat.input.diceBotNotFound' | transloco"
+            >error</i
+          >
+        } @else {
+          <span class="text-ui-danger min-w-0 flex-[0_1_auto] text-[11px]">{{
+            'feature.chat.input.diceBotNotFound' | transloco
+          }}</span>
+        }
       }
       @if (narrow() && hasPortraitSlider()) {
         <portrait-slider
@@ -135,14 +156,14 @@
     }
   </div>
 
-  @if (!narrow()) {
+  @if (!boxFullWidth()) {
     <div
       class="rounded-ui-sm border-ui-border-panel bg-ui-input relative flex aspect-square min-h-0 w-full min-w-0 items-center justify-center self-start overflow-hidden border border-solid"
     >
       @if (0 < imageFile.url.length) {
         <img class="block size-full min-h-0 object-cover object-[50%_0%]" [src]="imageFile.url | safe: 'resourceUrl'" />
       } @else {
-        <i class="material-icons text-ui-dim text-[42px]! @max-[320px]:text-[28px]!">person</i>
+        <i class="material-icons text-ui-dim text-[42px]! @max-xs:text-[28px]!">person</i>
       }
       @if (1 <= portraitChoices().length) {
         <portrait-picker
@@ -209,7 +230,8 @@
     @if (targetNumberBar(); as bar) {
       <div
         data-testid="chat-input-target-number"
-        class="border-ui-border-panel text-ui-text rounded-ui-sm mb-1.5 flex min-w-0 items-center gap-2 border border-solid px-2 py-0.5 text-[11px]"
+        data-own-mobile-layout
+        [class]="targetNumberBandClass"
         [title]="'feature.chat.input.targetNumberHint' | transloco"
       >
         <i class="material-icons text-ui-accent text-[14px]!" aria-hidden="true">my_location</i>
@@ -242,6 +264,25 @@
           </button>
         }
       </div>
+    } @else if (keepsTargetNumberPlace() && canSpeak()) {
+      <div
+        data-testid="chat-input-target-number-idle"
+        data-own-mobile-layout
+        [class]="targetNumberBandClass"
+        class="opacity-55"
+        [title]="'feature.chat.input.targetNumberIdle' | transloco"
+      >
+        <i class="material-icons text-ui-accent text-[14px]!" aria-hidden="true">my_location</i>
+        <span class="text-ui-accent shrink-0 font-semibold">{{ 'feature.chat.input.targetNumber' | transloco }}</span>
+        <select
+          disabled
+          name="targetNumberIdle"
+          [attr.aria-label]="'feature.chat.input.targetNumber' | transloco"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-dim min-w-0 flex-1 truncate border border-solid px-1 py-0.5 text-[11px]"
+        >
+          <option>{{ 'feature.chat.input.targetNumberIdle' | transloco }}</option>
+        </select>
+      </div>
     }
 
     <form name="chat-input" class="m-0 flex min-w-0 flex-1 items-end gap-2">
@@ -264,6 +305,7 @@
           @if (hasPortraitSlider() && !narrow()) {
             <portrait-slider
               class="min-w-28 grow basis-0"
+              [class.min-w-44!]="onPhone()"
               data-testid="chat-input-portraits"
               [choices]="portraitChoices()"
               [selectedIndex]="portraitIndex"
@@ -304,9 +346,9 @@
         </div>
         <div
           class="min-w-0 grow items-end"
-          [class.flex]="narrow()"
-          [class.contents]="!narrow()"
-          [ngStyle]="narrow() ? lineLook() : null"
+          [class.flex]="boxFullWidth()"
+          [class.contents]="!boxFullWidth()"
+          [ngStyle]="boxFullWidth() ? lineLook() : null"
         >
           @if (canSpeak()) {
             @if (inputMode() === 'rich') {
@@ -314,8 +356,12 @@
                 data-chat-input-box
                 data-chat-input-mode="rich"
                 [ngStyle]="lineLook()"
-                [class.pb-5]="findings().length > 0"
+                [class.pb-5]="findings().length > 0 && !dense()"
+                [class.pr-16]="dense() && hasText()"
+                [class.min-h-15!]="onPhone() && !dense()"
                 class="panel-no-drag bg-ui-input text-ui-text box-border flex max-h-60 min-h-10 w-full min-w-0 grow resize-y flex-col overflow-y-auto"
+                (pointerdown)="onRichBoxPointerDown($event)"
+                #richBox
               >
                 <div #editorHost class="flex min-w-0 flex-1 flex-col"></div>
               </div>
@@ -327,7 +373,8 @@
                 data-chat-input-box
                 [attr.data-chat-input-mode]="inputMode()"
                 [ngStyle]="lineLook()"
-                [attr.rows]="dense() || narrow() ? 1 : null"
+                [attr.rows]="dense() || narrow() ? 1 : onPhone() ? 2 : null"
+                [class.pr-16]="dense() && hasText()"
                 class="chat-input bg-ui-input text-ui-text m-0 box-border block max-h-60 min-h-10 w-full min-w-0 grow resize-y border-none px-2 py-1.5 font-[inherit] text-[13px] leading-[1.4] placeholder:text-current/65 focus:outline-none"
                 [placeholder]="placeholderText()"
                 [(ngModel)]="text"
@@ -350,7 +397,7 @@
                 data-testid="chat-input-findings"
                 aria-haspopup="dialog"
                 [class]="findingsChipClass"
-                [class.right-12!]="narrow()"
+                [class.right-12!]="boxFullWidth()"
                 [attr.data-severity]="worstSeverity()"
                 [attr.aria-expanded]="openPanel() === 'findings'"
                 [title]="'feature.chat.lint.list' | transloco"
@@ -369,12 +416,12 @@
               {{ 'feature.chat.input.viewOnly' | transloco }}
             </div>
           }
-          @if (canSpeak() && narrow()) {
+          @if (canSpeak() && boxFullWidth()) {
             <ng-container [ngTemplateOutlet]="sendButton" />
           }
         </div>
       </div>
-      @if (canSpeak() && !narrow()) {
+      @if (canSpeak() && !boxFullWidth()) {
         <ng-container [ngTemplateOutlet]="sendButton" />
       }
     </form>
@@ -478,8 +525,9 @@
     data-testid="chat-input-send"
     class="border-ui-accent bg-ui-accent-solid hover:border-ui-accent hover:bg-ui-accent-solid m-0 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid p-0 text-[12px] font-semibold text-white transition-[background,border-color,filter] hover:text-white hover:shadow-none hover:brightness-110 [&_i]:text-[18px] [&_i]:leading-none"
     [class.size-8!]="oneRowBar()"
+    [class.min-h-8!]="oneRowBar()"
     [ngClass]="{ '[&_i]:text-[16px]': oneRowBar() }"
-    [class.m-1!]="narrow()"
+    [class.m-1!]="boxFullWidth()"
     (click)="sendChat(null)"
     [attr.aria-label]="'feature.chat.input.send' | transloco"
   >

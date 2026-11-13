@@ -1,5 +1,5 @@
 import { withAlpha } from '@axe/core/util/hex-color';
-import { ParticleShape } from '@axe/domain/effect/effect-particles';
+import { ParticleShape } from '@axe/domain/effect/particles/shared';
 
 /**
  * Bakes a soft particle for each colour and keeps it.
@@ -24,8 +24,9 @@ function shelfFor(shape: ParticleShape): Map<string, HTMLCanvasElement> {
  * The sprite for a particle shape in a colour, baked on first request and kept for the life of the
  * page.
  *
- * Chunks are a lit polygon, smoke is a soft coreless disc, a bubble is a clear ring with a glint,
- * and every other shape is a disc with a white-hot centre. Returns null where there is no document to make a canvas in.
+ * Chunks are a lit polygon, smoke is a soft coreless disc, a puff is a disc of its colour soft at
+ * the edge, a bubble is a clear ring with a glint, and every other shape is a disc with a white-hot
+ * centre. Returns null where there is no document to make a canvas in.
  */
 export function particleTexture(shape: ParticleShape, color: string): HTMLCanvasElement | null {
   const shelf = shelfFor(shape);
@@ -52,7 +53,13 @@ export function particleTexture(shape: ParticleShape, color: string): HTMLCanvas
 
   const gradient = context.createRadialGradient(half, half, 0, half, half, half);
 
-  if (shape === 'smoke') {
+  if (shape === 'puff') {
+    // A body of flame: its own colour to the heart, thick, and soft only at the edge, with no white in it.
+    gradient.addColorStop(0, withAlpha(color, 0.95));
+    gradient.addColorStop(0.5, withAlpha(color, 0.8));
+    gradient.addColorStop(0.8, withAlpha(color, 0.3));
+    gradient.addColorStop(1, withAlpha(color, 0));
+  } else if (shape === 'smoke') {
     // Smoke has no core: wide, thin and soft at the edge.
     gradient.addColorStop(0, withAlpha(color, 0.85));
     gradient.addColorStop(0.45, withAlpha(color, 0.4));

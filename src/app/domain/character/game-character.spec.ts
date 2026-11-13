@@ -9,6 +9,7 @@ import {
   DataElementRole,
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightCategory, LightPreset, VisionType } from '@axe/domain/tabletop/vision-types';
 
 describe('GameCharacter', () => {
@@ -22,6 +23,120 @@ describe('GameCharacter', () => {
     const allObjects = ObjectStore.instance.getObjects();
     allObjects.forEach((obj) => ObjectStore.instance.delete(obj, false));
     ObjectStore.instance.clearDeleteHistory();
+  });
+
+  it('names a piece whose name is hidden by the label in the report of a change to its status', () => {
+    const villain = GameCharacter.create('黒幕', 1, '');
+    villain.hideName = true;
+
+    const report = villain.status.changeValue('HP', 'now', -1);
+
+    expect(report).toMatch(/^\[？？？ /);
+    expect(report).not.toContain('黒幕');
+  });
+
+  describe('the parts that go with it', () => {
+    function partOf(body: GameCharacter, at = 'table'): GameCharacter {
+      const part = GameCharacter.create('腕', 1, '');
+      part.setLocation(at);
+      part.ridingOn = body.identifier;
+      part.rideSeat = 'part';
+      return part;
+    }
+
+    it('takes the parts standing with it wherever it goes, and brings them back with it', () => {
+      const body = GameCharacter.create('竜', 3, '');
+      body.setLocation('table');
+      const arm = partOf(body);
+      const away = partOf(body, 'common');
+      const rider = GameCharacter.create('騎手', 1, '');
+      rider.ridingOn = body.identifier;
+      rider.setLocation('table');
+
+      body.setLocation('graveyard');
+
+      expect(arm.location.name).toBe('graveyard');
+      expect(away.location.name).toBe('common');
+      expect(rider.location.name).toBe('table');
+
+      body.setLocation('table');
+
+      expect(arm.location.name).toBe('table');
+    });
+
+    it('takes none along for a part, which goes alone', () => {
+      const body = GameCharacter.create('竜', 3, '');
+      body.setLocation('table');
+      const arm = partOf(body);
+
+      arm.setLocation('graveyard');
+
+      expect(body.location.name).toBe('table');
+      expect(arm.partsAlong()).toEqual([]);
+    });
+
+    it('stands a part coming to where its body stands on its middle, alone, along with it or ahead of it', () => {
+      // No table is viewed here, so a cell is 50 pixels wide: a 1-cell part stands 50 in on a 3-cell body.
+      const body = GameCharacter.create('竜', 3, '');
+      body.setLocation('table');
+      const arm = partOf(body);
+      const leg = partOf(body, 'graveyard');
+      arm.setLocation('common');
+      body.location.x = 400;
+      body.location.y = 250;
+
+      arm.setLocation('table');
+      expect([arm.location.x, arm.location.y]).toEqual([450, 300]);
+
+      body.setLocation('graveyard');
+      body.location.x = 100;
+      body.location.y = 100;
+      body.setLocation('table');
+      expect([leg.location.name, leg.location.x, leg.location.y]).toEqual(['table', 150, 150]);
+
+      body.setLocation('common');
+      arm.setLocation('table');
+      arm.location.x = 0;
+      arm.location.y = 0;
+      body.location.x = 600;
+      body.location.y = 600;
+      body.setLocation('table');
+      expect([arm.location.x, arm.location.y]).toEqual([650, 650]);
+    });
+
+    it('stands a part by the cells of the first table where no table is viewed, leaving one held fast and any not on the table', () => {
+      const table = new GameTable('only-table');
+      table.initialize();
+      table.gridSize = 60;
+      const body = GameCharacter.create('竜', 3, '');
+      body.setLocation('graveyard');
+      const arm = partOf(body);
+      const leg = partOf(body);
+      const tail = partOf(body, 'common');
+      leg.heldFast = '1';
+      arm.location.x = leg.location.x = tail.location.x = 0;
+      body.location.x = 300;
+      body.location.y = 300;
+
+      body.setLocation('table');
+      expect([arm.location.x, arm.location.y]).toEqual([360, 360]);
+      expect(leg.location.x).toBe(0);
+
+      body.setLocation('common');
+      expect(tail.location.x).toBe(0);
+    });
+
+    it('takes the parts standing with it out of the room with it', () => {
+      const body = GameCharacter.create('竜', 3, '');
+      body.setLocation('table');
+      const arm = partOf(body);
+      const away = partOf(body, 'graveyard');
+
+      body.destroy();
+
+      expect(ObjectStore.instance.get(arm.identifier)).toBeNull();
+      expect(ObjectStore.instance.get(away.identifier)).toBe(away);
+    });
   });
 
   // ----------------------------------------------------------------

@@ -81,6 +81,19 @@ describe('ChatMessageSettingComponent', () => {
     });
   });
 
+  it('opens the menu editor on the chat tools from its own section', () => {
+    const open = vi.spyOn(TestBed.inject(RoomPanelService), 'open').mockImplementation(() => undefined);
+    const surface = { set: vi.fn() };
+
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[data-testid="chat-open-chat-tools"]')!
+      .click();
+
+    expect(open).toHaveBeenCalledWith('menuEditor', {}, expect.any(Function));
+    (open.mock.calls[0][2] as (panel: { surface: typeof surface }) => void)({ surface });
+    expect(surface.set).toHaveBeenCalledWith('chatTools');
+  });
+
   it('asks first whether a setting is one answer or one per tab', () => {
     expect([...scopeSelect('portraitScope').options].map((option) => option.value)).toEqual(['all', 'perTab']);
     expect(scopeSelect('portraitScope').value).toBe('all');

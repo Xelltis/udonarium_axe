@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { MenuLayoutService } from '@axe/application/ui/menu-layout.service';
@@ -13,13 +16,14 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { parseMenuLayout } from '@axe/domain/ui/menu-layout';
 import { ButtonGuideEventHandlerService } from '@axe/features/button-guide/button-guide-event-handler.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { OwnedCharacterListPanelComponent } from '@axe/features/pl-tools/owned-character-list/owned-character-list-panel.component';
 import { PlToolbarComponent } from '@axe/features/pl-tools/pl-toolbar/pl-toolbar.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('PlToolbarComponent', () => {
   let component: PlToolbarComponent;
@@ -184,6 +188,81 @@ describe('PlToolbarComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(bar()).toBeNull();
+  });
+
+  describe('the turn', () => {
+    let piece: GameCharacter;
+
+    beforeEach(() => {
+      setRole(PeerRole.Player);
+      PeerCursor.myCursor.userId = 'me';
+      piece = GameCharacter.create('アルト', 1, '');
+      piece.setLocation('table');
+      const turn = TestBed.inject(TurnState);
+      turn.round = 2;
+      turn.phase = 'acting';
+      turn.currentIdentifier = piece.identifier;
+      objectChange.notifyChanged(turn.identifier);
+    });
+
+    afterEach(() => {
+      const turn = TestBed.inject(TurnState);
+      turn.round = 0;
+      turn.phase = 'idle';
+      turn.currentIdentifier = '';
+      piece.destroy();
+    });
+
+    async function draw(): Promise<HTMLElement> {
+      objectChange.notifyChanged(piece.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('moves the view to the piece whose turn it is when its name is pressed', async () => {
+      const focus = vi.spyOn(TestBed.inject(TableFocusService), 'focusOn').mockImplementation(() => undefined);
+
+      (await draw()).querySelector<HTMLButtonElement>('[data-testid="pl-turn-focus"]')!.click();
+
+      expect(focus).toHaveBeenCalledWith(piece);
+    });
+
+    it('offers the next press only while the piece up is the player’s own, and hands the turn on with it', async () => {
+      const next = vi.spyOn(TestBed.inject(TurnOrderService), 'next').mockImplementation(() => undefined);
+      piece.owner = 'someone-else';
+      const others = (await draw()).querySelector<HTMLButtonElement>('[data-testid="pl-turn-next"]')!;
+      expect(others.classList.contains('invisible')).toBe(true);
+      expect(others.disabled).toBe(true);
+
+      piece.owner = 'me';
+      const root = await draw();
+      const own = root.querySelector<HTMLButtonElement>('[data-testid="pl-turn-next"]')!;
+      expect(own.classList.contains('invisible')).toBe(false);
+      expect(own.getAttribute('aria-label')).toBe('自分のキャラクターの手番を終えて、次へ渡す');
+      own.click();
+
+      expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    it('names a piece off the table as nothing to press, as the view has nowhere to go', async () => {
+      piece.setLocation('common');
+
+      const root = await draw();
+
+      expect(root.querySelector('[data-testid="pl-turn-focus"]')).toBeNull();
+      expect(root.textContent).toContain('アルト');
+    });
+
+    it('names a piece this player cannot see as nothing to press', async () => {
+      vi.spyOn(TestBed.inject(VisionService), 'mayBeListed').mockReturnValue(false);
+      piece.owner = 'someone-else';
+
+      const root = await draw();
+
+      expect(root.querySelector('[data-testid="pl-turn-focus"]')).toBeNull();
+      expect(root.textContent).not.toContain('アルト');
+    });
   });
 
   it('stays where it was dragged across a change of role', async () => {

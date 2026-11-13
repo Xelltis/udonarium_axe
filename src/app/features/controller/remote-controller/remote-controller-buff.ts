@@ -2,6 +2,7 @@ import { BuffAppearance, parseBuffAppearance } from '@axe/domain/character/buff-
 import { splitBuffRounds } from '@axe/domain/character/buff-command';
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 
 export interface RemoteControllerSelect {
@@ -109,7 +110,7 @@ function actOnBuffs(characters: readonly GameCharacter[], act: (character: GameC
   const names: string[] = [];
   for (const character of characters) {
     act(character);
-    names.push(`[${character.name}]`);
+    names.push(`[${saidNameOf(character)}]`);
   }
   return names.join('');
 }

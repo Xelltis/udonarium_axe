@@ -20,6 +20,30 @@ describe('targetNumberBarOf()', () => {
     return tab.addMessage({ from: 'System-BCDice', name: '<BCDice：ゴブリン>', text, tag: 'system', timestamp: at });
   }
 
+  it('names who wrote a number to beat out, with nothing they rolled', () => {
+    tab.addMessage({
+      from: 'gm',
+      sendFrom: 'gm',
+      name: 'GM',
+      text: '判定: (知力) 目標値13',
+      senderRole: 'gm',
+      timestamp: 1001,
+    });
+    const speaker = { identifier: 'hero', name: 'ヒロ' };
+
+    const bar = targetNumberBarOf(
+      { found: findTargetNumberSource(tab, speaker), chosen: null, choices: targetNumberChoices(tab, 8) },
+      'ヒロ',
+      true
+    );
+
+    expect(bar.found).toEqual({
+      key: 'feature.chat.input.targetNumberPresented',
+      params: { total: 13, by: 'GM', speaker: 'ヒロ' },
+    });
+    expect(bar.choices.map((choice) => choice.label.params['by'])).toEqual(['GM']);
+  });
+
   it('names the speaker for a number rolled at them, and who rolled what for each answer offered', () => {
     const older = answer('DiceBot : (2D6+8) → 7[3,4]+8 → 15', 1001);
     answer('DiceBot : (2D6+5) → 9[4,5]+5 → 14 [ヒロ]', 1011);

@@ -1,4 +1,5 @@
 import { computed, DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
@@ -90,6 +91,7 @@ export class TurnOrderService {
   private readonly selection = inject(SelectionSignalService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
+  private readonly names = inject(PieceNameService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly hooks = inject(TurnHooksService);
   private readonly t = inject(TRANSLATE_FN);
@@ -331,7 +333,10 @@ export class TurnOrderService {
     });
   }
 
-  /** The round's pieces by identifier, as the state machine reads them for a press made now. */
+  /**
+   * The round's pieces and rules as the state machine reads them, for a press made now or one only
+   * worked out; reading them writes nothing down.
+   */
   private turnTable(): TurnTable {
     const mode = this.turnOrderMode;
     const sideOrder = mode === 'faction' ? this.sideOrder() : [];
@@ -357,8 +362,6 @@ export class TurnOrderService {
    * take turns runs a version that counts it down again when the turn comes back.
    */
   private givesBackOnHold(): boolean {
-    const mine = PeerCursor.myCursor;
-    if (mine && mine.turnProtocol !== '1') mine.turnProtocol = '1';
     return this.objectStore
       .getObjects<PeerCursor>(PeerCursor)
       .filter((cursor) => cursor.peerId.length > 0 && canRoleEdit(cursor.role))
@@ -430,6 +433,15 @@ export class TurnOrderService {
   }
 
   /**
+   * The piece the next press of the round would hand the turn to, worked out without pressing it:
+   * empty where it would hand it to nobody, as when it opens or closes a round.
+   */
+  peekNextIdentifier(): string {
+    if (this.turnState.phase === 'idle') return '';
+    return roundNext(this.snapshot(), this.turnTable()).state.currentIdentifier;
+  }
+
+  /**
    * The pieces that have not had their turn, in the order the round would reach them.
    *
    * Only the ones it would reach: a piece kept out of the inventory is never given a turn,
@@ -457,7 +469,7 @@ export class TurnOrderService {
   private async mayLeaveTheseBehind(): Promise<boolean> {
     const waiting = this.unactedCharacters();
     if (waiting.length < 1) return true;
-    const shown = waiting.slice(0, UNACTED_NAMES_SHOWN).map((piece) => piece.name);
+    const shown = waiting.slice(0, UNACTED_NAMES_SHOWN).map((piece) => this.names.shown(piece));
     if (waiting.length > shown.length) {
       shown.push(this.t('feature.turnOrder.unactedMore', { n: waiting.length - shown.length }));
     }
@@ -528,10 +540,17 @@ export class TurnOrderService {
     read: () => this.snapshot(),
   };
 
-  /** Carries a press of the round out from where it stands, as one step of the record. */
+  /**
+   * Carries a press of the round out from where it stands, as one step of the record. Ground that
+   * carries a piece off carries it once the press is done, so ground under a rider, its mount and its
+   * parts all goes off where they stood before any of them is carried.
+   */
   private press(work: (state: TurnSnapshot, table: TurnTable, live: TurnLive) => TurnOutcome | null): void {
     this.opening = null;
-    this.step(() => work(this.snapshot(), this.turnTable(), this.live) !== null);
+    // This seat's mark of the version of the turns it runs, said before the round it steps is read.
+    const mine = PeerCursor.myCursor;
+    if (mine && mine.turnProtocol !== '1') mine.turnProtocol = '1';
+    this.triggerFire.carryingAfter(() => this.step(() => work(this.snapshot(), this.turnTable(), this.live) !== null));
   }
 
   /**
@@ -705,7 +724,7 @@ export class TurnOrderService {
         const step = this.ranOut;
         if (step) step.set(character.identifier, new Map([...(step.get(character.identifier) ?? []), ...ranOut]));
       }
-      if (buffNames.length > 0) entries.push({ characterName: character.name, buffNames });
+      if (buffNames.length > 0) entries.push({ characterName: this.names.said(character), buffNames });
     }
     if (opening) this.turnState.turnOpening = writeTurnOpening(opening);
 
@@ -732,7 +751,8 @@ export class TurnOrderService {
 
   /**
    * Says in chat whose turn it is. A piece the players cannot see goes unnamed, since everyone
-   * reads the line and a name would give away what is standing in the dark.
+   * reads the line and a name would give away what is standing in the dark, and a piece whose name
+   * is hidden goes by the label for a hidden name.
    */
   private announceCharacter(identifier: string, announcement: TurnAnnouncement | 'buffsGivenBack'): void {
     const character = this.objectStore.get<GameCharacter>(identifier);
@@ -740,7 +760,7 @@ export class TurnOrderService {
     this.chat.sendSystemNotice(
       'round',
       this.vision.isSeenByParty(character)
-        ? this.t(`feature.turnOrder.${announcement}`, { name: character.name })
+        ? this.t(`feature.turnOrder.${announcement}`, { name: this.names.said(character) })
         : this.t(`feature.turnOrder.${announcement}Unseen`)
     );
   }

@@ -135,15 +135,17 @@ export class GravityService {
 
   /**
    * What a piece riding a mount stands on: the mount's base raised by the height its riders stand
-   * at, as `seatHeightOf` gives it, wherever the two are; null for a piece riding nothing on the
-   * table, which comes to rest on whatever is under it.
+   * at, as `seatHeightOf` gives it, wherever the two are; for a part, its body's base, mount or not;
+   * null for a piece riding nothing on the table, which comes to rest on whatever is under it.
    */
   private static rideSupportZ(target: CachedEntry, byId: ReadonlyMap<string, CachedEntry>): number | null {
     const piece = target.entry.object;
     if (!(piece instanceof GameCharacter) || piece.ridingOn === '') return null;
     const mount = byId.get(piece.ridingOn);
     const body = mount?.entry.object;
-    if (!mount || !(body instanceof GameCharacter) || body.mountable !== '1' || body === piece) return null;
+    if (!mount || !(body instanceof GameCharacter) || body === piece) return null;
+    if (piece.isWrittenAsPart) return mount.bottomZ;
+    if (body.mountable !== '1') return null;
     return mount.bottomZ + seatHeightOf(body.mountSeatHeight, body, mount.gridSizePx) * mount.gridSizePx;
   }
 

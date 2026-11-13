@@ -1,15 +1,22 @@
 import type { ModelPainter, ModelStage } from '@axe/infrastructure/model-viewer/model-viewer-port';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
+import { meshesOf, triangleCentresOf } from '@axe/infrastructure/three-kit/model-faces';
 import {
   Box3,
+  BufferAttribute,
+  BufferGeometry,
   DirectionalLight,
   HemisphereLight,
+  Mesh,
+  MeshBasicMaterial,
   type Object3D,
   PerspectiveCamera,
+  Raycaster,
   Scene,
   Sphere,
   SRGBColorSpace,
+  Vector2,
   Vector3,
   WebGLRenderer,
 } from 'three';
@@ -29,9 +36,9 @@ const FIELD_OF_VIEW = 35;
 class Showcase {
   readonly scene = new Scene();
   readonly camera = new PerspectiveCamera(FIELD_OF_VIEW, 1, 0.01, 1000);
-  private model: Object3D | null = null;
+  model: Object3D | null = null;
   private readonly middle = new Vector3();
-  private radius = 1;
+  radius = 1;
   turn = 0;
   tip = LOOK_DOWN;
 
@@ -91,6 +98,10 @@ function rendererOn(canvas: HTMLCanvasElement, keepsDrawing: boolean): WebGLRend
 
 class Stage implements ModelStage {
   private readonly showcase = new Showcase();
+  /** The shapes the painted faces are shown with, over the model. */
+  private painted: Mesh[] = [];
+  /** The middles of the model's triangles in the scene, by mesh, worked out once the model is shown. */
+  private centres: Float32Array[] | null = null;
   private readonly reader: HeldModelReader;
   private turning = true;
   private frame: number | null = null;
@@ -113,12 +124,14 @@ class Stage implements ModelStage {
       if (gltf) disposeObject(gltf.scene);
       return false;
     }
+    this.clearFaces();
     if (!gltf) {
       this.showcase.letGo();
       this.draw();
       return false;
     }
     this.showcase.hold(gltf.scene);
+    this.centres = null;
     this.draw();
     this.loop();
     return true;
@@ -134,6 +147,89 @@ class Stage implements ModelStage {
   setTurning(on: boolean): void {
     this.turning = on;
     if (on) this.loop();
+  }
+
+  facesNear(canvasX: number, canvasY: number, widthShare: number): ReadonlyMap<number, readonly number[]> {
+    const model = this.showcase.model;
+    const width = this.canvas.clientWidth;
+    const height = this.canvas.clientHeight;
+    if (!model || !(width > 0) || !(height > 0)) return new Map();
+    const ray = new Raycaster();
+    ray.setFromCamera(new Vector2((canvasX / width) * 2 - 1, -(canvasY / height) * 2 + 1), this.showcase.camera);
+    const hit = ray.intersectObject(model, true)[0];
+    if (!hit) return new Map();
+    const reach = (widthShare * this.showcase.radius) ** 2;
+    const found = new Map<number, number[]>();
+    this.centroids().forEach((centres, mesh) => {
+      const near: number[] = [];
+      for (let triangle = 0; triangle * 3 < centres.length; triangle++) {
+        const dx = centres[triangle * 3] - hit.point.x;
+        const dy = centres[triangle * 3 + 1] - hit.point.y;
+        const dz = centres[triangle * 3 + 2] - hit.point.z;
+        if (dx * dx + dy * dy + dz * dz <= reach) near.push(triangle);
+      }
+      if (near.length > 0) found.set(mesh, near);
+    });
+    return found;
+  }
+
+  /** Takes off the faces laid over the model, which were laid for the model shown as they were. */
+  private clearFaces(): void {
+    for (const shown of this.painted) {
+      this.showcase.scene.remove(shown);
+      shown.geometry.dispose();
+      (shown.material as MeshBasicMaterial).dispose();
+    }
+    this.painted = [];
+  }
+
+  showFaces(
+    chosen: ReadonlyMap<number, ReadonlySet<number>>,
+    others: readonly ReadonlyMap<number, ReadonlySet<number>>[]
+  ): void {
+    this.clearFaces();
+    const meshes = this.showcase.model ? meshesOf(this.showcase.model) : [];
+    const lay = (faces: ReadonlyMap<number, ReadonlySet<number>>, colour: number, opacity: number) => {
+      const points: number[] = [];
+      const corner = new Vector3();
+      faces.forEach((triangles, index) => {
+        const mesh = meshes[index];
+        if (!mesh) return;
+        const position = mesh.geometry.getAttribute('position');
+        const indices = mesh.geometry.getIndex();
+        for (const triangle of triangles) {
+          const corners = [0, 1, 2].map((at) => (indices ? indices.getX(triangle * 3 + at) : triangle * 3 + at));
+          // A face the model does not hold is passed over whole, so the faces after it keep their corners.
+          if (corners.some((point) => !(point < position.count))) continue;
+          for (const point of corners) {
+            // Posed as it is drawn and picked, by its bones and its morphs, rather than as it was bound.
+            mesh.getVertexPosition(point, corner).applyMatrix4(mesh.matrixWorld);
+            points.push(corner.x, corner.y, corner.z);
+          }
+        }
+      });
+      if (points.length < 9) return;
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new BufferAttribute(new Float32Array(points), 3));
+      const shown = new Mesh(
+        geometry,
+        new MeshBasicMaterial({
+          color: colour,
+          transparent: true,
+          opacity,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -4,
+          side: 2,
+        })
+      );
+      this.painted.push(shown);
+      this.showcase.scene.add(shown);
+    };
+    for (const one of others) lay(one, 0x4aa0ff, 0.3);
+    lay(chosen, 0xffd400, 0.7);
+    this.draw();
   }
 
   resize(): void {
@@ -155,10 +251,22 @@ class Stage implements ModelStage {
     this.disposed = true;
     if (this.frame !== null) cancelAnimationFrame(this.frame);
     this.frame = null;
+    this.clearFaces();
     this.showcase.letGo();
     this.reader.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();
+  }
+
+  /** The middle of each triangle of each mesh of the model, in the scene, three numbers a triangle. */
+  private centroids(): Float32Array[] {
+    if (this.centres) return this.centres;
+    const model = this.showcase.model;
+    if (!model) return [];
+    model.updateMatrixWorld(true);
+    const corner = new Vector3();
+    this.centres = meshesOf(model).map((mesh) => triangleCentresOf(mesh, corner));
+    return this.centres;
   }
 
   private loop(): void {

@@ -15,6 +15,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatLintService } from '@axe/application/chat/chat-lint.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
@@ -25,6 +26,7 @@ import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -37,10 +39,11 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatPalette, PaletteIndex } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { tabBeside } from '@axe/domain/chat/chat-tab-cycle';
+import { tabBeside, tabToShow } from '@axe/domain/chat/chat-tab-cycle';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PaletteRow, paletteRowsOf, paletteTabsOf } from '@axe/domain/chat/palette-rows';
+import { holdsTargetNumber } from '@axe/domain/chat/target-number';
 import { DataElement } from '@axe/domain/data/data-element';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -96,11 +99,13 @@ export class ChatPaletteComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly names = inject(PieceNameService);
   private readonly hotbarFill = inject(HotbarFillService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   chatMessageService = inject(ChatMessageService);
   private readonly panelService = inject(PanelService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly disclosure = inject(DisclosureService);
   private readonly characterMacro = inject(CharacterMacroService);
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly uiSignalService = inject(UiSignalService);
@@ -213,6 +218,14 @@ export class ChatPaletteComponent {
   });
 
   /**
+   * Whether a line of the palette, a variable among them, holds a `{目標値}`: the input keeps the room
+   * of the bar telling what it comes to for as long as one does, so a line clicked moves no other.
+   */
+  readonly usesTargetNumber = computed(() =>
+    this.paletteRows().some((row) => (row.kind === 'command' || row.kind === 'variable') && holdsTargetNumber(row.text))
+  );
+
+  /**
    * The headings, for the list a panel in its own window is given instead of the menu.
    *
    * The menu behind the headings button opens where the pointer is, and the pointer is only
@@ -304,14 +317,32 @@ export class ChatPaletteComponent {
     this.onSelectedCharacter(sendFrom);
   }
 
-  /** The tab the palette speaks into, moved to the first tab in view where the one chosen is no longer. */
+  /**
+   * The tab the palette spoke into when it went away or out of view, gone back to once it is back, as
+   * a tab a join sets aside comes back once the room hands it over. Forgotten once another is picked.
+   */
+  private lostTab = '';
+
+  /**
+   * The tab the palette speaks into, moved off one gone away or out of view and back onto it once it
+   * is back; see {@link tabToShow}.
+   */
   readonly chatTabidentifier = linkedSignal<ChatTab[], string>({
     source: () => this.visibleChatTabs(),
-    computation: (visible, previous) =>
-      previous && visible.some((tab) => tab.identifier === previous.value)
-        ? previous.value
-        : (visible[0]?.identifier ?? ''),
+    computation: (visible, previous) => {
+      const current = previous?.value ?? '';
+      if (current && !this.lostTab && !visible.some((tab) => tab.identifier === current)) this.lostTab = current;
+      const next = tabToShow(visible, current, this.lostTab);
+      if (next === this.lostTab) this.lostTab = '';
+      return next;
+    },
   });
+
+  /** Speaks into the tab the reader picked, forgetting any tab lost. */
+  protected pickTab(identifier: string): void {
+    this.lostTab = '';
+    this.chatTabidentifier.set(identifier);
+  }
   readonly text = signal<string>('');
   sendTo: string = '';
 
@@ -382,8 +413,13 @@ export class ChatPaletteComponent {
 
   constructor() {
     this.chatPaletteRegistry.register(this);
-    queueMicrotask(() => this.updatePanelTitle());
-    this.chatTabidentifier.set(this.visibleChatTabs()[0]?.identifier ?? '');
+    // The title names the piece as this seat is told it, so it follows the piece and the seat's role.
+    effect(() => {
+      const character = this.character();
+      if (character) this.objectChange.versionOf(character.identifier)();
+      this.objectChange.trackMyCursor();
+      untracked(() => this.updatePanelTitle());
+    });
     this._timeId = Date.now() + '_chat-palette';
     this.objectChange.objectDeleted$.subscribe((e) => {
       if (this.character() && this.character()!.identifier === e.identifier) {
@@ -446,7 +482,7 @@ export class ChatPaletteComponent {
    */
   updatePanelTitle() {
     this.panelService.title = this.character()
-      ? this.t('feature.chat.palette.panelTitleWith', { name: this.character()!.name })
+      ? this.t('feature.chat.palette.panelTitleWith', { name: this.names.shown(this.character()!) })
       : this.t('feature.chat.palette.panelTitle');
   }
 
@@ -455,11 +491,13 @@ export class ChatPaletteComponent {
    *
    * An open edit is saved first, and the character's dice bot is taken up when it has one. An
    * identifier that is not a character leaves the selection as it was but still refreshes the
-   * title.
+   * title. A character whose contents this seat may not view is not switched to, as its palette may
+   * not be opened from its piece either.
    */
   onSelectedCharacter(identifier: string) {
-    if (this.isEdit()) this.toggleEditMode();
     const object = this.objectStore.get(identifier);
+    if (object instanceof GameCharacter && !this.disclosure.canView(object)) return;
+    if (this.isEdit()) this.toggleEditMode();
     if (object instanceof GameCharacter) {
       this.character.set(object);
       const char = this.character()!;
@@ -489,7 +527,7 @@ export class ChatPaletteComponent {
    */
   chatTabSwitchRelative(direction: number) {
     const next = tabBeside(this.visibleChatTabs(), this.chatTabidentifier(), direction);
-    if (next) this.chatTabidentifier.set(next.identifier);
+    if (next) this.pickTab(next.identifier);
   }
 
   /**

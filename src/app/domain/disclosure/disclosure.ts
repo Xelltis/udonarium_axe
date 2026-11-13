@@ -32,6 +32,11 @@ export interface DisclosureViewer {
   ownerUserId?: string;
 }
 
+/** Whether an object's contents are kept from anyone at all: disclosed to the game master or a few alone. */
+export function isKeptFromAnyone(object: Disclosable): boolean {
+  return normalizeDisclosureMode(object.disclosureMode) !== DisclosureMode.All;
+}
+
 /**
  * Whether a viewer may see the contents of an object that limits who it is disclosed to.
  *

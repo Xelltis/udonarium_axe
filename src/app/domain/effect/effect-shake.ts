@@ -30,9 +30,6 @@ export type EffectShake = '' | 'soft' | 'hard';
 
 const SHAKE_BY_GRADE: Record<1 | 2 | 3, EffectShake> = { 1: '', 2: 'soft', 3: 'hard' };
 
-/** What burns the whole screen: the highest flash, the mushroom cloud and the heaviest beam. */
-const FLASHING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>(['nova', 'mushroom', 'beam']);
-
 /**
  * The looks an effect actually draws.
  *
@@ -48,28 +45,4 @@ function drawnKinds(preset: EffectPreset): EffectKind[] {
 export function effectShakeOf(preset: EffectPreset): EffectShake {
   if (!drawnKinds(preset).some((kind) => SHAKING_KINDS.has(kind))) return '';
   return SHAKE_BY_GRADE[preset.gradeLevel];
-}
-
-/**
- * How long before it shakes. Shaking anywhere but the moment of the blow makes the one who fired look struck.
- */
-export function effectShakeDelay(preset: EffectPreset): number {
-  if (preset.isStaged) return stagedShakeDelay(preset);
-  if (preset.effectKind !== 'ballistic') return 0;
-  return Math.round(preset.duration * preset.impactSoundAt);
-}
-
-/** A run shakes when the first of its stages that lands a blow begins. */
-function stagedShakeDelay(preset: EffectPreset): number {
-  for (const window of stageLayoutOf(preset.stageList).windows) {
-    if (SHAKING_KINDS.has(window.stage.kind)) return Math.round(window.startMs);
-  }
-  return 0;
-}
-
-/** The colour of the flash. Only the highest flash, the mushroom cloud and the heaviest beam burn the whole screen. */
-export function effectFlashColor(preset: EffectPreset): string {
-  if (preset.gradeLevel < 3) return '';
-  if (!drawnKinds(preset).some((kind) => FLASHING_KINDS.has(kind))) return '';
-  return preset.colorPrimary;
 }

@@ -1,13 +1,17 @@
 import { effect, Injector, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
+import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { FLAT_GROUND, type GroundSurface, groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -31,6 +35,7 @@ function lying(id: string, x: number, y: number, z: number, size: number): Table
 describe('HudFrameService', () => {
   let frame: HudFrameService;
   const sprites = signal<readonly TableWorldSprite[]>([]);
+  const ground = signal<GroundSurface>(FLAT_GROUND);
   const elements: HTMLElement[] = [];
 
   function element(): HTMLElement {
@@ -41,10 +46,16 @@ describe('HudFrameService', () => {
 
   beforeEach(() => {
     sprites.set([lying('die#frame', 100, 100, 0, 50), lying('die#picture', 100, 60, 10, 20)]);
+    ground.set(FLAT_GROUND);
     TestBed.configureTestingModule({
       providers: [
         { provide: TablePiecesService, useValue: { sprites, coins: signal([]) } },
         { provide: TablePickService, useValue: { targets: () => [], targetsOf: () => [] } },
+        {
+          provide: StandingGroundService,
+          useValue: { surface: ground, heightPxAt: (x: number, y: number) => ground().heightAt(x / 50, y / 50) * 50 },
+        },
+        { provide: TabletopService, useValue: { currentTable: { gridSize: 50 } } },
         { provide: Table3dService, useValue: { world: sprites } },
         {
           provide: TableCameraService,
@@ -282,6 +293,33 @@ describe('HudFrameService', () => {
     expect(targetsOf).toHaveBeenLastCalledWith(new Set(['block']));
   });
 
+  it('hands the raised ground to the blocks it boxes, so a floor tile on it lies on the ground', () => {
+    const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT).fill(64);
+    ground.set(groundSurfaceOf([{ cx: 0, cy: 0, heights, paint: null }]));
+    const tile = {
+      id: 'tile',
+      layer: 'terrain',
+      order: 0,
+      shapes: [
+        {
+          kind: 'prism' as const,
+          outline: [
+            { x: 100, y: 100 },
+            { x: 150, y: 100 },
+            { x: 150, y: 150 },
+            { x: 100, y: 150 },
+          ],
+          base: 50,
+          top: 50.5,
+        },
+      ],
+    };
+    vi.spyOn(TestBed.inject(TablePickService), 'targetsOf').mockReturnValue([tile]);
+    frame.place(element(), { owner: 'tile' });
+
+    expect(frame.boxesNow()!.get('tile')!.onGround).toBe(true);
+  });
+
   it('draws the root of a nearer piece over the root of one further off', () => {
     sprites.update((drawn) => [...drawn, lying('near#frame', 300, 300, 40, 50)]);
     const far = element();
@@ -291,6 +329,21 @@ describe('HudFrameService', () => {
     frame.writeNow();
 
     expect(Number(near.style.zIndex)).toBeGreaterThan(Number(far.style.zIndex));
+  });
+
+  it('draws a raised root over the root of every piece, its own piece’s among them', () => {
+    sprites.update((drawn) => [...drawn, lying('near#frame', 300, 300, 40, 50)]);
+    const near = element();
+    const own = element();
+    const raised = element();
+    frame.place(near, { owner: 'near' });
+    frame.place(own, { owner: 'die' });
+    frame.place(raised, { owner: 'die', raised: true });
+    frame.writeNow();
+
+    expect(Number(own.style.zIndex)).toBeLessThan(Number(near.style.zIndex));
+    expect(Number(raised.style.zIndex)).toBeGreaterThan(Number(near.style.zIndex));
+    expect(raised.style.transform).toBe(own.style.transform);
   });
 
   it('hides what goes with a piece or a part not drawn, and shows it again once drawn', () => {

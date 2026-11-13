@@ -175,6 +175,28 @@ describe('SwitchPressService', () => {
     expect(system).toHaveBeenCalledWith(tab, 'the floor gives way');
   });
 
+  it('says its lines as the game master’s words, whoever presses it, for each way it speaks', async () => {
+    const asked: unknown[] = [];
+    for (const send of ['sendAsSelf', 'sendAsCharacter', 'sendAsNamed'] as const) {
+      vi.spyOn(macro, send).mockImplementation(async (...args: unknown[]) => {
+        asked.push(args[args.length - 1]);
+        return null;
+      });
+    }
+    const chat = TestBed.inject(ChatMessageService);
+    const marked: boolean[] = [];
+    vi.spyOn(chat, 'sendSystemMessageToTab').mockImplementation(() => {
+      marked.push((chat as unknown as { mastersWordsDepth: number }).mastersWordsDepth > 0);
+      return null!;
+    });
+
+    await presses.press(switchWith({ speaker: 'host', label: 'lever', actions: [say('解錠：目標値13')] }));
+    await presses.press(switchWith({ speaker: 'system', actions: [say('解錠：目標値13')] }));
+
+    expect(asked).toEqual([expect.objectContaining({ mastersWords: true })]);
+    expect(marked).toEqual([true]);
+  });
+
   it('turns a watcher away without saying anything', async () => {
     PeerCursor.myCursor.role = PeerRole.Guest;
 
@@ -401,6 +423,55 @@ describe('SwitchPressService', () => {
       expect(goblin.location.name).toBe('graveyard');
     });
 
+    it('sets a creature of many parts out whole, each part copied once the last is out of the graveyard and stood on its middle', async () => {
+      const dragon = GameCharacter.create('竜', 3, '');
+      dragon.location = { name: 'graveyard', x: 0, y: 0 } as never;
+      copiesOf(dragon);
+      const copiedSoFar: GameCharacter[] = [];
+      const leftInGraveyard: number[] = [];
+      const arms = [0, 1].map(() => {
+        const arm = GameCharacter.create('腕', 1, '');
+        arm.location = { name: 'graveyard', x: 0, y: 0 } as never;
+        arm.ridingOn = dragon.identifier;
+        arm.rideSeat = 'part';
+        vi.spyOn(arm, 'clone').mockImplementation(() => {
+          leftInGraveyard.push(copiedSoFar.filter((one) => one.location.name === 'graveyard').length);
+          const copy = GameCharacter.create(`腕_${copiedSoFar.length + 2}`, 1, '');
+          copy.location = { name: 'graveyard', x: 0, y: 0 } as never;
+          copy.rideSeat = 'part';
+          copiedSoFar.push(copy);
+          return copy as never;
+        });
+        return arm;
+      });
+
+      await presses.press(
+        chestAt(5, 5, {
+          actions: [
+            {
+              kind: 'spawn',
+              target: { identifier: dragon.identifier, name: '竜' },
+              count: 1,
+              place: 'host',
+              delayMs: 0,
+              extra: {},
+            },
+          ],
+        })
+      );
+
+      const [copy] = onTable('竜');
+      const copiedArms = ObjectStore.instance
+        .getObjects<GameCharacter>(GameCharacter)
+        .filter((piece) => piece.ridingOn === copy.identifier);
+      expect(copiedArms.map((arm) => arm.name).sort()).toEqual(['腕_2', '腕_3']);
+      expect(leftInGraveyard).toEqual([0, 0]);
+      for (const arm of copiedArms) {
+        expect(arm.location).toMatchObject({ name: 'table', x: copy.location.x + GRID, y: copy.location.y + GRID });
+      }
+      expect(arms.map((arm) => arm.location.name)).toEqual(['graveyard', 'graveyard']);
+    });
+
     it('has each copy out of the graveyard before the next is made, so each is numbered after the last', async () => {
       const goblin = GameCharacter.create('ゴブリン', 1, '');
       goblin.location = { name: 'graveyard', x: 0, y: 0 } as never;
@@ -547,6 +618,22 @@ describe('SwitchPressService', () => {
       );
 
       expect(hero.location).toMatchObject({ name: 'table', x: 8 * GRID, y: 3 * GRID });
+    });
+
+    it('carries the parts of the presser’s piece along with it', async () => {
+      const hero = speakAs(1, 1);
+      const arm = GameCharacter.create('腕', 1, '');
+      arm.location = { name: 'table', x: 1 * GRID, y: 1 * GRID } as never;
+      arm.ridingOn = hero.identifier;
+      arm.rideSeat = 'part';
+
+      await presses.press(
+        switchWith({
+          actions: [{ kind: 'carry', col: 8, row: 3, table: { identifier: '', name: '' }, delayMs: 0, extra: {} }],
+        })
+      );
+
+      expect(arm.location).toMatchObject({ name: 'table', x: 8 * GRID, y: 3 * GRID });
     });
 
     it('turns the darkness and the fog on or off, lays a picture on the table and puts music on', async () => {

@@ -176,7 +176,7 @@
           [appHudPlace]="{ owner: id, part: 'pedestal', place: 'below' }"
         >
           <div
-            class="bg-ui-panel text-ui-text shadow-ui-sm mt-1 rounded-full px-2 py-0.5 text-[12px] leading-snug font-medium tabular-nums"
+            class="bg-ui-panel text-ui-text shadow-ui-sm mt-1 rounded-full px-2 py-0.5 text-xs/snug font-medium tabular-nums"
             data-testid="turn-readout"
           >
             {{ turnAngle() }}°
@@ -212,6 +212,20 @@
                     [attr.viewBox]="'0 0 ' + gaugeLayout.svgSize + ' ' + gaugeLayout.svgSize"
                     aria-hidden="true"
                   >
+                    @if (keptGaugeIds().size > 0) {
+                      <defs>
+                        <pattern
+                          [attr.id]="keptStripesId()"
+                          patternUnits="userSpaceOnUse"
+                          width="6"
+                          height="6"
+                          patternTransform="rotate(45)"
+                        >
+                          <rect width="3" height="6" fill="#9e9e9e"></rect>
+                          <rect x="3" width="3" height="6" fill="#6b6b6b"></rect>
+                        </pattern>
+                      </defs>
+                    }
                     @for (segment of gaugeLayout.segments; track segment.gauge.identifier) {
                       <circle
                         class="stroke-black/65"
@@ -240,7 +254,11 @@
                         [attr.cy]="gaugeLayout.center"
                         [attr.r]="gaugeLayout.radius"
                         fill="none"
-                        [attr.stroke]="segment.gauge.color"
+                        [attr.stroke]="
+                          keptGaugeIds().has(segment.gauge.identifier)
+                            ? 'url(#' + keptStripesId() + ')'
+                            : segment.gauge.color
+                        "
                         [attr.stroke-width]="gaugeLayout.strokeWidth"
                         pathLength="360"
                         [attr.stroke-dasharray]="segment.fillDashArray"
@@ -486,7 +504,7 @@
                 </div>
                 @if (turning() === 'roll') {
                   <div
-                    class="bg-ui-panel text-ui-text shadow-ui-sm pointer-events-none absolute flex -translate-y-1/2 items-center gap-1 rounded-full py-0.5 pr-2 pl-1 text-[12px] leading-snug font-medium whitespace-nowrap tabular-nums"
+                    class="bg-ui-panel text-ui-text shadow-ui-sm pointer-events-none absolute flex -translate-y-1/2 items-center gap-1 rounded-full py-0.5 pr-2 pl-1 text-xs/snug font-medium whitespace-nowrap tabular-nums"
                     data-testid="roll-readout"
                     [style.left.px]="handle.dx + rollHandleSizePx() / 2 + 4"
                     [style.top.px]="handle.dy"
@@ -672,49 +690,20 @@
                   @if (!first) {
                     <div class="my-[0.35em] h-[0.1em] w-full shrink-0 bg-white/40"></div>
                   }
-                  <div class="flex flex-col items-center gap-[0.15em]" data-testid="riding-label-piece">
-                    @if (label.badges.length > 0) {
-                      <div
-                        class="grid w-max items-end gap-[0.8em]"
-                        [style.grid-template-columns]="buffBadgeColumns"
-                        [style.font-size.em]="buffIconScale()"
-                      >
-                        @for (badge of label.badges; track badge.identifier) {
-                          <buff-badge [badge]="badge"></buff-badge>
-                        }
-                      </div>
-                    }
-                    @for (row of label.gauges; track row.gauge.identifier) {
-                      <ng-container *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"></ng-container>
-                    }
-                    @if (label.name && label.icon) {
-                      <div
-                        class="bg-ui-panel text-ui-text box-border max-w-[24em] truncate rounded-[1.6em] px-[0.6em] py-[0.2em]"
-                        data-testid="riding-label-name"
-                        [style.font-size.em]="ridingNameEm"
-                      >
-                        <i class="material-icons text-ui-muted inline align-middle text-[1em]!">{{ label.icon }}</i>
-                        {{ label.name }}
-                      </div>
-                    } @else if (label.name) {
-                      <div
-                        class="bg-ui-panel text-ui-text pointer-events-auto box-border rounded-[1.6em] px-[0.6em] py-[0.2em]"
-                        data-testid="piece-name"
-                        [style.font-size.em]="ridingNameEm"
-                      >
-                        <div class="max-w-[24em] truncate">
-                          {{ label.name }}
-                          @if (isLock) {
-                            <i class="material-icons inline align-middle text-[1em]!">lock</i>
-                          }
-                          <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
-                            ><i class="material-icons inline align-middle text-[1em]!">person</i
-                            >{{ label.aboard }}</span
-                          >
-                        </div>
-                      </div>
-                    }
-                  </div>
+                  <ng-container *ngTemplateOutlet="ridingLabelView; context: { $implicit: label }"></ng-container>
+                }
+              </div>
+            }
+            @if (partCardInOrbit().length > 0) {
+              <div
+                data-testid="part-label-card"
+                class="box-border flex flex-col items-center rounded-[0.9em] bg-black/35 px-[0.6em] py-[0.35em]"
+              >
+                @for (label of partCardInOrbit(); track label.identifier; let first = $first) {
+                  @if (!first) {
+                    <div class="my-[0.35em] h-[0.1em] w-full shrink-0 bg-white/40"></div>
+                  }
+                  <ng-container *ngTemplateOutlet="ridingLabelView; context: { $implicit: label }"></ng-container>
                 }
               </div>
             }
@@ -858,11 +847,79 @@
     >
       <span
         class="absolute inset-y-0 left-0 block rounded-full transition-[width] duration-200"
-        [ngStyle]="{ width: gauge.ratio * 100 + '%', background: gauge.color }"
+        [attr.data-kept]="row.kept || null"
+        [ngStyle]="{ width: gauge.ratio * 100 + '%', background: row.kept ? keptStripes : gauge.color }"
       ></span>
     </span>
     <span class="shrink-0 text-[0.9em] leading-none text-white/85 [text-shadow:0_0.1em_0.2em_#000]">{{
       row.numbers
     }}</span>
+  </div>
+</ng-template>
+
+<ng-template #ridingLabelView let-label>
+  <div
+    class="ring-ui-accent flex flex-col items-center gap-[0.15em] rounded-[0.6em]"
+    data-testid="riding-label-piece"
+    [attr.data-body-part]="label.part ? label.identifier : null"
+    [attr.data-hud-control]="label.part ? '' : null"
+    [class.pointer-events-auto]="label.part"
+    [class.cursor-pointer]="label.part"
+    [class.ring-2]="label.targeted"
+    (click)="label.part && aimAtPart(label.identifier, $event)"
+    (contextmenu)="label.part && openPartMenu(label.identifier, $event)"
+  >
+    @if (label.pick > 0) {
+      <div
+        data-testid="part-pick-order"
+        class="flex size-[1.6em] items-center justify-center rounded-full leading-none font-bold text-[#1b1b1b]"
+        [style.background]="pickColor()"
+        [style.font-size.em]="ridingNameEm"
+      >
+        {{ label.pick }}
+      </div>
+    }
+    @if (label.badges.length > 0) {
+      <div
+        class="grid w-max items-end gap-[0.8em]"
+        [style.grid-template-columns]="buffBadgeColumns"
+        [style.font-size.em]="buffIconScale()"
+      >
+        @for (badge of label.badges; track badge.identifier) {
+          <buff-badge [badge]="badge"></buff-badge>
+        }
+      </div>
+    }
+    @for (row of label.gauges; track row.gauge.identifier) {
+      <ng-container *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"></ng-container>
+    }
+    @if (label.name && label.icon) {
+      <div
+        class="bg-ui-panel text-ui-text box-border max-w-[24em] truncate rounded-[1.6em] px-[0.6em] py-[0.2em]"
+        data-testid="riding-label-name"
+        [style.font-size.em]="ridingNameEm"
+      >
+        <i class="material-icons text-ui-muted inline align-middle text-[1em]!">{{ label.icon }}</i>
+        {{ label.name }}
+      </div>
+    } @else if (label.name) {
+      <div
+        class="bg-ui-panel text-ui-text pointer-events-auto box-border rounded-[1.6em] px-[0.6em] py-[0.2em]"
+        data-testid="piece-name"
+        [style.font-size.em]="ridingNameEm"
+      >
+        <div class="max-w-[24em] truncate">
+          {{ label.name }}
+          @if (isLock) {
+            <i class="material-icons inline align-middle text-[1em]!">lock</i>
+          }
+          @if (label.aboard > 0) {
+            <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
+              ><i class="material-icons inline align-middle text-[1em]!">person</i>{{ label.aboard }}</span
+            >
+          }
+        </div>
+      </div>
+    }
   </div>
 </ng-template>

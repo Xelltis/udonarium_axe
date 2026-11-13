@@ -1,10 +1,12 @@
 import { inject, Injectable } from '@angular/core';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { NamedCueService } from '@axe/application/media/named-cue.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -51,6 +53,8 @@ export class TriggerFireService {
   private readonly objectStore = inject(ObjectStore);
   private readonly tableBgm = inject(TableBgmService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly names = inject(PieceNameService);
+  private readonly links = inject(PieceLinksService);
 
   /** Where each piece was lifted from, so putting it down knows what it crossed to get here. */
   private readonly lifted = new Map<string, number>();
@@ -282,10 +286,49 @@ export class TriggerFireService {
    * is, and the walk would finish in a place nobody chose. It also settles what happens when
    * one pitfall opens onto another: the walk is over, so the second is ground for another
    * move to find.
+   *
+   * While {@link carryingAfter} holds the carrying back, the carry is noted rather than made, once
+   * for whatever is carried as one, the first ground to carry it winning.
    */
   private carry(trigger: TableTrigger, piece: GameCharacter): void {
     if (!trigger.warps) return;
-    this.carryTo(piece, trigger.warpCol, trigger.warpRow, this.landing(trigger));
+    const landing = this.landing(trigger);
+    if (this.heldCarries) {
+      const carried = this.links.rideChainOf(piece).at(-1) ?? piece;
+      if (!this.heldCarries.has(carried.identifier)) {
+        this.heldCarries.set(carried.identifier, { piece, col: trigger.warpCol, row: trigger.warpRow, table: landing });
+      }
+      return;
+    }
+    this.carryTo(piece, trigger.warpCol, trigger.warpRow, landing);
+  }
+
+  /** The carries ground made while {@link carryingAfter} holds them back, by what is carried; null otherwise. */
+  private heldCarries: Map<string, { piece: GameCharacter; col: number; row: number; table: GameTable | null }> | null =
+    null;
+
+  /**
+   * Runs `work`, holding back every carry the ground sprung in it makes until it is done, then
+   * carrying whatever is carried as one once. Ground sprung for the pieces taking or leaving one turn
+   * all goes off where they stand, a rider and its mount and its parts alike, before any of them is
+   * carried away; and ground where they land is ground for another move to find.
+   */
+  carryingAfter<T>(work: () => T): T {
+    if (this.heldCarries) return work();
+    this.heldCarries = new Map();
+    try {
+      return work();
+    } finally {
+      const held = [...this.heldCarries.values()];
+      this.heldCarries = null;
+      for (const carry of held) {
+        try {
+          this.carryTo(carry.piece, carry.col, carry.row, carry.table);
+        } catch {
+          // A carry that will not go is no reason for the others, or the round, to stop.
+        }
+      }
+    }
   }
 
   /**
@@ -293,8 +336,12 @@ export class TriggerFireService {
    * the one being looked at, since a piece stands on every table at once and what changes is which
    * one the room is looking at.
    *
-   * On a table counting squares of several cells the piece goes on the square holding the cell, and
-   * where the table keeps its pieces to the cells, on the cell itself as near as the square allows.
+   * A piece riding a mount, or a part of a body, is carried as the mount or the body it goes with,
+   * set down on the cell itself; one held on to by another on the table is carried alone. On a table
+   * counting squares of several cells what is carried goes on the square holding the cell, and where
+   * the table keeps its pieces to the cells, on the cell itself as near as the square allows. What
+   * goes where it goes, its parts, what rides it and what it holds, goes along, stood by the cells of
+   * the table the room then looks at; the piece and what it rides go along held fast or not.
    */
   carryTo(piece: GameCharacter, col: number, row: number, table: GameTable | null): void {
     if (!table || table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return;
@@ -304,23 +351,31 @@ export class TriggerFireService {
     // Ground pointing off the board carries nobody: a piece set down outside it would be a
     // piece nothing on the table could reach.
     if (to < 0) return;
+    const chain = this.links.rideChainOf(piece);
+    const carried = chain[chain.length - 1];
     const floors = table.identifier !== this.tableSelecter.viewTableIdentifier;
     const keeps = isSquareGrid(grid) && grid.keepsToCells;
     const corner = keeps
-      ? pieceCornerInSquare(grid, piece, table.gridSize, to, {
+      ? pieceCornerInSquare(grid, carried, table.gridSize, to, {
           x: (at.col + 0.5) * table.gridSize,
           y: (at.row + 0.5) * table.gridSize,
         })
-      : pieceCornerOn(grid, piece, table.gridSize, to);
-    const there = keeps ? standsAt(piece, corner) : pieceCellOf(grid, piece, table.gridSize) === to;
-    if (!floors && there) return;
-    piece.location = { name: piece.location.name, x: corner.x, y: corner.y };
-    piece.update();
+      : pieceCornerOn(grid, carried, table.gridSize, to);
+    const there = keeps ? standsAt(carried, corner) : pieceCellOf(grid, carried, table.gridSize) === to;
+    if (!floors && there) {
+      this.links.carryBound(carried);
+      this.links.standChainOn(chain);
+      return;
+    }
+    carried.location = { name: carried.location.name, x: corner.x, y: corner.y };
+    carried.update();
     // Turned to last, so that the room arrives to find the piece already standing where it fell.
     if (floors) {
       this.tableSelecter.viewTableIdentifier = table.identifier;
       this.tableBgm.playFor(table);
     }
+    this.links.carryBoundOntoFloor([carried]);
+    this.links.standChainOn(chain);
   }
 
   /**
@@ -391,7 +446,7 @@ export class TriggerFireService {
         trigger,
         this.t('feature.tabletop.trigger.rolled', {
           trigger: called,
-          piece: piece.name,
+          piece: this.names.said(piece),
           rolled: firing.rolled,
           target: trigger.checkTarget.trim(),
           outcome: this.t(firing.made ? 'feature.tabletop.trigger.made' : 'feature.tabletop.trigger.missed'),
@@ -404,7 +459,7 @@ export class TriggerFireService {
         trigger,
         this.t('feature.tabletop.trigger.tookFrom', {
           trigger: called,
-          piece: piece.name,
+          piece: this.names.said(piece),
           amount: Math.abs(firing.taken),
           element: firing.from,
           verb: this.t(firing.taken < 0 ? 'feature.tabletop.trigger.gave' : 'feature.tabletop.trigger.took'),
@@ -415,7 +470,7 @@ export class TriggerFireService {
     // Ground that took nothing and described nothing still says it was walked into, or a table
     // would have no way of telling a trap that did nothing from ground that is not trapped.
     if (said.length < 1)
-      this.tell(trigger, this.t('feature.tabletop.trigger.sprang', { trigger: called, piece: piece.name }));
+      this.tell(trigger, this.t('feature.tabletop.trigger.sprang', { trigger: called, piece: this.names.said(piece) }));
   }
 
   /**
@@ -433,7 +488,7 @@ export class TriggerFireService {
     if (trigger.checkRoll.trim().length > 0 && trigger.checkTarget.trim().length > 0) return;
     const target = trigger.checkTarget.trim();
     const key = target.length > 0 ? 'feature.tabletop.trigger.asksFor' : 'feature.tabletop.trigger.asks';
-    this.tell(trigger, this.t(key, { trigger: called, piece: piece.name, check: asked, target }));
+    this.tell(trigger, this.t(key, { trigger: called, piece: this.names.said(piece), check: asked, target }));
   }
 
   /**

@@ -1,3 +1,4 @@
+import { copyPartsAlong } from '@axe/application/ui/tabletop-context-menu-actions';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
@@ -24,6 +25,7 @@ export function cloneTabletopObject(source: CharacterSheetTarget, offsetPx = 50)
   cloneObject.location.y += offsetPx;
   if (source.parent) source.parent.appendChild(cloneObject);
   cloneObject.update();
+  copyPartsAlong(source, cloneObject);
 
   if (cloneObject instanceof Terrain) {
     cloneObject.isLocked = false;

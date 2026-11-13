@@ -5,6 +5,7 @@ import {
 } from '@axe/application/ui/multi-selection-context-menu';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
@@ -41,6 +42,22 @@ function makeObj(id: string, opts: { isLock?: boolean } = {}): TabletopObject {
     },
   };
   return obj as unknown as TabletopObject;
+}
+
+/**
+ * Stands in for a piece's copy, which is made through its XML: happy-dom refuses the dotted attribute
+ * names a piece is written with, so the copy is made by hand of what the test reads.
+ */
+function copiedByHand(piece: GameCharacter): void {
+  vi.spyOn(piece, 'clone').mockImplementation(() => {
+    const copy = GameCharacter.create(piece.name, 1, '');
+    copy.ridingOn = piece.ridingOn;
+    copy.rideSeat = piece.rideSeat;
+    copy.location.name = piece.location.name;
+    copy.location.x = piece.location.x;
+    copy.location.y = piece.location.y;
+    return copy as never;
+  });
 }
 
 describe('buildMultiSelectionContextMenu', () => {
@@ -82,6 +99,29 @@ describe('buildMultiSelectionContextMenu', () => {
 
     expect(table.appendChild).toHaveBeenCalledTimes(1);
     expect((table.appendChild.mock.calls[0][0] as { identifier: string }).identifier).toBe('a-clone');
+  });
+
+  it('copies a body picked with its part once, the part coming with the body rather than onto it again', () => {
+    const body = GameCharacter.create('竜', 3, '');
+    body.setLocation('table');
+    const arm = GameCharacter.create('腕', 1, '');
+    arm.ridingOn = body.identifier;
+    arm.rideSeat = 'part';
+    arm.setLocation('table');
+    copiedByHand(body);
+    copiedByHand(arm);
+    const selection = new SelectionSignalService();
+    selection.replaceSelection([body.identifier, arm.identifier]);
+    const menu = buildMultiSelectionContextMenu([body, arm], { t, selectionSignalService: selection, gridSize: 50 });
+
+    (menu[2] as ContextMenuAction).action?.();
+
+    const pieces = ObjectStore.instance.getObjects(GameCharacter);
+    const bodyCopy = pieces.find((piece) => piece !== body && !piece.isWrittenAsPart)!;
+    expect(pieces.filter((piece) => piece.ridingOn === body.identifier)).toEqual([arm]);
+    expect(pieces.filter((piece) => piece.ridingOn === bodyCopy.identifier)).toHaveLength(1);
+    for (const piece of pieces) ObjectStore.instance.delete(piece, false);
+    ObjectStore.instance.clearDeleteHistory();
   });
 
   it('leaves locked objects out of copy all and move all', () => {

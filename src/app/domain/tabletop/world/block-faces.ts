@@ -12,6 +12,15 @@ import type { TableWorldCap, TableWorldPoint, TableWorldWall } from '@axe/domain
 const BOX_SIDES: readonly TerrainImageSlot[] = ['north', 'east', 'south', 'west'];
 
 /**
+ * How far off the face it lies against a block with no thickness is drawn, in table pixels: a sheet
+ * stood against a wall, a picture put flat on a wall, or a block as high as nothing lying on the top
+ * of another. Laid in the same plane, the depth could not tell the two faces apart and showed them
+ * through each other in a flickering pattern; a hair off it, the sheet is in front. It is far more
+ * than the depth tells apart at the furthest the camera stands, and far less than shows.
+ */
+export const SHEET_LIFT_PX = 0.5;
+
+/**
  * The faces of the blocks standing on the floor: each block's sides standing from its foot to its
  * top, and its top, with its underside where it hangs above the floor.
  *
@@ -98,6 +107,7 @@ export function blockFacesOf(
     }
     if (terrain.hasFloor || terrain.hasWall) {
       const top = picture('top', 'floor');
+      const topPx = block.topPx + (block.flat && !block.roof ? SHEET_LIFT_PX : 0);
       const pieces = cut ? clearedCells(cut, block.width, block.depth) : [{ cell: '', outline: block.outline }];
       if (block.roof) {
         block.roof.faces.forEach((face, index) => {
@@ -110,7 +120,7 @@ export function blockFacesOf(
           };
         });
       } else {
-        for (const piece of pieces) capOf(`top${piece.cell}`, piece.outline, block.topPx, 'up', top);
+        for (const piece of pieces) capOf(`top${piece.cell}`, piece.outline, topPx, 'up', top);
       }
       if (block.basePx > 0) {
         const bottom = picture('bottom', 'floor');
@@ -189,6 +199,8 @@ interface LaidOutBlock {
   readonly depth: number;
   readonly basePx: number;
   readonly topPx: number;
+  /** Whether it is as high as nothing, its top lying on whatever it lies on. */
+  readonly flat: boolean;
   readonly roof: SlopeRoof | null;
   /** A point of the block's own frame, where it stands on the board as `ax`/`ay`. */
   onBoard(point: SlopePoint): { ax: number; ay: number };
@@ -201,7 +213,7 @@ interface LaidOutBlock {
 function laidOut(terrain: Terrain, gridSize: number, gridType: GridType, groundLiftPx: number): LaidOutBlock {
   const width = terrain.width * gridSize;
   const depth = terrain.depth * gridSize;
-  const outline = terrainTopOutline(terrain, gridSize, gridType);
+  const outline = sheetOutline(terrainTopOutline(terrain, gridSize, gridType), width, depth);
   const door = openDoorMotion(terrain, gridSize);
   const lift = (door?.lift ?? 0) + groundLiftPx;
   const topPx = terrainTopPx(terrain, gridSize) + lift;
@@ -219,6 +231,7 @@ function laidOut(terrain: Terrain, gridSize: number, gridType: GridType, groundL
     depth,
     basePx,
     topPx,
+    flat: terrain.height * gridSize < SHEET_LIFT_PX,
     roof,
     onBoard(point) {
       const moved = door ? movedByDoor(door, point.x, point.y) : point;
@@ -227,7 +240,7 @@ function laidOut(terrain: Terrain, gridSize: number, gridType: GridType, groundL
       return { ax: middleX + x * cos - y * sin, ay: middleY + x * sin + y * cos };
     },
     stretched(points) {
-      return points.map((point) => ({ x: point.x / width, y: 1 - point.y / depth }));
+      return points.map((point) => ({ x: point.x / (width || 1), y: 1 - point.y / (depth || 1) }));
     },
     profileUnder(from, to) {
       return roof
@@ -235,6 +248,25 @@ function laidOut(terrain: Terrain, gridSize: number, gridType: GridType, groundL
         : [];
     },
   };
+}
+
+/**
+ * The outline of a rectangular block, its sides with no thickness between them stood apart by a hair
+ * either way, so each faces out from the line it stands on rather than lying on the other; any other
+ * outline as it is.
+ */
+function sheetOutline(outline: SlopePoint[], width: number, depth: number): SlopePoint[] {
+  if (outline.length !== 4) return outline;
+  const thinAcross = width < SHEET_LIFT_PX * 2;
+  const thinDeep = depth < SHEET_LIFT_PX * 2;
+  if (!thinAcross && !thinDeep) return outline;
+  // The corners run north-west, north-east, south-east and south-west.
+  const east = [false, true, true, false];
+  const south = [false, false, true, true];
+  return outline.map((point, index) => ({
+    x: thinAcross ? width / 2 + (east[index] ? 1 : -1) * (width / 2 + SHEET_LIFT_PX) : point.x,
+    y: thinDeep ? depth / 2 + (south[index] ? 1 : -1) * (depth / 2 + SHEET_LIFT_PX) : point.y,
+  }));
 }
 
 function renamed(point: { ax: number; ay: number }): { bx: number; by: number } {

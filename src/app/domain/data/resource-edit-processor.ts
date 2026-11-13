@@ -8,9 +8,11 @@ import {
 } from '@axe/domain/character/buff-bulk-removal';
 import { halfWidthBuffCommand } from '@axe/domain/character/buff-command';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { tellThoseWhoMaySee } from '@axe/domain/chat/game-master-lines';
 import {
   findEmbeddedRolls,
   isDicelessArithmetic,
@@ -23,7 +25,7 @@ import {
 import { resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import {
   applyBuffEdit,
-  applyResourceEdit,
+  applyResourceEditReport,
   applyTextEdit,
   type BuffEdit,
   convertCommandToResourceEdit,
@@ -31,6 +33,7 @@ import {
   parseResourceEditOption,
   type ResourceEdit,
   type ResourceEditOption,
+  type ResourceEditReport,
 } from '@axe/domain/data/resource-edit-helpers';
 import type { DiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -178,7 +181,7 @@ export class ResourceEditProcessor {
           continue;
         }
         const outcome = await this.workOutAmount(oneResourceEdit, gameSystem);
-        const named = `${targeted ? `[${object.name}] ` : ''}${oneText}`;
+        const named = `${targeted ? `[${saidNameOf(object)}] ` : ''}${oneText}`;
         if (outcome === 'unreadable') {
           unreadableCommands.push(`${named}を計算できません    `);
           continue;
@@ -346,9 +349,9 @@ export class ResourceEditProcessor {
     return applyTextEdit(edit, character);
   }
 
-  /** Applies a worked-out resource change and returns its report; see {@link applyResourceEdit}. */
-  resourceEdit(edit: ResourceEdit, character: GameCharacter): string {
-    return applyResourceEdit(edit, character);
+  /** Applies a worked-out resource change and returns its reports; see {@link applyResourceEditReport}. */
+  resourceEdit(edit: ResourceEdit, character: GameCharacter): ResourceEditReport {
+    return applyResourceEditReport(edit, character);
   }
 
   /** Runs one buff command on the character and returns its report; see {@link applyBuffEdit}. */
@@ -364,37 +367,49 @@ export class ResourceEditProcessor {
     isSecret: boolean,
     buffSweeps: readonly string[] = []
   ) {
+    // What is said to everyone, and the same in full, which differs only where a piece's contents
+    // are kept from anyone; the full one is then told those who may see what every such piece keeps.
     let text = '';
+    let full = '';
+    const kept = new Set<GameCharacter>();
+    const add = (said: string, inFull = said) => {
+      text += said;
+      full += inFull;
+    };
     let isDiceRoll = false;
     for (const edit of allEditList) {
       const character = edit.object!;
       if (edit.targeted) {
-        text += `[${character.name}] `;
+        add(`[${saidNameOf(character)}] `);
       }
       if (edit.operator == '>') {
-        text += this.textEdit(edit, character);
+        add(this.textEdit(edit, character));
       } else {
-        text += this.resourceEdit(edit, character);
+        const report = this.resourceEdit(edit, character);
+        add(report.shown, report.full);
+        if (report.shown !== report.full) kept.add(character);
       }
       if (edit.embeddedRolls.length > 0) {
         text = text.replace(/[ ]+$/, '');
-        for (const embedded of edit.embeddedRolls) text += `\n  └ ${embedded}`;
-        text += '\n';
+        full = full.replace(/[ ]+$/, '');
+        for (const embedded of edit.embeddedRolls) add(`\n  └ ${embedded}`);
+        add('\n');
       }
       if (edit.isDiceRoll) {
         isDiceRoll = true;
       }
     }
     for (const buff of buffList) {
-      text += this.buffEdit(buff, buff.object);
+      add(this.buffEdit(buff, buff.object));
     }
     for (const sweep of buffSweeps) {
-      text += this.sweepBuffs(sweep);
+      add(this.sweepBuffs(sweep));
     }
     for (const unreadable of unreadableCommands) {
-      text += unreadable;
+      add(unreadable);
     }
     text = text.replace(/\s+$/, '');
+    full = full.replace(/\s+$/, '');
 
     if (text == '') return;
     let fromText: string;
@@ -421,6 +436,8 @@ export class ResourceEditProcessor {
     const chatTab = ObjectStore.instance.get<ChatTab>(originalMessage.tabIdentifier);
     if (chatTab) {
       chatTab.addMessage(resourceMessage);
+      if (full !== text)
+        tellThoseWhoMaySee(chatTab, { ...resourceMessage, timestamp: originalMessage.timestamp + 3 }, full, [...kept]);
     }
   }
 

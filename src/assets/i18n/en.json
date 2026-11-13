@@ -1,5 +1,6 @@
 {
   "common": {
+    "hiddenName": "???",
     "button": {
       "ok": "OK",
       "cancel": "Cancel",
@@ -562,6 +563,11 @@
     "plTools": {
       "buffView": "Buff display (all)",
       "buffIconSize": "Buff icon size",
+      "turn": {
+        "focus": "Move the view to {{name}}",
+        "next": "Next",
+        "nextHint": "Next: end your character’s turn and hand it on"
+      },
       "active": {
         "title": "Character being moved",
         "openChatPalette": "Open the chat palette for {{name}}"
@@ -1599,6 +1605,13 @@
         "spawn": "Throw off"
       }
     },
+    "turnFocus": {
+      "all": "Move the view to whose turn it is: Every turn",
+      "own": "Move the view to whose turn it is: My characters only",
+      "none": "Move the view to whose turn it is: Off",
+      "firstNotice": "The view moved to whose turn it is. Change it from \"Move the view to whose turn it is\" in the menu: your characters only, or off",
+      "stop": "Turn off"
+    },
     "turnOrder": {
       "title": "Turn order",
       "roundShort": "R{{n}}",
@@ -1627,6 +1640,13 @@
       "undoAnnounce": "The turn was put back one step.",
       "acted": "Acted",
       "held": "Waiting to step in",
+      "peekCurrent": "Their turn now",
+      "peekNext": "Up next",
+      "peekSide": "Side: {{name}}",
+      "peekWith": "Moving with: {{names}}",
+      "peekGive": "Press to give them the turn",
+      "peekGiveNow": "Give the turn",
+      "length": "Length of the turn order (drag or arrow keys to change, double-click or Home to fit the screen)",
       "hold": "Hold",
       "holdCurrent": "Have the piece whose turn it is wait, to step in later",
       "interrupt": "Step in",
@@ -1773,6 +1793,7 @@
         "fillOptions": "Fill options",
         "rotateSnap": "Rotation snap subdivision",
         "fillOutline": "Fill along outline",
+        "freePlacement": "Free placement (off the grid)",
         "halfCellShift": "Half-cell shift",
         "shiftHorizontal": "Horizontal",
         "shiftVertical": "Vertical",
@@ -1910,6 +1931,8 @@
         "displayCandidatesEmpty": "No characters on the table",
         "inventoryVisibility": "Visibility",
         "viewRound": "Round",
+        "roundAcross": "Lay the turn order across",
+        "roundDown": "Lay the turn order down",
         "showParts": "Strips to show",
         "showTabs": "Tabs",
         "showFilterLine": "Filter line",
@@ -2135,6 +2158,7 @@
         "displaySettings": "Display",
         "hideNameOn": "☑ Hide name",
         "hideNameOff": "☐ Hide name",
+        "hideNameGmOnly": " (GM only)",
         "hideBuffOn": "☑ Hide buffs",
         "hideBuffOff": "☐ Hide buffs",
         "npcOn": "☑ Mark as NPC",
@@ -2660,6 +2684,7 @@
         "shapeHexagon": "Hexagon",
         "shapeCircle": "Circle",
         "shapeCustom": "Custom cells",
+        "freePlacement": "Free placement",
         "rangeEdit": "Edit range",
         "scratchStart": "Start scratch",
         "scratchFinish": "Finish scratch",
@@ -3078,7 +3103,7 @@
           "corridorWidth": "Wider passages take a wider lattice, so fewer rooms fit on the board",
           "doorWidth": "A door wider than the way it bars has the stone beside the opening cut away. An opening wider than the door takes a row of them",
           "doubleDoors": "A pair is two leaves of half the width, parting in the middle. A door of four cells is two of two",
-          "muster": "Stands that party by the way in. No other piece is moved",
+          "muster": "Stands that party by the way in, with the mounts they ride, their parts, those riding them and those they hold",
           "traps": "Set about the rooms and passages, never in the first room nor under the stairs"
         },
         "entrance": {
@@ -3147,6 +3172,8 @@
         }
       },
       "groundBrush": {
+        "kindGroup": "What the brush does",
+        "layerGroup": "Ground to paint",
         "kind_raise": "Raise",
         "kind_lower": "Dig",
         "kind_smooth": "Smooth",
@@ -3161,7 +3188,33 @@
         "strength": "Strength",
         "undo": "Take back the last stroke",
         "close": "Stop shaping the ground",
-        "unaware": "{{count}} in the room are on a version that knows nothing of the ground; the table stays flat for them."
+        "unaware": "{{count}} in the room are on a version that knows nothing of the ground; the table stays flat for them.",
+        "radiusValue": "{{n}} cells",
+        "strengthHeight": "{{n}} cells",
+        "strengthShare": "{{n}}%",
+        "guide": {
+          "shape": "shape the ground",
+          "move": "move",
+          "turn": "turn",
+          "tilt": "tilt",
+          "zoom": "zoom"
+        },
+        "guideKey": {
+          "drag": "Drag the board",
+          "swipe": "Swipe",
+          "twoThenOne": "Two fingers, lift one and slide",
+          "twist": "Twist two fingers",
+          "twoUpDown": "Two fingers up or down",
+          "pinch": "Pinch",
+          "arrows": "←↑↓→",
+          "shift": "Shift",
+          "ctrl": "Ctrl",
+          "leftRight": "←→",
+          "upDown": "↑↓",
+          "wheel": "Wheel",
+          "rightDrag": "Right-drag",
+          "middleDrag": "Middle-drag"
+        }
       },
       "movePlan": {
         "hint": "Click to walk there / right-click to set a corner (again on the same spot takes it back) / Enter to go / Esc to leave it",
@@ -3915,7 +3968,9 @@
         "targetNumberAimed": "Auto: {{total}} (rolled at {{speaker}}: {{by}})",
         "targetNumberPinned": "Auto: {{total}} (set for this tab: {{by}})",
         "targetNumberByOthers": "Auto: {{total}} (latest roll: {{by}})",
+        "targetNumberPresented": "Auto: {{total}} (set out by {{by}})",
         "targetNumberNotFound": "Auto: none found ({目標値} is sent as typed)",
+        "targetNumberIdle": "Used by a line with {目標値}",
         "targetNumberChoice": "{{total}} ({{by}})"
       },
       "decoration": {
@@ -4015,9 +4070,10 @@
         "edit": "Edit",
         "serverRoll": "The room server rolled these dice, so the roller could not change them.",
         "pinTargetNumber": "Use this result as the target number",
+        "pinPresentedTargetNumber": "Use this as the target number",
         "unpinTargetNumber": "Stop using it as the target number",
         "pinnedTargetNumber": "Target",
-        "pinnedTargetNumberTitle": "Every {目標値} in this tab takes this result until it is taken off"
+        "pinnedTargetNumberTitle": "Every {目標値} in this tab takes this number until it is taken off"
       },
       "stream": {
         "title": "Stream chat",
@@ -4057,6 +4113,9 @@
         "tabsLabel": "Palette tabs"
       },
       "messageSetting": {
+        "sectionChatTools": "Chat tools",
+        "chatToolsHint": "The row of buttons the pointer resting on a line brings out. This device’s own arrangement: add, remove and reorder them.",
+        "arrangeChatTools": "Arrange the chat tools",
         "sectionText": "Text",
         "fontSize": "Font size",
         "sectionPortrait": "Standing portrait",
@@ -5742,11 +5801,12 @@
       "reset": "Put it back the way it came",
       "resetConfirm": "This puts the menu back the way it came. Go ahead?",
       "resetAll": "Put every menu back the way it came",
-      "resetAllConfirm": "This puts the drawer and both toolbars back the way they came. Go ahead?",
+      "resetAllConfirm": "This puts the drawer, both toolbars and the chat tools back the way they came. Go ahead?",
       "surface": {
         "fab": "Fav menu",
         "gmToolbar": "GM tools",
-        "plToolbar": "PL tools"
+        "plToolbar": "PL tools",
+        "chatTools": "Chat tools"
       },
       "writeOut": "Write out",
       "readIn": "Read in",
@@ -5996,7 +6056,41 @@
       "stayedOn": "{{name}} already got on or off this turn and was put back on {{mount}}",
       "offerActionUp_rider": "Get up and ride",
       "offerActionUp_passenger": "Get up and ride behind",
-      "offerActionUp_cargo": "Get up and be loaded"
+      "offerActionUp_cargo": "Get up and be loaded",
+      "part": {
+        "attach": "Make a part of {{body}}",
+        "someone": "Part",
+        "detach": "Stop being a part of {{body}}",
+        "editLook": "Edit how the parts look",
+        "look": {
+          "title": "How the parts look - {{name}}",
+          "noParts": "No parts",
+          "mode_layer": "Lay pictures over",
+          "mode_paint": "Paint pieces",
+          "mode_faces": "Paint the model's faces",
+          "size": "Size",
+          "forward": "Forward",
+          "back": "Back",
+          "unlay": "Stop laying it over",
+          "lay": "Lay this part's picture over",
+          "brush": "Brush",
+          "paintOn": "Paint",
+          "erase": "Erase",
+          "clearPaint": "Erase all the paint",
+          "paintCleared": "Erased the paint of {{name}}",
+          "unlaid": "Stopped laying {{name}} over",
+          "letGo": "Cleared {{name}}'s {{what}}",
+          "lookLayer": "picture laid over",
+          "lookMask": "paint",
+          "lookFaces": "model faces",
+          "lookJoin": ", ",
+          "lookJoinLast": " and ",
+          "putBack": "Put back",
+          "hint_layer": "Drag the part's picture to where it goes. Once the part is beaten, its picture goes.",
+          "hint_paint": "Paint over the body's picture where the part is. Once the part is beaten, what is painted goes from the body's picture.",
+          "hint_faces": "Paint over the model where the part is; a right-drag or two fingers turn it. Once the part is beaten, its faces go."
+        }
+      }
     },
     "battleCutIn": {
       "title": "Battle cut-in",
@@ -6313,7 +6407,7 @@
     },
     "remote": {
       "panelTitle": "Remote",
-      "panelTitleWithName": "{{name}} remote",
+      "panelTitleWithName": "{{name}} remote controller",
       "sendTarget": "Target",
       "buffSectionTitle": "Apply buff",
       "counterSectionTitle": "Resource control",

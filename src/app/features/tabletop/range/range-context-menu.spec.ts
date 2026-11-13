@@ -57,6 +57,22 @@ describe('buildRangeContextMenu', () => {
     return menuOf(range).find((action) => action.name === '形状変更');
   }
 
+  it('turns free placement on and off among where the range lies, ticked while it is on', () => {
+    const range = RangeArea.create('test', 3, 3, 50);
+    try {
+      const entry = () => menuOf(range).find((action) => action.name.endsWith('自由配置'))!;
+      expect(entry().name).toBe('自由配置');
+
+      entry().action!();
+      expect(range.freePlacement).toBe(true);
+      expect(entry().name).toBe('✔ 自由配置');
+      entry().action!();
+      expect(range.freePlacement).toBe(false);
+    } finally {
+      range.destroy();
+    }
+  });
+
   it('offers every shape a range can take, ticking the one it has', () => {
     const range = RangeArea.create('test', 1, 1, 50);
     range.type = 'CIRCLE';

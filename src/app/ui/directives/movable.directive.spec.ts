@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -8,6 +8,7 @@ import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { BatchService } from '@axe/application/ui/batch.service';
+import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -17,16 +18,16 @@ import { TERRAIN_PICK_LAYER } from '@axe/domain/tabletop/pick/terrain-pick';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
-import { MovableDirective } from '@axe/ui/directives/movable.directive';
+import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
 
 @Component({
   selector: 'test-host',
-  template: `<div appMovable [movable.option]="movableOption"></div>`,
+  template: `<div appMovable [movable.option]="movableOption()"></div>`,
   changeDetection: ChangeDetectionStrategy.Eager,
   imports: [MovableDirective],
 })
 class TestHostComponent {
-  movableOption = {};
+  readonly movableOption = signal<MovableOption>({});
 }
 
 describe('MovableDirective', () => {
@@ -171,6 +172,27 @@ describe('MovableDirective', () => {
     it('still snaps on the table itself, and on a wall of it', () => {
       expect(directiveFor(undefined).isGridSnap).toBe(true);
       expect(directiveFor('north-wall').isGridSnap).toBe(true);
+    });
+
+    it('puts a piece set to be placed freely down where it is let go, as it is set each time', () => {
+      let free = true;
+      fixture.componentInstance.movableOption.set({ freeOfGrid: () => free });
+      fixture.detectChanges();
+
+      expect(directiveFor(undefined).isGridSnap).toBe(false);
+      free = false;
+      expect(directiveFor(undefined).isGridSnap).toBe(true);
+    });
+
+    it('snaps a piece set to be placed freely that leads others in a group drag, as they follow it', () => {
+      fixture.componentInstance.movableOption.set({ freeOfGrid: () => true });
+      fixture.detectChanges();
+      const directive = directiveFor(undefined);
+      vi.spyOn(TestBed.inject(MultiMovableService), 'followerTabletopObjectsFor').mockReturnValue([
+        {} as TabletopObject,
+      ]);
+
+      expect(directive.isGridSnap).toBe(true);
     });
   });
 

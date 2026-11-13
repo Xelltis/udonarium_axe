@@ -1,5 +1,8 @@
+import { LONG_FRAME_MS } from '@axe/core/util/held-clock';
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { skyAmbienceFlash } from '@axe/domain/effect/ambience/ambience-sky';
+import { MAX_EFFECT_LIGHTS } from '@axe/domain/effect/effect-light';
+import type { EffectFrame, EffectGround } from '@axe/domain/effect/scene/effect-scene';
 import { cameraDepthOver } from '@axe/domain/tabletop/camera/camera-depth';
 import { GROUND_PAINT_LAYERS } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
@@ -21,6 +24,7 @@ import { canvasOfPicture, fitReadPicture, retakeCanvasPicture } from '@axe/infra
 import { CoinLayer } from '@axe/infrastructure/table-3d/coin-layer';
 import { ConeLamp } from '@axe/infrastructure/table-3d/cone-lamp';
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
+import { EffectLayer } from '@axe/infrastructure/table-3d/effect-layer';
 import { changedChunks, chunkSignatures, facesByOwner, OwnedFaces } from '@axe/infrastructure/table-3d/face-chunks';
 import {
   boardGeometry,
@@ -42,6 +46,7 @@ import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/
 import type {
   Table3dCamera,
   Table3dDiceThrow,
+  Table3dEffectLight,
   Table3dEngine,
   Table3dEngineOptions,
   Table3dFloorCanvas,
@@ -59,7 +64,8 @@ import { TablePost } from '@axe/infrastructure/table-3d/table-post';
 import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
 import { WeatherLayer } from '@axe/infrastructure/table-3d/weather-layer';
-import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
+import { disposeObject, forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
+import { sourceTriangleOf } from '@axe/infrastructure/three-kit/model-faces';
 import {
   attribute,
   float,
@@ -89,8 +95,11 @@ import {
   MeshBasicNodeMaterial,
   MeshLambertNodeMaterial,
   type Node,
+  type Object3D,
   OrthographicCamera,
   PerspectiveCamera,
+  PointLight,
+  Raycaster,
   RepeatWrapping,
   Scene,
   SRGBColorSpace,
@@ -230,6 +239,10 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly kinds = new DrawnKinds();
   /** The graphics card being readied for kinds of thing it has not drawn, which nothing is drawn during. */
   private readying: Promise<void> | null = null;
+  /** When the engine began readying the graphics card for what it is readying it for now. */
+  private readyingFrom = 0;
+  /** How long the scene stood still on the screen, readying the graphics card or over long frames, until now. */
+  private held = 0;
   /** Whether the graphics card is readied for a new kind of thing before the frame that first draws it. */
   private readiesFirst = true;
   private needsFrame: () => void = () => undefined;
@@ -249,10 +262,16 @@ class ThreeTableEngine implements Table3dEngine {
   private topsGrid: Mesh | null = null;
   private laidWalls: readonly TableWorldWall[] | null = null;
   private laidCaps: readonly TableWorldCap[] | null = null;
-  private readonly veil = new SceneVeil(SHADOW_LIGHTS);
+  private readonly veil = new SceneVeil(SHADOW_LIGHTS, MAX_EFFECT_LIGHTS);
   /** The lamps of the slots, each throwing its light all round or one way, so the scene never has to be built again as lamps change. */
   private readonly lamps = Array.from({ length: SHADOW_LIGHTS }, () => new ConeLamp(0xffffff, 0, 1, 0));
   private laidLamps: readonly Table3dShadowLight[] = [];
+  /**
+   * The lights effects throw over the table, which throw no shadows: in the scene from the start and
+   * left dark while no effect lights, so the scene is not built again as effects come and go.
+   */
+  private readonly effectLamps = Array.from({ length: MAX_EFFECT_LIGHTS }, () => new PointLight(0xffffff, 0, 1, 0));
+  private laidEffectLights = '[]';
   private askedLamps: readonly Table3dShadowLight[] = [];
   /** How many lamps of each kind the quality the table is drawn at lets light the scene. */
   private lampSlots = -1;
@@ -279,6 +298,7 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly floorCanvases = new FloorCanvasLayer();
   private readonly fogAir = new FogAirLayer();
   private readonly weather = new WeatherLayer();
+  private readonly effects = new EffectLayer();
   /** How hard lightning lights the scene now, from 0 to 1. */
   private flash = 0;
   private readonly models = new ModelLayer(
@@ -334,6 +354,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.water.group);
     this.scene.add(this.fogAir.group);
     this.scene.add(this.weather.group);
+    this.scene.add(this.effects.group);
     this.scene.add(this.models.group);
     this.scene.add(this.dice.group);
     this.scene.add(this.skyDome.group);
@@ -355,6 +376,7 @@ class ThreeTableEngine implements Table3dEngine {
       lamp.shadow.camera.layers.enable(SHADOW_CASTERS_LAYER);
       this.scene.add(lamp, lamp.target);
     }
+    for (const lamp of this.effectLamps) this.scene.add(lamp);
     this.setQuality(TABLE_3D_QUALITY.standard);
     this.setSkyLight(skyLightAt(0.5));
   }
@@ -379,6 +401,23 @@ class ThreeTableEngine implements Table3dEngine {
     if (laid === JSON.stringify(this.laidLamps)) return;
     this.laidLamps = lights.slice(0, this.lampSlots);
     this.lightLamps();
+    this.changed = true;
+  }
+
+  setEffectLights(lights: readonly Table3dEffectLight[]): void {
+    const laid = JSON.stringify(lights.slice(0, MAX_EFFECT_LIGHTS));
+    if (laid === this.laidEffectLights) return;
+    this.laidEffectLights = laid;
+    const strengths = this.effectLamps.map((lamp, index) => {
+      const light = lights[index];
+      lamp.intensity = light ? light.strength * LIGHT_SCALE : 0;
+      if (!light) return lampColour({ r: 0, g: 0, b: 0 }, 0);
+      lamp.position.set(light.x, light.z, light.y);
+      lamp.distance = Math.max(1, light.reachPx);
+      lamp.color.set(light.color || '#ffffff');
+      return lampColour(lamp.color, light.strength);
+    });
+    this.veil.setEffectLamps(lights, strengths);
     this.changed = true;
   }
 
@@ -519,6 +558,30 @@ class ThreeTableEngine implements Table3dEngine {
     return this.loading > 0 || this.shadowTimer !== null || this.models.isLoading || this.readying !== null;
   }
 
+  modelFaceAt(pageX: number, pageY: number): { owner: string; mesh: number; triangle: number } | null {
+    const box = this.renderer.domElement.getBoundingClientRect();
+    if (!(box.width > 0) || !(box.height > 0)) return null;
+    const ndc = new Vector2(((pageX - box.left) / box.width) * 2 - 1, -((pageY - box.top) / box.height) * 2 + 1);
+    const ray = new Raycaster();
+    ray.setFromCamera(ndc, this.camera);
+    for (const hit of ray.intersectObject(this.models.group, true)) {
+      const mesh = hit.object.userData['partMesh'];
+      if (typeof mesh !== 'number' || hit.faceIndex === undefined || hit.faceIndex === null) continue;
+      let at: Object3D | null = hit.object;
+      while (at && typeof at.userData['owner'] !== 'string') at = at.parent;
+      // A copy with the faces of a lost part cut out counts its triangles afresh; the parts are told
+      // by the triangles of the model as it was read.
+      const geometry = (hit.object as Partial<Mesh>).geometry;
+      const triangle = geometry ? sourceTriangleOf(geometry, hit.faceIndex) : hit.faceIndex;
+      if (at) return { owner: at.userData['owner'] as string, mesh, triangle };
+    }
+    return null;
+  }
+
+  heldMs(): number {
+    return this.held + (this.readying !== null ? performance.now() - this.readyingFrom : 0);
+  }
+
   readyBeforeDrawing(on: boolean): void {
     this.readiesFirst = on;
   }
@@ -553,6 +616,7 @@ class ThreeTableEngine implements Table3dEngine {
       backdrops: this.backdrops.shown,
       models: this.models.shown,
       dice: this.dice.shown,
+      effects: this.effects.shown,
       modelMeshes: this.models.meshes,
       veilRevision: this.veil.revision,
       lightMapRevision: this.veil.lightRevision,
@@ -780,6 +844,15 @@ class ThreeTableEngine implements Table3dEngine {
     this.takeChanges();
   }
 
+  setEffects(frame: EffectFrame): void {
+    this.effects.set(frame);
+    this.takeChanges();
+  }
+
+  setEffectGround(ground: EffectGround | null): void {
+    this.effects.setGround(ground);
+  }
+
   setWeather(weather: Table3dWeatherFall | null): void {
     this.laidWeather = weather;
     this.weather.set(weather);
@@ -806,7 +879,10 @@ class ThreeTableEngine implements Table3dEngine {
     if (this.readying !== null || (this.readiesFirst && this.readyForNewKinds())) return false;
     this.changed = false;
     this.renderer.info.reset();
+    const began = performance.now();
     this.post.render(this.scene, this.camera, this.finishing());
+    const spent = performance.now() - began;
+    if (spent > LONG_FRAME_MS) this.held += spent;
     this.drawCalls = this.renderer.info.render.drawCalls;
     this.draws++;
     return true;
@@ -830,12 +906,16 @@ class ThreeTableEngine implements Table3dEngine {
   private readyForNewKinds(): boolean {
     const fresh = this.kinds.unreadied(this.scene);
     if (fresh.kinds.length === 0) return false;
+    this.readyingFrom = performance.now();
     const readying = this.post
       .compileAsync(this.scene, this.camera, this.finishing(), fresh.things)
       .catch(() => undefined)
       .then(() => {
         this.kinds.markReadied(fresh.kinds);
-        if (this.readying === readying) this.readying = null;
+        if (this.readying === readying) {
+          this.held += performance.now() - this.readyingFrom;
+          this.readying = null;
+        }
         this.needsFrame();
       });
     this.readying = readying;
@@ -863,7 +943,8 @@ class ThreeTableEngine implements Table3dEngine {
     const stood = this.backdrops.takeChanged();
     const modelled = this.models.takeChanged();
     const thrown = this.dice.takeChanged();
-    if (drifted || flowed || hung || stood || modelled || thrown) this.changed = true;
+    const played = this.effects.takeChanged();
+    if (drifted || flowed || hung || stood || modelled || thrown || played) this.changed = true;
   }
 
   dispose(): void {
@@ -876,6 +957,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.water.dispose();
     this.fogAir.dispose();
     this.weather.dispose();
+    this.effects.dispose();
     this.skyDome.dispose();
     this.backdrops.dispose();
     this.models.dispose();
@@ -908,6 +990,11 @@ class ThreeTableEngine implements Table3dEngine {
         ])
       : '';
     this.floorCanvases.setGround(board?.floorGround ?? null);
+    this.sprites.setGround(
+      board && !board.floorSurface.isFlat
+        ? { surface: board.floorSurface, gridSize: board.gridSize, gridType: board.gridType }
+        : null
+    );
     if (shape === this.boardShape && board?.ground === this.boardGround) return;
     this.boardShape = shape;
     if (this.boardGround !== (board?.ground ?? null)) this.groundGeneration++;
@@ -995,6 +1082,7 @@ class ThreeTableEngine implements Table3dEngine {
     const old = this.chunks.get(key);
     if (old) {
       this.facesRoot.remove(old.meshes);
+      forgetDrawn(old.meshes);
       old.meshes.traverse((object) => (object as Mesh).geometry?.dispose());
       this.chunks.delete(key);
     }

@@ -148,5 +148,4 @@
   --animate-defeat-flinch: effectDefeatFlinch 900ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
   --animate-effect-shake-soft: effectShakeSoft 340ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
   --animate-effect-shake-hard: effectShakeHard 340ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-  --animate-effect-flash: effectFlash 340ms ease-out both;
 }

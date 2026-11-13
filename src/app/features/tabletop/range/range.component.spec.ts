@@ -3,6 +3,9 @@ import { By } from '@angular/platform-browser';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
+import type { HudAnchor } from '@axe/application/tabletop/hud-frame.service';
+import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -16,9 +19,11 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 
 describe('RangeComponent', () => {
   let component: RangeComponent;
+  let given: { destroy(): void };
   let fixture: ComponentFixture<RangeComponent>;
 
   beforeEach(async () => {
@@ -34,7 +39,13 @@ describe('RangeComponent', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
     fixture = TestBed.createComponent(RangeComponent);
     component = fixture.componentInstance;
+    // Given its piece at once, as a template gives it, so that no drawing of the page made before a
+    // test gives its own reads the required input unset.
+    given = RangeArea.create('テスト範囲', 3, 5, 1);
+    fixture.componentRef.setInput('range', given);
   });
+
+  afterEach(() => given.destroy());
 
   afterEach(() => {
     fixture.destroy();
@@ -117,6 +128,35 @@ describe('RangeComponent', () => {
     });
   });
 
+  describe('the box the pointer rests on over the picture', () => {
+    it('is cut to the one shape the range is painted as, and left whole for a range of its own cells', () => {
+      const pictures = TestBed.inject(PiecePicturesService);
+      const range = given as RangeArea;
+      const picture = { url: 'blob:cells', widthPx: 100, heightPx: 100 };
+      fixture.detectChanges();
+
+      expect(component.pointerClipPath()).toBeNull();
+
+      const shape = [
+        { x: 50, y: 0 },
+        { x: 100, y: 100.004 },
+        { x: 0, y: 100 },
+      ];
+      const cell = [
+        { x: 40, y: 40 },
+        { x: 60, y: 40 },
+        { x: 60, y: 60 },
+      ];
+      pictures.show(range.identifier, { ...picture, pickAreas: [shape, cell] });
+      expect(component.pointerClipPath()).toBe('polygon(50px 0px, 100px 100px, 0px 100px)');
+
+      range.type = 'CUSTOM';
+      fixture.componentRef.setInput('range', range);
+      pictures.show(range.identifier, { ...picture, url: 'blob:cells-2', pickAreas: [cell] });
+      expect(component.pointerClipPath()).toBeNull();
+    });
+  });
+
   describe('signal-driven CD', () => {
     it('reads the name through a version signal', () => {
       const range = RangeArea.create('テスト範囲', 3, 5, 1);
@@ -126,6 +166,17 @@ describe('RangeComponent', () => {
       void component.name();
       expect(spy).toHaveBeenCalledWith(range.identifier);
     });
+  });
+
+  it('draws itself anew as its length, width or opacity is edited in its sheet', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const drawn = vi.spyOn(component as unknown as { setRange(): void }, 'setRange');
+
+    (given as RangeArea).commonDataElement!.getFirstElementByName('width')!.value = 7;
+    await Promise.resolve();
+
+    expect(drawn).toHaveBeenCalled();
   });
 
   describe('the clip version signal', () => {
@@ -167,6 +218,36 @@ describe('RangeComponent', () => {
   });
 
   describe('the turn handle', () => {
+    it('stands on the ground under it where the range lies on the ground, as the range follows the raised ground', () => {
+      const table = new GameTable();
+      table.width = 20;
+      table.height = 20;
+      table.initialize();
+      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      const range = RangeArea.create('テスト', 3, 3, 1);
+      range.type = 'SQUARE';
+      range.location = { name: 'table', x: 100, y: 200 };
+      fixture.componentRef.setInput('range', range);
+      fixture.detectChanges();
+      const flat = component.grabPoint();
+      expect(flat.height).toBe(component.turnPoint().height);
+
+      TestBed.inject(GroundService).dab({ kind: 'raise', x: flat.x / 50, y: flat.y / 50, radius: 1, strength: 1 });
+
+      const raised = component.grabPoint();
+      expect(raised.height).toBeCloseTo(TestBed.inject(StandingGroundService).heightPxAt(flat.x, flat.y), 6);
+      expect(raised.height).toBeGreaterThan(component.turnPoint().height);
+
+      const onBlock = RangeArea.create('テスト', 3, 3, 1);
+      onBlock.type = 'SQUARE';
+      onBlock.location = { name: 'table', x: 100, y: 200 };
+      onBlock.posZ = 50;
+      fixture.componentRef.setInput('range', onBlock);
+      expect(component.grabPoint().height).toBe(component.turnPoint().height);
+      range.destroy();
+      onBlock.destroy();
+    });
+
     it('keeps rotation enabled for a rotatable shape in 2D mode', () => {
       const range = RangeArea.create('テスト', 3, 3, 1);
       range.type = 'SQUARE';
@@ -187,6 +268,29 @@ describe('RangeComponent', () => {
 
       expect(component.usesSingleRotateGrab()).toBe(true);
       expect(fixture.nativeElement.querySelector('.rotate-grab')).toBeTruthy();
+    });
+
+    it('puts the turn handle in a root raised over every piece, and the shape in a root among them', () => {
+      const range = RangeArea.create('テスト', 3, 3, 1);
+      range.type = 'SQUARE';
+      fixture.componentRef.setInput('range', range);
+      fixture.detectChanges();
+      const placed = fixture.debugElement.queryAll(By.directive(HudPlaceDirective)).map((found) => ({
+        element: found.nativeElement as HTMLElement,
+        anchor: found.injector.get(HudPlaceDirective).anchor() as HudAnchor,
+      }));
+      const rootOf = (element: Element) =>
+        placed.find(
+          (one) => one.element !== element && one.element.contains(element) && !one.anchor.part && !one.anchor.at
+        );
+
+      const handle = fixture.nativeElement.querySelector('.rotate-grab') as HTMLElement;
+      const picture = fixture.nativeElement.querySelector('[data-part="picture"]') as HTMLElement;
+      expect(rootOf(handle)?.anchor).toEqual({ owner: range.identifier, raised: true });
+      expect(rootOf(picture)?.anchor).toEqual({ owner: range.identifier });
+      expect(rootOf(picture)?.element.matches('[data-hud-box]')).toBe(true);
+      expect((fixture.nativeElement as HTMLElement).classList).toContain('group');
+      range.destroy();
     });
 
     it('shows none on a circle', () => {

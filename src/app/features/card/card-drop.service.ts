@@ -39,7 +39,7 @@ export class CardDropService {
     if (dropped instanceof Card) {
       if (distanceSquared(dropped, stack) >= gridSize ** 2) return false;
       stack.putOnTop(dropped);
-      for (const follower of this.multiMovable.followerTabletopObjectsFor(dropped.identifier)) {
+      for (const follower of this.multiMovable.settledFollowersFor(dropped.identifier)) {
         if (follower instanceof Card) stack.putOnTop(follower);
       }
       return true;

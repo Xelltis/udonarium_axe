@@ -15,10 +15,13 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -28,6 +31,7 @@ import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_RANGE_RENDER, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { cellPatternBoundingBox, parseCellPattern } from '@axe/domain/tabletop/cell-pattern';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -45,8 +49,11 @@ import {
   initialRangeClip,
   paintRange,
   RangeClip,
+  rangeClipOutline,
   rangeClipPathCss,
   rangeQuadrantCells,
+  regionWithinOutline,
+  usableOutline,
 } from '@axe/infrastructure/tabletop/range/range-paint';
 import { AltitudeGuideComponent, altitudeGuideOf } from '@axe/ui/components/altitude-guide/altitude-guide.component';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
@@ -72,6 +79,7 @@ import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop
     SelectableDirective,
   ],
   host: {
+    class: 'group',
     '[attr.data-object-id]': 'range().identifier',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
@@ -103,12 +111,55 @@ export class RangeComponent {
   private readonly cells = viewChild<ElementRef<HTMLElement>>('cells');
 
   private readonly pieces = inject(TablePiecesService);
+  private readonly pictures = inject(PiecePicturesService);
+  private readonly standing = inject(StandingGroundService);
+  private readonly transient = inject(TransientPlacementService);
+
+  /**
+   * What the box the pointer rests on over the range's picture is cut to, as CSS: the shape the range
+   * is painted as, noted first of what is painted, in the picture's pixels, so the pointer rests on the
+   * range only over its shape; nothing for a range of its own cells, which the whole picture serves.
+   */
+  readonly pointerClipPath = computed<string | null>(() => {
+    const range = this.range();
+    const shape = this.pictures.pictureOf(range.identifier)?.pickAreas?.[0];
+    if (!shape || shape.length < 3 || range.type === 'CUSTOM') return null;
+    const px = (value: number) => `${Math.round(value * 100) / 100}px`;
+    return `polygon(${shape.map((point) => `${px(point.x)} ${px(point.y)}`).join(', ')})`;
+  });
+
+  /** What the cells are cut to now: as they were last painted, or by the range's type before the first paint. */
+  private clip(): RangeClip {
+    return this.painted() ?? initialRangeClip(this.range().type);
+  }
 
   readonly clipPath = computed<string>(() => {
     this._clipVersion();
-    const range = this.range();
-    return rangeClipPathCss(this.painted() ?? initialRangeClip(range.type), range, this.squarePx);
+    return rangeClipPathCss(this.clip(), this.range(), this.squarePx);
   });
+
+  /**
+   * The outline the cells are cut to, as {@link clipPath} cuts them, in the pixels of the box they are
+   * cut in; null where it cannot be told, as for a length that is no number, which pictures and picks
+   * the whole of the canvases as before.
+   */
+  private clipOutline(): { x: number; y: number }[] | null {
+    return usableOutline(rangeClipOutline(this.clip(), this.range(), this.squarePx));
+  }
+
+  /**
+   * Where the range is painted, as polygons in the pixels of the box its cells are cut in: its shape
+   * and each cell filled, as last painted, which a press must land in to take it; before the first
+   * paint, or where nothing that can be told was painted, what the cells are cut to.
+   */
+  private paintedAreas(): { x: number; y: number }[][] | null {
+    const painted = (this.painted()?.painted ?? [])
+      .map((area) => usableOutline(area))
+      .filter((area): area is { x: number; y: number }[] => area !== null);
+    if (painted.length > 0) return painted;
+    const outline = this.clipOutline();
+    return outline ? [outline] : null;
+  }
 
   /** What the canvases were last painted to be cut to, or nothing before the first paint. */
   private readonly painted = signal<RangeClip | null>(null);
@@ -184,17 +235,22 @@ export class RangeComponent {
     return { ...foot, height: foot.height + this.altitude() * this.gridSize };
   });
 
-  /** Where the range's handle stands over a table drawn on a canvas: off its point, turned as it is. */
+  /**
+   * Where the range's handle stands over a table drawn on a canvas: off its point, turned as it is,
+   * and on the ground there where the range lies on the ground, as the range follows the raised ground.
+   */
   readonly grabPoint = computed(() => {
+    const range = this.range();
     const about = this.turnPoint();
     const across = this.usesSingleRotateGrab() ? this.singleRotateGrabX : this.rotateGrabDistancePx();
     const down = this.usesSingleRotateGrab() ? this.singleRotateGrabY() : 0;
-    const turn = (this.range().rotate * Math.PI) / 180;
-    return {
-      ...about,
-      x: about.x + across * Math.cos(turn) - down * Math.sin(turn),
-      y: about.y + across * Math.sin(turn) + down * Math.cos(turn),
-    };
+    const turn = (range.rotate * Math.PI) / 180;
+    const x = about.x + across * Math.cos(turn) - down * Math.sin(turn);
+    const y = about.y + across * Math.sin(turn) + down * Math.cos(turn);
+    const placedZ = this.transient.placed().get(range.identifier)?.z ?? range.posZ;
+    const onGround = about.surface === 'floor' && Math.abs(placedZ) < 1;
+    const height = onGround ? this.standing.heightPxAt(x, y) + this.altitude() * this.gridSize : about.height;
+    return { ...about, x, y, height };
   });
 
   readonly singleRotateGrabY = computed(() => -Math.max(1, this.length()) * this.tabletopService.squarePx());
@@ -244,7 +300,12 @@ export class RangeComponent {
       () => {
         if (!this._initialized) return [];
         const range = this.range();
-        return [range.identifier, range.followingCharacterIdentifier, this.currentTable.identifier];
+        return [
+          range.identifier,
+          ...collectDataElements(range.rootDataElement).map((element) => element.identifier),
+          range.followingCharacterIdentifier,
+          this.currentTable.identifier,
+        ];
       },
       (e) => {
         if (!this._initialized) return;
@@ -266,8 +327,11 @@ export class RangeComponent {
       region: (cells) => {
         const canvases = [this.gridCanvas(), this.rangeCanvas()].map((canvas) => canvas?.nativeElement);
         if (!canvases[0] || !canvases[1]) return null;
-        return regionCovering(canvases.map((canvas) => boxWithin(canvas!, cells)));
+        const covering = regionCovering(canvases.map((canvas) => boxWithin(canvas!, cells)));
+        const outline = this.clipOutline();
+        return (outline && regionWithinOutline(covering, outline)) ?? covering;
       },
+      pickAreas: () => this.paintedAreas(),
     });
     setupMovableRotableForPiece(this, {
       target: this.range,
@@ -279,6 +343,7 @@ export class RangeComponent {
         return { x: snapXY, y: snapXY };
       },
       footprint: () => ({ width: this.gridSize, height: this.gridSize }),
+      freeOfGrid: (range) => range.placesFreely,
       turnsAbout: () => this.turnPoint(),
     });
     afterNextRender(() => {

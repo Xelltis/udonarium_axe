@@ -1,6 +1,11 @@
+import { partFacesOf } from '@axe/domain/character/part-look';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
+import { UnusedSince } from '@axe/infrastructure/table-3d/unused-since';
+import { disposeObject, forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
+import { cutGeometry, meshesOf, releaseCutShapes } from '@axe/infrastructure/three-kit/model-faces';
+import { picturesOf, releaseReadPictures } from '@axe/infrastructure/three-kit/read-pictures';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import {
@@ -16,13 +21,17 @@ import {
   MeshLambertNodeMaterial,
   type MeshStandardMaterial,
   type Object3D,
+  type Texture,
   Vector3,
   type WebGPURenderer,
 } from 'three/webgpu';
 
-/** What a model is drawn from: its scene once read, and how large it is as it was made. */
+/**
+ * What a model is drawn from: its scene once read, and how large it is as it was made. Only its scene
+ * and its motions are kept of what its file was read into, not the reader's own store of the file.
+ */
 interface LoadedModel {
-  readonly gltf: GLTF;
+  readonly gltf: Pick<GLTF, 'scene' | 'animations'>;
   readonly size: Vector3;
   /** The middle of its foot, as it was made: its box's middle across and its lowest point. */
   readonly foot: Vector3;
@@ -104,15 +113,27 @@ interface Herd {
 interface StoodModel {
   readonly owner: string;
   readonly url: string;
+  /** The faces the copy leaves out, as written on what it was laid for. */
+  readonly cut: string;
   readonly root: Group;
   readonly mixer: AnimationMixer;
-  readonly idle: AnimationAction | null;
-  readonly walk: AnimationAction | null;
+  idle: AnimationAction | null;
+  walk: AnimationAction | null;
+  /** The names of the motions the piece asked for when they were chosen, empty for the model's own. */
+  idleName: string;
+  walkName: string;
   walking: boolean;
 }
 
 /** How many radians a degree is. */
 const RADIANS = Math.PI / 180;
+
+/**
+ * How long a model read but no longer laid on the table is kept, in milliseconds, before what it
+ * holds is let go of: long enough that a piece the fog hides and shows again, or a table gone to and
+ * come back from, is drawn again at once.
+ */
+export const UNUSED_MODEL_KEEP_MS = 120_000;
 
 /**
  * The pieces and blocks drawn as 3D models: each a binary glTF file read from bytes held here, its
@@ -122,13 +143,19 @@ const RADIANS = Math.PI / 180;
  * standing still is not drawn again. Nothing a model names outside its own bytes is ever fetched,
  * and one that draws more triangles than a model may, or cannot be read, is left drawn as its
  * picture. The decoders for compressed meshes and textures are fetched, from the app's own assets,
- * only once a model that needs them comes.
+ * only once a model that needs them comes. The pixels its pictures were read into are let go of once
+ * the graphics card holds them, and a model laid on the table no longer is let go of altogether once
+ * it has gone unused for `UNUSED_MODEL_KEEP_MS`, to be read again if it is laid again.
  */
 export class ModelLayer {
   readonly group = new Group();
   private readonly reader: HeldModelReader;
   private readonly loaded = new Map<string, LoadedModel | null>();
   private readonly loading = new Set<string>();
+  /** When each model read but no longer laid stopped being laid, by its URL. */
+  private readonly unused = new UnusedSince(UNUSED_MODEL_KEEP_MS);
+  private sweepTimer: ReturnType<typeof setTimeout> | null = null;
+  private sweepDueAt = 0;
   private stood = new Map<string, StoodModel>();
   private readonly herds = new Map<string, Herd>();
   private laid: readonly TableWorldModel[] = [];
@@ -170,6 +197,14 @@ export class ModelLayer {
     this.lay();
   }
 
+  /** The name of the motion the model of a piece plays now, or null where it plays none or stands in no copy of its own. */
+  motionOf(owner: string): string | null {
+    const stood = this.stood.get(owner);
+    if (!stood) return null;
+    const action = stood.walking ? (stood.walk ?? stood.idle) : stood.idle;
+    return action?.getClip().name ?? null;
+  }
+
   /** Moves the walks on to a moment, in milliseconds; answers whether any model is walking. */
   advance(timeMs: number): boolean {
     const step = this.lastTimeMs === null ? 0 : Math.min(0.1, (timeMs - this.lastTimeMs) / 1000);
@@ -193,12 +228,19 @@ export class ModelLayer {
   }
 
   dispose(): void {
-    for (const stood of this.stood.values()) this.group.remove(stood.root);
+    for (const stood of this.stood.values()) {
+      this.group.remove(stood.root);
+      forgetDrawn(stood.root);
+      releaseCutShapes(stood.root);
+    }
     this.stood.clear();
     for (const herd of this.herds.values()) this.unherd(herd);
     this.herds.clear();
-    for (const loaded of this.loaded.values()) loaded?.gltf.scene.traverse(disposeMesh);
+    for (const loaded of this.loaded.values()) if (loaded) disposeObject(loaded.gltf.scene);
     this.loaded.clear();
+    this.unused.clear();
+    if (this.sweepTimer !== null) clearTimeout(this.sweepTimer);
+    this.sweepTimer = null;
     this.reader.dispose();
   }
 
@@ -209,8 +251,18 @@ export class ModelLayer {
   private lay(): void {
     const wanted = new Map(this.laid.map((model) => [model.owner, model]));
     for (const [owner, stood] of this.stood) {
-      if (wanted.get(owner)?.url === stood.url) continue;
+      const one = wanted.get(owner);
+      if (
+        one &&
+        one.url === stood.url &&
+        (one.cutFaces ?? '') === stood.cut &&
+        (one.ownCopy || this.loaded.get(one.url)?.animated)
+      ) {
+        continue;
+      }
       this.group.remove(stood.root);
+      forgetDrawn(stood.root);
+      releaseCutShapes(stood.root);
       stood.mixer.stopAllAction();
       this.stood.delete(owner);
     }
@@ -219,7 +271,7 @@ export class ModelLayer {
       const loaded = this.loaded.get(model.url);
       if (loaded === undefined) this.read(model.url);
       if (!loaded) continue;
-      if (loaded.animated) this.stand(model, loaded);
+      if (loaded.animated || model.ownCopy) this.stand(model, loaded);
       else flocks.set(model.url, [...(flocks.get(model.url) ?? []), model]);
     }
     for (const [url, herd] of this.herds) {
@@ -228,7 +280,41 @@ export class ModelLayer {
       this.herds.delete(url);
     }
     for (const [url, flock] of flocks) this.herd(url, this.loaded.get(url)!, flock);
+    this.noteUnused();
     this.changed = true;
+  }
+
+  /**
+   * Notes when each model read stopped being laid, and has those that have gone unused long enough
+   * let go of then. A model laid again before that is kept as though it had never gone.
+   */
+  private noteUnused(): void {
+    const read = [...this.loaded].filter(([, loaded]) => loaded !== null).map(([url]) => url);
+    this.unused.note(read, new Set(this.laid.map((model) => model.url)), performance.now());
+    this.sweepLater();
+  }
+
+  /** Has the layer swept when the next model unused is due, keeping a sweep already set for no later. */
+  private sweepLater(): void {
+    const now = performance.now();
+    const wait = this.unused.nextDueIn(now);
+    if (wait === null || (this.sweepTimer !== null && this.sweepDueAt <= now + wait)) return;
+    if (this.sweepTimer !== null) clearTimeout(this.sweepTimer);
+    this.sweepDueAt = now + wait;
+    this.sweepTimer = setTimeout(() => {
+      this.sweepTimer = null;
+      this.sweep();
+    }, wait);
+  }
+
+  /** Lets go of every model that has gone unused for `UNUSED_MODEL_KEEP_MS`: its meshes, materials and pictures. */
+  private sweep(): void {
+    for (const url of this.unused.takeDue(performance.now())) {
+      const loaded = this.loaded.get(url);
+      this.loaded.delete(url);
+      if (loaded) disposeObject(loaded.gltf.scene);
+    }
+    this.sweepLater();
   }
 
   /** Stands a model that plays a motion where its piece is, as a copy of its own. */
@@ -238,6 +324,9 @@ export class ModelLayer {
       stood = this.instanceOf(model, loaded);
       this.stood.set(model.owner, stood);
       this.group.add(stood.root);
+    } else if (stood.idleName !== model.model.idle || stood.walkName !== model.model.walk) {
+      chooseMotions(stood, model, loaded);
+      stood.walking = !model.walking;
     }
     const inner = stood.root.children[0];
     inner.position.set(-loaded.foot.x, -loaded.foot.y, -loaded.foot.z);
@@ -299,22 +388,26 @@ export class ModelLayer {
     const inner = cloneSkinned(loaded.gltf.scene) as Object3D;
     const root = new Group();
     root.add(inner);
-    const mixer = new AnimationMixer(inner);
-    const clip = (name: string, pattern: RegExp) =>
-      (name ? AnimationClip.findByName(loaded.gltf.animations, name) : null) ??
-      loaded.gltf.animations.find((candidate) => pattern.test(candidate.name)) ??
-      null;
-    const idleClip = clip(model.model.idle, /idle|stand|wait/i) ?? loaded.gltf.animations[0] ?? null;
-    const walkClip = clip(model.model.walk, /walk|run|move/i);
+    root.userData['owner'] = model.owner;
+    const cut = partFacesOf(model.cutFaces ?? '');
+    meshesOf(inner).forEach((mesh, index) => {
+      mesh.userData['partMesh'] = index;
+      const triangles = cut.get(index);
+      if (triangles) mesh.geometry = cutGeometry(mesh.geometry, triangles);
+    });
     const stood: StoodModel = {
       owner: model.owner,
       url: model.url,
+      cut: model.cutFaces ?? '',
       root,
-      mixer,
-      idle: idleClip ? mixer.clipAction(idleClip) : null,
-      walk: walkClip ? mixer.clipAction(walkClip) : null,
+      mixer: new AnimationMixer(inner),
+      idle: null,
+      walk: null,
+      idleName: '',
+      walkName: '',
       walking: true,
     };
+    chooseMotions(stood, model, loaded);
     this.walk(stood, false);
     return stood;
   }
@@ -337,9 +430,15 @@ export class ModelLayer {
 
   /** A model read from bytes held here, or null for one that is not to be drawn. */
   private async parse(url: string): Promise<LoadedModel | null> {
-    const gltf = await this.reader.read(url);
-    if (!gltf) return null;
-    gltf.scene.traverse((object) => this.makeOver(object));
+    const read = await this.reader.read(url);
+    if (!read) return null;
+    const gltf = { scene: read.scene, animations: read.animations };
+    const drawn = new Set<Texture>();
+    const undrawn = new Set<Texture>();
+    gltf.scene.traverse((object) => this.makeOver(object, drawn, undrawn));
+    for (const picture of drawn) undrawn.delete(picture);
+    releaseReadPictures(drawn, undrawn);
+    for (const picture of undrawn) picture.dispose();
     gltf.scene.updateMatrixWorld(true);
     const box = new Box3().setFromObject(gltf.scene);
     const size = box.getSize(new Vector3());
@@ -381,13 +480,18 @@ export class ModelLayer {
     this.arrived();
   }
 
-  /** Makes a mesh's material over as the scene's own: lit as the board is, veiled and darkened with it, throwing shadows. */
-  private makeOver(object: Object3D): void {
+  /**
+   * Makes a mesh's material over as the scene's own: lit as the board is, veiled and darkened with
+   * it, throwing shadows. The picture of its colour is drawn with, and noted so; the rest of the
+   * pictures it wore, as its bumps and its shine, are noted as not drawn.
+   */
+  private makeOver(object: Object3D, drawn: Set<Texture>, undrawn: Set<Texture>): void {
     if (!(object instanceof Mesh)) return;
     object.castShadow = true;
     object.receiveShadow = true;
     const madeOver = (material: Material) => {
       const was = material as MeshStandardMaterial;
+      for (const picture of picturesOf(material)) (picture === was.map ? drawn : undrawn).add(picture);
       const lit = new MeshLambertNodeMaterial({
         color: was.color,
         map: was.map ?? null,
@@ -403,6 +507,26 @@ export class ModelLayer {
     };
     object.material = Array.isArray(object.material) ? object.material.map(madeOver) : madeOver(object.material);
   }
+}
+
+/**
+ * Chooses the motions a copy of a model plays standing and walking, by the names its piece asks for
+ * or, where it names none or one the model lacks, by the model's own idle and walk; the idle falls
+ * back to its first motion. Chosen again whenever the piece names others, so a name changed once the
+ * piece is on the table takes at once.
+ */
+function chooseMotions(stood: StoodModel, model: TableWorldModel, loaded: LoadedModel): void {
+  const clip = (name: string, pattern: RegExp) =>
+    (name ? AnimationClip.findByName(loaded.gltf.animations, name) : null) ??
+    loaded.gltf.animations.find((candidate) => pattern.test(candidate.name)) ??
+    null;
+  const idleClip = clip(model.model.idle, /idle|stand|wait/i) ?? loaded.gltf.animations[0] ?? null;
+  const walkClip = clip(model.model.walk, /walk|run|move/i);
+  stood.mixer.stopAllAction();
+  stood.idle = idleClip ? stood.mixer.clipAction(idleClip) : null;
+  stood.walk = walkClip ? stood.mixer.clipAction(walkClip) : null;
+  stood.idleName = model.model.idle;
+  stood.walkName = model.model.walk;
 }
 
 /**
@@ -690,10 +814,4 @@ function uniformScale(model: TableWorldModel, loaded: Pick<LoadedModel, 'size'>)
   );
   const scale = fitted * model.model.scale;
   return new Matrix4().makeScale(scale, scale, scale);
-}
-
-function disposeMesh(object: Object3D): void {
-  if (!(object instanceof Mesh)) return;
-  object.geometry.dispose();
-  for (const material of Array.isArray(object.material) ? object.material : [object.material]) material.dispose();
 }

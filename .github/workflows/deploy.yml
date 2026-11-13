@@ -2,6 +2,8 @@ name: Deploy
 
 # A reusable workflow that syncs to S3 and invalidates CloudFront for one environment
 # (production / public / production-vercel), called from release.yml through workflow_call.
+# It can also be run by hand from the Actions tab or with
+# `gh workflow run deploy.yml -f environment=public -f ref=v1.2.3`, to deploy a release again.
 #
 # The `environment` input names a GitHub Environment, and the secrets are resolved from that
 # environment alone. Each environment holds these five secrets.
@@ -18,6 +20,20 @@ on:
         description: 'GitHub Environment name (production | public | production-vercel)'
         required: true
         type: string
+      ref:
+        description: 'デプロイ対象のGit ref（タグ推奨: v1.2.3）'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'GitHub Environment name'
+        required: true
+        type: choice
+        options:
+          - production
+          - public
+          - production-vercel
       ref:
         description: 'デプロイ対象のGit ref（タグ推奨: v1.2.3）'
         required: true
@@ -99,6 +115,9 @@ jobs:
           aws s3 cp dist/assets/config.json "s3://$BUCKET/assets/config.json" \
             --cache-control "public, max-age=0, must-revalidate" \
             --content-type "application/json"
+          aws s3 cp dist/assets/login-callback.html "s3://$BUCKET/assets/login-callback.html" \
+            --cache-control "public, max-age=0, must-revalidate" \
+            --content-type "text/html; charset=utf-8"
           # The translation files have no hash either and are replaced under the same names, so revalidate
           aws s3 cp dist/assets/i18n/ "s3://$BUCKET/assets/i18n/" \
             --recursive \

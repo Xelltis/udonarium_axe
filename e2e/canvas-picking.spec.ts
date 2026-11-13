@@ -451,6 +451,28 @@ test.describe('pieces picked by the shapes the canvas draws them with', () => {
     });
   });
 
+  test('take a range by its shape alone, not by the square round it', async ({ page }) => {
+    await createRange(page);
+    const id = (await page.locator('range').last().getAttribute('data-object-id'))!;
+    await idle(page);
+    await expect.poll(async () => (await boxesOf(page, id)).length, { timeout: 10000 }).toBe(1);
+    await idle(page);
+    const [box] = await boxesOf(page, id);
+    const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const pickAt = (point: Point) =>
+      page.evaluate(({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.pickAt(x, y), point);
+
+    expect(await pickAt(middle)).toBe(id);
+    for (const [across, down] of [
+      [-1, 1],
+      [1, 1],
+    ]) {
+      const beside = { x: middle.x + across * box.width * 0.35, y: middle.y + down * box.height * 0.35 };
+      expect(await pickAt(beside), JSON.stringify({ box, beside })).not.toBe(id);
+    }
+    await takeAway(page, 'range', id, '削除する');
+  });
+
   test('move each kind of piece where it is dragged to while it is dragged, and leave it there', async ({ page }) => {
     test.setTimeout(150_000);
     await withEach(page, async (piece, id) => {

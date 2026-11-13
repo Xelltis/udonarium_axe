@@ -236,6 +236,34 @@ test('waves break on a block standing out of the water', async ({ page }) => {
   await snap(page, 'water-shore', { ...WATER_SNAP, animationAt: 900 });
 });
 
+test('a ditch dug from a pond fills with its water, standing as high as the pond', async ({ page }) => {
+  // Each step of the brush has the table drawn again, slowly in the software renderer the shots are
+  // drawn with, so the stroke is laid with the page's clock running, before it is held.
+  test.setTimeout(240_000);
+  await prepare(page);
+  await becomeGm(page);
+  await closePanels(page);
+  await page.getByTestId('toolbar-ground-brush').click();
+  await page.getByTestId('ground-brush-lower').click();
+  await page.getByTestId('ground-brush-radius').fill('1');
+  await page.getByTestId('ground-brush-strength').fill('1');
+  const from = await cellSpot(page, 13.5, 15.5);
+  const to = await cellSpot(page, 19.5, 15.5);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 20 });
+  await page.mouse.up();
+  await page.getByTestId('ground-brush-close').click();
+  await expect(page.getByTestId('ground-brush-band')).toHaveCount(0);
+  await page.evaluate(() => (window as unknown as { __axeTable: { whenIdle(): Promise<void> } }).__axeTable.whenIdle());
+  await freeze(page);
+  await layPond(page, await cellSpot(page, 12.5, 15.5));
+  await leavePond(page);
+  await waterBuilt(page);
+  await settle(page, 400);
+  await snap(page, 'water-ditch', WATER_SNAP);
+});
+
 test('a piece fades into murky water', async ({ page }) => {
   await prepare(page);
   await closePanels(page);

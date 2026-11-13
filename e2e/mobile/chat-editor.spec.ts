@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { chatInput, expectChatText } from '../helpers';
 
 test.describe('the chat editor on a phone', () => {
-  test('lays its selects in one row and its edit buttons along the top of the box, writes at a size the phone does not zoom onto, and takes a line tapped in and sends it, kept to its share of the screen', async ({
+  test('lays the speaker, whom it is said to and the dice bot in one row, the box the width of the screen and two lines high with the send button in it, writes at a size the phone does not zoom onto, and takes a line tapped in and sends it, kept to its share of the screen', async ({
     page,
   }) => {
     await page.goto('/');
@@ -17,16 +17,44 @@ test.describe('the chat editor on a phone', () => {
     await expect(editor.locator('ng-select[name="send-from"]')).toBeVisible({ timeout: 20000 });
     await expect(editor.locator('ng-select[name="game-type"]')).toBeVisible();
     await expect(editor.getByRole('button', { name: '?' })).toBeVisible();
-    const edits = editor.getByTestId('chat-input-frame').getByTestId('chat-input-edits');
-    await expect(edits.getByTestId('chat-input-color')).toBeVisible();
+    await expect(editor.getByTestId('chat-input-avatar')).toBeVisible();
+    const frame = editor.getByTestId('chat-input-frame');
+    const edits = frame.getByTestId('chat-input-edits');
+    await expect(edits.getByTestId('chat-input-color')).toBeAttached();
     await expect(edits.getByTestId('chat-toolbar-bold')).toBeVisible();
+    const from = (await editor.locator('ng-select[name="send-from"]').boundingBox())!;
+    const to = (await editor.locator('ng-select[name="send-to"]').boundingBox())!;
+    const diceBot = (await editor.locator('ng-select[name="game-type"]').boundingBox())!;
     const selects = (await editor.getByTestId('chat-input-selects').boundingBox())!;
     const band = (await edits.boundingBox())!;
-    const frame = (await editor.locator('[data-chat-input-box]').boundingBox())!;
+    const framed = (await frame.boundingBox())!;
+    const send = (await frame.getByTestId('chat-input-send').boundingBox())!;
+    const screen = page.viewportSize()!;
+    const typed = (await frame.locator('[data-chat-input-box]').boundingBox())!;
+    expect(Math.abs(from.y - to.y)).toBeLessThan(1);
+    expect(Math.abs(diceBot.y - from.y)).toBeLessThan(1);
     expect(selects.height).toBeLessThan(48);
     expect(band.height).toBeLessThan(84);
     expect(band.y).toBeGreaterThan(selects.y + selects.height);
-    expect(Math.abs(band.x - frame.x)).toBeLessThan(1);
+    expect(framed.width).toBeGreaterThan(screen.width - 24);
+    expect(send.x + send.width).toBeLessThanOrEqual(framed.x + framed.width + 1);
+    expect(typed.height).toBeGreaterThanOrEqual(56);
+    expect(Math.abs(send.width - send.height)).toBeLessThan(1);
+
+    // On a screen 320px wide the row still fits, every select giving way to its least width.
+    await page.setViewportSize({ width: 320, height: screen.height });
+    await expect
+      .poll(() =>
+        editor.getByTestId('chat-input-selects').evaluate((row) => {
+          const edges = [...row.querySelectorAll('[data-testid="chat-input-avatar"], ng-select, button')].map(
+            (control) => control.getBoundingClientRect()
+          );
+          const apart = edges.every((edge, index) => index < 1 || edges[index - 1].right <= edge.left + 0.5);
+          return apart && edges.at(-1)!.right <= row.getBoundingClientRect().right + 0.5;
+        })
+      )
+      .toBe(true);
+    await page.setViewportSize(screen);
 
     const input = chatInput(pane);
     expect(await input.evaluate((box) => getComputedStyle(box).fontSize)).toBe('16px');

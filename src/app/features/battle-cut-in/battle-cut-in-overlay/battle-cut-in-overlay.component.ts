@@ -1,8 +1,10 @@
 import { NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   ElementRef,
   inject,
@@ -13,6 +15,8 @@ import {
 } from '@angular/core';
 import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut-in-preference.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
@@ -20,9 +24,10 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { HeldClock } from '@axe/core/util/held-clock';
 import { observeSize } from '@axe/core/util/observe-size';
 import { BattleSide, oppositeBattleSide } from '@axe/domain/battle/battle-lineup';
-import { battleChangeLabel, BattleFighter, battleGaugeChanges } from '@axe/domain/battle/battle-scene';
+import { battleChangeLabel, BattleFighter, BattleGauge, battleGaugeChanges } from '@axe/domain/battle/battle-scene';
 import { DEFAULT_BATTLE_THEME } from '@axe/domain/battle/battle-settings';
 import {
   BATTLE_STAGE_CANVAS,
@@ -45,14 +50,22 @@ import {
   stageOpenness,
 } from '@axe/domain/battle/battle-timeline';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { gaugeColor, gaugeRatio, HIDDEN_GAUGE_NUMBERS } from '@axe/domain/character/piece-gauge';
+import {
+  gaugeColor,
+  gaugeRatio,
+  HIDDEN_GAUGE_NUMBERS,
+  HIDDEN_GAUGE_STRIPES,
+  isGaugeSpent,
+} from '@axe/domain/character/piece-gauge';
 import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { defeatPictureHeight, DefeatReaction, defeatReactionOf } from '@axe/domain/effect/effect-defeat';
-import { effectParticlePlacements } from '@axe/domain/effect/effect-particle-placements';
-import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { effectLandingTimes, impactSoundTimes, launchSoundTimes } from '@axe/domain/effect/effect-sound-times';
-import { EffectSpriteOptions, effectSprites, Point3 } from '@axe/domain/effect/effect-timeline';
+import { cutPictureSprites, EffectSpriteOptions, Point3 } from '@axe/domain/effect/effect-timeline';
+import { nothingStaged } from '@axe/domain/effect/scene/choreography';
+import type { EffectFooting } from '@axe/domain/effect/scene/effect-frame';
+import { type EffectFrame, EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
+import { drawsOnlyPicturesOver, sceneLingerMsOf } from '@axe/domain/effect/scene/scene-kinds';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
 import {
@@ -61,6 +74,9 @@ import {
   BATTLE_CELL_PX,
   BATTLE_EFFECT_RISE_PX,
   BATTLE_FIGURE_PX,
+  BATTLE_FLOOR_TOP,
+  BATTLE_PERSPECTIVE_PX,
+  BATTLE_SCENE_CELL_PX,
   BATTLE_VIEW,
   defenderPoints,
   fighterShift,
@@ -71,21 +87,18 @@ import {
 } from '@axe/features/battle-cut-in/battle-stage-layout';
 import { BATTLE_PICTURE_LOOK, BattleBandLook, battleThemeLook } from '@axe/features/battle-cut-in/battle-themes';
 import { MirroredPictureService } from '@axe/features/battle-cut-in/mirrored-picture.service';
-import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   EFFECT_CAMERA_LIFT_PX,
-  effectBillboardTransform,
-  effectCanvasStyle,
   effectPaintStyle,
   effectSpriteStyle,
   EffectViewpoint,
   hasEffectPaintLayer,
 } from '@axe/features/effect/effect-sprite-style';
+import type { EffectOverlay, EffectOverlayView } from '@axe/infrastructure/table-3d/table-3d-port';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { Z_BATTLE_CUT_IN } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
 
-const MAX_CANVASES = 8;
 /** How long after the blow lands the struck stay lit by it. */
 const HIT_FLASH_MS = 200;
 
@@ -97,6 +110,26 @@ const VIEWPOINT: EffectViewpoint = {
 };
 /** The fallen go down where they stand, rather than raised to where a blow lands on them. */
 const DEFEAT_VIEWPOINT: EffectViewpoint = { ...VIEWPOINT, risePx: 0 };
+
+/**
+ * How much larger a cut is drawn on the stage than on the table: a fighter stands taller against a
+ * cell than a piece does, and a cut is to cross the whole of it.
+ */
+const STAGE_CUT_SCALE = 1.8;
+
+/** The preset an effect is drawn with on the stage: a cut drawn the larger, any other as it is. */
+function onStage(preset: EffectPreset): EffectPreset {
+  if (preset.effectKind !== 'slash') return preset;
+  const larger = Object.create(preset) as EffectPreset;
+  Object.defineProperty(larger, 'sizeScale', { value: preset.sizeScale * STAGE_CUT_SCALE });
+  return larger;
+}
+
+/** A sound the stage plays, and the moment of the stage it is heard at, in milliseconds. */
+interface BattleSound {
+  readonly at: number;
+  readonly identifier: string;
+}
 
 /** One effect playing on the stage, with how it is drawn. */
 interface EffectLayer {
@@ -114,12 +147,6 @@ export interface SpriteFrame {
   /** The inner layer that carries the look and the animation, where the sprite has one. */
   paint: Record<string, string> | null;
   svg: string;
-}
-
-export interface CanvasFrame {
-  key: string;
-  layer: EffectParticleLayer;
-  style: Record<string, string>;
 }
 
 /**
@@ -194,6 +221,25 @@ export interface PlateGauge {
   numbers: string;
 }
 
+/**
+ * A bar on a fighter's plate as far into its fall as `progress` is. Kept from the reader, it is drawn
+ * full and grey with marks for its numbers until it runs out, so neither how much there was nor that
+ * the blow will spend it shows before; from the moment it does, it is told as one on the table is.
+ */
+export function plateGaugeAt(gauge: BattleGauge, progress: number, readable: boolean, secret: boolean): PlateGauge {
+  const reading = gaugeReadingAt(gauge.before, gauge.after, progress);
+  if (!readable && !isGaugeSpent(reading, gauge.max, gauge.inverted)) {
+    return { name: gauge.name, percent: 100, color: HIDDEN_GAUGE_STRIPES, numbers: HIDDEN_GAUGE_NUMBERS };
+  }
+  const ratio = gaugeRatio(reading, gauge.max);
+  return {
+    name: gauge.name,
+    percent: ratio * 100,
+    color: gauge.color || gaugeColor(ratio, gauge.inverted),
+    numbers: readable || !secret ? `${Math.round(reading)}/${gauge.max}` : HIDDEN_GAUGE_NUMBERS,
+  };
+}
+
 export interface PlateFrame {
   key: string;
   name: string;
@@ -220,7 +266,7 @@ export interface PlateFrame {
   selector: 'battle-cut-in-overlay',
   templateUrl: './battle-cut-in-overlay.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgStyle, NgTemplateOutlet, SafePipe, EffectCanvasComponent, TranslocoModule],
+  imports: [NgStyle, NgTemplateOutlet, SafePipe, TranslocoModule],
   host: { class: 'contents', '(document:keydown.escape)': 'pressEscape()', '(window:resize)': 'measureScreen()' },
 })
 export class BattleCutInOverlayComponent {
@@ -234,10 +280,19 @@ export class BattleCutInOverlayComponent {
   private readonly disclosure = inject(DisclosureService);
   private readonly preference = inject(BattleCutInPreferenceService);
   private readonly layout = inject(ViewportService);
+  private readonly sceneLooks = inject(EffectSceneLooksService);
+  private readonly loadStage = inject(EFFECT_STAGE_LOADER);
 
   protected readonly zIndex = Z_BATTLE_CUT_IN;
   protected readonly looks = LOOKS;
   private readonly root = viewChild<ElementRef<HTMLElement>>('root');
+  private readonly floorCanvas = viewChild<ElementRef<HTMLCanvasElement>>('floorCanvas');
+  private readonly effectCanvas = viewChild<ElementRef<HTMLCanvasElement>>('effectCanvas');
+  /**
+   * The see-through canvases the effects are drawn on as on the table, once they are made: one under
+   * the fighters for the marks on the floor, which they stand on, and one over them for the rest.
+   */
+  private readonly overPage = signal<{ floor: EffectOverlay; above: EffectOverlay } | null>(null);
   private readonly viewport = signal({ width: 0, height: 0 });
   private readonly screen = signal(readScreen());
   private readonly dragPlace = signal<{ x: number; y: number } | null>(null);
@@ -312,9 +367,31 @@ export class BattleCutInOverlayComponent {
     this.windowBox() ? BATTLE_STAGE_CANVAS.height : bandHeight(this.viewport().height)
   );
 
+  private readonly boardScale = computed(() =>
+    stageScale(this.viewport().width, this.bandHeight(), this.scene()?.defenders.length ?? 1)
+  );
+
   readonly boardTransform = computed(() => {
-    const scale = stageScale(this.viewport().width, this.bandHeight(), this.scene()?.defenders.length ?? 1);
+    const scale = this.boardScale();
     return `scale3d(${scale}, ${scale}, ${scale}) rotateX(${BATTLE_VIEW.x}deg)`;
+  });
+
+  protected readonly perspective = BATTLE_PERSPECTIVE_PX;
+  protected readonly floorTop = BATTLE_FLOOR_TOP * 100;
+
+  /** How the canvas the effects are drawn on sees the floor: as the band does. */
+  private readonly overPageView = computed<EffectOverlayView>(() => {
+    const width = this.viewport().width;
+    const height = this.bandHeight();
+    return {
+      width,
+      height,
+      perspectivePx: BATTLE_PERSPECTIVE_PX,
+      originX: width / 2,
+      originY: height * BATTLE_FLOOR_TOP,
+      scale: this.boardScale(),
+      tiltDeg: BATTLE_VIEW.x,
+    };
   });
 
   /** Which of the tool's own stages is drawn where the room's own picture is not. */
@@ -423,16 +500,7 @@ export class BattleCutInOverlayComponent {
         name: view.fighter.name,
         striking: view.striking,
         defeated: view.fighter.defeated && defeatProgress(elapsed, timeline) > 0,
-        gauges: view.fighter.gauges.map((gauge) => {
-          const reading = gaugeReadingAt(gauge.before, gauge.after, progress);
-          const ratio = gaugeRatio(reading, gauge.max);
-          return {
-            name: gauge.name,
-            percent: ratio * 100,
-            color: gauge.color || gaugeColor(ratio, gauge.inverted),
-            numbers: readable ? `${Math.round(reading)}/${gauge.max}` : HIDDEN_GAUGE_NUMBERS,
-          };
-        }),
+        gauges: view.fighter.gauges.map((gauge) => plateGaugeAt(gauge, progress, readable, scene.secret)),
       };
       (view.side === 'left' ? left : right).push(plate);
     }
@@ -463,7 +531,6 @@ export class BattleCutInOverlayComponent {
     const views = this.views();
     return {
       baseSize: BATTLE_CELL_PX,
-      viewRotation: BATTLE_VIEW,
       resolvePosition: (identifier) => views.find((view) => view.fighter.identifier === identifier)?.point ?? null,
       resolveImage: (identifier) => {
         const view = views.find((held) => held.fighter.identifier === identifier);
@@ -538,40 +605,78 @@ export class BattleCutInOverlayComponent {
       });
     }
     return layers.filter(
-      (layer) => layer.elapsed >= 0 && layer.elapsed <= layer.preset.totalDuration(layer.cast.targets.length)
+      (layer) =>
+        layer.elapsed >= 0 &&
+        layer.elapsed <= layer.preset.totalDuration(layer.cast.targets.length) + sceneLingerMsOf(layer.preset)
     );
   });
 
+  /** The pieces of the pictures of the fighters a look cuts up, drawn over the stage where they stand. */
   readonly sprites = computed<SpriteFrame[]>(() =>
-    this.layers().flatMap((layer) =>
-      effectSprites(layer.preset, layer.cast, layer.elapsed, layer.options).map((sprite) => ({
+    this.layers().flatMap((layer) => {
+      if (!drawsOnlyPicturesOver(layer.preset)) return [];
+      return cutPictureSprites(layer.preset, layer.cast, layer.elapsed, layer.options).map((sprite) => ({
         key: `${layer.prefix}-${sprite.key}`,
         style: effectSpriteStyle(sprite, layer.viewpoint),
         paint: hasEffectPaintLayer(sprite) ? effectPaintStyle(sprite) : null,
         svg: sprite.svg,
-      }))
-    )
+      }));
+    })
   );
 
-  readonly canvases = computed<CanvasFrame[]>(() =>
-    this.layers().flatMap((layer) =>
-      effectParticlePlacements(layer.preset, layer.cast, layer.elapsed, layer.options, MAX_CANVASES).map(
-        (placement) => ({
-          key: `${layer.prefix}-${placement.key}`,
-          layer: placement.layer,
-          style: effectCanvasStyle({
-            key: placement.key,
-            layer: placement.layer,
-            width: placement.layer.width,
-            height: placement.layer.height,
-            transform: effectBillboardTransform(placement.center, placement.layer, layer.viewpoint),
-          }),
-        })
-      )
-    )
-  );
+  /** Where each fighter stands as the effects are drawn as on the table, the one striking a step in. */
+  private readonly footings = computed(() => {
+    const footings = new Map<string, EffectFooting>();
+    for (const view of this.views()) {
+      const x = view.point.x + (view.striking ? fighterShift(view.side, 1, 1) : 0);
+      footings.set(view.fighter.identifier, { x, y: view.point.y, z: view.point.z, groundZ: view.point.z });
+    }
+    return footings;
+  });
+
+  /** What the effects draw at this moment, as the table's scene draws them, on the canvases over the stage. */
+  readonly sceneFrame = computed<EffectFrame>(() => {
+    const layers = this.layers();
+    if (layers.length < 1) return EMPTY_EFFECT_FRAME;
+    const looks = this.sceneLooks.looks();
+    if (!looks) return EMPTY_EFFECT_FRAME;
+    const footings = this.footings();
+    const drawn = nothingStaged();
+    for (const layer of layers) {
+      looks.stageEffect(
+        onStage(layer.preset),
+        layer.cast,
+        layer.elapsed,
+        { cellPx: BATTLE_SCENE_CELL_PX, resolveFooting: (identifier) => footings.get(identifier) ?? null },
+        drawn
+      );
+    }
+    return drawn;
+  });
+
+  /** The marks the effects lay on the floor, drawn under the fighters standing on it. */
+  readonly floorFrame = computed<EffectFrame>(() => {
+    const frame = this.sceneFrame();
+    return frame.floor.length > 0 ? { ...EMPTY_EFFECT_FRAME, floor: frame.floor } : EMPTY_EFFECT_FRAME;
+  });
+
+  /** All else the effects draw, over the fighters. */
+  readonly aboveFrame = computed<EffectFrame>(() => {
+    const frame = this.sceneFrame();
+    return frame.floor.length > 0 ? { ...frame, floor: [] } : frame;
+  });
 
   constructor() {
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => void this.startOverPage(destroyRef));
+    destroyRef.onDestroy(() => {
+      const overPage = untracked(this.overPage);
+      overPage?.floor.dispose();
+      overPage?.above.dispose();
+    });
+    effect(() => this.overPage()?.floor.show(this.floorFrame(), this.overPageView()));
+    effect(() => this.overPage()?.above.show(this.aboveFrame(), this.overPageView()));
+
     effect((onCleanup) => {
       const root = this.root()?.nativeElement;
       if (!root) return;
@@ -582,18 +687,36 @@ export class BattleCutInOverlayComponent {
       if (this.serial() === 0) return;
       const timeline = untracked(this.timeline);
       if (!timeline) return;
-      const timers = this.scheduleSounds(timeline);
-      onCleanup(() => timers.forEach((timer) => clearTimeout(timer)));
+      const sounds = this.soundsOf(timeline);
+      const played = new Set<BattleSound>();
+      const play = (sound: BattleSound) => {
+        played.add(sound);
+        SoundEffect.playLocal(sound.identifier, VolumeType.EFFECT);
+      };
 
       if (this.still() || typeof requestAnimationFrame !== 'function') {
+        // Nothing moves, so the sounds keep to the wall clock.
+        const timers = sounds.map((sound) => setTimeout(() => play(sound), sound.at));
         const timer = setTimeout(() => this.state.next(), BATTLE_STILL_MS);
-        onCleanup(() => clearTimeout(timer));
+        onCleanup(() => [...timers, timer].forEach((one) => clearTimeout(one)));
         return;
       }
-      const startedAt = performance.now();
+      const clock = new HeldClock(performance.now());
+      const leaving = () => {
+        if (document.hidden) clock.leftView();
+      };
+      document.addEventListener('visibilitychange', leaving);
+      onCleanup(() => document.removeEventListener('visibilitychange', leaving));
       let handle = 0;
       const tick = (now: number) => {
-        const elapsed = now - startedAt;
+        const { elapsed, away } = clock.read(now);
+        // Heard as the stage reaches them on its own clock, which a stall holds still, not on the wall's.
+        // Those passed while the page was out of view are let go of unheard, not all heard at once.
+        for (const sound of sounds) {
+          if (played.has(sound) || sound.at > elapsed) continue;
+          if (away) played.add(sound);
+          else play(sound);
+        }
         this.clock.set(elapsed);
         if (elapsed >= timeline.end) {
           this.state.next();
@@ -604,6 +727,28 @@ export class BattleCutInOverlayComponent {
       handle = requestAnimationFrame(tick);
       onCleanup(() => cancelAnimationFrame(handle));
     });
+  }
+
+  /**
+   * Loads what draws the effects as the table's scene does and makes the canvases under and over
+   * the fighters, unless the stage is gone by then or plays as a still, which draws no effects.
+   * Where the browser cannot make them, the effects go undrawn but for the pictures they cut.
+   */
+  private async startOverPage(destroyRef: DestroyRef): Promise<void> {
+    if (untracked(this.still)) return;
+    const module = await this.loadStage();
+    const floorCanvas = this.floorCanvas()?.nativeElement;
+    const aboveCanvas = this.effectCanvas()?.nativeElement;
+    if (destroyRef.destroyed || !floorCanvas || !aboveCanvas) return;
+    const [floor, above] = module
+      ? await Promise.all([module.createEffectOverlay(floorCanvas), module.createEffectOverlay(aboveCanvas)])
+      : [null, null];
+    if (destroyRef.destroyed || !floor || !above) {
+      floor?.dispose();
+      above?.dispose();
+      return;
+    }
+    this.overPage.set({ floor, above });
   }
 
   /** Moves on to the next scene, or closes the stage. */
@@ -673,16 +818,12 @@ export class BattleCutInOverlayComponent {
   protected readonly figureHeight = BATTLE_FIGURE_PX;
   protected readonly shadowWidth = BATTLE_CELL_PX * 1.6;
 
-  /**
-   * Sounds the scene on this screen: a rush of air as the stage opens, the blow's own sounds where
-   * they fall, and the sounds of going down. With motion off only the landing and the going down
-   * sound, at once, with the still.
-   */
-  private scheduleSounds(timeline: BattleTimeline): ReturnType<typeof setTimeout>[] {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const at = (delay: number, identifier: string) => {
+  /** The sounds the stage plays, each at the moment of the stage it is heard at. */
+  private soundsOf(timeline: BattleTimeline): BattleSound[] {
+    const sounds: BattleSound[] = [];
+    const at = (moment: number, identifier: string) => {
       if (identifier.length < 1) return;
-      timers.push(setTimeout(() => SoundEffect.playLocal(identifier, VolumeType.EFFECT), Math.max(0, delay)));
+      sounds.push({ at: moment, identifier });
     };
     const blow = untracked(this.blow);
     const defeat = untracked(this.defeatEffect);
@@ -691,7 +832,7 @@ export class BattleCutInOverlayComponent {
     if (this.still()) {
       if (blow) at(0, blow.impactSoundIdentifier || blow.soundIdentifier);
       if (defeat && someoneFalls) at(0, defeat.soundIdentifier);
-      return timers;
+      return sounds;
     }
 
     at(0, PresetSound.windSmall);
@@ -705,7 +846,7 @@ export class BattleCutInOverlayComponent {
       for (const delay of launchSoundTimes(defeat)) at(timeline.defeatStart + delay, defeat.soundIdentifier);
       for (const delay of impactSoundTimes(defeat)) at(timeline.defeatStart + delay, defeat.impactSoundIdentifier);
     }
-    return timers;
+    return sounds;
   }
 
   private viewOf(

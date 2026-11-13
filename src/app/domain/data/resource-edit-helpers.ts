@@ -1,4 +1,5 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
+import { isAimedAtStatus } from '@axe/domain/character/aimed-at-buff';
 import { parseBuffAppearance } from '@axe/domain/character/buff-appearance';
 import {
   buffCommandKind,
@@ -19,6 +20,8 @@ import {
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { buffExpires } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
+import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { plantStatusAilment, statusAilmentAsCommanded } from '@axe/domain/character/status-ailment-plant';
@@ -26,6 +29,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { findEmbeddedRolls, replaceEmbeddedRolls } from '@axe/domain/data/embedded-roll';
 import { resourceCommandParts } from '@axe/domain/data/resource-command-words';
 import { readNamedResourceSlot, type ResourceSlot, resourceSlotLabel } from '@axe/domain/data/resource-slot';
+import { isKeptFromAnyone } from '@axe/domain/disclosure/disclosure';
 
 export interface ResourceEditOption {
   limitMinMax: boolean;
@@ -215,13 +219,29 @@ export function applyTextEdit(edit: ResourceEdit, character: GameCharacter): str
 
 /**
  * Applies a worked-out resource change to the character and returns the chat text reporting old and new
- * values.
+ * values; see {@link applyResourceEditReport}.
+ */
+export function applyResourceEdit(edit: ResourceEdit, character: GameCharacter): string {
+  return applyResourceEditReport(edit, character).full;
+}
+
+/** The chat text reporting a resource change: in full, and as it is said to everyone. */
+export interface ResourceEditReport {
+  readonly full: string;
+  readonly shown: string;
+}
+
+/**
+ * Applies a worked-out resource change to the character and returns the chat text reporting old and new
+ * values, and the text said to everyone, which is the same but for a piece whose contents are kept from
+ * anyone: of that, only the change is said, until its current value runs out, down to nothing or for a
+ * resource counting up to its end at its maximum, and it is beaten.
  *
  * The text notes when an option or the stored bounds held the value back, and when changing a base or
  * correction moved the effective bounds or the current maximum. An edit of the maximum on a status without
- * one changes the current value instead. Returns an empty string when the status has no value to change.
+ * one changes the current value instead. Both texts are empty when the status has no value to change.
  */
-export function applyResourceEdit(edit: ResourceEdit, character: GameCharacter): string {
+export function applyResourceEditReport(edit: ResourceEdit, character: GameCharacter): ResourceEditReport {
   let optionText = '';
   let nowOrMax = edit.nowOrMax;
 
@@ -231,7 +251,7 @@ export function applyResourceEdit(edit: ResourceEdit, character: GameCharacter):
   }
 
   const oldNum = character.status.getValue(edit.target, nowOrMax);
-  if (oldNum == null) return '';
+  if (oldNum == null) return { full: '', shown: '' };
 
   // Snapshot effective bounds BEFORE applying so we can report shifts when corrections move them.
   const targetElement = character.detailDataElement
@@ -298,8 +318,16 @@ export function applyResourceEdit(edit: ResourceEdit, character: GameCharacter):
   const operatorText = edit.operator === '-' ? '' : edit.operator;
   const label = resourceSlotLabel(nowOrMax);
   const suffix = label.length > 0 ? `(${label})` : '';
-  return `${edit.target}${suffix}:${oldNum}${operatorText}${edit.diceResult}＞${newNum}${optionText}${sideEffectText}    `;
+  const full = `${edit.target}${suffix}:${oldNum}${operatorText}${edit.diceResult}＞${newNum}${optionText}${sideEffectText}    `;
+  const beaten =
+    nowOrMax === 'now' && isResourceSpentAt(targetElement, newNum, character.status.getValue(edit.target, 'max'));
+  if (!isKeptFromAnyone(character) || beaten) return { full, shown: full };
+  const change = edit.operator === '=' ? `=${KEPT_VALUE}` : `${operatorText}${edit.diceResult}`;
+  return { full, shown: `${edit.target}${suffix}:${change}    ` };
 }
+
+/** What stands in for a value said to be set on a piece whose contents are kept from anyone. */
+const KEPT_VALUE = '？';
 
 /**
  * `&!name/status/op/amount/R/timing/trigger` - a buff that moves a status as it goes on and
@@ -359,10 +387,13 @@ function grantCalculatedBuff(
 
     const data = character.buffs.find(rowName);
     if (!data) return;
-    const applied = rowStacking
-      ? character.buffs.stackModifier(data, request)
-      : character.buffs.applyModifier(data, request);
-    if (!applied) missing.push(request.target);
+    // A status moved for whoever aims at the piece is the note's to tell, not the piece's to move.
+    if (!isAimedAtStatus(request.target)) {
+      const applied = rowStacking
+        ? character.buffs.stackModifier(data, request)
+        : character.buffs.applyModifier(data, request);
+      if (!applied) missing.push(request.target);
+    }
     effects.push(rowStacking ? `${data.currentValue ?? effect}` : effect);
   });
 
@@ -388,7 +419,7 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
   const { piles, command } = readBuffStacking(buff.command);
   let text = '';
   if (buff.targeted) {
-    text += `[${character.name}] `;
+    text += `[${saidNameOf(character)}] `;
   }
 
   const kind = buffCommandKind(command);
