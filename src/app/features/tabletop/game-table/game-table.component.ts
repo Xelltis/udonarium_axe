@@ -1132,7 +1132,7 @@ export class GameTableComponent {
   }
 
   /**
-   * Sizes the board and draws its grid, and shows or hides the grid as the table asks.
+   * Sizes the board and draws its grid.
    *
    * A table announces every change to itself and to what stands on it, and drawing the grid over a
    * whole board is the dearest thing on that path, so the drawing is left as it stands unless one
@@ -1179,10 +1179,5 @@ export class GameTableComponent {
       this.shareGrid();
       afterNextRender(() => this.shareGrid(), { injector: this.injector });
     }
-
-    setTimeout(() => {
-      // So the update runs after the information has caught up with another player's change.
-      this.gestureService.gridOpacity.set(this.currentTable.gridShow ? 1 : 0);
-    });
   }
 }

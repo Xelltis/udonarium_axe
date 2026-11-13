@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, linkedSignal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -152,10 +152,10 @@ export class GameTableGestureService {
   private getGridShow: (() => boolean) | null = null;
 
   /**
-   * How opaque the board's grid is shown, from 0 to 1: as the table has it, and wholly while a piece
-   * is pressed.
+   * How opaque the board's grid is shown, from 0 to 1: as the table has it, following every change
+   * to the table, and wholly while a piece is pressed.
    */
-  readonly gridOpacity = signal(0);
+  readonly gridOpacity = linkedSignal(() => (this.tabletopService.currentTableVersion().gridShow ? 1 : 0));
 
   /**
    * Wires the mouse, touch and marquee gestures to the table's elements, once the view is built.
