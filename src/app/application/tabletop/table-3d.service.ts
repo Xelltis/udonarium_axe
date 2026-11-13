@@ -36,6 +36,7 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-acceleration';
+import { sameFields } from '@axe/core/util/same-fields';
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { effectGroundOf } from '@axe/domain/effect/scene/effect-ground';
 import { EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
@@ -382,7 +383,15 @@ export class Table3dService {
         ceilingPx: Math.max(table.wallHeight, WEATHER_CEILING_CELLS) * table.gridSize,
       };
     },
-    { equal: (a, b) => JSON.stringify(a) === JSON.stringify(b) }
+    {
+      equal: (a, b) =>
+        a === b ||
+        (a !== null &&
+          b !== null &&
+          a.ceilingPx === b.ceilingPx &&
+          sameFields(a.fall, b.fall) &&
+          sameFields(a.board, b.board)),
+    }
   );
 
   /** The pictures the table in view lays under and over its board, drifting where things may move. */
