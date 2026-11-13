@@ -251,7 +251,7 @@ describe('TurnOrderService', () => {
     expect(sendSpy).toHaveBeenCalledTimes(4);
   });
 
-  it('writes nothing down as it works out a step without taking it, and its version’s mark as it takes one', () => {
+  it('writes nothing down as it works out a step without taking it', () => {
     PeerCursor.createMyCursor();
     service.next();
     const mine = PeerCursor.myCursor!;
@@ -262,8 +262,6 @@ describe('TurnOrderService', () => {
     service.mayInterrupt(chars[1].identifier);
 
     expect(mine.turnProtocol).toBe('');
-    service.next();
-    expect(mine.turnProtocol).toBe('1');
   });
 
   it('setCurrent jumps straight to a character in the acting phase', () => {

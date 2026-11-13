@@ -4,6 +4,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ProtocolMarksService } from '@axe/application/sync/protocol-marks.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -209,18 +210,17 @@ export class EngagementZoneService {
     return `${zones.join('|')}#${pieces.join('|')}`;
   });
 
+  /**
+   * Made here so this seat says it keeps zones from the moment its cursor is here: the room counts on
+   * the mark to keep order and to answer for its pieces when a move is stepped into, and a room with
+   * no zone yet would otherwise find nobody to ask.
+   */
+  private readonly protocolMarks = inject(ProtocolMarksService);
+
   constructor() {
     const hooks = inject(TurnHooksService);
     const stopTurnEnd = hooks.onTurnEnd(() => this.confirmForming());
     const stopTurnStart = hooks.onTurnStart((identifier) => this.pullInAtTurnStart(identifier));
-    // Said on this peer's cursor from the moment it is here, rather than the first time a zone needs
-    // tidying: the room counts on it to keep order and to answer for its pieces when a move is
-    // stepped into, and a room with no zone yet would otherwise find nobody to ask.
-    effect(() => {
-      this.objectChange.collectionOf(PeerCursor.aliasName)();
-      const mine = PeerCursor.myCursor;
-      if (mine && mine.zoneProtocol !== '1') untracked(() => (mine.zoneProtocol = '1'));
-    });
     effect(() => {
       const writes = this.state().writes;
       if (!hasZoneWrites(writes)) return;
@@ -948,7 +948,6 @@ export class EngagementZoneService {
   private keepsOrder(): boolean {
     const mine = PeerCursor.myCursor;
     if (!mine) return false;
-    if (mine.zoneProtocol !== '1') mine.zoneProtocol = '1';
     const able = this.objectStore
       .getObjects<PeerCursor>(PeerCursor)
       .filter((cursor) => cursor.zoneProtocol === '1' && cursor.peerId.length > 0);

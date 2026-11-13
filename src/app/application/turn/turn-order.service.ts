@@ -1,4 +1,4 @@
-import { computed, DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable } from '@angular/core';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
@@ -6,6 +6,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ProtocolMarksService } from '@axe/application/sync/protocol-marks.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
@@ -96,6 +97,8 @@ export class TurnOrderService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly hooks = inject(TurnHooksService);
   private readonly t = inject(TRANSLATE_FN);
+  /** Made here so this seat's mark of the turns it runs is said before any round is pressed. */
+  private readonly protocolMarks = inject(ProtocolMarksService);
 
   /** What the turn opened in this press counted down, written down as it goes for a wait to give back. */
   private opening: TurnOpening | null = null;
@@ -106,11 +109,6 @@ export class TurnOrderService {
   private ranOut: Map<string, Map<string, number>> | null = null;
 
   constructor() {
-    effect(() => {
-      this.objectChange.collectionOf(PeerCursor.aliasName)();
-      const mine = PeerCursor.myCursor;
-      if (mine && mine.turnProtocol !== '1') untracked(() => (mine.turnProtocol = '1'));
-    });
     this.objectChange.onObjectChangedForIdentifier(
       'TurnState',
       () => {
@@ -556,9 +554,6 @@ export class TurnOrderService {
    */
   private press(work: (state: TurnSnapshot, table: TurnTable, live: TurnLive) => TurnOutcome | null): void {
     this.opening = null;
-    // This seat's mark of the version of the turns it runs, said before the round it steps is read.
-    const mine = PeerCursor.myCursor;
-    if (mine && mine.turnProtocol !== '1') mine.turnProtocol = '1';
     this.triggerFire.carryingAfter(() => this.step(() => work(this.snapshot(), this.turnTable(), this.live) !== null));
   }
 
