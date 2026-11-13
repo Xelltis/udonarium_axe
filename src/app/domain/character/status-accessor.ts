@@ -228,17 +228,11 @@ export class StatusAccessor {
     let target = oldNum + addValue;
 
     if (type === 'value' || type === 'currentValue') {
-      // Legacy floor: limitMin flag applies a 0 floor if no effective min is configured.
       if (limitMin && data.effectiveMin == null && target < 0) target = 0;
-      // Legacy ceiling for currentValue: limitMax flag caps at value SyncVar (currentMax).
       if (limitMax && type === 'currentValue') {
         const currentMax = numberHeldIn(data.value);
         if (currentMax != null && target > currentMax) target = currentMax;
       }
-    } else {
-      // Base/correction targets: limit flags don't apply (they have no inherent bounds).
-      void limitMin;
-      void limitMax;
     }
 
     this.setValue(name, nowOrMax, target);
