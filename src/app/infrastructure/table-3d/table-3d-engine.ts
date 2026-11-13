@@ -64,6 +64,8 @@ import { TablePost } from '@axe/infrastructure/table-3d/table-post';
 import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
 import { WeatherLayer } from '@axe/infrastructure/table-3d/weather-layer';
+import { BOARD_TO_SCENE } from '@axe/infrastructure/three-kit/board-space';
+import { colourNode } from '@axe/infrastructure/three-kit/colour-node';
 import { disposeObject, forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import { sourceTriangleOf } from '@axe/infrastructure/three-kit/model-faces';
 import {
@@ -76,7 +78,6 @@ import {
   sRGBTransferOETF,
   texture,
   vec2,
-  type vec3,
   vec4,
 } from 'three/tsl';
 import {
@@ -196,13 +197,6 @@ const PIECE_SHADOWS_MS = 150;
 
 /** How high anything on the table is reckoned to stand, for the shadows of the sun and the moon to reach it, in table pixels. */
 const TALLEST_PX = 2000;
-
-/**
- * The board's axes as the scene's: the board runs x to the east, y to the south and z up, and the
- * scene x to the east, y up and z to the south, which is the board's space seen in a mirror and so
- * the right-handed space a graphics library works in.
- */
-const BOARD_TO_SCENE = new Matrix4().set(1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1);
 
 /** The eye's space as the camera's: the eye stands `focalPx` out along z, and the camera's y runs up the page. */
 function eyeToCamera(focalPx: number): Matrix4 {
@@ -1229,11 +1223,6 @@ class ThreeTableEngine implements Table3dEngine {
     picture.anisotropy = Math.min(PICTURE_ANISOTROPY, this.renderer.getMaxAnisotropy());
     return picture;
   }
-}
-
-/** A colour the library's colour-space functions answer, which they do not say is a colour. */
-function colourNode(node: unknown): ReturnType<typeof vec3> {
-  return node as ReturnType<typeof vec3>;
 }
 
 /** The pictures painted ground is drawn with, in the order of `GROUND_PAINT_LAYERS`, and how wide a tile of them is. */

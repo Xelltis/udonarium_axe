@@ -15,7 +15,9 @@ import type {
   TableWorldWater,
   WaterPart,
 } from '@axe/domain/tabletop/world/table-water';
+import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import { lotusTileUrl } from '@axe/infrastructure/tabletop/water/lotus-texture';
+import { colourNode } from '@axe/infrastructure/three-kit/colour-node';
 import {
   attribute,
   float,
@@ -64,9 +66,6 @@ const SURFACE_ORDER = 1000;
 const ICE_ORDER = 1.75;
 const LEAF_ORDER = 1000.5;
 const SHORE_ORDER = 1001;
-
-/** Draws a face laid over another in front of it, past the depth's rounding. */
-const PULLED_FORWARD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 };
 
 /** How many cells one repeat of the net of light spans on the floor, as the page draws it. */
 const CAUSTIC_CELLS = 2.6;
@@ -363,7 +362,7 @@ export class WaterLayer {
   /** The colour a point is laid in, from sRGB, and how opaque. */
   private colour() {
     const colour = attribute('color', 'vec4');
-    return { rgb: vec3(sRGBTransferEOTF(colour.rgb) as unknown as ReturnType<typeof vec3>), a: colour.a };
+    return { rgb: vec3(colourNode(sRGBTransferEOTF(colour.rgb))), a: colour.a };
   }
 
   /** The surface: its colour, with the sky glinting on the ripples as they drift with the flow. */
@@ -418,7 +417,7 @@ export class WaterLayer {
   /** The floor: the colour of the depths, crossed by the net of light the surface throws down. */
   private floorMaterial(netCells: number): MeshLambertNodeMaterial {
     const material = this.material(false);
-    Object.assign(material, PULLED_FORWARD);
+    Object.assign(material, LAID_OVER_FACES);
     const { rgb, a } = this.colour();
     const at = vec2(positionWorld.x, positionWorld.z).div(this.cellPx.mul(netCells));
     const { first, second } = this.nets(at, attribute('extra', 'float').mul(this.floorNet));
@@ -468,7 +467,7 @@ export class WaterLayer {
       transparent: true,
       depthWrite: false,
       side: DoubleSide,
-      ...(pulled ? PULLED_FORWARD : {}),
+      ...(pulled ? LAID_OVER_FACES : {}),
     });
   }
 }
@@ -557,7 +556,7 @@ function everyOther(values: Float32Array, from: number): Float32Array {
 
 /** A colour from sRGB into the light the scene is lit in. */
 function linearOf(colour: Node<'vec3'>): Node<'vec3'> {
-  return sRGBTransferEOTF(colour) as unknown as Node<'vec3'>;
+  return colourNode(sRGBTransferEOTF(colour));
 }
 
 /** A colour laid over another as opaque as it is, as the page lays one picture over another. */

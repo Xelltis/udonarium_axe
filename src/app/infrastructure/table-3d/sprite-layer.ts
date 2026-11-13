@@ -9,8 +9,11 @@ import {
   type TableWorldSprite,
 } from '@axe/domain/tabletop/world/table-sprites';
 import { boxOverGround } from '@axe/infrastructure/table-3d/face-geometry';
+import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
+import { sceneDirection } from '@axe/infrastructure/three-kit/board-space';
+import { colourNode } from '@axe/infrastructure/three-kit/colour-node';
 import { forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
-import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
+import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, vec4 } from 'three/tsl';
 import {
   type BufferGeometry,
   CanvasTexture,
@@ -29,9 +32,6 @@ import {
 /** How many texture pixels a frame is drawn at per table pixel, at most, and how big it may get. */
 const FRAME_DETAIL = 4;
 const FRAME_MAX_PX = 1024;
-
-/** Draws a sprite lying flat on a face in front of the face, past the depth's rounding. */
-const PULLED_FORWARD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 };
 
 /**
  * Where the sprites standing up come in the order things are drawn: after all that is laid over
@@ -57,11 +57,6 @@ export const SHADOW_CASTERS_LAYER = 1;
 
 /** How far into its picture a board throwing a shadow lets light through, as a share of its opacity. */
 const CASTER_ALPHA_TEST = 0.5;
-
-/** A direction of the board's space as the scene's, whose axes run east, up and south. */
-function sceneDirection(v: { x: number; y: number; z: number }): Vector3 {
-  return new Vector3(v.x, v.z, v.y);
-}
 
 /**
  * The turn that lays a square of the scene, facing out along its z, along a sprite's directions
@@ -351,7 +346,7 @@ export class SpriteLayer {
       opacity: sprite.opacity ?? 1,
       depthWrite: !lying,
       side: sprite.twoSided || sprite.drapes ? DoubleSide : FrontSide,
-      ...(lying ? PULLED_FORWARD : {}),
+      ...(lying ? LAID_OVER_FACES : {}),
     });
     material.map = this.texture(sprite.look, sprite.widthPx, sprite.heightPx);
     if (sprite.look.kind === 'picture') material.colorNode = shown(material.map, sprite.brightness);
@@ -400,11 +395,6 @@ export class SpriteLayer {
  * stood up to face the camera, is read at that size all over.
  */
 const PICTURE_SHARPNESS = -1;
-
-/** A colour the library's colour-space functions answer, which they do not say is a colour. */
-function colourNode(node: unknown): ReturnType<typeof vec3> {
-  return node as ReturnType<typeof vec3>;
-}
 
 /**
  * A picture whose colours carry its clearness, as a sprite's picture is held, shown as the page

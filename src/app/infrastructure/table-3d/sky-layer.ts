@@ -1,4 +1,5 @@
 import type { SkyDome, SkyWay } from '@axe/domain/tabletop/world/sky-dome';
+import { sceneDirection } from '@axe/infrastructure/three-kit/board-space';
 import {
   clamp,
   dot,
@@ -205,7 +206,7 @@ function colourUniform() {
   return uniform(new Color());
 }
 
-/** A way of the board as the scene's: the board's x, y and z are the scene's x, z and y. */
+/** A way of the board as the scene's, of unit length. */
 function sceneWay(way: SkyWay): Vector3 {
-  return new Vector3(way.x, way.z, way.y).normalize();
+  return sceneDirection(way).normalize();
 }

@@ -6,6 +6,7 @@ import type {
   Table3dShadowLight,
   Table3dVeil,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { colourNode } from '@axe/infrastructure/three-kit/colour-node';
 import {
   diffuseColor,
   float,
@@ -285,11 +286,6 @@ function clearCanvas(): HTMLCanvasElement {
   canvas.height = 1;
   canvas.getContext('2d')?.clearRect(0, 0, 1, 1);
   return canvas;
-}
-
-/** A colour the library's colour-space functions answer, which they do not say is a colour. */
-function colourNode(node: unknown): ReturnType<typeof vec3> {
-  return node as ReturnType<typeof vec3>;
 }
 
 /** A lamp lighting what the scene draws unlit: where it stands in the scene, how far it reaches and its strength in colour. */

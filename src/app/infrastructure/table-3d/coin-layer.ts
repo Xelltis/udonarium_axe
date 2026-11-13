@@ -1,6 +1,7 @@
 import type { TableWorldCoin, TableWorldCoinSide } from '@axe/domain/tabletop/world/table-coins';
 import { pointOnFace, turnedAbout, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
 import { paintCoinSide } from '@axe/infrastructure/table-3d/coin-sides';
+import { sceneDirection } from '@axe/infrastructure/three-kit/board-space';
 import { forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import {
   BufferGeometry,
@@ -23,11 +24,6 @@ const SIDE_PX = 256;
 /** How many flat pieces a coin's round edges are made of, as the page builds its rim of them. */
 const ROUND_SEGMENTS = 48;
 const RIM_SEGMENTS = 24;
-
-/** A direction of the board's space as the scene's, whose axes run east, up and south. */
-function sceneDirection(v: { x: number; y: number; z: number }): Vector3 {
-  return new Vector3(v.x, v.z, v.y);
-}
 
 /** A side of a coin, painted once for every coin of that size showing it. */
 interface PaintedSide {
