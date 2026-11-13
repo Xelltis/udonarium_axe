@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import { inject, Injectable } from '@angular/core';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
@@ -100,12 +101,13 @@ export class SaveDataService {
   private readonly stampPacks = inject(StampPackService);
   private readonly chatPreferences = inject(ChatPreferencesService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly document = inject(DOCUMENT);
 
   // The exporter would write a raw `@i18n:key:{params}` message, as system notices are,
   // so the translated text is substituted before it gets there.
   private readonly chatLogTextDecoder: ChatLogTextDecoder = (text) => decodeI18nMessage(text, this.translate);
 
-  private static queue: PromiseQueue = new PromiseQueue('SaveDataServiceQueue');
+  private readonly queue = new PromiseQueue('SaveDataServiceQueue');
 
   /**
    * Saves the whole room as a zip download, named with a timestamp and reporting progress as a
@@ -124,7 +126,7 @@ export class SaveDataService {
       this.snackbar.show(this.translate('app.saveWhileReplayBoard'));
       return Promise.resolve();
     }
-    return SaveDataService.queue.add(() => this._saveRoomAsync(fileName, updateCallback));
+    return this.queue.add(() => this._saveRoomAsync(fileName, updateCallback));
   }
 
   /**
@@ -135,7 +137,7 @@ export class SaveDataService {
    */
   createRoomArchiveAsync(options: { background?: boolean } = {}): Promise<Blob> {
     const files = () => this.buildRoomFiles(false);
-    return SaveDataService.queue.add(() =>
+    return this.queue.add(() =>
       options.background ? createZipBlob(files()) : this.fileArchiver.createZipBlobAsync(files())
     );
   }
@@ -146,7 +148,7 @@ export class SaveDataService {
    * names it, so that the room comes back as it stood, image panel and jukebox included.
    */
   createWholeRoomArchiveAsync(): Promise<Blob> {
-    return SaveDataService.queue.add(() => this.fileArchiver.createZipBlobAsync(this.buildRoomFiles(false, true)));
+    return this.queue.add(() => this.fileArchiver.createZipBlobAsync(this.buildRoomFiles(false, true)));
   }
 
   /**
@@ -290,7 +292,7 @@ export class SaveDataService {
     fileName: string = 'xml_data',
     updateCallback?: UpdateCallback
   ): Promise<void> {
-    return SaveDataService.queue.add(() => this._saveGameObjectAsync(gameObject, fileName, updateCallback));
+    return this.queue.add(() => this._saveGameObjectAsync(gameObject, fileName, updateCallback));
   }
 
   private _saveGameObjectAsync(
@@ -469,7 +471,7 @@ export class SaveDataService {
       showTime: this.chatTabList.simpleDispFlagTime,
       roomName: Network.instance.peerContext?.roomName || undefined,
       labels: this.chatLogLabels(),
-      lang: document.documentElement.lang || undefined,
+      lang: this.document.documentElement.lang || undefined,
       exportedAt: Date.now(),
       ruby: this.chatPreferences.rubyDisplay(),
       reactionsOf: (messageIdentifier) =>
