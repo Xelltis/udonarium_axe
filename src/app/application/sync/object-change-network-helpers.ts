@@ -154,6 +154,8 @@ export function subscribeNetworkBindings(
         targets.shuffleCardStack$.emit({ identifier: (msg.data as { identifier: string }).identifier });
         break;
       case 'ROLL_DICE_SYMBOL':
+        // The thrower's own die is already rolling from `notifyDiceRolled`; its echo would start it over.
+        if (msg.isSendFromSelf) break;
         targets.rollDiceSymbol$.emit({ identifier: (msg.data as { identifier: string }).identifier });
         break;
       case 'FLIP_COIN': {
