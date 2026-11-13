@@ -231,18 +231,25 @@ class OverPage implements EffectOverlay {
   }
 }
 
-/** Makes a see-through canvas to draw effects over a floor the page draws, or null where the browser cannot draw one. */
+/**
+ * Makes a see-through canvas to draw effects over a floor the page draws, or null where the browser
+ * cannot draw one. The canvas is handed back at once and readied behind it, so the first effect is
+ * not held up; a frame that comes before it is ready builds what is left.
+ */
 export async function createEffectOverlay(canvas: HTMLCanvasElement): Promise<EffectOverlay | null> {
   try {
     const overlay = new OverPage(await createCanvasRenderer(canvas, { alpha: true }));
-    await overlay.ready();
+    void overlay.ready();
     return overlay;
   } catch {
     return null;
   }
 }
 
-/** Makes a small stage on a canvas to play an effect on, or null where the browser cannot draw one. */
+/**
+ * Makes a small stage on a canvas to play an effect on, or null where the browser cannot draw one.
+ * The stage is handed back at once and readied behind it, as the overlay is.
+ */
 export async function createEffectStage(
   canvas: HTMLCanvasElement,
   options: EffectStageOptions
@@ -250,7 +257,7 @@ export async function createEffectStage(
   try {
     const renderer = await createCanvasRenderer(canvas, { alpha: false, background: STAGE_BACKGROUND });
     const stage = new SmallStage(renderer, canvas, options);
-    await stage.ready();
+    void stage.ready();
     return stage;
   } catch {
     return null;
