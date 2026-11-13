@@ -355,6 +355,52 @@ describe('deserializeScene round-trip', () => {
     }
   });
 
+  it('reads a shape and an image field by field, filling what is broken in with defaults', () => {
+    const scene = createScene(5, 5, 64);
+    const raw = JSON.parse(serializeScene(scene)) as Record<string, unknown>;
+    raw['layers'] = [
+      {
+        id: 'sh',
+        kind: 'shape',
+        name: 'shapes',
+        visible: true,
+        locked: false,
+        opacity: 1,
+        items: [{ id: 's1', shape: 'rect', points: [0, 'a'], fill: 'red', stroke: { width: 'thick' }, stray: 1 }],
+      },
+      {
+        id: 'img',
+        kind: 'image',
+        name: 'images',
+        visible: true,
+        locked: false,
+        opacity: 1,
+        items: [{ id: 'i1', imageIdentifier: 9, x: 1, y: 'b', w: 4, h: 4, stray: 1 }],
+      },
+    ];
+    const result = deserializeScene(JSON.stringify(raw))!;
+    const [shapes, images] = result.layers;
+
+    expect(shapes.kind === 'shape' && shapes.items[0]).toEqual({
+      id: 's1',
+      shape: 'rect',
+      points: [],
+      fill: null,
+      stroke: { color: '#000000', width: 1 },
+      rotation: 0,
+    });
+    expect(images.kind === 'image' && images.items[0]).toEqual({
+      id: 'i1',
+      imageIdentifier: '',
+      x: 1,
+      y: 0,
+      w: 4,
+      h: 4,
+      rotation: 0,
+      opacity: 1,
+    });
+  });
+
   it('drops shape items with an invalid shape kind', () => {
     const scene = createScene(5, 5, 64);
     const raw = JSON.parse(serializeScene(scene)) as Record<string, unknown>;
