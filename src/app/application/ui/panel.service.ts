@@ -106,6 +106,11 @@ export interface PanelOption {
   stillWanted?: () => boolean;
 }
 
+/** A panel on its way from one frame to another. What it holds belongs to the frame. */
+export interface PanelHandoff {
+  panel: PanelService;
+}
+
 /**
  * What the frame a panel is drawn in offers it.
  *
@@ -113,11 +118,6 @@ export interface PanelOption {
  * to hold more than one panel, so a panel asks it to be taken away rather than tearing the
  * frame down itself.
  */
-/** A panel on its way from one frame to another. What it holds belongs to the frame. */
-export interface PanelHandoff {
-  panel: PanelService;
-}
-
 export interface PanelFrame {
   /** Tells one frame from another. */
   readonly frameKey: string;
@@ -167,7 +167,6 @@ export class PanelService {
   private frame: PanelFrame | null = null;
   private actionRotationDegrees: PanelRotationDegrees = 0;
   private static readonly singles = new Map<string, PanelService>();
-  /** Names spoken for by a panel whose code is still being fetched. */
   /** The single names asked for and not arrived yet, each with the latest request for it. */
   private static readonly opening = new Map<string, object>();
   /**
@@ -329,13 +328,6 @@ export class PanelService {
   }
 
   /**
-   * Whether a panel is standing under this name.
-   *
-   * `closeSingle` answers the same question but shuts the panel to do it, which is no use to
-   * anything that only wants to know. One still being opened counts as open, for the same
-   * reason it does there.
-   */
-  /**
    * Has this panel found by another single name from now on, letting go of the one it held, as a
    * panel that comes to show something else is then found by that. A panel already holding the name
    * closes, as one does when another is opened under it.
@@ -351,6 +343,13 @@ export class PanelService {
     PanelService.noteSingles();
   }
 
+  /**
+   * Whether a panel is standing under this name.
+   *
+   * `closeSingle` answers the same question but shuts the panel to do it, which is no use to
+   * anything that only wants to know. One still being opened counts as open, for the same
+   * reason it does there.
+   */
   hasSingle(name: string): boolean {
     PanelService.singlesVersion();
     return PanelService.opening.has(name) || PanelService.singles.has(name);

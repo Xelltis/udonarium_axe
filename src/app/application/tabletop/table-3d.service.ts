@@ -103,14 +103,6 @@ export const TABLE_GRAPHICS = new InjectionToken<() => Promise<TableGraphics>>('
 });
 
 /**
- * Draws the table on a canvas through three.js, for a seat that has asked for it while the canvas
- * does not yet draw everything the page does.
- *
- * The scene is worked out from the room alone and handed to the engine, which is loaded only once a
- * canvas is given. The engine draws on the next frame after anything it was told changes, and not
- * otherwise.
- */
-/**
  * How far an open door's middle has gone from where it stands shut, on the board: moved as the door's
  * own frame is moved by its opening, then turned with the block, as the faces of the door are.
  */
@@ -125,6 +117,14 @@ function doorSwungMiddle(terrain: Terrain, gridSize: number, door: DoorMotion | 
   return { x: dx * Math.cos(turn) - dy * Math.sin(turn), y: dx * Math.sin(turn) + dy * Math.cos(turn) };
 }
 
+/**
+ * Draws the table on a canvas through three.js, for a seat that has asked for it while the canvas
+ * does not yet draw everything the page does.
+ *
+ * The scene is worked out from the room alone and handed to the engine, which is loaded only once a
+ * canvas is given. The engine draws on the next frame after anything it was told changes, and not
+ * otherwise.
+ */
 @Injectable({ providedIn: 'root' })
 export class Table3dService {
   private readonly tabletop = inject(TabletopService);
@@ -653,11 +653,6 @@ export class Table3dService {
   }
 
   /**
-   * Has what moves by itself, as water and a tumbling die, drawn only as the frame waited for is
-   * drawn at once, or by the clock again given false: for a page whose clock is held, which would
-   * otherwise draw the whole scene again for every frame the clock is run through.
-   */
-  /**
    * Has the engine ready the graphics card for a new kind of thing before drawing it, as it does unless
    * told otherwise, or build it on the frame that draws it: for a page whose clock is held, which holds
    * the readying up with it.
@@ -667,6 +662,11 @@ export class Table3dService {
     this.engine?.readyBeforeDrawing(on);
   }
 
+  /**
+   * Has what moves by itself, as water and a tumbling die, drawn only as the frame waited for is
+   * drawn at once, or by the clock again given false: for a page whose clock is held, which would
+   * otherwise draw the whole scene again for every frame the clock is run through.
+   */
   holdMotion(held: boolean): void {
     this.motionHeld = held;
   }

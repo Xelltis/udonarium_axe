@@ -407,17 +407,14 @@ export class VisionService {
   });
 
   /**
-   * The cells a sight-stopping wall stands on.
-   *
-   * Kept with the walls rather than with the scene, so that a piece walking about does not
-   * cut every terrain on the table into cells again.
-   */
-  /**
-   * The cells a wall stands on: how high the tallest reaches, and how low the lowest hangs.
+   * The cells a sight-stopping wall stands on: how high the tallest reaches, and how low the lowest hangs.
    *
    * A cell nothing is standing on is ground, and a block hanging clear of the floor leaves
    * the ground under it just as walkable. Both ends are wanted, since which of them answers
    * turns on where the eye is: over the roof, under the arch, or up against the face.
+   *
+   * Kept with the walls rather than with the scene, so that a piece walking about does not
+   * cut every terrain on the table into cells again.
    */
   readonly blockingCells = computed<{ cells: CellBits; tops: Float32Array; bases: Float32Array } | null>(() => {
     this.standingEpoch();
