@@ -1,3 +1,4 @@
+import { imageTypeOf } from '@axe/core/storage/image-sniff';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { FillStyle, MapScene } from '@axe/domain/map-editor/scene';
 import { deserializeScene, serializeScene } from '@axe/domain/map-editor/serialize';
@@ -61,6 +62,13 @@ export async function packSceneWithImages(scene: MapScene, imageStorage: ImageSt
   );
 }
 
+/** The type of picture an archive's bytes are, as an archive carries none: read off the bytes, and webp for bytes of no known beginning. */
+async function imageOf(data: Uint8Array): Promise<Blob> {
+  const bytes = new Blob([data.slice()]);
+  const type = (await imageTypeOf(bytes)) || 'image/webp';
+  return new Blob([bytes], { type });
+}
+
 async function registerImages(
   imageStorage: ImageStorage,
   bytes: Record<string, Uint8Array>,
@@ -68,7 +76,7 @@ async function registerImages(
 ): Promise<Map<string, string>> {
   const registered = new Map<string, string>();
   for (const [oldId, data] of Object.entries(bytes)) {
-    const blob = new Blob([data.slice()], { type: 'image/webp' });
+    const blob = await imageOf(data);
     const imageFile = await imageStorage.addAsync(blob, { putBack: true });
     if (!imageFile) continue;
     registered.set(oldId, imageFile.identifier);
