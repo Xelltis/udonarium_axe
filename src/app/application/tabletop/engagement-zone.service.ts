@@ -512,6 +512,33 @@ export class EngagementZoneService {
     });
   }
 
+  /**
+   * The enemies of a piece on the field standing within reach of where it is that this seat can see,
+   * among those `fit` lets through, each with the name it is shown by.
+   */
+  private nearFoesOf(
+    self: ZonePieceInput,
+    here: ZonePoint,
+    reach: number,
+    { state, pieces }: ZoneSnapshot,
+    fit: (other: ZonePieceInput) => boolean
+  ): { id: string; name: string }[] {
+    return pieces
+      .filter(
+        (other) =>
+          other.id !== self.id && !other.offField && other.side !== null && other.side !== self.side && fit(other)
+      )
+      .filter((other) => {
+        const there = state.pointOf(other.id);
+        return there !== null && Math.hypot(there.x - here.x, there.y - here.y) <= reach;
+      })
+      .filter((other) => {
+        const one = this.objectStore.get<GameCharacter>(other.id);
+        return one instanceof GameCharacter && this.vision.isTokenVisible(one);
+      })
+      .map((other) => ({ id: other.id, name: this.shownNameOf(other.id) }));
+  }
+
   /** The zones on the table in view, worked out from what is held now rather than from what was last seen. */
   stateNow(): ZoneState {
     return this.snapshot()?.state ?? NO_ZONES;
@@ -527,54 +554,22 @@ export class EngagementZoneService {
     const zone = own ? this.zoneById(own.id) : null;
     const here = state.pointOf(piece.identifier);
     const reach = world.rules.samePointM * world.pxPerMetre + 1e-6;
-    const seen = (other: { id: string }) => {
-      const one = this.objectStore.get<GameCharacter>(other.id);
-      return one instanceof GameCharacter && this.vision.isTokenVisible(one);
-    };
-    const foes =
-      self && self.side !== null && !self.offField && here
-        ? pieces
-            .filter(
-              (other) =>
-                other.id !== self.id &&
-                !other.offField &&
-                !other.down &&
-                !other.held &&
-                other.side !== null &&
-                other.side !== self.side
-            )
-            .filter((other) => {
-              const there = state.pointOf(other.id);
-              return there !== null && Math.hypot(there.x - here.x, there.y - here.y) <= reach;
-            })
-            .filter(seen)
-            .map((other) => ({ id: other.id, name: this.shownNameOf(other.id) }))
-        : [];
+    const onField = self && self.side !== null && !self.offField && here ? { self, here } : null;
+    const foes = onField
+      ? this.nearFoesOf(onField.self, onField.here, reach, snapshot, (other) => !other.down && !other.held)
+      : [];
     const standing = own ? [] : state.insideOf(piece.identifier);
     const acting = this.mayAct(piece);
     const holder = this.links.holderOf(piece);
-    const named = (one: { id: string }) => ({
-      id: one.id,
-      name: this.shownNameOf(one.id),
-    });
     const grabbable =
-      self && self.side !== null && !self.offField && here && acting && !holder
-        ? pieces
-            .filter(
-              (other) =>
-                other.id !== self.id &&
-                !other.offField &&
-                other.side !== null &&
-                other.side !== self.side &&
-                !this.objectStore.get<GameCharacter>(other.id)?.grabbedBy &&
-                !this.isPart(other.id)
-            )
-            .filter((other) => {
-              const there = state.pointOf(other.id);
-              return there !== null && Math.hypot(there.x - here.x, there.y - here.y) <= reach;
-            })
-            .filter(seen)
-            .map(named)
+      onField && acting && !holder
+        ? this.nearFoesOf(
+            onField.self,
+            onField.here,
+            reach,
+            snapshot,
+            (other) => !this.objectStore.get<GameCharacter>(other.id)?.grabbedBy && !this.isPart(other.id)
+          )
         : [];
     return {
       enabled: true,
