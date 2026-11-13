@@ -2,8 +2,8 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { OverlayPlan, OverlayShape, OverlayVision } from '@axe/domain/tabletop/vision-scene';
+import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import {
-  animationIntensity,
   drawOverlayPlan,
   fillUnwalkedCells,
   hexToRgba,

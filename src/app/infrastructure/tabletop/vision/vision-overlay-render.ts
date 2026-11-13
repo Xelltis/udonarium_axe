@@ -26,8 +26,6 @@ export function hexToRgba(color: string, alpha: number): string {
   return withAlpha(hexChannels(color) ? color : WHITE, alpha);
 }
 
-export { animationIntensity };
-
 function glowColor(shape: OverlayShape, alpha: number, timeMs: number): string {
   if (shape.animation === 'neon') {
     const hue = (timeMs * 0.06) % 360;
