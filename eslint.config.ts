@@ -117,6 +117,8 @@ const PROCESS_SINGLETONS = [
   'FileArchiver',
   'ImageSharingSystem',
   'ImageStorage',
+  'ModelSharingSystem',
+  'ModelStorage',
   'ObjectFactory',
   'ObjectSerializer',
   'ObjectStore',
