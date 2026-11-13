@@ -153,12 +153,21 @@ export class AudioFile {
     this.context.type ||= context.type;
     this.context.url ||= context.url;
     this.createURLs();
-    // Extract artwork when blob first arrives (P2P receive path)
     if (!hadBlob && this.context.blob && this._artworkUrl === undefined) {
-      this._artworkUrl = null; // prevent double extraction
-      FileReaderUtil.readAsArrayBufferAsync(this.context.blob).then((buf) => {
-        this._artworkUrl = extractArtworkUrl(buf);
-      });
+      this._artworkUrl = null;
+      void this.readArtwork(this.context.blob);
+    }
+  }
+
+  /**
+   * Reads the artwork embedded in bytes that arrived, in the background. Nothing else reads them
+   * meanwhile, as the artwork counts as read while this runs; bytes that cannot be read leave it unread.
+   */
+  private async readArtwork(blob: Blob): Promise<void> {
+    try {
+      this._artworkUrl = extractArtworkUrl(await FileReaderUtil.readAsArrayBufferAsync(blob));
+    } catch {
+      this._artworkUrl = undefined;
     }
   }
 
