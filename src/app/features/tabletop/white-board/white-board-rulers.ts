@@ -62,3 +62,12 @@ export function scrollKeepingPoint(
   const sheetY = (stage.scrollTop + holdY) / was;
   return { scrollLeft: sheetX * now - holdX, scrollTop: sheetY * now - holdY };
 }
+
+/** The stage's scroll that brings a point of the board, at a zoom, to the middle of the stage. */
+export function scrollCentredOn(
+  stage: Scrollable,
+  point: { x: number; y: number },
+  zoom: number
+): { scrollLeft: number; scrollTop: number } {
+  return { scrollLeft: point.x * zoom - stage.clientWidth / 2, scrollTop: point.y * zoom - stage.clientHeight / 2 };
+}

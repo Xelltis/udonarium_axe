@@ -38,6 +38,7 @@ interface EditorInternals {
   scene: MapScene;
   tool: WritableSignal<BoardTool>;
   held: Signal<MarkRef[]>;
+  selected: Signal<MarkRef | null>;
   laying: WritableSignal<BoardPoint[]>;
   panning: Signal<boolean>;
   zoom: WritableSignal<number>;
@@ -195,6 +196,19 @@ describe('WhiteBoardEditorComponent', () => {
 
       expect(editor.tool()).toBe('pen');
       input.remove();
+    });
+
+    it('lets go of what was held on undo, since the mark may no longer be there', () => {
+      const { editor } = mount();
+      const rect = addRect(editor, { x: 10, y: 10 }, { x: 60, y: 60 });
+      editor.touched();
+      editor.hold([{ kind: 'shape', id: rect.id }]);
+      expect(editor.selected()).toEqual({ kind: 'shape', id: rect.id });
+
+      editor.onKeyDown(key({ key: 'z', ctrlKey: true }));
+
+      expect(editor.held()).toEqual([]);
+      expect(editor.selected()).toBeNull();
     });
 
     it('undoes on ctrl+z and redoes on ctrl+y or ctrl+shift+z', () => {

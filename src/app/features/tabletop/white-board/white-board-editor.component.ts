@@ -1,11 +1,14 @@
 import { NgClass } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   effect,
   ElementRef,
   inject,
+  Injector,
   signal,
   viewChild,
 } from '@angular/core';
@@ -81,6 +84,7 @@ import {
   RULER_WIDTH,
   RulerTick,
   rulerTicks,
+  scrollCentredOn,
   scrollKeepingPoint,
   ZOOM_STEP,
 } from '@axe/features/tabletop/white-board/white-board-rulers';
@@ -202,6 +206,7 @@ export class WhiteBoardEditorComponent {
   private readonly imageStorage = inject(ImageStorage);
   private readonly animatedImage = inject(AnimatedImageService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
   private readonly tabletopService = inject(TabletopService);
   private readonly panelService = inject(PanelService);
   protected readonly t = inject(TRANSLATE_FN);
@@ -305,28 +310,36 @@ export class WhiteBoardEditorComponent {
   }
 
   /**
-   * Changes the size, keeping the point under the pointer under the pointer.
+   * Changes the size, keeping the point under the pointer under the pointer, or bringing a point
+   * of the board to the middle of the stage when one is given.
    *
    * Zooming about the corner of the sheet walks whatever is being worked on off the screen,
-   * so what is under the cursor is what stays put, the way it does in anything else.
+   * so what is under the cursor is what stays put, the way it does in anything else. The stage
+   * is scrolled once the sheet has been drawn at its new size, since a scroll written before
+   * that is held to the old extent.
    */
-  private zoomAbout(next: number, at: { x: number; y: number } | null): void {
+  private zoomAbout(next: number, at: { x: number; y: number } | null, centre: BoardPoint | null = null): void {
     const stage = this.stageRef()?.nativeElement;
     const was = this.zoom();
     const now = clampZoom(next);
-    if (Math.abs(now - was) < 0.0001) return;
-
+    const changes = Math.abs(now - was) >= 0.0001;
     if (!stage) {
-      this.zoom.set(now);
+      if (changes) this.zoom.set(now);
       return;
     }
-    const scroll = scrollKeepingPoint(stage, stage.getBoundingClientRect(), at, was, now);
+    if (!changes && !centre) return;
+    const scroll = centre
+      ? scrollCentredOn(stage, centre, now)
+      : scrollKeepingPoint(stage, stage.getBoundingClientRect(), at, was, now);
 
-    this.zoom.set(now);
-    queueMicrotask(() => {
-      stage.scrollLeft = scroll.scrollLeft;
-      stage.scrollTop = scroll.scrollTop;
-    });
+    if (changes) this.zoom.set(now);
+    afterNextRender(
+      () => {
+        stage.scrollLeft = scroll.scrollLeft;
+        stage.scrollTop = scroll.scrollTop;
+      },
+      { injector: this.injector }
+    );
   }
 
   protected onWheel(event: WheelEvent): void {
@@ -365,9 +378,13 @@ export class WhiteBoardEditorComponent {
 
   readonly canUndo = signal(false);
   readonly canRedo = signal(false);
-  readonly selected = signal<MarkRef | null>(null);
   /** Everything held. One mark is the common case; a dragged out box takes several. */
   readonly held = signal<MarkRef[]>([]);
+  /** The one mark held, which is what can be retyped, trimmed or bent; nothing while several or none are. */
+  readonly selected = computed<MarkRef | null>(() => {
+    const held = this.held();
+    return held.length === 1 ? held[0] : null;
+  });
 
   private history = new SceneHistory(createBoardScene(4, 3, 50));
   private clipboard: MarkRef[] = [];
@@ -860,9 +877,10 @@ export class WhiteBoardEditorComponent {
     const stage = this.stageRef()?.nativeElement;
     const box = boxAround(this.scene, this.held());
     if (!stage || !box) return;
-    this.zoomTo(fitZoom(stage, Math.max(1, box.w), Math.max(1, box.h)));
-    stage.scrollLeft = (box.x + box.w / 2) * this.zoom() - stage.clientWidth / 2;
-    stage.scrollTop = (box.y + box.h / 2) * this.zoom() - stage.clientHeight / 2;
+    this.zoomAbout(fitZoom(stage, Math.max(1, box.w), Math.max(1, box.h)), null, {
+      x: box.x + box.w / 2,
+      y: box.y + box.h / 2,
+    });
   }
 
   /** Sweeps one sheet, which is not the same as sweeping the board and starting again. */
@@ -1015,7 +1033,6 @@ export class WhiteBoardEditorComponent {
 
   private hold(marks: MarkRef[]): void {
     this.held.set(marks);
-    this.selected.set(marks.length === 1 ? marks[0] : null);
     this.settingChanged();
   }
 
@@ -1092,7 +1109,7 @@ export class WhiteBoardEditorComponent {
     const back = this.history.undo();
     if (!back) return;
     this.scene = back;
-    this.selected.set(null);
+    this.held.set([]);
     this.afterHistory();
   }
 
@@ -1100,7 +1117,7 @@ export class WhiteBoardEditorComponent {
     const forward = this.history.redo();
     if (!forward) return;
     this.scene = forward;
-    this.selected.set(null);
+    this.held.set([]);
     this.afterHistory();
   }
 
@@ -1323,7 +1340,7 @@ export class WhiteBoardEditorComponent {
     };
     addText(textLayer(this.scene, this.activeLayerId()), written);
     this.tool.set('select');
-    this.selected.set({ kind: 'text', id: written.id });
+    this.hold([{ kind: 'text', id: written.id }]);
     this.touched();
   }
 
