@@ -182,6 +182,7 @@ export function installTableTestHooks(
   pictures: PiecePicturesService,
   dice: DiceRenderService,
   tabletop: TabletopService,
+  store: ObjectStore,
   moveCamera: (view: TableCameraView) => void,
   refresh: () => void,
   partAt: (identifier: string, pageX: number, pageY: number) => string | null = () => null
@@ -200,7 +201,7 @@ export function installTableTestHooks(
       return { x: onPage.x, y: onPage.y };
     },
     camera: () => camera.view,
-    aliasOf: (identifier) => ObjectStore.instance.get(identifier)?.aliasName ?? null,
+    aliasOf: (identifier) => store.get(identifier)?.aliasName ?? null,
     renderer: () => scene.backend(),
     whenIdle: () => scene.whenIdle().then(() => hud.writeNow()),
     busy: () => [
@@ -230,8 +231,8 @@ export function installTableTestHooks(
     diceResting: () => dice.diceResting,
     modelFaceAt: (pageX, pageY) => scene.modelFaceAt(pageX, pageY),
     partAt,
-    putAwayTutorial: () => putAwayTutorial(tabletop),
-    clearToBlankTable: () => clearToBlankTable(tabletop),
+    putAwayTutorial: () => putAwayTutorial(tabletop, store),
+    clearToBlankTable: () => clearToBlankTable(tabletop, store),
     lookFromNear: () => {
       const layout = camera.layout;
       if (layout) moveCamera(nearView(layout));

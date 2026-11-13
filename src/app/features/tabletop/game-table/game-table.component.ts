@@ -474,6 +474,7 @@ export class GameTableComponent {
           this.piecePictures,
           this.diceRender,
           this.tabletopService,
+          this.objectStore,
           (view) => this.gestureService.moveTo(view),
           () => this.appRef.tick(),
           (identifier, pageX, pageY) => {

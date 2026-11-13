@@ -10,6 +10,7 @@ import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import {
   DEFAULT_TABLE_CAMERA_VIEW,
@@ -39,6 +40,7 @@ describe('table test hooks', () => {
       TestBed.inject(PiecePicturesService),
       TestBed.inject(DiceRenderService),
       TestBed.inject(TabletopService),
+      TestBed.inject(ObjectStore),
       moveCamera,
       refresh
     );

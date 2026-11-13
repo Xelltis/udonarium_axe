@@ -11,9 +11,9 @@ import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { detachAllFrom, standingOn } from '@axe/features/tabletop/white-board/white-board-contents';
 
 /** The objects held under some names, leaving out the names nothing is held under now. */
-function heldUnder(identifiers: readonly string[]): GameObject[] {
+function heldUnder(store: ObjectStore, identifiers: readonly string[]): GameObject[] {
   return identifiers
-    .map((identifier) => ObjectStore.instance.get(identifier))
+    .map((identifier) => store.get(identifier))
     .filter((object): object is GameObject => object !== null);
 }
 
@@ -22,8 +22,8 @@ function heldUnder(identifiers: readonly string[]): GameObject[] {
  * light they speak of. The sample pieces stay to be played with, and whatever was set on a board is
  * put back on the table where it appeared to be. Answers how many things were taken away.
  */
-export function putAwayTutorial(tabletop: TabletopService): number {
-  const parts = heldUnder(TUTORIAL_PARTS);
+export function putAwayTutorial(tabletop: TabletopService, store: ObjectStore): number {
+  const parts = heldUnder(store, TUTORIAL_PARTS);
   const lying = [
     ...tabletop.characters,
     ...tabletop.terrains,
@@ -44,15 +44,16 @@ export function putAwayTutorial(tabletop: TabletopService): number {
  * parties go, all the ground is laid flat and its paint taken off, and the table loses its picture and
  * shows its grid, as a new table is made with. The pieces put on the table since stay where they are.
  */
-export function clearToBlankTable(tabletop: TabletopService): void {
-  putAwayTutorial(tabletop);
-  for (const sample of heldUnder([...SAMPLE_PIECES, ...SAMPLE_PARTIES])) sample.destroy();
-  const table = ObjectStore.instance.get<GameTable>(FIRST_TABLE);
+export function clearToBlankTable(tabletop: TabletopService, store: ObjectStore): void {
+  putAwayTutorial(tabletop, store);
+  for (const sample of heldUnder(store, [...SAMPLE_PIECES, ...SAMPLE_PARTIES])) sample.destroy();
+  const table = store.get<GameTable>(FIRST_TABLE);
   if (!table) return;
   table.imageIdentifier = ImageFile.Empty.identifier;
   table.gridShow = true;
   const ground = groundFieldOn(table);
-  for (const chunk of ground?.readChunks() ?? []) {
-    ground!.writeChunk({ cx: chunk.cx, cy: chunk.cy, heights: new Int16Array(GROUND_CHUNK_SAMPLE_COUNT), paint: null });
+  if (!ground) return;
+  for (const chunk of ground.readChunks()) {
+    ground.writeChunk({ cx: chunk.cx, cy: chunk.cy, heights: new Int16Array(GROUND_CHUNK_SAMPLE_COUNT), paint: null });
   }
 }

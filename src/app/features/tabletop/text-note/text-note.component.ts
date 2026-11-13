@@ -29,6 +29,7 @@ import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { debounce } from '@axe/core/util/debounce';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -112,6 +113,7 @@ export class TextNoteComponent {
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly objectStore = inject(ObjectStore);
   private readonly visionService = inject(VisionService);
   protected readonly tabletopService = inject(TabletopService);
   private readonly destroyRef = inject(DestroyRef);
@@ -508,11 +510,11 @@ export class TextNoteComponent {
         },
         onShowDetail: () => this.showDetail(this.textNote()),
         onPutAwayTutorial: () => {
-          putAwayTutorial(this.tabletopService);
+          putAwayTutorial(this.tabletopService, this.objectStore);
           SoundEffect.play(PresetSound.sweep);
         },
         onClearToBlankTable: () => {
-          clearToBlankTable(this.tabletopService);
+          clearToBlankTable(this.tabletopService, this.objectStore);
           SoundEffect.play(PresetSound.sweep);
         },
       },

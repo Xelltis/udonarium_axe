@@ -290,11 +290,11 @@ export class WhiteBoardComponent {
       onSave: (target) => void this.save(target),
       onDelete: (target) => this.remove(target),
       onPutAwayTutorial: () => {
-        putAwayTutorial(this.tabletopService);
+        putAwayTutorial(this.tabletopService, this.objectStore);
         SoundEffect.play(PresetSound.sweep);
       },
       onClearToBlankTable: () => {
-        clearToBlankTable(this.tabletopService);
+        clearToBlankTable(this.tabletopService, this.objectStore);
         SoundEffect.play(PresetSound.sweep);
       },
     });
