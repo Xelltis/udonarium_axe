@@ -1,13 +1,14 @@
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { FIELD_PROP_SHAPES, FieldAtmosphere, FieldPropId } from '@axe/domain/tabletop/field/field-atmosphere';
 import { makeValueNoise, ValueNoise, warpedFbm } from '@axe/domain/tabletop/field/field-noise';
+import { layoutPointOf } from '@axe/domain/tabletop/field/field-sample-points';
 import { laySettlement, type SettlementLayout } from '@axe/domain/tabletop/field/settlement-layout';
+import { terraceSettlement } from '@axe/domain/tabletop/field/settlement-terrace';
 import { FieldBuilding, layTown } from '@axe/domain/tabletop/field/town-layout';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
 import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
-import { hexLayoutOf, isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
 
 export interface FieldLayout {
@@ -342,11 +343,17 @@ export function generateField(
   const buildings: FieldBuilding[] = [];
   let raster: GroundRaster | null = null;
   let settlement: SettlementLayout | null = null;
+  const heightAt = (x: number, y: number) => raisedAt(atmosphere, x, y, width, height, relief, land, drift, damp, ramp);
   if (atmosphere.settlement) {
     settlement = laySettlement(atmosphere.settlement, width, height, seed, density);
     ground.set(settlement.zones);
     for (let index = 0; index < settlement.taken.length; index++) {
       if (settlement.taken[index]) props[index] = 'building';
+    }
+    if (reliefCells > 0) {
+      const raised = raiseGround(atmosphere, new Uint8Array(width * height), width, height, heightAt);
+      const country = reliefOf(atmosphere, { width, height }, gridType, reliefCells, raised, heightAt);
+      raster = terraceSettlement(country, settlement, { width, height }, gridType);
     }
   } else if (atmosphere.town) {
     const town = layTown(atmosphere.town, width, height, seed, density);
@@ -358,8 +365,6 @@ export function generateField(
       }
     }
   } else {
-    const heightAt = (x: number, y: number) =>
-      raisedAt(atmosphere, x, y, width, height, relief, land, drift, damp, ramp);
     const raised = raiseGround(atmosphere, ground, width, height, heightAt);
     if (reliefCells > 0) raster = reliefOf(atmosphere, { width, height }, gridType, reliefCells, raised, heightAt);
   }
@@ -519,15 +524,4 @@ function reliefOf(
     }
   }
   return { columns, rows, heights };
-}
-
-/**
- * Where a point of the board, in cells from its top left, falls among the cells of the layout, which
- * read their heights at their indices: a square's index is half a cell short of its middle, and a hex
- * column or row is taken at its average stagger, so the ground runs on unbroken from one to the next.
- */
-function layoutPointOf(gridType: GridType, x: number, y: number): { x: number; y: number } {
-  if (!isHexGrid(gridType)) return { x: x - 0.5, y: y - 0.5 };
-  const { colSpacing, rowSpacing, isFlatTop } = hexLayoutOf(1, isFlatTopGrid(gridType));
-  return isFlatTop ? { x: x / colSpacing, y: y / rowSpacing - 0.25 } : { x: x / colSpacing - 0.25, y: y / rowSpacing };
 }
