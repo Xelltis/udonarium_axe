@@ -1,7 +1,10 @@
-<div
-  class="inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[rgb(207,82,82)] px-1 text-[8px] leading-none text-[#eee]"
-  [class.bouncing]="animeState() === 'active'"
-  (animationend)="onBounceEnd()"
->
-  {{ count() }}
-</div>
+<!-- The count is the key: a new count puts up a new element, so the bounce plays again from the start. -->
+@for (play of [count()]; track play) {
+  <div
+    class="inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[rgb(207,82,82)] px-1 text-[8px] leading-none text-[#eee]"
+    [class.bouncing]="animeState() === 'active'"
+    (animationend)="onBounceEnd()"
+  >
+    {{ play }}
+  </div>
+}
