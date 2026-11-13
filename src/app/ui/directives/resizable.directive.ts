@@ -95,21 +95,21 @@ export class ResizableDirective {
     this.handleTypes.forEach((type) => {
       const handle = new ResizeHandler(this.elementRef.nativeElement, type);
       this.handleMap.set(type, handle);
-      handle.input!.onStart = (ev) => this.onResizeStart(ev, handle);
-      handle.input!.onMove = (ev) => this.onResizeMove(ev, handle);
-      handle.input!.onEnd = (ev) => this.onResizeEnd(ev, handle);
-      handle.input!.onContextMenu = (ev) => this.onContextMenu(ev, handle);
+      handle.input.onStart = (ev) => this.onResizeStart(ev, handle);
+      handle.input.onMove = (ev) => this.onResizeMove(ev, handle);
+      handle.input.onEnd = (ev) => this.onResizeEnd(ev, handle);
+      handle.input.onContextMenu = (ev) => this.onContextMenu(ev, handle);
     });
   }
 
   /** Lets go of any resize in progress on every edge and corner. */
   cancel() {
-    this.handleMap.forEach((handle) => handle.input!.cancel());
+    this.handleMap.forEach((handle) => handle.input.cancel());
   }
 
   /** Stops listening on every edge and corner handle. The handle elements stay in place. */
   destroy() {
-    this.handleMap.forEach((handle) => handle.input!.destroy());
+    this.handleMap.forEach((handle) => handle.input.destroy());
   }
 
   private onResizeStart(e: MouseEvent | TouchEvent, handle: ResizeHandler) {
@@ -117,11 +117,11 @@ export class ResizableDirective {
     if ((e as MouseEvent).button === 1 || (e as MouseEvent).button === 2) return this.cancel();
     this.setForeground();
     this.handleMap.forEach((h) => {
-      if (h !== handle) h.input!.cancel();
+      if (h !== handle) h.input.cancel();
     });
 
     this.startPosition = this.calcElementPosition(this.elementRef.nativeElement);
-    this.startPointer = handle.input!.pointer;
+    this.startPointer = handle.input.pointer;
     this.prevTrans = { left: 0, top: 0, width: 0, height: 0 };
 
     this.ostart.emit(e);
@@ -130,8 +130,8 @@ export class ResizableDirective {
 
   private onResizeMove(e: MouseEvent | TouchEvent, handle: ResizeHandler) {
     const localDelta = screenDeltaToElementDelta(
-      handle.input!.pointer.x - this.startPointer.x,
-      handle.input!.pointer.y - this.startPointer.y,
+      handle.input.pointer.x - this.startPointer.x,
+      handle.input.pointer.y - this.startPointer.y,
       this.rotation()
     );
     const trans: BoxSize = {
@@ -214,7 +214,7 @@ export class ResizableDirective {
   }
 
   private onResizeEnd(e: MouseEvent | TouchEvent, handle: ResizeHandler) {
-    if (handle.input!.isDragging && e.cancelable) e.preventDefault();
+    if (handle.input.isDragging && e.cancelable) e.preventDefault();
     this.onend.emit(e);
     e.stopPropagation();
   }
