@@ -12,6 +12,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { Logger } from '@axe/core/logging/logger';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ExpiredBuffEntry, formatExpiredBuffs } from '@axe/domain/character/buff-expiry';
 import { BuffSnapshotEntry } from '@axe/domain/character/buff-manager';
@@ -389,7 +390,9 @@ export class TurnOrderService {
 
   /** Everyone on the table, whether or not they take a turn. */
   private allCharacters(): GameCharacter[] {
-    return this.inventory.tableInventory.tabletopObjects as GameCharacter[];
+    return this.inventory.tableInventory.tabletopObjects.filter(
+      (object): object is GameCharacter => object instanceof GameCharacter
+    );
   }
 
   /**
@@ -694,8 +697,9 @@ export class TurnOrderService {
     if (!(character instanceof GameCharacter)) return;
     try {
       this.triggerFire.standingOn(character, moment);
-    } catch {
+    } catch (reason) {
       // Ground that will not go off is no reason for the round to stop turning.
+      Logger.warn('[TurnOrder] trigger did not fire', reason);
     }
   }
 

@@ -8,6 +8,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { Logger } from '@axe/core/logging/logger';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Party } from '@axe/domain/party/party';
@@ -738,6 +739,20 @@ describe('TurnOrderService', () => {
       service.next();
 
       expect(sprang).toHaveBeenCalledWith(chars[0], 'turnStart');
+    });
+
+    it('keeps the round turning past ground that will not go off, and says why', () => {
+      const warned = vi.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+      const reason = new Error('no ground');
+      sprang.mockImplementation(() => {
+        throw reason;
+      });
+
+      service.next();
+      expect(() => service.next()).not.toThrow();
+
+      expect(turnState.currentIdentifier).toBe(chars[0].identifier);
+      expect(warned).toHaveBeenCalledWith('[TurnOrder] trigger did not fire', reason);
     });
 
     it('springs the ground of a whole press before any of it carries a piece off', () => {
