@@ -2,6 +2,7 @@ import type { ModelPainter, ModelStage } from '@axe/infrastructure/model-viewer/
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
 import { meshesOf, triangleCentresOf } from '@axe/infrastructure/three-kit/model-faces';
+import { cappedPixelRatio } from '@axe/infrastructure/three-kit/pixel-ratio';
 import { letGoOfWebglRenderer, webglRendererOn } from '@axe/infrastructure/three-kit/webgl-renderer';
 import {
   Box3,
@@ -232,7 +233,7 @@ class Stage implements ModelStage {
   resize(): void {
     const width = Math.max(1, this.canvas.clientWidth);
     const height = Math.max(1, this.canvas.clientHeight);
-    this.renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(cappedPixelRatio());
     this.renderer.setSize(width, height, false);
     this.showcase.camera.aspect = width / height;
     this.showcase.camera.updateProjectionMatrix();

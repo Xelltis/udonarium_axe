@@ -65,6 +65,7 @@ import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
 import { WeatherLayer } from '@axe/infrastructure/table-3d/weather-layer';
 import { BOARD_TO_SCENE } from '@axe/infrastructure/three-kit/board-space';
+import { createCanvasRenderer } from '@axe/infrastructure/three-kit/canvas-renderer';
 import { colourNode } from '@axe/infrastructure/three-kit/colour-node';
 import { disposeObject, forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import { sourceTriangleOf } from '@axe/infrastructure/three-kit/model-faces';
@@ -108,7 +109,7 @@ import {
   TextureLoader,
   Vector2,
   Vector3,
-  WebGPURenderer,
+  type WebGPURenderer,
 } from 'three/webgpu';
 
 /**
@@ -208,9 +209,7 @@ export async function createTable3dEngine(
   canvas: HTMLCanvasElement,
   options: Table3dEngineOptions
 ): Promise<Table3dEngine> {
-  const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: true, forceWebGL: options.forceWebGL });
-  await renderer.init();
-  renderer.setClearColor(0x000000, 0);
+  const renderer = await createCanvasRenderer(canvas, { alpha: true, forceWebGL: options.forceWebGL });
   renderer.shadowMap.enabled = true;
   const backend = (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend ? 'webgpu' : 'webgl2';
   return new ThreeTableEngine(renderer, backend);

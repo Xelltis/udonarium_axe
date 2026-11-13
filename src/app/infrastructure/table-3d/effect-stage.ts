@@ -7,7 +7,9 @@ import type {
   EffectStage,
   EffectStageOptions,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { createCanvasRenderer } from '@axe/infrastructure/three-kit/canvas-renderer';
 import { letGoOfRenderer } from '@axe/infrastructure/three-kit/dispose';
+import { cappedPixelRatio } from '@axe/infrastructure/three-kit/pixel-ratio';
 import { abs, float, fract, max, min, mix, smoothstep, uv, vec2, vec3 } from 'three/tsl';
 import {
   Color,
@@ -21,7 +23,7 @@ import {
   RingGeometry,
   Scene,
   Vector3,
-  WebGPURenderer,
+  type WebGPURenderer,
 } from 'three/webgpu';
 
 /** How far above level the board is looked at from, and how far round, in degrees, as the table is by default. */
@@ -31,6 +33,8 @@ const LOOK_ROUND_DEG = 10;
 const FIELD_OF_VIEW = 30;
 /** How strong the light of an effect is made against the scene's own light. */
 const LIGHT_SCALE = 2.2;
+/** The colour the stage clears to about its board. */
+const STAGE_BACKGROUND = 0x0b0d11;
 const BOARD = new Color(0x2a2f38);
 const LINE = new Color(0x4a5260);
 const FIGURE = new Color(0x9fb0c4);
@@ -132,7 +136,7 @@ class SmallStage implements EffectStage {
   resize(): void {
     const width = Math.max(1, this.canvas.clientWidth);
     const height = Math.max(1, this.canvas.clientHeight);
-    this.renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(cappedPixelRatio());
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     // Far enough off for the board to fill the width, a little over the stand-in's middle.
@@ -194,7 +198,7 @@ class OverPage implements EffectOverlay {
     const width = Math.max(1, view.width);
     const height = Math.max(1, view.height);
     if (width !== this.width || height !== this.height) {
-      this.renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
+      this.renderer.setPixelRatio(cappedPixelRatio());
       this.renderer.setSize(width, height, false);
       this.width = width;
       this.height = height;
@@ -223,10 +227,7 @@ class OverPage implements EffectOverlay {
 /** Makes a see-through canvas to draw effects over a floor the page draws, or null where the browser cannot draw one. */
 export async function createEffectOverlay(canvas: HTMLCanvasElement): Promise<EffectOverlay | null> {
   try {
-    const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: true });
-    await renderer.init();
-    renderer.setClearColor(0x000000, 0);
-    const overlay = new OverPage(renderer);
+    const overlay = new OverPage(await createCanvasRenderer(canvas, { alpha: true }));
     await overlay.ready();
     return overlay;
   } catch {
@@ -240,9 +241,7 @@ export async function createEffectStage(
   options: EffectStageOptions
 ): Promise<EffectStage | null> {
   try {
-    const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: false });
-    await renderer.init();
-    renderer.setClearColor(0x0b0d11, 1);
+    const renderer = await createCanvasRenderer(canvas, { alpha: false, background: STAGE_BACKGROUND });
     const stage = new SmallStage(renderer, canvas, options);
     await stage.ready();
     return stage;
