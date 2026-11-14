@@ -79,7 +79,6 @@ import {
 } from '@axe/features/data-element/game-data-element/game-data-element-structure-ops';
 import { GameDataElementTableViewComponent } from '@axe/features/data-element/game-data-element/game-data-element-table-view.component';
 import {
-  escapeHtml,
   fieldHasOptions,
   isTableCellField as isTableCellFieldShared,
   isUrlText,
@@ -99,6 +98,7 @@ import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.dir
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { escapeHtml } from '@axe/ui/text-decoration/decorate-chat-text';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 

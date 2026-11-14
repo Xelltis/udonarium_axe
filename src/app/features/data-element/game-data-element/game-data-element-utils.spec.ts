@@ -1,4 +1,4 @@
-import { escapeHtml, isUrlText } from '@axe/features/data-element/game-data-element/game-data-element-utils';
+import { isUrlText } from '@axe/features/data-element/game-data-element/game-data-element-utils';
 
 describe('isUrlText', () => {
   it('is true for a secure address', () => {
@@ -23,31 +23,5 @@ describe('isUrlText', () => {
 
   it('is false for zero', () => {
     expect(isUrlText(0)).toBe(false);
-  });
-});
-
-describe('escapeHtml', () => {
-  it('escapes an ampersand', () => {
-    expect(escapeHtml('a & b')).toBe('a &amp; b');
-  });
-
-  it('escapes the angle brackets', () => {
-    expect(escapeHtml('<b>test</b>')).toBe('&lt;b&gt;test&lt;/b&gt;');
-  });
-
-  it('escapes a double quote', () => {
-    expect(escapeHtml('"quoted"')).toBe('&quot;quoted&quot;');
-  });
-
-  it('escapes a single quote', () => {
-    expect(escapeHtml("it's")).toBe('it&#039;s');
-  });
-
-  it('renders a number as it is', () => {
-    expect(escapeHtml(42)).toBe('42');
-  });
-
-  it('renders a zero', () => {
-    expect(escapeHtml(0)).toBe('0');
   });
 });

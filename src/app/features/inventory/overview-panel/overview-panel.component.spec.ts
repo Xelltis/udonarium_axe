@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -12,6 +13,7 @@ import {
   DataElementType,
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
+import { MarkDown } from '@axe/domain/data/mark-down';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -65,6 +67,66 @@ describe('OverviewPanelComponent', () => {
     const panel = fixture.nativeElement.querySelector('[data-tooltip-rotation]') as HTMLElement;
     expect(panel.dataset['tooltipRotation']).toBe('90');
     expect(panel.style.transform).toBe('rotateZ(90deg)');
+  });
+
+  describe('how large a detail may grow', () => {
+    it('holds a card and a stack to their own setting between 250 and 1000', () => {
+      const card = Card.create('card', 'front', 'back');
+      const stack = CardStack.create('stack');
+      card.overViewWidth = 400;
+      card.overViewMaxHeight = 2000;
+      stack.overViewWidth = 100;
+      stack.overViewMaxHeight = 640;
+
+      component.tabletopObject = card;
+      expect([component.overViewCardWidth, component.overViewCardMaxHeight]).toEqual([400, 1000]);
+      component.tabletopObject = stack;
+      expect([component.overViewCardWidth, component.overViewCardMaxHeight]).toEqual([250, 640]);
+
+      card.destroy();
+      stack.destroy();
+    });
+
+    it('falls back to the least size for anything that is not a card, and for a size that is no number', () => {
+      const card = Card.create('card', 'front', 'back');
+      card.overViewWidth = null as unknown as number;
+      const note = TextNote.create('note', 'text');
+
+      component.tabletopObject = card;
+      expect(component.overViewCardWidth).toBe(250);
+      component.tabletopObject = note;
+      expect([component.overViewCardWidth, component.overViewCardMaxHeight]).toEqual([250, 250]);
+      component.tabletopObject = null;
+      expect([component.overViewCardWidth, component.overViewNoteWidth, component.overViewCharacterWidth]).toEqual([
+        250, 250, 270,
+      ]);
+
+      card.destroy();
+      note.destroy();
+    });
+  });
+
+  describe('a markdown field', () => {
+    const htmlOf = (safe: unknown) =>
+      (safe as { changingThisBreaksApplicationSecurity: string }).changingThisBreaksApplicationSecurity;
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it("draws its check boxes through the room's markdown helper, found under either identifier", () => {
+      const helper = new MarkDown('overview-markdown-helper');
+      vi.spyOn(ObjectStore.instance, 'get').mockImplementation(
+        (identifier) => (identifier === 'markdwon' ? helper : null) as never
+      );
+
+      expect(htmlOf(component.escapeHtmlMarkDown('[x] done', 'field'))).toContain('id="field_mark_00000000"');
+    });
+
+    it('shows the text as written, escaped, in a room that holds no markdown helper', () => {
+      vi.spyOn(ObjectStore.instance, 'get').mockReturnValue(null);
+
+      expect(htmlOf(component.escapeHtmlMarkDown('<b>[x]</b>\nnext', 'field'))).toBe('&lt;b&gt;[x]&lt;/b&gt;<br>next');
+      expect(() => component.onClick(new MouseEvent('click'))).not.toThrow();
+    });
   });
 
   describe('a detail pinned to a screen edge', () => {
