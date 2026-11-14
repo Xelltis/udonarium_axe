@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
+import { tagImage } from '@axe/application/file/image-tagging';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -85,8 +86,7 @@ export class MapEditorStampPickerComponent {
     if (!file || !file.type.startsWith('image/')) return;
     const imageFile = await this.imageStorage.addAsync(file, { putBack: true });
     if (!imageFile) return;
-    const tag = ImageTag.get(imageFile.identifier) ?? ImageTag.create(imageFile.identifier);
-    tag.tag = MAP_STAMP_TAG;
+    tagImage(imageFile.identifier, MAP_STAMP_TAG);
     this.objectChange.notifyCollectionChanged('image-tag');
     this.selectImageStamp(imageFile);
   }
