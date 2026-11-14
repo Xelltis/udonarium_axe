@@ -2767,6 +2767,7 @@
           "viewReset": "Reset view to fit",
           "loading": "Loading...",
           "loadError": "Failed to load image",
+          "cropError": "Failed to crop image",
           "processing": "Processing...",
           "hint": "Drag the image to move / handles to resize / wheel to zoom / right & bottom frame handles to change cell count / Ctrl+wheel zooms the view",
           "gridTypeLabel": "Grid type",

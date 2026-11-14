@@ -12,15 +12,16 @@ import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
+import { Logger } from '@axe/core/logging/logger';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { clamp } from '@axe/core/util/clamp';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
+import { IMAGE_REGION_CROPPER } from '@axe/features/tabletop/map-image-grid-adjuster/image-region-cropper';
 import {
   colsForWidth,
   coversFrame,
-  cropImageRegion,
   footprintSize,
   rowsForHeight,
   snapAnchor,
@@ -76,7 +77,11 @@ export class MapImageGridAdjusterComponent {
   readonly imageUrl = signal('');
   readonly imageWidth = signal(0);
   readonly imageHeight = signal(0);
-  readonly loadState = signal<'loading' | 'ready' | 'error'>('loading');
+  /**
+   * Where the adjuster stands: reading the picture, ready to adjust, or stopped because the picture
+   * could not be read (`error`) or the block could not be cut out of it (`crop-error`).
+   */
+  readonly loadState = signal<'loading' | 'ready' | 'error' | 'crop-error'>('loading');
   readonly processing = signal(false);
 
   readonly gridColor = this.option.gridColor || '#000000e6';
@@ -95,7 +100,7 @@ export class MapImageGridAdjusterComponent {
   readonly viewCell = signal(VIEW_CELL_BASE);
 
   private loadedImage: HTMLImageElement | null = null;
-  private readonly cropFn = cropImageRegion;
+  private readonly cropRegion = inject(IMAGE_REGION_CROPPER);
 
   private dragMode: DragMode | null = null;
   private dragStart: {
@@ -380,7 +385,7 @@ export class MapImageGridAdjusterComponent {
     this.stretchFit();
   }
 
-  protected stagePoint(event: PointerEvent): { x: number; y: number } {
+  protected stagePoint(event: { clientX: number; clientY: number }): { x: number; y: number } {
     const rect = this.stageRef()?.nativeElement.getBoundingClientRect();
     return {
       x: rect ? event.clientX - rect.left : event.clientX,
@@ -564,7 +569,7 @@ export class MapImageGridAdjusterComponent {
       this.setViewCell(this.viewCell() * factor);
       return;
     }
-    const p = this.stagePoint(event as unknown as PointerEvent);
+    const p = this.stagePoint(event);
     const base = event.shiftKey ? 1.01 : 1.05;
     const factor = event.deltaY < 0 ? base : 1 / base;
     this.zoomAt(p.x, p.y, factor);
@@ -602,8 +607,8 @@ export class MapImageGridAdjusterComponent {
    * Crops the image to the grid block, stores the crop as a new image and closes the adjuster with
    * it, the size in cells and the grid type.
    *
-   * Does nothing unless the image covers the block. A failed crop shows the error state instead of
-   * closing.
+   * Does nothing unless the image covers the block. A crop that fails, or a cropped picture the room
+   * does not keep, is logged with its cause and shows the crop error instead of closing.
    */
   async apply() {
     if (!this.canApply() || !this.loadedImage) return;
@@ -618,7 +623,7 @@ export class MapImageGridAdjusterComponent {
       const cropY = clamp((f.fy - this.ty()) / sy, 0, imgH);
       const cropW = Math.min(f.fw / sx, imgW - cropX);
       const cropH = Math.min(f.fh / sy, imgH - cropY);
-      const blob = await this.cropFn(this.loadedImage, cropX, cropY, cropW, cropH);
+      const blob = await this.cropRegion(this.loadedImage, cropX, cropY, cropW, cropH);
       const image = await this.imageStorage.addAsync(blob, { putBack: true });
       if (!image) throw new Error('the room removed the cropped picture');
       const result: MapImageGridAdjusterResult = {
@@ -628,9 +633,10 @@ export class MapImageGridAdjusterComponent {
         gridType: this.gridType(),
       };
       this.modalService.resolve(result);
-    } catch {
+    } catch (reason) {
+      Logger.error('[MapImageGridAdjuster] the picture could not be cropped to the grid', reason);
       this.processing.set(false);
-      this.loadState.set('error');
+      this.loadState.set('crop-error');
     }
   }
 }
