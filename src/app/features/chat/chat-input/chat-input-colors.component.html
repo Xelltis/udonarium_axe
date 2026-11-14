@@ -1,0 +1,27 @@
+<div
+  #panel
+  popover="manual"
+  data-testid="chat-input-colors"
+  class="rounded-ui-lg border-ui-border-menu bg-ui-menu text-ui-text shadow-ui-lg fixed inset-auto m-0 flex-col gap-1 border border-solid p-1.5 text-[12px]"
+>
+  @if (open()) {
+    <div class="flex items-center gap-0.5">
+      @for (i of slots; track i) {
+        <button
+          type="button"
+          [class]="barButtonClass"
+          [attr.aria-pressed]="colors().selected() === i"
+          [title]="'feature.chat.input.colorSlot' | transloco: { n: i + 1 }"
+          [attr.aria-label]="'feature.chat.input.colorSlot' | transloco: { n: i + 1 }"
+          (click)="pick(i)"
+        >
+          <span [class]="colorSampleClass" [ngStyle]="colors().looks()[i]">A</span>
+        </button>
+      }
+    </div>
+    <button type="button" [class]="panelRowClass" (click)="openSetting()">
+      <i class="material-icons text-[16px]!">palette</i>
+      <span>{{ 'feature.chat.input.colorSetting' | transloco }}</span>
+    </button>
+  }
+</div>

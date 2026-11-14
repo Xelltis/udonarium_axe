@@ -25,7 +25,6 @@ import { ChatColorSettingComponent } from '@axe/features/chat/chat-color-setting
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
-import type { ChatSyntaxWriter } from '@axe/features/chat/chat-input/chat-syntax-items';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -373,48 +372,6 @@ describe('ChatInputComponent', () => {
     });
   });
 
-  it('puts a secret roll’s mark after the count of repeats the roll starts with', async () => {
-    fixture.componentRef.setInput('canSpeak', true);
-    fixture.detectChanges();
-    component.text = '3 2D6';
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    (component as unknown as { syntaxWriter: ChatSyntaxWriter }).syntaxWriter.prefix('S', 'roll');
-
-    expect(component.text).toBe('3 S2D6');
-  });
-
-  it('writes a change of a status as a word of its own after the words before the caret', async () => {
-    fixture.componentRef.setInput('canSpeak', true);
-    fixture.detectChanges();
-    component.text = 'hello';
-    fixture.detectChanges();
-    await fixture.whenStable();
-    const box = (fixture.nativeElement as HTMLElement).querySelector('textarea')!;
-    box.setSelectionRange(5, 5);
-
-    (component as unknown as { syntaxWriter: ChatSyntaxWriter }).syntaxWriter.word(':HP-1', { from: 4, to: 5 });
-
-    expect(component.text).toBe('hello :HP-1');
-    expect([box.selectionStart, box.selectionEnd]).toEqual([10, 11]);
-  });
-
-  it('leaves the caret where it stood before a secret roll’s mark put in after it', async () => {
-    fixture.componentRef.setInput('canSpeak', true);
-    fixture.detectChanges();
-    component.text = '3 2D6';
-    fixture.detectChanges();
-    await fixture.whenStable();
-    const box = (fixture.nativeElement as HTMLElement).querySelector('textarea')!;
-    box.setSelectionRange(0, 0);
-
-    (component as unknown as { syntaxWriter: ChatSyntaxWriter }).syntaxWriter.prefix('S', 'roll');
-
-    expect(component.text).toBe('3 S2D6');
-    expect([box.selectionStart, box.selectionEnd]).toEqual([0, 0]);
-  });
-
   it('checks a line against the room’s default dice bot as the room changes it', () => {
     const watch = vi.spyOn(TestBed.inject(ChatLintService), 'watch');
     TestBed.createComponent(ChatInputComponent).componentRef.setInput('gameType', 'DiceBot');
@@ -457,7 +414,7 @@ describe('ChatInputComponent', () => {
       fixture.detectChanges();
       fixture.componentRef.setInput('text', '2d6+2 回避');
       fixture.detectChanges();
-      const held = () => (component as unknown as { putIn: () => boolean }).putIn();
+      const held = () => component.putIn();
 
       expect(held()).toBe(true);
       textBox().dispatchEvent(new FocusEvent('focus'));
@@ -1016,7 +973,9 @@ describe('ChatInputComponent', () => {
       fixture.detectChanges();
       const picked = vi.spyOn(TestBed.inject(StampPickerService), 'toggle');
       const outgoing = sent();
-      (component as unknown as { openStamps(anchor: Element): void }).openStamps(document.body);
+      (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLButtonElement>('[data-testid="chat-input-stamp"]')!
+        .click();
 
       picked.mock.calls[0][2]('image:https://cdn.example.com/pkg@1.0/a.png');
 

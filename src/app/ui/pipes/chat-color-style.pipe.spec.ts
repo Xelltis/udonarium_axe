@@ -1,6 +1,11 @@
 import { parseHexColor, relativeLuminance, rgbToLch } from '@axe/core/util/tonal-color';
 import { chatBubbleBaseTone, setChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
-import { autoChatBubble, chatColorContrast, ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
+import {
+  autoChatBubble,
+  chatColorContrast,
+  chatColorStyle,
+  ChatColorStylePipe,
+} from '@axe/ui/pipes/chat-color-style.pipe';
 
 const PALETTE = [
   '#000000',
@@ -137,5 +142,20 @@ describe('working a bubble out', () => {
     } finally {
       setChatBubbleBaseTone('light', was);
     }
+  });
+});
+
+describe('chatColorStyle', () => {
+  it('gives the styles the pipe draws with, to code that has no template to pipe through', () => {
+    const style = chatColorStyle('#0099ff', 'dark', '#101010');
+
+    expect(style).toEqual(new ChatColorStylePipe().transform('#0099ff', 'dark', '#101010'));
+    expect(style?.['color']).toBe('#0099ff');
+    expect(style?.['background-color']).toBe(style?.['--bubble-bg']);
+  });
+
+  it('gives none for a colour that cannot be read as one', () => {
+    expect(chatColorStyle('')).toBeNull();
+    expect(chatColorStyle('not a colour', 'dark')).toBeNull();
   });
 });
