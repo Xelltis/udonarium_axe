@@ -144,7 +144,7 @@
         type="button"
         class="text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[13px]!"
         [class.text-ui-accent!]="isSeekLocked()"
-        (click)="toggleSeekLock()"
+        (click)="playback.toggleSeekLock()"
         [disabled]="!canOperate()"
         [title]="
           isSeekLocked()
@@ -166,10 +166,10 @@
         min="0"
         max="100"
         step="0.1"
-        [value]="displayProgress() * 100"
+        [value]="seekBar.displayProgress() * 100"
         [disabled]="!canOperate() || !playback.isPlaying() || isSeekLocked()"
-        (input)="onSeekInput($event)"
-        (change)="onSeekCommit($event)"
+        (input)="seekBar.onInput($event)"
+        (change)="seekBar.onCommit($event)"
         [attr.aria-label]="'feature.media.jukebox.seek' | transloco"
       />
       <span

@@ -21,11 +21,8 @@ import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { BackgroundSoundPlaybackService } from '@axe/features/media/background-sound-playback.service';
-import {
-  formatTrackLength,
-  formatTrackTime,
-  JukeboxPlaybackService,
-} from '@axe/features/media/jukebox-playback.service';
+import { JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
+import { JukeboxSeekBar } from '@axe/features/media/jukebox-seek-bar';
 import { DjDeckComponent } from '@axe/features/media/mini-jukebox/dj-deck/dj-deck.component';
 import { readDeckOpen, writeDeckOpen } from '@axe/features/media/mini-jukebox/dj-deck-preference';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -36,6 +33,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'mini-jukebox',
   templateUrl: './mini-jukebox.component.html',
+  providers: [JukeboxSeekBar],
   imports: [TextTooltipDirective, FormsModule, DraggableDirective, TranslocoModule, DjDeckComponent],
 })
 export class MiniJukeboxComponent {
@@ -52,14 +50,11 @@ export class MiniJukeboxComponent {
   /** Whether the DJ deck is open under the player, remembered in this browser. */
   readonly isDeckOpen = signal(readDeckOpen());
   readonly isTitleScrolling = signal(false);
-  readonly isSeekLocked = computed<boolean>(() => {
-    this.objectChange.versionOf('Jukebox')();
-    return this.jukebox?.isSeekLocked ?? true;
-  });
+  readonly isSeekLocked = this.playback.isSeekLocked;
+  /** The seek bar over the room's track, with the drag on it that is this player's own. */
+  protected readonly seekBar = inject(JukeboxSeekBar);
   readonly playerEl = viewChild.required<ElementRef<HTMLElement>>('playerEl');
   readonly titleTextEl = viewChild<ElementRef<HTMLElement>>('titleTextEl');
-
-  private readonly _tick = signal(0);
 
   /** The sound the jukebox last played, kept while it is stopped so it can be played again. */
   readonly lastAudioIdentifier = linkedSignal<string, string>({
@@ -102,8 +97,6 @@ export class MiniJukeboxComponent {
         this.isTitleScrolling.set(false);
       }
     });
-    const timer = setInterval(() => this._tick.update((v) => v + 1), 250);
-    this.destroyRef.onDestroy(() => clearInterval(timer));
   }
 
   private get jukebox(): Jukebox | null {
@@ -155,35 +148,17 @@ export class MiniJukeboxComponent {
   );
 
   readonly artworkUrl = computed(() => {
-    this._tick();
+    this.playback.clock();
     this.objectChange.versionOf('Jukebox')();
     return this.jukebox?.audio?.artworkUrl ?? null;
   });
 
-  readonly progress = computed(() => {
-    this._tick();
-    this.objectChange.versionOf('Jukebox')();
-    const ct = this.playback.position();
-    const dur = this.playback.duration();
-    return dur > 0 && isFinite(dur) ? ct / dur : 0;
-  });
-
-  readonly isSeeking = signal(false);
-  readonly seekPreview = signal(0);
-  readonly displayProgress = computed(() => (this.isSeeking() ? this.seekPreview() : this.progress()));
-
-  readonly timeDisplay = computed(() => {
-    this._tick();
-    this.objectChange.versionOf('Jukebox')();
-    if (!this.isPlaying() && !this.isPaused()) return '—';
-    const dur = this.playback.duration();
-    const ct = this.isSeeking() ? this.seekPreview() * dur : this.playback.position();
-    return `${formatTrackTime(ct)} / ${dur > 0 ? formatTrackLength(dur) : '—'}`;
-  });
+  /** The position and length of the room's track, or a dash while no track is held. */
+  readonly timeDisplay = computed(() => this.seekBar.time() ?? '—');
 
   /** Where the places marked in the room's track lie along the seek bar, as percentages of its length. */
   readonly cueMarks = computed<{ slot: number; percent: number }[]>(() => {
-    this._tick();
+    this.playback.clock();
     this.objectChange.versionOf('Jukebox')();
     const identifier = this.jukebox?.audioIdentifier ?? '';
     if (!identifier) return [];
@@ -231,28 +206,6 @@ export class MiniJukeboxComponent {
     this.playback.stepPlaylist(direction);
   }
 
-  /** Shows where the seek bar is being dragged to without moving playback yet. */
-  onSeekInput(event: Event) {
-    const value = (event.target as HTMLInputElement).valueAsNumber / 100;
-    this.isSeeking.set(true);
-    this.seekPreview.set(value);
-  }
-
-  /**
-   * Seeks the room's music to where the user let go of the seek bar.
-   *
-   * The seek is skipped while the track's duration is unknown, but the drag preview ends either
-   * way.
-   */
-  onSeekCommit(event: Event) {
-    const value = (event.target as HTMLInputElement).valueAsNumber / 100;
-    const dur = this.playback.duration();
-    if (isFinite(dur) && dur > 0) {
-      this.playback.seek(value * dur);
-    }
-    this.isSeeking.set(false);
-  }
-
   /** Opens or closes the track list under the player. */
   togglePlaylist() {
     this.isPlaylistOpen.update((v) => !v);
@@ -263,13 +216,6 @@ export class MiniJukeboxComponent {
     const open = !this.isDeckOpen();
     this.isDeckOpen.set(open);
     writeDeckOpen(open);
-  }
-
-  /**
-   * Locks or unlocks the seek bar; the lock is kept on the jukebox, so it holds for the whole room.
-   */
-  toggleSeekLock() {
-    if (this.jukebox && this.canOperate()) this.jukebox.isSeekLocked = !this.jukebox.isSeekLocked;
   }
 
   /**

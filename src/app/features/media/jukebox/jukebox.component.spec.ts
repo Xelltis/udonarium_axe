@@ -293,7 +293,7 @@ describe('JukeboxComponent', () => {
       component.removeFromPlaylist(song);
       component.setTagOf(AudioStorage.instance.get('other')!, 'SE');
       component.createPlaylist();
-      component.toggleSeekLock();
+      TestBed.inject(JukeboxPlaybackService).toggleSeekLock();
 
       expect(ObjectStore.instance.get<Playlist>(Playlist.DEFAULT_IDENTIFIER)!.entries).toEqual(['song', 'other']);
       expect(component.getTagOf(AudioStorage.instance.get('other')!)).toBe('BGM');
@@ -440,14 +440,14 @@ describe('JukeboxComponent', () => {
       const position = vi.spyOn(playback, 'position').mockReturnValue(20);
       const seek = vi.spyOn(playback, 'seek').mockImplementation(() => undefined);
 
-      component.onSeekInput(seekBarAt(75));
+      component.seekBar.onInput(seekBarAt(75));
       position.mockReturnValue(40);
-      expect(component.displayProgress()).toBe(0.75);
+      expect(component.seekBar.displayProgress()).toBe(0.75);
 
-      component.onSeekCommit(seekBarAt(75));
+      component.seekBar.onCommit(seekBarAt(75));
 
       expect(seek).toHaveBeenCalledWith(150);
-      expect(component.isSeeking()).toBe(false);
+      expect(component.seekBar.isSeeking()).toBe(false);
     });
   });
 

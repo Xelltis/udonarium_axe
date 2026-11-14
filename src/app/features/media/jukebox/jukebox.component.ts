@@ -34,12 +34,8 @@ import {
   buildPlaylistTrackMenu,
   PlaylistTarget,
 } from '@axe/features/media/jukebox/playlist-context-menu';
-import {
-  formatTrackLength,
-  formatTrackTime,
-  JukeboxPlaybackService,
-  PlaylistView,
-} from '@axe/features/media/jukebox-playback.service';
+import { JukeboxPlaybackService, PlaylistView } from '@axe/features/media/jukebox-playback.service';
+import { JukeboxSeekBar } from '@axe/features/media/jukebox-seek-bar';
 import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { UiVolumeRowComponent } from '@axe/ui/components/volume-row/volume-row.component';
@@ -51,6 +47,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'jukebox',
   templateUrl: './jukebox.component.html',
   host: { class: 'block' },
+  providers: [JukeboxSeekBar],
   imports: [TextTooltipDirective, FormsModule, TranslocoModule, UiVolumeRowComponent],
 })
 export class JukeboxComponent {
@@ -226,39 +223,17 @@ export class JukeboxComponent {
     return held;
   });
 
-  /** Whether the seek bar is being dragged, and where to, from 0 to 1, so playback moving on does not pull it back. */
-  readonly isSeeking = signal(false);
-  readonly seekPreview = signal(0);
+  /** The seek bar over the room's track, with the drag on it that is this panel's own. */
+  readonly seekBar = inject(JukeboxSeekBar);
 
   /**
    * The position and length of the room's track, read out as `1:23 / 4:56`. Empty while nothing is
    * held, leaving the space it takes so the seek bar keeps its length when a track starts.
    */
-  readonly timeDisplay = computed(() => {
-    this._tick();
-    this.objectChange.versionOf('Jukebox')();
-    if (!this.playback.isPlaying() && !this.playback.isPaused()) return '';
-    const duration = this.playback.duration();
-    const at = this.isSeeking() ? this.seekPreview() * duration : this.playback.position();
-    return `${formatTrackTime(at)} / ${duration > 0 ? formatTrackLength(duration) : '—'}`;
-  });
-
-  /** How far through the room's track it is, from 0 to 1. */
-  readonly progress = computed(() => {
-    this._tick();
-    this.objectChange.versionOf('Jukebox')();
-    const duration = this.playback.duration();
-    return duration > 0 ? Math.min(1, this.playback.position() / duration) : 0;
-  });
-
-  /** Where the seek bar stands: where it is being dragged to, or how far through the track it is. */
-  readonly displayProgress = computed(() => (this.isSeeking() ? this.seekPreview() : this.progress()));
+  readonly timeDisplay = computed(() => this.seekBar.time() ?? '');
 
   /** Whether the seek bar is locked for the whole room. */
-  readonly isSeekLocked = computed(() => {
-    this.objectChange.versionOf('Jukebox')();
-    return this.jukebox?.isSeekLocked ?? true;
-  });
+  readonly isSeekLocked = this.playback.isSeekLocked;
 
   private dragFromIndex: number | null = null;
 
@@ -489,10 +464,10 @@ export class JukeboxComponent {
 
   readonly auditionPlayer: AudioPlayer = new AudioPlayer();
 
-  private readonly _tick = signal(0);
+  private readonly seTick = signal(0);
 
   readonly nowPlayingArtwork = computed(() => {
-    this._tick();
+    this.playback.clock();
     this.objectChange.versionOf('Jukebox')();
     return this.jukebox?.audio?.artworkUrl ?? null;
   });
@@ -501,8 +476,7 @@ export class JukeboxComponent {
     queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('feature.media.jukebox.title')));
     this.auditionPlayer.volumeType = VolumeType.AUDITION;
     this.destroyRef.onDestroy(() => this.stop());
-    const timer = setInterval(() => this._tick.update((v) => v + 1), 500);
-    this.destroyRef.onDestroy(() => clearInterval(timer));
+    this.destroyRef.onDestroy(SoundEffects.onChange(() => this.seTick.update((count) => count + 1)));
   }
 
   /** Previews a track for this player only, from its audition button. */
@@ -563,6 +537,7 @@ export class JukeboxComponent {
 
   /** Whether a sound effect is sounding on this player's side, which swaps its play button for stop. */
   isSePlaying(audio: AudioFile): boolean {
+    this.seTick();
     return SoundEffects.isPlaying(audio.identifier);
   }
 
@@ -581,24 +556,6 @@ export class JukeboxComponent {
     const files = input.files;
     if (files && files.length) this.fileArchiver.load(files);
     input.value = '';
-  }
-
-  /** Locks or unlocks the seek bar for the whole room. */
-  toggleSeekLock(): void {
-    if (this.jukebox && this.canOperate()) this.jukebox.isSeekLocked = !this.jukebox.isSeekLocked;
-  }
-
-  /** Shows where the seek bar is being dragged to without moving playback yet. */
-  onSeekInput(event: Event): void {
-    this.isSeeking.set(true);
-    this.seekPreview.set((event.target as HTMLInputElement).valueAsNumber / 100);
-  }
-
-  /** Moves the room's track to where the seek bar was let go, while its length is known, and ends the drag. */
-  onSeekCommit(event: Event): void {
-    const duration = this.playback.duration();
-    if (duration > 0) this.playback.seek(((event.target as HTMLInputElement).valueAsNumber / 100) * duration);
-    this.isSeeking.set(false);
   }
 
   /** Opens the cut-in list panel beside the pointer. */

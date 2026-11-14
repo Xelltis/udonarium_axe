@@ -1,3 +1,4 @@
+import { DestroyRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
@@ -17,6 +18,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import {
   formatTrackLength,
   formatTrackTime,
+  JUKEBOX_CLOCK_MS,
   JukeboxPlaybackService,
 } from '@axe/features/media/jukebox-playback.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -180,6 +182,20 @@ describe('JukeboxPlaybackService', () => {
       PeerCursor.myCursor.name = name;
     }
 
+    it('locks and unlocks the seek bar for the room from a player, and leaves it as it is for a guest', async () => {
+      playAs(PeerRole.Player);
+      const before = jukebox.isSeekLocked;
+
+      service.toggleSeekLock();
+      expect(jukebox.isSeekLocked).toBe(!before);
+      await vi.waitFor(() => expect(service.isSeekLocked()).toBe(!before));
+
+      playAs(PeerRole.Guest);
+      await vi.waitFor(() => expect(service.canOperate()).toBe(false));
+      service.toggleSeekLock();
+      expect(jukebox.isSeekLocked).toBe(!before);
+    });
+
     beforeEach(() => {
       logged = [];
       vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockImplementation((kind, text: string) => {
@@ -252,6 +268,63 @@ describe('JukeboxPlaybackService', () => {
         t('feature.media.jukebox.log.shuffleOn', { name: 'Gina' }),
         t('feature.media.jukebox.log.shuffleOff', { name: 'Gina' }),
       ]);
+    });
+  });
+
+  describe('the clock that what shows the track reads it again by', () => {
+    function scope(): { destroyRef: DestroyRef; destroy(): void } {
+      const callbacks: (() => void)[] = [];
+      return {
+        destroyRef: { onDestroy: (callback: () => void) => (callbacks.push(callback), () => {}) } as DestroyRef,
+        destroy: () => callbacks.forEach((callback) => callback()),
+      };
+    }
+
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it('stands still while nothing follows it', () => {
+      vi.advanceTimersByTime(JUKEBOX_CLOCK_MS * 4);
+
+      expect(service.clock()).toBe(0);
+    });
+
+    it('goes on one timer however many follow it, until the last has gone', () => {
+      const setTimer = vi.spyOn(globalThis, 'setInterval');
+      const panel = scope();
+      const player = scope();
+      service.followClock(panel.destroyRef);
+      service.followClock(player.destroyRef);
+
+      vi.advanceTimersByTime(JUKEBOX_CLOCK_MS * 2);
+      expect(service.clock()).toBe(2);
+      expect(setTimer).toHaveBeenCalledTimes(1);
+
+      panel.destroy();
+      vi.advanceTimersByTime(JUKEBOX_CLOCK_MS);
+      expect(service.clock()).toBe(3);
+
+      player.destroy();
+      vi.advanceTimersByTime(JUKEBOX_CLOCK_MS * 4);
+      expect(service.clock()).toBe(3);
+    });
+
+    it('moves how far through the track it is on with each tick, and no further than its end', () => {
+      const following = scope();
+      service.followClock(following.destroyRef);
+      vi.spyOn(service, 'duration').mockReturnValue(200);
+      const position = vi.spyOn(service, 'position').mockReturnValue(50);
+      expect(service.progress()).toBe(0.25);
+
+      position.mockReturnValue(100);
+      expect(service.progress()).toBe(0.25);
+      vi.advanceTimersByTime(JUKEBOX_CLOCK_MS);
+      expect(service.progress()).toBe(0.5);
+
+      position.mockReturnValue(201);
+      vi.advanceTimersByTime(JUKEBOX_CLOCK_MS);
+      expect(service.progress()).toBe(1);
+      following.destroy();
     });
   });
 

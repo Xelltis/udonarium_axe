@@ -1,4 +1,4 @@
-import { computed, inject, Injectable } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -33,6 +33,9 @@ export function formatTrackTime(seconds: number): string {
 export function formatTrackLength(seconds: number): string {
   return formatTrackTime(Number.isFinite(seconds) ? Math.round(seconds) : seconds);
 }
+
+/** How often what the room's track itself knows, such as how far in it is, is read again, in milliseconds. */
+export const JUKEBOX_CLOCK_MS = 250;
 
 /** A playlist as the jukebox's controls show it. */
 export interface PlaylistView {
@@ -87,6 +90,51 @@ export class JukeboxPlaybackService {
 
   private get jukebox(): Jukebox | null {
     return this.objectStore.get<Jukebox>('Jukebox') ?? null;
+  }
+
+  private readonly clockTick = signal(0);
+  private clockFollowers = 0;
+  private clockTimer: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * Counts up while the clock is followed. The track's position, its length and its artwork are
+   * known to the audio rather than to the room, so what shows them reads this to read them again.
+   */
+  readonly clock = this.clockTick.asReadonly();
+
+  /**
+   * Keeps the clock going until the given scope is destroyed. However many follow it, one timer
+   * runs, and none once the last follower is gone.
+   */
+  followClock(destroyRef: DestroyRef): void {
+    this.clockFollowers += 1;
+    this.clockTimer ??= setInterval(() => this.clockTick.update((count) => count + 1), JUKEBOX_CLOCK_MS);
+    destroyRef.onDestroy(() => {
+      this.clockFollowers -= 1;
+      if (this.clockFollowers > 0 || this.clockTimer === null) return;
+      clearInterval(this.clockTimer);
+      this.clockTimer = null;
+    });
+  }
+
+  /** How far through the room's track it is, from 0 to 1; 0 while its length is unknown. */
+  readonly progress = computed(() => {
+    this.clock();
+    this.objectChange.versionOf('Jukebox')();
+    const duration = this.duration();
+    return duration > 0 ? Math.min(1, this.position() / duration) : 0;
+  });
+
+  /** Whether the seek bar is locked for the whole room. */
+  readonly isSeekLocked = computed(() => {
+    this.objectChange.versionOf('Jukebox')();
+    return this.jukebox?.isSeekLocked ?? true;
+  });
+
+  /** Locks or unlocks the seek bar for the whole room; a guest changes nothing. */
+  toggleSeekLock(): void {
+    const jukebox = this.jukebox;
+    if (jukebox && this.canOperate()) jukebox.isSeekLocked = !jukebox.isSeekLocked;
   }
 
   private get cutInLauncher(): CutInLauncher | null {
