@@ -158,14 +158,10 @@ export class GameTableMaskComponent {
 
   readonly gameTableMask = input<GameTableMask | null>(null);
 
-  /** Whether a locked mask shows its lock mark; setting it writes straight to the mask. */
+  /** Whether a locked mask shows its lock mark. */
   get dispLockMark(): boolean {
     const mask = this.gameTableMask();
     return mask?.dispLockMark ?? false;
-  }
-  set dispLockMark(disp: boolean) {
-    const mask = this.gameTableMask();
-    if (mask) mask.dispLockMark = disp;
   }
 
   readonly name = computed(() => {
@@ -191,61 +187,26 @@ export class GameTableMaskComponent {
     const mask = this.gameTableMask();
     return Math.max(0, mask?.height ?? 0);
   }
-  /** The mask's own opacity, or 0 when there is no mask. */
-  get opacity(): number {
-    const mask = this.gameTableMask();
-    return mask?.opacity ?? 0;
-  }
   readonly imageFile = computed(
     () => {
       const mask = this.gameTableMask();
       this.objectChange.fileVersion();
-      if (!mask) throw new Error('gameTableMask is not set');
+      if (!mask) return ImageFile.Empty;
       this.objectChange.versionOf(mask.identifier)();
       return mask.imageFile;
     },
     { equal: imageFileEqual() }
   );
-  /** Whether the mask is locked in place; setting it writes straight to the mask. */
+  /** Whether the mask is locked in place. */
   get isLock(): boolean {
     const mask = this.gameTableMask();
     return mask?.isLock ?? false;
   }
-  set isLock(isLock: boolean) {
-    const mask = this.gameTableMask();
-    if (mask) mask.isLock = isLock;
-  }
 
-  /** The blend type for the mask picture, always 0, which draws it with hard-light blending. */
-  get blendType(): number {
-    return 0;
-  }
-
-  /**
-   * The mask's `color`, its colour element's `value`; setting it writes straight to the mask.
-   *
-   * Nothing in the app reads or writes it: the template fills a mask that has no picture with
-   * `bgcolor`.
-   */
-  get color(): string {
-    const mask = this.gameTableMask();
-    return mask?.color ?? '';
-  }
-  set color(color: string) {
-    const mask = this.gameTableMask();
-    if (mask) mask.color = color;
-  }
-  /**
-   * The background colour a mask without a picture is filled with; setting it writes straight to
-   * the mask.
-   */
+  /** The background colour a mask without a picture is filled with. */
   get bgcolor(): string {
     const mask = this.gameTableMask();
     return mask?.bgcolor ?? '';
-  }
-  set bgcolor(bgcolor: string) {
-    const mask = this.gameTableMask();
-    if (mask) mask.bgcolor = bgcolor;
   }
 
   /**
@@ -451,23 +412,6 @@ export class GameTableMaskComponent {
     const mask = this.gameTableMask();
     return mask?.altitude ?? 0;
   }
-  set altitude(altitude: number) {
-    const mask = this.gameTableMask();
-    if (mask) mask.altitude = altitude;
-  }
-
-  /**
-   * Whether the mask shows a line and label for its altitude; setting it writes straight to the
-   * mask.
-   */
-  get isAltitudeIndicate(): boolean {
-    const mask = this.gameTableMask();
-    return mask?.isAltitudeIndicate ?? false;
-  }
-  set isAltitudeIndicate(isAltitudeIndicate: boolean) {
-    const mask = this.gameTableMask();
-    if (mask) mask.isAltitudeIndicate = isAltitudeIndicate;
-  }
 
   /** Whether someone is scratching the mask, which is whenever it has an owner. */
   get isScratching(): boolean {
@@ -475,11 +419,6 @@ export class GameTableMaskComponent {
     return !!mask?.owner;
   }
 
-  /** Whether a peer has taken the mask to scratch it. */
-  get hasOwner(): boolean {
-    const mask = this.gameTableMask();
-    return mask?.hasOwner ?? false;
-  }
   /**
    * Whether the peer scratching the mask is still connected; the scratcher's banner only shows
    * while they are.

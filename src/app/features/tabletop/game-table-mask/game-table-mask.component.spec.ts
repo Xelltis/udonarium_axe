@@ -35,6 +35,11 @@ describe('GameTableMaskComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('has an empty picture, and draws without throwing, while it has no mask', () => {
+    expect(component.imageFile().url).toBe('');
+    expect(() => fixture.detectChanges()).not.toThrow();
+  });
+
   describe('the guide to how high it floats', () => {
     let table: GameTable;
     let mask: GameTableMask;
