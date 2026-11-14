@@ -1,5 +1,6 @@
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import type { TranslateFn } from '@axe/application/i18n/translate.token';
+import { joinList } from '@axe/core/util/join-list';
 import { PeerRole, roleLabelKey } from '@axe/domain/peer/peer-role';
 import { type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 
@@ -69,14 +70,6 @@ export function briefReplayLogLine(line: ReplayLogLine): ReplayLogLine {
 /** A line as the reader reads it, in their language. */
 export function renderReplayLogLine(line: ReplayLogLine, t: TranslateFn, lang: string): string {
   return t(line.key, replayLineParams(line, t, lang));
-}
-
-function joinList(items: readonly string[], lang: string): string {
-  try {
-    return new Intl.ListFormat(lang, { style: 'long', type: 'conjunction' }).format(items);
-  } catch {
-    return items.join(', ');
-  }
 }
 
 const TABLE_PLACE = 'table';

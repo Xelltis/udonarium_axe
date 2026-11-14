@@ -21,6 +21,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { browserLocalStorage } from '@axe/core/storage/local-preference';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { joinList } from '@axe/core/util/join-list';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { buildEffectChatToken } from '@axe/domain/effect/effect-chat-token';
 import { EffectField } from '@axe/domain/effect/effect-field';
@@ -280,7 +281,7 @@ export class EffectLibraryPanelComponent {
   }
 
   private reportFired(preset: EffectPreset, names: readonly string[]): void {
-    this.lastFired.set(names.join('、'));
+    this.lastFired.set(joinList(names, this.language.currentLang()));
     this.recentIdentifiers.set(pushRecentEffect(this.storage, preset.identifier));
   }
 
