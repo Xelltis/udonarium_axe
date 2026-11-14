@@ -641,7 +641,7 @@ export class ChatWindowComponent {
   showTabSetting() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
-      title: this.t('feature.chat.window.tabSettingTitle'),
+      title: this.t('feature.chat.tabSetting.panelTitle'),
       ...sheetPanelBox(coordinate, 500, 380),
     };
     const component = this.panelService.open<ChatTabSettingComponent>(ChatTabSettingComponent, option);
@@ -672,7 +672,7 @@ export class ChatWindowComponent {
   showVoteMenu() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
-      title: this.t('feature.chat.window.voteMenuTitle'),
+      title: this.t('feature.vote.panelTitle'),
       left: coordinate.x + 50,
       top: coordinate.y - 450,
       width: 650,
@@ -689,7 +689,7 @@ export class ChatWindowComponent {
   showAlarmMenu() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
-      title: this.t('feature.chat.window.alarmMenuTitle'),
+      title: this.t('feature.alarm.panelTitle'),
       left: coordinate.x + 50,
       top: coordinate.y - 450,
       width: 650,

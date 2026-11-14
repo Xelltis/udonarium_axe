@@ -3902,9 +3902,6 @@
         "diceTableSetting": "Dice tables",
         "chatSetting": "Chat settings",
         "titleWithTab": "Chat - {{tab}}",
-        "voteMenuTitle": "Vote / Roll call",
-        "alarmMenuTitle": "Alarm timer",
-        "tabSettingTitle": "Chat tab settings",
         "noTarget": "No target selected",
         "writingOthers": "{{count}} more typing",
         "titleWithCount": "{{title}} ({{count}})"

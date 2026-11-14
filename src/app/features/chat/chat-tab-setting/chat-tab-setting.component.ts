@@ -8,7 +8,6 @@ import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
@@ -40,7 +39,6 @@ const TURNED_DOWN_WITHIN_MS = 30_000;
   imports: [TextTooltipDirective, FormsModule, TranslocoModule],
 })
 export class ChatTabSettingComponent {
-  private readonly modalService = inject(ModalService);
   private readonly panelService = inject(PanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly chatMessageService = inject(ChatMessageService);
@@ -261,9 +259,6 @@ export class ChatTabSettingComponent {
   allowDeleteTab = false;
 
   constructor() {
-    queueMicrotask(
-      () => (this.modalService.title = this.panelService.title = this.t('feature.chat.tabSetting.panelTitle'))
-    );
     // A tab another seat deleted is let go of; only one this seat deleted is offered back.
     this.objectChange.objectDeleted$.subscribe((e) => {
       if (!this.selectedTab() || e.identifier !== this.selectedTab()!.identifier || this.selectedTabXml) return;

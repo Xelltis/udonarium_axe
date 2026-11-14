@@ -3902,9 +3902,6 @@
         "diceTableSetting": "ダイス表設定",
         "chatSetting": "チャット設定",
         "titleWithTab": "チャットウィンドウ - {{tab}}",
-        "voteMenuTitle": "点呼/投票設定",
-        "alarmMenuTitle": "アラームタイマ",
-        "tabSettingTitle": "チャットタブ設定",
         "noTarget": "対象が未選択です",
         "writingOthers": "他 {{count}} 人 入力中",
         "titleWithCount": "{{title}}（{{count}}）"

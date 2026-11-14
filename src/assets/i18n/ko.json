@@ -3902,9 +3902,6 @@
         "diceTableSetting": "주사위 표 설정",
         "chatSetting": "채팅 설정",
         "titleWithTab": "채팅 창 - {{tab}}",
-        "voteMenuTitle": "점호/투표 설정",
-        "alarmMenuTitle": "알람 타이머",
-        "tabSettingTitle": "채팅 탭 설정",
         "noTarget": "대상이 선택되지 않았습니다",
         "writingOthers": "외 {{count}}명 입력 중",
         "titleWithCount": "{{title}} ({{count}})"

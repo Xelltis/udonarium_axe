@@ -4,7 +4,6 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -21,7 +20,6 @@ import { TranslocoModule } from '@jsverse/transloco';
   imports: [FormsModule, TranslocoModule, UiPeerPickListComponent],
 })
 export class VoteMenuComponent {
-  private readonly modalService = inject(ModalService);
   private readonly panelService = inject(PanelService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly objectStore = inject(ObjectStore);
@@ -59,7 +57,6 @@ export class VoteMenuComponent {
   });
 
   constructor() {
-    queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('feature.vote.panelTitle')));
     this.setDefaultCheck();
   }
 
