@@ -21,6 +21,7 @@ import { diceCommandExamples } from '@axe/domain/dice/dice-roll-line';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { cutInNamedAtLineEnd } from '@axe/domain/media/cut-in-chat-tail';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { TURN_CHAT_COMMANDS } from '@axe/domain/tabletop/turn-chat-command';
 import type { ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
 import type { ChatSyntaxMenuSource } from '@axe/features/chat/chat-input/chat-syntax-items';
 import { roomStampViewSource, stampMarkup, stampViewOf } from '@axe/ui/components/stamp/stamp-view';
@@ -83,8 +84,9 @@ export class ChatSyntaxSourceService {
   private readonly diceExamples = new WeakMap<object, string[]>();
 
   /**
-   * The names the editor offers as a line is written, the speaker's buffs among them. They hold no
-   * dice commands, so no game system is fetched or rolled for them as a key is typed.
+   * The names the editor offers as a line is written, the speaker's buffs and the round commands
+   * the reader may use among them. They hold no dice commands, so no game system is fetched or rolled
+   * for them as a key is typed.
    */
   completionWordsFor(sendFrom: string): ChatCompletionWords {
     const speaker = this.speakerOf(sendFrom);
@@ -93,6 +95,9 @@ export class ChatSyntaxSourceService {
       ...names,
       statuses: names.statuses.map((status) => status.name),
       buffs: speaker?.buffs.list().map((buff) => buff.name) ?? [],
+      turnCommands: TURN_CHAT_COMMANDS.filter((entry) => PeerCursor.isMyselfGameMaster || !entry.masterOnly).flatMap(
+        (entry) => [entry.short, entry.word]
+      ),
     };
   }
 

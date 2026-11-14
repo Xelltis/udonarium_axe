@@ -15,6 +15,50 @@ function markersOf(scan: ChatSyntaxScan, kind: SyntaxKind): string[] {
 }
 
 describe('scanChatSyntax', () => {
+  describe('a round command', () => {
+    it('reads one that opens the message, and the rest as a message of its own', () => {
+      const scan = scanChatSyntax('&T 2d6+5 命中判定 &加護/防御+1/3');
+
+      expect(textsOf(scan, 'turn')).toEqual(['&T']);
+      expect(markersOf(scan, 'turn')).toEqual(['&']);
+      expect(scan.spans.find((span) => span.kind === 'turn')).toEqual(expect.objectContaining({ command: 'take' }));
+      expect(textsOf(scan, 'roll')).toEqual(['2d6+5']);
+      expect(textsOf(scan, 'buff')).toEqual(['&加護/防御+1/3']);
+      const roll = scan.spans.find((span) => span.kind === 'roll');
+      expect(roll?.kind === 'roll' && scan.text.slice(roll.message.from, roll.message.to)).toBe(
+        '2d6+5 命中判定 &加護/防御+1/3'
+      );
+    });
+
+    it('reads none in the middle of a message, where the word is a buff', () => {
+      const scan = scanChatSyntax('攻撃 &T');
+
+      expect(textsOf(scan, 'turn')).toEqual([]);
+      expect(textsOf(scan, 'buff')).toEqual(['&T']);
+    });
+
+    it('leaves a buff named as a command is a buff', () => {
+      expect(textsOf(scanChatSyntax('&RS/効果/3'), 'turn')).toEqual([]);
+      expect(textsOf(scanChatSyntax('&RS/効果/3'), 'buff')).toEqual(['&RS/効果/3']);
+      expect(textsOf(scanChatSyntax('&RS-'), 'buff')).toEqual(['&RS-']);
+      expect(textsOf(scanChatSyntax('&TEAM'), 'turn')).toEqual([]);
+    });
+
+    it('reads one at the start of each line of a palette', () => {
+      const scan = scanChatSyntax('&手番 2d6\n攻撃\n&RN', 'palette');
+
+      expect(textsOf(scan, 'turn')).toEqual(['&手番', '&RN']);
+      expect(textsOf(scan, 'roll')).toEqual(['2d6']);
+    });
+
+    it('reads no second command in what follows the first', () => {
+      const scan = scanChatSyntax('&T &TE');
+
+      expect(textsOf(scan, 'turn')).toEqual(['&T']);
+      expect(textsOf(scan, 'buff')).toEqual([]);
+    });
+  });
+
   it('reads a roll that starts a message, with its repeat count', () => {
     const scan = scanChatSyntax('3 2d6+{筋力} 攻撃');
     expect(textsOf(scan, 'repeat')).toEqual(['3']);

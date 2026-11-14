@@ -34,6 +34,7 @@ import {
   type RollCheck,
   rollLimitBreaches,
 } from '@axe/domain/dice/dice-roll-line';
+import type { TurnChatCommand, TurnChatRefusal } from '@axe/domain/tabletop/turn-chat-command';
 
 /** How much a finding matters: it will not work, it may not work as meant, or it is worth knowing. */
 export type ChatDiagnosticSeverity = 'error' | 'warning' | 'info';
@@ -68,6 +69,33 @@ export const CHAT_LINT_CODES = [
   'buff.badEffectTiming',
   'buff.idleEffectTiming',
   'sweep.gmOnly',
+  'turn.take',
+  'turn.end',
+  'turn.wait',
+  'turn.stepIn',
+  'turn.back',
+  'turn.roundStart',
+  'turn.roundNext',
+  'turn.roundBack',
+  'turn.roundReset',
+  'turn.no.watching',
+  'turn.no.masterOnly',
+  'turn.no.noPiece',
+  'turn.no.notYours',
+  'turn.no.notYourTurn',
+  'turn.no.fixedOrder',
+  'turn.no.notUnderWay',
+  'turn.no.notInOrder',
+  'turn.no.acted',
+  'turn.no.otherSide',
+  'turn.no.alreadyUp',
+  'turn.no.waiting',
+  'turn.no.nobodyUp',
+  'turn.no.cannotWait',
+  'turn.no.notWaiting',
+  'turn.no.nothingToUndo',
+  'turn.no.underWay',
+  'turn.no.notStarted',
   'portrait.unknown',
   'portrait.lostByTarget',
   'cutIn.secret',
@@ -149,6 +177,12 @@ export interface ChatLintContext {
   readonly sentLater?: boolean;
   /** The name a piece is told by in what is found; its own where this is not told. */
   nameOf?(piece: GameCharacter): string;
+  /**
+   * Why a round command said now would move nothing, as the seat may not use it or the round does
+   * not stand where it applies; null where it would be carried out, as it is taken to be where this
+   * is not told.
+   */
+  turnCommandRefusal?(command: TurnChatCommand): TurnChatRefusal | null;
 }
 
 /**
@@ -192,7 +226,8 @@ function decorationHidesCommand(text: string): boolean {
 /**
  * Checks one message. A text written to be sent later, as a palette's lines are, is aimed at the
  * targets and the pieces an effect plays on as each line is sent, so nothing in it that turns on
- * the pieces picked out now is found at fault where none are.
+ * the pieces picked out now is found at fault where none are, nor is a round command for where the
+ * round stands now. What follows a round command is rolled as the line of its own it is said as.
  */
 function lintMessage(
   text: string,
@@ -210,6 +245,8 @@ function lintMessage(
   const nameOf = (piece: GameCharacter) => context.nameOf?.(piece) ?? piece.name;
   const add = (span: TextRange, severity: ChatDiagnosticSeverity, code: ChatLintCode, extra = {}) =>
     found.push({ from: span.from, to: span.to, severity, code, ...extra });
+  const round = spans.find((span) => span.kind === 'turn');
+  const said = round?.kind === 'turn' ? round.rest : message;
   const portrait = spans.find((span) => span.kind === 'portrait');
   const portraitFound = portrait?.kind === 'portrait' && portraitResolves(portrait.command, context);
   let effectsStopped = false;
@@ -219,8 +256,17 @@ function lintMessage(
   for (const span of spans) {
     switch (span.kind) {
       case 'roll':
-        if (!(later && noTarget)) lintRoll(text, message, span, context, add);
+        if (!(later && noTarget)) {
+          const rolled = text.slice(span.message.from - message.from, span.message.to - message.from);
+          lintRoll(rolled, span.message, span, context, add);
+        }
         break;
+      case 'turn': {
+        const refusal = later ? null : (context.turnCommandRefusal?.(span.command) ?? null);
+        if (refusal) add(span, 'error', `turn.no.${refusal}`);
+        else add(span, 'info', `turn.${span.command}`);
+        break;
+      }
       case 'reference':
         if (noTarget && (span.site.targeted || aimsThrough(span.site))) {
           if (!later) add(span, 'error', 'target.none');
@@ -271,7 +317,7 @@ function lintMessage(
         if (portraitFound || !context.isChatCutIn(span.name)) break;
         if (context.keptOffTable) add(span, 'warning', 'edit.keptOffTable');
         else if (targeting) add(span, 'warning', 'cutIn.lostByTarget', { params: { name: span.name } });
-        else if (hasSecretEditMark(text) || context.secretRoll?.(message)) {
+        else if (hasSecretEditMark(text) || context.secretRoll?.(said)) {
           add(span, 'info', 'cutIn.secret', { params: { name: span.name } });
         }
         break;

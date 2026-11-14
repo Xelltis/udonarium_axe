@@ -10,6 +10,8 @@ export interface ChatCompletionWords {
   readonly buffs: readonly string[];
   /** The cut-ins that start from chat, offered after an at mark to play their sound alone. */
   readonly cutIns: readonly string[];
+  /** The round commands the reader may use, by the names written after the ampersand; left out where none are offered. */
+  readonly turnCommands?: readonly string[];
 }
 
 /** What a name is offered for: a chip it becomes, or text written after a mark. */
@@ -21,6 +23,8 @@ export interface ChatTrigger {
   /** Where the mark that starts it stands in the text read. */
   from: number;
   query: string;
+  /** Set where a bare ampersand opens the line, which is where a round command is read. */
+  opensLine?: true;
 }
 
 const TRIGGERS: readonly { kind: ChatTriggerKind; pattern: RegExp }[] = [
@@ -34,8 +38,9 @@ const TRIGGERS: readonly { kind: ChatTriggerKind; pattern: RegExp }[] = [
 /**
  * Finds the name being written right before the caret, from the text of its line up to the caret:
  * a reference's after `{`, an effect's after `《`, a portrait's or a cut-in's after an at mark that
- * starts a word, a status after a colon that does, and a buff after an ampersand that does. Null
- * where none is, so nothing is offered in words of chat.
+ * starts a word, a status after a colon that does, and a buff after an ampersand that does, told
+ * apart where the ampersand opens the line with no mark after it, as a round command is read there.
+ * Null where none is, so nothing is offered in words of chat.
  */
 export function findChatTrigger(before: string): ChatTrigger | null {
   for (const { kind, pattern } of TRIGGERS) {
@@ -45,12 +50,16 @@ export function findChatTrigger(before: string): ChatTrigger | null {
     const from = match.index + match[0].length - written.length;
     const mark =
       /^[sｓ]?[tTｔＴ]?[&＆][+＋!！]*|^[sSｓＳ]?[tTｔＴ]?[:：]|^[tTｔＴ]?[{｛]|^[@＠]|^《/.exec(written)?.[0] ?? '';
-    return { kind, from, query: written.slice(mark.length) };
+    const opensLine = kind === 'buff' && mark.length === 1 && before.slice(0, from).trim().length < 1;
+    return { kind, from, query: written.slice(mark.length), ...(opensLine ? { opensLine } : {}) };
   }
   return null;
 }
 
-/** The names offered for what is being written, those starting with what is written first. */
+/**
+ * The names offered for what is being written, those starting with what is written first. After an
+ * ampersand that opens the line, the round commands are offered after the speaker's buffs.
+ */
 export function chatTriggerOptions(trigger: ChatTrigger, words: ChatCompletionWords): string[] {
   const pool =
     trigger.kind === 'reference'
@@ -61,7 +70,7 @@ export function chatTriggerOptions(trigger: ChatTrigger, words: ChatCompletionWo
           ? [...words.portraits, ...words.cutIns]
           : trigger.kind === 'status'
             ? words.statuses.filter(namableInResourceCommand)
-            : words.buffs;
+            : [...words.buffs, ...(trigger.opensLine ? (words.turnCommands ?? []) : [])];
   const query = trigger.query.toLowerCase();
   const names = [...new Set(pool.filter((name) => name.length > 0))];
   const starts = names.filter((name) => name.toLowerCase().startsWith(query));

@@ -48,6 +48,7 @@ describe('chatSyntaxGroups', () => {
       'reference',
       'resource',
       'buff',
+      'turn',
       'portrait',
       'effect',
       'quote',
@@ -126,5 +127,30 @@ describe('chatSyntaxGroups', () => {
         .rows.filter((row) => row.items[0].written.startsWith('&&')).length;
     expect(sweeps(false)).toBe(0);
     expect(sweeps(true)).toBe(1);
+  });
+
+  it('offers the round commands a player may use, written at the start of the line where they are read', () => {
+    const groups = chatSyntaxGroups(source(), writer, t);
+    const turn = groups.find((group) => group.key === 'turn')!;
+
+    expect(turn.rows.map((row) => row.items[0].written)).toEqual(['&T', '&TE', '&TW', '&TI']);
+    turn.rows[0].items[0].run();
+    expect(written).toEqual(['prefix &T  first']);
+  });
+
+  it('offers the game master every round command', () => {
+    const turn = chatSyntaxGroups(source({ isGameMaster: true }), writer, t).find((group) => group.key === 'turn')!;
+
+    expect(turn.rows.map((row) => row.items[0].written)).toEqual([
+      '&T',
+      '&TE',
+      '&TW',
+      '&TI',
+      '&TB',
+      '&RS',
+      '&RN',
+      '&RB',
+      '&RR',
+    ]);
   });
 });

@@ -252,6 +252,54 @@ describe('lintChatSyntax', () => {
     });
   });
 
+  describe('round commands', () => {
+    it('says what each command does where the speaker may use it', () => {
+      expect(lint('&T')).toEqual([expect.objectContaining({ severity: 'info', code: 'turn.take', from: 0, to: 2 })]);
+      expect(codes('&手番終了')).toEqual(['turn.end']);
+      expect(codes('&TW')).toEqual(['turn.wait']);
+      expect(codes('&TI')).toEqual(['turn.stepIn']);
+      expect(codes('&TB')).toEqual(['turn.back']);
+      expect(codes('&RS')).toEqual(['turn.roundStart']);
+      expect(codes('&RN')).toEqual(['turn.roundNext']);
+      expect(codes('&RB')).toEqual(['turn.roundBack']);
+      expect(codes('&RR')).toEqual(['turn.roundReset']);
+    });
+
+    it('finds one the speaker may not use, or that would move nothing now, with why', () => {
+      const asked: string[] = [];
+      const turnCommandRefusal = (command: string) => {
+        asked.push(command);
+        return 'masterOnly' as const;
+      };
+
+      expect(lint('&RS', { turnCommandRefusal })).toEqual([
+        expect.objectContaining({ severity: 'error', code: 'turn.no.masterOnly', from: 0, to: 3 }),
+      ]);
+      expect(asked).toEqual(['roundStart']);
+      expect(codes('&T', { turnCommandRefusal: () => 'otherSide' })).toEqual(['turn.no.otherSide']);
+    });
+
+    it('finds no fault that turns on where the round stands in a line written to be sent later', () => {
+      expect(codes('&T', { sentLater: true, turnCommandRefusal: () => 'otherSide' })).toEqual(['turn.take']);
+    });
+
+    it('checks the rest of the line as a line of its own', () => {
+      const checked: string[] = [];
+      const rollCheck = (message: { from: number; to: number }) => {
+        checked.push('&T 2d6>= 攻撃'.slice(message.from, message.to));
+        return { kind: 'unrollable' } as const;
+      };
+
+      expect(codes('&T 2d6>= 攻撃', { rollCheck })).toEqual(['turn.take', 'dice.unrollable']);
+      expect(checked).toEqual(['2d6>= 攻撃']);
+    });
+
+    it('says nothing of a buff named as a command is, nor of the word in the middle of a line', () => {
+      expect(codes('&RS/効果/3')).toEqual([]);
+      expect(codes('攻撃 &加護/防御+1/3')).toEqual([]);
+    });
+  });
+
   describe('portraits and cut-ins', () => {
     const portraits = () => [
       { label: '通常', identifier: 'id-normal' },

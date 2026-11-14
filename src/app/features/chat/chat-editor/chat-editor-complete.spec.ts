@@ -48,4 +48,41 @@ describe('chat-editor-complete', () => {
     expect(chatTriggerOptions({ kind: 'status', from: 0, query: '' }, spaced)).toEqual(['HP']);
     expect(chatTriggerOptions({ kind: 'reference', from: 0, query: '' }, spaced)).toContain('Max HP');
   });
+
+  describe('round commands', () => {
+    const withTurns: ChatCompletionWords = { ...words, turnCommands: ['T', '手番', 'TE', '手番終了', 'RS'] };
+
+    it('tells an ampersand that opens the line, where a round command is read', () => {
+      expect(findChatTrigger('&')).toEqual({ kind: 'buff', from: 0, query: '', opensLine: true });
+      expect(findChatTrigger('  &T')).toEqual({ kind: 'buff', from: 2, query: 'T', opensLine: true });
+      expect(findChatTrigger('攻撃 &T')).toEqual({ kind: 'buff', from: 3, query: 'T' });
+      expect(findChatTrigger('&+T')).toEqual({ kind: 'buff', from: 0, query: 'T' });
+      expect(findChatTrigger('s&T')).toEqual({ kind: 'buff', from: 0, query: 'T' });
+    });
+
+    it('offers the commands after the buffs where the ampersand opens the line', () => {
+      expect(chatTriggerOptions({ kind: 'buff', from: 0, query: '', opensLine: true }, withTurns)).toEqual([
+        '加護',
+        'tough',
+        'T',
+        '手番',
+        'TE',
+        '手番終了',
+        'RS',
+      ]);
+      expect(chatTriggerOptions({ kind: 'buff', from: 0, query: 't', opensLine: true }, withTurns)).toEqual([
+        'tough',
+        'T',
+        'TE',
+      ]);
+    });
+
+    it('offers no command in the middle of a line, nor where none is told', () => {
+      expect(chatTriggerOptions({ kind: 'buff', from: 3, query: '' }, withTurns)).toEqual(['加護', 'tough']);
+      expect(chatTriggerOptions({ kind: 'buff', from: 0, query: '', opensLine: true }, words)).toEqual([
+        '加護',
+        'tough',
+      ]);
+    });
+  });
 });

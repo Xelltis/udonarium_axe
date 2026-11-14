@@ -137,6 +137,7 @@ const KIND_CLASSES: Partial<Record<SyntaxKind, string>> = {
   aim: 'chat-rich-resource',
   buff: 'chat-rich-buff',
   sweep: 'chat-rich-buff',
+  turn: 'chat-rich-buff',
   portrait: 'chat-rich-portrait',
   cutIn: 'chat-rich-cut-in',
   effect: 'chat-rich-effect',

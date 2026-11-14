@@ -3,6 +3,7 @@ import type { ChatTagLanguage } from '@axe/domain/chat/chat-decoration';
 import type { ChatRichChip } from '@axe/domain/chat/chat-rich-text';
 import { namableInResourceCommand } from '@axe/domain/data/resource-command-words';
 import { isBattleChatTokenName } from '@axe/domain/effect/effect-chat-token';
+import { TURN_CHAT_COMMANDS } from '@axe/domain/tabletop/turn-chat-command';
 import type { ChatChipPlace, ChatFieldSelection } from '@axe/features/chat/chat-input/chat-text-field';
 
 /** What the speaker and the room offer to be written, each by the name it is written with. */
@@ -55,7 +56,7 @@ export interface ChatSyntaxRow {
   readonly items: readonly ChatSyntaxItem[];
 }
 
-export type ChatSyntaxGroupKey = 'dice' | 'reference' | 'resource' | 'buff' | 'portrait' | 'effect' | 'quote';
+export type ChatSyntaxGroupKey = 'dice' | 'reference' | 'resource' | 'buff' | 'turn' | 'portrait' | 'effect' | 'quote';
 
 /** A kind of syntax and the rows of it there are to write. */
 export interface ChatSyntaxGroup {
@@ -76,11 +77,12 @@ function withHole(writer: ChatSyntaxWriter, before: string, hole: string, after 
 
 /**
  * The syntax the input's insert button offers, a group to each kind: dice, references, resource and
- * buff changes, portraits, effects and cut-ins, and quotes. Each row is named with what it writes, so
- * that a reader who picks from it learns to write the same by hand, and writes it where it is read:
- * a roll at the start of the roll on the first line, a change of a status or a buff as a word of its
- * own at the caret with a word to type over selected, a quote at the start of the line, or a chip. A group the speaker or the room has nothing for is left out, as is the sweep a
- * player cannot use.
+ * buff changes, the round's commands, portraits, effects and cut-ins, and quotes. Each row is named
+ * with what it writes, so that a reader who picks from it learns to write the same by hand, and
+ * writes it where it is read: a roll at the start of the roll on the first line, a change of a status
+ * or a buff as a word of its own at the caret with a word to type over selected, a round command at
+ * the start of the message, a quote at the start of the line, or a chip. A group the speaker or the
+ * room has nothing for is left out, as are the sweep and the round commands a player cannot use.
  */
 export function chatSyntaxGroups(
   source: ChatSyntaxMenuSource,
@@ -154,6 +156,15 @@ export function chatSyntaxGroups(
       ? [single(word('buffSweep'), `&&${word('name')}-`, withHole(writer, '&&', word('name'), '-'))]
       : []),
   ]);
+
+  group(
+    'turn',
+    TURN_CHAT_COMMANDS.filter((entry) => source.isGameMaster || !entry.masterOnly).map((entry) =>
+      single(word(`turn${entry.command[0].toUpperCase()}${entry.command.slice(1)}`), `&${entry.short}`, () =>
+        writer.prefix(`&${entry.short} `, 'first')
+      )
+    )
+  );
 
   group('portrait', [
     ...source.portraits

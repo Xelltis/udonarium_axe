@@ -17,6 +17,7 @@ import { diceChatTokenSite } from '@axe/domain/dice/dice-chat-token';
 import { looksLikeRollWord, readRollLine, rollableText, rollWordSite } from '@axe/domain/dice/dice-roll-line';
 import { effectTokenSites } from '@axe/domain/effect/effect-chat-token';
 import { readCutInChatTail } from '@axe/domain/media/cut-in-chat-tail';
+import { readTurnChatCommand, type TurnChatCommand } from '@axe/domain/tabletop/turn-chat-command';
 import { type LegacyVnSuffixSite, legacyVnSuffixSite } from '@axe/domain/visual-novel/vn-emote';
 
 /** A stretch of the text, by the index of its first character and the index just past its last. */
@@ -59,6 +60,8 @@ export type SyntaxSpan = TextRange & { readonly parts: readonly SyntaxPart[] } &
     | { readonly kind: 'aim' }
     | { readonly kind: 'buff'; readonly command: string; readonly targeted: boolean }
     | { readonly kind: 'sweep'; readonly command: string }
+    /** A round command that opens a message, `&T`; `rest` is what follows it, read as a message of its own. */
+    | { readonly kind: 'turn'; readonly command: TurnChatCommand; readonly rest: TextRange }
     | { readonly kind: 'portrait'; readonly command: PortraitCommand }
     /**
      * The last word of a message, which starts the cut-in of that name if there is one; an `@` before
@@ -155,7 +158,32 @@ function scanPaletteLine(
 /** Where a character of a message stands in the whole text. */
 type At = (index: number) => number;
 
+/**
+ * Reads a message as it is said: one that opens with a round command as the command and then what
+ * follows it, which is said as a line of its own once the round has been moved.
+ */
 function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decorations: PlacedChatDecoration[]): void {
+  const round = readTurnChatCommand(message);
+  if (!round) return scanSaidLine(message, offset, spans, decorations);
+  const from = offset + round.from;
+  const to = offset + round.to;
+  spans.push({
+    kind: 'turn',
+    command: round.command,
+    rest: { from: offset + round.restFrom, to: offset + message.length },
+    from,
+    to,
+    parts: [
+      { role: 'marker', from, to: from + 1 },
+      { role: 'name', from: from + 1, to },
+    ],
+  });
+  if (round.restFrom < message.length) {
+    scanSaidLine(message.slice(round.restFrom), offset + round.restFrom, spans, decorations);
+  }
+}
+
+function scanSaidLine(message: string, offset: number, spans: SyntaxSpan[], decorations: PlacedChatDecoration[]): void {
   const at: At = (index) => offset + index;
   scanRoll(message, offset, spans);
   scanReferences(message, at, spans);
