@@ -51,14 +51,17 @@ import { TranslocoModule } from '@jsverse/transloco';
 import { NgSelectModule } from '@ng-select/ng-select';
 
 /** The fields a scene names a picture in. */
-type PictureField =
-  | 'floorImageIdentifier'
-  | 'backgroundImageIdentifier'
-  | 'foregroundImageIdentifier'
-  | 'northWallImageIdentifier'
-  | 'eastWallImageIdentifier'
-  | 'southWallImageIdentifier'
-  | 'westWallImageIdentifier';
+const PICTURE_FIELDS = [
+  'floorImageIdentifier',
+  'backgroundImageIdentifier',
+  'foregroundImageIdentifier',
+  'northWallImageIdentifier',
+  'eastWallImageIdentifier',
+  'southWallImageIdentifier',
+  'westWallImageIdentifier',
+] as const;
+
+type PictureField = (typeof PICTURE_FIELDS)[number];
 
 /** How long after the last key the words of a scene are shared with the room. */
 const WRITE_DELAY_MS = 400;
@@ -255,13 +258,21 @@ export class SceneEditorComponent {
     if (table instanceof GameTable) this.write({ tableIdentifier: table.identifier, tableName: table.name });
   }
 
+  private readonly pictures = computed(() => {
+    this.objectChange.fileVersion();
+    const scene = this.current();
+    const shown = {} as Record<PictureField, { url: string } | null>;
+    for (const field of PICTURE_FIELDS) {
+      const picture = scenePictureIn(scene[field]);
+      const image = picture ? this.imageService.getEmptyOr(picture) : null;
+      shown[field] = image ? { url: image.isEmpty ? '' : image.url } : null;
+    }
+    return shown;
+  });
+
   /** What a scene puts in a picture's place, as shown: null for none taken away, else the picture. */
   protected pictureOf(field: PictureField): { url: string } | null {
-    this.objectChange.fileVersion();
-    const picture = scenePictureIn(this.current()[field]);
-    if (!picture) return null;
-    const image = this.imageService.getEmptyOr(picture);
-    return image.isEmpty ? { url: '' } : { url: image.url };
+    return this.pictures()[field];
   }
 
   /** Opens the image picker for a picture of the scene; the empty picture chosen takes the picture away. */
@@ -277,36 +288,36 @@ export class SceneEditorComponent {
     this.write({ [field]: SCENE_NO_PICTURE });
   }
 
-  protected backgroundFilter(): string {
-    return `${this.current().backgroundFilter ?? ''}` || 'none';
-  }
+  protected readonly backgroundFilter = computed(() => `${this.current().backgroundFilter ?? ''}` || 'none');
+
+  private readonly wallsShown = computed(() => sceneWallsShownOf(this.current().wallsShown));
 
   protected wallShown(side: SceneWallSide): boolean {
-    return sceneWallsShownOf(this.current().wallsShown)[side] === true;
+    return this.wallsShown()[side] === true;
   }
 
   protected setWallShown(side: SceneWallSide, shown: boolean): void {
-    this.write({ wallsShown: JSON.stringify({ ...sceneWallsShownOf(this.current().wallsShown), [side]: shown }) });
+    this.write({ wallsShown: JSON.stringify({ ...sceneWallsShownOf(this.scene().wallsShown), [side]: shown }) });
   }
 
-  protected foregroundOpacity(): number {
-    return Math.round(foregroundOpacityOf(this.current().foregroundOpacity) * 100);
-  }
+  protected readonly foregroundOpacity = computed(() =>
+    Math.round(foregroundOpacityOf(this.current().foregroundOpacity) * 100)
+  );
 
   protected setForegroundOpacity(percent: number): void {
     this.write({ foregroundOpacity: `${foregroundOpacityOf(Number(percent) / 100)}` });
   }
 
-  protected foregroundFit(): string {
-    return foregroundFitOf(this.current().foregroundFit);
-  }
+  protected readonly foregroundFit = computed<string>(() => foregroundFitOf(this.current().foregroundFit));
 
-  protected weather(): { kind: string; color: string; density: number } {
-    return sceneWeatherOf(this.current().weather) ?? { kind: '', color: '', density: DEFAULT_AMBIENCE_DENSITY };
+  protected readonly weather = computed(() => this.weatherOf(this.current()));
+
+  private weatherOf(scene: BoardScene): { kind: string; color: string; density: number } {
+    return sceneWeatherOf(scene.weather) ?? { kind: '', color: '', density: DEFAULT_AMBIENCE_DENSITY };
   }
 
   protected setWeather(change: Partial<{ kind: string; color: string; density: number }>): void {
-    this.write({ weather: JSON.stringify({ ...this.weather(), ...change }) });
+    this.write({ weather: JSON.stringify({ ...this.weatherOf(this.scene()), ...change }) });
   }
 
   protected weatherKindLabel(kind: AmbienceKind): string {
@@ -314,9 +325,7 @@ export class SceneEditorComponent {
   }
 
   /** The sky the scene puts past the board, as the table's settings name it: empty for the background picture. */
-  protected skyKind(): string {
-    return sceneSkyKindOf(this.current().skyKind) ?? '';
-  }
+  protected readonly skyKind = computed<string>(() => sceneSkyKindOf(this.current().skyKind) ?? '');
 
   protected setSkyKind(kind: string): void {
     this.write({ skyKind: tableSkyKindOf(kind) || SCENE_NO_PICTURE });
@@ -341,7 +350,7 @@ export class SceneEditorComponent {
   }
 
   /** The playlist the scene plays, found as putting the scene on finds it, or null for none chosen. */
-  protected bgmPlaylist(): string | null {
+  protected readonly bgmPlaylist = computed<string | null>(() => {
     const scene = this.current();
     const found = findByReference(
       this.playlists(),
@@ -349,7 +358,7 @@ export class SceneEditorComponent {
       `${scene.bgmPlaylistName ?? ''}`
     );
     return found?.thing.identifier ?? null;
-  }
+  });
 
   protected setBgmPlaylist(identifier: string): void {
     const playlist = this.playlists().find((candidate) => candidate.identifier === identifier);
@@ -363,9 +372,7 @@ export class SceneEditorComponent {
     this.write({ cutInIdentifiers: encodeCutInIdentifiers(identifiers) });
   }
 
-  protected period(): number | null {
-    return scenePeriodOf(this.current().clockPeriod);
-  }
+  protected readonly period = computed<number | null>(() => scenePeriodOf(this.current().clockPeriod));
 
   protected setPeriod(period: number): void {
     this.write({ clockPeriod: `${period}` });
