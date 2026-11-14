@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import type { GridType } from '@axe/domain/tabletop/grid-type';
 import type { GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { GroundCells } from '@axe/domain/tabletop/world/ground-cells';
@@ -452,7 +453,7 @@ function frameKey(look: Extract<TableWorldLook, { kind: 'frame' }>, width: numbe
  * ones before it.
  */
 function drawFrame(look: Extract<TableWorldLook, { kind: 'frame' }>, width: number, height: number): HTMLCanvasElement {
-  const detail = Math.max(0.25, Math.min(FRAME_DETAIL, FRAME_MAX_PX / Math.max(width, height, 1)));
+  const detail = clamp(FRAME_MAX_PX / Math.max(width, height, 1), 0.25, FRAME_DETAIL);
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(width * detail));
   canvas.height = Math.max(1, Math.round(height * detail));

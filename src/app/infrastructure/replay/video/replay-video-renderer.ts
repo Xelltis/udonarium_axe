@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import type { ReplayBoardScene } from '@axe/domain/replay/replay-board-view';
 import { containRect, coverRect } from '@axe/domain/replay/replay-picture-fit';
 import { easeInOut } from '@axe/domain/replay/replay-route';
@@ -172,7 +173,7 @@ export class ReplayVideoRenderer {
     if (segment.kind === 'chapter') this.paintChapter(ctx, segment, localMs, index);
 
     const opening = Math.min(1, atMs / OPEN_FADE_MS);
-    const closing = Math.min(1, Math.max(0, (this.durationMs - atMs) / CLOSE_FADE_MS));
+    const closing = clamp((this.durationMs - atMs) / CLOSE_FADE_MS, 0, 1);
     const shade = 1 - Math.min(opening, closing);
     if (shade > 0) {
       ctx.globalAlpha = shade;
@@ -555,7 +556,7 @@ export class ReplayVideoRenderer {
     const { layout } = this.source;
     const panel = layout.dice;
     const enter = easeInOut(localMs / 280);
-    const leave = Math.min(1, Math.max(0, (dice.durationMs - localMs) / 280));
+    const leave = clamp((dice.durationMs - localMs) / 280, 0, 1);
     const alpha = Math.min(enter, leave);
     const colour = OUTCOME_COLOR[dice.outcome] ?? '#ffffff';
     const s = layout.scale;
@@ -751,6 +752,6 @@ function sameBackdrop(a: Backdrop, b: Backdrop): boolean {
 
 function fadeInOut(localMs: number, durationMs: number, fadeMs: number): number {
   const enter = Math.min(1, localMs / fadeMs);
-  const leave = Math.min(1, Math.max(0, (durationMs - localMs) / fadeMs));
+  const leave = clamp((durationMs - localMs) / fadeMs, 0, 1);
   return easeInOut(Math.min(enter, leave));
 }

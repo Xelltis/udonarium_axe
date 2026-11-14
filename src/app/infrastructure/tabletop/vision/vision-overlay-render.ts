@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { hexChannels, withAlpha } from '@axe/core/util/hex-color';
 import { CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
@@ -300,7 +301,7 @@ export function overlayScale(
   const pixels = width * height;
   const side = Math.max(1, width, height);
   if (!(pixels > budget)) return Math.min(1, LONGEST_PICTURE_PX / side);
-  return Math.min(OVERLAY_LONGEST_PX / side, Math.max(minScale, Math.sqrt(budget / pixels)));
+  return clamp(Math.sqrt(budget / pixels), minScale, OVERLAY_LONGEST_PX / side);
 }
 
 export interface BakeCanvas {

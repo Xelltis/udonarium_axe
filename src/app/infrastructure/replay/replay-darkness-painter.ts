@@ -1,4 +1,4 @@
-import { clamp01 } from '@axe/core/util/clamp';
+import { clamp, clamp01 } from '@axe/core/util/clamp';
 import type { OverlayPlan, OverlayShape } from '@axe/domain/tabletop/vision-scene';
 import type { ReplayFrameCanvas } from '@axe/infrastructure/replay/replay-canvas';
 
@@ -220,7 +220,7 @@ function fillShape(
   const bright = place.onBoard(Math.max(shape.brightPx, 0));
 
   const gradient = target.createRadialGradient(x, y, 0, x, y, dim);
-  const edge = dim > 0 ? Math.min(0.999, Math.max(0, bright / dim)) : 0;
+  const edge = dim > 0 ? clamp(bright / dim, 0, 0.999) : 0;
   gradient.addColorStop(0, color);
   if (edge > 0) gradient.addColorStop(edge, color);
   gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');

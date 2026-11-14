@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
 import { litByLamps } from '@axe/infrastructure/table-3d/lamp-lighting';
 import type {
@@ -165,7 +166,7 @@ export class SceneVeil {
 
   /** Lays the darkness as the page has drawn it now, or lights the scene whole; answers whether anything changed. */
   setLightMap(map: Table3dLightMap | null): boolean {
-    const darkness = map ? Math.min(1, Math.max(0, map.darkness)) : 0;
+    const darkness = map ? clamp(map.darkness, 0, 1) : 0;
     const changed = this.light.set(map) || darkness !== this.darkness.value;
     this.darkness.value = darkness;
     return changed;

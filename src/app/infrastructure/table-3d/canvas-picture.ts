@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { LONGEST_PICTURE_PX } from '@axe/infrastructure/table-3d/table-3d-port';
 import { closeReadPixels } from '@axe/infrastructure/three-kit/read-pictures';
 import type { Texture } from 'three/webgpu';
@@ -37,8 +38,8 @@ function sentOf(picture: Texture, canvas: HTMLCanvasElement): HTMLCanvasElement 
   if (scale === 1) return canvas;
   const copy = (picture.userData[COPY] as HTMLCanvasElement | undefined) ?? document.createElement('canvas');
   picture.userData[COPY] = copy;
-  copy.width = Math.min(LONGEST_PICTURE_PX, Math.max(1, Math.round(canvas.width * scale)));
-  copy.height = Math.min(LONGEST_PICTURE_PX, Math.max(1, Math.round(canvas.height * scale)));
+  copy.width = clamp(Math.round(canvas.width * scale), 1, LONGEST_PICTURE_PX);
+  copy.height = clamp(Math.round(canvas.height * scale), 1, LONGEST_PICTURE_PX);
   copy.getContext('2d')?.drawImage(canvas, 0, 0, copy.width, copy.height);
   return copy;
 }
@@ -57,8 +58,8 @@ export function fitReadPicture(picture: Texture): void {
   const scale = Math.min(1, LONGEST_PICTURE_PX / Math.max(1, width, height));
   if (scale === 1) return;
   const copy = document.createElement('canvas');
-  copy.width = Math.min(LONGEST_PICTURE_PX, Math.max(1, Math.round(width * scale)));
-  copy.height = Math.min(LONGEST_PICTURE_PX, Math.max(1, Math.round(height * scale)));
+  copy.width = clamp(Math.round(width * scale), 1, LONGEST_PICTURE_PX);
+  copy.height = clamp(Math.round(height * scale), 1, LONGEST_PICTURE_PX);
   copy.getContext('2d')?.drawImage(image as CanvasImageSource, 0, 0, copy.width, copy.height);
   picture.image = copy;
   picture.needsUpdate = true;

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import {
   ACCENT_SECONDS,
   type DiceThrowResult,
@@ -47,7 +48,7 @@ const turnAfter = new Quaternion();
 export function poseThrow(posed: PosedThrow, seconds: number, opacity = 1): void {
   const { result, bodies } = posed;
   const count = bodies.length;
-  const at = Math.min(Math.max(seconds * FRAMES_PER_SECOND, 0), result.frameCount - 1);
+  const at = clamp(seconds * FRAMES_PER_SECOND, 0, result.frameCount - 1);
   const before = Math.floor(at);
   const after = Math.min(before + 1, result.frameCount - 1);
   const t = at - before;

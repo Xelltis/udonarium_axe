@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import type { ModelPainter, ModelStage } from '@axe/infrastructure/model-viewer/model-viewer-port';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
@@ -140,7 +141,7 @@ class Stage implements ModelStage {
 
   turnBy(acrossPx: number, downPx: number): void {
     this.showcase.turn -= acrossPx * DRAG_TURN;
-    this.showcase.tip = Math.max(-MOST_TIP, Math.min(MOST_TIP, this.showcase.tip + downPx * DRAG_TURN));
+    this.showcase.tip = clamp(this.showcase.tip + downPx * DRAG_TURN, -MOST_TIP, MOST_TIP);
     this.showcase.place();
     this.draw();
   }

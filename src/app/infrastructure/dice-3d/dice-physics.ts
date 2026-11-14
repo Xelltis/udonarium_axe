@@ -222,7 +222,7 @@ function substepsFor(bodies: readonly Body[], shapes: readonly DieShape[]): numb
     if (body.sleepState === Body.SLEEPING) return;
     fastest = Math.max(fastest, body.velocity.length() + body.angularVelocity.length() * dieRadiusOf(shapes[index]));
   });
-  return Math.min(MOST_SUBSTEPS, Math.max(1, Math.ceil(fastest / (FRAMES_PER_SECOND * STEP_REACH))));
+  return clamp(Math.ceil(fastest / (FRAMES_PER_SECOND * STEP_REACH)), 1, MOST_SUBSTEPS);
 }
 
 /** Takes more out of every die's motion the longer the throw goes on. */

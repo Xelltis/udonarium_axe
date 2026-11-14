@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { clipPoints } from '@axe/domain/media/cut-in-clip';
 import { fillScaleOf, fillStops, rayDegOf } from '@axe/domain/media/cut-in-fill';
 import { layoutCutInText } from '@axe/domain/media/cut-in-letter-layout';
@@ -52,7 +53,7 @@ export function paintReplayCutInScene(
     if (!sample.visible || sample.opacity <= 0) continue;
 
     ctx.save();
-    ctx.globalAlpha = Math.min(1, Math.max(0, sample.opacity));
+    ctx.globalAlpha = clamp(sample.opacity, 0, 1);
     if (sample.blur > 0) ctx.filter = `blur(${sample.blur * fit}px)`;
 
     // A canvas has one shadow rather than a list of filters, so the light and the shadow
@@ -80,7 +81,7 @@ export function paintReplayCutInScene(
     clipTo(ctx, layer, left, top);
     wipeTo(ctx, layer, layer.wipeShape, sample.wipe, left, top);
     wipeTo(ctx, layer, layer.crumbleShape, sample.crumble, left, top);
-    const sinceMs = ms - Math.min(durationMs, Math.max(0, layer.startMs));
+    const sinceMs = ms - clamp(layer.startMs, 0, durationMs);
     paintLayer(ctx, layer, left, top, assets, fontFamily, sinceMs);
 
     ctx.restore();
@@ -91,7 +92,7 @@ export function paintReplayCutInScene(
 function leanBy(ctx: ReplayFrameCanvas, skewXDeg: number, skewYDeg: number): void {
   if (!skewXDeg && !skewYDeg) return;
 
-  const held = (degrees: number) => Math.tan((Math.min(80, Math.max(-80, degrees || 0)) * Math.PI) / 180);
+  const held = (degrees: number) => Math.tan((clamp(degrees || 0, -80, 80) * Math.PI) / 180);
   ctx.transform(1, held(skewYDeg), held(skewXDeg), 1, 0, 0);
 }
 
