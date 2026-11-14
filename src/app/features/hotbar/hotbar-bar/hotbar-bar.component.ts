@@ -411,8 +411,9 @@ export class HotbarBarComponent {
     this.layout.forget(WIDGET_HOTBAR);
     const element = this.barRef()?.nativeElement;
     if (!element) return;
-    element.style.left = `${Math.max(8, (window.innerWidth - element.offsetWidth) / 2)}px`;
-    element.style.top = `${Math.max(8, window.innerHeight - element.offsetHeight - 16)}px`;
+    const { left, top } = this.fallback(element);
+    element.style.left = `${left}px`;
+    element.style.top = `${top}px`;
     this.place()?.remember();
   }
 

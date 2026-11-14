@@ -316,13 +316,13 @@ export class HotbarSlotEditorComponent {
     const options = this.options();
     return options.kind === 'cutIn' && options.soundOnly;
   });
-  /** Every filled slot of the reader's own bar, for a group to pick its steps from. */
   /** Told to pay no heed to what is targeted, the effect plays on the piece that pressed it. */
   protected readonly effectOnSelf = computed(() => {
     const options = this.options();
     return options.kind === 'effect' && options.onSelf;
   });
 
+  /** Every filled slot of the reader's own bar, for a group to pick its steps from. */
   protected readonly stepChoices = computed<{ step: HotbarStep; label: string; key: string; chosen: boolean }[]>(() => {
     if (this.kind() !== 'group') return [];
 

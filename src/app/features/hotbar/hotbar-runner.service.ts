@@ -104,26 +104,27 @@ export class HotbarRunnerService {
   run(slot: HotbarSlot, character: GameCharacter | null, cell: HotbarCell): HotbarRunResult {
     const kind = slot.slotKind;
     if (hotbarSlotNeedsCharacter(kind) && !character) return failed('noCharacter');
+    const actor = character as GameCharacter;
 
     switch (kind) {
       case 'chat':
-        return this.runChat(slot, character!);
+        return this.runChat(slot, actor);
       case 'effect':
-        return this.runEffect(slot, character!, cell);
+        return this.runEffect(slot, actor, cell);
       case 'range':
-        return this.runRange(slot, character!, cell);
+        return this.runRange(slot, actor, cell);
       case 'diceDeploy':
-        return this.runDice(character!);
+        return this.runDice(actor);
       case 'diceRoll':
-        return this.rollDice(character!);
+        return this.rollDice(actor);
       case 'panel':
-        return this.runPanel(slot, character!);
+        return this.runPanel(slot, actor);
       case 'menu':
         return this.runMenu(slot);
       case 'focus':
-        return this.runFocus(character!);
+        return this.runFocus(actor);
       case 'firstPerson':
-        return this.runFirstPerson(character!);
+        return this.runFirstPerson(actor);
       case 'sound':
         return this.runSound(slot);
       case 'cutIn':
@@ -135,7 +136,7 @@ export class HotbarRunnerService {
       case 'turn':
         return this.runTurn(slot);
       case 'appearance':
-        return this.runAppearance(slot, character!);
+        return this.runAppearance(slot, actor);
       case 'group':
         return this.runGroup(slot, character);
     }

@@ -17,6 +17,7 @@ import { HOTBAR_SLOT_KINDS } from '@axe/domain/hotbar/hotbar-slot-kind';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BoardScene } from '@axe/domain/scene/board-scene';
+import { EffectPreviewComponent } from '@axe/features/effect/effect-preview/effect-preview.component';
 import { HotbarSlotEditorComponent } from '@axe/features/hotbar/hotbar-editor/hotbar-slot-editor.component';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -544,17 +545,24 @@ describe('HotbarSlotEditorComponent', () => {
       fixture.detectChanges();
       const preview = () => root().querySelector('[data-testid="hotbar-editor-effect-preview"]');
 
+      const previewed = () => {
+        fixture.detectChanges();
+        return (
+          fixture.debugElement.query(By.directive(EffectPreviewComponent)).componentInstance as EffectPreviewComponent
+        ).preset();
+      };
+
       expect(preview()).toBeNull();
 
       click('hotbar-editor-effect-' + '氷結');
 
       expect(preview()).not.toBeNull();
       expect(preview()!.querySelector('[data-testid="effect-preview-stage"]')).not.toBeNull();
-      expect(component['chosenEffect']()).toBe(presets[1]);
+      expect(previewed()).toBe(presets[1]);
 
       click('hotbar-editor-effect-' + '爆炎');
 
-      expect(component['chosenEffect']()).toBe(presets[0]);
+      expect(previewed()).toBe(presets[0]);
     });
 
     it('shows no effect playing for a slot of another kind', () => {
