@@ -1,3 +1,4 @@
+import { DestroyRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { StartRoomService } from '@axe/application/file/start-room.service';
 import {
@@ -218,6 +219,32 @@ describe('RoomJoinService', () => {
       expect(await joined).toBe(false);
       expect(Network.instance.openStandby).toHaveBeenCalledExactlyOnceWith('user');
       vi.useRealTimers();
+    });
+
+    it('holds on to nothing of a join that is over, however many are made', async () => {
+      const held = vi.spyOn(TestBed.inject(DestroyRef), 'onDestroy');
+
+      for (let made = 0; made < 3; made++) {
+        const joined = service.joinServerRoom(serverRoom(), '');
+        stubChange.networkError$.emit({ peerId: '', errorType: 'room-full' } as never);
+        await joined;
+      }
+
+      expect(held).not.toHaveBeenCalled();
+      expect((service as unknown as { joinsUnderWay: Set<unknown> }).joinsUnderWay.size).toBe(0);
+    });
+
+    it('stops listening and waiting for a join still under way when the service goes', () => {
+      vi.useFakeTimers();
+      try {
+        void service.joinServerRoom(serverRoom(), '');
+        TestBed.resetTestingModule();
+        vi.advanceTimersByTime(600_000);
+
+        expect(joinOver).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('joins nothing for a room without a key', async () => {
