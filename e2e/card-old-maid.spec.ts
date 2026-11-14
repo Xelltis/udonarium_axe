@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { createCardStack, openPanel, waitAppReady } from './helpers';
+import { createCardStack, openPanel, rightClickPiece, waitAppReady } from './helpers';
 
 async function openHandRail(page: Page) {
   await openPanel(page, '手札');
@@ -16,7 +16,7 @@ async function dealAll(page: Page) {
 }
 
 async function openCardStackMenu(page: Page) {
-  await page.locator('card-stack').first().dispatchEvent('contextmenu');
+  await rightClickPiece(page.locator('card-stack').first());
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   return menu;

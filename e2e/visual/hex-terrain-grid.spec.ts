@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { sendMenuEvent } from '../helpers';
 import {
   chooseMenu,
   closePanels,
@@ -30,7 +31,7 @@ test('a terrain draws its own hex grid over its floor', async ({ page }) => {
   await expect(terrain).toBeAttached();
   await settle(page, 400);
 
-  await terrain.dispatchEvent('contextmenu');
+  await sendMenuEvent(terrain);
   await settle(page, 400);
   const pieceMenu = page.locator('context-menu');
   await expect(pieceMenu.locator('li').first()).toBeVisible({ timeout: 7000 });
@@ -43,7 +44,7 @@ test('a terrain draws its own hex grid over its floor', async ({ page }) => {
   await settle(page, 400);
 
   const sheet = page.locator('ui-panel');
-  await sheet.first().locator('.bg-ui-titlebar button', { hasText: 'close' }).dispatchEvent('click');
+  await sheet.first().getByTestId('panel-close').dispatchEvent('click');
   await settle(page, 400);
   await expect(sheet).toHaveCount(0);
   await snap(page, 'hex-terrain-grid');

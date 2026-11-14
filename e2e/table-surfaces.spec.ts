@@ -70,7 +70,9 @@ async function hoverBareOf(page: Page, face: Locator) {
 
 /** Sets the white board's angle from its menu, by the whole name of an angle it is not at already. */
 async function pitchBoard(page: Page, label: string) {
-  await page.locator('white-board [data-surface]').dispatchEvent('contextmenu');
+  await hoverBareOf(page, page.locator('white-board [data-surface]'));
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.up({ button: 'right' });
   const menu = page.locator('context-menu');
   await (await revealMenuEntry(page, menu, '角度')).hover();
   await (await revealMenuEntry(page, menu, label, true)).click();

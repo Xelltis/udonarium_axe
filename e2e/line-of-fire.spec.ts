@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { becomeGm, closePanels, openPanel, waitAppReady } from './helpers';
+import { becomeGm, closePanels, openPanel, rightClickPiece, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, settle } from './see-through-helpers';
 
 test.describe('line-of-fire check', () => {
@@ -22,7 +22,7 @@ test.describe('line-of-fire check', () => {
     await page.mouse.click(aim.x, aim.y);
     await page.keyboard.up('Alt');
 
-    await shooter.dispatchEvent('contextmenu');
+    await rightClickPiece(shooter);
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await menu.getByText('交戦エリア', { exact: true }).hover();

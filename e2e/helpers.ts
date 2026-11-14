@@ -74,19 +74,36 @@ export async function drawSampleModels(page: Page) {
  * or a card over it. Leaves the pointer on the point.
  */
 export async function spotOnPiece(of: Locator): Promise<{ x: number; y: number }> {
-  const candidates = await of.evaluate((element) => {
+  const spot = await findSpotOnPiece(of);
+  expect(spot, 'a point the piece takes a press at').not.toBeNull();
+  return spot!;
+}
+
+/**
+ * As {@link spotOnPiece}, answering null where the piece takes a press nowhere as the page stands.
+ * `whole` looks at whole pixels alone, which is where the browser puts the right click a press ends
+ * in: at the edge of a piece the point the pointer went down at and the whole pixel beside it may
+ * land on different pieces.
+ */
+async function findSpotOnPiece(of: Locator, whole = false): Promise<{ x: number; y: number } | null> {
+  const candidates = await of.evaluate((element, whole) => {
     const table = window.__axeTable;
     const id = element.getAttribute('data-object-id');
     const takesIt = (x: number, y: number) =>
       !!table && !!document.elementFromPoint(x, y)?.closest('#app-table-layer') && table.pressedAt(x, y) === id;
+    const round = (value: number) => (whole ? Math.round(value) : value);
     const found: { x: number; y: number }[] = [];
-    const base = element.querySelector('[data-testid="multi-angle-piece-motion-source"]')!.getBoundingClientRect();
-    const middle = { x: base.left + base.width / 2, y: base.top + base.height / 2 };
+    const parts = ['[data-testid="multi-angle-piece-motion-source"]', '[data-part="picture"]'].map((part) =>
+      element.querySelector(part)?.getBoundingClientRect()
+    );
+    const [base, picture] = parts;
+    if (!base) return found;
+    const middle = { x: round(base.left + base.width / 2), y: round(base.top + base.height / 2) };
     if (takesIt(middle.x, middle.y)) found.push(middle);
-    const picture = element.querySelector('[data-part="picture"]')!.getBoundingClientRect();
+    if (!picture) return found;
     const rows = (from: number, to: number) => {
-      for (let y = from; y < to && found.length < 12; y += 6) {
-        for (let x = picture.left + 2; x < picture.right && found.length < 12; x += 6) {
+      for (let y = round(from); y < to && found.length < 12; y += 6) {
+        for (let x = round(picture.left + 2); x < picture.right && found.length < 12; x += 6) {
           if (takesIt(x, y)) found.push({ x, y });
         }
       }
@@ -94,7 +111,7 @@ export async function spotOnPiece(of: Locator): Promise<{ x: number; y: number }
     rows(picture.top + picture.height / 2, picture.bottom);
     rows(picture.top + 2, picture.top + picture.height / 2);
     return found;
-  });
+  }, whole);
   for (const spot of candidates) {
     await of.page().mouse.move(spot.x, spot.y);
     const reached = await of.evaluate(
@@ -103,8 +120,105 @@ export async function spotOnPiece(of: Locator): Promise<{ x: number; y: number }
     );
     if (reached) return spot;
   }
-  expect(null, 'a point the piece takes a press at').not.toBeNull();
-  return candidates[0];
+  return null;
+}
+
+/**
+ * A point of the page where a press is handed to a piece of any kind drawn by the table, a card, a
+ * die, a block of terrain: a point that no panel lies over and that the table's line of sight gives
+ * to it rather than to something in front of it, looked for in the shapes the piece is picked by
+ * and, for a block, which is picked by its own faces, all over the table on the screen, at whole
+ * pixels, where the browser puts a click. Waits for
+ * there to be one, as a piece just made is not picked until the table has taken it in.
+ */
+export async function spotOnShape(of: Locator): Promise<{ x: number; y: number }> {
+  let spot: { x: number; y: number } | null = null;
+  await expect
+    .poll(
+      async () => {
+        spot = await of.evaluate((element) => {
+          const table = window.__axeTable;
+          const id = element.getAttribute('data-object-id');
+          if (!table || !id) return null;
+          const takesIt = (x: number, y: number) =>
+            !!document.elementFromPoint(x, y)?.closest('#app-table-layer') && table.pressedAt(x, y) === id;
+          for (const box of table.pieceBoxesOnPage(id)) {
+            for (const fy of [0.5, 0.3, 0.7, 0.15, 0.85]) {
+              for (const fx of [0.5, 0.3, 0.7, 0.15, 0.85]) {
+                const at = { x: Math.round(box.x + box.width * fx), y: Math.round(box.y + box.height * fy) };
+                if (takesIt(at.x, at.y)) return at;
+              }
+            }
+          }
+          const layer = document.querySelector('#app-table-layer')!.getBoundingClientRect();
+          for (let y = Math.round(layer.top) + 6; y < layer.bottom; y += 12) {
+            for (let x = Math.round(layer.left) + 6; x < layer.right; x += 12) {
+              if (takesIt(x, y)) return { x, y };
+            }
+          }
+          return null;
+        });
+        return spot;
+      },
+      { message: 'a point the piece takes a press at', timeout: 10000 }
+    )
+    .not.toBeNull();
+  return spot!;
+}
+
+/**
+ * Right-clicks a piece on the table with the mouse, at a point where the press is the piece's, which
+ * brings up its menu. Waits for there to be such a point, as a piece just made is not picked until
+ * the table has taken it in, and for a press just made by this to be too old to make a double tap
+ * with this one, and leaves the pointer there.
+ */
+export async function rightClickPiece(piece: Locator): Promise<void> {
+  const isCharacter = await piece.evaluate((element) => element.tagName === 'GAME-CHARACTER');
+  let spot: { x: number; y: number } | null = null;
+  if (isCharacter) {
+    await expect
+      .poll(async () => (spot = await findSpotOnPiece(piece, true)), {
+        message: 'a point the piece takes a press at',
+        timeout: 10000,
+      })
+      .not.toBeNull();
+  } else {
+    spot = await spotOnShape(piece);
+  }
+  const page = piece.page();
+  await page.mouse.move(spot!.x, spot!.y);
+  await whenTableIdle(page);
+  await rightClickAt(page, spot!);
+}
+
+/**
+ * Right-clicks a point of the page with the mouse, once a right click just made by this is too old
+ * to make a double tap with this one.
+ */
+export async function rightClickAt(page: Page, at: { x: number; y: number }): Promise<void> {
+  const sinceLast = Date.now() - (lastRightClick.get(page) ?? 0);
+  if (sinceLast < DOUBLE_TAP_MS) await page.waitForTimeout(DOUBLE_TAP_MS - sinceLast);
+  await page.mouse.click(at.x, at.y, { button: 'right' });
+  lastRightClick.set(page, Date.now());
+}
+
+/**
+ * How long a second press on a piece counts with the first as a double tap, which flips a card and
+ * draws off a deck, with some to spare: two right clicks a spec makes one after the other come
+ * closer together than a hand makes them.
+ */
+const DOUBLE_TAP_MS = 400;
+const lastRightClick = new WeakMap<Page, number>();
+
+/**
+ * Sends a piece the event a right click ends in, with no pointer and no press: for where a mouse
+ * cannot be the way in. A scene whose picture is compared must not have the pointer left on the
+ * piece, which draws its handles there; a phone opens the menu by a long press, which the table
+ * turns into this same event; and a piece wholly under a panel or another piece takes no click.
+ * Everywhere else {@link rightClickPiece} presses as a user does.
+ */
+export async function sendMenuEvent(piece: Locator): Promise<void> {
+  await piece.dispatchEvent('contextmenu');
 }
 
 /**
@@ -244,7 +358,7 @@ export async function becomeGm(page: Page): Promise<void> {
 export async function closePanels(page: Page): Promise<void> {
   const panels = page.locator('ui-panel');
   for (let round = 0; round < 8 && (await panels.count()) > 0; round++) {
-    await panels.first().locator('.bg-ui-titlebar button', { hasText: 'close' }).dispatchEvent('click');
+    await panels.first().getByTestId('panel-close').dispatchEvent('click');
   }
   await expect(panels).toHaveCount(0);
 }
@@ -302,7 +416,7 @@ export async function waitMobileShell(page: Page): Promise<void> {
 /** Opens the app on a phone, waits for the phone's shell and closes the panel the app opens with. */
 export async function waitMobileReady(page: Page): Promise<void> {
   await waitMobileShell(page);
-  const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
+  const closeStartupPanel = page.getByTestId('panel-close').last();
   if (await closeStartupPanel.count()) await closeStartupPanel.tap();
 }
 
@@ -378,11 +492,11 @@ export async function openPanel(page: Page, dataLabel: string) {
 
 /** Clicks an entry that opens a panel, and waits for the panel it opens to come to rest. */
 export async function openPanelFrom(page: Page, entry: Locator) {
-  await page.locator('.draggable-panel').evaluateAll((panels) => {
+  await page.locator('[data-testid="ui-panel"]').evaluateAll((panels) => {
     for (const panel of panels) panel.setAttribute('data-e2e-opened-before', '');
   });
   await entry.click();
-  await panelAtRest(page.locator('.draggable-panel:not([data-e2e-opened-before])').first());
+  await panelAtRest(page.locator('[data-testid="ui-panel"]:not([data-e2e-opened-before])').first());
 }
 
 /** The FAB entries that turn something on or off rather than open a panel. */
@@ -396,7 +510,7 @@ const TOGGLE_LABELS: readonly string[] = ['ノベルモード', '手札'];
  */
 export async function panelAtRest(within: Locator) {
   await within.evaluate((element) => {
-    const panel = element.closest('.draggable-panel') ?? element;
+    const panel = element.closest('[data-testid="ui-panel"]') ?? element;
     const ending = panel
       .getAnimations({ subtree: true })
       .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity);

@@ -1,11 +1,11 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { drag, spotOnPiece } from '../helpers';
+import { drag, sendMenuEvent, spotOnPiece } from '../helpers';
 import { centreOf, pedestal, piece, pinnedPiece, settle as settlePiece } from '../see-through-helpers';
 import { BARE_BOARD_AT, becomeGm, closePanels, prepare, snap } from './fixtures';
 
 async function chooseRide(page: Page, name: string, entry: string) {
-  await piece(page, name).dispatchEvent('contextmenu');
+  await sendMenuEvent(piece(page, name));
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await menu.getByText('乗り物', { exact: true }).hover();

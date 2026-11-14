@@ -1,6 +1,15 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels, openFabMenu, openPanel, revealMenuEntry, waitAppReady, whenTableIdle } from './helpers';
+import {
+  becomeGm,
+  closePanels,
+  openFabMenu,
+  openPanel,
+  revealMenuEntry,
+  rightClickPiece,
+  waitAppReady,
+  whenTableIdle,
+} from './helpers';
 
 /**
  * The views that look at the table from a piece: Dungeondry Master mode from its eye, with what plays
@@ -104,7 +113,7 @@ test.describe('following a piece from behind', () => {
     const onTable = await camera(page);
     const piece = page.locator('game-character').filter({ hasText: 'キャラクターB' }).first();
 
-    await piece.dispatchEvent('contextmenu');
+    await rightClickPiece(piece);
     await (await revealMenuEntry(page, page.locator('context-menu'), 'このコマを後ろから追う')).click();
     await expect(page.getByTestId('third-person-hud')).toContainText('キャラクターB');
     await expect.poll(() => camera(page)).not.toBe(onTable);

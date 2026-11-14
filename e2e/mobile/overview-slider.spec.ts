@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { waitMobileReady } from '../helpers';
+import { sendMenuEvent, waitMobileReady } from '../helpers';
 
 test.describe('a piece’s overview opened on a phone', () => {
   test('moves a resource with the slider in the overview a tap on the piece brings up', async ({ page }) => {
@@ -8,7 +8,7 @@ test.describe('a piece’s overview opened on a phone', () => {
 
     // The one character wholly on a phone's screen at the start.
     const piece = page.locator('game-character').filter({ hasText: 'キャラクターC' }).first();
-    await piece.dispatchEvent('contextmenu');
+    await sendMenuEvent(piece);
     await page.locator('context-menu').getByText('詳細を表示').tap();
     const sheet = page.locator('game-character-sheet');
     await expect(sheet).toBeVisible({ timeout: 10000 });

@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { cellSpot } from '../helpers';
+import { cellSpot, sendMenuEvent } from '../helpers';
 import {
   becomeGm,
   chooseMenu,
@@ -120,7 +120,7 @@ async function openPondMenu(page: Page): Promise<Locator> {
   if (pondAt) {
     await page.locator('#app-table-layer').click({ button: 'right', position: pondAt });
   } else {
-    await page.locator('table-ambience').first().dispatchEvent('contextmenu');
+    await sendMenuEvent(page.locator('table-ambience').first());
   }
   await settle(page, 400);
   const menu = page.locator('context-menu');
@@ -318,7 +318,7 @@ test('a piece looks out from under the surface of a pond', async ({ page }) => {
   const piece = page.locator('game-character').last();
   await layPond(page, await cellSpot(page, POND_CELL.x, POND_CELL.y));
   await setWaterLevel(page, '2');
-  await piece.dispatchEvent('contextmenu');
+  await sendMenuEvent(piece);
   await settle(page, 400);
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });

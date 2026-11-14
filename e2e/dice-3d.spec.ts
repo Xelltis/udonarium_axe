@@ -42,7 +42,7 @@ test.describe('rolling chat dice in 3D', () => {
     await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
     await expect(answers).toHaveCount(before + 1, { timeout: 15000 });
     const answer = answers.last();
-    const text = (await answer.locator('.msg-text').innerText()).trim();
+    const text = (await answer.getByTestId('chat-message-text').innerText()).trim();
     const total = Number(text.match(/→\s*(\d+)\s*$/)?.[1]);
     expect(Number.isFinite(total)).toBe(true);
     return { answer, total };

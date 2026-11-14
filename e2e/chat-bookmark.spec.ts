@@ -4,7 +4,7 @@ import { chatInput, say, waitAppReady } from './helpers';
 
 /** Opens the toolbar over a line and picks a kind of bookmark from its bookmark button. */
 async function bookmark(page: Page, line: Locator, kind: '共有' | '個人') {
-  await line.locator('.msg-text').hover();
+  await line.getByTestId('chat-message-text').hover();
   await line.getByTestId('chat-message-action-bookmark').click();
   await page
     .locator('context-menu li')

@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } from './helpers';
+import { openTableContextMenu, putAwayTutorial, revealMenuEntry, rightClickPiece, waitAppReady } from './helpers';
 
 /** A block the master turns into a switch speaks into the chat when a player presses it. */
 test.describe('switches', () => {
@@ -13,7 +13,7 @@ test.describe('switches', () => {
   }
 
   async function terrainMenu(page: Page, item: string) {
-    await page.locator('terrain').last().locator('[data-hud-box]').dispatchEvent('contextmenu');
+    await rightClickPiece(page.locator('terrain').last());
     await page.locator('context-menu li').filter({ hasText: item }).first().click();
   }
 

@@ -1,6 +1,6 @@
 import { expect, Page } from '@playwright/test';
 
-import { openPanel } from './helpers';
+import { openPanel, sendMenuEvent } from './helpers';
 
 /** Turns on the room's strict movement, which is what makes an ordinary press open a move. */
 export async function askForStrictMoves(page: Page) {
@@ -16,7 +16,8 @@ export async function askForStrictMoves(page: Page) {
 
 /** Opens the move the piece's own menu offers, which is the one a press opens under strict play. */
 export async function openMove(page: Page) {
-  await page.locator('game-character').first().dispatchEvent('contextmenu');
+  // The piece stands under the chat window the room opens with, where no click reaches it.
+  await sendMenuEvent(page.locator('game-character').first());
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await menu.getByText('移動', { exact: true }).click();

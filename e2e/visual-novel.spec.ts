@@ -4,7 +4,7 @@ import { openPanel, openTableContextMenu, selectVnSpeaker, vnMessageInput, waitA
 
 /** The log now has a window of its own, so it sits outside the overlay. */
 const backlogPanel = (page: Page) =>
-  page.locator('.draggable-panel').filter({ has: page.locator('visual-novel-backlog') });
+  page.locator('[data-testid="ui-panel"]').filter({ has: page.locator('visual-novel-backlog') });
 
 /**
  * A panel just opened grows as it comes in, so it is measured once the animation has finished.
@@ -164,7 +164,7 @@ test.describe('visual novel mode', () => {
     // checks that the sheet has not gone under it.
     const stacking = await page.evaluate(() => {
       const overlay = document.querySelector('visual-novel-overlay');
-      const sheet = document.querySelector('game-character-sheet')?.closest('.draggable-panel');
+      const sheet = document.querySelector('game-character-sheet')?.closest('[data-testid="ui-panel"]');
       if (!(overlay instanceof HTMLElement) || !(sheet instanceof HTMLElement)) return null;
       return { overlay: Number(getComputedStyle(overlay).zIndex), sheet: Number(getComputedStyle(sheet).zIndex) };
     });

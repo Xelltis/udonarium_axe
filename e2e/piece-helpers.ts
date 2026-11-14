@@ -1,6 +1,6 @@
 import { expect, Page } from '@playwright/test';
 
-import { cellSpot, idle, openTableContextMenu, revealMenuEntry } from './helpers';
+import { cellSpot, idle, openTableContextMenu, revealMenuEntry, rightClickPiece } from './helpers';
 
 /**
  * Making pieces of each kind on the table and finding them by the shapes they are picked by, for the
@@ -74,7 +74,7 @@ export async function createDeck(page: Page) {
 /** Draws a card off the deck made last, which lays it a little way off the deck. */
 export async function drawCard(page: Page) {
   const before = await page.locator('card').count();
-  await page.locator('card-stack').last().dispatchEvent('contextmenu');
+  await rightClickPiece(page.locator('card-stack').last());
   await page.locator('context-menu').getByText('１枚引く').click();
   await expect(page.locator('card')).toHaveCount(before + 1, { timeout: 5000 });
   await page.mouse.move(5, 400);
@@ -143,7 +143,7 @@ export async function made(
 /** Takes a piece off the table by the entry of its own menu given. */
 export async function takeAway(page: Page, tag: string, identifier: string, entry: string) {
   const piece = page.locator(`${tag}[data-object-id="${identifier}"]`);
-  await piece.dispatchEvent('contextmenu');
+  await rightClickPiece(piece);
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await (await revealMenuEntry(page, menu, entry, true)).click();

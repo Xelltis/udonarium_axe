@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { sendMenuEvent } from '../helpers';
 import { chooseMenu, closePanels, freeze, prepare, rightClickTable, settle, settleLazy, snap } from './fixtures';
 
 /** The shelf the pictures the tool is built with are filed on, which the picker shows them under. */
@@ -31,7 +32,7 @@ test('a block slopes to one side as a ramp and to every side as a pyramid', asyn
   await settle(page, 300);
 
   // A picture on its faces, since a block with none is drawn as an outline alone.
-  await terrain.dispatchEvent('contextmenu');
+  await sendMenuEvent(terrain);
   await settle(page, 300);
   await page.locator('context-menu').getByText('地形設定を編集', { exact: true }).dispatchEvent('click');
   const sheet = page.locator('ui-panel').first();
@@ -72,7 +73,7 @@ test('a block slopes to one side as a ramp and to every side as a pyramid', asyn
 
 /** Turns the block's slope to one side on or off from its own menu. */
 async function slopeTo(page: import('@playwright/test').Page, side: string) {
-  await page.locator('terrain').last().dispatchEvent('contextmenu');
+  await sendMenuEvent(page.locator('terrain').last());
   await settle(page, 300);
   const menu = page.locator('context-menu');
   await menu.getByText('傾斜', { exact: true }).first().hover();

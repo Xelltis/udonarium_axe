@@ -1,6 +1,13 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel, openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } from './helpers';
+import {
+  openPanel,
+  openTableContextMenu,
+  putAwayTutorial,
+  revealMenuEntry,
+  rightClickPiece,
+  waitAppReady,
+} from './helpers';
 
 const SPEAKER = 'キャラクターB';
 
@@ -76,7 +83,7 @@ test.describe('the cut-in position of a portrait', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     const piece = page.locator('game-character').filter({ hasText: SPEAKER }).first();
-    await piece.dispatchEvent('contextmenu');
+    await rightClickPiece(piece);
     await page.locator('context-menu').getByText('詳細を表示').click();
     await expect(page.locator('game-character-sheet')).toBeVisible({ timeout: 10000 });
   });

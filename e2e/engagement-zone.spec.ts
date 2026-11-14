@@ -7,6 +7,7 @@ import {
   openGroundAt,
   openPanel,
   revealMenuEntry,
+  rightClickPiece,
   spotOnPiece,
   waitAppReady,
 } from './helpers';
@@ -14,7 +15,7 @@ import { centreOf, pedestal, piece, settle } from './see-through-helpers';
 
 /** Opens a piece's menu and chooses an entry, through the submenu named first where one is given. */
 async function choose(page: Page, name: string, entry: string | RegExp, submenu?: string) {
-  await piece(page, name).dispatchEvent('contextmenu');
+  await rightClickPiece(piece(page, name));
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   if (submenu) await menu.getByText(submenu, { exact: true }).hover();
@@ -24,7 +25,7 @@ async function choose(page: Page, name: string, entry: string | RegExp, submenu?
 
 /** Whether a piece's menu offers an entry of that name at its top level. */
 async function menuOffers(page: Page, name: string, entry: string): Promise<boolean> {
-  await piece(page, name).dispatchEvent('contextmenu');
+  await rightClickPiece(piece(page, name));
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   const offered = (await menu.getByText(entry, { exact: true }).count()) > 0;
@@ -46,7 +47,7 @@ test.describe('engagement zones', () => {
 
     const hero = piece(page, 'キャラクターA');
     const foe = piece(page, 'モンスターA');
-    await foe.dispatchEvent('contextmenu');
+    await rightClickPiece(foe);
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await revealMenuEntry(page, menu, 'NPC にする');

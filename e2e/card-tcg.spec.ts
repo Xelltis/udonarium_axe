@@ -1,9 +1,9 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { createCardStack, waitAppReady } from './helpers';
+import { createCardStack, rightClickPiece, spotOnShape, waitAppReady } from './helpers';
 
 async function drawOne(page: Page) {
-  await page.locator('card-stack').first().dispatchEvent('contextmenu');
+  await rightClickPiece(page.locator('card-stack').first());
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await menu.getByText('１枚引く').click();
@@ -11,7 +11,7 @@ async function drawOne(page: Page) {
 }
 
 async function openCardMenu(page: Page) {
-  await page.locator('card').first().dispatchEvent('contextmenu');
+  await rightClickPiece(page.locator('card').first());
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   return menu;
@@ -65,8 +65,8 @@ test.describe('card handling for trading card games', () => {
     await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
     await expect(page.getByText('ターゲットにする対象をクリックしてください')).toBeVisible();
 
-    await page.locator('card-stack').first().dispatchEvent('mousedown');
-    await page.locator('card-stack').first().dispatchEvent('mouseup');
+    const onDeck = await spotOnShape(page.locator('card-stack').first());
+    await page.mouse.click(onDeck.x, onDeck.y);
     await expect(page.getByTestId('target-arrow')).toHaveCount(1, { timeout: 5000 });
     const [from, to] = await arrowEndsOnPage(page);
     const card = await boxOnPage(page, page.locator('card').first());

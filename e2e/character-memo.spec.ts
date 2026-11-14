@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-import { spotOnPiece, waitAppReady } from './helpers';
+import { rightClickPiece, spotOnPiece, waitAppReady } from './helpers';
 
 /** The memo kept with a piece: written from its right-click menu, read on the card that opens on it. */
 test.describe('the memo kept with a piece', () => {
   test('is written from the menu, and shown on the card in place of the status once switched to', async ({ page }) => {
     await waitAppReady(page);
     const piece = page.locator('game-character').filter({ hasText: 'キャラクターB' }).first();
-    await piece.dispatchEvent('contextmenu');
+    await rightClickPiece(piece);
     await page.locator('context-menu').getByText('メモ', { exact: true }).click();
 
     const memo = page.getByTestId('character-memo-text');

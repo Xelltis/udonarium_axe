@@ -1,9 +1,9 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { createCardStack, waitAppReady } from './helpers';
+import { createCardStack, rightClickPiece, waitAppReady } from './helpers';
 
 async function openCardStackMenu(page: Page) {
-  await page.locator('card-stack').first().dispatchEvent('contextmenu');
+  await rightClickPiece(page.locator('card-stack').first());
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   return menu;

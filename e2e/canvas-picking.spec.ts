@@ -9,6 +9,8 @@ import {
   idle,
   openTableContextMenu,
   revealMenuEntry,
+  rightClickAt,
+  rightClickPiece,
   waitAppReady,
 } from './helpers';
 import {
@@ -311,7 +313,7 @@ test.describe('pieces picked by the shapes the canvas draws them with', () => {
       const at = await pointPickedAs(page, id);
       expect(at, `a point ${piece.name} is picked at`).not.toBeNull();
 
-      await page.mouse.click(at!.x, at!.y, { button: 'right' });
+      await rightClickAt(page, at!);
 
       const menu = page.locator('context-menu');
       await expect(menu.locator('li').first(), piece.name).toBeVisible({ timeout: 5000 });
@@ -449,7 +451,7 @@ test.describe('pieces picked by the shapes the canvas draws them with', () => {
     await idle(page);
     await expect(character.getByTestId('altitude-guide')).toHaveCount(0);
 
-    await character.dispatchEvent('contextmenu');
+    await rightClickPiece(character);
     const menu = page.locator('context-menu');
     await (await revealMenuEntry(page, menu, '高度設定')).hover();
     const altitude = menu.locator('input[name="altitude-number"]');

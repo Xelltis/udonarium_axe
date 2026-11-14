@@ -6,6 +6,7 @@ import {
   dragAndLeave,
   openGroundAt,
   revealMenuEntry,
+  rightClickPiece,
   spotOnPiece,
   waitAppReady,
 } from './helpers';
@@ -16,7 +17,7 @@ import { centreOf, pedestal, piece, pinnedPiece, placeOf, settle } from './see-t
  * stands on the first level, the rest in the group it is gathered in.
  */
 async function chooseRide(page: Page, who: string | Locator, entry: string) {
-  await (typeof who === 'string' ? piece(page, who) : who).dispatchEvent('contextmenu');
+  await rightClickPiece(typeof who === 'string' ? piece(page, who) : who);
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await (await revealMenuEntry(page, menu, entry)).click();
@@ -49,7 +50,7 @@ test.describe('mounts', () => {
     await settle(mount);
     const start = await centreOf(pedestal(mount));
     const cell = (await pedestal(rider).boundingBox())!.width;
-    await rider.dispatchEvent('contextmenu');
+    await rightClickPiece(rider);
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await menu.getByText('移動', { exact: true }).click();
@@ -108,7 +109,7 @@ test.describe('mounts', () => {
     await dragAndLeave(page, await centreOf(rider.locator('[data-part="picture"]')), await openGroundAt(page));
 
     await expect(mount.getByTestId('piece-riders')).toHaveCount(0, { timeout: 5000 });
-    await piece(page, 'モンスターB').dispatchEvent('contextmenu');
+    await rightClickPiece(piece(page, 'モンスターB'));
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await menu.getByText('コマの状態', { exact: true }).hover();

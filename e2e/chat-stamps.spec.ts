@@ -27,7 +27,7 @@ async function pickStamp(page: Page, stampId: string) {
 
 /** Opens the reaction picker from the toolbar over a line. */
 async function openReactionPicker(page: Page, line: Locator): Promise<Locator> {
-  await line.locator('.msg-text').hover();
+  await line.getByTestId('chat-message-text').hover();
   await line.getByTestId('chat-message-action-react').click();
   const picker = page.getByTestId('stamp-picker');
   await expect(picker).toBeVisible();

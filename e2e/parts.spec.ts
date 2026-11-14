@@ -6,14 +6,15 @@ import {
   dragAndLeave,
   openGroundAt,
   revealMenuEntry,
+  rightClickPiece,
   spotOnPiece,
   waitAppReady,
 } from './helpers';
 import { centreOf, pedestal, piece, settle } from './see-through-helpers';
 
-/** Chooses an entry of the menu a right-click on an element opens, and leaves the pointer off the table. */
-async function chooseFrom(page: Page, on: ReturnType<Page['locator']>, entry: string) {
-  await on.dispatchEvent('contextmenu');
+/** Chooses an entry of the menu a right-click opens, and leaves the pointer off the table. */
+async function chooseFrom(page: Page, rightClick: () => Promise<void>, entry: string) {
+  await rightClick();
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await (await revealMenuEntry(page, menu, entry)).click();
@@ -38,7 +39,7 @@ test.describe('the parts of a piece', () => {
     await dragAndLeave(page, await spotOnPiece(part), await centreOf(pedestal(body)));
     await settle(part);
 
-    await chooseFrom(page, part, 'キャラクターB の部位にする');
+    await chooseFrom(page, () => rightClickPiece(part), 'キャラクターB の部位にする');
     await expect(part).toHaveCount(0, { timeout: 5000 });
     const row = body.locator('[data-body-part]');
     await expect(row).toContainText('キャラクターA');
@@ -46,7 +47,7 @@ test.describe('the parts of a piece', () => {
     await row.click();
     await expect(row).toHaveClass(/ring-2/);
 
-    await chooseFrom(page, row, '部位の見た目を編集');
+    await chooseFrom(page, () => row.click({ button: 'right' }), '部位の見た目を編集');
     const editor = page.getByTestId('part-look-editor');
     await expect(editor).toBeVisible({ timeout: 10000 });
     await editor.getByTestId('part-look-lay').click();
@@ -63,7 +64,7 @@ test.describe('the parts of a piece', () => {
     const moved = await centreOf(pedestal(body));
     expect(moved.x).toBeLessThan(from.x - cell);
 
-    await chooseFrom(page, row, 'キャラクターB の部位から外す');
+    await chooseFrom(page, () => row.click({ button: 'right' }), 'キャラクターB の部位から外す');
     await expect(part).toHaveCount(1, { timeout: 5000 });
     await expect(body.locator('[data-body-part]')).toHaveCount(0);
     await settle(part);

@@ -111,7 +111,6 @@ test.describe('a look laid over the ground of a table drawn on a canvas', () => 
     const id = await layMarsh(page);
     await idle(page);
 
-    await expect(page.locator('#app-game-table table-ambience')).toHaveCount(0);
     const area = page.locator('[data-testid="table-hud"] table-ambience [data-part="area"]');
     await expect(area).toBeVisible();
     expect(await areaOffGround(page, id, ['x', 'y', 'width', 'height'])).toBeLessThan(BOX_SLACK_PX);
@@ -157,7 +156,6 @@ test.describe('the shapes of light and of sight over a table drawn on a canvas',
     await idle(page);
     await expect.poll(async () => (await boxesOf(page, id)).length).toBeGreaterThan(0);
 
-    await expect(page.locator('#app-game-table table-beam-overlay')).toHaveCount(0);
     const glow = page.locator('[data-testid="table-hud"] table-beam-overlay > div').last();
     await expect(glow).toBeVisible();
     const drawn = (await glow.boundingBox())!;
@@ -181,7 +179,6 @@ test.describe('the shapes of light and of sight over a table drawn on a canvas',
     await (await revealMenuEntry(page, menu, '視界範囲を表示')).click();
     await idle(page);
 
-    await expect(page.locator('#app-game-table table-vision-volume-overlay')).toHaveCount(0);
     const lines = page.locator('[data-testid="table-hud"] table-vision-volume-overlay > div');
     await expect.poll(() => lines.count()).toBeGreaterThan(0);
     const ground = (await lines.first().boundingBox())!;

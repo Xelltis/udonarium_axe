@@ -1,9 +1,9 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { createCoin, waitAppReady } from './helpers';
+import { createCoin, rightClickPiece, waitAppReady } from './helpers';
 
 async function openCoinMenu(page: Page) {
-  await page.locator('coin').first().dispatchEvent('contextmenu');
+  await rightClickPiece(page.locator('coin').first());
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   return menu;

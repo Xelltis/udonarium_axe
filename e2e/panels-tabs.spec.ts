@@ -4,7 +4,7 @@ import { chatInput, closeFabMenu, expectChatText, openPanel, waitAppReady } from
 
 /** The title bar of a panel, which is what a panel is dragged and dropped by. */
 function barOf(panel: Locator): Locator {
-  return panel.locator('.bg-ui-titlebar').first();
+  return panel.getByTestId('panel-titlebar').first();
 }
 
 /**
@@ -19,7 +19,7 @@ function barOf(panel: Locator): Locator {
  */
 async function restingBox(bar: Locator) {
   await bar.evaluate((element) => {
-    const panel = element.closest('.draggable-panel') ?? element;
+    const panel = element.closest('[data-testid="ui-panel"]') ?? element;
     const ending = panel
       .getAnimations({ subtree: true })
       .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity);
@@ -64,7 +64,7 @@ test.describe('gathering panels into tabs', () => {
     // The connection panel opens over the left of the screen, where the chat window's bar is.
     await page
       .locator('ui-panel', { has: page.locator('peer-menu') })
-      .locator('.bg-ui-titlebar button', { hasText: 'close' })
+      .getByTestId('panel-close')
       .dispatchEvent('click');
     await closeFabMenu(page);
   });

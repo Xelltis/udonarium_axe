@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { boxGlb } from '../glb-helpers';
-import { closePanels, idleOnCanvas, waitAppReady } from '../helpers';
+import { closePanels, idleOnCanvas, rightClickPiece, waitAppReady } from '../helpers';
 
 /**
  * The 3D models a table drawn on a canvas draws a piece as, in place of its picture: read from a
@@ -57,7 +57,7 @@ test.describe('the 3D models of a table drawn on a canvas', () => {
     const box = (await page.evaluate((id) => window.__axeTable.pieceBoxesOnPage(id), identifier))[0];
     const before = await pointsOfColour(page, box, red);
 
-    await piece.dispatchEvent('contextmenu');
+    await rightClickPiece(piece);
     await page.locator('context-menu').getByText('詳細を表示').click();
     const sheet = page.locator('game-character-sheet');
     await expect(sheet).toBeVisible({ timeout: 10000 });
@@ -72,7 +72,7 @@ test.describe('the 3D models of a table drawn on a canvas', () => {
     await idleOnCanvas(page);
     expect(await pointsOfColour(page, box, red)).toBeGreaterThan(before + 10);
 
-    await piece.dispatchEvent('contextmenu');
+    await rightClickPiece(piece);
     await page.locator('context-menu').getByText('詳細を表示').click();
     await sheet.locator('button:has(i:text-is("settings"))').first().click();
     await sheet.getByTestId('piece-model').selectOption({ index: 0 });

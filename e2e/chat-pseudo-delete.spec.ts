@@ -13,7 +13,7 @@ test.describe('deleting a line', () => {
     await say(page, '残る発言');
     await say(page, '消す発言');
     const line = page.locator('chat-tab chat-message').filter({ hasText: '消す発言' });
-    await line.locator('.msg-text').hover();
+    await line.getByTestId('chat-message-text').hover();
     await line.getByTestId('chat-message-action-more').click();
     await page
       .locator('context-menu li')

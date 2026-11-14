@@ -66,7 +66,7 @@ test.describe('the turn order shrunk from the inventory', () => {
 
     await panel.getByRole('button', { name: '行動順を横に並べる' }).click();
     await expect(strip).toHaveAttribute('data-across', 'true');
-    const across = (await panel.locator('.draggable-panel').boundingBox())!;
+    const across = (await panel.locator('[data-testid="ui-panel"]').boundingBox())!;
     expect(across.x + across.width).toBeLessThanOrEqual(1280);
     await expect(faces).toHaveCount(count);
   });

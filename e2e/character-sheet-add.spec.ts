@@ -1,13 +1,13 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { rightClickPiece, waitAppReady } from './helpers';
 import { row, sectionCard } from './mobile/sheet-helpers';
 
 /** Opens キャラクターB's sheet on a wide screen, from the menu of the piece. */
 async function openSheet(page: Page): Promise<Locator> {
   await waitAppReady(page);
   const piece = page.locator('game-character').filter({ hasText: 'キャラクターB' }).first();
-  await piece.dispatchEvent('contextmenu');
+  await rightClickPiece(piece);
   await page.locator('context-menu').getByText('詳細を表示').click();
   const sheet = page.locator('game-character-sheet');
   await expect(sheet).toBeVisible({ timeout: 10000 });

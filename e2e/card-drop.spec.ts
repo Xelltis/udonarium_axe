@@ -1,6 +1,14 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { closePanels, drag, openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } from './helpers';
+import {
+  closePanels,
+  drag,
+  openTableContextMenu,
+  putAwayTutorial,
+  revealMenuEntry,
+  rightClickPiece,
+  waitAppReady,
+} from './helpers';
 
 /**
  * A card or a deck let go of over a deck goes into it. The deck it lands on is worked out from
@@ -132,7 +140,7 @@ test.describe('letting go of cards over a deck', () => {
     const [spot] = await bareSpots(page, 1, true);
     await makeDeck(page, spot);
     const deck = page.locator('card-stack').first();
-    await deck.dispatchEvent('contextmenu');
+    await rightClickPiece(deck);
     await page.locator('context-menu').getByText('１枚引く').click();
     const card = page.locator('card');
     await expect(card).toHaveCount(1, { timeout: 5000 });

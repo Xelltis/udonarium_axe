@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { openPanel, rightClickPiece, waitAppReady } from './helpers';
 
 /** The battle stage the room plays an exchange on: one piece on each side, the bars falling as it lands. */
 test.describe('the battle cut-in', () => {
@@ -71,7 +71,7 @@ test.describe('the battle cut-in', () => {
 
   test('shows a change made from the remote controller as the bars fall', async ({ page }) => {
     await waitAppReady(page);
-    await page.locator('game-character').filter({ hasText: 'キャラクターA' }).first().dispatchEvent('contextmenu');
+    await rightClickPiece(page.locator('game-character').filter({ hasText: 'キャラクターA' }).first());
     await page.locator('context-menu').getByText('リモコンを表示').click();
     const remote = page.locator('remote-controller');
     await expect(remote).toBeVisible({ timeout: 10000 });

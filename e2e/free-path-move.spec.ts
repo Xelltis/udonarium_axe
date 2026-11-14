@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { becomeGm, closePanels, createCharacter, openPanel, waitAppReady } from './helpers';
+import { becomeGm, closePanels, createCharacter, openPanel, rightClickPiece, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, placeOf } from './see-through-helpers';
 
 /** Waits for a piece to stand still, read from where it stands rather than from a picture it may not have. */
@@ -38,7 +38,7 @@ test.describe('moving along a polyline on a table without a grid', () => {
     const walker = piece(page, '新しいキャラクター');
     await standStill(walker);
     const before = await placeOf(walker);
-    await walker.dispatchEvent('contextmenu');
+    await rightClickPiece(walker);
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await menu.getByText('移動', { exact: true }).click();

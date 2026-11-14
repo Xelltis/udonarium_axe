@@ -35,13 +35,13 @@ test.describe('the phone shell', () => {
     await openMobileMenu(page);
     await page.locator('mobile-shell li button').filter({ hasText: '接続' }).first().click();
 
-    const panel = page.locator('ui-panel > div').last();
+    const panel = page.getByTestId('ui-panel').last();
     const viewport = page.viewportSize();
     await expect
       .poll(async () => (await panel.boundingBox())?.width ?? 0)
       .toBeGreaterThanOrEqual((viewport?.width ?? 0) - 1);
 
-    await page.locator('ui-panel .bg-ui-titlebar button').last().click();
+    await page.getByTestId('panel-close').last().click();
     await expect(page.locator('ui-panel')).toHaveCount(0);
 
     await openMobileMenu(page);

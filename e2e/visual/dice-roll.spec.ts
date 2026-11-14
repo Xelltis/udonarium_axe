@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { cellSpot, putAwayTutorial } from '../helpers';
+import { cellSpot, putAwayTutorial, sendMenuEvent } from '../helpers';
 import { chooseMenu, closePanels, freeze, hoverMenu, prepare, rightClickTable, settle, snap } from './fixtures';
 
 /** One die rolled on the table, the starting table's tutorial put away first, with the dice it sets out. */
@@ -14,7 +14,7 @@ test('a rolling die looks the same a quarter second in', async ({ page }) => {
   await chooseMenu(page, menu, 'D6');
   await expect(page.locator('dice-symbol')).toHaveCount(1);
   await settle(page, 400);
-  await page.locator('dice-symbol').first().dispatchEvent('contextmenu');
+  await sendMenuEvent(page.locator('dice-symbol').first());
   await settle(page);
   const dieMenu = page.locator('context-menu');
   await expect(dieMenu.locator('li').first()).toBeVisible();

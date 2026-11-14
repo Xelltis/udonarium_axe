@@ -19,7 +19,9 @@ test.describe('the buttons on a row of the inventory', () => {
     const field = row.locator('input').last();
     await page.mouse.move(0, 0);
     await row.evaluate((el) =>
-      Promise.all((el.closest('.draggable-panel')?.getAnimations() ?? []).map((animation) => animation.finished))
+      Promise.all(
+        (el.closest('[data-testid="ui-panel"]')?.getAnimations() ?? []).map((animation) => animation.finished)
+      )
     );
     const before = await field.boundingBox();
 

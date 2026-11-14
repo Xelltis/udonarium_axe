@@ -21,7 +21,7 @@ async function chooseStage(page: Page, stage: 'frame' | 'table') {
   await page.getByTestId('dice-stage').selectOption(stage);
   await expect(page.getByTestId('dice-stage')).toHaveValue(stage);
   const settings = page.locator('ui-panel').filter({ has: page.getByTestId('dice-stage') });
-  await settings.locator('.bg-ui-titlebar button', { hasText: 'close' }).dispatchEvent('click');
+  await settings.getByTestId('panel-close').dispatchEvent('click');
   await page.getByRole('button', { name: /メニューを閉じる/ }).click();
 }
 

@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-import { chatInput, createCharacter, expectChatText, waitAppReady } from './helpers';
+import { chatInput, createCharacter, expectChatText, sendMenuEvent, waitAppReady } from './helpers';
 
 async function openChatPalette(page: import('@playwright/test').Page) {
   await waitAppReady(page);
   await createCharacter(page);
-  await page.locator('game-character').first().dispatchEvent('contextmenu');
+  // The piece stands under the chat window the room opens with, where no click reaches it.
+  await sendMenuEvent(page.locator('game-character').first());
   await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
   await page.locator('context-menu').getByText('チャットパレットを表示').click();
   await expect(page.locator('chat-palette')).toBeVisible({ timeout: 10000 });
@@ -19,7 +20,8 @@ test.describe('the chat palette', () => {
   test("switches among the portraits of a piece with several from the palette's portrait, reading their names", async ({
     page,
   }) => {
-    await page.locator('game-character').first().dispatchEvent('contextmenu');
+    // The piece stands under the chat window the room opens with, where no click reaches it.
+    await sendMenuEvent(page.locator('game-character').first());
     await page.locator('context-menu').getByText('詳細を表示').click();
     const sheet = page.locator('game-character-sheet');
     await expect(sheet).toBeVisible({ timeout: 10000 });
@@ -175,7 +177,7 @@ test.describe('the chat palette', () => {
     await expectChatText(input, '');
     const fireball = page.locator('chat-tab chat-message').filter({ hasText: '(2D6+8)' });
     await expect(fireball).toHaveCount(1, { timeout: 15000 });
-    const text = (await fireball.locator('.msg-text').innerText()).trim();
+    const text = (await fireball.getByTestId('chat-message-text').innerText()).trim();
     const total = text
       .split('→')
       .map((step) => step.trim())

@@ -1,6 +1,13 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { chatInput, expectChatText, openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
+import {
+  chatInput,
+  expectChatText,
+  openTableContextMenu,
+  revealMenuEntry,
+  rightClickPiece,
+  waitAppReady,
+} from './helpers';
 
 function pieceOf(page: Page, name: string): Locator {
   return page.locator('game-character').filter({ hasText: name }).first();
@@ -55,7 +62,7 @@ test.describe('formatted shared notes', () => {
     const note = page.locator('text-note').first();
     await expect(note).toBeAttached({ timeout: 10000 });
 
-    await note.dispatchEvent('contextmenu');
+    await rightClickPiece(note);
     await page.locator('context-menu').getByText('メモを編集').click();
     const sheet = page.locator('game-character-sheet');
     await sheet.locator('label').filter({ hasText: '本文' }).locator('textarea').fill('# 見出し\n- 項目');

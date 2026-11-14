@@ -13,7 +13,7 @@ test.describe('the chat tools over a line', () => {
     await textarea.press('Enter');
     await expectChatText(textarea, '');
     const line = page.locator('chat-tab chat-message').filter({ hasText: '並べ替えの試し' }).first();
-    await line.locator('.msg-text').hover();
+    await line.getByTestId('chat-message-text').hover();
     await expect(line.getByTestId('chat-message-action-reply')).toBeVisible();
     await expect(line.getByTestId('chat-message-action-copy')).toHaveCount(0);
 
@@ -27,11 +27,11 @@ test.describe('the chat tools over a line', () => {
     await expect(editor.getByTestId('menu-editor-row-chat:copyText')).toBeVisible();
     const settings = page.locator('ui-panel').filter({ has: page.locator('chat-message-setting') });
     for (const panel of [editor, settings]) {
-      await panel.locator('.bg-ui-titlebar button', { hasText: 'close' }).first().dispatchEvent('click');
+      await panel.getByTestId('panel-close').first().dispatchEvent('click');
       await expect(panel).toHaveCount(0);
     }
 
-    await line.locator('.msg-text').hover();
+    await line.getByTestId('chat-message-text').hover();
     await expect(line.getByTestId('chat-message-action-copy')).toBeVisible();
     await expect(line.getByTestId('chat-message-action-reply')).toHaveCount(0);
     await expect(line.getByTestId('chat-message-action-more')).toBeVisible();

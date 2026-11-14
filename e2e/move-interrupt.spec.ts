@@ -7,6 +7,7 @@ import {
   openPanel,
   putAwayTutorial,
   revealMenuEntry,
+  rightClickPiece,
   spotOnPiece,
   waitAppReady,
 } from './helpers';
@@ -74,7 +75,7 @@ test.describe('interrupting a move', () => {
 
     const hero = piece(page, 'キャラクターA');
     const foe = piece(page, 'モンスターA');
-    await foe.dispatchEvent('contextmenu');
+    await rightClickPiece(foe);
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await revealMenuEntry(page, menu, 'NPC にする');
@@ -91,7 +92,7 @@ test.describe('interrupting a move', () => {
     await dragAndLeave(page, await spotOnPiece(foe), await onTable(page, 22.5, 3.5));
     await settle(foe);
 
-    await hero.dispatchEvent('contextmenu');
+    await rightClickPiece(hero);
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await menu.getByText('移動', { exact: true }).click();
     const target = await onTable(page, 23.7, 4.5);
@@ -126,7 +127,7 @@ test.describe('interrupting a move', () => {
     const friend = piece(page, 'キャラクターB');
     const foe = piece(page, 'モンスターB');
     const menu = page.locator('context-menu');
-    await foe.dispatchEvent('contextmenu');
+    await rightClickPiece(foe);
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await revealMenuEntry(page, menu, 'NPC にする');
     const npc = menu.locator('li', { hasText: 'NPC にする' });
@@ -159,7 +160,7 @@ test.describe('interrupting a move', () => {
     await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
     const target = await bareOnTheWay(page, start, fight);
 
-    await hero.dispatchEvent('contextmenu');
+    await rightClickPiece(hero);
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await menu.getByText('移動', { exact: true }).click();
     await page.mouse.move(target.x, target.y);

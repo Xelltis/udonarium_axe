@@ -1,11 +1,11 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { createCharacter, revealMenuEntry, waitAppReady } from './helpers';
+import { createCharacter, revealMenuEntry, rightClickPiece, waitAppReady } from './helpers';
 
 async function openBuffView(page: Page) {
   await waitAppReady(page);
   await createCharacter(page);
-  await page.locator('game-character').first().dispatchEvent('contextmenu');
+  await rightClickPiece(page.locator('game-character').last());
   await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
   await (await revealMenuEntry(page, page.locator('context-menu'), 'バフ編集')).click();
   await expect(page.locator('game-character-buff-view')).toBeVisible({ timeout: 5000 });
@@ -28,7 +28,7 @@ test.describe('the buff editing view (game-character-buff-view)', () => {
     await picker.locator('button[title="red"]').click();
     await expect(picker.locator('summary')).toHaveCSS('background-color', 'rgb(198, 40, 40)', { timeout: 5000 });
 
-    const badge = page.locator('game-character').first().locator('[data-testid="buff-badge"] > span').first();
+    const badge = page.locator('game-character').last().locator('[data-testid="buff-badge"] > span').first();
     await expect(badge).toBeAttached({ timeout: 5000 });
 
     await expect(badge).toHaveCSS('background-color', 'rgb(198, 40, 40)', { timeout: 5000 });
