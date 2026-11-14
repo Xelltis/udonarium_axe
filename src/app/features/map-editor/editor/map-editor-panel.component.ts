@@ -25,6 +25,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { clamp } from '@axe/core/util/clamp';
 import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters';
 import { fitImageSize } from '@axe/domain/map-editor/editor-hit-test';
 import { functionRoleLabelKey } from '@axe/domain/map-editor/function-layer';
@@ -205,6 +206,7 @@ export class MapEditorPanelComponent {
   private readonly sanitizer = inject(DomSanitizer);
   protected readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
+  private readonly destroyRef = inject(DestroyRef);
 
   private readonly loadImage = inject(RASTER_IMAGE_LOADER);
 
@@ -283,6 +285,11 @@ export class MapEditorPanelComponent {
     this.loadImage
   );
 
+  /** How many layers of each kind this panel has named, which numbers the next one. */
+  private shapeLayerCounter = 0;
+  private imageLayerCounter = 0;
+  private stampLayerCounter = 0;
+
   /** The gesture under way, holding values only between press and release. */
   private readonly gesture = new MapEditorGesture();
 
@@ -359,7 +366,7 @@ export class MapEditorPanelComponent {
   });
 
   constructor() {
-    inject(ShortcutScopeService).hold('mapEditor', inject(DestroyRef));
+    inject(ShortcutScopeService).hold('mapEditor', this.destroyRef);
     this.state.layerNameOf = (kind, role) =>
       this.t(role === undefined ? `feature.mapEditor.layers.kinds.${kind}` : functionRoleLabelKey(role));
     afterNextRender(() => {
@@ -375,7 +382,7 @@ export class MapEditorPanelComponent {
       ctx.restore();
       return width;
     });
-    inject(DestroyRef).onDestroy(stopMeasuring);
+    this.destroyRef.onDestroy(stopMeasuring);
     queueMicrotask(() => (this.panelService.title = this.t('feature.mapEditor.title')));
     effect(() => {
       this.state.sceneTick();
@@ -611,7 +618,7 @@ export class MapEditorPanelComponent {
   protected commitTextEdit(): void {
     const editing = this.editingText();
     if (!editing) return;
-    const text = this.textDraft().replace(/^\s+|\s+$/g, '');
+    const text = this.textDraft().trim();
     if (editing.itemId) {
       const layer = this.state.current.layers.find((l) => l.id === editing.layerId);
       if (layer && layer.kind === 'text') {
@@ -645,11 +652,11 @@ export class MapEditorPanelComponent {
     this.pointer.commitDraftPolyline();
   }
 
-  protected cancelDraftPublic(): void {
+  protected cancelDraft(): void {
     this.pointer.cancelDraft();
   }
 
-  protected deleteSelectionPublic(): void {
+  protected deleteSelection(): void {
     if (!this.state.selection()) return;
     this.state.deleteSelection();
     this.bumpDraft();
@@ -678,10 +685,6 @@ export class MapEditorPanelComponent {
     this.stampLayerCounter += 1;
     return this.t('feature.mapEditor.layers.kinds.stamp') + ' ' + this.stampLayerCounter;
   }
-
-  private shapeLayerCounter = 0;
-  private imageLayerCounter = 0;
-  private stampLayerCounter = 0;
 
   protected async chooseImage(): Promise<void> {
     const id = await this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: false }).catch(() => null);
@@ -776,7 +779,7 @@ export class MapEditorPanelComponent {
     event.preventDefault();
     const before = this.state.zoom();
     const delta = event.deltaY < 0 ? 1.1 : 1 / 1.1;
-    const after = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, before * delta));
+    const after = clamp(before * delta, MIN_ZOOM, MAX_ZOOM);
     if (after === before) return;
     const container = this.stage()?.nativeElement;
     const canvas = this.board()?.nativeElement;
@@ -866,19 +869,19 @@ export class MapEditorPanelComponent {
     if (roomX <= 0 || roomY <= 0) return;
     const scene = this.state.current;
     const fit = Math.min(roomX / sceneWidthPx(scene), roomY / sceneHeightPx(scene));
-    this.applyZoom(Math.max(MIN_ZOOM, Math.min(most, fit)));
+    this.applyZoom(clamp(fit, MIN_ZOOM, most));
   }
 
   protected onResizeCols(value: number): void {
-    const cols = Math.max(1, Math.min(100, Math.round(value)));
+    const cols = clamp(Math.round(value), 1, 100);
     this.state.resize(cols, this.state.current.rows);
   }
   protected onResizeRows(value: number): void {
-    const rows = Math.max(1, Math.min(100, Math.round(value)));
+    const rows = clamp(Math.round(value), 1, 100);
     this.state.resize(this.state.current.cols, rows);
   }
   protected onCellPx(value: number): void {
-    this.state.setCellPx(Math.max(16, Math.min(256, Math.round(value))));
+    this.state.setCellPx(clamp(Math.round(value), 16, 256));
   }
 
   private renderLayerThumb(layer: MapLayer): string {

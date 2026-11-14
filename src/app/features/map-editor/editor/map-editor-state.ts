@@ -175,12 +175,6 @@ export class MapEditorState {
   }
 
   /**
-   * Marks the start of a stroke or drag; it does nothing, since the step is recorded when the
-   * gesture ends.
-   */
-  beginGesture(): void {}
-
-  /**
    * Records the scene as it stands as one undoable step, dropping anything that could have been
    * redone.
    */

@@ -221,7 +221,6 @@ export class MapEditorPointer {
       if (handle !== -1) {
         const opposite = imageCorners(selImage)[(handle + 2) % 4];
         this.gesture.imageResize = { item: selImage, anchorX: opposite.x, anchorY: opposite.y };
-        this.state.beginGesture();
         this.host.draftChanged();
         return;
       }
@@ -231,7 +230,6 @@ export class MapEditorPointer {
       const anchor = curveAnchorAt(selCurve, pos.x, pos.y);
       if (anchor !== -1) {
         this.gesture.curveDrag = { index: anchor };
-        this.state.beginGesture();
         this.host.draftChanged();
         return;
       }
@@ -284,20 +282,17 @@ export class MapEditorPointer {
   private vectorEraseDown(pos: { x: number; y: number }): void {
     this.gesture.vectorErasing = true;
     this.gesture.lastErasePx = null;
-    this.state.beginGesture();
     this.eraseVectorAlong(pos);
   }
 
   private paintDown(pos: { x: number; y: number }): void {
     this.gesture.vectorErasing = false;
-    this.state.beginGesture();
     this.gesture.lastPaintedCell = null;
     this.gesture.lastPaintPx = null;
     this.paintAt(pos, this.state.tool());
   }
 
   private reliefDown(pos: { x: number; y: number }): void {
-    this.state.beginGesture();
     this.state.beginReliefStroke(pos.x, pos.y);
     this.gesture.lastPaintPx = pos;
   }
@@ -376,7 +371,6 @@ export class MapEditorPointer {
   }
 
   private freehandDown(pos: { x: number; y: number }): void {
-    this.state.beginGesture();
     this.gesture.freehandPoints = [pos.x, pos.y];
     this.host.draftChanged();
   }

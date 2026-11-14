@@ -319,7 +319,6 @@ describe('MapEditorPanelComponent', () => {
 
     const c = pointerOf(component) as unknown as { resizeImageTo: (x: number, y: number) => void };
     const gesture = gestureOf(component);
-    component['state'].beginGesture();
     gesture.imageResize = { item: layer.items[0], anchorX: 60, anchorY: 70 };
     c.resizeImageTo(200, 170);
     c.resizeImageTo(260, 270);

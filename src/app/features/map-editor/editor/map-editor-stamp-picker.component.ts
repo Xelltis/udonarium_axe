@@ -6,6 +6,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { clamp } from '@axe/core/util/clamp';
 import { isImageStampId, MAP_STAMP_TAG, toImageStampId } from '@axe/domain/map-editor/image-stamp';
 import { STAMP_CATEGORIES, StampCategory, StampDef } from '@axe/domain/map-editor/stamp-types';
 import { getStampsByCategory } from '@axe/domain/map-editor/stamps';
@@ -63,7 +64,7 @@ export class MapEditorStampPickerComponent {
   protected selectImageStamp(file: ImageFile): void {
     this.state.stampId.set(toImageStampId(file.identifier));
     this.state.stampColor.set(null);
-    this.state.stampSize.set(Math.min(256, Math.max(16, this.state.current.cellPx)));
+    this.state.stampSize.set(clamp(this.state.current.cellPx, 16, 256));
   }
 
   protected isActiveImageStamp(file: ImageFile): boolean {

@@ -50,7 +50,6 @@ describe('MapEditorState', () => {
   });
 
   it('undoes a whole painting gesture in one step', () => {
-    state.beginGesture();
     state.paintCell(0, 0);
     state.paintCell(1, 0);
     state.paintCell(2, 0);
@@ -72,7 +71,6 @@ describe('MapEditorState', () => {
   });
 
   it('keeps the undo and redo flags in step as it goes back and forth', () => {
-    state.beginGesture();
     state.paintCell(0, 0);
     state.endGesture();
     expect(state.canUndo()).toBe(true);
@@ -89,7 +87,6 @@ describe('MapEditorState', () => {
   });
 
   it('takes a retexture of a painted layer back on its own, without the painting with it', () => {
-    state.beginGesture();
     state.paintFunctionCell(0, 0);
     state.endGesture();
     const painted = state.current.layers[0] as FunctionLayer;
@@ -106,7 +103,6 @@ describe('MapEditorState', () => {
 
   it('names a layer it starts for a painted cell rather than calling it by its role', () => {
     state.functionRole.set('terrain');
-    state.beginGesture();
     state.paintFunctionCell(0, 0);
     state.endGesture();
 
@@ -122,7 +118,6 @@ describe('MapEditorState', () => {
     it('raises the ground on a relief layer of its own along a stroke, and takes the stroke back as one step', () => {
       const cellPx = state.current.cellPx;
       state.reliefBrush.set({ kind: 'raise', radius: 1, strength: 0.5, layer: 'grass' });
-      state.beginGesture();
       state.beginReliefStroke(4 * cellPx, 4 * cellPx);
       state.dabReliefAt(5 * cellPx, 4 * cellPx);
       state.endGesture();
@@ -158,7 +153,6 @@ describe('MapEditorState', () => {
   });
 
   it('clears the history for a new scene', () => {
-    state.beginGesture();
     state.paintCell(0, 0);
     state.endGesture();
     expect(state.canUndo()).toBe(true);

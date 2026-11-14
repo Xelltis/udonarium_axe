@@ -594,7 +594,7 @@
           >
             {{ 'feature.mapEditor.draft.finish' | transloco }}
           </button>
-          <button class="bg-ui-input hover:bg-ui-hover rounded-ui-sm px-2 py-0.5" (click)="cancelDraftPublic()">
+          <button class="bg-ui-input hover:bg-ui-hover rounded-ui-sm px-2 py-0.5" (click)="cancelDraft()">
             {{ 'feature.mapEditor.draft.cancel' | transloco }}
           </button>
         </div>
@@ -671,7 +671,7 @@
         class="hover:bg-ui-hover rounded-ui-sm inline-flex size-7 items-center justify-center disabled:opacity-40"
         [disabled]="!state.selection()"
         [title]="'feature.mapEditor.layers.delete' | transloco"
-        (click)="deleteSelectionPublic()"
+        (click)="deleteSelection()"
       >
         <i class="material-icons text-[16px]!">delete</i>
       </button>

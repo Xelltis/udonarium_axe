@@ -4,6 +4,7 @@ import { RASTER_IMAGE_LOADER } from '@axe/application/file/raster-image-loader';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
+import { clamp } from '@axe/core/util/clamp';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface TextureCropDialogOption {
@@ -20,7 +21,7 @@ export const TEXTURE_CROP_MARGIN = 48;
  * minimum and the usual size.
  */
 export function fitCropStage(viewportWidth: number): number {
-  return Math.max(TEXTURE_CROP_MIN_STAGE, Math.min(TEXTURE_CROP_STAGE, viewportWidth - TEXTURE_CROP_MARGIN));
+  return clamp(viewportWidth - TEXTURE_CROP_MARGIN, TEXTURE_CROP_MIN_STAGE, TEXTURE_CROP_STAGE);
 }
 
 @Component({
@@ -123,7 +124,7 @@ export class TextureCropDialogComponent {
     const cursorY = event.clientY - rect.top;
     const before = this.scale();
     const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
-    const after = Math.max(this.minScale, Math.min(this.minScale * 8, before * factor));
+    const after = clamp(before * factor, this.minScale, this.minScale * 8);
     if (after === before) return;
     const ratio = after / before;
     this.scale.set(after);
@@ -140,8 +141,8 @@ export class TextureCropDialogComponent {
     const frameTop = (this.stage - this.frame) / 2;
     const minX = frameLeft + this.frame - w;
     const minY = frameTop + this.frame - h;
-    this.tx.set(Math.min(frameLeft, Math.max(minX, this.tx())));
-    this.ty.set(Math.min(frameTop, Math.max(minY, this.ty())));
+    this.tx.set(clamp(this.tx(), minX, frameLeft));
+    this.ty.set(clamp(this.ty(), minY, frameTop));
   }
 
   protected cancel(): void {
