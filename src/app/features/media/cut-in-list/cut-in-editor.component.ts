@@ -419,7 +419,7 @@ export class CutInEditorComponent {
 
   /**
    * Resets the cut-in's size to a video's default size or to its picture's own size; does nothing
-   * while not editable.
+   * while not editable, and leaves the size as it is for a picture not measured yet.
    */
   private setDefaultControl(isVideo: boolean) {
     if (!this.editable || !this.c) return;
@@ -427,9 +427,15 @@ export class CutInEditorComponent {
       this.c.width = this.c.defVideoSizeWidth;
       this.c.height = this.c.defVideoSizeHeight;
     } else {
-      this.c.width = this.originalImgWidth();
-      this.c.height = this.originalImgHeight();
+      this.writePictureSize(this.c);
     }
+  }
+
+  private writePictureSize(cutIn: CutIn): void {
+    const { width, height } = this.originalImgSize();
+    if (width <= 0 || height <= 0) return;
+    cutIn.width = width;
+    cutIn.height = height;
   }
 
   /** The natural width of the cut-in's picture, or 0 when it has none or it has not loaded yet. */
@@ -489,9 +495,7 @@ export class CutInEditorComponent {
   }
 
   private fitToPicture(cutIn: CutIn): void {
-    if (!cutIn.originalSize || !this.cutInImage().url) return;
-    cutIn.width = this.originalImgWidth();
-    cutIn.height = this.originalImgHeight();
+    if (cutIn.originalSize) this.writePictureSize(cutIn);
   }
 
   /** Stops the cut-in for everyone in the room; not for a guest on a room server. */

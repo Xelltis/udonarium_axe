@@ -204,6 +204,21 @@ describe('CutInEditorComponent', () => {
       expect([cutIn.width, cutIn.height]).toEqual([320, 180]);
     });
 
+    it('keeps the size it had when it turns back into a picture that is not measured yet', () => {
+      asVideo(cutIn);
+      TestBed.inject(ImageStorage).add('a-picture');
+      cutIn.imageIdentifier = 'a-picture';
+      cutIn.originalSize = false;
+      cutIn.width = 320;
+      cutIn.height = 180;
+      fixture.detectChanges();
+
+      component.cutInVideoURL = '';
+
+      expect(cutIn.videoId).toBe('');
+      expect([cutIn.width, cutIn.height]).toEqual([320, 180]);
+    });
+
     it('snaps the height to the shape of a video when the aspect is kept from then on', () => {
       asVideo(cutIn);
       TestBed.inject(ImageStorage).add('a-picture');
