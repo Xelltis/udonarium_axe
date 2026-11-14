@@ -518,6 +518,18 @@ describe('where an effect aimed from its caster leaves it', () => {
   const cast = { ...castOn([100, 100]), casterIdentifier: 'caster', origin: { x: 600, y: 100, z: 30 } };
   const hands = { x: 600, y: 100, z: CELL * 0.6 };
 
+  it('leaves a breath before the caster’s body towards the target, further out and higher for a larger caster', () => {
+    const preset = makePreset('breath', { durationMs: 3000 });
+    const mouthOf = (cells: number) => {
+      const drawn = staged(preset, cast, 100, from(cells));
+      const nearest = Math.max(...drawn.motes.filter((mote) => mote.shape === 'glow').map((mote) => mote.x));
+      return drawn.motes.find((mote) => mote.shape === 'glow' && mote.x === nearest)!;
+    };
+
+    expect(mouthOf(1)).toMatchObject({ x: 580, y: 100, z: 30 });
+    expect(mouthOf(3)).toMatchObject({ x: 540, y: 100, z: 90 });
+  });
+
   it.each(['beam', 'raybeam', 'arc', 'drain'] as const)(
     'still leaves %s from over the middle of the caster, however large the caster is',
     (kind) => {

@@ -20,7 +20,7 @@ export const SCENE_LINGER_S: Readonly<Partial<Record<EffectKind, number>>> = {
   bash: 0.6,
   beam: 0.6,
   bolt: 0.8,
-  breath: 1.5,
+  breath: 1.8,
   burst: 1.8,
   curse: 0.6,
   drain: 0.5,

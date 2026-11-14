@@ -10,6 +10,7 @@ import { bash } from '@axe/domain/effect/scene/blade/bash';
 import { skybladeWith } from '@axe/domain/effect/scene/blade/skyblade';
 import { slash } from '@axe/domain/effect/scene/blade/slash';
 import { bisect, dissolve, gore } from '@axe/domain/effect/scene/body/body';
+import { breath } from '@axe/domain/effect/scene/breath/breath';
 import {
   type Choreography,
   nothingStaged,
@@ -21,7 +22,6 @@ import {
 import { curse, gravity, miasma } from '@axe/domain/effect/scene/dark/dark';
 import { impact, rubble, upheaval } from '@axe/domain/effect/scene/earth/earth';
 import { type BreathingBody, mouthBefore } from '@axe/domain/effect/scene/effect-mouth';
-import { breath } from '@axe/domain/effect/scene/fire/breath';
 import { burst } from '@axe/domain/effect/scene/fire/burst';
 import { flame } from '@axe/domain/effect/scene/fire/flame';
 import { mushroom } from '@axe/domain/effect/scene/fire/mushroom';
