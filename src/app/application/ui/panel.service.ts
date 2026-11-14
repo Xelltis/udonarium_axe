@@ -1,5 +1,16 @@
 import { DOCUMENT } from '@angular/common';
-import { ComponentRef, inject, Injectable, reflectComponentType, signal, Type, ViewContainerRef } from '@angular/core';
+import {
+  ComponentRef,
+  computed,
+  inject,
+  Injectable,
+  reflectComponentType,
+  Signal,
+  signal,
+  Type,
+  untracked,
+  ViewContainerRef,
+} from '@angular/core';
 import { LOAD_FAILURE_NOTICE, PANEL_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { isTabbablePanel } from '@axe/application/ui/panel-drag-helpers';
@@ -226,7 +237,20 @@ export class PanelService {
    * Whether the panel, shrunk to its content, stands as wide as the content is, as the turn order
    * laid across does, rather than as the narrow bar every shrunk panel is. The content says so.
    */
-  readonly shrunkToContentWidth = signal(false);
+  readonly shrunkToContentWidth = computed(() => this.contentWidthAsked()?.() ?? false);
+  private readonly contentWidthAsked = signal<Signal<boolean> | null>(null);
+
+  /**
+   * Has the panel, shrunk to its content, stand as wide as the content while the given signal is
+   * true. The content calls it once and calls what comes back as it goes, which takes the ask back
+   * unless other content has asked since.
+   */
+  shrinkToContentWidthWhen(asks: Signal<boolean>): () => void {
+    this.contentWidthAsked.set(asks);
+    return () => {
+      if (untracked(this.contentWidthAsked) === asks) this.contentWidthAsked.set(null);
+    };
+  }
   /** Buttons the content put in the title bar, beside the ones every panel wears. */
   readonly headerControls = signal<readonly PanelHeaderControl[]>([]);
 
