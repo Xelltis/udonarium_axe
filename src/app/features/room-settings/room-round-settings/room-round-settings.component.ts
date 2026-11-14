@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -31,6 +32,7 @@ export class RoomRoundSettingsComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly turnOrder = inject(TurnOrderService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly language = inject(LanguageService);
 
   readonly isReadOnly = this.access.isReadOnly;
   readonly isSharedReadOnly = this.access.isSharedReadOnly;
@@ -55,20 +57,30 @@ export class RoomRoundSettingsComponent {
   /** Whether pieces on no party sit the round out when it is taken by sides. */
   readonly factionSkipUnassigned = this.access.configField('factionSkipUnassigned');
 
-  /** The sides in the order the round takes them, named and coloured as the parties are. */
-  get factionOrder(): { side: string; name: string; color: string }[] {
+  /**
+   * The sides in the order the round takes them, named and coloured as the parties are. Worked out
+   * again when the room's settings, the parties or any one party changes, and when the language does,
+   * which names the side of the pieces on no party.
+   */
+  readonly factionOrder = computed<{ side: string; name: string; color: string }[]>(() => {
     const config = this.access.config();
+    this.language.currentLang();
     this.objectChange.collectionOf(Party.aliasName)();
     const parties = this.objectStore.getObjects<Party>(Party);
-    return normalizeFactionOrder(config.factionOrder, parties, {
-      skipUnassigned: config.factionSkipUnassigned,
-    }).map((side) => ({ side, ...describeSide(side, parties, this.t('feature.turnOrder.unassignedSide')) }));
+    for (const party of parties) this.objectChange.versionOf(party.identifier)();
+    const unassigned = this.t('feature.turnOrder.unassignedSide');
+    return this.sidesInOrder(config, parties).map((side) => ({ side, ...describeSide(side, parties, unassigned) }));
+  });
+
+  /** The sides in the order the round takes them as the room's settings stand this instant. */
+  private sidesInOrder(config: Config, parties: Party[]): string[] {
+    return normalizeFactionOrder(config.factionOrder, parties, { skipUnassigned: config.factionSkipUnassigned });
   }
 
   /** Moves one side up or down the order, which is the only time the order is written down. */
   moveSide(side: string, by: number): void {
     if (this.isReadOnly()) return;
-    const order = this.factionOrder.map((entry) => entry.side);
+    const order = this.sidesInOrder(Config.instance, this.objectStore.getObjects<Party>(Party));
     const from = order.indexOf(side);
     const to = from + by;
     if (from < 0 || to < 0 || to >= order.length) return;

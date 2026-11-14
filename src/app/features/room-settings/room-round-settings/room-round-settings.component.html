@@ -43,7 +43,7 @@
       <div class="flex flex-col gap-1.5">
         <span class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.factionOrder' | transloco }}</span>
         <ul class="m-0 flex list-none flex-col gap-1 p-0" data-testid="faction-order">
-          @for (entry of factionOrder; track entry.side; let first = $first, last = $last) {
+          @for (entry of factionOrder(); track entry.side; let first = $first, last = $last) {
             <li
               class="rounded-ui-sm border-ui-border-panel bg-ui-input flex items-center gap-2 border border-solid px-2 py-1"
             >
