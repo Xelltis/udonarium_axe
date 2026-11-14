@@ -19,7 +19,6 @@ import { ActionPresentation, actionPresentationOf } from '@axe/application/ui/ac
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { screenDeltaToElementDelta } from '@axe/core/transform/screen-delta';
 import { debounce } from '@axe/core/util/debounce';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -42,7 +41,6 @@ export class ContextMenuComponent {
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
-  private readonly uiSignalService = inject(UiSignalService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -287,9 +285,9 @@ export class ContextMenuComponent {
     if (this.subMenu()) this.subMenu.set(undefined);
   }
 
-  /** Called when an index row is clicked: asks for a jump to that line of the item it belongs to. */
-  indexAction(indexline: number, id: string) {
-    this.uiSignalService.requestJumpIndex(id, indexline);
+  /** Called when an index row is clicked: goes to the line it names, the menu staying as it is. */
+  indexAction(action: ContextMenuAction) {
+    action.action?.();
   }
 
   /**

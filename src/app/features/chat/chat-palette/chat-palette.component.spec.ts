@@ -7,7 +7,6 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { childrenChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -70,7 +69,7 @@ describe('ChatPaletteComponent', () => {
 
     component.updatePanelTitle();
 
-    const title = (component as unknown as { panelService: { title: string } }).panelService.title;
+    const title = TestBed.inject(PanelService).title;
     expect(title).toContain('？？？');
     expect(title).not.toContain('黒幕');
   });
@@ -80,7 +79,7 @@ describe('ChatPaletteComponent', () => {
     const villain = createChar('黒幕');
     component.character.set(villain);
     TestBed.tick();
-    const panel = (component as unknown as { panelService: { title: string } }).panelService;
+    const panel = TestBed.inject(PanelService);
     expect(panel.title).toContain('黒幕');
 
     villain.hideName = true;
@@ -492,11 +491,26 @@ describe('ChatPaletteComponent', () => {
       expect(component.paletteHeadings().map((row) => row.headingName)).toEqual(['攻撃']);
     });
 
+    it('jumps to the heading picked from the headings menu', () => {
+      speakerWithTabs();
+      fixture.detectChanges();
+      tabs()[1].click();
+      fixture.detectChanges();
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+
+      component.indexBtn();
+
+      const headings = open.mock.calls[0][1];
+      expect(headings.map((heading) => heading.name)).toEqual(['攻撃']);
+      expect(headings[0].line).toBe(component.paletteHeadings()[0].lineIndex);
+      headings[0].action!();
+      expect(component.selectedLine()).toBe(headings[0].line);
+    });
+
     it('lets another tab be opened after a jump to a heading in one', () => {
       speakerWithTabs();
       fixture.detectChanges();
-      const id = (component as unknown as { _timeId: string })._timeId;
-      TestBed.inject(UiSignalService).requestJumpIndex(id, 2);
+      component.japmIndex(2);
       TestBed.tick();
       fixture.detectChanges();
       expect(tabs()[1].getAttribute('aria-selected')).toBe('true');

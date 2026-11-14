@@ -146,7 +146,7 @@
     [class.border-solid]="detachedItems()"
     [class.hover:bg-ui-menu-hover]="!detachedItems()"
     [class.mx-1]="!detachedItems()"
-    (click)="indexAction(action.line, action.id)"
+    (click)="indexAction(action)"
   >
     <div class="inline-block">{{ action.line }}:{{ action.name }}</div>
   </li>

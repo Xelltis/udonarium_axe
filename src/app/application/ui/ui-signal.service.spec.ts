@@ -44,14 +44,6 @@ describe('UiSignalService', () => {
     expect(data?.timestamp).toBeGreaterThan(0);
   });
 
-  it('should set jumpIndexRequest on requestJumpIndex', () => {
-    service.requestJumpIndex('target-1', 5);
-    const data = service.jumpIndexRequest();
-    expect(data?.targetId).toBe('target-1');
-    expect(data?.lineNo).toBe(5);
-    expect(data?.timestamp).toBeGreaterThan(0);
-  });
-
   it('should set tableViewRotation on notifyTableViewRotation', () => {
     service.notifyTableViewRotation(10, 20, 30);
     const data = service.tableViewRotation();
