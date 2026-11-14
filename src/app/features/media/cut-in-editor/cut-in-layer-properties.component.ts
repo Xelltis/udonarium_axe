@@ -47,6 +47,7 @@ import {
   toggleKeyAt,
   valueAt,
 } from '@axe/features/media/cut-in-editor/cut-in-keyframe-edit';
+import { CutInTrackFieldComponent } from '@axe/features/media/cut-in-editor/cut-in-track-field.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -63,7 +64,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'cut-in-layer-properties',
   templateUrl: './cut-in-layer-properties.component.html',
   host: { class: 'block' },
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [FormsModule, SafePipe, TranslocoModule, CutInTrackFieldComponent],
 })
 export class CutInLayerPropertiesComponent {
   private readonly modalService = inject(ModalService);
