@@ -61,21 +61,18 @@
           <div
             data-testid="hit-flash"
             class="animate-hit-flash pointer-events-none absolute inset-0 rounded-full"
-            [ngStyle]="{ background: 'radial-gradient(circle, rgba(255,60,60,0.85) 0%, rgba(255,60,60,0) 70%)' }"
+            [style.background]="damageFlashFill"
           ></div>
         }
         @if (hitFlash() === 'heal') {
           <div
             data-testid="heal-aura"
             class="animate-heal-rise pointer-events-none absolute inset-0 rounded-full"
-            [ngStyle]="{
-              background:
-                'radial-gradient(circle, rgba(120,255,170,0) 42%, rgba(120,255,170,0.9) 60%, rgba(120,255,170,0) 76%)',
-            }"
+            [style.background]="healAuraFill"
           ></div>
           <div
             class="animate-heal-glow pointer-events-none absolute inset-0 rounded-full"
-            [ngStyle]="{ background: 'radial-gradient(circle, rgba(90,230,120,0.7) 0%, rgba(90,230,120,0) 70%)' }"
+            [style.background]="healGlowFill"
           ></div>
         }
         @if (!isLock && canTurn() && canHandle()) {

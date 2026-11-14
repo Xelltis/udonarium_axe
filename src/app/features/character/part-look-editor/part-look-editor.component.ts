@@ -241,9 +241,10 @@ export class PartLookEditorComponent {
       this.turningFrom = { x: event.clientX, y: event.clientY };
       return;
     }
-    if (!this.canEdit() || !this.chosen()) return;
+    const chosen = this.chosen();
+    if (!this.canEdit() || !chosen) return;
     this.painting = true;
-    this.draftFaces.set(new Map([...this.chosen()!.faces].map(([mesh, triangles]) => [mesh, new Set(triangles)])));
+    this.draftFaces.set(new Map([...chosen.faces].map(([mesh, triangles]) => [mesh, new Set(triangles)])));
     this.paintModelAt(event);
   }
 
@@ -407,11 +408,12 @@ export class PartLookEditorComponent {
   }
 
   protected pressPaint(event: PointerEvent): void {
-    if (!this.canEdit() || this.mode() !== 'paint' || !this.chosen()) return;
+    const chosen = this.chosen();
+    if (!this.canEdit() || this.mode() !== 'paint' || !chosen) return;
     event.preventDefault();
     (event.target as Element).setPointerCapture?.(event.pointerId);
     this.painting = true;
-    this.draftMask.set(this.chosen()!.mask ?? emptyPartMask());
+    this.draftMask.set(chosen.mask ?? emptyPartMask());
     this.paintAt(event);
   }
 

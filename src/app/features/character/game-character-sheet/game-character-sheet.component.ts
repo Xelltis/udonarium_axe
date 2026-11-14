@@ -905,15 +905,13 @@ export class GameCharacterSheetComponent {
   clickGrid() {}
 
   /**
-   * Asks the note to fit its height to its content again shortly after the limit height checkbox is
-   * clicked, once the change has landed.
+   * Asks the note to fit its height to its content again once the limit height checkbox's change
+   * has been drawn.
    */
   clickLimitHeight() {
     const obj = this.tabletopObject;
     if (!obj) return;
-    setTimeout(() => {
-      this.uiSignalService.requestNoteResize(obj.identifier);
-    }, 100);
+    afterNextRender(() => this.uiSignalService.requestNoteResize(obj.identifier), { injector: this.injector });
   }
 
   /**

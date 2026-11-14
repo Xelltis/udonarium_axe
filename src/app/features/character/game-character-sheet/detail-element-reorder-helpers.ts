@@ -41,7 +41,7 @@ export function reorderDetailElement(
   if (!draggedEl || !targetEl) return;
   const oldParent = draggedEl.parent as DataElement | null;
   char.detailDataElement.insertBefore(draggedEl, targetEl);
-  finishReorder(char, draggedEl, oldParent, objectChange);
+  finishReorder(char, char.detailDataElement, draggedEl, oldParent, objectChange);
 }
 
 /**
@@ -70,16 +70,16 @@ export function reorderDetailElementAfter(
   }
   const oldParent = draggedEl.parent as DataElement | null;
   detail.appendChild(draggedEl);
-  finishReorder(char, draggedEl, oldParent, objectChange);
+  finishReorder(char, detail, draggedEl, oldParent, objectChange);
 }
 
 function finishReorder(
   char: GameCharacter,
+  detail: DataElement,
   draggedEl: DataElement,
   oldParent: DataElement | null,
   objectChange: ObjectChangeService
 ): void {
-  const detail = char.detailDataElement!;
   draggedEl.syncFieldRoleToHierarchy();
   oldParent?.update();
   detail.update();

@@ -175,5 +175,5 @@ export class CharacterImportService {
 }
 
 function serviceOf(plan: ImportFetchPlan): string {
-  return plan.kind === 'json' ? 'json' : plan.kind === 'unsupported' ? plan.service : plan.service;
+  return plan.kind === 'json' ? 'json' : plan.service;
 }

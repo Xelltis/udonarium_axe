@@ -1100,6 +1100,11 @@ export class GameCharacterComponent {
 
   /** How a bar kept from this reader is filled: slanting stripes rather than a full bar. */
   protected readonly keptStripes = HIDDEN_GAUGE_STRIPES;
+  /** The fills of the flash on a piece that took damage and of the ring and glow on one that was healed. */
+  protected readonly damageFlashFill = 'radial-gradient(circle, rgba(255,60,60,0.85) 0%, rgba(255,60,60,0) 70%)';
+  protected readonly healAuraFill =
+    'radial-gradient(circle, rgba(120,255,170,0) 42%, rgba(120,255,170,0.9) 60%, rgba(120,255,170,0) 76%)';
+  protected readonly healGlowFill = 'radial-gradient(circle, rgba(90,230,120,0.7) 0%, rgba(90,230,120,0) 70%)';
   /**
    * The name of the stripes the ring round this piece is drawn with, its own: another piece's, in a
    * part of the page that is not drawn, would leave the ring unpainted.
