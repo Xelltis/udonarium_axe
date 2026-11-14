@@ -1,5 +1,6 @@
 import { parseBuffRemovalCommand } from '@axe/domain/character/buff-bulk-removal';
 import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
+import { readTurnChatCommand } from '@axe/domain/tabletop/turn-chat-command';
 
 /** One command picked out of a chat line, in the form it is carried out in, and where it was typed. */
 export interface ResourceCommandSite {
@@ -59,7 +60,8 @@ export function hasSecretEditMark(text: string): boolean {
  * moved and begins no command of its own, and neither does the `:` of a field telling when the buff's
  * effect moves, `発生:手番終了`. A word that starts any other way holds no command. A stamp
  * put inside the line ends a word as a space does, so one put right after a command is never read as
- * part of it.
+ * part of it. A round command the line opens with, `&T`, is the round's to carry out and lays no
+ * buff.
  */
 export function resourceCommandSites(text: string): ResourceCommandWords {
   const padded = ` ${withInlineStampsAsSpaces(text)}`;
@@ -85,7 +87,9 @@ export function resourceCommandSites(text: string): ResourceCommandWords {
     };
   };
 
+  const round = readTurnChatCommand(text);
   for (const word of normalized.matchAll(/\S+/g)) {
+    if (round && rawAt[word.index] === round.from) continue;
     if (parseBuffRemovalCommand(word[0])) {
       words.sweeps.push(siteOf(word[0], word.index));
       continue;

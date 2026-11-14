@@ -8,6 +8,7 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -23,6 +24,7 @@ import { AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { leftOfSlot, VN_STAGE_SLOT_COUNT } from '@axe/domain/visual-novel/vn-stage-cast';
 import { chatStreamPanelName } from '@axe/features/chat/chat-stream/chat-stream-panel.service';
 import { VisualNovelOverlayComponent } from '@axe/features/visual-novel/visual-novel-overlay/visual-novel-overlay.component';
@@ -261,6 +263,28 @@ describe('VisualNovelOverlayComponent', () => {
       ''
     );
     expect(component.text()).toBe('');
+  });
+
+  it('says a round command first, moves the round, and then says the rest', async () => {
+    createComponent();
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const turns = TestBed.inject(TurnOrderService);
+    turns.reset();
+    const rounds: number[] = [];
+    const sendSpy = vi.spyOn(TestBed.inject(ChatMessageService), 'sendMessage').mockImplementation(() => {
+      rounds.push(TurnState.instance.round);
+      return null as unknown as ChatMessage;
+    });
+    vi.spyOn(DiceBot, 'gameSystemForLineAsync').mockResolvedValue(null as unknown as GameSystemClass);
+
+    component.text.set('&RS 始めます');
+    component.send();
+    await vi.waitFor(() => expect(sendSpy).toHaveBeenCalledTimes(2), { timeout: 5000 });
+
+    expect(sendSpy.mock.calls.map((call) => call[1])).toEqual(['&RS', '始めます']);
+    expect(rounds).toEqual([0, 1]);
+    turns.reset();
+    TurnState.instance.history = '[]';
   });
 
   it('sends nothing for an empty line', async () => {

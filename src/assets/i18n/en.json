@@ -1664,7 +1664,8 @@
       "unactedTitle": "Some pieces have yet to move",
       "unactedMessage": "These have not taken a turn this round. Moving the round on now takes them into the next one without having acted.",
       "unactedMore": "and {{n}} more",
-      "unactedProceed": "Move on anyway"
+      "unactedProceed": "Move on anyway",
+      "commandRefused": "\"{{command}}\" did nothing ({{reason}})"
     },
     "inventory": {
       "contextMenu": {
@@ -4452,6 +4453,37 @@
           "badEffectTiming": "The effect's timing cannot be read, so the buff is laid without it (tick:roundEnd, tick:turnStart, tick:turnEnd)",
           "idleEffectTiming": "Nothing moves at every count (~), so the effect's timing is not used"
         },
+        "turn": {
+          "take": "Starts the speaking piece's turn (side by side, in a free phase)",
+          "end": "Ends the turn and hands it on",
+          "wait": "Has the piece whose turn it is wait, to step in later",
+          "stepIn": "Steps the speaking piece in, where it is waiting",
+          "back": "Takes the turn order back one step",
+          "roundStart": "Starts the round",
+          "roundNext": "Closes this round and opens the next",
+          "roundBack": "Goes back to where the round before left off",
+          "roundReset": "Takes the turns and the round back to the start",
+          "no": {
+            "watching": "The turn order cannot be moved while you are watching",
+            "masterOnly": "Only the GM can use this",
+            "noPiece": "The speaker is no piece, so this does nothing",
+            "notYours": "The speaking piece is somebody else's, so this does nothing",
+            "notYourTurn": "The turn is somebody else's piece's, so this does nothing",
+            "fixedOrder": "This works only side by side, in a free phase",
+            "notUnderWay": "No round is under way, so this does nothing",
+            "notInOrder": "The speaking piece is not in the turn order, so this does nothing",
+            "acted": "The speaking piece has acted this round",
+            "otherSide": "It is not the phase of the speaking piece's side, so this does nothing",
+            "alreadyUp": "It is the speaking piece's turn already",
+            "waiting": "The speaking piece is waiting; step in with &TI",
+            "nobodyUp": "It is no piece's turn, so this does nothing",
+            "cannotWait": "The piece whose turn it is cannot wait now",
+            "notWaiting": "The speaking piece is not waiting, so this does nothing",
+            "nothingToUndo": "There is nothing to take back",
+            "underWay": "The round has begun already",
+            "notStarted": "The turn order has not started yet"
+          }
+        },
         "sweep": {
           "gmOnly": "Only the GM can sweep buffs off"
         },
@@ -4522,7 +4554,17 @@
         "effect": "Effects and cut-ins",
         "battle": "Battle cut-in",
         "quote": "Quote",
-        "quoteLine": "Quote"
+        "quoteLine": "Quote",
+        "turn": "Turn order",
+        "turnTake": "Start your turn",
+        "turnEnd": "End the turn",
+        "turnWait": "Wait",
+        "turnStepIn": "Step in from waiting",
+        "turnBack": "Step back",
+        "turnRoundStart": "Start the round",
+        "turnRoundNext": "Next round",
+        "turnRoundBack": "Take the round back",
+        "turnRoundReset": "Reset the turn order"
       },
       "toolbar": {
         "label": "Formatting",

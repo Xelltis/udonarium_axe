@@ -1,12 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { ChatSendService } from '@axe/features/chat/chat-send.service';
 import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -172,5 +174,73 @@ describe('ChatSendService', () => {
 
     expect(sendStamp).toHaveBeenCalledTimes(1);
     expect(sendMessage.mock.calls[0][13]).toEqual(stamp);
+  });
+
+  describe('a line that opens with a round command', () => {
+    const rounds: number[] = [];
+
+    beforeEach(() => {
+      rounds.length = 0;
+      TestBed.inject(TurnOrderService).reset();
+      TurnState.instance.history = '[]';
+      sendMessage.mockImplementation(() => {
+        rounds.push(TurnState.instance.round);
+        return { identifier: `sent-line-${rounds.length}` } as ChatMessage;
+      });
+    });
+
+    afterEach(() => {
+      TestBed.inject(TurnOrderService).reset();
+      TurnState.instance.history = '[]';
+    });
+
+    it('says the command, moves the round, and then says the rest as a line of its own', () => {
+      const speaker = piece('術者', '//威力=7');
+
+      service.send(tab, line({ text: '&RS 2d6+{威力} 攻撃', sendFrom: speaker.identifier }));
+
+      expect(sendMessage.mock.calls.map((call: unknown[]) => call[1])).toEqual(['&RS', '2d6+7 攻撃']);
+      expect(rounds).toEqual([0, 1]);
+      expect(sendMessage.mock.calls[1][7]).toEqual([{ text: '2d6+7 攻撃', object: null }]);
+    });
+
+    it('aims the rest at the marked pieces, and the command at nobody', () => {
+      marked('相手A');
+      marked('相手B');
+
+      service.send(tab, line({ text: '&RS 攻撃 t:HP-5' }));
+
+      expect(sendMessage.mock.calls.map((call: unknown[]) => call[1])).toEqual([
+        '&RS',
+        '攻撃 t:HP-5 [相手A]\n攻撃 t:HP-5 [相手B]',
+      ]);
+    });
+
+    it('keeps the stamp, what is answered and quoted, and the ticker for the last line said', () => {
+      const stamp = { id: 'roll:critical', words: 'クリティカル' };
+
+      service.send(tab, line({ text: '&RS 始めます', stamp, replyTo: 'answered', quoteOf: 'quoted', toTicker: true }));
+
+      const [command, rest] = sendMessage.mock.calls;
+      expect([command[9], command[10], command[13]]).toEqual(['', '', undefined]);
+      expect([rest[9], rest[10], rest[13]]).toEqual(['answered', 'quoted', stamp]);
+      expect(showOnTicker).toHaveBeenCalledTimes(1);
+      expect(showOnTicker).toHaveBeenCalledWith('sent-line-2');
+    });
+
+    it('carries them on the command where nothing follows it', () => {
+      service.send(tab, line({ text: '&RS', replyTo: 'answered', toTicker: true }));
+
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+      expect(sendMessage.mock.calls[0][9]).toBe('answered');
+      expect(showOnTicker).toHaveBeenCalledWith('sent-line-1');
+    });
+
+    it('reads no command in the middle of a line', () => {
+      service.send(tab, line({ text: '始めます &RS' }));
+
+      expect(sendMessage.mock.calls.map((call: unknown[]) => call[1])).toEqual(['始めます &RS']);
+      expect(TurnState.instance.round).toBe(0);
+    });
   });
 });

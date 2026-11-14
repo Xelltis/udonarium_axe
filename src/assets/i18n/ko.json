@@ -1664,7 +1664,8 @@
       "unactedTitle": "아직 행동하지 않은 말이 있습니다",
       "unactedMessage": "다음 말들은 이번 라운드에 아직 차례를 갖지 않았습니다. 이대로 라운드를 넘기면 행동하지 못한 채 다음 라운드로 들어갑니다.",
       "unactedMore": "외 {{n}}개",
-      "unactedProceed": "이대로 진행"
+      "unactedProceed": "이대로 진행",
+      "commandRefused": "\"{{command}}\"은(는) 효과가 없었습니다 ({{reason}})"
     },
     "inventory": {
       "contextMenu": {
@@ -4452,6 +4453,37 @@
           "badEffectTiming": "발생 시점을 읽을 수 없어, 적지 않은 것으로 부여됩니다(tick:roundEnd・tick:turnStart・tick:turnEnd)",
           "idleEffectTiming": "줄어들 때마다 움직이는 양(~)이 없어, 발생 시점은 쓰이지 않습니다"
         },
+        "turn": {
+          "take": "발언자 말의 차례를 시작합니다 (진영별 \"자유\" 페이즈에서)",
+          "end": "차례를 마치고 다음으로 넘깁니다",
+          "wait": "차례인 말을 대기시킵니다 (나중에 끼어들 수 있습니다)",
+          "stepIn": "대기 중인 발언자 말이 끼어듭니다",
+          "back": "행동 순서를 한 단계 되돌립니다",
+          "roundStart": "라운드를 시작합니다",
+          "roundNext": "지금 라운드를 닫고 다음 라운드를 엽니다",
+          "roundBack": "이전 라운드가 끝난 시점까지 되돌립니다",
+          "roundReset": "차례와 라운드를 처음 상태로 되돌립니다",
+          "no": {
+            "watching": "관전하는 동안에는 행동 순서를 움직일 수 없습니다",
+            "masterOnly": "GM만 쓸 수 있습니다",
+            "noPiece": "발언자가 말이 아니므로 효과가 없습니다",
+            "notYours": "발언자 말이 다른 사람의 말이므로 효과가 없습니다",
+            "notYourTurn": "지금 차례가 다른 사람의 말이므로 효과가 없습니다",
+            "fixedOrder": "진영별 \"자유\" 페이즈에서만 쓸 수 있습니다",
+            "notUnderWay": "라운드가 시작되지 않았으므로 효과가 없습니다",
+            "notInOrder": "발언자 말이 행동 순서에 없으므로 효과가 없습니다",
+            "acted": "발언자 말은 이번 라운드에 행동을 마쳤습니다",
+            "otherSide": "발언자 말의 진영 페이즈가 아니므로 효과가 없습니다",
+            "alreadyUp": "이미 발언자 말의 차례입니다",
+            "waiting": "발언자 말은 대기 중입니다. &TI로 끼어들 수 있습니다",
+            "nobodyUp": "차례인 말이 없으므로 효과가 없습니다",
+            "cannotWait": "차례인 말은 지금 대기할 수 없습니다",
+            "notWaiting": "발언자 말이 대기 중이 아니므로 효과가 없습니다",
+            "nothingToUndo": "되돌릴 조작이 없습니다",
+            "underWay": "라운드는 이미 시작되었습니다",
+            "notStarted": "행동 순서는 아직 시작되지 않았습니다"
+          }
+        },
         "sweep": {
           "gmOnly": "버프 일괄 해제는 GM만 쓸 수 있습니다"
         },
@@ -4522,7 +4554,17 @@
         "effect": "연출・컷인",
         "battle": "전투 컷인",
         "quote": "인용",
-        "quoteLine": "인용하기"
+        "quoteLine": "인용하기",
+        "turn": "행동 순서",
+        "turnTake": "내 차례 시작하기",
+        "turnEnd": "차례 마치기",
+        "turnWait": "대기하기",
+        "turnStepIn": "대기에서 끼어들기",
+        "turnBack": "한 단계 되돌리기",
+        "turnRoundStart": "라운드 시작하기",
+        "turnRoundNext": "다음 라운드로",
+        "turnRoundBack": "라운드 되돌리기",
+        "turnRoundReset": "행동 순서 초기화"
       },
       "toolbar": {
         "label": "서식",

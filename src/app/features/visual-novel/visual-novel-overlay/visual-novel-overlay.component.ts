@@ -20,6 +20,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { TurnChatCommandService } from '@axe/application/turn/turn-chat-command.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
@@ -31,6 +32,7 @@ import { clamp } from '@axe/core/util/clamp';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { chatColorOf } from '@axe/domain/chat/chat-color';
+import type { ChatTab } from '@axe/domain/chat/chat-tab';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -96,6 +98,7 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { Z_VISUAL_NOVEL_PANEL, Z_VISUAL_NOVEL_PANEL_ABOVE } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
+import type GameSystemClass from 'bcdice/lib/game_system';
 
 const WHEEL_THROTTLE_MS = 160;
 
@@ -142,6 +145,7 @@ export class VisualNovelOverlayComponent {
   private readonly names = inject(PieceNameService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly turnCommands = inject(TurnChatCommandService);
   private readonly imageService = inject(ImageService);
   private readonly systemAvatarMenu = inject(SystemAvatarMenuService);
   private readonly paletteRegistry = inject(ChatPaletteRegistryService);
@@ -931,7 +935,8 @@ export class VisualNovelOverlayComponent {
    * is sent. Auto play stops. Nothing is sent without a tab, with an empty line, or when this user
    * may not speak in the tab; a speaker that no longer exists is replaced by the first character,
    * or this user's cursor. A scene line plays the transition, and the input and attached sound are
-   * cleared.
+   * cleared. A round command the line opens with is said first and moves the round, and the rest
+   * is said after it with the staging and the sound (see `TurnChatCommandService.say`).
    */
   send(): void {
     this.stopAutoPlay();
@@ -943,38 +948,60 @@ export class VisualNovelOverlayComponent {
       sendFrom = this.gameCharacters()[0]?.identifier ?? PeerCursor.myCursor?.identifier ?? '';
       this._sendFrom.set(sendFrom);
     }
+    const emote = encodeVnEmote({ ...this.emoteSelection.emote(), flipped: this.speakerFlip() === true });
+    const attachedSe = this.attachedSe();
+    this.turnCommands.say(text, sendFrom, tab, (part, last) => {
+      if (last) this.speak(tab, part, sendFrom, emote, attachedSe);
+      else this.sayNow(tab, part, null, sendFrom, '');
+    });
+    if (this.selectedKind() === 'scene') this.scene.playTransition();
+    this.attachedSe.set(null);
+    this.text.set('');
+    this.playback.followLatest();
+  }
+
+  /**
+   * Says one line as the speaker, through the speaker's palette and under the dice system the line
+   * is rolled with, and plays the sound attached to it once it is sent.
+   */
+  private speak(tab: ChatTab, text: string, sendFrom: string, emote: string, attachedSe: AttachedSound | null): void {
     const speaker = this.objectStore.get(sendFrom);
     let evaluated = text;
     if (speaker instanceof GameCharacter) {
       const palette = speaker.chatPalette;
       if (palette) evaluated = palette.evaluate(text, speaker.rootDataElement ?? undefined);
     }
-    const emote = encodeVnEmote({ ...this.emoteSelection.emote(), flipped: this.speakerFlip() === true });
-    const attachedSe = this.attachedSe();
     DiceBot.gameSystemForLineAsync(this.gameType, evaluated)
       .then((gameSystem) => {
-        this.chatMessageService.sendMessage(
-          tab,
-          evaluated,
-          gameSystem,
-          sendFrom,
-          undefined,
-          this.portraitIndexOf(sendFrom),
-          this.colorOf(sendFrom),
-          [{ text: evaluated, object: null }],
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          emote
-        );
+        this.sayNow(tab, evaluated, gameSystem, sendFrom, emote);
         if (attachedSe && this.mayEditTable()) this.jukebox?.play(attachedSe.identifier);
       })
       .catch((reason: unknown) => Logger.error('[VisualNovel] 発言を送れませんでした', reason));
-    if (this.selectedKind() === 'scene') this.scene.playTransition();
-    this.attachedSe.set(null);
-    this.text.set('');
-    this.playback.followLatest();
+  }
+
+  /** Sends a line worked out already to the tab, as the speaker and with the staging given. */
+  private sayNow(
+    tab: ChatTab,
+    text: string,
+    gameSystem: GameSystemClass | null,
+    sendFrom: string,
+    emote: string
+  ): void {
+    this.chatMessageService.sendMessage(
+      tab,
+      text,
+      gameSystem,
+      sendFrom,
+      undefined,
+      this.portraitIndexOf(sendFrom),
+      this.colorOf(sendFrom),
+      [{ text, object: null }],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      emote
+    );
   }
 
   private portraitIndexOf(sendFrom: string): number {

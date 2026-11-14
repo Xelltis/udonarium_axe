@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { TurnChatCommandService } from '@axe/application/turn/turn-chat-command.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { aimedAt, aimedAtNamesOf, aimLine } from '@axe/domain/chat/character-macro';
@@ -22,6 +23,7 @@ export class ChatSendService {
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly objectStore = inject(ObjectStore);
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
+  private readonly turnCommands = inject(TurnChatCommandService);
   private readonly t = inject(TRANSLATE_FN);
 
   /** Who the line is spoken as. Speaking as yourself rather than as a piece leaves nothing to read. */
@@ -54,11 +56,24 @@ export class ChatSendService {
    * the reader may not speak in the tab. A line marked for the ticker is also shown there. A stamp
    * with nothing said goes as a line of its own, with nothing read out of the words standing in for
    * it; a stamp with words goes under them, the line going through all the rest as any line does.
+   * A line that opens with a round command, `&T`, is said as the command, which moves the round,
+   * and then as the rest (see `TurnChatCommandService.say`); the stamp, what the line answers and
+   * quotes, and the ticker go with the last of them said.
    */
   send(tab: ChatTab | null, value: ChatOutgoing): void {
     if (!tab) return;
     if (!canRoleSpeakTab(tab, PeerCursor.myRole)) return;
     if (this.chatMessageService.sendLoneStamp(tab, value)) return;
+    this.turnCommands.say(value.text, value.sendFrom, tab, (text, last) =>
+      this.sayLine(
+        tab,
+        last ? { ...value, text } : { ...value, text, stamp: undefined, replyTo: '', quoteOf: '', toTicker: false }
+      )
+    );
+  }
+
+  /** Says one line, its references filled in and aimed at the targets, as {@link send} tells. */
+  private sayLine(tab: ChatTab, value: ChatOutgoing): void {
     let outtext = '';
     const messageTargetContext: ChatMessageTargetContext[] = [];
 
