@@ -19,6 +19,7 @@ import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.serv
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
+import { ScenarioTextService } from '@axe/application/chat/scenario-text.service';
 import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -28,14 +29,16 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { coalesce } from '@axe/core/util/debounce';
 import { delay } from '@axe/core/util/delay';
+import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { keptTabOf, tabBeside } from '@axe/domain/chat/chat-tab-cycle';
-import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { ScenarioText, scenarioTextsMatching } from '@axe/domain/scenario-text/scenario-text';
 import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
 import { ChatBookmarkListComponent } from '@axe/features/chat/chat-bookmark/chat-bookmark-list.component';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
@@ -66,9 +69,6 @@ const WRITING_STRIP_PX = 32;
 
 const NEAR_BOTTOM_THRESHOLD_PX = 350;
 const AT_BOTTOM_THRESHOLD_PX = 8;
-import { ScenarioTextService } from '@axe/application/chat/scenario-text.service';
-import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
-import { ScenarioText, scenarioTextsMatching } from '@axe/domain/scenario-text/scenario-text';
 /** The icon of the title bar's button that opens the stream chat widget, as novel mode's does. */
 const STREAM_CONTROL_ICON = 'forum';
 
@@ -429,7 +429,7 @@ export class ChatWindowComponent {
   readonly isNearBottom = signal(true);
   readonly writingStripPx = WRITING_STRIP_PX;
   readonly newMessageCount = signal(0);
-  private scrollToBottomTimer: ReturnType<typeof setTimeout> | null = null;
+
   private scrollListener: (() => void) | null = null;
 
   constructor() {
@@ -475,22 +475,16 @@ export class ChatWindowComponent {
       const distance = this.distanceFromBottom();
       if (distance == null || distance > AT_BOTTOM_THRESHOLD_PX) return;
       if (!this.chatPrefs.autoFollowScroll()) return;
-      setTimeout(() => {
+      void delay().then(() => {
         const panel = this.panelService.scrollablePanel;
         if (!panel) return;
         panel.scrollTop = panel.scrollHeight;
-      }, 0);
+      });
     }, this.destroyRef);
-    this.objectChange.onObjectChangedForAlias(
-      [ChatTab.aliasName, ChatTabList.aliasName],
-      () => this.settleTab(),
-      this.destroyRef
-    );
     this.objectChange.objectDeleted$.subscribe((event) => {
       if (event.aliasName !== 'chat-tab') return;
       if (this._chatTabidentifier() === event.identifier) this.settleTab();
     }, this.destroyRef);
-    queueMicrotask(() => this.updatePanelTitle());
     // The title carries a count where the reader asked for one, so it is retitled as lines come
     // and go rather than only as the tab is switched. Nothing is watched while none is asked
     // for: a room saying a hundred lines an hour would be retitling a title that never changes.
@@ -592,24 +586,28 @@ export class ChatWindowComponent {
     if (!this.isAutoScroll) return;
     if (!this.panelService.scrollablePanel) return;
     const shouldMoveScroll = isForce || this.chatPrefs.autoFollowScroll();
-    // `scrollToBottom$` triggers chat-tab.resetMessages() which jams the rendered range to the
-    // very bottom. If we are not actually going to move the scroll (non-follow mode + non-force),
-    // emitting it leaves the rendered slice at the bottom of a growing container while the
-    // viewport stays put — the messageContainer slides off-screen below the panel and the chat
-    // appears blank. Only emit when we will follow up with an actual scroll.
+    // `scrollToBottom$` makes the chat tab draw its newest lines, so it is not emitted when the
+    // scroll is not going to move.
     if (shouldMoveScroll) this.panelService.scrollToBottom$.emit();
-    if (this.scrollToBottomTimer != null) return;
-    this.scrollToBottomTimer = setTimeout(() => {
-      this.chatTab()?.markForRead();
-      this.objectChange.notifyChanged(this.chatTabidentifier);
-      this.scrollToBottomTimer = null;
-      this.isAutoScroll = false;
-      if (shouldMoveScroll && this.panelService.scrollablePanel) {
-        this.panelService.scrollablePanel.scrollTop = this.panelService.scrollablePanel.scrollHeight;
-      }
-      if (shouldMoveScroll) this.newMessageCount.set(0);
-    }, 0);
+    if (this.settleAtBottom.pending()) return;
+    this.movesScrollOnSettle = shouldMoveScroll;
+    this.settleAtBottom();
   }
+
+  /** Whether the scroll waiting in {@link settleAtBottom} moves the log, as the call that asked for it decided. */
+  private movesScrollOnSettle = false;
+
+  /** Marks the tab read and, where asked, moves the log to its foot, once for every ask of one tick. */
+  private readonly settleAtBottom = coalesce(() => {
+    const movesScroll = this.movesScrollOnSettle;
+    this.chatTab()?.markForRead();
+    this.objectChange.notifyChanged(this.chatTabidentifier);
+    this.isAutoScroll = false;
+    if (movesScroll && this.panelService.scrollablePanel) {
+      this.panelService.scrollablePanel.scrollTop = this.panelService.scrollablePanel.scrollHeight;
+    }
+    if (movesScroll) this.newMessageCount.set(0);
+  }, 0);
 
   /**
    * Decides whether the log keeps following new messages, which it does only while scrolled to the
