@@ -21,6 +21,7 @@ import {
   MapEditorPanelComponent,
   shapeKindSvgMarkup,
 } from '@axe/features/map-editor/editor/map-editor-panel.component';
+import { MapEditorPointer } from '@axe/features/map-editor/editor/map-editor-pointer';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -28,6 +29,11 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 /** The gesture is private; the tests borrow its name to reach it. */
 function gestureOf(component: MapEditorPanelComponent): MapEditorGesture {
   return (component as unknown as { gesture: MapEditorGesture }).gesture;
+}
+
+/** What the pointer does on the board, private too, reached the same way. */
+function pointerOf(component: MapEditorPanelComponent): MapEditorPointer {
+  return (component as unknown as { pointer: MapEditorPointer }).pointer;
 }
 
 describe('MapEditorPanelComponent', () => {
@@ -209,12 +215,9 @@ describe('MapEditorPanelComponent', () => {
     component['state'].shapeKind.set('pentagon');
     gestureOf(component).draftStart = { x: 0, y: 0 };
     (component as unknown as { draftCurrent: { x: number; y: number } }).draftCurrent = { x: 100, y: 80 };
-    (component as unknown as { commitShape: (x: number, y: number, w: number, h: number) => void }).commitShape(
-      0,
-      0,
-      100,
-      80
-    );
+    (
+      pointerOf(component) as unknown as { commitShape: (x: number, y: number, w: number, h: number) => void }
+    ).commitShape(0, 0, 100, 80);
     const layer = component['state'].current.layers.find((l) => l.kind === 'shape') as ShapeLayer;
     expect(layer.items[0].shape).toBe('polygon');
     expect(layer.items[0].points.length).toBe(10);
@@ -225,7 +228,7 @@ describe('MapEditorPanelComponent', () => {
     component['state'].lineKind.set('polyline');
     component['state'].strokeDash.set('dashed');
     gestureOf(component).draftPoints = [0, 0, 50, 0, 50, 50];
-    (component as unknown as { commitDraftPolyline: () => void }).commitDraftPolyline();
+    (pointerOf(component) as unknown as { commitDraftPolyline: () => void }).commitDraftPolyline();
     const shapeLayers = component['state'].current.layers.filter((l) => l.kind === 'shape') as ShapeLayer[];
     expect(shapeLayers.length).toBe(1);
     const item = shapeLayers[0].items[0];
@@ -274,7 +277,7 @@ describe('MapEditorPanelComponent', () => {
     component['state'].tool.set('line');
     component['state'].lineKind.set('curve');
     gestureOf(component).draftPoints = [0, 0, 50, 0, 50, 50];
-    (component as unknown as { commitDraftPolyline: () => void }).commitDraftPolyline();
+    (pointerOf(component) as unknown as { commitDraftPolyline: () => void }).commitDraftPolyline();
     const shapeLayers = component['state'].current.layers.filter((l) => l.kind === 'shape') as ShapeLayer[];
     const item = shapeLayers[0].items[0];
     expect(item.shape).toBe('curve');
@@ -288,7 +291,7 @@ describe('MapEditorPanelComponent', () => {
     component['state'].fillMode.set('solid');
     component['state'].solidColor.set('#123456');
     gestureOf(component).draftPoints = [0, 0, 50, 0, 50, 50];
-    (component as unknown as { commitDraftPolyline: () => void }).commitDraftPolyline();
+    (pointerOf(component) as unknown as { commitDraftPolyline: () => void }).commitDraftPolyline();
     const shapeLayers = component['state'].current.layers.filter((l) => l.kind === 'shape') as ShapeLayer[];
     const item = shapeLayers[0].items[0];
     expect(item.shape).toBe('closedCurve');
@@ -313,7 +316,7 @@ describe('MapEditorPanelComponent', () => {
     const id = layer.items[0].id;
     component['state'].selection.set({ layerId: layer.id, itemId: id });
 
-    const c = component as unknown as { resizeImageTo: (x: number, y: number) => void };
+    const c = pointerOf(component) as unknown as { resizeImageTo: (x: number, y: number) => void };
     const gesture = gestureOf(component);
     component['state'].beginGesture();
     gesture.imageResize = { item: layer.items[0], anchorX: 60, anchorY: 70 };
@@ -340,7 +343,7 @@ describe('MapEditorPanelComponent', () => {
     );
     const layer = component['state'].current.layers.find((l) => l.kind === 'image') as ImageLayer;
     component['state'].selection.set({ layerId: layer.id, itemId: layer.items[0].id });
-    const c = component as unknown as { resizeImageTo: (x: number, y: number) => void };
+    const c = pointerOf(component) as unknown as { resizeImageTo: (x: number, y: number) => void };
     const gesture = gestureOf(component);
     gesture.imageResize = { item: layer.items[0], anchorX: 60, anchorY: 70 };
     c.resizeImageTo(62, 71);
@@ -382,7 +385,7 @@ describe('MapEditorPanelComponent', () => {
     component['state'].setGridType(GridType.HEX_VERTICAL);
     const scene = component['state'].current;
     const cell = pointToCell(scene.gridType, 130, 110, scene.cellPx);
-    (component as unknown as { paintSampleAt: (x: number, y: number, tool: string) => void }).paintSampleAt(
+    (pointerOf(component) as unknown as { paintSampleAt: (x: number, y: number, tool: string) => void }).paintSampleAt(
       130,
       110,
       'cellPaint'
