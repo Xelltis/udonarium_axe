@@ -1,7 +1,7 @@
-@if (state.selectedItem(); as sel) {
+@if (state.selectedItem()) {
   <div class="flex flex-col gap-2">
     <div class="font-semibold">{{ 'feature.mapEditor.tools.select' | transloco }}</div>
-    @if (sel.layer.kind === 'stamp') {
+    @if (state.selectedStamp(); as stamp) {
       <label class="flex items-center justify-between gap-2">
         <span class="text-ui-muted">{{ 'feature.mapEditor.props.stampSize' | transloco }}</span>
         <span class="flex items-center gap-1">
@@ -11,12 +11,10 @@
             min="16"
             max="256"
             step="8"
-            [ngModel]="$any(sel.item).size"
+            [ngModel]="stamp.size"
             (ngModelChange)="state.updateSelectedStamp({ size: $event })"
           />
-          <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
-            >{{ $any(sel.item).size }}px</span
-          >
+          <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums">{{ stamp.size }}px</span>
         </span>
       </label>
       <label class="flex items-center justify-between gap-2">
@@ -28,19 +26,17 @@
             min="0"
             max="360"
             step="15"
-            [ngModel]="$any(sel.item).rotation"
+            [ngModel]="stamp.rotation"
             (ngModelChange)="state.updateSelectedStamp({ rotation: $event })"
           />
-          <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
-            >{{ $any(sel.item).rotation }}°</span
-          >
+          <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums">{{ stamp.rotation }}°</span>
         </span>
       </label>
       <div class="flex items-center gap-3">
         <label class="flex items-center gap-1">
           <input
             type="checkbox"
-            [ngModel]="$any(sel.item).flipX"
+            [ngModel]="stamp.flipX"
             (ngModelChange)="state.updateSelectedStamp({ flipX: $event })"
           />
           <span class="text-ui-muted">{{ 'feature.mapEditor.props.stampFlip' | transloco }} X</span>
@@ -48,7 +44,7 @@
         <label class="flex items-center gap-1">
           <input
             type="checkbox"
-            [ngModel]="$any(sel.item).flipY"
+            [ngModel]="stamp.flipY"
             (ngModelChange)="state.updateSelectedStamp({ flipY: $event })"
           />
           <span class="text-ui-muted">{{ 'feature.mapEditor.props.stampFlip' | transloco }} Y</span>
@@ -60,28 +56,28 @@
           <label class="flex items-center gap-1">
             <input
               type="checkbox"
-              [ngModel]="$any(sel.item).color === null"
+              [ngModel]="stamp.color === null"
               (ngModelChange)="state.updateSelectedStamp({ color: $event ? null : '#1a1a1a' })"
             />
             <span class="text-ui-muted text-[10px]">{{ 'feature.mapEditor.props.stampColorAuto' | transloco }}</span>
           </label>
           <input
             type="color"
-            [ngModel]="$any(sel.item).color ?? '#1a1a1a'"
-            [disabled]="$any(sel.item).color === null"
+            [ngModel]="stamp.color ?? '#1a1a1a'"
+            [disabled]="stamp.color === null"
             (ngModelChange)="state.updateSelectedStamp({ color: $event })"
           />
         </div>
       </div>
     }
-    @if (sel.layer.kind === 'image') {
+    @if (state.selectedImage(); as image) {
       <label class="flex items-center justify-between gap-2">
         <span class="text-ui-muted">{{ 'feature.mapEditor.props.imageWidth' | transloco }}</span>
         <input
           class="bg-ui-input rounded-ui-sm w-16 px-1 py-0.5"
           type="number"
           min="1"
-          [ngModel]="$any(sel.item).w"
+          [ngModel]="image.w"
           (ngModelChange)="state.updateSelectedImage({ w: $event })"
         />
       </label>
@@ -91,7 +87,7 @@
           class="bg-ui-input rounded-ui-sm w-16 px-1 py-0.5"
           type="number"
           min="1"
-          [ngModel]="$any(sel.item).h"
+          [ngModel]="image.h"
           (ngModelChange)="state.updateSelectedImage({ h: $event })"
         />
       </label>
@@ -104,12 +100,10 @@
             min="-180"
             max="180"
             step="5"
-            [ngModel]="$any(sel.item).rotation"
+            [ngModel]="image.rotation"
             (ngModelChange)="state.updateSelectedImage({ rotation: $event })"
           />
-          <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
-            >{{ $any(sel.item).rotation }}°</span
-          >
+          <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums">{{ image.rotation }}°</span>
         </span>
       </label>
       <label class="flex items-center justify-between gap-2">
@@ -121,29 +115,29 @@
             min="0"
             max="1"
             step="0.05"
-            [ngModel]="$any(sel.item).opacity"
+            [ngModel]="image.opacity"
             (ngModelChange)="state.updateSelectedImage({ opacity: $event })"
           />
           <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums">{{
-            $any(sel.item).opacity | percent
+            image.opacity | percent
           }}</span>
         </span>
       </label>
       <label class="flex items-center gap-2">
         <input
           type="checkbox"
-          [ngModel]="$any(sel.item).clipToCells"
+          [ngModel]="image.clipToCells"
           (ngModelChange)="state.updateSelectedImage({ clipToCells: $event })"
         />
         <span class="text-ui-muted">{{ 'feature.mapEditor.props.imageClipCells' | transloco }}</span>
       </label>
     }
-    @if (sel.layer.kind === 'freehand') {
+    @if (state.selectedFreehand(); as stroke) {
       <label class="flex items-center justify-between gap-2">
         <span class="text-ui-muted">{{ 'feature.mapEditor.props.color' | transloco }}</span>
         <input
           type="color"
-          [ngModel]="$any(sel.item).color"
+          [ngModel]="stroke.color"
           (ngModelChange)="state.updateSelectedFreehand({ color: $event })"
         />
       </label>
@@ -156,12 +150,10 @@
             min="1"
             max="30"
             step="1"
-            [ngModel]="$any(sel.item).width"
+            [ngModel]="stroke.width"
             (ngModelChange)="state.updateSelectedFreehand({ width: $event })"
           />
-          <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
-            >{{ $any(sel.item).width }}px</span
-          >
+          <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums">{{ stroke.width }}px</span>
         </span>
       </label>
     }

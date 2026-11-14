@@ -322,6 +322,20 @@ describe('MapEditorState', () => {
     expect(state.addEmptyFunctionLayer('mask').name).toBe('役:mask 2');
   });
 
+  it('hands the selected item as what it is, and as nothing of the other kinds', () => {
+    expect([state.selectedStamp(), state.selectedImage(), state.selectedFreehand()]).toEqual([null, null, null]);
+
+    state.stampId.set('door-single');
+    state.stampSize.set(64);
+    state.placeStamp(100, 100, 'スタンプ 1');
+    state.selection.set(state.hitTest(100, 100));
+
+    expect(state.selectedStamp()?.size).toBe(64);
+    expect(state.selectedStamp()).toBe(state.selectedItem()?.item);
+    expect(state.selectedImage()).toBeNull();
+    expect(state.selectedFreehand()).toBeNull();
+  });
+
   it('gives each stamp its own layer', () => {
     state.stampId.set('door-single');
     state.placeStamp(10, 10, 'スタンプ 1');

@@ -772,6 +772,24 @@ export class MapEditorState {
     return null;
   }
 
+  /** The selected stamp, or null when what is selected is not a stamp. */
+  selectedStamp(): StampItem | null {
+    const selected = this.selectedItem();
+    return selected?.layer.kind === 'stamp' ? (selected.item as StampItem) : null;
+  }
+
+  /** The selected image, or null when what is selected is not an image. */
+  selectedImage(): ImageItem | null {
+    const selected = this.selectedItem();
+    return selected?.layer.kind === 'image' ? (selected.item as ImageItem) : null;
+  }
+
+  /** The selected freehand stroke, or null when what is selected is not one. */
+  selectedFreehand(): FreehandStroke | null {
+    const selected = this.selectedItem();
+    return selected?.layer.kind === 'freehand' ? (selected.item as FreehandStroke) : null;
+  }
+
   /**
    * Changes the selected freehand stroke, as one undoable step; does nothing unless a stroke is
    * selected.
