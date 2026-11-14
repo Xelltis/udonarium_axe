@@ -112,16 +112,6 @@ describe('CutInWindowComponent', () => {
       expect(component.videoVolume).toBe(75);
     });
 
-    it('passes it through on a test play as well', () => {
-      const cutIn = new CutIn('audition-volume-test');
-      cutIn.initialize();
-      cutIn.videoVolume = 50;
-      component.cutIn = cutIn;
-      component.isTest = true;
-
-      expect(component.videoVolume).toBe(50);
-    });
-
     it('follows the listener’s own cut-in volume, counting from the half it starts at', () => {
       vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
       const volumes = TestBed.inject(PersonalVolumeService);
@@ -408,17 +398,6 @@ describe('CutInWindowComponent', () => {
 
       expect(clearTimeoutSpy).toHaveBeenCalled();
       expect(priv.cutInTimeOut).toBeNull();
-    });
-
-    it('clears the video timer on teardown', () => {
-      const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
-      const priv = component as unknown as { _timeoutIdVideo: ReturnType<typeof setTimeout> | null };
-      priv._timeoutIdVideo = setTimeout(() => {}, 999_999);
-
-      fixture.destroy();
-
-      expect(clearTimeoutSpy).toHaveBeenCalled();
-      expect(priv._timeoutIdVideo).toBeNull();
     });
   });
 

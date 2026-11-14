@@ -14,7 +14,6 @@ import { YouTubePlayer } from '@angular/youtube-player';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { DEFAULT_PERSONAL_VOLUMES } from '@axe/application/media/personal-volumes';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
@@ -24,7 +23,6 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { observeSize } from '@axe/core/util/observe-size';
 import { CutIn, cutInPanelChrome } from '@axe/domain/media/cut-in';
-import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { cutInPlaybackMs } from '@axe/domain/media/cut-in-playback-window';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
@@ -62,7 +60,6 @@ export const CUT_IN_VIDEO_START_LIMIT_MS = 30_000;
   imports: [YouTubePlayer, SafePipe, CutInStageComponent],
 })
 export class CutInWindowComponent {
-  private readonly modalService = inject(ModalService);
   private readonly panelService = inject(PanelService);
   private readonly objectStore = inject(ObjectStore);
   private readonly audioStorage = inject(AudioStorage);
@@ -159,26 +156,18 @@ export class CutInWindowComponent {
         clearTimeout(this.cutInTimeOut);
         this.cutInTimeOut = null;
       }
-      if (this._timeoutIdVideo) {
-        clearTimeout(this._timeoutIdVideo);
-        this._timeoutIdVideo = null;
-      }
       this.stopCutIn();
     });
   }
 
   private _videoId = '';
   private readonly _videoIdSig = signal('');
-  private _timeoutIdVideo: ReturnType<typeof setTimeout> | null = null;
 
   readonly isVisible = computed(() => {
     if (this.panelService.invisible) return '';
     return this._videoIdSig() !== '' ? 'visible' : 'hidden';
   });
 
-  videoStateTransition = false;
-
-  isTest = false;
   forceNoLoop = false;
   private readonly audioEnabledState = signal(true);
   /**
@@ -208,14 +197,6 @@ export class CutInWindowComponent {
   speaker: CutInSpeaker | null = null;
   playListId = '';
 
-  private _naturalWidth = 0;
-  private _naturalHeight = 0;
-
-  readonly audios = computed(() => {
-    this.objectChange.fileVersion();
-    return this.audioStorage.audios.filter((audio) => !audio.isHidden);
-  });
-
   /** The layers this cut-in is built from, if it is built from any. */
   readonly scene = computed<CutInScene | null>(() => {
     if (!this.cutIn) return null;
@@ -233,16 +214,6 @@ export class CutInWindowComponent {
     const file = this.imageStorage.get(this.cutIn.imageIdentifier);
     return file?.url ?? ImageFile.Empty.url;
   });
-  /** The room's cut-in launcher. */
-  get cutInLauncher(): CutInLauncher {
-    return this.objectStore.get<CutInLauncher>('CutInLauncher')!;
-  }
-
-  /** Every cut-in in the room. */
-  getCutIns(): CutIn[] {
-    return this.objectStore.getObjects(CutIn);
-  }
-
   /**
    * Waits for this face to have a DOM and for its ordinary images to be decoded.
    * YouTube readiness is deliberately not part of this barrier; it joins the shared
@@ -448,9 +419,9 @@ export class CutInWindowComponent {
   /**
    * Follows the YouTube player's state.
    *
-   * Playing, pausing and cueing each mark a short transition. Once the video is cued it starts, if
-   * playback has begun, and the play time counts from when it first plays. When the video ends, a looping cut-in plays again from its start time unless
-   * looping is forced off, and otherwise the window closes.
+   * Once the video is cued it starts, if playback has begun, and the play time counts from when it
+   * first plays. When the video ends, a looping cut-in plays again from its start time unless looping
+   * is forced off, and otherwise the window closes.
    */
   onPlayerStateChange($event: {
     data: number;
@@ -459,27 +430,10 @@ export class CutInWindowComponent {
     const state = $event.data;
     if (state == 1) {
       if (this.playbackStarted()) this.countFromPlaying();
-      this.videoStateTransition = true;
-      this._timeoutIdVideo = setTimeout(() => {
-        this.videoStateTransition = false;
-        this._timeoutIdVideo = null;
-      }, 200);
-    }
-    if (state == 2) {
-      this.videoStateTransition = true;
-      this._timeoutIdVideo = setTimeout(() => {
-        this.videoStateTransition = false;
-        this._timeoutIdVideo = null;
-      }, 200);
     }
     if (state == 5) {
       this.isVideoCued = true;
       if (this.playbackStarted() && this.readyVideoTarget) this.startVideo(this.readyVideoTarget);
-      this.videoStateTransition = true;
-      this._timeoutIdVideo = setTimeout(() => {
-        this.videoStateTransition = false;
-        this._timeoutIdVideo = null;
-      }, 200);
     }
     if (state == 0) {
       if (!this.forceNoLoop && this.cutIn?.isLoop && $event.target?.seekTo && $event.target?.playVideo) {
@@ -491,10 +445,5 @@ export class CutInWindowComponent {
         this.panelService.close();
       }
     }
-  }
-
-  /** Does nothing; no fallback is taken when the video fails. */
-  onErrorFallback() {
-    if (!this.videoId) return;
   }
 }
