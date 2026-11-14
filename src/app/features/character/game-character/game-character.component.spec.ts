@@ -1579,7 +1579,7 @@ describe('GameCharacterComponent', () => {
         return counter;
       };
 
-      const resourceSnapshot = () => component['resourceSnapshot']();
+      const resourceSnapshot = () => component['resourceChanges'].snapshot();
 
       const pieceWithBuff = async () => {
         const character = GameCharacter.create('ゲージ', 1, '');

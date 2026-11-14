@@ -51,42 +51,15 @@ import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
-import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
-import { callResourceChange, resourceChange$ } from '@axe/core/event/domain-events';
-import { getPeerContext } from '@axe/core/network/peer-context-source';
-import { VolumeType } from '@axe/core/storage/audio-output';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { clamp } from '@axe/core/util/clamp';
 import { sameFields } from '@axe/core/util/same-fields';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import {
-  HIDDEN_GAUGE_STRIPES,
-  isGaugeInverted,
-  PieceGauge,
-  selectPieceGauges,
-  shownGauge,
-} from '@axe/domain/character/piece-gauge';
-import { isResourceElement } from '@axe/domain/character/resource-catalog';
-import {
-  diffResourceSnapshots,
-  loudestChange,
-  ResourceChange,
-  ResourceChangeKind,
-  ResourceChangeSeverity,
-  resourceChangeSeverity,
-  ResourceSnapshot,
-} from '@axe/domain/character/resource-change';
-import {
-  playsEffectOnChange,
-  playsSoundOnChange,
-  ResourceSoundSet,
-  soundSetOnChange,
-} from '@axe/domain/character/resource-feedback';
+import { HIDDEN_GAUGE_STRIPES, PieceGauge, selectPieceGauges, shownGauge } from '@axe/domain/character/piece-gauge';
 import { DataElement } from '@axe/domain/data/data-element';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -97,13 +70,7 @@ import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { pieceCornerOnSquare } from '@axe/domain/tabletop/move/piece-on-grid';
-import {
-  DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS,
-  multiAngleNameMotionMode,
-  multiAngleOrbitAnimation,
-  multiAnglePieceMotionMode,
-  multiAngleRotationPhase,
-} from '@axe/domain/tabletop/multi-angle';
+import { multiAnglePieceMotionMode } from '@axe/domain/tabletop/multi-angle';
 import { RideSeat, seatOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { rotationSnapStep, shownAngle } from '@axe/domain/tabletop/rotation-snap';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
@@ -115,6 +82,8 @@ import {
   GameCharacterMenuService,
   screenCentreOf,
 } from '@axe/features/character/game-character/game-character-menu.service';
+import { PieceMultiAngleOrbit } from '@axe/features/character/game-character/piece-multi-angle-orbit';
+import { PieceResourceChanges } from '@axe/features/character/game-character/piece-resource-changes';
 import { PieceRightDrag } from '@axe/features/character/game-character/piece-right-drag';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
@@ -128,12 +97,7 @@ import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive'
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { hexPedestalGrabStyle, hexPedestalRingStyle } from '@axe/ui/tabletop/hex-pedestal-style';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
-import { makeMultiAngleCurvedName } from '@axe/ui/tabletop/multi-angle-curved-name';
-import {
-  makeMultiAngleBuffOrbit,
-  makeMultiAngleResourceGauge,
-  MAX_MULTI_ANGLE_RESOURCE_GAUGES,
-} from '@axe/ui/tabletop/multi-angle-orbit-decoration';
+import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -147,32 +111,7 @@ const FALLS: Readonly<Record<string, PieceMotionKind>> = {
 
 const DECOR_BASE_FONT_PX = 10;
 const NAME_BASE_FONT_PX = 15;
-const MULTI_ANGLE_RESOURCE_BUFF_DURATION_FACTOR = 1.25;
 
-type PresetSoundKey = Exclude<keyof typeof PresetSound, 'prototype'>;
-
-const RESOURCE_CHANGE_SOUND_KEYS: Record<
-  ResourceSoundSet,
-  Record<ResourceChangeKind, Record<ResourceChangeSeverity, PresetSoundKey>>
-> = {
-  flesh: {
-    damage: { small: 'damageSmall', medium: 'damageMedium', large: 'damageLarge' },
-    heal: { small: 'healSmall', medium: 'healMedium', large: 'healLarge' },
-  },
-  mech: {
-    damage: { small: 'mechDamageSmall', medium: 'mechDamageMedium', large: 'mechDamageLarge' },
-    heal: { small: 'mechHealSmall', medium: 'mechHealMedium', large: 'mechHealLarge' },
-  },
-};
-
-function resourceChangeSound(kind: ResourceChangeKind, ratio: number, soundSet: ResourceSoundSet): string {
-  return PresetSound[RESOURCE_CHANGE_SOUND_KEYS[soundSet][kind][resourceChangeSeverity(ratio)]];
-}
-
-const FLOATING_CHANGE_MS = 1300;
-const FLOATING_CHANGE_LIMIT = 6;
-const HIT_FLASH_MS = 420;
-const HEAL_AURA_MS = 760;
 /** How large a stamp shows in a bubble, before the labels' supersampling. */
 const SPEECH_STAMP_PX = 56;
 /** The mark each seat is shown with in the riding label. */
@@ -583,37 +522,6 @@ export class GameCharacterComponent {
 
   constructor() {
     effect(() => {
-      const snapshot = this.resourceSnapshot();
-      const previous = this.previousResources;
-      this.previousResources = snapshot;
-      if (!previous) return;
-
-      const names = untracked(this.resourceNames);
-      // A part's change is told as the part's, each seat naming the part as it shows it.
-      const changes = diffResourceSnapshots(previous, snapshot, (identifier) => names.get(identifier)?.name ?? '').map(
-        (change) => {
-          const part = names.get(change.identifier)?.part ?? '';
-          return part ? { ...change, part } : change;
-        }
-      );
-      if (changes.length < 1) return;
-
-      // It is drawn here and announced elsewhere. Watching for the difference at each end
-      // would count a value replaced by a load or a sync as a change.
-      const character = untracked(this.gameCharacter);
-      if (!character) return;
-      untracked(() => this.showResourceChanges(changes));
-      callResourceChange({ characterIdentifier: character.identifier, changes });
-    });
-
-    // What another end changed is drawn on word from it; what this end changed is already drawn.
-    resourceChange$.subscribe((event) => {
-      if (event.emittedBy === getPeerContext().peerId) return;
-      if (event.characterIdentifier !== this.gameCharacter()?.identifier) return;
-      this.showResourceChanges(event.changes as ResourceChange[]);
-    }, this.destroyRef);
-
-    effect(() => {
       const highlight = this.selectionSignalService.highlightedObject();
       const char = this.gameCharacter();
       const root = this.rootElementRef();
@@ -710,8 +618,6 @@ export class GameCharacterComponent {
       clearTimeout(this.highlightTimer);
       clearTimeout(this.unhighlightTimer);
       this.rightDrag.dispose();
-      for (const timer of this.floatingTimers) clearTimeout(timer);
-      this.floatingTimers.clear();
     });
   }
 
@@ -1156,81 +1062,41 @@ export class GameCharacterComponent {
       .map((row) => row.gauge)
   );
 
-  /**
-   * The resources of the piece and of its parts, as they stand: a part is drawn as its body, so a
-   * blow to a part is shown on the body, as one to the body is.
-   */
-  private readonly resourceSnapshot = computed<Map<string, ResourceSnapshot>>(() => {
-    const snapshot = new Map<string, ResourceSnapshot>();
-    const char = this.gameCharacter();
-    const elements = this.followedTree(char?.detailDataElement ?? null);
-    if (elements === null || !char) return snapshot;
-
-    for (const piece of [char, ...this.parts.partsOfFollowed(char)]) {
-      const own = piece === char ? elements : this.followedTree(piece.detailDataElement ?? null);
-      for (const element of own ?? []) {
-        if (!isResourceElement(element)) continue;
-        snapshot.set(element.identifier, {
-          current: Number(element.currentValue),
-          max: Number(element.value),
-          inverted: isGaugeInverted(element),
-          playsEffect: playsEffectOnChange(element),
-          playsSound: playsSoundOnChange(element),
-          soundSet: soundSetOnChange(element),
-          changedBySelf: this.objectStore.localChangeCountOf(element.identifier),
-        });
-      }
-    }
-    return snapshot;
+  private readonly resourceChanges = new PieceResourceChanges({
+    character: () => this.gameCharacter(),
+    partsOf: (character) => this.parts.partsOfFollowed(character),
+    followedTree: (root) => this.followedTree(root),
+    localChangeCountOf: (identifier) => this.objectStore.localChangeCountOf(identifier),
+    partNameOf: (identifier) => this.partNameOf(identifier),
+    playEffects: (character, changes) => this.effectAutoPlay.play(character, changes),
+    destroyRef: this.destroyRef,
   });
+  /** The changes to its resources floating over the piece now. */
+  readonly floatingChanges = this.resourceChanges.floating;
+  /** The flash the piece is drawn with for a moment after a hit or a heal. */
+  readonly hitFlash = this.resourceChanges.hitFlash;
 
-  /** The names of the resources of the piece and of its parts, and the part each of the latter is of. */
-  private readonly resourceNames = computed(() => {
-    const char = this.gameCharacter();
-    const names = new Map<string, { name: string; part: string }>();
-    if (!char) return names;
-    for (const piece of [char, ...this.parts.partsOfFollowed(char)]) {
-      const detail = piece.detailDataElement;
-      if (!detail) continue;
-      const part = piece === char ? '' : piece.identifier;
-      for (const element of collectDataElements(detail)) names.set(element.identifier, { name: element.name, part });
-    }
-    return names;
+  private readonly orbit = new PieceMultiAngleOrbit({
+    standsFlat: () => !this.isPoster() && this.tabletopService.mode2d(),
+    display: () => this.tabletopService.display(),
+    identifier: () => this.gameCharacter()?.identifier,
+    name: () => this.name(),
+    riderNames: () =>
+      this.ridingLabels()
+        .map((label) => label.name)
+        .filter((name) => name.length > 0),
+    hideName: () => this.hideName(),
+    hideBuff: () => this.hideBuff(),
+    riding: () => !!this.ridingMount(),
+    footprint: () => this.size() * this.gridSize,
+    gauges: () => this.orbitPieceGauges(),
+    buffs: () => this.buffBadges(),
+    buffIconScale: () => this.buffIconScale(),
   });
-
-  readonly floatingChanges = signal<(ResourceChange & { key: number })[]>([]);
-  readonly hitFlash = transientSignal<'damage' | 'heal' | null>(null, HIT_FLASH_MS);
-
-  private previousResources: Map<string, ResourceSnapshot> | null = null;
-  private floatingKey = 0;
-  private readonly floatingTimers = new Set<ReturnType<typeof setTimeout>>();
-
-  readonly multiAngleNameOrbitEnabled = computed(() => {
-    return !this.isPoster() && this.tabletopService.mode2d() && this.tabletopService.display().multiAngleEnabled;
-  });
-
-  readonly multiAngleResourceBuffOrbitEnabled = computed(() => {
-    return this.multiAngleNameOrbitEnabled() && this.tabletopService.display().multiAngleResourceBuffEnabled;
-  });
-
-  readonly multiAngleCurvedNameLayout = computed(() =>
-    makeMultiAngleCurvedName(this.multiAngleLabelText(), this.size() * this.gridSize)
-  );
-
-  readonly multiAngleLabelText = computed(() => {
-    const riders = this.ridingLabels()
-      .map((label) => label.name)
-      .filter((name) => name.length > 0);
-    if (riders.length > 0) return [...riders, this.name()].join('／');
-    if (this.hideBuff() || this.multiAngleResourceBuffOrbitEnabled()) return this.name();
-    const buffNames = this.buffBadges()
-      .map((buff) => buff.name.trim())
-      .filter((name) => name.length > 0)
-      .join('・');
-    if (buffNames.length < 1) return this.name();
-    const leadingBuff = Array.from(buffNames).slice(0, 5).join('');
-    return `${this.name()}/${leadingBuff}`;
-  });
+  readonly multiAngleNameOrbitEnabled = this.orbit.nameEnabled;
+  readonly multiAngleResourceBuffOrbitEnabled = this.orbit.resourceBuffEnabled;
+  readonly multiAngleCurvedNameLayout = this.orbit.curvedName;
+  readonly multiAngleLabelText = this.orbit.labelText;
 
   /** How a bar kept from this reader is filled: slanting stripes rather than a full bar. */
   protected readonly keptStripes = HIDDEN_GAUGE_STRIPES;
@@ -1249,76 +1115,16 @@ export class GameCharacterComponent {
       )
   );
 
-  readonly multiAngleResourceGaugeLayout = computed(() =>
-    makeMultiAngleResourceGauge(this.orbitPieceGauges(), this.size() * this.gridSize)
-  );
-
-  readonly multiAngleBuffOrbitLayout = computed(() => {
-    const name = this.multiAngleCurvedNameLayout();
-    const gauge = this.multiAngleResourceGaugeLayout();
-    const innerExtent = Math.max(name.radius + name.fontSize / 2 + name.strokeWidth / 2, gauge.outerExtent);
-    return makeMultiAngleBuffOrbit(
-      this.buffBadges().length,
-      this.size() * this.gridSize,
-      innerExtent,
-      this.buffIconScale()
-    );
-  });
-
-  readonly multiAngleOrbitVisible = computed(
-    () =>
-      this.multiAngleNameOrbitEnabled() &&
-      !this.ridingMount() &&
-      ((this.name().length > 0 && !this.hideName()) ||
-        (this.multiAngleResourceBuffOrbitEnabled() &&
-          (this.orbitPieceGauges().length > 0 || (!this.hideBuff() && this.buffBadges().length > 0))))
-  );
-
-  readonly multiAngleCurvedNamePathId = computed(
-    () => `multi-angle-curved-name-${this.gameCharacter()?.identifier ?? 'unknown'}`
-  );
-
-  readonly multiAngleNameOrbitAnimation = computed(() => {
-    const display = this.tabletopService.display();
-    return multiAngleOrbitAnimation(
-      multiAngleNameMotionMode(display.multiAngleMotionMode),
-      display.multiAngleRevolutionSeconds,
-      display.multiAnglePauseSeconds
-    );
-  });
-
-  readonly multiAngleResourceBuffOrbitAnimation = computed(() => {
-    const nameAnimation = this.multiAngleNameOrbitAnimation();
-    return {
-      durationSeconds: nameAnimation.durationSeconds * MULTI_ANGLE_RESOURCE_BUFF_DURATION_FACTOR,
-      timingFunction: nameAnimation.timingFunction,
-    };
-  });
-
-  private readonly multiAngleNamePhase = computed(() =>
-    multiAngleRotationPhase(`${this.gameCharacter()?.identifier ?? 'unknown'}:name`)
-  );
-
-  private readonly multiAngleResourceBuffPhase = computed(() =>
-    multiAngleRotationPhase(`${this.gameCharacter()?.identifier ?? 'unknown'}:resource-buff`)
-  );
-
-  private readonly multiAnglePiecePhase = computed(() =>
-    multiAngleRotationPhase(`${this.gameCharacter()?.identifier ?? 'unknown'}:piece`)
-  );
-
-  readonly multiAngleNameOrbitDelaySeconds = computed(
-    () => -this.multiAngleNamePhase() * this.multiAngleNameOrbitAnimation().durationSeconds
-  );
-
-  readonly multiAngleResourceBuffOrbitDelaySeconds = computed(
-    () => -this.multiAngleResourceBuffPhase() * this.multiAngleResourceBuffOrbitAnimation().durationSeconds
-  );
-
-  readonly multiAnglePieceRevolutionSeconds = computed(() => {
-    const seconds = this.tabletopService.display().multiAnglePieceRevolutionSeconds;
-    return Number.isFinite(seconds) ? clamp(seconds, 5, 300) : DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS;
-  });
+  readonly multiAngleResourceGaugeLayout = this.orbit.resourceGauge;
+  readonly multiAngleBuffOrbitLayout = this.orbit.buffOrbit;
+  readonly multiAngleOrbitVisible = this.orbit.visible;
+  readonly multiAngleCurvedNamePathId = this.orbit.curvedNamePathId;
+  readonly multiAngleNameOrbitAnimation = this.orbit.nameAnimation;
+  readonly multiAngleResourceBuffOrbitAnimation = this.orbit.resourceBuffAnimation;
+  private readonly multiAnglePiecePhase = this.orbit.piecePhase;
+  readonly multiAngleNameOrbitDelaySeconds = this.orbit.nameDelaySeconds;
+  readonly multiAngleResourceBuffOrbitDelaySeconds = this.orbit.resourceBuffDelaySeconds;
+  readonly multiAnglePieceRevolutionSeconds = this.orbit.pieceRevolutionSeconds;
 
   /** The columns the buff icons are laid out in, the same count the panel's height is reckoned by. */
   protected readonly buffBadgeColumns = `repeat(${BUFF_BADGES_PER_ROW}, minmax(0, 1fr))`;
@@ -1482,37 +1288,6 @@ export class GameCharacterComponent {
     if (!identifier) return '';
     return this.effectPlayback.tokenReactions().get(identifier) ?? '';
   });
-
-  private showResourceChanges(changes: ResourceChange[]) {
-    const entries = changes.map((change) => ({
-      ...change,
-      label: change.part ? `${this.partNameOf(change.part)} ${change.label}` : change.label,
-      key: ++this.floatingKey,
-    }));
-    this.floatingChanges.update((current) => [...current, ...entries].slice(-FLOATING_CHANGE_LIMIT));
-
-    const kind = entries.some((entry) => entry.kind === 'damage') ? 'damage' : 'heal';
-    this.hitFlash.show(kind, kind === 'damage' ? HIT_FLASH_MS : HEAL_AURA_MS);
-
-    const heard = entries.filter((entry) => entry.playsSound);
-    const loudest = loudestChange(heard);
-    // One line is heard, so all three of what is heard come from it. Taken apart, a point of
-    // damage alongside a large heal would play as a large hurt, in the heal's own voice.
-    if (loudest) {
-      SoundEffect.playLocal(resourceChangeSound(loudest.kind, loudest.ratio, loudest.soundSet), VolumeType.EFFECT);
-    }
-
-    const shown = entries.filter((entry) => entry.playsEffect);
-    const char = this.gameCharacter();
-    if (char && shown.length > 0) this.effectAutoPlay.play(char, shown);
-
-    const keys = new Set(entries.map((entry) => entry.key));
-    const floatTimer = setTimeout(() => {
-      this.floatingTimers.delete(floatTimer);
-      this.floatingChanges.update((current) => current.filter((entry) => !keys.has(entry.key)));
-    }, FLOATING_CHANGE_MS);
-    this.floatingTimers.add(floatTimer);
-  }
 
   /**
    * How a part is named over its body where a change to it is shown: its name as its row shows it, or
