@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { SaveProgress } from '@axe/application/file/save-progress';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -62,8 +63,9 @@ export class CutInListComponent {
   readonly tabs = ['Basic', 'Scene'] as const;
   readonly activeTab = signal<(typeof this.tabs)[number]>('Basic');
 
-  readonly isSaving = signal(false);
-  readonly progressPercent = signal(0);
+  private readonly saveProgress = new SaveProgress();
+  readonly isSaving = this.saveProgress.isSaving;
+  readonly progressPercent = this.saveProgress.percent;
 
   constructor() {
     queueMicrotask(
@@ -133,21 +135,12 @@ export class CutInListComponent {
 
   /** Saves the picked cut-in to a file named after it, showing progress while the file is written. */
   async save() {
-    if (!this.selectedCutIn) return;
-    this.isSaving.set(true);
-    this.progressPercent.set(0);
-
-    this.selectedCutIn.selected = true;
-    const fileName: string = 'cut_' + this.selectedCutIn.name;
-
-    await this.saveDataService.saveGameObjectAsync(this.selectedCutIn, fileName, (percent) => {
-      this.progressPercent.set(percent);
+    const cutIn = this.selectedCutIn;
+    if (!cutIn) return;
+    await this.saveProgress.run((onProgress) => {
+      cutIn.selected = true;
+      return this.saveDataService.saveGameObjectAsync(cutIn, 'cut_' + cutIn.name, onProgress);
     });
-
-    setTimeout(() => {
-      this.isSaving.set(false);
-      this.progressPercent.set(0);
-    }, 500);
   }
 
   /**
