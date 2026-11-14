@@ -23,7 +23,7 @@ import { panelOptionAt, type PointerPanelBox } from '@axe/application/ui/sheet-p
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { ImageTag } from '@axe/domain/media/image-tag';
+import { fileUntaggedImage } from '@axe/domain/media/image-tagging';
 import { LIGHT_IMAGE_TAG, LIGHT_SKIN_ASSET_URLS, LightSkinId } from '@axe/domain/media/light-skins';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { LightSource } from '@axe/domain/tabletop/light-source';
@@ -156,7 +156,7 @@ export class LightSourceComponent {
     const url = LIGHT_SKIN_ASSET_URLS[skin];
     const existing = this.imageStorage.get(url);
     const image = existing ?? this.imageStorage.add(url);
-    if (!existing) ImageTag.create(image.identifier).tag = LIGHT_IMAGE_TAG;
+    if (!existing) fileUntaggedImage(image.identifier, LIGHT_IMAGE_TAG);
     this.setSkin(light, image.identifier);
   }
 

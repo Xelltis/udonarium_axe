@@ -93,8 +93,16 @@ describe('CcfoliaRoomImportService', () => {
     expect(table.backgroundImageIdentifier).toBe('image-1');
   });
 
-  it('files a picture the room had already tagged under the import as well', async () => {
+  it('leaves a picture the room had already tagged under the tag it was given', async () => {
     (ImageTag.get('image-1') ?? ImageTag.create('image-1')).tag = 'モンスター';
+
+    await service.importAsync(entriesOf(roomData(), ['bg.jpeg']));
+
+    expect(ImageTag.get('image-1')?.tag).toBe('モンスター');
+  });
+
+  it('files a picture whose tag is still empty under the import', async () => {
+    (ImageTag.get('image-1') ?? ImageTag.create('image-1')).tag = '';
 
     await service.importAsync(entriesOf(roomData(), ['bg.jpeg']));
 

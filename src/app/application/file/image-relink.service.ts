@@ -6,6 +6,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { replaceIdentifierIn } from '@axe/domain/media/image-reference';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
+import { tagImage } from '@axe/domain/media/image-tagging';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
 /**
@@ -63,6 +64,6 @@ export class ImageRelinkService {
       next.tag = old.tag;
       next.isSecret = old.isSecret;
     }
-    (old ?? ImageTag.create(from)).tag = SYSTEM_RESERVED_TAG;
+    tagImage(from, SYSTEM_RESERVED_TAG);
   }
 }

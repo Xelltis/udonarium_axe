@@ -1,5 +1,4 @@
 import { inject, Injectable } from '@angular/core';
-import { tagImage } from '@axe/application/file/image-tagging';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { BundledModelIntakeService } from '@axe/application/tabletop/bundled-model-intake.service';
 import { PartySetOutService, type PartySpot } from '@axe/application/tabletop/party-set-out.service';
@@ -7,6 +6,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { delay } from '@axe/core/util/delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { AmbienceKind } from '@axe/domain/effect/ambience/ambience-kind';
+import { fileUntaggedImage } from '@axe/domain/media/image-tagging';
 import { LIGHT_SKIN_ASSET_URLS, LightSkinId } from '@axe/domain/media/light-skins';
 import {
   DUNGEON_PROP_ASSET_URLS,
@@ -189,7 +189,7 @@ export class DungeonBuildService {
     const existing = this.imageStorage.get(url);
     if (existing) return existing.identifier;
     const image = this.imageStorage.add(url);
-    tagImage(image.identifier, TERRAIN_IMAGE_TAG);
+    fileUntaggedImage(image.identifier, TERRAIN_IMAGE_TAG);
     return image.identifier;
   }
 

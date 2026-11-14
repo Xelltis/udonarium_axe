@@ -1,9 +1,9 @@
 import { inject, Injectable } from '@angular/core';
-import { tagImage } from '@axe/application/file/image-tagging';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { tagImage } from '@axe/domain/media/image-tagging';
 import { TEXTURE_IMAGE_TAG } from '@axe/domain/media/texture-catalog';
 import {
   TextureCropDialogComponent,

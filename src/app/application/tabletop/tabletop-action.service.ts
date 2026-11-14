@@ -33,6 +33,7 @@ import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { type AmbienceKind } from '@axe/domain/effect/ambience/ambience-kind';
 import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
+import { fileUntaggedImage } from '@axe/domain/media/image-tagging';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Party } from '@axe/domain/party/party';
 import { isAccountAvatar } from '@axe/domain/peer/account-avatar';
@@ -356,13 +357,13 @@ export class TabletopActionService {
     const back = TRUMP_BACK_IMAGE_PATH;
     if (!this.imageStorage.get(back)) {
       const image = this.imageStorage.add(back);
-      ImageTag.create(image.identifier).tag = 'トランプ';
+      fileUntaggedImage(image.identifier, 'トランプ');
     }
     for (const trump of getTrumpCardCodes()) {
       const url: string = './assets/images/trump/' + trump + '.webp';
       if (!this.imageStorage.get(url)) {
         const image = this.imageStorage.add(url);
-        ImageTag.create(image.identifier).tag = 'トランプ';
+        fileUntaggedImage(image.identifier, 'トランプ');
       }
       const card = Card.create(this.t('feature.tabletop.action.defaultCardName'), url, back);
       cardStack.putOnBottom(card);
@@ -377,11 +378,11 @@ export class TabletopActionService {
 
     if (!this.imageStorage.get(front)) {
       const image = this.imageStorage.add(front);
-      ImageTag.create(image.identifier).tag = 'トランプ';
+      fileUntaggedImage(image.identifier, 'トランプ');
     }
     if (!this.imageStorage.get(back)) {
       const image = this.imageStorage.add(back);
-      ImageTag.create(image.identifier).tag = 'トランプ';
+      fileUntaggedImage(image.identifier, 'トランプ');
     }
 
     const card = Card.create(this.t('feature.tabletop.action.defaultCardName'), front, back);

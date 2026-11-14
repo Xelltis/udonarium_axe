@@ -1,5 +1,4 @@
 import { inject, Injectable } from '@angular/core';
-import { tagImage } from '@axe/application/file/image-tagging';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { emitSelectGameTable } from '@axe/core/event/domain-events';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -8,6 +7,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ImportedCharacterFactory } from '@axe/domain/character/import/imported-character-factory';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { fileUntaggedImage } from '@axe/domain/media/image-tagging';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { SCENE_NO_PICTURE } from '@axe/domain/scene/board-scene-parts';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -103,7 +103,7 @@ export class CcfoliaRoomImportService {
         putBack: true,
       });
       if (!imageFile) continue;
-      tagImage(imageFile.identifier, IMAGE_TAG);
+      fileUntaggedImage(imageFile.identifier, IMAGE_TAG);
       images.set(resource.fileName, imageFile.identifier);
     }
     return images;

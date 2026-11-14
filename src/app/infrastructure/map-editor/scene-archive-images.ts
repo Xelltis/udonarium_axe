@@ -4,7 +4,7 @@ import { MapScene } from '@axe/domain/map-editor/scene';
 import { forEachSceneFill } from '@axe/domain/map-editor/scene-fills';
 import { deserializeScene, serializeScene } from '@axe/domain/map-editor/serialize';
 import { imageTextureIdentifier, isImageTextureId } from '@axe/domain/map-editor/textures';
-import { ImageTag } from '@axe/domain/media/image-tag';
+import { fileUntaggedImage } from '@axe/domain/media/image-tagging';
 import { TEXTURE_IMAGE_TAG } from '@axe/domain/media/texture-catalog';
 import {
   packSceneArchive,
@@ -72,10 +72,7 @@ async function registerImages(
     const imageFile = await imageStorage.addAsync(blob, { putBack: true });
     if (!imageFile) continue;
     registered.set(oldId, imageFile.identifier);
-    if (asTexture && !ImageTag.get(imageFile.identifier)) {
-      const tag = ImageTag.create(imageFile.identifier);
-      tag.tag = TEXTURE_IMAGE_TAG;
-    }
+    if (asTexture) fileUntaggedImage(imageFile.identifier, TEXTURE_IMAGE_TAG);
   }
   return registered;
 }

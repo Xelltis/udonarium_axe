@@ -1,0 +1,58 @@
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { ImageTag } from '@axe/domain/media/image-tag';
+import { fileUntaggedImage, tagImage } from '@axe/domain/media/image-tagging';
+
+describe('tagImage', () => {
+  afterEach(() => {
+    for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.delete(object, false);
+    ObjectStore.instance.clearDeleteHistory();
+  });
+
+  it('makes the tag of a picture that has none', () => {
+    const tag = tagImage('picture-1', 'テクスチャ');
+
+    expect(ImageTag.get('picture-1')).toBe(tag);
+    expect(tag.tag).toBe('テクスチャ');
+  });
+
+  it('files a picture already tagged under the new tag, on the tag the room holds', () => {
+    const held = ImageTag.create('picture-1');
+    held.tag = 'モンスター';
+
+    const tag = tagImage('picture-1', 'テクスチャ');
+
+    expect(tag).toBe(held);
+    expect(ImageTag.get('picture-1')?.tag).toBe('テクスチャ');
+    expect(ObjectStore.instance.getObjects(ImageTag)).toHaveLength(1);
+  });
+});
+
+describe('fileUntaggedImage', () => {
+  afterEach(() => {
+    for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.delete(object, false);
+    ObjectStore.instance.clearDeleteHistory();
+  });
+
+  it('makes the tag of a picture that has none', () => {
+    const tag = fileUntaggedImage('picture-1', '地形');
+
+    expect(ImageTag.get('picture-1')).toBe(tag);
+    expect(tag.tag).toBe('地形');
+  });
+
+  it('files a picture whose tag is empty', () => {
+    const held = ImageTag.create('picture-1');
+
+    expect(fileUntaggedImage('picture-1', '地形')).toBe(held);
+    expect(held.tag).toBe('地形');
+  });
+
+  it('leaves a picture a person has filed under the tag they gave it', () => {
+    const held = ImageTag.create('picture-1');
+    held.tag = 'モンスター';
+
+    expect(fileUntaggedImage('picture-1', '地形')).toBe(held);
+    expect(held.tag).toBe('モンスター');
+    expect(ObjectStore.instance.getObjects(ImageTag)).toHaveLength(1);
+  });
+});
