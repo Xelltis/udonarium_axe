@@ -1,11 +1,16 @@
 import {
+  buffEffectTimingOf,
   buffExpires,
   buffTimingOf,
   buffTriggerOf,
   BuffTurnActor,
   isBuffDueAt,
+  isBuffEffectDueAt,
+  isBuffEffectTimingField,
   isBuffTimingToken,
+  resolveBuffEffectTiming,
   resolveBuffTiming,
+  writeBuffEffectTiming,
 } from '@axe/domain/character/buff-timing';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 
@@ -99,6 +104,92 @@ describe('buff-timing', () => {
       expect(buffTriggerOf(buff)).toBe('術者');
       expect(isBuffDueAt(buff, 'turnEnd', owner, caster)).toBe(true);
       expect(isBuffDueAt(buff, 'turnEnd', owner, owner)).toBe(false);
+    });
+  });
+
+  describe('the moment a buff moves its effect at', () => {
+    it('is read behind 発生: or tick:, in any word a countdown is timed with', () => {
+      expect(resolveBuffEffectTiming('発生:手番終了')).toBe('turnEnd');
+      expect(resolveBuffEffectTiming('発生：手番開始時')).toBe('turnStart');
+      expect(resolveBuffEffectTiming('tick:turnEnd')).toBe('turnEnd');
+      expect(resolveBuffEffectTiming('TICK: start')).toBe('turnStart');
+      expect(resolveBuffEffectTiming('発生:ラウンド終了')).toBe('roundEnd');
+      expect(resolveBuffEffectTiming('tick:r')).toBe('roundEnd');
+    });
+
+    it('is not read from a bare timing, nor from a mark with no moment an effect moves at', () => {
+      expect(resolveBuffEffectTiming('手番終了')).toBeNull();
+      expect(resolveBuffEffectTiming('発生:none')).toBeNull();
+      expect(resolveBuffEffectTiming('発生:消えない')).toBeNull();
+      expect(resolveBuffEffectTiming('発生:いつか')).toBeNull();
+      expect(resolveBuffEffectTiming('発生:')).toBeNull();
+      expect(resolveBuffEffectTiming('')).toBeNull();
+    });
+
+    it('knows a field written with the mark, readable or not', () => {
+      expect(isBuffEffectTimingField('発生:手番終了')).toBe(true);
+      expect(isBuffEffectTimingField('tick:いつか')).toBe(true);
+      expect(isBuffEffectTimingField('手番終了')).toBe(false);
+      expect(isBuffEffectTimingField('@発生')).toBe(false);
+    });
+
+    it('is none on a buff that writes none, an empty one or one this version does not know', () => {
+      expect(buffEffectTimingOf(makeBuff())).toBeNull();
+      expect(buffEffectTimingOf(makeBuff({ [DataElementAttribute.BUFF_EFFECT_TIMING]: '' }))).toBeNull();
+      expect(buffEffectTimingOf(makeBuff({ [DataElementAttribute.BUFF_EFFECT_TIMING]: '  ' }))).toBeNull();
+      expect(buffEffectTimingOf(makeBuff({ [DataElementAttribute.BUFF_EFFECT_TIMING]: 'none' }))).toBeNull();
+      expect(buffEffectTimingOf(makeBuff({ [DataElementAttribute.BUFF_EFFECT_TIMING]: 'someday' }))).toBeNull();
+      expect(buffEffectTimingOf(makeBuff({ [DataElementAttribute.BUFF_EFFECT_TIMING]: 'turnEnd' }))).toBe('turnEnd');
+    });
+
+    it('is written and taken away again', () => {
+      const buff = makeBuff();
+      writeBuffEffectTiming(buff, 'turnStart');
+      expect(buff.getAttribute(DataElementAttribute.BUFF_EFFECT_TIMING)).toBe('turnStart');
+      writeBuffEffectTiming(buff, '');
+      expect(DataElementAttribute.BUFF_EFFECT_TIMING in buff.toAttributes()).toBe(false);
+    });
+
+    it('leaves a buff with rounds and no moment of its own to move as it is counted', () => {
+      const buff = makeBuff();
+      expect(isBuffEffectDueAt(buff, 'roundEnd', owner, { identifier: '', name: '' })).toBe(false);
+      expect(isBuffEffectDueAt(buff, 'turnStart', owner, owner)).toBe(false);
+    });
+
+    it('moves a buff never counted down at the end of the round, and at no turn', () => {
+      const buff = makeBuff({ [DataElementAttribute.BUFF_TIMING]: 'none' });
+      expect(isBuffEffectDueAt(buff, 'roundEnd', owner, { identifier: '', name: '' })).toBe(true);
+      expect(isBuffEffectDueAt(buff, 'turnStart', owner, owner)).toBe(false);
+      expect(isBuffEffectDueAt(buff, 'turnEnd', owner, owner)).toBe(false);
+    });
+
+    it("moves at the buff's own moment alone, on the turn of the piece carrying it whatever its trigger", () => {
+      const buff = makeBuff({
+        [DataElementAttribute.BUFF_TIMING]: 'turnStart',
+        [DataElementAttribute.BUFF_TRIGGER]: caster.identifier,
+        [DataElementAttribute.BUFF_EFFECT_TIMING]: 'turnEnd',
+      });
+      expect(isBuffEffectDueAt(buff, 'turnEnd', owner, owner)).toBe(true);
+      expect(isBuffEffectDueAt(buff, 'turnEnd', owner, caster)).toBe(false);
+      expect(isBuffEffectDueAt(buff, 'turnStart', owner, caster)).toBe(false);
+      expect(isBuffEffectDueAt(buff, 'roundEnd', owner, { identifier: '', name: '' })).toBe(false);
+    });
+
+    it('moves a buff never counted down at its own moment in place of the end of the round', () => {
+      const buff = makeBuff({
+        [DataElementAttribute.BUFF_TIMING]: 'none',
+        [DataElementAttribute.BUFF_EFFECT_TIMING]: 'turnStart',
+      });
+      expect(isBuffEffectDueAt(buff, 'turnStart', owner, owner)).toBe(true);
+      expect(isBuffEffectDueAt(buff, 'roundEnd', owner, { identifier: '', name: '' })).toBe(false);
+    });
+
+    it('moves at the end of the round for whoever carries it, where that is its own moment', () => {
+      const buff = makeBuff({
+        [DataElementAttribute.BUFF_TIMING]: 'turnStart',
+        [DataElementAttribute.BUFF_EFFECT_TIMING]: 'roundEnd',
+      });
+      expect(isBuffEffectDueAt(buff, 'roundEnd', owner, { identifier: '', name: '' })).toBe(true);
     });
   });
 });

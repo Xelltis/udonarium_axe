@@ -2243,6 +2243,15 @@
         "timing_turnStart": "Start of trigger's turn",
         "timing_turnEnd": "End of trigger's turn",
         "timing_none": "Never",
+        "effectTiming": "Effect moves",
+        "effectTiming_onCount": "When the rounds count down",
+        "effectTiming_everyRound": "End of round (default)",
+        "effectTiming_roundEnd": "End of round",
+        "effectTiming_turnStart": "Start of its own turn",
+        "effectTiming_turnEnd": "End of its own turn",
+        "effectTimingMark_roundEnd": "tick: round end",
+        "effectTimingMark_turnStart": "tick: turn start",
+        "effectTimingMark_turnEnd": "tick: turn end",
         "trigger": "Trigger character",
         "triggerPlaceholder": "Defaults to the bearer",
         "triggerUnknown": "{{name}} (off table)",
@@ -4439,7 +4448,9 @@
           "unreadable": "The status, operation or amount cannot be read, so no buff is laid",
           "missingStatus": "There is no \"{{name}}\", so that status does not move",
           "notFound": "{{piece}} has no buff \"{{name}}\"",
-          "roundsDefault": "The rounds are no number, so it lasts 3 rounds"
+          "roundsDefault": "The rounds are no number, so it lasts 3 rounds",
+          "badEffectTiming": "The effect's timing cannot be read, so the buff is laid without it (tick:roundEnd, tick:turnStart, tick:turnEnd)",
+          "idleEffectTiming": "Nothing moves at every count (~), so the effect's timing is not used"
         },
         "sweep": {
           "gmOnly": "Only the GM can sweep buffs off"
@@ -4500,6 +4511,8 @@
         "buffPlain": "Lay",
         "buffEffect": "effect",
         "buffCalculated": "Move a status",
+        "buffEffectTiming": "Move the effect at turn start",
+        "buffEffectTimingField": "tick:turnStart",
         "buffRemove": "Take off",
         "buffRoundsDown": "Count rounds down",
         "buffClear": "Clear those at 0 rounds",
@@ -5574,6 +5587,7 @@
       "builderStacksHint": "Add to a buff of the same name",
       "builderExtends": "Lengthen too",
       "builderExtendsHint": "Add the rounds to the ones left",
+      "builderEffectTimingHint": "When the amount moved at every count moves. Left unchosen, as the rounds count down (at the end of the round for a buff that never expires)",
       "copy": "Copy",
       "copied": "Copied",
       "buffCount": "{{n}} buffs",

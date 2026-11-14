@@ -6,7 +6,7 @@ import {
   type ParsedBuffModifierRequest,
 } from '@axe/domain/character/buff-modifier';
 import type { BuffPileOn } from '@axe/domain/character/buff-stack';
-import { isBuffTimingToken, resolveBuffTiming } from '@axe/domain/character/buff-timing';
+import { isBuffEffectTimingField, isBuffTimingToken, resolveBuffTiming } from '@axe/domain/character/buff-timing';
 
 /**
  * What a `&` buff command does: move every buff's rounds down or up, clear the buffs at nought, take
@@ -81,11 +81,14 @@ export function readCalculatedBuff(command: string): CalculatedBuffCommand {
 /**
  * A buff command's fields from where its rounds go, split into the rounds and the look written after
  * them. A timing written where the rounds go, `&毒/継続2/none`, reads as the rounds left out and the
- * timing as the first of the look, so a buff meant to stay is not laid for three rounds instead.
+ * timing as the first of the look, so a buff meant to stay is not laid for three rounds instead. So
+ * does the moment its effect moves at, `発生:手番開始`.
  */
 export function splitBuffRounds(fields: readonly string[]): { rounds: string | undefined; look: string[] } {
   const [rounds, ...look] = fields;
-  if (rounds !== undefined && isBuffTimingToken(rounds)) return { rounds: undefined, look: [...fields] };
+  if (rounds !== undefined && (isBuffTimingToken(rounds) || isBuffEffectTimingField(rounds))) {
+    return { rounds: undefined, look: [...fields] };
+  }
   return { rounds, look };
 }
 
@@ -93,7 +96,8 @@ export function splitBuffRounds(fields: readonly string[]): { rounds: string | u
  * The look written after a `&!` command's rounds. A timing, or a blank where it goes, followed by a
  * bare name stands as it always has, the timing and the piece whose turn it waits for; past those,
  * or written any other way, the fields are read as a plain buff's look is: a colour, an icon, a
- * timing and an `@` trigger, in whichever order they come.
+ * timing, an `@` trigger and the moment the effect moves at behind `発生:`, in whichever order they
+ * come.
  */
 export function readCalculatedBuffLook(fields: readonly string[]): BuffAppearance {
   const [timing = '', trigger = ''] = fields.map((field) => (field ?? '').trim());
@@ -102,7 +106,8 @@ export function readCalculatedBuffLook(fields: readonly string[]): BuffAppearanc
     trigger.length > 0 &&
     !trigger.startsWith('@') &&
     !isBuffColorToken(trigger) &&
-    !isBuffTimingToken(trigger);
+    !isBuffTimingToken(trigger) &&
+    !isBuffEffectTimingField(trigger);
   if (!bare) return parseBuffAppearance(fields);
   const look = { ...parseBuffAppearance(fields.slice(2)), trigger };
   return timing.length > 0 ? { ...look, timing: resolveBuffTiming(timing)! } : look;

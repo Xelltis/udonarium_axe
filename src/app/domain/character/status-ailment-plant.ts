@@ -10,18 +10,20 @@ import { type StatusAilment, withRounds } from '@axe/domain/character/status-ail
  * it moved is written on the buff so that taking the state off gives back exactly that much. A
  * state naming a status the sheet has not got goes on as a plain note: better a mark the master
  * can see than nothing at all, and a state read from an older room may name no status. A caster
- * to count its rounds from goes on with it where one is given.
+ * to count its rounds from goes on with it where one is given, and so does a moment for its effect
+ * to move at; without one the state moves as it is counted down, whatever one worn before did.
  */
 export function plantStatusAilment(
   character: GameCharacter,
   ailment: StatusAilment,
-  look: Pick<BuffAppearance, 'trigger'> = {}
+  look: Pick<BuffAppearance, 'trigger' | 'effectTiming'> = {}
 ): void {
   character.addBuffDataElement();
   character.buffs.addRound(ailment.name, ailment.effect, ailment.rounds, {
     color: ailment.color,
     icon: ailment.icon,
     timing: ailment.timing,
+    effectTiming: '',
     ...look,
   });
   if ((ailment.stat ?? '').trim().length < 1) return;

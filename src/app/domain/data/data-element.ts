@@ -91,6 +91,7 @@ export const DataElementAttribute = {
   BUFF_COLOR: 'cs-buff-color',
   BUFF_TIMING: 'cs-buff-timing',
   BUFF_TRIGGER: 'cs-buff-trigger',
+  BUFF_EFFECT_TIMING: 'cs-buff-effect-timing',
   BUFF_MOD_TARGET: 'cs-buff-mod-target',
   BUFF_MOD_SLOT: 'cs-buff-mod-slot',
   BUFF_MOD_OPERATOR: 'cs-buff-mod-operator',

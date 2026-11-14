@@ -105,7 +105,7 @@ export class TurnOrderService {
   private opening: TurnOpening | null = null;
   /**
    * What the step under way has seen run out of the buffs that leave their status moved, by piece
-   * and then by name, with how far their last count moved it; none outside a step.
+   * and then by name, with how far each stood moved in all as it went; none outside a step.
    */
   private ranOut: Map<string, Map<string, number>> | null = null;
 
@@ -714,8 +714,10 @@ export class TurnOrderService {
   }
 
   /**
-   * Runs out the buffs whose moment it is. Only the peer that pressed runs this, so the countdown
-   * drops once even between peers.
+   * Runs out the buffs whose moment it is, and moves the status of those whose effect moves at it: a
+   * buff with a moment of its own for that, and one never counted down at the end of the round. Only
+   * the peer that pressed runs this, so the countdown drops once, and an effect moves once, even
+   * between peers.
    */
   private expireBuffs(timing: BuffTiming, acting: BuffTurnActor): void {
     if (!this.turnState.buffDecay) return;

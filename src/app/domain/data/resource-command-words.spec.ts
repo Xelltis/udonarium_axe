@@ -180,4 +180,25 @@ describe('resourceCommandParts', () => {
   it('answers null when nothing follows the name', () => {
     expect(resourceCommandParts(':HP')).toBeNull();
   });
+
+  it('keeps the field telling when a buff moves its effect in the buff command, its colon and all', () => {
+    const line =
+      '&!再生/:HP/+/0~+3/none/発生:手番開始 t&!毒/:HP+0~-1/3/@術者/tick：turnEnd/red &再生/回復/発生:手番終了';
+    const words = resourceCommandSites(line);
+
+    expect(words.buffs.map((site) => site.command)).toEqual([
+      '&!再生/:HP/+/0~+3/none/発生:手番開始',
+      't&!毒/:HP+0~-1/3/@術者/tick:turnEnd/red',
+      '&再生/回復/発生:手番終了',
+    ]);
+    expect(words.resources).toEqual([]);
+    expect(line.slice(words.buffs[0].from, words.buffs[0].to)).toBe('&!再生/:HP/+/0~+3/none/発生:手番開始');
+  });
+
+  it('still cuts a resource command begun right after a buff, whatever the field before it reads', () => {
+    const words = resourceCommandSites('&毒/3:HP-3 &発生:HP-1 &毒/発生:HP-1 &毒/効果/発生力:HP-1');
+
+    expect(words.buffs.map((site) => site.command)).toEqual(['&毒/3', '&発生', '&毒/発生', '&毒/効果/発生力']);
+    expect(words.resources.map((site) => site.command)).toEqual([':HP-3', ':HP-1', ':HP-1', ':HP-1']);
+  });
 });

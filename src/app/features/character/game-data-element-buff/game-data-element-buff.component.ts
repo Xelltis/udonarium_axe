@@ -16,7 +16,18 @@ import {
   buffIconUrlOf,
   parseBuffStrength,
 } from '@axe/domain/character/buff-badge';
-import { BUFF_TIMINGS, buffExpires, BuffTiming, buffTimingOf, buffTriggerOf } from '@axe/domain/character/buff-timing';
+import { readBuffModifier } from '@axe/domain/character/buff-modifier';
+import {
+  BUFF_EFFECT_TIMINGS,
+  BUFF_TIMINGS,
+  BuffEffectTiming,
+  buffEffectTimingOf,
+  buffExpires,
+  BuffTiming,
+  buffTimingOf,
+  buffTriggerOf,
+  writeBuffEffectTiming,
+} from '@axe/domain/character/buff-timing';
 import { buffTriggerOptions, selectedTriggerValue } from '@axe/domain/character/buff-trigger-options';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { owningCharacterOf } from '@axe/domain/character/owning-character';
@@ -191,6 +202,25 @@ export class GameDataElementBuffComponent {
     return buffTriggerOf(element);
   });
 
+  readonly effectTimingChoices = BUFF_EFFECT_TIMINGS;
+
+  /** The moment the buff's effect moves at, where it has one of its own; empty where it has none. */
+  readonly effectTiming = computed<BuffEffectTiming | ''>(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    return buffEffectTimingOf(element) ?? '';
+  });
+
+  /**
+   * Whether there is a moment to choose for the buff's effect: it moves a status again at every
+   * count, or it carries a moment already, which can then be taken away.
+   */
+  readonly canTimeEffect = computed(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    return readBuffModifier(element)?.step !== undefined || buffEffectTimingOf(element) !== null;
+  });
+
   /**
    * The pieces a buff may be timed by, leaving out those on the table this reader cannot see and those
    * whose name is kept from them.
@@ -219,6 +249,17 @@ export class GameDataElementBuffComponent {
     const element = this.gameDataElement();
     element.setAttribute(DataElementAttribute.BUFF_TIMING, timing);
     if (timing === 'roundEnd') element.removeAttribute(DataElementAttribute.BUFF_TRIGGER);
+    this.objectChange.notifyChanged(element.identifier);
+  }
+
+  /**
+   * Sets the moment the buff's effect moves at, and tells the room the element changed. An empty
+   * choice takes it away, so the effect moves as the buff is counted down, or at the end of the round
+   * for a buff that never is.
+   */
+  selectEffectTiming(timing: BuffEffectTiming | ''): void {
+    const element = this.gameDataElement();
+    writeBuffEffectTiming(element, timing);
     this.objectChange.notifyChanged(element.identifier);
   }
 

@@ -85,4 +85,37 @@ describe('buff-command', () => {
       ['2', '2'],
     ]);
   });
+
+  describe('the moment the effect moves at', () => {
+    it('is read after a timing without being taken for the bare name of a trigger', () => {
+      expect(readCalculatedBuffLook(['none', '発生:手番開始'])).toEqual({ timing: 'none', effectTiming: 'turnStart' });
+    });
+
+    it('is read beside an @ trigger', () => {
+      expect(readCalculatedBuffLook(['@術者', '発生:手番終了'])).toEqual({ trigger: '術者', effectTiming: 'turnEnd' });
+    });
+
+    it('is read after a timing and the bare name of a trigger', () => {
+      expect(readCalculatedBuffLook(['手番開始', '術者', 'tick:turnEnd'])).toEqual({
+        timing: 'turnStart',
+        trigger: '術者',
+        effectTiming: 'turnEnd',
+      });
+    });
+
+    it('stands where the rounds go as the rounds left out', () => {
+      expect(splitBuffRounds(['発生:手番開始', 'red'])).toEqual({ rounds: undefined, look: ['発生:手番開始', 'red'] });
+      expect(splitBuffRounds(['3', '発生:手番開始'])).toEqual({ rounds: '3', look: ['発生:手番開始'] });
+    });
+
+    it('is among the fields after the amount of the commands the manual gives', () => {
+      const read = readCalculatedBuff('&!再生/:HP/+/0~+3/3/@術者/発生:手番終了');
+      expect(read.requests).toEqual([
+        { target: 'HP', slot: 'now', operator: 'add', amount: 0, step: 3, lasting: true },
+      ]);
+      const { rounds, look } = splitBuffRounds(read.rest);
+      expect(rounds).toBe('3');
+      expect(readCalculatedBuffLook(look)).toEqual({ trigger: '術者', effectTiming: 'turnEnd' });
+    });
+  });
 });

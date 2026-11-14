@@ -8,6 +8,7 @@ import {
   removedBuffName,
   splitBuffRounds,
 } from '@axe/domain/character/buff-command';
+import { isBuffEffectTimingField, resolveBuffEffectTiming } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { findStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -64,6 +65,8 @@ export const CHAT_LINT_CODES = [
   'buff.missingStatus',
   'buff.notFound',
   'buff.roundsDefault',
+  'buff.badEffectTiming',
+  'buff.idleEffectTiming',
   'sweep.gmOnly',
   'portrait.unknown',
   'portrait.lostByTarget',
@@ -445,6 +448,8 @@ function lintBuff(
         add(span, 'warning', 'buff.missingStatus', { params: { name: request.target } });
       }
     }
+    const movesAtCounts = read.requests.some((request) => request.step !== undefined);
+    lintEffectTiming(read.rest, movesAtCounts, span, add);
     return;
   }
   if (kind === 'plain') {
@@ -452,7 +457,20 @@ function lintBuff(
     const named = findStatusAilment(StatusAilmentCatalog.instance.ailments, parts[0]);
     const { rounds } = splitBuffRounds(parts.slice(2));
     if (!named && rounds && Number.isNaN(parseInt(rounds))) add(span, 'info', 'buff.roundsDefault');
+    lintEffectTiming(parts.slice(2), named != null, span, add);
   }
+}
+
+/**
+ * Checks the moment a buff's effect is told to move at, `発生:手番終了`: one that cannot be read is
+ * left out as the buff is laid, and one on a buff that moves nothing at every count has nothing to
+ * time.
+ */
+function lintEffectTiming(fields: readonly string[], movesAtCounts: boolean, span: TextRange, add: Report): void {
+  const written = fields.filter((field) => isBuffEffectTimingField(field));
+  if (written.length < 1) return;
+  if (written.some((field) => resolveBuffEffectTiming(field) === null)) add(span, 'error', 'buff.badEffectTiming');
+  else if (!movesAtCounts) add(span, 'info', 'buff.idleEffectTiming');
 }
 
 /** Whether an `@name` no portrait answers plays the sound of the cut-in of that name instead, as it is meant to. */

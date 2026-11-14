@@ -146,6 +146,106 @@ describe('GameDataElementBuffComponent', () => {
     row.destroy();
   });
 
+  describe('the moment the effect moves at', () => {
+    /** A buff that heals 3 at every count and leaves it healed, as `&!再生/:HP/+/0~+3` lays it. */
+    function stepping(timing: string): DataElement {
+      const row = DataElement.create('再生', 3, { type: 'numberResource', currentValue: ':HP+0~+3' });
+      row.setAttribute(DataElementAttribute.BUFF_TIMING, timing);
+      row.setAttribute(DataElementAttribute.BUFF_MOD_TARGET, 'HP');
+      row.setAttribute(DataElementAttribute.BUFF_MOD_APPLIED, '0');
+      row.setAttribute(DataElementAttribute.BUFF_MOD_KEPT, '0');
+      row.setAttribute(DataElementAttribute.BUFF_MOD_KEPT_STEP, '3');
+      return row;
+    }
+
+    const select = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('[data-testid="buff-row-effect-timing"]');
+    const shown = () => select()!.options[select()!.selectedIndex]?.textContent?.trim();
+
+    it('is not offered for a buff that moves nothing at every count', async () => {
+      const row = DataElement.create('猛攻撃', 3, { type: 'numberResource', currentValue: '筋力+2' });
+      fixture.componentRef.setInput('gameDataElement', row);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(select()).toBeNull();
+      row.destroy();
+    });
+
+    it('stands on the count for a buff with rounds that has none of its own', async () => {
+      const row = stepping('roundEnd');
+      fixture.componentRef.setInput('gameDataElement', row);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(shown()).toBe('残ラウンドが減るとき');
+      row.destroy();
+    });
+
+    it('stands on the end of the round for a buff that never runs out and has none of its own', async () => {
+      const row = stepping('none');
+      fixture.componentRef.setInput('gameDataElement', row);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(shown()).toBe('ラウンド終了時（既定）');
+      row.destroy();
+    });
+
+    it('shows the moment the buff carries, and writes the one chosen', async () => {
+      const row = stepping('none');
+      row.setAttribute(DataElementAttribute.BUFF_EFFECT_TIMING, 'turnStart');
+      fixture.componentRef.setInput('gameDataElement', row);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(shown()).toBe('本人の手番開始時');
+
+      const control = select()!;
+      control.selectedIndex = [...control.options].findIndex(
+        (option) => option.textContent?.trim() === '本人の手番終了時'
+      );
+      control.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(row.getAttribute(DataElementAttribute.BUFF_EFFECT_TIMING)).toBe('turnEnd');
+      expect(shown()).toBe('本人の手番終了時');
+      row.destroy();
+    });
+
+    it('takes the moment away where the first choice is made, and keeps the row to choose from', async () => {
+      const row = DataElement.create('再生', 3, { type: 'numberResource', currentValue: '回復' });
+      row.setAttribute(DataElementAttribute.BUFF_EFFECT_TIMING, 'turnEnd');
+      fixture.componentRef.setInput('gameDataElement', row);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(shown()).toBe('本人の手番終了時');
+
+      component.selectEffectTiming('');
+
+      expect(DataElementAttribute.BUFF_EFFECT_TIMING in row.toAttributes()).toBe(false);
+      row.destroy();
+    });
+
+    it('is marked beside the rounds on the piece where the buff has one of its own, and not otherwise', () => {
+      const row = stepping('none');
+      fixture.componentRef.setInput('gameDataElement', row);
+      fixture.componentRef.setInput('isPieceMode', true);
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      const mark = () => root.querySelector('[data-testid="buff-row-effect-timing-mark"]');
+      expect(mark()).toBeNull();
+      expect(root.querySelector('[data-testid="buff-row-text"]')?.textContent?.trim()).toBe('再生 / :HP+0~+3 / ∞R');
+
+      row.setAttribute(DataElementAttribute.BUFF_EFFECT_TIMING, 'turnEnd');
+      TestBed.inject(ObjectChangeService).notifyChanged(row.identifier);
+      fixture.detectChanges();
+
+      expect(mark()?.textContent?.trim()).toBe('発生:手番終了');
+      row.destroy();
+    });
+  });
+
   it('fetches the picture selector and puts the picture chosen in place of the mark', async () => {
     const open = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue('poison-picture');
 

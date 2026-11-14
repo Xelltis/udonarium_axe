@@ -56,7 +56,8 @@ export function hasSecretEditMark(text: string): boolean {
  * `&` or `t&` is taken off, the rest of the word then read as any other. Each word is a sweep, or
  * else, when it starts with `:`, `&`, `t:` or `t&`, splits into the commands each mark begins. A
  * `:` that starts a status in a buff's fields, as in `&!毒/:HP/+/0~-3/3`, marks the status to stay
- * moved and begins no command of its own. A word that starts any other way holds no command. A stamp
+ * moved and begins no command of its own, and neither does the `:` of a field telling when the buff's
+ * effect moves, `発生:手番終了`. A word that starts any other way holds no command. A stamp
  * put inside the line ends a word as a space does, so one put right after a command is never read as
  * part of it.
  */
@@ -105,20 +106,38 @@ export function resourceCommandSites(text: string): ResourceCommandWords {
 /** What stands in for a buff's `:` mark while a word is cut at its commands, one character for one. */
 const LASTING_MARK_HIDDEN = '\u0001';
 
+/** The words a buff's field starts with to tell when its effect moves, `発生:手番終了`, before their `:`. */
+const EFFECT_TIMING_WORD = /^(?:発生|tick)$/i;
+
 /**
- * A word, marks made half-width, with each `:` hidden that starts a status in the fields of a buff
- * command, right after the `/` or comma before the status. Any other `:` begins a resource command.
+ * A word, marks made half-width, with each `:` hidden that belongs to the fields of a buff command:
+ * one that starts a status, right after the `/` or comma before the status, and one after a field
+ * that reads `発生` or `tick` and nothing else, past the buff's name and note, which tells when its
+ * effect moves. Any other `:` begins a resource command.
  */
 function hideLastingMarks(word: string): string {
   let inBuff = false;
+  let fieldFrom = 0;
+  let fieldsBefore = 0;
   let hidden = '';
   for (let index = 0; index < word.length; index++) {
     const character = word[index];
-    if (character === '&') inBuff = true;
-    else if (character === ':' && inBuff && /[/,，、]/.test(word[index - 1] ?? '')) {
-      hidden += LASTING_MARK_HIDDEN;
-      continue;
-    } else if (character === ':') inBuff = false;
+    if (character === '&') {
+      inBuff = true;
+      fieldFrom = index + 1;
+      fieldsBefore = 0;
+    } else if (character === '/' && inBuff) {
+      fieldFrom = index + 1;
+      fieldsBefore++;
+    } else if (character === ':' && inBuff) {
+      const startsStatus = /[/,，、]/.test(word[index - 1] ?? '');
+      const timesEffect = fieldsBefore >= 2 && EFFECT_TIMING_WORD.test(word.slice(fieldFrom, index));
+      if (startsStatus || timesEffect) {
+        hidden += LASTING_MARK_HIDDEN;
+        continue;
+      }
+      inBuff = false;
+    }
     hidden += character;
   }
   return hidden;

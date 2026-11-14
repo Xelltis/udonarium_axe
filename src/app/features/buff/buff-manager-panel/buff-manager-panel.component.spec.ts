@@ -4,7 +4,9 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { buffEffectTimingOf, buffTimingOf, buffTriggerOf } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BuffManagerPanelComponent } from '@axe/features/buff/buff-manager-panel/buff-manager-panel.component';
@@ -126,6 +128,58 @@ describe('BuffManagerPanelComponent', () => {
     const chosen = timing.options[timing.selectedIndex];
 
     expect(chosen?.textContent).toContain('手番開始');
+  });
+
+  describe('the moment the picked buff moves its effect at', () => {
+    function healing(): GameCharacter {
+      const buffed = makeCharacter('バフ持ち');
+      buffed.status.setValue('HP', 'now', 10);
+      applyBuffEdit({ command: '&!再生/:HP/+/0~+3/none', object: buffed, targeted: false }, buffed);
+      return buffed;
+    }
+
+    const select = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>(
+        '[data-testid="buff-selected-effect-timing"]'
+      );
+
+    it('is offered for a buff that moves at every count, standing on what it does without one', async () => {
+      onTable([healing()]);
+      component.select(component.rows()[0].bars[0]);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const control = select()!;
+      expect(control.options[control.selectedIndex]?.textContent?.trim()).toBe('ラウンド終了時（既定）');
+    });
+
+    it('is not offered for a buff that moves nothing at every count', async () => {
+      const buffed = makeCharacter('バフ持ち');
+      buffed.buffs.addRound('猛攻撃', '命中+2', 3);
+      onTable([buffed]);
+      component.select(component.rows()[0].bars[0]);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(select()).toBeNull();
+    });
+
+    it('is written on the buff, shown as chosen, and taken away again', async () => {
+      const buffed = healing();
+      onTable([buffed]);
+      component.select(component.rows()[0].bars[0]);
+
+      component.setEffectTiming('turnStart');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(buffEffectTimingOf(buffed.buffs.find('再生')!)).toBe('turnStart');
+      expect(component.rows()[0].bars[0].effectTiming).toBe('turnStart');
+      expect(select()!.options[select()!.selectedIndex]?.textContent?.trim()).toBe('本人の手番開始時');
+
+      component.setEffectTiming('');
+      expect(buffEffectTimingOf(buffed.buffs.find('再生')!)).toBeNull();
+    });
   });
 
   it('takes a buff off the piece from the chart', () => {
@@ -279,6 +333,61 @@ describe('BuffManagerPanelComponent', () => {
 
       expect(component.builderPreview()).toBe('攻撃+3');
       expect(component.builderCommand()).toBe('&!鼓舞/攻撃/+/(3+4)÷2/1');
+    });
+
+    it('writes the moment chosen for the effect last, behind tick:, where a status moves at every count', () => {
+      component.builderName.set('再生');
+      component.builderStatus.set('HP');
+      component.builderKeeps.set(true);
+      component.builderOperator.set('+');
+      component.builderAmount.set('0');
+      component.builderStep.set('+3');
+      component.builderRounds.set('3');
+      component.builderTiming.set('none');
+      component.builderEffectTiming.set('turnStart');
+
+      expect(component.builderCommand()).toBe('&!再生/:HP/+/0~+3/3/none/tick:turnStart');
+
+      component.builderTiming.set('turnStart');
+      component.builderTrigger.set('術者');
+      component.builderEffectTiming.set('turnEnd');
+      expect(component.builderCommand()).toBe('&!再生/:HP/+/0~+3/3/turnStart/術者/tick:turnEnd');
+    });
+
+    it('lays the buff the builder wrote with the moment it chose', () => {
+      component.builderName.set('再生');
+      component.builderStatus.set('HP');
+      component.builderKeeps.set(true);
+      component.builderAmount.set('0');
+      component.builderStep.set('+3');
+      component.builderTiming.set('turnStart');
+      component.builderTrigger.set('術者');
+      component.builderEffectTiming.set('turnEnd');
+      const piece = makeCharacter('受け手');
+
+      applyBuffEdit({ command: component.builderCommand(), object: piece, targeted: false }, piece);
+
+      const laid = piece.buffs.find('再生')!;
+      expect(buffEffectTimingOf(laid)).toBe('turnEnd');
+      expect(buffTimingOf(laid)).toBe('turnStart');
+      expect(buffTriggerOf(laid)).toBe('術者');
+    });
+
+    it('leaves the moment out, and its choice closed, where nothing moves at every count', async () => {
+      component.builderStep.set('');
+      component.builderEffectTiming.set('turnStart');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const control = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>(
+        '[data-testid="buff-builder-effect-timing"]'
+      );
+
+      expect(component.builderCommand()).not.toContain('tick:');
+      expect(control?.disabled).toBe(true);
+
+      component.builderStep.set('-1');
+      component.builderOperator.set('=');
+      expect(component.builderCommand()).not.toContain('tick:');
     });
 
     it('says nothing about an effect it cannot read', () => {

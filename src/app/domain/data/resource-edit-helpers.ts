@@ -339,6 +339,9 @@ const KEPT_VALUE = '？';
  * status, all of them marked as the one buff, so that a version that knows no such buff shows them
  * as buffs of their own that each put back what they moved.
  *
+ * A field `発生:手番終了` (`tick:turnEnd`) after the rounds gives the effect a moment of its own to move
+ * at, in place of moving as the buff is counted down.
+ *
  * `&+!` stacks: a second helping moves the status again and the buff remembers both, rather than
  * putting the first one back, and `&++!` lengthens the buff by the rounds asked for as well.
  * Holding a status at a value (`=`) is the one thing that cannot stack, since holding it there
@@ -371,7 +374,9 @@ function grantCalculatedBuff(
   if (!stacking) character.buffs.removeGroupMembers(name);
   const grouped = requests.length > 1;
   const group = grouped ? name : stacking ? undefined : '';
-  const appearance = { ...readCalculatedBuffLook(look), group };
+  const written = readCalculatedBuffLook(look);
+  // Laid anew, a buff written without a moment for its effect has none, whatever one of its name had.
+  const appearance = { ...written, effectTiming: written.effectTiming ?? (stacking ? undefined : ''), group };
 
   const missing: string[] = [];
   const effects: string[] = [];
@@ -505,7 +510,10 @@ function plantCommandedState(state: StatusAilment, parts: string[], character: G
     rounds: Number.isNaN(rounds) ? null : rounds,
     look,
   });
-  plantStatusAilment(character, ailment, look.trigger ? { trigger: look.trigger } : {});
+  plantStatusAilment(character, ailment, {
+    ...(look.trigger ? { trigger: look.trigger } : {}),
+    ...(look.effectTiming ? { effectTiming: look.effectTiming } : {}),
+  });
   const counted = ailment.rounds > 0 && ailment.timing !== 'none';
   const told = [ailment.name, ailment.effect, counted ? `${ailment.rounds}R` : '', ...written.look];
   return `バフを付与 ${told.filter((part) => part.length > 0).join('/')}    `;

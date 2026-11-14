@@ -2243,6 +2243,15 @@
         "timing_turnStart": "トリガーの手番開始時",
         "timing_turnEnd": "トリガーの手番終了時",
         "timing_none": "消えない",
+        "effectTiming": "効果の発生タイミング",
+        "effectTiming_onCount": "残ラウンドが減るとき",
+        "effectTiming_everyRound": "ラウンド終了時（既定）",
+        "effectTiming_roundEnd": "ラウンド終了時",
+        "effectTiming_turnStart": "本人の手番開始時",
+        "effectTiming_turnEnd": "本人の手番終了時",
+        "effectTimingMark_roundEnd": "発生:ラウンド終了",
+        "effectTimingMark_turnStart": "発生:手番開始",
+        "effectTimingMark_turnEnd": "発生:手番終了",
         "trigger": "トリガーキャラクター",
         "triggerPlaceholder": "未指定なら本人",
         "triggerUnknown": "{{name}}（卓外）",
@@ -4439,7 +4448,9 @@
           "unreadable": "ステータス・操作・量が読めないため、バフは付きません",
           "missingStatus": "「{{name}}」がないため、そのステータスは動きません",
           "notFound": "{{piece}}には「{{name}}」のバフがありません",
-          "roundsDefault": "残ラウンドが数ではないため、3ラウンドになります"
+          "roundsDefault": "残ラウンドが数ではないため、3ラウンドになります",
+          "badEffectTiming": "発生のタイミングが読めないため、書かなかったものとして付きます（発生:ラウンド終了・発生:手番開始・発生:手番終了）",
+          "idleEffectTiming": "減るたびに動かす量（~）がないため、発生のタイミングは使われません"
         },
         "sweep": {
           "gmOnly": "バフの一括解除はGMだけが使えます"
@@ -4500,6 +4511,8 @@
         "buffPlain": "付ける",
         "buffEffect": "効果",
         "buffCalculated": "ステータスを動かす",
+        "buffEffectTiming": "手番開始で効果を動かす",
+        "buffEffectTimingField": "発生:手番開始",
         "buffRemove": "外す",
         "buffRoundsDown": "残ラウンドを減らす",
         "buffClear": "0ラウンド以下を消す",
@@ -5574,6 +5587,7 @@
       "builderStacksHint": "同名バフに足す（上書きしない）",
       "builderExtends": "ラウンドも足す",
       "builderExtendsHint": "残ラウンドに足す（長いほう勝ちにしない）",
+      "builderEffectTimingHint": "数えるたびに動かす量が動くとき。選ばなければ残ラウンドが減るとき（消えないバフはラウンド終了時）",
       "copy": "コピー",
       "copied": "コピーしました",
       "buffCount": "{{n}} 件",

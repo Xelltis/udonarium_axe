@@ -1,5 +1,6 @@
 import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { toBuffBadges } from '@axe/domain/character/buff-badge';
+import { buffEffectTimingOf } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { newStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -356,6 +357,103 @@ describe('resource-edit-helpers', () => {
       });
     });
 
+    describe('a buff told when its effect moves', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+      const momentOf = (name: string) => buffEffectTimingOf(character.buffs.find(name)!);
+      const hp = () => character.status.getValue('HP', 'now');
+
+      beforeEach(() => {
+        character.status.setValue('HP', 'now', 10);
+      });
+
+      it('carries the moment written behind 発生: or tick:, beside its timing and its trigger', () => {
+        edit('&!再生/:HP/+/0~+3/none/発生:手番開始');
+        edit('&!活力/:HP/+/0~+1/3/@術者/発生:手番終了');
+        edit('&!鼓動/:HP/+/0~+1/3/turnStart/術者/tick:roundEnd');
+
+        expect(momentOf('再生')).toBe('turnStart');
+        expect(character.buffs.find('再生')!.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('none');
+        expect(momentOf('活力')).toBe('turnEnd');
+        expect(character.buffs.find('活力')!.getAttribute(DataElementAttribute.BUFF_TRIGGER)).toBe('術者');
+        expect(character.buffs.find('活力')!.value).toBe(3);
+        expect(momentOf('鼓動')).toBe('roundEnd');
+        expect(character.buffs.find('鼓動')!.getAttribute(DataElementAttribute.BUFF_TRIGGER)).toBe('術者');
+      });
+
+      it('carries none where none is written, and writes no attribute for it', () => {
+        edit('&!再生/:HP/+/0~+3/none');
+
+        expect(momentOf('再生')).toBeNull();
+        expect(DataElementAttribute.BUFF_EFFECT_TIMING in character.buffs.find('再生')!.toAttributes()).toBe(false);
+      });
+
+      it('reads the moment where the rounds go as the rounds left out', () => {
+        edit('&!再生/:HP/+/0~+3/発生:手番開始');
+
+        expect(momentOf('再生')).toBe('turnStart');
+        expect(character.buffs.find('再生')!.value).toBe(3);
+      });
+
+      it('puts the moment on every row of a buff moving several statuses', () => {
+        character.detailDataElement!.appendChild(DataElement.create('命中', 5, {}));
+
+        edit('&!祝福/:HP+0~+1,命中+1~+1/none/発生:手番終了');
+
+        expect(character.buffs.list().map((row) => buffEffectTimingOf(row))).toEqual(['turnEnd', 'turnEnd']);
+      });
+
+      it('loses the moment as the buff is laid anew without one, and keeps it as it is stacked on', () => {
+        edit('&!再生/:HP/+/0~+3/none/発生:手番開始');
+        edit('&+!再生/:HP/+/0~+3/none');
+        expect(momentOf('再生')).toBe('turnStart');
+
+        edit('&!再生/:HP/+/0~+3/none');
+        expect(momentOf('再生')).toBeNull();
+      });
+
+      it('leaves a moment it cannot read out, taking it for no icon', () => {
+        edit('&!再生/:HP/+/0~+3/none/発生:いつか');
+
+        expect(momentOf('再生')).toBeNull();
+        expect(character.buffs.find('再生')!.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('');
+      });
+
+      it('moves a buff that never runs out once at &R-, and not at &R+', () => {
+        edit('&!再生/:HP/+/0~+3/none');
+
+        edit('&R-');
+        expect(hp()).toBe(13);
+        edit('&R+');
+        expect(hp()).toBe(13);
+        expect(character.buffs.find('再生')!.value).toBe(3);
+      });
+
+      it('counts a buff with a moment of its own down at &R- without moving it', () => {
+        edit('&!再生/:HP/+/0~+3/none/発生:手番開始');
+        edit('&!毒/:HP/+/0~-1/3/発生:手番終了');
+
+        edit('&R-');
+
+        expect(hp()).toBe(10);
+        expect(character.buffs.find('毒')!.value).toBe(2);
+      });
+
+      it('gives back all a buff that never runs out moved as it is taken off, unless it is marked with a colon', () => {
+        edit('&!鍛錬/HP/+/0~+3/none');
+        edit('&R-');
+        edit('&R-');
+        expect(hp()).toBe(16);
+
+        edit('&鍛錬-');
+        expect(hp()).toBe(10);
+
+        edit('&!再生/:HP/+/0~+3/none');
+        edit('&R-');
+        edit('&再生-');
+        expect(hp()).toBe(13);
+      });
+    });
+
     describe('a buff named after a state the room keeps', () => {
       const edit = (command: string, targeted = false) =>
         applyBuffEdit({ command, object: character, targeted }, character);
@@ -397,6 +495,14 @@ describe('resource-edit-helpers', () => {
         expect(data.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('🤕');
         expect(data.getAttribute(DataElementAttribute.BUFF_COLOR)).toBe('gray');
         expect(data.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('turnEnd');
+      });
+
+      it('puts a state on with the moment its effect moves at where the command writes one, and without where it does not', () => {
+        edit('&麻痺/行動できない/3/発生:手番終了');
+        expect(buffEffectTimingOf(character.buffs.find('麻痺')!)).toBe('turnEnd');
+
+        edit('&麻痺');
+        expect(buffEffectTimingOf(character.buffs.find('麻痺')!)).toBeNull();
       });
 
       it('lays the state to stay with a timing where the rounds go, and tells of no rounds', () => {

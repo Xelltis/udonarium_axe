@@ -142,6 +142,11 @@ export function chatSyntaxGroups(
       withHole(writer, '&', word('name'), `/${word('buffEffect')}/3`)
     ),
     single(word('buffCalculated'), `&!${word('name')}/HP/+/1/3`, withHole(writer, '&!', word('name'), '/HP/+/1/3')),
+    single(
+      word('buffEffectTiming'),
+      `&!${word('name')}/:HP/+/0~+3/none/${word('buffEffectTimingField')}`,
+      withHole(writer, '&!', word('name'), `/:HP/+/0~+3/none/${word('buffEffectTimingField')}`)
+    ),
     single(word('buffRemove'), `&${word('name')}-`, withHole(writer, '&', word('name'), '-')),
     single(word('buffRoundsDown'), '&R-', () => writer.word('&R- ')),
     single(word('buffClear'), '&D', () => writer.word('&D ')),

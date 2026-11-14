@@ -29,7 +29,13 @@ import {
   timelineSpan,
   toTimelineBars,
 } from '@axe/domain/character/buff-timeline';
-import { BUFF_TIMINGS, BuffTiming } from '@axe/domain/character/buff-timing';
+import {
+  BUFF_EFFECT_TIMINGS,
+  BUFF_TIMINGS,
+  BuffEffectTiming,
+  BuffTiming,
+  writeBuffEffectTiming,
+} from '@axe/domain/character/buff-timing';
 import { buffTriggerOptions, selectedTriggerValue } from '@axe/domain/character/buff-trigger-options';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
@@ -82,6 +88,7 @@ export class BuffManagerPanelComponent {
   private readonly chat = inject(ChatMessageService);
 
   readonly timingChoices = BUFF_TIMINGS;
+  readonly effectTimingChoices = BUFF_EFFECT_TIMINGS;
   readonly operatorChoices = BUILDER_OPERATORS;
 
   readonly round = computed(() => Math.max(1, this.turnOrder.progress().round));
@@ -268,6 +275,17 @@ export class BuffManagerPanelComponent {
   }
 
   /**
+   * Sets the moment the picked buff's effect moves at; an empty choice takes it away, so the effect
+   * moves as the buff is counted down, or at the end of the round for a buff that never is.
+   */
+  setEffectTiming(value: BuffEffectTiming | ''): void {
+    const element = this.selectedElement();
+    if (!element) return;
+    writeBuffEffectTiming(element, value);
+    this.touch(element);
+  }
+
+  /**
    * Sets the character whose turn counts the picked buff down, by name; an empty name clears the
    * trigger.
    */
@@ -420,6 +438,7 @@ export class BuffManagerPanelComponent {
   readonly builderRounds = signal('3');
   readonly builderTiming = signal<BuffTiming>('roundEnd');
   readonly builderTrigger = signal('');
+  readonly builderEffectTiming = signal<BuffEffectTiming | ''>('');
   readonly builderStacks = signal(false);
   readonly builderExtends = signal(false);
 
@@ -445,6 +464,14 @@ export class BuffManagerPanelComponent {
   readonly builderCanStep = computed(() => this.builderOperator() !== '=');
 
   /**
+   * Whether the built buff moves any status again at every count, which is what a moment for its
+   * effect times.
+   */
+  readonly builderCanTimeEffect = computed(() =>
+    this.builderRows().some((row) => row.operator !== '=' && row.step.trim().length > 0)
+  );
+
+  /**
    * Whether a second helping would mean anything: holding a status at a value twice still holds it
    * there, so a buff holding any of its statuses so is laid anew.
    */
@@ -467,7 +494,8 @@ export class BuffManagerPanelComponent {
   /**
    * The `&!` command the builder's fields make up: the older layout for one status, and the statuses
    * written together for several. A slash typed in an amount divides there, but the command is cut
-   * into its fields at every slash, so it is written as ÷, which reads the same.
+   * into its fields at every slash, so it is written as ÷, which reads the same. A moment chosen for
+   * the effect is written last, behind `tick:`, where any status moves again at every count.
    */
   readonly builderCommand = computed(() => {
     const rows = this.builderRows();
@@ -484,6 +512,8 @@ export class BuffManagerPanelComponent {
     const trigger = this.builderTrigger().trim();
     if (timing !== 'roundEnd' || trigger.length > 0) parts.push(timing);
     if (trigger.length > 0) parts.push(trigger);
+    const effectTiming = this.builderEffectTiming();
+    if (effectTiming.length > 0 && this.builderCanTimeEffect()) parts.push(`tick:${effectTiming}`);
     const stacks = this.builderStacks() && this.builderCanStack();
     const mark = stacks ? (this.builderExtends() ? '++' : '+') : '';
     return `&${mark}!${parts.join('/')}`;

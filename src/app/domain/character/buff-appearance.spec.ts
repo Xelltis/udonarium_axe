@@ -65,4 +65,25 @@ describe('parseBuffAppearance()', () => {
     expect(parseBuffAppearance([])).toEqual({});
     expect(parseBuffAppearance(['', '  '])).toEqual({});
   });
+
+  it('reads the moment the effect moves at from a field marked 発生: or tick:, wherever it comes', () => {
+    expect(parseBuffAppearance(['red', '発生:手番終了', '@術者'])).toEqual({
+      color: resolveBuffColor('red'),
+      effectTiming: 'turnEnd',
+      trigger: '術者',
+    });
+    expect(parseBuffAppearance(['none', 'tick:turnStart'])).toEqual({ timing: 'none', effectTiming: 'turnStart' });
+  });
+
+  it('keeps the countdown timing and the moment of the effect apart', () => {
+    expect(parseBuffAppearance(['手番開始', '発生:手番終了'])).toEqual({
+      timing: 'turnStart',
+      effectTiming: 'turnEnd',
+    });
+  });
+
+  it('takes a marked field it cannot read for neither a moment nor an icon', () => {
+    expect(parseBuffAppearance(['発生:いつか'])).toEqual({});
+    expect(parseBuffAppearance(['発生:none', '☠️'])).toEqual({ icon: '☠️' });
+  });
 });

@@ -65,6 +65,17 @@ describe('toBuffBadges()', () => {
     });
   });
 
+  it('carries the moment the effect moves at where the buff has one of its own, and none otherwise', () => {
+    const row = buff('再生', ':HP+0~+3', 3, '💚');
+    expect(buffBadgeOf(row).effectTiming).toBeNull();
+
+    row.setAttribute(DataElementAttribute.BUFF_EFFECT_TIMING, 'turnStart');
+    expect(buffBadgeOf(row).effectTiming).toBe('turnStart');
+
+    row.setAttribute(DataElementAttribute.BUFF_EFFECT_TIMING, '');
+    expect(buffBadgeOf(row).effectTiming).toBeNull();
+  });
+
   it('folds a buff into its icon, its strength and the rounds left', () => {
     const root = DataElement.create('buff', '', {});
     created.push(root);

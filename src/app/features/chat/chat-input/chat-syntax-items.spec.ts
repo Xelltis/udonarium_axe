@@ -79,6 +79,12 @@ describe('chatSyntaxGroups', () => {
     expect(written).toEqual(['word s:HP-1 [HP]', 'word &name/buffEffect/3 [name]', 'word &R- ']);
   });
 
+  it('offers a buff told when its effect moves, its name selected to be typed over', () => {
+    const groups = chatSyntaxGroups(source(), writer, t);
+    run(groups, 'buff', 'buffEffectTiming');
+    expect(written).toEqual(['word &!name/:HP/+/0~+3/none/buffEffectTimingField [name]']);
+  });
+
   it('puts a reference to the target in as a chip too, and leaves an unknown name to type between the braces', () => {
     const groups = chatSyntaxGroups(source(), writer, t);
     run(groups, 'reference', 'HP', 1);

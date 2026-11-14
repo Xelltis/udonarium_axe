@@ -191,6 +191,25 @@ describe('lintChatSyntax', () => {
       expect(codes('&!弱点/相手の物理特攻/+/2/none')).toEqual([]);
     });
 
+    it('finds a moment for the effect that cannot be read, which the buff is laid without', () => {
+      expect(codes('&!再生/:HP/+/0~+3/none/発生:いつか')).toEqual(['buff.badEffectTiming']);
+      expect(codes('&!再生/:HP/+/0~+3/none/tick:none')).toEqual(['buff.badEffectTiming']);
+      expect(codes('&再生/回復/3/発生:いつか')).toEqual(['buff.badEffectTiming']);
+    });
+
+    it('says a moment for the effect is not used where nothing moves at every count', () => {
+      expect(codes('&!猛攻撃/HP/+/2/3/発生:手番開始')).toEqual(['buff.idleEffectTiming']);
+      expect(codes('&!留める/HP/=/5/3/発生:手番開始')).toEqual(['buff.idleEffectTiming']);
+      expect(codes('&加護/防御+2/3/発生:手番開始')).toEqual(['buff.idleEffectTiming']);
+    });
+
+    it('says nothing of a moment for an effect that moves at every count', () => {
+      expect(codes('&!再生/:HP/+/0~+3/none/発生:手番開始')).toEqual([]);
+      expect(codes('&!再生/:HP/+/0~+3/3/@術者/発生:手番終了')).toEqual([]);
+      expect(codes('&!猛攻撃/HP/++/1/3/tick:turnEnd')).toEqual([]);
+      expect(codes('&!再生/:HP+0~+3/発生:ラウンド終了')).toEqual([]);
+    });
+
     it('finds a buff to take off that the piece does not have', () => {
       expect(codes('&加護-')).toEqual(['buff.notFound']);
       expect(codes('＆加護－')).toEqual(['buff.notFound']);

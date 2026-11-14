@@ -1,4 +1,5 @@
 import { diceBotUnreachable$, DiceBotUnreachableEvent } from '@axe/core/event/domain-events';
+import { buffEffectTimingOf } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -372,6 +373,20 @@ describe('ResourceEditProcessor', () => {
 
         expect(character.buffs.find('加護')).not.toBeNull();
         expect(systemTags()).toEqual(['system secret']);
+      });
+
+      it('lays a buff told when its effect moves from a line of chat, its colon read as no command of its own', async () => {
+        const hp = character.status.getValue('HP', 'now')!;
+        const line = '&!再生/:HP/+/0~+3/none/発生:手番開始';
+        const message = speak(line, character.identifier);
+
+        await processor.checkResourceEditCommand(message, [{ text: line, object: character }]);
+
+        const laid = character.buffs.find('再生')!;
+        expect(buffEffectTimingOf(laid)).toBe('turnStart');
+        expect(laid.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('none');
+        expect(laid.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('');
+        expect(character.status.getValue('HP', 'now')).toBe(hp);
       });
 
       it('carries out every secret command in a line, not only the first', async () => {

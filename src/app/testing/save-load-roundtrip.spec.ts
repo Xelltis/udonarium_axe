@@ -5,7 +5,10 @@ import { ObjectFactory } from '@axe/core/sync/object-factory';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { xml2element } from '@axe/core/util/xml-util';
+import { BuffManager } from '@axe/domain/character/buff-manager';
+import { buffEffectTimingOf, buffTimingOf, writeBuffEffectTiming } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -16,6 +19,7 @@ import {
   DataElementFieldType,
   DataElementRole,
 } from '@axe/domain/data/data-element';
+import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { HotbarSlot } from '@axe/domain/hotbar/hotbar-slot';
@@ -489,6 +493,115 @@ describe('save and load round trip', () => {
 
       expect(restoredSection.getAttribute('cs-colspan')).toBe('full');
       expect(restoredSection.getAttribute(DataElementAttribute.POPUP)).toBe('true');
+    });
+  });
+
+  describe("the moment a buff's effect moves at", () => {
+    const nobody = { identifier: '', name: '' };
+    const owner = { identifier: 'owner', name: '持ち主' };
+    let status: StatusAccessor;
+
+    beforeEach(() => {
+      const detail = DataElement.create('detail', '');
+      detail.appendChild(DataElement.create('HP', 200, { type: 'numberResource', currentValue: '10' }));
+      status = new StatusAccessor(detail, () => owner.name);
+    });
+
+    /** A buff laid by a command on a sheet of its own, as the row that is saved. */
+    function laid(command: string): DataElement {
+      const character = GameCharacter.create('再生する者', 1, '');
+      applyBuffEdit({ command, object: character, targeted: false }, character);
+      return character.buffs.list()[0];
+    }
+
+    /** The row read back from its xml, in buffs counted against the sheet above. */
+    function loaded(xml: string): { row: DataElement; buffs: BuffManager } {
+      const row = serializer.parseXml(xml) as DataElement;
+      const root = DataElement.create('バフ', '');
+      const container = DataElement.create('バフ/デバフ', '');
+      root.appendChild(container);
+      container.appendChild(row);
+      return {
+        row,
+        buffs: new BuffManager(
+          root,
+          () => owner,
+          () => status
+        ),
+      };
+    }
+
+    const hp = () => status.getValue('HP', 'now');
+
+    it('goes through a save and a load, and the buff moves at it as before', () => {
+      const xml = serializer.toXml(laid('&!再生/:HP/+/0~+3/none/発生:手番開始'));
+      expect(xml).toContain('cs-buff-effect-timing="turnStart"');
+
+      const { row, buffs } = loaded(xml);
+
+      expect(buffEffectTimingOf(row)).toBe('turnStart');
+      expect(buffTimingOf(row)).toBe('none');
+      buffs.expireAt('roundEnd', nobody);
+      expect(hp()).toBe(10);
+      buffs.expireAt('turnStart', owner);
+      expect(hp()).toBe(13);
+    });
+
+    it('reads a buff that never runs out, saved before there was such a moment, as moving at the end of the round', () => {
+      const xml = serializer.toXml(laid('&!再生/:HP/+/0~+3/none'));
+      expect(xml).not.toContain('cs-buff-effect-timing');
+
+      const { row, buffs } = loaded(xml);
+
+      expect(buffEffectTimingOf(row)).toBeNull();
+      buffs.expireAt('turnStart', owner);
+      expect(hp()).toBe(10);
+      buffs.expireAt('roundEnd', nobody);
+      expect(hp()).toBe(13);
+      expect(row.value).toBe('3');
+    });
+
+    it('leaves a buff that never runs out and moves nothing at every count as it always was', () => {
+      const xml = serializer.toXml(laid('&!加護/HP/+/2/none'));
+      expect(xml).not.toContain('cs-buff-effect-timing');
+
+      const { buffs } = loaded(xml);
+      buffs.expireAt('roundEnd', nobody);
+      buffs.expireAt('turnStart', owner);
+      buffs.expireAt('turnEnd', owner);
+
+      expect(hp()).toBe(10);
+    });
+
+    it('reads a missing, an empty and an unknown moment as none, so the buff moves as it is counted down', () => {
+      const saved = serializer.toXml(laid('&!毒/:HP/+/0~-1/3/手番開始'));
+      const written = (value: string) =>
+        saved.replace('cs-buff-timing=', `cs-buff-effect-timing="${value}" cs-buff-timing=`);
+
+      for (const xml of [saved, written(''), written('someday'), written('none')]) {
+        status.setValue('HP', 'now', 10);
+        const { row, buffs } = loaded(xml);
+
+        expect(buffEffectTimingOf(row)).toBeNull();
+        buffs.expireAt('roundEnd', nobody);
+        buffs.expireAt('turnEnd', owner);
+        expect(hp()).toBe(10);
+        buffs.expireAt('turnStart', owner);
+        expect(hp()).toBe(9);
+      }
+    });
+
+    it('adds one attribute to what an older version reads, and changes none of the others', () => {
+      const row = laid('&!再生/:HP/+/0~+3/3/手番開始/@術者/発生:手番終了');
+      const withMoment = serializer.toXml(row);
+      writeBuffEffectTiming(row, '');
+      const without = serializer.toXml(row);
+
+      expect(withMoment).not.toBe(without);
+      expect(withMoment.replace(' cs-buff-effect-timing="turnEnd"', '')).toBe(without);
+      expect(without).toContain('cs-buff-timing="turnStart"');
+      expect(without).toContain('cs-buff-trigger="術者"');
+      expect(without).toContain('cs-buff-mod-kept-step="3"');
     });
   });
 

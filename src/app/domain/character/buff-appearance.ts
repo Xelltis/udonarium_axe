@@ -1,4 +1,12 @@
-import { BuffTiming, isBuffTimingToken, resolveBuffTiming } from '@axe/domain/character/buff-timing';
+import {
+  BuffEffectTiming,
+  BuffTiming,
+  isBuffEffectTimingField,
+  isBuffTimingToken,
+  resolveBuffEffectTiming,
+  resolveBuffTiming,
+} from '@axe/domain/character/buff-timing';
+
 export interface BuffColor {
   id: string;
   hex: string;
@@ -9,6 +17,11 @@ export interface BuffAppearance {
   icon?: string;
   timing?: BuffTiming;
   trigger?: string;
+  /**
+   * The moment the buff's effect moves at, where it has one of its own; empty to take it away, so the
+   * effect moves as the buff is counted down again.
+   */
+  effectTiming?: BuffEffectTiming | '';
   /**
    * The buff a row is one of, by the name of its first row, where one buff moves several statuses a
    * row apiece; empty to take a row out of one.
@@ -71,12 +84,21 @@ export function isBuffColorToken(token: string): boolean {
   return DEFAULT_TOKENS.includes(normalized) || resolveBuffColor(normalized).length > 0;
 }
 
-/** Sorts tokens such as a colour name and an icon, in whichever order they come. */
+/**
+ * Sorts tokens such as a colour name and an icon, in whichever order they come. A field written as
+ * the moment the effect moves at, `発生:手番終了`, is never taken for an icon, even where its moment
+ * cannot be read.
+ */
 export function parseBuffAppearance(tokens: readonly string[]): BuffAppearance {
   const appearance: BuffAppearance = {};
   for (const token of tokens) {
     const value = (token ?? '').trim();
     if (value.length < 1) continue;
+    if (isBuffEffectTimingField(value)) {
+      const effectTiming = resolveBuffEffectTiming(value);
+      if (effectTiming) appearance.effectTiming = effectTiming;
+      continue;
+    }
     if (isBuffColorToken(value)) {
       appearance.color = resolveBuffColor(value);
       continue;
