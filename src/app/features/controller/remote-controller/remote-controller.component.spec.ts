@@ -7,10 +7,12 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { Logger } from '@axe/core/logging/logger';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement, DataElementAttribute, DataElementRole, DataElementType } from '@axe/domain/data/data-element';
+import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -603,6 +605,29 @@ describe('RemoteControllerComponent', () => {
 
       expect(component.battleOnChange()).toBe(true);
       expect(TestBed.createComponent(RemoteControllerComponent).componentInstance.battleOnChange()).toBe(true);
+    });
+  });
+
+  describe('the dice bot the panel loads', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('is taken up once it has loaded', async () => {
+      vi.spyOn(DiceBot, 'loadGameSystemAsync').mockResolvedValue({ ID: 'Cthulhu7th' } as never);
+
+      component.gameType = 'Cthulhu7th';
+
+      await vi.waitFor(() => expect(component.gameType).toBe('Cthulhu7th'));
+    });
+
+    it('is left as it was, with a warning, when it cannot be loaded', async () => {
+      vi.spyOn(DiceBot, 'loadGameSystemAsync').mockRejectedValue(new Error('no such system'));
+      const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+      const before = component.gameType;
+
+      component.gameType = 'Missing';
+
+      await vi.waitFor(() => expect(warn).toHaveBeenCalled());
+      expect(component.gameType).toBe(before);
     });
   });
 });

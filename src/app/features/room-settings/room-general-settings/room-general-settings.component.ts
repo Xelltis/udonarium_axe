@@ -51,7 +51,7 @@ export class RoomGeneralSettingsComponent {
    * itself is not used here.
    */
   loadDiceBot(gameType: string): void {
-    DiceBot.getHelpMessage(gameType).then(() => {});
+    void DiceBot.getHelpMessage(gameType);
   }
 
   /** Where the room can have its rolls' dice tumble. */

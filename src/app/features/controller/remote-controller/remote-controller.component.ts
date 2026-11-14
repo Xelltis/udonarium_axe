@@ -30,6 +30,7 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { Logger } from '@axe/core/logging/logger';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
@@ -183,13 +184,15 @@ export class RemoteControllerComponent {
     return this._gameSystem == null ? '' : this._gameSystem.ID;
   }
   set gameType(gameType: string) {
-    DiceBot.loadGameSystemAsync(gameType).then((gameSystem) => {
-      this._gameSystem = gameSystem;
-      const char = this.character();
-      if (char?.remoteController) {
-        char.remoteController.dicebot = gameSystem.ID;
-      }
-    });
+    DiceBot.loadGameSystemAsync(gameType)
+      .then((gameSystem) => {
+        this._gameSystem = gameSystem;
+        const char = this.character();
+        if (char?.remoteController) {
+          char.remoteController.dicebot = gameSystem.ID;
+        }
+      })
+      .catch((reason) => Logger.warn('[RemoteController] failed to load the dice bot', gameType, reason));
   }
 
   /**
