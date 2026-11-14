@@ -80,7 +80,13 @@ import { ModelDropEventHandlerService } from '@axe/features/media/model-library/
 import { TurnSoundEventHandlerService } from '@axe/features/media/turn-sound/turn-sound-event-handler.service';
 import { FabDrawerComponent } from '@axe/features/menu/fab-drawer/fab-drawer.component';
 import { MobileShellComponent } from '@axe/features/mobile/mobile-shell/mobile-shell.component';
-import { RoomPanelService, START_PANEL_LEFT } from '@axe/features/panels/room-panel.service';
+import {
+  RoomPanelService,
+  START_CHAT_BOTTOM_GAP,
+  START_CHAT_SIZE,
+  START_PANEL_LEFT,
+  START_PANEL_TOP,
+} from '@axe/features/panels/room-panel.service';
 import { PlToolbarComponent } from '@axe/features/pl-tools/pl-toolbar/pl-toolbar.component';
 import { ReplayBoardBannerComponent } from '@axe/features/replay/replay-board-banner/replay-board-banner.component';
 import { ReplayEventHandlerService } from '@axe/features/replay/replay-event-handler.service';
@@ -165,13 +171,13 @@ export class AppComponent {
   private readonly motion = inject(MotionService);
   private readonly renderLite = inject(RenderLiteService);
   private readonly language = inject(LanguageService);
-  readonly visualNovel = inject(VisualNovelModeService);
+  protected readonly visualNovel = inject(VisualNovelModeService);
   protected readonly battleCutIn = inject(BattleCutInStateService);
   /** Whose hand rail is open, which the rail is fetched for only once it first is. */
   protected readonly handRail = inject(HandRailService);
   /** Whether the page was opened from an invitation, which the join is fetched for only then. */
   protected readonly invited = parseInviteLink(location.hash) !== null;
-  readonly widgets = inject(WidgetVisibilityService);
+  protected readonly widgets = inject(WidgetVisibilityService);
   private readonly rolePermission = inject(RolePermissionService);
   /**
    * Whether this seat draws the game master's bar, which only the game master does while it is not
@@ -183,20 +189,20 @@ export class AppComponent {
     this.objectChange.trackMyCursor();
     return PeerCursor.myRole === PeerRole.Player && this.widgets.plToolbar();
   });
-  readonly viewport = inject(ViewportService);
-  readonly mobile = inject(MobileLayoutService);
-  readonly overlayMode = inject(OverlayModeService);
-  readonly firstPerson = inject(FirstPersonService);
-  readonly thirdPerson = inject(ThirdPersonService);
+  protected readonly viewport = inject(ViewportService);
+  protected readonly mobile = inject(MobileLayoutService);
+  protected readonly overlayMode = inject(OverlayModeService);
+  protected readonly firstPerson = inject(FirstPersonService);
+  protected readonly thirdPerson = inject(ThirdPersonService);
 
-  readonly isTableSplit = computed(() => this.mobile.isActive() && !this.visualNovel.active());
+  protected readonly isTableSplit = computed(() => this.mobile.isActive() && !this.visualNovel.active());
   private readonly roomPanels = inject(RoomPanelService);
   private readonly fileArchiver = inject(FileArchiver);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly overlays = inject(OverlayLayers);
 
-  readonly modalLayerViewContainerRef = viewChild.required('modalLayer', { read: ViewContainerRef });
+  private readonly modalLayerViewContainerRef = viewChild.required('modalLayer', { read: ViewContainerRef });
 
   protected readonly tabletop = inject(TabletopService);
   /** The ticker is drawn for the screens that asked for it, and not fetched for the rest. */
@@ -261,11 +267,13 @@ export class AppComponent {
     afterNextRender(() => {
       startupLoading.begin();
       this.overlays.main = this.modalLayerViewContainerRef();
-      const startPanels: [RoomPanelName, PanelOption][] = [['peerMenu', { left: START_PANEL_LEFT, top: 10 }]];
+      const startPanels: [RoomPanelName, PanelOption][] = [
+        ['peerMenu', { left: START_PANEL_LEFT, top: START_PANEL_TOP }],
+      ];
       if (!this.viewport.isCompact()) {
-        const chatHeight = 460;
-        const top = Math.max(10, window.innerHeight - chatHeight - 20);
-        startPanels.push(['chatWindow', { width: 660, height: chatHeight, left: START_PANEL_LEFT, top }]);
+        const { width, height } = START_CHAT_SIZE;
+        const top = Math.max(START_PANEL_TOP, window.innerHeight - height - START_CHAT_BOTTOM_GAP);
+        startPanels.push(['chatWindow', { width, height, left: START_PANEL_LEFT, top }]);
       }
       // The chat window overlaps the connection panel, and stands over it.
       this.roomPanels.openInTurn(startPanels);

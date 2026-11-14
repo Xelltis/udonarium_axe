@@ -13,6 +13,15 @@ const FIRST_PANEL_TOP = 64;
 /** How far in from the left of the screen the panels the room opens with stand, clear of the menu down that side. */
 export const START_PANEL_LEFT = 80;
 
+/** How far down from the top of the screen the connection panel opens, and the highest the chat window may stand. */
+export const START_PANEL_TOP = 10;
+
+/** How large the chat window opens, on a screen wide enough to open it with the room. */
+export const START_CHAT_SIZE = { width: 660, height: 460 } as const;
+
+/** How much is left free below the chat window the room opens with, on a screen tall enough to leave it. */
+export const START_CHAT_BOTTOM_GAP = 20;
+
 /** How wide the connection panel opens, the panel the room opens with in the top left corner. */
 export const PEER_MENU_WIDTH = 420;
 
