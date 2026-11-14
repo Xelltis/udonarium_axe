@@ -71,6 +71,14 @@ export class ImageSharingSystem extends SharedAssetSharingSystem<ImageFile, Imag
     return [...wanted];
   }
 
+  /**
+   * A peer is asked for nothing while pictures from it are still coming in: a transfer does not say
+   * which pictures it carries, so those would be asked for again.
+   */
+  protected override asksDuringTransfer(): boolean {
+    return false;
+  }
+
   /** Sends as many of those asked for as fit a transfer, those the peer has the least of first. */
   protected override sendRequested(requested: CatalogItem[], sendTo: string): void {
     void this.sendImages(this.makeSendUpdateImages(requested), sendTo);
@@ -157,6 +165,7 @@ export class ImageSharingSystem extends SharedAssetSharingSystem<ImageFile, Imag
       this.stopReceiveTask(task.identifier);
       if (data) localDispatch(this.messages.update, { identifier: task.identifier, updateImages: data });
       this.storage.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
+      this.transferTakenIn(task.identifier);
     };
     task.ontimeout = (task) => {
       Logger.warn('[ImageSync] receiveTask timeout', task.identifier);

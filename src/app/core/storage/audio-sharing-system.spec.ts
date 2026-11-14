@@ -228,6 +228,26 @@ describe('AudioSharingSystem', () => {
       expect(sendSpy).not.toHaveBeenCalled();
     });
 
+    it('asks a peer for another sound while one from it is still coming in', () => {
+      AudioStorageMock.get.mockImplementation((id: string) => makeAudioFile({ identifier: id }));
+      BufferSharingTaskMock.createReceiveTask.mockReturnValue(makeTask({ identifier: 'on-its-way' }));
+      emit('START_AUDIO_TRANSMISSION', { fileIdentifier: 'on-its-way' });
+      sendSpy.mockClear();
+
+      emit('SYNCHRONIZE_AUDIO_LIST', [
+        { identifier: 'on-its-way', state: AudioState.COMPLETE },
+        { identifier: 'still-lacking', state: AudioState.COMPLETE },
+      ]);
+
+      expect(sendSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventName: 'REQUEST_AUDIO_RESOURE',
+          data: expect.objectContaining({ identifiers: [expect.objectContaining({ identifier: 'still-lacking' })] }),
+        }),
+        'peer-a'
+      );
+    });
+
     it('returns with nothing to ask for and no room to receive', () => {
       const audio = makeAudioFile({ identifier: 'done', blob: new Blob(['x']) });
       AudioStorageMock.get.mockReturnValue(audio);

@@ -73,6 +73,10 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
   private httpBarred: Set<string> = new Set();
   /** Those the room's list named that the asset server could not send just then. */
   private httpRetries = new AssetRetries();
+  /** The peer each transfer coming in is from. */
+  private readonly incomingFrom = new Map<string, string>();
+  /** The latest catalogue of each peer that is not to be asked just yet, kept to ask it from later. */
+  private readonly heldCatalogs = new Map<string, CatalogItem[]>();
 
   /**
    * Those to fetch before any other, such as what the room is playing.
@@ -112,6 +116,9 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
             if ((msg as NetworkMessage<{ peerId: string }>).isSendFromSelf)
               this.storage.synchronize((msg as NetworkMessage<{ peerId: string }>).data.peerId);
             break;
+          case 'DISCONNECT_PEER':
+            this.heldCatalogs.delete((msg as NetworkMessage<{ peerId: string }>).data.peerId);
+            break;
           case this.storage.catalogMessage:
             if (!msg.isSendFromSelf) this.answerCatalog(msg.data as CatalogItem[], msg.sendFrom);
             break;
@@ -140,20 +147,80 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
    * catalogue, while nothing is being traded.
    */
   private answerCatalog(otherCatalog: CatalogItem[], sendFrom: string): void {
-    const request: CatalogItem[] = [];
-    for (const item of this.preferredFirst(otherCatalog)) {
+    const wanted = this.wantedOf(otherCatalog, sendFrom);
+    if (wanted.length < 1 && !this.hasActiveTask() && otherCatalog.length < this.storage.getCatalog().length) {
+      this.storage.synchronize(sendFrom);
+    }
+    this.ask(wanted, otherCatalog, sendFrom);
+  }
+
+  /**
+   * What a peer is to be asked for out of its catalogue: what this seat lacks, is not receiving and
+   * is not taking from the asset server, those preferred first. A place is made for each one named.
+   */
+  private wantedOf(catalog: readonly CatalogItem[], peerId: string): CatalogItem[] {
+    const wanted: CatalogItem[] = [];
+    for (const item of this.preferredFirst(catalog)) {
       if (this.storage.isRemoved(item.identifier) || this.httpBarred.has(item.identifier)) continue;
       const file = this.placeFor(item.identifier, item.name);
       if (file.state < this.storage.complete && !this.receiveTaskMap.has(item.identifier)) {
-        if (this.fetchOverHttp(item.identifier, sendFrom)) continue;
-        request.push({ identifier: item.identifier, state: file.state });
+        if (this.fetchOverHttp(item.identifier, peerId)) continue;
+        wanted.push({ identifier: item.identifier, state: file.state });
       }
     }
-    if (request.length < 1 && !this.hasActiveTask() && otherCatalog.length < this.storage.getCatalog().length) {
-      this.storage.synchronize(sendFrom);
+    return wanted;
+  }
+
+  /**
+   * Asks a peer for what is wanted out of its catalogue, or keeps the catalogue to ask from later
+   * while the peer is not to be asked. Nothing is asked for while this seat is receiving enough.
+   */
+  private ask(wanted: CatalogItem[], catalog: readonly CatalogItem[], peerId: string): void {
+    this.heldCatalogs.delete(peerId);
+    if (wanted.length < 1) return;
+    if (this.holdsRequestsTo(peerId)) {
+      this.heldCatalogs.set(peerId, [...catalog]);
+      return;
     }
-    if (request.length < 1 || this.isLimitReceiveTask()) return;
-    this.request(this.toRequest(request), sendFrom);
+    if (this.isLimitReceiveTask()) return;
+    this.request(this.toRequest(wanted), peerId);
+  }
+
+  /** Asks a peer for what the catalogue kept for it names that this seat still lacks. */
+  private askHeld(peerId: string): void {
+    const catalog = this.heldCatalogs.get(peerId);
+    if (catalog) this.ask(this.wantedOf(catalog, peerId), catalog, peerId);
+  }
+
+  private holdsRequestsTo(peerId: string): boolean {
+    return !this.asksDuringTransfer() && this.isReceivingFrom(peerId);
+  }
+
+  private isReceivingFrom(peerId: string): boolean {
+    for (const [identifier, from] of this.incomingFrom) {
+      if (from === peerId && this.receiveTaskMap.has(identifier)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Whether a peer is asked for more while a transfer from it is still coming in. It is where a
+   * transfer is known by the one file it carries, as that file is then left out of what is asked
+   * for. Where it is not, the peer's catalogue is kept and asked from once the transfer has been
+   * taken in, as the catalogue may reach this seat ahead of the last pieces of the transfer.
+   */
+  protected asksDuringTransfer(): boolean {
+    return true;
+  }
+
+  /**
+   * To be called once a transfer has ended and what it brought has been taken in: asks the peer it
+   * came from for what its catalogue named meanwhile.
+   */
+  protected transferTakenIn(identifier: string): void {
+    const from = this.incomingFrom.get(identifier);
+    this.incomingFrom.delete(identifier);
+    if (from !== undefined && !this.holdsRequestsTo(from)) this.askHeld(from);
   }
 
   /**
@@ -229,6 +296,7 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
       Logger.warn(`[${this.trade.logName}] タスクキャンセル`, identifier);
       networkSend(`CANCEL_TASK_${identifier}`, null, sendFrom);
     } else {
+      this.incomingFrom.set(identifier, sendFrom);
       this.startReceiveTask(identifier);
     }
   }
@@ -434,6 +502,7 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
         localDispatch(this.trade.messages.update, [wrapped]);
       }
       this.storage.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
+      this.transferTakenIn(task.identifier);
     };
 
     task.start();
