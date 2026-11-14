@@ -22,6 +22,7 @@ import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { partOf } from '@axe/domain/tabletop/world/page-boxes';
 import { pointOnFace } from '@axe/domain/tabletop/world/table-sprites';
 import { clearToBlankTable, putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
+import type { Table3dStats } from '@axe/infrastructure/table-3d/table-3d-port';
 
 /** What the end-to-end suite can ask the table, in a browser driven by automation. */
 export interface TableTestHooks {
@@ -90,26 +91,7 @@ export interface TableTestHooks {
    */
   paintAt(x: number, y: number): number[] | null;
   /** What the canvas's engine holds, counted, or null while there is none. */
-  sceneStats(): {
-    chunks: number;
-    boardGridTriangles: number;
-    topsGridTriangles: number;
-    sprites: number;
-    coins: number;
-    layers: number;
-    waterParts: number;
-    fogAirSheets: number;
-    sky: boolean;
-    backdrops: number;
-    effects: number;
-    models: number;
-    modelMeshes: number;
-    veilRevision: number;
-    lightMapRevision: number;
-    shadowCasters: number;
-    draws: number;
-    drawCalls: number;
-  } | null;
+  sceneStats(): Table3dStats | null;
   /** How wide and deep the board of the scene runs, in table pixels, or null where there is no board. */
   sceneBoard(): { widthPx: number; depthPx: number } | null;
   /**
