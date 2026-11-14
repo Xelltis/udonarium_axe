@@ -56,67 +56,58 @@ export class ChatSendService {
    * it; a stamp with words goes under them, the line going through all the rest as any line does.
    */
   send(tab: ChatTab | null, value: ChatOutgoing): void {
-    if (tab && !canRoleSpeakTab(tab, PeerCursor.myRole)) return;
-    if (tab && this.chatMessageService.sendLoneStamp(tab, value)) return;
-    if (tab) {
-      let outtext = '';
-      let objects: GameCharacter[];
-      const messageTargetContext: ChatMessageTargetContext[] = [];
+    if (!tab) return;
+    if (!canRoleSpeakTab(tab, PeerCursor.myRole)) return;
+    if (this.chatMessageService.sendLoneStamp(tab, value)) return;
+    let outtext = '';
+    const messageTargetContext: ChatMessageTargetContext[] = [];
 
-      const speaker = this.speakingCharacterOf(value.sendFrom);
-      const attachmentImageIdentifiers: string[] = [];
-      const appendAttachmentImages = (identifiers: string[]) => {
-        for (const identifier of identifiers) {
-          if (!attachmentImageIdentifiers.includes(identifier)) attachmentImageIdentifiers.push(identifier);
-        }
-      };
-      const fillIn = (text: string, target?: GameCharacter): string => {
-        if (!speaker && !target) return text;
-        const evaluated = evaluateCharacterReferences(text, speaker, target);
-        appendAttachmentImages(evaluated.attachmentImageIdentifiers);
-        return evaluated.text;
-      };
-
-      const marked = this.targetedGameCharacterList();
-      const aimed = aimLine(value.text, speaker, aimedAtNamesOf(marked));
-      if (aimed.targeted) {
-        objects = marked;
-        if (objects.length == 0) {
-          outtext += this.t('feature.chat.window.noTarget');
-        } else {
-          appendAttachmentImages(aimed.attachmentImageIdentifiers);
-          const sent = aimedAt(aimed, objects, fillIn);
-          outtext = sent.text;
-          messageTargetContext.push(...sent.contexts);
-        }
-      } else {
-        outtext = fillIn(value.text);
-        const targetContext: ChatMessageTargetContext = {
-          text: '',
-          object: null,
-        };
-        targetContext.text = outtext;
-        targetContext.object = null;
-        messageTargetContext.push(targetContext);
+    const speaker = this.speakingCharacterOf(value.sendFrom);
+    const attachmentImageIdentifiers: string[] = [];
+    const appendAttachmentImages = (identifiers: string[]) => {
+      for (const identifier of identifiers) {
+        if (!attachmentImageIdentifiers.includes(identifier)) attachmentImageIdentifiers.push(identifier);
       }
-      const sent = this.chatMessageService.sendMessage(
-        tab,
-        outtext,
-        value.gameSystem,
-        value.sendFrom,
-        value.sendTo,
-        value.portraitIndex,
-        value.messColor,
-        messageTargetContext,
-        attachmentImageIdentifiers,
-        value.replyTo,
-        value.quoteOf,
-        { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' },
-        undefined,
-        value.stamp,
-        value.targetNumber
-      );
-      if (value.toTicker) this.chatTickerSelection.showMessage(sent.identifier);
+    };
+    const fillIn = (text: string, target?: GameCharacter): string => {
+      if (!speaker && !target) return text;
+      const evaluated = evaluateCharacterReferences(text, speaker, target);
+      appendAttachmentImages(evaluated.attachmentImageIdentifiers);
+      return evaluated.text;
+    };
+
+    const marked = this.targetedGameCharacterList();
+    const aimed = aimLine(value.text, speaker, aimedAtNamesOf(marked));
+    if (aimed.targeted) {
+      if (marked.length == 0) {
+        outtext += this.t('feature.chat.window.noTarget');
+      } else {
+        appendAttachmentImages(aimed.attachmentImageIdentifiers);
+        const sent = aimedAt(aimed, marked, fillIn);
+        outtext = sent.text;
+        messageTargetContext.push(...sent.contexts);
+      }
+    } else {
+      outtext = fillIn(value.text);
+      messageTargetContext.push({ text: outtext, object: null });
     }
+    const sent = this.chatMessageService.sendMessage(
+      tab,
+      outtext,
+      value.gameSystem,
+      value.sendFrom,
+      value.sendTo,
+      value.portraitIndex,
+      value.messColor,
+      messageTargetContext,
+      attachmentImageIdentifiers,
+      value.replyTo,
+      value.quoteOf,
+      { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' },
+      undefined,
+      value.stamp,
+      value.targetNumber
+    );
+    if (value.toTicker) this.chatTickerSelection.showMessage(sent.identifier);
   }
 }

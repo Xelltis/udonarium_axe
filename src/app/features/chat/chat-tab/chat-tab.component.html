@@ -5,7 +5,7 @@
 >
   <div class="w-full shrink-0" [style.marginBottom.px]="bottomSpace" #messageContainer>
     @if (chatMessages().length) {
-      @for (chatMessage of chatMessages(); track trackByChatMessage($index, chatMessage)) {
+      @for (chatMessage of chatMessages(); track chatMessage.identifier) {
         @if (chatMessage.isShownInChat) {
           <chat-message
             [chatMessage]="chatMessage"

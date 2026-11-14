@@ -50,6 +50,10 @@ import {
 const isiOS = isAppleTouchDevice(window.navigator.userAgent, window.navigator.maxTouchPoints);
 /** How long a reader has to stay put at the bottom before the lines far above are let go. */
 const RENDERED_RANGE_TRIM_DELAY_MS = 800;
+/** The least height of a line in the compact display, in pixels. */
+const MIN_ROW_PX_SIMPLE = 26;
+/** The least height of a line in the full display, in pixels. */
+const MIN_ROW_PX_NORMAL = 61;
 
 interface WritingSpeaker {
   peerId: string;
@@ -167,20 +171,12 @@ export class ChatTabComponent {
   private topIndex = 0;
   private bottomIndex = 0;
 
-  private _minMessageHeight = 26;
-  private _minMessageHeightNormal = 61;
-
   /**
    * The least height a message can take, in pixels, smaller in simple display mode; used to
    * estimate the room taken by messages that are not rendered.
    */
   get minMessageHeight() {
-    if (this.chatTab) {
-      if (this.chatTab.chatSimpleDispFlag) {
-        return this._minMessageHeight;
-      }
-    }
-    return this._minMessageHeightNormal;
+    return this.chatTab?.chatSimpleDispFlag ? MIN_ROW_PX_SIMPLE : MIN_ROW_PX_NORMAL;
   }
 
   private preScrollTop = 0;
@@ -298,14 +294,6 @@ export class ChatTabComponent {
   }
 
   /**
-   * Lets go of the lines far above a reader who has come to rest at the bottom, on iOS.
-   *
-   * iOS never narrows the rendered lines while it scrolls, since moving the scroll position
-   * under a momentum scroll makes it jump, so without this a long session there would keep every
-   * line that arrives in the document. Once the reader rests at the bottom the lines are cut back
-   * to what fills the panel, the way a jump to the bottom does.
-   */
-  /**
    * Whether the reader is at the very bottom of the log, where the lines far above can go without
    * anything on the screen moving. On iOS the lines drawn only ever grow, so reaching the last one
    * says nothing of where the reader is.
@@ -317,6 +305,14 @@ export class ChatTabComponent {
     return restsAtBottom(position.scrollHeight - position.bottom);
   }
 
+  /**
+   * Lets go of the lines far above a reader who has come to rest at the bottom, on iOS.
+   *
+   * iOS never narrows the rendered lines while it scrolls, since moving the scroll position
+   * under a momentum scroll makes it jump, so without this a long session there would keep every
+   * line that arrives in the document. Once the reader rests at the bottom the lines are cut back
+   * to what fills the panel, the way a jump to the bottom does.
+   */
   private trimRenderedRangeOnIOS() {
     const panel = this.panelService.scrollablePanel;
     if (!this.isIOS || !this.chatTab || !panel) return;
@@ -328,13 +324,6 @@ export class ChatTabComponent {
       distanceFromBottom: position.scrollHeight - position.bottom,
     });
     if (trim) this.resetMessages();
-  }
-
-  /**
-   * Tracks rendered messages by identifier, so each keeps its element as the rendered range shifts.
-   */
-  trackByChatMessage(index: number, message: ChatMessage) {
-    return message.identifier;
   }
 
   private addWritingSpeaker(peerId: string, speakerIdentifier?: string) {

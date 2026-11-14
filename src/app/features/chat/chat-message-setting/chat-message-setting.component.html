@@ -113,12 +113,7 @@
       <span class="text-ui-muted flex-1 text-[12px]">{{
         'feature.chat.messageSetting.portraitInWindow' | transloco
       }}</span>
-      <input
-        type="checkbox"
-        [(ngModel)]="chatTabList.isPortraitInWindow"
-        name="portraitInWindow"
-        (click)="changePortraitInWindow()"
-      />
+      <input type="checkbox" [(ngModel)]="chatTabList.isPortraitInWindow" name="portraitInWindow" />
     </label>
     <label class="flex cursor-pointer items-center justify-between gap-2 py-1">
       <span class="text-ui-muted flex-1 text-[12px]">{{
@@ -128,7 +123,6 @@
         type="checkbox"
         [(ngModel)]="chatTabList.isKeepPortraitOutWindow"
         name="isKeepPortraitOutWindow"
-        (click)="changeKeepPortraitOutWindow()"
         [attr.disabled]="chatTabList.isPortraitInWindow ? '' : null"
       />
     </label>
@@ -249,7 +243,7 @@
         type="checkbox"
         [(ngModel)]="chatTabList.simpleDispFlagTime"
         name="simpleDispFlagTime"
-        (click)="changeDispFlagTime()"
+        (click)="redrawChat()"
         [attr.disabled]="chatTab?.chatSimpleDispFlag ? null : ''"
       />
     </label>
@@ -259,7 +253,7 @@
         type="checkbox"
         [(ngModel)]="chatTabList.simpleDispFlagUserId"
         name="simpleDispFlagUserId"
-        (click)="changeDispFlagUserId()"
+        (click)="redrawChat()"
         [attr.disabled]="chatTab?.chatSimpleDispFlag ? null : ''"
       />
     </label>

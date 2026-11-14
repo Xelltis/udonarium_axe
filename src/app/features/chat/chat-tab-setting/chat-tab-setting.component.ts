@@ -93,19 +93,24 @@ export class ChatTabSettingComponent {
    * change the tabs.
    */
   get tabName(): string {
-    if (this.selectedTab()) this.objectChange.versionOf(this.selectedTab()!.identifier)();
-    return this.selectedTab()?.name ?? '';
+    const tab = this.selectedTab();
+    if (!tab) return '';
+    this.objectChange.versionOf(tab.identifier)();
+    return tab.name ?? '';
   }
   set tabName(tabName: string) {
-    if (this.isEditable && this.isRenamable && this.selectedTab()) this.selectedTab()!.name = tabName;
+    const tab = this.selectedTab();
+    if (this.isEditable && this.isRenamable && tab) tab.name = tabName;
   }
 
   /**
    * Whether players or guests may read or speak in the selected tab; false when no tab is selected.
    */
   perm(key: 'plCanView' | 'plCanSpeak' | 'guestCanView' | 'guestCanSpeak'): boolean {
-    if (this.selectedTab()) this.objectChange.versionOf(this.selectedTab()!.identifier)();
-    return this.selectedTab()?.[key] ?? false;
+    const tab = this.selectedTab();
+    if (!tab) return false;
+    this.objectChange.versionOf(tab.identifier)();
+    return tab[key] ?? false;
   }
   /**
    * Sets whether players or guests may read or speak in the selected tab.
@@ -143,7 +148,8 @@ export class ChatTabSettingComponent {
    * restore it.
    */
   get isDeleted(): boolean {
-    return this.selectedTab() ? this.objectStore.get(this.selectedTab()!.identifier) !== this.selectedTab() : false;
+    const tab = this.selectedTab();
+    return tab ? this.objectStore.get(tab.identifier) !== tab : false;
   }
   /** The system tab belongs to the tool rather than the room, so its name, its place and whether it travels are all handled apart. */
   get isSystemTabSelected(): boolean {
@@ -261,7 +267,7 @@ export class ChatTabSettingComponent {
   constructor() {
     // A tab another seat deleted is let go of; only one this seat deleted is offered back.
     this.objectChange.objectDeleted$.subscribe((e) => {
-      if (!this.selectedTab() || e.identifier !== this.selectedTab()!.identifier || this.selectedTabXml) return;
+      if (e.identifier !== this.selectedTab()?.identifier || this.selectedTabXml) return;
       this.selectedTab.set(null);
     }, this.destroyRef);
     // A room server hands back a tab holding dice it rolled, whispers this seat cannot see among
@@ -289,7 +295,8 @@ export class ChatTabSettingComponent {
           this.selectedTab.set(cameBack);
           this.selectedTabXml = '';
         }
-        if (this.selectedTab() && !this.chatTabs.includes(this.selectedTab()!) && !this.selectedTabXml) {
+        const kept = this.selectedTab();
+        if (kept && !this.chatTabs.includes(kept) && !this.selectedTabXml) {
           this.selectedTab.set(null);
         }
         if (!this.selectedTab() && this.chatTabs.length > 0) {
@@ -384,19 +391,18 @@ export class ChatTabSettingComponent {
    */
   delete() {
     if (!this.isDeletable || !this.isSelectionInReach()) return;
-    if (!this.isEmpty && this.selectedTab()) {
-      const parentElement = this.selectedTab()!.parent!;
-      const index: number = parentElement.children.indexOf(this.selectedTab()!);
-      this.selectedTabXml = this.selectedTab()!.toXml();
-      if (this.isKeptToGameMasterByServer)
-        this.deletedOnServer = { identifier: this.selectedTab()!.identifier, at: Date.now() };
-      this.selectedTab()!.destroy();
+    const tab = this.selectedTab();
+    if (this.isEmpty || !tab) return;
+    const parentElement = tab.parent!;
+    const index: number = parentElement.children.indexOf(tab);
+    this.selectedTabXml = tab.toXml();
+    if (this.isKeptToGameMasterByServer) this.deletedOnServer = { identifier: tab.identifier, at: Date.now() };
+    tab.destroy();
 
-      if (this.systemTabIndex > index) {
-        this.systemTabIndex--;
-      }
-      this.chkSystemTabIndex();
+    if (this.systemTabIndex > index) {
+      this.systemTabIndex--;
     }
+    this.chkSystemTabIndex();
   }
 
   /** This seat's own peer cursor. */
@@ -414,12 +420,12 @@ export class ChatTabSettingComponent {
   deleteLog() {
     if (!this.allowDeleteLog || !this.canEditTabs || !this.isSelectionInReach()) return;
 
-    if (!this.isEmpty && this.selectedTab()) {
-      this.clearLogOf(this.selectedTab()!);
-      this.selectedTab()!.portraitReset();
-      const mess = encodeI18nMessage('common.chat.logClearedBy', { user: this.resolveRequesterName() });
-      this.chatMessageService.sendSystemMessageToTab(this.selectedTab()!, mess, undefined, this.requesterUserId());
-    }
+    const tab = this.selectedTab();
+    if (this.isEmpty || !tab) return;
+    this.clearLogOf(tab);
+    tab.portraitReset();
+    const mess = encodeI18nMessage('common.chat.logClearedBy', { user: this.resolveRequesterName() });
+    this.chatMessageService.sendSystemMessageToTab(tab, mess, undefined, this.requesterUserId());
   }
 
   /**
@@ -497,12 +503,13 @@ export class ChatTabSettingComponent {
    * tab.
    */
   upTabIndex() {
-    if (!this.selectedTab() || !this.isMovable) return;
-    const parentElement = this.selectedTab()!.parent!;
-    const index: number = parentElement.children.indexOf(this.selectedTab()!);
+    const tab = this.selectedTab();
+    if (!tab || !this.isMovable) return;
+    const parentElement = tab.parent!;
+    const index: number = parentElement.children.indexOf(tab);
     if (0 < index) {
       const prevElement = parentElement.children[index - 1];
-      parentElement.insertBefore(this.selectedTab()!, prevElement);
+      parentElement.insertBefore(tab, prevElement);
       if (this.systemTabIndex == index) {
         this.systemTabIndex--;
       } else if (this.systemTabIndex == index - 1) {
@@ -517,12 +524,13 @@ export class ChatTabSettingComponent {
    * tab.
    */
   downTabIndex() {
-    if (!this.selectedTab() || !this.isMovable) return;
-    const parentElement = this.selectedTab()!.parent!;
-    const index: number = parentElement.children.indexOf(this.selectedTab()!);
+    const tab = this.selectedTab();
+    if (!tab || !this.isMovable) return;
+    const parentElement = tab.parent!;
+    const index: number = parentElement.children.indexOf(tab);
     if (index < parentElement.children.length - 1) {
       const nextElement = parentElement.children[index + 1];
-      parentElement.insertBefore(nextElement, this.selectedTab()!);
+      parentElement.insertBefore(nextElement, tab);
       if (this.systemTabIndex == index) {
         this.systemTabIndex++;
       } else if (this.systemTabIndex == index + 1) {
