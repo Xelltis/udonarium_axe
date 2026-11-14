@@ -1,10 +1,11 @@
 import {
-  afterEveryRender,
   afterNextRender,
+  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
+  effect,
   ElementRef,
   inject,
   linkedSignal,
@@ -17,6 +18,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { observeSize } from '@axe/core/util/observe-size';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
@@ -49,7 +51,12 @@ export class MiniJukeboxComponent {
   readonly isMinimized = signal(false);
   /** Whether the DJ deck is open under the player, remembered in this browser. */
   readonly isDeckOpen = signal(readDeckOpen());
+  /**
+   * Whether the track's name is too long for its box and so slides along it. Measured when the
+   * name or the width of its box changes, not on every draw of the player.
+   */
   readonly isTitleScrolling = signal(false);
+  private readonly titleBoxWidth = signal(0);
   readonly isSeekLocked = this.playback.isSeekLocked;
   /** The seek bar over the room's track, with the drag on it that is this player's own. */
   protected readonly seekBar = inject(JukeboxSeekBar);
@@ -80,22 +87,26 @@ export class MiniJukeboxComponent {
       this.expandedWidth = el.offsetWidth;
       this.expandedHeight = el.offsetHeight;
     });
-    afterEveryRender(() => {
-      const textEl = this.titleTextEl()?.nativeElement;
-      if (!textEl) {
-        this.isTitleScrolling.set(false);
-        return;
-      }
-      const containerEl = textEl.parentElement;
-      if (!containerEl) return;
-      const overflow = textEl.scrollWidth - containerEl.clientWidth;
-      if (overflow > 2) {
-        textEl.style.setProperty('--scroll-dist', `-${overflow}px`);
-        this.isTitleScrolling.set(true);
-      } else {
-        textEl.style.removeProperty('--scroll-dist');
-        this.isTitleScrolling.set(false);
-      }
+    effect((onCleanup) => {
+      const box = this.titleTextEl()?.nativeElement.parentElement;
+      if (!box) return;
+      onCleanup(observeSize(box, (size) => this.titleBoxWidth.set(size.width)));
+    });
+    afterRenderEffect({
+      earlyRead: () => {
+        this.trackName();
+        this.titleBoxWidth();
+        const textEl = this.titleTextEl()?.nativeElement;
+        const box = textEl?.parentElement;
+        return textEl && box ? textEl.scrollWidth - box.clientWidth : 0;
+      },
+      write: (overflow) => {
+        const textEl = this.titleTextEl()?.nativeElement;
+        const scrolls = !!textEl && overflow() > 2;
+        if (scrolls) textEl.style.setProperty('--scroll-dist', `-${overflow()}px`);
+        else textEl?.style.removeProperty('--scroll-dist');
+        this.isTitleScrolling.set(scrolls);
+      },
     });
   }
 
