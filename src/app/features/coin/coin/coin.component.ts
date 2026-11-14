@@ -20,8 +20,7 @@ import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/co
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
-import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
-import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
+import { sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { isInStore } from '@axe/core/sync/object-store';
 import { Coin, CoinFace } from '@axe/domain/coin/coin';
@@ -30,9 +29,8 @@ import { buildCoinContextMenu } from '@axe/features/coin/coin/coin-context-menu'
 import { CoinFlipService } from '@axe/features/coin/coin-flip.service';
 import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
-import { DoubleTap } from '@axe/ui/tabletop/double-tap';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
-import { setupInputHandler, setupMovableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+import { setupDoubleTap, setupMovableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 
 @Component({
   selector: 'coin',
@@ -110,17 +108,12 @@ export class CoinComponent {
 
   readonly movableOption = signal<MovableOption>({});
 
-  private readonly doubleTap = new DoubleTap(() => this.input);
-
-  private readonly inputRef = setupInputHandler({
+  private readonly taps = setupDoubleTap({
     elementRef: this.elementRef,
     destroyRef: this.destroyRef,
     onStart: (e) => this.onInputStart(e),
+    onDoubleTap: () => this.onDoubleClick(),
   });
-
-  private get input() {
-    return this.inputRef.current;
-  }
 
   constructor() {
     this.objectChange.flipCoin$.subscribe((event) => {
@@ -131,10 +124,7 @@ export class CoinComponent {
       collideLayers: ['terrain'],
       footprint: () => ({ width: this.diameter(), height: this.diameter() }),
     });
-    this.destroyRef.onDestroy(() => {
-      this.doubleTap.cancel();
-      clearTimeout(this.spinTimer);
-    });
+    this.destroyRef.onDestroy(() => clearTimeout(this.spinTimer));
   }
 
   /** Ends the flip, after which the coin shows the face it is really on. */
@@ -159,14 +149,12 @@ export class CoinComponent {
 
   /** Counts a press towards a double tap, which flips the coin when the second one lands. */
   startDoubleClickTimer(e: MouseEvent | TouchEvent) {
-    this.doubleTap.handle(e, () => this.onDoubleClick());
+    this.taps.press(e);
   }
 
-  /** Flips the coin on a double tap, if this player may edit the table and the pointer has not moved. */
+  /** Flips the coin on a double tap in one place, if this player may edit the table. */
   onDoubleClick() {
-    this.doubleTap.cancel();
-    if (!this.rolePermission.canEditTabletop()) return;
-    if (this.doubleTap.isInPlace()) this.flip();
+    if (this.rolePermission.canEditTabletop()) this.flip();
   }
 
   /**

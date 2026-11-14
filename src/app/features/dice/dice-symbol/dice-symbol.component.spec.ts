@@ -138,8 +138,8 @@ describe('DiceSymbolComponent', () => {
   describe('timer cleanup on destroy', () => {
     it('clears the double-tap timer', () => {
       const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
-      const priv = component as unknown as { doubleClickTimer: ReturnType<typeof setTimeout> | null };
-      priv.doubleClickTimer = setTimeout(() => {}, 999_999);
+      component.onInputStart(new MouseEvent('mousedown'));
+      clearTimeoutSpy.mockClear();
 
       fixture.destroy();
 

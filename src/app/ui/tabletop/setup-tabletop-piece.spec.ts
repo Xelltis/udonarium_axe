@@ -8,6 +8,7 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import {
+  setupDoubleTap,
   setupInputHandler,
   setupMovableForPiece,
   setupMovableRotableForPiece,
@@ -150,5 +151,67 @@ describe('setupInputHandler()', () => {
     for (const callback of destroyed) callback();
     expect(handler.isDestroyed).toBe(true);
     expect(ref.current).toBeNull();
+  });
+});
+
+describe('setupDoubleTap()', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+  });
+
+  function setup() {
+    const onDoubleTap = vi.fn();
+    const destroyed: (() => void)[] = [];
+    const destroyRef = { onDestroy: (callback: () => void) => (destroyed.push(callback), () => undefined) };
+    const taps = TestBed.runInInjectionContext(() =>
+      setupDoubleTap({
+        elementRef: new ElementRef(document.createElement('div')),
+        destroyRef: destroyRef as DestroyRef,
+        onDoubleTap,
+      })
+    );
+    TestBed.tick();
+    const destroy = () => destroyed.forEach((callback) => callback());
+    return { taps, onDoubleTap, destroy };
+  }
+
+  function pointAt(taps: ReturnType<typeof setup>['taps'], x: number, y: number) {
+    return vi.spyOn(taps.input.current!, 'pointer', 'get').mockReturnValue({ x, y, z: 0 });
+  }
+
+  it('runs on the second press in one place, and not on the first', () => {
+    const { taps, onDoubleTap, destroy } = setup();
+    pointAt(taps, 10, 10);
+
+    taps.press(new MouseEvent('mousedown'));
+    expect(onDoubleTap).not.toHaveBeenCalled();
+    taps.press(new MouseEvent('mousedown'));
+    expect(onDoubleTap).toHaveBeenCalledTimes(1);
+
+    taps.press(new MouseEvent('mousedown'));
+    expect(onDoubleTap).toHaveBeenCalledTimes(1);
+    destroy();
+  });
+
+  it('runs nothing for a second press that strayed from the first', () => {
+    const { taps, onDoubleTap, destroy } = setup();
+    const pointer = pointAt(taps, 10, 10);
+
+    taps.press(new MouseEvent('mousedown'));
+    pointer.mockReturnValue({ x: 60, y: 10, z: 0 });
+    taps.press(new MouseEvent('mousedown'));
+
+    expect(onDoubleTap).not.toHaveBeenCalled();
+    destroy();
+  });
+
+  it('counts no press before the first render or once the part is gone', () => {
+    const { taps, onDoubleTap, destroy } = setup();
+    taps.press(new MouseEvent('mousedown'));
+    destroy();
+
+    expect(taps.input.current).toBeNull();
+    taps.press(new MouseEvent('mousedown'));
+    expect(onDoubleTap).not.toHaveBeenCalled();
   });
 });
