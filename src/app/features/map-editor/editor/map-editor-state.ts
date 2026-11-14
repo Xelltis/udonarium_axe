@@ -510,16 +510,19 @@ export class MapEditorState {
     return created;
   }
 
-  /** Adds an empty layer on top and makes it active, as one undoable step. */
-  addEmptyLayer(kind: LayerKind, name: string): MapLayer {
+  /**
+   * Adds an empty layer on top and makes it active, as one undoable step. Left unnamed, it is named
+   * as a layer made for new work is: after its kind, with a count no other layer goes by.
+   */
+  addEmptyLayer(kind: LayerKind, name: string = this.autoLayerName(kind)): MapLayer {
     const created = createLayer(kind, name);
     this.applyCommitted((scene) => addLayer(scene, created));
     this.activeLayerId.set(created.id);
     return created;
   }
 
-  /** Starts a layer for a role by hand, wearing the brush that is in hand. */
-  addEmptyFunctionLayer(role: MapFunctionRole, name: string): FunctionLayer {
+  /** Starts a layer for a role by hand, wearing the brush that is in hand; left unnamed, named after the role. */
+  addEmptyFunctionLayer(role: MapFunctionRole, name: string = this.autoLayerName('function', role)): FunctionLayer {
     const created = createLayer('function', name) as FunctionLayer;
     created.role = role;
     created.spec = { ...this.functionSpec() };

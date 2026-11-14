@@ -299,6 +299,29 @@ describe('MapEditorState', () => {
     expect(state.canUndo()).toBe(true);
   });
 
+  it('names a layer added by hand after its kind, with a count no other layer goes by', () => {
+    state.layerNameOf = (kind, role) => (role === undefined ? `層:${kind}` : `役:${role}`);
+    const first = state.addEmptyLayer('text');
+    const second = state.addEmptyLayer('text');
+    expect([first.name, second.name]).toEqual(['層:text 1', '層:text 2']);
+
+    state.applyCommitted((scene) => {
+      scene.layers = scene.layers.filter((layer) => layer.id !== first.id);
+    });
+    const third = state.addEmptyLayer('text');
+
+    expect(third.name).toBe('層:text 3');
+    expect(state.addEmptyLayer('text', 'じぶんの名前').name).toBe('じぶんの名前');
+  });
+
+  it('names a function layer added by hand after its role, counting the layers of that role alone', () => {
+    state.layerNameOf = (kind, role) => (role === undefined ? `層:${kind}` : `役:${role}`);
+
+    expect(state.addEmptyFunctionLayer('mask').name).toBe('役:mask 1');
+    expect(state.addEmptyFunctionLayer('terrain').name).toBe('役:terrain 1');
+    expect(state.addEmptyFunctionLayer('mask').name).toBe('役:mask 2');
+  });
+
   it('gives each stamp its own layer', () => {
     state.stampId.set('door-single');
     state.placeStamp(10, 10, 'スタンプ 1');

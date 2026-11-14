@@ -184,16 +184,12 @@ export class MapEditorLayerDrawerComponent {
   }
 
   protected addLayerOfKind(kind: LayerKind): void {
-    const label = this.t('feature.mapEditor.layers.kinds.' + kind);
-    const count = this.state.current.layers.filter((l) => l.kind === kind).length + 1;
-    this.state.addEmptyLayer(kind, label + ' ' + count);
+    this.state.addEmptyLayer(kind);
     this.addLayerMenuOpen.set(false);
   }
 
   protected addFunctionLayerOfRole(role: MapFunctionRole): void {
-    const label = this.t(functionRoleLabelKey(role));
-    const count = this.state.current.layers.filter((l) => l.kind === 'function' && l.role === role).length + 1;
-    this.state.addEmptyFunctionLayer(role, label + ' ' + count);
+    this.state.addEmptyFunctionLayer(role);
     this.addLayerMenuOpen.set(false);
   }
 }
