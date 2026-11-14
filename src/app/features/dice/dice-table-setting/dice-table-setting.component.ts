@@ -85,14 +85,16 @@ export class DiceTableSettingComponent {
   }
 
   /**
-   * Sets the game system whose dice bot reads the selected table's entries; ignored for a seat that
-   * may not change tables.
+   * Sets the game system whose dice bot reads the selected table's entries, and starts fetching that
+   * dice bot so rolling on the table does not wait on the download; ignored for a seat that may not
+   * change tables.
    */
   setGameType(value: string): void {
     const table = this.selectedTable;
     if (!this.isWritable || !table) return;
     const palette = this.findDiceTablePalette(table);
     if (palette) palette.dicebot = value;
+    void DiceBot.getHelpMessage(value);
   }
 
   /**
@@ -126,14 +128,6 @@ export class DiceTableSettingComponent {
     return null;
   }
 
-  /**
-   * Starts fetching the dice bot for the game system just picked, so rolling on the table does not
-   * wait on the download.
-   */
-  loadDiceBot(gameType: string) {
-    DiceBot.getHelpMessage(gameType).then((_help) => {});
-  }
-
   private readonly diceBotCatalog = inject(DiceBotCatalogService);
 
   /** The game systems offered in the dice bot selector. */
@@ -152,11 +146,6 @@ export class DiceTableSettingComponent {
   }
   readonly editPalette = signal('');
 
-  /** Always false; the empty state is decided from the table list in the template instead. */
-  get isEmpty(): boolean {
-    return false;
-  }
-
   /** Whether a dice table is picked. */
   get isSelected(): boolean {
     return this.selectedTable !== null;
@@ -170,7 +159,7 @@ export class DiceTableSettingComponent {
 
   /** Whether a table that still exists is picked, so its fields have something to show. */
   get isEditable(): boolean {
-    return !this.isEmpty && this.isSelected && !this.isDeleted;
+    return this.isSelected && !this.isDeleted;
   }
 
   /**
@@ -243,7 +232,7 @@ export class DiceTableSettingComponent {
   async delete(): Promise<void> {
     if (!this.canEditTables) return;
     const table = this.selectedTable;
-    if (this.isEmpty || !table) return;
+    if (!table) return;
     const sure = await this.confirm.ask({
       message: this.t('feature.dice.tableSetting.deleteConfirm', { name: table.name }),
       okLabel: this.t('common.button.delete'),

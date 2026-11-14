@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { DiceTable } from '@axe/domain/dice/dice-table';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -330,6 +331,28 @@ describe('DiceTableSettingComponent', () => {
       }
 
       expect([table.name, table.dice, table.command]).toEqual(['暴走表', '2d6', 'runaway']);
+    });
+
+    it('starts fetching the dice bot of the game system picked, once, as it writes it to the table', () => {
+      const fetching = vi.spyOn(DiceBot, 'getHelpMessage').mockResolvedValue('');
+      component.createDiceTable();
+
+      component.setGameType('Cthulhu7th');
+
+      expect(component.gameType()).toBe('Cthulhu7th');
+      expect(fetching.mock.calls).toEqual([['Cthulhu7th']]);
+      fetching.mockRestore();
+    });
+
+    it('fetches no dice bot for a seat that may not change tables', () => {
+      const fetching = vi.spyOn(DiceBot, 'getHelpMessage').mockResolvedValue('');
+      component.createDiceTable();
+      PeerCursor.myCursor = { role: PeerRole.Guest, identifier: 'seat-cursor' } as PeerCursor;
+
+      component.setGameType('Cthulhu7th');
+
+      expect(fetching).not.toHaveBeenCalled();
+      fetching.mockRestore();
     });
 
     it('opens the entries for editing with the edit button, saying so, and closes them with confirm', async () => {

@@ -112,7 +112,6 @@
         }}</label>
         <ng-select
           class="ud-select sys-select"
-          (change)="loadDiceBot($event)"
           [ngModel]="gameType()"
           (ngModelChange)="setGameType($event)"
           [ngModelOptions]="{ standalone: true }"
