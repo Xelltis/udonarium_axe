@@ -362,16 +362,21 @@
         {{ 'feature.whiteBoard.editor.guides' | transloco }}
       </label>
       <label class="flex cursor-pointer items-center gap-1.5">
-        <input type="checkbox" name="board-rulers" [ngModel]="showRulers()" (ngModelChange)="showRulers.set($event)" />
+        <input
+          type="checkbox"
+          name="board-rulers"
+          [ngModel]="stage.showRulers()"
+          (ngModelChange)="stage.showRulers.set($event)"
+        />
         {{ 'feature.whiteBoard.editor.rulers' | transloco }}
       </label>
-      @if (guides.length > 0) {
+      @if (guides().length > 0) {
         <button
           class="text-ui-accent cursor-pointer self-start border-0 bg-transparent p-0"
           type="button"
           (click)="clearGuides()"
         >
-          {{ 'feature.whiteBoard.editor.clearGuides' | transloco: { count: guides.length } }}
+          {{ 'feature.whiteBoard.editor.clearGuides' | transloco: { count: guides().length } }}
         </button>
       }
       @if (isRuled) {
@@ -403,7 +408,7 @@
       <input
         class="bg-ui-input rounded-ui-sm px-1 py-0.5"
         name="board-name"
-        [(ngModel)]="name"
+        [(ngModel)]="settings.name"
         [placeholder]="'feature.whiteBoard.settings.name' | transloco"
       />
       <label class="flex items-center justify-between gap-2">
@@ -412,9 +417,9 @@
           class="bg-ui-input rounded-ui-sm w-16 px-1 py-0.5"
           name="board-cols"
           type="number"
-          [min]="minSide"
-          [max]="maxSide"
-          [(ngModel)]="width"
+          [min]="settings.minSide"
+          [max]="settings.maxSide"
+          [(ngModel)]="settings.width"
         />
       </label>
       <label class="flex items-center justify-between gap-2">
@@ -423,9 +428,9 @@
           class="bg-ui-input rounded-ui-sm w-16 px-1 py-0.5"
           name="board-rows"
           type="number"
-          [min]="minSide"
-          [max]="maxSide"
-          [(ngModel)]="height"
+          [min]="settings.minSide"
+          [max]="settings.maxSide"
+          [(ngModel)]="settings.height"
         />
       </label>
       <label class="flex items-center justify-between gap-2">
@@ -434,13 +439,13 @@
           class="h-6 w-12 cursor-pointer"
           type="color"
           name="board-face"
-          [disabled]="isSeeThrough"
-          [class.opacity-40]="isSeeThrough"
-          [(ngModel)]="boardColor"
+          [disabled]="settings.isSeeThrough"
+          [class.opacity-40]="settings.isSeeThrough"
+          [(ngModel)]="settings.boardColor"
         />
       </label>
       <label class="flex cursor-pointer items-center gap-1.5">
-        <input type="checkbox" name="board-see-through" [(ngModel)]="isSeeThrough" />
+        <input type="checkbox" name="board-see-through" [(ngModel)]="settings.isSeeThrough" />
         {{ 'feature.whiteBoard.settings.seeThrough' | transloco }}
       </label>
       <label class="flex items-center justify-between gap-2">
@@ -449,17 +454,17 @@
           class="w-24"
           type="range"
           name="board-pitch"
-          [min]="minPitch"
-          [max]="maxPitch"
+          [min]="settings.minPitch"
+          [max]="settings.maxPitch"
           step="5"
-          [(ngModel)]="pitch"
+          [(ngModel)]="settings.pitch"
         />
       </label>
       <label class="flex items-center justify-between gap-2">
         <span class="text-ui-muted">{{ 'feature.whiteBoard.settings.rotate' | transloco }}</span>
-        <input class="w-24" type="range" name="board-rotate" min="0" max="359" step="1" [(ngModel)]="rotate" />
+        <input class="w-24" type="range" name="board-rotate" min="0" max="359" step="1" [(ngModel)]="settings.rotate" />
       </label>
-      @if (!isSeeThrough) {
+      @if (!settings.isSeeThrough) {
         <label class="flex items-center justify-between gap-2">
           <span class="text-ui-muted">{{ 'feature.whiteBoard.settings.opacity' | transloco }}</span>
           <input
@@ -469,16 +474,16 @@
             min="5"
             max="100"
             step="5"
-            [(ngModel)]="opacityPercent"
+            [(ngModel)]="settings.opacityPercent"
           />
         </label>
       }
       <label class="flex cursor-pointer items-center gap-1.5">
-        <input type="checkbox" name="board-shadow" [(ngModel)]="isDropShadow" />
+        <input type="checkbox" name="board-shadow" [(ngModel)]="settings.isDropShadow" />
         {{ 'feature.whiteBoard.settings.dropShadow' | transloco }}
       </label>
       <label class="flex cursor-pointer items-center gap-1.5">
-        <input type="checkbox" name="board-lock" [(ngModel)]="isLock" />
+        <input type="checkbox" name="board-lock" [(ngModel)]="settings.isLock" />
         {{ 'feature.whiteBoard.settings.lock' | transloco }}
       </label>
     </div>
@@ -662,20 +667,20 @@
           class="rounded-ui-sm hover:bg-ui-hover cursor-pointer border border-solid border-transparent px-1 py-0.5"
           type="button"
           [title]="'feature.whiteBoard.editor.zoomOut' | transloco"
-          (click)="zoomOut()"
+          (click)="stage.zoomOut()"
         >
           <i class="material-icons text-[16px]!">remove</i>
         </button>
         <select
           class="bg-ui-input rounded-ui-sm w-16 px-1 py-0.5 text-center"
           name="board-zoom"
-          [ngModel]="zoom()"
-          (ngModelChange)="zoomTo($event)"
+          [ngModel]="stage.zoom()"
+          (ngModelChange)="stage.zoomTo($event)"
         >
-          @if (!zooms.includes(zoom())) {
-            <option [ngValue]="zoom()">{{ zoomPercent() }}%</option>
+          @if (!stage.zooms.includes(stage.zoom())) {
+            <option [ngValue]="stage.zoom()">{{ stage.zoomPercent() }}%</option>
           }
-          @for (step of zooms; track step) {
+          @for (step of stage.zooms; track step) {
             <option [ngValue]="step">{{ step * 100 }}%</option>
           }
         </select>
@@ -683,7 +688,7 @@
           class="rounded-ui-sm hover:bg-ui-hover cursor-pointer border border-solid border-transparent px-1 py-0.5"
           type="button"
           [title]="'feature.whiteBoard.editor.zoomIn' | transloco"
-          (click)="zoomIn()"
+          (click)="stage.zoomIn()"
         >
           <i class="material-icons text-[16px]!">add</i>
         </button>
@@ -691,49 +696,49 @@
           class="rounded-ui-sm hover:bg-ui-hover cursor-pointer border border-solid border-transparent px-1 py-0.5"
           type="button"
           [title]="'feature.whiteBoard.editor.zoomFit' | transloco"
-          (click)="zoomToFit()"
+          (click)="stage.zoomToFit()"
         >
           <i class="material-icons text-[16px]!">fit_screen</i>
         </button>
       </span>
-      <span class="text-ui-dim ml-auto">{{ sceneWidth }} × {{ sceneHeight }}</span>
+      <span class="text-ui-dim ml-auto">{{ sceneWidth() }} × {{ sceneHeight() }}</span>
       @if (isCompact()) {
         <button
           class="text-ui-accent cursor-pointer border-0 bg-transparent p-0"
           type="button"
           (click)="toggleDrawer('layers')"
         >
-          {{ 'feature.whiteBoard.editor.layers' | transloco: { count: layers.length } }}
+          {{ 'feature.whiteBoard.editor.layers' | transloco: { count: layerCount() } }}
         </button>
       }
     </div>
 
     <div
-      #stage
+      #stageBox
       class="relative flex-1 overflow-auto bg-neutral-700 p-3"
-      [class.cursor-grab]="panning() && !sliding()"
-      [class.cursor-grabbing]="sliding()"
-      (wheel)="onWheel($event)"
+      [class.cursor-grab]="stage.panning() && !stage.sliding()"
+      [class.cursor-grabbing]="stage.sliding()"
+      (wheel)="stage.onWheel($event)"
     >
       <div
         class="relative mx-auto"
-        [style.width.px]="sceneWidth * zoom() + (showRulers() ? rulerWidth : 0)"
-        [style.padding-left.px]="showRulers() ? rulerWidth : 0"
-        [style.padding-top.px]="showRulers() ? rulerWidth : 0"
+        [style.width.px]="sceneWidth() * stage.zoom() + (stage.showRulers() ? stage.rulerWidth : 0)"
+        [style.padding-left.px]="stage.showRulers() ? stage.rulerWidth : 0"
+        [style.padding-top.px]="stage.showRulers() ? stage.rulerWidth : 0"
       >
-        @if (showRulers()) {
+        @if (stage.showRulers()) {
           <!-- Pulling off a ruler leaves a line on the sheet; pulling the line back off is
                how it is got rid of, which is how a ruler has always worked. -->
           <div
             class="bg-ui-panel border-ui-border-panel absolute top-0 right-0 cursor-ew-resize border-b border-solid"
-            [style.left.px]="rulerWidth"
-            [style.height.px]="rulerWidth"
+            [style.left.px]="stage.rulerWidth"
+            [style.height.px]="stage.rulerWidth"
             [title]="'feature.whiteBoard.editor.rulerHint' | transloco"
             (pointerdown)="startGuide('x', $event)"
             (pointermove)="onPointerMove($event)"
             (pointerup)="onPointerUp($event)"
           >
-            @for (tick of ticks('x'); track tick.at) {
+            @for (tick of stage.ticks('x'); track tick.at) {
               <span class="text-ui-muted absolute bottom-0 text-[8px] leading-none" [style.left.px]="tick.px + 1">
                 {{ tick.at }}
               </span>
@@ -741,13 +746,13 @@
           </div>
           <div
             class="bg-ui-panel border-ui-border-panel absolute bottom-0 left-0 cursor-ns-resize border-r border-solid"
-            [style.top.px]="rulerWidth"
-            [style.width.px]="rulerWidth"
+            [style.top.px]="stage.rulerWidth"
+            [style.width.px]="stage.rulerWidth"
             (pointerdown)="startGuide('y', $event)"
             (pointermove)="onPointerMove($event)"
             (pointerup)="onPointerUp($event)"
           >
-            @for (tick of ticks('y'); track tick.at) {
+            @for (tick of stage.ticks('y'); track tick.at) {
               <span class="text-ui-muted absolute left-0 text-[8px] leading-none" [style.top.px]="tick.px + 1">
                 {{ tick.at }}
               </span>
@@ -760,11 +765,15 @@
           <div
             class="absolute inset-0 bg-[repeating-conic-gradient(#c4c4c4_0%_25%,#f2f2f2_0%_50%)] bg-size-[16px_16px]"
           ></div>
-          <div class="absolute inset-0" [style.background-color]="boardColor" [style.opacity]="faceOpacity"></div>
+          <div
+            class="absolute inset-0"
+            [style.background-color]="settings.boardColor"
+            [style.opacity]="settings.faceOpacity"
+          ></div>
           <canvas
             #board
             class="relative block h-auto w-full touch-none"
-            (dblclick)="onDoubleClick($any($event))"
+            (dblclick)="onDoubleClick($event)"
             (pointerdown)="onPointerDown($event)"
             (pointermove)="onPointerMove($event)"
             (pointerup)="onPointerUp($event)"
@@ -772,30 +781,15 @@
           ></canvas>
 
           @if (typing(); as at) {
-            <!-- Typed straight onto the sheet at the size, weight and colour the words will
-                 have, rather than into a box off to one side that looks like none of it. -->
-            <div
-              #wordBox
-              class="absolute z-20 m-0 box-border cursor-text border-0 bg-[rgba(127,127,127,0.12)] p-0 whitespace-pre outline-1 outline-(--ui-accent) outline-dashed"
-              contenteditable="true"
-              [style.left.px]="at.x * zoom()"
-              [style.top.px]="at.y * zoom()"
-              [style.font-size.px]="fontSize() * zoom()"
-              [style.font-weight]="bold() ? 'bold' : 'normal'"
-              [style.font-style]="italic() ? 'italic' : 'normal'"
-              [style.color]="color()"
-              [style.caret-color]="color()"
-              [style.line-height]="'1.2'"
-              [style.-webkit-text-stroke]="typedStroke()"
-              [style.paint-order]="'stroke fill'"
-              [style.text-decoration]="typedRules()"
-              [style.text-shadow]="typedShadow()"
-              [style.min-width.px]="1"
-              [style.transform-origin]="'top left'"
-              (input)="onTypedInput($event)"
-              (keydown)="onTypedKey($event)"
-              (pointerdown)="$event.stopPropagation()"
-            ></div>
+            <white-board-word-box
+              [at]="at"
+              [zoom]="stage.zoom()"
+              [look]="wordLook()"
+              [words]="wordsWere"
+              (typed)="typedText = $event"
+              (commit)="commitText()"
+              (discard)="dropTyping()"
+            />
           }
         </div>
       </div>
@@ -803,11 +797,11 @@
   </div>
 
   <white-board-layer-drawer
-    [groups]="groups"
-    [layerCount]="layers.length"
-    [groupNames]="groupNames"
+    [groups]="groups()"
+    [layerCount]="layerCount()"
+    [groupNames]="groupNames()"
     [activeLayerId]="activeLayerId()"
-    [standing]="standing"
+    [standing]="standing()"
     [compact]="isCompact()"
     [open]="drawer() === 'layers'"
     (action)="onLayerAction($event)"

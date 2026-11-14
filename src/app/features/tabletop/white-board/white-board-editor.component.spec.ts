@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { MapScene, sceneHeightPx, sceneWidthPx, ShapeItem } from '@axe/domain/map-editor/scene';
@@ -6,6 +7,7 @@ import { deserializeScene, serializeScene } from '@axe/domain/map-editor/seriali
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { WhiteBoardEditorComponent } from '@axe/features/tabletop/white-board/white-board-editor.component';
 import { SAVE_DELAY } from '@axe/features/tabletop/white-board/white-board-keeper';
+import { WhiteBoardLayerDrawerComponent } from '@axe/features/tabletop/white-board/white-board-layer-drawer.component';
 import { RULER_WIDTH } from '@axe/features/tabletop/white-board/white-board-rulers';
 import {
   BOARD_TOOLS,
@@ -209,6 +211,25 @@ describe('WhiteBoardEditorComponent', () => {
     expect(sceneWidthPx(back)).toBe(1000);
     expect(sceneHeightPx(back)).toBe(750);
     expect(back.layers).toHaveLength(0);
+  });
+
+  it('hands the layer drawer the same sheets until the drawing changes, so it is not drawn again for nothing', () => {
+    const { fixture, root, canvas } = mount((scene) => rect(scene, { x: 10, y: 10 }, { x: 60, y: 40 }));
+    const drawer = fixture.debugElement.query(By.directive(WhiteBoardLayerDrawerComponent))
+      .componentInstance as WhiteBoardLayerDrawerComponent;
+    const before = drawer.groups();
+    expect(before).toHaveLength(1);
+
+    press(root, { key: 'v' });
+    fixture.detectChanges();
+    expect(drawer.groups()).toBe(before);
+    press(root, { key: 'p' });
+
+    drag(canvas, { x: 100, y: 100 }, [{ x: 110, y: 110 }], { x: 120, y: 120 });
+    fixture.detectChanges();
+    expect(drawer.groups()).not.toBe(before);
+    expect(drawer.groups()).toHaveLength(2);
+    expect(drawer.layerCount()).toBe(2);
   });
 
   describe('keyboard', () => {

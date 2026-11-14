@@ -1,0 +1,24 @@
+<!-- Typed straight onto the sheet at the size, weight and colour the words will
+     have, rather than into a box off to one side that looks like none of it. -->
+<div
+  #wordBox
+  class="absolute z-20 m-0 box-border cursor-text border-0 bg-[rgba(127,127,127,0.12)] p-0 whitespace-pre outline-1 outline-(--ui-accent) outline-dashed"
+  contenteditable="true"
+  [style.left.px]="at().x * zoom()"
+  [style.top.px]="at().y * zoom()"
+  [style.font-size.px]="look().fontSize * zoom()"
+  [style.font-weight]="look().bold ? 'bold' : 'normal'"
+  [style.font-style]="look().italic ? 'italic' : 'normal'"
+  [style.color]="look().color"
+  [style.caret-color]="look().color"
+  [style.line-height]="'1.2'"
+  [style.-webkit-text-stroke]="stroke()"
+  [style.paint-order]="'stroke fill'"
+  [style.text-decoration]="rules()"
+  [style.text-shadow]="shadow()"
+  [style.min-width.px]="1"
+  [style.transform-origin]="'top left'"
+  (input)="onInput($event)"
+  (keydown)="onKey($event)"
+  (pointerdown)="$event.stopPropagation()"
+></div>
