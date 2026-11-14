@@ -63,6 +63,7 @@ import {
 } from '@axe/features/character/game-character-sheet/detail-element-reorder-helpers';
 import { GameCharacterSettingsTabComponent } from '@axe/features/character/game-character-sheet/game-character-settings-tab.component';
 import { SheetBasicsCardComponent } from '@axe/features/character/game-character-sheet/sheet-basics-card.component';
+import { SheetRangeFormComponent } from '@axe/features/character/game-character-sheet/sheet-range-form.component';
 import { SheetSaveButtonsComponent } from '@axe/features/character/game-character-sheet/sheet-save-buttons.component';
 import { SheetViewPreferenceService } from '@axe/features/character/game-character-sheet/sheet-view-preference.service';
 import { openDataElementEditor } from '@axe/features/data-element/data-element-editor/open-data-element-editor';
@@ -104,6 +105,7 @@ const SECTIONS_WITH_OWN_CONTROLS: ReadonlySet<string> = new Set([PORTRAIT_POSITI
     TranslocoModule,
     PieceModelFieldsComponent,
     SheetBasicsCardComponent,
+    SheetRangeFormComponent,
     SheetSaveButtonsComponent,
   ],
 })
@@ -580,17 +582,6 @@ export class GameCharacterSheetComponent {
     return this.tabletopObject instanceof RangeArea ? this.tabletopObject : null;
   }
 
-  readonly rangeTypeItems: { type: string; labelKey: string; icon: string }[] = [
-    { type: 'LINE', labelKey: 'feature.inventory.sheet.rangeShapeLine', icon: 'remove' },
-    { type: 'CORN', labelKey: 'feature.inventory.sheet.rangeShapeCorn', icon: 'change_history' },
-    { type: 'TRIANGLE', labelKey: 'feature.inventory.sheet.rangeShapeTriangle', icon: 'details' },
-    { type: 'SQUARE', labelKey: 'feature.inventory.sheet.rangeShapeSquare', icon: 'crop_square' },
-    { type: 'RHOMBUS', labelKey: 'feature.inventory.sheet.rangeShapeDiamond', icon: 'diamond' },
-    { type: 'PENTAGON', labelKey: 'feature.inventory.sheet.rangeShapePentagon', icon: 'pentagon' },
-    { type: 'HEXAGON', labelKey: 'feature.inventory.sheet.rangeShapeHexagon', icon: 'hexagon' },
-    { type: 'CIRCLE', labelKey: 'feature.inventory.sheet.rangeShapeCircle', icon: 'radio_button_unchecked' },
-  ];
-
   readonly imageFile = computed(() => {
     this.objectChange.fileVersion();
     const obj = this.tabletopObject as TabletopObject | null;
@@ -913,20 +904,6 @@ export class GameCharacterSheetComponent {
   /** Does nothing; the terrain grid checkbox changes the terrain through its own binding. */
   clickGrid() {}
 
-  /** Names the portrait the piece currently shows, from the name field under the thumbnails. */
-  /** Moves where the character's portrait stands in chat, from the arrows beside the position. */
-  /** Does nothing; the checkbox it is bound to changes the range area through its own binding. */
-  clickRangeOffSetX() {}
-
-  /** Does nothing; the checkbox it is bound to changes the range area through its own binding. */
-  clickRangeOffSetY() {}
-
-  /** Does nothing; the fill outline checkbox changes the range area through its own binding. */
-  fillOutLine() {}
-
-  /** Does nothing; the rotation snap checkbox changes the range area through its own binding. */
-  subDivisionSnapPolygonal() {}
-
   /**
    * Asks the note to fit its height to its content again shortly after the limit height checkbox is
    * clicked, once the change has landed.
@@ -1001,22 +978,6 @@ export class GameCharacterSheetComponent {
     });
   }
 
-  /** Sets the range area's fill colour. */
-  changeGridColor(event: string) {
-    if (this.tabletopObject) {
-      const range: RangeArea = this.tabletopObject as RangeArea;
-      range.gridColor = event;
-    }
-  }
-
-  /** Sets the range area's border colour. */
-  changeRangeColor(event: string) {
-    if (this.tabletopObject) {
-      const range: RangeArea = this.tabletopObject as RangeArea;
-      range.rangeColor = event;
-    }
-  }
-
   /** Applies the hover popup width from its number field. */
   onChkPopWidth(event: Event): void {
     this.chkPopWidth((event.target as HTMLInputElement).valueAsNumber);
@@ -1028,14 +989,6 @@ export class GameCharacterSheetComponent {
   /** Moves the piece to the inventory named by a form field's value. */
   onSetLocation(event: Event): void {
     this.setLocation((event.target as HTMLInputElement).value);
-  }
-  /** Sets the range area's border colour from its colour field. */
-  onChangeRangeColor(event: Event): void {
-    this.changeRangeColor((event.target as HTMLInputElement).value);
-  }
-  /** Sets the range area's fill colour from its colour field. */
-  onChangeGridColor(event: Event): void {
-    this.changeGridColor((event.target as HTMLInputElement).value);
   }
 
   /**

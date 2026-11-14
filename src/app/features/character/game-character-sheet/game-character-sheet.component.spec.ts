@@ -13,6 +13,7 @@ import { GameCharacter, KOMA_IMAGE_SECTION, PORTRAIT_POSITION_SECTION } from '@a
 import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { GameCharacterSheetComponent } from '@axe/features/character/game-character-sheet/game-character-sheet.component';
@@ -313,6 +314,21 @@ describe('GameCharacterSheetComponent', () => {
       vi.useRealTimers();
       vi.restoreAllMocks();
       note.destroy();
+    }
+  });
+
+  it('draws the form of a range for a range, with its basic information inside', () => {
+    const range = RangeArea.create('範囲', 1, 3, 100);
+    component.tabletopObject = range;
+    try {
+      fixture.detectChanges();
+      const form = (fixture.nativeElement as HTMLElement).querySelector('sheet-range-form')!;
+
+      expect(form.querySelector('[data-testid="range-free-placement"]')).not.toBeNull();
+      expect(form.querySelector('sheet-basics-card [game-data-element]')).not.toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelector('sheet-save-buttons')).toBeNull();
+    } finally {
+      range.destroy();
     }
   });
 
