@@ -1423,11 +1423,6 @@ export class ChatInputComponent {
     this.openUp();
   }
 
-  /** The dice bot help text last fetched for the help panel. */
-  get gameHelp(): string {
-    return this.dicebotHelper.gameHelp;
-  }
-
   /** Starts fetching the dice bot for the game system just picked in the selector. */
   loadDiceBot(gameType: string) {
     this.dicebotHelper.load(gameType);

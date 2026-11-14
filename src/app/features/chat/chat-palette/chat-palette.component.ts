@@ -286,7 +286,6 @@ export class ChatPaletteComponent {
   private readonly _gameType = linkedSignal(() => this.character()?.chatPalette?.dicebot ?? '');
   private _paletteIndex: PaletteIndex[] = [];
   private _timeId: string = '';
-  private _autoCompleteEnable = false;
 
   /**
    * The dice bot lines from this palette are rolled with.
@@ -492,11 +491,6 @@ export class ChatPaletteComponent {
     this.updatePanelTitle();
   }
 
-  /** Asks the chat input to refit its height to the text it holds. */
-  resizeChatInput() {
-    this.chatInputComponent().kickCalcFitHeight();
-  }
-
   /** On the panel rather than on the input, so it keeps working wherever focus sits inside it. */
   switchTabByKey(event: Event, direction: number): void {
     if (editsTextInPlace(event.target)) return;
@@ -582,11 +576,6 @@ export class ChatPaletteComponent {
   completeIndex(): number {
     const selectObj = this.completeSelectRef()?.nativeElement;
     return selectObj ? selectObj.selectedIndex : -1;
-  }
-
-  /** The palette lines matching what is typed; empty until at least two characters are typed. */
-  autoCompleteList(): string[] {
-    return this.autoCompleteListSignal();
   }
 
   /**
@@ -770,16 +759,6 @@ export class ChatPaletteComponent {
       this.plainStand = null;
       if (this.mayEdit()) this.palette.setPalette(this.editPalette());
     }
-  }
-
-  /** Focuses the palette text area and puts the caret at the 600th character. */
-  moveTest() {
-    const textEl = this.editTextRef()?.nativeElement;
-    if (!textEl) return;
-    textEl.focus();
-    setTimeout(() => {
-      textEl.setSelectionRange(600, 600);
-    }, 10);
   }
 
   /**

@@ -639,14 +639,6 @@ export class ChatWindowComponent {
     this.panelService.chatTab = tab;
   }
 
-  /**
-   * Retitles the panel after a tab is selected; the title is read from the current tab, not from
-   * the identifier.
-   */
-  onSelectedTab(_identifier: string) {
-    this.updatePanelTitle();
-  }
-
   /** Opens the chat tab settings panel near the pointer, with the current tab selected. */
   showTabSetting() {
     const coordinate = this.pointerDeviceService.pointers[0];
