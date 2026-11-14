@@ -45,14 +45,16 @@ export class SkyWayDataStreamList implements Iterable<SkyWayDataStream> {
   /**
    * Adds a stream, settling a second stream for the same peer by keeping the lower sort key.
    *
-   * That settles two peers dialling each other at once. Gives the stream when it was added and null
+   * That settles two peers dialling each other at once. A stream already held that is dead, or
+   * open but long silent, is not part of such a pair: the peer has given it up and dialled again,
+   * so the new stream replaces it whatever the keys. Gives the stream when it was added and null
    * when it was not, either because it is already in the list or because it lost and was disconnected.
    */
   add(stream: SkyWayDataStream): SkyWayDataStream | null {
     const existStream = this.find(stream.peer.peerId);
     if (existStream) {
       if (existStream !== stream) {
-        if (existStream.sortKey < stream.sortKey) {
+        if (!existStream.yieldsToNewcomer && existStream.sortKey < stream.sortKey) {
           stream.removeAllListeners();
           stream.disconnect();
         } else {

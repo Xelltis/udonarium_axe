@@ -1,7 +1,7 @@
 import { Logger } from '@axe/core/logging/logger';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
-import { SkyWayConnection } from '@axe/core/network/skyway/skyway-connection';
+import { CONNECT_DEADLINE_MS, SkyWayConnection } from '@axe/core/network/skyway/skyway-connection';
 import { decompressAsync } from '@axe/core/util/compress';
 import * as MessagePack from '@axe/core/util/message-pack';
 import { PERF_INBOUND_DRAIN, perfCounters } from '@axe/core/util/perf-counters';
@@ -645,6 +645,189 @@ describe('SkyWayConnection', () => {
       connAny.close();
 
       expect(connAny.reconnectScheduler.scheduledPeerIds).toEqual([]);
+    });
+
+    it('leaves a waiting attempt alone when the peer is reported closed again', () => {
+      connAny.disconnectStream(stream, true);
+      onReconnect.mockClear();
+
+      connAny.disconnectStream(stream, true);
+
+      expect(connAny.reconnectScheduler.isScheduled('peer-a')).toBe(true);
+      expect(connAny.reconnectScheduler.attemptOf('peer-a')).toBe(1);
+      expect(onReconnect).not.toHaveBeenCalled();
+    });
+
+    it('lets a peer whose attempt failed be dialled again from the user list', () => {
+      connAny.maybeUnavailablePeerIds.add('peer-a');
+
+      connAny.disconnectStream(stream, true);
+
+      expect(connAny.maybeUnavailablePeerIds.has('peer-a')).toBe(false);
+    });
+
+    it('leaves a peer to the stream that is opening to it by the time its turn comes', async () => {
+      vi.spyOn(connAny, 'connect').mockResolvedValue(false);
+      connAny.disconnectStream(stream, true);
+      onReconnect.mockClear();
+      connAny.streams.find = vi.fn().mockReturnValue({ isDead: false });
+
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(onReconnect).not.toHaveBeenCalled();
+      expect(connAny.reconnectScheduler.attemptOf('peer-a')).toBe(1);
+    });
+
+    describe('once the backoff has been used up', () => {
+      beforeEach(() => {
+        connAny.reconnectScheduler = new PeerReconnectScheduler([10, 20], 50);
+      });
+
+      const failTwice = async () => {
+        vi.spyOn(connAny, 'connect').mockResolvedValue(true);
+        for (let i = 0; i < 2; i++) {
+          connAny.disconnectStream(stream, true);
+          await vi.advanceTimersByTimeAsync(20);
+        }
+        onReconnect.mockClear();
+      };
+
+      it('reports the failure once and goes on trying at the steady delay', async () => {
+        await failTwice();
+
+        for (let i = 0; i < 3; i++) {
+          connAny.disconnectStream(stream, true);
+          expect(connAny.reconnectScheduler.isScheduled('peer-a')).toBe(true);
+          await vi.advanceTimersByTimeAsync(50);
+        }
+
+        expect(onReconnect.mock.calls.map(([, state]) => state)).toEqual(['failed']);
+        expect(connAny.connect).toHaveBeenCalledTimes(5);
+      });
+
+      it('stops, without reporting the failure again, once the peer can no longer be dialled', async () => {
+        await failTwice();
+        connAny.disconnectStream(stream, true);
+        onReconnect.mockClear();
+        connAny.connect.mockResolvedValue(false);
+
+        await vi.advanceTimersByTimeAsync(50);
+
+        expect(onReconnect).not.toHaveBeenCalled();
+        expect(connAny.reconnectScheduler.isScheduled('peer-a')).toBe(false);
+        expect(connAny.reconnectScheduler.attemptOf('peer-a')).toBe(0);
+      });
+
+      it('reports the peer recovered when a later attempt opens', async () => {
+        await failTwice();
+        connAny.disconnectStream(stream, true);
+        onReconnect.mockClear();
+        const handlers = new Map<string, () => void>();
+        const reopened = {
+          peer: PeerContext.parse('peer-a'),
+          on: (name: string, handler: () => void) => handlers.set(name, handler),
+          connect: vi.fn(),
+          open: true,
+        };
+        connAny.streams.add = vi.fn().mockReturnValue(reopened);
+
+        connAny.connectStream(reopened);
+        handlers.get('open')!();
+
+        expect(onReconnect.mock.calls.map(([, state]) => state)).toEqual(['recovered']);
+        expect(connAny.reconnectScheduler.attemptOf('peer-a')).toBe(0);
+      });
+    });
+  });
+
+  describe('a stream that does not open', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+    let connAny: Record<string, any>;
+    let handlers: Map<string, () => void>;
+    let stream: Record<string, unknown>;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+      connAny = new SkyWayConnection() as any;
+      connAny.skyWay = { isOpen: true, close: vi.fn() };
+      connAny.notifyUserList = vi.fn();
+      vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+      vi.spyOn(Logger, 'info').mockImplementation(() => {});
+      handlers = new Map();
+      stream = {
+        peer: PeerContext.parse('peer-a'),
+        open: false,
+        isDead: false,
+        sortKey: 'peer-a',
+        on: (name: string, handler: () => void) => handlers.set(name, handler),
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        removeAllListeners: vi.fn(),
+      };
+    });
+
+    afterEach(() => {
+      connAny.close();
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it('is given up and tried again once the deadline passes', () => {
+      connAny.connectStream(stream);
+      expect(connAny.maybeUnavailablePeerIds.has('peer-a')).toBe(true);
+
+      vi.advanceTimersByTime(CONNECT_DEADLINE_MS);
+
+      expect(stream['disconnect']).toHaveBeenCalledTimes(1);
+      expect(connAny.streams.find('peer-a')).toBeUndefined();
+      expect(connAny.maybeUnavailablePeerIds.has('peer-a')).toBe(false);
+      expect(connAny.reconnectScheduler.isScheduled('peer-a')).toBe(true);
+    });
+
+    it('is left alone once it has opened', () => {
+      connAny.connectStream(stream);
+      stream['open'] = true;
+      handlers.get('open')!();
+
+      vi.advanceTimersByTime(CONNECT_DEADLINE_MS);
+
+      expect(stream['disconnect']).not.toHaveBeenCalled();
+      expect(connAny.streams.find('peer-a')).toBe(stream);
+    });
+
+    it('keeps another connect to its peer from starting while it is still opening', async () => {
+      connAny.connectStream(stream);
+      connAny.skyWay.room = { members: [{ name: 'peer-a' }] };
+      Object.defineProperty(connAny, 'peer', {
+        get: () => ({ peerId: 'me', verifyPeer: () => Promise.resolve(true) }),
+      });
+
+      await expect(connAny.connect(PeerContext.parse('peer-a'))).resolves.toBe(false);
+
+      stream['isDead'] = true;
+      const dialled = vi.spyOn(connAny, 'connectStream').mockImplementation(() => {});
+      await expect(connAny.connect(PeerContext.parse('peer-a'))).resolves.toBe(true);
+      expect(dialled).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('dialling from the user list', () => {
+    it('leaves a peer with a reconnect attempt waiting to that attempt', async () => {
+      vi.useFakeTimers();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+      const connAny = new SkyWayConnection() as any;
+      connAny.makeFriendPeer = (userId: string) => Promise.resolve(PeerContext.parse(`peer-of-${userId}`));
+      Object.defineProperty(connAny, 'userIds', { get: () => ['me'] });
+      const connect = vi.spyOn(connAny, 'connect').mockResolvedValue(true);
+      connAny.reconnectScheduler.schedule('peer-of-waiting', () => {});
+
+      await connAny.onUpdateUserIds({ peer: { peerId: 'peer-b' } }, ['me', 'waiting', 'unknown']);
+
+      expect(connect.mock.calls.map(([peer]) => (peer as PeerContext).peerId)).toEqual(['peer-of-unknown']);
+      connAny.reconnectScheduler.cancelAll();
+      vi.useRealTimers();
+      vi.restoreAllMocks();
     });
   });
 });

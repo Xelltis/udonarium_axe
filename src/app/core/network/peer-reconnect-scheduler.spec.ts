@@ -49,6 +49,27 @@ describe('PeerReconnectScheduler', () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
+  it('goes on at the steady delay once the backoff runs out, where it is given one', () => {
+    const scheduler = new PeerReconnectScheduler([100], 500);
+    const run = vi.fn();
+
+    expect(scheduler.schedule('peer-a', run)).toBe(100);
+    vi.advanceTimersByTime(100);
+    expect(scheduler.isPastBackoff('peer-a')).toBe(false);
+
+    expect(scheduler.schedule('peer-a', run)).toBe(500);
+    expect(scheduler.isPastBackoff('peer-a')).toBe(true);
+    vi.advanceTimersByTime(500);
+    expect(scheduler.schedule('peer-a', run)).toBe(500);
+    vi.advanceTimersByTime(500);
+    expect(run).toHaveBeenCalledTimes(3);
+
+    scheduler.reset('peer-a');
+    expect(scheduler.isPastBackoff('peer-a')).toBe(false);
+    expect(scheduler.schedule('peer-a', run)).toBe(100);
+    scheduler.cancelAll();
+  });
+
   it('schedules nothing while one is still pending', () => {
     const scheduler = new PeerReconnectScheduler([100, 200]);
     const run = vi.fn();

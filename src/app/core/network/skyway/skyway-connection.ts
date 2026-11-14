@@ -4,7 +4,7 @@ import { readBackendUrl } from '@axe/core/network/backend-url';
 import { Connection, ConnectionCallback } from '@axe/core/network/connection';
 import { compressIfSmaller, splitAtFileChunks } from '@axe/core/network/frame-codec';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
-import { PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
+import { PEER_RECONNECT_STEADY_MS, PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
 import { SkyWayDataStream } from '@axe/core/network/skyway/skyway-data-stream';
 import { SkyWayDataStreamList } from '@axe/core/network/skyway/skyway-data-stream-list';
@@ -19,6 +19,12 @@ type PeerId = string;
 
 /** How often, for one peer, a message dropped for want of an open stream is logged. */
 const DROPPED_UNICAST_LOG_INTERVAL_MS = 10_000;
+
+/**
+ * How long a stream may take to open before it is given up and tried again. A stream that neither
+ * opens nor closes would otherwise keep its peer from ever being dialled again.
+ */
+export const CONNECT_DEADLINE_MS = 30_000;
 
 interface DataContainer {
   data: Uint8Array;
@@ -63,7 +69,11 @@ export class SkyWayConnection implements Connection {
 
   private readonly skyWay: SkyWayFacade = new SkyWayFacade();
   private readonly streams: SkyWayDataStreamList = new SkyWayDataStreamList();
-  private readonly reconnectScheduler: PeerReconnectScheduler = new PeerReconnectScheduler();
+  private readonly reconnectScheduler: PeerReconnectScheduler = new PeerReconnectScheduler(
+    undefined,
+    PEER_RECONNECT_STEADY_MS
+  );
+  private readonly connectDeadlines = new Map<SkyWayDataStream, ReturnType<typeof setTimeout>>();
 
   private listAllPeersCache: PeerId[] = [];
   private httpRequestInterval: number = performance.now() + 500;
@@ -134,8 +144,8 @@ export class SkyWayConnection implements Connection {
    * Starts a data connection to a member of the room.
    *
    * False, with nothing started, when the session is not open, the peer is this device or already
-   * has a stream, fails the room and password check, or is not in the room. True means the attempt
-   * started; callback.onConnect reports when the channel opens.
+   * has a stream that is open or still opening, fails the room and password check, or is not in
+   * the room. True means the attempt started; callback.onConnect reports when the channel opens.
    */
   async connect(peer: IPeerContext): Promise<boolean> {
     if (!(await this.shouldConnect(peer.peerId))) {
@@ -155,7 +165,7 @@ export class SkyWayConnection implements Connection {
       return false;
     }
 
-    if (this.peerIds.includes(peerId)) {
+    if (this.peerIds.includes(peerId) || this.hasLiveStream(peerId)) {
       return false;
     }
 
@@ -169,6 +179,12 @@ export class SkyWayConnection implements Connection {
     }
 
     return true;
+  }
+
+  /** Whether a stream to the peer is open or still on its way to opening. */
+  private hasLiveStream(peerId: string): boolean {
+    const stream = this.streams.find(peerId);
+    return !!stream && !stream.isDead;
   }
 
   /** Closes the connection to a peer and cancels its pending reconnect; false when there was none. */
@@ -319,11 +335,13 @@ export class SkyWayConnection implements Connection {
 
     this.trustedPeerIds.delete(stream.peer.peerId);
     this.maybeUnavailablePeerIds.add(stream.peer.peerId);
+    this.watchConnectDeadline(stream);
 
     stream.on('data', (data) => {
       this.onData(stream, data);
     });
     stream.on('open', () => {
+      this.clearConnectDeadline(stream);
       const wasReconnecting = 0 < this.reconnectScheduler.attemptOf(stream.peer.peerId);
       this.reconnectScheduler.reset(stream.peer.peerId);
       this.trustedPeerIds.add(stream.peer.peerId);
@@ -342,9 +360,30 @@ export class SkyWayConnection implements Connection {
     stream.connect();
   }
 
+  /** Gives a stream up, to be tried again, when it has neither opened nor closed by the deadline. */
+  private watchConnectDeadline(stream: SkyWayDataStream) {
+    const deadline = setTimeout(() => {
+      this.connectDeadlines.delete(stream);
+      if (stream.open || this.streams.find(stream.peer.peerId) !== stream) return;
+      Logger.warn(
+        `[SkyWay] ${CONNECT_DEADLINE_MS / 1000}秒たっても開かないため接続をやり直します: ${stream.peer.peerId}`
+      );
+      this.disconnectStream(stream, true);
+    }, CONNECT_DEADLINE_MS);
+    this.connectDeadlines.set(stream, deadline);
+  }
+
+  private clearConnectDeadline(stream: SkyWayDataStream) {
+    const deadline = this.connectDeadlines.get(stream);
+    if (deadline != null) clearTimeout(deadline);
+    this.connectDeadlines.delete(stream);
+  }
+
   private disconnectStream(stream: SkyWayDataStream, allowReconnect: boolean = false) {
+    this.clearConnectDeadline(stream);
     stream.disconnect();
     const closed = this.streams.remove(stream);
+    if (closed) this.maybeUnavailablePeerIds.delete(stream.peer.peerId);
 
     this.relayingPeerIds.delete(stream.peer.peerId);
     this.pendingRelayMapUpdates.delete(stream.peer.peerId);
@@ -371,6 +410,7 @@ export class SkyWayConnection implements Connection {
     });
 
     if (delayMs === null) {
+      if (this.reconnectScheduler.isScheduled(target.peerId)) return;
       if (this.reconnectScheduler.attemptOf(target.peerId) > 0) {
         this.reconnectScheduler.reset(target.peerId);
         this.callback.onReconnect?.(target, 'failed');
@@ -382,15 +422,33 @@ export class SkyWayConnection implements Connection {
     if (this.reconnectScheduler.attemptOf(target.peerId) === 1) {
       this.callback.onReconnect?.(target, 'retrying');
     }
+    if (this.isFirstSteadyAttempt(target.peerId)) {
+      this.callback.onReconnect?.(target, 'failed');
+    }
   }
 
+  /** Whether the attempt just scheduled is the first past the backoff, when the failure is reported. */
+  private isFirstSteadyAttempt(peerId: string): boolean {
+    return (
+      this.reconnectScheduler.isPastBackoff(peerId) &&
+      this.reconnectScheduler.attemptOf(peerId) === this.reconnectScheduler.backoffSteps + 1
+    );
+  }
+
+  /**
+   * Dials a peer again. One that can no longer be dialled, having left the room or the session
+   * having closed, is given up, and reported as failed unless it has been already. One with a
+   * stream open or opening by now is left to that stream.
+   */
   private async tryReconnect(peer: PeerContext) {
     if (await this.connect(peer)) return;
+    if (this.hasLiveStream(peer.peerId)) return;
 
     Logger.info(`[SkyWay] 再接続の対象外になりました: ${peer.peerId}`);
     const gaveUp = 0 < this.reconnectScheduler.attemptOf(peer.peerId) && !this.peerIds.includes(peer.peerId);
+    const reported = this.reconnectScheduler.isPastBackoff(peer.peerId);
     this.reconnectScheduler.reset(peer.peerId);
-    if (gaveUp) this.callback.onReconnect?.(peer, 'failed');
+    if (gaveUp && !reported) this.callback.onReconnect?.(peer, 'failed');
   }
 
   private onData(stream: SkyWayDataStream, container: DataContainer) {
@@ -502,7 +560,7 @@ export class SkyWayConnection implements Connection {
     if (unknownUserIds.length) {
       for (const userId of unknownUserIds) {
         const peer = await this.makeFriendPeer(userId);
-        if (!this.maybeUnavailablePeerIds.has(peer.peerId)) {
+        if (!this.maybeUnavailablePeerIds.has(peer.peerId) && !this.reconnectScheduler.isScheduled(peer.peerId)) {
           await this.connect(peer);
         }
       }

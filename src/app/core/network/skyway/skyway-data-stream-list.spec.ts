@@ -67,6 +67,46 @@ describe('SkyWayDataStreamList', () => {
     expect(result).toBeNull();
   });
 
+  describe('a second stream for a peer', () => {
+    const held = (list: SkyWayDataStreamList) => list.find('peer-1');
+
+    it('loses to the one held with the lower sort key, as when both peers dial at once', () => {
+      const list = new SkyWayDataStreamList();
+      const first = createMockStream('peer-1', false, 'aaa');
+      const second = createMockStream('peer-1', false, 'bbb');
+      list.add(first);
+
+      expect(list.add(second)).toBeNull();
+      expect(held(list)).toBe(first);
+      expect(second.disconnect).toHaveBeenCalled();
+    });
+
+    it('replaces the one held with the higher sort key', () => {
+      const list = new SkyWayDataStreamList();
+      const first = createMockStream('peer-1', false, 'bbb');
+      const second = createMockStream('peer-1', false, 'aaa');
+      list.add(first);
+
+      expect(list.add(second)).toBe(second);
+      expect(held(list)).toBe(second);
+      expect(first.disconnect).toHaveBeenCalled();
+    });
+
+    it('replaces one held that has given way, whatever the sort keys', () => {
+      const list = new SkyWayDataStreamList();
+      const gone = createMockStream('peer-1', false, 'aaa');
+      (gone as unknown as { yieldsToNewcomer: boolean }).yieldsToNewcomer = true;
+      const fresh = createMockStream('peer-1', false, 'bbb');
+      list.add(gone);
+
+      expect(list.add(fresh)).toBe(fresh);
+      expect(held(list)).toBe(fresh);
+      expect(list.length).toBe(1);
+      expect(gone.disconnect).toHaveBeenCalled();
+      expect(fresh.disconnect).not.toHaveBeenCalled();
+    });
+  });
+
   it('can be iterated', () => {
     const list = new SkyWayDataStreamList();
     list.add(createMockStream('peer-1'));

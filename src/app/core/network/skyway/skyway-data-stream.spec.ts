@@ -1,3 +1,4 @@
+import { Logger } from '@axe/core/logging/logger';
 import { SkyWayDataStream } from '@axe/core/network/skyway/skyway-data-stream';
 
 describe('SkyWayDataStream', () => {
@@ -351,5 +352,190 @@ describe('sending what is queued', () => {
 
     expect(sent).toHaveLength(0);
     expect(inner.isQueuing).toBe(false);
+  });
+});
+
+describe('a stream over a data channel', () => {
+  const PEER = { peerId: 'peer-a', userId: 'user-a', password: '' };
+
+  class FakeChannel extends EventTarget {
+    readyState = 'open';
+    binaryType = '';
+    bufferedAmount = 0;
+    close = vi.fn(() => {
+      this.readyState = 'closed';
+    });
+    send = vi.fn();
+  }
+
+  /** A room in which the peer publishes its data stream over the given channel, and can be subscribed to. */
+  function subscribingSkyWay(channel: FakeChannel | undefined) {
+    const calls: string[] = [];
+    const connection = {
+      sender: { datachannels: {} },
+      receiver: {
+        streams: channel ? { 'pub-1': { _datachannel: channel } } : {},
+        onStreamAdded: { add: () => ({ removeListener: () => {} }) },
+      },
+    };
+    const member = {
+      side: 'remote',
+      name: PEER.peerId,
+      publications: [{ id: 'pub-1', contentType: 'data', metadata: 'udonarium-data-stream' }],
+      _getOrCreateConnection: () => connection,
+    };
+    const subscribed: { resolve: (value: unknown) => void; reject: (reason: unknown) => void }[] = [];
+    const skyWay = {
+      peer: { peerId: 'local-peer' },
+      room: { members: [member], onStreamPublished: { add: () => ({ removeListener: () => {} }) } },
+      roomPerson: {
+        _impl: {},
+        subscribe: vi.fn(() => {
+          calls.push('subscribe');
+          return new Promise((resolve, reject) => subscribed.push({ resolve, reject }));
+        }),
+      },
+      releaseSubscriptionsTo: vi.fn(async (publicationId: string) => {
+        calls.push(`release to ${publicationId}`);
+      }),
+      releaseSubscription: vi.fn(async (subscriptionId: string) => {
+        calls.push(`release ${subscriptionId}`);
+      }),
+    };
+    const subscription = (id: string) => ({
+      subscription: { id, onConnectionStateChanged: { add: () => ({ removeListener: () => {} }) } },
+    });
+    return { skyWay, calls, subscribed, subscription };
+  }
+
+  function openStream(channel: FakeChannel) {
+    const { skyWay } = subscribingSkyWay(channel);
+    const stream = SkyWayDataStream.createSubscription(skyWay as never, PEER as never);
+    const events: string[] = [];
+    stream.on('open', () => events.push('open'));
+    stream.on('close', () => events.push('close'));
+    (stream as unknown as { refresh: () => void }).refresh();
+    return { stream, events };
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reports itself closed as soon as its channel closes', () => {
+    const channel = new FakeChannel();
+    const { stream, events } = openStream(channel);
+    expect(events).toEqual(['open']);
+
+    channel.readyState = 'closed';
+    channel.dispatchEvent(new Event('close'));
+
+    expect(events).toEqual(['open', 'close']);
+    expect(stream.peer.isOpen).toBe(false);
+    expect(stream.isDead).toBe(true);
+    stream.disconnect();
+  });
+
+  it('reports itself closed on a channel error that left the channel closed, and only once', () => {
+    vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+    const channel = new FakeChannel();
+    const { stream, events } = openStream(channel);
+
+    channel.readyState = 'closed';
+    channel.dispatchEvent(new Event('error'));
+    channel.dispatchEvent(new Event('close'));
+
+    expect(events).toEqual(['open', 'close']);
+    stream.disconnect();
+  });
+
+  it('stays open through a channel error that left the channel open', () => {
+    vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+    const channel = new FakeChannel();
+    const { stream, events } = openStream(channel);
+
+    channel.dispatchEvent(new Event('error'));
+
+    expect(events).toEqual(['open']);
+    expect(stream.isDead).toBe(false);
+    stream.disconnect();
+  });
+
+  it('gives way to a newcomer once dead, or open but silent for half the time it takes to be given up', () => {
+    const channel = new FakeChannel();
+    const { stream } = openStream(channel);
+    const streamAny = stream as unknown as Record<string, unknown>;
+    expect(stream.yieldsToNewcomer).toBe(false);
+
+    streamAny['_timestamp'] = performance.now() - SkyWayDataStream.QUIET_TIMEOUT_MS - 1;
+    expect(stream.yieldsToNewcomer).toBe(true);
+
+    streamAny['_timestamp'] = performance.now();
+    stream.disconnect();
+    expect(stream.yieldsToNewcomer).toBe(true);
+  });
+
+  it('does not give way while it has yet to open', () => {
+    const { skyWay } = subscribingSkyWay(undefined);
+    const stream = SkyWayDataStream.createSubscription(skyWay as never, PEER as never);
+
+    expect(stream.isDead).toBe(false);
+    expect(stream.yieldsToNewcomer).toBe(false);
+  });
+
+  it('lets go of a subscription left over to the publication before subscribing to it', async () => {
+    const { skyWay, calls, subscribed, subscription } = subscribingSkyWay(undefined);
+    const stream = SkyWayDataStream.createSubscription(skyWay as never, PEER as never);
+
+    void stream.connect();
+    await vi.waitFor(() => expect(subscribed).toHaveLength(1));
+    subscribed[0].resolve(subscription('sub-1'));
+
+    expect(calls).toEqual(['release to pub-1', 'subscribe']);
+  });
+
+  it('lets go of the subscription it made when it is closed', async () => {
+    const { skyWay, calls, subscribed, subscription } = subscribingSkyWay(undefined);
+    const stream = SkyWayDataStream.createSubscription(skyWay as never, PEER as never);
+    const connecting = stream.connect();
+    await vi.waitFor(() => expect(subscribed).toHaveLength(1));
+    subscribed[0].resolve(subscription('sub-1'));
+    await connecting;
+
+    stream.disconnect();
+    stream.disconnect();
+
+    expect(calls.filter((call) => call.startsWith('release sub'))).toEqual(['release sub-1']);
+  });
+
+  it('lets go of a subscription that arrives after it was closed', async () => {
+    const { skyWay, calls, subscribed, subscription } = subscribingSkyWay(undefined);
+    const stream = SkyWayDataStream.createSubscription(skyWay as never, PEER as never);
+    const connecting = stream.connect();
+    await vi.waitFor(() => expect(subscribed).toHaveLength(1));
+
+    stream.disconnect();
+    subscribed[0].resolve(subscription('sub-late'));
+    await connecting;
+
+    expect(calls).toEqual(['release to pub-1', 'subscribe', 'release sub-late']);
+  });
+
+  it('reports itself closed when SkyWay refuses the subscription, holding none to let go of', async () => {
+    vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+    const { skyWay, subscribed } = subscribingSkyWay(undefined);
+    const stream = SkyWayDataStream.createSubscription(skyWay as never, PEER as never);
+    const onClose = vi.fn();
+    stream.on('close', onClose);
+    const connecting = stream.connect();
+    await vi.waitFor(() => expect(subscribed).toHaveLength(1));
+
+    subscribed[0].reject(new Error('alreadySubscribedPublication'));
+    await connecting;
+    stream.disconnect();
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(stream.isDead).toBe(true);
+    expect(skyWay.releaseSubscription).not.toHaveBeenCalled();
   });
 });

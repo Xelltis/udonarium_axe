@@ -1,10 +1,25 @@
 export const PEER_RECONNECT_BACKOFF_MS: readonly number[] = [1000, 2000, 4000, 8000, 15000];
 
+/** How long each further attempt waits once the backoff has been used up, where attempts go on. */
+export const PEER_RECONNECT_STEADY_MS = 30_000;
+
 export class PeerReconnectScheduler {
   private readonly attempts: Map<string, number> = new Map();
   private readonly timers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
-  constructor(private readonly backoffMs: readonly number[] = PEER_RECONNECT_BACKOFF_MS) {}
+  /**
+   * With a steady delay, attempts go on at that delay once the backoff has been used up, until the
+   * peer is reset; with none, the backoff is all the attempts there are.
+   */
+  constructor(
+    private readonly backoffMs: readonly number[] = PEER_RECONNECT_BACKOFF_MS,
+    private readonly steadyMs: number | null = null
+  ) {}
+
+  /** How many attempts the backoff covers before the steady delay, if any, takes over. */
+  get backoffSteps(): number {
+    return this.backoffMs.length;
+  }
 
   /** Ids of the peers with a reconnect attempt waiting to run. */
   get scheduledPeerIds(): string[] {
@@ -16,6 +31,11 @@ export class PeerReconnectScheduler {
     return this.attempts.get(peerId) ?? 0;
   }
 
+  /** Whether the peer has been tried more often than the backoff has steps, so it is on the steady delay. */
+  isPastBackoff(peerId: string): boolean {
+    return this.attemptOf(peerId) > this.backoffMs.length;
+  }
+
   /** Whether a reconnect attempt for the peer is waiting to run. */
   isScheduled(peerId: string): boolean {
     return this.timers.has(peerId);
@@ -24,15 +44,16 @@ export class PeerReconnectScheduler {
   /**
    * Schedules the peer's next reconnect attempt after its backoff delay, and gives that delay.
    *
-   * Null, with nothing scheduled, when an attempt is already waiting or every backoff step has been
-   * used. The count only goes back to zero on reset.
+   * Null, with nothing scheduled, when an attempt is already waiting, or when every backoff step
+   * has been used and there is no steady delay to go on at. The count only goes back to zero on
+   * reset.
    */
   schedule(peerId: string, run: () => void): number | null {
     const attempt = this.attemptOf(peerId);
-    if (attempt >= this.backoffMs.length) return null;
+    const delayMs = attempt < this.backoffMs.length ? this.backoffMs[attempt] : this.steadyMs;
+    if (delayMs === null) return null;
     if (this.timers.has(peerId)) return null;
 
-    const delayMs = this.backoffMs[attempt];
     this.attempts.set(peerId, attempt + 1);
     this.timers.set(
       peerId,

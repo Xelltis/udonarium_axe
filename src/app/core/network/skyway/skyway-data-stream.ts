@@ -33,6 +33,8 @@ interface Ping {
 
 export class SkyWayDataStream extends EventEmitter implements WebRTCConnection {
   static readonly STALE_TIMEOUT_MS = 25000;
+  /** How long an open stream may hear nothing before a new stream from the same peer is taken over it. */
+  static readonly QUIET_TIMEOUT_MS = SkyWayDataStream.STALE_TIMEOUT_MS / 2;
 
   readonly peer: PeerContext;
 
@@ -95,7 +97,28 @@ export class SkyWayDataStream extends EventEmitter implements WebRTCConnection {
 
   private state: TransportConnectionState = 'new';
   private subscription: Subscription<RemoteDataStream> | null = null;
+  /** The subscription this stream made, kept until it is let go of, whatever became of its connection. */
+  private heldSubscriptionId: string | null = null;
   private dataChannel: RTCDataChannel | null = null;
+
+  /**
+   * Whether the stream is finished and will not open again: cancelled, reported closed, or left
+   * with a channel that is no longer open after having been.
+   */
+  get isDead(): boolean {
+    if (this.isCanceled || this.state === 'disconnected') return true;
+    return this.isOpened && this.dataChannel?.readyState !== 'open';
+  }
+
+  /**
+   * Whether a new stream for the same peer is to be taken over this one whatever their sort keys:
+   * when this one is dead, or open but silent for longer than a live one ever is. The peer only
+   * dials again once it has given this stream up, so the new one is the one both ends still hold.
+   */
+  get yieldsToNewcomer(): boolean {
+    if (this.isDead) return true;
+    return this.open && SkyWayDataStream.QUIET_TIMEOUT_MS <= performance.now() - this.timestamp;
+  }
 
   private onStreamAdded: { removeListener: () => void } | null = null;
   private onStreamPublished: { removeListener: () => void } | null = null;
@@ -107,6 +130,15 @@ export class SkyWayDataStream extends EventEmitter implements WebRTCConnection {
 
   private onmessage = (event: MessageEvent<ArrayBuffer>) => {
     this.onData(event.data as ArrayBuffer);
+  };
+
+  private onchannelclose = (event: Event) => {
+    this.onChannelDown(event.target);
+  };
+
+  private onchannelerror = (event: Event) => {
+    Logger.warn(`[SkyWay] dataChannelエラー: ${this.peer.peerId}`, (event as RTCErrorEvent).error ?? event);
+    this.onChannelDown(event.target);
   };
 
   private constructor(
@@ -139,8 +171,9 @@ export class SkyWayDataStream extends EventEmitter implements WebRTCConnection {
   /**
    * Sets the stream up and reports progress through its open, close and data events.
    *
-   * A subscription subscribes to the peer's publication, waiting for it to be published if need be;
-   * a publication attaches to the subscription the peer already made.
+   * A subscription subscribes to the peer's publication, waiting for it to be published if need be,
+   * after letting go of any subscription to it left over from an earlier stream; a publication
+   * attaches to the subscription the peer already made.
    */
   connect() {
     if (this.isPublication) {
@@ -154,15 +187,23 @@ export class SkyWayDataStream extends EventEmitter implements WebRTCConnection {
    * Closes the stream.
    *
    * An open stream is disposed at once, with its listeners removed and no close event. One that has
-   * not opened yet has its channel closed as soon as it appears.
+   * not opened yet has its channel closed as soon as it appears. Either way the subscription the
+   * stream made is let go of, so that the peer's publication can be subscribed to again.
    */
   disconnect() {
     this.isCanceled = true;
+    this.releaseSubscription();
     if (this.isOpened) {
       this.dispose();
     } else {
       this.refresh();
     }
+  }
+
+  private releaseSubscription() {
+    const subscriptionId = this.heldSubscriptionId;
+    this.heldSubscriptionId = null;
+    if (subscriptionId !== null) void this.skyWay.releaseSubscription(subscriptionId);
   }
 
   /** Refuses the peer's connection, setting the stream up only to close its channel straight away. */
@@ -186,10 +227,31 @@ export class SkyWayDataStream extends EventEmitter implements WebRTCConnection {
 
     this.subscription = null;
 
-    this.dataChannel?.removeEventListener('open', this.onopen);
-    this.dataChannel?.removeEventListener('message', this.onmessage);
+    this.unwatchChannel();
     this.dataChannel?.close();
     this.dataChannel = null;
+  }
+
+  private unwatchChannel() {
+    this.dataChannel?.removeEventListener('open', this.onopen);
+    this.dataChannel?.removeEventListener('message', this.onmessage);
+    this.dataChannel?.removeEventListener('close', this.onchannelclose);
+    this.dataChannel?.removeEventListener('error', this.onchannelerror);
+  }
+
+  /**
+   * Reports the stream closed as soon as its channel says it has closed, or failed and is no longer
+   * open, without waiting for the silence check to notice.
+   */
+  private onChannelDown(channel: EventTarget | null) {
+    if (channel !== this.dataChannel || this.isCanceled) return;
+    if (this.dataChannel?.readyState === 'open') return;
+    if (this.state === 'disconnected' && !this.peer.isOpen) return;
+    Logger.info(`[SkyWay] dataChannelが閉じました: ${this.peer.peerId}`);
+    this.peer.isOpen = false;
+    this.subscription = null;
+    this.state = 'disconnected';
+    this.emit('close');
   }
 
   private initializePublication() {
@@ -251,7 +313,14 @@ export class SkyWayDataStream extends EventEmitter implements WebRTCConnection {
     try {
       const roomPerson = this.skyWay.roomPerson;
       if (!roomPerson) return;
+      await this.skyWay.releaseSubscriptionsTo(publication.id);
+      if (this.isCanceled) return;
       const { subscription } = await roomPerson.subscribe<RemoteDataStream>(publication.id);
+      this.heldSubscriptionId = subscription.id;
+      if (this.isCanceled) {
+        this.releaseSubscription();
+        return;
+      }
 
       this.onConnectionStateChanged?.removeListener();
       this.onConnectionStateChanged = subscription.onConnectionStateChanged.add((state) => {
@@ -310,12 +379,13 @@ export class SkyWayDataStream extends EventEmitter implements WebRTCConnection {
       this.peer.isOpen = false;
     }
 
-    this.dataChannel?.removeEventListener('open', this.onopen);
-    this.dataChannel?.removeEventListener('message', this.onmessage);
+    this.unwatchChannel();
 
     if (dataChannel) dataChannel.binaryType = 'arraybuffer';
     dataChannel?.addEventListener('open', this.onopen);
     dataChannel?.addEventListener('message', this.onmessage);
+    dataChannel?.addEventListener('close', this.onchannelclose);
+    dataChannel?.addEventListener('error', this.onchannelerror);
 
     this.dataChannel = dataChannel ?? null;
 

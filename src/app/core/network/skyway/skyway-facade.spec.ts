@@ -1,3 +1,4 @@
+import { Logger as AppLogger } from '@axe/core/logging/logger';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { SAME_NAME_MEMBER_WAIT_MS, SameNameWaitCancelledError } from '@axe/core/network/skyway/same-name-member';
 import { SkyWayBackend } from '@axe/core/network/skyway/skyway-backend';
@@ -47,6 +48,76 @@ describe('SkyWayFacade', () => {
       // returns early with no context and nothing goes wrong
       await expect(facade.rejoinAfterLeave()).resolves.toBeUndefined();
     });
+  });
+});
+
+describe('letting go of subscriptions', () => {
+  type Held = { id: string; publication: { id: string } };
+
+  function facadeHolding(subscriptions: Held[], unsubscribe: (id: string) => Promise<void>) {
+    const facade = new SkyWayFacade();
+    (facade as unknown as Record<string, unknown>).roomPerson = { state: 'joined', subscriptions, unsubscribe };
+    return facade;
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('asks SkyWay once for a subscription let go of twice, and waits until it is gone', async () => {
+    let dropped!: () => void;
+    const unsubscribe = vi.fn(() => new Promise<void>((resolve) => (dropped = resolve)));
+    const facade = facadeHolding([{ id: 'sub-1', publication: { id: 'pub-1' } }], unsubscribe);
+    let settled = 0;
+
+    void facade.releaseSubscription('sub-1').then(() => settled++);
+    void facade.releaseSubscriptionsTo('pub-1').then(() => settled++);
+    await Promise.resolve();
+
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    expect(unsubscribe).toHaveBeenCalledWith('sub-1');
+    expect(settled).toBe(0);
+
+    dropped();
+    await vi.waitFor(() => expect(settled).toBe(2));
+  });
+
+  it('lets go of only the subscriptions to the publication named', async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(undefined);
+    const facade = facadeHolding(
+      [
+        { id: 'sub-1', publication: { id: 'pub-1' } },
+        { id: 'sub-2', publication: { id: 'pub-2' } },
+      ],
+      unsubscribe
+    );
+
+    await facade.releaseSubscriptionsTo('pub-2');
+
+    expect(unsubscribe.mock.calls).toEqual([['sub-2']]);
+  });
+
+  it('asks nothing for a subscription it does not hold, or once it has left the room', async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(undefined);
+    const facade = facadeHolding([{ id: 'sub-1', publication: { id: 'pub-1' } }], unsubscribe);
+
+    await facade.releaseSubscription('sub-unknown');
+    (facade as unknown as { roomPerson: { state: string } }).roomPerson.state = 'left';
+    await facade.releaseSubscription('sub-1');
+    (facade as unknown as Record<string, unknown>).roomPerson = null;
+    await facade.releaseSubscriptionsTo('pub-1');
+
+    expect(unsubscribe).not.toHaveBeenCalled();
+  });
+
+  it('resolves, with a warning, when SkyWay refuses', async () => {
+    const warned = vi.spyOn(AppLogger, 'warn').mockImplementation(() => {});
+    const facade = facadeHolding([{ id: 'sub-1', publication: { id: 'pub-1' } }], () =>
+      Promise.reject(new Error('gone'))
+    );
+
+    await expect(facade.releaseSubscription('sub-1')).resolves.toBeUndefined();
+    expect(warned).toHaveBeenCalledTimes(1);
   });
 });
 
