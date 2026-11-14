@@ -15,6 +15,7 @@ import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { dropInvitationFromAddress } from '@axe/application/lobby/invitation-address';
 import { leavingLoss, leavingLossText } from '@axe/application/lobby/leaving-loss';
 import { LinkWatchService } from '@axe/application/lobby/link-watch.service';
 import { PeerLinkService, PeerLinkView, SyncProgressState } from '@axe/application/lobby/peer-link.service';
@@ -50,7 +51,6 @@ import {
 } from '@axe/domain/peer/peer-role';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { IdleSeatService } from '@axe/features/lobby/idle-seat.service';
-import { dropInvitationFromAddress } from '@axe/features/lobby/leave-room';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { ReConnectComponent } from '@axe/features/lobby/re-connect/re-connect.component';
 import { roomDeletionMessageKey, RoomDeletionService } from '@axe/features/lobby/room-deletion.service';

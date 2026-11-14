@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { dropInvitationFromAddress } from '@axe/application/lobby/invitation-address';
 import { leavingLoss } from '@axe/application/lobby/leaving-loss';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { Network } from '@axe/core/network/network';
@@ -15,12 +16,6 @@ export function leaveRoomByReloading(win: Window = window): void {
   Network.letPageGo();
   dropInvitationFromAddress(win);
   win.location.reload();
-}
-
-/** Takes the invitation off the page's address, which would take the page reloaded back into its room. */
-export function dropInvitationFromAddress(win: Window = window): void {
-  const { pathname, search } = win.location;
-  win.history.replaceState(null, '', pathname + search);
 }
 
 /** Leaves the room the reader is in, once they have said they are sure when leaving would lose something. */
