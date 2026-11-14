@@ -94,7 +94,7 @@ export class VoteMenuComponent {
     if (PeerCursor.isMyselfKeptOffTable) return;
     const vote = this.vote;
     let voteTitle: string;
-    let choicesInput: string = this.voteContentsText.replace(/\s*$/i, '').replace(/^\s*/i, '');
+    let choicesInput: string = this.voteContentsText.trim();
     let startMessage: string;
 
     if (this.isRollCall) {
