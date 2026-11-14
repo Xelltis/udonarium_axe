@@ -571,7 +571,7 @@ export class DataElement extends ObjectNode {
       if (this.isNumberResource) {
         const current: number = this.currentValue as number;
         const value: number = this.value as number;
-        if (current <= value * SAN_WARNING_THRESHOLD && current == this.currentValue && value == this.value) {
+        if (current <= value * SAN_WARNING_THRESHOLD && current === this.currentValue && value === this.value) {
           return SAN_WARNING_COLOR;
         }
       }

@@ -470,7 +470,7 @@ export class ChatPaletteComponent {
    */
   autoCompleteDoRelative(index: number) {
     const selectObj = this.completeSelectRef()?.nativeElement;
-    if (!selectObj || index != selectObj.selectedIndex) return;
+    if (!selectObj || index !== selectObj.selectedIndex) return;
     this.selectAutoComplete(this.text(), selectObj.value);
   }
 

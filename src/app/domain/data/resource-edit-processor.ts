@@ -175,7 +175,7 @@ export class ResourceEditProcessor {
       const oneResourceEdit = this.defaultResourceEdit();
       if (!this.commandToEdit(oneResourceEdit, oneText, object, targeted)) continue;
 
-      if (oneResourceEdit.operator != '>') {
+      if (oneResourceEdit.operator !== '>') {
         if (!canWorkOutAmounts) {
           leftAmountsAlone = true;
           continue;
@@ -382,7 +382,7 @@ export class ResourceEditProcessor {
       if (edit.targeted) {
         add(`[${saidNameOf(character)}] `);
       }
-      if (edit.operator == '>') {
+      if (edit.operator === '>') {
         add(this.textEdit(edit, character));
       } else {
         const report = this.resourceEdit(edit, character);
@@ -411,7 +411,7 @@ export class ResourceEditProcessor {
     text = text.replace(/\s+$/, '');
     full = full.replace(/\s+$/, '');
 
-    if (text == '') return;
+    if (text === '') return;
     let fromText: string;
     let nameText: string;
     if (isDiceRoll) {

@@ -85,7 +85,7 @@ export class GameTableScratchMask extends OwnedTabletopObject {
     if (this.fillMapBack.length < this.M.length) {
       return false;
     }
-    if (this.M[this.maxSize * y + x] != this.fillMapBack[this.maxSize * y + x]) {
+    if (this.M[this.maxSize * y + x] !== this.fillMapBack[this.maxSize * y + x]) {
       return true;
     } else {
       return false;

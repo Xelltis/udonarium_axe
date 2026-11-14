@@ -925,7 +925,7 @@ export class GameObjectInventoryComponent {
     if (FOCUS_BLOCKED_TAGS.has(e.target.tagName.toLowerCase())) {
       return;
     }
-    if (gameObject.location.name != 'table') {
+    if (gameObject.location.name !== 'table') {
       return;
     }
     this.tableFocus.focusOn(gameObject);

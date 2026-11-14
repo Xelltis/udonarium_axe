@@ -540,7 +540,7 @@ export class ChatTabComponent {
     this.topIndex = range.topIndex;
     this.bottomIndex = range.bottomIndex;
 
-    const isChangedIndex = this.topIndex != preTopIndex || this.bottomIndex != preBottomIndex;
+    const isChangedIndex = this.topIndex !== preTopIndex || this.bottomIndex !== preBottomIndex;
     if (!isChangedIndex) return;
     this.adjustIndex();
 

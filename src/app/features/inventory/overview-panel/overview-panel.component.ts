@@ -672,19 +672,19 @@ export class OverviewPanelComponent {
     const alias = this.tabletopObject?.aliasName;
     let width: number = 250;
 
-    if (alias == 'card') {
+    if (alias === 'card') {
       width = this.overViewCardWidth;
     }
 
-    if (alias == 'card-stack') {
+    if (alias === 'card-stack') {
       width = this.overViewCardWidth;
     }
 
-    if (alias == 'text-note') {
+    if (alias === 'text-note') {
       width = this.overViewNoteWidth;
     }
 
-    if (alias == 'character') {
+    if (alias === 'character') {
       width = this.overViewCharacterWidth;
     }
 

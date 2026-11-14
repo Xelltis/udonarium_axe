@@ -98,6 +98,7 @@
 ### ESLint
 
 - **import順序**: `simple-import-sort`で自動整列（`npm run lint -- --fix`）
+- **厳密な比較**: `eqeqeq`で`==` / `!=`をerror化。nullとundefinedをまとめて見る`== null` / `!= null`だけ許す
 - **未使用import / vars**: `unused-imports`プラグイン（`_`始まりは無視）
 - **相対パスimport禁止**: `no-restricted-imports`で`^\.`を拒否。
   必ずパスエイリアス(`@axe/*` / `@env/*` / `@pkg`)を使う

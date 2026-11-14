@@ -102,7 +102,7 @@ export class AlarmMenuComponent {
     let target: string;
     const peerIdList = this.selectedList();
 
-    if (this.peerList.length + 1 == this.selectedNum()) {
+    if (this.peerList.length + 1 === this.selectedNum()) {
       target = encodeI18nMessage('feature.alarm.targetAll');
     } else {
       target = ' >';

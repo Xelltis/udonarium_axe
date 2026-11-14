@@ -135,7 +135,9 @@ export class InventoryMultiSelect {
    */
   async delete(): Promise<boolean> {
     if (!this.host.canEdit()) return false;
-    const inGraveyard = this.charactersOf(this.targets()).filter((character) => character.location.name == 'graveyard');
+    const inGraveyard = this.charactersOf(this.targets()).filter(
+      (character) => character.location.name === 'graveyard'
+    );
     if (inGraveyard.length < 1) return false;
     if (!(await this.host.confirmDelete(inGraveyard.length))) return false;
     for (const character of inGraveyard) this.host.delete(character);

@@ -149,7 +149,7 @@ export class ChatTab extends ObjectNode implements InnerXml {
   /** The portrait slot a speaker of that name stands in, or -1 when they stand in none. */
   portraitSlotOf(name: string) {
     for (let i = 0; i < this.imageCharacterName.length; i++) {
-      if (name == this.imageCharacterName[i]) {
+      if (name === this.imageCharacterName[i]) {
         return i;
       }
     }

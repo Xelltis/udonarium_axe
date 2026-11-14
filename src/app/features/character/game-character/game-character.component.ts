@@ -313,7 +313,7 @@ export class GameCharacterComponent {
       const root = this.rootElementRef();
       if (!highlight || !char || !root) return;
       if (char.identifier !== highlight.identifier) return;
-      if (char.location.name != 'table') return;
+      if (char.location.name !== 'table') return;
 
       if (this.highlightTimer != null) return;
 

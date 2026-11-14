@@ -140,7 +140,7 @@ export class ReConnectComponent {
     }
 
     for (const room of this.rooms) {
-      if (room.alias == this.roomId + this.roomName) {
+      if (room.alias === this.roomId + this.roomName) {
         Logger.info(`[Network] reconnect started (room: ${this.roomName})`);
         this.connect(room.peerContexts);
         return;

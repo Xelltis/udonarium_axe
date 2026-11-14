@@ -714,7 +714,7 @@ export class GameTableMaskComponent {
       inventoryService: this.inventoryService,
       createMenu: this.createMenu,
       onStartScratch: () => {
-        if (mask.owner != '') {
+        if (mask.owner !== '') {
           this.isPreview = false;
           this.settleScratching.cancel();
           this._currentScratchingSet = null;

@@ -348,7 +348,7 @@ export function evaluateReferences(
   const fillReference = (match: string, name: string, useMax: boolean, formula: FormulaPlace): string | null => {
     if (match.match(/^[tTｔＴ].*/)) {
       for (const variable of target?.chatPalette?.paletteVariables ?? []) {
-        if (variable.name == name) return variable.value.replace(/[{｛]/g, 't{');
+        if (variable.name === name) return variable.value.replace(/[{｛]/g, 't{');
       }
       const element = target?.rootDataElement ? findReferencedElement(target.rootDataElement, name) : null;
       if (!element) return null;
@@ -361,7 +361,7 @@ export function evaluateReferences(
 
     if (leftForTargets.has(name)) return null;
     for (const variable of paletteVariables) {
-      if (variable.name == name) return withAimedAtBonus(variable.value, name, useMax, formula);
+      if (variable.name === name) return withAimedAtBonus(variable.value, name, useMax, formula);
     }
     const element = extendVariables ? findReferencedElement(extendVariables, name) : null;
     return withAimedAtBonus(element ? evaluateElementText(element, useMax, formula) : null, name, useMax, formula);

@@ -74,7 +74,7 @@ export class Matrix3D {
     if (data == null) return this;
 
     const l = data.length;
-    if (l == 16) {
+    if (l === 16) {
       this.m11 = data[0];
       this.m12 = data[1];
       this.m13 = data[2];
@@ -91,7 +91,7 @@ export class Matrix3D {
       this.m42 = data[13];
       this.m43 = data[14];
       this.m44 = data[15];
-    } else if (l == 6) {
+    } else if (l === 6) {
       this.m11 = data[0];
       this.m12 = data[1];
       this.m13 = 0;
@@ -108,7 +108,7 @@ export class Matrix3D {
       this.m42 = data[5];
       this.m43 = 0;
       this.m44 = 1;
-    } else if (l == 9) {
+    } else if (l === 9) {
       this.m11 = data[0];
       this.m12 = data[1];
       this.m13 = 0;
@@ -389,7 +389,7 @@ export class Matrix3D {
    * else leaves the matrix as it was.
    */
   setCSS(cssString: string): Matrix3D {
-    if (!cssString || cssString == 'none') return this.identity();
+    if (!cssString || cssString === 'none') return this.identity();
     const parts = cssString.replace('matrix3d(', '').replace('matrix(', '').replace(')', '').split(',');
     const trans = parts.map((p) => CSSNumber.parse(p));
     return this.setData(trans);
@@ -401,7 +401,7 @@ export class Matrix3D {
    * With `force2D`, a `matrix3d()` is flattened to its effect on the plane first.
    */
   appendCSS(cssString: string, force2D: boolean = false): Matrix3D {
-    if (!cssString || cssString == 'none') return this;
+    if (!cssString || cssString === 'none') return this;
     if (force2D && cssString.indexOf('matrix3d') >= 0) {
       return this.append(Matrix3D._scratch.setCSS(cssString).flatten());
     }

@@ -472,7 +472,7 @@ export class PeerCursor extends GameObject {
     const voteId = this.voteId;
     super.apply(context);
 
-    if (voteId != this.voteId) {
+    if (voteId !== this.voteId) {
       this.vote?.chkFinishVote();
     }
   }

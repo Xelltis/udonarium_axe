@@ -510,9 +510,9 @@ export class ChatTabSettingComponent {
     if (0 < index) {
       const prevElement = parentElement.children[index - 1];
       parentElement.insertBefore(tab, prevElement);
-      if (this.systemTabIndex == index) {
+      if (this.systemTabIndex === index) {
         this.systemTabIndex--;
-      } else if (this.systemTabIndex == index - 1) {
+      } else if (this.systemTabIndex === index - 1) {
         this.systemTabIndex++;
       }
       this.chkSystemTabIndex();
@@ -531,9 +531,9 @@ export class ChatTabSettingComponent {
     if (index < parentElement.children.length - 1) {
       const nextElement = parentElement.children[index + 1];
       parentElement.insertBefore(nextElement, tab);
-      if (this.systemTabIndex == index) {
+      if (this.systemTabIndex === index) {
         this.systemTabIndex++;
-      } else if (this.systemTabIndex == index + 1) {
+      } else if (this.systemTabIndex === index + 1) {
         this.systemTabIndex--;
       }
       this.chkSystemTabIndex();

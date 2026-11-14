@@ -231,6 +231,7 @@ export default defineConfig([
       '@angular-eslint/no-input-rename': 'off',
       '@angular-eslint/no-output-rename': 'off',
       'no-irregular-whitespace': ['error', { skipStrings: true, skipTemplates: true, skipComments: true }],
+      eqeqeq: ['error', 'always', { null: 'ignore' }],
       '@typescript-eslint/no-unused-vars': 'off',
       'no-restricted-imports': ['error', { patterns: [NO_RELATIVE_IMPORT] }],
       'unused-imports/no-unused-imports': 'warn',

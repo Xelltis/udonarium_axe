@@ -220,7 +220,7 @@ export class ChatMessageService {
       : PeerCursor.myCursor.identifier;
     let imgIndex = PeerCursor.myCursor.lastControlImageIndex;
     const imageIdentifier = this.findImageIdentifier(sendFrom, imgIndex);
-    if (imageIdentifier != PeerCursor.myCursor.lastControlImageIdentifier) imgIndex = 0;
+    if (imageIdentifier !== PeerCursor.myCursor.lastControlImageIdentifier) imgIndex = 0;
     this.sendMessage(sysTab!, text, null, sendFrom, undefined, imgIndex, '#006633');
   }
 
@@ -706,10 +706,10 @@ export class ChatMessageService {
       return;
     }
     if (sendTo == null || sendTo.length < 1) {
-      if (peerCursor.lastControlImageIdentifier != imageIdentifier) {
+      if (peerCursor.lastControlImageIdentifier !== imageIdentifier) {
         peerCursor.lastControlImageIdentifier = imageIdentifier;
       }
-      if (peerCursor.lastControlCharacterName != sendFromName) {
+      if (peerCursor.lastControlCharacterName !== sendFromName) {
         peerCursor.lastControlCharacterName = sendFromName;
       }
       peerCursor.lastControlSendFrom = sendFrom;

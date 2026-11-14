@@ -552,7 +552,7 @@ export class ChatInputComponent {
   readonly rolledGameType = computed(() => {
     this.objectChange.versionOf('Config')();
     const own = this._gameType();
-    return own == 'DiceBot' && !this.gameTypeByUser()
+    return own === 'DiceBot' && !this.gameTypeByUser()
       ? (this.objectStore.get<Config>('Config')?.defaultDiceBot ?? own)
       : own;
   });

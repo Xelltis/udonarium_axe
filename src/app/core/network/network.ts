@@ -404,7 +404,7 @@ export class Network {
     const promise = this.dynamicImport();
     this.connectionClassPromise = promise;
     this.connectionClass = await promise;
-    if (this.connectionClassPromise != promise) return;
+    if (this.connectionClassPromise !== promise) return;
 
     Logger.debug('[Network] open');
     const connection = this.initializeConnection();

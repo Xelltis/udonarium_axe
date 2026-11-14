@@ -160,7 +160,7 @@ export class Config extends withRuleAnswers() implements InnerXml {
 
   /** The game system the room rolls dice with by default; blank reads as the generic `DiceBot`. */
   get defaultDiceBot(): string {
-    if (this._defaultDiceBot == '') {
+    if (this._defaultDiceBot === '') {
       return 'DiceBot';
     }
     return this._defaultDiceBot;

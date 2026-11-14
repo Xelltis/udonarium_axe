@@ -791,7 +791,7 @@ export class RemoteControllerComponent {
   remoteChangeValue() {
     const gameCharacters = this.getTargetCharacters(true);
     const chosen = this.remoteControllerSelect();
-    if (chosen.name == '') {
+    if (chosen.name === '') {
       this.errorMessageController = this.t('feature.controller.remote.noChangeTarget');
       return;
     }
@@ -813,7 +813,7 @@ export class RemoteControllerComponent {
       shownParts.push(shownChangeDetail(object, report, name, nowOrMax));
     }
     const text = parts.join('');
-    if (text != '') {
+    if (text !== '') {
       const sign = this.remoteNumber < 0 ? '' : '+';
       const messageOf = (detail: string) =>
         this.t('feature.controller.remote.changeValueMessage', {

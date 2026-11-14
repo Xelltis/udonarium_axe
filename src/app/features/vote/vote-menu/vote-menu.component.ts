@@ -102,7 +102,7 @@ export class VoteMenuComponent {
       startMessage = encodeI18nMessage('feature.vote.rollCallStart');
       voteTitle = this.t('feature.vote.rollCall');
     } else {
-      choicesInput = choicesInput.length == 0 ? this.t('feature.vote.rollCallDefault') : choicesInput;
+      choicesInput = choicesInput.length === 0 ? this.t('feature.vote.rollCallDefault') : choicesInput;
       startMessage = encodeI18nMessage(this.isSecret ? 'feature.vote.voteStartSecret' : 'feature.vote.voteStart', {
         title: this.voteTitle,
       });

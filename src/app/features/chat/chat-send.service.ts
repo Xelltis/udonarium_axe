@@ -31,7 +31,7 @@ export class ChatSendService {
   }
 
   private targeted(gameCharacter: GameCharacter): boolean {
-    if (gameCharacter.location.name != 'table') return false;
+    if (gameCharacter.location.name !== 'table') return false;
     return gameCharacter.targeted;
   }
 
@@ -79,7 +79,7 @@ export class ChatSendService {
     const marked = this.targetedGameCharacterList();
     const aimed = aimLine(value.text, speaker, aimedAtNamesOf(marked));
     if (aimed.targeted) {
-      if (marked.length == 0) {
+      if (marked.length === 0) {
         outtext += this.t('feature.chat.window.noTarget');
       } else {
         appendAttachmentImages(aimed.attachmentImageIdentifiers);
