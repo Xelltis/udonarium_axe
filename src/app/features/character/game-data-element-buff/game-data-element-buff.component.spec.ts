@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
@@ -32,6 +33,39 @@ describe('GameDataElementBuffComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('follows the element where it is changed from elsewhere', () => {
+    fixture.detectChanges();
+    expect(component.name).toBe('毒');
+
+    buff.name = '猛毒';
+    TestBed.inject(ObjectChangeService).notifyChanged(buff.identifier);
+    fixture.detectChanges();
+
+    expect(component.name).toBe('猛毒');
+  });
+
+  it('keeps what is being typed while it waits to be written, though the element changes meanwhile', () => {
+    vi.useFakeTimers();
+    try {
+      fixture.detectChanges();
+      component.name = '麻痺';
+      component.currentValue = '敏捷-2';
+
+      buff.setAttribute(DataElementAttribute.BUFF_COLOR, '#2e7d32');
+      TestBed.inject(ObjectChangeService).notifyChanged(buff.identifier);
+      fixture.detectChanges();
+
+      expect(component.name).toBe('麻痺');
+      expect(component.currentValue).toBe('敏捷-2');
+
+      vi.advanceTimersByTime(66);
+      expect(buff.name).toBe('麻痺');
+      expect(buff.currentValue).toBe('敏捷-2');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('draws a picture chosen as the mark on the piece, rather than writing out its name', () => {
