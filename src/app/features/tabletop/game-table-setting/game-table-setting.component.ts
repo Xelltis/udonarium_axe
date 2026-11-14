@@ -232,35 +232,42 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.gridFontColor = tableGridFontColor + 'e6';
   }
 
-  /** Whether the picked table shows its grid; every change raises a local update so the grid redraws at once. */
+  /**
+   * Whether the picked table shows its grid. Every change raises an update for this peer alone, so
+   * the grid redraws at once; writes are ignored while the table cannot be edited.
+   */
   get tableGridShow(): boolean {
     return this.selectedTable?.gridShow ?? false;
   }
   set tableGridShow(tableGridShow: boolean) {
-    if (!this.selectedTable) return;
+    if (!this.isEditable || !this.selectedTable) return;
     this.selectedTable.gridShow = tableGridShow;
-    triggerUpdateGameObject(this.selectedTable.toContext()); // an event for this peer alone, so the grid redraws
+    triggerUpdateGameObject(this.selectedTable.toContext());
   }
 
-  /** Whether pieces snap to the picked table's grid; true when no table is picked. */
+  /**
+   * Whether pieces snap to the picked table's grid; true when no table is picked. Writes are ignored
+   * while the table cannot be edited.
+   */
   get tableGridSnap(): boolean {
     return this.selectedTable?.gridSnap ?? true;
   }
   set tableGridSnap(tableGridSnap: boolean) {
-    if (!this.selectedTable) return;
+    if (!this.isEditable || !this.selectedTable) return;
     this.selectedTable.gridSnap = tableGridSnap;
   }
 
   /**
    * The view this table is best read in, which a reader following the table is given.
    *
-   * It recommends rather than decides: a reader who has picked a view of their own keeps it.
+   * It recommends rather than decides: a reader who has picked a view of their own keeps it. Writes
+   * are ignored while the table cannot be edited.
    */
   get tableRecommendedView(): 'perspective' | 'flat' {
     return this.selectedTable?.mode2d ? 'flat' : 'perspective';
   }
   set tableRecommendedView(value: 'perspective' | 'flat') {
-    if (!this.selectedTable) return;
+    if (!this.isEditable || !this.selectedTable) return;
     this.selectedTable.mode2d = value === 'flat';
     triggerUpdateGameObject(this.selectedTable.toContext());
   }
@@ -567,7 +574,7 @@ export class GameTableSettingComponent {
 
   /**
    * The snap dropdown's value, combining whether snapping is on with the points it snaps to: off,
-   * center, vertex, both, all or grid.
+   * center, vertex, both, all or grid. Writes are ignored while the table cannot be edited.
    */
   get tableSnapMode(): string {
     if (!this.tableGridSnap) return 'off';
@@ -585,7 +592,7 @@ export class GameTableSettingComponent {
     }
   }
   set tableSnapMode(mode: string) {
-    if (!this.selectedTable) return;
+    if (!this.isEditable || !this.selectedTable) return;
     if (mode === 'off') {
       this.selectedTable.gridSnap = false;
     } else {

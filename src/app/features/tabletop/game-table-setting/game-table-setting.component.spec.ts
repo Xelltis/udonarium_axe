@@ -269,6 +269,31 @@ describe('GameTableSettingComponent', () => {
     });
   });
 
+  describe('a table deleted while it is still picked', () => {
+    it('takes no grid, snap or view written from its fields', () => {
+      const table = new GameTable();
+      table.gridShow = false;
+      table.gridSnap = true;
+      table.gridSnapStyle = GridSnapStyle.CENTER;
+      table.mode2d = false;
+      table.initialize();
+      component.selectGameTable(table.identifier);
+      // A table taken out of the store counts as deleted, and a deleted one is not editable.
+      ObjectStore.instance.remove(table);
+      expect(component.isEditable).toBe(false);
+
+      component.tableGridShow = true;
+      component.tableGridSnap = false;
+      component.tableRecommendedView = 'flat';
+      component.tableSnapMode = 'vertex';
+
+      expect(table.gridShow).toBe(false);
+      expect(table.gridSnap).toBe(true);
+      expect(table.gridSnapStyle).toBe(GridSnapStyle.CENTER);
+      expect(table.mode2d).toBe(false);
+    });
+  });
+
   describe('how many cells make a square', () => {
     let table: GameTable;
 
