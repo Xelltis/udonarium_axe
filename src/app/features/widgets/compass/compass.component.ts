@@ -18,7 +18,7 @@ import {
 } from '@axe/domain/ui/compass';
 import { COMPASS_FACES } from '@axe/domain/ui/compass-face';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
-import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
+import { topRightFallback, WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** How often the needle is shoved again while the field has it, in seconds. */
@@ -51,10 +51,7 @@ export class CompassComponent {
   protected readonly face = this.faces.face;
 
   protected readonly widgetName = WIDGET_COMPASS;
-  protected readonly fallback = (el: HTMLElement) => ({
-    left: Math.max(8, window.innerWidth - el.offsetWidth - 8),
-    top: 96,
-  });
+  protected readonly fallback = topRightFallback(96);
 
   /** Whether the table this seat is looking at has a field the needle cannot read. */
   protected readonly anomalous = computed(() => this.tabletop.currentTableVersion().magneticAnomaly);

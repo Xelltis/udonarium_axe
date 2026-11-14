@@ -5,6 +5,20 @@ import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 
 export type WidgetFallback = (element: HTMLElement) => WidgetSpot;
 
+/** How far a widget keeps from the edge of the window where nothing has placed it, in pixels. */
+const WIDGET_EDGE_GAP_PX = 8;
+
+/**
+ * Where a widget stands until it is dragged, for one that starts at the right of the window: its
+ * right edge a gap in from the window's, its top at the height given.
+ */
+export function topRightFallback(top: number): WidgetFallback {
+  return (element) => ({
+    left: Math.max(WIDGET_EDGE_GAP_PX, window.innerWidth - element.offsetWidth - WIDGET_EDGE_GAP_PX),
+    top,
+  });
+}
+
 @Directive({ selector: '[appWidgetPlace]' })
 export class WidgetPlaceDirective {
   private readonly layout = inject(WidgetLayoutService);

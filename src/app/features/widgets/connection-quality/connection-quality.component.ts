@@ -18,7 +18,7 @@ import {
   worstLinkQuality,
 } from '@axe/domain/peer/peer-link-quality';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
-import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
+import { topRightFallback, WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface PeerLinkView {
@@ -48,10 +48,7 @@ export class ConnectionQualityComponent {
   private readonly linkWatch = inject(LinkWatchService);
 
   protected readonly widgetName = WIDGET_CONNECTION_QUALITY;
-  protected readonly fallback = (el: HTMLElement) => ({
-    left: Math.max(8, window.innerWidth - el.offsetWidth - 8),
-    top: 96,
-  });
+  protected readonly fallback = topRightFallback(96);
 
   constructor() {
     effect((onCleanup) => {

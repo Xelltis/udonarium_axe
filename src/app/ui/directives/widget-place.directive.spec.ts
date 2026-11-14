@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { WidgetLayoutService } from '@axe/application/ui/widget-layout.service';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
-import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
+import { topRightFallback, WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 
 @Component({
   imports: [DraggableDirective, WidgetPlaceDirective],
@@ -113,5 +113,23 @@ describe('WidgetPlaceDirective', () => {
     fixture.componentInstance.shown.set(false);
     fixture.detectChanges();
     expect(layout.spotOf('probe')).toBeNull();
+  });
+});
+
+describe('topRightFallback()', () => {
+  const widget = (width: number) => ({ offsetWidth: width }) as HTMLElement;
+
+  it('stands a widget at the right of the window, a gap in, at the height given', () => {
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1000);
+
+    expect(topRightFallback(96)(widget(200))).toEqual({ left: 792, top: 96 });
+    vi.restoreAllMocks();
+  });
+
+  it('keeps a widget wider than the window off its left edge', () => {
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(100);
+
+    expect(topRightFallback(8)(widget(200))).toEqual({ left: 8, top: 8 });
+    vi.restoreAllMocks();
   });
 });
