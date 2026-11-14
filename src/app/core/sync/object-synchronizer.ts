@@ -2,7 +2,13 @@ import { LogThrottle } from '@axe/core/logging/log-throttle';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
-import { NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import {
+  FIRST_SYNC_SETTLED,
+  localDispatch,
+  NetworkMessage,
+  networkMessage$,
+  networkSend,
+} from '@axe/core/network/network-messaging';
 import { AuthorityEvent, CATALOG_BATCH } from '@axe/core/network/server/server-protocol';
 import { CatalogDigest, digestOf, isCatalogDigest, sameDigest } from '@axe/core/sync/catalog-digest';
 import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
@@ -118,7 +124,9 @@ export class ObjectSynchronizer {
    *
    * Between peers, with no room server, the catalog is not left at that one exchange. It goes out
    * to every peer again once this seat has taken in what it asked for, a digest of it goes to
-   * every peer at intervals, and a peer whose digest keeps differing is sent the catalog.
+   * every peer at intervals, and a peer whose digest keeps differing is sent the catalog. The
+   * first time it goes out again after a network opens, this seat is told that its objects have
+   * first synced, by the FIRST_SYNC_SETTLED event.
    */
   initialize() {
     this.destroy();
@@ -388,10 +396,19 @@ export class ObjectSynchronizer {
    * Sends this seat's catalogue to every connected peer, for those that connected while this seat
    * had little to list: a peer is otherwise sent the catalogue once, on connecting. Held to one
    * round in a while, the last of a run going out when that has passed.
+   *
+   * The first time since the network opened is when this seat's objects have first synced, which
+   * this seat is told by the FIRST_SYNC_SETTLED event, once for that network.
    */
   private offerCatalogToAll(): void {
     if (!this.reconciles) return;
+    const isFirstSync = !this.settledOnce;
     this.settledOnce = true;
+    this.sendCatalogToAllInTurn();
+    if (isFirstSync) localDispatch(FIRST_SYNC_SETTLED, {});
+  }
+
+  private sendCatalogToAllInTurn(): void {
     if (this.settledSendTimer !== null) return;
     const wait = this.lastSettledSendAt + SETTLED_CATALOG_MIN_INTERVAL_MS - performance.now();
     if (0 < wait) {

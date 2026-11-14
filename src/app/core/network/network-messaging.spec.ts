@@ -69,6 +69,7 @@ describe('receiveEvents', () => {
         'CLOSE_NETWORK',
         'CONNECT_PEER',
         'DISCONNECT_PEER',
+        'FIRST_SYNC_SETTLED',
         'LOCAL_OBJECT_UPDATED',
         'NETWORK_ERROR',
         'OPEN_NETWORK',

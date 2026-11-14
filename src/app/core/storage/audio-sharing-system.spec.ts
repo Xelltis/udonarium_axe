@@ -1,11 +1,13 @@
 import { Network } from '@axe/core/network/network';
 import * as NetworkMessaging from '@axe/core/network/network-messaging';
+import { FIRST_SYNC_SETTLED } from '@axe/core/network/network-messaging';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { ASSET_RETRY_DELAY_MS, ASSET_RETRY_LIMIT } from '@axe/core/storage/asset-retries';
 import { AudioFile, AudioFileContext, AudioState } from '@axe/core/storage/audio-file';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { BufferSharingTask } from '@axe/core/storage/buffer-sharing-task';
+import { FIRST_SYNC_HOLD_MAX_MS } from '@axe/core/storage/shared-asset-sharing-system';
 import type { MockInstance } from 'vitest';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -277,6 +279,179 @@ describe('AudioSharingSystem', () => {
       }
       emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: 'limit', state: AudioState.NULL }]);
       expect(sendSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('holding its requests until the objects have first synced', () => {
+    const requestsSent = () =>
+      sendSpy.mock.calls
+        .map((call: unknown[]) => ({ ...(call[0] as { eventName: string; data: unknown }), sendTo: call[1] }))
+        .filter((context: { eventName: string }) => context.eventName === 'REQUEST_AUDIO_RESOURE');
+    const wantedIn = (request: { data: unknown }) =>
+      (request.data as { identifiers: { identifier: string }[] }).identifiers.map((item) => item.identifier);
+    const catalogue = (...identifiers: string[]) =>
+      identifiers.map((identifier) => ({ identifier, state: AudioState.COMPLETE }));
+    const openNetwork = () => emit('OPEN_NETWORK', { peerId: 'self-peer' }, { sendFrom: 'self-peer' });
+    const connect = (peerId: string) => emit('CONNECT_PEER', { peerId }, { sendFrom: 'self-peer' });
+    const settle = () => emit(FIRST_SYNC_SETTLED, {}, { sendFrom: 'self-peer' });
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      AudioSharingSystem.instance.initialize();
+      AudioStorageMock.get.mockImplementation((id: string) => makeAudioFile({ identifier: id }));
+      openNetwork();
+      connect('peer-a');
+    });
+
+    afterEach(() => {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    });
+
+    it('asks for nothing a catalogue names until then, and makes a place for it meanwhile', () => {
+      AudioStorageMock.get.mockReturnValue(null);
+
+      emit('SYNCHRONIZE_AUDIO_LIST', catalogue('not-yet'));
+
+      expect(requestsSent()).toEqual([]);
+      expect(AudioStorageMock.add).toHaveBeenCalledWith(expect.objectContaining({ identifier: 'not-yet' }));
+    });
+
+    it('asks each peer once they have, for what the room is playing first', () => {
+      AudioSharingSystem.instance.preferredIdentifiers = () => ['playing-now'];
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      emit('SYNCHRONIZE_AUDIO_LIST', catalogue('another-track', 'playing-now'), { sendFrom: 'peer-a' });
+      emit('SYNCHRONIZE_AUDIO_LIST', catalogue('another-track'), { sendFrom: 'peer-b' });
+
+      settle();
+
+      expect(requestsSent().map((request: { sendTo: unknown }) => request.sendTo)).toEqual(['peer-a', 'peer-b']);
+      expect(wantedIn(requestsSent()[0])).toEqual(['playing-now']);
+      expect(wantedIn(requestsSent()[1])).toEqual(['another-track']);
+    });
+
+    it('asks from the latest catalogue a peer sent meanwhile, and only once', () => {
+      emit('SYNCHRONIZE_AUDIO_LIST', catalogue('first-named'));
+      emit('SYNCHRONIZE_AUDIO_LIST', catalogue('named-since'));
+
+      settle();
+      settle();
+
+      expect(requestsSent()).toHaveLength(1);
+      expect(wantedIn(requestsSent()[0])).toEqual(['named-since']);
+    });
+
+    it('asks anyway twenty seconds after its first peer connected, though the objects have not synced', () => {
+      vi.advanceTimersByTime(5_000);
+      emit('SYNCHRONIZE_AUDIO_LIST', catalogue('overdue'));
+
+      vi.advanceTimersByTime(FIRST_SYNC_HOLD_MAX_MS - 5_000 - 1);
+      expect(requestsSent()).toEqual([]);
+      vi.advanceTimersByTime(1);
+
+      expect(requestsSent()).toHaveLength(1);
+      expect(FIRST_SYNC_HOLD_MAX_MS).toBe(20_000);
+    });
+
+    it('asks at once for a catalogue that comes after they have synced, or after the twenty seconds', () => {
+      settle();
+      emit('SYNCHRONIZE_AUDIO_LIST', catalogue('named-after'));
+      expect(requestsSent()).toHaveLength(1);
+
+      openNetwork();
+      connect('peer-a');
+      vi.advanceTimersByTime(FIRST_SYNC_HOLD_MAX_MS);
+      emit('SYNCHRONIZE_AUDIO_LIST', catalogue('named-late'));
+      expect(requestsSent()).toHaveLength(2);
+    });
+
+    it('holds its requests again when another network opens', () => {
+      settle();
+      openNetwork();
+
+      emit('SYNCHRONIZE_AUDIO_LIST', catalogue('in-the-next-room'));
+
+      expect(requestsSent()).toEqual([]);
+    });
+
+    it('asks nobody for what was kept for a network that has closed', () => {
+      emit('SYNCHRONIZE_AUDIO_LIST', catalogue('in-the-last-room'));
+
+      emit('CLOSE_NETWORK', { peerId: 'self-peer' }, { sendFrom: 'self-peer' });
+      vi.advanceTimersByTime(FIRST_SYNC_HOLD_MAX_MS);
+      settle();
+
+      expect(requestsSent()).toEqual([]);
+    });
+
+    it('does not take a peer’s word that the objects have synced', () => {
+      emit('SYNCHRONIZE_AUDIO_LIST', catalogue('not-yet'));
+
+      emit(FIRST_SYNC_SETTLED, {}, { sendFrom: 'peer-a' });
+
+      expect(requestsSent()).toEqual([]);
+    });
+
+    it('still sends its own catalogue at once to a peer that names fewer', () => {
+      AudioStorageMock.getCatalog.mockReturnValue(catalogue('held-here', 'held-here-too'));
+      AudioStorageMock.synchronize.mockClear();
+
+      emit('SYNCHRONIZE_AUDIO_LIST', []);
+
+      expect(AudioStorageMock.synchronize).toHaveBeenCalledWith('peer-a');
+    });
+
+    it('still sends at once what a peer asks it for, as a peer on any version may ask', async () => {
+      const audio = makeAudioFile({ identifier: 'asked-for', blob: new Blob(['x']) });
+      AudioStorageMock.get.mockReturnValue(audio);
+      BufferSharingTaskMock.createSendTask.mockReturnValue(makeTask({ identifier: 'asked-for', sendTo: 'peer-r' }));
+
+      emit('REQUEST_AUDIO_RESOURE', {
+        identifiers: [{ identifier: 'asked-for', state: AudioState.NULL }],
+        receiver: 'peer-r',
+        candidatePeers: [],
+      });
+
+      expect(BufferSharingTaskMock.createSendTask).toHaveBeenCalledWith('asked-for', 'peer-r');
+      expect(sendSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ eventName: 'START_AUDIO_TRANSMISSION' }),
+        'peer-r'
+      );
+    });
+
+    it('takes at once a transfer a peer begins, as a peer on any version may begin one', () => {
+      AudioStorageMock.get.mockReturnValue(null);
+      BufferSharingTaskMock.createReceiveTask.mockReturnValue(makeTask({ identifier: 'sent-unasked' }));
+
+      emit('START_AUDIO_TRANSMISSION', { fileIdentifier: 'sent-unasked' });
+
+      expect(BufferSharingTaskMock.createReceiveTask).toHaveBeenCalledWith('sent-unasked');
+    });
+
+    it('holds nothing where a room server keeps the room', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+
+      emit('SYNCHRONIZE_AUDIO_LIST', catalogue('from-a-seat'));
+
+      expect(requestsSent()).toHaveLength(1);
+    });
+
+    it('still takes from the room’s asset store at once what a catalogue names', async () => {
+      const store = AssetHttpStore.instance;
+      store.configure('https://rooms.example');
+      store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
+      const download = vi.spyOn(store, 'download').mockResolvedValue('missing');
+      try {
+        emit('SYNCHRONIZE_AUDIO_LIST', catalogue('d'.repeat(64)));
+
+        expect(download).toHaveBeenCalledWith('d'.repeat(64), { first: false });
+        expect(requestsSent()).toEqual([]);
+      } finally {
+        await vi.advanceTimersByTimeAsync(0);
+        (AudioSharingSystem.instance as unknown as { forgetMisses: () => void }).forgetMisses();
+        store.configure(null);
+        store.useAccess(null);
+      }
     });
   });
 

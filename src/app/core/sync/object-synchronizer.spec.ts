@@ -3,7 +3,7 @@ import { messageAdded$, selectGameTable$ } from '@axe/core/event/domain-events';
 import { LogThrottle } from '@axe/core/logging/log-throttle';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
-import { localDispatch, receiveEvents } from '@axe/core/network/network-messaging';
+import { FIRST_SYNC_SETTLED, localDispatch, networkMessage$, receiveEvents } from '@axe/core/network/network-messaging';
 import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { CatalogDigest, digestOf } from '@axe/core/sync/catalog-digest';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -891,6 +891,71 @@ describe('ObjectSynchronizer', () => {
       flushCatalogs();
       expect(catalogsTo('peer-a')).toHaveLength(2);
       expect(catalogsTo('peer-b')).toHaveLength(2);
+    });
+
+    describe('saying that its first sync has settled', () => {
+      let settled: boolean[];
+      let stopListening: () => void;
+
+      beforeEach(() => {
+        settled = [];
+        stopListening = networkMessage$.subscribe((message) => {
+          if (message.eventName === FIRST_SYNC_SETTLED) settled.push(message.isSendFromSelf);
+        });
+      });
+
+      afterEach(() => stopListening());
+
+      it('says so to this seat alone once what it asked for has come in, and once only for a network', () => {
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'wanted', version: 1 }], 'peer-a');
+        flushCatalogs();
+        expect(settled).toEqual([]);
+
+        localDispatch('UPDATE_GAME_OBJECT', new GameObject('wanted').toContext(), 'peer-a');
+        flushCatalogs();
+        expect(settled).toEqual([true]);
+        expect(sent(FIRST_SYNC_SETTLED)).toEqual([]);
+
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'wanted-next', version: 1 }], 'peer-a');
+        localDispatch('UPDATE_GAME_OBJECT', new GameObject('wanted-next').toContext(), 'peer-a');
+        localDispatch('CONNECT_PEER', { peerId: 'peer-b' });
+        vi.advanceTimersByTime(SETTLED_CATALOG_MIN_INTERVAL_MS + FIRST_SYNC_GRACE_MS);
+        expect(settled).toEqual([true]);
+      });
+
+      it('says so again for the next network that opens', () => {
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS);
+        expect(settled).toHaveLength(1);
+
+        localDispatch('OPEN_NETWORK', { peerId: 'self' });
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS * 2);
+        expect(settled).toHaveLength(1);
+
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS);
+        expect(settled).toHaveLength(2);
+      });
+
+      it('says so five seconds after its first peer connects when it has nothing to ask for', () => {
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS - 1);
+        expect(settled).toEqual([]);
+        vi.advanceTimersByTime(1);
+        expect(settled).toEqual([true]);
+        expect(FIRST_SYNC_GRACE_MS).toBe(5_000);
+      });
+
+      it('does not say so while what it asked for is still to come', () => {
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'slow-to-come', version: 1 }], 'peer-a');
+
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS);
+
+        expect(settled).toEqual([]);
+      });
     });
 
     it('asks a peer for its catalogue again once a request to it has used up its retries, and not at every one', () => {

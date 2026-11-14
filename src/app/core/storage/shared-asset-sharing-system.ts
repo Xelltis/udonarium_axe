@@ -1,7 +1,13 @@
 import { fileResourceUpdated$ } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
-import { localDispatch, NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import {
+  FIRST_SYNC_SETTLED,
+  localDispatch,
+  NetworkMessage,
+  networkMessage$,
+  networkSend,
+} from '@axe/core/network/network-messaging';
 import { AssetDownloadMiss, AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AssetRetries } from '@axe/core/storage/asset-retries';
 import { BufferSharingTask } from '@axe/core/storage/buffer-sharing-task';
@@ -19,6 +25,12 @@ import {
  * Transfers finish in runs while a room fills up, and each run needs to be told only once.
  */
 export const CATALOG_BROADCAST_DELAY_MS = 1000;
+
+/**
+ * The longest a seat puts off asking its peers for files after its first peer connects, should the
+ * objects not have synced by then: files are not to be kept back for good by a sync that fails.
+ */
+export const FIRST_SYNC_HOLD_MAX_MS = 20_000;
 
 /** A transfer under way, as far as the lists of those being sent and received need to know it. */
 export interface SharingTask {
@@ -52,6 +64,10 @@ export interface SharedAssetTrade<F extends SharedAssetFile<C>, C extends Shared
  * catalogues, requests, transfers one file at a time from each peer holding one, and the room
  * server's asset store where the room has one.
  *
+ * Between peers, a seat asks for no file until its objects have first synced after its network
+ * opened, or a while after its first peer connected at the latest. The catalogues are traded and
+ * places made for what they name meanwhile, and what a peer asks for is sent at once.
+ *
  * A kind traded in another shape, as the pictures are, with their thumbnails ahead of the bytes and
  * several to a transfer, overrides the protected steps: what is asked for out of a catalogue, how
  * what is asked for is sent and received, and how what came is taken in.
@@ -77,6 +93,9 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
   private readonly incomingFrom = new Map<string, string>();
   /** The latest catalogue of each peer that is not to be asked just yet, kept to ask it from later. */
   private readonly heldCatalogs = new Map<string, CatalogItem[]>();
+  /** Whether the objects have yet to sync for the first time since the network opened. */
+  private awaitsFirstSync = false;
+  private firstSyncHoldTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Those to fetch before any other, such as what the room is playing.
@@ -107,14 +126,26 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
   initialize(): void {
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
+    this.cleanups.push(() => this.forgetFirstSync());
     const { messages } = this.trade;
 
     this.cleanups.push(
       networkMessage$.subscribe((msg) => {
         switch (msg.eventName) {
+          case 'OPEN_NETWORK':
+            if (msg.isSendFromSelf) this.awaitFirstSync();
+            break;
+          case 'CLOSE_NETWORK':
+            if (msg.isSendFromSelf) this.forgetFirstSync();
+            break;
+          case FIRST_SYNC_SETTLED:
+            if (msg.isSendFromSelf) this.askAfterFirstSync();
+            break;
           case 'CONNECT_PEER':
-            if ((msg as NetworkMessage<{ peerId: string }>).isSendFromSelf)
+            if ((msg as NetworkMessage<{ peerId: string }>).isSendFromSelf) {
               this.storage.synchronize((msg as NetworkMessage<{ peerId: string }>).data.peerId);
+              this.limitFirstSyncHold();
+            }
             break;
           case 'DISCONNECT_PEER':
             this.heldCatalogs.delete((msg as NetworkMessage<{ peerId: string }>).data.peerId);
@@ -173,13 +204,16 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
 
   /**
    * Asks a peer for what is wanted out of its catalogue, or keeps the catalogue to ask from later
-   * while the peer is not to be asked. Nothing is asked for while this seat is receiving enough.
+   * while the peer is not to be asked: until the objects have first synced, and where a transfer
+   * from it does not say what it carries, until that has come. Nothing is asked for while this
+   * seat is receiving enough.
    */
   private ask(wanted: CatalogItem[], catalog: readonly CatalogItem[], peerId: string): void {
     this.heldCatalogs.delete(peerId);
     if (wanted.length < 1) return;
     if (this.holdsRequestsTo(peerId)) {
       this.heldCatalogs.set(peerId, [...catalog]);
+      if (this.holdsForFirstSync) this.limitFirstSyncHold();
       return;
     }
     if (this.isLimitReceiveTask()) return;
@@ -193,7 +227,51 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
   }
 
   private holdsRequestsTo(peerId: string): boolean {
+    if (this.holdsForFirstSync) return true;
     return !this.asksDuringTransfer() && this.isReceivingFrom(peerId);
+  }
+
+  /**
+   * Whether peers are not asked for files yet because the objects have not first synced: a seat new
+   * to a room gets its table and chat before the files, which would crowd them on a slow line.
+   * A room server keeps the objects itself and hands the files out apart, so nothing waits there.
+   */
+  private get holdsForFirstSync(): boolean {
+    return this.awaitsFirstSync && Network.authorityPeerId == null;
+  }
+
+  /** Starts over for a network that has opened: peers are asked for nothing until its objects sync. */
+  private awaitFirstSync(): void {
+    this.forgetFirstSync();
+    this.awaitsFirstSync = true;
+  }
+
+  /** Drops what was kept to ask the peers of a network that is no more. */
+  private forgetFirstSync(): void {
+    if (this.firstSyncHoldTimer !== null) clearTimeout(this.firstSyncHoldTimer);
+    this.firstSyncHoldTimer = null;
+    this.awaitsFirstSync = false;
+    this.heldCatalogs.clear();
+  }
+
+  /** Sees that peers are asked a while from now at the latest, whether the objects have synced or not. */
+  private limitFirstSyncHold(): void {
+    if (!this.awaitsFirstSync || this.firstSyncHoldTimer !== null) return;
+    this.firstSyncHoldTimer = setTimeout(() => {
+      this.firstSyncHoldTimer = null;
+      this.askAfterFirstSync();
+    }, FIRST_SYNC_HOLD_MAX_MS);
+  }
+
+  /** Asks every peer for what its catalogue named while the objects were yet to sync. */
+  private askAfterFirstSync(): void {
+    if (!this.awaitsFirstSync) return;
+    if (this.firstSyncHoldTimer !== null) clearTimeout(this.firstSyncHoldTimer);
+    this.firstSyncHoldTimer = null;
+    this.awaitsFirstSync = false;
+    for (const peerId of [...this.heldCatalogs.keys()]) {
+      if (!this.holdsRequestsTo(peerId)) this.askHeld(peerId);
+    }
   }
 
   private isReceivingFrom(peerId: string): boolean {
