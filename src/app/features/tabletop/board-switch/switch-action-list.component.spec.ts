@@ -74,6 +74,22 @@ describe('SwitchActionListComponent', () => {
     expect(offered()).toContain('ゴブリン（キャラクター）');
   });
 
+  it('keeps a sound and a piece the room no longer has on offer, listed as missing and still picked', () => {
+    render([
+      { ...newSwitchAction('sound'), name: '消えた音' } as SwitchAction,
+      { ...newSwitchAction('reveal'), target: { identifier: 'gone-piece', name: '消えたコマ' } } as SwitchAction,
+    ]);
+
+    const name = fixture.nativeElement.querySelector('[data-testid="switch-action-name"]') as HTMLSelectElement;
+    const target = fixture.nativeElement.querySelector('[data-testid="switch-action-target"]') as HTMLSelectElement;
+    const picked = (select: HTMLSelectElement) => Array.from(select.options).find((option) => option.selected);
+
+    expect(picked(name)?.value).toBe('消えた音');
+    expect(picked(name)?.textContent).toContain('消えた音');
+    expect(picked(target)?.value).toBe('gone-piece');
+    expect(picked(target)?.textContent).toContain('消えたコマ');
+  });
+
   it('says where a template is kept as it moves', async () => {
     const goblin = goblinAt('table');
     render([newSwitchAction('spawn')]);

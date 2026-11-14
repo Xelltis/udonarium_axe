@@ -1,0 +1,12 @@
+@if (blankLabel(); as blank) {
+  <option value="" [selected]="!value()">{{ blank }}</option>
+}
+@if (missing(); as gone) {
+  <option selected [value]="gone.value">{{ 'feature.boardSwitch.missing' | transloco: { name: gone.name } }}</option>
+}
+@for (key of keys(); track key) {
+  <option [value]="key" [selected]="key === value()">{{ keyLabelPrefix() + key | transloco }}</option>
+}
+@for (choice of choices(); track choice.value) {
+  <option [value]="choice.value" [selected]="choice.value === value()">{{ choice.name }}</option>
+}
