@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { capturePointer } from '@axe/core/input/pointer-capture';
+import { clamp } from '@axe/core/util/clamp';
 
 const SWEEP_DEGREES = 270;
 const START_DEGREES = -135;
@@ -84,11 +85,11 @@ export class UiKnobComponent {
   private angleOf(value: number): number {
     const span = this.max() - this.min();
     const share = span > 0 ? (value - this.min()) / span : 0;
-    return START_DEGREES + SWEEP_DEGREES * Math.min(1, Math.max(0, share));
+    return START_DEGREES + SWEEP_DEGREES * clamp(share, 0, 1);
   }
 
   private clamp(value: number): number {
-    return Math.min(this.max(), Math.max(this.min(), value));
+    return clamp(value, this.min(), this.max());
   }
 
   private turnTo(value: number, settled: boolean): void {

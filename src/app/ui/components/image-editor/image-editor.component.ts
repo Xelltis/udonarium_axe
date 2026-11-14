@@ -16,6 +16,7 @@ import { capturePointer } from '@axe/core/input/pointer-capture';
 import { canvasToBlob } from '@axe/core/storage/canvas-blob';
 import { FileArchiver, MAX_LOADED_IMAGE_BYTES } from '@axe/core/storage/file-archiver';
 import { ImageFile } from '@axe/core/storage/image-file';
+import { clamp } from '@axe/core/util/clamp';
 import { ConnectedColorEraser } from '@axe/domain/media/erase-connected-color';
 import {
   centeredRect,
@@ -479,7 +480,7 @@ export class ImageEditorComponent {
    * frame, once however many times the slider moved before it.
    */
   setTolerance(value: number): void {
-    this.tolerance.set(Math.max(0, Math.min(128, Math.round(value) || 0)));
+    this.tolerance.set(clamp(Math.round(value) || 0, 0, 128));
     if (this.redrawPending) return;
     this.redrawPending = true;
     requestAnimationFrame(() => {
@@ -610,8 +611,8 @@ export class ImageEditorComponent {
     if (box.width <= 0 || box.height <= 0) return null;
     const size = this.pictureSize();
     return {
-      x: Math.min(Math.max(0, ((event.clientX - box.left) / box.width) * size.width), size.width),
-      y: Math.min(Math.max(0, ((event.clientY - box.top) / box.height) * size.height), size.height),
+      x: clamp(((event.clientX - box.left) / box.width) * size.width, 0, size.width),
+      y: clamp(((event.clientY - box.top) / box.height) * size.height, 0, size.height),
     };
   }
 

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /** Where each row of a long list sits: `offsets[i]` is the top of row `i`, and `offsets[count]` the whole height. */
 export interface VirtualLayout {
   readonly offsets: Float64Array;
@@ -47,7 +48,7 @@ export class VirtualRowHeights {
 export function visibleRows(layout: VirtualLayout, top: number, bottom: number): { start: number; end: number } {
   const count = layout.offsets.length - 1;
   if (count < 1) return { start: 0, end: 0 };
-  const start = Math.min(count - 1, Math.max(0, lastAtOrBelow(layout.offsets, count, top)));
+  const start = clamp(lastAtOrBelow(layout.offsets, count, top), 0, count - 1);
   let end = start;
   while (end < count && layout.offsets[end] < bottom) end++;
   return { start, end: Math.max(end, start + 1) };

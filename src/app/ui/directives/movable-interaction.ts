@@ -1,5 +1,6 @@
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { clamp } from '@axe/core/util/clamp';
 import { resolveMovableLocalCoordinate } from '@axe/ui/directives/movable-helpers';
 
 export interface MovableInteractionContext {
@@ -169,8 +170,8 @@ export function handleInputMove(context: MovableInteractionContext, e: MouseEven
 export function dragPointer2d(context: MovableInteractionContext): { x: number; y: number; z: number } {
   const pointer = context.input?.pointer ?? { x: 0, y: 0, z: 0 };
   return {
-    x: Math.min(window.innerWidth - 0.1, Math.max(pointer.x + context.pointerOffset2d.x * context.ratio, 0.1)),
-    y: Math.min(window.innerHeight - 0.1, Math.max(pointer.y + context.pointerOffset2d.y * context.ratio, 0.1)),
+    x: clamp(pointer.x + context.pointerOffset2d.x * context.ratio, 0.1, window.innerWidth - 0.1),
+    y: clamp(pointer.y + context.pointerOffset2d.y * context.ratio, 0.1, window.innerHeight - 0.1),
     z: 0,
   };
 }

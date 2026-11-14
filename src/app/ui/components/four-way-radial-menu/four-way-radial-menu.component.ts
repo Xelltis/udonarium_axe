@@ -18,6 +18,7 @@ import {
 } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
+import { clamp } from '@axe/core/util/clamp';
 import {
   DEFAULT_RADIAL_MENU_ROTATION_SPEED,
   MAX_RADIAL_MENU_ROTATION_SPEED,
@@ -122,7 +123,7 @@ export class FourWayRadialMenuComponent {
   );
   protected readonly ringRadius = computed(() => {
     const shortestSide = Math.min(this.viewport().width, this.viewport().height);
-    const baseRadius = Math.max(82, Math.min(138, shortestSide / 2 - ITEM_HALF_EXTENT_PX - 12));
+    const baseRadius = clamp(shortestSide / 2 - ITEM_HALF_EXTENT_PX - 12, 82, 138);
     return Math.max(baseRadius, this.clearanceRadius() + ITEM_HALF_EXTENT_PX + RING_CLEARANCE_GAP_PX);
   });
   protected readonly rootInnerRadius = computed(() => Math.max(1, this.ringRadius() - ROOT_BAND_HALF_DEPTH_PX));
@@ -165,7 +166,7 @@ export class FourWayRadialMenuComponent {
   protected ringDurationSeconds(): number {
     const configured = Number(this.contextMenuService.radialMenuRotationSpeed);
     const speed = Number.isFinite(configured)
-      ? Math.max(MIN_RADIAL_MENU_ROTATION_SPEED, Math.min(configured, MAX_RADIAL_MENU_ROTATION_SPEED))
+      ? clamp(configured, MIN_RADIAL_MENU_ROTATION_SPEED, MAX_RADIAL_MENU_ROTATION_SPEED)
       : DEFAULT_RADIAL_MENU_ROTATION_SPEED;
     return 360 / speed;
   }
