@@ -1,7 +1,9 @@
 import { computed, signal } from '@angular/core';
+import { delay } from '@axe/core/util/delay';
 import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { scanChatSyntax } from '@axe/domain/chat-syntax/chat-syntax';
 import { type ChatEditorField, type ChatEditorHost, mountChatEditor } from '@axe/features/chat/chat-editor/chat-editor';
+import { chatBubbleGap } from '@axe/features/chat/chat-editor/chat-editor-bubble';
 import { closeHistory } from '@tiptap/pm/history';
 import { TextSelection } from '@tiptap/pm/state';
 
@@ -30,6 +32,16 @@ describe('the chat editor', () => {
       portraitImage: () => null,
       translate: (key: string) => key,
     }) as unknown as ChatEditorHost;
+
+  /**
+   * Ends the word being made with an input method, as the browser does, and waits for the editor to
+   * have taken up what waited on it.
+   */
+  async function endComposition(editor: ChatEditorField): Promise<void> {
+    (editor.editor.view as unknown as { input: { composing: boolean } }).input.composing = false;
+    editor.editor.view.dom.dispatchEvent(new CompositionEvent('compositionend'));
+    await delay();
+  }
 
   function mount(text: string): ChatEditorField {
     field = mountChatEditor(parent, { text, selection: { from: 0, to: 0 }, focused: false }, host());
@@ -170,21 +182,17 @@ describe('the chat editor', () => {
   });
 
   it('keeps the bar over a selection clear of the toolbar above it, and close under it where it opens below', () => {
-    const toolbar = { getBoundingClientRect: () => ({ top: 60, bottom: 96, height: 36 }) };
-    const editor = mountChatEditor(parent, { text: 'words', selection: { from: 0, to: 0 }, focused: false }, {
-      ...host(),
-      toolbarElement: () => toolbar,
-    } as unknown as ChatEditorHost);
-    field = editor;
-    const gap = (placement: string) =>
-      (editor as unknown as { bubbleGap(placement: string, top: number, height: number): number }).bubbleGap(
-        placement,
-        100,
-        30
-      );
+    const toolbar = { top: 60, bottom: 96, height: 36 };
 
-    expect(gap('top')).toBeGreaterThan(40);
-    expect(gap('bottom')).toBe(8);
+    expect(chatBubbleGap(toolbar, 'top', 100, 30)).toBe(44);
+    expect(chatBubbleGap(toolbar, 'top-start', 100, 30)).toBe(44);
+    expect(chatBubbleGap(toolbar, 'bottom', 100, 30)).toBe(8);
+  });
+
+  it('keeps the bar close over a selection the toolbar is clear of, or where there is no toolbar', () => {
+    expect(chatBubbleGap({ top: 60, bottom: 96, height: 36 }, 'top', 300, 30)).toBe(8);
+    expect(chatBubbleGap(null, 'top', 100, 30)).toBe(8);
+    expect(chatBubbleGap({ top: 60, bottom: 60, height: 0 }, 'top', 100, 30)).toBe(8);
   });
 
   it('pastes the letters as they are with their blank lines kept, where asked to paste them plain', () => {
@@ -488,7 +496,7 @@ describe('the chat editor', () => {
     expect(editor.text()).toBe('');
   });
 
-  it('puts a text that waited on a word being made in as asked, and tells the holder what it then holds', () => {
+  it('puts a text that waited on a word being made in as asked, and tells the holder what it then holds', async () => {
     const told: string[] = [];
     const editor = mountChatEditor(parent, { text: '', selection: { from: 0, to: 0 }, focused: false }, {
       ...host(),
@@ -503,8 +511,7 @@ describe('the chat editor', () => {
     input.composing = true;
     editor.setText('', undefined, false);
     view.dispatch(view.state.tr.insertText('語'));
-    input.composing = false;
-    (editor as unknown as { afterComposition(): void }).afterComposition();
+    await endComposition(editor);
 
     expect(editor.text()).toBe('');
     expect(told.at(-1)).toBe('');
@@ -512,7 +519,7 @@ describe('the chat editor', () => {
     expect(editor.text()).not.toContain('sent');
   });
 
-  it('keeps a clear not to be undone so, though the same text is set again while the word is made', () => {
+  it('keeps a clear not to be undone so, though the same text is set again while the word is made', async () => {
     const editor = mount('');
     type(editor, 'sent');
     const view = editor.editor.view;
@@ -522,8 +529,7 @@ describe('the chat editor', () => {
     input.composing = true;
     editor.setText('', undefined, false);
     editor.setText('');
-    input.composing = false;
-    (editor as unknown as { afterComposition(): void }).afterComposition();
+    await endComposition(editor);
     editor.editor.commands.undo();
 
     expect(editor.text()).toBe('');
@@ -560,7 +566,7 @@ describe('the chat editor', () => {
     expect(editor.text()).toBe('');
   });
 
-  it('puts in nothing that waited on a word being made once the editor is taken down', () => {
+  it('puts in nothing that waited on a word being made once the editor is taken down', async () => {
     const told: string[] = [];
     const editor = mountChatEditor(parent, { text: 'sent', selection: { from: 0, to: 0 }, focused: false }, {
       ...host(),
@@ -569,11 +575,11 @@ describe('the chat editor', () => {
     const input = (editor.editor.view as unknown as { input: { composing: boolean } }).input;
     input.composing = true;
     editor.setText('');
-    input.composing = false;
+    const ended = endComposition(editor);
 
     editor.destroy();
 
-    expect(() => (editor as unknown as { afterComposition(): void }).afterComposition()).not.toThrow();
+    await expect(ended).resolves.toBeUndefined();
     expect(told).toEqual([]);
   });
 
