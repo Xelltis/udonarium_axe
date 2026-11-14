@@ -9,6 +9,7 @@ import {
   inject,
   Injector,
   input,
+  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
@@ -164,7 +165,11 @@ export class CutInSceneEditorComponent {
   private readonly stageArea = viewChild<ElementRef<HTMLElement>>('stageArea');
   private readonly timelineArea = viewChild<ElementRef<HTMLElement>>('timelineArea');
 
-  protected readonly selectedIdentifier = signal<string>('');
+  /** The layer picked on the stage, let go of whenever another cut-in is put under edit. */
+  protected readonly selectedIdentifier = linkedSignal<CutIn | null, string>({
+    source: this.cutIn,
+    computation: () => '',
+  });
   protected readonly playing = signal(false);
   protected readonly playheadMs = signal(0);
 
@@ -201,8 +206,11 @@ export class CutInSceneEditorComponent {
   /** The preview's own scene sounds, which a cut-in playing in the room knows nothing about. */
   private sceneSound: CutInSoundHandle | null = null;
   private clockId: number | null = null;
-  private history: EditHistory<CutInSceneSnapshot> | null = null;
-  private historyOf = '';
+  /** The changes that can be taken back, started afresh from the scene of each cut-in put under edit. */
+  private readonly history = linkedSignal<CutIn | null, EditHistory<CutInSceneSnapshot> | null>({
+    source: this.cutIn,
+    computation: (cutIn) => (cutIn ? new EditHistory(snapshotScene(cutIn.scene), cloneSceneSnapshot) : null),
+  });
   protected readonly historyVersion = signal(0);
   private pending: { layer: CutInLayer; box: LayerBox | null; rotation: number | null } | null = null;
   private readonly flushSoon = coalesce(() => this.flushDrag(), DRAG_FLUSH_MS);
@@ -346,13 +354,7 @@ export class CutInSceneEditorComponent {
     inject(ShortcutScopeService).hold('cutInEditor', this.destroyRef);
     // The stack is started from the scene as it stands, before anything is changed, so the
     // very first change has something to be taken back to.
-    effect(() => {
-      const cutIn = this.cutIn();
-      this.historyOf = cutIn?.identifier ?? '';
-      this.history = cutIn ? new EditHistory(snapshotScene(cutIn.scene), cloneSceneSnapshot) : null;
-      this.selectedIdentifier.set('');
-      this.historyVersion.update((count) => count + 1);
-    });
+    effect(() => this.history());
 
     afterNextRender(() => {
       this.watchStageSize();
@@ -826,7 +828,7 @@ export class CutInSceneEditorComponent {
 
   /** The stack for the cut-in being edited. */
   private stack(): EditHistory<CutInSceneSnapshot> | null {
-    return this.historyOf === (this.cutIn()?.identifier ?? '') ? this.history : null;
+    return this.history();
   }
 
   private watchCutIn(): CutIn | null {

@@ -415,6 +415,26 @@ describe('CutInSceneEditorComponent', () => {
       expect(component.selected()).toBeNull();
     });
 
+    it('starts over for another cut-in put under edit, with nothing picked and nothing to take back', () => {
+      editor().addImageLayer();
+      expect(editor().canUndo()).toBe(true);
+      expect(component.selected()).not.toBeNull();
+      const other = new CutIn();
+      other.initialize();
+      try {
+        fixture.componentRef.setInput('cutIn', other);
+
+        expect(component.selected()).toBeNull();
+        expect(editor().canUndo()).toBe(false);
+
+        editor().addImageLayer();
+        editor().undo();
+        expect(component.layers()).toEqual([]);
+      } finally {
+        other.destroy();
+      }
+    });
+
     it('listens for the keys', () => {
       editor().addImageLayer();
 
