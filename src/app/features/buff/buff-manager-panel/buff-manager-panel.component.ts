@@ -475,7 +475,11 @@ export class BuffManagerPanelComponent {
       rows.length > 1
         ? [rows.map((row) => `${builderStatusText(row)}${row.operator}${builderAmountText(row)}`).join(',')]
         : [builderStatusText(rows[0]), rows[0].operator, builderAmountText(rows[0])];
-    const parts = [this.builderName().trim() || 'バフ', ...statusParts, this.builderRounds().trim()];
+    const parts = [
+      this.builderName().trim() || this.t('feature.buffManager.builderDefaultName'),
+      ...statusParts,
+      this.builderRounds().trim(),
+    ];
     const timing = this.builderTiming();
     const trigger = this.builderTrigger().trim();
     if (timing !== 'roundEnd' || trigger.length > 0) parts.push(timing);
@@ -489,9 +493,8 @@ export class BuffManagerPanelComponent {
     const requests = this.builderRows().map((row) =>
       parseBuffModifierRequest(builderStatusText(row), row.operator, builderAmountText(row).replace(/÷/g, '/'))
     );
-    return requests.every((request) => request)
-      ? requests.map((request) => describeBuffModifier(request!)).join(',')
-      : '';
+    const parsed = requests.filter((request) => request !== null);
+    return parsed.length === requests.length ? parsed.map((request) => describeBuffModifier(request)).join(',') : '';
   });
 
   readonly copied = transientSignal(false, 1200);

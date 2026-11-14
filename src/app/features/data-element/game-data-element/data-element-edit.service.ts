@@ -140,13 +140,19 @@ export class DataElementEditService {
   }
 
   /**
-   * Copies an element's path, as formulas and references write it, to the clipboard. Does nothing
-   * where the element has no path or there is no clipboard.
+   * Copies an element's path, as formulas and references write it, to the clipboard, and says
+   * whether it got there: not where the element has no path, there is no clipboard, or the browser
+   * refuses the write.
    */
-  copyReference(element: DataElement): void {
+  async copyReference(element: DataElement): Promise<boolean> {
     const referencePath = DataElement.formatReferencePath(element);
-    if (!referencePath) return;
-    void navigator.clipboard?.writeText(referencePath);
+    if (!referencePath || !navigator.clipboard) return false;
+    try {
+      await navigator.clipboard.writeText(referencePath);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** Whether a new field may go in just after this element. */

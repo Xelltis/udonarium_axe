@@ -1,5 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, model, output } from '@angular/core';
-import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ChangeDetectionStrategy, Component, input, model, output } from '@angular/core';
 import { HEADING_ICON_GROUPS } from '@axe/features/data-element/game-data-element/data-element-icons';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -15,8 +14,6 @@ import { TranslocoModule } from '@jsverse/transloco';
   imports: [TranslocoModule],
 })
 export class HeadingIconPickerComponent {
-  private readonly t = inject(TRANSLATE_FN);
-
   /** The icon the heading shows, empty for none. */
   readonly icon = input('');
 
@@ -26,8 +23,8 @@ export class HeadingIconPickerComponent {
   /** The icon chosen, or empty where the icon is taken away. */
   readonly picked = output<string>();
 
-  /** The icons on offer, in their groups, each group under its name in the reader's language. */
-  readonly iconGroups = HEADING_ICON_GROUPS.map((group) => ({ label: this.t(group.labelKey), icons: group.icons }));
+  /** The icons on offer, in their groups, each group with the key of its name. */
+  readonly iconGroups = HEADING_ICON_GROUPS;
 
   /** Chooses an icon, or none for empty, and closes the grid. */
   select(name: string): void {

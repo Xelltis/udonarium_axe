@@ -441,7 +441,7 @@
             (change)="onSetFieldType($event)"
           >
             @for (item of fieldTypeItems; track item.type) {
-              <ng-option [value]="item.type">{{ item.label }}</ng-option>
+              <ng-option [value]="item.type">{{ item.labelKey | transloco }}</ng-option>
             }
           </ng-select>
           @for (action of fieldActions(); track action.id) {

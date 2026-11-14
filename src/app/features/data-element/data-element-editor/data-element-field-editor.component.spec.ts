@@ -164,4 +164,22 @@ describe('DataElementFieldEditorComponent', () => {
     expect(hp.getAttribute(DataElementAttribute.POPUP)).toBe('true');
     expect(host.querySelector('[data-testid="field-editor-popup"]')?.getAttribute('aria-checked')).toBe('true');
   });
+
+  describe('copying the path of the row', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('says the path was copied only when the clipboard took it', async () => {
+      const { hp } = sheet();
+      open(hp);
+      const snackbar = TestBed.inject(SnackbarService);
+      const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+
+      await fixture.componentInstance.copyReference();
+      expect(snackbar.current()?.message).toContain('コピーしました');
+
+      write.mockRejectedValue(new DOMException('denied', 'NotAllowedError'));
+      await fixture.componentInstance.copyReference();
+      expect(snackbar.current()?.message).toContain('コピーできませんでした');
+    });
+  });
 });

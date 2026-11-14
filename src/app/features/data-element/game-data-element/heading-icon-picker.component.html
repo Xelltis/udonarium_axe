@@ -29,9 +29,9 @@
         </button>
       }
     </div>
-    @for (group of iconGroups; track group.label) {
+    @for (group of iconGroups; track group.labelKey) {
       <div class="text-ui-muted mt-1.25 mb-0.5 ml-px text-[0.65em] tracking-[0.06em] uppercase">
-        {{ group.label }}
+        {{ group.labelKey | transloco }}
       </div>
       <div class="mb-0.5 flex flex-wrap gap-0.5">
         @for (iconName of group.icons; track iconName) {

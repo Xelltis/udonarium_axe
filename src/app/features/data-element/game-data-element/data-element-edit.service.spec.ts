@@ -150,4 +150,23 @@ describe('DataElementEditService', () => {
     TestBed.inject(SnackbarService).runAction();
     expect(names(basic)).toEqual(['HP', 'MP']);
   });
+
+  describe('copying the path of an element', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('says the path was copied once the clipboard has it', async () => {
+      const { hp } = sheet();
+      const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+
+      await expect(service.copyReference(hp)).resolves.toBe(true);
+      expect(write).toHaveBeenCalledWith(DataElement.formatReferencePath(hp));
+    });
+
+    it('says the path was not copied where the browser refuses the write', async () => {
+      const { hp } = sheet();
+      vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new DOMException('denied', 'NotAllowedError'));
+
+      await expect(service.copyReference(hp)).resolves.toBe(false);
+    });
+  });
 });

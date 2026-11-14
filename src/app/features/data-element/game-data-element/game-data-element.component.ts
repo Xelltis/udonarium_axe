@@ -500,10 +500,8 @@ export class GameDataElementComponent {
   readonly iconPickerOpen = signal(false);
   readonly templateMenuOpen = signal(false);
 
-  readonly fieldTypeItems: { type: DataElementFieldTypeValue; label: string }[] = FIELD_TYPE_CATALOG.map((entry) => ({
-    type: entry.type,
-    label: this.t(entry.labelKey),
-  }));
+  /** The kinds a field can be, each with the key of its name. */
+  readonly fieldTypeItems: readonly { type: DataElementFieldTypeValue; labelKey: string }[] = FIELD_TYPE_CATALOG;
 
   /** The effects on offer, held by name so the same row works in any room. */
   readonly effectNames = computed<string[]>(() => this.effectLibrary.presets().map((preset) => preset.name));
@@ -553,8 +551,8 @@ export class GameDataElementComponent {
   updateKomaIconMaxValue(root: DataElement) {
     const image = root.getFirstElementByName('image');
     const icon = root.getElementsByName('ICON');
-    if (icon) {
-      icon[0].value = image!.children.length - 1;
+    if (icon && image) {
+      icon[0].value = image.children.length - 1;
       if (+icon[0].currentValue > +icon[0].value) icon[0].currentValue = icon[0].value;
     }
   }
@@ -723,9 +721,7 @@ export class GameDataElementComponent {
    * something inside the row.
    */
   onStructureDragLeave(event: DragEvent): void {
-    // Only clear the indicator when the cursor truly left this host element.
-    // dragleave also fires when the cursor moves into a child element (event bubbles up),
-    // so we check relatedTarget to distinguish the two cases.
+    // dragleave also comes when the pointer only moves onto a child element.
     const host = event.currentTarget as HTMLElement | null;
     if (host && event.relatedTarget instanceof Node && host.contains(event.relatedTarget)) return;
     this.structureDropPosition.set(null);
@@ -1014,7 +1010,7 @@ export class GameDataElementComponent {
    */
   copyReferencePath(event?: MouseEvent): void {
     event?.stopPropagation();
-    this.edit.copyReference(this.gameDataElement());
+    void this.edit.copyReference(this.gameDataElement());
   }
 
   private hasFlag(attribute: string): boolean {

@@ -150,11 +150,15 @@ export class DataElementFieldEditorComponent {
     this.edit.togglePopup(this.current());
   }
 
-  /** Copies the row's path, as formulas write it, and says so. */
-  copyReference(): void {
+  /** Copies the row's path, as formulas write it, and says whether it was copied. */
+  async copyReference(): Promise<void> {
     const path = DataElement.formatReferencePath(this.current());
-    this.edit.copyReference(this.current());
-    if (path) this.snackbar.show(this.t('feature.dataElement.editor.referenceCopied', { path }));
+    if (!path) return;
+    const copied = await this.edit.copyReference(this.current());
+    const key = copied
+      ? 'feature.dataElement.editor.referenceCopied'
+      : 'feature.dataElement.editor.referenceCopyFailed';
+    this.snackbar.show(this.t(key, { path }));
   }
 
   /** Adds a row just below this one and goes on to edit it, its name ready to be typed over. */
