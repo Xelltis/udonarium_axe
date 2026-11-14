@@ -2,6 +2,7 @@ import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { SaveProgress } from '@axe/application/file/save-progress';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
@@ -648,8 +649,9 @@ export class GameTableSettingComponent {
     return !this.isEmpty && !this.isDeleted;
   }
 
-  readonly isSaving = signal(false);
-  readonly progressPercent = signal(0);
+  private readonly saveProgress = new SaveProgress();
+  readonly isSaving = this.saveProgress.isSaving;
+  readonly progressPercent = this.saveProgress.percent;
 
   constructor() {
     queueMicrotask(
@@ -802,19 +804,12 @@ export class GameTableSettingComponent {
    * while a save is running.
    */
   async save() {
-    if (!this.selectedTable || this.isSaving()) return;
-    this.isSaving.set(true);
-    this.progressPercent.set(0);
-
-    this.selectedTable.selected = true;
-    await this.saveDataService.saveGameObjectAsync(this.selectedTable, 'map_' + this.selectedTable.name, (percent) => {
-      this.progressPercent.set(percent);
+    const table = this.selectedTable;
+    if (!table || this.isSaving()) return;
+    await this.saveProgress.run((onProgress) => {
+      table.selected = true;
+      return this.saveDataService.saveGameObjectAsync(table, 'map_' + table.name, onProgress);
     });
-
-    setTimeout(() => {
-      this.isSaving.set(false);
-      this.progressPercent.set(0);
-    }, 500);
   }
 
   /**

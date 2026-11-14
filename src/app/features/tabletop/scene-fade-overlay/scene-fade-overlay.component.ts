@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { sceneFade$ } from '@axe/core/event/domain-events';
+import { debounce } from '@axe/core/util/debounce';
 import { SCENE_FADE } from '@axe/domain/scene/board-scene';
 
 /**
@@ -20,28 +21,22 @@ export class SceneFadeOverlayComponent {
   protected readonly opacity = signal(0);
   protected readonly durationMs = signal<number>(SCENE_FADE.inMs);
 
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  /** Brings the table back once it has gone dark and been held so; a fade asked for meanwhile starts the wait over. */
+  private readonly lift = debounce(() => {
+    this.durationMs.set(SCENE_FADE.outMs);
+    this.opacity.set(0);
+  }, SCENE_FADE.inMs + SCENE_FADE.holdMs);
 
   constructor() {
     const destroyRef = inject(DestroyRef);
     sceneFade$.subscribe(() => this.fade(), destroyRef);
-    destroyRef.onDestroy(() => this.clearTimer());
+    destroyRef.onDestroy(() => this.lift.cancel());
   }
 
   private fade(): void {
     if (!this.motion.enabled()) return;
-    this.clearTimer();
     this.durationMs.set(SCENE_FADE.inMs);
     this.opacity.set(1);
-    this.timer = setTimeout(() => {
-      this.durationMs.set(SCENE_FADE.outMs);
-      this.opacity.set(0);
-      this.timer = null;
-    }, SCENE_FADE.inMs + SCENE_FADE.holdMs);
-  }
-
-  private clearTimer(): void {
-    if (this.timer !== null) clearTimeout(this.timer);
-    this.timer = null;
+    this.lift();
   }
 }

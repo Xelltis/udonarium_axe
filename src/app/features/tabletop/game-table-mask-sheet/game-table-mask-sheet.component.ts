@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { SaveProgress } from '@axe/application/file/save-progress';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -87,8 +88,9 @@ export class GameTableMaskSheetComponent {
     return { isSet: identifier.length > 0, url: this.imageService.getEmptyOr(identifier).url };
   });
 
-  readonly isSaving = signal(false);
-  readonly progressPercent = signal(0);
+  private readonly saveProgress = new SaveProgress();
+  readonly isSaving = this.saveProgress.isSaving;
+  readonly progressPercent = this.saveProgress.percent;
 
   constructor() {
     closeWhenOffTheTable();
@@ -292,15 +294,9 @@ export class GameTableMaskSheetComponent {
    */
   async saveToXML() {
     const mask = this._gameTableMask();
-    if (!mask || this.isSaving()) return;
-    this.isSaving.set(true);
-    this.progressPercent.set(0);
-    await this.saveDataService.saveGameObjectAsync(mask, 'xml_' + mask.name, (percent) => {
-      this.progressPercent.set(percent);
-    });
-    setTimeout(() => {
-      this.isSaving.set(false);
-      this.progressPercent.set(0);
-    }, 500);
+    if (!mask) return;
+    await this.saveProgress.run((onProgress) =>
+      this.saveDataService.saveGameObjectAsync(mask, 'xml_' + mask.name, onProgress)
+    );
   }
 }
