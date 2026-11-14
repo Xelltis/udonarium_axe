@@ -196,12 +196,12 @@
             'feature.inventory.panel.moveTargetLabel' | transloco
           }}</span>
           <div class="flex flex-wrap items-center gap-1">
-            @for (loc of multiMoveLocations; track loc.name) {
+            @for (loc of multiMoveLocations(); track loc.tab) {
               <button
                 class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-solid rounded-ui-sm h-6.5 cursor-pointer border border-solid px-2 text-[11px] transition-[background,color] hover:text-white disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-inherit"
                 type="button"
                 [disabled]="picked < 1"
-                (click)="multi.moveAndClose(loc.name)"
+                (click)="multi.moveAndClose(locationOfTab(loc.tab))"
               >
                 {{ loc.labelKey | transloco }}
               </button>

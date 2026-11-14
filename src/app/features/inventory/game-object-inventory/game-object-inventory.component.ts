@@ -125,6 +125,14 @@ const VIEW_ICONS: Record<InventoryViewMode, string> = {
   round: 'change_circle',
 };
 
+/** The tabs picked pieces can be sent to, each with the key of its name. */
+const MULTI_MOVE_TABS: readonly { tab: string; labelKey: string }[] = [
+  { tab: 'table', labelKey: 'feature.inventory.tabs.table' },
+  { tab: 'common', labelKey: 'feature.inventory.tabs.common' },
+  { tab: PERSONAL_INVENTORY_TAB, labelKey: 'feature.inventory.tabs.personal' },
+  { tab: 'graveyard', labelKey: 'feature.inventory.tabs.graveyard' },
+];
+
 @Component({
   selector: 'game-object-inventory',
   templateUrl: './game-object-inventory.component.html',
@@ -293,7 +301,7 @@ export class GameObjectInventoryComponent {
   readonly inventoryTypes = signal<string[]>(['table', 'common', PERSONAL_INVENTORY_TAB, 'graveyard']);
 
   /** Where the pieces of a tab stand: this connection's peer id for the personal tab, the tab's own name otherwise. */
-  private locationOfTab(tab: string): string {
+  protected locationOfTab(tab: string): string {
     return tab === PERSONAL_INVENTORY_TAB ? Network.instance.peerId : tab;
   }
 
@@ -663,17 +671,10 @@ export class GameObjectInventoryComponent {
       : this.t('feature.inventory.panel.desc');
   }
   /**
-   * The places picked pieces can be sent to from the multi-select bar, leaving out the tab on view.
+   * The tabs picked pieces can be sent to from the multi-select bar, leaving out the tab on view.
+   * They are held as tabs, not places, as the place of the personal tab changes with the connection.
    */
-  get multiMoveLocations(): { name: string; labelKey: string }[] {
-    const all = [
-      { name: 'table', labelKey: 'feature.inventory.tabs.table' },
-      { name: 'common', labelKey: 'feature.inventory.tabs.common' },
-      { name: Network.instance.peerId, labelKey: 'feature.inventory.tabs.personal' },
-      { name: 'graveyard', labelKey: 'feature.inventory.tabs.graveyard' },
-    ];
-    return all.filter((loc) => loc.name !== this.locationOfTab(this.selectTab()));
-  }
+  readonly multiMoveLocations = computed(() => MULTI_MOVE_TABS.filter((target) => target.tab !== this.selectTab()));
 
   /** The display item name that stands for a line break in a row. */
   get newLineString(): string {

@@ -64,10 +64,10 @@ export function layDock(entries: readonly DockEntry[], room: number, headingLeng
   const placed: { key: string; kind: 'heading' | 'piece'; at: number; size: number; step: number }[] = [];
   let at = 0;
   for (const entry of entries) {
-    const { size, step } =
-      entry.kind === 'heading' ? { size: headingLength, step: headingLength } : sizes.get(entry.key)!;
-    placed.push({ key: entry.key, kind: entry.kind, at, size, step });
-    at += step;
+    const one = entry.kind === 'heading' ? { size: headingLength, step: headingLength } : sizes.get(entry.key);
+    if (!one) continue;
+    placed.push({ key: entry.key, kind: entry.kind, at, size: one.size, step: one.step });
+    at += one.step;
   }
   const slots = placed.map((one, index): DockSlot => {
     const following = placed[index + 1];
@@ -118,11 +118,11 @@ function shareRoom(
   let held = 0;
   let sharing = 0;
   for (const entry of entries) {
-    if (entry.kind === 'piece' && !fixed.has(entry.key)) {
+    const one = entry.kind === 'heading' ? { size: headingLength, step: headingLength } : fixed.get(entry.key);
+    if (!one) {
       sharing++;
       continue;
     }
-    const one = entry.kind === 'heading' ? { size: headingLength, step: headingLength } : fixed.get(entry.key)!;
     held += entry === last ? one.size : one.step;
   }
   const stepping = sharing - (lastShares ? 1 : 0);

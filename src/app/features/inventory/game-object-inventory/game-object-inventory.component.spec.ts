@@ -2397,7 +2397,7 @@ describe('GameObjectInventoryComponent', () => {
       peerId = 'peer-after';
       component.selectTab.set(PERSONAL_INVENTORY_TAB);
 
-      expect(component.multiMoveLocations.map((loc) => loc.name)).toEqual(['table', 'common', 'graveyard']);
+      expect(component.multiMoveLocations().map((loc) => loc.tab)).toEqual(['table', 'common', 'graveyard']);
     });
   });
 
