@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -47,6 +48,26 @@ describe('DeckBuilderDialogComponent', () => {
     component.selectedTag.set('手札');
 
     expect(component.cardCount()).toBe(2);
+  });
+
+  it('follows a picture being tagged, and its tag being changed at another seat', () => {
+    const objectChange = TestBed.inject(ObjectChangeService);
+    playing(PeerRole.Player);
+    TestBed.inject(ImageStorage).add('deck-one');
+    component.selectedTag.set('手札');
+    expect(component.tags()).toEqual([]);
+    expect(component.cardCount()).toBe(0);
+
+    const tag = ImageTag.create('deck-one');
+    tag.tag = '手札';
+    objectChange.notifyCollectionChanged('image-tag');
+    expect(component.tags()).toEqual(['手札']);
+    expect(component.cardCount()).toBe(1);
+
+    tag.tag = '山札';
+    objectChange.notifyChanged(tag.identifier);
+    expect(component.tags()).toEqual(['山札']);
+    expect(component.cardCount()).toBe(0);
   });
 
   it('holds back making the deck until a tag that holds pictures is picked', () => {

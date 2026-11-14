@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormsModule } from '@angular/forms';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
@@ -24,12 +26,13 @@ export class DeckBuilderDialogComponent {
   private readonly imageStorage = inject(ImageStorage);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tagLock = inject(ImageTagLockService);
+  private readonly objectChange = inject(ObjectChangeService);
 
   readonly selectedTag = signal('');
   readonly useImageName = signal(true);
 
   readonly tags = computed(() => {
-    this.tagLock.track();
+    this.followPictures();
     const tags = new Set<string>();
     for (const image of this.imageStorage.images) {
       const imageTag = ImageTag.get(image.identifier) ?? null;
@@ -40,7 +43,20 @@ export class DeckBuilderDialogComponent {
     return [...tags].sort((a, b) => a.localeCompare(b));
   });
 
-  readonly cardCount = computed(() => this.imagesOf(this.selectedTag()).length);
+  readonly cardCount = computed(() => {
+    this.followPictures();
+    return this.imagesOf(this.selectedTag()).length;
+  });
+
+  /**
+   * Follows what the tags and the count are made from, read inside a computed: the pictures there
+   * are, the tag of each, a tag's word changed at another seat among them, and the tags locked.
+   */
+  private followPictures(): void {
+    this.objectChange.fileVersion();
+    trackEvery(this.objectChange, 'image-tag');
+    this.tagLock.track();
+  }
 
   /**
    * The pictures filed under a tag that this seat may browse, which become the cards; an empty tag
