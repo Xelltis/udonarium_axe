@@ -97,9 +97,10 @@
 
       <div class="flex max-h-72 flex-col gap-1 overflow-y-auto px-2 py-1.5">
         @for (target of activeVote.targetPeerId; track target) {
-          @let peerImage = findPeerImage(target);
-          @let controlName = findPeerLastControlName(target);
-          @let controlImage = findPeerLastControlImage(target);
+          @let face = faceOf(target);
+          @let peerImage = face.image;
+          @let controlName = face.controlName;
+          @let controlImage = face.controlImage;
           @let answerIdx = activeVote.voteAnswerByPeerId(target);
           @let hidden = answerHidden(target, answerIdx);
           <div
@@ -121,8 +122,8 @@
               }
             </div>
             <div class="min-w-0 flex-1">
-              <div class="text-ui-text truncate text-[13px] font-semibold" [appTextTooltip]="findPeerName(target)">
-                {{ findPeerName(target) }}
+              <div class="text-ui-text truncate text-[13px] font-semibold" [appTextTooltip]="face.name">
+                {{ face.name }}
               </div>
               <div class="text-ui-muted mt-0.5 truncate text-[11px]">
                 {{ controlName || ('feature.vote.noControlCharacter' | transloco) }}

@@ -1,40 +1,38 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { SaveDataService } from '@axe/application/file/save-data.service';
 import { encodeI18nList, encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { Network } from '@axe/core/network/network';
-import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Alarm } from '@axe/domain/alarm/alarm';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
-import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { connectedPeerIdsOf, peerFaceOf } from '@axe/domain/peer/peer-face';
+import { UiPeerPickListComponent } from '@axe/ui/components/peer-pick-list/peer-pick-list.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'alarm-menu',
   templateUrl: './alarm-menu.component.html',
-  imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
+  imports: [FormsModule, TranslocoModule, UiPeerPickListComponent],
 })
 export class AlarmMenuComponent {
   private readonly modalService = inject(ModalService);
   private readonly panelService = inject(PanelService);
   private readonly chatMessageService = inject(ChatMessageService);
-  private readonly saveDataService = inject(SaveDataService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly objectChange = inject(ObjectChangeService);
   private readonly t = inject(TRANSLATE_FN);
 
-  protected checkedPeers = new Set<string>();
+  /** The peer ids ticked in the list, in the order they were ticked. */
+  protected readonly checkedPeers = signal<readonly string[]>([]);
   networkService = Network.instance;
-  voteContentsText = '';
   alarmTitle = this.t('feature.alarm.defaultTitle');
   alarmTime = 60;
-  isRollCall = true;
   includSelf = true;
   isSound = true;
   isPopUp = true;
@@ -54,6 +52,12 @@ export class AlarmMenuComponent {
     return this.objectStore.get<Alarm>('Alarm')!;
   }
 
+  /** The peer ids of the rows, followed as seats come and go. */
+  protected readonly peerIds = computed(() => {
+    this.objectChange.networkVersion();
+    return this.peerList.map((peer) => peer.peerId);
+  });
+
   constructor() {
     queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('feature.alarm.panelTitle')));
     afterNextRender(() => {
@@ -61,27 +65,9 @@ export class AlarmMenuComponent {
     });
   }
 
-  /**
-   * Whether a peer has dropped out of the room, counting a peer with no cursor as dropped.
-   *
-   * A dropped peer's row is dimmed and left unticked when the list starts.
-   */
-  isPeerIsDisConnect(peerId: string): boolean {
-    const cursor = PeerCursor.findByPeerId(peerId);
-    return cursor ? cursor.isDisConnect : true;
-  }
-
-  /**
-   * Ticks every connected peer and unticks the rest, which is how the list starts once the panel
-   * has rendered.
-   */
+  /** Ticks every connected peer and unticks those who have dropped out, which is how the list starts. */
   setDefaultCheck() {
-    this.checkedPeers.clear();
-    for (const peer of this.peerList) {
-      if (!this.isPeerIsDisConnect(peer.peerId)) {
-        this.checkedPeers.add(peer.peerId);
-      }
-    }
+    this.checkedPeers.set(connectedPeerIdsOf(this.peerList.map((peer) => peer.peerId)));
   }
 
   /**
@@ -97,7 +83,7 @@ export class AlarmMenuComponent {
    * ticked.
    */
   selectedList(): string[] {
-    const sendList = [...this.checkedPeers];
+    const sendList = [...this.checkedPeers()];
     if (this.includSelf) {
       sendList.push(this.myPeer.peerId);
     }
@@ -124,7 +110,7 @@ export class AlarmMenuComponent {
     } else {
       target = ' >';
       for (const peerId of peerIdList) {
-        target += this.findPeerName(peerId) + ' ';
+        target += peerFaceOf(peerId).name + ' ';
       }
     }
     const startMessage = encodeI18nList(
@@ -145,64 +131,5 @@ export class AlarmMenuComponent {
   changeAlarmTime() {
     if (this.alarmTime <= 0) this.alarmTime = 0;
     if (this.alarmTime >= 3600) this.alarmTime = 3600;
-  }
-
-  /**
-   * Sets whether this is a roll call from a type picker's value, where only `'rollcall'` counts as
-   * one.
-   */
-  onChangeType(value: string) {
-    this.isRollCall = value === 'rollcall';
-  }
-
-  /** Ticks or unticks a peer as a target when the user clicks the peer's row. */
-  voteBlockClick(id: string) {
-    if (this.checkedPeers.has(id)) {
-      this.checkedPeers.delete(id);
-    } else {
-      this.checkedPeers.add(id);
-    }
-  }
-
-  /** The user id of the peer with this peer id, or an empty string when the peer has no cursor. */
-  findUserId(peerId: string) {
-    const peerCursor = PeerCursor.findByPeerId(peerId);
-    return peerCursor ? peerCursor.userId : '';
-  }
-
-  /**
-   * A peer's player name, shown on its row and listed in the chat line; empty when the peer has no
-   * cursor.
-   */
-  findPeerName(peerId: string) {
-    const peerCursor = PeerCursor.findByPeerId(peerId);
-    return peerCursor ? peerCursor.name : '';
-  }
-
-  /**
-   * The name of the character a peer last controlled, or empty when there is none or the peer has
-   * no cursor.
-   */
-  findPeerLastControlName(peerId: string) {
-    const peerCursor = PeerCursor.findByPeerId(peerId);
-    return peerCursor ? peerCursor.lastControlCharacterName : '';
-  }
-
-  /**
-   * A peer's own avatar image, or null when there is none, in which case the row shows a
-   * placeholder icon.
-   */
-  findPeerImage(peerId: string): ImageFile | null {
-    const peerCursor = PeerCursor.findByPeerId(peerId);
-    return peerCursor ? peerCursor.image : null;
-  }
-
-  /**
-   * The image of the character a peer last controlled, shown at the end of its row; null when there
-   * is none.
-   */
-  findPeerLastControlImage(peerId: string): ImageFile | null {
-    const peerCursor = PeerCursor.findByPeerId(peerId);
-    return peerCursor ? peerCursor.lastControlImage : null;
   }
 }

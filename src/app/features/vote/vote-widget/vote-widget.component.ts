@@ -4,9 +4,9 @@ import { encodeI18nList, encodeI18nMessage } from '@axe/application/i18n/i18n-me
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { WIDGET_VOTE } from '@axe/application/ui/widget-place';
-import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerFace, peerFaceOf } from '@axe/domain/peer/peer-face';
 import { Vote } from '@axe/domain/vote/vote';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -125,19 +125,8 @@ export class VoteWidgetComponent {
     return !this.answersShown() && answer !== -1 && peerId !== PeerCursor.myCursor?.peerId;
   }
 
-  protected findPeerName(peerId: string): string {
-    return PeerCursor.findByPeerId(peerId)?.name ?? '';
-  }
-
-  protected findPeerLastControlName(peerId: string): string {
-    return PeerCursor.findByPeerId(peerId)?.lastControlCharacterName ?? '';
-  }
-
-  protected findPeerImage(peerId: string): ImageFile | null {
-    return PeerCursor.findByPeerId(peerId)?.image ?? null;
-  }
-
-  protected findPeerLastControlImage(peerId: string): ImageFile | null {
-    return PeerCursor.findByPeerId(peerId)?.lastControlImage ?? null;
+  /** How the seat a row is for is shown. */
+  protected faceOf(peerId: string): PeerFace {
+    return peerFaceOf(peerId);
   }
 }

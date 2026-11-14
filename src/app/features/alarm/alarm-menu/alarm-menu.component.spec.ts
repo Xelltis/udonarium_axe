@@ -55,33 +55,9 @@ describe('AlarmMenuComponent', () => {
     }
   });
 
-  describe('keeping track of who is picked', () => {
-    it('picks somebody who was not picked', () => {
-      component.voteBlockClick('peer-1');
-      expect(component['checkedPeers'].has('peer-1')).toBe(true);
-    });
-
-    it('unpicks somebody who was', () => {
-      component.voteBlockClick('peer-1');
-      component.voteBlockClick('peer-1');
-      expect(component['checkedPeers'].has('peer-1')).toBe(false);
-    });
-
-    it('keeps several peers apart', () => {
-      component.voteBlockClick('peer-a');
-      component.voteBlockClick('peer-b');
-      expect(component['checkedPeers'].has('peer-a')).toBe(true);
-      expect(component['checkedPeers'].has('peer-b')).toBe(true);
-
-      component.voteBlockClick('peer-a');
-      expect(component['checkedPeers'].has('peer-a')).toBe(false);
-      expect(component['checkedPeers'].has('peer-b')).toBe(true);
-    });
-  });
-
   describe('selectedList', () => {
     it('returns who is picked', () => {
-      component['checkedPeers'].add('peer-1');
+      component['checkedPeers'].set(['peer-1']);
       component.includSelf = false;
       const list = component.selectedList();
       expect(list).toContain('peer-1');

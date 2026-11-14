@@ -1,0 +1,51 @@
+<div class="flex flex-col gap-1 px-2 py-1.5">
+  @for (row of rows(); track row.peerId) {
+    <div
+      class="bg-ui-input border-ui-border-panel hover:bg-ui-hover rounded-ui-sm flex cursor-pointer items-center gap-2 border border-l-[3px] border-solid border-l-transparent px-2 py-1.5 transition-(--ui-transition)"
+      [class.border-l-ui-accent!]="row.picked"
+      [class.bg-ui-accent-bg!]="row.picked"
+      [class.opacity-60]="row.isDisconnected"
+      [attr.data-peer-id]="row.peerId"
+      (click)="toggle(row.peerId)"
+    >
+      <div
+        class="[&_input[type=checkbox]]:size-3.5 [&_input[type=checkbox]]:cursor-pointer [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
+      >
+        <input type="checkbox" [checked]="row.picked" [name]="checkboxName()" readonly />
+      </div>
+      <div class="bg-ui-border-panel rounded-ui-sm size-12 shrink-0 overflow-hidden">
+        @if (row.image; as image) {
+          <div
+            class="size-full bg-cover bg-top bg-no-repeat"
+            [style.background-image]="'url(' + image.url + ')' | safe: 'style'"
+          ></div>
+        } @else {
+          <div class="text-ui-muted flex size-full items-center justify-center [&_.material-icons]:text-[28px]!">
+            <i class="material-icons">person</i>
+          </div>
+        }
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="text-ui-text truncate text-[13px] font-semibold" [appTextTooltip]="row.name">
+          {{ row.name }}
+        </div>
+        <div class="text-ui-muted mt-0.5 truncate text-[11px]">
+          {{ row.controlName || noControlLabel() }}
+        </div>
+        @if (row.isDisconnected) {
+          <div class="text-ui-danger mt-0.5 flex items-center gap-0.5 text-[10px] [&_.material-icons]:text-[12px]!">
+            <i class="material-icons">wifi_off</i>{{ disconnectedLabel() }}
+          </div>
+        }
+      </div>
+      @if (row.controlImage; as controlImage) {
+        <div class="bg-ui-border-panel rounded-ui-sm size-10 shrink-0 overflow-hidden opacity-85">
+          <div
+            class="size-full bg-cover bg-top bg-no-repeat"
+            [style.background-image]="'url(' + controlImage.url + ')' | safe: 'style'"
+          ></div>
+        </div>
+      }
+    </div>
+  }
+</div>
