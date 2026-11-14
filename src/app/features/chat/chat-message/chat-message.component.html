@@ -97,7 +97,7 @@
               <dice-roll-stage [messageIdentifier]="chatMessage.identifier" />
             </div>
           }
-          <ng-container [ngTemplateOutlet]="reactionRow" />
+          <chat-message-reactions [message]="chatMessage" [mayAnswer]="canAnswerWithStamps" />
           <ng-container [ngTemplateOutlet]="actionToolbar" />
         </div>
       </div>
@@ -165,7 +165,7 @@
             </font>
           </span>
           <ng-container [ngTemplateOutlet]="historyPanel" />
-          <ng-container [ngTemplateOutlet]="reactionRow" />
+          <chat-message-reactions [message]="chatMessage" [mayAnswer]="canAnswerWithStamps" />
           <ng-container [ngTemplateOutlet]="actionToolbar" />
         </div>
       </div>
@@ -342,30 +342,6 @@
   held on the line opens. A touch screen has no hover, so it reaches the line through that press
   alone.
 -->
-<ng-template #reactionRow>
-  @if (reactionChips().length > 0) {
-    <div class="flex flex-wrap gap-1 px-2.5 pt-1 pb-0.5" data-testid="chat-message-reactions">
-      @for (chip of reactionChips(); track chip.stampId) {
-        <button
-          type="button"
-          class="border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent inline-flex h-8 cursor-pointer items-center gap-0.5 rounded-full border border-solid py-0 pr-2 pl-0.5 text-[11px] tabular-nums transition-colors disabled:cursor-default"
-          [class.border-ui-accent!]="chip.mine"
-          [class.bg-ui-accent-bg!]="chip.mine"
-          [class.text-ui-accent!]="chip.mine"
-          [title]="reactionNames(chip)"
-          [attr.aria-pressed]="chip.mine"
-          [attr.data-testid]="'chat-message-reaction-' + chip.stampId"
-          [disabled]="!canPressReaction(chip)"
-          (click)="toggleReaction(chip.stampId)"
-        >
-          <ui-stamp [stampId]="chip.stampId" [size]="28" [play]="chip.play" />
-          <span data-reaction-count>{{ chip.count }}</span>
-        </button>
-      }
-    </div>
-  }
-</ng-template>
-
 <ng-template #actionToolbar>
   @if (toolbarTools(); as tools) {
     <div

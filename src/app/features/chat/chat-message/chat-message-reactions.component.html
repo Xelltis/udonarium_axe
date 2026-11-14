@@ -1,0 +1,21 @@
+@if (chips().length > 0) {
+  <div class="flex flex-wrap gap-1 px-2.5 pt-1 pb-0.5" data-testid="chat-message-reactions">
+    @for (chip of chips(); track chip.stampId) {
+      <button
+        type="button"
+        class="border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent inline-flex h-8 cursor-pointer items-center gap-0.5 rounded-full border border-solid py-0 pr-2 pl-0.5 text-[11px] tabular-nums transition-colors disabled:cursor-default"
+        [class.border-ui-accent!]="chip.mine"
+        [class.bg-ui-accent-bg!]="chip.mine"
+        [class.text-ui-accent!]="chip.mine"
+        [title]="namesOf(chip)"
+        [attr.aria-pressed]="chip.mine"
+        [attr.data-testid]="'chat-message-reaction-' + chip.stampId"
+        [disabled]="!canPress(chip)"
+        (click)="toggle(chip.stampId)"
+      >
+        <ui-stamp [stampId]="chip.stampId" [size]="28" [play]="chip.play" />
+        <span data-reaction-count>{{ chip.count }}</span>
+      </button>
+    }
+  </div>
+}

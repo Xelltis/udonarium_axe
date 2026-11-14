@@ -1,15 +1,12 @@
 import { DatePipe, NgClass, NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
-  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
   ElementRef,
   inject,
-  Injector,
   input,
-  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
@@ -17,7 +14,7 @@ import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
-import { ChatReactionService, ReactionTally } from '@axe/application/chat/chat-reaction.service';
+import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
 import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
@@ -68,12 +65,14 @@ import {
   chatLineAbilities,
   ChatLinePermissions,
 } from '@axe/features/chat/chat-message/chat-line-abilities';
+import { ChatLineSelection, wordsPickedOutIn } from '@axe/features/chat/chat-message/chat-line-selection';
 import {
   buildChatBookmarkMenu,
   buildChatMessageContextMenu,
   type ChatMessageMenuState,
   TARGET_NUMBER_PIN_KEYS,
 } from '@axe/features/chat/chat-message/chat-message-context-menu';
+import { ChatMessageReactionsComponent } from '@axe/features/chat/chat-message/chat-message-reactions.component';
 import { isChatTextHidden, readableChatText } from '@axe/features/chat/chat-message/chat-readable-text';
 import { formatChatTickerMessage } from '@axe/features/chat/chat-ticker/chat-ticker-layout';
 import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
@@ -130,6 +129,7 @@ interface ChatToolButton {
     DatePipe,
     LinkifyPipe,
     ChatColorStylePipe,
+    ChatMessageReactionsComponent,
     SafePipe,
     TranslocoModule,
     DiceRollStageComponent,
@@ -418,7 +418,7 @@ export class ChatMessageComponent {
     if (this.readOnly() || this.isEditing()) return;
     if (this.isSelectingText()) return;
     if (this.keepsBrowserMenu(event.target)) return;
-    const picked = this.wordsPickedOutIn(this.hostElement.nativeElement);
+    const picked = wordsPickedOutIn(this.hostElement.nativeElement);
     if (picked.reachesLine && !this.viewport.isTouch()) return;
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
 
@@ -709,21 +709,6 @@ export class ChatMessageComponent {
     return !this.viewport.isTouch() && target.closest('img') !== null;
   }
 
-  /**
-   * The words picked out on the page as they bear on a line: whether any of them reach into it,
-   * and their text where all of them lie inside it.
-   */
-  private wordsPickedOutIn(line: Element): { reachesLine: boolean; inside: string } {
-    const selection = line.ownerDocument.getSelection();
-    if (!selection || selection.isCollapsed || selection.toString().trim().length === 0) {
-      return { reachesLine: false, inside: '' };
-    }
-    const ranges = Array.from({ length: selection.rangeCount }, (_, index) => selection.getRangeAt(index));
-    if (!ranges.some((range) => range.intersectsNode(line))) return { reachesLine: false, inside: '' };
-    const allInside = ranges.every((range) => line.contains(range.commonAncestorContainer));
-    return { reachesLine: true, inside: allInside ? selection.toString() : '' };
-  }
-
   /** The words of a line as this reader is shown them, or nothing where they are kept from the reader. */
   private readableText(message: ChatMessage): string {
     return readableChatText(message, isChatTextHidden(message, this.canRevealSecret), this.t);
@@ -734,66 +719,24 @@ export class ChatMessageComponent {
     void navigator.clipboard?.writeText(text).catch(() => undefined);
   }
 
+  private readonly messageBody = viewChild<ElementRef<HTMLElement>>('messageBody');
+  /** Picking out the words of this line, where a press held on it would otherwise open its menu. */
+  private readonly selection: ChatLineSelection = new ChatLineSelection({
+    line: () => this.hostElement.nativeElement,
+    body: () => this.messageBody()?.nativeElement ?? null,
+  });
+
   /**
    * Whether the words of this line may be picked out on a touch screen.
    *
    * They otherwise may not there, so that a press held on the line opens its menu rather than
    * starting to pick them out.
    */
-  protected readonly isSelectingText = signal(false);
+  protected readonly isSelectingText = this.selection.isSelecting.asReadonly();
 
-  private readonly messageBody = viewChild<ElementRef<HTMLElement>>('messageBody');
-  private readonly injector = inject(Injector);
-  private stopFollowingSelection: (() => void) | null = null;
-
-  /**
-   * Lets the words of this line be picked out, and picks them all out so the system's handles and
-   * its own actions for them come up.
-   *
-   * That lasts until the words are let go or moved off the line, or something off the line is tapped.
-   */
+  /** Lets the words of this line be picked out, and picks them all out; see {@link ChatLineSelection.start}. */
   selectText(): void {
-    this.isSelectingText.set(true);
-    afterNextRender(() => this.pickOutBody(), { injector: this.injector });
-  }
-
-  private pickOutBody(): void {
-    const body = this.messageBody()?.nativeElement;
-    const selection = body?.ownerDocument.getSelection();
-    if (!body || !selection) {
-      this.endSelectingText();
-      return;
-    }
-    const range = body.ownerDocument.createRange();
-    range.selectNodeContents(body);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    this.followSelection(body.ownerDocument);
-  }
-
-  private followSelection(page: Document): void {
-    const line = this.hostElement.nativeElement;
-    const onSelectionChange = () => {
-      if (!this.wordsPickedOutIn(line).reachesLine) this.endSelectingText();
-    };
-    const onPointerDown = (event: Event) => {
-      if (event.target instanceof Node && line.contains(event.target)) return;
-      const stillPicked = this.wordsPickedOutIn(line).reachesLine;
-      this.endSelectingText();
-      if (stillPicked) page.getSelection()?.removeAllRanges();
-    };
-    page.addEventListener('selectionchange', onSelectionChange);
-    page.addEventListener('pointerdown', onPointerDown, true);
-    this.stopFollowingSelection = () => {
-      page.removeEventListener('selectionchange', onSelectionChange);
-      page.removeEventListener('pointerdown', onPointerDown, true);
-    };
-  }
-
-  private endSelectingText(): void {
-    this.stopFollowingSelection?.();
-    this.stopFollowingSelection = null;
-    this.isSelectingText.set(false);
+    this.selection.start();
   }
 
   readonly imageFile = computed(() => {
@@ -944,7 +887,7 @@ export class ChatMessageComponent {
    * Whether the reader may answer the line with stamps at all, by a guest as much as a player, since
    * it changes nothing on the table.
    */
-  private get canAnswerWithStamps(): boolean {
+  protected get canAnswerWithStamps(): boolean {
     return this.abilities.answerWithStamps;
   }
 
@@ -954,58 +897,6 @@ export class ChatMessageComponent {
    */
   get canReact(): boolean {
     return this.abilities.react;
-  }
-
-  /**
-   * Whether the reader may press a stamp on the line: to take back their own, always, and to add
-   * theirs, where the room lets that stamp be put on.
-   */
-  protected canPressReaction(tally: ReactionTally): boolean {
-    if (!this.canAnswerWithStamps || !this.reactions.mayReact) return false;
-    return tally.mine || this.stampRules.allows('reaction', tally.stampId);
-  }
-
-  private readonly reactionTallies = computed<readonly ReactionTally[]>(
-    () => {
-      const message = this.chatMessageInput();
-      this.objectChange.versionOf(message.identifier)();
-      if (!message.isShownInChat) return [];
-      return this.reactions.talliesOf(message.identifier);
-    },
-    { equal: sameTallies }
-  );
-
-  /**
-   * The stamps on the line, each with a number that goes up whenever more people put it on while the
-   * line is in view, for it to make its move then and not every time the line is drawn again.
-   */
-  protected readonly reactionChips = linkedSignal<
-    readonly ReactionTally[],
-    readonly (ReactionTally & { readonly play: number })[]
-  >({
-    source: this.reactionTallies,
-    computation: (tallies, previous) =>
-      tallies.map((tally) => {
-        const before = previous?.value.find((chip) => chip.stampId === tally.stampId);
-        if (!before) return { ...tally, play: previous ? 1 : 0 };
-        return { ...tally, play: tally.count > before.count ? before.play + 1 : before.play };
-      }),
-  });
-
-  /** Who put a stamp on the line, as the reader's language lists names. */
-  protected reactionNames(tally: ReactionTally): string {
-    const lang = this.language.currentLang();
-    try {
-      return new Intl.ListFormat(lang, { style: 'short', type: 'conjunction' }).format(tally.names);
-    } catch {
-      return tally.names.join(', ');
-    }
-  }
-
-  /** Puts a stamp on the line for the reader, or takes it back off. */
-  protected toggleReaction(stampId: string): void {
-    if (!this.canAnswerWithStamps) return;
-    this.reactions.toggle(this.chatMessage, stampId);
   }
 
   /** Opens the stamps under the toolbar's button, or under the line on a touch screen. */
@@ -1201,7 +1092,7 @@ export class ChatMessageComponent {
   readonly isHighlighted = transientSignal(false, LINE_FLASH_MS);
 
   private readonly _registerDestroy = this.destroyRef.onDestroy(() => {
-    this.stopFollowingSelection?.();
+    this.selection.stopListening();
   });
 
   /** Scrolls the line into the middle of the log and lights it up, as a jump to it does. */
@@ -1338,18 +1229,4 @@ export class ChatMessageComponent {
       return view ? stampMarkup(stampId, view, box, `${this.drawing}-${drawn++}`) : null;
     };
   }
-}
-
-/** Whether two readings of a line's stamps say the same, so the line is not drawn again for nothing. */
-function sameTallies(a: readonly ReactionTally[], b: readonly ReactionTally[]): boolean {
-  return (
-    a.length === b.length &&
-    a.every(
-      (tally, index) =>
-        tally.stampId === b[index].stampId &&
-        tally.count === b[index].count &&
-        tally.mine === b[index].mine &&
-        tally.names.join('\n') === b[index].names.join('\n')
-    )
-  );
 }
