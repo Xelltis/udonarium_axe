@@ -56,6 +56,14 @@ export interface EffectMote {
    * before the piece rather than cut by the picture of it standing through its middle.
    */
   readonly forward?: number;
+  /**
+   * Whether it is drawn towards the eye by `forward` and no further, however large it is, so that a
+   * piece standing before it hides it as far as it stands before it, as the stream of a breath is
+   * hidden by what it passes behind; and whether it thins away as it comes close enough to the eye to
+   * fill the view, as it does seen from within. Left out, a large particle is drawn nearer the eye by
+   * a share of its size, clear of the piece it goes off about.
+   */
+  readonly exactDepth?: boolean;
 }
 
 /**

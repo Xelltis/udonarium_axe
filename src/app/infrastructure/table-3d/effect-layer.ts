@@ -76,6 +76,17 @@ const MAX_EFFECT_MARKS = EFFECT_FRAME_BUDGET.marks;
 
 /** How far nearer the eye a particle is drawn at the least, against its size. */
 const MOTE_NEARER_SIZE = 0.6;
+/**
+ * What a particle held to its own depth is told to the shader by: how far nearer the eye it is drawn,
+ * taken below nothing and this much further, which no particle drawn the usual way ever is.
+ */
+const EXACT_DEPTH_MARK = 1;
+/**
+ * How near the eye a particle held to its own depth may come before it thins, as many times its own
+ * size: nearer than the first it is not drawn at all, and further than the second it is drawn whole.
+ */
+const FILLS_VIEW_WITHIN = 0.7;
+const CLEAR_OF_VIEW_BEYOND = 2;
 /** Particles draw after the pieces and the lying pictures, and under the weather. */
 const MOTES_ORDER = 940;
 /** Marks on the floor draw over the floor and its pictures, and under what stands on it. */
@@ -284,7 +295,7 @@ export class EffectLayer {
       // keeps too few figures to turn by a seed's worth.
       look.array[at + 1] = withinRound(mote.spin ?? 0);
       look.array[at + 2] = withinRound(mote.variant ?? 0);
-      look.array[at + 3] = mote.forward ?? 0;
+      look.array[at + 3] = nearerOf(mote);
       count++;
     }
     this.finish(batch, count);
@@ -475,7 +486,9 @@ export class EffectLayer {
   /**
    * The particles of a blend: each a quad at its place, as wide as its size, turned to the eye and
    * about its middle by its spin; a spark drawn out behind it along the way it flies, as far as it
-   * goes in its trail, and as wide as its size across it.
+   * goes in its trail, and as wide as its size across it. One held to its own depth is drawn nearer
+   * the eye by what it is set to and no more, so a piece standing before it hides it, and thins away
+   * as it comes close enough to the eye to fill the view.
    */
   private moteBatch(blend: EffectBlend): Batch {
     const place = attribute<'vec4'>('place', 'vec4');
@@ -652,10 +665,13 @@ export class EffectLayer {
     // more than half its size for a large one, whose board, turned to the eye, would otherwise sink
     // its lower half into the ground under it and be cut by every rise of the ground in thin stripes.
     const corner3 = at.add(select(streaked, drawnOut, faced));
-    const nearer = max(look.w, size.mul(MOTE_NEARER_SIZE));
+    const exact = look.w.lessThan(0);
+    const nearer = select(exact, look.w.negate().sub(EXACT_DEPTH_MARK), max(look.w, size.mul(MOTE_NEARER_SIZE)));
+    const closeness = length(cameraPosition.sub(at)).div(max(size, 1));
+    const seenFromWithin = select(exact, smoothstep(FILLS_VIEW_WITHIN, CLEAR_OF_VIEW_BEYOND, closeness), float(1));
     material.positionNode = corner3.add(normalize(cameraPosition.sub(corner3)).mul(nearer));
     material.colorNode = vec4(shown, 1);
-    material.opacityNode = alpha.mul(tint.w);
+    material.opacityNode = alpha.mul(tint.w).mul(seenFromWithin);
     return this.batchOf(['place', 'tint', 'motion', 'look'], MAX_EFFECT_MOTES, material, MOTES_ORDER);
   }
 
@@ -748,6 +764,17 @@ export class EffectLayer {
     material.opacityNode = alpha.mul(tint.w);
     return this.batchOf(['place', 'tint', 'look'], MAX_EFFECT_MARKS, material, MARKS_ORDER, MARK_SEGMENTS);
   }
+}
+
+/**
+ * How far nearer the eye a particle is drawn, as the shader is told it: what it is set to, for one
+ * drawn the usual way, which the shader takes no less than a share of its size; and for one held to
+ * its own depth, what it is set to taken below nothing and a mark further, which the shader reads back
+ * and draws it by exactly.
+ */
+export function nearerOf(mote: Pick<EffectMote, 'forward' | 'exactDepth'>): number {
+  const forward = Math.max(0, mote.forward ?? 0);
+  return mote.exactDepth ? -(forward + EXACT_DEPTH_MARK) : forward;
 }
 
 /** An angle taken within one round, from 0 to two pi. */
