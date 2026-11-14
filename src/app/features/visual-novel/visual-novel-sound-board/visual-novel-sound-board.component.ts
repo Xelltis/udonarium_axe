@@ -77,7 +77,7 @@ export class VisualNovelSoundBoardComponent {
    */
   readonly presetSoundEffects = computed<AttachedSound[]>(() => {
     this.objectChange.fileVersion();
-    this.language.currentLang();
+    const language = this.language.currentLang();
     return (
       this.audioStorage.audios
         .filter((audio) => audio.isHidden)
@@ -86,7 +86,7 @@ export class VisualNovelSoundBoardComponent {
         .filter((sound) => sound.labelKey.length > 0)
         .map((sound) => ({ identifier: sound.identifier, name: this.t(sound.labelKey) }))
         .filter((sound) => this.matchesSoundFilter(sound.name))
-        .sort((left, right) => left.name.localeCompare(right.name, 'ja'))
+        .sort((left, right) => left.name.localeCompare(right.name, language))
     );
   });
 
