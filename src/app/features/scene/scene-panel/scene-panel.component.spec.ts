@@ -10,6 +10,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { ChatLineEditorComponent } from '@axe/features/chat/chat-line-editor/chat-line-editor.component';
 import { SceneEditorComponent } from '@axe/features/scene/scene-editor/scene-editor.component';
 import { ScenePanelComponent } from '@axe/features/scene/scene-panel/scene-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -141,9 +142,9 @@ describe('ScenePanelComponent', () => {
     const root = open(PeerRole.GameMaster);
     root.querySelector<HTMLElement>('[data-testid="scene-row"]')!.click();
     await redraw();
-    const editor = fixture.debugElement.query(By.directive(SceneEditorComponent))
-      .componentInstance as SceneEditorComponent;
-    editor['writeTextLater'](scene, '夜が来た');
+    const field = fixture.debugElement.query(By.directive(ChatLineEditorComponent))
+      .componentInstance as ChatLineEditorComponent;
+    field.draftChange.emit('夜が来た');
 
     root.querySelector<HTMLElement>('[data-testid="scene-row"]')!.dispatchEvent(new MouseEvent('contextmenu'));
 
@@ -158,13 +159,20 @@ describe('ScenePanelComponent', () => {
     scene.initialize();
     const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
     const overwrite = vi.spyOn(TestBed.inject(BoardSceneService), 'overwrite');
-    open(PeerRole.GameMaster);
+    const root = open(PeerRole.GameMaster);
+    root.querySelector<HTMLElement>('[data-testid="scene-row"]')!.click();
+    await redraw();
+    const editor = fixture.debugElement.query(By.directive(SceneEditorComponent))
+      .componentInstance as SceneEditorComponent;
 
-    await (fixture.componentInstance as unknown as { overwrite: (s: BoardScene) => Promise<void> }).overwrite(scene);
+    editor.overwrite.emit();
+    await redraw();
+    expect(ask).toHaveBeenCalledTimes(1);
     expect(overwrite).not.toHaveBeenCalled();
 
     ask.mockResolvedValue(true);
-    await (fixture.componentInstance as unknown as { overwrite: (s: BoardScene) => Promise<void> }).overwrite(scene);
+    editor.overwrite.emit();
+    await redraw();
     expect(overwrite).toHaveBeenCalledWith(scene);
   });
 });
