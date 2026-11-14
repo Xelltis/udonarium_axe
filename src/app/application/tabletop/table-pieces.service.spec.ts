@@ -566,14 +566,20 @@ describe('TablePiecesService', () => {
     expect(drapes()).toBeDefined();
   });
 
-  it('stands a white board where its face is, from the picture the page takes of what it wears', () => {
+  it('stands a white board where its face is, from the picture the page takes of what it wears, with its back in its own colour', () => {
     const board = WhiteBoard.create('board', 4, 2, 1);
+    board.opacity = 0.6;
+    board.color = '#336699';
     board.location = { name: 'table', x: 100, y: 200 };
     TableSelecter.instance.viewTable!.appendChild(board);
 
     TestBed.inject(PiecePicturesService).show(board.identifier, { url: 'blob:board', widthPx: 200, heightPx: 100 });
 
-    expect(pieces.sprites()).toMatchObject([{ id: `${board.identifier}#face`, widthPx: 200, heightPx: 100 }]);
+    expect(pieces.sprites()).toMatchObject([
+      { id: `${board.identifier}#face`, widthPx: 200, heightPx: 100, look: { kind: 'picture', url: 'blob:board' } },
+      { id: `${board.identifier}#back`, widthPx: 200, heightPx: 100, look: { kind: 'colour', colour: '#336699' } },
+    ]);
+    expect(pieces.sprites()[1].opacity).toBe(0.6);
   });
 
   it('turns a piece about the middle of its first sprite lying on its face, on the face it is drawn on', () => {

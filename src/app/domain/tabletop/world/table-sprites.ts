@@ -10,9 +10,13 @@ export interface TableWorldBand {
   readonly colour: string;
 }
 
-/** What a sprite shows: a picture, or bands of colour round its edge with nothing inside them. */
+/**
+ * What a sprite shows: a picture, one colour all over it as the page writes one, or bands of colour
+ * round its edge with nothing inside them.
+ */
 export type TableWorldLook =
   | { readonly kind: 'picture'; readonly url: string }
+  | { readonly kind: 'colour'; readonly colour: string }
   | { readonly kind: 'frame'; readonly bands: readonly TableWorldBand[]; readonly radiusPx: number };
 
 /**

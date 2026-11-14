@@ -17,6 +17,7 @@ import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, vec4 } from 't
 import {
   type BufferGeometry,
   CanvasTexture,
+  Color,
   DoubleSide,
   FrontSide,
   Group,
@@ -91,6 +92,9 @@ export interface DrapedFloor {
   readonly gridType: GridType;
 }
 
+/** A look drawn from a picture, one that has come from elsewhere or a frame drawn here, rather than one colour all over. */
+type PicturedLook = Exclude<TableWorldLook, { kind: 'colour' }>;
+
 interface Drawn {
   readonly mesh: Mesh;
   readonly look: string;
@@ -101,7 +105,8 @@ interface Drawn {
 /**
  * The sprites of the pieces on the table, each a square of the scene stretched to its size and laid
  * where it lies. A sprite turned to the eye is turned again each time the camera turns. Sprites
- * showing the same thing the same way share one material.
+ * showing the same thing the same way share one material. A sprite of one colour is drawn in it at
+ * its own opacity, with no picture: as the back of a white board.
  */
 export class SpriteLayer {
   readonly group = new Group();
@@ -349,16 +354,19 @@ export class SpriteLayer {
       side: sprite.twoSided || sprite.drapes ? DoubleSide : FrontSide,
       ...(lying ? LAID_OVER_FACES : {}),
     });
-    material.map = this.texture(sprite.look, sprite.widthPx, sprite.heightPx);
-    if (sprite.look.kind === 'picture') material.colorNode = shown(material.map, sprite.brightness);
-    else if (sprite.brightness !== 1) material.colorNode = dimmed(material.map, sprite.brightness);
+    if (sprite.look.kind === 'colour') material.color = new Color(sprite.look.colour);
+    else {
+      material.map = this.texture(sprite.look, sprite.widthPx, sprite.heightPx);
+      if (sprite.look.kind === 'picture') material.colorNode = shown(material.map, sprite.brightness);
+      else if (sprite.brightness !== 1) material.colorNode = dimmed(material.map, sprite.brightness);
+    }
     this.dress(material);
     showOnceCome(material);
     this.materials.set(key, material);
     return material;
   }
 
-  private texture(look: TableWorldLook, width: number, height: number): Texture {
+  private texture(look: PicturedLook, width: number, height: number): Texture {
     if (look.kind === 'picture') return this.pictureOf(look.url);
     const key = frameKey(look, width, height);
     let frame = this.frames.get(key);
@@ -424,8 +432,13 @@ function showOnceCome(material: MeshBasicNodeMaterial): void {
 
 /** What sprites sharing a material have alike: what they show, how bright and how clear, from which sides, and whether they lie flat. */
 function lookKey(sprite: TableWorldSprite): string {
+  const look = sprite.look;
   const shown =
-    sprite.look.kind === 'picture' ? sprite.look.url : frameKey(sprite.look, sprite.widthPx, sprite.heightPx);
+    look.kind === 'picture'
+      ? look.url
+      : look.kind === 'colour'
+        ? `colour:${look.colour}`
+        : frameKey(look, sprite.widthPx, sprite.heightPx);
   return `${shown}|${sprite.brightness}|${sprite.opacity ?? 1}|${sprite.twoSided}|${sprite.order !== undefined}|${!!sprite.drapes}`;
 }
 

@@ -516,7 +516,13 @@ export class TablePiecesService {
       const frame = this.surfaces.frameOf(board.identifier);
       if (!frame) continue;
       sprites.push(
-        ...whiteBoardSprites({ id: board.identifier, frame, picture: this.pagePictures.pictureOf(board.identifier) })
+        ...whiteBoardSprites({
+          id: board.identifier,
+          frame,
+          picture: this.pagePictures.pictureOf(board.identifier),
+          colour: board.color,
+          opacity: board.opacity,
+        })
       );
     }
     return sprites;

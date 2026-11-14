@@ -414,7 +414,8 @@ test.describe('pieces picked by the shapes the canvas draws them with', () => {
       })
       .toBeTruthy();
     await idle(page);
-    await expect.poll(async () => (await boxesOf(page, board!)).length, { timeout: 10000 }).toBe(1);
+    // A board standing up is picked by its face and by its back, the face first.
+    await expect.poll(async () => (await boxesOf(page, board!)).length, { timeout: 10000 }).toBe(2);
     await idle(page);
     const boardFace = await page.evaluate((identifier) => {
       const rect = document
