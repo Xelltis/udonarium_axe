@@ -77,6 +77,7 @@ import {
   PERSONAL_INVENTORY_TAB,
   type SideBand,
 } from '@axe/features/inventory/game-object-inventory/inventory-list';
+import { InventoryMultiSelect } from '@axe/features/inventory/game-object-inventory/inventory-multi-select';
 import { InventoryObjectDrag } from '@axe/features/inventory/game-object-inventory/inventory-object-drag';
 import {
   buildInventoryTable,
@@ -243,7 +244,7 @@ export class GameObjectInventoryComponent {
       filteredRows: () => this.filteredRows(),
       hasQuery: () => this.hasQuery(),
       canEdit: () => this.rolePermission.canEditTabletop(),
-      pick: (identifiers) => this.multiMoveTargets.update((current) => new Set([...current, ...identifiers])),
+      pick: (identifiers) => this.multi.pick(identifiers),
     },
     this.inventoryService,
     this.objectStore,
@@ -310,10 +311,27 @@ export class GameObjectInventoryComponent {
         ? selection.identifier
         : (previous?.value ?? ''),
   });
-  readonly multiMoveTargets = signal(new Set<string>());
+  /** The panel's multi-select: whether it is on, the picked pieces, and what is done to them at once. */
+  readonly multi = new InventoryMultiSelect({
+    canEdit: () => this.rolePermission.canEditTabletop(),
+    listedIdentifiers: () => this.filteredRows().map((row) => row.identifier),
+    objectOf: (identifier) => this.objectStore.get(identifier),
+    setResourceSliders: (character, shown) => this.resourceSliders.setAll(character, shown),
+    notifyInventoryUpdate: () => this.inventoryService.notifyInventoryUpdate(),
+    confirmDelete: (count) =>
+      this.confirm.ask({
+        message: this.t('feature.inventory.panel.confirmMultiDelete', { count }),
+        okLabel: this.t('common.button.delete'),
+        danger: true,
+      }),
+    delete: (character) => this.deleteGameObject(character),
+  });
+  /** The identifiers of the pieces picked in multi-select. */
+  readonly multiMoveTargets = this.multi.targets;
 
   readonly isEdit = this.filter.isPanelOpen;
-  readonly isMultiMove = signal(false);
+  /** Whether multi-select is on. */
+  readonly isMultiMove = this.multi.active;
 
   readonly searchQuery = this.filter.searchQuery;
   readonly searchTerms = this.filter.searchTerms;
@@ -971,10 +989,7 @@ export class GameObjectInventoryComponent {
 
   /** Enters or leaves multi-select; leaving drops every pick. */
   toggleMultiMove() {
-    if (this.isMultiMove()) {
-      this.multiMoveTargets.set(new Set());
-    }
-    this.isMultiMove.update((v) => !v);
+    this.multi.toggle();
   }
 
   /**
@@ -997,43 +1012,9 @@ export class GameObjectInventoryComponent {
     SoundEffect.play(PresetSound.sweep);
   }
 
-  /** Whether any row listed on the tab is picked. */
-  existsMultiMoveSelectedInTab(): boolean {
-    return this.filteredRows().some((row) => this.multiMoveTargets().has(row.identifier));
-  }
-
-  /** Picks or unpicks a piece from its row's checkbox. */
-  toggleMultiMoveTarget(e: Event, gameObject: TabletopObject) {
-    if (!(e.target instanceof HTMLInputElement)) {
-      return;
-    }
-    if (e.target.checked) {
-      this.multiMoveTargets.update((s) => new Set(s).add(gameObject.identifier));
-    } else {
-      this.multiMoveTargets.update((s) => {
-        const n = new Set(s);
-        n.delete(gameObject.identifier);
-        return n;
-      });
-    }
-  }
-
   /** Unpicks every listed row when any of them is picked, and otherwise picks them all. */
   allTabBoxCheck() {
-    const rows = this.filteredRows();
-    if (this.existsMultiMoveSelectedInTab()) {
-      this.multiMoveTargets.update((s) => {
-        const n = new Set(s);
-        rows.forEach((row) => n.delete(row.identifier));
-        return n;
-      });
-    } else {
-      this.multiMoveTargets.update((s) => {
-        const n = new Set(s);
-        rows.forEach((row) => n.add(row.identifier));
-        return n;
-      });
-    }
+    this.multi.flipListed();
   }
 
   /**
@@ -1041,16 +1022,7 @@ export class GameObjectInventoryComponent {
    * edit the table.
    */
   multiMove(location: string) {
-    if (!this.rolePermission.canEditTabletop()) return;
-    this.moveCharacters(this.multiMoveTargets(), location);
-  }
-
-  /** Moves the characters among the identifiers to a location for every peer, passing over anything else. */
-  private moveCharacters(identifiers: Iterable<string>, location: string): void {
-    for (const identifier of identifiers) {
-      const gameObject = this.objectStore.get(identifier);
-      if (gameObject instanceof GameCharacter) gameObject.setLocation(location);
-    }
+    this.multi.move(location);
   }
 
   /**
@@ -1060,88 +1032,9 @@ export class GameObjectInventoryComponent {
    */
   moveToTab(identifiers: ReadonlySet<string>, tab: string): void {
     if (!this.rolePermission.canEditTabletop()) return;
-    this.moveCharacters(identifiers, this.locationOfTab(tab));
-    this.multiMoveTargets.update((targets) => new Set([...targets].filter((target) => !identifiers.has(target))));
+    this.multi.moveTo(identifiers, this.locationOfTab(tab));
+    this.multi.drop(identifiers);
     SoundEffect.play(PresetSound.piecePut);
-  }
-
-  /**
-   * Moves every picked character to a location, leaves multi-select and plays the piece-put sound.
-   */
-  moveToAndClose(location: string) {
-    this.multiMove(location);
-    this.toggleMultiMove();
-    SoundEffect.play(PresetSound.piecePut);
-  }
-
-  /**
-   * Hides every picked character from the inventory or shows them again, then leaves multi-select.
-   */
-  multiSetHideInventory(hide: boolean) {
-    if (!this.rolePermission.canEditTabletop()) return;
-    for (const gameObjectIdentifier of this.multiMoveTargets()) {
-      const gameObject = this.objectStore.get<GameCharacter>(gameObjectIdentifier);
-      if (gameObject instanceof GameCharacter) {
-        gameObject.hideInventory = hide;
-      }
-    }
-    this.inventoryService.notifyInventoryUpdate();
-    this.toggleMultiMove();
-    SoundEffect.play(PresetSound.sweep);
-  }
-
-  /**
-   * Gives every resource of the picked pieces a slider, or takes every one away, whatever the room's
-   * default, and leaves multi-select.
-   */
-  multiSetResourceSliders(shown: boolean) {
-    if (!this.rolePermission.canEditTabletop()) return;
-    for (const gameObjectIdentifier of this.multiMoveTargets()) {
-      const gameObject = this.objectStore.get<GameCharacter>(gameObjectIdentifier);
-      if (gameObject instanceof GameCharacter) this.resourceSliders.setAll(gameObject, shown);
-    }
-    this.toggleMultiMove();
-    SoundEffect.play(PresetSound.sweep);
-  }
-
-  /**
-   * Deletes the picked pieces in the graveyard, leaving multi-select only when something was
-   * deleted.
-   */
-  async deleteAndClose(): Promise<void> {
-    if (await this.multiDelete()) {
-      this.toggleMultiMove();
-      SoundEffect.play(PresetSound.sweep);
-    }
-  }
-
-  /**
-   * Deletes the picked pieces that are in the graveyard, once the user confirms.
-   *
-   * Picks anywhere else are left alone. Resolves false when nothing was deleted: no picks in the
-   * graveyard, a refusal, or a seat that may not edit the table.
-   */
-  async multiDelete(): Promise<boolean> {
-    if (!this.rolePermission.canEditTabletop()) return false;
-    const inGraveyard: Set<GameCharacter> = new Set();
-    for (const gameObjectIdentifier of this.multiMoveTargets()) {
-      const gameObject = this.objectStore.get<GameCharacter>(gameObjectIdentifier);
-      if (gameObject instanceof GameCharacter && gameObject.location.name == 'graveyard') {
-        inGraveyard.add(gameObject);
-      }
-    }
-    if (inGraveyard.size < 1) return false;
-
-    const asked = await this.confirm.ask({
-      message: this.t('feature.inventory.panel.confirmMultiDelete', { count: inGraveyard.size }),
-      okLabel: this.t('common.button.delete'),
-      danger: true,
-    });
-    if (!asked) return false;
-    for (const gameObject of inGraveyard) {
-      this.deleteGameObject(gameObject);
-    }
-    return true;
   }
 
   private cloneGameObject(gameObject: TabletopObject) {
@@ -1184,17 +1077,7 @@ export class GameObjectInventoryComponent {
   selectGameObject(gameObject: GameObject) {
     if (this.drag.takeSuppressedClick()) return;
     if (gameObject instanceof GameCharacter && !this.canView(gameObject)) return;
-    if (this.isMultiMove()) {
-      if (this.multiMoveTargets().has(gameObject.identifier)) {
-        this.multiMoveTargets.update((s) => {
-          const n = new Set(s);
-          n.delete(gameObject.identifier);
-          return n;
-        });
-      } else {
-        this.multiMoveTargets.update((s) => new Set(s).add(gameObject.identifier));
-      }
-    }
+    if (this.isMultiMove()) this.multi.flip(gameObject.identifier);
     this.selectionSignalService.selectObject(gameObject.identifier, gameObject.aliasName);
     this.selectionSignalService.highlightObject(gameObject.identifier);
   }
