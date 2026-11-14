@@ -86,6 +86,7 @@
             </button>
           }
           <div
+            data-testid="chat-message-text"
             class="msg-text [&_a]:text-ui-accent px-2.5 pt-0.5 align-top text-(length:--chat-font-size) leading-normal whitespace-pre-line text-inherit"
             [class.select-text!]="isSelectingText()"
           >
@@ -158,6 +159,7 @@
               />
             }
             <font
+              data-testid="chat-message-text"
               class="msg-text [&_a]:text-ui-accent px-2.5 pt-0.5 align-top text-(length:--chat-font-size) leading-normal whitespace-pre-line text-inherit"
               [class.select-text!]="isSelectingText()"
             >

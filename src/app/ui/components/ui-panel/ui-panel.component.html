@@ -1,4 +1,5 @@
 <div
+  data-testid="ui-panel"
   class="draggable-panel animate-fly-in rounded-ui-lg border-ui-border-panel bg-ui-panel text-ui-text absolute top-50 isolate box-border h-50 max-h-full w-75 max-w-full overflow-visible border border-solid p-0 shadow-[var(--ui-shadow-md),inset_0_1px_0_rgba(255,255,255,0.06)] [backdrop-filter:blur(24px)_saturate(1.5)] transition-opacity duration-200 outline-none [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
   [ngClass]="{
     'pointer-events-none': isPointerDragging,
@@ -66,6 +67,7 @@
         : ''
     "
     #titleBar
+    data-testid="panel-titlebar"
     [class.ring-ui-accent]="isDropTarget()"
     [class.ring-2]="isDropTarget()"
     [class.border-transparent!]="contentMinimized || isGhost"
@@ -155,7 +157,13 @@
           } @else if (!isCompact()) {
             <panel-bar-button icon="open_in_full" [label]="restoreTitle" (press)="toggleMinimize()" />
           }
-          <panel-bar-button icon="close" [label]="closeTitle" [compact]="isCompact()" (press)="close()" />
+          <panel-bar-button
+            icon="close"
+            testId="panel-close"
+            [label]="closeTitle"
+            [compact]="isCompact()"
+            (press)="close()"
+          />
         </div>
       </div>
     }
