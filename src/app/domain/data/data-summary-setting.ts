@@ -135,10 +135,10 @@ export class DataSummarySetting extends GameObject implements InnerXml {
   }
 
   private _sortMore!: string;
-  private _extraSortKeys!: readonly SortKey[];
+  private _extraSortKeys: readonly SortKey[] | undefined;
   /** The steps of the order after the second, read from `sortMore` and cached. */
   get extraSortKeys(): readonly SortKey[] {
-    if (this._sortMore !== this.sortMore) {
+    if (this._extraSortKeys === undefined || this._sortMore !== this.sortMore) {
       this._sortMore = this.sortMore;
       this._extraSortKeys = readSortKeys(this.sortMore);
     }
@@ -158,23 +158,23 @@ export class DataSummarySetting extends GameObject implements InnerXml {
   }
 
   private _dataTag!: string;
-  private _dataTags!: string[];
+  private _dataTags: string[] | undefined;
   /** The display items the room lists for each piece in the inventory, split from `dataTag` and cached. */
   get dataTags(): string[] {
-    if (this._dataTag !== this.dataTag) {
+    if (this._dataTags === undefined || this._dataTag !== this.dataTag) {
       this._dataTag = this.dataTag;
-      this._dataTags = splitSummaryTags(this.dataTag);
+      this._dataTags = splitSummaryTags(this.dataTag ?? '');
     }
     return this._dataTags;
   }
 
   private _tableDataTag!: string;
-  private _tableDataTags!: string[];
+  private _tableDataTags: string[] | undefined;
   /** The display items shown as columns when the inventory is laid out as a table, split from `tableDataTag`. */
   get tableDataTags(): string[] {
-    if (this._tableDataTag !== this.tableDataTag) {
+    if (this._tableDataTags === undefined || this._tableDataTag !== this.tableDataTag) {
       this._tableDataTag = this.tableDataTag;
-      this._tableDataTags = splitSummaryTags(this.tableDataTag);
+      this._tableDataTags = splitSummaryTags(this.tableDataTag ?? '');
     }
     return this._tableDataTags;
   }

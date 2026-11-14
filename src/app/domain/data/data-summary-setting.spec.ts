@@ -22,6 +22,32 @@ describe('DataSummarySetting', () => {
     });
   });
 
+  describe('a setting sent by a version that knew fewer fields', () => {
+    function settingWithout(...fields: string[]): DataSummarySetting {
+      const setting = new DataSummarySetting('older-setting');
+      const context = setting.toContext();
+      const syncData = { ...(context.syncData as Record<string, unknown>) };
+      for (const field of fields) delete syncData[field];
+      context.syncData = syncData;
+      setting.apply(context);
+      return setting;
+    }
+
+    it('sorts by its first two steps where the later ones never arrived', () => {
+      const setting = settingWithout('sortMore');
+
+      expect(setting.extraSortKeys).toEqual([]);
+      expect(setting.sortKeys).toHaveLength(2);
+    });
+
+    it('lists no display items where none arrived', () => {
+      const setting = settingWithout('dataTag', 'tableDataTag');
+
+      expect(setting.dataTags).toEqual([]);
+      expect(setting.tableDataTags).toEqual([]);
+    });
+  });
+
   describe('instance (singleton)', () => {
     it('returns the one instance', () => {
       const instance1 = DataSummarySetting.instance;
