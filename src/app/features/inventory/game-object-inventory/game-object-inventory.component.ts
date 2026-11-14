@@ -4,7 +4,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
   effect,
   ElementRef,
   inject,
@@ -16,19 +15,15 @@ import {
 import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
-import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { StealthService } from '@axe/application/character/stealth.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
-import { tableItemNames } from '@axe/application/inventory/summary-items';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { NpcDragService } from '@axe/application/tabletop/npc-drag.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
-import { VisionService } from '@axe/application/tabletop/vision.service';
-import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelHeaderControl, PanelService } from '@axe/application/ui/panel.service';
@@ -40,8 +35,7 @@ import { Network } from '@axe/core/network/network';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { turnCache } from '@axe/core/util/turn-cache';
-import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
-import { BuffBadge, buffIconUrlOf, toBuffBadges } from '@axe/domain/character/buff-badge';
+import { BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { gaugeRatio } from '@axe/domain/character/piece-gauge';
 import { StatusAilment } from '@axe/domain/character/status-ailment';
@@ -57,7 +51,6 @@ import {
 } from '@axe/domain/inventory/inventory-view-mode';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 import {
@@ -66,25 +59,13 @@ import {
   buildInventoryObjectContextMenu,
 } from '@axe/features/inventory/game-object-inventory/game-object-inventory-context-menu';
 import { InventoryFolders } from '@axe/features/inventory/game-object-inventory/inventory-folders';
-import {
-  bandRowsBySide,
-  buildInventoryRow,
-  filterInventoryRows,
-  filterInventoryRowsByHidden,
-  type InventoryHiddenFilter,
-  type InventoryRow,
-  inventorySearchText,
-  PERSONAL_INVENTORY_TAB,
-  type SideBand,
-} from '@axe/features/inventory/game-object-inventory/inventory-list';
+import { PERSONAL_INVENTORY_TAB } from '@axe/features/inventory/game-object-inventory/inventory-list';
 import { InventoryMultiSelect } from '@axe/features/inventory/game-object-inventory/inventory-multi-select';
 import { InventoryObjectDrag } from '@axe/features/inventory/game-object-inventory/inventory-object-drag';
-import {
-  buildInventoryTable,
-  InventoryTable,
-  InventoryTableColumn,
-  InventoryTableRow,
-} from '@axe/features/inventory/game-object-inventory/inventory-table';
+import { InventoryRows, isHiddenFromInventory } from '@axe/features/inventory/game-object-inventory/inventory-rows';
+import { InventoryTableColumn } from '@axe/features/inventory/game-object-inventory/inventory-table';
+import { InventoryTableView } from '@axe/features/inventory/game-object-inventory/inventory-table-view';
+import { InventoryTurns } from '@axe/features/inventory/game-object-inventory/inventory-turns';
 import { InventoryFilterService } from '@axe/features/inventory/inventory-filter.service';
 import {
   INVENTORY_FILTER_PANEL,
@@ -225,18 +206,14 @@ export class GameObjectInventoryComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly tableFocus = inject(TableFocusService);
-  private readonly turnOrderService = inject(TurnOrderService);
   protected readonly turns = inject(InventoryRoundService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly resourceSliders = inject(ResourceSliderService);
-  private readonly vision = inject(VisionService);
-  private readonly ailmentService = inject(StatusAilmentService);
   private readonly viewPreference = inject(InventoryViewPreferenceService);
   private readonly isCompact = inject(ViewportService).isCompact;
   private readonly filter = inject(InventoryFilterService);
   private readonly disclosureService = inject(DisclosureService);
-  private readonly destroyRef = inject(DestroyRef);
   private readonly npcDrag = inject(NpcDragService);
   private readonly pieceGhost = inject(PieceDragGhostService);
   private readonly stealth = inject(StealthService);
@@ -341,6 +318,25 @@ export class GameObjectInventoryComponent {
   /** Whether multi-select is on. */
   readonly isMultiMove = this.multi.active;
 
+  /** The rows the panel lists, and how they are narrowed. */
+  private readonly rows: InventoryRows = new InventoryRows({
+    selectTab: () => this.selectTab(),
+    listsHidden: () => this.isMultiMove() || this.isEdit(),
+    inventoryOf: (tab) => this.getInventory(tab),
+    canView: (object) => this.canView(object),
+  });
+  /** The panel's table view. */
+  private readonly tableView = new InventoryTableView({ rows: () => this.filteredRows() });
+  /** What the list does with the turn order. */
+  private readonly turnHandling: InventoryTurns = new InventoryTurns({
+    selectTab: () => this.selectTab(),
+    showsTree: () => this.folders.showTree(),
+    hasQuery: () => this.hasQuery(),
+    rows: () => this.filteredRows(),
+    tableRows: () => this.inventoryTable().rows,
+    stripWaitsForRound: () => this.viewPreference.roundInPlay() && this.shows('tabs'),
+  });
+
   readonly searchQuery = this.filter.searchQuery;
   readonly searchTerms = this.filter.searchTerms;
   readonly hasQuery = this.filter.hasQuery;
@@ -355,8 +351,7 @@ export class GameObjectInventoryComponent {
    * piece waiting to step in steps in.
    */
   setTurnOrder(event: Event, gameObject: GameObject): void {
-    event.stopPropagation();
-    this.turns.giveTurnTo(gameObject.identifier);
+    this.turnHandling.give(event, gameObject);
   }
 
   readonly viewMode = this.viewPreference.mode;
@@ -392,9 +387,7 @@ export class GameObjectInventoryComponent {
    * to begin one. With the tabs put away there would be nowhere for that button, so the strip
    * stands as it always has.
    */
-  readonly roundWaitsForPlay = computed(
-    () => this.viewPreference.roundInPlay() && this.shows('tabs') && this.turns.progress().round === 0
-  );
+  readonly roundWaitsForPlay = this.turnHandling.waitsForPlay;
   protected readonly viewLabelKeys = INVENTORY_VIEW_LABEL_KEYS;
 
   /**
@@ -413,45 +406,12 @@ export class GameObjectInventoryComponent {
 
   private readonly contentRoot = viewChild<ElementRef<HTMLElement>>('contentRoot');
 
-  /**
-   * The cast laid out sideways: one row a piece, one column a display item.
-   *
-   * The states the room keeps are watched as a whole rather than piece by piece, since ticking
-   * one on writes a buff onto a sheet somewhere below the piece.
-   */
-  readonly inventoryTable = computed<InventoryTable>(() => {
-    this.objectChange.collectionOf('data')();
-    // The table keeps a list of its own, so the elements are looked up against that rather
-    // than taken from the map the full view's list is cached in.
-    const objects = this.filteredRows().map((row) => row.object);
-    const ailments = this.ailmentService.ailments();
-    const tags = tableItemNames(
-      this.inventoryService.tableDataTags,
-      objects,
-      ailments.map((ailment) => ailment.name)
-    );
-    return buildInventoryTable(
-      objects,
-      tags,
-      ailments,
-      (object) => this.elementsOf(object, tags),
-      this.newLineString,
-      this.inventoryService.sortTag
-    );
-  });
+  /** The cast laid out sideways: one row a piece, one column a display item. */
+  readonly inventoryTable = this.tableView.table;
 
-  private elementsOf(object: TabletopObject, tags: readonly string[]): (DataElement | null)[] {
-    const root = object.rootDataElement;
-    if (!root) return tags.map(() => null);
-    return tags.map((tag) => (tag === this.newLineString ? null : DataElement.findElementByReference(root, tag)));
-  }
-
-  /**
-   * The colour behind a status column's heading in the table view, transparent for any other
-   * column.
-   */
+  /** The colour behind a status column's heading in the table view, transparent for any other column. */
   ailmentSwatch(column: InventoryTableColumn): string {
-    return column.ailment ? resolveBuffColor(column.ailment.color) || 'transparent' : 'transparent';
+    return this.tableView.ailmentSwatch(column);
   }
 
   /**
@@ -471,25 +431,17 @@ export class GameObjectInventoryComponent {
 
   /** The icon of a status column's heading in the table view, empty for any other column. */
   ailmentIconUrl(column: InventoryTableColumn): string {
-    this.objectChange.fileVersion();
-    return column.ailment ? buffIconUrlOf(column.ailment.icon) : '';
+    return this.tableView.ailmentIconUrl(column);
   }
 
-  /**
-   * Whether a status is on a piece, as its box in the table view shows; always false for anything
-   * but a character.
-   */
+  /** Whether a status is on a piece, as its box in the table view shows. */
   isAilmentOn(object: TabletopObject, ailment: StatusAilment): boolean {
-    this.objectChange.collectionOf('data')();
-    this.objectChange.versionOf(object.identifier)();
-    return object instanceof GameCharacter && this.ailmentService.isOn(object, ailment.name);
+    return this.tableView.isAilmentOn(object, ailment);
   }
 
   /** Puts a status on a character or takes it off, from its box in the table view. */
   toggleAilment(event: Event, object: TabletopObject, ailment: StatusAilment): void {
-    event.stopPropagation();
-    if (!(object instanceof GameCharacter)) return;
-    this.ailmentService.toggle(object, ailment, (event.target as HTMLInputElement).checked);
+    this.tableView.toggleAilment(event, object, ailment);
   }
 
   /**
@@ -595,29 +547,11 @@ export class GameObjectInventoryComponent {
     if (wanted !== 'round') this.viewPreference.set(wanted);
   }
 
-  /**
-   * The listed rows gathered under their sides, or nothing where they should not be.
-   *
-   * Only the table's own list is banded, and only while the round is taken side by side.
-   * A search or a folder tree does its own gathering, and a second one over the top of it
-   * would leave the reader with two answers to the same question.
-   */
-  readonly sideBands = computed<SideBand<InventoryRow>[] | null>(() => {
-    if (this.selectTab() !== 'table') return null;
-    if (this.folders.showTree() || this.hasQuery()) return null;
-    const sides = this.turns.sides();
-    if (sides.length < 1) return null;
-    return bandRowsBySide(this.filteredRows(), sides, (row) => row.identifier);
-  });
+  /** The listed rows gathered under their sides, or nothing where they should not be. */
+  readonly sideBands = this.turnHandling.sideBands;
 
   /** The same banding for the table view, whose rows carry their piece rather than being one. */
-  readonly tableSideBands = computed<SideBand<InventoryTableRow>[] | null>(() => {
-    if (this.selectTab() !== 'table') return null;
-    if (this.hasQuery()) return null;
-    const sides = this.turns.sides();
-    if (sides.length < 1) return null;
-    return bandRowsBySide(this.inventoryTable().rows, sides, (row) => row.object.identifier);
-  });
+  readonly tableSideBands = this.turnHandling.tableSideBands;
 
   /**
    * The display item the inventory is sorted by, which is the room's setting and so shared with
@@ -666,9 +600,7 @@ export class GameObjectInventoryComponent {
 
   /** The translated name of the main sort's direction. */
   get sortOrderName(): string {
-    return this.sortOrder === SortOrder.ASC
-      ? this.t('feature.inventory.panel.asc')
-      : this.t('feature.inventory.panel.desc');
+    return this.rows.sortOrderName();
   }
   /**
    * The tabs picked pieces can be sent to from the multi-select bar, leaving out the tab on view.
@@ -715,77 +647,25 @@ export class GameObjectInventoryComponent {
     }
   }
 
-  private baseObjectsOf(inventoryType: string): TabletopObject[] {
-    switch (inventoryType) {
-      case 'table': {
-        // What the table does not draw for this reader is not listed either, whatever mode the
-        // list is in: a row would name what the dark or the fog is keeping back.
-        const listed = this.inventoryService.tableInventory.tabletopObjects
-          .filter((object): object is GameCharacter => object instanceof GameCharacter)
-          .filter((character) => this.vision.mayBeListed(character));
-        const showHidden = this.isMultiMove() || this.isEdit() || this.rolePermission.canSeeHidden();
-        return showHidden ? listed : listed.filter((character) => !character.hideInventory);
-      }
-
-      default:
-        return this.getInventory(inventoryType).tabletopObjects;
-    }
-  }
-
-  readonly visibleRows = computed<InventoryRow[]>(() => {
-    this.inventoryService.inventoryVersion();
-    this.objectChange.fileVersion();
-    this.objectChange.collectionOf('character')();
-    this.objectChange.trackMyCursor();
-    return this.baseObjectsOf(this.selectTab()).map((object) =>
-      buildInventoryRow(object, object instanceof GameCharacter ? object.folderName : '')
-    );
-  });
-
-  private readonly hiddenFilterLabelKeys: Record<InventoryHiddenFilter, string> = {
-    all: 'feature.inventory.panel.hiddenFilterAll',
-    only: 'feature.inventory.panel.hiddenFilterOnly',
-    exclude: 'feature.inventory.panel.hiddenFilterExclude',
-  };
+  /** The pieces of the tab on view, before any narrowing. */
+  readonly visibleRows = this.rows.visible;
 
   readonly hiddenFilter = this.filter.hiddenFilter;
   readonly hiddenDisplay = this.filter.hiddenDisplay;
 
-  readonly canSeeHidden = computed<boolean>(() => this.rolePermission.canSeeHidden());
+  readonly canSeeHidden = this.rows.canSeeHidden;
 
-  readonly activeHiddenFilter = computed<InventoryHiddenFilter>(() =>
-    this.canSeeHidden() ? this.hiddenFilter() : 'all'
-  );
+  readonly activeHiddenFilter = this.rows.activeHiddenFilter;
 
-  readonly isHiddenFiltered = computed<boolean>(() => this.activeHiddenFilter() !== 'all');
+  readonly isHiddenFiltered = this.rows.isHiddenFiltered;
 
   /** Switches rows hidden from the inventory between dimmed and shown in full. */
   toggleHiddenDisplay(): void {
     this.filter.toggleHiddenDisplay();
   }
 
-  readonly filteredRows = computed<InventoryRow[]>(() => {
-    const terms = this.searchTerms();
-    const rows = filterInventoryRowsByHidden(this.visibleRows(), this.activeHiddenFilter(), (row) =>
-      this.isInventoryHiddenObject(row.object)
-    );
-    if (terms.length < 1) return rows;
-
-    // Owner names live on the cursors, so a rename over there has to reach the text being matched.
-    this.objectChange.collectionOf('PeerCursor')();
-    for (const cursor of this.objectStore.getObjects<PeerCursor>(PeerCursor)) {
-      this.objectChange.versionOf(cursor.identifier)();
-    }
-    const inventoryType = this.selectTab();
-    return filterInventoryRows(rows, terms, (row) =>
-      inventorySearchText(
-        row,
-        row.object instanceof OwnedTabletopObject ? row.object.ownerName : '',
-        this.canView(row.object) ? this.elementTextsOf(inventoryType, row.object) : [],
-        this.names.shown(row.object)
-      )
-    );
-  });
+  /** The rows listed: those of the tab on view that pass the hidden filter and match the search. */
+  readonly filteredRows = this.rows.filtered;
 
   readonly canEdit = computed<boolean>(() => this.rolePermission.canEditTabletop());
 
@@ -845,17 +725,6 @@ export class GameObjectInventoryComponent {
     );
   }
 
-  private elementTextsOf(inventoryType: string, object: TabletopObject): string[] {
-    const elements = this.getInventory(inventoryType).dataElementMap.get(object.identifier) ?? [];
-    const texts: string[] = [];
-    for (const element of elements) {
-      if (!element || element.name === this.newLineString) continue;
-      texts.push(`${element.value}`);
-      if (element.currentValue != null && element.currentValue !== '') texts.push(`${element.currentValue}`);
-    }
-    return texts;
-  }
-
   /** Whether the piece is a character in stealth, which only some of the table can see. */
   isInStealth(gameObject: TabletopObject): boolean {
     return gameObject instanceof GameCharacter && gameObject.stealth === '1';
@@ -863,7 +732,7 @@ export class GameObjectInventoryComponent {
 
   /** Whether the piece is a character hidden from the inventory. */
   isInventoryHiddenObject(gameObject: TabletopObject): boolean {
-    return gameObject instanceof GameCharacter && gameObject.hideInventory;
+    return isHiddenFromInventory(gameObject);
   }
 
   /**
@@ -930,18 +799,15 @@ export class GameObjectInventoryComponent {
         setStealth: (o, on) => {
           if (o instanceof GameCharacter) this.stealth.set(o, on);
         },
-        holdTurn: (o) => this.turnOrderService.hold(o.identifier),
-        interruptTurn: (o) => this.turnOrderService.interrupt(o.identifier),
+        holdTurn: (o) => this.turnHandling.hold(o),
+        interruptTurn: (o) => this.turnHandling.interrupt(o),
       },
       this.t,
       this.folders.foldersApply() ? this.folders.knownFolderPaths() : null,
       gameObject instanceof GameCharacter && this.stealth.mayToggle(gameObject)
         ? { on: gameObject.stealth === '1' }
         : null,
-      {
-        mayHold: this.turnOrderService.mayHold(gameObject.identifier),
-        mayInterrupt: this.turnOrderService.mayInterrupt(gameObject.identifier),
-      }
+      this.turnHandling.menuStateOf(gameObject)
     );
 
     this.contextMenuService.open(position, actions, this.names.shown(gameObject));
@@ -978,15 +844,7 @@ export class GameObjectInventoryComponent {
   }
 
   /** What is in force, said in one line, so the list shows its own narrowing without the box. */
-  readonly filterSummary = computed<string>(() => {
-    const parts: string[] = [];
-    if (this.hasQuery()) parts.push(`\u201c${this.searchQuery().trim()}\u201d`);
-    if (this.isHiddenFiltered()) {
-      parts.push(this.t(this.hiddenFilterLabelKeys[this.activeHiddenFilter()]));
-    }
-    if (this.sortTag) parts.push(`${this.sortTag} (${this.sortOrderName})`);
-    return parts.length > 0 ? parts.join(' / ') : this.t('feature.inventory.panel.filterNone');
-  });
+  readonly filterSummary = this.rows.summary;
 
   /** Enters or leaves multi-select; leaving drops every pick. */
   toggleMultiMove() {
