@@ -21,6 +21,7 @@ import { ChatLintService } from '@axe/application/chat/chat-lint.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
+import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
@@ -39,9 +40,8 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatPalette, PaletteIndex } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { tabBeside, tabToShow } from '@axe/domain/chat/chat-tab-cycle';
-import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
+import { keptTabOf, tabBeside } from '@axe/domain/chat/chat-tab-cycle';
+import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { PaletteRow, paletteRowsOf, paletteTabsOf } from '@axe/domain/chat/palette-rows';
 import { holdsTargetNumber } from '@axe/domain/chat/target-number';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -325,16 +325,14 @@ export class ChatPaletteComponent {
 
   /**
    * The tab the palette speaks into, moved off one gone away or out of view and back onto it once it
-   * is back; see {@link tabToShow}.
+   * is back; see {@link keptTabOf}.
    */
   readonly chatTabidentifier = linkedSignal<ChatTab[], string>({
     source: () => this.visibleChatTabs(),
     computation: (visible, previous) => {
-      const current = previous?.value ?? '';
-      if (current && !this.lostTab && !visible.some((tab) => tab.identifier === current)) this.lostTab = current;
-      const next = tabToShow(visible, current, this.lostTab);
-      if (next === this.lostTab) this.lostTab = '';
-      return next;
+      const kept = keptTabOf(visible, previous?.value ?? '', this.lostTab);
+      this.lostTab = kept.lost;
+      return kept.tab;
     },
   });
 
@@ -359,21 +357,8 @@ export class ChatPaletteComponent {
   readonly editPalette = signal('');
   readonly viewMode = signal<'palette' | 'character'>('palette');
 
-  readonly chatTabsVersion = computed(() => {
-    this.objectChange.collectionOf('chat-tab')();
-    this.objectChange.versionOf(ChatTabList.instance.identifier)();
-    const tabs = this.chatMessageService.chatTabs;
-    for (const tab of tabs) this.objectChange.versionOf(tab.identifier)();
-    return [...tabs];
-  });
-
   /** The tabs this seat's role may read, as the chat window lists them. */
-  readonly visibleChatTabs = computed(() => {
-    const tabs = this.chatTabsVersion();
-    this.objectChange.trackMyCursor();
-    const role = PeerCursor.myRole;
-    return tabs.filter((tab) => canRoleViewTab(tab, role));
-  });
+  readonly visibleChatTabs = inject(VisibleChatTabsService).tabs;
 
   /** Whether this seat's role may speak in the tab lines are sent to. */
   readonly canSpeakCurrentTab = computed(() => {

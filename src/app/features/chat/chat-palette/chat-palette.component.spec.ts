@@ -115,21 +115,21 @@ describe('ChatPaletteComponent', () => {
     });
   });
 
-  describe('chatTabsVersion signal', () => {
+  describe('visibleChatTabs signal', () => {
     it('exposes the tab version as a computed signal', () => {
-      expect(typeof component.chatTabsVersion).toBe('function');
+      expect(typeof component.visibleChatTabs).toBe('function');
     });
 
     it('returns the tabs from it', () => {
       fixture.detectChanges();
-      const tabs = component.chatTabsVersion();
+      const tabs = component.visibleChatTabs();
       expect(Array.isArray(tabs)).toBe(true);
     });
 
     it('bumps the version when the children change', () => {
       fixture.detectChanges();
       const objectChange = TestBed.inject(ObjectChangeService);
-      const tabs = component.chatTabsVersion();
+      const tabs = component.visibleChatTabs();
       if (tabs.length === 0) return;
 
       const tabId = tabs[0].identifier;

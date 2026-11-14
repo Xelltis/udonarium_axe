@@ -1,5 +1,5 @@
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { tabBeside, tabToShow } from '@axe/domain/chat/chat-tab-cycle';
+import { keptTabOf, tabBeside, tabToShow } from '@axe/domain/chat/chat-tab-cycle';
 
 describe('tabBeside()', () => {
   const tab = (identifier: string) => ({ identifier }) as ChatTab;
@@ -36,5 +36,32 @@ describe('tabToShow()', () => {
 
   it('keeps the system tab the reader chose, with no tab lost', () => {
     expect(tabToShow([tab('main'), system], 'SystemTab', '')).toBe('SystemTab');
+  });
+});
+
+describe('keptTabOf()', () => {
+  const tab = (identifier: string) => ({ identifier, isSystemTab: identifier === 'SystemTab' }) as ChatTab;
+  const system = tab('SystemTab');
+
+  it('stays on the tab shown while it is in view, with nothing remembered', () => {
+    expect(keptTabOf([tab('main'), tab('sub')], 'sub', '')).toEqual({ tab: 'sub', lost: '' });
+  });
+
+  it('moves off a tab gone out of view and remembers it', () => {
+    expect(keptTabOf([system, tab('sub')], 'main', '')).toEqual({ tab: 'sub', lost: 'main' });
+    expect(keptTabOf([system], 'main', '')).toEqual({ tab: 'SystemTab', lost: 'main' });
+  });
+
+  it('goes back to the tab it lost once that is back, and forgets it', () => {
+    expect(keptTabOf([system, tab('main')], 'SystemTab', 'main')).toEqual({ tab: 'main', lost: '' });
+  });
+
+  it('keeps the first tab lost while it moves on from another', () => {
+    expect(keptTabOf([system], 'sub', 'main')).toEqual({ tab: 'SystemTab', lost: 'main' });
+  });
+
+  it('remembers nothing where no tab was shown', () => {
+    expect(keptTabOf([tab('main')], '', '')).toEqual({ tab: 'main', lost: '' });
+    expect(keptTabOf([], '', '')).toEqual({ tab: '', lost: '' });
   });
 });

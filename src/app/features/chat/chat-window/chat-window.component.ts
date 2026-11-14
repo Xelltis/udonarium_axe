@@ -9,6 +9,7 @@ import {
   ElementRef,
   inject,
   Injector,
+  linkedSignal,
   signal,
   untracked,
   viewChild,
@@ -18,6 +19,7 @@ import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.serv
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
+import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -30,9 +32,9 @@ import { delay } from '@axe/core/util/delay';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { tabBeside, tabToShow } from '@axe/domain/chat/chat-tab-cycle';
+import { keptTabOf, tabBeside } from '@axe/domain/chat/chat-tab-cycle';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
+import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
 import { ChatBookmarkListComponent } from '@axe/features/chat/chat-bookmark/chat-bookmark-list.component';
@@ -140,7 +142,20 @@ export class ChatWindowComponent {
     this.chatMessageService.gameType = gameType;
   }
 
-  private readonly _chatTabidentifier = signal('');
+  /**
+   * The tab this window shows, moved off one gone away or out of view and back onto it once it is
+   * back; see {@link keptTabOf}.
+   */
+  private readonly _chatTabidentifier = linkedSignal<ChatTab[], string>({
+    source: () => this.visibleChatTabs(),
+    computation: (visible, previous) => {
+      const kept = keptTabOf(visible, previous?.value ?? '', this.lostTab);
+      this.lostTab = kept.lost;
+      return kept.tab;
+    },
+  });
+  /** The tab the active-tab service, the title and the scroll were last told of. */
+  private shownTab = '';
   /**
    * The identifier of the chat tab this window shows.
    *
@@ -164,24 +179,18 @@ export class ChatWindowComponent {
 
   /** Shows a tab, as the reader picking it does, but for forgetting a tab lost. */
   private show(chatTabidentifier: string): void {
-    const hasChanged: boolean = this._chatTabidentifier() !== chatTabidentifier;
-    this._chatTabidentifier.set(chatTabidentifier);
+    const hasChanged: boolean = this.shownTab !== chatTabidentifier;
+    this.shownTab = chatTabidentifier;
+    if (untracked(this._chatTabidentifier) !== chatTabidentifier) this._chatTabidentifier.set(chatTabidentifier);
     this.activeChatTab.set(chatTabidentifier);
     this.updatePanelTitle();
     if (hasChanged) this.scrollToBottom(true);
   }
 
-  /**
-   * Moves off a tab gone away or out of view, remembering it to go back to, and back onto it once it
-   * is in view again; see {@link tabToShow}.
-   */
+  /** Tells the rest of the window of the tab shown, once the tabs in view have moved it. */
   private settleTab(): void {
-    const visible = this.visibleChatTabs();
-    const current = this._chatTabidentifier();
-    if (current && !this.lostTab && !visible.some((tab) => tab.identifier === current)) this.lostTab = current;
-    const next = tabToShow(visible, current, this.lostTab);
-    if (next === this.lostTab) this.lostTab = '';
-    if (next !== current) this.show(next);
+    const next = untracked(this._chatTabidentifier);
+    if (next !== this.shownTab) this.show(next);
   }
 
   private readonly logScroll = viewChild.required<ElementRef<HTMLDivElement>>('logScroll');
@@ -395,20 +404,8 @@ export class ChatWindowComponent {
     return this.objectStore.get<ChatTab>(this.chatTabidentifier) ?? null;
   });
 
-  readonly chatTabsVersion = computed(() => {
-    this.objectChange.collectionOf('chat-tab')();
-    this.objectChange.versionOf(ChatTabList.instance.identifier)();
-    const tabs = this.chatMessageService.chatTabs;
-    for (const tab of tabs) this.objectChange.versionOf(tab.identifier)();
-    return [...tabs];
-  });
-
-  readonly visibleChatTabs = computed(() => {
-    const tabs = this.chatTabsVersion();
-    this.objectChange.trackMyCursor();
-    const role = PeerCursor.myRole;
-    return tabs.filter((tab) => canRoleViewTab(tab, role));
-  });
+  /** The tabs this reader's role may read, which the tab strip offers. */
+  readonly visibleChatTabs = inject(VisibleChatTabsService).tabs;
 
   /**
    * Whether this reader may call a vote or set an alarm: not as a guest on a room server, which
@@ -456,7 +453,7 @@ export class ChatWindowComponent {
             ]
       );
     });
-    this.show(tabToShow(this.visibleChatTabs(), '', ''));
+    this.show(this._chatTabidentifier());
     this.objectChange.messageAdded$.subscribe((event) => {
       if (event.tabIdentifier !== this.chatTabidentifier) return;
       const message = this.objectStore.get<ChatMessage>(event.messageIdentifier);

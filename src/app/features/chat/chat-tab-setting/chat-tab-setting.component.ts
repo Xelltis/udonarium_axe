@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -50,6 +51,7 @@ export class ChatTabSettingComponent {
     return ChatTabList.instance;
   }
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly visibleChatTabs = inject(VisibleChatTabsService).tabs;
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
   private readonly snackbar = inject(SnackbarService);
@@ -130,10 +132,8 @@ export class ChatTabSettingComponent {
   get chatTabs(): readonly ChatTab[] {
     this.objectChange.collectionOf('chat-tab')();
     this.objectChange.trackMyCursor();
-    const tabs = this.chatMessageService.chatTabs;
-    if (Network.authorityPeerId === null || PeerCursor.isMyselfGameMaster) return tabs;
-    for (const tab of tabs) this.objectChange.versionOf(tab.identifier)();
-    return tabs.filter((tab) => canRoleViewTab(tab, PeerCursor.myRole));
+    if (Network.authorityPeerId === null || PeerCursor.isMyselfGameMaster) return this.chatMessageService.chatTabs;
+    return this.visibleChatTabs();
   }
   /** Whether the room has no chat tabs at all. */
   get isEmpty(): boolean {

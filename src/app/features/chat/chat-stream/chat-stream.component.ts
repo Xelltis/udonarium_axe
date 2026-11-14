@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
+import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -22,8 +23,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { tabBeside } from '@axe/domain/chat/chat-tab-cycle';
-import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
+import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
@@ -91,16 +91,7 @@ export class ChatStreamComponent {
   });
 
   /** The tabs this reader may see, to switch between. */
-  readonly visibleChatTabs = computed(() => {
-    this.objectChange.collectionOf(ChatTab.aliasName)();
-    this.objectChange.versionOf(ChatTabList.instance.identifier)();
-    this.objectChange.trackMyCursor();
-    const role = PeerCursor.myRole;
-    return this.chatMessageService.chatTabs.filter((tab) => {
-      this.objectChange.versionOf(tab.identifier)();
-      return canRoleViewTab(tab, role);
-    });
-  });
+  readonly visibleChatTabs = inject(VisibleChatTabsService).tabs;
 
   /**
    * Who lines here are spoken as, starting as whoever the chat window speaks as. Choosing someone

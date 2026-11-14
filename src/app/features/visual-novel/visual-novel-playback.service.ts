@@ -1,14 +1,14 @@
-import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { computed, DestroyRef, effect, inject, Injectable, linkedSignal, signal, untracked } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { sameList } from '@axe/core/util/same-list';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
@@ -39,6 +39,12 @@ function isDiceCommandAmong(messages: readonly ChatMessage[], index: number): bo
   return next.isDicebot && next.timestamp === message.timestamp + 1 && next.originFrom === message.from;
 }
 
+/** The tab to read: the one asked for where it is among those that can be read, else the first of them, else none. */
+function readableTabOf(tabs: readonly ChatTab[], identifier: string): string {
+  if (tabs.some((tab) => tab.identifier === identifier)) return identifier;
+  return tabs[0]?.identifier ?? '';
+}
+
 @Injectable({ providedIn: 'root' })
 export class VisualNovelPlaybackService {
   private readonly destroyRef = inject(DestroyRef);
@@ -53,7 +59,15 @@ export class VisualNovelPlaybackService {
   private readonly cursor = signal(-1);
   private readonly typedLength = signal(0);
   private readonly attached = signal(false);
-  private readonly _chatTabIdentifier = signal('');
+  private readonly visibleChatTabs = inject(VisibleChatTabsService).tabs;
+  /**
+   * The tab being read: the one last read here, where it can still be, to start with. A tab gone,
+   * or no longer one this reader may read, gives way to the first that is left.
+   */
+  private readonly _chatTabIdentifier = linkedSignal<ChatTab[], string>({
+    source: () => this.availableChatTabs(),
+    computation: (tabs, previous) => readableTabOf(tabs, previous ? previous.value : this.settings.chatTabIdentifier()),
+  });
 
   private typingTimer: ReturnType<typeof setInterval> | null = null;
   private autoPlayTimer: ReturnType<typeof setTimeout> | null = null;
@@ -190,23 +204,9 @@ export class VisualNovelPlaybackService {
    * The tabs this reader's role may read, in the order the chat window lists them. It follows each
    * tab's own settings as well as the reader's role, since either can take a tab away.
    */
-  readonly availableChatTabs = computed(
-    () => {
-      this.objectChange.collectionOf(ChatTab.aliasName)();
-      this.objectChange.versionOf(ChatTabList.instance.identifier)();
-      this.objectChange.trackMyCursor();
-      const role = PeerCursor.myRole;
-      return this.chatMessageService.chatTabs.filter((tab) => {
-        this.objectChange.versionOf(tab.identifier)();
-        return canRoleViewTab(tab, role);
-      });
-    },
-    { equal: (a, b) => a.length === b.length && a.every((tab, index) => tab === b[index]) }
-  );
+  readonly availableChatTabs = computed(() => this.visibleChatTabs(), { equal: sameList });
 
   constructor() {
-    this._chatTabIdentifier.set(this.initialChatTabIdentifier());
-
     this.objectChange.messageAdded$.subscribe(() => {
       this.renderVersion.update((version) => version + 1);
     }, this.destroyRef);
@@ -215,14 +215,6 @@ export class VisualNovelPlaybackService {
       () => this.renderVersion.update((version) => version + 1),
       this.destroyRef
     );
-    // A tab gone, or no longer one this reader may read, gives way to the first that is left.
-    effect(() => {
-      const tabs = this.availableChatTabs();
-      const current = this._chatTabIdentifier();
-      if (tabs.some((tab) => tab.identifier === current)) return;
-      untracked(() => this._chatTabIdentifier.set(tabs[0]?.identifier ?? ''));
-    });
-
     effect(() => {
       const message = this.currentMessage();
       const attached = this.attached();
@@ -285,16 +277,9 @@ export class VisualNovelPlaybackService {
    */
   setChatTab(identifier: string): void {
     this.stopAutoPlay();
-    this._chatTabIdentifier.set(identifier);
+    this._chatTabIdentifier.set(readableTabOf(this.availableChatTabs(), identifier));
     this.settings.setChatTabIdentifier(identifier);
     this.cursor.set(-1);
-  }
-
-  private initialChatTabIdentifier(): string {
-    const tabs = this.availableChatTabs();
-    const saved = this.settings.chatTabIdentifier();
-    if (saved.length > 0 && tabs.some((tab) => tab.identifier === saved)) return saved;
-    return tabs.length > 0 ? tabs[0].identifier : '';
   }
 
   /**

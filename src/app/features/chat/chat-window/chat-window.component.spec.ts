@@ -1,12 +1,12 @@
 import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
-import { ObjectChangeService, ObjectDeleteEvent } from '@axe/application/sync/object-change.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { EventChannel } from '@axe/core/event/event-channel';
 import { Network } from '@axe/core/network/network';
 import { childrenChanged$, objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -398,35 +398,35 @@ describe('ChatWindowComponent', () => {
   });
 
   describe('noticing a change of chat tab', () => {
-    it('moves off a tab that is no longer there when the list changes', () => {
+    it('moves off a tab the reader may no longer read when its settings change', () => {
+      const tab = ChatTabList.instance.addChatTab('閉じるタブ', 'closing-tab');
+      ChatTabList.instance.addChatTab('別のタブ', 'open-tab');
+      component.chatTabidentifier = 'closing-tab';
       fixture.detectChanges();
-      const invalidId = 'non-existent-tab-id';
-      const priv = component as unknown as { _chatTabidentifier: { (): string; set(v: string): void } };
-      priv._chatTabidentifier.set(invalidId);
+      const role = PeerCursor.myCursor.role;
+      PeerCursor.myCursor.role = PeerRole.Player;
+      objectChange.notifyChanged(PeerCursor.myCursor.identifier);
 
-      const chatTabList = ChatTabList.instance;
-      objectChanged$.emit({
-        identifier: chatTabList.identifier,
-        aliasName: chatTabList.aliasName,
-        isSendFromSelf: false,
-      });
+      tab.plCanView = false;
+      objectChanged$.emit({ identifier: tab.identifier, aliasName: tab.aliasName, isSendFromSelf: false });
 
-      expect(priv._chatTabidentifier()).not.toBe(invalidId);
+      expect(component.chatTabidentifier).not.toBe('closing-tab');
+      PeerCursor.myCursor.role = role;
+      for (const identifier of ['closing-tab', 'open-tab']) ObjectStore.instance.get(identifier)?.destroy();
     });
 
     it('moves off the open tab once it is deleted', () => {
+      ChatTabList.instance.addChatTab('消えるタブ', 'deleted-tab');
+      ChatTabList.instance.addChatTab('別のタブ', 'left-tab');
+      component.chatTabidentifier = 'deleted-tab';
       fixture.detectChanges();
-      const oldIdentifier = 'non-existent-tab-id';
-      const priv = component as unknown as { _chatTabidentifier: { (): string; set(v: string): void } };
-      priv._chatTabidentifier.set(oldIdentifier);
 
-      (objectChange as unknown as { _objectDeleted$: EventChannel<ObjectDeleteEvent> })._objectDeleted$.emit({
-        aliasName: 'chat-tab',
-        identifier: oldIdentifier,
-        isSendFromSelf: true,
-      });
+      ObjectStore.instance.get('deleted-tab')!.destroy();
+      fixture.detectChanges();
 
-      expect(priv._chatTabidentifier()).not.toBe(oldIdentifier);
+      expect(component.chatTabidentifier).not.toBe('deleted-tab');
+      expect(TestBed.inject(ActiveChatTabService).current()?.identifier).toBe(component.chatTabidentifier);
+      ObjectStore.instance.get('left-tab')?.destroy();
     });
 
     it('goes back to the tab it showed once that comes back after going away, as a tab a join set aside does', () => {
@@ -463,55 +463,36 @@ describe('ChatWindowComponent', () => {
       for (const identifier of ['coming-back-tab', 'picked-tab']) ObjectStore.instance.get(identifier)?.destroy();
     });
 
-    it('scrolls to the bottom after moving on an update', () => {
+    it('scrolls to the bottom after moving off a tab that went away', () => {
+      ChatTabList.instance.addChatTab('消えるタブ', 'scrolled-off-tab');
+      ChatTabList.instance.addChatTab('別のタブ', 'scrolled-to-tab');
+      component.chatTabidentifier = 'scrolled-off-tab';
       fixture.detectChanges();
       const spy = vi.spyOn(component, 'scrollToBottom');
-      const invalidId = 'non-existent-tab-id';
-      const priv = component as unknown as { _chatTabidentifier: { set(v: string): void } };
-      priv._chatTabidentifier.set(invalidId);
 
-      const chatTabList = ChatTabList.instance;
-      objectChanged$.emit({
-        identifier: chatTabList.identifier,
-        aliasName: chatTabList.aliasName,
-        isSendFromSelf: false,
-      });
-
-      expect(spy).toHaveBeenCalledWith(true);
-    });
-
-    it('scrolls to the bottom after moving on a delete', () => {
+      ObjectStore.instance.get('scrolled-off-tab')!.destroy();
       fixture.detectChanges();
-      const spy = vi.spyOn(component, 'scrollToBottom');
-      const oldIdentifier = 'non-existent-tab-id';
-      const priv = component as unknown as { _chatTabidentifier: { set(v: string): void } };
-      priv._chatTabidentifier.set(oldIdentifier);
-
-      (objectChange as unknown as { _objectDeleted$: EventChannel<ObjectDeleteEvent> })._objectDeleted$.emit({
-        aliasName: 'chat-tab',
-        identifier: oldIdentifier,
-        isSendFromSelf: true,
-      });
 
       expect(spy).toHaveBeenCalledWith(true);
+      ObjectStore.instance.get('scrolled-to-tab')?.destroy();
     });
   });
 
-  describe('chatTabsVersion signal', () => {
+  describe('visibleChatTabs signal', () => {
     it('exposes the tab version as a computed signal', () => {
-      expect(typeof component.chatTabsVersion).toBe('function');
+      expect(typeof component.visibleChatTabs).toBe('function');
     });
 
     it('returns the tabs from it', () => {
       fixture.detectChanges();
-      const tabs = component.chatTabsVersion();
+      const tabs = component.visibleChatTabs();
       expect(Array.isArray(tabs)).toBe(true);
     });
 
     it('bumps the version it depends on when the children change', () => {
       fixture.detectChanges();
       const objectChange = TestBed.inject(ObjectChangeService);
-      const tabs = component.chatTabsVersion();
+      const tabs = component.visibleChatTabs();
       if (tabs.length === 0) return; // nothing to check without a tab
 
       const tabId = tabs[0].identifier;
