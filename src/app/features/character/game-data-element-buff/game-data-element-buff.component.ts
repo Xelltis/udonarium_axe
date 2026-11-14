@@ -64,14 +64,26 @@ export class GameDataElementBuffComponent {
     return { name: element.name, value: element.value, currentValue: element.currentValue };
   });
 
-  private readonly writeSoon = debounce(() => this.write(), 66);
+  private readonly writeSoon = debounce(() => this.writeDrafts(), 66);
+  /** Whether the drafts are being written now, when they are still held as a waiting write holds them. */
+  private writing = false;
+
+  /** Writes the drafts, holding them as drafts until they are written. */
+  private writeDrafts(): void {
+    this.writing = true;
+    try {
+      this.write();
+    } finally {
+      this.writing = false;
+    }
+  }
 
   /**
    * Whether the drafts in the row's boxes are kept as typed rather than following the element:
    * while a change typed into them waits to be written, the element still holds what was there.
    */
   private keepsDrafts(): boolean {
-    return this.writeSoon.pending();
+    return this.writing || this.writeSoon.pending();
   }
 
   private readonly _name = linkedSignal<{ name: string }, string>({

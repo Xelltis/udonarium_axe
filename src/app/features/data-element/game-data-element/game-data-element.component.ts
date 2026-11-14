@@ -249,7 +249,7 @@ export class GameDataElementComponent {
    * while a change typed into them waits to be written, the element still holds what was there.
    */
   private keepsDrafts(): boolean {
-    return this.soon.pending() || this.afterSteps.pending();
+    return this.writing || this.soon.pending() || this.afterSteps.pending();
   }
 
   private readonly _name = linkedSignal<{ name: string }, string>({
@@ -1143,8 +1143,20 @@ export class GameDataElementComponent {
     this.objectChange.notifyChanged(element.identifier);
   }
 
-  private readonly soon = debounce(() => this.write(), 66);
-  private readonly afterSteps = debounce(() => this.write(), STEP_COMMIT_MS);
+  private readonly soon = debounce(() => this.writeDrafts(), 66);
+  private readonly afterSteps = debounce(() => this.writeDrafts(), STEP_COMMIT_MS);
+  /** Whether the drafts are being written now, when they are still held as a waiting write holds them. */
+  private writing = false;
+
+  /** Writes the drafts, holding them as drafts until they are written. */
+  private writeDrafts(): void {
+    this.writing = true;
+    try {
+      this.write();
+    } finally {
+      this.writing = false;
+    }
+  }
 
   /** Writes the drafts to the element once typing pauses, in place of any write still waiting. */
   private writeSoon(): void {
