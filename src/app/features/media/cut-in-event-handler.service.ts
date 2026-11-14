@@ -48,22 +48,22 @@ export class CutInEventHandlerService {
     // come first, so a sound-only cut-in puts aside those before it and not the one it asks for.
     this.objectChange.stopCutIn$.subscribe((event) => {
       const cutIn = event.cutIn as CutIn;
-      this.cancelWaiting((waiting) => waiting.identifier == cutIn?.identifier);
+      this.cancelWaiting((waiting) => waiting.identifier === cutIn?.identifier);
     }, this.destroyRef);
     this.objectChange.stopCutInByBgm$.subscribe(() => {
-      this.cancelWaiting((waiting) => waiting.tagName == '' && !!this.audioStorage.get(waiting.audioIdentifier));
+      this.cancelWaiting((waiting) => waiting.tagName === '' && !!this.audioStorage.get(waiting.audioIdentifier));
     }, this.destroyRef);
     this.objectChange.soundOnlyCutIn$.subscribe((event) => {
       const cutIn = event.cutIn as CutIn;
       if (!cutIn?.videoId) return;
-      this.cancelWaiting((waiting) => waiting.identifier == cutIn.identifier || waiting.tagName == cutIn.tagName);
+      this.cancelWaiting((waiting) => waiting.identifier === cutIn.identifier || waiting.tagName === cutIn.tagName);
     }, this.destroyRef);
     this.objectChange.startCutIn$.subscribe((event) => {
       const cutIn = event.cutIn as CutIn;
       // An open window closes for a cut-in with its name or its tag, and so does one still waiting,
       // before this one waits in turn.
       if (cutIn) {
-        this.cancelWaiting((waiting) => waiting.identifier == cutIn.identifier || waiting.tagName == cutIn.tagName);
+        this.cancelWaiting((waiting) => waiting.identifier === cutIn.identifier || waiting.tagName === cutIn.tagName);
       }
       this.openCutInPanel(cutIn, false, (event.speaker as CutInSpeaker | null | undefined) ?? null);
     }, this.destroyRef);

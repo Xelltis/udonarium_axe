@@ -96,70 +96,6 @@ export class CutInWindowComponent {
   private isVideoStarted = false;
   private destroyed = false;
 
-  constructor() {
-    this.objectChange.startCutIn$.subscribe((event) => {
-      const cutIn = event.cutIn as CutIn;
-      if (this.cutIn) {
-        if (this.cutIn.identifier == cutIn.identifier || this.cutIn.tagName == cutIn.tagName) {
-          this.panelService.close();
-        }
-      }
-    }, this.destroyRef);
-    this.objectChange.soundOnlyCutIn$.subscribe((event) => {
-      const cutIn = event.cutIn as CutIn;
-      if (this.cutIn && cutIn?.videoId) {
-        if (this.cutIn.identifier == cutIn.identifier || this.cutIn.tagName == cutIn.tagName) {
-          this.panelService.close();
-        }
-      }
-    }, this.destroyRef);
-    this.objectChange.stopCutInByBgm$.subscribe(() => {
-      if (this.cutIn) {
-        const audio = this.audioStorage.get(this.cutIn.audioIdentifier);
-        if (this.cutIn.tagName == '' && audio) {
-          this.panelService.close();
-        }
-      }
-    }, this.destroyRef);
-    this.objectChange.stopCutIn$.subscribe((event) => {
-      const cutIn = event.cutIn as CutIn;
-      if (this.cutIn) {
-        if (this.cutIn.identifier == cutIn.identifier) {
-          this.panelService.close();
-        }
-      }
-    }, this.destroyRef);
-    afterNextRender(() => {
-      this.resolveFirstRender?.();
-      this.resolveFirstRender = null;
-      if (this.cutIn) {
-        setTimeout(() => {
-          this.moveCutInPos();
-        }, 0);
-      }
-    });
-    effect(() => {
-      const vol = this.videoVolumeSig();
-      this.videoPlayer()?.setVolume(vol);
-    });
-    effect((onCleanup) => {
-      const area = this.cutInArea()?.nativeElement;
-      if (!area) return;
-      onCleanup(observeSize(area, (size) => this.areaSize.set(size)));
-    });
-    this.destroyRef.onDestroy(() => {
-      this.destroyed = true;
-      this.resolveFirstRender?.();
-      this.resolveFirstRender = null;
-      this.readyVideoTarget = null;
-      if (this.cutInTimeOut) {
-        clearTimeout(this.cutInTimeOut);
-        this.cutInTimeOut = null;
-      }
-      this.stopCutIn();
-    });
-  }
-
   private _videoId = '';
   private readonly _videoIdSig = signal('');
 
@@ -170,6 +106,7 @@ export class CutInWindowComponent {
 
   forceNoLoop = false;
   private readonly audioEnabledState = signal(true);
+
   /**
    * Whether this window plays the cut-in's sound.
    *
@@ -182,6 +119,7 @@ export class CutInWindowComponent {
   set audioEnabled(value: boolean) {
     this.audioEnabledState.set(value);
   }
+
   panelLayout: { left: number; top: number; width: number; height: number } | null = null;
   playbackStartedAtMs: number | null = null;
   playbackOffsetMs = 0;
@@ -214,6 +152,84 @@ export class CutInWindowComponent {
     const file = this.imageStorage.get(this.cutIn.imageIdentifier);
     return file?.url ?? ImageFile.Empty.url;
   });
+
+  /**
+   * The volume the video plays at, from 0 to 100: the cut-in's own, scaled by the listener's cut-in
+   * volume and the room's volumes for cut-ins, and 0 while this window's sound is off.
+   *
+   * The video plays in a frame of its own that the audio channels never reach, so the volumes are
+   * applied here instead. The listener's volume counts from the half it starts at, so a listener who
+   * has not touched it hears the video as the cut-in sets it.
+   */
+  readonly videoVolumeSig = computed(() => {
+    if (this.cutIn) this.objectChange.versionOf(this.cutIn.identifier)();
+    this.objectChange.versionOf('Config')();
+    if (!this.audioEnabledState()) return 0;
+    const roomScale = this.objectStore.get<Config>('Config')?.roomScaleFor(VolumeType.CUT_IN) ?? 1;
+    const scale = (this.personalVolumes.levelOf('cutIn') / DEFAULT_PERSONAL_VOLUMES.cutIn) * roomScale;
+    return Math.min(100, Math.round((this.cutIn?.videoVolume ?? 50) * scale));
+  });
+
+  constructor() {
+    this.objectChange.startCutIn$.subscribe((event) => {
+      const cutIn = event.cutIn as CutIn;
+      if (this.cutIn) {
+        if (this.cutIn.identifier === cutIn.identifier || this.cutIn.tagName === cutIn.tagName) {
+          this.panelService.close();
+        }
+      }
+    }, this.destroyRef);
+    this.objectChange.soundOnlyCutIn$.subscribe((event) => {
+      const cutIn = event.cutIn as CutIn;
+      if (this.cutIn && cutIn?.videoId) {
+        if (this.cutIn.identifier === cutIn.identifier || this.cutIn.tagName === cutIn.tagName) {
+          this.panelService.close();
+        }
+      }
+    }, this.destroyRef);
+    this.objectChange.stopCutInByBgm$.subscribe(() => {
+      if (this.cutIn) {
+        const audio = this.audioStorage.get(this.cutIn.audioIdentifier);
+        if (this.cutIn.tagName === '' && audio) {
+          this.panelService.close();
+        }
+      }
+    }, this.destroyRef);
+    this.objectChange.stopCutIn$.subscribe((event) => {
+      const cutIn = event.cutIn as CutIn;
+      if (this.cutIn) {
+        if (this.cutIn.identifier === cutIn.identifier) {
+          this.panelService.close();
+        }
+      }
+    }, this.destroyRef);
+    afterNextRender(() => {
+      this.resolveFirstRender?.();
+      this.resolveFirstRender = null;
+      if (this.cutIn) this.moveCutInPos();
+    });
+    effect(() => {
+      const vol = this.videoVolumeSig();
+      this.videoPlayer()?.setVolume(vol);
+    });
+    effect((onCleanup) => {
+      const area = this.cutInArea()?.nativeElement;
+      if (!area) return;
+      onCleanup(observeSize(area, (size) => this.areaSize.set(size)));
+    });
+    this.destroyRef.onDestroy(() => {
+      this.destroyed = true;
+      this.resolveFirstRender?.();
+      this.resolveFirstRender = null;
+      this.readyVideoTarget = null;
+      if (this.cutInTimeOut) {
+        clearTimeout(this.cutInTimeOut);
+        this.cutInTimeOut = null;
+      }
+      this.stopCutIn();
+    });
+  }
+
   /**
    * Waits for this face to have a DOM and for its ordinary images to be decoded.
    * YouTube readiness is deliberately not part of this barrier; it joins the shared
@@ -339,23 +355,6 @@ export class CutInWindowComponent {
     return this._videoId;
   }
 
-  /**
-   * The volume the video plays at, from 0 to 100: the cut-in's own, scaled by the listener's cut-in
-   * volume and the room's volumes for cut-ins, and 0 while this window's sound is off.
-   *
-   * The video plays in a frame of its own that the audio channels never reach, so the volumes are
-   * applied here instead. The listener's volume counts from the half it starts at, so a listener who
-   * has not touched it hears the video as the cut-in sets it.
-   */
-  readonly videoVolumeSig = computed(() => {
-    if (this.cutIn) this.objectChange.versionOf(this.cutIn.identifier)();
-    this.objectChange.versionOf('Config')();
-    if (!this.audioEnabledState()) return 0;
-    const roomScale = this.objectStore.get<Config>('Config')?.roomScaleFor(VolumeType.CUT_IN) ?? 1;
-    const scale = (this.personalVolumes.levelOf('cutIn') / DEFAULT_PERSONAL_VOLUMES.cutIn) * roomScale;
-    return Math.min(100, Math.round((this.cutIn?.videoVolume ?? 50) * scale));
-  });
-
   /** The volume the video plays at, which is 0 while this window's sound is off. */
   get videoVolume(): number {
     return this.videoVolumeSig();
@@ -419,14 +418,14 @@ export class CutInWindowComponent {
     target?: { seekTo?: (seconds: number, allowSeekAhead: boolean) => void; playVideo?: () => void };
   }) {
     const state = $event.data;
-    if (state == 1) {
+    if (state === 1) {
       if (this.playbackStarted()) this.countFromPlaying();
     }
-    if (state == 5) {
+    if (state === 5) {
       this.isVideoCued = true;
       if (this.playbackStarted() && this.readyVideoTarget) this.startVideo(this.readyVideoTarget);
     }
-    if (state == 0) {
+    if (state === 0) {
       if (!this.forceNoLoop && this.cutIn?.isLoop && $event.target?.seekTo && $event.target?.playVideo) {
         const startSec = this.cutIn.videoStart ? +this.cutIn.videoStart : 0;
         $event.target.seekTo(startSec, true);
