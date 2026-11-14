@@ -64,10 +64,13 @@ export class TableBeamOverlayComponent {
     const screen = this.camera.screenOf();
     if (!laid || !screen) return [];
     return this.glows().map((glow) => {
-      const at = glow.transform ? null : screen(glow.x, glow.y, glow.z);
-      const transform = at
-        ? `translate(${at.x}px, ${at.y}px) scale(${at.scale}) translate(-50%, -50%)`
-        : laid(new Matrix3D().setCSS(glow.transform!));
+      let transform: string;
+      if (glow.transform) {
+        transform = laid(new Matrix3D().setCSS(glow.transform));
+      } else {
+        const at = screen(glow.x, glow.y, glow.z);
+        transform = `translate(${at.x}px, ${at.y}px) scale(${at.scale}) translate(-50%, -50%)`;
+      }
       return { glow, background: glowBackground(glow), style: glowStyle(glow, transform) };
     });
   });

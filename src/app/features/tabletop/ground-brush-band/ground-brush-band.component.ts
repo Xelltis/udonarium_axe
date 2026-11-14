@@ -180,7 +180,8 @@ export class GroundBrushBandComponent {
    * gesture where it stands, the second coming down on the table as it would.
    */
   private handOver(second: number): void {
-    const first = this.pressed!;
+    const first = this.pressed;
+    if (first === null) return;
     const on = this.pressedOn;
     const at = this.pressedAt;
     this.pressed = null;

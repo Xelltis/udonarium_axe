@@ -383,7 +383,7 @@ export class RangeComponent {
     if (this.pieceContextMenu.openForSelection(this.range(), this.gridSize, menuPosition)) return;
     const objectPosition = this.tablePick.landingAtPointer();
     const menu = buildRangeContextMenuModel(
-      this.range()!,
+      this.range(),
       this.gridSize,
       objectPosition,
       this.objectStore,

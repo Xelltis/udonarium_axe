@@ -84,7 +84,7 @@ export class GameTableGridFaces {
   readonly activeWalls = computed<readonly ActiveWall[]>(() => {
     const state = this.wallState();
     const table = this.watchTable();
-    const walls = [] as ActiveWall[];
+    const walls: ActiveWall[] = [];
     for (const side of WALL_SIDES) {
       const image = this.wallImages[side.surface]();
       if (!side.shown(table) || !image.url) continue;
