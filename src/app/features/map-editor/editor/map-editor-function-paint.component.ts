@@ -91,6 +91,20 @@ const MOVE_COST_ROAD = -1;
  * The settings of the brush that paints what a cell does: which role it paints, and how the wall,
  * the water, the cost of crossing, the mask or the trigger it lays down is set up.
  */
+/** A setting of the terrain brush that is either on or off. */
+type TerrainFlag =
+  'blocksSight' | 'blocksLight' | 'blocksClimb' | 'tiledTexture' | 'showsGrid' | 'dropShadow' | 'surfaceShading';
+
+const TERRAIN_FLAGS: readonly { key: TerrainFlag; labelKey: string }[] = [
+  { key: 'blocksSight', labelKey: 'feature.mapEditor.function.terrainBlocksSight' },
+  { key: 'blocksLight', labelKey: 'feature.mapEditor.function.terrainBlocksLight' },
+  { key: 'blocksClimb', labelKey: 'feature.mapEditor.function.terrainBlocksClimb' },
+  { key: 'tiledTexture', labelKey: 'feature.mapEditor.function.terrainTiled' },
+  { key: 'showsGrid', labelKey: 'feature.mapEditor.function.terrainGrid' },
+  { key: 'dropShadow', labelKey: 'feature.mapEditor.function.terrainShadow' },
+  { key: 'surfaceShading', labelKey: 'feature.mapEditor.function.terrainShading' },
+];
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'map-editor-function-paint',
@@ -125,6 +139,13 @@ export class MapEditorFunctionPaintComponent {
   protected setTerrainPaint(patch: Partial<TerrainPaintSpec>): void {
     const spec = this.state.functionSpec();
     this.state.setFunctionSpec({ ...spec, terrain: { ...spec.terrain, ...patch } });
+  }
+
+  /** The yes-or-no settings of the terrain brush, in the order their checkboxes stand. */
+  protected readonly terrainFlags = TERRAIN_FLAGS;
+
+  protected setTerrainFlag(key: TerrainFlag, on: boolean): void {
+    this.setTerrainPaint({ [key]: on });
   }
 
   protected readonly triggerRepeats = TRIGGER_REPEATS;
