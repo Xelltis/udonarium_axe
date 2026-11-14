@@ -82,6 +82,7 @@ test.describe('Dungeondry Master mode', () => {
     await panel.getByRole('button', { name: /両断/ }).first().click();
     await closePanels(page);
     await target.dispatchEvent('click');
+    await view.getByTestId('first-person-cast').click();
 
     const effects = view.getByTestId('first-person-effects');
     await expect(effects.locator('[data-effect-sprite]').first()).toBeAttached({ timeout: 5000 });

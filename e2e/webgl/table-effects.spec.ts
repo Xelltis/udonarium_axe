@@ -26,7 +26,7 @@ test.describe('map effects', () => {
     await openEffectLibrary(page);
   });
 
-  test('starts picking targets when an effect is chosen, and plays it in the table’s scene once a piece is picked', async ({
+  test('starts picking targets when an effect is chosen, and plays it in the table’s scene once it is cast at the piece picked', async ({
     page,
   }) => {
     const panel = page.locator('effect-library-panel');
@@ -38,9 +38,14 @@ test.describe('map effects', () => {
     await expect(page.getByText(/コマをクリックで順に選択/).first()).toBeVisible({ timeout: 5000 });
     expect(await effectsDrawn(page)).toBe(0);
 
-    // With a single target, it fires as soon as one piece is picked.
     // Sent straight to the piece's grab element: the host has no size, so a click would not land on it.
     await page.locator('game-character [appmovable]').first().dispatchEvent('mousedown', { button: 0, buttons: 1 });
+
+    // Picking the one target it takes casts nothing; the button casts it.
+    const fire = panel.getByTestId('effect-library-fire');
+    await expect(fire).toBeEnabled({ timeout: 5000 });
+    expect(await effectsDrawn(page)).toBe(0);
+    await fire.click();
 
     await expect.poll(() => effectsDrawn(page), { timeout: 5000 }).toBeGreaterThan(0);
     // Nothing of it is laid over the table: the table's scene draws it all.

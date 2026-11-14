@@ -26,7 +26,9 @@ async function castOn(page: Page, preset: string) {
   await expect(page.getByText(/コマをクリックで順に選択/).first()).toBeVisible();
   await page.locator('game-character [appmovable]').first().dispatchEvent('mousedown', { button: 0, buttons: 1 });
   await settle(page);
+  // Picking casts nothing: the cast is the Enter, a step of the clock after the pick.
   await page.keyboard.press('Enter');
+  await settle(page);
 }
 
 for (const [preset, name, at] of [
