@@ -245,7 +245,7 @@ export async function useHexGrid(page: Page) {
   await closeModal(page);
 }
 
-export async function holdAnimationsAt(page: Page, ms: number) {
+async function holdAnimationsAt(page: Page, ms: number) {
   await page.evaluate((at) => {
     for (const animation of document.getAnimations()) {
       const endTime = animation.effect?.getComputedTiming().endTime;

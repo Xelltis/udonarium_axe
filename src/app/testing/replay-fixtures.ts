@@ -22,7 +22,7 @@ import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/rep
  * The format the long recording is written in: the one before parts were folded into their piece,
  * so the old way of telling them is what gets measured and read.
  */
-export const LONG_REPLAY_FORMAT_VERSION = 2;
+const LONG_REPLAY_FORMAT_VERSION = 2;
 
 /** How big a made-up session is, and how it is spread over its hours. */
 export interface LongReplayFixtureOptions {

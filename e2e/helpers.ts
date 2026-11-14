@@ -12,10 +12,6 @@ declare global {
 }
 
 /**
- * Waits for start-up to finish. ChatWindowComponent and PeerMenuComponent open on their own, so the
- * bootstrap can be taken as done once the textarea of chat-input shows.
- */
-/**
  * Turns off blurring what lies behind an element, where the page is drawn by WebKit.
  *
  * The WebKit that Playwright 1.64 brings (27.2 on Linux) stops drawing frames while some small
@@ -613,7 +609,7 @@ export async function createCardStack(page: Page): Promise<void> {
  * Chooses the speaking character of novel mode. ng-select puts its panel of choices in a CDK
  * overlay right under body, which a locator scoped to visual-novel-overlay cannot reach.
  */
-export async function openVnSpeakerList(page: Page): Promise<Locator> {
+async function openVnSpeakerList(page: Page): Promise<Locator> {
   await page.locator('visual-novel-overlay [data-testid="vn-speaker"]').click();
   const panel = page.locator('.ng-dropdown-panel');
   await expect(panel).toBeVisible({ timeout: 5000 });

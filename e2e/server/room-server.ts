@@ -56,7 +56,7 @@ interface WranglerConfig {
 }
 
 /** Reads JSON with comments and trailing commas, as a wrangler.jsonc holds, leaving strings alone. */
-export function parseJsonc(text: string): unknown {
+function parseJsonc(text: string): unknown {
   return JSON.parse(dropTrailingCommas(dropComments(text)));
 }
 
