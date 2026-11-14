@@ -1,9 +1,10 @@
 import { LightConfig } from '@axe/domain/tabletop/vision-types';
 
 /** A piece whose sight can be set, and which knows how to tell the room it changed. */
-export type VisionBulkMember = LightConfig & { update(): void };
+export type VisionBulkMember = LightConfig & { update(): void; readonly identifier?: string };
 
-export type VisionBulkTarget = LightConfig & { update(): void };
+/** Several pieces answered for as one, with the identifiers of those that have one, to follow them by. */
+export type VisionBulkTarget = LightConfig & { update(): void; readonly identifiers: readonly string[] };
 
 /**
  * The fields settled by `applyVisionShape`, which writes several of them for one choice.
@@ -41,6 +42,9 @@ export function bulkVisionTarget(members: readonly VisionBulkMember[]): VisionBu
       for (const member of members) member.update();
     },
   } as VisionBulkTarget;
+  Object.defineProperty(target, 'identifiers', {
+    value: members.flatMap((member) => (typeof member.identifier === 'string' ? [member.identifier] : [])),
+  });
 
   for (const field of VISION_FIELDS) {
     Object.defineProperty(target, field, {

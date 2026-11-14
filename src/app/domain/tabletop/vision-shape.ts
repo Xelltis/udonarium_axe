@@ -86,9 +86,9 @@ export function facingBearing(rotateDeg: number, offsetDeg = 0): number {
 
 /**
  * Sets a piece's vision shape and, for every shape but custom, resets its cone settings to that
- * shape's defaults.
+ * shape's defaults. The target need not have held the fields before.
  */
-export function applyVisionShape(target: MutableVisionFields, shape: VisionShape): void {
+export function applyVisionShape(target: Partial<MutableVisionFields>, shape: VisionShape): void {
   target.visionShape = shape;
   if (shape === VisionShape.CUSTOM) return;
   const def = VISION_SHAPE_DEFAULTS[shape];
