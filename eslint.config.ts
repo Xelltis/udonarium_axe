@@ -107,10 +107,13 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
 
 /* Angular builds the services, components, directives and pipes, so they take the app's singletons
    through inject() (bridged in composition/class-provider.ts) rather than reading them off the class.
-   The synced singletons are left out on purpose: their `instance` answers for whichever object stands
-   in the room at the time, which an injected copy would not follow. Network is left out as well: it is
-   reached mostly through its statics (`Network.peerId`, `Network.transport`), which an injected copy
-   does not carry, so its `instance` is read beside them. */
+   The two IndexedDB stores bridged there are not listed: they are provided under the abstract
+   `RoomSnapshotStore` and `ReplayLogStore`, and nothing built by Angular reads their own `instance`.
+   The synced singletons (SYNCED_SINGLETONS below) are left out on purpose: their `instance` answers
+   for whichever object stands in the room at the time, which an injected copy would not follow, so
+   inject() of one is reported instead. Network is left out as well: it is reached mostly through its
+   statics (`Network.peerId`, `Network.transport`), which an injected copy does not carry, so its
+   `instance` is read beside them. */
 const PROCESS_SINGLETONS = [
   'AssetHttpStore',
   'AudioSharingSystem',
@@ -355,9 +358,7 @@ export default defineConfig([
       },
     },
   },
-  /* Relative imports are allowed under the e2e/ directory (e2e has no path aliases set up, and the
-     Playwright config refers to a tsconfig of its own, so there is no need to keep it apart from
-     src). */
+  /* Relative imports are allowed under the e2e/ directory: e2e has no path aliases set up. */
   {
     files: ['e2e/**/*.ts'],
     rules: {
