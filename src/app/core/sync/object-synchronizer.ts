@@ -4,6 +4,7 @@ import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
 import { AuthorityEvent, CATALOG_BATCH } from '@axe/core/network/server/server-protocol';
+import { CatalogDigest, digestOf, isCatalogDigest, sameDigest } from '@axe/core/sync/catalog-digest';
 import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { markForChanged } from '@axe/core/sync/object-event-extension';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
@@ -22,6 +23,7 @@ const OBJECT_SYNC_EVENTS: ReadonlySet<string> = new Set([
   'SYNCHRONIZE_GAME_OBJECT',
   'REQUEST_GAME_OBJECT',
   'REQUEST_CATALOG',
+  'CATALOG_DIGEST',
   'FORGET_DELETED_OBJECTS',
   AuthorityEvent.AUTHORITATIVE,
   AuthorityEvent.WITHDRAW,
@@ -32,6 +34,46 @@ const GIVEN_UP_LOG_INTERVAL_MS = 10_000;
 
 /** How often one batch of a catalogue goes out. */
 export const CATALOG_TICK_MS = 16;
+
+/** How often this seat sends the peers it is connected to a digest of its catalogue. */
+export const RECONCILE_INTERVAL_MS = 25_000;
+
+/**
+ * How long the objects must have been left alone before digests are compared. A change still on
+ * its way to one of two peers makes their digests differ for a moment, which is not a difference
+ * to trade catalogues over.
+ */
+export const RECONCILE_QUIET_MS = 3_000;
+
+/** How many digests in a row from a peer must differ from this seat's before it is sent the catalogue. */
+export const RECONCILE_DIFFERENCES = 2;
+
+/**
+ * How long the same difference with a peer is left alone once the catalogue has gone out over it,
+ * so that two peers who cannot agree, as over an object one of them cannot make, do not trade
+ * catalogues at every digest.
+ */
+export const SAME_DIFFERENCE_RETRY_MS = 5 * 60_000;
+
+/** How long after the first peer connects a seat with nothing to ask for counts as synced. */
+export const FIRST_SYNC_GRACE_MS = 5_000;
+
+/** The least time between two catalogues sent to everybody on having synced. */
+export const SETTLED_CATALOG_MIN_INTERVAL_MS = 10_000;
+
+/** The least time between asking one peer for its catalogue again over requests it left unanswered, at first. */
+export const CATALOG_REASK_MIN_MS = 60_000;
+
+/** The most that time grows to, doubling each time the peer is asked again. */
+export const CATALOG_REASK_MAX_MS = 8 * 60_000;
+
+/** Where this seat stands with a peer whose digest differs from its own. */
+interface PeerDifference {
+  /** How many digests in a row have differed. */
+  seen: number;
+  /** The difference the catalogue last went out over, and when. */
+  traded: { mine: CatalogDigest; theirs: CatalogDigest; at: number } | null;
+}
 
 export class ObjectSynchronizer {
   private static _instance: ObjectSynchronizer;
@@ -53,6 +95,18 @@ export class ObjectSynchronizer {
   private tasks: SynchronizeTask[] = [];
   private cleanups: (() => void)[] = [];
   private readonly givenUpLog = new LogThrottle(GIVEN_UP_LOG_INTERVAL_MS);
+  /** When an object was last changed or deleted, here or by a peer. */
+  private lastChangeAt = Number.NEGATIVE_INFINITY;
+  private readonly differences = new Map<PeerId, PeerDifference>();
+  /** Whether anything has been asked for since the catalogue last went out to everybody. */
+  private fetchedSinceSettled = false;
+  /** Whether the catalogue has gone out to everybody since the network opened. */
+  private settledOnce = false;
+  private firstSyncTimer: ReturnType<typeof setTimeout> | null = null;
+  private settledSendTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastSettledSendAt = Number.NEGATIVE_INFINITY;
+  /** When each peer was last asked for its catalogue again, and how long to leave it before the next. */
+  private readonly reasked = new Map<PeerId, { at: number; waitMs: number }>();
 
   private constructor() {}
 
@@ -61,9 +115,16 @@ export class ObjectSynchronizer {
    *
    * Calling it again replaces the earlier subscription. Each newly connected peer is sent the
    * catalog of this device. While the network is isolated, sync messages are ignored.
+   *
+   * Between peers, with no room server, the catalog is not left at that one exchange. It goes out
+   * to every peer again once this seat has taken in what it asked for, a digest of it goes to
+   * every peer at intervals, and a peer whose digest keeps differing is sent the catalog.
    */
   initialize() {
     this.destroy();
+
+    const reconciling = setInterval(() => this.sendDigests(), RECONCILE_INTERVAL_MS);
+    this.cleanups.push(() => clearInterval(reconciling));
 
     this.cleanups.push(
       networkMessage$.subscribe((msg) => {
@@ -71,14 +132,25 @@ export class ObjectSynchronizer {
         switch (msg.eventName) {
           case 'OPEN_NETWORK':
             this.askedOfServer.clear();
+            this.forgetReconciling();
             break;
           case 'CONNECT_PEER': {
             const peerId = (msg as NetworkMessage<{ peerId: string }>).data.peerId;
-            if (msg.isSendFromSelf && tradesCatalogWith(peerId)) this.sendCatalog(peerId);
+            if (msg.isSendFromSelf && tradesCatalogWith(peerId)) {
+              this.sendCatalog(peerId);
+              this.awaitFirstSync();
+            }
             break;
           }
-          case 'DISCONNECT_PEER':
-            this.removePeerMap((msg as NetworkMessage<{ peerId: string }>).data.peerId);
+          case 'DISCONNECT_PEER': {
+            const peerId = (msg as NetworkMessage<{ peerId: string }>).data.peerId;
+            this.differences.delete(peerId);
+            this.reasked.delete(peerId);
+            this.removePeerMap(peerId);
+            break;
+          }
+          case 'CATALOG_DIGEST':
+            if (!msg.isSendFromSelf) this.answerDigest(msg.data, msg.sendFrom);
             break;
           case 'REQUEST_CATALOG':
             if (!msg.isSendFromSelf) this.sendCatalog(msg.sendFrom);
@@ -90,12 +162,14 @@ export class ObjectSynchronizer {
             if (!msg.isSendFromSelf) this.answerRequest(msg.data as string, msg.sendFrom);
             break;
           case 'UPDATE_GAME_OBJECT':
+            this.lastChangeAt = performance.now();
             this.takeUpdate(msg as NetworkMessage<ObjectContext>);
             break;
           case 'FORGET_DELETED_OBJECTS':
             if (!msg.isSendFromSelf) this.forgetDeleted(msg.data as { identifiers?: ObjectIdentifier[] });
             break;
           case 'DELETE_GAME_OBJECT':
+            this.lastChangeAt = performance.now();
             if (!msg.isSendFromSelf) this.takeDeletion((msg.data as { identifier: string }).identifier);
             break;
           case AuthorityEvent.AUTHORITATIVE:
@@ -219,13 +293,140 @@ export class ObjectSynchronizer {
     withdraw(object);
   }
 
-  /** Stops handling sync messages and cancels catalogs still being sent out. */
+  /** Stops handling sync messages and cancels catalogs still being sent out, or due to be. */
   destroy() {
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
     for (const sender of this.catalogSenders) clearInterval(sender);
     this.catalogSenders.clear();
     this.askedOfServer.clear();
+    this.forgetReconciling();
+  }
+
+  /** Starts over on what is kept for reconciling with peers, as when another network opens. */
+  private forgetReconciling(): void {
+    if (this.firstSyncTimer !== null) clearTimeout(this.firstSyncTimer);
+    if (this.settledSendTimer !== null) clearTimeout(this.settledSendTimer);
+    this.firstSyncTimer = this.settledSendTimer = null;
+    this.differences.clear();
+    this.reasked.clear();
+    this.fetchedSinceSettled = false;
+    this.settledOnce = false;
+    this.lastSettledSendAt = Number.NEGATIVE_INFINITY;
+  }
+
+  /** Whether peers reconcile catalogues among themselves: not through a room server, nor while isolated. */
+  private get reconciles(): boolean {
+    return Network.authorityPeerId == null && !isNetworkIsolated();
+  }
+
+  /** Whether this seat's catalogue is in the middle of changing, so that its digest says little. */
+  private get isUnsettled(): boolean {
+    if (0 < this.requestMap.size || 0 < this.tasks.length || 0 < this.catalogSenders.size) return true;
+    return performance.now() - this.lastChangeAt < RECONCILE_QUIET_MS;
+  }
+
+  /**
+   * Sends every connected peer a digest of this seat's catalogue, unless the catalogue is changing
+   * just now. Nothing is waited for in return: a peer that does not know the message ignores it,
+   * and one that does speaks up only if its own digest keeps differing.
+   */
+  private sendDigests(): void {
+    if (!this.reconciles) return;
+    const peerIds = syncPeerIds();
+    if (peerIds.length < 1 || this.isUnsettled) return;
+    const digest = digestOf(ObjectStore.instance.getCatalog());
+    for (const peerId of peerIds) networkSend('CATALOG_DIGEST', digest, peerId);
+  }
+
+  /**
+   * Compares a peer's digest with this seat's, and sends the peer the catalogue once enough of its
+   * digests in a row have differed. The peer does the same on this seat's digests, so each ends
+   * up asking the other for what it lacks, as on connecting. The same difference is not answered
+   * again for a while.
+   */
+  private answerDigest(data: unknown, sendFrom: PeerId): void {
+    if (!this.reconciles || !isCatalogDigest(data) || !connectedPeerIds().has(sendFrom)) return;
+    if (this.isUnsettled) return;
+    const mine = digestOf(ObjectStore.instance.getCatalog());
+    if (sameDigest(mine, data)) {
+      this.differences.delete(sendFrom);
+      return;
+    }
+    const difference = this.differences.get(sendFrom) ?? { seen: 0, traded: null };
+    this.differences.set(sendFrom, difference);
+    difference.seen++;
+    if (difference.seen < RECONCILE_DIFFERENCES) return;
+
+    const now = performance.now();
+    const traded = difference.traded;
+    const isSameDifference = traded !== null && sameDigest(traded.mine, mine) && sameDigest(traded.theirs, data);
+    if (isSameDifference && now - traded.at < SAME_DIFFERENCE_RETRY_MS) return;
+    difference.traded = { mine, theirs: { count: data.count, hash: data.hash }, at: now };
+    Logger.info(`[ObjectSync] カタログの要約が食い違うためカタログを送ります: ${sendFrom}`);
+    this.sendCatalog(sendFrom);
+  }
+
+  /** Counts a seat that has had nothing to ask for a while after its first peer connected as synced. */
+  private awaitFirstSync(): void {
+    if (!this.reconciles || this.settledOnce || this.firstSyncTimer !== null) return;
+    this.firstSyncTimer = setTimeout(() => {
+      this.firstSyncTimer = null;
+      if (this.settledOnce || 0 < this.requestMap.size || 0 < this.tasks.length) return;
+      this.offerCatalogToAll();
+    }, FIRST_SYNC_GRACE_MS);
+  }
+
+  /** Sends the catalogue to everybody once what was asked for has all come in, or been given up. */
+  private noteSettled(): void {
+    if (!this.fetchedSinceSettled || 0 < this.requestMap.size || 0 < this.tasks.length) return;
+    this.fetchedSinceSettled = false;
+    this.offerCatalogToAll();
+  }
+
+  /**
+   * Sends this seat's catalogue to every connected peer, for those that connected while this seat
+   * had little to list: a peer is otherwise sent the catalogue once, on connecting. Held to one
+   * round in a while, the last of a run going out when that has passed.
+   */
+  private offerCatalogToAll(): void {
+    if (!this.reconciles) return;
+    this.settledOnce = true;
+    if (this.settledSendTimer !== null) return;
+    const wait = this.lastSettledSendAt + SETTLED_CATALOG_MIN_INTERVAL_MS - performance.now();
+    if (0 < wait) {
+      this.settledSendTimer = setTimeout(() => {
+        this.settledSendTimer = null;
+        this.offerCatalogToAll();
+      }, wait);
+      return;
+    }
+    this.lastSettledSendAt = performance.now();
+    for (const peerId of syncPeerIds()) this.sendCatalog(peerId);
+  }
+
+  /**
+   * Asks the peers that hold what a task gave up on for their catalogues again, so that it is
+   * asked for afresh instead of forgotten. A peer is asked at most once in a while, a longer
+   * while each time.
+   */
+  private askCatalogAgain(taskPeerId: PeerId, givenUp: readonly SynchronizeRequest[]): void {
+    if (givenUp.length < 1 || !this.reconciles) return;
+    const reachable = connectedPeerIds();
+    const holders = new Set<PeerId>();
+    for (const request of givenUp) {
+      for (const holderId of [taskPeerId, ...request.holderIds]) {
+        if (reachable.has(holderId)) holders.add(holderId);
+      }
+    }
+    const now = performance.now();
+    for (const holderId of holders) {
+      const asked = this.reasked.get(holderId);
+      if (asked && now - asked.at < asked.waitMs) continue;
+      const waitMs = asked ? Math.min(asked.waitMs * 2, CATALOG_REASK_MAX_MS) : CATALOG_REASK_MIN_MS;
+      this.reasked.set(holderId, { at: now, waitMs });
+      networkSend('REQUEST_CATALOG', {}, holderId);
+    }
   }
 
   /**
@@ -350,6 +551,7 @@ export class ObjectSynchronizer {
     }
     const task = SynchronizeTask.create(targetPeerId, requests);
     this.tasks.push(task);
+    this.fetchedSinceSettled = true;
 
     const targetPeerIdTasks = this.peerMap.get(targetPeerId);
     if (targetPeerIdTasks) targetPeerIdTasks.push(task);
@@ -359,11 +561,13 @@ export class ObjectSynchronizer {
       const targetPeerIdTasks = this.peerMap.get(targetPeerId);
       if (targetPeerIdTasks) removeTask(targetPeerIdTasks, task);
       this.synchronize();
+      this.noteSettled();
     };
 
     task.ontimeout = (_task, remainedRequests, givenUpRequests) => {
       Logger.warn('[ObjectSync] 同期タイムアウト');
       this.reportGivenUp(targetPeerId, givenUpRequests);
+      this.askCatalogAgain(targetPeerId, givenUpRequests);
       const reachable = connectedPeerIds();
       for (const request of remainedRequests) {
         request.holderIds = request.holderIds.filter((holderId) => reachable.has(holderId));
