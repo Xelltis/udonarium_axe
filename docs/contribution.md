@@ -201,6 +201,9 @@ E2Eは載せていない。PlaywrightはCIだと5ブラウザぶん走る設定�
   生成される`src/app/domain/dice/bcdice/bcdice-importers.generated.ts`の一覧から読み込む。システムは継承の系統ごとに
   約300KBずつ`groups/`のチャンクにまとめ、翻訳はその手前の別チャンクに分ける（ビルドを1,000ファイル未満に保つため）。
   新しいシステムが一覧に無いと、そのシステムを選んでもDiceBotで振られる
+- **キャラクターシートの取り込み先のシステムを足したときと、取り込み元のサイトが入力欄を変えたときは**、スクリプトの先頭の一覧を直して
+  `node scripts/generate-charasheet-label-maps.mjs`（キャラクター保管所）か`node scripts/generate-appspot-label-maps.mjs`（キャラクターシート倉庫）を
+  リポジトリのルートで実行する。各サイトの入力ページを読んで`src/app/domain/character/import/`の`*-label-maps.generated.ts`を書き直すので、差分を確かめてコミットする
 
 ## 依存の脆弱性（`npm audit`）
 
