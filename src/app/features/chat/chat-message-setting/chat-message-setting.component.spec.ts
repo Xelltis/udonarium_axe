@@ -116,6 +116,18 @@ describe('ChatMessageSettingComponent', () => {
     expect(root().querySelector('input[name="simpleDispFlagUserId"]')).not.toBeNull();
   });
 
+  it('draws keeping portraits outside as closed from the first drawing while they are drawn inside', async () => {
+    ChatTabList.instance.isPortraitInWindow = true;
+    const late = TestBed.createComponent(ChatMessageSettingComponent);
+    late.detectChanges();
+    await late.whenStable();
+
+    const kept = (late.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      'input[name="isKeepPortraitOutWindow"]'
+    )!;
+    expect(kept.hasAttribute('disabled')).toBe(true);
+  });
+
   it('sets the height of the portraits from its box, held to the smallest allowed', async () => {
     await fixture.whenStable();
     const height = root().querySelector<HTMLInputElement>('input[name="portraitHeight"]')!;

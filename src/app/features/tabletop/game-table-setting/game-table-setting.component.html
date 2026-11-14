@@ -79,7 +79,7 @@
             name="table-name"
             [(ngModel)]="tableName"
             [placeholder]="'feature.tabletop.tableSetting.tableNamePlaceholder' | transloco"
-            [attr.disabled]="!isEditable ? '' : null"
+            [disabled]="!isEditable"
           />
           <label class="text-ui-muted self-start pt-1.5 text-[11px]">{{
             'feature.tabletop.tableSetting.cutIns' | transloco
@@ -110,7 +110,7 @@
               [(ngModel)]="tableBgmChoice"
               name="tableBgmChoice"
               data-testid="table-bgm"
-              [attr.disabled]="!isEditable ? '' : null"
+              [disabled]="!isEditable"
             >
               <option [ngValue]="''">{{ 'feature.tabletop.tableSetting.tableBgmKeep' | transloco }}</option>
               <option [ngValue]="'stop'">{{ 'feature.tabletop.tableSetting.tableBgmStop' | transloco }}</option>
@@ -167,7 +167,7 @@
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableDistanceviewFilter"
             name="tableDistanceviewFilter"
-            [attr.disabled]="!isEditable ? '' : null"
+            [disabled]="!isEditable"
           >
             <option value="">{{ 'feature.tabletop.tableSetting.bgFilterNone' | transloco }}</option>
             <option value="white">{{ 'feature.tabletop.tableSetting.bgFilterWhite' | transloco }}</option>
@@ -212,7 +212,7 @@
                   data-testid="table-foreground-opacity"
                   [ngModel]="tableForegroundOpacity"
                   (ngModelChange)="tableForegroundOpacity = $event"
-                  [attr.disabled]="!isEditable ? '' : null"
+                  [disabled]="!isEditable"
                 />
                 <span class="text-ui-muted w-9 text-right tabular-nums">{{ tableForegroundOpacity }}%</span>
               </label>
@@ -225,7 +225,7 @@
                   data-testid="table-foreground-fit"
                   [ngModel]="tableForegroundFit"
                   (ngModelChange)="tableForegroundFit = $event"
-                  [attr.disabled]="!isEditable ? '' : null"
+                  [disabled]="!isEditable"
                 >
                   @for (fit of foregroundFits; track fit) {
                     <option [ngValue]="fit">
@@ -363,7 +363,7 @@
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableGridType"
             name="tableGridType"
-            [attr.disabled]="!isEditable ? '' : null"
+            [disabled]="!isEditable"
           >
             <option value="-1">{{ 'feature.tabletop.tableSetting.gridTypeNone' | transloco }}</option>
             <option value="0">{{ 'feature.tabletop.tableSetting.gridTypeSquare' | transloco }}</option>
@@ -381,7 +381,7 @@
               [(ngModel)]="tableSquareSpan"
               name="tableSquareSpan"
               data-testid="table-square-span"
-              [attr.disabled]="!isEditable ? '' : null"
+              [disabled]="!isEditable"
             >
               @for (span of squareSpans; track span) {
                 <option [ngValue]="span">
@@ -408,7 +408,7 @@
                 [(ngModel)]="tableGridColor"
                 name="tableGridColor"
                 list="table-grid-color-list"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
             </div>
             <div class="flex items-center gap-1.25">
@@ -421,7 +421,7 @@
                 [(ngModel)]="tableGridFontColor"
                 name="tableGridFontColor"
                 list="table-grid-color-list"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
             </div>
           </div>
@@ -441,7 +441,7 @@
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableSnapMode"
             name="tableSnapMode"
-            [attr.disabled]="!isEditable ? '' : null"
+            [disabled]="!isEditable"
           >
             <option value="off">{{ 'feature.tabletop.tableSetting.snapOff' | transloco }}</option>
             <option value="center">{{ 'feature.tabletop.tableSetting.snapCenter' | transloco }}</option>
@@ -490,7 +490,7 @@
               [(ngModel)]="tableMagneticAnomaly"
               name="tableMagneticAnomaly"
               data-testid="table-magnetic-anomaly"
-              [attr.disabled]="!isEditable ? '' : null"
+              [disabled]="!isEditable"
             />
             {{ 'feature.tabletop.tableSetting.magneticAnomaly' | transloco }}
           </label>
@@ -524,7 +524,7 @@
                 class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
                 [(ngModel)]="tableLightSnapToGrid"
                 name="tableLightSnapToGrid"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
               {{ 'feature.tabletop.tableSetting.lightSnapToGrid' | transloco }}
             </label>
@@ -540,7 +540,7 @@
                 class="w-full cursor-pointer [accent-color:var(--ui-accent)]"
                 [(ngModel)]="tableDarknessLevelPercent"
                 name="tableDarknessLevelPercent"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
               <span class="text-ui-muted text-right text-[11px]">{{ tableDarknessLevelPercent }}%</span>
 
@@ -554,7 +554,7 @@
                 class="w-full cursor-pointer [accent-color:var(--ui-accent)]"
                 [(ngModel)]="tableGlobalIlluminationPercent"
                 name="tableGlobalIlluminationPercent"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
               <span class="text-ui-muted text-right text-[11px]">{{ tableGlobalIlluminationPercent }}%</span>
 
@@ -566,7 +566,7 @@
                 class="rounded-ui-sm border-ui-border-panel col-span-2 h-6.5 w-12 cursor-pointer border border-solid bg-transparent px-0.5 py-px disabled:cursor-not-allowed disabled:opacity-50"
                 [(ngModel)]="tableAmbientColor"
                 name="tableAmbientColor"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
             </div>
 
@@ -603,7 +603,7 @@
               class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
               [(ngModel)]="tableFogEnabled"
               name="tableFogEnabled"
-              [attr.disabled]="!isEditable ? '' : null"
+              [disabled]="!isEditable"
             />
             {{ 'feature.tabletop.tableSetting.fogEnabled' | transloco }}
           </label>
@@ -615,7 +615,7 @@
                 class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 [(ngModel)]="tableFogMode"
                 name="tableFogMode"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               >
                 @for (mode of fogModes; track mode) {
                   <option [value]="mode">{{ fogModeLabel(mode) }}</option>
@@ -630,7 +630,7 @@
                 class="rounded-ui-sm border-ui-border-panel col-span-2 h-6.5 w-12 cursor-pointer border border-solid bg-transparent px-0.5 py-px disabled:cursor-not-allowed disabled:opacity-50"
                 [(ngModel)]="tableFogColor"
                 name="tableFogColor"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
             </div>
             <p class="text-ui-muted m-0 text-[11px]">
@@ -661,7 +661,7 @@
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableWeatherKind"
             name="tableWeatherKind"
-            [attr.disabled]="!isEditable ? '' : null"
+            [disabled]="!isEditable"
           >
             <option value="">{{ 'feature.tabletop.tableSetting.weatherNone' | transloco }}</option>
             @for (kind of weatherKinds; track kind) {
@@ -675,7 +675,7 @@
             [(ngModel)]="tableSkyKind"
             name="tableSkyKind"
             data-testid="table-sky-kind"
-            [attr.disabled]="!isEditable ? '' : null"
+            [disabled]="!isEditable"
           >
             @for (kind of skyKinds; track kind) {
               <option [value]="kind">{{ 'feature.tabletop.tableSetting.skyKind_' + kind | transloco }}</option>
@@ -694,7 +694,7 @@
               class="w-full cursor-pointer [accent-color:var(--ui-accent)]"
               [(ngModel)]="tableWeatherDensityPercent"
               name="tableWeatherDensityPercent"
-              [attr.disabled]="!isEditable ? '' : null"
+              [disabled]="!isEditable"
             />
             <span class="text-ui-muted text-right text-[11px]">{{ tableWeatherDensityPercent }}%</span>
 
@@ -704,7 +704,7 @@
               class="rounded-ui-sm border-ui-border-panel h-6.5 w-12 cursor-pointer border border-solid bg-transparent px-0.5 py-px disabled:cursor-not-allowed disabled:opacity-50"
               [(ngModel)]="tableWeatherColor"
               name="tableWeatherColor"
-              [attr.disabled]="!isEditable ? '' : null"
+              [disabled]="!isEditable"
             />
             <button
               type="button"

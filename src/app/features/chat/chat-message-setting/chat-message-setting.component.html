@@ -123,7 +123,7 @@
         type="checkbox"
         [(ngModel)]="chatTabList.isKeepPortraitOutWindow"
         name="isKeepPortraitOutWindow"
-        [attr.disabled]="chatTabList.isPortraitInWindow ? '' : null"
+        [disabled]="chatTabList.isPortraitInWindow"
       />
     </label>
   </section>
@@ -142,7 +142,7 @@
         name="systemAvatarVisible"
         [ngModel]="systemAvatarVisible()"
         (ngModelChange)="setSystemAvatarVisible($event)"
-        [attr.disabled]="canEditRoom() ? null : ''"
+        [disabled]="!canEditRoom()"
       />
     </label>
     <label class="flex cursor-pointer items-center justify-between gap-2 py-1">
@@ -152,7 +152,7 @@
         name="speakerAvatarVisible"
         [ngModel]="speakerAvatarVisible()"
         (ngModelChange)="setSpeakerAvatarVisible($event)"
-        [attr.disabled]="canEditRoom() ? null : ''"
+        [disabled]="!canEditRoom()"
       />
     </label>
     <p class="text-ui-dim m-0 mb-1 text-[11px]">{{ 'feature.chat.systemAvatar.showSpeakerHint' | transloco }}</p>
@@ -244,7 +244,7 @@
         [(ngModel)]="chatTabList.simpleDispFlagTime"
         name="simpleDispFlagTime"
         (click)="redrawChat()"
-        [attr.disabled]="chatTab?.chatSimpleDispFlag ? null : ''"
+        [disabled]="!chatTab?.chatSimpleDispFlag"
       />
     </label>
     <label class="flex cursor-pointer items-center justify-between gap-2 py-1">
@@ -254,7 +254,7 @@
         [(ngModel)]="chatTabList.simpleDispFlagUserId"
         name="simpleDispFlagUserId"
         (click)="redrawChat()"
-        [attr.disabled]="chatTab?.chatSimpleDispFlag ? null : ''"
+        [disabled]="!chatTab?.chatSimpleDispFlag"
       />
     </label>
   </section>

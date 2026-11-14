@@ -88,4 +88,15 @@ describe('UiRangeNumberFieldComponent', () => {
 
     expect(field('width-range').hasAttribute('disabled')).toBe(false);
   });
+
+  it('draws both fields disabled when it starts out disabled', async () => {
+    const late = TestBed.createComponent(HostComponent);
+    late.componentInstance.disabled.set(true);
+    late.detectChanges();
+    await late.whenStable();
+    late.detectChanges();
+
+    const fields = [...(late.nativeElement as HTMLElement).querySelectorAll<HTMLInputElement>('input')];
+    expect(fields.map((each) => each.hasAttribute('disabled'))).toEqual([true, true]);
+  });
 });

@@ -82,7 +82,7 @@
               name="tab-name"
               [(ngModel)]="tabName"
               [placeholder]="'feature.chat.tabSetting.tabNamePlaceholder' | transloco"
-              [attr.disabled]="!isEditable || !isRenamable ? '' : null"
+              [disabled]="!isEditable || !isRenamable"
             />
             <button
               type="button"

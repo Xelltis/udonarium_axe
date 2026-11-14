@@ -73,7 +73,7 @@
           [ngModel]="tableName()"
           (ngModelChange)="setTableName($event)"
           [placeholder]="'feature.dice.tableSetting.tableTitlePlaceholder' | transloco"
-          [attr.disabled]="!isWritable ? '' : null"
+          [disabled]="!isWritable"
         />
       </div>
 
@@ -88,7 +88,7 @@
             [ngModel]="tableDice()"
             (ngModelChange)="setTableDice($event)"
             [placeholder]="'feature.dice.tableSetting.dicePlaceholder' | transloco"
-            [attr.disabled]="!isWritable ? '' : null"
+            [disabled]="!isWritable"
           />
         </div>
         <div class="mb-1 flex min-w-0 flex-1 flex-col gap-1.25">
@@ -101,7 +101,7 @@
             [ngModel]="tableCommand()"
             (ngModelChange)="setTableCommand($event)"
             [placeholder]="'feature.dice.tableSetting.commandPlaceholder' | transloco"
-            [attr.disabled]="!isWritable ? '' : null"
+            [disabled]="!isWritable"
           />
         </div>
       </div>

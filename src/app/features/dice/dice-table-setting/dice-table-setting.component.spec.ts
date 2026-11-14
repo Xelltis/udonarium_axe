@@ -104,6 +104,19 @@ describe('DiceTableSettingComponent', () => {
       expect(names).not.toContain('delete');
     });
 
+    it('draws the fields of a table as closed from the first drawing', async () => {
+      beSeat(PeerRole.Player);
+      component.createDiceTable();
+      beSeat(PeerRole.Guest);
+
+      await drawn();
+
+      const name = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+        'input[name="dice-table-name"]'
+      )!;
+      expect(name.hasAttribute('disabled')).toBe(true);
+    });
+
     it('draws both for a player', async () => {
       beSeat(PeerRole.Player);
       component.createDiceTable();

@@ -607,6 +607,19 @@ describe('GameTableSettingComponent', () => {
     for (const layer of table.backgroundLayers) layer.destroy();
   });
 
+  it('draws the fields of a table already deleted as closed from the first drawing', async () => {
+    const table = new GameTable();
+    table.initialize();
+    component.selectGameTable(table.identifier);
+    ObjectStore.instance.remove(table);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const named = (name: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(`[name="${name}"]`)!;
+    expect(named('table-name').hasAttribute('disabled')).toBe(true);
+  });
+
   describe('restoring a deleted table', () => {
     let table: GameTable;
 
