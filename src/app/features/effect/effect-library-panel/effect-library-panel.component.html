@@ -1,5 +1,8 @@
 <div class="text-ui-text bg-ui-elevated flex h-full flex-col overflow-hidden text-[13px]">
-  <div class="border-ui-border-panel bg-ui-panel shrink-0 border-b border-solid px-3 py-2">
+  <div
+    class="border-ui-border-panel bg-ui-panel shrink-0 border-b border-solid px-3 py-2"
+    data-testid="effect-library-filters"
+  >
     <div class="flex items-center gap-2">
       <div class="relative flex flex-1 items-center">
         <i class="material-icons text-ui-dim pointer-events-none absolute left-2 text-[16px]!">search</i>
@@ -108,49 +111,115 @@
     </div>
   </div>
 
-  @if (isPicking()) {
-    <div
-      class="border-ui-border-panel bg-ui-accent-bg text-ui-text shrink-0 border-b border-solid px-3 py-2 text-[12px]"
-    >
-      <div class="flex items-center gap-2">
-        <i class="material-icons text-ui-accent text-[16px]!">ads_click</i>
-        <span class="flex-1 truncate">
-          {{
-            'feature.effect.picking' | transloco: { name: pickingName(), count: pickedNames().length, max: pickLimit() }
-          }}
-        </span>
-        <button
-          class="bg-ui-accent rounded-ui-sm cursor-pointer border-none px-2 py-1 text-[12px] text-black disabled:cursor-default disabled:opacity-40"
-          type="button"
-          [disabled]="pickedNames().length < 1"
-          (click)="confirmTargets()"
-        >
-          {{ 'feature.effect.fire' | transloco }}
-        </button>
-        <button
-          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover rounded-ui-sm cursor-pointer border border-solid bg-transparent px-2 py-1 text-[12px]"
-          type="button"
-          (click)="cancelTargets()"
-        >
-          {{ 'feature.effect.cancelPicking' | transloco }}
-        </button>
+  <div
+    class="border-ui-border-panel shrink-0 border-b border-solid px-3 py-2 text-[12px]"
+    data-testid="effect-library-stance"
+    [attr.data-stance]="isPicking() ? 'aiming' : 'idle'"
+  >
+    <div class="flex h-22.5 gap-2">
+      <div
+        class="border-ui-border-panel h-22.5 w-32 shrink-0 overflow-hidden rounded-[3px] border border-solid"
+        data-testid="effect-library-preview"
+        aria-hidden="true"
+      ></div>
+      <div class="flex min-w-0 flex-1 flex-col">
+        <div class="flex h-7 shrink-0 items-center gap-1.5" data-testid="effect-library-stance-name">
+          @if (isPicking()) {
+            <i class="material-icons text-ui-accent shrink-0 text-[16px]!" aria-hidden="true">ads_click</i>
+            <span class="min-w-0 flex-1 truncate font-semibold" [title]="pickingName()">{{ pickingName() }}</span>
+            <span class="text-ui-muted shrink-0 tabular-nums" data-testid="effect-library-stance-count"
+              >{{ pickedNames().length }}/{{ pickLimit() }}</span
+            >
+          } @else {
+            <span class="text-ui-dim min-w-0 flex-1 truncate">{{ 'feature.effect.stanceEmpty' | transloco }}</span>
+          }
+        </div>
+        <div class="flex h-7 shrink-0 items-center gap-1.5" data-testid="effect-library-stance-caster">
+          <span class="text-ui-dim shrink-0">{{
+            (isPicking() ? 'feature.effect.casterLabel' : 'feature.effect.casterNextLabel') | transloco
+          }}</span>
+          @if (isChangingCaster()) {
+            <span class="text-ui-accent min-w-0 flex-1 truncate" data-testid="effect-library-caster-name">{{
+              'feature.effect.casterPressPiece' | transloco
+            }}</span>
+          } @else {
+            <span
+              class="min-w-0 flex-1 truncate"
+              [class.text-ui-dim]="!casterName()"
+              data-testid="effect-library-caster-name"
+              [title]="casterName()"
+              >{{ casterName() || ('feature.effect.none' | transloco) }}</span
+            >
+          }
+          @if (isPicking()) {
+            <button
+              class="border-ui-border-panel text-ui-muted hover:bg-ui-hover rounded-ui-sm h-6 shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 text-[11px] whitespace-nowrap"
+              [class.bg-ui-accent-bg!]="isChangingCaster()"
+              [class.text-ui-accent!]="isChangingCaster()"
+              type="button"
+              [attr.aria-pressed]="isChangingCaster()"
+              [title]="'feature.effect.changeCasterHint' | transloco"
+              data-testid="effect-library-change-caster"
+              (click)="toggleCasterChange()"
+            >
+              {{ 'feature.effect.changeCaster' | transloco }}
+            </button>
+            <button
+              class="border-ui-border-panel text-ui-muted hover:bg-ui-hover rounded-ui-sm h-6 shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 text-[11px] whitespace-nowrap disabled:cursor-default disabled:opacity-40"
+              type="button"
+              [disabled]="!hasCaster()"
+              [title]="'feature.effect.noCasterHint' | transloco"
+              data-testid="effect-library-no-caster"
+              (click)="clearCaster()"
+            >
+              {{ 'feature.effect.none' | transloco }}
+            </button>
+          }
+        </div>
+        <div class="flex h-8.5 shrink-0 items-center gap-1.5" data-testid="effect-library-stance-targets">
+          <span class="text-ui-dim shrink-0">{{ 'feature.effect.targetsLabel' | transloco }}</span>
+          <div
+            class="flex h-full min-w-0 flex-1 scrollbar-thin flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden"
+            data-testid="effect-library-target-chips"
+          >
+            @for (chip of targetChips(); track chip.identifier) {
+              <span
+                class="border-ui-border-panel shrink-0 rounded-full border border-solid px-2 text-[11px]/4.5 whitespace-nowrap"
+                data-testid="effect-library-target-chip"
+                >{{ chip.name }}</span
+              >
+            } @empty {
+              <span class="text-ui-dim shrink-0 whitespace-nowrap">{{ 'feature.effect.none' | transloco }}</span>
+            }
+          </div>
+        </div>
       </div>
-      <p class="text-ui-muted m-0 mt-1 text-[11px]">{{ 'feature.effect.pickingHint' | transloco }}</p>
     </div>
-  }
-
-  <div class="border-ui-border-panel text-ui-muted shrink-0 border-b border-solid px-3 py-1.5 text-[12px]">
-    @if (targetNames().length > 0) {
-      {{ 'feature.effect.targets' | transloco: { names: targetNames().join('、') } }}
-      @if (casterName()) {
-        <span class="ml-1">{{ 'feature.effect.caster' | transloco: { name: casterName() } }}</span>
-      }
-    } @else {
-      {{ 'feature.effect.noTarget' | transloco }}
-    }
+    <div class="mt-1.5 flex gap-2">
+      <button
+        class="bg-ui-accent rounded-ui-sm h-8 min-w-0 flex-1 cursor-pointer truncate border-none px-2 text-[12px] text-black disabled:cursor-default disabled:opacity-40 pointer-coarse:h-11"
+        type="button"
+        [disabled]="!canFire()"
+        [title]="'feature.effect.fireHint' | transloco"
+        data-testid="effect-library-fire"
+        (click)="confirmTargets()"
+      >
+        {{ 'feature.effect.fire' | transloco }}
+      </button>
+      <button
+        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover rounded-ui-sm h-8 shrink-0 cursor-pointer border border-solid bg-transparent px-4 text-[12px] whitespace-nowrap disabled:cursor-default disabled:opacity-40 pointer-coarse:h-11"
+        type="button"
+        [disabled]="!isPicking()"
+        [title]="'feature.effect.cancelHint' | transloco"
+        data-testid="effect-library-cancel"
+        (click)="cancelTargets()"
+      >
+        {{ 'feature.effect.cancelPicking' | transloco }}
+      </button>
+    </div>
   </div>
 
-  <div class="flex-1 overflow-y-auto">
+  <div class="min-h-0 flex-1 overflow-y-auto" data-testid="effect-library-list">
     @if (recent().length > 0 && !hasFilter()) {
       <div
         class="bg-ui-panel text-ui-muted border-ui-border-panel sticky top-0 z-1 border-b border-solid px-3 py-1 text-[11px] font-semibold tracking-wider"
@@ -194,12 +263,15 @@
         </div>
       }
     }
-  </div>
 
-  @if (fields().length > 0) {
-    <div class="border-ui-border-panel text-ui-muted shrink-0 border-t border-solid px-3 py-1.5 text-[12px]">
-      <div class="mb-1 text-[11px] font-semibold tracking-wider">{{ 'feature.effect.fields' | transloco }}</div>
-      <div class="flex flex-wrap gap-1">
+    @if (fields().length > 0) {
+      <div
+        class="bg-ui-panel text-ui-muted border-ui-border-panel sticky top-0 z-1 border-b border-solid px-3 py-1 text-[11px] font-semibold tracking-wider"
+        data-testid="effect-library-fields-heading"
+      >
+        {{ 'feature.effect.fields' | transloco }}
+      </div>
+      <div class="text-ui-muted flex flex-wrap gap-1 px-3 py-1.5" data-testid="effect-library-fields">
         @for (field of fields(); track field.identifier) {
           <span
             class="border-ui-border-panel inline-flex items-center gap-1 rounded-full border border-solid px-2 py-0.5 text-[11px]"
@@ -216,19 +288,17 @@
           </span>
         }
       </div>
-    </div>
-  }
+    }
+  </div>
 
-  @if (notice()) {
-    <div class="border-ui-border-panel text-ui-muted shrink-0 border-t border-solid px-3 py-1.5 text-[12px]">
-      {{ notice() }}
-    </div>
-  }
-  @if (lastFired()) {
-    <div class="border-ui-border-panel text-ui-muted shrink-0 border-t border-solid px-3 py-1.5 text-[12px]">
-      {{ 'feature.effect.fired' | transloco: { names: lastFired() } }}
-    </div>
-  }
+  <div
+    class="border-ui-border-panel text-ui-muted h-7 shrink-0 truncate border-t border-solid px-3 text-xs/7"
+    data-testid="effect-library-notice"
+    role="status"
+    [title]="noticeLine()"
+  >
+    {{ noticeLine() }}
+  </div>
 </div>
 
 <ng-template #tile let-preset>
@@ -240,7 +310,7 @@
       type="button"
       [attr.aria-pressed]="isPickingPreset(preset)"
       [title]="preset.name + ' — ' + targetLabel(preset) + ' / ' + gradeLabel(preset.gradeLevel)"
-      (click)="fire(preset)"
+      (click)="choose(preset)"
       (contextmenu)="openPresetMenu(preset, $event)"
     >
       <span class="flex w-full items-center gap-1.5">
