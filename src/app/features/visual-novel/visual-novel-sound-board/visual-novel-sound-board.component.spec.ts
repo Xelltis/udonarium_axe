@@ -127,6 +127,39 @@ describe('VisualNovelSoundBoardComponent', () => {
     expect(board.isSoundEffectPlaying('se-1')).toBe(true);
   });
 
+  it('turns a sound effect back into a play button once it ends, with nobody asking it to look again', async () => {
+    ensureJukebox();
+    addAudio('se-ending', 'SE');
+    let listener: () => void = () => undefined;
+    vi.spyOn(SoundEffects, 'onChange').mockImplementation((told) => {
+      listener = told;
+      return () => undefined;
+    });
+    const playing = vi.spyOn(SoundEffects, 'isPlaying').mockReturnValue(true);
+    create();
+    await fixture.whenStable();
+    const icons = () => [...fixture.nativeElement.querySelectorAll('i.material-icons')].map((i) => i.textContent);
+    expect(icons()).toContain('stop_circle');
+
+    playing.mockReturnValue(false);
+    listener();
+    await fixture.whenStable();
+
+    expect(icons()).not.toContain('stop_circle');
+  });
+
+  it('shows the track the jukebox is playing as the room changes it', () => {
+    const jukebox = ensureJukebox();
+    create();
+    expect(board.playingBgmIdentifier()).toBe('');
+
+    jukebox.audioIdentifier = 'bgm-room';
+    jukebox.isPlaying = true;
+    TestBed.inject(ObjectChangeService).notifyChanged('Jukebox');
+
+    expect(board.playingBgmIdentifier()).toBe('bgm-room');
+  });
+
   it('offers the sounds the tool comes with, under their own names', () => {
     addPresetSound('barrier');
     addPresetSound('warp');

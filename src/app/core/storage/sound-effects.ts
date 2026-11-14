@@ -8,6 +8,20 @@ type SoundingEffect = { source: AudioBufferSourceNode; gain: GainNode };
 export class SoundEffects {
   private static readonly sources = new Map<string, Set<SoundingEffect>>();
   private static readonly pending = new Map<string, number>();
+  private static readonly listeners = new Set<() => void>();
+
+  /**
+   * Calls the listener whenever what `isPlaying` reports may have changed: a play asked for, one
+   * that has begun or ended, and a stop. Returns what stops the calls.
+   */
+  static onChange(listener: () => void): () => void {
+    SoundEffects.listeners.add(listener);
+    return () => SoundEffects.listeners.delete(listener);
+  }
+
+  private static noteChange(): void {
+    for (const listener of [...SoundEffects.listeners]) listener();
+  }
 
   /**
    * Plays the audio once at the given volume, which may be above 1, through the channel of its kind,
@@ -29,6 +43,7 @@ export class SoundEffects {
   static play(audio: AudioFile, level: number = 1): void {
     const identifier = audio.identifier;
     SoundEffects.pending.set(identifier, (SoundEffects.pending.get(identifier) ?? 0) + 1);
+    SoundEffects.noteChange();
     void SoundEffects.playSeBufferAsync(audio, identifier, level);
   }
 
@@ -51,12 +66,14 @@ export class SoundEffects {
       SoundEffects.sources.delete(identifier);
     }
     SoundEffects.pending.delete(identifier);
+    SoundEffects.noteChange();
   }
 
   /** Stops every sound effect started with `play`, with the same caveat as `stop` for plays still being decoded. */
   static stopAll(): void {
     for (const identifier of [...SoundEffects.sources.keys()]) SoundEffects.stop(identifier);
     SoundEffects.pending.clear();
+    SoundEffects.noteChange();
   }
 
   /**
@@ -92,7 +109,10 @@ export class SoundEffects {
     const remaining = (SoundEffects.pending.get(identifier) ?? 1) - 1;
     if (remaining > 0) SoundEffects.pending.set(identifier, remaining);
     else SoundEffects.pending.delete(identifier);
-    if (!source) return;
+    if (!source) {
+      SoundEffects.noteChange();
+      return;
+    }
 
     const gain = AudioOutput.context.createGain();
     gain.gain.setValueAtTime(level, AudioOutput.context.currentTime);
@@ -115,8 +135,10 @@ export class SoundEffects {
       source.buffer = null;
       set.delete(entry);
       if (set.size === 0) SoundEffects.sources.delete(identifier);
+      SoundEffects.noteChange();
     };
 
     source.start();
+    SoundEffects.noteChange();
   }
 }

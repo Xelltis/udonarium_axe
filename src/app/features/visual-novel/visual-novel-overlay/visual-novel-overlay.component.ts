@@ -3,11 +3,10 @@ import {
   Component,
   computed,
   DestroyRef,
-  effect,
   inject,
+  linkedSignal,
   signal,
-  untracked,
-  viewChild,
+  Type,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
@@ -26,7 +25,6 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
-import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -79,6 +77,7 @@ import {
   VN_DIRECTION_PANEL,
   VN_DISPLAY_PANEL,
   VN_EMOTE_PANEL,
+  VN_SHEET_PANEL,
 } from '@axe/features/visual-novel/visual-novel-panels';
 import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-novel-playback.service';
 import { VisualNovelSceneService } from '@axe/features/visual-novel/visual-novel-scene.service';
@@ -158,7 +157,6 @@ export class VisualNovelOverlayComponent {
   private readonly imageService = inject(ImageService);
   private readonly systemAvatar = inject(SystemAvatarService);
   private readonly systemAvatarMenu = inject(SystemAvatarMenuService);
-  private readonly audioStorage = inject(AudioStorage);
   private readonly paletteRegistry = inject(ChatPaletteRegistryService);
   private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
@@ -211,7 +209,6 @@ export class VisualNovelOverlayComponent {
    * A flag per kind would mean writing close-the-others every time, and one missed leaves two open.
    */
   private readonly openPopover = signal<VisualNovelPopover | null>(null);
-  private readonly soundBoard = viewChild(VisualNovelSoundBoardComponent);
   readonly isSkipping = this.playback.isSkipping;
 
   readonly selectedKind = this.emoteSelection.kind;
@@ -244,7 +241,20 @@ export class VisualNovelOverlayComponent {
     this.playback.setChatTab(identifier);
   }
 
-  private readonly _sendFrom = signal('');
+  /**
+   * Whoever was chosen to speak, kept while they still can: a character for as long as it is in the
+   * room, and the reader themselves for as long as they are a game master. Anybody else gives way
+   * to the first character that can be spoken as.
+   */
+  private readonly _sendFrom = linkedSignal<{ listed: GameCharacter[]; isGameMaster: boolean }, string>({
+    source: () => ({ listed: this.listedCharacters(), isGameMaster: this.isGameMaster() }),
+    computation: ({ listed, isGameMaster }, previous) => {
+      const current = previous?.value ?? '';
+      if (this.objectStore.get(current) instanceof GameCharacter) return current;
+      if (isGameMaster && current.length > 0 && current === PeerCursor.myCursor?.identifier) return current;
+      return listed[0]?.identifier ?? '';
+    },
+  });
   /**
    * The identifier of whoever the next line is sent as: a character, or the game master's own
    * cursor.
@@ -629,18 +639,22 @@ export class VisualNovelOverlayComponent {
    * The characters this seat may speak as. A piece on the table it cannot see is left out, as in
    * the chat; the one already chosen stays.
    */
-  readonly gameCharacters = computed(() => {
+  readonly gameCharacters = computed(() => this.speakableCharacters(this.sendFrom));
+
+  /** The characters this seat may speak as, whoever is chosen; the first is who speaks when nobody is. */
+  private readonly listedCharacters = computed(() => this.speakableCharacters(''));
+
+  private speakableCharacters(chosen: string): GameCharacter[] {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     const all = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const character of all) this.objectChange.versionOf(character.identifier)();
     const myPeerId = PeerCursor.myCursor?.peerId ?? '';
-    const chosen = this.sendFrom;
     return all.filter(
       (character) =>
         allowsChat(character, myPeerId) &&
         (character.identifier === chosen || (this.vision.mayBeListed(character) && !this.names.isKept(character)))
     );
-  });
+  }
 
   /**
    * Who a line can be sent as.
@@ -809,7 +823,6 @@ export class VisualNovelOverlayComponent {
   }
 
   constructor() {
-    this._sendFrom.set(this.gameCharacters()[0]?.identifier ?? '');
     this.playback.attach();
     this.destroyRef.onDestroy(() => this.playback.detach());
     // The windows are put up outside this screen, so leaving novel mode does not take them.
@@ -818,18 +831,6 @@ export class VisualNovelOverlayComponent {
     // last closed should not be waiting to be sent when it is opened again.
     this.destroyRef.onDestroy(() => this.emoteSelection.reset());
 
-    const seTimer = setInterval(() => {
-      if (this.isPopover('soundBoard')) this.soundBoard()?.refresh();
-    }, 500);
-    this.destroyRef.onDestroy(() => clearInterval(seTimer));
-
-    effect(() => {
-      const characters = this.gameCharacters();
-      const current = untracked(() => this._sendFrom());
-      const object = untracked(() => this.objectStore.get(current));
-      if (object instanceof GameCharacter) return;
-      this._sendFrom.set(characters[0]?.identifier ?? '');
-    });
     this.paletteRegistry.register(this.paletteHandle);
     this.destroyRef.onDestroy(() => this.paletteRegistry.unregister(this.paletteHandle));
   }
@@ -974,18 +975,9 @@ export class VisualNovelOverlayComponent {
 
   /** Opens the staging window above the button that was pressed, or closes it when it is open. */
   toggleEmote(event?: Event): void {
-    if (this.panelService.closeSingle(VN_EMOTE_PANEL)) return;
-    this.closePopovers();
-    const size = { width: 320, height: Math.min(440, Math.max(240, window.innerHeight - 220)) };
-    this.panelService.open<VisualNovelEmotePanelComponent>(VisualNovelEmotePanelComponent, {
-      title: this.t('feature.visualNovel.emote.title'),
-      ...this.spotFor(event, size),
-      ...size,
-      minWidth: 260,
-      minHeight: 180,
-      layer: Z_VISUAL_NOVEL_PANEL_ABOVE,
-      single: VN_EMOTE_PANEL,
-      minimizeToContent: true,
+    this.toggleVnPanel(VN_EMOTE_PANEL, VisualNovelEmotePanelComponent, 'feature.visualNovel.emote.title', event, {
+      height: 440,
+      clearance: 220,
     });
   }
 
@@ -993,19 +985,13 @@ export class VisualNovelOverlayComponent {
 
   /** Opens the direction window above the button that was pressed, or closes it when it is open. */
   toggleDirection(event?: Event): void {
-    if (this.panelService.closeSingle(VN_DIRECTION_PANEL)) return;
-    this.closePopovers();
-    const size = { width: 320, height: Math.min(420, Math.max(240, window.innerHeight - 220)) };
-    this.panelService.open<VisualNovelDirectionPanelComponent>(VisualNovelDirectionPanelComponent, {
-      title: this.t('feature.visualNovel.direction.title'),
-      ...this.spotFor(event, size),
-      ...size,
-      minWidth: 260,
-      minHeight: 180,
-      layer: Z_VISUAL_NOVEL_PANEL_ABOVE,
-      single: VN_DIRECTION_PANEL,
-      minimizeToContent: true,
-    });
+    this.toggleVnPanel(
+      VN_DIRECTION_PANEL,
+      VisualNovelDirectionPanelComponent,
+      'feature.visualNovel.direction.title',
+      event,
+      { height: 420, clearance: 220 }
+    );
   }
 
   /** Whichever tab is being read, in a window of its own, to be watched beside the stage. */
@@ -1025,17 +1011,41 @@ export class VisualNovelOverlayComponent {
    * open.
    */
   toggleDisplaySettings(event?: Event): void {
-    if (this.panelService.closeSingle(VN_DISPLAY_PANEL)) return;
+    this.toggleVnPanel(
+      VN_DISPLAY_PANEL,
+      VisualNovelDisplayPanelComponent,
+      'feature.visualNovel.settings.title',
+      event,
+      {
+        height: 520,
+        clearance: 160,
+      }
+    );
+  }
+
+  /**
+   * Opens one of the small windows of the bar above the button that was pressed, or closes it when
+   * it is open: as tall as asked, less where the screen is short, the clearance being what is left
+   * for the bar and the line under it.
+   */
+  private toggleVnPanel(
+    name: string,
+    component: Type<unknown>,
+    titleKey: string,
+    event: Event | undefined,
+    fit: { height: number; clearance: number }
+  ): void {
+    if (this.panelService.closeSingle(name)) return;
     this.closePopovers();
-    const size = { width: 320, height: Math.min(520, Math.max(240, window.innerHeight - 160)) };
-    this.panelService.open<VisualNovelDisplayPanelComponent>(VisualNovelDisplayPanelComponent, {
-      title: this.t('feature.visualNovel.settings.title'),
+    const size = { width: 320, height: Math.min(fit.height, Math.max(240, window.innerHeight - fit.clearance)) };
+    this.panelService.open(component, {
+      title: this.t(titleKey),
       ...this.spotFor(event, size),
       ...size,
       minWidth: 260,
       minHeight: 180,
       layer: Z_VISUAL_NOVEL_PANEL_ABOVE,
-      single: VN_DISPLAY_PANEL,
+      single: name,
       minimizeToContent: true,
     });
   }
@@ -1075,22 +1085,15 @@ export class VisualNovelOverlayComponent {
     },
   };
 
-  private sheetPanelService: PanelService | null = null;
-  readonly sheetOpen = signal(false);
+  /** Whether the speaker's character sheet is open over novel mode. */
+  readonly sheetOpen = computed(() => this.panelService.hasSingle(VN_SHEET_PANEL));
 
   /**
    * Opens the speaker's character sheet in a window over novel mode, or closes it when it is open;
    * does nothing when the speaker is not a character.
    */
   toggleCharacterSheet(): void {
-    if (this.sheetPanelService?.isShow) {
-      this.sheetPanelService.close();
-      this.sheetPanelService = null;
-      this.sheetOpen.set(false);
-      return;
-    }
-    this.sheetPanelService = null;
-    this.sheetOpen.set(false);
+    if (this.panelService.closeSingle(VN_SHEET_PANEL)) return;
     const object = this.objectStore.get(this._sendFrom());
     if (!(object instanceof GameCharacter)) return;
     this.closePopovers();
@@ -1102,11 +1105,10 @@ export class VisualNovelOverlayComponent {
       width: 800,
       height: Math.min(600, Math.max(360, window.innerHeight - 320)),
       layer: Z_VISUAL_NOVEL_PANEL,
+      single: VN_SHEET_PANEL,
     };
     const component = this.panelService.open<GameCharacterSheetComponent>(GameCharacterSheetComponent, option);
     component.tabletopObject = object;
-    this.sheetPanelService = (component as unknown as { panelService: PanelService }).panelService;
-    this.sheetOpen.set(true);
   }
 
   /** Opens or closes the balloon listing the speaker's chat palette. */

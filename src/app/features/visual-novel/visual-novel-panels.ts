@@ -12,6 +12,12 @@ export const VN_EMOTE_PANEL = 'vn-emote';
 export const VN_DISPLAY_PANEL = 'vn-display';
 export const VN_DIRECTION_PANEL = 'vn-direction';
 
+/**
+ * The speaker's character sheet, opened from novel mode. It is a window of the table as much as of
+ * novel mode, so it is not among those shut when novel mode is left.
+ */
+export const VN_SHEET_PANEL = 'vn-sheet';
+
 export const VISUAL_NOVEL_PANELS: readonly string[] = [
   VN_BACKLOG_PANEL,
   VN_EMOTE_PANEL,
