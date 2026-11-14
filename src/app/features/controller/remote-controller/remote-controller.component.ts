@@ -35,6 +35,7 @@ import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { BattleTake } from '@axe/domain/battle/battle-take';
+import { writeElementField } from '@axe/domain/character/alias-mate-follow';
 import { BUFF_COLORS, resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { ControllerResourcePick, controllerShowsResource } from '@axe/domain/character/controller-resource-pick';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -102,6 +103,9 @@ const SLOT_LABEL_KEYS: Record<ResourceSlot, string> = {
   ],
 })
 export class RemoteControllerComponent {
+  /** Writes a value typed into a field of a piece, and carries it to the items sharing an alias with it. */
+  protected readonly writeField = writeElementField;
+
   protected readonly isCompact = inject(ViewportService).isCompact;
   readonly chatMessageService = inject(ChatMessageService);
   private readonly characterMacro = inject(CharacterMacroService);

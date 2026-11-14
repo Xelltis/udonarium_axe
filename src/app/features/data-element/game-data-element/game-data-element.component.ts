@@ -27,8 +27,10 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { debounce } from '@axe/core/util/debounce';
+import { writeElementField } from '@axe/domain/character/alias-mate-follow';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
 import { owningCharacterOf } from '@axe/domain/character/owning-character';
 import { ResourceSliderRange, resourceSliderRange } from '@axe/domain/character/resource-slider';
@@ -1166,8 +1168,10 @@ export class GameDataElementComponent {
         element.name = nextName;
       }
     }
-    if (element.currentValue !== this.currentValue) element.currentValue = this.currentValue;
-    if (element.value !== this.value) element.value = this.value;
+    GameObject.batch(() => {
+      if (element.currentValue !== this.currentValue) writeElementField(element, 'currentValue', this.currentValue);
+      if (element.value !== this.value) writeElementField(element, 'value', this.value);
+    });
   }
 
   private isDuplicateElementName(name: string, element: DataElement): boolean {

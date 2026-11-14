@@ -14,6 +14,7 @@ import {
   DataElementType,
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
+import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { IN_DATA_ELEMENT_SHEET } from '@axe/features/data-element/game-data-element/data-element-sheet-host';
@@ -486,6 +487,40 @@ describe('GameDataElementComponent', () => {
       component.addElement();
 
       expect(group.children.map((child) => child.name)).toEqual(['タグ', 'タグ 2']);
+    });
+
+    it('gives a value typed on the sheet to the items sharing an alias with it, in the same write', () => {
+      vi.useFakeTimers();
+      try {
+        const detail = DataElement.create('detail', '');
+        const [first, second] = ['基本', '戦闘'].map((name, at) => {
+          const group = DataElement.create(name, '', { role: DataElementRole.SECTION });
+          const speed = DataElement.create('行動値', 20, {
+            type: DataElementType.NUMBER_RESOURCE,
+            currentValue: at === 0 ? 10 : 12,
+          });
+          detail.appendChild(group);
+          group.appendChild(speed);
+          return speed;
+        });
+        DataSummarySetting.instance.aliases = [{ name: '行動値', candidates: ['基本/行動値', '戦闘/行動値'] }];
+        fixture.componentRef.setInput('gameDataElement', first);
+        fixture.detectChanges();
+
+        component.currentValue = 15;
+        vi.advanceTimersByTime(70);
+
+        expect(first.currentValue).toBe(15);
+        expect(second.currentValue).toBe(15);
+        expect(second.value).toBe(20);
+
+        component.value = 30;
+        vi.advanceTimersByTime(70);
+
+        expect(second.value).toBe(30);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('refuses to rename a tag onto one already taken', () => {

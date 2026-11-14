@@ -4,6 +4,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 type ObjectIdentifier = string;
@@ -109,7 +110,7 @@ export class ObjectInventory {
           tag === this.newLineString
             ? this.newLineDataElement
             : object.rootDataElement
-              ? DataElement.findElementByReference(object.rootDataElement, tag)
+              ? findReferencedElement(object.rootDataElement, tag)
               : null
         );
         this._dataElementMap.set(object.identifier, elements);

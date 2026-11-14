@@ -1,5 +1,8 @@
+import { GameObject } from '@axe/core/sync/game-object';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
+import type { ElementAliasTable } from '@axe/domain/data/element-alias';
+import { findReferencedElements } from '@axe/domain/data/element-reference';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 
 type SlotType = 'value' | 'currentValue' | 'maxBase' | 'maxCorrection' | 'minBase' | 'minCorrection';
@@ -45,10 +48,50 @@ function numberHeldIn(raw: number | string): number | null {
   return Number.isFinite(number) ? number : null;
 }
 
+/** Where on an item a slot of its value is kept, or null when the item has no such slot. */
+function storageOf(data: DataElement, slot: ResourceSlot): SlotType | null {
+  if (data.type === DataElementType.NUMBER_RESOURCE) return STORAGE_OF_SLOT[slot];
+  if (data.type === DataElementType.TEXT) return slot === 'now' ? 'value' : null;
+  return null;
+}
+
+/**
+ * Resource fields have a 3-layer constraint built from the effective min/max
+ * (= base + correction) configured on the element:
+ *   currentValue ∈ [effectiveMin, value (currentMax)]
+ *   value (currentMax) ∈ [effectiveMin, effectiveMax]
+ * `null` from getters means unbounded on that side, as is a current maximum that is empty or not
+ * a number. A resource set to go over its maximum has no upper bound on its current value.
+ */
+export function heldWithinBounds(data: DataElement, type: 'value' | 'currentValue', input: number): number {
+  if (!Number.isFinite(input)) return input;
+  let result = input;
+  const effectiveMin = data.effectiveMin;
+  if (effectiveMin != null) result = Math.max(effectiveMin, result);
+  let upper: number | null = null;
+  if (type === 'currentValue') {
+    const currentMax = numberHeldIn(data.value);
+    if (currentMax != null && !allowsOverResource(data)) upper = currentMax;
+  } else {
+    upper = data.effectiveMax;
+  }
+  if (upper != null) result = Math.min(upper, result);
+  return result;
+}
+
+/**
+ * Reads and writes a piece's sheet by the names chat commands and the room's rules use.
+ *
+ * A name is looked up with the room's aliases counted. It is read from the first item an alias
+ * stands for on this sheet, and a value written under it goes to every one of them: the first is
+ * written, and the others are given what the first came to hold, each within its own bounds.
+ */
 export class StatusAccessor {
   constructor(
     private readonly detailDataElement: DataElement | null,
-    private readonly characterName: () => string
+    private readonly characterName: () => string,
+    /** The aliases a name is looked up with; the room's own where none are handed in. */
+    private readonly aliases?: () => ElementAliasTable
   ) {}
 
   /**
@@ -78,10 +121,7 @@ export class StatusAccessor {
    */
   getType(name: string, nowOrMax: ResourceSlot): string | null {
     const data = this.findData(name);
-    if (!data) return null;
-    if (data.type === DataElementType.NUMBER_RESOURCE) return STORAGE_OF_SLOT[nowOrMax];
-    if (data.type === DataElementType.TEXT) return nowOrMax === 'now' ? 'value' : null;
-    return null;
+    return data ? storageOf(data, nowOrMax) : null;
   }
 
   /**
@@ -101,8 +141,11 @@ export class StatusAccessor {
    */
   getValue(name: string, nowOrMax: ResourceSlot): number | null {
     const data = this.findData(name);
-    if (!data) return null;
-    const type = this.getType(name, nowOrMax) as SlotType | null;
+    return data ? StatusAccessor.readSlot(data, nowOrMax) : null;
+  }
+
+  private static readSlot(data: DataElement, slot: ResourceSlot): number | null {
+    const type = storageOf(data, slot);
     if (type == null) return null;
     if (type === 'value') return integerHeldIn(data.value);
     if (type === 'currentValue') return integerHeldIn(data.currentValue);
@@ -122,12 +165,25 @@ export class StatusAccessor {
    * back inside the new bounds. A correction of 0 is removed rather than stored.
    */
   setValue(name: string, nowOrMax: ResourceSlot, setValue: number): boolean {
-    const data = this.findData(name);
-    if (!data) return false;
-    const type = this.getType(name, nowOrMax) as SlotType | null;
+    const [first, ...mates] = this.findAll(name);
+    if (!first) return false;
+    return GameObject.batch(() => {
+      if (!StatusAccessor.writeSlot(first, nowOrMax, setValue)) return false;
+      const storage = storageOf(first, nowOrMax);
+      const settled =
+        storage === 'value' || storage === 'currentValue'
+          ? (StatusAccessor.readSlot(first, nowOrMax) ?? setValue)
+          : setValue;
+      for (const mate of mates) StatusAccessor.writeSlot(mate, nowOrMax, settled);
+      return true;
+    });
+  }
+
+  private static writeSlot(data: DataElement, slot: ResourceSlot, setValue: number): boolean {
+    const type = storageOf(data, slot);
     if (type == null) return false;
     if (type === 'value' || type === 'currentValue') {
-      const clamped = StatusAccessor.clampToBounds(data, type, setValue);
+      const clamped = heldWithinBounds(data, type, setValue);
       if (type === 'value') {
         data.value = clamped;
       } else {
@@ -157,39 +213,15 @@ export class StatusAccessor {
     // Re-clamp value (currentMax) / currentValue to the new effective bounds.
     const heldValue = numberHeldIn(data.value);
     if (heldValue != null) {
-      const reclampedValue = StatusAccessor.clampToBounds(data, 'value', heldValue);
+      const reclampedValue = heldWithinBounds(data, 'value', heldValue);
       if (reclampedValue !== heldValue) data.value = reclampedValue;
     }
     const heldCurrent = numberHeldIn(data.currentValue);
     if (heldCurrent != null) {
-      const reclampedCurrent = StatusAccessor.clampToBounds(data, 'currentValue', heldCurrent);
+      const reclampedCurrent = heldWithinBounds(data, 'currentValue', heldCurrent);
       if (reclampedCurrent !== heldCurrent) data.currentValue = reclampedCurrent;
     }
     return true;
-  }
-
-  /**
-   * Resource fields have a 3-layer constraint built from the effective min/max
-   * (= base + correction) configured on the element:
-   *   currentValue ∈ [effectiveMin, value (currentMax)]
-   *   value (currentMax) ∈ [effectiveMin, effectiveMax]
-   * `null` from getters means unbounded on that side, as is a current maximum that is empty or not
-   * a number. A resource set to go over its maximum has no upper bound on its current value.
-   */
-  private static clampToBounds(data: DataElement, type: 'value' | 'currentValue', input: number): number {
-    if (!Number.isFinite(input)) return input;
-    let result = input;
-    const effectiveMin = data.effectiveMin;
-    if (effectiveMin != null) result = Math.max(effectiveMin, result);
-    let upper: number | null = null;
-    if (type === 'currentValue') {
-      const currentMax = numberHeldIn(data.value);
-      if (currentMax != null && !allowsOverResource(data)) upper = currentMax;
-    } else {
-      upper = data.effectiveMax;
-    }
-    if (upper != null) result = Math.min(upper, result);
-    return result;
   }
 
   /**
@@ -197,15 +229,14 @@ export class StatusAccessor {
    * there is no such item.
    */
   setText(name: string, text: string): boolean {
-    const data = this.findData(name);
-    if (!data) return false;
-    const type = this.getTextType(name);
-    if (type == null) return false;
-    if (type === 'value') {
-      data.value = text;
-    } else {
-      data.currentValue = text;
-    }
+    const targets = this.findAll(name);
+    if (targets.length < 1) return false;
+    GameObject.batch(() => {
+      for (const data of targets) {
+        if (data.type === DataElementType.NUMBER_RESOURCE) data.currentValue = text;
+        else data.value = text;
+      }
+    });
     return true;
   }
 
@@ -246,6 +277,11 @@ export class StatusAccessor {
   }
 
   private findData(reference: string): DataElement | null {
-    return this.detailDataElement ? DataElement.findElementByReference(this.detailDataElement, reference) : null;
+    return this.findAll(reference)[0] ?? null;
+  }
+
+  private findAll(reference: string): DataElement[] {
+    if (!this.detailDataElement) return [];
+    return findReferencedElements(this.detailDataElement, reference, this.aliases?.());
   }
 }

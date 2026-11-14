@@ -35,6 +35,7 @@ import { Network } from '@axe/core/network/network';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { turnCache } from '@axe/core/util/turn-cache';
+import { writeElementField } from '@axe/domain/character/alias-mate-follow';
 import { BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { gaugeRatio } from '@axe/domain/character/piece-gauge';
@@ -135,6 +136,9 @@ const MULTI_MOVE_TABS: readonly { tab: string; labelKey: string }[] = [
   providers: [InventoryFilterService, InventoryViewPreferenceService],
 })
 export class GameObjectInventoryComponent {
+  /** Writes a value typed into a field of a piece, and carries it to the items sharing an alias with it. */
+  protected readonly writeField = writeElementField;
+
   /**
    * A resource field's value read as a number for the gauge's custom properties, 0 for anything that
    * is not a number. A value is anything a peer sends, so it never reaches a style string as it is.

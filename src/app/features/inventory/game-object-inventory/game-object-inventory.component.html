@@ -580,7 +580,8 @@
                             name="table-current-value"
                             [style.color]="cell.element!.nowValueColor || null"
                             [title]="cell.element!.currentValue + ' / ' + cell.element!.value"
-                            [(ngModel)]="cell.element!.currentValue"
+                            [ngModel]="cell.element!.currentValue"
+                            (ngModelChange)="writeField(cell.element!, 'currentValue', $event)"
                             [readonly]="!canEdit()"
                             (click)="$event.stopPropagation()"
                           />
@@ -602,7 +603,8 @@
                           <input
                             class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent w-16 rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-center font-[inherit] text-[12px] outline-none"
                             name="table-value"
-                            [(ngModel)]="cell.element!.value"
+                            [ngModel]="cell.element!.value"
+                            (ngModelChange)="writeField(cell.element!, 'value', $event)"
                             [readonly]="!canEdit()"
                             (click)="$event.stopPropagation()"
                           />
@@ -636,7 +638,8 @@
               [style.color]="dataElm.nowValueColor || null"
               size="1"
               name="data-current-value"
-              [(ngModel)]="dataElm.currentValue"
+              [ngModel]="dataElm.currentValue"
+              (ngModelChange)="writeField(dataElm, 'currentValue', $event)"
             />
             @let max = resourceMax(dataElm);
             @if (max !== null) {
@@ -660,7 +663,8 @@
             min="0"
             [max]="dataElm.value"
             name="data-current-value"
-            [(ngModel)]="dataElm.currentValue"
+            [ngModel]="dataElm.currentValue"
+            (ngModelChange)="writeField(dataElm, 'currentValue', $event)"
             [style.--min]="0"
             [style.--max]="asNumber(dataElm.value)"
             [style.--val]="asNumber(dataElm.currentValue)"
@@ -689,7 +693,8 @@
                 class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent box-border min-w-[2em] flex-1 [appearance:textfield] rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-right font-[inherit] text-[13px] font-bold transition-[border-color] outline-none hover:[appearance:number-input] focus:[appearance:number-input]"
                 size="1"
                 name="data-value"
-                [(ngModel)]="dataElm.value"
+                [ngModel]="dataElm.value"
+                (ngModelChange)="writeField(dataElm, 'value', $event)"
               />
             }
           </span>

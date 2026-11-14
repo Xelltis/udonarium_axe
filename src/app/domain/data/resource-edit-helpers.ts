@@ -25,7 +25,7 @@ import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { plantStatusAilment, statusAilmentAsCommanded } from '@axe/domain/character/status-ailment-plant';
-import { DataElement } from '@axe/domain/data/data-element';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 import { findEmbeddedRolls, replaceEmbeddedRolls } from '@axe/domain/data/embedded-roll';
 import { resourceCommandParts } from '@axe/domain/data/resource-command-words';
 import { readNamedResourceSlot, type ResourceSlot, resourceSlotLabel } from '@axe/domain/data/resource-slot';
@@ -255,7 +255,7 @@ export function applyResourceEditReport(edit: ResourceEdit, character: GameChara
 
   // Snapshot effective bounds BEFORE applying so we can report shifts when corrections move them.
   const targetElement = character.detailDataElement
-    ? DataElement.findElementByReference(character.detailDataElement, edit.target)
+    ? findReferencedElement(character.detailDataElement, edit.target)
     : null;
   const oldEffectiveMax = targetElement?.effectiveMax ?? null;
   const oldEffectiveMin = targetElement?.effectiveMin ?? null;

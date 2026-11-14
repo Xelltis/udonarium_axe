@@ -2,6 +2,12 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { InnerXml } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import {
+  type ElementAliasTable,
+  NO_ELEMENT_ALIASES,
+  readElementAliases,
+  writeElementAliases,
+} from '@axe/domain/data/element-alias';
 import { splitSummaryTags } from '@axe/domain/data/summary-tag-list';
 
 export enum SortOrder {
@@ -98,6 +104,35 @@ export class DataSummarySetting extends GameObject implements InnerXml {
   @SyncVar() tableDataTag: string = '';
 
   @SyncVar() folderPaths: string[] = [];
+
+  /**
+   * The room's aliases for sheet items, written by `writeElementAliases`. Empty for a room that has
+   * named none, which is also how a room saved before there were aliases reads.
+   */
+  @SyncVar() elementAliases: string = '';
+
+  /**
+   * The aliases of the room as it stands, without making a setting where the room has none yet.
+   *
+   * Looking a reference up must not put anything into the room, so this only reads what is there.
+   */
+  static aliasesInRoom(): ElementAliasTable {
+    return ObjectStore.instance.get<DataSummarySetting>('DataSummarySetting')?.aliases ?? NO_ELEMENT_ALIASES;
+  }
+
+  private _elementAliases!: string;
+  private _aliases: ElementAliasTable | undefined;
+  /** The room's aliases for sheet items, read from `elementAliases` and cached. */
+  get aliases(): ElementAliasTable {
+    if (this._aliases === undefined || this._elementAliases !== this.elementAliases) {
+      this._elementAliases = this.elementAliases;
+      this._aliases = readElementAliases(this.elementAliases);
+    }
+    return this._aliases;
+  }
+  set aliases(aliases: ElementAliasTable) {
+    this.elementAliases = writeElementAliases(aliases);
+  }
 
   private _sortMore!: string;
   private _extraSortKeys!: readonly SortKey[];

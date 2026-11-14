@@ -532,7 +532,8 @@
                   [style.color]="dataElm.nowValueColor || null"
                   type="number"
                   name="data-current-value"
-                  [(ngModel)]="dataElm.currentValue"
+                  [ngModel]="dataElm.currentValue"
+                  (ngModelChange)="writeField(dataElm, 'currentValue', $event)"
                 />
                 <span
                   class="text-ui-dim self-end px-px pb-0.5 text-[12px]"
@@ -543,7 +544,8 @@
                   class="text-ui-text hover:border-b-ui-border-panel focus:border-b-ui-accent focus:bg-ui-input w-full min-w-0 [appearance:textfield] border-b border-none border-b-transparent bg-transparent px-0.5 py-px text-center font-[inherit] text-[13px] font-bold outline-none focus:appearance-auto"
                   type="number"
                   name="data-value"
-                  [(ngModel)]="dataElm.value"
+                  [ngModel]="dataElm.value"
+                  (ngModelChange)="writeField(dataElm, 'value', $event)"
                 />
               </div>
             </div>
@@ -580,7 +582,8 @@
               <input
                 class="text-ui-text hover:border-b-ui-border-panel focus:border-b-ui-accent focus:bg-ui-input w-full min-w-0 [appearance:textfield] border-b border-none border-b-transparent bg-transparent px-0.5 py-px text-center font-[inherit] text-[13px] font-bold outline-none focus:appearance-auto"
                 name="data-value"
-                [(ngModel)]="dataElm.value"
+                [ngModel]="dataElm.value"
+                (ngModelChange)="writeField(dataElm, 'value', $event)"
               />
             </div>
           }

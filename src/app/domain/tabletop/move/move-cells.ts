@@ -1,5 +1,6 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 import { convertMoveLength, isLengthUnit, MoveUnit, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 
 export const DEFAULT_MOVE_RANGE_ELEMENT_NAMES = '移動,移動力,Speed,速度';
@@ -32,7 +33,7 @@ export function sheetNumberOf(character: GameCharacter, names: string): number |
   const root = character.rootDataElement;
   if (!root) return null;
   for (const name of parseMoveRangeElementNames(names)) {
-    const element = DataElement.findElementByReference(root, name);
+    const element = findReferencedElement(root, name);
     const amount = element ? amountOf(element) : null;
     if (amount !== null) return amount;
   }
@@ -75,7 +76,7 @@ export function exactMoveCellsOf(
   if (!root) return null;
 
   for (const name of parseMoveRangeElementNames(names)) {
-    const element = DataElement.findElementByReference(root, name);
+    const element = findReferencedElement(root, name);
     if (!element) continue;
     const amount = amountOf(element);
     // A field that holds a dash where a number was meant is not an answer, so the next name

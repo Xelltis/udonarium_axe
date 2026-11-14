@@ -12,6 +12,7 @@ import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-tab
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { matchesSearchText, normalizeSearchText, splitSearchTerms } from '@axe/core/util/text-search';
+import { writeElementField } from '@axe/domain/character/alias-mate-follow';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { isOnTable, selectClaimableCharacters, selectOwnedCharacters } from '@axe/domain/character/owned-characters';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -31,6 +32,9 @@ import { TranslocoModule } from '@jsverse/transloco';
   imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
 })
 export class OwnedCharacterListPanelComponent {
+  /** Writes a value typed into a field of a piece, and carries it to the items sharing an alias with it. */
+  protected readonly writeField = writeElementField;
+
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly names = inject(PieceNameService);

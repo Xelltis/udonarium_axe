@@ -5,6 +5,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { DataElement } from '@axe/domain/data/data-element';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 import { isKeptFromAnyone } from '@axe/domain/disclosure/disclosure';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -116,9 +117,7 @@ export function shownChangeDetail(character: GameCharacter, report: string, name
   if (!report || !isKeptFromAnyone(character)) return report;
   const now = character.status.getValue(name, 'now');
   if (slot === 'now' && now !== null) {
-    const element = character.detailDataElement
-      ? DataElement.findElementByReference(character.detailDataElement, name)
-      : null;
+    const element = character.detailDataElement ? findReferencedElement(character.detailDataElement, name) : null;
     if (isResourceSpentAt(element, now, character.status.getValue(name, 'max'))) return report;
   }
   return `[${saidNameOf(character)}] `;

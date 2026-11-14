@@ -329,4 +329,56 @@ describe('StatusAccessor', () => {
       expect(accessor.getValue('HP', 'max')).toBe(250);
     });
   });
+
+  describe('a name the room made an alias of', () => {
+    let spare: DataElement;
+    let aliased: StatusAccessor;
+
+    beforeEach(() => {
+      spare = createNumberResource('体力', 180, 120);
+      detailDataElement.children[1].appendChild(spare);
+      aliased = new StatusAccessor(
+        detailDataElement,
+        () => 'テストキャラ',
+        () => [{ name: 'ライフ', candidates: ['HP', '体力', '器用度'] }]
+      );
+    });
+
+    it('is read from the first candidate on the sheet', () => {
+      expect(aliased.getValue('ライフ', 'now')).toBe(150);
+      expect(aliased.getValue('ライフ', 'max')).toBe(200);
+    });
+
+    it('moves every candidate to where the first came to, and reports the first', () => {
+      const report = aliased.changeValue('ライフ', 'now', 3);
+
+      expect(report).toBe('[テストキャラ 150>153] ');
+      expect(detailDataElement.getFirstElementByName('HP')?.currentValue).toBe(153);
+      expect(spare.currentValue).toBe(153);
+      expect(detailDataElement.getFirstElementByName('器用度')?.value).toBe(153);
+    });
+
+    it('holds each candidate under its own maximum', () => {
+      aliased.setValue('ライフ', 'now', 190);
+
+      expect(detailDataElement.getFirstElementByName('HP')?.currentValue).toBe(190);
+      expect(spare.currentValue).toBe(180);
+    });
+
+    it('gives the others what the first was held to, not what was asked for', () => {
+      aliased.setValue('ライフ', 'now', 500);
+
+      expect(detailDataElement.getFirstElementByName('HP')?.currentValue).toBe(200);
+      expect(spare.currentValue).toBe(180);
+      expect(detailDataElement.getFirstElementByName('器用度')?.value).toBe(200);
+    });
+
+    it('leaves a candidate with no maximum alone when the maximum is written', () => {
+      aliased.setValue('ライフ', 'max', 300);
+
+      expect(detailDataElement.getFirstElementByName('HP')?.value).toBe(300);
+      expect(spare.value).toBe(300);
+      expect(detailDataElement.getFirstElementByName('器用度')?.value).toBe(24);
+    });
+  });
 });

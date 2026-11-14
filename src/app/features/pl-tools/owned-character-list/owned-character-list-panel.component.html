@@ -111,7 +111,8 @@
                       type="number"
                       [style.color]="element.nowValueColor || null"
                       name="pl-resource-current"
-                      [(ngModel)]="element.currentValue"
+                      [ngModel]="element.currentValue"
+                      (ngModelChange)="writeField(element, 'currentValue', $event)"
                       (ngModelChange)="onResourceChanged(character)"
                     />
                     <span class="text-ui-dim shrink-0 text-[10px]">/ {{ element.value }}</span>
@@ -122,7 +123,8 @@
                     min="0"
                     [max]="resourceMax(element)"
                     name="pl-resource-range"
-                    [(ngModel)]="element.currentValue"
+                    [ngModel]="element.currentValue"
+                    (ngModelChange)="writeField(element, 'currentValue', $event)"
                     (ngModelChange)="onResourceChanged(character)"
                   />
                 </span>

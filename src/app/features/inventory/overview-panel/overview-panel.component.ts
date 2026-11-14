@@ -26,6 +26,7 @@ import { clampOr } from '@axe/core/util/clamp';
 import { turnCache } from '@axe/core/util/turn-cache';
 import { Card } from '@axe/domain/card/card'; //
 import { CardStack } from '@axe/domain/card/card-stack'; //
+import { writeElementField } from '@axe/domain/character/alias-mate-follow';
 import { GameCharacter } from '@axe/domain/character/game-character'; //
 import { ResourceSliderRange, resourceSliderRange } from '@axe/domain/character/resource-slider';
 import {
@@ -89,6 +90,9 @@ import { TranslocoModule } from '@jsverse/transloco';
   },
 })
 export class OverviewPanelComponent {
+  /** Writes a value typed into a field of a piece, and carries it to the items sharing an alias with it. */
+  protected readonly writeField = writeElementField;
+
   private readonly inventoryService = inject(GameObjectInventoryService);
   protected readonly names = inject(PieceNameService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
@@ -143,7 +147,7 @@ export class OverviewPanelComponent {
     next.delete(element.identifier);
     this.sliderPreview.set(next);
     if (!this.canEdit) return;
-    element.currentValue = (event.target as HTMLInputElement).valueAsNumber;
+    writeElementField(element, 'currentValue', (event.target as HTMLInputElement).valueAsNumber);
   }
 
   /**

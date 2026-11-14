@@ -14,7 +14,7 @@ import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { debounce } from '@axe/core/util/debounce';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { DataElement } from '@axe/domain/data/data-element';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -723,8 +723,7 @@ export class EngagementZoneService {
     const clear =
       clearName.length > 0 &&
       (shooter.buffs.find(clearName) !== null ||
-        (shooter.rootDataElement ? DataElement.findElementByReference(shooter.rootDataElement, clearName) : null) !==
-          null);
+        (shooter.rootDataElement ? findReferencedElement(shooter.rootDataElement, clearName) : null) !== null);
     return lineOfFire({
       shooter: fireOf(from),
       target: fireOf(to),

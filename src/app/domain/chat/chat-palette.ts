@@ -12,6 +12,7 @@ import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { isTargetNumberReference } from '@axe/domain/chat/target-number';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 import { resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import { looksLikeRollWord, rollableText, rollWordSite } from '@axe/domain/dice/dice-roll-line';
 
@@ -349,7 +350,7 @@ export function evaluateReferences(
       for (const variable of target?.chatPalette?.paletteVariables ?? []) {
         if (variable.name == name) return variable.value.replace(/[{｛]/g, 't{');
       }
-      const element = target?.rootDataElement ? DataElement.findElementByReference(target.rootDataElement, name) : null;
+      const element = target?.rootDataElement ? findReferencedElement(target.rootDataElement, name) : null;
       if (!element) return null;
       const targetElementText = evaluateElementText(element, useMax, formula);
       if (targetElementText == null) return null;
@@ -362,7 +363,7 @@ export function evaluateReferences(
     for (const variable of paletteVariables) {
       if (variable.name == name) return withAimedAtBonus(variable.value, name, useMax, formula);
     }
-    const element = extendVariables ? DataElement.findElementByReference(extendVariables, name) : null;
+    const element = extendVariables ? findReferencedElement(extendVariables, name) : null;
     return withAimedAtBonus(element ? evaluateElementText(element, useMax, formula) : null, name, useMax, formula);
   };
 

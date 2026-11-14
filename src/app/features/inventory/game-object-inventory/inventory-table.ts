@@ -1,6 +1,7 @@
 import { toSortableValue } from '@axe/application/inventory/game-object-inventory-helpers';
 import { findStatusAilment, StatusAilment } from '@axe/domain/character/status-ailment';
 import { DataElement, DataElementFieldType, DataElementType } from '@axe/domain/data/data-element';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export type InventoryCellKind = 'numberResource' | 'check' | 'calc' | 'value' | 'ailment' | 'none';
@@ -42,7 +43,7 @@ function orderNumbers(objects: readonly TabletopObject[], sortTag: string): numb
   return objects.map((object) => {
     if (tag.length < 1) return ++order;
     const root = object.rootDataElement;
-    const element = root ? DataElement.findElementByReference(root, tag) : null;
+    const element = root ? findReferencedElement(root, tag) : null;
     const value = element ? toSortableValue(element) : null;
     if (!started || value !== previous) order += 1;
     started = true;

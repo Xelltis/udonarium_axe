@@ -1344,6 +1344,32 @@ describe('GameObjectInventoryComponent', () => {
         expect(value.style.color).not.toBe('');
       });
 
+      it('shows an alias as a column, and sets every item behind it when the column is typed in', async () => {
+        const piece = putOnTable('二つ持ち');
+        const speeds = [10, 12].map((current, at) => {
+          const group = DataElement.create(at === 0 ? '基本' : '戦闘', '');
+          const speed = DataElement.create('行動値', 20, {
+            type: DataElementType.NUMBER_RESOURCE,
+            currentValue: current,
+          });
+          piece.detailDataElement!.appendChild(group);
+          group.appendChild(speed);
+          return speed;
+        });
+        DataSummarySetting.instance.aliases = [{ name: '行動値', candidates: ['基本/行動値', '戦闘/行動値'] }];
+        TestBed.inject(GameObjectInventoryService).tableDataTag = '行動値';
+        component.setViewMode('table');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const input = tableRows()[0].querySelector('input[name="table-current-value"]') as HTMLInputElement;
+        expect(input.value).toBe('10');
+        input.value = '15';
+        input.dispatchEvent(new Event('input'));
+
+        expect(speeds.map((speed) => Number(speed.currentValue))).toEqual([15, 15]);
+      });
+
       it('gives the heading and every row the same columns', () => {
         // The heading and the rows have to agree on where a column starts, which they cannot do
         // while each row is a grid of its own, sizing its columns to whatever it happens to hold.

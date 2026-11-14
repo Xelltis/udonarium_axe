@@ -8,6 +8,7 @@ import { buffIconUrlOf } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { StatusAilment } from '@axe/domain/character/status-ailment';
 import { DataElement } from '@axe/domain/data/data-element';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import type { InventoryRow } from '@axe/features/inventory/game-object-inventory/inventory-list';
 import {
@@ -91,6 +92,6 @@ export class InventoryTableView {
     const root = object.rootDataElement;
     if (!root) return tags.map(() => null);
     const newLine = this.inventoryService.newLineString;
-    return tags.map((tag) => (tag === newLine ? null : DataElement.findElementByReference(root, tag)));
+    return tags.map((tag) => (tag === newLine ? null : findReferencedElement(root, tag)));
   }
 }

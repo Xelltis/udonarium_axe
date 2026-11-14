@@ -10,9 +10,11 @@ import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { writeElementField } from '@axe/domain/character/alias-mate-follow';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { newStatusAilment } from '@axe/domain/character/status-ailment';
 import { DataElement } from '@axe/domain/data/data-element';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 import { cellCount, CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
@@ -232,7 +234,11 @@ export class TriggerFireService {
       const next = start - taken;
       // Given back rather than taken, a resource stops at the full it was written with, and one already
       // past it is not brought down.
-      held.currentValue = taken < 0 && Number.isFinite(most) ? Math.max(start, Math.min(most, next)) : next;
+      writeElementField(
+        held,
+        'currentValue',
+        taken < 0 && Number.isFinite(most) ? Math.max(start, Math.min(most, next)) : next
+      );
     }
     this.leave(trigger, piece);
     trigger.spend(piece.identifier, round);
@@ -515,7 +521,7 @@ export class TriggerFireService {
   private resourceOf(piece: GameCharacter, name: string): DataElement | null {
     const root = piece.rootDataElement;
     if (!root || name.length < 1) return null;
-    const held = DataElement.findElementByReference(root, name);
+    const held = findReferencedElement(root, name);
     return held && held.isNumberResource ? held : null;
   }
 }
