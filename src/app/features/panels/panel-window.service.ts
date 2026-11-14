@@ -95,6 +95,9 @@ interface OpenWindow {
  * The window's layer is offered to `OverlayLayers` as well, so a menu, a dialogue or a
  * tooltip opened from the panel appears in the window the reader is looking at.
  */
+/** How often a panel's window is looked at, for one shut from outside or left empty. */
+const WINDOW_WATCH_MS = 500;
+
 @Injectable({ providedIn: 'root' })
 export class PanelWindowService {
   private readonly document = inject(DOCUMENT);
@@ -176,7 +179,7 @@ export class PanelWindowService {
     this.overlays.attach(target, layer.instance.overlay());
     request.open(layer.instance.layer());
 
-    const watchdog = setInterval(() => this.look(request.key), 500);
+    const watchdog = setInterval(() => this.look(request.key), WINDOW_WATCH_MS);
     opened.addEventListener('pagehide', () => this.bringBack(request.key));
 
     this.windows.set(request.key, {

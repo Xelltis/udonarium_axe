@@ -88,6 +88,9 @@ const SLOT_LABEL_KEYS: Record<ResourceSlot, string> = {
   minCorrection: 'feature.controller.remote.slotMinCorrection',
 };
 
+/** How soon a second click on the same palette line counts with the first, sending the line. */
+const PALETTE_DOUBLE_CLICK_MS = 400;
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'remote-controller',
@@ -507,7 +510,7 @@ export class RemoteControllerComponent {
   }
 
   /**
-   * Puts a palette line into the buff field; clicking the same line again within 400ms sends it as
+   * Puts a palette line into the buff field; clicking the same line again within `PALETTE_DOUBLE_CLICK_MS` sends it as
    * a buff.
    */
   clickPalette(line: string) {
@@ -519,7 +522,7 @@ export class RemoteControllerComponent {
       this.text.set(line);
       this.doubleClickTimer = setTimeout(() => {
         this.doubleClickTimer = null;
-      }, 400);
+      }, PALETTE_DOUBLE_CLICK_MS);
     }
   }
 

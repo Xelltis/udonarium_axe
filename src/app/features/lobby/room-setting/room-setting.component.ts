@@ -59,10 +59,6 @@ export class RoomSettingComponent {
   /** Whether that wait is over without a connection, every try to connect having failed, which only a reload mends. */
   protected readonly unreachable = computed(() => this.waitingForConnection() && this.reach.unreachable());
 
-  /** This browser's peer ID on the network. */
-  get peerId(): string {
-    return Network.instance.peerId;
-  }
   /**
    * Whether this seat is in a room it would have to leave before making one: among peers, joined
    * with anyone else, the peers listed being the others; on a room server, in any room, since

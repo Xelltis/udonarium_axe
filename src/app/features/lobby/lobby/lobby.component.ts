@@ -26,6 +26,18 @@ import { WithheldEntryService } from '@axe/features/lobby/withheld-entry';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/** How long the list of rooms may take to arrive before the lobby says it could not be read. */
+const ROOM_LIST_TIMEOUT_MS = 15_000;
+
+/** The headings over the list of rooms, in column order; the last column, of buttons, has none. */
+const ROOM_HEADINGS: readonly string[] = [
+  'feature.lobby.lobby.roomId',
+  'feature.lobby.lobby.roomName',
+  'feature.lobby.lobby.pw',
+  'feature.lobby.lobby.participants',
+  '',
+];
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'lobby',
@@ -45,6 +57,8 @@ export class LobbyComponent {
   private readonly roomDeletion = inject(RoomDeletionService);
   private readonly reach = inject(NetworkReachService);
   private readonly withheldEntry = inject(WithheldEntryService);
+
+  protected readonly roomHeadings = ROOM_HEADINGS;
 
   /** Whether rooms are on a room server, where creating one takes a login. */
   protected readonly isServerTransport = Network.instance.transport === 'server';
@@ -93,10 +107,6 @@ export class LobbyComponent {
    */
   get currentRoom(): string {
     return Network.instance.peerContext.roomId;
-  }
-  /** This peer's id on the network. */
-  get peerId(): string {
-    return Network.instance.peerId;
   }
   /**
    * Whether this seat is in a room it would have to leave before going to another: among peers,
@@ -188,7 +198,7 @@ export class LobbyComponent {
     try {
       const roomInfos = await Promise.race([
         Network.instance.listAllRooms(),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), ROOM_LIST_TIMEOUT_MS)),
       ]);
       this.rooms.set(listedRooms(roomInfos));
       this.help.set(this.t('feature.lobby.lobby.hintNoRooms'));

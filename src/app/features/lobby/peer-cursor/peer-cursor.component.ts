@@ -24,6 +24,13 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole, roleShortLabelKey, roleTagClass } from '@axe/domain/peer/peer-role';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
+/** How long a cursor that has stopped moving stays in sight. */
+const FADE_OUT_AFTER_MS = 3000;
+/** The least a cursor's movement is held back before it is sent. */
+const MIN_MOVE_DELAY_MS = 100;
+/** What each connected peer adds to that hold, a frame's worth. */
+const MOVE_DELAY_PER_PEER_MS = 16.6;
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'peer-cursor, [peer-cursor]',
@@ -76,7 +83,7 @@ export class PeerCursorComponent {
   private fadeOutTimer: ResettableTimeout | null = null;
   private updateTimer: ReturnType<typeof setTimeout> | null = null;
 
-  private callcack: (e: Event) => void = (e) => this.onMouseMove(e);
+  private onMoveListener: (e: Event) => void = (e) => this.onMouseMove(e);
 
   private _x = 0;
   private _y = 0;
@@ -89,8 +96,7 @@ export class PeerCursorComponent {
    * connected peer, never under 100, so a crowded room sends less often.
    */
   get delayMs(): number {
-    const maxDelay = getPeerIds().length * 16.6;
-    return maxDelay < 100 ? 100 : maxDelay;
+    return Math.max(MIN_MOVE_DELAY_MS, getPeerIds().length * MOVE_DELAY_PER_PEER_MS);
   }
 
   constructor() {
@@ -116,8 +122,8 @@ export class PeerCursorComponent {
 
     afterNextRender(() => {
       if (this.isMine()) {
-        document.body.addEventListener('mousemove', this.callcack);
-        document.body.addEventListener('touchmove', this.callcack);
+        document.body.addEventListener('mousemove', this.onMoveListener);
+        document.body.addEventListener('touchmove', this.onMoveListener);
       } else {
         this.cursorElement = this.cursorElementRef()?.nativeElement;
         this.opacityElement = this.opacityElementRef()?.nativeElement;
@@ -128,8 +134,8 @@ export class PeerCursorComponent {
     });
 
     this.destroyRef.onDestroy(() => {
-      document.body.removeEventListener('mousemove', this.callcack);
-      document.body.removeEventListener('touchmove', this.callcack);
+      document.body.removeEventListener('mousemove', this.onMoveListener);
+      document.body.removeEventListener('touchmove', this.onMoveListener);
       this.batchService.remove(this);
       if (this.fadeOutTimer) this.fadeOutTimer.clear();
 
@@ -168,7 +174,7 @@ export class PeerCursorComponent {
     if (this.fadeOutTimer == null) {
       this.fadeOutTimer = new ResettableTimeout(() => {
         this.opacityElement!.style.opacity = '0.0';
-      }, 3000);
+      }, FADE_OUT_AFTER_MS);
     }
     this.fadeOutTimer.reset();
   }
