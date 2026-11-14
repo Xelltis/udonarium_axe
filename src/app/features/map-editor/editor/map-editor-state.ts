@@ -736,9 +736,11 @@ export class MapEditorState {
 
   /**
    * The selected item together with its layer, or null when nothing is selected or the item is
-   * gone.
+   * gone. It follows the scene as well as the selection, so a view that reads it is drawn again when
+   * the item is changed or undone.
    */
   selectedItem(): { layer: MapLayer; item: ShapeItem | StampItem | TextItem | ImageItem | FreehandStroke } | null {
+    this.tick();
     const sel = this.selection();
     if (!sel) return null;
     const layer = this.findLayerById(sel.layerId);
