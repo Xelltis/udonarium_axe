@@ -31,10 +31,10 @@ export class GameTableScratchMask extends OwnedTabletopObject {
   /**
    * The scratch map, a cell covered while its entry is anything but false; named with one letter to
    * keep the saved data small. A map read from a saved room holds text, so it is read through
-   * {@link isScratchCellCovered} rather than as it stands.
+   * {@link isScratchCellCovered} rather than as it stands. Nothing scratches it any more: it is
+   * read once, to turn the mask into a regular one.
    */
   @SyncVar() M: boolean[] = [];
-  fillMapBack: boolean[] = [];
 
   @SyncVar() scratchingGrids: string = '';
   @SyncVar() scratchedGrids: string = '';
@@ -44,69 +44,6 @@ export class GameTableScratchMask extends OwnedTabletopObject {
   /** How many cells a side the scratch map has, which is a fixed 50. */
   getMaxSize(): number {
     return this.maxSize;
-  }
-
-  /**
-   * Whether a cell of the scratch map is filled.
-   *
-   * With `myScratch` it reads the local working copy being scratched, which reads as unfilled until
-   * that copy has been taken; otherwise it reads the synced map.
-   */
-  getMapXY(x: number, y: number, myScratch: boolean): boolean {
-    if (myScratch) {
-      if (this.fillMapBack.length < this.M.length) {
-        return false;
-      }
-      return this.fillMapBack[this.maxSize * y + x];
-    } else {
-      return isScratchCellCovered(this.M[this.maxSize * y + x]);
-    }
-  }
-
-  /**
-   * Sets one cell of the local working copy. Does nothing until copyMain2BackMap has taken the
-   * copy.
-   */
-  setMapXY(x: number, y: number, bool: boolean) {
-    if (this.fillMapBack.length < this.M.length) {
-      return;
-    }
-    this.fillMapBack[this.maxSize * y + x] = bool;
-  }
-
-  /**
-   * Commits the local working copy to the synced map, and bumps the dummy counter so that peers
-   * redraw.
-   */
-  copyBack2MainMap() {
-    this.M = [...this.fillMapBack];
-    this.dummy++;
-    if (this.dummy >= 100) this.dummy = 0;
-  }
-
-  /** Takes a local working copy of the synced map to scratch on. */
-  copyMain2BackMap() {
-    this.fillMapBack = Array.from(this.M, isScratchCellCovered);
-  }
-
-  /** Flips one cell of the local working copy. Does nothing until the copy has been taken. */
-  reverseMapXY(x: number, y: number) {
-    if (this.fillMapBack.length < this.M.length) {
-      return;
-    }
-
-    this.fillMapBack[this.maxSize * y + x] = !this.fillMapBack[this.maxSize * y + x];
-  }
-
-  /**
-   * Whether a cell of the local working copy differs from the synced map. False until the copy has
-   * been taken.
-   */
-  isMapXYChange(x: number, y: number) {
-    if (this.fillMapBack.length < this.M.length) {
-      return false;
-    }
-    return isScratchCellCovered(this.M[this.maxSize * y + x]) !== this.fillMapBack[this.maxSize * y + x];
   }
 
   /** How many grid cells wide the mask is, kept in its common data. */

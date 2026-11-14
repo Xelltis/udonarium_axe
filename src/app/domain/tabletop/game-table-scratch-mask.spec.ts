@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
+import { GameTableScratchMask, isScratchCellCovered } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { legacyScratchedGridsOf } from '@axe/domain/tabletop/legacy-scratch-mask';
 
 describe('GameTableScratchMask', () => {
@@ -82,63 +82,13 @@ describe('GameTableScratchMask', () => {
     });
   });
 
-  describe('getMapXY / setMapXY', () => {
-    it('writes nothing to a back map that has not been made', () => {
-      const mask = GameTableScratchMask.create('test', 1, 1, 100);
-      // fillMapBack is empty, guard condition prevents write
-      mask.setMapXY(0, 0, false);
-      // M is still untouched
-      expect(mask.getMapXY(0, 0, false)).toBeTruthy();
+  describe('isScratchCellCovered', () => {
+    it.each([false, 0, 'false', '0'])('reads %j as a cell scratched open', (entry) => {
+      expect(isScratchCellCovered(entry)).toBe(false);
     });
 
-    it('the map starts filled', () => {
-      const mask = GameTableScratchMask.create('test', 1, 1, 100);
-      expect(mask.getMapXY(0, 0, false)).toBeTruthy();
-    });
-
-    it('writes to the back map once the front has been copied onto it', () => {
-      const mask = GameTableScratchMask.create('test', 1, 1, 100);
-      mask.copyMain2BackMap();
-      mask.setMapXY(0, 0, false);
-      expect(mask.getMapXY(0, 0, true)).toBe(false);
-    });
-
-    it('reads from the back map while you are scratching', () => {
-      const mask = GameTableScratchMask.create('test', 1, 1, 100);
-      mask.copyMain2BackMap();
-      expect(mask.getMapXY(0, 0, true)).toBeTruthy();
-    });
-  });
-
-  describe('copyMain2BackMap / copyBack2MainMap', () => {
-    it('copies the front onto the back', () => {
-      const mask = GameTableScratchMask.create('test', 1, 1, 100);
-      mask.copyMain2BackMap();
-      // the front lands on the back
-      expect(mask.getMapXY(5, 5, true)).toBeTruthy();
-    });
-
-    it('copies the back onto the front', () => {
-      const mask = GameTableScratchMask.create('test', 1, 1, 100);
-      mask.copyMain2BackMap();
-      // the back is changed
-      mask.setMapXY(5, 5, false);
-      expect(mask.getMapXY(5, 5, true)).toBe(false);
-
-      // and copied onto the front
-      mask.copyBack2MainMap();
-      expect(mask.getMapXY(5, 5, false)).toBeFalsy();
-    });
-
-    it('copies a cell across, inverted', () => {
-      const mask = GameTableScratchMask.create('test', 1, 1, 100);
-      mask.copyMain2BackMap();
-      // it starts filled
-      mask.reverseMapXY(5, 5);
-      expect(mask.getMapXY(5, 5, true)).toBeFalsy();
-
-      mask.copyBack2MainMap();
-      expect(mask.getMapXY(5, 5, false)).toBeFalsy();
+    it.each([true, 1, 'true', '1', '', undefined, null])('reads %j as a cell still covered', (entry) => {
+      expect(isScratchCellCovered(entry)).toBe(true);
     });
   });
 
@@ -157,59 +107,29 @@ describe('GameTableScratchMask', () => {
 
     function scratchedAt(...cells: [x: number, y: number][]): GameTableScratchMask {
       const mask = GameTableScratchMask.create('削りかけ', 4, 4, 100);
-      mask.copyMain2BackMap();
-      for (const [x, y] of cells) mask.setMapXY(x, y, false);
-      mask.copyBack2MainMap();
+      const map = [...mask.M];
+      for (const [x, y] of cells) map[mask.getMaxSize() * y + x] = false;
+      mask.M = map;
       return mask;
     }
 
-    it('reads the cells scratched open as open and the others as covered', () => {
-      const read = savedAndReadBack(scratchedAt([1, 0], [2, 3]));
+    it('holds its cells as text, the ones scratched open still open and the others covered', () => {
+      const read = savedAndReadBack(scratchedAt([0, 0], [2, 3]));
 
-      expect(read.getMapXY(1, 0, false)).toBe(false);
-      expect(read.getMapXY(2, 3, false)).toBe(false);
-      expect(read.getMapXY(0, 0, false)).toBe(true);
+      expect(read.M[0]).toBeTypeOf('string');
+      expect(isScratchCellCovered(read.M[0])).toBe(false);
+      expect(isScratchCellCovered(read.M[read.getMaxSize() * 3 + 2])).toBe(false);
+      expect(isScratchCellCovered(read.M[1])).toBe(true);
     });
 
-    it('covers an open cell again and opens a covered one when each is flipped', () => {
-      const read = savedAndReadBack(scratchedAt([1, 0]));
-      read.copyMain2BackMap();
-
-      read.reverseMapXY(1, 0);
-      read.reverseMapXY(0, 0);
-
-      expect(read.getMapXY(1, 0, true)).toBe(true);
-      expect(read.getMapXY(0, 0, true)).toBe(false);
-      expect(read.isMapXYChange(1, 0)).toBe(true);
-      expect(read.isMapXYChange(0, 0)).toBe(true);
-      expect(read.isMapXYChange(3, 3)).toBe(false);
+    it('opens the cells scratched open, and no other, when it is turned into a regular mask', () => {
+      expect(legacyScratchedGridsOf(savedAndReadBack(scratchedAt([0, 0])))).toBe('0:0');
+      expect(legacyScratchedGridsOf(savedAndReadBack(scratchedAt([1, 0])))).toBe('');
     });
 
-    it('finds nothing changed in a cell flipped and flipped back', () => {
-      const read = savedAndReadBack(scratchedAt([1, 0]));
-      read.copyMain2BackMap();
+    it('opens the same cells when it is saved and read back once more', () => {
+      const again = savedAndReadBack(savedAndReadBack(scratchedAt([0, 0])));
 
-      for (const [x, y] of [
-        [1, 0],
-        [0, 0],
-      ]) {
-        read.reverseMapXY(x, y);
-        read.reverseMapXY(x, y);
-        expect(read.isMapXYChange(x, y)).toBe(false);
-      }
-    });
-
-    it('writes the flipped cells so that they are read back the same once more', () => {
-      const read = savedAndReadBack(scratchedAt([1, 0]));
-      read.copyMain2BackMap();
-      read.reverseMapXY(1, 0);
-      read.reverseMapXY(0, 0);
-      read.copyBack2MainMap();
-
-      const again = savedAndReadBack(read);
-
-      expect(again.getMapXY(1, 0, false)).toBe(true);
-      expect(again.getMapXY(0, 0, false)).toBe(false);
       expect(legacyScratchedGridsOf(again)).toBe('0:0');
     });
   });
