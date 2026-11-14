@@ -414,7 +414,6 @@ export class GameCharacterMenuService {
     );
   }
 
-  /** Fires an effect from a character sheet. It is looked up by name, so the same row works in any room. */
   /**
    * Plays the battle stage with the piece striking: at the pieces aimed at, or, with none, at the
    * other side of the master's lineup.
@@ -426,6 +425,7 @@ export class GameCharacterMenuService {
     else battle?.playLineupAs(char, 'everywhere');
   }
 
+  /** Fires an effect from a character sheet. It is looked up by name, so the same row works in any room. */
   private invokeEffect(char: GameCharacter, name: string): void {
     const preset = this.effectLibrary.findByName(name);
     if (preset) this.effectCast.fireFromCharacter(preset, char);
