@@ -19,6 +19,7 @@ import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { sameList } from '@axe/core/util/same-list';
 import {
   ambienceColorOf,
   ambienceDensityOf,
@@ -33,25 +34,12 @@ import { soundFileName } from '@axe/domain/media/preset-sound-labels';
 import { tableBgmModeOf } from '@axe/domain/media/table-bgm';
 import { encodeCutInIdentifiers, parseCutInIdentifiers } from '@axe/domain/media/table-cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import {
-  MAX_BACKGROUND_LAYER_SCALE,
-  MAX_BACKGROUND_SCROLL_SPEED,
-  MIN_BACKGROUND_LAYER_SCALE,
-} from '@axe/domain/tabletop/background-scroll';
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, DEFAULT_FOG_COLOR, FOG_MODES, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { copyGameTable, freeTableName } from '@axe/domain/tabletop/game-table-copy';
 import { MAX_SQUARE_SPAN, squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 import { MAX_CELL_PX, MIN_CELL_PX } from '@axe/domain/tabletop/rescale-table-contents';
-import {
-  asTableLayerPlacement,
-  MAX_TABLE_BACKGROUND_LAYERS,
-  moveBackgroundLayer as movedLayerRun,
-  TABLE_LAYER_PLACEMENTS,
-  TableBackgroundLayer,
-  TableLayerPlacement,
-} from '@axe/domain/tabletop/table-background-layer';
 import {
   foregroundFitOf,
   foregroundOpacityOf,
@@ -62,6 +50,7 @@ import {
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TABLE_SKY_KINDS, type TableSkyKind, tableSkyKindOf } from '@axe/domain/tabletop/table-sky';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
+import { TableBackgroundLayersComponent } from '@axe/features/tabletop/game-table-setting/table-background-layers.component';
 import {
   MapImageGridAdjusterComponent,
   MapImageGridAdjusterResult,
@@ -72,6 +61,53 @@ import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive'
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
+
+type WallSide = 'north' | 'east' | 'south' | 'west';
+
+/** One wall of a table: the names of what it is called in the panel and of what the table keeps for it. */
+interface WallField {
+  key: WallSide;
+  label: string;
+  alt: string;
+  add: string;
+  image: `${WallSide}WallImageIdentifier`;
+  show: `show${Capitalize<WallSide>}Wall`;
+}
+
+const WALLS: readonly WallField[] = [
+  {
+    key: 'north',
+    label: 'feature.tabletop.tableSetting.imageNorthWall',
+    alt: 'feature.tabletop.tableSetting.imageNorthWallAlt',
+    add: 'feature.tabletop.tableSetting.addImageNorthWall',
+    image: 'northWallImageIdentifier',
+    show: 'showNorthWall',
+  },
+  {
+    key: 'east',
+    label: 'feature.tabletop.tableSetting.imageEastWall',
+    alt: 'feature.tabletop.tableSetting.imageEastWallAlt',
+    add: 'feature.tabletop.tableSetting.addImageEastWall',
+    image: 'eastWallImageIdentifier',
+    show: 'showEastWall',
+  },
+  {
+    key: 'south',
+    label: 'feature.tabletop.tableSetting.imageSouthWall',
+    alt: 'feature.tabletop.tableSetting.imageSouthWallAlt',
+    add: 'feature.tabletop.tableSetting.addImageSouthWall',
+    image: 'southWallImageIdentifier',
+    show: 'showSouthWall',
+  },
+  {
+    key: 'west',
+    label: 'feature.tabletop.tableSetting.imageWestWall',
+    alt: 'feature.tabletop.tableSetting.imageWestWallAlt',
+    add: 'feature.tabletop.tableSetting.addImageWestWall',
+    image: 'westWallImageIdentifier',
+    show: 'showWestWall',
+  },
+];
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -86,6 +122,7 @@ import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
     NgOptionComponent,
     NgSelectWindowDirective,
     SafePipe,
+    TableBackgroundLayersComponent,
     TranslocoModule,
   ],
 })
@@ -461,48 +498,8 @@ export class GameTableSettingComponent {
   minWallHeight: number = 1;
   maxWallHeight: number = 20;
 
-  readonly wallFields = [
-    {
-      key: 'north',
-      label: 'feature.tabletop.tableSetting.imageNorthWall',
-      alt: 'feature.tabletop.tableSetting.imageNorthWallAlt',
-      add: 'feature.tabletop.tableSetting.addImageNorthWall',
-      image: () => this.tableNorthWallImage,
-      show: () => this.tableShowNorthWall,
-      setShow: (value: boolean) => (this.tableShowNorthWall = value),
-      open: () => this.openNorthWallImageModal(),
-    },
-    {
-      key: 'east',
-      label: 'feature.tabletop.tableSetting.imageEastWall',
-      alt: 'feature.tabletop.tableSetting.imageEastWallAlt',
-      add: 'feature.tabletop.tableSetting.addImageEastWall',
-      image: () => this.tableEastWallImage,
-      show: () => this.tableShowEastWall,
-      setShow: (value: boolean) => (this.tableShowEastWall = value),
-      open: () => this.openEastWallImageModal(),
-    },
-    {
-      key: 'south',
-      label: 'feature.tabletop.tableSetting.imageSouthWall',
-      alt: 'feature.tabletop.tableSetting.imageSouthWallAlt',
-      add: 'feature.tabletop.tableSetting.addImageSouthWall',
-      image: () => this.tableSouthWallImage,
-      show: () => this.tableShowSouthWall,
-      setShow: (value: boolean) => (this.tableShowSouthWall = value),
-      open: () => this.openSouthWallImageModal(),
-    },
-    {
-      key: 'west',
-      label: 'feature.tabletop.tableSetting.imageWestWall',
-      alt: 'feature.tabletop.tableSetting.imageWestWallAlt',
-      add: 'feature.tabletop.tableSetting.addImageWestWall',
-      image: () => this.tableWestWallImage,
-      show: () => this.tableShowWestWall,
-      setShow: (value: boolean) => (this.tableShowWestWall = value),
-      open: () => this.openWestWallImageModal(),
-    },
-  ];
+  /** The four walls of a table, each with the picture and the box that shows it. */
+  readonly wallFields = WALLS;
 
   /** How tall the picked table's walls stand; 10 when no table is picked. */
   get tableWallHeight(): number {
@@ -512,56 +509,33 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.wallHeight = Number(value);
   }
 
-  private wallImage(identifier: string | undefined): ImageFile {
+  /** The picture on one wall of the picked table, or the empty image. */
+  wallImage(wall: WallField): ImageFile {
     this.objectChange.fileVersion();
     if (this.selectedTable) this.objectChange.versionOf(this.selectedTable.identifier)();
-    return this.imageService.getEmptyOr(identifier ?? '');
+    return this.imageService.getEmptyOr(this.selectedTable?.[wall.image] ?? '');
   }
 
-  /** The picture on the picked table's north wall, or the empty image. */
-  get tableNorthWallImage(): ImageFile {
-    return this.wallImage(this.selectedTable?.northWallImageIdentifier);
-  }
-  /** The picture on the picked table's east wall, or the empty image. */
-  get tableEastWallImage(): ImageFile {
-    return this.wallImage(this.selectedTable?.eastWallImageIdentifier);
-  }
-  /** The picture on the picked table's south wall, or the empty image. */
-  get tableSouthWallImage(): ImageFile {
-    return this.wallImage(this.selectedTable?.southWallImageIdentifier);
-  }
-  /** The picture on the picked table's west wall, or the empty image. */
-  get tableWestWallImage(): ImageFile {
-    return this.wallImage(this.selectedTable?.westWallImageIdentifier);
+  /** Whether one wall of the picked table is shown. */
+  wallShown(wall: WallField): boolean {
+    return this.selectedTable?.[wall.show] ?? false;
   }
 
-  /** Whether the picked table's north wall is shown. */
-  get tableShowNorthWall(): boolean {
-    return this.selectedTable?.showNorthWall ?? false;
+  /** Shows or hides one wall of the picked table; ignored while the table cannot be edited. */
+  setWallShown(wall: WallField, value: boolean): void {
+    if (this.isEditable && this.selectedTable) this.selectedTable[wall.show] = value;
   }
-  set tableShowNorthWall(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.showNorthWall = value;
-  }
-  /** Whether the picked table's east wall is shown. */
-  get tableShowEastWall(): boolean {
-    return this.selectedTable?.showEastWall ?? false;
-  }
-  set tableShowEastWall(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.showEastWall = value;
-  }
-  /** Whether the picked table's south wall is shown. */
-  get tableShowSouthWall(): boolean {
-    return this.selectedTable?.showSouthWall ?? false;
-  }
-  set tableShowSouthWall(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.showSouthWall = value;
-  }
-  /** Whether the picked table's west wall is shown. */
-  get tableShowWestWall(): boolean {
-    return this.selectedTable?.showWestWall ?? false;
-  }
-  set tableShowWestWall(value: boolean) {
-    if (this.isEditable && this.selectedTable) this.selectedTable.showWestWall = value;
+
+  /**
+   * Opens the image picker and sets the chosen picture on one wall of the picked table; does
+   * nothing once the table is deleted.
+   */
+  openWallImage(wall: WallField): void {
+    if (this.isDeleted) return;
+    this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((value) => {
+      if (!this.selectedTable || !value) return;
+      this.selectedTable[wall.image] = value;
+    });
   }
 
   /** Which grid points pieces on the picked table snap to. */
@@ -642,7 +616,16 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.backgroundFilterType = filterType;
   }
 
-  selectedTable: GameTable | null = null;
+  private readonly picked = signal<GameTable | null>(null);
+
+  /** The table picked in this panel, which every field reads and writes; null while none is. */
+  get selectedTable(): GameTable | null {
+    return this.picked();
+  }
+  set selectedTable(table: GameTable | null) {
+    this.picked.set(table);
+  }
+
   selectedTableXml: string = '';
 
   /** Whether no table is being viewed. */
@@ -705,49 +688,58 @@ export class GameTableSettingComponent {
     this.selectedTableXml = '';
   }
 
-  /** Every cut-in in the room, offered to play when a table is chosen. */
-  getCutIns(): CutIn[] {
+  private readonly cutIns = computed<CutIn[]>(() => {
     this.objectChange.collectionOf(CutIn.aliasName)();
     return this.objectStore.getObjects(CutIn);
+  });
+
+  /** Every cut-in in the room, offered to play when a table is chosen. */
+  getCutIns(): CutIn[] {
+    return this.cutIns();
   }
 
-  private cutInIdentifiersKey = '';
-  private cutInIdentifiers: string[] = [];
+  /** Moves when this panel writes the cut-ins, so the list is read again at once, ahead of the sync. */
+  private readonly cutInsWritten = signal(0);
+
+  private readonly namedCutIns = computed<string[]>(
+    () => {
+      const table = this.picked();
+      if (table) this.objectChange.versionOf(table.identifier)();
+      this.cutInsWritten();
+      const known = new Set(this.cutIns().map((cutIn) => cutIn.identifier));
+      return parseCutInIdentifiers(table?.cutInIdentifiers ?? '').filter((identifier) => known.has(identifier));
+    },
+    { equal: sameList }
+  );
 
   /**
    * The identifiers of the cut-ins that play when the picked table is chosen from the list; writes
-   * are ignored while it cannot be edited.
+   * are ignored while it cannot be edited. The same list is handed back until the table names
+   * other cut-ins or the room's cut-ins change.
    *
    * Only cut-ins still in the room are listed. One named by a table but gone, deleted since or
    * never brought back by an older saved room, would otherwise show as its bare identifier.
    */
   get tableCutIns(): string[] {
-    const raw = this.selectedTable?.cutInIdentifiers ?? '';
-    const present = this.getCutIns().map((cutIn) => cutIn.identifier);
-    const key = `${raw}|${present.join(',')}`;
-    if (key !== this.cutInIdentifiersKey) {
-      this.cutInIdentifiersKey = key;
-      const known = new Set(present);
-      this.cutInIdentifiers = parseCutInIdentifiers(raw).filter((identifier) => known.has(identifier));
-    }
-    return this.cutInIdentifiers;
+    return this.namedCutIns();
   }
   set tableCutIns(identifiers: string[]) {
     if (!this.isEditable || !this.selectedTable) return;
     this.selectedTable.cutInIdentifiers = encodeCutInIdentifiers(identifiers ?? []);
+    this.cutInsWritten.update((count) => count + 1);
   }
 
   /**
    * The music the room has, offered as what the picked table puts on when it is switched to. The
    * sounds that come with the tool are left out, as the jukebox leaves them out of its list.
    */
-  tableBgmTracks(): { value: string; name: string }[] {
+  readonly tableBgmTracks = computed<{ value: string; name: string }[]>(() => {
     this.objectChange.fileVersion();
     return this.audioStorage.audios
       .filter((audio) => !audio.isHidden)
       .map((audio) => ({ value: audio.identifier, name: soundFileName(audio.name) }))
       .sort((left, right) => left.name.localeCompare(right.name, 'ja'));
-  }
+  });
 
   /**
    * What the picked table does with the music on being switched to: `''` to leave it, `'stop'`,
@@ -779,9 +771,14 @@ export class GameTableSettingComponent {
     return this.tableBgmTracks().some((track) => track.value === identifier) ? null : identifier;
   }
 
+  private readonly gameTables = computed<GameTable[]>(() => {
+    this.objectChange.collectionOf(GameTable.aliasName)();
+    return this.objectStore.getObjects(GameTable);
+  });
+
   /** Every table in the room, for the table list. */
   getGameTables(): GameTable[] {
-    return this.objectStore.getObjects(GameTable);
+    return this.gameTables();
   }
 
   /**
@@ -859,204 +856,6 @@ export class GameTableSettingComponent {
     }
   }
 
-  readonly maxBackgroundScrollSpeed = MAX_BACKGROUND_SCROLL_SPEED;
-  readonly minBackgroundLayerScale = MIN_BACKGROUND_LAYER_SCALE;
-  readonly maxBackgroundLayerScale = MAX_BACKGROUND_LAYER_SCALE;
-  readonly tableLayerPlacements = TABLE_LAYER_PLACEMENTS;
-
-  /** The layers grouped the way they are drawn: everything under the board, then everything over. */
-  get backgroundLayers(): TableBackgroundLayer[] {
-    this.objectChange.versionOf(this.selectedTable?.identifier ?? '')();
-    this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
-    const laid = this.selectedTable?.backgroundLayers ?? [];
-    const placed = (placement: TableLayerPlacement) =>
-      laid.filter((layer) => asTableLayerPlacement(layer.placement) === placement);
-    return [...placed('backdrop'), ...placed('under'), ...placed('over')];
-  }
-
-  /** The run one layer belongs to, which is what moving it up and down happens within. */
-  private backgroundLayerRun(layer: TableBackgroundLayer): TableBackgroundLayer[] {
-    const placement = asTableLayerPlacement(layer.placement);
-    return this.backgroundLayers.filter((laid) => asTableLayerPlacement(laid.placement) === placement);
-  }
-
-  /** Its place in that run, counted from one, which is what the heading says. */
-  backgroundLayerNumber(layer: TableBackgroundLayer): number {
-    this.objectChange.versionOf(layer.identifier)();
-    return this.backgroundLayerRun(layer).indexOf(layer) + 1;
-  }
-
-  /**
-   * Whether a background layer can move the given number of steps without leaving its run; false
-   * while the table cannot be edited.
-   */
-  canMoveBackgroundLayer(layer: TableBackgroundLayer, offset: number): boolean {
-    if (!this.isEditable) return false;
-    const run = this.backgroundLayerRun(layer);
-    const to = run.indexOf(layer) + offset;
-    return 0 <= to && to < run.length;
-  }
-
-  /**
-   * Moves one layer a step through its run.
-   *
-   * The whole run is numbered again afterwards, so an order never drifts into a gap and the two
-   * runs stay tidy however often they are shuffled.
-   */
-  moveBackgroundLayer(layer: TableBackgroundLayer, offset: number): void {
-    if (!this.isEditable) return;
-    const run = this.backgroundLayerRun(layer);
-    const moved = movedLayerRun(run, run.indexOf(layer), offset);
-    moved.forEach((laid, order) => {
-      if (laid.order === order) return;
-      laid.order = order;
-      laid.update();
-    });
-  }
-
-  /** Whether another background layer can be added, under the per-table limit. */
-  get canAddBackgroundLayer(): boolean {
-    return this.isEditable && this.backgroundLayers.length < MAX_TABLE_BACKGROUND_LAYERS;
-  }
-
-  /** A new layer goes in front of the ones already laid, which is where the eye expects it. */
-  addBackgroundLayer(): void {
-    if (!this.canAddBackgroundLayer || !this.selectedTable) return;
-    const layer = new TableBackgroundLayer();
-    layer.initialize();
-    layer.order = this.backgroundLayers.reduce((highest, laid) => Math.max(highest, laid.order + 1), 0);
-    this.selectedTable.appendChild(layer);
-  }
-
-  /** Destroys a background layer; ignored while the table cannot be edited. */
-  removeBackgroundLayer(layer: TableBackgroundLayer): void {
-    if (!this.isEditable) return;
-    layer.destroy();
-  }
-
-  /** Opens the image picker and sets the chosen picture on a background layer. */
-  openBackgroundLayerImage(layer: TableBackgroundLayer): void {
-    if (!this.isEditable) return;
-    void this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((value) => {
-      if (!value) return;
-      layer.imageIdentifier = value;
-      layer.update();
-    });
-  }
-
-  /** A background layer's picture, or the empty image. */
-  backgroundLayerImage(layer: TableBackgroundLayer): ImageFile {
-    this.objectChange.fileVersion();
-    this.objectChange.versionOf(layer.identifier)();
-    return this.imageService.getEmptyOr(layer.imageIdentifier);
-  }
-
-  /** Whether a background layer is drawn. */
-  backgroundLayerEnabled(layer: TableBackgroundLayer): boolean {
-    this.objectChange.versionOf(layer.identifier)();
-    return layer.enabled;
-  }
-  /** Turns a background layer on or off and syncs it. */
-  setBackgroundLayerEnabled(layer: TableBackgroundLayer, value: boolean): void {
-    this.writeBackgroundLayer(layer, () => (layer.enabled = value));
-  }
-
-  /** How fast a background layer scrolls sideways. */
-  backgroundLayerSpeedX(layer: TableBackgroundLayer): number {
-    this.objectChange.versionOf(layer.identifier)();
-    return layer.speedX;
-  }
-  /** Sets how fast a background layer scrolls sideways, held to the speed limit either way, and syncs it. */
-  setBackgroundLayerSpeedX(layer: TableBackgroundLayer, value: number): void {
-    this.writeBackgroundLayer(layer, () => (layer.speedX = clampScrollSpeed(value)));
-  }
-
-  /** How fast a background layer scrolls up and down. */
-  backgroundLayerSpeedY(layer: TableBackgroundLayer): number {
-    this.objectChange.versionOf(layer.identifier)();
-    return layer.speedY;
-  }
-  /**
-   * Sets how fast a background layer scrolls up and down, held to the speed limit either way, and
-   * syncs it.
-   */
-  setBackgroundLayerSpeedY(layer: TableBackgroundLayer, value: number): void {
-    this.writeBackgroundLayer(layer, () => (layer.speedY = clampScrollSpeed(value)));
-  }
-
-  /** A background layer's opacity, as a percentage. */
-  backgroundLayerOpacityPercent(layer: TableBackgroundLayer): number {
-    this.objectChange.versionOf(layer.identifier)();
-    return Math.round(layer.opacity * 100);
-  }
-  /**
-   * Sets a background layer's opacity from a percentage held between 0 and 100, fully opaque when
-   * unreadable, and syncs it.
-   */
-  setBackgroundLayerOpacityPercent(layer: TableBackgroundLayer, value: number): void {
-    const percent = Number(value);
-    const clamped = Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 100;
-    this.writeBackgroundLayer(layer, () => (layer.opacity = clamped / 100));
-  }
-
-  /** How much a background layer's picture is scaled. */
-  backgroundLayerScale(layer: TableBackgroundLayer): number {
-    this.objectChange.versionOf(layer.identifier)();
-    return layer.scale;
-  }
-  /** Sets a background layer's scale within the allowed range, 1 when unreadable, and syncs it. */
-  setBackgroundLayerScale(layer: TableBackgroundLayer, value: number): void {
-    const scale = Number(value);
-    const clamped = Number.isFinite(scale)
-      ? Math.min(MAX_BACKGROUND_LAYER_SCALE, Math.max(MIN_BACKGROUND_LAYER_SCALE, scale))
-      : 1;
-    this.writeBackgroundLayer(layer, () => (layer.scale = clamped));
-  }
-
-  /** How much a backdrop follows the camera, as a percentage. */
-  backgroundLayerFollowPercent(layer: TableBackgroundLayer): number {
-    this.objectChange.versionOf(layer.identifier)();
-    return Math.round(layer.follow * 100);
-  }
-  /** Sets how much a backdrop follows the camera from a percentage held between 0 and 100, and syncs it. */
-  setBackgroundLayerFollowPercent(layer: TableBackgroundLayer, value: number): void {
-    const percent = Number(value);
-    if (!Number.isFinite(percent)) return;
-    this.writeBackgroundLayer(layer, () => (layer.cameraFollow = Math.min(100, Math.max(0, percent)) / 100));
-  }
-
-  /** How high a backdrop stands on the screen, as a percentage from its foot. */
-  backgroundLayerHeightPercent(layer: TableBackgroundLayer): number {
-    this.objectChange.versionOf(layer.identifier)();
-    return Math.round(layer.height * 100);
-  }
-  /** Sets how high a backdrop stands from a percentage held between 0 and 100, and syncs it. */
-  setBackgroundLayerHeightPercent(layer: TableBackgroundLayer, value: number): void {
-    const percent = Number(value);
-    if (!Number.isFinite(percent)) return;
-    this.writeBackgroundLayer(layer, () => (layer.backdropHeight = Math.min(100, Math.max(0, percent)) / 100));
-  }
-
-  /** Writing is announced, so the board redraws without waiting for something else to happen. */
-  backgroundLayerPlacement(layer: TableBackgroundLayer): TableLayerPlacement {
-    this.objectChange.versionOf(layer.identifier)();
-    return asTableLayerPlacement(layer.placement);
-  }
-  /** Changing sides puts it at the front of the run it lands in, where the eye expects it. */
-  setBackgroundLayerPlacement(layer: TableBackgroundLayer, value: TableLayerPlacement): void {
-    if (asTableLayerPlacement(layer.placement) === value) return;
-    this.writeBackgroundLayer(layer, () => {
-      layer.placement = value;
-      layer.order = this.backgroundLayers.reduce((highest, laid) => Math.max(highest, laid.order + 1), 0);
-    });
-  }
-
-  private writeBackgroundLayer(layer: TableBackgroundLayer, write: () => void): void {
-    if (!this.isEditable) return;
-    write();
-    layer.update();
-  }
-
   /**
    * Opens the image picker and sets the chosen picture as the picked table's floor image; does
    * nothing once the table is deleted.
@@ -1123,30 +922,6 @@ export class GameTableSettingComponent {
     if (this.isEditable && this.selectedTable) this.selectedTable.foregroundImageIdentifier = '';
   }
 
-  private openWallImageModal(apply: (table: GameTable, value: string) => void) {
-    if (this.isDeleted) return;
-    this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((value) => {
-      if (!this.selectedTable || !value) return;
-      apply(this.selectedTable, value);
-    });
-  }
-  /** Opens the image picker and sets the chosen picture on the picked table's north wall. */
-  openNorthWallImageModal() {
-    this.openWallImageModal((t, v) => (t.northWallImageIdentifier = v));
-  }
-  /** Opens the image picker and sets the chosen picture on the picked table's east wall. */
-  openEastWallImageModal() {
-    this.openWallImageModal((t, v) => (t.eastWallImageIdentifier = v));
-  }
-  /** Opens the image picker and sets the chosen picture on the picked table's south wall. */
-  openSouthWallImageModal() {
-    this.openWallImageModal((t, v) => (t.southWallImageIdentifier = v));
-  }
-  /** Opens the image picker and sets the chosen picture on the picked table's west wall. */
-  openWestWallImageModal() {
-    this.openWallImageModal((t, v) => (t.westWallImageIdentifier = v));
-  }
-
   /**
    * Chooses the table named by a select element's value, from its change event, playing its cut-ins
    * as picking from the list does.
@@ -1154,11 +929,4 @@ export class GameTableSettingComponent {
   onSelectGameTable(event: Event): void {
     this.chooseGameTable((event.target as HTMLInputElement).value);
   }
-}
-
-/** Held to a pace the eye can follow, whatever the box was typed into. */
-function clampScrollSpeed(value: number): number {
-  const speed = Number(value);
-  if (!Number.isFinite(speed)) return 0;
-  return Math.min(MAX_BACKGROUND_SCROLL_SPEED, Math.max(-MAX_BACKGROUND_SCROLL_SPEED, speed));
 }
