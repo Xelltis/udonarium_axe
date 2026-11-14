@@ -83,7 +83,7 @@ test.describe('the room this browser starts on', () => {
     await expect(pictures).toHaveCount(picturesBefore + 1, { timeout: 10_000 });
     const sounds = await openSounds(page);
     const soundsBefore = await sounds.count();
-    await page.locator('jukebox input[type="file"][accept="audio/*"]').setInputFiles({
+    await page.locator('jukebox [data-testid="jukebox-file-input"]').setInputFiles({
       name: 'tiny.mp3',
       mimeType: 'audio/mpeg',
       buffer: TINY_MP3,

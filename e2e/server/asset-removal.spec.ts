@@ -83,7 +83,7 @@ test.describe('the GM removing pictures and sounds from a room', () => {
 
     await openPanel(gm.page, 'ジュークボックス');
     await gm.page
-      .locator('jukebox input[type="file"][accept="audio/*"]')
+      .locator('jukebox [data-testid="jukebox-file-input"]')
       .setInputFiles({ name: 'removed.wav', mimeType: 'audio/wav', buffer: uniqueWav() });
     await openPanel(pl.page, 'ジュークボックス');
     await expect(soundRowIn(pl.page, 'removed.wav')).toBeVisible({ timeout: 20_000 });

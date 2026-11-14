@@ -737,7 +737,14 @@
       <span class="text-[11px] opacity-70">{{
         (isCompact() ? 'feature.media.jukebox.clickToSelectTouch' : 'feature.media.jukebox.clickToSelect') | transloco
       }}</span>
-      <input type="file" class="hidden" (change)="handleFileSelect($event)" multiple accept="audio/*,.ogg,.oga,.opus" />
+      <input
+        type="file"
+        class="hidden"
+        data-testid="jukebox-file-input"
+        (change)="handleFileSelect($event)"
+        multiple
+        accept="audio/*,.ogg,.oga,.opus"
+      />
       <span class="text-[11px] opacity-45">{{ 'feature.media.jukebox.maxFileSize' | transloco }}</span>
     </label>
 

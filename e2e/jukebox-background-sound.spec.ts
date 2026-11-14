@@ -35,7 +35,7 @@ async function openJukeboxWithTracks(page: Page): Promise<Locator> {
   const jukebox = page.locator('jukebox');
   await expect(jukebox).toBeVisible({ timeout: 10000 });
   await jukebox
-    .locator('input[type="file"][accept="audio/*"]')
+    .locator('[data-testid="jukebox-file-input"]')
     .setInputFiles(
       TRACKS.map((track) => ({ name: track.name, mimeType: 'audio/wav', buffer: silentWav(track.seconds) }))
     );

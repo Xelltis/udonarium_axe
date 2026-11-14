@@ -25,7 +25,7 @@ async function addAudio(page: Page, name: string, bytes: Buffer): Promise<void> 
   await openPanel(page, 'ジュークボックス');
   await expect(page.locator('jukebox')).toBeVisible({ timeout: 10_000 });
   await page
-    .locator('jukebox input[type="file"][accept="audio/*"]')
+    .locator('jukebox [data-testid="jukebox-file-input"]')
     .setInputFiles({ name, mimeType: 'audio/mpeg', buffer: bytes });
 }
 

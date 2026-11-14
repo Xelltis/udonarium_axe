@@ -75,11 +75,11 @@ test.describe('what a player added, and a tag kept to one', () => {
 
     await openPanel(gm.page, 'ジュークボックス');
     await gm.page
-      .locator('jukebox input[type="file"][accept="audio/*"]')
+      .locator('jukebox [data-testid="jukebox-file-input"]')
       .setInputFiles({ name: 'gms.wav', mimeType: 'audio/wav', buffer: uniqueWav() });
     await openPanel(pl.page, 'ジュークボックス');
     await pl.page
-      .locator('jukebox input[type="file"][accept="audio/*"]')
+      .locator('jukebox [data-testid="jukebox-file-input"]')
       .setInputFiles({ name: 'mine.wav', mimeType: 'audio/wav', buffer: uniqueWav() });
     await expect(soundRowIn(pl.page, 'gms.wav')).toBeVisible({ timeout: 20_000 });
     await expect(soundRowIn(pl.page, 'gms.wav').getByTestId('jukebox-remove')).toHaveCount(0);

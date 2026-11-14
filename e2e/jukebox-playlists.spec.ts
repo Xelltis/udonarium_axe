@@ -48,7 +48,7 @@ async function openJukeboxWithTracks(page: Page, role?: 'GM' | 'PL' | '見学'):
   const jukebox = page.locator('jukebox');
   await expect(jukebox).toBeVisible({ timeout: 10000 });
   await jukebox
-    .locator('input[type="file"][accept="audio/*"]')
+    .locator('[data-testid="jukebox-file-input"]')
     .setInputFiles(
       TRACKS.map((track) => ({ name: track.name, mimeType: 'audio/wav', buffer: silentWav(track.seconds) }))
     );
