@@ -28,8 +28,9 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { GameCharacter } from '@axe/domain/character/game-character';
+import { debounce } from '@axe/core/util/debounce';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
+import { owningCharacterOf } from '@axe/domain/character/owning-character';
 import { ResourceSliderRange, resourceSliderRange } from '@axe/domain/character/resource-slider';
 import {
   DataElement,
@@ -246,7 +247,7 @@ export class GameDataElementComponent {
    * while a change typed into them waits to be written, the element still holds what was there.
    */
   private keepsDrafts(): boolean {
-    return this.updateTimer !== null;
+    return this.soon.pending() || this.afterSteps.pending();
   }
 
   private readonly _name = linkedSignal<{ name: string }, string>({
@@ -265,7 +266,7 @@ export class GameDataElementComponent {
   }
   set name(name: string) {
     this._name.set(name);
-    this.setUpdateTimer();
+    this.writeSoon();
   }
 
   readonly isDuplicateName = computed(() => {
@@ -288,7 +289,7 @@ export class GameDataElementComponent {
   set value(value: number | string) {
     if (this.isValueLocked()) return;
     this._value.set(value);
-    this.setUpdateTimer();
+    this.writeSoon();
   }
 
   private readonly _currentValue = linkedSignal<{ currentValue: number | string }, number | string>({
@@ -306,7 +307,7 @@ export class GameDataElementComponent {
   set currentValue(currentValue: number | string) {
     if (this.isValueLocked()) return;
     this._currentValue.set(currentValue);
-    this.setUpdateTimer();
+    this.writeSoon();
   }
 
   /**
@@ -365,7 +366,7 @@ export class GameDataElementComponent {
     const clamped = clampToBounds(this._value(), { min: this.valueMinAttr(), max: this.valueMaxAttr() });
     if (clamped !== this._value()) {
       this._value.set(clamped);
-      this.setUpdateTimer();
+      this.writeSoon();
     }
   }
 
@@ -382,7 +383,7 @@ export class GameDataElementComponent {
     });
     if (clamped !== this._currentValue()) {
       this._currentValue.set(clamped);
-      this.setUpdateTimer();
+      this.writeSoon();
     }
   }
 
@@ -425,7 +426,7 @@ export class GameDataElementComponent {
     const next = stepValue(this._value(), delta, { min: this.valueMinAttr(), max: this.valueMaxAttr() });
     if (next === null) return;
     this._value.set(next);
-    this.setUpdateTimer(STEP_COMMIT_MS);
+    this.writeAfterSteps();
   }
 
   /** Moves what is left of a resource one step from its ± button, written as one change after a run of presses. */
@@ -437,7 +438,7 @@ export class GameDataElementComponent {
     });
     if (next === null) return;
     this._currentValue.set(next);
-    this.setUpdateTimer(STEP_COMMIT_MS);
+    this.writeAfterSteps();
   }
 
   /**
@@ -509,7 +510,7 @@ export class GameDataElementComponent {
 
   protected invokeEffect(): void {
     const preset = this.effectLibrary.findByName(String(this.currentValue ?? ''));
-    const character = this.findOwningCharacter();
+    const character = owningCharacterOf(this.gameDataElement());
     if (preset && character) this.effectCast.fireFromCharacter(preset, character);
   }
 
@@ -518,8 +519,6 @@ export class GameDataElementComponent {
     this.icon = name;
     this.iconPickerOpen.set(false);
   }
-
-  private updateTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.touchDrag?.cancel());
@@ -957,25 +956,6 @@ export class GameDataElementComponent {
   }
 
   /**
-   * Destroys this picture of a character's image list, and narrows its `ICON` field to match. The
-   * first picture in the list is never deleted.
-   */
-  deleteImageElement() {
-    const root: DataElement = this.gameDataElement().parent!.parent as DataElement;
-    if (this.gameDataElement().parent!.children[0] != this.gameDataElement()) {
-      this.gameDataElement().destroy();
-      this.updateKomaIconMaxValue(root);
-    }
-  }
-
-  /** Sets the element's data type, and the field type that goes with it. */
-  setElementType(type: string) {
-    const element = this.gameDataElement();
-    element.setAttribute('type', type);
-    element.setFieldType(DataElement.fieldTypeFromDataType(type));
-  }
-
-  /**
    * Changes what kind of field this is, keeping the older data type in step, and closes the field's
    * settings.
    */
@@ -1165,22 +1145,33 @@ export class GameDataElementComponent {
     this.objectChange.notifyChanged(element.identifier);
   }
 
-  private setUpdateTimer(delayMs = 66) {
-    clearTimeout(this.updateTimer ?? undefined);
-    this.updateTimer = setTimeout(() => {
-      const element = this.gameDataElement();
-      const nextName = this.name.trim();
-      if (element.name !== nextName) {
-        if (this.isDuplicateElementName(nextName, element)) {
-          this._name.set(element.name);
-        } else {
-          element.name = nextName;
-        }
+  private readonly soon = debounce(() => this.write(), 66);
+  private readonly afterSteps = debounce(() => this.write(), STEP_COMMIT_MS);
+
+  /** Writes the drafts to the element once typing pauses, in place of any write still waiting. */
+  private writeSoon(): void {
+    this.afterSteps.cancel();
+    this.soon();
+  }
+
+  /** Writes the drafts once a run of ± presses ends, in place of any write still waiting. */
+  private writeAfterSteps(): void {
+    this.soon.cancel();
+    this.afterSteps();
+  }
+
+  private write(): void {
+    const element = this.gameDataElement();
+    const nextName = this.name.trim();
+    if (element.name !== nextName) {
+      if (this.isDuplicateElementName(nextName, element)) {
+        this._name.set(element.name);
+      } else {
+        element.name = nextName;
       }
-      if (element.currentValue !== this.currentValue) element.currentValue = this.currentValue;
-      if (element.value !== this.value) element.value = this.value;
-      this.updateTimer = null;
-    }, delayMs);
+    }
+    if (element.currentValue !== this.currentValue) element.currentValue = this.currentValue;
+    if (element.value !== this.value) element.value = this.value;
   }
 
   private isDuplicateElementName(name: string, element: DataElement): boolean {
@@ -1221,22 +1212,8 @@ export class GameDataElementComponent {
     this.editCheckedIds.add(dataElmIdentifier);
   }
 
-  /** Sets the data type from a picker's choice, an emptied choice counting as none. */
-  onSetElementType(value: string): void {
-    this.setElementType(value ?? '');
-  }
-
   /** Changes the field type from the field type picker, an emptied choice counting as text. */
   onSetFieldType(value: DataElementFieldTypeValue): void {
     this.setElementFieldType(value ?? DataElementFieldType.TEXT);
-  }
-
-  private findOwningCharacter(): GameCharacter | null {
-    let cursor: unknown = this.gameDataElement();
-    while (cursor) {
-      if (cursor instanceof GameCharacter) return cursor;
-      cursor = (cursor as { parent?: unknown }).parent;
-    }
-    return null;
   }
 }
