@@ -141,11 +141,7 @@ async function speakAs(page: Page, name: string) {
 
 /** How many rolls have dice in the scene of the table drawn on a canvas. */
 function diceInScene(page: Page): Promise<number> {
-  return page.evaluate(
-    () =>
-      (window as unknown as { __axeTable?: { sceneStats(): { dice: number } | null } }).__axeTable?.sceneStats()
-        ?.dice ?? 0
-  );
+  return page.evaluate(() => window.__axeTable?.sceneStats()?.dice ?? 0);
 }
 
 /**
@@ -155,8 +151,7 @@ function diceInScene(page: Page): Promise<number> {
  */
 async function holdDiceInScene(page: Page) {
   await page.evaluate(() => {
-    const scene = (window as unknown as { __axeTable: { keepDiceResting(on: boolean): void; diceResting(): boolean } })
-      .__axeTable;
+    const scene = window.__axeTable;
     scene.keepDiceResting(true);
     const requestFrame = window.requestAnimationFrame.bind(window);
     const kept = { held: -1 };

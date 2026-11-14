@@ -2,12 +2,6 @@ import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels, freeze, prepare, settle, snap } from './fixtures';
 
-type Hooks = {
-  whenIdle(): Promise<void>;
-  paintAt(x: number, y: number): number[] | null;
-  sceneBoard(): { widthPx: number; depthPx: number } | null;
-};
-
 /** The kinds of ground the brush paints, each laid in a band of its own across the board, top to bottom. */
 const BANDS = [
   { layer: 'grass', y: 190 },
@@ -19,7 +13,7 @@ const BANDS = [
 /** Which of the four kinds of ground are painted anywhere on the board, grass, dirt, rock and sand in turn. */
 function kindsPainted(page: Page): Promise<boolean[]> {
   return page.evaluate(() => {
-    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const hooks = window.__axeTable;
     const board = hooks.sceneBoard();
     const found = [false, false, false, false];
     for (let y = 0; y < (board?.depthPx ?? 0); y += 25) {
@@ -59,7 +53,7 @@ test('painted ground wears the picture of each kind of ground', async ({ page })
   await page.getByTestId('ground-brush-close').click();
   await expect(page.getByTestId('ground-brush-band')).toHaveCount(0);
   await expect.poll(() => kindsPainted(page)).toEqual([true, true, true, true]);
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
+  await page.evaluate(() => window.__axeTable.whenIdle());
   await freeze(page);
   await settle(page, 100);
 

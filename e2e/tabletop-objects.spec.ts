@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { closePanels } from './dungeon-helpers';
 import {
+  closePanels,
   openTableContextMenu,
   putAwayTutorial,
   revealMenuEntry,

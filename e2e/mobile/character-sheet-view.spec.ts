@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { whenScrollStops } from '../helpers';
 import { openCharacterSheet, sectionCard } from './sheet-helpers';
 
 test.describe('reading a character sheet on a phone', () => {
@@ -26,7 +27,7 @@ test.describe('reading a character sheet on a phone', () => {
     await expect(card).toBeInViewport();
     await expect(chips.getByRole('button', { name: 'パーツ', exact: true })).toHaveAttribute('aria-current', 'true');
     // Still lit once the scroll has settled at the bottom of the sheet.
-    await page.waitForTimeout(1500);
+    await whenScrollStops(page);
     await expect(chips.getByRole('button', { name: 'パーツ', exact: true })).toHaveAttribute('aria-current', 'true');
   });
 

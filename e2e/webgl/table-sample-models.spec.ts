@@ -8,13 +8,8 @@ import { drawSampleModels, waitAppReady } from '../helpers';
  * drawn as their pictures.
  */
 
-type Hooks = {
-  sceneStats(): { models: number } | null;
-  spritesOf(identifier: string): { part: string }[];
-};
-
 function modelsDrawn(page: Page): Promise<number> {
-  return page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.models ?? 0);
+  return page.evaluate(() => window.__axeTable.sceneStats()?.models ?? 0);
 }
 
 const MODELLED = ['オーク', '弓使い', '盗賊', '戦士', 'ゴブリン', 'ゴーレム', '騎士', '魔法使い', 'ドラゴン'];
@@ -49,10 +44,9 @@ test.describe('the sample room on a table drawn on a canvas', () => {
         .filter({ hasText: name })
         .first()
         .getAttribute('data-object-id'))!;
-      const parts = await page.evaluate(
-        ({ id }) => (window as unknown as { __axeTable: Hooks }).__axeTable.spritesOf(id).map((sprite) => sprite.part),
-        { id: identifier }
-      );
+      const parts = await page.evaluate(({ id }) => window.__axeTable.spritesOf(id).map((sprite) => sprite.part), {
+        id: identifier,
+      });
       expect(parts, name).toContain('picture');
     }
   });

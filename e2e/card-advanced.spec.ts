@@ -1,12 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
-
-async function createCardStack(page: Page) {
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, 'トランプの山札を作成')).click();
-  await expect(page.locator('card-stack').first()).toBeAttached({ timeout: 10000 });
-}
+import { createCardStack, waitAppReady } from './helpers';
 
 async function openCardStackMenu(page: Page) {
   await page.locator('card-stack').first().dispatchEvent('contextmenu');

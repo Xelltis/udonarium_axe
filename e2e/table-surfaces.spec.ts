@@ -1,8 +1,9 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from './dungeon-helpers';
 import {
+  becomeGm,
   cellSpot,
+  closePanels,
   openTableContextMenu,
   putAwayTutorial,
   revealMenuEntry,
@@ -18,10 +19,6 @@ import {
  * drawn.
  */
 
-type Hooks = {
-  surfacePageOf(surface: string, x: number, y: number): { x: number; y: number } | null;
-};
-
 const LOCAL_POINTS = [
   [10, 10],
   [120, 40],
@@ -36,7 +33,7 @@ const SLACK_PX = 0.5;
 async function farthestApart(face: Locator, surface: string): Promise<number> {
   return face.evaluate(
     (element, { surface, points }) => {
-      const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+      const hooks = window.__axeTable;
       let farthest = 0;
       for (const [x, y] of points) {
         const box = document.createElement('div');

@@ -1,13 +1,6 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-import { chatInput, expectChatText, openChatSettingsMenuItem, waitAppReady } from './helpers';
-
-async function say(page: Page, text: string) {
-  const textarea = chatInput(page);
-  await textarea.fill(text);
-  await textarea.press('Enter');
-  await expectChatText(textarea, '');
-}
+import { openChatSettingsMenuItem, say, waitAppReady } from './helpers';
 
 test.describe('deleting a line', () => {
   test.beforeEach(async ({ page }) => {

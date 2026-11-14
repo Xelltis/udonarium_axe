@@ -4,11 +4,6 @@ import { createCharacter, openPanel, waitAppReady } from '../helpers';
 
 /** An effect chosen from the library, played on a piece picked on the table, and drawn in the table's scene. */
 
-type Hooks = {
-  renderer(): string | null;
-  sceneStats(): { effects: number } | null;
-};
-
 async function openEffectLibrary(page: Page) {
   await openPanel(page, 'エフェクト');
   await expect(page.locator('effect-library-panel')).toBeVisible({ timeout: 5000 });
@@ -16,14 +11,14 @@ async function openEffectLibrary(page: Page) {
 
 /** How many particles and marks the effects draw in the table's scene now. */
 function effectsDrawn(page: Page): Promise<number> {
-  return page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.sceneStats()?.effects ?? 0);
+  return page.evaluate(() => window.__axeTable?.sceneStats()?.effects ?? 0);
 }
 
 test.describe('map effects', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await expect
-      .poll(() => page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.renderer() ?? null), {
+      .poll(() => page.evaluate(() => window.__axeTable?.renderer() ?? null), {
         timeout: 20000,
       })
       .not.toBeNull();

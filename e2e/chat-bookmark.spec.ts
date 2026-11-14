@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { chatInput, expectChatText, waitAppReady } from './helpers';
+import { chatInput, say, waitAppReady } from './helpers';
 
 /** Opens the toolbar over a line and picks a kind of bookmark from its bookmark button. */
 async function bookmark(page: Page, line: Locator, kind: '共有' | '個人') {
@@ -11,15 +11,6 @@ async function bookmark(page: Page, line: Locator, kind: '共有' | '個人') {
     .filter({ hasText: `${kind}しおりを` })
     .first()
     .click();
-}
-
-async function say(page: Page, lines: string[]) {
-  const textarea = chatInput(page);
-  for (const line of lines) {
-    await textarea.fill(line);
-    await textarea.press('Enter');
-    await expectChatText(textarea, '');
-  }
 }
 
 function lineSaying(page: Page, text: string) {

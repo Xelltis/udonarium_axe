@@ -1,14 +1,13 @@
 import { expect, Locator, Page } from '@playwright/test';
 
+import { waitMobileReady } from '../helpers';
+
 /**
  * Opens キャラクターC's sheet on a phone, the way a player does: a press held on the piece and
  * "詳細を表示". Returns the sheet.
  */
 export async function openCharacterSheet(page: Page): Promise<Locator> {
-  await page.goto('/');
-  await expect(page.locator('mobile-shell nav')).toBeVisible({ timeout: 20000 });
-  const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
-  if (await closeStartupPanel.count()) await closeStartupPanel.tap();
+  await waitMobileReady(page);
 
   const piece = page.locator('game-character').filter({ hasText: 'キャラクターC' }).first();
   await piece.dispatchEvent('contextmenu');

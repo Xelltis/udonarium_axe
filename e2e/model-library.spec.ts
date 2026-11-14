@@ -3,8 +3,7 @@ import { join } from 'node:path';
 
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from './dungeon-helpers';
-import { openPanel, waitAppReady } from './helpers';
+import { becomeGm, closePanels, openPanel, waitAppReady } from './helpers';
 
 /**
  * The room's 3D models as media: read in from a file, shown by a picture of each and the one chosen

@@ -1,7 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from '../dungeon-helpers';
-import { putAwayTutorial, waitAppReady } from '../helpers';
+import { becomeGm, closePanels, idleOnCanvas, putAwayTutorial, waitAppReady } from '../helpers';
 
 /**
  * The darkness over a table drawn on a canvas, which the canvas lays over its own scene from the
@@ -10,28 +9,10 @@ import { putAwayTutorial, waitAppReady } from '../helpers';
 
 type Point = { x: number; y: number };
 
-type Hooks = {
-  renderer(): string | null;
-  whenIdle(): Promise<void>;
-  project(x: number, y: number, z: number): Point | null;
-  pickAt(pageX: number, pageY: number): string | null;
-  sceneStats(): { lightMapRevision: number } | null;
-};
-
-async function idle(page: Page) {
-  await expect
-    .poll(() => page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.renderer() ?? null), {
-      timeout: 20000,
-    })
-    .not.toBeNull();
-  await page.mouse.move(5, 400);
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
-}
-
 /** Points of the board with nothing standing on them, as the camera puts them on the screen. */
 async function bareBoard(page: Page): Promise<Point[]> {
   return page.evaluate(() => {
-    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const hooks = window.__axeTable;
     const layer = document.querySelector('#app-table-layer')!;
     const points: Point[] = [];
     for (let y = 50; y <= 600; y += 50) {
@@ -76,7 +57,7 @@ test.describe('the darkness over a table drawn on a canvas', () => {
     await putAwayTutorial(page);
     await becomeGm(page);
     await closePanels(page);
-    await idle(page);
+    await idleOnCanvas(page);
   });
 
   test('is laid over the board by the canvas, the page’s own drawing of it kept out of sight', async ({ page }) => {
@@ -85,13 +66,9 @@ test.describe('the darkness over a table drawn on a canvas', () => {
     const lit = await brightnessAt(page, points);
 
     await page.locator('gm-toolbar [title^="暗闇"]').click();
-    await expect
-      .poll(() =>
-        page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.lightMapRevision)
-      )
-      .toBeGreaterThan(0);
+    await expect.poll(() => page.evaluate(() => window.__axeTable.sceneStats()?.lightMapRevision)).toBeGreaterThan(0);
     await expect(page.locator('table-vision-overlay canvas')).toHaveClass(/invisible/);
-    await idle(page);
+    await idleOnCanvas(page);
 
     const dark = await brightnessAt(page, points);
     const bright = lit.map((value, index) => ({ lit: value, dark: dark[index] })).filter((point) => point.lit > 90);
@@ -100,7 +77,7 @@ test.describe('the darkness over a table drawn on a canvas', () => {
     expect(bright.filter((point) => point.dark < point.lit * 0.8).length).toBeGreaterThan(bright.length / 2);
 
     await page.locator('gm-toolbar [title^="暗闇"]').click();
-    await idle(page);
+    await idleOnCanvas(page);
     await expect
       .poll(async () => {
         const again = await brightnessAt(page, points);

@@ -1,14 +1,11 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { chatInput, chatInputText, expectChatText, openPanel, waitAppReady } from './helpers';
+import { chatInput, chatInputText, expectChatText, openPanel, say, waitAppReady } from './helpers';
 
 /** Says a line from the chat input, pressing it first so the chat window comes over the panels it overlaps. */
-async function say(page: Page, text: string) {
-  const textarea = chatInput(page);
-  await textarea.click();
-  await textarea.fill(text);
-  await textarea.press('Enter');
-  await expectChatText(textarea, '');
+async function sayOnTop(page: Page, text: string) {
+  await chatInput(page).click();
+  await say(page, text);
 }
 
 function lineSaying(page: Page, text: string): Locator {
@@ -147,7 +144,7 @@ test.describe('chat stamps and reactions', () => {
     await expect(denied).toHaveAttribute('aria-pressed', 'false');
     await closeRoomSettings(page);
 
-    await say(page, '神引きだった');
+    await sayOnTop(page, '神引きだった');
     const picker = await openReactionPicker(page, lineSaying(page, '神引きだった'));
     await picker.getByTestId('stamp-picker-tab-seal').click();
     await expect(picker.getByTestId('stamp-picker-choice-seal:ok')).toBeVisible();

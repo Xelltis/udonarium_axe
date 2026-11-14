@@ -25,15 +25,7 @@ test.describe('square and diamond ranges', () => {
     const [x, y, z] = (await range.locator('[data-location]').first().getAttribute('data-location'))!
       .split(',')
       .map(Number);
-    const centre = await page.evaluate(
-      ([x, y, z]) =>
-        (
-          window as unknown as {
-            __axeTable: { surfacePageOf(surface: string, x: number, y: number, z: number): { x: number; y: number } };
-          }
-        ).__axeTable.surfacePageOf('floor', x, y, z),
-      [x, y, z]
-    );
+    const centre = await page.evaluate(([x, y, z]) => window.__axeTable.surfacePageOf('floor', x, y, z)!, [x, y, z]);
     const grab = range.locator('.rotate-grab').first();
     // Over a table drawn on a canvas the handle is put once the canvas draws the range, and takes a
     // press only while the range is pointed at, so the range is pointed at once it is laid out.

@@ -5,11 +5,7 @@ import { closePanels, freeze, prepare, settle, settleLazy, snap, untilStill } fr
 
 /** How many particles and marks on the floor the effects draw in the table's scene now. */
 function effectsDrawn(page: Page): Promise<number> {
-  return page.evaluate(
-    () =>
-      (window as unknown as { __axeTable?: { sceneStats(): { effects: number } | null } }).__axeTable?.sceneStats()
-        ?.effects ?? 0
-  );
+  return page.evaluate(() => window.__axeTable?.sceneStats()?.effects ?? 0);
 }
 
 async function castOn(page: Page, preset: string) {

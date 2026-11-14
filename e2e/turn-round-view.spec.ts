@@ -1,15 +1,6 @@
-import { expect, Locator, Page, test } from '@playwright/test';
+import { expect, Locator, test } from '@playwright/test';
 
-import { openPanel, panelAtRest, waitAppReady } from './helpers';
-
-async function becomeGm(page: Page) {
-  await page
-    .locator('ui-panel')
-    .filter({ hasText: '接続情報' })
-    .getByRole('button', { name: /^\s*GM\s*$/ })
-    .click();
-  await expect(page.locator('gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
-}
+import { becomeGm, openPanel, panelAtRest, waitAppReady } from './helpers';
 
 /** A point on the part of a face that shows, however far the faces after it lie over it. */
 async function onFace(face: Locator): Promise<{ x: number; y: number }> {

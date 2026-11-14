@@ -1,7 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from './dungeon-helpers';
-import { openFabMenu, openPanel, revealMenuEntry, waitAppReady } from './helpers';
+import { becomeGm, closePanels, openFabMenu, openPanel, revealMenuEntry, waitAppReady, whenTableIdle } from './helpers';
 
 /**
  * The views that look at the table from a piece: Dungeondry Master mode from its eye, with what plays
@@ -9,8 +8,6 @@ import { openFabMenu, openPanel, revealMenuEntry, waitAppReady } from './helpers
  * from behind. Where the views put things comes of their cameras, the same whether or not the table
  * is drawn.
  */
-
-type Hooks = { whenIdle(): Promise<void> };
 
 /** Waits for the view to stop turning, as it glides round to where the piece now faces. */
 async function standStill(view: Locator) {
@@ -96,11 +93,6 @@ function camera(page: Page): Promise<string | null> {
   return page.locator('[data-camera]').getAttribute('data-camera');
 }
 
-/** Waits for what the screen lays over the table to stand where the table now puts it. */
-async function idle(page: Page) {
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
-}
-
 test.describe('following a piece from behind', () => {
   test('moves the camera after the piece walked by the keys, turns it round by a drag, and gives the table its camera back', async ({
     page,
@@ -108,7 +100,7 @@ test.describe('following a piece from behind', () => {
     await waitAppReady(page);
     await becomeGm(page);
     await closePanels(page);
-    await idle(page);
+    await whenTableIdle(page);
     const onTable = await camera(page);
     const piece = page.locator('game-character').filter({ hasText: 'キャラクターB' }).first();
 
@@ -116,7 +108,7 @@ test.describe('following a piece from behind', () => {
     await (await revealMenuEntry(page, page.locator('context-menu'), 'このコマを後ろから追う')).click();
     await expect(page.getByTestId('third-person-hud')).toContainText('キャラクターB');
     await expect.poll(() => camera(page)).not.toBe(onTable);
-    await idle(page);
+    await whenTableIdle(page);
     const behind = await camera(page);
     const place = piece.locator('[data-location]').first();
     const standing = await place.getAttribute('data-location');
@@ -124,7 +116,7 @@ test.describe('following a piece from behind', () => {
     await page.keyboard.press('w');
     await expect.poll(() => place.getAttribute('data-location')).not.toBe(standing);
     await expect.poll(() => camera(page)).not.toBe(behind);
-    await idle(page);
+    await whenTableIdle(page);
     const walked = await camera(page);
 
     await page.mouse.move(640, 650);

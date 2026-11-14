@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel, spotOnPiece, waitAppReady } from './helpers';
+import { closePanels, openPanel, spotOnPiece, waitAppReady } from './helpers';
 import { piece } from './see-through-helpers';
 
 /** Where a piece stands on the table, as the table last drew it. */
@@ -16,14 +16,6 @@ async function openTableSettings(page: Page): Promise<Locator> {
   const panel = page.locator('game-table-setting');
   await expect(panel).toBeVisible({ timeout: 10000 });
   return panel;
-}
-
-async function closePanels(page: Page) {
-  const panels = page.locator('ui-panel');
-  for (let round = 0; round < 8 && (await panels.count()) > 0; round++) {
-    await panels.first().locator('.bg-ui-titlebar button', { hasText: 'close' }).dispatchEvent('click');
-  }
-  await expect(panels).toHaveCount(0);
 }
 
 test.describe('the cells of a table', () => {

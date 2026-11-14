@@ -66,10 +66,7 @@ async function clearOfMarks(page: Page, at: { x: number; y: number }): Promise<{
           const box = ring.getBoundingClientRect();
           return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
         }) &&
-        (window as unknown as { __axeTable: { pickAt(x: number, y: number): string | null } }).__axeTable.pickAt(
-          x,
-          y
-        ) === null,
+        window.__axeTable.pickAt(x, y) === null,
       { x: table.x + point.x, y: table.y + point.y }
     );
     if (clear) return point;
@@ -79,15 +76,7 @@ async function clearOfMarks(page: Page, at: { x: number; y: number }): Promise<{
 
 /** Waits for the water to be built in the scene of the canvas. */
 async function waterBuilt(page: Page) {
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          (window as unknown as { __axeTable: { sceneStats(): { waterParts: number } | null } }).__axeTable.sceneStats()
-            ?.waterParts ?? 0
-      )
-    )
-    .toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => window.__axeTable.sceneStats()?.waterParts ?? 0)).toBeGreaterThan(0);
 }
 
 /** Makes a piece at a point, and leaves the pointer off the table, where its card would cover the pond laid beside it. */
@@ -255,7 +244,7 @@ test('a ditch dug from a pond fills with its water, standing as high as the pond
   await page.mouse.up();
   await page.getByTestId('ground-brush-close').click();
   await expect(page.getByTestId('ground-brush-band')).toHaveCount(0);
-  await page.evaluate(() => (window as unknown as { __axeTable: { whenIdle(): Promise<void> } }).__axeTable.whenIdle());
+  await page.evaluate(() => window.__axeTable.whenIdle());
   await freeze(page);
   await layPond(page, await cellSpot(page, 12.5, 15.5));
   await leavePond(page);

@@ -1,11 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-async function waitMobileReady(page: Page) {
-  await page.goto('/');
-  await expect(page.locator('mobile-shell nav')).toBeVisible({ timeout: 20000 });
-  const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
-  if (await closeStartupPanel.count()) await closeStartupPanel.click();
-}
+import { waitMobileReady } from '../helpers';
 
 async function openMobileMenu(page: Page) {
   const menuButton = page.locator('mobile-shell nav button').last();

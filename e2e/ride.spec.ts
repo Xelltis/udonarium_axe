@@ -1,37 +1,15 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openGroundAt, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
-import { centreOf, pedestal, piece, pinnedPiece, placeOf, Point, settle } from './see-through-helpers';
-
-async function becomeGm(page: Page) {
-  await page
-    .locator('ui-panel')
-    .filter({ hasText: '接続情報' })
-    .getByRole('button', { name: /^\s*GM\s*$/ })
-    .click();
-  await expect(page.locator('gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
-}
-
-async function closePanels(page: Page) {
-  const panels = page.locator('ui-panel');
-  for (let round = 0; round < 8 && (await panels.count()) > 0; round++) {
-    await panels.first().locator('.bg-ui-titlebar button', { hasText: 'close' }).dispatchEvent('click');
-  }
-  await expect(panels).toHaveCount(0);
-}
-
-/**
- * Drags from one point to another and leaves the pointer off the table, where the card of the piece
- * let go of would cover the next one reached for.
- */
-async function drag(page: Page, from: Point, to: Point) {
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
-  await page.mouse.move(to.x, to.y, { steps: 8 });
-  await page.mouse.up();
-  await page.mouse.move(5, 400);
-}
+import {
+  becomeGm,
+  closePanels,
+  dragAndLeave,
+  openGroundAt,
+  revealMenuEntry,
+  spotOnPiece,
+  waitAppReady,
+} from './helpers';
+import { centreOf, pedestal, piece, pinnedPiece, placeOf, settle } from './see-through-helpers';
 
 /**
  * Chooses a riding entry of a piece's menu, a piece named or one already found: getting on or off
@@ -58,11 +36,11 @@ test.describe('mounts', () => {
     const rider = await pinnedPiece(page, 'キャラクターA');
     const mount = piece(page, 'キャラクターB');
     await settle(mount);
-    await drag(page, await spotOnPiece(mount), await openGroundAt(page));
+    await dragAndLeave(page, await spotOnPiece(mount), await openGroundAt(page));
     await chooseRide(page, 'キャラクターB', '乗り物にする');
     await settle(rider);
     await settle(mount);
-    await drag(page, await spotOnPiece(rider), await centreOf(pedestal(mount)));
+    await dragAndLeave(page, await spotOnPiece(rider), await centreOf(pedestal(mount)));
     await settle(rider);
 
     await chooseRide(page, 'キャラクターA', 'キャラクターB に乗る');
@@ -99,7 +77,7 @@ test.describe('mounts', () => {
     const rider = await pinnedPiece(page, 'モンスターB');
     await chooseRide(page, 'モンスターC', '乗り物にする');
     await settle(rider);
-    await drag(page, await spotOnPiece(rider), await centreOf(pedestal(mount)));
+    await dragAndLeave(page, await spotOnPiece(rider), await centreOf(pedestal(mount)));
     await settle(rider);
     const offer = page.getByTestId('snackbar');
     await expect(offer).toContainText('モンスターB は モンスターC の上にいます', { timeout: 5000 });
@@ -121,13 +99,13 @@ test.describe('mounts', () => {
     ]) {
       const box = (await pedestal(mount).boundingBox())!;
       const from = { x: box.x + box.width * 0.85, y: box.y + box.height * 0.5 };
-      await drag(page, from, { x: from.x + dx, y: from.y + dy });
+      await dragAndLeave(page, from, { x: from.x + dx, y: from.y + dy });
       await settle(mount);
       await expect.poll(gap, { timeout: 5000 }).toBe('50,50');
     }
 
     await settle(rider);
-    await drag(page, await centreOf(rider.locator('[data-part="picture"]')), await openGroundAt(page));
+    await dragAndLeave(page, await centreOf(rider.locator('[data-part="picture"]')), await openGroundAt(page));
 
     await expect(mount.getByTestId('piece-riders')).toHaveCount(0, { timeout: 5000 });
     await piece(page, 'モンスターB').dispatchEvent('contextmenu');

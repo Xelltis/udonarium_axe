@@ -1,7 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from '../dungeon-helpers';
-import { openPanel, waitAppReady } from '../helpers';
+import { becomeGm, closePanels, idleOnCanvas, openPanel, waitAppReady } from '../helpers';
 import { solidPng } from '../png-helpers';
 
 /**
@@ -12,28 +11,10 @@ import { solidPng } from '../png-helpers';
 
 type Point = { x: number; y: number };
 
-type Hooks = {
-  renderer(): string | null;
-  whenIdle(): Promise<void>;
-  project(x: number, y: number, z: number): Point | null;
-  pickAt(pageX: number, pageY: number): string | null;
-  sceneStats(): { layers: number } | null;
-};
-
 const RED = { name: 'red-mist.png', buffer: solidPng(400, 60, [220, 30, 30]) };
 
-async function idle(page: Page) {
-  await expect
-    .poll(() => page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.renderer() ?? null), {
-      timeout: 20000,
-    })
-    .not.toBeNull();
-  await page.mouse.move(5, 400);
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
-}
-
 function stats(page: Page) {
-  return page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats());
+  return page.evaluate(() => window.__axeTable.sceneStats());
 }
 
 /** Lays a layer of a red picture over the board from the table's settings. */
@@ -53,7 +34,7 @@ async function layOver(page: Page): Promise<void> {
 /** A point of the board with nothing standing on it, as the camera puts it on the screen. */
 async function bareBoard(page: Page): Promise<Point> {
   const point = await page.evaluate(() => {
-    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const hooks = window.__axeTable;
     for (let y = 150; y <= 650; y += 100) {
       for (let x = 150; x <= 850; x += 100) {
         const at = hooks.project(x, y, 0);
@@ -93,7 +74,7 @@ test.describe('the layers of a table drawn on a canvas', () => {
     await waitAppReady(page);
     await becomeGm(page);
     await closePanels(page);
-    await idle(page);
+    await idleOnCanvas(page);
   });
 
   test('draws a layer laid over the board in the scene, and the page draws none of it', async ({ page }) => {
@@ -103,7 +84,7 @@ test.describe('the layers of a table drawn on a canvas', () => {
 
     await expect.poll(async () => (await stats(page))?.layers).toBe(1);
     await expect(page.getByTestId('foreground-layers')).toHaveCount(0);
-    await idle(page);
+    await idleOnCanvas(page);
     const [r, g, b] = await colourAt(page, point);
     expect(r).toBeGreaterThan(150);
     expect(g).toBeLessThan(90);

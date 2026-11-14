@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanelFrom, openSeatDisplay, waitAppReady } from './helpers';
+import { openPanelFrom, openSeatDisplay, waitAppReady, whenAnimationsEnd } from './helpers';
 
 /** Every button in the drawer and on the toolbar says what it is at once, and goes quiet again. */
 test.describe('showing the names of the buttons all at once', () => {
@@ -25,18 +25,20 @@ test.describe('showing the names of the buttons all at once', () => {
     await expect(page.locator('pl-toolbar [data-testid="button-guide-label"]').first()).toBeVisible();
 
     // The names settle once the menu's drawer has come out, and the sheet places itself again then.
-    await page.waitForTimeout(400);
-    const covered = await page.evaluate(() => {
-      const box = document.querySelector('[data-testid="shortcut-sheet"]')!.getBoundingClientRect();
-      return [...document.querySelectorAll('[data-shortcut-sheet-avoid], [data-guide-label]')]
-        .map((element) => ({ name: element.textContent?.trim(), rect: element.getBoundingClientRect() }))
-        .filter(({ rect }) => rect.width > 0 && rect.height > 0)
-        .filter(
-          ({ rect }) => rect.left < box.right && box.left < rect.right && rect.top < box.bottom && box.top < rect.bottom
-        )
-        .map(({ name }) => name);
-    });
-    expect(covered).toEqual([]);
+    await whenAnimationsEnd(page);
+    const covered = () =>
+      page.evaluate(() => {
+        const box = document.querySelector('[data-testid="shortcut-sheet"]')!.getBoundingClientRect();
+        return [...document.querySelectorAll('[data-shortcut-sheet-avoid], [data-guide-label]')]
+          .map((element) => ({ name: element.textContent?.trim(), rect: element.getBoundingClientRect() }))
+          .filter(({ rect }) => rect.width > 0 && rect.height > 0)
+          .filter(
+            ({ rect }) =>
+              rect.left < box.right && box.left < rect.right && rect.top < box.bottom && box.top < rect.bottom
+          )
+          .map(({ name }) => name);
+      });
+    await expect.poll(covered).toEqual([]);
 
     await page.keyboard.press('Escape');
     await expect(sheet).toHaveCount(0);

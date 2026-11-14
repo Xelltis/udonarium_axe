@@ -51,15 +51,7 @@ test.describe("a piece picture's width and height", () => {
         }));
       }
       const id = (await piece.getAttribute('data-object-id'))!;
-      const sprites = await page.evaluate(
-        (identifier) =>
-          (
-            window as unknown as {
-              __axeTable: { spritesOf(id: string): { part: string; widthPx: number; heightPx: number }[] };
-            }
-          ).__axeTable.spritesOf(identifier),
-        id
-      );
+      const sprites = await page.evaluate((identifier) => window.__axeTable.spritesOf(identifier), id);
       const sprite = sprites.find((each) => each.part === 'picture');
       return { width: `${sprite?.widthPx}px`, height: `${sprite?.heightPx}px` };
     };

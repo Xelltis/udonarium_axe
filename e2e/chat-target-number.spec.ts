@@ -1,16 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { chatInput, createCharacter, expectChatText, revealMenuEntry, waitAppReady } from './helpers';
-
-/** Says each line into the chat window, waiting for the box to empty after each. */
-async function say(page: Page, lines: string[]) {
-  const input = chatInput(page).first();
-  for (const line of lines) {
-    await input.fill(line);
-    await input.press('Enter');
-    await expectChatText(input, '');
-  }
-}
+import { chatInput, createCharacter, expectChatText, revealMenuEntry, say, waitAppReady } from './helpers';
 
 /** The dice bot's answer to a roll, by the roll as it writes it. */
 function answerTo(page: Page, roll: string): Locator {

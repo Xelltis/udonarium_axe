@@ -92,11 +92,15 @@ test.describe('visual novel mode', () => {
     await input.press('Enter');
     await expect(page.locator('visual-novel-overlay img[alt="モンスターB"]')).toBeVisible({ timeout: 15000 });
 
-    await page.waitForTimeout(700);
-    const left = await page.locator('visual-novel-overlay img[alt="モンスターA"]').boundingBox();
-    const right = await page.locator('visual-novel-overlay img[alt="モンスターB"]').boundingBox();
-    if (!left || !right) throw new Error('portrait not found');
-    expect(Math.abs(right.width / 1.05 - left.width)).toBeLessThan(4);
+    // The portraits grow to their sizes as they come in.
+    await expect
+      .poll(async () => {
+        const left = await page.locator('visual-novel-overlay img[alt="モンスターA"]').boundingBox();
+        const right = await page.locator('visual-novel-overlay img[alt="モンスターB"]').boundingBox();
+        if (!left || !right) throw new Error('portrait not found');
+        return Math.abs(right.width / 1.05 - left.width);
+      })
+      .toBeLessThan(4);
   });
 
   test('edits a line from the log (rewriting its text and effects)', async ({ page }) => {

@@ -1,7 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { becomeGm } from './dungeon-helpers';
-import { openPanel, waitAppReady } from './helpers';
+import { becomeGm, openPanel, waitAppReady } from './helpers';
 
 /** The map editor, opened by the game master with its map drawn. */
 async function openEditor(page: Page): Promise<Locator> {

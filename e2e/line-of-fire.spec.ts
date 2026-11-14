@@ -1,24 +1,7 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { becomeGm, closePanels, openPanel, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, settle } from './see-through-helpers';
-
-async function becomeGm(page: Page) {
-  await page
-    .locator('ui-panel')
-    .filter({ hasText: '接続情報' })
-    .getByRole('button', { name: /^\s*GM\s*$/ })
-    .click();
-  await expect(page.locator('gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
-}
-
-async function closePanels(page: Page) {
-  const panels = page.locator('ui-panel');
-  for (let round = 0; round < 8 && (await panels.count()) > 0; round++) {
-    await panels.first().locator('.bg-ui-titlebar button', { hasText: 'close' }).dispatchEvent('click');
-  }
-  await expect(panels).toHaveCount(0);
-}
 
 test.describe('line-of-fire check', () => {
   test('shows the distance to the targeted piece in the panel opened from the engagement zone menu', async ({

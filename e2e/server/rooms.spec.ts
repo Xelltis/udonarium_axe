@@ -191,9 +191,7 @@ test.describe('joining a room', () => {
     const samplePieces = (page: Page) => page.locator('[data-object-id^="testCharacter_"]');
 
     await expect(samplePieces(gm.page)).not.toHaveCount(0, { timeout: 20_000 });
-    await gm.page.evaluate(() =>
-      (window as { __axeTable?: { clearToBlankTable(): void } }).__axeTable!.clearToBlankTable()
-    );
+    await gm.page.evaluate(() => window.__axeTable.clearToBlankTable());
     await expect(samplePieces(gm.page)).toHaveCount(0);
     await openChatSettingsMenuItem(gm.page, 'タブ設定');
     await gm.page.locator('chat-tab-setting li[role="option"]').filter({ hasText: 'サブタブ' }).click();
