@@ -1,4 +1,4 @@
-import { clamp01 } from '@axe/core/util/clamp';
+import { clamp, clamp01 } from '@axe/core/util/clamp';
 import { hexChannels } from '@axe/core/util/hex-color';
 
 /** A colour apart from its clearness: the colour as six hex digits, and how opaque it is, from clear at 0 to solid at 1. */
@@ -29,7 +29,7 @@ export function paintedColorOf(text: string): PaintedColor | null {
 
 function hexOf(channels: readonly number[]): string {
   const digits = channels.map((channel) =>
-    Math.round(Math.min(255, Math.max(0, channel)))
+    Math.round(clamp(channel, 0, 255))
       .toString(16)
       .padStart(2, '0')
   );

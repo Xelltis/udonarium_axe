@@ -1,6 +1,7 @@
 import { SidechainDucker } from '@axe/core/audio/sidechain-ducker';
 import { Logger } from '@axe/core/logging/logger';
 import { AudioOutput, type ChannelInsert, VolumeType } from '@axe/core/storage/audio-output';
+import { clamp } from '@axe/core/util/clamp';
 
 /** The effects the music goes through. */
 export interface MusicEffects {
@@ -235,7 +236,7 @@ export class MusicBus implements ChannelInsert {
     const now = this.context.currentTime;
     const constant = Math.max(0.001, glideS / 3);
     this.applyFilter(effects.filter, glideS);
-    this.echoDelay.delayTime.setTargetAtTime(Math.min(2, Math.max(0.01, effects.echoDelayS)), now, constant);
+    this.echoDelay.delayTime.setTargetAtTime(clamp(effects.echoDelayS, 0.01, 2), now, constant);
     this.echoFeedback.gain.setTargetAtTime(ECHO_BASE_FEEDBACK + ECHO_FEEDBACK_RISE * effects.echo, now, constant);
     this.echoSend.gain.setTargetAtTime(effects.echo, now, constant);
     this.reverbSend.gain.setTargetAtTime(effects.reverb, now, constant);

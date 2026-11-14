@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { delay } from '@axe/core/util/delay';
 
 /**
@@ -73,7 +74,7 @@ export class LoopPointTrack {
   /** Plays the track from a point in seconds, folded into the loop when it lies past the loop's end. */
   start(at: number): void {
     this.release();
-    const position = this.fold(Math.min(Math.max(0, at), this.buffer.duration));
+    const position = this.fold(clamp(at, 0, this.buffer.duration));
     const source = this.context.createBufferSource();
     source.buffer = this.buffer;
     source.loop = this._loop;
@@ -96,7 +97,7 @@ export class LoopPointTrack {
   /** Moves to a point in seconds: playing on from there, or keeping it to start from while stopped. */
   seek(at: number): void {
     if (this.source) this.start(at);
-    else this.offset = this.fold(Math.min(Math.max(0, at), this.buffer.duration));
+    else this.offset = this.fold(clamp(at, 0, this.buffer.duration));
   }
 
   /** Stops where it is, keeping the place to start from again. */
