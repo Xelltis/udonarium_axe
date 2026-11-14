@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { leavingLoss } from '@axe/application/lobby/leaving-loss';
+import { ListedRoom, listedRooms } from '@axe/application/lobby/listed-rooms';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -74,7 +75,7 @@ export class ReConnectComponent {
   /** Whether the table is kept by a room server, which a reconnect leaves as it is. */
   protected readonly onRoomServer = Network.instance.transport === 'server';
 
-  rooms: { alias: string; roomName: string; peerContexts: PeerContext[] }[] = [];
+  rooms: Pick<ListedRoom, 'alias' | 'roomName' | 'peerContexts'>[] = [];
 
   readonly forceCleanup = signal(false);
 
@@ -170,19 +171,7 @@ export class ReConnectComponent {
   async reload() {
     this.rooms = [];
     try {
-      const roomInfos = await Network.instance.listAllRooms();
-      for (const room of roomInfos) {
-        this.rooms.push({
-          alias: room.id + room.name,
-          roomName: room.name,
-          peerContexts: room.peers as PeerContext[],
-        });
-      }
-      this.rooms.sort((a, b) => {
-        if (a.alias < b.alias) return -1;
-        if (a.alias > b.alias) return 1;
-        return 0;
-      });
+      this.rooms = listedRooms(await Network.instance.listAllRooms());
     } catch (e) {
       Logger.error('[ReConnect] failed to fetch room list', e);
     }

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, linkedSignal, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ListedRoom, listedRooms } from '@axe/application/lobby/listed-rooms';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -24,14 +25,6 @@ import { ServerAccountComponent } from '@axe/features/lobby/server-account/serve
 import { WithheldEntryService } from '@axe/features/lobby/withheld-entry';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
-
-/** One row of the room list: the room as the transport reports it, and the peers SkyWay found in it. */
-interface LobbyRoom {
-  alias: string;
-  roomName: string;
-  info: IRoomInfo;
-  peerContexts: PeerContext[];
-}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,7 +54,7 @@ export class LobbyComponent {
   protected readonly canCreateRoom = computed(() => !this.isServerTransport || this.auth.offersLogin() !== false);
 
   /** The rooms listed, emptied once reaching the network is given up on. */
-  rooms = linkedSignal<boolean, LobbyRoom[]>({
+  rooms = linkedSignal<boolean, ListedRoom[]>({
     source: this.reach.unreachable,
     computation: (unreachable, previous) => (unreachable ? [] : (previous?.value ?? [])),
   });
@@ -197,18 +190,7 @@ export class LobbyComponent {
         Network.instance.listAllRooms(),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
       ]);
-      const roomsList: LobbyRoom[] = roomInfos.map((room) => ({
-        alias: room.id + room.name,
-        roomName: room.name,
-        info: room,
-        peerContexts: room.peers as PeerContext[],
-      }));
-      roomsList.sort((a, b) => {
-        if (a.alias < b.alias) return -1;
-        if (a.alias > b.alias) return 1;
-        return 0;
-      });
-      this.rooms.set(roomsList);
+      this.rooms.set(listedRooms(roomInfos));
       this.help.set(this.t('feature.lobby.lobby.hintNoRooms'));
     } catch (e) {
       Logger.error('[Lobby] failed to fetch room list', e);
@@ -272,7 +254,7 @@ export class LobbyComponent {
   }
 
   /** Joins the room a row stands for, through the room server or among the SkyWay peers in it. */
-  connectRoom(row: LobbyRoom): Promise<void> {
+  connectRoom(row: ListedRoom): Promise<void> {
     return Network.instance.transport === 'server' ? this.connectServer(row.info) : this.connect(row.peerContexts);
   }
 
@@ -314,7 +296,7 @@ export class LobbyComponent {
    * Deletes a room the reader is a GM of, once they have confirmed, and lists the rooms again
    * when it is gone. What became of it is said above the list.
    */
-  async deleteRoom(row: LobbyRoom): Promise<void> {
+  async deleteRoom(row: ListedRoom): Promise<void> {
     const roomKey = row.info.roomKey;
     if (!roomKey || this.isDeleting()) return;
     this.isDeleting.set(true);

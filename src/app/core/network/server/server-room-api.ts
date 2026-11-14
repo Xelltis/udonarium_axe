@@ -1,4 +1,3 @@
-import { IPeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { readOperatorContact } from '@axe/core/network/server/operator-contact';
 import {
@@ -147,7 +146,7 @@ export function roomInfoOf(summary: RoomSummary): IRoomInfo {
     id: summary.roomId,
     name: summary.name,
     hasPassword: summary.hasPassword,
-    peers: [] as IPeerContext[],
+    peers: [],
     memberCount: summary.members,
     roomKey: summary.roomKey,
     deletable: summary.deletable === true,

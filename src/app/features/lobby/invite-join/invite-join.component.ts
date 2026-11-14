@@ -245,7 +245,7 @@ export class InviteJoinComponent {
     }
     const room = await this.roomJoin.findRoom(params.roomId);
     if (this.movedOn(params)) return;
-    const peerContexts = (room?.peers ?? []) as PeerContext[];
+    const peerContexts = room?.peers ?? [];
     if (!room || peerContexts.length < 1) {
       this.state.set('notFound');
       return;
