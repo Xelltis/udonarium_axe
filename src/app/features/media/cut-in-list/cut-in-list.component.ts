@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { SaveProgress } from '@axe/application/file/save-progress';
@@ -37,7 +37,8 @@ export class CutInListComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
 
-  selectedCutIn: CutIn | null = null;
+  /** The cut-in picked in the list for editing, or null when none is. */
+  readonly selectedCutIn = signal<CutIn | null>(null);
 
   /**
    * How many ways a cut-in faces on a table seen from above.
@@ -75,7 +76,7 @@ export class CutInListComponent {
 
   /** Whether a cut-in is picked in the list. */
   get isSelected(): boolean {
-    return this.selectedCutIn !== null;
+    return this.selectedCutIn() !== null;
   }
 
   /**
@@ -98,21 +99,21 @@ export class CutInListComponent {
 
   /** Whether the room has no cut-ins. */
   get isEmpty(): boolean {
-    return this.getCutIns().length <= 0;
+    return this.cutIns().length <= 0;
   }
 
   /**
    * Every cut-in in the room, for the list. The room's cut-ins coming and going are followed, so the
    * list is drawn again when one goes after a question asked elsewhere has been answered.
    */
-  getCutIns(): CutIn[] {
+  readonly cutIns = computed<CutIn[]>(() => {
     this.objectChange.collectionOf(CutIn.aliasName)();
     return this.objectStore.getObjects(CutIn);
-  }
+  });
 
   /** Picks the cut-in with the given identifier for editing, or clears the pick when it is not found. */
   selectCutIn(identifier: string) {
-    this.selectedCutIn = this.objectStore.get<CutIn>(identifier);
+    this.selectedCutIn.set(this.objectStore.get<CutIn>(identifier));
   }
 
   /** Picks the cut-in named by a select element's value, from its change event. */
@@ -135,7 +136,7 @@ export class CutInListComponent {
 
   /** Saves the picked cut-in to a file named after it, showing progress while the file is written. */
   async save() {
-    const cutIn = this.selectedCutIn;
+    const cutIn = this.selectedCutIn();
     if (!cutIn) return;
     await this.saveProgress.run((onProgress) => {
       cutIn.selected = true;
@@ -151,7 +152,7 @@ export class CutInListComponent {
    */
   async delete(): Promise<void> {
     if (!this.canEditCutIns) return;
-    const cutIn = this.selectedCutIn;
+    const cutIn = this.selectedCutIn();
     if (this.isEmpty || !cutIn) return;
     const sure = await this.confirm.ask({
       message: this.t('feature.media.cutIn.deleteConfirm', { name: cutIn.name }),
@@ -159,8 +160,8 @@ export class CutInListComponent {
       danger: true,
     });
     if (!sure) return;
-    if (this.selectedCutIn !== cutIn || !this.canEditCutIns) return;
+    if (this.selectedCutIn() !== cutIn || !this.canEditCutIns) return;
     cutIn.destroy();
-    this.selectedCutIn = null;
+    this.selectedCutIn.set(null);
   }
 }
