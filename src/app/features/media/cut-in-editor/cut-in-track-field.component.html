@@ -7,7 +7,7 @@
     [attr.min]="min()"
     [attr.max]="max()"
     [(ngModel)]="value"
-    [attr.disabled]="!editable() ? '' : null"
+    [disabled]="!editable()"
   />
 } @else {
   <input
@@ -17,7 +17,7 @@
     [attr.min]="min()"
     [attr.max]="max()"
     [(ngModel)]="value"
-    [attr.disabled]="!editable() ? '' : null"
+    [disabled]="!editable()"
   />
 }
 <button

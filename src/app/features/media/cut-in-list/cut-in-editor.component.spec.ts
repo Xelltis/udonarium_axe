@@ -364,6 +364,19 @@ describe('CutInEditorComponent', () => {
       expect([cutIn.name, cutIn.tagName, cutIn.outTime]).toEqual(['オープニング', 'BGM', 5]);
     });
 
+    it('is drawn taking no typing in any field when it is not editable from the first', async () => {
+      const locked = TestBed.createComponent(CutInEditorComponent);
+      locked.componentRef.setInput('cutIn', cutIn);
+      locked.componentRef.setInput('isEditable', false);
+      locked.detectChanges();
+      await locked.whenStable();
+
+      const fields = [...(locked.nativeElement as HTMLElement).querySelectorAll<HTMLInputElement>('input[name]')];
+      expect(fields.length).toBeGreaterThan(5);
+      expect(fields.filter((input) => !input.disabled).map((input) => input.name)).toEqual([]);
+      locked.destroy();
+    });
+
     it('has number fields for the width, the height and the place across and down', () => {
       const names = ['cut-in-width', 'cut-in-height', 'cut-in-x-pos-num', 'cut-in-y-pos-num'];
 

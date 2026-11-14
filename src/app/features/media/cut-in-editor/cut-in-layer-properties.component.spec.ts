@@ -33,6 +33,21 @@ describe('CutInLayerPropertiesComponent', () => {
     fixture.detectChanges();
   }
 
+  it('is drawn taking no typing in any field when it is not editable from the first', async () => {
+    const locked = TestBed.createComponent(CutInLayerPropertiesComponent);
+    locked.componentRef.setInput('layer', layer);
+    locked.componentRef.setInput('isEditable', false);
+    locked.detectChanges();
+    await locked.whenStable();
+
+    const fields = [
+      ...(locked.nativeElement as HTMLElement).querySelectorAll<HTMLInputElement>('input, select, textarea'),
+    ];
+    expect(fields.length).toBeGreaterThan(5);
+    expect(fields.filter((field) => !field.disabled).map((field) => field.name)).toEqual([]);
+    locked.destroy();
+  });
+
   it('says nothing without a layer', () => {
     fixture.componentRef.setInput('layer', null);
     fixture.detectChanges();

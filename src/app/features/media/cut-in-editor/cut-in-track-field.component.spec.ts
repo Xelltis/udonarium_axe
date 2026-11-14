@@ -107,4 +107,18 @@ describe('CutInTrackFieldComponent', () => {
     expect(field().hasAttribute('disabled')).toBe(true);
     expect(diamond().disabled).toBe(true);
   });
+
+  it('is drawn taking no typing when it is not editable from the first', async () => {
+    fixture.componentRef.setInput('editable', false);
+    await drawn();
+    expect(field().disabled).toBe(true);
+
+    fixture.componentRef.setInput('slider', true);
+    await drawn();
+    expect(field().disabled).toBe(true);
+
+    fixture.componentRef.setInput('editable', true);
+    await drawn();
+    expect(field().disabled).toBe(false);
+  });
 });
