@@ -275,3 +275,23 @@ export const CUT_IN_TITLE_BAR_HEIGHT = 25;
 export function cutInPanelChrome(cutIn: CutIn): number {
   return cutIn.frameless ? 0 : CUT_IN_TITLE_BAR_HEIGHT;
 }
+
+/**
+ * Where a cut-in's panel stands in a viewport and how large it is: the cut-in's own size with the
+ * room its title bar takes, placed by its position as a share of the room left over across and down.
+ * A cut-in larger than the viewport starts from the left or the top edge.
+ */
+export function cutInPanelBox(
+  cutIn: CutIn,
+  viewport: { readonly width: number; readonly height: number }
+): { left: number; top: number; width: number; height: number } {
+  const chrome = cutInPanelChrome(cutIn);
+  const marginWidth = Math.max(0, viewport.width - cutIn.width);
+  const marginHeight = Math.max(0, viewport.height - cutIn.height - chrome);
+  return {
+    left: (marginWidth * cutIn.x_pos) / 100,
+    top: (marginHeight * cutIn.y_pos) / 100,
+    width: cutIn.width,
+    height: cutIn.height + chrome,
+  };
+}

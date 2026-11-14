@@ -9,7 +9,7 @@ import { VolumeType } from '@axe/core/storage/audio-output';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { CutIn, cutInPanelChrome } from '@axe/domain/media/cut-in';
+import { CutIn, cutInPanelBox, cutInPanelChrome } from '@axe/domain/media/cut-in';
 import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
 import { mixLevelOf } from '@axe/domain/media/mix-level';
 import { asCutInMultiDirectionMode } from '@axe/domain/tabletop/cut-in-multi-direction';
@@ -220,16 +220,9 @@ export class CutInEventHandlerService {
     invisible: boolean,
     speaker: CutInSpeaker | null
   ): void {
-    const chrome = cutInPanelChrome(cutIn);
-    const marginW = Math.max(0, window.innerWidth - cutIn.width);
-    const marginH = Math.max(0, window.innerHeight - cutIn.height - chrome);
-
     const option: PanelOption = {
       title: this.t('feature.media.cutIn.panelTitleWith', { name: cutIn.name }),
-      width: cutIn.width,
-      height: cutIn.height + chrome,
-      left: (marginW * cutIn.x_pos) / 100,
-      top: (marginH * cutIn.y_pos) / 100,
+      ...cutInPanelBox(cutIn, { width: window.innerWidth, height: window.innerHeight }),
       isCutIn: true,
       cutInIdentifier: cutIn.identifier,
       leastSize: () => this.videoLeastSize(cutIn.identifier),
