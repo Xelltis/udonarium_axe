@@ -184,7 +184,7 @@ XMLを読んだとき、画像の欄の値が手元に無く画像の拡張子�
 | `core/storage/mime-type`・`zip-compression`                | 拡張子と型、圧縮済みとして扱う拡張子                                                          |
 | `FileArchiver`                                             | 読み込みの`handle…`と上限の定数、`FileTooLarge`の`kind`                                       |
 | `SaveDataService`                                          | zipに入れるファイルとタグの`.xml`。`handleText`の名前の一覧にも足す                           |
-| `features/lobby/network-event-handler.service`             | 部屋に入ったときに上げる所と、部屋の一覧を型で分ける所                                        |
+| `features/lobby/room-asset-sync.service`                   | 部屋に入ったときに上げる所と、部屋の一覧を型で分ける所                                        |
 | `application/lobby/leaving-loss`                           | 上げ終わっていない物があるか（`hasUploadsPending`）                                           |
 | `domain/media/asset-removal`                               | 削除の`AssetRemovalKind`と、`features/file/asset-removal-event-handler.service`               |
 
