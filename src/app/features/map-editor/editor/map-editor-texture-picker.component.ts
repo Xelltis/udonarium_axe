@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { textureImagesOf } from '@axe/application/file/texture-images';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -18,7 +19,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'map-editor-texture-picker',
   templateUrl: './map-editor-texture-picker.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoModule],
+  imports: [FormsModule, TranslocoModule],
   host: { class: 'contents' },
 })
 export class MapEditorTexturePickerComponent {
