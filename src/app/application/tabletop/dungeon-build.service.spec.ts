@@ -789,6 +789,15 @@ describe('DungeonBuildService', () => {
     expect(ImageTag.get(url)?.tag).toBe('テクスチャ');
   });
 
+  it('tags a bundled picture it brings back under the tag its removed copy left behind', async () => {
+    const url = WALL_TEXTURE_ASSET_URLS.wall_ashlar;
+    ImageTag.create(url).tag = 'テクスチャ';
+
+    await build();
+
+    expect(ImageTag.get(url)?.tag).toBe('地形');
+  });
+
   it('takes a picture from the library as it is', async () => {
     const { result } = await build({ wall: { kind: 'library', identifier: 'some-hash' } });
     const wall = result.table.terrains.find((terrain) => terrain.mode === TerrainViewState.ALL);
