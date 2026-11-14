@@ -194,6 +194,22 @@ describe('GameCharacter', () => {
     });
   });
 
+  describe('touchChatColors', () => {
+    it('sends on a colour that was written in place', () => {
+      character.chatColorCode[0] = '#123456';
+      const before = character.majorVersion;
+
+      character.touchChatColors();
+
+      expect(character.majorVersion).toBeGreaterThan(before);
+      expect(character.toContext().syncData).toEqual(
+        expect.objectContaining({
+          attributes: expect.objectContaining({ chatColorCode: expect.arrayContaining(['#123456']) }),
+        })
+      );
+    });
+  });
+
   // ----------------------------------------------------------------
   // specifyKomaImageFlag / komaImageHeight
   // ----------------------------------------------------------------

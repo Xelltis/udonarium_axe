@@ -214,7 +214,6 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() chatBubbleLight: string[] = [...DEFAULT_CHAT_BUBBLE_CODES];
   @SyncVar() chatBubbleDark: string[] = [...DEFAULT_CHAT_BUBBLE_CODES];
   @SyncVar() overViewDataTags: string[] = [];
-  @SyncVar() syncDummyCounter: number = 0;
   /**
    * How each of the character's portraits sits in a cut-in's portrait slot, as
    * `cut-in-portrait-fit.ts` writes it. Empty leaves every portrait to the cut-in's own framing.
@@ -481,6 +480,14 @@ export class GameCharacter extends OwnedTabletopObject {
     const parts = this.partsAlong();
     super.destroy();
     for (const part of parts) part.destroy();
+  }
+
+  /**
+   * Sends the chat colours on to the room after one of them was written in place. The three lists
+   * are changed slot by slot rather than assigned, which on its own sends nothing.
+   */
+  touchChatColors(): void {
+    this.update();
   }
 
   /** Raises the piece above the other pieces it overlaps on the table. */

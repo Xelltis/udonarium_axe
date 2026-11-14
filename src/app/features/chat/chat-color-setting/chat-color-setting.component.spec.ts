@@ -190,5 +190,16 @@ describe('ChatColorSettingComponent', () => {
 
       expect(character.chatColorCode[0]).toBe('#222222');
     });
+
+    it('sends the character on to the room when a colour or a bubble is written', () => {
+      const sent = vi.spyOn(character, 'update');
+
+      component.changeColor('#222222', 0);
+      component.changeBubble('#333333', 0, 'dark');
+
+      expect(sent).toHaveBeenCalledTimes(2);
+      expect(character.chatBubbleDark[0]).toBe('#333333');
+      vi.restoreAllMocks();
+    });
   });
 });
