@@ -25,6 +25,10 @@ import { OpenUrlComponent } from '@axe/ui/components/open-url/open-url.component
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/** The bounds the size fields offer while no cut-in is under edit, in pixels. */
+const STAND_IN_MIN_SIZE = 10;
+const STAND_IN_MAX_SIZE = 1200;
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'cut-in-editor',
@@ -51,11 +55,6 @@ export class CutInEditorComponent {
     this.objectChange.versionOf(c.identifier)();
     return !!c.videoId;
   });
-
-  _minSizeWidth = 10;
-  _maxSizeWidth = 10;
-  _minSizeHeight = 1200;
-  _maxSizeHeight = 1200;
 
   private get c(): CutIn | null {
     return this.cutIn();
@@ -157,19 +156,16 @@ export class CutInEditorComponent {
    * The cut-in's width in pixels, from the width field.
    *
    * Writing it also sets the height when the aspect is kept, from the video's default proportions
-   * or the picture's. While original size is on it reads the picture's or video's own width, without
+   * or the picture's, once the picture's size is known. While original size is on it reads the picture's or video's own width, without
    * writing it to the cut-in. Reads 0 while not editable.
    */
   set cutInWidth(cutInWidth: number) {
-    if (!this.c) return;
-    if (this.editable) this.c.width = cutInWidth;
-    if (this.keepImageAspect) {
-      if (this.isYouTubeCutIn()) {
-        this.c.height = Math.floor((cutInWidth * this.c.defVideoSizeHeight) / this.c.defVideoSizeWidth);
-      } else {
-        this.c.height = Math.floor((cutInWidth * this.originalImgHeight()) / this.originalImgWidth());
-      }
-    }
+    const cutIn = this.c;
+    if (!cutIn) return;
+    if (this.editable) cutIn.width = cutInWidth;
+    if (!this.keepImageAspect) return;
+    const own = this.ownSize(cutIn);
+    if (own.width > 0 && own.height > 0) cutIn.height = Math.floor((cutInWidth * own.height) / own.width);
   }
 
   get cutInWidth(): number {
@@ -182,19 +178,16 @@ export class CutInEditorComponent {
    * The cut-in's height in pixels, from the height field.
    *
    * Writing it also sets the width when the aspect is kept, from the video's default proportions or
-   * the picture's. While original size is on it reads the picture's or video's own height, without
+   * the picture's, once the picture's size is known. While original size is on it reads the picture's or video's own height, without
    * writing it to the cut-in. Reads 0 while not editable.
    */
   set cutInHeight(cutInHeight: number) {
-    if (!this.c) return;
-    if (this.editable) this.c.height = cutInHeight;
-    if (this.keepImageAspect) {
-      if (this.isYouTubeCutIn()) {
-        this.c.width = Math.floor((cutInHeight * this.c.defVideoSizeWidth) / this.c.defVideoSizeHeight);
-      } else {
-        this.c.width = Math.floor((cutInHeight * this.originalImgWidth()) / this.originalImgHeight());
-      }
-    }
+    const cutIn = this.c;
+    if (!cutIn) return;
+    if (this.editable) cutIn.height = cutInHeight;
+    if (!this.keepImageAspect) return;
+    const own = this.ownSize(cutIn);
+    if (own.width > 0 && own.height > 0) cutIn.width = Math.floor((cutInHeight * own.width) / own.height);
   }
 
   get cutInHeight(): number {
@@ -398,33 +391,24 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.audioIdentifier = cutInAudioIdentifier;
   }
 
-  readonly audios = computed(() => {
-    this.objectChange.fileVersion();
-    return this.audioStorage.audios.filter((audio) => !audio.isHidden);
-  });
-
   /** The smallest width the width field allows, which differs for a video cut-in. */
   get minSizeWidth(): number {
-    if (this.c) this._minSizeWidth = this.c.minSizeWidth(this.isYouTubeCutIn());
-    return this._minSizeWidth;
+    return this.c?.minSizeWidth(this.isYouTubeCutIn()) ?? STAND_IN_MIN_SIZE;
   }
 
   /** The largest width the width field allows, which differs for a video cut-in. */
   get maxSizeWidth(): number {
-    if (this.c) this._maxSizeWidth = this.c.maxSizeWidth(this.isYouTubeCutIn());
-    return this._maxSizeWidth;
+    return this.c?.maxSizeWidth(this.isYouTubeCutIn()) ?? STAND_IN_MAX_SIZE;
   }
 
   /** The smallest height the height field allows, which differs for a video cut-in. */
   get minSizeHeight(): number {
-    if (this.c) this._minSizeHeight = this.c.minSizeHeight(this.isYouTubeCutIn());
-    return this._minSizeHeight;
+    return this.c?.minSizeHeight(this.isYouTubeCutIn()) ?? STAND_IN_MIN_SIZE;
   }
 
   /** The largest height the height field allows, which differs for a video cut-in. */
   get maxSizeHeight(): number {
-    if (this.c) this._maxSizeHeight = this.c.maxSizeHeight(this.isYouTubeCutIn());
-    return this._maxSizeHeight;
+    return this.c?.maxSizeHeight(this.isYouTubeCutIn()) ?? STAND_IN_MAX_SIZE;
   }
 
   /** Whether the cut-in's sound is present in this room's audio storage. */
@@ -437,7 +421,7 @@ export class CutInEditorComponent {
    * Resets the cut-in's size to a video's default size or to its picture's own size; does nothing
    * while not editable.
    */
-  setDefaultControl(isVideo: boolean) {
+  private setDefaultControl(isVideo: boolean) {
     if (!this.editable || !this.c) return;
     if (isVideo) {
       this.c.width = this.c.defVideoSizeWidth;

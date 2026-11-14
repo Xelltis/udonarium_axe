@@ -265,6 +265,60 @@ describe('CutInEditorComponent', () => {
     expect(cutIn.height).toBe(200);
   });
 
+  it('writes the side typed and leaves the other alone while the kept aspect waits on a picture not yet measured', () => {
+    TestBed.inject(ImageStorage).add('a-picture');
+    cutIn.imageIdentifier = 'a-picture';
+    cutIn.originalSize = false;
+    cutIn.keepImageAspect = true;
+    cutIn.width = 320;
+    cutIn.height = 200;
+    fixture.detectChanges();
+
+    component.cutInWidth = 400;
+    expect([cutIn.width, cutIn.height]).toEqual([400, 200]);
+
+    component.cutInHeight = 250;
+    expect([cutIn.width, cutIn.height]).toEqual([400, 250]);
+  });
+
+  it('keeps a video’s shape from either side typed while the aspect is kept', async () => {
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';
+    cutIn.originalSize = false;
+    cutIn.keepImageAspect = true;
+    await fixture.whenStable();
+
+    component.cutInWidth = 320;
+    expect([cutIn.width, cutIn.height]).toEqual([320, 180]);
+
+    component.cutInHeight = 360;
+    expect([cutIn.width, cutIn.height]).toEqual([640, 360]);
+  });
+
+  it('offers the bounds of the cut-in’s kind for each side, and stand-in bounds without a cut-in', async () => {
+    expect([component.minSizeWidth, component.maxSizeWidth, component.minSizeHeight, component.maxSizeHeight]).toEqual([
+      cutIn.minSizeWidth(false),
+      cutIn.maxSizeWidth(false),
+      cutIn.minSizeHeight(false),
+      cutIn.maxSizeHeight(false),
+    ]);
+
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';
+    await fixture.whenStable();
+    expect([component.minSizeWidth, component.maxSizeWidth, component.minSizeHeight, component.maxSizeHeight]).toEqual([
+      cutIn.minSizeWidth(true),
+      cutIn.maxSizeWidth(true),
+      cutIn.minSizeHeight(true),
+      cutIn.maxSizeHeight(true),
+    ]);
+
+    fixture.componentRef.setInput('cutIn', null);
+    expect([component.minSizeWidth, component.maxSizeWidth, component.minSizeHeight, component.maxSizeHeight]).toEqual([
+      10, 1200, 10, 1200,
+    ]);
+  });
+
   it('stops the music before playing for everyone a cut-in that brings its own sound and has no tag', () => {
     const launcher = new CutInLauncher('CutInLauncher');
     launcher.initialize();
