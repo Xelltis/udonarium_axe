@@ -358,7 +358,7 @@ describe('GameObjectInventoryComponent', () => {
       // Personal folders live on the device, so they outlive the store cleanup too.
       localStorage.clear();
       // The summary settings are a synced singleton, so its folders outlive the store cleanup.
-      (DataSummarySetting as unknown as Record<string, unknown>)['_instance'] = undefined;
+      DataSummarySetting.forget();
       vi.unstubAllGlobals();
       vi.restoreAllMocks();
     });
@@ -1292,7 +1292,7 @@ describe('GameObjectInventoryComponent', () => {
     describe('reading the cast as a table', () => {
       afterEach(() => {
         TestBed.inject(StatusAilmentService).save([]);
-        (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+        StatusAilmentCatalog.forget();
       });
 
       function tableRows(): HTMLElement[] {

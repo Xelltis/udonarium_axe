@@ -37,6 +37,17 @@ export class StatusAilmentCatalog extends ObjectNode {
   }
 
   /**
+   * Forgets the catalog held here, so that the next reader is given one made anew.
+   *
+   * The catalog is held here as well as in the store, and one that never reached the store, or was
+   * taken out of it some other way than by being removed, would be put back as it was the moment it
+   * is read. Only a test between two of its own has any reason to say this.
+   */
+  static forget(): void {
+    StatusAilmentCatalog._instance = undefined;
+  }
+
+  /**
    * The states the catalog holds, read from its one-to-a-line text. Assigning a list rewrites that
    * text, which travels with the room.
    */

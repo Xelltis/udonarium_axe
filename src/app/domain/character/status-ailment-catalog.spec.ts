@@ -10,12 +10,12 @@ describe('StatusAilmentCatalog', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({});
     clearStore();
-    (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+    StatusAilmentCatalog.forget();
   });
 
   afterEach(() => {
     clearStore();
-    (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+    StatusAilmentCatalog.forget();
   });
 
   it('holds one catalogue for the room', () => {

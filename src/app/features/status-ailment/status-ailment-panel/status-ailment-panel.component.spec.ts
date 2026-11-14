@@ -28,7 +28,7 @@ describe('StatusAilmentPanelComponent', () => {
   afterEach(() => {
     fixture?.destroy();
     service.save([]);
-    (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+    StatusAilmentCatalog.forget();
   });
 
   it('takes a state and shows it', () => {

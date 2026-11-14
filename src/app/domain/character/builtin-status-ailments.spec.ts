@@ -12,12 +12,12 @@ describe('the states a room starts with', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({});
     clearStore();
-    (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+    StatusAilmentCatalog.forget();
   });
 
   afterEach(() => {
     clearStore();
-    (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+    StatusAilmentCatalog.forget();
   });
 
   it('goes down and comes back exactly as it was written', () => {

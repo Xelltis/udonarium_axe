@@ -8,8 +8,7 @@ describe('DataSummarySetting', () => {
   });
 
   afterEach(() => {
-    // Reset singleton
-    (DataSummarySetting as unknown as Record<string, unknown>)['_instance'] = undefined;
+    DataSummarySetting.forget();
   });
 
   describe('SortOrder enum', () => {

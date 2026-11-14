@@ -31,7 +31,7 @@ describe('StatusAilmentService', () => {
     PeerCursor.myCursor = null!;
     for (const made of created.splice(0)) ObjectStore.instance.remove(made);
     service.save([]);
-    (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+    StatusAilmentCatalog.forget();
   });
 
   describe('the catalogue', () => {
@@ -229,7 +229,7 @@ describe('StatusAilmentService and the statuses a state moves', () => {
   afterEach(() => {
     for (const made of created.splice(0)) ObjectStore.instance.remove(made);
     service.save([]);
-    (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+    StatusAilmentCatalog.forget();
   });
 
   it('holds the status where the state says while it is worn', () => {
