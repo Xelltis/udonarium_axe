@@ -253,7 +253,7 @@ describe('JukeboxComponent', () => {
       ObjectStore.instance.get<Playlist>(Playlist.DEFAULT_IDENTIFIER)!.entries = ['song', 'other'];
       vi.spyOn(AudioPlayer.prototype, 'play').mockImplementation(() => {});
       vi.spyOn(AudioPlayer.prototype, 'stop').mockImplementation(() => {});
-      component.jukebox.play('song');
+      component.jukebox!.play('song');
     });
 
     it('greys out every control of the room’s music for a guest, but the preview', async () => {
@@ -305,7 +305,7 @@ describe('JukeboxComponent', () => {
       expect(ObjectStore.instance.get<Playlist>(Playlist.DEFAULT_IDENTIFIER)!.entries).toEqual(['song', 'other']);
       expect(component.getTagOf(AudioStorage.instance.get('other')!)).toBe('BGM');
       expect(ObjectStore.instance.getObjects(Playlist)).toHaveLength(playlists);
-      expect(component.jukebox.isSeekLocked).toBe(true);
+      expect(component.jukebox!.isSeekLocked).toBe(true);
     });
   });
 
@@ -423,7 +423,7 @@ describe('JukeboxComponent', () => {
     });
 
     it('shows where a held track stands', async () => {
-      const jukebox = component.jukebox;
+      const jukebox = component.jukebox!;
       jukebox.audioIdentifier = 'held';
       jukebox.startTime = 20;
       jukebox.isPlaying = false;
@@ -504,7 +504,7 @@ describe('JukeboxComponent', () => {
       const stopBlankSpy = vi
         .spyOn(ObjectStore.instance.get<CutInLauncher>('CutInLauncher')!, 'stopBlankTagCutIn')
         .mockImplementation(() => {});
-      const playSpy = vi.spyOn(component.jukebox, 'play').mockImplementation(() => {});
+      const playSpy = vi.spyOn(component.jukebox!, 'play').mockImplementation(() => {});
 
       component.playBGM(audio);
 
@@ -521,7 +521,7 @@ describe('JukeboxComponent', () => {
       vi.spyOn(ObjectStore.instance.get<CutInLauncher>('CutInLauncher')!, 'stopBlankTagCutIn').mockImplementation(
         () => {}
       );
-      const playSpy = vi.spyOn(component.jukebox, 'play').mockImplementation(() => {});
+      const playSpy = vi.spyOn(component.jukebox!, 'play').mockImplementation(() => {});
 
       component.playBGM(audio);
 
@@ -536,8 +536,8 @@ describe('JukeboxComponent', () => {
       vi.spyOn(AudioPlayer.prototype, 'stop').mockImplementation(() => {});
 
       // when the jukebox is playing that track
-      component.jukebox.audioIdentifier = 'stop-bgm-01';
-      const stopSpy = vi.spyOn(component.jukebox, 'stop').mockImplementation(() => {});
+      component.jukebox!.audioIdentifier = 'stop-bgm-01';
+      const stopSpy = vi.spyOn(component.jukebox!, 'stop').mockImplementation(() => {});
 
       component.stopBGM(audio);
       expect(stopSpy).toHaveBeenCalledOnce();
@@ -547,11 +547,11 @@ describe('JukeboxComponent', () => {
       const audio = makeReadyAudio('stop-bgm-02');
       AudioStorage.instance.add(audio);
 
-      component.jukebox.audioIdentifier = 'other-audio'; // a different identifier
+      component.jukebox!.audioIdentifier = 'other-audio'; // a different identifier
       const otherAudio = makeReadyAudio('other-audio');
       AudioStorage.instance.add(otherAudio);
 
-      const stopSpy = vi.spyOn(component.jukebox, 'stop').mockImplementation(() => {});
+      const stopSpy = vi.spyOn(component.jukebox!, 'stop').mockImplementation(() => {});
 
       component.stopBGM(audio);
       expect(stopSpy).not.toHaveBeenCalled();
@@ -632,7 +632,7 @@ describe('JukeboxComponent', () => {
 
     it('starts and stops one for the room from the library, leaving the music alone', async () => {
       const rain = addBackgroundSound('rain', 'Rain');
-      const music = vi.spyOn(component.jukebox, 'play');
+      const music = vi.spyOn(component.jukebox!, 'play');
       await fixture.whenStable();
       const toggle = () =>
         (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
@@ -690,6 +690,22 @@ describe('JukeboxComponent', () => {
 
       component.selectTag.set(null);
       expect(component.audios()).toHaveLength(2);
+    });
+
+    it('redraws a row for the tag its file is given, as by somebody else in the room', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      AudioStorage.instance.add(makeReadyAudio('retagged'));
+      const tag = AudioTag.create('retagged');
+      await fixture.whenStable();
+      const host = fixture.nativeElement as HTMLElement;
+      const playSe = () => host.querySelector(`button[title="${t('feature.media.jukebox.playSE')}"]`);
+      expect(playSe()).toBeNull();
+
+      tag.tag = 'SE';
+      await Promise.resolve();
+      await fixture.whenStable();
+
+      expect(playSe()).not.toBeNull();
     });
 
     it('draws the tab for every file ahead of the tags, and offers it as no tag of a file', async () => {
@@ -753,7 +769,7 @@ describe('JukeboxComponent', () => {
   describe('stopSE / isSePlaying', () => {
     it('stops a sound effect by identifier', () => {
       const audio = makeReadyAudio('se-stop-01');
-      const stopSpy = vi.spyOn(component.jukebox, 'stopSE').mockImplementation(() => {});
+      const stopSpy = vi.spyOn(component.jukebox!, 'stopSE').mockImplementation(() => {});
 
       component.stopSE(audio);
 
@@ -820,7 +836,7 @@ describe('JukeboxComponent', () => {
 
     it('shows the playlist the room plays through until another is picked', async () => {
       const battle = Playlist.create('Battle');
-      component.jukebox.playlistIdentifier = battle.identifier;
+      component.jukebox!.playlistIdentifier = battle.identifier;
       await fixture.whenStable();
       expect(component.viewedPlaylist()?.identifier).toBe(battle.identifier);
 
@@ -844,7 +860,7 @@ describe('JukeboxComponent', () => {
 
     it('deletes the playlist shown once that is confirmed, and the room goes on through its first', async () => {
       const battle = Playlist.create('Battle');
-      component.jukebox.playlistIdentifier = battle.identifier;
+      component.jukebox!.playlistIdentifier = battle.identifier;
       component.choosePlaylist(battle.identifier);
       await fixture.whenStable();
       vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
@@ -853,7 +869,7 @@ describe('JukeboxComponent', () => {
       await fixture.whenStable();
 
       expect(Playlist.all()).toEqual([first]);
-      expect(component.jukebox.playlist).toBe(first);
+      expect(component.jukebox!.playlist).toBe(first);
       expect(component.viewedPlaylist()?.identifier).toBe(first.identifier);
     });
 
@@ -954,8 +970,8 @@ describe('JukeboxComponent', () => {
 
       component.playFromPlaylist(AudioStorage.instance.get('song')!);
 
-      expect(component.jukebox.playlistIdentifier).toBe(battle.identifier);
-      expect(component.jukebox.audioIdentifier).toBe('song');
+      expect(component.jukebox!.playlistIdentifier).toBe(battle.identifier);
+      expect(component.jukebox!.audioIdentifier).toBe('song');
     });
   });
 });

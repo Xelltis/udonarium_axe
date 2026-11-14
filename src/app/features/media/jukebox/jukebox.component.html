@@ -11,22 +11,22 @@
           <div class="mb-0.5 text-[9px] font-bold tracking-widest text-white/70 uppercase">
             {{ 'feature.media.jukebox.nowPlayingLabel' | transloco }}
           </div>
-          @if (jukebox.audio) {
-            <div class="truncate text-[13px] font-semibold text-white" [appTextTooltip]="jukebox.audio.name">
-              {{ jukebox.audio.name }}
+          @if (nowPlaying) {
+            <div class="truncate text-[13px] font-semibold text-white" [appTextTooltip]="nowPlaying.name">
+              {{ nowPlaying.name }}
             </div>
             <div class="mt-px text-[11px] text-white/60">
-              {{ playback.tagLabel(getTagOf(jukebox.audio)) }}
+              {{ playback.tagLabel(getTagOf(nowPlaying)) }}
               @if (playback.isPaused()) {
                 · {{ 'feature.media.jukebox.paused' | transloco }}
               }
             </div>
           }
         </div>
-        @if (jukebox.audio && canOperate()) {
+        @if (nowPlaying && canOperate()) {
           <button
             class="border-ui-border-panel absolute top-2 right-2 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid bg-black/45 p-0 text-white/80 transition-[background,color] hover:border-(--ui-danger) hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) [&_.material-icons]:text-[18px]!"
-            (click)="stopBGM(jukebox.audio)"
+            (click)="stopBGM(nowPlaying)"
             [title]="'feature.media.jukebox.stopBgmSe' | transloco"
           >
             <i class="material-icons">stop</i>
@@ -35,7 +35,7 @@
       </div>
     } @else {
       <div class="text-ui-accent w-8 shrink-0 text-center text-[28px] [&_.material-icons]:text-[28px]!">
-        @if (jukebox.audio && playback.isPlaying()) {
+        @if (nowPlaying && playback.isPlaying()) {
           <i class="material-icons text-ui-accent animate-[pulse_1.4s_ease-in-out_infinite]">music_note</i>
         } @else {
           <i class="material-icons">music_note</i>
@@ -45,12 +45,12 @@
         <div class="text-ui-accent mb-0.5 text-[9px] font-bold tracking-widest uppercase">
           {{ 'feature.media.jukebox.nowPlayingLabel' | transloco }}
         </div>
-        @if (jukebox.audio) {
-          <div class="text-ui-text truncate text-[13px] font-semibold" [appTextTooltip]="jukebox.audio.name">
-            {{ jukebox.audio.name }}
+        @if (nowPlaying) {
+          <div class="text-ui-text truncate text-[13px] font-semibold" [appTextTooltip]="nowPlaying.name">
+            {{ nowPlaying.name }}
           </div>
           <div class="text-ui-muted mt-px text-[11px]">
-            {{ playback.tagLabel(getTagOf(jukebox.audio)) }}
+            {{ playback.tagLabel(getTagOf(nowPlaying)) }}
             @if (playback.isPaused()) {
               · {{ 'feature.media.jukebox.paused' | transloco }}
             }
@@ -61,10 +61,10 @@
           </div>
         }
       </div>
-      @if (jukebox.audio) {
+      @if (nowPlaying) {
         <button
           class="bg-ui-hover border-ui-border-panel text-ui-muted inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid p-0 transition-[background,color] hover:border-(--ui-danger) hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) [&_.material-icons]:text-[18px]!"
-          (click)="stopBGM(jukebox.audio)"
+          (click)="stopBGM(nowPlaying)"
           [title]="'feature.media.jukebox.stopBgmSe' | transloco"
         >
           <i class="material-icons">stop</i>
@@ -378,24 +378,25 @@
     </div>
 
     <div class="flex flex-1 flex-col overflow-y-auto">
-      @for (audio of audios(); track audio.identifier) {
+      @for (row of rows(); track row.audio.identifier) {
+        @let audio = row.audio;
+        @let audioTag = row.tag;
+        @let sePlaying = audioTag === 'SE' && isSePlaying(audio);
         <div
           class="border-ui-border-panel hover:bg-ui-hover flex items-center gap-2 border-b border-solid px-2.5 py-1.5 transition-[background]"
           (contextmenu)="onLibraryContextMenu($event, audio)"
-          [class.bg-ui-accent-bg!]="
-            audio === jukebox.audio || (audio === auditionPlayer.audio && !auditionPlayer.paused)
-          "
-          [class.pl-1.75!]="audio === jukebox.audio || (audio === auditionPlayer.audio && !auditionPlayer.paused)"
-          [class.border-l-[3px]]="audio === jukebox.audio || (audio === auditionPlayer.audio && !auditionPlayer.paused)"
-          [class.border-l-ui-accent!]="audio === jukebox.audio"
-          [class.border-l-ui-dim!]="audio === auditionPlayer.audio && !auditionPlayer.paused && audio !== jukebox.audio"
+          [class.bg-ui-accent-bg!]="audio === nowPlaying || (audio === auditionPlayer.audio && !auditionPlayer.paused)"
+          [class.pl-1.75!]="audio === nowPlaying || (audio === auditionPlayer.audio && !auditionPlayer.paused)"
+          [class.border-l-[3px]]="audio === nowPlaying || (audio === auditionPlayer.audio && !auditionPlayer.paused)"
+          [class.border-l-ui-accent!]="audio === nowPlaying"
+          [class.border-l-ui-dim!]="audio === auditionPlayer.audio && !auditionPlayer.paused && audio !== nowPlaying"
         >
           <div class="w-5 shrink-0 text-center">
-            @if (audio === jukebox.audio) {
+            @if (audio === nowPlaying) {
               <i class="material-icons text-ui-accent text-base!">library_music</i>
-            } @else if (getTagOf(audio) === 'SE' && isSePlaying(audio)) {
+            } @else if (sePlaying) {
               <i class="material-icons text-ui-accent text-base!">graphic_eq</i>
-            } @else if (isBackgroundSound(audio) && backgroundSounds.isPlaying(audio)) {
+            } @else if (row.isBackgroundSound && backgroundSounds.isPlaying(audio)) {
               <i class="material-icons text-ui-accent text-base!">waves</i>
             } @else if (audio === auditionPlayer.audio && !auditionPlayer.paused) {
               <i class="material-icons text-ui-muted text-base!">headphones</i>
@@ -419,7 +420,7 @@
             </div>
             <select
               class="bg-ui-input border-ui-border-panel text-ui-muted rounded-ui-sm focus:border-ui-accent w-fit cursor-pointer border border-solid px-1 py-px text-[10px] outline-none disabled:cursor-not-allowed disabled:opacity-40"
-              [ngModel]="getTagOf(audio)"
+              [ngModel]="audioTag"
               (ngModelChange)="setTagOf(audio, $event)"
               [disabled]="!canOperate() || isOnAnyPlaylist(audio)"
               [title]="isOnAnyPlaylist(audio) ? ('feature.media.jukebox.tagDisabled' | transloco) : ''"
@@ -448,8 +449,8 @@
                 <i class="material-icons">stop</i>
               </button>
             }
-            @if (getTagOf(audio) === 'SE') {
-              @if (isSePlaying(audio)) {
+            @if (audioTag === 'SE') {
+              @if (sePlaying) {
                 <button
                   class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                   (click)="stopSE(audio)"
@@ -468,7 +469,7 @@
                   <i class="material-icons">play_arrow</i>
                 </button>
               }
-            } @else if (isBackgroundSound(audio)) {
+            } @else if (row.isBackgroundSound) {
               @if (backgroundSounds.isPlaying(audio)) {
                 <button
                   class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
@@ -490,7 +491,7 @@
                   <i class="material-icons">play_arrow</i>
                 </button>
               }
-            } @else if (audio !== jukebox.audio) {
+            } @else if (audio !== nowPlaying) {
               <button
                 class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                 (click)="playBGM(audio)"
@@ -509,7 +510,7 @@
                 <i class="material-icons">stop</i>
               </button>
             }
-            @if (getTagOf(audio) === 'BGM') {
+            @if (audioTag === 'BGM') {
               @if (!isInPlaylist(audio)) {
                 <button
                   class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
@@ -638,10 +639,10 @@
       @for (audio of playlistAudios(); track audio.identifier; let i = $index) {
         <div
           class="border-ui-border-panel hover:bg-ui-hover flex cursor-default items-center gap-2 border-b border-solid px-2.5 py-1.5 transition-[background]"
-          [class.bg-ui-accent-bg!]="audio === jukebox.audio"
-          [class.pl-1.75!]="audio === jukebox.audio"
-          [class.border-l-[3px]]="audio === jukebox.audio"
-          [class.border-l-ui-accent!]="audio === jukebox.audio"
+          [class.bg-ui-accent-bg!]="audio === nowPlaying"
+          [class.pl-1.75!]="audio === nowPlaying"
+          [class.border-l-[3px]]="audio === nowPlaying"
+          [class.border-l-ui-accent!]="audio === nowPlaying"
           [attr.draggable]="canOperate()"
           (dragstart)="onPlaylistDragStart(i)"
           (dragover)="onPlaylistDragOver($event, i)"
@@ -654,7 +655,7 @@
             <i class="material-icons">drag_indicator</i>
           </div>
           <div class="w-5 shrink-0 text-center">
-            @if (audio === jukebox.audio) {
+            @if (audio === nowPlaying) {
               <i class="material-icons text-ui-accent text-base!">library_music</i>
             } @else {
               <i class="material-icons text-ui-dim text-base! opacity-40">music_note</i>
@@ -681,7 +682,7 @@
             </div>
           </div>
           <div class="flex shrink-0 gap-1">
-            @if (audio !== jukebox.audio) {
+            @if (audio !== nowPlaying) {
               <button
                 class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                 (click)="playFromPlaylist(audio)"

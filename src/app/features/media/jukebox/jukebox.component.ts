@@ -142,6 +142,16 @@ export class JukeboxComponent {
     });
   });
 
+  /** The library's rows: each file listed with the tag it is filed under, looked up once per change. */
+  protected readonly rows = computed(() =>
+    this.audios().map((audio) => {
+      const filed = AudioTag.get(audio.identifier);
+      if (filed) this.objectChange.versionOf(filed.identifier)();
+      const tag = filed?.tag || 'BGM';
+      return { audio, tag, isBackgroundSound: tag === AUDIO_TAG_BGS };
+    })
+  );
+
   /** The tag the library is narrowed to, or null to list every file. */
   readonly selectTag = signal<string | null>(null);
 
@@ -410,8 +420,13 @@ export class JukeboxComponent {
     this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, audio.name);
   }
   /** The room's synced jukebox, which plays BGM and sound effects for everyone. */
-  get jukebox(): Jukebox {
-    return this.objectStore.get<Jukebox>('Jukebox')!;
+  get jukebox(): Jukebox | null {
+    return this.objectStore.get<Jukebox>('Jukebox') ?? null;
+  }
+
+  /** The track the room is set to, or null when none is set or the room has no jukebox yet. */
+  get nowPlaying(): AudioFile | null {
+    return this.jukebox?.audio ?? null;
   }
 
   /** The playlist the playlist tab shows, or null before the room has one. */
@@ -427,7 +442,7 @@ export class JukeboxComponent {
   readonly nowPlayingArtwork = computed(() => {
     this.playback.clock();
     this.objectChange.versionOf('Jukebox')();
-    return this.jukebox?.audio?.artworkUrl ?? null;
+    return this.nowPlaying?.artworkUrl ?? null;
   });
 
   constructor() {
@@ -447,10 +462,6 @@ export class JukeboxComponent {
     this.auditionPlayer.stop();
   }
 
-  /**
-   * Removes a sound from the whole room, once the game master has said so, and stops it here if it
-   * was being tried.
-   */
   /** Whether a sound is one that may be reported: one a person added, named by its hash. */
   isReportable(audio: AudioFile): boolean {
     return AssetHttpStore.isAssetId(audio.identifier);
@@ -466,6 +477,10 @@ export class JukeboxComponent {
     });
   }
 
+  /**
+   * Removes a sound from the whole room, once the game master has said so, and stops it here if it
+   * was being tried.
+   */
   async removeAudio(audio: AudioFile): Promise<void> {
     if (!this.mayRemove(audio)) return;
     if ((await this.assetRemoval.removeAfterAsking('audio', [audio.identifier])) < 1) return;
@@ -484,13 +499,13 @@ export class JukeboxComponent {
 
   /** Stops the room's BGM, but only if this track is the one playing. */
   stopBGM(audio: AudioFile) {
-    if (this.jukebox.audio === audio) this.playback.stop();
+    if (this.nowPlaying === audio) this.playback.stop();
   }
 
   /** Stops a sound effect for the whole room. */
   stopSE(audio: AudioFile) {
     if (!this.canOperate()) return;
-    this.jukebox.stopSE(audio.identifier);
+    this.jukebox?.stopSE(audio.identifier);
   }
 
   /** Whether a sound effect is sounding on this player's side, which swaps its play button for stop. */
