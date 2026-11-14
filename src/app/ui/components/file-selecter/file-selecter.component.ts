@@ -5,6 +5,7 @@ import { ImageUploadPreferenceService } from '@axe/application/file/image-upload
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
 import { ModalContent, ModalService } from '@axe/application/ui/modal.service';
 import { emitSelectFile } from '@axe/core/event/domain-events';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -65,6 +66,7 @@ export class FileSelecterComponent implements ModalContent {
 
   readonly images = computed(() => {
     this.objectChange.fileVersion();
+    trackEvery(this.objectChange, 'image-tag');
     this.tagLock.track();
     const imageFileList: ImageFile[] = [];
     if (this.selectTag() === this.allTag) return this.getAllImage();
@@ -93,6 +95,7 @@ export class FileSelecterComponent implements ModalContent {
    */
   readonly tagList = computed<string[]>(() => {
     this.objectChange.fileVersion();
+    trackEvery(this.objectChange, 'image-tag');
     this.tagLock.track();
     const tags: string[] = [];
     for (const imageFile of this.imageStorage.images) {

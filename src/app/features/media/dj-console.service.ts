@@ -3,6 +3,7 @@ import { AudioAnalysisService } from '@axe/application/media/audio-analysis.serv
 import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { SoundEffects } from '@axe/core/storage/sound-effects';
@@ -142,7 +143,7 @@ export class DjConsoleService {
   readonly pads = computed<PadView[]>(() => {
     this.objectChange.versionOf('Config')();
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf(AudioTag.aliasName)();
+    trackEvery(this.objectChange, AudioTag.aliasName);
     const pads = this.objectStore.get<Config>('Config')?.djPads ?? NO_DJ_PADS;
     return pads.map((identifier, slot) => {
       const audio = identifier ? this.audioStorage.get(identifier) : null;

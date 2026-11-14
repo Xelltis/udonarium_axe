@@ -458,6 +458,22 @@ describe('JukeboxComponent', () => {
     });
   });
 
+  describe('a tag written at another seat', () => {
+    it('moves the track between the lists narrowed by tag, and offers the new tag', () => {
+      AudioStorage.instance.add(makeReadyAudio('refiled'));
+      const tag = AudioTag.create('refiled');
+      component.selectTag.set('戦闘');
+      expect(component.audios()).toEqual([]);
+      expect(component.tagList()).not.toContain('戦闘');
+
+      tag.tag = '戦闘';
+      TestBed.inject(ObjectChangeService).notifyChanged(tag.identifier);
+
+      expect(component.audios().map((audio) => audio.identifier)).toEqual(['refiled']);
+      expect(component.tagList()).toContain('戦闘');
+    });
+  });
+
   describe('getTagOf / setTagOf', () => {
     it('calls an untagged track music', () => {
       const audio = makeReadyAudio('tag-test-01');

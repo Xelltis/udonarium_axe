@@ -6,6 +6,7 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
 import { BoardSceneService } from '@axe/application/tabletop/board-scene.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -403,7 +404,7 @@ export class SceneEditorComponent {
 
   private soundsTagged(keep: (tag: string) => boolean): { identifier: string; name: string }[] {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('audio-tag')();
+    trackEvery(this.objectChange, 'audio-tag');
     return this.audioStorage.audios
       .filter((audio) => !audio.isHidden && keep(AudioTag.get(audio.identifier)?.tag ?? 'BGM'))
       .map((audio) => ({ identifier: audio.identifier, name: soundFileName(audio.name) }))

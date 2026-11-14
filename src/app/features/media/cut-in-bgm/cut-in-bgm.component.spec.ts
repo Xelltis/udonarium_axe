@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -57,6 +58,18 @@ describe('CutInBgmComponent', () => {
 
       component.selectTag.set('BGM');
       expect(component.filteredAudios().map((audio) => audio.identifier)).toEqual(['music']);
+    });
+
+    it('follows a file being filed under another tag at another seat', () => {
+      add('hit', 'SE');
+      component.selectTag.set('SE');
+      expect(component.filteredAudios().map((audio) => audio.identifier)).toEqual(['hit']);
+
+      const tag = AudioTag.get('hit')!;
+      tag.tag = 'BGM';
+      TestBed.inject(ObjectChangeService).notifyChanged(tag.identifier);
+
+      expect(component.filteredAudios()).toEqual([]);
     });
 
     it('goes back to every file from the first tab, whose label is in the reader’s language', async () => {

@@ -1,6 +1,7 @@
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { isBuiltinMaterial } from '@axe/domain/media/builtin-materials';
 import { ImageTag } from '@axe/domain/media/image-tag';
@@ -19,7 +20,7 @@ export function textureImagesOf(
   tagLock: ImageTagLockService
 ): ImageFile[] {
   objectChange.fileVersion();
-  objectChange.collectionOf('image-tag')();
+  trackEvery(objectChange, 'image-tag');
   tagLock.track();
   return ImageTag.searchImages([TEXTURE_IMAGE_TAG], rolePermission.canSeeHidden(), tagLock.hides).filter(
     (file) => !isBuiltinMaterial(file.identifier)

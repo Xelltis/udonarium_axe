@@ -210,6 +210,25 @@ describe('FileSelecterComponent', () => {
       expect(offered()).toContain('a-drawing');
     });
 
+    it('follows a picture being tagged, and its tag being changed at another seat', () => {
+      const objectChange = TestBed.inject(ObjectChangeService);
+      TestBed.inject(ImageStorage).add('a-drawing');
+      component.selectTag.set('コマ');
+      expect(component.images()).toEqual([]);
+
+      const tag = ImageTag.create('a-drawing');
+      tag.tag = 'コマ';
+      objectChange.notifyCollectionChanged('image-tag');
+      expect(component.images().map((image) => image.identifier)).toEqual(['a-drawing']);
+      expect(component.tagList()).toContain('コマ');
+
+      tag.tag = '背景';
+      objectChange.notifyChanged(tag.identifier);
+      expect(component.images()).toEqual([]);
+      expect(component.tagList()).toContain('背景');
+      expect(component.tagList()).not.toContain('コマ');
+    });
+
     it('keeps back what the tool brought with it, whatever language the screen is in', () => {
       // The tag is a stored word shared round the room, not the word for it on this screen,
       // so matching it against a translation would leave these on show for half the world.

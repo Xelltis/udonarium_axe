@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -61,7 +62,7 @@ export class VisualNovelSoundBoardComponent {
   /** The sounds brought to this room, which is where somebody looks for their own first. */
   readonly soundEffects = computed<AttachedSound[]>(() => {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('audio-tag')();
+    trackEvery(this.objectChange, 'audio-tag');
     return this.audioStorage.audios
       .filter((audio) => !audio.isHidden && AudioTag.get(audio.identifier)?.tag === 'SE')
       .map((audio) => ({ identifier: audio.identifier, name: audio.name }))
@@ -114,7 +115,7 @@ export class VisualNovelSoundBoardComponent {
 
   readonly bgmTracks = computed(() => {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('audio-tag')();
+    trackEvery(this.objectChange, 'audio-tag');
     return this.audioStorage.audios.filter(
       (audio) => !audio.isHidden && (AudioTag.get(audio.identifier)?.tag ?? 'BGM') === 'BGM'
     );

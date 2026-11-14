@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signa
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
@@ -46,7 +47,7 @@ export class CutInBgmComponent {
 
   readonly audios = computed(() => {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('audio-tag')();
+    trackEvery(this.objectChange, 'audio-tag');
     return this.audioStorage.audios.filter((audio) => !audio.isHidden);
   });
 

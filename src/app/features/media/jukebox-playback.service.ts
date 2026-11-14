@@ -5,6 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -192,7 +193,7 @@ export class JukeboxPlaybackService {
    */
   readonly queue = computed<AudioFile[]>(() => {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('audio-tag')();
+    trackEvery(this.objectChange, 'audio-tag');
     this.objectChange.collectionOf(Playlist.aliasName)();
     this.objectChange.versionOf('Jukebox')();
     const playlist = this.jukebox?.playlist;

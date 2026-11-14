@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { clamp } from '@axe/core/util/clamp';
@@ -44,7 +45,7 @@ export class MapEditorStampPickerComponent {
 
   protected readonly stampImages = computed<ImageFile[]>(() => {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('image-tag')();
+    trackEvery(this.objectChange, 'image-tag');
     this.tagLock.track();
     return ImageTag.searchImages([MAP_STAMP_TAG], this.rolePermission.canSeeHidden(), this.tagLock.hides);
   });

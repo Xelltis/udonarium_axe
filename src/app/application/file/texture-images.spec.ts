@@ -55,4 +55,16 @@ describe('textureImagesOf', () => {
 
     expect(listed()).toEqual(['late']);
   });
+
+  it('follows a picture already tagged being filed as a texture at another seat', () => {
+    ImageStorage.instance.add('refiled');
+    const tag = ImageTag.create('refiled');
+    tag.tag = 'スタンプ';
+    expect(listed()).toEqual([]);
+
+    tag.tag = TEXTURE_IMAGE_TAG;
+    TestBed.inject(ObjectChangeService).notifyChanged(tag.identifier);
+
+    expect(listed()).toEqual(['refiled']);
+  });
 });

@@ -10,6 +10,7 @@ import { roomSoundKindRow, soundKindRow } from '@axe/application/media/sound-kin
 import { ReportService } from '@axe/application/moderation/report.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -130,7 +131,7 @@ export class JukeboxComponent {
 
   readonly audios = computed(() => {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('audio-tag')();
+    trackEvery(this.objectChange, 'audio-tag');
     this.objectChange.versionOf('Jukebox')();
     const all = this.audioStorage.audios.filter((audio) => !audio.isHidden);
     const tag = this.selectTag();
@@ -208,7 +209,7 @@ export class JukeboxComponent {
 
   readonly tagList = computed((): string[] => {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('audio-tag')();
+    trackEvery(this.objectChange, 'audio-tag');
     const tags = new Set<string>(JukeboxComponent.PRESET_TAGS);
     for (const audio of this.audioStorage.audios) {
       if (audio.isHidden) continue;
