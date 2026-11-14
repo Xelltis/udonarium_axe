@@ -663,6 +663,9 @@ export class BattleCutInOverlayComponent {
     return frame.floor.length > 0 ? { ...frame, floor: [] } : frame;
   });
 
+  protected readonly figureHeight = BATTLE_FIGURE_PX;
+  protected readonly shadowWidth = BATTLE_CELL_PX * 1.6;
+
   constructor() {
     const destroyRef = inject(DestroyRef);
     afterNextRender(() => void this.startOverPage(destroyRef));
@@ -817,9 +820,6 @@ export class BattleCutInOverlayComponent {
     if (reaction === 'dissolve' || reaction === 'bisect') return 1;
     return 1 - fallen * (reaction === 'flinch' ? 0.65 : 1);
   }
-
-  protected readonly figureHeight = BATTLE_FIGURE_PX;
-  protected readonly shadowWidth = BATTLE_CELL_PX * 1.6;
 
   /** The sounds the stage plays, each at the moment of the stage it is heard at. */
   private soundsOf(timeline: BattleTimeline): BattleSound[] {

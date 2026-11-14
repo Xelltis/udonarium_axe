@@ -126,6 +126,9 @@ interface Drag {
   rotation: number;
 }
 
+/** How far one press of an arrow moves the playhead: the same grid a moment is rounded to. */
+const STEP_MS = SNAP_MS;
+
 /**
  * Building a cut-in out of layers.
  *
@@ -134,9 +137,6 @@ interface Drag {
  * move, the way a piece being pushed around the table does, so a drag does not put sixty
  * messages a second onto the wire.
  */
-/** How far one press of an arrow moves the playhead: the same grid a moment is rounded to. */
-const STEP_MS = SNAP_MS;
-
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'cut-in-scene-editor',
@@ -199,6 +199,7 @@ export class CutInSceneEditorComponent {
     this.pause();
     this.onSeek(Math.min(this.durationMs(), Math.max(0, Math.round(seconds * 1000))));
   }
+
   private readonly stageSize = signal({ width: 0, height: 0 });
   private readonly bumped = signal(0);
 
@@ -213,6 +214,14 @@ export class CutInSceneEditorComponent {
   });
   protected readonly historyVersion = signal(0);
   private pending: { layer: CutInLayer; box: LayerBox | null; rotation: number | null } | null = null;
+
+  /**
+   * The moment the layer in hand is holding, kept until it is laid down somewhere else.
+   *
+   * It lives for as long as the editor is open rather than going near the system clipboard,
+   * which holds text and would have nowhere to put nine numbers a reader could use.
+   */
+  private held: CutInPose | null = null;
   private readonly flushSoon = coalesce(() => this.flushDrag(), DRAG_FLUSH_MS);
 
   readonly scene = computed<CutInScene | null>(() => {
@@ -736,14 +745,6 @@ export class CutInSceneEditorComponent {
     else if (command === 'copyPose') this.copyPose();
     else if (command === 'pastePose') this.pastePose();
   }
-
-  /**
-   * The moment the layer in hand is holding, kept until it is laid down somewhere else.
-   *
-   * It lives for as long as the editor is open rather than going near the system clipboard,
-   * which holds text and would have nowhere to put nine numbers a reader could use.
-   */
-  private held: CutInPose | null = null;
 
   /**
    * Moves the layer in hand by a pixel or ten, in the cut-in's own coordinates.
