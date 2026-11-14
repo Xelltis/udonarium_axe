@@ -21,7 +21,7 @@ canvasが盤のどこにあるかは、canvasの`style.left`・`style.top`・`st
 
 平らな盤では、絵を`heightPx`の高さの水平な面に貼る。起伏のある地面では、地面のメッシュを`heightPx`だけ持ち上げた面（`gridOverGround`）に貼るので、印は丘に沿い、地面と同じように陰に隠れる。
 前に立つ地形も絵を隠す。高さには`ui/tabletop/z-offset`の`Z_OFFSET_*`（卓の画素。大きいほど手前）を使う。
-床と同じ平面にある物の前後は、polygonOffsetの順で決める（`infrastructure/table-3d/floor-order`）。盤、盤に重ねる絵、地形の面、格子と面に重ねる絵、床に敷くcanvasの順に手前へ出る。
+床と同じ平面にある物の前後は、polygonOffsetの順で決める（`infrastructure/table-3d/floor-order`）。盤、盤に重ねる絵、地形の面、厚みのない地形の面、格子と面に重ねる絵、床に敷くcanvasの順に手前へ出る。幅・奥行き・高さのどれかが0の地形は、背中合わせになる2枚の面をそれぞれ外側からだけ描き、互いが透けないようにする。
 床に敷いた絵は当たり判定に入らない。暗闇と霧は`TableVeilService`の別の経路で渡す。
 
 ## 盤に重ねるDOMと視点

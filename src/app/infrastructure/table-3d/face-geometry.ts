@@ -86,6 +86,9 @@ function overGround(
  * An upright face between two points of the floor, from its foot to its top, or to the heights a
  * slope over it folds through. A tiled picture runs along it a tile at a time, measured from its
  * first point and its foot; any other is stretched over the whole face, up to its highest point.
+ *
+ * Its triangles are wound so that its front is the side its first point is seen on the left of, which
+ * is the outside of a block, whose sides run left to right as they are seen from outside.
  */
 export function wallGeometry(wall: TableWorldWall): BufferGeometry {
   const length = Math.hypot(wall.bx - wall.ax, wall.by - wall.ay);
@@ -133,6 +136,8 @@ export function wallGeometry(wall: TableWorldWall): BufferGeometry {
 /**
  * A flat face of a block, its outline cut into triangles at its height. A tiled picture is laid
  * from the board's corner a tile at a time; any other is stretched over the outline's box.
+ *
+ * Its triangles are wound so that its front looks down, whichever way its outline runs round.
  */
 export function capGeometry(cap: TableWorldCap): BufferGeometry {
   const contour = cap.outline.map((point) => new Vector2(point.x, point.y));

@@ -26,6 +26,70 @@ function heightsByPlace(positions: ArrayLike<number>): Map<string, number[]> {
 
 const face = { id: 'face', pictureUrl: '', tilePx: 0, glass: false };
 
+/** The way each triangle of a shape faces from its front, in the scene's axes: east, up and south. */
+function frontsOf(positions: ArrayLike<number>): { x: number; y: number; z: number }[] {
+  const fronts: { x: number; y: number; z: number }[] = [];
+  for (let i = 0; i < positions.length; i += 9) {
+    const [ax, ay, az, bx, by, bz, cx, cy, cz] = Array.from({ length: 9 }, (_, at) => positions[i + at]);
+    const [ux, uy, uz, vx, vy, vz] = [bx - ax, by - ay, bz - az, cx - ax, cy - ay, cz - az];
+    fronts.push({ x: uy * vz - uz * vy, y: uz * vx - ux * vz, z: ux * vy - uy * vx });
+  }
+  return fronts;
+}
+
+describe('the side of a face its front is, which a sheet is drawn from', () => {
+  it('faces each side of a block out from it, sloped or not', () => {
+    // The sides of a block from (100, 50) to (200, 100), left to right as they are seen from outside.
+    const sides = [
+      { ax: 200, ay: 50, bx: 100, by: 50, out: { x: 0, z: -1 } },
+      { ax: 200, ay: 100, bx: 200, by: 50, out: { x: 1, z: 0 } },
+      { ax: 100, ay: 100, bx: 200, by: 100, out: { x: 0, z: 1 } },
+      { ax: 100, ay: 50, bx: 100, by: 100, out: { x: -1, z: 0 } },
+    ];
+    const profile = [
+      { at: 0, heightPx: 40 },
+      { at: 0.5, heightPx: 100 },
+      { at: 1, heightPx: 60 },
+    ];
+
+    for (const { out, ...side } of sides) {
+      for (const sloped of [false, true]) {
+        const wall = wallGeometry({ ...face, ...side, basePx: 0, topPx: 100, ...(sloped ? { profile } : {}) });
+        const fronts = frontsOf(wall.getAttribute('position').array);
+        expect(fronts.length).toBe(sloped ? 4 : 2);
+        for (const front of fronts) {
+          const length = Math.hypot(front.x, front.y, front.z);
+          expect(front.x / length).toBeCloseTo(out.x, 6);
+          expect(front.y / length).toBeCloseTo(0, 6);
+          expect(front.z / length).toBeCloseTo(out.z, 6);
+        }
+      }
+    }
+  });
+
+  it('faces a flat face down whichever way its outline runs round, so a top is seen from its back', () => {
+    const outline = [
+      { x: 100, y: 50 },
+      { x: 200, y: 50 },
+      { x: 200, y: 100 },
+      { x: 100, y: 100 },
+    ];
+    const hex = Array.from({ length: 6 }, (_, corner) => ({
+      x: 300 + 50 * Math.cos((corner * Math.PI) / 3),
+      y: 300 + 50 * Math.sin((corner * Math.PI) / 3),
+    }));
+
+    for (const round of [outline, [...outline].reverse(), hex, [...hex].reverse()]) {
+      for (const facing of ['up', 'down'] as const) {
+        const cap = capGeometry({ ...face, outline: round, zPx: 30, facing });
+        const fronts = frontsOf(cap.getAttribute('position').array);
+        expect(fronts.length).toBe(round.length - 2);
+        for (const front of fronts) expect(front.y).toBeLessThan(0);
+      }
+    }
+  });
+});
+
 describe('the shapes of the faces drawn on the canvas', () => {
   it('stands a side up to the heights a slope over it runs through', () => {
     const wall = wallGeometry({

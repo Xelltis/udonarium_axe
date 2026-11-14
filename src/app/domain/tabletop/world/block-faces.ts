@@ -6,7 +6,12 @@ import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import { terrainTopPx } from '@axe/domain/tabletop/terrain-height';
 import { SlopePoint, slopeProfileAlong, SlopeRoof } from '@axe/domain/tabletop/terrain-slope-roof';
 import { terrainSlopeRoofOf, terrainTopOutline } from '@axe/domain/tabletop/terrain-slope-surface';
-import type { TableWorldCap, TableWorldPoint, TableWorldWall } from '@axe/domain/tabletop/world/table-world';
+import type {
+  TableWorldCap,
+  TableWorldPoint,
+  TableWorldSheet,
+  TableWorldWall,
+} from '@axe/domain/tabletop/world/table-world';
 
 /** The sides of a rectangular block, in the order its top's outline runs round them. */
 const BOX_SIDES: readonly TerrainImageSlot[] = ['north', 'east', 'south', 'west'];
@@ -15,8 +20,9 @@ const BOX_SIDES: readonly TerrainImageSlot[] = ['north', 'east', 'south', 'west'
  * How far off the face it lies against a block with no thickness is drawn, in table pixels: a sheet
  * stood against a wall, a picture put flat on a wall, or a block as high as nothing lying on the top
  * of another. Laid in the same plane, the depth could not tell the two faces apart and showed them
- * through each other in a flickering pattern; a hair off it, the sheet is in front. It is far more
- * than the depth tells apart at the furthest the camera stands, and far less than shows.
+ * through each other in a flickering pattern; a hair off it, the sheet is in front. It is far less
+ * than shows, and from far off less than the depth tells apart, so the faces of such a block are
+ * marked as a sheet's as well, for a renderer to draw ahead of the face they lie against.
  */
 export const SHEET_LIFT_PX = 0.5;
 
@@ -34,6 +40,11 @@ export const SHEET_LIFT_PX = 0.5;
  * with a flat top is cut back to those cells, as the page cuts it; a hex or sloping one is drawn
  * whole once any of it has been reached, as the page draws it, and a block none of which has been
  * reached is not drawn at all.
+ *
+ * The faces of a block with no thickness one way are marked as a sheet's: its sides where it is as
+ * wide or as deep as nothing, drawn from outside only, as they stand a hair apart back to back; and
+ * its top and underside where it is as high as nothing, from outside only where it hangs above the
+ * floor and so has both, and from both sides where it lies on the floor with a top alone.
  */
 export function blockFacesOf(
   terrains: readonly Terrain[],
@@ -54,6 +65,12 @@ export function blockFacesOf(
     const cut = cover && !cover.cleared.every((cell) => cell) && boxSides && !block.roof ? cover : null;
     const tilePx = terrain.isTiledTexture ? gridSize : 0;
     const look = { tilePx, glass: !terrain.hasFaceImage };
+    const sideSheet: { sheet?: TableWorldSheet } = block.thin ? { sheet: 'outside' } : {};
+    const capSheet: { sheet?: TableWorldSheet } = block.flat
+      ? { sheet: block.basePx > 0 ? 'outside' : 'both' }
+      : block.thin
+        ? { sheet: 'both' }
+        : {};
     const picture = (slot: TerrainImageSlot, fallback: TerrainImageSlot) => {
       const identifier = terrain.faceImageIdentifier(slot) || terrain.faceImageIdentifier(fallback);
       return identifier ? pictureOf(identifier) : '';
@@ -71,6 +88,7 @@ export function blockFacesOf(
         facing,
         pictureUrl: url,
         ...look,
+        ...capSheet,
         ...(facing === 'up' && terrain.isGrid ? { gridded: true } : {}),
       });
     };
@@ -84,6 +102,7 @@ export function blockFacesOf(
           ...(block.roof ? { profile: block.profileUnder(to, from) } : {}),
           pictureUrl: picture(side, 'wall'),
           ...look,
+          ...sideSheet,
         };
         const length = Math.hypot(to.x - from.x, to.y - from.y);
         const spans = cut ? clearedAlong(cut, index) : [{ from: 0, to: 1, cell: '' }];
@@ -201,6 +220,8 @@ interface LaidOutBlock {
   readonly topPx: number;
   /** Whether it is as high as nothing, its top lying on whatever it lies on. */
   readonly flat: boolean;
+  /** Whether it is a rectangular block as wide or as deep as nothing, its sides standing back to back. */
+  readonly thin: boolean;
   readonly roof: SlopeRoof | null;
   /** A point of the block's own frame, where it stands on the board as `ax`/`ay`. */
   onBoard(point: SlopePoint): { ax: number; ay: number };
@@ -232,6 +253,7 @@ function laidOut(terrain: Terrain, gridSize: number, gridType: GridType, groundL
     basePx,
     topPx,
     flat: terrain.height * gridSize < SHEET_LIFT_PX,
+    thin: outline.length === 4 && (width < SHEET_LIFT_PX * 2 || depth < SHEET_LIFT_PX * 2),
     roof,
     onBoard(point) {
       const moved = door ? movedByDoor(door, point.x, point.y) : point;

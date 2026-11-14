@@ -107,7 +107,16 @@ export interface TableWorldWall {
    * picture is.
    */
   readonly gridUvs?: readonly [TableWorldPoint, TableWorldPoint, TableWorldPoint, TableWorldPoint];
+  /** How the face is drawn where its block has no thickness; see {@link TableWorldSheet}. */
+  readonly sheet?: TableWorldSheet;
 }
+
+/**
+ * How a face of a block with no thickness one way is drawn, over the face it lies against: from
+ * `outside` only where another face of the same block lies a hair behind it looking the other way,
+ * so neither shows through the other, and from `both` sides where it has none behind it.
+ */
+export type TableWorldSheet = 'outside' | 'both';
 
 /** A flat face lying at a height, facing up or down: the top or the underside of a block. */
 export interface TableWorldCap {
@@ -129,6 +138,8 @@ export interface TableWorldCap {
    * neither is drawn as glass.
    */
   readonly colour?: string;
+  /** How the face is drawn where its block has no thickness; see {@link TableWorldSheet}. */
+  readonly sheet?: TableWorldSheet;
 }
 
 /**
