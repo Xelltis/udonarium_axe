@@ -31,20 +31,19 @@ export class CutInBgmComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
 
-  /**
-   * The label for a tag filter tab, translating the built-in all, BGM and SE tabs and leaving any
-   * other tag as it is.
-   */
-  displayTab(tab: string): string {
-    if (tab === '全て') return this.t('feature.media.cutIn.bgmTabAll');
+  /** The label for a tag filter tab, in the reader's language. */
+  displayTab(tab: string | null): string {
+    if (tab === null) return this.t('feature.media.cutIn.bgmTabAll');
     if (tab === 'BGM') return this.t('feature.media.cutIn.bgmTabBgm');
     if (tab === 'SE') return this.t('feature.media.cutIn.bgmTabSe');
     return tab;
   }
 
-  static readonly TAGS = ['全て', 'BGM', 'SE'] as const;
+  /** The tag filter tabs in the order drawn; null is the tab that lists every file. */
+  protected readonly tabs: readonly (string | null)[] = [null, 'BGM', 'SE'];
 
-  readonly selectTag = signal<string>('全て');
+  /** The tag the list is narrowed to, or null to list every file. */
+  readonly selectTag = signal<string | null>(null);
 
   readonly audios = computed(() => {
     this.objectChange.fileVersion();
@@ -55,7 +54,7 @@ export class CutInBgmComponent {
   readonly filteredAudios = computed(() => {
     const tag = this.selectTag();
     const all = this.audios();
-    if (tag === '全て') return all;
+    if (tag === null) return all;
     return all.filter((audio) => (AudioTag.get(audio.identifier)?.tag ?? 'BGM') === tag);
   });
 

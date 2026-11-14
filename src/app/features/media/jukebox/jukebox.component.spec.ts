@@ -675,6 +675,36 @@ describe('JukeboxComponent', () => {
       expect(channel).toHaveBeenCalledWith(VolumeType.BACKGROUND, expect.closeTo(0.4));
     });
 
+    it('keeps a tag named like the tab for every file as a tag, listing only its files when picked', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const everything = t('feature.media.jukebox.tagAll');
+      AudioStorage.instance.add(makeReadyAudio('tagged-all'));
+      AudioStorage.instance.add(makeReadyAudio('plain'));
+      AudioTag.create('tagged-all').tag = everything;
+      await fixture.whenStable();
+
+      expect(component.audios().map((audio) => audio.identifier)).toEqual(['tagged-all', 'plain']);
+
+      component.selectTag.set(everything);
+      expect(component.audios().map((audio) => audio.identifier)).toEqual(['tagged-all']);
+
+      component.selectTag.set(null);
+      expect(component.audios()).toHaveLength(2);
+    });
+
+    it('draws the tab for every file ahead of the tags, and offers it as no tag of a file', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      AudioStorage.instance.add(makeReadyAudio('one'));
+      await fixture.whenStable();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(component.tagList()).not.toContain(t('feature.media.jukebox.tagAll'));
+      const labels = [...host.querySelectorAll('button')].map((button) => button.textContent?.trim());
+      expect(labels).toContain(t('feature.media.jukebox.tagAll'));
+      const offered = [...host.querySelectorAll('select option')].map((option) => option.textContent?.trim());
+      expect(offered).not.toContain(t('feature.media.jukebox.tagAll'));
+    });
+
     it('offers the background sounds as a tag of their own, shown by its translated name', async () => {
       const t = TestBed.inject(TRANSLATE_FN);
       await fixture.whenStable();

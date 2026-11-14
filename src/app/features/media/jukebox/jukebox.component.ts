@@ -128,15 +128,13 @@ export class JukeboxComponent {
     this.roomPanels.open('soundSettings', { left: coordinate.x + 25, top: coordinate.y + 25 });
   }
 
-  readonly allTag = computed(() => this.t('feature.media.jukebox.tagAll'));
-
   readonly audios = computed(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('audio-tag')();
     this.objectChange.versionOf('Jukebox')();
     const all = this.audioStorage.audios.filter((audio) => !audio.isHidden);
     const tag = this.selectTag();
-    if (tag === this.allTag()) return all;
+    if (tag === null) return all;
     return all.filter((audio) => {
       const audioTag = AudioTag.get(audio.identifier);
       const t = audioTag?.tag || 'BGM';
@@ -144,7 +142,8 @@ export class JukeboxComponent {
     });
   });
 
-  readonly selectTag = signal(this.t('feature.media.jukebox.tagAll'));
+  /** The tag the library is narrowed to, or null to list every file. */
+  readonly selectTag = signal<string | null>(null);
 
   readonly viewMode = signal<'library' | 'playlist'>('library');
 
@@ -207,8 +206,7 @@ export class JukeboxComponent {
       const t = audioTag?.tag || 'BGM';
       tags.add(t);
     }
-    const sorted = [...tags].sort();
-    return [this.allTag(), ...sorted];
+    return [...tags].sort();
   });
 
   static readonly PRESET_TAGS = ['BGM', 'SE', AUDIO_TAG_BGS];

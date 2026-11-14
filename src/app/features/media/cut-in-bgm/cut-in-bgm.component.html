@@ -1,6 +1,6 @@
 <div class="text-ui-text flex h-full flex-col overflow-hidden text-[13px]">
   <div class="border-ui-border-panel flex shrink-0 gap-0.5 border-b border-solid px-2 pt-1.5 pb-1">
-    @for (tab of ['全て', 'BGM', 'SE']; track tab) {
+    @for (tab of tabs; track tab) {
       <button
         class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm cursor-pointer border border-solid px-3 py-0.75 text-[12px] transition-[background,color,border-color]"
         [class.bg-ui-accent-solid!]="selectTag() === tab"
