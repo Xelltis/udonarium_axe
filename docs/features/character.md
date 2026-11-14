@@ -34,7 +34,7 @@
 - **直接の編集は仲間へ運ぶ** — シート・インベントリの欄・コマの詳細・リモコン・PLツールの入力は`writeElementField`（`domain/character/alias-mate-follow`）で書く。書いた席が同じ`GameObject.batch`の中で、同じ別名に当たる仲間の項目（`aliasMatesOf`）へ値を運ぶ。リソースの現在値は仲間の現在値へ、最大値は仲間の最大値へ、ふつうの項目の値は仲間の現在値へ運び、すでに同じ値の仲間には書かない。項目の変更を購読して書き直す仕組みは持たないので、ほかの席から届いた値では何も書かない
 - **リソースの棚卸しは1か所** — 「何がリソースか」「コマの集合で何を名前で操作できるか」は`domain/character/resource-catalog`（`isResourceElement` / `isResourceField` / `resourceElementsOf` / `resourceNamesOf` / `resourceCatalogOf`）。リモコン・PLツールのインライン編集・コマのバーの増減演出・マップエディターの項目名一覧が同じ判定を使い、ICON/POS（シート内部のUI状態）の除外もここだけに書いてある。画面ごとに判定が違っていたのを揃えたもの
 - **リソースのスロットは1つの語彙** — 現在値・最大値・上下限のベースと補正値を`domain/data/resource-slot`の`ResourceSlot`に統一。`StatusAccessor`・チャットの`:`記法・バフの`&!`修整・リモコンが同じ語彙を使い、`HP^` / `HP_MAX` / `HP_MAX_BUFF` / `HP_MIN` / `HP_MIN_BUFF`の読み取りも`readNamedResourceSlot`の1か所。知らないスロット名は現在値として読むので、古いピアが書いたバフもそのまま動く
-- **オーバーリソース** — リソースの項目の設定で「オーバーリソース」を入れると、現在値が最大値を超えられる。一時的な補正などを、最大値を戻り先にして扱うためのもの。属性`cs-over-resource`（`DataElementAttribute.OVER_RESOURCE`）が`'true'`のときだけ効き、印のない古い保存は今までどおり最大値で止まる（`allowsOverResource`、`domain/character/over-resource`）。上限を外すのは`StatusAccessor`の`clampToBounds`で、シートの現在値の入力欄も最大値を上限にしない。切ると、最大値を超えていた現在値を最大値に戻す（`features/data-element/game-data-element-field-options`）
+- **オーバーリソース** — リソースの項目の設定で「オーバーリソース」を入れると、現在値が最大値を超えられる。一時的な補正などを、最大値を戻り先にして扱うためのもの。属性`cs-over-resource`（`DataElementAttribute.OVER_RESOURCE`）が`'true'`のときだけ効き、印のない古い保存は今までどおり最大値で止まる（`allowsOverResource`、`domain/character/over-resource`）。上限を外すのは`domain/character/status-accessor`の`heldWithinBounds`で、シートの現在値の入力欄も最大値を上限にしない。切ると、最大値を超えていた現在値を最大値に戻す（`features/data-element/game-data-element-field-options`）
 - **チェック表（check-table）型** — 旧Markdownレンダラを置換
 - 要素単位の原寸表示オプション（ポップアップ画像）
 - 型ピッカーを`ng-select`化
