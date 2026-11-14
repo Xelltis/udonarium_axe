@@ -52,6 +52,7 @@ import {
   slotBandWidth,
   slotLabelLeftInBand,
   VN_STAGE_SLOT_COUNT,
+  VN_STAGE_SLOT_INDEXES,
 } from '@axe/domain/visual-novel/vn-stage-cast';
 import { GameCharacterSheetComponent } from '@axe/features/character/game-character-sheet/game-character-sheet.component';
 import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
@@ -205,7 +206,7 @@ export class VisualNovelOverlayComponent {
 
   readonly messageKindOptions = this.emoteSelection.messageKindOptions;
   readonly isGameMaster = this.emoteSelection.isGameMaster;
-  readonly slotIndexes = Array.from({ length: VN_STAGE_SLOT_COUNT }, (_, i) => i);
+  readonly slotIndexes = VN_STAGE_SLOT_INDEXES;
   /** The keys novel mode answers, less those for what this reader's role may not do. */
   readonly shortcutHelpItems = computed(() => {
     this.objectChange.trackMyCursor();

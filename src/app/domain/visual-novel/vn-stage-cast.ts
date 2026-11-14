@@ -2,6 +2,8 @@ import { VnEmote } from '@axe/domain/visual-novel/vn-emote';
 import { toPortraitSlot } from '@axe/domain/visual-novel/vn-portrait-position';
 
 export const VN_STAGE_SLOT_COUNT = 12;
+/** Every place on the stage, in order from the left. */
+export const VN_STAGE_SLOT_INDEXES: readonly number[] = Array.from({ length: VN_STAGE_SLOT_COUNT }, (_, i) => i);
 export const VN_STAGE_MAX = 6;
 export const VN_STAGE_LOOKBACK = 60;
 

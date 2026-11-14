@@ -1,11 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import {
+  emotionMarkLabelOf,
   VN_BUBBLE_ANIMATIONS,
   VN_BUBBLE_SHAPES,
-  VN_EMOTION_MARK_CHARS,
   VN_EMOTION_MARKS,
   VN_PORTRAIT_EMOTES,
-  VnEmotionMark,
 } from '@axe/domain/visual-novel/vn-emote';
 import { VisualNovelEmoteSelectionService } from '@axe/features/visual-novel/visual-novel-emote-selection.service';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -41,9 +40,7 @@ export class VisualNovelEmotePanelComponent {
   readonly selectedExit = this.selection.exited;
 
   /** The character drawn for an emotion mark's button; empty for no mark. */
-  emotionMarkLabel(mark: VnEmotionMark): string {
-    return mark === 'none' ? '' : VN_EMOTION_MARK_CHARS[mark];
-  }
+  readonly emotionMarkLabel = emotionMarkLabelOf;
 
   /**
    * Puts every staging choice for the next line back to its default, from the panel's reset button.
