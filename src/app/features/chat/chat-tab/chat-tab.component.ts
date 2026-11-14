@@ -3,6 +3,7 @@ import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   effect,
   ElementRef,
@@ -11,6 +12,7 @@ import {
   input,
   output,
   signal,
+  untracked,
   viewChild,
   viewChildren,
 } from '@angular/core';
@@ -23,6 +25,7 @@ import { Network } from '@axe/core/network/network';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isAppleTouchDevice } from '@axe/core/util/apple-touch';
+import { clamp } from '@axe/core/util/clamp';
 import { coalesce } from '@axe/core/util/debounce';
 import { ResettableTimeout } from '@axe/core/util/resettable-timeout';
 import { setZeroTimeout } from '@axe/core/util/zero-timeout';
@@ -91,23 +94,6 @@ export class ChatTabComponent {
       if (!this.topElm || !this.bottomElm) return;
       queueMicrotask(() => this.adjustScrollPosition());
     });
-    const messages: ChatMessage[] = [];
-    for (const context of this.rawSampleMessages) {
-      const message = new ChatMessage();
-      const ctx = context as Record<string, string | number | undefined>;
-      for (const key of Object.keys(context)) {
-        if (key === 'identifier') continue;
-        if (key === 'tabIdentifier') continue;
-        if (key === 'text') {
-          message.value = ctx[key] as string;
-          continue;
-        }
-        if (ctx[key] == null || ctx[key] === '') continue;
-        message.setAttribute(key, ctx[key] as string | number);
-      }
-      messages.push(message);
-    }
-    this.sampleMessages = messages;
     this.objectChange.messageAdded$.subscribe((event) => {
       const message = this.objectStore.get<ChatMessage>(event.messageIdentifier);
       if (!message || !this.chatTab?.contains(message)) return;
@@ -120,7 +106,6 @@ export class ChatTabComponent {
         }
       }
       this.renderVersion.update((v) => v + 1);
-      this.needUpdate = true;
       this.onMessageInit();
       if (this.isIOS) this.renderedRangeTrimTimer?.reset();
     }, this.destroyRef);
@@ -133,7 +118,6 @@ export class ChatTabComponent {
       (event) => {
         const message = this.objectStore.get(event.identifier);
         if (message instanceof ChatMessage && this.chatTab?.contains(message) && this.topPlacedAt <= message.placedAt) {
-          this.needUpdate = true;
           this.renderVersion.update((v) => v + 1);
         }
       },
@@ -164,12 +148,14 @@ export class ChatTabComponent {
     });
   }
 
-  private readonly rawSampleMessages = buildSampleChatMessages(Network.transport === 'server');
-  sampleMessages: ChatMessage[] = [];
+  /** The tutorial lines shown while the tab has nothing said in it. */
+  readonly sampleMessages: ChatMessage[] = buildSampleChatMessages(Network.transport === 'server');
 
-  private topPlacedAt = 0;
-
-  private needUpdate = true;
+  /** When the first of the lines drawn was placed, which changes to older lines are told from; zero with none drawn. */
+  private get topPlacedAt(): number {
+    const drawn = untracked(this.chatMessages);
+    return 0 < drawn.length ? drawn[0].placedAt : 0;
+  }
 
   readonly logContainerRef = viewChild.required<ElementRef<HTMLDivElement>>('logContainer');
   readonly messageContainerRef = viewChild.required<ElementRef<HTMLDivElement>>('messageContainer');
@@ -200,25 +186,22 @@ export class ChatTabComponent {
   private preScrollTop = 0;
   private scrollSpeed = 0;
 
-  private _chatMessages: ChatMessage[] = [];
   /**
    * The slice of the tab's messages currently rendered; empty when there is no tab.
    *
-   * It is only cut again after the range or the messages have changed, and it remembers where the
-   * slice starts so that edits to older messages do not ask for a render.
+   * It is cut again whenever a render is asked for, from the range as it stands then, so the range
+   * is moved before the render is asked for.
    */
-  get chatMessages(): ChatMessage[] {
+  readonly chatMessages = computed<ChatMessage[]>(() => {
     this.renderVersion();
-    if (!this.chatTab) return [];
-    if (this.needUpdate) {
-      this.needUpdate = false;
-      const chatMessages = this.chatTab ? this.chatTab.chatMessages : [];
-      this.adjustIndex();
-      this._chatMessages = chatMessages.slice(this.topIndex, this.bottomIndex + 1);
-      this.topPlacedAt = 0 < this._chatMessages.length ? this._chatMessages[0].placedAt : 0;
-    }
-    return this._chatMessages;
-  }
+    const tab = this.chatTabInput();
+    if (!tab) return [];
+    const messages = tab.chatMessages;
+    const lastIndex = Math.max(0, messages.length - 1);
+    const top = clamp(this.topIndex, 0, lastIndex);
+    const bottom = clamp(this.bottomIndex, 0, lastIndex);
+    return messages.slice(top, bottom + 1);
+  });
 
   /**
    * The height the log reserves, in pixels, for every displayable message at the minimum height,
@@ -242,8 +225,9 @@ export class ChatTabComponent {
    */
   get bottomSpace(): number {
     const tab = this.chatTab;
-    return 0 < this.chatMessages.length
-      ? ((tab?.chatMessages.length ?? 0) - this.bottomIndex - 1) * this.minMessageHeight
+    const length = tab?.chatMessages.length ?? 0;
+    return 0 < this.chatMessages().length
+      ? (length - Math.min(this.bottomIndex, Math.max(0, length - 1)) - 1) * this.minMessageHeight
       : 0;
   }
 
@@ -306,7 +290,6 @@ export class ChatTabComponent {
       Math.floor(this.panelService.scrollablePanel.clientHeight / this.minMessageHeight) + 1
     );
     this.bottomIndex = lastIndex;
-    this.needUpdate = true;
     this.preScrollTop = -1;
     this.scrollSpeed = 0;
     this.topElm = this.bottomElm = null;
@@ -570,8 +553,7 @@ export class ChatTabComponent {
 
     const isChangedIndex = this.topIndex != preTopIndex || this.bottomIndex != preBottomIndex;
     if (!isChangedIndex) return;
-
-    this.needUpdate = true;
+    this.adjustIndex();
 
     this.topElm = chatMessageElements[0];
     this.bottomElm = chatMessageElements[chatMessageElements.length - 1];
@@ -617,7 +599,6 @@ export class ChatTabComponent {
     this.topIndex = index - rows;
     this.bottomIndex = index + rows;
     this.adjustIndex();
-    this.needUpdate = true;
     this.preScrollTop = -1;
     this.scrollSpeed = 0;
     this.topElm = this.bottomElm = null;

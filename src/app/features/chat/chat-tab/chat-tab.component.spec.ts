@@ -1,9 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
-import { ObjectChangeService, type WritingMessageEvent } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { emitMessageAdded } from '@axe/core/event/domain-events';
+import { networkMessage$ } from '@axe/core/network/network-messaging';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -41,7 +41,7 @@ describe('ChatTabComponent', () => {
       const chatTab = new ChatTab();
       chatTab.initialize();
 
-      const spy = vi.spyOn(component, 'resetMessages' as never);
+      const spy = vi.spyOn(component, 'resetMessages');
       fixture.componentRef.setInput('chatTab', chatTab);
       fixture.detectChanges();
 
@@ -59,7 +59,7 @@ describe('ChatTabComponent', () => {
       const chatTab = new ChatTab();
       chatTab.initialize();
 
-      const spy = vi.spyOn(component, 'resetMessages' as never);
+      const spy = vi.spyOn(component, 'resetMessages');
       fixture.componentRef.setInput('chatTab', chatTab);
       fixture.detectChanges();
 
@@ -69,24 +69,15 @@ describe('ChatTabComponent', () => {
     });
   });
 
-  it('asks for no change detector', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((component as any).changeDetector).toBeUndefined();
-  });
-
   it('reads the messages without throwing when there is no tab', () => {
     fixture.componentRef.setInput('chatTab', null);
-    expect(() => {
-      const _msgs = component.chatMessages;
-    }).not.toThrow();
+    expect(component.chatMessages()).toEqual([]);
   });
 
   describe('moving the bottom on a new message', () => {
     let chatTab: ChatTab;
     let panelService: PanelService;
-    // A helper that reaches the private fields without losing the types.
-    type InternalComponent = { bottomIndex: number };
-    const internal = () => component as unknown as InternalComponent;
+    const lastDrawn = () => component.chatMessages().at(-1);
 
     beforeEach(() => {
       panelService = TestBed.inject(PanelService);
@@ -104,6 +95,7 @@ describe('ChatTabComponent', () => {
       // one message puts the bottom at the first
       const msg0 = new ChatMessage();
       msg0.initialize();
+      msg0.setAttribute('timestamp', 1000);
       chatTab.appendChild(msg0);
       emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: msg0.identifier });
       // which leaves it at the first
@@ -111,39 +103,32 @@ describe('ChatTabComponent', () => {
       // a second message arrives
       const msg1 = new ChatMessage();
       msg1.initialize();
+      msg1.setAttribute('timestamp', 2000);
       chatTab.appendChild(msg1);
       emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: msg1.identifier });
 
       // and the bottom moves to it
-      expect(internal().bottomIndex).toBe(1);
+      expect(lastDrawn()).toBe(msg1);
     });
 
     it('leaves the bottom alone while it is scrolled up', () => {
-      // ten messages put the bottom at the last
-      for (let i = 0; i < 10; i++) {
-        const m = new ChatMessage();
-        m.initialize();
-        chatTab.appendChild(m);
-        emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: m.identifier });
+      // enough messages that the first of them are let go of
+      for (let i = 0; i < 300; i++) {
+        chatTab.addMessage({ from: 'someone', name: '語り手', text: `${i}行目`, timestamp: i + 1 });
       }
-      // then it is dragged back to the middle, as scrolling up would
-      internal().bottomIndex = 4;
+      // then the reader goes back to one near the top
+      void component.reveal(chatTab.chatMessages[4]);
+      const bottom = lastDrawn();
+      expect(bottom).not.toBe(chatTab.chatMessages[299]);
 
       // a new message arrives
-      const newMsg = new ChatMessage();
-      newMsg.initialize();
-      chatTab.appendChild(newMsg);
-      emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: newMsg.identifier });
+      chatTab.addMessage({ from: 'someone', name: '語り手', text: '新しい行', timestamp: 1000 });
 
       // and the bottom stays where it was
-      expect(internal().bottomIndex).toBe(4);
+      expect(lastDrawn()).toBe(bottom);
     });
 
     it('still updates for a message older than the top of the view', () => {
-      // one message is added and read, which settles the top timestamp
-      type InternalFull = { bottomIndex: number; needUpdate: boolean; topPlacedAt: number };
-      const internalFull = () => component as unknown as InternalFull;
-
       const msg0 = new ChatMessage();
       msg0.initialize();
       msg0.setAttribute('timestamp', 1000);
@@ -151,9 +136,8 @@ describe('ChatTabComponent', () => {
       emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: msg0.identifier });
 
       // settling it
-      const _ignored = component.chatMessages;
-      expect(internalFull().topPlacedAt).toBe(1000);
-      internalFull().needUpdate = false; // the getter should have left it false already; set here to be sure
+      const settled = component.chatMessages();
+      expect(settled).toEqual([msg0]);
 
       // an older message arrives
       const msg1 = new ChatMessage();
@@ -163,7 +147,8 @@ describe('ChatTabComponent', () => {
       emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: msg1.identifier });
 
       // and the view still updates
-      expect(internalFull().needUpdate).toBe(true);
+      expect(component.chatMessages()).not.toBe(settled);
+      expect(component.chatMessages()).toContain(msg1);
     });
 
     it('still updates for a line above one that was opened and brought to the end', async () => {
@@ -181,14 +166,14 @@ describe('ChatTabComponent', () => {
       await flush();
 
       // settling the window over both, with the opened line last
-      const settled = component.chatMessages;
+      const settled = component.chatMessages();
       expect(chatTab.chatMessages[chatTab.chatMessages.length - 1]).toBe(secret);
 
       said.text = 'そのあと（直した）';
       await flush();
 
       // a fresh slice, which is what redrawing the window looks like from outside
-      expect(component.chatMessages).not.toBe(settled);
+      expect(component.chatMessages()).not.toBe(settled);
     });
 
     it('redraws when a line is placed past the end of what is drawn', async () => {
@@ -203,29 +188,23 @@ describe('ChatTabComponent', () => {
       await flush();
 
       // settling the window over both, which bounds it by the times they were said at
-      const settled = component.chatMessages;
+      const settled = component.chatMessages();
 
       TestBed.inject(ChatLineEditService).discloseMessage(secret);
       await flush();
 
       expect(chatTab.chatMessages[chatTab.chatMessages.length - 1]).toBe(secret);
-      expect(component.chatMessages).not.toBe(settled);
+      expect(component.chatMessages()).not.toBe(settled);
     });
 
     it('widens to an older message while it is at the bottom', () => {
-      // one message settles both the bottom and the top timestamp
-      type InternalFull = { bottomIndex: number; topPlacedAt: number };
-      const internalFull = () => component as unknown as InternalFull;
-
       const msg0 = new ChatMessage();
       msg0.initialize();
       msg0.setAttribute('timestamp', 1000);
       chatTab.appendChild(msg0);
       emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: msg0.identifier });
 
-      const _ignored = component.chatMessages;
-      expect(internalFull().topPlacedAt).toBe(1000);
-      expect(internalFull().bottomIndex).toBe(0);
+      expect(component.chatMessages()).toEqual([msg0]);
 
       // an older message arrives
       const msg1 = new ChatMessage();
@@ -235,12 +214,11 @@ describe('ChatTabComponent', () => {
       emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: msg1.identifier });
 
       // and the bottom moves on because it was at the bottom
-      expect(internalFull().bottomIndex).toBe(1);
+      expect(component.chatMessages()).toHaveLength(2);
+      expect(lastDrawn()).toBe(chatTab.chatMessages[1]);
     });
 
     it('draws no more than a reader at the bottom needs when many lines arrive at once', () => {
-      type Range = { topIndex: number; bottomIndex: number };
-      const range = () => component as unknown as Range;
       for (let i = 0; i < 300; i++) {
         const message = new ChatMessage();
         message.initialize();
@@ -248,9 +226,8 @@ describe('ChatTabComponent', () => {
         emitMessageAdded({ tabIdentifier: chatTab.identifier, messageIdentifier: message.identifier });
       }
 
-      const drawn = component.chatMessages;
+      const drawn = component.chatMessages();
 
-      expect(range().bottomIndex).toBe(299);
       expect(drawn.length).toBeLessThanOrEqual(150);
       expect(drawn[drawn.length - 1]).toBe(chatTab.chatMessages[299]);
     });
@@ -323,15 +300,11 @@ describe('ChatTabComponent', () => {
 
     it('adds a speaker to those typing', () => {
       const speaker = GameCharacter.create('入力中の冒険者', 1, '');
-      const objectChange = TestBed.inject(ObjectChangeService) as unknown as {
-        _writingMessage$: { emit(event: WritingMessageEvent): void };
-      };
-
-      objectChange._writingMessage$.emit({
-        tabIdentifier: chatTab.identifier,
+      networkMessage$.emit({
+        eventName: 'WRITING_A_MESSAGE_DETAIL',
+        data: { tabIdentifier: chatTab.identifier, speakerIdentifier: speaker.identifier },
         sendFrom: 'remote-peer',
         isSendFromSelf: false,
-        speakerIdentifier: speaker.identifier,
       });
       fixture.detectChanges();
 
@@ -342,15 +315,11 @@ describe('ChatTabComponent', () => {
 
     it('takes them off once their message arrives', () => {
       const speaker = GameCharacter.create('発言者', 1, '');
-      const objectChange = TestBed.inject(ObjectChangeService) as unknown as {
-        _writingMessage$: { emit(event: WritingMessageEvent): void };
-      };
-
-      objectChange._writingMessage$.emit({
-        tabIdentifier: chatTab.identifier,
+      networkMessage$.emit({
+        eventName: 'WRITING_A_MESSAGE_DETAIL',
+        data: { tabIdentifier: chatTab.identifier, speakerIdentifier: speaker.identifier },
         sendFrom: 'remote-peer',
         isSendFromSelf: false,
-        speakerIdentifier: speaker.identifier,
       });
 
       const message = new ChatMessage();
