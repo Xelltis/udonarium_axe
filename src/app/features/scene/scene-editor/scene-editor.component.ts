@@ -9,6 +9,7 @@ import { BoardSceneService } from '@axe/application/tabletop/board-scene.service
 import { ModalService } from '@axe/application/ui/modal.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { debounce } from '@axe/core/util/debounce';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import {
   type AmbienceKind,
@@ -121,7 +122,8 @@ export class SceneEditorComponent {
   /** The table as it stands is to be written over the scene. */
   readonly overwrite = output<void>();
 
-  private pendingText: { scene: BoardScene; words: string; timer: ReturnType<typeof setTimeout> } | null = null;
+  private pendingText: { scene: BoardScene; words: string } | null = null;
+  private readonly writeTextSoon = debounce(() => this.flushText(), WRITE_DELAY_MS);
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.flushText());
@@ -371,15 +373,15 @@ export class SceneEditorComponent {
   protected writeTextLater(scene: BoardScene, words: string): void {
     if (!this.canEdit()) return;
     if (this.pendingText && this.pendingText.scene !== scene) this.flushText();
-    if (this.pendingText) clearTimeout(this.pendingText.timer);
-    this.pendingText = { scene, words, timer: setTimeout(() => this.flushText(), WRITE_DELAY_MS) };
+    this.pendingText = { scene, words };
+    this.writeTextSoon();
   }
 
   /** Shares words still waiting to be, as before the scene is put on, copied or written over. */
   flushText(): void {
+    this.writeTextSoon.cancel();
     const pending = this.pendingText;
     if (!pending) return;
-    clearTimeout(pending.timer);
     this.pendingText = null;
     if (this.canEdit() && pending.scene.text !== pending.words) pending.scene.writeText(pending.words);
   }

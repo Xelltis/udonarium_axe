@@ -36,6 +36,7 @@ import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.se
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
+import { observeSize } from '@axe/core/util/observe-size';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { HIDDEN_GAUGE_STRIPES, selectPieceGauges, shownGauge } from '@axe/domain/character/piece-gauge';
@@ -943,10 +944,7 @@ export class FirstPersonViewComponent {
       this.height.set(element.clientHeight || window.innerHeight);
     };
     read();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(read);
-    observer.observe(element);
-    this.destroyRef.onDestroy(() => observer.disconnect());
+    this.destroyRef.onDestroy(observeSize(element, read));
   }
 }
 
