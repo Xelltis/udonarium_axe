@@ -239,6 +239,11 @@ export class GameDataElementFieldOptionsComponent {
     return this.gaugeFixedColor() || gaugeColor(1, this.isGaugeInverted());
   }
 
+  /** Sets the bar's colour to what its colour field holds, from an event of that field. */
+  onGaugeColorInput(event: Event): void {
+    this.setGaugeColor((event.target as HTMLInputElement | HTMLSelectElement).value);
+  }
+
   /** Sets the colour the resource's bar stands in, or lets it follow how full it stands again for empty. */
   setGaugeColor(value: string): void {
     if (!this.canShowPieceGauge()) return;

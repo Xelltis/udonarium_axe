@@ -2,8 +2,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { HotbarStoreService } from '@axe/application/hotbar/hotbar-store.service';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -61,6 +64,22 @@ describe('HotbarSlotEditorComponent', () => {
       (option) => option.value
     );
   }
+
+  it("sorts the sounds on offer by their names as the reader's language orders them", () => {
+    vi.spyOn(TestBed.inject(AudioStorage), 'audios', 'get').mockReturnValue([
+      { identifier: 'second', name: 'b.mp3' },
+      { identifier: 'first', name: 'a.mp3' },
+    ] as never);
+    vi.spyOn(TestBed.inject(LanguageService), 'currentLang').mockReturnValue('en');
+    const compare = vi.spyOn(String.prototype, 'localeCompare');
+    TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+
+    const choices = (component as unknown as { choices(): { value: string }[] }).choices();
+
+    expect(choices.map((choice) => choice.value)).toEqual(['first', 'second']);
+    expect(compare.mock.calls.every(([, locale]) => locale === 'en')).toBe(true);
+    expect(compare).toHaveBeenCalled();
+  });
 
   it('offers the game master every kind a slot can be', async () => {
     PeerCursor.myCursor.role = PeerRole.GameMaster;

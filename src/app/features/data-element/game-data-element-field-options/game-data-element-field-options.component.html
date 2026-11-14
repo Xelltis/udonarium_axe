@@ -53,7 +53,7 @@
           name="data-gauge-color"
           class="h-7! w-12! shrink-0 cursor-pointer p-0.5!"
           [value]="gaugeColorShown()"
-          (change)="setGaugeColor($any($event.target).value)"
+          (change)="onGaugeColorInput($event)"
         />
         @if (gaugeFixedColor()) {
           <button
