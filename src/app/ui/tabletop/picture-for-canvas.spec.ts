@@ -32,7 +32,7 @@ describe('pictureForCanvas()', () => {
     vi.restoreAllMocks();
   });
 
-  async function setup(extra: { region?: boolean; pickAreas?: boolean } = {}): Promise<void> {
+  async function setup(extra: { region?: boolean; pickAreas?: boolean; paper?: string } = {}): Promise<void> {
     TestBed.runInInjectionContext(() =>
       pictureForCanvas({
         identifier: () => identifier(),
@@ -40,6 +40,10 @@ describe('pictureForCanvas()', () => {
         pictured: () => pictured(),
         follows: () => look(),
         region: extra.region ? () => ({ left: 5, top: 7, width: 40, height: 30 }) : undefined,
+        paper:
+          extra.paper === undefined
+            ? undefined
+            : (part) => (part === element() && extra.paper ? { colour: extra.paper, opacity: 0.9 } : null),
         pickAreas: extra.pickAreas
           ? () => [
               [
@@ -78,6 +82,19 @@ describe('pictureForCanvas()', () => {
         ],
       ],
     });
+  });
+
+  it('hands over the paper the part is painted on with its picture, read off the part, and none where there is none', async () => {
+    await setup({ region: true, paper: '#161b22' });
+
+    expect(show.mock.calls[0][1].paper).toEqual({ colour: '#161b22', opacity: 0.9 });
+  });
+
+  it('hands over no paper for a part that tells none', async () => {
+    await setup({ region: true, paper: '' });
+    await setup({ region: true });
+
+    expect(show.mock.calls.map(([, picture]) => 'paper' in picture)).toEqual([false, false]);
   });
 
   it('takes the picture again when what the part looks like changes', async () => {

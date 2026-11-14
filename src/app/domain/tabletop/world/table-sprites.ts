@@ -216,6 +216,17 @@ export interface PagePicture {
   readonly offsetY?: number;
   /** Where the picture is the piece, as polygons off its top left corner, in pixels; the whole picture where not given. */
   readonly pickAreas?: readonly (readonly PickPoint2[])[];
+  /** The colour the part is painted under what it shows, and how opaque, where the page tells it. */
+  readonly paper?: PagePaper;
+}
+
+/**
+ * What a part of a piece is painted with under what it shows, as a note's panel under its writing:
+ * the colour, as the page writes one, and how opaque it is, from clear at 0 to solid at 1.
+ */
+export interface PagePaper {
+  readonly colour: string;
+  readonly opacity: number;
 }
 
 /**

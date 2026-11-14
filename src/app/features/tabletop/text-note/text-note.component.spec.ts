@@ -4,6 +4,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { HudAnchor } from '@axe/application/tabletop/hud-frame.service';
+import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
@@ -89,6 +90,27 @@ describe('TextNoteComponent', () => {
     expect(placed.some(({ element }) => element.matches('.rotate-grab'))).toBe(false);
     expect((fixture.nativeElement as HTMLElement).querySelector('turn-frame')).toBeTruthy();
     note.destroy();
+  });
+
+  it('hands the canvas the colour its panel is painted in, apart from how clear, for the back of the note', async () => {
+    const pictures = TestBed.inject(PiecePicturesService);
+    vi.spyOn(pictures, 'whileTaking').mockResolvedValue(new Blob(['png']) as never);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:panel');
+    const show = vi.spyOn(pictures, 'show');
+    const painted = vi.spyOn(window, 'getComputedStyle');
+    painted.mockImplementation(
+      (element) =>
+        ({
+          backgroundColor: (element as HTMLElement).matches('[data-part="panel"]') ? 'rgba(22, 27, 34, 0.9)' : '',
+        }) as CSSStyleDeclaration
+    );
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    painted.mockRestore();
+
+    expect(show).toHaveBeenCalled();
+    expect(show.mock.calls.at(-1)![1].paper).toEqual({ colour: '#161b22', opacity: 0.9 });
   });
 
   it('starts editing on a release anywhere on the page after a press on the note, and on no release without one', () => {

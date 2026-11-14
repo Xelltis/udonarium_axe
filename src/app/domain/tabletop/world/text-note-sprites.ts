@@ -1,5 +1,6 @@
+import { clamp01 } from '@axe/core/util/clamp';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
-import { pointOnFace, TableWorldSprite, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
+import { PagePaper, pointOnFace, TableWorldSprite, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
 
 /** The alias a note is known by. */
 export const TEXT_NOTE_KIND = 'text-note';
@@ -21,14 +22,26 @@ export interface TextNoteLayout {
   readonly rotateDeg: number;
   /** Whether it stands up from its lower edge, rather than lying flat back from it. */
   readonly upright: boolean;
-  /** The picture of the note as the page lays it out, and how big the page lays it out, in table pixels. */
-  readonly face: { readonly url: string; readonly widthPx: number; readonly heightPx: number } | null;
+  /**
+   * The picture of the note as the page lays it out, how big the page lays it out, in table pixels,
+   * and the paper its panel is painted on, where the page tells it.
+   */
+  readonly face: {
+    readonly url: string;
+    readonly widthPx: number;
+    readonly heightPx: number;
+    readonly paper?: PagePaper;
+  } | null;
 }
 
 /**
  * The sprite a note is drawn with: the picture of its panel, its lower edge on the line through
  * the point it hangs from, turned as the note is. A note standing up rises from that line facing the
  * way the note is turned to; one lying down lies back from it, its top furthest off.
+ *
+ * A note standing up has a back as well, the same panel looking the other way: its paper alone, the
+ * colour the page paints its panel in, as opaque, with none of its title or its writing. One whose
+ * paper the page has not told, or whose paper is clear, has none, and one lying down shows no back.
  */
 export function textNoteSprites(note: TextNoteLayout): TableWorldSprite[] {
   const face = note.face;
@@ -49,11 +62,20 @@ export function textNoteSprites(note: TextNoteLayout): TableWorldSprite[] {
     twoSided: false,
   };
   if (note.upright) {
+    const centre = { x: anchor.x + normal.x * half, y: anchor.y + normal.y * half, z: anchor.z + normal.z * half };
+    const down = { x: -normal.x, y: -normal.y, z: -normal.z };
+    const panel: TableWorldSprite = { ...base, centre, facing: { across: axes.across, down } };
+    const opacity = clamp01(face.paper?.opacity ?? 0);
+    if (!face.paper || !(opacity > 0)) return [panel];
     return [
+      panel,
       {
         ...base,
-        centre: { x: anchor.x + normal.x * half, y: anchor.y + normal.y * half, z: anchor.z + normal.z * half },
-        facing: { across: axes.across, down: { x: -normal.x, y: -normal.y, z: -normal.z } },
+        id: `${note.id}#back`,
+        centre,
+        facing: { across: { x: -axes.across.x, y: -axes.across.y, z: -axes.across.z }, down },
+        look: { kind: 'colour', colour: face.paper.colour },
+        opacity,
       },
     ];
   }

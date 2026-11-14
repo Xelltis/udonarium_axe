@@ -2,6 +2,7 @@ import { afterRenderEffect, DestroyRef, inject } from '@angular/core';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import type { PickPoint2 } from '@axe/domain/tabletop/pick/pick-geometry';
+import type { PagePaper } from '@axe/domain/tabletop/world/table-sprites';
 import { pictureOfElement, PictureRegion } from '@axe/infrastructure/image/element-picture';
 
 /** A part of a piece the page lays out itself, for the canvas to draw the piece from a picture of. */
@@ -29,6 +30,11 @@ export interface PictureForCanvas {
    * picture inside none of them passes through it. The whole picture where not given.
    */
   readonly pickAreas?: () => readonly (readonly PickPoint2[])[] | null;
+  /**
+   * What the part is painted with under what it shows, read off the part as the page has laid it out:
+   * what the canvas draws the piece in seen from behind. None where not given.
+   */
+  readonly paper?: (element: HTMLElement) => PagePaper | null;
 }
 
 /**
@@ -64,6 +70,7 @@ export function pictureForCanvas(part: PictureForCanvas): void {
         : { left: 0, top: 0, width: element.offsetWidth, height: element.offsetHeight };
       if (!region) return;
       const areas = part.pickAreas?.() ?? null;
+      const paper = part.paper?.(element) ?? null;
       const ask = ++asked;
       void pictures.whileTaking(pictureOfElement(element, region)).then((picture) => {
         if (ask !== asked || !picture) return;
@@ -75,6 +82,7 @@ export function pictureForCanvas(part: PictureForCanvas): void {
           heightPx: region.height,
           offsetX: region.left,
           offsetY: region.top,
+          ...(paper ? { paper } : {}),
           ...(areas
             ? { pickAreas: areas.map((area) => area.map(({ x, y }) => ({ x: x - region.left, y: y - region.top }))) }
             : {}),

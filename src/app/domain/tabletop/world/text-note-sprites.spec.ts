@@ -1,4 +1,5 @@
 import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
+import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { TextNoteLayout, textNoteSprites } from '@axe/domain/tabletop/world/text-note-sprites';
 
 const note: TextNoteLayout = {
@@ -27,6 +28,60 @@ describe('the sprite a note is drawn with', () => {
       look: { kind: 'picture', url: 'blob:panel' },
     });
     expect(panel.order).toBeUndefined();
+  });
+
+  describe('seen from behind', () => {
+    const paper = { colour: '#161b22', opacity: 0.9 };
+    const papered: TextNoteLayout = { ...note, face: { ...note.face!, paper } };
+
+    /** The way a sprite looks out of its front, in the board's space, which is the scene's seen in a mirror. */
+    function frontOf(sprite: TableWorldSprite): { x: number; y: number; z: number } {
+      if (sprite.facing === 'eye') throw new Error('the sprite is turned to the eye');
+      const a = sprite.facing.across;
+      const up = { x: -sprite.facing.down.x, y: -sprite.facing.down.y, z: -sprite.facing.down.z };
+      return { x: up.y * a.z - up.z * a.y, y: up.z * a.x - up.x * a.z, z: up.x * a.y - up.y * a.x };
+    }
+
+    it('draws the back of a note standing up as its paper alone, as opaque, looking the other way from where its panel stands', () => {
+      for (const rotateDeg of [0, 30, 90]) {
+        const [panel, back, ...rest] = textNoteSprites({ ...papered, rotateDeg });
+
+        expect(rest).toEqual([]);
+        expect(panel.look).toEqual({ kind: 'picture', url: 'blob:panel' });
+        expect(back).toMatchObject({ id: 'note#back', owner: 'note', kind: 'text-note', twoSided: false });
+        expect(back.look).toEqual({ kind: 'colour', colour: '#161b22' });
+        expect(back.opacity).toBe(0.9);
+        expect([back.centre, back.widthPx, back.heightPx, back.order]).toEqual([
+          panel.centre,
+          panel.widthPx,
+          panel.heightPx,
+          undefined,
+        ]);
+        const [front, behind] = [frontOf(panel), frontOf(back)];
+        expect(front.z).toBeCloseTo(0, 6);
+        expect(Math.hypot(front.x, front.y)).toBeCloseTo(1, 6);
+        expect(behind.x).toBeCloseTo(-front.x, 6);
+        expect(behind.y).toBeCloseTo(-front.y, 6);
+        expect(behind.z).toBeCloseTo(-front.z, 6);
+      }
+    });
+
+    it('faces the panel of a note standing unturned to the south, and its back to the north', () => {
+      const [panel, back] = textNoteSprites(papered);
+
+      expect(frontOf(panel).y).toBeCloseTo(1, 6);
+      expect(frontOf(back).y).toBeCloseTo(-1, 6);
+    });
+
+    it('draws no back for a note lying down, which shows none', () => {
+      expect(textNoteSprites({ ...papered, upright: false }).map((sprite) => sprite.id)).toEqual(['note#panel']);
+    });
+
+    it('draws no back for a note whose paper the page has not told, or whose paper is clear', () => {
+      expect(textNoteSprites(note).map((sprite) => sprite.id)).toEqual(['note#panel']);
+      const clear = { ...papered, face: { ...note.face!, paper: { colour: '#161b22', opacity: 0 } } };
+      expect(textNoteSprites(clear).map((sprite) => sprite.id)).toEqual(['note#panel']);
+    });
   });
 
   it('lays its panel back from that line with its top furthest off, lying flat in its order', () => {

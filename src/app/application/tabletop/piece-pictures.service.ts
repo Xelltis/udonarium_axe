@@ -1,5 +1,6 @@
 import { Injectable, signal, type WritableSignal } from '@angular/core';
 import type { PickPoint2 } from '@axe/domain/tabletop/pick/pick-geometry';
+import type { PagePaper } from '@axe/domain/tabletop/world/table-sprites';
 
 /**
  * A part of a piece as a picture: where the picture is, how big the page lays the part out, and
@@ -16,6 +17,11 @@ export interface PiecePicture {
    * corner, where only what is painted takes it; the whole picture where not given.
    */
   readonly pickAreas?: readonly (readonly PickPoint2[])[];
+  /**
+   * The colour the part is painted under what it shows, and how opaque, where the page tells it: what
+   * a piece seen from behind is drawn in.
+   */
+  readonly paper?: PagePaper;
 }
 
 /**

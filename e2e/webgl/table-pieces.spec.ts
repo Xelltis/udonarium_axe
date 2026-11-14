@@ -191,7 +191,8 @@ const PIECES: readonly {
   },
   // A deck stands in 30 layers under its plate and its top card.
   { name: 'deck', tag: 'card-stack', create: createDeck, shapes: 32, takenAwayBy: '山札を削除する' },
-  { name: 'note', tag: 'text-note', create: createNote, shapes: 1, takenAwayBy: '削除する' },
+  // A note is made standing up, picked by its panel and by its back.
+  { name: 'note', tag: 'text-note', create: createNote, shapes: 2, takenAwayBy: '削除する' },
   { name: 'mask', tag: 'game-table-mask', create: createMask, shapes: 1, takenAwayBy: '削除する' },
   { name: 'range', tag: 'range', create: createRange, shapes: 1, takenAwayBy: '削除する' },
   { name: 'character', tag: 'game-character', create: createCharacter, shapes: 1, takenAwayBy: '墓場に移動' },

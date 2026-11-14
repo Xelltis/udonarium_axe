@@ -30,6 +30,7 @@ import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switc
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { debounce } from '@axe/core/util/debounce';
+import { paintedColorOf } from '@axe/core/util/painted-color';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -181,6 +182,7 @@ export class TextNoteComponent {
         this.limitHeight();
         this.imageFile();
       },
+      paper: (panel) => paintedColorOf(getComputedStyle(panel).backgroundColor),
     });
     this.destroyRef.onDestroy(() => {
       this.writeTextSoon.cancel();

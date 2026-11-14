@@ -251,7 +251,8 @@ const PIECES: readonly {
     name: 'note',
     tag: 'text-note',
     create: createNote,
-    shapes: 1,
+    // A note is made standing up, picked by its panel and by its back.
+    shapes: 2,
     parts: [{ shape: -1, selector: '.rounded-b-ui-sm' }],
     menuEntry: 'メモを編集',
     takenAwayBy: '削除する',
