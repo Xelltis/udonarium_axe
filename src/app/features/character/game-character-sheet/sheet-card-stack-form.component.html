@@ -1,0 +1,133 @@
+@let stack = current();
+<div class="flex w-full flex-col gap-0">
+  <section class="flex flex-wrap items-center justify-end gap-2 px-2 pt-2 pb-1">
+    <sheet-save-buttons
+      [saving]="saving()"
+      [percent]="percent()"
+      (copyPressed)="copyPressed.emit()"
+      (savePressed)="savePressed.emit()"
+    />
+  </section>
+
+  <div class="border-ui-border-panel bg-ui-surface flex items-end gap-px border-b border-solid px-2 pt-1.5">
+    <button
+      class="hover:text-ui-text text-ui-muted border-ui-border-panel -mb-px inline-flex cursor-pointer items-center gap-1 rounded-t-xs border border-solid bg-[color-mix(in_srgb,var(--ui-elevated)_58%,var(--ui-surface))] px-3.5 py-1.5 text-[0.8em] font-semibold whitespace-nowrap transition-[background,border-color,color,box-shadow] hover:bg-[color-mix(in_srgb,var(--ui-elevated)_82%,var(--ui-surface))] [&_.material-icons]:text-[14px]!"
+      [class.relative]="activeTab() === 'sheet'"
+      [class.z-1]="activeTab() === 'sheet'"
+      [class.bg-ui-elevated!]="activeTab() === 'sheet'"
+      [class.border-b-ui-elevated!]="activeTab() === 'sheet'"
+      [class.text-ui-accent!]="activeTab() === 'sheet'"
+      [class.shadow-[inset_0_2px_0_var(--ui-accent)]]="activeTab() === 'sheet'"
+      type="button"
+      (click)="activeTab.set('sheet')"
+    >
+      <i class="material-icons">style</i>{{ 'feature.cardStack.tabs.cards' | transloco }}
+    </button>
+    <button
+      class="hover:text-ui-text text-ui-muted border-ui-border-panel -mb-px inline-flex cursor-pointer items-center gap-1 rounded-t-xs border border-solid bg-[color-mix(in_srgb,var(--ui-elevated)_58%,var(--ui-surface))] px-3.5 py-1.5 text-[0.8em] font-semibold whitespace-nowrap transition-[background,border-color,color,box-shadow] hover:bg-[color-mix(in_srgb,var(--ui-elevated)_82%,var(--ui-surface))] [&_.material-icons]:text-[14px]!"
+      [class.relative]="activeTab() === 'settings'"
+      [class.z-1]="activeTab() === 'settings'"
+      [class.bg-ui-elevated!]="activeTab() === 'settings'"
+      [class.border-b-ui-elevated!]="activeTab() === 'settings'"
+      [class.text-ui-accent!]="activeTab() === 'settings'"
+      [class.shadow-[inset_0_2px_0_var(--ui-accent)]]="activeTab() === 'settings'"
+      type="button"
+      (click)="activeTab.set('settings')"
+    >
+      <i class="material-icons">settings</i>{{ 'feature.cardStack.tabs.settings' | transloco }}
+    </button>
+  </div>
+
+  @if (activeTab() === 'sheet') {
+    <div class="bg-ui-elevated p-2">
+      <card-stack-card-list [cardStack]="stack" />
+    </div>
+  } @else {
+    <div class="bg-ui-elevated flex flex-col gap-3 p-2">
+      <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2.5 border border-solid p-3">
+        <header
+          class="border-ui-border-panel text-ui-accent flex items-center gap-1.5 border-b border-solid pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-base!"
+        >
+          <i class="material-icons">info</i>
+          {{ 'feature.inventory.sheet.basicInfo' | transloco }}
+        </header>
+        <div class="flex items-start gap-3">
+          @if (imageFile().url) {
+            <div
+              class="bg-ui-input border-ui-border-panel rounded-ui-sm flex size-32 shrink-0 items-center justify-center overflow-hidden border border-solid"
+            >
+              <img
+                class="block size-full object-contain"
+                [src]="imageFile().url | safe: 'resourceUrl'"
+                [alt]="imageFile().name"
+              />
+            </div>
+          }
+          <div class="flex min-w-0 flex-1 flex-col gap-2">
+            <label class="flex flex-col gap-1 text-[0.78em]">
+              <span class="text-ui-muted">{{ 'feature.cardStack.list.stackName' | transloco }}</span>
+              <input
+                type="text"
+                class="border-ui-border-panel bg-ui-input text-ui-text rounded-ui-sm focus:border-ui-accent w-full border border-solid px-2 py-1 text-[0.95em] outline-none"
+                [value]="cardStackName(stack)"
+                (change)="setCardStackName(stack, $event)"
+              />
+            </label>
+            <div class="text-ui-muted text-[0.78em]">
+              {{ 'feature.cardStack.stack.countLabel' | transloco: { count: stack.cards.length } }}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2 border border-solid p-3">
+        <header
+          class="border-ui-border-panel text-ui-accent flex items-center gap-1.5 border-b border-solid pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-base!"
+        >
+          <i class="material-icons">aspect_ratio</i>
+          {{ 'feature.inventory.sheet.display' | transloco }}
+        </header>
+        <label class="text-ui-muted flex items-center gap-2 text-[0.78em]">
+          <span class="text-ui-text w-24 shrink-0">{{ 'feature.inventory.sheet.popupWidth' | transloco }}</span>
+          <input
+            type="range"
+            class="flex-1 cursor-pointer"
+            min="250"
+            max="1000"
+            name="cs-overview-width-range"
+            [(ngModel)]="stack.overViewWidth"
+          />
+          <input
+            type="number"
+            class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm w-18 border border-solid px-1 py-0.5"
+            min="250"
+            max="1000"
+            name="cs-overview-width-number"
+            [(ngModel)]="stack.overViewWidth"
+            (change)="onChkPopWidth($event)"
+          />
+        </label>
+        <label class="text-ui-muted flex items-center gap-2 text-[0.78em]">
+          <span class="text-ui-text w-24 shrink-0">{{ 'feature.inventory.sheet.popupMaxHeight' | transloco }}</span>
+          <input
+            type="range"
+            class="flex-1 cursor-pointer"
+            min="250"
+            max="1000"
+            name="cs-overview-height-range"
+            [(ngModel)]="stack.overViewMaxHeight"
+          />
+          <input
+            type="number"
+            class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm w-18 border border-solid px-1 py-0.5"
+            min="250"
+            max="1000"
+            name="cs-overview-height-number"
+            [(ngModel)]="stack.overViewMaxHeight"
+            (change)="onChkPopMaxHeight($event)"
+          />
+        </label>
+      </section>
+    </div>
+  }
+</div>

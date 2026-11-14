@@ -28,13 +28,10 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { clamp, clampOr } from '@axe/core/util/clamp';
-import { debounce } from '@axe/core/util/debounce';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter, KOMA_IMAGE_SECTION, PORTRAIT_POSITION_SECTION } from '@axe/domain/character/game-character';
@@ -45,14 +42,12 @@ import {
   DataElementRole,
 } from '@axe/domain/data/data-element';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CharacterSheetTarget } from '@axe/domain/tabletop/character-sheet-target';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain, TERRAIN_FACES, TerrainFace } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { isWithheldHere } from '@axe/domain/tabletop/withheld';
-import { CardStackCardListComponent } from '@axe/features/card/card-stack-card-list/card-stack-card-list.component';
 import { CharacterPortraitPanelComponent } from '@axe/features/character/game-character-sheet/character-portrait-panel.component';
 import { buildCharacterSheetMenu } from '@axe/features/character/game-character-sheet/character-sheet-context-menu';
 import { cloneTabletopObject } from '@axe/features/character/game-character-sheet/character-sheet-target-helpers';
@@ -63,6 +58,9 @@ import {
 } from '@axe/features/character/game-character-sheet/detail-element-reorder-helpers';
 import { GameCharacterSettingsTabComponent } from '@axe/features/character/game-character-sheet/game-character-settings-tab.component';
 import { SheetBasicsCardComponent } from '@axe/features/character/game-character-sheet/sheet-basics-card.component';
+import { SheetCardFormComponent } from '@axe/features/character/game-character-sheet/sheet-card-form.component';
+import { SheetCardStackFormComponent } from '@axe/features/character/game-character-sheet/sheet-card-stack-form.component';
+import { SheetNoteFormComponent } from '@axe/features/character/game-character-sheet/sheet-note-form.component';
 import { SheetRangeFormComponent } from '@axe/features/character/game-character-sheet/sheet-range-form.component';
 import { SheetSaveButtonsComponent } from '@axe/features/character/game-character-sheet/sheet-save-buttons.component';
 import { SheetViewPreferenceService } from '@axe/features/character/game-character-sheet/sheet-view-preference.service';
@@ -75,7 +73,6 @@ import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-sel
 import { PieceModelFieldsComponent } from '@axe/ui/components/piece-model-fields/piece-model-fields.component';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** How long a section picked from the row of sections stays lit while the sheet scrolls to it. */
@@ -95,7 +92,6 @@ const SECTIONS_WITH_OWN_CONTROLS: ReadonlySet<string> = new Set([PORTRAIT_POSITI
   providers: [{ provide: IN_DATA_ELEMENT_SHEET, useValue: true }],
   imports: [
     TextTooltipDirective,
-    CardStackCardListComponent,
     DisclosureControlComponent,
     FormsModule,
     CharacterPortraitPanelComponent,
@@ -105,6 +101,9 @@ const SECTIONS_WITH_OWN_CONTROLS: ReadonlySet<string> = new Set([PORTRAIT_POSITI
     TranslocoModule,
     PieceModelFieldsComponent,
     SheetBasicsCardComponent,
+    SheetCardFormComponent,
+    SheetCardStackFormComponent,
+    SheetNoteFormComponent,
     SheetRangeFormComponent,
     SheetSaveButtonsComponent,
   ],
@@ -117,7 +116,6 @@ export class GameCharacterSheetComponent {
   private readonly modalService = inject(ModalService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly contextMenuService = inject(ContextMenuService);
-  private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly imageStorage = inject(ImageStorage);
@@ -134,6 +132,7 @@ export class GameCharacterSheetComponent {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly sectionChips = viewChild<ElementRef<HTMLElement>>('sectionChips');
   private readonly sheetRoot = viewChild<ElementRef<HTMLElement>>('sheetRoot');
+  private readonly cardForm = viewChild(SheetCardFormComponent);
   private readonly isTouch = inject(ViewportService).isTouch;
   /** Whether the sheet is narrower than 36rem. */
   private readonly isNarrow = signal(false);
@@ -180,7 +179,7 @@ export class GameCharacterSheetComponent {
     return this._tabletopObject();
   }
   set tabletopObject(value: CharacterSheetTarget | null) {
-    this.flushCardOwnFaceText();
+    untracked(() => this.cardForm())?.flushCardOwnFaceText();
     this._tabletopObject.set(value);
     this.editingIds.set(new Set());
     this.activeTab.set('sheet');
@@ -354,200 +353,6 @@ export class GameCharacterSheetComponent {
   /** The piece as a card stack, or null when it is something else. */
   get cardStack(): CardStack | null {
     return this.tabletopObject instanceof CardStack ? this.tabletopObject : null;
-  }
-  /** The stack's name for its name field, re-read when the stack changes. */
-  cardStackName(stack: CardStack): string {
-    this.objectChange.versionOf(stack.identifier)();
-    return stack.name;
-  }
-  /** Renames the stack from its name field. */
-  setCardStackName(stack: CardStack, event: Event): void {
-    stack.name = (event.target as HTMLInputElement).value;
-  }
-  /** The card's name for its name field, re-read when the card changes. */
-  cardOwnName(c: Card): string {
-    this.objectChange.versionOf(c.identifier)();
-    return c.name;
-  }
-  /** Renames the card from its name field. */
-  setCardOwnName(c: Card, event: Event): void {
-    c.name = (event.target as HTMLInputElement).value;
-  }
-  /** The card's width in grid squares, for its size field. */
-  cardOwnSize(c: Card): number {
-    this.objectChange.versionOf(c.identifier)();
-    return c.size;
-  }
-  /**
-   * Sets the card's width from its size field, rounded and held between 1 and 20 grid squares;
-   * anything not a number is ignored.
-   */
-  setCardOwnSize(c: Card, event: Event): void {
-    const value = (event.target as HTMLInputElement).valueAsNumber;
-    if (!Number.isFinite(value)) return;
-    c.size = clamp(Math.round(value), 1, 20);
-  }
-  private readonly writeFaceTextSoon = debounce(() => this.flushCardOwnFaceText(), 66);
-  private pendingCardFaceText: { card: Card; value: string } | null = null;
-
-  /**
-   * Whether this user may read and edit the text on the card's face.
-   *
-   * Anyone allowed to see hidden things always may. Everyone else may only when the card shows its
-   * face to them and nobody else is peeking at it.
-   */
-  canReadCardFace(c: Card): boolean {
-    this.objectChange.versionOf(c.identifier)();
-    if (PeerCursor.myCursor) this.objectChange.versionOf(PeerCursor.myCursor.identifier)();
-    const isOwnedByAnotherUser = c.hasOwner && !c.isMine;
-    return this.rolePermission.canSeeHidden() || (!isOwnedByAnotherUser && c.isVisible);
-  }
-
-  /** The text on the card's face, or an empty string for a user who may not read it. */
-  cardOwnFaceText(c: Card): string {
-    this.objectChange.versionOf(c.identifier)();
-    return this.canReadCardFace(c) ? c.faceText : '';
-  }
-  /**
-   * Takes the text typed into the card's face field, writing it to the card after a short pause.
-   *
-   * Each keystroke restarts the pause, so the room receives the text once typing settles. Ignored
-   * for a user who may not read the face.
-   */
-  setCardOwnFaceText(c: Card, event: Event): void {
-    if (!this.canReadCardFace(c)) return;
-    this.pendingCardFaceText = { card: c, value: (event.target as HTMLTextAreaElement).value };
-    this.writeFaceTextSoon();
-  }
-  /**
-   * Writes face text still waiting on its pause to the card at once, when the field loses focus,
-   * the piece changes or the panel closes.
-   */
-  flushCardOwnFaceText(): void {
-    this.writeFaceTextSoon.cancel();
-    const pending = this.pendingCardFaceText;
-    this.pendingCardFaceText = null;
-    if (pending && this.canReadCardFace(pending.card)) pending.card.faceText = pending.value;
-  }
-  /** The font size of the card's face text, or the default for a user who may not read it. */
-  cardOwnFaceFontSize(c: Card): number {
-    this.objectChange.versionOf(c.identifier)();
-    return this.canReadCardFace(c) ? c.faceFontSize : Card.DEFAULT_FACE_FONT_SIZE;
-  }
-  /**
-   * Sets the font size of the card's face text from its field; ignored for a user who may not read
-   * the face or for anything not a number.
-   */
-  setCardOwnFaceFontSize(c: Card, event: Event): void {
-    if (!this.canReadCardFace(c)) return;
-    const value = (event.target as HTMLInputElement).valueAsNumber;
-    if (Number.isFinite(value)) c.faceFontSize = value;
-  }
-
-  /** The colour of the card's face text, or the default for a user who may not read it. */
-  cardOwnFaceFontColor(c: Card): string {
-    this.objectChange.versionOf(c.identifier)();
-    return this.canReadCardFace(c) ? c.faceFontColor : Card.DEFAULT_FACE_FONT_COLOR;
-  }
-  /**
-   * Sets the colour of the card's face text from its colour field; ignored for a user who may not
-   * read the face.
-   */
-  setCardOwnFaceFontColor(c: Card, event: Event): void {
-    if (!this.canReadCardFace(c)) return;
-    c.faceFontColor = (event.target as HTMLInputElement).value;
-  }
-
-  /** The note's title for its title field, re-read when the note changes. */
-  textNoteTitle(note: TextNote): string {
-    this.objectChange.versionOf(note.identifier)();
-    return note.title;
-  }
-  /** Sets the note's title from its title field. */
-  setTextNoteTitle(note: TextNote, event: Event): void {
-    this.setNoteCommonValue(note, 'title', (event.target as HTMLInputElement).value);
-  }
-  /** The note's body text for its text area, re-read when the note changes. */
-  textNoteText(note: TextNote): string {
-    this.objectChange.versionOf(note.identifier)();
-    return note.text;
-  }
-  /** Sets the note's body text from its text area. */
-  setTextNoteText(note: TextNote, event: Event): void {
-    note.text = (event.target as HTMLTextAreaElement).value;
-  }
-  /** Whether the note's body is drawn with formatting, for its switch. */
-  textNoteFormatted(note: TextNote): boolean {
-    this.objectChange.versionOf(note.identifier)();
-    return note.isFormatted;
-  }
-  /** Draws the note's body with formatting, or as it was typed; the body itself stays as it is. */
-  setTextNoteFormatted(note: TextNote, formatted: boolean): void {
-    note.isFormatted = formatted;
-  }
-  /** The note's body drawn with formatting, for the preview under its text area. */
-  textNoteFormattedHtml(note: TextNote): string {
-    this.objectChange.versionOf(note.identifier)();
-    return formatNoteText(note.text);
-  }
-  /** The note's width, for its width field. */
-  textNoteWidth(note: TextNote): number {
-    this.objectChange.versionOf(note.identifier)();
-    return note.width;
-  }
-  /**
-   * Sets the note's width in grid cells from its field, rounded and held between 1 and 24; anything
-   * not a number is ignored.
-   */
-  setTextNoteWidth(note: TextNote, event: Event): void {
-    this.setNoteCommonNumber(note, 'width', event, 1, 24);
-  }
-  /** The note's height, for its height field. */
-  textNoteHeight(note: TextNote): number {
-    this.objectChange.versionOf(note.identifier)();
-    return note.height;
-  }
-  /**
-   * Sets the note's height in grid cells from its field, rounded and held between 1 and 24; anything
-   * not a number is ignored.
-   */
-  setTextNoteHeight(note: TextNote, event: Event): void {
-    this.setNoteCommonNumber(note, 'height', event, 1, 24);
-  }
-  /** The note's font size, for its font size field. */
-  textNoteFontSize(note: TextNote): number {
-    this.objectChange.versionOf(note.identifier)();
-    return note.fontSize;
-  }
-  /**
-   * Sets the note's font size from its field, rounded and held between 6 and 64; anything not a
-   * number is ignored.
-   */
-  setTextNoteFontSize(note: TextNote, event: Event): void {
-    this.setNoteCommonNumber(note, 'fontsize', event, 6, 64);
-  }
-  /** The note's altitude above the table, for its altitude field. */
-  textNoteAltitude(note: TextNote): number {
-    this.objectChange.versionOf(note.identifier)();
-    return note.altitude;
-  }
-  /**
-   * Sets the note's altitude from its field, held between -20 and 20; anything not a number is
-   * ignored.
-   */
-  setTextNoteAltitude(note: TextNote, event: Event): void {
-    const value = (event.target as HTMLInputElement).valueAsNumber;
-    if (!Number.isFinite(value)) return;
-    note.altitude = clamp(value, -20, 20);
-  }
-  private setNoteCommonValue(note: TextNote, name: string, value: string | number): void {
-    const el = note.commonDataElement?.getFirstElementByName(name);
-    if (el) el.value = value;
-  }
-  private setNoteCommonNumber(note: TextNote, name: string, event: Event, min: number, max: number): void {
-    const value = (event.target as HTMLInputElement).valueAsNumber;
-    if (!Number.isFinite(value)) return;
-    this.setNoteCommonValue(note, name, clamp(Math.round(value), min, max));
   }
   /** The piece as terrain, or null when it is something else. */
   get terrain(): Terrain | null {
@@ -799,7 +604,6 @@ export class GameCharacterSheetComponent {
       observer.observe(root);
       onCleanup(() => observer.disconnect());
     });
-    this.destroyRef.onDestroy(() => this.flushCardOwnFaceText());
   }
 
   private watchCards(): void {
@@ -905,33 +709,6 @@ export class GameCharacterSheetComponent {
   clickGrid() {}
 
   /**
-   * Asks the note to fit its height to its content again once the limit height checkbox's change
-   * has been drawn.
-   */
-  clickLimitHeight() {
-    const obj = this.tabletopObject;
-    if (!obj) return;
-    afterNextRender(() => this.uiSignalService.requestNoteResize(obj.identifier), { injector: this.injector });
-  }
-
-  /**
-   * Sets the width of the piece's hover popup, held between 270 and 800 pixels; anything not a
-   * number keeps the current width.
-   */
-  chkPopWidth(width: number) {
-    const character = this.tabletopObject as GameCharacter;
-    character.overViewWidth = clampOr(width, 270, 800, character.overViewWidth);
-  }
-
-  /**
-   * Sets the maximum height of the piece's hover popup, held between 250 and 1000 pixels; anything
-   * not a number keeps the current height.
-   */
-  chkPopMaxHeight(maxHeight: number) {
-    const character = this.tabletopObject as GameCharacter;
-    character.overViewMaxHeight = clampOr(maxHeight, 250, 1000, character.overViewMaxHeight);
-  }
-  /**
    * Saves the piece with its pictures as a zip file named after it, from the sheet's save button.
    *
    * Progress is shown while it saves and cleared half a second after. A click while a save is still
@@ -976,14 +753,6 @@ export class GameCharacterSheetComponent {
     });
   }
 
-  /** Applies the hover popup width from its number field. */
-  onChkPopWidth(event: Event): void {
-    this.chkPopWidth((event.target as HTMLInputElement).valueAsNumber);
-  }
-  /** Applies the hover popup's maximum height from its number field. */
-  onChkPopMaxHeight(event: Event): void {
-    this.chkPopMaxHeight((event.target as HTMLInputElement).valueAsNumber);
-  }
   /** Moves the piece to the inventory named by a form field's value. */
   onSetLocation(event: Event): void {
     this.setLocation((event.target as HTMLInputElement).value);

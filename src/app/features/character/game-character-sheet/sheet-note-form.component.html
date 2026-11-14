@@ -1,0 +1,217 @@
+@let note = current();
+<div class="flex w-full flex-col gap-3 p-2">
+  <section class="flex flex-wrap items-center justify-end gap-2">
+    <button
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
+      type="button"
+      (click)="imagePick.emit()"
+    >
+      <i class="material-icons">image</i>
+      {{ 'feature.inventory.sheet.changeImage' | transloco }}
+    </button>
+    <sheet-save-buttons
+      [saving]="saving()"
+      [percent]="percent()"
+      (copyPressed)="copyPressed.emit()"
+      (savePressed)="savePressed.emit()"
+    />
+  </section>
+
+  <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2.5 border border-solid p-3">
+    <header
+      class="border-ui-border-panel text-ui-accent flex items-center gap-1.5 border-b border-solid pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-base!"
+    >
+      <i class="material-icons">subject</i>
+      {{ 'feature.inventory.sheet.basicInfo' | transloco }}
+    </header>
+    <label class="flex flex-col gap-1 text-[0.78em]">
+      <span class="text-ui-muted">{{ 'feature.textNote.field.title' | transloco }}</span>
+      <input
+        type="text"
+        class="border-ui-border-panel bg-ui-input text-ui-text rounded-ui-sm focus:border-ui-accent w-full border border-solid px-2 py-1 text-[0.95em] transition-colors outline-none"
+        [value]="textNoteTitle(note)"
+        (change)="setTextNoteTitle(note, $event)"
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-[0.78em]">
+      <span class="text-ui-muted">{{ 'feature.textNote.field.body' | transloco }}</span>
+      <textarea
+        class="border-ui-border-panel bg-ui-input text-ui-text rounded-ui-sm focus:border-ui-accent min-h-48 w-full resize-y border border-solid px-3 py-2 font-sans text-sm/relaxed whitespace-pre-wrap transition-colors outline-none [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-xs [&::-webkit-scrollbar-thumb]:bg-(--ui-panel-border) [&::-webkit-scrollbar-track]:bg-transparent"
+        [value]="textNoteText(note)"
+        (input)="setTextNoteText(note, $event)"
+        spellcheck="false"
+      ></textarea>
+    </label>
+    <div class="flex flex-col gap-1.5 text-[0.78em]" data-testid="text-note-format">
+      <div class="flex items-center gap-2">
+        <span class="text-ui-muted">{{ 'feature.textNote.field.format' | transloco }}</span>
+        <div
+          class="border-ui-border-panel bg-ui-input rounded-ui-sm flex gap-0.5 border border-solid p-0.5"
+          role="radiogroup"
+          [attr.aria-label]="'feature.textNote.field.format' | transloco"
+        >
+          @for (formatted of [false, true]; track formatted) {
+            <button
+              type="button"
+              role="radio"
+              class="rounded-ui-sm cursor-pointer border-0 px-2.5 py-0.5 text-[0.95em] transition-[background,color]"
+              [class]="
+                textNoteFormatted(note) === formatted
+                  ? 'bg-ui-accent-solid text-white'
+                  : 'text-ui-muted hover:bg-ui-hover hover:text-ui-text bg-transparent'
+              "
+              [attr.aria-checked]="textNoteFormatted(note) === formatted"
+              [attr.data-testid]="'text-note-format-' + (formatted ? 'formatted' : 'plain')"
+              (click)="setTextNoteFormatted(note, formatted)"
+            >
+              {{ (formatted ? 'feature.textNote.format.formatted' : 'feature.textNote.format.plain') | transloco }}
+            </button>
+          }
+        </div>
+      </div>
+      @if (textNoteFormatted(note)) {
+        <p class="text-ui-dim m-0">{{ 'feature.textNote.format.hint' | transloco }}</p>
+        <div
+          class="note-formatted border-ui-border-panel rounded-ui-sm max-h-60 overflow-y-auto border border-dashed px-3 py-2 text-sm/relaxed"
+          data-testid="text-note-format-preview"
+          [innerHTML]="textNoteFormattedHtml(note) | safe"
+        ></div>
+      }
+    </div>
+  </section>
+
+  <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2.5 border border-solid p-3">
+    <header
+      class="border-ui-border-panel text-ui-accent flex items-center gap-1.5 border-b border-solid pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-base!"
+    >
+      <i class="material-icons">crop</i>
+      {{ 'feature.textNote.section.layout' | transloco }}
+    </header>
+    <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      <label class="flex flex-col gap-1 text-[0.78em]">
+        <span class="text-ui-muted">{{ 'feature.textNote.field.width' | transloco }}</span>
+        <input
+          type="number"
+          min="1"
+          max="24"
+          class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent w-full border border-solid px-2 py-1 text-[0.95em]"
+          [value]="textNoteWidth(note)"
+          (change)="setTextNoteWidth(note, $event)"
+        />
+      </label>
+      <label class="flex flex-col gap-1 text-[0.78em]">
+        <span class="text-ui-muted">{{ 'feature.textNote.field.height' | transloco }}</span>
+        <input
+          type="number"
+          min="1"
+          max="24"
+          class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent w-full border border-solid px-2 py-1 text-[0.95em]"
+          [value]="textNoteHeight(note)"
+          (change)="setTextNoteHeight(note, $event)"
+        />
+      </label>
+      <label class="flex flex-col gap-1 text-[0.78em]">
+        <span class="text-ui-muted">{{ 'feature.textNote.field.fontSize' | transloco }}</span>
+        <input
+          type="number"
+          min="6"
+          max="64"
+          class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent w-full border border-solid px-2 py-1 text-[0.95em]"
+          [value]="textNoteFontSize(note)"
+          (change)="setTextNoteFontSize(note, $event)"
+        />
+      </label>
+      <label class="flex flex-col gap-1 text-[0.78em]">
+        <span class="text-ui-muted">{{ 'feature.textNote.field.altitude' | transloco }}</span>
+        <input
+          type="number"
+          step="0.5"
+          min="-20"
+          max="20"
+          class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent w-full border border-solid px-2 py-1 text-[0.95em]"
+          [value]="textNoteAltitude(note)"
+          (change)="setTextNoteAltitude(note, $event)"
+        />
+      </label>
+    </div>
+  </section>
+
+  <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2 border border-solid p-3">
+    <header
+      class="border-ui-border-panel text-ui-accent flex items-center gap-1.5 border-b border-solid pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-base!"
+    >
+      <i class="material-icons">aspect_ratio</i>
+      {{ 'feature.inventory.sheet.display' | transloco }}
+    </header>
+    <label class="text-ui-text flex items-center gap-2 text-[0.82em]">
+      <input
+        type="checkbox"
+        class="accent-ui-accent size-4"
+        [(ngModel)]="note.limitHeight"
+        name="text-note-limit-height"
+        (click)="clickLimitHeight()"
+      />
+      {{ 'feature.inventory.sheet.limitHeight' | transloco }}
+    </label>
+    <label class="text-ui-muted flex items-center gap-2 text-[0.78em]">
+      <span class="text-ui-text w-24 shrink-0">{{ 'feature.inventory.sheet.popupWidth' | transloco }}</span>
+      <input
+        type="range"
+        class="flex-1 cursor-pointer"
+        min="250"
+        max="1000"
+        name="note-overview-width-range"
+        [(ngModel)]="note.overViewWidth"
+      />
+      <input
+        type="number"
+        class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm w-18 border border-solid px-1 py-0.5"
+        min="250"
+        max="1000"
+        name="note-overview-width-number"
+        [(ngModel)]="note.overViewWidth"
+        (change)="onChkPopWidth($event)"
+      />
+    </label>
+    <label class="text-ui-muted flex items-center gap-2 text-[0.78em]">
+      <span class="text-ui-text w-24 shrink-0">{{ 'feature.inventory.sheet.popupMaxHeight' | transloco }}</span>
+      <input
+        type="range"
+        class="flex-1 cursor-pointer"
+        min="250"
+        max="1000"
+        name="note-overview-height-range"
+        [(ngModel)]="note.overViewMaxHeight"
+      />
+      <input
+        type="number"
+        class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm w-18 border border-solid px-1 py-0.5"
+        min="250"
+        max="1000"
+        name="note-overview-height-number"
+        [(ngModel)]="note.overViewMaxHeight"
+        (change)="onChkPopMaxHeight($event)"
+      />
+    </label>
+  </section>
+
+  @if (imageFile().url) {
+    <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2 border border-solid p-3">
+      <header
+        class="border-ui-border-panel text-ui-accent flex items-center gap-1.5 border-b border-solid pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-base!"
+      >
+        <i class="material-icons">image</i>
+        {{ 'feature.inventory.sheet.imageSetting' | transloco }}
+      </header>
+      <div
+        class="bg-ui-input border-ui-border-panel rounded-ui-sm flex max-h-48 items-center justify-center overflow-hidden border border-solid"
+      >
+        <img
+          class="max-h-48 max-w-full object-contain"
+          [src]="imageFile().url | safe: 'resourceUrl'"
+          [alt]="imageFile().name"
+        />
+      </div>
+    </section>
+  }
+</div>
