@@ -70,7 +70,7 @@ canvasには物の要素が無いので、押下はいったん卓の要素に�
 `handCanvasPressesOn`（`features/tabletop/game-table/canvas-presses`）は、卓の根の要素で`pointerdown`・`mousedown`・`touchstart`・`click`・`contextmenu`・`dblclick`をcaptureで聞き、次の順に振り分ける。
 
 1. 物の要素（`[data-object-id]`かwhite-board）の中の押下のうち、HUDの箱でもラベルでもないものは、その要素に任せる。操作部品（`button`・`input`・`.rotate-grab`・`[data-hud-control]`など）への押下はこれに当たる
-2. 押した点から`TablePickService.pressedAt`で物を当てる。`mousedown`は、`pointerdown`の点から1画素未満なら`pointerdown`の点で当てる。ブラウザが整数に丸めても、コマの縁で同じ物に渡すためである
+2. 押した点から`TablePickService.pressedAt`で物を当てる。`mousedown`と`contextmenu`は、`pointerdown`の点から1画素未満なら`pointerdown`の点で当てる。ブラウザが整数に丸めても、コマの縁で同じ物に渡すためである
 3. HUDの箱（`[data-part]`・`[data-hud-box]`）とラベルへの押下は、当たった物が自分ならその要素に任せる。ラベルで何にも当たらなかったときも同じ
 4. 当たった物が無いか`TabletopOverlapService`に登録が無ければ、箱への押下は卓の根の要素へ送り直し、ほかはそのまま卓に任せる
 5. 要素の無い物（まとめて描く地形）は`contextmenu`だけを受け、登録した`openMenu`を呼ぶ
