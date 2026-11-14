@@ -489,11 +489,11 @@
                 @if (isMultiMove()) {
                   <td class="border-ui-border-panel w-0 border-b border-solid px-1 py-0.5">
                     <input
-                      class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
+                      class="size-3.5 cursor-pointer align-middle accent-(--ui-accent)"
                       type="checkbox"
                       [checked]="multiMoveTargets().has(row.object.identifier)"
                       (click)="$event.stopPropagation()"
-                      (change)="toggleMultiMoveTarget($event, $any(row.object))"
+                      (change)="toggleMultiMoveTarget($event, row.object)"
                     />
                   </td>
                 }
@@ -564,7 +564,7 @@
                         @case ('ailment') {
                           @let ailment = table.columns[$index].ailment!;
                           <input
-                            class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
+                            class="size-3.5 cursor-pointer align-middle accent-(--ui-accent)"
                             type="checkbox"
                             [title]="ailment.effect || ailment.name"
                             [checked]="isAilmentOn(row.object, ailment)"
@@ -587,7 +587,7 @@
                         }
                         @case ('check') {
                           <input
-                            class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
+                            class="size-3.5 cursor-pointer align-middle accent-(--ui-accent)"
                             type="checkbox"
                             [checked]="cell.element!.isChecked"
                             [disabled]="!canEdit()"
@@ -654,7 +654,7 @@
             picked row the gauge answers as it always has; the keyboard reaches it either way.
           -->
           <input
-            class="block h-3.5 w-full [accent-color:var(--ui-accent)]"
+            class="block h-3.5 w-full accent-(--ui-accent)"
             [class.pointer-events-none]="selectedIdentifier() !== owner?.identifier"
             type="range"
             min="0"
@@ -762,10 +762,10 @@
     }
     @if (isMultiMove()) {
       <input
-        class="size-3.5 shrink-0 cursor-pointer [accent-color:var(--ui-accent)]"
+        class="size-3.5 shrink-0 cursor-pointer accent-(--ui-accent)"
         type="checkbox"
         [checked]="multiMoveTargets().has(gameObject.identifier)"
-        (change)="toggleMultiMoveTarget($event, $any(gameObject))"
+        (change)="toggleMultiMoveTarget($event, gameObject)"
       />
     }
 
@@ -885,7 +885,7 @@
         }
       } @else if (gameObject.rootDataElement && canView(gameObject)) {
         <div class="grid w-full grid-cols-2 items-start gap-x-2 gap-y-0.75">
-          @for (dataElm of getInventoryTags($any(gameObject)); track dataElm?.identifier ?? $index) {
+          @for (dataElm of getInventoryTags(gameObject); track dataElm?.identifier ?? $index) {
             <ng-container
               *ngTemplateOutlet="dataElmTag; context: { dataElm: dataElm, owner: gameObject }"
             ></ng-container>
@@ -922,8 +922,8 @@
         [value]="node.name"
         (click)="$event.stopPropagation()"
         (keydown.escape)="folders.cancelFolderRename()"
-        (keydown.enter)="folders.commitFolderRename(node.path, $any($event.target).value)"
-        (blur)="folders.commitFolderRename(node.path, $any($event.target).value, true)"
+        (keydown.enter)="folders.commitFolderRenameFrom(node.path, $event)"
+        (blur)="folders.commitFolderRenameFrom(node.path, $event, true)"
       />
     } @else {
       <span class="truncate">{{ node.path ? node.name : ('feature.inventory.panel.unfiled' | transloco) }}</span>

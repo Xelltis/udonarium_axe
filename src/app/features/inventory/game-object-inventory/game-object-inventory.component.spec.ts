@@ -698,6 +698,21 @@ describe('GameObjectInventoryComponent', () => {
       expect(goblin.folderName).toBe('序章');
     });
 
+    it('renames to what the name field holds when it is committed from the field', () => {
+      const goblin = putInShared('ゴブリン');
+      goblin.folderName = '第1話';
+      component.selectTab.set('common');
+      const field = document.createElement('input');
+      field.value = '序章';
+      const typed = new Event('blur');
+      Object.defineProperty(typed, 'target', { value: field });
+
+      component.folders.startFolderRename('第1話');
+      component.folders.commitFolderRenameFrom('第1話', typed, true);
+
+      expect(goblin.folderName).toBe('序章');
+    });
+
     it('makes a folder with nothing in it yet', () => {
       component.selectTab.set('common');
       component.folders.createFolder();

@@ -1682,9 +1682,7 @@
         "moveTable": "テーブルに移動",
         "moveCommon": "共有イベントリに移動",
         "movePersonal": "個人イベントリに移動",
-        "moveGraveyard": "墓場に移動",
-        "multiDelete": "墓場から削除",
-        "multiMoveTitle": "一括移動"
+        "moveGraveyard": "墓場に移動"
       },
       "tabs": {
         "table": "テーブル",

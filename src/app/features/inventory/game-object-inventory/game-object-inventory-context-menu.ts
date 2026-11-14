@@ -252,51 +252,6 @@ export function buildInventoryObjectContextMenu(
   return actions;
 }
 
-interface MultiMoveContextMenuCallbacks {
-  multiMove: (location: string) => void;
-  toggleMultiMove: () => void;
-  multiDelete: () => void;
-}
-
-/**
- * The menu for the pieces picked in multi-select.
- *
- * It offers a move to each location other than the tab on view, and delete when that tab is the
- * graveyard. Each entry leaves multi-select once it has run.
- */
-export function buildInventoryMultiMoveContextMenu(
-  selectedTab: string,
-  callbacks: MultiMoveContextMenuCallbacks,
-  t: TranslateFn
-): ContextMenuAction[] {
-  const actions: ContextMenuAction[] = [];
-
-  for (const location of inventoryLocations(t)) {
-    if (selectedTab === location.name) continue;
-    actions.push({
-      name: location.alias,
-      action: () => {
-        callbacks.multiMove(location.name);
-        callbacks.toggleMultiMove();
-        SoundEffect.play(PresetSound.piecePut);
-      },
-    });
-  }
-
-  if (selectedTab === 'graveyard') {
-    actions.push({
-      name: t('feature.inventory.contextMenu.multiDelete'),
-      action: () => {
-        callbacks.multiDelete();
-        callbacks.toggleMultiMove();
-        SoundEffect.play(PresetSound.sweep);
-      },
-    });
-  }
-
-  return actions;
-}
-
 function inventoryLocations(t: TranslateFn): Array<{ name: string; alias: string }> {
   return [
     { name: 'table', alias: t('feature.inventory.contextMenu.moveTable') },

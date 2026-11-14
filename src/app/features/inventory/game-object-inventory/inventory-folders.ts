@@ -262,6 +262,11 @@ export class InventoryFolders {
     if (this.renameFolder(folderPath, name) || dropOnFailure) this.editingFolder.set(null);
   }
 
+  /** Commits the name typed into the folder name editor, from an event of that field. */
+  commitFolderRenameFrom(folderPath: string, event: Event, dropOnFailure = false): void {
+    this.commitFolderRename(folderPath, (event.target as HTMLInputElement).value, dropOnFailure);
+  }
+
   /**
    * Makes a new numbered folder at the top or inside another, files the pieces into it and opens
    * its name for editing; ignored for a seat that may not edit the table.

@@ -4,7 +4,6 @@ import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import {
   buildInventoryFolderAssignMenu,
   buildInventoryFolderContextMenu,
-  buildInventoryMultiMoveContextMenu,
   buildInventoryObjectContextMenu,
 } from '@axe/features/inventory/game-object-inventory/game-object-inventory-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
@@ -217,44 +216,6 @@ describe('buildInventoryObjectContextMenu()', () => {
     const actions = buildInventoryObjectContextMenu(character, makeService(), { ...defaultCallbacks(), showDetail }, t);
     actions.find((a) => a.name === '詳細を表示')!.action!();
     expect(showDetail).toHaveBeenCalledWith(character as unknown as GameCharacter);
-  });
-});
-
-describe('buildInventoryMultiMoveContextMenu()', () => {
-  const moveCallbacks = () => ({
-    multiMove: vi.fn(),
-    toggleMultiMove: vi.fn(),
-    multiDelete: vi.fn(),
-  });
-
-  it('leaves out the place the open tab already names', () => {
-    const actions = buildInventoryMultiMoveContextMenu('common', moveCallbacks(), t);
-    expect(names(actions)).not.toContain('共有イベントリに移動');
-    expect(names(actions)).toContain('テーブルに移動');
-    expect(names(actions)).toContain('墓場に移動');
-  });
-
-  it('offers deleting from the graveyard while that tab is open', () => {
-    const actions = buildInventoryMultiMoveContextMenu('graveyard', moveCallbacks(), t);
-    expect(names(actions)).toContain('墓場から削除');
-  });
-
-  it('offers it nowhere else', () => {
-    const actions = buildInventoryMultiMoveContextMenu('table', moveCallbacks(), t);
-    expect(names(actions)).not.toContain('墓場から削除');
-  });
-
-  it('moves them all and then leaves the moving mode', () => {
-    const multiMove = vi.fn();
-    const toggleMultiMove = vi.fn();
-    const actions = buildInventoryMultiMoveContextMenu(
-      'table',
-      { multiMove, toggleMultiMove, multiDelete: vi.fn() },
-      t
-    );
-    actions.find((a) => a.name === '共有イベントリに移動')!.action!();
-    expect(multiMove).toHaveBeenCalledWith('common');
-    expect(toggleMultiMove).toHaveBeenCalled();
   });
 });
 

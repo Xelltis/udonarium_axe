@@ -63,7 +63,6 @@ import { isWithheldHere } from '@axe/domain/tabletop/withheld';
 import {
   buildInventoryFolderAssignMenu,
   buildInventoryFolderContextMenu,
-  buildInventoryMultiMoveContextMenu,
   buildInventoryObjectContextMenu,
 } from '@axe/features/inventory/game-object-inventory/game-object-inventory-context-menu';
 import { InventoryFolders } from '@axe/features/inventory/game-object-inventory/inventory-folders';
@@ -645,13 +644,6 @@ export class GameObjectInventoryComponent {
       ? this.t('feature.inventory.panel.asc')
       : this.t('feature.inventory.panel.desc');
   }
-  /** The translated name of the tie-breaking sort's direction. */
-  get sortOrderName2nd(): string {
-    return this.sortOrder2nd === SortOrder.ASC
-      ? this.t('feature.inventory.panel.asc')
-      : this.t('feature.inventory.panel.desc');
-  }
-
   /**
    * The places picked pieces can be sent to from the multi-select bar, leaving out the tab on view.
    */
@@ -709,9 +701,9 @@ export class GameObjectInventoryComponent {
       case 'table': {
         // What the table does not draw for this reader is not listed either, whatever mode the
         // list is in: a row would name what the dark or the fog is keeping back.
-        const listed = (this.inventoryService.tableInventory.tabletopObjects as GameCharacter[]).filter((character) =>
-          this.vision.mayBeListed(character)
-        );
+        const listed = this.inventoryService.tableInventory.tabletopObjects
+          .filter((object): object is GameCharacter => object instanceof GameCharacter)
+          .filter((character) => this.vision.mayBeListed(character));
         const showHidden = this.isMultiMove() || this.isEdit() || this.rolePermission.canSeeHidden();
         return showHidden ? listed : listed.filter((character) => !character.hideInventory);
       }
@@ -874,7 +866,7 @@ export class GameObjectInventoryComponent {
    * The data elements shown on a character's row, in display item order, with null where the sheet
    * has no such item.
    */
-  getInventoryTags(gameObject: GameCharacter): (DataElement | null)[] {
+  getInventoryTags(gameObject: TabletopObject): (DataElement | null)[] {
     return (
       this.getInventory(this.tabOfLocation(gameObject.location.name)).dataElementMap.get(gameObject.identifier) ?? []
     );
@@ -1011,7 +1003,7 @@ export class GameObjectInventoryComponent {
   }
 
   /** Picks or unpicks a piece from its row's checkbox. */
-  toggleMultiMoveTarget(e: Event, gameObject: GameCharacter) {
+  toggleMultiMoveTarget(e: Event, gameObject: TabletopObject) {
     if (!(e.target instanceof HTMLInputElement)) {
       return;
     }
@@ -1042,24 +1034,6 @@ export class GameObjectInventoryComponent {
         return n;
       });
     }
-  }
-
-  /** Opens the menu of moves for the picked pieces. */
-  onMultiMoveContextMenu() {
-    if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
-
-    const position = this.pointerDeviceService.pointers[0];
-    const actions = buildInventoryMultiMoveContextMenu(
-      this.locationOfTab(this.selectTab()),
-      {
-        multiMove: (loc) => this.multiMove(loc),
-        toggleMultiMove: () => this.toggleMultiMove(),
-        multiDelete: () => this.multiDelete(),
-      },
-      this.t
-    );
-
-    this.contextMenuService.open(position, actions, this.t('feature.inventory.contextMenu.multiMoveTitle'));
   }
 
   /**

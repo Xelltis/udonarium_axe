@@ -1682,9 +1682,7 @@
         "moveTable": "Move to table",
         "moveCommon": "Move to shared inventory",
         "movePersonal": "Move to personal inventory",
-        "moveGraveyard": "Move to graveyard",
-        "multiDelete": "Delete from graveyard",
-        "multiMoveTitle": "Move selected"
+        "moveGraveyard": "Move to graveyard"
       },
       "tabs": {
         "table": "Table",

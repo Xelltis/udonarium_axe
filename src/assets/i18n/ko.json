@@ -1682,9 +1682,7 @@
         "moveTable": "테이블로 이동",
         "moveCommon": "공유 인벤토리로 이동",
         "movePersonal": "개인 인벤토리로 이동",
-        "moveGraveyard": "무덤으로 이동",
-        "multiDelete": "무덤에서 삭제",
-        "multiMoveTitle": "일괄 이동"
+        "moveGraveyard": "무덤으로 이동"
       },
       "tabs": {
         "table": "테이블",
