@@ -51,7 +51,7 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { sameEntries } from '@axe/core/util/same-fields';
-import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
+import { BUFF_BADGES_PER_ROW, BuffBadge, countBuffs, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { HIDDEN_GAUGE_STRIPES, PieceGauge, selectPieceGauges, shownGauge } from '@axe/domain/character/piece-gauge';
@@ -89,6 +89,7 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
+import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { hexPedestalRingStyle } from '@axe/ui/tabletop/hex-pedestal-style';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
@@ -133,6 +134,7 @@ const ROLL_HANDLE_GAP_PX = 7;
     SafePipe,
     StampComponent,
     TextTooltipDirective,
+    TooltipDirective,
     TranslocoModule,
   ],
   host: {
@@ -466,6 +468,9 @@ export class GameCharacterComponent {
     hideBuff: () => this.hideBuff(),
     gaugeRows: () => this.gaugeRows(),
     buffBadges: () => this.buffBadges(),
+    buffRows: () => this.buffChildren(),
+    buffCount: () => this.buffNum(),
+    buffViewMode: () => this.buffViewMode(),
     labelsRunRound: (): boolean => this.multiAngleNameOrbitEnabled(),
   });
   /** How many ride this piece where it is a mount, shown by its name since they stand where it stands. */
@@ -1220,15 +1225,7 @@ export class GameCharacterComponent {
 
   protected readonly buffNum = computed<number>(() => {
     const children = this.buffChildren();
-    let count = 0;
-    for (const child of children) {
-      this.objectChange.versionOf(child.identifier)();
-      if (child.children.length > 0) {
-        count += child.children.length;
-      } else if (child.isNumberResource) {
-        count += 1;
-      }
-    }
-    return count;
+    for (const child of children) this.objectChange.versionOf(child.identifier)();
+    return countBuffs(children);
   });
 }

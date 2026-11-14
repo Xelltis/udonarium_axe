@@ -88,11 +88,17 @@ export class TooltipDirective {
   private readonly overlays = inject(OverlayLayers);
   private readonly panels = inject(TooltipPanelSource);
   private readonly reloadNotice = inject(ReloadNoticeService);
+  /**
+   * The tooltip of the thing this one's host is drawn inside, as a part's row is drawn inside its
+   * body's piece: while the pointer is over this one, that one stands aside.
+   */
+  private readonly outer = inject(TooltipDirective, { skipSelf: true, optional: true });
 
   /** The one showing on screen, whichever piece raised it. */
   private static activeOwner: TooltipDirective | null = null;
 
-  readonly tabletopObject = input.required<TabletopObject>({ alias: 'appTooltip' });
+  /** The thing whose detail is shown; with none the host shows no detail of its own, and one around it shows its own over it. */
+  readonly tabletopObject = input.required<TabletopObject | null>({ alias: 'appTooltip' });
   /** Whether no tooltip opens for now, as over a look on the ground locked in place; one open closes. */
   readonly off = input(false, { alias: 'appTooltipOff' });
 
@@ -109,6 +115,8 @@ export class TooltipDirective {
   private tooltipSession: TooltipSession | null = null;
   private tooltipRotationDegrees = 0;
   private tapGesture: TapGestureHandle | null = null;
+  /** Whether a tap just now belonged to a tooltip inside this one's host, which has shown its own detail for it. */
+  private tapTaken = false;
 
   constructor() {
     afterNextRender(() => {
@@ -126,7 +134,12 @@ export class TooltipDirective {
   }
 
   private onTap() {
-    if (!this.viewport.isTouch()) return;
+    if (this.tapTaken) {
+      this.tapTaken = false;
+      return;
+    }
+    if (!this.viewport.isTouch() || !this.tabletopObject()) return;
+    if (this.outer) this.outer.tapTaken = true;
     this.clearTimer();
     if (this.hasTooltip()) {
       this.closeAll();
@@ -136,14 +149,22 @@ export class TooltipDirective {
   }
 
   private onMouseEnter(e: MouseEvent) {
+    if (!this.tabletopObject()) return;
+    this.outer?.clearTimer();
     this.clearTimer();
     this.tooltipRotationDegrees = this.rotationDegreesAt(e.clientX, e.clientY);
     if (!this.hasTooltip()) this.startOpenTimer();
   }
 
-  private onMouseLeave(_e: MouseEvent) {
+  private onMouseLeave(e: MouseEvent) {
+    if (!this.tabletopObject() && !this.hasTooltip()) return;
     this.clearTimer();
     if (this.hasTooltip()) this.startCloseTimer();
+    const outer = this.outer;
+    const next = e.relatedTarget;
+    if (outer && next instanceof Node && outer.viewContainerRef.element.nativeElement.contains(next)) {
+      outer.onMouseEnter(e);
+    }
   }
 
   private onMouseDown(e: MouseEvent) {
@@ -269,7 +290,8 @@ export class TooltipDirective {
 
   private open() {
     this.closeAll();
-    if (this.pointerDeviceService.isDragging || this.off()) return;
+    const tabletopObject = this.tabletopObject();
+    if (this.pointerDeviceService.isDragging || this.off() || !tabletopObject) return;
     const panelClass = this.panels.panel;
     if (!panelClass) {
       this.fetchPanelThenOpen();
@@ -291,7 +313,7 @@ export class TooltipDirective {
       });
       const element = componentRef.location.nativeElement as HTMLElement;
 
-      componentRef.instance.tabletopObject = this.tabletopObject();
+      componentRef.instance.tabletopObject = tabletopObject;
       if (seat) {
         // A detail on the edge is there to be read, so nothing hovers or focuses it.
         componentRef.instance.edgeSeat = seat;
@@ -315,7 +337,7 @@ export class TooltipDirective {
     document.body.addEventListener('touchstart', this.callbackOnMouseDown, true);
     document.body.addEventListener('mousedown', this.callbackOnMouseDown, true);
     session.deleteOff = this.objectChange.objectDeleted$.subscribe((e) => {
-      if (this.tabletopObject() && this.tabletopObject().identifier === e.identifier) this.closeAll();
+      if (this.tabletopObject()?.identifier === e.identifier) this.closeAll();
     });
 
     const followViewport = debounce(() => this.onViewportChanged(session), VIEWPORT_FOLLOW_DELAY_MS);

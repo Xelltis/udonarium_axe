@@ -9,7 +9,8 @@ import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { sameEntries, sameFields } from '@axe/core/util/same-fields';
-import { BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
+import { BuffBadge, countBuffs, toBuffBadges } from '@axe/domain/character/buff-badge';
+import { BuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PieceGauge, selectPieceGauges, shownGauge } from '@axe/domain/character/piece-gauge';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -39,7 +40,41 @@ export interface RidingLabel {
   /** The number it is picked as while an effect is being aimed, for a part; 0 where it is not picked. */
   readonly pick: number;
   readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string; readonly kept: boolean }[];
+  /** How this reader has buffs drawn, which says which one of the three below the row draws. */
+  readonly buffView: BuffViewMode;
+  /** Its buffs as icons; empty unless buffs are drawn as icons. */
   readonly badges: readonly BuffBadge[];
+  /** The rows of its buffs, each drawn with its rounds; empty unless buffs are drawn in detail. */
+  readonly buffRows: readonly DataElement[];
+  /** How many buffs it has; 0 unless buffs are counted. */
+  readonly buffCount: number;
+  /**
+   * The piece whose detail the row shows when it is pointed at: a part this reader may see the
+   * contents of. Null for a part kept from them, and for the rows of the body and of those riding it.
+   */
+  readonly detail: GameCharacter | null;
+}
+
+/** The buffs of one piece, in each way a row may draw them. */
+interface RowBuffs {
+  readonly badges: readonly BuffBadge[];
+  readonly rows: readonly DataElement[];
+  readonly count: number;
+}
+
+const NO_BUFFS: RowBuffs = { badges: [], rows: [], count: 0 };
+
+/** What a row carries of a piece's buffs: the one way of drawing them this reader chose, and nothing of the others. */
+function shownBuffs(
+  mode: BuffViewMode,
+  buffs: RowBuffs
+): Pick<RidingLabel, 'buffView' | 'badges' | 'buffRows' | 'buffCount'> {
+  return {
+    buffView: mode,
+    badges: mode === 'icon' ? buffs.badges : NO_BUFFS.badges,
+    buffRows: mode === 'detail' && buffs.count > 0 ? buffs.rows : NO_BUFFS.rows,
+    buffCount: mode === 'count' ? buffs.count : 0,
+  };
 }
 
 /** What the riding labels of a piece read of the piece as it is drawn. */
@@ -58,6 +93,12 @@ export interface PieceRidingLabelsHost {
   gaugeRows(): RidingLabel['gauges'];
   /** The piece's own buffs, as its icons show them. */
   buffBadges(): readonly BuffBadge[];
+  /** The rows of the piece's own buffs, as they are drawn in detail. */
+  buffRows(): readonly DataElement[];
+  /** How many buffs the piece has of its own. */
+  buffCount(): number;
+  /** How this reader has the piece's buffs drawn: as icons, in detail or as a count. */
+  buffViewMode(): BuffViewMode;
   /** Whether the piece's name and bars run round it, where its riding card is not drawn. */
   labelsRunRound(): boolean;
 }
@@ -165,7 +206,13 @@ export class PieceRidingLabels {
           targeted: false,
           pick: 0,
           gauges: this.host.gaugeRows(),
-          badges: this.host.hideBuff() ? [] : this.host.buffBadges(),
+          ...shownBuffs(
+            this.host.buffViewMode(),
+            this.host.hideBuff()
+              ? NO_BUFFS
+              : { badges: this.host.buffBadges(), rows: this.host.buffRows(), count: this.host.buffCount() }
+          ),
+          detail: null,
         },
         ...parts,
       ];
@@ -191,17 +238,25 @@ export class PieceRidingLabels {
         ? selectPieceGauges(detail).map((gauge) => shownGauge(gauge, readable))
         : [];
     const buffs = this.overlay.buffs() && !piece.hideBuff ? (piece.buffDataElement ?? null) : null;
-    const badges = buffs && this.host.followedTree(buffs) !== null ? toBuffBadges(buffs) : [];
+    const mode = this.host.buffViewMode();
+    const rows = buffs && this.host.followedTree(buffs) !== null ? (buffs.children as DataElement[]) : null;
+    const part = seatOf(piece.rideSeat) === 'part';
     return {
       identifier: piece.identifier,
       name: showsName ? piece.name : '',
       icon: RIDING_SEAT_ICONS[seatOf(piece.rideSeat)],
       aboard: 0,
-      part: seatOf(piece.rideSeat) === 'part',
+      part,
       targeted: piece.targeted,
-      pick: seatOf(piece.rideSeat) === 'part' ? (this.effectTargeting.pickOrder().get(piece.identifier) ?? 0) : 0,
+      pick: part ? (this.effectTargeting.pickOrder().get(piece.identifier) ?? 0) : 0,
       gauges,
-      badges,
+      ...shownBuffs(
+        mode,
+        rows && buffs
+          ? { badges: mode === 'icon' ? toBuffBadges(buffs) : [], rows: rows.slice(), count: countBuffs(rows) }
+          : NO_BUFFS
+      ),
+      detail: part && readable ? piece : null,
     };
   }
 }
@@ -224,7 +279,12 @@ export function sameRidingLabels(a: readonly RidingLabel[], b: readonly RidingLa
       label.gauges.every(
         (row, at) => row.numbers === other.gauges[at].numbers && sameFields(row.gauge, other.gauges[at].gauge)
       ) &&
-      sameEntries(label.badges, other.badges)
+      label.buffView === other.buffView &&
+      sameEntries(label.badges, other.badges) &&
+      label.buffRows.length === other.buffRows.length &&
+      label.buffRows.every((row, at) => row === other.buffRows[at]) &&
+      label.buffCount === other.buffCount &&
+      label.detail === other.detail
     );
   });
 }

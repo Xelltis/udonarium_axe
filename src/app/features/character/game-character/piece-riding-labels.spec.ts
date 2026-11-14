@@ -2,10 +2,13 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { BuffBadge } from '@axe/domain/character/buff-badge';
+import { BuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 import {
   PieceRidingLabels,
   PieceRidingLabelsHost,
@@ -24,7 +27,11 @@ function label(over: Partial<RidingLabel> = {}): RidingLabel {
     targeted: false,
     pick: 0,
     gauges: [],
+    buffView: 'icon',
     badges: [],
+    buffRows: [],
+    buffCount: 0,
+    detail: null,
     ...over,
   };
 }
@@ -49,6 +56,15 @@ describe('sameRidingLabels', () => {
     expect(sameRidingLabels([label()], [label({ pick: 2 })])).toBe(false);
     expect(sameRidingLabels([label()], [label({ badges: [{ name: '毒' } as BuffBadge] })])).toBe(false);
   });
+
+  it('tells apart another way of drawing the buffs, other rows of them, another count and another piece to detail', () => {
+    const row = {} as DataElement;
+    expect(sameRidingLabels([label()], [label({ buffView: 'count' })])).toBe(false);
+    expect(sameRidingLabels([label({ buffCount: 1 })], [label({ buffCount: 2 })])).toBe(false);
+    expect(sameRidingLabels([label({ buffRows: [row] })], [label({ buffRows: [row] })])).toBe(true);
+    expect(sameRidingLabels([label({ buffRows: [row] })], [label({ buffRows: [{} as DataElement] })])).toBe(false);
+    expect(sameRidingLabels([label()], [label({ detail: {} as GameCharacter })])).toBe(false);
+  });
 });
 
 describe('PieceRidingLabels', () => {
@@ -72,8 +88,14 @@ describe('PieceRidingLabels', () => {
   }
 
   function setup(character: GameCharacter | null) {
-    const state = { hideName: signal(false), hideBuff: signal(false), runRound: signal(false) };
+    const state = {
+      hideName: signal(false),
+      hideBuff: signal(false),
+      runRound: signal(false),
+      buffView: signal<BuffViewMode>('icon'),
+    };
     const ownBadges = [{ name: '祝福' } as BuffBadge];
+    const ownRows = [{} as DataElement];
     const host: PieceRidingLabelsHost = {
       character: () => character,
       followedTree: (root) => (root ? [] : null),
@@ -82,9 +104,12 @@ describe('PieceRidingLabels', () => {
       hideBuff: state.hideBuff,
       gaugeRows: () => [],
       buffBadges: () => ownBadges,
+      buffRows: () => ownRows,
+      buffCount: () => 1,
+      buffViewMode: state.buffView,
       labelsRunRound: state.runRound,
     };
-    return { labels: TestBed.runInInjectionContext(() => new PieceRidingLabels(host)), state, ownBadges };
+    return { labels: TestBed.runInInjectionContext(() => new PieceRidingLabels(host)), state, ownBadges, ownRows };
   }
 
   const names = (labels: readonly RidingLabel[]) => labels.map((one) => one.name);
@@ -200,5 +225,94 @@ describe('PieceRidingLabels', () => {
 
     expect(labels.partLabels()[0].pick).toBe(2);
     expect(labels.ridingLabels()[0].pick).toBe(0);
+  });
+
+  describe('the buffs of a row, as this reader has buffs drawn', () => {
+    function dragonWithPoisonedHead() {
+      const dragon = piece('ドラゴン');
+      const head = piece('頭', { ridingOn: dragon.identifier, rideSeat: 'part' });
+      head.addExtendData();
+      const poison = DataElement.create('毒', 3, { type: DataElementType.NUMBER_RESOURCE, currentValue: 'ダメージ2' });
+      head.buffDataElement!.appendChild(poison);
+      return { dragon, head, poison };
+    }
+
+    it('carries the icons alone while buffs are drawn as icons', () => {
+      const { dragon, poison } = dragonWithPoisonedHead();
+      const { labels, ownBadges } = setup(dragon);
+
+      const [body, part] = labels.ridingCard();
+
+      expect(part).toMatchObject({ buffView: 'icon', buffRows: [], buffCount: 0 });
+      expect(part.badges.map((badge) => badge.identifier)).toEqual([poison.identifier]);
+      expect(body).toMatchObject({ buffView: 'icon', buffRows: [], buffCount: 0 });
+      expect(body.badges).toBe(ownBadges);
+    });
+
+    it('carries the rows of the buffs alone while they are drawn in detail', () => {
+      const { dragon, head } = dragonWithPoisonedHead();
+      const { labels, state, ownRows } = setup(dragon);
+      state.buffView.set('detail');
+
+      const [body, part] = labels.ridingCard();
+
+      expect(part).toMatchObject({ buffView: 'detail', badges: [], buffCount: 0 });
+      expect(part.buffRows).toEqual(head.buffDataElement!.children);
+      expect(body).toMatchObject({ buffView: 'detail', badges: [], buffCount: 0 });
+      expect(body.buffRows).toBe(ownRows);
+    });
+
+    it('carries how many buffs there are alone while they are counted', () => {
+      const { dragon } = dragonWithPoisonedHead();
+      const { labels, state } = setup(dragon);
+      state.buffView.set('count');
+
+      const [body, part] = labels.ridingCard();
+
+      expect(part).toMatchObject({ buffView: 'count', badges: [], buffRows: [], buffCount: 1 });
+      expect(body).toMatchObject({ buffView: 'count', badges: [], buffRows: [], buffCount: 1 });
+    });
+
+    it('carries no buffs of a part that hides them, nor of a body hiding its own, however they are drawn', () => {
+      const { dragon, head } = dragonWithPoisonedHead();
+      head.hideBuff = true;
+      const { labels, state } = setup(dragon);
+      state.hideBuff.set(true);
+
+      for (const mode of ['icon', 'detail', 'count'] as const) {
+        state.buffView.set(mode);
+        for (const row of labels.ridingCard()) {
+          expect(row).toMatchObject({ badges: [], buffRows: [], buffCount: 0 });
+        }
+      }
+    });
+  });
+
+  describe('whose detail a row shows when pointed at', () => {
+    it('shows the detail of a part this reader may see the contents of', () => {
+      const dragon = piece('ドラゴン', { mountable: '1' });
+      const head = piece('頭', { ridingOn: dragon.identifier, rideSeat: 'part' });
+
+      expect(setup(dragon).labels.partLabels()[0].detail).toBe(head);
+    });
+
+    it('shows none for a part kept from this reader', () => {
+      const dragon = piece('ドラゴン');
+      const head = piece('頭', { ridingOn: dragon.identifier, rideSeat: 'part' });
+      vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockImplementation((one) => one !== head);
+
+      expect(setup(dragon).labels.partLabels()[0].detail).toBeNull();
+    });
+
+    it('shows none of its own for the body or for one riding it, whose rows are not pointed at', () => {
+      const dragon = piece('ドラゴン', { mountable: '1' });
+      piece('騎手', { ridingOn: dragon.identifier, rideSeat: 'rider' });
+      piece('頭', { ridingOn: dragon.identifier, rideSeat: 'part' });
+
+      const [rider, body] = setup(dragon).labels.ridingCard();
+
+      expect(rider.detail).toBeNull();
+      expect(body.detail).toBeNull();
+    });
   });
 });

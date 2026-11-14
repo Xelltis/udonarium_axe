@@ -67,6 +67,19 @@ export function buffIconUrlOf(icon: string): string {
 const IDENTIFIER_LIKE = /^[A-Za-z0-9_.:-]+$/;
 
 /**
+ * How many buffs the rows under a piece's buffs hold: every row of a row that holds rows of its own,
+ * and each row of a kind that time takes away.
+ */
+export function countBuffs(rows: readonly DataElement[]): number {
+  let count = 0;
+  for (const row of rows) {
+    if (row.children.length > 0) count += row.children.length;
+    else if (row.isNumberResource) count += 1;
+  }
+  return count;
+}
+
+/**
  * Folds each buff into a badge of its icon, its strength and the rounds left. A buff that moves
  * several statuses a row apiece is one badge, its first row's, saying what every row moves.
  */
