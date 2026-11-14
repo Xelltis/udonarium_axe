@@ -749,6 +749,24 @@ describe('FileArchiver', () => {
       ]);
     });
 
+    it('takes a sound the browser calls something else by its name, as Firefox calls an .ogg a video', async () => {
+      await FileArchiver.instance.load([
+        sized('theme.ogg', 'video/ogg', 1000),
+        sized('voice.ogg', 'application/ogg', 1000),
+        sized('untyped.mp3', '', 1000),
+        sized('clip.mp4', 'video/mp4', 1000),
+      ]);
+
+      const taken = vi
+        .mocked(AudioStorage.instance.addAsync)
+        .mock.calls.map(([file]) => [(file as File).name, file.type]);
+      expect(taken).toEqual([
+        ['theme.ogg', 'audio/ogg'],
+        ['voice.ogg', 'audio/ogg'],
+        ['untyped.mp3', 'audio/mp3'],
+      ]);
+    });
+
     it('says nothing when everything fits', async () => {
       await FileArchiver.instance.load([sized('short.ogg', 'audio/ogg', 1000)]);
 
