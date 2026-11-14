@@ -45,11 +45,10 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { DoubleTap } from '@axe/ui/tabletop/double-tap';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
-import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+import { setupDoubleTap, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** The cell, in px, that the offsets for drawn and scattered cards were laid out for. */
@@ -244,8 +243,6 @@ export class CardStackComponent {
   readonly movableOption = signal<MovableOption>({});
   readonly rotableOption = signal<RotableOption>({});
 
-  private readonly doubleTap = new DoubleTap(() => this.input);
-
   constructor() {
     this.objectChange.shuffleCardStack$.subscribe((event) => {
       if (event.identifier === this.cardStack().identifier) {
@@ -266,24 +263,22 @@ export class CardStackComponent {
         this.imageFile();
       },
     });
-    this.destroyRef.onDestroy(() => {
-      this.doubleTap.cancel();
-    });
   }
 
-  private readonly inputRef = setupInputHandler({
+  private readonly taps = setupDoubleTap({
     elementRef: this.elementRef,
     destroyRef: this.destroyRef,
     onStart: (e) => this.onInputStart(e),
+    onDoubleTap: () => this.onDoubleClick(),
   });
 
   private get input() {
-    return this.inputRef.current;
+    return this.taps.input.current;
   }
 
   /** Feeds a press into the double-tap detector, which draws a card when a second press lands in place. */
   startDoubleClickTimer(e: MouseEvent | TouchEvent) {
-    this.doubleTap.handle(e, () => this.onDoubleClick());
+    this.taps.press(e);
   }
 
   /**
@@ -293,9 +288,7 @@ export class CardStackComponent {
    * presses.
    */
   onDoubleClick() {
-    this.doubleTap.cancel();
     if (!this.rolePermission.canEditTabletop()) return;
-    if (!this.doubleTap.isInPlace()) return;
     if (this.drawCard() != null) {
       SoundEffect.play(PresetSound.cardDraw);
     }

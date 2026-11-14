@@ -100,4 +100,25 @@ describe('DoubleTap', () => {
 
     expect(held.onEnd).toBeNull();
   });
+
+  it('forgets the first tap when cancelled, so the next one counts as a first', () => {
+    const tap = new DoubleTap(() => input());
+    const run = vi.fn();
+
+    tap.handle(mouse, run);
+    tap.cancel();
+    tap.handle(mouse, run);
+
+    expect(run).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it('leaves no timer waiting once cancelled', () => {
+    const tap = new DoubleTap(() => input());
+
+    tap.handle(mouse, () => undefined);
+    tap.cancel();
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });
