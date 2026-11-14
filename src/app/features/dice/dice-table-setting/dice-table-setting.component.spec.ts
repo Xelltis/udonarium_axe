@@ -41,7 +41,7 @@ describe('DiceTableSettingComponent', () => {
 
       component.createDiceTable();
 
-      expect(component.getDiceTables()).toHaveLength(0);
+      expect(component.tables()).toHaveLength(0);
     });
 
     it('leaves a table where it is', () => {
@@ -52,7 +52,7 @@ describe('DiceTableSettingComponent', () => {
 
       component.delete();
 
-      expect(component.getDiceTables().map((table) => table.identifier)).toContain(made.identifier);
+      expect(component.tables().map((table) => table.identifier)).toContain(made.identifier);
     });
 
     it('rewrites none of what a table answers', () => {
@@ -120,7 +120,7 @@ describe('DiceTableSettingComponent', () => {
     });
 
     afterEach(() => {
-      for (const table of component.getDiceTables()) table.destroy();
+      for (const table of component.tables()) table.destroy();
       vi.restoreAllMocks();
     });
 
@@ -139,7 +139,7 @@ describe('DiceTableSettingComponent', () => {
       expect(ask).toHaveBeenCalledWith(
         expect.objectContaining({ message: expect.stringContaining('遭遇表'), okLabel: '削除', danger: true })
       );
-      expect(component.getDiceTables()).toContain(made);
+      expect(component.tables()).toContain(made);
     });
 
     it('throws it away for everyone on a yes', async () => {
@@ -149,7 +149,7 @@ describe('DiceTableSettingComponent', () => {
 
       await component.delete();
 
-      expect(component.getDiceTables()).not.toContain(made);
+      expect(component.tables()).not.toContain(made);
     });
 
     it('keeps both when another table was picked while the question was open', async () => {
@@ -165,7 +165,7 @@ describe('DiceTableSettingComponent', () => {
 
       await component.delete();
 
-      expect(component.getDiceTables()).toEqual(expect.arrayContaining([first, second]));
+      expect(component.tables()).toEqual(expect.arrayContaining([first, second]));
     });
   });
 
@@ -257,11 +257,11 @@ describe('DiceTableSettingComponent', () => {
   describe('making and editing a table from the panel', () => {
     beforeEach(() => {
       PeerCursor.myCursor = { role: PeerRole.Player, identifier: 'seat-cursor' } as PeerCursor;
-      for (const table of component.getDiceTables()) table.destroy();
+      for (const table of component.tables()) table.destroy();
     });
 
     afterEach(() => {
-      for (const table of component.getDiceTables()) table.destroy();
+      for (const table of component.tables()) table.destroy();
     });
 
     /** Draws the panel and lets what ngModel writes into its boxes settle. */
@@ -285,9 +285,22 @@ describe('DiceTableSettingComponent', () => {
       buttonNamed(host, '表を作成')!.click();
       await drawn();
 
-      expect(component.getDiceTables()).toHaveLength(1);
+      expect(component.tables()).toHaveLength(1);
       expect(host.querySelector('input[name="dice-table-name"]')).not.toBeNull();
       expect(host.textContent).not.toContain('ダイス表がありません');
+    });
+
+    it('lists a table made at another seat, and drops one thrown away there, without being asked to redraw', async () => {
+      const host = await drawn();
+      expect(host.querySelectorAll('li[role="option"]')).toHaveLength(0);
+
+      const table = DiceTable.create();
+      await fixture.whenStable();
+      expect(host.querySelectorAll('li[role="option"]')).toHaveLength(1);
+
+      table.destroy();
+      await fixture.whenStable();
+      expect(host.querySelectorAll('li[role="option"]')).toHaveLength(0);
     });
 
     it('makes another table from the add button at the head of the list, and picks it', async () => {
@@ -297,7 +310,7 @@ describe('DiceTableSettingComponent', () => {
 
       host.querySelector<HTMLButtonElement>('button[title="新しい表を作る"]')!.click();
 
-      expect(component.getDiceTables()).toHaveLength(2);
+      expect(component.tables()).toHaveLength(2);
       expect(component.selectedTable).not.toBe(first);
     });
 

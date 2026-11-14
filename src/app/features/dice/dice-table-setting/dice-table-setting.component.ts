@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormsModule } from '@angular/forms';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { SaveProgress } from '@axe/application/file/save-progress';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -191,8 +192,9 @@ export class DiceTableSettingComponent {
     return this.isEditable && this.canEditTables;
   }
 
-  readonly isSaving = signal(false);
-  readonly progressPercent = signal(0);
+  private readonly saveProgress = new SaveProgress();
+  readonly isSaving = this.saveProgress.isSaving;
+  readonly progressPercent = this.saveProgress.percent;
 
   constructor() {
     queueMicrotask(
@@ -205,10 +207,11 @@ export class DiceTableSettingComponent {
     this._selectedTable.set(this.objectStore.get<DiceTable>(identifier));
   }
 
-  /** Every dice table in the room. */
-  getDiceTables(): DiceTable[] {
+  /** Every dice table in the room, followed as tables are made and thrown away at any seat. */
+  readonly tables = computed<DiceTable[]>(() => {
+    this.objectChange.collectionOf(DiceTable.aliasName)();
     return this.objectStore.getObjects(DiceTable);
-  }
+  });
 
   /**
    * Adds a new dice table to the room and picks it; does nothing for a seat that may not change
@@ -224,20 +227,11 @@ export class DiceTableSettingComponent {
    * Downloads the picked table as a save file, showing progress until shortly after it finishes.
    */
   async save() {
-    if (!this.selectedTable) return;
-    this.isSaving.set(true);
-    this.progressPercent.set(0);
-
-    const fileName: string = 'dice_table_' + this.selectedTable.name;
-
-    await this.saveDataService.saveGameObjectAsync(this.selectedTable, fileName, (percent) => {
-      this.progressPercent.set(percent);
-    });
-
-    setTimeout(() => {
-      this.isSaving.set(false);
-      this.progressPercent.set(0);
-    }, 500);
+    const table = this.selectedTable;
+    if (!table) return;
+    await this.saveProgress.run((onProgress) =>
+      this.saveDataService.saveGameObjectAsync(table, 'dice_table_' + table.name, onProgress)
+    );
   }
 
   /**
