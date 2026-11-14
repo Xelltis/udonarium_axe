@@ -108,13 +108,13 @@ describe('TextNoteComponent', () => {
   it('draws the text at the size the note is given, as the note changes', () => {
     fixture.detectChanges();
     const was = given.fontSize;
-    expect(component.fontSize).toBe(was);
+    expect(component.fontSize()).toBe(was);
 
     const size = ObjectStore.instance.get<DataElement>(`fontsize_${given.identifier}`)!;
     size.value = was + 4;
     TestBed.inject(ObjectChangeService).notifyChanged(size.identifier);
 
-    expect(component.fontSize).toBe(was + 4);
+    expect(component.fontSize()).toBe(was + 4);
   });
 
   it('leaves a note being written as the room has it once the seat is made a guest, the draft unwritten', async () => {
@@ -171,7 +171,7 @@ describe('TextNoteComponent', () => {
       fixture.detectChanges();
       await fixture.whenStable();
 
-      const grid = component.gridSize;
+      const grid = component.gridSize();
       expect(guide()).toEqual({
         lifted: { surface: 'floor', x: 120, y: 80, height: 10 + 2 * grid },
         ground: { surface: 'floor', x: 120, y: 80, height: 10 },
@@ -187,7 +187,7 @@ describe('TextNoteComponent', () => {
       note.isUpright = true;
       note.altitude = -4;
 
-      expect(guide()?.lifted.height).toBe(10 - component.gridSize);
+      expect(guide()?.lifted.height).toBe(10 - component.gridSize());
       expect(guide()?.altitude).toBe(1);
     });
 
@@ -265,7 +265,7 @@ describe('TextNoteComponent', () => {
     let note: TextNote;
 
     function body(): HTMLElement {
-      return fixture.nativeElement.querySelector('[data-v]:not(textarea)') as HTMLElement;
+      return fixture.nativeElement.querySelector('[data-part="body"]') as HTMLElement;
     }
 
     beforeEach(() => {
@@ -313,9 +313,9 @@ describe('TextNoteComponent', () => {
     let note: TextNote;
 
     function frame(): HTMLElement {
-      return (fixture.nativeElement.querySelector('[data-v]:not(textarea)') as HTMLElement).parentElement!;
+      return (fixture.nativeElement.querySelector('[data-part="body"]') as HTMLElement).parentElement!;
     }
-    const cap = () => `${component.height * component.gridSize}px`;
+    const cap = () => `${component.height() * component.gridSize()}px`;
 
     beforeEach(() => {
       note = TextNote.create('メモ', '一行目\n'.repeat(80));
