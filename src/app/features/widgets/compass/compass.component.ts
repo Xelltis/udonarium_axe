@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, linkedSignal, untracked } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -56,17 +56,6 @@ export class CompassComponent {
     top: 96,
   });
 
-  private drawnAngle = northNeedleAngle(this.uiSignal.tableViewRotationZ());
-
-  /**
-   * How far round the rose is drawn, which is how far the table has been turned.
-   *
-   * Written so as to lie nearest whatever was drawn before it, rather than kept within one turn:
-   * a rose that jumped from five degrees to three hundred and fifty-five would be eased the long
-   * way round, and the table crossing north would whip it most of a turn.
-   */
-  protected readonly roseAngle = signal(this.drawnAngle);
-
   /** Whether the table this seat is looking at has a field the needle cannot read. */
   protected readonly anomalous = computed(() => this.tabletop.currentTableVersion().magneticAnomaly);
 
@@ -75,8 +64,6 @@ export class CompassComponent {
 
   /** What that bearing is called. */
   protected readonly pointKey = computed(() => `feature.compass.point.${compassPointOf(this.bearing())}`);
-
-  private swing: NeedleSwing = { angle: this.drawnAngle, rate: 0 };
 
   /**
    * Whether the needle is swinging under the field just now.
@@ -88,22 +75,31 @@ export class CompassComponent {
    */
   private readonly swinging = computed(() => this.widgets.compass() && this.anomalous() && this.motion.enabled());
 
-  constructor() {
-    effect(() => {
-      // Under an anomaly the needle answers to the field rather than to the table, and comes back
-      // round to north by the short way the moment the table is left behind.
-      if (this.swinging()) return;
-      this.drawnAngle = nearestTurnTo(northNeedleAngle(this.uiSignal.tableViewRotationZ()), this.drawnAngle);
-      this.roseAngle.set(this.drawnAngle);
-    });
+  /**
+   * How far round the rose is drawn, which is how far the table has been turned.
+   *
+   * Written so as to lie nearest whatever was drawn before it, rather than kept within one turn:
+   * a rose that jumped from five degrees to three hundred and fifty-five would be eased the long
+   * way round, and the table crossing north would whip it most of a turn. Under an anomaly the
+   * needle answers to the field rather than to the table, so the swing writes it and the table is
+   * not followed; it comes back round to north by the short way the moment the table is left behind.
+   */
+  protected readonly roseAngle = linkedSignal<{ swinging: boolean; rotation: number }, number>({
+    source: () => ({ swinging: this.swinging(), rotation: this.uiSignal.tableViewRotationZ() }),
+    computation: ({ swinging, rotation }, previous) => {
+      const north = northNeedleAngle(rotation);
+      if (!previous) return north;
+      return swinging ? previous.value : nearestTurnTo(north, previous.value);
+    },
+  });
 
+  constructor() {
     effect((onCleanup) => {
       if (!this.swinging()) return;
-      this.swing = { angle: this.drawnAngle, rate: 0 };
+      let swing: NeedleSwing = { angle: untracked(this.roseAngle), rate: 0 };
       const timer = setInterval(() => {
-        this.swing = swingNeedle(this.swing, SWING_SECONDS, Math.random() * 2 - 1);
-        this.drawnAngle = this.swing.angle;
-        this.roseAngle.set(this.drawnAngle);
+        swing = swingNeedle(swing, SWING_SECONDS, Math.random() * 2 - 1);
+        this.roseAngle.set(swing.angle);
       }, SWING_SECONDS * 1000);
       onCleanup(() => clearInterval(timer));
     });
