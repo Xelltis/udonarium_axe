@@ -191,24 +191,10 @@ export async function rightClickPiece(piece: Locator): Promise<void> {
   await rightClickAt(page, spot!);
 }
 
-/**
- * Right-clicks a point of the page with the mouse, once a right click just made by this is too old
- * to make a double tap with this one.
- */
+/** Right-clicks a point of the page with the mouse. */
 export async function rightClickAt(page: Page, at: { x: number; y: number }): Promise<void> {
-  const sinceLast = Date.now() - (lastRightClick.get(page) ?? 0);
-  if (sinceLast < DOUBLE_TAP_MS) await page.waitForTimeout(DOUBLE_TAP_MS - sinceLast);
   await page.mouse.click(at.x, at.y, { button: 'right' });
-  lastRightClick.set(page, Date.now());
 }
-
-/**
- * How long a second press on a piece counts with the first as a double tap, which flips a card and
- * draws off a deck, with some to spare: two right clicks a spec makes one after the other come
- * closer together than a hand makes them.
- */
-const DOUBLE_TAP_MS = 400;
-const lastRightClick = new WeakMap<Page, number>();
 
 /**
  * Sends a piece the event a right click ends in, with no pointer and no press: for where a mouse
