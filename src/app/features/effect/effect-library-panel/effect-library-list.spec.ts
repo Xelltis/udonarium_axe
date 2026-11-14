@@ -105,23 +105,33 @@ describe('the effect library', () => {
 
   describe('groupPresets()', () => {
     it('gathers them by family and puts the families in their usual order', () => {
-      const groups = groupPresets([makePreset('氷結', '氷'), makePreset('斬撃', '物理'), makePreset('爆炎', '炎')]);
+      const groups = groupPresets(
+        [makePreset('氷結', '氷'), makePreset('斬撃', '物理'), makePreset('爆炎', '炎')],
+        'ja'
+      );
 
       expect(groups.map((group) => group.tag)).toEqual(['物理', '炎', '氷']);
     });
 
     it('orders a family by grade', () => {
-      const groups = groupPresets([
-        makePreset('絶対零度', '氷', 3),
-        makePreset('氷礫', '氷', 1),
-        makePreset('氷結', '氷', 2),
-      ]);
+      const groups = groupPresets(
+        [makePreset('絶対零度', '氷', 3), makePreset('氷礫', '氷', 1), makePreset('氷結', '氷', 2)],
+        'ja'
+      );
 
       expect(groups[0].presets.map((preset) => preset.name)).toEqual(['氷礫', '氷結', '絶対零度']);
     });
 
+    it('orders the names of one grade as the reader’s language sorts them', () => {
+      const presets = [makePreset('Zorn', '氷'), makePreset('Ärger', '氷'), makePreset('Zebra', '氷')];
+      const names = (language: string) => groupPresets(presets, language)[0].presets.map((preset) => preset.name);
+
+      expect(names('en')).toEqual(['Ärger', 'Zebra', 'Zorn']);
+      expect(names('sv')).toEqual(['Zebra', 'Zorn', 'Ärger']);
+    });
+
     it('puts an unknown family and an unnamed one at the back', () => {
-      const groups = groupPresets([makePreset('謎', ''), makePreset('自作', '独自'), makePreset('斬撃', '物理')]);
+      const groups = groupPresets([makePreset('謎', ''), makePreset('自作', '独自'), makePreset('斬撃', '物理')], 'ja');
 
       expect(groups.map((group) => group.tag)).toEqual(['物理', '独自', '']);
     });

@@ -2,6 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -114,6 +115,7 @@ export class SceneEditorComponent {
   private readonly scenes = inject(BoardSceneService);
   private readonly clock = inject(GameClockService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly language = inject(LanguageService);
 
   readonly scene = input.required<BoardScene>();
   readonly canEdit = input(false);
@@ -398,6 +400,6 @@ export class SceneEditorComponent {
     return this.audioStorage.audios
       .filter((audio) => !audio.isHidden && keep(AudioTag.get(audio.identifier)?.tag ?? 'BGM'))
       .map((audio) => ({ identifier: audio.identifier, name: soundFileName(audio.name) }))
-      .sort((left, right) => left.name.localeCompare(right.name, 'ja'));
+      .sort((left, right) => left.name.localeCompare(right.name, this.language.currentLang()));
   }
 }

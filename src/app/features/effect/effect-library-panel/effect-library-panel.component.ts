@@ -9,6 +9,7 @@ import { EffectLibraryService } from '@axe/application/effect/effect-library.ser
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -66,6 +67,7 @@ export class EffectLibraryPanelComponent {
   private readonly modalService = inject(ModalService);
   private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly language = inject(LanguageService);
   private readonly confirm = inject(ConfirmService);
   private readonly names = inject(PieceNameService);
 
@@ -89,7 +91,8 @@ export class EffectLibraryPanelComponent {
         this.gradeFilter(),
         this.targetingFilter(),
         this.isGameMaster()
-      )
+      ),
+      this.language.currentLang()
     )
   );
 

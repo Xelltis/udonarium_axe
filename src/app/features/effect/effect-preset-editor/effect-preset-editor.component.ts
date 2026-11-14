@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
@@ -72,6 +73,7 @@ export class EffectPresetEditorComponent {
   private readonly panelService = inject(PanelService);
   private readonly saveDataService = inject(SaveDataService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly language = inject(LanguageService);
 
   /** The preset being edited, put there by whoever opened it. */
   readonly presetIdentifier = signal('');
@@ -105,12 +107,13 @@ export class EffectPresetEditorComponent {
   /** A sound is identified by its path, which says nothing about the sound. */
   protected readonly sounds = computed<SoundOption[]>(() => {
     this.objectChange.fileVersion();
+    const language = this.language.currentLang();
     return [...this.audioStorage.audios]
       .map((audio) => {
         const labelKey = presetSoundLabelKey(audio.identifier);
         return { identifier: audio.identifier, name: labelKey ? this.t(labelKey) : soundFileName(audio.name) };
       })
-      .sort((left, right) => left.name.localeCompare(right.name, 'ja'));
+      .sort((left, right) => left.name.localeCompare(right.name, language));
   });
 
   /** The families on offer, gathered from those already there to help with the typing. */

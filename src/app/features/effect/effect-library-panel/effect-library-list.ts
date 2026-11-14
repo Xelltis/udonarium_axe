@@ -70,8 +70,11 @@ export function filterPresets(
   );
 }
 
-/** Gathers them by family, ordering each family by grade and then by name. */
-export function groupPresets(presets: readonly EffectPreset[]): EffectLibraryGroup[] {
+/**
+ * Gathers them by family, ordering each family by grade and then by name, as names sort in the
+ * reader's language.
+ */
+export function groupPresets(presets: readonly EffectPreset[], language: string): EffectLibraryGroup[] {
   const groups = new Map<string, EffectPreset[]>();
   for (const preset of presets) {
     const tag = preset.tagName.trim();
@@ -83,7 +86,9 @@ export function groupPresets(presets: readonly EffectPreset[]): EffectLibraryGro
   return [...groups.entries()]
     .map(([tag, list]) => ({
       tag,
-      presets: [...list].sort((left, right) => left.gradeLevel - right.gradeLevel || compareName(left, right)),
+      presets: [...list].sort(
+        (left, right) => left.gradeLevel - right.gradeLevel || left.name.localeCompare(right.name, language)
+      ),
     }))
     .sort((left, right) => tagRank(left.tag) - tagRank(right.tag) || left.tag.localeCompare(right.tag));
 }
@@ -105,8 +110,4 @@ function tagRank(tag: string): number {
   if (tag.length < 1) return TAG_ORDER.length + 1;
   const index = TAG_ORDER.indexOf(tag);
   return index < 0 ? TAG_ORDER.length : index;
-}
-
-function compareName(left: EffectPreset, right: EffectPreset): number {
-  return left.name.localeCompare(right.name, 'ja');
 }
