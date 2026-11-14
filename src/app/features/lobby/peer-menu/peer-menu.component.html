@@ -28,9 +28,9 @@
     <div class="space-y-0.5 text-xs text-(--ui-text-muted)">
       <div class="flex items-baseline gap-1">
         <span class="shrink-0">{{ 'feature.lobby.peerMenu.id' | transloco }}</span>
-        @if (networkService.isOpen) {
-          <span class="font-bold text-(--ui-accent)" [title]="networkService.peerContext.userId">{{
-            shortId(networkService.peerContext.peerId)
+        @if (connection().isOpen) {
+          <span class="font-bold text-(--ui-accent)" [title]="connection().userId">{{
+            shortId(connection().peerId)
           }}</span>
         } @else {
           <span class="font-bold text-(--ui-text-dim)">???</span>
@@ -122,23 +122,21 @@
 </div>
 
 @if (!isOffline()) {
-  @if (networkService.peerContext.isRoom) {
+  @if (connection().isRoom) {
     <hr class="mx-3 border-(--ui-panel-border)" />
     <div class="space-y-1 px-3 py-2 text-sm text-(--ui-text-muted)">
       <div>
         {{ 'feature.lobby.peerMenu.roomName' | transloco }}
-        @if (networkService.isOpen) {
-          <span class="font-bold text-(--ui-text)"
-            >{{ networkService.peerContext.roomName }}/{{ networkService.peerContext.roomId }}</span
-          >
+        @if (connection().isOpen) {
+          <span class="font-bold text-(--ui-text)">{{ connection().roomName }}/{{ connection().roomId }}</span>
         }
       </div>
-      @if (networkService.peerContext.hasPassword) {
+      @if (connection().hasPassword) {
         <div class="flex items-center gap-2">
           <span>{{ 'feature.lobby.peerMenu.password' | transloco }}</span>
-          @if (networkService.isOpen) {
+          @if (connection().isOpen) {
             <span class="font-bold text-(--ui-text)">{{
-              isPasswordVisible() ? networkService.peerContext.password : '●●●●●●●●'
+              isPasswordVisible() ? connection().password : '●●●●●●●●'
             }}</span>
           }
           <button
@@ -174,7 +172,7 @@
               </button>
             }
           }
-          @if (networkService.peerContext.hasPassword) {
+          @if (connection().hasPassword) {
             <label class="flex cursor-pointer items-center gap-1.5 text-xs">
               <input
                 name="invite-include-password"

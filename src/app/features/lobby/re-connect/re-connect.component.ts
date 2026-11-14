@@ -56,6 +56,9 @@ export function isReconnectCompleted(expectedPeerIds: Set<string>, observedPeerI
   return true;
 }
 
+/** The kinds of thing on the table a forced cleanup throws away before joining again. */
+const DIVERGING_KINDS = [GameCharacter, RangeArea, TextNote, DiceSymbol, GameTableMask, Terrain];
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 're-connect',
@@ -273,34 +276,8 @@ export class ReConnectComponent {
   deleteObject() {
     Logger.info('[Network] dropping objects that may diverge from the new peers');
 
-    const gameCharacters = this.objectStore.getObjects<GameCharacter>(GameCharacter);
-    for (const obj of gameCharacters) {
-      this.deleteGameObject(obj);
-    }
-
-    const rangeAreas = this.objectStore.getObjects<RangeArea>(RangeArea);
-    for (const obj of rangeAreas) {
-      this.deleteGameObject(obj);
-    }
-
-    const textNote = this.objectStore.getObjects<TextNote>(TextNote);
-    for (const obj of textNote) {
-      this.deleteGameObject(obj);
-    }
-
-    const diceSymbol = this.objectStore.getObjects<DiceSymbol>(DiceSymbol);
-    for (const obj of diceSymbol) {
-      this.deleteGameObject(obj);
-    }
-
-    const gameTableMask = this.objectStore.getObjects<GameTableMask>(GameTableMask);
-    for (const obj of gameTableMask) {
-      this.deleteGameObject(obj);
-    }
-
-    const terrain = this.objectStore.getObjects<Terrain>(Terrain);
-    for (const obj of terrain) {
-      this.deleteGameObject(obj);
+    for (const kind of DIVERGING_KINDS) {
+      for (const object of this.objectStore.getObjects<TabletopObject>(kind)) this.deleteGameObject(object);
     }
 
     this.objectStore.clearDeleteHistory();

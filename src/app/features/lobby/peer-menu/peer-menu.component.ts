@@ -40,7 +40,6 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { observeSize } from '@axe/core/util/observe-size';
-import { buildInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   ASSIGNABLE_PEER_ROLES,
@@ -52,6 +51,7 @@ import {
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { IdleSeatService } from '@axe/features/lobby/idle-seat.service';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
+import { InviteLinkService } from '@axe/features/lobby/peer-menu/invite-link.service';
 import { ReConnectComponent } from '@axe/features/lobby/re-connect/re-connect.component';
 import { roomDeletionMessageKey, RoomDeletionService } from '@axe/features/lobby/room-deletion.service';
 import { ServerAccountComponent } from '@axe/features/lobby/server-account/server-account.component';
@@ -61,14 +61,6 @@ import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
-
-/** Where an invitation is kept: one for each room and role. */
-function inviteKey(roomKey: string | null, role: PeerRole): string {
-  return `${roomKey ?? ''}:${role}`;
-}
-
-/** How long before it runs out an invitation from the room server is asked for afresh. */
-const INVITE_RENEW_MARGIN_MS = 24 * 60 * 60 * 1000;
 
 /** The width of the list of the others under which a row is laid out on two lines. */
 export const NARROW_PEER_LIST_PX = 320;
@@ -141,6 +133,18 @@ interface PeerRow {
   readonly role: PeerRole;
 }
 
+/** This seat's connection as the menu shows it, as last read. */
+interface ConnectionView {
+  readonly isOpen: boolean;
+  readonly userId: string;
+  readonly peerId: string;
+  readonly isRoom: boolean;
+  readonly roomName: string;
+  readonly roomId: string;
+  readonly hasPassword: boolean;
+  readonly password: string;
+}
+
 /** What the heartbeats say of one of the others, as last read on the menu's clock. */
 interface PeerHeard {
   /** When the peer last answered; zero or less while that is not known. */
@@ -200,6 +204,7 @@ export type ConnectionMode = (typeof CONNECTION_MODES)[number];
   selector: 'peer-menu',
   templateUrl: './peer-menu.component.html',
   imports: [FormsModule, DatePipe, SafePipe, ServerAccountComponent, TranslocoModule],
+  providers: [InviteLinkService],
 })
 export class PeerMenuComponent {
   private readonly t = inject(TRANSLATE_FN);
@@ -287,7 +292,6 @@ export class PeerMenuComponent {
   private readonly watching = inject(ServerWatchService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly destroyRef = inject(DestroyRef);
-  networkService = Network.instance;
   readonly help = signal('');
   readonly isPasswordVisible = signal(false);
   readonly dispDetailFlag = signal(false);
@@ -324,17 +328,15 @@ export class PeerMenuComponent {
       : [PeerRole.Player, PeerRole.Guest]
   );
   protected readonly inviteRole = signal<PeerRole>(PeerRole.Player);
-  /** The invitations the room server has signed this session, by room and role, while they last. */
-  private readonly serverInvites = signal<ReadonlyMap<string, { invite: string; expiresAt: number }>>(new Map());
+  /** The link that invites into the room, and the invitations the room server has signed for it. */
+  private readonly invites = inject(InviteLinkService);
   /**
    * Bumped when the room server keeps a role as it was, so that the role pickers are drawn again
    * from the roles as they stand rather than as last picked.
    */
   protected readonly roleSelectsDrawn = signal(0);
-  /** The invitations being asked for, so a request is not sent again while one is on its way. */
-  private readonly askingInvites = new Set<string>();
   /** Whether the room server turned down or did not answer the last request for an invitation. */
-  protected readonly serverInviteFailed = signal(false);
+  protected readonly serverInviteFailed = this.invites.failed;
   /**
    * Whether the reader is the game master, followed as their cursor changes: the room server may
    * make them one, or no longer one, at any time.
@@ -362,7 +364,7 @@ export class PeerMenuComponent {
   private readonly serverInvite = computed(() => {
     this.objectChange.networkVersion();
     if (!this.isServerTransport() || !this.amGameMaster()) return null;
-    return this.serverInvites().get(inviteKey(Network.instance.roomKey, this.inviteRole())) ?? null;
+    return this.invites.held(this.inviteRole());
   });
   /** When the invitation in the link runs out, on a room server; null without one. */
   protected readonly serverInviteExpiresAt = computed(() => this.serverInvite()?.expiresAt ?? null);
@@ -372,18 +374,33 @@ export class PeerMenuComponent {
 
   protected readonly inviteLink = computed(() => {
     this.objectChange.networkVersion();
-    const peer = Network.instance.peerContext;
-    if (!peer?.isRoom) return '';
-
-    return buildInviteLink(location.origin + location.pathname, {
-      roomId: peer.roomId,
-      roomName: peer.roomName,
-      roomKey: Network.instance.roomKey ?? '',
-      password: this.includePasswordInInvite() ? peer.password : '',
+    return this.invites.link({
+      includePassword: this.includePasswordInInvite(),
       role: this.isServerTransport() ? null : this.inviteRole(),
       overlay: this.inviteOverlay(),
       invite: this.serverInvite()?.invite ?? '',
     });
+  });
+
+  /**
+   * This seat's connection as the menu shows it: whether it is open, and the ids, the room and the
+   * password it holds. Nothing tells of a connection closing, so it is read again on every tick of
+   * the menu's clock as well as when the network says it changed.
+   */
+  protected readonly connection = computed<ConnectionView>(() => {
+    this.objectChange.networkVersion();
+    this.myTime();
+    const context = Network.instance.peerContext;
+    return {
+      isOpen: Network.instance.isOpen,
+      userId: context.userId,
+      peerId: context.peerId,
+      isRoom: context.isRoom,
+      roomName: context.roomName,
+      roomId: context.roomId,
+      hasPassword: context.hasPassword,
+      password: context.password,
+    };
   });
 
   /** This browser's own cursor, which carries the reader's name, icon, role and timeout. */
@@ -396,16 +413,16 @@ export class PeerMenuComponent {
     this.idleSeat.comeBack();
   }
 
-  /**
-   * Deletes the room on the room server, once the reader has confirmed. The server then closes it
-   * for everybody, which takes the reader back to waiting; only a refusal or a failure is said here.
-   */
   /** Asks the reader why they report this room to the room server's operator, and sends it. */
   protected reportRoom(): void {
     if (!this.canReport()) return;
     void this.modalService.open(ReportDialogComponent, { target: 'room', name: Network.instance.peerContext.roomName });
   }
 
+  /**
+   * Deletes the room on the room server, once the reader has confirmed. The server then closes it
+   * for everybody, which takes the reader back to waiting; only a refusal or a failure is said here.
+   */
   async deleteRoom(): Promise<void> {
     const roomKey = Network.instance.roomKey;
     if (!roomKey || this.isDeletingRoom()) return;
@@ -424,11 +441,6 @@ export class PeerMenuComponent {
   /** Whether the reader is the game master, who may give the other peers their roles. */
   get isMyselfGameMaster(): boolean {
     return PeerCursor.isMyselfGameMaster;
-  }
-
-  /** The role of the peer with this ID, or the default role while its cursor has not arrived. */
-  findPeerRole(peerId: string): PeerRole {
-    return PeerCursor.findByPeerId(peerId)?.role ?? DEFAULT_PEER_ROLE;
   }
 
   /** The first six characters of a peer ID, enough to tell the peers on the list apart. */
@@ -490,26 +502,7 @@ export class PeerMenuComponent {
    */
   private async requestServerInvite(role: PeerRole): Promise<void> {
     if (!this.isServerTransport() || !Network.instance.peerContext.isRoom || !this.isMyselfGameMaster) return;
-    const key = inviteKey(Network.instance.roomKey, role);
-    const held = this.serverInvites().get(key);
-    if (held && held.expiresAt - Date.now() > INVITE_RENEW_MARGIN_MS) return;
-    if (this.askingInvites.has(key)) return;
-    this.askingInvites.add(key);
-    try {
-      const answer = await Network.instance.requestInvite(role);
-      if (!answer.invite || answer.expiresAt == null) {
-        this.serverInviteFailed.set(true);
-        return;
-      }
-      const invites = new Map(this.serverInvites());
-      invites.set(key, { invite: answer.invite, expiresAt: answer.expiresAt });
-      this.serverInvites.set(invites);
-      this.serverInviteFailed.set(false);
-    } catch {
-      this.serverInviteFailed.set(true);
-    } finally {
-      this.askingInvites.delete(key);
-    }
+    await this.invites.request(role);
   }
 
   protected async copyInviteLink(): Promise<void> {
@@ -570,9 +563,9 @@ export class PeerMenuComponent {
       untracked(() => {
         // What the last request came to says nothing of this one, nor of a reader who is no longer
         // the game master, whose invitations are put away.
-        this.serverInviteFailed.set(false);
+        this.invites.forgetFailure();
         if (!gameMaster) {
-          this.serverInvites.set(new Map());
+          this.invites.putAway();
           return;
         }
         void this.requestServerInvite(role);
@@ -606,7 +599,7 @@ export class PeerMenuComponent {
       this.objectChange.versionOf(cursor.identifier)();
     }
     const rows = this.isServerTransport()
-      ? this.networkService.peerContexts.map((context) => ({ peerId: context.peerId, link: null }))
+      ? Network.instance.peerContexts.map((context) => ({ peerId: context.peerId, link: null }))
       : this.peerLink.links().map((link) => ({ peerId: link.peerId, link: PEER_LINK_LOOKS[link.state] }));
     return rows.map((row) => {
       const cursor = PeerCursor.findByPeerId(row.peerId);
@@ -686,12 +679,12 @@ export class PeerMenuComponent {
    * the others, or, on a room server, the server is, which holds the room whoever else is in it.
    */
   get shouldShowReconnectButton(): boolean {
-    return this.networkService.peerIds.length > 0 || this.networkService.authorityPeerId !== null;
+    return Network.instance.peerIds.length > 0 || Network.instance.authorityPeerId !== null;
   }
 
   /** Whether there is a connection to ask for the whole room over: a peer, or the room server. */
   get canRequestFullSync(): boolean {
-    return 0 < this.networkService.peerIds.length || this.networkService.authorityPeerId !== null;
+    return 0 < Network.instance.peerIds.length || Network.instance.authorityPeerId !== null;
   }
 
   /**
@@ -705,10 +698,10 @@ export class PeerMenuComponent {
   }
 
   private fullSyncNotice(peerCount: number): string {
-    if (this.networkService.authorityPeerId !== null) {
+    if (Network.instance.authorityPeerId !== null) {
       return encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequestedFromServer');
     }
-    const unreachable = this.networkService.unreachablePeerIds.length;
+    const unreachable = Network.instance.unreachablePeerIds.length;
     if (unreachable < 1) return encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequested', { count: peerCount });
     return encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequestedPartly', { count: peerCount, unreachable });
   }
@@ -735,18 +728,6 @@ export class PeerMenuComponent {
   findPeerTimeLatency(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.timeLatency / 1000 : '--';
-  }
-
-  /**
-   * How many of the peer's heartbeats have arrived against how many it has sent since the first one
-   * did, as arrived/sent; `0/0` before any.
-   */
-  findPeerDegreeOfSuccess(peerId: string) {
-    const peerCursor = PeerCursor.findByPeerId(peerId);
-    if (!peerCursor) return '0/0';
-    if (peerCursor.firstTimeSignNo < 0) return '0/0';
-    const degree = peerCursor.totalTimeSignNum + '/' + (peerCursor.lastTimeSignNo - peerCursor.firstTimeSignNo + 1);
-    return degree;
   }
 
   /** The time on the clock shown in the menu, which the heartbeat figures of the list are read on. */

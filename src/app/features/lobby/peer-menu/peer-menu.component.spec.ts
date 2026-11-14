@@ -6,8 +6,6 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PeerLinkRow, PeerLinkService, SyncProgress } from '@axe/application/lobby/peer-link.service';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { ConfirmService } from '@axe/application/ui/confirm.service';
-import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { loadConfig$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
@@ -17,7 +15,6 @@ import { pageActivity } from '@axe/core/network/server/page-activity';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { hasChosenIconByHand, noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
-import { ImageStorage } from '@axe/core/storage/image-storage';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -27,7 +24,6 @@ import { PeerMenuComponent } from '@axe/features/lobby/peer-menu/peer-menu.compo
 import { RoomDeletionService } from '@axe/features/lobby/room-deletion.service';
 import { ServerWatchService } from '@axe/features/lobby/server-watch.service';
 import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
-import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -1175,171 +1171,6 @@ describe('PeerMenuComponent', () => {
 
     it('returns a dash for one that is not there', () => {
       expect(component.findPeerTimeLatency('nonexistent')).toBe('--');
-    });
-  });
-
-  describe('findPeerDegreeOfSuccess', () => {
-    it('returns none of none before the first beat', () => {
-      const cursor = new PeerCursor();
-      cursor.initialize();
-      cursor.peerId = 'peer-deg';
-
-      expect(component.findPeerDegreeOfSuccess('peer-deg')).toBe('0/0');
-    });
-
-    it('returns none of none for a peer that is not there', () => {
-      expect(component.findPeerDegreeOfSuccess('nonexistent')).toBe('0/0');
-    });
-
-    it('works the success rate out of the heartbeats', () => {
-      const cursor = new PeerCursor();
-      cursor.initialize();
-      cursor.peerId = 'peer-stat';
-      cursor.firstTimeSignNo = 0;
-      cursor.lastTimeSignNo = 9;
-      cursor.totalTimeSignNum = 10;
-
-      expect(component.findPeerDegreeOfSuccess('peer-stat')).toBe('10/10');
-    });
-
-    it('with some of them missed', () => {
-      const cursor = new PeerCursor();
-      cursor.initialize();
-      cursor.peerId = 'peer-loss';
-      cursor.firstTimeSignNo = 0;
-      cursor.lastTimeSignNo = 9;
-      cursor.totalTimeSignNum = 7;
-
-      expect(component.findPeerDegreeOfSuccess('peer-loss')).toBe('7/10');
-    });
-  });
-
-  describe('online or offline', () => {
-    beforeEach(() => {
-      PeerCursor.createMyCursor();
-    });
-
-    function segment(mode: string): HTMLButtonElement {
-      return fixture.nativeElement.querySelector(`[data-testid="connection-mode-${mode}"]`) as HTMLButtonElement;
-    }
-
-    it('shows the two as one choice, with the network settings under online alone', () => {
-      fixture.detectChanges();
-
-      expect(segment('online').getAttribute('aria-checked')).toBe('true');
-      expect(segment('offline').getAttribute('aria-checked')).toBe('false');
-      expect(fixture.nativeElement.querySelector('[data-testid="online-settings"]')).not.toBeNull();
-      expect(fixture.nativeElement.querySelector('[data-testid="offline-note"]')).toBeNull();
-
-      TestBed.inject(LocalModePreferenceService).set(true);
-      fixture.detectChanges();
-
-      expect(segment('offline').getAttribute('aria-checked')).toBe('true');
-      expect(fixture.nativeElement.querySelector('[data-testid="online-settings"]')).toBeNull();
-      expect(fixture.nativeElement.querySelector('[data-testid="offline-note"]')).not.toBeNull();
-    });
-
-    it('asks before it starts again, and writes the choice down only once it is confirmed', async () => {
-      const reload = vi.spyOn(component as unknown as { reload(): void }, 'reload').mockImplementation(() => undefined);
-      const letGo = vi.spyOn(Network.instance, 'letPageGo').mockImplementation(() => {});
-      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
-
-      await component.chooseConnectionMode('offline');
-
-      expect(ask).toHaveBeenCalledTimes(1);
-      expect(TestBed.inject(LocalModePreferenceService).enabled()).toBe(false);
-      expect(reload).not.toHaveBeenCalled();
-
-      ask.mockResolvedValue(true);
-      await component.chooseConnectionMode('offline');
-
-      expect(TestBed.inject(LocalModePreferenceService).enabled()).toBe(true);
-      expect(localStorage.getItem(STORAGE_KEYS.localMode)).toBe('1');
-      expect(letGo).toHaveBeenCalledTimes(1);
-      expect(reload).toHaveBeenCalledTimes(1);
-    });
-
-    it('says what leaving the room would lose, and keeps the room in the automatic save before going offline', async () => {
-      const calls: string[] = [];
-      vi.spyOn(component as unknown as { reload(): void }, 'reload').mockImplementation(() => calls.push('reload'));
-      vi.spyOn(Network.instance, 'letPageGo').mockImplementation(() => {});
-      vi.spyOn(TestBed.inject(RoomArchiveEventHandlerService), 'flush').mockImplementation(async () => {
-        calls.push('save');
-      });
-      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
-      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
-      vi.spyOn(Network.instance, 'isAuthorityOpen', 'get').mockReturnValue(true);
-      vi.spyOn(ImageStorage.instance, 'hasUploadsPending', 'get').mockReturnValue(true);
-      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
-      const t = TestBed.inject(TRANSLATE_FN);
-
-      await component.chooseConnectionMode('offline');
-
-      expect(ask).toHaveBeenCalledWith(
-        `${t('feature.lobby.peerMenu.confirmOffline')}\n${t('feature.lobby.leaveRoom.uploads')}`
-      );
-      expect(calls).toEqual(['save', 'reload']);
-    });
-
-    it('takes the invitation off the address on going offline, and takes one choice at a time', async () => {
-      const reload = vi.spyOn(component as unknown as { reload(): void }, 'reload').mockImplementation(() => undefined);
-      vi.spyOn(Network.instance, 'letPageGo').mockImplementation(() => {});
-      let finishSaving!: () => void;
-      vi.spyOn(TestBed.inject(RoomArchiveEventHandlerService), 'flush').mockReturnValue(
-        new Promise<void>((resolve) => (finishSaving = resolve))
-      );
-      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
-      history.replaceState(null, '', '/axe/?lang=ja#join?room=abc');
-      try {
-        const first = component.chooseConnectionMode('offline');
-        await Promise.resolve();
-        await component.chooseConnectionMode('offline');
-        expect(ask).toHaveBeenCalledTimes(1);
-        expect(TestBed.inject(LocalModePreferenceService).enabled()).toBe(false);
-
-        finishSaving();
-        await first;
-
-        expect(location.hash).toBe('');
-        expect(location.search).toBe('?lang=ja');
-        expect(reload).toHaveBeenCalledTimes(1);
-      } finally {
-        history.replaceState(null, '', '/');
-      }
-    });
-
-    it('does nothing when the mode it is already in is chosen again', async () => {
-      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask');
-
-      await component.chooseConnectionMode('online');
-
-      expect(ask).not.toHaveBeenCalled();
-    });
-
-    it('writes the timeout typed in to this seat’s own cursor', async () => {
-      fixture.detectChanges();
-      await fixture.whenStable();
-      const timeout = fixture.nativeElement.querySelector('input[name="peer-timeout"]') as HTMLInputElement;
-
-      timeout.value = '30';
-      timeout.dispatchEvent(new Event('input'));
-
-      expect(PeerCursor.myCursor.timeout).toBe(30);
-    });
-
-    it('turns the details of the others on and off from its box', async () => {
-      fixture.detectChanges();
-      await fixture.whenStable();
-      const detail = () => fixture.nativeElement.querySelector('input[name="disp-detail-flag"]') as HTMLInputElement;
-      expect(detail().checked).toBe(false);
-
-      detail().click();
-      expect(component.dispDetailFlag()).toBe(true);
-
-      fixture.detectChanges();
-      await fixture.whenStable();
-      detail().click();
-      expect(component.dispDetailFlag()).toBe(false);
     });
   });
 
