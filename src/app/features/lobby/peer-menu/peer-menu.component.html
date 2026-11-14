@@ -269,6 +269,31 @@
           </button>
         </div>
       }
+      @if (syncLook(); as look) {
+        <div
+          class="space-y-1 px-1 text-xs"
+          [class]="look.colorClass"
+          role="status"
+          data-testid="peer-menu-sync"
+          [attr.data-state]="look.state"
+        >
+          <p class="m-0 flex items-start gap-1">
+            <span class="material-icons shrink-0 text-[1.2em]!" aria-hidden="true">{{ look.icon }}</span>
+            <span class="min-w-0 wrap-break-word">{{
+              look.messageKey | transloco: { count: syncProgress().count }
+            }}</span>
+          </p>
+          @if (look.showsBar) {
+            <div
+              class="h-1 w-full overflow-hidden rounded-full bg-(--ui-elevated)"
+              role="progressbar"
+              [attr.aria-label]="look.messageKey | transloco: { count: syncProgress().count }"
+            >
+              <div class="size-full animate-pulse rounded-full bg-(--ui-accent) motion-reduce:animate-none"></div>
+            </div>
+          }
+        </div>
+      }
       @if (canRequestFullSync) {
         <button (click)="requestFullSync()">{{ 'feature.lobby.peerMenu.fullSync' | transloco }}</button>
         <p class="px-1 text-xs text-(--ui-text-muted)">{{ 'feature.lobby.peerMenu.fullSyncHint' | transloco }}</p>
@@ -298,57 +323,100 @@
     </label>
   </div>
 
-  @for (context of networkService.peerContexts; track context) {
-    <div class="border-t border-(--ui-panel-border) px-3 py-1 text-xs text-(--ui-text-muted)">
-      <div class="flex items-center gap-2">
-        @if (!context.isOpen) {
-          <span class="shrink-0 text-(--ui-accent)">{{ 'feature.lobby.peerMenu.connecting' | transloco }}</span>
-        }
-        <span class="min-w-0 flex-1 truncate" [title]="findUserId(context.peerId)">{{
-          findPeerName(context.peerId) || shortId(context.peerId)
-        }}</span>
-        @if (amGameMaster()) {
-          <!-- Drawn again when the room server keeps a role as it was, so the picker shows the role as it stands;
-               tracked by a key, as drawing anew is meant. -->
-          @for (drawn of [roleSelectsDrawn()]; track 'drawn ' + drawn) {
-            <select
-              class="shrink-0 text-[0.7rem]"
-              [ngModel]="findPeerRole(context.peerId)"
-              (ngModelChange)="reassignRole(context.peerId, $event)"
-              [name]="'peer-role-' + context.peerId"
-              [attr.data-testid]="'peer-menu-role-' + context.peerId"
+  <div #peerList data-testid="peer-menu-peers" [attr.data-narrow]="isNarrow() ? '' : null">
+    @for (row of peerRows(); track row.peerId) {
+      <div
+        class="border-t border-(--ui-panel-border) px-3 py-1 text-xs text-(--ui-text-muted)"
+        data-testid="peer-menu-row"
+        [attr.data-peer-id]="row.peerId"
+        [attr.data-link]="row.link?.state"
+      >
+        <div [class]="row.link ? 'flex flex-wrap items-center gap-x-2 gap-y-0.5' : 'flex items-center gap-2'">
+          @if (row.link; as link) {
+            <span
+              class="material-icons order-1 shrink-0 text-[1.2em]!"
+              [class]="link.colorClass"
+              data-testid="peer-menu-link"
+              [attr.role]="link.showsWord ? null : 'img'"
+              [attr.aria-label]="link.showsWord ? null : (link.labelKey | transloco)"
+              [attr.aria-hidden]="link.showsWord ? 'true' : null"
+              >{{ link.icon }}</span
             >
-              @for (role of assignableRoles; track role) {
-                <option [ngValue]="role">{{ roleShortLabelKey(role) | transloco }}</option>
-              }
-            </select>
+            @if (link.showsWord) {
+              <span
+                [class]="link.colorClass"
+                [class.order-2]="!isNarrow()"
+                [class.shrink-0]="!isNarrow()"
+                [class.order-6]="isNarrow()"
+                [class.min-w-0]="isNarrow()"
+                [class.flex-1]="isNarrow()"
+                [class.wrap-break-word]="isNarrow()"
+                data-testid="peer-menu-link-word"
+                >{{ link.labelKey | transloco }}</span
+              >
+            }
+            @if (isNarrow()) {
+              <span class="order-5 h-0 basis-full" data-testid="peer-menu-row-break" aria-hidden="true"></span>
+            }
           }
-        } @else {
+          <span class="min-w-0 flex-1 truncate" [class.order-3]="!!row.link" [title]="findUserId(row.peerId)">{{
+            findPeerName(row.peerId) || shortId(row.peerId)
+          }}</span>
+          @if (amGameMaster()) {
+            <!-- Drawn again when the room server keeps a role as it was, so the picker shows the role as it stands;
+                 tracked by a key, as drawing anew is meant. -->
+            @for (drawn of [roleSelectsDrawn()]; track 'drawn ' + drawn) {
+              <select
+                class="shrink-0 text-[0.7rem]"
+                [class.order-4]="!!row.link && !isNarrow()"
+                [class.order-7]="!!row.link && isNarrow()"
+                [ngModel]="findPeerRole(row.peerId)"
+                (ngModelChange)="reassignRole(row.peerId, $event)"
+                [name]="'peer-role-' + row.peerId"
+                [attr.data-testid]="'peer-menu-role-' + row.peerId"
+              >
+                @for (role of assignableRoles; track role) {
+                  <option [ngValue]="role">{{ roleShortLabelKey(role) | transloco }}</option>
+                }
+              </select>
+            }
+          } @else {
+            <span
+              class="shrink-0 rounded-sm px-1.5 py-0.5 text-[0.65rem] font-bold"
+              [class]="roleBadgeClass(findPeerRole(row.peerId))"
+              [class.order-4]="!!row.link && !isNarrow()"
+              [class.order-7]="!!row.link && isNarrow()"
+              data-testid="peer-menu-row-role"
+              >{{ roleShortLabelKey(findPeerRole(row.peerId)) | transloco }}</span
+            >
+          }
           <span
-            class="shrink-0 rounded-sm px-1.5 py-0.5 text-[0.65rem] font-bold"
-            [class]="roleBadgeClass(findPeerRole(context.peerId))"
-            >{{ roleShortLabelKey(findPeerRole(context.peerId)) | transloco }}</span
+            class="shrink-0 text-(--ui-text-dim)"
+            [class.order-5]="!!row.link && !isNarrow()"
+            [class.order-4]="!!row.link && isNarrow()"
+            data-testid="peer-menu-last-answer"
+            >{{
+              findPeerTimeReceive(row.peerId) <= 0 ? '[-:--:--]' : (findPeerTimeReceive(row.peerId) | date: 'HH:mm:ss')
+            }}</span
+          >
+        </div>
+        @if (row.link?.showsHint) {
+          <p class="m-0 py-0.5 text-[0.7rem] wrap-break-word text-(--ui-text-dim)" data-testid="peer-menu-link-hint">
+            {{ 'feature.lobby.peerMenu.linkRelayedOnlyHint' | transloco }}
+          </p>
+        }
+        <div class="text-[0.65rem] text-(--ui-text-dim)" [title]="findUserId(row.peerId)">
+          {{ shortId(row.peerId) }}
+        </div>
+        @if (dispDetailFlag() && !isServerTransport() && findPeerTimeReceive(row.peerId) > 0) {
+          <span class="text-(--ui-text-dim)"
+            >{{ 'feature.lobby.peerMenu.latency' | transloco }}{{ findPeerTimeLatency(row.peerId)
+            }}{{ 'feature.lobby.peerMenu.latencyUnit' | transloco }}</span
           >
         }
-        @if (findPeerTimeReceive(context.peerId) <= 0) {
-          <span class="shrink-0 text-(--ui-text-dim)" data-testid="peer-menu-last-answer">[-:--:--]</span>
-        } @else {
-          <span class="shrink-0 text-(--ui-text-dim)" data-testid="peer-menu-last-answer">{{
-            findPeerTimeReceive(context.peerId) | date: 'HH:mm:ss'
-          }}</span>
-        }
       </div>
-      <div class="text-[0.65rem] text-(--ui-text-dim)" [title]="findUserId(context.peerId)">
-        {{ shortId(context.peerId) }}
-      </div>
-      @if (dispDetailFlag() && !isServerTransport() && findPeerTimeReceive(context.peerId) > 0) {
-        <span class="text-(--ui-text-dim)"
-          >{{ 'feature.lobby.peerMenu.latency' | transloco }}{{ findPeerTimeLatency(context.peerId)
-          }}{{ 'feature.lobby.peerMenu.latencyUnit' | transloco }}</span
-        >
-      }
-    </div>
-  }
+    }
+  </div>
 
   <div class="px-3 py-2">
     <button class="w-full" data-testid="peer-menu-show-lobby" (click)="showLobby()">

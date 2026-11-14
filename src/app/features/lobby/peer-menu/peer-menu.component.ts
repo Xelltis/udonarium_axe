@@ -5,9 +5,11 @@ import {
   computed,
   DestroyRef,
   effect,
+  ElementRef,
   inject,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
@@ -15,6 +17,7 @@ import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { leavingLoss, leavingLossText } from '@axe/application/lobby/leaving-loss';
 import { LinkWatchService } from '@axe/application/lobby/link-watch.service';
+import { PeerLinkService, PeerLinkView, SyncProgressState } from '@axe/application/lobby/peer-link.service';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ReportService } from '@axe/application/moderation/report.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -35,6 +38,7 @@ import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
+import { observeSize } from '@axe/core/util/observe-size';
 import { buildInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
@@ -66,6 +70,111 @@ function inviteKey(roomKey: string | null, role: PeerRole): string {
 /** How long before it runs out an invitation from the room server is asked for afresh. */
 const INVITE_RENEW_MARGIN_MS = 24 * 60 * 60 * 1000;
 
+/** The width of the list of the others under which a row is laid out on two lines. */
+export const NARROW_PEER_LIST_PX = 320;
+
+/** How the link to one of the others is drawn on its row: its icon, its words and their colour. */
+interface PeerLinkLook {
+  readonly state: PeerLinkView;
+  readonly icon: string;
+  readonly labelKey: string;
+  /** The colour of the icon and the word, from the theme; empty for the row's own. */
+  readonly colorClass: string;
+  /** Whether the word is shown beside the icon, as for every state but a plain direct link. */
+  readonly showsWord: boolean;
+  /** Whether the row explains under it that the room's data comes from the others. */
+  readonly showsHint: boolean;
+}
+
+const PEER_LINK_LOOKS: Record<PeerLinkView, PeerLinkLook> = {
+  direct: {
+    state: 'direct',
+    icon: 'link',
+    labelKey: 'feature.lobby.peerMenu.linkDirect',
+    colorClass: '',
+    showsWord: false,
+    showsHint: false,
+  },
+  turn: {
+    state: 'turn',
+    icon: 'alt_route',
+    labelKey: 'feature.lobby.peerMenu.linkTurn',
+    colorClass: '',
+    showsWord: true,
+    showsHint: false,
+  },
+  relayed: {
+    state: 'relayed',
+    icon: 'people',
+    labelKey: 'feature.lobby.peerMenu.linkRelayedOnly',
+    colorClass: 'text-ui-warning',
+    showsWord: true,
+    showsHint: true,
+  },
+  reconnecting: {
+    state: 'reconnecting',
+    icon: 'sync',
+    labelKey: 'feature.lobby.peerMenu.linkReconnecting',
+    colorClass: 'text-ui-accent',
+    showsWord: true,
+    showsHint: false,
+  },
+  failed: {
+    state: 'failed',
+    icon: 'link_off',
+    labelKey: 'feature.lobby.peerMenu.linkFailed',
+    colorClass: 'text-ui-danger',
+    showsWord: true,
+    showsHint: true,
+  },
+};
+
+/** One row of the list of the others: the peer, and how its link is drawn where links are told of. */
+interface PeerRow {
+  readonly peerId: string;
+  readonly link: PeerLinkLook | null;
+}
+
+/** How the standing of this seat's sync is said above the button that asks for a fresh one. */
+interface SyncLook {
+  readonly state: SyncProgressState;
+  readonly icon: string;
+  readonly messageKey: string;
+  readonly colorClass: string;
+  readonly showsBar: boolean;
+}
+
+const SYNC_LOOKS: Record<Exclude<SyncProgressState, 'idle'>, SyncLook> = {
+  receiving: {
+    state: 'receiving',
+    icon: 'sync',
+    messageKey: 'feature.lobby.peerMenu.syncReceiving',
+    colorClass: 'text-ui-muted',
+    showsBar: true,
+  },
+  settled: {
+    state: 'settled',
+    icon: 'check_circle',
+    messageKey: 'feature.lobby.peerMenu.syncSettled',
+    colorClass: 'text-ui-muted',
+    showsBar: false,
+  },
+  nobody: {
+    state: 'nobody',
+    icon: 'link_off',
+    messageKey: 'feature.lobby.peerMenu.syncNobodyToAsk',
+    colorClass: 'text-ui-danger',
+    showsBar: false,
+  },
+  stalled: {
+    state: 'stalled',
+    icon: 'warning',
+    messageKey: 'feature.lobby.peerMenu.syncStalled',
+    colorClass: 'text-ui-warning',
+    showsBar: false,
+  },
+};
+
 /** How this browser takes part: with the others over the network, or alone. */
 export const CONNECTION_MODES = ['online', 'offline'] as const;
 export type ConnectionMode = (typeof CONNECTION_MODES)[number];
@@ -89,6 +198,21 @@ export class PeerMenuComponent {
   private switchingMode = false;
   private readonly roomDeletion = inject(RoomDeletionService);
   private readonly linkWatch = inject(LinkWatchService);
+  private readonly peerLink = inject(PeerLinkService);
+  private readonly peerList = viewChild<ElementRef<HTMLElement>>('peerList');
+  /** Whether the list of the others is under NARROW_PEER_LIST_PX wide, where a row takes two lines. */
+  protected readonly isNarrow = signal(false);
+  /** How far this seat's sync of the room has come, as it is counted in the words that say so. */
+  protected readonly syncProgress = this.peerLink.syncProgress;
+  /**
+   * How the standing of this seat's sync is said, among peers; null on a room server, which keeps the
+   * room itself, and before there is anything to say.
+   */
+  protected readonly syncLook = computed<SyncLook | null>(() => {
+    if (this.isServerTransport()) return null;
+    const state = this.syncProgress().state;
+    return state === 'idle' ? null : SYNC_LOOKS[state];
+  });
 
   /** Whether the room is being deleted from here, which holds the button back. */
   protected readonly isDeletingRoom = signal(false);
@@ -444,7 +568,25 @@ export class PeerMenuComponent {
     this.destroyRef.onDestroy(() => clearInterval(timer));
     effect((onCleanup) => {
       if (this.isServerTransport()) onCleanup(this.linkWatch.watch());
+      else onCleanup(this.peerLink.watch());
     });
+    effect((onCleanup) => {
+      const list = this.peerList()?.nativeElement;
+      if (!list) return;
+      onCleanup(observeSize(list, (size) => this.isNarrow.set(size.width < NARROW_PEER_LIST_PX)));
+    });
+  }
+
+  /**
+   * The rows of the list of the others. Among peers, one for each link the network tells of, those
+   * the room only lists among them, with how the link is drawn. On a room server, one for each
+   * member the server gives, with nothing said of links, which every seat has to the server alone.
+   */
+  protected peerRows(): PeerRow[] {
+    if (this.isServerTransport()) {
+      return this.networkService.peerContexts.map((context) => ({ peerId: context.peerId, link: null }));
+    }
+    return this.peerLink.links().map((link) => ({ peerId: link.peerId, link: PEER_LINK_LOOKS[link.state] }));
   }
 
   /**

@@ -1,7 +1,9 @@
+import { signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PeerLinkRow, PeerLinkService, SyncProgress } from '@axe/application/lobby/peer-link.service';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -781,6 +783,362 @@ describe('PeerMenuComponent', () => {
 
       fixture.destroy();
       expect(watch).toHaveBeenLastCalledWith(false);
+    });
+  });
+
+  describe('how each of the others is reached and how far the sync has come', () => {
+    let links: WritableSignal<readonly PeerLinkRow[]>;
+    let progress: WritableSignal<SyncProgress>;
+    let stopWatching: ReturnType<typeof vi.fn>;
+    let watch: ReturnType<typeof vi.fn>;
+    let transport: 'skyway' | 'server';
+    let resize: ((width: number) => void) | null;
+    let aoi: PeerCursor;
+
+    const root = () => fixture.nativeElement as HTMLElement;
+    const rows = () => [...root().querySelectorAll<HTMLElement>('[data-testid="peer-menu-row"]')];
+    const rowOf = (peerId: string) => root().querySelector<HTMLElement>(`[data-peer-id="${peerId}"]`)!;
+    const mark = (peerId: string) => rowOf(peerId).querySelector<HTMLElement>('[data-testid="peer-menu-link"]')!;
+    const word = (peerId: string) => rowOf(peerId).querySelector<HTMLElement>('[data-testid="peer-menu-link-word"]');
+    const hint = (peerId: string) => rowOf(peerId).querySelector<HTMLElement>('[data-testid="peer-menu-link-hint"]');
+    const sync = () => root().querySelector<HTMLElement>('[data-testid="peer-menu-sync"]');
+    const classes = (element: Element) => [...element.classList].sort();
+    const open = () => {
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+    };
+
+    beforeEach(() => {
+      fixture.destroy();
+      links = signal<readonly PeerLinkRow[]>([]);
+      progress = signal<SyncProgress>({ state: 'idle', count: 0 });
+      stopWatching = vi.fn();
+      watch = vi.fn(() => stopWatching);
+      const service = TestBed.inject(PeerLinkService) as unknown as Record<string, unknown>;
+      service['links'] = links;
+      service['syncProgress'] = progress;
+      service['watch'] = watch;
+      transport = 'skyway';
+      vi.spyOn(Network.instance, 'transport', 'get').mockImplementation(() => transport);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        peerId: 'my-peer-id',
+        userId: 'my-user',
+        roomId: 'Ab3',
+        roomName: '卓',
+        isRoom: true,
+        isOpen: true,
+        password: '',
+        hasPassword: false,
+      } as never);
+      vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(true);
+      resize = null;
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(private readonly told: (entries: { contentRect: { width: number; height: number } }[]) => void) {}
+          observe(): void {
+            resize = (width) => this.told([{ contentRect: { width, height: 10 } }]);
+          }
+          disconnect(): void {
+            resize = null;
+          }
+        }
+      );
+      PeerCursor.createMyCursor();
+      aoi = new PeerCursor();
+      aoi.peerId = 'peer-aoi';
+      aoi.name = '葵';
+      aoi.initialize();
+      aoi.timestampReceive = new Date('2026-11-07T21:29:48').getTime();
+    });
+
+    afterEach(() => {
+      fixture.destroy();
+      aoi.destroy();
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    it('draws a row for every link, with the name its cursor carries or the start of its id before one arrives', () => {
+      links.set([
+        { peerId: 'peer-aoi', state: 'direct' },
+        { peerId: 'peer-without-cursor', state: 'failed' },
+      ]);
+      open();
+
+      expect(rows()).toHaveLength(2);
+      expect(rowOf('peer-aoi').textContent).toContain('葵');
+      expect(rowOf('peer-without-cursor').textContent).toContain('peer-w');
+    });
+
+    it('marks a direct link with its icon alone, named for a screen reader, and says nothing under it', () => {
+      links.set([{ peerId: 'peer-aoi', state: 'direct' }]);
+      open();
+
+      expect(mark('peer-aoi').textContent?.trim()).toBe('link');
+      expect(mark('peer-aoi').getAttribute('aria-label')).toBe('直接');
+      expect(word('peer-aoi')).toBeNull();
+      expect(hint('peer-aoi')).toBeNull();
+      expect(rowOf('peer-aoi').dataset['link']).toBe('direct');
+    });
+
+    it('says a direct link goes through a relay server, with an icon of its own, and nothing under it', () => {
+      links.set([{ peerId: 'peer-aoi', state: 'turn' }]);
+      open();
+
+      expect(mark('peer-aoi').textContent?.trim()).toBe('alt_route');
+      expect(word('peer-aoi')!.textContent?.trim()).toBe('中継サーバー経由');
+      expect(hint('peer-aoi')).toBeNull();
+    });
+
+    it('says a peer is reached through others only, in the warning colour, and explains under the row', () => {
+      links.set([{ peerId: 'peer-aoi', state: 'relayed' }]);
+      open();
+
+      expect(mark('peer-aoi').textContent?.trim()).toBe('people');
+      expect(word('peer-aoi')!.textContent?.trim()).toBe('他の人経由のみ');
+      expect(word('peer-aoi')!.className).toContain('text-ui-warning');
+      expect(hint('peer-aoi')!.textContent?.trim()).toBe(
+        'この人とは直接つながっていません。部屋のデータは他の人から受け取ります。'
+      );
+    });
+
+    it('says a peer is being reconnected to, in the accent colour, with nothing under the row', () => {
+      links.set([{ peerId: 'peer-aoi', state: 'reconnecting' }]);
+      open();
+
+      expect(mark('peer-aoi').textContent?.trim()).toBe('sync');
+      expect(word('peer-aoi')!.textContent?.trim()).toBe('再接続中');
+      expect(word('peer-aoi')!.className).toContain('text-ui-accent');
+      expect(hint('peer-aoi')).toBeNull();
+    });
+
+    it('says a peer cannot be connected to, in the danger colour, and explains under the row', () => {
+      links.set([{ peerId: 'peer-aoi', state: 'failed' }]);
+      open();
+
+      expect(mark('peer-aoi').textContent?.trim()).toBe('link_off');
+      expect(word('peer-aoi')!.textContent?.trim()).toBe('接続できません（再試行中）');
+      expect(word('peer-aoi')!.className).toContain('text-ui-danger');
+      expect(hint('peer-aoi')).not.toBeNull();
+    });
+
+    it('gives the five states five icons and, but for the direct one, five words', () => {
+      const states = ['direct', 'turn', 'relayed', 'reconnecting', 'failed'] as const;
+      links.set(states.map((state) => ({ peerId: `peer-${state}`, state })));
+      open();
+
+      const icons = states.map((state) => mark(`peer-${state}`).textContent?.trim());
+      const words = states.map((state) => word(`peer-${state}`)?.textContent?.trim() ?? '');
+      expect(new Set(icons).size).toBe(5);
+      expect(new Set(words).size).toBe(5);
+    });
+
+    it('follows a link as it changes, drawing the row again', () => {
+      links.set([{ peerId: 'peer-aoi', state: 'reconnecting' }]);
+      open();
+      expect(word('peer-aoi')!.textContent).toContain('再接続中');
+
+      links.set([{ peerId: 'peer-aoi', state: 'direct' }]);
+      fixture.detectChanges();
+
+      expect(word('peer-aoi')).toBeNull();
+    });
+
+    it('keeps the role, the last answer and the id on a row in any state', () => {
+      links.set([{ peerId: 'peer-aoi', state: 'failed' }]);
+      open();
+
+      const row = rowOf('peer-aoi');
+      expect(row.querySelector('[data-testid="peer-menu-last-answer"]')!.textContent).toContain('21:29:48');
+      expect(row.textContent).toContain('peer-a');
+      expect(row.textContent).toContain('PL');
+    });
+
+    it('lets the game master give a role from a row in any state', () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      links.set([{ peerId: 'peer-aoi', state: 'relayed' }]);
+      open();
+
+      const picker = rowOf('peer-aoi').querySelector<HTMLSelectElement>('[data-testid="peer-menu-role-peer-aoi"]')!;
+      picker.selectedIndex = [...picker.options].findIndex((option) => option.textContent?.includes('見学'));
+      picker.dispatchEvent(new Event('change'));
+
+      expect(aoi.role).toBe(PeerRole.Guest);
+    });
+
+    it('watches the links while it is open, and stops once it closes', () => {
+      open();
+      expect(watch).toHaveBeenCalledTimes(1);
+      expect(stopWatching).not.toHaveBeenCalled();
+
+      fixture.destroy();
+
+      expect(stopWatching).toHaveBeenCalledTimes(1);
+    });
+
+    describe('where the panel is narrow', () => {
+      beforeEach(() => {
+        links.set([{ peerId: 'peer-aoi', state: 'failed' }]);
+        open();
+      });
+
+      const list = () => root().querySelector<HTMLElement>('[data-testid="peer-menu-peers"]')!;
+      const lineBreak = () => rowOf('peer-aoi').querySelector('[data-testid="peer-menu-row-break"]');
+      const role = () => rowOf('peer-aoi').querySelector<HTMLElement>('[data-testid="peer-menu-row-role"]')!;
+
+      it('keeps the mark, the word, the name, the role and the time on one line from 320px up', () => {
+        resize!(320);
+        fixture.detectChanges();
+
+        expect(list().hasAttribute('data-narrow')).toBe(false);
+        expect(lineBreak()).toBeNull();
+        expect(word('peer-aoi')!.className).toContain('order-2');
+        expect(role().className).toContain('order-4');
+      });
+
+      it('moves the word and the role to a second line under 320px, and lets the words wrap', () => {
+        resize!(280);
+        fixture.detectChanges();
+
+        expect(list().hasAttribute('data-narrow')).toBe(true);
+        expect(lineBreak()).not.toBeNull();
+        expect(word('peer-aoi')!.className).toContain('order-6');
+        expect(word('peer-aoi')!.className).not.toContain('truncate');
+        expect(role().className).toContain('order-7');
+        expect(hint('peer-aoi')!.className).not.toContain('truncate');
+      });
+
+      it('goes back to one line once the panel is wide again', () => {
+        resize!(280);
+        fixture.detectChanges();
+        resize!(400);
+        fixture.detectChanges();
+
+        expect(list().hasAttribute('data-narrow')).toBe(false);
+        expect(lineBreak()).toBeNull();
+      });
+    });
+
+    describe('the sync of this seat', () => {
+      it('says nothing before there is anything to say', () => {
+        open();
+        expect(sync()).toBeNull();
+      });
+
+      it('says how many objects are still to come while receiving, over a bar, and follows the count', () => {
+        progress.set({ state: 'receiving', count: 128 });
+        open();
+
+        expect(sync()!.textContent).toContain('部屋のデータを受け取っています（残り128件）');
+        expect(sync()!.querySelector('[role="progressbar"]')).not.toBeNull();
+
+        progress.set({ state: 'receiving', count: 64 });
+        fixture.detectChanges();
+        expect(sync()!.textContent).toContain('残り64件');
+        expect(sync()!.textContent).not.toContain('%');
+      });
+
+      it('says the room is up to date once settled, and keeps saying so, with no bar', () => {
+        progress.set({ state: 'settled', count: 0 });
+        open();
+
+        expect(sync()!.textContent).toContain('部屋のデータは最新です');
+        expect(sync()!.querySelector('[role="progressbar"]')).toBeNull();
+      });
+
+      it('says there is nobody to receive from, though there is nobody to ask for a fresh sync either', () => {
+        vi.spyOn(Network.instance, 'peerIds', 'get').mockReturnValue([]);
+        progress.set({ state: 'nobody', count: 0 });
+        open();
+
+        expect(component.canRequestFullSync).toBe(false);
+        expect(sync()!.textContent).toContain('部屋のデータを受け取れる相手がいません');
+        expect(sync()!.className).toContain('text-ui-danger');
+      });
+
+      it('says receiving has stalled, and goes back to the count once it moves', () => {
+        progress.set({ state: 'stalled', count: 9 });
+        open();
+        expect(sync()!.textContent).toContain(
+          '受け取りが止まっています。回線が混んでいるか、相手とつながっていません。'
+        );
+        expect(sync()!.className).toContain('text-ui-warning');
+
+        progress.set({ state: 'receiving', count: 8 });
+        fixture.detectChanges();
+        expect(sync()!.textContent).not.toContain('受け取りが止まっています');
+        expect(sync()!.textContent).toContain('残り8件');
+      });
+
+      it('stands above the button that asks for a fresh sync', () => {
+        vi.spyOn(Network.instance, 'peerIds', 'get').mockReturnValue(['peer-aoi']);
+        progress.set({ state: 'settled', count: 0 });
+        open();
+
+        const button = [...root().querySelectorAll('button')].find((b) =>
+          b.textContent?.includes('部屋のデータを同期し直す')
+        )!;
+        expect(sync()!.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(sync()!.nextElementSibling).toBe(button);
+      });
+    });
+
+    describe('on a room server', () => {
+      beforeEach(() => {
+        transport = 'server';
+        vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+        vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
+          { peerId: 'peer-aoi', isOpen: true },
+        ] as never);
+        links.set([{ peerId: 'peer-other', state: 'failed' }]);
+        progress.set({ state: 'stalled', count: 5 });
+      });
+
+      it('draws its rows from the members the server gives, with no mark, word or explanation', () => {
+        open();
+
+        expect(rows().map((row) => row.dataset['peerId'])).toEqual(['peer-aoi']);
+        expect(root().querySelector('[data-testid="peer-menu-link"]')).toBeNull();
+        expect(root().querySelector('[data-testid="peer-menu-link-word"]')).toBeNull();
+        expect(root().querySelector('[data-testid="peer-menu-link-hint"]')).toBeNull();
+        expect(rowOf('peer-aoi').hasAttribute('data-link')).toBe(false);
+      });
+
+      it('keeps the row as it was: the name, the role, the time, then the id under them', () => {
+        open();
+
+        const row = rowOf('peer-aoi');
+        expect(row.className).toBe('border-t border-(--ui-panel-border) px-3 py-1 text-xs text-(--ui-text-muted)');
+        const line = row.firstElementChild!;
+        expect(classes(line)).toEqual(['flex', 'gap-2', 'items-center']);
+        expect([...line.children].map((child) => child.textContent?.trim())).toEqual(['葵', 'PL', '[-:--:--]']);
+        expect([...line.children].map(classes)).toEqual([
+          ['flex-1', 'min-w-0', 'truncate'],
+          expect.arrayContaining(['font-bold', 'px-1.5', 'py-0.5', 'rounded-sm', 'shrink-0', 'text-[0.65rem]']),
+          ['shrink-0', 'text-(--ui-text-dim)'],
+        ]);
+        expect(row.innerHTML).not.toMatch(/[\s"]order-\d/);
+        expect(row.children[1].textContent?.trim()).toBe('peer-a');
+        expect(row.children).toHaveLength(2);
+      });
+
+      it('says nothing of the sync and does not watch the links', () => {
+        open();
+
+        expect(sync()).toBeNull();
+        expect(watch).not.toHaveBeenCalled();
+      });
+
+      it('stays one line however narrow the panel is', () => {
+        open();
+        resize?.(200);
+        fixture.detectChanges();
+
+        expect(classes(rowOf('peer-aoi').firstElementChild!)).toEqual(['flex', 'gap-2', 'items-center']);
+        expect(root().querySelector('[data-testid="peer-menu-row-break"]')).toBeNull();
+      });
     });
   });
 
