@@ -1,4 +1,5 @@
 import type { PanelRotationDegrees } from '@axe/application/ui/panel.service';
+import { clamp } from '@axe/core/util/clamp';
 import { asCutInMultiDirectionMode, type CutInMultiDirectionMode } from '@axe/domain/tabletop/cut-in-multi-direction';
 import {
   type RadialMenuSeat,
@@ -161,7 +162,7 @@ function fitPanel(
   const sideways = rotationDegrees === 90 || rotationDegrees === 270;
   const maxPanelWidth = sideways ? permittedBounds.height : permittedBounds.width;
   const maxPanelHeight = sideways ? permittedBounds.width : permittedBounds.height;
-  const chrome = Math.min(Math.max(0, chromeHeight), maxPanelHeight);
+  const chrome = clamp(chromeHeight, 0, maxPanelHeight);
   const sourceWidth = Math.max(0, cutInWidth);
   const sourceHeight = Math.max(0, cutInHeight);
   const widthScale = sourceWidth > 0 ? maxPanelWidth / sourceWidth : 1;

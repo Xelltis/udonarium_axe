@@ -11,6 +11,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { clamp } from '@axe/core/util/clamp';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -217,7 +218,7 @@ export class DiceSymbolSheetComponent {
     if (!dice) return;
     const num = Number(value);
     if (!Number.isFinite(num)) return;
-    dice.komaImageHeight = Math.min(750, Math.max(50, num));
+    dice.komaImageHeight = clamp(num, 50, 750);
   }
 
   /** Turns the die to a face directly, without rolling it. */

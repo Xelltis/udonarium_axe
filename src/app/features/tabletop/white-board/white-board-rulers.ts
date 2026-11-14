@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 export const BOARD_ZOOMS: readonly number[] = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
 export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 8;
@@ -22,7 +23,7 @@ export interface Scrollable {
 
 /** Holds the board editor's zoom between a tenth and eight times. */
 export function clampZoom(next: number): number {
-  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+  return clamp(next, MIN_ZOOM, MAX_ZOOM);
 }
 
 /**

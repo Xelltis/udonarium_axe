@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
+import { clamp } from '@axe/core/util/clamp';
 
 export type VnTypewriterSpeed = 'off' | 'slow' | 'normal' | 'fast';
 export type VnPortraitAnimation = 'none' | 'fade' | 'slide' | 'bounce';
@@ -43,7 +44,7 @@ interface VnSettingsSnapshot {
 function clampSpeed(value: unknown): number {
   const num = typeof value === 'number' ? value : NaN;
   if (Number.isNaN(num)) return 1;
-  return Math.min(VN_AUTO_PLAY_SPEED_MAX, Math.max(VN_AUTO_PLAY_SPEED_MIN, num));
+  return clamp(num, VN_AUTO_PLAY_SPEED_MIN, VN_AUTO_PLAY_SPEED_MAX);
 }
 
 function pickReadability(value: unknown): VnReadability {

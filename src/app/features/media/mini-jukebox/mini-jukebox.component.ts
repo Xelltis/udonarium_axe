@@ -18,6 +18,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { observeSize } from '@axe/core/util/observe-size';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AudioTag } from '@axe/domain/media/audio-tag';
@@ -244,8 +245,8 @@ export class MiniJukeboxComponent {
       const margin = 3;
       const maxLeft = Math.max(margin, window.innerWidth - this.expandedWidth - margin);
       const maxTop = Math.max(margin, window.innerHeight - this.expandedHeight - margin);
-      const left = Math.min(Math.max(parseFloat(this.initialLeft) || 0, margin), maxLeft);
-      const top = Math.min(Math.max(parseFloat(this.initialTop) || 0, margin), maxTop);
+      const left = clamp(parseFloat(this.initialLeft) || 0, margin, maxLeft);
+      const top = clamp(parseFloat(this.initialTop) || 0, margin, maxTop);
       el.style.left = `${left}px`;
       el.style.top = `${top}px`;
     }

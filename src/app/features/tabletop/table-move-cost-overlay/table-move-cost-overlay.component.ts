@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { clamp } from '@axe/core/util/clamp';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { MOST_MOVE_COST_EXTRA } from '@axe/domain/tabletop/table-move-cost';
@@ -25,7 +26,7 @@ const ROAD_ALPHA = 0.32;
 
 /** How solidly a stretch is drawn, so that the dearer ground of two reads as the dearer one. */
 function alphaFor(charge: number): number {
-  const share = Math.min(1, Math.max(0, (charge - 1) / (MOST_MOVE_COST_EXTRA - 1)));
+  const share = clamp((charge - 1) / (MOST_MOVE_COST_EXTRA - 1), 0, 1);
   return LEAST_ALPHA + share * (MOST_ALPHA - LEAST_ALPHA);
 }
 

@@ -12,6 +12,7 @@ import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { type MarqueeRect, SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { clamp } from '@axe/core/util/clamp';
 import { CAMERA_GLIDE_MS, easeOut } from '@axe/domain/tabletop/camera/camera-glide';
 import { tableCameraAttribute, TableCameraView, type TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
@@ -48,7 +49,7 @@ const ZOOM_LIMITS_CELL_PX = 50;
  */
 export function zoomReachFor(gridSize: number): number {
   if (!(gridSize > 0)) return 1;
-  return Math.min(1.5, Math.max(0.75, Math.sqrt(gridSize / ZOOM_LIMITS_CELL_PX)));
+  return clamp(Math.sqrt(gridSize / ZOOM_LIMITS_CELL_PX), 0.75, 1.5);
 }
 
 /** How much room is left round a board taken in whole, as a share of its width across. */

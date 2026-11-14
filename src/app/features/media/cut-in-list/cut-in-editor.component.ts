@@ -10,6 +10,7 @@ import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { portraitElementAt } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
@@ -539,7 +540,7 @@ export class CutInEditorComponent {
   private normalizeVideoVolume(videoVolume: number): number {
     const volume = Number(videoVolume);
     if (!Number.isFinite(volume)) return 50;
-    return Math.min(100, Math.max(0, Math.round(volume)));
+    return clamp(Math.round(volume), 0, 100);
   }
 
   private get cutInLauncher(): CutInLauncher | null {

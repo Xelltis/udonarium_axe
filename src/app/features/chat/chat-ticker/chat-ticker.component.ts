@@ -14,6 +14,7 @@ import {
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import {
@@ -136,7 +137,7 @@ export class ChatTickerComponent {
     if (!canvas) return;
     const width = Math.max(1, window.innerWidth);
     const height = Math.max(1, window.innerHeight);
-    const ratio = Math.min(MAX_DEVICE_PIXEL_RATIO, Math.max(1, window.devicePixelRatio || 1));
+    const ratio = clamp(window.devicePixelRatio || 1, 1, MAX_DEVICE_PIXEL_RATIO);
     const pixelWidth = Math.round(width * ratio);
     const pixelHeight = Math.round(height * ratio);
     if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
@@ -177,7 +178,7 @@ export class ChatTickerComponent {
   private pixelsPerSecond(): number {
     const value = Number(this.tabletopService.display().multiAngleTickerPixelsPerSecond);
     return Number.isFinite(value)
-      ? Math.min(MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, Math.max(MIN_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, value))
+      ? clamp(value, MIN_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND, MAX_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND)
       : DEFAULT_MULTI_ANGLE_TICKER_PIXELS_PER_SECOND;
   }
 

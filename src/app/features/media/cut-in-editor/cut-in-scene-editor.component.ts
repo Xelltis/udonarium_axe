@@ -19,6 +19,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
+import { clamp } from '@axe/core/util/clamp';
 import { coalesce } from '@axe/core/util/debounce';
 import { EditHistory } from '@axe/core/util/edit-history';
 import { observeSize } from '@axe/core/util/observe-size';
@@ -197,7 +198,7 @@ export class CutInSceneEditorComponent {
     const seconds = Number((event.target as HTMLInputElement).value);
     if (!Number.isFinite(seconds)) return;
     this.pause();
-    this.onSeek(Math.min(this.durationMs(), Math.max(0, Math.round(seconds * 1000))));
+    this.onSeek(clamp(Math.round(seconds * 1000), 0, this.durationMs()));
   }
 
   private readonly stageSize = signal({ width: 0, height: 0 });
@@ -783,7 +784,7 @@ export class CutInSceneEditorComponent {
   /** A step along the scene, no smaller than what a moment is rounded to. */
   protected stepBy(deltaMs: number): void {
     this.pause();
-    this.onSeek(Math.min(this.durationMs(), Math.max(0, this.playheadMs() + deltaMs)));
+    this.onSeek(clamp(this.playheadMs() + deltaMs, 0, this.durationMs()));
   }
 
   /**

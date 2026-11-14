@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
+import { clamp } from '@axe/core/util/clamp';
 import { distanceBetween, type ReplayRoutePoint, routeLength } from '@axe/domain/replay/replay-route';
 import { type FloorMarkLayer, floorMarkLayersOf, layFloorMarks } from '@axe/ui/tabletop/floor-marks';
 
@@ -98,7 +99,7 @@ export class ReplayRouteOverlayComponent {
  */
 export function buildSegments(points: readonly ReplayRoutePoint[], progress: number): ReplayRouteSegment[] {
   const total = routeLength(points);
-  const travelled = total * Math.max(0, Math.min(1, progress));
+  const travelled = total * clamp(progress, 0, 1);
   const segments: ReplayRouteSegment[] = [];
   let walked = 0;
 

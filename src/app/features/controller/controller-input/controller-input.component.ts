@@ -20,6 +20,7 @@ import { Network } from '@axe/core/network/network';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
@@ -89,7 +90,7 @@ export class ControllerInputComponent {
   }
 
   set colorSelectNo(num: number) {
-    this._colorSelectNo = Math.max(0, Math.min(2, num));
+    this._colorSelectNo = clamp(num, 0, 2);
   }
 
   /**

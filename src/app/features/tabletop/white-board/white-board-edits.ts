@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import {
   MapScene,
   newId,
@@ -184,7 +185,7 @@ export function restack(scene: MapScene, ref: MarkRef, delta: number): void {
     if (!list) continue;
     const at = list.findIndex((entry) => entry.id === ref.id);
     if (at < 0) continue;
-    const to = Math.min(list.length - 1, Math.max(0, at + delta));
+    const to = clamp(at + delta, 0, list.length - 1);
     if (to === at) return;
     const [taken] = list.splice(at, 1);
     list.splice(to, 0, taken);
@@ -401,7 +402,7 @@ export function fadeMark(scene: MapScene, ref: MarkRef, opacity: number): void {
   for (const layer of scene.layers) {
     if (layer.kind !== 'image') continue;
     const item = layer.items.find((entry) => entry.id === ref.id);
-    if (item) item.opacity = Math.min(1, Math.max(0, opacity));
+    if (item) item.opacity = clamp(opacity, 0, 1);
   }
 }
 

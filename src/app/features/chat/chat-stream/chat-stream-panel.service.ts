@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { clamp } from '@axe/core/util/clamp';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import type { ChatStreamComponent } from '@axe/features/chat/chat-stream/chat-stream.component';
 import { Z_VISUAL_NOVEL_PANEL } from '@axe/ui/z-layers';
@@ -37,7 +38,7 @@ export class ChatStreamPanelService {
     const name = panelNameFor(tab);
     if (this.panelService.closeSingle(name)) return;
 
-    const width = Math.min(360, Math.max(260, window.innerWidth - 48));
+    const width = clamp(window.innerWidth - 48, 260, 360);
     this.panelService.openLazy<ChatStreamComponent>(
       () => import('@axe/features/chat/chat-stream/chat-stream.component').then((m) => m.ChatStreamComponent),
       {
@@ -45,7 +46,7 @@ export class ChatStreamPanelService {
         left: spot?.left ?? Math.max(8, window.innerWidth - width - 24),
         top: spot?.top ?? 24,
         width,
-        height: Math.min(480, Math.max(240, window.innerHeight - 220)),
+        height: clamp(window.innerHeight - 220, 240, 480),
         minWidth: 220,
         minHeight: 200,
         // Novel mode covers the screen, and this is a window meant to be watched beside it.

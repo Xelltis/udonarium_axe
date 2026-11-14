@@ -23,6 +23,7 @@ import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { capturePointer } from '@axe/core/input/pointer-capture';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { clamp } from '@axe/core/util/clamp';
 import { downloadBlob } from '@axe/core/util/download-blob';
 import { ShapeGeneratorKind } from '@axe/domain/map-editor/editor-tool';
 import { SceneHistory } from '@axe/domain/map-editor/history';
@@ -501,7 +502,7 @@ export class WhiteBoardEditorComponent {
   }
 
   protected setLayerOpacity(layer: MapLayer, opacity: number): void {
-    layer.opacity = Math.min(1, Math.max(0, opacity));
+    layer.opacity = clamp(opacity, 0, 1);
     this.touched();
   }
 

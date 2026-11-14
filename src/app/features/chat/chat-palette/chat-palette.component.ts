@@ -33,6 +33,7 @@ import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/conte
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { debounce } from '@axe/core/util/debounce';
 import { splitSearchTerms } from '@axe/core/util/text-search';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -585,7 +586,7 @@ export class ChatPaletteComponent {
       if (results.length === 0) return;
       event.preventDefault();
       const step = event.key === 'ArrowDown' ? 1 : -1;
-      const next = Math.min(results.length - 1, Math.max(0, this.activeSearchResult() + step));
+      const next = clamp(this.activeSearchResult() + step, 0, results.length - 1);
       this.activeSearchResult.set(next);
       this.searchResultsRef()
         ?.nativeElement.querySelectorAll<HTMLElement>('[data-result-line]')

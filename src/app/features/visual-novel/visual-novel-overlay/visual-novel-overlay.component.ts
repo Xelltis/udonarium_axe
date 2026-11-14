@@ -27,6 +27,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { Logger } from '@axe/core/logging/logger';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { chatColorOf } from '@axe/domain/chat/chat-color';
@@ -442,7 +443,7 @@ export class VisualNovelOverlayComponent {
     this.objectChange.versionOf(object.identifier)();
     const children = object.imageDataElement?.children ?? [];
     if (children.length < 1) return null;
-    const index = Math.min(Math.max(0, object.selectedPortraitIndex), children.length - 1);
+    const index = clamp(object.selectedPortraitIndex, 0, children.length - 1);
     const element = children[index] as DataElement | undefined;
     const url = this.imageService.getEmptyOr((element?.value as string) ?? '').url;
     return { index, count: children.length, url, name: portraitNameOf(element) };
@@ -660,14 +661,14 @@ export class VisualNovelOverlayComponent {
   toggleBacklog(): void {
     if (this.panelService.closeSingle(VN_BACKLOG_PANEL)) return;
     this.closePopovers();
-    const width = Math.min(700, Math.max(320, window.innerWidth - 48));
+    const width = clamp(window.innerWidth - 48, 320, 700);
     this.panelService.open<VisualNovelBacklogComponent>(VisualNovelBacklogComponent, {
       title: this.t('feature.visualNovel.log'),
       // Off to the side rather than over the middle, which is where the portraits stand.
       left: Math.max(8, window.innerWidth - width - 24),
       top: 24,
       width,
-      height: Math.min(560, Math.max(240, window.innerHeight - 220)),
+      height: clamp(window.innerHeight - 220, 240, 560),
       minWidth: 320,
       minHeight: 200,
       layer: Z_VISUAL_NOVEL_PANEL,
@@ -742,7 +743,7 @@ export class VisualNovelOverlayComponent {
   ): void {
     if (this.panelService.closeSingle(name)) return;
     this.closePopovers();
-    const size = { width: 320, height: Math.min(fit.height, Math.max(240, window.innerHeight - fit.clearance)) };
+    const size = { width: 320, height: clamp(window.innerHeight - fit.clearance, 240, fit.height) };
     this.panelService.open(component, {
       title: this.t(titleKey),
       ...this.spotFor(event, size),
@@ -808,7 +809,7 @@ export class VisualNovelOverlayComponent {
       left: 60,
       top: 60,
       width: 800,
-      height: Math.min(600, Math.max(360, window.innerHeight - 320)),
+      height: clamp(window.innerHeight - 320, 360, 600),
       layer: Z_VISUAL_NOVEL_PANEL,
       single: VN_SHEET_PANEL,
     };
@@ -833,7 +834,7 @@ export class VisualNovelOverlayComponent {
    */
   pickSlot(slot: number): void {
     const character = this.mayEditTable() ? this.speakerCharacter() : null;
-    if (character) character.vnPortraitPos = Math.min(VN_STAGE_SLOT_COUNT - 1, Math.max(0, slot));
+    if (character) character.vnPortraitPos = clamp(slot, 0, VN_STAGE_SLOT_COUNT - 1);
     this.closePopovers();
   }
 

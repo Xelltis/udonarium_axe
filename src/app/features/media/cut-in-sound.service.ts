@@ -2,6 +2,7 @@ import { DestroyRef, inject, Injectable } from '@angular/core';
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { clamp } from '@axe/core/util/clamp';
 import type { CutInScene } from '@axe/domain/media/cut-in-scene';
 import type { CutInSound } from '@axe/domain/media/cut-in-sound';
 import { mixLevelOf } from '@axe/domain/media/mix-level';
@@ -89,7 +90,7 @@ export class CutInSoundService {
     const player = this.playerFor(session, sound.a);
     player.volumeType = VolumeType.CUT_IN;
     player.loop = false;
-    player.volume = Math.min(1, Math.max(0, sound.v / 100));
+    player.volume = clamp(sound.v / 100, 0, 1);
     player.trim = mixLevelOf(sound.a, 'effect');
     player.play(audio);
   }

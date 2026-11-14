@@ -5,6 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -305,7 +306,7 @@ export class VnStageViewService {
     if (this.speechLayout() !== 'bubble') return null;
     const active = this.activeStageCharacter();
     if (!active) return null;
-    return { left: Math.min(83, Math.max(17, active.left)), bottom: '58vh' };
+    return { left: clamp(active.left, 17, 83), bottom: '58vh' };
   });
 
   readonly bubbleTextSizeClass = computed(() => {

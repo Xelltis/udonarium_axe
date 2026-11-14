@@ -6,6 +6,7 @@ import { ConcealmentService } from '@axe/application/tabletop/concealment.servic
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { presetSoundLabelKey, soundFileName } from '@axe/domain/media/preset-sound-labels';
@@ -170,7 +171,7 @@ export class SwitchActionListComponent {
 
   protected setCell(index: number, key: 'col' | 'row', value: string): void {
     const held = this.actions()[index];
-    const cell = Math.max(0, Math.min(999, Math.round(Number(value) || 0)));
+    const cell = clamp(Math.round(Number(value) || 0), 0, 999);
     if (held?.kind === 'carry') this.replace(index, { ...held, [key]: cell });
   }
 
