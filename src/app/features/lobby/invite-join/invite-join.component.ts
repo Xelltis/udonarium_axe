@@ -20,6 +20,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/network/network';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { isBanned, ServerRoomApiError } from '@axe/core/network/server/server-room-api';
+import { hasWatchedWithoutLogin, noteWatchedWithoutLogin } from '@axe/core/storage/watched-without-login';
 import { InviteLinkParams, parseInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -38,9 +39,6 @@ type InviteJoinState = 'idle' | 'joining' | 'askLogin' | 'offline' | 'notFound' 
 
 /** The states an invitation is over in, gone into its room or not, which the table waits on to be set out. */
 const INVITATION_OVER: ReadonlySet<InviteJoinState> = new Set(['offline', 'notFound', 'failed', 'banned', 'done']);
-
-/** Where a tab keeps the rooms its reader chose to watch rather than log in for, so a reload does not ask again. */
-const WATCHED_WITHOUT_LOGIN_KEY = 'udonarium-axe.watched-without-login';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -173,14 +171,7 @@ export class InviteJoinComponent {
 
   /** Goes in without logging in, to watch, which this tab then remembers for the room. */
   protected watch(): void {
-    const roomKey = this.askedRoomKey;
-    try {
-      const watched = readWatchedWithoutLogin();
-      if (!watched.includes(roomKey))
-        sessionStorage.setItem(WATCHED_WITHOUT_LOGIN_KEY, JSON.stringify([...watched, roomKey]));
-    } catch {
-      // a tab that keeps nothing asks again on a reload
-    }
+    noteWatchedWithoutLogin(this.askedRoomKey);
     this.answerLogin?.();
   }
 
@@ -194,7 +185,7 @@ export class InviteJoinComponent {
    */
   private async logInOrWatch(roomKey: string): Promise<void> {
     if (!this.auth.isConfigured || this.auth.account()) return;
-    if (this.overlayMode.active() || readWatchedWithoutLogin().includes(roomKey)) return;
+    if (this.overlayMode.active() || hasWatchedWithoutLogin(roomKey)) return;
     if (this.auth.offersLogin() === null) await this.auth.refreshProviders();
     if (this.auth.offersLogin() !== true || this.auth.account()) return;
     this.askedRoomKey = roomKey;
@@ -330,15 +321,5 @@ export class InviteJoinComponent {
     if (!role) return;
     PeerCursor.myCursor.role = role;
     PeerCursor.myCursor.update();
-  }
-}
-
-/** The rooms this tab's reader chose to watch rather than log in for, by key. */
-function readWatchedWithoutLogin(): string[] {
-  try {
-    const read: unknown = JSON.parse(sessionStorage.getItem(WATCHED_WITHOUT_LOGIN_KEY) ?? '[]');
-    return Array.isArray(read) ? read.filter((key): key is string => typeof key === 'string') : [];
-  } catch {
-    return [];
   }
 }
