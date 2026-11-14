@@ -112,7 +112,79 @@ describe('EffectTargetOverlayComponent', () => {
     fixture.detectChanges();
 
     expect(component().links()).toHaveLength(1);
-    expect(elements()).toHaveLength(3);
+    expect(elements()).toHaveLength(4);
+  });
+
+  describe('the mark of the caster', () => {
+    function casterMark(): HTMLElement | null {
+      return (fixture.nativeElement as HTMLElement).querySelector('[data-testid="effect-caster-mark"]');
+    }
+
+    function targetMark(): HTMLElement {
+      return (fixture.nativeElement as HTMLElement).querySelector('[data-testid="effect-target-mark"]')!;
+    }
+
+    function aimFrom(caster: GameCharacter): void {
+      const selection = TestBed.inject(SelectionSignalService);
+      selection.selectObject(caster.identifier, caster.aliasName);
+      TestBed.tick();
+      targeting.begin(preset);
+    }
+
+    it('lies under the caster from the start of the aiming, before any target is picked', () => {
+      const camera = TestBed.inject(TableCameraService);
+      camera.setLayout({ left: 0, top: 30, width: 1280, height: 770, boardWidth: 1000, boardHeight: 750 });
+      camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
+      aimFrom(characters[0]);
+      fixture.detectChanges();
+
+      expect(casterMark()?.style.transform).toMatch(/^matrix3d\(/);
+      expect(component().marks()).toHaveLength(0);
+    });
+
+    it('differs from the ring of a target in shape and in colour', () => {
+      aimFrom(characters[0]);
+      targeting.pick(characters[1].identifier);
+      fixture.detectChanges();
+
+      const caster = casterMark()!;
+      const target = targetMark();
+      expect(target.style.borderRadius).toBe('50%');
+      expect(caster.style.borderRadius).toBe('');
+      expect(caster.style.borderStyle).toBe('double');
+      expect(target.style.borderStyle).toBe('solid');
+      expect(caster.style.borderColor).not.toBe(target.style.borderColor);
+    });
+
+    it('lays no board under the caster, which would dim the table', () => {
+      aimFrom(characters[0]);
+      fixture.detectChanges();
+
+      expect(casterMark()!.style.background).toBe('');
+      expect(casterMark()!.style.backgroundColor).toBe('');
+    });
+
+    it('moves to the piece the caster is changed to, and goes when there is none', () => {
+      aimFrom(characters[0]);
+      fixture.detectChanges();
+      expect(component().caster()?.identifier).toBe(characters[0].identifier);
+
+      targeting.setCaster(characters[2].identifier);
+      fixture.detectChanges();
+      expect(component().caster()?.identifier).toBe(characters[2].identifier);
+
+      targeting.setCaster('');
+      fixture.detectChanges();
+      expect(casterMark()).toBeNull();
+    });
+
+    it('is left off where it is asked to be', () => {
+      fixture.componentRef.setInput('casterRing', false);
+      aimFrom(characters[0]);
+      fixture.detectChanges();
+
+      expect(casterMark()).toBeNull();
+    });
   });
 
   function component(): EffectTargetOverlayComponent {

@@ -1,11 +1,14 @@
 @if (area(); as areaShape) {
   <div [ngStyle]="areaStyle(areaShape)"></div>
 }
+@if (caster(); as casterMark) {
+  <div data-testid="effect-caster-mark" [ngStyle]="casterStyle(casterMark)"></div>
+}
 @for (link of links(); track link.identifier) {
   <div [ngStyle]="linkStyle(link)"></div>
 }
 @for (mark of marks(); track mark.identifier) {
-  <div [ngStyle]="markStyle(mark)"></div>
+  <div data-testid="effect-target-mark" [ngStyle]="markStyle(mark)"></div>
   @if (badges()) {
     <div [ngStyle]="badgeStyle(mark)">{{ mark.order }}</div>
   }

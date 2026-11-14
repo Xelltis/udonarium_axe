@@ -1,6 +1,7 @@
 import { NgStyle } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import {
+  EffectCasterMark,
   EffectTargetingService,
   EffectTargetLink,
   EffectTargetMark,
@@ -12,6 +13,10 @@ const LINK_THICKNESS = 5;
 const LINK_LIFT = 6;
 const MARK_SIZE = 56;
 const BADGE_SIZE = 26;
+/** How far each point of the caster's mark stands from its middle. */
+const CASTER_MARK_REACH = 40;
+const CASTER_MARK_COLOR = '#f4fbff';
+const CASTER_MARK_EDGE = '#0b2233';
 
 /** A point of the floor, in table pixels. */
 interface FloorPoint {
@@ -20,9 +25,12 @@ interface FloorPoint {
 }
 
 /**
- * What shows while targets are being chosen: the marks in order, and a line from the caster to each.
+ * What shows while targets are being chosen: the marks in order, a line from the caster to each, and
+ * the mark of the caster itself.
  *
  * The marks lie flat and only the numbers stand up; flat numbers cannot be read once the board is tilted.
+ * A target is ringed by a circle in the effect's colour and the caster by a pale double-lined diamond, so
+ * the two are told apart by shape as well as by colour.
  */
 @Component({
   selector: 'effect-target-overlay',
@@ -40,6 +48,11 @@ export class EffectTargetOverlayComponent {
    * pieces carry their own numbers.
    */
   readonly badges = input(true);
+  /**
+   * Whether the piece the effect is cast from is given its mark. The first-person view leaves it off:
+   * the caster there is the piece looked out of, whose feet are not in the view.
+   */
+  readonly casterRing = input(true);
   private readonly camera = inject(TABLE_SCREEN);
 
   /**
@@ -64,6 +77,9 @@ export class EffectTargetOverlayComponent {
   });
 
   readonly marks = computed<EffectTargetMark[]>(() => this.targeting.marks());
+
+  /** Where the caster's mark lies, or null where there is no caster to mark or the mark is left off. */
+  readonly caster = computed<EffectCasterMark | null>(() => (this.casterRing() ? this.targeting.casterMark() : null));
 
   /** How far it reaches, drawn once the piece at the centre is settled. */
   readonly area = computed<{ x: number; y: number; z: number; size: number } | null>(() => {
@@ -170,6 +186,39 @@ export class EffectTargetOverlayComponent {
       'border-radius': '50%',
       border: `3px solid ${this.color()}`,
       'box-shadow': `0 0 12px ${this.accent()}`,
+      'transform-origin': '0 0',
+      'pointer-events': 'none',
+    };
+  }
+
+  protected casterStyle(caster: EffectCasterMark): Record<string, string> {
+    const size = Math.round(CASTER_MARK_REACH * Math.SQRT2);
+    return this.laid(
+      this.casterLook(size),
+      this.screen()?.flat(
+        [
+          { x: caster.x, y: caster.y - CASTER_MARK_REACH },
+          { x: caster.x + CASTER_MARK_REACH, y: caster.y },
+          { x: caster.x, y: caster.y + CASTER_MARK_REACH },
+          { x: caster.x - CASTER_MARK_REACH, y: caster.y },
+        ],
+        caster.z + 1,
+        size,
+        size
+      )
+    );
+  }
+
+  private casterLook(size: number): Record<string, string> {
+    return {
+      position: 'absolute',
+      left: '0px',
+      top: '0px',
+      width: size + 'px',
+      height: size + 'px',
+      'box-sizing': 'border-box',
+      border: `6px double ${CASTER_MARK_COLOR}`,
+      'box-shadow': `0 0 0 1px ${CASTER_MARK_EDGE}, inset 0 0 0 1px ${CASTER_MARK_EDGE}`,
       'transform-origin': '0 0',
       'pointer-events': 'none',
     };
