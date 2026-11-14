@@ -5,6 +5,7 @@ import {
   DestroyRef,
   effect,
   inject,
+  linkedSignal,
   signal,
   untracked,
 } from '@angular/core';
@@ -61,7 +62,17 @@ export class InviteJoinComponent {
   private readonly auth = inject(ServerAuthService);
   private readonly startRoom = inject(StartRoomService);
 
-  private readonly state = signal<InviteJoinState>('idle');
+  /**
+   * How the invitation stands. One still joining has failed once reaching the network is given up
+   * on, as it will not come.
+   */
+  private readonly state = linkedSignal<boolean, InviteJoinState>({
+    source: this.reach.unreachable,
+    computation: (unreachable, previous) => {
+      const held = previous?.value ?? 'idle';
+      return unreachable && held === 'joining' ? 'failed' : held;
+    },
+  });
   private readonly roomName = signal('');
   /** The operator's contact looking the room up was refused with; null for none. */
   private readonly refusalContact = signal<string | null>(null);
@@ -130,10 +141,7 @@ export class InviteJoinComponent {
       this.state.set('offline');
       return;
     }
-    this.state.set('joining');
-    effect(() => {
-      if (this.reach.unreachable() && untracked(this.state) === 'joining') this.state.set('failed');
-    });
+    this.state.set(this.reach.unreachable() ? 'failed' : 'joining');
     effect(() => {
       if (this.auth.account() && untracked(this.state) === 'askLogin') this.answerLogin?.();
     });

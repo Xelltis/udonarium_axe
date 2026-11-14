@@ -1,13 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  DestroyRef,
-  effect,
-  inject,
-  signal,
-  untracked,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, linkedSignal, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -69,7 +60,11 @@ export class LobbyComponent {
   /** Whether rooms can be created here at all: a room server without a login keeps none. */
   protected readonly canCreateRoom = computed(() => !this.isServerTransport || this.auth.offersLogin() !== false);
 
-  rooms = signal<LobbyRoom[]>([]);
+  /** The rooms listed, emptied once reaching the network is given up on. */
+  rooms = linkedSignal<boolean, LobbyRoom[]>({
+    source: this.reach.unreachable,
+    computation: (unreachable, previous) => (unreachable ? [] : (previous?.value ?? [])),
+  });
 
   isReloading = signal(false);
 
@@ -85,7 +80,17 @@ export class LobbyComponent {
   /** Whether the join under way is waiting for this seat's previous connection to drop. */
   protected readonly waitingForPreviousConnection = this.roomJoin.waitingForPreviousConnection;
 
-  help = signal(this.t('feature.lobby.lobby.hintInitial'));
+  /**
+   * What is said under the list. Once reaching the network is given up on it says so, and to reload
+   * the page, which is the way back.
+   */
+  help = linkedSignal<boolean, string>({
+    source: this.reach.unreachable,
+    computation: (unreachable, previous) =>
+      unreachable
+        ? this.t('feature.lobby.lobby.hintUnreachable')
+        : (previous?.value ?? this.t('feature.lobby.lobby.hintInitial')),
+  });
   /** The operator's contact the room list was refused with, for a ban; null for none. */
   readonly helpContact = signal<string | null>(null);
 
@@ -140,12 +145,9 @@ export class LobbyComponent {
     }, this.destroyRef);
     if (Network.instance.isOpen) {
       this.reload();
-    } else if (Network.instance.transport !== 'server') {
+    } else if (Network.instance.transport !== 'server' && !this.reach.unreachable()) {
       this.help.set(this.t('feature.lobby.lobby.hintConnecting'));
     }
-    effect(() => {
-      if (this.reach.unreachable()) untracked(() => this.sayUnreachable());
-    });
   }
 
   /** Empties the list and says the server cannot be reached, and to reload the page, which is the way back. */

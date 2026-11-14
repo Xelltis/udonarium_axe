@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { OperatorContactComponent } from '@axe/features/lobby/operator-contact/operator-contact.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -34,10 +34,21 @@ export class ServerAccountComponent {
   protected readonly account = this.auth.account;
   protected readonly isLoggingIn = this.auth.isLoggingIn;
   protected readonly offersLogin = this.auth.offersLogin;
-  /** Whether the reader has asked to delete the account and is being asked again. */
-  protected readonly isConfirmingDelete = signal(false);
+  /**
+   * Whether the reader has asked to delete the account and is being asked again. A login, however
+   * it came, from this button, the lobby's or another tab, starts afresh: the deleting asked about
+   * was the account before it.
+   */
+  protected readonly isConfirmingDelete = linkedSignal<unknown, boolean>({
+    source: this.account,
+    computation: (account, previous) => (account ? false : (previous?.value ?? false)),
+  });
   protected readonly isDeleting = signal(false);
-  protected readonly deleteFailed = signal(false);
+  /** Whether deleting the account failed, said until a login comes back, as the asking again is. */
+  protected readonly deleteFailed = linkedSignal<unknown, boolean>({
+    source: this.account,
+    computation: (account, previous) => (account ? false : (previous?.value ?? false)),
+  });
 
   /** The operator's contact a login turned away for a ban or a stop came back with. */
   protected readonly errorContact = this.auth.errorContact;
@@ -46,18 +57,6 @@ export class ServerAccountComponent {
     const error = this.auth.error();
     return error ? (LOGIN_ERROR_KEYS[error] ?? 'feature.lobby.account.errors.retry') : '';
   });
-
-  constructor() {
-    // A login, however it came, from this button, the lobby's or another tab, starts afresh: the
-    // deleting asked about, or failed, was the account before it.
-    effect(() => {
-      if (!this.account()) return;
-      untracked(() => {
-        this.isConfirmingDelete.set(false);
-        this.deleteFailed.set(false);
-      });
-    });
-  }
 
   protected login(): void {
     void this.auth.startLogin();
