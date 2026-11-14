@@ -281,7 +281,7 @@ export class TerrainComponent {
    * How high the guide to the block's height reaches, in cells: up to its foot, or to its top where
    * it has no wall to stand on, and down to the top of a block sunk under the face.
    */
-  readonly terreinAltitude = computed(() => {
+  readonly terrainAltitude = computed(() => {
     let ret = this.altitude();
     if (this.altitude() < 0 || (!this.isSlope() && !this.isWallExist())) ret += this.height();
     return ret;
@@ -302,7 +302,7 @@ export class TerrainComponent {
       x: foot.x + (this.width() * this.gridSize) / 2,
       y: foot.y + (this.depth() * this.gridSize) / 2,
     };
-    return altitudeGuideOf(middle, this.terreinAltitude(), this.gridSize);
+    return altitudeGuideOf(middle, this.terrainAltitude(), this.gridSize);
   });
 
   readonly movableOption = signal<MovableOption>({});

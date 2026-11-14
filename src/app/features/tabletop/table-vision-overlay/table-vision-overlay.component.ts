@@ -10,7 +10,6 @@ import {
 } from '@angular/core';
 import { LightFlickerClockService } from '@axe/application/tabletop/light-flicker-clock.service';
 import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
@@ -51,7 +50,6 @@ export const VISION_ANIMATION_INTERVAL_MS = 50;
 })
 export class TableVisionOverlayComponent {
   protected readonly visionService = inject(VisionService);
-  protected readonly table3d = inject(Table3dService);
   private readonly lightSlots = inject(LightSlotsService);
   private readonly flickerClock = inject(LightFlickerClockService);
   private readonly tableVeil = inject(TableVeilService);

@@ -77,15 +77,13 @@ export class RangeDockingCharacterComponent {
    * Docks the range to the character picked in the list, so it follows that piece about the table,
    * and closes the panel. With no character picked the panel only closes.
    */
-  followring() {
+  follow() {
     if (!this.tabletopObject) return;
     const object = this.objectStore.get(this.sendFrom());
     if (object instanceof GameCharacter) {
-      if (GameCharacter) {
-        SoundEffect.play(PresetSound.lock);
-        this.tabletopObject.followingCharacterIdentifier = object.identifier;
-        this.tabletopObject.following(this.tabletop.gridSize());
-      }
+      SoundEffect.play(PresetSound.lock);
+      this.tabletopObject.followingCharacterIdentifier = object.identifier;
+      this.tabletopObject.following(this.tabletop.gridSize());
     }
     this.panelService.close();
   }
