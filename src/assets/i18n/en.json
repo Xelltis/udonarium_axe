@@ -4925,6 +4925,8 @@
         "textureAdd": "Add",
         "textureCropTitle": "Crop texture",
         "textureCropApply": "Crop",
+        "textureKeptPrivate": "This picture is under the private tag “{{tag}}”, so its tag was left as it is. You can paint with it. To list it among the textures, stop keeping the tag private and add the picture again",
+        "stampKeptPrivate": "This picture is under the private tag “{{tag}}”, so its tag was left as it is. You can stamp with it. To list it among the stamps, stop keeping the tag private and add the picture again",
         "stroke": "Stroke",
         "strokeWidth": "Width",
         "eraserSize": "Eraser size",

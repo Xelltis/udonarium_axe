@@ -4925,6 +4925,8 @@
         "textureAdd": "추가",
         "textureCropTitle": "텍스처 잘라내기",
         "textureCropApply": "잘라내기",
+        "textureKeptPrivate": "자기 전용 태그 \"{{tag}}\"의 이미지이므로 태그를 바꾸지 않았습니다. 칠하는 데에는 쓸 수 있습니다. 텍스처 목록에 올리려면 자기 전용을 해제한 뒤 다시 가져옵니다",
+        "stampKeptPrivate": "자기 전용 태그 \"{{tag}}\"의 이미지이므로 태그를 바꾸지 않았습니다. 스탬프로는 쓸 수 있습니다. 스탬프 목록에 올리려면 자기 전용을 해제한 뒤 다시 가져옵니다",
         "stroke": "선",
         "strokeWidth": "선 굵기",
         "eraserSize": "지우개 크기",

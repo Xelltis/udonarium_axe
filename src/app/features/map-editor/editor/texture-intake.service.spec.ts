@@ -1,9 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ImageTag } from '@axe/domain/media/image-tag';
+import { ImageTagLock } from '@axe/domain/media/image-tag-lock';
 import { TEXTURE_IMAGE_TAG } from '@axe/domain/media/texture-catalog';
 import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -41,6 +43,20 @@ describe('TextureIntakeService', () => {
     await intake.takeIn(new File(['picture'], 'wall.png', { type: 'image/png' }));
 
     expect(ImageTag.get('picture-1')?.tag).toBe(TEXTURE_IMAGE_TAG);
+    expect(TestBed.inject(SnackbarService).current()).toBeNull();
+  });
+
+  it('leaves a picture kept under a private tag there, hands it over all the same, and says so once', async () => {
+    ImageTag.create('picture-1').tag = '秘蔵';
+    ImageTagLock.lock('秘蔵', 'owner_me');
+    const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+
+    const taken = await intake.takeIn(new File(['picture'], 'wall.png', { type: 'image/png' }));
+
+    expect(taken?.identifier).toBe('picture-1');
+    expect(ImageTag.get('picture-1')?.tag).toBe('秘蔵');
+    expect(show).toHaveBeenCalledOnce();
+    expect(show.mock.calls[0][0]).toContain('自分専用のタグ「秘蔵」');
   });
 
   it('takes nothing in where the crop was left', async () => {

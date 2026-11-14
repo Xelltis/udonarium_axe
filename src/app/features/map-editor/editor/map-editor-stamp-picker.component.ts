@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { trackEvery } from '@axe/application/sync/track-every';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { clamp } from '@axe/core/util/clamp';
@@ -11,7 +13,7 @@ import { isImageStampId, MAP_STAMP_TAG, toImageStampId } from '@axe/domain/map-e
 import { STAMP_CATEGORIES, StampCategory, StampDef } from '@axe/domain/map-editor/stamp-types';
 import { getStampsByCategory } from '@axe/domain/map-editor/stamps';
 import { ImageTag } from '@axe/domain/media/image-tag';
-import { tagImage } from '@axe/domain/media/image-tagging';
+import { tagImageUnlessKept } from '@axe/domain/media/image-tagging';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -37,6 +39,8 @@ export class MapEditorStampPickerComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tagLock = inject(ImageTagLockService);
+  private readonly snackbar = inject(SnackbarService);
+  private readonly t = inject(TRANSLATE_FN);
 
   private readonly stampFileInput = viewChild<ElementRef<HTMLInputElement>>('stampFileInput');
 
@@ -88,7 +92,8 @@ export class MapEditorStampPickerComponent {
     if (!file || !file.type.startsWith('image/')) return;
     const imageFile = await this.imageStorage.addAsync(file, { putBack: true });
     if (!imageFile) return;
-    tagImage(imageFile.identifier, MAP_STAMP_TAG);
+    const kept = tagImageUnlessKept(imageFile.identifier, MAP_STAMP_TAG);
+    if (kept) this.snackbar.show(this.t('feature.mapEditor.props.stampKeptPrivate', { tag: kept }));
     this.objectChange.notifyCollectionChanged('image-tag');
     this.selectImageStamp(imageFile);
   }

@@ -4925,6 +4925,8 @@
         "textureAdd": "追加",
         "textureCropTitle": "テクスチャを切り抜き",
         "textureCropApply": "切り抜く",
+        "textureKeptPrivate": "自分専用のタグ「{{tag}}」の画像なので、タグは変えていません。塗りには使えます。テクスチャの一覧に並べるには、自分専用を解いてから取り込み直します",
+        "stampKeptPrivate": "自分専用のタグ「{{tag}}」の画像なので、タグは変えていません。スタンプには使えます。スタンプの一覧に並べるには、自分専用を解いてから取り込み直します",
         "stroke": "線",
         "strokeWidth": "線幅",
         "eraserSize": "消しゴムサイズ",
