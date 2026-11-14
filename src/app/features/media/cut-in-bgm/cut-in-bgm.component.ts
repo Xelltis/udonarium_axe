@@ -11,7 +11,6 @@ import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AudioTag } from '@axe/domain/media/audio-tag';
-import { Jukebox } from '@axe/domain/media/jukebox';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -64,10 +63,6 @@ export class CutInBgmComponent {
    */
   tagOf(audio: AudioFile): string {
     return AudioTag.get(audio.identifier)?.tag ?? 'BGM';
-  }
-  /** The room's shared jukebox object. */
-  get jukebox(): Jukebox {
-    return this.objectStore.get<Jukebox>('Jukebox')!;
   }
 
   readonly auditionPlayer: AudioPlayer = new AudioPlayer();

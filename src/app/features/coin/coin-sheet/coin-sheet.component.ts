@@ -104,7 +104,8 @@ export class CoinSheetComponent {
     if (!coin) return;
     this.modalService.open<string>(FileSelecterComponent).then((value) => {
       if (value == null) return;
-      this.faceElement(coin, face)!.value = value;
+      const element = this.faceElement(coin, face);
+      if (element) element.value = value;
     });
   }
 

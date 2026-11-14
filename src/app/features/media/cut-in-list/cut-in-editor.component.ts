@@ -479,7 +479,7 @@ export class CutInEditorComponent {
       return;
     }
     this.fitToPicture(this.c);
-    this.cutInLauncher.startCutInMySelf(this.c, this.trySpeaker());
+    this.cutInLauncher?.startCutInMySelf(this.c, this.trySpeaker());
   }
 
   /**
@@ -500,7 +500,7 @@ export class CutInEditorComponent {
 
   /** Stops the cut-in for everyone in the room; not for a guest on a room server. */
   stopCutIn() {
-    if (this.c && !PeerCursor.isMyselfKeptOffTable) this.cutInLauncher.stopCutIn(this.c);
+    if (this.c && !PeerCursor.isMyselfKeptOffTable) this.cutInLauncher?.stopCutIn(this.c);
   }
 
   /**
@@ -542,7 +542,7 @@ export class CutInEditorComponent {
     return Math.min(100, Math.max(0, Math.round(volume)));
   }
 
-  private get cutInLauncher(): CutInLauncher {
-    return this.objectStore.get<CutInLauncher>('CutInLauncher')!;
+  private get cutInLauncher(): CutInLauncher | null {
+    return this.objectStore.get<CutInLauncher>('CutInLauncher') ?? null;
   }
 }
