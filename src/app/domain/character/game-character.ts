@@ -75,6 +75,11 @@ function standOnBody(part: GameCharacter, body: GameCharacter): void {
   part.location.y = body.location.y + offset;
 }
 
+/** The name of the sheet section that holds where a character's portrait stands. */
+export const PORTRAIT_POSITION_SECTION = '立ち絵位置';
+/** The name of the sheet section that holds which of a character's pictures its piece shows. */
+export const KOMA_IMAGE_SECTION = 'コマ画像';
+
 @SyncObject('character')
 export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() owner: string = '';
@@ -608,7 +613,7 @@ export class GameCharacter extends OwnedTabletopObject {
     const detail = this.detailDataElement;
     if (!detail) return;
 
-    this.ensureDetailSection(detail, '立ち絵位置', null, () =>
+    this.ensureDetailSection(detail, PORTRAIT_POSITION_SECTION, null, () =>
       DataElement.create(
         'POS',
         11,
@@ -620,7 +625,7 @@ export class GameCharacter extends OwnedTabletopObject {
         `POS_${this.identifier}`
       )
     );
-    this.ensureDetailSection(detail, 'コマ画像', '立ち絵位置', () =>
+    this.ensureDetailSection(detail, KOMA_IMAGE_SECTION, PORTRAIT_POSITION_SECTION, () =>
       DataElement.create(
         'ICON',
         (this.imageDataElement?.children.length ?? 1) - 1,

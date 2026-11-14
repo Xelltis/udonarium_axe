@@ -36,7 +36,7 @@ import { clamp, clampOr } from '@axe/core/util/clamp';
 import { debounce } from '@axe/core/util/debounce';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
-import { GameCharacter } from '@axe/domain/character/game-character';
+import { GameCharacter, KOMA_IMAGE_SECTION, PORTRAIT_POSITION_SECTION } from '@axe/domain/character/game-character';
 import {
   DataElement,
   DataElementAttribute,
@@ -61,7 +61,6 @@ import {
   reorderDetailElementAfter,
 } from '@axe/features/character/game-character-sheet/detail-element-reorder-helpers';
 import { GameCharacterSettingsTabComponent } from '@axe/features/character/game-character-sheet/game-character-settings-tab.component';
-import { roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
 import { SheetViewPreferenceService } from '@axe/features/character/game-character-sheet/sheet-view-preference.service';
 import { openDataElementEditor } from '@axe/features/data-element/data-element-editor/open-data-element-editor';
 import { DataElementDeletionService } from '@axe/features/data-element/game-data-element/data-element-deletion.service';
@@ -80,6 +79,9 @@ const CHOSEN_SECTION_HOLD_MS = 1200;
 
 /** The width, in rem, a character sheet folds to one column below. */
 const NARROW_SHEET_REM = 36;
+
+/** The sheet sections the portrait panel edits through its own controls, so the list of details leaves them out. */
+const SECTIONS_WITH_OWN_CONTROLS: ReadonlySet<string> = new Set([PORTRAIT_POSITION_SECTION, KOMA_IMAGE_SECTION]);
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -753,8 +755,7 @@ export class GameCharacterSheetComponent {
     const char = this.character;
     if (!char?.detailDataElement) return [];
     this.objectChange.versionOf(char.identifier)();
-    const HIDDEN = new Set(['\u7acb\u3061\u7d75\u4f4d\u7f6e', '\u30b3\u30de\u753b\u50cf']);
-    return char.detailDataElement.children.filter((el) => !HIDDEN.has(el.name));
+    return char.detailDataElement.children.filter((el) => !SECTIONS_WITH_OWN_CONTROLS.has(el.name));
   });
 
   readonly isSaving = signal(false);
@@ -901,12 +902,6 @@ export class GameCharacterSheetComponent {
     cloneTabletopObject(this.tabletopObject, this.tabletop.gridSize());
   }
 
-  /** Does nothing; the hide checkbox changes the character through its own binding. */
-  clickHide() {}
-
-  /** Does nothing; the no-talk checkbox changes the character through its own binding. */
-  clickNoTalk() {}
-
   /** Does nothing; the terrain grid checkbox changes the terrain through its own binding. */
   clickGrid() {}
 
@@ -934,16 +929,6 @@ export class GameCharacterSheetComponent {
     setTimeout(() => {
       this.uiSignalService.requestNoteResize(obj.identifier);
     }, 100);
-  }
-
-  /**
-   * Sets the height the dice symbol's image is drawn at, held between 50 and 750 pixels, and clears
-   * the pointer's dragging flag; anything not a number keeps the current height.
-   */
-  chkDiceKomaSize(height: number) {
-    const character = this.tabletopObject as DiceSymbol;
-    character.komaImageHeight = clampOr(Number(height), 50, 750, character.komaImageHeight);
-    this.pointerDeviceService.isDragging = false;
   }
 
   /**
@@ -1032,28 +1017,6 @@ export class GameCharacterSheetComponent {
     }
   }
 
-  /** Applies the dice symbol's image height from its field. */
-  onChkDiceKomaSize(event: Event): void {
-    this.chkDiceKomaSize((event.target as HTMLInputElement).valueAsNumber);
-  }
-  /**
-   * Sets the piece's x position on the table from a number field, rounded; an empty field reads as
-   * zero.
-   */
-  onChkLocationX(event: Event): void {
-    const character = this.tabletopObject as GameCharacter;
-    const x = roundOr((event.target as HTMLInputElement).valueAsNumber, 0);
-    character.location = { ...character.location, x };
-  }
-  /**
-   * Sets the piece's y position on the table from a number field, rounded; an empty field reads as
-   * zero.
-   */
-  onChkLocationY(event: Event): void {
-    const character = this.tabletopObject as GameCharacter;
-    const y = roundOr((event.target as HTMLInputElement).valueAsNumber, 0);
-    character.location = { ...character.location, y };
-  }
   /** Applies the hover popup width from its number field. */
   onChkPopWidth(event: Event): void {
     this.chkPopWidth((event.target as HTMLInputElement).valueAsNumber);

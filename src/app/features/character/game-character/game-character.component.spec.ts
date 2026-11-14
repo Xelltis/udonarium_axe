@@ -3247,12 +3247,6 @@ describe('GameCharacterComponent', () => {
       }).not.toThrow();
     });
 
-    it('sets the altitude without throwing', () => {
-      expect(() => {
-        component.setAltitude(5);
-      }).not.toThrow();
-    });
-
     it('sets up and tears down without throwing', () => {
       expect(() => fixture.detectChanges()).not.toThrow();
       expect(() => fixture.destroy()).not.toThrow();
@@ -3270,7 +3264,7 @@ describe('GameCharacterComponent', () => {
     character.location = { name: 'table', x: 100, y: 200 };
     character.isAltitudeIndicate = true;
     fixture.componentRef.setInput('gameCharacter', character);
-    component.setAltitude(2);
+    character.altitude = 2;
     type Guide = { lifted: { height: number }; ground: { height: number } } | null;
 
     try {

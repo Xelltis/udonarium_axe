@@ -954,11 +954,6 @@ export class GameCharacterComponent {
     return char?.altitude ?? 0;
   });
 
-  /** Sets the piece's height above the table in grid cells; does nothing while no character is bound. */
-  setAltitude(altitude: number) {
-    const char = this.gameCharacter();
-    if (char) char.altitude = altitude;
-  }
   readonly imageFile = computed(
     () => {
       this.objectChange.fileVersion();

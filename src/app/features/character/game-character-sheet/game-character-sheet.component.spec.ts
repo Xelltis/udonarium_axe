@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { BottomSheetService } from '@axe/application/ui/bottom-sheet.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -10,9 +9,8 @@ import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { Card, CardState } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
-import { GameCharacter } from '@axe/domain/character/game-character';
+import { GameCharacter, KOMA_IMAGE_SECTION, PORTRAIT_POSITION_SECTION } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/data/data-element';
-import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -24,7 +22,6 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 describe('GameCharacterSheetComponent', () => {
   let component: GameCharacterSheetComponent;
   let fixture: ComponentFixture<GameCharacterSheetComponent>;
-  let pointerDeviceService: PointerDeviceService;
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
@@ -36,7 +33,6 @@ describe('GameCharacterSheetComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(GameCharacterSheetComponent);
     component = fixture.componentInstance;
-    pointerDeviceService = TestBed.inject(PointerDeviceService);
   });
 
   it('should create', () => {
@@ -59,6 +55,23 @@ describe('GameCharacterSheetComponent', () => {
     await component.saveToXML();
     expect(save).toHaveBeenCalledTimes(1);
     vi.restoreAllMocks();
+  });
+
+  it('leaves the sections the portrait panel edits out of the list of details', () => {
+    const character = GameCharacter.create('勇者', 1, '');
+    character.addExtendData();
+    character.detailDataElement!.appendChild(DataElement.create('能力値', '', {}));
+    component.tabletopObject = character;
+
+    const names = component.detailElements().map((section) => section.name);
+
+    expect(character.detailDataElement!.children.map((section) => (section as DataElement).name)).toEqual(
+      expect.arrayContaining([PORTRAIT_POSITION_SECTION, KOMA_IMAGE_SECTION])
+    );
+    expect(names).toContain('能力値');
+    expect(names).not.toContain(PORTRAIT_POSITION_SECTION);
+    expect(names).not.toContain(KOMA_IMAGE_SECTION);
+    character.destroy();
   });
 
   it('copies nothing of a card whose face a room server keeps from this seat, and says so', () => {
@@ -520,17 +533,6 @@ describe('GameCharacterSheetComponent', () => {
     } finally {
       character.destroy();
     }
-  });
-
-  it('ends the drag when the height of a die changes too', () => {
-    const diceSymbol = { komaImageHeight: 200 } as DiceSymbol;
-    component.tabletopObject = diceSymbol;
-    pointerDeviceService.isDragging = true;
-
-    component.chkDiceKomaSize(10);
-
-    expect(diceSymbol.komaImageHeight).toBe(50);
-    expect(pointerDeviceService.isDragging).toBe(false);
   });
 
   describe('the terrain settings', () => {
