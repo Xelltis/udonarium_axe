@@ -1,8 +1,28 @@
 import { Logger } from '@axe/core/logging/logger';
 import { NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
+import { clamp } from '@axe/core/util/clamp';
 import * as MessagePack from '@axe/core/util/message-pack';
 import { ResettableTimeout } from '@axe/core/util/resettable-timeout';
 import { clearZeroTimeout, setZeroTimeout } from '@axe/core/util/zero-timeout';
+
+/** The least time a transfer waits for its next piece, or the ack of one, before it is given up. */
+export const TRANSFER_TIMEOUT_MIN_MS = 10_000;
+
+/** The most time a transfer waits for its next piece, or the ack of one, however slow the line. */
+export const TRANSFER_TIMEOUT_MAX_MS = 60_000;
+
+/** How many times as long as the last piece took the next one is waited for. */
+const TRANSFER_TIMEOUT_PIECES = 4;
+
+/**
+ * How long a transfer waits for its next piece given how long the last one took, or null before
+ * any has come: several times that, so that a line too slow to carry a piece in the least time is
+ * not given up while pieces still come, within the least and the most.
+ */
+export function transferTimeoutMs(lastPieceMs: number | null): number {
+  if (lastPieceMs === null) return TRANSFER_TIMEOUT_MIN_MS;
+  return clamp(lastPieceMs * TRANSFER_TIMEOUT_PIECES, TRANSFER_TIMEOUT_MIN_MS, TRANSFER_TIMEOUT_MAX_MS);
+}
 
 interface ChunkData {
   index: number;
@@ -27,6 +47,10 @@ export class BufferSharingTask<T> {
 
   private startTime = 0;
   private isCanceled = false;
+  /** When the last piece came, or the ack of one, or else when the transfer began. */
+  private lastProgressAt = 0;
+  /** How long the last piece, or the ack of one, took to come, or null before any has. */
+  private lastPieceMs: number | null = null;
 
   private onstart: (() => void) | null = null;
   onprogress: ((task: BufferSharingTask<T>, loded: number, total: number) => void) | null = null;
@@ -133,6 +157,7 @@ export class BufferSharingTask<T> {
         if (msg.eventName === `FILE_MORE_CHUNK_${this.identifier}`) {
           const m = msg as NetworkMessage<number>;
           if (this.sendTo !== m.sendFrom) return;
+          this.noteProgress();
           this.completedChunkIndex = m.data;
           if (this.sendChunkTimer == null && this.sentChunkIndex + 1 < this.chunks.length) {
             this.sendChunk(this.sentChunkIndex + 1);
@@ -151,13 +176,13 @@ export class BufferSharingTask<T> {
     );
 
     this.sentChunkIndex = this.completedChunkIndex = 0;
-    this.startTime = performance.now();
+    this.startTime = this.lastProgressAt = performance.now();
     setZeroTimeout(() => this.sendChunk(0));
   }
 
   private sendChunk(index: number) {
     const uint8Array = this.uint8Array;
-    if (!uint8Array) return;
+    if (!uint8Array || this.isCanceled) return;
 
     const chunk = uint8Array.slice(index * this.chunkSize, (index + 1) * this.chunkSize);
     const data = { index, length: this.chunks.length, chunk };
@@ -177,8 +202,8 @@ export class BufferSharingTask<T> {
   }
 
   private initializeReceive() {
+    this.startTime = this.lastProgressAt = performance.now();
     this.resetTimeout();
-    this.startTime = performance.now();
     this.chunkReceiveCount = 0;
 
     this.cleanups.push(
@@ -187,6 +212,7 @@ export class BufferSharingTask<T> {
           const m = msg as NetworkMessage<ChunkData>;
           if (this.chunks.length < 1) this.chunks = new Array(m.data.length);
           if (this.chunks[m.data.index] != null) return;
+          this.noteProgress();
           this.chunkReceiveCount++;
           this.chunks[m.data.index] = m.data.chunk;
           this.progress(m.data.index, m.data.length);
@@ -228,9 +254,23 @@ export class BufferSharingTask<T> {
     this.finish();
   }
 
+  private noteProgress() {
+    const now = performance.now();
+    this.lastPieceMs = now - this.lastProgressAt;
+    this.lastProgressAt = now;
+  }
+
+  /**
+   * Waits afresh for the next piece, or the ack of one, for as long as the last one says the line
+   * needs: the transfer is given up only when nothing comes for that long.
+   */
   private resetTimeout() {
-    if (this.timeoutTimer == null) this.timeoutTimer = new ResettableTimeout(() => this.timeout(), 10 * 1000);
-    this.timeoutTimer.reset();
+    const ms = transferTimeoutMs(this.lastPieceMs);
+    if (this.timeoutTimer == null) {
+      this.timeoutTimer = new ResettableTimeout(() => this.timeout(), ms);
+    } else {
+      this.timeoutTimer.reset(ms);
+    }
   }
 
   private outputTransferRate(byteLength: number) {

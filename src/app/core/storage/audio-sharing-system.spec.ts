@@ -585,6 +585,22 @@ describe('AudioSharingSystem', () => {
       );
     });
 
+    it('sends the start of a transfer ahead of its first piece', async () => {
+      vi.mocked(BufferSharingTask.createSendTask).mockRestore();
+      const audio = makeAudioFile({ identifier: 'in-order', blob: new Blob(['x']) });
+      AudioStorageMock.get.mockReturnValue(audio);
+      const sentNames = () => sendSpy.mock.calls.map((call: unknown[]) => (call[0] as { eventName: string }).eventName);
+
+      emit('REQUEST_AUDIO_RESOURE', {
+        identifiers: [{ identifier: 'in-order', state: AudioState.NULL }],
+        receiver: 'peer-r',
+        candidatePeers: [],
+      });
+      await vi.waitFor(() => expect(sentNames()).toContain('FILE_SEND_CHUNK_in-order'));
+
+      expect(sentNames().slice(0, 2)).toEqual(['START_AUDIO_TRANSMISSION', 'FILE_SEND_CHUNK_in-order']);
+    });
+
     it('sends none this seat holds back for the room server’s operator, and relays the request', () => {
       const audio = makeAudioFile({ identifier: 'held-audio', blob: new Blob(['x']) });
       AudioStorageMock.get.mockReturnValue(audio);
@@ -745,6 +761,30 @@ describe('AudioSharingSystem', () => {
       BufferSharingTaskMock.createReceiveTask.mockReturnValue(task);
       emit('START_AUDIO_TRANSMISSION', { fileIdentifier: 'recv-id' });
       expect(BufferSharingTaskMock.createReceiveTask).toHaveBeenCalledWith('recv-id');
+    });
+  });
+
+  describe('a transfer cancelled before its pieces have come', () => {
+    beforeEach(() => AudioSharingSystem.instance.initialize());
+
+    it('is kept no longer, and its pieces are let pass when they come', () => {
+      vi.mocked(BufferSharingTask.createReceiveTask).mockRestore();
+      AudioStorageMock.get.mockReturnValue(null);
+      const receiving = asAudioSharingPrivate(AudioSharingSystem.instance).receiveTaskMap;
+
+      emit('START_AUDIO_TRANSMISSION', { fileIdentifier: 'called-off' });
+      expect(receiving.has('called-off')).toBe(true);
+
+      emit('CANCEL_TASK_called-off', null);
+      expect(receiving.size).toBe(0);
+
+      sendSpy.mockClear();
+      expect(() => {
+        emit('FILE_SEND_CHUNK_called-off', { index: 0, length: 2, chunk: new Uint8Array([1]) });
+        emit('FILE_SEND_CHUNK_called-off', { index: 1, length: 2, chunk: new Uint8Array([2]) });
+      }).not.toThrow();
+      expect(receiving.size).toBe(0);
+      expect(sendSpy).not.toHaveBeenCalled();
     });
   });
 
