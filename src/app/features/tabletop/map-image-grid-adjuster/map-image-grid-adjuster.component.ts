@@ -9,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { IMAGE_REGION_CROPPER } from '@axe/application/file/image-region-cropper';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
@@ -18,7 +19,6 @@ import { clamp } from '@axe/core/util/clamp';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
-import { IMAGE_REGION_CROPPER } from '@axe/features/tabletop/map-image-grid-adjuster/image-region-cropper';
 import {
   colsForWidth,
   coversFrame,

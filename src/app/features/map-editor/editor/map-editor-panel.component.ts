@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { RASTER_IMAGE_LOADER } from '@axe/application/file/raster-image-loader';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -63,7 +64,6 @@ import {
   MapEditorTextBoxEdit,
 } from '@axe/features/map-editor/editor/map-editor-text-box.component';
 import { MapEditorTexturePickerComponent } from '@axe/features/map-editor/editor/map-editor-texture-picker.component';
-import { loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
 import {
   type EditorOverlay,
   type OverlayImage,
@@ -206,7 +206,7 @@ export class MapEditorPanelComponent {
   protected readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
 
-  private readonly loadImageFn = loadRasterImage;
+  private readonly loadImage = inject(RASTER_IMAGE_LOADER);
 
   private readonly board = viewChild<ElementRef<HTMLCanvasElement>>('board');
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
@@ -280,7 +280,7 @@ export class MapEditorPanelComponent {
 
   private readonly images = new MapEditorImageCache(
     (identifier) => this.imageStorage.get(identifier)?.url,
-    (url) => this.loadImageFn(url)
+    this.loadImage
   );
 
   /** The gesture under way, holding values only between press and release. */
@@ -702,7 +702,7 @@ export class MapEditorPanelComponent {
     let naturalH = 4 * cellPx;
     if (url) {
       try {
-        const image = await this.loadImageFn(url);
+        const image = await this.loadImage(url);
         naturalW = image.naturalWidth || image.width || naturalW;
         naturalH = image.naturalHeight || image.height || naturalH;
       } catch {

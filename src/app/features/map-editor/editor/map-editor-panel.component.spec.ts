@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RASTER_IMAGE_LOADER } from '@axe/application/file/raster-image-loader';
+import { SCENE_IMAGE_EXPORTER } from '@axe/application/file/scene-image-exporter';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -13,7 +15,6 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
-import { MapEditorFilesService } from '@axe/features/map-editor/editor/map-editor-files.service';
 import { MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
 import {
   buildShapeKindPoints,
@@ -24,6 +25,7 @@ import {
 import { MapEditorPointer } from '@axe/features/map-editor/editor/map-editor-pointer';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
+import { loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** The gesture is private; the tests borrow its name to reach it. */
@@ -41,6 +43,8 @@ describe('MapEditorPanelComponent', () => {
   let component: MapEditorPanelComponent;
   let imageStorage: { addAsync: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
   let table: { imageIdentifier: string; width: number; height: number; gridSize: number; gridType: GridType };
+  let exportStub: ReturnType<typeof vi.fn<typeof exportSceneToBlob>>;
+  let loadImage: ReturnType<typeof vi.fn<typeof loadRasterImage>>;
   let modalService: {
     option: unknown;
     title: string;
@@ -60,14 +64,13 @@ describe('MapEditorPanelComponent', () => {
     TestBed.overrideProvider(ImageStorage, { useValue: imageStorage });
     TestBed.overrideProvider(TabletopService, { useValue: { currentTable: table } });
     TestBed.overrideProvider(ModalService, { useValue: modalService });
+    exportStub = vi.fn(exportSceneToBlob);
+    loadImage = vi.fn(loadRasterImage);
+    TestBed.overrideProvider(SCENE_IMAGE_EXPORTER, { useValue: exportStub });
+    TestBed.overrideProvider(RASTER_IMAGE_LOADER, { useValue: loadImage });
     fixture = TestBed.createComponent(MapEditorPanelComponent);
     component = fixture.componentInstance;
   });
-
-  /** The panel's own file service, which the export is swapped out on. */
-  function files(): MapEditorFilesService {
-    return fixture.debugElement.injector.get(MapEditorFilesService);
-  }
 
   afterEach(() => {
     ImageStorage.instance.images.forEach((image) => ImageStorage.instance.delete(image.identifier));
@@ -148,8 +151,7 @@ describe('MapEditorPanelComponent', () => {
 
   it('sets the exported image as the table background', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
-    const exportStub = vi.fn().mockResolvedValue(blob);
-    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
+    exportStub.mockResolvedValue(blob);
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-1' });
 
     await (component as unknown as { setAsTable: () => Promise<void> }).setAsTable();
@@ -164,8 +166,7 @@ describe('MapEditorPanelComponent', () => {
 
   it('saves the exported image', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
-    const exportStub = vi.fn().mockResolvedValue(blob);
-    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
+    exportStub.mockResolvedValue(blob);
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-2' });
 
     await (component as unknown as { saveImage: () => Promise<void> }).saveImage();
@@ -202,7 +203,7 @@ describe('MapEditorPanelComponent', () => {
 
   it('writes the grid type onto the table', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
-    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = vi.fn().mockResolvedValue(blob);
+    exportStub.mockResolvedValue(blob);
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-3' });
     component['state'].setGridType(GridType.HEX_VERTICAL);
 
@@ -353,8 +354,7 @@ describe('MapEditorPanelComponent', () => {
 
   it('always exports without the grid', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
-    const exportStub = vi.fn().mockResolvedValue(blob);
-    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
+    exportStub.mockResolvedValue(blob);
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-grid' });
 
     await (component as unknown as { saveImage: () => Promise<void> }).saveImage();
@@ -366,9 +366,7 @@ describe('MapEditorPanelComponent', () => {
   it('places an image on its own layer and keeps it pending', async () => {
     imageStorage.get.mockReturnValue({ url: 'blob:test' });
     const image = { naturalWidth: 256, naturalHeight: 128, width: 256, height: 128 } as HTMLImageElement;
-    (component as unknown as { loadImageFn: (url: string) => Promise<HTMLImageElement> }).loadImageFn = vi
-      .fn()
-      .mockResolvedValue(image);
+    loadImage.mockResolvedValue(image);
     component['state'].pendingImageId.set('img-id');
 
     await (component as unknown as { placeImageAt: (x: number, y: number) => Promise<void> }).placeImageAt(200, 150);

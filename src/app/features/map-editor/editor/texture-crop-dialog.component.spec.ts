@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { IMAGE_REGION_CROPPER } from '@axe/application/file/image-region-cropper';
+import { RASTER_IMAGE_LOADER } from '@axe/application/file/raster-image-loader';
 import { ModalService } from '@axe/application/ui/modal.service';
 import {
   fitCropStage,
@@ -7,20 +9,28 @@ import {
   TEXTURE_CROP_STAGE,
   TextureCropDialogComponent,
 } from '@axe/features/map-editor/editor/texture-crop-dialog.component';
+import { cropImageRegion } from '@axe/infrastructure/image/image-region-crop';
+import { loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('TextureCropDialogComponent', () => {
   let fixture: ComponentFixture<TextureCropDialogComponent>;
   let component: TextureCropDialogComponent;
   let modalService: { option: unknown; title: string; resolve: ReturnType<typeof vi.fn> };
+  let cropRegion: ReturnType<typeof vi.fn<typeof cropImageRegion>>;
+  let loadImage: ReturnType<typeof vi.fn<typeof loadRasterImage>>;
 
   async function setup(option: unknown): Promise<void> {
+    cropRegion = vi.fn();
+    loadImage = vi.fn().mockRejectedValue(new Error('no picture'));
     modalService = { option, title: '', resolve: vi.fn() };
     await TestBed.configureTestingModule({
       imports: [TextureCropDialogComponent],
       providers: [...TEST_PROVIDERS],
     }).compileComponents();
     TestBed.overrideProvider(ModalService, { useValue: modalService });
+    TestBed.overrideProvider(IMAGE_REGION_CROPPER, { useValue: cropRegion });
+    TestBed.overrideProvider(RASTER_IMAGE_LOADER, { useValue: loadImage });
     fixture = TestBed.createComponent(TextureCropDialogComponent);
     component = fixture.componentInstance;
   }
@@ -39,9 +49,7 @@ describe('TextureCropDialogComponent', () => {
   it('starts fitted to cover, with the smallest scale the frame allows', async () => {
     await setup({ objectUrl: 'blob:x' });
     const image = { naturalWidth: 800, naturalHeight: 400, width: 800, height: 400 } as HTMLImageElement;
-    (component as unknown as { loadImageFn: (url: string) => Promise<HTMLImageElement> }).loadImageFn = vi
-      .fn()
-      .mockResolvedValue(image);
+    loadImage.mockResolvedValue(image);
     await (component as unknown as { prepare: () => Promise<void> }).prepare();
 
     const minScale = TEXTURE_CROP_FRAME / 400;
@@ -71,8 +79,7 @@ describe('TextureCropDialogComponent', () => {
     component['tx'].set(-100);
     component['ty'].set(-40);
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
-    const cropFn = vi.fn().mockResolvedValue(blob);
-    (component as unknown as { cropFn: typeof cropFn }).cropFn = cropFn;
+    cropRegion.mockResolvedValue(blob);
 
     await (component as unknown as { apply: () => Promise<void> }).apply();
 
@@ -80,7 +87,7 @@ describe('TextureCropDialogComponent', () => {
     const sx = (frameLeft - -100) / scale;
     const sy = (frameLeft - -40) / scale;
     const sSize = TEXTURE_CROP_FRAME / scale;
-    expect(cropFn).toHaveBeenCalledWith(expect.anything(), sx, sy, sSize, sSize, 512);
+    expect(cropRegion).toHaveBeenCalledWith(expect.anything(), sx, sy, sSize, sSize, 512);
     expect(modalService.resolve).toHaveBeenCalledWith(blob);
   });
 

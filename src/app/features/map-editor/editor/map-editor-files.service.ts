@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { SCENE_IMAGE_EXPORTER } from '@axe/application/file/scene-image-exporter';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BundledModelIntakeService } from '@axe/application/tabletop/bundled-model-intake.service';
 import { FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
@@ -11,7 +12,6 @@ import { STAMPS } from '@axe/domain/map-editor/stamps';
 import { objectModelsOf, planFunctionPaint, sceneSpeaksFor } from '@axe/domain/map-editor/table-apply';
 import { sceneFromTable } from '@axe/domain/map-editor/table-import';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
-import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
 import { isZipArchive } from '@axe/infrastructure/map-editor/scene-archive';
 import { packSceneWithImages, unpackSceneWithImages } from '@axe/infrastructure/map-editor/scene-archive-images';
 
@@ -33,7 +33,7 @@ export class MapEditorFilesService {
   private readonly functionalPaint = inject(FunctionalPaintService);
   private readonly bundledModels = inject(BundledModelIntakeService);
 
-  private readonly exportFn = exportSceneToBlob;
+  private readonly exportScene = inject(SCENE_IMAGE_EXPORTER);
 
   /** Downloads the scene and the pictures it uses as one archive. */
   async download(): Promise<void> {
@@ -57,7 +57,7 @@ export class MapEditorFilesService {
 
   /** Bakes the scene into a picture at a scale and keeps it in the room; throws where the room does not keep it. */
   async bake(scale: number): Promise<ImageFile> {
-    const blob = await this.exportFn(this.state.current, STAMPS, {
+    const blob = await this.exportScene(this.state.current, STAMPS, {
       scale,
       drawGrid: false,
       resolveImageUrl: (id) => this.imageStorage.get(id)?.url ?? null,

@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { IMAGE_REGION_CROPPER } from '@axe/application/file/image-region-cropper';
+import { RASTER_IMAGE_LOADER } from '@axe/application/file/raster-image-loader';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
-import { cropImageRegion } from '@axe/features/tabletop/map-image-grid-adjuster/map-image-grid-region';
-import { loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface TextureCropDialogOption {
@@ -35,8 +35,8 @@ export class TextureCropDialogComponent {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly t = inject(TRANSLATE_FN);
 
-  private readonly cropFn = cropImageRegion;
-  private readonly loadImageFn = loadRasterImage;
+  private readonly cropRegion = inject(IMAGE_REGION_CROPPER);
+  private readonly loadImage = inject(RASTER_IMAGE_LOADER);
 
   private readonly stageSignal = signal(fitCropStage(window.innerWidth));
   protected get stage(): number {
@@ -78,7 +78,7 @@ export class TextureCropDialogComponent {
   private async prepare(): Promise<void> {
     if (!this.objectUrl) return;
     try {
-      const image = await this.loadImageFn(this.objectUrl);
+      const image = await this.loadImage(this.objectUrl);
       this.image = image;
       const w = image.naturalWidth || image.width;
       const h = image.naturalHeight || image.height;
@@ -160,7 +160,7 @@ export class TextureCropDialogComponent {
     const sy = (frameTop - this.ty()) / scale;
     const sSize = this.frame / scale;
     try {
-      const blob = await this.cropFn(this.image, sx, sy, sSize, sSize, 512);
+      const blob = await this.cropRegion(this.image, sx, sy, sSize, sSize, 512);
       this.modalService.resolve(blob);
     } catch {
       this.modalService.resolve(null);

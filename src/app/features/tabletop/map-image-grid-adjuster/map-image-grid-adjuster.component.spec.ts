@@ -1,11 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { IMAGE_REGION_CROPPER } from '@axe/application/file/image-region-cropper';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { Logger } from '@axe/core/logging/logger';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
-import { IMAGE_REGION_CROPPER } from '@axe/features/tabletop/map-image-grid-adjuster/image-region-cropper';
 import {
   MapImageGridAdjusterComponent,
   MapImageGridAdjusterOption,
