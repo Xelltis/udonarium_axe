@@ -1,6 +1,7 @@
 import { Logger } from '@axe/core/logging/logger';
 import { AssetAccess, Connection, ConnectionCallback, ServerCredentialSource } from '@axe/core/network/connection';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
+import { PeerLink } from '@axe/core/network/peer-link';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { CreateRoomResponse, InviteMessage, ServerRole } from '@axe/core/network/server/server-protocol';
 import { Transport, transportOf } from '@axe/core/network/transport';
@@ -53,6 +54,13 @@ export class Network {
    */
   static get unreachablePeerIds(): string[] {
     return Network.instance.unreachablePeerIds;
+  }
+  /**
+   * How this device reaches each of the others in a room where the seats link to each other, those
+   * the room only lists among them, as a new array; empty on a room server or without a connection.
+   */
+  static get peerLinks(): PeerLink[] {
+    return Network.instance.peerLinks;
   }
   /** This device's peer context; the same value as peer. */
   static get peerContext(): IPeerContext {
@@ -205,6 +213,10 @@ export class Network {
     if (listed.length < 1) return [];
     const open = new Set(this.connection?.peerIds);
     return listed.filter((peerId) => !open.has(peerId));
+  }
+
+  get peerLinks(): PeerLink[] {
+    return [...(this.connection?.peerLinks ?? [])];
   }
 
   get peerContext(): IPeerContext {

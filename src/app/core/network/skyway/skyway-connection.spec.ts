@@ -262,6 +262,107 @@ describe('SkyWayConnection', () => {
     });
   });
 
+  describe('the link to each peer', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach private fields
+    let connAny: Record<string, any>;
+    const streamTo = (peerId: string, open: boolean) => ({ peer: PeerContext.parse(peerId), open });
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach private fields
+      connAny = new SkyWayConnection() as any;
+      connAny.skyWay.peer = PeerContext.parse('me');
+      connAny.skyWay.room = { members: [{ name: 'me' }] };
+      connAny.reconnectScheduler = new PeerReconnectScheduler([10, 20], 30);
+      connAny.makeFriendPeer = (userId: string) => Promise.resolve(PeerContext.parse(`peer-${userId}`));
+      connAny.notifyUserList = vi.fn();
+    });
+
+    afterEach(() => {
+      connAny.reconnectScheduler.cancelAll();
+      vi.useRealTimers();
+    });
+
+    const add = (peerId: string, open: boolean) => {
+      connAny.streams.streams.push(streamTo(peerId, open));
+      connAny.streams.refresh();
+    };
+    const retry = (peerId: string, times: number) => {
+      for (let i = 0; i < times; i++) {
+        connAny.reconnectScheduler.schedule(peerId, () => {});
+        connAny.reconnectScheduler.cancel(peerId);
+      }
+    };
+
+    it('lists every peer with a stream and every other member of the room, sorted, once each', () => {
+      add('peer-b', true);
+      add('peer-a', false);
+      connAny.skyWay.room.members.push({ name: 'peer-b' }, { name: 'peer-c' });
+
+      expect(connAny.peerLinks.map((link: { peerId: string }) => link.peerId)).toEqual(['peer-a', 'peer-b', 'peer-c']);
+    });
+
+    it('is direct for an open stream and reconnecting for one still opening', () => {
+      add('peer-a', true);
+      add('peer-b', false);
+
+      expect(connAny.peerLinks).toEqual([
+        { peerId: 'peer-a', state: 'direct' },
+        { peerId: 'peer-b', state: 'reconnecting' },
+      ]);
+    });
+
+    it('keeps a peer between two attempts on the list as reconnecting, though it has no stream', () => {
+      retry('peer-a', 1);
+      connAny.reconnectScheduler.schedule('peer-a', () => {});
+
+      expect(connAny.peerLinks).toEqual([{ peerId: 'peer-a', state: 'reconnecting' }]);
+    });
+
+    it('is failed for a member of the room past the backoff whom nobody connected lists', () => {
+      connAny.skyWay.room.members.push({ name: 'peer-a' });
+      retry('peer-a', 3);
+
+      expect(connAny.peerLinks).toEqual([{ peerId: 'peer-a', state: 'failed' }]);
+    });
+
+    it('is relayed for one past the backoff whom a connected peer lists among its users', async () => {
+      connAny.skyWay.room.members.push({ name: 'peer-a' }, { name: 'peer-b' });
+      add('peer-b', true);
+      retry('peer-a', 3);
+
+      await connAny.onUpdateUserIds({ peer: { peerId: 'peer-b' } }, ['b', 'a']);
+
+      expect(connAny.peerLinks).toEqual([
+        { peerId: 'peer-a', state: 'relayed' },
+        { peerId: 'peer-b', state: 'direct' },
+      ]);
+    });
+
+    it('takes no word from a peer whose own stream is no longer open', async () => {
+      connAny.skyWay.room.members.push({ name: 'peer-a' }, { name: 'peer-b' });
+      add('peer-b', false);
+      retry('peer-a', 3);
+
+      await connAny.onUpdateUserIds({ peer: { peerId: 'peer-b' } }, ['b', 'a']);
+
+      expect(connAny.peerLinks.find((link: { peerId: string }) => link.peerId === 'peer-a').state).toBe('failed');
+    });
+
+    it('forgets what a peer listed once its stream is closed', async () => {
+      connAny.skyWay.room.members.push({ name: 'peer-a' });
+      const stream = { ...streamTo('peer-b', true), disconnect: vi.fn() };
+      connAny.streams.streams.push(stream);
+      connAny.streams.refresh();
+      await connAny.onUpdateUserIds(stream, ['b', 'a']);
+      expect(connAny.peerLinks.find((link: { peerId: string }) => link.peerId === 'peer-a').state).toBe('relayed');
+
+      connAny.disconnectStream(stream);
+
+      expect(connAny.peerLinks).toEqual([{ peerId: 'peer-a', state: 'failed' }]);
+    });
+  });
+
   describe('receiving', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
     let connAny: Record<string, any>;

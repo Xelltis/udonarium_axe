@@ -31,6 +31,11 @@ export class SynchronizeTask {
 
   private constructor(readonly peerId: PeerId) {}
 
+  /** How many of the objects asked for are still to arrive; none once the task has finished. */
+  get pendingCount(): number {
+    return this.requestMap.size;
+  }
+
   /**
    * Starts asking for the requested objects: from the peer when it holds them, else from the room.
    *

@@ -4,6 +4,7 @@ import { readBackendUrl } from '@axe/core/network/backend-url';
 import { Connection, ConnectionCallback } from '@axe/core/network/connection';
 import { compressIfSmaller, splitAtFileChunks } from '@axe/core/network/frame-codec';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
+import { PeerLink, peerLinkStateOf } from '@axe/core/network/peer-link';
 import { PEER_RECONNECT_STEADY_MS, PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
 import { SendLane, SkyWayDataStream } from '@axe/core/network/skyway/skyway-data-stream';
@@ -64,6 +65,37 @@ export class SkyWayConnection implements Connection {
     return [...new Set(names.filter((name): name is string => !!name && name !== this.peerId))];
   }
 
+  /**
+   * How this seat reaches each of the others, sorted by peer id: those with a stream, those waiting
+   * for a reconnect attempt, and those SkyWay only lists in the room. A peer without an open stream
+   * counts as listed by somebody connected when a peer whose stream is open named it among its users.
+   */
+  get peerLinks(): PeerLink[] {
+    const listed = new Set<PeerId>();
+    for (const [listerId, peerIds] of this.listedPeerIds) {
+      if (!this.streams.find(listerId)?.open) continue;
+      for (const peerId of peerIds) listed.add(peerId);
+    }
+    const peerIds = new Set<PeerId>([
+      ...this.peers.map((peer) => peer.peerId),
+      ...this.reconnectScheduler.scheduledPeerIds,
+      ...this.roomPeerIds,
+    ]);
+    return [...peerIds]
+      .sort((a, b) => a.localeCompare(b))
+      .map((peerId) => {
+        const stream = this.streams.find(peerId);
+        const state = peerLinkStateOf({
+          isOpen: !!stream?.open,
+          isOpening: !!stream && !stream.open,
+          attempts: this.reconnectScheduler.attemptOf(peerId),
+          isPastBackoff: this.reconnectScheduler.isPastBackoff(peerId),
+          isListedByOpenPeer: listed.has(peerId),
+        });
+        return { peerId, state };
+      });
+  }
+
   readonly callback: ConnectionCallback = new ConnectionCallback();
   bandwidthUsage: number = 0;
 
@@ -81,6 +113,8 @@ export class SkyWayConnection implements Connection {
 
   private readonly trustedPeerIds: Set<PeerId> = new Set();
   private readonly relayingPeerIds: Map<string, string[]> = new Map();
+  /** The peers each peer last named among the users it is connected to, itself among them. */
+  private readonly listedPeerIds: Map<PeerId, PeerId[]> = new Map();
   private readonly pendingRelayMapUpdates: Map<string, Promise<void>> = new Map();
   private readonly maybeUnavailablePeerIds: Set<string> = new Set();
   private readonly droppedUnicastLog = new LogThrottle(DROPPED_UNICAST_LOG_INTERVAL_MS);
@@ -390,6 +424,7 @@ export class SkyWayConnection implements Connection {
     if (closed) this.maybeUnavailablePeerIds.delete(stream.peer.peerId);
 
     this.relayingPeerIds.delete(stream.peer.peerId);
+    this.listedPeerIds.delete(stream.peer.peerId);
     this.pendingRelayMapUpdates.delete(stream.peer.peerId);
     for (const [key, peerIds] of this.relayingPeerIds) {
       this.relayingPeerIds.set(
@@ -546,8 +581,10 @@ export class SkyWayConnection implements Connection {
 
   private async onUpdateUserIds(stream: SkyWayDataStream, userIds: string[]) {
     let needsNotifyUserList = false;
+    const listedPeerIds: PeerId[] = [];
     for (const userId of userIds) {
       const peer = await this.makeFriendPeer(userId);
+      listedPeerIds.push(peer.peerId);
       const existingStream = this.streams.find(peer.peerId);
       if (existingStream && existingStream.peer.userId !== userId) {
         existingStream.peer.userId = userId;
@@ -555,6 +592,7 @@ export class SkyWayConnection implements Connection {
       }
     }
 
+    this.listedPeerIds.set(stream.peer.peerId, listedPeerIds);
     const { diff1: relayingUserIds, diff2: unknownUserIds } = diff(this.userIds, userIds);
     this.relayingPeerIds.set(
       stream.peer.peerId,

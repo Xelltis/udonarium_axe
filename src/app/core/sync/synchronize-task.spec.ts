@@ -33,6 +33,25 @@ describe('SynchronizeTask', () => {
     });
   });
 
+  describe('what is still to arrive', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('counts the objects asked for that have not arrived, down to none', () => {
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const task = SynchronizeTask.create('test-peer', [
+        { identifier: 'first', version: 1, holderIds: ['test-peer'], ttl: 3 },
+        { identifier: 'second', version: 1, holderIds: ['test-peer'], ttl: 3 },
+      ]);
+      expect(task.pendingCount).toBe(2);
+
+      localDispatch('UPDATE_GAME_OBJECT', { identifier: 'first' }, 'test-peer');
+      expect(task.pendingCount).toBe(1);
+
+      localDispatch('UPDATE_GAME_OBJECT', { identifier: 'second' }, 'test-peer');
+      expect(task.pendingCount).toBe(0);
+    });
+  });
+
   describe('running out of time', () => {
     afterEach(() => {
       vi.useRealTimers();

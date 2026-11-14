@@ -73,6 +73,33 @@ describe('Network', () => {
     });
   });
 
+  describe('the link to each peer', () => {
+    const connected = (connection: object | null) => {
+      (Network.instance as unknown as { connection: unknown }).connection = connection;
+    };
+
+    afterEach(() => connected(null));
+
+    it('hands on what the connection says of each peer, as a new array', () => {
+      const peerLinks = [
+        { peerId: 'peer-a', state: 'direct' },
+        { peerId: 'peer-b', state: 'relayed' },
+      ];
+      connected({ peerLinks });
+
+      expect(Network.peerLinks).toEqual(peerLinks);
+      expect(Network.peerLinks).not.toBe(peerLinks);
+    });
+
+    it('is empty where the connection says nothing of links, as a room server’s does not, or without one', () => {
+      connected({ peerIds: ['peer-a'] });
+      expect(Network.peerLinks).toEqual([]);
+
+      connected(null);
+      expect(Network.peerLinks).toEqual([]);
+    });
+  });
+
   describe('playing alone', () => {
     afterEach(() => Network.playAlone(null));
 

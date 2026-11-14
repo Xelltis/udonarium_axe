@@ -1,4 +1,5 @@
 import { IPeerContext } from '@axe/core/network/peer-context';
+import { PeerLink } from '@axe/core/network/peer-link';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import {
   AssetUploadPolicy,
@@ -75,6 +76,11 @@ export interface Connection {
    * can tell: SkyWay can, and a room server, which every seat reaches, has no need to.
    */
   readonly roomPeerIds?: string[];
+  /**
+   * How this seat reaches each of the others, those with a stream and those the room only lists,
+   * where the seats link to each other; a room server, which every seat reaches, gives none.
+   */
+  readonly peerLinks?: PeerLink[];
   readonly callback: ConnectionCallback;
   readonly bandwidthUsage: number;
   /**

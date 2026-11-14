@@ -17,7 +17,9 @@ import {
   RECONCILE_QUIET_MS,
   SAME_DIFFERENCE_RETRY_MS,
   SETTLED_CATALOG_MIN_INTERVAL_MS,
+  SYNC_PROGRESS_NOTICE_MS,
 } from '@axe/core/sync/object-synchronizer';
+import { syncProgressChanged$ } from '@axe/core/sync/sync-progress-events';
 import { SynchronizeRequest, SynchronizeTask } from '@axe/core/sync/synchronize-task';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -955,6 +957,122 @@ describe('ObjectSynchronizer', () => {
         vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS);
 
         expect(settled).toEqual([]);
+      });
+    });
+
+    describe('how far its sync has come', () => {
+      let told: number;
+      let stopListening: () => void;
+      const synchronizer = () => ObjectSynchronizer.instance;
+      const wanted = (...identifiers: string[]) => identifiers.map((identifier) => ({ identifier, version: 1 }));
+      const arrives = (identifier: string) =>
+        localDispatch('UPDATE_GAME_OBJECT', new GameObject(identifier).toContext(), 'peer-a');
+
+      beforeEach(() => {
+        told = 0;
+        stopListening = syncProgressChanged$.subscribe(() => told++);
+      });
+
+      afterEach(() => stopListening());
+
+      it('counts what is still to come, asked for already or waiting to be', () => {
+        expect(synchronizer().pendingCount).toBe(0);
+
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted('one', 'two', 'three'), 'peer-a');
+        expect(synchronizer().pendingCount).toBe(3);
+
+        arrives('one');
+        expect(synchronizer().pendingCount).toBe(2);
+        arrives('two');
+        arrives('three');
+        expect(synchronizer().pendingCount).toBe(0);
+      });
+
+      it('counts what waits behind the tasks under way as well', () => {
+        const many = Array.from({ length: 32 * 32 + 5 }, (_, index) => `object-${index}`);
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted(...many), 'peer-a');
+
+        expect(internals().requestMap.size).toBe(5);
+        expect(synchronizer().pendingCount).toBe(many.length);
+      });
+
+      it('is settled only once its first sync is, and not again until then on another network', () => {
+        expect(synchronizer().isSettled).toBe(false);
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS);
+        expect(synchronizer().isSettled).toBe(true);
+
+        localDispatch('OPEN_NETWORK', { peerId: 'self' });
+        expect(synchronizer().isSettled).toBe(false);
+      });
+
+      it('notes when it began to wait and when something asked for last arrived, and nothing else', () => {
+        vi.advanceTimersByTime(1_000);
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted('one', 'two'), 'peer-a');
+        const began = synchronizer().lastProgressAt;
+        expect(began).toBe(performance.now());
+
+        vi.advanceTimersByTime(2_000);
+        localDispatch('UPDATE_GAME_OBJECT', new GameObject('not-asked-for').toContext(), 'peer-a');
+        expect(synchronizer().lastProgressAt).toBe(began);
+
+        arrives('one');
+        expect(synchronizer().lastProgressAt).toBe(began + 2_000);
+      });
+
+      it('does not take a request given up for something arriving', () => {
+        (ObjectSynchronizer.instance as unknown as { givenUpLog: LogThrottle }).givenUpLog.reset();
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted('never-answered'), 'peer-a');
+        const began = synchronizer().lastProgressAt;
+
+        vi.advanceTimersByTime(90_000);
+
+        expect(synchronizer().pendingCount).toBe(0);
+        expect(synchronizer().lastProgressAt).toBe(began);
+      });
+
+      it('tells of a run of changes to the count once, a while after the first of them', () => {
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted('one', 'two', 'three'), 'peer-a');
+        arrives('one');
+        arrives('two');
+        expect(told).toBe(0);
+
+        vi.advanceTimersByTime(SYNC_PROGRESS_NOTICE_MS);
+        expect(told).toBe(1);
+        expect(SYNC_PROGRESS_NOTICE_MS).toBe(250);
+
+        vi.advanceTimersByTime(SYNC_PROGRESS_NOTICE_MS * 4);
+        expect(told).toBe(1);
+      });
+
+      it('tells no more than four times a second however much arrives', () => {
+        const many = Array.from({ length: 200 }, (_, index) => `object-${index}`);
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted(...many), 'peer-a');
+        for (const identifier of many) {
+          arrives(identifier);
+          vi.advanceTimersByTime(5);
+        }
+
+        expect(told).toBe(4);
+      });
+
+      it('tells of the first sync settling, and of starting over on another network', () => {
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS + SYNC_PROGRESS_NOTICE_MS);
+        expect(told).toBe(1);
+
+        localDispatch('OPEN_NETWORK', { peerId: 'self' });
+        vi.advanceTimersByTime(SYNC_PROGRESS_NOTICE_MS);
+        expect(told).toBe(2);
+      });
+
+      it('tells nothing once it has been torn down', () => {
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted('one'), 'peer-a');
+        ObjectSynchronizer.instance.destroy();
+
+        vi.advanceTimersByTime(SYNC_PROGRESS_NOTICE_MS * 2);
+
+        expect(told).toBe(0);
       });
     });
 

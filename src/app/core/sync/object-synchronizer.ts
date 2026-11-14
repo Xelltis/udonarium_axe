@@ -17,8 +17,10 @@ import { ObjectFactory } from '@axe/core/sync/object-factory';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { CatalogItem, ObjectStore } from '@axe/core/sync/object-store';
 import { isNewerVersion } from '@axe/core/sync/object-version';
+import { syncProgressChanged$ } from '@axe/core/sync/sync-progress-events';
 import { SynchronizeRequest, SynchronizeTask } from '@axe/core/sync/synchronize-task';
 import { shuffle } from '@axe/core/util/array-util';
+import { coalesce } from '@axe/core/util/debounce';
 
 type PeerId = string;
 type ObjectIdentifier = string;
@@ -73,6 +75,9 @@ export const CATALOG_REASK_MIN_MS = 60_000;
 /** The most that time grows to, doubling each time the peer is asked again. */
 export const CATALOG_REASK_MAX_MS = 8 * 60_000;
 
+/** The least time between two notices that how far the sync has come has changed. */
+export const SYNC_PROGRESS_NOTICE_MS = 250;
+
 /** Where this seat stands with a peer whose digest differs from its own. */
 interface PeerDifference {
   /** How many digests in a row have differed. */
@@ -113,8 +118,53 @@ export class ObjectSynchronizer {
   private lastSettledSendAt = Number.NEGATIVE_INFINITY;
   /** When each peer was last asked for its catalogue again, and how long to leave it before the next. */
   private readonly reasked = new Map<PeerId, { at: number; waitMs: number }>();
+  /** How many objects were still to arrive when that was last looked at. */
+  private noticedPending = 0;
+  private progressAt = Number.NEGATIVE_INFINITY;
+  private readonly tellProgress = coalesce(() => syncProgressChanged$.emit(), SYNC_PROGRESS_NOTICE_MS);
 
   private constructor() {}
+
+  /**
+   * How many objects this seat knows of and is still to receive: those asked for and not yet
+   * arrived, and those waiting to be asked for. What a peer's catalogue has yet to list is not in it,
+   * so the count may grow while a sync is under way.
+   */
+  get pendingCount(): number {
+    let pending = this.requestMap.size;
+    for (const task of this.tasks) pending += task.pendingCount;
+    return pending;
+  }
+
+  /**
+   * Whether this seat's objects have first synced since its network opened, as the
+   * FIRST_SYNC_SETTLED event tells once. Never so through a room server, which keeps the room itself.
+   */
+  get isSettled(): boolean {
+    return this.settledOnce;
+  }
+
+  /**
+   * When the count of objects still to arrive last moved the right way, by `performance.now()`: when
+   * an object asked for last arrived, or when this seat began to wait having had nothing to wait
+   * for. A request given up or dropped does not count. Negative infinity before any.
+   */
+  get lastProgressAt(): number {
+    return this.progressAt;
+  }
+
+  /**
+   * Looks at how many objects are still to arrive, after anything that may have changed it, and
+   * tells of a change on the syncProgressChanged$ channel, a run of changes at most once in
+   * SYNC_PROGRESS_NOTICE_MS.
+   */
+  private noteProgress(arrived = false): void {
+    const pending = this.pendingCount;
+    if (arrived || (this.noticedPending < 1 && 0 < pending)) this.progressAt = performance.now();
+    if (pending === this.noticedPending) return;
+    this.noticedPending = pending;
+    this.tellProgress();
+  }
 
   /**
    * Starts handling object sync with peers: catalogs, object requests, updates and deletions.
@@ -208,6 +258,7 @@ export class ObjectSynchronizer {
       }
     }
     this.synchronize();
+    this.noteProgress();
   }
 
   /** Sends a peer the object it asks for, or the deletion where it was deleted here. */
@@ -294,6 +345,7 @@ export class ObjectSynchronizer {
    */
   private takeWithdrawal(data: { identifier: string; aliasName?: string }): void {
     this.requestMap.delete(data.identifier);
+    this.noteProgress();
     this.askedOfServer.delete(data.identifier);
     const object = ObjectStore.instance.get(data.identifier);
     if (!object) return;
@@ -309,6 +361,7 @@ export class ObjectSynchronizer {
     this.catalogSenders.clear();
     this.askedOfServer.clear();
     this.forgetReconciling();
+    this.tellProgress.cancel();
   }
 
   /** Starts over on what is kept for reconciling with peers, as when another network opens. */
@@ -319,6 +372,7 @@ export class ObjectSynchronizer {
     this.differences.clear();
     this.reasked.clear();
     this.fetchedSinceSettled = false;
+    if (this.settledOnce) this.tellProgress();
     this.settledOnce = false;
     this.lastSettledSendAt = Number.NEGATIVE_INFINITY;
   }
@@ -405,7 +459,9 @@ export class ObjectSynchronizer {
     const isFirstSync = !this.settledOnce;
     this.settledOnce = true;
     this.sendCatalogToAllInTurn();
-    if (isFirstSync) localDispatch(FIRST_SYNC_SETTLED, {});
+    if (!isFirstSync) return;
+    this.tellProgress();
+    localDispatch(FIRST_SYNC_SETTLED, {});
   }
 
   private sendCatalogToAllInTurn(): void {
@@ -511,6 +567,7 @@ export class ObjectSynchronizer {
       authority
     );
     this.synchronize();
+    this.noteProgress();
   }
 
   private addRequestMap(item: CatalogItem, sendFrom: PeerId) {
@@ -536,6 +593,7 @@ export class ObjectSynchronizer {
   private removePeerMap(targetPeerId: PeerId) {
     this.peerMap.delete(targetPeerId);
     this.dropOrphanedRequests();
+    this.noteProgress();
   }
 
   private synchronize() {
@@ -573,12 +631,15 @@ export class ObjectSynchronizer {
     const targetPeerIdTasks = this.peerMap.get(targetPeerId);
     if (targetPeerIdTasks) targetPeerIdTasks.push(task);
 
+    task.onsynchronize = () => this.noteProgress(true);
+
     task.onfinish = (task) => {
       removeTask(this.tasks, task);
       const targetPeerIdTasks = this.peerMap.get(targetPeerId);
       if (targetPeerIdTasks) removeTask(targetPeerIdTasks, task);
       this.synchronize();
       this.noteSettled();
+      this.noteProgress();
     };
 
     task.ontimeout = (_task, remainedRequests, givenUpRequests) => {
