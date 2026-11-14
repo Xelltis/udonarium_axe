@@ -18,17 +18,13 @@ describe('AppConfigService', () => {
   });
 
   afterEach(() => {
-    AppConfigService.appConfig.transport = 'skyway';
-    AppConfigService.appConfig.backend.url = '';
     AssetHttpStore.instance.configure(null);
     AssetHttpStore.instance.useAccess(null);
     Network.setServerCredentials(null);
     vi.restoreAllMocks();
   });
 
-  // initialize() hands back nothing to wait on, so the loading it starts is awaited directly
-  const loadConfig = () =>
-    (TestBed.inject(AppConfigService) as unknown as { initAppConfig(): Promise<void> }).initAppConfig();
+  const loadConfig = () => TestBed.inject(AppConfigService).initialize();
 
   it('should be created', inject([AppConfigService], (service: AppConfigService) => {
     expect(service).toBeTruthy();
@@ -43,7 +39,7 @@ describe('AppConfigService', () => {
     );
     const fetched = vi.spyOn(globalThis, 'fetch');
 
-    TestBed.inject(AppConfigService).initialize();
+    void TestBed.inject(AppConfigService).initialize();
 
     expect(await loaded).toBe(true);
     expect(fetched).not.toHaveBeenCalled();
@@ -57,7 +53,7 @@ describe('AppConfigService', () => {
     );
     await loadConfig();
 
-    expect(AppConfigService.appConfig.transport).toBe('skyway');
+    expect(TestBed.inject(AppConfigService).config().transport).toBe('skyway');
     expect(AssetHttpStore.instance.isEnabled).toBe(false);
   });
 
@@ -105,6 +101,34 @@ describe('AppConfigService', () => {
     } finally {
       document.body.classList.remove(OVERLAY_BODY_CLASS);
     }
+  });
+
+  it('takes only a backend address that is text, and keeps the defaults for a file of another shape', async () => {
+    const service = TestBed.inject(AppConfigService);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ transport: 'server', backend: { url: 42 } }))
+    );
+    await service.initialize();
+    expect(service.config()).toEqual({ transport: 'server', backend: { url: '' }, localMode: false });
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(['server'])));
+    await service.initialize();
+    expect(service.config()).toEqual({ transport: 'skyway', backend: { url: '' }, localMode: false });
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ backend: 'https://rooms.example' })));
+    await service.initialize();
+    expect(service.config()).toEqual({ transport: 'skyway', backend: { url: '' }, localMode: false });
+  });
+
+  it('settles without rejecting when applying the configuration throws', async () => {
+    vi.spyOn(TestBed.inject(ServerAuthService), 'configure').mockImplementation(() => {
+      throw new Error('refused');
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ transport: 'server', backend: { url: 'https://rooms.example/' } }))
+    );
+
+    await expect(loadConfig()).resolves.toBeUndefined();
   });
 
   it('keeps them on the room server, and with SkyWay nowhere', () => {

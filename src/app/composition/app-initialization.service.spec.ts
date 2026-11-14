@@ -32,7 +32,7 @@ describe('AppInitializationService', () => {
       providers: [...TEST_PROVIDERS],
     });
     objectStore = TestBed.inject(ObjectStore);
-    vi.spyOn(TestBed.inject(AppConfigService), 'initialize').mockImplementation(() => {});
+    vi.spyOn(TestBed.inject(AppConfigService), 'initialize').mockResolvedValue();
     service = TestBed.inject(AppInitializationService);
   });
 
@@ -56,7 +56,7 @@ describe('AppInitializationService', () => {
     localStorage.setItem(STORAGE_KEYS.personalVolumes, JSON.stringify({ bgm: 0.2, background: 0.3 }));
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
-    vi.spyOn(TestBed.inject(AppConfigService), 'initialize').mockImplementation(() => {});
+    vi.spyOn(TestBed.inject(AppConfigService), 'initialize').mockResolvedValue();
     const set = vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
     const heard = (type: VolumeType) => set.mock.calls.filter(([called]) => called === type).at(-1)?.[1];
 

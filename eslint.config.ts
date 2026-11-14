@@ -108,7 +108,9 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
 /* Angular builds the services, components, directives and pipes, so they take the app's singletons
    through inject() (bridged in composition/class-provider.ts) rather than reading them off the class.
    The synced singletons are left out on purpose: their `instance` answers for whichever object stands
-   in the room at the time, which an injected copy would not follow. */
+   in the room at the time, which an injected copy would not follow. Network is left out as well: it is
+   reached mostly through its statics (`Network.peerId`, `Network.transport`), which an injected copy
+   does not carry, so its `instance` is read beside them. */
 const PROCESS_SINGLETONS = [
   'AssetHttpStore',
   'AudioSharingSystem',
@@ -283,7 +285,7 @@ export default defineConfig([
     rules: { 'no-restricted-syntax': ['error', NO_SYNCED_SINGLETON_INJECT] },
   },
   {
-    files: [`src/app/{application,ui}/**/${ANGULAR_CLASS_FILES}`],
+    files: [`src/app/{application,ui,composition}/**/${ANGULAR_CLASS_FILES}`],
     ignores: ['src/app/**/*.spec.ts'],
     rules: { 'no-restricted-syntax': ['error', NO_SINGLETON_INSTANCE, NO_SYNCED_SINGLETON_INJECT] },
   },

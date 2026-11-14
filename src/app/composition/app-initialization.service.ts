@@ -57,6 +57,10 @@ export class AppInitializationService {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly audioStorage = inject(AudioStorage);
+  private readonly imageSharing = inject(ImageSharingSystem);
+  private readonly audioSharing = inject(AudioSharingSystem);
+  private readonly modelSharing = inject(ModelSharingSystem);
+  private readonly objectSynchronizer = inject(ObjectSynchronizer);
   private get chatTabList(): ChatTabList {
     return ChatTabList.instance;
   }
@@ -93,11 +97,11 @@ export class AppInitializationService {
     initializeNetworkMessaging();
     this.fileArchiver.initialize();
     this.fileArchiver.mayLoadDrops = () => this.rolePermission.canEditTabletop();
-    ImageSharingSystem.instance.initialize();
-    AudioSharingSystem.instance.initialize();
-    ModelSharingSystem.instance.initialize();
-    ObjectSynchronizer.instance.initialize();
-    this.appConfigService.initialize();
+    this.imageSharing.initialize();
+    this.audioSharing.initialize();
+    this.modelSharing.initialize();
+    this.objectSynchronizer.initialize();
+    void this.appConfigService.initialize();
     this.keyboardInset.initialize();
     keepFocusFromZoomingOnAppleTouch(document, navigator);
 
@@ -143,14 +147,14 @@ export class AppInitializationService {
     const jukebox = new Jukebox('Jukebox');
     jukebox.initialize();
     this.personalVolumes.applyToChannels();
-    AudioSharingSystem.instance.preferredIdentifiers = () => [
+    this.audioSharing.preferredIdentifiers = () => [
       ...(jukebox.audioIdentifier.length > 0 ? [jukebox.audioIdentifier] : []),
       ...BackgroundSound.playing().map((sound) => sound.audioIdentifier),
     ];
     // Music started after the room's sounds were lined up goes ahead of them too.
     this.objectChange.onObjectChangedForAlias(
       ['jukebox', 'background-sound'],
-      () => AudioSharingSystem.instance.preferWaiting(),
+      () => this.audioSharing.preferWaiting(),
       this.destroyRef
     );
 
