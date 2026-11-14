@@ -5,8 +5,8 @@ import { AssetRemovalService } from '@axe/application/file/asset-removal.service
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
-import { PersonalVolumeKind } from '@axe/application/media/personal-volumes';
 import { RoomVolumeService } from '@axe/application/media/room-volume.service';
+import { roomSoundKindRow, soundKindRow } from '@axe/application/media/sound-kind-rows';
 import { ReportService } from '@axe/application/moderation/report.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -27,7 +27,6 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
-import { RoomVolumeKind } from '@axe/domain/media/room-volumes';
 import { BackgroundSoundPlaybackService } from '@axe/features/media/background-sound-playback.service';
 import {
   buildLibraryTrackMenu,
@@ -41,6 +40,20 @@ import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { UiVolumeRowComponent } from '@axe/ui/components/volume-row/volume-row.component';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
+
+/** The kinds of the listener's own volumes the jukebox panel lists, in its order. */
+const JUKEBOX_VOLUME_KINDS = ['audition', 'bgm', 'se', 'background'] as const;
+
+/** The kinds of the room's volumes the jukebox panel lists under the room's overall one. */
+const JUKEBOX_ROOM_VOLUME_KINDS = ['bgm', 'se', 'background'] as const;
+
+/** What the jukebox panel calls each kind it lists, as a translation key. */
+const JUKEBOX_VOLUME_LABELS: Readonly<Record<(typeof JUKEBOX_VOLUME_KINDS)[number], string>> = {
+  audition: 'feature.media.jukebox.auditionLabel',
+  bgm: 'feature.media.jukebox.bgmLabel',
+  se: 'feature.media.jukebox.seLabel',
+  background: 'feature.media.jukebox.bgsLabel',
+};
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -67,13 +80,10 @@ export class JukeboxComponent {
   private readonly t = inject(TRANSLATE_FN);
   protected readonly playback = inject(JukeboxPlaybackService);
   protected readonly backgroundSounds = inject(BackgroundSoundPlaybackService);
-  private readonly personalVolumes = inject(PersonalVolumeService);
-  private readonly roomVolumes = inject(RoomVolumeService);
+  protected readonly personalVolumes = inject(PersonalVolumeService);
+  protected readonly roomVolumes = inject(RoomVolumeService);
   private readonly assetRemoval = inject(AssetRemovalService);
   private readonly ownership = inject(AssetOwnershipService);
-
-  /** Whether this player may move the room volume, which only the game master may, as with the room's other settings. */
-  readonly canChangeRoomVolume = this.roomVolumes.canChange;
 
   /** Whether this player may change what the room plays, which a guest may not. */
   readonly canOperate = this.playback.canOperate;
@@ -94,78 +104,28 @@ export class JukeboxComponent {
   }
 
   /**
-   * The room-wide volume every player's sound is multiplied by, from the room volume slider.
-   *
-   * It lives in the room's synced config, so changing it changes what everyone hears, and only the
-   * game master may change it. Reads 1 before the config exists.
+   * This player's own volumes as the panel lists them, the ones the music it plays goes through.
+   * The sound settings panel holds the rest. Each is heard at once scaled by the room's volume, and
+   * is remembered in this browser and never shared.
    */
-  get roomVolume(): number {
-    return this.roomVolumes.volume();
-  }
+  protected readonly ownVolumeRows = JUKEBOX_VOLUME_KINDS.map((kind) => ({
+    ...soundKindRow(kind),
+    label: JUKEBOX_VOLUME_LABELS[kind],
+  }));
 
-  set roomVolume(volume: number) {
-    this.roomVolumes.set(volume);
-  }
-
-  /** The room's volume for one kind of sound, from 0 to 2, which its overall volume scales in turn. */
-  roomVolumeOf(kind: RoomVolumeKind): number {
-    return this.roomVolumes.volumes()[kind];
-  }
-
-  /** Sets the room's volume for one kind of sound for everyone. Only the game master may. */
-  setRoomVolumeOf(kind: RoomVolumeKind, volume: number): void {
-    this.roomVolumes.setKind(kind, volume);
-  }
-
-  /** Whether this player has turned a kind of sound off for themselves. */
-  isMuted(kind: PersonalVolumeKind): boolean {
-    return this.personalVolumes.isMuted(kind);
-  }
-
-  /** Turns a kind of sound off or back on for this player alone, remembered in this browser. */
-  setMuted(kind: PersonalVolumeKind, muted: boolean): void {
-    this.personalVolumes.setMuted(kind, muted);
-  }
+  /**
+   * The room's volumes as the panel lists them under its overall one. They live in the room's synced
+   * config, so moving one changes what everyone hears, and only the game master may.
+   */
+  protected readonly roomVolumeRows = JUKEBOX_ROOM_VOLUME_KINDS.map((kind) => ({
+    ...roomSoundKindRow(kind),
+    label: JUKEBOX_VOLUME_LABELS[kind],
+  }));
 
   /** Opens the panel holding every one of this player's sound settings, beside the pointer. */
   openSoundSettings(): void {
     const coordinate = this.pointerDeviceService.pointers[0];
     this.roomPanels.open('soundSettings', { left: coordinate.x + 25, top: coordinate.y + 25 });
-  }
-
-  /**
-   * This player's own BGM volume, heard at once scaled by the room volume. Not shared, and
-   * remembered in this browser like the other volumes of this player's own.
-   */
-  get volume(): number {
-    return this.personalVolumes.get('bgm');
-  }
-  set volume(volume: number) {
-    this.personalVolumes.set('bgm', volume);
-  }
-
-  /** This player's volume for previewing a track alone. */
-  get auditionVolume(): number {
-    return this.personalVolumes.get('audition');
-  }
-  set auditionVolume(auditionVolume: number) {
-    this.personalVolumes.set('audition', auditionVolume);
-  }
-
-  /** This player's sound-effect volume. */
-  get seVolume(): number {
-    return this.personalVolumes.get('se');
-  }
-  set seVolume(seVolume: number) {
-    this.personalVolumes.set('se', seVolume);
-  }
-
-  /** This player's volume for the room's background sounds. */
-  get backgroundVolume(): number {
-    return this.personalVolumes.get('background');
-  }
-  set backgroundVolume(backgroundVolume: number) {
-    this.personalVolumes.set('background', backgroundVolume);
   }
 
   readonly allTag = computed(() => this.t('feature.media.jukebox.tagAll'));

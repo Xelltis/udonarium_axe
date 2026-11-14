@@ -78,6 +78,13 @@ describe('JukeboxComponent', () => {
     vi.restoreAllMocks();
   });
 
+  /** Moves the slider of the input with this name to a value, as dragging it does. */
+  function move(name: string, value: number): void {
+    const slider = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(`input[name="${name}"]`)!;
+    slider.value = String(value);
+    slider.dispatchEvent(new Event('input'));
+  }
+
   it('should be created', () => {
     expect(component).toBeTruthy();
   });
@@ -174,7 +181,7 @@ describe('JukeboxComponent', () => {
       PeerCursor.myCursor.role = PeerRole.Player;
       await fixture.whenStable();
 
-      component.roomVolume = 0.4;
+      move('room-volume', 0.4);
 
       expect(roomSlider().disabled).toBe(true);
       expect(config().roomVolume).toBe(1);
@@ -184,7 +191,7 @@ describe('JukeboxComponent', () => {
       PeerCursor.myCursor.role = PeerRole.GameMaster;
       await fixture.whenStable();
 
-      component.roomVolume = 0.4;
+      move('room-volume', 0.4);
 
       expect(roomSlider().disabled).toBe(false);
       expect(config().roomVolume).toBe(0.4);
@@ -207,13 +214,13 @@ describe('JukeboxComponent', () => {
         (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[name="room-bgm-volume"]')!;
       PeerCursor.myCursor.role = PeerRole.Player;
       await fixture.whenStable();
-      component.setRoomVolumeOf('bgm', 0.4);
+      move('room-bgm-volume', 0.4);
       expect(bgm().disabled).toBe(true);
       expect(config().roomVolumes.bgm).toBe(1);
 
       PeerCursor.myCursor.role = PeerRole.GameMaster;
       await fixture.whenStable();
-      component.setRoomVolumeOf('bgm', 0.4);
+      move('room-bgm-volume', 0.4);
       await fixture.whenStable();
 
       expect(bgm().disabled).toBe(false);
@@ -657,12 +664,13 @@ describe('JukeboxComponent', () => {
       expect(sound.volume).toBe(0.3);
     });
 
-    it('sets this player’s own background volume, scaled by the room volume', () => {
+    it('sets this player’s own background volume from its slider, scaled by the room volume', async () => {
       if (!ObjectStore.instance.get<Config>('Config')) new Config('Config').initialize();
       ObjectStore.instance.get<Config>('Config')!.roomVolume = 0.5;
       const channel = vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
 
-      component.backgroundVolume = 0.8;
+      await fixture.whenStable();
+      move('background-volume', 0.8);
 
       expect(channel).toHaveBeenCalledWith(VolumeType.BACKGROUND, expect.closeTo(0.4));
     });
