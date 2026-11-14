@@ -45,11 +45,6 @@ describe('save and load round trip', () => {
     TestBed.configureTestingModule({});
     store = ObjectStore.instance;
     serializer = ObjectSerializer.instance;
-    (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
-  });
-
-  afterEach(() => {
-    (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
   });
 
   describe('the stamps put on lines of chat', () => {
@@ -77,7 +72,7 @@ describe('save and load round trip', () => {
 
   describe("the room's own rules", () => {
     afterEach(() => {
-      (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+      Config.forget();
     });
 
     it('carries every answer through a save and a load', () => {
@@ -569,7 +564,7 @@ describe('save and load round trip', () => {
     // Given an Element, parseXml bypasses the DOMParser, so the child <chat-tab> elements
     // reach parseXml directly as Elements.
 
-    it('discards both starting tabs, the case that broke when the list was mutated mid-iteration', () => {
+    it('discards both starting tabs', () => {
       const instance = ChatTabList.instance;
       instance.addChatTab('Tab1');
       instance.addChatTab('Tab2');

@@ -16,7 +16,7 @@ import { ROOM_RULE_DEFAULTS } from '@axe/domain/tabletop/room-rules';
 describe('Config', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
   });
 
   afterEach(async () => {
@@ -24,7 +24,7 @@ describe('Config', () => {
     // and unless those queues are drained before the objects are deleted an error can be
     // thrown after the test has finished.
     await waitZeroTimeout();
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
   });
 
   it('makes one anew once the one held has left the store, rather than putting that one back', () => {

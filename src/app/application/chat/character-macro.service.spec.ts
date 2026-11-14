@@ -47,7 +47,7 @@ describe('CharacterMacroService', () => {
     vi.restoreAllMocks();
     // The room outlives the fixture, so a system left on it turns up in whatever runs next.
     Config.instance.defaultDiceBot = '';
-    (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+    ChatTabList.forget();
   });
 
   it('speaks as the character, into the tab it was given', () => {

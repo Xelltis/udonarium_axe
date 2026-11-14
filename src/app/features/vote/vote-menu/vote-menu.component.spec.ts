@@ -27,9 +27,7 @@ describe('VoteMenuComponent', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    PeerCursor.myCursor = null!;
-    (PeerCursor as unknown as Record<string, unknown>)['userIdMap'] = new Map();
-    (PeerCursor as unknown as Record<string, unknown>)['peerIdMap'] = new Map();
+    PeerCursor.forget();
   });
 
   it('should create', () => {

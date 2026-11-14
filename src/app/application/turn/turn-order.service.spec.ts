@@ -34,7 +34,7 @@ describe('TurnOrderService', () => {
 
     // Config is a singleton that outlives a test, so how the round is taken has to be put
     // back or one faction test rules every test that runs after it.
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
     const config = Config.instance;
     config.turnOrderMode = 'initiative';
     config.factionPhaseMode = 'free';

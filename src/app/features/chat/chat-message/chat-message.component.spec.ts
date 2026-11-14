@@ -1406,7 +1406,7 @@ describe('ChatMessageComponent', () => {
 
     afterEach(() => {
       for (const tab of tabs.splice(0)) tab.destroy();
-      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      ChatTabList.forget();
     });
 
     describe('following the line with nobody asking it to look again', () => {

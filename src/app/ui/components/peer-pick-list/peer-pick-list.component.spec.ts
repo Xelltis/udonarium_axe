@@ -34,8 +34,7 @@ describe('UiPeerPickListComponent', () => {
   });
 
   afterEach(() => {
-    (PeerCursor as unknown as Record<string, unknown>)['userIdMap'] = new Map();
-    (PeerCursor as unknown as Record<string, unknown>)['peerIdMap'] = new Map();
+    PeerCursor.forget();
   });
 
   it('lists a row for each seat, with its name and the words for no character', () => {

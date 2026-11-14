@@ -63,7 +63,7 @@ describe('TabletopDisplaySettingComponent', () => {
     TestBed.inject(TabletopDisplayPreferenceService).forget();
     TestBed.inject(ViewModePreferenceService).choose('auto');
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
   });
 
   it('should be created', () => {

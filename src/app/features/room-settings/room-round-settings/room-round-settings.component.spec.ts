@@ -27,7 +27,7 @@ describe('RoomRoundSettingsComponent', () => {
 
   afterEach(() => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
   });
 
   it('lets only the master turn the sounds of a turn beginning on or off', async () => {

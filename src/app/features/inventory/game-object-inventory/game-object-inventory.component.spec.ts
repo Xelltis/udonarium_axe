@@ -60,7 +60,7 @@ describe('GameObjectInventoryComponent', () => {
 
   afterEach(() => {
     localStorage.removeItem('ui-inventory-view');
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
   });
 
   it('should create', () => {

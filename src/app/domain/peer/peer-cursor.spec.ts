@@ -20,16 +20,11 @@ describe('PeerCursor', () => {
     // It is put back each time, in case another spec left a stub behind.
     resetPeerContextProvider();
     store = ObjectStore.instance;
-    PeerCursor.myCursor = null!;
-    (PeerCursor as unknown as Record<string, unknown>)['userIdMap'] = new Map();
-    (PeerCursor as unknown as Record<string, unknown>)['peerIdMap'] = new Map();
-    (PeerCursor as unknown as Record<string, unknown>)['goneUserIds'] = new Map();
+    PeerCursor.forget();
   });
 
   afterEach(() => {
-    PeerCursor.myCursor = null!;
-    (PeerCursor as unknown as Record<string, unknown>)['userIdMap'] = new Map();
-    (PeerCursor as unknown as Record<string, unknown>)['peerIdMap'] = new Map();
+    PeerCursor.forget();
     vi.restoreAllMocks();
   });
 

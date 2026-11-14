@@ -51,7 +51,7 @@ describe('ChatMessageSettingComponent', () => {
   });
 
   afterEach(() => {
-    (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+    ChatTabList.forget();
     localStorage.removeItem('chat-preferences');
   });
 

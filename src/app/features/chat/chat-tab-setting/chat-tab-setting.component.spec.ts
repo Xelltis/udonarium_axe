@@ -290,7 +290,7 @@ describe('ChatTabSettingComponent', () => {
     };
 
     afterEach(() => {
-      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      ChatTabList.forget();
       PeerCursor.myCursor = null!;
     });
 
@@ -376,7 +376,7 @@ describe('ChatTabSettingComponent', () => {
     };
 
     afterEach(() => {
-      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      ChatTabList.forget();
       PeerCursor.myCursor = null!;
     });
 
@@ -408,7 +408,7 @@ describe('ChatTabSettingComponent', () => {
     beforeEach(() => {});
 
     afterEach(() => {
-      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      ChatTabList.forget();
       PeerCursor.myCursor = null!;
     });
 
@@ -465,7 +465,7 @@ describe('ChatTabSettingComponent', () => {
 
     afterEach(() => {
       vi.restoreAllMocks();
-      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      ChatTabList.forget();
       PeerCursor.myCursor = null!;
     });
 

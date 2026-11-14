@@ -33,7 +33,7 @@ describe('RoomZocSettingsComponent', () => {
 
   afterEach(() => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
   });
 
   it('shows what the table rules while the room has been asked nothing', () => {
