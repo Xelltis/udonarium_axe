@@ -1,6 +1,11 @@
+import { ImageFile } from '@axe/core/storage/image-file';
+import { Card } from '@axe/domain/card/card';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import {
   buildObjectRow,
+  isDisclosable,
   matchesObjectRowQuery,
   resolveObjectImageUrl,
   resolveRangeThumbnail,
@@ -68,25 +73,45 @@ describe('buildObjectRow', () => {
 });
 
 describe('resolveObjectImageUrl', () => {
+  const made: { destroy(): void }[] = [];
+  const picture = (url: string) => ({ url }) as ImageFile;
+
+  function withPictures<T extends TabletopObject>(object: T, pictures: Record<string, unknown>): T {
+    made.push(object);
+    for (const [name, value] of Object.entries(pictures)) Object.defineProperty(object, name, { value });
+    return object;
+  }
+
+  afterEach(() => {
+    for (const each of made.splice(0)) each.destroy();
+  });
+
   it('takes a characters piece picture', () => {
     expect(resolveObjectImageUrl(makeObject({ imageFile: { url: 'token.png' } }), 'character')).toBe('token.png');
   });
 
   it('takes the face of a card rather than its back', () => {
-    const card = makeObject({ frontImage: { url: 'front.png' }, imageFile: { url: 'back.png' } });
+    const card = withPictures(Card.create('card', 'front', 'back'), {
+      frontImage: picture('front.png'),
+      imageFile: picture('back.png'),
+    });
     expect(resolveObjectImageUrl(card, 'card')).toBe('front.png');
   });
 
   it('takes the wall of terrain that has one and the floor otherwise', () => {
-    expect(
-      resolveObjectImageUrl(
-        makeObject({ hasWall: true, wallImage: { url: 'w.png' }, floorImage: { url: 'f.png' } }),
-        'terrain'
-      )
-    ).toBe('w.png');
-    expect(
-      resolveObjectImageUrl(makeObject({ hasWall: false, wallImage: null, floorImage: { url: 'f.png' } }), 'terrain')
-    ).toBe('f.png');
+    const walled = withPictures(Terrain.create('wall', 1, 1, 1, 'w', 'f'), {
+      hasWall: true,
+      wallImage: picture('w.png'),
+      floorImage: picture('f.png'),
+    });
+    const flat = withPictures(Terrain.create('floor', 1, 1, 1, '', 'f'), {
+      hasWall: false,
+      wallImage: null,
+      floorImage: picture('f.png'),
+    });
+
+    expect(resolveObjectImageUrl(walled, 'terrain')).toBe('w.png');
+    expect(resolveObjectImageUrl(flat, 'terrain')).toBe('f.png');
   });
 
   it('returns nothing for another kind or no picture at all', () => {
@@ -96,23 +121,40 @@ describe('resolveObjectImageUrl', () => {
 });
 
 describe('resolveRangeThumbnail', () => {
+  const made: RangeArea[] = [];
+
+  afterEach(() => {
+    for (const each of made.splice(0)) each.destroy();
+  });
+
+  function range(type: string, cellPattern: string): RangeArea {
+    const object = RangeArea.create('range', 1, 1, 100);
+    object.type = type;
+    object.cellPattern = cellPattern;
+    object.customGridType = 'square';
+    object.gridColor = '#FF0000';
+    made.push(object);
+    return object;
+  }
+
   it('returns a thumbnail for a custom shape that has a pattern', () => {
-    const range = makeObject({
-      type: 'CUSTOM',
-      cellPattern: '0,0;1,0;0,1',
-      customGridType: 'square',
-      gridColor: '#FF0000',
-      rangeColor: '#000000',
-    });
-    const thumb = resolveRangeThumbnail(range);
+    const thumb = resolveRangeThumbnail(range('CUSTOM', '0,0;1,0;0,1'));
     expect(thumb).not.toBeNull();
     expect(thumb!.cells.length).toBe(3);
     expect(thumb!.gridColor).toBe('#FF0000');
   });
 
-  it('returns nothing for a built-in shape or one without', () => {
-    expect(resolveRangeThumbnail(makeObject({ type: 'CORN' }))).toBeNull();
-    expect(resolveRangeThumbnail(makeObject({ type: 'CUSTOM', cellPattern: '' }))).toBeNull();
+  it('returns nothing for a built-in shape, one without a pattern, or anything that is no range', () => {
+    expect(resolveRangeThumbnail(range('CORN', '0,0'))).toBeNull();
+    expect(resolveRangeThumbnail(range('CUSTOM', ''))).toBeNull();
+    expect(resolveRangeThumbnail(makeObject({ type: 'CUSTOM', cellPattern: '0,0' }))).toBeNull();
+  });
+});
+
+describe('isDisclosable', () => {
+  it('is true only for a kind that carries a disclosure setting', () => {
+    expect(isDisclosable(makeObject({ disclosureMode: 'gm', disclosureUserIds: [] }))).toBe(true);
+    expect(isDisclosable(makeObject({ isLocked: true }))).toBe(false);
   });
 });
 
