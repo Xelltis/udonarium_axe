@@ -193,6 +193,17 @@ describe('setupDoubleTap()', () => {
     destroy();
   });
 
+  it('runs nothing for two presses of the right button', () => {
+    const { taps, onDoubleTap, destroy } = setup();
+    pointAt(taps, 10, 10);
+
+    taps.press(new MouseEvent('mousedown', { button: 2 }));
+    taps.press(new MouseEvent('mousedown', { button: 2 }));
+
+    expect(onDoubleTap).not.toHaveBeenCalled();
+    destroy();
+  });
+
   it('runs nothing for a second press that strayed from the first', () => {
     const { taps, onDoubleTap, destroy } = setup();
     const pointer = pointAt(taps, 10, 10);
