@@ -15,8 +15,8 @@ import { wholeCells } from '@axe/core/util/whole-cells';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
+import { MaskPictureFieldComponent } from '@axe/features/tabletop/game-table-mask-sheet/mask-picture-field.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
-import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** What a colour picker can show for a stored colour: a six-digit hex, or the fallback for anything else. */
@@ -34,7 +34,7 @@ const SCRATCHED_COLOR_FALLBACK = '#808080';
   templateUrl: './game-table-mask-sheet.component.html',
   host: { class: 'block box-border h-full overflow-y-auto p-3 text-ui-text bg-ui-panel' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [FormsModule, MaskPictureFieldComponent, TranslocoModule],
 })
 export class GameTableMaskSheetComponent {
   private readonly modalService = inject(ModalService);

@@ -135,22 +135,12 @@
         <div class="grid grid-cols-[8rem_1fr] items-center gap-3">
           <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.imageTable' | transloco }}</label>
           <div class="flex items-start gap-2">
-            @if (tableBackgroundImage.url) {
-              <img
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input hover:border-ui-accent block h-16.5 w-22 cursor-pointer border border-solid object-contain transition-colors"
-                [src]="tableBackgroundImage.url | safe: 'resourceUrl'"
-                (click)="openBgImageModal()"
-                [alt]="'feature.tabletop.tableSetting.imageTableAlt' | transloco"
-              />
-            } @else {
-              <button
-                type="button"
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:bg-ui-input hover:text-ui-accent m-0 flex h-16.5 w-22 cursor-pointer items-center justify-center border border-dashed p-1 text-center text-[11px] leading-[1.4] transition-colors hover:shadow-none"
-                (click)="openBgImageModal()"
-              >
-                {{ 'feature.tabletop.tableSetting.addImageTable' | transloco }}
-              </button>
-            }
+            <ui-image-picker-tile
+              [url]="tableBackgroundImage.url"
+              [alt]="'feature.tabletop.tableSetting.imageTableAlt' | transloco"
+              [addLabel]="'feature.tabletop.tableSetting.addImageTable' | transloco"
+              (pick)="openBgImageModal()"
+            />
             <button
               type="button"
               class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:text-ui-accent m-0 inline-flex cursor-pointer items-center gap-1.5 self-center border border-solid px-2.5 py-1.5 text-[11px] whitespace-nowrap transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -164,22 +154,12 @@
 
           <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.imageBg' | transloco }}</label>
           <div class="flex">
-            @if (tableDistanceviewImage.url) {
-              <img
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input hover:border-ui-accent block h-16.5 w-22 cursor-pointer border border-solid object-contain transition-colors"
-                [src]="tableDistanceviewImage.url | safe: 'resourceUrl'"
-                (click)="openDistanceViewImageModal()"
-                [alt]="'feature.tabletop.tableSetting.imageBgAlt' | transloco"
-              />
-            } @else {
-              <button
-                type="button"
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:bg-ui-input hover:text-ui-accent m-0 flex h-16.5 w-22 cursor-pointer items-center justify-center border border-dashed p-1 text-center text-[11px] leading-[1.4] transition-colors hover:shadow-none"
-                (click)="openDistanceViewImageModal()"
-              >
-                {{ 'feature.tabletop.tableSetting.addImageBg' | transloco }}
-              </button>
-            }
+            <ui-image-picker-tile
+              [url]="tableDistanceviewImage.url"
+              [alt]="'feature.tabletop.tableSetting.imageBgAlt' | transloco"
+              [addLabel]="'feature.tabletop.tableSetting.addImageBg' | transloco"
+              (pick)="openDistanceViewImageModal()"
+            />
           </div>
 
           <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.bgFilter' | transloco }}</label>
@@ -199,23 +179,13 @@
           }}</label>
           <div class="flex flex-col gap-1.5" data-testid="table-foreground-setting">
             <div class="flex items-start gap-2">
-              @if (tableForegroundImage.url) {
-                <img
-                  class="rounded-ui-sm border-ui-border-panel bg-ui-input hover:border-ui-accent block h-16.5 w-22 cursor-pointer border border-solid object-contain transition-colors"
-                  [src]="tableForegroundImage.url | safe: 'resourceUrl'"
-                  (click)="openForegroundImageModal()"
-                  [alt]="'feature.tabletop.tableSetting.imageForegroundAlt' | transloco"
-                />
-              } @else {
-                <button
-                  type="button"
-                  data-testid="table-foreground-pick"
-                  class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:bg-ui-input hover:text-ui-accent m-0 flex h-16.5 w-22 cursor-pointer items-center justify-center border border-dashed p-1 text-center text-[11px] leading-[1.4] transition-colors hover:shadow-none"
-                  (click)="openForegroundImageModal()"
-                >
-                  {{ 'feature.tabletop.tableSetting.addImageForeground' | transloco }}
-                </button>
-              }
+              <ui-image-picker-tile
+                [url]="tableForegroundImage.url"
+                [alt]="'feature.tabletop.tableSetting.imageForegroundAlt' | transloco"
+                [addLabel]="'feature.tabletop.tableSetting.addImageForeground' | transloco"
+                addTestId="table-foreground-pick"
+                (pick)="openForegroundImageModal()"
+              />
               @if (tableForegroundImage.url) {
                 <button
                   type="button"
@@ -289,23 +259,12 @@
             @for (wall of wallFields; track wall.key) {
               <div class="flex flex-col items-center gap-1">
                 <span class="text-ui-muted text-[11px]">{{ wall.label | transloco }}</span>
-                @let wallPicture = wallImage(wall);
-                @if (wallPicture.url) {
-                  <img
-                    class="rounded-ui-sm border-ui-border-panel bg-ui-input hover:border-ui-accent block h-16.5 w-22 cursor-pointer border border-solid object-contain transition-colors"
-                    [src]="wallPicture.url | safe: 'resourceUrl'"
-                    (click)="openWallImage(wall)"
-                    [alt]="wall.alt | transloco"
-                  />
-                } @else {
-                  <button
-                    type="button"
-                    class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:bg-ui-input hover:text-ui-accent m-0 flex h-16.5 w-22 cursor-pointer items-center justify-center border border-dashed p-1 text-center text-[11px] leading-[1.4] transition-colors hover:shadow-none"
-                    (click)="openWallImage(wall)"
-                  >
-                    {{ wall.add | transloco }}
-                  </button>
-                }
+                <ui-image-picker-tile
+                  [url]="wallImage(wall).url"
+                  [alt]="wall.alt | transloco"
+                  [addLabel]="wall.add | transloco"
+                  (pick)="openWallImage(wall)"
+                />
                 <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[12px] select-none">
                   <input
                     type="checkbox"
@@ -331,70 +290,34 @@
         </div>
         <div class="grid grid-cols-[8rem_1fr] items-center gap-x-3 gap-y-2.5">
           <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.width' | transloco }}</label>
-          <div class="flex items-center gap-2">
-            <input
-              type="range"
-              class="flex-1 [accent-color:var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="tableWidth"
-              min="{{ minSize }}"
-              max="{{ maxSize }}"
-              name="tableWidth"
-              [attr.disabled]="!isEditable ? '' : null"
-            />
-            <input
-              type="number"
-              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent w-[4.5em] border border-solid px-1.5 py-1 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="tableWidth"
-              min="{{ minSize }}"
-              max="{{ maxSize }}"
-              name="table-width"
-              [attr.disabled]="!isEditable ? '' : null"
-            />
-          </div>
+          <ui-range-number-field
+            rangeName="tableWidth"
+            numberName="table-width"
+            [(value)]="tableWidth"
+            [min]="minSize"
+            [max]="maxSize"
+            [disabled]="!isEditable"
+          />
 
           <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.height' | transloco }}</label>
-          <div class="flex items-center gap-2">
-            <input
-              type="range"
-              class="flex-1 [accent-color:var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="tableHeight"
-              min="{{ minSize }}"
-              max="{{ maxSize }}"
-              name="table-height-range"
-              [attr.disabled]="!isEditable ? '' : null"
-            />
-            <input
-              type="number"
-              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent w-[4.5em] border border-solid px-1.5 py-1 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="tableHeight"
-              min="{{ minSize }}"
-              max="{{ maxSize }}"
-              name="table-height-num"
-              [attr.disabled]="!isEditable ? '' : null"
-            />
-          </div>
+          <ui-range-number-field
+            rangeName="table-height-range"
+            numberName="table-height-num"
+            [(value)]="tableHeight"
+            [min]="minSize"
+            [max]="maxSize"
+            [disabled]="!isEditable"
+          />
 
           <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.wallHeight' | transloco }}</label>
-          <div class="flex items-center gap-2">
-            <input
-              type="range"
-              class="flex-1 [accent-color:var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="tableWallHeight"
-              min="{{ minWallHeight }}"
-              max="{{ maxWallHeight }}"
-              name="tableWallHeight"
-              [attr.disabled]="!isEditable ? '' : null"
-            />
-            <input
-              type="number"
-              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent w-[4.5em] border border-solid px-1.5 py-1 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="tableWallHeight"
-              min="{{ minWallHeight }}"
-              max="{{ maxWallHeight }}"
-              name="table-wall-height-num"
-              [attr.disabled]="!isEditable ? '' : null"
-            />
-          </div>
+          <ui-range-number-field
+            rangeName="tableWallHeight"
+            numberName="table-wall-height-num"
+            [(value)]="tableWallHeight"
+            [min]="minWallHeight"
+            [max]="maxWallHeight"
+            [disabled]="!isEditable"
+          />
 
           <label class="text-ui-muted text-[11px]" for="table-cell-size-num">{{
             'feature.tabletop.tableSetting.cellSize' | transloco

@@ -56,9 +56,10 @@ import {
   MapImageGridAdjusterResult,
 } from '@axe/features/tabletop/map-image-grid-adjuster/map-image-grid-adjuster.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
+import { UiImagePickerTileComponent } from '@axe/ui/components/image-picker-tile/image-picker-tile.component';
+import { UiRangeNumberFieldComponent } from '@axe/ui/components/range-number-field/range-number-field.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
-import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
@@ -121,8 +122,9 @@ const WALLS: readonly WallField[] = [
     NgSelectComponent,
     NgOptionComponent,
     NgSelectWindowDirective,
-    SafePipe,
     TableBackgroundLayersComponent,
+    UiImagePickerTileComponent,
+    UiRangeNumberFieldComponent,
     TranslocoModule,
   ],
 })
