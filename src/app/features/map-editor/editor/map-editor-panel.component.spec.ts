@@ -17,7 +17,9 @@ import { MapEditorFilesService } from '@axe/features/map-editor/editor/map-edito
 import { MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
 import {
   buildShapeKindPoints,
+  lineKindSvgMarkup,
   MapEditorPanelComponent,
+  shapeKindSvgMarkup,
 } from '@axe/features/map-editor/editor/map-editor-panel.component';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
@@ -248,6 +250,24 @@ describe('MapEditorPanelComponent', () => {
     );
     const kindTitles = titles.filter((title) => expected.includes(title as string));
     expect(kindTitles.length).toBe(4);
+  });
+
+  it('hands the same icon for a kind every time it is asked, so the page is not written again', () => {
+    const icons = component as unknown as {
+      shapeKinds: string[];
+      lineKinds: string[];
+      shapeKindSvg(kind: string): unknown;
+      lineKindSvg(kind: string): unknown;
+    };
+
+    for (const kind of icons.shapeKinds) {
+      expect(icons.shapeKindSvg(kind)).toBeTruthy();
+      expect(icons.shapeKindSvg(kind)).toBe(icons.shapeKindSvg(kind));
+    }
+    for (const kind of icons.lineKinds) {
+      expect(icons.lineKindSvg(kind)).toBeTruthy();
+      expect(icons.lineKindSvg(kind)).toBe(icons.lineKindSvg(kind));
+    }
   });
 
   it('makes a curve from clicked vertices and a press of enter', () => {
@@ -742,5 +762,23 @@ describe('buildShapeKindPoints', () => {
         expect(d).toBeCloseTo(9 * 0.382, 1);
       }
     }
+  });
+});
+
+describe('the icons of the kinds of shape and line', () => {
+  it('draws a rectangle, an ellipse, and a polygon of the shape’s own points', () => {
+    expect(shapeKindSvgMarkup('rect')).toContain('<rect ');
+    expect(shapeKindSvgMarkup('ellipse')).toContain('<ellipse ');
+    expect(shapeKindSvgMarkup('star5')).toContain(`<polygon points="${buildShapeKindPoints('star5')}"`);
+  });
+
+  it('draws each kind of line its own way, in the same box', () => {
+    const drawn = (['straight', 'polyline', 'curve', 'closedCurve'] as const).map((kind) => lineKindSvgMarkup(kind));
+
+    expect(drawn[0]).toContain('<line ');
+    expect(drawn[1]).toContain('<polyline ');
+    expect(drawn[2]).toContain('<path d="M3 18');
+    expect(drawn[3]).toContain(' Z"');
+    for (const markup of drawn) expect(markup).toContain('viewBox="0 0 24 24"');
   });
 });

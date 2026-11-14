@@ -129,6 +129,38 @@ interface ToolDef {
   covers?: readonly EditorTool[];
 }
 
+/** The markup of the icon of a generated shape, in a 24 by 24 box. */
+export function shapeKindSvgMarkup(kind: ShapeGeneratorKind): string {
+  let inner: string;
+  if (kind === 'rect') {
+    inner = '<rect x="4" y="6" width="16" height="12" fill="none" stroke="currentColor" stroke-width="2"/>';
+  } else if (kind === 'ellipse') {
+    inner = '<ellipse cx="12" cy="12" rx="8" ry="6" fill="none" stroke="currentColor" stroke-width="2"/>';
+  } else {
+    const pts = buildShapeKindPoints(kind);
+    inner = `<polygon points="${pts}" fill="none" stroke="currentColor" stroke-width="2"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">${inner}</svg>`;
+}
+
+/** The markup of the icon of a kind of line, in a 24 by 24 box. */
+export function lineKindSvgMarkup(kind: LineKind): string {
+  let inner: string;
+  if (kind === 'straight') {
+    inner = '<line x1="4" y1="18" x2="20" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  } else if (kind === 'curve') {
+    inner =
+      '<path d="M3 18 C 7 4 13 22 21 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  } else if (kind === 'closedCurve') {
+    inner =
+      '<path d="M12 4 C 17 2 21 6 19 10 C 18 12 21 14 18 17 C 15 20 9 21 6 17 C 3 13 7 12 5 9 C 3 6 8 5 12 4 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>';
+  } else {
+    inner =
+      '<polyline points="3,18 9,8 15,14 21,5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">${inner}</svg>`;
+}
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'map-editor-panel',
@@ -361,38 +393,22 @@ export class MapEditorPanelComponent {
     this.draftCount.set(this.gesture.draftPoints.length / 2);
   }
 
+  /** The icon of each generated shape, made once: a new one on every check would be written into the page again. */
+  private readonly shapeKindSvgs = new Map<ShapeGeneratorKind, SafeHtml>(
+    this.shapeKinds.map((kind) => [kind, this.sanitizer.bypassSecurityTrustHtml(shapeKindSvgMarkup(kind))])
+  );
+
+  /** The icon of each kind of line, made once like the shapes'. */
+  private readonly lineKindSvgs = new Map<LineKind, SafeHtml>(
+    this.lineKinds.map((kind) => [kind, this.sanitizer.bypassSecurityTrustHtml(lineKindSvgMarkup(kind))])
+  );
+
   protected shapeKindSvg(kind: ShapeGeneratorKind): SafeHtml {
-    let inner: string;
-    if (kind === 'rect') {
-      inner = '<rect x="4" y="6" width="16" height="12" fill="none" stroke="currentColor" stroke-width="2"/>';
-    } else if (kind === 'ellipse') {
-      inner = '<ellipse cx="12" cy="12" rx="8" ry="6" fill="none" stroke="currentColor" stroke-width="2"/>';
-    } else {
-      const pts = buildShapeKindPoints(kind);
-      inner = `<polygon points="${pts}" fill="none" stroke="currentColor" stroke-width="2"/>`;
-    }
-    return this.sanitizer.bypassSecurityTrustHtml(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">${inner}</svg>`
-    );
+    return this.shapeKindSvgs.get(kind) ?? '';
   }
 
   protected lineKindSvg(kind: LineKind): SafeHtml {
-    let inner: string;
-    if (kind === 'straight') {
-      inner = '<line x1="4" y1="18" x2="20" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
-    } else if (kind === 'curve') {
-      inner =
-        '<path d="M3 18 C 7 4 13 22 21 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
-    } else if (kind === 'closedCurve') {
-      inner =
-        '<path d="M12 4 C 17 2 21 6 19 10 C 18 12 21 14 18 17 C 15 20 9 21 6 17 C 3 13 7 12 5 9 C 3 6 8 5 12 4 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>';
-    } else {
-      inner =
-        '<polyline points="3,18 9,8 15,14 21,5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
-    }
-    return this.sanitizer.bypassSecurityTrustHtml(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">${inner}</svg>`
-    );
+    return this.lineKindSvgs.get(kind) ?? '';
   }
 
   /**
