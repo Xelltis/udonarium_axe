@@ -113,6 +113,54 @@ describe('SkyWayConnection', () => {
     });
   });
 
+  describe('sending to one peer', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+    let connAny: Record<string, any>;
+
+    beforeEach(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+      connAny = new SkyWayConnection() as any;
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('logs a message dropped for want of an open stream, once for a run of them to one peer', () => {
+      const warned = vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+      connAny.streams.streams.push({ peer: { peerId: 'peer-closed' }, open: false, send: vi.fn() });
+
+      for (let n = 0; n < 5; n++) connAny.sendUnicast({ data: new Uint8Array(), ttl: 1 }, 'peer-closed');
+      connAny.sendUnicast({ data: new Uint8Array(), ttl: 1 }, 'peer-unknown');
+
+      expect(warned).toHaveBeenCalledTimes(2);
+      expect(warned.mock.calls[0][0]).toContain('peer-closed');
+      expect(warned.mock.calls[1][0]).toContain('peer-unknown');
+    });
+
+    it('sends to a peer whose stream is open without a word', () => {
+      const warned = vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+      const send = vi.fn();
+      connAny.streams.streams.push({ peer: { peerId: 'peer-open' }, open: true, send });
+
+      connAny.sendUnicast({ data: new Uint8Array(), ttl: 1 }, 'peer-open');
+
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(warned).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('the members of the room', () => {
+    it('lists the others SkyWay has in the room, once each, with or without a stream', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private field
+      const connAny = new SkyWayConnection() as any;
+      connAny.skyWay.peer = PeerContext.parse('me');
+      connAny.skyWay.room = { members: [{ name: 'me' }, { name: 'peer-a' }, { name: 'peer-a' }, { name: undefined }] };
+
+      expect(connAny.roomPeerIds).toEqual(['peer-a']);
+    });
+  });
+
   describe('receiving', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
     let connAny: Record<string, any>;

@@ -18,7 +18,13 @@ export class SynchronizeTask {
 
   onsynchronize: ((task: SynchronizeTask, identifier: string) => void) | null = null;
   onfinish: ((task: SynchronizeTask) => void) | null = null;
-  ontimeout: ((task: SynchronizeTask, remainedRequests: SynchronizeRequest[]) => void) | null = null;
+  /**
+   * The task ran out of time or its peer left: with the requests that may be asked again, and
+   * those given up, which have been asked as often as their ttl allowed.
+   */
+  ontimeout:
+    | ((task: SynchronizeTask, remainedRequests: SynchronizeRequest[], givenUpRequests: SynchronizeRequest[]) => void)
+    | null = null;
 
   private requestMap: Map<ObjectIdentifier, SynchronizeRequest> = new Map();
   private timeoutTimer: ResettableTimeout | null = null;
@@ -102,10 +108,12 @@ export class SynchronizeTask {
   private timeout() {
     if (this.ontimeout) {
       const remained: SynchronizeRequest[] = [];
+      const givenUp: SynchronizeRequest[] = [];
       for (const request of this.requestMap.values()) {
         if (0 <= request.ttl) remained.push(request);
+        else givenUp.push(request);
       }
-      this.ontimeout(this, remained);
+      this.ontimeout(this, remained, givenUp);
     }
     this.finish();
   }

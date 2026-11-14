@@ -382,6 +382,22 @@ describe('PeerMenuComponent', () => {
       );
     });
 
+    it('says how many peers in the room a fresh sync could not ask, where there is no room server', () => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+      vi.spyOn(ObjectSynchronizer.instance, 'requestFullSync').mockReturnValue(1);
+      const unreachable = vi.spyOn(Network.instance, 'unreachablePeerIds', 'get').mockReturnValue(['peer-b', 'peer-c']);
+      const said = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(null);
+
+      component.requestFullSync();
+      unreachable.mockReturnValue([]);
+      component.requestFullSync();
+
+      expect(said.mock.calls).toEqual([
+        ['room', encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequestedPartly', { count: 1, unreachable: 2 })],
+        ['room', encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequested', { count: 1 })],
+      ]);
+    });
+
     it('shows your own role as the server gave it, with nothing to press, to a seat not logged in', () => {
       fixture.detectChanges();
       const root = fixture.nativeElement as HTMLElement;

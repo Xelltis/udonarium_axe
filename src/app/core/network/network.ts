@@ -47,6 +47,13 @@ export class Network {
   static get peers(): IPeerContext[] {
     return Network.instance.peers;
   }
+  /**
+   * Ids of the peers the room lists that this device has no open connection to, so that nothing
+   * sent to one peer alone reaches them; empty on a room server or without a connection.
+   */
+  static get unreachablePeerIds(): string[] {
+    return Network.instance.unreachablePeerIds;
+  }
   /** This device's peer context; the same value as peer. */
   static get peerContext(): IPeerContext {
     return Network.instance.peerContext;
@@ -191,6 +198,13 @@ export class Network {
   }
   get peers(): IPeerContext[] {
     return this.connection ? [...this.connection.peers] : [];
+  }
+
+  get unreachablePeerIds(): string[] {
+    const listed = this.connection?.roomPeerIds ?? [];
+    if (listed.length < 1) return [];
+    const open = new Set(this.connection?.peerIds);
+    return listed.filter((peerId) => !open.has(peerId));
   }
 
   get peerContext(): IPeerContext {

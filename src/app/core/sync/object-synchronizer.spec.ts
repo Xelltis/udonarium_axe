@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { messageAdded$, selectGameTable$ } from '@axe/core/event/domain-events';
+import { LogThrottle } from '@axe/core/logging/log-throttle';
+import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { localDispatch, receiveEvents } from '@axe/core/network/network-messaging';
 import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
@@ -576,10 +578,14 @@ describe('ObjectSynchronizer', () => {
       localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'asking-a', version: 1 }], 'peer-a');
       const [task] = internals().tasks;
 
-      task.ontimeout?.(task, [
-        { identifier: 'held-by-a-and-gone', version: 1, holderIds: ['peer-a', 'peer-gone'], ttl: 1 },
-        { identifier: 'held-by-the-gone', version: 1, holderIds: ['peer-gone'], ttl: 1 },
-      ]);
+      task.ontimeout?.(
+        task,
+        [
+          { identifier: 'held-by-a-and-gone', version: 1, holderIds: ['peer-a', 'peer-gone'], ttl: 1 },
+          { identifier: 'held-by-the-gone', version: 1, holderIds: ['peer-gone'], ttl: 1 },
+        ],
+        []
+      );
 
       expect(internals().requestMap.get('held-by-a-and-gone')?.holderIds).toEqual(['peer-a']);
       expect(internals().requestMap.has('held-by-the-gone')).toBe(false);
@@ -619,9 +625,29 @@ describe('ObjectSynchronizer', () => {
       const [task] = internals().tasks;
       internals().requestMap.set('moving-on', { identifier: 'moving-on', version: 2, holderIds: ['peer-a'], ttl: 2 });
 
-      task.ontimeout?.(task, [{ identifier: 'moving-on', version: 1, holderIds: ['peer-a'], ttl: 1 }]);
+      task.ontimeout?.(task, [{ identifier: 'moving-on', version: 1, holderIds: ['peer-a'], ttl: 1 }], []);
 
       expect(internals().requestMap.get('moving-on')?.version).toBe(2);
+    });
+
+    it('logs a request given up after its retries, once for a run of them from one peer', () => {
+      const warned = vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+      (ObjectSynchronizer.instance as unknown as { givenUpLog: LogThrottle }).givenUpLog.reset();
+      peers = [{ peerId: 'peer-a', isOpen: true }];
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'never-answered', version: 1 }], 'peer-a');
+      const givenUp = () => warned.mock.calls.filter(([message]) => message.includes('諦めました'));
+
+      vi.advanceTimersByTime(30_000);
+      vi.advanceTimersByTime(30_000);
+      expect(givenUp()).toHaveLength(0);
+      expect(requested()).toHaveLength(3);
+
+      vi.advanceTimersByTime(30_000);
+
+      expect(givenUp()).toHaveLength(1);
+      expect(givenUp()[0][0]).toContain('peer-a');
+      expect(givenUp()[0][1]).toEqual(['never-answered']);
+      expect(requested()).toHaveLength(3);
     });
   });
 });

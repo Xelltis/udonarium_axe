@@ -505,15 +505,21 @@ export class PeerMenuComponent {
 
   /**
    * Asks the connected peers to send the whole room again, and says in the chat how many were
-   * asked; on a room server, which alone holds the room, that it was asked.
+   * asked, and how many the room lists that could not be, having no open connection to this seat;
+   * on a room server, which alone holds the room, that it was asked.
    */
   requestFullSync() {
     const peerCount = this.objectSynchronizer.requestFullSync();
-    const notice =
-      this.networkService.authorityPeerId !== null
-        ? encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequestedFromServer')
-        : encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequested', { count: peerCount });
-    this.chatMessageService.sendSystemNotice('room', notice);
+    this.chatMessageService.sendSystemNotice('room', this.fullSyncNotice(peerCount));
+  }
+
+  private fullSyncNotice(peerCount: number): string {
+    if (this.networkService.authorityPeerId !== null) {
+      return encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequestedFromServer');
+    }
+    const unreachable = this.networkService.unreachablePeerIds.length;
+    if (unreachable < 1) return encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequested', { count: peerCount });
+    return encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequestedPartly', { count: peerCount, unreachable });
   }
 
   /** Shows the room's password as plain text, or hides it again. */

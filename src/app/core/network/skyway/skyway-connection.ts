@@ -1,3 +1,4 @@
+import { LogThrottle } from '@axe/core/logging/log-throttle';
 import { Logger } from '@axe/core/logging/logger';
 import { readBackendUrl } from '@axe/core/network/backend-url';
 import { Connection, ConnectionCallback } from '@axe/core/network/connection';
@@ -15,6 +16,9 @@ import { PERF_INBOUND_DRAIN, perfCounters } from '@axe/core/util/perf-counters';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 
 type PeerId = string;
+
+/** How often, for one peer, a message dropped for want of an open stream is logged. */
+const DROPPED_UNICAST_LOG_INTERVAL_MS = 10_000;
 
 interface DataContainer {
   data: Uint8Array;
@@ -45,6 +49,14 @@ export class SkyWayConnection implements Connection {
   get peers(): PeerContext[] {
     return this.streams.peers;
   }
+  /**
+   * Ids of the other members SkyWay lists in the room, with or without a stream to them. One that
+   * left without saying so stays listed until SkyWay drops it.
+   */
+  get roomPeerIds(): string[] {
+    const names = (this.skyWay.room?.members ?? []).map((member) => member.name);
+    return [...new Set(names.filter((name): name is string => !!name && name !== this.peerId))];
+  }
 
   readonly callback: ConnectionCallback = new ConnectionCallback();
   bandwidthUsage: number = 0;
@@ -61,6 +73,7 @@ export class SkyWayConnection implements Connection {
   private readonly relayingPeerIds: Map<string, string[]> = new Map();
   private readonly pendingRelayMapUpdates: Map<string, Promise<void>> = new Map();
   private readonly maybeUnavailablePeerIds: Set<string> = new Set();
+  private readonly droppedUnicastLog = new LogThrottle(DROPPED_UNICAST_LOG_INTERVAL_MS);
 
   /** Takes the backend URL from the app config; token requests on the next open go there. */
   configure(config: Record<string, unknown>) {
@@ -180,7 +193,7 @@ export class SkyWayConnection implements Connection {
    * A batch goes out in runs that keep its order: pieces of a file are sent on their own and as
    * they are, and a large run of the other messages is compressed. Sends go out in call order
    * after the current task. Nothing is sent while no peer is connected, and a message for a peer
-   * whose channel is not open is dropped.
+   * whose channel is not open is dropped, which is logged, at most once in ten seconds for a peer.
    */
   send(data: unknown, sendTo?: string) {
     if (this.peers.length < 1) return;
@@ -222,7 +235,12 @@ export class SkyWayConnection implements Connection {
     const stream = this.streams.find(sendTo);
     if (stream && stream.open) {
       stream.send(container);
+      return;
     }
+    const held = this.droppedUnicastLog.pass(sendTo);
+    if (held === null) return;
+    const state = stream ? 'ストリームが開いていない' : 'ストリームがない';
+    Logger.warn(`[SkyWay] ${state}ため送信を破棄しました: ${sendTo}（前回の記録から他に${held}件）`);
   }
 
   private sendBroadcast(container: DataContainer) {

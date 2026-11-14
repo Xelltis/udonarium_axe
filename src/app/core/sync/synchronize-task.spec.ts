@@ -33,6 +33,32 @@ describe('SynchronizeTask', () => {
     });
   });
 
+  describe('running out of time', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it('hands back what may be asked again apart from what has used up its ttl', () => {
+      vi.useFakeTimers();
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const task = SynchronizeTask.create('test-peer', [
+        { identifier: 'once-more', version: 1, holderIds: ['test-peer'], ttl: 1 },
+        { identifier: 'used-up', version: 1, holderIds: ['test-peer'], ttl: 0 },
+      ]);
+      const timedOut: string[][] = [];
+      task.ontimeout = (_task, remained, givenUp) =>
+        timedOut.push(
+          remained.map((request) => request.identifier),
+          givenUp.map((request) => request.identifier)
+        );
+
+      vi.advanceTimersByTime(30_000);
+
+      expect(timedOut).toEqual([['once-more'], ['used-up']]);
+    });
+  });
+
   describe('answers from a room server', () => {
     it('counts the server’s own word on an object, and its taking one away, as answers', () => {
       return new Promise<void>((resolve) => {

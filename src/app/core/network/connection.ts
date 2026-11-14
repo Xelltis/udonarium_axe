@@ -70,6 +70,11 @@ export interface Connection {
   readonly peerIds: string[];
   readonly peer: IPeerContext;
   readonly peers: IPeerContext[];
+  /**
+   * Ids of the other members the room lists, with or without a link to them, where the transport
+   * can tell: SkyWay can, and a room server, which every seat reaches, has no need to.
+   */
+  readonly roomPeerIds?: string[];
   readonly callback: ConnectionCallback;
   readonly bandwidthUsage: number;
   /**

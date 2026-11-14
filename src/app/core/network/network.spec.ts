@@ -51,6 +51,28 @@ describe('Network', () => {
     });
   });
 
+  describe('the peers it cannot reach', () => {
+    const connected = (connection: object) => {
+      (Network.instance as unknown as { connection: unknown }).connection = connection;
+    };
+
+    it('names those the room lists that it has no open connection to', () => {
+      connected({ peerIds: ['peer-a'], roomPeerIds: ['peer-a', 'peer-b', 'peer-c'] });
+
+      expect(Network.unreachablePeerIds).toEqual(['peer-b', 'peer-c']);
+    });
+
+    it('names nobody where the connection lists no room members, as a room server’s does not', () => {
+      connected({ peerIds: [] });
+
+      expect(Network.unreachablePeerIds).toEqual([]);
+    });
+
+    it('names nobody without a connection', () => {
+      expect(Network.unreachablePeerIds).toEqual([]);
+    });
+  });
+
   describe('playing alone', () => {
     afterEach(() => Network.playAlone(null));
 

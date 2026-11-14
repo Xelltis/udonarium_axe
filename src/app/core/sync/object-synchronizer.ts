@@ -1,3 +1,4 @@
+import { LogThrottle } from '@axe/core/logging/log-throttle';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
@@ -26,6 +27,9 @@ const OBJECT_SYNC_EVENTS: ReadonlySet<string> = new Set([
   AuthorityEvent.WITHDRAW,
 ]);
 
+/** How often, for one peer, requests given up after their retries are logged. */
+const GIVEN_UP_LOG_INTERVAL_MS = 10_000;
+
 /** How often one batch of a catalogue goes out. */
 export const CATALOG_TICK_MS = 16;
 
@@ -48,6 +52,7 @@ export class ObjectSynchronizer {
   private peerMap: Map<PeerId, SynchronizeTask[]> = new Map();
   private tasks: SynchronizeTask[] = [];
   private cleanups: (() => void)[] = [];
+  private readonly givenUpLog = new LogThrottle(GIVEN_UP_LOG_INTERVAL_MS);
 
   private constructor() {}
 
@@ -356,8 +361,9 @@ export class ObjectSynchronizer {
       this.synchronize();
     };
 
-    task.ontimeout = (_task, remainedRequests) => {
+    task.ontimeout = (_task, remainedRequests, givenUpRequests) => {
       Logger.warn('[ObjectSync] 同期タイムアウト');
+      this.reportGivenUp(targetPeerId, givenUpRequests);
       const reachable = connectedPeerIds();
       for (const request of remainedRequests) {
         request.holderIds = request.holderIds.filter((holderId) => reachable.has(holderId));
@@ -370,6 +376,18 @@ export class ObjectSynchronizer {
       }
     };
     return true;
+  }
+
+  /** Logs the requests a task gave up on after asking as often as their ttl allowed. */
+  private reportGivenUp(peerId: PeerId, givenUp: readonly SynchronizeRequest[]): void {
+    if (givenUp.length < 1) return;
+    const held = this.givenUpLog.pass(peerId);
+    if (held === null) return;
+    const sample = givenUp.slice(0, 5).map((request) => request.identifier);
+    Logger.warn(
+      `[ObjectSync] 再試行を使い切った要求を諦めました: ${givenUp.length}件 <${peerId}>（前回の記録から他に${held}回）`,
+      sample
+    );
   }
 
   private makeRequestList(targetPeerId: PeerId, maxRequest: number = 32): SynchronizeRequest[] {
