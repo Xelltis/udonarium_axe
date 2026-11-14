@@ -50,8 +50,7 @@ export class TurnSoundEventHandlerService {
 
     const piece = this.objectStore.get<GameCharacter>(started.identifier);
     if (!(piece instanceof GameCharacter)) return;
-    const config = this.objectStore.get<Config>('Config');
-    if (!config) return;
+    const config = Config.instance;
     const mine = !piece.isNpc && piece.owner.length > 0 && piece.owner === PeerCursor.myUserId;
     if (mine) {
       if (config.turnSignalEnabled) this.chime.play(TURN_SE_SIGNAL);

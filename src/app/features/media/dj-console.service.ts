@@ -236,8 +236,7 @@ export class DjConsoleService {
   /** Changes how the room mixes, for everyone. Anyone but the game master is refused. */
   setSettings(change: Partial<DjSettings>): void {
     if (!this.rolePermission.canEditShared()) return;
-    const config = this.objectStore.get<Config>('Config');
-    if (!config) return;
+    const config = Config.instance;
     config.djSettings = { ...config.djSettings, ...change };
     this.jukeboxEngine.refreshMix();
   }
@@ -350,7 +349,7 @@ export class DjConsoleService {
    * music becomes the room's track, crossfading and waiting for the bar as any change of track does.
    */
   firePad(slot: number): void {
-    const identifier = this.objectStore.get<Config>('Config')?.djPads[slot] ?? '';
+    const identifier = Config.instance.djPads[slot] ?? '';
     const audio = identifier ? this.audioStorage.get(identifier) : null;
     if (!audio?.isReady || !this.rolePermission.canEditTabletop()) return;
     if (padKindOf(identifier) === 'background') this.backgroundSounds.toggle(audio);
@@ -360,8 +359,8 @@ export class DjConsoleService {
   /** Gives a pad a sound for the room. Anyone but the game master is refused. */
   assignPad(slot: number, identifier: string): void {
     if (!this.rolePermission.canEditShared()) return;
-    const config = this.objectStore.get<Config>('Config');
-    if (config) config.djPads = withPad(config.djPads, slot, identifier);
+    const config = Config.instance;
+    config.djPads = withPad(config.djPads, slot, identifier);
   }
 
   /** Empties a pad for the room. Anyone but the game master is refused. */
