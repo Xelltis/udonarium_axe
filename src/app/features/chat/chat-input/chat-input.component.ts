@@ -38,6 +38,7 @@ import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { callWritingAMessage } from '@axe/core/event/domain-events';
+import { Logger } from '@axe/core/logging/logger';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -1107,9 +1108,9 @@ export class ChatInputComponent {
       targetNumber: this.lintSession.targetNumber()?.chosen?.total,
     };
     this.chosenTargetNumber.set('');
-    DiceBot.gameSystemForLineAsync(this.gameType, draft.text).then((gameSystem) => {
-      this.chat.emit(composeChatOutgoing({ ...draft, gameSystem }));
-    });
+    DiceBot.gameSystemForLineAsync(this.gameType, draft.text)
+      .then((gameSystem) => this.chat.emit(composeChatOutgoing({ ...draft, gameSystem })))
+      .catch((reason: unknown) => Logger.error('[ChatInput] 発言を送れませんでした', reason));
     this.text = '';
     this.textField()?.setText('', undefined, false);
     this.previousWritingLength = this.text.length;

@@ -1,9 +1,11 @@
+import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input-dicebot';
+import { installPanelLayer } from '@axe/testing/panel-layer';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { TextViewComponent } from '@axe/ui/components/text-view/text-view.component';
 
@@ -53,5 +55,21 @@ describe('ChatInputDiceBotHelper', () => {
     expect(open).toHaveBeenCalledWith(TextViewComponent, expect.objectContaining({ title, width: 600, height: 500 }));
     expect(view.title).toBe(title);
     expect(view.text).toBe(t('feature.chat.diceBot.intro') + 'ヘルプの本文');
+  });
+
+  it('shows the fetched help in the panel it opens', async () => {
+    vi.spyOn(DiceBot, 'getHelpMessage').mockResolvedValue('ヘルプの本文');
+    TestBed.inject(PointerDeviceService).primeForContextMenu(120, 80);
+    const closePanelLayer = installPanelLayer();
+    try {
+      helper.showHelp('NoSuchSystem');
+      await Promise.resolve();
+      await Promise.resolve();
+      await TestBed.inject(ApplicationRef).whenStable();
+
+      expect(document.querySelector('text-view')?.textContent).toContain('ヘルプの本文');
+    } finally {
+      closePanelLayer();
+    }
   });
 });

@@ -54,7 +54,7 @@ export class VisualNovelSceneService {
    */
   pickBackground(): void {
     if (!this.canDirect()) return;
-    this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((identifier) => {
+    void this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((identifier) => {
       const stage = this.stage;
       if (!stage || typeof identifier !== 'string') return;
       stage.setBackground(identifier);

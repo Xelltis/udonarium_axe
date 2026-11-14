@@ -25,6 +25,7 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
+import { Logger } from '@axe/core/logging/logger';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -948,24 +949,26 @@ export class VisualNovelOverlayComponent {
     }
     const emote = encodeVnEmote({ ...this.emoteSelection.emote(), flipped: this.speakerFlip() === true });
     const attachedSe = this.attachedSe();
-    DiceBot.gameSystemForLineAsync(this.gameType, evaluated).then((gameSystem) => {
-      this.chatMessageService.sendMessage(
-        tab,
-        evaluated,
-        gameSystem,
-        sendFrom,
-        undefined,
-        this.portraitIndexOf(sendFrom),
-        this.colorOf(sendFrom),
-        [{ text: evaluated, object: null }],
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        emote
-      );
-      if (attachedSe && this.mayEditTable()) this.jukebox?.play(attachedSe.identifier);
-    });
+    DiceBot.gameSystemForLineAsync(this.gameType, evaluated)
+      .then((gameSystem) => {
+        this.chatMessageService.sendMessage(
+          tab,
+          evaluated,
+          gameSystem,
+          sendFrom,
+          undefined,
+          this.portraitIndexOf(sendFrom),
+          this.colorOf(sendFrom),
+          [{ text: evaluated, object: null }],
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          emote
+        );
+        if (attachedSe && this.mayEditTable()) this.jukebox?.play(attachedSe.identifier);
+      })
+      .catch((reason: unknown) => Logger.error('[VisualNovel] 発言を送れませんでした', reason));
     if (this.selectedKind() === 'scene') this.scene.playTransition();
     this.attachedSe.set(null);
     this.text.set('');

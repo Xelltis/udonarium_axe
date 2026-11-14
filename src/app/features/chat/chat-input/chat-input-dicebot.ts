@@ -15,7 +15,7 @@ export class ChatInputDiceBotHelper {
    * not wait on the download.
    */
   load(gameType: string): void {
-    DiceBot.getHelpMessage(gameType).then(() => {});
+    void DiceBot.getHelpMessage(gameType);
   }
 
   /**
@@ -33,7 +33,7 @@ export class ChatInputDiceBotHelper {
    * has been fetched.
    */
   showHelp(gameType: string): void {
-    DiceBot.getHelpMessage(gameType).then((help) => {
+    void DiceBot.getHelpMessage(gameType).then((help) => {
       let gameName = this.t('feature.chat.diceBot.title');
       for (const diceBotInfo of DiceBot.diceBotInfos) {
         if (diceBotInfo.id === gameType)
