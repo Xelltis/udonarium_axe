@@ -508,3 +508,45 @@ describe('what a breath carries along its way', () => {
     expect(sparks('none')).toBeLessThan(sparks('spark'));
   });
 });
+
+describe('where an effect aimed from its caster leaves it', () => {
+  const caster = { x: 600, y: 100, z: 0, groundZ: 0 };
+  const from = (cells: number): Partial<EffectStagingOptions> => ({
+    resolveFooting: (identifier) => (identifier === 'caster' ? caster : null),
+    resolveSize: (identifier) => (identifier === 'caster' ? cells : 1),
+  });
+  const cast = { ...castOn([100, 100]), casterIdentifier: 'caster', origin: { x: 600, y: 100, z: 30 } };
+  const hands = { x: 600, y: 100, z: CELL * 0.6 };
+
+  it.each(['beam', 'raybeam', 'arc', 'drain'] as const)(
+    'still leaves %s from over the middle of the caster, however large the caster is',
+    (kind) => {
+      const preset = makePreset(kind, { durationMs: 1000 });
+      const at = kind === 'beam' || kind === 'raybeam' ? 100 : 500;
+      const leaves = (cells: number) => {
+        const drawn = staged(preset, cast, at, from(cells));
+        return drawn.motes.filter((mote) => mote.x === hands.x && mote.y === hands.y && mote.z === hands.z).length;
+      };
+
+      expect(leaves(1)).toBeGreaterThan(0);
+      expect(JSON.stringify(staged(preset, cast, at, from(3)))).toBe(JSON.stringify(staged(preset, cast, at, from(1))));
+    }
+  );
+
+  it('still looses a shot from over the middle of the caster', () => {
+    const preset = makePreset('projectile', { durationMs: 1000 });
+
+    expect(JSON.stringify(staged(preset, cast, 150, from(3)))).toBe(JSON.stringify(staged(preset, cast, 150, from(1))));
+  });
+});
+
+describe('what a look is told of the cast it plays in', () => {
+  it('draws every other look on each target as it did, whatever the other targets are', () => {
+    const preset = makePreset('burst', { durationMs: 1000, staggerMs: 0 });
+    const alone = staged(preset, castOn([100, 100]), 300);
+    const both = staged(preset, castOn([100, 100], [900, 900]), 300);
+    const near = (drawn: Staged) => drawn.motes.filter((mote) => Math.hypot(mote.x - 100, mote.y - 100) < 400);
+
+    expect(JSON.stringify(near(both))).toBe(JSON.stringify(near(alone)));
+  });
+});

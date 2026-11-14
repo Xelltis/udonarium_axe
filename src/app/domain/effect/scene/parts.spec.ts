@@ -38,6 +38,8 @@ function stage(partial: Partial<Stage> = {}): Stage {
     index: 0,
     areaPx: 0,
     origin: null,
+    targets: [],
+    mouth: null,
     blowsAt: [0.5],
     seed: 7,
     preset,

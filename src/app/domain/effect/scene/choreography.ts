@@ -3,6 +3,28 @@ import type { EffectLight } from '@axe/domain/effect/effect-light';
 import type { EffectPreset } from '@axe/domain/effect/effect-preset';
 import type { EffectFloorMark, EffectMote, EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
 
+/** One target of a cast as it stands now: its foot, the floor under it and how wide it is, in table pixels. */
+export interface StageTarget {
+  /** Its place in the cast, as {@link Stage.index} counts it. */
+  readonly index: number;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly groundZ: number;
+  readonly widthPx: number;
+}
+
+/**
+ * Where a breath leaves its caster, in table pixels: before its body, towards the targets, and as
+ * high as the caster is large, with how wide the caster is.
+ */
+export interface StageMouth {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly widthPx: number;
+}
+
 /** Where and how large an effect plays on one target, and how far into it it is. */
 export interface Stage {
   /** Where it plays: the foot of the target, in table pixels, x to the east, y to the south and z up. */
@@ -28,6 +50,13 @@ export interface Stage {
   readonly areaPx: number;
   /** Where an effect aimed from its caster leaves it, in table pixels: its hands or its mouth; null for one cast from nowhere. */
   readonly origin: { readonly x: number; readonly y: number; readonly z: number } | null;
+  /**
+   * Every target of the cast that is drawn, as it stands now, in the order they were picked, this
+   * one among them: for a look that plays over all of them at once rather than on each alone.
+   */
+  readonly targets: readonly StageTarget[];
+  /** Where a breath leaves its caster; null for one cast from nowhere. */
+  readonly mouth: StageMouth | null;
   /** When its blows land on the target, in seconds of its playback: the moment it goes off. */
   readonly blowsAt: readonly number[];
   readonly seed: number;

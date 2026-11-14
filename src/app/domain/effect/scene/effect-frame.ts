@@ -10,9 +10,17 @@ import { bash } from '@axe/domain/effect/scene/blade/bash';
 import { skybladeWith } from '@axe/domain/effect/scene/blade/skyblade';
 import { slash } from '@axe/domain/effect/scene/blade/slash';
 import { bisect, dissolve, gore } from '@axe/domain/effect/scene/body/body';
-import { type Choreography, nothingStaged, type Stage, type Staged } from '@axe/domain/effect/scene/choreography';
+import {
+  type Choreography,
+  nothingStaged,
+  type Stage,
+  type Staged,
+  type StageMouth,
+  type StageTarget,
+} from '@axe/domain/effect/scene/choreography';
 import { curse, gravity, miasma } from '@axe/domain/effect/scene/dark/dark';
 import { impact, rubble, upheaval } from '@axe/domain/effect/scene/earth/earth';
+import { type BreathingBody, mouthBefore } from '@axe/domain/effect/scene/effect-mouth';
 import { breath } from '@axe/domain/effect/scene/fire/breath';
 import { burst } from '@axe/domain/effect/scene/fire/burst';
 import { flame } from '@axe/domain/effect/scene/fire/flame';
@@ -140,7 +148,11 @@ function flightShareOf(view: EffectPreset, kind: EffectKind, blowsAt: readonly n
   return 1;
 }
 
-/** Adds what a run of stages draws in the scene at a moment, each stage where and when it runs; see {@link stageEffect}. */
+/**
+ * Adds what a run of stages draws in the scene at a moment, each stage where and when it runs; see
+ * {@link stageEffect}. Each stage plays where it runs to, a branch away from the target, so what it
+ * plays over is that one place, and a breath in it leaves the place the stage runs from.
+ */
 function stageRun(
   preset: EffectPreset,
   cast: EffectCast,
@@ -150,7 +162,9 @@ function stageRun(
 ): void {
   const { windows } = stageLayoutOf(preset.stageList);
   const base = options.cellPx * preset.sizeScale;
-  const caster = originOf(cast, options);
+  const casterFooting = casterFootingOf(cast, options);
+  const caster = originOf(cast, casterFooting, options);
+  const body = bodyOf(cast, casterFooting, options);
   const views = windows.map((window) => stageView(preset, window));
   // When each stage's blows land, worked out once a frame for every target the run strikes.
   const blowsAtOf = views.map((view) => effectBlowsOf(view).map((blow) => blow.atMs / 1000));
@@ -175,6 +189,12 @@ function stageRun(
         travels
       );
       const flies = travels ? flightShareOf(view, window.stage.kind, blowsAt, duration) : 1;
+      const place: StageTarget = {
+        index,
+        ...places.center,
+        groundZ: footing.groundZ,
+        widthPx: widthOf(target.identifier, options),
+      };
       const staged = look.draw({
         x: places.center.x,
         y: places.center.y,
@@ -187,6 +207,10 @@ function stageRun(
         index,
         areaPx: 0,
         origin: places.origin ?? caster,
+        targets: [place],
+        mouth: places.origin
+          ? { ...places.origin, widthPx: options.cellPx }
+          : body && mouthBefore(body, [places.center]),
         seed: cast.seed + index * 7919 + order * 104729,
         preset: view,
       });
@@ -221,22 +245,26 @@ export function stageEffect(
   const duration = preset.duration / 1000;
   const base = options.cellPx * preset.sizeScale;
   const blowsAt = effectBlowsOf(preset).map((blow) => blow.atMs / 1000);
-  const origin = originOf(cast, options);
-  cast.targets.forEach((target, index) => {
-    if (options.hiddenIdentifiers?.has(target.identifier)) return;
+  const casterFooting = casterFootingOf(cast, options);
+  const origin = originOf(cast, casterFooting, options);
+  const targets = standingTargets(preset, cast, options);
+  const body = bodyOf(cast, casterFooting, options);
+  const mouth: StageMouth | null = body && mouthBefore(body, targets);
+  for (const standing of targets) {
+    const index = standing.index;
+    const target = cast.targets[index];
     const seconds = (elapsedMs - preset.stagger * index) / 1000;
-    if (seconds < 0 || seconds >= duration + choreography.lingerS) return;
-    const footing = footingOf(target, preset, options);
+    if (seconds < 0 || seconds >= duration + choreography.lingerS) continue;
     const scale = targetScaleOf(
       { baseSize: options.cellPx, resolveSize: options.resolveSize },
       target.identifier,
       isAimed(preset)
     );
     const staged = choreography.draw({
-      x: footing.x,
-      y: footing.y,
-      z: footing.z,
-      groundZ: footing.groundZ,
+      x: standing.x,
+      y: standing.y,
+      z: standing.z,
+      groundZ: standing.groundZ,
       cell: base * areaShareOf(preset, cast, index) * scale,
       seconds,
       duration,
@@ -244,6 +272,8 @@ export function stageEffect(
       index,
       areaPx: preset.areaRadiusCells * options.cellPx,
       origin,
+      targets,
+      mouth,
       seed: cast.seed + index * 7919,
       preset,
     });
@@ -251,20 +281,55 @@ export function stageEffect(
     into.ribbons.push(...staged.ribbons);
     into.floor.push(...staged.floor);
     into.lights.push(...staged.lights);
-  });
+  }
 }
 
-/** How high over a caster's foot an effect aimed from it leaves it, in cells of the table: from its hands or its mouth. */
+/** How high over a caster's foot an effect aimed from it leaves it, in cells of the table: from its hands. */
 const AIMED_FROM_CELLS = 0.6;
+
+/** Where the caster of a cast stands as it is drawn now; null for a caster that is not drawn, or for none. */
+function casterFootingOf(cast: EffectCast, options: EffectStagingOptions): EffectFooting | null {
+  return (cast.casterIdentifier ? options.resolveFooting?.(cast.casterIdentifier) : null) ?? null;
+}
 
 /**
  * Where an effect aimed from its caster leaves it: from the caster as it is drawn now, or else where
  * it stood as it was cast; null for one cast from nowhere.
  */
-function originOf(cast: EffectCast, options: EffectStagingOptions) {
-  const caster = cast.casterIdentifier ? options.resolveFooting?.(cast.casterIdentifier) : null;
+function originOf(cast: EffectCast, caster: EffectFooting | null, options: EffectStagingOptions) {
   if (caster) return { x: caster.x, y: caster.y, z: caster.z + options.cellPx * AIMED_FROM_CELLS };
   return cast.origin ? { x: cast.origin.x, y: cast.origin.y, z: cast.origin.z } : null;
+}
+
+/** How wide a piece is, in table pixels: a cell where its size is not known. */
+function widthOf(identifier: string, options: EffectStagingOptions): number {
+  const cells = identifier.length > 0 ? (options.resolveSize?.(identifier) ?? 1) : 1;
+  return options.cellPx * (cells > 0 ? cells : 1);
+}
+
+/**
+ * The caster as a breath leaves it: its foot as it is drawn now and how wide it is, or else a piece
+ * of one cell standing under where it was cast from; null for one cast from nowhere.
+ */
+function bodyOf(cast: EffectCast, caster: EffectFooting | null, options: EffectStagingOptions): BreathingBody | null {
+  if (caster) return { x: caster.x, y: caster.y, z: caster.z, widthPx: widthOf(cast.casterIdentifier, options) };
+  if (!cast.origin) return null;
+  const foot = cast.origin.z - options.cellPx * AIMED_FROM_CELLS;
+  return { x: cast.origin.x, y: cast.origin.y, z: foot, widthPx: options.cellPx };
+}
+
+/** Every target of a cast that is drawn, where it stands now, in the order they were picked. */
+function standingTargets(
+  preset: Pick<EffectPreset, 'followTarget'>,
+  cast: EffectCast,
+  options: EffectStagingOptions
+): StageTarget[] {
+  const standing: StageTarget[] = [];
+  cast.targets.forEach((target, index) => {
+    if (options.hiddenIdentifiers?.has(target.identifier)) return;
+    standing.push({ index, ...footingOf(target, preset, options), widthPx: widthOf(target.identifier, options) });
+  });
+  return standing;
 }
 
 function footingOf(
