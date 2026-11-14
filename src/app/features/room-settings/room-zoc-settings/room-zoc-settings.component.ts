@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { wholeCellsOrNone } from '@axe/core/util/whole-cells';
 import { asBreakOutMode, BREAK_OUT_MODES } from '@axe/domain/tabletop/move/engagement';
 import { asZocMode, HOSTILITY_BY, ZOC_MODES } from '@axe/domain/tabletop/move/zone-of-control';
 import { isGroupAnswered, RoomRuleGroup } from '@axe/domain/tabletop/room-rules';
 import { RoomSettingsAccessService } from '@axe/features/room-settings/room-settings-access.service';
-import { wholeCells } from '@axe/features/room-settings/whole-cells';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**
@@ -51,13 +51,13 @@ export class RoomZocSettingsComponent {
   readonly hostilityBy = this.access.ruleField('hostilityBy');
 
   /** How many cells the ground an enemy piece holds reaches. */
-  readonly zocRange = this.access.ruleField('zocRange', wholeCells);
+  readonly zocRange = this.access.ruleField('zocRange', wholeCellsOrNone);
 
   /** Whether the ground held against the picked piece stays shown. */
   readonly zocAlways = this.access.ruleField('zocAlways');
 
   /** What a step into held ground costs on top, in cells. */
-  readonly zocExtraCost = this.access.ruleField('zocExtraCost', wholeCells);
+  readonly zocExtraCost = this.access.ruleField('zocExtraCost', wholeCellsOrNone);
 
   /** Whether pieces meeting in held ground are held as one fight that charges for the step leaving it. */
   readonly zocEngages = this.access.ruleField('zocEngages');
@@ -66,7 +66,7 @@ export class RoomZocSettingsComponent {
   readonly breakOutMode = this.access.ruleField('breakOutMode', asBreakOutMode);
 
   /** What leaving a fight costs, in cells. */
-  readonly breakOutCost = this.access.ruleField('breakOutCost', wholeCells);
+  readonly breakOutCost = this.access.ruleField('breakOutCost', wholeCellsOrNone);
 
   /** Whether a piece is weighed in a fight by the ground it covers rather than one apiece. */
   readonly engagementCountsSize = this.access.ruleField('engagementCountsSize');

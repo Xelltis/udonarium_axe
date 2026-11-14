@@ -25,7 +25,7 @@ function makeMask(overrides: Partial<MutableMask> = {}): MutableMask {
     altitude: 0,
     isAltitudeIndicate: false,
     parent: null,
-    clone: vi.fn(() => ({ location: { x: 0, y: 0 }, isLock: false })),
+    clone: vi.fn(() => ({ location: { x: 0, y: 0 }, isLock: false, update: vi.fn() })),
     destroy: vi.fn(),
     ...overrides,
   };

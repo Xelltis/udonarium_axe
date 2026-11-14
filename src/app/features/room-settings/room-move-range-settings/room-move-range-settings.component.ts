@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { wholeCellsOrNone } from '@axe/core/util/whole-cells';
 import { Config } from '@axe/domain/peer/config';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { asDiagonalMove, DEFAULT_DIAGONAL_MOVE, DIAGONAL_MOVES } from '@axe/domain/tabletop/move/diagonal-move';
@@ -8,7 +9,6 @@ import { MOVE_UNITS, MoveUnit, parseMoveUnit } from '@axe/domain/tabletop/move/m
 import { PIECE_PASSAGE_MODES, PiecePassageMode } from '@axe/domain/tabletop/move/piece-passage';
 import { isGroupAnswered, RoomRuleGroup } from '@axe/domain/tabletop/room-rules';
 import { RoomSettingsAccessService } from '@axe/features/room-settings/room-settings-access.service';
-import { wholeCells } from '@axe/features/room-settings/whole-cells';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** One of the three sides a table answers for when a piece walks into another. */
@@ -78,10 +78,10 @@ export class RoomMoveRangeSettingsComponent {
   }
 
   /** What crossing somebody costs, in cells; anything but a whole number above zero is stored as 0. */
-  readonly piecePassageCost = this.access.ruleField('piecePassageCost', wholeCells);
+  readonly piecePassageCost = this.access.ruleField('piecePassageCost', wholeCellsOrNone);
 
   /** How far one leap carries, in cells. Nought carries as far as the move has left. */
-  readonly jumpCells = this.access.ruleField('jumpCells', wholeCells);
+  readonly jumpCells = this.access.ruleField('jumpCells', wholeCellsOrNone);
 
   /** Whether a piece too big for a gap folds itself through it at a price. */
   readonly squeezes = this.access.ruleField('squeezes');

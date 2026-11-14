@@ -175,6 +175,62 @@ describe('GameTableMask', () => {
     });
   });
 
+  describe('its opacity as a percentage', () => {
+    it('reads the share of its maximum the element holds', () => {
+      const mask = GameTableMask.create('霧', 1, 1, 100);
+      mask.commonDataElement!.getFirstElementByName('opacity')!.currentValue = 40;
+
+      expect(mask.opacityPercent).toBe(40);
+    });
+
+    it('writes the current value of the element, held between 0 and 100', () => {
+      const mask = GameTableMask.create('霧', 1, 1, 100);
+      const element = mask.commonDataElement!.getFirstElementByName('opacity')!;
+
+      mask.opacityPercent = 40;
+      expect(element.currentValue).toBe(40);
+      mask.opacityPercent = 150;
+      expect(element.currentValue).toBe(100);
+      mask.opacityPercent = -5;
+      expect(element.currentValue).toBe(0);
+    });
+
+    it('counts out of whatever maximum the element keeps', () => {
+      const mask = GameTableMask.create('霧', 1, 1, 100);
+      const element = mask.commonDataElement!.getFirstElementByName('opacity')!;
+      element.value = 200;
+
+      mask.opacityPercent = 50;
+
+      expect(element.currentValue).toBe(100);
+      expect(mask.opacityPercent).toBe(50);
+    });
+
+    it('leaves the element alone for something that is no number, and does nothing without one', () => {
+      const mask = GameTableMask.create('霧', 1, 1, 100);
+      const element = mask.commonDataElement!.getFirstElementByName('opacity')!;
+      element.currentValue = 70;
+
+      mask.opacityPercent = NaN;
+      expect(element.currentValue).toBe(70);
+
+      element.destroy();
+      expect(() => (mask.opacityPercent = 30)).not.toThrow();
+    });
+  });
+
+  describe('the identifier of its own picture', () => {
+    it('is empty on a new mask, and reads back what is set', () => {
+      const mask = GameTableMask.create('霧', 1, 1, 100);
+
+      expect(mask.imageIdentifier).toBe('');
+      mask.imageIdentifier = 'picture-1';
+
+      expect(mask.imageIdentifier).toBe('picture-1');
+      expect(mask.imageDataElement!.getFirstElementByName('imageIdentifier')!.value).toBe('picture-1');
+    });
+  });
+
   describe('paintColor', () => {
     it('adds the colour element a mask made from the menu lacks, holding the colour twice', () => {
       const mask = GameTableMask.create('test', 1, 1, 100);

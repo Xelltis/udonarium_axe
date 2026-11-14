@@ -2,6 +2,7 @@ import { getPeerContext, getPeerContexts } from '@axe/core/network/peer-context-
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
+import { clamp01 } from '@axe/core/util/clamp';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { appendPieceDataElements } from '@axe/domain/tabletop/piece-data-elements';
@@ -41,6 +42,38 @@ export class GameTableMask extends TabletopObject {
   }
   set height(height: number) {
     this.setCommonValue('height', height);
+  }
+
+  /**
+   * The identifier of the mask's own picture, empty for none. Setting it does nothing on a mask
+   * without the element.
+   */
+  get imageIdentifier(): string {
+    const element = this.imageDataElement?.getFirstElementByName('imageIdentifier');
+    return element ? `${element.value}`.trim() : '';
+  }
+  set imageIdentifier(identifier: string) {
+    const element = this.imageDataElement?.getFirstElementByName('imageIdentifier');
+    if (element) element.value = identifier;
+  }
+
+  /**
+   * How opaque the mask is, from 0 to 100.
+   *
+   * Setting it writes the current value of the opacity element as that share of the element's
+   * maximum, held to the range; something that is no number, or a mask without an opacity element,
+   * is left alone.
+   */
+  get opacityPercent(): number {
+    return Math.round(this.opacity * 100);
+  }
+  set opacityPercent(percent: number) {
+    if (!Number.isFinite(percent)) return;
+    const element = this.getElement('opacity', this.commonDataElement);
+    if (!element) return;
+    const maximum = Number(element.value);
+    const full = Number.isFinite(maximum) && maximum > 0 ? maximum : 100;
+    element.currentValue = Math.round(clamp01(percent / 100) * full);
   }
 
   /**

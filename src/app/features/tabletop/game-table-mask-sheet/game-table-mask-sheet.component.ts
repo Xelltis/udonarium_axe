@@ -4,11 +4,14 @@ import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { copyMask } from '@axe/application/tabletop/copy-mask';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
+import { hexChannels } from '@axe/core/util/hex-color';
+import { wholeCells } from '@axe/core/util/whole-cells';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
@@ -16,23 +19,11 @@ import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-sel
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
-const LONG_HEX_COLOR = /^#[0-9a-f]{6}$/i;
-const SHORT_HEX_COLOR = /^#[0-9a-f]{3}$/i;
-
 /** What a colour picker can show for a stored colour: a six-digit hex, or the fallback for anything else. */
 function colorPickerValue(color: string, fallback: string): string {
-  if (LONG_HEX_COLOR.test(color)) return color.toLowerCase();
-  if (SHORT_HEX_COLOR.test(color)) {
-    return `#${[...color.slice(1)].map((digit) => digit + digit).join('')}`.toLowerCase();
-  }
-  return fallback;
-}
-
-/** A typed number as a count of whole cells, at least one; null for a field left empty or not a number. */
-function wholeCells(value: unknown): number | null {
-  if (value === null || value === undefined || `${value}`.trim() === '') return null;
-  const number = Math.floor(Number(value));
-  return Number.isFinite(number) ? Math.max(1, number) : null;
+  const channels = hexChannels(color);
+  if (!channels) return fallback;
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
 const MASK_FILL_FALLBACK = '#0a0a0a';
@@ -82,8 +73,7 @@ export class GameTableMaskSheetComponent {
     const mask = this._gameTableMask();
     if (!mask) return { isSet: false, url: '' };
     this.objectChange.versionOf(mask.identifier)();
-    const element = mask.imageDataElement?.getFirstElementByName('imageIdentifier');
-    const identifier = element ? `${element.value}`.trim() : '';
+    const identifier = mask.imageIdentifier;
     return { isSet: identifier.length > 0, url: this.imageService.getEmptyOr(identifier).url };
   });
 
@@ -127,7 +117,7 @@ export class GameTableMaskSheetComponent {
   set width(value: number) {
     const mask = this._gameTableMask();
     const cells = wholeCells(value);
-    if (mask && cells !== null) mask.width = cells;
+    if (mask && cells !== null) mask.width = Math.max(1, cells);
   }
 
   /**
@@ -140,30 +130,22 @@ export class GameTableMaskSheetComponent {
   set height(value: number) {
     const mask = this._gameTableMask();
     const cells = wholeCells(value);
-    if (mask && cells !== null) mask.height = cells;
+    if (mask && cells !== null) mask.height = Math.max(1, cells);
   }
 
   /**
    * How opaque the mask is, from 0 to 100.
    *
-   * Setting it writes the current value of the opacity element as that share of the element's
-   * maximum, clamped to the range; an empty field, or a mask without an opacity element, is left
+   * Setting it writes that share of the mask's opacity, held to the range; an empty field is left
    * alone.
    */
   get opacity(): number {
-    const mask = this._gameTableMask();
-    return mask ? Math.round(mask.opacity * 100) : 100;
+    return this._gameTableMask()?.opacityPercent ?? 100;
   }
   set opacity(value: number) {
     const mask = this._gameTableMask();
     if (!mask || value === null || value === undefined || `${value}`.trim() === '') return;
-    const percent = Number(value);
-    if (!Number.isFinite(percent)) return;
-    const element = mask.commonDataElement?.getFirstElementByName('opacity');
-    if (!element) return;
-    const maximum = Number(element.value);
-    const full = Number.isFinite(maximum) && maximum > 0 ? maximum : 100;
-    element.currentValue = Math.round((Math.min(100, Math.max(0, percent)) / 100) * full);
+    mask.opacityPercent = Number(value);
   }
 
   /** The colour the mask is filled with, as a colour picker shows it. */
@@ -253,15 +235,14 @@ export class GameTableMaskSheetComponent {
     if (!mask) return;
     this.modalService.open<string>(FileSelecterComponent).then((value) => {
       if (value == null) return;
-      const element = mask.imageDataElement?.getFirstElementByName('imageIdentifier');
-      if (element) element.value = value;
+      mask.imageIdentifier = value;
     });
   }
 
   /** Takes the mask's own picture off, so it is filled with its colour again. */
   clearMaskImage() {
-    const element = this._gameTableMask()?.imageDataElement?.getFirstElementByName('imageIdentifier');
-    if (element) element.value = '';
+    const mask = this._gameTableMask();
+    if (mask) mask.imageIdentifier = '';
   }
 
   /**
@@ -301,13 +282,7 @@ export class GameTableMaskSheetComponent {
   clone() {
     const mask = this._gameTableMask();
     if (!mask) return;
-    const gridSize = this.tabletopService.gridSize();
-    const cloneObject = mask.clone();
-    cloneObject.location.x += gridSize;
-    cloneObject.location.y += gridSize;
-    cloneObject.isLock = false;
-    if (mask.parent) mask.parent.appendChild(cloneObject);
-    cloneObject.update();
+    copyMask(mask, this.tabletopService.gridSize());
     SoundEffect.play(PresetSound.cardPut);
   }
 
