@@ -100,6 +100,14 @@ export function createFieldElement(
 /** A step an element can take among the ones beside it. */
 export type SiblingMove = 'moveToTop' | 'moveUp' | 'moveDown' | 'moveToBottom';
 
+/** The steps an element can take among those beside it, in the order an editor offers them. */
+export const SIBLING_MOVES: readonly { id: SiblingMove; icon: string; labelKey: string }[] = [
+  { id: 'moveToTop', icon: 'vertical_align_top', labelKey: 'common.reorder.toTop' },
+  { id: 'moveUp', icon: 'arrow_upward', labelKey: 'common.reorder.up' },
+  { id: 'moveDown', icon: 'arrow_downward', labelKey: 'common.reorder.down' },
+  { id: 'moveToBottom', icon: 'vertical_align_bottom', labelKey: 'common.reorder.toBottom' },
+];
+
 /**
  * Where a step among its siblings takes an element: the sibling it lands beside, and on which side.
  * Null where there is no such sibling, as for a step up from the top.
