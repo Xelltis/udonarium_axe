@@ -1,6 +1,7 @@
 import { SurfaceDims, surfaceFrame } from '@axe/domain/tabletop/surface-space';
-import { surfaceOf, TableSurface } from '@axe/domain/tabletop/tabletop-object';
+import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { WALL_SIDES } from '@axe/features/tabletop/game-table/game-table-walls';
 
 export interface BeamWallFaceGrid {
   matrix3d: string;
@@ -10,13 +11,6 @@ export interface BeamWallFaceGrid {
   offsetTop: number;
   prefix: string;
 }
-
-const WALL_PREFIX: Partial<Record<TableSurface, string>> = {
-  'north-wall': 'N',
-  'east-wall': 'E',
-  'south-wall': 'S',
-  'west-wall': 'W',
-};
 
 const FACE_LIFT_PX = 5.0;
 
@@ -30,7 +24,7 @@ const FACE_LIFT_PX = 5.0;
 export function beamWallFaceGrid(terrain: Terrain, dims: SurfaceDims, gridSize: number): BeamWallFaceGrid | null {
   const surface = surfaceOf(terrain);
   if (surface === 'floor' || !terrain.isGrid) return null;
-  const prefix = WALL_PREFIX[surface];
+  const prefix = WALL_SIDES.find((side) => side.surface === surface)?.labelPrefix;
   if (prefix == null) return null;
   const width = terrain.width * gridSize;
   const height = terrain.depth * gridSize;

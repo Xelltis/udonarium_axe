@@ -33,7 +33,7 @@ export interface MarqueeSamplesFrom {
 export const MARQUEE_MOUSE_LONG_PRESS_MS = 350;
 export const MARQUEE_TOUCH_LONG_PRESS_MS = 300;
 export const MARQUEE_MOVE_CANCEL_THRESHOLD_PX = 6;
-export const MARQUEE_DRAG_THRESHOLD_PX = 8;
+const MARQUEE_DRAG_THRESHOLD_PX = 8;
 
 export class TableMarqueeGesture {
   onMarqueeStart: MarqueeStartHandler | null = null;

@@ -28,20 +28,20 @@ import { fitCanvasToGrid } from '@axe/ui/tabletop/fit-canvas-to-grid';
 import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
 export const MOVE_RANGE_FILL = 'rgba(90, 170, 255, 0.28)';
-export const MOVE_RANGE_BORDER = 'rgba(120, 200, 255, 0.95)';
+const MOVE_RANGE_BORDER = 'rgba(120, 200, 255, 0.95)';
 /** The ground an enemy holds, shown under the reach so the two read as one picture. */
 /** The reach of a move being taken over what stands in the way rather than around it. */
-export const MOVE_JUMP_FILL = 'rgba(160, 130, 255, 0.28)';
-export const MOVE_JUMP_BORDER = 'rgba(195, 175, 255, 0.95)';
+const MOVE_JUMP_FILL = 'rgba(160, 130, 255, 0.28)';
+const MOVE_JUMP_BORDER = 'rgba(195, 175, 255, 0.95)';
 
 export const MOVE_ZOC_FILL = 'rgba(230, 80, 80, 0.22)';
-export const MOVE_ZOC_BORDER = 'rgba(240, 120, 120, 0.75)';
+const MOVE_ZOC_BORDER = 'rgba(240, 120, 120, 0.75)';
 const MOVE_RANGE_BORDER_WIDTH_PX = 3;
 
 /** The way a move is being planned along, drawn over the reach it is being planned within. */
-export const MOVE_WAY_STROKE = 'rgba(255, 236, 140, 0.95)';
-export const MOVE_WAY_SHADOW = 'rgba(0, 0, 0, 0.55)';
-export const MOVE_WAY_SETTLED = 'rgba(255, 200, 60, 0.95)';
+const MOVE_WAY_STROKE = 'rgba(255, 236, 140, 0.95)';
+const MOVE_WAY_SHADOW = 'rgba(0, 0, 0, 0.55)';
+const MOVE_WAY_SETTLED = 'rgba(255, 200, 60, 0.95)';
 const MOVE_WAY_WIDTH_PX = 5;
 const MOVE_WAY_HEAD_PX = 16;
 const MOVE_WAYPOINT_RADIUS_PX = 7;
@@ -54,7 +54,7 @@ export const MOVE_WAY_OTHERS = 'rgba(150, 205, 255, 0.9)';
 const MOVE_WAY_OTHERS_WIDTH_PX = 4;
 /** The reach of a piece somebody else has picked, drawn fainter than the reader's own. */
 export const MOVE_RANGE_OTHERS_FILL = 'rgba(150, 205, 255, 0.2)';
-export const MOVE_RANGE_OTHERS_BORDER = 'rgba(170, 220, 255, 0.95)';
+const MOVE_RANGE_OTHERS_BORDER = 'rgba(170, 220, 255, 0.95)';
 /** Somebody else's reach is outlined in dashes, so whose it is reads without a legend. */
 const MOVE_RANGE_OTHERS_DASH = [10, 6];
 
