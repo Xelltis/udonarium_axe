@@ -1,4 +1,4 @@
-import { clampInRange, floatOr, roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
+import { floatOr, roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
 
 describe('numeric-input-helpers', () => {
   describe('floatOr()', () => {
@@ -25,30 +25,6 @@ describe('numeric-input-helpers', () => {
     it('falls back for anything else', () => {
       expect(roundOr(NaN, 0)).toBe(0);
       expect(roundOr(Infinity, 99)).toBe(99);
-    });
-  });
-
-  describe('clampInRange()', () => {
-    it('leaves a value in range alone', () => {
-      expect(clampInRange(50, 0, 100, 0)).toBe(50);
-    });
-
-    it('stops at the bottom', () => {
-      expect(clampInRange(-5, 0, 100, 999)).toBe(0);
-    });
-
-    it('stops at the top', () => {
-      expect(clampInRange(150, 0, 100, 999)).toBe(100);
-    });
-
-    it('falls back for anything else', () => {
-      expect(clampInRange(NaN, 0, 100, 50)).toBe(50);
-      expect(clampInRange(Infinity, 0, 100, 50)).toBe(50);
-    });
-
-    it('counts the ends as in range', () => {
-      expect(clampInRange(0, 0, 100, 999)).toBe(0);
-      expect(clampInRange(100, 0, 100, 999)).toBe(100);
     });
   });
 });

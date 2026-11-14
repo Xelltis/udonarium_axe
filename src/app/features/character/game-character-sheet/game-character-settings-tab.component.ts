@@ -5,6 +5,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
+import { clampOr } from '@axe/core/util/clamp';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   clampPieceImageHeight,
@@ -36,7 +37,7 @@ import {
   SeatHeightUnit,
   writeSeatHeight,
 } from '@axe/domain/tabletop/ride/ride-rules';
-import { clampInRange, floatOr, roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
+import { floatOr, roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
 import { PieceModelFieldsComponent } from '@axe/ui/components/piece-model-fields/piece-model-fields.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -267,7 +268,7 @@ export class GameCharacterSettingsTabComponent {
    */
   onChkPopWidth(event: Event): void {
     const character = this.character();
-    character.overViewWidth = clampInRange(
+    character.overViewWidth = clampOr(
       (event.target as HTMLInputElement).valueAsNumber,
       270,
       800,
@@ -281,7 +282,7 @@ export class GameCharacterSettingsTabComponent {
    */
   onChkPopMaxHeight(event: Event): void {
     const character = this.character();
-    character.overViewMaxHeight = clampInRange(
+    character.overViewMaxHeight = clampOr(
       (event.target as HTMLInputElement).valueAsNumber,
       250,
       1000,

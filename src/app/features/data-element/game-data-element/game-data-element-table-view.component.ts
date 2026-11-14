@@ -3,6 +3,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { clamp } from '@axe/core/util/clamp';
 import { DataElement, DataElementAttribute, DataElementFieldType } from '@axe/domain/data/data-element';
 import { calcSourceIdentifiers, createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
 import { findJudgementCandidates, type SkillJudgementCandidate } from '@axe/domain/data/skill-table-judgement';
@@ -356,7 +357,7 @@ export class GameDataElementTableViewComponent {
     if (delta === 0) return;
 
     const maxScrollLeft = scrollElement.scrollWidth - scrollElement.clientWidth;
-    const nextScrollLeft = Math.max(0, Math.min(maxScrollLeft, scrollElement.scrollLeft + delta));
+    const nextScrollLeft = clamp(scrollElement.scrollLeft + delta, 0, maxScrollLeft);
     if (nextScrollLeft === scrollElement.scrollLeft) return;
 
     event.preventDefault();

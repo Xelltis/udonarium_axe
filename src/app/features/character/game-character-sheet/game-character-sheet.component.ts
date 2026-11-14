@@ -32,6 +32,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp, clampOr } from '@axe/core/util/clamp';
 import { debounce } from '@axe/core/util/debounce';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -60,7 +61,7 @@ import {
   reorderDetailElementAfter,
 } from '@axe/features/character/game-character-sheet/detail-element-reorder-helpers';
 import { GameCharacterSettingsTabComponent } from '@axe/features/character/game-character-sheet/game-character-settings-tab.component';
-import { clampInRange, roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
+import { roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
 import { SheetViewPreferenceService } from '@axe/features/character/game-character-sheet/sheet-view-preference.service';
 import { openDataElementEditor } from '@axe/features/data-element/data-element-editor/open-data-element-editor';
 import { DataElementDeletionService } from '@axe/features/data-element/game-data-element/data-element-deletion.service';
@@ -375,7 +376,7 @@ export class GameCharacterSheetComponent {
   setCardOwnSize(c: Card, event: Event): void {
     const value = (event.target as HTMLInputElement).valueAsNumber;
     if (!Number.isFinite(value)) return;
-    c.size = Math.max(1, Math.min(20, Math.round(value)));
+    c.size = clamp(Math.round(value), 1, 20);
   }
   private readonly writeFaceTextSoon = debounce(() => this.flushCardOwnFaceText(), 66);
   private pendingCardFaceText: { card: Card; value: string } | null = null;
@@ -528,7 +529,7 @@ export class GameCharacterSheetComponent {
   setTextNoteAltitude(note: TextNote, event: Event): void {
     const value = (event.target as HTMLInputElement).valueAsNumber;
     if (!Number.isFinite(value)) return;
-    note.altitude = Math.max(-20, Math.min(20, value));
+    note.altitude = clamp(value, -20, 20);
   }
   private setNoteCommonValue(note: TextNote, name: string, value: string | number): void {
     const el = note.commonDataElement?.getFirstElementByName(name);
@@ -537,7 +538,7 @@ export class GameCharacterSheetComponent {
   private setNoteCommonNumber(note: TextNote, name: string, event: Event, min: number, max: number): void {
     const value = (event.target as HTMLInputElement).valueAsNumber;
     if (!Number.isFinite(value)) return;
-    this.setNoteCommonValue(note, name, Math.max(min, Math.min(max, Math.round(value))));
+    this.setNoteCommonValue(note, name, clamp(Math.round(value), min, max));
   }
   /** The piece as terrain, or null when it is something else. */
   get terrain(): Terrain | null {
@@ -941,7 +942,7 @@ export class GameCharacterSheetComponent {
    */
   chkDiceKomaSize(height: number) {
     const character = this.tabletopObject as DiceSymbol;
-    character.komaImageHeight = clampInRange(Number(height), 50, 750, character.komaImageHeight);
+    character.komaImageHeight = clampOr(Number(height), 50, 750, character.komaImageHeight);
     this.pointerDeviceService.isDragging = false;
   }
 
@@ -951,7 +952,7 @@ export class GameCharacterSheetComponent {
    */
   chkPopWidth(width: number) {
     const character = this.tabletopObject as GameCharacter;
-    character.overViewWidth = clampInRange(width, 270, 800, character.overViewWidth);
+    character.overViewWidth = clampOr(width, 270, 800, character.overViewWidth);
   }
 
   /**
@@ -960,7 +961,7 @@ export class GameCharacterSheetComponent {
    */
   chkPopMaxHeight(maxHeight: number) {
     const character = this.tabletopObject as GameCharacter;
-    character.overViewMaxHeight = clampInRange(maxHeight, 250, 1000, character.overViewMaxHeight);
+    character.overViewMaxHeight = clampOr(maxHeight, 250, 1000, character.overViewMaxHeight);
   }
   /**
    * Saves the piece with its pictures as a zip file named after it, from the sheet's save button.

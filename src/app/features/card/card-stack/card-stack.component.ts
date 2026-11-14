@@ -28,6 +28,7 @@ import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switc
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { imageFileEqual } from '@axe/core/storage/image-file';
+import { clamp } from '@axe/core/util/clamp';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { copyDetailSchema } from '@axe/domain/card/deck-builder';
@@ -377,7 +378,7 @@ export class CardStackComponent {
 
   private drawCards(count: number): Card[] {
     const normalizedCount = Number.isFinite(count) ? Math.floor(count) : 0;
-    const drawCount = Math.min(Math.max(0, normalizedCount), this.cardStack().cards.length);
+    const drawCount = clamp(normalizedCount, 0, this.cardStack().cards.length);
     const cards: Card[] = [];
     for (let index = 0; index < drawCount; index++) {
       const card = this.drawCardAt(index);

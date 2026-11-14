@@ -59,6 +59,7 @@ import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { sameFields } from '@axe/core/util/same-fields';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
@@ -1321,9 +1322,7 @@ export class GameCharacterComponent {
 
   readonly multiAnglePieceRevolutionSeconds = computed(() => {
     const seconds = this.tabletopService.display().multiAnglePieceRevolutionSeconds;
-    return Number.isFinite(seconds)
-      ? Math.min(300, Math.max(5, seconds))
-      : DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS;
+    return Number.isFinite(seconds) ? clamp(seconds, 5, 300) : DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS;
   });
 
   /** The columns the buff icons are laid out in, the same count the panel's height is reckoned by. */

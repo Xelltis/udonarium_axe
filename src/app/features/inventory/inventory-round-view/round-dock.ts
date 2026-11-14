@@ -1,3 +1,5 @@
+import { clamp } from '@axe/core/util/clamp';
+
 /** How large a face is drawn where there is room for every face at its full size. */
 export const DOCK_FACE = 48;
 /** The room after a face drawn at its full size. */
@@ -126,7 +128,7 @@ function shareRoom(
   const stepping = sharing - (lastShares ? 1 : 0);
   const left = room - held;
   const fitting = sharing > 0 ? (left - stepping * DOCK_TIGHT_GAP) / sharing : DOCK_FACE;
-  const size = Math.min(DOCK_FACE, Math.max(DOCK_LEAST_FACE, fitting));
+  const size = clamp(fitting, DOCK_LEAST_FACE, DOCK_FACE);
   const step =
     fitting >= DOCK_LEAST_FACE
       ? size + DOCK_TIGHT_GAP
