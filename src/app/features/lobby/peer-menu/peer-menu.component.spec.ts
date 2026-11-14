@@ -872,6 +872,29 @@ describe('PeerMenuComponent', () => {
       expect(rowOf('peer-without-cursor').textContent).toContain('peer-w');
     });
 
+    it('follows a rename and a cursor arriving as they are told, without a tick of the clock', async () => {
+      links.set([
+        { peerId: 'peer-aoi', state: 'direct' },
+        { peerId: 'peer-late', state: 'direct' },
+      ]);
+      open();
+      const tick = vi.spyOn(component, 'dispInfo');
+
+      aoi.name = '茜';
+      TestBed.inject(ObjectChangeService).notifyChanged(aoi.identifier);
+      const late = new PeerCursor();
+      late.peerId = 'peer-late';
+      late.name = '遅れた人';
+      late.initialize();
+      TestBed.inject(ObjectChangeService).notifyCollectionChanged(PeerCursor.aliasName);
+      await fixture.whenStable();
+
+      expect(tick).not.toHaveBeenCalled();
+      expect(rowOf('peer-aoi').textContent).toContain('茜');
+      expect(rowOf('peer-late').textContent).toContain('遅れた人');
+      late.destroy();
+    });
+
     it('marks a direct link with its icon alone, named for a screen reader, and says nothing under it', () => {
       links.set([{ peerId: 'peer-aoi', state: 'direct' }]);
       open();

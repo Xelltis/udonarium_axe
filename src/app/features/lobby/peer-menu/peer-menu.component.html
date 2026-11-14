@@ -359,8 +359,8 @@
               <span class="order-5 h-0 basis-full" data-testid="peer-menu-row-break" aria-hidden="true"></span>
             }
           }
-          <span class="min-w-0 flex-1 truncate" [class.order-3]="!!row.link" [title]="findUserId(row.peerId)">{{
-            findPeerName(row.peerId) || shortId(row.peerId)
+          <span class="min-w-0 flex-1 truncate" [class.order-3]="!!row.link" [title]="row.userId">{{
+            row.name || shortId(row.peerId)
           }}</span>
           @if (amGameMaster()) {
             <!-- Drawn again when the room server keeps a role as it was, so the picker shows the role as it stands;
@@ -370,7 +370,7 @@
                 class="shrink-0 text-[0.7rem]"
                 [class.order-4]="!!row.link && !isNarrow()"
                 [class.order-7]="!!row.link && isNarrow()"
-                [ngModel]="findPeerRole(row.peerId)"
+                [ngModel]="row.role"
                 (ngModelChange)="reassignRole(row.peerId, $event)"
                 [name]="'peer-role-' + row.peerId"
                 [attr.data-testid]="'peer-menu-role-' + row.peerId"
@@ -383,11 +383,11 @@
           } @else {
             <span
               class="shrink-0 rounded-sm px-1.5 py-0.5 text-[0.65rem] font-bold"
-              [class]="roleBadgeClass(findPeerRole(row.peerId))"
+              [class]="roleBadgeClass(row.role)"
               [class.order-4]="!!row.link && !isNarrow()"
               [class.order-7]="!!row.link && isNarrow()"
               data-testid="peer-menu-row-role"
-              >{{ roleShortLabelKey(findPeerRole(row.peerId)) | transloco }}</span
+              >{{ roleShortLabelKey(row.role) | transloco }}</span
             >
           }
           <span
@@ -396,7 +396,9 @@
             [class.order-4]="!!row.link && isNarrow()"
             data-testid="peer-menu-last-answer"
             >{{
-              findPeerTimeReceive(row.peerId) <= 0 ? '[-:--:--]' : (findPeerTimeReceive(row.peerId) | date: 'HH:mm:ss')
+              heardFrom(row.peerId).receivedAt <= 0
+                ? '[-:--:--]'
+                : (heardFrom(row.peerId).receivedAt | date: 'HH:mm:ss')
             }}</span
           >
         </div>
@@ -405,12 +407,12 @@
             {{ 'feature.lobby.peerMenu.linkRelayedOnlyHint' | transloco }}
           </p>
         }
-        <div class="text-[0.65rem] text-(--ui-text-dim)" [title]="findUserId(row.peerId)">
+        <div class="text-[0.65rem] text-(--ui-text-dim)" [title]="row.userId">
           {{ shortId(row.peerId) }}
         </div>
-        @if (dispDetailFlag() && !isServerTransport() && findPeerTimeReceive(row.peerId) > 0) {
+        @if (dispDetailFlag() && !isServerTransport() && heardFrom(row.peerId).receivedAt > 0) {
           <span class="text-(--ui-text-dim)"
-            >{{ 'feature.lobby.peerMenu.latency' | transloco }}{{ findPeerTimeLatency(row.peerId)
+            >{{ 'feature.lobby.peerMenu.latency' | transloco }}{{ heardFrom(row.peerId).latency
             }}{{ 'feature.lobby.peerMenu.latencyUnit' | transloco }}</span
           >
         }

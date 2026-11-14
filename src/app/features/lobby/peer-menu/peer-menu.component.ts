@@ -129,11 +129,27 @@ const PEER_LINK_LOOKS: Record<PeerLinkView, PeerLinkLook> = {
   },
 };
 
-/** One row of the list of the others: the peer, and how its link is drawn where links are told of. */
+/**
+ * One row of the list of the others: the peer, how its link is drawn where links are told of, and
+ * what its cursor says of who it is, empty or the default role while the cursor has not arrived.
+ */
 interface PeerRow {
   readonly peerId: string;
   readonly link: PeerLinkLook | null;
+  readonly userId: string;
+  readonly name: string;
+  readonly role: PeerRole;
 }
+
+/** What the heartbeats say of one of the others, as last read on the menu's clock. */
+interface PeerHeard {
+  /** When the peer last answered; zero or less while that is not known. */
+  readonly receivedAt: number;
+  /** The round trip in seconds, or `--` while the peer's cursor has not arrived. */
+  readonly latency: number | string;
+}
+
+const NOT_HEARD: PeerHeard = { receivedAt: 0, latency: '--' };
 
 /** How the standing of this seat's sync is said above the button that asks for a fresh one. */
 interface SyncLook {
@@ -272,7 +288,6 @@ export class PeerMenuComponent {
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly destroyRef = inject(DestroyRef);
   networkService = Network.instance;
-  gameRoomService = this.objectStore;
   readonly help = signal('');
   readonly isPasswordVisible = signal(false);
   readonly dispDetailFlag = signal(false);
@@ -581,12 +596,46 @@ export class PeerMenuComponent {
    * The rows of the list of the others. Among peers, one for each link the network tells of, those
    * the room only lists among them, with how the link is drawn. On a room server, one for each
    * member the server gives, with nothing said of links, which every seat has to the server alone.
+   * It follows the network, the cursors coming and going, and every cursor's own changes, as a
+   * cursor is found by a peer id that is itself one of them.
    */
-  protected peerRows(): PeerRow[] {
-    if (this.isServerTransport()) {
-      return this.networkService.peerContexts.map((context) => ({ peerId: context.peerId, link: null }));
+  protected readonly peerRows = computed<PeerRow[]>(() => {
+    this.objectChange.networkVersion();
+    this.objectChange.collectionOf(PeerCursor.aliasName)();
+    for (const cursor of this.objectStore.getObjects<PeerCursor>(PeerCursor)) {
+      this.objectChange.versionOf(cursor.identifier)();
     }
-    return this.peerLink.links().map((link) => ({ peerId: link.peerId, link: PEER_LINK_LOOKS[link.state] }));
+    const rows = this.isServerTransport()
+      ? this.networkService.peerContexts.map((context) => ({ peerId: context.peerId, link: null }))
+      : this.peerLink.links().map((link) => ({ peerId: link.peerId, link: PEER_LINK_LOOKS[link.state] }));
+    return rows.map((row) => {
+      const cursor = PeerCursor.findByPeerId(row.peerId);
+      return {
+        ...row,
+        userId: cursor?.userId ?? '',
+        name: cursor?.name ?? '',
+        role: cursor?.role ?? DEFAULT_PEER_ROLE,
+      };
+    });
+  });
+
+  /**
+   * What the heartbeats say of each of the others, by peer id. Nothing tells of a heartbeat
+   * arriving, so it is read again on every tick of the menu's clock.
+   */
+  protected readonly heard = computed<ReadonlyMap<string, PeerHeard>>(() => {
+    this.myTime();
+    return new Map(
+      this.peerRows().map((row) => [
+        row.peerId,
+        { receivedAt: this.findPeerTimeReceive(row.peerId), latency: this.findPeerTimeLatency(row.peerId) },
+      ])
+    );
+  });
+
+  /** What the heartbeats say of one of the others, or that nothing was heard for a peer not on the list. */
+  protected heardFrom(peerId: string): PeerHeard {
+    return this.heard().get(peerId) ?? NOT_HEARD;
   }
 
   /**
@@ -669,27 +718,6 @@ export class PeerMenuComponent {
     this.isPasswordVisible.update((v) => !v);
   }
 
-  /** The user ID of the peer with this peer ID, or empty while its cursor has not arrived. */
-  findUserId(peerId: string) {
-    const peerCursor = PeerCursor.findByPeerId(peerId);
-    return peerCursor ? peerCursor.userId : '';
-  }
-
-  /** The name of the peer with this ID, or empty while its cursor has not arrived. */
-  findPeerName(peerId: string) {
-    const peerCursor = PeerCursor.findByPeerId(peerId);
-    return peerCursor ? peerCursor.name : '';
-  }
-
-  /**
-   * When the peer's last heartbeat was sent, by its own clock; 0 while its cursor has not arrived
-   * and -1 before any heartbeat.
-   */
-  findPeerTimeSend(peerId: string) {
-    const peerCursor = PeerCursor.findByPeerId(peerId);
-    return peerCursor ? peerCursor.timestampSend : 0;
-  }
-
   /**
    * When the peer last answered: its last heartbeat to arrive here, or in a room on a room server,
    * which sends none, when the server last heard from it. Zero or less while neither is known.
@@ -701,32 +729,12 @@ export class PeerMenuComponent {
   }
 
   /**
-   * How long this browser's heartbeat took to reach the peer, as the peer reported back, in
-   * milliseconds; 0 while unknown.
-   */
-  findPeerTimeDiffUp(peerId: string) {
-    const peerCursor = PeerCursor.findByPeerId(peerId);
-    return peerCursor ? peerCursor.timeDiffUp : 0;
-  }
-
-  /**
-   * How long the peer's last heartbeat took to arrive here, in milliseconds, any difference between
-   * the two clocks included; 0 while its cursor has not arrived.
-   */
-  findPeerTimeDiffDown(peerId: string) {
-    const peerCursor = PeerCursor.findByPeerId(peerId);
-    return peerCursor ? peerCursor.timeDiffDown : 0;
-  }
-
-  /**
    * The round trip to the peer and back in seconds, the two ways added together; `--` while its
    * cursor has not arrived.
    */
   findPeerTimeLatency(peerId: string) {
     const peerCursor = PeerCursor.findByPeerId(peerId);
-    if (!peerCursor) return '--';
-
-    return peerCursor ? peerCursor.timeLatency / 1000 : 99999;
+    return peerCursor ? peerCursor.timeLatency / 1000 : '--';
   }
 
   /**
@@ -741,7 +749,8 @@ export class PeerMenuComponent {
     return degree;
   }
 
-  myTime = signal(0);
+  /** The time on the clock shown in the menu, which the heartbeat figures of the list are read on. */
+  readonly myTime = signal(0);
   /** Moves on the clock shown in the menu, which the menu does every second while it is open. */
   dispInfo() {
     this.myTime.set(Date.now());
