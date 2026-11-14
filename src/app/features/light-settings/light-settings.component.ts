@@ -90,6 +90,10 @@ export class LightSettingsComponent {
     { equal: () => false }
   );
 
+  /** The look every select and number field of the panel shares. */
+  protected readonly fieldClass =
+    'rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-full border border-solid px-2 py-1 text-[13px]';
+
   readonly presets = Object.values(LightPreset);
   readonly animations = Object.values(LightAnimation);
   readonly categories = Object.values(LightCategory);
