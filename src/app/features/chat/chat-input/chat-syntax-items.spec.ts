@@ -28,6 +28,7 @@ describe('chatSyntaxGroups', () => {
       cutIns: ['登場'],
       diceExamples: ['CC<=50'],
       isGameMaster: false,
+      canTakeTurns: true,
       ...overrides,
     };
   }
@@ -129,18 +130,11 @@ describe('chatSyntaxGroups', () => {
     expect(sweeps(true)).toBe(1);
   });
 
-  it('offers the round commands a player may use, written at the start of the line where they are read', () => {
-    const groups = chatSyntaxGroups(source(), writer, t);
-    const turn = groups.find((group) => group.key === 'turn')!;
+  it('offers a player every round command, written at the start of the line where they are read', () => {
+    const turn = chatSyntaxGroups(source(), writer, t).find((group) => group.key === 'turn')!;
 
-    expect(turn.rows.map((row) => row.items[0].written)).toEqual(['&T', '&TE', '&TW', '&TI']);
     turn.rows[0].items[0].run();
     expect(written).toEqual(['prefix &T  first']);
-  });
-
-  it('offers the game master every round command', () => {
-    const turn = chatSyntaxGroups(source({ isGameMaster: true }), writer, t).find((group) => group.key === 'turn')!;
-
     expect(turn.rows.map((row) => row.items[0].written)).toEqual([
       '&T',
       '&TE',
@@ -152,5 +146,11 @@ describe('chatSyntaxGroups', () => {
       '&RB',
       '&RR',
     ]);
+  });
+
+  it('offers no round command to a seat that may not move the round', () => {
+    const turn = chatSyntaxGroups(source({ canTakeTurns: false }), writer, t).find((group) => group.key === 'turn');
+
+    expect(turn?.rows ?? []).toEqual([]);
   });
 });

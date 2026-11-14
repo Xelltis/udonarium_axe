@@ -20,6 +20,8 @@ export interface ChatSyntaxMenuSource {
   /** Commands of the game system that roll as they stand. */
   readonly diceExamples: readonly string[];
   readonly isGameMaster: boolean;
+  /** Whether the reader may move the round, and so may say the commands that move it. */
+  readonly canTakeTurns: boolean;
 }
 
 /** How the items write into the line. */
@@ -159,7 +161,7 @@ export function chatSyntaxGroups(
 
   group(
     'turn',
-    TURN_CHAT_COMMANDS.filter((entry) => source.isGameMaster || !entry.masterOnly).map((entry) =>
+    (source.canTakeTurns ? TURN_CHAT_COMMANDS : []).map((entry) =>
       single(word(`turn${entry.command[0].toUpperCase()}${entry.command.slice(1)}`), `&${entry.short}`, () =>
         writer.prefix(`&${entry.short} `, 'first')
       )

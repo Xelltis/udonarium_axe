@@ -393,19 +393,33 @@ describe('TurnChatCommandService', () => {
       expect(turnState.actedIdentifiers).toEqual([squire.identifier]);
     });
 
-    it.each([
-      ['a speaker that is no piece', () => PeerCursor.myCursor.identifier, 'noPiece'],
-      ['a piece that is somebody else’s', () => squire.identifier, 'notYours'],
-    ])('moves nothing for %s, and tells the speaker alone', (_, speaker, reason) => {
+    it('moves nothing for a speaker that is no piece, and tells the speaker alone', () => {
       const before = standing();
 
-      say('&T', speaker());
+      say('&T', PeerCursor.myCursor.identifier);
 
       expect(standing()).toEqual(before);
       expect(noticesToMe()).toHaveLength(1);
-      expect(noticesToMe()[0].text).toContain(`feature.chat.lint.turn.no.${reason}`);
+      expect(noticesToMe()[0].text).toContain('feature.chat.lint.turn.no.noPiece');
       expect(noticesToMe()[0].text).toContain('feature.turnOrder.commandRefused');
       expect(noticesToMe()[0].to).toBe(MY_USER);
+    });
+
+    it('takes the turn for a piece that is somebody else’s, as a press of its face in the turn order does', () => {
+      say('&T', squire.identifier);
+
+      expect(turnState.currentIdentifier).toBe(squire.identifier);
+      expect(noticesToMe()).toEqual([]);
+    });
+
+    it('steps a waiting piece that is somebody else’s in, as a press of its face does', () => {
+      turns.setCurrent(squire.identifier);
+      turns.hold(squire.identifier);
+
+      say('&TI', squire.identifier);
+
+      expect(turnState.currentIdentifier).toBe(squire.identifier);
+      expect(noticesToMe()).toEqual([]);
     });
 
     it('takes no turn in the other side’s phase', () => {
@@ -464,46 +478,95 @@ describe('TurnChatCommandService', () => {
       expect(turnState.currentIdentifier).toBe(squire.identifier);
     });
 
-    it('ends and waits out its own turn, and nobody else’s', () => {
-      say('&T', hero.identifier);
-      say('&TW', hero.identifier);
-      expect(turns.isHeld(hero.identifier)).toBe(true);
-
+    it('has whoever is up wait and ends their turn, whoever’s piece it is, as the buttons do', () => {
       turns.setCurrent(squire.identifier);
-      const before = standing();
-      say('&TE', hero.identifier);
+
       say('&TW', hero.identifier);
 
-      expect(standing()).toEqual(before);
-      expect(noticesToMe().map((line) => line.text)).toEqual([
-        expect.stringContaining('feature.chat.lint.turn.no.notYourTurn'),
-        expect.stringContaining('feature.chat.lint.turn.no.notYourTurn'),
-      ]);
+      expect(turns.isHeld(squire.identifier)).toBe(true);
 
-      squire.owner = MY_USER;
+      turns.setCurrent(monster.identifier);
+      turns.setCurrent(hero.identifier);
+      turns.setCurrent(squire.identifier);
       say('&TE', hero.identifier);
 
       expect(turnState.actedIdentifiers).toContain(squire.identifier);
+      expect(noticesToMe()).toEqual([]);
     });
 
-    it('ends no turn while nobody is up', () => {
-      const before = standing();
+    it('presses the round on with &TE while nobody is up, as the next button does', () => {
+      const next = vi.spyOn(turns, 'next');
+      const recorded = parseTurnHistory(turnState.history).length;
 
       say('&TE', hero.identifier);
+
+      expect(next).toHaveBeenCalledOnce();
+      expect(parseTurnHistory(turnState.history)).toHaveLength(recorded + 1);
+      expect(noticesToMe()).toEqual([]);
+    });
+
+    it('has nobody wait while nobody is up', () => {
+      const before = standing();
+
+      say('&TW', hero.identifier);
 
       expect(standing()).toEqual(before);
       expect(noticesToMe()[0].text).toContain('feature.chat.lint.turn.no.nobodyUp');
     });
+  });
 
-    it.each(['&TB', '&RS', '&RN', '&RB', '&RR'])('leaves %s to the game master', (line) => {
+  describe('a player moving the round', () => {
+    it('starts the round with &RS, as the next button does', () => {
+      beSeat(PeerRole.Player);
+
+      say('&RS', hero.identifier);
+
+      expect(turnState.round).toBe(1);
+      expect(noticesToMe()).toEqual([]);
+    });
+
+    it.each([
+      ['&TB', 'prev'],
+      ['&RB', 'retreatRound'],
+      ['&RR', 'reset'],
+    ] as const)('carries %s out through the press its button makes', (line, press) => {
+      turns.next();
+      turns.next();
+      beSeat(PeerRole.Player);
+      const pressed = vi.spyOn(turns, press);
       const before = standing();
 
       say(line, hero.identifier);
 
-      expect(standing()).toEqual(before);
-      expect(ask).not.toHaveBeenCalled();
-      expect(noticesToMe()).toHaveLength(1);
-      expect(noticesToMe()[0].text).toContain('feature.chat.lint.turn.no.masterOnly');
+      expect(pressed).toHaveBeenCalledOnce();
+      expect(standing()).not.toEqual(before);
+      expect(noticesToMe()).toEqual([]);
+    });
+
+    it('moves to the next round with &RN, asked about the pieces still to move as the button asks', async () => {
+      turns.next();
+      turns.next();
+      beSeat(PeerRole.Player);
+      const advance = vi.spyOn(turns, 'advanceRound');
+
+      say('&RN', hero.identifier);
+      await advance.mock.results[0].value;
+
+      expect(ask).toHaveBeenCalledOnce();
+      expect(turnState.round).toBe(2);
+      expect(noticesToMe()).toEqual([]);
+    });
+
+    it('is told what the game master is told where the round does not stand for the command', () => {
+      beSeat(PeerRole.Player);
+
+      say('&TB', hero.identifier);
+      say('&RR', hero.identifier);
+
+      expect(noticesToMe().map((line) => line.text)).toEqual([
+        expect.stringContaining('feature.chat.lint.turn.no.nothingToUndo'),
+        expect.stringContaining('feature.chat.lint.turn.no.notStarted'),
+      ]);
     });
   });
 
@@ -604,8 +667,15 @@ describe('TurnChatCommandService', () => {
     it('answers why for one that would not', () => {
       expect(service.refusalOf('roundReset', '')).toBe('notStarted');
       expect(service.refusalOf('wait', '')).toBe('nobodyUp');
+    });
+
+    it('answers a player as it answers the game master, and a seat only watching that it is watching', () => {
       beSeat(PeerRole.Player);
-      expect(service.refusalOf('roundNext', '')).toBe('masterOnly');
+      expect(service.refusalOf('roundNext', '')).toBeNull();
+      expect(service.refusalOf('end', '')).toBeNull();
+      expect(service.refusalOf('back', '')).toBe('nothingToUndo');
+      beSeat(PeerRole.Guest);
+      expect(service.refusalOf('roundNext', '')).toBe('watching');
     });
   });
 });

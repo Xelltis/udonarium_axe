@@ -4,6 +4,7 @@ import { GameSystemPrefetchService } from '@axe/application/dice/game-system-pre
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
@@ -38,6 +39,7 @@ export class ChatSyntaxSourceService {
   private readonly language = inject(LanguageService);
   private readonly stampPacks = inject(StampPackService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly turnOrder = inject(TurnOrderService);
   private readonly systems = inject(GameSystemPrefetchService);
 
   /**
@@ -51,6 +53,7 @@ export class ChatSyntaxSourceService {
       language: this.language.currentLang(),
       diceExamples: system && !DiceBot.isUnreachable(system) ? this.examplesOf(system) : [],
       isGameMaster: PeerCursor.isMyselfGameMaster,
+      canTakeTurns: this.turnOrder.canTakeTurns,
     };
   }
 
@@ -95,9 +98,7 @@ export class ChatSyntaxSourceService {
       ...names,
       statuses: names.statuses.map((status) => status.name),
       buffs: speaker?.buffs.list().map((buff) => buff.name) ?? [],
-      turnCommands: TURN_CHAT_COMMANDS.filter((entry) => PeerCursor.isMyselfGameMaster || !entry.masterOnly).flatMap(
-        (entry) => [entry.short, entry.word]
-      ),
+      turnCommands: this.turnOrder.canTakeTurns ? TURN_CHAT_COMMANDS.flatMap((entry) => [entry.short, entry.word]) : [],
     };
   }
 

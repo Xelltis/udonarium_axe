@@ -4465,10 +4465,7 @@
           "roundReset": "Takes the turns and the round back to the start",
           "no": {
             "watching": "The turn order cannot be moved while you are watching",
-            "masterOnly": "Only the GM can use this",
             "noPiece": "The speaker is no piece, so this does nothing",
-            "notYours": "The speaking piece is somebody else's, so this does nothing",
-            "notYourTurn": "The turn is somebody else's piece's, so this does nothing",
             "fixedOrder": "This works only side by side, in a free phase",
             "notUnderWay": "No round is under way, so this does nothing",
             "notInOrder": "The speaking piece is not in the turn order, so this does nothing",

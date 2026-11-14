@@ -1,16 +1,13 @@
 import { inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { Logger } from '@axe/core/logging/logger';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { isControllableByUser } from '@axe/domain/character/character-control';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
-  isMasterTurnChatCommand,
   readTurnChatCommand,
   TurnChatCommand,
   turnChatCommandRest,
@@ -31,7 +28,6 @@ import { isTurnUnderWay } from '@axe/domain/tabletop/turn-roster';
 export class TurnChatCommandService {
   private readonly turnOrder = inject(TurnOrderService);
   private readonly chat = inject(ChatMessageService);
-  private readonly rolePermission = inject(RolePermissionService);
   private readonly objectStore = inject(ObjectStore);
 
   /**
@@ -65,36 +61,29 @@ export class TurnChatCommandService {
    * Why a round command said now, as the speaker given, would move nothing; null where it would be
    * carried out.
    *
-   * A seat that is only watching moves no round. The steps back, and the round's start, next,
-   * taking back and reset are the game master's. A turn is taken, ended, waited out or stepped
-   * into by the game master or by a seat that may move the piece: its own, or one nobody has
-   * claimed. A turn is taken by the piece speaking, side by side with the side free to choose,
+   * A command may be said by the seats that may press its button in the turn order, which is every
+   * seat that may take turns and none that is only watching, whoever's piece is speaking or up.
+   * Past that it moves something where its button would: a turn is ended as the next button is
+   * pressed, a piece waits or steps in where the round lets it, and a step is taken back where one
+   * is recorded. A turn is taken by the piece speaking, side by side with the side free to choose,
    * while its side's phase is open and it has neither had its turn nor begun to wait.
    */
   refusalOf(command: TurnChatCommand, sendFrom: string): TurnChatRefusal | null {
     if (!this.turnOrder.canTakeTurns) return 'watching';
-    const master = this.rolePermission.isGameMaster();
-    if (isMasterTurnChatCommand(command) && !master) return 'masterOnly';
-    const mine = (piece: GameCharacter) => master || isControllableByUser(piece, PeerCursor.myUserId);
     const speaker = this.pieceOf(sendFrom);
     const up = this.turnOrder.phase === 'acting' ? this.pieceOf(this.turnOrder.currentIdentifier) : null;
 
     switch (command) {
       case 'take':
         if (!speaker) return 'noPiece';
-        if (!mine(speaker)) return 'notYours';
         return this.takingRefusal(speaker);
       case 'end':
-        if (master) return null;
-        if (!up) return 'nobodyUp';
-        return mine(up) ? null : 'notYourTurn';
+        return null;
       case 'wait':
         if (!up) return 'nobodyUp';
-        if (!mine(up)) return 'notYourTurn';
         return this.turnOrder.mayHold(up.identifier) ? null : 'cannotWait';
       case 'stepIn':
         if (!speaker) return 'noPiece';
-        if (!mine(speaker)) return 'notYours';
         return this.turnOrder.mayInterrupt(speaker.identifier) ? null : 'notWaiting';
       case 'back':
       case 'roundBack':

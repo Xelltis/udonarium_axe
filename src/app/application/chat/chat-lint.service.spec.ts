@@ -316,7 +316,7 @@ describe('ChatLintService', () => {
       PeerCursor.myCursor = null!;
     });
 
-    it('is said to be what it does where the reader may use it, and found at fault where not', () => {
+    it('is said to be what it does to every seat that may move the round, and found at fault for one watching', () => {
       const { session } = watch('&RS');
       expect(session.diagnostics()).toEqual([
         expect.objectContaining({ severity: 'info', code: 'turn.roundStart', from: 0, to: 3 }),
@@ -325,9 +325,12 @@ describe('ChatLintService', () => {
       PeerCursor.myCursor.role = PeerRole.Player;
       TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
 
-      expect(session.diagnostics()).toEqual([
-        expect.objectContaining({ severity: 'error', code: 'turn.no.masterOnly' }),
-      ]);
+      expect(codesOf(session)).toEqual(['turn.roundStart']);
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+
+      expect(session.diagnostics()).toEqual([expect.objectContaining({ severity: 'error', code: 'turn.no.watching' })]);
     });
 
     it('is checked again as the round moves', () => {

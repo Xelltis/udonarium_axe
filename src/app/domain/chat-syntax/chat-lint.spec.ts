@@ -269,11 +269,11 @@ describe('lintChatSyntax', () => {
       const asked: string[] = [];
       const turnCommandRefusal = (command: string) => {
         asked.push(command);
-        return 'masterOnly' as const;
+        return 'watching' as const;
       };
 
       expect(lint('&RS', { turnCommandRefusal })).toEqual([
-        expect.objectContaining({ severity: 'error', code: 'turn.no.masterOnly', from: 0, to: 3 }),
+        expect.objectContaining({ severity: 'error', code: 'turn.no.watching', from: 0, to: 3 }),
       ]);
       expect(asked).toEqual(['roundStart']);
       expect(codes('&T', { turnCommandRefusal: () => 'otherSide' })).toEqual(['turn.no.otherSide']);

@@ -1,35 +1,29 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
 import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
 
-/**
- * The round's presses as a chat line asks for them, each under a short name and a word, and whether
- * only the game master may ask for it.
- */
+/** The round's presses as a chat line asks for them, each under a short name and a word. */
 export const TURN_CHAT_COMMANDS = [
-  { command: 'take', short: 'T', word: '手番', masterOnly: false },
-  { command: 'end', short: 'TE', word: '手番終了', masterOnly: false },
-  { command: 'wait', short: 'TW', word: '待機', masterOnly: false },
-  { command: 'stepIn', short: 'TI', word: '割り込み', masterOnly: false },
-  { command: 'back', short: 'TB', word: '前へ', masterOnly: true },
-  { command: 'roundStart', short: 'RS', word: 'ラウンド開始', masterOnly: true },
-  { command: 'roundNext', short: 'RN', word: '次のラウンド', masterOnly: true },
-  { command: 'roundBack', short: 'RB', word: 'ラウンドを戻す', masterOnly: true },
-  { command: 'roundReset', short: 'RR', word: 'ラウンドリセット', masterOnly: true },
+  { command: 'take', short: 'T', word: '手番' },
+  { command: 'end', short: 'TE', word: '手番終了' },
+  { command: 'wait', short: 'TW', word: '待機' },
+  { command: 'stepIn', short: 'TI', word: '割り込み' },
+  { command: 'back', short: 'TB', word: '前へ' },
+  { command: 'roundStart', short: 'RS', word: 'ラウンド開始' },
+  { command: 'roundNext', short: 'RN', word: '次のラウンド' },
+  { command: 'roundBack', short: 'RB', word: 'ラウンドを戻す' },
+  { command: 'roundReset', short: 'RR', word: 'ラウンドリセット' },
 ] as const;
 
 /** What a round command does: take a turn, end it, wait, step in, go back a step, or move the round. */
 export type TurnChatCommand = (typeof TURN_CHAT_COMMANDS)[number]['command'];
 
 /**
- * Why a round command moves nothing: the seat may not ask for it, the speaker is no piece or not
- * the seat's to move, or the round does not stand where the command applies.
+ * Why a round command moves nothing: the seat is only watching, the speaker is no piece, or the
+ * round does not stand where the command applies.
  */
 export const TURN_CHAT_REFUSALS = [
   'watching',
-  'masterOnly',
   'noPiece',
-  'notYours',
-  'notYourTurn',
   'fixedOrder',
   'notUnderWay',
   'notInOrder',
@@ -68,11 +62,6 @@ const BY_NAME = new Map<string, TurnChatCommand>(
 export function turnChatCommandWords(command: TurnChatCommand): [string, string] {
   const entry = TURN_CHAT_COMMANDS.find((candidate) => candidate.command === command)!;
   return [`&${entry.short}`, `&${entry.word}`];
-}
-
-/** Whether only the game master may ask for a round command. */
-export function isMasterTurnChatCommand(command: TurnChatCommand): boolean {
-  return TURN_CHAT_COMMANDS.some((entry) => entry.command === command && entry.masterOnly);
 }
 
 /**
