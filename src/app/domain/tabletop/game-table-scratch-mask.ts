@@ -2,6 +2,22 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { DataElement } from '@axe/domain/data/data-element';
 import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
 
+/**
+ * What a cell of the scratch map holds once it has been scratched open, in each form it can reach
+ * here: as written by this app or sent by a peer, or read back from a saved room as text.
+ */
+const OPEN_CELL_VALUES: ReadonlySet<unknown> = new Set<unknown>([false, 0, 'false', '0']);
+
+/**
+ * Whether a cell of a scratch map is covered, whatever form its entry came in.
+ *
+ * A cell is covered while it holds anything but false, a missing entry included: a map saved with a
+ * room is read back as text, one word for each cell, and `"false"` is as open as false.
+ */
+export function isScratchCellCovered(entry: unknown): boolean {
+  return !OPEN_CELL_VALUES.has(entry);
+}
+
 @SyncObject('table-scratch-mask')
 export class GameTableScratchMask extends OwnedTabletopObject {
   @SyncVar() isLock: boolean = false;
@@ -12,7 +28,12 @@ export class GameTableScratchMask extends OwnedTabletopObject {
 
   @SyncVar() owner: string = '';
 
-  @SyncVar() M: boolean[] = []; // a one-letter name to keep the saved data small
+  /**
+   * The scratch map, a cell covered while its entry is anything but false; named with one letter to
+   * keep the saved data small. A map read from a saved room holds text, so it is read through
+   * {@link isScratchCellCovered} rather than as it stands.
+   */
+  @SyncVar() M: boolean[] = [];
   fillMapBack: boolean[] = [];
 
   @SyncVar() scratchingGrids: string = '';
@@ -38,7 +59,7 @@ export class GameTableScratchMask extends OwnedTabletopObject {
       }
       return this.fillMapBack[this.maxSize * y + x];
     } else {
-      return this.M[this.maxSize * y + x];
+      return isScratchCellCovered(this.M[this.maxSize * y + x]);
     }
   }
 
@@ -65,7 +86,7 @@ export class GameTableScratchMask extends OwnedTabletopObject {
 
   /** Takes a local working copy of the synced map to scratch on. */
   copyMain2BackMap() {
-    this.fillMapBack = [...this.M];
+    this.fillMapBack = Array.from(this.M, isScratchCellCovered);
   }
 
   /** Flips one cell of the local working copy. Does nothing until the copy has been taken. */
@@ -85,11 +106,7 @@ export class GameTableScratchMask extends OwnedTabletopObject {
     if (this.fillMapBack.length < this.M.length) {
       return false;
     }
-    if (this.M[this.maxSize * y + x] !== this.fillMapBack[this.maxSize * y + x]) {
-      return true;
-    } else {
-      return false;
-    }
+    return isScratchCellCovered(this.M[this.maxSize * y + x]) !== this.fillMapBack[this.maxSize * y + x];
   }
 
   /** How many grid cells wide the mask is, kept in its common data. */
@@ -118,7 +135,7 @@ export class GameTableScratchMask extends OwnedTabletopObject {
     } else {
       object = new GameTableScratchMask();
     }
-    object.M = new Array(object.maxSize * object.maxSize).fill(1);
+    object.M = new Array(object.maxSize * object.maxSize).fill(true);
 
     object.createDataElements();
     object.commonDataElement!.appendChild(DataElement.create('name', name, {}, `name_${object.identifier}`));
