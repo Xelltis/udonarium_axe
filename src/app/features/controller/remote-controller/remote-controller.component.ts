@@ -16,6 +16,7 @@ import { BattleLaunchService } from '@axe/application/battle/battle-launch.servi
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -43,8 +44,7 @@ import { isChangeableElementType } from '@axe/domain/character/status-accessor';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatPalette } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
+import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { tellThoseWhoMaySee } from '@axe/domain/chat/game-master-lines';
 import { PaletteRow, paletteRowsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -209,23 +209,17 @@ export class RemoteControllerComponent {
     return this.objectStore.get<ChatTab>(this.chatTabidentifier())!;
   });
 
-  readonly chatTabsVersion = computed(() => {
-    this.objectChange.collectionOf('chat-tab')();
-    this.objectChange.versionOf(ChatTabList.instance.identifier)();
-    const tabs = this.chatMessageService.chatTabs;
-    for (const tab of tabs) this.objectChange.versionOf(tab.identifier)();
-    return [...tabs];
-  });
+  private readonly visibleChatTabs = inject(VisibleChatTabsService).tabs;
 
   /**
    * The tabs the panel may send its word to: those this seat's role may read and speak in, which
    * leaves out the system tab, where nobody speaks.
    */
   readonly sendableChatTabs = computed(() => {
-    const tabs = this.chatTabsVersion();
+    const tabs = this.visibleChatTabs();
     this.objectChange.trackMyCursor();
     const role = PeerCursor.myRole;
-    return tabs.filter((tab) => canRoleViewTab(tab, role) && canRoleSpeakTab(tab, role));
+    return tabs.filter((tab) => canRoleSpeakTab(tab, role));
   });
   /** This user's own cursor. */
   get myPeer(): PeerCursor {
