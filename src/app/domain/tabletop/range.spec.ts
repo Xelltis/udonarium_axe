@@ -220,6 +220,23 @@ describe('a range following a character', () => {
   });
 });
 
+describe('fitting a range to its cell pattern', () => {
+  it('sizes it to the box round the pattern, at least one cell each way', () => {
+    const range = RangeArea.create('範囲', 3, 5, 1);
+    range.cellPattern = '0,0;2,0;0,3';
+
+    range.fitToPattern();
+
+    expect([range.width, range.length]).toEqual([3, 4]);
+
+    range.cellPattern = '';
+    range.fitToPattern();
+
+    expect([range.width, range.length]).toEqual([1, 1]);
+    range.destroy();
+  });
+});
+
 describe('The saved name of what it follows.', () => {
   it('leaves the saved name misspelt as it is', () => {
     // It is the name in the room data already out there and in use by everybody else at the

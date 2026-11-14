@@ -4,6 +4,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('PieceTargetService', () => {
@@ -62,6 +63,45 @@ describe('PieceTargetService', () => {
 
     expect(cancelled).toHaveBeenCalledOnce();
     expect(piece.targeted).toBe(false);
+  });
+
+  describe('aiming at what a range takes in', () => {
+    function circleAt(x: number, y: number): RangeArea {
+      const range = RangeArea.create('円', 1, 2, 50);
+      range.type = 'CIRCLE';
+      range.location = { name: 'table', x, y };
+      return range;
+    }
+
+    it('aims at the pieces a circle takes in, and takes the aim off the rest and off pieces out of the fight', () => {
+      const range = circleAt(300, 300);
+      const inside = GameCharacter.create('中', 1, '');
+      inside.location = { name: 'table', x: 325, y: 275 };
+      const outside = GameCharacter.create('外', 1, '');
+      outside.location = { name: 'table', x: 600, y: 600 };
+      outside.targeted = true;
+      const resting = GameCharacter.create('除外', 1, '');
+      resting.location = { name: 'table', x: 300, y: 300 };
+      resting.offField = '1';
+
+      service().targetInsideRange(range, 50);
+
+      expect([inside.targeted, outside.targeted, resting.targeted]).toEqual([true, false, false]);
+      range.destroy();
+    });
+
+    it('takes in pieces as far off as its length counts squares, in the squares it is given', () => {
+      const range = circleAt(300, 300);
+      const twoSquaresOff = GameCharacter.create('二マス先', 1, '');
+      twoSquaresOff.location = { name: 'table', x: 425, y: 275 };
+
+      service().targetInsideRange(range, 50);
+      expect(twoSquaresOff.targeted).toBe(false);
+
+      service().targetInsideRange(range, 100);
+      expect(twoSquaresOff.targeted).toBe(true);
+      range.destroy();
+    });
   });
 
   it('names the pieces on the table aimed at, read again as aims and places change', () => {

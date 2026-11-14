@@ -7,6 +7,7 @@ import {
   ElementRef,
   inject,
   input,
+  OutputRefSubscription,
   signal,
   viewChild,
 } from '@angular/core';
@@ -14,7 +15,6 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
@@ -22,22 +22,19 @@ import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
-import { VisionService } from '@axe/application/tabletop/vision.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_RANGE_RENDER, perfCounters } from '@axe/core/util/perf-counters';
-import { GameCharacter } from '@axe/domain/character/game-character';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { cellPatternBoundingBox, parseCellPattern } from '@axe/domain/tabletop/cell-pattern';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { squareCentreAt } from '@axe/domain/tabletop/move/move-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
-import { rangeCovers, ROTATABLE_RANGE_TYPES, SINGLE_GRAB_RANGE_TYPES } from '@axe/domain/tabletop/range-coverage';
+import { ROTATABLE_RANGE_TYPES, SINGLE_GRAB_RANGE_TYPES } from '@axe/domain/tabletop/range-coverage';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
@@ -97,8 +94,6 @@ export class RangeComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
-  private readonly zones = inject(EngagementZoneService);
-  private readonly vision = inject(VisionService);
   private readonly pieceTarget = inject(PieceTargetService);
 
   readonly range = input.required<RangeArea>();
@@ -347,6 +342,7 @@ export class RangeComponent {
       this._initialized = true;
       this.setRange();
     });
+    this.destroyRef.onDestroy(() => this.editorSaved?.unsubscribe());
   }
 
   private readonly inputRef = setupInputHandler({
@@ -400,25 +396,9 @@ export class RangeComponent {
     this.pieceContextMenu.openPieceMenu(menuPosition, menu, this.name());
   }
 
-  /**
-   * Aims at every piece the range takes in that the reader can see, and at nothing else. A piece in an
-   * engagement zone is taken in where the range takes in the zone's centre; a piece taken out of the
-   * fight is not taken in at all.
-   */
+  /** Aims at every piece the range takes in, counted in the table's squares, and at nothing else. */
   targetInside(range: RangeArea): void {
-    const shape = {
-      type: range.type,
-      length: range.length,
-      width: range.width,
-      rotate: range.rotate,
-      origin: { x: range.location.x, y: range.location.y },
-    };
-    const reading = this.zones.reading();
-    const inside = this.objectStore
-      .getObjects<GameCharacter>(GameCharacter)
-      .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece))
-      .filter((piece) => rangeCovers(shape, this.squarePx, reading.pointOf(piece)) === true);
-    this.pieceTarget.setOnly(inside);
+    this.pieceTarget.targetInsideRange(range, this.squarePx);
   }
 
   /** Opens the panel for choosing a character for the range to follow, from the follow menu entry. */
@@ -476,27 +456,25 @@ export class RangeComponent {
       rangeColor: range.rangeColor,
       isRotatable: range.isRotatable,
     });
-    editor.saved.subscribe((result) => {
+    this.editorSaved?.unsubscribe();
+    this.editorSaved = editor.saved.subscribe((result) => {
       range.cellPattern = result.cellPattern;
       range.customGridType = result.gridType;
       range.gridColor = result.gridColor;
       range.rangeColor = result.rangeColor;
       range.isRotatable = result.isRotatable;
       if (result.name) range.name = result.name;
-      this.syncLengthWidthToPattern(range);
+      range.fitToPattern();
       this.objectChange.notifyChanged(range.identifier);
       this.setRange();
     });
   }
 
-  private syncLengthWidthToPattern(range: RangeArea): void {
-    const cells = parseCellPattern(range.cellPattern);
-    const bb = cellPatternBoundingBox(cells);
-    const lengthEl = range.commonDataElement?.getFirstElementByName('length');
-    const widthEl = range.commonDataElement?.getFirstElementByName('width');
-    if (lengthEl) lengthEl.value = Math.max(1, bb.height);
-    if (widthEl) widthEl.value = Math.max(1, bb.width);
-  }
+  /**
+   * What the shape editor last opened says on saving, let go of with the range, so an editor
+   * outliving it paints nothing on canvases that are gone.
+   */
+  private editorSaved: OutputRefSubscription | null = null;
 
   private showDetail(gameObject: RangeArea) {
     const title = sheetPanelTitle(this.translateFn('feature.tabletop.panel.range'), gameObject.name);
