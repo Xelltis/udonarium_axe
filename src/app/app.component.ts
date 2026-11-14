@@ -71,6 +71,7 @@ import { TabletopShortcutEventHandlerService } from '@axe/features/keyboard/tabl
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { NetworkIndicatorComponent } from '@axe/features/lobby/network-indicator/network-indicator.component';
+import { PeerHeartbeatEventHandlerService } from '@axe/features/lobby/peer-heartbeat-event-handler.service';
 import { BeatLightComponent } from '@axe/features/media/beat-light/beat-light.component';
 import { CutInEventHandlerService } from '@axe/features/media/cut-in-event-handler.service';
 import { MiniJukeboxComponent } from '@axe/features/media/mini-jukebox/mini-jukebox.component';
@@ -235,6 +236,7 @@ export class AppComponent {
     inject(CutInEventHandlerService);
     inject(MixEventHandlerService);
     inject(NetworkEventHandlerService);
+    inject(PeerHeartbeatEventHandlerService);
     inject(RoomArchiveEventHandlerService);
     inject(ReplayEventHandlerService);
     inject(ImageDropEventHandlerService);
