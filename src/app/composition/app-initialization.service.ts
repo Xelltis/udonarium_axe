@@ -42,7 +42,7 @@ import { normalizePeerRole } from '@axe/domain/peer/peer-role';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
-import { VnStage } from '@axe/domain/visual-novel/vn-stage';
+import { VN_STAGE_IDENTIFIER, VnStage } from '@axe/domain/visual-novel/vn-stage';
 import { Vote } from '@axe/domain/vote/vote';
 
 const PREFETCH_IDLE_TIMEOUT_MS = 5000;
@@ -175,7 +175,7 @@ export class AppInitializationService {
     const soundEffect = new SoundEffect('SoundEffect');
     soundEffect.initialize();
 
-    const vnStage = new VnStage('VnStage');
+    const vnStage = new VnStage(VN_STAGE_IDENTIFIER);
     vnStage.initialize();
   }
 

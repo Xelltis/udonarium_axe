@@ -1,13 +1,11 @@
-import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { computed, effect, inject, Injectable, linkedSignal, untracked } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { VnStage } from '@axe/domain/visual-novel/vn-stage';
+import { VN_STAGE_IDENTIFIER, VnStage, vnStageOf } from '@axe/domain/visual-novel/vn-stage';
 import { VisualNovelEventHandlerService } from '@axe/features/visual-novel/visual-novel-event-handler.service';
 import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-novel-playback.service';
-
-const STAGE_IDENTIFIER = 'VnStage';
 
 @Injectable({ providedIn: 'root' })
 export class VisualNovelDirectorService {
@@ -15,10 +13,6 @@ export class VisualNovelDirectorService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly playback = inject(VisualNovelPlaybackService);
-
-  private readonly _following = signal(true);
-
-  readonly following = this._following.asReadonly();
 
   /** Whether the screening on the stage was started by a seat no longer a game master. */
   private readonly directorDemoted = inject(VisualNovelEventHandlerService).directorDemoted;
@@ -28,22 +22,30 @@ export class VisualNovelDirectorService {
    * nobody left to run it, so it counts as over, and every screen goes back to reading alone.
    */
   readonly isDirected = computed(() => {
-    this.objectChange.versionOf(STAGE_IDENTIFIER)();
+    this.objectChange.versionOf(VN_STAGE_IDENTIFIER)();
     return this.stage?.isDirected === true && !this.directorDemoted();
   });
 
+  /**
+   * Whether this screen keeps to the director's line. A reader who steps off it stops, and every
+   * screening starts and ends with everyone following again.
+   */
+  private readonly _following = linkedSignal({ source: this.isDirected, computation: () => true });
+
+  readonly following = this._following.asReadonly();
+
   readonly directorPeerId = computed(() => {
-    this.objectChange.versionOf(STAGE_IDENTIFIER)();
+    this.objectChange.versionOf(VN_STAGE_IDENTIFIER)();
     return this.stage?.directorPeerId ?? '';
   });
 
   private readonly playheadIdentifier = computed(() => {
-    this.objectChange.versionOf(STAGE_IDENTIFIER)();
+    this.objectChange.versionOf(VN_STAGE_IDENTIFIER)();
     return this.stage?.playheadIdentifier ?? '';
   });
 
   private readonly playheadTabIdentifier = computed(() => {
-    this.objectChange.versionOf(STAGE_IDENTIFIER)();
+    this.objectChange.versionOf(VN_STAGE_IDENTIFIER)();
     return this.stage?.playheadTabIdentifier ?? '';
   });
 
@@ -59,7 +61,7 @@ export class VisualNovelDirectorService {
   readonly isDetached = computed(() => this.isDirected() && !this.isDirector() && !this._following());
 
   private get stage(): VnStage | null {
-    return this.objectStore.get<VnStage>(STAGE_IDENTIFIER) ?? null;
+    return vnStageOf(this.objectStore);
   }
 
   constructor() {
@@ -82,11 +84,6 @@ export class VisualNovelDirectorService {
         }
         this.playback.jumpToIdentifier(identifier);
       });
-    });
-
-    effect(() => {
-      if (this.isDirected()) return;
-      untracked(() => this._following.set(true));
     });
   }
 
