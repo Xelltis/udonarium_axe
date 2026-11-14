@@ -1,4 +1,4 @@
-import { effectPickOrder, reachedEffectPickLimit, toggleEffectPick } from '@axe/domain/effect/effect-target-picks';
+import { effectPickOrder, toggleEffectPick } from '@axe/domain/effect/effect-target-picks';
 
 describe('toggleEffectPick()', () => {
   it('adds each target in the order it was chosen', () => {
@@ -32,22 +32,5 @@ describe('effectPickOrder()', () => {
     expect(effectPickOrder(['a', 'b'], 'a')).toBe(1);
     expect(effectPickOrder(['a', 'b'], 'b')).toBe(2);
     expect(effectPickOrder(['a', 'b'], 'c')).toBe(0);
-  });
-});
-
-describe('reachedEffectPickLimit()', () => {
-  it('is true only at the moment it fills', () => {
-    expect(reachedEffectPickLimit(['a'], ['a', 'b'], 2)).toBe(true);
-    expect(reachedEffectPickLimit([], ['a'], 1)).toBe(true);
-  });
-
-  it('is false when a full selection merely changes', () => {
-    // Changing a selection carried over from before should not fire it by accident.
-    expect(reachedEffectPickLimit(['a', 'b'], ['b', 'c'], 2)).toBe(false);
-    expect(reachedEffectPickLimit(['a'], ['b'], 1)).toBe(false);
-  });
-
-  it('is false when one is taken off', () => {
-    expect(reachedEffectPickLimit(['a', 'b'], ['a'], 2)).toBe(false);
   });
 });

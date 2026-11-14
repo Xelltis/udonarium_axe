@@ -14,7 +14,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { effectAreaTargets } from '@axe/domain/effect/effect-area';
 import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import { effectPickOrder, reachedEffectPickLimit, toggleEffectPick } from '@axe/domain/effect/effect-target-picks';
+import { effectPickOrder, toggleEffectPick } from '@axe/domain/effect/effect-target-picks';
 
 /** No piece picked. */
 const NO_PICKS: ReadonlyMap<string, number> = new Map();
@@ -23,6 +23,14 @@ const NO_PICKS: ReadonlyMap<string, number> = new Map();
 export interface EffectTargetMark {
   identifier: string;
   order: number;
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** Where the piece an effect is cast from stands, for the mark laid under it. */
+export interface EffectCasterMark {
+  identifier: string;
   x: number;
   y: number;
   z: number;
@@ -38,6 +46,7 @@ export interface EffectTargetLink extends TargetArrowGeometry {
  *
  * The ordered array is the truth; a piece's `targeted` flag is a copy of it.
  * That way the chat shorthand reaches the same targets once the choosing is done.
+ * Nothing is cast by choosing: an effect held ready is cast by {@link confirm} alone.
  */
 @Injectable({ providedIn: 'root' })
 export class EffectTargetingService {
@@ -56,10 +65,26 @@ export class EffectTargetingService {
   private readonly _picks = signal<readonly string[]>([]);
   private readonly _casterIdentifier = signal('');
   private readonly _epicenter = signal('');
+  private readonly _changingCaster = signal(false);
 
+  /** The effect held ready, or null while none is. */
   readonly preset = this._preset.asReadonly();
+  /** The identifiers of the pieces picked, in the order picked. */
   readonly picks = this._picks.asReadonly();
+  /** The identifier of the piece the effect is cast from, fixed for as long as it is held ready; empty for none. */
   readonly casterIdentifier = this._casterIdentifier.asReadonly();
+  /** Whether the next piece pressed is taken as the caster rather than picked as a target. */
+  readonly isChangingCaster = this._changingCaster.asReadonly();
+  /**
+   * The identifier of the piece an effect chosen now would be cast from: the selected piece, where it
+   * is a piece on the table. Empty for none.
+   */
+  readonly upcomingCasterIdentifier = computed<string>(() => {
+    this.objectChange.collectionOf('character')();
+    const identifier = this.selectedCasterIdentifier();
+    if (identifier.length > 0) this.objectChange.versionOf(identifier)();
+    return identifier;
+  });
   /** The piece chosen as the centre of an area attack. */
   readonly epicenter = this._epicenter.asReadonly();
 
@@ -80,6 +105,7 @@ export class EffectTargetingService {
   readonly isPicking = computed(() => this._preset() != null);
   /** The colour the numbers of the picks are drawn in: the effect's own first colour. */
   readonly markColor = computed(() => this._preset()?.colorPrimary ?? '#ffd27f');
+  /** How many pieces the effect held ready takes at most; zero while none is. */
   readonly limit = computed(() => this._preset()?.targetLimit ?? 0);
 
   /** The targets from before the choosing began, restored on cancel. */
@@ -124,6 +150,20 @@ export class EffectTargetingService {
     return marks;
   });
 
+  /**
+   * Where the mark of the caster is laid while an effect is held ready: under the piece it is cast
+   * from, or nowhere when it has no caster or this reader cannot see the piece.
+   */
+  readonly casterMark = computed<EffectCasterMark | null>(() => {
+    if (!this.isPicking()) return null;
+    this.objectChange.collectionOf('character')();
+    const caster = this.characterOf(this._casterIdentifier());
+    if (!caster) return null;
+    this.objectChange.versionOf(caster.identifier)();
+    if (!this.vision.isTokenVisible(caster)) return null;
+    return { identifier: caster.identifier, ...this.centerOf(caster, this.tabletopService.gridSize()) };
+  });
+
   readonly links = computed<EffectTargetLink[]>(() => {
     if (!this.isPicking()) return [];
     const caster = this.characterOf(this._casterIdentifier());
@@ -150,7 +190,10 @@ export class EffectTargetingService {
         this.beganWithSelection = null;
         return;
       }
-      untracked(() => this.pick(selected.identifier));
+      untracked(() => {
+        if (this._changingCaster()) this.setCaster(selected.identifier);
+        else this.pick(selected.identifier);
+      });
     });
     // A seat made a guest while it aimed casts nothing; the aiming is called off.
     effect(() => {
@@ -160,8 +203,9 @@ export class EffectTargetingService {
   }
 
   /**
-   * Begins choosing. It inherits whatever is already named, so a target set from the
-   * remote or from chat can be cast at straight away.
+   * Begins choosing, holding the effect ready without casting it. It inherits whatever is already
+   * named, so a target set from the remote or from chat can be cast at straight away. An effect cast
+   * on oneself with nothing named starts with the caster picked.
    */
   begin(preset: EffectPreset): void {
     const targeted = this.tabletopService.characters.filter(
@@ -174,20 +218,54 @@ export class EffectTargetingService {
     // Every piece aimed at, one gone out of sight since among them, is put back as aimed at on cancel.
     this.previousTargets = targeted.map((character) => character.identifier);
     this.beganWithSelection = untracked(this.selectionSignalService.selectedObject);
+    const caster = this.selectedCasterIdentifier();
+    const inherited = shown.slice(0, Math.max(preset.targetLimit, 1));
     this._preset.set(preset);
-    this._picks.set(shown.slice(0, Math.max(preset.targetLimit, 1)));
+    this._changingCaster.set(false);
+    this._picks.set(
+      inherited.length < 1 && preset.effectTargeting === 'self' && caster.length > 0 ? [caster] : inherited
+    );
     // The shooter is the selected piece, caught at the start because choosing moves the selection onto the targets.
-    this._casterIdentifier.set(this.selectedCasterIdentifier());
+    this._casterIdentifier.set(caster);
     this.mirror();
   }
 
-  /** Chooses a target, or unchooses it. Reaching the limit casts. */
-  pick(identifier: string): EffectCast | null {
+  /**
+   * Waits for the next piece pressed to take it as the caster rather than pick it as a target, or
+   * stops waiting. Nothing while no effect is held ready.
+   */
+  changeCaster(waiting = true): void {
+    if (!this.isPicking()) return;
+    this._changingCaster.set(waiting);
+  }
+
+  /**
+   * Fixes the piece the effect held ready is cast from, an empty identifier for none, and stops
+   * waiting for one. The piece is no target: it is taken out of the picks if it was among them.
+   *
+   * False, with everything left as it was, while no effect is held ready or when the identifier names
+   * no piece on the table.
+   */
+  setCaster(identifier: string): boolean {
+    if (!this.isPicking()) return false;
+    if (identifier.length > 0 && !this.characterOf(identifier)) return false;
+
+    this._casterIdentifier.set(identifier);
+    this._changingCaster.set(false);
+    if (identifier.length > 0 && this._picks().includes(identifier)) {
+      this._picks.update((picks) => picks.filter((pick) => pick !== identifier));
+      this.mirror();
+    }
+    return true;
+  }
+
+  /** Chooses a target, or unchooses it. Filling the limit casts nothing. */
+  pick(identifier: string): void {
     const preset = this._preset();
-    if (!preset) return null;
+    if (!preset) return;
 
     const character = this.characterOf(identifier);
-    if (!character) return null;
+    if (!character) return;
 
     // An area attack rechooses everything it catches in one click.
     // Casting on the gather would leave no chance to see how far it reaches.
@@ -195,20 +273,17 @@ export class EffectTargetingService {
       this._epicenter.set(identifier);
       this._picks.set(this.areaPicks(preset, character));
       this.mirror();
-      return null;
+      return;
     }
 
-    const before = this._picks();
-    const after = toggleEffectPick(before, identifier, preset.targetLimit);
-    this._picks.set(after);
+    this._picks.set(toggleEffectPick(this._picks(), identifier, preset.targetLimit));
     this.mirror();
-
-    if (!reachedEffectPickLimit(before, after, preset.targetLimit)) return null;
-    return this.confirm();
   }
 
   /**
    * Casts the effect being aimed at the pieces picked so far, in pick order, and ends the picking.
+   * The pieces cast at stay marked as aimed at, but for an effect cast on oneself, which aims at
+   * nothing and leaves the marks as they were before it was held ready.
    *
    * Null, with the picking left as it was, when nothing is being aimed or none of the picked pieces
    * is still on the table.
@@ -228,6 +303,7 @@ export class EffectTargetingService {
 
     const caster = this.characterOf(this._casterIdentifier());
     const cast = this.castService.fire(preset, targets, caster);
+    if (preset.effectTargeting === 'self') this.restoreTargets();
     this.reset();
     return cast;
   }
@@ -239,6 +315,13 @@ export class EffectTargetingService {
   cancel(): boolean {
     if (!this.isPicking()) return false;
 
+    this.restoreTargets();
+    this.reset();
+    return true;
+  }
+
+  /** Marks as aimed at exactly the pieces that were before the choosing began. */
+  private restoreTargets(): void {
     const before = new Set(this.previousTargets);
     for (const character of this.tabletopService.characters) {
       const next = before.has(character.identifier);
@@ -246,8 +329,6 @@ export class EffectTargetingService {
       character.targeted = next;
       this.uiSignalService.notifyTargetChange(character.identifier, character.aliasName);
     }
-    this.reset();
-    return true;
   }
 
   private reset(): void {
@@ -255,6 +336,7 @@ export class EffectTargetingService {
     this._picks.set([]);
     this._casterIdentifier.set('');
     this._epicenter.set('');
+    this._changingCaster.set(false);
     this.previousTargets = [];
     this.beganWithSelection = null;
   }
