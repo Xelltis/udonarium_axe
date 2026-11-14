@@ -1,3 +1,4 @@
+import { breathSurgeAt, breathTimingOf, isGentleBreath } from '@axe/domain/effect/breath-timing';
 import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
@@ -23,6 +24,19 @@ const LEAN_CELLS = 0.12;
 const LEAN_IN_MS = 140;
 const LEAN_FOR_MS = 360;
 
+/** How far a piece is pushed downwind while a breath blows on it, as a share of a cell, by grade. */
+const BLOWN_CELLS_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 0.05, 2: 0.08, 3: 0.12 };
+/** How far a piece blown on trembles each way about where it is pushed to, as a share of a cell. */
+const TREMBLE_CELLS = 0.018;
+/** How long a piece takes to be pushed as far as it goes once the breath reaches it, and to stand back once it fails, in milliseconds. */
+const BLOWN_BACK_IN_MS = 120;
+const BLOWN_STANDS_BACK_MS = 400;
+/** How far the one who breathes leans back as it draws the breath in, as a share of a cell. */
+const INHALE_LEAN_CELLS = 0.12;
+/** How far it is thrown forward as the breath bursts out, as a share of its lean back, and how long it takes to stand again, in milliseconds. */
+const BURST_THRUST = 0.7;
+const BURST_THRUST_MS = 320;
+
 /** The looks the one who casts them sets off at the target with, leaning in as they do. */
 const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'slash',
@@ -42,8 +56,10 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * How far each piece an effect strikes is thrown at a moment on the effect's own clock, and how far
  * the one who cast it leans in: a struck piece stands still through the hold as the blow lands, is
  * thrown back away from the one who struck, as far as the blow's push, and springs back to where it
- * stands; struck from no direction, it is pressed down instead. The pieces themselves stay where
- * they are: each seat draws them off it for a moment.
+ * stands; struck from no direction, it is pressed down instead. A breath lands no blow: the one who
+ * breathes leans back as it draws the breath in, and each piece it blows on is pushed downwind and
+ * trembles for as long as it is blown on. The pieces themselves stay where they are: each seat draws
+ * them off it for a moment.
  */
 export function effectJoltsOf(
   preset: EffectPreset,
@@ -59,6 +75,10 @@ export function effectJoltsOf(
     const was = jolts.get(identifier);
     jolts.set(identifier, was ? { x: was.x + jolt.x, y: was.y + jolt.y, z: was.z + jolt.z } : jolt);
   };
+  if (isBreath(preset)) {
+    addBreathJolts(preset, cast, elapsedMs, cellPx, add);
+    return jolts;
+  }
   cast.targets.forEach((target, index) => {
     const local = elapsedMs - preset.stagger * index;
     let thrown = 0;
@@ -87,7 +107,69 @@ export function effectJoltsOf(
 export function joltsEndOf(preset: EffectPreset, cast: EffectCast, blows: readonly EffectBlow[]): number {
   const lastBlow = blows.reduce((last, blow) => Math.max(last, blow.atMs), Number.NEGATIVE_INFINITY);
   const lastTarget = preset.stagger * Math.max(0, cast.targets.length - 1);
+  if (isBreath(preset)) {
+    return breathTimingOf(preset.duration / 1000).spentAt * 1000 + lastTarget + BLOWN_STANDS_BACK_MS;
+  }
   return Math.max(LEAN_FOR_MS, lastBlow + lastTarget + THROWN_FOR_MS);
+}
+
+/** Whether an effect is a breath on its own, rather than a run with one among its stages. */
+function isBreath(preset: EffectPreset): boolean {
+  return !preset.isStaged && preset.effectKind === 'breath';
+}
+
+/**
+ * How a breath moves the pieces at a moment: the one who breathes leans back from the targets as it
+ * draws the breath in and is thrown forward as it bursts out; each piece blown on is pushed downwind
+ * for as long as the breath blows on it, further with each surge, and trembles there, then stands
+ * back as the breath fails. A breath that heals pushes no one.
+ */
+function addBreathJolts(
+  preset: EffectPreset,
+  cast: EffectCast,
+  elapsedMs: number,
+  cellPx: number,
+  add: (identifier: string, jolt: EffectJolt) => void
+): void {
+  const timing = breathTimingOf(preset.duration / 1000);
+  const burstsAt = timing.burstsAt * 1000;
+  const first = cast.targets[0];
+  const towards = first ? directionOf(cast.origin, first) : null;
+  if (towards) {
+    const lean = breathLeanAt(elapsedMs, burstsAt) * INHALE_LEAN_CELLS * cellPx;
+    if (lean !== 0) add(cast.casterIdentifier, { x: towards.x * lean, y: towards.y * lean, z: 0 });
+  }
+  if (isGentleBreath(preset)) return;
+  const reachesAt = timing.reachesAt * 1000;
+  const spentAt = timing.spentAt * 1000;
+  cast.targets.forEach((target, index) => {
+    const local = elapsedMs - preset.stagger * index;
+    if (local <= reachesAt || local >= spentAt + BLOWN_STANDS_BACK_MS) return;
+    const away = directionOf(cast.origin, target);
+    if (!away) return;
+    const blown =
+      Math.min(1, (local - reachesAt) / BLOWN_BACK_IN_MS) * (1 - Math.max(0, (local - spentAt) / BLOWN_STANDS_BACK_MS));
+    const seconds = local / 1000;
+    const pushed = BLOWN_CELLS_BY_GRADE[preset.gradeLevel] * breathSurgeAt(seconds, cast.seed);
+    const along = (pushed + TREMBLE_CELLS * Math.sin(seconds * 119 + index * 2.1)) * blown * cellPx;
+    const across = TREMBLE_CELLS * Math.sin(seconds * 143 + index * 4.3) * blown * cellPx;
+    add(target.identifier, { x: away.x * along - away.y * across, y: away.y * along + away.x * across, z: 0 });
+  });
+}
+
+/**
+ * How far the one who breathes leans towards the targets some time into the breath, as a share of
+ * its lean: back, below nothing, as it draws the breath in, furthest as it bursts, then thrown
+ * forward and standing again.
+ */
+function breathLeanAt(elapsedMs: number, burstsAtMs: number): number {
+  if (elapsedMs <= 0 || elapsedMs >= burstsAtMs + BURST_THRUST_MS) return 0;
+  if (elapsedMs < burstsAtMs) return -Math.sin(((elapsedMs / burstsAtMs) * Math.PI) / 2);
+  const since = elapsedMs - burstsAtMs;
+  const back = -Math.max(0, 1 - since / 50);
+  const share = since / THROWN_FURTHEST_MS;
+  const fades = 1 - since / BURST_THRUST_MS;
+  return back + BURST_THRUST * share * Math.exp(1 - share) * fades;
 }
 
 /** How far a struck piece is thrown some time after its hold, as a share of the blow's push: out fast and back slower. */

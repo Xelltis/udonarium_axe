@@ -1,3 +1,4 @@
+import { breathTimingOf } from '@axe/domain/effect/breath-timing';
 import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { EffectKind } from '@axe/domain/effect/effect-kind';
@@ -84,5 +85,71 @@ describe('effectJoltsOf()', () => {
 
   it('throws nothing for what neither strikes nor sets off at a target', () => {
     expect(effectJoltsOf(makePreset('heal'), cast({ x: 0, y: 0, z: 0 }), 300, CELL).size).toBe(0);
+  });
+});
+
+describe('how a breath moves the pieces', () => {
+  const breathOf = (grade = 2, tagName = '炎') => {
+    const preset = makePreset('breath', grade);
+    preset.durationMs = 3000;
+    preset.tagName = tagName;
+    return preset;
+  };
+  const from = cast({ x: 0, y: 0, z: 0 });
+  const joltOf = (preset: EffectPreset, ms: number, who = 'target') => effectJoltsOf(preset, from, ms, CELL).get(who);
+
+  it('leans the one who breathes back as it draws the breath in, and throws it forward as the breath bursts', () => {
+    const breath = breathOf();
+    const timing = breathTimingOf(3);
+
+    expect(joltOf(breath, 80, 'caster')!.x).toBeLessThan(0);
+    expect(joltOf(breath, timing.burstsAt * 1000 - 5, 'caster')!.x).toBeLessThan(-CELL * 0.1);
+    expect(joltOf(breath, timing.burstsAt * 1000 + 70, 'caster')!.x).toBeGreaterThan(0);
+    expect(joltOf(breath, timing.burstsAt * 1000 + 400, 'caster')).toBeUndefined();
+  });
+
+  it('pushes the piece blown on downwind for as long as it is blown on, and lets it stand back after', () => {
+    const breath = breathOf();
+    const timing = breathTimingOf(3);
+    const blown = [600, 1200, 1800, 2300].map((ms) => joltOf(breath, ms)!.x);
+
+    expect(joltOf(breath, timing.reachesAt * 1000 - 10)).toBeUndefined();
+    for (const push of blown) {
+      expect(push).toBeGreaterThan(CELL * 0.04);
+      expect(push).toBeLessThan(CELL * 0.12);
+    }
+    expect(joltOf(breath, timing.spentAt * 1000 + 200)!.x).toBeLessThan(blown[0]);
+    expect(joltOf(breath, timing.spentAt * 1000 + 450)).toBeUndefined();
+    expect(joltsEndOf(breath, from, [])).toBeCloseTo(timing.spentAt * 1000 + 400);
+  });
+
+  it('trembles the piece as it is blown on, across the wind as well as along it', () => {
+    const breath = breathOf();
+    const across = Array.from({ length: 30 }, (_unused, index) => joltOf(breath, 1000 + index * 7)!.y);
+
+    expect(Math.max(...across)).toBeGreaterThan(CELL * 0.008);
+    expect(Math.min(...across)).toBeLessThan(-CELL * 0.008);
+  });
+
+  it('pushes further at the higher grades, and each later target a stagger later', () => {
+    const timing = breathTimingOf(3);
+    const two = { ...from, targets: [...from.targets, { identifier: 'second', x: 100, y: 50, z: 0 }] };
+    const breath = breathOf();
+    breath.staggerMs = 200;
+
+    expect(joltOf(breathOf(3), 1500)!.x).toBeGreaterThan(joltOf(breathOf(1), 1500)!.x);
+    expect(effectJoltsOf(breath, two, timing.reachesAt * 1000 + 100, CELL).has('second')).toBe(false);
+    expect(effectJoltsOf(breath, two, timing.reachesAt * 1000 + 350, CELL).has('second')).toBe(true);
+  });
+
+  it('pushes no one with the breath that heals', () => {
+    const holy = breathOf(2, '回復');
+
+    expect(joltOf(holy, 1500)).toBeUndefined();
+    expect(joltOf(holy, 80, 'caster')!.x).toBeLessThan(0);
+  });
+
+  it('pushes no one with a breath from nowhere', () => {
+    expect(effectJoltsOf(breathOf(), cast(null), 1500, CELL).size).toBe(0);
   });
 });
