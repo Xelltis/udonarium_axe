@@ -281,6 +281,41 @@ describe('GameCharacterSheetComponent', () => {
     }
   });
 
+  it('saves and copies a note from the buttons its toolbar ends with, keeping the save button busy meanwhile', async () => {
+    vi.useFakeTimers();
+    const note = TextNote.create('メモ', '洞窟');
+    let finish = () => {};
+    const save = vi
+      .spyOn(TestBed.inject(SaveDataService), 'saveGameObjectAsync')
+      .mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
+    const cloned = vi.spyOn(note, 'clone').mockReturnValue(note);
+    component.tabletopObject = note;
+    try {
+      fixture.detectChanges();
+      const [copyButton, saveButton] = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('sheet-save-buttons button'),
+      ];
+
+      copyButton.click();
+      expect(cloned).toHaveBeenCalledTimes(1);
+
+      saveButton.click();
+      fixture.detectChanges();
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(saveButton.disabled).toBe(true);
+
+      finish();
+      await vi.advanceTimersByTimeAsync(500);
+      fixture.detectChanges();
+      expect(saveButton.disabled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+      note.destroy();
+    }
+  });
+
   it('edits a card and adds to it as well', () => {
     const card = Card.create('効果カード', 'front.png', 'back.png');
     component.tabletopObject = card;

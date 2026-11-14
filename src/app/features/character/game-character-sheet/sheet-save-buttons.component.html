@@ -1,0 +1,22 @@
+<button
+  class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
+  type="button"
+  (click)="copyPressed.emit()"
+>
+  <i class="material-icons">content_copy</i>
+  {{ 'feature.inventory.sheet.copy' | transloco }}
+</button>
+<button
+  class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-glow hover:text-ui-accent-hover rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
+  type="button"
+  [disabled]="saving()"
+  (click)="savePressed.emit()"
+>
+  @if (saving()) {
+    <i class="material-icons">hourglass_empty</i>
+    {{ 'feature.inventory.sheet.saving' | transloco: { percent: percent() } }}
+  } @else {
+    <i class="material-icons">save</i>
+    {{ 'feature.inventory.sheet.save' | transloco }}
+  }
+</button>

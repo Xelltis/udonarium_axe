@@ -14,6 +14,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { SaveProgress } from '@axe/application/file/save-progress';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -61,6 +62,8 @@ import {
   reorderDetailElementAfter,
 } from '@axe/features/character/game-character-sheet/detail-element-reorder-helpers';
 import { GameCharacterSettingsTabComponent } from '@axe/features/character/game-character-sheet/game-character-settings-tab.component';
+import { SheetBasicsCardComponent } from '@axe/features/character/game-character-sheet/sheet-basics-card.component';
+import { SheetSaveButtonsComponent } from '@axe/features/character/game-character-sheet/sheet-save-buttons.component';
 import { SheetViewPreferenceService } from '@axe/features/character/game-character-sheet/sheet-view-preference.service';
 import { openDataElementEditor } from '@axe/features/data-element/data-element-editor/open-data-element-editor';
 import { DataElementDeletionService } from '@axe/features/data-element/game-data-element/data-element-deletion.service';
@@ -100,6 +103,8 @@ const SECTIONS_WITH_OWN_CONTROLS: ReadonlySet<string> = new Set([PORTRAIT_POSITI
     SafePipe,
     TranslocoModule,
     PieceModelFieldsComponent,
+    SheetBasicsCardComponent,
+    SheetSaveButtonsComponent,
   ],
 })
 export class GameCharacterSheetComponent {
@@ -758,8 +763,11 @@ export class GameCharacterSheetComponent {
     return char.detailDataElement.children.filter((el) => !SECTIONS_WITH_OWN_CONTROLS.has(el.name));
   });
 
-  readonly isSaving = signal(false);
-  readonly progressPercent = signal(0);
+  private readonly saveProgress = new SaveProgress();
+  /** Whether a save of the object is running or has only just finished. */
+  readonly isSaving = this.saveProgress.isSaving;
+  /** How far the running save has come, from 0 to 100. */
+  readonly progressPercent = this.saveProgress.percent;
 
   constructor() {
     effect(() => {
@@ -962,19 +970,11 @@ export class GameCharacterSheetComponent {
       this.snackbar.show(this.translateFn('feature.inventory.sheet.saveWithheld'));
       return;
     }
-    this.isSaving.set(true);
-    this.progressPercent.set(0);
     const element = obj.commonDataElement?.getFirstElementByName('name');
     const objectName: string = element ? (element.value as string) : '';
-
-    await this.saveDataService.saveGameObjectAsync(obj, 'xml_' + objectName, (percent) => {
-      this.progressPercent.set(percent);
-    });
-
-    setTimeout(() => {
-      this.isSaving.set(false);
-      this.progressPercent.set(0);
-    }, 500);
+    await this.saveProgress.run((onProgress) =>
+      this.saveDataService.saveGameObjectAsync(obj, 'xml_' + objectName, onProgress)
+    );
   }
 
   /**

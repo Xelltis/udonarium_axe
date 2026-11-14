@@ -143,25 +143,7 @@
               </nav>
             }
             @if (tabletopObject.commonDataElement) {
-              <div
-                class="bg-ui-elevated border-ui-border-panel mb-0.5 flex w-full flex-col gap-1.5 rounded-sm border border-solid px-3 py-2.5"
-              >
-                <div
-                  class="border-ui-border-panel text-ui-accent mt-0 mb-2 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"
-                >
-                  <i class="material-icons">info</i>{{ 'feature.inventory.sheet.basicInfo' | transloco }}
-                </div>
-                <div class="box-border table w-full">
-                  <div
-                    class="[&>div]:border-ui-border-panel box-border table-row [&>div]:box-border [&>div]:table-cell [&>div]:border [&>div]:border-solid [&>div]:align-top"
-                    game-data-element
-                    [gameDataElement]="tabletopObject.commonDataElement"
-                    [isTagLocked]="true"
-                    [isEdit]="false"
-                    [hideSectionTitle]="true"
-                  ></div>
-                </div>
-              </div>
+              <sheet-basics-card [element]="tabletopObject.commonDataElement" place="mb-0.5 w-full" />
             }
             <div
               class="border-ui-border-panel text-ui-accent my-1 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"
@@ -461,25 +443,7 @@
         </div>
 
         @if (tabletopObject.commonDataElement) {
-          <div
-            class="bg-ui-elevated border-ui-border-panel col-span-2 flex flex-col gap-1.5 rounded-sm border border-solid px-3 py-2.5"
-          >
-            <div
-              class="border-ui-border-panel text-ui-accent mt-0 mb-2 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"
-            >
-              <i class="material-icons">info</i>{{ 'feature.inventory.sheet.basicInfo' | transloco }}
-            </div>
-            <div class="box-border table w-full">
-              <div
-                class="[&>div]:border-ui-border-panel box-border table-row [&>div]:box-border [&>div]:table-cell [&>div]:border [&>div]:border-solid [&>div]:align-top"
-                game-data-element
-                [gameDataElement]="tabletopObject.commonDataElement"
-                [isTagLocked]="true"
-                [isEdit]="false"
-                [hideSectionTitle]="true"
-              ></div>
-            </div>
-          </div>
+          <sheet-basics-card [element]="tabletopObject.commonDataElement" place="col-span-2" />
         }
       </div>
     } @else if (terrain) {
@@ -640,55 +604,23 @@
         </section>
 
         <section class="flex justify-end gap-2 border-none bg-transparent p-0">
-          <button
-            class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
-            type="button"
-            (click)="clone()"
-          >
-            <i class="material-icons">content_copy</i>
-            {{ 'feature.inventory.sheet.copy' | transloco }}
-          </button>
-          <button
-            class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-glow hover:text-ui-accent-hover rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
-            type="button"
-            [disabled]="isSaving()"
-            (click)="saveToXML()"
-          >
-            @if (isSaving()) {
-              <i class="material-icons">hourglass_empty</i>
-              {{ 'feature.inventory.sheet.saving' | transloco: { percent: progressPercent() } }}
-            } @else {
-              <i class="material-icons">save</i>
-              {{ 'feature.inventory.sheet.save' | transloco }}
-            }
-          </button>
+          <sheet-save-buttons
+            [saving]="isSaving()"
+            [percent]="progressPercent()"
+            (copyPressed)="clone()"
+            (savePressed)="saveToXML()"
+          />
         </section>
       </div>
     } @else if (cardStack; as stack) {
       <div class="flex w-full flex-col gap-0">
         <section class="flex flex-wrap items-center justify-end gap-2 px-2 pt-2 pb-1">
-          <button
-            class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
-            type="button"
-            (click)="clone()"
-          >
-            <i class="material-icons">content_copy</i>
-            {{ 'feature.inventory.sheet.copy' | transloco }}
-          </button>
-          <button
-            class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-glow hover:text-ui-accent-hover rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
-            type="button"
-            [disabled]="isSaving()"
-            (click)="saveToXML()"
-          >
-            @if (isSaving()) {
-              <i class="material-icons">hourglass_empty</i>
-              {{ 'feature.inventory.sheet.saving' | transloco: { percent: progressPercent() } }}
-            } @else {
-              <i class="material-icons">save</i>
-              {{ 'feature.inventory.sheet.save' | transloco }}
-            }
-          </button>
+          <sheet-save-buttons
+            [saving]="isSaving()"
+            [percent]="progressPercent()"
+            (copyPressed)="clone()"
+            (savePressed)="saveToXML()"
+          />
         </section>
 
         <div class="border-ui-border-panel bg-ui-surface flex items-end gap-px border-b border-solid px-2 pt-1.5">
@@ -833,28 +765,12 @@
             <i class="material-icons">edit_note</i>
             {{ 'feature.inventory.sheet.toggleEdit' | transloco }}
           </button>
-          <button
-            class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
-            type="button"
-            (click)="clone()"
-          >
-            <i class="material-icons">content_copy</i>
-            {{ 'feature.inventory.sheet.copy' | transloco }}
-          </button>
-          <button
-            class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-glow hover:text-ui-accent-hover rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
-            type="button"
-            [disabled]="isSaving()"
-            (click)="saveToXML()"
-          >
-            @if (isSaving()) {
-              <i class="material-icons">hourglass_empty</i>
-              {{ 'feature.inventory.sheet.saving' | transloco: { percent: progressPercent() } }}
-            } @else {
-              <i class="material-icons">save</i>
-              {{ 'feature.inventory.sheet.save' | transloco }}
-            }
-          </button>
+          <sheet-save-buttons
+            [saving]="isSaving()"
+            [percent]="progressPercent()"
+            (copyPressed)="clone()"
+            (savePressed)="saveToXML()"
+          />
         </section>
 
         <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2.5 border border-solid p-3">
@@ -1057,28 +973,12 @@
             <i class="material-icons">image</i>
             {{ 'feature.inventory.sheet.changeImage' | transloco }}
           </button>
-          <button
-            class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
-            type="button"
-            (click)="clone()"
-          >
-            <i class="material-icons">content_copy</i>
-            {{ 'feature.inventory.sheet.copy' | transloco }}
-          </button>
-          <button
-            class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-glow hover:text-ui-accent-hover rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
-            type="button"
-            [disabled]="isSaving()"
-            (click)="saveToXML()"
-          >
-            @if (isSaving()) {
-              <i class="material-icons">hourglass_empty</i>
-              {{ 'feature.inventory.sheet.saving' | transloco: { percent: progressPercent() } }}
-            } @else {
-              <i class="material-icons">save</i>
-              {{ 'feature.inventory.sheet.save' | transloco }}
-            }
-          </button>
+          <sheet-save-buttons
+            [saving]="isSaving()"
+            [percent]="progressPercent()"
+            (copyPressed)="clone()"
+            (savePressed)="saveToXML()"
+          />
         </section>
 
         <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2.5 border border-solid p-3">
