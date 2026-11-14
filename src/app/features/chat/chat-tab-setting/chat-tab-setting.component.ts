@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { SaveProgress } from '@axe/application/file/save-progress';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -250,8 +251,11 @@ export class ChatTabSettingComponent {
     return false;
   }
 
-  readonly isSaving = signal(false);
-  readonly progressPercent = signal(0);
+  private readonly saveProgress = new SaveProgress();
+  /** Whether a save of the tab is running or has only just finished. */
+  readonly isSaving = this.saveProgress.isSaving;
+  /** How far the running save has come, from 0 to 100. */
+  readonly progressPercent = this.saveProgress.percent;
 
   allowDeleteLog = false;
   allowDeleteTab = false;
@@ -325,20 +329,11 @@ export class ChatTabSettingComponent {
    * room.
    */
   async save() {
-    if (!this.selectedTab() || this.isSaving() || !this.isExportable) return;
-    this.isSaving.set(true);
-    this.progressPercent.set(0);
-
-    const fileName: string = 'chat_' + this.selectedTab()!.name;
-
-    await this.saveDataService.saveGameObjectAsync(this.selectedTab()!, fileName, (percent) => {
-      this.progressPercent.set(percent);
-    });
-
-    setTimeout(() => {
-      this.isSaving.set(false);
-      this.progressPercent.set(0);
-    }, 500);
+    const tab = this.selectedTab();
+    if (!tab || !this.isExportable) return;
+    await this.saveProgress.run((onProgress) =>
+      this.saveDataService.saveGameObjectAsync(tab, 'chat_' + tab.name, onProgress)
+    );
   }
 
   /** Picks the format logs are previewed and downloaded in, remembered in this browser. */
