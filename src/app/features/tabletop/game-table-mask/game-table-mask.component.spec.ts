@@ -149,14 +149,26 @@ describe('GameTableMaskComponent', () => {
   describe('the symmetric difference', () => {
     let mask: GameTableMask;
 
+    /** Picks a cell as the peer scratching the mask does, by pressing on its middle. */
+    function pick(col: number, row: number): void {
+      const size = component.gridSize;
+      component.scratching(true, { offsetX: (col + 0.5) * size, offsetY: (row + 0.5) * size });
+    }
+
     beforeEach(() => {
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: 'my-user',
+        isOpen: true,
+      } as IPeerContext);
       mask = GameTableMask.create('testMask', 10, 10, 1);
+      mask.owner = 'my-user';
       fixture.componentRef.setInput('gameTableMask', mask);
       fixture.detectChanges();
     });
 
     afterEach(() => {
       mask.destroy();
+      vi.restoreAllMocks();
     });
 
     it('does nothing without a mask', () => {
@@ -167,11 +179,8 @@ describe('GameTableMaskComponent', () => {
 
     it('keeps what was scratched onto a clean mask', () => {
       mask.scratchedGrids = '';
-      mask.scratchingGrids = '0:0,1:1';
-      (component as unknown as { _currentScratchingSet: Set<string> | null })._currentScratchingSet = new Set([
-        '0:0',
-        '1:1',
-      ]);
+      pick(0, 0);
+      pick(1, 1);
 
       component.scratched();
 
@@ -180,11 +189,8 @@ describe('GameTableMaskComponent', () => {
 
     it('leaves nothing when everything was already scratched', () => {
       mask.scratchedGrids = '0:0,1:1';
-      mask.scratchingGrids = '0:0,1:1';
-      (component as unknown as { _currentScratchingSet: Set<string> | null })._currentScratchingSet = new Set([
-        '0:0',
-        '1:1',
-      ]);
+      pick(0, 0);
+      pick(1, 1);
 
       component.scratched();
 
@@ -193,11 +199,8 @@ describe('GameTableMaskComponent', () => {
 
     it('keeps only what does not overlap', () => {
       mask.scratchedGrids = '0:0,1:1';
-      mask.scratchingGrids = '1:1,2:2';
-      (component as unknown as { _currentScratchingSet: Set<string> | null })._currentScratchingSet = new Set([
-        '1:1',
-        '2:2',
-      ]);
+      pick(1, 1);
+      pick(2, 2);
 
       component.scratched();
 
@@ -207,7 +210,6 @@ describe('GameTableMaskComponent', () => {
     it('takes the cells as given when there is no set', () => {
       mask.scratchedGrids = '0:0';
       mask.scratchingGrids = '0:0';
-      (component as unknown as { _currentScratchingSet: Set<string> | null })._currentScratchingSet = null;
 
       component.scratched();
 

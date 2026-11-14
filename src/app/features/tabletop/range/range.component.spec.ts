@@ -171,28 +171,16 @@ describe('RangeComponent', () => {
   it('draws itself anew as its length, width or opacity is edited in its sheet', async () => {
     fixture.detectChanges();
     await fixture.whenStable();
-    const drawn = vi.spyOn(component as unknown as { setRange(): void }, 'setRange');
+    const asked = vi.mocked(HTMLCanvasElement.prototype.getContext);
+    asked.mockClear();
 
     (given as RangeArea).commonDataElement!.getFirstElementByName('width')!.value = 7;
     await Promise.resolve();
 
-    expect(drawn).toHaveBeenCalled();
+    expect(asked).toHaveBeenCalled();
   });
 
   describe('the clip version signal', () => {
-    type PrivClipVersion = { _clipVersion: { (): number; update(fn: (v: number) => number): void } };
-
-    it('starts at zero', () => {
-      const priv = component as unknown as PrivClipVersion;
-      expect(priv._clipVersion()).toBe(0);
-    });
-
-    it('counts up on an update', () => {
-      const priv = component as unknown as PrivClipVersion;
-      priv._clipVersion.update((v) => v + 1);
-      expect(priv._clipVersion()).toBe(1);
-    });
-
     it('gives a cone a polygon clip path', () => {
       const range = RangeArea.create('テスト', 3, 5, 1);
       range.type = 'CORN';

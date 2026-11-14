@@ -12,7 +12,6 @@ import { FogMemoryEventHandlerService } from '@axe/features/tabletop/fog-of-war/
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('FogMemoryEventHandlerService', () => {
-  let service: { isScribe(): boolean };
   const others: PeerCursor[] = [];
 
   function joinPeer(userId: string, role: PeerRole): PeerCursor {
@@ -38,7 +37,7 @@ describe('FogMemoryEventHandlerService', () => {
         { provide: VisionService, useValue: { sharedVisibleCells, partyVisiblePieces: signal(new Set<string>()) } },
       ],
     });
-    service = TestBed.inject(FogMemoryEventHandlerService) as unknown as { isScribe(): boolean };
+    TestBed.inject(FogMemoryEventHandlerService);
   });
 
   afterEach(() => {
@@ -46,31 +45,36 @@ describe('FogMemoryEventHandlerService', () => {
     startRoom(false);
   });
 
-  describe('writing it down', () => {
-    let table: GameTable;
-    const grid = cellGridOf(4, 3, 50, GridType.SQUARE);
+  const grid = cellGridOf(4, 3, 50, GridType.SQUARE);
+  let table: GameTable;
 
+  /** A table whose fog remembers the ground, for the party's sight to be written onto. */
+  function layFoggedTable(): void {
+    table = new GameTable();
+    table.fogEnabled = true;
+    table.fogMode = 'normal';
+    table.initialize();
+  }
+
+  function see(...cells: number[]): void {
+    const bits = new CellBits(12);
+    for (const cell of cells) bits.set(cell);
+    sharedVisibleCells.set({ grid, cells: bits });
+    TestBed.tick();
+  }
+
+  describe('writing it down', () => {
     beforeEach(() => {
       vi.useFakeTimers();
       startRoom(true);
       PeerCursor.createMyCursor();
-      table = new GameTable();
-      table.fogEnabled = true;
-      table.fogMode = 'normal';
-      table.initialize();
+      layFoggedTable();
     });
 
     afterEach(() => {
       table.destroy();
       vi.useRealTimers();
     });
-
-    function see(...cells: number[]): void {
-      const bits = new CellBits(12);
-      for (const cell of cells) bits.set(cell);
-      sharedVisibleCells.set({ grid, cells: bits });
-      TestBed.tick();
-    }
 
     it('writes what the party has seen after a moment, gathering what it sees meanwhile into one write', () => {
       see(5);
@@ -97,6 +101,23 @@ describe('FogMemoryEventHandlerService', () => {
   });
 
   describe('who writes the fog down', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      layFoggedTable();
+    });
+
+    afterEach(() => {
+      table.destroy();
+      vi.useRealTimers();
+    });
+
+    /** Whether this seat writes down a cell the party has just seen, once the wait before a write is over. */
+    function writesDown(cell: number): boolean {
+      see(cell);
+      vi.advanceTimersByTime(1000);
+      return fogMemoryOn(table)?.read(grid).get(cell) ?? false;
+    }
+
     it('writes it itself in the local mode a room is tried out in', () => {
       startRoom(true);
       const mine = PeerCursor.createMyCursor();
@@ -104,7 +125,7 @@ describe('FogMemoryEventHandlerService', () => {
 
       // Nothing opens a connection there, so no cursor is ever named.
       expect(mine.userId).toBe('');
-      expect(service.isScribe()).toBe(true);
+      expect(writesDown(5)).toBe(true);
     });
 
     it('waits to be named anywhere else', () => {
@@ -112,7 +133,7 @@ describe('FogMemoryEventHandlerService', () => {
       mine.role = PeerRole.Player;
 
       expect(mine.userId).toBe('');
-      expect(service.isScribe()).toBe(false);
+      expect(writesDown(5)).toBe(false);
     });
 
     it('leaves it to the first player by name once the table has names', () => {
@@ -121,10 +142,10 @@ describe('FogMemoryEventHandlerService', () => {
       mine.userId = 'zoe';
       joinPeer('alice', PeerRole.Player);
 
-      expect(service.isScribe()).toBe(false);
+      expect(writesDown(5)).toBe(false);
 
       mine.userId = 'aaron';
-      expect(service.isScribe()).toBe(true);
+      expect(writesDown(7)).toBe(true);
     });
 
     it('leaves it to the game master when one is at the table', () => {
@@ -133,14 +154,14 @@ describe('FogMemoryEventHandlerService', () => {
       mine.userId = 'aaron';
       joinPeer('zoe', PeerRole.GameMaster);
 
-      expect(service.isScribe()).toBe(false);
+      expect(writesDown(5)).toBe(false);
     });
 
     it('writes nothing while it has no cursor of its own', () => {
       startRoom(true);
       PeerCursor.myCursor = null!;
 
-      expect(service.isScribe()).toBe(false);
+      expect(writesDown(5)).toBe(false);
     });
   });
 });

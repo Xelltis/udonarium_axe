@@ -70,10 +70,6 @@ describe('TabletopDisplaySettingComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('asks for no change detector', () => {
-    expect((component as unknown as { changeDetector?: unknown }).changeDetector).toBeUndefined();
-  });
-
   it('lets the panel take the pointer again once the drag ends', async () => {
     await expectPanelDragRecovery(TabletopDisplaySettingComponent);
   });

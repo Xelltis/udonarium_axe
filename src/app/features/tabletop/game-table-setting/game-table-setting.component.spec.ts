@@ -45,11 +45,6 @@ describe('GameTableSettingComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('asks for no change detector', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((component as any).changeDetector).toBeUndefined();
-  });
-
   describe('with no table selected', () => {
     beforeEach(() => {
       component.selectedTable = null;
