@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import type { AudioAnalysis } from '@axe/domain/media/audio-analysis';
 
 /** The beats of a track laid out evenly: how fast they come and where a bar starts. */
@@ -66,7 +67,7 @@ export function withDownbeatAt(grid: BeatGrid, seconds: number): BeatGrid {
 
 /** A tempo kept within the range a grid may hold. */
 export function clampBpm(bpm: number): number {
-  return Math.min(MAX_GRID_BPM, Math.max(MIN_GRID_BPM, bpm));
+  return clamp(bpm, MIN_GRID_BPM, MAX_GRID_BPM);
 }
 
 /**

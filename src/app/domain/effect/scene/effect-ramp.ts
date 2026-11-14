@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { hexChannels } from '@axe/core/util/hex-color';
 
 /**
@@ -25,7 +26,7 @@ export function rampOf(light: string, dark: string, steps = 7): string[] {
 
 /** The step of a ramp at a share of the way up it, from its deepest at 0 to white at 1. */
 export function stepOf(ramp: readonly string[], share: number): string {
-  const index = Math.round(Math.min(1, Math.max(0, share)) * (ramp.length - 1));
+  const index = Math.round(clamp(share, 0, 1) * (ramp.length - 1));
   return ramp[index];
 }
 
@@ -33,7 +34,7 @@ export function stepOf(ramp: readonly string[], share: number): string {
 export function mixColor(from: string, to: string, share: number): string {
   const a = channelsOf(from, [0, 0, 0]);
   const b = channelsOf(to, [0, 0, 0]);
-  return hexOf(a.map((channel, which) => channel + (b[which] - channel) * Math.min(1, Math.max(0, share))));
+  return hexOf(a.map((channel, which) => channel + (b[which] - channel) * clamp(share, 0, 1)));
 }
 
 function channelsOf(color: string, fallback: number[]): number[] {
@@ -43,7 +44,7 @@ function channelsOf(color: string, fallback: number[]): number[] {
 function hexOf(channels: readonly number[]): string {
   return `#${channels
     .map((channel) =>
-      Math.round(Math.min(255, Math.max(0, channel)))
+      Math.round(clamp(channel, 0, 255))
         .toString(16)
         .padStart(2, '0')
     )

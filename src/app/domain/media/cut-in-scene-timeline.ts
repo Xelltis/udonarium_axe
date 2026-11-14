@@ -241,7 +241,7 @@ function stepsBetween(fromMs: number, toMs: number): number[] {
   const span = toMs - fromMs;
   if (span <= 0) return [];
 
-  const steps = Math.min(MAX_STEPS_PER_STRETCH, Math.max(1, Math.round(span / MS_PER_STEP)));
+  const steps = clamp(Math.round(span / MS_PER_STEP), 1, MAX_STEPS_PER_STRETCH);
   const between: number[] = [];
   for (let step = 1; step < steps; step++) between.push(fromMs + (span * step) / steps);
   return between;

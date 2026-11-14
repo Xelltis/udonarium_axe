@@ -116,7 +116,7 @@ function scumField(): SmoothField {
 
 function quantileOf(values: Float32Array, share: number): number {
   const sorted = Float32Array.from(values).sort();
-  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(share * sorted.length)))];
+  return sorted[clamp(Math.floor(share * sorted.length), 0, sorted.length - 1)];
 }
 
 /** How many lines a current draws across one tile. */

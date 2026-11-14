@@ -1,4 +1,5 @@
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import {
   applyEffectPresetSeed,
   createDefaultEffectPresets,
@@ -58,7 +59,7 @@ describe('the effects that come with the tool', () => {
       try {
         // Ending sooner leaves the sound playing over nothing, which drags.
         // A projectile alone would be slowed by that, so its length is given outright.
-        expect(preset.duration).toBe(Math.min(Math.max(seed.durationMs ?? seed.soundMs, 400), 6000));
+        expect(preset.duration).toBe(clamp(seed.durationMs ?? seed.soundMs, 400, 6000));
       } finally {
         ObjectStore.instance.remove(preset);
       }

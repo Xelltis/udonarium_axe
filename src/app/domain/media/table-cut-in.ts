@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /** How a table remembers which cut-ins to play, and how one of them is drawn. */
 
 /** Reads the comma-separated list a table holds, dropping blanks and repeats. */
@@ -32,7 +33,7 @@ export function pickCutInIdentifier(
 
   const index = Math.floor(roll(candidates.length));
   if (!Number.isFinite(index)) return candidates[0];
-  return candidates[Math.min(candidates.length - 1, Math.max(0, index))];
+  return candidates[clamp(index, 0, candidates.length - 1)];
 }
 
 /** The draw the table itself makes. */

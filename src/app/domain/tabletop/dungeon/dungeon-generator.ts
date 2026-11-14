@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { generateCave } from '@axe/domain/tabletop/dungeon/cave-automata';
 import { DoorWidths, hangDoors, hideDoorsOf } from '@axe/domain/tabletop/dungeon/door-hanging';
@@ -66,7 +67,7 @@ export interface DungeonBoardSize {
 /** A requested room count rounded and kept within what the generator supports; not a number gives the fewest. */
 export function clampRoomCount(roomCount: number): number {
   if (!Number.isFinite(roomCount)) return MIN_ROOM_COUNT;
-  return Math.min(MAX_ROOM_COUNT, Math.max(MIN_ROOM_COUNT, Math.round(roomCount)));
+  return clamp(Math.round(roomCount), MIN_ROOM_COUNT, MAX_ROOM_COUNT);
 }
 
 /** What an atmosphere digs with: the shape of its cave, or else the plan of its rooms. */

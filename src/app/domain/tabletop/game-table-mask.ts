@@ -2,7 +2,7 @@ import { getPeerContext, getPeerContexts } from '@axe/core/network/peer-context-
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
-import { clamp01 } from '@axe/core/util/clamp';
+import { clamp, clamp01 } from '@axe/core/util/clamp';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { appendPieceDataElements } from '@axe/domain/tabletop/piece-data-elements';
@@ -162,12 +162,10 @@ export class GameTableMask extends TabletopObject {
    */
   get textSize(): number {
     const size = Number(this.optionalText('fontsize') || NaN);
-    return Number.isFinite(size) && size > 0
-      ? Math.max(8, Math.min(200, Math.round(size)))
-      : GameTableMask.DEFAULT_TEXT_SIZE;
+    return Number.isFinite(size) && size > 0 ? clamp(Math.round(size), 8, 200) : GameTableMask.DEFAULT_TEXT_SIZE;
   }
   set textSize(size: number) {
-    const normalized = Number.isFinite(size) && size > 0 ? Math.max(8, Math.min(200, Math.round(size))) : NaN;
+    const normalized = Number.isFinite(size) && size > 0 ? clamp(Math.round(size), 8, 200) : NaN;
     this.writeOptionalText('fontsize', Number.isNaN(normalized) ? '' : `${normalized}`, DataElementType.TEXT);
   }
 

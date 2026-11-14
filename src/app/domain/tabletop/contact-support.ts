@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { WorldBox } from '@axe/domain/tabletop/surface-space';
 import { turnedBoxCovers } from '@axe/domain/tabletop/terrain-box';
 
@@ -222,7 +223,7 @@ export function beamRestPosition(
   width: number,
   height: number
 ): { x: number; y: number; z: number } {
-  const centerX = Math.min(box.maxX, Math.max(box.minX, worldX));
-  const centerY = Math.min(box.maxY, Math.max(box.minY, worldY));
+  const centerX = clamp(worldX, box.minX, box.maxX);
+  const centerY = clamp(worldY, box.minY, box.maxY);
   return { x: Math.floor(centerX - width / 2), y: Math.floor(centerY - height / 2), z: box.maxZ };
 }

@@ -595,8 +595,8 @@ function layStoneFort(plot: Plot, rng: () => number, fill: number): void {
 
   const innerW = x1 - x0 - 1;
   const innerH = y1 - y0 - 1;
-  const keepW = Math.min(14, Math.max(LEAST_ROOM + 2, innerW - 6));
-  const keepH = Math.min(9, Math.max(LEAST_ROOM + 2, Math.min(innerH - 3, Math.round(innerH * 0.45))));
+  const keepW = clamp(innerW - 6, LEAST_ROOM + 2, 14);
+  const keepH = clamp(Math.min(innerH - 3, Math.round(innerH * 0.45)), LEAST_ROOM + 2, 9);
   const keep = { x: x0 + 1 + Math.round((innerW - keepW) / 2), y: y0 + 2, w: keepW, h: keepH };
   if (plot.free(keep)) {
     houseWithRooms(plot, keep, between(3, 5, rng), 'stoneRoomWall', 's', rng);
@@ -605,7 +605,7 @@ function layStoneFort(plot: Plot, rng: () => number, fill: number): void {
   const below = keep.y + keep.h + 1;
   for (let i = 0; i < buildings; i++) {
     const west = i % 2 === 0;
-    const narrow = Math.max(3, Math.min(5, Math.round(innerH * 0.3)));
+    const narrow = clamp(Math.round(innerH * 0.3), 3, 5);
     const spots = [
       {
         rect: {

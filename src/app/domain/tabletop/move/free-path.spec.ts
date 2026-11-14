@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { entryAlong, exitAlong, LegLimits, pathLength, stepsAlong, walkLeg } from '@axe/domain/tabletop/move/free-path';
@@ -130,7 +131,7 @@ describe('free paths', () => {
       const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
       for (let j = 0; j < GROUND_CHUNK_SAMPLES; j++) {
         for (let i = 0; i < GROUND_CHUNK_SAMPLES; i++) {
-          const up = overCells > 0 ? Math.min(1, Math.max(0, (i / 2 - 3) / overCells)) : i >= 6 ? 1 : 0;
+          const up = overCells > 0 ? clamp((i / 2 - 3) / overCells, 0, 1) : i >= 6 ? 1 : 0;
           heights[j * GROUND_CHUNK_SAMPLES + i] = Math.round(up * cells * 64);
         }
       }

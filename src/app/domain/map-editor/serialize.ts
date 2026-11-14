@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { MAP_FUNCTION_ROLES, MapFunctionRole, sanitizeFunctionLayerLook } from '@axe/domain/map-editor/function-layer';
 import {
   DEFAULT_SCENE_BACKGROUND,
@@ -217,7 +218,7 @@ function sanitizeLayer(raw: Record<string, unknown>): MapLayer {
     name: String(raw['name'] ?? ''),
     visible: raw['visible'] !== false,
     locked: raw['locked'] === true,
-    opacity: Math.max(0, Math.min(1, isFiniteNumber(raw['opacity']) ? (raw['opacity'] as number) : 1)),
+    opacity: clamp(isFiniteNumber(raw['opacity']) ? (raw['opacity'] as number) : 1, 0, 1),
     group: typeof raw['group'] === 'string' && raw['group'] ? (raw['group'] as string) : undefined,
   };
 

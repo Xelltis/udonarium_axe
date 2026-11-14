@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { ImageItem, ShapeItem, TextItem } from '@axe/domain/map-editor/scene';
 
 export interface BoardPoint {
@@ -133,7 +134,7 @@ export function pointToSegmentDistance(px: number, py: number, x1: number, y1: n
   const dy = y2 - y1;
   const lenSq = dx * dx + dy * dy;
   if (lenSq === 0) return Math.hypot(px - x1, py - y1);
-  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
+  const t = clamp(((px - x1) * dx + (py - y1) * dy) / lenSq, 0, 1);
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 

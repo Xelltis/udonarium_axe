@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /**
  * When each beat of an exchange happens on the battle stage, and how far along each is at a
  * moment of the playing.
@@ -88,7 +89,7 @@ export function battleTimeline(input: BattleTimelineInput): BattleTimeline {
 /** How far through a stretch of time a moment is, from 0 before it to 1 after it. */
 export function progressBetween(elapsed: number, start: number, end: number): number {
   if (end <= start) return elapsed >= start ? 1 : 0;
-  return Math.min(1, Math.max(0, (elapsed - start) / (end - start)));
+  return clamp((elapsed - start) / (end - start), 0, 1);
 }
 
 /** A movement that starts quickly and settles. */
@@ -163,5 +164,5 @@ export function defeatProgress(elapsed: number, timeline: BattleTimeline): numbe
 
 function clampTime(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
-  return Math.min(max, Math.max(min, value));
+  return clamp(value, min, max);
 }

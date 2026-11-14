@@ -187,7 +187,7 @@ function sweepOf(centre: Point, frame: Frame, hit: SlashHit, radius: number): { 
   const room = centre.z - frame.lowestZ;
   if (Math.abs(fall) < 0.001) return { lo: -SWEEP, hi: SWEEP };
   // Going the way the blade falls, it stops where it reaches the lowest it may go.
-  const stop = Math.asin(Math.min(1, Math.max(-1, room / Math.abs(fall))));
+  const stop = Math.asin(clamp(room / Math.abs(fall), -1, 1));
   return fall > 0 ? { lo: Math.max(-SWEEP, -stop), hi: SWEEP } : { lo: -SWEEP, hi: Math.min(SWEEP, stop) };
 }
 

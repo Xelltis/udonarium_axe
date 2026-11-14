@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { FIELD_PROP_SHAPES, FieldAtmosphere, FieldPropId } from '@axe/domain/tabletop/field/field-atmosphere';
 import { makeValueNoise, ValueNoise, warpedFbm } from '@axe/domain/tabletop/field/field-noise';
@@ -271,7 +272,7 @@ function clearFor(
 function quantileCuts(heights: Float64Array, shares: readonly number[]): number[] {
   const sorted = Float64Array.from(heights).sort();
   return shares.map((share) => {
-    const at = Math.min(sorted.length - 1, Math.max(0, Math.round(share * sorted.length) - 1));
+    const at = clamp(Math.round(share * sorted.length) - 1, 0, sorted.length - 1);
     return sorted[at];
   });
 }
@@ -520,7 +521,7 @@ function reliefOf(
       heights[j * columns + i] =
         dug > 0 && raisedTo <= shore
           ? 0 - dug * Math.min(1, (shore - raisedTo) / fall)
-          : rise + (reliefCells - rise) * Math.min(1, Math.max(0, (raisedTo - shore) / span));
+          : rise + (reliefCells - rise) * clamp((raisedTo - shore) / span, 0, 1);
     }
   }
   return { columns, rows, heights };

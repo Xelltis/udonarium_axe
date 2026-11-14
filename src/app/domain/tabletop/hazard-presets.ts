@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { AmbienceKind } from '@axe/domain/effect/ambience/ambience-kind';
 import { MOST_MOVE_COST_EXTRA } from '@axe/domain/tabletop/move/move-cost-limits';
 import { TriggerMoment } from '@axe/domain/tabletop/trigger-event';
@@ -132,7 +133,7 @@ export function asHazardExtraCost(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null;
   const amount = Number(value);
   if (!Number.isFinite(amount)) return null;
-  return Math.min(MOST_MOVE_COST_EXTRA, Math.max(0, Math.round(amount)));
+  return clamp(Math.round(amount), 0, MOST_MOVE_COST_EXTRA);
 }
 
 /** What crossing the ground costs over plain footing: what the brush is set to, or else the kind's own. */

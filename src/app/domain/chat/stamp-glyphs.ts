@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /**
  * The seals the stamps are drawn as, written out as SVG on a 100 by 100 field.
  *
@@ -74,7 +75,7 @@ export function sealStampSvg(words: string, color: string): string {
         })
         .join('');
     } else {
-      const size = Math.max(20, Math.min(40, Math.floor(150 / letters.length)));
+      const size = clamp(Math.floor(150 / letters.length), 20, 40);
       const fit = letters.length >= 4 ? ' textLength="70" lengthAdjust="spacingAndGlyphs"' : '';
       text = `<text x="50" y="${Math.round(50 + size * 0.35)}" font-size="${size}"${fit} ${ink}>${escapeText(letters.join(''))}</text>`;
     }

@@ -1,6 +1,7 @@
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { SoundEffects } from '@axe/core/storage/sound-effects';
+import { clamp } from '@axe/core/util/clamp';
 import { PresetSound } from '@axe/domain/media/sound-effect';
 
 export const CHAT_SOUND_TYPES = ['pageTurn', 'bubble', 'cyber', 'notify1', 'notify2'] as const;
@@ -35,7 +36,7 @@ export function isChatSoundType(value: unknown): value is ChatSoundType {
 export function clampChatSoundVolume(value: unknown): number {
   const volume = Number(value);
   if (!Number.isFinite(volume)) return CHAT_SOUND_VOLUME_DEFAULT;
-  return Math.min(1, Math.max(0, volume));
+  return clamp(volume, 0, 1);
 }
 
 /** Turning a page takes longer for a passage than for a word, so the two are told apart by length. */

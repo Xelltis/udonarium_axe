@@ -109,7 +109,7 @@ export function withinOutline(outline: readonly PickPoint2[], x: number, y: numb
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const length = dx * dx + dy * dy;
-    const share = length > 0 ? Math.min(1, Math.max(0, ((x - a.x) * dx + (y - a.y) * dy) / length)) : 0;
+    const share = length > 0 ? clamp(((x - a.x) * dx + (y - a.y) * dy) / length, 0, 1) : 0;
     if (Math.hypot(x - (a.x + dx * share), y - (a.y + dy * share)) <= reach) return true;
   }
   return false;

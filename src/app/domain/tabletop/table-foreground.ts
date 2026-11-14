@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /** How the picture laid in front of the table is fitted to the screen. */
 export const TABLE_FOREGROUND_FITS = ['cover', 'contain', 'fill'] as const;
 
@@ -26,7 +27,7 @@ const NO_PICTURE: ReadonlySet<string> = new Set(['imageIdentifier', 'null']);
 export function foregroundOpacityOf(value: unknown): number {
   if (value === null || value === undefined || value === '') return 1;
   const number = Number(value);
-  return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : 1;
+  return Number.isFinite(number) ? clamp(number, 0, 1) : 1;
 }
 
 /** How the picture is fitted, anything unknown read as filling the screen. */

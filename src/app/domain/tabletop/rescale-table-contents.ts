@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
@@ -8,7 +9,7 @@ export const MAX_CELL_PX = 256;
 /** A cell size as a table may take it: a whole number of px within the bounds. */
 export function clampCellPx(value: number): number {
   if (!Number.isFinite(value)) return MIN_CELL_PX;
-  return Math.min(MAX_CELL_PX, Math.max(MIN_CELL_PX, Math.round(value)));
+  return clamp(Math.round(value), MIN_CELL_PX, MAX_CELL_PX);
 }
 
 /**

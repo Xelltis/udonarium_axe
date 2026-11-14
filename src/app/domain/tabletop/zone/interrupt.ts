@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import type { MovePoint } from '@axe/domain/tabletop/move/blocked-path';
 import { entryAlong, exitAlong, pointAlong } from '@axe/domain/tabletop/move/free-path';
 import { zoneCovers, ZoneShape } from '@axe/domain/tabletop/zone/zone-geometry';
@@ -217,7 +218,7 @@ export function spanPath(path: readonly MovePoint[], span: PathSpan): MovePoint[
 export function nearestInSpans(spans: readonly PathSpan[], along: number): number | null {
   let best: number | null = null;
   for (const span of spans) {
-    const inside = Math.min(span.to, Math.max(span.from, along));
+    const inside = clamp(along, span.from, span.to);
     if (best === null || Math.abs(inside - along) < Math.abs(best - along)) best = inside;
   }
   return best;

@@ -1,4 +1,5 @@
 import type { AudioAnalysisResult } from '@axe/core/audio/audio-analysis';
+import { clamp } from '@axe/core/util/clamp';
 
 /**
  * The version of the reading a sound's analysis was made by. A reading from an earlier version is
@@ -141,7 +142,7 @@ export const LEVEL_PEAK_CEILING_DB = -1;
 export function autoLevelGainDb(analysis: AudioAnalysis | null, kind: LevelKind): number {
   if (!analysis || analysis.lufs === null) return 0;
   let gain = LEVEL_TARGET_LUFS[kind] - analysis.lufs;
-  gain = Math.min(LEVEL_MAX_BOOST_DB, Math.max(-LEVEL_MAX_CUT_DB, gain));
+  gain = clamp(gain, -LEVEL_MAX_CUT_DB, LEVEL_MAX_BOOST_DB);
   if (gain > 0 && analysis.peak !== null) gain = Math.min(gain, Math.max(0, LEVEL_PEAK_CEILING_DB - analysis.peak));
   return gain;
 }

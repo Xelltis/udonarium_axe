@@ -72,7 +72,7 @@ const LARGEST_COUNTED_CELLS = 4;
  * otherwise blow up too.
  */
 export function targetScaleOf(options: EffectSpriteOptions, identifier: string, aimed: boolean): number {
-  const cells = Math.min(LARGEST_COUNTED_CELLS, Math.max(1, options.resolveSize?.(identifier) ?? 1));
+  const cells = clamp(options.resolveSize?.(identifier) ?? 1, 1, LARGEST_COUNTED_CELLS);
   return aimed ? Math.sqrt(cells) : cells;
 }
 

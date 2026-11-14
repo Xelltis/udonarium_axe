@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { effectMoteOf } from '@axe/domain/effect/effect-motes';
 import {
   type Choreography,
@@ -74,7 +75,7 @@ function drawShock(stage: Stage, drawn: Staged, shown: number, ramp: readonly st
     const turn = next() * Math.PI * 2;
     const share = next();
     const from = onBody(turn, share);
-    const to = onBody(turn + (next() - 0.5) * 2.6, Math.min(1, Math.max(0, share + (next() - 0.5) * 0.9)));
+    const to = onBody(turn + (next() - 0.5) * 2.6, clamp(share + (next() - 0.5) * 0.9, 0, 1));
     drawn.ribbons.push(
       ...lightningRibbons(from, to, stage.seed + bolt, flicker, cell, ramp, (jolting ? 1 : 0.85) * shown, floor.z, 0.36)
     );
@@ -303,7 +304,7 @@ export const gravity: Choreography = {
     });
     const opening = within(t, 0, collapses);
     // How large the sphere stands: swelling as it opens, then falling in on itself to a point.
-    const implodes = Math.max(0.12, Math.min(0.2, collapses * 0.2));
+    const implodes = clamp(collapses * 0.2, 0.12, 0.2);
     const falling = within(t, collapses - implodes, collapses);
     const radius = cell * (0.35 + 0.55 * outCubic(opening)) * (1 - falling * falling);
     if (t < collapses) {

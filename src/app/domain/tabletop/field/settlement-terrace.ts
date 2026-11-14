@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import {
   cellOfLayoutPoint,
   layoutPointOfSample,
@@ -118,9 +119,9 @@ export function terraceSettlement(
     for (let column = 0; column < raster.columns; column++) {
       const index = row * raster.columns + column;
       const cell = cellOfLayoutPoint(layoutPointOfSample(gridType, column, row));
-      const x = Math.min(width - 1, Math.max(0, cell.x));
-      const y = Math.min(height - 1, Math.max(0, cell.y));
-      const away = Math.min(1, Math.max(0, (distance[y * width + x] - apronCells) / blendCells));
+      const x = clamp(cell.x, 0, width - 1);
+      const y = clamp(cell.y, 0, height - 1);
+      const away = clamp((distance[y * width + x] - apronCells) / blendCells, 0, 1);
       heights[index] = level * (1 - away) + raster.heights[index] * away;
     }
   }
@@ -130,7 +131,7 @@ export function terraceSettlement(
 /** The height of the raster at the sample nearest the middle of a cell of the layout. */
 function sampleHeightAt(raster: GroundRaster, gridType: GridType, x: number, y: number): number {
   const sample = sampleOfLayoutPoint(gridType, { x, y });
-  const column = Math.min(raster.columns - 1, Math.max(0, sample.column));
-  const row = Math.min(raster.rows - 1, Math.max(0, sample.row));
+  const column = clamp(sample.column, 0, raster.columns - 1);
+  const row = clamp(sample.row, 0, raster.rows - 1);
   return raster.heights[row * raster.columns + column];
 }

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { type Choreography, nothingStaged, outCubic, within } from '@axe/domain/effect/scene/choreography';
 import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { ThrownMote } from '@axe/domain/effect/scene/effect-sim';
@@ -190,7 +191,7 @@ export const rubble: Choreography = {
         { x: 0, y: 0 },
         { x: 0.6, y: -0.35 },
         { x: -0.55, y: 0.4 },
-      ].slice(0, Math.max(1, Math.min(3, th.count(3))));
+      ].slice(0, clamp(th.count(3), 1, 3));
       const vents = spots.map((spot, index) => ({
         at: { x: floor.x + spot.x * cell, y: floor.y + spot.y * cell, z: floor.z },
         delay: index * 0.09,

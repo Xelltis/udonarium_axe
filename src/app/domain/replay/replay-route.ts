@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 export interface ReplayRoutePoint {
   x: number;
   y: number;
@@ -87,7 +88,7 @@ export function pointAlongRoute(points: readonly ReplayRoutePoint[], progress: n
   if (points.length < 1) return { x: 0, y: 0, z: 0 };
   if (points.length < 2) return points[0];
 
-  const clamped = Math.max(0, Math.min(1, progress));
+  const clamped = clamp(progress, 0, 1);
   const target = routeLength(points) * clamped;
   if (target <= 0) return points[0];
 
@@ -105,7 +106,7 @@ export function pointAlongRoute(points: readonly ReplayRoutePoint[], progress: n
 
 /** Eases progress, held between 0 and 1, along a quadratic curve so a replayed move starts and stops gently. */
 export function easeInOut(progress: number): number {
-  const clamped = Math.max(0, Math.min(1, progress));
+  const clamped = clamp(progress, 0, 1);
   return clamped < 0.5 ? 2 * clamped * clamped : 1 - Math.pow(-2 * clamped + 2, 2) / 2;
 }
 

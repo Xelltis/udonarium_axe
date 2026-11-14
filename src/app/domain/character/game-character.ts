@@ -3,6 +3,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { generateUuid } from '@axe/core/util/uuid';
 import { BuffManager } from '@axe/domain/character/buff-manager';
 import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
@@ -278,7 +279,7 @@ export class GameCharacter extends OwnedTabletopObject {
     this.addExtendData();
     const element = this.detailDataElement?.getFirstElementByName('POS');
     if (!element) return;
-    element.currentValue = Math.max(0, Math.min(VN_PORTRAIT_SLOT_COUNT - 1, Math.round(pos)));
+    element.currentValue = clamp(Math.round(pos), 0, VN_PORTRAIT_SLOT_COUNT - 1);
     this.update();
   }
 

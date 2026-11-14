@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { FirstPersonCamera } from '@axe/domain/tabletop/first-person/first-person-clip';
 import { FirstPersonPose, signedTurnDeg } from '@axe/domain/tabletop/first-person/first-person-lattice';
 
@@ -33,7 +34,7 @@ export function lookDragged(start: FirstPersonLook, dxPx: number, dyPx: number, 
   const pitch = start.pitch - dyPx * degPerPx;
   return {
     yaw: start.yaw + dxPx * degPerPx,
-    pitch: Math.min(LOOK_PITCH_LIMIT_DEG, Math.max(-LOOK_PITCH_LIMIT_DEG, pitch)),
+    pitch: clamp(pitch, -LOOK_PITCH_LIMIT_DEG, LOOK_PITCH_LIMIT_DEG),
   };
 }
 
@@ -44,7 +45,7 @@ export function homeward(look: FirstPersonLook): FirstPersonLook {
 
 /** Where a look going back to rest stands after `t` of the way (0 to 1), easing as it arrives. */
 export function lookEased(from: FirstPersonLook, t: number): FirstPersonLook {
-  const left = Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
+  const left = Math.pow(1 - clamp(t, 0, 1), 3);
   return { yaw: from.yaw * left, pitch: from.pitch * left };
 }
 

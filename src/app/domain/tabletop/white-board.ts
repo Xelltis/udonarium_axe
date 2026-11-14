@@ -1,4 +1,5 @@
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
+import { clamp } from '@axe/core/util/clamp';
 import { appendPieceDataElements } from '@axe/domain/tabletop/piece-data-elements';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
@@ -11,7 +12,7 @@ export const MAX_BOARD_PITCH = 90;
  */
 export function clampBoardPitch(pitch: number): number {
   if (!Number.isFinite(pitch)) return MIN_BOARD_PITCH;
-  return Math.min(MAX_BOARD_PITCH, Math.max(MIN_BOARD_PITCH, Math.round(pitch)));
+  return clamp(Math.round(pitch), MIN_BOARD_PITCH, MAX_BOARD_PITCH);
 }
 
 /**

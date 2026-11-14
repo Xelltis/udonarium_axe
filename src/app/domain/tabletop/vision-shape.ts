@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 export enum VisionShape {
   DOME = 'dome',
   CONE = 'cone',
@@ -116,7 +117,7 @@ export function visionLobesOf(spec: VisionSpec): readonly VisionLobe[] {
         { direction: 180, angle: clampAngle(spec.backAngle), rangeScale: clampScale(spec.backScale) },
       ];
     case VisionShape.CONE_MULTI: {
-      const count = Math.max(1, Math.min(12, Math.round(spec.coneCount)));
+      const count = clamp(Math.round(spec.coneCount), 1, 12);
       const lobes: VisionLobe[] = [];
       for (let i = 0; i < count; i++) {
         lobes.push({ direction: (i * 360) / count, angle: cone, rangeScale: 1 });
@@ -207,10 +208,10 @@ function normalizeDegrees(value: number): number {
 
 function clampAngle(value: number): number {
   if (!Number.isFinite(value)) return 360;
-  return Math.max(0, Math.min(360, value));
+  return clamp(value, 0, 360);
 }
 
 function clampScale(value: number): number {
   if (!Number.isFinite(value)) return 1;
-  return Math.max(0, Math.min(1, value));
+  return clamp(value, 0, 1);
 }

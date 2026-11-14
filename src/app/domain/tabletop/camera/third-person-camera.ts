@@ -38,16 +38,13 @@ export const THIRD_PERSON_FOV_DEG = 60;
 
 /** An orbit turned round the piece and tipped up or down, held between how far it may look up and down. */
 export function orbitTurned(orbit: ThirdPersonOrbit, turnDeg: number, downDeg: number): ThirdPersonOrbit {
-  const down = Math.min(MAX_THIRD_PERSON_DOWN_DEG, Math.max(MIN_THIRD_PERSON_DOWN_DEG, orbit.downDeg + downDeg));
+  const down = clamp(orbit.downDeg + downDeg, MIN_THIRD_PERSON_DOWN_DEG, MAX_THIRD_PERSON_DOWN_DEG);
   return { ...orbit, turnDeg: (((orbit.turnDeg + turnDeg) % 360) + 360) % 360, downDeg: down };
 }
 
 /** An orbit brought nearer the piece, or taken further back, held between how near and far it may stand. */
 export function orbitPushed(orbit: ThirdPersonOrbit, boomCells: number): ThirdPersonOrbit {
-  const boom = Math.min(
-    MAX_THIRD_PERSON_BOOM_CELLS,
-    Math.max(MIN_THIRD_PERSON_BOOM_CELLS, orbit.boomCells + boomCells)
-  );
+  const boom = clamp(orbit.boomCells + boomCells, MIN_THIRD_PERSON_BOOM_CELLS, MAX_THIRD_PERSON_BOOM_CELLS);
   return { ...orbit, boomCells: boom };
 }
 

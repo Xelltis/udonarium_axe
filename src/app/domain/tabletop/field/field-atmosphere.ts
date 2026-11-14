@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
 import { type SettlementKind } from '@axe/domain/tabletop/field/settlement-layout';
 import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
@@ -433,7 +434,7 @@ export const DEFAULT_FIELD_RELIEF = 2;
  */
 export function clampFieldSize(size: number): number {
   if (!Number.isFinite(size)) return MIN_FIELD_SIZE;
-  return Math.min(MAX_FIELD_SIZE, Math.max(MIN_FIELD_SIZE, Math.round(size)));
+  return clamp(Math.round(size), MIN_FIELD_SIZE, MAX_FIELD_SIZE);
 }
 
 /**
@@ -442,7 +443,7 @@ export function clampFieldSize(size: number): number {
  */
 export function clampFieldDensity(density: number): number {
   if (!Number.isFinite(density)) return 50;
-  return Math.min(MAX_FIELD_DENSITY, Math.max(MIN_FIELD_DENSITY, Math.round(density)));
+  return clamp(Math.round(density), MIN_FIELD_DENSITY, MAX_FIELD_DENSITY);
 }
 
 /**
@@ -451,7 +452,7 @@ export function clampFieldDensity(density: number): number {
  */
 export function clampFieldRelief(relief: number): number {
   if (!Number.isFinite(relief)) return 0;
-  return Math.min(MAX_FIELD_RELIEF, Math.max(0, Math.round(relief * 2) / 2));
+  return clamp(Math.round(relief * 2) / 2, 0, MAX_FIELD_RELIEF);
 }
 
 export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {

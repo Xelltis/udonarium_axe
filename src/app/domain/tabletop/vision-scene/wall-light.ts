@@ -173,9 +173,10 @@ function faceShadowLine(
   from: number,
   to: number
 ): Point[] {
-  const count = Math.min(
-    WALL_LIGHT_MAX_SAMPLES,
-    Math.max(WALL_LIGHT_MIN_SAMPLES, Math.ceil((to - from) / WALL_LIGHT_SAMPLE_STEP_PX) + 1)
+  const count = clamp(
+    Math.ceil((to - from) / WALL_LIGHT_SAMPLE_STEP_PX) + 1,
+    WALL_LIGHT_MIN_SAMPLES,
+    WALL_LIGHT_MAX_SAMPLES
   );
   const line: Point[] = [];
   let previous = { x: from, y: 0 };

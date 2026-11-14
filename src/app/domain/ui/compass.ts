@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /** The eight points a bearing is read as, from north and round by way of the east. */
 export const COMPASS_POINTS = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] as const;
 
@@ -76,6 +77,6 @@ const SWING_LIMIT = 720;
  */
 export function swingNeedle(swing: NeedleSwing, seconds: number, pull: number): NeedleSwing {
   const shoved = (swing.rate + pull * SWING_PULL * seconds) * Math.max(0, 1 - SWING_DRAG * seconds);
-  const rate = Math.max(-SWING_LIMIT, Math.min(SWING_LIMIT, shoved));
+  const rate = clamp(shoved, -SWING_LIMIT, SWING_LIMIT);
   return { angle: swing.angle + rate * seconds, rate };
 }

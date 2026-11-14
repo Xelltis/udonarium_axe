@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /**
  * The 3D model a piece or a block can be drawn as, in place of its picture, on a table drawn on a
  * canvas: which model, how much larger or smaller than its footprint it is drawn, how far it is
@@ -36,7 +37,7 @@ export function modelScaleOf(value: unknown): number {
   if (value === null || value === undefined || value === '') return 1;
   const number = Number(value);
   if (!Number.isFinite(number) || number <= 0) return 1;
-  return Math.min(MAX_MODEL_SCALE, Math.max(MIN_MODEL_SCALE, number));
+  return clamp(number, MIN_MODEL_SCALE, MAX_MODEL_SCALE);
 }
 
 /** How far a model is turned from the way the piece faces, as it was stored, from 0 up to 360 degrees. */

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import type { EffectLight } from '@axe/domain/effect/effect-light';
 import type { EffectPreset } from '@axe/domain/effect/effect-preset';
 import type { EffectFloorMark, EffectMote, EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
@@ -54,11 +55,11 @@ export function nothingStaged(): Staged {
 
 /** How far a share of a span is, from 0 before it to 1 after it. */
 export function within(value: number, from: number, to: number): number {
-  return Math.min(1, Math.max(0, (value - from) / (to - from)));
+  return clamp((value - from) / (to - from), 0, 1);
 }
 
 /** Fast out, slower to settle than a quartic. */
 export function outCubic(share: number): number {
-  const left = 1 - Math.min(1, Math.max(0, share));
+  const left = 1 - clamp(share, 0, 1);
   return 1 - left * left * left;
 }

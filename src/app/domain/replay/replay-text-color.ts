@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { contrastRatio, parseHexColor, relativeLuminance } from '@axe/core/util/tonal-color';
 
 export const REPLAY_MIN_CONTRAST = 4.5;
@@ -20,7 +21,7 @@ export function readableOn(color: string, background: [number, number, number], 
   const wantsLighter = backdrop < 0.5;
   for (let step = 1; step <= 20; step += 1) {
     const lightness = wantsLighter ? 0.5 + step * 0.025 : 0.5 - step * 0.025;
-    const lifted = hslToRgb(hue, saturation, Math.max(0, Math.min(1, lightness)));
+    const lifted = hslToRgb(hue, saturation, clamp(lightness, 0, 1));
     if (contrastRatio(relativeLuminance(lifted), backdrop) >= REPLAY_MIN_CONTRAST) return toHex(lifted);
   }
   return fallback;
@@ -28,7 +29,7 @@ export function readableOn(color: string, background: [number, number, number], 
 
 function toHex([r, g, b]: [number, number, number]): string {
   const part = (value: number): string =>
-    Math.round(Math.max(0, Math.min(1, value)) * 255)
+    Math.round(clamp(value, 0, 1) * 255)
       .toString(16)
       .padStart(2, '0');
   return `#${part(r)}${part(g)}${part(b)}`;

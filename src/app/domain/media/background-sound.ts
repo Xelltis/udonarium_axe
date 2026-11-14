@@ -6,6 +6,7 @@ import { LoopPlayer } from '@axe/core/storage/loop-player';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { backgroundSoundLevel } from '@axe/domain/media/background-sound-level';
 import { mixLevelOf } from '@axe/domain/media/mix-level';
 
@@ -117,13 +118,13 @@ export class BackgroundSound extends GameObject {
 
   /** Sets the room's volume for the sound, from 0 to 1, and shares it. */
   setVolume(volume: number): void {
-    this.volume = Math.min(1, Math.max(0, volume));
+    this.volume = clamp(volume, 0, 1);
     this.follow();
   }
 
   /** Lets this peer hear a volume while a slider is being dragged, without sharing it yet. */
   previewVolume(volume: number): void {
-    this.player?.setVolume(Math.min(1, Math.max(0, volume)));
+    this.player?.setVolume(clamp(volume, 0, 1));
   }
 
   /**

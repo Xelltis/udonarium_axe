@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { toGraphemes } from '@axe/core/util/graphemes';
 
 /** How wide a run of text is drawn, in the units the layout is given its width in. */
@@ -153,5 +154,5 @@ const REPLAY_PAGE_BASE_MS = 800;
 export function replayPageDurationMs(page: ReplayTextPage, lang: string, speed = 1): number {
   const perSecond = (CHARS_PER_SECOND[lang] ?? CHARS_PER_SECOND['ja']) * Math.max(0.25, speed);
   const ms = REPLAY_PAGE_BASE_MS + (page.charCount / perSecond) * 1000;
-  return Math.round(Math.min(REPLAY_PAGE_MAX_MS, Math.max(REPLAY_PAGE_MIN_MS, ms)));
+  return Math.round(clamp(ms, REPLAY_PAGE_MIN_MS, REPLAY_PAGE_MAX_MS));
 }

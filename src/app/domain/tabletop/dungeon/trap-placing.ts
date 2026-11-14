@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import {
   cellAt,
   DungeonCell,
@@ -23,7 +24,7 @@ const CORRIDOR_TRAPS: readonly TrapKind[] = ['dart', 'blade', 'alarm'];
 /** A requested trap count rounded and kept within what a board will take; not a number gives none. */
 export function clampTrapCount(count: number | undefined): number {
   if (count === undefined || !Number.isFinite(count)) return 0;
-  return Math.min(MAX_DUNGEON_TRAPS, Math.max(0, Math.round(count)));
+  return clamp(Math.round(count), 0, MAX_DUNGEON_TRAPS);
 }
 
 /**

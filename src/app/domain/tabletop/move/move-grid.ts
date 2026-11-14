@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import {
   cellCenterOf,
@@ -53,7 +54,7 @@ export interface SquaredTable {
 export function squareSpanOf(table: Pick<SquaredTable, 'gridType' | 'squareSpan'>): number {
   if (Number(table.gridType) !== GridType.SQUARE) return 1;
   const span = Math.round(Number(table.squareSpan));
-  return Number.isFinite(span) ? Math.min(MAX_SQUARE_SPAN, Math.max(1, span)) : 1;
+  return Number.isFinite(span) ? clamp(span, 1, MAX_SQUARE_SPAN) : 1;
 }
 
 /**

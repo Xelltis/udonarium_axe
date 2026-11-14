@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { TrapKind } from '@axe/domain/tabletop/trap-presets';
 
 /**
@@ -13,7 +14,7 @@ export const MAX_CORRIDOR_WIDTH = 4;
 /** A passage width rounded to whole cells and kept between one and four; missing or not a number gives one. */
 export function clampCorridorWidth(width: number | undefined): number {
   if (width === undefined || !Number.isFinite(width)) return MIN_CORRIDOR_WIDTH;
-  return Math.min(MAX_CORRIDOR_WIDTH, Math.max(MIN_CORRIDOR_WIDTH, Math.round(width)));
+  return clamp(Math.round(width), MIN_CORRIDOR_WIDTH, MAX_CORRIDOR_WIDTH);
 }
 
 export const DungeonCell = {

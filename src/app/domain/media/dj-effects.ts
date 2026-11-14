@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /** The effects the room's music goes through, as the DJ deck sets them for everyone. */
 export interface DjEffects {
   /** The filter: 0 lets everything through, below 0 cuts the treble down to a muffle, above 0 cuts the bass down to a thin line. */
@@ -14,7 +15,7 @@ export const NO_DJ_EFFECTS: DjEffects = { filter: 0, echo: 0, reverb: 0 };
 export const FILTER_DEAD_ZONE = 0.02;
 
 function within(value: unknown, min: number, max: number): number {
-  return typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : 0;
+  return typeof value === 'number' && Number.isFinite(value) ? clamp(value, min, max) : 0;
 }
 
 /**

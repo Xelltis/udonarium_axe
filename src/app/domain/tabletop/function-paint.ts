@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
 import { GroundChunkData } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import {
@@ -509,7 +510,7 @@ function sanitizePlacement(value: unknown): BlockPlacement | null {
 function countIn(held: Record<string, unknown>, key: string, fallback: number, least: number, most: number): number {
   const amount = Number(held[key]);
   if (!Number.isFinite(amount)) return fallback;
-  return Math.min(most, Math.max(least, amount));
+  return clamp(amount, least, most);
 }
 
 function flagIn(held: Record<string, unknown>, key: string, fallback: boolean): boolean {

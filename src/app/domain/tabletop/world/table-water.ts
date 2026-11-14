@@ -385,7 +385,7 @@ function over(top: Rgba, under: Rgba): Rgba {
 }
 
 function blend(from: Rgba, to: Rgba, share: number): Rgba {
-  const t = Math.min(1, Math.max(0, share));
+  const t = clamp(share, 0, 1);
   return from.map((value, index) => value + (to[index] - value) * t) as Rgba;
 }
 

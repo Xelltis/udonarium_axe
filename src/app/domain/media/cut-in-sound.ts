@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /**
  * The sounds a scene drops along its own clock.
  *
@@ -67,7 +68,7 @@ export function upsertSound(
   const written: CutInSound = {
     t: Math.max(0, Math.round(sound.t)),
     a: sound.a,
-    v: Math.min(100, Math.max(0, Math.round(sound.v))),
+    v: clamp(Math.round(sound.v), 0, 100),
   };
   const rest = sounds.filter((existing) => Math.abs(existing.t - written.t) > toleranceMs);
   return sortSounds([...rest, written]).slice(0, MAX_SOUNDS);
@@ -113,7 +114,7 @@ function readSound(entry: unknown): CutInSound | null {
   return {
     t: Math.max(0, Math.round(t)),
     a,
-    v: Number.isFinite(v) ? Math.min(100, Math.max(0, Math.round(v))) : DEFAULT_SOUND_VOLUME,
+    v: Number.isFinite(v) ? clamp(Math.round(v), 0, 100) : DEFAULT_SOUND_VOLUME,
   };
 }
 

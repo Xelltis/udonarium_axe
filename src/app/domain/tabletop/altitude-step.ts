@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /** How far up or down a piece can be sent, which is as far as the altitude slider reaches. */
 export const ALTITUDE_LIMIT_CELLS = 12;
 
@@ -18,7 +19,7 @@ export function steppedAltitude(current: number, isUp: boolean, step: number = A
   const rungs = current / size;
   const next = isUp ? Math.floor(rungs + NEARLY) + 1 : Math.ceil(rungs - NEARLY) - 1;
   const wanted = Math.round(next * size * 1000) / 1000;
-  return Math.min(ALTITUDE_LIMIT_CELLS, Math.max(-ALTITUDE_LIMIT_CELLS, wanted));
+  return clamp(wanted, -ALTITUDE_LIMIT_CELLS, ALTITUDE_LIMIT_CELLS);
 }
 
 /** The heights the rungs of the guide are drawn at, from the ground up to where the piece is. */
