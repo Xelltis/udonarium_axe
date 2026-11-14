@@ -136,13 +136,15 @@ describe('GameTableComponent', () => {
       return layer;
     };
 
-    it('draws a backdrop outside the table’s own space', () => {
+    it('draws a backdrop outside the table’s own space, ahead of it in the page so that it lies behind', () => {
       lay();
       fixture.detectChanges();
 
       const backdrop = root().querySelector('[data-testid="backdrop-layer"]');
+      const table = root().querySelector('[data-testid="table-scene"]')!.parentElement!;
       expect(backdrop).not.toBeNull();
-      expect(backdrop!.closest('#app-game-table')).toBeNull();
+      expect(table.contains(backdrop)).toBe(false);
+      expect(backdrop!.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('lays the picture across only, its foot standing at the height it was given', () => {
