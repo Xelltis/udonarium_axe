@@ -32,17 +32,6 @@ export interface TextNoteMenuCallbacks {
   onClearToBlankTable?: () => void;
 }
 
-/** The text note's right-click menu as a flat list, without the groups a radial menu needs. */
-export function buildTextNoteContextMenu(
-  textNote: TextNote,
-  gridSize: number,
-  inventoryService: GameObjectInventoryService,
-  callbacks: TextNoteMenuCallbacks,
-  t: TranslateFn
-): ContextMenuAction[] {
-  return buildTextNoteContextMenuModel(textNote, gridSize, inventoryService, callbacks, t).actions;
-}
-
 /**
  * The text note's right-click menu, both as a flat list and grouped for the radial menu.
  *

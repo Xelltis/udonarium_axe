@@ -25,28 +25,3 @@ export function detachFromBoard(board: WhiteBoard, object: TabletopObject): void
 export function detachAllFrom(board: WhiteBoard, standing: readonly TabletopObject[]): void {
   for (const object of standing) detachFromBoard(board, object);
 }
-
-/** Whatever is lying over the board is taken up onto it, which is quicker than dragging each one. */
-export function gatherOverBoard(
-  board: WhiteBoard,
-  widthPx: number,
-  heightPx: number,
-  candidates: readonly TabletopObject[]
-): number {
-  const left = board.location.x;
-  const top = board.location.y;
-  const right = left + widthPx;
-  const bottom = top + heightPx;
-
-  let taken = 0;
-  for (const object of candidates) {
-    if (boardSurfaceOf(object)) continue;
-    const { x, y } = object.location;
-    if (x < left || right < x || y < top || bottom < y) continue;
-    object.location = { name: 'table', x: x - left, y: y - top, surface: board.identifier };
-    object.posZ = 0;
-    object.update();
-    taken++;
-  }
-  return taken;
-}

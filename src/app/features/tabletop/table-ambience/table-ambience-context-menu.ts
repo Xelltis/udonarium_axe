@@ -29,16 +29,6 @@ export interface TableAmbienceContextMenuModel {
   radialGroups: ContextMenuRadialGroup[];
 }
 
-/** The flat list of a ground ambience's right-click menu entries, without the radial menu's grouping. */
-export function buildTableAmbienceContextMenu(
-  ambience: TableAmbience,
-  gridSize: number,
-  onEdit: () => void,
-  t: TranslateFn
-): ContextMenuAction[] {
-  return buildTableAmbienceContextMenuModel(ambience, gridSize, onEdit, t).actions;
-}
-
 /**
  * A ground ambience's right-click menu, as a flat list and as groups for the radial menu.
  *

@@ -3,18 +3,15 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { LIGHT_PRESETS, LightPreset } from '@axe/domain/tabletop/vision-types';
-import {
-  buildLightSourceContextMenu,
-  buildLightSourceContextMenuModel,
-} from '@axe/features/tabletop/light-source/light-source-context-menu';
+import { buildLightSourceContextMenuModel } from '@axe/features/tabletop/light-source/light-source-context-menu';
 
 const t = (key: string) => key;
 
-function findByName(menu: ReturnType<typeof buildLightSourceContextMenu>, fragment: string) {
+function findByName(menu: ReturnType<typeof buildLightSourceContextMenuModel>['actions'], fragment: string) {
   return menu.find((item) => 'name' in item && item.name.includes(fragment));
 }
 
-describe('buildLightSourceContextMenu', () => {
+describe('buildLightSourceContextMenuModel', () => {
   let store: ObjectStore;
 
   beforeEach(() => {
@@ -41,7 +38,7 @@ describe('buildLightSourceContextMenu', () => {
     copy.isLock = true;
     vi.spyOn(light, 'clone').mockReturnValue(copy);
 
-    findByName(buildLightSourceContextMenu(light, 50, [], vi.fn(), t, vi.fn()), 'copy')?.action?.();
+    findByName(buildLightSourceContextMenuModel(light, 50, [], vi.fn(), t, vi.fn()).actions, 'copy')?.action?.();
 
     expect(copy.parent).toBe(table);
     expect(copy.location.x).toBe(150);
@@ -66,10 +63,7 @@ describe('buildLightSourceContextMenu', () => {
   it('switches the light on and off', () => {
     const light = LightSource.create('L');
     light.lightEnabled = true;
-    const off = findByName(
-      buildLightSourceContextMenu(light, 50, [], () => undefined, t),
-      'turnOff'
-    );
+    const off = findByName(buildLightSourceContextMenuModel(light, 50, [], () => undefined, t).actions, 'turnOff');
     expect(off).toBeTruthy();
     (off as { action: () => void }).action();
     expect(light.lightEnabled).toBe(false);
@@ -79,7 +73,7 @@ describe('buildLightSourceContextMenu', () => {
     const light = LightSource.create('L');
     light.lightEnabled = false;
     const presetMenu = findByName(
-      buildLightSourceContextMenu(light, 50, [], () => undefined, t),
+      buildLightSourceContextMenuModel(light, 50, [], () => undefined, t).actions,
       'preset'
     ) as {
       subActions: { name: string; action: () => void }[];
@@ -93,10 +87,9 @@ describe('buildLightSourceContextMenu', () => {
 
   it('takes it out of the store on delete', () => {
     const light = LightSource.create('L');
-    const del = findByName(
-      buildLightSourceContextMenu(light, 50, [], () => undefined, t),
-      'delete'
-    ) as { action: () => void };
+    const del = findByName(buildLightSourceContextMenuModel(light, 50, [], () => undefined, t).actions, 'delete') as {
+      action: () => void;
+    };
     del.action();
     expect(store.get(light.identifier)).toBeNull();
   });

@@ -24,29 +24,6 @@ export interface TerrainContextMenuModel {
   radialGroups: ContextMenuRadialGroup[];
 }
 
-/** The terrain's right-click menu as a flat list, without the groups a radial menu needs. */
-export function buildTerrainContextMenu(
-  terrain: Terrain,
-  gridSize: number,
-  objectPosition: PointerCoordinate,
-  inventoryService: GameObjectInventoryService,
-  createMenu: CreateObjectMenu,
-  onEdit: (t: Terrain) => void,
-  t: TranslateFn,
-  overlapEntries: ContextMenuAction[] = []
-): ContextMenuAction[] {
-  return buildTerrainContextMenuModel(
-    terrain,
-    gridSize,
-    objectPosition,
-    inventoryService,
-    createMenu,
-    onEdit,
-    t,
-    overlapEntries
-  ).actions;
-}
-
 /**
  * The terrain's right-click menu, both as a flat list and grouped for the radial menu.
  *

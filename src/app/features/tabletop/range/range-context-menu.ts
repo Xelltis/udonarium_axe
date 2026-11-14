@@ -23,35 +23,6 @@ export interface RangeContextMenuModel {
   radialGroups: ContextMenuRadialGroup[];
 }
 
-/** The flat list of a range's right-click menu entries, without the radial menu's grouping. */
-export function buildRangeContextMenu(
-  range: RangeArea,
-  gridSize: number,
-  objectPosition: PointerCoordinate,
-  objectStore: ObjectStore,
-  inventoryService: GameObjectInventoryService,
-  createMenu: CreateObjectMenu,
-  onDockingWindowOpen: () => void,
-  onEdit: (r: RangeArea) => void,
-  t: TranslateFn,
-  onEditCells?: (r: RangeArea) => void,
-  onTargetInside?: (r: RangeArea) => void
-): ContextMenuAction[] {
-  return buildRangeContextMenuModel(
-    range,
-    gridSize,
-    objectPosition,
-    objectStore,
-    inventoryService,
-    createMenu,
-    onDockingWindowOpen,
-    onEdit,
-    t,
-    onEditCells,
-    onTargetInside
-  ).actions;
-}
-
 /**
  * A range's right-click menu, as a flat list and as groups for the radial menu.
  *
