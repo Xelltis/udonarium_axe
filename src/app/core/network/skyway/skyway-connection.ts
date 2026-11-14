@@ -6,7 +6,7 @@ import { compressIfSmaller, splitAtFileChunks } from '@axe/core/network/frame-co
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { PEER_RECONNECT_STEADY_MS, PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
-import { SkyWayDataStream } from '@axe/core/network/skyway/skyway-data-stream';
+import { SendLane, SkyWayDataStream } from '@axe/core/network/skyway/skyway-data-stream';
 import { SkyWayDataStreamList } from '@axe/core/network/skyway/skyway-data-stream-list';
 import { SkyWayFacade } from '@axe/core/network/skyway/skyway-facade';
 import { diff } from '@axe/core/util/array-util';
@@ -206,23 +206,27 @@ export class SkyWayConnection implements Connection {
   /**
    * Sends data to one peer, or to every connected peer when sendTo is omitted.
    *
-   * A batch goes out in runs that keep its order: pieces of a file are sent on their own and as
-   * they are, and a large run of the other messages is compressed. Sends go out in call order
-   * after the current task. Nothing is sent while no peer is connected, and a message for a peer
-   * whose channel is not open is dropped, which is logged, at most once in ten seconds for a peer.
+   * A batch goes out in runs: pieces of a file are sent on their own and as they are, and a large
+   * run of the other messages is compressed. The pieces of a file go to the peer's stream as bulk
+   * and everything else as control, so the pieces keep their order among themselves and so does
+   * the rest, while the rest is not kept waiting behind the pieces. Nothing is sent while no peer
+   * is connected, and a message for a peer whose channel is not open is dropped, which is logged,
+   * at most once in ten seconds for a peer.
    */
   send(data: unknown, sendTo?: string) {
     if (this.peers.length < 1) return;
-    if (!Array.isArray(data) || data.length < 2) {
-      this.sendContainer(data, sendTo, false);
+    if (!Array.isArray(data)) {
+      this.sendContainer(data, sendTo, false, 'control');
       return;
     }
+    const compressesRuns = 1 < data.length;
     for (const run of splitAtFileChunks(data)) {
-      this.sendContainer(run.messages, sendTo, !run.carriesFileChunks);
+      const lane: SendLane = run.carriesFileChunks ? 'bulk' : 'control';
+      this.sendContainer(run.messages, sendTo, compressesRuns && !run.carriesFileChunks, lane);
     }
   }
 
-  private sendContainer(data: unknown, sendTo: string | undefined, compressible: boolean) {
+  private sendContainer(data: unknown, sendTo: string | undefined, compressible: boolean, lane: SendLane) {
     const container: DataContainer = {
       data: MessagePack.encode(data),
       ttl: 1,
@@ -238,19 +242,19 @@ export class SkyWayConnection implements Connection {
         if (packed.compressed) container.isCompressed = true;
       }
       if (sendTo) {
-        this.sendUnicast(container, sendTo);
+        this.sendUnicast(container, sendTo, lane);
       } else {
-        this.sendBroadcast(container);
+        this.sendBroadcast(container, lane);
       }
       this.bandwidthUsage -= byteLength;
     });
   }
 
-  private sendUnicast(container: DataContainer, sendTo: string) {
+  private sendUnicast(container: DataContainer, sendTo: string, lane: SendLane) {
     container.ttl = 0;
     const stream = this.streams.find(sendTo);
     if (stream && stream.open) {
-      stream.send(container);
+      stream.send(container, lane);
       return;
     }
     const held = this.droppedUnicastLog.pass(sendTo);
@@ -259,9 +263,9 @@ export class SkyWayConnection implements Connection {
     Logger.warn(`[SkyWay] ${state}ため送信を破棄しました: ${sendTo}（前回の記録から他に${held}件）`);
   }
 
-  private sendBroadcast(container: DataContainer) {
+  private sendBroadcast(container: DataContainer, lane: SendLane) {
     for (const stream of this.streams) {
-      if (stream.open) stream.send(container);
+      if (stream.open) stream.send(container, lane);
     }
   }
 
@@ -535,7 +539,7 @@ export class SkyWayConnection implements Connection {
     for (const peerId of peerIdsToRelay) {
       const conn = this.streams.find(peerId);
       if (conn && conn.open) {
-        conn.send(container);
+        conn.send(container, 'control');
       }
     }
   }
@@ -576,7 +580,7 @@ export class SkyWayConnection implements Connection {
       users: this.userIds,
       ttl: 1,
     };
-    this.sendBroadcast(container);
+    this.sendBroadcast(container, 'control');
   }
 
   private async makeFriendPeer(userId: string): Promise<PeerContext> {

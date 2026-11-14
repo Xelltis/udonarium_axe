@@ -42,6 +42,7 @@ describe('SkyWayConnection', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
     let connAny: Record<string, any>;
     let sent: { data: Uint8Array; isCompressed?: boolean }[];
+    let lanes: string[];
 
     const compressible = () => new Uint8Array(8 * 1024);
 
@@ -56,8 +57,10 @@ describe('SkyWayConnection', () => {
       connAny = new SkyWayConnection() as any;
       Object.defineProperty(connAny, 'peers', { get: () => [PeerContext.parse('peer-a')], configurable: true });
       sent = [];
-      vi.spyOn(connAny, 'sendBroadcast').mockImplementation((container: unknown) => {
+      lanes = [];
+      vi.spyOn(connAny, 'sendBroadcast').mockImplementation((container: unknown, lane: unknown) => {
         sent.push(container as { data: Uint8Array; isCompressed?: boolean });
+        lanes.push(lane as string);
       });
     });
 
@@ -89,27 +92,125 @@ describe('SkyWayConnection', () => {
       expect((await messagesIn(sent[1])).map((m) => m.eventName)).toEqual(['UPDATE_GAME_OBJECT', 'UPDATE_GAME_OBJECT']);
     });
 
-    it('keeps the order of a batch that mixes pieces of a file with other messages', async () => {
+    it('keeps the order within the pieces of a file and within the rest of a batch that mixes them', async () => {
       const batch: { eventName: string; data: unknown }[] = [
         { eventName: 'START_FILE_TRANSMISSION', data: { taskIdentifier: 'some-image' } },
         { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 0, length: 3, chunk: compressible() } },
         { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 1, length: 3, chunk: compressible() } },
         { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
         { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 2, length: 3, chunk: compressible() } },
+        { eventName: 'DELETE_GAME_OBJECT', data: {} },
       ];
       connAny.send(batch);
       await connAny.outboundQueue;
 
-      const received: { eventName: string; data: { index?: number } }[] = [];
-      for (const container of sent) {
+      const received: Record<string, { eventName: string; data: { index?: number } }[]> = { control: [], bulk: [] };
+      for (const [index, container] of sent.entries()) {
         const messages = await messagesIn(container);
-        if (messages.some((m) => m.eventName.startsWith('FILE_SEND_CHUNK_')))
-          expect(container.isCompressed).toBeFalsy();
-        received.push(...messages);
+        const carriesPieces = messages.some((m) => m.eventName.startsWith('FILE_SEND_CHUNK_'));
+        if (carriesPieces) expect(container.isCompressed).toBeFalsy();
+        expect(lanes[index]).toBe(carriesPieces ? 'bulk' : 'control');
+        received[lanes[index]].push(...messages);
       }
-      expect(received.map((m) => [m.eventName, m.data.index])).toEqual(
-        batch.map((m) => [m.eventName, (m.data as { index?: number }).index])
-      );
+      expect(received['control'].map((m) => m.eventName)).toEqual([
+        'START_FILE_TRANSMISSION',
+        'UPDATE_GAME_OBJECT',
+        'DELETE_GAME_OBJECT',
+      ]);
+      expect(received['bulk'].map((m) => m.data.index)).toEqual([0, 1, 2]);
+    });
+
+    it('hands the start of a transfer to the stream ahead of its first piece', async () => {
+      connAny.send([
+        { eventName: 'START_FILE_TRANSMISSION', data: { taskIdentifier: 'some-image' } },
+        { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 0, length: 1, chunk: compressible() } },
+      ]);
+      await connAny.outboundQueue;
+
+      expect(lanes).toEqual(['control', 'bulk']);
+      expect((await messagesIn(sent[0])).map((m) => m.eventName)).toEqual(['START_FILE_TRANSMISSION']);
+    });
+
+    it('hands a piece of a file sent on its own to the stream as bulk, and any other lone message as control', async () => {
+      connAny.send([{ eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 0, length: 1, chunk: compressible() } }]);
+      connAny.send([{ eventName: 'UPDATE_GAME_OBJECT', data: compressible() }]);
+      connAny.send({ eventName: 'UPDATE_GAME_OBJECT', data: compressible() });
+      await connAny.outboundQueue;
+
+      expect(lanes).toEqual(['bulk', 'control', 'control']);
+      expect(sent.map((container) => !!container.isCompressed)).toEqual([false, false, false]);
+    });
+
+    it('sends a container in the shape it always had, whichever lane it goes by', async () => {
+      connAny.send([
+        { eventName: 'FILE_SEND_CHUNK_some-image', data: { index: 0, length: 1, chunk: compressible() } },
+        { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
+        { eventName: 'UPDATE_GAME_OBJECT', data: compressible() },
+      ]);
+      await connAny.outboundQueue;
+
+      expect(sent.map((container) => Object.keys(container).sort())).toEqual([
+        ['data', 'ttl'],
+        ['data', 'isCompressed', 'ttl'],
+      ]);
+    });
+  });
+
+  describe('the lane a container goes to a stream by', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+    let connAny: Record<string, any>;
+    let streamA: { peer: { peerId: string; userId: string }; open: boolean; send: ReturnType<typeof vi.fn> };
+    let streamB: { peer: { peerId: string; userId: string }; open: boolean; send: ReturnType<typeof vi.fn> };
+
+    const piece = { eventName: 'FILE_SEND_CHUNK_some-sound', data: { index: 0, length: 2, chunk: new Uint8Array(8) } };
+    const update = { eventName: 'UPDATE_GAME_OBJECT', data: {} };
+
+    beforeEach(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
+      connAny = new SkyWayConnection() as any;
+      streamA = { peer: { peerId: 'peer-a', userId: 'user-a' }, open: true, send: vi.fn() };
+      streamB = { peer: { peerId: 'peer-b', userId: 'user-b' }, open: true, send: vi.fn() };
+      connAny.streams.streams.push(streamA, streamB);
+      connAny.streams.refresh();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('is bulk for a run of pieces of a file to one peer and control for the rest', async () => {
+      connAny.send([update, piece, piece, update], 'peer-a');
+      await connAny.outboundQueue;
+
+      expect(streamA.send.mock.calls.map((call) => call[1])).toEqual(['control', 'bulk', 'control']);
+      expect(streamB.send).not.toHaveBeenCalled();
+    });
+
+    it('is control for what goes to everybody', async () => {
+      connAny.send([update, update]);
+      await connAny.outboundQueue;
+
+      expect(streamA.send.mock.calls.map((call) => call[1])).toEqual(['control']);
+      expect(streamB.send.mock.calls.map((call) => call[1])).toEqual(['control']);
+    });
+
+    it('is control for a container passed on from one peer to another', () => {
+      connAny.relayingPeerIds.set('peer-a', ['peer-b']);
+      const container = { data: MessagePack.encode([update]), ttl: 1 };
+
+      connAny.onRelay(streamA, container);
+
+      expect(streamB.send).toHaveBeenCalledExactlyOnceWith(container, 'control');
+      expect(streamA.send).not.toHaveBeenCalled();
+    });
+
+    it('is control for the list of users', () => {
+      connAny.notifyUserList();
+
+      expect(streamA.send).toHaveBeenCalledTimes(1);
+      expect(streamA.send.mock.calls[0][0].users).toBeDefined();
+      expect(streamA.send.mock.calls[0][1]).toBe('control');
+      expect(streamB.send.mock.calls[0][1]).toBe('control');
     });
   });
 
