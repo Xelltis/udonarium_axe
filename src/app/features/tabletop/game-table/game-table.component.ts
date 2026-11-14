@@ -138,6 +138,12 @@ import { FloorPlaneDirective } from '@axe/ui/tabletop/floor-plane.directive';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/** How long after the selection asks, in milliseconds, the view starts gliding to the point asked for. */
+const GLIDE_DELAY_MS = 50;
+
+/** The size the character generator opens at from the table's menu. */
+const CHARACTER_GENERATOR_PANEL = { width: 460, height: 420 };
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'game-table',
@@ -441,7 +447,7 @@ export class GameTableComponent {
         // Brought to the middle of the view as the camera stands, turned and tilted, and no nearer.
         const moved = glideToCentre(view, layout, focus);
         this.gestureService.glideBy(moved.x, moved.y, 0);
-      }, 50);
+      }, GLIDE_DELAY_MS);
     });
   }
 
@@ -818,7 +824,7 @@ export class GameTableComponent {
       },
       {
         openDeckBuilder: () => void this.openDeckBuilder(objectPosition),
-        openCharacterGenerator: () => this.roomPanels.open('characterGenerator', { width: 460, height: 420 }),
+        openCharacterGenerator: () => this.roomPanels.open('characterGenerator', CHARACTER_GENERATOR_PANEL),
         openTableSetting: () => void this.openTableSetting(),
         setViewLocked: (locked) => {
           this.viewLock.set(locked);
@@ -1067,11 +1073,11 @@ export class GameTableComponent {
   private setGameTableGrid(
     width: number,
     height: number,
-    gridSize: number = 50,
-    gridType: GridType = GridType.SQUARE,
-    gridColor: string = '#000000e6',
-    gridFontColor: string = gridColor,
-    squareSpan: number = 1
+    gridSize: number,
+    gridType: GridType,
+    gridColor: string,
+    gridFontColor: string,
+    squareSpan: number
   ) {
     const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
     const boardWidthPx = geo ? geo.pixelW : width * gridSize;

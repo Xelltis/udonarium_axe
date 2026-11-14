@@ -19,6 +19,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
+import { panelOptionAt, type PointerPanelBox } from '@axe/application/ui/sheet-panel';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -36,6 +37,9 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+
+/** The settings panel of a light, opened by the pointer. */
+const SETTINGS_PANEL: PointerPanelBox = { width: 360, height: 420, reachLeft: 200, reachUp: 150 };
 
 @Component({
   selector: 'light-source',
@@ -242,10 +246,7 @@ export class LightSourceComponent {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
       title: this.translateFn('feature.light.settings.title'),
-      left: coordinate.x - 200,
-      top: coordinate.y - 150,
-      width: 360,
-      height: 420,
+      ...panelOptionAt(coordinate, SETTINGS_PANEL),
     };
     this.panelService.openLazy(
       () => import('@axe/features/light-settings/light-settings.component').then((m) => m.LightSettingsComponent),

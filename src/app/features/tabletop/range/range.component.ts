@@ -24,8 +24,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
-import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
+import { panelOptionAt, type PointerPanelBox, sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_RANGE_RENDER, perfCounters } from '@axe/core/util/perf-counters';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
@@ -60,6 +59,9 @@ import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+
+/** The panel for choosing the character a range follows, opened by the pointer. */
+const FOLLOW_PANEL: PointerPanelBox = { width: 350, height: 200, reachLeft: 250, reachUp: 175 };
 
 @Component({
   selector: 'range',
@@ -405,12 +407,9 @@ export class RangeComponent {
   dockingWindowOpen() {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
-      left: coordinate.x - 250,
-      top: coordinate.y - 175,
-      width: 350,
-      height: 200,
+      title: this.translateFn('feature.tabletop.panel.rangeFollow'),
+      ...panelOptionAt(coordinate, FOLLOW_PANEL),
     };
-    option.title = this.translateFn('feature.tabletop.panel.rangeFollow');
     const range = this.range();
     this.panelService.openLazy(
       () =>

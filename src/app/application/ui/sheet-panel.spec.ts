@@ -1,4 +1,4 @@
-import { sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel';
+import { panelOptionAt, sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 
 describe('sheetPanelTitle()', () => {
   it('adds the name to the title when there is one', () => {
@@ -20,5 +20,16 @@ describe('sheetPanelBox()', () => {
     const small = sheetPanelBox({ x: 0, y: 0 }, 400, 380);
     expect(small.left + small.width / 2).toBe(0);
     expect(small.top + small.height / 2).toBe(0);
+  });
+});
+
+describe('panelOptionAt()', () => {
+  it('sets the corner the given reach up and to the left of the pointer', () => {
+    expect(panelOptionAt({ x: 500, y: 400 }, { width: 360, height: 420, reachLeft: 200, reachUp: 150 })).toEqual({
+      left: 300,
+      top: 250,
+      width: 360,
+      height: 420,
+    });
   });
 });

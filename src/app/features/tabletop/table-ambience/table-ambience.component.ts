@@ -9,6 +9,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
+import { panelOptionAt, type PointerPanelBox } from '@axe/application/ui/sheet-panel';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { isInStore } from '@axe/core/sync/object-store';
 import {
@@ -50,6 +51,9 @@ export interface VaporSheetOnScreen {
   readonly sheet: ShownVaporSheet;
   readonly style: Record<string, string>;
 }
+
+/** The settings panel of a ground ambience, opened by the pointer. */
+const SETTINGS_PANEL: PointerPanelBox = { width: 340, height: 380, reachLeft: 180, reachUp: 120 };
 
 @Component({
   selector: 'table-ambience',
@@ -247,10 +251,7 @@ export class TableAmbienceComponent {
     const coordinate = this.pointerDeviceService.pointers[0];
     const option: PanelOption = {
       title: this.t('feature.ambience.settingsTitle'),
-      left: coordinate.x - 180,
-      top: coordinate.y - 120,
-      width: 340,
-      height: 380,
+      ...panelOptionAt(coordinate, SETTINGS_PANEL),
     };
     this.panelService.openLazy(
       () =>
