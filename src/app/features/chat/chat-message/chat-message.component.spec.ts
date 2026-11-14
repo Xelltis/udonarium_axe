@@ -711,11 +711,6 @@ describe('ChatMessageComponent', () => {
       expect(spy).toHaveBeenCalledWith('test-msg-id');
     });
 
-    it('does not throw without a message', () => {
-      fixture.componentRef.setInput('chatMessage', undefined as unknown as ChatMessage);
-      expect(() => component.escapeHtmlAndRuby('テスト')).not.toThrow();
-    });
-
     it('writes the ruby out in full, which lays out in every browser', () => {
       const mockMessage = { identifier: 'ruby-msg-id' } as ChatMessage;
       fixture.componentRef.setInput('chatMessage', mockMessage);
@@ -1412,6 +1407,53 @@ describe('ChatMessageComponent', () => {
     afterEach(() => {
       for (const tab of tabs.splice(0)) tab.destroy();
       (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+    });
+
+    describe('following the line with nobody asking it to look again', () => {
+      const root = () => fixture.nativeElement as HTMLElement;
+      const changed = (identifier: string) => TestBed.inject(ObjectChangeService).notifyChanged(identifier);
+
+      it('draws the words and the name again once the line changes', async () => {
+        const message = spoken(makeTab('メイン'));
+        await fixture.whenStable();
+
+        message.text = 'おはよう';
+        message.name = 'ボブ';
+        changed(message.identifier);
+        await fixture.whenStable();
+
+        expect(root().querySelector('[data-chat-search-text]')!.textContent).toBe('おはよう');
+        expect(root().querySelector('.msg-name')!.textContent).toBe('ボブ');
+      });
+
+      it('takes the copy button off the toolbar once the line has no words left to copy', async () => {
+        const layouts = TestBed.inject(MenuLayoutService);
+        layouts.save('chatTools', { nodes: [{ id: 'c', command: 'chat:copyText' }] });
+        try {
+          const message = spoken(makeTab('メイン'));
+          await fixture.whenStable();
+          const copy = () => root().querySelector('[data-testid="chat-message-action-copy"]');
+          expect(copy()).not.toBeNull();
+
+          message.text = '';
+          changed(message.identifier);
+          await fixture.whenStable();
+
+          expect(copy()).toBeNull();
+        } finally {
+          layouts.reset('chatTools');
+        }
+      });
+
+      it('hands the toolbar the same buttons from one drawing to the next while nothing changes', async () => {
+        spoken(makeTab('メイン'));
+        await fixture.whenStable();
+        const tools = (component as unknown as { toolbarTools(): unknown }).toolbarTools();
+
+        fixture.detectChanges();
+
+        expect((component as unknown as { toolbarTools(): unknown }).toolbarTools()).toBe(tools);
+      });
     });
 
     it('offers the tabs the reader may speak in, and not the one the line is already in', () => {

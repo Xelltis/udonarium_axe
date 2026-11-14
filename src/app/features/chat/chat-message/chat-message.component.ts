@@ -5,7 +5,6 @@ import {
   Component,
   computed,
   DestroyRef,
-  effect,
   ElementRef,
   inject,
   Injector,
@@ -119,7 +118,7 @@ interface ChatToolButton {
   templateUrl: './chat-message.component.html',
   host: {
     class: 'block',
-    '[attr.data-message-id]': 'chatMessage?.identifier',
+    '[attr.data-message-id]': 'chatMessage.identifier',
     '[class.chat-message-highlight]': 'isHighlighted()',
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -185,7 +184,8 @@ export class ChatMessageComponent {
     return this.rolePermission.canSeeHidden();
   }
 
-  protected readonly chatMessageInput = input<ChatMessage>(null!, { alias: 'chatMessage' });
+  /** The line this row draws. */
+  protected readonly chatMessageInput = input.required<ChatMessage>({ alias: 'chatMessage' });
 
   /**
    * Whether the line is only to be read.
@@ -207,7 +207,7 @@ export class ChatMessageComponent {
 
   /** What the reader may do with the line, as {@link chatLineAbilities} works it out. */
   private get abilities(): ChatLineAbilities {
-    return chatLineAbilities({ message: this.chatMessage ?? null, readOnly: this.readOnly() }, this.may);
+    return chatLineAbilities({ message: this.chatMessage, readOnly: this.readOnly() }, this.may);
   }
 
   /** Whether the pencil is offered on this line. */
@@ -222,7 +222,6 @@ export class ChatMessageComponent {
    */
   protected readonly sentStamp = computed(() => {
     const message = this.chatMessageInput();
-    if (!message) return null;
     this.objectChange.versionOf(message.identifier)();
     const stampId = message.sentStamp;
     const ref = stampOf(stampId);
@@ -235,7 +234,7 @@ export class ChatMessageComponent {
 
   /** The pictures attached to the line, less those drawn as its stamps, under it or inside it. */
   protected readonly shownAttachments = computed(() => {
-    const stamps = [this.sentStamp(), ...inlineStampSites(this.chatMessageInput()?.text ?? '').map((site) => site.id)];
+    const stamps = [this.sentStamp(), ...inlineStampSites(this.chatMessageInput().text ?? '').map((site) => site.id)];
     const drawn = new Set<string>();
     for (const stampId of stamps) {
       const ref = stampOf(stampId);
@@ -263,12 +262,12 @@ export class ChatMessageComponent {
    */
   get showsServerRoll(): boolean {
     const message = this.chatMessage;
-    return !!message?.isServerRoll && message.isDicebot && Network.transport === 'server';
+    return !!message.isServerRoll && message.isDicebot && Network.transport === 'server';
   }
 
   /** Whether the line was posted by the app itself, whose name and text are translation keys to decode. */
   get isSystemMessage(): boolean {
-    return !!this.chatMessage?.isSystemMessage;
+    return !!this.chatMessage.isSystemMessage;
   }
 
   readonly simpleDispFlagTime = input(false);
@@ -290,14 +289,12 @@ export class ChatMessageComponent {
    */
   readonly isSecret = computed(() => {
     const chatMessage = this.chatMessageInput();
-    if (!chatMessage) return false;
     this.objectChange.versionOf(chatMessage.identifier)();
     return chatMessage.isSecret;
   });
 
   readonly isDirect = computed(() => {
     const chatMessage = this.chatMessageInput();
-    if (!chatMessage) return false;
     this.objectChange.versionOf(chatMessage.identifier)();
     return chatMessage.isDirect;
   });
@@ -308,7 +305,6 @@ export class ChatMessageComponent {
    */
   readonly bookmarks = computed<Record<ChatBookmarkKind, { name: string } | null>>(() => {
     const chatMessage = this.chatMessageInput();
-    if (!chatMessage) return { shared: null, personal: null };
     this.objectChange.versionOf(chatMessage.identifier)();
     const markOf = (kind: ChatBookmarkKind) =>
       this.chatBookmarks.isBookmarked(chatMessage, kind)
@@ -320,7 +316,6 @@ export class ChatMessageComponent {
   /** Every wording the line has had, oldest first, or none where no earlier wording was kept. */
   readonly versions = computed(() => {
     const chatMessage = this.chatMessageInput();
-    if (!chatMessage) return [];
     this.objectChange.versionOf(chatMessage.identifier)();
     this.objectChange.trackMyCursor();
     // Words kept from this reader, as a secret roll's are, are kept from them in every wording.
@@ -344,14 +339,12 @@ export class ChatMessageComponent {
 
   readonly isEdited = computed(() => {
     const chatMessage = this.chatMessageInput();
-    if (!chatMessage) return false;
     this.objectChange.versionOf(chatMessage.identifier)();
     return chatMessage.fixd;
   });
 
   readonly systemAvatarImage = computed<{ kind: SystemAvatarKind; url: string; isSpeaker: boolean } | null>(() => {
     const chatMessage = this.chatMessageInput();
-    if (!chatMessage) return null;
     const isSystem = chatMessage.isSystemMessage;
     if (!isSystem && !(chatMessage.isDicebot && !this.imageFile().url)) return null;
     const kind: SystemAvatarKind = isSystem ? 'system' : 'dice';
@@ -368,7 +361,6 @@ export class ChatMessageComponent {
 
   private readonly speakerImageUrl = computed<string>(() => {
     const chatMessage = this.chatMessageInput();
-    if (!chatMessage) return '';
     const character = this.rollSourceImageUrl();
     if (character.length > 0) return character;
     const own = this.imageFile().url;
@@ -390,7 +382,7 @@ export class ChatMessageComponent {
    */
   private rollSourceImageUrl(): string {
     const chatMessage = this.chatMessageInput();
-    if (!chatMessage?.isDicebot) return '';
+    if (!chatMessage.isDicebot) return '';
     this.objectChange.fileVersion();
     const chatTab = this.objectStore.get<ChatTab>(chatMessage.tabIdentifier);
     if (!chatTab) return '';
@@ -423,7 +415,7 @@ export class ChatMessageComponent {
    */
   protected onMessageContextMenu(event: MouseEvent): void {
     const message = this.chatMessage;
-    if (!message || this.readOnly() || this.isEditing()) return;
+    if (this.readOnly() || this.isEditing()) return;
     if (this.isSelectingText()) return;
     if (this.keepsBrowserMenu(event.target)) return;
     const picked = this.wordsPickedOutIn(this.hostElement.nativeElement);
@@ -527,7 +519,7 @@ export class ChatMessageComponent {
    */
   readonly isPinnedTargetNumber = computed(() => {
     const message = this.chatMessageInput();
-    if (!message || !canPinAsTargetNumber(message)) return false;
+    if (!canPinAsTargetNumber(message)) return false;
     const tab = this.objectStore.get<ChatTab>(message.tabIdentifier);
     if (!tab) return false;
     this.objectChange.versionOf(tab.identifier)();
@@ -550,18 +542,34 @@ export class ChatMessageComponent {
    * Deleting may stand there beside editing, both being what the speaker does to their own line;
    * it asks before it deletes, so having it at hand does not make it easy to do by mistake.
    */
-  protected toolbarTools(): ChatToolButton[] | null {
-    const message = this.chatMessage;
-    if (!message || this.readOnly() || this.isEditing()) return null;
+  protected readonly toolbarTools = computed<ChatToolButton[] | null>(() => {
+    const message = this.chatMessageInput();
+    this.followToolbarSources(message);
+    if (this.readOnly() || this.isEditing()) return null;
     const tools: ChatToolButton[] = [];
     for (const { node, tool, icon } of this.chatToolEntries()) {
       const button = this.chatToolButton(tool);
       if (button) tools.push({ ...button, id: node.id, icon, title: node.label ?? button.title });
     }
-    // Asked of every drawn line on every pass, so it is told from these few answers rather than by
-    // building the menu: the menu holds at least the words of any line whose words are shown.
+    // The menu holds at least the words of any line whose words are shown, so the toolbar is told
+    // from these few answers rather than by building the menu.
     const words = !isChatTextHidden(message, this.canRevealSecret) && (message.text ?? '').trim().length > 0;
     return tools.length > 0 || words ? tools : null;
+  });
+
+  /**
+   * Follows what the buttons over the line are worked out from and no signal of their own tells:
+   * the line and the tab it is in, the reader's role, whether a room server is in the way, and the
+   * language their names are in.
+   */
+  private followToolbarSources(message: ChatMessage): void {
+    this.objectChange.versionOf(message.identifier)();
+    const tab = message.parent;
+    if (tab instanceof ChatTab) this.objectChange.versionOf(tab.identifier)();
+    this.objectChange.trackMyCursor();
+    this.objectChange.networkVersion();
+    this.language.currentLang();
+    this.bookmarks();
   }
 
   /** A chat tool as a button over this line, or null where the reader may not do that with the line. */
@@ -790,29 +798,22 @@ export class ChatMessageComponent {
 
   readonly imageFile = computed(() => {
     const chatMessage = this.chatMessageInput();
-    if (!chatMessage) return ImageFile.Empty;
     this.objectChange.versionOf(chatMessage.identifier)();
     this.objectChange.fileVersion();
     return chatMessage.image ?? ImageFile.Empty;
   });
   readonly attachmentImageFiles = computed(() => {
     const chatMessage = this.chatMessageInput();
-    if (!chatMessage) return [];
     this.objectChange.versionOf(chatMessage.identifier)();
     this.objectChange.fileVersion();
     return chatMessage.attachmentImageIdentifierList
       .map((identifier) => this.imageStorage.get(identifier))
       .filter((image): image is ImageFile => image != null);
   });
-  readonly animeState = signal<string>('inactive');
-
-  constructor() {
-    effect(() => {
-      const chatMessage = this.chatMessageInput();
-      const time = this.clock.now();
-      if (time - 10 * 1000 < chatMessage.timestamp) this.animeState.set('active');
-    });
-  }
+  /** Whether the line slides in as one just said, or fades in as one already there: said within the last ten seconds. */
+  readonly animeState = computed<'active' | 'inactive'>(() =>
+    this.clock.now() - 10 * 1000 < this.chatMessageInput().timestamp ? 'active' : 'inactive'
+  );
 
   /** The room's list of chat tabs, which the tabs a line can be copied into are chosen from. */
   get chatTabList(): ChatTabList {
@@ -882,7 +883,6 @@ export class ChatMessageComponent {
   readonly emoteBadges = computed<string[]>(() => {
     if (!this.chatPrefs.showVnEmoteBadge()) return [];
     const message = this.chatMessageInput();
-    if (!message) return [];
     this.language.currentLang();
     this.objectChange.versionOf(message.identifier)();
     return vnEmoteLabels(vnEmoteOf(message.vnEmote, message.text ?? ''), this.t);
@@ -890,7 +890,7 @@ export class ChatMessageComponent {
 
   readonly replyPreview = computed<{ name: string; text: string } | null>(() => {
     const msg = this.chatMessageInput();
-    if (!msg || !msg.replyTo) return null;
+    if (!msg.replyTo) return null;
     this.objectChange.versionOf(msg.identifier)();
     this.objectChange.versionOf(msg.replyTo)();
     const target = msg.replyToMessage;
@@ -910,7 +910,7 @@ export class ChatMessageComponent {
 
   readonly quotePreview = computed<{ name: string; text: string } | null>(() => {
     const msg = this.chatMessageInput();
-    if (!msg || !msg.quoteOf) return null;
+    if (!msg.quoteOf) return null;
     this.objectChange.versionOf(msg.identifier)();
     this.objectChange.versionOf(msg.quoteOf)();
     const target = this.objectStore.get<ChatMessage>(msg.quoteOf);
@@ -968,7 +968,6 @@ export class ChatMessageComponent {
   private readonly reactionTallies = computed<readonly ReactionTally[]>(
     () => {
       const message = this.chatMessageInput();
-      if (!message) return [];
       this.objectChange.versionOf(message.identifier)();
       if (!message.isShownInChat) return [];
       return this.reactions.talliesOf(message.identifier);
@@ -1027,7 +1026,6 @@ export class ChatMessageComponent {
     if (!this.tabletopService.mode2d()) return false;
     if (!this.tabletopDisplay.settings().multiAngleTickerEnabled) return false;
     const message = this.chatMessageInput();
-    if (!message) return false;
     this.objectChange.versionOf(message.identifier)();
     return formatChatTickerMessage(message) != null;
   });
@@ -1055,7 +1053,7 @@ export class ChatMessageComponent {
   canBookmark(kind: ChatBookmarkKind): boolean {
     if (this.readOnly()) return false;
     const message = this.chatMessage;
-    return !!message && this.chatBookmarks.canBookmark(message, kind);
+    return this.chatBookmarks.canBookmark(message, kind);
   }
 
   /** Whether the bookmark button is offered: the reader may mark the line with one kind or the other. */
@@ -1128,14 +1126,14 @@ export class ChatMessageComponent {
 
   /** Scrolls the log to the line this one replies to and flashes it, from the reply preview. */
   jumpToReplyTarget() {
-    const target = this.chatMessage?.replyTo;
+    const target = this.chatMessage.replyTo;
     if (!target) return;
     this.uiSignalService.requestChatJump(target);
   }
 
   /** Scrolls the log to the line this one quotes and flashes it, from the quote preview. */
   jumpToQuoteTarget() {
-    const target = this.chatMessage?.quoteOf;
+    const target = this.chatMessage.quoteOf;
     if (!target) return;
     this.uiSignalService.requestChatJump(target);
   }
@@ -1158,7 +1156,7 @@ export class ChatMessageComponent {
     this.objectChange.collectionOf(ChatTab.aliasName)();
     this.objectChange.trackMyCursor();
     const role = PeerCursor.myRole;
-    const here = this.chatMessage?.tabIdentifier ?? '';
+    const here = this.chatMessage.tabIdentifier ?? '';
     return this.chatTabList.chatTabs.filter((tab) => tab.identifier !== here && canRoleSpeakTab(tab, role));
   }
 
@@ -1171,7 +1169,7 @@ export class ChatMessageComponent {
    */
   get canCopyToTab(): boolean {
     const message = this.chatMessage;
-    if (!message || message.isDirect || message.isSecret) return false;
+    if (message.isDirect || message.isSecret) return false;
     return this.canInteract && this.copyTargets().length > 0;
   }
 
@@ -1183,7 +1181,6 @@ export class ChatMessageComponent {
   copyToTab(tab: ChatTab): void {
     if (!this.canCopyToTab) return;
     const message = this.chatMessage;
-    if (!message) return;
     if (!canRoleSpeakTab(tab, PeerCursor.myRole)) return;
     this.chatMessageService.copyMessageToTab(message, tab);
     SoundEffect.play(PresetSound.cardPut);
@@ -1193,7 +1190,6 @@ export class ChatMessageComponent {
   clickShareAsMemo() {
     if (!this.canShareAsMemo) return;
     const msg = this.chatMessage;
-    if (!msg) return;
     if (this.tabletopActions.layChatLineAsNote(msg.name ?? '', msg.text ?? '')) SoundEffect.play(PresetSound.cardPut);
   }
 
@@ -1222,6 +1218,13 @@ export class ChatMessageComponent {
     this.isHighlighted.show(true);
   }
 
+  /** The name the line is said under, as shown beside it. */
+  protected readonly shownName = computed(() => {
+    const message = this.chatMessageInput();
+    this.objectChange.versionOf(message.identifier)();
+    return this.displayName(message.name);
+  });
+
   /** The speaker's name as shown, translated for a system line and redrawn when the language changes. */
   displayName(name: string): string {
     this.language.currentLang();
@@ -1237,6 +1240,7 @@ export class ChatMessageComponent {
   private withHiddenNameTold(name: string): string {
     if (!name.includes(SAID_HIDDEN_NAME) || !this.rolePermission.canSeeHidden()) return name;
     const speaker = this.speakerPiece();
+    if (speaker) this.objectChange.versionOf(speaker.identifier)();
     if (!speaker || speaker.name.length < 1 || speaker.name.includes(SAID_HIDDEN_NAME)) return name;
     return name.replace(SAID_HIDDEN_NAME, `${SAID_HIDDEN_NAME}（${speaker.name}）`);
   }
@@ -1244,7 +1248,6 @@ export class ChatMessageComponent {
   /** The piece a line was said as, or for a dice bot's answer the piece its line was said as. */
   private speakerPiece(): GameCharacter | null {
     const message = this.chatMessage;
-    if (!message) return null;
     const said =
       message.isDicebot && message.parent instanceof ChatTab ? message.parent.findRollSource(message) : message;
     const speaker = this.objectStore.get(`${said?.sendFrom ?? ''}`);
@@ -1258,7 +1261,7 @@ export class ChatMessageComponent {
    */
   protected rolledAtTold(): string {
     const message = this.chatMessage;
-    if (!message?.isDicebot || !this.rolePermission.canSeeHidden()) return '';
+    if (!message.isDicebot || !this.rolePermission.canSeeHidden()) return '';
     const said = /\s\[([^[\]]*)\]$/.exec(`${message.text ?? ''}`.trimEnd())?.[1];
     if (said === undefined || !said.includes(SAID_HIDDEN_NAME)) return '';
     const rolledAt = `${message.rolledAt ?? ''}`;
@@ -1294,6 +1297,16 @@ export class ChatMessageComponent {
   }
 
   /**
+   * What the line says as HTML: what was said with its stamp where it was sent with one, else its
+   * words. Worked out again only as the line, the language or the pictures of its stamps change.
+   */
+  protected readonly bodyHtml = computed(() => {
+    const message = this.chatMessageInput();
+    this.objectChange.versionOf(message.identifier)();
+    return this.escapeHtmlAndRuby(this.sentStamp() ? message.saidWithStamp : message.text);
+  });
+
+  /**
    * The line's body as HTML, with markup escaped and ruby and the chat's text decorations applied.
    *
    * Any novel-mode staging suffix is left out, a system line is translated first, and the result is
@@ -1301,9 +1314,9 @@ export class ChatMessageComponent {
    */
   escapeHtmlAndRuby(text: string) {
     this.language.currentLang();
-    this.objectChange.versionOf(this.chatMessage?.identifier)();
+    this.objectChange.versionOf(this.chatMessage.identifier)();
     const decoded = decodeI18nMessage(text, this.t);
-    const body = vnBodyOf(this.chatMessage?.vnEmote, decoded);
+    const body = vnBodyOf(this.chatMessage.vnEmote, decoded);
     return decorateChatStyleText(body, this.stampsIn(body));
   }
 
