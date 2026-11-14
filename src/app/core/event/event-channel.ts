@@ -41,6 +41,22 @@ export class EventChannel<T = void> implements ReadableChannel<T> {
     }
   }
 
+  /**
+   * Calls every listener like emit, except that one which throws does not keep the event from the
+   * listeners after it: what it threw is handed to onError, and the rest are called in order.
+   */
+  emitEach(event: T, onError: (error: unknown) => void): void {
+    const snapshot = this.snapshot;
+    for (const listener of snapshot) {
+      if (!this._listeners.has(listener)) continue;
+      try {
+        listener(event);
+      } catch (error) {
+        onError(error);
+      }
+    }
+  }
+
   /** How many listeners are subscribed right now. */
   get listenerCount(): number {
     return this._listeners.size;

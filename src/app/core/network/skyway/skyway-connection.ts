@@ -413,7 +413,8 @@ export class SkyWayConnection implements Connection {
   /**
    * Hands what has arrived to the callback, in the order it came, as much as fits in a task.
    *
-   * A message that cannot be read is logged and dropped; the ones behind it still go through.
+   * A message that cannot be read is logged and dropped whole; the ones behind it still go through.
+   * One that was read is handed over whatever its handling throws, which is logged apart from that.
    */
   private async drainInbound(): Promise<void> {
     this.inboundDraining = true;
@@ -426,11 +427,18 @@ export class SkyWayConnection implements Connection {
           const { peer, container, byteLength } = this.inbound.shift()!;
           this.bandwidthUsage -= byteLength;
           if (!this.callback.onData) continue;
+          let events: unknown[];
           try {
             const data = container.isCompressed ? await decompressAsync(container.data) : container.data;
-            this.callback.onData(peer, MessagePack.decode(data) as unknown[]);
+            events = MessagePack.decode(data) as unknown[];
           } catch (e) {
             Logger.error('[SkyWay] 受信データを読めなかったため破棄しました', e);
+            continue;
+          }
+          try {
+            this.callback.onData?.(peer, events);
+          } catch (e) {
+            Logger.error('[SkyWay] 受信データの処理中に例外が出ました', e);
           }
         }
       }

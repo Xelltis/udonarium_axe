@@ -160,6 +160,20 @@ describe('SkyWayConnection', () => {
 
       await vi.waitFor(() => expect(received).toEqual([[7]]));
     });
+
+    it('carries on with the messages behind one whose handling throws', async () => {
+      const logged = vi.spyOn(Logger, 'error').mockImplementation(() => {});
+      connAny.callback.onData = (_peer: unknown, data: unknown[]) => {
+        if (data[0] === 3) throw new Error('broken handler');
+        received.push(data);
+      };
+      connAny.onData(stream, numberMessage(3));
+      connAny.onData(stream, numberMessage(7));
+
+      await vi.waitFor(() => expect(received).toEqual([[7]]));
+      expect(logged).toHaveBeenCalledTimes(1);
+      expect(logged.mock.calls[0][0]).not.toContain('読めなかった');
+    });
   });
 
   describe('leaveImmediately', () => {

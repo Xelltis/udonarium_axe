@@ -119,6 +119,9 @@ export const LOCAL_ONLY_EVENTS: ReadonlySet<string> = new Set([
  * An event this device only tells itself is dropped from anybody. With `own` set the events are
  * this device's own, handed back to it as they went out, and are its own though its peer has come
  * to be called otherwise since they were sent, as when its connection opens or gives up.
+ *
+ * A listener that throws on an event is logged with the event's name. The other listeners still
+ * hear that event, and the events after it are delivered in order.
  */
 export function receiveEvents(events: EventContext[], own = false): void {
   for (const ctx of events) {
@@ -133,12 +136,15 @@ export function receiveEvents(events: EventContext[], own = false): void {
       Logger.warn('[NetworkMessaging]', `${ctx.eventName} from <${ctx.sendFrom}>, not the room server, dropped`);
       continue;
     }
-    networkMessage$.emit({
-      eventName: ctx.eventName,
-      data: ctx.data,
-      sendFrom: ctx.sendFrom,
-      isSendFromSelf: own || ctx.sendFrom === Network.peerId,
-    });
+    networkMessage$.emitEach(
+      {
+        eventName: ctx.eventName,
+        data: ctx.data,
+        sendFrom: ctx.sendFrom,
+        isSendFromSelf: own || ctx.sendFrom === Network.peerId,
+      },
+      (error) => Logger.error(`[NetworkMessaging] ${ctx.eventName} from <${ctx.sendFrom}> threw in a listener`, error)
+    );
   }
   scheduleAngularTick();
 }

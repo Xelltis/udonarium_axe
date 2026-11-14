@@ -101,6 +101,34 @@ describe('EventChannel', () => {
   });
 });
 
+describe('EventChannel.emitEach', () => {
+  it('still calls the listeners after one that throws, and hands over what it threw', () => {
+    const ch = new EventChannel<string>();
+    const calls: string[] = [];
+    const failure = new Error('broken listener');
+    ch.subscribe((v) => calls.push('first:' + v));
+    ch.subscribe(() => {
+      throw failure;
+    });
+    ch.subscribe((v) => calls.push('third:' + v));
+    const errors: unknown[] = [];
+
+    ch.emitEach('A', (error) => errors.push(error));
+
+    expect(calls).toEqual(['first:A', 'third:A']);
+    expect(errors).toEqual([failure]);
+  });
+
+  it('leaves emit letting a throw through', () => {
+    const ch = new EventChannel<string>();
+    ch.subscribe(() => {
+      throw new Error('broken listener');
+    });
+
+    expect(() => ch.emit('A')).toThrow('broken listener');
+  });
+});
+
 describe('StickyEventChannel', () => {
   it('hands the last value to a listener that subscribes afterwards', () => {
     const ch = new StickyEventChannel<number>();
