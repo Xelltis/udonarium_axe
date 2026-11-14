@@ -680,6 +680,12 @@ export class BattleCutInOverlayComponent {
       onCleanup(observeSize(root, (size) => this.viewport.set(size)));
     });
 
+    effect(() => {
+      for (const view of this.views()) {
+        if (view.mirrored && view.imageUrl.length > 0) untracked(() => this.mirrors.of(view.imageUrl));
+      }
+    });
+
     effect((onCleanup) => {
       if (this.serial() === 0) return;
       const timeline = untracked(this.timeline);
@@ -856,7 +862,6 @@ export class BattleCutInOverlayComponent {
     const image = fighter.image.length > 0 ? this.images.get(fighter.image) : null;
     const imageUrl = image?.url ?? '';
     const mirrored = fighter.facing === side;
-    if (mirrored && imageUrl.length > 0) this.mirrors.of(imageUrl);
     return {
       key: `${striking ? 'a' : 'd'}-${fighter.identifier}`,
       fighter,

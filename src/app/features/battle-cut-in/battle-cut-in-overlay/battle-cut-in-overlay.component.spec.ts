@@ -19,6 +19,7 @@ import {
   plateGaugeAt,
 } from '@axe/features/battle-cut-in/battle-cut-in-overlay/battle-cut-in-overlay.component';
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
+import { MirroredPictureService } from '@axe/features/battle-cut-in/mirrored-picture.service';
 import type { EffectOverlay } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -197,6 +198,42 @@ describe('BattleCutInOverlayComponent', () => {
 
       expect(root.querySelector('img[alt="勇者"]')?.classList.contains('-scale-x-100')).toBe(true);
       expect(root.querySelector('img[alt="ゴブリン"]')?.classList.contains('-scale-x-100')).toBe(false);
+    } finally {
+      ImageStorage.instance.delete('facing-hero');
+      ImageStorage.instance.delete('facing-goblin');
+    }
+  });
+
+  it('asks for the turned picture of a fighter drawn turned, without the fighters being worked out again as it is made', () => {
+    for (const identifier of ['facing-hero', 'facing-goblin']) {
+      ImageStorage.instance.add({
+        identifier,
+        name: `${identifier}.webp`,
+        type: 'image/webp',
+        blob: new Blob(['picture'], { type: 'image/webp' }),
+        url: `blob:${identifier}`,
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+    }
+    const made = signal(0);
+    const asked = vi.spyOn(TestBed.inject(MirroredPictureService), 'of').mockImplementation(() => {
+      made();
+      return '';
+    });
+    try {
+      const played = scene();
+      play({
+        ...played,
+        attacker: { ...played.attacker, image: 'facing-hero', facing: 'left' },
+        defenders: [{ ...played.defenders[0], image: 'facing-goblin', facing: 'left' }],
+      });
+      const views = fixture.componentInstance.views();
+
+      expect(asked.mock.calls.map(([url]) => url)).toEqual(['blob:facing-hero']);
+
+      made.set(1);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.views()).toBe(views);
     } finally {
       ImageStorage.instance.delete('facing-hero');
       ImageStorage.instance.delete('facing-goblin');
