@@ -15,7 +15,6 @@ import {
   resizeHandleAt,
   ROTATE_HANDLE_REACH_PX,
   rotateGripAt,
-  sceneToStage,
   stageDeltaToScene,
   stageFit,
   stageToScene,
@@ -51,17 +50,15 @@ describe('stageFit()', () => {
   });
 });
 
-describe('stageToScene() and sceneToStage()', () => {
+describe('stageToScene()', () => {
   const fit = stageFit({ width: 1000, height: 500 }, { width: 500, height: 500 });
 
-  it('undo one another', () => {
-    const { px, py } = sceneToStage(300, 120, fit);
-
-    expect(stageToScene(px, py, fit)).toEqual({ x: 300, y: 120 });
+  it('reads a point of the screen at the scale the scene is drawn at', () => {
+    expect(stageToScene(150, 185, fit)).toEqual({ x: 300, y: 120 });
   });
 
   it('puts the scene origin where the letterbox starts', () => {
-    expect(sceneToStage(0, 0, fit)).toEqual({ px: 0, py: 125 });
+    expect(stageToScene(0, 125, fit)).toEqual({ x: 0, y: 0 });
   });
 
   it('carries a drag across at the same scale', () => {

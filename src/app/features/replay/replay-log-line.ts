@@ -117,13 +117,6 @@ const ICONS: Record<string, string> = {
   [ReplayEventKind.Marker]: 'bookmark',
 };
 
-/** The wall-clock time of an event as `HH:MM:SS` in the viewer's time zone. */
-export function formatReplayTime(at: number): string {
-  const date = new Date(at);
-  const pad = (value: number): string => String(value).padStart(2, '0');
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
-
 export { replayScriptElapsed as formatReplayElapsed } from '@axe/domain/replay/replay-script';
 
 /**

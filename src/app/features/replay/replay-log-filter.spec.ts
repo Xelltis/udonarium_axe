@@ -3,7 +3,8 @@ import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domai
 import {
   collectReplayActorIds,
   DEFAULT_REPLAY_LOG_FILTER,
-  filterReplayEvents,
+  matchesReplayLogFilter,
+  type ReplayLogFilter,
   ReplayLogScope,
 } from '@axe/features/replay/replay-log-filter';
 
@@ -31,9 +32,18 @@ const events: ReplayEvent[] = [
   event(5, ReplayEventKind.ChatMessage, { visibility: { kind: 'gm-only' } }),
 ];
 
-describe('filterReplayEvents()', () => {
+/** The events the log lists under a filter, in their order. */
+function listed(
+  from: readonly ReplayEvent[],
+  filter: ReplayLogFilter,
+  reader: Parameters<typeof matchesReplayLogFilter>[2]
+): ReplayEvent[] {
+  return from.filter((each) => matchesReplayLogFilter(each, filter, reader));
+}
+
+describe('matchesReplayLogFilter()', () => {
   it('never lists the parts that arrive with a piece, nor the cue of a change of value', () => {
-    const filtered = filterReplayEvents(
+    const filtered = listed(
       [
         event(1, ReplayEventKind.ObjectCreate, { targetId: 'hero' }),
         event(2, ReplayEventKind.ObjectCreate, { targetId: 'hero-hp', detail: { part: true } }),
@@ -52,46 +62,46 @@ describe('filterReplayEvents()', () => {
       event(3, ReplayEventKind.ChatMessage),
     ];
 
-    expect(filterReplayEvents(running, DEFAULT_REPLAY_LOG_FILTER, viewer).map((e) => e.seq)).toEqual([3]);
-    expect(
-      filterReplayEvents(running, { ...DEFAULT_REPLAY_LOG_FILTER, showSystem: true }, viewer).map((e) => e.seq)
-    ).toEqual([1, 2, 3]);
+    expect(listed(running, DEFAULT_REPLAY_LOG_FILTER, viewer).map((e) => e.seq)).toEqual([3]);
+    expect(listed(running, { ...DEFAULT_REPLAY_LOG_FILTER, showSystem: true }, viewer).map((e) => e.seq)).toEqual([
+      1, 2, 3,
+    ]);
   });
 
   it('returns everything that can be seen', () => {
-    const filtered = filterReplayEvents(events, DEFAULT_REPLAY_LOG_FILTER, viewer);
+    const filtered = listed(events, DEFAULT_REPLAY_LOG_FILTER, viewer);
     expect(filtered.map((e) => e.seq)).toEqual([1, 2, 3, 4]);
   });
 
   it('returns the hidden events to the game master', () => {
-    const filtered = filterReplayEvents(events, DEFAULT_REPLAY_LOG_FILTER, gm);
+    const filtered = listed(events, DEFAULT_REPLAY_LOG_FILTER, gm);
     expect(filtered.map((e) => e.seq)).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('narrows to the chat', () => {
-    const filtered = filterReplayEvents(events, { ...DEFAULT_REPLAY_LOG_FILTER, scope: ReplayLogScope.Chat }, viewer);
+    const filtered = listed(events, { ...DEFAULT_REPLAY_LOG_FILTER, scope: ReplayLogScope.Chat }, viewer);
     expect(filtered.map((e) => e.seq)).toEqual([1, 3, 4]);
   });
 
   it('narrows to the board', () => {
-    const filtered = filterReplayEvents(events, { ...DEFAULT_REPLAY_LOG_FILTER, scope: ReplayLogScope.Board }, viewer);
+    const filtered = listed(events, { ...DEFAULT_REPLAY_LOG_FILTER, scope: ReplayLogScope.Board }, viewer);
     expect(filtered.map((e) => e.seq)).toEqual([2, 4]);
   });
 
   it('keeps the markers through any of them', () => {
     for (const scope of [ReplayLogScope.All, ReplayLogScope.Chat, ReplayLogScope.Board]) {
-      const filtered = filterReplayEvents(events, { ...DEFAULT_REPLAY_LOG_FILTER, scope }, viewer);
+      const filtered = listed(events, { ...DEFAULT_REPLAY_LOG_FILTER, scope }, viewer);
       expect(filtered.some((e) => e.kind === ReplayEventKind.Marker)).toBe(true);
     }
   });
 
   it('narrows by person', () => {
-    const filtered = filterReplayEvents(events, { ...DEFAULT_REPLAY_LOG_FILTER, actorId: 'bob' }, viewer);
+    const filtered = listed(events, { ...DEFAULT_REPLAY_LOG_FILTER, actorId: 'bob' }, viewer);
     expect(filtered.map((e) => e.seq)).toEqual([3]);
   });
 
   it('hides what is hidden', () => {
-    const filtered = filterReplayEvents(events, { ...DEFAULT_REPLAY_LOG_FILTER, hideSecret: true }, gm);
+    const filtered = listed(events, { ...DEFAULT_REPLAY_LOG_FILTER, hideSecret: true }, gm);
     expect(filtered.map((e) => e.seq)).toEqual([1, 2, 3, 4]);
   });
 });
@@ -114,16 +124,16 @@ describe('the sounds that go with it', () => {
   ];
 
   it('gives them no line of their own', () => {
-    expect(filterReplayEvents(withSe, DEFAULT_REPLAY_LOG_FILTER, viewer).map((e) => e.seq)).toEqual([1, 2]);
+    expect(listed(withSe, DEFAULT_REPLAY_LOG_FILTER, viewer).map((e) => e.seq)).toEqual([1, 2]);
   });
 
   it('gives them none even narrowed to the board', () => {
     const filter = { ...DEFAULT_REPLAY_LOG_FILTER, scope: ReplayLogScope.Board };
-    expect(filterReplayEvents(withSe, filter, viewer).map((e) => e.seq)).toEqual([2]);
+    expect(listed(withSe, filter, viewer).map((e) => e.seq)).toEqual([2]);
   });
 
   it('gives them one when they are asked for', () => {
     const filter = { ...DEFAULT_REPLAY_LOG_FILTER, showIncidental: true };
-    expect(filterReplayEvents(withSe, filter, viewer).map((e) => e.seq)).toEqual([1, 2, 3]);
+    expect(listed(withSe, filter, viewer).map((e) => e.seq)).toEqual([1, 2, 3]);
   });
 });

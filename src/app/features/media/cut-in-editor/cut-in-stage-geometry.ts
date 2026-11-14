@@ -101,11 +101,6 @@ export function stageToScene(px: number, py: number, fit: StageFit): { x: number
   return { x: (px - fit.offsetX) / fit.scale, y: (py - fit.offsetY) / fit.scale };
 }
 
-/** A point in the cut-in's own coordinates, on the screen. */
-export function sceneToStage(x: number, y: number, fit: StageFit): { px: number; py: number } {
-  return { px: x * fit.scale + fit.offsetX, py: y * fit.scale + fit.offsetY };
-}
-
 /** How far a drag on the screen carries in the cut-in's own coordinates. */
 export function stageDeltaToScene(dx: number, dy: number, fit: StageFit): { x: number; y: number } {
   return { x: dx / fit.scale, y: dy / fit.scale };
