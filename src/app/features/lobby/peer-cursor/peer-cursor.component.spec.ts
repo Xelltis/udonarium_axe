@@ -32,10 +32,8 @@ describe('PeerCursorComponent', () => {
   afterEach(() => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.delete(object, false);
     ObjectStore.instance.clearDeleteHistory();
-    PeerCursor.myCursor = null!;
-    (PeerCursor as unknown as Record<string, unknown>)['userIdMap'] = new Map();
-    (PeerCursor as unknown as Record<string, unknown>)['peerIdMap'] = new Map();
-    (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+    PeerCursor.forget();
+    ChatTabList.forget();
   });
 
   it('should create', () => {
