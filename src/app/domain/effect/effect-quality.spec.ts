@@ -58,7 +58,7 @@ function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; ca
  * that smite, a sanctuary and the bolts of lightning; and those chosen by how many it strikes, a
  * current held on one target, and a storm on six, as many as the bundled one takes; a great beam on
  * two and on three, where each keeps more of its detail, the beam of many hues, a laser as long as the
- * bundled one, and the shots of a blaster. The last of each
+ * bundled one, the shots of a blaster, and a draining on three. The last of each
  * is how many targets it is cast on, where that is not four.
  */
 const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, number?])[] = [
@@ -89,6 +89,7 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, numbe
   ['beam', { moteStyle: 'prism', durationMs: 3000 }, 2],
   ['raybeam', { durationMs: 2038 }],
   ['projectile', { projectileStyle: 'blaster', impactKind: 'impact' }],
+  ['drain', { grade: 2, durationMs: 3239, staggerMs: 120 }, 3],
 ];
 
 /** The heaviest cast of a kind, as one of the looks it is given by its family or its particles. */

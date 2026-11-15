@@ -44,11 +44,16 @@ describe('effectShakeOf()', () => {
     }
   });
 
+  it('shakes for a draining as for any blow of its grade', () => {
+    expect(effectShakeOf(makePreset('drain', 2))).toBe('soft');
+    expect(effectShakeOf(makePreset('drain', 3))).toBe('hard');
+  });
+
   it('shakes lightly for the greatest aura on its own, and for no other aura, healing or shield', () => {
     expect(effectShakeOf(makePreset('aura', 3))).toBe('soft');
     expect(effectShakeOf(makePreset('aura', 2))).toBe('');
     expect(effectShakeOf(makePreset('aura', 1))).toBe('');
-    for (const kind of ['heal', 'barrier', 'warp', 'drain', 'arc'] as const) {
+    for (const kind of ['heal', 'barrier', 'warp', 'arc'] as const) {
       expect([kind, effectShakeOf(makePreset(kind, 3))]).toEqual([kind, '']);
     }
   });

@@ -1,4 +1,5 @@
 import { curseLookOf, isCurseAlone, takesHoldAt } from '@axe/domain/effect/ailment-looks';
+import { darkStrikesAt } from '@axe/domain/effect/dark-looks';
 import { RUBBLE_FIRST_HEAVE, rubbleHeavesOf } from '@axe/domain/effect/earth-looks';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -65,7 +66,7 @@ const BREAKS_OUT_HOLD_MS = 90;
 const AURA_BREAKS_OUT_AT = 0.16;
 /**
  * How far a draining pulls its target as it takes hold, as a share of the piece's width: towards the
- * one who drains it, where a blow would throw it back.
+ * one who drains it, where a blow would throw it back; and as far back again as it snaps and lets go.
  */
 const DRAIN_PULL = -0.08;
 /** How far a gust shoves its target back, as a share of the piece's width: as far as a piece is ever thrown. */
@@ -95,7 +96,6 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
   gravity: 0.5,
   bisect: 0.05,
   gore: 0.05,
-  drain: 0.12,
 };
 
 /**
@@ -107,7 +107,8 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
  * one that holds and neither shakes the screen nor throws the piece: the instant it takes hold. A
  * look of holy light lands one, once it has been seen coming: its pillar landing, its ring bursting,
  * its walls rising. A draining lands one as it takes hold, which pulls the piece towards the one who
- * drains it rather than throwing it back. The greatest aura on its own lands one as it breaks out,
+ * drains it rather than throwing it back, and one as it snaps, which lets the piece fall back. The
+ * greatest aura on its own lands one as it breaks out,
  * which holds and shakes and moves no piece. A bolt of lightning lands one as it strikes, once its
  * leader has been seen coming, and the greatest of them a second, the last stroke its column ends in;
  * a current of lightning lands one as it reaches its target. Each later target is struck as the first is, its stagger
@@ -138,7 +139,8 @@ export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
       held += holdMs;
       lastHeldAt = atMs;
     }
-    const push = takesHold || breaksOut ? 0 : drains ? DRAIN_PULL : isGust(preset) ? GUST_PUSH : PUSH_BY_GRADE[grade];
+    const pull = index === 0 ? DRAIN_PULL : -DRAIN_PULL;
+    const push = takesHold || breaksOut ? 0 : drains ? pull : isGust(preset) ? GUST_PUSH : PUSH_BY_GRADE[grade];
     blows.push({ atMs, holdMs, shake, push });
   }
   return blows;
@@ -156,7 +158,8 @@ function strikeTimes(preset: EffectPreset): number[] {
         const seen =
           window.stage.kind === 'bolt'
             ? boltStrokesOf(preset.gradeLevel, lasts / 1000)[0]
-            : holyStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000);
+            : (holyStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000) ??
+              darkStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000)?.[0]);
         return Math.round(
           window.startMs + (seen !== undefined ? seen * 1000 : lasts * (GOES_OFF_AT[window.stage.kind] ?? 0))
         );
@@ -171,6 +174,8 @@ function strikeTimes(preset: EffectPreset): number[] {
   if (!STRIKING_KINDS.has(preset.effectKind)) return [];
   const holy = holyStrikesAt(preset.effectKind, preset.gradeLevel, preset.duration / 1000);
   if (holy !== undefined) return [Math.round(holy * 1000)];
+  const dark = darkStrikesAt(preset.effectKind, preset.gradeLevel, preset.duration / 1000);
+  if (dark) return dark.map((strike) => Math.round(strike * 1000));
   if (preset.effectKind === 'bolt') {
     return boltStrokesOf(preset.gradeLevel, preset.duration / 1000).map((stroke) => Math.round(stroke * 1000));
   }

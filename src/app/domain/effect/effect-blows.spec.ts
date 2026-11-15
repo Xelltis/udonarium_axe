@@ -19,14 +19,14 @@ describe('effectBlowsOf()', () => {
     expect(effectBlowsOf(makePreset('barrier', 3))).toEqual([]);
   });
 
-  it('lands one blow as a draining takes hold, which pulls the piece rather than throwing it back', () => {
+  it('lands a blow as a draining takes hold, which pulls the piece, and one as it snaps, which lets it fall back', () => {
     const blows = effectBlowsOf(makePreset('drain', 2, { durationMs: 3000 }));
 
-    expect(blows).toHaveLength(1);
-    expect(blows[0].atMs).toBe(360);
-    expect(blows[0].holdMs).toBe(90);
-    expect(blows[0].shake).toBe('');
+    expect(blows.map((blow) => blow.atMs)).toEqual([390, 1875]);
+    expect(blows.map((blow) => blow.holdMs)).toEqual([90, 90]);
+    expect(blows[0].shake).toBe('soft');
     expect(blows[0].push).toBeLessThan(0);
+    expect(blows[1].push).toBe(-blows[0].push);
   });
 
   it('lands one blow as the greatest aura breaks out, which holds, shakes lightly and throws no piece', () => {

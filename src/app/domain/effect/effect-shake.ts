@@ -30,6 +30,7 @@ const SHAKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'slash',
   'frost',
   'bisect',
+  'drain',
 ]);
 
 /**

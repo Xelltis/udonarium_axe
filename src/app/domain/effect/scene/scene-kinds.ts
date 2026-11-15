@@ -23,7 +23,7 @@ export const SCENE_LINGER_S: Readonly<Partial<Record<EffectKind, number>>> = {
   breath: 1.8,
   burst: 1.8,
   curse: 0.6,
-  drain: 0.5,
+  drain: 1.2,
   flame: 1.6,
   frost: 1.2,
   gore: 1.4,
