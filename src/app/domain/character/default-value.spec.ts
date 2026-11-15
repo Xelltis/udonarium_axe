@@ -3,11 +3,16 @@ import {
   clearDefault,
   clearDefaults,
   countDefaults,
+  countItemsOffDefault,
+  countItemsToCapture,
+  countItemsWithDefault,
   defaultSlotsOf,
   hasDefault,
   holdsItemNamed,
+  isOffDefault,
   plainNumberIn,
   readDefault,
+  resetElementToDefaults,
   resetPieceToDefaults,
   resetToDefaults,
   writeDefault,
@@ -156,6 +161,26 @@ describe('the default a sheet item goes back to', () => {
       expect(writeDefault(element, 'now', 3)).toBe(false);
     });
 
+    it('lets the settings a sheet keeps of the piece itself keep none: where its portrait stands, which picture it shows', () => {
+      const piece = GameCharacter.create('騎士', 1, '');
+      made.push(piece);
+      piece.addExtendData();
+      const position = piece.detailDataElement!.getFirstElementByName('POS')!;
+      const picture = piece.detailDataElement!.getFirstElementByName('ICON')!;
+      const before = captureDefaults(piece);
+      position.setAttribute('cs-default', '3');
+      position.currentValue = 5;
+
+      expect(defaultSlotsOf(position)).toEqual([]);
+      expect(defaultSlotsOf(picture)).toEqual([]);
+      expect(position.toAttributes()).toMatchObject({ 'cs-default': '3' });
+      expect(picture.toAttributes()).not.toHaveProperty('cs-default');
+      expect(before).toBe(countItemsWithDefault(piece) - 1);
+      expect(resetToDefaults(piece).flatMap((reset) => reset.changes)).toEqual([]);
+      expect(position.currentValue).toBe(5);
+      expect(isOffDefault(position)).toBe(false);
+    });
+
     it('lets the cells of a table keep none', () => {
       const table = DataElement.create('技能', '', { type: DataElementType.CHECK_TABLE });
       const row = DataElement.create('行', '');
@@ -243,7 +268,7 @@ describe('the default a sheet item goes back to', () => {
       expect(`${hit.value}`).toBe('5');
     });
 
-    it.each<[string, Record<string, unknown>]>([
+    it.each<[string, Record<string, string>]>([
       ['a missing attribute', {}],
       ['an empty attribute', { 'cs-default': '' }],
       ['a blank attribute', { 'cs-default': ' ' }],
@@ -569,6 +594,103 @@ describe('the default a sheet item goes back to', () => {
       const [reset] = resetToDefaults(body, { kind: 'item', name: '魔力', slot: 'now' });
 
       expect(reset).toMatchObject({ found: false, defaults: 0, changes: [] });
+    });
+  });
+
+  describe('standing off a default (acceptance 19)', () => {
+    it('tells an item that does not stand at the default it keeps, in any of its slots', () => {
+      expect(isOffDefault(number('命中', 7, { 'cs-default': '5' }))).toBe(true);
+      expect(isOffDefault(number('命中', 5, { 'cs-default': '5' }))).toBe(false);
+      expect(isOffDefault(number('命中', '5', { 'cs-default': '5' }))).toBe(false);
+      expect(isOffDefault(resource('HP', 20, 4, { 'cs-default': '20' }))).toBe(true);
+      expect(isOffDefault(resource('HP', 18, 18, { 'cs-default': '18', 'cs-default-max': '20' }))).toBe(true);
+      expect(isOffDefault(resource('HP', 20, 20, { 'cs-default': '20', 'cs-default-max': '20' }))).toBe(false);
+      expect(isOffDefault(check('転倒', 1, { 'cs-default': '0' }))).toBe(true);
+      expect(isOffDefault(check('転倒', 0, { 'cs-default': '0' }))).toBe(false);
+      expect(isOffDefault(DataElement.create('命中', '封印中', { 'cs-default': '5' }))).toBe(true);
+    });
+
+    it('tells nothing of an item that keeps no default, an empty one and a 0 held among them', () => {
+      expect(isOffDefault(number('命中', 7))).toBe(false);
+      expect(isOffDefault(number('命中', 7, { 'cs-default': '' }))).toBe(false);
+      expect(isOffDefault(number('命中', 0, { 'cs-default': '0' }))).toBe(false);
+      expect(isOffDefault(DataElement.create('メモ', '', { type: DataElementType.NOTE, 'cs-default': '3' }))).toBe(
+        false
+      );
+    });
+
+    it('tells a correction moved off the default it keeps', () => {
+      const hp = resource('HP', 23, 23, { 'max-base': '20', 'max-correction': '3', 'cs-default-max-correction': '0' });
+
+      expect(isOffDefault(hp)).toBe(true);
+    });
+
+    it('takes an item held at its bound for standing at a default beyond the bound', () => {
+      const hp = resource('HP', 10, 10, { 'cs-default': '18' });
+
+      expect(isOffDefault(hp)).toBe(false);
+    });
+
+    it('counts the items off their defaults on a piece and its parts, writing nothing', () => {
+      const hp = resource('HP', 20, 4, { 'cs-default': '20' });
+      const body = pieceWith('竜', hp, number('命中', 5, { 'cs-default': '5' }), number('回避', 2));
+      partOf(body, '竜の頭', number('命中', 9, { 'cs-default': '3' }));
+
+      expect(countItemsOffDefault(body)).toBe(2);
+      expect(hp.currentValue).toBe(4);
+    });
+
+    it('counts the items making the defaults would mark, and the items that have one written', () => {
+      const body = pieceWith(
+        '竜',
+        resource('HP', 20, 4),
+        number('命中', 5),
+        number('回避', ''),
+        check('転倒', 0),
+        DataElement.create('筋力', '12'),
+        DataElement.create('種族', '人間', { 'cs-default': '3' })
+      );
+      partOf(body, '竜の頭', resource('HP', 10, 10));
+
+      expect(countItemsToCapture(body)).toBe(5);
+      expect(countItemsWithDefault(body)).toBe(1);
+      expect(captureDefaults(body)).toBe(5);
+      expect(countItemsWithDefault(body)).toBe(5);
+    });
+  });
+
+  describe('putting one item itself back (acceptance 19)', () => {
+    it('puts back every slot the item keeps a default for, and leaves the other items alone', () => {
+      const hp = resource('HP', 10, 4, { 'cs-default': '18', 'cs-default-max': '20' });
+      const hit = number('命中', 7, { 'cs-default': '5' });
+      const body = pieceWith('騎士', hp, hit);
+
+      const reset = resetElementToDefaults(body, hp);
+
+      expect([hp.value, hp.currentValue]).toEqual([20, 18]);
+      expect(hit.value).toBe(7);
+      expect(reset).toMatchObject({ found: true, defaults: 2 });
+      expect(reset.changes).toHaveLength(2);
+    });
+
+    it('gives the value to an alias mate that keeps no default, as putting the sheet back does', () => {
+      const aliases: ElementAliasTable = [{ name: '命中力', candidates: ['命中', '命中修正'] }];
+      const hit = number('命中', 7, { 'cs-default': '5' });
+      const mate = number('命中修正', 7);
+      const body = pieceWith('騎士', hit, mate);
+
+      resetElementToDefaults(body, hit, aliases);
+
+      expect([hit.value, mate.value]).toEqual([5, 5]);
+    });
+
+    it('finds nothing, and changes nothing, for an item of another sheet', () => {
+      const body = pieceWith('騎士', number('命中', 7, { 'cs-default': '5' }));
+      const strangers = number('命中', 9, { 'cs-default': '5' });
+      pieceWith('従者', strangers);
+
+      expect(resetElementToDefaults(body, strangers)).toMatchObject({ found: false, defaults: 0, changes: [] });
+      expect(strangers.value).toBe(9);
     });
   });
 
