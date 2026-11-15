@@ -1463,7 +1463,10 @@
         "skyblade": "光の剣",
         "raybeam": "レーザー照射",
         "arrowrain": "アローレイン",
-        "ballistic": "弾道ミサイル"
+        "ballistic": "弾道ミサイル",
+        "smite": "裁きの光",
+        "halo": "光輪",
+        "sanctuary": "聖域"
       },
       "targeting": {
         "self": "自分",

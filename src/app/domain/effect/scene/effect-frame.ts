@@ -30,7 +30,10 @@ import { burst } from '@axe/domain/effect/scene/fire/burst';
 import { flame } from '@axe/domain/effect/scene/fire/flame';
 import { mushroom } from '@axe/domain/effect/scene/fire/mushroom';
 import { nova } from '@axe/domain/effect/scene/fire/nova';
+import { halo } from '@axe/domain/effect/scene/holy/halo';
 import { aura, barrier, heal, warp } from '@axe/domain/effect/scene/holy/holy';
+import { sanctuary } from '@axe/domain/effect/scene/holy/sanctuary';
+import { smite } from '@axe/domain/effect/scene/holy/smite';
 import { hasScenePart, SCENE_LINGER_S, strikesInSceneWith, STRIKING_WITH } from '@axe/domain/effect/scene/scene-kinds';
 import { arrowrain, ballisticWith, projectileWith } from '@axe/domain/effect/scene/shot/shots';
 import { arc, beam, drain, raybeam } from '@axe/domain/effect/scene/shot/streams';
@@ -72,6 +75,7 @@ const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = {
   frost,
   gore,
   gravity,
+  halo,
   heal,
   impact,
   miasma,
@@ -79,7 +83,9 @@ const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = {
   nova,
   raybeam,
   rubble,
+  sanctuary,
   slash,
+  smite,
   upheaval,
   vortex,
   warp,

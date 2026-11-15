@@ -1463,7 +1463,10 @@
         "skyblade": "Sky blade",
         "raybeam": "Sustained ray",
         "arrowrain": "Arrow rain",
-        "ballistic": "Ballistic missile"
+        "ballistic": "Ballistic missile",
+        "smite": "Smiting light",
+        "halo": "Halo of light",
+        "sanctuary": "Sanctuary"
       },
       "targeting": {
         "self": "Self",

@@ -375,4 +375,47 @@ describe('the holy family', () => {
     expect(seedOf('EffectPreset_skyblade')).toMatchObject({ name: '光の大剣', tagName: '聖', kind: 'skyblade' });
     for (const seed of holy) expect(seed.moteStyle ?? '').toBe('');
   });
+
+  it('has an attack for every part an element plays, eight in all', () => {
+    expect(holy.map((seed) => seed.name).sort()).toEqual(
+      ['聖光弾', '聖なる吐息', '光の大剣', '聖印', '裁きの光', '光輪', '聖域', '天罰'].sort()
+    );
+    expect(seedOf('EffectPreset_smite_1')).toMatchObject({
+      name: '聖印',
+      kind: 'smite',
+      grade: 1,
+      targeting: 'single',
+    });
+    expect(seedOf('EffectPreset_smite_2')).toMatchObject({
+      name: '裁きの光',
+      kind: 'smite',
+      grade: 2,
+      targeting: 'multi',
+    });
+    expect(seedOf('EffectPreset_halo_2')).toMatchObject({ name: '光輪', kind: 'halo', grade: 2, targeting: 'single' });
+    expect(seedOf('EffectPreset_sanctuary_3')).toMatchObject({
+      name: '聖域',
+      kind: 'sanctuary',
+      grade: 3,
+      areaRadius: 3,
+    });
+    expect(seedOf('EffectPreset_smite_3')).toMatchObject({ name: '天罰', kind: 'smite', grade: 3, areaRadius: 3 });
+    expect(seedOf('EffectPreset_smite_2').areaRadius ?? 0).toBe(0);
+    expect(seedOf('EffectPreset_smite_2').maxTargets).toBeGreaterThan(1);
+  });
+
+  it('strikes all that an attack over an area takes in at once, and those picked one by one in turn', () => {
+    expect(seedOf('EffectPreset_sanctuary_3').staggerMs).toBe(0);
+    expect(seedOf('EffectPreset_smite_3').staggerMs).toBe(0);
+    expect(seedOf('EffectPreset_smite_2').staggerMs).toBeGreaterThan(150);
+  });
+
+  it('sounds none of its attacks as a healing or as thunder', () => {
+    const attacks = holy.filter((seed) => ['smite', 'halo', 'sanctuary'].includes(seed.kind));
+
+    expect(attacks.length).toBe(5);
+    for (const seed of attacks) {
+      for (const sound of [seed.soundKey, seed.impactSoundKey ?? '']) expect(sound).not.toMatch(/^(cure|heal|thunder)/);
+    }
+  });
 });

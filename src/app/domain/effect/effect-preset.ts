@@ -16,6 +16,7 @@ import {
 } from '@axe/domain/effect/effect-kind';
 import { type EffectStage, parseEffectStages } from '@axe/domain/effect/effect-stage';
 import { stagedEffectDuration } from '@axe/domain/effect/effect-stage-timeline';
+import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
 
 const MIN_DURATION_MS = 120;
 const MAX_DURATION_MS = 6000;
@@ -156,8 +157,13 @@ export class EffectPreset extends GameObject {
     return this.impactKind;
   }
 
-  /** Where through the effect the landing sounds. A projectile sounds it as it lands, and anything else a little later. */
+  /**
+   * Where through the effect the landing sounds. A projectile sounds it as it lands, a look of holy
+   * light as it strikes, once it has been seen coming, and anything else a little later.
+   */
   get impactSoundAt(): number {
+    const holy = holyStrikesAt(this.effectKind, this.gradeLevel, this.duration / 1000);
+    if (holy !== undefined) return holy / (this.duration / 1000);
     if (this.effectKind === 'arc') return 0.4;
     // A beam sounds as it fires; waiting for the landing leaves the gathering silent.
     if (this.effectKind === 'beam') return 0.28;

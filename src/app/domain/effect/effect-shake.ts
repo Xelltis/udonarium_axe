@@ -22,6 +22,9 @@ const SHAKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'gravity',
   'bolt',
   'ballistic',
+  'smite',
+  'halo',
+  'sanctuary',
 ]);
 
 /**

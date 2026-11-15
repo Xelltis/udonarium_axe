@@ -166,6 +166,64 @@ const STAGED_SEEDS: readonly EffectPresetSeed[] = [
   },
 ];
 
+/** An attack of the holy family, in its gold and white. */
+function holySeed(
+  key: string,
+  name: string,
+  kind: EffectKind,
+  grade: number,
+  soundKey: PresetSoundKey,
+  soundMs: number,
+  more: Partial<EffectPresetSeed> = {}
+): EffectPresetSeed {
+  return {
+    identifier: `EffectPreset_${key}`,
+    name,
+    tagName: '聖',
+    kind,
+    colorPrimary: '#fffbe0',
+    colorSecondary: '#ffc24a',
+    soundMs,
+    staggerMs: 0,
+    scale: 1.2,
+    targeting: 'single',
+    maxTargets: 1,
+    soundKey,
+    grade,
+    ...more,
+  };
+}
+
+/**
+ * The attacks of holy light: a seal over one head, pillars falling on several in turn, a halo closing
+ * on one, a sanctuary raised over an area, and the light of heaven coming down on one.
+ */
+const HOLY_SEEDS: readonly EffectPresetSeed[] = [
+  holySeed('smite_1', '聖印', 'smite', 1, 'flashImpact', 1802, { scale: 1.1 }),
+  holySeed('smite_2', '裁きの光', 'smite', 2, 'holy', 4310, {
+    scale: 1.3,
+    staggerMs: 240,
+    targeting: 'multi',
+    maxTargets: 4,
+    impactSoundKey: 'flashImpact',
+  }),
+  holySeed('halo_2', '光輪', 'halo', 2, 'superArts', 2560),
+  holySeed('sanctuary_3', '聖域', 'sanctuary', 3, 'summon', 3553, {
+    scale: 1.4,
+    targeting: 'multi',
+    maxTargets: 8,
+    areaRadius: 3,
+    impactSoundKey: 'flashImpact',
+  }),
+  holySeed('smite_3', '天罰', 'smite', 3, 'holyBlade', 4310, {
+    scale: 1.5,
+    targeting: 'multi',
+    maxTargets: 8,
+    areaRadius: 3,
+    impactSoundKey: 'explosionLarge',
+  }),
+];
+
 export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
   {
     identifier: 'EffectPreset_bash_1',
@@ -1602,6 +1660,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     soundKey: 'buff',
     grade: 2,
   },
+  ...HOLY_SEEDS,
   ...STAGED_SEEDS,
 ];
 

@@ -147,6 +147,18 @@ export const kindGlyphSvg = remembered('kindGlyphSvg', (kind: string, colors: Sh
       return glyph(
         `<circle cx="50" cy="50" r="18" ${solid}/><path d="M50 6 L58 26 H42 Z M50 94 L42 74 H58 Z M6 50 L26 42 V58 Z M94 50 L74 58 V42 Z" fill="${colors.edge}"/>`
       );
+    case 'smite':
+      return glyph(
+        `<path d="M40 4 H60 L66 74 H34 Z" ${solid}/><ellipse cx="50" cy="82" rx="38" ry="10" fill="none" stroke="${colors.edge}" stroke-width="7"/>`
+      );
+    case 'halo':
+      return glyph(
+        `<ellipse cx="50" cy="50" rx="42" ry="17" fill="none" stroke="${colors.core}" stroke-width="9"/><path d="M50 18 L58 42 L82 50 L58 58 L50 82 L42 58 L18 50 L42 42 Z" fill="${colors.edge}"/>`
+      );
+    case 'sanctuary':
+      return glyph(
+        `<circle cx="50" cy="50" r="41" fill="none" stroke="${colors.core}" stroke-width="7"/><path d="M50 22 L78 50 L50 78 L22 50 Z M30 30 H70 V70 H30 Z" fill="none" stroke="${colors.edge}" stroke-width="6" stroke-linejoin="round"/>`
+      );
     default:
       return glyph(`<circle cx="50" cy="50" r="30" ${solid}/>`);
   }

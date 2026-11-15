@@ -62,6 +62,9 @@ export const CENTERED_EFFECT_KINDS: readonly EffectKind[] = [
   'curse',
   'warp',
   'gravity',
+  'smite',
+  'halo',
+  'sanctuary',
 ];
 
 const AIMED: ReadonlySet<EffectKind> = new Set(AIMED_EFFECT_KINDS);

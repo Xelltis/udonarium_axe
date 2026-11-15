@@ -1463,7 +1463,10 @@
         "skyblade": "빛의 검",
         "raybeam": "레이저 조사",
         "arrowrain": "애로우 레인",
-        "ballistic": "탄도 미사일"
+        "ballistic": "탄도 미사일",
+        "smite": "심판의 빛",
+        "halo": "빛의 고리",
+        "sanctuary": "성역"
       },
       "targeting": {
         "self": "자신",

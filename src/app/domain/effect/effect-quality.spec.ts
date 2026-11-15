@@ -54,7 +54,8 @@ function heaviestCastOf(kind: EffectKind): { preset: EffectPreset; cast: EffectC
 /**
  * The looks a kind takes that are chosen by its family or by the particles it names, which a cast of
  * the kind with neither never draws: each state of a curse, each element of a breath, and the shots
- * and blows of wind and of earth.
+ * and blows of wind and of earth; and those chosen by its grade or laid out over an area, the lights
+ * that smite and a sanctuary.
  */
 const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>])[] = [
   ...[...AILMENT_LOOKS, 'arc', 'haze'].map((moteStyle) => ['curse', { moteStyle, durationMs: 5500 }] as const),
@@ -67,6 +68,10 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>])[] = 
   ['projectile', { tagName: '土' }],
   ['vortex', { tagName: '風', grade: 1 }],
   ['vortex', { tagName: '風' }],
+  ['smite', { grade: 1 }],
+  ['smite', { grade: 2 }],
+  ['smite', { targeting: 'multi', maxTargets: 8, areaRadius: 3 }],
+  ['sanctuary', { targeting: 'multi', maxTargets: 8, areaRadius: 3 }],
 ];
 
 /** The heaviest cast of a kind, as one of the looks it is given by its family or its particles. */

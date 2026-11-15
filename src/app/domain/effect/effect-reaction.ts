@@ -6,6 +6,7 @@ import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows'
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
+import { burstsFromBelow, fallsFromAbove } from '@axe/domain/effect/holy-looks';
 import { isGust, isTornado, tornadoTimingOf } from '@axe/domain/effect/wind-looks';
 
 /** How far a piece is drawn off where it stands for a moment, in table pixels: x to the east, y to the south and z up. */
@@ -67,8 +68,9 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * How far each piece an effect strikes is thrown at a moment on the effect's own clock, and how far
  * the one who cast it leans in: a struck piece stands still through the hold as the blow lands, is
  * thrown back away from the one who struck, as far as the blow's push, and springs back to where it
- * stands; struck from no direction, it is pressed down instead, and where the ground heaves under
- * it, by rubble or an upheaval, it is thrown up off the floor. A breath lands no blow: the one who
+ * stands; struck from no direction, or by a light that smites from straight above, it is pressed
+ * down instead, and where the ground heaves under it, by rubble or an upheaval, or light bursts up
+ * out of it, in a sanctuary, it is thrown up off the floor. A breath lands no blow: the one who
  * breathes leans back as it draws the breath in, and each piece it blows on is pushed downwind and
  * trembles for as long as it is blown on. A tornado lands none either: it takes up the piece it
  * stands over and drags the rest it catches towards it. A curse on its own lands none: the piece it
@@ -107,11 +109,11 @@ export function effectJoltsOf(
     for (const blow of blows) thrown += blow.push * cellPx * throwAt(local - blow.atMs);
     thrown = Math.min(thrown, MOST_THROWN_CELLS * cellPx);
     if (thrown <= 0) return;
-    if (heavesGround(preset)) {
+    if (heavesGround(preset) || burstsFromBelow(preset)) {
       add(target.identifier, { x: 0, y: 0, z: thrown * HEAVED_UP });
       return;
     }
-    const away = directionOf(cast.origin, target);
+    const away = fallsFromAbove(preset) ? null : directionOf(cast.origin, target);
     add(
       target.identifier,
       away ? { x: away.x * thrown, y: away.y * thrown, z: 0 } : { x: 0, y: 0, z: -thrown * PRESSED_DOWN }

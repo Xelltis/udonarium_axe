@@ -29,7 +29,10 @@ export type EffectKind =
   | 'skyblade'
   | 'raybeam'
   | 'arrowrain'
-  | 'ballistic';
+  | 'ballistic'
+  | 'smite'
+  | 'halo'
+  | 'sanctuary';
 
 export type EffectTargeting = 'self' | 'single' | 'multi';
 
@@ -106,6 +109,9 @@ export const EFFECT_KINDS: readonly EffectKind[] = [
   'raybeam',
   'arrowrain',
   'ballistic',
+  'smite',
+  'halo',
+  'sanctuary',
 ];
 
 export const EFFECT_TARGETINGS: readonly EffectTargeting[] = ['self', 'single', 'multi'];

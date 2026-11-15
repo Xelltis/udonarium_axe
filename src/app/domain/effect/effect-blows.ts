@@ -5,6 +5,7 @@ import { type EffectPreset } from '@axe/domain/effect/effect-preset';
 import { type EffectShake, effectShakeOf } from '@axe/domain/effect/effect-shake';
 import { effectLandingTimes } from '@axe/domain/effect/effect-sound-times';
 import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
+import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
 import { slashHits } from '@axe/domain/effect/timeline/blade';
 import { gustTimingOf, isGust } from '@axe/domain/effect/wind-looks';
 
@@ -43,6 +44,9 @@ const STRIKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'ballistic',
   'bisect',
   'gore',
+  'smite',
+  'halo',
+  'sanctuary',
 ]);
 
 /** How long everything holds still on contact, by grade: a light blow barely catches, the heaviest stops the breath. */
@@ -89,8 +93,10 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
  * strikes. A whirlwind lands none, but a gust: its wall strikes the target once and shoves it back.
  * Rubble on its own lands three, one at each heave of the ground, the first held as a blow of its
  * grade is and the others only caught. A curse on its own, and each state drawn in its place, lands
- * one that holds and neither shakes the screen nor throws the piece: the instant it takes hold. Each
- * later target is struck as the first is, its stagger later, and holds nothing more.
+ * one that holds and neither shakes the screen nor throws the piece: the instant it takes hold. A
+ * look of holy light lands one, once it has been seen coming: its pillar landing, its ring bursting,
+ * its walls rising. Each later target is struck as the first is, its stagger later, and holds nothing
+ * more.
  */
 export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
   const grade = preset.gradeLevel;
@@ -122,9 +128,13 @@ function strikeTimes(preset: EffectPreset): number[] {
     // puts out of the order they strike in.
     return stageLayoutOf(preset.stageList)
       .windows.filter((window) => window.stage.role === 'impact' && STRIKING_KINDS.has(window.stage.kind))
-      .map((window) =>
-        Math.round(window.startMs + (window.endMs - window.startMs) * (GOES_OFF_AT[window.stage.kind] ?? 0))
-      )
+      .map((window) => {
+        const lasts = window.endMs - window.startMs;
+        const holy = holyStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000);
+        return Math.round(
+          window.startMs + (holy !== undefined ? holy * 1000 : lasts * (GOES_OFF_AT[window.stage.kind] ?? 0))
+        );
+      })
       .sort((a, b) => a - b);
   }
   if (isGust(preset)) return [Math.round(gustTimingOf(preset.duration / 1000).strikesAt * 1000)];
@@ -132,6 +142,8 @@ function strikeTimes(preset: EffectPreset): number[] {
     return [Math.round(takesHoldAt(curseLookOf(preset), preset.duration / 1000) * 1000)];
   }
   if (!STRIKING_KINDS.has(preset.effectKind)) return [];
+  const holy = holyStrikesAt(preset.effectKind, preset.gradeLevel, preset.duration / 1000);
+  if (holy !== undefined) return [Math.round(holy * 1000)];
   if (preset.effectKind === 'rubble') {
     return rubbleHeavesOf(preset.duration / 1000).map((heave) => Math.round(heave * 1000));
   }
