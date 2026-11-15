@@ -381,6 +381,14 @@ describe('the shots and the cure that were given another look to land or to play
     expect(cure).toMatchObject({ name: '状態回復', tagName: '回復', kind: 'heal', soundKey: 'statusCure' });
     expect(cure.durationMs).toBeUndefined();
   });
+
+  it('names the particles of a cleansing for the two that cleanse, and for no other healing', () => {
+    const healings = DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => seed.kind === 'heal');
+    const cleansing = healings.filter((seed) => seed.moteStyle === 'cleanse').map((seed) => seed.name);
+
+    expect(cleansing.sort()).toEqual(['状態回復', '状態治療'].sort());
+    for (const seed of healings) expect(['', 'cleanse']).toContain(seed.moteStyle ?? '');
+  });
 });
 
 describe('the holy family', () => {

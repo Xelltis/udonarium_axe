@@ -302,6 +302,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     maxTargets: 6,
     soundKey: 'statusCure',
     grade: 2,
+    moteStyle: 'cleanse',
   },
   {
     identifier: 'EffectPreset_slash_1',
@@ -1326,6 +1327,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     maxTargets: 6,
     soundKey: 'cleanse',
     grade: 1,
+    moteStyle: 'cleanse',
   },
   {
     identifier: 'EffectPreset_qigong_2',
