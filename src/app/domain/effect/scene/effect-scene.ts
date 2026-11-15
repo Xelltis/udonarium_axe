@@ -47,7 +47,8 @@ export type EffectBlend = 'light' | 'color';
  * whose sockets are of its core's colour where it has one; a pentagram, a star of five points; a swirl,
  * a spiral wound out from its middle; a dial, the face of a clock with one hand pointing up it, or with
  * a variant of one the shorter hand alone; a pair of eyes, slanted and narrowed; a bubble, a thin skin
- * with a glint on it; a hoop, a ring and nothing more; and a bar, a band laid level across it.
+ * with a glint on it; a hoop, a ring and nothing more; a bar, a band laid level across it; and a
+ * feather, a curved vane notched along its edges about a quill.
  */
 export type EffectMoteShape =
   | 'glow'
@@ -73,6 +74,7 @@ export type EffectMoteShape =
   | 'bubble'
   | 'hoop'
   | 'bar'
+  | 'feather'
   | 'crag'
   | 'lick'
   | 'wisp'
@@ -158,8 +160,11 @@ export interface EffectRibbon {
   readonly half?: 'near' | 'far';
 }
 
-/** The kinds of mark laid on the floor. */
-export type EffectFloorShape = 'ring' | 'disc' | 'sigil' | 'cracks' | 'scorch' | 'fissure';
+/**
+ * The kinds of mark laid on the floor. A crest is a seal of light: a doubled rim with ticks between
+ * its rings, two squares crossed into a star of eight points, and a ring about a cross at its heart.
+ */
+export type EffectFloorShape = 'ring' | 'disc' | 'sigil' | 'cracks' | 'scorch' | 'fissure' | 'crest';
 
 /** A mark laid flat on the floor, under and round what it is laid at. */
 export interface EffectFloorMark {

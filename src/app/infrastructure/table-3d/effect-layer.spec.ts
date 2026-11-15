@@ -148,6 +148,7 @@ describe('EffectLayer', () => {
       floor: [
         { ...mark, shape: 'fissure' },
         { ...mark, shape: 'scorch' },
+        { ...mark, shape: 'crest' },
       ],
       lights: [],
     });
@@ -159,8 +160,9 @@ describe('EffectLayer', () => {
       )[1];
     const look = marks.getAttribute('look').array;
 
-    expect(marks.instanceCount).toBe(2);
+    expect(marks.instanceCount).toBe(3);
     expect(look[0]).toBe(look[4] + 1);
+    expect(look[8]).toBe(look[0] + 1);
     expect([...look.slice(1, 4)].map((value) => Math.round(value * 100) / 100)).toEqual([0.1, 0.7, 4]);
     layer.dispose();
   });
@@ -180,6 +182,7 @@ describe('EffectLayer', () => {
       'bubble',
       'hoop',
       'bar',
+      'feather',
     ] as const;
 
     layer.set({

@@ -10,6 +10,7 @@ import {
   length,
   max,
   min,
+  pow,
   select,
   sin,
   smoothstep,
@@ -37,6 +38,7 @@ export const SIGN_NAMES = [
   'bubble',
   'hoop',
   'bar',
+  'feather',
 ] as const satisfies readonly EffectMoteShape[];
 
 /**
@@ -189,5 +191,17 @@ export function signShapes(
 
   const bar = stroked(strokeAway(point, [-0.74, 0], [0.74, 0]), 0.22, 0.14);
 
-  return { heart, zed, query, cross, skull, pentagram, swirl, dial, eyes, bubble, hoop, bar };
+  const vaneUp = clamp(point.y.add(0.8).div(1.72), 0, 1);
+  const vaneOff = abs(point.x.sub(sin(point.y.mul(1.5)).mul(0.14)));
+  const vaneWide = pow(sin(vaneUp.mul(Math.PI)), 0.6)
+    .mul(float(0.38).sub(vaneUp.mul(0.12)))
+    .sub(fract(vaneUp.mul(6)).mul(0.07));
+  const quill = inked(float(0.055).sub(strokeAway(point, [-0.14, -0.98], [-0.125, -0.7])));
+  const feather = {
+    alpha: max(inked(vaneWide.sub(vaneOff)), quill),
+    fill: inked(vaneWide.sub(0.1).sub(vaneOff)).mul(float(1).sub(inked(float(0.03).sub(vaneOff)))),
+    cored: none,
+  };
+
+  return { heart, zed, query, cross, skull, pentagram, swirl, dial, eyes, bubble, hoop, bar, feather };
 }

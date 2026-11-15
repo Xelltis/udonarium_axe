@@ -131,6 +131,7 @@ const MOTE_SHAPES: readonly EffectMoteShape[] = [
   'bubble',
   'hoop',
   'bar',
+  'feather',
   'crag',
   'lick',
   'wisp',
@@ -145,7 +146,7 @@ const UNTURNED_FROM = MOTE_SHAPES.indexOf('crag');
 const SIGNS_FROM = MOTE_SHAPES.indexOf('heart');
 /** How dark the outline of a sign is drawn, against its colour. */
 const SIGN_INK = 0.24;
-const MARK_SHAPES: readonly EffectFloorShape[] = ['ring', 'disc', 'sigil', 'cracks', 'scorch', 'fissure'];
+const MARK_SHAPES: readonly EffectFloorShape[] = ['ring', 'disc', 'sigil', 'cracks', 'scorch', 'fissure', 'crest'];
 /** The number each shape is told to the shaders by, from its place in the list, which the shaders tell the shapes apart by. */
 const MOTE_SHAPE = Object.fromEntries(MOTE_SHAPES.map((shape, at) => [shape, at])) as Record<EffectMoteShape, number>;
 const MARK_SHAPE = Object.fromEntries(MARK_SHAPES.map((shape, at) => [shape, at])) as Record<EffectFloorShape, number>;
@@ -927,7 +928,8 @@ export class EffectLayer {
   /**
    * The marks of a blend on the floor: each a quad lying on it at its place, as wide across as its
    * reach, turned about its middle: a ring, a soft disc, a sigil of rings and marks, cracks running
-   * out from the middle, a scorch with a ragged edge, or a fissure run across it the way it is turned.
+   * out from the middle, a scorch with a ragged edge, a fissure run across it the way it is turned, or
+   * a crest, a seal of rings, a star of two squares and a cross.
    */
   private markBatch(blend: EffectBlend): Batch {
     const place = attribute<'vec4'>('place', 'vec4');
@@ -1011,6 +1013,24 @@ export class EffectLayer {
       cut(fissureWide.sub(abs(off.sub(fissureLine)))),
       max(branch(-0.25, 0.55, 0.55), branch(0.2, -0.5, -0.6))
     );
+    // A crest: a doubled rim with ticks between its rings, two squares crossed into a star of eight
+    // points within it, and a ring about a cross at its heart, all of one weight of line.
+    const crestAt = vec2(cos(angle), sin(angle)).mul(away);
+    const crestTurned = vec2(crestAt.x.add(crestAt.y), crestAt.y.sub(crestAt.x)).mul(Math.SQRT1_2);
+    const crestLine = max(width.mul(0.3), 0.012);
+    const crestInk = (off: Node<'float'>, thick: Node<'float'>) => clamp(thick.sub(off).div(blur).add(0.5), 0, 1);
+    const crestSquare = (at: Node<'vec2'>) => crestInk(abs(max(abs(at.x), abs(at.y)).sub(0.58)), crestLine);
+    const crestTicks = smoothstep(0.86, 0.94, abs(sin(angle.mul(12)))).mul(band(float(0.9), float(0.045)));
+    const crestCross = crestInk(min(abs(crestAt.x), abs(crestAt.y)), crestLine.mul(0.8)).mul(
+      crestInk(away, float(0.36))
+    );
+    const crest = max(
+      max(band(float(1).sub(crestLine), crestLine), band(float(0.82), crestLine.mul(0.8))),
+      max(
+        max(crestSquare(crestAt), crestSquare(crestTurned)),
+        max(max(band(float(0.36), crestLine.mul(0.8)), crestCross), crestTicks)
+      )
+    );
     const alpha = select(
       shape.equal(MARK_SHAPE.ring),
       ring,
@@ -1020,7 +1040,11 @@ export class EffectLayer {
         select(
           shape.equal(MARK_SHAPE.sigil),
           sigil,
-          select(shape.equal(MARK_SHAPE.cracks), cracks, select(shape.equal(MARK_SHAPE.fissure), fissure, scorch))
+          select(
+            shape.equal(MARK_SHAPE.cracks),
+            cracks,
+            select(shape.equal(MARK_SHAPE.fissure), fissure, select(shape.equal(MARK_SHAPE.crest), crest, scorch))
+          )
         )
       )
     );
