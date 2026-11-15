@@ -250,6 +250,14 @@ describe('readDefaultResetCommand', () => {
     }
   );
 
+  it.each(['既定', '既定値', '規定', '規定値', 'default'])(
+    'takes %s for the word, for every item and for one',
+    (word) => {
+      expect(readDefaultResetCommand(`:*=${word}`)).toEqual({ kind: 'all' });
+      expect(readDefaultResetCommand(`t:HP^=${word}`)).toEqual({ kind: 'item', name: 'HP', slot: 'max' });
+    }
+  );
+
   it('reads the one item named, at the slot written after its name', () => {
     expect(readDefaultResetCommand(':HP=既定')).toEqual({ kind: 'item', name: 'HP', slot: 'now' });
     expect(readDefaultResetCommand('t:HP^=default')).toEqual({ kind: 'item', name: 'HP', slot: 'max' });
@@ -267,7 +275,10 @@ describe('readDefaultResetCommand', () => {
     ':*>既定',
     ':*-既定',
     ':HP=既定L',
-    ':HP=既定値',
+    ':HP=既定値L',
+    ':HP=既定の値',
+    ':HP=規定外',
+    ':HP=定',
     ':HP={既定}',
     ':HP=既定+1',
     ':HP',
