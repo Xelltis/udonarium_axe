@@ -351,6 +351,52 @@ describe('buildGameCharacterContextMenu()', () => {
     expect(names(groupOf(menu, '視界と視点'))).toEqual(['視界・光源設定…', '視界範囲を表示']);
   });
 
+  describe('resetting the piece (acceptance 21)', () => {
+    const RESETS = ['バフをすべて外す', 'バフだけ外す', 'デバフだけ外す', '値を既定値に戻す', 'すべてリセット'];
+    const build = (extra: object) =>
+      buildGameCharacterContextMenuModel(
+        makeChar() as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), ...extra },
+        t
+      );
+
+    it('gathers the five resets with the buffs, after what was there, each running its choice', () => {
+      const onResetPiece = vi.fn();
+      const menu = build({ onResetPiece, resetOffers: ['allBuffs', 'buffs', 'debuffs', 'values', 'everything'] });
+      const group = groupOf(menu.actions, 'バフ・演出');
+
+      expect(names(group)).toEqual(['バフ編集', ...RESETS]);
+      group.find((entry) => entry.name === 'デバフだけ外す')!.action!();
+      expect(onResetPiece).toHaveBeenCalledExactlyOnceWith('debuffs');
+      expect(names(menu.actions.filter((entry) => entry.type !== ContextMenuType.SEPARATOR))).not.toContain(
+        'バフをすべて外す'
+      );
+    });
+
+    it('leaves out a reset that would do nothing, and all of them for a piece with nothing to reset', () => {
+      const some = build({ onResetPiece: vi.fn(), resetOffers: ['values', 'everything'] });
+      const none = build({ onResetPiece: vi.fn(), resetOffers: [] });
+
+      expect(names(groupOf(some.actions, 'バフ・演出'))).toEqual(['バフ編集', '値を既定値に戻す', 'すべてリセット']);
+      expect(names(groupOf(none.actions, 'バフ・演出'))).toEqual(['バフ編集']);
+    });
+
+    it('offers none to a seat that only watches, which is handed no way to reset', () => {
+      const menu = build({ resetOffers: ['allBuffs', 'values', 'everything'] });
+
+      expect(names(groupOf(menu.actions, 'バフ・演出'))).toEqual(['バフ編集']);
+    });
+
+    it('offers the same in the turning menu, among the buffs and effects', () => {
+      const menu = build({ onResetPiece: vi.fn(), resetOffers: ['allBuffs', 'everything'] });
+      const radial = menu.radialGroups.find((group) => group.name === 'バフ・演出')!;
+
+      expect(names(radial.actions)).toEqual(['バフ編集', 'バフをすべて外す', 'すべてリセット']);
+    });
+  });
+
   it('offers a group of who may see it and who owns it only to somebody who may change them', () => {
     const plain = buildGameCharacterContextMenu(
       makeChar() as unknown as GameCharacter,

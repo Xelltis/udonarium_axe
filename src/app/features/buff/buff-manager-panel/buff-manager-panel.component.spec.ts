@@ -1,11 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { resetCarriedOut$, type ResetCarriedOutEvent } from '@axe/core/event/domain-events';
 import { buffEffectTimingOf, buffTimingOf, buffTriggerOf } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { newStatusAilment } from '@axe/domain/character/status-ailment';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
+import type { ChatMessage } from '@axe/domain/chat/chat-message';
+import { DataElement } from '@axe/domain/data/data-element';
 import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -554,6 +562,247 @@ describe('BuffManagerPanelComponent', () => {
       expect(names(archer)).toEqual([]);
       expect(said).toHaveBeenCalledOnce();
       expect(said.mock.calls[0][0]).toBe('round');
+    });
+
+    describe('the three further choices and the values (acceptance 20)', () => {
+      let hit: DataElement;
+      let told: ResetCarriedOutEvent[];
+      let stop: () => void;
+
+      const radio = (kind: string) =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(`[data-testid="buff-sweep-${kind}"]`);
+      const countLine = () =>
+        (fixture.nativeElement as HTMLElement).querySelector('[data-testid="buff-sweep-count"]')!.textContent!.trim();
+      const run = () =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-testid="buff-sweep-run"]')!;
+      const t = () => TestBed.inject(TRANSLATE_FN);
+
+      beforeEach(() => {
+        archer.buffs.addRound('呪い', '命中-1', 2, { kind: 'debuff' });
+        hit = DataElement.create('命中', 9, { fieldType: 'number', 'cs-default': '3' });
+        knight.detailDataElement!.children[0].appendChild(hit);
+        told = [];
+        stop = resetCarriedOut$.subscribe((event) => told.push(event));
+      });
+
+      afterEach(() => stop());
+
+      it('offers six choices to the game master, the three that were there first, and a box for the values', () => {
+        beRole(PeerRole.GameMaster);
+        fixture.detectChanges();
+        const kinds = [...(fixture.nativeElement as HTMLElement).querySelectorAll('input[name="sweepKind"]')].map(
+          (input) => (input as HTMLInputElement).value
+        );
+
+        expect(kinds).toEqual(['held', 'rounds', 'name', 'all', 'buffs', 'debuffs']);
+        expect(radio('held')!.checked).toBe(true);
+        expect(
+          (fixture.nativeElement as HTMLElement).querySelector('[data-testid="buff-sweep-with-values"]')
+        ).not.toBeNull();
+      });
+
+      it('offers none of it to anyone but the game master', () => {
+        beRole(PeerRole.Player);
+        fixture.detectChanges();
+
+        expect(radio('all')).toBeNull();
+        expect(
+          (fixture.nativeElement as HTMLElement).querySelector('[data-testid="buff-sweep-with-values"]')
+        ).toBeNull();
+      });
+
+      it('counts what each of the new choices would reach', () => {
+        beRole(PeerRole.GameMaster);
+
+        component.sweepKind.set('all');
+        expect(component.sweepCount()).toEqual({ characters: 2, buffs: 4 });
+        component.sweepKind.set('buffs');
+        expect(component.sweepCount()).toEqual({ characters: 2, buffs: 3 });
+        component.sweepKind.set('debuffs');
+        expect(component.sweepCount()).toEqual({ characters: 1, buffs: 1 });
+      });
+
+      it('tells a debuff by the states the room keeps as well as by its mark', () => {
+        beRole(PeerRole.GameMaster);
+        component.sweepKind.set('debuffs');
+        TestBed.inject(StatusAilmentService).save([newStatusAilment('毒')]);
+        try {
+          expect(component.sweepCount()).toEqual({ characters: 2, buffs: 3 });
+        } finally {
+          TestBed.inject(StatusAilmentService).save([]);
+          StatusAilmentCatalog.forget();
+        }
+      });
+
+      it('counts the values as well once the box is ticked, and lets a sweep with only values to put back run', () => {
+        beRole(PeerRole.GameMaster);
+        component.sweepKind.set('all');
+        component.sweepWithValues.set(true);
+        fixture.detectChanges();
+
+        expect(component.sweepReach()).toEqual({ characters: 2, buffs: 4, items: 1 });
+        expect(countLine()).toBe(
+          t()('feature.buffManager.sweepCountWithValues', { characters: 2, buffs: 4, items: 1 })
+        );
+
+        component.sweepKind.set('rounds');
+        component.sweepRounds.set(9);
+        fixture.detectChanges();
+        expect(component.sweepCount().buffs).toBe(0);
+        expect(component.canSweep()).toBe(true);
+        expect(run().disabled).toBe(false);
+
+        component.sweepWithValues.set(false);
+        fixture.detectChanges();
+        expect(run().disabled).toBe(true);
+      });
+
+      it('clears every buff once confirmed, reports it, and keeps the way back under the report', async () => {
+        beRole(PeerRole.GameMaster);
+        const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+        const line = { identifier: 'report-line' } as ChatMessage;
+        const said = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(line);
+        component.sweepKind.set('all');
+
+        await component.sweep();
+
+        expect(ask).toHaveBeenCalledExactlyOnceWith(
+          t()('feature.buffManager.sweepConfirm', {
+            what: t()('feature.buffManager.sweepAllWhat'),
+            characters: 2,
+            buffs: 4,
+          })
+        );
+        expect([names(knight), names(archer), hit.value]).toEqual([[], [], 9]);
+        expect(said).toHaveBeenCalledExactlyOnceWith(
+          'round',
+          encodeI18nMessage('feature.buffManager.sweepDone', {
+            what: encodeI18nMessage('feature.buffManager.sweepAllWhat', {}),
+            characters: 2,
+            buffs: 4,
+            items: 0,
+          })
+        );
+        expect(told.map((event) => event.messageIdentifier)).toEqual(['report-line']);
+      });
+
+      it.each<['buffs' | 'debuffs', string[], string[]]>([
+        ['buffs', [], ['呪い']],
+        ['debuffs', ['毒', '加速'], ['毒']],
+      ])('takes the %s alone', async (kind, onKnight, onArcher) => {
+        beRole(PeerRole.GameMaster);
+        vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+        vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(null);
+        component.sweepKind.set(kind);
+
+        await component.sweep();
+
+        expect([names(knight), names(archer)]).toEqual([onKnight, onArcher]);
+      });
+
+      it('puts the values back as well where the box is ticked, with any choice, and says both', async () => {
+        beRole(PeerRole.GameMaster);
+        const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+        const said = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(null);
+        component.sweepKind.set('name');
+        component.sweepName.set('毒');
+        component.sweepWithValues.set(true);
+
+        await component.sweep();
+
+        expect(ask.mock.calls[0][0]).toBe(
+          t()('feature.buffManager.sweepConfirmWithValues', {
+            what: t()('feature.buffManager.sweepNameWhat', { name: '毒' }),
+            characters: 2,
+            buffs: 2,
+            items: 1,
+          })
+        );
+        expect([names(knight), names(archer), hit.value]).toEqual([['加速'], ['呪い'], 3]);
+        expect(said.mock.calls[0][1]).toBe(
+          encodeI18nMessage('feature.buffManager.resetDone', {
+            what: encodeI18nMessage('feature.buffManager.sweepNameWhat', { name: '毒' }),
+            characters: 2,
+            buffs: 2,
+            items: 1,
+          })
+        );
+      });
+
+      it('leaves a sweep by a condition without the values as it was: no way back is kept', async () => {
+        beRole(PeerRole.GameMaster);
+        vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+        const said = vi
+          .spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice')
+          .mockReturnValue({ identifier: 'report-line' } as ChatMessage);
+
+        await component.sweep();
+
+        expect(names(knight)).toEqual(['加速']);
+        expect(said.mock.calls[0][1]).toBe(
+          encodeI18nMessage('feature.buffManager.sweepDone', {
+            what: encodeI18nMessage('feature.buffManager.sweepHeldWhat', {}),
+            characters: 1,
+            buffs: 1,
+          })
+        );
+        expect(told).toEqual([]);
+      });
+
+      it('does nothing with the new choices for anyone but the game master, or where it is called off', async () => {
+        const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+        component.sweepKind.set('all');
+        component.sweepWithValues.set(true);
+
+        beRole(PeerRole.Player);
+        await component.sweep();
+        expect(ask).not.toHaveBeenCalled();
+
+        beRole(PeerRole.GameMaster);
+        ask.mockResolvedValue(false);
+        await component.sweep();
+
+        expect([names(knight), hit.value]).toEqual([['毒', '加速'], 9]);
+        expect(told).toEqual([]);
+      });
+    });
+
+    describe('marking a buff a buff or a debuff', () => {
+      it('shows the picked buff’s kind in its details and writes the mark as it is changed', () => {
+        beRole(PeerRole.GameMaster);
+        const poison = knight.buffs.find('毒')!;
+        component.selected.set(poison.identifier);
+        fixture.detectChanges();
+        const select = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="buff-selected-kind"]');
+
+        expect(select?.querySelectorAll('option')).toHaveLength(2);
+        expect(component.selectedKind()).toBe('buff');
+
+        component.setKind('debuff');
+
+        expect(poison.getAttribute('cs-buff-kind')).toBe('debuff');
+        expect(component.selectedKind()).toBe('debuff');
+      });
+
+      it('writes the word for a debuff into the command it builds, where a plain look reads it, and none for a buff', () => {
+        expect(component.builderCommand()).toBe('&!猛攻撃/命中/+/2/3');
+
+        component.builderKind.set('debuff');
+        expect(component.builderCommand()).toBe('&!猛攻撃/命中/+/2/3/debuff');
+
+        component.builderTiming.set('turnStart');
+        component.builderTrigger.set('術者');
+        expect(component.builderCommand()).toBe('&!猛攻撃/命中/+/2/3/turnStart/術者/debuff');
+      });
+
+      it.each(['&!呪い/回避/-/1/3/debuff', '&!呪い/回避/-/1/3/turnStart/術者/debuff', '&!呪い/回避/-/1/3/none/debuff'])(
+        'lays a debuff with the command built as %s',
+        (command) => {
+          applyBuffEdit({ command, object: knight, targeted: false }, knight);
+
+          expect(knight.buffs.find('呪い')?.getAttribute('cs-buff-kind')).toBe('debuff');
+        }
+      );
     });
 
     it('takes nothing when the game master thinks better of it, or for anyone else', async () => {

@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
+import { PieceResetService } from '@axe/application/character/piece-reset.service';
+import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -15,11 +17,13 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import {
-  BuffConditionRule,
   BuffRemovalCount,
+  BuffRemovalRule,
   countBuffRemoval,
+  isBuffClearance,
   removeBuffsAcross,
 } from '@axe/domain/character/buff-bulk-removal';
+import { BUFF_KINDS, type BuffKind, buffKindOf, markBuffKind } from '@axe/domain/character/buff-kind';
 import { describeBuffModifier, parseBuffModifierRequest } from '@axe/domain/character/buff-modifier';
 import {
   barColumns,
@@ -37,7 +41,9 @@ import {
   writeBuffEffectTiming,
 } from '@axe/domain/character/buff-timing';
 import { buffTriggerOptions, selectedTriggerValue } from '@axe/domain/character/buff-trigger-options';
+import { sheetItemsOf } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import type { ResetCount } from '@axe/domain/character/piece-reset';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 import { STATUS_AILMENT_PANEL } from '@axe/domain/ui/room-panel';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
@@ -86,8 +92,11 @@ export class BuffManagerPanelComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
   private readonly chat = inject(ChatMessageService);
+  private readonly statusAilments = inject(StatusAilmentService);
+  private readonly pieceReset = inject(PieceResetService);
 
   readonly timingChoices = BUFF_TIMINGS;
+  readonly kindChoices = BUFF_KINDS;
   readonly effectTimingChoices = BUFF_EFFECT_TIMINGS;
   readonly operatorChoices = BUILDER_OPERATORS;
 
@@ -299,6 +308,25 @@ export class BuffManagerPanelComponent {
   }
 
   /**
+   * Whether the picked buff is a buff or a debuff: as it is marked, or, unmarked, a debuff where it
+   * goes by the name of a state the room keeps.
+   */
+  readonly selectedKind = computed<BuffKind>(() => {
+    const element = this.selectedElement();
+    if (!element) return 'buff';
+    this.objectChange.versionOf(element.identifier)();
+    return buffKindOf(element, this.statusAilments.ailments());
+  });
+
+  /** Marks the picked buff a buff or a debuff by hand. Does nothing while no buff is picked. */
+  setKind(kind: BuffKind): void {
+    const element = this.selectedElement();
+    if (!element || !this.rolePermission.canEditTabletop()) return;
+    markBuffKind(element, kind);
+    this.touch(element);
+  }
+
+  /**
    * Takes the picked buff off the character that carries it, or destroys it outright when it
    * belongs to none, and clears the pick.
    */
@@ -315,10 +343,15 @@ export class BuffManagerPanelComponent {
   /** Whether this seat runs the game, the only one allowed to sweep buffs off the whole table. */
   readonly isGameMaster = computed(() => this.rolePermission.isGameMaster());
 
-  /** Which buffs the sweep takes: those held until cleared, those with so many rounds left, or one name. */
-  readonly sweepKind = signal<BuffConditionRule['kind']>('held');
+  /**
+   * Which buffs the sweep takes: those held until cleared, those with so many rounds left, one name,
+   * or, whatever their rounds and names, every buff, the buffs alone or the debuffs alone.
+   */
+  readonly sweepKind = signal<BuffRemovalRule['kind']>('held');
   readonly sweepRounds = signal<number | string>(1);
   readonly sweepName = signal('');
+  /** Whether the sweep also puts the values of every piece on the table back to their defaults. */
+  readonly sweepWithValues = signal(false);
 
   private piecesOnTable(): GameCharacter[] {
     this.objectChange.collectionOf('character')();
@@ -339,8 +372,9 @@ export class BuffManagerPanelComponent {
   });
 
   /** The sweep as chosen, or nothing while the choice is incomplete. */
-  readonly sweepRule = computed<BuffConditionRule | null>(() => {
-    switch (this.sweepKind()) {
+  readonly sweepRule = computed<BuffRemovalRule | null>(() => {
+    const kind = this.sweepKind();
+    switch (kind) {
       case 'held':
         return { kind: 'held' };
       case 'rounds': {
@@ -352,6 +386,8 @@ export class BuffManagerPanelComponent {
         const name = names.includes(this.sweepName()) ? this.sweepName() : (names[0] ?? '');
         return name.length > 0 ? { kind: 'name', name } : null;
       }
+      default:
+        return { kind };
     }
   });
 
@@ -365,11 +401,33 @@ export class BuffManagerPanelComponent {
   readonly sweepCount = computed<BuffRemovalCount>(() => {
     const rule = this.sweepRule();
     const pieces = this.piecesOnTable();
-    return rule ? countBuffRemoval(pieces, rule) : { characters: 0, buffs: 0 };
+    return rule ? countBuffRemoval(pieces, rule, this.statusAilments.ailments()) : { characters: 0, buffs: 0 };
+  });
+
+  /**
+   * What the sweep would reach with the values put back as well: the pieces, the buffs, and the items
+   * that do not stand at the default they keep. The items are counted as they stand now, so the line
+   * reporting the sweep may give another number once the buffs are off.
+   */
+  readonly sweepReach = computed<ResetCount>(() => {
+    const rule = this.sweepRule();
+    const pieces = this.piecesOnTable();
+    for (const piece of pieces) {
+      for (const item of sheetItemsOf(piece)) this.objectChange.versionOf(item.identifier)();
+    }
+    return this.pieceReset.count(pieces, { rule, values: this.sweepWithValues() });
+  });
+
+  /** Whether the sweep as chosen has anything to do: a buff to take, or, with the values asked for, a value to put back. */
+  readonly canSweep = computed(() => {
+    if (!this.sweepRule()) return false;
+    if (!this.sweepWithValues()) return this.sweepCount().buffs > 0;
+    const reach = this.sweepReach();
+    return reach.buffs > 0 || reach.items > 0;
   });
 
   /** The sweep named for the confirmation and the chat line. */
-  private sweepLabel(rule: BuffConditionRule): { key: string; params: Record<string, unknown> } {
+  private sweepLabel(rule: BuffRemovalRule): { key: string; params: Record<string, unknown> } {
     switch (rule.kind) {
       case 'held':
         return { key: 'feature.buffManager.sweepHeldWhat', params: {} };
@@ -377,22 +435,48 @@ export class BuffManagerPanelComponent {
         return { key: 'feature.buffManager.sweepRoundsWhat', params: { n: rule.rounds } };
       case 'name':
         return { key: 'feature.buffManager.sweepNameWhat', params: { name: rule.name } };
+      case 'all':
+        return { key: 'feature.buffManager.sweepAllWhat', params: {} };
+      case 'buffs':
+        return { key: 'feature.buffManager.sweepBuffsWhat', params: {} };
+      case 'debuffs':
+        return { key: 'feature.buffManager.sweepDebuffsWhat', params: {} };
     }
   }
 
   /**
    * Takes the chosen buffs off every piece on the table, once the game master has confirmed how
    * many, and says in chat what went. Buffs that moved a status put it back as they go.
+   *
+   * A sweep by how a buff is held, its rounds or its name, without the values, runs as it always
+   * did. One that clears the pieces whatever their buffs are named, and any sweep that puts the
+   * values back to their defaults as well, is a reset: it goes through {@link PieceResetService},
+   * and can be taken back from the line that reports it.
    */
   async sweep(): Promise<void> {
     const rule = this.sweepRule();
-    const count = this.sweepCount();
-    if (!rule || !this.isGameMaster() || count.buffs < 1) return;
+    const withValues = this.sweepWithValues();
+    if (!rule || !this.isGameMaster() || !this.canSweep()) return;
     const label = this.sweepLabel(rule);
-    const asked = this.t('feature.buffManager.sweepConfirm', { what: this.t(label.key, label.params), ...count });
+    const what = this.t(label.key, label.params);
+    const asked = withValues
+      ? this.t('feature.buffManager.sweepConfirmWithValues', { what, ...this.sweepReach() })
+      : this.t('feature.buffManager.sweepConfirm', { what, ...this.sweepCount() });
     if (!(await this.confirm.ask(asked))) return;
+    if (!this.isGameMaster()) return;
 
-    const removed = removeBuffsAcross(this.inventory.tableInventory.tabletopObjects as GameCharacter[], rule);
+    const pieces = this.inventory.tableInventory.tabletopObjects as GameCharacter[];
+    if (withValues || isBuffClearance(rule)) {
+      this.pieceReset.run(pieces, { rule, values: withValues }, (done) => {
+        if (done.buffs < 1 && done.items < 1) return null;
+        const key = withValues ? 'feature.buffManager.resetDone' : 'feature.buffManager.sweepDone';
+        return encodeI18nMessage(key, { what: encodeI18nMessage(label.key, label.params), ...done });
+      });
+      this.selected.set('');
+      this.refresh();
+      return;
+    }
+    const removed = removeBuffsAcross(pieces, rule);
     this.selected.set('');
     this.refresh();
     if (removed.buffs > 0) {
@@ -439,6 +523,8 @@ export class BuffManagerPanelComponent {
   readonly builderTiming = signal<BuffTiming>('roundEnd');
   readonly builderTrigger = signal('');
   readonly builderEffectTiming = signal<BuffEffectTiming | ''>('');
+  /** Whether the built buff is marked a debuff; a buff carries no mark, as one laid by a plain command does. */
+  readonly builderKind = signal<BuffKind>('buff');
   readonly builderStacks = signal(false);
   readonly builderExtends = signal(false);
 
@@ -494,8 +580,9 @@ export class BuffManagerPanelComponent {
   /**
    * The `&!` command the builder's fields make up: the older layout for one status, and the statuses
    * written together for several. A slash typed in an amount divides there, but the command is cut
-   * into its fields at every slash, so it is written as ÷, which reads the same. A moment chosen for
-   * the effect is written last, behind `tick:`, where any status moves again at every count.
+   * into its fields at every slash, so it is written as ÷, which reads the same. A debuff is marked
+   * with the word `debuff` after the timing, and a moment chosen for the effect is written last,
+   * behind `tick:`, where any status moves again at every count.
    */
   readonly builderCommand = computed(() => {
     const rows = this.builderRows();
@@ -512,6 +599,7 @@ export class BuffManagerPanelComponent {
     const trigger = this.builderTrigger().trim();
     if (timing !== 'roundEnd' || trigger.length > 0) parts.push(timing);
     if (trigger.length > 0) parts.push(trigger);
+    if (this.builderKind() === 'debuff') parts.push('debuff');
     const effectTiming = this.builderEffectTiming();
     if (effectTiming.length > 0 && this.builderCanTimeEffect()) parts.push(`tick:${effectTiming}`);
     const stacks = this.builderStacks() && this.builderCanStack();
