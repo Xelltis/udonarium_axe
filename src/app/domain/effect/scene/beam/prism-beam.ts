@@ -40,6 +40,8 @@ const OPENS = 2.6;
 const OPENS_OVER = 2.4;
 /** The dark laid under the braid. */
 const SHADOW = '#0b0718';
+/** How many points a strand is drawn through where the beam keeps all its detail. */
+const STRAND_POINTS = 40;
 
 /**
  * The hues of the braid: as many colours round the wheel of colour, evenly apart, as it has strands,
@@ -88,7 +90,8 @@ function strandsOf(
       const turn =
         Math.PI * 2 * (strand / hues.length + along / (pose.wide * PITCH) - pose.seconds * TURNS) + pose.seed;
       const out = pose.wide * WINDS_AT * (swell + (1 - swell) * opening) * (1 + (OPENS - 1) * opening * opening);
-      points.push(onLine(pose.line, along, Math.cos(turn) * out, Math.sin(turn) * out));
+      const wound = onLine(pose.line, along, Math.cos(turn) * out, Math.sin(turn) * out);
+      points.push({ ...wound, z: Math.max(wound.z, (pose.floorZ ?? wound.z) + 1) });
       about.push(onLine(pose.line, along));
       widths.push(pose.wide * STRAND_WIDE * swell * (1 - 0.5 * opening));
       alphas.push(Math.min(1, beamFadeAt(pose, along) * 1.6));
@@ -101,6 +104,7 @@ function strandsOf(
       alpha: pose.power,
       alphas,
       blend: 'color',
+      thins: true,
       about,
       half,
     });
@@ -119,6 +123,7 @@ function strandsOf(
       alphas,
       blend: 'light',
       soft: 1,
+      thins: true,
     });
     far.push(outline('far'), band('far'));
     near.push(outline('near'), band('near'));
@@ -155,18 +160,19 @@ function layWheel(
   hues.forEach((hue, index) => {
     const at = (back: number): Point => {
       const turn = turned - back + (index / hues.length) * Math.PI * 2;
-      return onLine(line, 0, Math.cos(turn) * out, Math.sin(turn) * out);
+      const wheeled = onLine(line, 0, Math.cos(turn) * out, Math.sin(turn) * out);
+      return { ...wheeled, z: Math.max(wheeled.z, floor.z + 1) };
     };
     const shown = Math.min(1, gather * 5);
     drawn.ribbons.push({
       points: [at(1.1), at(0.8), at(0.5), at(0.25), at(0)],
-      widths: [0, cell * 0.08, cell * 0.16, cell * 0.22, cell * 0.26],
+      widths: [0, cell * 0.04, cell * 0.08, cell * 0.11, cell * 0.13],
       color: hue,
       core: mixColor(hue, '#ffffff', 0.6),
       alpha: shown,
       blend: 'color',
     });
-    layHueOrb(drawn, at(0), cell * (0.24 + 0.12 * gather), hue, shown, cell * 0.5);
+    layHueOrb(drawn, at(0), cell * (0.2 + 0.08 * gather), hue, shown, cell * 0.5);
   });
 }
 
@@ -204,7 +210,7 @@ export const PRISM_BEAM: ColossalLook = {
   floorOf: (ramp, share) => prismHuesOf(ramp[1])[Math.floor(share * 7.3) % STRANDS],
   layBody: (drawn, pose, ramp, glare) => {
     const hues = prismHuesOf(ramp[1]).map((hue) => mixColor(hue, '#ffffff', glare * 0.5));
-    const strands = strandsOf(pose, hues, 40);
+    const strands = strandsOf(pose, hues, Math.max(16, Math.round(STRAND_POINTS * (pose.detail ?? 1))));
     layBeamBody(drawn, pose, [
       { wide: 1.9, color: ramp[5], alpha: 0.16 + 0.3 * glare, blend: 'light', soft: 1, flows: 0.5 },
       { wide: 1.42 + 0.3 * glare, color: SHADOW, alpha: 0.86, blend: 'color', torn: 0.3, flows: 0.7 },

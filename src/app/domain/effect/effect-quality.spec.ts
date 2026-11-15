@@ -56,7 +56,9 @@ function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; ca
  * the kind with neither never draws: each state of a curse, each element of a breath, and the shots
  * and blows of wind and of earth; those chosen by its grade or laid out over an area, the lights
  * that smite, a sanctuary and the bolts of lightning; and those chosen by how many it strikes, a
- * current held on one target, and a storm on six, as many as the bundled one takes. The last of each
+ * current held on one target, and a storm on six, as many as the bundled one takes; a great beam on
+ * two and on three, where each keeps more of its detail, the beam of many hues, a laser as long as the
+ * bundled one, and the shots of a blaster. The last of each
  * is how many targets it is cast on, where that is not four.
  */
 const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, number?])[] = [
@@ -81,6 +83,12 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, numbe
   ['arc', { grade: 3, staggerMs: 140 }, 5],
   ['projectile', { impactKind: 'bolt', tagName: '射撃' }],
   ['skyblade', { impactKind: 'bolt', durationMs: 3000 }],
+  ['beam', { durationMs: 3344 }, 2],
+  ['beam', { durationMs: 3344 }, 3],
+  ['beam', { moteStyle: 'prism', durationMs: 3000 }],
+  ['beam', { moteStyle: 'prism', durationMs: 3000 }, 2],
+  ['raybeam', { durationMs: 2038 }],
+  ['projectile', { projectileStyle: 'blaster', impactKind: 'impact' }],
 ];
 
 /** The heaviest cast of a kind, as one of the looks it is given by its family or its particles. */

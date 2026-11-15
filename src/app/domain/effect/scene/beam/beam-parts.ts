@@ -46,7 +46,7 @@ export function layOrb(
   const hue = hueOf(ramp);
   const radius = size / 2;
   const flowed = seconds * 3;
-  drawn.motes.push(glow(at, size * 2.6, hue, 0.45 * alpha, size * 0.3));
+  drawn.motes.push({ ...glow(at, size * 2.6, hue, 0.45 * alpha, size * 0.3), exactDepth: true });
   drawn.ribbons.push(
     ballBand(at, way, radius * 1.18, mixColor(ramp[0], GLOOM, 0.55), 0.9 * alpha, { torn: 0.12, flowed }),
     ballBand(at, way, radius, hue, alpha, { core: ramp[3], torn: 0.16, flowed: flowed * 1.3 + 3 }),
@@ -87,7 +87,7 @@ export function layGathering(drawn: Staged, gathering: Gathering, ramp: readonly
   const squeezed = within(gather, 0.9, 1);
   const size = gathering.size * (0.3 + 0.7 * grown) * (1 - 0.22 * squeezed) * (1 + 0.05 * Math.sin(seconds * 47));
 
-  drawn.floor.push(floorMark('disc', floor, cell * 5.2, 1, GLOOM, 0.66 * Math.sqrt(gather), 'color', 0));
+  drawn.floor.push(floorMark('disc', floor, cell * 4.4, 1, GLOOM, 0.66 * Math.sqrt(gather), 'color', 0));
   drawn.floor.push(floorMark('disc', floor, cell * (1.6 + 1.6 * grown), 1, hue, 0.5 * grown, 'light', 0));
   drawn.floor.push(floorMark('disc', floor, cell * (0.7 + 0.6 * grown), 1, ramp[5], 0.55 * grown, 'light', 0));
   for (let ring = 0; ring < 3; ring++) {
@@ -269,7 +269,7 @@ export interface Trench {
  * A trench burnt along the floor under a beam, `t` seconds after the beam began to burn it: soot
  * laid along it, white-hot down its middle while the beam is on it, then glowing
  * like embers and cooling over `coolS` seconds from when the beam `stops`, the end the beam left
- * first cooling first; gone as `clearing` falls to nothing. `marks` is how many smudges it is laid in.
+ * first cooling first; gone as `clearing` falls to nothing. `marks` is how many smudges its glow is laid in, and its soot in half as many.
  */
 export function layTrench(
   drawn: Staged,
@@ -296,26 +296,34 @@ export function layTrench(
   });
   const ragged = (index: number) => 0.9 + 0.2 * Math.sin(index * 2.7 + trench.seed);
   places.forEach((share, index) => {
+    if (index % 2 === 1) return;
     drawn.floor.push(floorMark('disc', at(share), wide * 1.25 * ragged(index), 1, SMOKE, 0.7 * clearing, 'color', 0));
     drawn.floor.push(floorMark('disc', at(share), wide * 0.8 * ragged(index), 1, SOOT, 0.75 * clearing, 'color', 0));
   });
   const heatAt = (share: number) => (t < stops ? 1 : Math.max(0, 1 - (t - stops - share * 0.25) / coolS));
-  places.forEach((share, index) => {
+  places.forEach((share) => {
     const heat = heatAt(share);
     if (heat <= 0) return;
     const shown = Math.min(1, heat * 2.5) * clearing;
     drawn.floor.push(
-      floorMark('disc', at(share), wide * (0.62 + 0.14 * heat) * ragged(index), 1, EMBER_DEEP, 0.85 * shown, 'color', 0)
+      floorMark(
+        'disc',
+        at(share),
+        wide * (0.62 + 0.14 * heat),
+        1,
+        t < stops ? hueOf(ramp) : EMBER_DEEP,
+        0.85 * shown,
+        'color',
+        0
+      )
     );
   });
-  places.forEach((share, index) => {
+  places.forEach((share) => {
     const heat = heatAt(share);
     if (heat <= 0) return;
     const shown = Math.min(1, heat * 2.5) * clearing;
     const hot = t < stops ? ramp[4] : mixColor(EMBER, ramp[5], Math.max(0, heat * 2.2 - 1.2));
-    drawn.floor.push(
-      floorMark('disc', at(share), wide * (0.3 + 0.22 * heat) * ragged(index), 1, hot, shown, 'color', 0)
-    );
+    drawn.floor.push(floorMark('disc', at(share), wide * (0.3 + 0.22 * heat), 1, hot, shown, 'color', 0));
   });
 }
 

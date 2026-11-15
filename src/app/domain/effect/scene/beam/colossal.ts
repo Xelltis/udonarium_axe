@@ -41,7 +41,7 @@ const BEFORE_AT_MOST = 0.5;
 /** How far off a beam cast from nowhere comes from, in cells. */
 const FROM_NOWHERE = 5.5;
 /** How high over the floor the middle of the beam runs at the least, as a share of its width. */
-const CLEARS_FLOOR = 0.66;
+const CLEARS_FLOOR = 0.52;
 /** How often a ring is shed at the muzzle while the beam pours, how long it rides down it, in seconds, and how fast, in widths a second. */
 const RING_EVERY_S = 0.3;
 const RING_RIDES_S = 0.8;
@@ -203,7 +203,7 @@ export function drawColossal(stage: Stage, look: ColossalLook, lingerS: number):
     timing.goneAt - timing.firesAt,
     Math.min(TRENCH_COOLS_S, ends - timing.goneAt - 0.65),
     1 - within(t, ends - 0.5, ends),
-    Math.max(8, Math.round(20 * detail))
+    Math.max(10, Math.round(28 * detail))
   );
   layTrenchSmoke(drawn, trench, cell, t - timing.goneAt, ends - timing.goneAt, Math.round(12 * detail));
 
@@ -219,6 +219,8 @@ export function drawColossal(stage: Stage, look: ColossalLook, lingerS: number):
       reached: 1,
       failing,
       tail: cell * TAIL,
+      floorZ: stage.groundZ,
+      detail,
     };
     const left = 1 - failing;
     const rings: ReturnType<typeof beamRingOf>[] = [];

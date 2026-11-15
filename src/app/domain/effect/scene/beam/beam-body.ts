@@ -69,6 +69,9 @@ export interface BeamPose {
   readonly tail: number;
   /** How wide its neck is where it leaves the muzzle, as a share of its width. */
   readonly neck?: number;
+  /** How high the floor under it is, which nothing wound about it is drawn below, and how much of its detail it keeps, from 1 down, where several are fired at once. */
+  readonly floorZ?: number;
+  readonly detail?: number;
 }
 
 /** One sheet of a beam's body. */
@@ -148,6 +151,7 @@ export function layBeamBody(drawn: Staged, pose: BeamPose, sheets: readonly Beam
       alpha: sheet.alpha * pose.power,
       alphas: fade,
       blend: sheet.blend,
+      thins: true,
       torn: sheet.torn,
       soft: sheet.soft,
       flowed: frays ? (pose.seconds * FLOWS * (sheet.flows ?? 1)) / sheet.wide + index * 3.7 + (pose.seed % 11) : 0,
@@ -290,6 +294,7 @@ export function ballBand(
     core: fray.core,
     alpha: Math.max(0, alpha),
     blend: fray.blend ?? 'color',
+    thins: true,
     torn: fray.torn,
     flowed: fray.flowed,
   };
@@ -323,9 +328,13 @@ export function layBeamLicks(drawn: Staged, pose: BeamPose, tones: LickTones, co
     variant: number
   ) => {
     const paint = { alpha: pose.power, forward: wide * 0.2, variant };
+    const deep = { exactDepth: true };
     drawn.motes.push(
-      flowingMote('lick', root, heading, across * 1.3, long * 1.12, flowed, { ...paint, color: tones.dark }),
-      flowingMote('lick', root, heading, across, long, flowed, { ...paint, color, core: tones.core })
+      {
+        ...flowingMote('lick', root, heading, across * 1.3, long * 1.12, flowed, { ...paint, color: tones.dark }),
+        ...deep,
+      },
+      { ...flowingMote('lick', root, heading, across, long, flowed, { ...paint, color, core: tones.core }), ...deep }
     );
   };
   for (let index = 0; index < count; index++) {
