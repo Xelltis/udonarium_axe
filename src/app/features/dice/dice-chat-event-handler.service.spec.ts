@@ -164,6 +164,20 @@ describe('DiceChatEventHandlerService', () => {
     expect(dice.face).toBe(before);
   });
 
+  it('turns nothing for a guest among peers either, who may turn no die on the table by hand', () => {
+    const goblin = makeCharacter('ゴブリンA');
+    const dice = makeDice(goblin);
+    const before = dice.face;
+    PeerCursor.myCursor.role = PeerRole.Guest;
+
+    roll('2d6 dice:ゴブリンA', [{ sides: 6, value: 4 }]);
+    expect(dice.face).toBe(before);
+
+    PeerCursor.myCursor.role = PeerRole.Player;
+    roll('2d6 dice:ゴブリンA', [{ sides: 6, value: 4 }]);
+    expect(dice.face).toBe('4');
+  });
+
   it('turns nothing for a guest on a room server, which would take each face back', () => {
     const goblin = makeCharacter('ゴブリンA');
     const dice = makeDice(goblin);
