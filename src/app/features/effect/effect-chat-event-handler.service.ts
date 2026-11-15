@@ -1,6 +1,7 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { resourceEditMessage$ } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { chatLineBout } from '@axe/domain/battle/battle-chat-line';
@@ -13,7 +14,8 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
  * Fires an effect from a token in the body of a chat line.
  *
  * Only the sender fires it. The cast service hands it to everybody, so firing it at the
- * receiving end as well would play it once per player.
+ * receiving end as well would play it once per player. A guest, who shows nothing on anybody's
+ * table, fires none: the line goes out as chat and nothing more.
  *
  * It aims at whatever the resource change aims at, so one line covers the roll, the damage and the effect.
  * A line the battle stage plays, by its token, plays its effect on the stage instead.
@@ -24,11 +26,13 @@ export class EffectChatEventHandlerService {
   private readonly objectStore = inject(ObjectStore);
   private readonly library = inject(EffectLibraryService);
   private readonly castService = inject(EffectCastService);
+  private readonly rolePermission = inject(RolePermissionService);
 
   constructor() {
     resourceEditMessage$.subscribe((event) => {
       const message = this.objectStore.get<ChatMessage>(event.messageIdentifier);
       if (!(message instanceof ChatMessage) || !message.isSendFromSelf || message.isSystem) return;
+      if (!this.rolePermission.canEditTabletop()) return;
 
       // A line played on the battle stage carries its effect there instead; one the stage does not
       // take, from a speaker who is no piece or with nobody to strike, plays its effect as ever.

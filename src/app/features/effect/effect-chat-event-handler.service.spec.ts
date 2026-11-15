@@ -10,6 +10,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -89,6 +90,18 @@ describe('EffectChatEventHandlerService', () => {
     expect(targets).toEqual([target]);
     // It is cast by whoever spoke the line, not by whatever is selected.
     expect(firedCaster).toBe(caster);
+  });
+
+  it('fires nothing from the line of a guest, who shows nothing on anybody’s table', () => {
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    const message = addMessage('t:HP-10 《爆炎》', caster.identifier);
+
+    emitResourceEditMessage({ messageIdentifier: message.identifier, messageTargetContext: null });
+    expect(castStub.fire).not.toHaveBeenCalled();
+
+    PeerCursor.myCursor.role = PeerRole.Player;
+    emitResourceEditMessage({ messageIdentifier: message.identifier, messageTargetContext: null });
+    expect(castStub.fire).toHaveBeenCalledTimes(1);
   });
 
   it('leaves the effect of a line played on the battle stage to the stage', () => {
