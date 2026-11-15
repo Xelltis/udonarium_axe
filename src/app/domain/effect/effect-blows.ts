@@ -8,6 +8,7 @@ import { effectLandingTimes } from '@axe/domain/effect/effect-sound-times';
 import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
 import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
 import { frostStrikesOf } from '@axe/domain/effect/ice-looks';
+import { strikeLandsAt } from '@axe/domain/effect/strike-looks';
 import { boltStrokesOf, CURRENT_REACHES_AT } from '@axe/domain/effect/thunder-looks';
 import { slashHits } from '@axe/domain/effect/timeline/blade';
 import { gustTimingOf, isGust } from '@axe/domain/effect/wind-looks';
@@ -94,7 +95,6 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
   impact: 0.06,
   rubble: RUBBLE_FIRST_HEAVE,
   upheaval: 0.12,
-  bash: 0.1,
   frost: 0.1,
   gravity: 0.5,
   bisect: 0.05,
@@ -117,7 +117,8 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
  * hail at each of its great shards, the cold that stills an area and a pillar of ice once as they
  * close and once as they shatter. A bolt of lightning lands one as it strikes, once its
  * leader has been seen coming, and the greatest of them a second, the last stroke its column ends in;
- * a current of lightning lands one as it reaches its target. Each later target is struck as the first is, its stagger
+ * a current of lightning lands one as it reaches its target. A strike lands one once its blow has been
+ * drawn back, the longer the heavier it is. Each later target is struck as the first is, its stagger
  * later, and holds nothing more.
  */
 export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
@@ -164,8 +165,10 @@ function strikeTimes(preset: EffectPreset): number[] {
         const seen =
           window.stage.kind === 'bolt'
             ? boltStrokesOf(preset.gradeLevel, lasts / 1000)[0]
-            : (holyStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000) ??
-              darkStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000)?.[0]);
+            : window.stage.kind === 'bash'
+              ? strikeLandsAt(preset.gradeLevel, lasts / 1000)
+              : (holyStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000) ??
+                darkStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000)?.[0]);
         return Math.round(
           window.startMs + (seen !== undefined ? seen * 1000 : lasts * (GOES_OFF_AT[window.stage.kind] ?? 0))
         );
@@ -197,6 +200,8 @@ function strikeTimes(preset: EffectPreset): number[] {
   if (preset.effectKind === 'frost') {
     return frostStrikesOf(preset, preset.duration / 1000).map((strike) => Math.round(strike * 1000));
   }
+  if (preset.effectKind === 'bash')
+    return [Math.round(strikeLandsAt(preset.gradeLevel, preset.duration / 1000) * 1000)];
   const goesOff = GOES_OFF_AT[preset.effectKind];
   if (goesOff !== undefined) return [Math.round(goesOff * preset.duration)];
   return effectLandingTimes(preset);
