@@ -13,7 +13,7 @@ async function castOn(page: Page, preset: string) {
   await settle(page);
   await page.locator('[data-testid="fab-submenu-media"] [data-testid="fab-entry-effectLibrary"]').click();
   const panel = page.locator('effect-library-panel');
-  const filter = panel.getByPlaceholder('名前・系統で絞り込む');
+  const filter = panel.getByPlaceholder(/名前・系統/);
   await settleLazy(page, filter);
   await expect(panel).toBeVisible();
   await filter.fill(preset);
