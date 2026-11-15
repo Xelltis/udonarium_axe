@@ -271,7 +271,7 @@ describe('every look drawn in the scene', () => {
     const landed = staged(shot, cast, 900);
 
     expect(isDrawnInScene(shot)).toBe(true);
-    expect(landed.motes.some((mote) => mote.shape === 'tongue')).toBe(true);
+    expect(landed.motes.some((mote) => mote.shape === 'crystal')).toBe(true);
   });
 });
 

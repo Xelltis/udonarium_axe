@@ -6,6 +6,7 @@ import { breaksOutAsAura, type EffectShake, effectShakeOf } from '@axe/domain/ef
 import { effectLandingTimes } from '@axe/domain/effect/effect-sound-times';
 import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
 import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
+import { frostStrikesOf } from '@axe/domain/effect/ice-looks';
 import { slashHits } from '@axe/domain/effect/timeline/blade';
 import { gustTimingOf, isGust } from '@axe/domain/effect/wind-looks';
 
@@ -108,7 +109,9 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
  * look of holy light lands one, once it has been seen coming: its pillar landing, its ring bursting,
  * its walls rising. A draining lands one as it takes hold, which pulls the piece towards the one who
  * drains it rather than throwing it back. The greatest aura on its own lands one as it breaks out,
- * which holds and shakes and moves no piece. Each later target is struck as the first is, its stagger
+ * which holds and shakes and moves no piece. Ice on its own lands as the ice it is drawn as does:
+ * hail at each of its great shards, the cold that stills an area and a pillar of ice once as they
+ * close and once as they shatter. Each later target is struck as the first is, its stagger
  * later, and holds nothing more.
  */
 export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
@@ -173,6 +176,9 @@ function strikeTimes(preset: EffectPreset): number[] {
     return slashHits(preset.slashLook).map((hit) =>
       Math.round((hit.at + hit.span * STROKE_CROSSES_AT) * preset.duration)
     );
+  }
+  if (preset.effectKind === 'frost') {
+    return frostStrikesOf(preset, preset.duration / 1000).map((strike) => Math.round(strike * 1000));
   }
   const goesOff = GOES_OFF_AT[preset.effectKind];
   if (goesOff !== undefined) return [Math.round(goesOff * preset.duration)];
