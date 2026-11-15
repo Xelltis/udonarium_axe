@@ -64,6 +64,23 @@ export function buffKindFrom(mark: BuffKind | null, name: string, ailments: read
 }
 
 /**
+ * The mark a buff laid from a form is to carry, given the kind picked on the form, or null where it
+ * is to carry none. A form left untouched picks nothing and marks nothing, so the buff is whatever
+ * its name makes it. A debuff picked is always marked. A buff picked is marked only where the name
+ * is one of the room's states, which would otherwise make it a debuff; any other buff is laid with
+ * no mark, as a plain command lays one.
+ */
+export function buffKindMarkPicked(
+  picked: BuffKind | null,
+  name: string,
+  ailments: readonly StatusAilment[]
+): BuffKind | null {
+  if (picked === 'debuff') return 'debuff';
+  if (picked === 'buff' && findStatusAilment(ailments, name)) return 'buff';
+  return null;
+}
+
+/**
  * Marks a buff as a kind by hand, on its first row where the row given is a further row of a buff
  * that moves several statuses, since that row says what the whole buff is. The mark is always
  * written, a buff as much as a debuff, so a buff going by the name of one of the room's states

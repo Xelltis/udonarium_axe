@@ -2,6 +2,7 @@ import {
   BUFF_KINDS,
   buffKindFrom,
   buffKindMarkOf,
+  buffKindMarkPicked,
   buffKindOf,
   markBuffKind,
   parseBuffKindWord,
@@ -143,6 +144,27 @@ describe('whether a buff is a buff or a debuff', () => {
 
     it('offers the two kinds with a buff first', () => {
       expect(BUFF_KINDS).toEqual(['buff', 'debuff']);
+    });
+  });
+
+  describe('the mark a kind picked on a form writes', () => {
+    it('writes none while nothing is picked, whatever the name', () => {
+      expect([buffKindMarkPicked(null, '盾', catalog), buffKindMarkPicked(null, '毒', catalog)]).toEqual([null, null]);
+    });
+
+    it('always writes a debuff picked', () => {
+      expect([buffKindMarkPicked('debuff', '盾', catalog), buffKindMarkPicked('debuff', '毒', catalog)]).toEqual([
+        'debuff',
+        'debuff',
+      ]);
+    });
+
+    it('writes a buff picked only for the name of a state the room keeps, which it would otherwise be a debuff by', () => {
+      expect([buffKindMarkPicked('buff', '盾', catalog), buffKindMarkPicked('buff', '毒', catalog)]).toEqual([
+        null,
+        'buff',
+      ]);
+      expect(buffKindFrom(buffKindMarkPicked('buff', '毒', catalog), '毒', catalog)).toBe('buff');
     });
   });
 

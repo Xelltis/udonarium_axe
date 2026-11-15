@@ -212,7 +212,7 @@
               name="remoteBuffKind"
               data-testid="remote-buff-kind"
               [ngModel]="buffKind()"
-              (ngModelChange)="buffKind.set($event)"
+              (ngModelChange)="buffKindPicked.set($event)"
               [ngModelOptions]="{ standalone: true }"
             >
               @for (choice of buffKinds; track choice) {

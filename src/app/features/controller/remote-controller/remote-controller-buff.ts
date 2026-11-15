@@ -1,9 +1,10 @@
 import { BuffAppearance, parseBuffAppearance } from '@axe/domain/character/buff-appearance';
 import { splitBuffRounds } from '@axe/domain/character/buff-command';
-import type { BuffKind } from '@axe/domain/character/buff-kind';
+import { type BuffKind, buffKindMarkPicked } from '@axe/domain/character/buff-kind';
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
+import type { StatusAilment } from '@axe/domain/character/status-ailment';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 
 export interface RemoteControllerSelect {
@@ -60,12 +61,17 @@ export function parseBuffInput(text: string): ParsedBuffInput | null {
 }
 
 /**
- * Whether the kind chosen on the form is to be written on the buff: only a debuff is, and only where
- * the line typed says nothing of the kind itself, which wins. A buff is laid with no mark, as a
- * plain command lays one, so one going by the name of a state the room keeps is still a debuff.
+ * The kind to write on the buff the form lays, or null to write none: what was picked on the form,
+ * as {@link buffKindMarkPicked} reads it, unless the line typed says the kind itself, which wins and
+ * is already on the look.
  */
-export function marksChosenKind(appearance: BuffAppearance, chosen: BuffKind): boolean {
-  return appearance.kind === undefined && chosen === 'debuff';
+export function chosenKindMark(
+  appearance: BuffAppearance,
+  picked: BuffKind | null,
+  name: string,
+  ailments: readonly StatusAilment[]
+): BuffKind | null {
+  return appearance.kind === undefined ? buffKindMarkPicked(picked, name, ailments) : null;
 }
 
 /**

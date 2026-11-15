@@ -16,7 +16,14 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BuffRemovalCount, BuffRemovalRule, countBuffRemoval } from '@axe/domain/character/buff-bulk-removal';
-import { BUFF_KINDS, type BuffKind, buffKindOf, markBuffKind } from '@axe/domain/character/buff-kind';
+import {
+  BUFF_KINDS,
+  type BuffKind,
+  buffKindFrom,
+  buffKindMarkPicked,
+  buffKindOf,
+  markBuffKind,
+} from '@axe/domain/character/buff-kind';
 import { describeBuffModifier, parseBuffModifierRequest } from '@axe/domain/character/buff-modifier';
 import {
   barColumns,
@@ -499,8 +506,15 @@ export class BuffManagerPanelComponent {
   readonly builderTiming = signal<BuffTiming>('roundEnd');
   readonly builderTrigger = signal('');
   readonly builderEffectTiming = signal<BuffEffectTiming | ''>('');
-  /** Whether the built buff is marked a debuff; a buff carries no mark, as one laid by a plain command does. */
-  readonly builderKind = signal<BuffKind>('buff');
+  /** The kind picked for the built buff by hand, or null while the choice is left as it came. */
+  readonly builderKindPicked = signal<BuffKind | null>(null);
+  /**
+   * The kind the builder's choice shows: the one picked by hand, or, left as it came, the kind the
+   * buff's name makes it, a debuff for a state the room keeps and a buff for anything else.
+   */
+  readonly builderKind = computed<BuffKind>(
+    () => this.builderKindPicked() ?? buffKindFrom(null, this.builderNameWritten(), this.statusAilments.ailments())
+  );
   readonly builderStacks = signal(false);
   readonly builderExtends = signal(false);
 
@@ -541,6 +555,11 @@ export class BuffManagerPanelComponent {
     () => this.builderOperator() !== '=' && this.builderMore().every((row) => row.operator !== '=')
   );
 
+  /** The name the command gives the built buff: the one typed, or the builder's own while none is. */
+  private readonly builderNameWritten = computed(
+    () => this.builderName().trim() || this.t('feature.buffManager.builderDefaultName')
+  );
+
   /** Every status the built buff moves, the first among them, as the command writes each. */
   private readonly builderRows = computed<BuilderStatusRow[]>(() => [
     {
@@ -556,9 +575,11 @@ export class BuffManagerPanelComponent {
   /**
    * The `&!` command the builder's fields make up: the older layout for one status, and the statuses
    * written together for several. A slash typed in an amount divides there, but the command is cut
-   * into its fields at every slash, so it is written as ÷, which reads the same. A debuff is marked
-   * with the word `debuff` after the timing, and a moment chosen for the effect is written last,
-   * behind `tick:`, where any status moves again at every count.
+   * into its fields at every slash, so it is written as ÷, which reads the same. A kind picked by
+   * hand is marked after the timing, with the word `debuff`, or with `buff` where the name is a
+   * state the room keeps and would otherwise make the buff a debuff; a choice left as it came writes
+   * no word. A moment chosen for the effect is written last, behind `tick:`, where any status moves
+   * again at every count.
    */
   readonly builderCommand = computed(() => {
     const rows = this.builderRows();
@@ -566,16 +587,14 @@ export class BuffManagerPanelComponent {
       rows.length > 1
         ? [rows.map((row) => `${builderStatusText(row)}${row.operator}${builderAmountText(row)}`).join(',')]
         : [builderStatusText(rows[0]), rows[0].operator, builderAmountText(rows[0])];
-    const parts = [
-      this.builderName().trim() || this.t('feature.buffManager.builderDefaultName'),
-      ...statusParts,
-      this.builderRounds().trim(),
-    ];
+    const name = this.builderNameWritten();
+    const parts = [name, ...statusParts, this.builderRounds().trim()];
     const timing = this.builderTiming();
     const trigger = this.builderTrigger().trim();
     if (timing !== 'roundEnd' || trigger.length > 0) parts.push(timing);
     if (trigger.length > 0) parts.push(trigger);
-    if (this.builderKind() === 'debuff') parts.push('debuff');
+    const kind = buffKindMarkPicked(this.builderKindPicked(), name, this.statusAilments.ailments());
+    if (kind) parts.push(kind);
     const effectTiming = this.builderEffectTiming();
     if (effectTiming.length > 0 && this.builderCanTimeEffect()) parts.push(`tick:${effectTiming}`);
     const stacks = this.builderStacks() && this.builderCanStack();

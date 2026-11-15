@@ -14,6 +14,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { BattleLaunchService } from '@axe/application/battle/battle-launch.service';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
+import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
@@ -38,7 +39,7 @@ import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { BattleTake } from '@axe/domain/battle/battle-take';
 import { writeElementField } from '@axe/domain/character/alias-mate-follow';
 import { BUFF_COLORS, resolveBuffColor } from '@axe/domain/character/buff-appearance';
-import { BUFF_KINDS, type BuffKind } from '@axe/domain/character/buff-kind';
+import { BUFF_KINDS, type BuffKind, buffKindFrom } from '@axe/domain/character/buff-kind';
 import { ControllerResourcePick, controllerShowsResource } from '@axe/domain/character/controller-resource-pick';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
@@ -60,9 +61,9 @@ import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { ControllerInputComponent } from '@axe/features/controller/controller-input/controller-input.component';
 import {
   addBuffRound,
+  chosenKindMark,
   decreaseBuffRound,
   deleteZeroRoundBuffs,
-  marksChosenKind,
   parseBuffInput,
   pileBuffRound,
   RemoteControllerSelect,
@@ -128,6 +129,7 @@ export class RemoteControllerComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly battle = inject(BattleLaunchService);
   private readonly names = inject(PieceNameService);
+  private readonly statusAilments = inject(StatusAilmentService);
   protected readonly rolePermission = inject(RolePermissionService);
 
   /**
@@ -352,8 +354,17 @@ export class RemoteControllerComponent {
   readonly buffColorId = signal('');
 
   readonly buffKinds = BUFF_KINDS;
-  /** Whether the buff the form lays is marked a debuff; a buff carries no mark, as a plain command's does. */
-  readonly buffKind = signal<BuffKind>('buff');
+  /** The kind picked on the form by hand, or null while the choice is left as it came. */
+  readonly buffKindPicked = signal<BuffKind | null>(null);
+  /**
+   * The kind the choice shows: the one picked by hand, or, left as it came, the kind the name typed
+   * makes the buff, a debuff for a state the room keeps and a buff for anything else. A kind written
+   * on the line itself still wins over it.
+   */
+  readonly buffKind = computed<BuffKind>(() => {
+    const name = parseBuffInput(this.text().trim())?.buffname ?? '';
+    return this.buffKindPicked() ?? buffKindFrom(null, name, this.statusAilments.ailments());
+  });
   readonly counterSectionOpen = signal(true);
 
   readonly chatTabidentifier = signal('');
@@ -397,7 +408,8 @@ export class RemoteControllerComponent {
    * Puts the buff typed into the buff field on every ticked target and announces it in the chat,
    * from Enter or the add button.
    *
-   * A colour chosen in the panel is added unless the typed line names one. A `+` in front of the
+   * A colour chosen in the panel is added unless the typed line names one, and so is the kind picked
+   * there, as {@link chosenKindMark} reads it. A `+` in front of the
    * name adds the line's number to a buff of that name already standing, and `++` lengthens it by
    * the rounds as well. Empty text does nothing, and with no ticked target an error is shown
    * instead.
@@ -421,9 +433,10 @@ export class RemoteControllerComponent {
       appearance.color = resolveBuffColor(this.buffColorId());
       bufftext += `/${this.buffColorId()}`;
     }
-    if (marksChosenKind(appearance, this.buffKind())) {
-      appearance.kind = 'debuff';
-      bufftext += `/${this.t('feature.character.buff.kind_debuff')}`;
+    const kind = chosenKindMark(appearance, this.buffKindPicked(), parsed.buffname, this.statusAilments.ailments());
+    if (kind) {
+      appearance.kind = kind;
+      bufftext += `/${this.t(`feature.character.buff.kind_${kind}`)}`;
     }
     if (parsed.piles === 'none') addBuffRound(gameCharacters, parsed.buffname, parsed.sub, parsed.round, appearance);
     else pileBuffRound(gameCharacters, parsed.piles, parsed.buffname, parsed.sub, parsed.round, appearance);

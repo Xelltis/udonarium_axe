@@ -9,6 +9,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { resetCarriedOut$, type ResetCarriedOutEvent } from '@axe/core/event/domain-events';
 import type { BuffRemovalRule } from '@axe/domain/character/buff-bulk-removal';
+import { buffKindOf } from '@axe/domain/character/buff-kind';
 import { buffEffectTimingOf, buffTimingOf, buffTriggerOf } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { type ResetRecord, undoReset } from '@axe/domain/character/piece-reset';
@@ -823,12 +824,43 @@ describe('BuffManagerPanelComponent', () => {
       it('writes the word for a debuff into the command it builds, where a plain look reads it, and none for a buff', () => {
         expect(component.builderCommand()).toBe('&!猛攻撃/命中/+/2/3');
 
-        component.builderKind.set('debuff');
+        component.builderKindPicked.set('buff');
+        expect(component.builderCommand()).toBe('&!猛攻撃/命中/+/2/3');
+
+        component.builderKindPicked.set('debuff');
         expect(component.builderCommand()).toBe('&!猛攻撃/命中/+/2/3/debuff');
 
         component.builderTiming.set('turnStart');
         component.builderTrigger.set('術者');
         expect(component.builderCommand()).toBe('&!猛攻撃/命中/+/2/3/turnStart/術者/debuff');
+      });
+
+      describe('for a name that is a state the room keeps', () => {
+        beforeEach(() => {
+          TestBed.inject(StatusAilmentService).save([newStatusAilment('麻痺')]);
+          component.builderName.set('麻痺');
+        });
+
+        afterEach(() => {
+          TestBed.inject(StatusAilmentService).save([]);
+          StatusAilmentCatalog.forget();
+        });
+
+        it('shows a debuff and writes no word while the choice is left as it came', () => {
+          expect(component.builderKind()).toBe('debuff');
+          expect(component.builderCommand()).toBe('&!麻痺/命中/+/2/3');
+        });
+
+        it('writes the word for a buff once a buff is picked by hand, and the command lays a buff', () => {
+          component.builderKindPicked.set('buff');
+
+          expect(component.builderKind()).toBe('buff');
+          expect(component.builderCommand()).toBe('&!麻痺/命中/+/2/3/buff');
+          applyBuffEdit({ command: component.builderCommand(), object: knight, targeted: false }, knight);
+          const laid = knight.buffs.find('麻痺')!;
+          expect(laid.getAttribute('cs-buff-kind')).toBe('buff');
+          expect(buffKindOf(laid, TestBed.inject(StatusAilmentService).ailments())).toBe('buff');
+        });
       });
 
       it.each(['&!呪い/回避/-/1/3/debuff', '&!呪い/回避/-/1/3/turnStart/術者/debuff', '&!呪い/回避/-/1/3/none/debuff'])(

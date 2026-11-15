@@ -1,9 +1,11 @@
+import { buffKindOf } from '@axe/domain/character/buff-kind';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { newStatusAilment } from '@axe/domain/character/status-ailment';
 import {
   addBuffRound,
+  chosenKindMark,
   decreaseBuffRound,
   deleteZeroRoundBuffs,
-  marksChosenKind,
   parseBuffInput,
   pileBuffRound,
 } from '@axe/features/controller/remote-controller/remote-controller-buff';
@@ -67,29 +69,44 @@ describe('the buffs a remote controller works on', () => {
   });
 
   describe('the kind chosen on the form', () => {
-    it('marks a debuff where the line says nothing of the kind', () => {
-      expect(marksChosenKind(parseBuffInput('毒 継続 3')!.appearance, 'debuff')).toBe(true);
+    const ailments = [newStatusAilment('毒')];
+    const lookOf = (line: string) => parseBuffInput(line)!.appearance;
+
+    it('marks a debuff picked, where the line says nothing of the kind', () => {
+      expect(chosenKindMark(lookOf('呪い 命中-1 3'), 'debuff', '呪い', ailments)).toBe('debuff');
+      expect(chosenKindMark(lookOf('毒 継続 3'), 'debuff', '毒', ailments)).toBe('debuff');
     });
 
-    it('writes no mark for a buff, which is what a buff laid by a plain command carries', () => {
-      expect(marksChosenKind(parseBuffInput('盾 防御+1 3')!.appearance, 'buff')).toBe(false);
+    it('writes no mark while the choice is left as it came, whatever the name', () => {
+      expect(chosenKindMark(lookOf('盾 防御+1 3'), null, '盾', ailments)).toBeNull();
+      expect(chosenKindMark(lookOf('毒 継続 3'), null, '毒', ailments)).toBeNull();
     });
 
-    it('lets a kind written on the line win over the one chosen', () => {
-      const typed = parseBuffInput('盾 防御+1 3 バフ')!.appearance;
-
-      expect(typed.kind).toBe('buff');
-      expect(marksChosenKind(typed, 'debuff')).toBe(false);
+    it('marks a buff picked by hand where the name is a state of the room, which would make it a debuff', () => {
+      expect(chosenKindMark(lookOf('毒 継続 3'), 'buff', '毒', ailments)).toBe('buff');
     });
 
-    it('lays the buff as a debuff once the mark is written', () => {
+    it('writes no mark for a buff picked for any other name, which is what a plain command lays', () => {
+      expect(chosenKindMark(lookOf('盾 防御+1 3'), 'buff', '盾', ailments)).toBeNull();
+    });
+
+    it('lets a kind written on the line win over the one picked', () => {
+      const typed = lookOf('毒 継続 3 デバフ');
+
+      expect(typed.kind).toBe('debuff');
+      expect(chosenKindMark(typed, 'buff', '毒', ailments)).toBeNull();
+    });
+
+    it('lays the buff as the kind picked once the mark is written', () => {
       const piece = character('相手A');
-      const appearance = { ...parseBuffInput('呪い 命中-1 3')!.appearance };
-      if (marksChosenKind(appearance, 'debuff')) appearance.kind = 'debuff';
+      const appearance = { ...lookOf('毒 継続 3') };
+      const kind = chosenKindMark(appearance, 'buff', '毒', ailments);
+      if (kind) appearance.kind = kind;
 
-      addBuffRound([piece], '呪い', '命中-1', 3, appearance);
+      addBuffRound([piece], '毒', '継続', 3, appearance);
 
-      expect(piece.buffs.find('呪い')?.getAttribute('cs-buff-kind')).toBe('debuff');
+      expect(piece.buffs.find('毒')?.getAttribute('cs-buff-kind')).toBe('buff');
+      expect(buffKindOf(piece.buffs.find('毒')!, ailments)).toBe('buff');
     });
   });
 });
