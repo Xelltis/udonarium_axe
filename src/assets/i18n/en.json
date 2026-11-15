@@ -1359,7 +1359,7 @@
       "panelTitle": "Effect library",
       "restoreDefaults": "Apply defaults",
       "addMissingDefaults": "Add missing defaults",
-      "pickingHint": "Click tokens to pick in order (click again to remove) / Enter to cast / Esc to cancel",
+      "pickingHint": "Press tokens to pick targets / Enter or the Play button to play / Esc to cancel",
       "cancelPicking": "Cancel",
       "fire": "Play on the targets",
       "stanceEmpty": "Choose an effect",

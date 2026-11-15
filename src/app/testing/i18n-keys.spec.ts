@@ -52,6 +52,16 @@ describe('translation keys', () => {
     expect(empty).toEqual([]);
   });
 
+  it('name, in the hint shown while an effect is held ready, the keys and the button that cast it and call it off', () => {
+    for (const lang of SUPPORTED_LANGS) {
+      const hint = dictionaries[lang]['feature.effect.pickingHint'];
+      expect(hint, lang).toContain('Enter');
+      expect(hint, lang).toContain('Esc');
+      expect(hint, lang).toContain(dictionaries[lang]['feature.tabletop.targetBand.fire']);
+    }
+    expect(dictionaries['ja']['feature.effect.pickingHint']).not.toContain(' ');
+  });
+
   it('cover every key the screens ask for', () => {
     const missing: string[] = [];
     for (const template of templatesIn('src/app')) {

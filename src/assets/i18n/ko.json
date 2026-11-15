@@ -1359,7 +1359,7 @@
       "panelTitle": "이펙트 모음",
       "restoreDefaults": "기본값 반영",
       "addMissingDefaults": "빠진 기본값 추가",
-      "pickingHint": "말을 클릭해 차례로 선택(다시 누르면 해제) / Enter로 발동 / Esc로 중지",
+      "pickingHint": "말을 눌러 대상을 선택 / Enter나 '발동' 버튼으로 발동 / Esc로 중지",
       "cancelPicking": "중지",
       "fire": "대상에게 발동",
       "stanceEmpty": "이펙트를 선택해 주세요",

@@ -1359,7 +1359,7 @@
       "panelTitle": "エフェクト集",
       "restoreDefaults": "既定を反映",
       "addMissingDefaults": "足りない既定を追加",
-      "pickingHint": "コマをクリックで順に選択（もう一度で解除）／Enter で発動／Esc で中止",
+      "pickingHint": "コマを押して対象を選ぶ／Enterか「発動」で発動／Escで中止",
       "cancelPicking": "中止",
       "fire": "対象に発動する",
       "stanceEmpty": "エフェクトを選んでください",

@@ -35,7 +35,7 @@ test.describe('map effects', () => {
     await panel.getByRole('button', { name: /一閃/ }).first().click();
 
     // The hint for picking targets shows.
-    await expect(page.getByText(/コマをクリックで順に選択/).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/コマを押して対象を選ぶ/).first()).toBeVisible({ timeout: 5000 });
     expect(await effectsDrawn(page)).toBe(0);
 
     // Sent straight to the piece's grab element: the host has no size, so a click would not land on it.
