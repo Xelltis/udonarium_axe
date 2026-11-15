@@ -136,9 +136,13 @@ CHOREOGRAPHIES.ballistic = ballisticWith(strikeWith);
 /**
  * The looks that go off about their target and yet grow only by the root of its size, as what is
  * aimed at it does: the looks of earth, whose boulders and pillars, as many times larger as a dragon
- * is than a man, would wall the table off.
+ * is than a man, would wall the table off; and ice that strikes, whose crystals would. A cut grows
+ * so too: its crescent is as thick as a piece, and one grown as a dragon is would hide the table.
  */
-const GROWS_BY_ROOT: ReadonlySet<EffectKind> = new Set<EffectKind>(['impact', 'rubble', 'upheaval']);
+const GROWS_BY_ROOT: ReadonlySet<EffectKind> = new Set<EffectKind>(['impact', 'rubble', 'upheaval', 'frost', 'slash']);
+
+/** The looks that break on whatever stands in their way, and so are told of the pieces that are no target of theirs. */
+const BREAKS_ON_BYSTANDERS: ReadonlySet<EffectKind> = new Set<EffectKind>(['breath', 'skyblade']);
 
 /** Where a target stands for an effect: its foot, and the floor under it. */
 export interface EffectFooting {
@@ -298,7 +302,7 @@ export function stageEffect(
   const targets = standingTargets(preset, cast, options);
   const body = bodyOf(cast, casterFooting, options);
   const mouth: StageMouth | null = body && mouthBefore(body, targets);
-  const bystanders = preset.effectKind === 'breath' ? bystandersOf(cast, options) : undefined;
+  const bystanders = BREAKS_ON_BYSTANDERS.has(preset.effectKind) ? bystandersOf(cast, options) : undefined;
   for (const standing of targets) {
     const index = standing.index;
     const target = cast.targets[index];
