@@ -44,6 +44,7 @@ import {
   updateStage,
 } from '@axe/domain/effect/effect-stage-form';
 import { presetSoundLabelKey, soundFileName } from '@axe/domain/media/preset-sound-labels';
+import { EffectPreviewComponent } from '@axe/features/effect/effect-preview/effect-preview.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -56,13 +57,14 @@ interface SoundOption {
  * Editing a preset.
  *
  * The values go straight onto the model, which clamps them itself.
- * Fields the kind has no use for are hidden by the form.
+ * Fields the kind has no use for are hidden by the form. A preview kept at the top, above the fields
+ * that scroll, plays the effect as its values stand.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'effect-preset-editor',
   templateUrl: './effect-preset-editor.component.html',
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [EffectPreviewComponent, FormsModule, SafePipe, TranslocoModule],
 })
 export class EffectPresetEditorComponent {
   private readonly library = inject(EffectLibraryService);
@@ -88,9 +90,10 @@ export class EffectPresetEditorComponent {
    * How often the contents have changed.
    *
    * The preset hands back the same instance every time, so anything computed from it alone
-   * never recomputes. Whatever is drawn from the contents goes through this version.
+   * never recomputes. Whatever is drawn from the contents goes through this version, the preview
+   * at the top among it.
    */
-  private readonly version = computed<number>(() => {
+  protected readonly version = computed<number>(() => {
     const identifier = this.presetIdentifier();
     return identifier.length < 1 ? 0 : this.objectChange.versionOf(identifier)();
   });
