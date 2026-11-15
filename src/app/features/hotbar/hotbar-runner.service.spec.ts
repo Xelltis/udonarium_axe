@@ -4,6 +4,7 @@ import { CharacterDiceService } from '@axe/application/dice/character-dice.servi
 import { DiceRollService } from '@axe/application/dice/dice-roll.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { BoardSceneService } from '@axe/application/tabletop/board-scene.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
@@ -118,10 +119,10 @@ describe('HotbarRunnerService', () => {
 
     it('calls for an effect by the name it was given', () => {
       const library = TestBed.inject(EffectLibraryService);
-      const cast = TestBed.inject(EffectCastService);
+      const targeting = TestBed.inject(EffectTargetingService);
       const preset = { identifier: 'preset', name: '爆炎' };
       vi.spyOn(library, 'findByName').mockReturnValue(preset as never);
-      const fire = vi.spyOn(cast, 'fireFromCharacter').mockReturnValue({} as never);
+      const fire = vi.spyOn(targeting, 'castFrom').mockReturnValue({} as never);
 
       expect(run(slotOf('effect', '爆炎'), character)).toEqual({ ok: true });
       expect(fire).toHaveBeenCalledWith(preset, character);
@@ -708,7 +709,7 @@ describe('HotbarRunnerService', () => {
       const preset = { identifier: 'preset', name: '守り' };
       vi.spyOn(TestBed.inject(EffectLibraryService), 'findByName').mockReturnValue(preset as never);
       const fire = vi.spyOn(TestBed.inject(EffectCastService), 'fire').mockReturnValue({} as never);
-      const atTargets = vi.spyOn(TestBed.inject(EffectCastService), 'fireFromCharacter');
+      const atTargets = vi.spyOn(TestBed.inject(EffectTargetingService), 'castFrom');
 
       const slot = slotOf('effect', '守り', { kind: 'effect', mode: 'cast', onSelf: true });
 
@@ -720,12 +721,23 @@ describe('HotbarRunnerService', () => {
     it('goes at what is targeted where it is not told to', () => {
       const preset = { identifier: 'preset', name: '一撃' };
       vi.spyOn(TestBed.inject(EffectLibraryService), 'findByName').mockReturnValue(preset as never);
-      const atTargets = vi.spyOn(TestBed.inject(EffectCastService), 'fireFromCharacter').mockReturnValue({} as never);
+      const atTargets = vi.spyOn(TestBed.inject(EffectTargetingService), 'castFrom').mockReturnValue({} as never);
 
       const slot = slotOf('effect', '一撃', { kind: 'effect', mode: 'cast', onSelf: false });
 
       expect(run(slot, character)).toEqual({ ok: true });
       expect(atTargets).toHaveBeenCalledWith(preset, character);
+    });
+
+    it('counts as run an effect held ready for want of a target, and as failed one nothing came of', () => {
+      const preset = { identifier: 'preset', name: '一撃' };
+      vi.spyOn(TestBed.inject(EffectLibraryService), 'findByName').mockReturnValue(preset as never);
+      const castFrom = vi.spyOn(TestBed.inject(EffectTargetingService), 'castFrom').mockReturnValue('held');
+
+      expect(run(slotOf('effect', '一撃'), character)).toEqual({ ok: true });
+
+      castFrom.mockReturnValue(null);
+      expect(run(slotOf('effect', '一撃'), character)).toEqual({ ok: false, reason: 'notFound' });
     });
   });
 

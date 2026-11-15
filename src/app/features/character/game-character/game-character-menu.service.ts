@@ -6,6 +6,7 @@ import { StealthService } from '@axe/application/character/stealth.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
@@ -108,6 +109,7 @@ export class GameCharacterMenuService {
   private readonly thirdPerson = inject(ThirdPersonService);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly effectCast = inject(EffectCastService);
+  private readonly effectTargeting = inject(EffectTargetingService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly engagementZones = inject(EngagementZoneService);
   private readonly ride = inject(RideService);
@@ -425,10 +427,13 @@ export class GameCharacterMenuService {
     else battle?.playLineupAs(char, 'everywhere');
   }
 
-  /** Fires an effect from a character sheet. It is looked up by name, so the same row works in any room. */
+  /**
+   * Fires an effect from a character sheet, or holds it ready from the piece where it needs a target
+   * and nobody is aimed at. It is looked up by name, so the same row works in any room.
+   */
   private invokeEffect(char: GameCharacter, name: string): void {
     const preset = this.effectLibrary.findByName(name);
-    if (preset) this.effectCast.fireFromCharacter(preset, char);
+    if (preset) this.effectTargeting.castFrom(preset, char);
   }
 
   private showDetail(gameObject: GameCharacter) {

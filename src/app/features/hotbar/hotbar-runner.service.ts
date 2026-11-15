@@ -5,6 +5,7 @@ import { DiceRollService } from '@axe/application/dice/dice-roll.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectFieldService } from '@axe/application/effect/effect-field.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { BoardSceneLoader } from '@axe/application/tabletop/board-scene-loader';
@@ -71,6 +72,7 @@ export class HotbarRunnerService {
   private readonly macro = inject(CharacterMacroService);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly effectCast = inject(EffectCastService);
+  private readonly effectTargeting = inject(EffectTargetingService);
   private readonly effectField = inject(EffectFieldService);
   private readonly rangeShapeInvoke = inject(RangeShapeInvokeService);
   private readonly tabletopAction = inject(TabletopActionService);
@@ -181,6 +183,11 @@ export class HotbarRunnerService {
     return OK;
   }
 
+  /**
+   * Runs a slot that holds an effect: tries it out, lays it on the ground, or casts it from the piece.
+   * A cast at nobody aimed at, of an effect that needs somebody else, holds the effect ready from the
+   * piece instead, which counts as run.
+   */
   private runEffect(slot: HotbarSlot, character: GameCharacter, cell: HotbarCell): HotbarRunResult {
     const preset = this.effectLibrary.findByName(slot.argument);
     if (!preset) return failed('notFound');
@@ -194,7 +201,7 @@ export class HotbarRunnerService {
     if (options.kind === 'effect' && options.onSelf) {
       return this.effectCast.fire(preset, [character], null) ? OK : failed('notFound');
     }
-    return this.effectCast.fireFromCharacter(preset, character) ? OK : failed('notFound');
+    return this.effectTargeting.castFrom(preset, character) ? OK : failed('notFound');
   }
 
   /**

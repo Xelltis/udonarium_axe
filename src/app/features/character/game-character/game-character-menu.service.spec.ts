@@ -1,6 +1,8 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
+import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -77,6 +79,16 @@ describe('GameCharacterMenuService', () => {
     expect(position).toBe(at);
     expect(title).toBe('勇者');
     expect(actions.length).toBeGreaterThan(5);
+  });
+
+  it('casts an effect chosen from the menu from the piece, through the choosing of targets', () => {
+    const preset = { identifier: 'preset', name: '爆炎' };
+    vi.spyOn(TestBed.inject(EffectLibraryService), 'findByName').mockReturnValue(preset as never);
+    const castFrom = vi.spyOn(TestBed.inject(EffectTargetingService), 'castFrom').mockReturnValue('held');
+
+    (service as unknown as { invokeEffect(char: GameCharacter, name: string): void }).invokeEffect(character, '爆炎');
+
+    expect(castFrom).toHaveBeenCalledWith(preset, character);
   });
 
   it('opens a list on a flat table too, where the standard menu is chosen', () => {

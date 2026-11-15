@@ -1,11 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
+import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectNode } from '@axe/core/sync/object-node';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   DataElement,
   DataElementAttribute,
@@ -66,6 +69,29 @@ describe('GameDataElementComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('casts the effect its row names from the piece the sheet is of, through the choosing of targets', () => {
+    const character = GameCharacter.create('術者', 1, '');
+    const field = DataElement.create('演出', '', {
+      [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+      [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.EFFECT,
+    });
+    field.currentValue = '爆炎';
+    character.detailDataElement?.appendChild(field);
+    const preset = { identifier: 'preset', name: '爆炎' };
+    vi.spyOn(TestBed.inject(EffectLibraryService), 'findByName').mockReturnValue(preset as never);
+    const castFrom = vi.spyOn(TestBed.inject(EffectTargetingService), 'castFrom').mockReturnValue('held');
+
+    try {
+      fixture.componentRef.setInput('gameDataElement', field);
+      (component as unknown as { invokeEffect(): void }).invokeEffect();
+
+      expect(castFrom).toHaveBeenCalledWith(preset, character);
+    } finally {
+      vi.restoreAllMocks();
+      character.destroy();
+    }
   });
 
   describe('a long text being edited', () => {

@@ -12,8 +12,8 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
-import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -151,7 +151,7 @@ export class GameDataElementComponent {
   private readonly panelService = inject(PanelService);
   private readonly rangeShapeInvoke = inject(RangeShapeInvokeService);
   private readonly effectLibrary = inject(EffectLibraryService);
-  private readonly effectCast = inject(EffectCastService);
+  private readonly effectTargeting = inject(EffectTargetingService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly resourceSliders = inject(ResourceSliderService);
   private readonly edit = inject(DataElementEditService);
@@ -508,10 +508,14 @@ export class GameDataElementComponent {
   /** The effects on offer, held by name so the same row works in any room. */
   readonly effectNames = computed<string[]>(() => this.effectLibrary.presets().map((preset) => preset.name));
 
+  /**
+   * Casts the effect the row names from the piece the sheet is of, or holds it ready from that piece
+   * where it needs a target and nobody is aimed at.
+   */
   protected invokeEffect(): void {
     const preset = this.effectLibrary.findByName(String(this.currentValue ?? ''));
     const character = owningCharacterOf(this.gameDataElement());
-    if (preset && character) this.effectCast.fireFromCharacter(preset, character);
+    if (preset && character) this.effectTargeting.castFrom(preset, character);
   }
 
   /** Sets the heading icon picked in the icon picker, or takes it away for empty, and closes the picker. */
