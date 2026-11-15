@@ -175,7 +175,7 @@ export function drawSeam(drawn: Staged, impact: Impact, since: number, lasts: nu
   if (since < 0 || since >= lasts) return;
   const { at, way, half, cell, tones, forward, seed } = impact;
   const gapes = outCubic(within(since, 0, lasts * 0.22)) * (1 - Math.pow(within(since, lasts * 0.4, lasts), 1.6));
-  const wide = half * 0.17 * open * gapes;
+  const wide = half * 0.1 * open * gapes;
   if (wide <= cell * 0.004) return;
   const seam = lineThrough(at, way, half * (1.1 + 0.35 * gapes), impact.lowestZ);
   drawn.ribbons.push(
