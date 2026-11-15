@@ -1,10 +1,14 @@
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { nothingStaged, type Staged } from '@axe/domain/effect/scene/choreography';
-import { stageEffect } from '@axe/domain/effect/scene/effect-frame';
+import { sceneLingerMsOf, stageEffect } from '@axe/domain/effect/scene/effect-frame';
 
 const CELL = 50;
 
-function presetOf(kind: 'bolt' | 'frost' | 'beam' | 'raybeam', primary: string, secondary: string): EffectPreset {
+function presetOf(
+  kind: 'bolt' | 'frost' | 'beam' | 'raybeam' | 'gravity',
+  primary: string,
+  secondary: string
+): EffectPreset {
   const preset = new EffectPreset(`floor-${kind}`);
   preset.kind = kind;
   preset.grade = 2;
@@ -57,5 +61,23 @@ describe('what lightning, a beam and ice leave on the floor', () => {
       expect(staged(frost, ms).floor.filter((mark) => mark.shape === 'scorch')).toEqual([]);
     }
     expect(staged(frost, 1000).floor.some((mark) => mark.shape === 'disc' && mark.blend === 'color')).toBe(true);
+  });
+
+  it('keeps what they leave on the floor long enough after the playback for it to be seen', () => {
+    const lingers = (kind: Parameters<typeof presetOf>[0]) => sceneLingerMsOf(presetOf(kind, '#e8dcff', '#a070ff'));
+
+    expect(lingers('bolt')).toBe(1500);
+    expect(lingers('frost')).toBe(1200);
+    expect(lingers('beam')).toBe(1200);
+    expect(lingers('raybeam')).toBe(600);
+    expect(lingers('gravity')).toBe(1500);
+    expect(staged(presetOf('bolt', '#e8dcff', '#a070ff'), 3000).floor.length).toBeGreaterThan(0);
+    expect(staged(presetOf('beam', '#d8f4ff', '#40b0ff'), 2700).floor.length).toBeGreaterThan(0);
+  });
+
+  it('lets the grit a singularity lets go fall and lie before it is gone', () => {
+    const gravity = presetOf('gravity', '#c9a8ff', '#5a2ea6');
+
+    expect(staged(gravity, 3000).motes.some((mote) => mote.shape === 'chunk')).toBe(true);
   });
 });

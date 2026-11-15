@@ -24,6 +24,8 @@ import { chestOf, originOf } from '@axe/domain/effect/scene/shot/stream-ends';
  * great beam, thicker, gathered longer and shaking the light out of the scene.
  */
 
+/** How long what a beam leaves stays after its playback, in seconds: the soot of a great beam longer than a laser's. */
+const GREAT_LINGER_S = 1.2;
 const LINGER_S = 0.6;
 
 /** Light gathering at a point: a glow growing and streaks drawn in to it. */
@@ -85,8 +87,9 @@ function beamRibbons(from: Point, to: Point, width: number, ramp: readonly strin
 /** A beam, as thick as `thick` cells and gathered for `gathers` of its playback: see the header. */
 function beamOf(thick: number, gathers: number, great: boolean): Choreography {
   const sparksByStage = new Map<string, ReturnType<typeof thrownSparks>>();
+  const lingerS = great ? GREAT_LINGER_S : LINGER_S;
   return {
-    lingerS: LINGER_S,
+    lingerS,
     draw: (stage) => {
       const drawn = nothingStaged();
       const { cell, duration } = stage;
@@ -98,8 +101,8 @@ function beamOf(thick: number, gathers: number, great: boolean): Choreography {
       const stops = Math.max(fires + 0.3, duration * 0.85);
       const { way, length } = wayBetween(from, to);
       const forward = cell * 0.4;
-      const sparks = keptFor(sparksByStage, stageKey(stage, duration + LINGER_S), () => {
-        const th = throwerFor(stage, duration + LINGER_S);
+      const sparks = keptFor(sparksByStage, stageKey(stage, duration + lingerS), () => {
+        const th = throwerFor(stage, duration + lingerS);
         return thrownSparks(th, to, th.count(great ? 60 : 30), [3, 8], [fires, stops]);
       });
 
@@ -178,7 +181,7 @@ function beamOf(thick: number, gathers: number, great: boolean): Choreography {
       }
       // What it burns into the floor under what it strikes, which stays once it has stopped.
       const strikes = fires + 0.08;
-      const ends = duration + LINGER_S;
+      const ends = duration + lingerS;
       laySoot(
         drawn,
         { x: stage.x, y: stage.y, z: stage.groundZ },

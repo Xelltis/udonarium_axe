@@ -21,13 +21,16 @@ interface GravityThrow {
 }
 const gravityByStage = new Map<string, GravityThrow>();
 
+/** How long what a singularity lets go takes to fall and lie still after its playback, in seconds. */
+const LINGER_S = 1.5;
+
 /**
  * A singularity: a dark sphere swelling over the target in a haze that bends the light round it, a
  * bright ring wound flat round it, dust and sparks spiralling into it and grit dragged up off the
  * floor, until it falls in on itself to a point in a flash and lets everything go.
  */
 export const gravity: Choreography = {
-  lingerS: 0.8,
+  lingerS: LINGER_S,
   draw: (stage) => {
     const drawn = nothingStaged();
     const { cell, duration } = stage;
@@ -52,7 +55,7 @@ export const gravity: Choreography = {
       }
       return drawn;
     }
-    const ends = duration + 0.8;
+    const ends = duration + LINGER_S;
     const thrown = keptFor(gravityByStage, stageKey(stage, ends), () => {
       const th = throwerFor(stage, ends);
       return {

@@ -20,9 +20,12 @@ import { lightningRibbons } from '@axe/domain/effect/scene/storm/lightning';
  * again and again as it flickers, scorching the floor and throwing sparks.
  */
 
+/** How long the soot and the smoke of a bolt stay after its playback, in seconds. */
+const LINGER_S = 1.5;
+
 /** A bolt from the sky: see the header. */
 export const bolt: Choreography = {
-  lingerS: 0.8,
+  lingerS: LINGER_S,
   draw: (stage) => {
     const drawn = nothingStaged();
     const { cell } = stage;
@@ -31,7 +34,7 @@ export const bolt: Choreography = {
     const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
     const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
     const sky = { x: stage.x - cell * 0.8, y: stage.y - cell * 1.2, z: stage.groundZ + cell * 9 };
-    const ends = stage.duration + 0.8 - strikes;
+    const ends = stage.duration + LINGER_S - strikes;
     const forward = cell * 0.5;
     const sparks = keptFor(boltSparks, stageKey(stage, ends), () => {
       const th = throwerFor(stage, ends);

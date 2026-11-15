@@ -41,9 +41,12 @@ interface FrostThrow {
 }
 const frostByStage = new Map<string, FrostThrow>();
 
+/** How long the rime and the broken ice stay after its playback, in seconds. */
+const LINGER_S = 1.2;
+
 /** Ice: see the header. */
 export const frost: Choreography = {
-  lingerS: 0.8,
+  lingerS: LINGER_S,
   draw: (stage) => {
     const drawn = nothingStaged();
     const { cell, duration } = stage;
@@ -51,7 +54,7 @@ export const frost: Choreography = {
     const t = stage.seconds - bursts;
     const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
     const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
-    const ends = duration + 0.8 - bursts;
+    const ends = duration + LINGER_S - bursts;
     const breaks = Math.max(0.6, duration * 0.7 - bursts);
     const forward = cell * 0.3;
     const thrown = keptFor(frostByStage, stageKey(stage, ends), () => {
