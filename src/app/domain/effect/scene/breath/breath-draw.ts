@@ -4,13 +4,15 @@ import { type Staged } from '@axe/domain/effect/scene/choreography';
 import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import { type EffectMote } from '@axe/domain/effect/scene/effect-scene';
 import { DUST, SMOKE, STONE } from '@axe/domain/effect/scene/fire/fire-parts';
-import { ball, glow, haze, hueOf, type Point, smokePuff } from '@axe/domain/effect/scene/parts';
+import { ball, glow, hueOf, type Point, smokePuff } from '@axe/domain/effect/scene/parts';
 
 /*
- * How the gouts of a breath are drawn, by element and by the layer of the stream they are of. Light
- * is drawn under colour, so what is to show over the body of a stream, its bright heart and its
- * streaks, is colour too, and light is kept for what glows about it. Everything of the stream is held
- * to its own depth, so a piece the stream passes behind hides it.
+ * How the gouts of a breath are drawn, by element and by the layer of the stream they are of. The
+ * body and the heart of a stream are shapes that flow, drawn out the way each gout goes: hard licks
+ * for what burns, soft wisps for a fog, a mist or a light. Light is drawn under colour, so what is to
+ * show over the body of a stream, its bright heart and its streaks, is colour too, and light is kept
+ * for what glows about it. Everything of the stream is held to its own depth, so a piece the stream
+ * passes behind hides it.
  */
 
 /** The layers of a stream a gout may be of. */
@@ -58,8 +60,84 @@ function drawnOut(mote: EffectMote, shape: EffectMote['shape'], heading: Point, 
   };
 }
 
-/** Draws one gout of a stream as its element and its layer have it. */
-export function drawGout(brush: StreamBrush, layer: GoutLayer, gout: Gout, state: GoutState): void {
+/**
+ * A shape that flows, drawn out from its root along a way as far as `long` and as wide as `wide` at
+ * its widest, its pattern run down it as far as `flowed`; of one colour, or taken to a core's in its middle.
+ */
+export function flowingMote(
+  shape: 'lick' | 'wisp' | 'jet' | 'gust',
+  root: Point,
+  heading: Point,
+  wide: number,
+  long: number,
+  flowed: number,
+  paint: {
+    readonly color: string;
+    readonly core?: string;
+    readonly alpha: number;
+    readonly blend?: EffectMote['blend'];
+    readonly forward: number;
+    readonly variant: number;
+  }
+): EffectMote {
+  const length = Math.hypot(heading.x, heading.y, heading.z) || 1;
+  const reach = Math.max(long, wide);
+  return {
+    x: root.x + (heading.x / length) * reach,
+    y: root.y + (heading.y / length) * reach,
+    z: root.z + (heading.z / length) * reach,
+    size: wide,
+    color: paint.color,
+    core: paint.core,
+    alpha: Math.max(0, paint.alpha),
+    blend: paint.blend ?? 'color',
+    shape,
+    velocity: { x: (heading.x / length) * 100, y: (heading.y / length) * 100, z: (heading.z / length) * 100 },
+    trail: (reach - wide) / 100,
+    spin: flowed,
+    variant: paint.variant,
+    forward: paint.forward,
+  };
+}
+
+/** A way taken upwards by a share, as what is hot rises off the way it was blown. */
+function risen(heading: Point, by: number): Point {
+  return { x: heading.x, y: heading.y, z: heading.z + by };
+}
+
+/**
+ * The sheets a flame is laid in, the coolest and widest first: how hot a gout must be to be in the
+ * sheet, how wide and how long it is there as shares of its own, and the step of the ramp it is.
+ */
+const FIRE_PASSES = [
+  [0, 1.16, 1.06, 1],
+  [0, 1, 1, 2],
+  [0.24, 0.76, 0.86, 3],
+  [0.5, 0.52, 0.7, 4],
+  [0.74, 0.32, 0.52, 5],
+] as const;
+
+/**
+ * How long a gout is drawn out for its length as it leaves the mouth and as it comes to the end of
+ * the cone, where it is shorter so that only a little of the stream reaches past what it is blown at;
+ * and how much of that length lies behind where the gout is: little at the mouth, so it starts at
+ * the mouth rather than within the caster, and half at the end.
+ */
+const SHRED_LONG_AT_MOUTH = 1.15;
+const SHRED_LONG_AT_END = 0.6;
+const SHRED_BEHIND_AT_MOUTH = 0.25;
+const SHRED_BEHIND_AT_END = 0.5;
+
+/** How many sheets a stream is laid in: see {@link drawGout}. */
+export const STREAM_PASSES = FIRE_PASSES.length;
+
+/**
+ * Draws one gout of a stream as its element and its layer have it. The body and the heart of a
+ * stream are laid a sheet at a time, every gout's widest and coolest colour first and its hottest
+ * last, so that the gouts run together into one body edged in its deepest colour rather than each
+ * standing out ringed in its own; `pass` says which sheet. The other layers are drawn whole in the first.
+ */
+export function drawGout(brush: StreamBrush, layer: GoutLayer, gout: Gout, state: GoutState, pass = 0): void {
   const { drawn, look, ramp, cell } = brush;
   const forward = cell * NEARER_CELLS;
   const dying = state.left < 0.3 ? state.left / 0.3 : 1;
@@ -69,85 +147,179 @@ export function drawGout(brush: StreamBrush, layer: GoutLayer, gout: Gout, state
     for (const mote of motes) drawn.motes.push(deep(mote));
   };
   if (layer === 'streak') {
-    push(...streakOf(look, ramp, at, gout, state, cell, forward));
+    if (pass === 0) push(...streakOf(look, ramp, at, gout, state, cell, forward));
     return;
   }
   if (layer === 'carried') {
-    push(...carriedOf(brush, at, gout, state, forward));
+    if (pass === 0) push(...carriedOf(brush, at, gout, state, forward));
     return;
   }
   if (layer === 'curl') {
-    push(...curlOf(brush, at, size, gout, state, forward));
+    if (pass === 0) push(...curlOf(brush, at, size, gout, state, forward));
     return;
   }
   const hot = layer === 'core';
+  const flowed = (brush.seconds - gout.bornAt) * 5 + gout.variant * 7;
+  /**
+   * A gout drawn as a shape that flows, rooted a little behind where the gout is and drawn out the
+   * way it goes, `wide` and `long` of the gout's own size.
+   */
+  const shred = (
+    shape: 'lick' | 'wisp',
+    way: Point,
+    wide: number,
+    long: number,
+    paint: { color: string; core?: string; alpha: number; blend?: EffectMote['blend'] }
+  ): void => {
+    const length = Math.hypot(way.x, way.y, way.z) || 1;
+    const reached = Math.min(1, state.along);
+    const drawnOut = size * long * (SHRED_LONG_AT_MOUTH - (SHRED_LONG_AT_MOUTH - SHRED_LONG_AT_END) * reached);
+    const back = drawnOut * (SHRED_BEHIND_AT_MOUTH + (SHRED_BEHIND_AT_END - SHRED_BEHIND_AT_MOUTH) * reached);
+    const root = {
+      x: at.x - (way.x / length) * back,
+      y: at.y - (way.y / length) * back,
+      z: Math.max(brush.floorZ, at.z - (way.z / length) * back),
+    };
+    const shaped = flowingMote(shape, root, way, size * wide, drawnOut, flowed, {
+      ...paint,
+      forward,
+      variant: gout.variant,
+    });
+    push({ ...shaped, z: Math.max(shaped.z, brush.floorZ) });
+  };
+  const far = Math.min(1, state.along);
   switch (look.element) {
     case 'fire': {
       if (hot) {
-        const step = state.along < 0.45 ? 5 : 4;
-        push(ball(at, size, ramp[step], dying, forward, gout.variant));
-        if (state.along < 0.35) push(ball(at, size * 0.55, '#ffffff', dying, forward, gout.variant + 1.7));
+        if (pass === 3) shred('lick', state.heading, 1, 3.2, { color: ramp[5], alpha: dying });
+        if (pass === 4 && state.along < 0.5) shred('lick', state.heading, 0.6, 2.4, { color: '#ffffff', alpha: dying });
         return;
       }
-      const heat = 1 - Math.min(1, state.along * (0.5 + 0.5 * gout.edge) + 0.3 * state.breaking);
-      if (look.fiery && heat < 0.16 && gout.variant < 6 * (0.2 + 0.4 * gout.edge)) {
-        push(smokePuff(at, size * 1.15, mixColor(SMOKE, ramp[0], 0.25), 0.55 * state.left, forward));
+      const heat = 1 - Math.min(1, state.along * (0.45 + 0.55 * gout.edge) + 0.3 * state.breaking);
+      const lifted = risen(state.heading, 0.9 * (1 - heat) * (1 - heat));
+      const long = 2.5 + 0.9 * gout.edge;
+      if (look.fiery && heat < 0.2 && gout.variant < 6 * (0.3 + 0.5 * gout.edge)) {
+        if (pass === 0)
+          shred('wisp', risen(state.heading, 1.2), 1.4, 2.8, {
+            color: mixColor(SMOKE, ramp[0], 0.3),
+            alpha: 0.5 * state.left,
+          });
         return;
       }
-      const step = heat > 0.8 ? 5 : heat > 0.6 ? 4 : heat > 0.38 ? 3 : heat > 0.18 ? 2 : 1;
-      push(ball(at, size, ramp[step - 1], dying, forward, gout.variant));
-      push(ball({ ...at, z: at.z + size * 0.09 }, size * 0.76, ramp[step], dying, forward, gout.variant + 1.3));
-      if (heat > 0.5) {
-        push(ball({ ...at, z: at.z + size * 0.16 }, size * 0.42, ramp[step + 1], dying, forward, gout.variant + 2.9));
-      }
+      const cool = heat > 0.3 ? 1 : 0.3 + 0.7 * (heat / 0.3);
+      const [from, wide, tall, step] = FIRE_PASSES[pass];
+      if (heat < from) return;
+      shred('lick', lifted, 1.3 * wide, long * tall, { color: ramp[step], alpha: dying * (pass < 2 ? cool : 1) });
       return;
     }
     case 'ice': {
       if (hot) {
-        push(haze(at, size * 1.3, '#ffffff', 0.55 * state.left, forward));
+        if (pass === 2)
+          shred('lick', state.heading, 0.8, 3.6, {
+            color: mixColor(ramp[3], '#ffffff', 0.35),
+            core: '#ffffff',
+            alpha: 0.95 * dying * (1 - 0.5 * far),
+          });
         return;
       }
-      const fog = mixColor(ramp[4], '#ffffff', 0.4 - 0.3 * gout.edge);
-      push(smokePuff(at, size * 1.3, fog, 0.5 * state.left, forward));
-      if (gout.variant < 3)
-        push(haze(at, size * 0.7, '#ffffff', 0.3 * state.left * (1 - Math.min(1, state.along)), forward));
+      if (pass === 0)
+        shred('wisp', state.heading, 1.6, 3.2, { color: mixColor(ramp[2], '#ffffff', 0.12), alpha: 0.6 * state.left });
+      if (pass === 1)
+        shred('wisp', risen(state.heading, 0.12), 1.15, 2.6, {
+          color: mixColor(ramp[3], '#ffffff', 0.55),
+          core: '#ffffff',
+          alpha: 0.75 * state.left,
+        });
       return;
     }
     case 'poison': {
       if (hot) {
+        if (pass !== 2) return;
         push(glow(at, size * 1.6, ramp[3], 0.22 * state.left, forward));
-        push(haze(at, size * 1.1, mixColor(SICKLY, '#ffffff', 0.35), 0.3 * state.left, forward));
+        shred('lick', state.heading, 0.9, 2.8, {
+          color: mixColor(SICKLY, ramp[1], 0.2),
+          core: mixColor(SICKLY, '#ffffff', 0.4),
+          alpha: 0.9 * dying,
+        });
         return;
       }
-      const tone = gout.variant < 3.6 ? mixColor(ramp[1], ramp[2], 0.5) : mixColor(SICKLY, ramp[1], 0.3);
-      push(smokePuff(at, size * 1.25, tone, 0.7 * state.left, forward));
-      push(haze(at, size * 0.7, mixColor(INK, ramp[0], 0.6), 0.25 * state.left, forward));
+      const sick = gout.variant >= 3.6;
+      if (pass === 0)
+        shred('wisp', risen(state.heading, 0.15), 1.6, 2.8, {
+          color: mixColor(ramp[1], INK, 0.5),
+          alpha: 0.9 * state.left,
+        });
+      if (pass === 1 && !sick)
+        shred('wisp', risen(state.heading, 0.15), 1.15, 2.3, {
+          color: mixColor(ramp[1], ramp[2], 0.35),
+          core: mixColor(ramp[1], ramp[2], 0.75),
+          alpha: 0.8 * state.left,
+        });
+      if (pass === 2 && sick)
+        shred('lick', risen(state.heading, 0.15), 0.85, 2.2, {
+          color: mixColor(SICKLY, ramp[1], 0.35),
+          core: mixColor(SICKLY, '#ffffff', 0.25),
+          alpha: 0.9 * dying,
+        });
       return;
     }
     case 'thunder':
-      push(haze(at, size * 1.3, hueOf(ramp), 0.22 * state.left, forward));
+      if (pass !== 0 || hot) return;
+      shred('wisp', state.heading, 1.3, 2.8, { color: hueOf(ramp), core: ramp[3], alpha: 0.3 * state.left });
       push(glow(at, size * 1.1, ramp[3], 0.28 * state.left, forward));
       return;
     case 'wind':
-      push(haze(at, size * 1.5, mixColor(ramp[2], '#ffffff', 0.35), 0.2 * state.left, forward));
+      if (pass !== 0 || hot) return;
+      shred('wisp', state.heading, 0.7, 3, {
+        color: mixColor(ramp[2], '#ffffff', 0.6),
+        core: '#ffffff',
+        alpha: 0.2 * state.left,
+      });
       return;
     case 'dark': {
       if (hot) {
-        push(haze(at, size * 1.4, '#000000', 0.6 * state.left, forward));
+        if (pass === 2) shred('lick', state.heading, 1.2, 3.2, { color: '#000000', alpha: dying });
         return;
       }
-      if (gout.edge > 0.72) push(haze(at, size * 1.7, ramp[2], 0.4 * state.left, forward));
-      push(smokePuff(at, size * 1.25, mixColor(INK, ramp[0], 0.3), 0.78 * state.left, forward));
+      if (far > 0.75 && gout.variant < 3) {
+        if (pass === 0)
+          shred('wisp', risen(state.heading, 0.4), 1.4, 2.6, {
+            color: mixColor(INK, ramp[0], 0.3),
+            alpha: 0.7 * state.left,
+          });
+        return;
+      }
+      const lifted = risen(state.heading, 0.3 * far);
+      const long = 2.4 + 0.8 * gout.edge;
+      if (pass === 0) shred('lick', lifted, 1.3, long, { color: ramp[2], alpha: dying });
+      if (pass === 1) shred('lick', lifted, 1.02, long * 0.88, { color: mixColor(ramp[1], INK, 0.45), alpha: dying });
+      if (pass === 2 && gout.edge < 0.7) shred('lick', lifted, 0.72, long * 0.7, { color: INK, alpha: dying });
       return;
     }
     case 'holy':
       if (hot) {
-        push(glow(at, size * 1.6, ramp[5], 0.25 * state.left, forward));
-        push(haze(at, size * 1.3, '#ffffff', 0.3 * state.left, forward));
+        if (pass !== 2) return;
+        push(glow(at, size * 1.4, ramp[5], 0.1 * state.left, forward));
+        shred('wisp', state.heading, 1, 3, {
+          color: ramp[4],
+          core: '#ffffff',
+          alpha: 0.22 * state.left,
+          blend: 'light',
+        });
         return;
       }
-      push(glow(at, size * 1.5, ramp[3], 0.13 * state.left, forward));
-      push(haze(at, size * 1.1, ramp[2], 0.16 * state.left, forward));
+      if (pass !== 0) return;
+      shred('wisp', risen(state.heading, 0.2), 1.4, 2.8, {
+        color: ramp[1],
+        core: ramp[3],
+        alpha: 0.3 * state.left,
+      });
+      shred('wisp', risen(state.heading, 0.2), 1, 2.4, {
+        color: ramp[3],
+        core: ramp[5],
+        alpha: 0.1 * state.left,
+        blend: 'light',
+      });
       return;
   }
 }
@@ -187,9 +359,9 @@ function streakOf(
     case 'thunder':
       return [streak(gout.variant < 3 ? '#ffffff' : ramp[5], 0.9, 0.04)];
     case 'wind':
-      return [{ ...streak(ramp[3], 0.5, 0.09), size: gout.size * 2.2 }, streak('#ffffff', 0.9, 0.07)];
+      return [{ ...streak(ramp[3], 0.5, 0.12), size: gout.size * 2.2 }, streak('#ffffff', 0.95, 0.1)];
     case 'dark':
-      return [streak(ramp[3], 0.6, 0.05)];
+      return [streak(gout.variant < 2 ? ramp[4] : ramp[3], 0.65, 0.05)];
     case 'holy':
       return [streak(ramp[5], 0.5, 0.08), glow(at, cell * 0.14, ramp[4], 0.3 * fading, forward)];
   }
@@ -298,8 +470,9 @@ function carriedOf(brush: StreamBrush, at: Point, gout: Gout, state: GoutState, 
       ];
     case 'holy':
       return [
-        glow(at, gout.size * 1.4, ramp[4], 0.45 * left * glint, forward),
-        { ...ball(at, gout.size, '#ffffff', left * glint, forward, 0), shape: 'star', spin: gout.variant },
+        glow(at, gout.size * 1.6, ramp[1], 0.6 * left * glint, forward),
+        { ...ball(at, gout.size, ramp[1], left * glint, forward, 0), shape: 'star', spin: gout.variant },
+        { ...ball(at, gout.size * 0.6, '#ffffff', left * glint, forward, 0), shape: 'star', spin: gout.variant },
       ];
   }
 }

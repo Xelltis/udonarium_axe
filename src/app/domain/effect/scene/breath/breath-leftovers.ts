@@ -309,7 +309,7 @@ export function drawLeftovers(drawn: Staged, stage: Stage, setting: LeftoverSett
     }
     case 'ice': {
       const crept = within(t, timing.reachesAt, timing.failsAt);
-      const reach = cell * (0.5 + 0.85 * crept);
+      const reach = cell * (0.7 + 0.75 * crept);
       const frost = mixColor(ramp[4], '#ffffff', 0.6);
       drawn.floor.push(
         floorMark(
@@ -318,7 +318,7 @@ export function drawLeftovers(drawn: Staged, stage: Stage, setting: LeftoverSett
           reach,
           1,
           frost,
-          0.3 * clearing * within(t, timing.reachesAt, timing.reachesAt + 0.3),
+          0.5 * clearing * within(t, timing.reachesAt, timing.reachesAt + 0.3),
           'color',
           mark
         )

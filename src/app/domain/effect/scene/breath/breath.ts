@@ -6,10 +6,18 @@ import {
   chestOf,
   coneAxis,
   coneWidthAt,
+  firstStruck,
   headTurnAt,
   streamFrontAt,
 } from '@axe/domain/effect/scene/breath/breath-cone';
-import { drawGout, type GoutLayer, hazeOf, type StreamBrush } from '@axe/domain/effect/scene/breath/breath-draw';
+import {
+  drawGout,
+  type GoutLayer,
+  hazeOf,
+  STREAM_PASSES,
+  type StreamBrush,
+} from '@axe/domain/effect/scene/breath/breath-draw';
+import { drawJet, type JetPose, jetSheetsOf } from '@axe/domain/effect/scene/breath/breath-jet';
 import {
   drawLeftovers,
   type Leftovers,
@@ -49,9 +57,11 @@ import { lightningRibbons } from '@axe/domain/effect/scene/shot/streams';
 /*
  * A breath: the caster draws it in, motes gathering at its mouth; it bursts out, white at the mouth
  * for an instant, and its front shoots down the cone to the furthest target; then it is blown steadily
- * for as long as the breath lasts, surging a few times a second and swaying, a thin haze about a body
- * of its element with a bright heart down its axis, streaks running down it, and its edge curling
- * off; where it meets a piece it breaks on it, wraps round it and is thrown back, and only a little
+ * for as long as the breath lasts, surging a few times a second and swaying: a jet from the mouth,
+ * unbroken, with gouts of its element flowing down and about it, laid a sheet at a time from its
+ * deepest colour to its bright heart so that they run together into one body, a thin haze about it,
+ * streaks running down it, and its edge curling off. Where it meets a piece, a target of it or any
+ * other standing in its way, it breaks on it, wraps round it and is thrown back, and only a little
  * runs on past. As it fails it thins from the mouth, the last of it runs down the cone, and what it
  * left on each piece and on the floor about it burns, clings or glows on for a while.
  *
@@ -72,6 +82,11 @@ const BURST_RAYS_S = 0.14;
 /** How many discs the thin haze about the stream is laid in, and the widest one is, in cells. */
 const HAZE_DISCS = 12;
 const HAZE_WIDEST_CELLS = 2.8;
+/** Where along the cone a breath of ice lays its frost on the floor under it, as shares of the cone's length. */
+const FROST_UNDER = [0.3, 0.52, 0.74, 0.94] as const;
+/** How many coils of wind wind down a cone at once, and how many points each is drawn through. */
+const COILS = 4;
+const COIL_POINTS = 12;
 /** How far nearer the eye a disc of the haze is drawn, as a share of its size: enough that the floor under it does not cut it. */
 const HAZE_NEARER = 0.35;
 
@@ -132,6 +147,29 @@ function throwStream(th: Thrower, setting: StreamSetting, look: BreathLook): Str
   return { setting, layers };
 }
 
+/**
+ * The pieces that are no target of a breath and stand where its cone blows, which it breaks on as it
+ * does on a target: those within its reach and no further off its axis than the cone is wide and
+ * turns, and none that the mouth is within.
+ */
+function standingInWay(
+  cone: BreathCone,
+  mouth: StageMouth,
+  bystanders: readonly StageTarget[],
+  U: number
+): StageTarget[] {
+  const widest = Math.atan2(cone.widthAtReach * 0.6, cone.reach) + cone.turns + 0.1;
+  return bystanders.filter((piece) => {
+    const dx = piece.x - mouth.x;
+    const dy = piece.y - mouth.y;
+    const far = Math.hypot(dx, dy);
+    if (far > cone.ends + piece.widthPx || far < piece.widthPx * 0.5 + U * 0.1) return false;
+    const off = Math.atan2(dy, dx) - cone.yaw;
+    const turned = Math.abs(Math.atan2(Math.sin(off), Math.cos(off)));
+    return turned < widest + Math.atan2(piece.widthPx * 0.5, far);
+  });
+}
+
 /** Draws the one stream of a cast at a moment: see the header. */
 function drawStream(
   drawn: Staged,
@@ -149,13 +187,14 @@ function drawStream(
   const floorZ = Math.min(...targets.map((target) => target.groundZ));
   const cone = breathConeOf(mouth, targets, U, timing, floorZ);
   const pace = Math.max(FLOWS_CELLS_S * U, cone.ends / CROSSES_WITHIN_S) * look.force;
-  const stood = targets
+  const inWay = [...targets, ...standingInWay(cone, mouth, stage.bystanders ?? [], U)];
+  const stood = inWay
     .map((target) => `${target.x},${target.y},${target.z},${target.groundZ},${target.widthPx}`)
     .join(';');
   const stream = keptFor(streamsByStage, `${told}|${mouth.widthPx}|${stood}`, () =>
     throwStream(
       throwerFor(stage, stage.duration + LINGER_S),
-      { cone, timing, targets, pace, buoyancy: look.buoyancy * U, seed: stage.seed },
+      { cone, timing, targets: inWay, pace, buoyancy: look.buoyancy * U, seed: stage.seed },
       look
     )
   );
@@ -177,7 +216,9 @@ function drawStream(
     drawInhale(drawn, look, ramp, cone, axis, t / Math.max(timing.burstsAt, 0.001), U, stage.seed);
   drawBurst(drawn, look, ramp, cone, t - timing.burstsAt, U, stage.seed);
   if (front > tail) drawHaze(drawn, look, ramp, cone, axisAt, tail, front, (t * pace * 0.6) / cone.ends, U);
-  drawFloorBand(drawn, look, ramp, cone, axisAt, tail, front, blowing * surge, U);
+  const frosted = within(t, timing.reachesAt, timing.reachesAt + 1.2);
+  const clearing = 1 - within(t, stage.duration + LINGER_S - 0.8, stage.duration + LINGER_S);
+  drawFloorBand(drawn, look, ramp, cone, axisAt, tail, front, blowing * surge, U, frosted, clearing);
 
   const brush: StreamBrush = {
     drawn,
@@ -188,17 +229,41 @@ function drawStream(
     floorZ,
     axisAt: (along) => axisAt(along * cone.ends),
   };
-  for (const [layer, gouts] of stream.layers) {
-    for (const gout of gouts) {
-      const state = goutAt(stream.setting, gout, t);
-      if (state) drawGout(brush, layer, gout, state);
+  const breaksAt = firstStruck(axisAt, 0, front, U * 0.12, inWay);
+  const jetEnds = breaksAt ? Math.min(front, breaksAt.along) : front;
+  const sheets = jetSheetsOf(look.element, ramp);
+  const jet: JetPose = {
+    mouth: cone.mouth,
+    end: axisAt(jetEnds),
+    wideThere: coneWidthAt(cone, jetEnds),
+    wideAtReach: cone.widthAtReach,
+    blowing,
+    surge,
+    pace,
+    seconds: t,
+    cell: U,
+    seed: stage.seed,
+  };
+  const flying = stream.layers.map(
+    ([layer, gouts]) => [layer, gouts.map((gout) => [gout, goutAt(stream.setting, gout, t)] as const)] as const
+  );
+  const drawLayers = (pass: number, which: (layer: GoutLayer) => boolean) => {
+    for (const [layer, gouts] of flying) {
+      if (!which(layer)) continue;
+      for (const [gout, state] of gouts) if (state) drawGout(brush, layer, gout, state, pass);
     }
+  };
+  drawLayers(0, (layer) => layer === 'curl');
+  for (let pass = 0; pass < STREAM_PASSES; pass++) {
+    drawJet(drawn, sheets, jet, pass);
+    drawLayers(pass, (layer) => layer === 'body' || layer === 'core');
   }
+  drawLayers(0, (layer) => layer === 'carried' || layer === 'streak');
 
   const crackle = Math.floor(t / 0.05);
   const flashing = look.element === 'thunder' ? 0.55 + 0.45 * Math.abs(Math.sin(crackle * 12.9898 + stage.seed)) : 1;
   if (look.element === 'thunder' && blowing > 0 && front > U * 0.5) {
-    const bolts = stage.preset.gradeLevel === 3 ? 4 : 3;
+    const bolts = stage.preset.gradeLevel === 3 ? 5 : 4;
     for (let bolt = 0; bolt < bolts; bolt++) {
       const chest = chestOf(targets[(bolt + crackle) % targets.length]);
       const far = Math.hypot(chest.x - cone.mouth.x, chest.y - cone.mouth.y, chest.z - cone.mouth.z);
@@ -213,12 +278,15 @@ function drawStream(
           ramp,
           0.9 * blowing * surge,
           floorZ,
-          1.5
+          bolt < 2 ? 2 : 1.5
         )
       );
     }
   }
-  if (look.element === 'wind' && front > tail) drawDustStrip(drawn, cone, axis, tail, front, t, blowing, U);
+  if (look.element === 'wind' && front > tail) {
+    drawDustStrip(drawn, cone, axis, tail, front, t, blowing, U);
+    drawCoils(drawn, cone, axis, axisAt, jetEnds, (t * pace) / cone.ends, blowing * surge, U);
+  }
   if (blowing > 0) drawMouth(drawn, look, ramp, cone, blowing, surge * flashing, U);
   for (let index = drawnBefore; index < drawn.motes.length; index++) {
     if (!drawn.motes[index].exactDepth) drawn.motes[index] = { ...drawn.motes[index], exactDepth: true };
@@ -333,7 +401,7 @@ function drawHaze(
     const thick = Math.pow(Math.sin(Math.PI * share), 0.6) * shown;
     const nearer = size * HAZE_NEARER;
     drawn.motes.push(haze({ ...at, z: Math.max(at.z, cone.floorZ + size * 0.2) }, size, color, alpha * thick, nearer));
-    if (look.element === 'holy') drawn.motes.push(glow(at, size, ramp[4], 0.12 * thick, nearer));
+    if (look.element === 'holy') drawn.motes.push(glow(at, size, ramp[4], 0.04 * thick, nearer));
   }
 }
 
@@ -347,8 +415,24 @@ function drawFloorBand(
   tail: number,
   front: number,
   strength: number,
-  U: number
+  U: number,
+  frosted: number,
+  clearing: number
 ): void {
+  if (look.element === 'ice' && look.carries) {
+    FROST_UNDER.forEach((share, index) => {
+      const along = cone.ends * share;
+      if (along > front) return;
+      const at = axisAt(along);
+      const reach = Math.max(U * 0.5, coneWidthAt(cone, along) * 0.55) * (0.5 + 0.5 * frosted);
+      const under = { x: at.x, y: at.y, z: cone.floorZ };
+      const frost = mixColor(ramp[4], '#ffffff', 0.6);
+      drawn.floor.push(floorMark('scorch', under, reach, 1, frost, 0.42 * frosted * clearing, 'color', index * 3 + 1));
+      drawn.floor.push(
+        floorMark('cracks', under, reach * 1.1, 0.3, '#ffffff', 0.5 * frosted * clearing, 'color', index * 5 + 2)
+      );
+    });
+  }
   if (strength <= 0 || (look.light <= 0 && look.element !== 'dark')) return;
   for (const share of [0.3, 0.6, 0.9]) {
     const along = cone.ends * share;
@@ -393,6 +477,45 @@ function drawDustStrip(
   }
 }
 
+/**
+ * The coils of a wind: white bands winding round the axis of the cone as they run down it, each thin
+ * at both its ends, which show the wind turning as it blows.
+ */
+function drawCoils(
+  drawn: Staged,
+  cone: BreathCone,
+  axis: BreathAxis,
+  axisAt: (along: number) => Point,
+  reach: number,
+  flowed: number,
+  strength: number,
+  U: number
+): void {
+  if (strength <= 0.02 || reach < U) return;
+  for (let coil = 0; coil < COILS; coil++) {
+    const middle = (flowed * 0.8 + coil / COILS) % 1;
+    const points: Point[] = [];
+    const widths: number[] = [];
+    const alphas: number[] = [];
+    for (let index = 0; index < COIL_POINTS; index++) {
+      const share = index / (COIL_POINTS - 1);
+      const along = reach * Math.min(1, Math.max(0.04, middle + (share - 0.5) * 0.34));
+      const round = (along / U) * 1.9 + coil * 1.7;
+      const out = (coneWidthAt(cone, along) / 2) * 0.78;
+      const at = axisAt(along);
+      points.push({
+        x: at.x + (axis.side.x * Math.cos(round) + axis.lift.x * Math.sin(round) * 0.6) * out,
+        y: at.y + (axis.side.y * Math.cos(round) + axis.lift.y * Math.sin(round) * 0.6) * out,
+        z: Math.max(cone.floorZ + U * 0.05, at.z + axis.lift.z * Math.sin(round) * 0.6 * out),
+      });
+      widths.push(U * 0.1 * Math.sin(Math.PI * share));
+      alphas.push(Math.sin(Math.PI * share));
+    }
+    const shown = Math.sin(Math.PI * middle) * strength;
+    drawn.ribbons.push({ points, widths, color: '#ffffff', alpha: 0.8 * shown, alphas, blend: 'color' });
+  }
+}
+
 /** The mouth while it blows: the heart of the stream, hottest and brightest there, kept before the caster. */
 function drawMouth(
   drawn: Staged,
@@ -433,8 +556,8 @@ function drawMouth(
       drawn.motes.push(haze(mouth, wide * 1.6, '#000000', 0.8 * blowing, forward));
       return;
     case 'holy':
-      drawn.motes.push(glow(mouth, U, ramp[5], 0.5 * blowing * pulse, forward));
-      drawn.motes.push(haze(mouth, wide * 1.4, '#ffffff', 0.5 * blowing, forward));
+      drawn.motes.push(glow(mouth, U * 0.8, ramp[5], 0.3 * blowing * pulse, forward));
+      drawn.motes.push(haze(mouth, wide * 1.2, '#ffffff', 0.4 * blowing, forward));
       return;
   }
 }

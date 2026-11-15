@@ -47,10 +47,10 @@ const FIRE: Omit<BreathLook, 'carries' | 'fiery'> = {
   streaks: { rate: 40, pace: [1.6, 2.1], edge: [0, 0.55], size: [0.05, 0.08], rolls: 0, breaks: true },
   curls: { rate: 12, pace: [0.6, 0.8], edge: [0.95, 1.1], size: [0.3, 0.45], rolls: 0.6, breaks: false, upper: true },
   carried: {
-    rate: 20,
+    rate: 34,
     pace: [0.6, 1],
-    edge: [0.3, 1.1],
-    size: [0.06, 0.08],
+    edge: [0.3, 1.15],
+    size: [0.06, 0.1],
     rolls: 1,
     breaks: false,
     leaks: 1,
@@ -65,9 +65,9 @@ const ICE: Omit<BreathLook, 'carries' | 'fiery'> = {
   buoyancy: -0.35,
   body: { rate: 70, pace: [0.8, 1.05], edge: [0.1, 1], size: [0.38, 0.55], rolls: 0.8, breaks: true, leaks: 0.12 },
   core: { rate: 24, pace: [1.05, 1.25], edge: [0, 0.3], size: [0.2, 0.3], rolls: 0.3, breaks: true },
-  streaks: { rate: 40, pace: [1.5, 2], edge: [0, 0.8], size: [0.05, 0.08], rolls: 0, breaks: true },
+  streaks: { rate: 56, pace: [1.5, 2.1], edge: [0, 0.9], size: [0.05, 0.08], rolls: 0, breaks: true },
   curls: { rate: 8, pace: [0.6, 0.8], edge: [0.95, 1.1], size: [0.35, 0.5], rolls: 0.5, breaks: false, upper: true },
-  carried: { rate: 16, pace: [0.7, 1.1], edge: [0.2, 1], size: [0.1, 0.15], rolls: 1.5, breaks: false, leaks: 0.6 },
+  carried: { rate: 30, pace: [0.7, 1.1], edge: [0.2, 1.05], size: [0.13, 0.24], rolls: 1.5, breaks: false, leaks: 0.6 },
   light: 0.6,
 };
 
@@ -79,7 +79,7 @@ const POISON: Omit<BreathLook, 'carries' | 'fiery'> = {
   core: { rate: 16, pace: [1.05, 1.2], edge: [0, 0.3], size: [0.18, 0.26], rolls: 0.3, breaks: true },
   streaks: { rate: 12, pace: [1.4, 1.8], edge: [0, 0.6], size: [0.07, 0.1], rolls: 0, breaks: true },
   curls: { rate: 10, pace: [0.6, 0.8], edge: [0.9, 1.1], size: [0.4, 0.6], rolls: 0.8, breaks: false, upper: true },
-  carried: { rate: 22, pace: [0.6, 1], edge: [0.2, 1.05], size: [0.08, 0.16], rolls: 1, breaks: false, leaks: 0.3 },
+  carried: { rate: 30, pace: [0.6, 1], edge: [0.2, 1.05], size: [0.1, 0.22], rolls: 1, breaks: false, leaks: 0.3 },
   light: 0.35,
 };
 
@@ -99,9 +99,9 @@ const WIND: Omit<BreathLook, 'carries' | 'fiery'> = {
   element: 'wind',
   force: 1.35,
   buoyancy: 0.1,
-  body: { rate: 40, pace: [0.85, 1.1], edge: [0.1, 1], size: [0.4, 0.6], rolls: 1, breaks: true, leaks: 0.15 },
+  body: { rate: 26, pace: [0.85, 1.1], edge: [0.1, 1], size: [0.4, 0.6], rolls: 1, breaks: true, leaks: 0.15 },
   core: null,
-  streaks: { rate: 90, pace: [1.3, 1.9], edge: [0, 0.95], size: [0.05, 0.09], rolls: 0.4, breaks: true, leaks: 0.3 },
+  streaks: { rate: 110, pace: [1.3, 1.9], edge: [0, 0.95], size: [0.05, 0.09], rolls: 0.4, breaks: true, leaks: 0.3 },
   curls: { rate: 10, pace: [0.6, 0.8], edge: [0.9, 1.1], size: [0.3, 0.45], rolls: 0.8, breaks: false, upper: true },
   carried: {
     rate: 18,
@@ -122,7 +122,7 @@ const DARK: Omit<BreathLook, 'carries' | 'fiery'> = {
   buoyancy: -0.1,
   body: { rate: 85, pace: [0.8, 1.05], edge: [0.1, 1], size: [0.4, 0.58], rolls: 1.4, breaks: true, leaks: 0.1 },
   core: { rate: 24, pace: [1.05, 1.25], edge: [0, 0.3], size: [0.22, 0.32], rolls: 0.3, breaks: true },
-  streaks: { rate: 14, pace: [1.5, 1.9], edge: [0.3, 0.9], size: [0.05, 0.08], rolls: 0, breaks: true },
+  streaks: { rate: 34, pace: [1.5, 1.9], edge: [0.2, 1], size: [0.05, 0.08], rolls: 0, breaks: true },
   curls: { rate: 10, pace: [0.6, 0.8], edge: [0.95, 1.1], size: [0.3, 0.45], rolls: 0.6, breaks: false, upper: true },
   carried: { rate: 10, pace: [0.6, 1], edge: [0.3, 1.05], size: [0.1, 0.16], rolls: 1, breaks: false, leaks: 0.4 },
   light: 0,
@@ -136,7 +136,7 @@ const HOLY: Omit<BreathLook, 'carries' | 'fiery'> = {
   core: { rate: 16, pace: [1.05, 1.2], edge: [0, 0.3], size: [0.22, 0.3], rolls: 0.3, breaks: true },
   streaks: { rate: 12, pace: [1.2, 1.5], edge: [0, 0.7], size: [0.05, 0.07], rolls: 0, breaks: true },
   curls: null,
-  carried: { rate: 24, pace: [0.6, 1], edge: [0.2, 1.1], size: [0.1, 0.18], rolls: 1.5, breaks: false, leaks: 0.5 },
+  carried: { rate: 34, pace: [0.6, 1], edge: [0.2, 1.1], size: [0.2, 0.38], rolls: 1.5, breaks: false, leaks: 0.5 },
   light: 0.8,
 };
 

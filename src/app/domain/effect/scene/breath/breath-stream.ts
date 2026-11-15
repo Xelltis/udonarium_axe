@@ -272,7 +272,7 @@ export function goutAt(setting: StreamSetting, gout: Gout, seconds: number): Gou
     heading: headingOf(at, next, gout.axis.way),
     along: reached + 0.35 * breaking,
     breaking,
-    grown: (0.75 + 1.6 * Math.min(reached, 1.2)) * (1 - 0.45 * breaking),
+    grown: (0.75 + 1.6 * Math.min(reached, 1.2)) * (1 - (gout.end === 'spent' ? 0.45 : 0.65) * breaking),
     left: gout.end === 'spent' ? 1 - breaking : 1 - breaking * breaking,
   };
 }

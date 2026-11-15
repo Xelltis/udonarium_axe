@@ -64,6 +64,7 @@ export class EffectFrameService {
             hiddenIdentifiers: this.hiddenOf(active.cast.targets.map((target) => target.identifier)),
             resolveFooting: (identifier) => this.footingOf(identifier, cellPx),
             resolveSize: (identifier) => this.sizeOf(identifier),
+            resolveStanding: () => this.tabletop.characters.map((character) => character.identifier),
           },
           drawn
         );

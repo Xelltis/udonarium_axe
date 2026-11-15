@@ -53,6 +53,25 @@ function streamOf(drawn: Staged) {
   return drawn.motes.filter((mote) => mote.exactDepth && mote.forward === CELL * 0.2);
 }
 
+/** The shapes that flow, which are placed by their far end: see {@link middleOf}. */
+const FLOWING = new Set(['lick', 'wisp', 'jet', 'gust']);
+
+/** Where the middle of a part of the stream is: a shape that flows is placed by its far end and drawn back from it. */
+function middleOf(mote: Staged['motes'][number]): { x: number; y: number; z: number } {
+  if (!FLOWING.has(mote.shape) || !mote.velocity) return mote;
+  const half = ((mote.trail ?? 0) * 100 + mote.size) / 2;
+  return {
+    x: mote.x - (mote.velocity.x / 100) * half,
+    y: mote.y - (mote.velocity.y / 100) * half,
+    z: mote.z - (mote.velocity.z / 100) * half,
+  };
+}
+
+/** The gouts of a stream, without the sheets of its jet. */
+function goutsOf(drawn: Staged) {
+  return streamOf(drawn).filter((mote) => mote.shape !== 'jet' && mote.shape !== 'gust');
+}
+
 const ONE = castOn([400, 300]);
 const FOUR = castOn([400, 300], [450, 250], [450, 350], [500, 300]);
 
@@ -69,7 +88,7 @@ describe('a breath', () => {
   it('reaches the target 0.15 seconds after it bursts', () => {
     const fire = breathOf('炎');
     const timing = breathTimingOf(3);
-    const furthest = (ms: number) => Math.max(...streamOf(staged(fire, ONE, ms)).map((mote) => mote.x));
+    const furthest = (ms: number) => Math.max(...goutsOf(staged(fire, ONE, ms)).map((mote) => middleOf(mote).x));
 
     expect(furthest(timing.burstsAt * 1000 + 50)).toBeLessThan(370);
     expect(furthest(timing.reachesAt * 1000 + 10)).toBeGreaterThan(370);
@@ -139,7 +158,7 @@ describe('a breath', () => {
   });
 
   it('breaks on the target: almost nothing of the stream is drawn inside it or far past it', () => {
-    const drawn = streamOf(staged(breathOf('炎'), ONE, 1500));
+    const drawn = goutsOf(staged(breathOf('炎'), ONE, 1500)).map(middleOf);
     const inside = drawn.filter((mote) => Math.hypot(mote.x - 400, mote.y - 300) < CELL * 0.3 && mote.z < CELL);
     const past = drawn.filter((mote) => mote.x > 400 + CELL * 2.2);
     const about = drawn.filter((mote) => Math.hypot(mote.x - 400, mote.y - 300) < CELL * 1.2);
@@ -200,18 +219,95 @@ describe('a breath', () => {
   });
 });
 
+describe('the jet of a breath', () => {
+  const jetsOf = (drawn: Staged) => streamOf(drawn).filter((mote) => mote.shape === 'jet' || mote.shape === 'gust');
+  const reachOf = (mote: Staged['motes'][number]) => (mote.trail ?? 0) * 100 + mote.size;
+
+  it('runs from the mouth to the piece the stream breaks on, narrow for a short breath and never wider than it is long', () => {
+    const far = jetsOf(staged(breathOf('炎'), ONE, 1500));
+    const near = jetsOf(staged(breathOf('炎'), castOn([200, 300]), 1500));
+
+    expect(far.length).toBeGreaterThan(2);
+    expect(Math.max(...far.map((jet) => jet.x))).toBeGreaterThan(350);
+    for (const jet of far) {
+      expect(jet.x).toBeGreaterThan(250);
+      expect(jet.x).toBeLessThan(400 + CELL * 0.5);
+      expect(Math.abs(jet.y - 300)).toBeLessThan(CELL * 0.6);
+    }
+    for (const jet of near) {
+      expect(reachOf(jet)).toBeGreaterThanOrEqual(jet.size);
+      expect(jet.x).toBeLessThan(200 + CELL * 0.5);
+    }
+  });
+
+  it('is not yet blown while the breath is drawn in, grows with the front of the stream and is gone once the breath is spent', () => {
+    const timing = breathTimingOf(3);
+    const fire = breathOf('炎');
+    const longest = (ms: number) => Math.max(0, ...jetsOf(staged(fire, ONE, ms)).map(reachOf));
+
+    expect(longest(timing.burstsAt * 1000 - 50)).toBe(0);
+    expect(longest(timing.burstsAt * 1000 + 60)).toBeLessThan(longest(timing.reachesAt * 1000 + 100));
+    expect(longest(timing.spentAt * 1000 + 50)).toBe(0);
+  });
+
+  it('runs its pattern down it as it blows', () => {
+    const fire = breathOf('炎');
+    const flowed = (ms: number) => jetsOf(staged(fire, ONE, ms))[1].spin!;
+
+    expect(flowed(1600)).toBeGreaterThan(flowed(1500));
+  });
+
+  it('breaks on a piece that stands in its way and is no target of it', () => {
+    const fire = breathOf('炎');
+    const standing = { x: 250, y: 300, z: 0, groundZ: 0 };
+    const withBystander = staged(fire, ONE, 1500, {
+      resolveStanding: () => ['caster', 't0', 'bystander'],
+      resolveFooting: (identifier) => (identifier === 'caster' ? CASTER : identifier === 'bystander' ? standing : null),
+    });
+    const open = staged(fire, ONE, 1500, { resolveStanding: () => ['caster', 't0'] });
+    const furthest = (drawn: Staged) => Math.max(...jetsOf(drawn).map((jet) => jet.x));
+    const beyond = (drawn: Staged) => goutsOf(drawn).filter((mote) => middleOf(mote).x > 300).length;
+
+    expect(furthest(open)).toBeGreaterThan(350);
+    expect(furthest(withBystander)).toBeLessThan(250 + CELL * 0.4);
+    expect(beyond(withBystander)).toBeLessThan(beyond(open) * 0.7);
+  });
+
+  it('passes by a piece standing beside its cone or behind its caster', () => {
+    const fire = breathOf('炎');
+    const places: Record<string, { x: number; y: number; z: number; groundZ: number }> = {
+      caster: CASTER,
+      beside: { x: 250, y: 500, z: 0, groundZ: 0 },
+      behind: { x: 0, y: 300, z: 0, groundZ: 0 },
+    };
+    const drawn = staged(fire, ONE, 1500, {
+      resolveStanding: () => ['beside', 'behind'],
+      resolveFooting: (identifier) => places[identifier] ?? null,
+    });
+
+    expect(JSON.stringify(drawn)).toBe(JSON.stringify(staged(fire, ONE, 1500)));
+  });
+});
+
 describe('the elements of a breath', () => {
   const at = (tagName: string, ms = 1500, cast = ONE) => staged(breathOf(tagName), cast, ms);
   const shapes = (drawn: Staged) => new Set(drawn.motes.map((mote) => mote.shape));
 
-  it('burns as fire: hard balls of flame, tongues off its edge, a scorch and little fires left burning', () => {
+  it('burns as fire: a jet and licks of flame laid deepest first, tongues off its edge, a scorch and little fires left burning', () => {
     const fire = at('炎');
     const timing = breathTimingOf(3);
     const left = at('炎', timing.spentAt * 1000 + 600);
+    const licks = streamOf(fire).filter((mote) => mote.shape === 'lick' && mote.blend === 'color');
+    const jets = streamOf(fire).filter((mote) => mote.shape === 'jet');
+    const ramp = [...new Set([...jets, ...licks].map((mote) => mote.color))];
+    const firstOf = (color: string) => fire.motes.findIndex((mote) => mote.shape === 'lick' && mote.color === color);
 
-    expect(streamOf(fire).filter((mote) => mote.shape === 'puff' && mote.blend === 'color').length).toBeGreaterThan(
-      100
-    );
+    expect(licks.length).toBeGreaterThan(100);
+    expect(jets).toHaveLength(5);
+    expect(jets[0].size).toBeGreaterThan(jets[4].size * 2);
+    expect(ramp.length).toBeGreaterThanOrEqual(4);
+    expect(firstOf(jets[0].color)).toBeLessThan(firstOf(jets[1].color));
+    expect(firstOf(jets[1].color)).toBeLessThan(firstOf(jets[2].color));
     expect(shapes(fire).has('tongue')).toBe(true);
     expect(fire.lights.length).toBeGreaterThan(0);
     expect(left.floor.some((mark) => mark.shape === 'scorch' && mark.blend === 'color')).toBe(true);
@@ -224,8 +320,14 @@ describe('the elements of a breath', () => {
     const frostOf = (drawn: Staged) =>
       Math.max(...drawn.floor.filter((mark) => mark.shape === 'cracks').map((mark) => mark.radius));
 
-    expect(streamOf(ice).filter((mote) => mote.shape === 'smoke').length).toBeGreaterThan(40);
+    const frosted = (drawn: Staged) =>
+      drawn.floor.filter((mark) => mark.shape === 'scorch').reduce((sum, mark) => sum + mark.radius * mark.alpha, 0);
+
+    expect(streamOf(ice).filter((mote) => mote.shape === 'wisp').length).toBeGreaterThan(40);
+    expect(streamOf(ice).some((mote) => mote.shape === 'gust' && mote.blend === 'color')).toBe(true);
     expect(shapes(ice).has('flake')).toBe(true);
+    expect(early.floor.filter((mark) => mark.shape === 'scorch').length).toBeGreaterThan(1);
+    expect(frosted(ice)).toBeGreaterThan(frosted(at('氷', 450)));
     expect(frostOf(ice)).toBeGreaterThan(frostOf(early));
     expect(at('氷', 3600).motes.some((mote) => mote.shape === 'smoke')).toBe(true);
   });
@@ -240,34 +342,42 @@ describe('the elements of a breath', () => {
     expect(left.motes.filter((mote) => mote.shape === 'smoke').length).toBeGreaterThanOrEqual(8);
   });
 
-  it('blows thunder as three bolts that take another shape every twentieth of a second, forking off the target', () => {
+  it('blows thunder as four bolts that take another shape every twentieth of a second, forking off the target', () => {
     const thunder = at('雷', 1500, FOUR);
     const next = at('雷', 1560, FOUR);
     const shapeOf = (drawn: Staged) => JSON.stringify(drawn.ribbons[0].points);
 
     expect(
-      thunder.ribbons.filter((ribbon) => ribbon.core === '#ffffff' && ribbon.widths === CELL * 0.16 * 1.5).length
-    ).toBe(3);
+      thunder.ribbons.filter(
+        (ribbon) => ribbon.core === '#ffffff' && [1.5, 2].some((thick) => ribbon.widths === CELL * 0.16 * thick)
+      ).length
+    ).toBe(4);
     expect(shapeOf(thunder)).not.toBe(shapeOf(next));
-    expect(thunder.ribbons.length).toBeGreaterThan(3 * 7);
+    expect(thunder.ribbons.length).toBeGreaterThan(4 * 7);
     expect(thunder.floor.some((mark) => mark.shape === 'scorch')).toBe(true);
   });
 
-  it('blows wind as white streaks with leaves and grit, throwing no light and leaving no mark', () => {
+  it('blows wind as white streaks and coils with leaves and grit, throwing no light and leaving no mark', () => {
     const wind = at('風');
+    const coils = wind.ribbons.filter((ribbon) => ribbon.color === '#ffffff' && ribbon.blend === 'color');
 
+    expect(coils).toHaveLength(4);
+    expect(
+      coils.every((coil) => (coil.widths as number[])[0] < 0.001 && (coil.widths as number[]).at(-1)! < 0.001)
+    ).toBe(true);
     expect(wind.motes.filter((mote) => mote.shape === 'spark' && mote.color === '#ffffff').length).toBeGreaterThan(15);
     expect(shapes(wind).has('chunk')).toBe(true);
     expect(wind.lights).toHaveLength(0);
     expect(wind.floor).toHaveLength(0);
   });
 
-  it('blows darkness as a black body with tongues at its edge, darkening the floor and throwing no light', () => {
+  it('blows darkness as a black body edged in its colour, with tongues at its edge, darkening the floor and throwing no light', () => {
     const dark = at('闇');
+    const jets = streamOf(dark).filter((mote) => mote.shape === 'jet');
 
-    expect(streamOf(dark).filter((mote) => mote.shape === 'smoke' && mote.blend === 'color').length).toBeGreaterThan(
-      40
-    );
+    expect(streamOf(dark).filter((mote) => mote.shape === 'lick' && mote.blend === 'color').length).toBeGreaterThan(40);
+    expect(jets.at(-1)!.core).toBe('#000000');
+    expect(jets[0].color).not.toBe(jets.at(-1)!.color);
     expect(shapes(dark).has('tongue')).toBe(true);
     expect(dark.lights).toHaveLength(0);
     expect(dark.floor.some((mark) => mark.shape === 'disc' && mark.blend === 'color' && mark.color === '#000000')).toBe(
@@ -283,7 +393,9 @@ describe('the elements of a breath', () => {
 
     expect(holy.floor.some((mark) => mark.shape === 'scorch')).toBe(false);
     expect(holy.floor.some((mark) => mark.shape === 'ring' && mark.blend === 'light')).toBe(true);
-    expect(streamOf(holy).some((mote) => mote.shape === 'puff')).toBe(false);
+    expect(streamOf(holy).some((mote) => mote.shape === 'puff' || mote.shape === 'lick' || mote.shape === 'jet')).toBe(
+      false
+    );
     expect(shapes(holy).has('star')).toBe(true);
     expect(streamOf(at('回復', timing.spentAt * 1000 + 350)).length).toBeGreaterThan(
       streamOf(at('炎', timing.spentAt * 1000 + 350)).length
