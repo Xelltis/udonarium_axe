@@ -17,13 +17,13 @@ import { scatter, smooth } from '@axe/domain/effect/scene/wind/wind-parts';
  * of its substance behind it, bright along the way its point went and thinning back to where the
  * swing began. As it comes level the torrent erupts along the line it lies on: one wide body from
  * just before its wielder, down to the floor and on through the target and well past it, laid as the
- * blade is from a white heart out to a torn sheath, flaring as it goes to a blunt torn head, surges
+ * blade is from a white heart out to a torn sheath, cells wide, flaring as it goes to a blunt torn head, surges
  * and lines of speed running down it, streaks racing along it and shreds peeling off its edges; it breaks about every piece standing in it. Then it thins from
  * its wielder's end and its last runs on and is gone.
  */
 
 /** How long the torrent takes to run its whole length, in seconds. */
-const RUNS_S = 0.15;
+const RUNS_S = 0.18;
 /** How long the fan the swing left takes to fade once the blade is down, in seconds. */
 const FAN_FADES_S = 0.34;
 /** How many points the torrent's body, and each arc of the fan, are drawn through. */
@@ -37,13 +37,13 @@ const FAN_ARCS: readonly (readonly [at: number, wide: number])[] = [
   [0.9, 0.2],
 ];
 /** How many streaks race along the torrent, and how many shreds peel off its edges. */
-const STREAKS = 44;
-const SHREDS = 18;
+const STREAKS = 72;
+const SHREDS = 30;
 /** How many surges run down the torrent at once, and where along each its band is drawn through, from its tail to its head. */
-const SURGES = 4;
+const SURGES = 6;
 const SURGE_SHARES = [-1, -0.6, -0.2, 0.2, 0.6, 1];
 /** How many lines of speed run along it. */
-const LINES = 18;
+const LINES = 26;
 /** How fast the streaks race, in cells a second. */
 const STREAK_CELLS_S = 30;
 
@@ -162,7 +162,7 @@ export function drawTorrent(drawn: Staged, pose: SwordPose, paint: SwordPaint, l
   const dark = paint.element === 'dark';
   for (let surge = 0; surge < SURGES; surge++) {
     const middle = tail + span * ((since * 2.1 + surge / SURGES) % 1);
-    const reach = U * (1.2 + 0.5 * scatter(surge, seed + 11));
+    const reach = U * (1.6 + 0.9 * scatter(surge, seed + 11));
     const along = SURGE_SHARES.map((share) => Math.min(head, Math.max(tail, middle + share * reach)));
     drawn.ribbons.push({
       points: along.map((by) => alongTorrent(pose, by)),
@@ -200,7 +200,7 @@ export function drawTorrent(drawn: Staged, pose: SwordPose, paint: SwordPaint, l
     });
     drawn.ribbons.push({
       points: through,
-      widths: [0, U * (outside ? 0.07 : 0.1), 0],
+      widths: [0, U * (outside ? 0.1 : 0.15), 0],
       color: outside ? paint.sheath : dark ? paint.rim : '#ffffff',
       core: outside ? paint.inner : undefined,
       alpha: (outside ? 0.85 : 0.9) * look.alpha,
@@ -257,8 +257,8 @@ export function drawTorrent(drawn: Staged, pose: SwordPose, paint: SwordPaint, l
         'lick',
         root,
         lean,
-        U * (0.34 + 0.2 * scatter(index, 10)) * (1 - 0.5 * cycle),
-        U * (0.7 + 1 * cycle),
+        pose.thick * (0.3 + 0.18 * scatter(index, 10)) * (1 - 0.5 * cycle),
+        pose.thick * (0.6 + 0.9 * cycle),
         since * 6 + index,
         {
           color: paint.sheath,
@@ -354,7 +354,7 @@ export function layTorrentFloor(
   const U = pose.cell;
   const dark = paint.element === 'dark';
   if (look) {
-    const steps = 8;
+    const steps = 12;
     for (let index = 0; index <= steps; index++) {
       const by = look.tail + ((look.head - look.tail) * index) / steps;
       const wide = torrentWidthAt(pose, look, by);
@@ -364,7 +364,7 @@ export function layTorrentFloor(
         floorMark(
           'disc',
           underTorrent(pose, by),
-          wide * 1.5,
+          wide * 1.15,
           1,
           dark ? '#020104' : paint.halo,
           (dark ? 0.4 : 0.48) * look.alpha * flicker,
@@ -381,16 +381,16 @@ export function layTorrentFloor(
   const turn = Math.atan2(-pose.way.y, pose.way.x);
   const pick = (seed % 97) / 9.7;
   drawn.floor.push(
-    floorMark('fissure', middle, half, (U * 0.5) / half, paint.score, 0.85 * clearing, 'color', pick, turn)
+    floorMark('fissure', middle, half, (pose.thick * 0.3) / half, paint.score, 0.85 * clearing, 'color', pick, turn)
   );
-  for (let patch = 0; patch < 7; patch++) {
-    const by = from + (reached - from) * ((patch + 0.5) / 7);
+  for (let patch = 0; patch < 12; patch++) {
+    const by = from + (reached - from) * ((patch + 0.5) / 12);
     const aside = (scatter(patch, seed + 21) * 2 - 1) * pose.thick * 0.3;
     drawn.floor.push(
       floorMark(
         'scorch',
         underTorrent(pose, by, aside),
-        U * (0.55 + 0.4 * scatter(patch, seed + 22)),
+        U * (0.8 + 0.6 * scatter(patch, seed + 22)),
         1,
         paint.score,
         0.45 * clearing,
@@ -406,7 +406,7 @@ export function layTorrentFloor(
       'fissure',
       middle,
       half,
-      (U * 0.3) / half,
+      (pose.thick * 0.17) / half,
       dark ? paint.rim : glowing,
       clearing * Math.min(1, heat * 1.5),
       'light',

@@ -169,7 +169,7 @@ function drawTechnique(
       z: pose.floorZ + pose.thick * 0.4,
       color: paint.ramp[4],
       strength: torrent.alpha * (0.8 + 0.2 * Math.sin(since * 47)),
-      reachPx: U * 4,
+      reachPx: U * 6,
     });
   }
 }

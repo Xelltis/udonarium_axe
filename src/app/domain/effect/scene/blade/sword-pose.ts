@@ -13,7 +13,7 @@ import { smooth } from '@axe/domain/effect/scene/wind/wind-parts';
 /** How tall the blade of light stands, how wide it is, and how wide the torrent is, in cells, by grade. */
 const TALL_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 2.8, 2: 3.5, 3: 4.3 };
 const BROAD_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 0.58, 2: 0.7, 3: 0.84 };
-const THICK_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 0.75, 2: 0.95, 3: 1.15 };
+const THICK_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 1.6, 2: 2.1, 3: 2.7 };
 /** How long the sword of steel is, in cells, and against its wielder's width at the least. */
 const STEEL_CELLS = 0.95;
 const STEEL_BY_WIDTH = 1;
@@ -25,8 +25,8 @@ const HELD_OVER_CELLS = 0.1;
 /** How far from its target a sword that no one wields is swung, in cells. */
 const UNWIELDED_CELLS = 2.4;
 /** How far past its target the torrent runs, in cells, and how far it runs at the least. */
-const RUNS_ON_CELLS = 2.8;
-const RUNS_CELLS = 5;
+const RUNS_ON_CELLS = 9;
+const RUNS_CELLS = 11;
 /** How far the blade is drawn back before it is swung, in radians, and how long that takes, in seconds. */
 const DRAWN_BACK = 0.26;
 const DRAWS_BACK_S = 0.16;

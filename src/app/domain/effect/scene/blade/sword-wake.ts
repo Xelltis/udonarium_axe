@@ -9,8 +9,8 @@ import { floorMark, glow, lightningPaths, type Point, smokePuff } from '@axe/dom
 import { scatter } from '@axe/domain/effect/scene/wind/wind-parts';
 
 /*
- * What the torrent of a great sword leaves along the whole of its path once it has passed: motes of
- * its light drifting up, and what its element leaves: smoke and small flames along the score of a
+ * What the torrent of a great sword leaves along the whole of its path once it has passed: streaks
+ * of its light thrown up off the whole length of it as it thins, motes of its light drifting up, and what its element leaves: smoke and small flames along the score of a
  * torrent of fire; frost on the floor and flakes sifting down after one of ice; lightning still
  * crawling along the score of one of thunder; a line of crags torn up out of the ground by one of
  * earth, heaved up one after another as the torrent ran, with dust hanging over them; a black smoke
@@ -19,10 +19,14 @@ import { scatter } from '@axe/domain/effect/scene/wind/wind-parts';
 
 /** How many motes drift up along the path. */
 const DRIFTING = 42;
+/** How many streaks of light are thrown up off the path as the torrent thins, how high they go, in cells, and how long each takes, in seconds. */
+const ASCENDING = 46;
+const ASCENDS_CELLS = 4.5;
+const ASCENDS_S = 0.7;
 /** How long the torrent took to run its length, in seconds: the crags heave as it reaches each. */
 const RAN_S = 0.15;
 /** How far apart the crags of a torrent of earth stand, in cells, and how long each takes to rise, in seconds. */
-const CRAG_APART_CELLS = 0.5;
+const CRAG_APART_CELLS = 0.7;
 const CRAG_RISES_S = 0.1;
 
 /** What is told of a wake at a moment. */
@@ -70,6 +74,28 @@ export function drawWake(drawn: Staged, pose: SwordPose, paint: SwordPaint, look
         spin: index,
       });
     }
+  }
+  const thins = timing.thinsAt - timing.releasesAt;
+  for (let index = 0; index < ASCENDING; index++) {
+    const by = pose.runs * (0.03 + 0.95 * scatter(index, seed + 46));
+    const born = thins * (0.55 + 0.45 * (by / pose.runs)) + scatter(index, seed + 47) * (flows - thins + 0.25);
+    const age = (since - born) / (ASCENDS_S * (0.7 + 0.6 * scatter(index, seed + 48)));
+    if (age <= 0 || age >= 1) continue;
+    const aside = (scatter(index, seed + 49) * 2 - 1) * pose.thick * 0.5;
+    const high = U * ASCENDS_CELLS * (0.5 + 0.5 * scatter(index, seed + 50));
+    const at = onPath(pose, by, aside, U * 0.1 + high * outCubic(age));
+    drawn.motes.push({
+      ...glow(
+        at,
+        U * (0.07 + 0.05 * (index % 3)),
+        paint.element === 'dark' ? paint.rim : index % 3 === 0 ? '#ffffff' : paint.spark,
+        Math.min(1, age * 8, (1 - age) * 2) * clearing,
+        forward
+      ),
+      shape: 'spark',
+      velocity: { x: 0, y: 0, z: (high / ASCENDS_S) * 3 * (1 - age) * (1 - age) },
+      trail: 0.09,
+    });
   }
   const each = (count: number, lasts: number, draw: (index: number, age: number, by: number, born: number) => void) => {
     for (let index = 0; index < count; index++) {
@@ -235,7 +261,7 @@ function drawCragLine(drawn: Staged, pose: SwordPose, paint: SwordPaint, look: W
   for (let index = 0; index < count; index++) {
     const by = U * 0.8 + index * apart;
     const side = index % 2 === 0 ? 1 : -1;
-    const aside = side * pose.thick * (0.16 + 0.2 * scatter(index, look.seed + 61));
+    const aside = side * Math.min(pose.thick, U * 1.6) * (0.16 + 0.2 * scatter(index, look.seed + 61));
     const root = underTorrent(pose, by, aside);
     if (look.pieces.some((piece) => Math.hypot(piece.x - root.x, piece.y - root.y) < piece.widthPx * 0.55 + U * 0.2))
       continue;
