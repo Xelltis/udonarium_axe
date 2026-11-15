@@ -1365,8 +1365,9 @@
       "casterLabel": "Caster",
       "casterNextLabel": "Caster (next)",
       "casterPressPiece": "Press a piece on the table",
-      "changeCaster": "Change",
+      "changeCaster": "Change the caster",
       "changeCasterHint": "Change the caster. The next piece pressed becomes the caster and is not a target (press again to stop)",
+      "noCaster": "Set no caster",
       "noCasterHint": "Play it with no caster",
       "none": "None",
       "targetsLabel": "Targets",
@@ -1474,7 +1475,8 @@
         "blaster": "Blaster bolt",
         "tracer": "Tracer",
         "missile": "Missile",
-        "cruise": "Guided missile"
+        "cruise": "Guided missile",
+        "meteor": "Meteor"
       },
       "slashStyle": {
         "single": "Single",

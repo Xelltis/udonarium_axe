@@ -1,5 +1,15 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  linkedSignal,
+  signal,
+  untracked,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { EffectAutoPlayService } from '@axe/application/effect/effect-auto-play.service';
@@ -20,6 +30,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { browserLocalStorage } from '@axe/core/storage/local-preference';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { joinList } from '@axe/core/util/join-list';
@@ -39,12 +50,16 @@ import {
   isMultiTarget,
   TargetingFilter,
 } from '@axe/features/effect/effect-library-panel/effect-library-list';
+import { movesBetweenTiles, tileAfterKey } from '@axe/features/effect/effect-library-panel/effect-tile-keys';
 import { pushRecentEffect, readRecentEffects } from '@axe/features/effect/effect-library-panel/recent-effects';
 import { EffectPresetEditorComponent } from '@axe/features/effect/effect-preset-editor/effect-preset-editor.component';
+import { EffectPreviewComponent } from '@axe/features/effect/effect-preview/effect-preview.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
 const GRADE_LEVELS: readonly number[] = [1, 2, 3];
+/** How long the pointer or the keyboard's focus rests on a tile before its effect is previewed, in milliseconds. */
+export const EFFECT_TILE_PREVIEW_DELAY_MS = 200;
 
 /** A piece named in the row of targets. */
 interface TargetChip {
@@ -52,11 +67,19 @@ interface TargetChip {
   readonly name: string;
 }
 
+/**
+ * The list of effects, and the box an effect chosen from it is held ready in until it is cast.
+ *
+ * The box holds the one preview of the panel, which plays the effect held ready, and with none held
+ * the effect of the tile the pointer or the keyboard's focus has rested on. The preview is made the
+ * first time there is something to play and goes with the panel. The tiles are one stop for the Tab
+ * key, moved among by the arrows.
+ */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'effect-library-panel',
   templateUrl: './effect-library-panel.component.html',
-  imports: [FormsModule, NgTemplateOutlet, SafePipe, TranslocoModule],
+  imports: [EffectPreviewComponent, FormsModule, NgTemplateOutlet, SafePipe, TranslocoModule],
 })
 export class EffectLibraryPanelComponent {
   private readonly hotbarFill = inject(HotbarFillService);
@@ -79,6 +102,7 @@ export class EffectLibraryPanelComponent {
   private readonly language = inject(LanguageService);
   private readonly confirm = inject(ConfirmService);
   private readonly names = inject(PieceNameService);
+  private readonly viewport = inject(ViewportService);
 
   protected readonly gradeLevels = GRADE_LEVELS;
 
@@ -201,8 +225,122 @@ export class EffectLibraryPanelComponent {
       .slice(0, 6);
   });
 
+  /** The effect of the tile the pointer or the keyboard's focus has rested on, or null for none. */
+  private readonly pointed = signal<EffectPreset | null>(null);
+  private pointTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /**
+   * The effect the preview plays: the one held ready, and with none held the one of the tile pointed
+   * at, where the main pointer can hover. Null for nothing to play.
+   */
+  readonly previewed = computed<EffectPreset | null>(() => {
+    const held = this.targeting.preset();
+    if (held) return held;
+    const pointed = this.pointed();
+    if (!pointed || !this.viewport.canHover()) return null;
+    return this.library.presets().includes(pointed) ? pointed : null;
+  });
+
+  /** How often the values of the effect previewed have changed, as one being edited meanwhile does. */
+  readonly previewVersion = computed<number>(() => {
+    const preset = this.previewed();
+    return preset ? this.objectChange.versionOf(preset.identifier)() : 0;
+  });
+
+  /** Whether the preview is made, which it is from the first time there is an effect for it to play. */
+  readonly previewMade = linkedSignal<boolean, boolean>({
+    source: () => this.previewed() != null,
+    computation: (wanted, previous) => wanted || previous?.value === true,
+  });
+
+  /** The tile the Tab key stops at, as last focused; null before any was. */
+  private readonly tabStop = signal<string | null>(null);
+
+  /** The keys of the tiles drawn, in the order they are read. */
+  private readonly tileKeys = computed<string[]>(() => {
+    const keys = this.hasFilter() ? [] : this.recent().map((preset) => this.recentKey(preset));
+    for (const group of this.groups()) {
+      if (this.collapsed().has(group.tag)) continue;
+      for (const preset of group.presets) keys.push(this.groupKey(group.tag, preset));
+    }
+    return keys;
+  });
+
+  /** The key of the one tile the Tab key stops at: the tile last focused while it is drawn, and else the first. */
+  protected readonly tabStopKey = computed<string>(() => {
+    const keys = this.tileKeys();
+    const held = this.tabStop();
+    return held != null && keys.includes(held) ? held : (keys[0] ?? '');
+  });
+
   constructor() {
     queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('feature.effect.panelTitle')));
+    const toldBefore = untracked(this.targeting.lastConfirmed);
+    effect(() => {
+      const told = this.targeting.lastConfirmed();
+      if (!told || told === toldBefore) return;
+      untracked(() =>
+        this.reportFired(
+          told.preset,
+          told.shown.map((identifier) => this.nameOf(identifier))
+        )
+      );
+    });
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.pointTimer));
+  }
+
+  /** The key of an effect's tile among those used last. */
+  protected recentKey(preset: EffectPreset): string {
+    return `recent/${preset.identifier}`;
+  }
+
+  /** The key of an effect's tile in its family. */
+  protected groupKey(tag: string, preset: EffectPreset): string {
+    return `family:${tag}/${preset.identifier}`;
+  }
+
+  /** Has the preview play a tile's effect once the pointer or the focus has rested on it a moment. */
+  protected pointAt(preset: EffectPreset): void {
+    clearTimeout(this.pointTimer);
+    this.pointTimer = setTimeout(() => this.pointed.set(preset), EFFECT_TILE_PREVIEW_DELAY_MS);
+  }
+
+  /** Stops previewing a tile's effect as the pointer or the focus leaves it. */
+  protected pointAway(preset: EffectPreset): void {
+    clearTimeout(this.pointTimer);
+    if (untracked(this.pointed) === preset) this.pointed.set(null);
+  }
+
+  /** Makes the tile focused the one the Tab key stops at, and previews its effect as a pointer over it would. */
+  protected focusTile(preset: EffectPreset, key: string): void {
+    this.tabStop.set(key);
+    this.pointAt(preset);
+  }
+
+  /**
+   * Enter on a tile holds its effect ready, as Space and a click do, and is kept from the table, which
+   * would cast at the same press. On the tile of the effect already held ready it is left to the
+   * table, so that Enter casts wherever the focus was left.
+   */
+  protected enterOnTile(preset: EffectPreset, event: Event): void {
+    if (this.isPickingPreset(preset)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.choose(preset);
+  }
+
+  /** Moves the focus from one tile to another by the arrows, Home and End, keeping the key from the table. */
+  protected moveAmongTiles(event: KeyboardEvent): void {
+    if (!movesBetweenTiles(event.key) || event.altKey || event.ctrlKey || event.metaKey) return;
+    const list = event.currentTarget;
+    const from = event.target instanceof Element ? event.target.closest('[data-effect-tile]') : null;
+    if (!(list instanceof HTMLElement) || !from) return;
+
+    const tiles = Array.from(list.querySelectorAll<HTMLElement>('[data-effect-tile]'));
+    const boxes = tiles.map((tile) => tile.getBoundingClientRect());
+    event.preventDefault();
+    event.stopPropagation();
+    tiles[tileAfterKey(boxes, tiles.indexOf(from as HTMLElement), event.key)]?.focus();
   }
 
   /** The mark on the list, drawn from the shape of the effect. */
@@ -285,12 +423,10 @@ export class EffectLibraryPanelComponent {
     this.recentIdentifiers.set(pushRecentEffect(this.storage, preset.identifier));
   }
 
+  /** Casts the effect held ready. Whom it was cast at is said on the line of notices, as for a cast confirmed anywhere. */
   protected confirmTargets(): void {
     if (!this.rolePermission.canEditTabletop()) return;
-    const preset = this.targeting.preset();
-    const names = this.pickedNames();
-    if (!preset || !this.targeting.confirm()) return;
-    this.reportFired(preset, names);
+    this.targeting.confirm();
   }
 
   protected cancelTargets(): void {

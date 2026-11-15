@@ -1,6 +1,9 @@
+import { WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectFieldService } from '@axe/application/effect/effect-field.service';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -8,13 +11,18 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { EffectLibraryPanelComponent } from '@axe/features/effect/effect-library-panel/effect-library-panel.component';
+import {
+  EFFECT_TILE_PREVIEW_DELAY_MS,
+  EffectLibraryPanelComponent,
+} from '@axe/features/effect/effect-library-panel/effect-library-panel.component';
 import { EffectPresetEditorComponent } from '@axe/features/effect/effect-preset-editor/effect-preset-editor.component';
+import { EffectPreviewComponent } from '@axe/features/effect/effect-preview/effect-preview.component';
 import { refuseLocalStorageOutright } from '@axe/testing/refused-storage';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import type { MockInstance } from 'vitest';
@@ -26,7 +34,8 @@ describe('EffectLibraryPanelComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [EffectLibraryPanelComponent],
-      providers: [...TEST_PROVIDERS],
+      // The preview's small stage is left unmade: what is checked is which effect it is given.
+      providers: [...TEST_PROVIDERS, { provide: EFFECT_STAGE_LOADER, useValue: () => Promise.resolve(null) }],
     });
     fixture = TestBed.createComponent(EffectLibraryPanelComponent);
 
@@ -511,6 +520,46 @@ describe('EffectLibraryPanelComponent', () => {
       }
     });
 
+    it('says whom a cast confirmed away from the panel was at, by Enter or from the band, on the line of notices', () => {
+      fixture.detectChanges();
+      tile().click();
+      press(pieces[1]);
+      press(pieces[2]);
+
+      targeting.confirm();
+      fixture.detectChanges();
+
+      expect(part('notice').textContent).toContain('ゴブリン');
+      expect(part('notice').textContent).toContain('オーク');
+    });
+
+    it('says nothing on opening of a cast made before it was open', () => {
+      targeting.begin(preset);
+      targeting.pick(pieces[1].identifier);
+      targeting.confirm();
+      const later = TestBed.createComponent(EffectLibraryPanelComponent);
+
+      later.detectChanges();
+
+      expect(later.componentInstance.noticeLine()).toBe('');
+      later.destroy();
+    });
+
+    it('changes and takes away the caster by icon buttons that say what they do, leaving the row to the name', () => {
+      press(pieces[0]);
+      tile().click();
+      fixture.detectChanges();
+
+      expect(part('change-caster').getAttribute('aria-label')).toBe('撃ち手を変える');
+      expect(part('no-caster').getAttribute('aria-label')).toBe('撃ち手をなしにする');
+      for (const name of ['change-caster', 'no-caster']) {
+        expect(part(name).className.split(/\s+/)).toEqual(expect.arrayContaining(['size-6', 'shrink-0']));
+        expect(part(name).textContent?.trim()).toMatch(/^[a-z_]+$/);
+        expect(part(name).getAttribute('title')).toBeTruthy();
+      }
+      expect(part('caster-name').className.split(/\s+/)).toEqual(expect.arrayContaining(['min-w-0', 'flex-1']));
+    });
+
     it('says a notice and whom the last cast was at on the one line, the later of the two', () => {
       fixture.detectChanges();
       const line = part('notice');
@@ -536,6 +585,311 @@ describe('EffectLibraryPanelComponent', () => {
     });
   });
 
+  describe('the preview in the box an effect is held ready in', () => {
+    let targeting: EffectTargetingService;
+    let canHover: WritableSignal<boolean>;
+    let other: EffectPreset;
+
+    beforeEach(() => {
+      targeting = TestBed.inject(EffectTargetingService);
+      canHover = (TestBed.inject(ViewportService) as unknown as { _canHover: WritableSignal<boolean> })._canHover;
+      canHover.set(true);
+      other = new EffectPreset();
+      other.name = '氷結';
+      other.tagName = '氷';
+      ObjectStore.instance.add(other, false);
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      targeting.cancel();
+      canHover.set(false);
+      ObjectStore.instance.remove(other);
+    });
+
+    function host(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function box(): HTMLElement {
+      return host().querySelector<HTMLElement>('[data-testid="effect-library-preview"]')!;
+    }
+
+    function tileOf(name: string): HTMLButtonElement {
+      return Array.from(host().querySelectorAll<HTMLButtonElement>('[data-effect-tile]')).find((button) =>
+        button.textContent?.includes(name)
+      )!;
+    }
+
+    function previews(): EffectPreviewComponent[] {
+      return fixture.debugElement
+        .queryAll(By.directive(EffectPreviewComponent))
+        .map((preview) => preview.componentInstance as EffectPreviewComponent);
+    }
+
+    function rest(ms = EFFECT_TILE_PREVIEW_DELAY_MS): void {
+      vi.advanceTimersByTime(ms);
+      fixture.detectChanges();
+    }
+
+    it('is not made until there is an effect to play, then is the one canvas of the panel in a box that stays as it was', () => {
+      fixture.detectChanges();
+      const shape = box().className;
+      expect(previews()).toHaveLength(0);
+      expect(host().querySelectorAll('canvas')).toHaveLength(0);
+
+      tileOf('爆炎').click();
+      fixture.detectChanges();
+
+      expect(previews()).toHaveLength(1);
+      expect(previews()[0].preset()).toBe(preset);
+      expect(previews()[0].fill()).toBe(true);
+      expect(host().querySelectorAll('canvas')).toHaveLength(1);
+      expect(box().querySelectorAll('canvas')).toHaveLength(1);
+      expect(box().className).toBe(shape);
+    });
+
+    it('plays the effect held ready, another once that is held instead, and nothing once it is called off, on the one preview', () => {
+      fixture.detectChanges();
+      tileOf('爆炎').click();
+      fixture.detectChanges();
+      const [preview] = previews();
+
+      tileOf('氷結').click();
+      fixture.detectChanges();
+      expect(previews()).toEqual([preview]);
+      expect(preview.preset()).toBe(other);
+
+      targeting.cancel();
+      fixture.detectChanges();
+      expect(previews()).toEqual([preview]);
+      expect(preview.preset()).toBeNull();
+      expect(host().querySelectorAll('canvas')).toHaveLength(1);
+    });
+
+    it('plays an effect held ready from somewhere other than the list', () => {
+      fixture.detectChanges();
+
+      targeting.begin(other);
+      fixture.detectChanges();
+
+      expect(previews().map((preview) => preview.preset())).toEqual([other]);
+    });
+
+    it('plays the effect of a tile the pointer has rested on for a moment, until the pointer leaves it', () => {
+      fixture.detectChanges();
+      const tile = tileOf('氷結').parentElement!;
+
+      tile.dispatchEvent(new MouseEvent('mouseenter'));
+      rest(EFFECT_TILE_PREVIEW_DELAY_MS - 1);
+      expect(previews()).toHaveLength(0);
+
+      rest(1);
+      expect(previews().map((preview) => preview.preset())).toEqual([other]);
+
+      tile.dispatchEvent(new MouseEvent('mouseleave'));
+      fixture.detectChanges();
+      expect(previews().map((preview) => preview.preset())).toEqual([null]);
+    });
+
+    it('plays nothing for a tile the pointer only passes over', () => {
+      fixture.detectChanges();
+      const tile = tileOf('氷結').parentElement!;
+
+      tile.dispatchEvent(new MouseEvent('mouseenter'));
+      rest(EFFECT_TILE_PREVIEW_DELAY_MS - 1);
+      tile.dispatchEvent(new MouseEvent('mouseleave'));
+      rest(EFFECT_TILE_PREVIEW_DELAY_MS);
+
+      expect(previews()).toHaveLength(0);
+    });
+
+    it('plays the effect of a tile the keyboard’s focus has rested on, until the focus leaves it', () => {
+      fixture.detectChanges();
+
+      tileOf('氷結').dispatchEvent(new FocusEvent('focus'));
+      rest();
+      expect(previews().map((preview) => preview.preset())).toEqual([other]);
+
+      tileOf('氷結').dispatchEvent(new FocusEvent('blur'));
+      fixture.detectChanges();
+      expect(previews().map((preview) => preview.preset())).toEqual([null]);
+    });
+
+    it('keeps to the effect held ready whatever tile is pointed at', () => {
+      fixture.detectChanges();
+      tileOf('爆炎').click();
+      fixture.detectChanges();
+
+      tileOf('氷結').parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
+      rest();
+
+      expect(previews().map((preview) => preview.preset())).toEqual([preset]);
+    });
+
+    it('plays only the effect held ready where the main pointer cannot hover', () => {
+      canHover.set(false);
+      fixture.detectChanges();
+
+      tileOf('氷結').parentElement!.dispatchEvent(new MouseEvent('mouseenter'));
+      tileOf('氷結').dispatchEvent(new FocusEvent('focus'));
+      rest();
+      expect(previews()).toHaveLength(0);
+
+      tileOf('氷結').click();
+      fixture.detectChanges();
+      expect(previews().map((preview) => preview.preset())).toEqual([other]);
+    });
+
+    it('follows the values of the effect it plays as they are changed', () => {
+      fixture.detectChanges();
+      tileOf('爆炎').click();
+      fixture.detectChanges();
+      const before = previews()[0].version();
+
+      TestBed.inject(ObjectChangeService).notifyChanged(preset.identifier);
+      fixture.detectChanges();
+
+      expect(previews()[0].version()).not.toBe(before);
+    });
+  });
+
+  describe('the keyboard among the tiles', () => {
+    let targeting: EffectTargetingService;
+    let fired: MockInstance<EffectCastService['fire']>;
+    let other: EffectPreset;
+    let piece: GameCharacter;
+    let onDocument: ReturnType<typeof vi.fn<(event: KeyboardEvent) => void>>;
+
+    beforeEach(() => {
+      targeting = TestBed.inject(EffectTargetingService);
+      fired = vi.spyOn(TestBed.inject(EffectCastService), 'fire');
+      other = new EffectPreset();
+      other.name = '氷結';
+      other.tagName = '氷';
+      ObjectStore.instance.add(other, false);
+      piece = GameCharacter.create('ゴブリン', 1, '');
+      onDocument = vi.fn<(event: KeyboardEvent) => void>();
+      document.addEventListener('keydown', onDocument);
+    });
+
+    afterEach(() => {
+      document.removeEventListener('keydown', onDocument);
+      targeting.cancel();
+      piece.destroy();
+      ObjectStore.instance.remove(other);
+    });
+
+    function tiles(): HTMLButtonElement[] {
+      return Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('[data-effect-tile]')
+      );
+    }
+
+    function key(target: HTMLElement, name: string): KeyboardEvent {
+      const event = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      fixture.detectChanges();
+      return event;
+    }
+
+    it('gives the Tab key one stop among the tiles, the first until another is focused', () => {
+      fixture.detectChanges();
+      expect(tiles().map((tile) => tile.getAttribute('tabindex'))).toEqual(['0', '-1']);
+
+      tiles()[1].dispatchEvent(new FocusEvent('focus'));
+      fixture.detectChanges();
+
+      expect(tiles().map((tile) => tile.getAttribute('tabindex'))).toEqual(['-1', '0']);
+    });
+
+    it('falls back to the first tile once the one that held the stop is narrowed away', () => {
+      fixture.detectChanges();
+      tiles()[1].dispatchEvent(new FocusEvent('focus'));
+      fixture.componentInstance.query.set('爆炎');
+      fixture.detectChanges();
+
+      expect(tiles().map((tile) => tile.getAttribute('tabindex'))).toEqual(['0']);
+    });
+
+    it('moves the focus from tile to tile by the arrows, Home and End, keeping the keys from the table', () => {
+      fixture.detectChanges();
+      const [first, second] = tiles();
+      first.focus();
+
+      const right = key(first, 'ArrowRight');
+      expect(document.activeElement).toBe(second);
+      expect(right.defaultPrevented).toBe(true);
+
+      key(second, 'ArrowRight');
+      expect(document.activeElement).toBe(second);
+      key(second, 'ArrowLeft');
+      expect(document.activeElement).toBe(first);
+      key(first, 'End');
+      expect(document.activeElement).toBe(second);
+      key(second, 'Home');
+      expect(document.activeElement).toBe(first);
+      expect(onDocument).not.toHaveBeenCalled();
+    });
+
+    it('leaves the arrows alone outside the tiles and with a modifier held', () => {
+      fixture.detectChanges();
+      const [first] = tiles();
+      first.focus();
+
+      const held = new KeyboardEvent('keydown', { key: 'ArrowRight', ctrlKey: true, bubbles: true, cancelable: true });
+      first.dispatchEvent(held);
+      const heading = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[role="button"]')!;
+      const outside = key(heading, 'ArrowRight');
+
+      expect(held.defaultPrevented).toBe(false);
+      expect(outside.defaultPrevented).toBe(false);
+      expect(document.activeElement).toBe(first);
+    });
+
+    it('holds a tile’s effect ready at Enter without the key reaching the table, which would cast at the same press', () => {
+      piece.targeted = true;
+      fixture.detectChanges();
+
+      const enter = key(tiles()[0], 'Enter');
+
+      expect(targeting.preset()).toBe(preset);
+      expect(enter.defaultPrevented).toBe(true);
+      expect(onDocument).not.toHaveBeenCalled();
+      expect(fired).not.toHaveBeenCalled();
+    });
+
+    it('holds another tile’s effect ready at Enter in place of the one held, casting neither', () => {
+      piece.targeted = true;
+      fixture.detectChanges();
+      tiles()[0].click();
+      fixture.detectChanges();
+      const second = tiles().find((tile) => tile.textContent?.includes('氷結'))!;
+
+      key(second, 'Enter');
+
+      expect(targeting.preset()).toBe(other);
+      expect(onDocument).not.toHaveBeenCalled();
+      expect(fired).not.toHaveBeenCalled();
+    });
+
+    it('leaves Enter on the tile of the effect held ready to the table, neither calling it off nor casting it itself', () => {
+      piece.targeted = true;
+      fixture.detectChanges();
+      tiles()[0].click();
+      fixture.detectChanges();
+      const heldTile = tiles().find((tile) => tile.getAttribute('aria-pressed') === 'true')!;
+
+      const enter = key(heldTile, 'Enter');
+
+      expect(onDocument).toHaveBeenCalledTimes(1);
+      expect(enter.defaultPrevented).toBe(false);
+      expect(targeting.preset()).toBe(preset);
+      expect(fired).not.toHaveBeenCalled();
+    });
+  });
+
   it('opens the editor on an effect from “edit” in the right-click menu of its tile', () => {
     const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
     const editor = { presetIdentifier: { set: vi.fn() } };
@@ -551,5 +905,21 @@ describe('EffectLibraryPanelComponent', () => {
 
     expect(openPanel).toHaveBeenCalledWith(EffectPresetEditorComponent, expect.anything());
     expect(editor.presetIdentifier.set).toHaveBeenCalledWith(preset.identifier);
+  });
+
+  it('tries an effect out on the table from the first entry of the right-click menu of its tile, beside the preview in the panel', () => {
+    const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    const tried = vi.spyOn(TestBed.inject(EffectCastService), 'preview').mockReturnValue(null);
+    fixture.detectChanges();
+
+    const tile = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-effect-tile]')!;
+    tile.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    const menu = open.mock.calls[0][1] as ContextMenuAction[];
+    expect(menu.filter((entry) => entry.name)).toHaveLength(8);
+    menu[0].action!();
+    fixture.detectChanges();
+
+    expect(tried).toHaveBeenCalledWith(preset);
+    expect(fixture.componentInstance.noticeLine()).toContain('対象がいません');
   });
 });

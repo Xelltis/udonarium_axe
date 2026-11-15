@@ -1365,8 +1365,9 @@
       "casterLabel": "시전자",
       "casterNextLabel": "시전자(예정)",
       "casterPressPiece": "테이블의 말을 눌러 주세요",
-      "changeCaster": "변경",
+      "changeCaster": "시전자 바꾸기",
       "changeCasterHint": "시전자를 바꿉니다. 다음에 누른 말이 시전자가 되며 대상에는 들어가지 않습니다(다시 누르면 취소)",
+      "noCaster": "시전자 없음으로 하기",
       "noCasterHint": "시전자 없이 발동합니다",
       "none": "없음",
       "targetsLabel": "대상",
@@ -1474,7 +1475,8 @@
         "blaster": "광선",
         "tracer": "예광탄",
         "missile": "미사일",
-        "cruise": "유도탄"
+        "cruise": "유도탄",
+        "meteor": "운석"
       },
       "slashStyle": {
         "single": "한 칼",

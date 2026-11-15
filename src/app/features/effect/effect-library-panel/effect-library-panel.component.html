@@ -121,7 +121,11 @@
         class="border-ui-border-panel h-22.5 w-32 shrink-0 overflow-hidden rounded-[3px] border border-solid"
         data-testid="effect-library-preview"
         aria-hidden="true"
-      ></div>
+      >
+        @if (previewMade()) {
+          <effect-preview class="h-full" fill [preset]="previewed()" [version]="previewVersion()" />
+        }
+      </div>
       <div class="flex min-w-0 flex-1 flex-col">
         <div class="flex h-7 shrink-0 items-center gap-1.5" data-testid="effect-library-stance-name">
           @if (isPicking()) {
@@ -153,26 +157,28 @@
           }
           @if (isPicking()) {
             <button
-              class="border-ui-border-panel text-ui-muted hover:bg-ui-hover rounded-ui-sm h-6 shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 text-[11px] whitespace-nowrap"
+              class="border-ui-border-panel text-ui-muted hover:bg-ui-hover rounded-ui-sm inline-flex size-6 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 [&_.material-icons]:text-[15px]!"
               [class.bg-ui-accent-bg!]="isChangingCaster()"
               [class.text-ui-accent!]="isChangingCaster()"
               type="button"
               [attr.aria-pressed]="isChangingCaster()"
+              [attr.aria-label]="'feature.effect.changeCaster' | transloco"
               [title]="'feature.effect.changeCasterHint' | transloco"
               data-testid="effect-library-change-caster"
               (click)="toggleCasterChange()"
             >
-              {{ 'feature.effect.changeCaster' | transloco }}
+              <i class="material-icons" aria-hidden="true">touch_app</i>
             </button>
             <button
-              class="border-ui-border-panel text-ui-muted hover:bg-ui-hover rounded-ui-sm h-6 shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 text-[11px] whitespace-nowrap disabled:cursor-default disabled:opacity-40"
+              class="border-ui-border-panel text-ui-muted hover:bg-ui-hover rounded-ui-sm inline-flex size-6 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[15px]!"
               type="button"
               [disabled]="!hasCaster()"
+              [attr.aria-label]="'feature.effect.noCaster' | transloco"
               [title]="'feature.effect.noCasterHint' | transloco"
               data-testid="effect-library-no-caster"
               (click)="clearCaster()"
             >
-              {{ 'feature.effect.none' | transloco }}
+              <i class="material-icons" aria-hidden="true">block</i>
             </button>
           }
         </div>
@@ -219,7 +225,7 @@
     </div>
   </div>
 
-  <div class="min-h-0 flex-1 overflow-y-auto" data-testid="effect-library-list">
+  <div class="min-h-0 flex-1 overflow-y-auto" data-testid="effect-library-list" (keydown)="moveAmongTiles($event)">
     @if (recent().length > 0 && !hasFilter()) {
       <div
         class="bg-ui-panel text-ui-muted border-ui-border-panel sticky top-0 z-1 border-b border-solid px-3 py-1 text-[11px] font-semibold tracking-wider"
@@ -228,7 +234,7 @@
       </div>
       <div class="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-1 px-2 py-1.5">
         @for (preset of recent(); track preset.identifier) {
-          <ng-container *ngTemplateOutlet="tile; context: { $implicit: preset }"></ng-container>
+          <ng-container *ngTemplateOutlet="tile; context: { $implicit: preset, key: recentKey(preset) }"></ng-container>
         }
       </div>
     }
@@ -258,7 +264,9 @@
       @if (!isCollapsed(group.tag)) {
         <div class="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-1 px-2 py-1.5">
           @for (preset of group.presets; track preset.identifier) {
-            <ng-container *ngTemplateOutlet="tile; context: { $implicit: preset }"></ng-container>
+            <ng-container
+              *ngTemplateOutlet="tile; context: { $implicit: preset, key: groupKey(group.tag, preset) }"
+            ></ng-container>
           }
         </div>
       }
@@ -301,16 +309,22 @@
   </div>
 </div>
 
-<ng-template #tile let-preset>
-  <div class="group relative flex">
+<ng-template #tile let-preset let-key="key">
+  <div class="group relative flex" (mouseenter)="pointAt(preset)" (mouseleave)="pointAway(preset)">
     <button
       class="border-ui-border-panel hover:bg-ui-hover hover:border-ui-accent rounded-ui-sm text-ui-text flex w-full cursor-pointer flex-col items-start gap-1 border border-solid bg-transparent px-2 py-1.5 text-left transition-[background,border-color]"
       [class.border-ui-accent!]="isPickingPreset(preset)"
       [class.bg-ui-accent-bg!]="isPickingPreset(preset)"
       type="button"
       [attr.aria-pressed]="isPickingPreset(preset)"
+      [attr.tabindex]="tabStopKey() === key ? 0 : -1"
+      [attr.data-tile-key]="key"
+      data-effect-tile
       [title]="preset.name + ' — ' + targetLabel(preset) + ' / ' + gradeLabel(preset.gradeLevel)"
       (click)="choose(preset)"
+      (keydown.enter)="enterOnTile(preset, $event)"
+      (focus)="focusTile(preset, key)"
+      (blur)="pointAway(preset)"
       (contextmenu)="openPresetMenu(preset, $event)"
     >
       <span class="flex w-full items-center gap-1.5">
