@@ -36,6 +36,12 @@ export interface Stage {
   /** How wide a cell is drawn for it, in table pixels: the table's cell, grown by the effect's size and the target's. */
   readonly cell: number;
   /**
+   * How tall the target stands over its foot, in table pixels: where its head is, for what is drawn
+   * over it. As tall as its picture or its model is drawn where the table tells it, and otherwise as
+   * tall as it is wide.
+   */
+  readonly tall: number;
+  /**
    * How far into its playback it is, in seconds, and how long it plays: its blows land within that
    * time, and what it leaves, as smoke clearing and embers dying, lingers on after it.
    */

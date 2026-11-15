@@ -1,15 +1,6 @@
 import { clamp } from '@axe/core/util/clamp';
-import { effectMoteOf } from '@axe/domain/effect/effect-motes';
-import {
-  type Choreography,
-  nothingStaged,
-  outCubic,
-  type Stage,
-  type Staged,
-  within,
-} from '@axe/domain/effect/scene/choreography';
+import { type Choreography, nothingStaged, outCubic, within } from '@axe/domain/effect/scene/choreography';
 import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
-import { seededRun } from '@axe/domain/effect/scene/effect-sim';
 import {
   type Bit,
   type Cloud,
@@ -27,18 +18,15 @@ import {
   haze,
   hueOf,
   keptFor,
-  type Point,
   smokePuff,
   stageKey,
   starBurst,
   throwerFor,
 } from '@axe/domain/effect/scene/parts';
-import { lightningRibbons } from '@axe/domain/effect/scene/shot/streams';
 
 /*
- * What darkens and sickens: a curse, a dark circle turning on the floor under the piece and tendrils
- * of shadow rising round it, motes of its colour drawn in and swallowed; a miasma, clouds of poison
- * rolling low over the target and its round, bubbles rising out of them and bursting; and a
+ * What darkens and sickens: a miasma, clouds of poison rolling low over the target and its round,
+ * bubbles rising out of them and bursting; and a
  * singularity, a dark sphere swelling over the target in a haze that bends the light round it, a
  * bright ring wound flat round it, dust and sparks spiralling into it and grit dragged up off the
  * floor, until it falls in on itself to a point in a flash and lets everything go.
@@ -47,148 +35,6 @@ import { lightningRibbons } from '@axe/domain/effect/scene/shot/streams';
 function swell(t: number, duration: number, rises = 0.25, falls = 0.5): number {
   return Math.min(outCubic(within(t, 0, rises)), 1 - within(t, duration - falls, duration));
 }
-
-/** How often a paralysis jolts the body harder than its steady crackle, in seconds. */
-const JOLT_EVERY_S = 0.42;
-
-/**
- * A paralysis: the body caught in a current, small bolts crawling over it and leaping from one part
- * of it to another, reshaping every few hundredths of a second, and every so often a harder jolt that
- * lights it up, throws the bolts down into the floor and sparks off it; a faint ring of its colour
- * under it.
- */
-function drawShock(stage: Stage, drawn: Staged, shown: number, ramp: readonly string[]): void {
-  const { cell } = stage;
-  const t = stage.seconds;
-  const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
-  const forward = cell * 0.35;
-  const flicker = Math.floor(t / 0.05);
-  const jolting = t % JOLT_EVERY_S < 0.09;
-  const onBody = (turn: number, share: number): Point => ({
-    x: stage.x + Math.cos(turn) * cell * 0.3,
-    y: stage.y + Math.sin(turn) * cell * 0.3,
-    z: stage.z + cell * (0.08 + share * 1.1),
-  });
-  const next = seededRun(stage.seed * 131 + flicker * 17);
-  const bolts = jolting ? 9 : 5;
-  for (let bolt = 0; bolt < bolts; bolt++) {
-    const turn = next() * Math.PI * 2;
-    const share = next();
-    const from = onBody(turn, share);
-    const to = onBody(turn + (next() - 0.5) * 2.6, clamp(share + (next() - 0.5) * 0.9, 0, 1));
-    drawn.ribbons.push(
-      ...lightningRibbons(from, to, stage.seed + bolt, flicker, cell, ramp, (jolting ? 1 : 0.85) * shown, floor.z, 0.36)
-    );
-  }
-  if (jolting) {
-    for (let bolt = 0; bolt < 3; bolt++) {
-      const turn = next() * Math.PI * 2;
-      const from = onBody(turn, next() * 0.3);
-      const out = cell * (0.5 + next() * 0.5);
-      const to = { x: floor.x + Math.cos(turn) * out, y: floor.y + Math.sin(turn) * out, z: floor.z };
-      drawn.ribbons.push(
-        ...lightningRibbons(from, to, stage.seed + 9 + bolt, flicker, cell, ramp, shown, floor.z, 0.22)
-      );
-    }
-    for (let spark = 0; spark < 8; spark++) {
-      const turn = next() * Math.PI * 2;
-      const at = onBody(turn, next());
-      const fast = cell * (3 + next() * 4);
-      drawn.motes.push({
-        ...glow(at, cell * 0.05, '#ffffff', shown, forward),
-        shape: 'spark',
-        velocity: { x: Math.cos(turn) * fast, y: Math.sin(turn) * fast, z: cell * (1 + next() * 3) },
-        trail: 0.04,
-      });
-    }
-  }
-  const lit = (jolting ? 0.55 : 0.28) * shown;
-  drawn.motes.push(haze({ ...floor, z: stage.z + cell * 0.6 }, cell * 1.8, hueOf(ramp), lit, forward - 2));
-  drawn.motes.push(glow({ ...floor, z: stage.z + cell * 0.6 }, cell * 1.3, ramp[4], lit, forward));
-  drawn.floor.push(floorMark('ring', floor, cell * 0.6, 0.12, ramp[4], 0.6 * shown, 'light', 0));
-  drawn.floor.push(floorMark('disc', floor, cell * 1, 1, hueOf(ramp), (jolting ? 0.35 : 0.15) * shown, 'light', 0));
-  drawn.lights.push({
-    ...floor,
-    z: stage.z + cell * 0.8,
-    color: ramp[4],
-    strength: (jolting ? 1.3 : 0.5) * shown,
-    reachPx: cell * 2,
-  });
-}
-
-/** A curse: see the header; one that runs as a current paralyses instead. */
-export const curse: Choreography = {
-  lingerS: 0.6,
-  draw: (stage) => {
-    const drawn = nothingStaged();
-    const { cell, duration } = stage;
-    const t = stage.seconds;
-    const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
-    const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
-    const shown = swell(t, duration);
-    const forward = cell * 0.2;
-    if (shown <= 0) return drawn;
-    if (effectMoteOf(stage.preset) === 'arc') {
-      drawShock(stage, drawn, shown, ramp);
-      return drawn;
-    }
-    const shadow = mixColor(hueOf(ramp), '#120a18', 0.45);
-    // The dark circle on the floor, turning, ringed in its colour.
-    drawn.floor.push(floorMark('disc', floor, cell * 1.8, 1, hueOf(ramp), 0.55 * shown, 'color', 0));
-    drawn.floor.push(floorMark('disc', floor, cell * 1.1, 1, shadow, 0.6 * shown, 'color', 0));
-    drawn.floor.push(
-      floorMark('sigil', floor, cell * 1.2, 0.09, ramp[3], 0.85 * shown, 'light', stage.seed % 13, -t * 0.5)
-    );
-    // A cloud of its colour crawling low round the piece, turning slowly.
-    for (let index = 0; index < 9; index++) {
-      const turn = (index / 9) * Math.PI * 2 + t * 0.6;
-      const out = cell * (0.55 + 0.25 * Math.sin(index * 2.1 + t));
-      const at = { x: floor.x + Math.cos(turn) * out, y: floor.y + Math.sin(turn) * out, z: floor.z + cell * 0.25 };
-      drawn.motes.push(smokePuff(at, cell * 1.1, index % 2 === 0 ? hueOf(ramp) : shadow, 0.6 * shown, forward));
-    }
-    // Tendrils of shadow rising round the piece, swaying.
-    for (let index = 0; index < 7; index++) {
-      const rise = (t * 0.5 + index / 7) % 1;
-      const turn = (index / 7) * Math.PI * 2 + Math.sin(t * 2 + index) * 0.4;
-      const out = cell * 0.45;
-      const at = {
-        x: floor.x + Math.cos(turn) * out,
-        y: floor.y + Math.sin(turn) * out,
-        z: floor.z + rise * cell * 1.6,
-      };
-      const fade = Math.min(1, rise * 4, (1 - rise) * 2.5) * shown;
-      drawn.motes.push({
-        ...smokePuff(at, cell * 0.7, shadow, 0.8 * fade, forward),
-        shape: 'plume',
-        velocity: { x: -Math.cos(turn) * cell * 0.3, y: -Math.sin(turn) * cell * 0.3, z: cell },
-        trail: 0.8,
-      });
-    }
-    // Motes of its colour drawn in to the piece and swallowed.
-    for (let index = 0; index < 14; index++) {
-      const closing = (t * 0.8 + index / 14) % 1;
-      const turn = index * 2.4 + t;
-      const out = cell * 1.6 * (1 - closing);
-      const at = {
-        x: floor.x + Math.cos(turn) * out,
-        y: floor.y + Math.sin(turn) * out,
-        z: floor.z + cell * (0.3 + ((index * 5) % 7) * 0.12),
-      };
-      drawn.motes.push({
-        ...glow(at, cell * 0.06, ramp[4], closing * shown, forward),
-        shape: 'spark',
-        velocity: { x: -Math.cos(turn) * cell * 2, y: -Math.sin(turn) * cell * 2, z: 0 },
-        trail: 0.08,
-      });
-    }
-    // A cloud of its colour wrapping the piece, darker within.
-    drawn.motes.push(haze({ ...floor, z: floor.z + cell * 0.5 }, cell * 3.2, hueOf(ramp), 0.75 * shown, forward));
-    drawn.motes.push(haze({ ...floor, z: floor.z + cell * 0.4 }, cell * 2, shadow, 0.6 * shown, forward + 1));
-    drawn.motes.push(glow({ ...floor, z: floor.z + cell * 0.6 }, cell * 1.2, ramp[2], 0.3 * shown, forward));
-    drawn.lights.push({ ...floor, z: floor.z + cell * 0.6, color: ramp[3], strength: 0.6 * shown, reachPx: cell * 2 });
-    return drawn;
-  },
-};
 
 interface MiasmaThrow {
   readonly clouds: readonly Cloud[];

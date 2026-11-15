@@ -6,6 +6,7 @@ import { SaveDataService } from '@axe/application/file/save-data.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { AILMENT_LOOKS } from '@axe/domain/effect/ailment-looks';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { EffectPresetSet } from '@axe/domain/effect/effect-preset-set';
 import { EffectPresetEditorComponent } from '@axe/features/effect/effect-preset-editor/effect-preset-editor.component';
@@ -126,6 +127,26 @@ describe('EffectPresetEditorComponent', () => {
 
     expect(text()).toContain('弾数');
     expect(text()).toContain('着弾演出');
+  });
+
+  it('offers the states among the particles of a curse, and of nothing else that names none', () => {
+    const offered = () =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('select[name="effect-mote"] optgroup option')].map(
+        (option) => (option as HTMLOptionElement).value
+      );
+    fixture.detectChanges();
+    expect(offered()).toEqual([]);
+
+    preset.kind = 'curse';
+    change.notifyChanged(preset.identifier);
+    fixture.detectChanges();
+    expect(offered()).toEqual([...AILMENT_LOOKS]);
+
+    preset.kind = 'burst';
+    preset.moteStyle = 'sleep';
+    change.notifyChanged(preset.identifier);
+    fixture.detectChanges();
+    expect(offered()).toContain('sleep');
   });
 
   it('shows the limit only for something that takes several targets', () => {

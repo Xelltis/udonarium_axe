@@ -146,6 +146,37 @@ describe('the blow of a gust', () => {
   });
 });
 
+describe('the instant a curse takes hold', () => {
+  it('holds everything still for a moment as a curse on its own takes hold, and neither shakes nor throws', () => {
+    for (const moteStyle of ['', 'arc', 'sleep', 'petrify', 'bind']) {
+      const blows = effectBlowsOf(makePreset('curse', 3, { durationMs: 3000, moteStyle, tagName: '状態異常' }));
+
+      expect(blows, moteStyle).toHaveLength(1);
+      expect(blows[0].holdMs, moteStyle).toBeGreaterThanOrEqual(60);
+      expect(blows[0].holdMs, moteStyle).toBeLessThanOrEqual(90);
+      expect(blows[0].push, moteStyle).toBe(0);
+      expect(blows[0].shake, moteStyle).toBe('');
+      expect(blows[0].atMs, moteStyle).toBeGreaterThan(0);
+      expect(blows[0].atMs, moteStyle).toBeLessThan(1700);
+    }
+  });
+
+  it('takes hold when the look of the state does: the vines of a binding later than the band of a blindness', () => {
+    const holdsAt = (moteStyle: string) =>
+      effectBlowsOf(makePreset('curse', 2, { durationMs: 3000, moteStyle }))[0].atMs;
+
+    expect(holdsAt('bind')).toBe(900);
+    expect(holdsAt('blind')).toBe(300);
+  });
+
+  it('lands nothing for a curse that is a stage of a run, as before', () => {
+    const run = makePreset('curse', 2);
+    run.stages = JSON.stringify([{ role: 'impact', kind: 'curse', durationMs: 800 }]);
+
+    expect(effectBlowsOf(run)).toEqual([]);
+  });
+});
+
 describe('heldEffectClock() and wallClockOf()', () => {
   const blows = [
     { atMs: 200, holdMs: 100, shake: '' as const, push: 0.1 },

@@ -33,6 +33,7 @@ function stage(partial: Partial<Stage> = {}): Stage {
     z: 0,
     groundZ: 0,
     cell: 50,
+    tall: 50,
     seconds: 0.2,
     duration: 1.2,
     index: 0,

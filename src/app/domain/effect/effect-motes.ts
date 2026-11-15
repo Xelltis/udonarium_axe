@@ -29,7 +29,7 @@ function isEffectMote(value: unknown): value is EffectMote {
 }
 
 /** What is given outright wins; otherwise the family decides. */
-export function effectMoteOf(preset: EffectPreset): EffectMote {
+export function effectMoteOf(preset: Pick<EffectPreset, 'moteStyle' | 'tagName'>): EffectMote {
   if (isEffectMote(preset.moteStyle)) return preset.moteStyle;
   return MOTE_BY_TAG[preset.tagName.trim()] ?? 'spark';
 }

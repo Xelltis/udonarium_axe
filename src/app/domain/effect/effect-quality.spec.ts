@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import { AILMENT_LOOKS } from '@axe/domain/effect/ailment-looks';
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { EFFECT_KINDS, type EffectKind } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -50,10 +51,45 @@ function heaviestCastOf(kind: EffectKind): { preset: EffectPreset; cast: EffectC
   };
 }
 
-/** Every frame of the heaviest cast of every kind, every 40 milliseconds from its start until it has cleared. */
-function everyFrame(visit: (kind: EffectKind, drawn: Staged, cast: EffectCast) => void): void {
-  for (const kind of EFFECT_KINDS) {
-    const { preset, cast } = heaviestCastOf(kind);
+/**
+ * The looks a kind takes that are chosen by its family or by the particles it names, which a cast of
+ * the kind with neither never draws: each state of a curse, each element of a breath, and the shots
+ * and blows of wind and of earth.
+ */
+const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>])[] = [
+  ...[...AILMENT_LOOKS, 'arc', 'haze'].map((moteStyle) => ['curse', { moteStyle, durationMs: 5500 }] as const),
+  ...(['spark', 'frost', 'arc', 'leaf', 'haze', 'none'] as const).map(
+    (moteStyle) => ['breath', { moteStyle }] as const
+  ),
+  ['breath', { tagName: '状態異常' }],
+  ['breath', { tagName: '回復' }],
+  ['projectile', { tagName: '風' }],
+  ['projectile', { tagName: '土' }],
+  ['vortex', { tagName: '風', grade: 1 }],
+  ['vortex', { tagName: '風' }],
+];
+
+/** The heaviest cast of a kind, as one of the looks it is given by its family or its particles. */
+function heaviestCastAs(kind: EffectKind, fields: Partial<EffectPreset>): { preset: EffectPreset; cast: EffectCast } {
+  const heaviest = heaviestCastOf(kind);
+  Object.assign(heaviest.preset, fields);
+  return heaviest;
+}
+
+/** Every cast the checks are made on: the heaviest of every kind, and of every look chosen for one. */
+function heaviestCasts(): { name: string; preset: EffectPreset; cast: EffectCast }[] {
+  return [
+    ...EFFECT_KINDS.map((kind) => ({ name: kind as string, ...heaviestCastOf(kind) })),
+    ...CHOSEN_LOOKS.map(([kind, fields]) => ({
+      name: `${kind} ${JSON.stringify(fields)}`,
+      ...heaviestCastAs(kind, fields),
+    })),
+  ];
+}
+
+/** Every frame of the heaviest cast of every kind and look, every 40 milliseconds from its start until it has cleared. */
+function everyFrame(visit: (kind: string, drawn: Staged, cast: EffectCast) => void): void {
+  for (const { name: kind, preset, cast } of heaviestCasts()) {
     const ends = preset.totalDuration(cast.targets.length) + sceneLingerMsOf(preset);
     for (let ms = 0; ms <= ends; ms += 40) {
       const drawn = nothingStaged();
@@ -70,7 +106,7 @@ describe('the quality of the effects', () => {
     expect(unseeded).toEqual([]);
   });
 
-  it('keeps the heaviest cast of every kind within what the scene draws in a frame', () => {
+  it('keeps the heaviest cast of every kind and look within what the scene draws in a frame', () => {
     const over = new Set<string>();
     everyFrame((kind, drawn) => {
       for (const blend of ['light', 'color'] as const) {
@@ -109,8 +145,7 @@ describe('the quality of the effects', () => {
 
   it('draws the same frame at the same moment, whatever was drawn before it', () => {
     const differing: string[] = [];
-    for (const kind of EFFECT_KINDS) {
-      const { preset, cast } = heaviestCastOf(kind);
+    for (const { name: kind, preset, cast } of heaviestCasts()) {
       const at = (ms: number) => {
         const drawn = nothingStaged();
         stageEffect(preset, cast, ms, { cellPx: CELL }, drawn);

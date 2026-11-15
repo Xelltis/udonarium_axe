@@ -21,6 +21,7 @@ function stageOf(fields: Partial<Stage> = {}, scale = 1): Stage {
     z: 0,
     groundZ: 0,
     cell: CELL * scale,
+    tall: CELL,
     seconds: 0,
     duration: 1.2,
     index: 0,

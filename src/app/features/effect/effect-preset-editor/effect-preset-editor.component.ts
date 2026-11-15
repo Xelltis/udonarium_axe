@@ -10,6 +10,7 @@ import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-tab
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { AILMENT_LOOKS, isAilmentLook } from '@axe/domain/effect/ailment-looks';
 import { EFFECT_KINDS, EffectKind } from '@axe/domain/effect/effect-kind';
 import { EFFECT_MOTE_OPTIONS } from '@axe/domain/effect/effect-motes';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -104,6 +105,8 @@ export class EffectPresetEditorComponent {
   protected readonly projectileStyles = PROJECTILE_STYLE_OPTIONS;
   protected readonly slashStyles = SLASH_STYLE_OPTIONS;
   protected readonly motes = EFFECT_MOTE_OPTIONS;
+  /** The states a curse may be drawn as, offered among the particles: see {@link offersAilmentLooks}. */
+  protected readonly ailmentLooks = AILMENT_LOOKS;
 
   readonly notice = signal('');
 
@@ -172,6 +175,16 @@ export class EffectPresetEditorComponent {
 
   protected projectileLabel(style: string): string {
     return this.t(`feature.effect.projectileStyle.${style}`);
+  }
+
+  /**
+   * Whether the states are offered among the particles: for a curse, which is drawn as the one
+   * chosen, and for an effect that already names one, so that the choice it holds is shown.
+   */
+  protected offersAilmentLooks(): boolean {
+    this.version();
+    const preset = this.preset();
+    return !!preset && (preset.effectKind === 'curse' || isAilmentLook(preset.moteStyle));
   }
 
   protected moteLabel(mote: string): string {

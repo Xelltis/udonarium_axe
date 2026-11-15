@@ -48,6 +48,40 @@ export interface EffectPresetSeed {
   stages?: EffectStage[];
 }
 
+/**
+ * The effect of a state a piece is put in: a curse under the state's own name, so that putting the
+ * state on finds it, drawn as the state its particles name, on up to six pieces a tenth of a second
+ * apart unless it says otherwise.
+ */
+function ailmentSeed(
+  key: string,
+  name: string,
+  colorPrimary: string,
+  colorSecondary: string,
+  soundKey: PresetSoundKey,
+  soundMs: number,
+  moteStyle: string,
+  more: Partial<EffectPresetSeed> = {}
+): EffectPresetSeed {
+  return {
+    identifier: `EffectPreset_status_${key}`,
+    name,
+    tagName: '状態異常',
+    kind: 'curse',
+    colorPrimary,
+    colorSecondary,
+    soundMs,
+    staggerMs: 100,
+    scale: 1.1,
+    targeting: 'multi',
+    maxTargets: 6,
+    soundKey,
+    grade: 2,
+    moteStyle,
+    ...more,
+  };
+}
+
 /** A sound too short or too long makes no effect at all, so it is kept within this range. */
 const MIN_EFFECT_MS = 400;
 const MAX_EFFECT_MS = 6000;
@@ -178,82 +212,24 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     soundKey: 'bashLarge',
     grade: 3,
   },
-  {
-    identifier: 'EffectPreset_status_paralysis',
-    name: '麻痺',
-    tagName: '状態異常',
-    kind: 'curse',
-    colorPrimary: '#ffe98a',
-    colorSecondary: '#b08a1f',
-    soundMs: 1567,
-    staggerMs: 90,
-    scale: 1.1,
-    targeting: 'multi',
-    maxTargets: 6,
-    soundKey: 'thunderBolt',
-    grade: 2,
-    moteStyle: 'arc',
-  },
-  {
-    identifier: 'EffectPreset_status_sleep',
-    name: '睡眠',
-    tagName: '状態異常',
-    kind: 'curse',
-    colorPrimary: '#bfd4ff',
-    colorSecondary: '#3f4f9c',
-    soundMs: 5460,
-    staggerMs: 110,
-    scale: 1.1,
-    targeting: 'multi',
-    maxTargets: 6,
-    soundKey: 'statusSleep',
-    grade: 2,
-  },
-  {
-    identifier: 'EffectPreset_status_bind',
-    name: '拘束',
-    tagName: '状態異常',
-    kind: 'curse',
-    colorPrimary: '#d6c2a8',
-    colorSecondary: '#6b4f33',
-    soundMs: 5512,
-    staggerMs: 110,
+  ailmentSeed('paralysis', '麻痺', '#ffe98a', '#b08a1f', 'thunderBolt', 1567, 'arc'),
+  ailmentSeed('sleep', '睡眠', '#bfd4ff', '#3f4f9c', 'statusSleep', 5460, 'sleep'),
+  ailmentSeed('bind', '拘束', '#b9d98a', '#5e4426', 'statusBind', 5512, 'bind', { scale: 1.2 }),
+  ailmentSeed('curse', '呪い', '#d5aaff', '#3a1f66', 'statusCurse', 2717, '', { tagName: '闇', scale: 1.2, grade: 3 }),
+  ailmentSeed('petrify', '石化', '#d8d8d0', '#5a5a52', 'statusPetrify', 1384, 'petrify', {
     scale: 1.2,
-    targeting: 'multi',
-    maxTargets: 6,
-    soundKey: 'statusBind',
-    grade: 2,
-  },
-  {
-    identifier: 'EffectPreset_status_curse',
-    name: '呪い',
-    tagName: '闇',
-    kind: 'curse',
-    colorPrimary: '#d5aaff',
-    colorSecondary: '#3a1f66',
-    soundMs: 2717,
-    staggerMs: 100,
-    scale: 1.2,
-    targeting: 'multi',
-    maxTargets: 6,
-    soundKey: 'statusCurse',
-    grade: 3,
-  },
-  {
-    identifier: 'EffectPreset_status_petrify',
-    name: '石化',
-    tagName: '状態異常',
-    kind: 'curse',
-    colorPrimary: '#d8d8d0',
-    colorSecondary: '#5a5a52',
-    soundMs: 1384,
-    staggerMs: 100,
-    scale: 1.2,
-    targeting: 'multi',
     maxTargets: 4,
-    soundKey: 'statusPetrify',
     grade: 3,
-  },
+  }),
+  ailmentSeed('poison', '毒', '#b9f26b', '#5a2b8c', 'poison', 2482, 'poison'),
+  ailmentSeed('bleed', '出血', '#ff5a4d', '#7a0d16', 'damageLarge', 1332, 'bleed'),
+  ailmentSeed('burn', '燃焼', '#ffb347', '#d8320f', 'fireMedium', 3500, 'burn'),
+  ailmentSeed('confuse', '混乱', '#ffe76a', '#b0489c', 'warp', 1411, 'confuse'),
+  ailmentSeed('charm', '魅了', '#ff8fc0', '#b01457', 'buff', 2064, 'charm'),
+  ailmentSeed('fear', '恐怖', '#9fc4ff', '#1e1a4a', 'dark', 4206, 'fear'),
+  ailmentSeed('blind', '暗闇', '#8d7ab8', '#1a1426', 'drain', 3239, 'blind'),
+  ailmentSeed('silence', '沈黙', '#9fd0ff', '#2b4fa8', 'reflect', 1176, 'silence'),
+  ailmentSeed('slow', '鈍足', '#e9d49a', '#3c4a7a', 'gravity', 1855, 'slow'),
   {
     identifier: 'EffectPreset_status_cure',
     name: '状態回復',

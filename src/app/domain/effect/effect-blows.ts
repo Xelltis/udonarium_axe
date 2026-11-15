@@ -1,3 +1,4 @@
+import { curseLookOf, isCurseAlone, takesHoldAt } from '@axe/domain/effect/ailment-looks';
 import { RUBBLE_FIRST_HEAVE, rubbleHeavesOf } from '@axe/domain/effect/earth-looks';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -50,6 +51,8 @@ const HOLD_MS_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 60, 2: 90, 3: 140 };
 const PUSH_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 0.06, 2: 0.1, 3: 0.16 };
 /** How long everything holds still at each heave of rubble after the first, at the most: a catch, so the three read as three. */
 const LATER_HEAVE_HOLD_MS = 50;
+/** How long everything holds still as a curse takes hold of its target, at the most: a catch of the breath, not a blow. */
+const TAKES_HOLD_HOLD_MS = 90;
 /** How far a gust shoves its target back, as a share of the piece's width: as far as a piece is ever thrown. */
 const GUST_PUSH = 0.25;
 /**
@@ -85,8 +88,9 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
  * nothing, as a heal or a shield, lands none; a run of stages lands one for each of its stages that
  * strikes. A whirlwind lands none, but a gust: its wall strikes the target once and shoves it back.
  * Rubble on its own lands three, one at each heave of the ground, the first held as a blow of its
- * grade is and the others only caught. Each later target is struck as the first is, its stagger
- * later, and holds nothing more.
+ * grade is and the others only caught. A curse on its own, and each state drawn in its place, lands
+ * one that holds and neither shakes the screen nor throws the piece: the instant it takes hold. Each
+ * later target is struck as the first is, its stagger later, and holds nothing more.
  */
 export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
   const grade = preset.gradeLevel;
@@ -95,15 +99,18 @@ export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
   let held = 0;
   let lastHeldAt = -Infinity;
   const heaves = !preset.isStaged && preset.effectKind === 'rubble';
+  const takesHold = isCurseAlone(preset);
   for (const [index, atMs] of strikeTimes(preset).entries()) {
     const holds = atMs - lastHeldAt >= HOLD_MIN_GAP_MS && held < MAX_TOTAL_HOLD_MS;
-    const most = heaves && index > 0 ? Math.min(LATER_HEAVE_HOLD_MS, HOLD_MS_BY_GRADE[grade]) : HOLD_MS_BY_GRADE[grade];
+    const lightly = takesHold ? TAKES_HOLD_HOLD_MS : heaves && index > 0 ? LATER_HEAVE_HOLD_MS : Infinity;
+    const most = Math.min(lightly, HOLD_MS_BY_GRADE[grade]);
     const holdMs = holds ? Math.min(most, MAX_TOTAL_HOLD_MS - held) : 0;
     if (holdMs > 0) {
       held += holdMs;
       lastHeldAt = atMs;
     }
-    blows.push({ atMs, holdMs, shake, push: isGust(preset) ? GUST_PUSH : PUSH_BY_GRADE[grade] });
+    const push = takesHold ? 0 : isGust(preset) ? GUST_PUSH : PUSH_BY_GRADE[grade];
+    blows.push({ atMs, holdMs, shake, push });
   }
   return blows;
 }
@@ -121,6 +128,9 @@ function strikeTimes(preset: EffectPreset): number[] {
       .sort((a, b) => a - b);
   }
   if (isGust(preset)) return [Math.round(gustTimingOf(preset.duration / 1000).strikesAt * 1000)];
+  if (isCurseAlone(preset)) {
+    return [Math.round(takesHoldAt(curseLookOf(preset), preset.duration / 1000) * 1000)];
+  }
   if (!STRIKING_KINDS.has(preset.effectKind)) return [];
   if (preset.effectKind === 'rubble') {
     return rubbleHeavesOf(preset.duration / 1000).map((heave) => Math.round(heave * 1000));

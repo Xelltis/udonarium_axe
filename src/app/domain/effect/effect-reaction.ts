@@ -1,3 +1,5 @@
+import { isCurseAlone } from '@axe/domain/effect/ailment-looks';
+import { addAilmentJolts, ailmentJoltsEndOf } from '@axe/domain/effect/ailment-reaction';
 import { breathSurgeAt, breathTimingOf, isGentleBreath } from '@axe/domain/effect/breath-timing';
 import { heavesGround } from '@axe/domain/effect/earth-looks';
 import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows';
@@ -69,8 +71,9 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * it, by rubble or an upheaval, it is thrown up off the floor. A breath lands no blow: the one who
  * breathes leans back as it draws the breath in, and each piece it blows on is pushed downwind and
  * trembles for as long as it is blown on. A tornado lands none either: it takes up the piece it
- * stands over and drags the rest it catches towards it. The pieces themselves stay where they are:
- * each seat draws them off it for a moment.
+ * stands over and drags the rest it catches towards it. A curse on its own lands none: the piece it
+ * is put on bears the state it is in for as long as its look plays. The pieces themselves stay where
+ * they are: each seat draws them off it for a moment.
  */
 export function effectJoltsOf(
   preset: EffectPreset,
@@ -92,6 +95,10 @@ export function effectJoltsOf(
   }
   if (isTornado(preset)) {
     addTornadoJolts(preset, cast, elapsedMs, cellPx, add);
+    return jolts;
+  }
+  if (isCurseAlone(preset)) {
+    addAilmentJolts(preset, cast, elapsedMs, cellPx, add);
     return jolts;
   }
   cast.targets.forEach((target, index) => {
@@ -130,6 +137,7 @@ export function joltsEndOf(preset: EffectPreset, cast: EffectCast, blows: readon
     return breathTimingOf(preset.duration / 1000).spentAt * 1000 + lastTarget + BLOWN_STANDS_BACK_MS;
   }
   if (isTornado(preset)) return tornadoTimingOf(preset.duration / 1000).goneAt * 1000 + lastTarget;
+  if (isCurseAlone(preset)) return ailmentJoltsEndOf(preset, cast);
   return Math.max(LEAN_FOR_MS, lastBlow + lastTarget + THROWN_FOR_MS);
 }
 

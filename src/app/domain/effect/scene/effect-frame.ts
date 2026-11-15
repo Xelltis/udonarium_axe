@@ -6,6 +6,7 @@ import type { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
 import { placesFor, stageView } from '@axe/domain/effect/effect-stage-timeline';
 import { isAimed } from '@axe/domain/effect/effect-timeline';
+import { curse } from '@axe/domain/effect/scene/ailment/curse';
 import { bash } from '@axe/domain/effect/scene/blade/bash';
 import { skybladeWith } from '@axe/domain/effect/scene/blade/skyblade';
 import { slash } from '@axe/domain/effect/scene/blade/slash';
@@ -19,7 +20,7 @@ import {
   type StageMouth,
   type StageTarget,
 } from '@axe/domain/effect/scene/choreography';
-import { curse, gravity, miasma } from '@axe/domain/effect/scene/dark/dark';
+import { gravity, miasma } from '@axe/domain/effect/scene/dark/dark';
 import { impact } from '@axe/domain/effect/scene/earth/impact';
 import { rubble } from '@axe/domain/effect/scene/earth/rubble';
 import { struckImpact, struckRubble } from '@axe/domain/effect/scene/earth/struck';
@@ -37,6 +38,7 @@ import { bolt, frost, vortex } from '@axe/domain/effect/scene/storm/storm';
 import { projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
 import { targetScaleOf } from '@axe/domain/effect/timeline/shared';
 
+export { effectJoltsOf } from '@axe/domain/effect/effect-reaction';
 export {
   drawsOnlyPicturesOver,
   hasScenePart,
@@ -134,6 +136,8 @@ export interface EffectStagingOptions {
   readonly resolveFooting?: (identifier: string) => EffectFooting | null;
   /** How many cells across a target is; one without it. */
   readonly resolveSize?: (identifier: string) => number;
+  /** How tall a target stands over its foot as it is drawn, in table pixels; as tall as it is wide without it. */
+  readonly resolveHeight?: (identifier: string) => number | null;
   /**
    * The pieces standing on the table now, for a breath to break on those in its way: asked for only
    * by a look that breaks on them, and never sent, each seat telling of the pieces it draws.
@@ -222,6 +226,7 @@ function stageRun(
         z: places.center.z,
         groundZ: footing.groundZ,
         cell: base * (window.stage.scale ?? 1) * scale,
+        tall: heightOf(target.identifier, options),
         seconds: seconds * flies,
         duration,
         blowsAt,
@@ -288,6 +293,7 @@ export function stageEffect(
       z: standing.z,
       groundZ: standing.groundZ,
       cell: base * areaShareOf(preset, cast, index) * scale,
+      tall: heightOf(target.identifier, options),
       seconds,
       duration,
       blowsAt,
@@ -307,6 +313,9 @@ export function stageEffect(
   }
 }
 
+/** How short and how tall a target is counted against its width, however it is drawn: a picture laid flat, or a banner. */
+const SHORTEST_BY_WIDTH = 0.5;
+const TALLEST_BY_WIDTH = 3;
 /** How high over a caster's foot an effect aimed from it leaves it, in cells of the table: from its hands. */
 const AIMED_FROM_CELLS = 0.6;
 
@@ -328,6 +337,16 @@ function originOf(cast: EffectCast, caster: EffectFooting | null, options: Effec
 function widthOf(identifier: string, options: EffectStagingOptions): number {
   const cells = identifier.length > 0 ? (options.resolveSize?.(identifier) ?? 1) : 1;
   return options.cellPx * (cells > 0 ? cells : 1);
+}
+
+/**
+ * How tall a piece stands over its foot, in table pixels: as it is drawn where the table tells it,
+ * held between half its width and three times it, and as tall as it is wide where it does not.
+ */
+function heightOf(identifier: string, options: EffectStagingOptions): number {
+  const wide = widthOf(identifier, options);
+  const drawn = identifier.length > 0 ? options.resolveHeight?.(identifier) : null;
+  return drawn && drawn > 0 ? Math.min(Math.max(drawn, wide * SHORTEST_BY_WIDTH), wide * TALLEST_BY_WIDTH) : wide;
 }
 
 /**

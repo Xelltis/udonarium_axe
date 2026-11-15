@@ -2,6 +2,11 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { type ActiveEffectCast, EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectReactionService } from '@axe/application/effect/effect-reaction.service';
+import {
+  EFFECT_LOOKS_IMPORT,
+  type EffectSceneLooks,
+  EffectSceneLooksService,
+} from '@axe/application/effect/effect-scene-looks.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -14,11 +19,12 @@ describe('EffectReactionService', () => {
   const casts = signal<ActiveEffectCast[]>([]);
   const now = signal(0);
 
-  beforeEach(() => {
+  beforeEach(async () => {
     TestBed.configureTestingModule({
       providers: [...TEST_PROVIDERS, { provide: EffectPlaybackService, useValue: { activeCasts: casts, now } }],
     });
     vi.spyOn(TestBed.inject(TabletopService), 'gridSize').mockReturnValue(50);
+    await TestBed.inject(EffectSceneLooksService).load();
   });
 
   afterEach(() => {
@@ -75,5 +81,49 @@ describe('EffectReactionService', () => {
     ]);
 
     expect(TestBed.inject(EffectReactionService).jolts().get(dragon.identifier)!.x).toBeCloseTo(once);
+  });
+
+  it('throws no piece until the looks of the effects are loaded, and throws them once they are', async () => {
+    TestBed.resetTestingModule();
+    let arrive: (looks: EffectSceneLooks) => void = () => undefined;
+    const arriving = new Promise<EffectSceneLooks>((resolve) => (arrive = resolve));
+    TestBed.configureTestingModule({
+      providers: [
+        ...TEST_PROVIDERS,
+        { provide: EffectPlaybackService, useValue: { activeCasts: casts, now } },
+        { provide: EFFECT_LOOKS_IMPORT, useValue: () => arriving },
+      ],
+    });
+    vi.spyOn(TestBed.inject(TabletopService), 'gridSize').mockReturnValue(50);
+    const piece = GameCharacter.create('盗賊', 1, '');
+    piece.setLocation('table');
+    const preset = new EffectPreset('preset');
+    preset.kind = 'bash';
+    preset.durationMs = 1000;
+    const blows = effectBlowsOf(preset);
+    casts.set([
+      {
+        key: 1,
+        preset,
+        startedAt: 0,
+        blows,
+        cast: {
+          presetIdentifier: 'preset',
+          casterIdentifier: '',
+          origin: { x: 0, y: 0, z: 0 },
+          targets: [{ identifier: piece.identifier, x: 100, y: 0, z: 0 }],
+          seed: 1,
+        },
+      },
+    ]);
+    now.set(blows[0].atMs + blows[0].holdMs + 60);
+    const service = TestBed.inject(EffectReactionService);
+
+    expect(service.jolts().size).toBe(0);
+
+    arrive(await import('@axe/domain/effect/scene/effect-frame'));
+    await TestBed.inject(EffectSceneLooksService).load();
+
+    expect(service.jolts().get(piece.identifier)?.x).toBeGreaterThan(0);
   });
 });

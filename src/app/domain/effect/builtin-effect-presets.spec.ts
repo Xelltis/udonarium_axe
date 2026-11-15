@@ -1,5 +1,7 @@
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { clamp } from '@axe/core/util/clamp';
+import { DEFAULT_STATUS_AILMENTS } from '@axe/domain/character/builtin-status-ailments';
+import { curseLookOf } from '@axe/domain/effect/ailment-looks';
 import {
   applyEffectPresetSeed,
   createDefaultEffectPresets,
@@ -169,6 +171,64 @@ describe('the effects that come with the tool', () => {
     expect(preset.followTarget).toBe(true);
     expect(preset.moteStyle).toBe('');
   });
+});
+
+describe('the effects of the states a room starts with', () => {
+  const seedNamed = (name: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.name === name);
+
+  it('has one under the name of every state in the catalogue, so that putting the state on finds it', () => {
+    for (const ailment of DEFAULT_STATUS_AILMENTS) {
+      const seed = seedNamed(ailment.name);
+
+      expect(seed?.kind, ailment.name).toBe('curse');
+      expect(
+        DEFAULT_EFFECT_PRESET_SEEDS.filter((other) => other.name === ailment.name),
+        ailment.name
+      ).toHaveLength(1);
+    }
+  });
+
+  it('draws each as the state it is named for, and a paralysis under the name it always had', () => {
+    const lookOf = (name: string) => curseLookOf(createSeedOf(name));
+
+    expect(Object.fromEntries(DEFAULT_STATUS_AILMENTS.map((ailment) => [ailment.name, lookOf(ailment.name)]))).toEqual({
+      毒: 'poison',
+      出血: 'bleed',
+      燃焼: 'burn',
+      麻痺: 'shock',
+      睡眠: 'sleep',
+      石化: 'petrify',
+      混乱: 'confuse',
+      魅了: 'charm',
+      恐怖: 'fear',
+      暗闇: 'blind',
+      沈黙: 'silence',
+      鈍足: 'slow',
+    });
+    expect(lookOf('拘束')).toBe('bind');
+    expect(lookOf('呪い')).toBe('curse');
+    expect(seedNamed('麻痺')?.moteStyle).toBe('arc');
+  });
+
+  it('keeps the identifiers of those that were there before', () => {
+    expect(['麻痺', '睡眠', '拘束', '呪い', '石化'].map((name) => seedNamed(name)?.identifier)).toEqual([
+      'EffectPreset_status_paralysis',
+      'EffectPreset_status_sleep',
+      'EffectPreset_status_bind',
+      'EffectPreset_status_curse',
+      'EffectPreset_status_petrify',
+    ]);
+  });
+
+  it('leaves the poison over an area as the miasma it was', () => {
+    expect(seedNamed('毒霧')).toMatchObject({ kind: 'miasma', identifier: 'EffectPreset_miasma_2' });
+  });
+
+  function createSeedOf(name: string): EffectPreset {
+    const preset = new EffectPreset(`seed-of-${name}`);
+    applyEffectPresetSeed(preset, seedNamed(name)!);
+    return preset;
+  }
 });
 
 describe('the newer looks for a projectile', () => {
