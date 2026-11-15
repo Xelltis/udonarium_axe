@@ -4,19 +4,17 @@ import { slashHits } from '@axe/domain/effect/timeline/blade';
 /*
  * What the looks of a blade are told apart by where the way they strike matters to what they strike:
  * most cuts come from the side their caster stands and carry what they strike the way the blade
- * went, but a cleave and a great sword out of the sky come from straight overhead.
+ * went, but a cleave comes from straight overhead.
  */
 
 type Lone = Pick<EffectPreset, 'isStaged' | 'effectKind' | 'slashLook'>;
 
 /**
  * Whether an effect brings a blade down from straight overhead, on its own rather than as a stage of
- * a run: a cleave, or a great sword dropped out of the sky, which presses what it strikes down
- * rather than throwing it back from its caster.
+ * a run: a cleave, which presses what it strikes down rather than throwing it back from its caster.
  */
 export function strikesFromOverhead(preset: Lone): boolean {
-  if (preset.isStaged) return false;
-  return preset.effectKind === 'skyblade' || (preset.effectKind === 'slash' && preset.slashLook === 'heavy');
+  return !preset.isStaged && preset.effectKind === 'slash' && preset.slashLook === 'heavy';
 }
 
 /** How much of the way on from its caster a piece is carried by a stroke, beside the way the blade went. */

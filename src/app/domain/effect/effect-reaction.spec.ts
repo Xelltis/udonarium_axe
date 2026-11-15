@@ -70,15 +70,15 @@ describe('effectJoltsOf()', () => {
     }
   });
 
-  it('presses a piece down, not up, where a great blade lands in an upheaval', () => {
+  it('throws a piece over the floor, not up, where a great sword lands in an upheaval', () => {
     const blade = makePreset('skyblade', 3);
     blade.impactKind = 'upheaval';
     const jolt = effectJoltsOf(blade, cast({ x: 0, y: 0, z: 0 }), effectBlowsOf(blade)[0].atMs + 60, CELL).get(
       'target'
     )!;
 
-    expect([jolt.x, jolt.y]).toEqual([0, 0]);
-    expect(jolt.z).toBeLessThan(0);
+    expect(Math.hypot(jolt.x, jolt.y)).toBeGreaterThan(0);
+    expect(jolt.z).toBe(0);
   });
 
   it('throws a piece back from a cut, but presses it down under a cleave from overhead', () => {

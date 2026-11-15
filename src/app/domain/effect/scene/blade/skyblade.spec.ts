@@ -1,21 +1,25 @@
 import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
+import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { effectJoltsOf } from '@axe/domain/effect/effect-reaction';
+import { greatSwordTimingOf, UNWIELDED_WAY } from '@axe/domain/effect/great-sword-looks';
 import { type Staged } from '@axe/domain/effect/scene/choreography';
+import { EFFECT_FRAME_BUDGET } from '@axe/domain/effect/scene/effect-scene';
 import {
   bladePresetOf,
   bundledOf,
+  CASTER,
   castOnTarget,
   CELL,
+  cutOf,
   stagedAt,
   TARGET,
-  widestOf,
 } from '@axe/testing/blade-effect-stage';
 
 const cast = castOnTarget();
 
-/** A great blade of three seconds that strikes with a kind of look. */
-function bladeOf(impactKind: EffectKind, primary = '#ffeaa8', secondary = '#ffb320') {
+/** A great sword of three seconds that lands with a kind of look. */
+function swordOf(impactKind: EffectKind, primary = '#ffeaa8', secondary = '#ffb320') {
   const preset = bladePresetOf('skyblade', 3000, 3);
   preset.impactKind = impactKind;
   preset.colorPrimary = primary;
@@ -23,129 +27,207 @@ function bladeOf(impactKind: EffectKind, primary = '#ffeaa8', secondary = '#ffb3
   return preset;
 }
 
-const blade = bladeOf('heal');
-const strikes = effectBlowsOf(blade)[0].atMs / 1000;
+const sword = swordOf('heal');
+const releases = effectBlowsOf(sword)[0].atMs / 1000;
+const timing = greatSwordTimingOf(3, releases);
 
-/** The bands of the blade itself: those of seven points, from its point to its shoulders. */
-function bladeBandsOf(drawn: Staged) {
+/** The bands of the sword of steel: those of seven points, from its point to its shoulders. */
+function steelOf(drawn: Staged) {
   return drawn.ribbons.filter((ribbon) => ribbon.points.length === 7 && ribbon.blend === 'color');
 }
 
-/** Where the sword's point is, and how high the top of its blade stands. */
-function swordOf(drawn: Staged) {
-  const [band] = bladeBandsOf(drawn);
-  return { tip: band.points[0], shoulders: band.points.at(-1)! };
+/** The bands of the blade of light: those of nine points laid as colour, from the guard to its point. */
+function bladeOf(drawn: Staged) {
+  return drawn.ribbons.filter((ribbon) => ribbon.points.length === 9 && ribbon.blend === 'color');
 }
 
-describe('the great blade', () => {
-  it('forms out of a seam of light over the target, point down, in its first moments', () => {
-    const forming = stagedAt(blade, cast, 0.08);
-    const formed = stagedAt(blade, cast, 0.6);
-    const { tip, shoulders } = swordOf(formed);
+/** The bands of the torrent's body: those of twenty-one points. */
+function torrentOf(drawn: Staged) {
+  return drawn.ribbons.filter((ribbon) => ribbon.points.length === 21);
+}
 
-    expect(widestOf(bladeBandsOf(forming)[1])).toBeLessThan(widestOf(bladeBandsOf(formed)[1]) * 0.6);
-    expect(tip.z).toBeGreaterThan(CELL * 0.6);
-    expect(shoulders.z).toBeGreaterThan(tip.z + CELL);
-    expect(Math.hypot(tip.x - TARGET.x, tip.y - TARGET.y)).toBeLessThan(CELL * 0.5);
+/** The arcs of the fan a swing leaves: those of fifteen points. */
+function fanOf(drawn: Staged) {
+  return drawn.ribbons.filter((ribbon) => ribbon.points.length === 15);
+}
+
+/** How many particles of a shape are drawn. */
+function countOf(drawn: Staged, shape: string): number {
+  return drawn.motes.filter((mote) => mote.shape === shape).length;
+}
+
+describe('the great sword', () => {
+  it('is raised over its wielder, not over the target', () => {
+    const drawn = stagedAt(sword, cast, 0.6);
+    const steel = steelOf(drawn);
+
+    expect(steel.length).toBeGreaterThan(0);
+    for (const band of steel) {
+      for (const point of band.points) {
+        expect(Math.hypot(point.x - CASTER.x, point.y - CASTER.y)).toBeLessThan(CELL * 0.2);
+        expect(point.z).toBeGreaterThan(CELL);
+      }
+    }
+    expect(Math.hypot(drawn.lights[0].x - CASTER.x, drawn.lights[0].y - CASTER.y)).toBeLessThan(CELL * 0.2);
   });
 
-  it('is a sword: a blade drawn to a point, a guard across it wider than the blade, a grip and a pommel', () => {
-    const drawn = stagedAt(blade, cast, 1);
-    const [outline] = bladeBandsOf(drawn);
-    const widths = outline.widths as number[];
-    const guard = drawn.ribbons.filter((ribbon) => ribbon.points.length === 3 && ribbon.blend === 'color');
-    const grip = drawn.ribbons.filter((ribbon) => ribbon.points.length === 2 && ribbon.blend === 'color');
+  it('grows a blade of light many cells tall out of the sword as light gathers on it', () => {
+    const topAt = (seconds: number) =>
+      Math.max(...bladeOf(stagedAt(sword, cast, seconds))[0].points.map((point) => point.z));
 
-    expect(widths[0]).toBeLessThan(widths.at(-1)! * 0.15);
-    expect(widths.every((width, index) => index === 0 || width >= widths[index - 1])).toBe(true);
-    expect(Math.max(...guard.map(widestOf))).toBeGreaterThan(widestOf(outline) * 2);
-    expect(grip.length).toBeGreaterThan(0);
-    expect(Math.max(...grip.map(widestOf))).toBeLessThan(widestOf(outline) * 0.6);
-    expect(drawn.motes.some((mote) => mote.shape === 'puff' && mote.z > guard[0].points[0].z)).toBe(true);
+    expect(topAt(0.2)).toBeLessThan(topAt(timing.gatheredAt) * 0.6);
+    expect(topAt(timing.gatheredAt)).toBeGreaterThan(CELL * 4);
+    expect(bladeOf(stagedAt(sword, cast, timing.gatheredAt)).some((band) => band.core === '#ffffff')).toBe(true);
   });
 
-  it('is laid as colour, with pale edges about a flat of its colour and a darker fuller', () => {
-    const bands = bladeBandsOf(stagedAt(blade, cast, 1));
+  it('draws light in from all about and closes rings over the floor, and lets it hang before the swing', () => {
+    const gathering = stagedAt(sword, cast, 0.8);
+    const hanging = stagedAt(sword, cast, (timing.gatheredAt + timing.swingsAt) / 2);
+    const ringsOf = (drawn: Staged) => drawn.floor.filter((mark) => mark.shape === 'ring');
 
-    expect(bands.length).toBeGreaterThanOrEqual(3);
-    expect(widestOf(bands[2])).toBeLessThan(widestOf(bands[1]));
-    expect(bands[1].color).not.toBe(bands[2].color);
+    expect(countOf(gathering, 'spark')).toBeGreaterThan(30);
+    expect(ringsOf(gathering).length).toBeGreaterThan(2);
+    expect(ringsOf(hanging)).toEqual([]);
+    expect(countOf(hanging, 'star')).toBeGreaterThan(0);
   });
 
-  it('draws a sword of a deep colour dark within pale edges', () => {
-    const dark = bladeBandsOf(stagedAt(bladeOf('miasma', '#d8c6ff', '#5a1f8a'), cast, 1));
-    const light = bladeBandsOf(stagedAt(blade, cast, 1));
-    const lightness = (hex: string) =>
-      parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16);
+  it('is brought down about the hands towards the target, a fan of light behind it', () => {
+    const tipAt = (seconds: number) => bladeOf(stagedAt(sword, cast, seconds))[0].points.at(-1)!;
+    const upright = tipAt(timing.swingsAt - 0.2);
+    const falling = tipAt((timing.swingsAt + releases) / 2 + 0.05);
+    const level = tipAt(releases);
 
-    expect(lightness(dark[2].color)).toBeLessThan(120);
-    expect(lightness(dark[1].color)).toBeGreaterThan(lightness(dark[2].color) * 3);
-    expect(lightness(light[2].color)).toBeGreaterThan(300);
+    expect(Math.abs(upright.x - CASTER.x)).toBeLessThan(CELL * 0.3);
+    expect(falling.x).toBeLessThan(CASTER.x - CELL * 0.3);
+    expect(falling.z).toBeGreaterThan(level.z + CELL);
+    expect(level.x).toBeLessThan(CASTER.x - CELL * 3.5);
+    expect(level.z).toBeLessThan(CELL * 1.2);
+    expect(fanOf(stagedAt(sword, cast, timing.swingsAt - 0.05))).toEqual([]);
+    expect(fanOf(stagedAt(sword, cast, releases - 0.03)).length).toBeGreaterThan(4);
   });
 
-  it('hangs a beat, draws up, and drops into the floor as its blow lands', () => {
-    const tipAt = (seconds: number) => swordOf(stagedAt(blade, cast, seconds)).tip.z;
-
-    expect(Math.abs(tipAt(1) - tipAt(0.7))).toBeLessThan(CELL * 0.15);
-    expect(tipAt(strikes - 0.14)).toBeGreaterThan(tipAt(1) + CELL * 0.15);
-    expect(tipAt(strikes - 0.14)).toBeGreaterThan(CELL * 0.8);
-    expect(tipAt(strikes)).toBeLessThan(0);
-    expect(tipAt(strikes)).toBeGreaterThan(-CELL * 0.4);
+  it('lets its torrent go as its blow lands, and not before', () => {
+    expect(torrentOf(stagedAt(sword, cast, releases - 0.03))).toEqual([]);
+    expect(torrentOf(stagedAt(sword, cast, releases + 0.03)).length).toBeGreaterThan(3);
+    expect(bladeOf(stagedAt(sword, cast, releases + 0.1))).toEqual([]);
   });
 
-  it('comes down just past the target, so the one it strikes is not behind it', () => {
-    const { tip } = swordOf(stagedAt(blade, cast, strikes + 0.1));
+  it('runs the torrent from its wielder through the target and well past it', () => {
+    const [body] = torrentOf(stagedAt(sword, cast, releases + 0.3));
+    const along = body.points.map((point) => point.x);
 
-    expect(tip.x).toBeLessThan(TARGET.x - CELL * 0.1);
-    expect(tip.x).toBeGreaterThan(TARGET.x - CELL * 0.6);
+    expect(Math.max(...along)).toBeGreaterThan(TARGET.x + CELL * 0.5);
+    expect(Math.max(...along)).toBeLessThan(CASTER.x);
+    expect(Math.min(...along)).toBeLessThan(TARGET.x - CELL * 2.5);
+    expect(body.points.every((point) => Math.abs(point.y - TARGET.y) < 1)).toBe(true);
   });
 
-  it('stands where it struck, then breaks into shards of light that rise', () => {
-    const standing = stagedAt(blade, cast, strikes + 0.5);
-    const gone = stagedAt(blade, cast, strikes + 1.3);
-    const shards = gone.motes.filter((mote) => mote.shape === 'flake');
+  it("thins the torrent from its wielder's end until the last of it has passed", () => {
+    const nearEndAt = (seconds: number) =>
+      Math.max(...torrentOf(stagedAt(sword, cast, seconds))[0].points.map((point) => point.x));
 
-    expect(bladeBandsOf(standing).length).toBeGreaterThan(0);
-    expect(bladeBandsOf(gone)).toEqual([]);
-    expect(shards.length).toBeGreaterThan(5);
+    expect(nearEndAt((timing.thinsAt + timing.spentAt) / 2)).toBeLessThan(nearEndAt(timing.thinsAt - 0.05) - CELL);
+    expect(torrentOf(stagedAt(sword, cast, timing.spentAt + 0.02))).toEqual([]);
   });
 
-  it('strikes with the look it was given, and with nothing before it lands', () => {
-    const flame = bladeOf('flame', '#ffd08a', '#ff4a12');
-    const count = (drawn: Staged) => drawn.motes.length + drawn.ribbons.length;
+  it('scores the floor along the line it ran, and clears it by the end', () => {
+    const scoreOf = (seconds: number) =>
+      stagedAt(sword, cast, seconds).floor.filter((mark) => mark.shape === 'fissure' && mark.alpha > 0.01);
 
-    expect(count(stagedAt(flame, cast, strikes + 0.3))).toBeGreaterThan(
-      count(stagedAt(blade, cast, strikes + 0.3)) + 10
-    );
-    expect(stagedAt(flame, cast, strikes - 0.3).motes.filter((mote) => mote.shape === 'blaze')).toEqual([]);
+    expect(scoreOf(releases - 0.1)).toEqual([]);
+    expect(scoreOf(releases + 0.6).length).toBeGreaterThan(1);
+    expect(scoreOf(releases + 0.6).every((mark) => Math.abs(mark.y - TARGET.y) < 1)).toBe(true);
+    expect(scoreOf(3 + 1.796)).toEqual([]);
+  });
+
+  it('lands with the look it was given within the torrent, and with nothing before it is let go', () => {
+    const fire = swordOf('burst', '#ffd08a', '#ff4a12');
+
+    expect(countOf(stagedAt(fire, cast, releases + 0.1), 'blaze')).toBeGreaterThan(0);
+    expect(countOf(stagedAt(fire, cast, releases - 0.2), 'blaze')).toBe(0);
   });
 
   it.each([
-    ['flame', 'tongue'],
-    ['frost', 'flake'],
-    ['upheaval', 'chunk'],
-    ['miasma', 'smoke'],
-    ['smite', 'star'],
-  ] as const)('hangs what is its own about a sword that strikes with %s', (impactKind, shape) => {
-    const waiting = stagedAt(bladeOf(impactKind), cast, 1.1);
-
-    expect(waiting.motes.filter((mote) => mote.shape === shape).length).toBeGreaterThan(4);
+    ['flame', 'lick', 20],
+    ['frost', 'flake', 20],
+    ['upheaval', 'chunk', 12],
+    ['miasma', 'smoke', 6],
+    ['smite', 'feather', 4],
+  ] as const)('carries what is its own down a torrent that lands with %s', (impactKind, shape, least) => {
+    expect(countOf(stagedAt(swordOf(impactKind), cast, releases + 0.35), shape)).toBeGreaterThanOrEqual(least);
   });
 
-  it('presses the one it strikes down, not back', () => {
-    const jolt = effectJoltsOf(blade, cast, strikes * 1000 + 200, CELL).get('t0')!;
+  it('forks lightning off a torrent that lands with a bolt', () => {
+    const bolts = (kind: EffectKind) =>
+      stagedAt(swordOf(kind), cast, releases + 0.35).ribbons.filter((ribbon) => ribbon.points.length === 11).length;
+
+    expect(bolts('arc')).toBeGreaterThan(bolts('heal') + 8);
+  });
+
+  it('tears a line of crags out of the ground along a torrent of earth, and none along another', () => {
+    const crags = stagedAt(swordOf('impact'), cast, releases + 0.6).motes.filter((mote) => mote.shape === 'crag');
+
+    expect(countOf(stagedAt(sword, cast, releases + 0.6), 'crag')).toBe(0);
+    expect(crags.length).toBeGreaterThan(3);
+    expect(crags.every((crag) => Math.abs(crag.y - TARGET.y) < CELL * 1.2)).toBe(true);
+  });
+
+  it('paints a sword of shadow black at its heart within an edge of its colour', () => {
+    const bands = bladeOf(stagedAt(swordOf('miasma', '#d8c6ff', '#5a1f8a'), cast, timing.gatheredAt));
+
+    expect(bands.some((band) => band.core === '#000000')).toBe(true);
+    expect(bands.every((band) => band.core !== '#ffffff')).toBe(true);
+  });
+
+  it('raises one sword for a cast on several, and lands on each in its turn', () => {
+    const other = { x: TARGET.x - CELL, y: TARGET.y + CELL * 3 };
+    const two: EffectCast = { ...cast, targets: [...cast.targets, { identifier: 't1', ...other, z: 0 }] };
+    const smite = swordOf('smite');
+    const landedAt = (seconds: number) =>
+      stagedAt(smite, two, seconds).floor.filter((mark) => Math.hypot(mark.x - other.x, mark.y - other.y) < CELL * 0.5)
+        .length;
+
+    expect(steelOf(stagedAt(smite, two, 0.6)).length).toBe(steelOf(stagedAt(smite, cast, 0.6)).length);
+    expect(torrentOf(stagedAt(smite, two, releases + 0.2)).length).toBe(
+      torrentOf(stagedAt(smite, cast, releases + 0.2)).length
+    );
+    expect(landedAt(releases + 0.05)).toBe(0);
+    expect(landedAt(releases + 0.3)).toBeGreaterThan(0);
+  });
+
+  it('is raised in a place beside the target, and swung from there, when no one casts it', () => {
+    const alone = castOnTarget(false);
+    const [band] = steelOf(stagedAt(sword, alone, 0.6));
+    const [body] = torrentOf(stagedAt(sword, alone, releases + 0.3));
+    const from = { x: band.points[0].x - TARGET.x, y: band.points[0].y - TARGET.y };
+    const far = Math.hypot(from.x, from.y);
+
+    expect(far).toBeGreaterThan(CELL * 1.5);
+    expect(from.x / far).toBeCloseTo(-UNWIELDED_WAY.x, 5);
+    expect(from.y / far).toBeCloseTo(-UNWIELDED_WAY.y, 5);
+    expect(Math.max(...body.points.map((point) => point.x))).toBeGreaterThan(TARGET.x + CELL * 2);
+  });
+
+  it('leaves a cleave pressing what it strikes down', () => {
+    const cleave = cutOf('heavy', 2000, 3);
+    const jolt = effectJoltsOf(cleave, cast, effectBlowsOf(cleave)[0].atMs + 200, CELL).get('t0')!;
 
     expect([jolt.x, jolt.y]).toEqual([0, 0]);
     expect(jolt.z).toBeLessThan(0);
   });
 
-  it('is drawn for every bundled great blade through to its end without leaving the floor far below', () => {
+  it('draws every bundled great sword to its end within what may be drawn, none of it far below the floor', () => {
     for (const name of ['光の大剣', '炎の大剣', '氷の大剣', '雷の大剣', '大地の大剣', '闇の大剣']) {
       const preset = bundledOf(name);
-      for (let at = 0; at < 5; at += 0.1) {
+      for (let at = 0; at < 4.8; at += 0.1) {
         const drawn = stagedAt(preset, cast, at);
+        const points = drawn.ribbons.reduce((sum, ribbon) => sum + ribbon.points.length, 0);
         expect(drawn.ribbons.every((ribbon) => ribbon.points.every((point) => point.z > -CELL * 0.8))).toBe(true);
+        expect(points).toBeLessThan(EFFECT_FRAME_BUDGET.ribbonPoints / 2);
+        expect(drawn.motes.length).toBeLessThan(EFFECT_FRAME_BUDGET.motes / 4);
+        expect(drawn.floor.length).toBeLessThan(EFFECT_FRAME_BUDGET.marks / 2);
       }
+      expect(stagedAt(preset, cast, 4.81).motes).toEqual([]);
       preset.destroy();
     }
   });
