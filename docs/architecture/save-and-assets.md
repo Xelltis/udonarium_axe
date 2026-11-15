@@ -97,6 +97,12 @@ zipでは画像を取り込む前に、`data.xml`の頭4096バイトから`<room
 本家のUdonariumの保存データを読むspecやフィクスチャは無い。
 属性名は保存データの一部なので、`@SyncVar('followingCharctorIdentifier')`・`@SyncVar('imageCharactorName')`のように綴りの違うキーも残す。
 
+`DataElement`の属性には、無いことに意味があるものがある。
+バフの区分の`cs-buff-kind`は、無い・空文字・知らない値を「印なし」と読み、部屋の状態異常の一覧で区分を決める。
+項目の既定値の`cs-default`・`cs-default-max`・`cs-default-max-correction`・`cs-default-min-correction`は、無い・空文字・空白・数として読めない値を「既定値なし」と読み、0とは読まない。0を既定値にするときは`"0"`を書く（`domain/character/default-value`の`readDefault`）。
+新しい部屋のコマと見本の部屋のコマには、この5つを書かない。これらの属性ができる前の保存は、区分を一覧だけで決め、リセットで値を1つも変えない。
+属性を知らない版のAxeは、`ObjectNode`の属性としてそのまま持ち、保存にも書き出す。新しい物も新しいSyncVarも足していないので、部屋のサーバーの封筒の形は変わらない。
+
 今のコードにある読み替えは次のとおり。
 
 | 古い形                        | 今の読み方                                                                                       | 場所                                                         |
