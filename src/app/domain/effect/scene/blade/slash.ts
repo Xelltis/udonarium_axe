@@ -13,7 +13,7 @@ import {
 import { drawCleave } from '@axe/domain/effect/scene/blade/slash-cleave';
 import { drawDrawingCut } from '@axe/domain/effect/scene/blade/slash-iai';
 import { drawSweep } from '@axe/domain/effect/scene/blade/slash-sweep';
-import { cutFrameOf, strokeClock, swingOf } from '@axe/domain/effect/scene/blade/slash-swing';
+import { chestOf, cutFrameOf, strokeClock, swingOf } from '@axe/domain/effect/scene/blade/slash-swing';
 import { type Choreography, nothingStaged, type Stage, type Staged } from '@axe/domain/effect/scene/choreography';
 import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { ThrownMote } from '@axe/domain/effect/scene/effect-sim';
@@ -47,8 +47,6 @@ const GLINTS_S = 0.07;
 /** How long the cut one stroke leaves stays on the target, in seconds, and the cuts of a flurry once they have opened. */
 const CUT_STAYS_S = 0.6;
 const OPENED_STAYS_S = 0.8;
-/** How high up its target a cut crosses, in cells. */
-const CROSSES_HIGH = 0.55;
 
 interface CutThrown {
   /** The sparks and the chips each stroke throws where it crosses, and the sparks its cut throws as it opens. */
@@ -83,7 +81,7 @@ function drawStrokes(stage: Stage): Staged {
   const flurry = hits.length > 1;
   const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
   const frame = cutFrameOf(stage);
-  const chest = { x: stage.x, y: stage.y, z: stage.z + cell * CROSSES_HIGH };
+  const chest = chestOf(stage);
   const forward = cell * 0.5;
   const opensAt = flurry ? SLASH_COMBO_OPENS_AT * duration : Number.POSITIVE_INFINITY;
   const crossings = hits.map((hit, index) => stage.blowsAt[index] ?? (hit.at + hit.span * 0.3) * duration);
@@ -143,7 +141,7 @@ function drawStrokes(stage: Stage): Staged {
     const half = cell * (heavy ? 0.62 : flurry ? 0.42 : 0.5);
     if (t < opensAt) {
       const stays = flurry ? opensAt - crosses + 0.3 : CUT_STAYS_S;
-      drawCutMark(drawn, swing.centre, swing.travel, half, ramp, t - crosses, stays, 1, frame.lowestZ);
+      drawCutMark(drawn, swing.centre, swing.travel, half, ramp, t - crosses, stays, flurry ? 0.6 : 1, frame.lowestZ);
     } else {
       drawCutMark(drawn, swing.centre, swing.travel, half, ramp, t - opensAt, OPENED_STAYS_S, 1.5, frame.lowestZ);
     }

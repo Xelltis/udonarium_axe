@@ -95,6 +95,25 @@ describe('effectJoltsOf()', () => {
     expect(joltOf('heavy').z).toBeLessThan(0);
   });
 
+  it('carries a piece the way each stroke of a cut went, a flurry knocking it about from side to side', () => {
+    const from = cast({ x: 0, y: 0, z: 0 });
+    const one = makePreset('slash', 2);
+    const single = effectJoltsOf(one, from, effectBlowsOf(one)[0].atMs + 60, CELL).get('target')!;
+    const flurry = makePreset('slash', 2);
+    flurry.slashStyle = 'combo';
+    flurry.durationMs = 2700;
+    const blows = effectBlowsOf(flurry);
+    const wayAt = (index: number) => {
+      const jolt = effectJoltsOf(flurry, from, blows[index].atMs + 40, CELL).get('target')!;
+      const size = Math.hypot(jolt.x, jolt.y);
+      return { x: jolt.x / size, y: jolt.y / size };
+    };
+
+    expect(Math.abs(single.y)).toBeGreaterThan(Math.abs(single.x));
+    expect(single.x).toBeGreaterThan(0);
+    expect(wayAt(0).x * wayAt(2).x + wayAt(0).y * wayAt(2).y).toBeLessThan(0.8);
+  });
+
   it('has the one who strikes lean in towards the target as the effect sets off, and stand back after', () => {
     const slash = makePreset('slash');
     const from = cast({ x: 0, y: 0, z: 0 });

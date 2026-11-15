@@ -7,7 +7,7 @@ import {
   trailRibbons,
 } from '@axe/domain/effect/scene/blade/blade-trail';
 import { drawGathering, heldBlade } from '@axe/domain/effect/scene/blade/held-blade';
-import { cutFrameOf, strokeClock, swingOf } from '@axe/domain/effect/scene/blade/slash-swing';
+import { chestOf, cutFrameOf, strokeClock, swingOf } from '@axe/domain/effect/scene/blade/slash-swing';
 import { nothingStaged, outCubic, type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { crag, type EarthTones, earthTonesOf, layFissure } from '@axe/domain/effect/scene/earth/earth-parts';
 import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
@@ -41,8 +41,6 @@ const FADES_S = 0.45;
 const STANDS_S = 0.3;
 /** How much of the time before the blow has passed before the blade is seen. */
 const SEEN_FROM = 0.12;
-/** How high up its target the blade's arc is centred, in cells. */
-const CROSSES_HIGH = 0.55;
 /** How far the split runs back towards the caster and on past the target, in cells, and how long it takes to run. */
 const SPLIT_BACK = 0.5;
 const SPLIT_ON = 1.7;
@@ -70,7 +68,7 @@ export function drawCleave(stage: Stage, lingerS: number): Staged {
   const [hit] = slashHits('heavy');
   const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
   const frame = cutFrameOf(stage);
-  const centre = { x: stage.x, y: stage.y, z: stage.z + cell * CROSSES_HIGH };
+  const centre = chestOf(stage);
   const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
   const swing = swingOf(hit, frame, centre, cell);
   const strikes = stage.blowsAt[0] ?? (hit.at + hit.span * 0.3) * duration;

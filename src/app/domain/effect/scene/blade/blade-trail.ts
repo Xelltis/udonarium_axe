@@ -187,7 +187,7 @@ export function drawCutMark(
     const long = lineThrough(at, way, half * (1.9 + 0.5 * (1 - flash)), lowestZ);
     drawn.ribbons.push({
       points: long,
-      widths: slitWidths(8, half * 0.5 * flash),
+      widths: slitWidths(8, half * 0.3 * flash),
       color: ramp[3],
       alpha: 0.5 * flash,
       blend: 'light',
@@ -195,14 +195,14 @@ export function drawCutMark(
     });
     drawn.ribbons.push({
       points: long,
-      widths: slitWidths(8, half * 0.09 * (0.4 + 0.6 * flash)),
+      widths: slitWidths(8, half * 0.06 * (0.4 + 0.6 * flash)),
       color: '#ffffff',
       alpha: flash,
       blend: 'color',
     });
   }
   const left = 1 - since / lasts;
-  const wide = half * 0.2 * open * Math.pow(left, 0.6);
+  const wide = half * 0.085 * open * Math.pow(left, 0.6);
   const slit = lineThrough(at, way, half, lowestZ);
   drawn.ribbons.push({
     points: slit,

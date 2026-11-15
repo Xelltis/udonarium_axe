@@ -6,7 +6,7 @@ import {
   drawCrossing,
   drawGlint,
 } from '@axe/domain/effect/scene/blade/blade-trail';
-import { cutFrameOf } from '@axe/domain/effect/scene/blade/slash-swing';
+import { chestOf, cutFrameOf } from '@axe/domain/effect/scene/blade/slash-swing';
 import { nothingStaged, outCubic, type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import { type ThrownMote } from '@axe/domain/effect/scene/effect-sim';
@@ -37,8 +37,6 @@ const PETALS_FALL_S = 1.3;
 const HUSH = 0.62;
 const HUSH_CELLS = 3.4;
 const HUSH_COLOR = '#070b18';
-/** How high up its target the line lies, in cells. */
-const LIES_HIGH = 0.55;
 /** How far behind its caster's hand the line begins, and how far past the target it ends, in cells. */
 const BEHIND_HAND = 0.4;
 const PAST_TARGET = 1.5;
@@ -60,7 +58,7 @@ export function drawDrawingCut(stage: Stage, lingerS: number): Staged {
   const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
   const frame = cutFrameOf(stage);
   const way = { x: -frame.toward.x, y: -frame.toward.y, z: 0 };
-  const centre = { x: stage.x, y: stage.y, z: stage.z + cell * LIES_HIGH };
+  const centre = chestOf(stage);
   const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
   const half = (hit.reach / 2) * cell;
   const forward = cell * 0.5;
@@ -136,7 +134,7 @@ function drawLine(
   if (flash > 0) {
     drawn.ribbons.push({
       points,
-      widths: widths.map((width) => cell * 1.1 * width * flash),
+      widths: widths.map((width) => cell * 0.7 * width * flash),
       color: ramp[2],
       alpha: 0.4 * flash,
       blend: 'light',
@@ -156,7 +154,7 @@ function drawLine(
       });
     }
   }
-  const fine = cell * (0.028 + 0.13 * Math.pow(flash, 1.5));
+  const fine = cell * (0.026 + 0.09 * Math.pow(flash, 1.5));
   drawn.ribbons.push({
     points,
     widths: widths.map((width) => fine * 2.6 * width),
@@ -227,11 +225,11 @@ function drawOpening(
   const opening = outCubic(within(since, 0, OPENS_S));
   const left = Math.pow(1 - since / LIGHT_LASTS_S, 1.3);
   const shares = Array.from({ length: STEPS + 1 }, (_unused, index) => (index / STEPS) * 2 - 1);
-  const gape = shares.map((share) => Math.pow(Math.max(0, 1 - Math.abs(share) * 1.15), 0.8));
+  const gape = shares.map((share) => Math.pow(Math.max(0, 1 - Math.abs(share) * 1.5), 1.1));
   const points = shares.map((share) => lineAt(share));
   drawn.ribbons.push({
     points,
-    widths: gape.map((width) => cell * (0.4 + 0.5 * opening) * width),
+    widths: gape.map((width) => cell * (0.3 + 0.3 * opening) * width * left),
     color: ramp[2],
     alpha: 0.45 * left * left,
     blend: 'light',
@@ -239,15 +237,15 @@ function drawOpening(
   });
   drawn.ribbons.push({
     points,
-    widths: gape.map((width) => cell * 0.5 * opening * width * (0.4 + 0.6 * left)),
+    widths: gape.map((width) => cell * 0.24 * opening * width * Math.pow(left, 1.5)),
     color: ramp[3],
     core: '#ffffff',
-    alpha: left,
+    alpha: Math.min(1, left * 3),
     blend: 'color',
   });
   for (const side of [-1, 1]) {
     drawn.ribbons.push({
-      points: shares.map((share, index) => lineAt(share, side * cell * 0.27 * opening * gape[index])),
+      points: shares.map((share, index) => lineAt(share, side * cell * 0.13 * opening * gape[index])),
       widths: shares.map((share) => cell * 0.045 * along(share)),
       color: ramp[4],
       core: '#ffffff',

@@ -227,7 +227,7 @@ describe('a drawing cut', () => {
 
     expect(before.motes.filter((mote) => mote.shape === 'spark')).toEqual([]);
     expect(edges).toBeGreaterThan(2);
-    expect(Math.max(...heights) - Math.min(...heights)).toBeGreaterThan(CELL * 0.3);
+    expect(Math.max(...heights) - Math.min(...heights)).toBeGreaterThan(CELL * 0.2);
     expect(opened.motes.filter((mote) => mote.shape === 'spark').length).toBeGreaterThan(20);
   });
 

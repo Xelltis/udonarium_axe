@@ -169,6 +169,24 @@ describe('a wide sweep', () => {
     expect(wind.every((ribbon) => ribbon.points.every((point) => point.x < TARGET.x + CELL * 0.5))).toBe(true);
   });
 
+  it('gathers one blade at the first of several targets and sweeps on through the rest in turn', () => {
+    const two = {
+      ...cast,
+      targets: [
+        { identifier: 't0', ...TARGET, z: 0 },
+        { identifier: 't1', x: TARGET.x, y: TARGET.y + CELL * 2, z: 0 },
+      ],
+    };
+    const held = stagedAt(sweep, two, crosses * 0.8).ribbons.filter(
+      (ribbon) => ribbon.points.length === 7 && ribbon.core === '#ffffff'
+    );
+    const swept = wakesOf(stagedAt(sweep, two, crosses + 0.1 + 0.2));
+
+    expect(held).toHaveLength(1);
+    expect(swept.filter((wake) => wake.points.length === 21)).toHaveLength(4);
+    expect(swept.filter((wake) => wake.points.length === 15)).toHaveLength(1);
+  });
+
   it('lays no ring on the floor', () => {
     for (let since = 0; since < 1.5; since += 0.05) {
       expect(stagedAt(sweep, cast, crosses + since).floor.some((mark) => mark.shape === 'ring')).toBe(false);

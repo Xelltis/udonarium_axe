@@ -1,7 +1,7 @@
 import { clamp } from '@axe/core/util/clamp';
 import { isCurseAlone } from '@axe/domain/effect/ailment-looks';
 import { addAilmentJolts, ailmentJoltsEndOf } from '@axe/domain/effect/ailment-reaction';
-import { strikesFromOverhead } from '@axe/domain/effect/blade-looks';
+import { cutCarriesOf, type CutCarry, strikesFromOverhead } from '@axe/domain/effect/blade-looks';
 import { breathSurgeAt, breathTimingOf, isGentleBreath } from '@axe/domain/effect/breath-timing';
 import { heavesGround } from '@axe/domain/effect/earth-looks';
 import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows';
@@ -70,10 +70,11 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * How far each piece an effect strikes is thrown at a moment on the effect's own clock, and how far
  * the one who cast it leans in: a struck piece stands still through the hold as the blow lands, is
  * thrown back away from the one who struck, as far as the blow's push, and springs back to where it
- * stands; struck from no direction, or by a light that smites or a blade brought down from straight
- * above, it is pressed down instead, and where the ground heaves under it, by rubble or an upheaval,
- * or light bursts up out of it, in a sanctuary, it is thrown up off the floor. One that is drained is
- * pulled towards the one who drains it instead, where there is one. A breath lands no blow: the one who
+ * stands; cut, it is carried the way each stroke's blade went; struck from no direction, or by a light
+ * that smites or a blade brought down from straight above, it is pressed down instead, and where the
+ * ground heaves under it, by rubble or an upheaval, or light bursts up out of it, in a sanctuary, it
+ * is thrown up off the floor. One that is drained is pulled towards the one who drains it instead,
+ * where there is one. A breath lands no blow: the one who
  * breathes leans back as it draws the breath in, and each piece it blows on is pushed downwind and
  * trembles for as long as it is blown on. A tornado lands none either: it takes up the piece it
  * stands over and drags the rest it catches towards it. A curse on its own lands none: the piece it
@@ -118,6 +119,11 @@ export function effectJoltsOf(
     }
     const away = fallsFromAbove(preset) || strikesFromOverhead(preset) ? null : directionOf(cast.origin, target);
     if (thrown < 0 && !away) return;
+    const carries = away && cutCarriesOf(preset);
+    if (away && carries) {
+      add(target.identifier, carriedBy(blows, carries, away, local, cellPx, thrown));
+      return;
+    }
     add(
       target.identifier,
       away ? { x: away.x * thrown, y: away.y * thrown, z: 0 } : { x: 0, y: 0, z: -thrown * PRESSED_DOWN }
@@ -246,6 +252,31 @@ function breathLeanAt(elapsedMs: number, burstsAtMs: number): number {
   const share = since / THROWN_FURTHEST_MS;
   const fades = 1 - since / BURST_THRUST_MS;
   return back + BURST_THRUST * share * Math.exp(1 - share) * fades;
+}
+
+/**
+ * How far the strokes of a cut have thrown a piece a while into its own playback: each blow the way
+ * its blade went, and all of them together no further than `most`.
+ */
+function carriedBy(
+  blows: readonly EffectBlow[],
+  carries: readonly CutCarry[],
+  away: { x: number; y: number },
+  local: number,
+  cellPx: number,
+  most: number
+): EffectJolt {
+  let x = 0;
+  let y = 0;
+  blows.forEach((blow, index) => {
+    const carry = carries[Math.min(index, carries.length - 1)];
+    const far = blow.push * cellPx * throwAt(local - blow.atMs);
+    x += far * (away.x * carry.away - away.y * carry.across);
+    y += far * (away.y * carry.away + away.x * carry.across);
+  });
+  const size = Math.hypot(x, y);
+  const held = size > most ? most / size : 1;
+  return { x: x * held, y: y * held, z: 0 };
 }
 
 /** How far a struck piece is thrown some time after its hold, as a share of the blow's push: out fast and back slower. */

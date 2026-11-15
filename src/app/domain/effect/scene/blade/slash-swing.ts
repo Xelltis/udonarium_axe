@@ -23,6 +23,15 @@ const SWEEP = 1.35;
 /** How far past the middle of its arc a blade is as its blow lands, in radians: just through what it cuts. */
 const CROSSED = 0.16;
 
+/** How high up its target a cut crosses, as a share of how tall the target stands, and at the least, in cells. */
+const CROSSES_HIGH = 0.5;
+const CROSSES_LEAST = 0.3;
+
+/** Where a cut crosses its target: its middle, half as high as it stands. */
+export function chestOf(stage: Stage): Point {
+  return { x: stage.x, y: stage.y, z: stage.z + Math.max(stage.tall * CROSSES_HIGH, stage.cell * CROSSES_LEAST) };
+}
+
 /** The ways a stroke sweeps: across the target as its caster sees it, up, and back towards the caster. */
 export interface CutFrame {
   readonly across: Point;

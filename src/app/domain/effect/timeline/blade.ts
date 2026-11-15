@@ -103,7 +103,7 @@ export function slashHits(style: SlashStyle): SlashHit[] {
       return [strokeAt(SWEEP_CROSSES, { angle: 8, thickness: 46, offsetX: 0, offsetY: 0, reach: 4 })];
     case 'heavy':
       // The cleave, brought down from straight above.
-      return [strokeAt(CLEAVE_CROSSES, { angle: 88, thickness: 42, offsetX: 0, offsetY: 0, reach: 4.2 })];
+      return [strokeAt(CLEAVE_CROSSES, { angle: 88, thickness: 42, offsetX: 0, offsetY: 0, reach: 3.4 })];
     default:
       return [strokeAt(SINGLE_CROSSES, { angle: 26, thickness: 33, offsetX: 0, offsetY: 0, reach: 4 })];
   }

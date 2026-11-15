@@ -10,7 +10,7 @@ import {
   trailRibbons,
 } from '@axe/domain/effect/scene/blade/blade-trail';
 import { drawGathering, heldBlade } from '@axe/domain/effect/scene/blade/held-blade';
-import { cutFrameOf, strokeClock, swingOf } from '@axe/domain/effect/scene/blade/slash-swing';
+import { chestOf, cutFrameOf, strokeClock, swingOf } from '@axe/domain/effect/scene/blade/slash-swing';
 import { nothingStaged, outCubic, type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { earthTonesOf, layCrescent, layFissure } from '@axe/domain/effect/scene/earth/earth-parts';
 import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
@@ -24,14 +24,14 @@ import { slashHits } from '@axe/domain/effect/timeline/blade';
  * growing and trembling as light is pulled in to it; then it is swung level right across, wider than
  * the target by cells either side, and the whole of its arc hangs in the air after it, a great
  * crescent thinning away. Everything stops as it crosses. The floor under it is scored along the
- * stroke, and the wind of it races on over the floor past the target as a crescent of dust.
+ * stroke, and the wind of it races on over the floor past the target as a crescent of dust. Where it
+ * takes several targets the one blade is gathered at the first, and goes on through each of the rest
+ * in turn, leaving its arc and its score at each.
  */
 
 /** How long the blade takes to sweep across, and how long its trail takes to fade, in seconds. */
 const SWEEPS_S = 0.12;
 const FADES_S = 0.5;
-/** How high up its target the sweep crosses, in cells. */
-const CROSSES_HIGH = 0.5;
 /** How far the wind of it races over the floor, in cells, and how long it takes. */
 const WIND_FROM = 0.5;
 const WIND_REACH = 3;
@@ -57,7 +57,7 @@ export function drawSweep(stage: Stage, lingerS: number): Staged {
   const [hit] = slashHits('wide');
   const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
   const frame = cutFrameOf(stage);
-  const centre = { x: stage.x, y: stage.y, z: stage.z + cell * CROSSES_HIGH };
+  const centre = chestOf(stage);
   const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
   const swing = swingOf(hit, frame, centre, cell);
   const crosses = stage.blowsAt[0] ?? (hit.at + hit.span * 0.3) * duration;
@@ -78,8 +78,10 @@ export function drawSweep(stage: Stage, lingerS: number): Staged {
     z: centre.z,
   };
   const wide = cell * 0.16;
+  const leads = stage.targets.every((target) => target.index >= stage.index);
 
   if (t < clock.starts) {
+    if (!leads) return drawn;
     const charge = within(t, 0, clock.starts);
     const drawnBack = swing.from - 0.22 * (1 - outCubic(charge)) + Math.sin(t * 67) * 0.012 * charge;
     const tip = swingPoint(swing, drawnBack);
@@ -105,7 +107,7 @@ export function drawSweep(stage: Stage, lingerS: number): Staged {
       flowed: (t - clock.starts) * 4,
     })
   );
-  if (clock.swung < 1) drawn.ribbons.push(...heldBlade(hilt, swingPoint(swing, clock.head), wide, ramp, 1));
+  if (leads && clock.swung < 1) drawn.ribbons.push(...heldBlade(hilt, swingPoint(swing, clock.head), wide, ramp, 1));
   const since = t - crosses;
   if (since < 0) return drawn;
 
@@ -127,7 +129,7 @@ export function drawSweep(stage: Stage, lingerS: number): Staged {
     stage.seed
   );
   const racing = within(since, 0, WIND_S);
-  if (racing < 1) {
+  if (leads && racing < 1) {
     layCrescent(
       drawn,
       floor,
