@@ -644,7 +644,11 @@ export class BattleCutInOverlayComponent {
         onStage(layer.preset),
         layer.cast,
         layer.elapsed,
-        { cellPx: BATTLE_SCENE_CELL_PX, resolveFooting: (identifier) => footings.get(identifier) ?? null },
+        {
+          cellPx: BATTLE_SCENE_CELL_PX,
+          resolveFooting: (identifier) => footings.get(identifier) ?? null,
+          resolveHeight: (identifier) => (footings.has(identifier) ? BATTLE_FIGURE_PX : null),
+        },
         drawn
       );
     }
