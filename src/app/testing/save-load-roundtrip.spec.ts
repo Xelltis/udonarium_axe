@@ -8,6 +8,14 @@ import { xml2element } from '@axe/core/util/xml-util';
 import { buffKindMarkOf, buffKindOf } from '@axe/domain/character/buff-kind';
 import { BuffManager } from '@axe/domain/character/buff-manager';
 import { buffEffectTimingOf, buffTimingOf, writeBuffEffectTiming } from '@axe/domain/character/buff-timing';
+import {
+  captureDefaults,
+  clearDefaults,
+  countDefaults,
+  readDefault,
+  resetToDefaults,
+  writeDefault,
+} from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { newStatusAilment } from '@axe/domain/character/status-ailment';
@@ -21,6 +29,7 @@ import {
   DataElementAttribute,
   DataElementFieldType,
   DataElementRole,
+  DataElementType,
 } from '@axe/domain/data/data-element';
 import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
@@ -700,6 +709,179 @@ describe('save and load round trip', () => {
 
       expect(marked.replace(' cs-buff-kind="debuff"', '')).toBe(serializer.toXml(rows[0]));
       expect(marked).toContain('cs-buff-icon="☠"');
+    });
+  });
+
+  describe('the defaults the items of a sheet go back to', () => {
+    const DEFAULT_ATTRIBUTES = [
+      DataElementAttribute.DEFAULT,
+      DataElementAttribute.DEFAULT_MAX,
+      DataElementAttribute.DEFAULT_MAX_CORRECTION,
+      DataElementAttribute.DEFAULT_MIN_CORRECTION,
+    ];
+    let made: GameCharacter[] = [];
+
+    afterEach(() => {
+      for (const piece of made) piece.destroy();
+      made = [];
+      store.clearDeleteHistory();
+    });
+
+    /** A piece whose sheet holds a resource, two numbers and a checkbox, none with a default. */
+    function piece(name = '既定値の確認'): GameCharacter {
+      const character = GameCharacter.create(name, 1, '');
+      for (const child of [...character.detailDataElement!.children]) child.destroy();
+      const section = DataElement.create('能力', '');
+      character.detailDataElement!.appendChild(section);
+      section.appendChild(
+        DataElement.create('HP', 20, {
+          type: DataElementType.NUMBER_RESOURCE,
+          currentValue: 20,
+          [DataElementAttribute.MAX_BASE]: '20',
+        })
+      );
+      const number = () => ({ [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.NUMBER });
+      section.appendChild(DataElement.create('命中', 3, number()));
+      section.appendChild(DataElement.create('回避', 0, number()));
+      section.appendChild(
+        DataElement.create('転倒', 0, {
+          type: DataElementType.CHECK,
+          [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.CHECK,
+        })
+      );
+      made.push(character);
+      return character;
+    }
+
+    const item = (character: GameCharacter, name: string) => character.detailDataElement!.getFirstElementByName(name)!;
+
+    /**
+     * The sheet of a piece as it is saved. The piece is written and read by its sheet, the part of it
+     * this is about, since happy-dom reads no attribute with a dot in its name, which a whole piece
+     * carries.
+     */
+    const saved = (character: GameCharacter) => serializer.toXml(character.detailDataElement!);
+
+    /** A piece holding the sheet read back from the xml. */
+    function loaded(xml: string): GameCharacter {
+      const character = piece('読み込んだコマ');
+      for (const child of [...character.detailDataElement!.children]) child.destroy();
+      store.clearDeleteHistory();
+      const root = serializer.parseXml(xml) as DataElement;
+      for (const child of [...root.children]) character.detailDataElement!.appendChild(child);
+      return character;
+    }
+
+    const held = (character: GameCharacter) =>
+      ['命中', '回避', '転倒']
+        .map((name) => `${item(character, name).value}`)
+        .concat(`${item(character, 'HP').currentValue}`);
+
+    it('gives a piece made in a new room none of them, and a putting back nothing to change', () => {
+      const fresh = GameCharacter.create('新しいコマ', 1, '');
+      made.push(fresh);
+      const xml = serializer.toXml(fresh.rootDataElement!);
+
+      expect(xml).not.toContain('cs-default');
+      expect(countDefaults(fresh)).toBe(0);
+      expect(resetToDefaults(fresh).flatMap((reset) => reset.changes)).toEqual([]);
+      expect(serializer.toXml(fresh.rootDataElement!)).toBe(xml);
+    });
+
+    it('reads a piece saved before there were defaults with none, puts nothing back, and writes it as it was', () => {
+      const old = piece();
+      item(old, '命中').value = 9;
+      const xml = saved(old);
+      expect(xml).not.toContain('cs-default');
+
+      const read = loaded(xml);
+
+      expect(countDefaults(read)).toBe(0);
+      expect(resetToDefaults(read).flatMap((reset) => reset.changes)).toEqual([]);
+      expect(held(read)).toEqual(['9', '0', '0', '20']);
+      expect(saved(read)).toBe(xml);
+    });
+
+    it('goes through a save and a load with every default it was given, and puts the same values back', () => {
+      const before = piece();
+      item(before, 'HP').setAttribute(DataElementAttribute.MAX_CORRECTION, '5');
+      captureDefaults(before);
+      item(before, 'HP').currentValue = 4;
+      item(before, '命中').value = 7;
+      item(before, '回避').value = 2;
+      item(before, '転倒').value = 1;
+      const xml = saved(before);
+      for (const attribute of DEFAULT_ATTRIBUTES) expect(xml).toContain(`${attribute}="`);
+
+      const read = loaded(xml);
+
+      for (const name of ['HP', '命中', '回避', '転倒']) {
+        for (const attribute of DEFAULT_ATTRIBUTES) {
+          expect(item(read, name).getAttribute(attribute), `${name} ${attribute}`).toBe(
+            item(before, name).getAttribute(attribute)
+          );
+        }
+      }
+      expect(saved(read)).toBe(xml);
+      resetToDefaults(read);
+      expect(held(read)).toEqual(['3', '0', '0', '20']);
+    });
+
+    it('keeps a default of 0 apart from no default through a save and a load', () => {
+      const before = piece();
+      writeDefault(item(before, '回避'), 'now', 0);
+      item(before, '回避').value = 6;
+      item(before, '命中').value = 6;
+      const xml = saved(before);
+      expect(xml).toContain('cs-default="0"');
+
+      const read = loaded(xml);
+
+      expect(readDefault(item(read, '回避'), 'now')).toBe(0);
+      expect(readDefault(item(read, '命中'), 'now')).toBeNull();
+      resetToDefaults(read);
+      expect(held(read)).toEqual(['6', '0', '0', '20']);
+    });
+
+    it('reads an empty default and one that is no number as none, never as 0', () => {
+      const before = piece();
+      writeDefault(item(before, '命中'), 'now', 1);
+      item(before, '命中').value = 6;
+      const xml = saved(before);
+
+      for (const written of ['', ' ', 'abc']) {
+        const read = loaded(xml.replace('cs-default="1"', `cs-default="${written}"`));
+
+        expect(readDefault(item(read, '命中'), 'now'), `"${written}"`).toBeNull();
+        expect(resetToDefaults(read).flatMap((reset) => reset.changes)).toEqual([]);
+        expect(`${item(read, '命中').value}`).toBe('6');
+      }
+    });
+
+    it('carries the defaults with a single piece written out and brought into another room', () => {
+      const before = piece();
+      captureDefaults(before);
+      const whole = serializer.toXml(before);
+      for (const attribute of DEFAULT_ATTRIBUTES) expect(whole).toContain(`${attribute}="`);
+      const xml = saved(before);
+
+      const read = loaded(xml);
+      item(read, '命中').value = 8;
+      resetToDefaults(read);
+
+      expect(`${item(read, '命中').value}`).toBe('3');
+      expect(countDefaults(read)).toBe(countDefaults(before));
+    });
+
+    it('adds its attributes to what an older version reads, and changes none of the others', () => {
+      const before = piece();
+      const plain = saved(before);
+      captureDefaults(before);
+      const marked = saved(before);
+
+      expect(marked.replace(/ cs-default(?:-max|-max-correction|-min-correction)?="[^"]*"/g, '')).toBe(plain);
+      clearDefaults(before);
+      expect(saved(before)).toBe(plain);
     });
   });
 

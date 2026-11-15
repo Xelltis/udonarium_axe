@@ -1,4 +1,6 @@
+import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
+import { countDefaults } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { playsEffectOnChange, playsSoundOnChange } from '@axe/domain/character/resource-feedback';
 import {
@@ -22,6 +24,14 @@ describe('CharacterTemplateFactory', () => {
       const altitude = character.commonDataElement!.getFirstElementByName('altitude');
       expect(altitude).toBeTruthy();
       expect(altitude!.value).toBe(0);
+    });
+
+    it('gives no item of a new piece a default to go back to', () => {
+      const character = GameCharacter.create('戦士', 1, '');
+      const xml = ObjectSerializer.instance.toXml(character.rootDataElement!);
+
+      expect(xml).not.toContain('cs-default');
+      expect(countDefaults(character)).toBe(0);
     });
 
     it('gives it the two usual resources', () => {
