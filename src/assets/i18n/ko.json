@@ -2163,6 +2163,21 @@
       "turnHandle": { "name": "방향 바꾸기", "hint": "방향 바꾸기 (Alt를 누른 채로 {{step}}°씩)" },
       "rollHandle": { "name": "기울이기", "hint": "앞뒤로 기울이기 (더블클릭으로 똑바로 세우기)" },
       "contextMenu": {
+        "reset_allBuffs": "버프 모두 떼기",
+        "reset_buffs": "버프만 떼기",
+        "reset_debuffs": "디버프만 떼기",
+        "reset_values": "값을 기본값으로 되돌리기",
+        "reset_everything": "모두 리셋",
+        "resetConfirm_allBuffs": "\"{{name}}\"의 버프를 모두 뗍니다({{buffs}}건). 계속할까요?",
+        "resetConfirm_buffs": "\"{{name}}\"의 버프를 뗍니다({{buffs}}건). 디버프는 남습니다. 계속할까요?",
+        "resetConfirm_debuffs": "\"{{name}}\"의 디버프를 뗍니다({{buffs}}건). 버프는 남습니다. 계속할까요?",
+        "resetConfirm_values": "\"{{name}}\"의 값을 기본값으로 되돌립니다({{items}}개 항목). 계속할까요?",
+        "resetConfirm_everything": "\"{{name}}\"의 버프를 모두 떼고 값을 기본값으로 되돌립니다(버프 {{buffs}}건·값 {{items}}개 항목). 계속할까요?",
+        "resetDone_allBuffs": "[{{name}}] 모든 버프를 해제했습니다({{buffs}}건)",
+        "resetDone_buffs": "[{{name}}] 버프를 해제했습니다({{buffs}}건)",
+        "resetDone_debuffs": "[{{name}}] 디버프를 해제했습니다({{buffs}}건)",
+        "resetDone_values": "[{{name}}] 값을 기본값으로 되돌렸습니다({{items}}개 항목)",
+        "resetDone_everything": "[{{name}}] 리셋했습니다(버프 {{buffs}}건·값 {{items}}개 항목)",
         "showDetail": "자세히 보기",
         "memo": "메모",
         "showChatPalette": "채팅 팔레트 표시",
@@ -2245,6 +2260,9 @@
         "otherSection": "그 밖의 생성"
       },
       "buff": {
+        "kind": "구분",
+        "kind_buff": "버프",
+        "kind_debuff": "디버프",
         "count": "버프 {{count}}개",
         "more": "{{count}}개 더",
         "detail": "자세히 보기",
@@ -3957,6 +3975,13 @@
       }
     },
     "chat": {
+      "reset": {
+        "undo": "되돌리기",
+        "undone": "{{restored}}명을 되돌렸습니다",
+        "undoSkipped": "{{restored}}명을 되돌렸습니다. {{skipped}}명은 그 뒤에 변경되어 되돌리지 않았습니다",
+        "undoNone": "그 뒤에 변경되어 되돌릴 수 없습니다",
+        "undoneNotice": "리셋을 되돌렸습니다({{restored}}명)"
+      },
       "window": {
         "scrollNewCount": "새 메시지 {{count}}건",
         "scrollLatest": "최신 메시지로 이동",
@@ -5659,6 +5684,18 @@
       "shownToLabel": "보여줄 대상"
     },
     "buffManager": {
+      "sweepAll": "전부",
+      "sweepBuffsOnly": "버프만",
+      "sweepDebuffsOnly": "디버프만",
+      "sweepAllWhat": "모든 버프",
+      "sweepBuffsWhat": "버프",
+      "sweepDebuffsWhat": "디버프",
+      "sweepWithValues": "값도 기본값으로 되돌리기",
+      "sweepWithValuesHint": "테이블 위 모든 말의 기본값이 있는 항목을 되돌립니다. 버프를 뗀 뒤에 되돌립니다",
+      "sweepCountWithValues": "{{characters}}명·{{buffs}}건, 값 {{items}}개 항목이 대상입니다",
+      "sweepNothing": "해제할 버프도 되돌릴 값도 없습니다",
+      "sweepConfirmWithValues": "테이블 전체에서 {{what}}을(를) 해제하고 값을 기본값으로 되돌립니다({{characters}}명·버프 {{buffs}}건·값 {{items}}개 항목). 계속할까요?",
+      "resetDone": "테이블 전체에서 {{what}}을(를) 해제하고 값을 기본값으로 되돌렸습니다({{characters}}명·버프 {{buffs}}건·값 {{items}}개 항목)",
       "title": "버프 매니저",
       "currentRound": "현재 {{n}}R",
       "rowCount": "{{n}}체",
@@ -5910,6 +5947,22 @@
         "effect": "말에서 쏘기"
       },
       "field": {
+        "default": "기본값",
+        "defaultMax": "기본 최대값",
+        "defaultNone": "없음",
+        "defaultHint": "리셋하면 돌아가는 값입니다. 비워 두면 기본값이 없어지고 리셋해도 바뀌지 않습니다",
+        "defaultChecked": "체크함",
+        "defaultUnchecked": "체크 안 함",
+        "captureDefaults": "현재 값을 기본값으로",
+        "captureDefaultsHint": "이 말과 부위의 수치·리소스·체크와 숫자가 든 텍스트의 현재 값을 리셋으로 돌아갈 값으로 기억합니다",
+        "clearDefaults": "기본값 지우기",
+        "backToDefault": "기본값 {{value}}",
+        "captureConfirm": "{{count}}개 항목의 현재 값을 기본값으로 합니다(부위 포함). 계속할까요?",
+        "captureNone": "기본값으로 할 수 있는 항목이 없습니다",
+        "captureDone": "{{count}}개 항목의 기본값을 기억했습니다",
+        "clearConfirm": "{{count}}개 항목의 기본값을 지웁니다(부위 포함). 계속할까요?",
+        "clearNone": "기본값이 있는 항목이 없습니다",
+        "clearDone": "{{count}}개 항목의 기본값을 지웠습니다",
         "choices": "선택지",
         "choicesPlaceholder": "한 줄씩 또는 쉼표 구분",
         "unit": "단위",

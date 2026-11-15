@@ -2163,6 +2163,21 @@
       "turnHandle": { "name": "向きを変える", "hint": "向きを変える（Alt を押しながら回すと {{step}}° ずつ）" },
       "rollHandle": { "name": "傾ける", "hint": "前後に傾ける（ダブルクリックでまっすぐに戻す）" },
       "contextMenu": {
+        "reset_allBuffs": "バフをすべて外す",
+        "reset_buffs": "バフだけ外す",
+        "reset_debuffs": "デバフだけ外す",
+        "reset_values": "値を既定値に戻す",
+        "reset_everything": "すべてリセット",
+        "resetConfirm_allBuffs": "「{{name}}」のバフをすべて外します（{{buffs}}件）。よろしいですか？",
+        "resetConfirm_buffs": "「{{name}}」のバフを外します（{{buffs}}件）。デバフは残ります。よろしいですか？",
+        "resetConfirm_debuffs": "「{{name}}」のデバフを外します（{{buffs}}件）。バフは残ります。よろしいですか？",
+        "resetConfirm_values": "「{{name}}」の値を既定値に戻します（{{items}}項目）。よろしいですか？",
+        "resetConfirm_everything": "「{{name}}」のバフをすべて外し、値を既定値に戻します（バフ{{buffs}}件・値{{items}}項目）。よろしいですか？",
+        "resetDone_allBuffs": "[{{name}}]すべてのバフを解除しました（{{buffs}}件）",
+        "resetDone_buffs": "[{{name}}]バフを解除しました（{{buffs}}件）",
+        "resetDone_debuffs": "[{{name}}]デバフを解除しました（{{buffs}}件）",
+        "resetDone_values": "[{{name}}]値を既定値に戻しました（{{items}}項目）",
+        "resetDone_everything": "[{{name}}]リセットしました（バフ{{buffs}}件・値{{items}}項目）",
         "showDetail": "詳細を表示",
         "memo": "メモ",
         "showChatPalette": "チャットパレットを表示",
@@ -2245,6 +2260,9 @@
         "otherSection": "その他の作成"
       },
       "buff": {
+        "kind": "区分",
+        "kind_buff": "バフ",
+        "kind_debuff": "デバフ",
         "count": "バフ{{count}}個",
         "more": "あと{{count}}個",
         "detail": "詳細表示",
@@ -3957,6 +3975,13 @@
       }
     },
     "chat": {
+      "reset": {
+        "undo": "元に戻す",
+        "undone": "{{restored}}体を戻しました",
+        "undoSkipped": "{{restored}}体を戻しました。{{skipped}}体は、そのあと変更されたため戻していません",
+        "undoNone": "そのあと変更されたため、元に戻せませんでした",
+        "undoneNotice": "リセットを元に戻しました（{{restored}}体）"
+      },
       "window": {
         "scrollNewCount": "{{count}}件の新着メッセージ",
         "scrollLatest": "最新メッセージへ移動",
@@ -5657,6 +5682,18 @@
       "shownToLabel": "見せる相手"
     },
     "buffManager": {
+      "sweepAll": "すべて",
+      "sweepBuffsOnly": "バフだけ",
+      "sweepDebuffsOnly": "デバフだけ",
+      "sweepAllWhat": "すべてのバフ",
+      "sweepBuffsWhat": "バフ",
+      "sweepDebuffsWhat": "デバフ",
+      "sweepWithValues": "値も既定値に戻す",
+      "sweepWithValuesHint": "卓の上の全コマの、既定値のある項目を戻します。バフを外したあとに戻します",
+      "sweepCountWithValues": "{{characters}}体・{{buffs}}件、値{{items}}項目が対象です",
+      "sweepNothing": "解除するバフも戻す値もありません",
+      "sweepConfirmWithValues": "卓全体から{{what}}を解除し、値を既定値に戻します（{{characters}}体・バフ{{buffs}}件・値{{items}}項目）。よろしいですか？",
+      "resetDone": "卓全体から{{what}}を解除し、値を既定値に戻しました（{{characters}}体・バフ{{buffs}}件・値{{items}}項目）",
       "title": "バフマネージャー",
       "currentRound": "現在 {{n}}R",
       "rowCount": "{{n}} 体",
@@ -6735,6 +6772,22 @@
       "effect": "コマから撃つ"
     },
     "field": {
+      "default": "既定値",
+      "defaultMax": "既定の最大値",
+      "defaultNone": "なし",
+      "defaultHint": "リセットで戻る先の値です。空にすると既定値なしになり、リセットで変わりません",
+      "defaultChecked": "チェックあり",
+      "defaultUnchecked": "チェックなし",
+      "captureDefaults": "いまの値を既定値にする",
+      "captureDefaultsHint": "このコマと部位の数値・リソース・チェックと、数が入ったテキストのいまの値を、リセットで戻る先として覚えます",
+      "clearDefaults": "既定値を消す",
+      "backToDefault": "既定値 {{value}}",
+      "captureConfirm": "{{count}}項目のいまの値を既定値にします（部位を含みます）。よろしいですか？",
+      "captureNone": "既定値にできる項目がありません",
+      "captureDone": "{{count}}項目の既定値を覚えました",
+      "clearConfirm": "{{count}}項目の既定値を消します（部位を含みます）。よろしいですか？",
+      "clearNone": "既定値のある項目はありません",
+      "clearDone": "{{count}}項目の既定値を消しました",
       "choices": "選択肢",
       "choicesPlaceholder": "1行またはカンマ区切り",
       "unit": "単位",
