@@ -118,6 +118,7 @@ const MOTE_SHAPES: readonly EffectMoteShape[] = [
   'flare',
   'comet',
   'plume',
+  'crag',
   'lick',
   'wisp',
   'jet',
@@ -125,7 +126,9 @@ const MOTE_SHAPES: readonly EffectMoteShape[] = [
 ];
 /** The shapes that flow: see {@link EffectMoteShape}. They are the last of the list, from the first of them on. */
 const FLOWING_FROM = MOTE_SHAPES.indexOf('lick');
-const MARK_SHAPES: readonly EffectFloorShape[] = ['ring', 'disc', 'sigil', 'cracks', 'scorch'];
+/** The shapes whose spin is no turn but something told of them, kept as it is: a crag, and those that flow after it. */
+const UNTURNED_FROM = MOTE_SHAPES.indexOf('crag');
+const MARK_SHAPES: readonly EffectFloorShape[] = ['ring', 'disc', 'sigil', 'cracks', 'scorch', 'fissure'];
 /** The number each shape is told to the shaders by, from its place in the list, which the shaders tell the shapes apart by. */
 const MOTE_SHAPE = Object.fromEntries(MOTE_SHAPES.map((shape, at) => [shape, at])) as Record<EffectMoteShape, number>;
 const MARK_SHAPE = Object.fromEntries(MARK_SHAPES.map((shape, at) => [shape, at])) as Record<EffectFloorShape, number>;
@@ -303,8 +306,8 @@ export class EffectLayer {
       look.array[at] = shape;
       // Turned within one round, as the shapes only take whole multiples of them: a graphics card
       // keeps too few figures to turn by a seed's worth. A shape that flows is told how far its
-      // pattern has run as it is, which a round would cut short.
-      look.array[at + 1] = shape >= FLOWING_FROM ? (mote.spin ?? 0) : withinRound(mote.spin ?? 0);
+      // pattern has run as it is, which a round would cut short, and a crag what its spin holds.
+      look.array[at + 1] = shape >= UNTURNED_FROM ? (mote.spin ?? 0) : withinRound(mote.spin ?? 0);
       look.array[at + 2] = withinRound(mote.variant ?? 0);
       look.array[at + 3] = nearerOf(mote);
       if (mote.core) {
@@ -653,6 +656,65 @@ export class EffectLayer {
     // A plume of smoke drawn out the way it rises: soft, round at both ends and thinning to its edge.
     const plumeWidth = pow(sin(up.mul(Math.PI)), 0.6).add(0.001);
     const plume = pow(clamp(float(1).sub(abs(point.x).div(plumeWidth)), 0, 1), 1.4).mul(0.85);
+    // A crag of rock, drawn out from its root to its tip: two faces meeting in a ridge, the one lit
+    // and the other in shadow, beds of stone running across each and meeting at the ridge, notches
+    // chipped out of its edges, a dark outline; broken off short of its tip by as much as its spin
+    // says in whole hundredths, and veins of its core's colour climbing it as far as the rest of its spin.
+    const cragLong = up.mul(reach.div(max(size, 1)));
+    const cragBroken = floor(spin).div(100);
+    const cragClimbed = fract(spin);
+    const cragSide = select(point.x.greaterThan(0), float(1), float(0));
+    const cragNotch = gridNoise(vec2(floor(cragLong.mul(2.4).add(variant.mul(7))), cragSide.add(floor(variant.mul(3)))))
+      .mul(0.16)
+      .mul(smoothstep(0.03, 0.14, up));
+    const cragWidth = pow(clamp(float(1).sub(up), 0, 1), 0.62)
+      .mul(0.97)
+      .sub(cragNotch);
+    const cragJag = gridNoise(vec2(floor(point.x.mul(2.6).add(variant.mul(5))), floor(variant.mul(11)))).mul(0.09);
+    const cragTop = float(1)
+      .sub(cragBroken)
+      .sub(cragJag.mul(select(cragBroken.greaterThan(0), float(1), float(0))))
+      .sub(up);
+    const cragEdge = cragWidth.sub(abs(point.x));
+    const crag = clamp(cragEdge.div(max(fwidth(point.x), 0.001)).add(0.5), 0, 1).mul(
+      clamp(cragTop.div(max(fwidth(up), 0.0005)).add(0.5), 0, 1)
+    );
+    const cragRidge = sin(variant.mul(9))
+      .mul(0.3)
+      .mul(float(1).sub(up))
+      .add(sin(cragLong.mul(1.7).add(variant.mul(4))).mul(0.035));
+    const cragAside = point.x.sub(cragRidge);
+    const cragLit = cragAside.lessThan(0);
+    const cragBed = cragLong
+      .mul(2.6)
+      .add(abs(cragAside).mul(select(cragLit, float(1.5), float(0.7))))
+      .add(softNoise(vec2(point.x.mul(1.4).add(variant), cragLong.mul(0.9))).mul(0.7));
+    const cragSeam = select(fract(cragBed).lessThan(0.13), float(0.72), float(1));
+    const cragLayer = select(
+      softNoise(vec2(variant.mul(3), cragBed.mul(0.55))).greaterThan(0.56),
+      float(1.14),
+      float(0.96)
+    );
+    const cragCrest = select(cragLit.and(cragAside.greaterThan(-0.09)), float(1.22), float(1));
+    const cragOutlined = cragEdge
+      .lessThan(0.1)
+      .or(cragTop.lessThan(select(cragBroken.greaterThan(0), float(0.012), float(0))));
+    const cragShade = select(
+      cragOutlined,
+      float(0.4),
+      select(cragLit, float(1.38), float(0.62)).mul(cragSeam).mul(cragLayer).mul(cragCrest)
+    );
+    const cragZig = abs(fract(cragLong.mul(1.15).add(variant)).sub(0.5))
+      .sub(0.25)
+      .mul(0.5);
+    const cragVeinOff = min(
+      abs(cragAside.sub(cragZig)),
+      abs(cragAside.add(float(0.42).mul(float(1).sub(up))).add(cragZig.mul(1.4))).add(0.02)
+    );
+    const cragVeined = max(smoothstep(0.05, 0.03, cragVeinOff), smoothstep(0.22, 0.02, cragVeinOff).mul(0.45))
+      .mul(smoothstep(cragClimbed, cragClimbed.sub(0.06), up))
+      .mul(select(cragClimbed.greaterThan(0.001), float(1), float(0)))
+      .mul(core.w);
     // The shapes that flow share one pattern: two sizes of soft noise, drawn out the way the shape
     // runs and carried down it by its spin, which eats into the shape's edge, the more the nearer its tip.
     const flowAt = vec2(
@@ -733,7 +795,11 @@ export class EffectLayer {
                     select(
                       shape.equal(MOTE_SHAPE.tongue),
                       tongue,
-                      select(shape.equal(MOTE_SHAPE.flare), flare, select(shape.equal(MOTE_SHAPE.comet), comet, plume))
+                      select(
+                        shape.equal(MOTE_SHAPE.flare),
+                        flare,
+                        select(shape.equal(MOTE_SHAPE.comet), comet, select(shape.equal(MOTE_SHAPE.crag), crag, plume))
+                      )
                     )
                   )
                 )
@@ -755,9 +821,13 @@ export class EffectLayer {
       shape.equal(MOTE_SHAPE.chunk),
       chunkShade,
       select(
-        shape.equal(MOTE_SHAPE.smoke).or(shape.equal(MOTE_SHAPE.plume)),
-        float(1.12).sub(uv().y.oneMinus().mul(0.4)),
-        float(1)
+        shape.equal(MOTE_SHAPE.crag),
+        cragShade,
+        select(
+          shape.equal(MOTE_SHAPE.smoke).or(shape.equal(MOTE_SHAPE.plume)),
+          float(1.12).sub(uv().y.oneMinus().mul(0.4)),
+          float(1)
+        )
       )
     );
     const hot = select(
@@ -773,7 +843,11 @@ export class EffectLayer {
         )
       )
     );
-    const body = mix(tint.rgb.mul(lit), core.rgb, select(flows, cored, float(0)));
+    const body = mix(
+      tint.rgb.mul(lit),
+      core.rgb,
+      select(flows, cored, select(shape.equal(MOTE_SHAPE.crag), cragVeined, float(0)))
+    );
     const shown = mix(body, vec3(1, 1, 1), blend === 'light' ? hot : float(0));
 
     const material = new MeshBasicNodeMaterial({
@@ -802,7 +876,7 @@ export class EffectLayer {
   /**
    * The marks of a blend on the floor: each a quad lying on it at its place, as wide across as its
    * reach, turned about its middle: a ring, a soft disc, a sigil of rings and marks, cracks running
-   * out from the middle, or a scorch with a ragged edge.
+   * out from the middle, a scorch with a ragged edge, or a fissure run across it the way it is turned.
    */
   private markBatch(blend: EffectBlend): Batch {
     const place = attribute<'vec4'>('place', 'vec4');
@@ -864,13 +938,39 @@ export class EffectLayer {
       .add(sin(angle.mul(23).add(seed.mul(5))).mul(0.025))
       .add(0.62);
     const scorch = clamp(ragged.add(0.2).sub(away).div(blur).add(0.5), 0, 1);
+    // A fissure: a crack run from one end of the mark to the other along the way it is turned,
+    // jagged, widest in its middle and drawn to a point at each end, two lesser cracks branching off it.
+    const run = point.x.mul(cos(turn)).add(point.y.mul(sin(turn)));
+    const off = point.y.mul(cos(turn)).sub(point.x.mul(sin(turn)));
+    const zigzag = (at: Node<'float'>, rate: number, shift: number) =>
+      abs(fract(at.mul(rate).add(seed.mul(shift))).sub(0.5)).sub(0.25);
+    const fissureLine = zigzag(run, 2.3, 1)
+      .mul(0.34)
+      .add(zigzag(run, 6.1, 1.7).mul(0.12));
+    const fissureWide = width.mul(pow(clamp(float(1).sub(abs(run)), 0, 1), 0.6));
+    const cut = (field: Node<'float'>) => clamp(field.div(max(fwidth(off), 0.0005)).add(0.5), 0, 1);
+    const branch = (from: number, slope: number, long: number) => {
+      const along = run.sub(from).mul(Math.sign(long));
+      const share = along.div(Math.abs(long));
+      const line = fissureLine.add(along.mul(slope)).add(zigzag(run, 5.3, 2.9).mul(0.1).mul(share));
+      const wide = width.mul(0.6).mul(clamp(float(1).sub(share), 0, 1));
+      return cut(wide.sub(abs(off.sub(line)))).mul(select(along.greaterThan(0), float(1), float(0)));
+    };
+    const fissure = max(
+      cut(fissureWide.sub(abs(off.sub(fissureLine)))),
+      max(branch(-0.25, 0.55, 0.55), branch(0.2, -0.5, -0.6))
+    );
     const alpha = select(
       shape.equal(MARK_SHAPE.ring),
       ring,
       select(
         shape.equal(MARK_SHAPE.disc),
         disc,
-        select(shape.equal(MARK_SHAPE.sigil), sigil, select(shape.equal(MARK_SHAPE.cracks), cracks, scorch))
+        select(
+          shape.equal(MARK_SHAPE.sigil),
+          sigil,
+          select(shape.equal(MARK_SHAPE.cracks), cracks, select(shape.equal(MARK_SHAPE.fissure), fissure, scorch))
+        )
       )
     );
 

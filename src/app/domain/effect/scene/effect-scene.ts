@@ -29,6 +29,12 @@ export type EffectBlend = 'light' | 'color';
  * tongue the other way about, round at its head and pointed behind; a plume of smoke, soft and drawn
  * out the way it rises.
  *
+ * A crag is rock, drawn out from its root along the way it is given as a tongue is, wide at its root
+ * and drawn to a point: two faces meeting in a ridge, one lit and one in shadow, beds of stone across
+ * them, chips out of its edges and an outline. Its spin holds two things: in whole numbers, how many
+ * hundredths of its length are broken off its top, leaving a stump or a slab; and in what is over,
+ * how far up it veins of its core's colour have climbed, from 0 for none towards 1 for its tip.
+ *
  * Four more are drawn out along the way they are given as a tongue is, and flow: a pattern runs down
  * each from its root to its tip, as far as its spin says, eating into its edge, and its middle is
  * taken to its core's colour in two steps. A lick, a hard-edged tongue of flame, round at its root
@@ -48,6 +54,7 @@ export type EffectMoteShape =
   | 'flare'
   | 'comet'
   | 'plume'
+  | 'crag'
   | 'lick'
   | 'wisp'
   | 'jet'
@@ -127,7 +134,7 @@ export interface EffectRibbon {
 }
 
 /** The kinds of mark laid on the floor. */
-export type EffectFloorShape = 'ring' | 'disc' | 'sigil' | 'cracks' | 'scorch';
+export type EffectFloorShape = 'ring' | 'disc' | 'sigil' | 'cracks' | 'scorch' | 'fissure';
 
 /** A mark laid flat on the floor, under and round what it is laid at. */
 export interface EffectFloorMark {
@@ -137,12 +144,12 @@ export interface EffectFloorMark {
   readonly z: number;
   /** How far it reaches from its middle, in table pixels. */
   readonly radius: number;
-  /** How wide its line is, as a share of its radius, for a ring or a sigil. */
+  /** How wide its line is, as a share of its radius, for a ring, a sigil or a fissure. */
   readonly width: number;
   readonly color: string;
   readonly alpha: number;
   readonly blend: EffectBlend;
-  /** How far it is turned about its middle, in radians. */
+  /** How far it is turned about its middle, in radians; a fissure runs the way it is turned, from the east towards the north. */
   readonly turn: number;
   /** Picks among looks of the same shape, as the spokes of cracks. */
   readonly seed: number;

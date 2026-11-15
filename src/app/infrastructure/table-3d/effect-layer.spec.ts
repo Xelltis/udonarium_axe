@@ -105,6 +105,66 @@ describe('EffectLayer', () => {
     layer.dispose();
   });
 
+  it('tells a crag what its spin holds as it is, how much of it is broken off and how far it is veined, as no turn is', () => {
+    const layer = new EffectLayer();
+
+    layer.set({
+      motes: [
+        mote({ shape: 'crag', spin: 72.4 }),
+        mote({ shape: 'plume', spin: 72.4 }),
+        mote({ shape: 'lick', spin: 1 }),
+      ],
+      ribbons: [],
+      floor: [],
+      lights: [],
+    });
+    const [crag, plume, lick] = looksOf(layer, 'color');
+
+    expect(crag[1]).toBeCloseTo(72.4, 4);
+    expect(plume[1]).toBeLessThan(Math.PI * 2);
+    expect(plume[0]).toBeLessThan(crag[0]);
+    expect(crag[0]).toBeLessThan(lick[0]);
+    layer.dispose();
+  });
+
+  it('lays a fissure as a mark of its own kind, turned the way it runs and as wide as it is told', () => {
+    const layer = new EffectLayer();
+    const mark = {
+      x: 1,
+      y: 2,
+      z: 3,
+      radius: 40,
+      width: 0.1,
+      color: '#402010',
+      alpha: 1,
+      blend: 'color',
+      turn: 0.7,
+      seed: 4,
+    } as const;
+
+    layer.set({
+      motes: [],
+      ribbons: [],
+      floor: [
+        { ...mark, shape: 'fissure' },
+        { ...mark, shape: 'scorch' },
+      ],
+      lights: [],
+    });
+    const meshes = layer.group.children.filter((object) => (object as Mesh).isMesh) as Mesh[];
+    const marks = meshes
+      .map((mesh) => mesh.geometry as InstancedBufferGeometry)
+      .filter(
+        (geometry) => geometry.getAttribute('look') !== undefined && geometry.getAttribute('motion') === undefined
+      )[1];
+    const look = marks.getAttribute('look').array;
+
+    expect(marks.instanceCount).toBe(2);
+    expect(look[0]).toBe(look[4] + 1);
+    expect([...look.slice(1, 4)].map((value) => Math.round(value * 100) / 100)).toEqual([0.1, 0.7, 4]);
+    layer.dispose();
+  });
+
   it('tells the colour of the middle of a particle that has one, and none for the rest, whatever was drawn before', () => {
     const layer = new EffectLayer();
 
