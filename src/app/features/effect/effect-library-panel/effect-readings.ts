@@ -61,6 +61,8 @@ const WORD_READINGS: Readonly<Record<string, string>> = {
   裁き: 'さばき',
   光輪: 'こうりん',
   聖域: 'せいいき',
+  地割れ: 'じわれ',
+  大地震: 'だいじしん',
   // Grades and reaches.
   初級: 'しょきゅう',
   中級: 'ちゅうきゅう',
@@ -107,6 +109,7 @@ const WORD_READINGS: Readonly<Record<string, string>> = {
   氷棺: 'ひょうかん',
   大地: 'だいち',
   突風: 'とっぷう',
+  砂塵: 'さじん',
   生命: 'せいめい',
   暗黒: 'あんこく',
   暗黒球: 'あんこくきゅう',

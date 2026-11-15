@@ -1483,7 +1483,8 @@
         "halo": "光輪",
         "sanctuary": "聖域",
         "shadow": "影の棘・奈落",
-        "darkorb": "暗黒球・蝕"
+        "darkorb": "暗黒球・蝕",
+        "quake": "地割れ・大地震"
       },
       "targeting": {
         "self": "自分",

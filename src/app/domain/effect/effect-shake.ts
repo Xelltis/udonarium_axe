@@ -36,6 +36,7 @@ const SHAKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'drain',
   'shadow',
   'darkorb',
+  'quake',
 ]);
 
 /**

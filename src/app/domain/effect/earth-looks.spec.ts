@@ -2,6 +2,9 @@ import { DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-p
 import {
   heavesGround,
   isRockShot,
+  quakeLookOf,
+  quakeSoundsAt,
+  quakeStrikesOf,
   RUBBLE_HEAVES,
   rubbleHeavesOf,
   upheavalTimingOf,
@@ -107,5 +110,43 @@ describe('heavesGround()', () => {
     expect(heavesGround({ isStaged: false, effectKind: 'impact' })).toBe(false);
     expect(heavesGround({ isStaged: false, effectKind: 'projectile' })).toBe(false);
     expect(heavesGround({ isStaged: true, effectKind: 'upheaval' })).toBe(false);
+  });
+});
+
+describe('a quake', () => {
+  function quakeOf(grade: number, areaRadius = 0): EffectPreset {
+    const preset = new EffectPreset('preset');
+    preset.kind = 'quake';
+    preset.grade = grade;
+    preset.targeting = 'multi';
+    preset.areaRadius = areaRadius;
+    return preset;
+  }
+
+  it('tears a rift below the highest grade, and heaves the ground of an area at the highest over one', () => {
+    expect(quakeLookOf(quakeOf(1))).toBe('rift');
+    expect(quakeLookOf(quakeOf(2))).toBe('rift');
+    expect(quakeLookOf(quakeOf(2, 3))).toBe('rift');
+    expect(quakeLookOf(quakeOf(3))).toBe('rift');
+    expect(quakeLookOf(quakeOf(3, 3))).toBe('quake');
+  });
+
+  it('strikes once as a rift reaches its target, and three times over an area, the heaves well apart', () => {
+    expect(quakeStrikesOf(quakeOf(2), 2.691)).toEqual([0.3]);
+    const heaves = quakeStrikesOf(quakeOf(3, 3), 5.042)!;
+    expect(heaves).toEqual([0.42, 1.88, 2.68]);
+    expect(quakeStrikesOf(quakeOf(3, 3), 1.5)!.every((heave) => heave < 1.5)).toBe(true);
+    const shot = new EffectPreset('shot');
+    shot.kind = 'projectile';
+    expect(quakeStrikesOf(shot, 1)).toBeUndefined();
+  });
+
+  it('sounds its landing a little before it first strikes, as the crack of rock peaks after it starts', () => {
+    expect(quakeSoundsAt(quakeOf(2), 2.691)! * 2.691).toBeCloseTo(0.2);
+    expect(quakeSoundsAt(quakeOf(3, 3), 5.042)! * 5.042).toBeCloseTo(0.32);
+  });
+
+  it('heaves what it strikes up off the floor, as rubble does, but not as a stage of a run', () => {
+    expect(heavesGround(quakeOf(2))).toBe(true);
   });
 });

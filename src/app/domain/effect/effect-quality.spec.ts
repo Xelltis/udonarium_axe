@@ -63,8 +63,9 @@ function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; ca
  * of holy light, and a rain of arrows on as many as the bundled one takes and on few enough to fall
  * doubled; and the looks that bless, each healing, cleansing, barrier and aura on as many as the
  * bundled one takes; the looks of darkness by their grades, a mire and an eclipse over an area on
- * eight, a draining on three, and a great blade that lands in a black sphere. The last of each is
- * how many targets it is cast on, where that is not four.
+ * eight, a draining on three, and a great blade that lands in a black sphere; a rift on three and a
+ * quake over an area on eight, and a breath of sand. The last of each is how many targets it is cast on,
+ * where that is not four.
  */
 const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, number?])[] = [
   ...[...AILMENT_LOOKS, 'arc', 'haze'].map((moteStyle) => ['curse', { moteStyle, durationMs: 5500 }] as const),
@@ -106,6 +107,9 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, numbe
   ['darkorb', { targeting: 'multi', maxTargets: 8, areaRadius: 3, durationMs: 4206 }, 8],
   ['drain', { grade: 2, durationMs: 3239, staggerMs: 120 }, 3],
   ['skyblade', { impactKind: 'darkorb', durationMs: 3000 }],
+  ['quake', { grade: 2, durationMs: 2691, staggerMs: 140 }, 3],
+  ['quake', { targeting: 'multi', maxTargets: 8, areaRadius: 3, durationMs: 5042, staggerMs: 0 }, 8],
+  ['breath', { tagName: '土', durationMs: 4493 }],
   ['projectile', { projectileStyle: 'bullet', impactKind: 'rubble', shots: 14, shotInterval: 70, durationMs: 1300 }],
   ['projectile', { projectileStyle: 'missile', impactKind: 'burst' }],
   ['projectile', { projectileStyle: 'bullet', impactKind: 'impact', shots: 10, shotInterval: 90 }],

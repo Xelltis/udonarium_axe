@@ -50,6 +50,7 @@ const ELEMENT_OF: Partial<Record<EffectKind, SwordElement>> = {
   upheaval: 'earth',
   rubble: 'earth',
   impact: 'earth',
+  quake: 'earth',
   miasma: 'dark',
   curse: 'dark',
   gravity: 'dark',

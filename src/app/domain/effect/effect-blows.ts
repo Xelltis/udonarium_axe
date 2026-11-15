@@ -1,6 +1,6 @@
 import { curseLookOf, isCurseAlone, takesHoldAt } from '@axe/domain/effect/ailment-looks';
 import { darkStrikesAt } from '@axe/domain/effect/dark-looks';
-import { RUBBLE_FIRST_HEAVE, rubbleHeavesOf } from '@axe/domain/effect/earth-looks';
+import { quakeStrikesOf, RUBBLE_FIRST_HEAVE, rubbleHeavesOf } from '@axe/domain/effect/earth-looks';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
 import { breaksOutAsAura, type EffectShake, effectShakeOf } from '@axe/domain/effect/effect-shake';
@@ -53,6 +53,7 @@ const STRIKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'sanctuary',
   'shadow',
   'darkorb',
+  'quake',
 ]);
 
 /** How long everything holds still on contact, by grade: a light blow barely catches, the heaviest stops the breath. */
@@ -94,6 +95,7 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
   impact: 0.06,
   rubble: RUBBLE_FIRST_HEAVE,
   upheaval: 0.12,
+  quake: 0.12,
   bash: 0.1,
   frost: 0.1,
   gravity: 0.5,
@@ -112,7 +114,9 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
  * its walls rising. A draining lands one as it takes hold, which pulls the piece towards the one who
  * drains it rather than throwing it back, and one as it snaps, which lets the piece fall back. A look
  * of darkness lands one as it is seen to strike: spikes stabbing, a sphere bursting, the corona of an
- * eclipse flaring; and a mire two, as its hands seize and as it closes. The greatest aura on its own lands one as it breaks out,
+ * eclipse flaring; and a mire two, as its hands seize and as it closes. A quake lands one as its rift
+ * reaches the target, and over an area one at each of its three heaves, held as rubble's are. The
+ * greatest aura on its own lands one as it breaks out,
  * which holds and shakes and throws no piece back. Ice on its own lands as the ice it is drawn as does:
  * hail at each of its great shards, the cold that stills an area and a pillar of ice once as they
  * close and once as they shatter. A bolt of lightning lands one as it strikes, once its
@@ -126,7 +130,7 @@ export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
   const blows: EffectBlow[] = [];
   let held = 0;
   let lastHeldAt = -Infinity;
-  const heaves = !preset.isStaged && preset.effectKind === 'rubble';
+  const heaves = !preset.isStaged && (preset.effectKind === 'rubble' || preset.effectKind === 'quake');
   const takesHold = isCurseAlone(preset);
   const breaksOut = breaksOutAsAura(preset);
   const drains = !preset.isStaged && preset.effectKind === 'drain';
@@ -182,6 +186,8 @@ function strikeTimes(preset: EffectPreset): number[] {
   if (holy !== undefined) return [Math.round(holy * 1000)];
   const dark = darkStrikesAt(preset.effectKind, preset.gradeLevel, preset.duration / 1000);
   if (dark) return dark.map((strike) => Math.round(strike * 1000));
+  const quake = quakeStrikesOf(preset, preset.duration / 1000);
+  if (quake) return quake.map((strike) => Math.round(strike * 1000));
   if (preset.effectKind === 'bolt') {
     return boltStrokesOf(preset.gradeLevel, preset.duration / 1000).map((stroke) => Math.round(stroke * 1000));
   }

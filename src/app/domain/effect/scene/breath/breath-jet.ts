@@ -37,6 +37,7 @@ export interface JetSheet {
 
 const INK = '#07030c';
 const SICKLY = '#7fbf2a';
+const SAND_DEEP = '#3e2a18';
 
 /** The sheets the jet of an element is laid in, what is under first. */
 export function jetSheetsOf(element: BreathElement, ramp: readonly string[]): readonly JetSheet[] {
@@ -86,6 +87,12 @@ export function jetSheetsOf(element: BreathElement, ramp: readonly string[]): re
         sheet(0, 'jet', 'color', 1.15, 1, ramp[2], 1),
         sheet(1, 'jet', 'color', 0.92, 0.94, mixColor(ramp[1], INK, 0.45), 1),
         sheet(2, 'jet', 'color', 0.68, 0.85, INK, 1, '#000000'),
+      ];
+    case 'sand':
+      return [
+        sheet(0, 'gust', 'color', 1.65, 1.05, mixColor(ramp[0], SAND_DEEP, 0.5), 0.9),
+        sheet(1, 'gust', 'color', 1.2, 1, ramp[2], 0.88, ramp[3]),
+        sheet(2, 'jet', 'color', 0.55, 0.85, ramp[3], 0.92, ramp[5]),
       ];
     case 'holy':
       return [

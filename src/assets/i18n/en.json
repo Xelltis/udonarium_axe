@@ -1483,7 +1483,8 @@
         "halo": "Halo of light",
         "sanctuary": "Sanctuary",
         "shadow": "Shadow spikes / Abyss",
-        "darkorb": "Dark orb / Eclipse"
+        "darkorb": "Dark orb / Eclipse",
+        "quake": "Rift / Earthquake"
       },
       "targeting": {
         "self": "Self",
