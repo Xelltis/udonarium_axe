@@ -865,7 +865,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     colorSecondary: '#ff3b6b',
     soundMs: 2038,
     staggerMs: 0,
-    scale: 0.7,
+    scale: 1,
     targeting: 'single',
     maxTargets: 1,
     soundKey: 'sfBeam',
@@ -975,6 +975,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     grade: 3,
     impactSoundKey: 'beamSmall',
     durationMs: 3000,
+    moteStyle: 'prism',
   },
   {
     identifier: 'EffectPreset_smg_2',

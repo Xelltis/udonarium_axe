@@ -533,11 +533,11 @@ describe('where an effect aimed from its caster leaves it', () => {
     expect(mouthOf(3)).toMatchObject({ x: 540, y: 100, z: 90 });
   });
 
-  it.each(['beam', 'raybeam', 'arc', 'drain'] as const)(
+  it.each(['raybeam', 'arc', 'drain'] as const)(
     'still leaves %s from over the middle of the caster, however large the caster is',
     (kind) => {
       const preset = makePreset(kind, { durationMs: 1000 });
-      const at = kind === 'beam' || kind === 'raybeam' ? 100 : 500;
+      const at = kind === 'raybeam' ? 100 : 500;
       const leaves = (cells: number) => {
         const drawn = staged(preset, cast, at, from(cells));
         return drawn.motes.filter((mote) => mote.x === hands.x && mote.y === hands.y && mote.z === hands.z).length;

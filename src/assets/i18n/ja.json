@@ -1505,6 +1505,7 @@
       "moteLabel": "道中の粒",
       "moteAuto": "系統に合わせる",
       "moteAilments": "状態異常の姿（呪い）",
+      "moteBeams": "ビームの姿",
       "mote": {
         "spark": "火の粉",
         "frost": "氷晶",
@@ -1523,7 +1524,8 @@
         "blind": "暗闇",
         "silence": "沈黙",
         "slow": "鈍足",
-        "bind": "拘束"
+        "bind": "拘束",
+        "prism": "極彩（色とりどりの束）"
       },
       "sounds": {
         "alarm": "アラーム",

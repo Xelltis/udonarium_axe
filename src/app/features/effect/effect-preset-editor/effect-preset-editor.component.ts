@@ -11,6 +11,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { AILMENT_LOOKS, isAilmentLook } from '@axe/domain/effect/ailment-looks';
+import { BEAM_LOOKS, isBeamLook } from '@axe/domain/effect/beam-looks';
 import { EFFECT_KINDS, EffectKind } from '@axe/domain/effect/effect-kind';
 import { EFFECT_MOTE_OPTIONS } from '@axe/domain/effect/effect-motes';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -107,6 +108,8 @@ export class EffectPresetEditorComponent {
   protected readonly motes = EFFECT_MOTE_OPTIONS;
   /** The states a curse may be drawn as, offered among the particles: see {@link offersAilmentLooks}. */
   protected readonly ailmentLooks = AILMENT_LOOKS;
+  /** The looks a great beam may be drawn as, offered among the particles: see {@link offersBeamLooks}. */
+  protected readonly beamLooks = BEAM_LOOKS;
 
   readonly notice = signal('');
 
@@ -185,6 +188,16 @@ export class EffectPresetEditorComponent {
     this.version();
     const preset = this.preset();
     return !!preset && (preset.effectKind === 'curse' || isAilmentLook(preset.moteStyle));
+  }
+
+  /**
+   * Whether the looks of a great beam are offered among the particles: for a beam, which is drawn as
+   * the one chosen, and for an effect that already names one, so that the choice it holds is shown.
+   */
+  protected offersBeamLooks(): boolean {
+    this.version();
+    const preset = this.preset();
+    return !!preset && (preset.effectKind === 'beam' || isBeamLook(preset.moteStyle));
   }
 
   protected moteLabel(mote: string): string {

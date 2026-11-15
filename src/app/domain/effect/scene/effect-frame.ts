@@ -141,6 +141,9 @@ CHOREOGRAPHIES.ballistic = ballisticWith(strikeWith);
  */
 const GROWS_BY_ROOT: ReadonlySet<EffectKind> = new Set<EffectKind>(['impact', 'rubble', 'upheaval', 'bolt']);
 
+/** The looks that are told of the pieces standing by: a breath breaks on those in its way, and a great beam washes over them. */
+const BREAKS_ON_BYSTANDERS: ReadonlySet<EffectKind> = new Set<EffectKind>(['breath', 'beam']);
+
 /** Where a target stands for an effect: its foot, and the floor under it. */
 export interface EffectFooting {
   readonly x: number;
@@ -299,7 +302,7 @@ export function stageEffect(
   const targets = standingTargets(preset, cast, options);
   const body = bodyOf(cast, casterFooting, options);
   const mouth: StageMouth | null = body && mouthBefore(body, targets);
-  const bystanders = preset.effectKind === 'breath' ? bystandersOf(cast, options) : undefined;
+  const bystanders = BREAKS_ON_BYSTANDERS.has(preset.effectKind) ? bystandersOf(cast, options) : undefined;
   for (const standing of targets) {
     const index = standing.index;
     const target = cast.targets[index];

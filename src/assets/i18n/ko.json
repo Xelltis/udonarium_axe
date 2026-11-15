@@ -1505,6 +1505,7 @@
       "moteLabel": "이동 중 입자",
       "moteAuto": "계통에 맞추기",
       "moteAilments": "상태 이상의 모습(저주)",
+      "moteBeams": "빔의 모습",
       "mote": {
         "spark": "불티",
         "frost": "얼음 결정",
@@ -1523,7 +1524,8 @@
         "blind": "암흑",
         "silence": "침묵",
         "slow": "둔화",
-        "bind": "구속"
+        "bind": "구속",
+        "prism": "극채(여러 빛깔의 다발)"
       },
       "sounds": {
         "alarm": "알람",

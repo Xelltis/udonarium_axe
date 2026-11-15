@@ -1505,6 +1505,7 @@
       "moteLabel": "Trail motes",
       "moteAuto": "Match the category",
       "moteAilments": "Status ailment look (curse)",
+      "moteBeams": "Beam look",
       "mote": {
         "spark": "Sparks",
         "frost": "Ice crystals",
@@ -1523,7 +1524,8 @@
         "blind": "Blindness",
         "silence": "Silence",
         "slow": "Slow",
-        "bind": "Bind"
+        "bind": "Bind",
+        "prism": "Prismatic (a braid of many hues)"
       },
       "sounds": {
         "alarm": "Alarm",
