@@ -18,6 +18,7 @@ import {
 import { type EffectStage, parseEffectStages } from '@axe/domain/effect/effect-stage';
 import { stagedEffectDuration } from '@axe/domain/effect/effect-stage-timeline';
 import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
+import { spaceSoundsAt } from '@axe/domain/effect/space-looks';
 import { boltStrokesOf, CURRENT_REACHES_AT } from '@axe/domain/effect/thunder-looks';
 
 const MIN_DURATION_MS = 120;
@@ -169,6 +170,8 @@ export class EffectPreset extends GameObject {
     if (holy !== undefined) return holy / (this.duration / 1000);
     const dark = darkSoundsAt(this.effectKind, this.gradeLevel, this.duration / 1000);
     if (dark !== undefined) return dark;
+    const space = spaceSoundsAt(this.effectKind, this.gradeLevel, this.duration / 1000);
+    if (space !== undefined) return space;
     // A bolt sounds as it strikes, after its leader, and a current as it reaches its target.
     if (this.effectKind === 'bolt')
       return (boltStrokesOf(this.gradeLevel, this.duration / 1000)[0] * 1000) / this.duration;
