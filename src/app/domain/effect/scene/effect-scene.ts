@@ -28,9 +28,30 @@ export type EffectBlend = 'light' | 'color';
  * a streak of light drawn out across the screen as many times its size as its trail says; a comet, a
  * tongue the other way about, round at its head and pointed behind; a plume of smoke, soft and drawn
  * out the way it rises.
+ *
+ * Four more are drawn out along the way they are given as a tongue is, and flow: a pattern runs down
+ * each from its root to its tip, as far as its spin says, eating into its edge, and its middle is
+ * taken to its core's colour in two steps. A lick, a hard-edged tongue of flame, round at its root
+ * and torn into shreds towards its tip; a wisp, the same gone soft, a shred of fog or smoke; a jet, a
+ * hard-edged cone, narrow at its root and widening to an end that breaks up into licks; and a gust,
+ * a jet gone soft.
  */
 export type EffectMoteShape =
-  'glow' | 'spark' | 'puff' | 'smoke' | 'chunk' | 'flake' | 'star' | 'tongue' | 'flare' | 'comet' | 'plume';
+  | 'glow'
+  | 'spark'
+  | 'puff'
+  | 'smoke'
+  | 'chunk'
+  | 'flake'
+  | 'star'
+  | 'tongue'
+  | 'flare'
+  | 'comet'
+  | 'plume'
+  | 'lick'
+  | 'wisp'
+  | 'jet'
+  | 'gust';
 
 /** One particle of an effect at a moment. */
 export interface EffectMote {
@@ -47,8 +68,10 @@ export interface EffectMote {
   readonly velocity?: { readonly x: number; readonly y: number; readonly z: number };
   /** How far a spark is drawn out for its speed, in seconds of its flight. */
   readonly trail?: number;
-  /** How far it is turned, in radians, for a chunk or a flake that tumbles. */
+  /** How far it is turned, in radians, for a chunk or a flake that tumbles; for a shape that flows, how far its pattern has run down it. */
   readonly spin?: number;
+  /** The colour of the middle of a shape that flows, hotter than its edge; without it the shape is of one colour. */
+  readonly core?: string;
   /** Picks among looks of the same shape, as the wavering edge of a ball of flame or of a chunk. */
   readonly variant?: number;
   /**

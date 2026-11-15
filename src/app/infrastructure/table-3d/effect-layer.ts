@@ -18,6 +18,7 @@ import {
   clamp,
   cos,
   cross,
+  dot,
   float,
   floor,
   fract,
@@ -117,7 +118,13 @@ const MOTE_SHAPES: readonly EffectMoteShape[] = [
   'flare',
   'comet',
   'plume',
+  'lick',
+  'wisp',
+  'jet',
+  'gust',
 ];
+/** The shapes that flow: see {@link EffectMoteShape}. They are the last of the list, from the first of them on. */
+const FLOWING_FROM = MOTE_SHAPES.indexOf('lick');
 const MARK_SHAPES: readonly EffectFloorShape[] = ['ring', 'disc', 'sigil', 'cracks', 'scorch'];
 /** The number each shape is told to the shaders by, from its place in the list, which the shaders tell the shapes apart by. */
 const MOTE_SHAPE = Object.fromEntries(MOTE_SHAPES.map((shape, at) => [shape, at])) as Record<EffectMoteShape, number>;
@@ -272,7 +279,7 @@ export class EffectLayer {
   }
 
   private fillMotes(batch: Batch, motes: readonly EffectMote[], blend: EffectBlend): void {
-    const { place, tint, motion, look } = batch.buffers;
+    const { place, tint, motion, look, core } = batch.buffers;
     let count = 0;
     for (const mote of motes) {
       if (mote.blend !== blend || count >= MAX_EFFECT_MOTES) continue;
@@ -290,12 +297,23 @@ export class EffectLayer {
       motion.array[at + 1] = mote.velocity?.z ?? 0;
       motion.array[at + 2] = mote.velocity?.y ?? 0;
       motion.array[at + 3] = mote.trail ?? 0;
-      look.array[at] = MOTE_SHAPE[mote.shape];
+      const shape = MOTE_SHAPE[mote.shape];
+      look.array[at] = shape;
       // Turned within one round, as the shapes only take whole multiples of them: a graphics card
-      // keeps too few figures to turn by a seed's worth.
-      look.array[at + 1] = withinRound(mote.spin ?? 0);
+      // keeps too few figures to turn by a seed's worth. A shape that flows is told how far its
+      // pattern has run as it is, which a round would cut short.
+      look.array[at + 1] = shape >= FLOWING_FROM ? (mote.spin ?? 0) : withinRound(mote.spin ?? 0);
       look.array[at + 2] = withinRound(mote.variant ?? 0);
       look.array[at + 3] = nearerOf(mote);
+      if (mote.core) {
+        this.colour.setStyle(mote.core);
+        core.array[at] = this.colour.r;
+        core.array[at + 1] = this.colour.g;
+        core.array[at + 2] = this.colour.b;
+        core.array[at + 3] = 1;
+      } else {
+        core.array[at + 3] = 0;
+      }
       count++;
     }
     this.finish(batch, count);
@@ -495,6 +513,7 @@ export class EffectLayer {
     const tint = attribute<'vec4'>('tint', 'vec4');
     const motion = attribute<'vec4'>('motion', 'vec4');
     const look = attribute<'vec4'>('look', 'vec4');
+    const core = attribute<'vec4'>('core', 'vec4');
     const at = place.xyz;
     const toEye = normalize(cameraPosition.sub(at));
     const size = place.w;
@@ -589,31 +608,88 @@ export class EffectLayer {
     // A plume of smoke drawn out the way it rises: soft, round at both ends and thinning to its edge.
     const plumeWidth = pow(sin(up.mul(Math.PI)), 0.6).add(0.001);
     const plume = pow(clamp(float(1).sub(abs(point.x).div(plumeWidth)), 0, 1), 1.4).mul(0.85);
+    // The shapes that flow share one pattern: two sizes of soft noise, drawn out the way the shape
+    // runs and carried down it by its spin, which eats into the shape's edge, the more the nearer its tip.
+    const flowAt = vec2(
+      point.x.mul(2.1).add(variant.mul(5.3)),
+      up
+        .mul(reach.div(max(size, 1)))
+        .mul(1.5)
+        .sub(spin)
+    );
+    const coarse = softNoise(flowAt);
+    const fine = softNoise(flowAt.mul(2.3).add(17));
+    const eaten = coarse.mul(0.65).add(fine.mul(0.35));
+    const reachAcross = abs(point.x);
+    const lickWidth = sqrt(clamp(up.mul(4), 0, 1))
+      .mul(pow(float(1).sub(up), 0.4))
+      .mul(0.95);
+    const lickField = lickWidth.sub(reachAcross).sub(eaten.sub(0.3).mul(up.mul(1.25).add(0.14)));
+    const wispWidth = sqrt(max(sin(up.mul(Math.PI)), 0));
+    const wispField = wispWidth.sub(reachAcross).sub(eaten.sub(0.3).mul(0.8));
+    const jetWidth = pow(up, 0.7)
+      .mul(0.84)
+      .add(0.16)
+      .mul(
+        sin(up.mul(11).sub(spin.mul(0.8)).add(variant.mul(3)))
+          .mul(0.07)
+          .mul(smoothstep(0.05, 0.3, up))
+          .add(1)
+      );
+    const jetField = jetWidth
+      .sub(reachAcross)
+      .sub(eaten.sub(0.3).mul(smoothstep(0.15, 1, up).mul(0.95).add(0.12)))
+      .sub(smoothstep(0.82, 1, up).mul(0.9));
+    const soft = shape.equal(MOTE_SHAPE.wisp).or(shape.equal(MOTE_SHAPE.gust));
+    const coned = shape.equal(MOTE_SHAPE.jet).or(shape.equal(MOTE_SHAPE.gust));
+    const field = select(coned, jetField, select(shape.equal(MOTE_SHAPE.wisp), wispField, lickField));
+    const widthThere = select(coned, jetWidth, float(1));
+    const flowing = select(
+      soft,
+      smoothstep(0, widthThere.mul(0.45).add(0.04), field).mul(fine.mul(0.45).add(0.55)),
+      clamp(field.div(max(fwidth(field), 0.001)).add(0.5), 0, 1)
+    );
+    // The middle of a shape that flows, in two steps towards its core's colour: the heart of a jet is
+    // widest at its root and gone before its end.
+    const heartFrom = select(coned, widthThere.mul(up.mul(0.55).add(0.42)), float(0.34));
+    const bodyFrom = select(coned, widthThere.mul(up.mul(0.3).add(0.16)), float(0.16));
+    const cored = select(
+      soft,
+      smoothstep(bodyFrom, heartFrom.add(0.1), field),
+      smoothstep(bodyFrom, bodyFrom.add(0.02), field)
+        .mul(0.5)
+        .add(smoothstep(heartFrom, heartFrom.add(0.02), field).mul(0.5))
+    ).mul(core.w);
+    const flows = shape.greaterThanEqual(FLOWING_FROM);
     const alpha = select(
-      shape.equal(MOTE_SHAPE.glow),
-      glow,
+      flows,
+      flowing,
       select(
-        shape.equal(MOTE_SHAPE.spark),
-        spark,
+        shape.equal(MOTE_SHAPE.glow),
+        glow,
         select(
-          shape.equal(MOTE_SHAPE.puff),
-          puff,
+          shape.equal(MOTE_SHAPE.spark),
+          spark,
           select(
-            shape.equal(MOTE_SHAPE.smoke),
-            smoke,
+            shape.equal(MOTE_SHAPE.puff),
+            puff,
             select(
-              shape.equal(MOTE_SHAPE.chunk),
-              chunk,
+              shape.equal(MOTE_SHAPE.smoke),
+              smoke,
               select(
-                shape.equal(MOTE_SHAPE.flake),
-                flake,
+                shape.equal(MOTE_SHAPE.chunk),
+                chunk,
                 select(
-                  shape.equal(MOTE_SHAPE.star),
-                  star,
+                  shape.equal(MOTE_SHAPE.flake),
+                  flake,
                   select(
-                    shape.equal(MOTE_SHAPE.tongue),
-                    tongue,
-                    select(shape.equal(MOTE_SHAPE.flare), flare, select(shape.equal(MOTE_SHAPE.comet), comet, plume))
+                    shape.equal(MOTE_SHAPE.star),
+                    star,
+                    select(
+                      shape.equal(MOTE_SHAPE.tongue),
+                      tongue,
+                      select(shape.equal(MOTE_SHAPE.flare), flare, select(shape.equal(MOTE_SHAPE.comet), comet, plume))
+                    )
                   )
                 )
               )
@@ -652,7 +728,8 @@ export class EffectLayer {
         )
       )
     );
-    const shown = mix(tint.rgb.mul(lit), vec3(1, 1, 1), blend === 'light' ? hot : float(0));
+    const body = mix(tint.rgb.mul(lit), core.rgb, select(flows, cored, float(0)));
+    const shown = mix(body, vec3(1, 1, 1), blend === 'light' ? hot : float(0));
 
     const material = new MeshBasicNodeMaterial({
       transparent: true,
@@ -667,12 +744,14 @@ export class EffectLayer {
     const corner3 = at.add(select(streaked, drawnOut, faced));
     const exact = look.w.lessThan(0);
     const nearer = select(exact, look.w.negate().sub(EXACT_DEPTH_MARK), max(look.w, size.mul(MOTE_NEARER_SIZE)));
-    const closeness = length(cameraPosition.sub(at)).div(max(size, 1));
+    // A shape that flows is drawn out far from where it is set, so each point of it thins by how close
+    // that point is to the eye: seen from the mouth it is blown from, only its far part shows.
+    const closeness = length(cameraPosition.sub(select(flows, corner3, at))).div(max(size, 1));
     const seenFromWithin = select(exact, smoothstep(FILLS_VIEW_WITHIN, CLEAR_OF_VIEW_BEYOND, closeness), float(1));
     material.positionNode = corner3.add(normalize(cameraPosition.sub(corner3)).mul(nearer));
     material.colorNode = vec4(shown, 1);
     material.opacityNode = alpha.mul(tint.w).mul(seenFromWithin);
-    return this.batchOf(['place', 'tint', 'motion', 'look'], MAX_EFFECT_MOTES, material, MOTES_ORDER);
+    return this.batchOf(['place', 'tint', 'motion', 'look', 'core'], MAX_EFFECT_MOTES, material, MOTES_ORDER);
   }
 
   /**
@@ -775,6 +854,21 @@ export class EffectLayer {
 export function nearerOf(mote: Pick<EffectMote, 'forward' | 'exactDepth'>): number {
   const forward = Math.max(0, mote.forward ?? 0);
   return mote.exactDepth ? -(forward + EXACT_DEPTH_MARK) : forward;
+}
+
+/** A number from 0 to 1 for each point of a grid, as good as random. */
+function gridNoise(cell: Node<'vec2'>): Node<'float'> {
+  return fract(sin(dot(cell, vec2(127.1, 311.7))).mul(43758.5453));
+}
+
+/** Noise that runs smoothly from each point of a grid to the next, from 0 to 1. */
+function softNoise(at: Node<'vec2'>): Node<'float'> {
+  const cell = floor(at);
+  const within = fract(at);
+  const eased = within.mul(within).mul(within.mul(-2).add(3));
+  const low = mix(gridNoise(cell), gridNoise(cell.add(vec2(1, 0))), eased.x);
+  const high = mix(gridNoise(cell.add(vec2(0, 1))), gridNoise(cell.add(vec2(1, 1))), eased.x);
+  return mix(low, high, eased.y);
 }
 
 /** An angle taken within one round, from 0 to two pi. */
