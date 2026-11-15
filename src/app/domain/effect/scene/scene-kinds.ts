@@ -14,7 +14,7 @@ import { type EffectStage, stageLayoutOf } from '@axe/domain/effect/effect-stage
 export const SCENE_LINGER_S: Readonly<Partial<Record<EffectKind, number>>> = {
   arc: 0.7,
   arrowrain: 1.4,
-  aura: 0.5,
+  aura: 1,
   ballistic: 1.8,
   barrier: 0.8,
   bash: 0.6,

@@ -1,111 +1,149 @@
-import { type Choreography, nothingStaged, outCubic, within } from '@axe/domain/effect/scene/choreography';
-import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
-import { ringRibbon, swell } from '@axe/domain/effect/scene/holy/blessing-parts';
-import { floorMark, glow, hueOf } from '@axe/domain/effect/scene/parts';
+import { breaksOutAsAura } from '@axe/domain/effect/effect-shake';
+import {
+  type Choreography,
+  nothingStaged,
+  outCubic,
+  type Stage,
+  type Staged,
+  within,
+} from '@axe/domain/effect/scene/choreography';
+import { drawBreakout } from '@axe/domain/effect/scene/holy/aura-breakout';
+import {
+  auraDetailOf,
+  auraTonesOf,
+  drawPebbles,
+  drawUpdraft,
+  layAuraCracks,
+  layAuraFlames,
+  layAuraHoop,
+  layAuraRing,
+  ringOfFlames,
+} from '@axe/domain/effect/scene/holy/aura-parts';
+import { glow, haze } from '@axe/domain/effect/scene/parts';
+import { SCENE_LINGER_S } from '@axe/domain/effect/scene/scene-kinds';
 
-/**
- * An aura of fighting spirit: a circle of power drawn on the floor under the piece, a double ring of
- * its colour about a white triangle, turning slowly; thin blades of light fanning up round the piece,
- * leaning out, white at their hearts and its colour at their edges, flickering; a white ring thrown
- * out as it rises and again as it fades, and the piece lit in its colour.
+/*
+ * An aura of fighting spirit. It catches all at once: the floor cracks under the piece and a ring
+ * races out from it, and flames of spirit spring up in a ring about it and stream upwards, gold at
+ * their hearts, a column of light in the middle of them. Pebbles lift off the floor and hang in the
+ * air. As its sound surges the flames leap, a hoop of light runs up the body and a ring runs out over
+ * the floor. Then the flames draw in and sink, and the pebbles are let fall.
  */
-export const aura: Choreography = {
-  lingerS: 0.5,
-  draw: (stage) => {
-    const drawn = nothingStaged();
-    const { cell, duration } = stage;
-    const t = stage.seconds;
-    const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
-    const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
-    const shown = swell(t, duration, 0.2, 0.4);
-    const forward = cell * 0.15;
-    if (shown <= 0) return drawn;
-    const drawnIn = outCubic(within(t, 0, duration * 0.18));
-    const lift = { ...floor, z: floor.z + 1.5 };
-    // The circle of power: a double ring of its colour about a white triangle, turning slowly.
-    drawn.ribbons.push(ringRibbon(lift, cell * 1.2 * drawnIn, cell * 0.09, hueOf(ramp), ramp[4], 0.95 * shown));
-    drawn.ribbons.push(ringRibbon(lift, cell * 0.98 * drawnIn, cell * 0.035, ramp[4], '#ffffff', 0.9 * shown));
-    const turn = t * 0.5 + stage.seed;
-    const corners = [0, 1, 2, 0].map((index) => {
-      const at = turn + (index / 3) * Math.PI * 2;
-      return {
-        x: lift.x + Math.cos(at) * cell * 0.95 * drawnIn,
-        y: lift.y + Math.sin(at) * cell * 0.95 * drawnIn,
-        z: lift.z,
-      };
-    });
-    drawn.ribbons.push({
-      points: corners,
-      widths: cell * 0.04,
-      color: '#ffffff',
-      core: '#ffffff',
-      alpha: 0.9 * shown,
-      blend: 'light',
-    });
-    drawn.floor.push(floorMark('disc', floor, cell * 1.3, 1, hueOf(ramp), 0.3 * shown, 'color', 0));
-    drawn.floor.push(floorMark('disc', floor, cell * 1.1, 1, ramp[4], 0.35 * shown, 'light', 0));
-    // White rings thrown out as it rises and as it fades.
-    for (const starts of [0, duration - 0.5]) {
-      const out = within(t, starts, starts + 0.5);
-      if (out <= 0 || out >= 1) continue;
-      drawn.ribbons.push(
-        ringRibbon(lift, cell * (0.8 + 1.4 * outCubic(out)), cell * 0.05, '#ffffff', '#ffffff', 0.85 * (1 - out))
+
+const LINGER_S = SCENE_LINGER_S.aura ?? 1;
+/** When the aura surges, in seconds, each at the most a share of the playback: as its sound does. */
+const SURGES_AT: readonly (readonly [number, number])[] = [
+  [0.84, 0.41],
+  [1.14, 0.56],
+  [1.5, 0.74],
+];
+/** How long a surge takes to die away, in seconds. */
+const SURGE_S = 0.26;
+/** How long the flames take to spring up, and to sink at the end, in seconds. */
+const CATCHES_S = 0.2;
+const SINKS_S = 0.4;
+
+/** An aura of fighting spirit: see the header. */
+function drawSpirit(stage: Stage): Staged {
+  const drawn = nothingStaged();
+  const { cell, duration } = stage;
+  const t = stage.seconds;
+  const ends = duration + LINGER_S;
+  if (t < 0 || t >= ends) return drawn;
+  const tones = auraTonesOf(stage.preset.colorPrimary, stage.preset.colorSecondary);
+  const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
+  const forward = cell * 0.25;
+  const surges = SURGES_AT.map(([seconds, share]) => Math.min(seconds, duration * share));
+  const surge = surges.reduce((most, at) => (t < at ? most : Math.max(most, Math.exp(-(t - at) / SURGE_S))), 0);
+  const caught = outCubic(within(t, 0, CATCHES_S));
+  const sunk = within(t, duration - SINKS_S, duration);
+  const burns = caught * (1 - sunk);
+  const leaving = 1 - within(t, duration, ends);
+
+  layAuraCracks(drawn, floor, cell * 1.8 * outCubic(within(t, 0, 0.16)), tones, leaving, burns, stage.seed);
+  layAuraRing(drawn, floor, cell * 0.3, cell * 2.6, cell * 0.22, tones, within(t, 0, 0.4));
+  for (const at of surges) {
+    layAuraRing(drawn, floor, cell * 0.4, cell * 2.2, cell * 0.16, tones, within(t, at, at + 0.4));
+    const climbed = within(t, at, at + 0.3);
+    if (climbed > 0 && climbed < 1)
+      layAuraHoop(
+        drawn,
+        { ...floor, z: floor.z + (stage.tall + cell * 0.6) * climbed },
+        cell * (0.62 - 0.2 * climbed),
+        cell * 0.09,
+        tones,
+        1 - climbed
       );
-    }
-    // Thin blades of light fanning up round the piece, leaning out, flickering.
-    const blades = 11;
-    for (const [colour, wide, high, alpha] of [
-      [hueOf(ramp), 1, 1, 0.85],
-      ['#ffffff', 0.4, 0.85, 0.95],
-    ] as const) {
-      for (let index = 0; index < blades; index++) {
-        const at = (index / blades) * Math.PI * 2 + stage.seed * 0.7;
-        const springs = outCubic(within(t, (index % 4) * 0.05, (index % 4) * 0.05 + 0.2));
-        const flicker = 0.72 + 0.2 * Math.sin(t * 12 + index * 2.3) + 0.08 * Math.sin(t * 29 + index);
-        const tall = cell * 1.45 * flicker * high * springs * shown;
-        if (tall < 2) continue;
-        const width = cell * 0.13 * wide;
-        const reach = Math.max(tall - width, 2);
-        const lean = { x: Math.cos(at) * 0.42, y: Math.sin(at) * 0.42 };
-        const out = cell * 0.55;
-        drawn.motes.push({
-          x: floor.x + Math.cos(at) * out + lean.x * tall,
-          y: floor.y + Math.sin(at) * out + lean.y * tall,
-          z: floor.z + tall,
-          size: width,
-          color: colour,
-          alpha: alpha * shown,
-          blend: 'light',
-          shape: 'tongue',
-          velocity: { x: lean.x * reach, y: lean.y * reach, z: reach },
-          trail: 1,
-          variant: index + t * 2,
-          forward,
-        });
-      }
-    }
-    drawn.motes.push(glow({ ...floor, z: floor.z + cell * 0.6 }, cell * 1.4, ramp[3], 0.45 * shown, forward));
-    for (let index = 0; index < 12; index++) {
-      const rise = (t * 0.8 + index / 12) % 1;
-      const at = (index / 12) * Math.PI * 2 + t * 0.4;
-      drawn.motes.push({
-        ...glow(
-          {
-            x: floor.x + Math.cos(at) * cell * (0.6 + rise * 0.4),
-            y: floor.y + Math.sin(at) * cell * (0.6 + rise * 0.4),
-            z: floor.z + cell * 0.2 + rise * cell * 2,
-          },
-          cell * 0.06,
-          '#ffffff',
-          (1 - rise) * shown,
-          forward
-        ),
-        shape: 'spark',
-        velocity: { x: 0, y: 0, z: cell * 3 },
-        trail: 0.06,
-      });
-    }
-    drawn.lights.push({ ...floor, z: floor.z + cell, color: ramp[4], strength: 1.1 * shown, reachPx: cell * 3 });
-    return drawn;
-  },
+  }
+
+  if (burns > 0.01) {
+    const tall = (stage.tall + cell * 1.7) * (0.3 + 0.7 * caught) * (1 + 0.3 * surge) * (1 - 0.7 * sunk);
+    const drawnIn = 1 - 0.45 * sunk;
+    const detail = auraDetailOf(stage.targets.length);
+    const outer = ringOfFlames(
+      Math.round(10 * detail),
+      cell * 0.46 * drawnIn,
+      tall,
+      cell * 0.52 * drawnIn,
+      0.55,
+      0.4,
+      t,
+      stage.seed
+    );
+    const inner = ringOfFlames(
+      Math.round(5 * detail),
+      cell * 0.22 * drawnIn,
+      tall * 1.25,
+      cell * 0.52 * drawnIn,
+      0.85,
+      0.75,
+      t,
+      stage.seed + 3
+    );
+    layAuraFlames(drawn, floor, [...outer, ...inner], tones, t, Math.min(1, burns * 1.6));
+    const body = { ...floor, z: floor.z + stage.tall * 0.55 };
+    drawn.motes.push(haze(body, cell * 1.7, tones.rim, 0.22 * burns, forward));
+    drawn.motes.push(glow(body, cell * (1.4 + 0.6 * surge), tones.gold, (0.14 + 0.3 * surge) * burns, forward));
+    drawn.lights.push({ ...body, color: tones.body, strength: (0.75 + 0.7 * surge) * burns, reachPx: cell * 2.6 });
+  }
+  if (t < 0.12)
+    drawn.motes.push(glow({ ...floor, z: floor.z + cell * 0.4 }, cell * 3, '#ffffff', 0.8 * (1 - t / 0.12), forward));
+  drawUpdraft(
+    drawn,
+    stage.seed,
+    floor,
+    cell,
+    t,
+    14,
+    [cell * 0.25, cell * 0.8],
+    stage.tall + cell * 1.8,
+    tones,
+    burns,
+    forward
+  );
+  drawPebbles(
+    drawn,
+    stage.seed,
+    floor,
+    cell,
+    t,
+    {
+      count: 12,
+      out: [cell * 0.55, cell * 1.35],
+      high: [cell * 0.35, cell * 1.3],
+      lifts: [0.05, 0.5],
+      risesFor: 0.55,
+      drops: duration - SINKS_S * 0.6,
+      ends,
+    },
+    tones,
+    forward
+  );
+  return drawn;
+}
+
+/** An aura: flames of spirit about a piece, or at the highest grade on its own the one that gathers and breaks out. */
+export const aura: Choreography = {
+  lingerS: LINGER_S,
+  draw: (stage) => (breaksOutAsAura(stage.preset) ? drawBreakout(stage, LINGER_S) : drawSpirit(stage)),
 };
