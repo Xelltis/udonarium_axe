@@ -10,7 +10,9 @@ import { newStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { DEFAULT_SYSTEM_NOTICES, NOTICE_OFF, withNoticeRoute } from '@axe/domain/chat/system-notices';
 import { DataElement, DataElementAttribute, DataElementFieldType } from '@axe/domain/data/data-element';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -81,6 +83,43 @@ describe('PieceResetService', () => {
     expect(told).toHaveLength(1);
     expect(told[0].messageIdentifier).toBe(line.identifier);
     expect((told[0].record as ResetRecord).pieces.map((entry) => entry.piece)).toEqual([character.identifier]);
+  });
+
+  describe('in a room that sends notices of rounds nowhere', () => {
+    beforeEach(() => {
+      Config.instance.systemNotices = withNoticeRoute(DEFAULT_SYSTEM_NOTICES, 'round', NOTICE_OFF);
+    });
+
+    afterEach(() => {
+      Config.instance.systemNotices = DEFAULT_SYSTEM_NOTICES;
+    });
+
+    it('still resets, and writes the report for this seat alone, with the way back under it', () => {
+      const { character, hit } = piece('騎士');
+      character.buffs.addRound('盾', '防御+1', 3);
+
+      service.run([character], everything, (done) => `リセット ${done.buffs}/${done.items}`);
+
+      expect([hit.value, buffsOf(character)]).toEqual([3, []]);
+      const line = tab.chatMessages.at(-1)!;
+      expect([line.text, line.to, line.isSystemToPL]).toEqual(['リセット 1/1', 'me', true]);
+      expect(line.isDisplayableTo('another')).toBe(false);
+      expect(told.map((event) => event.messageIdentifier)).toEqual([line.identifier]);
+    });
+
+    it('tells this seat alone that the reset was taken back as well', () => {
+      const { character, hit } = piece('騎士');
+      service.run([character], everything, () => 'リセット');
+      const line = tab.chatMessages.at(-1)!;
+      TestBed.inject(ResetUndoService).keep(line.identifier, told[0].record as ResetRecord);
+
+      expect(service.takeBack(line)).toMatchObject({ restored: 1, skipped: 0 });
+
+      expect(hit.value).toBe(9);
+      const notice = tab.chatMessages.at(-1)!;
+      expect(notice.text).toBe(encodeI18nMessage('feature.chat.reset.undoneNotice', { restored: 1 }));
+      expect([notice.to, notice.isDisplayableTo('another')]).toEqual(['me', false]);
+    });
   });
 
   it('tells nothing where no line reports the reset, or where the reset changed nothing', () => {

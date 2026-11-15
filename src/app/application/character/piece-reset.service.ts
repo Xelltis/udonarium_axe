@@ -50,8 +50,11 @@ export class PieceResetService {
 
   /**
    * Resets these pieces, each on its own, and reports it with the line `report` makes of what was
-   * reached, where it makes one; the reset can then be taken back from that line. Nothing is done,
-   * and null comes back, for a seat that may not edit the table.
+   * reached, where it makes one; the reset can then be taken back from that line. The line goes
+   * where the room sends notices of rounds; in a room that sends those nowhere it is written for
+   * this seat alone, so whoever reset still reads what went and may take it back, and nobody else is
+   * told against the room's choice. Nothing is done, and null comes back, for a seat that may not
+   * edit the table.
    */
   run(
     pieces: readonly GameCharacter[],
@@ -63,25 +66,29 @@ export class PieceResetService {
     recorder.watch(pieces);
     const count = resetAcross(pieces, request, this.statusAilments.ailments());
     const text = report(count);
-    const posted = text ? this.chat.sendSystemNotice('round', text) : null;
+    const posted = text ? this.reportTo(text) : null;
     const record = recorder.finish();
     if (posted && record.pieces.length > 0) emitResetCarriedOut({ messageIdentifier: posted.identifier, record });
     return count;
   }
 
+  private reportTo(text: string): ChatMessage | null {
+    return this.chat.sendSystemNotice('round', text) ?? this.chat.tellSelfSystemNotice('round', text);
+  }
+
   /**
    * Takes back the reset a chat line reported, and tells the room on the same tab where any piece
-   * was put back. Null where there was nothing of that line's to take back.
+   * was put back; where the line was written for this seat alone, so is that. Null where there was
+   * nothing of that line's to take back.
    */
   takeBack(message: ChatMessage): ResetUndoOutcome | null {
     const result = this.resetUndo.undo(message.identifier);
     if (!result) return null;
     const tab = this.objectStore.get<ChatTab>(message.tabIdentifier);
     if (result.restored > 0 && tab instanceof ChatTab) {
-      this.chat.sendSystemMessageToTab(
-        tab,
-        encodeI18nMessage('feature.chat.reset.undoneNotice', { restored: result.restored })
-      );
+      const text = encodeI18nMessage('feature.chat.reset.undoneNotice', { restored: result.restored });
+      if (message.isSystemToPL) this.chat.tellSelfInTab(tab, text);
+      else this.chat.sendSystemMessageToTab(tab, text);
     }
     return result;
   }
