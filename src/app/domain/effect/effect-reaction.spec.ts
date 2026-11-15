@@ -118,11 +118,14 @@ describe('effectJoltsOf()', () => {
     expect(effectJoltsOf(drain, cast(null), at, CELL).get('target')).toBeUndefined();
   });
 
-  it('moves no piece as the greatest aura breaks out', () => {
+  it('throws no piece back as the greatest aura breaks out: the one it is on is borne straight up', () => {
     const aura = makePreset('aura', 3);
     const at = effectBlowsOf(aura)[0].atMs + 60;
+    const jolt = effectJoltsOf(aura, cast({ x: 0, y: 0, z: 0 }), at, CELL).get('target')!;
 
-    expect(effectJoltsOf(aura, cast({ x: 0, y: 0, z: 0 }), at, CELL).get('target')).toBeUndefined();
+    expect(jolt.x).toBe(0);
+    expect(jolt.y).toBe(0);
+    expect(jolt.z).toBeGreaterThan(0);
   });
 
   it('throws nothing for what neither strikes nor sets off at a target', () => {

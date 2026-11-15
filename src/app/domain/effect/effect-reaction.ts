@@ -2,6 +2,7 @@ import { clamp } from '@axe/core/util/clamp';
 import { isCurseAlone } from '@axe/domain/effect/ailment-looks';
 import { addAilmentJolts, ailmentJoltsEndOf } from '@axe/domain/effect/ailment-reaction';
 import { addBeamJolts, beamLetsGoAt } from '@axe/domain/effect/beam-reaction';
+import { addBlessingJolts, blessingLetsGoAt } from '@axe/domain/effect/blessing-reaction';
 import { breathSurgeAt, breathTimingOf, isGentleBreath } from '@axe/domain/effect/breath-timing';
 import { heavesGround } from '@axe/domain/effect/earth-looks';
 import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows';
@@ -86,7 +87,9 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * stands over and drags the rest it catches towards it. A curse on its own lands none: the piece it
  * is put on bears the state it is in for as long as its look plays. Lightning shakes what it has hold
  * of besides: a piece struck by a bolt or caught in a current shudders until it lets go, and one
- * struck out of the sky starts up off the floor rather than being thrown back. The pieces themselves stay where
+ * struck out of the sky starts up off the floor rather than being thrown back. A blessing bears its
+ * pieces up instead: a grace lifts those it is laid on while its dome stands, and the greatest aura
+ * the one it breaks out of. The pieces themselves stay where
  * they are: each seat draws them off it for a moment.
  */
 export function effectJoltsOf(
@@ -138,6 +141,7 @@ export function effectJoltsOf(
   });
   if (isLightning(preset)) addConvulsions(preset, cast, elapsedMs, cellPx, blows, add);
   addBeamJolts(preset, cast, elapsedMs, cellPx, blows[0]?.atMs, add);
+  addBlessingJolts(preset, cast, elapsedMs, cellPx, blows[0]?.atMs, add);
   const first = cast.targets[0];
   const towards = first ? directionOf(cast.origin, first) : null;
   const lean = leanAt(elapsedMs) * LEAN_CELLS * cellPx;
@@ -161,7 +165,7 @@ export function joltsEndOf(preset: EffectPreset, cast: EffectCast, blows: readon
   if (isCurseAlone(preset)) return ailmentJoltsEndOf(preset, cast);
   const letsGo = isLightning(preset) ? letsGoAt(preset, blows) + lastTarget + CONVULSES_FOR_MS : 0;
   const beamLetsGo = beamLetsGoAt(preset, blows[0]?.atMs) + lastTarget;
-  return Math.max(LEAN_FOR_MS, lastBlow + lastTarget + THROWN_FOR_MS, letsGo, beamLetsGo);
+  return Math.max(LEAN_FOR_MS, lastBlow + lastTarget + THROWN_FOR_MS, letsGo, beamLetsGo, blessingLetsGoAt(preset));
 }
 
 /** Whether an effect is a bolt out of the sky on its own: a strike or a storm, which a snap from the caster's hand is not. */

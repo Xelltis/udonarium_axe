@@ -108,7 +108,7 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
  * look of holy light lands one, once it has been seen coming: its pillar landing, its ring bursting,
  * its walls rising. A draining lands one as it takes hold, which pulls the piece towards the one who
  * drains it rather than throwing it back. The greatest aura on its own lands one as it breaks out,
- * which holds and shakes and moves no piece. A bolt of lightning lands one as it strikes, once its
+ * which holds and shakes and throws no piece back. A bolt of lightning lands one as it strikes, once its
  * leader has been seen coming, and the greatest of them a second, the last stroke its column ends in;
  * a current of lightning lands one as it reaches its target. Each later target is struck as the first is, its stagger
  * later, and holds nothing more.
