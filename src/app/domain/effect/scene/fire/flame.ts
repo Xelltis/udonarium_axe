@@ -36,8 +36,9 @@ import {
  * their height before they settle. Tongues of flame stand in a ring round its feet, leaning in over
  * it, and more lick up its body, all flickering in height, swaying, and torn at their tips by a
  * pattern that runs up them; laid as one fire, deep red at its edge, orange and yellow within and
- * white at the heart of the largest. They stand on every side of the piece, so those beyond it are
- * hidden by it and it is seen wreathed in the fire, not behind it. Flames break off the tips and
+ * pale at the heart of the largest. They stand on every side of the piece, so those beyond it are
+ * hidden by it and it is seen wreathed in the fire, not behind it; but the few of the least fire,
+ * too small to hide the piece, are drawn before it, where they can be seen. Flames break off the tips and
  * rise, reddening as they go out, and smoke rolls off the top, dark over the fire. Embers are
  * carried up, sparks pop, the floor under it is lit warm and blackens as it burns. Near its end the
  * fire sinks and reddens, the tongues shorten, and coals are left glowing while the last smoke clears.
@@ -65,7 +66,7 @@ function drawFlame(stage: Stage): Staged {
   const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
   const foot = { x: stage.x, y: stage.y, z: stage.z };
   const forward = cell * 0.15;
-  const about = { forward: cell * 0.1, exact: true };
+  const about = grade === 1 ? { forward } : { forward: cell * 0.1, exact: true };
   const fierce = fierceness(t, duration);
   const flicker = 0.85 + 0.1 * Math.sin(t * 23 + stage.seed) + 0.05 * Math.sin(t * 57 + stage.seed * 1.7);
   const thrown = keptFor(thrownByStage, stageKey(stage, ends), () =>

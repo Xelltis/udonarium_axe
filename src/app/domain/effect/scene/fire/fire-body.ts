@@ -8,11 +8,11 @@ import { hueOf, type Point } from '@axe/domain/effect/scene/parts';
 /*
  * The body of a fire, as every look of fire draws it: flames laid in sheets, the widest and deepest
  * red first and the hottest last, every flame's rim before any flame's body, so that many flames run
- * together into one fire edged in red, orange within, yellow further in and white at its heart,
- * rather than each standing out ringed in its own colours. A flame is a lick, torn into shreds
- * towards its tip, or a blaze, a ball of fire whose edge rolls. As a flame cools it loses its sheets
- * from the heart out, until only its rim is left, darkening; what it leaves is smoke, drawn behind
- * the fire as billows.
+ * together into one fire edged in red, orange within, gold further in, pale at its heart and white
+ * there only while it is at its hottest, rather than each standing out ringed in its own colours.
+ * A flame is a lick, torn into shreds towards its tip, or a blaze, a ball of fire whose edge rolls.
+ * As a flame cools it loses its sheets from the heart out, until only its rim is left, darkening;
+ * what it leaves is smoke, drawn behind the fire as billows.
  *
  * Every length here is in table pixels.
  */
@@ -64,7 +64,7 @@ export interface FireDepth {
 const SHEETS = [
   { needs: 0, wide: 1, long: 1, step: 1, core: 1 },
   { needs: 0.18, wide: 0.82, long: 0.9, step: 2, core: 3 },
-  { needs: 0.5, wide: 0.54, long: 0.72, step: 4, core: 5 },
+  { needs: 0.5, wide: 0.54, long: 0.72, step: 3, core: 4 },
 ] as const;
 /** The grey of ash, which soot is taken towards so that the light on a billow of it can be seen. */
 const ASH = '#7d6c6a';
