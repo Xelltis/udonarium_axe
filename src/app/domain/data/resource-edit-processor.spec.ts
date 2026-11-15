@@ -1,6 +1,12 @@
-import { diceBotUnreachable$, DiceBotUnreachableEvent } from '@axe/core/event/domain-events';
+import {
+  diceBotUnreachable$,
+  DiceBotUnreachableEvent,
+  resetCarriedOut$,
+  ResetCarriedOutEvent,
+} from '@axe/core/event/domain-events';
 import { buffEffectTimingOf } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { type ResetRecord, undoReset } from '@axe/domain/character/piece-reset';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DataElement, DataElementAttribute, DataElementFieldType } from '@axe/domain/data/data-element';
@@ -329,6 +335,29 @@ describe('ResourceEditProcessor', () => {
         expect(names(character)).toEqual(['加速']);
         expect(names(archer)).toEqual([]);
       });
+
+      it.each([
+        ['&&none-', '卓全体から消えないバフを解除（1体・1件）', '卓全体に消えないバフはありません'],
+        ['&&二人乗り-', '卓全体に「二人乗り」はありません', '卓全体に「二人乗り」はありません'],
+      ])(
+        'leaves the buff a piece rides two up by where %s would pick it, and does not count it',
+        async (line, withOthers, alone) => {
+          PeerCursor.myCursor.role = PeerRole.GameMaster;
+          archer.buffs.addRound('二人乗り', '命中-2', 3, { timing: 'none' });
+          archer.rideTwoUpFrom = 'mount';
+          archer.rideTwoUpBuff = archer.buffs.find('二人乗り')!.identifier;
+
+          await processor.checkResourceEditCommand(speak(line), [{ text: line, object: character }]);
+
+          expect(systemText()).toContain(withOthers);
+          expect(names(archer)).toEqual(['毒', '二人乗り']);
+
+          await processor.checkResourceEditCommand(speak(line), [{ text: line, object: character }]);
+
+          expect(systemText()).toContain(alone);
+          expect(names(archer)).toEqual(['毒', '二人乗り']);
+        }
+      );
 
       it('takes nothing for anyone but the game master, and says the sweep is theirs', async () => {
         PeerCursor.myCursor.role = PeerRole.Player;
@@ -838,6 +867,142 @@ describe('ResourceEditProcessor', () => {
             expect(report.text).toContain('既定値に戻す 命中:5→3 回避:2→4');
           }
         );
+      });
+
+      describe('what a reset tells this device, to be taken back by (acceptance 17)', () => {
+        let told: ResetCarriedOutEvent[];
+        let stop: () => void;
+
+        const recordOf = (event: ResetCarriedOutEvent) => event.record as ResetRecord;
+        const reportLine = () => tab.chatMessages.filter((message) => message.tags.includes('system'))[0];
+
+        beforeEach(() => {
+          told = [];
+          stop = resetCarriedOut$.subscribe((event) => told.push(event));
+          character.buffs.addRound('毒', '', 3, { timing: 'none', kind: 'debuff' });
+          character.buffs.addRound('加速', '', 2);
+        });
+
+        afterEach(() => stop());
+
+        it('tells what &リセット- did under the line that reports it, and that puts everything back', async () => {
+          await say('&!強化/命中/+/2/3');
+          forget();
+          const before = character.buffs.snapshot();
+          expect(hit.value).toBe(7);
+
+          await say('&リセット-');
+
+          expect(told).toHaveLength(1);
+          expect(told[0].messageIdentifier).toBe(reportLine().identifier);
+          expect(recordOf(told[0]).pieces.map((piece) => piece.piece)).toEqual([character.identifier]);
+          expect([hit.value, dodge.value]).toEqual([3, 4]);
+          expect(buffsOf(character)).toEqual([]);
+
+          expect(undoReset(recordOf(told[0]))).toEqual({ restored: 1, skipped: 0 });
+          expect(character.buffs.snapshot()).toEqual(before);
+          expect([hit.value, dodge.value]).toEqual([7, 2]);
+        });
+
+        it.each(['&*-', '&*デバフ-', ':*=既定', ':命中=既定', '&*- :*=既定'])(
+          'tells what %s did, once for the line',
+          async (line) => {
+            await say(line);
+
+            expect(told).toHaveLength(1);
+            expect(told[0].messageIdentifier).toBe(reportLine().identifier);
+          }
+        );
+
+        it('tells of a part with its body, each a piece of its own', async () => {
+          const head = partOf(character, 'Bの頭');
+          head.buffs.addRound('集中', '', 2);
+
+          await say('&リセット-');
+
+          expect(
+            recordOf(told[0])
+              .pieces.map((piece) => piece.piece)
+              .sort()
+          ).toEqual([character.identifier, head.identifier].sort());
+        });
+
+        it('tells of every piece &&リセット- and &&*- changed, for the game master', async () => {
+          PeerCursor.myCursor.role = PeerRole.GameMaster;
+          numberOn(archer, '命中', 9, '6');
+
+          await say('&&リセット-');
+
+          expect(
+            recordOf(told[0])
+              .pieces.map((piece) => piece.piece)
+              .sort()
+          ).toEqual([character.identifier, archer.identifier].sort());
+          undoReset(recordOf(told[0]));
+          expect(buffsOf(character)).toEqual(['毒', '加速']);
+          expect(archer.status.getValue('命中', 'now')).toBe(9);
+
+          forget();
+          await say('&&*-');
+          expect(told).toHaveLength(2);
+          expect(recordOf(told[1]).pieces.map((piece) => piece.piece)).toEqual([character.identifier]);
+        });
+
+        it('leaves a change of a status written on the same line out of what is taken back', async () => {
+          await say(':命中+4 &リセット-');
+
+          expect(hit.value).toBe(3);
+          undoReset(recordOf(told[0]));
+          expect(hit.value).toBe(9);
+        });
+
+        it.each(['&毒-', '&D', '&R-', ':命中+1', '&盾/防御+1/3'])(
+          'tells nothing for %s, which is no reset',
+          async (line) => {
+            await say(line);
+
+            expect(told).toEqual([]);
+          }
+        );
+
+        it.each([
+          ['&&none-', ['加速']],
+          ['&&2R-', ['毒']],
+          ['&&毒-', ['加速']],
+        ])('tells what the sweep by a condition %s did, so it can be taken back', async (line, left) => {
+          PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+          await say(line);
+
+          expect(buffsOf(character)).toEqual(left);
+          expect(told).toHaveLength(1);
+          expect(told[0].messageIdentifier).toBe(reportLine().identifier);
+          undoReset(recordOf(told[0]));
+          expect(buffsOf(character)).toEqual(['毒', '加速']);
+        });
+
+        it('tells nothing for a sweep by a condition that found nothing', async () => {
+          PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+          await say('&&9R-');
+
+          expect(told).toEqual([]);
+        });
+
+        it('tells nothing where the reset changed nothing', async () => {
+          const bare = onTable('案山子');
+
+          await say('&reset-', [null], bare.identifier);
+
+          expect(told).toEqual([]);
+        });
+
+        it('tells nothing for a sweep anyone but the game master asks for', async () => {
+          await say('&&リセット-');
+          await say('&&*-');
+
+          expect(told).toEqual([]);
+        });
       });
 
       describe('what a piece keeps back (acceptance 14)', () => {

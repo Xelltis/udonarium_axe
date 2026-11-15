@@ -129,6 +129,25 @@
                   <option [ngValue]="choice">{{ 'feature.character.buff.timing_' + choice | transloco }}</option>
                 }
               </select>
+              <i
+                class="material-icons text-ui-dim text-[13px]! leading-none"
+                data-testid="buff-row-kind-cue"
+                aria-hidden="true"
+                >swap_vert</i
+              >
+              <select
+                class="text-ui-muted hover:bg-ui-hover focus:bg-ui-input rounded-ui-sm cursor-pointer border-none bg-transparent p-0.5 text-[11px] outline-none"
+                name="buffKind"
+                data-testid="buff-row-kind"
+                [ngModel]="kind()"
+                (ngModelChange)="selectKind($event)"
+                [title]="'feature.character.buff.kind' | transloco"
+                [attr.aria-label]="'feature.character.buff.kind' | transloco"
+              >
+                @for (choice of kindChoices; track choice) {
+                  <option [ngValue]="choice">{{ 'feature.character.buff.kind_' + choice | transloco }}</option>
+                }
+              </select>
               @if (timing() !== 'roundEnd') {
                 <select
                   class="text-ui-muted hover:bg-ui-hover focus:bg-ui-input rounded-ui-sm min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0.5 text-[11px] outline-none"

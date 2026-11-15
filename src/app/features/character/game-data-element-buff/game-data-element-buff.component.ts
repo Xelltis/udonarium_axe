@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
+import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -16,6 +17,7 @@ import {
   buffIconUrlOf,
   parseBuffStrength,
 } from '@axe/domain/character/buff-badge';
+import { BUFF_KINDS, type BuffKind, buffKindOf, markBuffKind } from '@axe/domain/character/buff-kind';
 import { readBuffModifier } from '@axe/domain/character/buff-modifier';
 import {
   BUFF_EFFECT_TIMINGS,
@@ -52,6 +54,7 @@ export class GameDataElementBuffComponent {
   private readonly inventory = inject(GameObjectInventoryService);
   private readonly modalService = inject(ModalService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly statusAilments = inject(StatusAilmentService);
 
   readonly isReadOnly = computed(() => !this.rolePermission.canEditTabletop());
 
@@ -201,6 +204,31 @@ export class GameDataElementBuffComponent {
     this.objectChange.versionOf(element.identifier)();
     return buffTriggerOf(element);
   });
+
+  readonly kindChoices = BUFF_KINDS;
+
+  /**
+   * Whether the buff is a buff or a debuff: as it is marked, or, unmarked, a debuff where it goes by
+   * the name of a state the room keeps. A further row of a buff that moves several statuses is what
+   * the buff's first row is.
+   */
+  readonly kind = computed<BuffKind>(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    for (const row of element.parent?.children ?? []) this.objectChange.versionOf(row.identifier)();
+    return buffKindOf(element, this.statusAilments.ailments());
+  });
+
+  /**
+   * Marks the buff a buff or a debuff by hand, and tells the room the element changed. Nothing for a
+   * seat that may not edit the table.
+   */
+  selectKind(kind: BuffKind): void {
+    if (this.isReadOnly()) return;
+    const element = this.gameDataElement();
+    markBuffKind(element, kind);
+    this.objectChange.notifyChanged(element.identifier);
+  }
 
   readonly effectTimingChoices = BUFF_EFFECT_TIMINGS;
 

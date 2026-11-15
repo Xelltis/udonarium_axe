@@ -53,6 +53,7 @@ import { CardEventHandlerService } from '@axe/features/card/card-event-handler.s
 import { HandDragGhostComponent } from '@axe/features/card/hand-rail/hand-drag-ghost.component';
 import { HandRailComponent } from '@axe/features/card/hand-rail/hand-rail.component';
 import { CcfoliaRoomImportEventHandlerService } from '@axe/features/ccfolia-room-import/ccfolia-room-import-event-handler.service';
+import { ResetUndoEventHandlerService } from '@axe/features/character/reset-undo/reset-undo-event-handler.service';
 import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-settings-event-handler.service';
 import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-event-handler.service';
 import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
@@ -236,6 +237,7 @@ export class AppComponent {
     inject(TargetReleaseEventHandlerService);
     inject(EffectChatEventHandlerService);
     inject(StatusAilmentEffectEventHandlerService);
+    inject(ResetUndoEventHandlerService);
     inject(BattleCutInEventHandlerService);
     inject(BattleChatEventHandlerService);
     inject(VoteEventHandlerService);

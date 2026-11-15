@@ -299,6 +299,12 @@ export class PanelService {
    */
   readonly resizeRequest$ = new EventChannel<{ width: number; height: number } | null>();
   /**
+   * Fires with the frame's new size when the reader has resized it by its edge with this panel in
+   * front, for a panel that keeps the size it was left at. A size the frame was given from code, as
+   * by full screen or a narrow screen, does not fire it.
+   */
+  readonly resized$ = new EventChannel<PanelSize>();
+  /**
    * Asks the frame to shrink the panel to its content, or to let it out again.
    *
    * Shrunk to its content is a way of showing the panel that the content chooses, as the inventory

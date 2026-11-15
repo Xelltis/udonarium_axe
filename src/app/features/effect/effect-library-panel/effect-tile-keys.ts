@@ -62,3 +62,32 @@ function nearestInRow(boxes: readonly TileBox[], from: number, direction: -1 | 1
   });
   return found;
 }
+
+/** The keys that move up and down a column of rows: the index of families, or the items of the menu. */
+const COLUMN_KEYS: ReadonlySet<string> = new Set(['ArrowUp', 'ArrowDown', 'Home', 'End']);
+
+/** Whether a key moves up or down a column of rows. */
+export function movesAlongColumn(key: string): boolean {
+  return COLUMN_KEYS.has(key);
+}
+
+/**
+ * Which row of a column a key moves to from the one at an index: up and down step to the row before
+ * and after and stop at the ends, Home and End go to the first row and the last. For any other key,
+ * and from an index outside the column, it is the row it started from.
+ */
+export function rowAfterKey(count: number, from: number, key: string): number {
+  if (from < 0 || from >= count) return from;
+  switch (key) {
+    case 'ArrowUp':
+      return Math.max(from - 1, 0);
+    case 'ArrowDown':
+      return Math.min(from + 1, count - 1);
+    case 'Home':
+      return 0;
+    case 'End':
+      return count - 1;
+    default:
+      return from;
+  }
+}

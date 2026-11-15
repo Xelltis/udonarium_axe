@@ -18,7 +18,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { selectControllableCharacters } from '@axe/domain/character/owned-characters';
 import { PaletteCommandGroup, paletteCommandGroups } from '@axe/domain/chat/palette-rows';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import { kindGlyphSvg } from '@axe/domain/effect/effect-shapes';
+import { presetGlyphSvg } from '@axe/domain/effect/effect-shapes';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
 import { hotbarSlotLabel } from '@axe/domain/hotbar/hotbar-appearance';
 import { emptyHotbarSlotDraft, HotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
@@ -187,7 +187,7 @@ export class HotbarSlotEditorComponent {
     return this.effectLibrary.presets().map((preset) => ({
       value: preset.name,
       name: preset.name,
-      glyph: kindGlyphSvg(preset.effectKind, { core: preset.colorPrimary, edge: preset.colorSecondary }),
+      glyph: presetGlyphSvg(preset),
     }));
   });
 

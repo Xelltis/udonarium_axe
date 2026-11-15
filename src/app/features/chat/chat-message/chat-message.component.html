@@ -248,6 +248,21 @@
     @if (canDisclose()) {
       <button (click)="discloseMessage()">{{ 'feature.chat.message.discloseSecret' | transloco }}</button>
     }
+    @if (canUndoReset()) {
+      <button type="button" data-testid="reset-undo" (click)="undoReset()">
+        {{ 'feature.chat.reset.undo' | transloco }}
+      </button>
+    } @else if (resetUndoResult(); as ended) {
+      <span class="text-ui-dim ml-0.5 text-[0.9em]" data-testid="reset-undo-result">
+        @if (ended.restored < 1) {
+          {{ 'feature.chat.reset.undoNone' | transloco }}
+        } @else if (ended.skipped > 0) {
+          {{ 'feature.chat.reset.undoSkipped' | transloco: ended }}
+        } @else {
+          {{ 'feature.chat.reset.undone' | transloco: ended }}
+        }
+      </span>
+    }
   } @else {
     <span>{{ 'feature.chat.message.secretDice' | transloco }}</span>
   }

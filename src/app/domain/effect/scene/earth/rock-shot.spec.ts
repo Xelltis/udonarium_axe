@@ -111,11 +111,11 @@ describe('a shot of rock', () => {
     expect(Math.max(...rocksOf(staged(shot, ends - 20)).map((rock) => rock.alpha))).toBeLessThan(0.1);
   });
 
-  it('leaves a bolt that lands in rubble but is of another element the bolt of light it was', () => {
+  it('leaves a bolt that lands in rubble but is of another element a bolt of magic', () => {
     const fiery = shotOf({ tagName: '炎' });
     const flying = staged(fiery, 170);
 
-    expect(flying.ribbons.some((ribbon) => ribbon.blend === 'light' && ribbon.points.length === 9)).toBe(true);
+    expect(flying.motes.some((mote) => mote.shape === 'lick')).toBe(true);
     expect(rocksOf(flying)).toEqual([]);
   });
 });

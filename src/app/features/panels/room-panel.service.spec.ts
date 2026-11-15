@@ -1,6 +1,7 @@
 import { ViewContainerRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import { DiceTableSettingComponent } from '@axe/features/dice/dice-table-setting/dice-table-setting.component';
 import { DungeonGeneratorComponent } from '@axe/features/dungeon-generator/dungeon-generator.component';
@@ -103,6 +104,28 @@ describe('RoomPanelService', () => {
     expect(option(1)).toEqual(expect.objectContaining({ width: 460, height: 660 }));
     await expect(openLazy.mock.calls[0][0]()).resolves.toBe(MapEditorPanelComponent);
     await expect(openLazy.mock.calls[1][0]()).resolves.toBe(DungeonGeneratorComponent);
+  });
+
+  describe('the list of effects', () => {
+    afterEach(() => localStorage.removeItem(STORAGE_KEYS.effectLibrarySize));
+
+    it('opens at 540 by 720 the first time, and may be made no smaller than 340 by 420', () => {
+      localStorage.removeItem(STORAGE_KEYS.effectLibrarySize);
+
+      service.open('effectLibrary');
+
+      expect(option()).toEqual(expect.objectContaining({ width: 540, height: 720, minWidth: 340, minHeight: 420 }));
+    });
+
+    it('opens at the size the reader left it at, read as each one is opened', () => {
+      localStorage.setItem(STORAGE_KEYS.effectLibrarySize, JSON.stringify({ width: 700, height: 600 }));
+      service.open('effectLibrary');
+      localStorage.setItem(STORAGE_KEYS.effectLibrarySize, 'broken');
+      service.open('effectLibrary');
+
+      expect(option(0)).toEqual(expect.objectContaining({ width: 700, height: 600, minWidth: 340, minHeight: 420 }));
+      expect(option(1)).toEqual(expect.objectContaining({ width: 540, height: 720 }));
+    });
   });
 
   it('opens the inventory as a panel the minimise button folds to its bar, like any other', () => {

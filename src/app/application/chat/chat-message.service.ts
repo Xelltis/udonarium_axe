@@ -166,6 +166,42 @@ export class ChatMessageService {
     return this.sendSystemMessageToTab(tab, text, options.color, options.from);
   }
 
+  /**
+   * Writes a notice of one kind for this seat alone, where the room sends that kind nowhere: into the
+   * tab the kind always went to, addressed to this seat as a line said to one reader is, so no other
+   * seat is shown it and a room saved from another seat leaves it out. For the report of something
+   * this seat did and must still be able to read, which the room's choice would otherwise leave it
+   * without. Null where this seat has no cursor yet.
+   */
+  tellSelfSystemNotice(kind: SystemNoticeKind, text: string): ChatMessage | null {
+    const tab =
+      DEFAULT_NOTICE_PLACE[kind] === 'main'
+        ? (this.chatTabList.chatTabs[0] ?? null)
+        : this.chatTabList.systemMessageTab;
+    return tab ? this.tellSelfInTab(tab, text) : null;
+  }
+
+  /**
+   * Writes a notice into a tab for this seat alone, addressed to it as a notice for one reader is.
+   * Null, writing nothing, where this seat has no cursor yet, since a line addressed to nobody would
+   * be shown to everyone.
+   */
+  tellSelfInTab(chatTab: ChatTab, text: string): ChatMessage | null {
+    const userId = PeerCursor.myCursor?.userId ?? '';
+    if (userId.length < 1) return null;
+    return chatTab.addMessage({
+      from: userId,
+      to: userId,
+      name: encodeI18nMessage('common.chat.systemName'),
+      imageIdentifier: '',
+      timestamp: this.calcTimeStamp(chatTab),
+      tag: 'DiceBot to-pl-system-message',
+      text,
+      imagePos: -1,
+      messColor: resolveMessageColor(undefined, '#006633'),
+    });
+  }
+
   /** The tab a kind of notice goes to now, or null for a kind the room sends nowhere. */
   noticeTabOf(kind: SystemNoticeKind): ChatTab | null {
     const chatTabList = this.chatTabList;

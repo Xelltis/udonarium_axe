@@ -252,3 +252,43 @@ describe('heldEffectClock() and wallClockOf()', () => {
     expect(wallClockOf([], 1234)).toBe(1234);
   });
 });
+
+describe('the blows of lightning', () => {
+  it('lands a snap and a strike once, as the bolt comes after its leader', () => {
+    expect(effectBlowsOf(makePreset('bolt', 1, { durationMs: 1332 }))).toEqual([
+      { atMs: 80, holdMs: 60, shake: '', push: 0.06 },
+    ]);
+    expect(effectBlowsOf(makePreset('bolt', 2, { durationMs: 1567 }))).toEqual([
+      { atMs: 200, holdMs: 90, shake: 'soft', push: 0.1 },
+    ]);
+  });
+
+  it('lands a storm twice, as its column comes down and at the last stroke it ends in, holding both', () => {
+    expect(effectBlowsOf(makePreset('bolt', 3, { durationMs: 3048 }))).toEqual([
+      { atMs: 550, holdMs: 140, shake: 'hard', push: 0.16 },
+      { atMs: 1550, holdMs: 140, shake: 'hard', push: 0.16 },
+    ]);
+  });
+
+  it('lands a current as it reaches its target, long before it breaks', () => {
+    expect(effectBlowsOf(makePreset('arc', 2, { durationMs: 900 }))).toEqual([
+      { atMs: 90, holdMs: 90, shake: '', push: 0.1 },
+    ]);
+  });
+
+  it('lands a bolt that is a stage of a run after the leader of its own grade, within its stage', () => {
+    const staged = makePreset('bolt', 2);
+    staged.stages = JSON.stringify([
+      { role: 'travel', kind: 'projectile', durationMs: 400 },
+      { role: 'impact', kind: 'bolt', durationMs: 1500 },
+    ] satisfies EffectStage[]);
+
+    expect(effectBlowsOf(staged).map((blow) => blow.atMs)).toEqual([600]);
+  });
+
+  it('lands a shot of lightning as the shot lands, once', () => {
+    const shot = makePreset('projectile', 2, { impactKind: 'bolt', tagName: '射撃', durationMs: 850 });
+
+    expect(effectBlowsOf(shot)).toEqual([{ atMs: 340, holdMs: 90, shake: '', push: 0.1 }]);
+  });
+});

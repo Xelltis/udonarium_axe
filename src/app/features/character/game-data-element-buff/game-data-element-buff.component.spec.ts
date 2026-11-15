@@ -1,8 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { newStatusAilment } from '@axe/domain/character/status-ailment';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
@@ -265,5 +270,106 @@ describe('GameDataElementBuffComponent', () => {
     open.mockResolvedValue('');
     await component.chooseIconImage();
     expect(buff.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('');
+  });
+
+  describe('whether the buff is a buff or a debuff', () => {
+    const originalCursor = PeerCursor.myCursor;
+    let container: DataElement;
+
+    function row(name: string, attributes: Record<string, string> = {}): DataElement {
+      const made = DataElement.create(name, 3, { type: 'numberResource', currentValue: '命中-1', ...attributes });
+      container.appendChild(made);
+      return made;
+    }
+
+    function show(element: DataElement): HTMLSelectElement {
+      fixture.componentRef.setInput('gameDataElement', element);
+      fixture.detectChanges();
+      return (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('[data-testid="buff-row-kind"]')!;
+    }
+
+    beforeEach(() => {
+      PeerCursor.myCursor = { role: PeerRole.Player, userId: 'me', identifier: 'seat' } as PeerCursor;
+      container = DataElement.create('バフ/デバフ', '');
+      TestBed.inject(StatusAilmentService).save([newStatusAilment('毒')]);
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = originalCursor;
+      container.destroy();
+      TestBed.inject(StatusAilmentService).save([]);
+      StatusAilmentCatalog.forget();
+    });
+
+    it('offers the choice on the row of the sheet, standing at a buff for a buff with no mark', () => {
+      const select = show(row('猛攻撃'));
+
+      expect(select.querySelectorAll('option')).toHaveLength(2);
+      expect(component.kind()).toBe('buff');
+    });
+
+    it('shows a state the room keeps as a debuff without anyone setting it', () => {
+      show(row('毒'));
+
+      expect(component.kind()).toBe('debuff');
+    });
+
+    it('writes the mark as it is chosen, either way', () => {
+      const poison = row('毒');
+      show(poison);
+
+      component.selectKind('buff');
+      expect(poison.getAttribute(DataElementAttribute.BUFF_KIND)).toBe('buff');
+      expect(component.kind()).toBe('buff');
+
+      component.selectKind('debuff');
+      expect(poison.getAttribute(DataElementAttribute.BUFF_KIND)).toBe('debuff');
+      expect(component.kind()).toBe('debuff');
+    });
+
+    it('shows a further row of a buff as its first row is, and marks the first row from it', () => {
+      const head = row('祝福', { [DataElementAttribute.BUFF_GROUP]: '祝福' });
+      const member = row('祝福（回避）', { [DataElementAttribute.BUFF_GROUP]: '祝福' });
+      show(member);
+
+      component.selectKind('debuff');
+
+      expect(head.getAttribute(DataElementAttribute.BUFF_KIND)).toBe('debuff');
+      expect(component.kind()).toBe('debuff');
+    });
+
+    it('writes nothing for a seat that only watches', () => {
+      const blessing = row('祝福');
+      show(blessing);
+      PeerCursor.myCursor = { role: PeerRole.Guest, userId: 'me', identifier: 'seat' } as PeerCursor;
+      TestBed.inject(ObjectChangeService).notifyChanged('seat');
+
+      component.selectKind('debuff');
+
+      expect(blessing.toAttributes()).not.toHaveProperty(DataElementAttribute.BUFF_KIND);
+    });
+
+    it('names the choice for a screen reader and marks it with a sign in front, as the timing beside it is', () => {
+      const select = show(row('盾'));
+
+      expect(select.getAttribute('aria-label')).toBe(select.title);
+      expect(select.getAttribute('aria-label')!.length).toBeGreaterThan(0);
+      const cue = select.previousElementSibling as HTMLElement;
+      expect(cue.dataset['testid']).toBe('buff-row-kind-cue');
+      expect([cue.getAttribute('aria-hidden'), cue.classList.contains('material-icons')]).toEqual(['true', true]);
+      expect(cue.parentElement).toBe(
+        (fixture.nativeElement as HTMLElement).querySelector('[data-testid="buff-row-timing"]')!.parentElement
+      );
+    });
+
+    it('shows the ▼ of a debuff on the badge of the row drawn over the piece, and no choice there', () => {
+      fixture.componentRef.setInput('isPieceMode', true);
+      fixture.componentRef.setInput('gameDataElement', row('毒'));
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.querySelector('[data-testid="buff-debuff-mark"]')).not.toBeNull();
+      expect(host.querySelector('[data-testid="buff-row-kind"]')).toBeNull();
+    });
   });
 });

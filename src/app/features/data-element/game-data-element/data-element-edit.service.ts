@@ -1,6 +1,17 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import {
+  captureDefaults,
+  clearDefaults,
+  countItemsToCapture,
+  countItemsWithDefault,
+  resetElementToDefaults,
+} from '@axe/domain/character/default-value';
+import type { GameCharacter } from '@axe/domain/character/game-character';
+import { owningCharacterOf } from '@axe/domain/character/owning-character';
 import {
   DataElement,
   DataElementAttribute,
@@ -55,6 +66,54 @@ export class DataElementEditService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly deletion = inject(DataElementDeletionService);
+  private readonly rolePermission = inject(RolePermissionService);
+  private readonly objectStore = inject(ObjectStore);
+
+  /**
+   * How many items of a piece and its parts making the defaults would mark, writing nothing: every
+   * number, checkbox and resource, and each line of text holding a number.
+   */
+  countDefaultsToCapture(piece: GameCharacter): number {
+    return countItemsToCapture(piece);
+  }
+
+  /**
+   * Makes what a piece and the parts that go with it hold now their defaults, the values a reset puts
+   * them back to, and answers how many items came to keep one. Nothing, and 0, for a seat that may
+   * not edit the table.
+   */
+  captureDefaults(piece: GameCharacter): number {
+    if (!this.rolePermission.canEditTabletop()) return 0;
+    return captureDefaults(piece);
+  }
+
+  /** How many items of a piece and its parts have a default written. */
+  countDefaultsKept(piece: GameCharacter): number {
+    return countItemsWithDefault(piece);
+  }
+
+  /**
+   * Takes every default off a piece and the parts that go with it, and answers how many items had
+   * one. Nothing, and 0, for a seat that may not edit the table.
+   */
+  clearDefaults(piece: GameCharacter): number {
+    if (!this.rolePermission.canEditTabletop()) return 0;
+    return clearDefaults(piece);
+  }
+
+  /**
+   * Puts one field back to the default it keeps and carries its value to the alias mates that keep
+   * none. False, changing nothing, for a seat that may not edit the table and for a field on no
+   * piece's sheet.
+   */
+  backToDefault(element: DataElement): boolean {
+    if (!this.rolePermission.canEditTabletop()) return false;
+    const piece = owningCharacterOf(element);
+    if (!piece) return false;
+    const reset = resetElementToDefaults(piece, element);
+    this.notify(element, ...reset.changes.map((change) => this.objectStore.get<DataElement>(change.identifier)));
+    return true;
+  }
 
   /** The default names of something new, in the interface's language. */
   newElementNames(): NewElementNames {

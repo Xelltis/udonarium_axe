@@ -7,6 +7,7 @@ import { effectLandingTimes } from '@axe/domain/effect/effect-sound-times';
 import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
 import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
 import { frostStrikesOf } from '@axe/domain/effect/ice-looks';
+import { boltStrokesOf, CURRENT_REACHES_AT } from '@axe/domain/effect/thunder-looks';
 import { slashHits } from '@axe/domain/effect/timeline/blade';
 import { gustTimingOf, isGust } from '@axe/domain/effect/wind-looks';
 
@@ -91,7 +92,6 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
   rubble: RUBBLE_FIRST_HEAVE,
   upheaval: 0.12,
   bash: 0.1,
-  bolt: 0.05,
   frost: 0.1,
   gravity: 0.5,
   bisect: 0.05,
@@ -109,9 +109,11 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
  * look of holy light lands one, once it has been seen coming: its pillar landing, its ring bursting,
  * its walls rising. A draining lands one as it takes hold, which pulls the piece towards the one who
  * drains it rather than throwing it back. The greatest aura on its own lands one as it breaks out,
- * which holds and shakes and moves no piece. Ice on its own lands as the ice it is drawn as does:
+ * which holds and shakes and throws no piece back. Ice on its own lands as the ice it is drawn as does:
  * hail at each of its great shards, the cold that stills an area and a pillar of ice once as they
- * close and once as they shatter. Each later target is struck as the first is, its stagger
+ * close and once as they shatter. A bolt of lightning lands one as it strikes, once its
+ * leader has been seen coming, and the greatest of them a second, the last stroke its column ends in;
+ * a current of lightning lands one as it reaches its target. Each later target is struck as the first is, its stagger
  * later, and holds nothing more.
  */
 export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
@@ -154,9 +156,12 @@ function strikeTimes(preset: EffectPreset): number[] {
       .windows.filter((window) => window.stage.role === 'impact' && STRIKING_KINDS.has(window.stage.kind))
       .map((window) => {
         const lasts = window.endMs - window.startMs;
-        const holy = holyStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000);
+        const seen =
+          window.stage.kind === 'bolt'
+            ? boltStrokesOf(preset.gradeLevel, lasts / 1000)[0]
+            : holyStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000);
         return Math.round(
-          window.startMs + (holy !== undefined ? holy * 1000 : lasts * (GOES_OFF_AT[window.stage.kind] ?? 0))
+          window.startMs + (seen !== undefined ? seen * 1000 : lasts * (GOES_OFF_AT[window.stage.kind] ?? 0))
         );
       })
       .sort((a, b) => a - b);
@@ -169,6 +174,10 @@ function strikeTimes(preset: EffectPreset): number[] {
   if (!STRIKING_KINDS.has(preset.effectKind)) return [];
   const holy = holyStrikesAt(preset.effectKind, preset.gradeLevel, preset.duration / 1000);
   if (holy !== undefined) return [Math.round(holy * 1000)];
+  if (preset.effectKind === 'bolt') {
+    return boltStrokesOf(preset.gradeLevel, preset.duration / 1000).map((stroke) => Math.round(stroke * 1000));
+  }
+  if (preset.effectKind === 'arc') return [Math.round(CURRENT_REACHES_AT * preset.duration)];
   if (preset.effectKind === 'rubble') {
     return rubbleHeavesOf(preset.duration / 1000).map((heave) => Math.round(heave * 1000));
   }

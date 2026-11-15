@@ -17,6 +17,7 @@ import {
 import { type EffectStage, parseEffectStages } from '@axe/domain/effect/effect-stage';
 import { stagedEffectDuration } from '@axe/domain/effect/effect-stage-timeline';
 import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
+import { boltStrokesOf, CURRENT_REACHES_AT } from '@axe/domain/effect/thunder-looks';
 
 const MIN_DURATION_MS = 120;
 const MAX_DURATION_MS = 6000;
@@ -159,12 +160,16 @@ export class EffectPreset extends GameObject {
 
   /**
    * Where through the effect the landing sounds. A projectile sounds it as it lands, a look of holy
-   * light as it strikes, once it has been seen coming, and anything else a little later.
+   * light or a bolt of lightning as it strikes, once it has been seen coming, a current of lightning
+   * as it reaches its target, and anything else a little later.
    */
   get impactSoundAt(): number {
     const holy = holyStrikesAt(this.effectKind, this.gradeLevel, this.duration / 1000);
     if (holy !== undefined) return holy / (this.duration / 1000);
-    if (this.effectKind === 'arc') return 0.4;
+    // A bolt sounds as it strikes, after its leader, and a current as it reaches its target.
+    if (this.effectKind === 'bolt')
+      return (boltStrokesOf(this.gradeLevel, this.duration / 1000)[0] * 1000) / this.duration;
+    if (this.effectKind === 'arc') return CURRENT_REACHES_AT;
     // A beam sounds as it fires; waiting for the landing leaves the gathering silent.
     if (this.effectKind === 'beam') return 0.28;
     // A great sword of light arrives after it falls; sounded while it is held up it becomes a starting gun.

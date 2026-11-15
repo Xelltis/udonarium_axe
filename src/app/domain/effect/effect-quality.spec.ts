@@ -29,7 +29,7 @@ function sources(dir = resolve(process.cwd(), 'src/app/domain/effect'), found: s
  * A cast of every kind at the highest grade on four targets, fired from off to one side: a volley of
  * six where it fires shots. The strongest a cast is usually made.
  */
-function heaviestCastOf(kind: EffectKind): { preset: EffectPreset; cast: EffectCast } {
+function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; cast: EffectCast } {
   const preset = new EffectPreset('preset');
   preset.kind = kind;
   preset.grade = 3;
@@ -39,7 +39,7 @@ function heaviestCastOf(kind: EffectKind): { preset: EffectPreset; cast: EffectC
     preset.shots = 6;
     preset.shotInterval = 110;
   }
-  const targets = [0, 1, 2, 3].map((index) => ({
+  const targets = Array.from({ length: count }, (_unused, index) => ({
     identifier: `t${index}`,
     x: 400 + index * 100,
     y: 300 + (index % 2) * 100,
@@ -54,10 +54,17 @@ function heaviestCastOf(kind: EffectKind): { preset: EffectPreset; cast: EffectC
 /**
  * The looks a kind takes that are chosen by its family or by the particles it names, which a cast of
  * the kind with neither never draws: each state of a curse, each element of a breath, and the shots
- * and blows of wind, of earth and of ice; and those chosen by its grade or laid out over an area, the
- * lights that smite, a sanctuary and the ice that strikes.
+ * and blows of wind, of earth and of ice; those chosen by its grade or laid out over an area, the lights
+ * that smite, a sanctuary, the ice that strikes and the bolts of lightning; and those chosen by how many it strikes, a
+ * current held on one target, and a storm on six, as many as the bundled one takes; a great beam on
+ * two and on three, where each keeps more of its detail, the beam of many hues, a laser as long as the
+ * bundled one, and the shots of a blaster; the rounds of guns, a long burst of heavy ones among them,
+ * a sniper's shot, arrows, missiles in a swarm and a cruise missile, the shots of spirit, of a curse and
+ * of holy light, and a rain of arrows on as many as the bundled one takes and on few enough to fall
+ * doubled; and the looks that bless, each healing, cleansing, barrier and aura on as many as the
+ * bundled one takes. The last of each is how many targets it is cast on, where that is not four.
  */
-const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>])[] = [
+const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, number?])[] = [
   ...[...AILMENT_LOOKS, 'arc', 'haze'].map((moteStyle) => ['curse', { moteStyle, durationMs: 5500 }] as const),
   ...(['spark', 'frost', 'arc', 'leaf', 'haze', 'none'] as const).map(
     (moteStyle) => ['breath', { moteStyle }] as const
@@ -77,11 +84,55 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>])[] = 
   ['smite', { grade: 2 }],
   ['smite', { targeting: 'multi', maxTargets: 8, areaRadius: 3 }],
   ['sanctuary', { targeting: 'multi', maxTargets: 8, areaRadius: 3 }],
+  ['bolt', { grade: 1 }],
+  ['bolt', { grade: 2 }],
+  ['bolt', { grade: 3, durationMs: 3048 }, 6],
+  ['arc', { grade: 2 }, 1],
+  ['arc', { grade: 3, staggerMs: 140 }, 5],
+  ['projectile', { impactKind: 'bolt', tagName: '射撃' }],
+  ['skyblade', { impactKind: 'bolt', durationMs: 3000 }],
+  ['beam', { durationMs: 3344 }, 2],
+  ['beam', { durationMs: 3344 }, 3],
+  ['beam', { moteStyle: 'prism', durationMs: 3000 }],
+  ['beam', { moteStyle: 'prism', durationMs: 3000 }, 2],
+  ['raybeam', { durationMs: 2038 }],
+  ['projectile', { projectileStyle: 'blaster', impactKind: 'impact' }],
+  ['projectile', { projectileStyle: 'bullet', impactKind: 'rubble', shots: 14, shotInterval: 70, durationMs: 1300 }],
+  ['projectile', { projectileStyle: 'missile', impactKind: 'burst' }],
+  ['projectile', { projectileStyle: 'bullet', impactKind: 'impact', shots: 10, shotInterval: 90 }],
+  ['projectile', { projectileStyle: 'bullet', impactKind: 'rubble', shots: 1 }],
+  ['projectile', { projectileStyle: 'tracer', impactKind: 'impact', shots: 1, durationMs: 620 }],
+  ['projectile', { projectileStyle: 'arrow', impactKind: 'impact' }],
+  ['projectile', { projectileStyle: 'arrow', impactKind: 'impact', grade: 2, shots: 5, shotInterval: 150 }],
+  [
+    'projectile',
+    { projectileStyle: 'missile', impactKind: 'burst', grade: 2, shots: 12, shotInterval: 95, durationMs: 2100 },
+    3,
+  ],
+  ['projectile', { projectileStyle: 'cruise', impactKind: 'burst', shots: 1, durationMs: 2600 }],
+  ['projectile', { impactKind: 'impact', tagName: '射撃' }],
+  ['projectile', { impactKind: 'miasma', tagName: '射撃' }],
+  ['projectile', { impactKind: 'smite', tagName: '聖' }],
+  ['arrowrain', { durationMs: 2400 }, 5],
+  ['arrowrain', { durationMs: 2400 }, 2],
+  ['heal', { grade: 1 }],
+  ['heal', { grade: 2, durationMs: 2142 }, 6],
+  ['heal', { grade: 3, durationMs: 3605 }, 8],
+  ['heal', { grade: 1, moteStyle: 'cleanse', durationMs: 2429 }, 6],
+  ['heal', { grade: 2, moteStyle: 'cleanse', durationMs: 2351 }, 6],
+  ['barrier', { grade: 2, durationMs: 1080 }, 6],
+  ['barrier', { grade: 3, durationMs: 1176 }, 6],
+  ['aura', { grade: 2, durationMs: 2064 }, 6],
+  ['aura', { grade: 3, durationMs: 2560 }, 1],
 ];
 
 /** The heaviest cast of a kind, as one of the looks it is given by its family or its particles. */
-function heaviestCastAs(kind: EffectKind, fields: Partial<EffectPreset>): { preset: EffectPreset; cast: EffectCast } {
-  const heaviest = heaviestCastOf(kind);
+function heaviestCastAs(
+  kind: EffectKind,
+  fields: Partial<EffectPreset>,
+  count?: number
+): { preset: EffectPreset; cast: EffectCast } {
+  const heaviest = heaviestCastOf(kind, count);
   Object.assign(heaviest.preset, fields);
   return heaviest;
 }
@@ -90,9 +141,9 @@ function heaviestCastAs(kind: EffectKind, fields: Partial<EffectPreset>): { pres
 function heaviestCasts(): { name: string; preset: EffectPreset; cast: EffectCast }[] {
   return [
     ...EFFECT_KINDS.map((kind) => ({ name: kind as string, ...heaviestCastOf(kind) })),
-    ...CHOSEN_LOOKS.map(([kind, fields]) => ({
-      name: `${kind} ${JSON.stringify(fields)}`,
-      ...heaviestCastAs(kind, fields),
+    ...CHOSEN_LOOKS.map(([kind, fields, count]) => ({
+      name: `${kind} ${JSON.stringify(fields)}${count ? ` on ${count}` : ''}`,
+      ...heaviestCastAs(kind, fields, count),
     })),
   ];
 }

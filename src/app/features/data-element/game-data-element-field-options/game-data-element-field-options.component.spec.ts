@@ -30,6 +30,83 @@ describe('GameDataElementFieldOptionsComponent', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
+  describe('the default a field goes back to (spec 3, settings)', () => {
+    const input = (host: HTMLElement, name: string) => host.querySelector<HTMLInputElement>(`[name="${name}"]`);
+
+    it('offers a number one box for its default, with a placeholder saying it keeps none', () => {
+      const host = show(DataElement.create('命中', 5, { fieldType: DataElementFieldType.NUMBER }));
+
+      expect(input(host, 'data-default')?.type).toBe('number');
+      expect(input(host, 'data-default')?.placeholder).toBe('なし');
+      expect(input(host, 'data-default-max')).toBeNull();
+    });
+
+    it('offers a resource a box for what is left and one for its maximum', () => {
+      const host = show(DataElement.create('HP', 20, { type: DataElementType.NUMBER_RESOURCE, currentValue: 4 }));
+
+      expect(input(host, 'data-default')).not.toBeNull();
+      expect(input(host, 'data-default-max')).not.toBeNull();
+    });
+
+    it('writes a default as it is typed, a 0 among them, and takes it away when the box is emptied', () => {
+      const element = DataElement.create('命中', 5, { fieldType: DataElementFieldType.NUMBER });
+      show(element);
+
+      component.defaultText = 0;
+      expect(element.getAttribute(DataElementAttribute.DEFAULT)).toBe('0');
+      expect(component.defaultText).toBe('0');
+
+      component.defaultText = null;
+      expect(element.toAttributes()).not.toHaveProperty(DataElementAttribute.DEFAULT);
+      expect(component.defaultText).toBe('');
+
+      component.defaultText = '  ';
+      expect(element.toAttributes()).not.toHaveProperty(DataElementAttribute.DEFAULT);
+    });
+
+    it('writes the default of a maximum on an attribute of its own', () => {
+      const element = DataElement.create('HP', 20, { type: DataElementType.NUMBER_RESOURCE, currentValue: 4 });
+      show(element);
+
+      component.defaultMaxText = 20;
+      component.defaultText = 18;
+
+      expect(element.getAttribute(DataElementAttribute.DEFAULT_MAX)).toBe('20');
+      expect(element.getAttribute(DataElementAttribute.DEFAULT)).toBe('18');
+      component.defaultMaxText = '';
+      expect(element.toAttributes()).not.toHaveProperty(DataElementAttribute.DEFAULT_MAX);
+      expect(element.getAttribute(DataElementAttribute.DEFAULT)).toBe('18');
+    });
+
+    it('offers a checkbox a choice of none, ticked and unticked', () => {
+      const element = DataElement.create('転倒', 0, {
+        type: DataElementType.CHECK,
+        fieldType: DataElementFieldType.CHECK,
+      });
+      const host = show(element);
+
+      expect(host.querySelector('select[name="data-default"]')?.querySelectorAll('option')).toHaveLength(3);
+      component.defaultText = '1';
+      expect(element.getAttribute(DataElementAttribute.DEFAULT)).toBe('1');
+      component.defaultText = '';
+      expect(element.toAttributes()).not.toHaveProperty(DataElementAttribute.DEFAULT);
+    });
+
+    it('offers a line of text the box while it holds a number or keeps a default, and not a line of prose', () => {
+      expect(input(show(DataElement.create('命中', '5')), 'data-default')).not.toBeNull();
+      expect(input(show(DataElement.create('命中', '封印中', { 'cs-default': '5' })), 'data-default')).not.toBeNull();
+      expect(input(show(DataElement.create('種族', '人間')), 'data-default')).toBeNull();
+    });
+
+    it('offers no box to a kind that may keep none', () => {
+      const host = show(
+        DataElement.create('姿勢', '立ち', { fieldType: DataElementFieldType.SELECT, choices: '立ち' })
+      );
+
+      expect(input(host, 'data-default')).toBeNull();
+    });
+  });
+
   describe('the bounds of a number', () => {
     it('writes the maximum onto the attribute', () => {
       const element = DataElement.create('Str', 10, { fieldType: DataElementFieldType.NUMBER });

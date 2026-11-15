@@ -185,14 +185,15 @@ export function namableInResourceCommand(name: string): boolean {
 }
 
 /** The words that stand for an item's default where the amount of a `:` command goes. */
-const DEFAULT_WORDS: readonly string[] = ['既定', 'default'];
+const DEFAULT_WORDS: readonly string[] = ['既定', '既定値', '規定', '規定値', 'default'];
 
 /**
  * Reads a `:` command that puts values back to their defaults, or answers null for any other.
  *
  * `:*=既定` (`:*=default`) takes every item that keeps a default, and `:HP=既定` the one item named, at
  * the slot written after its name: `:HP^=既定` its maximum, `:HP_MAX_BUFF=既定` the correction on it. The
- * word is read in either width and case, and nothing may follow it. An item named `*` is not
+ * word may be written `既定値`, `規定` or `規定値` as well, which a table says for the same thing. It is
+ * read in either width and case, and nothing may follow it. An item named `*` is not
  * reached by the first form; every other operation on it reads as it always did.
  */
 export function readDefaultResetCommand(command: string): DefaultPick | null {

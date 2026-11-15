@@ -21,6 +21,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { BottomSheetService } from '@axe/application/ui/bottom-sheet.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { DataElementDragService } from '@axe/application/ui/data-element-drag.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -66,6 +67,7 @@ import { SheetSaveButtonsComponent } from '@axe/features/character/game-characte
 import { SheetViewPreferenceService } from '@axe/features/character/game-character-sheet/sheet-view-preference.service';
 import { openDataElementEditor } from '@axe/features/data-element/data-element-editor/open-data-element-editor';
 import { DataElementDeletionService } from '@axe/features/data-element/game-data-element/data-element-deletion.service';
+import { DataElementEditService } from '@axe/features/data-element/game-data-element/data-element-edit.service';
 import { IN_DATA_ELEMENT_SHEET } from '@axe/features/data-element/game-data-element/data-element-sheet-host';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
 import { DisclosureControlComponent } from '@axe/features/disclosure/disclosure-control/disclosure-control.component';
@@ -125,6 +127,8 @@ export class GameCharacterSheetComponent {
   private readonly snackbar = inject(SnackbarService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly dataElementDeletion = inject(DataElementDeletionService);
+  private readonly dataElementEdit = inject(DataElementEditService);
+  private readonly confirm = inject(ConfirmService);
   private readonly bottomSheet = inject(BottomSheetService);
   private readonly injector = inject(Injector);
   private readonly sheetView = inject(SheetViewPreferenceService);
@@ -531,6 +535,8 @@ export class GameCharacterSheetComponent {
       {
         portraits: mayChange ? () => this.openPortraitSheet(event) : undefined,
         copy: mayChange ? () => this.clone() : undefined,
+        captureDefaults: mayChange ? () => void this.captureDefaults() : undefined,
+        clearDefaults: mayChange ? () => void this.clearDefaults() : undefined,
         save: () => void this.saveToXML(),
         collapseAll: () => this.setAllCardsFolded(true),
         expandAll: () => this.setAllCardsFolded(false),
@@ -538,6 +544,43 @@ export class GameCharacterSheetComponent {
       this.translateFn
     );
     this.contextMenuService.open(position, actions, this.characterName());
+  }
+
+  /**
+   * Makes the values the character and its parts hold now their defaults, the values a reset puts
+   * them back to, once the reader has confirmed how many items that marks. Nothing for a seat that
+   * may not edit the table, and only a notice where no item holds a number to keep.
+   */
+  async captureDefaults(): Promise<void> {
+    const char = this.character;
+    if (!char || this.isReadOnly()) return;
+    const count = this.dataElementEdit.countDefaultsToCapture(char);
+    if (count < 1) {
+      this.snackbar.show(this.translateFn('feature.dataElement.field.captureNone'));
+      return;
+    }
+    const asked = this.translateFn('feature.dataElement.field.captureConfirm', { count });
+    if (!(await this.confirm.ask(asked))) return;
+    const kept = this.dataElementEdit.captureDefaults(char);
+    this.snackbar.show(this.translateFn('feature.dataElement.field.captureDone', { count: kept }));
+  }
+
+  /**
+   * Takes every default off the character and its parts, once the reader has confirmed how many
+   * items keep one. Nothing for a seat that may not edit the table.
+   */
+  async clearDefaults(): Promise<void> {
+    const char = this.character;
+    if (!char || this.isReadOnly()) return;
+    const count = this.dataElementEdit.countDefaultsKept(char);
+    if (count < 1) {
+      this.snackbar.show(this.translateFn('feature.dataElement.field.clearNone'));
+      return;
+    }
+    const asked = this.translateFn('feature.dataElement.field.clearConfirm', { count });
+    if (!(await this.confirm.ask({ message: asked, danger: true }))) return;
+    const cleared = this.dataElementEdit.clearDefaults(char);
+    this.snackbar.show(this.translateFn('feature.dataElement.field.clearDone', { count: cleared }));
   }
 
   readonly komaImageFile = computed(() => {

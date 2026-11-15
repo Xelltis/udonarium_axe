@@ -381,6 +381,14 @@ describe('the shots and the cure that were given another look to land or to play
     expect(cure).toMatchObject({ name: '状態回復', tagName: '回復', kind: 'heal', soundKey: 'statusCure' });
     expect(cure.durationMs).toBeUndefined();
   });
+
+  it('names the particles of a cleansing for the two that cleanse, and for no other healing', () => {
+    const healings = DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => seed.kind === 'heal');
+    const cleansing = healings.filter((seed) => seed.moteStyle === 'cleanse').map((seed) => seed.name);
+
+    expect(cleansing.sort()).toEqual(['状態回復', '状態治療'].sort());
+    for (const seed of healings) expect(['', 'cleanse']).toContain(seed.moteStyle ?? '');
+  });
 });
 
 describe('the holy family', () => {
@@ -439,6 +447,48 @@ describe('the holy family', () => {
     expect(attacks.length).toBe(5);
     for (const seed of attacks) {
       for (const sound of [seed.soundKey, seed.impactSoundKey ?? '']) expect(sound).not.toMatch(/^(cure|heal|thunder)/);
+    }
+  });
+});
+
+describe('the family of lightning', () => {
+  const seedOf = (name: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.name === name)!;
+
+  it('has an attack for every part an element plays, eight in all, its shot among the shots', () => {
+    const parts = ['雷弾', '電撃', '落雷', '電流', '連鎖雷', '雷帝', '雷のブレス', '雷の大剣'];
+
+    for (const name of parts) expect([name, seedOf(name) !== undefined]).toEqual([name, true]);
+    expect(parts.filter((name) => seedOf(name).tagName === '雷')).toHaveLength(7);
+    expect(seedOf('雷弾').tagName).toBe('射撃');
+  });
+
+  it('sends the shot as a bolt that lands in a bolt of lightning, under an identifier of its own', () => {
+    expect(seedOf('雷弾')).toMatchObject({
+      identifier: 'EffectPreset_stormbolt_2',
+      kind: 'projectile',
+      impactKind: 'bolt',
+      grade: 2,
+      targeting: 'multi',
+      soundKey: 'thunderSmall',
+      impactSoundKey: 'thunderBolt',
+      durationMs: 850,
+    });
+    expect(seedOf('雷弾').projectileStyle ?? 'bolt').toBe('bolt');
+    expect(seedOf('雷弾').moteStyle ?? '').toBe('');
+  });
+
+  it('tells the chain from the current by how many it may strike, and gives both a beat between their targets', () => {
+    expect(seedOf('連鎖雷').maxTargets).toBeGreaterThan(seedOf('電流').maxTargets);
+    expect(seedOf('連鎖雷').staggerMs).toBeGreaterThanOrEqual(100);
+    expect(seedOf('電流').staggerMs).toBeGreaterThanOrEqual(50);
+  });
+
+  it('sounds each landing as the lightning strikes', () => {
+    const preset = createEffectPreset(seedOf('電流'));
+    try {
+      expect(preset.impactSoundAt).toBeCloseTo(0.1);
+    } finally {
+      ObjectStore.instance.remove(preset);
     }
   });
 });

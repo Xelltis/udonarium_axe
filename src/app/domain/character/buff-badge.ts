@@ -1,6 +1,7 @@
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { DEFAULT_BUFF_COLOR } from '@axe/domain/character/buff-appearance';
 import { buffGroupOf, isBuffGroupMember } from '@axe/domain/character/buff-group';
+import { type BuffKind, buffKindMarkOf } from '@axe/domain/character/buff-kind';
 import { BuffEffectTiming, buffEffectTimingOf, buffExpires } from '@axe/domain/character/buff-timing';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 
@@ -18,6 +19,8 @@ export interface BuffBadge {
   /** The moment the buff's effect moves at, where it has one of its own; null where it has none. */
   effectTiming: BuffEffectTiming | null;
   color: string;
+  /** The kind the buff is marked as by hand or by a command, or null where it carries no mark. */
+  kindMark: BuffKind | null;
 }
 
 export const BUFF_BADGES_PER_ROW = 5;
@@ -130,5 +133,6 @@ export function buffBadgeOf(data: DataElement, effect = `${data.currentValue ?? 
     expires: buffExpires(data),
     effectTiming: buffEffectTimingOf(data),
     color: buffColorOf(data),
+    kindMark: buffKindMarkOf(data),
   };
 }

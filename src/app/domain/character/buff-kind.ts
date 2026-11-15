@@ -5,6 +5,9 @@ import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element
 /** Which of the two a buff is: one that helps the piece wearing it, or one that hinders it. */
 export type BuffKind = 'buff' | 'debuff';
 
+/** The two kinds, in the order a choice between them is offered. */
+export const BUFF_KINDS: readonly BuffKind[] = ['buff', 'debuff'];
+
 const KIND_WORDS: Readonly<Record<string, BuffKind>> = {
   バフ: 'buff',
   buff: 'buff',
@@ -47,9 +50,45 @@ export function buffKindOf(data: DataElement, ailments: readonly StatusAilment[]
   const member = isBuffGroupMember(data);
   const name = member ? buffGroupOf(data) : data.name;
   const head = member ? headRowOf(data, name) : null;
-  const marked = buffKindMarkOf(head ?? data);
-  if (marked) return marked;
+  return buffKindFrom(buffKindMarkOf(head ?? data), name, ailments);
+}
+
+/**
+ * Whether a buff of this name is a buff or a debuff, given the mark its first row carries, if any,
+ * and the states the room keeps: the mark says where there is one, and without one a name among the
+ * room's states is a debuff. This is {@link buffKindOf} for a buff already read off its rows.
+ */
+export function buffKindFrom(mark: BuffKind | null, name: string, ailments: readonly StatusAilment[]): BuffKind {
+  if (mark) return mark;
   return findStatusAilment(ailments, name) ? 'debuff' : 'buff';
+}
+
+/**
+ * The mark a buff laid from a form is to carry, given the kind picked on the form, or null where it
+ * is to carry none. A form left untouched picks nothing and marks nothing, so the buff is whatever
+ * its name makes it. A debuff picked is always marked. A buff picked is marked only where the name
+ * is one of the room's states, which would otherwise make it a debuff; any other buff is laid with
+ * no mark, as a plain command lays one.
+ */
+export function buffKindMarkPicked(
+  picked: BuffKind | null,
+  name: string,
+  ailments: readonly StatusAilment[]
+): BuffKind | null {
+  if (picked === 'debuff') return 'debuff';
+  if (picked === 'buff' && findStatusAilment(ailments, name)) return 'buff';
+  return null;
+}
+
+/**
+ * Marks a buff as a kind by hand, on its first row where the row given is a further row of a buff
+ * that moves several statuses, since that row says what the whole buff is. The mark is always
+ * written, a buff as much as a debuff, so a buff going by the name of one of the room's states
+ * stays the kind it was made.
+ */
+export function markBuffKind(data: DataElement, kind: BuffKind): void {
+  const head = isBuffGroupMember(data) ? headRowOf(data, buffGroupOf(data)) : null;
+  writeBuffKindMark(head ?? data, kind);
 }
 
 /** The first row of the buff a further row belongs to, among the rows it is kept with. */

@@ -1,4 +1,4 @@
-import { emitDiceBotUnreachable } from '@axe/core/event/domain-events';
+import { emitDiceBotUnreachable, emitResetCarriedOut } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import {
@@ -12,9 +12,9 @@ import {
   removeBuffsAcross,
 } from '@axe/domain/character/buff-bulk-removal';
 import { halfWidthBuffCommand } from '@axe/domain/character/buff-command';
-import { resetPieceToDefaults } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
+import { resetAcross, ResetRecorder } from '@axe/domain/character/piece-reset';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -403,6 +403,10 @@ export class ResourceEditProcessor {
    * the values a `:` command or `&リセット-` puts back to their defaults, wherever in the line those were
    * written. A buff that moved a status puts back what it
    * moved as it is taken off, so a value put back first would have that taken from it a second time.
+   *
+   * What the commands that clear a piece of buffs, sweep the table and put values back did is kept as it
+   * is done, each piece remembered just before the first of them reaches it, and told this device once
+   * the report is posted, so the one who sent the line may take it back; see {@link ResetRecorder}.
    */
   private applyResourceBuffEdits(
     allEditList: ResourceEdit[],
@@ -445,13 +449,17 @@ export class ResourceEditProcessor {
         isDiceRoll = true;
       }
     }
+    const recorder = new ResetRecorder();
+    const withParts = (piece: GameCharacter) => [piece, ...piece.partsAlong()];
     for (const buff of buffList) {
+      if (parseBuffClearanceCommand(buff.command)) recorder.watch(withParts(buff.object));
       add(this.buffEdit(buff, buff.object));
     }
     for (const sweep of buffSweeps) {
-      add(isTableResetCommand(sweep) ? this.resetTable(sweep) : this.sweepBuffs(sweep));
+      add(isTableResetCommand(sweep) ? this.resetTable(sweep, recorder) : this.sweepBuffs(sweep, recorder));
     }
     for (const reset of defaultResets) {
+      recorder.watch(withParts(reset.object));
       const report = applyDefaultReset(reset);
       if (reset.targeted && report.shown !== '') add(`[${saidNameOf(reset.object)}] `);
       add(report.shown, report.full);
@@ -487,9 +495,11 @@ export class ResourceEditProcessor {
     };
     const chatTab = ObjectStore.instance.get<ChatTab>(originalMessage.tabIdentifier);
     if (chatTab) {
-      chatTab.addMessage(resourceMessage);
+      const posted = chatTab.addMessage(resourceMessage);
       if (full !== text)
         tellThoseWhoMaySee(chatTab, { ...resourceMessage, timestamp: originalMessage.timestamp + 3 }, full, [...kept]);
+      const record = recorder.finish();
+      if (record.pieces.length > 0) emitResetCarriedOut({ messageIdentifier: posted.identifier, record });
     }
   }
 
@@ -497,13 +507,15 @@ export class ResourceEditProcessor {
    * Carries out one `&&` sweep across the pieces on the table and returns its report.
    *
    * Only the game master may sweep; anyone else is told so and nothing is taken. A sweep that finds
-   * nothing says so rather than reporting a removal.
+   * nothing says so rather than reporting a removal. `recorder` remembers how each piece stood first,
+   * whatever the sweep picks by, so any sweep may be taken back.
    */
-  sweepBuffs(command: string): string {
+  sweepBuffs(command: string, recorder?: ResetRecorder): string {
     const rule = parseBuffRemovalCommand(command);
     if (!rule) return '';
     if (PeerCursor.myRole !== PeerRole.GameMaster) return `バフの一括解除はGMだけが使えます（${command}）    `;
     const onTable = this.piecesOnTable();
+    recorder?.watch(onTable);
     const removed = removeBuffsAcross(onTable, rule, ailmentsForBuffRemoval(rule));
     const what = describeBuffRemoval(rule);
     if (removed.buffs < 1) return `卓全体に${describeBuffsLacking(rule)}はありません    `;
@@ -521,26 +533,16 @@ export class ResourceEditProcessor {
    * the values of each back to their defaults, each piece taken on its own.
    *
    * Only the game master may; anyone else is told so and nothing is changed. The report gives counts
-   * alone, so nothing a piece keeps from anyone is said.
+   * alone, so nothing a piece keeps from anyone is said. `recorder` remembers how each piece stood
+   * first. The work itself is {@link resetAcross}, which the buttons that reset pieces share.
    */
-  resetTable(command: string): string {
+  resetTable(command: string, recorder?: ResetRecorder): string {
     if (PeerCursor.myRole !== PeerRole.GameMaster) return `卓全体のリセットはGMだけが使えます（${command}）    `;
     const onTable = this.piecesOnTable();
-    const reached = new Set<GameCharacter>();
-    let buffs = 0;
-    let items = 0;
-    for (const piece of onTable) {
-      const removed = removeBuffsAcross([piece], { kind: 'all' }).buffs;
-      if (removed > 0) reached.add(piece);
-      buffs += removed;
-    }
-    for (const piece of onTable) {
-      const changes = resetPieceToDefaults(piece).changes.length;
-      if (changes > 0) reached.add(piece);
-      items += changes;
-    }
-    if (reached.size < 1) return '卓全体に解除するバフも戻す値もありません    ';
-    return `卓全体をリセット（${reached.size}体・バフ${buffs}件・値${items}項目）    `;
+    recorder?.watch(onTable);
+    const reset = resetAcross(onTable, { rule: { kind: 'all' }, values: true });
+    if (reset.characters < 1) return '卓全体に解除するバフも戻す値もありません    ';
+    return `卓全体をリセット（${reset.characters}体・バフ${reset.buffs}件・値${reset.items}項目）    `;
   }
 
   private messageSendGameCharacter(from: string): GameCharacter | null {

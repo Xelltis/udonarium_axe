@@ -78,7 +78,7 @@ test.describe('Dungeondry Master mode', () => {
     const panel = page.locator('effect-library-panel');
     // Every look is drawn in the table's scene; what one that cuts a piece's picture does with the
     // picture is laid over the view, where the view draws the piece.
-    await panel.getByPlaceholder('名前・系統で絞り込む').fill('両断');
+    await panel.getByPlaceholder(/名前・系統/).fill('両断');
     await panel.getByRole('button', { name: /両断/ }).first().click();
     await closePanels(page);
     await target.dispatchEvent('click');

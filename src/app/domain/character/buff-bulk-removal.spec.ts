@@ -263,7 +263,25 @@ describe('sweeping buffs off the table', () => {
       expect(buffNames(rider)).toEqual([]);
     });
 
-    it('still goes by a sweep of buffs held until cleared, by rounds or by name, as it always did', () => {
+    it.each<BuffRemovalRule>([{ kind: 'held' }, { kind: 'rounds', rounds: 3 }, { kind: 'name', name: '二人乗り' }])(
+      'stays through a sweep that picks it by how it is held, its rounds or its name, and reaches nobody (%j)',
+      (rule) => {
+        expect(countBuffRemoval([rider], rule)).toEqual({ characters: 0, buffs: 0 });
+        expect(removeBuffsAcross([rider], rule)).toEqual({ characters: 0, buffs: 0 });
+        expect(buffNames(rider)).toEqual(['加速', '二人乗り', '二人乗り（回避）']);
+      }
+    );
+
+    it('leaves a sweep by a condition what else it picks on the piece, and counts only that', () => {
+      rider.buffs.addRound('祝福', '', 2, { timing: 'none' });
+
+      expect(removeBuffsAcross([rider], { kind: 'held' })).toEqual({ characters: 1, buffs: 1 });
+      expect(buffNames(rider)).toEqual(['加速', '二人乗り', '二人乗り（回避）']);
+    });
+
+    it('goes by a sweep that picks it by a condition once the piece has got off', () => {
+      rider.rideTwoUpFrom = '';
+
       expect(removeBuffsAcross([rider], { kind: 'held' })).toEqual({ characters: 1, buffs: 1 });
       expect(buffNames(rider)).toEqual(['加速']);
     });

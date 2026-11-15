@@ -174,6 +174,12 @@ export interface EffectRibbon {
    * is nearer the eye, or on the far side. The whole of it without.
    */
   readonly half?: 'near' | 'far';
+  /**
+   * Whether it thins away where it comes close enough to the eye to fill the view, as the body of a
+   * great beam does seen from where it is fired: nearer the eye than a share of its width there it is
+   * not drawn at all. Left out, it is drawn however near it comes.
+   */
+  readonly thins?: boolean;
 }
 
 /**

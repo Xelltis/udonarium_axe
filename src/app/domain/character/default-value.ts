@@ -1,7 +1,7 @@
 import { GameObject } from '@axe/core/sync/game-object';
 import { toHalfWidth } from '@axe/core/util/string-util';
 import { heldForMate, sharedFieldOf, type SharedSlot, takesSharedValue } from '@axe/domain/character/alias-mate-follow';
-import { GameCharacter } from '@axe/domain/character/game-character';
+import { GameCharacter, KOMA_IMAGE_SECTION, PORTRAIT_POSITION_SECTION } from '@axe/domain/character/game-character';
 import { heldWithinBounds, StatusAccessor } from '@axe/domain/character/status-accessor';
 import {
   DataElement,
@@ -38,9 +38,14 @@ const RESOURCE_SLOTS: readonly DefaultSlot[] = ['now', 'max', 'maxCorrection', '
 const VALUE_SLOTS: readonly DefaultSlot[] = ['now'];
 const NO_SLOTS: readonly DefaultSlot[] = [];
 
-/** Which items a putting back takes: every one of a sheet, or the one a name stands for, at one slot. */
+/**
+ * Which items a putting back takes: every one of a sheet, the one a name stands for, at one slot, or
+ * one item itself, at every slot it keeps a default for.
+ */
 export type DefaultPick =
-  { readonly kind: 'all' } | { readonly kind: 'item'; readonly name: string; readonly slot: ResourceSlot };
+  | { readonly kind: 'all' }
+  | { readonly kind: 'item'; readonly name: string; readonly slot: ResourceSlot }
+  | { readonly kind: 'element'; readonly element: DataElement };
 
 /** Every item of a sheet. */
 export const EVERY_DEFAULT: DefaultPick = Object.freeze({ kind: 'all' });
@@ -78,6 +83,19 @@ function isTableCell(element: DataElement): boolean {
   return false;
 }
 
+/**
+ * Whether an item is one of the settings a sheet keeps of the piece itself, under the sections that
+ * say where its portrait stands and which of its pictures it shows. They are numbers on the sheet,
+ * but no part of what a fight moves, so they keep no default and a reset never writes them.
+ */
+function isPieceSetting(element: DataElement): boolean {
+  for (let parent = element.parent; parent instanceof DataElement; parent = parent.parent) {
+    const section = parent.name === PORTRAIT_POSITION_SECTION || parent.name === KOMA_IMAGE_SECTION;
+    if (section && parent.parent instanceof DataElement && parent.parent.name === 'detail') return true;
+  }
+  return false;
+}
+
 /** Whether an item is a line of text on a sheet: a field, and neither a section nor a group of fields. */
 function isTextLine(element: DataElement): boolean {
   return element.type === DataElementType.TEXT && element.fieldRole === DataElementRole.FIELD;
@@ -90,9 +108,11 @@ function isTextLine(element: DataElement): boolean {
  * calculation, a picture or a table and its cells.
  *
  * A line of text keeps a number as its default and nothing else, so one holding prose is given none
- * when the defaults are made; see {@link plainNumberIn}.
+ * when the defaults are made; see {@link plainNumberIn}. The settings a sheet keeps of the piece
+ * itself, where its portrait stands and which picture it shows, keep none either.
  */
 export function defaultSlotsOf(element: DataElement): readonly DefaultSlot[] {
+  if (isPieceSetting(element)) return NO_SLOTS;
   const fieldType = element.fieldType;
   if (fieldType === DataElementFieldType.RESOURCE) {
     return element.isNumberResource && !isTableCell(element) ? RESOURCE_SLOTS : NO_SLOTS;
@@ -197,6 +217,11 @@ function sheetsOf(piece: GameCharacter): GameCharacter[] {
   return [piece, ...piece.partsAlong()];
 }
 
+/** Every item of one piece's sheet, in the order of the sheet; the parts that go with it are not read. */
+export function sheetItemsOf(piece: GameCharacter): DataElement[] {
+  return itemsBelow(piece.detailDataElement);
+}
+
 function writeOrClear(element: DataElement, slot: DefaultSlot, value: number | null): void {
   if (value == null) clearDefault(element, slot);
   else writeDefault(element, slot, value);
@@ -277,6 +302,10 @@ function pickedOn(
   if (pick.kind === 'all') {
     return { found: true, items: itemsBelow(root).map((element) => ({ element, slots: defaultSlotsOf(element) })) };
   }
+  if (pick.kind === 'element') {
+    const found = itemsBelow(root).includes(pick.element);
+    return { found, items: found ? [{ element: pick.element, slots: defaultSlotsOf(pick.element) }] : [] };
+  }
   let named = findReferencedElements(root, pick.name, aliases);
   if (named.length < 1) named = findReferencedElements(root, toHalfWidth(pick.name), aliases);
   const slot = asDefaultSlot(pick.slot);
@@ -289,7 +318,8 @@ function pickedOn(
   };
 }
 
-interface FieldsHeld {
+/** What an item holds in each of the places a default may be written to. */
+export interface FieldsHeld {
   readonly minCorrection: number;
   readonly maxCorrection: number;
   readonly value: number | string;
@@ -298,7 +328,8 @@ interface FieldsHeld {
 
 const FIELDS_IN_ORDER: readonly DefaultField[] = ['minCorrection', 'maxCorrection', 'value', 'currentValue'];
 
-function fieldsHeldBy(element: DataElement): FieldsHeld {
+/** What an item holds now in each of the places a default may be written to. */
+export function fieldsHeldBy(element: DataElement): FieldsHeld {
   return {
     minCorrection: element.minCorrection,
     maxCorrection: element.maxCorrection,
@@ -435,6 +466,86 @@ export function resetToDefaults(
   aliases: ElementAliasTable = DataSummarySetting.aliasesInRoom()
 ): PieceDefaultReset[] {
   return GameObject.batch(() => sheetsOf(piece).map((sheet) => resetPieceToDefaults(sheet, pick, aliases)));
+}
+
+/**
+ * Whether an item already stands where putting one of its slots back would leave it: at the default
+ * the slot keeps, held within the item's bounds as they are now. True for a slot that keeps none.
+ */
+function standsAtDefault(element: DataElement, slot: DefaultSlot): boolean {
+  const value = readDefault(element, slot);
+  if (value == null) return true;
+  if (slot === 'maxCorrection' || slot === 'minCorrection') return element[slot] === value;
+  if (element.fieldType === DataElementFieldType.CHECK) return element.isChecked === (value !== 0);
+  const field = element.isNumberResource && slot === 'now' ? 'currentValue' : 'value';
+  return holds(element[field], heldWithinBounds(element, field, value));
+}
+
+/**
+ * Whether an item keeps a default it does not stand at now, in any of its slots, so that putting it
+ * back would change it. False for an item that keeps none.
+ */
+export function isOffDefault(element: DataElement): boolean {
+  return defaultSlotsOf(element).some((slot) => !standsAtDefault(element, slot));
+}
+
+/**
+ * How many items of a piece and the parts that go with it keep a default they do not stand at now,
+ * writing nothing. The items are read as they stand: one that only follows an alias mate is not
+ * counted, and neither is what taking a buff off would move.
+ */
+export function countItemsOffDefault(piece: GameCharacter): number {
+  return sheetsOf(piece).reduce((off, sheet) => off + countOwnItemsOffDefault(sheet), 0);
+}
+
+/** As {@link countItemsOffDefault}, for the piece's own sheet alone, its parts left out. */
+export function countOwnItemsOffDefault(piece: GameCharacter): number {
+  return itemsBelow(piece.detailDataElement).filter((element) => isOffDefault(element)).length;
+}
+
+/** How many items of a piece and the parts that go with it have a default written, readable or not. */
+export function countItemsWithDefault(piece: GameCharacter): number {
+  let kept = 0;
+  for (const sheet of sheetsOf(piece)) {
+    for (const element of itemsBelow(sheet.detailDataElement)) {
+      if (DEFAULT_SLOTS.some((slot) => isWritten(element, slot))) kept += 1;
+    }
+  }
+  return kept;
+}
+
+/**
+ * How many items of a piece and the parts that go with it making the defaults would mark: those of a
+ * kind that may keep one and that hold a number now, a line of prose and an empty value left out.
+ * Nothing is written.
+ */
+export function countItemsToCapture(piece: GameCharacter): number {
+  let marked = 0;
+  for (const sheet of sheetsOf(piece)) {
+    for (const element of itemsBelow(sheet.detailDataElement)) {
+      if (wouldCapture(element)) marked += 1;
+    }
+  }
+  return marked;
+}
+
+function wouldCapture(element: DataElement): boolean {
+  if (defaultSlotsOf(element).length < 1) return false;
+  if (element.fieldType === DataElementFieldType.CHECK || element.isNumberResource) return true;
+  return valueHeldBy(element) != null;
+}
+
+/**
+ * Puts one item back to the defaults it keeps, every slot of it, and gives its value to the alias
+ * mates that keep none, as putting the whole sheet back does for each item. `piece` is the piece
+ * whose own sheet holds the item; nothing is found, and nothing changed, where it does not.
+ */
+export function resetElementToDefaults(
+  piece: GameCharacter,
+  element: DataElement,
+  aliases: ElementAliasTable = DataSummarySetting.aliasesInRoom()
+): PieceDefaultReset {
+  return resetPieceToDefaults(piece, { kind: 'element', element }, aliases);
 }
 
 /** Whether a piece, or a part that goes with it, has an item a name stands for, of whatever kind. */

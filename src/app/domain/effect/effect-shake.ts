@@ -1,16 +1,17 @@
 import { isRockShot } from '@axe/domain/effect/earth-looks';
-import { EffectKind } from '@axe/domain/effect/effect-kind';
+import { EffectKind, type ProjectileStyle } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
+import { isSpiritShot } from '@axe/domain/effect/magic-looks';
 
 /**
  * Shaking the screen.
  *
  * Only what lands a blow, such as an explosion or a strike, shakes it.
  * Shaking for healing and shields too would give everything the same weight and leave none of it heavy.
- * A shot shakes nothing, but for a meteor, a shot of rock and a cut thrown off a blade; see
- * {@link fallsAsMeteor}, {@link isRockShot} and {@link fliesAsCut}.
- * A great sword shakes as its torrent is let go; see {@link loosesAsGreatSword}.
+ * A shot of light or an arrow shakes nothing; a meteor, a shot of rock and a cut thrown off a blade do, see
+ * {@link fallsAsMeteor}, {@link isRockShot} and {@link fliesAsCut}, and so does what is fired to hit hard, see
+ * {@link hitsHardAsShot}. A great sword shakes as its torrent is let go; see {@link loosesAsGreatSword}.
  * An aura shakes nothing either, but the greatest of them as it breaks out; see {@link breaksOutAsAura}.
  */
 const SHAKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
@@ -22,6 +23,7 @@ const SHAKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'upheaval',
   'bash',
   'beam',
+  'raybeam',
   'gravity',
   'bolt',
   'ballistic',
@@ -59,6 +61,23 @@ function drawnKinds(preset: EffectPreset): EffectKind[] {
  */
 function fallsAsMeteor(preset: EffectPreset): boolean {
   return !preset.isStaged && preset.effectKind === 'projectile' && preset.projectileLook === 'meteor';
+}
+
+/** The looks of a shot that jolt the screen where they strike, by their grade: the rounds of guns and missiles. */
+const HARD_SHOTS: ReadonlySet<ProjectileStyle> = new Set<ProjectileStyle>(['bullet', 'tracer', 'missile', 'cruise']);
+
+/**
+ * How hard a shot on its own jolts the screen for being fired to hit hard, or null for one that is
+ * not: a round of a gun or a missile, by its grade; and, lightly and no harder, an arrow of the
+ * highest grade, which goes through its target, and a shot of spirit above the lowest, which bursts
+ * with a clap.
+ */
+function hitsHardAsShot(preset: EffectPreset): EffectShake | null {
+  if (preset.isStaged || preset.effectKind !== 'projectile') return null;
+  if (HARD_SHOTS.has(preset.projectileLook)) return SHAKE_BY_GRADE[preset.gradeLevel];
+  if (preset.projectileLook === 'arrow') return preset.gradeLevel === 3 ? 'soft' : null;
+  if (isSpiritShot(preset)) return preset.gradeLevel === 1 ? '' : 'soft';
+  return null;
 }
 
 /** Whether an effect is a rock thrown at its target, a shot on its own that breaks where it lands. */
@@ -99,6 +118,8 @@ export function breaksOutAsAura(preset: Pick<EffectPreset, 'isStaged' | 'effectK
 export function effectShakeOf(preset: EffectPreset): EffectShake {
   if (breaksOutAsAura(preset)) return 'soft';
   if (fliesAsCut(preset)) return preset.gradeLevel >= 2 ? 'soft' : '';
+  const asShot = hitsHardAsShot(preset);
+  if (asShot !== null) return asShot;
   const kinds = drawnKinds(preset);
   const strikes = fallsAsMeteor(preset) || breaksAsRock(preset) || loosesAsGreatSword(preset);
   if (!strikes && !kinds.some((kind) => SHAKING_KINDS.has(kind))) return '';

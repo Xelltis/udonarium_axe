@@ -49,7 +49,6 @@ describe('what lightning, a beam and ice leave on the floor', () => {
     for (let ms = 0; ms <= 2600; ms += 100) {
       expect(staged(beam, ms).floor.filter((mark) => mark.shape === 'scorch')).toEqual([]);
     }
-    expect(soot(300)).toEqual([]);
     expect(soot(1200).length).toBeGreaterThan(0);
     expect(soot(2100).length).toBeGreaterThan(0);
   });
@@ -68,8 +67,8 @@ describe('what lightning, a beam and ice leave on the floor', () => {
 
     expect(lingers('bolt')).toBe(1500);
     expect(lingers('frost')).toBe(1200);
-    expect(lingers('beam')).toBe(1200);
-    expect(lingers('raybeam')).toBe(600);
+    expect(lingers('beam')).toBe(2200);
+    expect(lingers('raybeam')).toBe(1200);
     expect(lingers('gravity')).toBe(1500);
     expect(staged(presetOf('bolt', '#e8dcff', '#a070ff'), 3000).floor.length).toBeGreaterThan(0);
     expect(staged(presetOf('beam', '#d8f4ff', '#40b0ff'), 2700).floor.length).toBeGreaterThan(0);

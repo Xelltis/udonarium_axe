@@ -25,6 +25,33 @@ describe('buildCharacterSheetMenu', () => {
     ]);
   });
 
+  it('offers making and clearing the defaults between them, set apart, to one given them', () => {
+    const menu = buildCharacterSheetMenu({ ...all, captureDefaults: () => {}, clearDefaults: () => {} }, t);
+
+    expect(names(menu)).toEqual([
+      't:feature.inventory.sheet.portraitsManage',
+      't:feature.inventory.sheet.copy',
+      't:feature.inventory.sheet.save',
+      '---',
+      't:feature.dataElement.field.captureDefaults',
+      't:feature.dataElement.field.clearDefaults',
+      '---',
+      't:feature.inventory.sheet.collapseAll',
+      't:feature.inventory.sheet.expandAll',
+    ]);
+  });
+
+  it('offers a reader who may not change the sheet nothing about the defaults', () => {
+    const menu = buildCharacterSheetMenu({ save: all.save, collapseAll: all.collapseAll, expandAll: all.expandAll }, t);
+
+    expect(names(menu)).toEqual([
+      't:feature.inventory.sheet.save',
+      '---',
+      't:feature.inventory.sheet.collapseAll',
+      't:feature.inventory.sheet.expandAll',
+    ]);
+  });
+
   it('leaves out what it is not given, with no separator left hanging', () => {
     expect(names(buildCharacterSheetMenu({ copy: all.copy, save: all.save }, t))).toEqual([
       't:feature.inventory.sheet.copy',

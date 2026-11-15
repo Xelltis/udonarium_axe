@@ -161,7 +161,7 @@ describe('the great sword', () => {
     const bolts = (kind: EffectKind) =>
       stagedAt(swordOf(kind), cast, releases + 0.35).ribbons.filter((ribbon) => ribbon.points.length === 11).length;
 
-    expect(bolts('arc')).toBeGreaterThan(bolts('heal') + 8);
+    expect(bolts('arc')).toBeGreaterThan(bolts('impact') + 8);
   });
 
   it('tears a line of crags out of the ground along a torrent of earth, and none along another', () => {

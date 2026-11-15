@@ -257,6 +257,13 @@
             @for (mote of motes; track mote) {
               <option [value]="mote">{{ moteLabel(mote) }}</option>
             }
+            @if (offersBeamLooks()) {
+              <optgroup [label]="'feature.effect.moteBeams' | transloco">
+                @for (look of beamLooks; track look) {
+                  <option [value]="look">{{ moteLabel(look) }}</option>
+                }
+              </optgroup>
+            }
             @if (offersAilmentLooks()) {
               <optgroup [label]="'feature.effect.moteAilments' | transloco">
                 @for (look of ailmentLooks; track look) {

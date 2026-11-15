@@ -58,7 +58,7 @@ async function addEffect(page: Page, panel: Locator, name: string, limit: number
   await page.locator('ui-panel', { has: editor }).getByTestId('panel-close').dispatchEvent('click');
   await expect(editor).toHaveCount(0);
 
-  await panel.getByPlaceholder('名前・系統で絞り込む').fill(name);
+  await panel.getByPlaceholder(/名前・系統/).fill(name);
   const tile = panel.locator('[data-effect-tile]').filter({ hasText: name }).first();
   await expect(tile).toBeVisible();
   return tile;
@@ -152,7 +152,7 @@ test.describe('holding an effect ready', () => {
 
   test('casts and calls off from the band over the table, without the panel being touched', async ({ page }) => {
     await waitAppReady(page);
-    const [first] = await piecesOnTable(page, 2);
+    const [first, second] = await piecesOnTable(page, 2);
     const panel = await openEffectLibrary(page);
     const tile = await addEffect(page, panel, '受け入れの帯', 2);
     const stance = panel.getByTestId('effect-library-stance');
@@ -166,8 +166,10 @@ test.describe('holding an effect ready', () => {
     await expect(band).toHaveCount(0);
     await expect(panel.getByTestId('effect-library-notice')).toHaveText('');
 
+    // The piece pressed before is still selected, so it is the caster now and another is the target.
     await tile.click();
-    await press(page, first);
+    await press(page, second);
+    await expect(page.getByTestId('target-band-count')).toHaveText('1/2');
     await page.getByTestId('target-band-fire').click();
     await expect(stance).toHaveAttribute('data-stance', 'idle');
     await expect(panel.getByTestId('effect-library-notice')).toContainText('発動しました');
@@ -180,10 +182,11 @@ test.describe('holding an effect ready', () => {
     page,
   }) => {
     await waitAppReady(page);
-    const limit = 3;
+    // As many names as run past the row of the panel at the size it first opens at.
+    const limit = 6;
     const pieces = await piecesOnTable(page, limit + 3);
     const panel = await openEffectLibrary(page);
-    const tile = await addEffect(page, panel, '受け入れの三連', limit);
+    const tile = await addEffect(page, panel, '受け入れの六連', limit);
     const row = panel.getByTestId('effect-library-stance-targets');
     const chips = panel.getByTestId('effect-library-target-chips');
 

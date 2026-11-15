@@ -8,14 +8,18 @@ import { EffectTargetingService } from '@axe/application/effect/effect-targeting
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
+import { effectFamilyColor } from '@axe/domain/effect/effect-families';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -103,32 +107,53 @@ describe('EffectLibraryPanelComponent', () => {
     }
   });
 
-  it('says why when the search finds nothing', () => {
-    fixture.componentInstance.query.set('該当なし');
+  it('says what was searched for when the search finds nothing, how to search, and offers the way back', () => {
+    fixture.componentInstance.query.set(' 該当なし ');
     fixture.detectChanges();
+    const empty = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="effect-library-empty"]')!;
 
     expect(fixture.componentInstance.matchCount()).toBe(0);
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('一致するエフェクトがありません');
-  });
+    expect(empty.textContent).toContain('「該当なし」に一致するエフェクトはありません。');
+    expect(empty.textContent).toContain('名前・系統・種類');
 
-  it('heads each family', () => {
+    empty.querySelector<HTMLButtonElement>('[data-testid="effect-library-clear-all"]')!.click();
     fixture.detectChanges();
 
-    const headings = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="button"]'));
-    expect(headings.map((heading) => heading.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['expand_more 炎 1']);
+    expect(fixture.componentInstance.query()).toBe('');
+    expect(fixture.componentInstance.matchCount()).toBe(1);
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="effect-library-empty"]')).toBeNull();
+  });
+
+  it('says that nothing matches, without a word searched for, where the grade and the reach alone leave nothing', () => {
+    fixture.componentInstance.gradeFilter.set(3);
+    fixture.detectChanges();
+    const empty = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="effect-library-empty"]')!;
+
+    expect(empty.textContent).toContain('一致するエフェクトがありません');
+    expect(empty.querySelector('[data-testid="effect-library-clear-all"]')).not.toBeNull();
+  });
+
+  it('heads each family with its name and how many effects of it are listed', () => {
+    fixture.detectChanges();
+
+    const headings = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[data-family-heading]'));
+    expect(headings.map((heading) => heading.textContent?.replace(/\s+/g, ''))).toEqual(['expand_more炎1件']);
+    expect(headings[0].getAttribute('aria-expanded')).toBe('true');
   });
 
   it('folds a family away', () => {
     fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('爆炎');
+    const rows = () => (fixture.nativeElement as HTMLElement).querySelectorAll('[data-effect-tile]');
+    expect(rows()).toHaveLength(1);
 
-    const heading = (fixture.nativeElement as HTMLElement).querySelector('[role="button"]');
+    const heading = (fixture.nativeElement as HTMLElement).querySelector('[data-family-heading]');
     heading?.dispatchEvent(new MouseEvent('click'));
     fixture.detectChanges();
 
     // The heading stays and only the contents go.
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('炎');
-    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('爆炎');
+    expect(heading?.isConnected).toBe(true);
+    expect(heading?.getAttribute('aria-expanded')).toBe('false');
+    expect(rows()).toHaveLength(0);
   });
 
   it('hands an effect to the hotbar, under the name it goes by', () => {
@@ -206,10 +231,14 @@ describe('EffectLibraryPanelComponent', () => {
   });
 
   describe('adding the defaults the room does not have', () => {
+    /** The command in the menu of the list, the menu opened where it is closed. */
     function button(): HTMLButtonElement {
-      return (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
-        '[data-testid="effect-library-add-missing"]'
-      )!;
+      const host = fixture.nativeElement as HTMLElement;
+      if (!host.querySelector('[data-testid="effect-library-menu"]')) {
+        host.querySelector<HTMLButtonElement>('[data-testid="effect-library-menu-button"]')!.click();
+        fixture.detectChanges();
+      }
+      return host.querySelector<HTMLButtonElement>('[data-testid="effect-library-add-missing"]')!;
     }
 
     function defaultsHere(): EffectPreset[] {
@@ -227,12 +256,13 @@ describe('EffectLibraryPanelComponent', () => {
       for (const each of defaultsHere()) ObjectStore.instance.remove(each);
     });
 
-    it('is offered beside the command that brings the defaults up to date', () => {
+    it('is offered in the menu beside the command that brings the defaults up to date, by name', () => {
       fixture.detectChanges();
 
       expect(button()).toBeTruthy();
-      expect(button().title).toBe('足りない既定を追加');
+      expect(button().textContent).toContain('足りない既定を追加');
       expect(button().disabled).toBe(false);
+      expect(button().previousElementSibling?.getAttribute('data-testid')).toBe('effect-library-restore-defaults');
     });
 
     it('builds what is missing, leaves the table’s effect alone and says how many it built', () => {
@@ -338,6 +368,8 @@ describe('EffectLibraryPanelComponent', () => {
         'fire',
         'cancel',
         'list',
+        'index',
+        'rows',
         'notice',
       ];
       return boxes.map((name) => `${name}:${part(name).className}`).join('\n');
@@ -359,7 +391,10 @@ describe('EffectLibraryPanelComponent', () => {
       expect(part('stance-caster').className.split(/\s+/)).toEqual(expect.arrayContaining(['h-7', 'shrink-0']));
       expect(part('stance-targets').className.split(/\s+/)).toEqual(expect.arrayContaining(['h-8.5', 'shrink-0']));
       expect(part('notice').className.split(/\s+/)).toEqual(expect.arrayContaining(['h-7', 'shrink-0', 'truncate']));
-      expect(part('list').className.split(/\s+/)).toEqual(expect.arrayContaining(['flex-1', 'overflow-y-auto']));
+      expect(part('list').className.split(/\s+/)).toEqual(expect.arrayContaining(['flex-1', 'min-h-0']));
+      expect(part('rows').className.split(/\s+/)).toEqual(expect.arrayContaining(['flex-1', 'overflow-y-auto']));
+      expect(part('list').contains(part('index'))).toBe(true);
+      expect(part('list').contains(part('rows'))).toBe(true);
 
       const steps: (() => void)[] = [
         () => tile().click(),
@@ -574,7 +609,7 @@ describe('EffectLibraryPanelComponent', () => {
       const field = fields.place(preset, 0, 0, 0);
       fixture.detectChanges();
       try {
-        const list = part('list');
+        const list = part('rows');
         const group = part('fields');
         expect(list.lastElementChild).toBe(group);
         expect(group.previousElementSibling).toBe(part('fields-heading'));
@@ -616,16 +651,18 @@ describe('EffectLibraryPanelComponent', () => {
       later.destroy();
     });
 
-    it('changes and takes away the caster by icon buttons that say what they do, leaving the row to the name', () => {
+    it('changes and takes away the caster by buttons that say what they do, of a fixed height, leaving the row to the name', () => {
       press(pieces[0]);
       tile().click();
       fixture.detectChanges();
 
       expect(part('change-caster').getAttribute('aria-label')).toBe('撃ち手を変える');
       expect(part('no-caster').getAttribute('aria-label')).toBe('撃ち手をなしにする');
+      expect(part('change-caster').textContent?.replace(/\s+/g, '')).toBe('touch_app変える');
+      expect(part('no-caster').textContent?.replace(/\s+/g, '')).toBe('blockなしにする');
       for (const name of ['change-caster', 'no-caster']) {
-        expect(part(name).className.split(/\s+/)).toEqual(expect.arrayContaining(['size-6', 'shrink-0']));
-        expect(part(name).textContent?.trim()).toMatch(/^[a-z_]+$/);
+        expect(part(name).className.split(/\s+/)).toEqual(expect.arrayContaining(['h-6', 'shrink-0']));
+        expect(part(name).querySelector('.material-icons')?.getAttribute('aria-hidden')).toBe('true');
         expect(part(name).getAttribute('title')).toBeTruthy();
       }
       expect(part('caster-name').className.split(/\s+/)).toEqual(expect.arrayContaining(['min-w-0', 'flex-1']));
@@ -911,7 +948,7 @@ describe('EffectLibraryPanelComponent', () => {
 
       const held = new KeyboardEvent('keydown', { key: 'ArrowRight', ctrlKey: true, bubbles: true, cancelable: true });
       first.dispatchEvent(held);
-      const heading = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[role="button"]')!;
+      const heading = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-family-heading]')!;
       const outside = key(heading, 'ArrowRight');
 
       expect(held.defaultPrevented).toBe(false);
@@ -994,8 +1031,13 @@ describe('EffectLibraryPanelComponent', () => {
       fixture.detectChanges();
       const host = fixture.nativeElement as HTMLElement;
       try {
-        for (const name of ['create', 'restore-defaults']) {
+        host.querySelector<HTMLButtonElement>('[data-testid="effect-library-menu-button"]')!.click();
+        fixture.detectChanges();
+        for (const name of ['create', 'restore-defaults', 'add-missing']) {
           expect(host.querySelector<HTMLButtonElement>(`[data-testid="effect-library-${name}"]`)!.disabled).toBe(true);
+        }
+        for (const name of ['export', 'auto-play', 'collapse-all', 'expand-all']) {
+          expect(host.querySelector<HTMLButtonElement>(`[data-testid="effect-library-${name}"]`)!.disabled).toBe(false);
         }
         expect(host.querySelector('[data-testid="effect-library-fields"] button')).toBeNull();
         expect(
@@ -1113,5 +1155,661 @@ describe('EffectLibraryPanelComponent', () => {
 
     expect(tried).toHaveBeenCalledWith(preset);
     expect(fixture.componentInstance.noticeLine()).toContain('対象がいません');
+  });
+
+  describe('the shelf laid out', () => {
+    let more: EffectPreset[];
+
+    function add(name: string, tag: string, values: Partial<EffectPreset> = {}): EffectPreset {
+      const made = new EffectPreset();
+      made.name = name;
+      made.tagName = tag;
+      Object.assign(made, values);
+      ObjectStore.instance.add(made, false);
+      more.push(made);
+      return made;
+    }
+
+    function host(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function part<T extends HTMLElement = HTMLElement>(name: string): T {
+      return host().querySelector<T>(`[data-testid="effect-library-${name}"]`)!;
+    }
+
+    function rows(): HTMLElement[] {
+      return Array.from(host().querySelectorAll<HTMLElement>('[data-effect-tile]'));
+    }
+
+    function rowNames(): string[] {
+      return rows().map((row) => row.querySelector('[data-effect-name]')!.textContent!.replace(/\s+/g, ''));
+    }
+
+    function rowOf(name: string): HTMLElement {
+      return rows().find((row) => row.querySelector('[data-effect-name]')!.textContent!.includes(name))!;
+    }
+
+    function index(): { tag: string; text: string; element: HTMLButtonElement }[] {
+      return Array.from(host().querySelectorAll<HTMLButtonElement>('[data-family-entry]')).map((element) => ({
+        tag: element.getAttribute('data-family') ?? '',
+        text: element.textContent!.replace(/\s+/g, '').replace(/(\d+)$/, ' $1'),
+        element,
+      }));
+    }
+
+    function openMenu(): HTMLElement {
+      part<HTMLButtonElement>('menu-button').click();
+      fixture.detectChanges();
+      return part('menu');
+    }
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+      more = [];
+      // 爆炎, the effect of every spec here, takes one piece at grade 2 and is drawn as a burst.
+      add('大爆発', '炎', { grade: 3, kind: 'nova', targeting: 'multi', maxTargets: 8, areaRadius: 3 });
+      add('業火', '炎', { grade: 3, kind: 'mushroom', targeting: 'multi', maxTargets: 8, areaRadius: 4 });
+      add('絶対零度', '氷', { grade: 3, kind: 'frost', targeting: 'multi', maxTargets: 8, areaRadius: 3 });
+      add('氷のブレス', '氷', { grade: 2, kind: 'breath', targeting: 'multi', maxTargets: 4 });
+      add('闘気', '強化', { grade: 1, kind: 'aura', targeting: 'self' });
+      add('自作の技', '', { grade: 1, kind: 'slash' });
+    });
+
+    afterEach(() => {
+      for (const made of more) ObjectStore.instance.remove(made);
+      TestBed.inject(ButtonGuideService).hide();
+      localStorage.removeItem(STORAGE_KEYS.effectLibrarySize);
+    });
+
+    describe('the rows', () => {
+      it('show each effect’s grade in stars, whom it reaches and the name of its kind', () => {
+        fixture.detectChanges();
+        const facts = (name: string) => {
+          const row = rowOf(name);
+          return [
+            row.querySelector('[data-effect-grade]')!.textContent,
+            row.querySelector('[data-effect-reach]')!.textContent!.replace(/\s+/g, ''),
+            row.querySelector('[data-effect-kind]')!.textContent!.trim(),
+          ];
+        };
+
+        expect(facts('爆炎')).toEqual(['★★★', 'person単体', '爆発']);
+        expect(facts('大爆発')).toEqual(['★★★', 'blur_circular範囲3マス', '閃光']);
+        expect(facts('業火')).toEqual(['★★★', 'blur_circular範囲4マス', 'きのこ雲']);
+        expect(facts('氷のブレス')).toEqual(['★★★', 'groups4体まで', 'ブレス']);
+        expect(facts('闘気')).toEqual(['★★★', 'self_improvement自分', '闘気']);
+      });
+
+      it('fill as many stars as the grade and leave the rest faint', () => {
+        fixture.detectChanges();
+        const filled = (name: string) => {
+          const grade = rowOf(name).querySelector('[data-effect-grade]')!;
+          return [grade.firstChild!.textContent, grade.querySelector('span')!.textContent];
+        };
+
+        expect(filled('闘気')).toEqual(['★', '★★']);
+        expect(filled('爆炎')).toEqual(['★★', '★']);
+        expect(filled('大爆発')).toEqual(['★★★', '']);
+      });
+
+      it('pick out a reach that takes in an area from the others', () => {
+        fixture.detectChanges();
+        const reach = (name: string) => rowOf(name).querySelector('[data-effect-reach]')!;
+
+        expect(reach('大爆発').getAttribute('data-reach')).toBe('area');
+        expect(reach('大爆発').className.split(/\s+/)).toContain('text-ui-notable');
+        expect(reach('氷のブレス').getAttribute('data-reach')).toBe('multi');
+        expect(reach('氷のブレス').className.split(/\s+/)).not.toContain('text-ui-notable');
+      });
+
+      it('draw each effect’s mark 28 pixels square and say everything of the row in its name', () => {
+        fixture.detectChanges();
+        const row = rowOf('大爆発');
+        const glyph = row.querySelector('[data-effect-glyph]')!;
+
+        expect(glyph.className.split(/\s+/)).toEqual(expect.arrayContaining(['size-7', 'shrink-0']));
+        expect(glyph.querySelector('svg')).not.toBeNull();
+        expect(row.getAttribute('aria-label')).toBe('大爆発 — 上級 / 範囲3マス / 閃光');
+        expect(row.getAttribute('title')).toBe(row.getAttribute('aria-label'));
+      });
+
+      it('let a long name run onto a second line rather than cutting it short', () => {
+        add('とても長い名前のエフェクトをここに置いてみる', '炎');
+        fixture.detectChanges();
+        const name = rowOf('とても長い名前').querySelector('[data-effect-name]')!;
+
+        expect(name.className.split(/\s+/)).toEqual(expect.arrayContaining(['line-clamp-2', 'wrap-anywhere']));
+        expect(name.className.split(/\s+/)).not.toContain('truncate');
+      });
+    });
+
+    describe('the index of families', () => {
+      it('lists every family with its count, in the order of the list, the effects of no family last', () => {
+        fixture.detectChanges();
+
+        expect(index().map((entry) => entry.text)).toEqual(['炎 3', '氷 2', '強化 1', 'その他 1']);
+        expect(part('index').getAttribute('aria-label')).toBe('系統の索引');
+      });
+
+      it('marks each family in its own colour, the same on its heading, as the theme on screen takes it', () => {
+        const theme = TestBed.inject(ThemeService);
+        const swatches = () => [
+          index()[0].element.querySelector('span')!.style.background,
+          host().querySelector<HTMLElement>('[data-family-heading] span')!.style.background,
+        ];
+        theme.theme.set('dark');
+        fixture.detectChanges();
+        expect(swatches()).toEqual([effectFamilyColor('炎').dark, effectFamilyColor('炎').dark]);
+
+        theme.theme.set('light');
+        fixture.detectChanges();
+
+        expect(swatches()).toEqual([effectFamilyColor('炎').light, effectFamilyColor('炎').light]);
+        theme.theme.set('auto');
+      });
+
+      it('counts what the list is narrowed to, and keeps a family narrowed out of it in its place, faint', () => {
+        fixture.componentInstance.reachFilter.set('area');
+        fixture.detectChanges();
+
+        expect(index().map((entry) => entry.text)).toEqual(['炎 2', '氷 1', '強化 0', 'その他 0']);
+        const [fire, , buff] = index();
+        expect(buff.element.getAttribute('aria-disabled')).toBe('true');
+        expect(buff.element.className.split(/\s+/)).toContain('opacity-45');
+        expect(fire.element.getAttribute('aria-disabled')).toBeNull();
+        expect(fire.element.className.split(/\s+/)).not.toContain('opacity-45');
+      });
+
+      it('marks the first family the list shows as the one it stands at, and the family pressed after that', () => {
+        fixture.detectChanges();
+        const current = () => index().filter((entry) => entry.element.getAttribute('aria-current') === 'true');
+        expect(current().map((entry) => entry.tag)).toEqual(['炎']);
+
+        index()[1].element.click();
+        fixture.detectChanges();
+
+        expect(current().map((entry) => entry.tag)).toEqual(['氷']);
+        expect(rowNames()).toHaveLength(7);
+      });
+
+      it('leaves the list as it is narrowed when a family is pressed: nothing is taken out of it', () => {
+        fixture.detectChanges();
+        const before = rowNames();
+
+        index()[2].element.click();
+        fixture.detectChanges();
+
+        expect(rowNames()).toEqual(before);
+        expect(fixture.componentInstance.hasFilter()).toBe(false);
+      });
+
+      it('opens a family folded away as it is pressed in the index', () => {
+        fixture.detectChanges();
+        const heading = () => host().querySelector<HTMLElement>('[data-family-section="氷"] [data-family-heading]')!;
+        heading().click();
+        fixture.detectChanges();
+        expect(heading().getAttribute('aria-expanded')).toBe('false');
+
+        index()[1].element.click();
+        fixture.detectChanges();
+
+        expect(heading().getAttribute('aria-expanded')).toBe('true');
+      });
+
+      it('does nothing at a family the list shows nothing of', () => {
+        fixture.componentInstance.reachFilter.set('area');
+        fixture.detectChanges();
+
+        index()[2].element.click();
+        fixture.detectChanges();
+
+        expect(index().find((entry) => entry.element.getAttribute('aria-current') === 'true')?.tag).toBe('炎');
+      });
+
+      it('marks the family whose heading has reached the top of the list as it is scrolled', () => {
+        fixture.detectChanges();
+        const list = part('rows');
+        const sections = Array.from(list.querySelectorAll<HTMLElement>('[data-family-section]'));
+        sections.forEach((section, at) => vi.spyOn(section, 'offsetTop', 'get').mockReturnValue(at * 200));
+
+        list.scrollTop = 410;
+        list.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+
+        expect(index().find((entry) => entry.element.getAttribute('aria-current') === 'true')?.tag).toBe('強化');
+      });
+
+      it('marks the family at the top of the list once the list shows others under it without a scroll', async () => {
+        const laidOut = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(300);
+        const tops = vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (
+          this: HTMLElement
+        ) {
+          const sections = Array.from(this.parentElement?.querySelectorAll(':scope > [data-family-section]') ?? []);
+          return Math.max(sections.indexOf(this), 0) * 200;
+        });
+        try {
+          const current = () => index().find((entry) => entry.element.getAttribute('aria-current') === 'true')?.tag;
+          fixture.componentInstance.reachFilter.set('area');
+          fixture.detectChanges();
+          index()[1].element.click();
+          fixture.detectChanges();
+          await fixture.whenStable();
+          expect(current()).toBe('氷');
+
+          part('rows').scrollTop = 0;
+          fixture.componentInstance.reachFilter.set(null);
+          fixture.detectChanges();
+          await fixture.whenStable();
+          fixture.detectChanges();
+
+          expect(current()).toBe('炎');
+        } finally {
+          laidOut.mockRestore();
+          tops.mockRestore();
+        }
+      });
+
+      it('gives the Tab key one stop in the index, and moves among the families by the arrows, Home and End', () => {
+        const onDocument = vi.fn();
+        document.addEventListener('keydown', onDocument);
+        fixture.detectChanges();
+        const key = (target: HTMLElement, name: string) => {
+          const event = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true });
+          target.dispatchEvent(event);
+          return event;
+        };
+        try {
+          expect(index().map((entry) => entry.element.getAttribute('tabindex'))).toEqual(['0', '-1', '-1', '-1']);
+          const entries = index().map((entry) => entry.element);
+          entries[0].focus();
+
+          expect(key(entries[0], 'ArrowDown').defaultPrevented).toBe(true);
+          expect(document.activeElement).toBe(entries[1]);
+          key(entries[1], 'End');
+          expect(document.activeElement).toBe(entries[3]);
+          key(entries[3], 'ArrowDown');
+          expect(document.activeElement).toBe(entries[3]);
+          key(entries[3], 'Home');
+          expect(document.activeElement).toBe(entries[0]);
+          expect(onDocument).not.toHaveBeenCalled();
+
+          expect(key(entries[0], 'ArrowRight').defaultPrevented).toBe(false);
+        } finally {
+          document.removeEventListener('keydown', onDocument);
+        }
+      });
+    });
+
+    describe('narrowing', () => {
+      function pressed(group: string): string[] {
+        return Array.from(part(group).querySelectorAll('button'))
+          .filter((button) => button.getAttribute('aria-pressed') === 'true')
+          .map((button) => button.textContent!.replace(/\s+/g, ''));
+      }
+
+      it('offers the grades and the reaches as two named rows of buttons, all of each chosen at first', () => {
+        fixture.detectChanges();
+        const labels = (group: string) =>
+          Array.from(part(group).querySelectorAll('button')).map((button) => button.textContent!.replace(/\s+/g, ''));
+
+        expect(labels('grades')).toEqual(['すべて', '初級', '中級', '上級']);
+        expect(labels('reaches')).toEqual(['すべて', 'person単体', 'groups複数', 'blur_circular範囲']);
+        expect(part('grades').parentElement!.getAttribute('aria-label')).toBe('等級');
+        expect(part('reaches').parentElement!.getAttribute('aria-label')).toBe('対象');
+        expect(pressed('grades')).toEqual(['すべて']);
+        expect(pressed('reaches')).toEqual(['すべて']);
+      });
+
+      it('keeps only what reaches an area when that reach is chosen: two of the fire family', () => {
+        fixture.detectChanges();
+
+        part('reaches').querySelector<HTMLButtonElement>('[data-reach="area"]')!.click();
+        fixture.detectChanges();
+
+        expect(pressed('reaches')).toEqual(['blur_circular範囲']);
+        expect(rowNames()).toEqual(['業火', '大爆発', '絶対零度']);
+        expect(
+          host().querySelector('[data-family-section="炎"] [data-family-heading]')!.textContent!.replace(/\s+/g, '')
+        ).toContain('炎2件');
+      });
+
+      it('narrows by a grade, and lets everything back with the first button of the row', () => {
+        fixture.detectChanges();
+        const grades = () => Array.from(part('grades').querySelectorAll<HTMLButtonElement>('button'));
+
+        grades()[1].click();
+        fixture.detectChanges();
+        expect(rowNames()).toEqual(['闘気', '自作の技']);
+
+        grades()[0].click();
+        fixture.detectChanges();
+        expect(rowNames()).toHaveLength(7);
+      });
+
+      it('says how many are found in the search field while the list is narrowed, and not otherwise', () => {
+        fixture.detectChanges();
+        expect(host().querySelector('[data-testid="effect-library-count"]')).toBeNull();
+
+        fixture.componentInstance.query.set('氷');
+        fixture.detectChanges();
+
+        expect(part('count').textContent!.trim()).toBe('2件');
+        expect(part('clear').getAttribute('aria-label')).toBe('絞り込みを解除');
+      });
+
+      it('finds an effect by the name of its kind and by kana for katakana, and marks what was typed as written', () => {
+        fixture.componentInstance.query.set('ぶれす');
+        fixture.detectChanges();
+
+        expect(rowNames()).toEqual(['氷のブレス']);
+        const marks = Array.from(rowOf('氷のブレス').querySelectorAll('mark')).map((mark) => mark.textContent);
+        expect(marks).toEqual(['ブレス', 'ブレス']);
+
+        fixture.componentInstance.query.set('閃光');
+        fixture.detectChanges();
+        expect(rowNames()).toEqual(['大爆発']);
+        expect(rowOf('大爆発').querySelector('[data-effect-kind] mark')!.textContent).toBe('閃光');
+      });
+
+      it('finds an effect named in kanji by its reading, with nothing marked', () => {
+        fixture.componentInstance.query.set('ぜったいれいど');
+        fixture.detectChanges();
+
+        expect(rowNames()).toEqual(['絶対零度']);
+        expect(rowOf('絶対零度').querySelector('mark')).toBeNull();
+      });
+
+      it('finds the effects of a family by the family’s name and its reading', () => {
+        fixture.componentInstance.query.set('こおり');
+        fixture.detectChanges();
+        expect(rowNames()).toEqual(['氷のブレス', '絶対零度']);
+
+        fixture.componentInstance.query.set('炎');
+        fixture.componentInstance.reachFilter.set('area');
+        fixture.detectChanges();
+        expect(rowNames()).toEqual(['業火', '大爆発']);
+      });
+
+      it('lets everything back with the button in the search field', () => {
+        fixture.componentInstance.query.set('氷');
+        fixture.componentInstance.gradeFilter.set(3);
+        fixture.componentInstance.reachFilter.set('area');
+        fixture.detectChanges();
+        expect(rowNames()).toEqual(['絶対零度']);
+
+        part<HTMLButtonElement>('clear').click();
+        fixture.detectChanges();
+
+        expect(rowNames()).toHaveLength(7);
+        expect(fixture.componentInstance.hasFilter()).toBe(false);
+      });
+
+      it('offers the grade and the reach as two lists on a narrow screen, each named, the area among the reaches', () => {
+        vi.spyOn(TestBed.inject(ViewportService), 'isCompact').mockReturnValue(true);
+        fixture.detectChanges();
+        const reach = part<HTMLSelectElement>('reach-select');
+
+        expect(host().querySelector('[data-testid="effect-library-reaches"]')).toBeNull();
+        expect(part('grade-select').getAttribute('aria-label')).toBe('等級');
+        expect(reach.getAttribute('aria-label')).toBe('対象');
+        expect(Array.from(reach.options).map((option) => option.textContent!.replace(/\s+/g, ''))).toEqual([
+          '対象:すべて',
+          '対象:単体',
+          '対象:複数',
+          '対象:範囲',
+        ]);
+
+        reach.selectedIndex = 3;
+        reach.dispatchEvent(new Event('change'));
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.reachFilter()).toBe('area');
+        expect(rowNames()).toEqual(['業火', '大爆発', '絶対零度']);
+      });
+    });
+
+    describe('the top bar and its menu', () => {
+      it('names the two buttons in words, each with a name for a screen reader too', () => {
+        fixture.detectChanges();
+
+        expect(part('create').textContent!.replace(/\s+/g, '')).toBe('add追加');
+        expect(part('create').getAttribute('aria-label')).toBe('エフェクトを追加');
+        expect(part('create').getAttribute('title')).toBe('エフェクトを追加');
+        expect(part('menu-button').textContent!.replace(/\s+/g, '')).toBe('more_vertメニュー');
+        expect(part('menu-button').getAttribute('aria-label')).toBe('メニュー');
+        expect(part('menu-button').getAttribute('aria-expanded')).toBe('false');
+      });
+
+      it('holds every other command of the list in the menu, each with an icon and its name', () => {
+        fixture.detectChanges();
+        const menu = openMenu();
+        const items = Array.from(menu.querySelectorAll('button'));
+
+        expect(part('menu-button').getAttribute('aria-expanded')).toBe('true');
+        expect(items.map((item) => item.textContent!.replace(/\s+/g, ''))).toEqual([
+          'restore既定を反映',
+          'library_add足りない既定を追加',
+          'file_downloadエフェクト集を書き出す',
+          'check_box_outline_blankHPの増減に演出を出す（自分の画面だけ）',
+          'unfold_less系統をすべて畳む',
+          'unfold_more系統をすべて開く',
+        ]);
+        expect(items.map((item) => item.getAttribute('role'))).toEqual([
+          'menuitem',
+          'menuitem',
+          'menuitem',
+          'menuitemcheckbox',
+          'menuitem',
+          'menuitem',
+        ]);
+        expect(
+          items.every((item) => item.querySelector('.material-icons')?.getAttribute('aria-hidden') === 'true')
+        ).toBe(true);
+      });
+
+      it('closes the menu as a command is run from it, and at a press anywhere else', () => {
+        fixture.detectChanges();
+        openMenu();
+        part<HTMLButtonElement>('export').click();
+        fixture.detectChanges();
+        expect(host().querySelector('[data-testid="effect-library-menu"]')).toBeNull();
+        expect(fixture.componentInstance.noticeLine()).toContain('書き出しました');
+
+        openMenu();
+        part('stance').dispatchEvent(new Event('pointerdown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(host().querySelector('[data-testid="effect-library-menu"]')).toBeNull();
+
+        openMenu();
+        document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(host().querySelector('[data-testid="effect-library-menu"]')).toBeNull();
+      });
+
+      it('ticks the effect on a change of health in the menu, which stays open to show it', () => {
+        fixture.detectChanges();
+        openMenu();
+        const before = fixture.componentInstance.autoPlayEnabled();
+
+        part<HTMLButtonElement>('auto-play').click();
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.autoPlayEnabled()).toBe(!before);
+        expect(part('auto-play').getAttribute('aria-checked')).toBe(String(!before));
+        expect(part('auto-play').textContent).toContain(before ? 'check_box_outline_blank' : 'check_box');
+
+        part<HTMLButtonElement>('auto-play').click();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.autoPlayEnabled()).toBe(before);
+      });
+
+      it('folds every family away and opens them all again from the menu', () => {
+        fixture.detectChanges();
+        openMenu();
+        part<HTMLButtonElement>('collapse-all').click();
+        fixture.detectChanges();
+
+        expect(rows()).toHaveLength(0);
+        expect(host().querySelectorAll('[data-family-heading][aria-expanded="false"]')).toHaveLength(4);
+
+        openMenu();
+        part<HTMLButtonElement>('expand-all').click();
+        fixture.detectChanges();
+
+        expect(rows()).toHaveLength(7);
+      });
+
+      it('closes the menu at Escape without the key reaching the table, which would call off an effect held ready', () => {
+        const onDocument = vi.fn();
+        document.addEventListener('keydown', onDocument);
+        fixture.detectChanges();
+        try {
+          const menu = openMenu();
+          const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+          menu.querySelector('button')!.dispatchEvent(escape);
+          fixture.detectChanges();
+
+          expect(host().querySelector('[data-testid="effect-library-menu"]')).toBeNull();
+          expect(onDocument).not.toHaveBeenCalled();
+          expect(document.activeElement).toBe(part('menu-button'));
+        } finally {
+          document.removeEventListener('keydown', onDocument);
+        }
+      });
+
+      it('moves among the items of the menu by the arrows, past one that is not offered', () => {
+        PeerCursor.myCursor.role = PeerRole.Guest;
+        fixture.detectChanges();
+        const menu = openMenu();
+        const items = Array.from(menu.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+        items[0].focus();
+
+        items[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+
+        expect(items[0].getAttribute('data-testid')).toBe('effect-library-export');
+        expect(document.activeElement).toBe(items[1]);
+        PeerCursor.myCursor.role = PeerRole.Player;
+      });
+    });
+
+    describe('the names of the buttons', () => {
+      it('gives every button of the panel a name: its words, or a label where it is drawn as a mark alone', () => {
+        const fields = TestBed.inject(EffectFieldService);
+        const field = fields.place(preset, 0, 0, 0);
+        const piece = GameCharacter.create('戦士', 1, '');
+        TestBed.inject(SelectionSignalService).selectObject(piece.identifier, piece.aliasName);
+        fixture.componentInstance.query.set('炎');
+        fixture.detectChanges();
+        rowOf('爆炎').click();
+        fixture.detectChanges();
+        openMenu();
+        try {
+          const unnamed = Array.from(host().querySelectorAll('button')).filter((button) => {
+            const words = Array.from(button.childNodes)
+              .filter((node) => !(node instanceof HTMLElement && node.classList.contains('material-icons')))
+              .map((node) => node.textContent ?? '')
+              .join('')
+              .trim();
+            return words.length < 1 && !button.getAttribute('aria-label');
+          });
+
+          expect(host().querySelectorAll('button').length).toBeGreaterThan(20);
+          expect(unnamed.map((button) => button.outerHTML.slice(0, 120))).toEqual([]);
+          expect(
+            Array.from(host().querySelectorAll('.material-icons')).filter(
+              (icon) => icon.getAttribute('aria-hidden') !== 'true' && icon.getAttribute('role') !== 'img'
+            )
+          ).toEqual([]);
+        } finally {
+          TestBed.inject(EffectTargetingService).cancel();
+          TestBed.inject(SelectionSignalService).selectedObject.set(null);
+          field.destroy();
+          piece.destroy();
+        }
+      });
+
+      it('writes the name beside each button drawn as a mark alone while the names of the buttons are asked for', () => {
+        fixture.componentInstance.query.set('炎');
+        fixture.detectChanges();
+        const written = () =>
+          Array.from(host().querySelectorAll('[data-testid="button-guide-label"]')).map((label) =>
+            label.textContent!.trim()
+          );
+        expect(written()).toEqual([]);
+
+        TestBed.inject(ButtonGuideService).show();
+        fixture.detectChanges();
+
+        expect(written()).toContain('絞り込みを解除');
+        expect(written().filter((name) => name === '編集')).toHaveLength(rows().length);
+        expect(part('menu-button').querySelector('span')!.className.split(/\s+/)).toContain('inline!');
+      });
+    });
+
+    describe('the size the reader leaves the panel at', () => {
+      it('is kept in this browser as the panel is resized, and nowhere in the room', () => {
+        fixture.detectChanges();
+        const before = JSON.stringify(preset.toContext());
+
+        TestBed.inject(PanelService).resized$.emit({ width: 720, height: 640 });
+
+        expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.effectLibrarySize)!)).toEqual({ width: 720, height: 640 });
+        expect(JSON.stringify(preset.toContext())).toBe(before);
+      });
+
+      it('is kept no longer once the panel has gone', () => {
+        fixture.detectChanges();
+        fixture.destroy();
+
+        TestBed.inject(PanelService).resized$.emit({ width: 720, height: 640 });
+
+        expect(localStorage.getItem(STORAGE_KEYS.effectLibrarySize)).toBeNull();
+      });
+    });
+
+    describe('for a guest, who changes nothing in the room', () => {
+      beforeEach(() => {
+        PeerCursor.myCursor.role = PeerRole.Guest;
+      });
+
+      afterEach(() => {
+        PeerCursor.myCursor.role = PeerRole.Player;
+      });
+
+      it('still searches, narrows, goes to a family, folds families and switches the effect on its own screen', () => {
+        fixture.detectChanges();
+        fixture.componentInstance.query.set('氷');
+        fixture.detectChanges();
+        expect(rowNames()).toEqual(['氷のブレス', '絶対零度']);
+
+        part('reaches').querySelector<HTMLButtonElement>('[data-reach="area"]')!.click();
+        fixture.detectChanges();
+        expect(rowNames()).toEqual(['絶対零度']);
+
+        part<HTMLButtonElement>('clear').click();
+        fixture.detectChanges();
+        index()[1].element.click();
+        fixture.detectChanges();
+        expect(index()[1].element.getAttribute('aria-current')).toBe('true');
+
+        openMenu();
+        const before = fixture.componentInstance.autoPlayEnabled();
+        part<HTMLButtonElement>('auto-play').click();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.autoPlayEnabled()).toBe(!before);
+        part<HTMLButtonElement>('auto-play').click();
+        part<HTMLButtonElement>('collapse-all').click();
+        fixture.detectChanges();
+        expect(rows()).toHaveLength(0);
+      });
+
+      it('is offered no button that edits a row, and the menu of a row on a touch screen all the same', () => {
+        fixture.detectChanges();
+
+        expect(host().querySelector('[data-effect-edit]')).toBeNull();
+        expect(host().querySelectorAll('[data-effect-more]')).toHaveLength(rows().length);
+      });
+    });
   });
 });

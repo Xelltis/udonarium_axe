@@ -1,4 +1,13 @@
-import { buffKindMarkOf, buffKindOf, parseBuffKindWord, writeBuffKindMark } from '@axe/domain/character/buff-kind';
+import {
+  BUFF_KINDS,
+  buffKindFrom,
+  buffKindMarkOf,
+  buffKindMarkPicked,
+  buffKindOf,
+  markBuffKind,
+  parseBuffKindWord,
+  writeBuffKindMark,
+} from '@axe/domain/character/buff-kind';
 import { newStatusAilment } from '@axe/domain/character/status-ailment';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 
@@ -99,6 +108,71 @@ describe('whether a buff is a buff or a debuff', () => {
     it.each(['', 'デバフ2', '弱体', 'buffs', '🔥'])('reads %s as no such word', (word) => {
       expect(parseBuffKindWord(word)).toBeNull();
     });
+  });
+
+  describe('marking a buff by hand', () => {
+    it('writes the mark for a buff as much as for a debuff, so a state of the room can be made a buff', () => {
+      const poison = row('毒');
+      expect(buffKindOf(poison, catalog)).toBe('debuff');
+
+      markBuffKind(poison, 'buff');
+
+      expect(buffKindMarkOf(poison)).toBe('buff');
+      expect(buffKindOf(poison, catalog)).toBe('buff');
+      markBuffKind(poison, 'debuff');
+      expect(buffKindOf(poison, catalog)).toBe('debuff');
+    });
+
+    it('marks the first row of a buff that moves several statuses, from any of its rows', () => {
+      const head = row('祝福', { [DataElementAttribute.BUFF_GROUP]: '祝福' });
+      const member = row('祝福（回避）', { [DataElementAttribute.BUFF_GROUP]: '祝福' });
+
+      markBuffKind(member, 'debuff');
+
+      expect(buffKindMarkOf(head)).toBe('debuff');
+      expect(buffKindMarkOf(member)).toBeNull();
+      expect(buffKindOf(member, [])).toBe('debuff');
+    });
+
+    it('marks a further row itself where its first row is gone', () => {
+      const orphan = row('祝福（回避）', { [DataElementAttribute.BUFF_GROUP]: '祝福' });
+
+      markBuffKind(orphan, 'debuff');
+
+      expect(buffKindMarkOf(orphan)).toBe('debuff');
+    });
+
+    it('offers the two kinds with a buff first', () => {
+      expect(BUFF_KINDS).toEqual(['buff', 'debuff']);
+    });
+  });
+
+  describe('the mark a kind picked on a form writes', () => {
+    it('writes none while nothing is picked, whatever the name', () => {
+      expect([buffKindMarkPicked(null, '盾', catalog), buffKindMarkPicked(null, '毒', catalog)]).toEqual([null, null]);
+    });
+
+    it('always writes a debuff picked', () => {
+      expect([buffKindMarkPicked('debuff', '盾', catalog), buffKindMarkPicked('debuff', '毒', catalog)]).toEqual([
+        'debuff',
+        'debuff',
+      ]);
+    });
+
+    it('writes a buff picked only for the name of a state the room keeps, which it would otherwise be a debuff by', () => {
+      expect([buffKindMarkPicked('buff', '盾', catalog), buffKindMarkPicked('buff', '毒', catalog)]).toEqual([
+        null,
+        'buff',
+      ]);
+      expect(buffKindFrom(buffKindMarkPicked('buff', '毒', catalog), '毒', catalog)).toBe('buff');
+    });
+  });
+
+  it('tells the kind of a buff read off its rows as it tells the row itself', () => {
+    expect(buffKindFrom(null, '毒', catalog)).toBe('debuff');
+    expect(buffKindFrom(null, '猛攻撃', catalog)).toBe('buff');
+    expect(buffKindFrom('buff', '毒', catalog)).toBe('buff');
+    expect(buffKindFrom('debuff', '猛攻撃', [])).toBe('debuff');
   });
 
   it('writes the mark and takes it away', () => {
