@@ -22,7 +22,6 @@ import {
 } from '@axe/domain/effect/scene/choreography';
 import { darkorb, struckOrb } from '@axe/domain/effect/scene/dark/darkorb';
 import { drain } from '@axe/domain/effect/scene/dark/drain';
-import { gravity } from '@axe/domain/effect/scene/dark/gravity';
 import { miasma } from '@axe/domain/effect/scene/dark/miasma';
 import { shadow, struckShadow } from '@axe/domain/effect/scene/dark/shadow';
 import { impact } from '@axe/domain/effect/scene/earth/impact';
@@ -47,6 +46,7 @@ import { arc } from '@axe/domain/effect/scene/shot/arc';
 import { arrowrain } from '@axe/domain/effect/scene/shot/arrow-rain';
 import { beam, raybeam } from '@axe/domain/effect/scene/shot/beam';
 import { ballisticWith, projectileWith } from '@axe/domain/effect/scene/shot/shots';
+import { gravity } from '@axe/domain/effect/scene/space/gravity';
 import { bolt, shotBolt } from '@axe/domain/effect/scene/storm/bolt';
 import { frost } from '@axe/domain/effect/scene/storm/frost';
 import { vortex } from '@axe/domain/effect/scene/wind/vortex';
