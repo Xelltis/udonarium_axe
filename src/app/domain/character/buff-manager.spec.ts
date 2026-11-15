@@ -134,6 +134,76 @@ describe('BuffManager', () => {
     });
   });
 
+  describe('the kind a buff is marked as (acceptance 4)', () => {
+    const kindOf = (name: string) =>
+      container.getFirstElementByName(name)!.getAttribute(DataElementAttribute.BUFF_KIND);
+
+    it('comes back with a buff the snapshot puts back after it was taken away', () => {
+      manager.addRound('毒霧', '命中-2', 3, { kind: 'debuff' });
+      manager.addRound('加速', '', 2);
+      const taken = manager.snapshot();
+      manager.delete('毒霧');
+
+      manager.restore(taken);
+
+      expect(kindOf('毒霧')).toBe('debuff');
+      expect(kindOf('加速')).toBe('');
+    });
+
+    it('comes back with a buff that ran out and is given back to the turn it was counted in', () => {
+      manager.addRound('毒霧', '命中-2', 1, { kind: 'debuff' });
+      const due = manager.dueAt('roundEnd', { identifier: '', name: '' });
+      manager.expireOneRound();
+      expect(container.getFirstElementByName('毒霧')).toBeNull();
+
+      manager.putBack(due);
+
+      expect(kindOf('毒霧')).toBe('debuff');
+    });
+
+    it('goes back to what the snapshot found on a buff still standing, a mark taken away included', () => {
+      manager.addRound('毒霧', '', 3, { kind: 'debuff' });
+      manager.addRound('加速', '', 2);
+      const taken = manager.snapshot();
+      manager.addRound('毒霧', '', 3, { kind: 'buff' });
+      manager.addRound('加速', '', 2, { kind: 'debuff' });
+
+      manager.restore(taken);
+
+      expect(kindOf('毒霧')).toBe('debuff');
+      expect(kindOf('加速')).toBe('');
+    });
+
+    it('is left alone by a snapshot taken before there was such a mark', () => {
+      manager.addRound('毒霧', '', 3, { kind: 'debuff' });
+      const [entry] = manager.snapshot();
+      const { kind: _kind, ...older } = entry.appearance;
+
+      manager.restore([{ ...entry, appearance: older }]);
+
+      expect(kindOf('毒霧')).toBe('debuff');
+    });
+
+    it('stays as a buff is piled on, lengthened or started over without a word for it', () => {
+      manager.addRound('毒霧', '命中-2', 3, { kind: 'debuff' });
+
+      manager.stackRound('毒霧', '命中-2', 3);
+      expect(kindOf('毒霧')).toBe('debuff');
+      manager.extendRound('毒霧', '', 2);
+      expect(kindOf('毒霧')).toBe('debuff');
+      manager.addRound('毒霧', '命中-1', 3);
+      expect(kindOf('毒霧')).toBe('debuff');
+    });
+
+    it('changes where the buff is laid again with the other word', () => {
+      manager.addRound('毒霧', '', 3, { kind: 'debuff' });
+
+      manager.stackRound('毒霧', '', 3, { kind: 'buff' });
+
+      expect(kindOf('毒霧')).toBe('buff');
+    });
+  });
+
   describe('giving back what a turn counted down', () => {
     const owner = { identifier: 'hero', name: '勇者' };
 

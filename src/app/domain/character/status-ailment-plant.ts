@@ -14,13 +14,16 @@ import { type StatusAilment, withRounds } from '@axe/domain/character/status-ail
  * to count its rounds from goes on with it where one is given, and so does a moment for its effect
  * to move at; without one the state moves as it is counted down, whatever one worn before did.
  *
+ * The buff is marked a debuff as it goes on, so it stays one whatever becomes of the room's list of
+ * states, unless the one putting it on marks it otherwise.
+ *
  * The device that puts it on is told that it did, so that what goes with the putting on, such as an
  * effect played over the piece, is set off once and from there.
  */
 export function plantStatusAilment(
   character: GameCharacter,
   ailment: StatusAilment,
-  look: Pick<BuffAppearance, 'trigger' | 'effectTiming'> = {}
+  look: Pick<BuffAppearance, 'trigger' | 'effectTiming' | 'kind'> = {}
 ): void {
   character.addBuffDataElement();
   character.buffs.addRound(ailment.name, ailment.effect, ailment.rounds, {
@@ -28,6 +31,7 @@ export function plantStatusAilment(
     icon: ailment.icon,
     timing: ailment.timing,
     effectTiming: '',
+    kind: 'debuff',
     ...look,
   });
   moveStatusOf(character, ailment);

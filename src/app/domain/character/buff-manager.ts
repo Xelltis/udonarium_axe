@@ -1,6 +1,7 @@
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { BuffAppearance } from '@axe/domain/character/buff-appearance';
 import { buffGroupOf, isBuffGroupMember } from '@axe/domain/character/buff-group';
+import { buffKindMarkOf, writeBuffKindMark } from '@axe/domain/character/buff-kind';
 import {
   BuffModifier,
   clearBuffModifier,
@@ -577,6 +578,7 @@ function readAppearance(data: DataElement): BuffAppearance {
     trigger: data.getAttribute(DataElementAttribute.BUFF_TRIGGER) ?? '',
     color: data.getAttribute(DataElementAttribute.BUFF_COLOR) ?? '',
     icon: data.getAttribute(DataElementAttribute.BUFF_ICON) ?? '',
+    kind: buffKindMarkOf(data) ?? '',
     ...(group.length > 0 ? { group } : {}),
     ...(effectTiming ? { effectTiming } : {}),
   };
@@ -599,6 +601,7 @@ function applyAppearance(data: DataElement, appearance: BuffAppearance): void {
     if (appearance.icon.length > 0) data.setAttribute(DataElementAttribute.BUFF_ICON, appearance.icon);
     else data.removeAttribute(DataElementAttribute.BUFF_ICON);
   }
+  if (appearance.kind !== undefined) writeBuffKindMark(data, appearance.kind);
   if (appearance.group !== undefined) {
     if (appearance.group.length > 0) data.setAttribute(DataElementAttribute.BUFF_GROUP, appearance.group);
     else data.removeAttribute(DataElementAttribute.BUFF_GROUP);

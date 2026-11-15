@@ -1,4 +1,5 @@
 import { type BuffAppearance, isBuffColorToken, parseBuffAppearance } from '@axe/domain/character/buff-appearance';
+import { parseBuffKindWord } from '@axe/domain/character/buff-kind';
 import {
   isBuffModifierOperator,
   parseBuffModifierItems,
@@ -96,8 +97,8 @@ export function splitBuffRounds(fields: readonly string[]): { rounds: string | u
  * The look written after a `&!` command's rounds. A timing, or a blank where it goes, followed by a
  * bare name stands as it always has, the timing and the piece whose turn it waits for; past those,
  * or written any other way, the fields are read as a plain buff's look is: a colour, an icon, a
- * timing, an `@` trigger and the moment the effect moves at behind `発生:`, in whichever order they
- * come.
+ * timing, an `@` trigger, the moment the effect moves at behind `発生:` and a word marking it a buff
+ * or a debuff, in whichever order they come. Such a word is never the name of a piece.
  */
 export function readCalculatedBuffLook(fields: readonly string[]): BuffAppearance {
   const [timing = '', trigger = ''] = fields.map((field) => (field ?? '').trim());
@@ -107,7 +108,8 @@ export function readCalculatedBuffLook(fields: readonly string[]): BuffAppearanc
     !trigger.startsWith('@') &&
     !isBuffColorToken(trigger) &&
     !isBuffTimingToken(trigger) &&
-    !isBuffEffectTimingField(trigger);
+    !isBuffEffectTimingField(trigger) &&
+    parseBuffKindWord(trigger) === null;
   if (!bare) return parseBuffAppearance(fields);
   const look = { ...parseBuffAppearance(fields.slice(2)), trigger };
   return timing.length > 0 ? { ...look, timing: resolveBuffTiming(timing)! } : look;

@@ -5,10 +5,13 @@ import { ObjectFactory } from '@axe/core/sync/object-factory';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { xml2element } from '@axe/core/util/xml-util';
+import { buffKindMarkOf, buffKindOf } from '@axe/domain/character/buff-kind';
 import { BuffManager } from '@axe/domain/character/buff-manager';
 import { buffEffectTimingOf, buffTimingOf, writeBuffEffectTiming } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
+import { newStatusAilment } from '@axe/domain/character/status-ailment';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -602,6 +605,101 @@ describe('save and load round trip', () => {
       expect(without).toContain('cs-buff-timing="turnStart"');
       expect(without).toContain('cs-buff-trigger="術者"');
       expect(without).toContain('cs-buff-mod-kept-step="3"');
+    });
+  });
+
+  describe('whether a buff is a buff or a debuff', () => {
+    const poison = newStatusAilment('毒');
+
+    afterEach(() => {
+      StatusAilmentCatalog.instance.ailments = [];
+      store.clearDeleteHistory();
+    });
+
+    /**
+     * The buffs the commands lay on a piece, as the element that holds them is saved. The piece is
+     * written and read by its buff element, the part of it this is about, since happy-dom reads no
+     * attribute with a dot in its name, which a whole piece carries.
+     */
+    function saved(...commands: string[]): string {
+      const character = GameCharacter.create('区分の確認', 1, '');
+      for (const command of commands) applyBuffEdit({ command, object: character, targeted: false }, character);
+      const xml = serializer.toXml(character.buffDataElement!);
+      character.destroy();
+      store.clearDeleteHistory();
+      return xml;
+    }
+
+    /** The buff rows read back from the xml, with the element they came in. */
+    function loaded(xml: string): { root: DataElement; rows: DataElement[] } {
+      const root = serializer.parseXml(xml) as DataElement;
+      return { root, rows: new BuffManager(root).list() };
+    }
+
+    const kindsOf = (rows: readonly DataElement[]) =>
+      rows.map((row) => [row.name, buffKindOf(row, StatusAilmentCatalog.instance.ailments)]);
+
+    it('goes through a save and a load of a single piece with the mark it was given', () => {
+      const xml = saved('&毒霧/命中-2/3/デバフ', '&猛攻撃/攻撃+2/3', '&祝福/回避+1/3/バフ');
+      expect(xml).toContain('cs-buff-kind="debuff"');
+      expect(xml).toContain('cs-buff-kind="buff"');
+
+      const { root, rows } = loaded(xml);
+
+      expect(rows.map((row) => [row.name, buffKindMarkOf(row)])).toEqual([
+        ['毒霧', 'debuff'],
+        ['猛攻撃', null],
+        ['祝福', 'buff'],
+      ]);
+      expect(serializer.toXml(root)).toBe(xml);
+    });
+
+    it('reads a piece saved before there was a mark by the room’s list of states alone, and writes it back as it was', () => {
+      const xml = saved('&毒/毎R2点/3', '&猛攻撃/攻撃+2/3');
+      expect(xml).not.toContain('cs-buff-kind');
+      StatusAilmentCatalog.instance.ailments = [poison];
+
+      const { root, rows } = loaded(xml);
+
+      expect(kindsOf(rows)).toEqual([
+        ['毒', 'debuff'],
+        ['猛攻撃', 'buff'],
+      ]);
+      expect(serializer.toXml(root)).toBe(xml);
+    });
+
+    it('takes a piece brought into another room by its marks, not by that room’s list of states', () => {
+      StatusAilmentCatalog.instance.ailments = [poison];
+      const xml = saved('&毒', '&毒霧/命中-2/3/バフ');
+      StatusAilmentCatalog.instance.ailments = [newStatusAilment('毒霧')];
+
+      expect(kindsOf(loaded(xml).rows)).toEqual([
+        ['毒', 'debuff'],
+        ['毒霧', 'buff'],
+      ]);
+    });
+
+    it('reads an empty mark and one it does not know as no mark', () => {
+      const xml = saved('&毒霧/命中-2/3/デバフ', '&毒/毎R2点/3/デバフ');
+      StatusAilmentCatalog.instance.ailments = [poison];
+
+      for (const mark of ['', 'curse']) {
+        const { rows } = loaded(xml.replaceAll('cs-buff-kind="debuff"', `cs-buff-kind="${mark}"`));
+
+        expect(kindsOf(rows)).toEqual([
+          ['毒霧', 'buff'],
+          ['毒', 'debuff'],
+        ]);
+      }
+    });
+
+    it('adds one attribute to what an older version reads, and changes none of the others', () => {
+      const { rows } = loaded(saved('&毒霧/命中-2/3/red/☠/手番開始/デバフ'));
+      const marked = serializer.toXml(rows[0]);
+      rows[0].removeAttribute(DataElementAttribute.BUFF_KIND);
+
+      expect(marked.replace(' cs-buff-kind="debuff"', '')).toBe(serializer.toXml(rows[0]));
+      expect(marked).toContain('cs-buff-icon="☠"');
     });
   });
 

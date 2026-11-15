@@ -1,3 +1,4 @@
+import { type BuffKind, parseBuffKindWord } from '@axe/domain/character/buff-kind';
 import {
   BuffEffectTiming,
   BuffTiming,
@@ -27,6 +28,11 @@ export interface BuffAppearance {
    * row apiece; empty to take a row out of one.
    */
   group?: string;
+  /**
+   * Whether the buff is marked a buff or a debuff; empty to take the mark away, which leaves the
+   * room's list of states to say which it is.
+   */
+  kind?: BuffKind | '';
 }
 
 export const DEFAULT_BUFF_COLOR = 'rgba(0,0,0,0.7)';
@@ -87,7 +93,7 @@ export function isBuffColorToken(token: string): boolean {
 /**
  * Sorts tokens such as a colour name and an icon, in whichever order they come. A field written as
  * the moment the effect moves at, `発生:手番終了`, is never taken for an icon, even where its moment
- * cannot be read.
+ * cannot be read, and neither is a word that marks the buff a buff or a debuff, `デバフ`.
  */
 export function parseBuffAppearance(tokens: readonly string[]): BuffAppearance {
   const appearance: BuffAppearance = {};
@@ -97,6 +103,11 @@ export function parseBuffAppearance(tokens: readonly string[]): BuffAppearance {
     if (isBuffEffectTimingField(value)) {
       const effectTiming = resolveBuffEffectTiming(value);
       if (effectTiming) appearance.effectTiming = effectTiming;
+      continue;
+    }
+    const kind = parseBuffKindWord(value);
+    if (kind) {
+      appearance.kind = kind;
       continue;
     }
     if (isBuffColorToken(value)) {

@@ -100,6 +100,7 @@ export const DataElementAttribute = {
   BUFF_MOD_KEPT: 'cs-buff-mod-kept',
   BUFF_MOD_KEPT_STEP: 'cs-buff-mod-kept-step',
   BUFF_GROUP: 'cs-buff-group',
+  BUFF_KIND: 'cs-buff-kind',
   GAP_DISTANCE: 'cs-gap-distance',
   LOOP_HORIZONTAL: 'cs-loop-horizontal',
   LOOP_VERTICAL: 'cs-loop-vertical',

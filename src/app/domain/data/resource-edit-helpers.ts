@@ -513,6 +513,7 @@ function plantCommandedState(state: StatusAilment, parts: string[], character: G
   plantStatusAilment(character, ailment, {
     ...(look.trigger ? { trigger: look.trigger } : {}),
     ...(look.effectTiming ? { effectTiming: look.effectTiming } : {}),
+    ...(look.kind ? { kind: look.kind } : {}),
   });
   const counted = ailment.rounds > 0 && ailment.timing !== 'none';
   const told = [ailment.name, ailment.effect, counted ? `${ailment.rounds}R` : '', ...written.look];

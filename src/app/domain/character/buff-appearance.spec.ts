@@ -86,4 +86,32 @@ describe('parseBuffAppearance()', () => {
     expect(parseBuffAppearance(['発生:いつか'])).toEqual({});
     expect(parseBuffAppearance(['発生:none', '☠️'])).toEqual({ icon: '☠️' });
   });
+
+  describe('the words that mark a buff or a debuff (acceptance 3)', () => {
+    it.each([
+      ['デバフ', 'debuff'],
+      ['debuff', 'debuff'],
+      ['バフ', 'buff'],
+      ['buff', 'buff'],
+    ])('reads %s as the kind and never as an icon', (word, kind) => {
+      expect(parseBuffAppearance([word])).toEqual({ kind });
+    });
+
+    it('reads the kind wherever it comes among the colour, the icon and the timing', () => {
+      expect(parseBuffAppearance(['red', 'デバフ', '☠', 'none'])).toEqual({
+        color: resolveBuffColor('red'),
+        kind: 'debuff',
+        icon: '☠',
+        timing: 'none',
+      });
+    });
+
+    it('leaves the kind out where no such word is written', () => {
+      expect('kind' in parseBuffAppearance(['red', '☠'])).toBe(false);
+    });
+
+    it('still takes a word that only holds one of them for an icon', () => {
+      expect(parseBuffAppearance(['デバフ中'])).toEqual({ icon: 'デバフ中' });
+    });
+  });
 });

@@ -76,6 +76,16 @@ describe('buff-command', () => {
     });
   });
 
+  it('takes a word that marks a debuff after a timing for the kind, not for the piece the timing waits on', () => {
+    expect(readCalculatedBuffLook(['none', 'デバフ'])).toEqual({ timing: 'none', kind: 'debuff' });
+    expect(readCalculatedBuffLook(['', 'buff'])).toEqual({ kind: 'buff' });
+    expect(readCalculatedBuffLook(['手番開始', '術者', 'デバフ'])).toEqual({
+      timing: 'turnStart',
+      trigger: '術者',
+      kind: 'debuff',
+    });
+  });
+
   it('places each field after the marks', () => {
     const command = 't&+!猛攻撃/攻撃/+/2';
     expect(buffCommandFields(command).map((field) => [field.text, command.slice(field.from, field.to)])).toEqual([
