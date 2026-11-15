@@ -19,6 +19,7 @@ function stageOf(): Stage {
     z: 0,
     groundZ: 0,
     cell: CELL,
+    tall: CELL,
     seconds: 0,
     duration: 3,
     index: 0,

@@ -16,6 +16,7 @@ function stageOf(seed = 11): Stage {
     z: 0,
     groundZ: 0,
     cell: CELL,
+    tall: CELL,
     seconds: 0,
     duration: 1.2,
     index: 0,

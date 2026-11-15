@@ -13,6 +13,7 @@ function cloudOf() {
     z: 0,
     groundZ: 0,
     cell: CELL,
+    tall: CELL,
     seconds: 0,
     duration: 4,
     index: 0,
