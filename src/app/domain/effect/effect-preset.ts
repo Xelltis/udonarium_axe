@@ -20,6 +20,7 @@ import { type EffectStage, parseEffectStages } from '@axe/domain/effect/effect-s
 import { stagedEffectDuration } from '@axe/domain/effect/effect-stage-timeline';
 import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
 import { boltStrokesOf, CURRENT_REACHES_AT } from '@axe/domain/effect/thunder-looks';
+import { stormSoundsAt } from '@axe/domain/effect/wind-looks';
 
 const MIN_DURATION_MS = 120;
 const MAX_DURATION_MS = 6000;
@@ -163,8 +164,8 @@ export class EffectPreset extends GameObject {
   /**
    * Where through the effect the landing sounds. A projectile sounds it as it lands, a look of holy
    * light, of darkness or a bolt of lightning as it strikes, once it has been seen coming, a quake as
-   * its rock first breaks, a current of lightning as it reaches its target, and anything else a little
-   * later.
+   * its rock first breaks, a storm as its first lightning strikes, a current of lightning as it reaches
+   * its target, and anything else a little later.
    */
   get impactSoundAt(): number {
     const holy = holyStrikesAt(this.effectKind, this.gradeLevel, this.duration / 1000);
@@ -173,6 +174,8 @@ export class EffectPreset extends GameObject {
     if (dark !== undefined) return dark;
     const quake = quakeSoundsAt(this, this.duration / 1000);
     if (quake !== undefined) return quake;
+    const storm = stormSoundsAt(this, this.duration / 1000);
+    if (storm !== undefined) return storm;
     // A bolt sounds as it strikes, after its leader, and a current as it reaches its target.
     if (this.effectKind === 'bolt')
       return (boltStrokesOf(this.gradeLevel, this.duration / 1000)[0] * 1000) / this.duration;

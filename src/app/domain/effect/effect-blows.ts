@@ -10,7 +10,7 @@ import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
 import { frostStrikesOf } from '@axe/domain/effect/ice-looks';
 import { boltStrokesOf, CURRENT_REACHES_AT } from '@axe/domain/effect/thunder-looks';
 import { slashHits } from '@axe/domain/effect/timeline/blade';
-import { gustTimingOf, isGust } from '@axe/domain/effect/wind-looks';
+import { blowsAsStorm, gustTimingOf, isGust, stormStrikesOf } from '@axe/domain/effect/wind-looks';
 
 /**
  * A blow an effect lands on its first target: when, on the effect's own clock, how long everything
@@ -106,7 +106,8 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
 /**
  * The blows an effect lands on its first target, in the order they land. An effect that strikes
  * nothing, as a heal or a shield, lands none; a run of stages lands one for each of its stages that
- * strikes. A whirlwind lands none, but a gust: its wall strikes the target once and shoves it back.
+ * strikes. A whirlwind lands none, but a gust: its wall strikes the target once and shoves it back;
+ * and a storm, one at each stroke of its lightning.
  * Rubble on its own lands three, one at each heave of the ground, the first held as a blow of its
  * grade is and the others only caught. A curse on its own, and each state drawn in its place, lands
  * one that holds and neither shakes the screen nor throws the piece: the instant it takes hold. A
@@ -177,6 +178,7 @@ function strikeTimes(preset: EffectPreset): number[] {
       .sort((a, b) => a - b);
   }
   if (isGust(preset)) return [Math.round(gustTimingOf(preset.duration / 1000).strikesAt * 1000)];
+  if (blowsAsStorm(preset)) return stormStrikesOf(preset.duration / 1000).map((strike) => Math.round(strike * 1000));
   if (isCurseAlone(preset)) {
     return [Math.round(takesHoldAt(curseLookOf(preset), preset.duration / 1000) * 1000)];
   }

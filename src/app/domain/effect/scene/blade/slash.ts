@@ -21,7 +21,9 @@ import {
 import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import { glow, type Point, starBurst } from '@axe/domain/effect/scene/parts';
 import { SCENE_LINGER_S } from '@axe/domain/effect/scene/scene-kinds';
+import { drawSickles } from '@axe/domain/effect/scene/wind/sickle';
 import { SLASH_COMBO_OPENS_AT, slashHits } from '@axe/domain/effect/timeline/blade';
+import { cutsAsWind } from '@axe/domain/effect/wind-looks';
 
 /*
  * A cut. Steel glints where the blade is drawn back, and the blade sweeps a great crescent through
@@ -35,7 +37,7 @@ import { SLASH_COMBO_OPENS_AT, slashHits } from '@axe/domain/effect/timeline/bla
  * its own tint, quick and uneven and the last the largest; their crescents hang about the target
  * together like a flower, the cuts they leave wait as hairs of light, and a moment after the last all
  * of them burst open at once. A drawing cut, a wide sweep and a cleave from above are drawn each in
- * a file of its own.
+ * a file of its own. A cut of wind is sickles of wind; see {@link drawSickles}.
  */
 
 /** How long a cut lingers after its playback while what it leaves clears, in seconds. */
@@ -65,6 +67,7 @@ const SCORE_CELLS = 0.9;
 export const slash: Choreography = { lingerS: LINGER_S, draw: drawSlash };
 
 function drawSlash(stage: Stage): Staged {
+  if (cutsAsWind(stage.preset)) return drawSickles(stage);
   switch (stage.preset.slashLook) {
     case 'iai':
       return drawDrawingCut(stage, LINGER_S);

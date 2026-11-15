@@ -8,13 +8,15 @@ import { DUST } from '@axe/domain/effect/scene/fire/fire-parts';
 import { glow, lightningPaths, type Point, smokePuff } from '@axe/domain/effect/scene/parts';
 import { lightningRibbons } from '@axe/domain/effect/scene/storm/lightning';
 import { scatter } from '@axe/domain/effect/scene/wind/wind-parts';
+import { drawWindTorrent } from '@axe/domain/effect/scene/wind/wind-sword';
 
 /*
  * What the torrent of a great sword carries, by its element, so that each is its own substance in a
  * still: flames roaring up off a torrent of fire and embers flung from it; shards and flakes of ice
  * tumbling down a torrent of freezing wind; bolts forking off a torrent of lightning and one running
  * jagged down its heart; stones and dust thrown up by a torrent of earth; black flames and smoke
- * boiling off a torrent of shadow; and stars and feathers of light borne along a torrent of light.
+ * boiling off a torrent of shadow; stars and feathers of light borne along a torrent of light; and
+ * a torrent of wind a cyclone laid on its side.
  */
 
 /** A place in the torrent a share of the way along what there is of it, a share of its width aside and up from its middle. */
@@ -176,6 +178,9 @@ export function drawTorrentElement(drawn: Staged, pose: SwordPose, paint: SwordP
           )
         );
       });
+      return;
+    case 'wind':
+      drawWindTorrent(drawn, pose, paint, look);
       return;
     case 'dark':
       each(16, 0.5, (index, age, share) => {

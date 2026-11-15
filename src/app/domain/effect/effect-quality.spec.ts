@@ -64,7 +64,8 @@ function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; ca
  * doubled; and the looks that bless, each healing, cleansing, barrier and aura on as many as the
  * bundled one takes; the looks of darkness by their grades, a mire and an eclipse over an area on
  * eight, a draining on three, and a great blade that lands in a black sphere; a rift on three and a
- * quake over an area on eight, and a breath of sand. The last of each is how many targets it is cast on,
+ * quake over an area on eight, a breath of sand, sickles of wind on four, waves of the void, a storm
+ * over an area on eight, and a great blade of wind. The last of each is how many targets it is cast on,
  * where that is not four.
  */
 const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, number?])[] = [
@@ -110,6 +111,10 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, numbe
   ['quake', { grade: 2, durationMs: 2691, staggerMs: 140 }, 3],
   ['quake', { targeting: 'multi', maxTargets: 8, areaRadius: 3, durationMs: 5042, staggerMs: 0 }, 8],
   ['breath', { tagName: '土', durationMs: 4493 }],
+  ['slash', { tagName: '風', slashStyle: 'combo', grade: 2, durationMs: 2712, staggerMs: 160 }],
+  ['projectile', { projectileStyle: 'crescent', impactKind: 'vortex', tagName: '風', durationMs: 1000 }],
+  ['vortex', { moteStyle: 'arc', targeting: 'multi', maxTargets: 8, areaRadius: 3, durationMs: 3318, staggerMs: 0 }, 8],
+  ['skyblade', { impactKind: 'vortex', tagName: '風', durationMs: 3000 }],
   ['projectile', { projectileStyle: 'bullet', impactKind: 'rubble', shots: 14, shotInterval: 70, durationMs: 1300 }],
   ['projectile', { projectileStyle: 'missile', impactKind: 'burst' }],
   ['projectile', { projectileStyle: 'bullet', impactKind: 'impact', shots: 10, shotInterval: 90 }],

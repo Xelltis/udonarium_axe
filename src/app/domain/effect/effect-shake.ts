@@ -3,6 +3,7 @@ import { EffectKind, type ProjectileStyle } from '@axe/domain/effect/effect-kind
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
 import { isSpiritShot } from '@axe/domain/effect/magic-looks';
+import { blowsAsStorm } from '@axe/domain/effect/wind-looks';
 
 /**
  * Shaking the screen.
@@ -118,7 +119,8 @@ export function breaksOutAsAura(preset: Pick<EffectPreset, 'isStaged' | 'effectK
  * one that stamps the ground in, an impact, or stabs up out of it, spikes of shadow, which shakes it
  * lightly however light it is. The greatest
  * aura shakes it lightly, and no harder, and so does a cut thrown off a blade as it lands, of the
- * middle grade and over. A great sword shakes it by its grade as its torrent is let go.
+ * middle grade and over. A great sword shakes it by its grade as its torrent is let go, and a storm as
+ * its lightning strikes.
  */
 export function effectShakeOf(preset: EffectPreset): EffectShake {
   if (breaksOutAsAura(preset)) return 'soft';
@@ -126,7 +128,7 @@ export function effectShakeOf(preset: EffectPreset): EffectShake {
   const asShot = hitsHardAsShot(preset);
   if (asShot !== null) return asShot;
   const kinds = drawnKinds(preset);
-  const strikes = fallsAsMeteor(preset) || breaksAsRock(preset) || loosesAsGreatSword(preset);
+  const strikes = fallsAsMeteor(preset) || breaksAsRock(preset) || loosesAsGreatSword(preset) || blowsAsStorm(preset);
   if (!strikes && !kinds.some((kind) => SHAKING_KINDS.has(kind))) return '';
   const shake = SHAKE_BY_GRADE[preset.gradeLevel];
   return shake === '' && (kinds.includes('impact') || kinds.includes('shadow')) ? 'soft' : shake;

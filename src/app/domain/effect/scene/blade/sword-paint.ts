@@ -7,15 +7,15 @@ import { hueOf, type Point } from '@axe/domain/effect/scene/parts';
  * What a great sword is made of. The technique is one, whatever it is cast in: a blade of radiance
  * raised and brought down, and a torrent loosed along the floor. What it is cast in is told by the
  * look it lands with, and gives the blade and the torrent their substance: light, flame, ice,
- * lightning, stone or shadow. Each is painted the same way, from a heart through an inner and a body
- * to a sheath with a rim about it, so the six read as one technique; the heart is white-hot for all
+ * lightning, stone, shadow or wind. Each is painted the same way, from a heart through an inner and a body
+ * to a sheath with a rim about it, so the seven read as one technique; the heart is white-hot for all
  * but shadow, whose heart is black within an edge of its colour.
  *
  * A ramp runs from the deepest shadow at 0 to white at 6.
  */
 
 /** What a great sword is cast in. */
-export type SwordElement = 'light' | 'fire' | 'ice' | 'thunder' | 'earth' | 'dark';
+export type SwordElement = 'light' | 'fire' | 'ice' | 'thunder' | 'earth' | 'dark' | 'wind';
 
 /** The colours a great sword is painted in, from its heart out, and what it leaves. */
 export interface SwordPaint {
@@ -55,6 +55,7 @@ const ELEMENT_OF: Partial<Record<EffectKind, SwordElement>> = {
   curse: 'dark',
   gravity: 'dark',
   drain: 'dark',
+  vortex: 'wind',
 };
 
 /** What a great sword that lands with a kind of look is cast in: light, for a look of no element. */
@@ -110,6 +111,17 @@ export function swordPaintOf(kind: EffectKind, light: string, dark: string): Swo
         halo: mixColor(ramp[1], '#ff9a2a', 0.5),
         score: '#2a1f17',
         ember: '#ff8a2a',
+      };
+    case 'wind':
+      return {
+        ...base,
+        heart: '#ffffff',
+        inner: mixColor(ramp[5], '#f2fff6', 0.5),
+        body: mixColor(ramp[4], '#e2fff0', 0.3),
+        sheath: mixColor(ramp[2], ramp[1], 0.3),
+        rim: mixColor(ramp[0], '#0b2a20', 0.55),
+        score: '#3a4436',
+        ember: '#f0fff6',
       };
     case 'dark':
       return {
