@@ -200,6 +200,39 @@ describe('EffectPreviewComponent', () => {
     expect(zooms.at(-1)).toBeCloseTo(usual * 2);
   });
 
+  it('follows an effect whose values are changed in place, playing it from the start with the new values', async () => {
+    const preset = presetOf('nova');
+    show(preset);
+    for (let turn = 0; turn < 5; turn++) {
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
+    runFramesAt(700);
+    const usual = zooms.at(-1)!;
+    const before = component.sceneFrame();
+
+    preset.scale = 2;
+    fixture.componentRef.setInput('version', 1);
+    fixture.detectChanges();
+
+    expect(component.frame()).toEqual({ round: 0, elapsed: 0 });
+    expect(zooms.at(-1)).toBeCloseTo(usual * 2);
+    expect(component.sceneFrame()).not.toBe(before);
+  });
+
+  it('is a strip of its own height unless told to fill the box it is put in', () => {
+    const stage = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="effect-preview-stage"]')!;
+    show(null);
+    expect(stage().classList.contains('h-28')).toBe(true);
+    expect(stage().classList.contains('h-full')).toBe(false);
+
+    fixture.componentRef.setInput('fill', true);
+    fixture.detectChanges();
+
+    expect(stage().classList.contains('h-28')).toBe(false);
+    expect(stage().classList.contains('h-full')).toBe(true);
+  });
+
   it('holds one still halfway through while motion is turned off', () => {
     motion.setting.set('off');
     show(presetOf('burst', 1000));
