@@ -66,6 +66,17 @@ describe('toBuffBadges()', () => {
     });
   });
 
+  it('carries the kind the buff is marked as, and none where it carries no mark', () => {
+    const cursed = buff('呪い', '命中-1', 3);
+    cursed.setAttribute(DataElementAttribute.BUFF_KIND, 'debuff');
+    const odd = buff('祝福', '命中+1', 3);
+    odd.setAttribute(DataElementAttribute.BUFF_KIND, 'curse');
+
+    expect(buffBadgeOf(cursed).kindMark).toBe('debuff');
+    expect(buffBadgeOf(buff('毒', '', 3)).kindMark).toBeNull();
+    expect(buffBadgeOf(odd).kindMark).toBeNull();
+  });
+
   it('carries the moment the effect moves at where the buff has one of its own, and none otherwise', () => {
     const row = buff('再生', ':HP+0~+3', 3, '💚');
     expect(buffBadgeOf(row).effectTiming).toBeNull();

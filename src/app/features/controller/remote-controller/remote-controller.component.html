@@ -203,6 +203,24 @@
             }
           </div>
 
+          <div class="flex items-center gap-1 px-2 pt-1">
+            <span class="text-ui-muted min-w-[3em] text-[11px] select-none">{{
+              'feature.character.buff.kind' | transloco
+            }}</span>
+            <select
+              class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm cursor-pointer border border-solid px-1 py-0.5 text-[11px]"
+              name="remoteBuffKind"
+              data-testid="remote-buff-kind"
+              [ngModel]="buffKind()"
+              (ngModelChange)="buffKind.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+            >
+              @for (choice of buffKinds; track choice) {
+                <option [ngValue]="choice">{{ 'feature.character.buff.kind_' + choice | transloco }}</option>
+              }
+            </select>
+          </div>
+
           <div class="flex items-start gap-1.25 px-2 py-1">
             <textarea
               class="bg-ui-input border-ui-border-input text-ui-text focus:border-ui-accent rounded-ui-sm max-h-20 min-h-10 flex-1 resize-y border border-solid px-1.5 py-1 font-[inherit] text-[12px] outline-none"

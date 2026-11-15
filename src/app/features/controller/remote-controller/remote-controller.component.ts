@@ -38,6 +38,7 @@ import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { BattleTake } from '@axe/domain/battle/battle-take';
 import { writeElementField } from '@axe/domain/character/alias-mate-follow';
 import { BUFF_COLORS, resolveBuffColor } from '@axe/domain/character/buff-appearance';
+import { BUFF_KINDS, type BuffKind } from '@axe/domain/character/buff-kind';
 import { ControllerResourcePick, controllerShowsResource } from '@axe/domain/character/controller-resource-pick';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
@@ -61,6 +62,7 @@ import {
   addBuffRound,
   decreaseBuffRound,
   deleteZeroRoundBuffs,
+  marksChosenKind,
   parseBuffInput,
   pileBuffRound,
   RemoteControllerSelect,
@@ -348,6 +350,10 @@ export class RemoteControllerComponent {
   readonly buffSectionOpen = signal(true);
   readonly buffColors = BUFF_COLORS;
   readonly buffColorId = signal('');
+
+  readonly buffKinds = BUFF_KINDS;
+  /** Whether the buff the form lays is marked a debuff; a buff carries no mark, as a plain command's does. */
+  readonly buffKind = signal<BuffKind>('buff');
   readonly counterSectionOpen = signal(true);
 
   readonly chatTabidentifier = signal('');
@@ -414,6 +420,10 @@ export class RemoteControllerComponent {
     if (appearance.color === undefined && this.buffColorId().length > 0) {
       appearance.color = resolveBuffColor(this.buffColorId());
       bufftext += `/${this.buffColorId()}`;
+    }
+    if (marksChosenKind(appearance, this.buffKind())) {
+      appearance.kind = 'debuff';
+      bufftext += `/${this.t('feature.character.buff.kind_debuff')}`;
     }
     if (parsed.piles === 'none') addBuffRound(gameCharacters, parsed.buffname, parsed.sub, parsed.round, appearance);
     else pileBuffRound(gameCharacters, parsed.piles, parsed.buffname, parsed.sub, parsed.round, appearance);

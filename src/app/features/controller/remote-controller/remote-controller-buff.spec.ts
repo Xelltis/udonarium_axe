@@ -3,6 +3,8 @@ import {
   addBuffRound,
   decreaseBuffRound,
   deleteZeroRoundBuffs,
+  marksChosenKind,
+  parseBuffInput,
   pileBuffRound,
 } from '@axe/features/controller/remote-controller/remote-controller-buff';
 
@@ -62,5 +64,32 @@ describe('the buffs a remote controller works on', () => {
     pileBuffRound([held], 'extend', '猛攻撃', '攻撃+2', 3);
 
     expect(Number(held.buffs.find('猛攻撃')?.value)).toBe(5);
+  });
+
+  describe('the kind chosen on the form', () => {
+    it('marks a debuff where the line says nothing of the kind', () => {
+      expect(marksChosenKind(parseBuffInput('毒 継続 3')!.appearance, 'debuff')).toBe(true);
+    });
+
+    it('writes no mark for a buff, which is what a buff laid by a plain command carries', () => {
+      expect(marksChosenKind(parseBuffInput('盾 防御+1 3')!.appearance, 'buff')).toBe(false);
+    });
+
+    it('lets a kind written on the line win over the one chosen', () => {
+      const typed = parseBuffInput('盾 防御+1 3 バフ')!.appearance;
+
+      expect(typed.kind).toBe('buff');
+      expect(marksChosenKind(typed, 'debuff')).toBe(false);
+    });
+
+    it('lays the buff as a debuff once the mark is written', () => {
+      const piece = character('相手A');
+      const appearance = { ...parseBuffInput('呪い 命中-1 3')!.appearance };
+      if (marksChosenKind(appearance, 'debuff')) appearance.kind = 'debuff';
+
+      addBuffRound([piece], '呪い', '命中-1', 3, appearance);
+
+      expect(piece.buffs.find('呪い')?.getAttribute('cs-buff-kind')).toBe('debuff');
+    });
   });
 });

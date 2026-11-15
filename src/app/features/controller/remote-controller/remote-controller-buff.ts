@@ -1,5 +1,6 @@
 import { BuffAppearance, parseBuffAppearance } from '@axe/domain/character/buff-appearance';
 import { splitBuffRounds } from '@axe/domain/character/buff-command';
+import type { BuffKind } from '@axe/domain/character/buff-kind';
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
@@ -56,6 +57,15 @@ export function parseBuffInput(text: string): ParsedBuffInput | null {
   if (appearance.timing !== 'none') bufftext += '/' + round + 'R';
   for (const token of look) bufftext += '/' + token;
   return { buffname, sub, round, bufftext, appearance, piles };
+}
+
+/**
+ * Whether the kind chosen on the form is to be written on the buff: only a debuff is, and only where
+ * the line typed says nothing of the kind itself, which wins. A buff is laid with no mark, as a
+ * plain command lays one, so one going by the name of a state the room keeps is still a debuff.
+ */
+export function marksChosenKind(appearance: BuffAppearance, chosen: BuffKind): boolean {
+  return appearance.kind === undefined && chosen === 'debuff';
 }
 
 /**
