@@ -71,3 +71,42 @@ export function hardEdgesOf(drawn: Staged): EffectRibbon[] {
 export function wakesOf(drawn: Staged): EffectRibbon[] {
   return drawn.ribbons.filter((ribbon) => (ribbon.torn ?? 0) > 0);
 }
+
+/** How many points the bands of a crescent are drawn through, and those of a line or a seam laid straight through a target. */
+export const CRESCENT_POINTS = 23;
+export const CUT_POINTS = 9;
+
+/** The white-hot edges of the crescents drawn, one a crescent, its afterimages having none. */
+export function hotEdgesOf(drawn: Staged): EffectRibbon[] {
+  return drawn.ribbons.filter(
+    (ribbon) => ribbon.points.length === CRESCENT_POINTS && ribbon.core === '#ffffff' && ribbon.blend === 'color'
+  );
+}
+
+/** The bodies of the crescents drawn and of their afterimages: the bands of a blade's colour whose heart is set to one side. */
+export function crescentBodiesOf(drawn: Staged): EffectRibbon[] {
+  return drawn.ribbons.filter((ribbon) => ribbon.points.length === CRESCENT_POINTS && ribbon.leans !== undefined);
+}
+
+/** The straight bands laid through a target that are white all through: the lines of impacts and the hearts of seams. */
+export function whiteLinesOf(drawn: Staged): EffectRibbon[] {
+  return hardEdgesOf(drawn).filter((ribbon) => ribbon.points.length === CUT_POINTS);
+}
+
+/** The seams open on a target: the straight bands of a blade's colour with a paler heart, which the line of an impact, white at heart, is not. */
+export function seamsOf(drawn: Staged): EffectRibbon[] {
+  return drawn.ribbons.filter(
+    (ribbon) =>
+      ribbon.points.length === CUT_POINTS &&
+      ribbon.core !== undefined &&
+      ribbon.core !== '#ffffff' &&
+      ribbon.blend === 'color'
+  );
+}
+
+/** How far a straight band reaches from end to end. */
+export function lengthOf(ribbon: EffectRibbon): number {
+  const from = ribbon.points[0];
+  const to = ribbon.points[ribbon.points.length - 1];
+  return Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z);
+}

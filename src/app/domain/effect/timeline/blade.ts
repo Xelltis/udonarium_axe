@@ -39,6 +39,8 @@ export interface SlashHit {
   reach: number;
   /** How far the stroke is turned about the upright from straight across its caster's sight, in degrees; unturned without it. */
   yaw?: number;
+  /** How far the ends of its arc are lifted off the level as they bow back, in degrees; level without it. */
+  lift?: number;
 }
 
 /** Where through a stroke its blade crosses the target, as a share of the stroke. */
@@ -61,13 +63,19 @@ export const SLASH_IAI_DRAWN_AT = 0.042;
 const COMBO_CROSSES = [0.0553, 0.118, 0.2065, 0.2692, 0.3761];
 /** Where through the playback every cut a flurry left opens at once. */
 export const SLASH_COMBO_OPENS_AT = 0.424;
-/** How each stroke of a flurry is tipped and turned, and where across and up the target it crosses: no two alike. */
-const COMBO_STROKES: readonly (readonly [angle: number, yaw: number, offsetX: number, offsetY: number])[] = [
-  [28, 0, -0.14, 0.1],
-  [-22, 216, 0.16, -0.08],
-  [12, -72, 0.04, 0.16],
-  [-30, 144, -0.1, -0.12],
-  [52, 72, 0, 0],
+/** How each stroke of a flurry is tipped and turned, where across and up the target it crosses, and how far its arc is lifted: no two alike. */
+const COMBO_STROKES: readonly (readonly [
+  angle: number,
+  yaw: number,
+  offsetX: number,
+  offsetY: number,
+  lift: number,
+])[] = [
+  [30, 0, -0.14, 0.1, 30],
+  [-42, 216, 0.16, -0.08, 12],
+  [8, -72, 0.04, 0.16, 52],
+  [-58, 144, -0.1, -0.12, 20],
+  [62, 72, 0, 0, 36],
 ];
 
 /** A stroke that crosses its target a share of the way through the playback. */
@@ -84,11 +92,12 @@ export function slashHits(style: SlashStyle): SlashHit[] {
   switch (style) {
     case 'combo':
       return COMBO_CROSSES.map((crosses, index) => {
-        const [angle, yaw, offsetX, offsetY] = COMBO_STROKES[index];
+        const [angle, yaw, offsetX, offsetY, lift] = COMBO_STROKES[index];
         const last = index === COMBO_CROSSES.length - 1;
         return strokeAt(crosses, {
           angle,
           yaw,
+          lift,
           thickness: last ? 34 : 20,
           offsetX,
           offsetY,

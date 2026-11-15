@@ -1,5 +1,5 @@
 import { clamp } from '@axe/core/util/clamp';
-import { type Swing } from '@axe/domain/effect/scene/blade/blade-trail';
+import { type Swing } from '@axe/domain/effect/scene/blade/crescent';
 import { type Stage, within } from '@axe/domain/effect/scene/choreography';
 import type { Point } from '@axe/domain/effect/scene/parts';
 import type { SlashHit } from '@axe/domain/effect/timeline/blade';
@@ -13,13 +13,15 @@ import type { SlashHit } from '@axe/domain/effect/timeline/blade';
 /** How far over the floor a blade stays at its lowest, in cells. */
 const OVER_FLOOR = 0.12;
 /** How much of a slanting stroke's rise is kept, so it lies nearer level and the table, seen from above, sees the whole of it. */
-const SLANT_KEPT = 0.45;
+const SLANT_KEPT = 0.8;
 /** How steep a stroke is, as the sine of its tilt, before it comes straight down or up. */
 const STEEP = 0.9;
 /** How deep an arc bows back towards the caster, as a share of its reach. */
-const ARC_DEPTH = 0.5;
+const ARC_DEPTH = 0.95;
 /** How far round the arc a blade sweeps, either side of the target, in radians. */
-const SWEEP = 1.35;
+const SWEEP = 1.25;
+/** How far round a slanting stroke sweeps at the least, in radians: where it would go into the floor it skims along it instead. */
+const SKIMS = 1;
 /** How far past the middle of its arc a blade is as its blow lands, in radians: just through what it cuts. */
 const CROSSED = 0.16;
 
@@ -65,10 +67,17 @@ function turned(frame: CutFrame, degrees: number): CutFrame {
   return { ...frame, across: about(frame.across), toward: about(frame.toward) };
 }
 
+/** A level way lifted off the level by a number of degrees, of length one. */
+function lifted(way: Point, degrees: number): Point {
+  if (!degrees) return way;
+  const lift = (degrees * Math.PI) / 180;
+  return { x: way.x * Math.cos(lift), y: way.y * Math.cos(lift), z: Math.sin(lift) };
+}
+
 /**
  * The arc a stroke swings along about a point of its target: across, tipped down or up by its angle
  * and laid nearer level; a stroke tipped steeply comes straight down, or up. It sweeps as far round
- * as it may, stopping short where it would go into the floor.
+ * as it may; one that comes straight down stops short at the floor, and a slanting one skims it.
  */
 export function swingOf(hit: SlashHit, frame: CutFrame, centre: Point, cell: number): Swing {
   const facing = turned(frame, hit.yaw ?? 0);
@@ -86,11 +95,12 @@ export function swingOf(hit: SlashHit, frame: CutFrame, centre: Point, cell: num
   const radius = (hit.reach / 2) * cell;
   const falls = travel.z * radius;
   const room = centre.z - frame.lowestZ;
-  const stop = Math.abs(falls) < 0.001 ? SWEEP : Math.asin(clamp(room / Math.abs(falls), 0, 1));
+  const reaches = Math.abs(falls) < 0.001 ? SWEEP : Math.asin(clamp(room / Math.abs(falls), 0, 1));
+  const stop = steep ? reaches : Math.max(reaches, SKIMS);
   return {
     centre,
     travel,
-    toward: facing.toward,
+    toward: lifted(facing.toward, hit.lift ?? 0),
     radius,
     depth: ARC_DEPTH,
     from: falls > 0 ? -Math.min(SWEEP, stop) : -SWEEP,
