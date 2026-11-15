@@ -52,11 +52,18 @@ describe('effectBlowsOf()', () => {
     expect(middle.push).toBeLessThan(heavy.push);
   });
 
-  it('strikes as a drawing cut flashes, after its stillness, not at its start', () => {
+  it('strikes as the cut of a drawing cut opens, long after its line is drawn at the start', () => {
     const [blow] = effectBlowsOf(makePreset('slash', 2, { slashStyle: 'iai' }));
 
-    expect(blow.atMs).toBeGreaterThan(550);
-    expect(blow.atMs).toBeLessThan(650);
+    expect(blow.atMs).toBeGreaterThan(350);
+    expect(blow.atMs).toBeLessThan(450);
+  });
+
+  it('lands one stroke of a cut as its swing begins, not a quarter of the way through', () => {
+    const [blow] = effectBlowsOf(makePreset('slash', 1, { slashStyle: 'single' }));
+
+    expect(blow.atMs).toBeGreaterThan(80);
+    expect(blow.atMs).toBeLessThan(160);
   });
 
   it('strikes once for every stroke of a combination, holding only those far enough apart', () => {

@@ -1,6 +1,7 @@
 import { clamp } from '@axe/core/util/clamp';
 import { isCurseAlone } from '@axe/domain/effect/ailment-looks';
 import { addAilmentJolts, ailmentJoltsEndOf } from '@axe/domain/effect/ailment-reaction';
+import { strikesFromOverhead } from '@axe/domain/effect/blade-looks';
 import { breathSurgeAt, breathTimingOf, isGentleBreath } from '@axe/domain/effect/breath-timing';
 import { heavesGround } from '@axe/domain/effect/earth-looks';
 import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows';
@@ -69,10 +70,10 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * How far each piece an effect strikes is thrown at a moment on the effect's own clock, and how far
  * the one who cast it leans in: a struck piece stands still through the hold as the blow lands, is
  * thrown back away from the one who struck, as far as the blow's push, and springs back to where it
- * stands; struck from no direction, or by a light that smites from straight above, it is pressed
- * down instead, and where the ground heaves under it, by rubble or an upheaval, or light bursts up
- * out of it, in a sanctuary, it is thrown up off the floor. One that is drained is pulled towards the
- * one who drains it instead, where there is one. A breath lands no blow: the one who
+ * stands; struck from no direction, or by a light that smites or a blade brought down from straight
+ * above, it is pressed down instead, and where the ground heaves under it, by rubble or an upheaval,
+ * or light bursts up out of it, in a sanctuary, it is thrown up off the floor. One that is drained is
+ * pulled towards the one who drains it instead, where there is one. A breath lands no blow: the one who
  * breathes leans back as it draws the breath in, and each piece it blows on is pushed downwind and
  * trembles for as long as it is blown on. A tornado lands none either: it takes up the piece it
  * stands over and drags the rest it catches towards it. A curse on its own lands none: the piece it
@@ -115,7 +116,7 @@ export function effectJoltsOf(
       add(target.identifier, { x: 0, y: 0, z: thrown * HEAVED_UP });
       return;
     }
-    const away = fallsFromAbove(preset) ? null : directionOf(cast.origin, target);
+    const away = fallsFromAbove(preset) || strikesFromOverhead(preset) ? null : directionOf(cast.origin, target);
     if (thrown < 0 && !away) return;
     add(
       target.identifier,

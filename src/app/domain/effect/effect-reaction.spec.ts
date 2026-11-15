@@ -70,15 +70,29 @@ describe('effectJoltsOf()', () => {
     }
   });
 
-  it('throws a piece back, not up, where a blade lands in an upheaval or a run has one among its stages', () => {
+  it('presses a piece down, not up, where a great blade lands in an upheaval', () => {
     const blade = makePreset('skyblade', 3);
     blade.impactKind = 'upheaval';
     const jolt = effectJoltsOf(blade, cast({ x: 0, y: 0, z: 0 }), effectBlowsOf(blade)[0].atMs + 60, CELL).get(
       'target'
     )!;
 
-    expect(jolt.x).toBeGreaterThan(0);
-    expect(jolt.z).toBe(0);
+    expect([jolt.x, jolt.y]).toEqual([0, 0]);
+    expect(jolt.z).toBeLessThan(0);
+  });
+
+  it('throws a piece back from a cut, but presses it down under a cleave from overhead', () => {
+    const from = cast({ x: 0, y: 0, z: 0 });
+    const joltOf = (slashStyle: string) => {
+      const cut = makePreset('slash', 3);
+      cut.slashStyle = slashStyle;
+      return effectJoltsOf(cut, from, effectBlowsOf(cut)[0].atMs + 60, CELL).get('target')!;
+    };
+
+    expect(joltOf('wide').x).toBeGreaterThan(0);
+    expect(joltOf('wide').z).toBe(0);
+    expect(joltOf('heavy').x).toBe(0);
+    expect(joltOf('heavy').z).toBeLessThan(0);
   });
 
   it('has the one who strikes lean in towards the target as the effect sets off, and stand back after', () => {

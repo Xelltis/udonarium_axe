@@ -31,50 +31,81 @@ export interface SlashHit {
   at: number;
   /** How much of it one stroke takes. */
   span: number;
+  /** How far the way the blade travels is tipped from level, in degrees: below nothing it rises, and past 64 either way it comes straight down or up. */
   angle: number;
   thickness: number;
   offsetX: number;
   offsetY: number;
   reach: number;
+  /** How far the stroke is turned about the upright from straight across its caster's sight, in degrees; unturned without it. */
+  yaw?: number;
 }
 
-const SLASH_ANGLES = [-46, 34, -18, 52, -8, 26];
-const SLASH_SHIFTS = [-0.34, 0.3, 0.12, -0.26, 0.36, -0.12];
-/** Where the gathering ends and the cut falls. */
-const SLASH_CHARGE_END = 0.42;
-/** Where a drawing cut flashes. Nothing happens before it. */
-const SLASH_IAI_AT = 0.55;
+/** Where through a stroke its blade crosses the target, as a share of the stroke. */
+const CROSSES_AT = 0.3;
+/** How much of the playback one stroke is counted to take. */
+const STROKE_SPAN = 0.1;
+
+/**
+ * Where through the playback each form crosses its target, set to the sounds they are bundled with:
+ * a single stroke as its swish peaks; a sweep as its long rush breaks; a cleave at the crash its
+ * gathering climbs to; and a drawing cut as the blade clicks home in its sheath, long after the draw.
+ */
+const SINGLE_CROSSES = 0.115;
+const SWEEP_CROSSES = 0.2055;
+const CLEAVE_CROSSES = 0.3945;
+const IAI_OPENS = 0.394;
+/** Where through the playback a drawing cut is drawn: at once, the line it leaves waiting for the wound to open. */
+export const SLASH_IAI_DRAWN_AT = 0.042;
+/** Where each stroke of a flurry crosses: four quick ones, uneven as a hand is, and a last one after a breath. */
+const COMBO_CROSSES = [0.0553, 0.118, 0.2065, 0.2692, 0.3761];
+/** Where through the playback every cut a flurry left opens at once. */
+export const SLASH_COMBO_OPENS_AT = 0.424;
+/** How each stroke of a flurry is tipped and turned, and where across and up the target it crosses: no two alike. */
+const COMBO_STROKES: readonly (readonly [angle: number, yaw: number, offsetX: number, offsetY: number])[] = [
+  [28, 0, -0.14, 0.1],
+  [-22, 216, 0.16, -0.08],
+  [12, -72, 0.04, 0.16],
+  [-30, 144, -0.1, -0.12],
+  [52, 72, 0, 0],
+];
+
+/** A stroke that crosses its target a share of the way through the playback. */
+function strokeAt(crosses: number, fields: Omit<SlashHit, 'at' | 'span'>): SlashHit {
+  return { at: crosses - STROKE_SPAN * CROSSES_AT, span: STROKE_SPAN, ...fields };
+}
 
 /**
  * The line of each form.
- * A drawing cut is stillness, an instant and a wound; a cleave comes from straight above; a sweep goes wide across.
+ * A drawing cut is an instant, a stillness and a wound; a cleave comes from straight above; a sweep
+ * goes wide across; a flurry is five strokes, each from its own side, the last the heaviest.
  */
 export function slashHits(style: SlashStyle): SlashHit[] {
   switch (style) {
-    case 'combo': {
-      const span = 0.3;
-      const step = (1 - span) / 4;
-      return Array.from({ length: 5 }, (_unused, index) => ({
-        at: step * index,
-        span,
-        angle: SLASH_ANGLES[index % SLASH_ANGLES.length],
-        thickness: 18,
-        offsetX: SLASH_SHIFTS[index % SLASH_SHIFTS.length],
-        offsetY: SLASH_SHIFTS[(index + 2) % SLASH_SHIFTS.length] * 0.6,
-        reach: 2.2,
-      }));
-    }
+    case 'combo':
+      return COMBO_CROSSES.map((crosses, index) => {
+        const [angle, yaw, offsetX, offsetY] = COMBO_STROKES[index];
+        const last = index === COMBO_CROSSES.length - 1;
+        return strokeAt(crosses, {
+          angle,
+          yaw,
+          thickness: last ? 34 : 20,
+          offsetX,
+          offsetY,
+          reach: last ? 3.2 : 2.4,
+        });
+      });
     case 'iai':
-      // The instant of the draw: one long thin line, nearly level.
-      return [{ at: SLASH_IAI_AT, span: 0.1, angle: -6, thickness: 8, offsetX: 0, offsetY: 0, reach: 5.4 }];
+      // The wound opening: the line itself was drawn long before, thin and nearly level.
+      return [strokeAt(IAI_OPENS, { angle: 5, thickness: 8, offsetX: 0, offsetY: 0, reach: 6.4 })];
     case 'wide':
       // The sweep: wide across, and thick.
-      return [{ at: SLASH_CHARGE_END, span: 0.34, angle: -14, thickness: 46, offsetX: 0, offsetY: 0, reach: 5 }];
+      return [strokeAt(SWEEP_CROSSES, { angle: 8, thickness: 46, offsetX: 0, offsetY: 0, reach: 4 })];
     case 'heavy':
       // The cleave, brought down from straight above.
-      return [{ at: SLASH_CHARGE_END, span: 0.26, angle: -88, thickness: 42, offsetX: 0, offsetY: -0.35, reach: 4.2 }];
+      return [strokeAt(CLEAVE_CROSSES, { angle: 88, thickness: 42, offsetX: 0, offsetY: 0, reach: 4.2 })];
     default:
-      return [{ at: 0, span: 0.85, angle: -46, thickness: 28, offsetX: 0, offsetY: 0, reach: 3 }];
+      return [strokeAt(SINGLE_CROSSES, { angle: 26, thickness: 33, offsetX: 0, offsetY: 0, reach: 4 })];
   }
 }
 
