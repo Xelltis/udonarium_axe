@@ -58,8 +58,10 @@ function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; ca
  * that smite, a sanctuary and the bolts of lightning; and those chosen by how many it strikes, a
  * current held on one target, and a storm on six, as many as the bundled one takes; a great beam on
  * two and on three, where each keeps more of its detail, the beam of many hues, a laser as long as the
- * bundled one, and the shots of a blaster. The last of each
- * is how many targets it is cast on, where that is not four.
+ * bundled one, and the shots of a blaster; the rounds of guns, a long burst of heavy ones among them,
+ * a sniper's shot, arrows, missiles in a swarm and a cruise missile, the shots of spirit, of a curse and
+ * of holy light, and a rain of arrows on as many as the bundled one takes and on few enough to fall
+ * doubled. The last of each is how many targets it is cast on, where that is not four.
  */
 const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, number?])[] = [
   ...[...AILMENT_LOOKS, 'arc', 'haze'].map((moteStyle) => ['curse', { moteStyle, durationMs: 5500 }] as const),
@@ -89,6 +91,24 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, numbe
   ['beam', { moteStyle: 'prism', durationMs: 3000 }, 2],
   ['raybeam', { durationMs: 2038 }],
   ['projectile', { projectileStyle: 'blaster', impactKind: 'impact' }],
+  ['projectile', { projectileStyle: 'bullet', impactKind: 'rubble', shots: 14, shotInterval: 70, durationMs: 1300 }],
+  ['projectile', { projectileStyle: 'missile', impactKind: 'burst' }],
+  ['projectile', { projectileStyle: 'bullet', impactKind: 'impact', shots: 10, shotInterval: 90 }],
+  ['projectile', { projectileStyle: 'bullet', impactKind: 'rubble', shots: 1 }],
+  ['projectile', { projectileStyle: 'tracer', impactKind: 'impact', shots: 1, durationMs: 620 }],
+  ['projectile', { projectileStyle: 'arrow', impactKind: 'impact' }],
+  ['projectile', { projectileStyle: 'arrow', impactKind: 'impact', grade: 2, shots: 5, shotInterval: 150 }],
+  [
+    'projectile',
+    { projectileStyle: 'missile', impactKind: 'burst', grade: 2, shots: 12, shotInterval: 95, durationMs: 2100 },
+    3,
+  ],
+  ['projectile', { projectileStyle: 'cruise', impactKind: 'burst', shots: 1, durationMs: 2600 }],
+  ['projectile', { impactKind: 'impact', tagName: '射撃' }],
+  ['projectile', { impactKind: 'miasma', tagName: '射撃' }],
+  ['projectile', { impactKind: 'smite', tagName: '聖' }],
+  ['arrowrain', { durationMs: 2400 }, 5],
+  ['arrowrain', { durationMs: 2400 }, 2],
 ];
 
 /** The heaviest cast of a kind, as one of the looks it is given by its family or its particles. */

@@ -151,18 +151,18 @@ describe('an impact', () => {
 
 describe('the impact a shot lands with', () => {
   it('is the flash and puff of dust it was: no slabs, no fissures and no crescents', () => {
-    const arrow = new EffectPreset('preset');
-    arrow.kind = 'projectile';
-    arrow.projectileStyle = 'arrow';
-    arrow.impactKind = 'impact';
-    arrow.durationMs = 620;
+    const bolt = new EffectPreset('preset');
+    bolt.kind = 'projectile';
+    bolt.projectileStyle = 'blaster';
+    bolt.impactKind = 'impact';
+    bolt.durationMs = 620;
     for (const ms of [300, 420, 700]) {
-      const drawn = staged(arrow, ms);
+      const drawn = staged(bolt, ms);
 
       expect(slabsOf(drawn)).toEqual([]);
       expect(frontsOf(drawn)).toEqual([]);
       expect(drawn.floor.filter((mark) => mark.shape === 'fissure')).toEqual([]);
     }
-    expect(staged(arrow, 420).floor.some((mark) => mark.shape === 'cracks')).toBe(true);
+    expect(staged(bolt, 420).floor.some((mark) => mark.shape === 'cracks')).toBe(true);
   });
 });

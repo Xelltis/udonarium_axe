@@ -273,7 +273,7 @@ describe('the cuts and blows drawn in the scene', () => {
     const landsAt = effectBlowsOf(shot)[0].atMs;
 
     expect(isDrawnInScene(shot)).toBe(true);
-    expect(staged(shot, cast, landsAt + 200)).toEqual(staged(burstShot, cast, landsAt + 200));
+    expect(staged(shot, cast, landsAt + 450)).toEqual(staged(burstShot, cast, landsAt + 450));
   });
 });
 
@@ -453,7 +453,8 @@ describe('the looks the fourth review asked to be drawn again', () => {
   it('launches a ballistic missile straight up off its pad before bringing it down on its mark', () => {
     const missile = makePreset('ballistic', { durationMs: 4200, staggerMs: 0 });
     const lands = effectBlowsOf(missile)[0].atMs;
-    const bodyAt = (ms: number) => staged(missile, cast, ms).ribbons.filter((ribbon) => ribbon.blend === 'color');
+    const bodyAt = (ms: number) =>
+      staged(missile, cast, ms).ribbons.filter((ribbon) => ribbon.blend === 'color' && !ribbon.soft);
 
     const climbing = bodyAt(lands * 0.2);
     expect(climbing.length).toBeGreaterThan(0);

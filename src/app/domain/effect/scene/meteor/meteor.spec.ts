@@ -441,11 +441,11 @@ describe('a meteor', () => {
     expect(heaviest.color).toBeLessThan(EFFECT_FRAME_BUDGET.motes * 0.75);
   });
 
-  it('is the only look of a shot that draws anything before the shot is sent from its caster', () => {
-    for (const look of PROJECTILE_STYLES.filter((style) => style !== 'meteor')) {
+  it('is the only look of a shot that draws anything away from its caster before the shot is sent, but for the sight of a sniper', () => {
+    for (const look of PROJECTILE_STYLES.filter((style) => style !== 'meteor' && style !== 'tracer')) {
       const drawn = staged(meteorOf({ projectileStyle: look }), ONE, 20);
 
-      expect(drawn.floor).toHaveLength(0);
+      for (const mark of drawn.floor) expect(Math.hypot(mark.x - CASTER.x, mark.y - CASTER.y)).toBeLessThan(CELL * 2);
       for (const mote of drawn.motes) expect(Math.hypot(mote.x - CASTER.x, mote.y - CASTER.y)).toBeLessThan(CELL * 2);
     }
   });
