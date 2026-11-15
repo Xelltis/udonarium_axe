@@ -4,7 +4,6 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import {
   describeBuffRemoval,
   describeBuffsLacking,
-  isBuffClearance,
   isClearedWithBody,
   isPieceResetCommand,
   isTableResetCommand,
@@ -405,8 +404,8 @@ export class ResourceEditProcessor {
    * written. A buff that moved a status puts back what it
    * moved as it is taken off, so a value put back first would have that taken from it a second time.
    *
-   * What the commands that clear buffs whatever their names and put values back did is kept as it is
-   * done, each piece remembered just before the first of them reaches it, and told this device once
+   * What the commands that clear a piece of buffs, sweep the table and put values back did is kept as it
+   * is done, each piece remembered just before the first of them reaches it, and told this device once
    * the report is posted, so the one who sent the line may take it back; see {@link ResetRecorder}.
    */
   private applyResourceBuffEdits(
@@ -508,15 +507,15 @@ export class ResourceEditProcessor {
    * Carries out one `&&` sweep across the pieces on the table and returns its report.
    *
    * Only the game master may sweep; anyone else is told so and nothing is taken. A sweep that finds
-   * nothing says so rather than reporting a removal. A sweep that clears the pieces whatever their
-   * buffs are named has `recorder` remember how each stood first.
+   * nothing says so rather than reporting a removal. `recorder` remembers how each piece stood first,
+   * whatever the sweep picks by, so any sweep may be taken back.
    */
   sweepBuffs(command: string, recorder?: ResetRecorder): string {
     const rule = parseBuffRemovalCommand(command);
     if (!rule) return '';
     if (PeerCursor.myRole !== PeerRole.GameMaster) return `バフの一括解除はGMだけが使えます（${command}）    `;
     const onTable = this.piecesOnTable();
-    if (isBuffClearance(rule)) recorder?.watch(onTable);
+    recorder?.watch(onTable);
     const removed = removeBuffsAcross(onTable, rule, ailmentsForBuffRemoval(rule));
     const what = describeBuffRemoval(rule);
     if (removed.buffs < 1) return `卓全体に${describeBuffsLacking(rule)}はありません    `;

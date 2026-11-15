@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { PieceResetService } from '@axe/application/character/piece-reset.service';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
@@ -16,13 +15,7 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import {
-  BuffRemovalCount,
-  BuffRemovalRule,
-  countBuffRemoval,
-  isBuffClearance,
-  removeBuffsAcross,
-} from '@axe/domain/character/buff-bulk-removal';
+import { BuffRemovalCount, BuffRemovalRule, countBuffRemoval } from '@axe/domain/character/buff-bulk-removal';
 import { BUFF_KINDS, type BuffKind, buffKindOf, markBuffKind } from '@axe/domain/character/buff-kind';
 import { describeBuffModifier, parseBuffModifierRequest } from '@axe/domain/character/buff-modifier';
 import {
@@ -91,7 +84,6 @@ export class BuffManagerPanelComponent {
   private readonly turnOrder = inject(TurnOrderService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
-  private readonly chat = inject(ChatMessageService);
   private readonly statusAilments = inject(StatusAilmentService);
   private readonly pieceReset = inject(PieceResetService);
 
@@ -446,12 +438,11 @@ export class BuffManagerPanelComponent {
 
   /**
    * Takes the chosen buffs off every piece on the table, once the game master has confirmed how
-   * many, and says in chat what went. Buffs that moved a status put it back as they go.
+   * many, and says in chat what went. Buffs that moved a status put it back as they go, and the buff
+   * a piece rides two up by stays on it.
    *
-   * A sweep by how a buff is held, its rounds or its name, without the values, runs as it always
-   * did. One that clears the pieces whatever their buffs are named, and any sweep that puts the
-   * values back to their defaults as well, is a reset: it goes through {@link PieceResetService},
-   * and can be taken back from the line that reports it.
+   * Every sweep, whatever it picks by and with the values put back or not, is a reset: it goes
+   * through {@link PieceResetService}, and can be taken back from the line that reports it.
    */
   async sweep(): Promise<void> {
     const rule = this.sweepRule();
@@ -466,28 +457,13 @@ export class BuffManagerPanelComponent {
     if (!this.isGameMaster()) return;
 
     const pieces = this.inventory.tableInventory.tabletopObjects as GameCharacter[];
-    if (withValues || isBuffClearance(rule)) {
-      this.pieceReset.run(pieces, { rule, values: withValues }, (done) => {
-        if (done.buffs < 1 && done.items < 1) return null;
-        const key = withValues ? 'feature.buffManager.resetDone' : 'feature.buffManager.sweepDone';
-        return encodeI18nMessage(key, { what: encodeI18nMessage(label.key, label.params), ...done });
-      });
-      this.selected.set('');
-      this.refresh();
-      return;
-    }
-    const removed = removeBuffsAcross(pieces, rule);
+    this.pieceReset.run(pieces, { rule, values: withValues }, (done) => {
+      if (done.buffs < 1 && done.items < 1) return null;
+      const key = withValues ? 'feature.buffManager.resetDone' : 'feature.buffManager.sweepDone';
+      return encodeI18nMessage(key, { what: encodeI18nMessage(label.key, label.params), ...done });
+    });
     this.selected.set('');
     this.refresh();
-    if (removed.buffs > 0) {
-      this.chat.sendSystemNotice(
-        'round',
-        encodeI18nMessage('feature.buffManager.sweepDone', {
-          what: encodeI18nMessage(label.key, label.params),
-          ...removed,
-        })
-      );
-    }
   }
 
   /** Commits the name box of the edit form once its text is changed. */

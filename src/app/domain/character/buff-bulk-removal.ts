@@ -76,11 +76,12 @@ function rowsKeptForRiding(character: GameCharacter, rows: readonly DataElement[
 
 /**
  * The rows the rule takes off a piece, read before any of them goes, since a further row of a buff
- * is told what kind it is by its first. Clearing a piece leaves the buff it rides two up by.
+ * is told what kind it is by its first. Whatever the rule picks by, the buff the piece rides two up
+ * by is left on it.
  */
 function rowsTaken(character: GameCharacter, rule: BuffRemovalRule, ailments: readonly StatusAilment[]): DataElement[] {
   const rows = character.buffs.list();
-  const kept = isBuffClearance(rule) ? rowsKeptForRiding(character, rows) : [];
+  const kept = rowsKeptForRiding(character, rows);
   return rows.filter((data) => !kept.includes(data) && matchesBuffRemoval(data, rule, ailments));
 }
 
@@ -121,6 +122,7 @@ export function countBuffRemoval(
 /**
  * Takes what the rule picks off every character given, putting back whatever each buff moved on
  * its sheet, and counts what went. Each character is taken on its own, a part as much as its body.
+ * The buff a piece was given for riding two up stays on it while it rides so, and is not counted.
  * `ailments` are the states the room keeps, which tell a debuff from a buff where a rule asks.
  */
 export function removeBuffsAcross(

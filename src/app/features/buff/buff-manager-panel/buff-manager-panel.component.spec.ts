@@ -8,8 +8,10 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { resetCarriedOut$, type ResetCarriedOutEvent } from '@axe/core/event/domain-events';
+import type { BuffRemovalRule } from '@axe/domain/character/buff-bulk-removal';
 import { buffEffectTimingOf, buffTimingOf, buffTriggerOf } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { type ResetRecord, undoReset } from '@axe/domain/character/piece-reset';
 import { newStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import type { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -729,24 +731,58 @@ describe('BuffManagerPanelComponent', () => {
         );
       });
 
-      it('leaves a sweep by a condition without the values as it was: no way back is kept', async () => {
+      it.each<[BuffRemovalRule['kind'], string, Record<string, unknown>, string[], number, number]>([
+        ['held', 'feature.buffManager.sweepHeldWhat', {}, ['加速'], 1, 1],
+        ['rounds', 'feature.buffManager.sweepRoundsWhat', { n: 2 }, ['毒'], 2, 3],
+        ['name', 'feature.buffManager.sweepNameWhat', { name: '毒' }, ['加速'], 2, 2],
+      ])(
+        'keeps a way back for a sweep by a condition without the values (%s)',
+        async (kind, whatKey, whatParams, left, characters, buffs) => {
+          beRole(PeerRole.GameMaster);
+          vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+          const said = vi
+            .spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice')
+            .mockReturnValue({ identifier: 'report-line' } as ChatMessage);
+          component.sweepKind.set(kind);
+          component.sweepRounds.set(2);
+          component.sweepName.set('毒');
+
+          await component.sweep();
+
+          expect(names(knight)).toEqual(left);
+          expect(said.mock.calls[0][1]).toBe(
+            encodeI18nMessage('feature.buffManager.sweepDone', {
+              what: encodeI18nMessage(whatKey, whatParams),
+              characters,
+              buffs,
+              items: 0,
+            })
+          );
+          expect(told.map((event) => event.messageIdentifier)).toEqual(['report-line']);
+          undoReset(told[0].record as ResetRecord);
+          expect(names(knight)).toEqual(['毒', '加速']);
+        }
+      );
+
+      it('leaves the buff a piece rides two up by, and does not count it, whatever the sweep picks by', async () => {
         beRole(PeerRole.GameMaster);
         vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
-        const said = vi
-          .spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice')
-          .mockReturnValue({ identifier: 'report-line' } as ChatMessage);
+        vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(null);
+        const given = knight.buffs.find('毒')!;
+        knight.rideTwoUpFrom = 'mount';
+        knight.rideTwoUpBuff = given.identifier;
+        TestBed.inject(ObjectChangeService).notifyChanged(knight.identifier);
 
+        component.sweepKind.set('held');
+        expect(component.sweepCount()).toEqual({ characters: 0, buffs: 0 });
+        expect(component.canSweep()).toBe(false);
+
+        component.sweepKind.set('name');
+        component.sweepName.set('毒');
+        expect(component.sweepCount()).toEqual({ characters: 1, buffs: 1 });
         await component.sweep();
 
-        expect(names(knight)).toEqual(['加速']);
-        expect(said.mock.calls[0][1]).toBe(
-          encodeI18nMessage('feature.buffManager.sweepDone', {
-            what: encodeI18nMessage('feature.buffManager.sweepHeldWhat', {}),
-            characters: 1,
-            buffs: 1,
-          })
-        );
-        expect(told).toEqual([]);
+        expect([names(knight), names(archer)]).toEqual([['毒', '加速'], ['呪い']]);
       });
 
       it('does nothing with the new choices for anyone but the game master, or where it is called off', async () => {

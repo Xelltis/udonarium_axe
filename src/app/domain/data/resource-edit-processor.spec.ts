@@ -336,6 +336,29 @@ describe('ResourceEditProcessor', () => {
         expect(names(archer)).toEqual([]);
       });
 
+      it.each([
+        ['&&none-', '卓全体から消えないバフを解除（1体・1件）', '卓全体に消えないバフはありません'],
+        ['&&二人乗り-', '卓全体に「二人乗り」はありません', '卓全体に「二人乗り」はありません'],
+      ])(
+        'leaves the buff a piece rides two up by where %s would pick it, and does not count it',
+        async (line, withOthers, alone) => {
+          PeerCursor.myCursor.role = PeerRole.GameMaster;
+          archer.buffs.addRound('二人乗り', '命中-2', 3, { timing: 'none' });
+          archer.rideTwoUpFrom = 'mount';
+          archer.rideTwoUpBuff = archer.buffs.find('二人乗り')!.identifier;
+
+          await processor.checkResourceEditCommand(speak(line), [{ text: line, object: character }]);
+
+          expect(systemText()).toContain(withOthers);
+          expect(names(archer)).toEqual(['毒', '二人乗り']);
+
+          await processor.checkResourceEditCommand(speak(line), [{ text: line, object: character }]);
+
+          expect(systemText()).toContain(alone);
+          expect(names(archer)).toEqual(['毒', '二人乗り']);
+        }
+      );
+
       it('takes nothing for anyone but the game master, and says the sweep is theirs', async () => {
         PeerCursor.myCursor.role = PeerRole.Player;
 
@@ -942,12 +965,27 @@ describe('ResourceEditProcessor', () => {
           }
         );
 
-        it('tells nothing for a sweep by a condition, which stays as it was', async () => {
+        it.each([
+          ['&&none-', ['加速']],
+          ['&&2R-', ['毒']],
+          ['&&毒-', ['加速']],
+        ])('tells what the sweep by a condition %s did, so it can be taken back', async (line, left) => {
           PeerCursor.myCursor.role = PeerRole.GameMaster;
 
-          await say('&&none-');
+          await say(line);
 
-          expect(buffsOf(character)).toEqual(['加速']);
+          expect(buffsOf(character)).toEqual(left);
+          expect(told).toHaveLength(1);
+          expect(told[0].messageIdentifier).toBe(reportLine().identifier);
+          undoReset(recordOf(told[0]));
+          expect(buffsOf(character)).toEqual(['毒', '加速']);
+        });
+
+        it('tells nothing for a sweep by a condition that found nothing', async () => {
+          PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+          await say('&&9R-');
+
           expect(told).toEqual([]);
         });
 
