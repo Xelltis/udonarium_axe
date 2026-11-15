@@ -154,11 +154,14 @@ describe('the looks of fire drawn in the scene', () => {
       const preset = makePreset(kind, { durationMs: 3000, areaRadius: 3, grade: 3 });
       const cast = castOn([100, 100], [200, 100]);
       const goesOff = effectBlowsOf(preset)[0].atMs;
-      const caughtAt = (elapsed: number) => staged(preset, cast, elapsed).motes.filter((mote) => mote.x > 160);
+      const caughtAt = (elapsed: number) =>
+        staged(preset, cast, elapsed).motes.filter((mote) => mote.shape === 'blaze' && Math.abs(mote.x - 200) < 30);
 
       expect(caughtAt(goesOff + 20)).toHaveLength(0);
       expect(caughtAt(goesOff + 400).length).toBeGreaterThan(0);
-      const heart = staged(preset, castOn([100, 100]), goesOff + 400).motes.length;
+      const heart = staged(preset, castOn([100, 100]), goesOff + 400).motes.filter(
+        (mote) => mote.shape === 'blaze'
+      ).length;
       expect(caughtAt(goesOff + 400).length).toBeLessThan(heart);
     }
   });
@@ -474,7 +477,7 @@ describe('the looks the fourth review asked to be drawn again', () => {
     const highest = (ms: number) =>
       Math.max(
         ...staged(fire, castOn([400, 100]), ms)
-          .motes.filter((mote) => mote.shape === 'tongue')
+          .motes.filter((mote) => mote.shape === 'lick')
           .map((mote) => mote.z)
       );
 

@@ -5,20 +5,35 @@ import {
   type Staged,
   within,
 } from '@axe/domain/effect/scene/choreography';
-import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
+import { flameRampOf, isFlame, mixColor } from '@axe/domain/effect/scene/effect-ramp';
+import type { ThrownMote } from '@axe/domain/effect/scene/effect-sim';
 import {
-  billowingSmoke,
-  drawFireThrow,
-  drawFlashDisc,
-  dustColumn,
-  type FireBall,
-  type FireThrow,
-  flungFire,
+  type Blast,
+  type BlastSize,
+  blastWithin,
+  drawBlast,
+  drawBlastBeat,
+  throwBlast,
+} from '@axe/domain/effect/scene/fire/blast';
+import { drawBrands, layFlames } from '@axe/domain/effect/scene/fire/fire-body';
+import {
+  flameFrontAt,
+  type GroundFire,
+  groundFiresAt,
+  throwGroundFires,
+} from '@axe/domain/effect/scene/fire/fire-ground';
+import {
+  type Bit,
+  type Brand,
+  type Cloud,
+  drawBit,
+  drawCloud,
+  drawEmber,
+  drawSpark,
   layDustBand,
   layScorch,
   layShockRing,
   risingEmbers,
-  risingPlumes,
   rollingDust,
   SMOKE,
   thrownBrands,
@@ -38,30 +53,62 @@ import {
 } from '@axe/domain/effect/scene/parts';
 
 /*
- * A great explosion over an area: the heat about it is drawn in to a point in streaks; it goes off in
- * a white flash with a streak of light across it, held for an instant; a fireball swallows the piece,
- * swelling and holding a while before it breaks; two shock rings race out to the edge of the area with
- * a band of dust behind them, and the floor cracks, glowing, under it. The fireball breaks into balls
- * of flame that cool to smoke, and a heavy cloud of smoke rises; burning brands, rocks and grit rain
- * over the area, sparks fly and embers drift. Each piece caught round it is struck as the shock
- * reaches it. The scorch it leaves is wide and cools slowly while the smoke clears.
+ * A great explosion over an area: the heat about it is drawn in to a point in streaks while a ring
+ * closes on it along the floor; it goes off in a beat that whites out the table about it, rays
+ * shooting from it and a streak of light across it; a dome of fire swells over the piece, wide and
+ * low, and rolls up as it burns, cooling to a heavy cloud of smoke. Two shock rings race out to the
+ * edge of the area with a band of dust behind them and a front of flame running with them, which
+ * leaves fires burning over the floor it crossed; the floor cracks, glowing, under the blast.
+ * Burning brands, rocks and grit rain over the area, sparks fly and embers drift. Each piece caught
+ * round it is struck as the shock reaches it, with a blast of its own. The scorch it leaves is wide
+ * and cools slowly while the smoke clears.
  */
 
 /** How long it lingers after its playback as its smoke clears, in seconds. */
 const LINGER_S = 2.2;
 /** How long after it goes off the shock reaches the pieces caught round it, in seconds. */
 const REACHES_ROUND_S = 0.14;
+/** How long the shock and the front of flame take to cross the area, in seconds. */
+const CROSSES_S = 0.55;
+/** The dome of fire, in cells and seconds. */
+const DOME: BlastSize = {
+  reach: 1.2,
+  lobes: 12,
+  licks: 14,
+  swellS: 0.26,
+  burnsS: 1.05,
+  smokeS: 1.5,
+  rises: 2.1,
+  domed: 0.7,
+};
+/** The blast a piece caught round a great blast is struck with, in cells and seconds. */
+const CAUGHT: BlastSize = { reach: 0.5, lobes: 4, licks: 6, swellS: 0.14, burnsS: 0.45, smokeS: 0.7, rises: 0.9 };
 
 const thrownByStage = new Map<string, NovaThrow>();
+const caughtByStage = new Map<string, CaughtThrow>();
 
 export const nova: Choreography = {
   lingerS: LINGER_S,
   draw: (stage) => (stage.index === 0 ? drawNova(stage) : drawCaughtBlast(stage, LINGER_S, REACHES_ROUND_S)),
 };
 
-interface NovaThrow extends FireThrow {
+interface NovaThrow {
+  readonly blast: Blast;
+  readonly fires: readonly GroundFire[];
+  readonly clouds: readonly Cloud[];
+  readonly sparks: readonly ThrownMote[];
+  readonly embers: readonly ThrownMote[];
+  readonly brands: readonly Brand[];
+  readonly bits: readonly Bit[];
   /** Where the streaks of heat drawn in start, as a turn about the heart and how far out, in cells. */
   readonly drawnIn: readonly { readonly angle: number; readonly out: number; readonly lift: number }[];
+}
+
+interface CaughtThrow {
+  readonly blast: Blast;
+  readonly sparks: readonly ThrownMote[];
+  readonly embers: readonly ThrownMote[];
+  readonly bits: readonly Bit[];
 }
 
 function drawNova(stage: Stage): Staged {
@@ -70,12 +117,16 @@ function drawNova(stage: Stage): Staged {
   const goesOff = stage.blowsAt[0] ?? 0;
   const t = stage.seconds - goesOff;
   const ends = stage.duration + LINGER_S - goesOff;
-  const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
+  const ramp = flameRampOf(stage.preset.colorPrimary, stage.preset.colorSecondary);
+  const fiery = isFlame(stage.preset.colorSecondary);
   const heart = { x: stage.x, y: stage.y, z: stage.z + cell * 0.55 };
   const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
   const forward = cell * 0.6;
+  const depth = { forward };
   const area = Math.max(stage.areaPx, cell * 2.5);
-  const thrown = keptFor(thrownByStage, stageKey(stage, ends), () => throwNova(throwerFor(stage, ends), heart, floor));
+  const thrown = keptFor(thrownByStage, stageKey(stage, ends), () =>
+    throwNova(throwerFor(stage, ends), heart, floor, ends)
+  );
 
   if (t < 0) {
     drawDrawingIn(drawn, thrown, stage, heart, floor, area, ramp, forward, goesOff);
@@ -84,7 +135,6 @@ function drawNova(stage: Stage): Staged {
   const clearing = 1 - within(t, ends - 0.8, ends);
   const seed = (stage.seed % 89) + 1;
 
-  // The floor: cracks glowing under the blast, a wide scorch, the shock and the dust thrown out.
   const cracking = within(t, 0, 0.12);
   drawn.floor.push(floorMark('cracks', floor, cell * 1.5 * cracking, 0.35, SMOKE, 0.7 * clearing, 'color', seed, seed));
   const glowing = Math.max(0, 1 - t / 2.4);
@@ -92,30 +142,32 @@ function drawNova(stage: Stage): Staged {
     drawn.floor.push(floorMark('cracks', floor, cell * 1.5 * cracking, 0.18, ramp[4], glowing, 'light', seed, seed));
   }
   layScorch(drawn, floor, cell * 1.05, ramp, t, 3, clearing, seed);
-  layShockRing(drawn, floor, cell * 0.4, area + cell * 0.5, cell * 0.2, ramp[5], t, 0.55);
+  layShockRing(drawn, floor, cell * 0.4, area + cell * 0.5, cell * 0.2, ramp[5], t, CROSSES_S);
   layShockRing(drawn, floor, cell * 0.3, area * 0.75, cell * 0.12, ramp[3], t - 0.08, 0.45);
   layDustBand(drawn, floor, area * 1.1, cell * 0.3, ramp, t, 0.9);
 
-  drawFireThrow(drawn, thrown, t, cell, ramp, forward);
+  for (const cloud of thrown.clouds) drawCloud(drawn, cloud, t, cell, forward);
+  for (const bit of thrown.bits) drawBit(drawn, bit, t, cell, ramp, forward);
+  const litter = drawBrands(drawn, thrown.brands, t, cell, ramp, forward);
+  layFlames(
+    drawn,
+    [
+      ...flameFrontAt(floor, cell * 0.5, area, cell, t, CROSSES_S, 20, stage.seed),
+      ...groundFiresAt(thrown.fires, floor, area, cell, t, CROSSES_S),
+      ...litter,
+    ],
+    ramp,
+    { forward: cell * 0.1, exact: true }
+  );
+  drawBlast(drawn, thrown.blast, heart, cell, ramp, t, stage.groundZ, fiery, depth);
+  for (const [index, spark] of thrown.sparks.entries()) drawSpark(drawn, spark, t, cell, ramp, index, forward);
+  for (const [index, ember] of thrown.embers.entries()) drawEmber(drawn, ember, t, cell, ramp, index, forward);
 
-  // The heart of the fireball gives light while it swells.
-  const swelling = within(t, 0, 0.7);
-  if (swelling < 1)
-    drawn.motes.push(glow(heart, cell * (1.4 + swelling), ramp[4], 0.3 * (1 - swelling), forward * 1.4));
-
-  drawFlashDisc(drawn, heart, cell * 1.5, ramp, t, 0.08);
-  // A streak of light across the flash.
-  const streak = within(t, 0, 0.3);
-  if (streak < 1) {
-    drawn.motes.push({
-      ...glow(heart, cell * 0.5 * (1 - streak * 0.7), '#ffffff', 1 - streak, forward * 1.6),
-      shape: 'flare',
-      trail: 7 + streak * 9,
-    });
-  }
+  drawBlastBeat(drawn, heart, floor, cell, ramp, t, 2.1, stage.seed, forward);
+  drawFlareStreak(drawn, heart, cell, t, 0.3, forward * 1.6);
 
   if (t < 0.12) {
-    drawn.lights.push({ ...heart, color: '#ffffff', strength: 1.6 * (1 - t / 0.12), reachPx: cell * 3 });
+    drawn.lights.push({ ...heart, color: '#ffffff', strength: 1.8 * (1 - t / 0.12), reachPx: cell * 3 });
   }
   const warm = Math.pow(Math.max(0, 1 - t / 2), 1.5);
   if (warm > 0.02) {
@@ -127,6 +179,24 @@ function drawNova(stage: Stage): Staged {
     });
   }
   return drawn;
+}
+
+/** A streak of light across a great flash, drawn out as it fades over `lasts` seconds. */
+export function drawFlareStreak(
+  drawn: Staged,
+  heart: Point,
+  cell: number,
+  t: number,
+  lasts: number,
+  forward: number
+): void {
+  const streak = within(t, 0, lasts);
+  if (t < 0 || streak >= 1) return;
+  drawn.motes.push({
+    ...glow(heart, cell * 0.5 * (1 - streak * 0.7), '#ffffff', 1 - streak, forward),
+    shape: 'flare',
+    trail: 7 + streak * 9,
+  });
 }
 
 /** The heat drawn in before it goes off: streaks closing on the heart, a glow growing in it, and a ring on the floor closing in. */
@@ -170,7 +240,7 @@ function drawDrawingIn(
 
 /**
  * A piece caught round a blast: struck as the shock reaches it, `reachesS` seconds after the blast
- * goes off, with a burst of flame, sparks and a scorch, smaller than the heart's.
+ * goes off, with a small blast of its own, sparks and a scorch.
  */
 export function drawCaughtBlast(stage: Stage, lingerS: number, reachesS: number): Staged {
   const drawn = nothingStaged();
@@ -179,85 +249,45 @@ export function drawCaughtBlast(stage: Stage, lingerS: number, reachesS: number)
   const t = stage.seconds - goesOff;
   if (t < 0) return drawn;
   const ends = stage.duration + lingerS - goesOff;
-  const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
+  const ramp = flameRampOf(stage.preset.colorPrimary, stage.preset.colorSecondary);
   const heart = { x: stage.x, y: stage.y, z: stage.z + cell * 0.6 };
   const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
   const forward = cell * 0.9;
-  const thrown = keptFor(thrownByStage, `caught|${stageKey(stage, ends)}`, () => {
+  const thrown = keptFor(caughtByStage, `caught|${stageKey(stage, ends)}`, () => {
     const th = throwerFor(stage, ends);
     return {
-      fire: flungFire(th, heart, th.count(10), { speed: [0.6, 2] }),
-      clouds: billowingSmoke(th, heart, th.count(4)),
+      blast: throwBlast(th, blastWithin(CAUGHT, ends)),
       sparks: thrownSparks(th, heart, th.count(24)),
       embers: risingEmbers(th, heart, th.count(10)),
-      brands: [],
       bits: thrownGrit(th, floor, th.count(10)),
-      drawnIn: [],
     };
   });
   const clearing = 1 - within(t, ends - 0.6, ends);
   layScorch(drawn, floor, cell * 0.8, ramp, t, 1.5, clearing, (stage.seed % 89) + 1);
   layShockRing(drawn, floor, cell * 0.3, cell * 1.8, cell * 0.15, ramp[4], t, 0.3);
-  drawFireThrow(drawn, thrown, t, cell, ramp, forward);
-  drawFlashDisc(drawn, heart, cell * 1.4, ramp, t, 0.06);
+  for (const bit of thrown.bits) drawBit(drawn, bit, t, cell, ramp, forward);
+  drawBlast(drawn, thrown.blast, heart, cell, ramp, t, stage.groundZ, isFlame(stage.preset.colorSecondary), {
+    forward,
+  });
+  for (const [index, spark] of thrown.sparks.entries()) drawSpark(drawn, spark, t, cell, ramp, index, forward);
+  for (const [index, ember] of thrown.embers.entries()) drawEmber(drawn, ember, t, cell, ramp, index, forward);
+  drawBlastBeat(drawn, heart, floor, cell, ramp, t, 0.7, stage.seed, forward);
   return drawn;
 }
 
 /** Throws every part of the blast from its heart, on its own clock from the moment it goes off. */
-function throwNova(th: Thrower, heart: Point, floor: Point): NovaThrow {
-  const U = th.cell;
-  const fire: FireBall[] = [];
-  // The fireball swallowing the piece: big balls holding over it a while, swelling, before they break to smoke.
-  for (let index = 0; index < th.count(9); index++) {
-    const way = th.outward();
-    const out = th.range(0, 0.5) * U;
-    fire.push({
-      mote: th.mote({
-        x: heart.x + way.cos * out,
-        y: heart.y + way.sin * out,
-        z: heart.z + th.range(-0.2, 0.3) * U,
-        vx: way.cos * th.range(0.3, 1.2) * U,
-        vy: way.sin * th.range(0.3, 1.2) * U,
-        vz: th.range(0.2, 1) * U,
-        bornAt: th.range(0, 0.05),
-        life: th.lifeOf(0.05, 1.1, 1.6),
-        gravity: -th.range(0.6, 1.2) * U,
-        drag: 3,
-        bounce: 0,
-      }),
-      size: th.range(0.75, 1.1),
-      burns: th.range(0.55, 0.7),
-      variant: th.range(0, 6),
-      taper: 0.15,
-      hottest: 3,
-    });
-  }
-  fire.push(
-    ...flungFire(th, heart, th.count(25), { speed: [1.5, 5], from: 0.5, smokes: 0.55 }).map((ball) => ({
-      ...ball,
-      hottest: 3,
-    }))
-  );
-  const clouds = [
-    ...billowingSmoke(th, heart, th.count(12), {
-      spread: 0.9,
-      size: [0.9, 1.5],
-      rise: [0.8, 1.6],
-      bornAt: [0.3, 0.9],
-      life: [2.4, 3.6],
-    }),
-    ...risingPlumes(th, heart, th.count(6), [0.5, 1.2], [1.2, 1.8], 1.4),
-    ...rollingDust(th, floor, th.count(14), [3, 9], [0.7, 1]),
-    ...dustColumn(th, floor, th.count(6)),
-  ];
+function throwNova(th: Thrower, heart: Point, floor: Point, ends: number): NovaThrow {
+  const blast = throwBlast(th, blastWithin(DOME, ends));
+  const fires = throwGroundFires(th, th.count(9), [0.9, 1.7]);
+  const clouds = rollingDust(th, floor, th.count(12), [3, 9], [0.7, 1]);
   const sparks = thrownSparks(th, heart, th.count(80), [7, 18]);
   const embers = risingEmbers(th, heart, th.count(40), [0, 0.4], 0.6);
-  const brands = thrownBrands(th, heart, th.count(6), [3.5, 7]);
+  const brands = thrownBrands(th, heart, th.count(4), [3.5, 7]);
   const bits = [...thrownRocks(th, floor, th.count(8), [4, 7]), ...thrownGrit(th, floor, th.count(40), [3, 9])];
   const drawnIn = Array.from({ length: th.count(16) }, () => ({
     angle: th.range(0, Math.PI * 2),
     out: th.range(2.2, 3.6),
     lift: th.range(-0.2, 1.2),
   }));
-  return { fire, clouds, sparks, embers, brands, bits, drawnIn };
+  return { blast, fires, clouds, sparks, embers, brands, bits, drawnIn };
 }
