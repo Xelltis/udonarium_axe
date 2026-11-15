@@ -1,11 +1,4 @@
-import {
-  type Choreography,
-  nothingStaged,
-  outCubic,
-  type Stage,
-  type Staged,
-  within,
-} from '@axe/domain/effect/scene/choreography';
+import { type Choreography, nothingStaged, outCubic, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
 import { drawSpark, layScorch, layShockRing, thrownSparks } from '@axe/domain/effect/scene/fire/fire-parts';
@@ -17,32 +10,21 @@ import {
   hueOf,
   keptFor,
   lerpPoint,
-  lightningPaths,
   type Point,
   stageKey,
   starBurst,
   throwerFor,
   wayBetween,
 } from '@axe/domain/effect/scene/parts';
+import { chestOf, originOf } from '@axe/domain/effect/scene/shot/stream-ends';
 
 /*
- * What pours from the caster to the target: a beam gathered at the caster and loosed, its light
- * pulsing along it with motes streaming down it, splashing light and sparks where it strikes; a great
- * beam, thicker, gathered longer and shaking the light out of the scene; a current of lightning
- * dancing between them; and a draining, motes of the target's life drawn back along curving ways to
- * the caster.
+ * A beam poured from the caster onto the target: gathered at the caster and loosed, its light
+ * pulsing along it with motes streaming down it, splashing light and sparks where it strikes; and a
+ * great beam, thicker, gathered longer and shaking the light out of the scene.
  */
 
 const LINGER_S = 0.6;
-
-/** Where the stream leaves the caster, or above and behind the target for one cast from nowhere. */
-function originOf(stage: Stage): Point {
-  return stage.origin ?? { x: stage.x - stage.cell * 3, y: stage.y + stage.cell * 3, z: stage.z + stage.cell * 2 };
-}
-
-function chestOf(stage: Stage): Point {
-  return { x: stage.x, y: stage.y, z: stage.z + stage.cell * 0.55 };
-}
 
 /** Light gathering at a point: a glow growing and streaks drawn in to it. */
 function drawGathering(
@@ -205,141 +187,3 @@ function beamOf(thick: number, gathers: number, great: boolean): Choreography {
 export const beam = beamOf(0.5, 0.3, true);
 /** A laser, thin and quick to fire: レーザー照射. */
 export const raybeam = beamOf(0.22, 0.28, false);
-
-/**
- * A current of lightning between the caster and the target, dancing as it crackles: it leaps a
- * shape at a time, a hot white line in a pale light with forks off it, on and off as a current
- * flickers, with sparks thrown off where it strikes.
- */
-export const arc: Choreography = {
-  lingerS: 0.4,
-  draw: (stage) => {
-    const drawn = nothingStaged();
-    const { cell, duration } = stage;
-    const t = stage.seconds;
-    const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
-    const from = originOf(stage);
-    const to = chestOf(stage);
-    const starts = duration * 0.1;
-    const stops = duration * 0.78;
-    const forward = cell * 0.4;
-    if (t >= starts && t < stops) {
-      const flicker = Math.floor(t / 0.045);
-      // A current is never steady: now and then it drops out for a beat.
-      const on = (Math.sin(flicker * 12.9898 + stage.seed) * 43758.5453) % 1;
-      if (Math.abs(on) > 0.18) {
-        drawn.ribbons.push(...lightningRibbons(from, to, stage.seed, flicker, cell, ramp, 1, stage.groundZ));
-        drawn.motes.push(haze(to, cell * 1.6, hueOf(ramp), 0.45, forward * 1.4));
-        drawn.motes.push(glow(to, cell * 1.1, ramp[4], 0.7, forward * 1.5));
-        drawn.motes.push({ ...glow(to, cell * 0.6, '#ffffff', 0.9, forward * 1.6), shape: 'star', spin: flicker });
-        drawn.motes.push(glow(from, cell * 0.6, ramp[4], 0.6, forward));
-        drawn.lights.push({ ...lerpPoint(from, to, 0.5), color: ramp[4], strength: 1.3, reachPx: cell * 3 });
-        drawn.floor.push(
-          floorMark('disc', { x: stage.x, y: stage.y, z: stage.groundZ }, cell * 1.2, 1, ramp[4], 0.3, 'light', 0)
-        );
-        // Sparks thrown off where it strikes, a few for each shape it leaps.
-        for (let spark = 0; spark < 4; spark++) {
-          const turn = flicker * 1.7 + spark * 1.57;
-          const reach = cell * (0.3 + ((flicker * 7 + spark * 3) % 5) * 0.12);
-          const at = {
-            x: to.x + Math.cos(turn) * reach,
-            y: to.y + Math.sin(turn) * reach,
-            z: to.z + Math.sin(turn * 1.3) * reach * 0.5,
-          };
-          drawn.motes.push({
-            ...glow(at, cell * 0.05, '#ffffff', 1, forward),
-            shape: 'spark',
-            velocity: { x: Math.cos(turn) * cell * 8, y: Math.sin(turn) * cell * 8, z: cell * 2 },
-            trail: 0.03,
-          });
-        }
-      }
-    }
-    return drawn;
-  },
-};
-
-/**
- * A bolt of lightning between two points as bands: a pale light about it, the bolt white-hot, and its
- * forks thinner, none of it below the floor it strikes.
- */
-export function lightningRibbons(
-  from: Point,
-  to: Point,
-  seed: number,
-  flicker: number,
-  cell: number,
-  ramp: readonly string[],
-  alpha: number,
-  floorZ: number,
-  thick = 1
-): EffectRibbon[] {
-  const { main, forks } = lightningPaths(from, to, seed, flicker, { floorZ: floorZ + cell * 0.05 });
-  const ribbons: EffectRibbon[] = [
-    { points: main, widths: cell * 0.7 * thick, color: hueOf(ramp), alpha: 0.3 * alpha, blend: 'color' },
-    { points: main, widths: cell * 0.5 * thick, color: hueOf(ramp), alpha: 0.45 * alpha, blend: 'light' },
-    { points: main, widths: cell * 0.16 * thick, color: ramp[3], core: '#ffffff', alpha, blend: 'light' },
-    { points: main, widths: cell * 0.05 * thick, color: '#ffffff', alpha, blend: 'color' },
-  ];
-  for (const fork of forks) {
-    ribbons.push({
-      points: fork,
-      widths: [cell * 0.07 * thick, cell * 0.05 * thick, 0],
-      color: ramp[4],
-      core: '#ffffff',
-      alpha: 0.8 * alpha,
-      blend: 'light',
-    });
-  }
-  return ribbons;
-}
-
-/**
- * A draining: motes of the target's life drawn out of it and back along curving ways to the caster,
- * a dark glow wrapping the target and the caster glowing as it drinks them in.
- */
-export const drain: Choreography = {
-  lingerS: 0.5,
-  draw: (stage) => {
-    const drawn = nothingStaged();
-    const { cell, duration } = stage;
-    const t = stage.seconds;
-    const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
-    const caster = originOf(stage);
-    const target = chestOf(stage);
-    const { way, length } = wayBetween(target, caster);
-    const { side, lift } = acrossOf(way);
-    const flowing = Math.min(
-      within(t, duration * 0.1, duration * 0.25),
-      1 - within(t, duration * 0.75, duration * 0.92)
-    );
-    const forward = cell * 0.4;
-    if (flowing <= 0) return drawn;
-    drawn.motes.push(haze(target, cell * 1.6, hueOf(ramp), 0.45 * flowing, forward));
-    drawn.motes.push(glow(target, cell * 1.3, ramp[1], 0.5 * flowing, forward));
-    drawn.motes.push(glow(caster, cell * (0.7 + 0.2 * Math.sin(t * 9)), ramp[4], 0.7 * flowing, forward));
-    drawn.lights.push({ ...caster, color: ramp[4], strength: 0.9 * flowing, reachPx: cell * 2 });
-    const motes = 22;
-    for (let index = 0; index < motes; index++) {
-      const along = (t * 0.9 + index / motes) % 1;
-      const bow = Math.sin(Math.PI * along) * length * 0.22 * Math.sin(index * 2.7 + 1);
-      const rise = Math.sin(Math.PI * along) * length * 0.18 * Math.abs(Math.cos(index * 1.9));
-      const at = lerpPoint(target, caster, outCubic(along));
-      const point = {
-        x: at.x + side.x * bow + lift.x * rise,
-        y: at.y + side.y * bow + lift.y * rise,
-        z: at.z + side.z * bow + lift.z * rise,
-      };
-      const fade = Math.min(1, along * 6, (1 - along) * 6) * flowing;
-      drawn.motes.push(haze(point, cell * 0.5, hueOf(ramp), 0.55 * fade, forward));
-      drawn.motes.push(glow(point, cell * 0.38, ramp[4], fade, forward));
-      drawn.motes.push({
-        ...glow(point, cell * 0.12, '#ffffff', fade, forward),
-        shape: 'spark',
-        velocity: { x: way.x * length, y: way.y * length, z: way.z * length },
-        trail: 0.06,
-      });
-    }
-    return drawn;
-  },
-};

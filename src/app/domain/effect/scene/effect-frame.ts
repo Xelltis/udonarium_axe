@@ -20,7 +20,8 @@ import {
   type StageMouth,
   type StageTarget,
 } from '@axe/domain/effect/scene/choreography';
-import { gravity, miasma } from '@axe/domain/effect/scene/dark/dark';
+import { gravity } from '@axe/domain/effect/scene/dark/gravity';
+import { miasma } from '@axe/domain/effect/scene/dark/miasma';
 import { impact } from '@axe/domain/effect/scene/earth/impact';
 import { rubble } from '@axe/domain/effect/scene/earth/rubble';
 import { struckImpact, struckRubble } from '@axe/domain/effect/scene/earth/struck';
@@ -30,14 +31,21 @@ import { burst } from '@axe/domain/effect/scene/fire/burst';
 import { flame } from '@axe/domain/effect/scene/fire/flame';
 import { mushroom } from '@axe/domain/effect/scene/fire/mushroom';
 import { nova } from '@axe/domain/effect/scene/fire/nova';
+import { aura } from '@axe/domain/effect/scene/holy/aura';
+import { barrier } from '@axe/domain/effect/scene/holy/barrier';
 import { halo } from '@axe/domain/effect/scene/holy/halo';
-import { aura, barrier, heal, warp } from '@axe/domain/effect/scene/holy/holy';
+import { heal } from '@axe/domain/effect/scene/holy/heal';
 import { sanctuary } from '@axe/domain/effect/scene/holy/sanctuary';
 import { smite } from '@axe/domain/effect/scene/holy/smite';
+import { warp } from '@axe/domain/effect/scene/holy/warp';
 import { hasScenePart, SCENE_LINGER_S, strikesInSceneWith, STRIKING_WITH } from '@axe/domain/effect/scene/scene-kinds';
+import { arc } from '@axe/domain/effect/scene/shot/arc';
+import { beam, raybeam } from '@axe/domain/effect/scene/shot/beam';
+import { drain } from '@axe/domain/effect/scene/shot/drain';
 import { arrowrain, ballisticWith, projectileWith } from '@axe/domain/effect/scene/shot/shots';
-import { arc, beam, drain, raybeam } from '@axe/domain/effect/scene/shot/streams';
-import { bolt, frost, vortex } from '@axe/domain/effect/scene/storm/storm';
+import { bolt } from '@axe/domain/effect/scene/storm/bolt';
+import { frost } from '@axe/domain/effect/scene/storm/frost';
+import { vortex } from '@axe/domain/effect/scene/wind/vortex';
 import { projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
 import { targetScaleOf } from '@axe/domain/effect/timeline/shared';
 

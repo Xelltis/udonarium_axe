@@ -4,7 +4,7 @@ import { nothingStaged, type Stage, type Staged } from '@axe/domain/effect/scene
 import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import { seededRun } from '@axe/domain/effect/scene/effect-sim';
 import { floorMark, glow, haze, type Point } from '@axe/domain/effect/scene/parts';
-import { lightningRibbons } from '@axe/domain/effect/scene/shot/streams';
+import { lightningRibbons } from '@axe/domain/effect/scene/storm/lightning';
 
 /*
  * A paralysis: the body caught in a current, small bolts crawling over it and leaping from one part

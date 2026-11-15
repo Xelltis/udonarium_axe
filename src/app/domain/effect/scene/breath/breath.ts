@@ -52,7 +52,7 @@ import {
   type Thrower,
   throwerFor,
 } from '@axe/domain/effect/scene/parts';
-import { lightningRibbons } from '@axe/domain/effect/scene/shot/streams';
+import { lightningRibbons } from '@axe/domain/effect/scene/storm/lightning';
 
 /*
  * A breath: the caster draws it in, motes gathering at its mouth; it bursts out, white at the mouth

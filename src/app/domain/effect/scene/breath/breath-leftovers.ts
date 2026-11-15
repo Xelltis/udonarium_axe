@@ -20,7 +20,7 @@ import {
   WARM,
 } from '@axe/domain/effect/scene/fire/fire-parts';
 import { ball, floorMark, glow, haze, type Point, smokePuff, type Thrower } from '@axe/domain/effect/scene/parts';
-import { lightningRibbons } from '@axe/domain/effect/scene/shot/streams';
+import { lightningRibbons } from '@axe/domain/effect/scene/storm/lightning';
 
 /*
  * What a breath leaves on and about each piece it blows over, from the moment the stream reaches the
