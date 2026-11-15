@@ -19,20 +19,109 @@
 
 入口は次のとおり。
 
-- エフェクト集パネル
+- エフェクト集パネル（`features/effect/effect-library-panel`）。タイルを選ぶと構えに入り、確定の操作で発動する（[構えと対象の選び方](#構えと対象の選び方)）
 - チャット記法`《…》`（`domain/effect/effect-chat-token`で解析し、`features/effect/effect-chat-event-handler`が`resourceEditMessage$`で受けて発火。送信者だけが撃つのは、全員が撃つと人数ぶん重なるため。対象は`t:`と同じ、撃ち手はその行の発言者）
-- キャラクターシートの`DataElementFieldType.EFFECT`欄（値は演出名。コマ右クリックの「演出を発動」にも並ぶ）
-- ホットバーのエフェクト枠（`features/hotbar/hotbar-runner.service`。[ホットバー](pl-tools.md#ホットバー)）
+- キャラクターシートの`DataElementFieldType.EFFECT`欄（値は演出名。コマ右クリックの「演出を発動」にも並ぶ）。シートの行（`features/data-element/game-data-element`）もコマのメニュー（`features/character/game-character/game-character-menu.service`）も、名前でプリセットを引いて`EffectTargetingService.castFrom`を呼ぶ
+- ホットバーのエフェクト枠（`features/hotbar/hotbar-runner.service`。[ホットバー](pl-tools.md#ホットバー)）。動作が「発動」の枠は`castFrom`を呼ぶ。「ターゲットを無視して自分に」を入れた枠は`EffectCastService.fire`で押したコマ自身に撃ち、「設置」と「自分だけ」の枠は`castFrom`を通らない
 - スイッチの動作「エフェクト」と、踏んだら起きることの`TableTrigger.effect`（[スイッチ](map-editor.md#スイッチ)、[機能塗り](map-editor.md#機能塗りマップエディター)）。どちらもエフェクトを名前で引き（`application/media/named-cue.service`）、スイッチは押した人の発言者のコマに、罠は踏んだコマに撃つ
 - リソースの増減（`EffectAutoPlayService`）。オプトインで、2つの設定がどちらも入のときだけ出る。1つはエフェクト集の「HP の増減に演出を出す（自分の画面だけ）」で、`localStorage`（`axe.effect.autoPlay`）に持つ個人設定。既定は切。もう1つはリソース欄ごとの「増減でエフェクト」（`cs-change-effect`属性、`domain/character/resource-feedback`の`playsEffectOnChange`）で、属性の無い欄では出ない。見本のキャラクターのHPとMPにだけ、`CharacterTemplateFactory`が`'true'`を書く。属性を持たない欄を入に移す処理はない。出すのは同梱の打撃（殴打・強打・崩拳）か回復（治癒・回復光・大治癒）で、最大値に対して動いた割合が15%未満なら1つ目、40%未満なら2つ目、それ以上なら3つ目を使う（`resourceChangeSeverity`、`domain/effect/resource-effect-map`）。増減は同期済みなので、`EFFECT_CAST`を送らず各画面が自分で再生する
 
 発動すると`EFFECT_CAST`イベントで全員の画面が同時に再生しSEも鳴る（リソースの増減と試し撃ちは送らない）。演出の状態は同期せず、各クライアントが受信時刻を起点に純関数でフレームを算出する。
 
-### 対象の選び方
+シートの行・コマのメニュー・ホットバーの枠が通る`castFrom(preset, piece)`は、押した時点のターゲット指定で動きを分ける。
 
-エフェクト集（`EffectPreset`）から選ぶと**順序付きの対象選択**（`application/effect/effect-targeting.service`）に入り、盤面のコマをクリックした順に対象が積まれる（再クリックで解除、上限に達した状態での選択は最古と入れ替え）。上限に届いた時点で自動発動し、少ない数ならEnterかパネルのボタンで確定、Escで中止して開始前のターゲット指定へ戻す。`areaRadius`を持つプリセットは1クリックで中心からの半径内を近い順にまとめて選び（`domain/effect/effect-area`）、巻き込む範囲を円で描いてから確定させる（まとめ選択では自動発動しない）。
+| 条件                                                                 | 動き                                                                       |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| そのコマ以外に`targeted`のコマがある                                 | `EffectCastService.fireFromCharacter`でその場で発動する                    |
+| 対象規則が`self`のプリセット                                         | 同じく、その場で発動する                                                   |
+| 卓を編集できない席、または卓に出ていないコマ                         | 同じく、その場で発動する                                                   |
+| 上のどれでもない（相手が要るプリセットで、ほかのコマを狙っていない） | `begin`のあと`setCaster`でそのコマを撃ち手にして構えに入り、`'held'`を返す |
 
-選んだ順の配列が元データで、コマの`targeted`はその写しなので、発動後にチャットの`t:`がそのまま同じ対象へ効く。撃ち手は選択開始時の選択コマを固定して保持する（選び進めると選択が対象側へ移るため）。選択中は`effect-target-overlay`が、床に寝かせた印と撃ち手からの線、画面へ向けて立てた順番の番号を、卓のcanvasがその場所を描く画面上の位置に重ねる。
+チャット記法・スイッチ・罠・リソースの増減は構えを通らず、その場で再生する。
+
+### 構えと対象の選び方
+
+エフェクト集のタイルを選んでも発動しない。選んだプリセットは発動を待つ状態（構え）になり、確定の操作があるまでそのまま残る。構えは`application/effect/effect-targeting.service`の`EffectTargetingService`が持つ。中身は、構えたプリセット（`preset`）、選んだ順の対象（`picks`）、撃ち手（`casterIdentifier`）の3つ。
+
+| 操作           | メソッド                         | すること                                                                                                                                                           |
+| -------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 構える         | `begin(preset)`                  | `targeted`のコマのうち自分から見えるものを上限まで対象に引き継ぎ、開始前の`targeted`を覚える。対象規則が`self`で引き継ぐコマが無ければ、選択コマを対象に入れておく |
+| 対象を選ぶ     | `pick(identifier)`               | 選んでいないコマを足し、選んであるコマを外す。上限に届いても発動しない                                                                                             |
+| 撃ち手を変える | `changeCaster()` / `setCaster()` | `changeCaster()`のあと最初に押されたコマを、対象に足さず`setCaster`に渡す。`setCaster`はそのコマを対象から外す。空文字を渡すと撃ち手なしになる                     |
+| 確定する       | `confirm()`                      | `picks`のうち卓にいるコマへ`EffectCastService.fire`で撃ち、構えを解く。対象が0体なら何もせず、構えも残す                                                           |
+| 中止する       | `cancel()`                       | `targeted`を開始前の状態に戻して構えを解く                                                                                                                         |
+
+発動するのは`confirm()`だけで、呼ぶのはエフェクト集の「対象に発動する」、ターゲット帯の「発動」、一人称のビューのボタン、Enterキー（`game-table`の`onEnterKey`。入力欄にフォーカスがある間は取らない）の4か所。`cancel()`は、それぞれの「中止」、Escキー（`onEscapeKey`）、構えたプリセットのタイルの再選択が呼ぶ。`PieceTargetService.clear()`（ターゲット帯の「すべて外す」とShift+T）は先に`cancel()`を呼んでから`targeted`を全部外す。卓を編集できない席に変わったときも中止する。
+
+対象は選択コマ（`SelectionSignalService.selectedObject`）の変化で拾う。構えた時点で選択されていたコマは、押し直されていないので対象にしない。順番の扱いは`domain/effect/effect-target-picks`の`toggleEffectPick`が決め、上限に達した状態で別のコマを選ぶと最古の対象と入れ替える。
+
+`areaRadius`を持つプリセットは、1回の`pick`で中心からの半径内を近い順に上限までまとめて選び直す（`domain/effect/effect-area`の`effectAreaTargets`）。交戦ゾーンにいるコマはゾーンの中心にいるものとして測り、戦線を離れたコマ（`offField`）は入れない。半径は`areaRadiusCells × gridSize`で、ヘクスの卓でも円で測る。
+
+選んだ順の配列が元データで、コマの`targeted`はその写し（`mirror()`）。発動後も`targeted`を残すので、チャットの`t:`がそのまま同じ対象へ効く。対象規則が`self`のプリセットだけは、発動後に`targeted`を開始前の状態へ戻す。自分から見えないコマは、撃つが`targeted`にはせず、番号も付けない（`pickOrder`は見えるコマだけで数える）。
+
+撃ち手は`begin`の時点の選択コマを固定して持つ（選び進めると選択が対象側へ移るため）。`EffectCastService.fire`は、撃ち手が対象の中にいるときは撃ち手なしで撃つ。確定した発動は`lastConfirmed`に置くので、Enterやターゲット帯で確定したときも、エフェクト集は知らせの行に相手の名前を出せる。
+
+### 構えている間の卓の表示
+
+`features/effect/effect-target-overlay`が、次の印を、卓のcanvasがその場所を描く画面上の位置に重ねる。床に寝かせるのは番号以外の全部で、番号だけは画面へ向けて立てる（盤を傾けると寝かせた数字は読めない）。
+
+| 印             | 元にする値                  | 見た目                                                               |
+| -------------- | --------------------------- | -------------------------------------------------------------------- |
+| 対象           | `marks`                     | プリセットの主色の円と、選んだ順の番号                               |
+| 撃ち手からの線 | `links`                     | 撃ち手から各対象への帯                                               |
+| 撃ち手         | `casterMark`                | 白い二重線のひし形。対象が0体でも出す                                |
+| 範囲           | `areaCenter` / `areaRadius` | 中心を押したあとの破線の円                                           |
+| 押す前の範囲   | `areaProspect`              | ポインタの下のコマを中心にした点線の円と、巻き込むコマごとの破線の輪 |
+
+対象は円、撃ち手はひし形にして、色だけでなく形でも見分けられるようにしている。押す前の範囲は線だけで描き、卓の上に面を敷かない。
+
+`areaProspect`は`pick`と同じ`areaPicks`で求めるので、見せた相手と、押して選ばれる相手が一致する。ポインタがコマに入ったことと出たことは、コマ（`features/character/game-character`）が`hoverPiece`で知らせる。ホバーできない端末（`ViewportService.canHover`が偽）、撃ち手の変更を待っている間、すでに中心として押したコマの上では出さない。
+
+本体と一緒に選ばれた部位は印を持たない（本体の印に重なるため）。一人称のビューは、番号と撃ち手の印を出さない（`badges`と`casterRing`を偽にする。番号は卓のカメラへ向けて立てるもので、撃ち手はそのビューが覗いているコマだから）。
+
+ターゲット帯（`features/tabletop/target-band`）は、構えた瞬間から構えが解けるまで、対象が0体でも出し続ける。選んだ数と上限を幅の決まった箱に入れ、「発動」「中止」「すべて外す」のボタンを持つので、対象の数が変わっても帯の大きさは変わらず、エフェクト集のパネルに手が届かなくても確定と中止ができる。ボタンの高さは44px。構えていない間は、`targeted`のコマが1体以上ある間だけ出る。
+
+### エフェクト集パネルの配置
+
+`features/effect/effect-library-panel`は、上から4つの領域を決まった高さで並べる。状態が変わっても領域の中身を差し替えるだけで、行を足さない。構えても、対象が増えても、発動しても、一覧の位置は動かない。
+
+| 領域           | `data-testid`            | 中身                                                                                      |
+| -------------- | ------------------------ | ----------------------------------------------------------------------------------------- |
+| 検索と絞り込み | `effect-library-filters` | 検索欄、追加・増減の演出・書き出し・既定を反映のボタン、等級・対象数・系統の絞り込み      |
+| 構えの領域     | `effect-library-stance`  | プレビューの枠、プリセット名と「選んだ数/上限」、撃ち手の行、対象の行、発動と中止のボタン |
+| 一覧           | `effect-library-list`    | 最近使ったもの、系統ごとのタイル、置いてある演出。ここだけがスクロールする                |
+| 知らせの行     | `effect-library-notice`  | 1行。知らせ（`notice`）があればそれを、無ければ直前の発動の相手（`lastFired`）を出す      |
+
+構えの領域の各行は、構えの前後で次のように変わる。
+
+| 行     | 構える前                                                       | 構えている間                                                     |
+| ------ | -------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 名前   | 「エフェクトを選んでください」                                 | プリセット名と、`pickOrder`の数/`limit`                          |
+| 撃ち手 | 「撃ち手（予定）」として`upcomingCasterIdentifier`（選択コマ） | `casterIdentifier`のコマ。変えるボタンと、なしにするボタンが付く |
+| 対象   | `targeted`で自分から見えるコマ                                 | `pickOrder`のコマ                                                |
+
+撃ち手の名前を選択コマから出さないのは、対象を押すたびに選択が対象へ移るため。対象の行は名前のチップを1行に並べ、収まらないぶんは横スクロールで読ませる。折り返すと行の高さが変わる。発動と中止のボタンは常に置き、使えない間は`disabled`にする。タッチの端末（`pointer-coarse`）では高さを44pxにする。
+
+タイルの選択（`choose`）は`begin`を呼ぶだけで、対象規則が`self`のプリセットも発動しない。構えたプリセットのタイルをもう一度選ぶと`cancel`を呼ぶ。
+
+タイルはキーボードで移れる。Tabキーが止まるタイルは1つだけにし（`tabStopKey`。最後にフォーカスしたタイル、無ければ先頭）、矢印・Home・Endでどのタイルへ移るかは`effect-tile-keys`の`tileAfterKey`が、タイルの画面上の位置から決める。左右は読む順の前後へ、上下はいちばん近い行の、横の位置がいちばん近いタイルへ移る。SpaceとEnterはタイルを選ぶ。タイルの上のEnterは`enterOnTile`が受けて卓へ渡さない（卓の`onEnterKey`が同じ押下で発動しないように）。構えたプリセットのタイルの上のEnterだけは卓へ通し、発動になる。
+
+### プレビュー
+
+`features/effect/effect-preview`は、10×7マスの盤に代役のコマを2体置いた小さな舞台（`infrastructure/table-3d/effect-stage`の`createEffectStage`）で、プリセットを繰り返し再生する。描くのは卓と同じ`EffectLayer`。周と周の間は600ms（`EFFECT_PREVIEW_REST_MS`）あけ、プリセットの大きさに合わせてカメラを引く。音は鳴らさない。演出を止めている間は、尺の半分の時点の1枚を出す。
+
+入力は3つ。`preset`が替わると頭から再生し直す。`version`は同じプリセットの値が変わった回数で、増えるたびに描き直して頭から再生する（編集中のプリセットは同じインスタンスのままなので、`preset`だけでは変化が伝わらない）。`fill`を付けると、置かれた箱の高さいっぱいに広がる。
+
+置いてあるのは次の4か所。
+
+| 場所                   | 映すもの                                                                                                                      |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| エフェクト集           | 構えているプリセット。構えが無ければ、ポインタかフォーカスが200ms（`EFFECT_TILE_PREVIEW_DELAY_MS`）留まったタイルのプリセット |
+| エフェクトの編集画面   | 編集中のプリセット。上部に固定し、項目の欄だけをその下でスクロールさせる                                                      |
+| ホットバーの枠の編集   | 枠に選んだプリセット（`chosenEffect`）                                                                                        |
+| 戦闘カットインのパネル | 一覧で選んでいるプリセット（`focusedPreset`。[戦闘カットイン](battle-cut-in.md#戦闘カットイン)）                              |
+
+エフェクト集のプレビューは1つだけで、`preset`を差し替えて使う。プレビューは1つにつきcanvasとレンダラーを1つずつ持つので、タイルごとには置けない。作るのは最初に映すものができたとき（`previewMade`）で、パネルと一緒に破棄する。タイルのプレビューはホバーできる端末でだけ出し、ホバーできない端末では構えたプリセットだけを映す。
 
 ### 飛翔体（射撃系）
 
@@ -121,7 +210,7 @@
 
 演出は卓のthree.jsの場面の中に、コマや壁と一緒に描く。見た目ごとの振り付け（`Choreography`）は`domain/effect/scene/`配下の純関数で、経過秒・尺・当たりの時刻（`blowsAt`）・発射元・種から、その瞬間に描く物（`EffectFrame`。粒`motes`・帯`ribbons`・床の印`floor`・光`lights`）を卓の座標（卓のpx。xは東、yは南、zは上）で返す。`application/effect/effect-frame.service`が再生中の演出と置きっぱなしの場を毎フレーム1つの`EffectFrame`にまとめ、`application/tabletop/table-3d.service`が`infrastructure/table-3d/effect-layer`の`EffectLayer`へ渡す。描く物が何もなければ、同じ空のフレームを返して時計を読まない。見た目の本体（`domain/effect/scene/effect-frame`）は大きいので別に読み込み（`EffectSceneLooksService`）、卓を最初に描くときに読み始める。読み込みに失敗したら5秒あけて読み直す（`EFFECT_LOOKS_RETRY_MS`）。
 
-overlay（`features/effect/table-effect-overlay`）に残るのは、崩壊と両断が切ったコマの絵の破片だけで、卓のcanvasがそのコマを描く画面上の位置に重ねる（1フレーム400枚まで、`MAX_SPRITES`）。環境エフェクトのうち、雨・雷雨・雪の粒と水面は場面で描き、ほかはページに重ねる（[環境エフェクト](#環境エフェクト天候地表)）。ホットバーの枠の編集と戦闘カットインのパネルにあるプレビュー（`features/effect/effect-preview`）は、盤と代役のコマを置いた小さな舞台（`infrastructure/table-3d/effect-stage`の`createEffectStage`）に、戦闘カットインは舞台の上の透明なcanvasに、同じ`EffectLayer`で描く（[戦闘カットイン](battle-cut-in.md#戦闘カットイン)）。視界外の対象には描かない。演出を止めているとき（`MotionService.enabled`が偽）は何も描かずSEだけ鳴らす。
+overlay（`features/effect/table-effect-overlay`）に残るのは、崩壊と両断が切ったコマの絵の破片だけで、卓のcanvasがそのコマを描く画面上の位置に重ねる（1フレーム400枚まで、`MAX_SPRITES`）。環境エフェクトのうち、雨・雷雨・雪の粒と水面は場面で描き、ほかはページに重ねる（[環境エフェクト](#環境エフェクト天候地表)）。[プレビュー](#プレビュー)（`features/effect/effect-preview`）は、盤と代役のコマを置いた小さな舞台（`infrastructure/table-3d/effect-stage`の`createEffectStage`）に、戦闘カットインは舞台の上の透明なcanvasに、同じ`EffectLayer`で描く（[戦闘カットイン](battle-cut-in.md#戦闘カットイン)）。視界外の対象には描かない。演出を止めているとき（`MotionService.enabled`が偽）は何も描かずSEだけ鳴らす。
 
 - **光と色の2つの層** — 粒・帯・床の印は、どれも光（足し算で重ね、まわりにあふれる）か色（上に塗る）のどちらか（`EffectBlend`）。熱い物は光、煙・砂埃・破片・炎の体は色で描き、白は最も熱い芯と縁にだけ使う。`EffectLayer`は粒・床の印・帯を、光と色の2つずつのバッチで描く
 - **バッチは最初から場面に置く** — 6つのバッチは演出が無くても場面にあり、何も描かずに待つ。グラフィックスカードの準備を卓と一緒に済ませるので、最初の演出で卓が止まらない。1フレームに描く量の上限は`EFFECT_FRAME_BUDGET`（光と色それぞれ、粒4096・床の印256・帯の点4096）
@@ -146,8 +235,8 @@ SEは効果音ラボ・On-Jinの素材を取り込み、`PresetSound`経由で�
 
 ### プリセットの編集と持ち出し
 
-プリセットは**編集できる**。`features/effect/effect-preset-editor`が種類・系統・等級・色・大きさ・尺・ずらし・対象規則・SE・種類ごとの項目（弾の見た目 / 弾数 / 間隔 / 着弾演出 / 太刀筋）を直接モデルへ書き込み、範囲は`EffectPreset`のgetterが丸める。どの項目を出すかは`domain/effect/effect-preset-form`の純関数が種類から決める。**試し撃ちはローカル再生**（`EffectCastService.preview()`が`EffectPlaybackService`を直接叩き、`EFFECT_CAST`を送らない）。
+プリセットは**編集できる**。`features/effect/effect-preset-editor`が種類・系統・等級・色・大きさ・尺・ずらし・対象規則・SE・種類ごとの項目（弾の見た目 / 弾数 / 間隔 / 着弾演出 / 太刀筋）を直接モデルへ書き込み、範囲は`EffectPreset`のgetterが丸める。どの項目を出すかは`domain/effect/effect-preset-form`の純関数が種類から決める。**試し撃ちはローカル再生**（`EffectCastService.preview()`が`EffectPlaybackService`を直接叩き、`EFFECT_CAST`を送らない）。卓の上のコマに音つきで再生するので、対象になるコマが要る。編集画面の上部には[プレビュー](#プレビュー)を置き、`ObjectChangeService.versionOf`の値を`version`に渡して、値を変えるたびにその内容で再生し直す。
 
-一覧は検索・等級／対象数／系統での絞り込み・系統の折りたたみ・最近使った履歴を持ち、印には演出の形から起こしたSVGグリフを当てる。一覧からは追加・複製（`duplicatedEffectName`で連番）・削除（右クリックメニュー、`effect-library-context-menu`）ができ、`gmOnly`のプリセットはPLの一覧に名前ごと出さない。
+一覧は検索・等級／対象数／系統での絞り込み・系統の折りたたみ・最近使った履歴を持ち、印には演出の形から起こしたSVGグリフを当てる。一覧からは追加・複製（`duplicatedEffectName`で連番）・削除（右クリックメニュー、`effect-library-context-menu`）ができ、`gmOnly`のプリセットはPLの一覧に名前ごと出さない。置いてある演出（`EffectField`）は一覧の最後に見出しつきで並べ、ここから片づける。領域の並びとキーボードの操作は[エフェクト集パネルの配置](#エフェクト集パネルの配置)にある。
 
 エフェクト集の持ち出しは`EffectPresetSet`（`InnerXml`の入れ物。`ObjectStore`には残さない）。`EffectPresetSet.of([preset])`で**1つだけ**書き出せ（タイル右クリックと編集パネルの「書き出す」）、形式は集合と同じなのでドロップの読み込み経路も共通。`EffectPreset`は`toAttributes` / `parseAttributes`でidentifierをXMLに残す（`ChatMessage`と同じ手。既定では`ObjectSerializer.parseXml`が読むたびに新しいidentifierを振る）ので、**併合の第一の鍵はidentifier**（`domain/effect/effect-preset-merge`の`takeIntoLibrary`）。同じidentifierがあればそこへ、無ければ同名へ`toContext()` / `apply()`で中身を丸ごと移す（フィールドを列挙しないので段リストのような後付けも自動で乗る）。どちらも無ければ追加。identifierで重ねた結果その名前が別のエフェクトと衝突するときは、戻ってきた側を`duplicatedEffectName`で連番にする（名前はチャット記法やシートの演出欄から呼ばれるため、先にその名前を使っていた方を動かさない）。プリセットは部屋データとしても保存され、「既定を反映」で既定プリセットを最新のseedへ再適用・欠けたものを再作成する（自作プリセットには触れない）。
