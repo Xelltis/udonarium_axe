@@ -9,7 +9,7 @@ import { type EffectPreset } from '@axe/domain/effect/effect-preset';
  */
 
 /** The families that have an element other than earth: a shot of one of them is of that element, whatever it lands in. */
-const OTHER_ELEMENTS: ReadonlySet<string> = new Set(['炎', '氷', '雷', '風', '闇', '状態異常', '回復', '強化']);
+const OTHER_ELEMENTS: ReadonlySet<string> = new Set(['炎', '氷', '雷', '風', '闇', '聖', '状態異常', '回復', '強化']);
 /** The particles of the other elements: a shot that carries one of them along its way is of that element. */
 const OTHER_MOTES: ReadonlySet<string> = new Set(['frost', 'arc', 'leaf', 'haze']);
 

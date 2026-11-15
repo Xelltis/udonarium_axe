@@ -37,8 +37,9 @@ describe('breathSurgeAt()', () => {
 });
 
 describe('isGentleBreath()', () => {
-  it('takes a breath of the family that heals as the gentle one', () => {
+  it('takes a breath of the family that heals, and of the holy one, as the gentle one', () => {
     expect(isGentleBreath({ tagName: ' 回復 ' })).toBe(true);
+    expect(isGentleBreath({ tagName: '聖' })).toBe(true);
     expect(isGentleBreath({ tagName: '炎' })).toBe(false);
     expect(isGentleBreath({ tagName: '' })).toBe(false);
   });

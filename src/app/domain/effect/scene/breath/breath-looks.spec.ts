@@ -32,6 +32,12 @@ describe('breathElementOf()', () => {
     expect(breathElementOf(breathOf({ tagName: '回復', moteStyle: 'spark' }))).toBe('holy');
   });
 
+  it('takes a breath of the holy family as the gentle one too, whatever it carries', () => {
+    expect(breathElementOf(breathOf({ tagName: '聖' }))).toBe('holy');
+    expect(breathElementOf(breathOf({ tagName: '聖', moteStyle: 'frost' }))).toBe('holy');
+    expect(breathLookOf(breathOf({ tagName: '聖' })).force).toBe(breathLookOf(breathOf({ tagName: '回復' })).force);
+  });
+
   it('goes by what the breath is told to carry before its family', () => {
     expect(breathElementOf(breathOf({ tagName: '炎', moteStyle: 'frost' }))).toBe('ice');
     expect(breathElementOf(breathOf({ tagName: '氷', moteStyle: 'leaf' }))).toBe('wind');

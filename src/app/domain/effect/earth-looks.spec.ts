@@ -35,6 +35,7 @@ describe('isRockShot()', () => {
 
   it('leaves a bolt of another element as it was, told by its family or by the particle it carries', () => {
     expect(isRockShot(shotOf({ tagName: '炎' }))).toBe(false);
+    expect(isRockShot(shotOf({ tagName: '聖' }))).toBe(false);
     expect(isRockShot(shotOf({ tagName: '風' }))).toBe(false);
     expect(isRockShot(shotOf({ moteStyle: 'frost' }))).toBe(false);
     expect(isRockShot(shotOf({ moteStyle: 'leaf' }))).toBe(false);

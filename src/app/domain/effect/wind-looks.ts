@@ -32,7 +32,7 @@ export function isTornado(preset: Whirling & Pick<EffectPreset, 'isStaged'>): bo
 }
 
 /** The families that have an element of their own: a shot of one of them is of that element, whatever it lands in. */
-const OTHER_ELEMENTS: ReadonlySet<string> = new Set(['炎', '氷', '雷', '闇', '状態異常', '土', '回復', '強化']);
+const OTHER_ELEMENTS: ReadonlySet<string> = new Set(['炎', '氷', '雷', '闇', '聖', '状態異常', '土', '回復', '強化']);
 
 /**
  * Whether a shot is a shot of wind: a bolt that lands in a whirlwind, unless what it carries along

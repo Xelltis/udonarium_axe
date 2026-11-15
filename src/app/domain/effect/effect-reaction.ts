@@ -150,7 +150,7 @@ function isBreath(preset: EffectPreset): boolean {
  * How a breath moves the pieces at a moment: the one who breathes leans back from the targets as it
  * draws the breath in and is thrown forward as it bursts out; each piece blown on is pushed downwind
  * for as long as the breath blows on it, further with each surge, and trembles there, then stands
- * back as the breath fails. A breath that heals pushes no one.
+ * back as the breath fails. The gentle breath of light pushes no one.
  */
 function addBreathJolts(
   preset: EffectPreset,

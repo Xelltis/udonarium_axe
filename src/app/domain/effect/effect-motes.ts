@@ -14,6 +14,7 @@ const MOTE_BY_TAG: Record<string, EffectMote> = {
   雷: 'arc',
   風: 'leaf',
   闇: 'haze',
+  聖: 'spark',
   状態異常: 'haze',
   土: 'spark',
   射撃: 'spark',

@@ -8,7 +8,7 @@ import { isFiery } from '@axe/domain/effect/scene/effect-ramp';
  * What a breath is a breath of, and how each element blows: how hard, how thick, whether it rises or
  * sinks, and what it is made of, a kind of gout for each layer of it. A preset says which by what it
  * carries along its way, as its family or its own choice of particle has it, and a breath of the
- * family that heals is the gentle one whatever it carries.
+ * family that heals or of the holy one is the gentle one whatever it carries.
  */
 
 /** The elements a breath is drawn as. */
@@ -151,7 +151,7 @@ const LOOKS: Record<BreathElement, Omit<BreathLook, 'carries' | 'fiery'>> = {
 };
 
 /**
- * The element a preset's breath is drawn as. One of the family that heals is the gentle breath of
+ * The element a preset's breath is drawn as. One of the family that heals or of the holy one is the gentle breath of
  * light; otherwise what it carries along its way says: sparks a fire, frost an ice, a current a
  * thunder, leaves a wind, and a haze a poison for the family of ailments and a darkness for any
  * other. One told to carry nothing is a fire where its colour is a fire's, and a cold mist otherwise.

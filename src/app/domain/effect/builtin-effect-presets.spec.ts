@@ -272,7 +272,7 @@ describe('the newer looks for a projectile', () => {
     expect(blade.kind).toBe('skyblade');
     expect(blade.durationMs).toBeGreaterThan(1200);
     expect(blade.soundKey).toBe('holyBlade');
-    expect(blade.tagName).toBe('物理');
+    expect(blade.tagName).toBe('聖');
   });
 
   it('gives a beam time to keep firing', () => {
@@ -362,5 +362,17 @@ describe('the newer looks for a projectile', () => {
     expect(new Set(elemental.map((seed) => seed.impactKind)).size).toBe(elemental.length);
     expect(new Set(elemental.map((seed) => seed.impactSoundKey)).size).toBe(elemental.length);
     expect(new Set(elemental.map((seed) => seed.tagName)).size).toBe(elemental.length);
+  });
+});
+
+describe('the holy family', () => {
+  const holy = DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => seed.tagName === '聖');
+  const seedOf = (identifier: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.identifier === identifier)!;
+
+  it('takes in the shot, the breath and the great sword of light that were there before, as they were', () => {
+    expect(seedOf('EffectPreset_holybolt_3')).toMatchObject({ name: '聖光弾', tagName: '聖', kind: 'projectile' });
+    expect(seedOf('EffectPreset_breath_holy')).toMatchObject({ name: '聖なる吐息', tagName: '聖', kind: 'breath' });
+    expect(seedOf('EffectPreset_skyblade')).toMatchObject({ name: '光の大剣', tagName: '聖', kind: 'skyblade' });
+    for (const seed of holy) expect(seed.moteStyle ?? '').toBe('');
   });
 });

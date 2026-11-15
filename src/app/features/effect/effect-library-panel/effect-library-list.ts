@@ -18,6 +18,7 @@ const TAG_ORDER: readonly string[] = [
   '土',
   '風',
   '闇',
+  '聖',
   '時空',
   '回復',
   '状態異常',

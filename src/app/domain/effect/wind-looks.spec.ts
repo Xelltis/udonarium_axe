@@ -71,7 +71,7 @@ describe('isWindShot()', () => {
   });
 
   it('leaves a bolt of a family with an element of its own as it is, though it lands in a whirlwind', () => {
-    for (const tagName of ['炎', '氷', '雷', '闇', '状態異常', '土', '回復', '強化']) {
+    for (const tagName of ['炎', '氷', '雷', '闇', '聖', '状態異常', '土', '回復', '強化']) {
       expect(isWindShot(shotOf({ tagName }))).toBe(false);
     }
   });

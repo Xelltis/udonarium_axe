@@ -113,6 +113,15 @@ describe('the effect library', () => {
       expect(groups.map((group) => group.tag)).toEqual(['物理', '炎', '氷']);
     });
 
+    it('puts the holy family after the dark one, before those of no element', () => {
+      const groups = groupPresets(
+        [makePreset('治癒', '回復'), makePreset('聖印', '聖'), makePreset('転移', '時空'), makePreset('呪い', '闇')],
+        'ja'
+      );
+
+      expect(groups.map((group) => group.tag)).toEqual(['闇', '聖', '時空', '回復']);
+    });
+
     it('orders a family by grade', () => {
       const groups = groupPresets(
         [makePreset('絶対零度', '氷', 3), makePreset('氷礫', '氷', 1), makePreset('氷結', '氷', 2)],

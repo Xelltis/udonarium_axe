@@ -12,8 +12,11 @@ const TAPERS_S = 0.3;
 /** How many times a second a breath surges, and how far it sinks between surges, as a share of its full force. */
 const SURGES_HZ = 3;
 const SURGE_DEPTH = 0.15;
-/** The family a breath that heals is of: it is breathed gently, pushes nothing and burns nothing. */
-const HEALING_TAG = '回復';
+/**
+ * The families whose breath is the gentle one: the family that heals and the family of holy light. It
+ * is breathed gently, pushes nothing and burns nothing.
+ */
+const GENTLE_TAGS: ReadonlySet<string> = new Set(['回復', '聖']);
 
 /**
  * The moments of a breath on its own clock, in seconds: it is drawn in until it bursts, its front
@@ -45,7 +48,10 @@ export function breathSurgeAt(seconds: number, seed: number): number {
   return 1 - SURGE_DEPTH * (0.5 - 0.5 * wave);
 }
 
-/** Whether a breath is one that heals, breathed gently over those it is meant for rather than blown at them. */
+/**
+ * Whether a breath is the gentle breath of light, of the family that heals or of the holy one:
+ * breathed over those it is meant for rather than blown at them.
+ */
 export function isGentleBreath(preset: Pick<EffectPreset, 'tagName'>): boolean {
-  return preset.tagName.trim() === HEALING_TAG;
+  return GENTLE_TAGS.has(preset.tagName.trim());
 }

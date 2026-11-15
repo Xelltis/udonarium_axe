@@ -359,7 +359,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
   {
     identifier: 'EffectPreset_breath_holy',
     name: '聖なる吐息',
-    tagName: '回復',
+    tagName: '聖',
     kind: 'breath',
     colorPrimary: '#fffbe0',
     colorSecondary: '#ffc24a',
@@ -693,7 +693,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
   {
     identifier: 'EffectPreset_skyblade',
     name: '光の大剣',
-    tagName: '物理',
+    tagName: '聖',
     kind: 'skyblade',
     colorPrimary: '#ffeaa8',
     colorSecondary: '#ffb320',
@@ -1068,7 +1068,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
   {
     identifier: 'EffectPreset_holybolt_3',
     name: '聖光弾',
-    tagName: '射撃',
+    tagName: '聖',
     kind: 'projectile',
     colorPrimary: '#fffbe0',
     colorSecondary: '#ffc24a',
