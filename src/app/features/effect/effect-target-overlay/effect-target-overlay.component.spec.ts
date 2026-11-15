@@ -1,7 +1,9 @@
+import { WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -184,6 +186,60 @@ describe('EffectTargetOverlayComponent', () => {
       fixture.detectChanges();
 
       expect(casterMark()).toBeNull();
+    });
+  });
+
+  describe('what an area attack would take in', () => {
+    let canHover: WritableSignal<boolean>;
+
+    function byTestId(testId: string): HTMLElement[] {
+      return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll(`[data-testid="${testId}"]`));
+    }
+
+    beforeEach(() => {
+      canHover = (TestBed.inject(ViewportService) as unknown as { _canHover: WritableSignal<boolean> })._canHover;
+      canHover.set(true);
+      preset.areaRadius = 5;
+      const camera = TestBed.inject(TableCameraService);
+      camera.setLayout({ left: 0, top: 30, width: 1280, height: 770, boardWidth: 1000, boardHeight: 750 });
+      camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
+    });
+
+    afterEach(() => {
+      for (const character of characters) targeting.hoverPiece(character.identifier, false);
+      canHover.set(false);
+      targeting.cancel();
+    });
+
+    it('is drawn round the piece under the pointer before the centre is pressed, as wide as the area and in lines alone', () => {
+      targeting.begin(preset);
+      fixture.detectChanges();
+      expect(byTestId('effect-area-prospect')).toHaveLength(0);
+
+      targeting.hoverPiece(characters[0].identifier, true);
+      fixture.detectChanges();
+
+      const [area] = byTestId('effect-area-prospect');
+      expect(area.style.width).toBe(`${targeting.areaRadius() * 2}px`);
+      expect(area.style.transform).toMatch(/^matrix3d\(/);
+      expect(area.style.borderRadius).toBe('50%');
+      expect(area.style.background).toBe('');
+      expect(area.style.backgroundColor).toBe('');
+      // The piece 200px off is within the five cells of 50px; the one 400px off is not.
+      expect(byTestId('effect-prospect-mark')).toHaveLength(2);
+      for (const mark of byTestId('effect-prospect-mark')) expect(mark.style.background).toBe('');
+      expect(byTestId('effect-target-mark')).toHaveLength(0);
+    });
+
+    it('gives way to the settled area once the piece is pressed', () => {
+      targeting.begin(preset);
+      targeting.hoverPiece(characters[0].identifier, true);
+      targeting.pick(characters[0].identifier);
+      fixture.detectChanges();
+
+      expect(byTestId('effect-area-prospect')).toHaveLength(0);
+      expect(byTestId('effect-prospect-mark')).toHaveLength(0);
+      expect(byTestId('effect-target-mark')).toHaveLength(2);
     });
   });
 

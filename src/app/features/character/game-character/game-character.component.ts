@@ -397,9 +397,16 @@ export class GameCharacterComponent {
       });
     });
 
+    effect(() => {
+      const over = this.hovered();
+      const char = this.gameCharacter();
+      if (char) untracked(() => this.effectTargeting.hoverPiece(char.identifier, over));
+    });
+
     this.destroyRef.onDestroy(() => {
       const char = this.gameCharacter();
       if (char) {
+        this.effectTargeting.hoverPiece(char.identifier, false);
         this.motions.turnOnItsOwn(char.identifier, null);
         this.motions.stop(char.identifier);
       }

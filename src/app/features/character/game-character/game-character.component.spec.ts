@@ -2392,6 +2392,30 @@ describe('GameCharacterComponent', () => {
     });
   });
 
+  describe('telling what the pointer is over', () => {
+    it('tells the choosing of an effect’s targets when the pointer comes over the piece and when it leaves', () => {
+      const hover = vi.spyOn(TestBed.inject(EffectTargetingService), 'hoverPiece');
+      const character = GameCharacter.create('hovered', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        const root = fixture.nativeElement.querySelector('[data-hud-box]') as HTMLElement;
+
+        root.dispatchEvent(new Event('pointerenter'));
+        fixture.detectChanges();
+        expect(hover).toHaveBeenLastCalledWith(character.identifier, true);
+
+        root.dispatchEvent(new Event('pointerleave'));
+        fixture.detectChanges();
+        expect(hover).toHaveBeenLastCalledWith(character.identifier, false);
+      } finally {
+        character.destroy();
+        hover.mockRestore();
+      }
+    });
+  });
+
   describe('the handles that turn and tip a piece over', () => {
     const hoverOf = () =>
       (TestBed.inject(ViewportService) as unknown as { _canHover: WritableSignal<boolean> })._canHover;

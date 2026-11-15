@@ -1,6 +1,12 @@
 @if (area(); as areaShape) {
   <div [ngStyle]="areaStyle(areaShape)"></div>
 }
+@if (prospect(); as prospected) {
+  <div data-testid="effect-area-prospect" [ngStyle]="prospectAreaStyle(prospected)"></div>
+  @for (mark of prospected.marks; track mark.identifier) {
+    <div data-testid="effect-prospect-mark" [ngStyle]="prospectMarkStyle(mark)"></div>
+  }
+}
 @if (caster(); as casterMark) {
   <div data-testid="effect-caster-mark" [ngStyle]="casterStyle(casterMark)"></div>
 }

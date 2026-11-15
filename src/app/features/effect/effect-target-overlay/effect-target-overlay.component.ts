@@ -1,7 +1,9 @@
 import { NgStyle } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import {
+  EffectAreaProspect,
   EffectCasterMark,
+  EffectProspectMark,
   EffectTargetingService,
   EffectTargetLink,
   EffectTargetMark,
@@ -26,7 +28,9 @@ interface FloorPoint {
 
 /**
  * What shows while targets are being chosen: the marks in order, a line from the caster to each, and
- * the mark of the caster itself.
+ * the mark of the caster itself. For an area attack, the pointer over a piece shows what a press on it
+ * would do before it is pressed: a dotted ring as far as the area would reach and a dashed ring round
+ * each piece it would take in, lines alone with nothing laid over the table.
  *
  * The marks lie flat and only the numbers stand up; flat numbers cannot be read once the board is tilted.
  * A target is ringed by a circle in the effect's colour and the caster by a pale double-lined diamond, so
@@ -89,6 +93,9 @@ export class EffectTargetOverlayComponent {
   });
   readonly links = computed<EffectTargetLink[]>(() => this.targeting.links());
 
+  /** What a press on the piece under the pointer would reach and take in, or null where there is nothing to show. */
+  readonly prospect = computed<EffectAreaProspect | null>(() => this.targeting.areaProspect());
+
   protected readonly color = this.targeting.markColor;
   protected readonly accent = computed<string>(() => this.targeting.preset()?.colorSecondary ?? '#ff5a33');
 
@@ -128,6 +135,47 @@ export class EffectTargetOverlayComponent {
       'transform-origin': '0 0',
       'pointer-events': 'none',
     };
+  }
+
+  protected prospectAreaStyle(prospect: EffectAreaProspect): Record<string, string> {
+    const size = prospect.radius * 2;
+    return this.laid(
+      {
+        position: 'absolute',
+        left: '0px',
+        top: '0px',
+        width: size + 'px',
+        height: size + 'px',
+        'box-sizing': 'border-box',
+        'border-radius': '50%',
+        border: `2px dotted ${this.color()}`,
+        'transform-origin': '0 0',
+        'pointer-events': 'none',
+      },
+      this.screen()?.flat(
+        this.squareRound(prospect.center.x, prospect.center.y, size),
+        prospect.center.z + 1,
+        size,
+        size
+      )
+    );
+  }
+
+  protected prospectMarkStyle(mark: EffectProspectMark): Record<string, string> {
+    return this.laid(
+      {
+        position: 'absolute',
+        left: '0px',
+        top: '0px',
+        width: MARK_SIZE + 'px',
+        height: MARK_SIZE + 'px',
+        'border-radius': '50%',
+        border: `2px dashed ${this.color()}`,
+        'transform-origin': '0 0',
+        'pointer-events': 'none',
+      },
+      this.screen()?.flat(this.squareRound(mark.x, mark.y, MARK_SIZE), mark.z + 1, MARK_SIZE, MARK_SIZE)
+    );
   }
 
   protected linkStyle(link: EffectTargetLink): Record<string, string> {
