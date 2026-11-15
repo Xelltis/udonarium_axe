@@ -10,6 +10,8 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { PieceResetService } from '@axe/application/character/piece-reset.service';
+import { type ResetUndoResult, ResetUndoService } from '@axe/application/character/reset-undo.service';
 import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
@@ -142,6 +144,8 @@ export class ChatMessageComponent {
 
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly lineEdit = inject(ChatLineEditService);
+  private readonly resetUndo = inject(ResetUndoService);
+  private readonly pieceReset = inject(PieceResetService);
   private readonly clock = inject(ChatClockService);
   private readonly chatBookmarks = inject(ChatBookmarkService);
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
@@ -771,6 +775,25 @@ export class ChatMessageComponent {
   /** Reveals a kept-back roll to the room, from the button shown on the hidden line. */
   discloseMessage() {
     this.lineEdit.discloseMessage(this.chatMessage);
+  }
+
+  /**
+   * Whether this line reports a reset this seat carried out and may still take back. Only the device
+   * that carried the reset out keeps what it did, so no other seat is offered the button.
+   */
+  canUndoReset(): boolean {
+    return this.resetUndo.isOffered(this.chatMessage.identifier);
+  }
+
+  /** How taking back the reset this line reported ended, where it was taken back from here. */
+  resetUndoResult(): ResetUndoResult | null {
+    return this.resetUndo.resultOf(this.chatMessage.identifier);
+  }
+
+  /** Takes back the reset this line reported, from the button shown on it; once, and only by a seat that may. */
+  undoReset(): void {
+    if (!this.canUndoReset()) return;
+    this.pieceReset.takeBack(this.chatMessage);
   }
 
   readonly editDraft = signal<string | null>(null);
