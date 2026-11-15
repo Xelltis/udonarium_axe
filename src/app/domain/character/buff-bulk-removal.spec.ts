@@ -4,6 +4,8 @@ import {
   describeBuffRemoval,
   describeBuffsLacking,
   isClearedWithBody,
+  isPieceResetCommand,
+  isTableResetCommand,
   parseBuffClearanceCommand,
   parseBuffRemovalCommand,
   removeBuffsAcross,
@@ -56,6 +58,39 @@ describe('sweeping buffs off the table', () => {
 
     it.each(['&毒-', '&&-', 't&&毒-', '&&毒', '&&毒/3'])('leaves %s to the other buff commands', (command) => {
       expect(parseBuffRemovalCommand(command)).toBeNull();
+    });
+  });
+
+  describe('the one word that resets', () => {
+    it.each(['&リセット-', '&reset-', 't&リセット-', 'T&Reset-', '＆ＲＥＳＥＴ－', 'ｔ＆リセット－'])(
+      'reads %s as resetting a piece',
+      (command) => {
+        expect(isPieceResetCommand(command)).toBe(true);
+        expect(isTableResetCommand(command)).toBe(false);
+      }
+    );
+
+    it.each(['&&リセット-', '&&reset-', 's&&リセット-', '＆＆ＲＥＳＥＴ－'])(
+      'reads %s as resetting the table',
+      (command) => {
+        expect(isTableResetCommand(command)).toBe(true);
+        expect(isPieceResetCommand(command)).toBe(false);
+        expect(parseBuffRemovalCommand(command)).toEqual({ kind: 'name', name: command.replace(/^s?..|.$/g, '') });
+      }
+    );
+
+    it.each([
+      '&リセット',
+      '&リセット/3',
+      '&リセット2-',
+      '&+リセット-',
+      '&*リセット-',
+      '&全リセット-',
+      't&&リセット-',
+      '&resets-',
+    ])('leaves %s what it always was', (command) => {
+      expect(isPieceResetCommand(command)).toBe(false);
+      expect(isTableResetCommand(command)).toBe(false);
     });
   });
 

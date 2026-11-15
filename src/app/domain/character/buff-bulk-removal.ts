@@ -190,6 +190,32 @@ export function parseBuffClearanceCommand(command: string): BuffClearanceRule | 
   return match ? readClearance(match[1].trim()) : null;
 }
 
+const RESET_WORDS: readonly string[] = ['リセット', 'reset'];
+
+function isResetWord(word: string): boolean {
+  return RESET_WORDS.includes(word.trim().normalize('NFKC').toLowerCase());
+}
+
+/**
+ * Whether a buff command is the one word that resets the speaker's piece, or with a `t` the pieces
+ * aimed at: `&リセット-` (`&reset-`), which clears the piece and its parts of every buff and then puts
+ * their values back to their defaults. A buff of that name is no longer taken off by it.
+ */
+export function isPieceResetCommand(command: string): boolean {
+  const match = (command ?? '').trim().match(/^[tTｔＴ]?[&＆]([^&＆].*)[-－]$/);
+  return match != null && isResetWord(match[1]);
+}
+
+/**
+ * Whether a sweep is the one word that resets the table, `&&リセット-` (`&&reset-`): every buff off
+ * every piece on it, and then their values back to their defaults. A leading `s` is allowed as for
+ * any sweep.
+ */
+export function isTableResetCommand(command: string): boolean {
+  const match = (command ?? '').trim().match(/^[sSｓＳ]?[&＆]{2}(.+)[-－]$/);
+  return match != null && isResetWord(match[1]);
+}
+
 /**
  * Reads a sweep across the table written in chat, or null for anything else.
  *

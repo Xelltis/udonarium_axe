@@ -62,6 +62,18 @@ describe('resource-edit-helpers', () => {
       character = GameCharacter.create('テスト戦士', 1, '');
     });
 
+    it('reads the forms that put values back as it did before there were any, leaving them to be read first', () => {
+      const read = (command: string) => {
+        const edit = createDefaultResourceEdit();
+        return { ok: convertCommandToResourceEdit(edit, command, character, false), command: edit.command };
+      };
+
+      expect(read(':*=既定').ok).toBe(false);
+      expect(read(':*=default').ok).toBe(false);
+      expect(read(':HP=default').ok).toBe(false);
+      expect(read(':HP=既定')).toEqual({ ok: true, command: '既定+(1d1-1)' });
+    });
+
     it('reads a command that adds to a resource', () => {
       const edit = createDefaultResourceEdit();
 
@@ -571,6 +583,47 @@ describe('resource-edit-helpers', () => {
         edit('&転倒しそう');
 
         expect(character.buffs.find('転倒しそう')!.currentValue).toBe('');
+      });
+    });
+
+    describe('a word marking a buff or a debuff where the rounds go', () => {
+      const lay = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+      const kindOf = (name: string) => character.buffs.find(name)!.getAttribute(DataElementAttribute.BUFF_KIND);
+
+      it('marks the buff and lays it for the rounds it has when none are written', () => {
+        lay('&毒霧/命中-2/デバフ');
+        lay('&毒煙/命中-2');
+
+        const marked = character.buffs.find('毒霧')!;
+        expect(kindOf('毒霧')).toBe('debuff');
+        expect(marked.value).toBe(character.buffs.find('毒煙')!.value);
+        expect(marked.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('');
+      });
+
+      it('reads the look written after it, and marks a buff that moves a status the same way', () => {
+        character.detailDataElement!.appendChild(DataElement.create('命中', 5, {}));
+
+        lay('&祝福/回避+1/buff/red');
+        lay('&!呪い/命中/-/2/debuff');
+
+        expect(kindOf('祝福')).toBe('buff');
+        expect(character.buffs.find('祝福')!.getAttribute(DataElementAttribute.BUFF_COLOR)).toBe(
+          resolveBuffColor('red')
+        );
+        expect(kindOf('呪い')).toBe('debuff');
+        expect(character.buffs.find('呪い')!.value).toBe(3);
+        expect(character.status.getValue('命中', 'now')).toBe(3);
+      });
+
+      it('reads every form written before as it did', () => {
+        lay('&加護/防護+1/5/デバフ');
+        lay('&継続/毎R2点/none');
+        lay('&眠り/行動不能/デバフ中');
+
+        expect([character.buffs.find('加護')!.value, kindOf('加護')]).toEqual([5, 'debuff']);
+        expect(character.buffs.find('継続')!.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('none');
+        expect(kindOf('眠り')).toBe('');
+        expect(character.buffs.find('眠り')!.value).toBe(3);
       });
     });
 

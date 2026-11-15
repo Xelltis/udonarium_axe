@@ -27,6 +27,12 @@ import {
 } from '@axe/domain/character/buff-modifier';
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { buffExpires } from '@axe/domain/character/buff-timing';
+import {
+  type DefaultPick,
+  type DefaultValueChange,
+  type PieceDefaultReset,
+  resetToDefaults,
+} from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
@@ -336,6 +342,67 @@ export function applyResourceEditReport(edit: ResourceEdit, character: GameChara
 
 /** What stands in for a value said to be set on a piece whose contents are kept from anyone. */
 const KEPT_VALUE = '？';
+
+/** One `:` command that puts a piece's values back to their defaults, ready to be carried out. */
+export interface DefaultResetEdit {
+  object: GameCharacter;
+  targeted: boolean;
+  pick: DefaultPick;
+}
+
+/** The chat text reporting values put back, the pieces whose contents it keeps from anyone, and what changed. */
+export interface DefaultResetReport extends ResourceEditReport {
+  readonly kept: readonly GameCharacter[];
+  readonly resets: readonly PieceDefaultReset[];
+}
+
+function describeDefaultChange(change: DefaultValueChange): string {
+  const label = resourceSlotLabel(change.slot);
+  const shown = (value: number | string) => (`${value}` === '' ? '-' : `${value}`);
+  return `${change.name}${label.length > 0 ? `(${label})` : ''}:${shown(change.before)}→${shown(change.after)}`;
+}
+
+/**
+ * Puts a piece and the parts that go with it back to their defaults and returns the chat text
+ * reporting it; see {@link resetToDefaults}.
+ *
+ * Each item that changed is told with what it held before and after, the items of a part after the
+ * part's name. Of a piece whose contents are kept from anyone, everyone is told only how many items
+ * changed. The text says so where every item already stood at its default, and where nothing asked
+ * for keeps one. Both texts are empty where one item was named and the piece has none by that name.
+ */
+export function applyDefaultReset(edit: DefaultResetEdit): DefaultResetReport {
+  const resets = resetToDefaults(edit.object, edit.pick);
+  const named = edit.pick.kind === 'item' ? edit.pick : null;
+  const label = named ? `${named.name}${slotSuffix(named.slot)}` : '';
+  const said = (text: string): DefaultResetReport => ({ full: text, shown: text, kept: [], resets });
+
+  if (!resets.some((reset) => reset.found)) return said('');
+  if (resets.every((reset) => reset.defaults < 1)) {
+    return said(named ? `${label}に既定値はありません    ` : '既定値のある項目はありません    ');
+  }
+  const changed = resets.filter((reset) => reset.changes.length > 0);
+  if (changed.length < 1) return said(named ? `${label}は既定値のままです    ` : '既定値のままです    ');
+
+  let full = '既定値に戻す';
+  let shown = '既定値に戻す';
+  const kept: GameCharacter[] = [];
+  for (const reset of changed) {
+    const part = reset.piece === edit.object ? '' : ` 部位「${saidNameOf(reset.piece)}」`;
+    const items = `${part} ${reset.changes.map(describeDefaultChange).join(' ')}`;
+    full += items;
+    if (isKeptFromAnyone(reset.piece)) {
+      kept.push(reset.piece);
+      shown += `${part}（${reset.changes.length}項目）`;
+    } else shown += items;
+  }
+  return { full: `${full}    `, shown: `${shown}    `, kept, resets };
+}
+
+function slotSuffix(slot: ResourceSlot): string {
+  const label = resourceSlotLabel(slot);
+  return label.length > 0 ? `(${label})` : '';
+}
 
 /**
  * `&!name/status/op/amount/R/timing/trigger` - a buff that moves a status as it goes on and

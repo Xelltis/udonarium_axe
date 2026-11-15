@@ -1,5 +1,7 @@
 import { parseBuffRemovalCommand } from '@axe/domain/character/buff-bulk-removal';
+import type { DefaultPick } from '@axe/domain/character/default-value';
 import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
+import { readNamedResourceSlot } from '@axe/domain/data/resource-slot';
 import { readTurnChatCommand } from '@axe/domain/tabletop/turn-chat-command';
 
 /** One command picked out of a chat line, in the form it is carried out in, and where it was typed. */
@@ -180,4 +182,25 @@ export function resourceCommandParts(command: string): ResourceCommandParts | nu
  */
 export function namableInResourceCommand(name: string): boolean {
   return name.length > 0 && !/[\s:：&＆\-+=>－＋＝＞]/.test(name);
+}
+
+/** The words that stand for an item's default where the amount of a `:` command goes. */
+const DEFAULT_WORDS: readonly string[] = ['既定', 'default'];
+
+/**
+ * Reads a `:` command that puts values back to their defaults, or answers null for any other.
+ *
+ * `:*=既定` (`:*=default`) takes every item that keeps a default, and `:HP=既定` the one item named, at
+ * the slot written after its name: `:HP^=既定` its maximum, `:HP_MAX_BUFF=既定` the correction on it. The
+ * word is read in either width and case, and nothing may follow it. An item named `*` is not
+ * reached by the first form; every other operation on it reads as it always did.
+ */
+export function readDefaultResetCommand(command: string): DefaultPick | null {
+  const parts = resourceCommandParts(command);
+  if (!parts || parts.operator !== '=') return null;
+  if (!DEFAULT_WORDS.includes(parts.amount.trim().normalize('NFKC').toLowerCase())) return null;
+  const name = parts.name.trim();
+  if (name === '*' || name === '＊') return { kind: 'all' };
+  const named = readNamedResourceSlot(parts.name);
+  return { kind: 'item', name: named.name, slot: named.slot };
 }
