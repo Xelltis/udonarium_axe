@@ -1,11 +1,11 @@
 import { outCubic, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
+import { layBillows, layFlames, thrownFireAt } from '@axe/domain/effect/scene/fire/fire-body';
 import {
   type Bit,
   type Cloud,
   drawBit,
   drawCloud,
-  drawFire,
   DUST,
   type FireBall,
   SMOKE,
@@ -249,7 +249,9 @@ export function drawWreck(
   }
   for (const cloud of wreck.clouds) drawCloud(drawn, cloud, since, U, forward);
   for (const bit of wreck.bits) drawBit(drawn, bit, since, U, ramp, forward);
-  for (const fire of wreck.fire) drawFire(drawn, fire, since, U, ramp, forward);
+  const thrown = thrownFireAt(wreck.fire, since, U);
+  layBillows(drawn, thrown.billows, ramp, true, { forward });
+  layFlames(drawn, thrown.flames, ramp, { forward });
 }
 
 /** How long the fire of the landing takes to rise, when it begins to burn out and when it has, and when its smoke has cleared, in seconds from the landing. */
