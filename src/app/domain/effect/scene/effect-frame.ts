@@ -36,6 +36,7 @@ import { barrier } from '@axe/domain/effect/scene/holy/barrier';
 import { halo } from '@axe/domain/effect/scene/holy/halo';
 import { heal } from '@axe/domain/effect/scene/holy/heal';
 import { sanctuary } from '@axe/domain/effect/scene/holy/sanctuary';
+import { shotSmite } from '@axe/domain/effect/scene/holy/shot-smite';
 import { smite } from '@axe/domain/effect/scene/holy/smite';
 import { warp } from '@axe/domain/effect/scene/holy/warp';
 import { hasScenePart, SCENE_LINGER_S, strikesInSceneWith, STRIKING_WITH } from '@axe/domain/effect/scene/scene-kinds';
@@ -112,12 +113,19 @@ const ALONGSIDE: Partial<Record<EffectKind, Choreography>> = { bisect, dissolve 
 const LANDINGS: Partial<Record<EffectKind, Choreography>> = { impact: struckImpact, rubble: struckRubble };
 
 /**
+ * The looks a shot lands with that a great blade does not: a shot that lands in light that smites
+ * lands in the least of it, where a blade brings down the light of its own grade.
+ */
+const SHOT_LANDINGS: Partial<Record<EffectKind, Choreography>> = { smite: shotSmite };
+
+/**
  * The look a preset strikes with, drawn on its own clock: one that cuts a piece's picture draws all
  * but the picture, which is drawn over the table.
  */
 function strikeWith(stage: Stage): Staged {
   const kind = strikesInSceneWith(stage.preset.impactEffectKind);
-  const look = LANDINGS[kind] ?? CHOREOGRAPHIES[kind] ?? ALONGSIDE[kind];
+  const shot = stage.preset.effectKind === 'skyblade' ? undefined : SHOT_LANDINGS[kind];
+  const look = shot ?? LANDINGS[kind] ?? CHOREOGRAPHIES[kind] ?? ALONGSIDE[kind];
   return look ? look.draw(stage) : nothingStaged();
 }
 

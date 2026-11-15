@@ -365,6 +365,24 @@ describe('the newer looks for a projectile', () => {
   });
 });
 
+describe('the shots and the cure that were given another look to land or to play with', () => {
+  const seedOf = (identifier: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.identifier === identifier)!;
+
+  it('lands a ball of spirit and the shots of a blaster in an impact, which leaves no soot', () => {
+    expect(seedOf('EffectPreset_qigong_2')).toMatchObject({ name: '気弾', impactKind: 'impact', soundKey: 'qigong' });
+    for (const identifier of ['EffectPreset_blaster_single', 'EffectPreset_blaster_bolt']) {
+      expect(seedOf(identifier)).toMatchObject({ impactKind: 'impact', soundKey: 'sfShot', impactSoundKey: 'sfHit' });
+    }
+  });
+
+  it('plays the cure of states as a healing, as long as its sound', () => {
+    const cure = seedOf('EffectPreset_status_cure');
+
+    expect(cure).toMatchObject({ name: '状態回復', tagName: '回復', kind: 'heal', soundKey: 'statusCure' });
+    expect(cure.durationMs).toBeUndefined();
+  });
+});
+
 describe('the holy family', () => {
   const holy = DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => seed.tagName === '聖');
   const seedOf = (identifier: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.identifier === identifier)!;
@@ -374,6 +392,11 @@ describe('the holy family', () => {
     expect(seedOf('EffectPreset_breath_holy')).toMatchObject({ name: '聖なる吐息', tagName: '聖', kind: 'breath' });
     expect(seedOf('EffectPreset_skyblade')).toMatchObject({ name: '光の大剣', tagName: '聖', kind: 'skyblade' });
     for (const seed of holy) expect(seed.moteStyle ?? '').toBe('');
+  });
+
+  it('lands the shot and the great sword of light in light that smites, not in a blast of fire', () => {
+    expect(seedOf('EffectPreset_holybolt_3')).toMatchObject({ impactKind: 'smite', impactSoundKey: 'explosionSmall' });
+    expect(seedOf('EffectPreset_skyblade')).toMatchObject({ impactKind: 'smite', impactSoundKey: 'explosionLarge' });
   });
 
   it('has an attack for every part an element plays, eight in all', () => {
