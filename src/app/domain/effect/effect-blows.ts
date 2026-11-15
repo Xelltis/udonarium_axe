@@ -50,6 +50,8 @@ const STRIKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'smite',
   'halo',
   'sanctuary',
+  'shadow',
+  'darkorb',
 ]);
 
 /** How long everything holds still on contact, by grade: a light blow barely catches, the heaviest stops the breath. */
@@ -107,8 +109,9 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
  * one that holds and neither shakes the screen nor throws the piece: the instant it takes hold. A
  * look of holy light lands one, once it has been seen coming: its pillar landing, its ring bursting,
  * its walls rising. A draining lands one as it takes hold, which pulls the piece towards the one who
- * drains it rather than throwing it back, and one as it snaps, which lets the piece fall back. The
- * greatest aura on its own lands one as it breaks out,
+ * drains it rather than throwing it back, and one as it snaps, which lets the piece fall back. A look
+ * of darkness lands one as it is seen to strike: spikes stabbing, a sphere bursting, the corona of an
+ * eclipse flaring; and a mire two, as its hands seize and as it closes. The greatest aura on its own lands one as it breaks out,
  * which holds and shakes and moves no piece. A bolt of lightning lands one as it strikes, once its
  * leader has been seen coming, and the greatest of them a second, the last stroke its column ends in;
  * a current of lightning lands one as it reaches its target. Each later target is struck as the first is, its stagger

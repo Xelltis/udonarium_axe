@@ -1466,7 +1466,9 @@
         "ballistic": "탄도 미사일",
         "smite": "심판의 빛",
         "halo": "빛의 고리",
-        "sanctuary": "성역"
+        "sanctuary": "성역",
+        "shadow": "그림자 가시・나락",
+        "darkorb": "암흑구・식"
       },
       "targeting": {
         "self": "자신",

@@ -29,6 +29,16 @@ describe('effectBlowsOf()', () => {
     expect(blows[1].push).toBe(-blows[0].push);
   });
 
+  it('lands a look of darkness as it is seen to strike: spikes, a sphere and an eclipse once, a mire twice', () => {
+    const at = (kind: 'shadow' | 'darkorb', grade: number) =>
+      effectBlowsOf(makePreset(kind, grade, { durationMs: 5000 })).map((blow) => blow.atMs);
+
+    expect(at('shadow', 1)).toEqual([500]);
+    expect(at('shadow', 3)).toEqual([1000, 2950]);
+    expect(at('darkorb', 2)).toEqual([1740]);
+    expect(at('darkorb', 3)).toEqual([2620]);
+  });
+
   it('lands one blow as the greatest aura breaks out, which holds, shakes lightly and throws no piece', () => {
     const [blow, ...rest] = effectBlowsOf(makePreset('aura', 3, { durationMs: 2500 }));
 

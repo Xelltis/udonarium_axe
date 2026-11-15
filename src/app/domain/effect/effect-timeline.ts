@@ -65,6 +65,8 @@ export const CENTERED_EFFECT_KINDS: readonly EffectKind[] = [
   'smite',
   'halo',
   'sanctuary',
+  'shadow',
+  'darkorb',
 ];
 
 const AIMED: ReadonlySet<EffectKind> = new Set(AIMED_EFFECT_KINDS);

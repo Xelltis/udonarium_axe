@@ -44,9 +44,12 @@ describe('effectShakeOf()', () => {
     }
   });
 
-  it('shakes for a draining as for any blow of its grade', () => {
+  it('shakes for a draining and for the looks of darkness, and lightly for spikes of shadow of the lowest grade', () => {
     expect(effectShakeOf(makePreset('drain', 2))).toBe('soft');
-    expect(effectShakeOf(makePreset('drain', 3))).toBe('hard');
+    expect(effectShakeOf(makePreset('shadow', 1))).toBe('soft');
+    expect(effectShakeOf(makePreset('shadow', 3))).toBe('hard');
+    expect(effectShakeOf(makePreset('darkorb', 2))).toBe('soft');
+    expect(effectShakeOf(makePreset('darkorb', 3))).toBe('hard');
   });
 
   it('shakes lightly for the greatest aura on its own, and for no other aura, healing or shield', () => {

@@ -224,6 +224,62 @@ const HOLY_SEEDS: readonly EffectPresetSeed[] = [
   }),
 ];
 
+/** An attack of the dark family, in its violet over black. */
+function darkSeed(
+  key: string,
+  name: string,
+  kind: EffectKind,
+  grade: number,
+  soundKey: PresetSoundKey,
+  soundMs: number,
+  more: Partial<EffectPresetSeed> = {}
+): EffectPresetSeed {
+  return {
+    identifier: `EffectPreset_${key}`,
+    name,
+    tagName: '闇',
+    kind,
+    colorPrimary: '#e3b3ff',
+    colorSecondary: '#6a1fc2',
+    soundMs,
+    staggerMs: 0,
+    scale: 1.2,
+    targeting: 'single',
+    maxTargets: 1,
+    soundKey,
+    grade,
+    ...more,
+  };
+}
+
+/**
+ * The attacks of darkness: spikes out of one target's shadow, a black sphere on each of several in
+ * turn, a mire of hands opened over an area, and an eclipse hung over one.
+ */
+const DARK_SEEDS: readonly EffectPresetSeed[] = [
+  darkSeed('shadow_1', '影の棘', 'shadow', 1, 'gravity', 1855, { scale: 1.1, impactSoundKey: 'damageLarge' }),
+  darkSeed('darkorb_2', '暗黒球', 'darkorb', 2, 'gravityLarge', 3788, {
+    staggerMs: 260,
+    targeting: 'multi',
+    maxTargets: 4,
+    impactSoundKey: 'explosionSmall',
+  }),
+  darkSeed('shadow_3', '奈落', 'shadow', 3, 'earthUpheaval', 5042, {
+    scale: 1.4,
+    targeting: 'multi',
+    maxTargets: 8,
+    areaRadius: 3,
+    impactSoundKey: 'statusCurse',
+  }),
+  darkSeed('darkorb_3', '蝕', 'darkorb', 3, 'dark', 4206, {
+    scale: 1.5,
+    targeting: 'multi',
+    maxTargets: 8,
+    areaRadius: 3,
+    impactSoundKey: 'explosionLarge',
+  }),
+];
+
 export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
   {
     identifier: 'EffectPreset_bash_1',
@@ -1251,6 +1307,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     soundKey: 'drain',
     grade: 2,
   },
+  ...DARK_SEEDS,
   {
     identifier: 'EffectPreset_warp_1',
     name: '転移',

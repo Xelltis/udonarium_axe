@@ -159,6 +159,14 @@ export const kindGlyphSvg = remembered('kindGlyphSvg', (kind: string, colors: Sh
       return glyph(
         `<circle cx="50" cy="50" r="41" fill="none" stroke="${colors.core}" stroke-width="7"/><path d="M50 22 L78 50 L50 78 L22 50 Z M30 30 H70 V70 H30 Z" fill="none" stroke="${colors.edge}" stroke-width="6" stroke-linejoin="round"/>`
       );
+    case 'shadow':
+      return glyph(
+        `<ellipse cx="50" cy="84" rx="42" ry="10" fill="${colors.edge}"/><path d="M22 84 L32 30 L42 84 Z M40 84 L52 6 L62 84 Z M60 84 L72 38 L80 84 Z" ${solid}/>`
+      );
+    case 'darkorb':
+      return glyph(
+        `<circle cx="50" cy="50" r="42" fill="none" stroke="${colors.edge}" stroke-width="7"/><circle cx="50" cy="50" r="27" ${solid}/>`
+      );
     default:
       return glyph(`<circle cx="50" cy="50" r="30" ${solid}/>`);
   }

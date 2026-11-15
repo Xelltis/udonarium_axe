@@ -32,7 +32,9 @@ export type EffectKind =
   | 'ballistic'
   | 'smite'
   | 'halo'
-  | 'sanctuary';
+  | 'sanctuary'
+  | 'shadow'
+  | 'darkorb';
 
 export type EffectTargeting = 'self' | 'single' | 'multi';
 
@@ -112,6 +114,8 @@ export const EFFECT_KINDS: readonly EffectKind[] = [
   'smite',
   'halo',
   'sanctuary',
+  'shadow',
+  'darkorb',
 ];
 
 export const EFFECT_TARGETINGS: readonly EffectTargeting[] = ['self', 'single', 'multi'];

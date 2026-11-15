@@ -1466,7 +1466,9 @@
         "ballistic": "弾道ミサイル",
         "smite": "裁きの光",
         "halo": "光輪",
-        "sanctuary": "聖域"
+        "sanctuary": "聖域",
+        "shadow": "影の棘・奈落",
+        "darkorb": "暗黒球・蝕"
       },
       "targeting": {
         "self": "自分",

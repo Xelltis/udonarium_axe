@@ -31,6 +31,8 @@ const SHAKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'frost',
   'bisect',
   'drain',
+  'shadow',
+  'darkorb',
 ]);
 
 /**
@@ -76,7 +78,8 @@ export function breaksOutAsAura(preset: Pick<EffectPreset, 'isStaged' | 'effectK
 
 /**
  * How hard the screen shakes. Empty for not at all. A look of the lowest grade shakes nothing, but
- * one that stamps the ground in, an impact, which shakes it lightly however light it is. The greatest
+ * one that stamps the ground in, an impact, or stabs up out of it, spikes of shadow, which shakes it
+ * lightly however light it is. The greatest
  * aura shakes it lightly, and no harder.
  */
 export function effectShakeOf(preset: EffectPreset): EffectShake {
@@ -84,5 +87,5 @@ export function effectShakeOf(preset: EffectPreset): EffectShake {
   const kinds = drawnKinds(preset);
   if (!fallsAsMeteor(preset) && !breaksAsRock(preset) && !kinds.some((kind) => SHAKING_KINDS.has(kind))) return '';
   const shake = SHAKE_BY_GRADE[preset.gradeLevel];
-  return shake === '' && kinds.includes('impact') ? 'soft' : shake;
+  return shake === '' && (kinds.includes('impact') || kinds.includes('shadow')) ? 'soft' : shake;
 }

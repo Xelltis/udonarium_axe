@@ -3,6 +3,7 @@ import { isCurseAlone } from '@axe/domain/effect/ailment-looks';
 import { addAilmentJolts, ailmentJoltsEndOf } from '@axe/domain/effect/ailment-reaction';
 import { addBeamJolts, beamLetsGoAt } from '@axe/domain/effect/beam-reaction';
 import { breathSurgeAt, breathTimingOf, isGentleBreath } from '@axe/domain/effect/breath-timing';
+import { fallsAsEclipse, stabsFromBelow } from '@axe/domain/effect/dark-looks';
 import { addDarkJolts, darkLetsGoAt } from '@axe/domain/effect/dark-reaction';
 import { heavesGround } from '@axe/domain/effect/earth-looks';
 import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows';
@@ -88,7 +89,8 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * is put on bears the state it is in for as long as its look plays. Lightning shakes what it has hold
  * of besides: a piece struck by a bolt or caught in a current shudders until it lets go, and one
  * struck out of the sky starts up off the floor rather than being thrown back. Darkness holds what it
- * strikes besides, as `dark-reaction` has it. The pieces themselves stay where
+ * strikes besides, as `dark-reaction` has it, lifts a piece its spikes stab up under and presses down
+ * one its eclipse flares over. The pieces themselves stay where
  * they are: each seat draws them off it for a moment.
  */
 export function effectJoltsOf(
@@ -123,7 +125,7 @@ export function effectJoltsOf(
     for (const blow of blows) thrown += blow.push * cellPx * throwAt(local - blow.atMs);
     thrown = clamp(thrown, -MOST_THROWN_CELLS * cellPx, MOST_THROWN_CELLS * cellPx);
     if (thrown === 0) return;
-    if (heavesGround(preset) || burstsFromBelow(preset)) {
+    if (heavesGround(preset) || burstsFromBelow(preset) || stabsFromBelow(preset)) {
       add(target.identifier, { x: 0, y: 0, z: thrown * HEAVED_UP });
       return;
     }
@@ -131,7 +133,7 @@ export function effectJoltsOf(
       add(target.identifier, { x: 0, y: 0, z: thrown * STARTS_UP });
       return;
     }
-    const away = fallsFromAbove(preset) ? null : directionOf(cast.origin, target);
+    const away = fallsFromAbove(preset) || fallsAsEclipse(preset) ? null : directionOf(cast.origin, target);
     if (thrown < 0 && !away) return;
     add(
       target.identifier,

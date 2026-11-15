@@ -4,6 +4,7 @@ import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { parseAttributesKeepingIdentifier, toAttributesKeepingIdentifier } from '@axe/core/sync/persisted-identifier';
 import { clampOr } from '@axe/core/util/clamp';
+import { darkSoundsAt } from '@axe/domain/effect/dark-looks';
 import {
   EffectKind,
   EffectTargeting,
@@ -160,12 +161,14 @@ export class EffectPreset extends GameObject {
 
   /**
    * Where through the effect the landing sounds. A projectile sounds it as it lands, a look of holy
-   * light or a bolt of lightning as it strikes, once it has been seen coming, a current of lightning
-   * as it reaches its target, and anything else a little later.
+   * light, of darkness or a bolt of lightning as it strikes, once it has been seen coming, a current
+   * of lightning as it reaches its target, and anything else a little later.
    */
   get impactSoundAt(): number {
     const holy = holyStrikesAt(this.effectKind, this.gradeLevel, this.duration / 1000);
     if (holy !== undefined) return holy / (this.duration / 1000);
+    const dark = darkSoundsAt(this.effectKind, this.gradeLevel, this.duration / 1000);
+    if (dark !== undefined) return dark;
     // A bolt sounds as it strikes, after its leader, and a current as it reaches its target.
     if (this.effectKind === 'bolt')
       return (boltStrokesOf(this.gradeLevel, this.duration / 1000)[0] * 1000) / this.duration;

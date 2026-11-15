@@ -1466,7 +1466,9 @@
         "ballistic": "Ballistic missile",
         "smite": "Smiting light",
         "halo": "Halo of light",
-        "sanctuary": "Sanctuary"
+        "sanctuary": "Sanctuary",
+        "shadow": "Shadow spikes / Abyss",
+        "darkorb": "Dark orb / Eclipse"
       },
       "targeting": {
         "self": "Self",

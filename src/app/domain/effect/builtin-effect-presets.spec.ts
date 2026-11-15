@@ -484,3 +484,44 @@ describe('the family of lightning', () => {
     }
   });
 });
+
+describe('the dark family', () => {
+  const dark = DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => seed.tagName === '闇');
+  const seedOf = (identifier: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.identifier === identifier)!;
+
+  it('has an attack for every part an element plays in it, beside its curse', () => {
+    expect(dark.map((seed) => seed.name).sort()).toEqual(
+      ['呪い', '暗黒のブレス', '闇の大剣', '生命吸収', '影の棘', '暗黒球', '奈落', '蝕'].sort()
+    );
+    expect(seedOf('EffectPreset_shadow_1')).toMatchObject({
+      name: '影の棘',
+      kind: 'shadow',
+      grade: 1,
+      targeting: 'single',
+    });
+    expect(seedOf('EffectPreset_darkorb_2')).toMatchObject({
+      name: '暗黒球',
+      kind: 'darkorb',
+      grade: 2,
+      targeting: 'multi',
+    });
+    expect(seedOf('EffectPreset_shadow_3')).toMatchObject({ name: '奈落', kind: 'shadow', grade: 3, areaRadius: 3 });
+    expect(seedOf('EffectPreset_darkorb_3')).toMatchObject({ name: '蝕', kind: 'darkorb', grade: 3, areaRadius: 3 });
+    expect(seedOf('EffectPreset_darkorb_2').areaRadius ?? 0).toBe(0);
+    expect(seedOf('EffectPreset_darkorb_2').maxTargets).toBeGreaterThan(1);
+  });
+
+  it('strikes all that an attack over an area takes in at once, and those picked one by one in turn', () => {
+    expect(seedOf('EffectPreset_shadow_3').staggerMs).toBe(0);
+    expect(seedOf('EffectPreset_darkorb_3').staggerMs).toBe(0);
+    expect(seedOf('EffectPreset_darkorb_2').staggerMs).toBeGreaterThan(150);
+  });
+
+  it('gives each of its four new attacks a sound of its own', () => {
+    const sounds = ['shadow_1', 'darkorb_2', 'shadow_3', 'darkorb_3'].map(
+      (key) => seedOf(`EffectPreset_${key}`).soundKey
+    );
+
+    expect(new Set(sounds).size).toBe(4);
+  });
+});

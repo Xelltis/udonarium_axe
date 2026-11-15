@@ -20,9 +20,11 @@ import {
   type StageMouth,
   type StageTarget,
 } from '@axe/domain/effect/scene/choreography';
+import { darkorb, struckOrb } from '@axe/domain/effect/scene/dark/darkorb';
 import { drain } from '@axe/domain/effect/scene/dark/drain';
 import { gravity } from '@axe/domain/effect/scene/dark/gravity';
 import { miasma } from '@axe/domain/effect/scene/dark/miasma';
+import { shadow, struckShadow } from '@axe/domain/effect/scene/dark/shadow';
 import { impact } from '@axe/domain/effect/scene/earth/impact';
 import { rubble } from '@axe/domain/effect/scene/earth/rubble';
 import { struckImpact, struckRubble } from '@axe/domain/effect/scene/earth/struck';
@@ -79,6 +81,7 @@ const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = {
   breath,
   burst,
   curse,
+  darkorb,
   drain,
   flame,
   frost,
@@ -93,6 +96,7 @@ const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = {
   raybeam,
   rubble,
   sanctuary,
+  shadow,
   slash,
   smite,
   upheaval,
@@ -108,9 +112,16 @@ const ALONGSIDE: Partial<Record<EffectKind, Choreography>> = { bisect, dissolve 
 
 /**
  * The looks a shot or a blade lands with that are not the look of the same kind cast on its own: the
- * impact of an arrow or a bullet is a flash and a puff of dust, not the ground stamped in.
+ * impact of an arrow or a bullet is a flash and a puff of dust, not the ground stamped in; and what
+ * lands in darkness lands in its spikes or in the bursting of its sphere whatever its grade, never
+ * in a mire or an eclipse.
  */
-const LANDINGS: Partial<Record<EffectKind, Choreography>> = { impact: struckImpact, rubble: struckRubble };
+const LANDINGS: Partial<Record<EffectKind, Choreography>> = {
+  impact: struckImpact,
+  rubble: struckRubble,
+  shadow: struckShadow,
+  darkorb: struckOrb,
+};
 
 /**
  * The looks a shot lands with that a great blade does not: a shot that lands in light that smites
