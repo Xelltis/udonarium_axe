@@ -41,6 +41,13 @@ export type EffectBlend = 'light' | 'color';
  * and torn into shreds towards its tip; a wisp, the same gone soft, a shred of fog or smoke; a jet, a
  * hard-edged cone, narrow at its root and widening to an end that breaks up into licks; and a gust,
  * a jet gone soft.
+ *
+ * And there are the signs, each a flat figure of its colour with a dark outline, turned by its spin: a
+ * heart; a zed, the letter of sleep; a query, a question mark; a cross, two strokes crossed; a skull,
+ * whose sockets are of its core's colour where it has one; a pentagram, a star of five points; a swirl,
+ * a spiral wound out from its middle; a dial, the face of a clock with one hand pointing up it, or with
+ * a variant of one the shorter hand alone; a pair of eyes, slanted and narrowed; a bubble, a thin skin
+ * with a glint on it; a hoop, a ring and nothing more; and a bar, a band laid level across it.
  */
 export type EffectMoteShape =
   | 'glow'
@@ -54,6 +61,18 @@ export type EffectMoteShape =
   | 'flare'
   | 'comet'
   | 'plume'
+  | 'heart'
+  | 'zed'
+  | 'query'
+  | 'cross'
+  | 'skull'
+  | 'pentagram'
+  | 'swirl'
+  | 'dial'
+  | 'eyes'
+  | 'bubble'
+  | 'hoop'
+  | 'bar'
   | 'crag'
   | 'lick'
   | 'wisp'
@@ -94,6 +113,12 @@ export interface EffectMote {
    * a share of its size, clear of the piece it goes off about.
    */
   readonly exactDepth?: boolean;
+  /**
+   * How far it is set off from where it is across the screen, in table pixels: to the right of it and
+   * up from it as the eye sees them, whichever way the eye looks from, as a sign hung beside a head
+   * is beside it from every side.
+   */
+  readonly aside?: { readonly right: number; readonly up: number };
 }
 
 /**

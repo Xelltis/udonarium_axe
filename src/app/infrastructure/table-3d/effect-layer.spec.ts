@@ -165,6 +165,63 @@ describe('EffectLayer', () => {
     layer.dispose();
   });
 
+  it('tells the signs apart as shapes of their own, between the shapes that turn and the crag, turned within one round', () => {
+    const layer = new EffectLayer();
+    const signs = [
+      'heart',
+      'zed',
+      'query',
+      'cross',
+      'skull',
+      'pentagram',
+      'swirl',
+      'dial',
+      'eyes',
+      'bubble',
+      'hoop',
+      'bar',
+    ] as const;
+
+    layer.set({
+      motes: [
+        mote({ shape: 'plume' }),
+        ...signs.map((shape) => mote({ shape, spin: 7, variant: 1 })),
+        mote({ shape: 'crag' }),
+      ],
+      ribbons: [],
+      floor: [],
+      lights: [],
+    });
+    const looks = looksOf(layer, 'color');
+    const numbers = looks.map((look) => look[0]);
+
+    expect(new Set(numbers).size).toBe(signs.length + 2);
+    expect(numbers.slice(1, -1).every((number) => number > numbers[0] && number < numbers.at(-1)!)).toBe(true);
+    expect(looks[1][1]).toBeCloseTo(7 - Math.PI * 2, 4);
+    expect(looks[8][2]).toBeCloseTo(1, 5);
+    layer.dispose();
+  });
+
+  it('sets a particle off across the screen by as far as it is told, and one told nothing by nothing, whatever was drawn before', () => {
+    const layer = new EffectLayer();
+    const asidesOf = () => {
+      const meshes = layer.group.children.filter((object) => (object as Mesh).isMesh) as Mesh[];
+      const batch = meshes
+        .map((mesh) => mesh.geometry as InstancedBufferGeometry)
+        .filter((geometry) => geometry.getAttribute('motion') !== undefined)[1];
+      const aside = batch.getAttribute('aside').array;
+      return Array.from({ length: batch.instanceCount }, (_unused, index) => [
+        ...aside.slice(index * 4, index * 4 + 2),
+      ]);
+    };
+
+    layer.set({ motes: [mote({ aside: { right: 24, up: -6 } })], ribbons: [], floor: [], lights: [] });
+    expect(asidesOf()).toEqual([[24, -6]]);
+    layer.set({ motes: [mote({})], ribbons: [], floor: [], lights: [] });
+    expect(asidesOf()).toEqual([[0, 0]]);
+    layer.dispose();
+  });
+
   it('tells the colour of the middle of a particle that has one, and none for the rest, whatever was drawn before', () => {
     const layer = new EffectLayer();
 

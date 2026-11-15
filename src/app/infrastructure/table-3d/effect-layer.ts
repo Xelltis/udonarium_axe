@@ -9,6 +9,7 @@ import {
   type EffectMoteShape,
   type EffectRibbon,
 } from '@axe/domain/effect/scene/effect-scene';
+import { SIGN_NAMES, type SignShape, signShapes } from '@axe/infrastructure/table-3d/effect-signs';
 import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import {
   abs,
@@ -118,6 +119,18 @@ const MOTE_SHAPES: readonly EffectMoteShape[] = [
   'flare',
   'comet',
   'plume',
+  'heart',
+  'zed',
+  'query',
+  'cross',
+  'skull',
+  'pentagram',
+  'swirl',
+  'dial',
+  'eyes',
+  'bubble',
+  'hoop',
+  'bar',
   'crag',
   'lick',
   'wisp',
@@ -128,6 +141,10 @@ const MOTE_SHAPES: readonly EffectMoteShape[] = [
 const FLOWING_FROM = MOTE_SHAPES.indexOf('lick');
 /** The shapes whose spin is no turn but something told of them, kept as it is: a crag, and those that flow after it. */
 const UNTURNED_FROM = MOTE_SHAPES.indexOf('crag');
+/** The signs: see {@link EffectMoteShape}. They stand together in the list, from the first of them up to the crag. */
+const SIGNS_FROM = MOTE_SHAPES.indexOf('heart');
+/** How dark the outline of a sign is drawn, against its colour. */
+const SIGN_INK = 0.24;
 const MARK_SHAPES: readonly EffectFloorShape[] = ['ring', 'disc', 'sigil', 'cracks', 'scorch', 'fissure'];
 /** The number each shape is told to the shaders by, from its place in the list, which the shaders tell the shapes apart by. */
 const MOTE_SHAPE = Object.fromEntries(MOTE_SHAPES.map((shape, at) => [shape, at])) as Record<EffectMoteShape, number>;
@@ -284,7 +301,7 @@ export class EffectLayer {
   }
 
   private fillMotes(batch: Batch, motes: readonly EffectMote[], blend: EffectBlend): void {
-    const { place, tint, motion, look, core } = batch.buffers;
+    const { place, tint, motion, look, core, aside } = batch.buffers;
     let count = 0;
     for (const mote of motes) {
       if (mote.blend !== blend || count >= MAX_EFFECT_MOTES) continue;
@@ -319,6 +336,8 @@ export class EffectLayer {
       } else {
         core.array[at + 3] = 0;
       }
+      aside.array[at] = mote.aside?.right ?? 0;
+      aside.array[at + 1] = mote.aside?.up ?? 0;
       count++;
     }
     this.finish(batch, count);
@@ -554,7 +573,8 @@ export class EffectLayer {
    * about its middle by its spin; a spark drawn out behind it along the way it flies, as far as it
    * goes in its trail, and as wide as its size across it. One held to its own depth is drawn nearer
    * the eye by what it is set to and no more, so a piece standing before it hides it, and thins away
-   * as it comes close enough to the eye to fill the view.
+   * as it comes close enough to the eye to fill the view. One set off across the screen is drawn as far
+   * to the right of its place and up from it as it is set, as the eye sees them.
    */
   private moteBatch(blend: EffectBlend): Batch {
     const place = attribute<'vec4'>('place', 'vec4');
@@ -562,7 +582,8 @@ export class EffectLayer {
     const motion = attribute<'vec4'>('motion', 'vec4');
     const look = attribute<'vec4'>('look', 'vec4');
     const core = attribute<'vec4'>('core', 'vec4');
-    const at = place.xyz;
+    const aside = attribute<'vec4'>('aside', 'vec4');
+    const at = place.xyz.add(this.cameraRight.mul(aside.x)).add(this.cameraUp.mul(aside.y));
     const toEye = normalize(cameraPosition.sub(at));
     const size = place.w;
     const velocity = motion.xyz;
@@ -656,6 +677,15 @@ export class EffectLayer {
     // A plume of smoke drawn out the way it rises: soft, round at both ends and thinning to its edge.
     const plumeWidth = pow(sin(up.mul(Math.PI)), 0.6).add(0.001);
     const plume = pow(clamp(float(1).sub(abs(point.x).div(plumeWidth)), 0, 1), 1.4).mul(0.85);
+    const signs = signShapes(point, away, angle, variant);
+    const isSign = shape.greaterThanEqual(SIGNS_FROM).and(shape.lessThan(UNTURNED_FROM));
+    const signOf = (pick: (sign: SignShape) => Node<'float'>): Node<'float'> =>
+      SIGN_NAMES.slice(1).reduce<Node<'float'>>(
+        (rest, name) => select(shape.equal(MOTE_SHAPE[name]), pick(signs[name]), rest),
+        pick(signs[SIGN_NAMES[0]])
+      );
+    const signAlpha = signOf((sign) => sign.alpha);
+    const signFill = signOf((sign) => sign.fill);
     // A crag of rock, drawn out from its root to its tip: two faces meeting in a ridge, the one lit
     // and the other in shadow, beds of stone running across each and meeting at the ridge, notches
     // chipped out of its edges, a dark outline; broken off short of its tip by as much as its spin
@@ -772,33 +802,41 @@ export class EffectLayer {
       flows,
       flowing,
       select(
-        shape.equal(MOTE_SHAPE.glow),
-        glow,
+        isSign,
+        signAlpha,
         select(
-          shape.equal(MOTE_SHAPE.spark),
-          spark,
+          shape.equal(MOTE_SHAPE.glow),
+          glow,
           select(
-            shape.equal(MOTE_SHAPE.puff),
-            puff,
+            shape.equal(MOTE_SHAPE.spark),
+            spark,
             select(
-              shape.equal(MOTE_SHAPE.smoke),
-              smoke,
+              shape.equal(MOTE_SHAPE.puff),
+              puff,
               select(
-                shape.equal(MOTE_SHAPE.chunk),
-                chunk,
+                shape.equal(MOTE_SHAPE.smoke),
+                smoke,
                 select(
-                  shape.equal(MOTE_SHAPE.flake),
-                  flake,
+                  shape.equal(MOTE_SHAPE.chunk),
+                  chunk,
                   select(
-                    shape.equal(MOTE_SHAPE.star),
-                    star,
+                    shape.equal(MOTE_SHAPE.flake),
+                    flake,
                     select(
-                      shape.equal(MOTE_SHAPE.tongue),
-                      tongue,
+                      shape.equal(MOTE_SHAPE.star),
+                      star,
                       select(
-                        shape.equal(MOTE_SHAPE.flare),
-                        flare,
-                        select(shape.equal(MOTE_SHAPE.comet), comet, select(shape.equal(MOTE_SHAPE.crag), crag, plume))
+                        shape.equal(MOTE_SHAPE.tongue),
+                        tongue,
+                        select(
+                          shape.equal(MOTE_SHAPE.flare),
+                          flare,
+                          select(
+                            shape.equal(MOTE_SHAPE.comet),
+                            comet,
+                            select(shape.equal(MOTE_SHAPE.crag), crag, plume)
+                          )
+                        )
                       )
                     )
                   )
@@ -818,15 +856,19 @@ export class EffectLayer {
       select(facing.greaterThan(0.18), float(1.3), select(facing.lessThan(-0.25), float(0.7), float(1)))
     );
     const lit = select(
-      shape.equal(MOTE_SHAPE.chunk),
-      chunkShade,
+      isSign,
+      mix(float(SIGN_INK), float(1), signFill),
       select(
-        shape.equal(MOTE_SHAPE.crag),
-        cragShade,
+        shape.equal(MOTE_SHAPE.chunk),
+        chunkShade,
         select(
-          shape.equal(MOTE_SHAPE.smoke).or(shape.equal(MOTE_SHAPE.plume)),
-          float(1.12).sub(uv().y.oneMinus().mul(0.4)),
-          float(1)
+          shape.equal(MOTE_SHAPE.crag),
+          cragShade,
+          select(
+            shape.equal(MOTE_SHAPE.smoke).or(shape.equal(MOTE_SHAPE.plume)),
+            float(1.12).sub(uv().y.oneMinus().mul(0.4)),
+            float(1)
+          )
         )
       )
     );
@@ -846,9 +888,18 @@ export class EffectLayer {
     const body = mix(
       tint.rgb.mul(lit),
       core.rgb,
-      select(flows, cored, select(shape.equal(MOTE_SHAPE.crag), cragVeined, float(0)))
+      select(
+        flows,
+        cored,
+        select(
+          shape.equal(MOTE_SHAPE.crag),
+          cragVeined,
+          select(shape.equal(MOTE_SHAPE.skull), signs.skull.cored.mul(core.w), float(0))
+        )
+      )
     );
-    const shown = mix(body, vec3(1, 1, 1), blend === 'light' ? hot : float(0));
+    const glinting = select(shape.equal(MOTE_SHAPE.bubble), signs.bubble.cored, float(0));
+    const shown = mix(mix(body, vec3(1, 1, 1), blend === 'light' ? hot : float(0)), vec3(1, 1, 1), glinting);
 
     const material = new MeshBasicNodeMaterial({
       transparent: true,
@@ -870,7 +921,7 @@ export class EffectLayer {
     material.positionNode = corner3.add(normalize(cameraPosition.sub(corner3)).mul(nearer));
     material.colorNode = vec4(shown, 1);
     material.opacityNode = alpha.mul(tint.w).mul(seenFromWithin);
-    return this.batchOf(['place', 'tint', 'motion', 'look', 'core'], MAX_EFFECT_MOTES, material, MOTES_ORDER);
+    return this.batchOf(['place', 'tint', 'motion', 'look', 'core', 'aside'], MAX_EFFECT_MOTES, material, MOTES_ORDER);
   }
 
   /**
@@ -1011,6 +1062,7 @@ function widestOf(ribbon: EffectRibbon): number {
 }
 
 /** A number from 0 to 1 for each point of a grid, as good as random. */
+
 function gridNoise(cell: Node<'vec2'>): Node<'float'> {
   return fract(sin(dot(cell, vec2(127.1, 311.7))).mul(43758.5453));
 }
