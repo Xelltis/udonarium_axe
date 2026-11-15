@@ -201,14 +201,15 @@ export class EffectTargetingService {
    * What the area attack held ready would reach and take in, were the piece under the pointer pressed
    * as its centre: worked out as {@link pick} works it out, so what is shown is what the press takes.
    * Null for an effect with no area, while the next press names the caster, where the pointer is over
-   * no piece or over the centre already pressed, and where the main pointer cannot hover.
+   * no piece, over the centre already pressed or over the caster a press would not take, and where the
+   * main pointer cannot hover.
    */
   readonly areaProspect = computed<EffectAreaProspect | null>(() => {
     const preset = this._preset();
     const radius = this.areaRadius();
     if (!preset || radius <= 0 || this._changingCaster() || !this.viewport.canHover()) return null;
     const hovered = this._hovered();
-    if (hovered.length < 1 || hovered === this._epicenter()) return null;
+    if (hovered.length < 1 || hovered === this._epicenter() || this.isCasterKeptOut(hovered)) return null;
 
     this.objectChange.collectionOf('character')();
     const center = this.characterOf(hovered);
@@ -270,7 +271,8 @@ export class EffectTargetingService {
   /**
    * Begins choosing, holding the effect ready without casting it. It inherits whatever is already
    * named, so a target set from the remote or from chat can be cast at straight away. An effect cast
-   * on oneself with nothing named starts with the caster picked.
+   * on oneself with nothing named starts with the caster picked. One that needs somebody else, with
+   * the selected piece among those named, starts with no caster: the piece is its target.
    */
   begin(preset: EffectPreset): void {
     const targeted = this.tabletopService.characters.filter(
@@ -283,8 +285,9 @@ export class EffectTargetingService {
     // Every piece aimed at, one gone out of sight since among them, is put back as aimed at on cancel.
     this.previousTargets = targeted.map((character) => character.identifier);
     this.beganWithSelection = untracked(this.selectionSignalService.selectedObject);
-    const caster = this.selectedCasterIdentifier();
+    const selected = this.selectedCasterIdentifier();
     const inherited = shown.slice(0, Math.max(preset.targetLimit, 1));
+    const caster = preset.effectTargeting !== 'self' && inherited.includes(selected) ? '' : selected;
     this._preset.set(preset);
     this._changingCaster.set(false);
     this._picks.set(
@@ -343,7 +346,9 @@ export class EffectTargetingService {
 
   /**
    * Fixes the piece the effect held ready is cast from, an empty identifier for none, and stops
-   * waiting for one. The piece is no target: it is taken out of the picks if it was among them.
+   * waiting for one. The piece is no target: it is taken out of the picks if it was among them, and
+   * for as long as it is the caster of an effect that needs somebody else no press picks it and no
+   * area takes it in.
    *
    * False, with everything left as it was, while no effect is held ready or when the identifier names
    * no piece on the table.
@@ -361,10 +366,13 @@ export class EffectTargetingService {
     return true;
   }
 
-  /** Chooses a target, or unchooses it. Filling the limit casts nothing. */
+  /**
+   * Chooses a target, or unchooses it. Filling the limit casts nothing. The caster of an effect that
+   * needs somebody else is not chosen, as the centre of an area either.
+   */
   pick(identifier: string): void {
     const preset = this._preset();
-    if (!preset) return;
+    if (!preset || this.isCasterKeptOut(identifier)) return;
 
     const character = this.characterOf(identifier);
     if (!character) return;
@@ -448,14 +456,18 @@ export class EffectTargetingService {
   /**
    * Takes everything within the radius of the centre piece, nearest first. A piece in an engagement
    * zone stands at the zone's centre for this, so a zone the area reaches is reached whole; a piece
-   * taken out of the fight is never reached.
+   * taken out of the fight is never reached, and neither is the caster of an effect that needs
+   * somebody else.
    */
   private areaPicks(preset: EffectPreset, center: GameCharacter): string[] {
     const gridSize = this.tabletopService.gridSize();
     const reading = this.zones.reading();
     const origin = { ...this.centerOf(center, gridSize), ...reading.pointOf(center) };
     const candidates = this.tabletopService.characters
-      .filter((character) => character.isVisibleOnTable && character.offField !== '1')
+      .filter(
+        (character) =>
+          character.isVisibleOnTable && character.offField !== '1' && !this.isCasterKeptOut(character.identifier)
+      )
       .map((character) => ({
         identifier: character.identifier,
         ...this.centerOf(character, gridSize),
@@ -478,6 +490,16 @@ export class EffectTargetingService {
       character.targeted = next;
       this.uiSignalService.notifyTargetChange(character.identifier, character.aliasName);
     }
+  }
+
+  /**
+   * Whether the piece is the caster of the effect held ready and so no target of it: nobody casts at
+   * themselves, but with an effect cast on oneself, whose caster is its target.
+   */
+  private isCasterKeptOut(identifier: string): boolean {
+    const preset = this._preset();
+    if (!preset || preset.effectTargeting === 'self') return false;
+    return identifier.length > 0 && identifier === this._casterIdentifier();
   }
 
   private selectedCasterIdentifier(): string {

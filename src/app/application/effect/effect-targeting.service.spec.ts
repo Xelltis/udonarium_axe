@@ -230,6 +230,62 @@ describe('EffectTargetingService', () => {
       expect(service.confirm()?.casterIdentifier).toBe(characters[0].identifier);
     });
 
+    it('is not picked by a press on it, the cast still going out from it', () => {
+      selection.selectObject(characters[3].identifier, characters[3].aliasName);
+      TestBed.tick();
+      service.begin(preset);
+      service.pick(characters[0].identifier);
+
+      selection.selectObject(characters[3].identifier, characters[3].aliasName);
+      TestBed.tick();
+
+      expect(service.picks()).toEqual([characters[0].identifier]);
+      expect(characters[3].targeted).toBe(false);
+      const cast = service.confirm();
+      expect(cast?.casterIdentifier).toBe(characters[3].identifier);
+      expect(cast?.targets.map((target) => target.identifier)).toEqual([characters[0].identifier]);
+    });
+
+    it('is no caster at the start where the selected piece is among those already aimed at', () => {
+      characters[3].targeted = true;
+      selection.selectObject(characters[3].identifier, characters[3].aliasName);
+      TestBed.tick();
+
+      service.begin(preset);
+
+      expect(service.casterIdentifier()).toBe('');
+      expect(service.picks()).toEqual([characters[3].identifier]);
+      const cast = service.confirm();
+      expect(cast?.casterIdentifier).toBe('');
+      expect(cast?.targets.map((target) => target.identifier)).toEqual([characters[3].identifier]);
+    });
+
+    it('can be picked again once it is the caster no longer', () => {
+      selection.selectObject(characters[3].identifier, characters[3].aliasName);
+      TestBed.tick();
+      service.begin(preset);
+
+      service.setCaster('');
+      service.pick(characters[3].identifier);
+
+      expect(service.picks()).toEqual([characters[3].identifier]);
+    });
+
+    it('becomes the piece already selected when that piece is pressed again while a change is waited for', () => {
+      service.begin(preset);
+      selection.selectObject(characters[1].identifier, characters[1].aliasName);
+      TestBed.tick();
+      expect(service.picks()).toEqual([characters[1].identifier]);
+
+      service.changeCaster();
+      selection.pressObject(characters[1].identifier, characters[1].aliasName);
+      TestBed.tick();
+
+      expect(service.casterIdentifier()).toBe(characters[1].identifier);
+      expect(service.isChangingCaster()).toBe(false);
+      expect(service.picks()).toEqual([]);
+    });
+
     it('can be set to none, which casts from nowhere', () => {
       selection.selectObject(characters[3].identifier, characters[3].aliasName);
       TestBed.tick();
@@ -300,6 +356,20 @@ describe('EffectTargetingService', () => {
       const cast = service.confirm();
       expect(cast?.targets.map((target) => target.identifier)).toEqual([characters[2].identifier]);
       vi.restoreAllMocks();
+    });
+
+    it('lets its caster be dropped and picked again by a press, and is cast on it', () => {
+      selection.selectObject(characters[2].identifier, characters[2].aliasName);
+      TestBed.tick();
+      service.begin(preset);
+
+      service.pick(characters[2].identifier);
+      expect(service.picks()).toEqual([]);
+      service.pick(characters[2].identifier);
+      expect(service.picks()).toEqual([characters[2].identifier]);
+
+      const cast = service.confirm();
+      expect(cast?.targets.map((target) => target.identifier)).toEqual([characters[2].identifier]);
     });
 
     it('is cast at a piece already aimed at rather than at the caster', () => {
@@ -414,6 +484,30 @@ describe('EffectTargetingService', () => {
       vi.restoreAllMocks();
     });
 
+    it('never takes in its caster, which keeps the cast going out from it', () => {
+      selection.selectObject(characters[2].identifier, characters[2].aliasName);
+      TestBed.tick();
+      service.begin(preset);
+
+      service.pick(characters[1].identifier);
+
+      expect(service.picks()).toEqual([characters[1].identifier, characters[0].identifier]);
+      expect(characters[2].targeted).toBe(false);
+      expect(service.confirm()?.casterIdentifier).toBe(characters[2].identifier);
+    });
+
+    it('takes no centre from a press on its caster', () => {
+      selection.selectObject(characters[2].identifier, characters[2].aliasName);
+      TestBed.tick();
+      service.begin(preset);
+      service.pick(characters[0].identifier);
+
+      service.pick(characters[2].identifier);
+
+      expect(service.epicenter()).toBe(characters[0].identifier);
+      expect(service.picks()).toEqual([characters[0].identifier, characters[1].identifier]);
+    });
+
     it('does not cast on gathering a group', () => {
       service.begin(preset);
 
@@ -513,6 +607,24 @@ describe('EffectTargetingService', () => {
         expect(service.areaProspect()).not.toBeNull();
         service.hoverPiece(characters[3].identifier, false);
         expect(service.areaProspect()).toBeNull();
+      });
+
+      it('rings no caster among the pieces a press would take, and shows nothing over the caster itself', () => {
+        selection.selectObject(characters[2].identifier, characters[2].aliasName);
+        TestBed.tick();
+        service.begin(preset);
+
+        service.hoverPiece(characters[1].identifier, true);
+        expect(service.areaProspect()?.marks.map((mark) => mark.identifier)).toEqual([
+          characters[1].identifier,
+          characters[0].identifier,
+        ]);
+
+        service.hoverPiece(characters[2].identifier, true);
+        expect(service.areaProspect()).toBeNull();
+
+        service.setCaster('');
+        expect(service.areaProspect()?.marks.map((mark) => mark.identifier)).toContain(characters[2].identifier);
       });
 
       it('follows a piece moved into reach while the pointer stays', () => {
