@@ -8,6 +8,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService, TabletopObjectSelection } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { TargetArrowGeometry, targetArrowGeometry } from '@axe/domain/card/target-arrow';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -36,6 +37,30 @@ export interface EffectCasterMark {
   z: number;
 }
 
+/** A piece an area attack would take in, for the mark laid under it before the centre is pressed. */
+export interface EffectProspectMark {
+  identifier: string;
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** What an area attack would reach and take in, were the piece under the pointer pressed as its centre. */
+export interface EffectAreaProspect {
+  center: { x: number; y: number; z: number };
+  /** How far it reaches from the centre, in table pixels. */
+  radius: number;
+  /** The pieces it would take in that this reader can see, nearest first. */
+  marks: EffectProspectMark[];
+}
+
+/** An effect cast by a confirm, and the pieces it was cast at that its caster's reader was shown picked. */
+export interface EffectConfirmedCast {
+  preset: EffectPreset;
+  /** The identifiers of the pieces cast at that this reader was shown, in the order picked. */
+  shown: readonly string[];
+}
+
 /** The line drawn from the caster to a target. */
 export interface EffectTargetLink extends TargetArrowGeometry {
   identifier: string;
@@ -60,12 +85,15 @@ export class EffectTargetingService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
   private readonly pieceLinks = inject(PieceLinksService);
+  private readonly viewport = inject(ViewportService);
 
   private readonly _preset = signal<EffectPreset | null>(null);
   private readonly _picks = signal<readonly string[]>([]);
   private readonly _casterIdentifier = signal('');
   private readonly _epicenter = signal('');
   private readonly _changingCaster = signal(false);
+  private readonly _hovered = signal('');
+  private readonly _lastConfirmed = signal<EffectConfirmedCast | null>(null);
 
   /** The effect held ready, or null while none is. */
   readonly preset = this._preset.asReadonly();
@@ -87,6 +115,11 @@ export class EffectTargetingService {
   });
   /** The piece chosen as the centre of an area attack. */
   readonly epicenter = this._epicenter.asReadonly();
+  /**
+   * The last effect a confirm cast, wherever the confirm came from, a new object for each cast; null
+   * until one is.
+   */
+  readonly lastConfirmed = this._lastConfirmed.asReadonly();
 
   /** The radius it catches, in px. Zero means it is not an area attack. */
   readonly areaRadius = computed<number>(() => {
@@ -164,6 +197,38 @@ export class EffectTargetingService {
     return { identifier: caster.identifier, ...this.centerOf(caster, this.tabletopService.gridSize()) };
   });
 
+  /**
+   * What the area attack held ready would reach and take in, were the piece under the pointer pressed
+   * as its centre: worked out as {@link pick} works it out, so what is shown is what the press takes.
+   * Null for an effect with no area, while the next press names the caster, where the pointer is over
+   * no piece or over the centre already pressed, and where the main pointer cannot hover.
+   */
+  readonly areaProspect = computed<EffectAreaProspect | null>(() => {
+    const preset = this._preset();
+    const radius = this.areaRadius();
+    if (!preset || radius <= 0 || this._changingCaster() || !this.viewport.canHover()) return null;
+    const hovered = this._hovered();
+    if (hovered.length < 1 || hovered === this._epicenter()) return null;
+
+    this.objectChange.collectionOf('character')();
+    const center = this.characterOf(hovered);
+    if (!center) return null;
+    for (const character of this.tabletopService.characters) this.objectChange.versionOf(character.identifier)();
+
+    const gridSize = this.tabletopService.gridSize();
+    const shown = this.areaPicks(preset, center)
+      .map((identifier) => this.characterOf(identifier))
+      .filter((character): character is GameCharacter => character != null && this.vision.isTokenVisible(character));
+    const identifiers = new Set(shown.map((character) => character.identifier));
+    const marks: EffectProspectMark[] = [];
+    for (const character of shown) {
+      const body = this.pieceLinks.bodyOf(character);
+      if (body && identifiers.has(body.identifier)) continue;
+      marks.push({ identifier: character.identifier, ...this.centerOf(character, gridSize) });
+    }
+    return { center: this.centerOf(center, gridSize), radius, marks };
+  });
+
   readonly links = computed<EffectTargetLink[]>(() => {
     if (!this.isPicking()) return [];
     const caster = this.characterOf(this._casterIdentifier());
@@ -228,6 +293,43 @@ export class EffectTargetingService {
     // The shooter is the selected piece, caught at the start because choosing moves the selection onto the targets.
     this._casterIdentifier.set(caster);
     this.mirror();
+  }
+
+  /**
+   * Casts an effect from a piece by something other than the list of effects: a slot of the hotbar,
+   * the piece's own menu, a row of its sheet. At the pieces aimed at, if any other piece is, it is
+   * cast at once; so is one cast on oneself. One that needs somebody else, with nobody else aimed at,
+   * is held ready instead with the piece as its caster, to be cast by {@link confirm} once its targets
+   * are picked.
+   *
+   * The cast where it was cast at once, `'held'` where it is held ready, and null where nothing came
+   * of it. A seat that may not change the table, and a piece that is not on the table, cast as they
+   * always did and hold nothing ready.
+   */
+  castFrom(preset: EffectPreset, piece: GameCharacter): EffectCast | 'held' | null {
+    if (
+      preset.effectTargeting === 'self' ||
+      !this.rolePermission.canEditTabletop() ||
+      !this.characterOf(piece.identifier) ||
+      this.tabletopService.characters.some(
+        (character) => character.isVisibleOnTable && character.targeted && character.identifier !== piece.identifier
+      )
+    ) {
+      return this.castService.fireFromCharacter(preset, piece);
+    }
+
+    this.begin(preset);
+    this.setCaster(piece.identifier);
+    return 'held';
+  }
+
+  /**
+   * Tells which piece the pointer is over, or that it has left one, for {@link areaProspect}. Leaving
+   * a piece the pointer is no longer held to be over changes nothing.
+   */
+  hoverPiece(identifier: string, over: boolean): void {
+    if (over) this._hovered.set(identifier);
+    else if (untracked(this._hovered) === identifier) this._hovered.set('');
   }
 
   /**
@@ -302,9 +404,11 @@ export class EffectTargetingService {
     if (targets.length < 1) return null;
 
     const caster = this.characterOf(this._casterIdentifier());
+    const shown = untracked(() => [...this.pickOrder().keys()]);
     const cast = this.castService.fire(preset, targets, caster);
     if (preset.effectTargeting === 'self') this.restoreTargets();
     this.reset();
+    if (cast) this._lastConfirmed.set({ preset, shown });
     return cast;
   }
 

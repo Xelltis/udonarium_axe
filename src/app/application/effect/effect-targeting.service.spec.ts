@@ -1,9 +1,11 @@
+import { WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -13,6 +15,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { EngagementZone } from '@axe/domain/tabletop/zone/engagement-zone';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import type { MockInstance } from 'vitest';
 
 describe('EffectTargetingService', () => {
   let service: EffectTargetingService;
@@ -462,6 +465,221 @@ describe('EffectTargetingService', () => {
 
       expect(service.picks()[0]).toBe(characters[3].identifier);
       expect(service.picks()).not.toContain(characters[0].identifier);
+    });
+
+    describe('with the pointer over a piece', () => {
+      let canHover: WritableSignal<boolean>;
+
+      beforeEach(() => {
+        canHover = (TestBed.inject(ViewportService) as unknown as { _canHover: WritableSignal<boolean> })._canHover;
+        canHover.set(true);
+      });
+
+      afterEach(() => {
+        for (const character of characters) service.hoverPiece(character.identifier, false);
+        canHover.set(false);
+      });
+
+      it('shows before the centre is pressed how far it would reach and exactly the pieces the press takes', () => {
+        service.begin(preset);
+        expect(service.areaProspect()).toBeNull();
+
+        service.hoverPiece(characters[1].identifier, true);
+
+        const prospect = service.areaProspect();
+        expect(prospect?.radius).toBe(service.areaRadius());
+        expect(prospect?.center).toEqual({ x: 225, y: 25, z: 0 });
+        expect(service.picks()).toEqual([]);
+        expect(characters[1].targeted).toBe(false);
+
+        service.pick(characters[1].identifier);
+
+        expect(prospect?.marks.map((mark) => mark.identifier)).toEqual([...service.picks()]);
+        // Pressed, the piece is the centre: its area is drawn as the settled one alone.
+        expect(service.areaProspect()).toBeNull();
+      });
+
+      it('shows what a press on another piece would take once a centre is pressed, and nothing once the pointer leaves', () => {
+        service.begin(preset);
+        service.pick(characters[1].identifier);
+        service.hoverPiece(characters[3].identifier, true);
+
+        expect(service.areaProspect()?.marks.map((mark) => mark.identifier)).toEqual([
+          characters[3].identifier,
+          characters[2].identifier,
+        ]);
+
+        service.hoverPiece(characters[1].identifier, false);
+        expect(service.areaProspect()).not.toBeNull();
+        service.hoverPiece(characters[3].identifier, false);
+        expect(service.areaProspect()).toBeNull();
+      });
+
+      it('follows a piece moved into reach while the pointer stays', () => {
+        service.begin(preset);
+        service.hoverPiece(characters[0].identifier, true);
+        expect(service.areaProspect()?.marks.map((mark) => mark.identifier)).not.toContain(characters[3].identifier);
+
+        characters[3].location.x = 100;
+        TestBed.inject(ObjectChangeService).notifyChanged(characters[3].identifier);
+
+        expect(service.areaProspect()?.marks.map((mark) => mark.identifier)).toContain(characters[3].identifier);
+      });
+
+      it('marks no piece this reader cannot see, though the press would strike it', () => {
+        vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockImplementation(
+          (character) => character !== characters[0]
+        );
+        service.begin(preset);
+        service.hoverPiece(characters[1].identifier, true);
+
+        expect(service.areaProspect()?.marks.map((mark) => mark.identifier)).toEqual([
+          characters[1].identifier,
+          characters[2].identifier,
+        ]);
+        vi.restoreAllMocks();
+      });
+
+      it('shows nothing for an effect with no area, while the next press names the caster, or where the pointer cannot hover', () => {
+        service.begin(preset);
+        service.hoverPiece(characters[1].identifier, true);
+        expect(service.areaProspect()).not.toBeNull();
+
+        service.changeCaster();
+        expect(service.areaProspect()).toBeNull();
+        service.changeCaster(false);
+
+        canHover.set(false);
+        expect(service.areaProspect()).toBeNull();
+        canHover.set(true);
+
+        service.cancel();
+        expect(service.areaProspect()).toBeNull();
+        preset.areaRadius = 0;
+        service.begin(preset);
+        expect(service.areaProspect()).toBeNull();
+      });
+    });
+  });
+
+  describe('cast from a piece by its slot, its menu or its sheet', () => {
+    let fired: MockInstance<EffectCastService['fire']>;
+
+    beforeEach(() => {
+      fired = vi.spyOn(TestBed.inject(EffectCastService), 'fire');
+      preset.targeting = 'single';
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('casts at once at the pieces aimed at, from the piece', () => {
+      characters[1].targeted = true;
+
+      const cast = service.castFrom(preset, characters[0]);
+
+      expect(cast).not.toBe('held');
+      expect(fired).toHaveBeenCalledTimes(1);
+      expect(fired.mock.calls[0][1]).toEqual([characters[1]]);
+      expect(fired.mock.calls[0][2]).toBe(characters[0]);
+      expect(service.isPicking()).toBe(false);
+    });
+
+    it('holds an effect that needs somebody else ready with the piece as its caster when nobody is aimed at', () => {
+      selection.selectObject(characters[3].identifier, characters[3].aliasName);
+
+      expect(service.castFrom(preset, characters[0])).toBe('held');
+
+      expect(fired).not.toHaveBeenCalled();
+      expect(service.preset()).toBe(preset);
+      expect(service.casterIdentifier()).toBe(characters[0].identifier);
+      expect(service.picks()).toEqual([]);
+
+      service.pick(characters[2].identifier);
+      const cast = service.confirm();
+
+      expect(fired).toHaveBeenCalledTimes(1);
+      expect(cast?.casterIdentifier).toBe(characters[0].identifier);
+      expect(cast?.targets.map((target) => target.identifier)).toEqual([characters[2].identifier]);
+    });
+
+    it('holds it ready when the piece itself is the only one aimed at, leaving the piece out of the targets', () => {
+      characters[0].targeted = true;
+
+      expect(service.castFrom(preset, characters[0])).toBe('held');
+
+      expect(service.picks()).toEqual([]);
+      expect(service.casterIdentifier()).toBe(characters[0].identifier);
+
+      service.cancel();
+      expect(characters[0].targeted).toBe(true);
+    });
+
+    it('casts an effect cast on oneself at once, on the piece', () => {
+      preset.targeting = 'self';
+
+      const cast = service.castFrom(preset, characters[0]);
+
+      expect(cast).not.toBe('held');
+      expect(fired.mock.calls[0][1]).toEqual([characters[0]]);
+      expect(service.isPicking()).toBe(false);
+    });
+
+    it('holds nothing ready for a guest or for a piece that is not on the table', () => {
+      const cursor = PeerCursor.createMyCursor();
+      cursor.role = PeerRole.Guest;
+      expect(service.castFrom(preset, characters[0])).not.toBe('held');
+      expect(service.isPicking()).toBe(false);
+      cursor.role = PeerRole.Player;
+
+      const offTable = new GameCharacter();
+      offTable.initialize();
+      ObjectStore.instance.add(offTable, false);
+      characters.push(offTable);
+      vi.spyOn(offTable, 'isVisibleOnTable', 'get').mockReturnValue(false);
+
+      expect(service.castFrom(preset, offTable)).not.toBe('held');
+      expect(service.isPicking()).toBe(false);
+    });
+  });
+
+  describe('telling of the cast a confirm made', () => {
+    it('names the effect and the pieces shown picked, a new telling for each cast, and none for a cancel', () => {
+      expect(service.lastConfirmed()).toBeNull();
+      service.begin(preset);
+      service.pick(characters[1].identifier);
+      service.pick(characters[0].identifier);
+      service.cancel();
+      expect(service.lastConfirmed()).toBeNull();
+
+      service.begin(preset);
+      service.pick(characters[1].identifier);
+      service.pick(characters[0].identifier);
+      service.confirm();
+      const first = service.lastConfirmed();
+      expect(first).toEqual({ preset, shown: [characters[1].identifier, characters[0].identifier] });
+
+      service.begin(preset);
+      service.confirm();
+      expect(service.lastConfirmed()).not.toBe(first);
+      expect(service.lastConfirmed()?.preset).toBe(preset);
+      expect(service.lastConfirmed()?.shown).toEqual([characters[0].identifier, characters[1].identifier]);
+    });
+
+    it('leaves out a piece cast at that this reader cannot see', () => {
+      service.begin(preset);
+      service.pick(characters[1].identifier);
+      service.pick(characters[0].identifier);
+      vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockImplementation(
+        (character) => character !== characters[0]
+      );
+      TestBed.inject(ObjectChangeService).notifyChanged(characters[0].identifier);
+
+      service.confirm();
+
+      expect(service.lastConfirmed()?.shown).toEqual([characters[1].identifier]);
+      vi.restoreAllMocks();
     });
   });
 });
