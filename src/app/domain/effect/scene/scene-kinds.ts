@@ -29,7 +29,7 @@ export const SCENE_LINGER_S: Readonly<Partial<Record<EffectKind, number>>> = {
   gore: 1.4,
   gravity: 1.5,
   halo: 0.8,
-  heal: 0.6,
+  heal: 1.2,
   impact: 1.2,
   miasma: 1,
   mushroom: 2.5,
