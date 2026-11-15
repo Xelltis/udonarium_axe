@@ -1,6 +1,7 @@
 import { isRockShot } from '@axe/domain/effect/earth-looks';
 import type { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { isFireShot } from '@axe/domain/effect/fire-looks';
+import { drawFlyingSlash, drawSlashLanding } from '@axe/domain/effect/scene/blade/flying-slash';
 import {
   type Choreography,
   nothingStaged,
@@ -10,14 +11,12 @@ import {
 } from '@axe/domain/effect/scene/choreography';
 import { drawRockBreak, drawRockFlying } from '@axe/domain/effect/scene/earth/rock-shot';
 import { flameRampOf, rampOf } from '@axe/domain/effect/scene/effect-ramp';
-import type { EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
 import { drawCloud, dustColumn, rollingDust } from '@axe/domain/effect/scene/fire/fire-parts';
 import { drawMeteor } from '@axe/domain/effect/scene/meteor/meteor';
 import {
   acrossOf,
   floorMark,
   glow,
-  haze,
   hueOf,
   keptFor,
   lerpPoint,
@@ -161,6 +160,7 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
   const breaks: LandingLook = (landed) =>
     drawRockBreak(landed, Math.round((stage.duration + LINGER_S - (stage.seconds - landed.seconds)) * 1000) / 1000);
   const landWith = lands === null ? nothingStaged : windy ? drawWindBurst : rocky ? breaks : lands;
+  const cuts = style === 'crescent' && lands !== null && stage.preset.impactEffectKind === 'slash';
   const drawn = nothingStaged();
   const { cell, duration } = stage;
   const t = stage.seconds;
@@ -196,11 +196,16 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
           { at, way, cell, share, pathAt, seconds: t, seed: stage.seed + index, grade, forward },
           flameRampOf(stage.preset.colorPrimary, stage.preset.colorSecondary)
         );
+      } else if (style === 'crescent') {
+        const volley = { index, count: timing.shots.length, floorZ: stage.groundZ };
+        drawFlyingSlash(drawn, { at, way, cell, share, pathAt, fliesS: flies, seconds: t, ...volley }, ramp);
       } else drawFlying(drawn, style, at, way, speed, cell, ramp, share, pathAt, forward, stage.seed + index);
     }
     if (style === 'tracer' && t >= launch && t < launch + 0.3)
       drawTracerLine(drawn, from, to, cell, ramp, (t - launch) / 0.3);
-    if (t >= lands) addInto(drawn, landing(stage, landWith, lands, index, timing.shots.length, course.lands));
+    const cut: LandingLook = (landed) => drawSlashLanding(landed, index, timing.shots.length, flies);
+    if (t >= lands)
+      addInto(drawn, landing(stage, cuts ? cut : landWith, lands, index, timing.shots.length, course.lands));
   });
   return drawn;
 }
@@ -307,11 +312,6 @@ function drawFlying(
         trail: (cell * 1.6) / speed,
       });
       return;
-    case 'crescent':
-      drawn.motes.push(haze(at, cell * 1.6, hueOf(ramp), 0.35, forward));
-      drawn.ribbons.push(...flyingCrescent(at, way, cell * 1.4, ramp));
-      drawn.motes.push(glow(at, cell * 1.4, ramp[3], 0.5, forward));
-      return;
     case 'blaster':
       drawn.ribbons.push({
         points: [behind(cell * 0.9), behind(cell * 0.45), at],
@@ -392,27 +392,6 @@ function drawFlying(
       }
     }
   }
-}
-
-/** A crescent of a blade flying, across the way it flies and bowed back from it. */
-function flyingCrescent(at: Point, way: Point, cell: number, ramp: readonly string[]): EffectRibbon[] {
-  const { side } = acrossOf(way);
-  const steps = 12;
-  const points = Array.from({ length: steps + 1 }, (_unused, index) => {
-    const u = (index / steps) * 2 - 1;
-    const back = (1 - Math.cos(u * 1.2)) * cell * 0.5;
-    return {
-      x: at.x + side.x * u * cell * 0.6 - way.x * back,
-      y: at.y + side.y * u * cell * 0.6 - way.y * back,
-      z: at.z - way.z * back,
-    };
-  });
-  const widths = points.map((_point, index) => cell * 0.16 * Math.pow(Math.sin((Math.PI * index) / steps), 0.8));
-  return [
-    { points, widths: widths.map((width) => width * 2.4), color: ramp[2], alpha: 0.5, blend: 'light' },
-    { points, widths: widths.map((width) => width * 1.3), color: ramp[1], alpha: 1, blend: 'color' },
-    { points, widths, color: ramp[4], core: '#ffffff', alpha: 1, blend: 'color' },
-  ];
 }
 
 /** The flash at a gun's muzzle as it fires. */
