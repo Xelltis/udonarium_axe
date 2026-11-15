@@ -9,6 +9,7 @@ import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
  * Only what lands a blow, such as an explosion or a strike, shakes it.
  * Shaking for healing and shields too would give everything the same weight and leave none of it heavy.
  * A shot shakes nothing, but for a meteor and a shot of rock; see {@link fallsAsMeteor} and {@link isRockShot}.
+ * An aura shakes nothing either, but the greatest of them as it breaks out; see {@link breaksOutAsAura}.
  */
 const SHAKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'burst',
@@ -25,6 +26,9 @@ const SHAKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'smite',
   'halo',
   'sanctuary',
+  'slash',
+  'frost',
+  'bisect',
 ]);
 
 /**
@@ -61,10 +65,20 @@ function breaksAsRock(preset: EffectPreset): boolean {
 }
 
 /**
+ * Whether an effect is an aura of the highest grade on its own, which breaks out of the piece hard
+ * enough to be felt: the one look that strikes nothing and yet shakes the screen, and lightly.
+ */
+export function breaksOutAsAura(preset: Pick<EffectPreset, 'isStaged' | 'effectKind' | 'gradeLevel'>): boolean {
+  return !preset.isStaged && preset.effectKind === 'aura' && preset.gradeLevel === 3;
+}
+
+/**
  * How hard the screen shakes. Empty for not at all. A look of the lowest grade shakes nothing, but
- * one that stamps the ground in, an impact, which shakes it lightly however light it is.
+ * one that stamps the ground in, an impact, which shakes it lightly however light it is. The greatest
+ * aura shakes it lightly, and no harder.
  */
 export function effectShakeOf(preset: EffectPreset): EffectShake {
+  if (breaksOutAsAura(preset)) return 'soft';
   const kinds = drawnKinds(preset);
   if (!fallsAsMeteor(preset) && !breaksAsRock(preset) && !kinds.some((kind) => SHAKING_KINDS.has(kind))) return '';
   const shake = SHAKE_BY_GRADE[preset.gradeLevel];

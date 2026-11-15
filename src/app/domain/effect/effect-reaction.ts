@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { isCurseAlone } from '@axe/domain/effect/ailment-looks';
 import { addAilmentJolts, ailmentJoltsEndOf } from '@axe/domain/effect/ailment-reaction';
 import { breathSurgeAt, breathTimingOf, isGentleBreath } from '@axe/domain/effect/breath-timing';
@@ -70,7 +71,8 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * thrown back away from the one who struck, as far as the blow's push, and springs back to where it
  * stands; struck from no direction, or by a light that smites from straight above, it is pressed
  * down instead, and where the ground heaves under it, by rubble or an upheaval, or light bursts up
- * out of it, in a sanctuary, it is thrown up off the floor. A breath lands no blow: the one who
+ * out of it, in a sanctuary, it is thrown up off the floor. One that is drained is pulled towards the
+ * one who drains it instead, where there is one. A breath lands no blow: the one who
  * breathes leans back as it draws the breath in, and each piece it blows on is pushed downwind and
  * trembles for as long as it is blown on. A tornado lands none either: it takes up the piece it
  * stands over and drags the rest it catches towards it. A curse on its own lands none: the piece it
@@ -107,13 +109,14 @@ export function effectJoltsOf(
     const local = elapsedMs - preset.stagger * index;
     let thrown = 0;
     for (const blow of blows) thrown += blow.push * cellPx * throwAt(local - blow.atMs);
-    thrown = Math.min(thrown, MOST_THROWN_CELLS * cellPx);
-    if (thrown <= 0) return;
+    thrown = clamp(thrown, -MOST_THROWN_CELLS * cellPx, MOST_THROWN_CELLS * cellPx);
+    if (thrown === 0) return;
     if (heavesGround(preset) || burstsFromBelow(preset)) {
       add(target.identifier, { x: 0, y: 0, z: thrown * HEAVED_UP });
       return;
     }
     const away = fallsFromAbove(preset) ? null : directionOf(cast.origin, target);
+    if (thrown < 0 && !away) return;
     add(
       target.identifier,
       away ? { x: away.x * thrown, y: away.y * thrown, z: 0 } : { x: 0, y: 0, z: -thrown * PRESSED_DOWN }

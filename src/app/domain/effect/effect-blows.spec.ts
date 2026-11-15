@@ -19,6 +19,30 @@ describe('effectBlowsOf()', () => {
     expect(effectBlowsOf(makePreset('barrier', 3))).toEqual([]);
   });
 
+  it('lands one blow as a draining takes hold, which pulls the piece rather than throwing it back', () => {
+    const blows = effectBlowsOf(makePreset('drain', 2, { durationMs: 3000 }));
+
+    expect(blows).toHaveLength(1);
+    expect(blows[0].atMs).toBe(360);
+    expect(blows[0].holdMs).toBe(90);
+    expect(blows[0].shake).toBe('');
+    expect(blows[0].push).toBeLessThan(0);
+  });
+
+  it('lands one blow as the greatest aura breaks out, which holds, shakes lightly and throws no piece', () => {
+    const [blow, ...rest] = effectBlowsOf(makePreset('aura', 3, { durationMs: 2500 }));
+
+    expect(rest).toEqual([]);
+    expect(blow).toEqual({ atMs: 400, holdMs: 90, shake: 'soft', push: 0 });
+    expect(effectBlowsOf(makePreset('aura', 2))).toEqual([]);
+  });
+
+  it('shakes at the blows of a cut and of ice of the middle grade and over', () => {
+    expect(effectBlowsOf(makePreset('slash', 1))[0].shake).toBe('');
+    expect(effectBlowsOf(makePreset('slash', 2))[0].shake).toBe('soft');
+    expect(effectBlowsOf(makePreset('frost', 3))[0].shake).toBe('hard');
+  });
+
   it('holds longer, shakes harder and throws the target further at the higher grades', () => {
     const [light, middle, heavy] = [1, 2, 3].map((grade) => effectBlowsOf(makePreset('bash', grade))[0]);
 

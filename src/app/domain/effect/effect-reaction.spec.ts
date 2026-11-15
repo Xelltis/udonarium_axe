@@ -108,6 +108,23 @@ describe('effectJoltsOf()', () => {
     expect(effectJoltsOf(bash, from, end, CELL, blows).size).toBe(0);
   });
 
+  it('pulls a piece that is drained towards the one who drains it, and moves none drained from nowhere', () => {
+    const drain = makePreset('drain', 2);
+    const at = effectBlowsOf(drain)[0].atMs + 60;
+    const jolt = effectJoltsOf(drain, cast({ x: 0, y: 0, z: 0 }), at, CELL).get('target')!;
+
+    expect(jolt.x).toBeLessThan(0);
+    expect(jolt.z).toBe(0);
+    expect(effectJoltsOf(drain, cast(null), at, CELL).get('target')).toBeUndefined();
+  });
+
+  it('moves no piece as the greatest aura breaks out', () => {
+    const aura = makePreset('aura', 3);
+    const at = effectBlowsOf(aura)[0].atMs + 60;
+
+    expect(effectJoltsOf(aura, cast({ x: 0, y: 0, z: 0 }), at, CELL).get('target')).toBeUndefined();
+  });
+
   it('throws nothing for what neither strikes nor sets off at a target', () => {
     expect(effectJoltsOf(makePreset('heal'), cast({ x: 0, y: 0, z: 0 }), 300, CELL).size).toBe(0);
   });

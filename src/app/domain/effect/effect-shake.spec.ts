@@ -35,6 +35,24 @@ describe('effectShakeOf()', () => {
     }
   });
 
+  it('shakes for a cut, for ice bursting up and for a piece cut in two, by grade', () => {
+    for (const kind of ['slash', 'frost', 'bisect'] as const) {
+      expect([kind, [1, 2, 3].map((grade) => effectShakeOf(makePreset(kind, grade)))]).toEqual([
+        kind,
+        ['', 'soft', 'hard'],
+      ]);
+    }
+  });
+
+  it('shakes lightly for the greatest aura on its own, and for no other aura, healing or shield', () => {
+    expect(effectShakeOf(makePreset('aura', 3))).toBe('soft');
+    expect(effectShakeOf(makePreset('aura', 2))).toBe('');
+    expect(effectShakeOf(makePreset('aura', 1))).toBe('');
+    for (const kind of ['heal', 'barrier', 'warp', 'drain', 'arc', 'raybeam'] as const) {
+      expect([kind, effectShakeOf(makePreset(kind, 3))]).toEqual([kind, '']);
+    }
+  });
+
   it('shakes for a shot of rock as it breaks, by its grade, and for no other shot that lands in rubble or an impact', () => {
     const shot = (look: string, lands: EffectKind, grade: number, tag = '射撃'): EffectPreset => {
       const preset = makePreset('projectile', grade);
