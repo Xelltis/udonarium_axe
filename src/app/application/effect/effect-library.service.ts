@@ -104,4 +104,25 @@ export class EffectLibraryService {
     }
     return { added, updated };
   }
+
+  /**
+   * Builds the defaults this room does not have and leaves every preset that exists as it is,
+   * the defaults the table has adjusted among them. It answers how many it built.
+   *
+   * A room saved before a default was bundled does not get it on loading, and bringing the
+   * defaults up to date would write over the table's own adjustments. A default the table
+   * deleted counts as missing and comes back: it is said to be coming back first, as in
+   * `restoreDefaults`, and is made under its own identifier, or under a new one where that
+   * identifier still cannot be taken.
+   */
+  addMissingDefaults(): number {
+    const missing = DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => !this.objectStore.get(seed.identifier));
+    this.objectStore.announceComingBack(missing.map((seed) => seed.identifier));
+
+    for (const seed of missing) {
+      createEffectPreset(seed, seed.identifier);
+      if (!this.get(seed.identifier)) createEffectPreset(seed);
+    }
+    return missing.length;
+  }
 }

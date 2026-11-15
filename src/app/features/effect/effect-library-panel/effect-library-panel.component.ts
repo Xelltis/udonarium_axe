@@ -580,4 +580,17 @@ export class EffectLibraryPanelComponent {
     const { added, updated } = this.library.restoreDefaults();
     this.say(this.t('feature.effect.restored', { added, updated }));
   }
+
+  /** Whether this reader may add the defaults the room lacks, which every role but a guest may. */
+  protected readonly canAddMissingDefaults = computed<boolean>(() => this.rolePermission.canEditTabletop());
+
+  /**
+   * Adds the defaults this room does not have, touching none that exist, and says how many on
+   * the line of notices. A guest, who changes nothing in the room, adds none.
+   */
+  protected addMissingDefaults(): void {
+    if (!this.rolePermission.canEditTabletop()) return;
+    const count = this.library.addMissingDefaults();
+    this.say(count > 0 ? this.t('feature.effect.missingAdded', { count }) : this.t('feature.effect.noneMissing'));
+  }
 }

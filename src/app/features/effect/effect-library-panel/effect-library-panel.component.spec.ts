@@ -14,6 +14,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -201,6 +202,75 @@ describe('EffectLibraryPanelComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.lastFired()).toBe('');
+  });
+
+  describe('adding the defaults the room does not have', () => {
+    function button(): HTMLButtonElement {
+      return (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        '[data-testid="effect-library-add-missing"]'
+      )!;
+    }
+
+    function defaultsHere(): EffectPreset[] {
+      const identifiers = new Set(DEFAULT_EFFECT_PRESET_SEEDS.map((seed) => seed.identifier));
+      return ObjectStore.instance
+        .getObjects<EffectPreset>(EffectPreset)
+        .filter((each) => identifiers.has(each.identifier));
+    }
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+    });
+
+    afterEach(() => {
+      for (const each of defaultsHere()) ObjectStore.instance.remove(each);
+    });
+
+    it('is offered beside the command that brings the defaults up to date', () => {
+      fixture.detectChanges();
+
+      expect(button()).toBeTruthy();
+      expect(button().title).toBe('足りない既定を追加');
+      expect(button().disabled).toBe(false);
+    });
+
+    it('builds what is missing, leaves the table’s effect alone and says how many it built', () => {
+      fixture.detectChanges();
+      const before = JSON.stringify(preset.toContext());
+
+      button().click();
+      fixture.detectChanges();
+
+      expect(defaultsHere()).toHaveLength(DEFAULT_EFFECT_PRESET_SEEDS.length);
+      expect(JSON.stringify(preset.toContext())).toBe(before);
+      expect(fixture.componentInstance.noticeLine()).toBe(
+        `足りない既定を${DEFAULT_EFFECT_PRESET_SEEDS.length}件追加しました`
+      );
+    });
+
+    it('says so when no default is missing', () => {
+      fixture.detectChanges();
+      button().click();
+
+      button().click();
+      fixture.detectChanges();
+
+      expect(defaultsHere()).toHaveLength(DEFAULT_EFFECT_PRESET_SEEDS.length);
+      expect(fixture.componentInstance.noticeLine()).toBe('足りない既定のエフェクトはありません');
+    });
+
+    it('builds nothing for a guest, who changes nothing in the room', () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      fixture.detectChanges();
+      const panel = fixture.componentInstance as unknown as { addMissingDefaults(): void };
+
+      expect(button().disabled).toBe(true);
+      panel.addMissingDefaults();
+
+      expect(defaultsHere()).toHaveLength(0);
+      expect(fixture.componentInstance.noticeLine()).toBe('');
+      PeerCursor.myCursor.role = PeerRole.Player;
+    });
   });
 
   describe('holding an effect ready', () => {

@@ -60,6 +60,16 @@
       >
         <i class="material-icons">restore</i>
       </button>
+      <button
+        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[16px]!"
+        type="button"
+        data-testid="effect-library-add-missing"
+        [disabled]="!canAddMissingDefaults()"
+        [title]="'feature.effect.addMissingDefaults' | transloco"
+        (click)="addMissingDefaults()"
+      >
+        <i class="material-icons">library_add</i>
+      </button>
     </div>
 
     <div class="mt-2 flex flex-wrap items-center gap-1">
