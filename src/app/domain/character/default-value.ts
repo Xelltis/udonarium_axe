@@ -7,6 +7,7 @@ import {
   DataElement,
   DataElementAttribute,
   DataElementFieldType,
+  DataElementRole,
   DataElementType,
 } from '@axe/domain/data/data-element';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
@@ -77,11 +78,19 @@ function isTableCell(element: DataElement): boolean {
   return false;
 }
 
+/** Whether an item is a line of text on a sheet: a field, and neither a section nor a group of fields. */
+function isTextLine(element: DataElement): boolean {
+  return element.type === DataElementType.TEXT && element.fieldRole === DataElementRole.FIELD;
+}
+
 /**
  * The slots of an item that may keep a default: all four for a resource, one that may go over its
- * maximum among them, and what it holds for a number and a checkbox. None for text, a choice, a
- * calculation, a picture or a table and its cells, whose default an empty text could not be told from
- * having none.
+ * maximum among them, and what it holds for a number, a checkbox and a line of text, which a sheet
+ * made before numbers had a kind of their own keeps its numbers in. None for a note, a choice, a
+ * calculation, a picture or a table and its cells.
+ *
+ * A line of text keeps a number as its default and nothing else, so one holding prose is given none
+ * when the defaults are made; see {@link plainNumberIn}.
  */
 export function defaultSlotsOf(element: DataElement): readonly DefaultSlot[] {
   const fieldType = element.fieldType;
@@ -92,6 +101,9 @@ export function defaultSlotsOf(element: DataElement): readonly DefaultSlot[] {
     return element.type === DataElementType.TEXT && !isTableCell(element) ? VALUE_SLOTS : NO_SLOTS;
   }
   if (fieldType === DataElementFieldType.CHECK) return isTableCell(element) ? NO_SLOTS : VALUE_SLOTS;
+  if (fieldType === DataElementFieldType.TEXT) {
+    return isTextLine(element) && !isTableCell(element) ? VALUE_SLOTS : NO_SLOTS;
+  }
   return NO_SLOTS;
 }
 
@@ -101,6 +113,28 @@ function numberIn(raw: unknown): number | null {
   if (text === '') return null;
   const number = Number(text);
   return Number.isFinite(number) ? number : null;
+}
+
+const PLAIN_NUMBER = /^[-+]?(?:\d+\.?\d*|\.\d+)$/;
+
+/**
+ * The number a line of text holds, or null where it holds anything else: digits in half width with
+ * an optional sign before them and an optional fraction after, and spaces around them. An empty or
+ * blank line, digits in full width, a number with a unit or a word beside it, an exponent and a
+ * number in another base are all no number, so prose is never taken for one.
+ *
+ * This is narrower than what a `:` command reads off a line of text, which takes the digits a line
+ * starts with (`3点` as 3); like it, it reads no digit written full width.
+ */
+export function plainNumberIn(raw: unknown): number | null {
+  if (raw == null) return null;
+  const text = String(raw).trim();
+  return PLAIN_NUMBER.test(text) ? numberIn(text) : null;
+}
+
+/** The number an item holds as its value, read as a line of text is where the item is one. */
+function valueHeldBy(element: DataElement): number | null {
+  return element.fieldType === DataElementFieldType.TEXT ? plainNumberIn(element.value) : numberIn(element.value);
 }
 
 /**
@@ -179,7 +213,7 @@ function captureItem(element: DataElement): boolean {
     writeDefault(element, 'maxCorrection', element.maxCorrection);
     writeDefault(element, 'minCorrection', element.minCorrection);
   } else {
-    writeOrClear(element, 'now', numberIn(element.value));
+    writeOrClear(element, 'now', valueHeldBy(element));
   }
   return hasDefault(element);
 }
@@ -189,8 +223,9 @@ function captureItem(element: DataElement): boolean {
  * items came to keep one.
  *
  * Every number, checkbox and resource is written: a resource its amount left, its maximum and both
- * corrections, a correction it has none of as 0. A value that is empty or no number leaves that slot
- * without a default, taking away one it had. Items of any other kind are left alone.
+ * corrections, a correction it has none of as 0. A line of text is written where it holds a number
+ * and nothing else. A value that is empty or no number leaves that slot without a default, taking
+ * away one it had, so a line of prose never keeps one. Items of any other kind are left alone.
  */
 export function captureDefaults(piece: GameCharacter): number {
   return GameObject.batch(() => {

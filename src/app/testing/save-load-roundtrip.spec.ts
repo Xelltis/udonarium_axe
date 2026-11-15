@@ -883,6 +883,81 @@ describe('save and load round trip', () => {
       clearDefaults(before);
       expect(saved(before)).toBe(plain);
     });
+
+    describe('a sheet kept in lines of text, as one made before numbers had a kind of their own', () => {
+      /** A piece whose sheet holds lines of text alone: two numbers, a line of prose and an empty one. */
+      function classic(): GameCharacter {
+        const character = piece('従来形式のコマ');
+        const section = character.detailDataElement!.children[0];
+        for (const child of [...section.children]) child.destroy();
+        store.clearDeleteHistory();
+        section.appendChild(DataElement.create('命中', '3'));
+        section.appendChild(DataElement.create('回避', '0'));
+        section.appendChild(DataElement.create('種族', '人間'));
+        section.appendChild(DataElement.create('備考', ''));
+        return character;
+      }
+
+      const lines = (character: GameCharacter) =>
+        ['命中', '回避', '種族', '備考'].map((name) => `${item(character, name).value}`);
+
+      it('reads one saved before there were defaults with none, and puts nothing back', () => {
+        const old = classic();
+        const xml = saved(old);
+        expect(xml).not.toContain('cs-default');
+
+        const read = loaded(xml);
+
+        expect(countDefaults(read)).toBe(0);
+        expect(resetToDefaults(read).flatMap((reset) => reset.changes)).toEqual([]);
+        expect(lines(read)).toEqual(['3', '0', '人間', '']);
+        expect(saved(read)).toBe(xml);
+      });
+
+      it('marks the lines holding a number alone, a 0 among them, and carries them through a save and a load', () => {
+        const before = classic();
+        expect(captureDefaults(before)).toBe(2);
+        const xml = saved(before);
+        expect(xml.match(/cs-default="/g)).toHaveLength(2);
+
+        const read = loaded(xml);
+        item(read, '命中').value = '7';
+        item(read, '回避').value = '強化中';
+        item(read, '種族').value = '獣人';
+        item(read, '備考').value = '5';
+
+        expect(readDefault(item(read, '回避'), 'now')).toBe(0);
+        expect(readDefault(item(read, '種族'), 'now')).toBeNull();
+        expect(readDefault(item(read, '備考'), 'now')).toBeNull();
+        resetToDefaults(read);
+        expect(lines(read)).toEqual(['3', '0', '獣人', '5']);
+      });
+
+      it('reads an empty default on a line and one that is no number as none, never as 0', () => {
+        const before = classic();
+        writeDefault(item(before, '命中'), 'now', 1);
+        item(before, '命中').value = '6';
+        const xml = saved(before);
+
+        for (const written of ['', ' ', 'abc']) {
+          const read = loaded(xml.replace('cs-default="1"', `cs-default="${written}"`));
+
+          expect(readDefault(item(read, '命中'), 'now'), `"${written}"`).toBeNull();
+          expect(resetToDefaults(read).flatMap((reset) => reset.changes)).toEqual([]);
+          expect(`${item(read, '命中').value}`).toBe('6');
+        }
+      });
+
+      it('adds only its attribute to what an older version reads of the lines', () => {
+        const before = classic();
+        const plain = saved(before);
+        captureDefaults(before);
+
+        expect(saved(before).replace(/ cs-default="[^"]*"/g, '')).toBe(plain);
+        clearDefaults(before);
+        expect(saved(before)).toBe(plain);
+      });
+    });
   });
 
   describe('hotbar round trip', () => {

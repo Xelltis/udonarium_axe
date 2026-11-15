@@ -6,6 +6,7 @@ import {
   defaultSlotsOf,
   hasDefault,
   holdsItemNamed,
+  plainNumberIn,
   readDefault,
   resetPieceToDefaults,
   resetToDefaults,
@@ -121,14 +122,27 @@ describe('the default a sheet item goes back to', () => {
       expect(defaultSlotsOf(resource('命中V', 1, 3, { 'cs-over-resource': 'true' }))).toHaveLength(4);
     });
 
-    it('lets a number and a checkbox keep what they hold alone', () => {
+    it('lets a number, a checkbox and a line of text keep what they hold alone', () => {
       expect(defaultSlotsOf(number('命中', 5))).toEqual(['now']);
       expect(defaultSlotsOf(check('転倒', 0))).toEqual(['now']);
+      expect(defaultSlotsOf(DataElement.create('命中', 5))).toEqual(['now']);
+      expect(defaultSlotsOf(DataElement.create('種族', '人間'))).toEqual(['now']);
+    });
+
+    it('lets a section and a group of fields keep none, lines of text as they are stored', () => {
+      const piece = pieceWith('騎士', DataElement.create('命中', 5));
+      const section = piece.detailDataElement!.children[0];
+      const group = DataElement.create('武器', '', { role: 'group', 'cs-default': '3' });
+      section.appendChild(group);
+      section.setAttribute('cs-default', '3');
+
+      expect(defaultSlotsOf(section)).toEqual([]);
+      expect(defaultSlotsOf(group)).toEqual([]);
+      expect(readDefault(section, 'now')).toBeNull();
+      expect(captureDefaults(piece)).toBe(1);
     });
 
     it.each<[string, DataElement]>([
-      ['a line of text', DataElement.create('種族', '人間')],
-      ['a line of text holding a number', DataElement.create('命中', 5)],
       ['a note', DataElement.create('メモ', '', { type: DataElementType.NOTE })],
       ['a choice', DataElement.create('姿勢', '立ち', { fieldType: DataElementFieldType.SELECT })],
       ['a calculation', DataElement.create('合計', '', { fieldType: DataElementFieldType.CALC })],
@@ -151,6 +165,110 @@ describe('the default a sheet item goes back to', () => {
 
       expect(defaultSlotsOf(cell)).toEqual([]);
       expect(readDefault(cell, 'now')).toBeNull();
+    });
+  });
+
+  describe('a line of text (decision 3-1)', () => {
+    it.each<[unknown, number]>([
+      ['12', 12],
+      [12, 12],
+      [' 12 ', 12],
+      ['-3', -3],
+      ['+2', 2],
+      ['1.5', 1.5],
+      ['.5', 0.5],
+      ['0', 0],
+      ['007', 7],
+    ])('reads %j as the number %d', (raw, number) => {
+      expect(plainNumberIn(raw)).toBe(number);
+    });
+
+    it.each<[unknown]>([
+      [''],
+      ['  '],
+      [null],
+      [undefined],
+      ['人間'],
+      ['3点'],
+      ['12 15'],
+      ['１２'],
+      ['1e3'],
+      ['0x10'],
+      ['Infinity'],
+      ['-'],
+      ['1,000'],
+      ['2d6'],
+    ])('reads %j as no number, never as 0', (raw) => {
+      expect(plainNumberIn(raw)).toBeNull();
+    });
+
+    it('marks a line holding a number when the defaults are made, and never a line of prose', () => {
+      const hit = DataElement.create('命中', '5');
+      const race = DataElement.create('種族', '人間');
+      const blank = DataElement.create('備考', '');
+      const dice = DataElement.create('ダメージ', '2d6+3');
+      const body = pieceWith('騎士', hit, race, blank, dice);
+
+      expect(captureDefaults(body)).toBe(1);
+      expect(hit.getAttribute('cs-default')).toBe('5');
+      for (const element of [race, blank, dice]) expect(element.toAttributes()).not.toHaveProperty('cs-default');
+    });
+
+    it('takes the default off a line that has come to hold prose when the defaults are made again', () => {
+      const hit = DataElement.create('命中', '高い', { 'cs-default': '5' });
+      const body = pieceWith('騎士', hit);
+
+      expect(captureDefaults(body)).toBe(0);
+      expect(hit.toAttributes()).not.toHaveProperty('cs-default');
+    });
+
+    it('puts a line moved by hand back to its default', () => {
+      const hit = DataElement.create('命中', '7', { 'cs-default': '5' });
+      const body = pieceWith('騎士', hit);
+
+      const reset = resetPieceToDefaults(body);
+
+      expect(`${hit.value}`).toBe('5');
+      expect(reset.changes).toMatchObject([{ name: '命中', slot: 'now', field: 'value', before: '7', after: 5 }]);
+    });
+
+    it('writes the default back over a line that no longer holds a number: it is still its default', () => {
+      const hit = DataElement.create('命中', '封印中', { 'cs-default': '5' });
+      const body = pieceWith('騎士', hit);
+
+      expect(readDefault(hit, 'now')).toBe(5);
+      expect(countDefaults(body)).toBe(1);
+      resetPieceToDefaults(body);
+
+      expect(`${hit.value}`).toBe('5');
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ['a missing attribute', {}],
+      ['an empty attribute', { 'cs-default': '' }],
+      ['a blank attribute', { 'cs-default': ' ' }],
+      ['an attribute that is no number', { 'cs-default': '人間' }],
+    ])('leaves a line with %s alone, an empty line among them', (_, attributes) => {
+      const hit = DataElement.create('命中', '7', attributes);
+      const blank = DataElement.create('備考', '', attributes);
+      const body = pieceWith('騎士', hit, blank);
+
+      expect(readDefault(hit, 'now')).toBeNull();
+      expect(resetPieceToDefaults(body)).toMatchObject({ defaults: 0, changes: [] });
+      expect(hit.value).toBe('7');
+      expect(blank.value).toBe('');
+    });
+
+    it('puts a line back to a default of 0, and does not write one already holding it', () => {
+      const moved = DataElement.create('修正', '2', { 'cs-default': '0' });
+      const still = DataElement.create('補正', '0', { 'cs-default': '0' });
+      const body = pieceWith('騎士', moved, still);
+
+      const reset = resetPieceToDefaults(body);
+
+      expect(`${moved.value}`).toBe('0');
+      expect(still.value).toBe('0');
+      expect(reset.changes).toHaveLength(1);
     });
   });
 
@@ -219,7 +337,7 @@ describe('the default a sheet item goes back to', () => {
 
     it('takes every default off the piece and its parts, off an item that may keep none as well', () => {
       const hp = resource('HP', 20, 4);
-      const race = DataElement.create('種族', '人間', { 'cs-default': '3' });
+      const race = DataElement.create('メモ', '人間', { type: DataElementType.NOTE, 'cs-default': '3' });
       const body = pieceWith('竜', hp, race, number('命中', 5));
       const headHp = resource('HP', 10, 10);
       partOf(body, '竜の頭', headHp);
