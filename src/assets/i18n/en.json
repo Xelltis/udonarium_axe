@@ -4515,6 +4515,11 @@
         "sweep": {
           "gmOnly": "Only the GM can sweep buffs off"
         },
+        "reset": {
+          "gmOnly": "Only the GM can reset the whole table",
+          "noDefaults": "No item keeps a default, so no value changes",
+          "shadowsBuff": "A buff named \"{{name}}\" cannot be taken off by its name this way. This is read as the command that clears buffs"
+        },
         "portrait": {
           "unknown": "No such portrait, so this is sent as typed",
           "lostByTarget": "A line aimed at targets does not change the portrait"
@@ -4577,6 +4582,20 @@
         "buffRoundsDown": "Count rounds down",
         "buffClear": "Clear those at 0 rounds",
         "buffSweep": "Take off the whole table",
+        "buffClearAll": "Take every one off",
+        "buffClearBuffs": "Take the buffs off",
+        "buffClearDebuffs": "Take the debuffs off",
+        "buffReset": "Take every one off and put values back to their defaults",
+        "buffClearAllTable": "Take every one off the whole table",
+        "buffClearBuffsTable": "Take the buffs off the whole table",
+        "buffClearDebuffsTable": "Take the debuffs off the whole table",
+        "buffResetTable": "Reset the whole table",
+        "buffKindWord": "buff",
+        "debuffKindWord": "debuff",
+        "resetWord": "reset",
+        "defaultWord": "default",
+        "resourceDefault": "Put back to its default",
+        "resourceDefaults": "Put every value back to its default",
         "portrait": "Portrait",
         "portraitHide": "No portrait",
         "effect": "Effects and cut-ins",

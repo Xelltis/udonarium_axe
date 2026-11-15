@@ -4515,6 +4515,11 @@
         "sweep": {
           "gmOnly": "バフの一括解除はGMだけが使えます"
         },
+        "reset": {
+          "gmOnly": "卓全体のリセットはGMだけが使えます",
+          "noDefaults": "既定値のある項目がないため、値は変わりません",
+          "shadowsBuff": "「{{name}}」という名前のバフは、この書き方では名前で外せません。まとめて外す操作として読まれます"
+        },
         "portrait": {
           "unknown": "この立ち絵が見つからないため、文字のまま送られます",
           "lostByTarget": "ターゲットに向けた行では、立ち絵は切り替わりません"
@@ -4577,6 +4582,20 @@
         "buffRoundsDown": "残ラウンドを減らす",
         "buffClear": "0ラウンド以下を消す",
         "buffSweep": "卓全体から外す",
+        "buffClearAll": "すべて外す",
+        "buffClearBuffs": "バフだけ外す",
+        "buffClearDebuffs": "デバフだけ外す",
+        "buffReset": "すべて外して値を既定値に戻す",
+        "buffClearAllTable": "卓全体からすべて外す",
+        "buffClearBuffsTable": "卓全体からバフだけ外す",
+        "buffClearDebuffsTable": "卓全体からデバフだけ外す",
+        "buffResetTable": "卓全体をリセット",
+        "buffKindWord": "バフ",
+        "debuffKindWord": "デバフ",
+        "resetWord": "リセット",
+        "defaultWord": "既定",
+        "resourceDefault": "既定値に戻す",
+        "resourceDefaults": "すべての値を既定値に戻す",
         "portrait": "立ち絵",
         "portraitHide": "立ち絵を出さない",
         "effect": "演出・カットイン",

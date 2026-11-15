@@ -9,6 +9,7 @@ import {
   splitBuffRounds,
 } from '@axe/domain/character/buff-command';
 import { isBuffEffectTimingField, resolveBuffEffectTiming } from '@axe/domain/character/buff-timing';
+import { countDefaults, type DefaultPick, holdsItemNamed } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { findStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -23,7 +24,12 @@ import type { ReferenceSite } from '@axe/domain/chat/chat-reference';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import { isTargetNumberReference } from '@axe/domain/chat/target-number';
 import type { ChatSyntaxScan, SyntaxSpan, TextRange } from '@axe/domain/chat-syntax/chat-syntax';
-import { hasSecretEditMark, resourceCommandParts, resourceCommandSites } from '@axe/domain/data/resource-command-words';
+import {
+  hasSecretEditMark,
+  readDefaultResetCommand,
+  resourceCommandParts,
+  resourceCommandSites,
+} from '@axe/domain/data/resource-command-words';
 import { parseResourceEditOption, readModifierLayout } from '@axe/domain/data/resource-edit-helpers';
 import { readNamedResourceSlot } from '@axe/domain/data/resource-slot';
 import {
@@ -69,6 +75,9 @@ export const CHAT_LINT_CODES = [
   'buff.badEffectTiming',
   'buff.idleEffectTiming',
   'sweep.gmOnly',
+  'reset.gmOnly',
+  'reset.noDefaults',
+  'reset.shadowsBuff',
   'turn.take',
   'turn.end',
   'turn.wait',
@@ -172,6 +181,11 @@ export interface ChatLintContext {
    * to be sent now, in the palette's own box among them, is not.
    */
   readonly sentLater?: boolean;
+  /**
+   * The pieces on the table, which a reset of the whole table reaches; what such a reset would find
+   * there is not checked where this is not told.
+   */
+  piecesOnTable?(): readonly GameCharacter[];
   /** The name a piece is told by in what is found; its own where this is not told. */
   nameOf?(piece: GameCharacter): string;
   /**
@@ -305,6 +319,15 @@ function lintMessage(
       case 'sweep':
         if (context.keptOffTable) add(span, 'warning', 'edit.keptOffTable');
         else if (!context.isGameMaster) add(span, 'error', 'sweep.gmOnly');
+        break;
+      case 'reset':
+        if (span.targeted && noTarget) {
+          if (!later) add(span, 'error', 'target.none');
+        } else if (context.keptOffTable) add(span, 'warning', 'edit.keptOffTable');
+        else if (span.reach === 'table' && !context.isGameMaster)
+          add(span, 'error', span.takes === 'both' ? 'reset.gmOnly' : 'sweep.gmOnly');
+        else if (span.reach === 'piece' && !span.targeted && !context.speaker) add(span, 'warning', 'edit.noSpeaker');
+        else lintReset(span, context, add, nameOf);
         break;
       case 'portrait':
         if (targeting) add(span, 'warning', 'portrait.lostByTarget');
@@ -501,6 +524,50 @@ function lintBuff(
     const { rounds } = splitBuffRounds(parts.slice(2));
     if (!named && rounds && Number.isNaN(parseInt(rounds))) add(span, 'info', 'buff.roundsDefault');
     lintEffectTiming(parts.slice(2), named != null, span, add);
+  }
+}
+
+type ResetSpan = Extract<SyntaxSpan, { kind: 'reset' }>;
+
+/** The name a reset written as a buff command or a sweep would once have taken a buff off by. */
+function nameShadowedBy(span: ResetSpan): string {
+  if (span.reach === 'table') return span.command.match(/^[sSｓＳ]?[&＆]{2}(.+)[-－]$/)?.[1].trim() ?? '';
+  return removedBuffName(readBuffStacking(halfWidthBuffCommand(span.command)).command);
+}
+
+/**
+ * Checks a reset against the pieces it reaches: the speaker's, those aimed at, or those on the
+ * table where they are told. A buff that goes by the very name the command is written with can no
+ * longer be taken off by it, and values go back only where an item keeps a default: an item named
+ * that a piece has not is found as for any change of one, and where nothing asked for keeps a default
+ * the command changes no value.
+ */
+function lintReset(
+  span: ResetSpan,
+  context: ChatLintContext,
+  add: Report,
+  nameOf: (piece: GameCharacter) => string
+): void {
+  const pieces = span.reach === 'table' ? context.piecesOnTable?.() : piecesFor(span.targeted, context);
+  if (!pieces || pieces.length < 1) return;
+  if (span.takes !== 'values') {
+    const name = nameShadowedBy(span);
+    if (name.length > 0 && pieces.some((piece) => piece.buffs.find(name) != null)) {
+      add(span, 'info', 'reset.shadowsBuff', { params: { name } });
+    }
+  }
+  if (span.takes === 'buffs' || holdsReference(span.command)) return;
+  const pick: DefaultPick = (span.takes === 'values' ? readDefaultResetCommand(span.command) : null) ?? { kind: 'all' };
+  if (pick.kind === 'item') {
+    const missing = pieces.filter((piece) => !holdsItemNamed(piece, pick.name));
+    if (missing.length > 0) {
+      return add(span, 'error', 'res.unknownStatus', {
+        params: { name: pick.name, piece: missing.map(nameOf).join('・') },
+      });
+    }
+  }
+  if (pieces.every((piece) => countDefaults(piece, pick) < 1)) {
+    add(span, span.takes === 'both' ? 'info' : 'warning', 'reset.noDefaults');
   }
 }
 

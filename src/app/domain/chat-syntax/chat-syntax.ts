@@ -1,4 +1,11 @@
-import { buffCommandFields } from '@axe/domain/character/buff-command';
+import {
+  isBuffClearance,
+  isPieceResetCommand,
+  isTableResetCommand,
+  parseBuffClearanceCommand,
+  parseBuffRemovalCommand,
+} from '@axe/domain/character/buff-bulk-removal';
+import { buffCommandFields, halfWidthBuffCommand } from '@axe/domain/character/buff-command';
 import {
   chatDecorationLayout,
   type ChatDecorationMark,
@@ -12,7 +19,11 @@ import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { lexDiceCommand } from '@axe/domain/chat-syntax/dice-command-lexer';
 import { findEmbeddedRolls } from '@axe/domain/data/embedded-roll';
-import { resourceCommandParts, resourceCommandSites } from '@axe/domain/data/resource-command-words';
+import {
+  readDefaultResetCommand,
+  resourceCommandParts,
+  resourceCommandSites,
+} from '@axe/domain/data/resource-command-words';
 import { diceChatTokenSite } from '@axe/domain/dice/dice-chat-token';
 import { looksLikeRollWord, readRollLine, rollableText, rollWordSite } from '@axe/domain/dice/dice-roll-line';
 import { effectTokenSites } from '@axe/domain/effect/effect-chat-token';
@@ -60,6 +71,18 @@ export type SyntaxSpan = TextRange & { readonly parts: readonly SyntaxPart[] } &
     | { readonly kind: 'aim' }
     | { readonly kind: 'buff'; readonly command: string; readonly targeted: boolean }
     | { readonly kind: 'sweep'; readonly command: string }
+    /**
+     * A command that clears buffs whatever their names, `&*-`, puts values back to their defaults,
+     * `:*=既定`, or does both, `&リセット-`: of the speaker's piece, of the pieces aimed at where it is
+     * `targeted`, or with `&&` of every piece on the table.
+     */
+    | {
+        readonly kind: 'reset';
+        readonly command: string;
+        readonly targeted: boolean;
+        readonly reach: 'piece' | 'table';
+        readonly takes: 'buffs' | 'values' | 'both';
+      }
     /** A round command that opens a message, `&T`; `rest` is what follows it, read as a message of its own. */
     | { readonly kind: 'turn'; readonly command: TurnChatCommand; readonly rest: TextRange }
     | { readonly kind: 'portrait'; readonly command: PortraitCommand }
@@ -229,7 +252,11 @@ function scanAims(message: string, at: At, spans: SyntaxSpan[]): void {
   }
 }
 
-/** The resource, buff and sweep commands of a message, in that order. */
+/**
+ * The resource, buff and sweep commands of a message, in that order. One that clears buffs whatever
+ * their names, puts values back to their defaults or does both is a reset, with the pieces of the
+ * kind of command it is written as.
+ */
 function scanCommandWords(message: string, at: At, spans: SyntaxSpan[]): void {
   const words = resourceCommandSites(message);
   for (const site of words.resources) {
@@ -254,7 +281,10 @@ function scanCommandWords(message: string, at: At, spans: SyntaxSpan[]): void {
         }
       }
     }
-    spans.push({ kind: 'resource', command: site.command, targeted, from: at(from), to: at(site.to), parts });
+    const placed = { command: site.command, targeted, from: at(from), to: at(site.to), parts };
+    if (readDefaultResetCommand(site.command))
+      spans.push({ kind: 'reset', reach: 'piece', takes: 'values', ...placed });
+    else spans.push({ kind: 'resource', ...placed });
   }
   for (const site of words.buffs) {
     const targeted = site.command.startsWith('t');
@@ -270,16 +300,26 @@ function scanCommandWords(message: string, at: At, spans: SyntaxSpan[]): void {
         to: at(site.from + field.to),
       });
     });
-    spans.push({ kind: 'buff', command: site.command, targeted, from: at(from), to: at(site.to), parts });
+    const placed = { command: site.command, targeted, from: at(from), to: at(site.to), parts };
+    const written = halfWidthBuffCommand(site.command);
+    if (isPieceResetCommand(written)) spans.push({ kind: 'reset', reach: 'piece', takes: 'both', ...placed });
+    else if (parseBuffClearanceCommand(written))
+      spans.push({ kind: 'reset', reach: 'piece', takes: 'buffs', ...placed });
+    else spans.push({ kind: 'buff', ...placed });
   }
   for (const site of words.sweeps) {
-    spans.push({
-      kind: 'sweep',
+    const placed = {
       command: site.command,
       from: at(site.markFrom),
       to: at(site.to),
-      parts: [{ role: 'marker', from: at(site.markFrom), to: at(site.from + 2) }],
-    });
+      parts: [{ role: 'marker' as const, from: at(site.markFrom), to: at(site.from + 2) }],
+    };
+    const rule = parseBuffRemovalCommand(site.command);
+    if (isTableResetCommand(site.command)) {
+      spans.push({ kind: 'reset', reach: 'table', takes: 'both', targeted: false, ...placed });
+    } else if (rule && isBuffClearance(rule)) {
+      spans.push({ kind: 'reset', reach: 'table', takes: 'buffs', targeted: false, ...placed });
+    } else spans.push({ kind: 'sweep', ...placed });
   }
 }
 

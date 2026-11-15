@@ -137,6 +137,7 @@ const KIND_CLASSES: Partial<Record<SyntaxKind, string>> = {
   aim: 'chat-rich-resource',
   buff: 'chat-rich-buff',
   sweep: 'chat-rich-buff',
+  reset: 'chat-rich-buff',
   turn: 'chat-rich-buff',
   portrait: 'chat-rich-portrait',
   cutIn: 'chat-rich-cut-in',
@@ -996,7 +997,8 @@ export class ChatEditorField implements ChatTextField {
         continue;
       }
       if (span.kind === 'cutIn' && !annotated('cutIn', span.from, span.to)) continue;
-      const className = KIND_CLASSES[span.kind];
+      const className =
+        span.kind === 'reset' && span.takes === 'values' ? KIND_CLASSES.resource : KIND_CLASSES[span.kind];
       if (!className) continue;
       const from = out.toPos(span.from, 1);
       const to = out.toPos(span.to, -1);

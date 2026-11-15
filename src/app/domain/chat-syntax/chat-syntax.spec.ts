@@ -110,6 +110,78 @@ describe('scanChatSyntax', () => {
     expect(markersOf(scan, 'sweep')).toEqual(['s&&', 'S&&']);
   });
 
+  describe('a reset', () => {
+    const resetsOf = (scan: ChatSyntaxScan) =>
+      scan.spans.flatMap((span) =>
+        span.kind === 'reset'
+          ? [[scan.text.slice(span.from, span.to), span.reach, span.takes, span.targeted] as const]
+          : []
+      );
+
+    it('reads the commands that clear buffs whatever their names, of a piece or of the table', () => {
+      const scan = scanChatSyntax('終了 &*- t&*デバフ- ＆＊バフ－ s&*debuff- &&*- S&&*バフ-');
+
+      expect(resetsOf(scan)).toEqual([
+        ['&*-', 'piece', 'buffs', false],
+        ['t&*デバフ-', 'piece', 'buffs', true],
+        ['＆＊バフ－', 'piece', 'buffs', false],
+        ['s&*debuff-', 'piece', 'buffs', false],
+        ['&&*-', 'table', 'buffs', false],
+        ['S&&*バフ-', 'table', 'buffs', false],
+      ]);
+      expect(textsOf(scan, 'buff')).toEqual([]);
+      expect(textsOf(scan, 'sweep')).toEqual([]);
+      expect(markersOf(scan, 'reset')).toEqual(['&', 't&', '＆', 's&', '&&', 'S&&']);
+    });
+
+    it('reads the commands that put values back, and the one word that does both', () => {
+      const scan = scanChatSyntax(':*=既定 t:HP^=default s:命中=既定 &リセット- t&reset- &&リセット-');
+
+      expect(resetsOf(scan)).toEqual([
+        [':*=既定', 'piece', 'values', false],
+        ['t:HP^=default', 'piece', 'values', true],
+        ['s:命中=既定', 'piece', 'values', false],
+        ['&リセット-', 'piece', 'both', false],
+        ['t&reset-', 'piece', 'both', true],
+        ['&&リセット-', 'table', 'both', false],
+      ]);
+      expect(textsOf(scan, 'resource')).toEqual([]);
+    });
+
+    it('places the name, operator and word of one that puts a value back as those of a resource command', () => {
+      const scan = scanChatSyntax('t:HP^=既定');
+      const [span] = scan.spans.filter((each) => each.kind === 'reset');
+
+      expect(span.parts.map((part) => [part.role, scan.text.slice(part.from, part.to)])).toEqual([
+        ['marker', 't:'],
+        ['name', 'HP^'],
+        ['operator', '='],
+        ['amount', '既定'],
+      ]);
+    });
+
+    it('leaves every word written before as the kind it was', () => {
+      const scan = scanChatSyntax(
+        '攻撃 &D &R- &加護- &*毒- &リセット/3 :HP=10 :*+1 :HP=既定L &&none- &&2R- &&毒- &&*毒-'
+      );
+
+      expect(resetsOf(scan)).toEqual([]);
+      expect(textsOf(scan, 'buff')).toEqual(['&D', '&R-', '&加護-', '&*毒-', '&リセット/3']);
+      expect(textsOf(scan, 'resource')).toEqual([':HP=10', ':*+1', ':HP=既定L']);
+      expect(textsOf(scan, 'sweep')).toEqual(['&&none-', '&&2R-', '&&毒-', '&&*毒-']);
+      expect(textsOf(scanChatSyntax('&T &*-'), 'turn')).toEqual(['&T']);
+    });
+
+    it('takes the star of a clearing for no decoration, and reads a decoration beside it as before', () => {
+      expect(textsOf(scanChatSyntax('&*- と &*バフ- と &&*-'), 'decoration')).toEqual([]);
+
+      const scan = scanChatSyntax('**強く** &*-');
+      expect(textsOf(scan, 'decoration')).toEqual(['**', '**']);
+      expect(scan.decorations.map((run) => scan.text.slice(run.from, run.to))).toEqual(['強く']);
+      expect(textsOf(scan, 'reset')).toEqual(['&*-']);
+    });
+  });
+
   it('places the name, operator and amount of a resource command', () => {
     const scan = scanChatSyntax(':HP-[k10]');
     const [span] = scan.spans.filter((each) => each.kind === 'resource');

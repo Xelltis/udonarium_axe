@@ -294,6 +294,7 @@ export class ChatLintService {
       hasEffectTarget: candidates.length > 0,
       hasBattleDefender: candidates.some((piece) => piece !== speaker),
       isGameMaster,
+      piecesOnTable: () => pieces.filter((piece) => piece.location.name === 'table'),
       get keptOffTable() {
         return PeerCursor.isMyselfKeptOffTable;
       },

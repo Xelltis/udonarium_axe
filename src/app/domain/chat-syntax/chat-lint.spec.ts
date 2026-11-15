@@ -1,3 +1,4 @@
+import { writeDefault } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { newStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -249,6 +250,102 @@ describe('lintChatSyntax', () => {
     it('finds a sweep by anyone but the game master', () => {
       expect(codes('&&毒-')).toEqual(['sweep.gmOnly']);
       expect(codes('&&毒-', { isGameMaster: true })).toEqual([]);
+    });
+  });
+
+  describe('resets', () => {
+    const hpOf = (piece: GameCharacter) => piece.detailDataElement!.getFirstElementByName('HP')!;
+
+    it('says nothing of a clearing of buffs, which names no buff to be found', () => {
+      for (const line of ['&*-', '&*バフ-', '&*debuff-', '＆＊－']) expect(codes(line), line).toEqual([]);
+      expect(codes('t&*-', { targets: [target] })).toEqual([]);
+    });
+
+    it('finds one aimed at no target, one from a seat that only watches and one said as no piece', () => {
+      for (const line of ['t&*-', 't:*=既定', 't&リセット-']) expect(codes(line), line).toEqual(['target.none']);
+      for (const line of ['&*-', ':*=既定', '&リセット-', '&&*-', '&&リセット-']) {
+        expect(codes(line, { keptOffTable: true }), line).toEqual(['edit.keptOffTable']);
+      }
+      for (const line of ['&*-', ':*=既定', ':HP=既定', '&リセット-']) {
+        expect(codes(line, { speaker: null }), line).toEqual(['edit.noSpeaker']);
+      }
+      expect(codes('t&リセット-', { sentLater: true })).toEqual([]);
+    });
+
+    it('finds one across the table by anyone but the game master', () => {
+      expect(lint('&&リセット-')).toEqual([expect.objectContaining({ severity: 'error', code: 'reset.gmOnly' })]);
+      expect(codes('s&&reset-')).toEqual(['reset.gmOnly']);
+      expect(codes('&&*-')).toEqual(['sweep.gmOnly']);
+      expect(codes('&&*デバフ-')).toEqual(['sweep.gmOnly']);
+      expect(codes('&&*-', { isGameMaster: true })).toEqual([]);
+      expect(codes('&&リセット-', { isGameMaster: true })).toEqual([]);
+    });
+
+    it('finds values put back where nothing keeps a default, a warning where that is all the command does', () => {
+      expect(lint(':*=既定')).toEqual([expect.objectContaining({ severity: 'warning', code: 'reset.noDefaults' })]);
+      expect(lint('&リセット-')).toEqual([expect.objectContaining({ severity: 'info', code: 'reset.noDefaults' })]);
+      expect(codes(':HP=既定')).toEqual(['reset.noDefaults']);
+      expect(codes('t:*=既定', { targets: [target] })).toEqual(['reset.noDefaults']);
+
+      writeDefault(hpOf(speaker), 'now', 100);
+
+      expect(codes(':*=既定')).toEqual([]);
+      expect(codes('&リセット-')).toEqual([]);
+      expect(codes(':HP=default')).toEqual([]);
+      expect(codes(':HP^=既定')).toEqual(['reset.noDefaults']);
+      expect(codes('t:*=既定', { targets: [target, speaker] })).toEqual([]);
+    });
+
+    it('finds an item named that a piece has not, as for any change of one', () => {
+      expect(lint(':魔力=既定')[0]).toMatchObject({
+        code: 'res.unknownStatus',
+        params: { name: '魔力', piece: '戦士' },
+      });
+      expect(codes(':{項目}=既定')).toEqual(['ref.unknownKept']);
+    });
+
+    it('finds values put back across a table where nothing keeps a default, where the table is told', () => {
+      const piecesOnTable = () => [speaker, target];
+      expect(lint('&&リセット-', { isGameMaster: true, piecesOnTable })).toEqual([
+        expect.objectContaining({ severity: 'info', code: 'reset.noDefaults' }),
+      ]);
+
+      writeDefault(hpOf(target), 'max', 100);
+
+      expect(codes('&&リセット-', { isGameMaster: true, piecesOnTable })).toEqual([]);
+    });
+
+    it('finds a buff going by the very name the command is written with, which it no longer takes off by name', () => {
+      writeDefault(hpOf(speaker), 'now', 100);
+      speaker.buffs.addRound('リセット', '', 3);
+      speaker.buffs.addRound('*', '', 3);
+      target.buffs.addRound('*バフ', '', 3);
+
+      expect(lint('&リセット-')).toEqual([
+        expect.objectContaining({ severity: 'info', code: 'reset.shadowsBuff', params: { name: 'リセット' } }),
+      ]);
+      expect(lint('&*-')[0]).toMatchObject({ code: 'reset.shadowsBuff', params: { name: '*' } });
+      expect(codes('&reset-')).toEqual([]);
+      expect(codes('t&*バフ-', { targets: [target] })).toEqual(['reset.shadowsBuff']);
+      expect(codes('&&*-', { isGameMaster: true, piecesOnTable: () => [speaker] })).toEqual(['reset.shadowsBuff']);
+      expect(codes(':*=既定')).toEqual([]);
+    });
+
+    it('finds in the words written before what it found', () => {
+      expect(codes('&加護-')).toEqual(['buff.notFound']);
+      expect(codes('&*毒-')).toEqual(['buff.notFound']);
+      expect(codes('&D')).toEqual([]);
+      expect(codes('&&none-')).toEqual(['sweep.gmOnly']);
+      expect(codes('&&*毒-')).toEqual(['sweep.gmOnly']);
+      expect(codes(':HP=10')).toEqual([]);
+      expect(codes(':魔力=10')).toEqual(['res.unknownStatus']);
+      expect(codes('&T')).toEqual(['turn.take']);
+      expect(codes('**強く')).toEqual(['deco.unpaired']);
+    });
+
+    it('says nothing of three rounds for a buff with a word marking it a debuff where its rounds go', () => {
+      expect(codes('&毒霧/命中-2/デバフ')).toEqual([]);
+      expect(codes('&毒霧/命中-2/デバフ中')).toEqual(['buff.roundsDefault']);
     });
   });
 

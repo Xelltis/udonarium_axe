@@ -83,8 +83,10 @@ function withHole(writer: ChatSyntaxWriter, before: string, hole: string, after 
  * with what it writes, so that a reader who picks from it learns to write the same by hand, and
  * writes it where it is read: a roll at the start of the roll on the first line, a change of a status
  * or a buff as a word of its own at the caret with a word to type over selected, a round command at
- * the start of the message, a quote at the start of the line, or a chip. A group the speaker or the
- * room has nothing for is left out, as are the sweep and the round commands a player cannot use.
+ * the start of the message, a quote at the start of the line, or a chip. The commands that clear a
+ * piece of its buffs, put its values back to their defaults or do both are written whole, in the
+ * words of the reader's language. A group the speaker or the room has nothing for is left out, as are
+ * the sweeps and resets of the whole table and the round commands a player cannot use.
  */
 export function chatSyntaxGroups(
   source: ChatSyntaxMenuSource,
@@ -135,10 +137,22 @@ export function chatSyntaxGroups(
             : { label: '>', written: `:${status.name}>`, run: withHole(writer, `:${status.name}>`, word('text')) },
         ],
       })),
+    single(
+      word('resourceDefault'),
+      `:HP=${word('defaultWord')}`,
+      withHole(writer, ':', 'HP', `=${word('defaultWord')}`)
+    ),
+    single(word('resourceDefaults'), `:*=${word('defaultWord')}`, () => writer.word(`:*=${word('defaultWord')} `)),
     single(word('toTarget'), 't:HP-1', withHole(writer, 't:', 'HP', '-1')),
     single(word('secret'), 's:HP-1', withHole(writer, 's:', 'HP', '-1')),
   ]);
 
+  const clearances: readonly [string, string][] = [
+    ['buffClearAll', '*'],
+    ['buffClearBuffs', `*${word('buffKindWord')}`],
+    ['buffClearDebuffs', `*${word('debuffKindWord')}`],
+    ['buffReset', word('resetWord')],
+  ];
   group('buff', [
     single(
       word('buffPlain'),
@@ -154,8 +168,14 @@ export function chatSyntaxGroups(
     single(word('buffRemove'), `&${word('name')}-`, withHole(writer, '&', word('name'), '-')),
     single(word('buffRoundsDown'), '&R-', () => writer.word('&R- ')),
     single(word('buffClear'), '&D', () => writer.word('&D ')),
+    ...clearances.map(([key, written]) => single(word(key), `&${written}-`, () => writer.word(`&${written}- `))),
     ...(source.isGameMaster
-      ? [single(word('buffSweep'), `&&${word('name')}-`, withHole(writer, '&&', word('name'), '-'))]
+      ? [
+          single(word('buffSweep'), `&&${word('name')}-`, withHole(writer, '&&', word('name'), '-')),
+          ...clearances.map(([key, written]) =>
+            single(word(`${key}Table`), `&&${written}-`, () => writer.word(`&&${written}- `))
+          ),
+        ]
       : []),
   ]);
 

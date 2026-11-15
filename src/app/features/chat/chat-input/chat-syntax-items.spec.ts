@@ -127,7 +127,44 @@ describe('chatSyntaxGroups', () => {
         .find((group) => group.key === 'buff')!
         .rows.filter((row) => row.items[0].written.startsWith('&&')).length;
     expect(sweeps(false)).toBe(0);
-    expect(sweeps(true)).toBe(1);
+    expect(sweeps(true)).toBe(5);
+  });
+
+  it('offers the commands that clear a piece and put its values back, written whole in the words of the language', () => {
+    const groups = chatSyntaxGroups(source(), writer, t);
+    const writes = (key: string) => groups.find((group) => group.key === key)!.rows.map((row) => row.items[0].written);
+
+    expect(writes('buff')).toEqual(
+      expect.arrayContaining(['&*-', '&*buffKindWord-', '&*debuffKindWord-', '&resetWord-'])
+    );
+    expect(writes('resource')).toEqual(expect.arrayContaining([':HP=defaultWord', ':*=defaultWord']));
+
+    run(groups, 'buff', 'buffClearAll');
+    run(groups, 'buff', 'buffClearDebuffs');
+    run(groups, 'buff', 'buffReset');
+    run(groups, 'resource', 'resourceDefaults');
+    run(groups, 'resource', 'resourceDefault');
+    expect(written).toEqual([
+      'word &*- ',
+      'word &*debuffKindWord- ',
+      'word &resetWord- ',
+      'word :*=defaultWord ',
+      'word :HP=defaultWord [HP]',
+    ]);
+  });
+
+  it('offers the same across the whole table to the game master alone', () => {
+    const tables = (gm: boolean) =>
+      chatSyntaxGroups(source({ isGameMaster: gm }), writer, t)
+        .find((group) => group.key === 'buff')!
+        .rows.map((row) => row.items[0].written)
+        .filter((text) => text.startsWith('&&'));
+
+    expect(tables(false)).toEqual([]);
+    expect(tables(true)).toEqual(['&&name-', '&&*-', '&&*buffKindWord-', '&&*debuffKindWord-', '&&resetWord-']);
+
+    run(chatSyntaxGroups(source({ isGameMaster: true }), writer, t), 'buff', 'buffResetTable');
+    expect(written).toEqual(['word &&resetWord- ']);
   });
 
   it('offers a player every round command, written at the start of the line where they are read', () => {

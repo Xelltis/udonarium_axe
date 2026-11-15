@@ -2,7 +2,13 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { SUPPORTED_LANGS } from '@axe/application/i18n/transloco.config';
+import {
+  isPieceResetCommand,
+  isTableResetCommand,
+  parseBuffClearanceCommand,
+} from '@axe/domain/character/buff-bulk-removal';
 import { CHAT_LINT_CODES } from '@axe/domain/chat-syntax/chat-lint';
+import { readDefaultResetCommand } from '@axe/domain/data/resource-command-words';
 
 type Tree = Record<string, unknown>;
 
@@ -32,6 +38,18 @@ describe('translation keys', () => {
     for (const lang of SUPPORTED_LANGS) {
       const missing = CHAT_LINT_CODES.filter((code) => !dictionaries[lang][`feature.chat.lint.${code}`]);
       expect(missing, lang).toEqual([]);
+    }
+  });
+
+  it('give the chat syntax menu, in every language, words the reset commands are read by', () => {
+    for (const lang of SUPPORTED_LANGS) {
+      const word = (key: string) => dictionaries[lang][`feature.chat.syntax.${key}`];
+
+      expect(parseBuffClearanceCommand(`&*${word('buffKindWord')}-`), lang).toEqual({ kind: 'buffs' });
+      expect(parseBuffClearanceCommand(`&*${word('debuffKindWord')}-`), lang).toEqual({ kind: 'debuffs' });
+      expect(isPieceResetCommand(`&${word('resetWord')}-`), lang).toBe(true);
+      expect(isTableResetCommand(`&&${word('resetWord')}-`), lang).toBe(true);
+      expect(readDefaultResetCommand(`:*=${word('defaultWord')}`), lang).toEqual({ kind: 'all' });
     }
   });
 
