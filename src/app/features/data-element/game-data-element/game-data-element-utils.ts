@@ -1,3 +1,4 @@
+import { defaultSlotsOf, plainNumberIn, readDefault } from '@axe/domain/character/default-value';
 import { DataElement, DataElementFieldType, DataElementRole, DataElementViewMode } from '@axe/domain/data/data-element';
 
 /**
@@ -35,9 +36,20 @@ const KINDS_WITH_OPTIONS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Whether a field has settings of its own to open: a cell of a table, or a select, number,
- * resource, calculated or image field.
+ * Whether a field whose kind has no other setting still has a default to set: a checkbox, and a line
+ * of text while it holds a number or keeps a default already. A line of prose has none.
+ */
+function hasDefaultSetting(element: DataElement): boolean {
+  if (!defaultSlotsOf(element).includes('now')) return false;
+  if (element.fieldType === DataElementFieldType.CHECK) return true;
+  if (element.fieldType !== DataElementFieldType.TEXT) return false;
+  return plainNumberIn(element.value) != null || readDefault(element, 'now') != null;
+}
+
+/**
+ * Whether a field has settings of its own to open: a cell of a table, a select, number, resource,
+ * calculated or image field, or one of another kind that may keep a default.
  */
 export function fieldHasOptions(element: DataElement): boolean {
-  return isTableCellField(element) || KINDS_WITH_OPTIONS.has(element.fieldType);
+  return isTableCellField(element) || KINDS_WITH_OPTIONS.has(element.fieldType) || hasDefaultSetting(element);
 }

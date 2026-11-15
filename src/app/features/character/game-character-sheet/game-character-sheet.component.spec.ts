@@ -2,7 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BottomSheetService } from '@axe/application/ui/bottom-sheet.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
@@ -19,6 +21,7 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
 import { GameCharacterSheetComponent } from '@axe/features/character/game-character-sheet/game-character-sheet.component';
 import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import type { MockInstance } from 'vitest';
 
 describe('GameCharacterSheetComponent', () => {
   let component: GameCharacterSheetComponent;
@@ -176,6 +179,134 @@ describe('GameCharacterSheetComponent', () => {
     } finally {
       character.destroy();
     }
+  });
+
+  describe('the defaults of the piece, from the top of the sheet (acceptance 18)', () => {
+    let character: GameCharacter;
+    let hit: DataElement;
+    let shown: MockInstance<SnackbarService['show']>;
+
+    const host = () => fixture.nativeElement as HTMLElement;
+    const capture = () => host().querySelector<HTMLButtonElement>('[data-testid="sheet-capture-defaults"]');
+    const clear = () => host().querySelector<HTMLButtonElement>('[data-testid="sheet-clear-defaults"]');
+    const t = () => TestBed.inject(TRANSLATE_FN);
+
+    function open(role: PeerRole): void {
+      PeerCursor.createMyCursor().role = role;
+      component.tabletopObject = character;
+      fixture.detectChanges();
+    }
+
+    beforeEach(() => {
+      character = GameCharacter.create('ヒロ', 1, '');
+      for (const child of [...character.detailDataElement!.children]) child.destroy();
+      const section = DataElement.create('能力', '', {});
+      character.detailDataElement!.appendChild(section);
+      hit = DataElement.create('命中', 5, { fieldType: 'number' });
+      section.appendChild(hit);
+      section.appendChild(DataElement.create('筋力', '12', {}));
+      section.appendChild(DataElement.create('種族', '人間', {}));
+      shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+      character.destroy();
+      vi.restoreAllMocks();
+    });
+
+    it('offers both buttons to a seat that may edit the sheet, and neither to one that only watches', () => {
+      open(PeerRole.Player);
+      expect(capture()?.textContent?.trim()).toBe(t()('feature.dataElement.field.captureDefaults'));
+      expect(clear()?.textContent?.trim()).toBe(t()('feature.dataElement.field.clearDefaults'));
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+      expect(capture()).toBeNull();
+      expect(clear()).toBeNull();
+    });
+
+    it('asks with the number of items it will mark, and marks them once confirmed', async () => {
+      open(PeerRole.Player);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+
+      await component.captureDefaults();
+
+      expect(ask).toHaveBeenCalledExactlyOnceWith(t()('feature.dataElement.field.captureConfirm', { count: 2 }));
+      expect(hit.getAttribute('cs-default')).toBe('5');
+      expect(character.detailDataElement!.getFirstElementByName('筋力')!.getAttribute('cs-default')).toBe('12');
+      expect(character.detailDataElement!.getFirstElementByName('種族')!.toAttributes()).not.toHaveProperty(
+        'cs-default'
+      );
+    });
+
+    it('marks nothing where the reader thinks better of it', async () => {
+      open(PeerRole.Player);
+      vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+
+      await component.captureDefaults();
+
+      expect(hit.toAttributes()).not.toHaveProperty('cs-default');
+    });
+
+    it('asks with the number of items that keep a default before taking them away', async () => {
+      open(PeerRole.Player);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+      await component.captureDefaults();
+      ask.mockClear();
+
+      await component.clearDefaults();
+
+      expect(ask.mock.calls[0][0]).toMatchObject({
+        message: t()('feature.dataElement.field.clearConfirm', { count: 2 }),
+      });
+      expect(hit.toAttributes()).not.toHaveProperty('cs-default');
+    });
+
+    it('only says so, asking nothing, where there is nothing to mark or to take away', async () => {
+      hit.value = '';
+      character.detailDataElement!.getFirstElementByName('筋力')!.value = '強い';
+      open(PeerRole.Player);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+
+      await component.captureDefaults();
+      await component.clearDefaults();
+
+      expect(ask).not.toHaveBeenCalled();
+      expect(shown.mock.calls.map(([text]) => text)).toEqual([
+        t()('feature.dataElement.field.captureNone'),
+        t()('feature.dataElement.field.clearNone'),
+      ]);
+    });
+
+    it('offers both in the menu of a narrow sheet to a seat that may edit, and neither to one that only watches', () => {
+      const menu = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      const offered = () => (menu.mock.calls.at(-1)![1] as { name?: string }[]).map((action) => action.name);
+      const both = [t()('feature.dataElement.field.captureDefaults'), t()('feature.dataElement.field.clearDefaults')];
+
+      open(PeerRole.Player);
+      component.openSheetMenu(new MouseEvent('click'));
+      expect(offered()).toEqual(expect.arrayContaining(both));
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      component.openSheetMenu(new MouseEvent('click'));
+      expect(offered()).not.toContain(both[0]);
+      expect(offered()).not.toContain(both[1]);
+    });
+
+    it('does neither for a seat that only watches, though it is asked to', async () => {
+      hit.setAttribute('cs-default', '3');
+      open(PeerRole.Guest);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+
+      await component.captureDefaults();
+      await component.clearDefaults();
+
+      expect(ask).not.toHaveBeenCalled();
+      expect(hit.getAttribute('cs-default')).toBe('3');
+    });
   });
 
   it('closes the sheet of a piece other than a character once its seat is made a guest', () => {

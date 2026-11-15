@@ -36,6 +36,19 @@
           <button (click)="clone()">{{ 'feature.inventory.sheet.copy' | transloco }}</button>
         }
         <button (click)="saveToXML()">{{ 'feature.inventory.sheet.save' | transloco }}</button>
+        @if (!isReadOnly()) {
+          <button
+            type="button"
+            data-testid="sheet-capture-defaults"
+            [title]="'feature.dataElement.field.captureDefaultsHint' | transloco"
+            (click)="captureDefaults()"
+          >
+            {{ 'feature.dataElement.field.captureDefaults' | transloco }}
+          </button>
+          <button type="button" data-testid="sheet-clear-defaults" (click)="clearDefaults()">
+            {{ 'feature.dataElement.field.clearDefaults' | transloco }}
+          </button>
+        }
       </div>
       <div
         class="hidden items-center gap-3 px-3 pt-3 pb-2 group-data-narrow/sheet:flex"

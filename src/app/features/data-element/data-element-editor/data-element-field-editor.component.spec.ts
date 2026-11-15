@@ -95,6 +95,7 @@ describe('DataElementFieldEditorComponent', () => {
 
   it('shows the settings of a kind that has them', () => {
     const { hp } = sheet();
+    hp.value = '満タン';
     const host = open(hp);
     expect(host.querySelector('game-data-element-field-options')).toBeNull();
 
@@ -102,6 +103,13 @@ describe('DataElementFieldEditorComponent', () => {
     fixture.detectChanges();
 
     expect(host.querySelector('game-data-element-field-options')).not.toBeNull();
+  });
+
+  it('shows a line of text holding a number the setting of its default', () => {
+    const { hp } = sheet();
+    const host = open(hp);
+
+    expect(host.querySelector('game-data-element-field-options [name="data-default"]')).not.toBeNull();
   });
 
   it('steps the row down, and greys out what it cannot do from there', () => {

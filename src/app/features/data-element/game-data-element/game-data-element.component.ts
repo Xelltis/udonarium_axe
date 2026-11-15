@@ -31,6 +31,7 @@ import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { debounce } from '@axe/core/util/debounce';
 import { writeElementField } from '@axe/domain/character/alias-mate-follow';
+import { isOffDefault, readDefault } from '@axe/domain/character/default-value';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
 import { owningCharacterOf } from '@axe/domain/character/owning-character';
 import { ResourceSliderRange, resourceSliderRange } from '@axe/domain/character/resource-slider';
@@ -269,6 +270,45 @@ export class GameDataElementComponent {
   set name(name: string) {
     this._name.set(name);
     this.writeSoon();
+  }
+
+  /**
+   * Whether the row shows the mark that puts it back to its default: the field keeps one it does not
+   * stand at now, and this seat may edit the sheet. A field at its default, or keeping none, shows
+   * nothing, and neither does a picture.
+   */
+  readonly showsDefaultMark = computed(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    return !this.isReadOnly() && !this.isImage() && isOffDefault(element);
+  });
+
+  /** What the mark says the field goes back to: `既定値 12`, a resource as what is left over its maximum. */
+  readonly defaultMarkTip = computed(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    return this.t('feature.dataElement.field.backToDefault', { value: this.defaultShown(element) });
+  });
+
+  private defaultShown(element: DataElement): string {
+    const now = readDefault(element, 'now');
+    if (element.fieldType === DataElementFieldType.CHECK) {
+      return this.t(`feature.dataElement.field.${now === 1 ? 'defaultChecked' : 'defaultUnchecked'}`);
+    }
+    if (!element.isNumberResource) return `${now ?? ''}`;
+    const max = readDefault(element, 'max');
+    return `${now ?? '-'}/${max ?? '-'}`;
+  }
+
+  /**
+   * Puts this one field back to the default it keeps, from the mark on its row, and carries the value
+   * to the alias mates that keep none. Nothing for a seat that may not edit the sheet.
+   */
+  backToDefault(event?: Event): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    if (this.isReadOnly()) return;
+    this.edit.backToDefault(this.gameDataElement());
   }
 
   readonly isDuplicateName = computed(() => {

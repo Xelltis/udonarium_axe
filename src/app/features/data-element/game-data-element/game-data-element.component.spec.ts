@@ -1482,6 +1482,127 @@ describe('GameDataElementComponent', () => {
   });
 });
 
+describe('GameDataElementComponent, the mark that puts a field back to its default (acceptance 19)', () => {
+  let fixture: ComponentFixture<GameDataElementComponent>;
+  let piece: GameCharacter;
+
+  /** A number field on the sheet of a piece, holding one value and keeping another as its default. */
+  function numberField(value: number, fallback?: string): DataElement {
+    const field = DataElement.create('命中', value, {
+      [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+      [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.NUMBER,
+      ...(fallback === undefined ? {} : { [DataElementAttribute.DEFAULT]: fallback }),
+    });
+    piece.detailDataElement!.children[0].appendChild(field);
+    return field;
+  }
+
+  function show(field: DataElement, isEdit = false): HTMLElement {
+    fixture = TestBed.createComponent(GameDataElementComponent);
+    fixture.componentRef.setInput('gameDataElement', field);
+    fixture.componentRef.setInput('isEdit', isEdit);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  const mark = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('[data-testid="default-mark"]');
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ imports: [GameDataElementComponent], providers: [...TEST_PROVIDERS] });
+    PeerCursor.createMyCursor().role = PeerRole.Player;
+    piece = GameCharacter.create('騎士', 1, '');
+  });
+
+  afterEach(() => {
+    PeerCursor.myCursor = null!;
+    piece.destroy();
+  });
+
+  it('shows the mark on a field that does not stand at its default, saying what the default is', () => {
+    const host = show(numberField(7, '5'));
+
+    expect(mark(host)?.textContent?.trim()).toBe('↺');
+    expect(mark(host)?.getAttribute('aria-label')).toBe(
+      TestBed.inject(TRANSLATE_FN)('feature.dataElement.field.backToDefault', { value: '5' })
+    );
+  });
+
+  it('shows no mark on a field at its default, on one that keeps none, or on one whose default is empty', () => {
+    expect(mark(show(numberField(5, '5')))).toBeNull();
+    expect(mark(show(numberField(7)))).toBeNull();
+    expect(mark(show(numberField(7, '')))).toBeNull();
+    expect(mark(show(numberField(0, '0')))).toBeNull();
+  });
+
+  it('puts that one field back at a press, leaves the others, and the mark goes', () => {
+    const hit = numberField(7, '5');
+    const dodge = numberField(9, '4');
+    const host = show(hit);
+
+    mark(host)!.click();
+    fixture.detectChanges();
+
+    expect([hit.value, dodge.value]).toEqual([5, 9]);
+    expect(mark(host)).toBeNull();
+  });
+
+  it('shows the mark again once the value is moved off the default', () => {
+    const hit = numberField(5, '5');
+    const host = show(hit);
+    expect(mark(host)).toBeNull();
+
+    hit.value = 8;
+    TestBed.inject(ObjectChangeService).notifyChanged(hit.identifier);
+    fixture.detectChanges();
+
+    expect(mark(host)).not.toBeNull();
+  });
+
+  it('tells a resource by what is left over its maximum, and a checkbox by its tick', () => {
+    const hp = DataElement.create('HP', 20, {
+      type: DataElementType.NUMBER_RESOURCE,
+      currentValue: 4,
+      [DataElementAttribute.DEFAULT]: '20',
+      [DataElementAttribute.DEFAULT_MAX]: '20',
+    });
+    const prone = DataElement.create('転倒', 1, {
+      type: DataElementType.CHECK,
+      [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.CHECK,
+      [DataElementAttribute.DEFAULT]: '0',
+    });
+    piece.detailDataElement!.children[0].appendChild(hp);
+    piece.detailDataElement!.children[0].appendChild(prone);
+    const t = TestBed.inject(TRANSLATE_FN);
+
+    expect(mark(show(hp))?.getAttribute('aria-label')).toBe(
+      t('feature.dataElement.field.backToDefault', { value: '20/20' })
+    );
+    expect(mark(show(prone))?.getAttribute('aria-label')).toBe(
+      t('feature.dataElement.field.backToDefault', { value: t('feature.dataElement.field.defaultUnchecked') })
+    );
+  });
+
+  it('sits in the cell of the name, never among what the value is typed into, reading or editing', () => {
+    for (const isEdit of [false, true]) {
+      const host = show(numberField(7, '5'), isEdit);
+
+      expect(mark(host)?.closest('.elm-name-cell')).not.toBeNull();
+      expect(host.querySelector('.elm-value-cell [data-testid="default-mark"]')).toBeNull();
+    }
+  });
+
+  it('shows a seat that only watches no mark, and puts nothing back for it', () => {
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    const hit = numberField(7, '5');
+    const host = show(hit);
+
+    expect(mark(host)).toBeNull();
+    fixture.componentInstance.backToDefault();
+
+    expect(hit.value).toBe(7);
+  });
+});
+
 describe('GameDataElementComponent on a sheet', () => {
   let component: GameDataElementComponent;
   let fixture: ComponentFixture<GameDataElementComponent>;
