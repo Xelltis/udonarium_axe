@@ -233,9 +233,25 @@ describe('the newer looks for a projectile', () => {
     expect(sniper.scale).toBeLessThan(seedOf('EffectPreset_bullet_2').scale);
   });
 
+  it('brings the meteor down as a meteor, on up to five targets one after another, with time for its crater to cool', () => {
+    const meteor = seedOf('EffectPreset_projectile_3');
+
+    expect(meteor).toMatchObject({
+      name: '流星',
+      kind: 'projectile',
+      projectileStyle: 'meteor',
+      grade: 3,
+      durationMs: 2000,
+      staggerMs: 130,
+      targeting: 'multi',
+      maxTargets: 5,
+    });
+    expect(meteor.impactKind).toBeUndefined();
+  });
+
   it('lists the newer looks among the choices', () => {
     expect([...PROJECTILE_STYLES]).toEqual(
-      expect.arrayContaining(['crescent', 'blaster', 'tracer', 'missile', 'cruise'])
+      expect.arrayContaining(['crescent', 'blaster', 'tracer', 'missile', 'cruise', 'meteor'])
     );
   });
 

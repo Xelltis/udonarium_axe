@@ -54,6 +54,14 @@ describe('effectBlowsOf()', () => {
     }
   });
 
+  it('strikes as a meteor lands, holding everything still and shaking hard at the highest grade', () => {
+    const meteor = makePreset('projectile', 3, { projectileStyle: 'meteor', durationMs: 1200 });
+    const bolt = makePreset('projectile', 3, { durationMs: 1200 });
+
+    expect(effectBlowsOf(meteor)).toEqual([{ atMs: 1050, holdMs: 140, shake: 'hard', push: 0.16 }]);
+    expect(effectBlowsOf(bolt)).toEqual([{ atMs: 340, holdMs: 140, shake: '', push: 0.16 }]);
+  });
+
   it('strikes where each stage of a run lands that strikes', () => {
     const staged = makePreset('projectile', 2);
     const stages: EffectStage[] = [

@@ -12,6 +12,20 @@ describe('EffectPreset', () => {
     expect(preset.effectKind).toBe('burst');
   });
 
+  it('reads a look of a shot it does not know as a magic bolt, as a version from before a look was added reads it', () => {
+    const preset = makePreset();
+    preset.projectileStyle = 'a-look-of-a-later-version';
+
+    expect(preset.projectileLook).toBe('bolt');
+  });
+
+  it('knows a meteor among the looks of a shot', () => {
+    const preset = makePreset();
+    preset.projectileStyle = 'meteor';
+
+    expect(preset.projectileLook).toBe('meteor');
+  });
+
   it('reads a targeting rule it does not know as a single target', () => {
     const preset = makePreset();
     preset.targeting = '';

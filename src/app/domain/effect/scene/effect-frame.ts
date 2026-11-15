@@ -118,6 +118,11 @@ export interface EffectStagingOptions {
   readonly resolveFooting?: (identifier: string) => EffectFooting | null;
   /** How many cells across a target is; one without it. */
   readonly resolveSize?: (identifier: string) => number;
+  /**
+   * The pieces standing on the table now, for a breath to break on those in its way: asked for only
+   * by a look that breaks on them, and never sent, each seat telling of the pieces it draws.
+   */
+  readonly resolveStanding?: () => readonly string[];
 }
 
 /**
@@ -125,7 +130,7 @@ export interface EffectStagingOptions {
  * stage after it is its landing, and drawing both would burst twice.
  */
 const TRAVELLING: Partial<Record<EffectKind, Choreography>> = {
-  projectile: projectileWith(() => nothingStaged()),
+  projectile: projectileWith(null),
   ballistic: ballisticWith(() => nothingStaged()),
   skyblade: skybladeWith(() => nothingStaged(), 0),
 };
@@ -250,6 +255,7 @@ export function stageEffect(
   const targets = standingTargets(preset, cast, options);
   const body = bodyOf(cast, casterFooting, options);
   const mouth: StageMouth | null = body && mouthBefore(body, targets);
+  const bystanders = preset.effectKind === 'breath' ? bystandersOf(cast, options) : undefined;
   for (const standing of targets) {
     const index = standing.index;
     const target = cast.targets[index];
@@ -273,6 +279,7 @@ export function stageEffect(
       areaPx: preset.areaRadiusCells * options.cellPx,
       origin,
       targets,
+      bystanders,
       mouth,
       seed: cast.seed + index * 7919,
       preset,
@@ -316,6 +323,18 @@ function bodyOf(cast: EffectCast, caster: EffectFooting | null, options: EffectS
   if (!cast.origin) return null;
   const foot = cast.origin.z - options.cellPx * AIMED_FROM_CELLS;
   return { x: cast.origin.x, y: cast.origin.y, z: foot, widthPx: options.cellPx };
+}
+
+/** The pieces standing on the table that are neither a target of a cast nor its caster, where each stands now. */
+function bystandersOf(cast: EffectCast, options: EffectStagingOptions): StageTarget[] {
+  const taken = new Set([cast.casterIdentifier, ...cast.targets.map((target) => target.identifier)]);
+  const standing: StageTarget[] = [];
+  for (const identifier of options.resolveStanding?.() ?? []) {
+    if (taken.has(identifier)) continue;
+    const footing = options.resolveFooting?.(identifier);
+    if (footing) standing.push({ index: -1, ...footing, widthPx: widthOf(identifier, options) });
+  }
+  return standing;
 }
 
 /** Every target of a cast that is drawn, where it stands now, in the order they were picked. */

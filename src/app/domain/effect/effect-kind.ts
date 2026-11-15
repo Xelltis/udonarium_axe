@@ -49,9 +49,11 @@ export function isSlashStyle(value: unknown): value is SlashStyle {
 
 /**
  * What a projectile looks like: a magical bolt glows, while an arrow or a bullet flies as a thing.
- * A flying cut, a blaster bolt, a sniper's tracer, a small missile or a guided one.
+ * A flying cut, a blaster bolt, a sniper's tracer, a small missile or a guided one; and a meteor,
+ * which is not shot from the caster at all but falls burning out of the sky onto the target.
  */
-export type ProjectileStyle = 'bolt' | 'arrow' | 'bullet' | 'crescent' | 'blaster' | 'tracer' | 'missile' | 'cruise';
+export type ProjectileStyle =
+  'bolt' | 'arrow' | 'bullet' | 'crescent' | 'blaster' | 'tracer' | 'missile' | 'cruise' | 'meteor';
 
 export const PROJECTILE_STYLES: readonly ProjectileStyle[] = [
   'bolt',
@@ -62,6 +64,7 @@ export const PROJECTILE_STYLES: readonly ProjectileStyle[] = [
   'tracer',
   'missile',
   'cruise',
+  'meteor',
 ];
 
 const PROJECTILE_STYLE_SET = new Set<string>(PROJECTILE_STYLES);

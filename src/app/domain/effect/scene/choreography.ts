@@ -55,6 +55,11 @@ export interface Stage {
    * one among them: for a look that plays over all of them at once rather than on each alone.
    */
   readonly targets: readonly StageTarget[];
+  /**
+   * The pieces standing on the table that are neither a target of the cast nor its caster, as they
+   * stand now, for a look that breaks on whatever is in its way; left out by what has none to tell of.
+   */
+  readonly bystanders?: readonly StageTarget[];
   /** Where a breath leaves its caster; null for one cast from nowhere. */
   readonly mouth: StageMouth | null;
   /** When its blows land on the target, in seconds of its playback: the moment it goes off. */

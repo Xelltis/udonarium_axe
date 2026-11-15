@@ -458,7 +458,8 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     maxTargets: 5,
     soundKey: 'fireLarge',
     grade: 3,
-    durationMs: 1200,
+    durationMs: 2000,
+    projectileStyle: 'meteor',
     impactSoundKey: 'explosionLarge',
   },
   {

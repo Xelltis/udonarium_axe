@@ -7,6 +7,7 @@ import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
  *
  * Only what lands a blow, such as an explosion or a strike, shakes it.
  * Shaking for healing and shields too would give everything the same weight and leave none of it heavy.
+ * A shot shakes nothing, but for a meteor; see {@link fallsAsMeteor}.
  */
 const SHAKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'burst',
@@ -41,8 +42,17 @@ function drawnKinds(preset: EffectPreset): EffectKind[] {
   return stageLayoutOf(preset.stageList).windows.map((window) => window.stage.kind);
 }
 
+/**
+ * Whether an effect is a meteor falling on its target: a shot on its own with the look of one, which
+ * strikes the ground as no other shot does. A shot of any other look is the lighter for not shaking,
+ * and one that is a stage of a run leaves its landing, and the shaking, to the stage after it.
+ */
+function fallsAsMeteor(preset: EffectPreset): boolean {
+  return !preset.isStaged && preset.effectKind === 'projectile' && preset.projectileLook === 'meteor';
+}
+
 /** How hard the screen shakes. Empty for not at all. */
 export function effectShakeOf(preset: EffectPreset): EffectShake {
-  if (!drawnKinds(preset).some((kind) => SHAKING_KINDS.has(kind))) return '';
+  if (!fallsAsMeteor(preset) && !drawnKinds(preset).some((kind) => SHAKING_KINDS.has(kind))) return '';
   return SHAKE_BY_GRADE[preset.gradeLevel];
 }

@@ -9,6 +9,7 @@ import {
 import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
 import { drawCloud, dustColumn, rollingDust } from '@axe/domain/effect/scene/fire/fire-parts';
+import { drawMeteor } from '@axe/domain/effect/scene/meteor/meteor';
 import {
   acrossOf,
   floorMark,
@@ -31,8 +32,9 @@ import { ARROW_RAIN_FALL, arrowRainShots, projectileTiming } from '@axe/domain/e
  * What is shot from the caster at a target: a magic bolt glowing with a tail of light, an arrow with
  * its shaft and a pale streak, a bullet's tracer, a crescent of a blade flying, a blaster's bolt, a
  * sniper's line drawn at once, a missile trailing smoke on its arc and a cruise missile weaving; guns
- * flash at the muzzle. Each lands with the look its preset gives for landing. A lobbed shot climbs
- * high and falls trailing smoke; a rain of arrows is loosed up into the sky and falls over the target.
+ * flash at the muzzle. A meteor is shot from no one: it falls burning out of the sky. Each lands with
+ * the look its preset gives for landing. A lobbed shot climbs high and falls trailing smoke; a rain of
+ * arrows is loosed up into the sky and falls over the target.
  */
 
 /** How long a shot lingers after its playback, for the look it lands with to clear, in seconds. */
@@ -45,8 +47,11 @@ const GUNS = new Set(['bullet', 'blaster', 'tracer']);
 /** How the look a shot lands with is drawn. */
 export type LandingLook = (stage: Stage) => Staged;
 
-/** A shot from the caster, landing with the look `landWith` draws for its preset. */
-export function projectileWith(landWith: LandingLook): Choreography {
+/**
+ * A shot from the caster, landing with the look `landWith` draws for its preset; with none, a shot
+ * that only flies, what comes after it being its landing.
+ */
+export function projectileWith(landWith: LandingLook | null): Choreography {
   return { lingerS: LINGER_S, draw: (stage) => drawProjectile(stage, landWith) };
 }
 
@@ -103,12 +108,38 @@ function landing(
   });
 }
 
-function drawProjectile(stage: Stage, landWith: LandingLook): Staged {
+/**
+ * The meteors of a cast on one target: each falls out of the sky on its own line and lands with the
+ * look `landWith` draws, over what it leaves of its own; with none, each only falls. Those of a volley
+ * fall together, each leaving its own wreck, so the look each lands with is thinned once more than a
+ * volley of shots is.
+ */
+function drawMeteors(stage: Stage, landWith: LandingLook | null, ramp: readonly string[]): Staged {
+  const drawn = nothingStaged();
+  const { shots } = projectileTiming(stage.preset);
+  const struck = { ...stage, preset: volleyLandingPreset(stage.preset, shots.length) };
+  shots.forEach((shot, index) => {
+    const lands = shot.land * stage.duration;
+    drawMeteor(
+      drawn,
+      stage,
+      { index, count: shots.length, launch: shot.launch * stage.duration, lands },
+      ramp,
+      stage.duration + LINGER_S,
+      landWith && ((spot) => landing(struck, landWith, lands, index, shots.length, spot))
+    );
+  });
+  return drawn;
+}
+
+function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
+  const style = stage.preset.projectileLook;
+  const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
+  if (style === 'meteor') return drawMeteors(stage, lands, ramp);
+  const landWith = lands ?? nothingStaged;
   const drawn = nothingStaged();
   const { cell, duration } = stage;
   const t = stage.seconds;
-  const style = stage.preset.projectileLook;
-  const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
   const from = originOf(stage);
   const to = { x: stage.x, y: stage.y, z: stage.z + cell * STRIKES_AT };
   const { length } = wayBetween(from, to);

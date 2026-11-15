@@ -21,7 +21,21 @@ const PROJECTILE_TRAVEL_MS: Record<ProjectileStyle, number> = {
   tracer: 70,
   missile: 420,
   cruise: 1400,
+  meteor: 1050,
 };
+
+/** The latest a shot of a look lands, as a share of the effect; see {@link latestLandingOf}. */
+const LANDS_BY = 0.6;
+/** The latest a meteor lands: it falls for most of the effect, which leaves only its landing to play out after it. */
+const METEOR_LANDS_BY = 0.875;
+
+/**
+ * The latest a shot of a look may land, as a share of the effect, however short the effect is: a
+ * meteor is seen falling for most of it, and anything else leaves the rest of it to its landing.
+ */
+function latestLandingOf(look: ProjectileStyle): number {
+  return look === 'meteor' ? METEOR_LANDS_BY : LANDS_BY;
+}
 
 export interface ProjectileShot {
   /** Where through the effect it is fired. */
@@ -33,12 +47,14 @@ export interface ProjectileShot {
 /**
  * When each shot of a projectile effect is fired and lands, as shares of the effect's duration.
  *
- * The travel time comes from the projectile's look, held between 5% and 60% of the effect. Several
+ * The travel time comes from the projectile's look, held between 5% and 60% of the effect, or as far
+ * as 87.5% of it for a meteor, whose travel is its omen in the sky and its fall together. Several
  * shots are spaced by the preset's shot interval, but never so far apart that the last one would
  * land after the effect ends.
  */
 export function projectileTiming(preset: EffectPreset): { travel: number; shots: ProjectileShot[] } {
-  const travel = clamp(PROJECTILE_TRAVEL_MS[preset.projectileLook] / preset.duration, 0.05, 0.6);
+  const look = preset.projectileLook;
+  const travel = clamp(PROJECTILE_TRAVEL_MS[look] / preset.duration, 0.05, latestLandingOf(look));
   const count = preset.shotCount;
   if (count === 1) return { travel, shots: [{ launch: 0, land: travel }] };
 
