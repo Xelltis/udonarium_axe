@@ -1,8 +1,8 @@
 import type { Staged } from '@axe/domain/effect/scene/choreography';
 import { seededRun } from '@axe/domain/effect/scene/effect-sim';
-import { floorMark, glow, lightBall, type Point, smokePuff, starBurst } from '@axe/domain/effect/scene/parts';
+import { floorMark, glow, lightBall, type Point, smokePuff } from '@axe/domain/effect/scene/parts';
 import { aboutWay, levelWay, offsetBy, tossedAt } from '@axe/domain/effect/scene/shot/shot-flight';
-import { type StreakTones } from '@axe/domain/effect/scene/shot/shot-parts';
+import { layFlashStar, type StreakTones } from '@axe/domain/effect/scene/shot/shot-parts';
 
 /*
  * What a gun does where it is fired. The flash at its muzzle has a shape: a tongue of flame thrown
@@ -70,7 +70,7 @@ export function layMuzzleFlash(drawn: Staged, muzzle: Muzzle, tones: StreakTones
       const length = Math.hypot(heading.x, heading.y, heading.z);
       tongue({ x: heading.x / length, y: heading.y / length, z: heading.z / length }, long * 0.5, wide * 0.5);
     }
-    drawn.motes.push(...starBurst(at, cell * 3 * power, tones.hue, share, forward, 4, 0.4 + muzzle.seed));
+    layFlashStar(drawn, at, cell * 2.4 * power, tones.hue, share, forward, 4, 0.4 + muzzle.seed);
     drawn.motes.push(lightBall(at, cell * 0.9 * power * (1 - share * 0.5), '#ffffff', left, forward + 1));
     drawn.floor.push(
       floorMark(

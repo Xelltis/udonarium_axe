@@ -3,16 +3,7 @@ import { type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import type { EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
 import { seededRun } from '@axe/domain/effect/scene/effect-sim';
-import {
-  acrossOf,
-  floorMark,
-  glow,
-  hueOf,
-  lightBall,
-  type Point,
-  smokePuff,
-  starBurst,
-} from '@axe/domain/effect/scene/parts';
+import { acrossOf, floorMark, glow, hueOf, lightBall, type Point, smokePuff } from '@axe/domain/effect/scene/parts';
 import { aboutWay, levelWay, offsetBy, tossedAt } from '@axe/domain/effect/scene/shot/shot-flight';
 
 /*
@@ -30,6 +21,8 @@ const SOOT = '#0e0b10';
 export const KICKED = '#b9a58c';
 export const DIRT = '#6b5440';
 const DARK_DIRT = '#33261b';
+const GUNSMOKE_PALE = '#b3ada7';
+const GUNSMOKE_DARK = '#6f6963';
 
 /** The tones a streak is drawn in. */
 export interface StreakTones {
@@ -265,7 +258,7 @@ export function layDirtJet(
       'jet',
       { ...at, z: at.z + cell * 0.02 },
       heading,
-      cell * tall * (0.3 + 0.25 * age),
+      cell * tall * (0.15 + 0.13 * age),
       Math.max(cell * 0.2, high),
       since * 9 + wavers,
       {
@@ -278,6 +271,38 @@ export function layDirtJet(
     ),
     smokePuff({ ...at, z: at.z + cell * 0.08 }, cell * tall * (0.3 + 0.3 * age), DIRT, 0.7 * shown, forward)
   );
+}
+
+/**
+ * A curl of smoke rising off where a shot struck, `size` cells across at its widest: a thread of
+ * puffs that climbs, sways, swells and thins away over `lastsS` seconds.
+ */
+export function layCurl(
+  drawn: Staged,
+  at: Point,
+  cell: number,
+  since: number,
+  lastsS: number,
+  seed: number,
+  size: number,
+  forward: number
+): void {
+  if (since < 0.04 || since >= lastsS) return;
+  const age = since / lastsS;
+  for (let puff = 0; puff < 6; puff++) {
+    const up = puff / 5;
+    const rise = cell * (0.1 + 1.9 * up) * (0.35 + 0.65 * Math.min(1, age * 2.2));
+    const sway = Math.sin(up * 4.2 + since * 3 + seed) * cell * 0.3 * up;
+    drawn.motes.push(
+      smokePuff(
+        { x: at.x + sway + cell * 0.35 * age * up, y: at.y + sway * 0.4, z: at.z + rise },
+        cell * size * (0.45 + 0.75 * up) * (0.7 + 0.6 * age),
+        puff < 2 ? GUNSMOKE_DARK : GUNSMOKE_PALE,
+        0.85 * (1 - age) ** 1.2 * (1 - 0.35 * up),
+        forward
+      )
+    );
+  }
 }
 
 /** The pock a shot leaves in the ground: a black hole, cracks run out of it, and for a moment the glow of what made it. */
@@ -301,6 +326,42 @@ export function layPock(
 }
 
 /**
+ * A star of light thrown out of a point, `size` across, `share` of the way through its moment:
+ * spikes of its colour, laid in colour so that they hold on a bright floor, white along their
+ * middles, over a little light of its colour.
+ */
+export function layFlashStar(
+  drawn: Staged,
+  at: Point,
+  size: number,
+  hue: string,
+  share: number,
+  forward: number,
+  spikes = 6,
+  turn = 0
+): void {
+  if (share < 0 || share >= 1) return;
+  const left = 1 - share;
+  const round = Math.PI * 2;
+  const from = ((turn % round) + round) % round;
+  for (let spike = 0; spike < spikes; spike++) {
+    const spin = from + (spike * Math.PI) / spikes;
+    const long = spike % 2 === 0 ? 1 : 0.55;
+    drawn.motes.push(
+      {
+        ...glow(at, size * 0.3 * left, hue, Math.sqrt(left), forward),
+        blend: 'color',
+        shape: 'flare',
+        trail: 4.5 * long,
+        spin,
+      },
+      { ...glow(at, size * 0.15 * left, '#ffffff', left, forward + 1), shape: 'flare', trail: 6 * long, spin }
+    );
+  }
+  drawn.motes.push(glow(at, size * (0.55 + 0.25 * share), hue, 0.55 * left, forward - 1));
+}
+
+/**
  * The frame something strikes in: a star of light with a white heart, and its light thrown over the
  * floor under it, `size` cells across, over `lastsS` seconds.
  */
@@ -319,8 +380,8 @@ export function layHitFlash(
 ): void {
   if (since < 0 || since >= lastsS) return;
   const share = since / lastsS;
-  drawn.motes.push(...starBurst(at, cell * size, hueOf(ramp), share, forward + 1, spikes, seed));
-  drawn.motes.push(lightBall(at, cell * size * 0.2 * (1 - share * 0.6), '#ffffff', 1 - share, forward + 2));
+  layFlashStar(drawn, at, cell * size, hueOf(ramp), share, forward + 1, spikes, seed);
+  drawn.motes.push(lightBall(at, cell * size * 0.16 * (1 - share * 0.6), '#ffffff', 1 - share, forward + 3));
   drawn.floor.push(
     floorMark('disc', { x: at.x, y: at.y, z: floorZ }, cell * size * 0.55, 1, ramp[4], 0.3 * (1 - share), 'light', 0)
   );
