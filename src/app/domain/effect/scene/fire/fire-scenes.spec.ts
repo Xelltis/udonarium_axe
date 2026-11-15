@@ -114,7 +114,8 @@ describe('the grades of a burst', () => {
   });
 
   it('pops at the lowest grade, throws a shock ring at the middle one and rocks and brands at the highest', () => {
-    const rings = (grade: number) => at(grade, 100).floor.filter((mark) => mark.shape === 'ring').length;
+    const rings = (grade: number) =>
+      at(grade, 100).floor.filter((mark) => mark.shape === 'ring' && mark.blend === 'light').length;
     const chunks = (grade: number) => at(grade, 300).motes.filter((mote) => mote.shape === 'chunk').length;
 
     expect(rings(1)).toBe(0);

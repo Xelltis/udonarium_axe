@@ -18,6 +18,9 @@ export const SMOKE = '#221d26';
 export const STONE = '#6e625b';
 export const DUST = '#7a6a5c';
 export const WARM = '#ffb060';
+/** How thin a shock ring is drawn as it dies and how much thicker as it sets out, as shares of how heavy it is. */
+const SHOCK_RING_THIN = 0.12;
+const SHOCK_RING_SWELL = 0.3;
 
 /** One ball of flame: where it flies, how wide it is, in cells, and how much of its life it burns before it is smoke. */
 export interface FireBall {
@@ -218,7 +221,11 @@ export function layScorch(
   }
 }
 
-/** A shock ring racing out along the floor, thinning and fading over `lifeS` seconds. */
+/**
+ * A shock ring racing out along the floor over `lifeS` seconds: a thin line of light over a band of
+ * its colour, which keeps its colour on a bright floor, fast at first, thinning as it goes and fading
+ * all the way. `thick` is how heavy a ring it is; it is drawn far thinner than that.
+ */
 export function layShockRing(
   drawn: Staged,
   floor: Point,
@@ -232,8 +239,9 @@ export function layShockRing(
   const left = 1 - t / lifeS;
   if (t < 0 || left <= 0) return;
   const radius = from + (to - from) * (1 - left * left * left);
-  const width = Math.max(thick * 0.25, thick * left + thick * 0.1) / radius;
-  drawn.floor.push(floorMark('ring', floor, radius, width, color, Math.min(1, left * 1.6), 'light', 0));
+  const width = (thick * (SHOCK_RING_THIN + SHOCK_RING_SWELL * left)) / radius;
+  drawn.floor.push(floorMark('ring', floor, radius, width * 2, color, 0.4 * left, 'color', 0));
+  drawn.floor.push(floorMark('ring', floor, radius, width, color, 0.85 * left, 'light', 0));
 }
 
 /** A band of dust thrown out along the floor behind the shock, as far as `reach`, with a hot edge, over `lifeS` seconds. */
