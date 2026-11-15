@@ -8,7 +8,9 @@ import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
  *
  * Only what lands a blow, such as an explosion or a strike, shakes it.
  * Shaking for healing and shields too would give everything the same weight and leave none of it heavy.
- * A shot shakes nothing, but for a meteor and a shot of rock; see {@link fallsAsMeteor} and {@link isRockShot}.
+ * A shot shakes nothing, but for a meteor, a shot of rock and a cut thrown off a blade; see
+ * {@link fallsAsMeteor}, {@link isRockShot} and {@link fliesAsCut}.
+ * A great sword out of the sky shakes as it is driven into the ground; see {@link dropsAsGreatBlade}.
  * An aura shakes nothing either, but the greatest of them as it breaks out; see {@link breaksOutAsAura}.
  */
 const SHAKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
@@ -65,6 +67,22 @@ function breaksAsRock(preset: EffectPreset): boolean {
 }
 
 /**
+ * Whether an effect is a great sword dropped out of the sky on its own, which is driven into the
+ * ground where it lands. One that is a stage of a run leaves the shaking to the stage it lands with.
+ */
+function dropsAsGreatBlade(preset: EffectPreset): boolean {
+  return !preset.isStaged && preset.effectKind === 'skyblade';
+}
+
+/**
+ * Whether an effect is a cut thrown off a blade, a shot on its own with the look of a crescent, which
+ * goes on through what it reaches as a blade does.
+ */
+function fliesAsCut(preset: EffectPreset): boolean {
+  return !preset.isStaged && preset.effectKind === 'projectile' && preset.projectileLook === 'crescent';
+}
+
+/**
  * Whether an effect is an aura of the highest grade on its own, which breaks out of the piece hard
  * enough to be felt: the one look that strikes nothing and yet shakes the screen, and lightly.
  */
@@ -75,12 +93,15 @@ export function breaksOutAsAura(preset: Pick<EffectPreset, 'isStaged' | 'effectK
 /**
  * How hard the screen shakes. Empty for not at all. A look of the lowest grade shakes nothing, but
  * one that stamps the ground in, an impact, which shakes it lightly however light it is. The greatest
- * aura shakes it lightly, and no harder.
+ * aura shakes it lightly, and no harder, and so does a cut thrown off a blade as it lands, of the
+ * middle grade and over. A great sword out of the sky shakes it by its grade as it lands.
  */
 export function effectShakeOf(preset: EffectPreset): EffectShake {
   if (breaksOutAsAura(preset)) return 'soft';
+  if (fliesAsCut(preset)) return preset.gradeLevel >= 2 ? 'soft' : '';
   const kinds = drawnKinds(preset);
-  if (!fallsAsMeteor(preset) && !breaksAsRock(preset) && !kinds.some((kind) => SHAKING_KINDS.has(kind))) return '';
+  const strikes = fallsAsMeteor(preset) || breaksAsRock(preset) || dropsAsGreatBlade(preset);
+  if (!strikes && !kinds.some((kind) => SHAKING_KINDS.has(kind))) return '';
   const shake = SHAKE_BY_GRADE[preset.gradeLevel];
   return shake === '' && kinds.includes('impact') ? 'soft' : shake;
 }

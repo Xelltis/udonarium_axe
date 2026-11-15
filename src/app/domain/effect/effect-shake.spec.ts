@@ -1,3 +1,4 @@
+import { applyEffectPresetSeed, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import { EffectKind, PROJECTILE_STYLES } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { effectShakeOf } from '@axe/domain/effect/effect-shake';
@@ -80,8 +81,64 @@ describe('effectShakeOf()', () => {
     expect(effectShakeOf(shot('meteor', 3))).toBe('hard');
     expect(effectShakeOf(shot('meteor', 2))).toBe('soft');
     expect(effectShakeOf(shot('meteor', 1))).toBe('');
-    for (const look of PROJECTILE_STYLES.filter((style) => style !== 'meteor')) {
+    for (const look of PROJECTILE_STYLES.filter((style) => style !== 'meteor' && style !== 'crescent')) {
       expect(effectShakeOf(shot(look, 3))).toBe('');
+    }
+  });
+
+  it('shakes lightly for a cut thrown off a blade of the middle grade and over, and no harder', () => {
+    const cut = (grade: number): EffectPreset => {
+      const preset = makePreset('projectile', grade);
+      preset.projectileStyle = 'crescent';
+      return preset;
+    };
+
+    expect(effectShakeOf(cut(1))).toBe('');
+    expect(effectShakeOf(cut(2))).toBe('soft');
+    expect(effectShakeOf(cut(3))).toBe('soft');
+  });
+
+  it('shakes for a great sword out of the sky on its own, by its grade', () => {
+    expect(effectShakeOf(makePreset('skyblade', 1))).toBe('');
+    expect(effectShakeOf(makePreset('skyblade', 2))).toBe('soft');
+    expect(effectShakeOf(makePreset('skyblade', 3))).toBe('hard');
+  });
+
+  it('leaves the shaking of a run with a great sword or a thrown cut in it to the stage it lands with', () => {
+    const run = (kind: EffectKind, stages: EffectStage[]): EffectPreset => {
+      const preset = makePreset(kind, 3);
+      preset.projectileStyle = 'crescent';
+      preset.stages = JSON.stringify(stages);
+      return preset;
+    };
+    const heals: EffectStage = { role: 'impact', kind: 'heal', durationMs: 400 };
+    const bursts: EffectStage = { role: 'impact', kind: 'burst', durationMs: 400 };
+
+    for (const kind of ['skyblade', 'projectile'] as const) {
+      const travels: EffectStage = { role: 'travel', kind, durationMs: 600 };
+      expect(effectShakeOf(run(kind, [travels, heals]))).toBe('');
+      expect(effectShakeOf(run(kind, [travels, bursts]))).toBe('hard');
+    }
+  });
+
+  it('shakes for each bundled cut and great sword as its weight asks', () => {
+    const shakes = (identifier: string): string => {
+      const seed = DEFAULT_EFFECT_PRESET_SEEDS.find((each) => each.identifier === identifier);
+      if (!seed) throw new Error(`no seed ${identifier}`);
+      const preset = new EffectPreset(`shake_${identifier}`);
+      applyEffectPresetSeed(preset, seed);
+      return effectShakeOf(preset);
+    };
+
+    expect(shakes('EffectPreset_slash_1')).toBe('');
+    expect(shakes('EffectPreset_slash_2')).toBe('soft');
+    expect(shakes('EffectPreset_slash_iai')).toBe('soft');
+    expect(shakes('EffectPreset_slash_3')).toBe('hard');
+    expect(shakes('EffectPreset_slash_charged')).toBe('hard');
+    expect(shakes('EffectPreset_crescent_wave')).toBe('soft');
+    expect(shakes('EffectPreset_crescent_combo')).toBe('soft');
+    for (const sword of ['', '_flame', '_frost', '_bolt', '_earth', '_dark']) {
+      expect(shakes(`EffectPreset_skyblade${sword}`)).toBe('hard');
     }
   });
 
