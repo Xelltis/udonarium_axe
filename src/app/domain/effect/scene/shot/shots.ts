@@ -28,6 +28,7 @@ import {
   throwerFor,
   wayBetween,
 } from '@axe/domain/effect/scene/parts';
+import { drawBlasterShot } from '@axe/domain/effect/scene/shot/blaster-shot';
 import { arrowBody, missileBody, stuckArrow } from '@axe/domain/effect/scene/shot/bodies';
 import { drawFireShot } from '@axe/domain/effect/scene/shot/fire-shot';
 import { drawThunderShot, isThunderShot } from '@axe/domain/effect/scene/shot/thunder-shot';
@@ -51,7 +52,7 @@ const LINGER_S = 1.8;
 /** How high a shot leaves its caster, in cells of the table, and how high it strikes the target. */
 const STRIKES_AT = 0.55;
 /** The looks that flash at the muzzle as they are fired. */
-const GUNS = new Set(['bullet', 'blaster', 'tracer']);
+const GUNS = new Set(['bullet', 'tracer']);
 
 /** How the look a shot lands with is drawn. */
 export type LandingLook = (stage: Stage) => Staged;
@@ -181,6 +182,13 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
     const share = (t - launch) / flies;
     const course = courseOf(style, from, to, cell, length, index, timing.shots.length, weave);
     const pathAt = course.at;
+    if (style === 'blaster') {
+      const shots = timing.shots.length;
+      const fired = { from, to: course.lands, cell, floorZ: stage.groundZ, seconds: t, launch, lands, index, shots };
+      drawBlasterShot(drawn, { ...fired, seed: stage.seed }, ramp);
+      if (t >= lands) addInto(drawn, landing(stage, landWith, lands, index, shots, course.lands));
+      return;
+    }
     if (GUNS.has(style) && t >= launch && t < launch + 0.09)
       drawMuzzle(drawn, from, cell, ramp, (t - launch) / 0.09, forward);
     if (share >= 0 && share < 1) {
@@ -294,11 +302,6 @@ function drawFlying(
   forward: number,
   seed: number
 ): void {
-  const behind = (reach: number): Point => ({
-    x: at.x - way.x * reach,
-    y: at.y - way.y * reach,
-    z: at.z - way.z * reach,
-  });
   const velocity = { x: way.x * speed, y: way.y * speed, z: way.z * speed };
   switch (style) {
     case 'arrow':
@@ -317,17 +320,6 @@ function drawFlying(
       drawn.motes.push(haze(at, cell * 1.6, hueOf(ramp), 0.35, forward));
       drawn.ribbons.push(...flyingCrescent(at, way, cell * 1.4, ramp));
       drawn.motes.push(glow(at, cell * 1.4, ramp[3], 0.5, forward));
-      return;
-    case 'blaster':
-      drawn.ribbons.push({
-        points: [behind(cell * 0.9), behind(cell * 0.45), at],
-        widths: [0, cell * 0.36, cell * 0.2],
-        color: hueOf(ramp),
-        core: '#ffffff',
-        alpha: 1,
-        blend: 'light',
-      });
-      drawn.motes.push(glow(at, cell * 0.9, hueOf(ramp), 0.7, forward));
       return;
     case 'tracer':
       drawn.motes.push(glow(at, cell * 0.6, hueOf(ramp), 0.6, forward));
