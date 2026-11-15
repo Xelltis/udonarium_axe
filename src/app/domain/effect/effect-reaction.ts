@@ -1,6 +1,7 @@
 import { clamp } from '@axe/core/util/clamp';
 import { isCurseAlone } from '@axe/domain/effect/ailment-looks';
 import { addAilmentJolts, ailmentJoltsEndOf } from '@axe/domain/effect/ailment-reaction';
+import { addBeamJolts, beamLetsGoAt } from '@axe/domain/effect/beam-reaction';
 import { breathSurgeAt, breathTimingOf, isGentleBreath } from '@axe/domain/effect/breath-timing';
 import { heavesGround } from '@axe/domain/effect/earth-looks';
 import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows';
@@ -63,7 +64,6 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'slash',
   'projectile',
   'bash',
-  'beam',
   'raybeam',
   'arc',
   'breath',
@@ -137,6 +137,7 @@ export function effectJoltsOf(
     );
   });
   if (isLightning(preset)) addConvulsions(preset, cast, elapsedMs, cellPx, blows, add);
+  addBeamJolts(preset, cast, elapsedMs, cellPx, blows[0]?.atMs, add);
   const first = cast.targets[0];
   const towards = first ? directionOf(cast.origin, first) : null;
   const lean = leanAt(elapsedMs) * LEAN_CELLS * cellPx;
@@ -159,7 +160,8 @@ export function joltsEndOf(preset: EffectPreset, cast: EffectCast, blows: readon
   if (isTornado(preset)) return tornadoTimingOf(preset.duration / 1000).goneAt * 1000 + lastTarget;
   if (isCurseAlone(preset)) return ailmentJoltsEndOf(preset, cast);
   const letsGo = isLightning(preset) ? letsGoAt(preset, blows) + lastTarget + CONVULSES_FOR_MS : 0;
-  return Math.max(LEAN_FOR_MS, lastBlow + lastTarget + THROWN_FOR_MS, letsGo);
+  const beamLetsGo = beamLetsGoAt(preset, blows[0]?.atMs) + lastTarget;
+  return Math.max(LEAN_FOR_MS, lastBlow + lastTarget + THROWN_FOR_MS, letsGo, beamLetsGo);
 }
 
 /** Whether an effect is a bolt out of the sky on its own: a strike or a storm, which a snap from the caster's hand is not. */

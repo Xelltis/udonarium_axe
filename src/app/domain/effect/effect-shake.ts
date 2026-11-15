@@ -20,6 +20,7 @@ const SHAKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'upheaval',
   'bash',
   'beam',
+  'raybeam',
   'gravity',
   'bolt',
   'ballistic',

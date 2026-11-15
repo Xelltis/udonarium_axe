@@ -48,7 +48,7 @@ describe('effectShakeOf()', () => {
     expect(effectShakeOf(makePreset('aura', 3))).toBe('soft');
     expect(effectShakeOf(makePreset('aura', 2))).toBe('');
     expect(effectShakeOf(makePreset('aura', 1))).toBe('');
-    for (const kind of ['heal', 'barrier', 'warp', 'drain', 'arc', 'raybeam'] as const) {
+    for (const kind of ['heal', 'barrier', 'warp', 'drain', 'arc'] as const) {
       expect([kind, effectShakeOf(makePreset(kind, 3))]).toEqual([kind, '']);
     }
   });
