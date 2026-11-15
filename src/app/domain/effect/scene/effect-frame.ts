@@ -20,7 +20,10 @@ import {
   type StageTarget,
 } from '@axe/domain/effect/scene/choreography';
 import { curse, gravity, miasma } from '@axe/domain/effect/scene/dark/dark';
-import { impact, rubble, upheaval } from '@axe/domain/effect/scene/earth/earth';
+import { impact } from '@axe/domain/effect/scene/earth/impact';
+import { rubble } from '@axe/domain/effect/scene/earth/rubble';
+import { struckImpact, struckRubble } from '@axe/domain/effect/scene/earth/struck';
+import { upheaval } from '@axe/domain/effect/scene/earth/upheaval';
 import { type BreathingBody, mouthBefore } from '@axe/domain/effect/scene/effect-mouth';
 import { burst } from '@axe/domain/effect/scene/fire/burst';
 import { flame } from '@axe/domain/effect/scene/fire/flame';
@@ -87,18 +90,31 @@ const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = {
 const ALONGSIDE: Partial<Record<EffectKind, Choreography>> = { bisect, dissolve };
 
 /**
+ * The looks a shot or a blade lands with that are not the look of the same kind cast on its own: the
+ * impact of an arrow or a bullet is a flash and a puff of dust, not the ground stamped in.
+ */
+const LANDINGS: Partial<Record<EffectKind, Choreography>> = { impact: struckImpact, rubble: struckRubble };
+
+/**
  * The look a preset strikes with, drawn on its own clock: one that cuts a piece's picture draws all
  * but the picture, which is drawn over the table.
  */
 function strikeWith(stage: Stage): Staged {
   const kind = strikesInSceneWith(stage.preset.impactEffectKind);
-  const look = CHOREOGRAPHIES[kind] ?? ALONGSIDE[kind];
+  const look = LANDINGS[kind] ?? CHOREOGRAPHIES[kind] ?? ALONGSIDE[kind];
   return look ? look.draw(stage) : nothingStaged();
 }
 
 CHOREOGRAPHIES.skyblade = skybladeWith(strikeWith, SCENE_LINGER_S.skyblade ?? 0);
 CHOREOGRAPHIES.projectile = projectileWith(strikeWith);
 CHOREOGRAPHIES.ballistic = ballisticWith(strikeWith);
+
+/**
+ * The looks that go off about their target and yet grow only by the root of its size, as what is
+ * aimed at it does: the looks of earth, whose boulders and pillars, as many times larger as a dragon
+ * is than a man, would wall the table off.
+ */
+const GROWS_BY_ROOT: ReadonlySet<EffectKind> = new Set<EffectKind>(['impact', 'rubble', 'upheaval']);
 
 /** Where a target stands for an effect: its foot, and the floor under it. */
 export interface EffectFooting {
@@ -264,7 +280,7 @@ export function stageEffect(
     const scale = targetScaleOf(
       { baseSize: options.cellPx, resolveSize: options.resolveSize },
       target.identifier,
-      isAimed(preset)
+      isAimed(preset) || GROWS_BY_ROOT.has(preset.effectKind)
     );
     const staged = choreography.draw({
       x: standing.x,

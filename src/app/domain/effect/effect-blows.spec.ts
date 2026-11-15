@@ -75,6 +75,43 @@ describe('effectBlowsOf()', () => {
   });
 });
 
+describe('the blows of rubble', () => {
+  it('lands three, one at each heave of the ground, the first held as a blow of its grade and the others only caught', () => {
+    const blows = effectBlowsOf(makePreset('rubble', 2, { durationMs: 5616 }));
+
+    expect(blows.map((blow) => blow.atMs)).toEqual([449, 749, 1049]);
+    expect(blows.map((blow) => blow.holdMs)).toEqual([90, 50, 50]);
+    expect(blows.map((blow) => blow.shake)).toEqual(['soft', 'soft', 'soft']);
+    expect(heldMsOf(blows)).toBeLessThanOrEqual(300);
+  });
+
+  it('holds the later heaves no longer than a blow of the lowest grade is held', () => {
+    expect(effectBlowsOf(makePreset('rubble', 1, { durationMs: 5616 })).map((blow) => blow.holdMs)).toEqual([
+      60, 50, 50,
+    ]);
+    expect(effectBlowsOf(makePreset('rubble', 3, { durationMs: 5616 })).map((blow) => blow.holdMs)).toEqual([
+      140, 50, 50,
+    ]);
+  });
+
+  it('lands one where rubble is a stage of a run, and one where a shot lands in it', () => {
+    const staged = makePreset('rubble', 2);
+    staged.stages = JSON.stringify([{ role: 'impact', kind: 'rubble', durationMs: 2000 }] satisfies EffectStage[]);
+    const bullet = makePreset('projectile', 2, { projectileStyle: 'bullet', impactKind: 'rubble', durationMs: 750 });
+
+    expect(effectBlowsOf(staged)).toHaveLength(1);
+    expect(effectBlowsOf(bullet)).toHaveLength(1);
+  });
+
+  it('lands a shot of rock later than the bolt of light it is written as, and shakes as it breaks', () => {
+    const rock = makePreset('projectile', 2, { impactKind: 'rubble', tagName: '射撃', durationMs: 850 });
+    const bolt = makePreset('projectile', 2, { impactKind: 'burst', tagName: '射撃', durationMs: 850 });
+
+    expect(effectBlowsOf(rock)).toEqual([{ atMs: 460, holdMs: 90, shake: 'soft', push: 0.1 }]);
+    expect(effectBlowsOf(bolt)).toEqual([{ atMs: 340, holdMs: 90, shake: '', push: 0.1 }]);
+  });
+});
+
 describe('effectBlowsOf() for a shot that falls from above', () => {
   it('strikes as the ballistic shot comes down, not as it is fired', () => {
     const [blow] = effectBlowsOf(makePreset('ballistic', 3));

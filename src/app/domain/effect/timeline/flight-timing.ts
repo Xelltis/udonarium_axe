@@ -1,4 +1,5 @@
 import { clamp } from '@axe/core/util/clamp';
+import { isRockShot } from '@axe/domain/effect/earth-looks';
 import { type ProjectileStyle } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
 
@@ -24,6 +25,9 @@ const PROJECTILE_TRAVEL_MS: Record<ProjectileStyle, number> = {
   meteor: 1050,
 };
 
+/** How long a shot of rock is in the air: a boulder thrown, slower than the bolt of light it is written as. */
+const ROCK_TRAVEL_MS = 460;
+
 /** The latest a shot of a look lands, as a share of the effect; see {@link latestLandingOf}. */
 const LANDS_BY = 0.6;
 /** The latest a meteor lands: it falls for most of the effect, which leaves only its landing to play out after it. */
@@ -47,14 +51,15 @@ export interface ProjectileShot {
 /**
  * When each shot of a projectile effect is fired and lands, as shares of the effect's duration.
  *
- * The travel time comes from the projectile's look, held between 5% and 60% of the effect, or as far
+ * The travel time comes from the projectile's look, or from its being a shot of rock, held between 5% and 60% of the effect, or as far
  * as 87.5% of it for a meteor, whose travel is its omen in the sky and its fall together. Several
  * shots are spaced by the preset's shot interval, but never so far apart that the last one would
  * land after the effect ends.
  */
 export function projectileTiming(preset: EffectPreset): { travel: number; shots: ProjectileShot[] } {
   const look = preset.projectileLook;
-  const travel = clamp(PROJECTILE_TRAVEL_MS[look] / preset.duration, 0.05, latestLandingOf(look));
+  const travelMs = isRockShot(preset) ? ROCK_TRAVEL_MS : PROJECTILE_TRAVEL_MS[look];
+  const travel = clamp(travelMs / preset.duration, 0.05, latestLandingOf(look));
   const count = preset.shotCount;
   if (count === 1) return { travel, shots: [{ launch: 0, land: travel }] };
 

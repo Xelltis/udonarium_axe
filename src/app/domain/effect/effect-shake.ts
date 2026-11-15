@@ -1,3 +1,4 @@
+import { isRockShot } from '@axe/domain/effect/earth-looks';
 import { EffectKind } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
@@ -7,7 +8,7 @@ import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
  *
  * Only what lands a blow, such as an explosion or a strike, shakes it.
  * Shaking for healing and shields too would give everything the same weight and leave none of it heavy.
- * A shot shakes nothing, but for a meteor; see {@link fallsAsMeteor}.
+ * A shot shakes nothing, but for a meteor and a shot of rock; see {@link fallsAsMeteor} and {@link isRockShot}.
  */
 const SHAKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'burst',
@@ -51,8 +52,18 @@ function fallsAsMeteor(preset: EffectPreset): boolean {
   return !preset.isStaged && preset.effectKind === 'projectile' && preset.projectileLook === 'meteor';
 }
 
-/** How hard the screen shakes. Empty for not at all. */
+/** Whether an effect is a rock thrown at its target, a shot on its own that breaks where it lands. */
+function breaksAsRock(preset: EffectPreset): boolean {
+  return !preset.isStaged && isRockShot(preset);
+}
+
+/**
+ * How hard the screen shakes. Empty for not at all. A look of the lowest grade shakes nothing, but
+ * one that stamps the ground in, an impact, which shakes it lightly however light it is.
+ */
 export function effectShakeOf(preset: EffectPreset): EffectShake {
-  if (!fallsAsMeteor(preset) && !drawnKinds(preset).some((kind) => SHAKING_KINDS.has(kind))) return '';
-  return SHAKE_BY_GRADE[preset.gradeLevel];
+  const kinds = drawnKinds(preset);
+  if (!fallsAsMeteor(preset) && !breaksAsRock(preset) && !kinds.some((kind) => SHAKING_KINDS.has(kind))) return '';
+  const shake = SHAKE_BY_GRADE[preset.gradeLevel];
+  return shake === '' && kinds.includes('impact') ? 'soft' : shake;
 }

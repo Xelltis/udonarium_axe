@@ -57,6 +57,30 @@ describe('effectJoltsOf()', () => {
     expect(jolt.z).toBeLessThan(0);
   });
 
+  it('throws a piece up off the floor where the ground heaves under it, whoever cast it and from wherever', () => {
+    for (const kind of ['upheaval', 'rubble'] as const) {
+      const preset = makePreset(kind, 3);
+      const at = effectBlowsOf(preset)[0].atMs + 60;
+      for (const origin of [{ x: 0, y: 0, z: 0 }, null]) {
+        const jolt = effectJoltsOf(preset, cast(origin), at, CELL).get('target')!;
+
+        expect([kind, jolt.x, jolt.y]).toEqual([kind, 0, 0]);
+        expect(jolt.z).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('throws a piece back, not up, where a blade lands in an upheaval or a run has one among its stages', () => {
+    const blade = makePreset('skyblade', 3);
+    blade.impactKind = 'upheaval';
+    const jolt = effectJoltsOf(blade, cast({ x: 0, y: 0, z: 0 }), effectBlowsOf(blade)[0].atMs + 60, CELL).get(
+      'target'
+    )!;
+
+    expect(jolt.x).toBeGreaterThan(0);
+    expect(jolt.z).toBe(0);
+  });
+
   it('has the one who strikes lean in towards the target as the effect sets off, and stand back after', () => {
     const slash = makePreset('slash');
     const from = cast({ x: 0, y: 0, z: 0 });

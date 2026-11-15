@@ -1,3 +1,4 @@
+import { RUBBLE_FIRST_HEAVE, rubbleHeavesOf } from '@axe/domain/effect/earth-looks';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
 import { type EffectShake, effectShakeOf } from '@axe/domain/effect/effect-shake';
@@ -47,6 +48,8 @@ const STRIKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
 const HOLD_MS_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 60, 2: 90, 3: 140 };
 /** How far the target rocks back, as a share of the piece's width, by grade. */
 const PUSH_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 0.06, 2: 0.1, 3: 0.16 };
+/** How long everything holds still at each heave of rubble after the first, at the most: a catch, so the three read as three. */
+const LATER_HEAVE_HOLD_MS = 50;
 /** How far a gust shoves its target back, as a share of the piece's width: as far as a piece is ever thrown. */
 const GUST_PUSH = 0.25;
 /**
@@ -67,7 +70,7 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
   nova: 0.06,
   mushroom: 0.08,
   impact: 0.06,
-  rubble: 0.08,
+  rubble: RUBBLE_FIRST_HEAVE,
   upheaval: 0.12,
   bash: 0.1,
   bolt: 0.05,
@@ -80,7 +83,10 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
 /**
  * The blows an effect lands on its first target, in the order they land. An effect that strikes
  * nothing, as a heal or a shield, lands none; a run of stages lands one for each of its stages that
- * strikes. A whirlwind lands none, but a gust: its wall strikes the target once and shoves it back. Each later target is struck as the first is, its stagger later, and holds nothing more.
+ * strikes. A whirlwind lands none, but a gust: its wall strikes the target once and shoves it back.
+ * Rubble on its own lands three, one at each heave of the ground, the first held as a blow of its
+ * grade is and the others only caught. Each later target is struck as the first is, its stagger
+ * later, and holds nothing more.
  */
 export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
   const grade = preset.gradeLevel;
@@ -88,9 +94,11 @@ export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
   const blows: EffectBlow[] = [];
   let held = 0;
   let lastHeldAt = -Infinity;
-  for (const atMs of strikeTimes(preset)) {
+  const heaves = !preset.isStaged && preset.effectKind === 'rubble';
+  for (const [index, atMs] of strikeTimes(preset).entries()) {
     const holds = atMs - lastHeldAt >= HOLD_MIN_GAP_MS && held < MAX_TOTAL_HOLD_MS;
-    const holdMs = holds ? Math.min(HOLD_MS_BY_GRADE[grade], MAX_TOTAL_HOLD_MS - held) : 0;
+    const most = heaves && index > 0 ? Math.min(LATER_HEAVE_HOLD_MS, HOLD_MS_BY_GRADE[grade]) : HOLD_MS_BY_GRADE[grade];
+    const holdMs = holds ? Math.min(most, MAX_TOTAL_HOLD_MS - held) : 0;
     if (holdMs > 0) {
       held += holdMs;
       lastHeldAt = atMs;
@@ -114,6 +122,9 @@ function strikeTimes(preset: EffectPreset): number[] {
   }
   if (isGust(preset)) return [Math.round(gustTimingOf(preset.duration / 1000).strikesAt * 1000)];
   if (!STRIKING_KINDS.has(preset.effectKind)) return [];
+  if (preset.effectKind === 'rubble') {
+    return rubbleHeavesOf(preset.duration / 1000).map((heave) => Math.round(heave * 1000));
+  }
   if (preset.effectKind === 'slash') {
     return slashHits(preset.slashLook).map((hit) =>
       Math.round((hit.at + hit.span * STROKE_CROSSES_AT) * preset.duration)

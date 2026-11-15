@@ -26,6 +26,32 @@ describe('effectShakeOf()', () => {
     expect(effectShakeOf(makePreset('burst', 3))).toBe('hard');
   });
 
+  it('shakes lightly for an impact of the lowest grade, which stamps the ground in however light it is', () => {
+    expect(effectShakeOf(makePreset('impact', 1))).toBe('soft');
+    expect(effectShakeOf(makePreset('impact', 2))).toBe('soft');
+    expect(effectShakeOf(makePreset('impact', 3))).toBe('hard');
+    for (const kind of ['rubble', 'upheaval', 'bash', 'nova', 'bolt'] as const) {
+      expect([kind, effectShakeOf(makePreset(kind, 1))]).toEqual([kind, '']);
+    }
+  });
+
+  it('shakes for a shot of rock as it breaks, by its grade, and for no other shot that lands in rubble or an impact', () => {
+    const shot = (look: string, lands: EffectKind, grade: number, tag = '射撃'): EffectPreset => {
+      const preset = makePreset('projectile', grade);
+      preset.projectileStyle = look;
+      preset.impactKind = lands;
+      preset.tagName = tag;
+      return preset;
+    };
+
+    expect(effectShakeOf(shot('bolt', 'rubble', 2))).toBe('soft');
+    expect(effectShakeOf(shot('bolt', 'rubble', 3))).toBe('hard');
+    expect(effectShakeOf(shot('bolt', 'rubble', 1))).toBe('');
+    expect(effectShakeOf(shot('bullet', 'rubble', 3))).toBe('');
+    expect(effectShakeOf(shot('arrow', 'impact', 1))).toBe('');
+    expect(effectShakeOf(shot('bolt', 'rubble', 3, '炎'))).toBe('');
+  });
+
   it('shakes for a meteor as it strikes, by its grade, and for no other look of a shot', () => {
     const shot = (look: string, grade: number): EffectPreset => {
       const preset = makePreset('projectile', grade);

@@ -47,7 +47,6 @@ const BLASTS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'mushroom',
   'impact',
   'rubble',
-  'upheaval',
   'gravity',
   'frost',
 ]);
@@ -59,7 +58,8 @@ const STRUCK_ROUND_SHARE = 0.4;
  * How large an effect is drawn on one of its targets, as a share of its size. An area attack that
  * goes off where it lands goes off whole at the piece at its centre, the first of its targets, and
  * strikes each of the rest with a small blast of its own: gone off whole over every one of them, its
- * blasts would run together into a wall that hides the table.
+ * blasts would run together into a wall that hides the table. An upheaval is not among them: it lays
+ * itself out over all its targets, a fang of its ring under each of the rest.
  */
 export function areaShareOf(
   preset: Pick<EffectPreset, 'areaRadiusCells' | 'effectKind'>,

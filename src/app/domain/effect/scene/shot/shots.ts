@@ -1,3 +1,4 @@
+import { isRockShot } from '@axe/domain/effect/earth-looks';
 import type { EffectPreset } from '@axe/domain/effect/effect-preset';
 import {
   type Choreography,
@@ -6,6 +7,7 @@ import {
   type Staged,
   within,
 } from '@axe/domain/effect/scene/choreography';
+import { drawRockBreak, drawRockFlying } from '@axe/domain/effect/scene/earth/rock-shot';
 import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
 import { drawCloud, dustColumn, rollingDust } from '@axe/domain/effect/scene/fire/fire-parts';
@@ -35,8 +37,9 @@ import { isWindShot } from '@axe/domain/effect/wind-looks';
  * its shaft and a pale streak, a bullet's tracer, a crescent of a blade flying, a blaster's bolt, a
  * sniper's line drawn at once, a missile trailing smoke on its arc and a cruise missile weaving; guns
  * flash at the muzzle. A meteor is shot from no one: it falls burning out of the sky. Each lands with
- * the look its preset gives for landing, but a bolt of wind, which flies as a knot of air and bursts. A lobbed shot climbs high and falls trailing smoke; a rain of
- * arrows is loosed up into the sky and falls over the target.
+ * the look its preset gives for landing, but a bolt of wind, which flies as a knot of air and bursts,
+ * and a bolt of rock, which flies as a boulder and breaks. A lobbed shot climbs high and falls
+ * trailing smoke; a rain of arrows is loosed up into the sky and falls over the target.
  */
 
 /** How long a shot lingers after its playback, for the look it lands with to clear, in seconds. */
@@ -151,7 +154,10 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
   const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
   if (style === 'meteor') return drawMeteors(stage, lands, ramp);
   const windy = isWindShot(stage.preset);
-  const landWith = lands === null ? nothingStaged : windy ? drawWindBurst : lands;
+  const rocky = isRockShot(stage.preset);
+  const breaks: LandingLook = (landed) =>
+    drawRockBreak(landed, Math.round((stage.duration + LINGER_S - (stage.seconds - landed.seconds)) * 1000) / 1000);
+  const landWith = lands === null ? nothingStaged : windy ? drawWindBurst : rocky ? breaks : lands;
   const drawn = nothingStaged();
   const { cell, duration } = stage;
   const t = stage.seconds;
@@ -177,7 +183,10 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
       const { way } = wayBetween(at, ahead);
       const speed = length / flies;
       if (windy) drawWindKnot(drawn, { at, way, cell, share, pathAt, seconds: t, seed: stage.seed + index }, ramp);
-      else drawFlying(drawn, style, at, way, speed, cell, ramp, share, pathAt, forward, stage.seed + index);
+      else if (rocky) {
+        const flight = { at, way, cell, share, pathAt, fliesS: flies, seconds: t, seed: stage.seed + index };
+        drawRockFlying(drawn, { ...flight, floorZ: stage.groundZ }, ramp);
+      } else drawFlying(drawn, style, at, way, speed, cell, ramp, share, pathAt, forward, stage.seed + index);
     }
     if (style === 'tracer' && t >= launch && t < launch + 0.3)
       drawTracerLine(drawn, from, to, cell, ramp, (t - launch) / 0.3);

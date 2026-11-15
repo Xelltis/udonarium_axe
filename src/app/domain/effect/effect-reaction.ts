@@ -1,4 +1,5 @@
 import { breathSurgeAt, breathTimingOf, isGentleBreath } from '@axe/domain/effect/breath-timing';
+import { heavesGround } from '@axe/domain/effect/earth-looks';
 import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
@@ -20,6 +21,8 @@ const THROWN_FOR_MS = 420;
 const MOST_THROWN_CELLS = 0.25;
 /** A blow from no direction, as one falling from above, presses the piece down by this share of its throw instead. */
 const PRESSED_DOWN = 0.5;
+/** How far what heaves the ground throws a piece up off the floor, against how far a blow would throw it back. */
+const HEAVED_UP = 1.5;
 /** How far the one who strikes leans in towards the target as the effect sets off, as a share of a cell, and for how long. */
 const LEAN_CELLS = 0.12;
 const LEAN_IN_MS = 140;
@@ -62,7 +65,8 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * How far each piece an effect strikes is thrown at a moment on the effect's own clock, and how far
  * the one who cast it leans in: a struck piece stands still through the hold as the blow lands, is
  * thrown back away from the one who struck, as far as the blow's push, and springs back to where it
- * stands; struck from no direction, it is pressed down instead. A breath lands no blow: the one who
+ * stands; struck from no direction, it is pressed down instead, and where the ground heaves under
+ * it, by rubble or an upheaval, it is thrown up off the floor. A breath lands no blow: the one who
  * breathes leans back as it draws the breath in, and each piece it blows on is pushed downwind and
  * trembles for as long as it is blown on. A tornado lands none either: it takes up the piece it
  * stands over and drags the rest it catches towards it. The pieces themselves stay where they are:
@@ -96,6 +100,10 @@ export function effectJoltsOf(
     for (const blow of blows) thrown += blow.push * cellPx * throwAt(local - blow.atMs);
     thrown = Math.min(thrown, MOST_THROWN_CELLS * cellPx);
     if (thrown <= 0) return;
+    if (heavesGround(preset)) {
+      add(target.identifier, { x: 0, y: 0, z: thrown * HEAVED_UP });
+      return;
+    }
     const away = directionOf(cast.origin, target);
     add(
       target.identifier,
