@@ -9,6 +9,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BattleChatEventHandlerService } from '@axe/features/battle-cut-in/battle-chat-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -84,6 +85,20 @@ describe('BattleChatEventHandlerService', () => {
     );
     return (launch.finish.mock.calls[0] ?? launch.finishAfterChange.mock.calls[0])[0];
   }
+
+  it('plays nothing from the line of a guest, who plays the stage for nobody else', async () => {
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    say('t:HP-10 《vs》', hero.identifier);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(launch.finish).not.toHaveBeenCalled();
+    expect(launch.finishAfterChange).not.toHaveBeenCalled();
+
+    PeerCursor.myCursor.role = PeerRole.Player;
+    say('t:HP-10 《vs》', hero.identifier);
+    await played();
+  });
 
   it('plays the speaker striking the target once the numbers have moved', async () => {
     say('2d6 t:HP-10 《爆炎》《vs》', hero.identifier);
