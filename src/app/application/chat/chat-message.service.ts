@@ -302,9 +302,9 @@ export class ChatMessageService {
    * room's images. A line not whispered to anyone also records who this reader last spoke as, which
    * `sendSystemMessageAsLastSpeaker` follows. A stamp sent with the line goes under it, with the
    * words standing in for it on a last line of their own, after everything else has been read out of
-   * the line. A guest on a room server changes no piece by speaking: resource edits are not read out
-   * of the line, a portrait command picks the line's portrait but leaves the piece's alone, and the
-   * portrait stands in none of the tab's slots. A `{目標値}` nothing else answered is filled in with
+   * the line. A guest changes no piece by speaking, as a guest may change none by its sheet: resource
+   * edits are not read out of the line, and a portrait command picks the line's portrait but leaves
+   * the piece's alone. On a room server a guest's portrait also stands in none of the tab's slots. A `{目標値}` nothing else answered is filled in with
    * the number the speaker has to beat, found among the tab's rolls (see {@link findTargetNumber}),
    * or with the one the reader picked where `targetNumber` is given, in the line and in every copy of
    * it aimed at a target alike.
@@ -418,7 +418,7 @@ export class ChatMessageService {
       });
     }
     emitDiceTableMessage({ messageIdentifier: chat.identifier });
-    if (!PeerCursor.isMyselfKeptOffTable) {
+    if (this.rolePermission.canEditTabletop()) {
       emitResourceEditMessage({
         messageIdentifier: chat.identifier,
         messageTargetContext: eventPlan.resourceEditTargetContext,
@@ -631,7 +631,7 @@ export class ChatMessageService {
     chatMessage.imageIdentifier = found.identifier;
     chatMessage.text = stripPortraitCommand(text);
     const obj = this.objectStore.get(sendFrom);
-    if (obj instanceof GameCharacter && !PeerCursor.isMyselfKeptOffTable) obj.selectedPortraitIndex = found.index;
+    if (obj instanceof GameCharacter && this.rolePermission.canEditTabletop()) obj.selectedPortraitIndex = found.index;
     return found;
   }
 

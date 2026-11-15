@@ -1039,13 +1039,23 @@ describe('ChatMessageService', () => {
         other.destroy();
       });
 
-      it('reads no resource edit out of the line, but does among peers', () => {
+      it('reads no resource edit out of the line', () => {
         speak(':HP-3');
         expect(resourceEdits).toEqual([]);
+      });
 
+      it('changes no piece among peers either, where a guest may change none by its sheet', () => {
         vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+
         const message = speak(':HP-3 @笑顔');
-        expect(resourceEdits).toEqual([message.identifier]);
+
+        expect(resourceEdits).toEqual([]);
+        expect(message.imageIdentifier).toBe('img-1');
+        expect(character.selectedPortraitIndex).toBe(0);
+
+        PeerCursor.myCursor.role = PeerRole.Player;
+        const again = speak(':HP-3 @笑顔');
+        expect(resourceEdits).toEqual([again.identifier]);
         expect(character.selectedPortraitIndex).toBe(1);
       });
     });

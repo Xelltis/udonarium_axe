@@ -44,6 +44,7 @@ GMだった部屋でないのにGMのまま入る席は、PLにして入れる�
 - 右クリックメニューは見学には開かない（`ContextMenuService`）。項目ごとに役割を見るメニュー（チャットの行のメニュー）だけが、`forGuests: true`で開く
 - 卓に書くパネルはコンストラクタで`closeWhenOffTheTable()`（`application/ui/close-when-off-the-table`）を呼び、席が見学になったら閉じる。
   specは`expectClosesForAGuest`（`testing/closes-for-a-guest`）で書く
+- チャットの発言から起きる操作は、同じ操作のボタンと同じ判断で止める。見学の発言は、リソースとバフの操作・立ち絵の切り替え（`ChatMessageService.sendMessage`）、卓のダイスへの反映（`DiceChatEventHandlerService`）、エフェクトの`《名前》`と戦闘カットインの`《vs》`（各featureの`*-chat-event-handler.service`）、ラウンドのコマンド（`TurnOrderService.canTakeTurns`）を起こさない。発言そのものは流れる。カットインは、SkyWayの見学がボタンでも流せるので、発言からも流せる
 
 ## 公開範囲と秘匿
 
