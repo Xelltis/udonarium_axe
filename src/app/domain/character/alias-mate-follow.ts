@@ -7,9 +7,11 @@ import { findAliasMates } from '@axe/domain/data/element-reference';
 /** The two places an item keeps what it holds: a resource's amount left, and its value or maximum. */
 export type ElementValueField = 'currentValue' | 'value';
 
-type SharedSlot = 'now' | 'max';
+/** What a field of an item means to its mates: what it holds now, or the most it may hold. */
+export type SharedSlot = 'now' | 'max';
 
-function takesSharedValue(element: DataElement): boolean {
+/** Whether an item is one that gives its value to, and takes it from, the items under the same alias. */
+export function takesSharedValue(element: DataElement): boolean {
   return isChangeableElementType(element.type) && element.fieldType !== DataElementFieldType.CALC;
 }
 
@@ -19,12 +21,14 @@ function slotOf(element: DataElement, field: ElementValueField): SharedSlot | nu
   return field === 'value' ? 'now' : null;
 }
 
-function fieldOf(element: DataElement, slot: SharedSlot): ElementValueField | null {
+/** Where an item keeps what it holds now, or the most it may hold; null for an item with no such place. */
+export function sharedFieldOf(element: DataElement, slot: SharedSlot): ElementValueField | null {
   if (element.isNumberResource) return slot === 'now' ? 'currentValue' : 'value';
   return slot === 'now' ? 'value' : null;
 }
 
-function heldBy(mate: DataElement, field: ElementValueField, value: number | string): number | string {
+/** A value as a mate takes it: a number held within the mate's own bounds, anything else as it is. */
+export function heldForMate(mate: DataElement, field: ElementValueField, value: number | string): number | string {
   if (value === '' || value == null) return value;
   const number = Number(value);
   if (!Number.isFinite(number)) return value;
@@ -51,9 +55,9 @@ export function carryToAliasMates(element: DataElement, field: ElementValueField
 
   for (const mate of findAliasMates(element, aliases)) {
     if (!takesSharedValue(mate)) continue;
-    const mateField = fieldOf(mate, slot);
+    const mateField = sharedFieldOf(mate, slot);
     if (!mateField) continue;
-    const held = heldBy(mate, mateField, value);
+    const held = heldForMate(mate, mateField, value);
     if (`${mate[mateField]}` !== `${held}`) mate[mateField] = held;
   }
 }

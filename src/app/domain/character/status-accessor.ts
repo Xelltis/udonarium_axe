@@ -179,7 +179,12 @@ export class StatusAccessor {
     });
   }
 
-  private static writeSlot(data: DataElement, slot: ResourceSlot, setValue: number): boolean {
+  /**
+   * Writes a number into a slot of one item, as {@link setValue} writes the item a name stands for:
+   * held within the item's bounds, a base or a correction carrying the maximum and the current value
+   * along. False when the item has no such slot.
+   */
+  static writeSlot(data: DataElement, slot: ResourceSlot, setValue: number): boolean {
     const type = storageOf(data, slot);
     if (type == null) return false;
     if (type === 'value' || type === 'currentValue') {
