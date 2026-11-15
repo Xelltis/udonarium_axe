@@ -8,7 +8,10 @@ import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows'
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
+import { addGreatSwordJolts, greatSwordJoltsEndOf, swingsGreatSword } from '@axe/domain/effect/great-sword-looks';
 import { burstsFromBelow, fallsFromAbove } from '@axe/domain/effect/holy-looks';
+import { blowsAsBlizzard } from '@axe/domain/effect/ice-looks';
+import { addBlizzardJolts, blizzardJoltsEndOf } from '@axe/domain/effect/ice-reaction';
 import { isGust, isTornado, tornadoTimingOf } from '@axe/domain/effect/wind-looks';
 
 /** How far a piece is drawn off where it stands for a moment, in table pixels: x to the east, y to the south and z up. */
@@ -77,9 +80,12 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * where there is one. A breath lands no blow: the one who
  * breathes leans back as it draws the breath in, and each piece it blows on is pushed downwind and
  * trembles for as long as it is blown on. A tornado lands none either: it takes up the piece it
- * stands over and drags the rest it catches towards it. A curse on its own lands none: the piece it
- * is put on bears the state it is in for as long as its look plays. The pieces themselves stay where
- * they are: each seat draws them off it for a moment.
+ * stands over and drags the rest it catches towards it; a blizzard shoves the piece it blows about
+ * round and makes it shiver. A curse on its own lands none: the piece it
+ * is put on bears the state it is in for as long as its look plays. A great sword lands its blow as
+ * its torrent is let go, and moves the pieces as a torrent does: each it strikes is thrown along it,
+ * away from the one who wields the sword, and held back there for as long as it flows. The pieces
+ * themselves stay where they are: each seat draws them off it for a moment.
  */
 export function effectJoltsOf(
   preset: EffectPreset,
@@ -99,12 +105,20 @@ export function effectJoltsOf(
     addBreathJolts(preset, cast, elapsedMs, cellPx, add);
     return jolts;
   }
+  if (blowsAsBlizzard(preset)) {
+    addBlizzardJolts(preset, cast, elapsedMs, cellPx, add);
+    return jolts;
+  }
   if (isTornado(preset)) {
     addTornadoJolts(preset, cast, elapsedMs, cellPx, add);
     return jolts;
   }
   if (isCurseAlone(preset)) {
     addAilmentJolts(preset, cast, elapsedMs, cellPx, add);
+    return jolts;
+  }
+  if (swingsGreatSword(preset) && blows.length > 0) {
+    addGreatSwordJolts(preset, cast, elapsedMs, cellPx, blows[0].atMs, add);
     return jolts;
   }
   cast.targets.forEach((target, index) => {
@@ -148,8 +162,10 @@ export function joltsEndOf(preset: EffectPreset, cast: EffectCast, blows: readon
   if (isBreath(preset)) {
     return breathTimingOf(preset.duration / 1000).spentAt * 1000 + lastTarget + BLOWN_STANDS_BACK_MS;
   }
+  if (blowsAsBlizzard(preset)) return blizzardJoltsEndOf(preset, cast);
   if (isTornado(preset)) return tornadoTimingOf(preset.duration / 1000).goneAt * 1000 + lastTarget;
   if (isCurseAlone(preset)) return ailmentJoltsEndOf(preset, cast);
+  if (swingsGreatSword(preset) && blows.length > 0) return greatSwordJoltsEndOf(preset, cast, blows[0].atMs);
   return Math.max(LEAN_FOR_MS, lastBlow + lastTarget + THROWN_FOR_MS);
 }
 
