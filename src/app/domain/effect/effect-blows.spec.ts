@@ -83,6 +83,32 @@ describe('effectBlowsOf() for a shot that falls from above', () => {
   });
 });
 
+describe('the blow of a gust', () => {
+  function vortexOf(grade: number, areaRadius = 0): EffectPreset {
+    const preset = makePreset('vortex', grade);
+    preset.durationMs = 1071;
+    preset.targeting = 'multi';
+    preset.areaRadius = areaRadius;
+    return preset;
+  }
+
+  it('lands once, as its wall strikes the target, holds an instant and shoves the target as far as a piece is thrown', () => {
+    const blows = effectBlowsOf(vortexOf(1));
+
+    expect(blows).toHaveLength(1);
+    expect(blows[0].atMs).toBe(350);
+    expect(blows[0].holdMs).toBe(60);
+    expect(blows[0].shake).toBe('');
+    expect(blows[0].push).toBe(0.25);
+  });
+
+  it('is landed by no tornado, which stands over its target and strikes nothing', () => {
+    expect(effectBlowsOf(vortexOf(2))).toEqual([]);
+    expect(effectBlowsOf(vortexOf(3, 3))).toEqual([]);
+    expect(effectBlowsOf(vortexOf(1, 2))).toEqual([]);
+  });
+});
+
 describe('heldEffectClock() and wallClockOf()', () => {
   const blows = [
     { atMs: 200, holdMs: 100, shake: '' as const, push: 0.1 },

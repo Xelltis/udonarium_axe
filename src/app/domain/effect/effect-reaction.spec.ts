@@ -4,6 +4,7 @@ import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { EffectKind } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { effectJoltsOf, joltsEndOf } from '@axe/domain/effect/effect-reaction';
+import { tornadoTimingOf } from '@axe/domain/effect/wind-looks';
 
 const CELL = 50;
 
@@ -151,5 +152,100 @@ describe('how a breath moves the pieces', () => {
 
   it('pushes no one with a breath from nowhere', () => {
     expect(effectJoltsOf(breathOf(), cast(null), 1500, CELL).size).toBe(0);
+  });
+});
+
+describe('the pieces a wind moves', () => {
+  function vortexOf(grade: number, areaRadius = 0): EffectPreset {
+    const preset = makePreset('vortex', grade);
+    preset.durationMs = 3000;
+    preset.targeting = 'multi';
+    preset.areaRadius = areaRadius;
+    preset.staggerMs = 0;
+    return preset;
+  }
+
+  const three: EffectCast = {
+    presetIdentifier: 'preset',
+    casterIdentifier: 'caster',
+    origin: { x: 0, y: 0, z: 0 },
+    targets: [
+      { identifier: 'centre', x: 100, y: 0, z: 0 },
+      { identifier: 'east', x: 200, y: 0, z: 0 },
+      { identifier: 'south', x: 100, y: 150, z: 0 },
+    ],
+    seed: 1,
+  };
+
+  it('shoves the target of a gust downwind as its wall strikes, further than a blow of its grade throws, and lets it stand back', () => {
+    const gust = vortexOf(1);
+    const [blow] = effectBlowsOf(gust);
+    const bash = makePreset('bash', 1);
+    const shoved = effectJoltsOf(gust, cast({ x: 0, y: 0, z: 0 }), blow.atMs + 60, CELL).get('target')!;
+    const struck = effectJoltsOf(bash, cast({ x: 0, y: 0, z: 0 }), effectBlowsOf(bash)[0].atMs + 60, CELL).get(
+      'target'
+    )!;
+
+    expect(effectJoltsOf(gust, cast({ x: 0, y: 0, z: 0 }), blow.atMs - 10, CELL).get('target')).toBeUndefined();
+    expect(shoved.x).toBeGreaterThan(CELL * 0.2);
+    expect(shoved.x).toBeGreaterThan(struck.x * 3);
+    expect(effectJoltsOf(gust, cast({ x: 0, y: 0, z: 0 }), blow.atMs + 500, CELL).get('target')).toBeUndefined();
+  });
+
+  it('has the one who throws a gust lean in as it is thrown, and no one lean in to a tornado', () => {
+    const from = cast({ x: 0, y: 0, z: 0 });
+
+    expect(effectJoltsOf(vortexOf(1), from, 140, CELL).get('caster')!.x).toBeGreaterThan(0);
+    expect(effectJoltsOf(vortexOf(1), from, 1000, CELL).get('caster')).toBeUndefined();
+    expect(effectJoltsOf(vortexOf(3, 3), from, 140, CELL).get('caster')).toBeUndefined();
+  });
+
+  it('takes the piece a tornado stands over up off the floor while it stands', () => {
+    const tornado = vortexOf(3, 3);
+    const lifted = [800, 1400, 2000].map((ms) => effectJoltsOf(tornado, three, ms, CELL).get('centre')!.z);
+
+    for (const z of lifted) {
+      expect(z).toBeGreaterThan(CELL * 0.06);
+      expect(z).toBeLessThan(CELL * 0.2);
+    }
+  });
+
+  it('drags each piece caught round a tornado towards the one it stands over, and trembles it', () => {
+    const tornado = vortexOf(3, 3);
+    const at = (ms: number) => effectJoltsOf(tornado, three, ms, CELL);
+    const east = [1000, 1007, 1014, 1021, 1028, 1035, 1042].map((ms) => at(ms).get('east')!);
+
+    for (const jolt of east) {
+      expect(jolt.x).toBeLessThan(-CELL * 0.07);
+      expect(jolt.x).toBeGreaterThan(-CELL * 0.22);
+      expect(jolt.z).toBe(0);
+    }
+    expect(at(1000).get('south')!.y).toBeLessThan(-CELL * 0.07);
+    expect(Math.max(...east.map((jolt) => jolt.y)) - Math.min(...east.map((jolt) => jolt.y))).toBeGreaterThan(
+      CELL * 0.01
+    );
+    expect(Math.abs(at(1000).get('east')!.x)).toBeGreaterThan(
+      Math.abs(effectJoltsOf(vortexOf(2), three, 1000, CELL).get('east')!.x)
+    );
+  });
+
+  it('lets every piece down and back as a tornado thins away, and moves none once it is gone', () => {
+    const tornado = vortexOf(3, 3);
+    const timing = tornadoTimingOf(3);
+    const end = joltsEndOf(tornado, three, []);
+
+    expect(end).toBeCloseTo(timing.goneAt * 1000);
+    expect(effectJoltsOf(tornado, three, timing.goneAt * 1000 - 100, CELL).get('centre')!.z).toBeLessThan(CELL * 0.04);
+    expect(effectJoltsOf(tornado, three, end, CELL).size).toBe(0);
+    expect(effectJoltsOf(tornado, three, 1000, CELL).has('caster')).toBe(false);
+  });
+
+  it('takes up each later target of a tornado its stagger later', () => {
+    const tornado = vortexOf(3, 3);
+    tornado.staggerMs = 300;
+
+    expect(effectJoltsOf(tornado, three, 250, CELL).has('east')).toBe(false);
+    expect(effectJoltsOf(tornado, three, 250, CELL).has('centre')).toBe(true);
+    expect(effectJoltsOf(tornado, three, 450, CELL).has('east')).toBe(true);
   });
 });

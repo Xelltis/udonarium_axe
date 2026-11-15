@@ -3,6 +3,7 @@ import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows'
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
+import { isGust, isTornado, tornadoTimingOf } from '@axe/domain/effect/wind-looks';
 
 /** How far a piece is drawn off where it stands for a moment, in table pixels: x to the east, y to the south and z up. */
 export interface EffectJolt {
@@ -37,7 +38,12 @@ const INHALE_LEAN_CELLS = 0.12;
 const BURST_THRUST = 0.7;
 const BURST_THRUST_MS = 320;
 
-/** The looks the one who casts them sets off at the target with, leaning in as they do. */
+/** How far a tornado lifts the piece it stands over off the floor, as a share of a cell. */
+const TAKEN_UP_CELLS = 0.14;
+/** How far a piece caught round a tornado is dragged towards it, as a share of a cell, by grade. */
+const DRAGGED_CELLS_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 0.07, 2: 0.11, 3: 0.17 };
+
+/** The looks the one who casts them sets off at the target with, leaning in as they do; one who throws a gust leans in too. */
 const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'slash',
   'projectile',
@@ -58,8 +64,9 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * thrown back away from the one who struck, as far as the blow's push, and springs back to where it
  * stands; struck from no direction, it is pressed down instead. A breath lands no blow: the one who
  * breathes leans back as it draws the breath in, and each piece it blows on is pushed downwind and
- * trembles for as long as it is blown on. The pieces themselves stay where they are: each seat draws
- * them off it for a moment.
+ * trembles for as long as it is blown on. A tornado lands none either: it takes up the piece it
+ * stands over and drags the rest it catches towards it. The pieces themselves stay where they are:
+ * each seat draws them off it for a moment.
  */
 export function effectJoltsOf(
   preset: EffectPreset,
@@ -79,6 +86,10 @@ export function effectJoltsOf(
     addBreathJolts(preset, cast, elapsedMs, cellPx, add);
     return jolts;
   }
+  if (isTornado(preset)) {
+    addTornadoJolts(preset, cast, elapsedMs, cellPx, add);
+    return jolts;
+  }
   cast.targets.forEach((target, index) => {
     const local = elapsedMs - preset.stagger * index;
     let thrown = 0;
@@ -94,7 +105,7 @@ export function effectJoltsOf(
   const first = cast.targets[0];
   const towards = first ? directionOf(cast.origin, first) : null;
   const lean = leanAt(elapsedMs) * LEAN_CELLS * cellPx;
-  if (towards && lean > 0 && LEANING_KINDS.has(preset.effectKind)) {
+  if (towards && lean > 0 && (LEANING_KINDS.has(preset.effectKind) || isGust(preset))) {
     add(cast.casterIdentifier, { x: towards.x * lean, y: towards.y * lean, z: 0 });
   }
   return jolts;
@@ -110,6 +121,7 @@ export function joltsEndOf(preset: EffectPreset, cast: EffectCast, blows: readon
   if (isBreath(preset)) {
     return breathTimingOf(preset.duration / 1000).spentAt * 1000 + lastTarget + BLOWN_STANDS_BACK_MS;
   }
+  if (isTornado(preset)) return tornadoTimingOf(preset.duration / 1000).goneAt * 1000 + lastTarget;
   return Math.max(LEAN_FOR_MS, lastBlow + lastTarget + THROWN_FOR_MS);
 }
 
@@ -154,6 +166,48 @@ function addBreathJolts(
     const along = (pushed + TREMBLE_CELLS * Math.sin(seconds * 119 + index * 2.1)) * blown * cellPx;
     const across = TREMBLE_CELLS * Math.sin(seconds * 143 + index * 4.3) * blown * cellPx;
     add(target.identifier, { x: away.x * along - away.y * across, y: away.y * along + away.x * across, z: 0 });
+  });
+}
+
+/**
+ * How a tornado moves the pieces at a moment: the one it stands over is taken up off the floor a
+ * little, bobbing, and each of the rest it catches is dragged towards it, further with each surge;
+ * all of them tremble for as long as it stands, and are let down and stand back as it thins away.
+ */
+function addTornadoJolts(
+  preset: EffectPreset,
+  cast: EffectCast,
+  elapsedMs: number,
+  cellPx: number,
+  add: (identifier: string, jolt: EffectJolt) => void
+): void {
+  const timing = tornadoTimingOf(preset.duration / 1000);
+  const centre = cast.targets[0];
+  cast.targets.forEach((target, index) => {
+    const seconds = (elapsedMs - preset.stagger * index) / 1000;
+    if (seconds <= 0 || seconds >= timing.goneAt) return;
+    const held =
+      Math.min(1, seconds / timing.risenAt) *
+      (1 - Math.max(0, (seconds - timing.thinsAt) / (timing.goneAt - timing.thinsAt)));
+    const tremble = TREMBLE_CELLS * held * cellPx;
+    const shaken = {
+      x: tremble * Math.sin(seconds * 119 + index * 2.1),
+      y: tremble * Math.sin(seconds * 143 + index * 4.3),
+    };
+    if (index === 0) {
+      const taken = TAKEN_UP_CELLS * held * (0.75 + 0.25 * Math.sin(seconds * 5.3)) * cellPx;
+      add(target.identifier, { ...shaken, z: taken });
+      return;
+    }
+    const towards = directionOf(target, centre);
+    const dragged = towards
+      ? DRAGGED_CELLS_BY_GRADE[preset.gradeLevel] * held * (0.8 + 0.2 * Math.sin(seconds * 4.1 + index)) * cellPx
+      : 0;
+    add(target.identifier, {
+      x: shaken.x + (towards?.x ?? 0) * dragged,
+      y: shaken.y + (towards?.y ?? 0) * dragged,
+      z: 0,
+    });
   });
 }
 

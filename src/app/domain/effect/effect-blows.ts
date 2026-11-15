@@ -4,6 +4,7 @@ import { type EffectShake, effectShakeOf } from '@axe/domain/effect/effect-shake
 import { effectLandingTimes } from '@axe/domain/effect/effect-sound-times';
 import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
 import { slashHits } from '@axe/domain/effect/timeline/blade';
+import { gustTimingOf, isGust } from '@axe/domain/effect/wind-looks';
 
 /**
  * A blow an effect lands on its first target: when, on the effect's own clock, how long everything
@@ -46,6 +47,8 @@ const STRIKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
 const HOLD_MS_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 60, 2: 90, 3: 140 };
 /** How far the target rocks back, as a share of the piece's width, by grade. */
 const PUSH_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 0.06, 2: 0.1, 3: 0.16 };
+/** How far a gust shoves its target back, as a share of the piece's width: as far as a piece is ever thrown. */
+const GUST_PUSH = 0.25;
 /**
  * Blows closer than this to the one held before are not held: a volley that stopped at every shot
  * would stutter rather than land.
@@ -77,7 +80,7 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
 /**
  * The blows an effect lands on its first target, in the order they land. An effect that strikes
  * nothing, as a heal or a shield, lands none; a run of stages lands one for each of its stages that
- * strikes. Each later target is struck as the first is, its stagger later, and holds nothing more.
+ * strikes. A whirlwind lands none, but a gust: its wall strikes the target once and shoves it back. Each later target is struck as the first is, its stagger later, and holds nothing more.
  */
 export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
   const grade = preset.gradeLevel;
@@ -92,7 +95,7 @@ export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
       held += holdMs;
       lastHeldAt = atMs;
     }
-    blows.push({ atMs, holdMs, shake, push: PUSH_BY_GRADE[grade] });
+    blows.push({ atMs, holdMs, shake, push: isGust(preset) ? GUST_PUSH : PUSH_BY_GRADE[grade] });
   }
   return blows;
 }
@@ -109,6 +112,7 @@ function strikeTimes(preset: EffectPreset): number[] {
       )
       .sort((a, b) => a - b);
   }
+  if (isGust(preset)) return [Math.round(gustTimingOf(preset.duration / 1000).strikesAt * 1000)];
   if (!STRIKING_KINDS.has(preset.effectKind)) return [];
   if (preset.effectKind === 'slash') {
     return slashHits(preset.slashLook).map((hit) =>

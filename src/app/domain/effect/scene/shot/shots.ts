@@ -26,14 +26,16 @@ import {
   wayBetween,
 } from '@axe/domain/effect/scene/parts';
 import { arrowBody, missileBody, stuckArrow } from '@axe/domain/effect/scene/shot/bodies';
+import { drawWindBurst, drawWindKnot } from '@axe/domain/effect/scene/wind/wind-shot';
 import { ARROW_RAIN_FALL, arrowRainShots, projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
+import { isWindShot } from '@axe/domain/effect/wind-looks';
 
 /*
  * What is shot from the caster at a target: a magic bolt glowing with a tail of light, an arrow with
  * its shaft and a pale streak, a bullet's tracer, a crescent of a blade flying, a blaster's bolt, a
  * sniper's line drawn at once, a missile trailing smoke on its arc and a cruise missile weaving; guns
  * flash at the muzzle. A meteor is shot from no one: it falls burning out of the sky. Each lands with
- * the look its preset gives for landing. A lobbed shot climbs high and falls trailing smoke; a rain of
+ * the look its preset gives for landing, but a bolt of wind, which flies as a knot of air and bursts. A lobbed shot climbs high and falls trailing smoke; a rain of
  * arrows is loosed up into the sky and falls over the target.
  */
 
@@ -85,17 +87,16 @@ function volleyLandingPreset(preset: EffectPreset, shots: number): EffectPreset 
   return thinner;
 }
 
-/** The landing of one shot, on its own clock from the moment it lands, as large as a shot of a burst is. */
-function landing(
+/** Where and when the landing of one shot plays: on its own clock from the moment it lands, as large as a shot of a burst is. */
+function landingStage(
   stage: Stage,
-  landWith: LandingLook,
   landsAt: number,
   shot: number,
   shots: number,
   spot: { readonly x: number; readonly y: number } = stage,
   grown = shots > 1 ? 0.85 : 1.1
-): Staged {
-  return landWith({
+): Stage {
+  return {
     ...stage,
     x: spot.x,
     y: spot.y,
@@ -105,7 +106,20 @@ function landing(
     seed: stage.seed + shot * 101,
     cell: stage.cell * grown,
     preset: volleyLandingPreset(stage.preset, shots),
-  });
+  };
+}
+
+/** The landing of one shot, drawn with the look it lands with; see {@link landingStage}. */
+function landing(
+  stage: Stage,
+  landWith: LandingLook,
+  landsAt: number,
+  shot: number,
+  shots: number,
+  spot?: { readonly x: number; readonly y: number },
+  grown?: number
+): Staged {
+  return landWith(landingStage(stage, landsAt, shot, shots, spot, grown));
 }
 
 /**
@@ -136,7 +150,8 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
   const style = stage.preset.projectileLook;
   const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
   if (style === 'meteor') return drawMeteors(stage, lands, ramp);
-  const landWith = lands ?? nothingStaged;
+  const windy = isWindShot(stage.preset);
+  const landWith = lands === null ? nothingStaged : windy ? drawWindBurst : lands;
   const drawn = nothingStaged();
   const { cell, duration } = stage;
   const t = stage.seconds;
@@ -161,7 +176,8 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
       const ahead = pathAt(Math.min(1, share + 0.02));
       const { way } = wayBetween(at, ahead);
       const speed = length / flies;
-      drawFlying(drawn, style, at, way, speed, cell, ramp, share, pathAt, forward, stage.seed + index);
+      if (windy) drawWindKnot(drawn, { at, way, cell, share, pathAt, seconds: t, seed: stage.seed + index }, ramp);
+      else drawFlying(drawn, style, at, way, speed, cell, ramp, share, pathAt, forward, stage.seed + index);
     }
     if (style === 'tracer' && t >= launch && t < launch + 0.3)
       drawTracerLine(drawn, from, to, cell, ramp, (t - launch) / 0.3);

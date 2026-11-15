@@ -39,7 +39,7 @@ export const SCENE_LINGER_S: Readonly<Partial<Record<EffectKind, number>>> = {
   skyblade: 1.8,
   slash: 0.6,
   upheaval: 1,
-  vortex: 0.8,
+  vortex: 1.2,
   warp: 0.6,
 };
 
