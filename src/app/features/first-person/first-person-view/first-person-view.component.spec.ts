@@ -711,6 +711,26 @@ describe('FirstPersonViewComponent', () => {
     ObjectStore.instance.remove(preset);
   });
 
+  it('gives the buttons that cast and call off an effect held ready a height a finger can press', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
+    const preset = new EffectPreset();
+    preset.initialize();
+    ObjectStore.instance.add(preset, false);
+    lookOutOf(pieceAt(4, 7));
+    const fixture = mount();
+    const targeting = TestBed.inject(EffectTargetingService);
+
+    targeting.begin(preset);
+    fixture.detectChanges();
+
+    for (const name of ['first-person-cast', 'first-person-cancel-pick']) {
+      const button = element(fixture).querySelector<HTMLElement>(`[data-testid="${name}"]`);
+      expect(button?.className.split(/\s+/)).toContain('pointer-coarse:h-11');
+    }
+    targeting.cancel();
+    ObjectStore.instance.remove(preset);
+  });
+
   it('keeps the controls out of the middle of the foot of the view, where the hotbar sits', () => {
     lookOutOf(pieceAt(4, 7));
 
