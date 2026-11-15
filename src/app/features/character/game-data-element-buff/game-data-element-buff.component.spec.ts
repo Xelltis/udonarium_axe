@@ -349,6 +349,19 @@ describe('GameDataElementBuffComponent', () => {
       expect(blessing.toAttributes()).not.toHaveProperty(DataElementAttribute.BUFF_KIND);
     });
 
+    it('names the choice for a screen reader and marks it with a sign in front, as the timing beside it is', () => {
+      const select = show(row('盾'));
+
+      expect(select.getAttribute('aria-label')).toBe(select.title);
+      expect(select.getAttribute('aria-label')!.length).toBeGreaterThan(0);
+      const cue = select.previousElementSibling as HTMLElement;
+      expect(cue.dataset['testid']).toBe('buff-row-kind-cue');
+      expect([cue.getAttribute('aria-hidden'), cue.classList.contains('material-icons')]).toEqual(['true', true]);
+      expect(cue.parentElement).toBe(
+        (fixture.nativeElement as HTMLElement).querySelector('[data-testid="buff-row-timing"]')!.parentElement
+      );
+    });
+
     it('shows the ▼ of a debuff on the badge of the row drawn over the piece, and no choice there', () => {
       fixture.componentRef.setInput('isPieceMode', true);
       fixture.componentRef.setInput('gameDataElement', row('毒'));
