@@ -16,7 +16,7 @@ export const SCENE_LINGER_S: Readonly<Partial<Record<EffectKind, number>>> = {
   arrowrain: 1.4,
   aura: 0.5,
   ballistic: 1.8,
-  barrier: 0.5,
+  barrier: 0.8,
   bash: 0.6,
   beam: 2.2,
   bolt: 1.5,
