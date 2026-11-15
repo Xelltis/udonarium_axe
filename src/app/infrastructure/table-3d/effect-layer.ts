@@ -137,6 +137,8 @@ const MOTE_SHAPES: readonly EffectMoteShape[] = [
   'wisp',
   'jet',
   'gust',
+  'blaze',
+  'billow',
 ];
 /** The shapes that flow: see {@link EffectMoteShape}. They are the last of the list, from the first of them on. */
 const FLOWING_FROM = MOTE_SHAPES.indexOf('lick');
@@ -748,11 +750,13 @@ export class EffectLayer {
       .mul(core.w);
     // The shapes that flow share one pattern: two sizes of soft noise, drawn out the way the shape
     // runs and carried down it by its spin, which eats into the shape's edge, the more the nearer its tip.
+    // A blaze and a billow are round, so their pattern is as fine along them as across.
+    const rounded = shape.equal(MOTE_SHAPE.blaze).or(shape.equal(MOTE_SHAPE.billow));
     const flowAt = vec2(
       point.x.mul(2.1).add(variant.mul(5.3)),
       up
         .mul(reach.div(max(size, 1)))
-        .mul(1.5)
+        .mul(select(rounded, float(4.2), float(1.5)))
         .sub(spin)
     );
     const coarse = softNoise(flowAt);
@@ -778,13 +782,28 @@ export class EffectLayer {
       .sub(reachAcross)
       .sub(eaten.sub(0.3).mul(smoothstep(0.15, 1, up).mul(0.95).add(0.12)))
       .sub(smoothstep(0.82, 1, up).mul(0.9));
-    const soft = shape.equal(MOTE_SHAPE.wisp).or(shape.equal(MOTE_SHAPE.gust));
+    // A blaze and a billow: a round body as long as it is drawn out, its edge eaten into lobes by the
+    // pattern, which rolls along it as it runs.
+    const roundField = float(0.74)
+      .sub(length(vec2(point.x, up.mul(2).sub(1))))
+      .sub(eaten.sub(0.5).mul(0.52));
+    const soft = shape.equal(MOTE_SHAPE.wisp).or(shape.equal(MOTE_SHAPE.gust)).or(shape.equal(MOTE_SHAPE.billow));
     const coned = shape.equal(MOTE_SHAPE.jet).or(shape.equal(MOTE_SHAPE.gust));
-    const field = select(coned, jetField, select(shape.equal(MOTE_SHAPE.wisp), wispField, lickField));
+    const field = select(
+      rounded,
+      roundField,
+      select(coned, jetField, select(shape.equal(MOTE_SHAPE.wisp), wispField, lickField))
+    );
     const widthThere = select(coned, jetWidth, float(1));
+    // A billow is thick: it thins only at its very edge and is not thinned by the pattern within.
+    const billowed = shape.equal(MOTE_SHAPE.billow);
     const flowing = select(
       soft,
-      smoothstep(0, widthThere.mul(0.45).add(0.04), field).mul(fine.mul(0.45).add(0.55)),
+      select(
+        billowed,
+        smoothstep(0, 0.2, field),
+        smoothstep(0, widthThere.mul(0.45).add(0.04), field).mul(fine.mul(0.45).add(0.55))
+      ),
       clamp(field.div(max(fwidth(field), 0.001)).add(0.5), 0, 1)
     );
     // The middle of a shape that flows, in two steps towards its core's colour: the heart of a jet is
@@ -868,7 +887,7 @@ export class EffectLayer {
           select(
             shape.equal(MOTE_SHAPE.smoke).or(shape.equal(MOTE_SHAPE.plume)),
             float(1.12).sub(uv().y.oneMinus().mul(0.4)),
-            float(1)
+            select(billowed, float(1.6).sub(uv().y.oneMinus().mul(0.65)).sub(eaten.mul(0.85)), float(1))
           )
         )
       )

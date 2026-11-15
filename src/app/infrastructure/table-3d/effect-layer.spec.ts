@@ -105,6 +105,28 @@ describe('EffectLayer', () => {
     layer.dispose();
   });
 
+  it('tells a blaze and a billow how far their pattern has rolled as it is, after every shape there was before them', () => {
+    const layer = new EffectLayer();
+
+    layer.set({
+      motes: [
+        mote({ shape: 'gust', spin: 1 }),
+        mote({ shape: 'blaze', spin: 44.25 }),
+        mote({ shape: 'billow', spin: 19.5 }),
+      ],
+      ribbons: [],
+      floor: [],
+      lights: [],
+    });
+    const [gust, blaze, billow] = looksOf(layer, 'color');
+
+    expect(blaze[1]).toBeCloseTo(44.25, 4);
+    expect(billow[1]).toBeCloseTo(19.5, 4);
+    expect(blaze[0]).toBe(gust[0] + 1);
+    expect(billow[0]).toBe(gust[0] + 2);
+    layer.dispose();
+  });
+
   it('tells a crag what its spin holds as it is, how much of it is broken off and how far it is veined, as no turn is', () => {
     const layer = new EffectLayer();
 

@@ -49,6 +49,11 @@ export type EffectBlend = 'light' | 'color';
  * a variant of one the shorter hand alone; a pair of eyes, slanted and narrowed; a bubble, a thin skin
  * with a glint on it; a hoop, a ring and nothing more; a bar, a band laid level across it; and a
  * feather, a curved vane notched along its edges about a quill.
+ *
+ * Two more flow and are round: as wide as they are and as long as they are drawn out along the way
+ * they are given, their edge eaten into lobes by the pattern, which rolls along them as far as their
+ * spin says. A blaze, a hard-edged ball of fire, its middle taken to its core's colour in two steps;
+ * and a billow, the same gone soft, a cloud of smoke lit on the side it is drawn out towards.
  */
 export type EffectMoteShape =
   | 'glow'
@@ -79,7 +84,9 @@ export type EffectMoteShape =
   | 'lick'
   | 'wisp'
   | 'jet'
-  | 'gust';
+  | 'gust'
+  | 'blaze'
+  | 'billow';
 
 /** One particle of an effect at a moment. */
 export interface EffectMote {
