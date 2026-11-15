@@ -138,6 +138,8 @@ interface RibbonBatch {
   readonly flow: BufferAttribute;
   readonly tint: BufferAttribute;
   readonly core: BufferAttribute;
+  readonly fray: BufferAttribute;
+  readonly hub: BufferAttribute;
   readonly index: BufferAttribute;
 }
 
@@ -381,7 +383,7 @@ export class EffectLayer {
   }
 
   private fillRibbons(batch: RibbonBatch, ribbons: readonly EffectRibbon[], blend: EffectBlend): void {
-    const { spine, flow, tint, core, index } = batch;
+    const { spine, flow, tint, core, fray, hub, index } = batch;
     let points = 0;
     let indices = 0;
     for (const ribbon of ribbons) {
@@ -391,12 +393,18 @@ export class EffectLayer {
       const [r, g, b] = [this.colour.r, this.colour.g, this.colour.b];
       this.colour.setStyle(ribbon.core ?? ribbon.color);
       const [cr, cg, cb] = [this.colour.r, this.colour.g, this.colour.b];
+      const frays = (ribbon.torn ?? 0) > 0 || (ribbon.soft ?? 0) > 0;
+      const widest = frays ? widestOf(ribbon) : 1;
+      const half = ribbon.about ? HALF_MARK[ribbon.half ?? 'whole'] : 0;
+      let run = -(ribbon.flowed ?? 0);
       for (let at = 0; at < count; at++) {
         const point = ribbon.points[at];
         const before = ribbon.points[Math.max(0, at - 1)];
         const after = ribbon.points[Math.min(count - 1, at + 1)];
         const width = typeof ribbon.widths === 'number' ? ribbon.widths : (ribbon.widths[at] ?? 0);
         const alpha = ribbon.alpha * (ribbon.alphas?.[at] ?? 1);
+        if (frays && at > 0) run += Math.hypot(point.x - before.x, point.y - before.y, point.z - before.z) / widest;
+        const about = half !== 0 ? (ribbon.about?.[at] ?? point) : point;
         for (const side of [-1, 1]) {
           const vertex = (points + at) * 2 + (side > 0 ? 1 : 0);
           const at4 = vertex * 4;
@@ -416,6 +424,14 @@ export class EffectLayer {
           core.array[at4 + 1] = cg;
           core.array[at4 + 2] = cb;
           core.array[at4 + 3] = ribbon.core ? 1 : 0;
+          fray.array[at4] = frays ? run : 0;
+          fray.array[at4 + 1] = ribbon.torn ?? 0;
+          fray.array[at4 + 2] = ribbon.soft ?? 0;
+          fray.array[at4 + 3] = ribbon.leans ?? 0;
+          hub.array[at4] = about.x;
+          hub.array[at4 + 1] = about.z;
+          hub.array[at4 + 2] = about.y;
+          hub.array[at4 + 3] = half;
         }
         if (at < count - 1) {
           const a = (points + at) * 2;
@@ -425,7 +441,7 @@ export class EffectLayer {
       }
       points += count;
     }
-    for (const attribute of [spine, flow, tint, core]) {
+    for (const attribute of [spine, flow, tint, core, fray, hub]) {
       attribute.clearUpdateRanges();
       attribute.addUpdateRange(0, points * 2 * 4);
       attribute.needsUpdate = true;
@@ -440,7 +456,9 @@ export class EffectLayer {
   /**
    * The bands of a blend: each point of a band laid out either side of its line by half its width,
    * across the way the band runs and the way to the eye, so the band turns about its line to face
-   * the eye; hard at its edge, its colour taken to its core's in its middle.
+   * the eye; hard at its edge, its colour taken to its core's in its middle. One that frays has its
+   * edges eaten by the pattern the shapes that flow share, run down it, and may thin softly to them;
+   * one drawn by halves shows only where it passes before what it winds about, or only behind it.
    */
   private ribbonBatch(blend: EffectBlend): RibbonBatch {
     const geometry = new BufferGeometry();
@@ -457,6 +475,8 @@ export class EffectLayer {
     const flow = made('flow');
     const tint = made('tint');
     const core = made('core');
+    const fray = made('fray');
+    const hub = made('hub');
     const index = new BufferAttribute(new Uint32Array((MAX_RIBBON_POINTS - 1) * 6), 1);
     index.setUsage(DynamicDrawUsage);
     geometry.setIndex(index);
@@ -483,7 +503,32 @@ export class EffectLayer {
       0,
       1
     );
-    const heart = smoothstep(0.75, 0.05, side).mul(coreNode.w);
+    const frayNode = attribute<'vec4'>('fray', 'vec4');
+    const hubNode = attribute<'vec4'>('hub', 'vec4');
+    const torn = frayNode.y;
+    const softness = frayNode.z;
+    const frays = torn.greaterThan(0).or(softness.greaterThan(0));
+    const grainAt = vec2(flowNode.w.mul(1.6), frayNode.x.mul(0.8));
+    const coarse = softNoise(grainAt);
+    const fine = softNoise(grainAt.mul(2.3).add(17));
+    const eaten = coarse.mul(0.65).add(fine.mul(0.35));
+    const field = float(1).sub(side).sub(eaten.mul(torn));
+    const frayed = select(
+      softness.greaterThan(0),
+      smoothstep(0, max(softness, 0.001), field).mul(fine.mul(0.4).add(0.6)),
+      clamp(field.div(max(fwidth(field), 0.001)).add(0.5), 0, 1)
+    );
+    const heart = smoothstep(0.75, 0.05, abs(flowNode.w.sub(frayNode.w))).mul(coreNode.w);
+    // Which side of what it winds about a point of a band is on, as the eye sees it: the two halves of
+    // a band drawn by halves add up to the whole of it.
+    const outward = spineNode.xyz.sub(hubNode.xyz);
+    const facing = dot(outward.div(max(length(outward), 0.0001)), toEye);
+    const nearSide = smoothstep(-0.2, 0.2, facing);
+    const halved = select(
+      hubNode.w.greaterThan(0.5),
+      nearSide,
+      select(hubNode.w.lessThan(-0.5), float(1).sub(nearSide), float(1))
+    );
     const material = new MeshBasicNodeMaterial({
       transparent: true,
       depthWrite: false,
@@ -492,13 +537,13 @@ export class EffectLayer {
     });
     material.positionNode = placed.add(normalize(cameraPosition.sub(placed)).mul(RIBBON_NEARER_PX));
     material.colorNode = vec4(mix(tintNode.rgb, coreNode.rgb, heart), 1);
-    material.opacityNode = edge.mul(tintNode.w);
+    material.opacityNode = select(frays, frayed, edge).mul(tintNode.w).mul(halved);
     const mesh = new Mesh(geometry, material);
     mesh.frustumCulled = false;
     mesh.renderOrder = RIBBONS_ORDER;
     mesh.visible = false;
     this.group.add(mesh);
-    return { mesh, geometry, spine, flow, tint, core, index };
+    return { mesh, geometry, spine, flow, tint, core, fray, hub, index };
   }
 
   /**
@@ -854,6 +899,15 @@ export class EffectLayer {
 export function nearerOf(mote: Pick<EffectMote, 'forward' | 'exactDepth'>): number {
   const forward = Math.max(0, mote.forward ?? 0);
   return mote.exactDepth ? -(forward + EXACT_DEPTH_MARK) : forward;
+}
+
+/** What a band drawn by halves is told to the shader by: the half before what it winds about, the half behind it, or all of it. */
+const HALF_MARK = { near: 1, far: -1, whole: 0 } as const;
+
+/** How wide a band is at its widest, in table pixels, and never less than one: what its pattern is measured in. */
+function widestOf(ribbon: EffectRibbon): number {
+  const widest = typeof ribbon.widths === 'number' ? ribbon.widths : Math.max(0, ...ribbon.widths);
+  return Math.max(widest, 1);
 }
 
 /** A number from 0 to 1 for each point of a grid, as good as random. */

@@ -92,6 +92,11 @@ export interface EffectMote {
 /**
  * A band drawn through points, as a blade's arc, a bolt of lightning, a beam or the trail of a shot,
  * turned about its line to face the eye: hard-edged, its colour taken to its core's in its middle.
+ *
+ * A band of wind may be more: its edges eaten by a pattern of soft noise that runs down it, thinning
+ * softly to them rather than ending hard, its middle set to one side as a column lit from one side
+ * is; and one that winds about something may be drawn only where it passes before it, or only where
+ * it passes behind, so that the two halves can be laid either side of what it winds about.
  */
 export interface EffectRibbon {
   readonly points: readonly { readonly x: number; readonly y: number; readonly z: number }[];
@@ -104,6 +109,21 @@ export interface EffectRibbon {
   /** How much of its alpha it has at each point, as a tail fades; whole all along without them. */
   readonly alphas?: readonly number[];
   readonly blend: EffectBlend;
+  /** How deep the pattern eats into each of its edges, as a share of half its width; nothing for an edge left whole. */
+  readonly torn?: number;
+  /** How far in from each edge it thins to nothing, as a share of half its width; nothing for a hard edge. */
+  readonly soft?: number;
+  /** How far its pattern has run down it, in widths of the band. */
+  readonly flowed?: number;
+  /** Where across it its middle lies, from -1 at one edge to 1 at the other; in its middle without it. */
+  readonly leans?: number;
+  /** What each of its points winds about, for a band drawn by halves; see `half`. */
+  readonly about?: readonly { readonly x: number; readonly y: number; readonly z: number }[];
+  /**
+   * Which half of a band that winds is drawn: where it passes on the side of what it winds about that
+   * is nearer the eye, or on the far side. The whole of it without.
+   */
+  readonly half?: 'near' | 'far';
 }
 
 /** The kinds of mark laid on the floor. */

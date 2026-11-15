@@ -1,4 +1,4 @@
-import type { EffectMote } from '@axe/domain/effect/scene/effect-scene';
+import type { EffectMote, EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
 import { EffectLayer, nearerOf } from '@axe/infrastructure/table-3d/effect-layer';
 import { type InstancedBufferGeometry, type Mesh } from 'three/webgpu';
 
@@ -24,6 +24,25 @@ function coresOf(layer: EffectLayer): number[][] {
     .filter((geometry) => geometry.getAttribute('motion') !== undefined)[1];
   const core = batch.getAttribute('core').array;
   return Array.from({ length: batch.instanceCount }, (_unused, index) => [...core.slice(index * 4, index * 4 + 4)]);
+}
+
+function ribbon(fields: Partial<EffectRibbon>): EffectRibbon {
+  return { points: [], widths: 10, color: '#ffffff', alpha: 1, blend: 'color', ...fields };
+}
+
+/** A point so far east along a level line. */
+function at(x: number): { x: number; y: number; z: number } {
+  return { x, y: 0, z: 0 };
+}
+
+/** What the layer tells the shader of each of so many points of the bands of colour it draws, two to a point along a band. */
+function bandsOf(layer: EffectLayer, name: 'fray' | 'hub', points: number): number[][] {
+  const meshes = layer.group.children.filter((object) => (object as Mesh).isMesh) as Mesh[];
+  const batch = meshes
+    .map((mesh) => mesh.geometry)
+    .filter((geometry) => geometry.getAttribute('spine') !== undefined)[1];
+  const values = batch.getAttribute(name).array;
+  return Array.from({ length: points * 2 }, (_unused, index) => [...values.slice(index * 4, index * 4 + 4)]);
 }
 
 describe('nearerOf()', () => {
@@ -109,6 +128,96 @@ describe('EffectLayer', () => {
     layer.set({ motes: [], ribbons: [], floor: [], lights: [] });
 
     expect(layer.shown).toBe(0);
+    layer.dispose();
+  });
+
+  it('tells a band that frays how far along it each point is, in its widths, less how far its pattern has run', () => {
+    const layer = new EffectLayer();
+
+    layer.set({
+      motes: [],
+      ribbons: [
+        ribbon({
+          points: [at(0), at(30), at(90)],
+          widths: [10, 30, 20],
+          torn: 0.5,
+          soft: 0.25,
+          flowed: 2,
+          leans: -0.4,
+        }),
+      ],
+      floor: [],
+      lights: [],
+    });
+    const frays = bandsOf(layer, 'fray', 3);
+
+    expect(frays.map((fray) => fray[0])).toEqual([-2, -2, -1, -1, 1, 1]);
+    for (const fray of frays) {
+      expect(fray[1]).toBeCloseTo(0.5);
+      expect(fray[2]).toBeCloseTo(0.25);
+      expect(fray[3]).toBeCloseTo(-0.4);
+    }
+    layer.dispose();
+  });
+
+  it('tells a band drawn by halves which half and what each point winds about, table up as the scene has it', () => {
+    const layer = new EffectLayer();
+    const about = [
+      { x: 1, y: 2, z: 3 },
+      { x: 4, y: 5, z: 6 },
+    ];
+
+    layer.set({
+      motes: [],
+      ribbons: [
+        ribbon({ points: [at(0), at(10)], about, half: 'near' }),
+        ribbon({ points: [at(0), at(10)], about, half: 'far' }),
+      ],
+      floor: [],
+      lights: [],
+    });
+
+    expect(bandsOf(layer, 'hub', 4)).toEqual([
+      [1, 3, 2, 1],
+      [1, 3, 2, 1],
+      [4, 6, 5, 1],
+      [4, 6, 5, 1],
+      [1, 3, 2, -1],
+      [1, 3, 2, -1],
+      [4, 6, 5, -1],
+      [4, 6, 5, -1],
+    ]);
+    layer.dispose();
+  });
+
+  it('tells a band given none of that to be drawn whole, hard-edged and its middle in its middle, whatever was drawn before', () => {
+    const layer = new EffectLayer();
+    const about = [at(0), at(10)];
+
+    layer.set({
+      motes: [],
+      ribbons: [ribbon({ points: [at(0), at(10)], about, half: 'far', torn: 0.5, soft: 0.5, flowed: 3, leans: 0.6 })],
+      floor: [],
+      lights: [],
+    });
+    layer.set({ motes: [], ribbons: [ribbon({ points: [at(0), at(10)] })], floor: [], lights: [] });
+
+    expect(bandsOf(layer, 'fray', 2)).toEqual(Array.from({ length: 4 }, () => [0, 0, 0, 0]));
+    expect(bandsOf(layer, 'hub', 2).map((hub) => hub[3])).toEqual([0, 0, 0, 0]);
+    layer.dispose();
+  });
+
+  it('draws the whole of a band that winds about something where it is told no half', () => {
+    const layer = new EffectLayer();
+
+    layer.set({
+      motes: [],
+      ribbons: [ribbon({ points: [at(0), at(10)], about: [at(0), at(10)] })],
+      floor: [],
+      lights: [],
+    });
+
+    expect(bandsOf(layer, 'hub', 2).map((hub) => hub[3])).toEqual([0, 0, 0, 0]);
     layer.dispose();
   });
 });
