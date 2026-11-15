@@ -83,11 +83,15 @@ export function readCalculatedBuff(command: string): CalculatedBuffCommand {
  * A buff command's fields from where its rounds go, split into the rounds and the look written after
  * them. A timing written where the rounds go, `&毒/継続2/none`, reads as the rounds left out and the
  * timing as the first of the look, so a buff meant to stay is not laid for three rounds instead. So
- * does the moment its effect moves at, `発生:手番開始`.
+ * do the moment its effect moves at, `発生:手番開始`, and a word marking it a buff or a debuff,
+ * `&毒霧/命中-2/デバフ`.
  */
 export function splitBuffRounds(fields: readonly string[]): { rounds: string | undefined; look: string[] } {
   const [rounds, ...look] = fields;
-  if (rounds !== undefined && (isBuffTimingToken(rounds) || isBuffEffectTimingField(rounds))) {
+  if (
+    rounds !== undefined &&
+    (isBuffTimingToken(rounds) || isBuffEffectTimingField(rounds) || parseBuffKindWord(rounds) !== null)
+  ) {
     return { rounds: undefined, look: [...fields] };
   }
   return { rounds, look };

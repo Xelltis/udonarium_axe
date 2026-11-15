@@ -38,6 +38,15 @@ describe('buff-command', () => {
     expect(splitBuffRounds([])).toEqual({ rounds: undefined, look: [] });
   });
 
+  it('reads a word marking a buff or a debuff where the rounds go as part of the look, the rounds left out', () => {
+    expect(splitBuffRounds(['デバフ'])).toEqual({ rounds: undefined, look: ['デバフ'] });
+    expect(splitBuffRounds(['Debuff', 'red'])).toEqual({ rounds: undefined, look: ['Debuff', 'red'] });
+    expect(splitBuffRounds(['バフ', 'none'])).toEqual({ rounds: undefined, look: ['バフ', 'none'] });
+    expect(splitBuffRounds(['ｂｕｆｆ'])).toEqual({ rounds: undefined, look: ['ｂｕｆｆ'] });
+    expect(splitBuffRounds(['3', 'デバフ'])).toEqual({ rounds: '3', look: ['デバフ'] });
+    expect(splitBuffRounds(['デバフ3'])).toEqual({ rounds: 'デバフ3', look: [] });
+  });
+
   it('takes the stacking mark off before the rest is read', () => {
     expect(readBuffStacking('&++!猛攻撃/攻撃/+/2/3')).toEqual({ piles: 'extend', command: '&!猛攻撃/攻撃/+/2/3' });
     expect(readBuffStacking('&加護')).toEqual({ piles: 'none', command: '&加護' });
