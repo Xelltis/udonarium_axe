@@ -1,7 +1,7 @@
 import { type Choreography, nothingStaged, outCubic, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
-import { drawSpark, layScorch, layShockRing, thrownSparks } from '@axe/domain/effect/scene/fire/fire-parts';
+import { drawSpark, layShockRing, laySoot, thrownSparks } from '@axe/domain/effect/scene/fire/fire-parts';
 import {
   acrossOf,
   floorMark,
@@ -154,7 +154,6 @@ function beamOf(thick: number, gathers: number, great: boolean): Choreography {
           drawn.floor.push(
             floorMark('disc', floor, cell * (great ? 1.6 : 1), 1, ramp[4], 0.2 * (1 - ending), 'light', 0)
           );
-          layScorch(drawn, floor, cell * (great ? 0.9 : 0.5), ramp, t - fires, duration, 1, (stage.seed % 89) + 1);
         }
         if (great && t < fires + 0.3) {
           const flash = 1 - within(t, fires, fires + 0.3);
@@ -177,6 +176,17 @@ function beamOf(thick: number, gathers: number, great: boolean): Choreography {
           reachPx: cell * (great ? 2.5 : 2),
         });
       }
+      // What it burns into the floor under what it strikes, which stays once it has stopped.
+      const strikes = fires + 0.08;
+      const ends = duration + LINGER_S;
+      laySoot(
+        drawn,
+        { x: stage.x, y: stage.y, z: stage.groundZ },
+        cell * (great ? 0.9 : 0.5),
+        t - strikes,
+        stops - strikes + 0.5,
+        1 - within(t, ends - 0.4, ends)
+      );
       for (const [index, spark] of sparks.entries()) drawSpark(drawn, spark, t, cell * 0.7, ramp, index, forward);
       return drawn;
     },

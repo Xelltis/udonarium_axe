@@ -18,6 +18,9 @@ export const SMOKE = '#221d26';
 export const STONE = '#6e625b';
 export const DUST = '#7a6a5c';
 export const WARM = '#ffb060';
+/** The black of soot burnt into the floor, and the glow of embers in it. */
+const SOOT = '#0e0b10';
+const EMBER = '#ff7a2c';
 /** How thin a shock ring is drawn as it dies and how much thicker as it sets out, as shares of how heavy it is. */
 const SHOCK_RING_THIN = 0.12;
 const SHOCK_RING_SWELL = 0.3;
@@ -219,6 +222,22 @@ export function layScorch(
     if (share <= 0.05) continue;
     drawn.floor.push(floorMark('scorch', floor, spread * Math.min(1, share), 1, ramp[step], 0.85, 'light', seed));
   }
+}
+
+/**
+ * Soot left on the floor by what burns it without being fire, as a bolt of lightning or a beam: a
+ * soft-edged smudge, black at its heart, glowing like embers at once and cooling over `coolS` seconds,
+ * and gone as `clearing` falls to nothing. It is of the colour of soot and of heat whatever the colour
+ * of what burnt it.
+ */
+export function laySoot(drawn: Staged, floor: Point, reach: number, t: number, coolS: number, clearing: number): void {
+  if (t < 0 || clearing <= 0) return;
+  const spread = reach * Math.min(1, 0.4 + (0.6 * t) / 0.08);
+  drawn.floor.push(floorMark('disc', floor, spread * 1.7, 1, SMOKE, 0.7 * clearing, 'color', 0));
+  drawn.floor.push(floorMark('disc', floor, spread * 0.95, 1, SOOT, 0.65 * clearing, 'color', 0));
+  const heat = Math.pow(Math.max(0, 1 - t / coolS), 1.4);
+  if (heat <= 0) return;
+  drawn.floor.push(floorMark('disc', floor, spread * (0.5 + 0.7 * heat), 1, EMBER, 0.7 * heat * clearing, 'light', 0));
 }
 
 /**

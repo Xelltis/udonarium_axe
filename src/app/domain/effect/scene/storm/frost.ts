@@ -106,17 +106,17 @@ export const frost: Choreography = {
       return drawn;
     }
     const clearing = 1 - within(t, ends - 0.5, ends);
-    // Frost spread over the floor, a ring of rime and its glint.
+    // Frost spread over the floor, thinning softly to its edge, a ring of rime and its glint.
     drawn.floor.push(
       floorMark(
-        'scorch',
+        'disc',
         floor,
-        cell * 1.1 * outCubic(within(t, 0, 0.2)),
+        cell * 1.5 * outCubic(within(t, 0, 0.2)),
         1,
         mixColor(ramp[5], '#ffffff', 0.4),
-        0.55 * clearing,
+        0.6 * clearing,
         'color',
-        (stage.seed % 89) + 1
+        0
       )
     );
     drawn.floor.push(

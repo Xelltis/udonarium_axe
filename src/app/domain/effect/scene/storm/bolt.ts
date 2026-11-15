@@ -1,7 +1,7 @@
 import { type Choreography, nothingStaged, within } from '@axe/domain/effect/scene/choreography';
 import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { ThrownMote } from '@axe/domain/effect/scene/effect-sim';
-import { drawSpark, layScorch, layShockRing, thrownSparks } from '@axe/domain/effect/scene/fire/fire-parts';
+import { drawSpark, layShockRing, laySoot, thrownSparks } from '@axe/domain/effect/scene/fire/fire-parts';
 import {
   floorMark,
   glow,
@@ -96,7 +96,7 @@ export const bolt: Choreography = {
     drawn.motes.push(haze(struck, cell * 2.4, hueOf(ramp), 0.55 * Math.max(0, 1 - t / 0.6), forward));
     drawn.motes.push(glow(struck, cell * 1.6, ramp[4], Math.max(0, 1 - t / 0.4), forward));
     drawn.motes.push(...starBurst(struck, cell * 2.2, hueOf(ramp), t / 0.3, forward * 1.5, 6, stage.seed));
-    layScorch(drawn, floor, cell * 0.7, ramp, t, 1.2, 1 - within(t, ends - 0.4, ends), (stage.seed % 89) + 1);
+    laySoot(drawn, floor, cell * 0.7, t, 1.2, 1 - within(t, ends - 0.4, ends));
     drawn.floor.push(
       floorMark(
         'cracks',
