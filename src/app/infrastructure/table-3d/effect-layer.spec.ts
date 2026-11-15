@@ -149,6 +149,60 @@ describe('EffectLayer', () => {
     layer.dispose();
   });
 
+  it('tells a crystal of ice what its spin holds as it is, as a shape of its own after those that flow', () => {
+    const layer = new EffectLayer();
+
+    layer.set({
+      motes: [mote({ shape: 'billow', spin: 3 }), mote({ shape: 'crystal', spin: 40.6 })],
+      ribbons: [],
+      floor: [],
+      lights: [],
+    });
+    const [billow, crystal] = looksOf(layer, 'color');
+
+    expect(crystal[1]).toBeCloseTo(40.6, 4);
+    expect(crystal[0]).toBe(billow[0] + 1);
+    layer.dispose();
+  });
+
+  it('lays a rime as a mark of its own kind, as thick as it is told', () => {
+    const layer = new EffectLayer();
+    const mark = {
+      x: 1,
+      y: 2,
+      z: 3,
+      radius: 40,
+      width: 0.6,
+      color: '#eaf8ff',
+      alpha: 1,
+      blend: 'color',
+      turn: 0,
+      seed: 4,
+    } as const;
+
+    layer.set({
+      motes: [],
+      ribbons: [],
+      floor: [
+        { ...mark, shape: 'crest' },
+        { ...mark, shape: 'rime' },
+      ],
+      lights: [],
+    });
+    const meshes = layer.group.children.filter((object) => (object as Mesh).isMesh) as Mesh[];
+    const marks = meshes
+      .map((mesh) => mesh.geometry as InstancedBufferGeometry)
+      .filter(
+        (geometry) => geometry.getAttribute('look') !== undefined && geometry.getAttribute('motion') === undefined
+      )[1];
+    const look = marks.getAttribute('look').array;
+
+    expect(marks.instanceCount).toBe(2);
+    expect(look[4]).toBe(look[0] + 1);
+    expect(look[5]).toBeCloseTo(0.6, 5);
+    layer.dispose();
+  });
+
   it('lays a fissure as a mark of its own kind, turned the way it runs and as wide as it is told', () => {
     const layer = new EffectLayer();
     const mark = {

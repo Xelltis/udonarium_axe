@@ -54,6 +54,14 @@ export type EffectBlend = 'light' | 'color';
  * they are given, their edge eaten into lobes by the pattern, which rolls along them as far as their
  * spin says. A blaze, a hard-edged ball of fire, its middle taken to its core's colour in two steps;
  * and a billow, the same gone soft, a cloud of smoke lit on the side it is drawn out towards.
+ *
+ * A crystal is ice, drawn out from its root along the way it is given as a crag is: a straight-sided
+ * column cut to a point from its shoulder up, in flat faces that meet in a ridge, the one lit and the
+ * rest taken towards its core's colour, which is its shadow; a hard white glint down its ridge and on
+ * its shoulder, pale streaks frozen into it, rime about its foot and an outline of its shadow. It is
+ * a little clear but for its edges. Its spin holds what a crag's does: in whole numbers, how many
+ * hundredths of its length are broken off its top; and in what is over, how far up it white cracks
+ * have run.
  */
 export type EffectMoteShape =
   | 'glow'
@@ -86,7 +94,8 @@ export type EffectMoteShape =
   | 'jet'
   | 'gust'
   | 'blaze'
-  | 'billow';
+  | 'billow'
+  | 'crystal';
 
 /** One particle of an effect at a moment. */
 export interface EffectMote {
@@ -170,8 +179,11 @@ export interface EffectRibbon {
 /**
  * The kinds of mark laid on the floor. A crest is a seal of light: a doubled rim with ticks between
  * its rings, two squares crossed into a star of eight points, and a ring about a cross at its heart.
+ * A rime is hoar frost: a patch grown out into needles of uneven length at its edge and mottled
+ * within, as thick as its width says, from 1 for a whole sheet down towards 0 for the last patches
+ * of it about its middle.
  */
-export type EffectFloorShape = 'ring' | 'disc' | 'sigil' | 'cracks' | 'scorch' | 'fissure' | 'crest';
+export type EffectFloorShape = 'ring' | 'disc' | 'sigil' | 'cracks' | 'scorch' | 'fissure' | 'crest' | 'rime';
 
 /** A mark laid flat on the floor, under and round what it is laid at. */
 export interface EffectFloorMark {
@@ -181,7 +193,7 @@ export interface EffectFloorMark {
   readonly z: number;
   /** How far it reaches from its middle, in table pixels. */
   readonly radius: number;
-  /** How wide its line is, as a share of its radius, for a ring, a sigil or a fissure. */
+  /** How wide its line is, as a share of its radius, for a ring, a sigil or a fissure; how thick a rime lies. */
   readonly width: number;
   readonly color: string;
   readonly alpha: number;
