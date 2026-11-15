@@ -15,8 +15,8 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import {
+  BuffConditionRule,
   BuffRemovalCount,
-  BuffRemovalRule,
   countBuffRemoval,
   removeBuffsAcross,
 } from '@axe/domain/character/buff-bulk-removal';
@@ -316,7 +316,7 @@ export class BuffManagerPanelComponent {
   readonly isGameMaster = computed(() => this.rolePermission.isGameMaster());
 
   /** Which buffs the sweep takes: those held until cleared, those with so many rounds left, or one name. */
-  readonly sweepKind = signal<BuffRemovalRule['kind']>('held');
+  readonly sweepKind = signal<BuffConditionRule['kind']>('held');
   readonly sweepRounds = signal<number | string>(1);
   readonly sweepName = signal('');
 
@@ -339,7 +339,7 @@ export class BuffManagerPanelComponent {
   });
 
   /** The sweep as chosen, or nothing while the choice is incomplete. */
-  readonly sweepRule = computed<BuffRemovalRule | null>(() => {
+  readonly sweepRule = computed<BuffConditionRule | null>(() => {
     switch (this.sweepKind()) {
       case 'held':
         return { kind: 'held' };
@@ -369,7 +369,7 @@ export class BuffManagerPanelComponent {
   });
 
   /** The sweep named for the confirmation and the chat line. */
-  private sweepLabel(rule: BuffRemovalRule): { key: string; params: Record<string, unknown> } {
+  private sweepLabel(rule: BuffConditionRule): { key: string; params: Record<string, unknown> } {
     switch (rule.kind) {
       case 'held':
         return { key: 'feature.buffManager.sweepHeldWhat', params: {} };

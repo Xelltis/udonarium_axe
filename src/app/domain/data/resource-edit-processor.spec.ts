@@ -349,6 +349,177 @@ describe('ResourceEditProcessor', () => {
       });
     });
 
+    describe('clearing buffs of every kind (acceptance 8)', () => {
+      let archer: GameCharacter;
+      let made: GameCharacter[];
+
+      function loadedLater(): Promise<{ ID: string }> {
+        return new Promise((resolve) => setTimeout(() => resolve({ ID: 'DiceBot' })));
+      }
+
+      function onTable(name: string): GameCharacter {
+        const piece = GameCharacter.create(name, 1, '');
+        piece.setLocation('table');
+        piece.addExtendData();
+        made.push(piece);
+        return piece;
+      }
+
+      function partOf(body: GameCharacter, name: string): GameCharacter {
+        const part = onTable(name);
+        part.ridingOn = body.identifier;
+        part.rideSeat = 'part';
+        return part;
+      }
+
+      const names = (piece: GameCharacter) => piece.buffs.list().map((data) => data.name);
+      const say = (text: string, targets: (GameCharacter | null)[] = [null], sendFrom?: string) =>
+        processor.checkResourceEditCommand(
+          speak(text, sendFrom),
+          targets.map((object) => ({ text, object }))
+        );
+
+      beforeEach(() => {
+        made = [];
+        mockLoadGameSystemAsync.mockImplementation(loadedLater);
+        character.setLocation('table');
+        character.addExtendData();
+        character.buffs.addRound('毒', '', 3, { timing: 'none', kind: 'debuff' });
+        character.buffs.addRound('加速', '', 2);
+        archer = onTable('弓兵');
+        archer.buffs.addRound('祝福', '', 2);
+        const stored = onTable('控え');
+        stored.setLocation('common');
+        stored.buffs.addRound('加速', '', 2);
+      });
+
+      afterEach(() => {
+        for (const piece of made) piece.destroy();
+        character.destroy();
+      });
+
+      it('takes every buff off every piece on the table for the game master with &&*-', async () => {
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+        await say('&&*-');
+
+        expect(systemText()).toBe('卓全体からすべてのバフを解除（2体・3件）');
+        expect(names(character)).toEqual([]);
+        expect(names(archer)).toEqual([]);
+        expect(names(made[1])).toEqual(['加速']);
+      });
+
+      it('takes the buffs or the debuffs alone with &&*バフ- and &&*デバフ-', async () => {
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+
+        await say('&&*デバフ-');
+        expect(systemText()).toBe('卓全体からデバフを解除（1体・1件）');
+        expect(names(character)).toEqual(['加速']);
+
+        await say('&&*buff-');
+        expect(systemText()).toContain('卓全体からバフを解除（2体・2件）');
+        expect(names(archer)).toEqual([]);
+      });
+
+      it('says so when the table has none of the kind', async () => {
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+        await say('&&*-');
+
+        await say('&&*- &&*バフ- &&*デバフ-');
+
+        expect(systemText()).toContain(
+          '卓全体にバフはありません    卓全体にバフはありません    卓全体にデバフはありません'
+        );
+      });
+
+      it.each(['&&*-', '&&*バフ-', '&&*デバフ-'])(
+        'takes nothing with %s for anyone but the game master, and only says the sweep is theirs',
+        async (command) => {
+          PeerCursor.myCursor.role = PeerRole.Player;
+
+          await say(command);
+
+          expect(systemText()).toBe(`バフの一括解除はGMだけが使えます（${command}）`);
+          expect(names(character)).toEqual(['毒', '加速']);
+          expect(names(archer)).toEqual(['祝福']);
+        }
+      );
+
+      it('leaves the sweeps by how a buff is held, by its rounds and by its name taking what they took', async () => {
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+        archer.buffs.addRound('毒', '', 2);
+
+        await say('&&none-');
+        expect(systemText()).toBe('卓全体から消えないバフを解除（1体・1件）');
+        expect(names(character)).toEqual(['加速']);
+
+        await say('&&2R-');
+        expect(systemText()).toContain('卓全体から残り2Rのバフを解除（2体・3件）');
+        archer.buffs.addRound('毒', '', 5);
+
+        await say('&&毒-');
+        expect(systemText()).toContain('卓全体から「毒」を解除（1体・1件）');
+        expect(names(archer)).toEqual([]);
+      });
+
+      it('clears the speaker’s own piece with &*-, for a player as for the game master', async () => {
+        PeerCursor.myCursor.role = PeerRole.Player;
+
+        await say('&*-', [null], character.identifier);
+
+        expect(systemText()).toBe('すべてのバフを解除（2件）');
+        expect(names(character)).toEqual([]);
+        expect(names(archer)).toEqual(['祝福']);
+      });
+
+      it('clears nothing with &*- where the speaker is no piece', async () => {
+        await say('&*-');
+
+        expect(systemText()).toBe('');
+        expect(names(character)).toEqual(['毒', '加速']);
+      });
+
+      it('clears each piece aimed at with t&*-, another’s piece among them, and names each', async () => {
+        PeerCursor.myCursor.role = PeerRole.Player;
+
+        await say('t&*-', [character, archer]);
+
+        expect(systemText()).toBe('[キャラクターB] すべてのバフを解除（2件）    [弓兵] すべてのバフを解除（1件）');
+        expect(names(character)).toEqual([]);
+        expect(names(archer)).toEqual([]);
+      });
+
+      it('counts a part aimed at along with its body once, in the line of its body (acceptance 7)', async () => {
+        const head = partOf(character, 'Bの頭');
+        head.buffs.addRound('集中', '', 2);
+
+        await say('t&*-', [head, character, archer]);
+
+        expect(systemText()).toBe(
+          '[キャラクターB] すべてのバフを解除（本体と部位1・3件）    [弓兵] すべてのバフを解除（1件）'
+        );
+        expect(names(head)).toEqual([]);
+      });
+
+      it('clears a part aimed at without its body on its own', async () => {
+        const head = partOf(character, 'Bの頭');
+        head.buffs.addRound('集中', '', 2);
+
+        await say('t&*-', [head]);
+
+        expect(systemText()).toBe('[Bの頭] すべてのバフを解除（1件）');
+        expect(names(character)).toEqual(['毒', '加速']);
+      });
+
+      it('keeps the report of a clearing written after s secret', async () => {
+        await say('s&*デバフ-', [null], character.identifier);
+
+        const [report] = tab.chatMessages.filter((message) => message.tag.startsWith('system'));
+        expect(report.tag).toBe('system secret');
+        expect(report.text).toBe('デバフを解除（1件）');
+      });
+    });
+
     describe('a secret prefix', () => {
       beforeEach(() => {
         character.addExtendData();

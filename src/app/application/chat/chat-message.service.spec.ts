@@ -1044,6 +1044,20 @@ describe('ChatMessageService', () => {
         expect(resourceEdits).toEqual([]);
       });
 
+      it.each(['&*-', '&*バフ-', '&*デバフ-', 't&*-', 't&*debuff-', '&&*-', '&&*バフ-', 's&*-'])(
+        'reads no clearing of buffs out of the line %s, on a room server or among peers',
+        (line) => {
+          speak(line);
+          vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+          speak(line);
+          expect(resourceEdits).toEqual([]);
+
+          PeerCursor.myCursor.role = PeerRole.Player;
+          const again = speak(line);
+          expect(resourceEdits).toEqual([again.identifier]);
+        }
+      );
+
       it('changes no piece among peers either, where a guest may change none by its sheet', () => {
         vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
 

@@ -1,3 +1,4 @@
+import { statusAilmentPlanted$ } from '@axe/core/event/domain-events';
 import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { toBuffBadges } from '@axe/domain/character/buff-badge';
 import { buffEffectTimingOf } from '@axe/domain/character/buff-timing';
@@ -570,6 +571,155 @@ describe('resource-edit-helpers', () => {
         edit('&転倒しそう');
 
         expect(character.buffs.find('転倒しそう')!.currentValue).toBe('');
+      });
+    });
+
+    describe('clearing a piece of its buffs (acceptance 5)', () => {
+      const edit = (command: string, targeted = false, piece = character) =>
+        applyBuffEdit({ command, object: piece, targeted }, piece);
+      const names = (piece = character) => piece.buffs.list().map((data) => data.name);
+      const made: GameCharacter[] = [];
+
+      beforeEach(() => {
+        character.detailDataElement!.appendChild(DataElement.create('命中', 5, {}));
+        character.detailDataElement!.appendChild(DataElement.create('回避', 6, {}));
+      });
+
+      afterEach(() => {
+        StatusAilmentCatalog.instance.ailments = [];
+        for (const piece of made.splice(0)) piece.destroy();
+      });
+
+      it('takes every buff with &*-, giving back what a buff moved but not what it leaves moved', () => {
+        edit('&!猛攻撃/命中/+/2/3');
+        edit('&!出血/:回避/-/1/3');
+        edit('&加護/防護+1/none');
+        expect(character.status.getValue('命中', 'now')).toBe(7);
+        expect(character.status.getValue('回避', 'now')).toBe(5);
+
+        const text = edit('&*-');
+
+        expect(text).toBe('すべてのバフを解除（3件）    ');
+        expect(names()).toEqual([]);
+        expect(character.status.getValue('命中', 'now')).toBe(5);
+        expect(character.status.getValue('回避', 'now')).toBe(5);
+      });
+
+      it('counts a buff that moves several statuses once, and gives back every status it moved', () => {
+        edit('&!全力攻撃/命中+2,回避-2/3');
+
+        expect(edit('&*-')).toBe('すべてのバフを解除（1件）    ');
+        expect(names()).toEqual([]);
+        expect(character.status.getValue('命中', 'now')).toBe(5);
+        expect(character.status.getValue('回避', 'now')).toBe(6);
+      });
+
+      it('leaves the buff the piece rides two up by while it rides so, and takes it once it has got off', () => {
+        edit('&!二人乗り/命中/-/2/none');
+        edit('&加速//2');
+        character.rideTwoUpFrom = 'mount';
+        character.rideTwoUpBuff = character.buffs.find('二人乗り')!.identifier;
+
+        expect(edit('&*-')).toBe('すべてのバフを解除（1件）    ');
+        expect(names()).toEqual(['二人乗り']);
+        expect(character.status.getValue('命中', 'now')).toBe(3);
+        expect(edit('&*-')).toBe('解除するバフはありません    ');
+
+        character.rideTwoUpFrom = '';
+
+        expect(edit('&*-')).toBe('すべてのバフを解除（1件）    ');
+        expect(names()).toEqual([]);
+        expect(character.status.getValue('命中', 'now')).toBe(5);
+      });
+
+      it('takes the buffs alone with &*バフ- and the debuffs alone with &*デバフ-, in either spelling', () => {
+        StatusAilmentCatalog.instance.ailments = [newStatusAilment('毒')];
+        const laid = () => {
+          for (const name of names()) character.buffs.delete(name);
+          character.buffs.addRound('毒', '', 3);
+          edit('&加速//2');
+          edit('&毒霧/命中-2/3/デバフ');
+        };
+
+        laid();
+        expect(edit('&*バフ-')).toBe('バフを解除（1件）    ');
+        expect(names()).toEqual(['毒', '毒霧']);
+
+        laid();
+        expect(edit('&*buff-')).toBe('バフを解除（1件）    ');
+
+        laid();
+        expect(edit('&*デバフ-')).toBe('デバフを解除（2件）    ');
+        expect(names()).toEqual(['加速']);
+
+        laid();
+        expect(edit('&*debuff-')).toBe('デバフを解除（2件）    ');
+        expect(names()).toEqual(['加速']);
+      });
+
+      it('says so when there is nothing to take, by the kind asked for', () => {
+        expect(edit('&*-')).toBe('解除するバフはありません    ');
+        expect(edit('&*バフ-')).toBe('解除するバフはありません    ');
+        expect(edit('&*デバフ-')).toBe('解除するデバフはありません    ');
+      });
+
+      it('names the piece aimed at as everyone reads it, and never the buffs', () => {
+        edit('&秘密の加護/防護+1/3');
+        character.hideName = true;
+
+        const text = edit('t&*-', true);
+
+        expect(text).toBe('[？？？] すべてのバフを解除（1件）    ');
+        expect(text).not.toContain('秘密の加護');
+      });
+
+      it('clears the parts that go with the piece and tells how many lost any', () => {
+        character.setLocation('table');
+        const part = GameCharacter.create('テスト戦士の盾', 1, '');
+        made.push(part);
+        part.ridingOn = character.identifier;
+        part.rideSeat = 'part';
+        part.setLocation('table');
+        part.buffs.addRound('硬化', '', 3);
+        part.buffs.addRound('毒', '', 3, { kind: 'debuff' });
+        edit('&加速//2');
+
+        expect(edit('&*デバフ-')).toBe('デバフを解除（本体と部位1・1件）    ');
+        expect(edit('&*-')).toBe('すべてのバフを解除（本体と部位1・2件）    ');
+        expect(names(part)).toEqual([]);
+      });
+
+      it('tells nobody a state was put on as states come off, so nothing is played for them', () => {
+        StatusAilmentCatalog.instance.ailments = [newStatusAilment('毒'), newStatusAilment('麻痺')];
+        edit('&毒');
+        edit('&麻痺');
+        const planted: string[] = [];
+        const stop = statusAilmentPlanted$.subscribe((event) => planted.push(event.name));
+
+        edit('&*-');
+        stop();
+
+        expect(names()).toEqual([]);
+        expect(planted).toEqual([]);
+      });
+
+      it('still takes off the one buff of that name for any other word after the star', () => {
+        character.buffs.addRound('*毒', '', 3);
+        character.buffs.addRound('加速', '', 2);
+
+        expect(edit('&*毒-')).toBe('*毒を消去    ');
+        expect(names()).toEqual(['加速']);
+      });
+
+      it('leaves taking a buff off by its name, counting rounds and clearing those at nought as they were', () => {
+        character.buffs.addRound('バフ', '', 3);
+        character.buffs.addRound('加速', '', 1);
+
+        expect(edit('&バフ-')).toBe('バフを消去    ');
+        expect(edit('&なし-')).toBe('');
+        expect(edit('&R-')).toBe('バフRを減少    ');
+        expect(edit('&D')).toBe('0R以下のバフを消去    ');
+        expect(names()).toEqual([]);
       });
     });
 

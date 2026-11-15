@@ -3,6 +3,9 @@ import { Logger } from '@axe/core/logging/logger';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import {
   describeBuffRemoval,
+  describeBuffsLacking,
+  isClearedWithBody,
+  parseBuffClearanceCommand,
   parseBuffRemovalCommand,
   removeBuffsAcross,
 } from '@axe/domain/character/buff-bulk-removal';
@@ -24,6 +27,7 @@ import {
 } from '@axe/domain/data/embedded-roll';
 import { resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import {
+  ailmentsForBuffRemoval,
   applyBuffEdit,
   applyResourceEditReport,
   applyTextEdit,
@@ -143,6 +147,8 @@ export class ResourceEditProcessor {
    * Works out and applies the collected resource and buff commands, then posts one report to the chat tab.
    *
    * Untargeted commands act on the speaker's character and are skipped when the speaker is not a character.
+   * A command that clears the pieces aimed at of their buffs skips a part aimed at along with its body, which
+   * the body is cleared with.
    * Amounts are rolled with the game system the loader gives for the message. A command whose amount cannot
    * be worked out is named in the report instead of applied. When the loader gives a system whose code could
    * not be fetched, no amount is worked out or reported as unreadable, and the sender is told the dice bot
@@ -198,12 +204,15 @@ export class ResourceEditProcessor {
     }
 
     const repBuffCommandList: BuffEdit[] = [];
+    const aimedAtBy = (command: string) =>
+      buffByCharacter.filter((buff) => buff.buffCommand === command && buff.object).map((buff) => buff.object);
     for (const buff of buffByCharacter) {
       const oneText = buff.buffCommand;
       const targeted = !!oneText.match(/^t&/i);
       if (targeted) {
         const object = buff.object;
         const replaceText = halfWidthBuffCommand(oneText);
+        if (parseBuffClearanceCommand(replaceText) && isClearedWithBody(object, aimedAtBy(oneText))) continue;
         repBuffCommandList.push({
           command: replaceText,
           object: object,
@@ -454,9 +463,9 @@ export class ResourceEditProcessor {
     const onTable = ObjectStore.instance
       .getObjects<GameCharacter>(GameCharacter)
       .filter((character) => character.location.name === 'table');
-    const removed = removeBuffsAcross(onTable, rule);
+    const removed = removeBuffsAcross(onTable, rule, ailmentsForBuffRemoval(rule));
     const what = describeBuffRemoval(rule);
-    if (removed.buffs < 1) return `卓全体に${what}はありません    `;
+    if (removed.buffs < 1) return `卓全体に${describeBuffsLacking(rule)}はありません    `;
     return `卓全体から${what}を解除（${removed.characters}体・${removed.buffs}件）    `;
   }
 

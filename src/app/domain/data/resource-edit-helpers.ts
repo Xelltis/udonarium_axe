@@ -2,6 +2,14 @@ import { toHalfWidth } from '@axe/core/util/string-util';
 import { isAimedAtStatus } from '@axe/domain/character/aimed-at-buff';
 import { parseBuffAppearance } from '@axe/domain/character/buff-appearance';
 import {
+  type BuffClearanceRule,
+  type BuffRemovalRule,
+  describeBuffRemoval,
+  describeBuffsLacking,
+  parseBuffClearanceCommand,
+  removeBuffsWithParts,
+} from '@axe/domain/character/buff-bulk-removal';
+import {
   buffCommandKind,
   readBuffStacking,
   readCalculatedBuff,
@@ -414,7 +422,8 @@ function grantCalculatedBuff(
  * Runs one `&` buff command on the character and returns the chat text reporting it.
  *
  * `&R-` and `&R+` move every buff's remaining rounds, `&D` clears buffs at zero rounds or fewer, `&name-`
- * removes one buff, `&!` adds a buff that changes a status, and anything else adds a plain
+ * removes one buff, `&*-`, `&*バフ-` and `&*デバフ-` clear the piece and its parts of every buff, of
+ * the buffs or of the debuffs, `&!` adds a buff that changes a status, and anything else adds a plain
  * `name/effect/rounds/appearance` buff; one named after a state the room keeps puts that state on,
  * what the command leaves out read from the room's list of states. A `+` right after the ampersand
  * stacks onto a buff of the same name rather than starting it over, and `++` lengthens it by the
@@ -428,6 +437,7 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
   }
 
   const kind = buffCommandKind(command);
+  const clearance = parseBuffClearanceCommand(command);
   if (kind === 'roundsDown') {
     character.buffs.decreaseRound();
     text += 'バフRを減少    ';
@@ -437,6 +447,8 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
   } else if (kind === 'clearZero') {
     character.buffs.deleteZeroRound();
     text += '0R以下のバフを消去    ';
+  } else if (clearance) {
+    text += clearBuffs(character, clearance);
   } else if (kind === 'remove') {
     const reg1 = removedBuffName(command);
     if (character.buffs.delete(reg1)) {
@@ -493,6 +505,26 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
   }
 
   return text;
+}
+
+/**
+ * The states the room keeps, for a removal that tells a debuff from a buff by them; none for a
+ * removal that never asks, which leaves the room's list unread.
+ */
+export function ailmentsForBuffRemoval(rule: BuffRemovalRule): readonly StatusAilment[] {
+  return rule.kind === 'buffs' || rule.kind === 'debuffs' ? StatusAilmentCatalog.instance.ailments : [];
+}
+
+/**
+ * Clears a piece and the parts that go with it of what the rule picks, and says how many buffs went,
+ * never which: the names would tell what a piece that hides its buffs wears. The buff a piece rides
+ * two up by stays while it rides so.
+ */
+function clearBuffs(character: GameCharacter, rule: BuffClearanceRule): string {
+  const removed = removeBuffsWithParts(character, rule, ailmentsForBuffRemoval(rule));
+  if (removed.buffs < 1) return `解除する${describeBuffsLacking(rule)}はありません    `;
+  const reach = removed.parts > 0 ? `本体と部位${removed.parts}・` : '';
+  return `${describeBuffRemoval(rule)}を解除（${reach}${removed.buffs}件）    `;
 }
 
 /**

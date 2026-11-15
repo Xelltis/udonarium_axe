@@ -96,6 +96,23 @@ describe('resourceCommandSites', () => {
     expect(resourceCommandSites(line).secret).toBe(true);
   });
 
+  it('picks the commands that clear a piece out as buff commands, and those that clear the table as sweeps', () => {
+    const words = resourceCommandSites('戦闘終了 &*- t&*デバフ- ＆＊バフ－ &&*- &&*debuff-');
+
+    expect(words.buffs.map((site) => site.command)).toEqual(['&*-', 't&*デバフ-', '&＊バフ－']);
+    expect(words.sweeps.map((site) => site.command)).toEqual(['&&*-', '&&*debuff-']);
+    expect(words.secret).toBe(false);
+  });
+
+  it('takes a clearing written after s as secret, and one that opens the line for no round command', () => {
+    for (const line of ['s&*-', 'st&*バフ-', 's&&*-', 'S&&*デバフ-']) {
+      const read = resourceCommandSites(line);
+      expect(read.buffs.length + read.sweeps.length, line).toBe(1);
+      expect(read.secret, line).toBe(true);
+    }
+    expect(resourceCommandSites('&*-').buffs.map((site) => site.command)).toEqual(['&*-']);
+  });
+
   it('spans each command where it was typed', () => {
     const line = '攻撃 :HP-1:MP-2 &加護/3';
     const words = resourceCommandSites(line);
