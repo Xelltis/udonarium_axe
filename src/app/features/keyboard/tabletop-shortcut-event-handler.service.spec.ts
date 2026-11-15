@@ -1,10 +1,12 @@
 import { TestBed } from '@angular/core/testing';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TabletopShortcutEventHandlerService } from '@axe/features/keyboard/tabletop-shortcut-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -88,6 +90,25 @@ describe('TabletopShortcutEventHandlerService', () => {
 
       expect(one.targeted).toBe(false);
       expect(show).toHaveBeenCalledWith('feature.keyboard.tabletop.targetsCleared');
+    });
+
+    it('calls off an effect held ready on Shift+T with nothing aimed at yet', () => {
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      targeting.begin(preset);
+      expect(targeting.isPicking()).toBe(true);
+
+      press('T', { shiftKey: true });
+
+      expect(targeting.isPicking()).toBe(false);
+      expect(show).toHaveBeenCalledWith('feature.keyboard.tabletop.targetsCleared');
+    });
+
+    it('does nothing on Shift+T with nothing aimed at and no effect held ready', () => {
+      press('T', { shiftKey: true });
+
+      expect(show).not.toHaveBeenCalled();
     });
   });
 
