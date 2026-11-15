@@ -61,7 +61,8 @@ function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; ca
  * bundled one, and the shots of a blaster; the rounds of guns, a long burst of heavy ones among them,
  * a sniper's shot, arrows, missiles in a swarm and a cruise missile, the shots of spirit, of a curse and
  * of holy light, and a rain of arrows on as many as the bundled one takes and on few enough to fall
- * doubled. The last of each is how many targets it is cast on, where that is not four.
+ * doubled; and the looks that bless, each healing, cleansing, barrier and aura on as many as the
+ * bundled one takes. The last of each is how many targets it is cast on, where that is not four.
  */
 const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, number?])[] = [
   ...[...AILMENT_LOOKS, 'arc', 'haze'].map((moteStyle) => ['curse', { moteStyle, durationMs: 5500 }] as const),
@@ -109,6 +110,15 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, numbe
   ['projectile', { impactKind: 'smite', tagName: '聖' }],
   ['arrowrain', { durationMs: 2400 }, 5],
   ['arrowrain', { durationMs: 2400 }, 2],
+  ['heal', { grade: 1 }],
+  ['heal', { grade: 2, durationMs: 2142 }, 6],
+  ['heal', { grade: 3, durationMs: 3605 }, 8],
+  ['heal', { grade: 1, moteStyle: 'cleanse', durationMs: 2429 }, 6],
+  ['heal', { grade: 2, moteStyle: 'cleanse', durationMs: 2351 }, 6],
+  ['barrier', { grade: 2, durationMs: 1080 }, 6],
+  ['barrier', { grade: 3, durationMs: 1176 }, 6],
+  ['aura', { grade: 2, durationMs: 2064 }, 6],
+  ['aura', { grade: 3, durationMs: 2560 }, 1],
 ];
 
 /** The heaviest cast of a kind, as one of the looks it is given by its family or its particles. */
