@@ -148,6 +148,13 @@ export interface EffectCastEvent {
   cast: unknown;
 }
 
+export interface StatusAilmentPlantedEvent {
+  /** The piece the state was put on. */
+  characterIdentifier: string;
+  /** What the state is called. */
+  name: string;
+}
+
 export interface BattleCutInEvent {
   /** The exchange to play, as it came over the network and before it is read. */
   scene: unknown;
@@ -175,6 +182,8 @@ export const diceBotCatalog$ = new EventChannel<void>();
 export const diceBotUnreachable$ = new EventChannel<DiceBotUnreachableEvent>();
 export const serverRollUnanswered$ = new EventChannel<ServerRollUnansweredEvent>();
 export const resourceChange$ = new EventChannel<ResourceChangeEvent>();
+/** A state was put on a piece from this device. Only the device that put it on hears of it. */
+export const statusAilmentPlanted$ = new EventChannel<StatusAilmentPlantedEvent>();
 
 export const selectGameTable$ = new EventChannel<SelectGameTableEvent>();
 export const updateAudioResource$ = new EventChannel<void>();
@@ -217,6 +226,13 @@ export function emitDiceTableMessage(event: DiceTableMessageEvent) {
 /** Announces on this device that a chat line was sent, so resource edit commands in it can run. */
 export function emitResourceEditMessage(event: ResourceEditMessageEvent) {
   resourceEditMessage$.emit(event);
+}
+/**
+ * Announces on this device that it put a state on a piece. Nothing is sent to the room: the state
+ * itself is synced as a buff, and whatever answers this does so once, from the device that put it on.
+ */
+export function emitStatusAilmentPlanted(event: StatusAilmentPlantedEvent) {
+  statusAilmentPlanted$.emit(event);
 }
 /** Makes the given table the one on view; the table selecter records it, which syncs to the room. */
 export function emitSelectGameTable(event: SelectGameTableEvent) {

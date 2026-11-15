@@ -42,6 +42,15 @@ export class StatusAilmentPanelComponent {
 
   readonly canEdit = computed<boolean>(() => this.rolePermission.canEditTabletop());
 
+  /** Whether putting a state on a piece plays the effect of the same name over it. */
+  readonly playsEffectOnPlant = this.ailmentService.playsEffectOnPlant;
+
+  /** Asks the room to play the effect of the same name as a state is put on, or not to. */
+  setPlaysEffectOnPlant(plays: boolean): void {
+    if (!this.canEdit()) return;
+    this.ailmentService.setPlaysEffectOnPlant(plays);
+  }
+
   /** The CSS colour of a state's swatch, transparent for a state left at the default colour. */
   swatchOf(color: string): string {
     return resolveBuffColor(color) || 'transparent';

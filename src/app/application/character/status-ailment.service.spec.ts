@@ -34,6 +34,31 @@ describe('StatusAilmentService', () => {
     StatusAilmentCatalog.forget();
   });
 
+  describe('whether putting a state on plays its effect', () => {
+    afterEach(() => {
+      StatusAilmentCatalog.instance.playsEffectOnPlant = false;
+    });
+
+    it('is off until the room asks, and follows what the room asks', () => {
+      expect(service.playsEffectOnPlant()).toBe(false);
+
+      service.setPlaysEffectOnPlant(true);
+      expect(service.playsEffectOnPlant()).toBe(true);
+      expect(StatusAilmentCatalog.instance.playsEffectOnPlant).toBe(true);
+
+      service.setPlaysEffectOnPlant(false);
+      expect(service.playsEffectOnPlant()).toBe(false);
+    });
+
+    it('is not to be asked by a seat that may not edit the table', () => {
+      PeerCursor.myCursor = { role: PeerRole.Guest, identifier: 'guest-cursor' } as PeerCursor;
+
+      service.setPlaysEffectOnPlant(true);
+
+      expect(service.playsEffectOnPlant()).toBe(false);
+    });
+  });
+
   describe('the catalogue', () => {
     it('takes a state and gives it back', () => {
       service.add('毒');

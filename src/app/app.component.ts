@@ -94,6 +94,7 @@ import { ReplayIndicatorComponent } from '@axe/features/replay/replay-indicator/
 import { ReplayStagingBannerComponent } from '@axe/features/replay/replay-staging-banner/replay-staging-banner.component';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { RoomRestoreBannerComponent } from '@axe/features/room-archive/room-restore-banner/room-restore-banner.component';
+import { StatusAilmentEffectEventHandlerService } from '@axe/features/status-ailment/status-ailment-effect-event-handler.service';
 import { StreamingOverlayComponent } from '@axe/features/streaming-overlay/streaming-overlay.component';
 import { SwitchNoticeComponent } from '@axe/features/tabletop/board-switch/switch-notice.component';
 import { FogMemoryEventHandlerService } from '@axe/features/tabletop/fog-of-war/fog-memory-event-handler.service';
@@ -234,6 +235,7 @@ export class AppComponent {
     inject(TurnFocusEventHandlerService);
     inject(TargetReleaseEventHandlerService);
     inject(EffectChatEventHandlerService);
+    inject(StatusAilmentEffectEventHandlerService);
     inject(BattleCutInEventHandlerService);
     inject(BattleChatEventHandlerService);
     inject(VoteEventHandlerService);

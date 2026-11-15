@@ -9,6 +9,7 @@ import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { effectCast$ } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import {
   DEFAULT_TABLE_CAMERA_VIEW,
@@ -123,6 +124,8 @@ export interface TableTestHooks {
    * handle pieces are measured at.
    */
   lookFromNear(): void;
+  /** How many effects were cast for the room to play, this seat's own among them, since the table was put up. */
+  effectsCast(): number;
 }
 
 type HookedWindow = Window & { __axeTable?: TableTestHooks };
@@ -193,7 +196,10 @@ export function installTableTestHooks(win: Window, sources: TableTestHookSources
     partAt = () => null,
   } = sources;
   const hooked = win as HookedWindow;
+  let cast = 0;
+  const stopCounting = effectCast$.subscribe(() => cast++);
   hooked.__axeTable = {
+    effectsCast: () => cast,
     pickAt: (pageX, pageY) => pick.pickAt(pageX, pageY)?.target.id ?? null,
     pressedAt: (pageX, pageY) => pick.pressedAt(pageX, pageY)?.target.id ?? null,
     pickAllAt: (pageX, pageY) => pick.allAt(pageX, pageY).map((hit) => hit.target.id),
@@ -304,6 +310,7 @@ export function installTableTestHooks(win: Window, sources: TableTestHookSources
     },
   };
   return () => {
+    stopCounting();
     delete hooked.__axeTable;
   };
 }
