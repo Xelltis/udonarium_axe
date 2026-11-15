@@ -349,6 +349,25 @@ describe('EffectLayer', () => {
     layer.dispose();
   });
 
+  it('tells a band that thins near the eye so, over which half of it is drawn', () => {
+    const layer = new EffectLayer();
+    const about = [at(0), at(10)];
+
+    layer.set({
+      motes: [],
+      ribbons: [
+        ribbon({ points: [at(0), at(10)], thins: true }),
+        ribbon({ points: [at(0), at(10)], about, half: 'far', thins: true }),
+        ribbon({ points: [at(0), at(10)], about, half: 'near' }),
+      ],
+      floor: [],
+      lights: [],
+    });
+
+    expect(bandsOf(layer, 'hub', 6).map((hub) => hub[3])).toEqual([4, 4, 4, 4, 3, 3, 3, 3, 1, 1, 1, 1]);
+    layer.dispose();
+  });
+
   it('draws the whole of a band that winds about something where it is told no half', () => {
     const layer = new EffectLayer();
 

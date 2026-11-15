@@ -456,7 +456,7 @@ export class EffectLayer {
           hub.array[at4] = about.x;
           hub.array[at4 + 1] = about.z;
           hub.array[at4 + 2] = about.y;
-          hub.array[at4 + 3] = half;
+          hub.array[at4 + 3] = half + (ribbon.thins ? THINS_MARK : 0);
         }
         if (at < count - 1) {
           const a = (points + at) * 2;
@@ -549,11 +549,16 @@ export class EffectLayer {
     const outward = spineNode.xyz.sub(hubNode.xyz);
     const facing = dot(outward.div(max(length(outward), 0.0001)), toEye);
     const nearSide = smoothstep(-0.2, 0.2, facing);
+    // A band that thins near the eye is told so by a mark added to which half of it is drawn.
+    const thins = hubNode.w.greaterThan(THINS_MARK / 2);
+    const halfMark = hubNode.w.sub(select(thins, float(THINS_MARK), float(0)));
     const halved = select(
-      hubNode.w.greaterThan(0.5),
+      halfMark.greaterThan(0.5),
       nearSide,
-      select(hubNode.w.lessThan(-0.5), float(1).sub(nearSide), float(1))
+      select(halfMark.lessThan(-0.5), float(1).sub(nearSide), float(1))
     );
+    const closeness = length(cameraPosition.sub(spineNode.xyz)).div(max(spineNode.w, 1));
+    const seenFromWithin = select(thins, smoothstep(FILLS_VIEW_WITHIN, CLEAR_OF_VIEW_BEYOND, closeness), float(1));
     const material = new MeshBasicNodeMaterial({
       transparent: true,
       depthWrite: false,
@@ -562,7 +567,7 @@ export class EffectLayer {
     });
     material.positionNode = placed.add(normalize(cameraPosition.sub(placed)).mul(RIBBON_NEARER_PX));
     material.colorNode = vec4(mix(tintNode.rgb, coreNode.rgb, heart), 1);
-    material.opacityNode = select(frays, frayed, edge).mul(tintNode.w).mul(halved);
+    material.opacityNode = select(frays, frayed, edge).mul(tintNode.w).mul(halved).mul(seenFromWithin);
     const mesh = new Mesh(geometry, material);
     mesh.frustumCulled = false;
     mesh.renderOrder = RIBBONS_ORDER;
@@ -1097,6 +1102,8 @@ export function nearerOf(mote: Pick<EffectMote, 'forward' | 'exactDepth'>): numb
 
 /** What a band drawn by halves is told to the shader by: the half before what it winds about, the half behind it, or all of it. */
 const HALF_MARK = { near: 1, far: -1, whole: 0 } as const;
+/** What is added to that for a band that thins away where it comes close enough to the eye to fill the view. */
+const THINS_MARK = 4;
 
 /** How wide a band is at its widest, in table pixels, and never less than one: what its pattern is measured in. */
 function widestOf(ribbon: EffectRibbon): number {
