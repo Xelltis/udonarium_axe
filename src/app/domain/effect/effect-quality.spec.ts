@@ -29,7 +29,7 @@ function sources(dir = resolve(process.cwd(), 'src/app/domain/effect'), found: s
  * A cast of every kind at the highest grade on four targets, fired from off to one side: a volley of
  * six where it fires shots. The strongest a cast is usually made.
  */
-function heaviestCastOf(kind: EffectKind): { preset: EffectPreset; cast: EffectCast } {
+function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; cast: EffectCast } {
   const preset = new EffectPreset('preset');
   preset.kind = kind;
   preset.grade = 3;
@@ -39,7 +39,7 @@ function heaviestCastOf(kind: EffectKind): { preset: EffectPreset; cast: EffectC
     preset.shots = 6;
     preset.shotInterval = 110;
   }
-  const targets = [0, 1, 2, 3].map((index) => ({
+  const targets = Array.from({ length: count }, (_unused, index) => ({
     identifier: `t${index}`,
     x: 400 + index * 100,
     y: 300 + (index % 2) * 100,
@@ -54,10 +54,12 @@ function heaviestCastOf(kind: EffectKind): { preset: EffectPreset; cast: EffectC
 /**
  * The looks a kind takes that are chosen by its family or by the particles it names, which a cast of
  * the kind with neither never draws: each state of a curse, each element of a breath, and the shots
- * and blows of wind and of earth; and those chosen by its grade or laid out over an area, the lights
- * that smite and a sanctuary.
+ * and blows of wind and of earth; those chosen by its grade or laid out over an area, the lights
+ * that smite, a sanctuary and the bolts of lightning; and those chosen by how many it strikes, a
+ * current held on one target, and a storm on six, as many as the bundled one takes. The last of each
+ * is how many targets it is cast on, where that is not four.
  */
-const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>])[] = [
+const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, number?])[] = [
   ...[...AILMENT_LOOKS, 'arc', 'haze'].map((moteStyle) => ['curse', { moteStyle, durationMs: 5500 }] as const),
   ...(['spark', 'frost', 'arc', 'leaf', 'haze', 'none'] as const).map(
     (moteStyle) => ['breath', { moteStyle }] as const
@@ -72,11 +74,22 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>])[] = 
   ['smite', { grade: 2 }],
   ['smite', { targeting: 'multi', maxTargets: 8, areaRadius: 3 }],
   ['sanctuary', { targeting: 'multi', maxTargets: 8, areaRadius: 3 }],
+  ['bolt', { grade: 1 }],
+  ['bolt', { grade: 2 }],
+  ['bolt', { grade: 3, durationMs: 3048 }, 6],
+  ['arc', { grade: 2 }, 1],
+  ['arc', { grade: 3, staggerMs: 140 }, 5],
+  ['projectile', { impactKind: 'bolt', tagName: '射撃' }],
+  ['skyblade', { impactKind: 'bolt', durationMs: 3000 }],
 ];
 
 /** The heaviest cast of a kind, as one of the looks it is given by its family or its particles. */
-function heaviestCastAs(kind: EffectKind, fields: Partial<EffectPreset>): { preset: EffectPreset; cast: EffectCast } {
-  const heaviest = heaviestCastOf(kind);
+function heaviestCastAs(
+  kind: EffectKind,
+  fields: Partial<EffectPreset>,
+  count?: number
+): { preset: EffectPreset; cast: EffectCast } {
+  const heaviest = heaviestCastOf(kind, count);
   Object.assign(heaviest.preset, fields);
   return heaviest;
 }
@@ -85,9 +98,9 @@ function heaviestCastAs(kind: EffectKind, fields: Partial<EffectPreset>): { pres
 function heaviestCasts(): { name: string; preset: EffectPreset; cast: EffectCast }[] {
   return [
     ...EFFECT_KINDS.map((kind) => ({ name: kind as string, ...heaviestCastOf(kind) })),
-    ...CHOSEN_LOOKS.map(([kind, fields]) => ({
-      name: `${kind} ${JSON.stringify(fields)}`,
-      ...heaviestCastAs(kind, fields),
+    ...CHOSEN_LOOKS.map(([kind, fields, count]) => ({
+      name: `${kind} ${JSON.stringify(fields)}${count ? ` on ${count}` : ''}`,
+      ...heaviestCastAs(kind, fields, count),
     })),
   ];
 }

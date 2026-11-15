@@ -30,6 +30,7 @@ import {
 } from '@axe/domain/effect/scene/parts';
 import { arrowBody, missileBody, stuckArrow } from '@axe/domain/effect/scene/shot/bodies';
 import { drawFireShot } from '@axe/domain/effect/scene/shot/fire-shot';
+import { drawThunderShot, isThunderShot } from '@axe/domain/effect/scene/shot/thunder-shot';
 import { drawWindBurst, drawWindKnot } from '@axe/domain/effect/scene/wind/wind-shot';
 import { ARROW_RAIN_FALL, arrowRainShots, projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
 import { isWindShot } from '@axe/domain/effect/wind-looks';
@@ -40,7 +41,8 @@ import { isWindShot } from '@axe/domain/effect/wind-looks';
  * sniper's line drawn at once, a missile trailing smoke on its arc and a cruise missile weaving; guns
  * flash at the muzzle. A meteor is shot from no one: it falls burning out of the sky. Each lands with
  * the look its preset gives for landing, but a bolt of wind, which flies as a knot of air and bursts,
- * and a bolt of rock, which flies as a boulder and breaks; a bolt of fire flies as a ball of flame. A lobbed shot climbs high and falls
+ * and a bolt of rock, which flies as a boulder and breaks; a bolt of fire flies as a ball of flame, and
+ * a bolt of lightning as a ball wound with it. A lobbed shot climbs high and falls
  * trailing smoke; a rain of arrows is loosed up into the sky and falls over the target.
  */
 
@@ -158,6 +160,7 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
   const windy = isWindShot(stage.preset);
   const rocky = isRockShot(stage.preset);
   const burning = isFireShot(stage.preset);
+  const charged = isThunderShot(stage.preset);
   const breaks: LandingLook = (landed) =>
     drawRockBreak(landed, Math.round((stage.duration + LINGER_S - (stage.seconds - landed.seconds)) * 1000) / 1000);
   const landWith = lands === null ? nothingStaged : windy ? drawWindBurst : rocky ? breaks : lands;
@@ -196,6 +199,9 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
           { at, way, cell, share, pathAt, seconds: t, seed: stage.seed + index, grade, forward },
           flameRampOf(stage.preset.colorPrimary, stage.preset.colorSecondary)
         );
+      } else if (charged) {
+        const flight = { at, way, cell, share, pathAt, seconds: t, seed: stage.seed + index, forward };
+        drawThunderShot(drawn, { ...flight, floorZ: stage.groundZ, shots: timing.shots.length }, ramp);
       } else drawFlying(drawn, style, at, way, speed, cell, ramp, share, pathAt, forward, stage.seed + index);
     }
     if (style === 'tracer' && t >= launch && t < launch + 0.3)
