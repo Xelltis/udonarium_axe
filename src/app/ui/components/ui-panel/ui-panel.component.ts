@@ -767,7 +767,10 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame, PanelTabsFr
     }
   }
 
-  /** Records the place and size the reader resized the panel to, and pulls it back inside the window. */
+  /**
+   * Records the place and size the reader resized the panel to, pulls it back inside the window and
+   * tells the panel in front its new size.
+   */
   onPanelResizeEnd(): void {
     const panel = this.draggablePanel().nativeElement;
     this.left = panel.offsetLeft;
@@ -775,6 +778,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame, PanelTabsFr
     this.width = panel.offsetWidth;
     this.height = panel.offsetHeight;
     this.clampPanelToViewport(panel);
+    this.activePanel().resized$.emit({ width: this.width, height: this.height });
   }
 
   private applyFullScreenLayout(panel: HTMLElement): void {

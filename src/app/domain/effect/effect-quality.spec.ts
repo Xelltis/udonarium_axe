@@ -54,14 +54,17 @@ function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; ca
 /**
  * The looks a kind takes that are chosen by its family or by the particles it names, which a cast of
  * the kind with neither never draws: each state of a curse, each element of a breath, and the shots
- * and blows of wind and of earth; those chosen by its grade or laid out over an area, the lights
- * that smite, a sanctuary and the bolts of lightning; and those chosen by how many it strikes, a
+ * and blows of wind, of earth and of ice; those chosen by its grade or laid out over an area, the lights
+ * that smite, a sanctuary, the ice that strikes and the bolts of lightning; and those chosen by how many it strikes, a
  * current held on one target, and a storm on six, as many as the bundled one takes; a great beam on
  * two and on three, where each keeps more of its detail, the beam of many hues, a laser as long as the
- * bundled one, and the shots of a blaster; the looks of darkness by their grades, a mire and an
- * eclipse over an area on eight, a draining on three, and a great blade that lands in a black
- * sphere. The last of each
- * is how many targets it is cast on, where that is not four.
+ * bundled one, and the shots of a blaster; the rounds of guns, a long burst of heavy ones among them,
+ * a sniper's shot, arrows, missiles in a swarm and a cruise missile, the shots of spirit, of a curse and
+ * of holy light, and a rain of arrows on as many as the bundled one takes and on few enough to fall
+ * doubled; and the looks that bless, each healing, cleansing, barrier and aura on as many as the
+ * bundled one takes; the looks of darkness by their grades, a mire and an eclipse over an area on
+ * eight, a draining on three, and a great blade that lands in a black sphere. The last of each is
+ * how many targets it is cast on, where that is not four.
  */
 const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, number?])[] = [
   ...[...AILMENT_LOOKS, 'arc', 'haze'].map((moteStyle) => ['curse', { moteStyle, durationMs: 5500 }] as const),
@@ -72,6 +75,11 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, numbe
   ['breath', { tagName: '回復' }],
   ['projectile', { tagName: '風' }],
   ['projectile', { tagName: '土' }],
+  ['projectile', { impactKind: 'frost' }],
+  ['frost', { grade: 1 }],
+  ['frost', { grade: 2 }],
+  ['frost', { targeting: 'multi', maxTargets: 8, areaRadius: 3 }],
+  ['vortex', { tagName: '氷', grade: 2 }],
   ['vortex', { tagName: '風', grade: 1 }],
   ['vortex', { tagName: '風' }],
   ['smite', { grade: 1 }],
@@ -98,6 +106,33 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, numbe
   ['darkorb', { targeting: 'multi', maxTargets: 8, areaRadius: 3, durationMs: 4206 }, 8],
   ['drain', { grade: 2, durationMs: 3239, staggerMs: 120 }, 3],
   ['skyblade', { impactKind: 'darkorb', durationMs: 3000 }],
+  ['projectile', { projectileStyle: 'bullet', impactKind: 'rubble', shots: 14, shotInterval: 70, durationMs: 1300 }],
+  ['projectile', { projectileStyle: 'missile', impactKind: 'burst' }],
+  ['projectile', { projectileStyle: 'bullet', impactKind: 'impact', shots: 10, shotInterval: 90 }],
+  ['projectile', { projectileStyle: 'bullet', impactKind: 'rubble', shots: 1 }],
+  ['projectile', { projectileStyle: 'tracer', impactKind: 'impact', shots: 1, durationMs: 620 }],
+  ['projectile', { projectileStyle: 'arrow', impactKind: 'impact' }],
+  ['projectile', { projectileStyle: 'arrow', impactKind: 'impact', grade: 2, shots: 5, shotInterval: 150 }],
+  [
+    'projectile',
+    { projectileStyle: 'missile', impactKind: 'burst', grade: 2, shots: 12, shotInterval: 95, durationMs: 2100 },
+    3,
+  ],
+  ['projectile', { projectileStyle: 'cruise', impactKind: 'burst', shots: 1, durationMs: 2600 }],
+  ['projectile', { impactKind: 'impact', tagName: '射撃' }],
+  ['projectile', { impactKind: 'miasma', tagName: '射撃' }],
+  ['projectile', { impactKind: 'smite', tagName: '聖' }],
+  ['arrowrain', { durationMs: 2400 }, 5],
+  ['arrowrain', { durationMs: 2400 }, 2],
+  ['heal', { grade: 1 }],
+  ['heal', { grade: 2, durationMs: 2142 }, 6],
+  ['heal', { grade: 3, durationMs: 3605 }, 8],
+  ['heal', { grade: 1, moteStyle: 'cleanse', durationMs: 2429 }, 6],
+  ['heal', { grade: 2, moteStyle: 'cleanse', durationMs: 2351 }, 6],
+  ['barrier', { grade: 2, durationMs: 1080 }, 6],
+  ['barrier', { grade: 3, durationMs: 1176 }, 6],
+  ['aura', { grade: 2, durationMs: 2064 }, 6],
+  ['aura', { grade: 3, durationMs: 2560 }, 1],
 ];
 
 /** The heaviest cast of a kind, as one of the looks it is given by its family or its particles. */

@@ -7,6 +7,7 @@ import { breaksOutAsAura, type EffectShake, effectShakeOf } from '@axe/domain/ef
 import { effectLandingTimes } from '@axe/domain/effect/effect-sound-times';
 import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
 import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
+import { frostStrikesOf } from '@axe/domain/effect/ice-looks';
 import { boltStrokesOf, CURRENT_REACHES_AT } from '@axe/domain/effect/thunder-looks';
 import { slashHits } from '@axe/domain/effect/timeline/blade';
 import { gustTimingOf, isGust } from '@axe/domain/effect/wind-looks';
@@ -112,7 +113,9 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
  * drains it rather than throwing it back, and one as it snaps, which lets the piece fall back. A look
  * of darkness lands one as it is seen to strike: spikes stabbing, a sphere bursting, the corona of an
  * eclipse flaring; and a mire two, as its hands seize and as it closes. The greatest aura on its own lands one as it breaks out,
- * which holds and shakes and moves no piece. A bolt of lightning lands one as it strikes, once its
+ * which holds and shakes and throws no piece back. Ice on its own lands as the ice it is drawn as does:
+ * hail at each of its great shards, the cold that stills an area and a pillar of ice once as they
+ * close and once as they shatter. A bolt of lightning lands one as it strikes, once its
  * leader has been seen coming, and the greatest of them a second, the last stroke its column ends in;
  * a current of lightning lands one as it reaches its target. Each later target is struck as the first is, its stagger
  * later, and holds nothing more.
@@ -190,6 +193,9 @@ function strikeTimes(preset: EffectPreset): number[] {
     return slashHits(preset.slashLook).map((hit) =>
       Math.round((hit.at + hit.span * STROKE_CROSSES_AT) * preset.duration)
     );
+  }
+  if (preset.effectKind === 'frost') {
+    return frostStrikesOf(preset, preset.duration / 1000).map((strike) => Math.round(strike * 1000));
   }
   const goesOff = GOES_OFF_AT[preset.effectKind];
   if (goesOff !== undefined) return [Math.round(goesOff * preset.duration)];

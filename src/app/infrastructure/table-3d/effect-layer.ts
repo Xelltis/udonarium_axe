@@ -139,16 +139,27 @@ const MOTE_SHAPES: readonly EffectMoteShape[] = [
   'gust',
   'blaze',
   'billow',
+  'crystal',
 ];
-/** The shapes that flow: see {@link EffectMoteShape}. They are the last of the list, from the first of them on. */
+/** The shapes that flow: see {@link EffectMoteShape}. They stand together in the list, from the first of them to the last. */
 const FLOWING_FROM = MOTE_SHAPES.indexOf('lick');
-/** The shapes whose spin is no turn but something told of them, kept as it is: a crag, and those that flow after it. */
+const FLOWING_UNTIL = MOTE_SHAPES.indexOf('billow');
+/** The shapes whose spin is no turn but something told of them, kept as it is: a crag, and those that flow and a crystal after it. */
 const UNTURNED_FROM = MOTE_SHAPES.indexOf('crag');
 /** The signs: see {@link EffectMoteShape}. They stand together in the list, from the first of them up to the crag. */
 const SIGNS_FROM = MOTE_SHAPES.indexOf('heart');
 /** How dark the outline of a sign is drawn, against its colour. */
 const SIGN_INK = 0.24;
-const MARK_SHAPES: readonly EffectFloorShape[] = ['ring', 'disc', 'sigil', 'cracks', 'scorch', 'fissure', 'crest'];
+const MARK_SHAPES: readonly EffectFloorShape[] = [
+  'ring',
+  'disc',
+  'sigil',
+  'cracks',
+  'scorch',
+  'fissure',
+  'crest',
+  'rime',
+];
 /** The number each shape is told to the shaders by, from its place in the list, which the shaders tell the shapes apart by. */
 const MOTE_SHAPE = Object.fromEntries(MOTE_SHAPES.map((shape, at) => [shape, at])) as Record<EffectMoteShape, number>;
 const MARK_SHAPE = Object.fromEntries(MARK_SHAPES.map((shape, at) => [shape, at])) as Record<EffectFloorShape, number>;
@@ -753,6 +764,65 @@ export class EffectLayer {
       .mul(smoothstep(cragClimbed, cragClimbed.sub(0.06), up))
       .mul(select(cragClimbed.greaterThan(0.001), float(1), float(0)))
       .mul(core.w);
+    // A crystal of ice, drawn out from its root to its tip as a crag is and broken off as one: a
+    // straight-sided column cut to a point from its shoulder up, its faces meeting in a ridge, the one
+    // lit and the rest taken towards its core's colour, a bevel down each edge and an outline of that
+    // colour; white down the lit side of its ridge, in a glint on its shoulder, in the rime at its
+    // foot and in the cracks that climb it as far as the rest of its spin; pale streaks frozen into it.
+    const iceShoulder = sin(variant.mul(7)).mul(0.16).add(0.6);
+    const iceTaper = clamp(float(1).sub(up).div(float(1).sub(iceShoulder)), 0, 1);
+    const iceHalf = iceTaper.mul(0.84);
+    const iceAside = point.x.sub(sin(variant.mul(13)).mul(0.3).mul(float(1).sub(iceTaper)));
+    const iceEdge = iceHalf.sub(abs(iceAside));
+    const ice = clamp(iceEdge.div(max(fwidth(point.x), 0.001)).add(0.5), 0, 1).mul(
+      clamp(cragTop.div(max(fwidth(up), 0.0005)).add(0.5), 0, 1)
+    );
+    const iceAcross = iceAside.div(max(iceHalf, 0.001));
+    const iceOff = iceAcross.sub(sin(variant.mul(9)).mul(0.3));
+    const iceOutlined = iceEdge
+      .lessThan(0.085)
+      .or(cragTop.lessThan(select(cragBroken.greaterThan(0), float(0.012), float(0))));
+    const iceStreak = select(
+      softNoise(vec2(iceAcross.mul(5).add(variant.mul(3)), cragLong.mul(0.5))).greaterThan(0.66),
+      float(0.14),
+      float(0)
+    );
+    const iceShadow = select(
+      iceOutlined,
+      float(1),
+      clamp(
+        select(
+          iceOff.lessThan(0),
+          select(iceAcross.lessThan(-0.72), float(0.3), float(0.02)),
+          select(iceAcross.greaterThan(0.66), float(0.86), float(0.56))
+        ).sub(iceStreak),
+        0,
+        1
+      )
+    ).mul(core.w);
+    const iceCrest = select(iceOff.lessThan(0).and(iceOff.greaterThan(-0.17)), float(0.85), float(0));
+    const iceSpot = smoothstep(
+      0.26,
+      0.2,
+      abs(iceOff.add(0.42)).add(
+        abs(up.sub(iceShoulder).add(0.07))
+          .mul(reach.div(max(size, 1)))
+          .mul(0.6)
+      )
+    );
+    const iceCrackOff = min(
+      abs(iceAside.sub(cragZig)),
+      abs(iceAside.add(float(0.3).mul(float(1).sub(up))).add(cragZig.mul(1.4))).add(0.02)
+    );
+    const iceCracked = smoothstep(0.05, 0.025, iceCrackOff)
+      .mul(smoothstep(cragClimbed, cragClimbed.sub(0.06), up))
+      .mul(select(cragClimbed.greaterThan(0.001), float(1), float(0)));
+    const iceWhite = select(
+      iceOutlined,
+      float(0),
+      max(max(iceCrest, iceSpot), max(smoothstep(0.16, 0, up).mul(0.6), iceCracked))
+    );
+    const iceAlpha = ice.mul(select(iceOutlined, float(1), max(float(0.84), iceWhite)));
     // The shapes that flow share one pattern: two sizes of soft noise, drawn out the way the shape
     // runs and carried down it by its spin, which eats into the shape's edge, the more the nearer its tip.
     // A blaze and a billow are round, so their pattern is as fine along them as across.
@@ -822,7 +892,8 @@ export class EffectLayer {
         .mul(0.5)
         .add(smoothstep(heartFrom, heartFrom.add(0.02), field).mul(0.5))
     ).mul(core.w);
-    const flows = shape.greaterThanEqual(FLOWING_FROM);
+    const flows = shape.greaterThanEqual(FLOWING_FROM).and(shape.lessThanEqual(FLOWING_UNTIL));
+    const crystalline = shape.equal(MOTE_SHAPE.crystal);
     const alpha = select(
       flows,
       flowing,
@@ -859,7 +930,7 @@ export class EffectLayer {
                           select(
                             shape.equal(MOTE_SHAPE.comet),
                             comet,
-                            select(shape.equal(MOTE_SHAPE.crag), crag, plume)
+                            select(shape.equal(MOTE_SHAPE.crag), crag, select(crystalline, iceAlpha, plume))
                           )
                         )
                       )
@@ -919,11 +990,15 @@ export class EffectLayer {
         select(
           shape.equal(MOTE_SHAPE.crag),
           cragVeined,
-          select(shape.equal(MOTE_SHAPE.skull), signs.skull.cored.mul(core.w), float(0))
+          select(crystalline, iceShadow, select(shape.equal(MOTE_SHAPE.skull), signs.skull.cored.mul(core.w), float(0)))
         )
       )
     );
-    const glinting = select(shape.equal(MOTE_SHAPE.bubble), signs.bubble.cored, float(0));
+    const glinting = select(
+      shape.equal(MOTE_SHAPE.bubble),
+      signs.bubble.cored,
+      select(crystalline, iceWhite, float(0))
+    );
     const shown = mix(mix(body, vec3(1, 1, 1), blend === 'light' ? hot : float(0)), vec3(1, 1, 1), glinting);
 
     const material = new MeshBasicNodeMaterial({
@@ -952,8 +1027,8 @@ export class EffectLayer {
   /**
    * The marks of a blend on the floor: each a quad lying on it at its place, as wide across as its
    * reach, turned about its middle: a ring, a soft disc, a sigil of rings and marks, cracks running
-   * out from the middle, a scorch with a ragged edge, a fissure run across it the way it is turned, or
-   * a crest, a seal of rings, a star of two squares and a cross.
+   * out from the middle, a scorch with a ragged edge, a fissure run across it the way it is turned, a
+   * crest, a seal of rings, a star of two squares and a cross, or a rime, a patch of hoar frost.
    */
   private markBatch(blend: EffectBlend): Batch {
     const place = attribute<'vec4'>('place', 'vec4');
@@ -1055,6 +1130,21 @@ export class EffectLayer {
         max(max(band(float(0.36), crestLine.mul(0.8)), crestCross), crestTicks)
       )
     );
+    // A rime: hoar frost grown out from its middle into needles of uneven length, mottled within, and
+    // thinning to the patches about its middle as its width falls.
+    const needleAt = angle
+      .div(Math.PI * 2)
+      .mul(84)
+      .add(seed);
+    const needleLong = gridNoise(vec2(floor(needleAt), floor(seed).add(3)));
+    const needleIn = float(1).sub(abs(fract(needleAt).sub(0.5)).mul(2));
+    const rimeReach = needleLong.mul(0.36).mul(pow(needleIn, 0.7)).add(0.6);
+    const rimeAt = point.mul(6).add(seed);
+    const rimeFine = softNoise(rimeAt.mul(2.7).add(11));
+    const rimeLies = softNoise(rimeAt).mul(0.6).add(rimeFine.mul(0.4)).add(float(1).sub(away).mul(0.45));
+    const rime = smoothstep(0, 0.07, rimeReach.sub(away))
+      .mul(smoothstep(float(1).sub(width), float(1.3).sub(width), rimeLies))
+      .mul(rimeFine.mul(0.5).add(0.5));
     const alpha = select(
       shape.equal(MARK_SHAPE.ring),
       ring,
@@ -1067,7 +1157,11 @@ export class EffectLayer {
           select(
             shape.equal(MARK_SHAPE.cracks),
             cracks,
-            select(shape.equal(MARK_SHAPE.fissure), fissure, select(shape.equal(MARK_SHAPE.crest), crest, scorch))
+            select(
+              shape.equal(MARK_SHAPE.fissure),
+              fissure,
+              select(shape.equal(MARK_SHAPE.crest), crest, select(shape.equal(MARK_SHAPE.rime), rime, scorch))
+            )
           )
         )
       )

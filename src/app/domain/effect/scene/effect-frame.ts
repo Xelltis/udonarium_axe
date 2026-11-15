@@ -44,8 +44,9 @@ import { smite } from '@axe/domain/effect/scene/holy/smite';
 import { warp } from '@axe/domain/effect/scene/holy/warp';
 import { hasScenePart, SCENE_LINGER_S, strikesInSceneWith, STRIKING_WITH } from '@axe/domain/effect/scene/scene-kinds';
 import { arc } from '@axe/domain/effect/scene/shot/arc';
+import { arrowrain } from '@axe/domain/effect/scene/shot/arrow-rain';
 import { beam, raybeam } from '@axe/domain/effect/scene/shot/beam';
-import { arrowrain, ballisticWith, projectileWith } from '@axe/domain/effect/scene/shot/shots';
+import { ballisticWith, projectileWith } from '@axe/domain/effect/scene/shot/shots';
 import { bolt, shotBolt } from '@axe/domain/effect/scene/storm/bolt';
 import { frost } from '@axe/domain/effect/scene/storm/frost';
 import { vortex } from '@axe/domain/effect/scene/wind/vortex';
@@ -148,12 +149,24 @@ CHOREOGRAPHIES.ballistic = ballisticWith(strikeWith);
 /**
  * The looks that go off about their target and yet grow only by the root of its size, as what is
  * aimed at it does: the looks of earth, whose boulders and pillars, as many times larger as a dragon
- * is than a man, would wall the table off, and a bolt of lightning, whose storm would darken all of it.
+ * is than a man, would wall the table off; ice that strikes, whose crystals would; and a bolt of
+ * lightning, whose storm would darken all of it. A cut grows so too: its crescent is as thick as a
+ * piece, and one grown as a dragon is would hide the table.
  */
-const GROWS_BY_ROOT: ReadonlySet<EffectKind> = new Set<EffectKind>(['impact', 'rubble', 'upheaval', 'bolt']);
+const GROWS_BY_ROOT: ReadonlySet<EffectKind> = new Set<EffectKind>([
+  'impact',
+  'rubble',
+  'upheaval',
+  'frost',
+  'slash',
+  'bolt',
+]);
 
-/** The looks that are told of the pieces standing by: a breath breaks on those in its way, and a great beam washes over them. */
-const BREAKS_ON_BYSTANDERS: ReadonlySet<EffectKind> = new Set<EffectKind>(['breath', 'beam']);
+/**
+ * The looks that are told of the pieces standing by: a breath and the torrent of a great sword break
+ * on those in their way, and a great beam washes over them.
+ */
+const BREAKS_ON_BYSTANDERS: ReadonlySet<EffectKind> = new Set<EffectKind>(['breath', 'skyblade', 'beam']);
 
 /** Where a target stands for an effect: its foot, and the floor under it. */
 export interface EffectFooting {

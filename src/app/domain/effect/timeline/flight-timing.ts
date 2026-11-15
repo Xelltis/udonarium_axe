@@ -2,6 +2,7 @@ import { clamp } from '@axe/core/util/clamp';
 import { isRockShot } from '@axe/domain/effect/earth-looks';
 import { type ProjectileStyle } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
+import { isSpiritShot, SPIRIT_GATHERS_MS } from '@axe/domain/effect/magic-looks';
 
 /**
  * When the things an effect throws are let go and land, as shares of its playback: what the sound
@@ -27,6 +28,10 @@ const PROJECTILE_TRAVEL_MS: Record<ProjectileStyle, number> = {
 
 /** How long a shot of rock is in the air: a boulder thrown, slower than the bolt of light it is written as. */
 const ROCK_TRAVEL_MS = 460;
+
+/** How long a sniper's shot is aimed before it is fired, and the most of the effect that may be, as a share of it. */
+const AIMED_MS = 300;
+const AIMED_AT_MOST = 0.45;
 
 /** The latest a shot of a look lands, as a share of the effect; see {@link latestLandingOf}. */
 const LANDS_BY = 0.6;
@@ -61,6 +66,8 @@ export function projectileTiming(preset: EffectPreset): { travel: number; shots:
   const travelMs = isRockShot(preset) ? ROCK_TRAVEL_MS : PROJECTILE_TRAVEL_MS[look];
   const travel = clamp(travelMs / preset.duration, 0.05, latestLandingOf(look));
   const count = preset.shotCount;
+  if (look === 'tracer') return aimedTiming(preset, travelMs, AIMED_MS);
+  if (isSpiritShot(preset)) return aimedTiming(preset, travelMs, SPIRIT_GATHERS_MS);
   if (count === 1) return { travel, shots: [{ launch: 0, land: travel }] };
 
   // A burst is set by shots a second; spread evenly through the effect it would keep firing
@@ -74,6 +81,31 @@ export function projectileTiming(preset: EffectPreset): { travel: number; shots:
     shots: Array.from({ length: count }, (_unused, index) => ({
       launch: gap * index,
       land: gap * index + travel,
+    })),
+  };
+}
+
+/**
+ * When the shots of a cast that is made ready before it is let go are fired and land, a sniper's that
+ * is aimed and a shot of spirit that is gathered: the first is held for `leadMs`, or for as much of
+ * the effect as may be given to it, and the others follow it at the preset's interval, the last
+ * landing before the effect ends.
+ */
+function aimedTiming(
+  preset: EffectPreset,
+  travelMs: number,
+  leadMs: number
+): { travel: number; shots: ProjectileShot[] } {
+  const aimed = Math.min(leadMs / preset.duration, AIMED_AT_MOST);
+  const travel = clamp(travelMs / preset.duration, 0.02, 1 - aimed);
+  const count = preset.shotCount;
+  const even = count > 1 ? (1 - aimed - travel) / (count - 1) : 0;
+  const gap = preset.shotIntervalMs > 0 ? Math.min(preset.shotIntervalMs / preset.duration, even) : even;
+  return {
+    travel,
+    shots: Array.from({ length: count }, (_unused, index) => ({
+      launch: aimed + gap * index,
+      land: aimed + gap * index + travel,
     })),
   };
 }

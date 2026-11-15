@@ -98,11 +98,11 @@ describe('a shot that lands in a bolt of lightning', () => {
     expect(flying.ribbons.every((ribbon) => ribbon.points[0].x >= HAND.x - CELL)).toBe(true);
   });
 
-  it('flies as the ball of light it was where it is of another element', () => {
+  it('flies as a bolt of magic, wound with no lightning, where it is of another element', () => {
     const other = thunderPresetOf('projectile', 2, { impactKind: 'bolt', tagName: '氷', durationMs: 850 });
     const flying = stagedAt(other, castOn([target]), 0.2);
 
-    expect(flying.ribbons).toHaveLength(1);
+    expect(flying.ribbons).toHaveLength(5);
     expect(flying.motes.some((mote) => mote.shape === 'star')).toBe(true);
   });
 });

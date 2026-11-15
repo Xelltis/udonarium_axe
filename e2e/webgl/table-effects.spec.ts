@@ -31,7 +31,7 @@ test.describe('map effects', () => {
   }) => {
     const panel = page.locator('effect-library-panel');
     // A long single-target effect is used; a short one is gone right after it fires, before it can be checked.
-    await panel.getByPlaceholder('名前・系統で絞り込む').fill('一閃');
+    await panel.getByPlaceholder(/名前・系統/).fill('一閃');
     await panel.getByRole('button', { name: /一閃/ }).first().click();
 
     // The hint for picking targets shows.

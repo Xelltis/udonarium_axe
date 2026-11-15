@@ -70,15 +70,48 @@ describe('effectJoltsOf()', () => {
     }
   });
 
-  it('throws a piece back, not up, where a blade lands in an upheaval or a run has one among its stages', () => {
+  it('throws a piece over the floor, not up, where a great sword lands in an upheaval', () => {
     const blade = makePreset('skyblade', 3);
     blade.impactKind = 'upheaval';
     const jolt = effectJoltsOf(blade, cast({ x: 0, y: 0, z: 0 }), effectBlowsOf(blade)[0].atMs + 60, CELL).get(
       'target'
     )!;
 
-    expect(jolt.x).toBeGreaterThan(0);
+    expect(Math.hypot(jolt.x, jolt.y)).toBeGreaterThan(0);
     expect(jolt.z).toBe(0);
+  });
+
+  it('throws a piece back from a cut, but presses it down under a cleave from overhead', () => {
+    const from = cast({ x: 0, y: 0, z: 0 });
+    const joltOf = (slashStyle: string) => {
+      const cut = makePreset('slash', 3);
+      cut.slashStyle = slashStyle;
+      return effectJoltsOf(cut, from, effectBlowsOf(cut)[0].atMs + 60, CELL).get('target')!;
+    };
+
+    expect(joltOf('wide').x).toBeGreaterThan(0);
+    expect(joltOf('wide').z).toBe(0);
+    expect(joltOf('heavy').x).toBe(0);
+    expect(joltOf('heavy').z).toBeLessThan(0);
+  });
+
+  it('carries a piece the way each stroke of a cut went, a flurry knocking it about from side to side', () => {
+    const from = cast({ x: 0, y: 0, z: 0 });
+    const one = makePreset('slash', 2);
+    const single = effectJoltsOf(one, from, effectBlowsOf(one)[0].atMs + 60, CELL).get('target')!;
+    const flurry = makePreset('slash', 2);
+    flurry.slashStyle = 'combo';
+    flurry.durationMs = 2700;
+    const blows = effectBlowsOf(flurry);
+    const wayAt = (index: number) => {
+      const jolt = effectJoltsOf(flurry, from, blows[index].atMs + 40, CELL).get('target')!;
+      const size = Math.hypot(jolt.x, jolt.y);
+      return { x: jolt.x / size, y: jolt.y / size };
+    };
+
+    expect(Math.abs(single.y)).toBeGreaterThan(Math.abs(single.x));
+    expect(single.x).toBeGreaterThan(0);
+    expect(wayAt(0).x * wayAt(2).x + wayAt(0).y * wayAt(2).y).toBeLessThan(0.8);
   });
 
   it('has the one who strikes lean in towards the target as the effect sets off, and stand back after', () => {
@@ -118,11 +151,14 @@ describe('effectJoltsOf()', () => {
     expect(effectJoltsOf(drain, cast(null), at, CELL).get('target')).toBeUndefined();
   });
 
-  it('moves no piece as the greatest aura breaks out', () => {
+  it('throws no piece back as the greatest aura breaks out: the one it is on is borne straight up', () => {
     const aura = makePreset('aura', 3);
     const at = effectBlowsOf(aura)[0].atMs + 60;
+    const jolt = effectJoltsOf(aura, cast({ x: 0, y: 0, z: 0 }), at, CELL).get('target')!;
 
-    expect(effectJoltsOf(aura, cast({ x: 0, y: 0, z: 0 }), at, CELL).get('target')).toBeUndefined();
+    expect(jolt.x).toBe(0);
+    expect(jolt.y).toBe(0);
+    expect(jolt.z).toBeGreaterThan(0);
   });
 
   it('throws nothing for what neither strikes nor sets off at a target', () => {

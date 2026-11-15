@@ -62,11 +62,35 @@ describe('effectBlowsOf()', () => {
     expect(middle.push).toBeLessThan(heavy.push);
   });
 
-  it('strikes as a drawing cut flashes, after its stillness, not at its start', () => {
+  it('shakes hard as a great sword of the highest grade is driven into the ground, and holds as it lands', () => {
+    const [blow, ...rest] = effectBlowsOf(makePreset('skyblade', 3, { durationMs: 3000 }));
+
+    expect(rest).toEqual([]);
+    expect(blow).toEqual({ atMs: 1860, holdMs: 140, shake: 'hard', push: 0.16 });
+    expect(effectBlowsOf(makePreset('skyblade', 2, { durationMs: 3000 }))[0].shake).toBe('soft');
+    expect(effectBlowsOf(makePreset('skyblade', 1, { durationMs: 3000 }))[0].shake).toBe('');
+  });
+
+  it('shakes lightly as a cut thrown off a blade lands, of the middle grade and over', () => {
+    const cut = (grade: number): EffectPreset => makePreset('projectile', grade, { projectileStyle: 'crescent' });
+
+    expect(effectBlowsOf(cut(1)).map((blow) => blow.shake)).toEqual(['']);
+    expect(effectBlowsOf(cut(2)).map((blow) => blow.shake)).toEqual(['soft']);
+    expect(effectBlowsOf(cut(3)).map((blow) => blow.shake)).toEqual(['soft']);
+  });
+
+  it('strikes as the cut of a drawing cut opens, long after its line is drawn at the start', () => {
     const [blow] = effectBlowsOf(makePreset('slash', 2, { slashStyle: 'iai' }));
 
-    expect(blow.atMs).toBeGreaterThan(550);
-    expect(blow.atMs).toBeLessThan(650);
+    expect(blow.atMs).toBeGreaterThan(350);
+    expect(blow.atMs).toBeLessThan(450);
+  });
+
+  it('lands one stroke of a cut as its swing begins, not a quarter of the way through', () => {
+    const [blow] = effectBlowsOf(makePreset('slash', 1, { slashStyle: 'single' }));
+
+    expect(blow.atMs).toBeGreaterThan(80);
+    expect(blow.atMs).toBeLessThan(160);
   });
 
   it('strikes once for every stroke of a combination, holding only those far enough apart', () => {

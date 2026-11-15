@@ -27,7 +27,7 @@ import {
   usesTargetLimit,
 } from '@axe/domain/effect/effect-preset-form';
 import { EffectPresetSet } from '@axe/domain/effect/effect-preset-set';
-import { kindGlyphSvg } from '@axe/domain/effect/effect-shapes';
+import { presetGlyphSvg } from '@axe/domain/effect/effect-shapes';
 import {
   EFFECT_STAGE_ROLES,
   type EffectStage,
@@ -156,7 +156,7 @@ export class EffectPresetEditorComponent {
     this.version();
     const preset = this.preset();
     if (!preset) return '';
-    return kindGlyphSvg(preset.effectKind, { core: preset.colorPrimary, edge: preset.colorSecondary });
+    return presetGlyphSvg(preset);
   });
 
   constructor() {

@@ -2,6 +2,8 @@ import { clamp } from '@axe/core/util/clamp';
 import { isCurseAlone } from '@axe/domain/effect/ailment-looks';
 import { addAilmentJolts, ailmentJoltsEndOf } from '@axe/domain/effect/ailment-reaction';
 import { addBeamJolts, beamLetsGoAt } from '@axe/domain/effect/beam-reaction';
+import { cutCarriesOf, type CutCarry, strikesFromOverhead } from '@axe/domain/effect/blade-looks';
+import { addBlessingJolts, blessingLetsGoAt } from '@axe/domain/effect/blessing-reaction';
 import { breathSurgeAt, breathTimingOf, isGentleBreath } from '@axe/domain/effect/breath-timing';
 import { fallsAsEclipse, stabsFromBelow } from '@axe/domain/effect/dark-looks';
 import { addDarkJolts, darkLetsGoAt } from '@axe/domain/effect/dark-reaction';
@@ -10,7 +12,10 @@ import { type EffectBlow, effectBlowsOf } from '@axe/domain/effect/effect-blows'
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
+import { addGreatSwordJolts, greatSwordJoltsEndOf, swingsGreatSword } from '@axe/domain/effect/great-sword-looks';
 import { burstsFromBelow, fallsFromAbove } from '@axe/domain/effect/holy-looks';
+import { blowsAsBlizzard } from '@axe/domain/effect/ice-looks';
+import { addBlizzardJolts, blizzardJoltsEndOf } from '@axe/domain/effect/ice-reaction';
 import { boltLookOf, CURRENT_BREAKS_AT, isLightning } from '@axe/domain/effect/thunder-looks';
 import { isGust, isTornado, tornadoTimingOf } from '@axe/domain/effect/wind-looks';
 
@@ -79,18 +84,24 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * How far each piece an effect strikes is thrown at a moment on the effect's own clock, and how far
  * the one who cast it leans in: a struck piece stands still through the hold as the blow lands, is
  * thrown back away from the one who struck, as far as the blow's push, and springs back to where it
- * stands; struck from no direction, or by a light that smites from straight above, it is pressed
- * down instead, and where the ground heaves under it, by rubble or an upheaval, or light bursts up
- * out of it, in a sanctuary, it is thrown up off the floor. One that is drained is pulled towards the
- * one who drains it instead, where there is one. A breath lands no blow: the one who
+ * stands; cut, it is carried the way each stroke's blade went; struck from no direction, or by a light
+ * that smites or a blade brought down from straight above, it is pressed down instead, and where the
+ * ground heaves under it, by rubble or an upheaval, or light bursts up out of it, in a sanctuary, it
+ * is thrown up off the floor. One that is drained is pulled towards the one who drains it instead,
+ * where there is one. A breath lands no blow: the one who
  * breathes leans back as it draws the breath in, and each piece it blows on is pushed downwind and
  * trembles for as long as it is blown on. A tornado lands none either: it takes up the piece it
- * stands over and drags the rest it catches towards it. A curse on its own lands none: the piece it
- * is put on bears the state it is in for as long as its look plays. Lightning shakes what it has hold
+ * stands over and drags the rest it catches towards it; a blizzard shoves the piece it blows about
+ * round and makes it shiver. A curse on its own lands none: the piece it
+ * is put on bears the state it is in for as long as its look plays. A great sword lands its blow as
+ * its torrent is let go, and moves the pieces as a torrent does: each it strikes is thrown along it,
+ * away from the one who wields the sword, and held back there for as long as it flows. Lightning shakes what it has hold
  * of besides: a piece struck by a bolt or caught in a current shudders until it lets go, and one
  * struck out of the sky starts up off the floor rather than being thrown back. Darkness holds what it
  * strikes besides, as `dark-reaction` has it, lifts a piece its spikes stab up under and presses down
- * one its eclipse flares over. The pieces themselves stay where
+ * one its eclipse flares over. A blessing bears its
+ * pieces up instead: a grace lifts those it is laid on while its dome stands, and the greatest aura
+ * the one it breaks out of. The pieces themselves stay where
  * they are: each seat draws them off it for a moment.
  */
 export function effectJoltsOf(
@@ -111,12 +122,20 @@ export function effectJoltsOf(
     addBreathJolts(preset, cast, elapsedMs, cellPx, add);
     return jolts;
   }
+  if (blowsAsBlizzard(preset)) {
+    addBlizzardJolts(preset, cast, elapsedMs, cellPx, add);
+    return jolts;
+  }
   if (isTornado(preset)) {
     addTornadoJolts(preset, cast, elapsedMs, cellPx, add);
     return jolts;
   }
   if (isCurseAlone(preset)) {
     addAilmentJolts(preset, cast, elapsedMs, cellPx, add);
+    return jolts;
+  }
+  if (swingsGreatSword(preset) && blows.length > 0) {
+    addGreatSwordJolts(preset, cast, elapsedMs, cellPx, blows[0].atMs, add);
     return jolts;
   }
   cast.targets.forEach((target, index) => {
@@ -133,8 +152,16 @@ export function effectJoltsOf(
       add(target.identifier, { x: 0, y: 0, z: thrown * STARTS_UP });
       return;
     }
-    const away = fallsFromAbove(preset) || fallsAsEclipse(preset) ? null : directionOf(cast.origin, target);
+    const away =
+      fallsFromAbove(preset) || fallsAsEclipse(preset) || strikesFromOverhead(preset)
+        ? null
+        : directionOf(cast.origin, target);
     if (thrown < 0 && !away) return;
+    const carries = away && cutCarriesOf(preset);
+    if (away && carries) {
+      add(target.identifier, carriedBy(blows, carries, away, local, cellPx, thrown));
+      return;
+    }
     add(
       target.identifier,
       away ? { x: away.x * thrown, y: away.y * thrown, z: 0 } : { x: 0, y: 0, z: -thrown * PRESSED_DOWN }
@@ -143,6 +170,7 @@ export function effectJoltsOf(
   if (isLightning(preset)) addConvulsions(preset, cast, elapsedMs, cellPx, blows, add);
   addBeamJolts(preset, cast, elapsedMs, cellPx, blows[0]?.atMs, add);
   addDarkJolts(preset, cast, elapsedMs, cellPx, blows, add);
+  addBlessingJolts(preset, cast, elapsedMs, cellPx, blows[0]?.atMs, add);
   const first = cast.targets[0];
   const towards = first ? directionOf(cast.origin, first) : null;
   const lean = leanAt(elapsedMs) * LEAN_CELLS * cellPx;
@@ -162,12 +190,21 @@ export function joltsEndOf(preset: EffectPreset, cast: EffectCast, blows: readon
   if (isBreath(preset)) {
     return breathTimingOf(preset.duration / 1000).spentAt * 1000 + lastTarget + BLOWN_STANDS_BACK_MS;
   }
+  if (blowsAsBlizzard(preset)) return blizzardJoltsEndOf(preset, cast);
   if (isTornado(preset)) return tornadoTimingOf(preset.duration / 1000).goneAt * 1000 + lastTarget;
   if (isCurseAlone(preset)) return ailmentJoltsEndOf(preset, cast);
+  if (swingsGreatSword(preset) && blows.length > 0) return greatSwordJoltsEndOf(preset, cast, blows[0].atMs);
   const letsGo = isLightning(preset) ? letsGoAt(preset, blows) + lastTarget + CONVULSES_FOR_MS : 0;
   const beamLetsGo = beamLetsGoAt(preset, blows[0]?.atMs) + lastTarget;
   const darkLetsGo = darkLetsGoAt(preset, blows) + lastTarget;
-  return Math.max(LEAN_FOR_MS, lastBlow + lastTarget + THROWN_FOR_MS, letsGo, beamLetsGo, darkLetsGo);
+  return Math.max(
+    LEAN_FOR_MS,
+    lastBlow + lastTarget + THROWN_FOR_MS,
+    letsGo,
+    beamLetsGo,
+    darkLetsGo,
+    blessingLetsGoAt(preset)
+  );
 }
 
 /** Whether an effect is a bolt out of the sky on its own: a strike or a storm, which a snap from the caster's hand is not. */
@@ -311,6 +348,31 @@ function breathLeanAt(elapsedMs: number, burstsAtMs: number): number {
   const share = since / THROWN_FURTHEST_MS;
   const fades = 1 - since / BURST_THRUST_MS;
   return back + BURST_THRUST * share * Math.exp(1 - share) * fades;
+}
+
+/**
+ * How far the strokes of a cut have thrown a piece a while into its own playback: each blow the way
+ * its blade went, and all of them together no further than `most`.
+ */
+function carriedBy(
+  blows: readonly EffectBlow[],
+  carries: readonly CutCarry[],
+  away: { x: number; y: number },
+  local: number,
+  cellPx: number,
+  most: number
+): EffectJolt {
+  let x = 0;
+  let y = 0;
+  blows.forEach((blow, index) => {
+    const carry = carries[Math.min(index, carries.length - 1)];
+    const far = blow.push * cellPx * throwAt(local - blow.atMs);
+    x += far * (away.x * carry.away - away.y * carry.across);
+    y += far * (away.y * carry.away + away.x * carry.across);
+  });
+  const size = Math.hypot(x, y);
+  const held = size > most ? most / size : 1;
+  return { x: x * held, y: y * held, z: 0 };
 }
 
 /** How far a struck piece is thrown some time after its hold, as a share of the blow's push: out fast and back slower. */

@@ -19,6 +19,7 @@ describe('the keys the app keeps settings under in the browser', () => {
       compassFace: 'axe.compass.face',
       djDeckOpen: 'mini-jukebox-dj-deck',
       effectAutoPlay: 'axe.effect.autoPlay',
+      effectLibrarySize: 'axe.effect.librarySize',
       firstPersonPiece: 'ui-first-person-piece',
       foregroundSeeThrough: 'axe.foreground.seeThrough',
       hotbar: 'ui-hotbar',

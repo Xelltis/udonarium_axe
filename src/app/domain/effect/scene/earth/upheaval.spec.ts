@@ -212,14 +212,13 @@ describe('an upheaval', () => {
     expect(staged(preset, single, ends + 0.01).motes).toEqual([]);
   });
 
-  it('bursts without the run where a blade lands in it, and has cleared by the time the blade has', () => {
+  it('bursts without the run about the target where a blade lands in it, and has cleared by the time the blade has', () => {
     const blade = upheavalOf({ kind: 'skyblade', impactKind: 'upheaval', durationMs: 3000 });
     const strikes = effectBlowsOf(blade)[0].atMs / 1000;
-    const stood = fangsOf(staged(blade, single, strikes + 0.5));
+    const stood = fangsOf(staged(blade, single, strikes + 0.5)).filter((fang) => farFrom(TARGET, fang) < CELL * 4);
 
     expect(fangsOf(staged(blade, single, strikes - 0.05))).toEqual([]);
     expect(stood.length).toBeGreaterThan(5);
-    for (const fang of stood) expect(farFrom(TARGET, fang)).toBeLessThan(CELL * 4);
     const ends = (blade.duration + sceneLingerMsOf(blade)) / 1000;
     const last = staged(blade, single, ends - 0.03);
     expect(Math.max(0, ...last.motes.filter((mote) => mote.shape === 'chunk').map((mote) => mote.alpha))).toBeLessThan(

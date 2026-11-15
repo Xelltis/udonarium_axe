@@ -53,11 +53,16 @@ export function struckBodyOf(stage: Stage): StruckBody {
 /**
  * How much of its detail a bolt keeps where a cast strikes many pieces at once, from 1 on up to four
  * of them down towards nothing: what the scene draws in a frame is shared between all of them, and a
- * bolt that kept all its forks on every piece would leave the last of them with none.
+ * bolt that kept all its forks on every piece would leave the last of them with none. A bolt a great
+ * sword lands with keeps less again, the torrent it lands in forking lightning of its own.
  */
 export function detailOf(stage: Stage): number {
-  return Math.min(1, (4 / Math.max(1, stage.targets.length)) ** 1.5);
+  const shared = stage.preset.effectKind === 'skyblade' ? SHARED_WITH_TORRENT : 1;
+  return Math.min(1, (4 / Math.max(1, stage.targets.length)) ** 1.5) * shared;
 }
+
+/** How much of its detail a bolt keeps where it lands in the torrent of a great sword. */
+const SHARED_WITH_TORRENT = 0.4;
 
 /** As many of a part as a bolt keeps of `most` at a detail, and never fewer than `least`. */
 export function kept(most: number, detail: number, least = 1): number {
