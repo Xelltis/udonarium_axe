@@ -1,6 +1,7 @@
 import { isRockShot } from '@axe/domain/effect/earth-looks';
 import type { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { isFireShot } from '@axe/domain/effect/fire-looks';
+import { isIceShot } from '@axe/domain/effect/ice-looks';
 import { drawFlyingSlash, drawSlashLanding } from '@axe/domain/effect/scene/blade/flying-slash';
 import {
   type Choreography,
@@ -12,6 +13,7 @@ import {
 import { drawRockBreak, drawRockFlying } from '@axe/domain/effect/scene/earth/rock-shot';
 import { flameRampOf, rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import { drawCloud, dustColumn, rollingDust } from '@axe/domain/effect/scene/fire/fire-parts';
+import { drawIcicle, landsAsIcicle } from '@axe/domain/effect/scene/ice/ice-shot';
 import { drawMeteor } from '@axe/domain/effect/scene/meteor/meteor';
 import {
   acrossOf,
@@ -39,7 +41,8 @@ import { isWindShot } from '@axe/domain/effect/wind-looks';
  * sniper's line drawn at once, a missile trailing smoke on its arc and a cruise missile weaving; guns
  * flash at the muzzle. A meteor is shot from no one: it falls burning out of the sky. Each lands with
  * the look its preset gives for landing, but a bolt of wind, which flies as a knot of air and bursts,
- * and a bolt of rock, which flies as a boulder and breaks; a bolt of fire flies as a ball of flame. A lobbed shot climbs high and falls
+ * and a bolt of rock, which flies as a boulder and breaks; a bolt of fire flies as a ball of flame,
+ * and a bolt of ice as an icicle that breaks over the ice it lands in. A lobbed shot climbs high and falls
  * trailing smoke; a rain of arrows is loosed up into the sky and falls over the target.
  */
 
@@ -157,9 +160,11 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
   const windy = isWindShot(stage.preset);
   const rocky = isRockShot(stage.preset);
   const burning = isFireShot(stage.preset);
+  const icy = isIceShot(stage.preset);
   const breaks: LandingLook = (landed) =>
     drawRockBreak(landed, Math.round((stage.duration + LINGER_S - (stage.seconds - landed.seconds)) * 1000) / 1000);
-  const landWith = lands === null ? nothingStaged : windy ? drawWindBurst : rocky ? breaks : lands;
+  const landWith =
+    lands === null ? nothingStaged : windy ? drawWindBurst : rocky ? breaks : icy ? landsAsIcicle(lands) : lands;
   const cuts = style === 'crescent' && lands !== null && stage.preset.impactEffectKind === 'slash';
   const drawn = nothingStaged();
   const { cell, duration } = stage;
@@ -196,6 +201,8 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
           { at, way, cell, share, pathAt, seconds: t, seed: stage.seed + index, grade, forward },
           flameRampOf(stage.preset.colorPrimary, stage.preset.colorSecondary)
         );
+      } else if (icy) {
+        drawIcicle(drawn, { at, way, cell, share, pathAt, seconds: t, seed: stage.seed + index }, ramp);
       } else if (style === 'crescent') {
         const volley = { index, count: timing.shots.length, floorZ: stage.groundZ };
         drawFlyingSlash(drawn, { at, way, cell, share, pathAt, fliesS: flies, seconds: t, ...volley }, ramp);
