@@ -12,7 +12,7 @@ import { type EffectStage, stageLayoutOf } from '@axe/domain/effect/effect-stage
 
 /** How long each look drawn wholly in the scene lingers after its playback, in seconds, while what it leaves clears. */
 export const SCENE_LINGER_S: Readonly<Partial<Record<EffectKind, number>>> = {
-  arc: 0.4,
+  arc: 0.7,
   arrowrain: 0.8,
   aura: 0.5,
   ballistic: 1.8,
