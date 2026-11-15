@@ -44,7 +44,7 @@ import { arc } from '@axe/domain/effect/scene/shot/arc';
 import { beam, raybeam } from '@axe/domain/effect/scene/shot/beam';
 import { drain } from '@axe/domain/effect/scene/shot/drain';
 import { arrowrain, ballisticWith, projectileWith } from '@axe/domain/effect/scene/shot/shots';
-import { bolt } from '@axe/domain/effect/scene/storm/bolt';
+import { bolt, shotBolt } from '@axe/domain/effect/scene/storm/bolt';
 import { frost } from '@axe/domain/effect/scene/storm/frost';
 import { vortex } from '@axe/domain/effect/scene/wind/vortex';
 import { projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
@@ -114,9 +114,10 @@ const LANDINGS: Partial<Record<EffectKind, Choreography>> = { impact: struckImpa
 
 /**
  * The looks a shot lands with that a great blade does not: a shot that lands in light that smites
- * lands in the least of it, where a blade brings down the light of its own grade.
+ * lands in the least of it, and one that lands in a bolt of lightning in the least of those, where a
+ * blade brings down the light or the lightning of its own grade.
  */
-const SHOT_LANDINGS: Partial<Record<EffectKind, Choreography>> = { smite: shotSmite };
+const SHOT_LANDINGS: Partial<Record<EffectKind, Choreography>> = { smite: shotSmite, bolt: shotBolt };
 
 /**
  * The look a preset strikes with, drawn on its own clock: one that cuts a piece's picture draws all
@@ -136,9 +137,9 @@ CHOREOGRAPHIES.ballistic = ballisticWith(strikeWith);
 /**
  * The looks that go off about their target and yet grow only by the root of its size, as what is
  * aimed at it does: the looks of earth, whose boulders and pillars, as many times larger as a dragon
- * is than a man, would wall the table off.
+ * is than a man, would wall the table off, and a bolt of lightning, whose storm would darken all of it.
  */
-const GROWS_BY_ROOT: ReadonlySet<EffectKind> = new Set<EffectKind>(['impact', 'rubble', 'upheaval']);
+const GROWS_BY_ROOT: ReadonlySet<EffectKind> = new Set<EffectKind>(['impact', 'rubble', 'upheaval', 'bolt']);
 
 /** Where a target stands for an effect: its foot, and the floor under it. */
 export interface EffectFooting {

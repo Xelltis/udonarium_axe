@@ -50,7 +50,7 @@ describe('effectJoltsOf()', () => {
   });
 
   it('presses a piece struck from no direction down instead', () => {
-    const bolt = makePreset('bolt');
+    const bolt = makePreset('burst');
     const jolt = effectJoltsOf(bolt, cast(null), effectBlowsOf(bolt)[0].atMs + 60, CELL).get('target')!;
 
     expect([jolt.x, jolt.y]).toEqual([0, 0]);
@@ -288,5 +288,92 @@ describe('the pieces a wind moves', () => {
     expect(effectJoltsOf(tornado, three, 250, CELL).has('east')).toBe(false);
     expect(effectJoltsOf(tornado, three, 250, CELL).has('centre')).toBe(true);
     expect(effectJoltsOf(tornado, three, 450, CELL).has('east')).toBe(true);
+  });
+});
+
+describe('how lightning moves the pieces', () => {
+  const from = cast({ x: 0, y: 0, z: 0 });
+
+  it('makes a piece struck by a bolt out of the sky start up off the floor, whoever cast it and from wherever', () => {
+    for (const grade of [2, 3]) {
+      const bolt = makePreset('bolt', grade);
+      for (const each of [from, cast(null)]) {
+        const jolt = effectJoltsOf(bolt, each, effectBlowsOf(bolt)[0].atMs + 60, CELL).get('target')!;
+
+        expect([grade, jolt.z > 0]).toEqual([grade, true]);
+      }
+    }
+  });
+
+  it('throws a piece struck by a snap from its caster back from the caster', () => {
+    const snap = makePreset('bolt', 1);
+    const jolt = effectJoltsOf(snap, from, effectBlowsOf(snap)[0].atMs + 60, CELL).get('target')!;
+
+    expect(jolt.x).toBeGreaterThan(0);
+    expect(jolt.z).toBe(0);
+  });
+
+  it('shudders a piece struck by a bolt for a moment after the stroke, and then lets it stand', () => {
+    const strike = makePreset('bolt', 2);
+    const at = effectBlowsOf(strike)[0].atMs;
+    const shudders = [150, 200, 250].map((after) => effectJoltsOf(strike, cast(null), at + after, CELL).get('target')!);
+
+    expect(new Set(shudders.map((jolt) => jolt.x.toFixed(3))).size).toBe(3);
+    expect(shudders.every((jolt) => Math.abs(jolt.x) < CELL * 0.05)).toBe(true);
+    expect(effectJoltsOf(strike, cast(null), at + 500, CELL).get('target')).toBeUndefined();
+  });
+
+  it('shudders a piece under the column of a storm from its first stroke to its last', () => {
+    const storm = makePreset('bolt', 3);
+    storm.durationMs = 3048;
+    const [first, last] = effectBlowsOf(storm).map((blow) => blow.atMs);
+    const middle = effectJoltsOf(storm, cast(null), (first + last) / 2, CELL).get('target')!;
+
+    expect(last - first).toBeGreaterThan(900);
+    expect(Math.hypot(middle.x, middle.y)).toBeGreaterThan(0);
+    expect(effectJoltsOf(storm, cast(null), last + 500, CELL).get('target')).toBeUndefined();
+  });
+
+  it('shudders a piece held by a current until the current breaks, and a little longer', () => {
+    const current = makePreset('arc');
+    const reaches = effectBlowsOf(current)[0].atMs;
+    const breaks = current.duration * 0.78;
+    const held = effectJoltsOf(current, from, (reaches + breaks) / 2 + 100, CELL).get('target')!;
+    const after = effectJoltsOf(current, from, breaks + 200, CELL).get('target')!;
+
+    expect(effectJoltsOf(current, from, reaches - 1, CELL).get('target')).toBeUndefined();
+    expect(Math.hypot(held.x, held.y)).toBeGreaterThan(0);
+    expect(held.z).toBe(0);
+    expect(Math.hypot(after.x, after.y)).toBeGreaterThan(0);
+    expect(effectJoltsOf(current, from, breaks + 400, CELL).get('target')).toBeUndefined();
+    expect(joltsEndOf(current, from, effectBlowsOf(current))).toBeGreaterThanOrEqual(breaks + 380);
+  });
+
+  it('shudders each piece of a chain from the moment its own link lands', () => {
+    const chain = makePreset('arc', 3);
+    chain.staggerMs = 140;
+    const two: EffectCast = {
+      ...from,
+      targets: [...from.targets, { identifier: 'second', x: 200, y: 0, z: 0 }],
+    };
+    const reaches = effectBlowsOf(chain)[0].atMs;
+
+    expect(effectJoltsOf(chain, two, reaches + 100, CELL).has('target')).toBe(true);
+    expect(effectJoltsOf(chain, two, reaches + 100, CELL).has('second')).toBe(false);
+    expect(effectJoltsOf(chain, two, reaches + 240, CELL).has('second')).toBe(true);
+  });
+
+  it('shudders harder at the higher grades', () => {
+    const farthest = (grade: number) => {
+      const current = makePreset('arc', grade);
+      const reaches = effectBlowsOf(current)[0].atMs;
+      let far = 0;
+      for (let ms = reaches + 200; ms < reaches + 500; ms += 7) {
+        far = Math.max(far, Math.abs(effectJoltsOf(current, cast(null), ms, CELL).get('target')?.x ?? 0));
+      }
+      return far;
+    };
+
+    expect(farthest(3)).toBeGreaterThan(farthest(1) * 1.5);
   });
 });

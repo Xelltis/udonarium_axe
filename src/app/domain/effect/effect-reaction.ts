@@ -8,6 +8,7 @@ import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
 import { burstsFromBelow, fallsFromAbove } from '@axe/domain/effect/holy-looks';
+import { boltLookOf, CURRENT_BREAKS_AT, isLightning } from '@axe/domain/effect/thunder-looks';
 import { isGust, isTornado, tornadoTimingOf } from '@axe/domain/effect/wind-looks';
 
 /** How far a piece is drawn off where it stands for a moment, in table pixels: x to the east, y to the south and z up. */
@@ -50,6 +51,13 @@ const TAKEN_UP_CELLS = 0.14;
 /** How far a piece caught round a tornado is dragged towards it, as a share of a cell, by grade. */
 const DRAGGED_CELLS_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 0.07, 2: 0.11, 3: 0.17 };
 
+/** How far a piece caught in lightning shudders each way, as a share of a cell, by grade. */
+const CONVULSES_CELLS_BY_GRADE: Record<1 | 2 | 3, number> = { 1: 0.02, 2: 0.03, 3: 0.045 };
+/** How long a piece goes on shuddering after lightning has let go of it, in milliseconds. */
+const CONVULSES_FOR_MS = 380;
+/** How far a bolt out of the sky makes a piece start up off the floor, against how far a blow would throw it back. */
+const STARTS_UP = 0.8;
+
 /** The looks the one who casts them sets off at the target with, leaning in as they do; one who throws a gust leans in too. */
 const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'slash',
@@ -76,7 +84,9 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * breathes leans back as it draws the breath in, and each piece it blows on is pushed downwind and
  * trembles for as long as it is blown on. A tornado lands none either: it takes up the piece it
  * stands over and drags the rest it catches towards it. A curse on its own lands none: the piece it
- * is put on bears the state it is in for as long as its look plays. The pieces themselves stay where
+ * is put on bears the state it is in for as long as its look plays. Lightning shakes what it has hold
+ * of besides: a piece struck by a bolt or caught in a current shudders until it lets go, and one
+ * struck out of the sky starts up off the floor rather than being thrown back. The pieces themselves stay where
  * they are: each seat draws them off it for a moment.
  */
 export function effectJoltsOf(
@@ -115,6 +125,10 @@ export function effectJoltsOf(
       add(target.identifier, { x: 0, y: 0, z: thrown * HEAVED_UP });
       return;
     }
+    if (strikesFromSky(preset)) {
+      add(target.identifier, { x: 0, y: 0, z: thrown * STARTS_UP });
+      return;
+    }
     const away = fallsFromAbove(preset) ? null : directionOf(cast.origin, target);
     if (thrown < 0 && !away) return;
     add(
@@ -122,6 +136,7 @@ export function effectJoltsOf(
       away ? { x: away.x * thrown, y: away.y * thrown, z: 0 } : { x: 0, y: 0, z: -thrown * PRESSED_DOWN }
     );
   });
+  if (isLightning(preset)) addConvulsions(preset, cast, elapsedMs, cellPx, blows, add);
   const first = cast.targets[0];
   const towards = first ? directionOf(cast.origin, first) : null;
   const lean = leanAt(elapsedMs) * LEAN_CELLS * cellPx;
@@ -143,7 +158,50 @@ export function joltsEndOf(preset: EffectPreset, cast: EffectCast, blows: readon
   }
   if (isTornado(preset)) return tornadoTimingOf(preset.duration / 1000).goneAt * 1000 + lastTarget;
   if (isCurseAlone(preset)) return ailmentJoltsEndOf(preset, cast);
-  return Math.max(LEAN_FOR_MS, lastBlow + lastTarget + THROWN_FOR_MS);
+  const letsGo = isLightning(preset) ? letsGoAt(preset, blows) + lastTarget + CONVULSES_FOR_MS : 0;
+  return Math.max(LEAN_FOR_MS, lastBlow + lastTarget + THROWN_FOR_MS, letsGo);
+}
+
+/** Whether an effect is a bolt out of the sky on its own: a strike or a storm, which a snap from the caster's hand is not. */
+function strikesFromSky(preset: EffectPreset): boolean {
+  return !preset.isStaged && preset.effectKind === 'bolt' && boltLookOf(preset) !== 'snap';
+}
+
+/**
+ * When lightning lets go of a piece, on the piece's own clock: a current as it breaks, and a bolt at
+ * its last stroke, the column of a storm having held it from its first.
+ */
+function letsGoAt(preset: EffectPreset, blows: readonly EffectBlow[]): number {
+  if (preset.effectKind === 'arc') return preset.duration * CURRENT_BREAKS_AT;
+  return blows.reduce((last, blow) => Math.max(last, blow.atMs), 0);
+}
+
+/**
+ * How lightning shakes the pieces it has hold of at a moment: each shudders where it stands from the
+ * moment it is struck until the lightning lets go of it, and a little longer, less and less.
+ */
+function addConvulsions(
+  preset: EffectPreset,
+  cast: EffectCast,
+  elapsedMs: number,
+  cellPx: number,
+  blows: readonly EffectBlow[],
+  add: (identifier: string, jolt: EffectJolt) => void
+): void {
+  const struckAt = blows[0]?.atMs;
+  if (struckAt === undefined) return;
+  const letsGo = letsGoAt(preset, blows);
+  cast.targets.forEach((target, index) => {
+    const local = elapsedMs - preset.stagger * index;
+    if (local <= struckAt || local >= letsGo + CONVULSES_FOR_MS) return;
+    const held = 1 - Math.max(0, (local - letsGo) / CONVULSES_FOR_MS);
+    const far = CONVULSES_CELLS_BY_GRADE[preset.gradeLevel] * held * cellPx;
+    add(target.identifier, {
+      x: far * Math.sin(local * 0.131 + index * 2.1),
+      y: far * 0.6 * Math.sin(local * 0.157 + index * 4.3),
+      z: 0,
+    });
+  });
 }
 
 /** Whether an effect is a breath on its own, rather than a run with one among its stages. */
