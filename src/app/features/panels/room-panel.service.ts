@@ -1,6 +1,8 @@
 import { inject, Injectable, Injector, Type, ViewContainerRef } from '@angular/core';
+import { EFFECT_LIBRARY_MIN_SIZE, readEffectLibrarySize } from '@axe/application/effect/effect-library-size';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
+import { browserLocalStorage } from '@axe/core/storage/local-preference';
 import { panelLabelKey, RoomPanelName, STATUS_AILMENT_PANEL } from '@axe/domain/ui/room-panel';
 import { PanelWindowService } from '@axe/features/panels/panel-window.service';
 
@@ -269,7 +271,11 @@ export class RoomPanelService {
             import('@axe/features/effect/effect-library-panel/effect-library-panel.component').then(
               (m) => m.EffectLibraryPanelComponent
             ),
-          option: { width: 360, height: 480 },
+          option: {
+            ...readEffectLibrarySize(browserLocalStorage()),
+            minWidth: EFFECT_LIBRARY_MIN_SIZE.width,
+            minHeight: EFFECT_LIBRARY_MIN_SIZE.height,
+          },
         };
       case 'boardScene':
         return {

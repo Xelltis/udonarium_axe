@@ -278,6 +278,26 @@ describe('UIPanelComponent', () => {
     });
   });
 
+  describe('resized by the reader', () => {
+    it('tells the panel in front the size it was left at, and nothing for a size given from code', () => {
+      fixture.detectChanges();
+      const told: { width: number; height: number }[] = [];
+      component.panelService.resized$.subscribe((size) => told.push(size));
+      const panel = fixture.nativeElement.querySelector('[data-testid="ui-panel"]') as HTMLElement;
+      vi.spyOn(panel, 'offsetWidth', 'get').mockReturnValue(612);
+      vi.spyOn(panel, 'offsetHeight', 'get').mockReturnValue(488);
+
+      component.panelService.resizeRequest$.emit({ width: 700, height: 300 });
+      expect(told).toEqual([]);
+
+      component.onPanelResizeEnd();
+
+      expect(told).toEqual([{ width: 612, height: 488 }]);
+      expect(component.width).toBe(612);
+      expect(component.height).toBe(488);
+    });
+  });
+
   describe('the bar of a panel shrunk to its content', () => {
     function panelService(): PanelService {
       return component.panelService;
