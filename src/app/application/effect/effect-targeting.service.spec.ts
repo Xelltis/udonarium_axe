@@ -738,13 +738,22 @@ describe('EffectTargetingService', () => {
       expect(service.isPicking()).toBe(false);
     });
 
-    it('holds nothing ready for a guest or for a piece that is not on the table', () => {
+    it('casts nothing and holds nothing ready for a guest, whoever is aimed at and whatever the effect is cast on', () => {
       const cursor = PeerCursor.createMyCursor();
       cursor.role = PeerRole.Guest;
-      expect(service.castFrom(preset, characters[0])).not.toBe('held');
+
+      expect(service.castFrom(preset, characters[0])).toBeNull();
+      characters[1].targeted = true;
+      expect(service.castFrom(preset, characters[0])).toBeNull();
+      preset.targeting = 'self';
+      expect(service.castFrom(preset, characters[0])).toBeNull();
+
+      expect(fired).not.toHaveBeenCalled();
       expect(service.isPicking()).toBe(false);
       cursor.role = PeerRole.Player;
+    });
 
+    it('holds nothing ready for a piece that is not on the table', () => {
       const offTable = new GameCharacter();
       offTable.initialize();
       ObjectStore.instance.add(offTable, false);

@@ -306,13 +306,14 @@ export class EffectTargetingService {
    * are picked.
    *
    * The cast where it was cast at once, `'held'` where it is held ready, and null where nothing came
-   * of it. A seat that may not change the table, and a piece that is not on the table, cast as they
-   * always did and hold nothing ready.
+   * of it. A seat that may not change the table shows nothing on anybody's table, so for it nothing
+   * is cast and nothing held ready. A piece that is not on the table casts as it always did and holds
+   * nothing ready.
    */
   castFrom(preset: EffectPreset, piece: GameCharacter): EffectCast | 'held' | null {
+    if (!this.rolePermission.canEditTabletop()) return null;
     if (
       preset.effectTargeting === 'self' ||
-      !this.rolePermission.canEditTabletop() ||
       !this.characterOf(piece.identifier) ||
       this.tabletopService.characters.some(
         (character) => character.isVisibleOnTable && character.targeted && character.identifier !== piece.identifier

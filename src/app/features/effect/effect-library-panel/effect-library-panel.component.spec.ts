@@ -8,6 +8,7 @@ import { EffectTargetingService } from '@axe/application/effect/effect-targeting
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -957,6 +958,127 @@ describe('EffectLibraryPanelComponent', () => {
       expect(enter.defaultPrevented).toBe(false);
       expect(targeting.preset()).toBe(preset);
       expect(fired).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('for a guest, who changes nothing in the room', () => {
+    type Commands = Record<'createPreset' | 'restoreDefaults', () => void> &
+      Record<'duplicatePreset' | 'removePreset' | 'openEditor' | 'placeField', (preset: EffectPreset) => void> & {
+        removeField(field: unknown): void;
+      };
+
+    let commands: Commands;
+    let piece: GameCharacter;
+
+    function presetsHere(): EffectPreset[] {
+      return ObjectStore.instance.getObjects<EffectPreset>(EffectPreset);
+    }
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor().role = PeerRole.Guest;
+      commands = fixture.componentInstance as unknown as Commands;
+      piece = GameCharacter.create('的', 1, '');
+      TestBed.inject(SelectionSignalService).selectObject(piece.identifier, piece.aliasName);
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      TestBed.inject(SelectionSignalService).selectedObject.set(null);
+      for (const each of presetsHere()) if (each !== preset) ObjectStore.instance.remove(each);
+      ObjectStore.instance.remove(piece);
+    });
+
+    it('offers no button that makes an effect, brings the defaults up to date, edits one or clears one left standing', () => {
+      const fields = TestBed.inject(EffectFieldService);
+      const field = fields.place(preset, 0, 0, 0);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      try {
+        for (const name of ['create', 'restore-defaults']) {
+          expect(host.querySelector<HTMLButtonElement>(`[data-testid="effect-library-${name}"]`)!.disabled).toBe(true);
+        }
+        expect(host.querySelector('[data-testid="effect-library-fields"] button')).toBeNull();
+        expect(
+          Array.from(host.querySelectorAll('button')).some((button) => button.getAttribute('title') === '編集')
+        ).toBe(false);
+
+        PeerCursor.myCursor.role = PeerRole.Player;
+        TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+        fixture.detectChanges();
+
+        expect(host.querySelector<HTMLButtonElement>('[data-testid="effect-library-create"]')!.disabled).toBe(false);
+        expect(host.querySelector('[data-testid="effect-library-fields"] button')).not.toBeNull();
+        expect(
+          Array.from(host.querySelectorAll('button')).some((button) => button.getAttribute('title') === '編集')
+        ).toBe(true);
+      } finally {
+        field.destroy();
+      }
+    });
+
+    it('makes, copies, deletes and refreshes no effect, and opens none for editing', async () => {
+      const openPanel = vi.spyOn(TestBed.inject(PanelService), 'open');
+      const asked = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+      const before = presetsHere();
+
+      commands.createPreset();
+      commands.duplicatePreset(preset);
+      commands.restoreDefaults();
+      commands.openEditor(preset);
+      commands.removePreset(preset);
+      await Promise.resolve();
+
+      expect(presetsHere()).toEqual(before);
+      expect(openPanel).not.toHaveBeenCalled();
+      expect(asked).not.toHaveBeenCalled();
+      expect(fixture.componentInstance.noticeLine()).toBe('');
+    });
+
+    it('deletes nothing for a seat made a guest while it was asked whether to', async () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      let answer: (ok: boolean) => void = () => undefined;
+      vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockReturnValue(
+        new Promise<boolean>((resolve) => (answer = resolve))
+      );
+
+      commands.removePreset(preset);
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      answer(true);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(presetsHere()).toContain(preset);
+    });
+
+    it('leaves no effect standing on the table and clears none away', () => {
+      const fields = TestBed.inject(EffectFieldService);
+      PeerCursor.myCursor.role = PeerRole.Player;
+      const field = fields.place(preset, 0, 0, 0);
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      try {
+        commands.placeField(preset);
+        commands.removeField(field);
+
+        expect(fields.fields()).toEqual([field]);
+      } finally {
+        field.destroy();
+      }
+    });
+
+    it('is offered in the right-click menu of a tile only what leaves the room as it is', () => {
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      fixture.detectChanges();
+
+      const tile = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-effect-tile]')!;
+      tile.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      const menu = open.mock.calls[0][1] as ContextMenuAction[];
+
+      expect(menu.filter((entry) => entry.name).map((entry) => entry.name)).toEqual([
+        '試し撃ち',
+        'チャット記法を入力欄へ',
+        'ホットバーに入れる',
+        '書き出す',
+      ]);
     });
   });
 

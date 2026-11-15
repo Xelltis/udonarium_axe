@@ -26,8 +26,10 @@
         }
       </div>
       <button
-        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 [&_.material-icons]:text-[16px]!"
+        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[16px]!"
         type="button"
+        data-testid="effect-library-create"
+        [disabled]="!canChangeRoom()"
         [title]="'feature.effect.createPreset' | transloco"
         (click)="createPreset()"
       >
@@ -53,8 +55,10 @@
         <i class="material-icons">file_download</i>
       </button>
       <button
-        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 [&_.material-icons]:text-[16px]!"
+        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[16px]!"
         type="button"
+        data-testid="effect-library-restore-defaults"
+        [disabled]="!canChangeRoom()"
         [title]="'feature.effect.restoreDefaults' | transloco"
         (click)="restoreDefaults()"
       >
@@ -295,14 +299,16 @@
             class="border-ui-border-panel inline-flex items-center gap-1 rounded-full border border-solid px-2 py-0.5 text-[11px]"
           >
             {{ fieldName(field) }}
-            <button
-              class="text-ui-dim hover:text-ui-danger cursor-pointer border-none bg-transparent p-0 [&_.material-icons]:text-[13px]!"
-              type="button"
-              [title]="'feature.effect.removeField' | transloco"
-              (click)="removeField(field)"
-            >
-              <i class="material-icons">close</i>
-            </button>
+            @if (canChangeRoom()) {
+              <button
+                class="text-ui-dim hover:text-ui-danger cursor-pointer border-none bg-transparent p-0 [&_.material-icons]:text-[13px]!"
+                type="button"
+                [title]="'feature.effect.removeField' | transloco"
+                (click)="removeField(field)"
+              >
+                <i class="material-icons">close</i>
+              </button>
+            }
           </span>
         }
       </div>
@@ -357,13 +363,15 @@
         <span class="truncate">{{ targetLabel(preset) }}</span>
       </span>
     </button>
-    <button
-      class="bg-ui-panel border-ui-border-panel text-ui-muted hover:text-ui-accent rounded-ui-sm absolute top-1 right-1 hidden cursor-pointer items-center justify-center border border-solid p-0.5 group-hover:inline-flex [&_.material-icons]:text-[13px]!"
-      type="button"
-      [title]="'feature.effect.editPreset' | transloco"
-      (click)="openEditor(preset)"
-    >
-      <i class="material-icons">edit</i>
-    </button>
+    @if (canChangeRoom()) {
+      <button
+        class="bg-ui-panel border-ui-border-panel text-ui-muted hover:text-ui-accent rounded-ui-sm absolute top-1 right-1 hidden cursor-pointer items-center justify-center border border-solid p-0.5 group-hover:inline-flex [&_.material-icons]:text-[13px]!"
+        type="button"
+        [title]="'feature.effect.editPreset' | transloco"
+        (click)="openEditor(preset)"
+      >
+        <i class="material-icons">edit</i>
+      </button>
+    }
   </div>
 </ng-template>

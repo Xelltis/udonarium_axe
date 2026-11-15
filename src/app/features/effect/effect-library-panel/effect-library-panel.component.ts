@@ -455,17 +455,31 @@ export class EffectLibraryPanelComponent {
     this.recentIdentifiers.set(pushRecentEffect(this.storage, preset.identifier));
   }
 
-  /** Makes a blank one and opens it for editing. */
+  /**
+   * Whether this reader may change the room's effects and the effects left standing on the table,
+   * which every role but a guest may.
+   */
+  protected readonly canChangeRoom = computed<boolean>(() => this.rolePermission.canEditTabletop());
+
+  /** Makes a blank one and opens it for editing. A guest, who changes nothing in the room, makes none. */
   protected createPreset(): void {
+    if (!this.rolePermission.canEditTabletop()) return;
     const preset = this.library.create(this.t('feature.effect.newPresetName'));
     this.openEditor(preset);
   }
 
+  /** Copies an effect and opens the copy for editing. A guest copies none. */
   protected duplicatePreset(preset: EffectPreset): void {
+    if (!this.rolePermission.canEditTabletop()) return;
     this.openEditor(this.library.duplicate(preset));
   }
 
+  /**
+   * Deletes an effect from the room once the reader has agreed to it. A guest deletes none, one made
+   * a guest while they were asked among them.
+   */
   protected removePreset(preset: EffectPreset): void {
+    if (!this.rolePermission.canEditTabletop()) return;
     void this.confirm
       .ask({
         message: this.t('feature.effect.removeConfirm', { name: preset.name }),
@@ -473,7 +487,7 @@ export class EffectLibraryPanelComponent {
         danger: true,
       })
       .then((ok) => {
-        if (!ok) return;
+        if (!ok || !this.rolePermission.canEditTabletop()) return;
         this.library.remove(preset);
       });
   }
@@ -486,7 +500,9 @@ export class EffectLibraryPanelComponent {
     this.hotbarFill.fill(draft);
   }
 
+  /** Opens an effect for editing. Not for a guest, who changes nothing in the room. */
   protected openEditor(preset: EffectPreset): void {
+    if (!this.rolePermission.canEditTabletop()) return;
     const editor = this.panelService.open(EffectPresetEditorComponent, {
       width: 360,
       height: 560,
@@ -515,7 +531,8 @@ export class EffectLibraryPanelComponent {
           onExport: () => this.exportPreset(preset),
           onRemove: () => this.removePreset(preset),
         },
-        this.t
+        this.t,
+        this.rolePermission.canEditTabletop()
       ),
       preset.name
     );
@@ -527,8 +544,9 @@ export class EffectLibraryPanelComponent {
     this.say(this.t('feature.effect.tokenInserted'));
   }
 
-  /** Leaves a standing effect where the selected piece is. */
+  /** Leaves a standing effect where the selected piece is. A guest leaves none. */
   protected placeField(preset: EffectPreset): void {
+    if (!this.rolePermission.canEditTabletop()) return;
     const [anchor] = this.castService.candidateTargets();
     if (!anchor) {
       this.say(this.t('feature.effect.previewNoTarget'));
@@ -538,7 +556,9 @@ export class EffectLibraryPanelComponent {
     this.say(this.t('feature.effect.fieldPlaced', { name: preset.name }));
   }
 
+  /** Clears away an effect left standing on the table. A guest clears none. */
   protected removeField(field: EffectField): void {
+    if (!this.rolePermission.canEditTabletop()) return;
     this.fieldService.remove(field);
   }
 
@@ -576,7 +596,12 @@ export class EffectLibraryPanelComponent {
     this.say(this.t('feature.effect.exported'));
   }
 
+  /**
+   * Brings the room's default effects up to date and says how many were built and refreshed on the
+   * line of notices. A guest, who changes nothing in the room, brings none.
+   */
   protected restoreDefaults(): void {
+    if (!this.rolePermission.canEditTabletop()) return;
     const { added, updated } = this.library.restoreDefaults();
     this.say(this.t('feature.effect.restored', { added, updated }));
   }
