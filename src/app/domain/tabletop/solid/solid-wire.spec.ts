@@ -1,6 +1,6 @@
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { Solid, solidOf } from '@axe/domain/tabletop/solid/solid';
-import { solidWireSegments } from '@axe/domain/tabletop/solid/solid-wire';
+import { reachDomeWire, solidWireSegments } from '@axe/domain/tabletop/solid/solid-wire';
 
 function solid(more: Partial<Parameters<typeof solidOf>[0]>): Solid {
   const made = solidOf({
@@ -46,5 +46,22 @@ describe('solidWireSegments', () => {
     const cone = solidWireSegments(solid({ kind: 'cone', type: 'CORN', length: 3, width: 2 }));
     expect(cone.filter(([a]) => a.x === 25 && a.y === 25 && a.z === 0)).toHaveLength(8);
     expect(solidWireSegments(solid({ kind: 'beam', type: 'LINE' }))).toHaveLength(12);
+  });
+});
+
+describe('reachDomeWire', () => {
+  it('draws nothing wholly below the floor of the room', () => {
+    const segments = reachDomeWire({ centre: { x: 0, y: 0, z: 0 }, radius: 200, floorZ: 0 });
+    expect(segments.length).toBeGreaterThan(0);
+    for (const [a, b] of segments) expect(Math.max(a.z, b.z)).toBeGreaterThanOrEqual(-1e-9);
+  });
+
+  it('reaches down to the ground round a caster up in the air', () => {
+    const segments = reachDomeWire({ centre: { x: 0, y: 0, z: 150 }, radius: 200, floorZ: 0 });
+    expect(Math.min(...segments.flatMap(([a, b]) => [a.z, b.z]))).toBeLessThan(100);
+  });
+
+  it('draws nothing for a room that reaches nowhere', () => {
+    expect(reachDomeWire({ centre: { x: 0, y: 0, z: 0 }, radius: 0, floorZ: 0 })).toEqual([]);
   });
 });

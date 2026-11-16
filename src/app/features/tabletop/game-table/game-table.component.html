@@ -197,11 +197,16 @@
     <span class="text-ui-text min-w-[3ch] text-right font-medium tabular-nums" data-testid="rotate-hint-angle"
       >{{ hint.angle }}°</span
     >
+    @if (hint.pitch !== undefined) {
+      <span class="text-ui-dim">/</span>
+      <span class="text-ui-text font-medium whitespace-nowrap tabular-nums" data-testid="rotate-hint-pitch">{{
+        'feature.tabletop.rotateHint.pitch' | transloco: { pitch: hint.pitch }
+      }}</span>
+    }
     @if (hint.offersSnap) {
       <span class="text-ui-dim">/</span>
       <span class="min-w-0" [class.text-ui-accent]="hint.snapping" data-testid="rotate-hint-snap">{{
-        (hint.snapping ? 'feature.tabletop.rotateHint.snapping' : 'feature.tabletop.rotateHint.holdAlt')
-          | transloco: { step: hint.step }
+        hint.snapKey | transloco: { step: hint.step }
       }}</span>
     }
   </table-hint-band>

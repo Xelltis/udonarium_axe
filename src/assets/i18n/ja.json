@@ -2807,7 +2807,10 @@
       },
       "rotateHint": {
         "holdAlt": "Alt を押しているあいだ {{step}}° ごとにそろえる",
-        "snapping": "{{step}}° ごとにそろえています"
+        "snapping": "{{step}}° ごとにそろえています",
+        "pitch": "仰角 {{pitch}}°",
+        "holdAltAim": "Alt を押しているあいだ 方位を {{step}}°・仰角を 15° ごとにそろえる",
+        "snappingAim": "方位を {{step}}°・仰角を 15° ごとにそろえています"
       },
       "tableSetting": {
         "title": "テーブル設定",

@@ -677,6 +677,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.sprites.set(world.sprites);
     this.coins.set(world.coins);
     this.solids.set(world.solids);
+    this.solids.setGuides(world.guides);
     if (world.models !== this.laidModels) {
       this.laidModels = world.models;
       this.models.set(world.models);

@@ -1,4 +1,5 @@
 import type { Solid } from '@axe/domain/tabletop/solid/solid';
+import type { WireSegment } from '@axe/domain/tabletop/solid/solid-wire';
 
 /** What a range standing up off the table is known by in the scene, as its flat picture is. */
 export const SOLID_RANGE_KIND = 'range';
@@ -35,3 +36,18 @@ export function solidOpacityOf(rangeOpacity: number): { fill: number; edge: numb
   const fill = share * MOST_SOLID_FILL;
   return { fill, edge: Math.min(1, fill * EDGE_OVER_FILL) };
 }
+
+/**
+ * Lines drawn in the scene for this seat alone while it moves or points a solid range, as the room
+ * round the caster the range may be put in: never filled, and drawn over the pieces as the solids are.
+ */
+export interface TableWorldGuide {
+  readonly id: string;
+  readonly segments: readonly WireSegment[];
+  /** The colour the lines are drawn in, as a CSS colour, and how opaque, from 0 to 1. */
+  readonly colour: string;
+  readonly opacity: number;
+}
+
+/** The colour the room round a caster is drawn in: the yellow every guide over the table is drawn in. */
+export const REACH_GUIDE_COLOUR = '#ffec8c';

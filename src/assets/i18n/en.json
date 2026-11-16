@@ -2807,7 +2807,10 @@
       },
       "rotateHint": {
         "holdAlt": "Hold Alt to snap to every {{step}}°",
-        "snapping": "Snapping to every {{step}}°"
+        "snapping": "Snapping to every {{step}}°",
+        "pitch": "pitch {{pitch}}°",
+        "holdAltAim": "Hold Alt to snap the turn to every {{step}}° and the pitch to every 15°",
+        "snappingAim": "Snapping the turn to every {{step}}° and the pitch to every 15°"
       },
       "tableSetting": {
         "title": "Table settings",

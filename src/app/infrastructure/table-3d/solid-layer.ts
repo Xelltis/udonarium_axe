@@ -1,8 +1,8 @@
 import type { FlatPoint, FootprintPart } from '@axe/domain/tabletop/solid/range-footprint';
 import type { Solid } from '@axe/domain/tabletop/solid/solid';
-import { edgeKey, solidWireSegments } from '@axe/domain/tabletop/solid/solid-wire';
+import { edgeKey, solidWireSegments, WireSegment } from '@axe/domain/tabletop/solid/solid-wire';
 import type { Vec3 } from '@axe/domain/tabletop/surface-space';
-import type { TableWorldSolid } from '@axe/domain/tabletop/world/table-solids';
+import type { TableWorldGuide, TableWorldSolid } from '@axe/domain/tabletop/world/table-solids';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineSegments2 } from 'three/addons/lines/webgpu/LineSegments2.js';
 import {
@@ -53,6 +53,38 @@ interface Drawn {
 export class SolidLayer {
   readonly group = new Group();
   private readonly drawn = new Map<string, Drawn>();
+  private readonly guides = new Map<string, { key: string; lines: LineSegments2 }>();
+
+  /** Draws these guides and takes away any drawn before that are not among them. */
+  setGuides(guides: readonly TableWorldGuide[]): void {
+    const wanted = new Set<string>();
+    for (const guide of guides) {
+      wanted.add(guide.id);
+      const key = JSON.stringify(guide);
+      const drawn = this.guides.get(guide.id);
+      if (drawn?.key === key) continue;
+      if (drawn) this.dropGuide(guide.id);
+      const lines = wideLines(guide.segments, guide.colour, guide.opacity);
+      lines.renderOrder = SOLID_ORDER + 2;
+      this.group.add(lines);
+      this.guides.set(guide.id, { key, lines });
+    }
+    for (const id of [...this.guides.keys()]) if (!wanted.has(id)) this.dropGuide(id);
+  }
+
+  /** How many guides are drawn now. */
+  get guideCount(): number {
+    return this.guides.size;
+  }
+
+  private dropGuide(id: string): void {
+    const drawn = this.guides.get(id);
+    if (!drawn) return;
+    this.group.remove(drawn.lines);
+    drawn.lines.geometry.dispose();
+    (drawn.lines.material as Line2NodeMaterial).dispose();
+    this.guides.delete(id);
+  }
 
   /** Draws these solids and takes away any drawn before that are not among them. */
   set(solids: readonly TableWorldSolid[]): void {
@@ -73,9 +105,10 @@ export class SolidLayer {
     return this.drawn.size;
   }
 
-  /** Lets go of every solid drawn. */
+  /** Lets go of every solid and every guide drawn. */
   dispose(): void {
     for (const [id, drawn] of this.drawn) this.drop(id, drawn);
+    for (const id of [...this.guides.keys()]) this.dropGuide(id);
   }
 
   private draw(solid: TableWorldSolid, key: string): void {
@@ -91,20 +124,7 @@ export class SolidLayer {
       })
     );
     faces.renderOrder = SOLID_ORDER;
-    const wire = new LineSegmentsGeometry().setPositions(
-      solidWireSegments(solid.solid).flatMap(([a, b]) => [a.x, a.z, a.y, b.x, b.z, b.y])
-    );
-    const edges = new LineSegments2(
-      wire,
-      new Line2NodeMaterial({
-        color: new Color(solid.edge),
-        linewidth: WIRE_WIDTH_PX,
-        worldUnits: false,
-        transparent: true,
-        opacity: solid.edgeOpacity,
-        depthWrite: false,
-      })
-    );
+    const edges = wideLines(solidWireSegments(solid.solid), solid.edge, solid.edgeOpacity);
     edges.renderOrder = SOLID_ORDER + 1;
     const group = new Group();
     group.add(faces, edges);
@@ -120,6 +140,24 @@ export class SolidLayer {
     (drawn.edges.material as Line2NodeMaterial).dispose();
     this.drawn.delete(id);
   }
+}
+
+/** Lines drawn as wide as {@link WIRE_WIDTH_PX} whatever their distance, through what is behind them. */
+function wideLines(segments: readonly WireSegment[], colour: string, opacity: number): LineSegments2 {
+  const geometry = new LineSegmentsGeometry().setPositions(
+    segments.flatMap(([a, b]) => [a.x, a.z, a.y, b.x, b.z, b.y])
+  );
+  return new LineSegments2(
+    geometry,
+    new Line2NodeMaterial({
+      color: new Color(colour),
+      linewidth: WIRE_WIDTH_PX,
+      worldUnits: false,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+    })
+  );
 }
 
 /** A point of the table in the scene's own axes, which stand the table's up and its south the other way round. */

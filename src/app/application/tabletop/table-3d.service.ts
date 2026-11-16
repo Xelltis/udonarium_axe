@@ -258,6 +258,7 @@ export class Table3dService {
         backdrops: this.backdrops(),
         models: seen([...this.pieces.models(), ...this.terrainModels()]),
         solids: this.solidRanges.solids(),
+        guides: this.solidRanges.guides(),
       };
     },
     { equal: sameTableWorld }

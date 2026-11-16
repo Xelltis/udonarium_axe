@@ -939,13 +939,18 @@ export class GameTableComponent {
   private readonly rotationGuide = inject(RotationGuideService);
 
   /**
-   * What is said while something is being turned: how far it has turned, and how to snap it to the
-   * grid's directions. A hand with no Alt key is told only the angle.
+   * What is said while something is being turned: how far it has turned, how far it is pointed up
+   * where it is pointed up as well, and how to snap it to the grid's directions. A hand with no Alt
+   * key is told only the angle.
    */
   protected readonly rotateHint = computed(() => {
     const turn = this.rotationGuide.turn();
     if (!turn) return null;
-    return { ...turn, offersSnap: !this.viewport.isTouch() };
+    const aimed = turn.pitch !== undefined;
+    const snapKey = turn.snapping
+      ? `feature.tabletop.rotateHint.${aimed ? 'snappingAim' : 'snapping'}`
+      : `feature.tabletop.rotateHint.${aimed ? 'holdAltAim' : 'holdAlt'}`;
+    return { ...turn, offersSnap: !this.viewport.isTouch(), snapKey };
   });
 
   /**

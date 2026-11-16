@@ -1,6 +1,7 @@
 import type { FlatPoint, FootprintPart } from '@axe/domain/tabletop/solid/range-footprint';
 import type { Solid } from '@axe/domain/tabletop/solid/solid';
 import { along } from '@axe/domain/tabletop/solid/solid-points';
+import type { SolidReach } from '@axe/domain/tabletop/solid/solid-reach';
 import type { Vec3 } from '@axe/domain/tabletop/surface-space';
 
 /** A straight piece of line, from one point to another. */
@@ -167,4 +168,53 @@ function pointKey(point: FlatPoint): string {
 export function edgeKey(a: FlatPoint, b: FlatPoint): string {
   const [p, q] = [pointKey(a), pointKey(b)].sort();
   return `${p}|${q}`;
+}
+
+/** The heights of the rings drawn round the room a solid range may be moved in, in degrees up from level. */
+const DOME_RING_DEGREES = [-60, -30, 0, 30, 60];
+/** How many lines run over the room from its bottom to its top, round it. */
+const DOME_MERIDIANS = 12;
+
+/**
+ * The lines the room round a caster is drawn with while a solid range is moved or pointed in it: rings
+ * at even steps of height, and lines over it from pole to pole, left out where they lie wholly below
+ * its floor, as the ground hides them there. On the ground it reads as a dome.
+ */
+export function reachDomeWire(reach: SolidReach): WireSegment[] {
+  const { centre, radius } = reach;
+  if (!(radius > 0)) return [];
+  const segments: WireSegment[] = [];
+  for (const degrees of DOME_RING_DEGREES) {
+    const up = Math.sin((degrees * Math.PI) / 180) * radius;
+    if (centre.z + up < reach.floorZ) continue;
+    const across = Math.cos((degrees * Math.PI) / 180) * radius;
+    segments.push(
+      ...loop(ringAround({ ...centre, z: centre.z + up }, { x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }, across))
+    );
+  }
+  for (let i = 0; i < DOME_MERIDIANS; i++) {
+    const turn = (i / DOME_MERIDIANS) * Math.PI * 2;
+    const half = ringAround(centre, { x: Math.cos(turn), y: Math.sin(turn), z: 0 }, { x: 0, y: 0, z: 1 }, radius).slice(
+      0,
+      ROUND_STEPS / 2 + 1
+    );
+    const below = ringAround(
+      centre,
+      { x: Math.cos(turn), y: Math.sin(turn), z: 0 },
+      { x: 0, y: 0, z: -1 },
+      radius
+    ).slice(0, ROUND_STEPS / 4 + 1);
+    for (const arc of [half.slice(0, ROUND_STEPS / 4 + 1), below]) {
+      for (let j = 0; j + 1 < arc.length; j++) {
+        if (arc[j].z < reach.floorZ && arc[j + 1].z < reach.floorZ) continue;
+        segments.push([arc[j], arc[j + 1]]);
+      }
+    }
+  }
+  return segments;
+}
+
+/** The line from a point straight down to a height under it, or none where it stands at that height or below. */
+export function dropLine(point: Vec3, floorZ: number): WireSegment[] {
+  return point.z - floorZ > 0.5 ? [[point, { ...point, z: floorZ }]] : [];
 }

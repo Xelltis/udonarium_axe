@@ -2807,7 +2807,10 @@
       },
       "rotateHint": {
         "holdAlt": "Alt를 누르고 있는 동안 {{step}}°씩 맞춥니다",
-        "snapping": "{{step}}°씩 맞추는 중입니다"
+        "snapping": "{{step}}°씩 맞추는 중입니다",
+        "pitch": "앙각 {{pitch}}°",
+        "holdAltAim": "Alt를 누르고 있는 동안 방위를 {{step}}°, 앙각을 15°씩 맞춥니다",
+        "snappingAim": "방위를 {{step}}°, 앙각을 15°씩 맞추는 중입니다"
       },
       "tableSetting": {
         "title": "테이블 설정",

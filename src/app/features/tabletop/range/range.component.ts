@@ -39,6 +39,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
 import { buildRangeContextMenuModel } from '@axe/features/tabletop/range/range-context-menu';
+import { SolidAimDirective } from '@axe/features/tabletop/range/solid-aim.directive';
 import { PictureRegion } from '@axe/infrastructure/image/element-picture';
 import {
   initialRangeClip,
@@ -75,6 +76,7 @@ const FOLLOW_PANEL: PointerPanelBox = { width: 350, height: 200, reachLeft: 250,
     TooltipDirective,
     RotableDirective,
     SelectableDirective,
+    SolidAimDirective,
   ],
   host: {
     class: 'group',
@@ -206,6 +208,26 @@ export class RangeComponent {
   protected readonly placedSolid = computed(() => {
     this.rangeVersion();
     return this.solidRanges.placedOf(this.range().identifier);
+  });
+
+  /**
+   * Where the handle that points a cone or a beam standing up stands: at its tip, over the table drawn
+   * on a canvas. Nothing for any other range.
+   */
+  protected readonly aimTip = computed(() => {
+    const placed = this.placedSolid();
+    if (!placed || (placed.solid.kind !== 'cone' && placed.solid.kind !== 'beam')) return null;
+    const tip = this.solidRanges.heldPointOf(placed);
+    return { surface: 'floor', x: tip.x, y: tip.y, height: tip.z };
+  });
+
+  /**
+   * Whether the range is pointed from the piece it follows rather than moved about: a cone or a beam
+   * starts from the piece, so only the handle at its tip moves it.
+   */
+  protected readonly pointedFromCaster = computed(() => {
+    const placed = this.placedSolid();
+    return !!placed?.caster && (placed.solid.kind === 'cone' || placed.solid.kind === 'beam');
   });
 
   /**
@@ -442,9 +464,13 @@ export class RangeComponent {
     SoundEffect.play(PresetSound.cardPick);
   }
 
-  /** Plays the put-down sound when a drag or a turn of the range ends. */
+  /**
+   * Plays the put-down sound when a drag or a turn of the range ends, and keeps a sphere or a column
+   * following a piece where it was let go round the piece, within its room.
+   */
   onMoved() {
     SoundEffect.play(PresetSound.cardPut);
+    this.solidRanges.settleRoundCaster(this.range());
   }
 
   /** Redraws the range at the angle it is being turned to, while the rotate grip is dragged. */
