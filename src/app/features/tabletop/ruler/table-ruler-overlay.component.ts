@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { RulerService } from '@axe/application/tabletop/ruler.service';
+import { OTHER_RULER_COLOUR, OWN_RULER_COLOUR, RulerService } from '@axe/application/tabletop/ruler.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { pageOfTablePoint } from '@axe/domain/tabletop/camera/table-camera';
 import { RulerReading } from '@axe/domain/tabletop/ruler/ruler-line';
+import type { Vec3 } from '@axe/domain/tabletop/surface-space';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** How far over the middle of a ruler its reading is said, in page pixels, clear of the line. */
@@ -20,10 +21,11 @@ interface ReadingOnScreen {
 }
 
 /**
- * What the rulers on the table measure, said over the middle of each where the table's canvas draws
- * it: the straight length and the length in the room's unit, and under it the length over the table,
- * how far up the far end is and the steps it takes. Written with an outline round the letters and
- * nothing laid under them, so the table shows through.
+ * What the rulers on the table measure, this seat's own and those the other seats are laying, said
+ * over the middle of each where the table's canvas draws it, with the name of whoever lays another's:
+ * the straight length and the length in the room's unit, and under it the length over the table, how
+ * far up the far end is and the steps it takes. Written with an outline round the letters and nothing
+ * laid under them, so the table shows through.
  */
 @Component({
   selector: 'table-ruler-overlay',
@@ -40,23 +42,25 @@ export class TableRulerOverlayComponent {
     this.camera.version();
     const scene = this.camera.sceneMatrix();
     const layout = this.camera.layout;
-    const own = this.ruler.measured();
-    if (!scene || !layout || !own) return [];
-    const middle = {
-      x: (own.from.x + own.to.x) / 2,
-      y: (own.from.y + own.to.y) / 2,
-      z: (own.from.z + own.to.z) / 2,
+    if (!scene || !layout) return [];
+    const at = (ruler: { readonly from: Vec3; readonly to: Vec3 }) => {
+      const page = pageOfTablePoint(
+        scene,
+        (ruler.from.x + ruler.to.x) / 2,
+        (ruler.from.y + ruler.to.y) / 2,
+        (ruler.from.z + ruler.to.z) / 2
+      );
+      return { left: page.x - layout.left, top: page.y - layout.top - READING_RISE_PX };
     };
-    const page = pageOfTablePoint(scene, middle.x, middle.y, middle.z);
-    return [
-      {
-        id: 'own',
-        left: page.x - layout.left,
-        top: page.y - layout.top - READING_RISE_PX,
-        reading: own.reading,
-        colour: 'rgba(255, 236, 140, 1)',
-        name: null,
-      },
-    ];
+    const own = this.ruler.measured();
+    const readings: ReadingOnScreen[] = this.ruler.others().map((other) => ({
+      id: other.id,
+      ...at(other),
+      reading: other.reading,
+      colour: OTHER_RULER_COLOUR,
+      name: other.name,
+    }));
+    if (own) readings.push({ id: 'own', ...at(own), reading: own.reading, colour: OWN_RULER_COLOUR, name: null });
+    return readings;
   });
 }

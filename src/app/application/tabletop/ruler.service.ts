@@ -1,15 +1,20 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
+import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ALTITUDE_STEP_CELLS } from '@axe/domain/tabletop/altitude-step';
 import { parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 import {
+  decodeRulerLine,
+  encodeRulerLine,
   RulerEnd,
   RulerLine,
   RulerReading,
@@ -24,8 +29,11 @@ import type { TableWorldGuide } from '@axe/domain/tabletop/world/table-solids';
 /** The pick layer a character is pressed by, which a ruler's end holds to. */
 const CHARACTER_LAYER = 'character';
 
-/** The colour this seat's ruler is drawn in, and how opaque. */
+/** The colour this seat's ruler is drawn in, and the colour another seat's is drawn in here. */
 export const OWN_RULER_COLOUR = '#ffec8c';
+export const OTHER_RULER_COLOUR = '#9fe0ff';
+/** How often at most this seat tells the room where its ruler is laid while it draws it out, in milliseconds. */
+const TELL_EVERY_MS = 80;
 const RULER_OPACITY = 1;
 /** How wide a ruler is drawn, and the darker line under it that keeps it readable over any board. */
 const RULER_WIDTH_PX = 3;
@@ -40,6 +48,13 @@ export interface MeasuredRuler {
   readonly from: Vec3;
   readonly to: Vec3;
   readonly reading: RulerReading;
+}
+
+/** A ruler another seat is laying, as this seat sees it, and whose it is. */
+export interface OthersRuler extends MeasuredRuler {
+  /** The cursor of the seat laying it. */
+  readonly id: string;
+  readonly name: string;
 }
 
 /**
@@ -57,6 +72,7 @@ export class RulerService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly roomRules = inject(RoomRulesService);
+  private readonly vision = inject(VisionService);
 
   /** Whether this seat has the ruler in hand: a press on the table lays it rather than doing anything else. */
   readonly inHand = signal(false);
@@ -77,12 +93,78 @@ export class RulerService {
     return { from, to, reading: this.readingBetween(from, to) };
   });
 
-  /** The lines this seat's ruler is drawn with in the scene: from end to end, and down from an end off the ground. */
+  /**
+   * The rulers the other seats are laying on the table in view, each as this seat sees it, and none of
+   * whose ends this seat may not see: an end held to a piece hidden from it, or laid on ground it has
+   * not found under the fog.
+   */
+  readonly others = computed<readonly OthersRuler[]>(() => {
+    this.objectChange.collectionOf(PeerCursor.aliasName)();
+    const table = this.tabletop.currentTableVersion();
+    const mine = PeerCursor.myCursor?.identifier;
+    const rulers: OthersRuler[] = [];
+    for (const cursor of this.objectStore.getObjects<PeerCursor>(PeerCursor)) {
+      if (cursor.identifier === mine) continue;
+      this.objectChange.versionOf(cursor.identifier)();
+      if (!cursor.measuring || cursor.measuringTable !== table.identifier) continue;
+      const line = decodeRulerLine(cursor.measuring);
+      if (!line || !this.maySee(line.from) || !this.maySee(line.to)) continue;
+      const from = this.pointOf(line.from);
+      const to = this.pointOf(line.to);
+      if (!from || !to) continue;
+      rulers.push({ id: cursor.identifier, name: cursor.name, from, to, reading: this.readingBetween(from, to) });
+    }
+    return rulers;
+  });
+
+  /**
+   * The lines the rulers are drawn with in the scene: this seat's own, and those the other seats are
+   * laying that it may see, each from end to end, and down from an end off the ground.
+   */
   readonly guides = computed<readonly TableWorldGuide[]>(() => {
     const measured = this.measured();
-    if (!measured) return [];
-    return [this.guideOf('ruler#own', measured, OWN_RULER_COLOUR)];
+    const others = this.others().map((other) => this.guideOf(`ruler#${other.id}`, other, OTHER_RULER_COLOUR));
+    return measured ? [this.guideOf('ruler#own', measured, OWN_RULER_COLOUR), ...others] : others;
   });
+
+  constructor() {
+    let told = '';
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let lastTold = 0;
+    const tell = () => {
+      timer = null;
+      const cursor = PeerCursor.myCursor;
+      const line = untracked(() => (this.inHand() ? this.laid() : null));
+      const text = encodeRulerLine(line);
+      const table = text ? untracked(() => this.tabletop.currentTable.identifier) : '';
+      if (!cursor || `${text}|${table}` === told) return;
+      told = `${text}|${table}`;
+      lastTold = Date.now();
+      GameObject.batch(() => {
+        cursor.measuring = text;
+        cursor.measuringTable = table;
+      });
+    };
+    effect(() => {
+      this.laid();
+      this.inHand();
+      untracked(() => {
+        if (timer !== null) return;
+        const wait = Math.max(0, TELL_EVERY_MS - (Date.now() - lastTold));
+        timer = setTimeout(tell, wait);
+      });
+    });
+  }
+
+  /** Whether this seat may see an end of a ruler: the piece it is held to, or the ground it is laid on. */
+  private maySee(end: RulerEnd): boolean {
+    if (end.piece) {
+      this.objectChange.versionOf(end.piece)();
+      const piece = this.objectStore.get<GameCharacter>(end.piece);
+      return piece instanceof GameCharacter && piece.isVisibleOnTable && this.vision.isTokenVisible(piece);
+    }
+    return !this.vision.isHiddenByFog(end.x, end.y);
+  }
 
   /** Takes the ruler up, or puts it away, as it was. */
   toggle(): void {
