@@ -25,6 +25,7 @@ import { PointerCoordinate } from '@axe/application/input/pointer-device.service
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { AmbienceService } from '@axe/application/tabletop/ambience.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
@@ -231,7 +232,13 @@ export class GameTableComponent {
   protected readonly laysForeground = computed(
     () => tableForegroundOf(this.tabletopService.currentTableVersion()) !== null
   );
+  private readonly weatherAmbience = inject(AmbienceService);
   private readonly ambienceService = inject(TableAmbienceService);
+  /**
+   * Whether the table shown has weather over the whole map. The code that draws it, like the code
+   * that draws an area of ambience, is fetched the first time a table has one.
+   */
+  protected readonly hasWeather = computed(() => this.weatherAmbience.weather() !== null);
   private readonly terrainBatch = inject(TerrainBatchService);
   /** What hands the dice thrown on the table to its scene, which nothing else on the table asks for. */
   private readonly diceRender = inject(DiceRenderService);
@@ -528,6 +535,12 @@ export class GameTableComponent {
         void trackLazyLoad(import('@axe/features/effect/table-effect-overlay/table-effect-overlay.component')).catch(
           () => undefined
         );
+        void trackLazyLoad(import('@axe/features/tabletop/table-ambience/table-ambience.component')).catch(
+          () => undefined
+        );
+        void trackLazyLoad(
+          import('@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component')
+        ).catch(() => undefined);
       });
     });
   }

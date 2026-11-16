@@ -98,7 +98,11 @@
   <shortcut-sheet />
   <room-restore-banner />
   <gpu-notice />
-  <replay-staging-banner />
+  @defer (when replayStaging.isStaging()) {
+    <replay-staging-banner />
+  } @error {
+    <ng-container appReloadNotice />
+  }
   <replay-indicator />
   <replay-board-banner />
   @defer (when visualNovel.active()) {
@@ -128,7 +132,11 @@
 <switch-notice />
 <move-plan-band />
 <target-band />
-<ground-brush-band />
+@defer (when groundBrush.active()) {
+  <ground-brush-band />
+} @error {
+  <ng-container appReloadNotice />
+}
 <interrupt-prompt />
 <ui-snackbar />
 <div #modalLayer></div>

@@ -16,9 +16,11 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
+import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
 import { LegacyScratchMaskMigrationService } from '@axe/application/tabletop/legacy-scratch-mask-migration.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
@@ -177,6 +179,10 @@ export class AppComponent {
   protected readonly battleCutIn = inject(BattleCutInStateService);
   /** Whose hand rail is open, which the rail is fetched for only once it first is. */
   protected readonly handRail = inject(HandRailService);
+  /** The brush that shapes the ground, whose band is fetched the first time it is taken up. */
+  protected readonly groundBrush = inject(GroundBrushService);
+  /** The staging of a replay's scene, whose banner is fetched the first time a scene is staged. */
+  protected readonly replayStaging = inject(ReplayStagingService);
   /** Whether the page was opened from an invitation, which the join is fetched for only then. */
   protected readonly invited = parseInviteLink(location.hash) !== null;
   protected readonly widgets = inject(WidgetVisibilityService);

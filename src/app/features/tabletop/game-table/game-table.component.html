@@ -81,7 +81,11 @@
   <!-- The pieces over a table drawn on a canvas: flat on the screen, each where the canvas draws it. -->
   <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
     @for (ambience of ambiences(); track ambience.identifier) {
-      <table-ambience [ambience]="ambience"></table-ambience>
+      @defer (on immediate) {
+        <table-ambience [ambience]="ambience"></table-ambience>
+      } @error {
+        <ng-container appReloadNotice />
+      }
     }
     <div class="pointer-events-none" data-testid="table-floor-plane" appFloorPlane>
       <ng-container [ngTemplateOutlet]="floorMarks"></ng-container>
@@ -159,7 +163,11 @@
     <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
   </div>
 </div>
-<table-weather-overlay></table-weather-overlay>
+@defer (when hasWeather()) {
+  <table-weather-overlay></table-weather-overlay>
+} @error {
+  <ng-container appReloadNotice />
+}
 @defer (when laysForeground()) {
   <table-foreground-overlay></table-foreground-overlay>
 } @error {
