@@ -43,7 +43,8 @@ const ACROSS = new Vector3(1, 0, 0);
 /**
  * A small stage an effect is played on, apart from the table: a board with its grid, a stand-in piece
  * at its middle and another where an aimed effect is fired from, lit softly, and the effect drawn
- * among them by the same layer the table draws it with, so a preview looks as the table will.
+ * among them by the same layer the table draws it with, so a preview looks as the table will. Its eye
+ * stands close among what the effect draws, so what comes close enough to fill the view thins away.
  */
 class SmallStage implements EffectStage {
   private readonly scene = new Scene();
@@ -64,6 +65,7 @@ class SmallStage implements EffectStage {
     for (const lamp of this.lamps) this.scene.add(lamp);
     this.scene.add(this.board(cellPx, across, down));
     for (const figure of options.figures) this.scene.add(...this.standIn(figure.x, figure.y, cellPx, figure.dim));
+    this.effects.seeFromWithin(true);
     this.scene.add(this.effects.group);
     this.resize();
   }
@@ -162,7 +164,8 @@ class SmallStage implements EffectStage {
  * A see-through canvas over a floor the page draws in 3D, effects drawn on it by the same layer the
  * table draws them with, seen as the page sees that floor: the eye where the box's perspective puts
  * it, the floor tipped and grown about its origin. Light adds to the page under it; nothing else of
- * the canvas covers it.
+ * the canvas covers it. That eye stands close to the floor, so what comes close enough to fill the
+ * view thins away.
  */
 class OverPage implements EffectOverlay {
   private readonly scene = new Scene();
@@ -172,6 +175,7 @@ class OverPage implements EffectOverlay {
   private height = 0;
 
   constructor(private readonly renderer: WebGPURenderer) {
+    this.effects.seeFromWithin(true);
     this.scene.add(this.effects.group);
   }
 

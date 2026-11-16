@@ -217,6 +217,8 @@ export class EffectLayer {
   private readonly groundStep = uniform(1);
   private readonly groundSize = uniform(new Vector2(1, 1));
   private readonly groundOn = uniform(0);
+  /** Whether everything thins away as it comes close enough to the eye to fill the view, rather than only what is set to. */
+  private readonly fromWithin = uniform(0);
   private readonly motes: Record<EffectBlend, Batch>;
   private readonly marks: Record<EffectBlend, Batch>;
   private readonly ribbons: Record<EffectBlend, RibbonBatch>;
@@ -252,6 +254,19 @@ export class EffectLayer {
       this.fillMarks(this.marks[blend], frame.floor, blend);
       this.fillRibbons(this.ribbons[blend], frame.ribbons, blend);
     }
+    this.changed = true;
+  }
+
+  /**
+   * Has everything drawn thin away as it comes close enough to the eye to fill the view, as what is
+   * set to always does: for an eye standing among the effects, as one looking out of a piece does,
+   * which an effect going off about it would otherwise cover with a flat sheet of its colour. An eye
+   * over the table sees everything drawn whole.
+   */
+  seeFromWithin(within: boolean): void {
+    const value = within ? 1 : 0;
+    if (this.fromWithin.value === value) return;
+    this.fromWithin.value = value;
     this.changed = true;
   }
 
@@ -574,7 +589,11 @@ export class EffectLayer {
       select(halfMark.lessThan(-0.5), float(1).sub(nearSide), float(1))
     );
     const closeness = length(cameraPosition.sub(spineNode.xyz)).div(max(spineNode.w, 1));
-    const seenFromWithin = select(thins, smoothstep(FILLS_VIEW_WITHIN, CLEAR_OF_VIEW_BEYOND, closeness), float(1));
+    const seenFromWithin = select(
+      thins.or(this.fromWithin.greaterThan(0.5)),
+      smoothstep(FILLS_VIEW_WITHIN, CLEAR_OF_VIEW_BEYOND, closeness),
+      float(1)
+    );
     const material = new MeshBasicNodeMaterial({
       transparent: true,
       depthWrite: false,
@@ -1021,8 +1040,16 @@ export class EffectLayer {
     const nearer = select(exact, look.w.negate().sub(EXACT_DEPTH_MARK), max(look.w, size.mul(MOTE_NEARER_SIZE)));
     // A shape that flows is drawn out far from where it is set, so each point of it thins by how close
     // that point is to the eye: seen from the mouth it is blown from, only its far part shows.
-    const closeness = length(cameraPosition.sub(select(flows, corner3, at))).div(max(size, 1));
-    const seenFromWithin = select(exact, smoothstep(FILLS_VIEW_WITHIN, CLEAR_OF_VIEW_BEYOND, closeness), float(1));
+    const fromEye = length(cameraPosition.sub(select(flows, corner3, at)));
+    const closeness = fromEye.div(max(size, 1));
+    // Seen from among the effects, one drawn out is measured by its length, as a flare or a spark the
+    // eye stands at the root of fills the view down the whole of it.
+    const longest = select(flows, size, select(streaked, max(reach, size), size.mul(stretch)));
+    const seenFromWithin = select(
+      this.fromWithin.greaterThan(0.5),
+      smoothstep(FILLS_VIEW_WITHIN, CLEAR_OF_VIEW_BEYOND, fromEye.div(max(longest, 1))),
+      select(exact, smoothstep(FILLS_VIEW_WITHIN, CLEAR_OF_VIEW_BEYOND, closeness), float(1))
+    );
     material.positionNode = corner3.add(normalize(cameraPosition.sub(corner3)).mul(nearer));
     material.colorNode = vec4(shown, 1);
     material.opacityNode = alpha.mul(tint.w).mul(seenFromWithin);

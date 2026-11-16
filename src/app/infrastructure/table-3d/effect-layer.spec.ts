@@ -357,6 +357,19 @@ describe('EffectLayer', () => {
     layer.dispose();
   });
 
+  it('is drawn again as the eye comes to stand among the effects or leaves them, and only then', () => {
+    const layer = new EffectLayer();
+    layer.takeChanged();
+
+    layer.seeFromWithin(true);
+    expect(layer.takeChanged()).toBe(true);
+    layer.seeFromWithin(true);
+    expect(layer.takeChanged()).toBe(false);
+    layer.seeFromWithin(false);
+    expect(layer.takeChanged()).toBe(true);
+    layer.dispose();
+  });
+
   it('draws nothing more once the effects are over', () => {
     const layer = new EffectLayer();
     layer.set({ motes: [mote({})], ribbons: [], floor: [], lights: [] });
