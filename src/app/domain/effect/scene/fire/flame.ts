@@ -8,7 +8,7 @@ import {
 } from '@axe/domain/effect/scene/choreography';
 import { flameRampOf, mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import { drawBillowClouds, type Flame, layFlames } from '@axe/domain/effect/scene/fire/fire-body';
-import { drawEmber, drawSpark, SMOKE, WARM } from '@axe/domain/effect/scene/fire/fire-parts';
+import { drawEmber, drawSpark, layShockRing, SMOKE, WARM } from '@axe/domain/effect/scene/fire/fire-parts';
 import {
   diesFrom,
   fierceness,
@@ -25,6 +25,7 @@ import {
   glow,
   hueOf,
   keptFor,
+  lightBall,
   type Point,
   stageKey,
   starBurst,
@@ -44,7 +45,8 @@ import {
  * fire sinks and reddens, the tongues shorten, and coals are left glowing while the last smoke clears.
  *
  * Its grade is how great a fire it is: the least is a few sparks flicked at the piece, from its
- * caster where it has one, that catch in a few short tongues and gutter; the middle one wreathes the
+ * caster where it has one, that catch on it in a flash and a ring of light, leap up in a handful of
+ * broad, hot tongues past its head and settle low about its feet, and gutter; the middle one wreathes the
  * piece to its head; the greatest roars up past it in tall
  * tongues, twice its height, and throws a ring of light out along the floor as it catches.
  */
@@ -101,8 +103,8 @@ function drawFlame(stage: Stage): Staged {
 
   drawBillowClouds(drawn, thrown.clouds, t, cell, { forward });
   const flames = [
-    ...tonguesAt(thrown.tongues, foot, floor, t, duration, cell),
-    ...flameletsAt(thrown, foot, floor, t, duration, cell),
+    ...tonguesAt(thrown.tongues, foot, floor, t, duration, cell, fire.flares),
+    ...flameletsAt(thrown, foot, floor, t, duration, cell, fire.flares),
   ];
   layFlames(drawn, flames, ramp, about);
   for (const [index, spark] of thrown.sparks.entries()) drawSpark(drawn, spark, t, cell, ramp, index, forward);
@@ -127,7 +129,7 @@ function drawFlame(stage: Stage): Staged {
 
 /** How long the sparks of the least fire take to reach the piece, in seconds, and how many there are. */
 const FLICKED_S = 0.16;
-const FLICKED = 5;
+const FLICKED = 8;
 
 /**
  * The sparks flicked at the piece before the least fire catches: thrown from the caster's hands, or
@@ -153,35 +155,41 @@ function drawFlicked(
     drawn.motes.push({
       ...glow(
         { x: from.x + way.x * share, y: from.y + way.y * share + aside * (1 - share), z: from.z + way.z * share + arc },
-        cell * 0.09,
-        ramp[5],
+        cell * 0.15,
+        spark % 2 === 0 ? ramp[5] : ramp[4],
         1,
         forward
       ),
       shape: 'spark',
       velocity: { x: (way.x / far) * cell * 6, y: (way.y / far) * cell * 6, z: (way.z / far) * cell * 6 },
-      trail: 0.09,
+      trail: 0.12,
     });
   }
-  if (t >= FLICKED_S && t < FLICKED_S + 0.12) {
-    drawn.motes.push(...starBurst(heart, cell * 1.2, hueOf(ramp), (t - FLICKED_S) / 0.12, forward, 4, stage.seed));
+  const caught = (t - FLICKED_S) / 0.2;
+  if (caught >= 0 && caught < 1) {
+    drawn.motes.push(...starBurst(heart, cell * 3, hueOf(ramp), caught, forward, 6, stage.seed));
+    drawn.motes.push(lightBall(heart, cell * 1.1 * (1 - caught), ramp[5], 1 - caught, forward + 1));
+    const floor = { x: heart.x, y: heart.y, z: stage.groundZ };
+    drawn.floor.push(floorMark('disc', floor, cell * 2, 1, ramp[4], 0.6 * (1 - caught), 'light', 0));
+    layShockRing(drawn, floor, cell * 0.25, cell * 1.8, cell * 0.26, ramp[4], t - FLICKED_S, 0.3);
   }
 }
 
-/** The tongues at a moment, as flames to be laid as one fire. */
+/** The tongues at a moment, as flames to be laid as one fire, leaping as far as `flares` says as it catches. */
 function tonguesAt(
   tongues: readonly Tongue[],
   foot: Point,
   floor: Point,
   t: number,
   duration: number,
-  cell: number
+  cell: number,
+  flares: number
 ): Flame[] {
   const fierce = fierceness(t, duration);
   if (fierce <= 0.02) return [];
   const heat = heatAt(t, duration);
   return tongues.map((tongue): Flame => {
-    const at = tongueAt(tongue, foot, floor, t, fierce, cell);
+    const at = tongueAt(tongue, foot, floor, t, fierce, cell, flares);
     return {
       shape: 'lick',
       at: at.root,
@@ -202,14 +210,15 @@ function flameletsAt(
   floor: Point,
   t: number,
   duration: number,
-  cell: number
+  cell: number,
+  flares: number
 ): Flame[] {
   const flames: Flame[] = [];
   for (const flamelet of thrown.flamelets) {
     const age = (t - flamelet.bornAt) / flamelet.lasts;
     if (age < 0 || age >= 1) continue;
     const fierce = fierceness(flamelet.bornAt, duration);
-    const { tip } = tongueAt(thrown.tongues[flamelet.tongue], foot, floor, flamelet.bornAt, fierce, cell);
+    const { tip } = tongueAt(thrown.tongues[flamelet.tongue], foot, floor, flamelet.bornAt, fierce, cell, flares);
     const risen = cell * flamelet.rises * flamelet.lasts * age;
     const wide = cell * flamelet.size * (1 - 0.55 * age);
     flames.push({
