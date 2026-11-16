@@ -62,11 +62,13 @@ function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; ca
  * a sniper's shot, arrows, missiles in a swarm and a cruise missile, the shots of spirit, of a curse and
  * of holy light, and a rain of arrows on as many as the bundled one takes and on few enough to fall
  * doubled; and the looks that bless, each healing, cleansing, barrier and aura on as many as the
- * bundled one takes; the looks of darkness by their grades, a mire and an eclipse over an area on
- * eight, a draining on three, and a great blade that lands in a black sphere; a rift on three and a
- * quake over an area on eight, a breath of sand, sickles of wind on four, waves of the void, a storm
- * over an area on eight, and a great blade of wind. The last of each is how many targets it is cast on,
- * where that is not four.
+ * bundled one takes; the blows of a strike by their grades, each on as many as the bundled one takes
+ * and as long as it plays; the looks of darkness by their grades, a mire and an eclipse over an area on
+ * eight, a draining on three, and a great blade that lands in a black sphere; and the looks of space
+ * and time by their grades, a blink and a summoning, a crush on six and a singularity over an area on
+ * eight; a rift on three and a quake over an area on eight, a breath of sand, sickles of wind on
+ * four, waves of the void, a storm over an area on eight, and a great blade of wind. The last of each
+ * is how many targets it is cast on, where that is not four.
  */
 const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, number?])[] = [
   ...[...AILMENT_LOOKS, 'arc', 'haze'].map((moteStyle) => ['curse', { moteStyle, durationMs: 5500 }] as const),
@@ -142,6 +144,13 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, numbe
   ['barrier', { grade: 3, durationMs: 1176 }, 6],
   ['aura', { grade: 2, durationMs: 2064 }, 6],
   ['aura', { grade: 3, durationMs: 2560 }, 1],
+  ['bash', { grade: 1, durationMs: 1056 }, 1],
+  ['bash', { grade: 2, durationMs: 1080, staggerMs: 90 }, 3],
+  ['bash', { grade: 3, durationMs: 2880, staggerMs: 110 }],
+  ['warp', { grade: 1, durationMs: 1411 }],
+  ['warp', { grade: 3, durationMs: 3553 }],
+  ['gravity', { grade: 2, durationMs: 1855 }, 6],
+  ['gravity', { targeting: 'multi', maxTargets: 8, areaRadius: 3, durationMs: 3788 }, 8],
 ];
 
 /** The heaviest cast of a kind, as one of the looks it is given by its family or its particles. */

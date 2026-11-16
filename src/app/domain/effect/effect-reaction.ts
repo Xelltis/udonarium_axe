@@ -16,6 +16,10 @@ import { addGreatSwordJolts, greatSwordJoltsEndOf, swingsGreatSword } from '@axe
 import { burstsFromBelow, fallsFromAbove } from '@axe/domain/effect/holy-looks';
 import { blowsAsBlizzard } from '@axe/domain/effect/ice-looks';
 import { addBlizzardJolts, blizzardJoltsEndOf } from '@axe/domain/effect/ice-reaction';
+import { movesAsSpace } from '@axe/domain/effect/space-looks';
+import { addSpaceJolts, spaceJoltsEndOf } from '@axe/domain/effect/space-reaction';
+import { strikesAlone } from '@axe/domain/effect/strike-looks';
+import { addStrikeJolts, strikeJoltsEndOf } from '@axe/domain/effect/strike-reaction';
 import { boltLookOf, CURRENT_BREAKS_AT, isLightning } from '@axe/domain/effect/thunder-looks';
 import { blowsAsStorm, isGust, isTornado, tornadoTimingOf } from '@axe/domain/effect/wind-looks';
 import { addStormJolts, stormJoltsEndOf } from '@axe/domain/effect/wind-reaction';
@@ -96,11 +100,16 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * round and makes it shiver; a storm lifts and whirls all it has caught, as `wind-reaction` has it. A curse on its own lands none: the piece it
  * is put on bears the state it is in for as long as its look plays. A great sword lands its blow as
  * its torrent is let go, and moves the pieces as a torrent does: each it strikes is thrown along it,
- * away from the one who wields the sword, and held back there for as long as it flows. Lightning shakes what it has hold
+ * away from the one who wields the sword, and held back there for as long as it flows. A strike on its
+ * own moves them as `strike-reaction` has it: its striker drawn back and carried in, and what it lands
+ * on snapped back, sent skidding or thrown off its feet by the blow it is drawn as. Lightning shakes what it has hold
  * of besides: a piece struck by a bolt or caught in a current shudders until it lets go, and one
  * struck out of the sky starts up off the floor rather than being thrown back. Darkness holds what it
  * strikes besides, as `dark-reaction` has it, lifts a piece its spikes stab up under and presses down
- * one its eclipse flares over. A blessing bears its
+ * one its eclipse flares over. A look of space and time moves its pieces in its own way, as
+ * `space-reaction` has it: a blink draws a piece up as it snaps shut on it, a summoning bears up the one
+ * it calls, a crush presses its target down and holds it, and a singularity drags in what it takes in
+ * and throws it all back out as it falls in on itself. A blessing bears its
  * pieces up instead: a grace lifts those it is laid on while its dome stands, and the greatest aura
  * the one it breaks out of. The pieces themselves stay where
  * they are: each seat draws them off it for a moment.
@@ -141,6 +150,14 @@ export function effectJoltsOf(
   }
   if (swingsGreatSword(preset) && blows.length > 0) {
     addGreatSwordJolts(preset, cast, elapsedMs, cellPx, blows[0].atMs, add);
+    return jolts;
+  }
+  if (strikesAlone(preset) && blows.length > 0) {
+    addStrikeJolts(preset, cast, elapsedMs, cellPx, blows[0].atMs, add);
+    return jolts;
+  }
+  if (movesAsSpace(preset)) {
+    addSpaceJolts(preset, cast, elapsedMs, cellPx, blows, add);
     return jolts;
   }
   cast.targets.forEach((target, index) => {
@@ -200,6 +217,8 @@ export function joltsEndOf(preset: EffectPreset, cast: EffectCast, blows: readon
   if (blowsAsStorm(preset)) return stormJoltsEndOf(preset, cast);
   if (isCurseAlone(preset)) return ailmentJoltsEndOf(preset, cast);
   if (swingsGreatSword(preset) && blows.length > 0) return greatSwordJoltsEndOf(preset, cast, blows[0].atMs);
+  if (strikesAlone(preset) && blows.length > 0) return strikeJoltsEndOf(preset, cast, blows[0].atMs);
+  if (movesAsSpace(preset)) return spaceJoltsEndOf(preset, cast, blows);
   const letsGo = isLightning(preset) ? letsGoAt(preset, blows) + lastTarget + CONVULSES_FOR_MS : 0;
   const beamLetsGo = beamLetsGoAt(preset, blows[0]?.atMs) + lastTarget;
   const darkLetsGo = darkLetsGoAt(preset, blows) + lastTarget;

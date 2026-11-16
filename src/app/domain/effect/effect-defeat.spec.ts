@@ -19,8 +19,8 @@ describe('defeatReactionOf()', () => {
 
 describe('defeatPictureHeight()', () => {
   it('tells how tall the picture is drawn by the effects that cut it up', () => {
-    expect(defeatPictureHeight('dissolve')).toBeCloseTo(2.04);
-    expect(defeatPictureHeight('bisect')).toBeCloseTo(1.24);
+    expect(defeatPictureHeight('dissolve')).toBeCloseTo(1.4);
+    expect(defeatPictureHeight('bisect')).toBeCloseTo(1.4);
   });
 
   it('answers 1 for an effect that leaves the picture alone', () => {

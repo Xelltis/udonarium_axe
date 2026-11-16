@@ -8,6 +8,8 @@ import { effectLandingTimes } from '@axe/domain/effect/effect-sound-times';
 import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
 import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
 import { frostStrikesOf } from '@axe/domain/effect/ice-looks';
+import { spaceStrikesAt } from '@axe/domain/effect/space-looks';
+import { strikeLandsAt } from '@axe/domain/effect/strike-looks';
 import { boltStrokesOf, CURRENT_REACHES_AT } from '@axe/domain/effect/thunder-looks';
 import { slashHits } from '@axe/domain/effect/timeline/blade';
 import { blowsAsStorm, gustTimingOf, isGust, stormStrikesOf } from '@axe/domain/effect/wind-looks';
@@ -96,9 +98,7 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
   rubble: RUBBLE_FIRST_HEAVE,
   upheaval: 0.12,
   quake: 0.12,
-  bash: 0.1,
   frost: 0.1,
-  gravity: 0.5,
   bisect: 0.05,
   gore: 0.05,
 };
@@ -115,14 +115,16 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
  * its walls rising. A draining lands one as it takes hold, which pulls the piece towards the one who
  * drains it rather than throwing it back, and one as it snaps, which lets the piece fall back. A look
  * of darkness lands one as it is seen to strike: spikes stabbing, a sphere bursting, the corona of an
- * eclipse flaring; and a mire two, as its hands seize and as it closes. A quake lands one as its rift
- * reaches the target, and over an area one at each of its three heaves, held as rubble's are. The
- * greatest aura on its own lands one as it breaks out,
+ * eclipse flaring; and a mire two, as its hands seize and as it closes. Gravity lands one as a crush
+ * comes down or a singularity falls in on itself. A quake lands one as its rift reaches the target,
+ * and over an area one at each of its three heaves, held as rubble's are. The greatest aura on its
+ * own lands one as it breaks out,
  * which holds and shakes and throws no piece back. Ice on its own lands as the ice it is drawn as does:
  * hail at each of its great shards, the cold that stills an area and a pillar of ice once as they
  * close and once as they shatter. A bolt of lightning lands one as it strikes, once its
  * leader has been seen coming, and the greatest of them a second, the last stroke its column ends in;
- * a current of lightning lands one as it reaches its target. Each later target is struck as the first is, its stagger
+ * a current of lightning lands one as it reaches its target. A strike lands one once its blow has been
+ * drawn back, the longer the heavier it is. Each later target is struck as the first is, its stagger
  * later, and holds nothing more.
  */
 export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
@@ -169,8 +171,11 @@ function strikeTimes(preset: EffectPreset): number[] {
         const seen =
           window.stage.kind === 'bolt'
             ? boltStrokesOf(preset.gradeLevel, lasts / 1000)[0]
-            : (holyStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000) ??
-              darkStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000)?.[0]);
+            : window.stage.kind === 'bash'
+              ? strikeLandsAt(preset.gradeLevel, lasts / 1000)
+              : (holyStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000) ??
+                darkStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000)?.[0] ??
+                spaceStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000)?.[0]);
         return Math.round(
           window.startMs + (seen !== undefined ? seen * 1000 : lasts * (GOES_OFF_AT[window.stage.kind] ?? 0))
         );
@@ -188,6 +193,8 @@ function strikeTimes(preset: EffectPreset): number[] {
   if (holy !== undefined) return [Math.round(holy * 1000)];
   const dark = darkStrikesAt(preset.effectKind, preset.gradeLevel, preset.duration / 1000);
   if (dark) return dark.map((strike) => Math.round(strike * 1000));
+  const space = spaceStrikesAt(preset.effectKind, preset.gradeLevel, preset.duration / 1000);
+  if (space) return space.map((strike) => Math.round(strike * 1000));
   const quake = quakeStrikesOf(preset, preset.duration / 1000);
   if (quake) return quake.map((strike) => Math.round(strike * 1000));
   if (preset.effectKind === 'bolt') {
@@ -205,6 +212,8 @@ function strikeTimes(preset: EffectPreset): number[] {
   if (preset.effectKind === 'frost') {
     return frostStrikesOf(preset, preset.duration / 1000).map((strike) => Math.round(strike * 1000));
   }
+  if (preset.effectKind === 'bash')
+    return [Math.round(strikeLandsAt(preset.gradeLevel, preset.duration / 1000) * 1000)];
   const goesOff = GOES_OFF_AT[preset.effectKind];
   if (goesOff !== undefined) return [Math.round(goesOff * preset.duration)];
   return effectLandingTimes(preset);

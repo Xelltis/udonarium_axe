@@ -28,20 +28,20 @@ function cast(origin: { x: number; y: number; z: number } | null): EffectCast {
 
 describe('effectJoltsOf()', () => {
   it('holds the struck piece still as the blow lands, then throws it back away from the one who struck', () => {
-    const bash = makePreset('bash');
-    const [blow] = effectBlowsOf(bash);
+    const burst = makePreset('burst');
+    const [blow] = effectBlowsOf(burst);
     const from = cast({ x: 0, y: 0, z: 0 });
 
-    expect(effectJoltsOf(bash, from, blow.atMs, CELL).get('target')).toBeUndefined();
-    const thrown = effectJoltsOf(bash, from, blow.atMs + 60, CELL).get('target')!;
+    expect(effectJoltsOf(burst, from, blow.atMs, CELL).get('target')).toBeUndefined();
+    const thrown = effectJoltsOf(burst, from, blow.atMs + 60, CELL).get('target')!;
     expect(thrown.x).toBeGreaterThan(0);
     expect(thrown.y).toBeCloseTo(0);
-    expect(effectJoltsOf(bash, from, blow.atMs + 1000, CELL).get('target')).toBeUndefined();
+    expect(effectJoltsOf(burst, from, blow.atMs + 1000, CELL).get('target')).toBeUndefined();
   });
 
   it('throws the piece further at the higher grades', () => {
     const at = (grade: number) => {
-      const preset = makePreset('bash', grade);
+      const preset = makePreset('burst', grade);
       return effectJoltsOf(preset, cast({ x: 0, y: 0, z: 0 }), effectBlowsOf(preset)[0].atMs + 60, CELL).get('target')!
         .x;
     };
@@ -257,9 +257,9 @@ describe('the pieces a wind moves', () => {
   it('shoves the target of a gust downwind as its wall strikes, further than a blow of its grade throws, and lets it stand back', () => {
     const gust = vortexOf(1);
     const [blow] = effectBlowsOf(gust);
-    const bash = makePreset('bash', 1);
+    const burst = makePreset('burst', 1);
     const shoved = effectJoltsOf(gust, cast({ x: 0, y: 0, z: 0 }), blow.atMs + 60, CELL).get('target')!;
-    const struck = effectJoltsOf(bash, cast({ x: 0, y: 0, z: 0 }), effectBlowsOf(bash)[0].atMs + 60, CELL).get(
+    const struck = effectJoltsOf(burst, cast({ x: 0, y: 0, z: 0 }), effectBlowsOf(burst)[0].atMs + 60, CELL).get(
       'target'
     )!;
 

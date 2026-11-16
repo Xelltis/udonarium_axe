@@ -101,6 +101,7 @@ const CUTTING: Partial<Record<EffectKind, (context: CutPictureContext) => void>>
       c.center,
       c.base,
       c.progress,
+      c.preset.duration / 1000,
       c.random,
       imageOf(c.options, c.target.identifier)
     ),

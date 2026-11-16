@@ -19,6 +19,7 @@ import {
 import { type EffectStage, parseEffectStages } from '@axe/domain/effect/effect-stage';
 import { stagedEffectDuration } from '@axe/domain/effect/effect-stage-timeline';
 import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
+import { spaceSoundsAt } from '@axe/domain/effect/space-looks';
 import { boltStrokesOf, CURRENT_REACHES_AT } from '@axe/domain/effect/thunder-looks';
 import { stormSoundsAt } from '@axe/domain/effect/wind-looks';
 
@@ -172,6 +173,8 @@ export class EffectPreset extends GameObject {
     if (holy !== undefined) return holy / (this.duration / 1000);
     const dark = darkSoundsAt(this.effectKind, this.gradeLevel, this.duration / 1000);
     if (dark !== undefined) return dark;
+    const space = spaceSoundsAt(this.effectKind, this.gradeLevel, this.duration / 1000);
+    if (space !== undefined) return space;
     const quake = quakeSoundsAt(this, this.duration / 1000);
     if (quake !== undefined) return quake;
     const storm = stormSoundsAt(this, this.duration / 1000);

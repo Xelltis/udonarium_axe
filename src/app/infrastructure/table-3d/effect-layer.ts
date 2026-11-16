@@ -159,7 +159,12 @@ const MARK_SHAPES: readonly EffectFloorShape[] = [
   'fissure',
   'crest',
   'rime',
+  'seal',
 ];
+/** How many glyphs are written round the band of a seal. */
+const SEAL_GLYPHS = 24;
+/** How far out the points of the star of a seal lie, as a share of its reach. */
+const SEAL_STAR = 0.7;
 /** The number each shape is told to the shaders by, from its place in the list, which the shaders tell the shapes apart by. */
 const MOTE_SHAPE = Object.fromEntries(MOTE_SHAPES.map((shape, at) => [shape, at])) as Record<EffectMoteShape, number>;
 const MARK_SHAPE = Object.fromEntries(MARK_SHAPES.map((shape, at) => [shape, at])) as Record<EffectFloorShape, number>;
@@ -1028,7 +1033,9 @@ export class EffectLayer {
    * The marks of a blend on the floor: each a quad lying on it at its place, as wide across as its
    * reach, turned about its middle: a ring, a soft disc, a sigil of rings and marks, cracks running
    * out from the middle, a scorch with a ragged edge, a fissure run across it the way it is turned, a
-   * crest, a seal of rings, a star of two squares and a cross, or a rime, a patch of hoar frost.
+   * crest, a seal of rings, a star of two squares and a cross, a rime, a patch of hoar frost, or a
+   * seal written round as its seed says: with an even seed a band of glyphs between rims, and with an
+   * odd one a star of five points within a ring, with rings about its points and its heart.
    */
   private markBatch(blend: EffectBlend): Batch {
     const place = attribute<'vec4'>('place', 'vec4');
@@ -1145,6 +1152,83 @@ export class EffectLayer {
     const rime = smoothstep(0, 0.07, rimeReach.sub(away))
       .mul(smoothstep(float(1).sub(width), float(1.3).sub(width), rimeLies))
       .mul(rimeFine.mul(0.5).add(0.5));
+    const sealLine = max(width.mul(0.25), 0.004);
+    const glyphLine = sealLine.mul(0.6);
+    const sealInk = (off: Node<'float'>, thick: Node<'float'> | number) =>
+      clamp((typeof thick === 'number' ? float(thick) : thick).sub(off).div(blur).add(0.5), 0, 1);
+    const sealPattern = floor(seed);
+    const sealRound = fract(angle.div(Math.PI * 2));
+    const sealWritten = select(sealRound.lessThanEqual(float(1).sub(fract(seed))), float(1), float(0));
+    const glyphAt = angle.div(Math.PI * 2).mul(SEAL_GLYPHS);
+    const glyphIndex = floor(fract(floor(glyphAt).div(SEAL_GLYPHS)).mul(SEAL_GLYPHS).add(0.5));
+    const glyphAcross = fract(glyphAt)
+      .sub(0.5)
+      .mul((Math.PI * 2 * 0.86) / SEAL_GLYPHS);
+    const glyphUp = away.sub(0.86);
+    const glyphPick = (stroke: number) =>
+      select(gridNoise(vec2(glyphIndex, sealPattern.add(stroke))).greaterThan(0.45), float(1), float(0));
+    const glyphTall = sealInk(abs(glyphUp), 0.055);
+    const glyphWide = sealInk(abs(glyphAcross), 0.042);
+    const glyph = max(
+      max(
+        sealInk(abs(glyphAcross.sub(gridNoise(vec2(glyphIndex, sealPattern)).sub(0.5).mul(0.05))), glyphLine).mul(
+          glyphTall
+        ),
+        max(
+          sealInk(abs(glyphUp.sub(0.055)), glyphLine)
+            .mul(glyphWide)
+            .mul(glyphPick(1)),
+          sealInk(abs(glyphUp.add(0.055)), glyphLine)
+            .mul(glyphWide)
+            .mul(glyphPick(2))
+        )
+      ),
+      max(
+        sealInk(abs(glyphAcross.sub(glyphUp.mul(0.75))), glyphLine)
+          .mul(glyphTall)
+          .mul(glyphPick(3)),
+        max(
+          sealInk(abs(length(vec2(glyphAcross, glyphUp.sub(0.02))).sub(0.024)), glyphLine).mul(glyphPick(4)),
+          sealInk(abs(glyphUp.sub(abs(glyphAcross).mul(1.2)).add(0.02)), glyphLine)
+            .mul(glyphWide)
+            .mul(glyphPick(5))
+        )
+      )
+    );
+    const sealTick = fract(angle.div(Math.PI * 2).mul(72))
+      .sub(0.5)
+      .mul((Math.PI * 2 * 0.965) / 72);
+    const sealBand = max(
+      max(
+        band(float(0.985), sealLine.mul(1.4)),
+        max(band(float(0.945), sealLine.mul(0.7)), band(float(0.775), sealLine.mul(0.7)))
+      ),
+      max(glyph, sealInk(abs(sealTick), glyphLine).mul(sealInk(abs(away.sub(0.965)), 0.012)))
+    );
+    const sealPoint = (index: number) => {
+      const turned = Math.PI / 2 + (index * Math.PI * 2) / 5;
+      return vec2(Math.cos(turned), Math.sin(turned));
+    };
+    const sealChord = (index: number) =>
+      sealInk(abs(dot(crestAt, sealPoint(index)).sub(SEAL_STAR * Math.cos((Math.PI * 2) / 5))), sealLine);
+    const sealNode = (index: number) =>
+      sealInk(abs(length(crestAt.sub(sealPoint(index).mul(SEAL_STAR))).sub(0.075)), sealLine.mul(0.8));
+    const sealStar = max(
+      max(
+        max(max(sealChord(0), sealChord(1)), max(sealChord(2), max(sealChord(3), sealChord(4)))).mul(
+          sealInk(away, SEAL_STAR)
+        ),
+        max(max(sealNode(0), sealNode(1)), max(sealNode(2), max(sealNode(3), sealNode(4))))
+      ),
+      max(
+        band(float(SEAL_STAR), sealLine),
+        max(
+          band(float(SEAL_STAR * Math.cos((Math.PI * 2) / 5)), sealLine.mul(0.8)),
+          band(float(0.08), sealLine.mul(0.7))
+        )
+      )
+    );
+    const seal = select(fract(sealPattern.mul(0.5)).greaterThan(0.25), sealStar, sealBand).mul(sealWritten);
     const alpha = select(
       shape.equal(MARK_SHAPE.ring),
       ring,
@@ -1160,7 +1244,11 @@ export class EffectLayer {
             select(
               shape.equal(MARK_SHAPE.fissure),
               fissure,
-              select(shape.equal(MARK_SHAPE.crest), crest, select(shape.equal(MARK_SHAPE.rime), rime, scorch))
+              select(
+                shape.equal(MARK_SHAPE.crest),
+                crest,
+                select(shape.equal(MARK_SHAPE.rime), rime, select(shape.equal(MARK_SHAPE.seal), seal, scorch))
+              )
             )
           )
         )
