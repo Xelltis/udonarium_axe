@@ -6,6 +6,7 @@ import type { EffectMote } from '@axe/domain/effect/scene/effect-scene';
 import type { ThrownMote } from '@axe/domain/effect/scene/effect-sim';
 import { drawSpark, thrownSparks } from '@axe/domain/effect/scene/fire/fire-parts';
 import {
+  ball,
   floorMark,
   glow,
   haze,
@@ -44,6 +45,26 @@ function streak(at: Point, wide: number, reach: number, color: string, alpha: nu
     trail: Math.max(1, reach / Math.max(wide, 0.001)),
     spin: (-BISECT_ANGLE * Math.PI) / 180,
   };
+}
+
+/** How many hard discs the line of the cut is laid as across the screen, close enough to run together into one band. */
+const SLIT_STEPS = 120;
+
+/**
+ * The line of the cut laid across the screen at its angle through a point, hard-edged: a run of discs
+ * as wide as `wide` in its middle and drawn to points `reach` out either way.
+ */
+function laySlit(drawn: Staged, at: Point, reach: number, wide: number, color: string, forward: number): void {
+  const turn = (-BISECT_ANGLE * Math.PI) / 180;
+  for (let index = 0; index <= SLIT_STEPS; index++) {
+    const share = (index / SLIT_STEPS) * 2 - 1;
+    const width = wide * Math.pow(1 - share * share, 0.55);
+    if (width < wide * 0.1) continue;
+    drawn.motes.push({
+      ...ball(at, width, color, 1, forward, 0),
+      aside: { right: Math.cos(turn) * share * reach, up: Math.sin(turn) * share * reach },
+    });
+  }
 }
 
 /** A cut through the piece: see the head of this file. */
@@ -91,15 +112,9 @@ export const bisect: Choreography = {
     const left = t < cuts ? 1 : 1 - within(t, cuts, cuts + LINE_STAYS_S);
     if (left > 0) {
       const reach = cell * LINE_REACH * (1 + 0.15 * (1 - left));
-      drawn.motes.push({ ...streak(middle, cell * 0.44 * left, reach, tones.rim, 1, forward), blend: 'color' });
-      drawn.motes.push({
-        ...streak(middle, cell * 0.32 * left, reach * 0.97, tones.body, 1, forward + 1),
-        blend: 'color',
-      });
-      drawn.motes.push({
-        ...streak(middle, cell * 0.17 * left, reach * 0.94, tones.pale, 1, forward + 2),
-        blend: 'color',
-      });
+      laySlit(drawn, middle, reach, cell * 0.34 * left, tones.rim, forward);
+      laySlit(drawn, middle, reach * 0.96, cell * 0.24 * left, tones.body, forward + 1);
+      laySlit(drawn, middle, reach * 0.9, cell * 0.12 * left, tones.pale, forward + 2);
       drawn.motes.push(streak(middle, cell * 0.07 * left, reach * 1.1, '#ffffff', left, forward + 3));
     }
     const since = t - landsAt;

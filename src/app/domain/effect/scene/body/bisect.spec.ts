@@ -69,15 +69,18 @@ describe('blood bursting from a wound', () => {
 });
 
 describe('a cut that cleaves a piece in two', () => {
-  it('lays the whole line of the cut through the piece in the one frame its blow lands in, a gleam before it', () => {
+  it('lays the whole line of the cut through the piece as one hard band in the frame its blow lands in, a gleam before it', () => {
     const cut = defeatOf('bisect');
     const lands = effectBlowsOf(cut)[0].atMs;
-    const linesAt = (ms: number) =>
-      staged(cut, ms).motes.filter((mote) => mote.shape === 'flare' && (mote.trail ?? 0) * mote.size > CELL * 1.5);
+    const bandAt = (ms: number) =>
+      staged(cut, ms).motes.filter((mote) => mote.shape === 'puff' && mote.aside !== undefined);
+    const reachOf = (ms: number) =>
+      Math.max(0, ...bandAt(ms).map((mote) => Math.hypot(mote.aside!.right, mote.aside!.up)));
 
-    expect(linesAt(lands).length).toBeGreaterThanOrEqual(4);
-    expect(Math.max(...linesAt(lands).map((mote) => mote.size))).toBeGreaterThan(CELL * 0.25);
-    expect(Math.max(0, ...linesAt(lands - 40).map((mote) => mote.size))).toBeLessThan(CELL * 0.1);
+    expect(bandAt(lands).length).toBeGreaterThan(100);
+    expect(reachOf(lands)).toBeGreaterThan(CELL * 1.5);
+    expect(Math.max(...bandAt(lands).map((mote) => mote.size))).toBeGreaterThan(CELL * 0.25);
+    expect(bandAt(lands - 40)).toEqual([]);
   });
 
   it('parts the halves of the picture just as the piece itself has faded from the table, and not long after', () => {
