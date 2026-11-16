@@ -25,6 +25,23 @@ function heldOf(drawn: Staged): EffectRibbon {
   return drawn.ribbons.find((ribbon) => ribbon.points.length === 7 && ribbon.core === '#ffffff')!;
 }
 
+/** The blades of the great swords drawn, each from its point to its shoulders: their edges, bands of seven points drawn to nothing at the point. */
+function swordOf(drawn: Staged): EffectRibbon[] {
+  return drawn.ribbons.filter(
+    (ribbon) =>
+      ribbon.points.length === 7 &&
+      ribbon.blend === 'color' &&
+      !ribbon.core &&
+      Array.isArray(ribbon.widths) &&
+      ribbon.widths[0] === 0
+  );
+}
+
+/** The arcs of the fan a falling sword leaves: the bands of thirteen points. */
+function fanOf(drawn: Staged): EffectRibbon[] {
+  return drawn.ribbons.filter((ribbon) => ribbon.points.length === 13);
+}
+
 /** The crescent a blade left: the longest of the bodies drawn that is no afterimage, or none. */
 function crescentOf(drawn: Staged): EffectRibbon | undefined {
   return crescentBodiesOf(drawn)
@@ -122,26 +139,42 @@ describe('a cleave', () => {
   const cleave = cutOf('heavy', 2256, 3);
   const strikes = effectBlowsOf(cleave)[0].atMs / 1000;
 
-  it('holds a blade high over the target, drawn back towards its caster, long before it falls', () => {
+  it('raises a great sword high over the target, drawn back towards its caster, long before it falls', () => {
     const held = stagedAt(cleave, cast, strikes * 0.6);
-    const tip = heldOf(held).points.at(-1)!;
+    const [blade] = swordOf(held);
+    const [tip, shoulders] = [blade.points[0], blade.points.at(-1)!];
 
-    expect(crescentBodiesOf(held)).toEqual([]);
-    expect(tip.z).toBeGreaterThan(CELL * 2);
+    expect(fanOf(held)).toEqual([]);
+    expect(tip.z).toBeGreaterThan(CELL * 2.5);
     expect(tip.x).toBeGreaterThan(TARGET.x + CELL * 0.4);
+    expect(shoulders.z).toBeGreaterThan(CELL * 1.5);
+    expect(widestOf(blade)).toBeGreaterThan(CELL * 0.18);
     expect(hushOf(held)).toBeDefined();
     expect(held.motes.filter((mote) => mote.shape === 'spark').length).toBeGreaterThan(0);
   });
 
-  it('comes down as a tall crescent through the target to the floor in an instant', () => {
-    const landed = stagedAt(cleave, cast, strikes + 0.06);
-    const [edge] = hotEdgesOf(landed);
-    const zs = edge.points.map((point) => point.z);
+  it('brings the sword down over the top in an instant, leaving a fan, until its point is in the ground past the target', () => {
+    const falling = stagedAt(cleave, cast, strikes - 0.01);
+    const zs = fanOf(falling).flatMap((ribbon) => ribbon.points.map((point) => point.z));
+    const blade = swordOf(stagedAt(cleave, cast, strikes + 0.05)).at(-1)!;
+    const tip = blade.points[0];
+    const over = blade.points.reduce((nearest, point) =>
+      Math.abs(point.x - TARGET.x) < Math.abs(nearest.x - TARGET.x) ? point : nearest
+    );
 
-    expect(hotEdgesOf(stagedAt(cleave, cast, strikes - 0.15))).toEqual([]);
-    expect(zs[0]).toBeGreaterThan(CELL * 2);
-    expect(edge.points.at(-1)!.z).toBeLessThan(CELL * 0.5);
-    expect(Math.max(...zs) - Math.min(...zs)).toBeGreaterThan(CELL * 2);
+    expect(fanOf(stagedAt(cleave, cast, strikes - 0.15))).toEqual([]);
+    expect(Math.max(...zs) - Math.min(...zs)).toBeGreaterThan(CELL * 1.5);
+    expect(swordOf(falling).length).toBeGreaterThan(1);
+    expect(tip.z).toBeLessThan(CELL * 0.1);
+    expect(tip.x).toBeLessThan(TARGET.x);
+    expect(over.z).toBeGreaterThan(0);
+    expect(over.z).toBeLessThan(CELL * 1.5);
+  });
+
+  it('leaves the sword standing where it struck, then breaks it into light', () => {
+    expect(swordOf(stagedAt(cleave, cast, strikes + 0.4)).length).toBeGreaterThan(0);
+    expect(swordOf(stagedAt(cleave, cast, strikes + 1.2))).toEqual([]);
+    expect(stagedAt(cleave, cast, strikes + 0.75).motes.some((mote) => mote.shape === 'flake')).toBe(true);
   });
 
   it('cuts the target from over its head to its feet in one upright line', () => {

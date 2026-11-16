@@ -43,6 +43,8 @@ export interface GreatBladeLook {
   readonly glint: number;
   /** How far towards the eye its pommel is drawn, in table pixels. */
   readonly forward: number;
+  /** How much broader its blade is than a great sword's, as a cleaver's is; as broad as a great sword's without. */
+  readonly broad?: number;
 }
 
 /** A point of the sword a share of its length from its point, towards its pommel. */
@@ -79,7 +81,7 @@ export function greatBlade(
   const sheen = deep ? ramp[1] : ramp[3];
   const fuller = deep ? '#05030a' : ramp[1];
   const edge = deep ? ramp[3] : ramp[5];
-  const wide = length * BLADE_WIDE * (0.08 + 0.92 * formed);
+  const wide = length * BLADE_WIDE * (look.broad ?? 1) * (0.08 + 0.92 * formed);
   const blade = BLADE_SHAPE.map(([share]) => at(share));
   const shape = BLADE_SHAPE.map(([, share]) => share);
   const band = (scale: number, color: string, core?: string): EffectRibbon => ({
