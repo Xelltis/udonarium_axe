@@ -8,6 +8,7 @@ import { effectJoltsOf } from '@axe/domain/effect/effect-reaction';
 import { effectShakeOf } from '@axe/domain/effect/effect-shake';
 import { nothingStaged, type Staged } from '@axe/domain/effect/scene/choreography';
 import { stageEffect } from '@axe/domain/effect/scene/effect-frame';
+import { sceneLingerMsOf } from '@axe/domain/effect/scene/scene-kinds';
 import { slashHits } from '@axe/domain/effect/timeline/blade';
 import { projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
 
@@ -170,6 +171,28 @@ describe('a wave of the void', () => {
           )
         )
       ).toBe(true);
+    } finally {
+      ObjectStore.instance.remove(preset);
+    }
+  });
+
+  it('goes on slicing at its target in a low gale of blades while its landing sounds, and has settled before it clears', () => {
+    const preset = bundled('真空波');
+    const cast = castOn([300, 300]);
+    try {
+      const landsAt = projectileTiming(preset).shots[0].land * preset.duration;
+      const ends = preset.duration + sceneLingerMsOf(preset);
+      const whirling = drawnAt(preset, cast, landsAt + 1200);
+      const blades = whirling.ribbons.filter((ribbon) => ribbon.half !== undefined);
+      const cuts = whirling.ribbons.filter((ribbon) => ribbon.points.length === 5 && ribbon.color === '#ffffff');
+
+      expect(blades.length).toBeGreaterThan(8);
+      expect(cuts.length).toBeGreaterThan(0);
+      for (const point of blades.flatMap((ribbon) => ribbon.points)) {
+        expect(Math.hypot(point.x - 300, point.y - 300)).toBeLessThan(CELL * 3);
+        expect(point.z).toBeLessThan(CELL * 4);
+      }
+      expect(drawnAt(preset, cast, ends - 200).ribbons.filter((ribbon) => ribbon.half !== undefined)).toEqual([]);
     } finally {
       ObjectStore.instance.remove(preset);
     }
