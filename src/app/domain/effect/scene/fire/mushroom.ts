@@ -51,6 +51,7 @@ import {
 import {
   CAP_HEIGHT,
   capAt,
+  crownAt,
   type MushroomCloud,
   STEM_S,
   stemAt,
@@ -72,11 +73,13 @@ import {
  * flames lick up out of the cracks; it goes off in a beat that whites out the table, with rays and a
  * streak of light across it. A surge of fire rolls out low over the ground from its foot, a stem of
  * fire roars up out of it, white-hot and reddening, and at its top a cap rolls up and out, fire at
- * first and then black smoke still red within. Three shock rings race out over the area with a band
- * of dust behind them and a front of flame running with them, which leaves the ground burning far
- * and wide; brands, rocks and grit rain about it, sparks fly and embers rise for as long as it
- * burns. The stem thins and breaks to a column of smoke, the cap spreads and thins, and the smoke
- * hangs long over the scorched and cracked ground.
+ * first and then black smoke still red within. The stem is tongues of every height, and its crown
+ * never ends in an edge: flames break off their tips one after another and rise burning over it.
+ * Three shock rings race out over the area with a band of dust behind them and a front of flame
+ * running with them, which leaves the ground burning far and wide; brands, rocks and grit rain about
+ * it, sparks fly and embers rise for as long as it burns. The stem thins and breaks, the smoke of the
+ * cap climbs and breaks apart, and a fire burns on low in the crater, smoke and embers rising off it
+ * long after, over the scorched and cracked ground.
  */
 
 /** How long it lingers after its playback as its smoke clears, in seconds. */
@@ -85,6 +88,10 @@ const LINGER_S = 2.5;
 const REACHES_ROUND_S = 0.18;
 /** How long the shock and the front of flame take to cross the area, in seconds. */
 const CROSSES_S = 0.6;
+/** Until what share of its whole length smoke goes on rising off the crater and embers off its fire. */
+const SMOKES_UNTIL = 0.72;
+/** How many low tongues go on burning in the crater once the stem has broken. */
+const HEARTH_TONGUES = 5;
 /** The surge of fire at the foot of the stem, in cells and seconds: wide, low, and slow to rise. */
 const SURGE: BlastSize = {
   reach: 1.15,
@@ -174,7 +181,18 @@ function drawMushroom(stage: Stage): Staged {
   const surge = blastAt(thrown.surge, heart, cell, t, stage.groundZ);
   const cap = capAt(thrown.cloud, floor, cell, t);
   layBillows(drawn, [...surge.billows, ...cap.billows], ramp, fiery, depth);
-  layFlames(drawn, [...surge.flames, ...stemAt(thrown.cloud, floor, cell, t, stage.seed), ...cap.flames], ramp, depth);
+  layFlames(
+    drawn,
+    [
+      ...surge.flames,
+      ...hearthAt(floor, cell, t, ends, stage.seed),
+      ...stemAt(thrown.cloud, floor, cell, t, stage.seed),
+      ...crownAt(thrown.cloud, floor, cell, t, stage.seed),
+      ...cap.flames,
+    ],
+    ramp,
+    depth
+  );
   for (const [index, spark] of thrown.sparks.entries()) drawSpark(drawn, spark, t, cell, ramp, index, forward);
   for (const [index, ember] of thrown.embers.entries()) drawEmber(drawn, ember, t, cell, ramp, index, forward);
 
@@ -182,8 +200,36 @@ function drawMushroom(stage: Stage): Staged {
   if (rising < 1) drawn.motes.push(glow(heart, cell * 1.6, ramp[4], 0.35 * (1 - rising), forward * 1.3));
   drawBlastBeat(drawn, heart, floor, cell, ramp, t, 2.4, stage.seed, forward);
   drawFlareStreak(drawn, heart, cell * 1.1, t, 0.35, forward * 1.6);
-  layLights(drawn, heart, floor, cell, area, ramp, t);
+  layLights(drawn, heart, floor, cell, area, ramp, t, ends);
   return drawn;
+}
+
+/**
+ * The fire left burning in the crater once the stem has broken: a few low tongues, flickering, that
+ * sink and redden until the smoke stops rising off it.
+ */
+function hearthAt(floor: Point, cell: number, t: number, ends: number, seed: number): Flame[] {
+  const lit = within(t, STEM_S * 0.6, STEM_S + 0.4) * (1 - within(t, ends * 0.5, ends * SMOKES_UNTIL));
+  if (lit <= 0.02) return [];
+  return Array.from({ length: HEARTH_TONGUES }, (_unused, index): Flame => {
+    const angle = (index / HEARTH_TONGUES) * Math.PI * 2 + seed;
+    const flicker = 0.75 + 0.15 * Math.sin(t * 11 + index * 2.1) + 0.1 * Math.sin(t * 27 + index);
+    const wide = cell * (index === 0 ? 0.7 : 0.45) * (0.6 + 0.4 * lit);
+    return {
+      shape: 'lick',
+      at: {
+        x: floor.x + Math.cos(angle) * cell * (index === 0 ? 0 : 0.4),
+        y: floor.y + Math.sin(angle) * cell * (index === 0 ? 0 : 0.4),
+        z: floor.z + cell * 0.02,
+      },
+      heading: { x: 0.15 * Math.sin(t * 3 + index), y: 0, z: 1 },
+      wide,
+      long: Math.max(wide, cell * (index === 0 ? 1.6 : 1) * lit * flicker),
+      heat: 0.35 + 0.45 * lit,
+      flowed: t * 5 + index * 3.1,
+      variant: index * 1.9 + seed,
+    };
+  });
 }
 
 /** The light it throws over the table: a white flash for an instant, and the light of the stem and the cap for as long as they burn. */
@@ -194,12 +240,14 @@ function layLights(
   cell: number,
   area: number,
   ramp: readonly string[],
-  t: number
+  t: number,
+  ends: number
 ): void {
   if (t < 0.12) {
     drawn.lights.push({ ...heart, color: '#ffffff', strength: 1.9 * (1 - t / 0.12), reachPx: cell * 3.5 });
   }
-  const warm = Math.pow(Math.max(0, 1 - t / 3.2), 1.3);
+  const smoulders = within(t, STEM_S * 0.6, STEM_S + 0.4) * (1 - within(t, ends * 0.5, ends * SMOKES_UNTIL));
+  const warm = Math.max(Math.pow(Math.max(0, 1 - t / 3.2), 1.3), 0.45 * smoulders);
   if (warm > 0.02) {
     drawn.lights.push({
       x: heart.x,
@@ -217,10 +265,11 @@ function throwMushroom(th: Thrower, heart: Point, floor: Point, ends: number): M
   const U = th.cell;
   const cloud = throwCloud(th);
   const surge = throwBlast(th, blastWithin(SURGE, ends));
-  const fires = throwGroundFires(th, th.count(14), [1.6, 3]);
+  const fires = throwGroundFires(th, th.count(18), [2.4, Math.max(3, ends * 0.45)]);
   const omens = throwGroundFires(th, 7, [3, 3]);
-  const column: Cloud[] = Array.from({ length: th.count(8) }, () => {
-    const bornAt = th.range(STEM_S * 0.45, STEM_S + 0.3);
+  const smokesUntil = Math.max(STEM_S + 0.3, ends * SMOKES_UNTIL);
+  const column: Cloud[] = Array.from({ length: th.count(20) }, (_unused, index) => {
+    const bornAt = index < 8 ? th.range(STEM_S * 0.45, STEM_S + 0.3) : th.range(STEM_S * 0.45, smokesUntil);
     return {
       mote: th.mote({
         x: floor.x + th.range(-0.25, 0.25) * U,
@@ -242,7 +291,11 @@ function throwMushroom(th: Thrower, heart: Point, floor: Point, ends: number): M
   });
   const dust = rollingDust(th, floor, th.count(16), [3, 7], [0.8, 1.2]);
   const sparks = thrownSparks(th, heart, th.count(80), [7, 18]);
-  const embers = risingEmbers(th, heart, th.count(50), [0, 1.2], 0.5);
+  const embers = [
+    ...risingEmbers(th, heart, th.count(50), [0, 1.2], 0.5),
+    ...risingEmbers(th, { ...floor, z: floor.z + U * CAP_HEIGHT * 0.8 }, th.count(40), [0.4, STEM_S + 0.3], 0.4),
+    ...risingEmbers(th, { ...floor, z: floor.z + U * 0.3 }, th.count(40), [STEM_S, smokesUntil], 0.6),
+  ];
   const brands = thrownBrands(th, heart, th.count(4), [3.5, 7.5]);
   const bits = [...thrownRocks(th, floor, th.count(10), [4.5, 8]), ...thrownGrit(th, floor, th.count(40), [3, 9])];
   return { cloud, surge, fires, omens, column, dust, sparks, embers, brands, bits };

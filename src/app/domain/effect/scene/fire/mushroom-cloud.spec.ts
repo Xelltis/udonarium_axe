@@ -1,6 +1,6 @@
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { type Stage } from '@axe/domain/effect/scene/choreography';
-import { CAP_HEIGHT, capAt, STEM_S, stemAt, throwCloud } from '@axe/domain/effect/scene/fire/mushroom-cloud';
+import { CAP_HEIGHT, capAt, crownAt, STEM_S, stemAt, throwCloud } from '@axe/domain/effect/scene/fire/mushroom-cloud';
 import { throwerFor } from '@axe/domain/effect/scene/parts';
 
 const CELL = 50;
@@ -74,5 +74,26 @@ describe('the cloud of the greatest blast', () => {
     const gone = capAt(cloud, FLOOR, CELL, 4.5);
     expect(gone.flames).toHaveLength(0);
     expect(gone.billows).toHaveLength(0);
+  });
+
+  it('ends its stem in tongues of every height and flames rising off their tips, never in an edge', () => {
+    const cloud = cloudOf();
+    const tips = stemAt(cloud, FLOOR, CELL, 1, 3).map((flame) => flame.long);
+    const crown = crownAt(cloud, FLOOR, CELL, 1, 3);
+    const roots = crown.map((flame) => flame.at.z);
+
+    expect(Math.max(...tips) - Math.min(...tips)).toBeGreaterThan(CELL * CAP_HEIGHT * 0.3);
+    expect(crown.length).toBeGreaterThan(8);
+    expect(Math.max(...roots) - Math.min(...roots)).toBeGreaterThan(CELL * 0.8);
+    expect(Math.max(...roots)).toBeGreaterThan(CELL * CAP_HEIGHT);
+    expect(crownAt(cloud, FLOOR, CELL, STEM_S + 0.5, 3)).toHaveLength(0);
+  });
+
+  it('leaves the smoke of its cap climbing and broken apart in height rather than lying as a lid', () => {
+    const cloud = cloudOf();
+    const heights = capAt(cloud, FLOOR, CELL, 3).billows.map((billow) => billow.at.z);
+
+    expect(Math.max(...heights) - Math.min(...heights)).toBeGreaterThan(CELL * 1.2);
+    expect(heights.reduce((sum, z) => sum + z, 0) / heights.length).toBeGreaterThan(CELL * (CAP_HEIGHT + 1));
   });
 });
