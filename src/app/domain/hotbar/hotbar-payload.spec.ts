@@ -41,6 +41,10 @@ describe('hotbar slot payloads', () => {
       rotateSnap: true,
       shiftX: false,
       shiftY: false,
+      solid: '',
+      solidHeight: 3,
+      solidReach: 6,
+      pitch: 0,
     });
   });
 
@@ -58,6 +62,25 @@ describe('hotbar slot payloads', () => {
       rotateSnap: true,
       shiftX: false,
       shiftY: false,
+      solid: '',
+      solidHeight: 3,
+      solidReach: 6,
+      pitch: 0,
+    });
+  });
+
+  it('reads what a range slot stands its range up as, and falls back where a value is missing or not one', () => {
+    expect(parseHotbarPayload('range', '{"solid":"cone","solidHeight":2.5,"solidReach":0,"pitch":30}')).toMatchObject({
+      solid: 'cone',
+      solidHeight: 2.5,
+      solidReach: 0,
+      pitch: 30,
+    });
+    expect(parseHotbarPayload('range', '{"solid":"dome","solidHeight":"","solidReach":-4,"pitch":200}')).toMatchObject({
+      solid: '',
+      solidHeight: 3,
+      solidReach: 0,
+      pitch: 90,
     });
   });
 

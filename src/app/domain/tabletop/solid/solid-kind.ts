@@ -11,6 +11,11 @@ export const SOLID_KINDS = ['', 'column', 'sphere', 'cone', 'beam'] as const;
 
 export type SolidKind = (typeof SOLID_KINDS)[number];
 
+/** How tall a range stands as a column until it is told otherwise, in its squares. */
+export const DEFAULT_SOLID_HEIGHT = 3;
+/** How far round the piece it follows a sphere or a column may be put until told otherwise, in its squares. */
+export const DEFAULT_SOLID_REACH = 6;
+
 /** The solid kinds that point somewhere, from a tip, rather than standing round a point. */
 const AIMED_KINDS: readonly SolidKind[] = ['cone', 'beam'];
 

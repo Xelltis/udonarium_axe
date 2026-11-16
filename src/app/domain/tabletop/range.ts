@@ -6,15 +6,17 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { cellPatternBoundingBox, parseCellPattern } from '@axe/domain/tabletop/cell-pattern';
 import { centerFollowerOnCharacter } from '@axe/domain/tabletop/following';
 import { appendPieceDataElements } from '@axe/domain/tabletop/piece-data-elements';
-import { asSolidKind, SolidKind, solidKindOf } from '@axe/domain/tabletop/solid/solid-kind';
+import {
+  asSolidKind,
+  DEFAULT_SOLID_HEIGHT,
+  DEFAULT_SOLID_REACH,
+  SolidKind,
+  solidKindOf,
+} from '@axe/domain/tabletop/solid/solid-kind';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export const RANGE_DEFAULT_FILL_COLOR = '#FFFF00';
 export const RANGE_DEFAULT_BORDER_COLOR = '#000000';
-/** How tall a range stands as a column until it is told otherwise, in its squares. */
-export const DEFAULT_SOLID_HEIGHT = 3;
-/** How far round the piece it follows a sphere or a column may be put until told otherwise, in its squares. */
-export const DEFAULT_SOLID_REACH = 6;
 /** The name older rooms saved the diamond under. */
 const LEGACY_DIAMOND = 'DIAMOND';
 

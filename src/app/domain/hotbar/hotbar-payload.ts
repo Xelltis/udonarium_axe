@@ -1,6 +1,12 @@
 import { clamp } from '@axe/core/util/clamp';
 import { holdsHotbarCell, HotbarCell } from '@axe/domain/hotbar/hotbar-size';
 import { HotbarSlotKind } from '@axe/domain/hotbar/hotbar-slot-kind';
+import {
+  asSolidKind,
+  DEFAULT_SOLID_HEIGHT,
+  DEFAULT_SOLID_REACH,
+  SolidKind,
+} from '@axe/domain/tabletop/solid/solid-kind';
 import { CharacterPanelName, DEFAULT_CHARACTER_PANEL, toCharacterPanelName } from '@axe/domain/ui/room-panel';
 
 export type EffectCastMode = 'cast' | 'field' | 'preview';
@@ -40,6 +46,13 @@ export type HotbarPayload =
       rotateSnap: boolean;
       shiftX: boolean;
       shiftY: boolean;
+      /** What the range stands up as; flat where empty. */
+      solid: SolidKind;
+      /** How tall a column stands, how far round its caster a sphere or a column may be put, in squares. */
+      solidHeight: number;
+      solidReach: number;
+      /** How steeply a cone or a beam points up, in degrees. */
+      pitch: number;
     }
   | { kind: 'panel'; panel: CharacterPanelName }
   /**
@@ -101,6 +114,10 @@ export function defaultHotbarPayload(kind: HotbarSlotKind): HotbarPayload {
         rotateSnap: true,
         shiftX: false,
         shiftY: false,
+        solid: '',
+        solidHeight: DEFAULT_SOLID_HEIGHT,
+        solidReach: DEFAULT_SOLID_REACH,
+        pitch: 0,
       };
     case 'panel':
       return { kind: 'panel', panel: DEFAULT_CHARACTER_PANEL };
@@ -163,6 +180,10 @@ export function parseHotbarPayload(kind: HotbarSlotKind, raw: unknown): HotbarPa
         rotateSnap: readBoolean(held.rotateSnap, fallback.rotateSnap),
         shiftX: readBoolean(held.shiftX, fallback.shiftX),
         shiftY: readBoolean(held.shiftY, fallback.shiftY),
+        solid: asSolidKind(held.solid),
+        solidHeight: readBetween(held.solidHeight, 0.1, Number.POSITIVE_INFINITY, fallback.solidHeight),
+        solidReach: readBetween(held.solidReach, 0, Number.POSITIVE_INFINITY, fallback.solidReach),
+        pitch: readBetween(held.pitch, -90, 90, fallback.pitch),
       };
     case 'panel':
       return { kind: 'panel', panel: toCharacterPanelName(held.panel) };
@@ -254,6 +275,13 @@ function readSteps(value: unknown, fallbackDelayMs: number): HotbarStep[] {
     });
   }
   return steps;
+}
+
+/** A number between two bounds, held to them; the fallback where it is not a number, or is empty. */
+function readBetween(value: unknown, least: number, most: number, fallback: number): number {
+  if (value === null || value === undefined || value === '') return fallback;
+  const held = Number(value);
+  return Number.isFinite(held) ? clamp(held, least, most) : fallback;
 }
 
 function readPercent(value: unknown, fallback: number): number {

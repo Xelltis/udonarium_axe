@@ -1,5 +1,8 @@
+import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
 import { buildRangeContextMenuModel } from '@axe/features/tabletop/range/range-context-menu';
@@ -202,6 +205,73 @@ describe('buildRangeContextMenuModel', () => {
       expect(names().some((action) => action.name === '範囲内を対象にする')).toBe(true);
     } finally {
       range.destroy();
+    }
+  });
+});
+
+describe('standing a range up from its menu', () => {
+  const t = ((key: string) => key) as TranslateFn;
+
+  function solidEntries(range: RangeArea) {
+    const model = buildRangeContextMenuModel(
+      range,
+      50,
+      { x: 0, y: 0, z: 0 },
+      ObjectStore.instance,
+      { notifyInventoryUpdate: vi.fn() } as unknown as GameObjectInventoryService,
+      { menuAt: vi.fn(() => []) } as CreateObjectMenu,
+      vi.fn(),
+      vi.fn(),
+      t
+    );
+    return model.actions.find((action) => action.name === 'feature.tabletop.contextMenu.solid')!.subActions!;
+  }
+
+  it('offers the kinds the shape can stand up as, ticking the one it stands up as, and sets the one picked', () => {
+    vi.spyOn(SoundEffect, 'play').mockImplementation(() => undefined);
+    const range = RangeArea.create('test', 3, 3, 50);
+    range.type = 'CIRCLE';
+    try {
+      expect(solidEntries(range).map((entry) => entry.name)).toEqual([
+        '✔ feature.tabletop.contextMenu.solidFlat',
+        'feature.tabletop.contextMenu.solidColumn',
+        'feature.tabletop.contextMenu.solidSphere',
+      ]);
+      solidEntries(range)[2].action!();
+      expect(range.solidKind).toBe('sphere');
+      range.type = 'HEXAGON';
+      expect(solidEntries(range).map((entry) => entry.name)).toEqual([
+        'feature.tabletop.contextMenu.solidFlat',
+        '✔ feature.tabletop.contextMenu.solidColumn',
+      ]);
+    } finally {
+      range.destroy();
+    }
+  });
+
+  it('levels a cone again, and puts a sphere following a piece back onto it', () => {
+    vi.spyOn(SoundEffect, 'play').mockImplementation(() => undefined);
+    const cone = RangeArea.create('cone', 3, 3, 50);
+    cone.type = 'CORN';
+    cone.solidKind = 'cone';
+    cone.aimPitch = 40;
+    const piece = GameCharacter.create('piece', 1, '');
+    piece.location = { name: 'table', x: 100, y: 100 };
+    const sphere = RangeArea.create('sphere', 3, 3, 50);
+    sphere.type = 'CIRCLE';
+    sphere.solidKind = 'sphere';
+    sphere.casterOffset = { x: 2, y: 1 };
+    sphere.followingCharacterIdentifier = piece.identifier;
+    try {
+      solidEntries(cone).find((entry) => entry.name.endsWith('solidLevel'))!.action!();
+      expect(cone.aimPitch).toBe(0);
+      solidEntries(sphere).find((entry) => entry.name.endsWith('solidBackToCaster'))!.action!();
+      expect(sphere.casterOffset).toEqual({ x: 0, y: 0 });
+      expect([sphere.location.x, sphere.location.y]).toEqual([125, 125]);
+    } finally {
+      cone.destroy();
+      sphere.destroy();
+      piece.destroy();
     }
   });
 });

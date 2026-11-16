@@ -15,7 +15,7 @@ import { FirstPersonService } from '@axe/application/tabletop/first-person.servi
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
-import { getRangeMenuItems } from '@axe/application/tabletop/tabletop-action-helpers';
+import { getRangeMenuItems, getSolidRangeMenuItems } from '@axe/application/tabletop/tabletop-action-helpers';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { MenuLayoutService } from '@axe/application/ui/menu-layout.service';
@@ -30,6 +30,7 @@ import { isOwnedByUser } from '@axe/domain/character/owned-characters';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import type { SolidKind } from '@axe/domain/tabletop/solid/solid-kind';
 import { MenuCommandService, MenuEntryView } from '@axe/features/menu/menu-command.service';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
@@ -122,6 +123,8 @@ export class PlToolbarComponent {
   }
 
   protected readonly rangeMenuItems = getRangeMenuItems();
+  /** The ranges standing up off the table the toolbar offers, after the flat ones. */
+  protected readonly solidRangeMenuItems = getSolidRangeMenuItems();
   protected readonly rangeOpen = signal(false);
 
   private readonly folds = inject(ToolbarFoldService);
@@ -224,13 +227,14 @@ export class PlToolbarComponent {
     this.rangeOpen.update((open) => !open);
   }
 
-  protected createRange(typeName: string): void {
+  protected createRange(typeName: string, kind: SolidKind = ''): void {
     const character = this.activeCharacter();
     this.rangeOpen.set(false);
     if (!character) return;
-    const range = this.tabletopAction.createRangeArea(
+    const range = this.tabletopAction.createSolidRangeArea(
       { x: character.location.x, y: character.location.y, z: character.posZ },
-      typeName
+      typeName,
+      kind
     );
     range.followingCharacterIdentifier = character.identifier;
     range.following(this.tabletop.gridSize());

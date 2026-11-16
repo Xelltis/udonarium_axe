@@ -61,6 +61,49 @@ describe('SheetRangeFormComponent', () => {
     expect(root().querySelector('input[name="subDivisionSnapPolygonal"]')).toBeNull();
   });
 
+  it('stands the range up as the kind pressed, offering the kinds its shape can take', async () => {
+    const kinds = () =>
+      [...root().querySelectorAll<HTMLButtonElement>('[data-testid="range-solid"] [data-solid-kind]')].map(
+        (button) => button.dataset['solidKind']
+      );
+    range.type = 'CIRCLE';
+    await fixture.whenStable();
+    expect(kinds()).toEqual(['flat', 'column', 'sphere']);
+
+    root().querySelector<HTMLButtonElement>('[data-solid-kind="sphere"]')!.click();
+    await fixture.whenStable();
+
+    expect(range.solidKind).toBe('sphere');
+    expect(root().querySelector('[data-testid="range-solid-reach"]')).not.toBeNull();
+    expect(root().querySelector('[data-testid="range-solid-height"]')).toBeNull();
+  });
+
+  it('writes a column’s height as typed, and leaves it alone while the field is emptied', async () => {
+    range.solidKind = 'column';
+    await fixture.whenStable();
+    const height = root().querySelector<HTMLInputElement>('[data-testid="range-solid-height"]')!;
+
+    height.value = '4.5';
+    height.dispatchEvent(new Event('input'));
+    expect(range.columnHeight).toBe(4.5);
+
+    height.value = '';
+    height.dispatchEvent(new Event('input'));
+    expect(range.columnHeight).toBe(4.5);
+  });
+
+  it('writes the pitch of a cone', async () => {
+    range.type = 'CORN';
+    range.solidKind = 'cone';
+    await fixture.whenStable();
+    const pitch = root().querySelector<HTMLInputElement>('[data-testid="range-solid-pitch"]')!;
+
+    pitch.value = '-30';
+    pitch.dispatchEvent(new Event('input'));
+
+    expect(range.aimPitch).toBe(-30);
+  });
+
   it('shows the basic information of the range it is given', () => {
     expect(root().querySelector('sheet-basics-card [game-data-element]')).not.toBeNull();
   });

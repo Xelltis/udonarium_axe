@@ -39,6 +39,7 @@ describe('buildCreateObjectMenuGroups', () => {
       createDiceSymbol: vi.fn(),
       createCoin: vi.fn(() => made),
       createRangeArea: vi.fn(),
+      createSolidRangeArea: vi.fn(),
       createLightSource: vi.fn(() => made),
       createWhiteBoard: vi.fn(() => made),
       createTableAmbience: vi.fn(),
@@ -68,6 +69,7 @@ describe('buildCreateObjectMenuGroups', () => {
     expect(second.map(nameOf)).toEqual([
       'feature.tabletop.action.createCoin',
       'feature.tabletop.action.createRange',
+      'feature.tabletop.action.createSolidRange',
       'feature.tabletop.action.createLight',
       'feature.whiteBoard.action.create',
       'feature.tabletop.action.createAmbience',
@@ -89,6 +91,25 @@ describe('buildCreateObjectMenuGroups', () => {
 
     second.find((entry) => entry.name.endsWith('createCoin'))?.action?.();
     expect(hands.select).toHaveBeenCalledTimes(2);
+  });
+
+  it('makes a range standing up as each kind, from the shape that kind stands up from', () => {
+    const [, second] = buildCreateObjectMenuGroups(position, hands);
+    const solids = second.find((entry) => entry.name.endsWith('createSolidRange'))!.subActions!;
+
+    expect(solids.map(nameOf)).toEqual([
+      'feature.tabletop.action.solidRangeSphere',
+      'feature.tabletop.action.solidRangeCylinder',
+      'feature.tabletop.action.solidRangeCone',
+      'feature.tabletop.action.solidRangeBeam',
+      'feature.tabletop.action.solidRangeSquareColumn',
+    ]);
+    solids[0].action?.();
+    expect(actions['createSolidRangeArea']).toHaveBeenCalledWith(position, 'CIRCLE', 'sphere');
+    solids[2].action?.();
+    expect(actions['createSolidRangeArea']).toHaveBeenCalledWith(position, 'CORN', 'cone');
+    solids[4].action?.();
+    expect(actions['createSolidRangeArea']).toHaveBeenCalledWith(position, 'SQUARE', 'column');
   });
 
   it('offers every die, then the handful asked for by count', () => {
