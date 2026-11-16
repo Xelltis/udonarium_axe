@@ -183,6 +183,9 @@ function heaviestCasts(): { name: string; preset: EffectPreset; cast: EffectCast
   ];
 }
 
+/** How long a test that stages every frame may take, on a machine a good deal slower than the one it was written on. */
+const EVERY_FRAME_TIMEOUT_MS = 180_000;
+
 /** Every frame of the heaviest cast of every kind and look, every 40 milliseconds from its start until it has cleared. */
 function everyFrame(visit: (kind: string, drawn: Staged, cast: EffectCast) => void): void {
   for (const { name: kind, preset, cast } of heaviestCasts()) {
@@ -202,42 +205,50 @@ describe('the quality of the effects', () => {
     expect(unseeded).toEqual([]);
   });
 
-  it('keeps the heaviest cast of every kind and look within what the scene draws in a frame', () => {
-    const over = new Set<string>();
-    everyFrame((kind, drawn) => {
-      for (const blend of ['light', 'color'] as const) {
-        const motes = drawn.motes.filter((mote) => mote.blend === blend).length;
-        const marks = drawn.floor.filter((mark) => mark.blend === blend).length;
-        const points = drawn.ribbons
-          .filter((ribbon) => ribbon.blend === blend)
-          .reduce((sum, ribbon) => sum + ribbon.points.length, 0);
-        if (motes > EFFECT_FRAME_BUDGET.motes) over.add(`${kind} motes`);
-        if (marks > EFFECT_FRAME_BUDGET.marks) over.add(`${kind} marks`);
-        if (points > EFFECT_FRAME_BUDGET.ribbonPoints) over.add(`${kind} ribbon points`);
-      }
-    });
+  it(
+    'keeps the heaviest cast of every kind and look within what the scene draws in a frame',
+    () => {
+      const over = new Set<string>();
+      everyFrame((kind, drawn) => {
+        for (const blend of ['light', 'color'] as const) {
+          const motes = drawn.motes.filter((mote) => mote.blend === blend).length;
+          const marks = drawn.floor.filter((mark) => mark.blend === blend).length;
+          const points = drawn.ribbons
+            .filter((ribbon) => ribbon.blend === blend)
+            .reduce((sum, ribbon) => sum + ribbon.points.length, 0);
+          if (motes > EFFECT_FRAME_BUDGET.motes) over.add(`${kind} motes`);
+          if (marks > EFFECT_FRAME_BUDGET.marks) over.add(`${kind} marks`);
+          if (points > EFFECT_FRAME_BUDGET.ribbonPoints) over.add(`${kind} ribbon points`);
+        }
+      });
 
-    expect([...over]).toEqual([]);
-  });
+      expect([...over]).toEqual([]);
+    },
+    EVERY_FRAME_TIMEOUT_MS
+  );
 
-  it(`draws nothing further than ${FARTHEST_CELLS} cells from the targets and the caster, nor below the floor`, () => {
-    const astray = new Set<string>();
-    everyFrame((kind, drawn, cast) => {
-      const anchors = [...cast.targets, cast.origin!];
-      const points = [
-        ...drawn.motes,
-        ...drawn.ribbons.flatMap((ribbon) => ribbon.points),
-        ...drawn.floor.map((mark) => ({ ...mark, z: 0 })),
-      ];
-      for (const point of points) {
-        const near = Math.min(...anchors.map((anchor) => Math.hypot(point.x - anchor.x, point.y - anchor.y)));
-        if (near > FARTHEST_CELLS * CELL) astray.add(`${kind} far`);
-        if (point.z < -DEEPEST_CELLS * CELL) astray.add(`${kind} below`);
-      }
-    });
+  it(
+    `draws nothing further than ${FARTHEST_CELLS} cells from the targets and the caster, nor below the floor`,
+    () => {
+      const astray = new Set<string>();
+      everyFrame((kind, drawn, cast) => {
+        const anchors = [...cast.targets, cast.origin!];
+        const farthest = (FARTHEST_CELLS * CELL) ** 2;
+        const check = (x: number, y: number, z: number) => {
+          let near = Infinity;
+          for (const anchor of anchors) near = Math.min(near, (x - anchor.x) ** 2 + (y - anchor.y) ** 2);
+          if (near > farthest) astray.add(`${kind} far`);
+          if (z < -DEEPEST_CELLS * CELL) astray.add(`${kind} below`);
+        };
+        for (const mote of drawn.motes) check(mote.x, mote.y, mote.z);
+        for (const ribbon of drawn.ribbons) for (const point of ribbon.points) check(point.x, point.y, point.z);
+        for (const mark of drawn.floor) check(mark.x, mark.y, 0);
+      });
 
-    expect([...astray]).toEqual([]);
-  });
+      expect([...astray]).toEqual([]);
+    },
+    EVERY_FRAME_TIMEOUT_MS
+  );
 
   it('draws the same frame at the same moment, whatever was drawn before it', () => {
     const differing: string[] = [];
