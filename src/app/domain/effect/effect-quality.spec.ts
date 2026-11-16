@@ -65,7 +65,9 @@ function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; ca
  * bundled one takes; the looks of darkness by their grades, a mire and an eclipse over an area on
  * eight, a draining on three, and a great blade that lands in a black sphere; and the looks of space
  * and time by their grades, a blink and a summoning, a crush on six and a singularity over an area on
- * eight. The last of each is how many targets it is cast on, where that is not four.
+ * eight; a rift on three and a quake over an area on eight, a breath of sand, sickles of wind on
+ * four, waves of the void, a storm over an area on eight, and a great blade of wind. The last of each
+ * is how many targets it is cast on, where that is not four.
  */
 const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, number?])[] = [
   ...[...AILMENT_LOOKS, 'arc', 'haze'].map((moteStyle) => ['curse', { moteStyle, durationMs: 5500 }] as const),
@@ -107,6 +109,13 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, numbe
   ['darkorb', { targeting: 'multi', maxTargets: 8, areaRadius: 3, durationMs: 4206 }, 8],
   ['drain', { grade: 2, durationMs: 3239, staggerMs: 120 }, 3],
   ['skyblade', { impactKind: 'darkorb', durationMs: 3000 }],
+  ['quake', { grade: 2, durationMs: 2691, staggerMs: 140 }, 3],
+  ['quake', { targeting: 'multi', maxTargets: 8, areaRadius: 3, durationMs: 5042, staggerMs: 0 }, 8],
+  ['breath', { tagName: '土', durationMs: 4493 }],
+  ['slash', { tagName: '風', slashStyle: 'combo', grade: 2, durationMs: 2712, staggerMs: 160 }],
+  ['projectile', { projectileStyle: 'crescent', impactKind: 'vortex', tagName: '風', durationMs: 1000 }],
+  ['vortex', { moteStyle: 'arc', targeting: 'multi', maxTargets: 8, areaRadius: 3, durationMs: 3318, staggerMs: 0 }, 8],
+  ['skyblade', { impactKind: 'vortex', tagName: '風', durationMs: 3000 }],
   ['projectile', { projectileStyle: 'bullet', impactKind: 'rubble', shots: 14, shotInterval: 70, durationMs: 1300 }],
   ['projectile', { projectileStyle: 'missile', impactKind: 'burst' }],
   ['projectile', { projectileStyle: 'bullet', impactKind: 'impact', shots: 10, shotInterval: 90 }],

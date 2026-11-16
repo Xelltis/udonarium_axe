@@ -19,7 +19,8 @@ import { addBlizzardJolts, blizzardJoltsEndOf } from '@axe/domain/effect/ice-rea
 import { movesAsSpace } from '@axe/domain/effect/space-looks';
 import { addSpaceJolts, spaceJoltsEndOf } from '@axe/domain/effect/space-reaction';
 import { boltLookOf, CURRENT_BREAKS_AT, isLightning } from '@axe/domain/effect/thunder-looks';
-import { isGust, isTornado, tornadoTimingOf } from '@axe/domain/effect/wind-looks';
+import { blowsAsStorm, isGust, isTornado, tornadoTimingOf } from '@axe/domain/effect/wind-looks';
+import { addStormJolts, stormJoltsEndOf } from '@axe/domain/effect/wind-reaction';
 
 /** How far a piece is drawn off where it stands for a moment, in table pixels: x to the east, y to the south and z up. */
 export interface EffectJolt {
@@ -94,7 +95,7 @@ const LEANING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
  * breathes leans back as it draws the breath in, and each piece it blows on is pushed downwind and
  * trembles for as long as it is blown on. A tornado lands none either: it takes up the piece it
  * stands over and drags the rest it catches towards it; a blizzard shoves the piece it blows about
- * round and makes it shiver. A curse on its own lands none: the piece it
+ * round and makes it shiver; a storm lifts and whirls all it has caught, as `wind-reaction` has it. A curse on its own lands none: the piece it
  * is put on bears the state it is in for as long as its look plays. A great sword lands its blow as
  * its torrent is let go, and moves the pieces as a torrent does: each it strikes is thrown along it,
  * away from the one who wields the sword, and held back there for as long as it flows. Lightning shakes what it has hold
@@ -133,6 +134,10 @@ export function effectJoltsOf(
   }
   if (isTornado(preset)) {
     addTornadoJolts(preset, cast, elapsedMs, cellPx, add);
+    return jolts;
+  }
+  if (blowsAsStorm(preset)) {
+    addStormJolts(preset, cast, elapsedMs, cellPx, blows, add);
     return jolts;
   }
   if (isCurseAlone(preset)) {
@@ -201,6 +206,7 @@ export function joltsEndOf(preset: EffectPreset, cast: EffectCast, blows: readon
   }
   if (blowsAsBlizzard(preset)) return blizzardJoltsEndOf(preset, cast);
   if (isTornado(preset)) return tornadoTimingOf(preset.duration / 1000).goneAt * 1000 + lastTarget;
+  if (blowsAsStorm(preset)) return stormJoltsEndOf(preset, cast);
   if (isCurseAlone(preset)) return ailmentJoltsEndOf(preset, cast);
   if (swingsGreatSword(preset) && blows.length > 0) return greatSwordJoltsEndOf(preset, cast, blows[0].atMs);
   if (movesAsSpace(preset)) return spaceJoltsEndOf(preset, cast, blows);

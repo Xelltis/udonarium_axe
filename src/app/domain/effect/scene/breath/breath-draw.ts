@@ -40,6 +40,8 @@ const OVER_FLOOR = 0.3;
 const INK = '#07030c';
 const SICKLY = '#7fbf2a';
 const LEAVES = ['#7a8f3a', '#9aa84a', '#6b7d2e'] as const;
+const SAND_DEEP = '#3e2a18';
+const PEBBLES = ['#6b5a48', '#8f7a61', '#4f4136'] as const;
 
 /** A part of the stream: held to its own depth. */
 function deep(mote: EffectMote): EffectMote {
@@ -296,6 +298,24 @@ export function drawGout(brush: StreamBrush, layer: GoutLayer, gout: Gout, state
       if (pass === 2 && gout.edge < 0.7) shred('lick', lifted, 0.72, long * 0.7, { color: INK, alpha: dying });
       return;
     }
+    case 'sand': {
+      if (hot) {
+        if (pass === 2)
+          shred('lick', state.heading, 0.85, 3, {
+            color: ramp[3],
+            core: ramp[5],
+            alpha: 0.9 * dying * (1 - 0.4 * far),
+          });
+        return;
+      }
+      const sunk = risen(state.heading, -0.08 * far);
+      if (pass === 0)
+        shred('wisp', sunk, 1.6, 2.9, { color: mixColor(ramp[0], SAND_DEEP, 0.5), alpha: 0.9 * state.left });
+      if (pass === 1) shred('wisp', sunk, 1.22, 2.6, { color: ramp[2], core: ramp[3], alpha: 0.9 * state.left });
+      if (pass === 2 && gout.variant < 3)
+        shred('lick', sunk, 0.8, 2.2, { color: ramp[3], core: ramp[4], alpha: 0.85 * dying });
+      return;
+    }
     case 'holy':
       if (hot) {
         if (pass !== 2) return;
@@ -364,6 +384,8 @@ function streakOf(
       return [streak(gout.variant < 2 ? ramp[4] : ramp[3], 0.65, 0.05)];
     case 'holy':
       return [streak(ramp[5], 0.5, 0.08), glow(at, cell * 0.14, ramp[4], 0.3 * fading, forward)];
+    case 'sand':
+      return [{ ...streak(SAND_DEEP, 0.75, 0.06), size: gout.size * 1.3 }, streak(ramp[4], 0.95, 0.05)];
   }
 }
 
@@ -410,6 +432,10 @@ function curlOf(
       return [smokePuff(at, size * 1.5, mixColor(ramp[1], INK, 0.35), 0.4 * left, forward)];
     case 'wind':
       return [smokePuff(at, size, DUST, 0.28 * left, forward)];
+    case 'sand':
+      return [
+        drawnOut(smokePuff(at, wide * 1.2, mixColor(ramp[1], DUST, 0.4), 0.55 * left, forward), 'plume', leaning, long),
+      ];
     default:
       return [];
   }
@@ -474,6 +500,21 @@ function carriedOf(brush: StreamBrush, at: Point, gout: Gout, state: GoutState, 
         { ...ball(at, gout.size, ramp[1], left * glint, forward, 0), shape: 'star', spin: gout.variant },
         { ...ball(at, gout.size * 0.6, '#ffffff', left * glint, forward, 0), shape: 'star', spin: gout.variant },
       ];
+    case 'sand':
+      return [
+        {
+          ...ball(
+            at,
+            gout.size,
+            PEBBLES[Math.floor(gout.variant) % PEBBLES.length],
+            Math.min(1, left * 2),
+            forward,
+            gout.variant
+          ),
+          shape: 'chunk',
+          spin: turn * 2,
+        },
+      ];
   }
 }
 
@@ -494,5 +535,7 @@ export function hazeOf(look: BreathLook, ramp: readonly string[]): { readonly co
       return { color: mixColor(INK, ramp[0], 0.3), alpha: 0.4 };
     case 'holy':
       return { color: ramp[2], alpha: 0.12 };
+    case 'sand':
+      return { color: mixColor(ramp[2], DUST, 0.45), alpha: 0.34 };
   }
 }

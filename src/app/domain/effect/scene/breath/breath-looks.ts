@@ -12,10 +12,12 @@ import { isFiery } from '@axe/domain/effect/scene/effect-ramp';
  */
 
 /** The elements a breath is drawn as. */
-export type BreathElement = 'fire' | 'ice' | 'poison' | 'thunder' | 'wind' | 'dark' | 'holy';
+export type BreathElement = 'fire' | 'ice' | 'poison' | 'thunder' | 'wind' | 'dark' | 'holy' | 'sand';
 
 /** The family whose haze is a poison rather than a darkness. */
 const AILMENT_TAG = '状態異常';
+/** The family whose breath is a torrent of sand, where it names no particle of its own. */
+const EARTH_TAG = '土';
 
 /** How one element blows. Rates are a second at the middle grade, sizes in cells. */
 export interface BreathLook {
@@ -140,6 +142,27 @@ const HOLY: Omit<BreathLook, 'carries' | 'fiery'> = {
   light: 0.8,
 };
 
+const SAND: Omit<BreathLook, 'carries' | 'fiery'> = {
+  element: 'sand',
+  force: 1.3,
+  buoyancy: -0.3,
+  body: { rate: 95, pace: [0.85, 1.1], edge: [0.12, 1], size: [0.42, 0.62], rolls: 1.4, breaks: true, leaks: 0.12 },
+  core: { rate: 28, pace: [1.05, 1.25], edge: [0, 0.3], size: [0.2, 0.3], rolls: 0.4, breaks: true },
+  streaks: { rate: 90, pace: [1.5, 2.1], edge: [0, 0.95], size: [0.05, 0.08], rolls: 0.3, breaks: true, leaks: 0.2 },
+  curls: { rate: 14, pace: [0.6, 0.8], edge: [0.95, 1.1], size: [0.4, 0.6], rolls: 0.8, breaks: false, upper: true },
+  carried: {
+    rate: 30,
+    pace: [0.75, 1.1],
+    edge: [0.2, 1.05],
+    size: [0.1, 0.2],
+    rolls: 2.5,
+    breaks: false,
+    leaks: 0.8,
+    leaksCells: [0.5, 1.8],
+  },
+  light: 0,
+};
+
 const LOOKS: Record<BreathElement, Omit<BreathLook, 'carries' | 'fiery'>> = {
   fire: FIRE,
   ice: ICE,
@@ -148,6 +171,7 @@ const LOOKS: Record<BreathElement, Omit<BreathLook, 'carries' | 'fiery'>> = {
   wind: WIND,
   dark: DARK,
   holy: HOLY,
+  sand: SAND,
 };
 
 /**
@@ -155,9 +179,11 @@ const LOOKS: Record<BreathElement, Omit<BreathLook, 'carries' | 'fiery'>> = {
  * light; otherwise what it carries along its way says: sparks a fire, frost an ice, a current a
  * thunder, leaves a wind, and a haze a poison for the family of ailments and a darkness for any
  * other. One told to carry nothing is a fire where its colour is a fire's, and a cold mist otherwise.
+ * One of the family of earth that names no particle of its own is a torrent of sand.
  */
 export function breathElementOf(preset: EffectPreset): BreathElement {
   if (isGentleBreath(preset)) return 'holy';
+  if (preset.moteStyle.trim() === '' && preset.tagName.trim() === EARTH_TAG) return 'sand';
   switch (effectMoteOf(preset)) {
     case 'frost':
       return 'ice';

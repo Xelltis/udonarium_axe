@@ -5,7 +5,9 @@ import { type EffectPreset } from '@axe/domain/effect/effect-preset';
  * What the looks of earth are told apart by, and when each of them does what it does. A bolt that
  * lands in rubble is a shot of rock, a boulder thrown that breaks where it lands, unless it is of
  * another element. Rubble heaves the ground three times, and an upheaval runs to its target, bursts
- * up under it, stands and breaks; both throw what stands over them up rather than back.
+ * up under it, stands and breaks; both throw what stands over them up rather than back. A quake tears
+ * a rift from its caster to its target below the highest grade, and at the highest over an area
+ * heaves the ground of all of it three times.
  */
 
 /** The families that have an element other than earth: a shot of one of them is of that element, whatever it lands in. */
@@ -85,8 +87,49 @@ export function upheavalTimingOf(durationS: number, burstsAt: number): UpheavalT
 
 /**
  * Whether an effect heaves the ground under what it strikes, on its own rather than as a stage of a
- * run: rubble or an upheaval, which throws a piece up off the floor rather than back from its caster.
+ * run: rubble, an upheaval or a quake, which throws a piece up off the floor rather than back from
+ * its caster.
  */
 export function heavesGround(preset: Pick<EffectPreset, 'isStaged' | 'effectKind'>): boolean {
-  return !preset.isStaged && (preset.effectKind === 'rubble' || preset.effectKind === 'upheaval');
+  return (
+    !preset.isStaged &&
+    (preset.effectKind === 'rubble' || preset.effectKind === 'upheaval' || preset.effectKind === 'quake')
+  );
+}
+
+/** What a quake is drawn as: a rift torn from its caster to its target, or the ground of an area heaving. */
+export type QuakeLook = 'rift' | 'quake';
+
+type Quaking = Pick<EffectPreset, 'effectKind' | 'gradeLevel' | 'areaRadiusCells'>;
+
+/** What a quake is drawn as: the ground of an area heaving at the highest grade over an area, and a rift otherwise. */
+export function quakeLookOf(preset: Pick<EffectPreset, 'gradeLevel' | 'areaRadiusCells'>): QuakeLook {
+  return preset.gradeLevel === 3 && preset.areaRadiusCells > 0 ? 'quake' : 'rift';
+}
+
+/**
+ * When a quake strikes, in seconds and at the most as a share of its playback: a rift as it reaches
+ * its target, and the ground of an area at each of its three great heaves.
+ */
+const QUAKE_STRIKES: Record<QuakeLook, readonly (readonly [seconds: number, share: number])[]> = {
+  rift: [[0.3, 0.14]],
+  quake: [
+    [0.42, 0.09],
+    [1.88, 0.38],
+    [2.68, 0.54],
+  ],
+};
+/** How long before a quake first strikes its landing sounds, in seconds: the crack of rock peaks that much after it starts. */
+const QUAKE_SOUNDS_BEFORE_S = 0.1;
+
+/** When a quake strikes, in seconds of a playback of a length, earliest first; nothing for a look of any other kind. */
+export function quakeStrikesOf(preset: Quaking, durationS: number): number[] | undefined {
+  if (preset.effectKind !== 'quake') return undefined;
+  return QUAKE_STRIKES[quakeLookOf(preset)].map(([seconds, share]) => Math.min(seconds, durationS * share));
+}
+
+/** Where through its playback the landing of a quake sounds, as a share of it; nothing for any other kind. */
+export function quakeSoundsAt(preset: Quaking, durationS: number): number | undefined {
+  const strikes = quakeStrikesOf(preset, durationS);
+  return strikes && durationS > 0 ? Math.max(0, strikes[0] - QUAKE_SOUNDS_BEFORE_S) / durationS : undefined;
 }

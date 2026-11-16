@@ -7,6 +7,7 @@ import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import { DUST, SMOKE } from '@axe/domain/effect/scene/fire/fire-parts';
 import { floorMark, glow, lightningPaths, type Point, smokePuff } from '@axe/domain/effect/scene/parts';
 import { scatter } from '@axe/domain/effect/scene/wind/wind-parts';
+import { drawWindWake } from '@axe/domain/effect/scene/wind/wind-sword';
 
 /*
  * What the torrent of a great sword leaves along the whole of its path once it has passed: streaks
@@ -14,7 +15,8 @@ import { scatter } from '@axe/domain/effect/scene/wind/wind-parts';
  * torrent of fire; frost on the floor and flakes sifting down after one of ice; lightning still
  * crawling along the score of one of thunder; a line of crags torn up out of the ground by one of
  * earth, heaved up one after another as the torrent ran, with dust hanging over them; a black smoke
- * lying low after one of shadow; and stars twinkling out after one of light.
+ * lying low after one of shadow; stars twinkling out after one of light; and curls of wind turning
+ * along the path of one of wind, with leaves coming down.
  */
 
 /** How many motes drift up along the path. */
@@ -225,6 +227,9 @@ export function drawWake(drawn: Staged, pose: SwordPose, paint: SwordPaint, look
           )
         );
       });
+      return;
+    case 'wind':
+      drawWindWake(drawn, pose, paint, look);
       return;
     case 'dark':
       each(16, 1.9, (index, age, by) => {

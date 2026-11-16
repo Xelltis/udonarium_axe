@@ -34,7 +34,8 @@ export type EffectKind =
   | 'halo'
   | 'sanctuary'
   | 'shadow'
-  | 'darkorb';
+  | 'darkorb'
+  | 'quake';
 
 export type EffectTargeting = 'self' | 'single' | 'multi';
 
@@ -116,6 +117,7 @@ export const EFFECT_KINDS: readonly EffectKind[] = [
   'sanctuary',
   'shadow',
   'darkorb',
+  'quake',
 ];
 
 export const EFFECT_TARGETINGS: readonly EffectTargeting[] = ['self', 'single', 'multi'];

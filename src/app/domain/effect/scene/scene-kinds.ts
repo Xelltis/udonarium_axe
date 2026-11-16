@@ -36,6 +36,7 @@ export const SCENE_LINGER_S: Readonly<Partial<Record<EffectKind, number>>> = {
   mushroom: 2.5,
   nova: 2.2,
   projectile: 1.8,
+  quake: 1.8,
   raybeam: 1.2,
   rubble: 1.2,
   sanctuary: 1.2,

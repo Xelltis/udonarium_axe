@@ -25,6 +25,7 @@ describe('breathElementOf()', () => {
       EffectPreset_breath_fire: 'fire',
       EffectPreset_breath_ice: 'ice',
       EffectPreset_breath_poison: 'poison',
+      EffectPreset_breath_earth: 'sand',
     });
   });
 
@@ -44,6 +45,13 @@ describe('breathElementOf()', () => {
     expect(breathElementOf(breathOf({ tagName: '', moteStyle: 'haze' }))).toBe('dark');
     expect(breathElementOf(breathOf({ tagName: '状態異常', moteStyle: 'haze' }))).toBe('poison');
     expect(breathElementOf(breathOf({ tagName: 'うちの技' }))).toBe('fire');
+  });
+
+  it('takes a breath of the family of earth for a torrent of sand, unless it names a particle of its own', () => {
+    expect(breathElementOf(breathOf({ tagName: '土' }))).toBe('sand');
+    expect(breathElementOf(breathOf({ tagName: ' 土 ' }))).toBe('sand');
+    expect(breathElementOf(breathOf({ tagName: '土', moteStyle: 'frost' }))).toBe('ice');
+    expect(breathLookOf(breathOf({ tagName: '土' })).buoyancy).toBeLessThan(0);
   });
 
   it('draws one told to carry nothing by its colour, and has it carry nothing', () => {
