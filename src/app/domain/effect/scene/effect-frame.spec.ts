@@ -476,24 +476,63 @@ describe('where an effect aimed from its caster leaves it', () => {
   });
 
   it.each(['raybeam', 'arc', 'drain'] as const)(
-    'still leaves %s from over the middle of the caster, however large the caster is',
+    'leaves %s from the hands of a caster of one cell over its middle, and of a larger one before its body and higher',
     (kind) => {
       const preset = makePreset(kind, { durationMs: 1000 });
       const at = kind === 'raybeam' ? 100 : 500;
-      const leaves = (cells: number) => {
-        const drawn = staged(preset, cast, at, from(cells));
-        return drawn.motes.filter((mote) => mote.x === hands.x && mote.y === hands.y && mote.z === hands.z).length;
-      };
+      const leavesFrom = (cells: number, point: { x: number; y: number; z: number }) =>
+        staged(preset, cast, at, from(cells)).motes.filter(
+          (mote) => mote.x === point.x && mote.y === point.y && mote.z === point.z
+        ).length;
 
-      expect(leaves(1)).toBeGreaterThan(0);
-      expect(JSON.stringify(staged(preset, cast, at, from(3)))).toBe(JSON.stringify(staged(preset, cast, at, from(1))));
+      expect(leavesFrom(1, hands)).toBeGreaterThan(0);
+      expect(leavesFrom(3, hands)).toBe(0);
+      expect(leavesFrom(3, { x: 550, y: 100, z: 90 })).toBeGreaterThan(0);
+      expect(leavesFrom(2, { x: 575, y: 100, z: 60 })).toBeGreaterThan(0);
     }
   );
 
-  it('still looses a shot from over the middle of the caster', () => {
-    const preset = makePreset('projectile', { durationMs: 1000 });
+  it('leaves from over the middle of a caster smaller than a cell, a cell’s hands high', () => {
+    const preset = makePreset('arc', { durationMs: 1000 });
 
-    expect(JSON.stringify(staged(preset, cast, 150, from(3)))).toBe(JSON.stringify(staged(preset, cast, 150, from(1))));
+    expect(JSON.stringify(staged(preset, cast, 500, from(0.5)))).toBe(
+      JSON.stringify(staged(preset, cast, 500, from(1)))
+    );
+  });
+
+  it.each([
+    [1, 3],
+    [3, 1],
+  ])(
+    'lays what a great beam leaves on the floor under its muzzle on the floor, from a caster of %i cells at one of %i',
+    (casterCells, targetCells) => {
+      const preset = makePreset('beam', { durationMs: 3000, grade: 3, staggerMs: 0 });
+      const sized: Partial<EffectStagingOptions> = {
+        ...from(casterCells),
+        resolveSize: (identifier) => (identifier === 'caster' ? casterCells : targetCells),
+      };
+      const heights = new Set<number>();
+      for (let at = 0; at <= 3000; at += 100) {
+        for (const mark of staged(preset, cast, at, sized).floor) heights.add(Math.round(mark.z));
+      }
+
+      expect([...heights]).toEqual([0]);
+    }
+  );
+
+  it('looses a shot from before the body of a larger caster and higher, rather than out of its middle', () => {
+    const preset = makePreset('projectile', { durationMs: 1000 });
+    const nearestTo = (cells: number, point: { x: number; y: number; z: number }) =>
+      Math.min(
+        ...staged(preset, cast, 20, from(cells)).motes.map((mote) =>
+          Math.hypot(mote.x - point.x, mote.y - point.y, mote.z - point.z)
+        )
+      );
+    const before = { x: 550, y: 100, z: 90 };
+
+    expect(nearestTo(1, hands)).toBeLessThan(CELL * 0.3);
+    expect(nearestTo(3, before)).toBeLessThan(CELL * 0.3);
+    expect(nearestTo(3, hands)).toBeGreaterThan(CELL);
   });
 });
 

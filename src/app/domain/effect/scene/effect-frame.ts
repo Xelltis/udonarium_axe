@@ -30,7 +30,7 @@ import { quake, struckQuake } from '@axe/domain/effect/scene/earth/quake';
 import { rubble } from '@axe/domain/effect/scene/earth/rubble';
 import { struckImpact, struckRubble } from '@axe/domain/effect/scene/earth/struck';
 import { upheaval } from '@axe/domain/effect/scene/earth/upheaval';
-import { type BreathingBody, mouthBefore } from '@axe/domain/effect/scene/effect-mouth';
+import { type BreathingBody, handsBefore, mouthBefore } from '@axe/domain/effect/scene/effect-mouth';
 import { burst } from '@axe/domain/effect/scene/fire/burst';
 import { flame } from '@axe/domain/effect/scene/fire/flame';
 import { mushroom } from '@axe/domain/effect/scene/fire/mushroom';
@@ -244,7 +244,7 @@ function stageRun(
   const { windows } = stageLayoutOf(preset.stageList);
   const base = options.cellPx * preset.sizeScale;
   const casterFooting = casterFootingOf(cast, options);
-  const caster = originOf(cast, casterFooting, options);
+  const caster = originOf(cast, casterFooting, standingTargets(preset, cast, options), options);
   const body = bodyOf(cast, casterFooting, options);
   const views = windows.map((window) => stageView(preset, window));
   // When each stage's blows land, worked out once a frame for every target the run strikes.
@@ -328,8 +328,8 @@ export function stageEffect(
   const base = options.cellPx * preset.sizeScale;
   const blowsAt = effectBlowsOf(preset).map((blow) => blow.atMs / 1000);
   const casterFooting = casterFootingOf(cast, options);
-  const origin = originOf(cast, casterFooting, options);
   const targets = standingTargets(preset, cast, options);
+  const origin = originOf(cast, casterFooting, targets, options);
   const body = bodyOf(cast, casterFooting, options);
   const mouth: StageMouth | null = body && mouthBefore(body, targets);
   const bystanders = BREAKS_ON_BYSTANDERS.has(preset.effectKind) ? bystandersOf(cast, options) : undefined;
@@ -372,7 +372,7 @@ export function stageEffect(
 /** How short and how tall a target is counted against its width, however it is drawn: a picture laid flat, or a banner. */
 const SHORTEST_BY_WIDTH = 0.5;
 const TALLEST_BY_WIDTH = 3;
-/** How high over a caster's foot an effect aimed from it leaves it, in cells of the table: from its hands. */
+/** How high over the foot of a caster where it was cast from an effect aimed from it leaves it, in cells of the table: from its hands. */
 const AIMED_FROM_CELLS = 0.6;
 
 /** Where the caster of a cast stands as it is drawn now; null for a caster that is not drawn, or for none. */
@@ -381,11 +381,17 @@ function casterFootingOf(cast: EffectCast, options: EffectStagingOptions): Effec
 }
 
 /**
- * Where an effect aimed from its caster leaves it: from the caster as it is drawn now, or else where
- * it stood as it was cast; null for one cast from nowhere.
+ * Where an effect aimed from its caster leaves it: from the hands of the caster as it is drawn now,
+ * before a large one's body towards what it is aimed at, or else where it stood as it was cast; null
+ * for one cast from nowhere.
  */
-function originOf(cast: EffectCast, caster: EffectFooting | null, options: EffectStagingOptions) {
-  if (caster) return { x: caster.x, y: caster.y, z: caster.z + options.cellPx * AIMED_FROM_CELLS };
+function originOf(
+  cast: EffectCast,
+  caster: EffectFooting | null,
+  aims: readonly StageTarget[],
+  options: EffectStagingOptions
+) {
+  if (caster) return handsBefore({ ...caster, widthPx: widthOf(cast.casterIdentifier, options) }, aims, options.cellPx);
   return cast.origin ? { x: cast.origin.x, y: cast.origin.y, z: cast.origin.z } : null;
 }
 

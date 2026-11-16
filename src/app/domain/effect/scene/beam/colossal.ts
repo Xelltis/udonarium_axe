@@ -18,6 +18,7 @@ import {
   type Washed,
 } from '@axe/domain/effect/scene/beam/beam-parts';
 import { nothingStaged, type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
+import { footUnder } from '@axe/domain/effect/scene/effect-mouth';
 import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import { type ThrownMote } from '@axe/domain/effect/scene/effect-sim';
 import { drawSpark, layShockRing, thrownSparks } from '@axe/domain/effect/scene/fire/fire-parts';
@@ -98,7 +99,7 @@ export function colossalLineOf(stage: Stage, wide: number): ColossalLine {
     const dy = strike.y - base.y;
     const far = Math.hypot(dx, dy) || 1;
     const before = Math.min(cell * BEFORE, far * BEFORE_AT_MOST);
-    floorZ = stage.origin.z - (cell / stage.preset.sizeScale) * 0.6;
+    floorZ = stage.mouth ? footUnder(stage.mouth) : stage.origin.z - (cell / stage.preset.sizeScale) * 0.6;
     muzzle = { x: base.x + (dx / far) * before, y: base.y + (dy / far) * before, z: Math.max(base.z, floorZ + high) };
   } else {
     const off = (cell * FROM_NOWHERE) / Math.SQRT2;
