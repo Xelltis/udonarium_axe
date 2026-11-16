@@ -67,21 +67,25 @@
   </div>
 </div>
 @if (aimTip(); as tip) {
-  <div class="pointer-events-none" [appHudPlace]="{ owner: id, raised: true }">
-    @if (!isLock()) {
-      <div
-        data-hud-control
-        data-testid="range-aim-grab"
-        class="border-ui-border-panel bg-ui-elevated text-ui-muted pointer-events-none box-border flex size-10.5 cursor-grab items-center justify-center rounded-full border-2 border-solid p-0 opacity-0 group-hover:pointer-events-auto group-hover:opacity-86 group-active:pointer-events-auto group-active:opacity-86 [&_.material-icons]:text-[26px]!"
-        [appHudPlace]="{ owner: id, at: tip }"
-        [appSolidAim]="range()"
-        (aimStart)="onMove()"
-        (aimEnd)="onMoved()"
-      >
-        <i class="material-icons">my_location</i>
-      </div>
-    }
-  </div>
+  @defer (on immediate) {
+    <div class="pointer-events-none" [appHudPlace]="{ owner: id, raised: true }">
+      @if (!isLock()) {
+        <div
+          data-hud-control
+          data-testid="range-aim-grab"
+          class="border-ui-border-panel bg-ui-elevated text-ui-muted pointer-events-none box-border flex size-10.5 cursor-grab items-center justify-center rounded-full border-2 border-solid p-0 opacity-0 group-hover:pointer-events-auto group-hover:opacity-86 group-active:pointer-events-auto group-active:opacity-86 [&_.material-icons]:text-[26px]!"
+          [appHudPlace]="{ owner: id, at: tip }"
+          [appSolidAim]="range()"
+          (aimStart)="onMove()"
+          (aimEnd)="onMoved()"
+        >
+          <i class="material-icons">my_location</i>
+        </div>
+      }
+    </div>
+  } @error {
+    <ng-container appReloadNotice />
+  }
 }
 <div class="pointer-events-none fixed top-0 left-0 opacity-0">
   <div class="absolute" #cells [style.width.px]="0" [style.height.px]="0" [style.clip-path]="clipPath()">

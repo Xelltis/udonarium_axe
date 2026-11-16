@@ -69,6 +69,7 @@ import { trackLazyLoad } from '@axe/core/util/lazy-loads';
 import { observeSize } from '@axe/core/util/observe-size';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { glideToCentre } from '@axe/domain/tabletop/camera/camera-glide';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
@@ -734,6 +735,19 @@ export class GameTableComponent {
     this.objectChangeService.collectionOf('range')();
     return this.tabletopService.ranges;
   });
+  /**
+   * Whether any ruler is to be read on the table: this seat's own in hand, one another seat is laying,
+   * or one left lying on it. The overlay that says what they measure is not loaded before.
+   */
+  protected readonly measuresAnything = computed(() => {
+    if (this.ruler.inHand() || this.tableRulers().length > 0) return true;
+    this.objectChangeService.collectionOf(PeerCursor.aliasName)();
+    return this.objectStore.getObjects<PeerCursor>(PeerCursor).some((cursor) => {
+      this.objectChangeService.versionOf(cursor.identifier)();
+      return cursor.measuring !== '';
+    });
+  });
+
   /** The rulers left lying on the table. */
   readonly tableRulers = computed(() => {
     this.objectChangeService.collectionOf(TableRuler.aliasName)();

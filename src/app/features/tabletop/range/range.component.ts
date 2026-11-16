@@ -54,6 +54,7 @@ import {
 import { AltitudeGuideComponent, altitudeGuideOf } from '@axe/ui/components/altitude-guide/altitude-guide.component';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
+import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
@@ -77,6 +78,7 @@ const FOLLOW_PANEL: PointerPanelBox = { width: 350, height: 200, reachLeft: 250,
     RotableDirective,
     SelectableDirective,
     SolidAimDirective,
+    ReloadNoticeDirective,
   ],
   host: {
     class: 'group',
