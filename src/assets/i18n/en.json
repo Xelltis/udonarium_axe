@@ -621,6 +621,7 @@
       "typeNote": "Shared note",
       "typeTerrain": "Terrain",
       "typeRange": "Range",
+      "typeRuler": "Ruler",
       "locTable": "Table",
       "locCommon": "Common",
       "locGraveyard": "Graveyard",
