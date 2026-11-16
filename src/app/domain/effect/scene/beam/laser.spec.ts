@@ -6,6 +6,8 @@ import { nothingStaged, type Staged } from '@axe/domain/effect/scene/choreograph
 import { stageEffect } from '@axe/domain/effect/scene/effect-frame';
 
 const CELL = 50;
+/** How many points the beam itself is laid through. */
+const LINE_POINTS = 12;
 
 function laserOf(): EffectPreset {
   const preset = new EffectPreset('laser');
@@ -34,7 +36,9 @@ function staged(preset: EffectPreset, ms: number): Staged {
 
 /** Where the beam touches: the far end of its white heart. */
 function touchOf(drawn: Staged): { x: number; y: number; z: number } | undefined {
-  return drawn.ribbons.find((ribbon) => ribbon.color === '#ffffff' && ribbon.points.length === 3)?.points[2];
+  return drawn.ribbons.find(
+    (ribbon) => ribbon.color === '#ffffff' && ribbon.blend === 'color' && ribbon.points.length === LINE_POINTS
+  )?.points[LINE_POINTS - 1];
 }
 
 describe('a laser', () => {
@@ -52,13 +56,28 @@ describe('a laser', () => {
     expect(aiming.floor.some((mark) => mark.shape === 'ring' && mark.x < 500 - CELL)).toBe(true);
   });
 
-  it('lights at once, long before it lands its blow, in a dark rim under a white heart', () => {
+  it('lights at once, long before it lands its blow, in a dark rim under a thin white heart', () => {
     const lit = staged(preset, timing.lightsAt * 1000 + 100);
-    const bands = lit.ribbons.filter((ribbon) => ribbon.blend === 'color' && ribbon.points.length === 3);
+    const bands = lit.ribbons.filter((ribbon) => ribbon.blend === 'color' && ribbon.points.length === LINE_POINTS);
+    const widest = (widths: number | readonly number[]) => (typeof widths === 'number' ? widths : Math.max(...widths));
 
     expect(timing.lightsAt).toBeLessThan(0.2);
     expect(bands.at(-1)!.color).toBe('#ffffff');
-    expect((bands[1].widths as number) > (bands.at(-1)!.widths as number) * 3).toBe(true);
+    expect(widest(bands[1].widths) > widest(bands.at(-1)!.widths) * 5).toBe(true);
+  });
+
+  it('lights with a slam where it first touches the floor, and pops what it burnt as it is cut off', () => {
+    const flashAt = (ms: number) =>
+      Math.max(
+        0,
+        ...staged(preset, ms)
+          .motes.filter((mote) => mote.shape === 'puff' && mote.color === '#ffffff')
+          .map((mote) => mote.size)
+      );
+
+    expect(flashAt(timing.lightsAt * 1000 + 30)).toBeGreaterThan(CELL);
+    expect(flashAt(timing.cutAt * 1000 + 30)).toBeGreaterThan(CELL);
+    expect(flashAt(timing.cutAt * 1000 + 300)).toBe(0);
   });
 
   it('cuts its way along the floor towards its target, then climbs it and takes hold as its blow lands', () => {
@@ -101,7 +120,9 @@ describe('a laser', () => {
 
   it('thins as it is cut off, hangs in the air for a moment as a line, and is gone', () => {
     const heart = (ms: number) =>
-      staged(preset, ms).ribbons.find((ribbon) => ribbon.color === '#ffffff' && ribbon.points.length === 3);
+      staged(preset, ms).ribbons.find(
+        (ribbon) => ribbon.color === '#ffffff' && ribbon.blend === 'color' && ribbon.points.length === LINE_POINTS
+      );
     const cutting = (timing.breaksAt + timing.cutAt) * 500;
 
     expect(heart(cutting)!.widths as number).toBeLessThan((heart(holds + 300)!.widths as number) * 0.8);

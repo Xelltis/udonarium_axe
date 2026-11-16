@@ -23,7 +23,7 @@ const SHAKES = 0.022;
 /** How long a piece takes to be pressed back as far as it goes, in milliseconds. */
 const PRESSED_IN_MS = 140;
 /** How far a piece a laser has hold of shakes each way, as a share of a cell. */
-const BURNT_SHAKES = 0.02;
+const BURNT_SHAKES = 0.03;
 
 type Add = (identifier: string, jolt: { x: number; y: number; z: number }) => void;
 
