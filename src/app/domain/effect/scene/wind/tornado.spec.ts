@@ -1,3 +1,4 @@
+import { hexChannels } from '@axe/core/util/hex-color';
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { nothingStaged, type Staged } from '@axe/domain/effect/scene/choreography';
@@ -71,6 +72,15 @@ describe('a tornado', () => {
     expect(standsOf(staged(tornado, cast, 150)).top).toBeLessThan(standsOf(staged(tornado, cast, 300)).top);
     expect(standsOf(staged(tornado, cast, 500)).top).toBeCloseTo(standsOf(staged(tornado, cast, 1500)).top, 0);
     expect(standsOf(staged(tornado, cast, 1500)).top).toBeGreaterThan(CELL * 5);
+  });
+
+  it('sheathes its body in a slate dark enough to hold over a bright table', () => {
+    const [sheath] = bodyOf(staged(tornadoOf(), castOn([CENTRE]), 1500));
+    const [red, green, blue] = hexChannels(sheath.color)!;
+
+    expect(sheath.alpha).toBeGreaterThanOrEqual(0.8);
+    expect((0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255).toBeLessThan(0.25);
+    expect(Math.max(...(sheath.widths as number[]))).toBeGreaterThan(CELL * 3.5);
   });
 
   it('is a funnel: narrow where it grinds at the floor and many times wider under its crown', () => {

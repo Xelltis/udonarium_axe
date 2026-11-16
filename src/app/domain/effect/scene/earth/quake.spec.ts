@@ -124,4 +124,19 @@ describe('a quake over an area', () => {
       ObjectStore.instance.remove(preset);
     }
   });
+
+  it('turns white at every heave for long enough to be seen, before its slabs land and its dust rises', () => {
+    const preset = bundled('大地震');
+    try {
+      for (const blow of effectBlowsOf(preset)) {
+        const white = drawnAt(preset, cast, blow.atMs + 100).motes.filter(
+          (mote) => mote.blend === 'light' && mote.shape === 'puff' && mote.size > CELL
+        );
+
+        expect(white.length).toBeGreaterThan(0);
+      }
+    } finally {
+      ObjectStore.instance.remove(preset);
+    }
+  });
 });

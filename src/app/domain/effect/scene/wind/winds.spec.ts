@@ -1,4 +1,5 @@
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { hexChannels } from '@axe/core/util/hex-color';
 import { createEffectPreset, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
@@ -7,6 +8,7 @@ import { effectJoltsOf } from '@axe/domain/effect/effect-reaction';
 import { effectShakeOf } from '@axe/domain/effect/effect-shake';
 import { nothingStaged, type Staged } from '@axe/domain/effect/scene/choreography';
 import { stageEffect } from '@axe/domain/effect/scene/effect-frame';
+import { sceneLingerMsOf } from '@axe/domain/effect/scene/scene-kinds';
 import { slashHits } from '@axe/domain/effect/timeline/blade';
 import { projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
 
@@ -74,6 +76,61 @@ describe('a storm', () => {
   });
 });
 
+describe('a storm and a tornado', () => {
+  /** The shadow sheet of a funnel's body: the widest band laid just before the first band set to one side. */
+  function funnelSheathOf(drawn: Staged) {
+    const lit = drawn.ribbons.findIndex((ribbon) => ribbon.leans !== undefined);
+    return drawn.ribbons[lit - 1];
+  }
+
+  function lightness(color: string): number {
+    const [red, green, blue] = hexChannels(color)!;
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  }
+
+  it('stands the funnel of a storm clearly larger and darker than a tornado', () => {
+    const storm = bundled('大嵐');
+    const tornado = bundled('竜巻');
+    const cast = castOn([400, 300]);
+    try {
+      const big = funnelSheathOf(drawnAt(storm, cast, 1500));
+      const small = funnelSheathOf(drawnAt(tornado, cast, 1500));
+      const widest = (ribbon: typeof big) => Math.max(...(ribbon.widths as number[]));
+
+      expect(widest(big)).toBeGreaterThan(widest(small) * 1.15);
+      expect(lightness(big.color)).toBeLessThan(lightness(small.color));
+    } finally {
+      ObjectStore.instance.remove(storm);
+      ObjectStore.instance.remove(tornado);
+    }
+  });
+});
+
+describe('a great sword of wind', () => {
+  it('corkscrews a few thick sheathed bands along its torrent, with few lines of speed among them', () => {
+    const preset = bundled('風の大剣');
+    const cast = castOn([500, 300]);
+    try {
+      const flowing = drawnAt(preset, cast, effectBlowsOf(preset)[0].atMs + 250);
+      const bands = flowing.ribbons.filter((ribbon) => ribbon.half === 'near' && ribbon.points.length >= 30);
+      const lines = flowing.ribbons.filter(
+        (ribbon) =>
+          ribbon.points.length === 3 &&
+          ribbon.color === '#ffffff' &&
+          ribbon.core === undefined &&
+          (ribbon.widths as number[])[0] === 0
+      );
+
+      expect(bands.length).toBeGreaterThan(0);
+      expect(bands.length).toBeLessThanOrEqual(6);
+      expect(bands.some((band) => band.core === undefined && band.color !== '#ffffff')).toBe(true);
+      expect(lines.length).toBeLessThanOrEqual(6);
+    } finally {
+      ObjectStore.instance.remove(preset);
+    }
+  });
+});
+
 describe('sickles of wind', () => {
   it('leave a cut hanging through the target for every stroke the form of the cut makes', () => {
     const preset = bundled('鎌鼬');
@@ -114,6 +171,28 @@ describe('a wave of the void', () => {
           )
         )
       ).toBe(true);
+    } finally {
+      ObjectStore.instance.remove(preset);
+    }
+  });
+
+  it('goes on slicing at its target in a low gale of blades while its landing sounds, and has settled before it clears', () => {
+    const preset = bundled('真空波');
+    const cast = castOn([300, 300]);
+    try {
+      const landsAt = projectileTiming(preset).shots[0].land * preset.duration;
+      const ends = preset.duration + sceneLingerMsOf(preset);
+      const whirling = drawnAt(preset, cast, landsAt + 1200);
+      const blades = whirling.ribbons.filter((ribbon) => ribbon.half !== undefined);
+      const cuts = whirling.ribbons.filter((ribbon) => ribbon.points.length === 5 && ribbon.color === '#ffffff');
+
+      expect(blades.length).toBeGreaterThan(8);
+      expect(cuts.length).toBeGreaterThan(0);
+      for (const point of blades.flatMap((ribbon) => ribbon.points)) {
+        expect(Math.hypot(point.x - 300, point.y - 300)).toBeLessThan(CELL * 3);
+        expect(point.z).toBeLessThan(CELL * 4);
+      }
+      expect(drawnAt(preset, cast, ends - 200).ribbons.filter((ribbon) => ribbon.half !== undefined)).toEqual([]);
     } finally {
       ObjectStore.instance.remove(preset);
     }

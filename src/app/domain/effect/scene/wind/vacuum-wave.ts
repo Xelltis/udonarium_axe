@@ -16,6 +16,7 @@ import {
   starBurst,
   throwerFor,
 } from '@axe/domain/effect/scene/parts';
+import { drawVacuumGale } from '@axe/domain/effect/scene/wind/vacuum-gale';
 import {
   alongWay,
   curlRibbon,
@@ -35,7 +36,9 @@ import {
  * in it churns, two afterimages behind it and streaks peeled off its horns, and it ploughs a furrow of
  * dust along the floor under it. It slices through its target in a white line and bursts there into a
  * ring of wind racing out level about the target, the far half of it behind the piece and the near
- * half before it, throwing leaves and dust out over the floor; curls of wind are left turning there.
+ * half before it, throwing leaves and dust out over the floor; a low gale of blades goes on slicing
+ * at the piece for as long as the landing sounds and settles (see vacuum-gale), and curls of wind
+ * are left turning there.
  *
  * Every length is in cells.
  */
@@ -191,8 +194,8 @@ const burstByStage = new Map<string, BurstThrow>();
 
 /**
  * Where a wave of the void lands, on the landing's own clock: a white line sliced through the target,
- * a ring of wind racing out level about it, leaves and dust thrown out over the floor, and curls of
- * wind left turning there.
+ * a ring of wind racing out level about it, leaves and dust thrown out over the floor, a gale of
+ * blades slicing on at the piece until it dies down, and curls of wind left turning there.
  */
 export function drawVacuumBurst(stage: Stage): Staged {
   const drawn = nothingStaged();
@@ -205,7 +208,8 @@ export function drawVacuumBurst(stage: Stage): Staged {
   const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
   const chest = { x: stage.x, y: stage.y, z: stage.z + Math.max(stage.tall * 0.5, U * 0.3) };
   const forward = U * 0.4;
-  const full = stage.preset.shotCount * Math.max(1, stage.targets.length) <= CROWDED;
+  const crowd = stage.preset.shotCount * Math.max(1, stage.targets.length);
+  const full = crowd <= CROWDED;
   const thrown = keptFor(burstByStage, stageKey(stage, ends), () => {
     const th = throwerFor(stage, ends);
     return {
@@ -226,14 +230,20 @@ export function drawVacuumBurst(stage: Stage): Staged {
   const { side } = acrossOf(way);
   if (t < 0.3) {
     const sliced = 1 - t / 0.3;
-    const points = [alongWay(chest, side, -U * 1.3), chest, alongWay(chest, side, U * 1.3)];
-    drawn.ribbons.push(
-      { points, widths: [0, U * 0.22 * sliced, 0], color: paint.shadow, alpha: 0.7 * sliced, blend: 'color' },
-      { points, widths: [0, U * 0.1 * sliced, 0], color: '#ffffff', alpha: sliced, blend: 'color' }
-    );
-    drawn.motes.push(...starBurst(chest, U * 2.2, paint.pale, t / 0.3, U * 0.5, 6, stage.seed));
-    drawn.motes.push(glow(chest, U * 2, '#ffffff', 0.7 * sliced, forward));
+    for (const [cut, tipped] of [0.18, -0.55].entries()) {
+      if (cut === 1 && (t < 0.04 || !full)) continue;
+      const across = { x: side.x, y: side.y, z: tipped };
+      const points = [alongWay(chest, across, -U * 1.7), chest, alongWay(chest, across, U * 1.7)];
+      drawn.ribbons.push(
+        { points, widths: [0, U * 0.34 * sliced, 0], color: paint.shadow, alpha: 0.8 * sliced, blend: 'color' },
+        { points, widths: [0, U * 0.15 * sliced, 0], color: '#ffffff', alpha: sliced, blend: 'color' }
+      );
+    }
+    drawn.motes.push(...starBurst(chest, U * 2.6, paint.pale, t / 0.3, U * 0.5, 8, stage.seed));
+    drawn.motes.push(glow(chest, U * 2.3, '#ffffff', 0.75 * sliced, forward));
+    if (t < 0.1) drawn.floor.push(floorMark('disc', floor, U * 1.8, 1, '#ffffff', 0.45 * (1 - t / 0.1), 'light', 0));
   }
+  drawVacuumGale(drawn, stage, floor, chest, ends, paint, crowd);
   layRing(drawn, floor, chest, t, U, paint, full ? 30 : 16);
   if (full) layRing(drawn, floor, chest, t - 0.08, U * 0.8, paint);
   layShockRing(drawn, floor, U * 0.4, U * RING_CELLS * 1.1, U * 0.35, paint.dust, t, 0.55);

@@ -35,7 +35,7 @@ import { stormStrikesOf, tornadoTimingOf } from '@axe/domain/effect/wind-looks';
  */
 
 /** How much larger than a tornado the funnel of a storm is drawn. */
-const GROWS = 1;
+const GROWS = 1.25;
 /** How high over the floor the cloud hangs, in cells of the storm's funnel, and how far out over the area it spreads at the least. */
 const CLOUD_HIGH_CELLS = 4;
 const CLOUD_LEAST_CELLS = 2.8;

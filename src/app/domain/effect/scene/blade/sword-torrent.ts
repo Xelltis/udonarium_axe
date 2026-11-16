@@ -42,8 +42,10 @@ const SHREDS = 30;
 /** How many surges run down the torrent at once, and where along each its band is drawn through, from its tail to its head. */
 const SURGES = 6;
 const SURGE_SHARES = [-1, -0.6, -0.2, 0.2, 0.6, 1];
-/** How many lines of speed run along it. */
+/** How many lines of speed run along it; and how many lines and streaks run along one of wind, whose own bands would be lost among more. */
 const LINES = 26;
+const WIND_LINES = 6;
+const WIND_STREAKS = 24;
 /** How fast the streaks race, in cells a second. */
 const STREAK_CELLS_S = 30;
 
@@ -160,6 +162,7 @@ export function drawTorrent(drawn: Staged, pose: SwordPose, paint: SwordPaint, l
   const flowed = -(since * STREAK_CELLS_S * 0.6 * U) / pose.thick;
   const span = head - tail;
   const dark = paint.element === 'dark';
+  const windy = paint.element === 'wind';
   for (let surge = 0; surge < SURGES; surge++) {
     const middle = tail + span * ((since * 2.1 + surge / SURGES) % 1);
     const reach = U * (1.6 + 0.9 * scatter(surge, seed + 11));
@@ -180,7 +183,7 @@ export function drawTorrent(drawn: Staged, pose: SwordPose, paint: SwordPaint, l
   drawn.ribbons.push(
     ...substanceBands(points, widths, whitened(paint, flash * 0.75), { alpha: look.alpha, torn: 0.4, flowed })
   );
-  for (let line = 0; line < LINES; line++) {
+  for (let line = 0; line < (windy ? WIND_LINES : LINES); line++) {
     const outside = line % 3 === 0;
     const middle = tail + span * ((since * (2.6 + 1.8 * scatter(line, seed + 12)) + scatter(line, seed + 13)) % 1);
     const reach = U * (0.9 + 1.2 * scatter(line, seed + 14));
@@ -209,7 +212,7 @@ export function drawTorrent(drawn: Staged, pose: SwordPose, paint: SwordPaint, l
   }
   const forward = U * 0.3;
   const pace = STREAK_CELLS_S * U;
-  for (let index = 0; index < STREAKS; index++) {
+  for (let index = 0; index < (windy ? WIND_STREAKS : STREAKS); index++) {
     const by =
       tail + ((since * pace * (0.7 + 0.6 * scatter(index, seed + 1)) + scatter(index, seed + 2) * span) % span);
     const wide = torrentWidthAt(pose, look, by);

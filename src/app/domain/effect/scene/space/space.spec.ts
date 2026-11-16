@@ -70,6 +70,15 @@ describe('a blink', () => {
     expect(drawn.motes.some((mote) => mote.shape === 'gust')).toBe(true);
   });
 
+  it('tears its afterimage away in heavy lines of colour over dark rims', () => {
+    const torn = stagedAt(preset, cast, snaps + 0.2).motes.filter(
+      (mote) => mote.shape === 'puff' && mote.blend === 'color' && mote.aside !== undefined
+    );
+
+    expect(torn.length).toBeGreaterThanOrEqual(100);
+    expect(Math.max(...torn.map((mote) => mote.size))).toBeGreaterThan(CELL * 0.1);
+  });
+
   it('leaves glints and a fading mark after the snap, and nothing once it has cleared', () => {
     const late = stagedAt(preset, cast, 1.8);
 
@@ -139,13 +148,31 @@ describe('a summoning', () => {
     const written = seals(drawn);
     const middle = { x: (AT.x + 520 + 460) / 3, y: (AT.y + 300 + 400) / 3 };
     const far = Math.max(...several.targets.map((target) => Math.hypot(target.x - middle.x, target.y - middle.y)));
-    const pillars = drawn.ribbons.filter((ribbon) => ribbon.points[ribbon.points.length - 1].z > CELL * 2);
+    const pillars = drawn.ribbons.filter(
+      (ribbon) => ribbon.about !== undefined && ribbon.points[ribbon.points.length - 1].z > CELL * 2
+    );
 
     expect(new Set(written.map((mark) => `${mark.x.toFixed(1)},${mark.y.toFixed(1)}`))).toEqual(
       new Set([`${middle.x.toFixed(1)},${middle.y.toFixed(1)}`])
     );
     expect(Math.min(...written.map((mark) => mark.radius))).toBeGreaterThan(far);
     expect(new Set(pillars.map((ribbon) => Math.round(ribbon.about![0].x))).size).toBe(3);
+  });
+
+  it('lays its circle in heavy lines over a near black underlay, a body of its deep colour and a heart of gold', () => {
+    const lines = seals(stagedAt(preset, cast, 1.3)).filter((mark) => mark.blend === 'color');
+    const lightness = (color: string) => {
+      const channels = hexChannels(color)!;
+      return (Math.max(...channels) + Math.min(...channels)) / 510;
+    };
+
+    expect(Math.max(...lines.map((mark) => mark.width))).toBeGreaterThanOrEqual(0.2);
+    expect(lines.some((mark) => mark.width >= 0.2 && lightness(mark.color) < 0.12)).toBe(true);
+    const [red, green, blue] = hexChannels(
+      lines.reduce((least, mark) => (mark.width < least.width ? mark : least)).color
+    )!;
+    expect(red).toBeGreaterThan(blue + 100);
+    expect(green).toBeGreaterThan(blue + 60);
   });
 
   it('burns its circle out glyph by glyph after the arrival, and leaves nothing once it has cleared', () => {
@@ -181,9 +208,32 @@ describe('a crush', () => {
     expect(drawn.floor.filter((mark) => mark.shape === 'fissure').length).toBeGreaterThanOrEqual(10);
   });
 
+  it('bears down on the piece in a well of heavy bands from the lens to the floor once it comes down', () => {
+    const drawn = stagedAt(preset, castOn([AT]), strikes + 0.2);
+    const well = drawn.ribbons.filter(
+      (ribbon) =>
+        ribbon.blend === 'color' &&
+        ribbon.points[0].z > CELL * 0.8 &&
+        ribbon.points[ribbon.points.length - 1].z < CELL * 0.2
+    );
+
+    expect(well.length).toBeGreaterThanOrEqual(12);
+  });
+
+  it('squeezes stones out flat along the floor from under it as it comes down', () => {
+    const cast = castOn([AT]);
+    const squeezed = stagedAt(preset, cast, strikes + 0.3).motes.filter(
+      (mote) => mote.shape === 'chunk' && mote.z < CELL * 0.2 && Math.hypot(mote.x - AT.x, mote.y - AT.y) > CELL
+    );
+
+    expect(squeezed.length).toBeGreaterThanOrEqual(5);
+  });
+
   it('drops the pebbles it held as it lets go, to lie on the floor', () => {
     const cast = castOn([AT]);
-    const held = stagedAt(preset, cast, crushLetsGoAt(1.855) - 0.05).motes.filter((mote) => mote.shape === 'chunk');
+    const held = stagedAt(preset, cast, crushLetsGoAt(1.855) - 0.05).motes.filter(
+      (mote) => mote.shape === 'chunk' && Math.hypot(mote.x - AT.x, mote.y - AT.y) < CELL * 1.1
+    );
     const dropped = stagedAt(preset, cast, crushLetsGoAt(1.855) + 1.2).motes.filter((mote) => mote.shape === 'chunk');
 
     expect(Math.min(...held.map((mote) => mote.z))).toBeGreaterThan(CELL * 1.2);
@@ -213,6 +263,34 @@ describe('a singularity', () => {
     expect(drawn.ribbons.filter((ribbon) => ribbon.points.every((point) => point.z < 2)).length).toBeGreaterThanOrEqual(
       4
     );
+  });
+
+  it('drags heavy streams of debris in off the edge of its area and up into its disc', () => {
+    const drawn = stagedAt(preset, cast, 1.1);
+    const streams = drawn.ribbons.filter((ribbon) => {
+      const first = ribbon.points[0];
+      const last = ribbon.points[ribbon.points.length - 1];
+      return (
+        ribbon.blend === 'color' &&
+        first.z < CELL * 0.4 &&
+        Math.hypot(first.x - AT.x, first.y - AT.y) > CELL * 2.5 &&
+        last.z > CELL * 2
+      );
+    });
+
+    expect(streams.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('throws a surge of dust out over its area as it falls in, and smoulders on through the end of its sound', () => {
+    const surge = stagedAt(preset, cast, fallsAt + 0.3);
+    const smouldering = stagedAt(preset, cast, 3.3);
+
+    expect(surge.motes.filter((mote) => mote.shape === 'billow').length).toBeGreaterThanOrEqual(15);
+    expect(smouldering.motes.filter((mote) => mote.shape === 'wisp').length).toBeGreaterThanOrEqual(3);
+    expect(
+      smouldering.ribbons.filter((ribbon) => ribbon.blend === 'light' && ribbon.points.every((point) => point.z < 2))
+        .length
+    ).toBeGreaterThanOrEqual(4);
   });
 
   it('goes dark for an instant before it falls in, then beats white and throws a ring out over the floor', () => {
