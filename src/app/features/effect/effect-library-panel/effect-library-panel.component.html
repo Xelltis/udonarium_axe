@@ -129,8 +129,9 @@
                 [class.text-ui-accent]="autoPlayEnabled()"
                 [class.text-ui-meta]="!autoPlayEnabled()"
                 aria-hidden="true"
-                >{{ autoPlayEnabled() ? 'check_box' : 'check_box_outline_blank' }}</i
-              >{{ 'feature.effect.autoPlay' | transloco }}
+                >{{ autoPlayEnabled() ? 'check_box' : 'check_box_outline_blank' }}</i>{{
+                'feature.effect.autoPlay' | transloco
+              }}
             </button>
             <div class="border-ui-border-panel my-1 border-t border-solid" role="separator"></div>
             <button
@@ -263,8 +264,7 @@
                 [attr.aria-pressed]="reachFilter() === reach.value"
                 (click)="reachFilter.set(reach.value)"
               >
-                <i class="material-icons" aria-hidden="true">{{ reach.icon }}</i
-                >{{ reach.label | transloco }}
+                <i class="material-icons" aria-hidden="true">{{ reach.icon }}</i>{{ reach.label | transloco }}
               </button>
             }
           </div>

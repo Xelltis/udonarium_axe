@@ -378,8 +378,7 @@
                 [attr.aria-label]="'feature.chat.lint.list' | transloco"
                 (click)="togglePanel('findings')"
               >
-                <i class="material-icons">{{ severityIcon(worstSeverity()) }}</i
-                >{{ findings().length }}
+                <i class="material-icons">{{ severityIcon(worstSeverity()) }}</i>{{ findings().length }}
               </button>
             }
           } @else {

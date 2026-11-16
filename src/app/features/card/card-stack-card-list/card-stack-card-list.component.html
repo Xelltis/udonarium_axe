@@ -108,8 +108,7 @@
                 <span
                   [class.text-red-500]="label.suitColor === 'red'"
                   [class.text-ui-suit-black]="label.suitColor === 'black'"
-                  >{{ label.suit }}</span
-                ><span class="ml-0.5">{{ label.rank }}</span>
+                  >{{ label.suit }}</span><span class="ml-0.5">{{ label.rank }}</span>
               </span>
             } @else if (fallbackHint) {
               <span class="text-ui-muted font-mono text-[0.85em] leading-tight">{{ fallbackHint }}</span>
