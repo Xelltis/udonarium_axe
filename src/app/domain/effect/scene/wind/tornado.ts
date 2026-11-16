@@ -18,18 +18,19 @@ import { tornadoTimingOf } from '@axe/domain/effect/wind-looks';
 
 /*
  * A tornado: a funnel reaching for the sky from a swirl on the ground, narrow where it grinds at the
- * floor and opening into a crown, its axis writhing as waves run up it. Its body is a column seen
- * through, lit from one side, its pattern streaming up it; bands of wind wind round it, each with a
- * bright head and a tail that fades, the half of each behind the column dark and laid before it and
- * the half before it bright and laid after. What it takes up slides in along the floor, climbs it in
- * turns, and is thrown out at the top to fall and roll. Dust wheels about its foot over marks swept
- * into the floor. It rises in half a second, stands, and thins away as it lifts off the ground.
+ * floor and opening into a crown, its axis writhing as waves run up it. Its body is a thick column in
+ * a dark slate sheath, lit from one side, its pattern streaming up it, so that it holds over a bright
+ * table; bands of wind wind round it over wide stripes of shadow, each with a bright head and a tail
+ * that fades, the half of each behind the column dark and laid before it and the half before it
+ * bright and laid after. What it takes up slides in along the floor, climbs it in turns, and is
+ * thrown out at the top to fall and roll. Dust wheels about its foot over marks swept into the floor.
+ * It rises in half a second, stands, and thins away as it lifts off the ground.
  */
 
 /** How tall a tornado stands, in cells, and how wide it is at its foot and under its crown. */
 const TALL_CELLS = 5.4;
-const FOOT_CELLS = 0.28;
-const SHOULDER_CELLS = 1.6;
+const FOOT_CELLS = 0.38;
+const SHOULDER_CELLS = 1.95;
 /** How much wider its crown opens at the very top, in cells. */
 const CROWN_FLARE_CELLS = 0.5;
 /** How many levels its body is drawn through, and how many points each band of wind. */
@@ -38,17 +39,19 @@ const BAND_POINTS = 11;
 /** How many bands of wind wind round it at the middle grade, how many clouds its crown has, and how many marks are swept into the floor. */
 const BANDS = 26;
 /** How many stripes of shadow run under the bands, as a share of them. */
-const STRIPES_SHARE = 0.4;
+const STRIPES_SHARE = 0.7;
 const CROWN_CLOUDS = 11;
 const SWEEPS = 7;
 /** How many things it carries at the middle grade. */
-const DEBRIS = 60;
+const DEBRIS = 66;
 /** How hard what it throws out falls, in cells a second squared. */
 const FALL_CELLS = 16;
 /** How long a thing thrown out rolls where it lands before it is gone, in seconds. */
 const ROLLS_S = 0.3;
 /** How long the funnel takes to let go of all it carries once it starts to thin, in seconds. */
 const LETS_GO_OVER_S = 0.2;
+/** The dark the funnel's sheath is taken towards, so that it holds over a bright table. */
+const SHEATHED = '#141b22';
 
 /** The funnel as it stands at a moment: where its axis is and how wide it is at each share of its height. */
 interface Funnel {
@@ -154,24 +157,30 @@ function body(funnel: Funnel, paint: WindPaint): EffectRibbon[] {
     alpha: fields.alpha * funnel.present,
   });
   return [
-    sheet(1.08, { color: paint.shadow, alpha: 0.55, soft: 0.4, torn: 0.55, flowed: t * 1.6 }),
-    sheet(0.96, {
-      color: mixColor(paint.shadow, paint.edge, 0.25),
-      core: paint.pale,
-      alpha: 0.8,
-      soft: 0.34,
-      torn: 0.7,
-      flowed: t * 2.4 + 5,
-      leans: -0.35,
+    sheet(1.18, {
+      color: mixColor(paint.shadow, SHEATHED, 0.55),
+      alpha: 0.92,
+      soft: 0.22,
+      torn: 0.45,
+      flowed: t * 1.6,
     }),
-    sheet(0.9, {
+    sheet(0.98, {
+      color: mixColor(paint.shadow, SHEATHED, 0.2),
+      core: mixColor(paint.shadow, paint.edge, 0.6),
+      alpha: 0.92,
+      soft: 0.24,
+      torn: 0.6,
+      flowed: t * 2.4 + 5,
+      leans: -0.4,
+    }),
+    sheet(0.7, {
       color: paint.pale,
       core: '#ffffff',
       alpha: 0.3,
       soft: 0.9,
       torn: 0.9,
       flowed: t * 3.4 + 11,
-      leans: -0.5,
+      leans: -0.6,
     }),
   ];
 }
@@ -196,7 +205,7 @@ function windBands(
     const head = (scatter(band, salt + 2) + t / period) % 1;
     const span = (stripe ? 2.2 : 1.5) + 1.7 * scatter(band, salt + 3);
     const drop = 0.06 + 0.1 * scatter(band, salt + 4);
-    const wide = funnel.cell * (stripe ? 0.3 + 0.3 * scatter(band, salt + 5) : 0.11 + 0.18 * scatter(band, salt + 5));
+    const wide = funnel.cell * (stripe ? 0.4 + 0.36 * scatter(band, salt + 5) : 0.15 + 0.17 * scatter(band, salt + 5));
     const out = stripe ? 0.98 : 1 + 0.14 * scatter(band, salt + 6);
     const turned = scatter(band, salt + 7) * Math.PI * 2 + t * (7 + 5 * scatter(band, salt + 8));
     const shown = Math.sin(Math.PI * head) ** 0.6 * funnel.present;
@@ -217,7 +226,16 @@ function windBands(
     }
     keep(
       stripe
-        ? { points, widths, alphas, color: paint.shadow, alpha: 0.5 * shown, blend: 'color', soft: 0.4, torn: 0.5 }
+        ? {
+            points,
+            widths,
+            alphas,
+            color: mixColor(paint.shadow, SHEATHED, 0.5),
+            alpha: 0.85 * shown,
+            blend: 'color',
+            soft: 0.3,
+            torn: 0.45,
+          }
         : {
             points,
             widths,
@@ -251,7 +269,7 @@ function crown(
   for (let puff = 0; puff < 5; puff++) {
     const turn = t * 1.3 + (puff / 5) * Math.PI * 2;
     const at = { x: top.x + Math.cos(turn) * reach * 0.5, y: top.y + Math.sin(turn) * reach * 0.5, z: top.z };
-    drawn.motes.push(haze(at, reach * 1.5, paint.shadow, 0.2 * funnel.present, forward));
+    drawn.motes.push(haze(at, reach * 1.5, mixColor(paint.shadow, SHEATHED, 0.3), 0.32 * funnel.present, forward));
   }
   for (let cloud = 0; cloud < CROWN_CLOUDS; cloud++) {
     const level = 0.86 + 0.16 * scatter(cloud, salt + 21);
@@ -281,9 +299,9 @@ function crown(
         points,
         widths,
         alphas,
-        color: mixColor(paint.edge, paint.pale, 0.3),
-        core: paint.pale,
-        alpha: 0.6 * funnel.present,
+        color: mixColor(paint.edge, paint.shadow, 0.3),
+        core: mixColor(paint.edge, paint.pale, 0.55),
+        alpha: 0.72 * funnel.present,
         blend: 'color',
         soft: 0.6,
         torn: 1,
@@ -377,7 +395,7 @@ function layGround(drawn: Staged, stage: Stage, funnel: Funnel, paint: WindPaint
         flowingMote('wisp', root, heading, wide, wide * (2 + scatter(wisp, salt + 45)), t * 4 + wisp * 1.7, {
           color: pass === 0 ? paint.dustDeep : paint.dust,
           core: pass === 0 ? undefined : mixColor(paint.dust, '#ffffff', 0.5),
-          alpha: (pass === 0 ? 0.4 : 0.46) * shown,
+          alpha: (pass === 0 ? 0.52 : 0.55) * shown,
           forward,
           variant: wisp * 0.9,
         })
@@ -462,7 +480,7 @@ function debris(
     const out = 1.05 + 0.3 * scatter(thing, salt + 68);
     const variant = scatter(thing, salt + 69) * 8;
     const size =
-      cell * (kind === 'stone' ? 0.11 + 0.07 * scatter(thing, salt + 70) : 0.17 + 0.11 * scatter(thing, salt + 70));
+      cell * (kind === 'stone' ? 0.16 + 0.1 * scatter(thing, salt + 70) : 0.24 + 0.14 * scatter(thing, salt + 70));
     const tumble = 6 + 9 * scatter(thing, salt + 71);
     let pose: DebrisPose;
     let middle: Point;

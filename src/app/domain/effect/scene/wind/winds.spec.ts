@@ -1,4 +1,5 @@
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { hexChannels } from '@axe/core/util/hex-color';
 import { createEffectPreset, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { type EffectCast } from '@axe/domain/effect/effect-cast';
@@ -70,6 +71,36 @@ describe('a storm', () => {
       expect(jolts.get('t1')!.z).toBeGreaterThan(CELL * 0.1);
     } finally {
       ObjectStore.instance.remove(preset);
+    }
+  });
+});
+
+describe('a storm and a tornado', () => {
+  /** The shadow sheet of a funnel's body: the widest band laid just before the first band set to one side. */
+  function funnelSheathOf(drawn: Staged) {
+    const lit = drawn.ribbons.findIndex((ribbon) => ribbon.leans !== undefined);
+    return drawn.ribbons[lit - 1];
+  }
+
+  function lightness(color: string): number {
+    const [red, green, blue] = hexChannels(color)!;
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  }
+
+  it('stands the funnel of a storm clearly larger and darker than a tornado', () => {
+    const storm = bundled('大嵐');
+    const tornado = bundled('竜巻');
+    const cast = castOn([400, 300]);
+    try {
+      const big = funnelSheathOf(drawnAt(storm, cast, 1500));
+      const small = funnelSheathOf(drawnAt(tornado, cast, 1500));
+      const widest = (ribbon: typeof big) => Math.max(...(ribbon.widths as number[]));
+
+      expect(widest(big)).toBeGreaterThan(widest(small) * 1.15);
+      expect(lightness(big.color)).toBeLessThan(lightness(small.color));
+    } finally {
+      ObjectStore.instance.remove(storm);
+      ObjectStore.instance.remove(tornado);
     }
   });
 });
