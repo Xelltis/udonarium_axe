@@ -62,6 +62,7 @@ import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+import { isAimedSolid } from '@axe/domain/tabletop/solid/solid-kind';
 
 /** The panel for choosing the character a range follows, opened by the pointer. */
 const FOLLOW_PANEL: PointerPanelBox = { width: 350, height: 200, reachLeft: 250, reachUp: 175 };
@@ -218,7 +219,7 @@ export class RangeComponent {
    */
   protected readonly aimTip = computed(() => {
     const placed = this.placedSolid();
-    if (!placed || (placed.solid.kind !== 'cone' && placed.solid.kind !== 'beam')) return null;
+    if (!placed || !isAimedSolid(placed.solid.kind)) return null;
     const tip = this.solidRanges.heldPointOf(placed);
     return { surface: 'floor', x: tip.x, y: tip.y, height: tip.z };
   });
@@ -229,7 +230,7 @@ export class RangeComponent {
    */
   protected readonly pointedFromCaster = computed(() => {
     const placed = this.placedSolid();
-    return !!placed?.caster && (placed.solid.kind === 'cone' || placed.solid.kind === 'beam');
+    return !!placed?.caster && isAimedSolid(placed.solid.kind);
   });
 
   /**
@@ -466,14 +467,24 @@ export class RangeComponent {
     SoundEffect.play(PresetSound.cardPick);
   }
 
-  /**
-   * Plays the put-down sound when a drag or a turn of the range ends, and keeps a sphere or a column
-   * following a piece where it was let go round the piece, within its room.
-   */
+  /** Plays the put-down sound when a drag or a turn of the range ends. */
   onMoved() {
     SoundEffect.play(PresetSound.cardPut);
+    this.dragged = true;
+  }
+
+  /**
+   * Keeps a sphere or a column following a piece where it was let go round the piece, within its
+   * room, once the drag that moved it has put it down and kept it to the grid.
+   */
+  onPutDown() {
+    if (!this.dragged) return;
+    this.dragged = false;
     this.solidRanges.settleRoundCaster(this.range());
   }
+
+  /** Whether the press now ending moved the range, rather than only pressing it. */
+  private dragged = false;
 
   /** Redraws the range at the angle it is being turned to, while the rotate grip is dragged. */
   onRotateChanged(degree: number) {

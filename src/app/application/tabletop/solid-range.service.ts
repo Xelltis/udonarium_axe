@@ -87,20 +87,26 @@ export class SolidRangeService {
     return placed;
   });
 
-  /** The ranges standing up off the table in view, as the scene draws them. */
-  readonly solids = computed<readonly TableWorldSolid[]>(() =>
-    this.placed().map(({ range, solid }) => {
-      const opacity = solidOpacityOf(range.opacity);
-      return {
-        id: `${range.identifier}#solid`,
-        owner: range.identifier,
-        solid,
-        fill: range.gridColor,
-        edge: range.rangeColor,
-        fillOpacity: opacity.fill,
-        edgeOpacity: opacity.edge,
-      };
-    })
+  /**
+   * The ranges standing up off the table in view, as the scene draws them: the same list as before
+   * while none of them is drawn otherwise, as while a piece elsewhere is moved, so the scene does not
+   * lay them again.
+   */
+  readonly solids = computed<readonly TableWorldSolid[]>(
+    () =>
+      this.placed().map(({ range, solid }) => {
+        const opacity = solidOpacityOf(range.opacity);
+        return {
+          id: `${range.identifier}#solid`,
+          owner: range.identifier,
+          solid,
+          fill: range.gridColor,
+          edge: range.rangeColor,
+          fillOpacity: opacity.fill,
+          edgeOpacity: opacity.edge,
+        };
+      }),
+    { equal: sameSolids }
   );
 
   /**
@@ -131,9 +137,10 @@ export class SolidRangeService {
    */
   roomOf(placed: PlacedSolidRange): SolidReach | null {
     if (placed.reach) return placed.reach;
-    if (placed.solid.kind !== 'cone' && placed.solid.kind !== 'beam') return null;
+    const solid = placed.solid;
+    if (solid.kind !== 'cone' && solid.kind !== 'beam') return null;
     const ground = this.standing.heightPxAt(placed.origin.x, placed.origin.y);
-    return { centre: placed.origin, radius: placed.solid.length, floorZ: Math.min(ground, placed.origin.z) };
+    return { centre: placed.origin, radius: solid.length, floorZ: Math.min(ground, placed.origin.z) };
   }
 
   /** The point a range is held by: where a sphere or a column stands, or the tip of a cone or a beam. */
@@ -200,9 +207,14 @@ export class SolidRangeService {
     range.altitude = roundTo((origin.z - reach.centre.z) / gridSize, OFFSET_WRITTEN_STEP);
   }
 
+  /** The ranges standing up off the table in view, by identifier. */
+  private readonly placedById = computed(
+    () => new Map(this.placed().map((one) => [one.range.identifier, one] as const))
+  );
+
   /** Where a range stands up off the table in view, or null for one that lies flat or is not there. */
   placedOf(identifier: string): PlacedSolidRange | null {
-    return this.placed().find((one) => one.range.identifier === identifier) ?? null;
+    return this.placedById().get(identifier) ?? null;
   }
 
   /** What a press lands on for each range standing up off the table in view. */
@@ -279,4 +291,9 @@ export class SolidRangeService {
 function roundTo(value: number, step: number): number {
   const scale = Math.round(1 / step);
   return Math.round(value * scale) / scale;
+}
+
+/** Whether two lists of solids draw the same, entry for entry. */
+function sameSolids(a: readonly TableWorldSolid[], b: readonly TableWorldSolid[]): boolean {
+  return a.length === b.length && a.every((one, i) => JSON.stringify(one) === JSON.stringify(b[i]));
 }

@@ -18,7 +18,13 @@ import { pageOfTablePoint, tableEyeMatrix, TableRay, tableRayOfPage } from '@axe
 import { groundLiftOfBlock, GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { AMBIENCE_PICK_LAYER, ambiencePickTarget } from '@axe/domain/tabletop/pick/ambience-pick';
 import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
-import { PickCylinder, PickDraped, PickShape, withinOutline } from '@axe/domain/tabletop/pick/pick-geometry';
+import {
+  crossingLevel,
+  PickCylinder,
+  PickDraped,
+  PickShape,
+  withinOutline,
+} from '@axe/domain/tabletop/pick/pick-geometry';
 import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { beamPickTarget, TERRAIN_PICK_LAYER, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
@@ -100,6 +106,19 @@ export class TablePickService {
   }
 
   /**
+   * Where the line of sight through a point of the page crosses the level of a height over the table,
+   * as a handle held at that height is moved over it; null before the table has a camera, or for a
+   * line running level, which crosses no level of its own.
+   */
+  levelAt(pageX: number, pageY: number, height: number): { x: number; y: number } | null {
+    const ray = this.rayAt(pageX, pageY);
+    if (!ray) return null;
+    const t = crossingLevel(ray, height);
+    if (t === null) return null;
+    return { x: ray.origin.x + ray.direction.x * t, y: ray.origin.y + ray.direction.y * t };
+  }
+
+  /**
    * What a point of the page lands on first, a block, a piece or a look laid over the ground, or null
    * where it lands on nothing.
    */
@@ -114,8 +133,9 @@ export class TablePickService {
    * locked block pass through to what lay under it. A piece standing in a wood is pressed, not the
    * tree in front of it; a locked block with no piece behind it is pressed itself, for its menu. A
    * door and a switch are pressed themselves whatever stands behind them, as they are there to be.
-   * A range standing up off the table lets a press through to a piece within it or behind it, as the
-   * piece is seen through it, so a piece wrapped in a range is still taken.
+   * A range standing up off the table, and a ruler left lying on it, lets a press through to a
+   * character or a die within it or behind it, as it is seen through it, so a piece wrapped in a
+   * range is still taken.
    */
   pressedAt(pageX: number, pageY: number): PickHit | null {
     const hits = passingSolids(this.allAt(pageX, pageY));
@@ -507,14 +527,18 @@ function isSolidTarget(target: PickTarget): boolean {
   return target.shapes.some((shape) => shape.kind === 'solid');
 }
 
+/** The layers of the pieces standing on the table that a solid lets a press through to: characters and dice. */
+const SEEN_THROUGH_SOLIDS: readonly string[] = ['character', 'dice-symbol'];
+
 /**
- * The hits along a line of sight past the ranges standing up in front of a piece: each such range is
- * passed over where a piece lies behind it, and kept where nothing but blocks and ground lie behind.
+ * The hits along a line of sight past the ranges standing up in front of a piece standing on the
+ * table: each such range is passed over where a character or a die stands behind it, and kept where
+ * only blocks, the ground or what lies flat on it lies behind, so a solid over a map mask or a card
+ * is still pressed itself.
  */
 function passingSolids(hits: readonly PickHit[]): PickHit[] {
-  const isPiece = (hit: PickHit) =>
-    !isSolidTarget(hit.target) && hit.target.layer !== TERRAIN_PICK_LAYER && hit.target.layer !== AMBIENCE_PICK_LAYER;
+  const isStanding = (hit: PickHit) => SEEN_THROUGH_SOLIDS.includes(hit.target.layer);
   let from = 0;
-  while (from < hits.length && isSolidTarget(hits[from].target) && hits.slice(from + 1).some(isPiece)) from++;
+  while (from < hits.length && isSolidTarget(hits[from].target) && hits.slice(from + 1).some(isStanding)) from++;
   return hits.slice(from);
 }

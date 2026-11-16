@@ -135,7 +135,7 @@ export function insideOutline(outline: readonly PickPoint2[], x: number, y: numb
 }
 
 /** Where the line crosses the level z, or null when it runs level. */
-function crossingLevel(ray: TableRay, z: number): number | null {
+export function crossingLevel(ray: TableRay, z: number): number | null {
   if (Math.abs(ray.direction.z) < EPSILON) return null;
   return (z - ray.origin.z) / ray.direction.z;
 }

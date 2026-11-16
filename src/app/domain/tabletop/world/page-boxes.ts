@@ -1,5 +1,5 @@
 import type { Matrix3D } from '@axe/core/transform/matrix-3d';
-import { pageOfTablePoint, TablePoint } from '@axe/domain/tabletop/camera/table-camera';
+import { drawnScaleAt, pageOfTablePoint, TablePoint } from '@axe/domain/tabletop/camera/table-camera';
 import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import type { Solid } from '@axe/domain/tabletop/solid/solid';
 import { solidSamplePoints } from '@axe/domain/tabletop/solid/solid-points';
@@ -279,7 +279,8 @@ export function blockPageBoxes(
   for (const target of targets) {
     const solids = target.shapes.flatMap((shape) => (shape.kind === 'solid' ? [shape.solid] : []));
     if (solids.length) {
-      boxes.set(target.id, solidPageBoxes(solids, scene, eye));
+      const box = solidPageBoxes(solids, scene, eye);
+      if (box) boxes.set(target.id, box);
       continue;
     }
     const all: TablePoint[] = [];
@@ -328,10 +329,14 @@ export const SOLID_PART = 'solid';
  * Where solids are drawn on the page: the box round them, as the whole and as their one part, and
  * the outline round where they are drawn, which that part is cut to. They are put under everything
  * standing on the table, as a range lying on the ground is, since a piece is seen through them and
- * the pointer resting on it is for the piece.
+ * the pointer resting on it is for the piece. Only what lies in front of the eye is drawn on the page,
+ * so the points behind it are left out; null where none is in front of it.
  */
-function solidPageBoxes(solids: readonly Solid[], scene: Matrix3D, eye: EyeAxes): PiecePageBoxes {
-  const points = solids.flatMap((solid) => solidSamplePoints(solid));
+function solidPageBoxes(solids: readonly Solid[], scene: Matrix3D, eye: EyeAxes): PiecePageBoxes | null {
+  const points = solids
+    .flatMap((solid) => solidSamplePoints(solid))
+    .filter((point) => drawnScaleAt(scene, point.x, point.y, point.z) > 0);
+  if (points.length === 0) return null;
   const onPage = points.map((point) => pageOfTablePoint(scene, point.x, point.y, point.z));
   const whole = boxRound(onPage);
   const middle = {

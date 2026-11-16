@@ -433,7 +433,7 @@
       <div class="flex flex-col gap-1" data-testid="hotbar-editor-range-solid">
         <span class="text-ui-muted">{{ 'feature.inventory.sheet.solid' | transloco }}</span>
         <div class="flex flex-wrap items-center gap-1">
-          @for (choice of solidChoices; track choice.kind) {
+          @for (choice of solidChoices(); track choice.kind) {
             <button
               type="button"
               class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:bg-ui-hover cursor-pointer border border-solid bg-transparent px-2 py-0.5 text-[11px]"

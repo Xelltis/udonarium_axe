@@ -103,6 +103,22 @@ describe('RulerService', () => {
     expect(ruler.measured()?.reading).toMatchObject({ level: '4.0', rise: '+4.0' });
   });
 
+  it('takes the line away as another table is viewed, keeping the ruler in hand', () => {
+    landing = { x: 25, y: 25, z: 0 };
+    ruler.startAt(0, 0, false);
+    ruler.letGo();
+    TestBed.tick();
+    const other = new GameTable();
+    other.initialize();
+
+    TableSelecter.instance.viewTableIdentifier = other.identifier;
+    TestBed.inject(ObjectChangeService).notifyChanged(TableSelecter.instance.identifier);
+    TestBed.tick();
+
+    expect(ruler.laid()).toBeNull();
+    expect(ruler.inHand()).toBe(true);
+  });
+
   it('draws the ruler in the scene while it is laid, and nothing once it is put away', () => {
     landing = { x: 25, y: 25, z: 0 };
     ruler.startAt(0, 0, false);

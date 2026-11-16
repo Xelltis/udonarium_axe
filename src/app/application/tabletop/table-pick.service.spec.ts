@@ -371,6 +371,22 @@ describe('TablePickService', () => {
     });
   });
 
+  it('keeps a press on a range standing up over a card lying under it, which is no piece to hand it to', async () => {
+    vi.spyOn(TestBed.inject(PictureSizeService), 'sizeOf').mockReturnValue({ width: 2, height: 3 });
+    const range = RangeArea.create('aura', 1, 3, 100);
+    range.type = 'CIRCLE';
+    range.solidKind = 'sphere';
+    range.location = { name: 'table', x: 5.5 * GRID, y: 5.5 * GRID };
+    table.appendChild(range);
+    const card = Card.create('card', 'front', 'back');
+    card.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+    await settled();
+    const overCard = pageOfTablePoint(camera.sceneMatrix()!, 5 * GRID + 40, 5 * GRID + 60, 0.15);
+
+    expect(service.allAt(overCard.x, overCard.y).map((hit) => hit.target.id)).toContain(card.identifier);
+    expect(service.pressedAt(overCard.x, overCard.y)?.target.id).toBe(range.identifier);
+  });
+
   it('keeps a press on a locked door, and on a locked switch, with a piece behind it', async () => {
     const door = blockAt(5, 5);
     door.isLocked = true;

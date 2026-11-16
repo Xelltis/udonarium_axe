@@ -16,6 +16,7 @@
   [appSelectable]="range()"
   (movable.ondragstart)="onMove()"
   (movable.ondragend)="onMoved()"
+  (movable.onend)="onPutDown()"
 >
   @if (placedSolid()) {
     <div

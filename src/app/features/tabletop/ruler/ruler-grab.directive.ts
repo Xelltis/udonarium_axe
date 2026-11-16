@@ -124,10 +124,7 @@ export class RulerGrabDirective {
 
   /** Where the line of sight through a point of the page crosses the level of a height over the table. */
   private levelAt(pageX: number, pageY: number, height: number): { x: number; y: number } | null {
-    const ray = this.pick.rayAt(pageX, pageY);
-    if (!ray || Math.abs(ray.direction.z) < 1e-6) return null;
-    const t = (height - ray.origin.z) / ray.direction.z;
-    return { x: ray.origin.x + ray.direction.x * t, y: ray.origin.y + ray.direction.y * t };
+    return this.pick.levelAt(pageX, pageY, height);
   }
 
   private letGo(keep: boolean): void {

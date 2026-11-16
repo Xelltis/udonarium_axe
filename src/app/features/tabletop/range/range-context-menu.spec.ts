@@ -275,3 +275,32 @@ describe('standing a range up from its menu', () => {
     }
   });
 });
+
+describe('letting a range go of the piece it follows', () => {
+  const t = ((key: string) => key) as TranslateFn;
+
+  it('offers it for a range following a piece whatever its shape, as a line stood up and laid flat again', () => {
+    const piece = GameCharacter.create('piece', 1, '');
+    const range = RangeArea.create('line', 1, 4, 50);
+    range.type = 'LINE';
+    range.followingCharacterIdentifier = piece.identifier;
+    try {
+      const names = buildRangeContextMenuModel(
+        range,
+        50,
+        { x: 0, y: 0, z: 0 },
+        ObjectStore.instance,
+        { notifyInventoryUpdate: vi.fn() } as unknown as GameObjectInventoryService,
+        { menuAt: vi.fn(() => []) } as CreateObjectMenu,
+        vi.fn(),
+        vi.fn(),
+        t
+      ).actions.map((action) => action.name);
+
+      expect(names).toContain('feature.tabletop.contextMenu.unfollow');
+    } finally {
+      range.destroy();
+      piece.destroy();
+    }
+  });
+});

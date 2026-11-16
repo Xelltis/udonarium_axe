@@ -426,6 +426,25 @@ describe('quadMatrix', () => {
 describe('blockPageBoxes', () => {
   const scene = new Matrix3D().identity();
 
+  it('boxes nothing of a range standing up wholly behind the eye', () => {
+    const behind = new Matrix3D().identity();
+    behind.m44 = -1;
+    const boxes = blockPageBoxes(
+      [
+        {
+          id: 'sphere',
+          layer: 'range',
+          order: 1,
+          shapes: [{ kind: 'solid', solid: { kind: 'sphere', centre: { x: 100, y: 100, z: 0 }, radius: 50 } }],
+        },
+      ],
+      behind,
+      EYE
+    );
+
+    expect(boxes.has('sphere')).toBe(false);
+  });
+
   it('boxes a range standing up round where it is drawn, cut to the outline round it', () => {
     const boxes = blockPageBoxes(
       [

@@ -1,6 +1,6 @@
 import type { FlatPoint, FootprintPart } from '@axe/domain/tabletop/solid/range-footprint';
 import type { Solid } from '@axe/domain/tabletop/solid/solid';
-import { edgeKey, solidWireSegments, WireSegment } from '@axe/domain/tabletop/solid/solid-wire';
+import { edgeKey, sharedEdgeKeys, solidWireSegments, WireSegment } from '@axe/domain/tabletop/solid/solid-wire';
 import type { Vec3 } from '@axe/domain/tabletop/surface-space';
 import type { TableWorldGuide, TableWorldSolid } from '@axe/domain/tabletop/world/table-solids';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
@@ -54,9 +54,14 @@ export class SolidLayer {
   readonly group = new Group();
   private readonly drawn = new Map<string, Drawn>();
   private readonly guides = new Map<string, { key: string; lines: Group }>();
+  /** What was laid last, which is laid again only once it is given anew. */
+  private laidSolids: readonly TableWorldSolid[] | null = null;
+  private laidGuides: readonly TableWorldGuide[] | null = null;
 
   /** Draws these guides and takes away any drawn before that are not among them. */
   setGuides(guides: readonly TableWorldGuide[]): void {
+    if (guides === this.laidGuides) return;
+    this.laidGuides = guides;
     const wanted = new Set<string>();
     for (const guide of guides) {
       wanted.add(guide.id);
@@ -97,6 +102,8 @@ export class SolidLayer {
 
   /** Draws these solids and takes away any drawn before that are not among them. */
   set(solids: readonly TableWorldSolid[]): void {
+    if (solids === this.laidSolids) return;
+    this.laidSolids = solids;
     const wanted = new Set<string>();
     for (const solid of solids) {
       wanted.add(solid.id);
@@ -221,7 +228,7 @@ function columnGeometry(parts: readonly FootprintPart[], bottom: number, top: nu
   const circles = parts.filter((part) => part.kind === 'circle');
   const polygons = parts.flatMap((part) => (part.kind === 'polygon' ? [part.corners] : []));
   const positions: number[] = [];
-  const shared = sharedEdges(polygons);
+  const shared = sharedEdgeKeys(polygons);
   for (const corners of polygons) {
     for (let i = 1; i + 1 < corners.length; i++) {
       for (const z of [bottom, top]) {
@@ -251,16 +258,4 @@ function columnGeometry(parts: readonly FootprintPart[], bottom: number, top: nu
 /** A corner of a part at a height, in the scene's own axes. */
 function flat(point: FlatPoint, z: number): [number, number, number] {
   return [point.x, z, point.y];
-}
-
-/** The edges two parts lie against each other along, keyed the same whichever way round they run. */
-function sharedEdges(polygons: readonly (readonly FlatPoint[])[]): Set<string> {
-  const seen = new Map<string, number>();
-  for (const corners of polygons) {
-    for (let i = 0; i < corners.length; i++) {
-      const key = edgeKey(corners[i], corners[(i + 1) % corners.length]);
-      seen.set(key, (seen.get(key) ?? 0) + 1);
-    }
-  }
-  return new Set([...seen].filter(([, count]) => count > 1).map(([key]) => key));
 }

@@ -25,7 +25,7 @@ interface Hold {
  *
  * Dragging it moves the point it is aimed at over the table at the height the point is held at, the
  * wheel lifts and lowers that point half a cell a time, and the cone or beam points from its tip at
- * the point, within its room round the piece it follows where it follows one. With Alt held its turn
+ * the point, within the room round its tip that is drawn while it is held. With Alt held its turn
  * keeps to the grid's directions and its tip to steps of fifteen degrees. The way is drawn for this
  * seat alone while held and written for everyone once let go.
  */
@@ -126,7 +126,8 @@ export class SolidAimDirective {
     const ground = this.groundAt(hold.last.x, hold.last.y, hold.height);
     if (!ground) return;
     let point: Vec3 = { x: ground.x + hold.offset.x, y: ground.y + hold.offset.y, z: hold.height };
-    if (placed.reach) point = clampIntoReach(point, placed.reach);
+    const room = this.solidRanges.roomOf(placed);
+    if (room) point = clampIntoReach(point, room);
     const found = aimOf(placed.origin, point);
     if (!found) return;
     const step = rotationSnapStep(this.tabletop.currentTable.gridType ?? GridType.SQUARE);
@@ -142,10 +143,7 @@ export class SolidAimDirective {
 
   /** Where the line of sight through a point of the page crosses the level of a height over the table. */
   private groundAt(pageX: number, pageY: number, height: number): { x: number; y: number } | null {
-    const ray = this.pick.rayAt(pageX, pageY);
-    if (!ray || Math.abs(ray.direction.z) < 1e-6) return null;
-    const t = (height - ray.origin.z) / ray.direction.z;
-    return { x: ray.origin.x + ray.direction.x * t, y: ray.origin.y + ray.direction.y * t };
+    return this.pick.levelAt(pageX, pageY, height);
   }
 
   private gridSize(): number {

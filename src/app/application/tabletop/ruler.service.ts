@@ -1,4 +1,4 @@
-import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PlacedRulerService } from '@axe/application/tabletop/placed-ruler.service';
 import { MeasuredRuler, RulerReadingService } from '@axe/application/tabletop/ruler-reading.service';
@@ -42,7 +42,7 @@ export interface OthersRuler extends MeasuredRuler {
  * what that line measures, and the rulers the other seats are laying, as this seat sees them. An end
  * laid on a piece is held to it, at the middle of its feet, and moves with it; an end laid on the
  * table keeps to the middle of a square where the table snaps, unless it is laid freely. The far end
- * may be lifted off what it was laid on.
+ * may be lifted off what it was laid on. A line laid on one table is taken away as another is viewed.
  */
 @Injectable({ providedIn: 'root' })
 export class RulerService {
@@ -119,6 +119,13 @@ export class RulerService {
         cursor.measuringTable = table;
       });
     };
+    let table = untracked(() => this.tabletop.currentTable.identifier);
+    effect(() => {
+      const now = this.tabletop.currentTableVersion().identifier;
+      if (now === table) return;
+      table = now;
+      untracked(() => this.clear());
+    });
     effect(() => {
       this.laid();
       this.inHand();
@@ -127,6 +134,9 @@ export class RulerService {
         const wait = Math.max(0, TELL_EVERY_MS - (Date.now() - lastTold));
         timer = setTimeout(tell, wait);
       });
+    });
+    inject(DestroyRef).onDestroy(() => {
+      if (timer !== null) clearTimeout(timer);
     });
   }
 

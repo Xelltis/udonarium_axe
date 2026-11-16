@@ -132,8 +132,9 @@ function buildFollowAction(
   onDockingWindowOpen: () => void,
   t: TranslateFn
 ): ContextMenuAction | null {
-  if (!range.isSolid && !FOLLOWABLE_RANGE_TYPES.includes(range.type)) return null;
-  return objectStore.get(range.followingCharacterIdentifier) != null
+  const following = objectStore.get(range.followingCharacterIdentifier) != null;
+  if (!following && !range.isSolid && !FOLLOWABLE_RANGE_TYPES.includes(range.type)) return null;
+  return following
     ? {
         name: t('feature.tabletop.contextMenu.unfollow'),
         action: () => {

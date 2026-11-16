@@ -149,7 +149,8 @@ function at(point: FlatPoint, z: number): Vec3 {
   return { x: point.x, y: point.y, z };
 }
 
-function sharedEdgeKeys(polygons: readonly (readonly FlatPoint[])[]): Set<string> {
+/** The edges two parts lie against each other along, keyed as {@link edgeKey} keys them. */
+export function sharedEdgeKeys(polygons: readonly (readonly FlatPoint[])[]): Set<string> {
   const seen = new Map<string, number>();
   for (const corners of polygons) {
     for (let i = 0; i < corners.length; i++) {

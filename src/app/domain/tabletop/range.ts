@@ -10,6 +10,7 @@ import {
   asSolidKind,
   DEFAULT_SOLID_HEIGHT,
   DEFAULT_SOLID_REACH,
+  isAimedSolid,
   SolidKind,
   solidKindOf,
 } from '@axe/domain/tabletop/solid/solid-kind';
@@ -164,8 +165,7 @@ export class RangeArea extends TabletopObject {
    * middle.
    */
   get keepsCasterOffset(): boolean {
-    const kind = this.solidKind;
-    return kind === 'sphere' || kind === 'column';
+    return this.isSolid && !isAimedSolid(this.solidKind);
   }
 
   /**
