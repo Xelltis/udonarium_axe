@@ -4,6 +4,7 @@ import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PlacedRulerService } from '@axe/application/tabletop/placed-ruler.service';
 import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
@@ -76,6 +77,7 @@ export class TablePickService {
   private readonly pointerDevice = inject(PointerDeviceService);
   private readonly pieces = inject(TablePiecesService);
   private readonly solidRanges = inject(SolidRangeService);
+  private readonly placedRulers = inject(PlacedRulerService);
   private readonly pictures = inject(PictureSizeService);
   private readonly looks = inject(TableAmbienceService);
   private readonly objectStore = inject(ObjectStore);
@@ -199,9 +201,9 @@ export class TablePickService {
     return [...this.targets(), ...this.pieceTargets(), ...this.solidTargets(), ...this.ambienceTargets()];
   }
 
-  /** The targets of the ranges standing up off the table in view. */
+  /** The targets of the ranges standing up off the table in view, and of the rulers left lying on it. */
   private solidTargets(): PickTarget[] {
-    return untracked(() => this.solidRanges.pickTargets());
+    return untracked(() => [...this.solidRanges.pickTargets(), ...this.placedRulers.pickTargets()]);
   }
 
   /**
@@ -258,7 +260,7 @@ export class TablePickService {
         const target = make(terrain);
         if (target) targets.push(target);
       }
-      for (const solid of this.solidRanges.pickTargets()) if (identifiers.has(solid.id)) targets.push(solid);
+      for (const solid of this.solidTargets()) if (identifiers.has(solid.id)) targets.push(solid);
       return targets;
     });
   }

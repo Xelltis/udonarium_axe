@@ -32,6 +32,7 @@ import { LightSource } from '@axe/domain/tabletop/light-source';
 import { clearOwnership, forgetChosenViewers } from '@axe/domain/tabletop/ownership';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { TableRuler } from '@axe/domain/tabletop/table-ruler';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 
@@ -57,7 +58,7 @@ export class Room extends GameObject implements InnerXml {
   }
 
   /**
-   * Writes everything on the table into the save file: tables, parties, characters, ranges, lights, notes,
+   * Writes everything on the table into the save file: tables, parties, characters, ranges, rulers, lights, notes,
    * card stacks, loose cards, dice, coins, cut-ins, dice tables, effect presets and effect fields, the room's
    * own sets of stamps with their pictures, the scenes and the scenario texts, and the stamps put on lines
    * of chat.
@@ -72,6 +73,7 @@ export class Room extends GameObject implements InnerXml {
       ...ObjectStore.instance.getObjects(Party),
       ...ObjectStore.instance.getObjects(GameCharacter),
       ...ObjectStore.instance.getObjects(RangeArea),
+      ...ObjectStore.instance.getObjects(TableRuler),
       // Only the lights that stand on no table. A light belongs to the table it is on, which has
       // written it out already along with its walls; written again here it comes back as a
       // second light standing in the first one's place. Asked the same way the table asks it,
@@ -134,6 +136,7 @@ export class Room extends GameObject implements InnerXml {
       ...ObjectStore.instance.getObjects(Party),
       ...ObjectStore.instance.getObjects(GameCharacter),
       ...ObjectStore.instance.getObjects(RangeArea),
+      ...ObjectStore.instance.getObjects(TableRuler),
       ...ObjectStore.instance.getObjects(LightSource),
       ...ObjectStore.instance.getObjects(TextNote),
       ...ObjectStore.instance.getObjects(CardStack),

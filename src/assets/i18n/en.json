@@ -6548,7 +6548,11 @@
       "hint": "Drag over the table to measure. Starting on a piece holds the end to it. Hold Alt to keep off the squares, and turn the wheel while drawing to lift or lower the far end. Esc puts the ruler away.",
       "liftUp": "Lift the far end a square",
       "liftDown": "Lower the far end a square",
-      "putAway": "Put the ruler away"
+      "putAway": "Put the ruler away",
+      "placedName": "Ruler",
+      "leave": "Leave",
+      "leaveHint": "Leave this ruler lying on the table for everyone",
+      "letGoOfPieces": "Let go of the pieces"
     }
   },
   "app": {

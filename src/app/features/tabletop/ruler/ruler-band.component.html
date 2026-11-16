@@ -23,6 +23,16 @@
       <span class="flex shrink-0 items-center gap-0.5">
         <button
           type="button"
+          class="bg-ui-accent-solid flex h-8 cursor-pointer items-center gap-1 rounded-full border-none px-3 text-[0.86em] text-white"
+          data-testid="ruler-leave"
+          [attr.title]="'feature.ruler.leaveHint' | transloco"
+          (click)="ruler.leaveOnTable()"
+        >
+          <i class="material-icons text-[16px]!">push_pin</i>
+          {{ 'feature.ruler.leave' | transloco }}
+        </button>
+        <button
+          type="button"
           class="hover:bg-ui-hover text-ui-muted flex size-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0"
           data-testid="ruler-lift-up"
           [attr.aria-label]="'feature.ruler.liftUp' | transloco"

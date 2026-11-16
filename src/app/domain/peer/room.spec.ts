@@ -21,6 +21,7 @@ import { ScenarioText } from '@axe/domain/scenario-text/scenario-text';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { TableRuler } from '@axe/domain/tabletop/table-ruler';
 
 describe('Room', () => {
   let store: ObjectStore;
@@ -92,6 +93,14 @@ describe('Room', () => {
       // The table writes everything standing on it, so a light written again beside the table
       // is a second light on the way back in.
       expect(xml.split('<light-source').length - 1).toBe(1);
+    });
+
+    it('writes the rulers left lying on the table', () => {
+      TableRuler.create('物差し', { from: { x: 0, y: 0, z: 0 }, to: { x: 100, y: 0, z: 0 } });
+
+      const xml = new Room().innerXml();
+
+      expect(xml.split('<table-ruler').length - 1).toBe(1);
     });
 
     it('writes a light nobody put on a table, which would otherwise be lost', () => {

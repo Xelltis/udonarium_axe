@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { PLACED_RULER_COLOUR, PlacedRulerService } from '@axe/application/tabletop/placed-ruler.service';
 import { OTHER_RULER_COLOUR, OWN_RULER_COLOUR, RulerService } from '@axe/application/tabletop/ruler.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { pageOfTablePoint } from '@axe/domain/tabletop/camera/table-camera';
@@ -21,7 +22,8 @@ interface ReadingOnScreen {
 }
 
 /**
- * What the rulers on the table measure, this seat's own and those the other seats are laying, said
+ * What the rulers on the table measure, this seat's own, those the other seats are laying and those
+ * left lying on the table, said
  * over the middle of each where the table's canvas draws it, with the name of whoever lays another's:
  * the straight length and the length in the room's unit, and under it the length over the table, how
  * far up the far end is and the steps it takes. Written with an outline round the letters and nothing
@@ -36,6 +38,7 @@ interface ReadingOnScreen {
 })
 export class TableRulerOverlayComponent {
   private readonly ruler = inject(RulerService);
+  private readonly placedRulers = inject(PlacedRulerService);
   private readonly camera = inject(TableCameraService);
 
   protected readonly readings = computed<readonly ReadingOnScreen[]>(() => {
@@ -60,6 +63,15 @@ export class TableRulerOverlayComponent {
       colour: OTHER_RULER_COLOUR,
       name: other.name,
     }));
+    for (const placed of this.placedRulers.placed()) {
+      readings.push({
+        id: placed.ruler.identifier,
+        ...at(placed),
+        reading: placed.reading,
+        colour: PLACED_RULER_COLOUR,
+        name: null,
+      });
+    }
     if (own) readings.push({ id: 'own', ...at(own), reading: own.reading, colour: OWN_RULER_COLOUR, name: null });
     return readings;
   });

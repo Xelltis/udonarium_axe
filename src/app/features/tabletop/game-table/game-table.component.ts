@@ -76,6 +76,7 @@ import { squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 import { zoomToViewPositionZ } from '@axe/domain/tabletop/physical-scale';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { tableForegroundOf } from '@axe/domain/tabletop/table-foreground';
+import { TableRuler } from '@axe/domain/tabletop/table-ruler';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { boardShapeOf } from '@axe/domain/tabletop/world/table-world';
 import { CardComponent } from '@axe/features/card/card/card.component';
@@ -113,6 +114,7 @@ import { TableInterruptOverlayComponent } from '@axe/features/tabletop/interrupt
 import { LightSourceComponent } from '@axe/features/tabletop/light-source/light-source.component';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
 import { handRulerPressesOn } from '@axe/features/tabletop/ruler/ruler-input';
+import { TableRulerComponent } from '@axe/features/tabletop/ruler/table-ruler.component';
 import { TableRulerOverlayComponent } from '@axe/features/tabletop/ruler/table-ruler-overlay.component';
 import { SceneFadeOverlayComponent } from '@axe/features/tabletop/scene-fade-overlay/scene-fade-overlay.component';
 import { TableAltitudeGuideOverlayComponent } from '@axe/features/tabletop/table-altitude-guide-overlay/table-altitude-guide-overlay.component';
@@ -180,6 +182,7 @@ const CHARACTER_GENERATOR_PANEL = { width: 460, height: 420 };
     TableTargetOverlayComponent,
     TableAltitudeGuideOverlayComponent,
     TableRulerOverlayComponent,
+    TableRulerComponent,
     TableDropPreviewComponent,
     TableMoveRangeOverlayComponent,
     TableMoveBlockOverlayComponent,
@@ -730,6 +733,11 @@ export class GameTableComponent {
   readonly ranges = computed(() => {
     this.objectChangeService.collectionOf('range')();
     return this.tabletopService.ranges;
+  });
+  /** The rulers left lying on the table. */
+  readonly tableRulers = computed(() => {
+    this.objectChangeService.collectionOf(TableRuler.aliasName)();
+    return this.objectStore.getObjects<TableRuler>(TableRuler).filter((ruler) => ruler.isVisibleOnTable);
   });
   readonly lightSources = computed(() => {
     this.objectChangeService.collectionOf('light-source')();

@@ -102,6 +102,9 @@
     @for (range of ranges(); track range.identifier) {
       <range class="absolute top-0 left-0 size-0" [range]="range"></range>
     }
+    @for (ruler of tableRulers(); track ruler.identifier) {
+      <table-ruler class="absolute top-0 left-0 size-0" [ruler]="ruler"></table-ruler>
+    }
     @for (light of lightSources(); track light.identifier) {
       <light-source class="block" [lightSource]="light" [appHudPlace]="{ owner: light.identifier }"></light-source>
     }
