@@ -2,9 +2,11 @@ import { DestroyRef, inject, Injectable } from '@angular/core';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { RulerService } from '@axe/application/tabletop/ruler.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -33,7 +35,7 @@ function isDisclosablePiece(object: GameObject): object is DisclosablePiece {
 
 /**
  * The keys that act on the pieces picked out on the table: T to aim at them, Shift+T to take every
- * aim away, and G to switch who they are disclosed to.
+ * aim away, and G to switch who they are disclosed to; and M, which takes the ruler up or puts it away.
  *
  * The picked pieces are the ones gathered with Ctrl+click or a dragged box, or else the one piece
  * clicked last. Keys are only taken while nothing else holds the keyboard: not while typing, not
@@ -55,6 +57,8 @@ export class TabletopShortcutEventHandlerService {
   private readonly overlayMode = inject(OverlayModeService);
   private readonly replay = inject(ReplayPlaybackService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly ruler = inject(RulerService);
+  private readonly permission = inject(RolePermissionService);
 
   constructor() {
     document.addEventListener('keydown', this.onKeyDown);
@@ -65,6 +69,7 @@ export class TabletopShortcutEventHandlerService {
   run(command: TabletopShortcutCommand): void {
     if (command === 'target') this.aimAtPicked();
     else if (command === 'clearTargets') this.takeAimsAway();
+    else if (command === 'toggleRuler') this.takeRuler();
     else this.switchDisclosure();
   }
 
@@ -92,6 +97,12 @@ export class TabletopShortcutEventHandlerService {
     event.preventDefault();
     this.run(command);
   };
+
+  /** Takes the ruler up or puts it away, for a seat playing at the table; one watching has none. */
+  private takeRuler(): void {
+    if (!this.permission.canEditTabletop()) return;
+    this.ruler.toggle();
+  }
 
   private pickedPieces(): GameObject[] {
     const identifiers = [...this.selection.selectedObjects()];

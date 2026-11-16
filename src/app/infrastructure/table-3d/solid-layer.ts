@@ -53,7 +53,7 @@ interface Drawn {
 export class SolidLayer {
   readonly group = new Group();
   private readonly drawn = new Map<string, Drawn>();
-  private readonly guides = new Map<string, { key: string; lines: LineSegments2 }>();
+  private readonly guides = new Map<string, { key: string; lines: Group }>();
 
   /** Draws these guides and takes away any drawn before that are not among them. */
   setGuides(guides: readonly TableWorldGuide[]): void {
@@ -64,8 +64,15 @@ export class SolidLayer {
       const drawn = this.guides.get(guide.id);
       if (drawn?.key === key) continue;
       if (drawn) this.dropGuide(guide.id);
-      const lines = wideLines(guide.segments, guide.colour, guide.opacity);
-      lines.renderOrder = SOLID_ORDER + 2;
+      const lines = new Group();
+      if (guide.outline) {
+        const under = wideLines(guide.segments, guide.outline.colour, guide.outline.opacity, guide.outline.widthPx);
+        under.renderOrder = SOLID_ORDER + 2;
+        lines.add(under);
+      }
+      const over = wideLines(guide.segments, guide.colour, guide.opacity, guide.widthPx);
+      over.renderOrder = SOLID_ORDER + 3;
+      lines.add(over);
       this.group.add(lines);
       this.guides.set(guide.id, { key, lines });
     }
@@ -81,8 +88,10 @@ export class SolidLayer {
     const drawn = this.guides.get(id);
     if (!drawn) return;
     this.group.remove(drawn.lines);
-    drawn.lines.geometry.dispose();
-    (drawn.lines.material as Line2NodeMaterial).dispose();
+    for (const child of drawn.lines.children as LineSegments2[]) {
+      child.geometry.dispose();
+      (child.material as Line2NodeMaterial).dispose();
+    }
     this.guides.delete(id);
   }
 
@@ -142,8 +151,13 @@ export class SolidLayer {
   }
 }
 
-/** Lines drawn as wide as {@link WIRE_WIDTH_PX} whatever their distance, through what is behind them. */
-function wideLines(segments: readonly WireSegment[], colour: string, opacity: number): LineSegments2 {
+/** Lines drawn as wide as asked whatever their distance, {@link WIRE_WIDTH_PX} where not asked. */
+function wideLines(
+  segments: readonly WireSegment[],
+  colour: string,
+  opacity: number,
+  widthPx: number = WIRE_WIDTH_PX
+): LineSegments2 {
   const geometry = new LineSegmentsGeometry().setPositions(
     segments.flatMap(([a, b]) => [a.x, a.z, a.y, b.x, b.z, b.y])
   );
@@ -151,7 +165,7 @@ function wideLines(segments: readonly WireSegment[], colour: string, opacity: nu
     geometry,
     new Line2NodeMaterial({
       color: new Color(colour),
-      linewidth: WIRE_WIDTH_PX,
+      linewidth: widthPx,
       worldUnits: false,
       transparent: true,
       opacity,

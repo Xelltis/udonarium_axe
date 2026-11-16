@@ -22,6 +22,7 @@ import { FirstPersonService } from '@axe/application/tabletop/first-person.servi
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
 import { LegacyScratchMaskMigrationService } from '@axe/application/tabletop/legacy-scratch-mask-migration.service';
+import { RulerService } from '@axe/application/tabletop/ruler.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -106,6 +107,7 @@ import { GroundBrushBandComponent } from '@axe/features/tabletop/ground-brush-ba
 import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
 import { InterruptPromptComponent } from '@axe/features/tabletop/interrupt-prompt/interrupt-prompt.component';
 import { MovePlanBandComponent } from '@axe/features/tabletop/move-plan-band/move-plan-band.component';
+import { RulerBandComponent } from '@axe/features/tabletop/ruler/ruler-band.component';
 import { MovePlanEventHandlerService } from '@axe/features/tabletop/table-move-range-overlay/move-plan-event-handler.service';
 import { TargetBandComponent } from '@axe/features/tabletop/target-band/target-band.component';
 import { TargetReleaseEventHandlerService } from '@axe/features/tabletop/target-release/target-release-event-handler.service';
@@ -158,6 +160,7 @@ import { version as APP_VERSION } from '@pkg';
     SwitchNoticeComponent,
     GroundBrushBandComponent,
     MovePlanBandComponent,
+    RulerBandComponent,
     TargetBandComponent,
     InterruptPromptComponent,
     SnackbarComponent,
@@ -181,6 +184,7 @@ export class AppComponent {
   protected readonly handRail = inject(HandRailService);
   /** The brush that shapes the ground, whose band is fetched the first time it is taken up. */
   protected readonly groundBrush = inject(GroundBrushService);
+  protected readonly ruler = inject(RulerService);
   /** The staging of a replay's scene, whose banner is fetched the first time a scene is staged. */
   protected readonly replayStaging = inject(ReplayStagingService);
   /** Whether the page was opened from an invitation, which the join is fetched for only then. */

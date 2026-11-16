@@ -36,6 +36,7 @@ const FAB: MenuLayout = {
       'tabletopDisplay',
       'visualNovel',
       'firstPersonView',
+      'ruler',
     ]),
     group('gameResources', 'backpack', 'app.fab.gameResources', [
       'inventory',
@@ -114,6 +115,7 @@ const GM_TOOLBAR: MenuLayout = {
     item('darkness'),
     item('fog'),
     item('groundBrush'),
+    item('ruler'),
     item('firstPersonShare'),
     item('nameLabels'),
     item('resourceBars'),
@@ -132,6 +134,7 @@ const PL_TOOLBAR: MenuLayout = {
     item('ownedCharacters'),
     item('inventory'),
     item('rangeShortcut'),
+    item('ruler'),
     item('firstPerson'),
     item('nameLabels'),
     item('resourceBars'),

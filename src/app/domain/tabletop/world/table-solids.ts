@@ -47,6 +47,10 @@ export interface TableWorldGuide {
   /** The colour the lines are drawn in, as a CSS colour, and how opaque, from 0 to 1. */
   readonly colour: string;
   readonly opacity: number;
+  /** How wide the lines are drawn, in screen pixels; the width the solids' lines are drawn at where none is given. */
+  readonly widthPx?: number;
+  /** A darker line drawn wider under them, so they read over a board of any colour; none where not given. */
+  readonly outline?: { readonly colour: string; readonly opacity: number; readonly widthPx: number };
 }
 
 /** The colour the room round a caster is drawn in: the yellow every guide over the table is drawn in. */

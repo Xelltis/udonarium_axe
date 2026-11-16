@@ -34,6 +34,7 @@ export const MENU_TOGGLES = [
   'darkness',
   'fog',
   'groundBrush',
+  'ruler',
   'nameLabels',
   'resourceBars',
   'buffs',
@@ -276,6 +277,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
     testId: 'toolbar-ground-brush',
     dims: true,
   }),
+  toggle('ruler', 'straighten', 'app.fab.ruler', { audience: 'playing', testId: 'toolbar-ruler' }),
   toggle('nameLabels', 'label', 'app.fab.namesShown', { testId: 'toolbar-names', dims: true }),
   toggle('resourceBars', 'align_horizontal_left', 'app.fab.resourceBarsShown', {
     testId: 'toolbar-resource-bars',

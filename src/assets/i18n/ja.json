@@ -2049,6 +2049,7 @@
           "target": "選んだキャラクターだけをターゲットにする",
           "clearTargets": "ターゲットを全部外す",
           "disclosure": "選んだコマの公開範囲を切り替える（GMのみ⇔全員）",
+          "ruler": "物差しを持つ・しまう",
           "enter": "エフェクトの対象選びを決める",
           "escape": "対象選びをやめる・選択を外す"
         },
@@ -2242,6 +2243,7 @@
         "invokeEffect": "演出を発動",
         "deployDice": "ダイスを展開する（{{count}}個）",
         "showVisionRange": "視界範囲を表示",
+        "measureFrom": "ここから測る",
         "target": "ターゲット",
         "clearTargets": "ターゲットを全部外す",
         "radialBasic": "基本情報",
@@ -6533,6 +6535,20 @@
       "importRun": "取り込む",
       "importHint": "台本の文章を貼り付けると、見出し（# か ■ で始まる行）ごとに1件のテキストに分けます。見出しがタイトルになります",
       "importPlaceholder": "# 導入\n雨が降っている。\n\n# 屋敷\n扉が軋む。"
+    },
+    "ruler": {
+      "straight": "直線 {{value}}マス",
+      "length": {
+        "metre": "（{{value}}m）",
+        "foot": "（{{value}}ft）"
+      },
+      "level": "水平 {{value}}",
+      "rise": "高さ {{value}}",
+      "steps": "マス数 {{value}}",
+      "hint": "卓をドラッグして測ります。コマの上から引くとコマにつながります。Alt でマスに寄せず、引いている間のホイールで終点を上下します。Esc でしまいます",
+      "liftUp": "終点を 1 マス上げる",
+      "liftDown": "終点を 1 マス下げる",
+      "putAway": "物差しをしまう"
     }
   },
   "app": {
@@ -6591,6 +6607,7 @@
       "fogOn": "戦場の霧: オン（クリックでオフ）",
       "fogOff": "戦場の霧: オフ（クリックでオン）",
       "groundBrush": "地面を盛る・削る・塗る（canvasの卓）",
+      "ruler": "物差し",
       "namesShown": "名前: 表示中（クリックで隠す）",
       "namesHidden": "名前: 非表示（クリックで表示）",
       "resourceBarsShown": "リソースバー: 表示中（クリックで隠す）",

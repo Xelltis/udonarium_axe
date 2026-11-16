@@ -37,6 +37,7 @@ import { PieceLinksService } from '@axe/application/tabletop/piece-links.service
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePartPickService } from '@axe/application/tabletop/piece-part-pick.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
+import { RulerService } from '@axe/application/tabletop/ruler.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -111,6 +112,8 @@ import { GameTableMaskComponent } from '@axe/features/tabletop/game-table-mask/g
 import { TableInterruptOverlayComponent } from '@axe/features/tabletop/interrupt-prompt/table-interrupt-overlay.component';
 import { LightSourceComponent } from '@axe/features/tabletop/light-source/light-source.component';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
+import { handRulerPressesOn } from '@axe/features/tabletop/ruler/ruler-input';
+import { TableRulerOverlayComponent } from '@axe/features/tabletop/ruler/table-ruler-overlay.component';
 import { SceneFadeOverlayComponent } from '@axe/features/tabletop/scene-fade-overlay/scene-fade-overlay.component';
 import { TableAltitudeGuideOverlayComponent } from '@axe/features/tabletop/table-altitude-guide-overlay/table-altitude-guide-overlay.component';
 import { TableAmbienceComponent } from '@axe/features/tabletop/table-ambience/table-ambience.component';
@@ -176,6 +179,7 @@ const CHARACTER_GENERATOR_PANEL = { width: 460, height: 420 };
     TableBeamOverlayComponent,
     TableTargetOverlayComponent,
     TableAltitudeGuideOverlayComponent,
+    TableRulerOverlayComponent,
     TableDropPreviewComponent,
     TableMoveRangeOverlayComponent,
     TableMoveBlockOverlayComponent,
@@ -217,6 +221,7 @@ export class GameTableComponent {
   private readonly tableSurfaces = inject(TableSurfaceService);
   protected readonly table3d = inject(Table3dService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
+  private readonly ruler = inject(RulerService);
   private readonly hudFrame = inject(HudFrameService);
   private readonly pieceMotions = inject(PieceMotionsService);
   private readonly ground = inject(GroundService);
@@ -341,6 +346,7 @@ export class GameTableComponent {
     this.destroyRef.onDestroy(observeSize(root, () => this.updateCameraLayout()));
     this.followGridShown();
     this.followFaceGrids();
+    this.destroyRef.onDestroy(handRulerPressesOn(root, this.ruler));
     this.destroyRef.onDestroy(
       handCanvasPressesOn(root, {
         pickAt: (x, y) => this.tablePick.pressedAt(x, y)?.target.id ?? null,

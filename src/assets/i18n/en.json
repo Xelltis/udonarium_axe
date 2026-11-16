@@ -2049,6 +2049,7 @@
           "target": "Aim at the picked characters only",
           "clearTargets": "Stop aiming at everything",
           "disclosure": "Switch who the picked pieces are disclosed to (GM only ⇔ everyone)",
+          "ruler": "Take up or put away the ruler",
           "enter": "Confirm the targets picked for an effect",
           "escape": "Stop picking targets, or drop the selection"
         },
@@ -2242,6 +2243,7 @@
         "invokeEffect": "Play an effect",
         "deployDice": "Lay out {{count}} dice",
         "showVisionRange": "Show range of sight",
+        "measureFrom": "Measure from here",
         "target": "Target",
         "clearTargets": "Stop aiming at everything",
         "radialBasic": "Basics",
@@ -6533,6 +6535,20 @@
       "importRun": "Import",
       "importHint": "Paste the script: each heading (a line starting with # or ■) becomes a text, the heading its title.",
       "importPlaceholder": "# Opening\nRain is falling.\n\n# The mansion\nThe door creaks."
+    },
+    "ruler": {
+      "straight": "Straight {{value}} sq",
+      "length": {
+        "metre": "({{value}} m)",
+        "foot": "({{value}} ft)"
+      },
+      "level": "Level {{value}}",
+      "rise": "Rise {{value}}",
+      "steps": "Steps {{value}}",
+      "hint": "Drag over the table to measure. Starting on a piece holds the end to it. Hold Alt to keep off the squares, and turn the wheel while drawing to lift or lower the far end. Esc puts the ruler away.",
+      "liftUp": "Lift the far end a square",
+      "liftDown": "Lower the far end a square",
+      "putAway": "Put the ruler away"
     }
   },
   "app": {
@@ -6591,6 +6607,7 @@
       "fogOn": "Fog of war: on (click to turn off)",
       "fogOff": "Fog of war: off (click to turn on)",
       "groundBrush": "Raise, dig and paint the ground (canvas table)",
+      "ruler": "Ruler",
       "namesShown": "Names: shown (click to hide)",
       "namesHidden": "Names: hidden (click to show)",
       "resourceBarsShown": "Resource bars: shown (click to hide)",

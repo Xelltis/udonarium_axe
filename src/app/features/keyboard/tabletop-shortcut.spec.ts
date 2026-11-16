@@ -18,6 +18,12 @@ describe('tabletopKeyDown', () => {
     expect(tabletopKeyDown('G', { ...idle, shift: true })).toBeNull();
   });
 
+  it('takes the ruler up or puts it away on M, and not with Shift', () => {
+    expect(tabletopKeyDown('m', idle)).toBe('toggleRuler');
+    expect(tabletopKeyDown('Ｍ', idle)).toBe('toggleRuler');
+    expect(tabletopKeyDown('M', { ...idle, shift: true })).toBeNull();
+  });
+
   it('reads the full-width letters a board left in Japanese input sends', () => {
     expect(tabletopKeyDown('ｔ', idle)).toBe('target');
     expect(tabletopKeyDown('Ｇ', idle)).toBe('toggleDisclosure');

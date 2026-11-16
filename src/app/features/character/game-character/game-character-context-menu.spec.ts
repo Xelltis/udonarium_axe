@@ -351,6 +351,22 @@ describe('buildGameCharacterContextMenu()', () => {
     expect(names(groupOf(menu, '視界と視点'))).toEqual(['視界・光源設定…', '視界範囲を表示']);
   });
 
+  it('offers measuring from the piece among how it sees, where the seat has a ruler', () => {
+    const measure = vi.fn();
+    const menu = buildGameCharacterContextMenu(
+      makeChar() as unknown as GameCharacter,
+      50,
+      makeService(),
+      { ...callbacks(), onMeasureFrom: measure },
+      t
+    );
+    const entry = groupOf(menu, '視界と視点').find((action) => action.name === 'ここから測る');
+
+    expect(entry).toBeDefined();
+    entry!.action!();
+    expect(measure).toHaveBeenCalled();
+  });
+
   describe('resetting the piece (acceptance 21)', () => {
     const RESETS = ['バフをすべて外す', 'バフだけ外す', 'デバフだけ外す', '値を既定値に戻す', 'すべてリセット'];
     const build = (extra: object) =>
