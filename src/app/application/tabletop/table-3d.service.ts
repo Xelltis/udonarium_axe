@@ -23,6 +23,7 @@ import { GroundService } from '@axe/application/tabletop/ground.service';
 import { LightFlickerClockService } from '@axe/application/tabletop/light-flicker-clock.service';
 import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
 import { ModelFitService } from '@axe/application/tabletop/model-fit.service';
+import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -137,6 +138,7 @@ export class Table3dService {
   private readonly vision = inject(VisionService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly pieces = inject(TablePiecesService);
+  private readonly solidRanges = inject(SolidRangeService);
   private readonly modelFits = inject(ModelFitService);
   private readonly floorCanvases = inject(FloorCanvasesService);
   private readonly tableVeil = inject(TableVeilService);
@@ -255,6 +257,7 @@ export class Table3dService {
         water: this.water(),
         backdrops: this.backdrops(),
         models: seen([...this.pieces.models(), ...this.terrainModels()]),
+        solids: this.solidRanges.solids(),
       };
     },
     { equal: sameTableWorld }

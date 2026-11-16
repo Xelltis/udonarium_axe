@@ -565,7 +565,10 @@ export class TablePiecesService {
     draw: (mask, place, _moving, { gridSize }) => drawMask(mask, place, gridSize, this.pictures),
   });
 
-  /** The ranges, drawn from the pictures the page takes of their cells. */
+  /**
+   * The ranges lying flat, drawn from the pictures the page takes of their cells. A range standing up
+   * off the floor is drawn as the solid it stands up as instead (`SolidRangeService`).
+   */
   private readonly rangeSprites = computed(() => this.drawnNow(this.standingRanges()));
 
   private readonly standingRanges = computed<StandingParts<TableWorldSprite>>(() => {
@@ -577,7 +580,8 @@ export class TablePiecesService {
   private readonly rangeDrawing = this.drawingOf<RangeArea, TableWorldSprite, GridLook>({
     look: () => this.gridLook(),
     shown: () => true,
-    draw: (range, place, _moving, { gridSize }) => drawRange(range, place, gridSize, this.pictures),
+    draw: (range, place, _moving, { gridSize }) =>
+      range.isSolid && place.onFloor ? [] : drawRange(range, place, gridSize, this.pictures),
   });
 
   /** The notes, drawn from the pictures the page takes of their panels. */

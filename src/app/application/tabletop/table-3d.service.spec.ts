@@ -256,6 +256,7 @@ class FakeEngine implements Table3dEngine {
       sprites: 0,
       coins: 0,
       floorCanvases: 0,
+      solids: 0,
       layers: 0,
       waterParts: 0,
       fogAirSheets: 0,

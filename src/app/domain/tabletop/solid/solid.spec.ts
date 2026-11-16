@@ -3,7 +3,7 @@ import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
 import { footprintReach, rangeFootprint } from '@axe/domain/tabletop/solid/range-footprint';
 import { Solid, solidFrame, SolidInput, solidOf } from '@axe/domain/tabletop/solid/solid';
 import { asSolidKind, isAimedSolid, solidKindOf, solidKindsFor } from '@axe/domain/tabletop/solid/solid-kind';
-import { solidTouchesSegment } from '@axe/domain/tabletop/solid/solid-touch';
+import { solidEntryAlong, solidTouchesSegment } from '@axe/domain/tabletop/solid/solid-touch';
 import type { Vec3 } from '@axe/domain/tabletop/surface-space';
 
 const SQ = 50;
@@ -243,5 +243,67 @@ describe('solidTouchesSegment', () => {
     const upwards = solid({ kind: 'cone', type: 'CORN', length: 6, width: 2, originZ: 25, pitch: 45 });
     expect(solidTouchesSegment(upwards, ...body(700, 500, 200))).toBe(true);
     expect(solidTouchesSegment(upwards, ...body(700, 500, 0))).toBe(false);
+  });
+});
+
+describe('solidEntryAlong', () => {
+  const down = (x: number, y: number): [Vec3, Vec3] => [
+    { x, y, z: 1000 },
+    { x, y, z: -1000 },
+  ];
+
+  it('finds where a line looking straight down first meets each solid', () => {
+    expect(solidEntryAlong(solid({ kind: 'sphere', length: 2, originZ: 0 }), ...down(500, 500))).toBeCloseTo(0.45);
+    expect(solidEntryAlong(solid({ height: 2, originZ: 0 }), ...down(500, 500))).toBeCloseTo(0.45);
+    expect(solidEntryAlong(solid({ type: 'SQUARE', height: 2, originZ: 0 }), ...down(540, 540))).toBeCloseTo(0.45);
+    expect(
+      solidEntryAlong(solid({ kind: 'beam', type: 'LINE', length: 4, width: 2, originZ: 0 }), ...down(600, 500))
+    ).toBeCloseTo(0.475);
+    expect(
+      solidEntryAlong(solid({ kind: 'cone', type: 'CORN', length: 4, width: 4, originZ: 0 }), ...down(600, 500))
+    ).toBeCloseTo(0.475, 4);
+  });
+
+  it('misses a solid the line passes by', () => {
+    expect(solidEntryAlong(solid({ kind: 'sphere', length: 2 }), ...down(700, 500))).toBeNull();
+    expect(solidEntryAlong(solid({ height: 2 }), ...down(700, 500))).toBeNull();
+    expect(solidEntryAlong(solid({ kind: 'cone', type: 'CORN', length: 4, width: 4 }), ...down(480, 500))).toBeNull();
+    expect(solidEntryAlong(solid({ kind: 'beam', type: 'LINE', length: 4, width: 1 }), ...down(600, 540))).toBeNull();
+  });
+
+  it('meets a solid at once where the line starts within it', () => {
+    const inside: [Vec3, Vec3] = [
+      { x: 500, y: 500, z: 10 },
+      { x: 900, y: 500, z: 10 },
+    ];
+    expect(solidEntryAlong(solid({ kind: 'sphere', length: 2 }), ...inside)).toBe(0);
+    expect(solidEntryAlong(solid({ height: 2 }), ...inside)).toBe(0);
+  });
+
+  it('agrees with whether the line touches the solid at all, for every kind', () => {
+    const random = seeded(23);
+    const kinds: Partial<SolidInput>[] = [
+      { kind: 'sphere', type: 'CIRCLE' },
+      { kind: 'column', type: 'HEXAGON' },
+      { kind: 'column', type: 'CIRCLE' },
+      { kind: 'cone', type: 'CORN', width: 3 },
+      { kind: 'beam', type: 'LINE', width: 1 },
+    ];
+    for (const kind of kinds) {
+      for (let i = 0; i < 200; i++) {
+        const shaped = solid({ ...kind, length: 2 + random() * 3, rotate: random() * 360, pitch: random() * 120 - 60 });
+        const from = { x: 500 + (random() - 0.5) * 800, y: 500 + (random() - 0.5) * 800, z: random() * 600 };
+        const to = { x: 500 + (random() - 0.5) * 800, y: 500 + (random() - 0.5) * 800, z: random() * -300 };
+        const entry = solidEntryAlong(shaped, from, to);
+        expect(entry !== null, `agree ${shaped.kind} ${i} ${entry}`).toBe(solidTouchesSegment(shaped, from, to));
+        if (entry === null) continue;
+        const at = {
+          x: from.x + (to.x - from.x) * entry,
+          y: from.y + (to.y - from.y) * entry,
+          z: from.z + (to.z - from.z) * entry,
+        };
+        expect(solidTouchesSegment(shaped, at, at), `at ${shaped.kind} ${i} ${entry}`).toBe(true);
+      }
+    }
   });
 });

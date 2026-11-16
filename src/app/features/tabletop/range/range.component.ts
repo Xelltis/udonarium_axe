@@ -17,6 +17,7 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
@@ -97,6 +98,7 @@ export class RangeComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly pieceTarget = inject(PieceTargetService);
+  private readonly solidRanges = inject(SolidRangeService);
 
   readonly range = input.required<RangeArea>();
 
@@ -200,9 +202,21 @@ export class RangeComponent {
     return rangeQuadrantCells(this.range());
   });
 
+  /** Where the range stands up off the table, or null while it lies flat. */
+  protected readonly placedSolid = computed(() => {
+    this.rangeVersion();
+    return this.solidRanges.placedOf(this.range().identifier);
+  });
+
+  /**
+   * Whether the handle that turns the range is shown: for a flat range of a shape that turns, and for
+   * a column of one, which turns its ground about its point. A sphere does not turn, and a cone or a
+   * beam is pointed by the handle at its tip instead.
+   */
   readonly isRotatableRangeType = computed(() => {
     this.rangeVersion();
     const range = this.range();
+    if (range.isSolid && range.solidKind !== 'column') return false;
     if (range.type === 'CUSTOM') return range.isRotatable === true;
     return ROTATABLE_RANGE_TYPES.includes(range.type);
   });
@@ -225,6 +239,8 @@ export class RangeComponent {
   readonly turnPoint = computed(() => {
     const range = this.range();
     this.rangeVersion();
+    const solid = this.placedSolid();
+    if (solid) return { surface: 'floor', x: solid.origin.x, y: solid.origin.y, height: solid.origin.z };
     const foot = this.pieces.footOf(range);
     return { ...foot, height: foot.height + this.altitude() * this.gridSize };
   });
@@ -242,7 +258,7 @@ export class RangeComponent {
     const x = about.x + across * Math.cos(turn) - down * Math.sin(turn);
     const y = about.y + across * Math.sin(turn) + down * Math.cos(turn);
     const placedZ = this.transient.placed().get(range.identifier)?.z ?? range.posZ;
-    const onGround = about.surface === 'floor' && Math.abs(placedZ) < 1;
+    const onGround = !this.placedSolid() && about.surface === 'floor' && Math.abs(placedZ) < 1;
     const height = onGround ? this.standing.heightPxAt(x, y) + this.altitude() * this.gridSize : about.height;
     return { ...about, x, y, height };
   });

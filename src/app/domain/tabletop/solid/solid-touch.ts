@@ -26,6 +26,132 @@ export function solidTouchesSegment(solid: Solid, from: Vec3, to: Vec3): boolean
   }
 }
 
+/**
+ * How far along the straight piece from `from` to `to` it first comes into the solid, as a share of
+ * the way from 0 to 1; 0 where it starts inside, and null where it never does. A line of sight is
+ * asked of as a long enough piece of it.
+ */
+export function solidEntryAlong(solid: Solid, from: Vec3, to: Vec3): number | null {
+  switch (solid.kind) {
+    case 'sphere':
+      return sphereEntry(solid.centre, solid.radius, from, to);
+    case 'column':
+      return columnEntry(solid.parts, solid.bottom, solid.top, from, to);
+    case 'beam': {
+      const a = intoFrame(from, solid.start, solid.frame);
+      const b = intoFrame(to, solid.start, solid.frame);
+      let span: [number, number] | null = [0, 1];
+      span = clipToRange(a.x, b.x - a.x, 0, solid.length, span, 0);
+      if (span) span = clipToRange(a.y, b.y - a.y, -solid.halfWidth, solid.halfWidth, span, 0);
+      if (span) span = clipToRange(a.z, b.z - a.z, -solid.halfWidth, solid.halfWidth, span, 0);
+      return span ? span[0] : null;
+    }
+    case 'cone':
+      return coneEntry(solid, from, to);
+  }
+}
+
+function sphereEntry(centre: Vec3, radius: number, from: Vec3, to: Vec3): number | null {
+  const d = { x: to.x - from.x, y: to.y - from.y, z: to.z - from.z };
+  const f = { x: from.x - centre.x, y: from.y - centre.y, z: from.z - centre.z };
+  const a = d.x * d.x + d.y * d.y + d.z * d.z;
+  const b = 2 * (f.x * d.x + f.y * d.y + f.z * d.z);
+  const c = f.x * f.x + f.y * f.y + f.z * f.z - radius * radius;
+  if (c <= 0) return 0;
+  if (a === 0) return null;
+  const disc = b * b - 4 * a * c;
+  if (disc < 0) return null;
+  const enter = (-b - Math.sqrt(disc)) / (2 * a);
+  return enter >= 0 && enter <= 1 ? enter : null;
+}
+
+function columnEntry(
+  parts: readonly FootprintPart[],
+  bottom: number,
+  top: number,
+  from: Vec3,
+  to: Vec3
+): number | null {
+  const slab = clipToRange(from.z, to.z - from.z, bottom, top, [0, 1], 0);
+  if (!slab) return null;
+  let first: number | null = null;
+  for (const part of parts) {
+    const span =
+      part.kind === 'circle'
+        ? circleSpan(part.centre, part.radius, from, to, slab)
+        : polygonSpan(part.corners, from, to, slab);
+    if (span && (first === null || span[0] < first)) first = span[0];
+  }
+  return first;
+}
+
+/** The part of a span of a piece, seen from above, that lies within a circle. */
+function circleSpan(
+  centre: FlatPoint,
+  radius: number,
+  from: Vec3,
+  to: Vec3,
+  span: [number, number]
+): [number, number] | null {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const fx = from.x - centre.x;
+  const fy = from.y - centre.y;
+  const a = dx * dx + dy * dy;
+  const c = fx * fx + fy * fy - radius * radius;
+  if (a < 1e-12) return c <= 0 ? span : null;
+  const b = 2 * (fx * dx + fy * dy);
+  const disc = b * b - 4 * a * c;
+  if (disc < 0) return null;
+  const root = Math.sqrt(disc);
+  const enter = Math.max(span[0], (-b - root) / (2 * a));
+  const leave = Math.min(span[1], (-b + root) / (2 * a));
+  return enter <= leave ? [enter, leave] : null;
+}
+
+/** The part of a span of a piece, seen from above, that lies within a convex polygon running either way round. */
+function polygonSpan(
+  corners: readonly FlatPoint[],
+  from: Vec3,
+  to: Vec3,
+  span: [number, number]
+): [number, number] | null {
+  if (corners.length < 3) return null;
+  const middle = {
+    x: corners.reduce((sum, corner) => sum + corner.x, 0) / corners.length,
+    y: corners.reduce((sum, corner) => sum + corner.y, 0) / corners.length,
+  };
+  let clipped: [number, number] | null = span;
+  for (let i = 0; i < corners.length && clipped; i++) {
+    const p = corners[i];
+    const q = corners[(i + 1) % corners.length];
+    const edge = Math.hypot(q.x - p.x, q.y - p.y);
+    if (edge < 1e-12) continue;
+    let nx = -(q.y - p.y) / edge;
+    let ny = (q.x - p.x) / edge;
+    if (nx * (middle.x - p.x) + ny * (middle.y - p.y) < 0) [nx, ny] = [-nx, -ny];
+    const start = nx * (from.x - p.x) + ny * (from.y - p.y);
+    const change = nx * (to.x - from.x) + ny * (to.y - from.y);
+    clipped = clipToRange(start, change, 0, Number.POSITIVE_INFINITY, clipped, 0);
+  }
+  return clipped;
+}
+
+function coneEntry(cone: Extract<Solid, { kind: 'cone' }>, from: Vec3, to: Vec3): number | null {
+  const outside = coneOutside(cone, from, to);
+  const nearest = nearestAlong(outside);
+  if (outside(nearest) > ON_EDGE_PX) return null;
+  if (outside(0) <= ON_EDGE_PX) return 0;
+  let low = 0;
+  let high = nearest;
+  for (let step = 0; step < CONE_SEARCH_STEPS; step++) {
+    const middle = (low + high) / 2;
+    if (outside(middle) <= 0) high = middle;
+    else low = middle;
+  }
+  return high;
+}
+
 function columnTouches(parts: readonly FootprintPart[], bottom: number, top: number, from: Vec3, to: Vec3): boolean {
   const span = clipToRange(from.z, to.z - from.z, bottom, top, [0, 1]);
   if (!span) return false;
@@ -54,23 +180,40 @@ function beamTouches(beam: Extract<Solid, { kind: 'beam' }>, from: Vec3, to: Vec
  * piece, so the least of it is found by closing in from both ends.
  */
 function coneTouches(cone: Extract<Solid, { kind: 'cone' }>, from: Vec3, to: Vec3): boolean {
+  const outside = coneOutside(cone, from, to);
+  return outside(nearestAlong(outside)) <= ON_EDGE_PX;
+}
+
+/** How far outside a cone the point a share of the way along a piece lies; less than nought within it. */
+function coneOutside(cone: Extract<Solid, { kind: 'cone' }>, from: Vec3, to: Vec3): (t: number) => number {
   const a = intoFrame(from, cone.apex, cone.frame);
   const b = intoFrame(to, cone.apex, cone.frame);
   const opening = cone.length > 0 ? cone.endRadius / cone.length : 0;
-  const outside = (t: number): number => {
+  const slant = Math.sqrt(1 + opening * opening);
+  return (t) => {
     const along = a.x + (b.x - a.x) * t;
     const across = Math.hypot(a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t);
-    return Math.max(-along, along - cone.length, (across - along * opening) / Math.sqrt(1 + opening * opening));
+    return Math.max(-along, along - cone.length, (across - along * opening) / slant);
   };
+}
+
+/** Where along a piece, as a share of the way, a measure that falls and then rises only once is least. */
+function nearestAlong(measure: (t: number) => number): number {
   let low = 0;
   let high = 1;
   for (let step = 0; step < CONE_SEARCH_STEPS; step++) {
     const left = low + (high - low) / 3;
     const right = high - (high - low) / 3;
-    if (outside(left) <= outside(right)) high = right;
+    if (measure(left) <= measure(right)) high = right;
     else low = left;
   }
-  return Math.min(outside(0), outside(1), outside((low + high) / 2)) <= ON_EDGE_PX;
+  const middle = (low + high) / 2;
+  const ends: [number, number][] = [
+    [0, measure(0)],
+    [1, measure(1)],
+    [middle, measure(middle)],
+  ];
+  return ends.reduce((best, end) => (end[1] < best[1] ? end : best))[0];
 }
 
 /** A point in a frame's own ways from its origin: along it, across it to the right, and up across it. */
@@ -95,11 +238,12 @@ function clipToRange(
   change: number,
   low: number,
   high: number,
-  span: [number, number] | null
+  span: [number, number] | null,
+  slack = ON_EDGE_PX
 ): [number, number] | null {
   if (!span) return null;
-  const lo = low - ON_EDGE_PX;
-  const hi = high + ON_EDGE_PX;
+  const lo = low - slack;
+  const hi = high + slack;
   if (Math.abs(change) < 1e-12) return start >= lo && start <= hi ? span : null;
   let enter = (lo - start) / change;
   let leave = (hi - start) / change;

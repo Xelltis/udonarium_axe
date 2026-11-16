@@ -4,6 +4,7 @@ import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -74,6 +75,7 @@ export class TablePickService {
   private readonly coordinates = inject(CoordinateService);
   private readonly pointerDevice = inject(PointerDeviceService);
   private readonly pieces = inject(TablePiecesService);
+  private readonly solidRanges = inject(SolidRangeService);
   private readonly pictures = inject(PictureSizeService);
   private readonly looks = inject(TableAmbienceService);
   private readonly objectStore = inject(ObjectStore);
@@ -110,9 +112,11 @@ export class TablePickService {
    * locked block pass through to what lay under it. A piece standing in a wood is pressed, not the
    * tree in front of it; a locked block with no piece behind it is pressed itself, for its menu. A
    * door and a switch are pressed themselves whatever stands behind them, as they are there to be.
+   * A range standing up off the table lets a press through to a piece within it or behind it, as the
+   * piece is seen through it, so a piece wrapped in a range is still taken.
    */
   pressedAt(pageX: number, pageY: number): PickHit | null {
-    const hits = this.allAt(pageX, pageY);
+    const hits = passingSolids(this.allAt(pageX, pageY));
     const first = hits[0];
     if (!first || !this.lockedBlock(first.target)) return first ?? null;
     for (const hit of hits) {
@@ -192,7 +196,12 @@ export class TablePickService {
   }
 
   private everyTarget(): PickTarget[] {
-    return [...this.targets(), ...this.pieceTargets(), ...this.ambienceTargets()];
+    return [...this.targets(), ...this.pieceTargets(), ...this.solidTargets(), ...this.ambienceTargets()];
+  }
+
+  /** The targets of the ranges standing up off the table in view. */
+  private solidTargets(): PickTarget[] {
+    return untracked(() => this.solidRanges.pickTargets());
   }
 
   /**
@@ -249,6 +258,7 @@ export class TablePickService {
         const target = make(terrain);
         if (target) targets.push(target);
       }
+      for (const solid of this.solidRanges.pickTargets()) if (identifiers.has(solid.id)) targets.push(solid);
       return targets;
     });
   }
@@ -488,4 +498,21 @@ export class TablePickService {
 /** The corners a sprite is picked by: its own shape where it is see-through, the box round it otherwise. */
 function spritePickCorners(sprite: TableWorldSprite, eye: ReturnType<typeof eyeAxesOf>) {
   return sprite.seeThrough ? spriteCorners(sprite, eye) : spriteBoxCorners(sprite, eye);
+}
+
+/** Whether a target is a range standing up off the table. */
+function isSolidTarget(target: PickTarget): boolean {
+  return target.shapes.some((shape) => shape.kind === 'solid');
+}
+
+/**
+ * The hits along a line of sight past the ranges standing up in front of a piece: each such range is
+ * passed over where a piece lies behind it, and kept where nothing but blocks and ground lie behind.
+ */
+function passingSolids(hits: readonly PickHit[]): PickHit[] {
+  const isPiece = (hit: PickHit) =>
+    !isSolidTarget(hit.target) && hit.target.layer !== TERRAIN_PICK_LAYER && hit.target.layer !== AMBIENCE_PICK_LAYER;
+  let from = 0;
+  while (from < hits.length && isSolidTarget(hits[from].target) && hits.slice(from + 1).some(isPiece)) from++;
+  return hits.slice(from);
 }

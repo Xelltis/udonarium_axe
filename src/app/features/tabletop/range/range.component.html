@@ -1,8 +1,8 @@
 <!--
-  The range is a box on the screen round where the table's canvas draws its cells, stacked among the
-  pieces, and a box over every piece's with its handle and its lock on the point it turns about, so
-  no piece standing on the range covers its handle. Its cells are drawn here, out of sight, for the
-  canvas to draw a picture of.
+  The range is a box on the screen round where the table's canvas draws its cells, or the solid it
+  stands up as cut to the outline round it, stacked among the pieces, and a box over every piece's
+  with its handle and its lock on the point it turns about, so no piece standing on the range covers
+  its handle. Its cells are drawn here, out of sight, for the canvas to draw a picture of.
 -->
 @let id = range().identifier;
 <div
@@ -17,13 +17,22 @@
   (movable.ondragstart)="onMove()"
   (movable.ondragend)="onMoved()"
 >
-  <div
-    data-part="picture"
-    class="pointer-events-auto"
-    [style.clip-path]="pointerClipPath()"
-    [appTooltip]="range()"
-    [appHudPlace]="{ owner: id, part: 'picture', place: 'cover' }"
-  ></div>
+  @if (placedSolid()) {
+    <div
+      data-part="solid"
+      class="pointer-events-auto"
+      [appTooltip]="range()"
+      [appHudPlace]="{ owner: id, part: 'solid' }"
+    ></div>
+  } @else {
+    <div
+      data-part="picture"
+      class="pointer-events-auto"
+      [style.clip-path]="pointerClipPath()"
+      [appTooltip]="range()"
+      [appHudPlace]="{ owner: id, part: 'picture', place: 'cover' }"
+    ></div>
+  }
   @if (altitudeGuide(); as guide) {
     <altitude-guide [owner]="id" [guide]="guide" [colour]="range().rangeColor" />
   }
