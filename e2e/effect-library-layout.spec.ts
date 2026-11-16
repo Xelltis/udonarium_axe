@@ -435,6 +435,7 @@ test.describe('the list of effects', () => {
       await expect(panel.getByTestId('effect-library-fire')).toBeEnabled();
       await panel.getByPlaceholder(/名前・系統/).fill('');
       await panel.getByTestId('effect-library-reaches').locator('[data-reach="area"]').click();
+      await expect(panel.getByTestId('effect-library-count')).toBeVisible();
 
       const measured = await panel.evaluate((root) => {
         const canvas = document.createElement('canvas');

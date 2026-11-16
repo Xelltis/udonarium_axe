@@ -31,10 +31,12 @@ async function castOn(page: Page, preset: string) {
   await settle(page);
 }
 
-for (const [preset, name, at] of [
+for (const [preset, name, at, differs] of [
   // Each as it strikes: a drawing cut flashes once its stance is held, a great beam once it has gathered.
-  ['一閃', 'effect-slash', 1700],
-  ['極太ビーム', 'effect-beam', 1400],
+  // The streaks down a great beam are laid by the seed of its cast, which is drawn anew each time, so
+  // its picture is held to where the beam runs and what colour it is rather than to each streak.
+  ['一閃', 'effect-slash', 1700, 0],
+  ['極太ビーム', 'effect-beam', 1400, 0.08],
 ] as const) {
   test(`${name} looks the same ${at}ms into the cast`, async ({ page }) => {
     await prepare(page);
@@ -45,6 +47,6 @@ for (const [preset, name, at] of [
     await castOn(page, preset);
     await settle(page, at);
     expect(await effectsDrawn(page)).toBeGreaterThan(0);
-    await snap(page, name);
+    await snap(page, name, differs > 0 ? { maxDiffPixelRatio: differs } : {});
   });
 }
