@@ -168,7 +168,7 @@ describe('buildRangeContextMenuModel', () => {
     }
   });
 
-  it('offers aiming at everything inside for a circle, a line or a square, and not for other shapes', () => {
+  it('offers aiming at everything inside for a circle, a line or a square, and not for other flat shapes, and for every shape standing up', () => {
     const range = RangeArea.create('test', 3, 3, 50);
     const aim = vi.fn();
     const names = () =>
@@ -195,6 +195,11 @@ describe('buildRangeContextMenuModel', () => {
 
       range.type = 'CORN';
       expect(names().some((action) => action.name === '範囲内を対象にする')).toBe(false);
+
+      range.solidKind = 'cone';
+      expect(names().some((action) => action.name === '範囲内を対象にする')).toBe(true);
+      range.type = 'PENTAGON';
+      expect(names().some((action) => action.name === '範囲内を対象にする')).toBe(true);
     } finally {
       range.destroy();
     }

@@ -3,8 +3,11 @@ import { EffectTargetingService } from '@axe/application/effect/effect-targeting
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('PieceTargetService', () => {
@@ -101,6 +104,73 @@ describe('PieceTargetService', () => {
       service().targetInsideRange(range, 100);
       expect(twoSquaresOff.targeted).toBe(true);
       range.destroy();
+    });
+  });
+
+  describe('aiming at what a range standing up off the table takes in', () => {
+    const GRID = 50;
+
+    beforeEach(() => {
+      const table = new GameTable();
+      table.width = 20;
+      table.height = 20;
+      table.gridSize = GRID;
+      table.initialize();
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
+    });
+
+    afterEach(() => {
+      for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+    });
+
+    function pieceAt(col: number, row: number, altitude = 0): GameCharacter {
+      const piece = GameCharacter.create('コマ', 1, '');
+      piece.location = { name: 'table', x: col * GRID, y: row * GRID };
+      piece.altitude = altitude;
+      return piece;
+    }
+
+    function standing(type: string, kind: RangeArea['solidKind'], more: (range: RangeArea) => void): RangeArea {
+      const range = RangeArea.create('立体', 3, 2, 100);
+      range.type = type;
+      range.solidKind = kind;
+      more(range);
+      const table = ObjectStore.instance.get<GameTable>(TableSelecter.instance.viewTableIdentifier)!;
+      table.appendChild(range);
+      return range;
+    }
+
+    it('takes in a piece on the ground under a low column and leaves one flying over it, and both once it is tall', () => {
+      const column = standing('CIRCLE', 'column', (range) => {
+        range.location = { name: 'table', x: 5.5 * GRID, y: 5.5 * GRID };
+        range.columnHeight = 2;
+      });
+      const grounded = pieceAt(5, 6);
+      const flying = pieceAt(6, 5, 3);
+
+      service().targetInsideRange(column, GRID);
+      expect([grounded.targeted, flying.targeted]).toEqual([true, false]);
+
+      column.columnHeight = 4;
+      TestBed.inject(ObjectChangeService).notifyChanged(column.identifier);
+      service().targetInsideRange(column, GRID);
+      expect([grounded.targeted, flying.targeted]).toEqual([true, true]);
+    });
+
+    it('takes in only the pieces a cone pointed up reaches, whatever lies under it on the ground', () => {
+      const cone = standing('CORN', 'cone', (range) => {
+        range.location = { name: 'table', x: 5 * GRID, y: 5.5 * GRID };
+        range.length = 6;
+        range.width = 2;
+        range.aimPitch = 45;
+        range.altitude = 0.5;
+      });
+      const overhead = pieceAt(8, 5, 3);
+      const underneath = pieceAt(8, 5);
+
+      service().targetInsideRange(cone, GRID);
+
+      expect([overhead.targeted, underneath.targeted]).toEqual([true, false]);
     });
   });
 

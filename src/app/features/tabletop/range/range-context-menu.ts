@@ -68,7 +68,7 @@ export function buildRangeContextMenuModel(
     action: () => onEdit(range),
   };
   const targetActions: ContextMenuAction[] =
-    onTargetInside && COVERED_RANGE_TYPES.includes(range.type)
+    onTargetInside && (range.isSolid || COVERED_RANGE_TYPES.includes(range.type))
       ? [{ name: t('feature.tabletop.contextMenu.rangeTargetInside'), action: () => onTargetInside(range) }]
       : [];
   const copyAction = buildCopyAction(range, gridSize, t, {
