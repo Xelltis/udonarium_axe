@@ -19,7 +19,7 @@
 
 - **持つ** — `RulerService.inHand`。ツールバーとFABの`ruler`（`MENU_COMMANDS`の切り替え）、卓の`M`キー、コマの右クリックの**ここから測る**（`startFrom`）から持つ。見学には出さない
 - **引く** — `handRulerPressesOn`が卓の要素でキャプチャ段階の押下を先に受け取るので、持っているあいだは卓の押下がコマに届かない。コマの上に置いた端は、そのコマの足元の中心（高度を含む）につながる。卓の上に置いた端はマスの中心に寄り、Altを押しているときとスナップなしの卓では寄せない。引いているあいだのホイールで、先の端を高度の刻み（1マス）ずつ上げ下げする（`liftEnd`）
-- **測る** — `measureBetween`（`domain/tabletop/ruler/ruler-measure`）が、直線・水平・高さの差と、部屋の`diagonalMove`（斜め移動）を高さにも当てたマス数を出す。四角の卓は3方向をまとめて数える。`equal`は最大、`alternating`は最大に次の半分を足し、`double`は最大と次の和、`none`は3つの和になる。ヘクスの卓は、卓の上の歩数と高さを同じ規則で組む。グリッドなしの卓ではマス数を出さない。`cellDistanceUnit`がメートルかフィートなら、`cellDistance`を掛けた長さも出す（`rulerReadingOf`）
+- **測る** — `measureBetween`（`domain/tabletop/ruler/ruler-measure`）が、直線・水平・高さの差と、部屋の`diagonalMove`（斜め移動）を高さにも当てたマス数を出す。四角の卓は3方向をまとめて数える。`equal`は最大、`alternating`は最大に次の半分を足し、`double`は最大と次の和、`none`は3つの和になる。ヘクスの卓は、卓の上の歩数と高さを同じ規則で組む。グリッドなしの卓ではマス数を出さない。`cellDistanceUnit`がメートルかフィートで`cellDistance`が正なら、直線・水平・高さは`cellDistance`を掛けた長さで出し、マス数はマスのまま数える（`rulerReadingOf`）。物差し専用の単位は持たず、移動の換算と同じ設定を読む
 - **見せる** — 線は場面の補助線で、濃い縁取りの上に明るい線を重ね、両端に輪を付け、宙の端からは地面まで線を下ろす。読みは線の真ん中の上（`table-ruler-overlay`）と、画面の下の帯（`ruler-band`）に出す
 - **共有** — 引いている物差しは`PeerCursor.measuring`と`measuringTable`で流す（80msに1回まで）。受け手は自分が見ている卓の物差しだけを描き、端がつながったコマを見られないとき、または端が霧で隠れた未踏の地点にあるときも描かない（`RulerReadingService.maySee`）。卓を切り替えると、自分の線は消える
 - **置く** — 帯の**置く**で`TableRuler`（`@SyncObject('table-ruler')`。両端は`line`）を作る。部屋の保存に入り、GMのオブジェクト一覧に出る。端は端のハンドルで、全体は線で動かす（`RulerGrabDirective`）。全体を動かすと、コマとのつなぎは外れる。右クリックで固定・コマとのつなぎを外す・コピー・削除ができる。古い版は`table-ruler`を知らないので読み飛ばし、古い版で保存し直すと物差しは消える
