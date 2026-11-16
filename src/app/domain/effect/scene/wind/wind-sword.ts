@@ -33,9 +33,11 @@ const BLADE_BANDS = 3;
 const BLADE_POINTS = 18;
 const BLADE_TURNS = 2.6;
 /** How many bands corkscrew along the torrent, how many points each is drawn through, and how far apart its turns are, in cells. */
-const TORRENT_BANDS = 4;
-const TORRENT_POINTS = 26;
-const TURN_CELLS = 1.6;
+const TORRENT_BANDS = 2;
+const TORRENT_POINTS = 64;
+const TURN_CELLS = 4.2;
+/** How fast the bands of the torrent turn about it, in radians a second. */
+const TORRENT_TURNS = 6.5;
 
 /** Two ways square to a way and to each other, of length one: one level where it can be, and one over it. */
 function squareTo(way: Point): { readonly a: Point; readonly b: Point } {
@@ -153,6 +155,7 @@ export function drawWindTorrent(drawn: Staged, pose: SwordPose, paint: SwordPain
       z: Math.max(pose.floorZ + U * 0.05, middle.z + Math.sin(turn) * out * 0.85),
     };
   };
+  const wind = windPaintOf(paint.ramp);
   for (let band = 0; band < TORRENT_BANDS; band++) {
     const bys = Array.from(
       { length: TORRENT_POINTS },
@@ -162,14 +165,47 @@ export function drawWindTorrent(drawn: Staged, pose: SwordPose, paint: SwordPain
     const points = bys.map((by) =>
       around(
         by,
-        since * 16 + band * (Math.PI / 2) + (by / (U * TURN_CELLS)) * Math.PI * 2,
-        torrentWidthAt(pose, look, by) * 0.62 + U * 0.1
+        since * TORRENT_TURNS + band * ((Math.PI * 2) / TORRENT_BANDS) + (by / (U * TURN_CELLS)) * Math.PI * 2,
+        torrentWidthAt(pose, look, by) * 0.6 + U * 0.12
       )
     );
-    const wide = bys.map((by) => U * 0.34 * Math.min(1, torrentWidthAt(pose, look, by) / (pose.thick * 0.5)));
-    const [behind, before] = woundBand(points, about, wide, look.alpha, paint, since * 10 + band);
-    far.push(behind);
-    near.push(before);
+    const wide = bys.map((by) => U * 0.46 * Math.min(1, torrentWidthAt(pose, look, by) / (pose.thick * 0.5)));
+    const alphas = points.map((_point, index) => Math.min(1, index / 3, (points.length - 1 - index) / 3));
+    const sheath = halvesOf(
+      {
+        points,
+        widths: wide.map((width) => width * 1.6),
+        color: mixColor(wind.shadow, paint.rim, 0.5),
+        alpha: 0.9 * look.alpha,
+        alphas,
+        blend: 'color',
+        torn: 0.3,
+        soft: 0.2,
+        flowed: since * 8 + band,
+      },
+      about,
+      wind.shadow,
+      0.75
+    );
+    const body = halvesOf(
+      {
+        points,
+        widths: wide,
+        color: mixColor(paint.sheath, paint.body, 0.35),
+        core: '#ffffff',
+        alpha: look.alpha,
+        alphas,
+        blend: 'color',
+        torn: 0.3,
+        soft: 0.12,
+        flowed: since * 12 + band,
+      },
+      about,
+      wind.shadow,
+      0.75
+    );
+    far.push(sheath.far, body.far);
+    near.push(sheath.near, body.near);
   }
   layRibbons(drawn, far);
   layRibbons(drawn, near);

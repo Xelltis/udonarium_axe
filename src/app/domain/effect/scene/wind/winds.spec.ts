@@ -105,6 +105,31 @@ describe('a storm and a tornado', () => {
   });
 });
 
+describe('a great sword of wind', () => {
+  it('corkscrews a few thick sheathed bands along its torrent, with few lines of speed among them', () => {
+    const preset = bundled('風の大剣');
+    const cast = castOn([500, 300]);
+    try {
+      const flowing = drawnAt(preset, cast, effectBlowsOf(preset)[0].atMs + 250);
+      const bands = flowing.ribbons.filter((ribbon) => ribbon.half === 'near' && ribbon.points.length >= 30);
+      const lines = flowing.ribbons.filter(
+        (ribbon) =>
+          ribbon.points.length === 3 &&
+          ribbon.color === '#ffffff' &&
+          ribbon.core === undefined &&
+          (ribbon.widths as number[])[0] === 0
+      );
+
+      expect(bands.length).toBeGreaterThan(0);
+      expect(bands.length).toBeLessThanOrEqual(6);
+      expect(bands.some((band) => band.core === undefined && band.color !== '#ffffff')).toBe(true);
+      expect(lines.length).toBeLessThanOrEqual(6);
+    } finally {
+      ObjectStore.instance.remove(preset);
+    }
+  });
+});
+
 describe('sickles of wind', () => {
   it('leave a cut hanging through the target for every stroke the form of the cut makes', () => {
     const preset = bundled('鎌鼬');
