@@ -8,7 +8,8 @@ import {
   type Staged,
   within,
 } from '@axe/domain/effect/scene/choreography';
-import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
+import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
+import { seededRun } from '@axe/domain/effect/scene/effect-sim';
 import {
   drawBeat,
   drawHoop,
@@ -26,9 +27,9 @@ import { SCENE_LINGER_S } from '@axe/domain/effect/scene/scene-kinds';
 /*
  * A sanctuary. A great crest of light opens on the floor, a ring racing out to its rim as it does,
  * and turns slowly, a lesser crest turning the other way at its heart and glints running round its
- * rim; then walls of light rise from the rim in a white beat, a curtain of gold whose light runs
- * upwards, posts of brighter light standing in it, and light bursts up out of the floor under the
- * target. The walls stand and shimmer; then they lift off the floor and thin away into motes rising
+ * rim; then walls of light rise from the rim in a white beat, a curtain of deep gold whose light runs
+ * upwards in streaks, a hard bright rim along its top, posts of brighter light standing in it and
+ * motes of light climbing it, and light bursts up out of the floor under the target. The walls stand and shimmer; then they lift off the floor and thin away into motes rising
  * from the rim, and the crest fades.
  *
  * Over an area it opens once, about the first target, as wide as the area, and the light bursts up
@@ -85,11 +86,19 @@ function drawUnder(drawn: Staged, stage: Stage, floor: Point, tones: HolyTones, 
   );
 }
 
+/** How much of the walls is seen where they stand before what they ring, against where they stand behind it. */
+const SEEN_BEFORE = 0.5;
+/** The orange the curtain is taken towards, so that it holds its colour on a bright floor. */
+const WALL_ORANGE = '#ff9a10';
+/** How many motes climb the walls at once, where the effect keeps all its detail. */
+const CLIMBING = 36;
+
 /**
- * The walls of light standing on the rim of the crest: a curtain of gold strips side by side, its
- * light running upwards, a line of light along its foot and another along its top, hoops of light
- * climbing it, and posts of brighter light standing in it; lifted off the floor and thinned away by
- * `lifted`.
+ * The walls of light standing on the rim of the crest: a curtain of deep gold strips side by side,
+ * full where it stands behind what it rings and thinner before it, its light running upwards in
+ * streaks over it, a hard bright rim along its top and a line of light along its foot, posts of
+ * brighter light standing in it and motes of light climbing it; lifted off the floor and thinned
+ * away by `lifted`.
  */
 function drawWalls(
   drawn: Staged,
@@ -99,7 +108,8 @@ function drawWalls(
   tones: HolyTones,
   t: number,
   risen: number,
-  lifted: number
+  lifted: number,
+  density: number
 ): void {
   const shown = 1 - lifted;
   if (risen <= 0 || shown <= 0.01) return;
@@ -108,34 +118,57 @@ function drawWalls(
   const base = floor.z + lifted * cell * 1.8;
   const tall = cell * WALL_CELLS * risen;
   const posts = Math.max(1, Math.round(strips / 8));
-  const alphas = [1, 0.9, 0.6, 0];
+  const deep = mixColor(mixColor(tones.amber, tones.shade, 0.15), WALL_ORANGE, 0.4);
+  const body = [1, 0.95, 0.85, 0.6];
+  const rays = [0.5, 1, 0.9, 0.3];
   for (let strip = 0; strip < strips; strip++) {
     const turn = (strip / strips) * Math.PI * 2;
     const at = { x: floor.x + Math.cos(turn) * reach, y: floor.y + Math.sin(turn) * reach };
-    const shimmer = 0.8 + 0.2 * Math.sin(t * 5.3 + strip * 1.3);
+    const shimmer = 0.85 + 0.15 * Math.sin(t * 5.3 + strip * 1.3);
     const points = [0, 0.35, 0.7, 1].map((share) => ({ ...at, z: base + tall * share }));
-    drawn.ribbons.push(
-      {
-        points,
-        widths: width,
-        color: tones.amber,
-        core: tones.gold,
-        alpha: 0.62 * shown * shimmer,
-        alphas,
-        blend: 'color',
-        soft: 0.5,
-        torn: 0.15,
-        flowed: -t * 1.6 + strip * 0.37,
-      },
-      { points, widths: width, color: tones.gold, alpha: 0.5 * shown * shimmer, alphas, blend: 'light', soft: 0.7 }
-    );
+    const about = points.map((point) => ({ x: floor.x, y: floor.y, z: point.z }));
+    for (const [half, seen] of [
+      ['far', 1],
+      ['near', SEEN_BEFORE],
+    ] as const) {
+      drawn.ribbons.push(
+        {
+          points,
+          about,
+          half,
+          widths: width,
+          color: deep,
+          core: tones.amber,
+          alpha: 0.85 * shown * seen,
+          alphas: body,
+          blend: 'color',
+          soft: 0.25,
+          torn: 0.18,
+          flowed: -t * 1.6 + strip * 0.37,
+        },
+        {
+          points,
+          about,
+          half,
+          widths: width * 0.7,
+          color: tones.gold,
+          core: tones.pale,
+          alpha: 0.55 * shown * shimmer * seen,
+          alphas: rays,
+          blend: 'light',
+          soft: 0.5,
+          torn: 0.5,
+          flowed: -t * 3.2 + strip * 0.61,
+        }
+      );
+    }
     if (strip % posts !== 0) continue;
-    const post = [0, 0.5, 1].map((share) => ({ ...at, z: base + tall * 1.3 * share }));
+    const post = [0, 0.5, 1].map((share) => ({ ...at, z: base + tall * 1.35 * share }));
     drawn.ribbons.push(
       {
         points: post,
-        widths: cell * 0.2,
-        color: tones.amber,
+        widths: cell * 0.22,
+        color: deep,
         core: tones.pale,
         alpha: 0.95 * shown,
         alphas: [1, 0.85, 0],
@@ -144,7 +177,7 @@ function drawWalls(
       },
       {
         points: post,
-        widths: cell * 0.12,
+        widths: cell * 0.13,
         color: tones.hot,
         core: '#ffffff',
         alpha: shown,
@@ -154,12 +187,38 @@ function drawWalls(
       }
     );
   }
-  drawHoop(drawn, { ...floor, z: base + cell * 0.04 }, reach, cell * 0.09, tones, shown);
-  drawHoop(drawn, { ...floor, z: base + tall * 0.72 }, reach, cell * 0.05, tones, 0.8 * shown * risen);
+  drawHoop(drawn, { ...floor, z: base + cell * 0.04 }, reach, cell * 0.13, tones, shown);
+  drawHoop(drawn, { ...floor, z: base + tall * 0.99 }, reach, cell * 0.1, tones, shown * risen);
   for (let hoop = 0; hoop < 2; hoop++) {
     const climbed = (t * 0.45 + hoop / 2) % 1;
     const fade = Math.min(1, climbed * 5, (1 - climbed) * 3) * shown * risen;
-    drawHoop(drawn, { ...floor, z: base + tall * 0.7 * climbed }, reach, cell * 0.04, tones, 0.7 * fade);
+    drawHoop(drawn, { ...floor, z: base + tall * climbed }, reach, cell * 0.05, tones, 0.8 * fade);
+  }
+  const next = seededRun(Math.round(reach) * 7 + 3);
+  for (let mote = 0; mote < Math.round(CLIMBING * density); mote++) {
+    const turn = next() * Math.PI * 2;
+    const pace = 0.6 + next() * 0.6;
+    const climbed = (t * pace + next()) % 1;
+    const fade = Math.min(1, climbed * 6, (1 - climbed) * 3) * shown * risen;
+    const at = {
+      x: floor.x + Math.cos(turn) * reach * 1.02,
+      y: floor.y + Math.sin(turn) * reach * 1.02,
+      z: base + tall * 1.3 * climbed,
+    };
+    drawn.motes.push(
+      {
+        ...haze(at, cell * 0.24, deep, 0.9 * fade, cell * 0.2),
+        shape: 'spark',
+        velocity: { x: 0, y: 0, z: tall * pace },
+        trail: 0.14,
+      },
+      {
+        ...glow(at, cell * 0.16, tones.hot, fade, cell * 0.2 + 1),
+        shape: 'spark',
+        velocity: { x: 0, y: 0, z: tall * pace },
+        trail: 0.12,
+      }
+    );
   }
 }
 
@@ -241,7 +300,7 @@ export const sanctuary: Choreography = {
       return drawn;
     }
 
-    drawWalls(drawn, floor, reach, cell, tones, t, outCubic(within(since, 0, RISES_S)), lifted);
+    drawWalls(drawn, floor, reach, cell, tones, t, outCubic(within(since, 0, RISES_S)), lifted, density);
     if (since < 0.09) {
       const left = 1 - since / 0.09;
       drawn.floor.push(floorMark('ring', floor, reach * 1.02, 0.16, '#ffffff', left, 'light', 0));

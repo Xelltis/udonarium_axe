@@ -73,6 +73,24 @@ describe('a sanctuary', () => {
     expect(risen.some((wall) => wall.blend === 'light')).toBe(true);
   });
 
+  it('stands its walls as a body of colour, full behind what they ring and thinner before it, with motes climbing them', () => {
+    const drawn = stagedAt(sanctuary, cast, rises + 0.6);
+    const body = wallsOf(drawn).filter((wall) => wall.blend === 'color' && wall.half);
+    const strongest = (half: 'near' | 'far') =>
+      Math.max(...body.filter((wall) => wall.half === half).map((wall) => wall.alpha));
+    const climbing = drawn.motes.filter(
+      (mote) =>
+        mote.shape === 'spark' &&
+        (mote.velocity?.z ?? 0) > 0 &&
+        Math.abs(Math.hypot(mote.x - CENTRE.x, mote.y - CENTRE.y) - AREA) < CELL * 0.2
+    );
+
+    expect(strongest('far')).toBeGreaterThan(0.75);
+    expect(strongest('near')).toBeLessThan(strongest('far') * 0.6);
+    expect(strongest('near')).toBeGreaterThan(0.3);
+    expect(climbing.length).toBeGreaterThan(20);
+  });
+
   it('bursts light up out of the floor under every target it takes in at the same instant, whatever their stagger', () => {
     const before = stagedAt(sanctuary, cast, rises - 0.03);
     const drawn = stagedAt(sanctuary, cast, rises + 0.06);
