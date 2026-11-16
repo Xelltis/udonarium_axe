@@ -15,6 +15,7 @@ import {
   lightBall,
   type Point,
   stageKey,
+  starBurst,
   type Thrower,
   throwerFor,
 } from '@axe/domain/effect/scene/parts';
@@ -46,6 +47,8 @@ const COOLS_S = 1.9;
 const CLEARS_S = 0.6;
 /** How strongly each heave lights the ground, the first the hardest. */
 const HEAVE_LIGHT = [2.4, 1.7, 1.9] as const;
+/** How long the white of a heave lasts, in seconds: the beat each heave is read by, before its slabs jump and its dust rises. */
+const HEAVE_WHITE_S = 0.13;
 
 /** A slab of the floor that jumps as the ripple passes under it and lands askew. */
 interface Jumper {
@@ -129,7 +132,7 @@ export function throwJumpers(
       jumpsAt: heave + RIPPLE_S * Math.min(1, fromCentre / Math.max(1, reach)),
       hop: th.range(0.25, 0.55),
       peak: th.range(0.9, 1.4),
-      rests: th.range(0.55, 1.05),
+      rests: th.range(0.22, 0.5),
       tone: Math.floor(th.range(0, 2.99)),
       variant: th.range(0, 6),
     };
@@ -202,7 +205,12 @@ function throwVent(
     })
   );
   into.dust.push(
-    ...earthPlumes(th, at, th.count(6), tones.dust, { rise: [8, 14], bornAt: [heave, heave + 0.12], long: 2.6 }),
+    ...earthPlumes(th, at, th.count(4), tones.dust, {
+      rise: [7, 11],
+      bornAt: [heave + 0.04, heave + 0.14],
+      long: 2,
+      life: [0.7, 1.1],
+    }),
     ...kickedDust(th, at, th.count(7), tones.sand, {
       speed: [5, 10],
       size: [0.32, 0.55],
@@ -258,7 +266,7 @@ function throwQuake(stage: Stage, tones: EarthTones, ends: number, reach: number
   };
   for (const [index, heave] of heaves.entries()) {
     jumpers.push(
-      ...throwJumpers(th, centre, th.count(index === 0 ? 8 : 6), [0.5, (reach / U) * 0.95], heave, centre, reach)
+      ...throwJumpers(th, centre, th.count(index === 0 ? 7 : 5), [0.5, (reach / U) * 0.95], heave, centre, reach)
     );
     const opened = index === 0 ? [centre, spot(0.4, 0.7)] : [spot(0.3, 0.75)];
     for (const at of opened) {
@@ -272,21 +280,21 @@ function throwQuake(stage: Stage, tones: EarthTones, ends: number, reach: number
       const born = heave + RIPPLE_S * (out / reach);
       dust.push(
         ...kickedDust(th, at, 1, tones.dust, {
-          speed: [0.6, 1.6],
-          size: [0.55, 0.85],
-          bornAt: [born, born + 0.03],
+          speed: [0.8, 1.8],
+          size: [0.5, 0.75],
+          bornAt: [born + 0.05, born + 0.08],
           fan: { toward: turn, spread: 0.4 },
-          rise: [1.5, 3],
+          rise: [1.2, 2.4],
           from: 0.1,
-          alpha: 0.55,
-          life: [0.7, 1.2],
+          alpha: 0.5,
+          life: [0.4, 0.7],
         })
       );
     }
   }
   const last = heaves.at(-1) ?? 0;
   rocks.push(
-    ...throwRocks(th, centre, th.count(40), {
+    ...throwRocks(th, centre, th.count(26), {
       size: [0.04, 0.09],
       up: [1, 2.6],
       out: [0, 0.4],
@@ -299,11 +307,11 @@ function throwQuake(stage: Stage, tones: EarthTones, ends: number, reach: number
     ...kickedDust(th, centre, th.count(8), tones.dust, {
       speed: [0.2, 0.8],
       size: [1.4, 2.2],
-      bornAt: [heaves[1] ?? last, last + 0.3],
+      bornAt: [last + 0.2, last + 0.5],
       rise: [0.1, 0.4],
       from: (reach / U) * 0.8,
-      alpha: 0.22,
-      life: [1.8, 2.6],
+      alpha: 0.2,
+      life: [1.6, 2.4],
     }),
     ...driftingDust(th, centre, th.count(10), tones.dust, reach / U, [last + 0.6, Math.max(last + 0.7, ends - 1.8)])
   );
@@ -447,9 +455,13 @@ function drawRipple(
   if (flash <= 0) return;
   const heart = { ...centre, z: centre.z + U * 0.4 };
   drawn.motes.push(glow(heart, U * 3.6, tones.glow, 0.85 * flash, U * 0.4));
-  if (since < 0.08) {
-    drawn.floor.push(floorMark('disc', centre, reach * 0.9, 1, '#fff4dc', 0.4 * (1 - since / 0.08), 'light', 0));
-    drawn.motes.push(lightBall(heart, U * (index === 0 ? 1.3 : 0.9), '#fff4dc', 1 - since / 0.08, U * 0.5));
+  if (since < HEAVE_WHITE_S) {
+    const white = 1 - since / HEAVE_WHITE_S;
+    drawn.floor.push(floorMark('disc', centre, reach * 0.95, 1, '#fff4dc', 0.55 * white, 'light', 0));
+    drawn.motes.push(lightBall(heart, U * (index === 0 ? 1.6 : 1.2), '#fff4dc', white, U * 0.5));
+    drawn.motes.push(
+      ...starBurst(heart, U * (index === 0 ? 4 : 3), tones.hot, since / HEAVE_WHITE_S, U * 0.5, 8, index)
+    );
   }
   drawn.lights.push({
     ...heart,
@@ -484,7 +496,9 @@ export function drawCaughtQuake(stage: Stage, tones: EarthTones, lingerS: number
     };
     const rocks: Rock[] = [];
     const dust: Cloud[] = [];
-    const jumpers = heaves.flatMap((heave) => throwJumpers(th, foot, th.count(2), [0.45, 0.8], heave, middle, reach));
+    const jumpers = heaves.flatMap((heave, index) =>
+      throwJumpers(th, foot, th.count(index === 0 ? 2 : 1), [0.5, 0.85], heave, middle, reach)
+    );
     for (const heave of heaves) {
       const at = heave + RIPPLE_S * Math.min(1, Math.hypot(foot.x - middle.x, foot.y - middle.y) / reach);
       rocks.push(
@@ -500,8 +514,9 @@ export function drawCaughtQuake(stage: Stage, tones: EarthTones, lingerS: number
         ...kickedDust(th, foot, th.count(4), tones.dust, {
           speed: [1.2, 3],
           size: [0.5, 0.8],
-          bornAt: [at, at + 0.06],
-          alpha: 0.55,
+          bornAt: [at + 0.05, at + 0.1],
+          alpha: 0.5,
+          life: [0.5, 0.9],
         })
       );
     }
