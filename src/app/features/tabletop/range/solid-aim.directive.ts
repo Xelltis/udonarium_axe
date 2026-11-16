@@ -24,7 +24,7 @@ interface Hold {
  * The handle at the tip of a cone or a beam standing up off the table, which points it.
  *
  * Dragging it moves the point it is aimed at over the table at the height the point is held at, the
- * wheel lifts and lowers that point half a cell a time, and the cone or beam points from its tip at
+ * wheel lifts and lowers that point a cell a time, and the cone or beam points from its tip at
  * the point, within the room round its tip that is drawn while it is held. With Alt held its turn
  * keeps to the grid's directions and its tip to steps of fifteen degrees. The way is drawn for this
  * seat alone while held and written for everyone once let go.
