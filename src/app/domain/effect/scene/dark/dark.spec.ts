@@ -162,15 +162,42 @@ describe('an abyss', () => {
 
   it('shortens the arms about a piece once they have seized it', () => {
     const lone = castOn([AT]);
-    const top = (seconds: number) =>
-      Math.max(
-        ...stagedAt(preset, lone, seconds)
-          .ribbons.flatMap((ribbon) => ribbon.points)
-          .filter((point) => Math.hypot(point.x - AT.x, point.y - AT.y) < CELL * 0.5)
-          .map((point) => point.z)
-      );
+    const heightAbout = (seconds: number) => {
+      const near = stagedAt(preset, lone, seconds)
+        .ribbons.flatMap((ribbon) => ribbon.points)
+        .filter((point) => Math.hypot(point.x - AT.x, point.y - AT.y) < CELL * 0.5);
+      return near.reduce((sum, point) => sum + point.z, 0) / near.length;
+    };
 
-    expect(top(seizes + 0.6)).toBeLessThan(top(seizes - 0.03));
+    expect(heightAbout(seizes + 0.6)).toBeLessThan(heightAbout(seizes - 0.03));
+  });
+
+  it('raises the hands that seize a piece well over its head before they come down on it', () => {
+    const lone = castOn([AT]);
+    const near = stagedAt(preset, lone, seizes - 0.25)
+      .ribbons.flatMap((ribbon) => ribbon.points)
+      .filter((point) => Math.hypot(point.x - AT.x, point.y - AT.y) < CELL * 0.6);
+
+    expect(Math.max(...near.map((point) => point.z))).toBeGreaterThan(CELL * 2);
+  });
+
+  it('stands a rim of earth round the pit that sinks into it as the hands drag', () => {
+    const lone = castOn([AT]);
+    const slabs = (seconds: number) => stagedAt(preset, lone, seconds).motes.filter((mote) => mote.shape === 'crag');
+    const topOf = (seconds: number) => Math.max(...slabs(seconds).map((mote) => mote.z));
+
+    expect(slabs(seizes - 0.1).length).toBeGreaterThanOrEqual(12);
+    expect(topOf(shuts - 0.05)).toBeLessThan(topOf(seizes - 0.1) * 0.8);
+  });
+
+  it('throws a geyser of black fire up over the whole pit as it shuts', () => {
+    const lone = castOn([AT]);
+    const flames = stagedAt(preset, lone, shuts + 0.15).motes.filter(
+      (mote) => mote.shape === 'lick' && mote.blend === 'color' && mote.z > CELL * 1.5
+    );
+
+    expect(flames.length).toBeGreaterThanOrEqual(24);
+    expect(Math.max(...flames.map((mote) => Math.hypot(mote.x - AT.x, mote.y - AT.y)))).toBeGreaterThan(CELL * 1.2);
   });
 
   it('shuts over everything: no hand and no mire is left once it has closed', () => {
