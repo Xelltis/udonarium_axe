@@ -36,13 +36,13 @@ function makeCast(targetCount = 1): EffectCast {
 const PICTURED: EffectSpriteOptions = { baseSize: 50, resolveImage: () => 'blob:token' };
 
 describe('cutPictureSprites()', () => {
-  it('cuts the picture of a piece crumbling apart into a grid, and scatters the fragments', () => {
-    const pieces = cutPictureSprites(makePreset('dissolve'), makeCast(), 600, PICTURED);
+  it('cuts the picture of a piece crumbling apart into jagged shards, and scatters the fragments', () => {
+    const pieces = cutPictureSprites(makePreset('dissolve'), makeCast(), 800, PICTURED);
 
     expect(pieces.length).toBeGreaterThan(8);
     for (const piece of pieces) {
       expect(piece.background).toContain('blob:token');
-      expect(piece.clipPath).toContain('inset(');
+      expect(piece.clipPath).toContain('polygon(');
     }
     expect(new Set(pieces.map((piece) => `${piece.offsetX}/${piece.offsetY}`)).size).toBe(pieces.length);
   });

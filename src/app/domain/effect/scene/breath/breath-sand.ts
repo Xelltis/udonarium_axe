@@ -33,9 +33,9 @@ export function laySandBand(
     const under = { x: at.x, y: at.y, z: cone.floorZ };
     const reach = Math.max(U * 0.55, coneWidthAt(cone, along) * 0.48) * (0.45 + 0.55 * laid);
     drawn.floor.push(
-      floorMark('scorch', under, reach, 1, mixColor(ramp[3], SAND, 0.5), 0.62 * laid * alpha, 'color', index * 3 + 1)
+      floorMark('scorch', under, reach, 1, mixColor(ramp[2], SAND, 0.4), 0.66 * laid * alpha, 'color', index * 3 + 1)
     );
-    drawn.floor.push(floorMark('scorch', under, reach * 0.6, 1, ramp[2], 0.42 * laid * alpha, 'color', index * 5 + 2));
+    drawn.floor.push(floorMark('scorch', under, reach * 0.6, 1, ramp[1], 0.42 * laid * alpha, 'color', index * 5 + 2));
   });
 }
 
@@ -60,9 +60,9 @@ export function drawSandDrift(
   const piled = within(t, blows[0], blows[1]);
   const shown = within(t, blows[0], blows[0] + 0.3) * alpha;
   drawn.floor.push(
-    floorMark('scorch', floor, cell * (0.7 + 0.6 * piled), 1, mixColor(ramp[3], SAND, 0.5), 0.7 * shown, 'color', mark)
+    floorMark('scorch', floor, cell * (0.7 + 0.6 * piled), 1, mixColor(ramp[2], SAND, 0.4), 0.72 * shown, 'color', mark)
   );
-  drawn.floor.push(floorMark('scorch', floor, cell * (0.4 + 0.35 * piled), 1, ramp[2], 0.5 * shown, 'color', mark + 7));
+  drawn.floor.push(floorMark('scorch', floor, cell * (0.4 + 0.35 * piled), 1, ramp[1], 0.5 * shown, 'color', mark + 7));
   for (const [index, heap] of heaps.entries()) {
     if (t < heap.at) continue;
     const spreads = within(t, heap.at, heap.at + 0.3);
@@ -72,7 +72,7 @@ export function drawSandDrift(
         heap,
         cell * heap.size * (0.5 + 0.5 * spreads),
         1,
-        ramp[index % 2 === 0 ? 2 : 3],
+        ramp[index % 2 === 0 ? 1 : 2],
         0.6 * alpha,
         'color',
         index + mark

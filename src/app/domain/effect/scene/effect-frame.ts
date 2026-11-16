@@ -7,10 +7,11 @@ import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
 import { placesFor, stageView } from '@axe/domain/effect/effect-stage-timeline';
 import { isAimed } from '@axe/domain/effect/effect-timeline';
 import { curse } from '@axe/domain/effect/scene/ailment/curse';
-import { bash } from '@axe/domain/effect/scene/blade/bash';
 import { skybladeWith } from '@axe/domain/effect/scene/blade/skyblade';
 import { slash } from '@axe/domain/effect/scene/blade/slash';
-import { bisect, dissolve, gore } from '@axe/domain/effect/scene/body/body';
+import { bisect } from '@axe/domain/effect/scene/body/bisect';
+import { gore } from '@axe/domain/effect/scene/body/body';
+import { dissolve } from '@axe/domain/effect/scene/body/dissolve';
 import { breath } from '@axe/domain/effect/scene/breath/breath';
 import {
   type Choreography,
@@ -50,6 +51,7 @@ import { gravity } from '@axe/domain/effect/scene/space/gravity';
 import { warp } from '@axe/domain/effect/scene/space/warp';
 import { bolt, shotBolt } from '@axe/domain/effect/scene/storm/bolt';
 import { frost } from '@axe/domain/effect/scene/storm/frost';
+import { bash } from '@axe/domain/effect/scene/strike/bash';
 import { vortex } from '@axe/domain/effect/scene/wind/vortex';
 import { projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
 import { targetScaleOf } from '@axe/domain/effect/timeline/shared';

@@ -25,7 +25,7 @@ import {
  */
 
 /** How wide the boulder is, in cells. */
-export const SHOT_ROCK_CELLS = 0.62;
+export const SHOT_ROCK_CELLS = 0.78;
 /** How high its arc lifts it at the most, in cells, and as a share of how far it flies. */
 const ARC_CELLS = 0.7;
 const ARC_SHARE = 0.07;
@@ -37,10 +37,14 @@ const TRAIL_APART = 0.035;
 export const SHED_PEBBLES = 6;
 
 /** How many of each one rock of the middle grade breaks into. */
-export const BREAK_THROWS = { pieces: 8, gravel: 34, dust: 9, skirt: 4, plumes: 2, jets: 14, burst: 10 } as const;
+export const BREAK_THROWS = { pieces: 10, gravel: 38, dust: 9, skirt: 4, plumes: 3, jets: 16, burst: 12 } as const;
 /** The share of what it breaks into that is thrown on the way it was flying. */
 export const BROKEN_ONWARD = 0.75;
 const CLEARS_S = 0.5;
+/** The dark rim a boulder is drawn over, which holds it over a bright table. */
+const RIM = '#1d140d';
+/** How long the white of its break lasts, in seconds. */
+const FLASH_S = 0.1;
 
 /** A rock in flight at a moment. */
 export interface RockFlight {
@@ -89,9 +93,9 @@ export function drawRockFlying(drawn: Staged, flight: RockFlight, ramp: readonly
     drawn.motes.push(
       smokePuff(
         { x: where.x, y: where.y, z: where.z + sway },
-        size * (0.55 + age * 0.9),
+        size * (0.6 + age * 0.95),
         tones.dust,
-        (1 - age) * 0.55,
+        (1 - age) * 0.68,
         0
       )
     );
@@ -132,6 +136,7 @@ export function drawRockFlying(drawn: Staged, flight: RockFlight, ramp: readonly
     const where = { x: at.x + Math.cos(about) * size * 0.26, y: at.y, z: at.z + Math.sin(about) * size * 0.24 };
     drawn.motes.push(chunkAt(where, size * 0.62, tones.rock[1], spin + lump * 2.7, (seed + lump * 2.7) % 6));
   }
+  drawn.motes.push({ ...chunkAt(at, size * 1.16, RIM, spin, seed % 6), forward: size * 0.42 });
   drawn.motes.push(chunkAt(at, size, tones.rock[1], spin, seed % 6));
   const face = { x: at.x + way.x * size * 0.12, y: at.y + way.y * size * 0.12, z: at.z + size * 0.14 };
   drawn.motes.push(chunkAt(face, size * 0.42, tones.rock[0], spin * 0.5, (seed + 1.9) % 6));
@@ -168,7 +173,7 @@ function throwBreak(stage: Stage, floor: Point, onward: number, tones: EarthTone
   return {
     rocks: [
       ...throwRocks(th, floor, th.count(BREAK_THROWS.pieces), {
-        size: [0.2, 0.4],
+        size: [0.24, 0.48],
         up: [2.5, 6],
         out: [1.4, 4],
         bornAt: [0, 0.03],
@@ -200,7 +205,7 @@ function throwBreak(stage: Stage, floor: Point, onward: number, tones: EarthTone
       }),
       ...kickedDust(th, floor, th.count(BREAK_THROWS.burst), tones.dust, {
         speed: [1.5, 4.5],
-        size: [0.65, 1],
+        size: [0.8, 1.2],
         bornAt: [0, 0.03],
         rise: [0.6, 2.2],
         alpha: 0.7,
@@ -265,7 +270,17 @@ export function drawRockBreak(stage: Stage, clearsIn: number): Staged {
       floorMark(
         'ring',
         floor,
-        cell * (0.3 + 1.6 * outCubic(t / 0.4)),
+        cell * (0.35 + 2 * outCubic(t / 0.4)),
+        0.2 * (1 - t / 0.4) + 0.04,
+        tones.earth,
+        0.8 * (1 - t / 0.4),
+        'color',
+        0
+      ),
+      floorMark(
+        'ring',
+        floor,
+        cell * (0.3 + 1.9 * outCubic(t / 0.4)),
         0.14 * (1 - t / 0.4) + 0.03,
         tones.sand,
         1 - t / 0.4,
@@ -275,17 +290,20 @@ export function drawRockBreak(stage: Stage, clearsIn: number): Staged {
     );
   for (const cloud of thrown.dust) drawCloud(drawn, cloud, t, cell, 0);
   for (const rock of thrown.rocks) drawRock(drawn, rock, t, cell, tones);
-  if (t < 0.06) {
-    const left = 1 - t / 0.06;
-    drawn.motes.push(lightBall(struck, cell * 0.55 * (0.7 + 0.3 * left), '#fff3dc', left, cell * 0.5));
-    drawn.motes.push({
-      ...glow(struck, cell * 0.36, '#ffffff', left, cell * 0.5),
-      shape: 'flare',
-      trail: 5,
-      spin: 0.5,
-    });
-    drawn.motes.push({ ...glow(struck, cell * 0.3, '#ffffff', left, cell * 0.5), shape: 'flare', trail: 4, spin: 2.2 });
+  if (t < FLASH_S) {
+    const left = 1 - t / FLASH_S;
+    drawn.motes.push(glow(struck, cell * 2, tones.hot, 0.7 * left, cell * 0.5));
+    drawn.motes.push(lightBall(struck, cell * 0.8 * (0.7 + 0.3 * left), '#fff3dc', left, cell * 0.5));
+    for (const [flare, spin] of [0.5, 2.2, 1.35, 2.9].entries()) {
+      drawn.motes.push({
+        ...glow(struck, cell * (flare < 2 ? 0.42 : 0.3), '#ffffff', left, cell * 0.5),
+        shape: 'flare',
+        trail: flare < 2 ? 6 : 4.5,
+        spin,
+      });
+    }
+    drawn.floor.push(floorMark('disc', floor, cell * 1.5, 1, '#fff3dc', 0.5 * left, 'light', 0));
   }
-  if (t < 0.15) drawn.lights.push({ ...struck, color: tones.hot, strength: 1.1 * (1 - t / 0.15), reachPx: cell * 2.2 });
+  if (t < 0.2) drawn.lights.push({ ...struck, color: tones.hot, strength: 1.5 * (1 - t / 0.2), reachPx: cell * 2.6 });
   return drawn;
 }

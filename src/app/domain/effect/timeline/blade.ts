@@ -14,17 +14,21 @@ import {
  * piece is drawn.
  */
 
-const BISECT_PIECE_SCALE = 0.62;
-/** How tall the picture that is cleaved is drawn, against the size the effect is drawn at. */
+const BISECT_PIECE_SCALE = 0.7;
+/** How tall the picture that is cleaved is drawn, against the size the effect is drawn at: as tall as a piece of one cell stands. */
 export const BISECT_PICTURE_HEIGHT = BISECT_PIECE_SCALE * 2;
 /** The two halves the cut makes, each keeping one side of the picture. */
 const BISECT_HALVES = [
   { key: 'upper', side: 1, drop: 0.3, clip: 'polygon(-40% -40%, 140% -110%, 140% 40%, -40% 110%)' },
   { key: 'lower', side: -1, drop: 1.5, clip: 'polygon(-40% 110%, 140% 40%, 140% 140%, -40% 140%)' },
 ];
-/** How long the stroke takes to pass through. */
-const BISECT_CUT_END = 0.22;
-const BISECT_ANGLE = -28;
+/**
+ * How far through the playback the stroke has passed through and the halves part: just as the piece
+ * itself has faded from the table, once the stop the blow lands in has been held.
+ */
+export const BISECT_CUT_END = 0.11;
+/** How the cut is turned on the screen, in degrees. */
+export const BISECT_ANGLE = -28;
 /** The blade of a cut, whose strokes, angle and reach follow its form. */
 export interface SlashHit {
   /** How far through the playback the cut falls. */
@@ -132,7 +136,7 @@ export function appendBisect(
 ): void {
   const after = clamp01(normalize((progress - BISECT_CUT_END) / (1 - BISECT_CUT_END)));
   if (after <= 0 || image.length < 1) return;
-  const body = { x: center.x, y: center.y, z: center.z + base * 0.9 };
+  const body = { x: center.x, y: center.y, z: center.z + base * BISECT_PIECE_SCALE };
   const piece = base * BISECT_PIECE_SCALE;
   const radians = (BISECT_ANGLE * Math.PI) / 180;
   // The direction across the cut, along which the two halves open.
@@ -155,7 +159,7 @@ export function appendBisect(
       height: piece * 2,
       rotate: half.side * slide * 7,
       opacity: fade,
-      background: `url(${image}) center/contain no-repeat`,
+      background: `url(${image}) center bottom/contain no-repeat`,
       clipPath: half.clip,
     });
   }

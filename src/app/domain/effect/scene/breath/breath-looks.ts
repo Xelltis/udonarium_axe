@@ -151,10 +151,10 @@ const SAND: Omit<BreathLook, 'carries' | 'fiery'> = {
   streaks: { rate: 90, pace: [1.5, 2.1], edge: [0, 0.95], size: [0.05, 0.08], rolls: 0.3, breaks: true, leaks: 0.2 },
   curls: { rate: 14, pace: [0.6, 0.8], edge: [0.95, 1.1], size: [0.4, 0.6], rolls: 0.8, breaks: false, upper: true },
   carried: {
-    rate: 30,
+    rate: 44,
     pace: [0.75, 1.1],
     edge: [0.2, 1.05],
-    size: [0.1, 0.2],
+    size: [0.13, 0.27],
     rolls: 2.5,
     breaks: false,
     leaks: 0.8,

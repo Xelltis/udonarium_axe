@@ -2,7 +2,7 @@ import { flowingMote } from '@axe/domain/effect/scene/breath/breath-draw';
 import { nothingStaged, outCubic, type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import { type EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
-import { acrossOf, floorMark, haze, type Point, smokePuff } from '@axe/domain/effect/scene/parts';
+import { acrossOf, floorMark, haze, lightBall, type Point, smokePuff, starBurst } from '@axe/domain/effect/scene/parts';
 import {
   alongWay,
   curlRibbon,
@@ -37,7 +37,11 @@ const BURST_DEBRIS = 9;
 const BURST_SHREDS = 10;
 /** How long its ring of wind takes to race out, and how far, in cells. */
 const RING_S = 0.42;
-const RING_CELLS = 2.2;
+const RING_CELLS = 2.5;
+/** The dark the shadow of a shot of wind is taken towards, so that its white holds over a bright table. */
+const SHEATHED = '#141b22';
+/** How long the white of its burst lasts, in seconds. */
+const FLASH_S = 0.09;
 /** How long what the burst throws up lies where it comes down before it is gone, in seconds. */
 const LIES_S = 0.25;
 
@@ -60,24 +64,25 @@ export function drawWindKnot(drawn: Staged, knot: WindKnot, ramp: readonly strin
   const forward = cell * 0.4;
   const { side, lift } = acrossOf(way);
   const salt = (knot.seed % 997) / 97;
-  const tailRoot = alongWay(at, way, -cell * 1.5);
+  const tailRoot = alongWay(at, way, -cell * 1.7);
+  const sheath = mixColor(paint.shadow, SHEATHED, 0.5);
   drawn.motes.push(
-    flowingMote('wisp', tailRoot, way, cell * 0.95, cell * 1.85, t * 12, {
-      color: paint.shadow,
-      alpha: 0.45,
+    flowingMote('wisp', tailRoot, way, cell * 1.15, cell * 2.1, t * 12, {
+      color: sheath,
+      alpha: 0.62,
       forward,
       variant: salt,
     }),
-    flowingMote('wisp', tailRoot, way, cell * 0.64, cell * 1.7, t * 16 + 3, {
+    flowingMote('wisp', tailRoot, way, cell * 0.78, cell * 1.9, t * 16 + 3, {
       color: mixColor(paint.edge, paint.pale, 0.6),
       core: '#ffffff',
-      alpha: 0.75,
+      alpha: 0.82,
       forward,
       variant: salt + 2,
     }),
-    haze(at, cell * 1.4, paint.shadow, 0.5, forward),
-    haze(at, cell * 0.85, paint.pale, 0.9, forward + 1),
-    haze(at, cell * 0.42, '#ffffff', 1, forward + 2)
+    haze(at, cell * 2, sheath, 0.72, forward),
+    haze(at, cell * 1.2, paint.pale, 0.95, forward + 1),
+    haze(at, cell * 0.58, '#ffffff', 1, forward + 2)
   );
   const far: EffectRibbon[] = [];
   const near: EffectRibbon[] = [];
@@ -90,14 +95,14 @@ export function drawWindKnot(drawn: Staged, knot: WindKnot, ramp: readonly strin
       const along = point / (COIL_POINTS - 1);
       const middle = alongWay(at, way, cell * (0.22 - 1.05 * (1 - along)));
       const turn = t * 24 + (coil / COILS) * Math.PI * 2 - (1 - along) * 4.4;
-      const out = cell * (0.12 + 0.3 * Math.sin(Math.PI * (0.12 + 0.6 * along)) ** 0.8);
+      const out = cell * (0.18 + 0.42 * Math.sin(Math.PI * (0.12 + 0.6 * along)) ** 0.8);
       about.push(middle);
       points.push({
         x: middle.x + (side.x * Math.cos(turn) + lift.x * Math.sin(turn)) * out,
         y: middle.y + (side.y * Math.cos(turn) + lift.y * Math.sin(turn)) * out,
         z: middle.z + (side.z * Math.cos(turn) + lift.z * Math.sin(turn)) * out,
       });
-      widths.push(cell * 0.24 * along ** 0.6 * (1 - 0.6 * smooth(0.84, 1, along)));
+      widths.push(cell * 0.36 * along ** 0.6 * (1 - 0.6 * smooth(0.84, 1, along)));
       alphas.push(along ** 1.2);
     }
     const halves = halvesOf(
@@ -165,11 +170,21 @@ export function drawWindBurst(stage: Stage): Staged {
   const forward = cell * 0.3;
   const salt = (stage.seed % 997) / 97;
   const density = stage.preset.gradeDensity;
+  const sheath = mixColor(paint.shadow, SHEATHED, 0.55);
   if (t < 0.26) {
     const left = 1 - t / 0.26;
-    drawn.motes.push(haze(heart, cell * 2.3, paint.shadow, 0.42 * left, forward));
-    drawn.motes.push(haze(heart, cell * (0.9 + 3 * t), paint.pale, 0.8 * left * left, forward + 1));
-    if (t < 0.12) drawn.motes.push(haze(heart, cell * (0.5 + 3 * t), '#ffffff', 1 - t / 0.12, forward + 2));
+    drawn.motes.push(haze(heart, cell * 2.7, sheath, 0.55 * left, forward));
+    drawn.motes.push(haze(heart, cell * (1.1 + 3.4 * t), paint.pale, 0.85 * left * left, forward + 1));
+    if (t < 0.12) drawn.motes.push(haze(heart, cell * (0.6 + 3 * t), '#ffffff', 1 - t / 0.12, forward + 2));
+  }
+  if (t < FLASH_S) {
+    const left = 1 - t / FLASH_S;
+    const white = [
+      lightBall(heart, cell * 1 * (0.7 + 0.3 * left), '#ffffff', left, forward + 3),
+      ...starBurst(heart, cell * 3, paint.pale, t / FLASH_S, forward + 2, 8, salt),
+    ];
+    drawn.motes.push(...white.map((mote) => ({ ...mote, blend: 'color' as const })));
+    drawn.floor.push(floorMark('disc', floor, cell * 1.5, 1, '#ffffff', 0.45 * left, 'light', 0));
   }
   if (t < RING_S) {
     const run = outCubic(t / RING_S);
@@ -185,19 +200,19 @@ export function drawWindBurst(stage: Stage): Staged {
         z: heart.z + Math.sin(turn * 3 + salt) * cell * 0.05,
       });
     }
-    const wide = cell * (0.5 * (1 - t / RING_S) + 0.1);
+    const wide = cell * (0.62 * (1 - t / RING_S) + 0.12);
     const widths = points.map(
       (_point, step) => wide * (0.55 + 0.45 * Math.sin((step / steps) * Math.PI * 6 + salt * 3 + t * 9))
     );
     layRibbons(drawn, [
       {
         points,
-        widths: widths.map((width) => width * 1.8),
-        color: paint.shadow,
-        alpha: 0.42 * left,
+        widths: widths.map((width) => width * 1.7),
+        color: sheath,
+        alpha: 0.88 * left,
         blend: 'color',
-        soft: 0.5,
-        torn: 0.6,
+        soft: 0.18,
+        torn: 0.35,
         flowed: t * 6,
       },
       {
@@ -207,8 +222,8 @@ export function drawWindBurst(stage: Stage): Staged {
         core: '#ffffff',
         alpha: left,
         blend: 'color',
-        soft: 0.25,
-        torn: 0.8,
+        soft: 0.15,
+        torn: 0.5,
         flowed: t * 10 + 4,
       },
     ]);
@@ -240,7 +255,9 @@ export function drawWindBurst(stage: Stage): Staged {
           y: heart.y + Math.sin(round) * out,
           z: Math.max(floor.z + cell * 0.05, heart.z + high * along),
         });
-        widths.push(cell * (0.09 + 0.1 * scatter(streak, salt + 6)) * along ** 0.6 * (1 - 0.6 * smooth(0.8, 1, along)));
+        widths.push(
+          cell * (0.12 + 0.12 * scatter(streak, salt + 6)) * along ** 0.6 * (1 - 0.6 * smooth(0.8, 1, along))
+        );
         alphas.push(along ** 1.3);
       }
       layRibbons(drawn, [

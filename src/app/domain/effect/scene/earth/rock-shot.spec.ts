@@ -118,4 +118,15 @@ describe('a shot of rock', () => {
     expect(flying.motes.some((mote) => mote.shape === 'lick')).toBe(true);
     expect(rocksOf(flying)).toEqual([]);
   });
+
+  it('flies over a dark rim and breaks with a white flash that lights the floor', () => {
+    const shot = shotOf();
+    const flying = staged(shot, landsMs(shot) * 0.5);
+    const boulder = rocksOf(flying).reduce((widest, rock) => (rock.size > widest.size ? rock : widest));
+    const broken = staged(shot, landsMs(shot) + 60);
+    const lit = broken.floor.filter((mark) => mark.shape === 'disc' && mark.blend === 'light');
+
+    expect(boulder.color).toBe('#1d140d');
+    expect(lit.some((mark) => Math.hypot(mark.x - TARGET.x, mark.y - TARGET.y) < CELL * 0.5)).toBe(true);
+  });
 });

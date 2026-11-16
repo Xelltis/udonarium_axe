@@ -2,7 +2,7 @@ import { flowingMote } from '@axe/domain/effect/scene/breath/breath-draw';
 import { nothingStaged, outCubic, type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import { type EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
-import { floorMark, haze, type Point, smokePuff } from '@axe/domain/effect/scene/parts';
+import { floorMark, haze, lightBall, type Point, smokePuff, starBurst } from '@axe/domain/effect/scene/parts';
 import {
   alongWay,
   curlRibbon,
@@ -29,7 +29,7 @@ import { gustTimingOf } from '@axe/domain/effect/wind-looks';
 /** How far before its caster a gust starts, how far past its target it runs on, and how wide its wall is to each side, in cells. */
 const STARTS_CELLS = 0.35;
 const RUNS_ON_CELLS = 1.7;
-const HALF_WIDE_CELLS = 1.25;
+const HALF_WIDE_CELLS = 1.45;
 /** How long the wall takes to run on past the target and to fade, in seconds. */
 const RUNS_ON_S = 0.24;
 /** How far behind one another the crescents of the wall come, in cells, how large and how strong each is, and how far it is tipped up from level, in radians. */
@@ -47,6 +47,10 @@ const LIES_S = 0.25;
 const SETTLED_BY_S = 0.8;
 /** How long a shred of dust torn off the floor lasts, in seconds. */
 const DUST_S = 0.55;
+/** The dark the shadow of a gust is taken towards, so that its white holds over a bright table. */
+const SHEATHED = '#141b22';
+/** How long the white of the wall striking the target lasts, in seconds. */
+const STRIKE_FLASH_S = 0.1;
 
 /** Where a gust blows and how far along it is. */
 interface Blast {
@@ -180,8 +184,8 @@ function wallBody(drawn: Staged, blast: Blast, paint: WindPaint, seed: number): 
       }),
       exactDepth: true,
     });
-  sheet(paint.shadow, undefined, 0.3, 1.2, 0);
-  sheet(mixColor(paint.edge, paint.pale, 0.5), '#ffffff', 0.42, 1, 1);
+  sheet(mixColor(paint.shadow, SHEATHED, 0.45), undefined, 0.55, 1.25, 0);
+  sheet(mixColor(paint.edge, paint.pale, 0.5), '#ffffff', 0.62, 1, 1);
 }
 
 /**
@@ -210,20 +214,20 @@ function crescents(drawn: Staged, blast: Blast, paint: WindPaint): void {
       points.push(
         blast.at(along - bowed, across * reach * level, Math.max(cell * 0.06, middle + across * reach * upright))
       );
-      widths.push(cell * 0.66 * grown * thick ** 1.15);
+      widths.push(cell * 1.0 * grown * thick ** 1.1);
       alphas.push(Math.min(1, thick * 3));
     }
     const shown = front.alpha * blast.blowing;
     layRibbons(drawn, [
       {
-        points: points.map((point) => alongWay(point, blast.way, -cell * 0.2)),
-        widths: widths.map((width) => width * 1.7),
+        points: points.map((point) => alongWay(point, blast.way, -cell * 0.12)),
+        widths: widths.map((width) => width * 1.55),
         alphas,
-        color: paint.shadow,
-        alpha: 0.45 * shown,
+        color: mixColor(paint.shadow, SHEATHED, 0.55),
+        alpha: 0.92 * shown,
         blend: 'color',
-        soft: 0.55,
-        torn: 0.6,
+        soft: 0.16,
+        torn: 0.3,
         flowed: blast.seconds * 6,
       },
       {
@@ -232,10 +236,10 @@ function crescents(drawn: Staged, blast: Blast, paint: WindPaint): void {
         alphas,
         color: mixColor(paint.edge, paint.pale, 0.5),
         core: '#ffffff',
-        alpha: 0.92 * shown,
+        alpha: shown,
         blend: 'color',
-        soft: 0.3,
-        torn: 0.75,
+        soft: 0.18,
+        torn: 0.45,
         flowed: blast.seconds * 9 + front.behind * 7,
       },
     ]);
@@ -258,7 +262,7 @@ function speedStreaks(drawn: Staged, blast: Blast, paint: WindPaint, salt: numbe
       streakRibbon(
         blast.at(tail, aside * 0.92, high),
         blast.at(head, aside, high),
-        cell * (0.06 + 0.09 * scatter(streak, salt + 16)),
+        cell * (0.08 + 0.11 * scatter(streak, salt + 16)),
         blast.blowing * (0.6 + 0.4 * scatter(streak, salt + 17)),
         paint,
         { side: lifts ? { x: 0, y: 0, z: 1 } : blast.side, by: cell * 0.09, phase: streak * 1.7 + blast.seconds * 20 }
@@ -343,13 +347,25 @@ function breaking(drawn: Staged, blast: Blast, paint: WindPaint, salt: number): 
   const feet = blast.at(blast.toTarget, 0, 0);
   if (since < 0.22) {
     const left = 1 - since / 0.22;
-    drawn.motes.push(haze(struck, cell * 2.2, paint.shadow, 0.35 * left, forward));
-    drawn.motes.push(haze(struck, cell * (1 + since * 3), '#ffffff', 0.75 * left * left, forward + 1));
+    drawn.motes.push(haze(struck, cell * 2.8, mixColor(paint.shadow, SHEATHED, 0.5), 0.6 * left, forward));
+    drawn.motes.push(haze(struck, cell * (1.3 + since * 4), '#ffffff', 0.9 * left * left, forward + 1));
+  }
+  if (since < STRIKE_FLASH_S) {
+    const left = 1 - since / STRIKE_FLASH_S;
+    const white = [
+      lightBall(struck, cell * 1.05 * (0.7 + 0.3 * left), '#ffffff', left, forward + 2),
+      ...starBurst(struck, cell * 3.2, paint.pale, since / STRIKE_FLASH_S, forward + 1, 8, salt),
+    ];
+    drawn.motes.push(...white.map((mote) => ({ ...mote, blend: 'color' as const })));
+    drawn.floor.push(floorMark('disc', feet, cell * 1.6, 1, '#ffffff', 0.45 * left, 'light', 0));
   }
   if (since < 0.4) {
     const run = outCubic(since / 0.4);
     const radius = cell * (0.4 + 1.7 * run);
-    drawn.floor.push(floorMark('ring', feet, radius, 0.24 * (1 - run) + 0.04, paint.dust, 0.6 * (1 - run), 'color', 0));
+    drawn.floor.push(
+      floorMark('ring', feet, radius * 1.04, 0.3 * (1 - run) + 0.05, paint.dustDeep, 0.55 * (1 - run), 'color', 0),
+      floorMark('ring', feet, radius, 0.24 * (1 - run) + 0.04, paint.dust, 0.7 * (1 - run), 'color', 0)
+    );
     drawn.floor.push(
       floorMark('ring', feet, radius * 0.94, 0.1 * (1 - run) + 0.02, '#ffffff', 0.5 * (1 - run), 'light', 0)
     );
@@ -373,18 +389,18 @@ function breaking(drawn: Staged, blast: Blast, paint: WindPaint, salt: number): 
           y: feet.y + Math.sin(turn) * radius,
           z: feet.z + cell * (0.5 + 0.25 * along),
         });
-        widths.push(cell * 0.3 * along ** 0.6 * (1 - 0.6 * smooth(0.8, 1, along)));
+        widths.push(cell * 0.42 * along ** 0.6 * (1 - 0.6 * smooth(0.8, 1, along)));
         alphas.push(along ** 1.2);
       }
       layRibbons(drawn, [
         {
           points,
-          widths: widths.map((width) => width * 1.8),
+          widths: widths.map((width) => width * 1.7),
           alphas,
-          color: paint.shadow,
-          alpha: 0.4 * left,
+          color: mixColor(paint.shadow, SHEATHED, 0.5),
+          alpha: 0.85 * left,
           blend: 'color',
-          soft: 0.5,
+          soft: 0.2,
         },
         {
           points,
