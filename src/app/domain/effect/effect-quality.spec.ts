@@ -63,8 +63,9 @@ function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; ca
  * of holy light, and a rain of arrows on as many as the bundled one takes and on few enough to fall
  * doubled; and the looks that bless, each healing, cleansing, barrier and aura on as many as the
  * bundled one takes; the looks of darkness by their grades, a mire and an eclipse over an area on
- * eight, a draining on three, and a great blade that lands in a black sphere. The last of each is
- * how many targets it is cast on, where that is not four.
+ * eight, a draining on three, and a great blade that lands in a black sphere; and the looks of space
+ * and time by their grades, a blink and a summoning, a crush on six and a singularity over an area on
+ * eight. The last of each is how many targets it is cast on, where that is not four.
  */
 const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, number?])[] = [
   ...[...AILMENT_LOOKS, 'arc', 'haze'].map((moteStyle) => ['curse', { moteStyle, durationMs: 5500 }] as const),
@@ -133,6 +134,10 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, numbe
   ['barrier', { grade: 3, durationMs: 1176 }, 6],
   ['aura', { grade: 2, durationMs: 2064 }, 6],
   ['aura', { grade: 3, durationMs: 2560 }, 1],
+  ['warp', { grade: 1, durationMs: 1411 }],
+  ['warp', { grade: 3, durationMs: 3553 }],
+  ['gravity', { grade: 2, durationMs: 1855 }, 6],
+  ['gravity', { targeting: 'multi', maxTargets: 8, areaRadius: 3, durationMs: 3788 }, 8],
 ];
 
 /** The heaviest cast of a kind, as one of the looks it is given by its family or its particles. */
