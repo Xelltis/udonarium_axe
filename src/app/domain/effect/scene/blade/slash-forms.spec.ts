@@ -1,5 +1,6 @@
 import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { effectJoltsOf } from '@axe/domain/effect/effect-reaction';
+import { bladeTonesOf } from '@axe/domain/effect/scene/blade/blade-tones';
 import { type Staged } from '@axe/domain/effect/scene/choreography';
 import { type EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
 import {
@@ -93,6 +94,18 @@ describe('a drawing cut', () => {
     expect(lying).toBeLessThan(CELL * 0.08);
     expect(later).toBe(lying);
     expect(stagedAt(iai, cast, 0.6).motes.filter((mote) => mote.shape === 'spark')).toEqual([]);
+  });
+
+  it('lays the line as a hard band within a dark sheath, which still holds it once it has thinned', () => {
+    const tones = bladeTonesOf('#ffffff', '#7fd4ff');
+    const lying = stagedAt(iai, cast, 0.6).ribbons.filter((ribbon) => ribbon.points.length === 15);
+    const sheath = lying.find((ribbon) => ribbon.color === tones.rim)!;
+    const white = lineOf(stagedAt(iai, cast, 0.6))!;
+
+    expect(sheath.blend).toBe('color');
+    expect(sheath.alpha).toBe(1);
+    expect(widestOf(sheath)).toBeGreaterThan(widestOf(white) * 2);
+    expect(lying.some((ribbon) => ribbon.color === tones.body && ribbon.alpha === 1)).toBe(true);
   });
 
   it('bursts the hair open along its whole length as its blow lands', () => {

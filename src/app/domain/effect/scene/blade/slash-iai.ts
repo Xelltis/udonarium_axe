@@ -1,20 +1,21 @@
 import { bladeTonesOf } from '@axe/domain/effect/scene/blade/blade-tones';
 import { drawDrift, drawImpact, drawSeam, type Impact, layHush } from '@axe/domain/effect/scene/blade/cut-impact';
+import { drawImpactFrame } from '@axe/domain/effect/scene/blade/impact-frame';
 import { chestOf, cutFrameOf } from '@axe/domain/effect/scene/blade/slash-swing';
 import { nothingStaged, outCubic, type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
-import { glow, hueOf, type Point } from '@axe/domain/effect/scene/parts';
+import { glow, type Point } from '@axe/domain/effect/scene/parts';
 import { scatter } from '@axe/domain/effect/scene/wind/wind-parts';
 import { SLASH_IAI_DRAWN_AT, slashHits } from '@axe/domain/effect/timeline/blade';
 
 /*
  * A drawing cut. The world about the target dims and steel glints at the caster's hand; then one
- * line is drawn at once from behind the caster on through the target and far past it, a blinding
- * streak that is at once no more than a hair of light lying through everything. Nothing moves; a
- * glint runs along the hair. The blade slides home, and as it clicks into its sheath the hair bursts
- * open: a wide blazing gash along the whole of the line, light pouring out of it, a burst where it
- * crossed the target, more cuts flickering over the target one after another, each its own way, and
- * petals of light scattered and left falling.
+ * line is drawn at once from behind the caster on through the target and far past it, a thick hard
+ * streak, white at its heart within the blade's colour within a dark sheath, that thins at once to a
+ * hard line lying through everything. Nothing moves; a glint runs along it. The blade slides home,
+ * and as it clicks into its sheath the line bursts open: a star breaks out of the target, a wide
+ * blazing gash runs along the whole of the line, light pouring out of it, more cuts flicker over the
+ * target one after another, each its own way, and petals of light are scattered and left falling.
  */
 
 /** How long the line takes to cross, and how long its streak takes to thin to a hair, in seconds. */
@@ -39,6 +40,11 @@ const HUSH_CELLS = 5;
 const BEHIND_HAND = 0.5;
 const PAST_TARGET = 2.6;
 const STEPS = 14;
+/** How thick the line is at its thinnest, as it lies waiting, and how much thicker as it is drawn, in cells. */
+const HAIR_CELLS = 0.06;
+const STREAK_CELLS = 0.55;
+/** How large the star of the impact frame is as the cut bursts open, in cells. */
+const FRAME_CELLS = 1.5;
 
 /** A drawing cut on one target; see the head of this file. */
 export function drawDrawingCut(stage: Stage, lingerS: number): Staged {
@@ -81,24 +87,38 @@ export function drawDrawingCut(stage: Stage, lingerS: number): Staged {
   const streak = 1 - within(t, drawnAt, drawnAt + THINS_S);
   if (since < 0.05) {
     const hair = 1 - within(since, 0, 0.05);
-    const thick = cell * (0.035 + 0.5 * streak * streak);
+    const thick = cell * (HAIR_CELLS + STREAK_CELLS * streak * streak);
     drawn.ribbons.push(
       {
         points,
-        widths: taper.map((share) => share * (thick * 3 + cell * 0.2)),
+        widths: taper.map((share) => share * (thick * 2.6 + cell * 0.25)),
         color: ramp[3],
-        alpha: (0.3 + 0.5 * streak) * hair,
+        alpha: (0.25 + 0.5 * streak) * hair,
         blend: 'light',
         soft: 1,
       },
       {
         points,
-        widths: taper.map((share) => share * thick * 1.7),
-        color: hueOf(ramp),
-        alpha: streak * hair,
+        widths: taper.map((share) => share * (thick * 1.9 + cell * 0.05)),
+        color: tones.rim,
+        alpha: hair,
         blend: 'color',
       },
-      { points, widths: taper.map((share) => share * thick), color: '#ffffff', alpha: hair, blend: 'color' }
+      {
+        points,
+        widths: taper.map((share) => share * thick * 1.4),
+        color: tones.body,
+        core: tones.pale,
+        alpha: hair,
+        blend: 'color',
+      },
+      {
+        points,
+        widths: taper.map((share) => share * thick * (0.6 + 0.4 * streak)),
+        color: '#ffffff',
+        alpha: hair,
+        blend: 'color',
+      }
     );
     if (streak > 0) {
       drawn.motes.push({
@@ -141,6 +161,7 @@ export function drawDrawingCut(stage: Stage, lingerS: number): Staged {
   const middle = lineAt(offset >= 0 ? offset / beyond : offset / behind);
   drawSeam(drawn, { ...struck, at: middle, half: (behind + beyond) / 2 }, since, GAPES_S, 1.3);
   drawImpact(drawn, struck, since);
+  drawImpactFrame(drawn, struck, cell * FRAME_CELLS, since);
   FOLLOW.forEach(([after, tipped], index) => {
     const turn = (tipped * Math.PI) / 180;
     const aside = (scatter(index, seed + 41) - 0.5) * cell * 0.5;
