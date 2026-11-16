@@ -5,6 +5,7 @@ import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { decodeRulerLine, encodeRulerLine } from '@axe/domain/tabletop/ruler/ruler-line';
@@ -48,6 +49,8 @@ describe('RulerService', () => {
   });
 
   afterEach(() => {
+    Config.instance.cellDistance = null;
+    Config.instance.cellDistanceUnit = null;
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
   });
 
@@ -87,6 +90,28 @@ describe('RulerService', () => {
     TestBed.inject(ObjectChangeService).notifyChanged(piece.identifier);
 
     expect(ruler.measured()?.reading.straight).toBe('1.0');
+  });
+
+  it('says its lengths in the room’s unit of length, afresh as the room changes the unit', () => {
+    landing = { x: 25, y: 25, z: 0 };
+    ruler.startAt(0, 0, true);
+    landing = { x: 175, y: 25, z: 200 };
+    ruler.reachTo(0, 0, true);
+    ruler.letGo();
+
+    expect(ruler.measured()?.reading).toEqual({
+      unit: 'square',
+      straight: '5.0',
+      level: '3.0',
+      rise: '+4.0',
+      steps: 4,
+    });
+
+    Config.instance.cellDistance = 1.5;
+    Config.instance.cellDistanceUnit = 'metre';
+    TestBed.inject(ObjectChangeService).notifyChanged(Config.instance.identifier);
+
+    expect(ruler.measured()?.reading).toEqual({ unit: 'metre', straight: '7.5', level: '4.5', rise: '+6.0', steps: 4 });
   });
 
   it('keeps the far end lifted as it is drawn about', () => {

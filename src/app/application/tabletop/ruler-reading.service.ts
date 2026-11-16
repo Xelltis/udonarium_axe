@@ -79,9 +79,10 @@ export class RulerReadingService {
     return { ...this.pieceFeet(piece), piece: piece.identifier, lift };
   }
 
-  /** What the room's rules make of the ruler between two points. */
+  /** What the room's rules make of the ruler between two points, said afresh as the rules change. */
   readingBetween(from: Vec3, to: Vec3): RulerReading {
     this.tabletop.currentTableVersion();
+    this.objectChange.versionOf('Config')();
     const table = this.tabletop.currentTable;
     const rules = this.roomRules.rulesFor(table);
     const measured = measureBetween({

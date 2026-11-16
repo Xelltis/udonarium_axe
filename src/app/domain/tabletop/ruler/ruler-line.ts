@@ -25,15 +25,20 @@ export interface RulerLine {
   readonly to: RulerEnd;
 }
 
-/** A ruler as it is said on the screen: each length to a tenth of a square, and the length it comes to where the room counts one. */
+/** What a ruler's lengths are said in: squares, or the room's unit of length where it has one. */
+export type RulerUnit = 'square' | 'metre' | 'foot';
+
+/**
+ * A ruler as it is said on the screen: its straight length, its length along the table and how far
+ * up its far end is, each to a tenth of the unit they are said in, and the squares it steps over.
+ */
 export interface RulerReading {
+  readonly unit: RulerUnit;
   readonly straight: string;
   readonly level: string;
   /** How far up the far end is, with its sign: `+4.0`, `-1.5`, or `0.0` level. */
   readonly rise: string;
   readonly steps: number | null;
-  /** The straight length in the room's unit of length, or none where the room counts in squares. */
-  readonly length: { readonly value: string; readonly unit: 'metre' | 'foot' } | null;
 }
 
 /**
@@ -59,20 +64,22 @@ export function squareMiddleOf(
   };
 }
 
-/** How a measurement is said: to a tenth of a square, and in the room's unit of length where it has one. */
+/**
+ * How a measurement is said: in metres or feet where the room counts its squares in one of them,
+ * each square as long as the room says, and in squares otherwise, or where the room gives a square
+ * no length.
+ */
 export function rulerReadingOf(measured: RulerMeasurement, cellDistance: number, unit: MoveUnit | null): RulerReading {
-  const tenth = (value: number) => (Math.round(value * 10) / 10).toFixed(1);
-  const rise = Math.round(measured.rise * 10) / 10;
-  const length =
-    isLengthUnit(unit) && Number.isFinite(cellDistance) && cellDistance > 0
-      ? { value: tenth(measured.straight * cellDistance), unit }
-      : null;
+  const inLength = isLengthUnit(unit) && Number.isFinite(cellDistance) && cellDistance > 0;
+  const scale = inLength ? cellDistance : 1;
+  const tenth = (value: number) => (Math.round(value * scale * 10) / 10).toFixed(1);
+  const rise = Math.round(measured.rise * scale * 10) / 10;
   return {
+    unit: inLength ? unit : 'square',
     straight: tenth(measured.straight),
     level: tenth(measured.level),
     rise: rise > 0 ? `+${rise.toFixed(1)}` : rise < 0 ? rise.toFixed(1) : '0.0',
     steps: measured.steps,
-    length,
   };
 }
 

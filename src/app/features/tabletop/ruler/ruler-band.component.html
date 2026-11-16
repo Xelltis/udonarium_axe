@@ -9,13 +9,14 @@
     @if (ruler.measured(); as measured) {
       <span class="flex min-w-0 flex-wrap items-baseline gap-x-3 tabular-nums" data-testid="ruler-band-reading">
         <span class="font-semibold">
-          {{ 'feature.ruler.straight' | transloco: { value: measured.reading.straight } }}
-          @if (measured.reading.length; as length) {
-            {{ 'feature.ruler.length.' + length.unit | transloco: { value: length.value } }}
-          }
+          {{ 'feature.ruler.straight.' + measured.reading.unit | transloco: { value: measured.reading.straight } }}
         </span>
-        <span class="text-ui-muted">{{ 'feature.ruler.level' | transloco: { value: measured.reading.level } }}</span>
-        <span class="text-ui-muted">{{ 'feature.ruler.rise' | transloco: { value: measured.reading.rise } }}</span>
+        <span class="text-ui-muted">{{
+          'feature.ruler.level.' + measured.reading.unit | transloco: { value: measured.reading.level }
+        }}</span>
+        <span class="text-ui-muted">{{
+          'feature.ruler.rise.' + measured.reading.unit | transloco: { value: measured.reading.rise }
+        }}</span>
         @if (measured.reading.steps !== null) {
           <span class="text-ui-muted">{{ 'feature.ruler.steps' | transloco: { value: measured.reading.steps } }}</span>
         }

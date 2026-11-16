@@ -3428,6 +3428,7 @@
       "moveRangeHint": "項目名はカンマ区切りで、シートに先に見つかったものを使う。シートの値を 1 マスの距離で割ってマス数にする（0 なら割らない）。単位がマスでも同じで、1 マスの距離を 0.5 にするとシートの 1 マスが卓の 2 マスになる。シートの単位が卓と違えば、フィートとメートルは換算する。卓がメートルかフィートでシートが「マス」なら、そのままマス数として読む。",
       "cellDistance": "1 マスの距離",
       "cellDistanceUnit": "マスの単位",
+      "cellDistanceUnitHint": "メートルかフィートにすると、物差しも直線・水平・高さをこの単位で出します（1 マスの長さは「1 マスの距離」）。",
       "cellUnit": {
         "cell": "マス",
         "metre": "メートル",
@@ -6538,13 +6539,21 @@
       "importPlaceholder": "# 導入\n雨が降っている。\n\n# 屋敷\n扉が軋む。"
     },
     "ruler": {
-      "straight": "直線 {{value}}マス",
-      "length": {
-        "metre": "（{{value}}m）",
-        "foot": "（{{value}}ft）"
+      "straight": {
+        "square": "直線 {{value}}マス",
+        "metre": "直線 {{value}}m",
+        "foot": "直線 {{value}}ft"
       },
-      "level": "水平 {{value}}",
-      "rise": "高さ {{value}}",
+      "level": {
+        "square": "水平 {{value}}",
+        "metre": "水平 {{value}}m",
+        "foot": "水平 {{value}}ft"
+      },
+      "rise": {
+        "square": "高さ {{value}}",
+        "metre": "高さ {{value}}m",
+        "foot": "高さ {{value}}ft"
+      },
       "steps": "マス数 {{value}}",
       "hint": "卓をドラッグして測ります。コマの上から引くとコマにつながります。Alt でマスに寄せず、引いている間のホイールで終点を上下します。Esc でしまいます",
       "liftUp": "終点を 1 マス上げる",

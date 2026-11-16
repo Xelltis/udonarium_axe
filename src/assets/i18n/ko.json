@@ -3428,6 +3428,7 @@
       "moveRangeHint": "항목 이름은 쉼표로 구분하며 시트에서 먼저 찾은 것을 사용합니다. 시트의 값을 한 칸의 거리로 나누어 칸 수로 만듭니다(0이면 나누지 않음). 단위가 칸이어도 마찬가지라서, 한 칸의 거리를 0.5로 하면 시트의 1칸이 탁자의 2칸이 됩니다. 시트의 단위가 탁자와 다르면 피트와 미터를 환산하고, 탁자가 미터나 피트인데 시트가 칸이면 그대로 칸 수로 읽습니다.",
       "cellDistance": "한 칸의 거리",
       "cellDistanceUnit": "칸 단위",
+      "cellDistanceUnitHint": "미터나 피트로 하면 자도 직선·수평·높이를 이 단위로 표시합니다(한 칸의 길이는 「한 칸의 거리」).",
       "cellUnit": {
         "cell": "칸",
         "metre": "미터",
@@ -6881,13 +6882,21 @@
       "importPlaceholder": "# 도입\n비가 내리고 있다.\n\n# 저택\n문이 삐걱거린다."
     },
     "ruler": {
-      "straight": "직선 {{value}}칸",
-      "length": {
-        "metre": "({{value}}m)",
-        "foot": "({{value}}ft)"
+      "straight": {
+        "square": "직선 {{value}}칸",
+        "metre": "직선 {{value}}m",
+        "foot": "직선 {{value}}ft"
       },
-      "level": "수평 {{value}}",
-      "rise": "높이 {{value}}",
+      "level": {
+        "square": "수평 {{value}}",
+        "metre": "수평 {{value}}m",
+        "foot": "수평 {{value}}ft"
+      },
+      "rise": {
+        "square": "높이 {{value}}",
+        "metre": "높이 {{value}}m",
+        "foot": "높이 {{value}}ft"
+      },
       "steps": "칸 수 {{value}}",
       "hint": "테이블을 드래그해서 잽니다. 말 위에서 끌면 말에 이어집니다. Alt를 누르면 칸에 맞추지 않고, 끄는 동안 휠로 끝점을 올리고 내립니다. Esc로 넣습니다",
       "liftUp": "끝점을 1칸 올리기",

@@ -14,14 +14,11 @@
       <div class="text-[11px]" data-testid="ruler-reading-name">{{ shown.name }}</div>
     }
     <div class="text-[15px]" data-testid="ruler-reading-straight">
-      {{ 'feature.ruler.straight' | transloco: { value: shown.reading.straight } }}
-      @if (shown.reading.length; as length) {
-        {{ 'feature.ruler.length.' + length.unit | transloco: { value: length.value } }}
-      }
+      {{ 'feature.ruler.straight.' + shown.reading.unit | transloco: { value: shown.reading.straight } }}
     </div>
     <div class="text-[11px]" data-testid="ruler-reading-detail">
-      {{ 'feature.ruler.level' | transloco: { value: shown.reading.level } }}
-      {{ 'feature.ruler.rise' | transloco: { value: shown.reading.rise } }}
+      {{ 'feature.ruler.level.' + shown.reading.unit | transloco: { value: shown.reading.level } }}
+      {{ 'feature.ruler.rise.' + shown.reading.unit | transloco: { value: shown.reading.rise } }}
       @if (shown.reading.steps !== null) {
         {{ 'feature.ruler.steps' | transloco: { value: shown.reading.steps } }}
       }

@@ -3428,6 +3428,7 @@
       "moveRangeHint": "Names are comma separated and the first one the sheet has is used. The value is divided by what one cell stands for (0 divides by nothing), in cells as much as in a length: at 0.5, one cell on the sheet is two on the table. Feet and metres are converted where the sheet is written in the other one; a sheet written in cells on a table ruled in feet or metres is read as cells.",
       "cellDistance": "One cell stands for",
       "cellDistanceUnit": "Cell unit",
+      "cellDistanceUnitHint": "Set to metres or feet, the ruler also says its straight, level and rise lengths in this unit, a cell being as long as “One cell stands for”.",
       "cellUnit": {
         "cell": "Cells",
         "metre": "Metres",
@@ -6538,13 +6539,21 @@
       "importPlaceholder": "# Opening\nRain is falling.\n\n# The mansion\nThe door creaks."
     },
     "ruler": {
-      "straight": "Straight {{value}} sq",
-      "length": {
-        "metre": "({{value}} m)",
-        "foot": "({{value}} ft)"
+      "straight": {
+        "square": "Straight {{value}} sq",
+        "metre": "Straight {{value}} m",
+        "foot": "Straight {{value}} ft"
       },
-      "level": "Level {{value}}",
-      "rise": "Rise {{value}}",
+      "level": {
+        "square": "Level {{value}}",
+        "metre": "Level {{value}} m",
+        "foot": "Level {{value}} ft"
+      },
+      "rise": {
+        "square": "Rise {{value}}",
+        "metre": "Rise {{value}} m",
+        "foot": "Rise {{value}} ft"
+      },
       "steps": "Steps {{value}}",
       "hint": "Drag over the table to measure. Starting on a piece holds the end to it. Hold Alt to keep off the squares, and turn the wheel while drawing to lift or lower the far end. Esc puts the ruler away.",
       "liftUp": "Lift the far end a square",

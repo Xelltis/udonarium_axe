@@ -30,22 +30,39 @@ describe('squareMiddleOf', () => {
 describe('rulerReadingOf', () => {
   const measured = { straight: 5, level: 3, rise: 4, steps: 4 };
 
-  it('says each length to a tenth of a square, the rise with its sign', () => {
-    expect(rulerReadingOf(measured, 1, 'cell')).toEqual({
+  it('says each length to a tenth of a square, the rise with its sign, where the room counts in squares', () => {
+    expect(rulerReadingOf(measured, 1.5, 'cell')).toEqual({
+      unit: 'square',
       straight: '5.0',
       level: '3.0',
       rise: '+4.0',
       steps: 4,
-      length: null,
     });
     expect(rulerReadingOf({ ...measured, rise: -1.46 }, 1, 'cell').rise).toBe('-1.5');
     expect(rulerReadingOf({ ...measured, rise: 0.04 }, 1, 'cell').rise).toBe('0.0');
   });
 
-  it('says the length in the room’s unit of length where it counts one', () => {
-    expect(rulerReadingOf(measured, 1.5, 'metre').length).toEqual({ value: '7.5', unit: 'metre' });
-    expect(rulerReadingOf(measured, 5, 'foot').length).toEqual({ value: '25.0', unit: 'foot' });
-    expect(rulerReadingOf(measured, 0, 'metre').length).toBeNull();
+  it('says every length in the room’s unit of length where it counts one, and the squares as they are', () => {
+    expect(rulerReadingOf(measured, 1.5, 'metre')).toEqual({
+      unit: 'metre',
+      straight: '7.5',
+      level: '4.5',
+      rise: '+6.0',
+      steps: 4,
+    });
+    expect(rulerReadingOf({ ...measured, rise: -1 }, 5, 'foot')).toEqual({
+      unit: 'foot',
+      straight: '25.0',
+      level: '15.0',
+      rise: '-5.0',
+      steps: 4,
+    });
+  });
+
+  it('says the lengths in squares where the room gives a square no length', () => {
+    expect(rulerReadingOf(measured, 0, 'metre')).toMatchObject({ unit: 'square', straight: '5.0' });
+    expect(rulerReadingOf(measured, Number.NaN, 'foot')).toMatchObject({ unit: 'square', level: '3.0' });
+    expect(rulerReadingOf(measured, 1.5, null)).toMatchObject({ unit: 'square', rise: '+4.0' });
   });
 });
 
