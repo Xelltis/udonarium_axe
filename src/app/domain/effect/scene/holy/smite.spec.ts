@@ -1,4 +1,5 @@
 import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
+import { type Staged } from '@axe/domain/effect/scene/choreography';
 import { sceneLingerMsOf } from '@axe/domain/effect/scene/effect-frame';
 import {
   castOn,
@@ -174,11 +175,24 @@ describe('the light of heaven, a light that smites at the highest grade', () => 
     expect(drawn.ribbons.filter(standsUpright)).toEqual([]);
   });
 
+  it('rolls in a bank of cloud dark beneath, and tears it open in a rim of gold before it comes down', () => {
+    const closed = stagedAt(heaven, cast, strikes * 0.3);
+    const tearing = stagedAt(heaven, cast, strikes * 0.85);
+    const darkest = (drawn: Staged) =>
+      drawn.motes.filter((mote) => mote.shape === 'smoke' && mote.color === '#15131e' && mote.alpha > 0.8);
+    const rimOf = (drawn: Staged) => drawn.ribbons.filter((ribbon) => ribbon.points.length === 41 && ribbon.torn);
+
+    expect(darkest(closed).length).toBeGreaterThan(30);
+    expect(rimOf(closed)).toEqual([]);
+    expect(rimOf(tearing).length).toBe(2);
+    expect(tearing.motes.filter((mote) => mote.shape === 'wisp').length).toBeGreaterThan(5);
+  });
+
   it('parts the clouds: the gap in them is wider just before it comes down than as they gather', () => {
     const gapAt = (seconds: number) =>
       Math.min(
         ...stagedAt(heaven, cast, seconds)
-          .motes.filter((mote) => mote.shape === 'smoke' && mote.color === '#5d5a69')
+          .motes.filter((mote) => mote.shape === 'smoke' && mote.color === '#15131e' && mote.forward === 0)
           .map((mote) => Math.hypot(mote.x - TARGET.x, mote.y - TARGET.y))
       );
 

@@ -1,6 +1,7 @@
 import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
+import { flowingMote } from '@axe/domain/effect/scene/breath/breath-draw';
 import { nothingStaged, outCubic, type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
-import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
+import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import { seededRun } from '@axe/domain/effect/scene/effect-sim';
 import {
   drawBeat,
@@ -14,11 +15,12 @@ import {
   layLightRing,
   layLightScorch,
 } from '@axe/domain/effect/scene/holy/holy-parts';
-import { floorMark, glow, haze, lightBall, type Point, smokePuff } from '@axe/domain/effect/scene/parts';
+import { circlePoints, floorMark, glow, haze, lightBall, type Point, smokePuff } from '@axe/domain/effect/scene/parts';
 
 /*
- * The light of heaven, the highest grade of a light that smites. Clouds gather over the place, their
- * shadow falling on it, and part, their rims lit gold from the gap; shafts of light slant down through it and a pool of light
+ * The light of heaven, the highest grade of a light that smites. A heavy bank of dark cloud rolls in
+ * and closes over the place, its shadow falling on it and light flickering within it; then it tears
+ * open, its rims lit gold from the gap; shafts of light slant down through it and a pool of light
  * and a great crest spread on the floor; then one immense pillar comes down and the whole place goes
  * white, a ring racing out past its edge. The pillar stands, hoops of light sliding down it, and thins
  * away; the clouds drift apart; a stain of light is left, motes rising off it and feathers falling.
@@ -63,10 +65,10 @@ export function drawHeaven(stage: Stage, lingerS: number): Staged {
   const sky = floor.z + Math.max(cell * 4.4, reach * 1.5);
   const forward = cell * 0.4;
   const density = stage.preset.gradeDensity;
-  const parted = outCubic(within(t, 0.1, strikes * 0.9));
+  const parted = Math.pow(within(t, strikes * 0.38, strikes * 0.92), 1.6);
 
   const dusk = within(t, 0, 0.4) * (1 - within(since, -0.05, 0.1));
-  if (dusk > 0.01) drawn.floor.push(floorMark('disc', floor, reach * 2, 1, DUSK, 0.62 * dusk, 'color', 0));
+  if (dusk > 0.01) drawn.floor.push(floorMark('disc', floor, reach * 2.3, 1, DUSK, 0.8 * dusk, 'color', 0));
   drawClouds(drawn, stage.seed, { ...floor, z: sky }, reach, tones, t, parted, since);
   if (since < 0.3) {
     const shining = parted * (1 - within(since, 0, 0.3));
@@ -206,13 +208,19 @@ function drawCaught(drawn: Staged, stage: Stage, floor: Point, tones: HolyTones,
   );
 }
 
-/** The colours of a cloud: its shaded underside and its pale top. */
-const CLOUD = ['#5d5a69', '#d6d2d8'] as const;
+/** The colours of a cloud: its dark underside, its body and its lit top. */
+const CLOUD = ['#15131e', '#2b2839', '#3b3750'] as const;
+/** How many lobes the bank of cloud is made of, in its ring about the gap and in its outer ring. */
+const LOBES = 16;
+/** How many shreds are torn off the edge of the gap as the clouds part. */
+const SHREDS = 10;
 
 /**
- * The clouds over the place: soft banks in a ring about a gap that widens as they part, shaded
- * beneath and pale on top, their sides that face the gap lit gold by it, and the light of the gap in
- * their midst; they drift apart and thin away once the light has come down.
+ * The clouds over the place: a heavy bank rolling in from all round until it closes over the place,
+ * dark beneath, slate in its body and lit dully on top, with light flickering within it; then it tears
+ * open from the middle, shreds of it dragged out as the gap widens, the lobes about the gap lit gold
+ * on the side that faces it and the light of the gap in their midst; once the light has come down it
+ * rolls away and thins.
  */
 function drawClouds(
   drawn: Staged,
@@ -224,30 +232,86 @@ function drawClouds(
   parted: number,
   since: number
 ): void {
-  const shown = within(t, 0, 0.35) * (1 - within(since, 0.3, 1.1));
+  const shown = within(t, 0, 0.3) * (1 - within(since, 0.2, 0.95));
   if (shown <= 0.01) return;
   const next = seededRun(seed * 17 + 5);
-  const drifts = Math.max(0, since) * reach * 0.4;
-  const gap = reach * (0.15 + 0.7 * parted) + drifts;
-  drawn.motes.push(haze(middle, gap * 2.2, tones.gold, 0.55 * shown * parted, 0));
-  drawn.motes.push(glow(middle, gap * 2.6, tones.hot, 0.85 * shown * parted, 0));
-  for (let bank = 0; bank < 14; bank++) {
-    const turn = (bank / 14) * Math.PI * 2 + next() * 0.3;
-    const out = gap + reach * (0.35 + next() * 0.3);
-    const size = reach * (0.8 + next() * 0.45);
-    const bob = Math.sin(t * 0.9 + bank * 1.7) * reach * 0.03;
-    const at = { x: middle.x + Math.cos(turn) * out, y: middle.y + Math.sin(turn) * out, z: middle.z + bob };
-    const inward = { x: -Math.cos(turn) * size * 0.3, y: -Math.sin(turn) * size * 0.3 };
-    drawn.motes.push(smokePuff(at, size, CLOUD[0], 0.85 * shown, 0));
-    drawn.motes.push(smokePuff({ ...at, z: at.z + size * 0.16 }, size * 0.72, CLOUD[1], 0.8 * shown, 1));
+  const rolled = outCubic(within(t, 0, 0.5));
+  const drifts = Math.max(0, since) * reach * 0.5;
+  const gap = reach * 0.6 * parted + drifts;
+  if (parted > 0.02) {
+    drawn.motes.push(haze(middle, (gap + reach * 0.3) * 2.2, tones.gold, 0.6 * shown * parted, 0));
+    drawn.motes.push(glow(middle, (gap + reach * 0.3) * 2.6, tones.hot, 0.9 * shown * parted, 0));
+  }
+  for (let index = 0; index < LOBES; index++) {
+    const turn = ((index + 0.5) / LOBES) * Math.PI * 2;
+    const out = (gap + reach * 0.6) * (1 + 0.9 * (1 - rolled));
     drawn.motes.push(
       smokePuff(
-        { x: at.x + inward.x, y: at.y + inward.y, z: at.z + size * 0.05 },
-        size * 0.5,
-        tones.gold,
-        0.75 * shown * parted,
-        2
+        { x: middle.x + Math.cos(turn) * out, y: middle.y + Math.sin(turn) * out, z: middle.z - reach * 0.1 },
+        reach * 1.3,
+        CLOUD[0],
+        0.85 * shown,
+        -1
       )
+    );
+  }
+  for (let index = 0; index < LOBES * 2; index++) {
+    const inner = index < LOBES;
+    const turn = ((index % LOBES) / LOBES + (inner ? 0 : 0.5 / LOBES)) * Math.PI * 2 + next() * 0.3;
+    const size = reach * (inner ? 0.72 : 1) * (0.85 + next() * 0.35);
+    const out = (gap + reach * (inner ? 0.32 : 0.95) + next() * reach * 0.15) * (1 + 0.9 * (1 - rolled));
+    const bob = Math.sin(t * 0.9 + index * 1.7) * reach * 0.03;
+    const way = { x: Math.cos(turn), y: Math.sin(turn) };
+    const at = { x: middle.x + way.x * out, y: middle.y + way.y * out, z: middle.z + bob - (inner ? 0 : size * 0.1) };
+    drawn.motes.push(
+      smokePuff({ ...at, z: at.z - size * 0.16 }, size * 1.15, CLOUD[0], 0.95 * shown, 0),
+      smokePuff(at, size * 0.95, CLOUD[1], 0.92 * shown, 1),
+      smokePuff({ ...at, z: at.z + size * 0.2 }, size * 0.6, CLOUD[2], 0.7 * shown, 2)
+    );
+  }
+  if (parted > 0.02) {
+    const rim = circlePoints(middle, gap + reach * 0.16, 40);
+    const lit = shown * Math.min(1, parted * 3);
+    drawn.ribbons.push(
+      {
+        points: rim,
+        widths: reach * 0.34,
+        color: tones.amber,
+        core: tones.gold,
+        alpha: 0.85 * lit,
+        blend: 'color',
+        soft: 0.7,
+        torn: 0.5,
+        flowed: t * 2,
+      },
+      {
+        points: rim,
+        widths: reach * 0.16,
+        color: tones.hot,
+        alpha: lit,
+        blend: 'light',
+        soft: 0.6,
+        torn: 0.4,
+        flowed: t * 3,
+      }
+    );
+  }
+  const flicker = Math.max(0, Math.sin(t * 13 + seed) * Math.sin(t * 5.3)) * (1 - parted);
+  if (flicker > 0.2) drawn.motes.push(glow(middle, reach * 1.2, tones.gold, 0.5 * flicker * shown, 5));
+  if (parted <= 0.02 || parted >= 1) return;
+  for (let index = 0; index < SHREDS; index++) {
+    const turn = (index / SHREDS) * Math.PI * 2 + next() * 0.5;
+    const way = { x: Math.cos(turn), y: Math.sin(turn), z: -0.15 };
+    const root = { x: middle.x + way.x * gap, y: middle.y + way.y * gap, z: middle.z };
+    const tearing = Math.sin(Math.PI * parted);
+    drawn.motes.push(
+      flowingMote('wisp', root, way, reach * 0.2, reach * (0.3 + 0.5 * tearing), t * 2 + index, {
+        color: CLOUD[1],
+        core: mixColor(CLOUD[1], tones.amber, 0.55),
+        alpha: 0.85 * shown * tearing,
+        forward: 3,
+        variant: index * 1.3,
+      })
     );
   }
 }
