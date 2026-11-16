@@ -213,6 +213,7 @@ export function drawColossal(stage: Stage, look: ColossalLook, lingerS: number):
     const pose: BeamPose = {
       line,
       wide: wide * (1 + 0.05 * Math.sin(t * 31) + 0.03 * Math.sin(t * 77)),
+      steady: wide,
       seconds: t,
       seed: stage.seed,
       power: 1 - 0.35 * failing,

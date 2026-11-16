@@ -5,46 +5,44 @@ import {
   type BeamPose,
   beamSwellAt,
   layBeamBody,
+  layBeamLicks,
   layBeamStreaks,
   onLine,
 } from '@axe/domain/effect/scene/beam/beam-body';
 import { type ColossalLook } from '@axe/domain/effect/scene/beam/colossal';
 import { layBeamShreds } from '@axe/domain/effect/scene/beam/great-beam';
-import { type Staged, within } from '@axe/domain/effect/scene/choreography';
+import { type Staged } from '@axe/domain/effect/scene/choreography';
 import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
 import { layShockRing } from '@axe/domain/effect/scene/fire/fire-parts';
 import { ball, floorMark, glow, lightBall, type Point } from '@axe/domain/effect/scene/parts';
 
 /*
- * The beam of many hues: strands of five colours braided about a white core in a dark rim, each
- * strand drawn by halves so that it passes behind the core and before it, the braid turning as it
- * pours and opening like a flower where the beam ends. Its hues are taken round the wheel of colour
- * from the colour it is given, so no one of them washes over the table. It gathers as five orbs of
- * its hues wheeling in on the ball over a seal of light, is let go in rings of every hue, and throws
- * rays of every hue off the piece it strikes.
+ * The beam of many hues: one thick body in a dark sheath, its colour laid down it in wide bands of
+ * five hues, each blending into the next, that pour down it from the muzzle the way it runs, a white
+ * heart through the middle of them and tongues of every hue licking off its edges. Its hues are taken
+ * round the wheel of colour from the colour it is given, so no one of them washes over the table. It
+ * gathers as five orbs of its hues wheeling in on the ball over a seal of light; it is let go in rings
+ * of every hue, and throws rays of every hue off the piece it strikes.
  */
 
-/** How many strands it is braided of. */
-const STRANDS = 5;
-/** How far from the core a strand winds, and how wide it is, as shares of the beam's width. */
-const WINDS_AT = 0.46;
-const STRAND_WIDE = 0.25;
-/** How many times as wide as a strand the dark laid under it is. */
-const OUTLINED = 1.45;
-/** How many widths of the beam a strand takes to wind once about it, and how fast the braid turns, in turns a second. */
-const PITCH = 3.4;
-const TURNS = 1.15;
-/** How many times as far from the core the strands are where the beam ends, and over how many widths they open. */
-const OPENS = 2.6;
-const OPENS_OVER = 2.4;
-/** The dark laid under the braid. */
+/** How many hues it is laid in. */
+const HUES = 5;
+/** How long a band of one hue is down the beam, in widths of it, and how far into the next it blends, as a share of that. */
+const BAND_LONG = 2;
+const BAND_BLENDS = 0.3;
+/** How fast its bands pour down it, in widths of the beam a second. */
+const BAND_FLOWS = 6.5;
+/** How wide its bands are, and the pale within them, as shares of the beam's width. */
+const BAND_WIDE = 1.2;
+const PALE_WIDE = 0.72;
+/** The dark laid under the beam. */
 const SHADOW = '#0b0718';
-/** How many points a strand is drawn through where the beam keeps all its detail. */
-const STRAND_POINTS = 40;
+/** How many tongues lick off its edges where it keeps all its detail. */
+const LICKS = 20;
 
 /**
- * The hues of the braid: as many colours round the wheel of colour, evenly apart, as it has strands,
+ * The hues of the beam: as many colours round the wheel of colour, evenly apart, as it is laid in,
  * the first of them of the hue of the colour given, all of them as vivid as a colour can be.
  */
 export function prismHuesOf(color: string): string[] {
@@ -53,7 +51,7 @@ export function prismHuesOf(color: string): string[] {
   const span = high - Math.min(r, g, b);
   const first =
     span < 0.01 ? 0 : high === r ? ((g - b) / span + 6) % 6 : high === g ? (b - r) / span + 2 : (r - g) / span + 4;
-  return Array.from({ length: STRANDS }, (_unused, index) => vivid((first + (index * 6) / STRANDS) % 6));
+  return Array.from({ length: HUES }, (_unused, index) => vivid((first + (index * 6) / HUES) % 6));
 }
 
 /** The vivid colour at a place round the wheel, from 0 for red through 2 for green and 4 for blue back to 6. */
@@ -68,67 +66,40 @@ function vivid(sixth: number): string {
   return `#${rise(2)}${rise(0)}${rise(4)}`;
 }
 
-/** The strands of the braid as bands, each in two halves: those behind the core, and those before it. */
-function strandsOf(
-  pose: BeamPose,
-  hues: readonly string[],
-  count: number
-): { far: EffectRibbon[]; near: EffectRibbon[]; halos: EffectRibbon[] } {
+/**
+ * The bands of hue down a beam, the nearest the muzzle first, each as a band through the stretch of the
+ * beam it covers: it blends in over the one before it, and runs whole to its end, under the next. They
+ * pour down the beam the way it runs, each keeping its hue as it goes.
+ */
+function bandsOf(pose: BeamPose, hues: readonly string[], wide: number, pale: number): EffectRibbon[] {
   const head = pose.line.length * pose.reached;
-  const far: EffectRibbon[] = [];
-  const near: EffectRibbon[] = [];
-  const halos: EffectRibbon[] = [];
-  hues.forEach((hue, strand) => {
-    const points: Point[] = [];
-    const about: Point[] = [];
-    const widths: number[] = [];
-    const alphas: number[] = [];
-    for (let index = 0; index <= count; index++) {
-      const along = (head * index) / count;
-      const swell = beamSwellAt(pose, along);
-      const opening = within(along, head - pose.wide * OPENS_OVER, head);
-      const turn =
-        Math.PI * 2 * (strand / hues.length + along / (pose.wide * PITCH) - pose.seconds * TURNS) + pose.seed;
-      const out = pose.wide * WINDS_AT * (swell + (1 - swell) * opening) * (1 + (OPENS - 1) * opening * opening);
-      const wound = onLine(pose.line, along, Math.cos(turn) * out, Math.sin(turn) * out);
-      points.push({ ...wound, z: Math.max(wound.z, (pose.floorZ ?? wound.z) + 1) });
-      about.push(onLine(pose.line, along));
-      widths.push(pose.wide * STRAND_WIDE * swell * (1 - 0.5 * opening));
-      alphas.push(Math.min(1, beamFadeAt(pose, along) * 1.6));
-    }
-    const band = (half: 'near' | 'far'): EffectRibbon => ({
-      points,
-      widths,
-      color: hue,
-      core: mixColor(hue, '#ffffff', 0.6),
+  const steady = pose.steady ?? pose.wide;
+  const long = steady * BAND_LONG;
+  const flowed = pose.seconds * BAND_FLOWS * steady + (pose.seed % 7) * long;
+  const passed = Math.floor(flowed / long);
+  const shift = flowed - passed * long;
+  const bands: EffectRibbon[] = [];
+  for (let band = -1; band * long + shift < head; band++) {
+    const from = band * long + shift;
+    const blended = from + long * BAND_BLENDS;
+    const to = Math.min(head, from + long * (1 + BAND_BLENDS));
+    const hue = hues[(((band - passed) % hues.length) + hues.length) % hues.length];
+    const alongs = [from, (from + blended) / 2, blended, (blended + to) / 2, to]
+      .map((along) => Math.max(0, Math.min(head, along)))
+      .filter((along, index, all) => index === 0 || along > all[index - 1] + 0.5);
+    if (alongs.length < 2) continue;
+    bands.push({
+      points: alongs.map((along) => onLine(pose.line, along)),
+      widths: alongs.map((along) => pose.wide * wide * beamSwellAt(pose, along)),
+      color: pale > 0 ? mixColor(hue, '#ffffff', pale) : hue,
+      core: mixColor(hue, '#ffffff', pale + 0.32),
       alpha: pose.power,
-      alphas,
+      alphas: alongs.map((along) => Math.min(1, (along - from) / (blended - from)) * beamFadeAt(pose, along)),
       blend: 'color',
       thins: true,
-      about,
-      half,
     });
-    const outline = (half: 'near' | 'far'): EffectRibbon => ({
-      ...band(half),
-      widths: widths.map((width) => width * OUTLINED),
-      color: SHADOW,
-      core: undefined,
-      alpha: 0.85 * pose.power,
-    });
-    halos.push({
-      points,
-      widths: widths.map((width) => width * 2.6),
-      color: hue,
-      alpha: 0.4 * pose.power,
-      alphas,
-      blend: 'light',
-      soft: 1,
-      thins: true,
-    });
-    far.push(outline('far'), band('far'));
-    near.push(outline('near'), band('near'));
-  });
-  return { far, near, halos };
+  }
+  return bands;
 }
 
 /** One orb of a hue, in a dark rim. */
@@ -176,10 +147,14 @@ function layWheel(
   });
 }
 
-/** Rays of every hue thrown off the piece the beam strikes, turning slowly and flickering. */
+/**
+ * Rays of every hue thrown off the piece the beam strikes, turning slowly and flickering, over a white
+ * heart, and rings of every hue racing out over the floor under it.
+ */
 function layFlower(
   drawn: Staged,
   at: Point,
+  floorZ: number,
   cell: number,
   hues: readonly string[],
   seconds: number,
@@ -191,14 +166,27 @@ function layFlower(
       const spin = seconds * 0.9 + ((index * 2 + twin) * Math.PI) / (hues.length * 2);
       const flicker = 0.7 + 0.3 * Math.sin(seconds * 31 + index * 2.1 + twin);
       drawn.motes.push({
-        ...glow(at, cell * 0.55, hue, power * flicker, forward),
+        ...glow(at, cell * 0.8, hue, power * flicker, forward),
         shape: 'flare',
         trail: twin === 0 ? 7 : 4.5,
         spin,
       });
     }
   });
-  drawn.motes.push({ ...glow(at, cell * 0.9, '#ffffff', power, forward + 1), shape: 'star', spin: seconds * 2 });
+  drawn.motes.push({ ...glow(at, cell * 1.2, '#ffffff', power, forward + 1), shape: 'star', spin: seconds * 2 });
+  drawn.motes.push(lightBall(at, cell * 0.55 * (0.85 + 0.15 * Math.sin(seconds * 47)), '#ffffff', power, forward + 2));
+  const floor = { x: at.x, y: at.y, z: floorZ };
+  for (let ring = 0; ring < 3; ring++) {
+    const share = (seconds * 2.2 + ring / 3) % 1;
+    const hue = hues[(Math.floor(seconds * 2.2 + ring / 3) * 3 + ring) % hues.length];
+    const radius = cell * (0.4 + 2 * share);
+    drawn.floor.push(
+      floorMark('ring', floor, radius, (cell * 0.16 * (1 - share)) / radius, hue, power * (1 - share), 'color', 0)
+    );
+    drawn.floor.push(
+      floorMark('ring', floor, radius, (cell * 0.07 * (1 - share)) / radius, '#ffffff', power * (1 - share), 'light', 0)
+    );
+  }
 }
 
 /** The beam of many hues as a colossal beam is drawn. */
@@ -207,22 +195,24 @@ export const PRISM_BEAM: ColossalLook = {
   colorsOf: (ramp) => [...prismHuesOf(ramp[1]), '#ffffff'],
   orbOf: () => rampOf('#ffffff', '#b9b4ff', 7),
   lightOf: () => '#fff6e8',
-  floorOf: (ramp, share) => prismHuesOf(ramp[1])[Math.floor(share * 7.3) % STRANDS],
+  floorOf: (ramp, share) => prismHuesOf(ramp[1])[Math.floor(share * 7.3) % HUES],
   layBody: (drawn, pose, ramp, glare) => {
     const hues = prismHuesOf(ramp[1]).map((hue) => mixColor(hue, '#ffffff', glare * 0.5));
-    const strands = strandsOf(pose, hues, Math.max(16, Math.round(STRAND_POINTS * (pose.detail ?? 1))));
+    const detail = pose.detail ?? 1;
     layBeamBody(drawn, pose, [
-      { wide: 1.9, color: ramp[5], alpha: 0.16 + 0.3 * glare, blend: 'light', soft: 1, flows: 0.5 },
-      { wide: 1.42 + 0.3 * glare, color: SHADOW, alpha: 0.86, blend: 'color', torn: 0.3, flows: 0.7 },
+      { wide: 2, color: ramp[5], alpha: 0.14 + 0.3 * glare, blend: 'light', soft: 1, flows: 0.5 },
     ]);
-    drawn.ribbons.push(...strands.halos, ...strands.far);
+    layBeamLicks(drawn, pose, { dark: SHADOW, body: hues, core: '#ffffff' }, Math.max(8, Math.round(LICKS * detail)));
     layBeamBody(drawn, pose, [
-      { wide: 0.78 + 0.4 * glare, color: ramp[4], alpha: 1, blend: 'color', torn: 0.4, flows: 1.3 },
-      { wide: 0.52 + 0.4 * glare, color: '#ffffff', alpha: 1, blend: 'color', torn: 0.4, flows: 1.9 },
+      { wide: 1.5 + 0.3 * glare, color: SHADOW, alpha: 0.92, blend: 'color', torn: 0.3, flows: 0.7 },
     ]);
-    layBeamStreaks(drawn, pose, 10, [hues[0], hues[2]], 0.3);
-    drawn.ribbons.push(...strands.near);
-    layBeamShreds(drawn, pose, pose.wide, hues, 26);
+    drawn.ribbons.push(...bandsOf(pose, hues, BAND_WIDE + 0.25 * glare, 0));
+    drawn.ribbons.push(...bandsOf(pose, hues, PALE_WIDE + 0.3 * glare, 0.28));
+    layBeamBody(drawn, pose, [
+      { wide: 0.3 + 0.45 * glare, color: '#ffffff', alpha: 1, blend: 'color', torn: 0.35, flows: 1.9 },
+    ]);
+    layBeamStreaks(drawn, pose, 12, ['#ffffff', hues[2]], 0.45);
+    layBeamShreds(drawn, pose, pose.wide, hues, Math.round(26 * detail));
   },
   layGathering: (drawn, stage, line, floor, ramp, gather) => {
     layWheel(drawn, line, floor, stage.cell, stage.cell, prismHuesOf(ramp[1]), stage.seconds, gather);
@@ -243,6 +233,14 @@ export const PRISM_BEAM: ColossalLook = {
       )
     );
     const strikes = Math.hypot(stage.x - pose.line.from.x, stage.y - pose.line.from.y);
-    layFlower(drawn, onLine(pose.line, strikes), stage.cell, hues, stage.seconds, pose.power * (1 - pose.failing));
+    layFlower(
+      drawn,
+      onLine(pose.line, strikes),
+      stage.groundZ,
+      stage.cell,
+      hues,
+      stage.seconds,
+      pose.power * (1 - pose.failing)
+    );
   },
 };
