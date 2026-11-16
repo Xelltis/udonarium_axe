@@ -156,7 +156,10 @@ CHOREOGRAPHIES.ballistic = ballisticWith(strikeWith);
  * aimed at it does: the looks of earth, whose boulders and pillars, as many times larger as a dragon
  * is than a man, would wall the table off; ice that strikes, whose crystals would; and a bolt of
  * lightning, whose storm would darken all of it. A cut grows so too: its crescent is as thick as a
- * piece, and one grown as a dragon is would hide the table.
+ * piece, and one grown as a dragon is would hide the table. So does a strike, whose star and rings
+ * would cover a giant and those standing beside it, and a barrier, whose dome would take in the
+ * pieces round the one it wards. So do a healing, an aura, the looks of space and time and those of
+ * darkness, whose canopies, pillars, circles, pits and spheres would cover the table.
  */
 const GROWS_BY_ROOT: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'impact',
@@ -166,6 +169,14 @@ const GROWS_BY_ROOT: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'frost',
   'slash',
   'bolt',
+  'bash',
+  'barrier',
+  'heal',
+  'aura',
+  'warp',
+  'gravity',
+  'shadow',
+  'darkorb',
 ]);
 
 /**

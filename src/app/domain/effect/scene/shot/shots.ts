@@ -58,6 +58,24 @@ function originOf(stage: Stage): Point {
   return stage.origin ?? { x: stage.x - stage.cell * 3, y: stage.y + stage.cell * 3, z: stage.z + stage.cell * 2 };
 }
 
+/**
+ * Where an arrow strikes a target: in its middle, or for a target whose body stands out past what the
+ * shot is grown to, as a dragon three cells across does, on the side of its body it was shot from, so
+ * the arrow is left standing out of its chest rather than buried to the feathers in its middle.
+ */
+function onNearSide(stage: Stage, from: Point, middle: Point): Point {
+  const target = stage.targets.find((standing) => standing.index === stage.index);
+  const out = target ? (target.widthPx - stage.cell / stage.preset.sizeScale) / 2 : 0;
+  const far = Math.hypot(from.x - middle.x, from.y - middle.y);
+  if (!(out > 1) || far < 1) return middle;
+  const by = Math.min(out, far * 0.5);
+  return {
+    x: middle.x + ((from.x - middle.x) / far) * by,
+    y: middle.y + ((from.y - middle.y) / far) * by,
+    z: middle.z,
+  };
+}
+
 /** Adds what a landing look draws into what is drawn. */
 function addInto(drawn: Staged, landed: Staged): void {
   drawn.motes.push(...landed.motes);
@@ -168,7 +186,8 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
   const { cell, duration } = stage;
   const t = stage.seconds;
   const from = originOf(stage);
-  const to = { x: stage.x, y: stage.y, z: stage.z + cell * STRIKES_AT };
+  const middle = { x: stage.x, y: stage.y, z: stage.z + cell * STRIKES_AT };
+  const to = style === 'arrow' ? onNearSide(stage, from, middle) : middle;
   const { length } = wayBetween(from, to);
   const timing = projectileTiming(stage.preset);
   const forward = cell * 0.4;

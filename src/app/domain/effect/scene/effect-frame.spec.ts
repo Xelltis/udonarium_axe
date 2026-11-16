@@ -520,6 +520,27 @@ describe('where an effect aimed from its caster leaves it', () => {
     }
   );
 
+  it('leaves an arrow standing out of the side of a large target it was shot from, and in the middle of one of a cell', () => {
+    const preset = makePreset('projectile', {
+      durationMs: 620,
+      staggerMs: 0,
+      scale: 0.8,
+      projectileStyle: 'arrow',
+      impactKind: 'impact',
+    });
+    const headOf = (cells: number) => {
+      const sized: Partial<EffectStagingOptions> = {
+        ...from(1),
+        resolveSize: (identifier) => (identifier === 'caster' ? 1 : cells),
+      };
+      const shaft = staged(preset, cast, 600, sized).ribbons.filter((ribbon) => ribbon.color === '#3a2716');
+      return shaft.at(-1)!.points[1];
+    };
+
+    expect(headOf(1).x).toBeLessThan(100);
+    expect(headOf(3).x).toBeGreaterThan(100 + CELL * 0.3);
+  });
+
   it('looses a shot from before the body of a larger caster and higher, rather than out of its middle', () => {
     const preset = makePreset('projectile', { durationMs: 1000 });
     const nearestTo = (cells: number, point: { x: number; y: number; z: number }) =>

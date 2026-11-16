@@ -35,6 +35,12 @@ function staged(preset: EffectPreset, elapsedMs: number): Staged {
   return drawn;
 }
 
+function stagedOnGiant(preset: EffectPreset, elapsedMs: number): Staged {
+  const drawn = nothingStaged();
+  stageEffect(preset, castOf(), elapsedMs, { cellPx: CELL, resolveSize: () => 4 }, drawn);
+  return drawn;
+}
+
 function landsAtOf(preset: EffectPreset): number {
   return effectBlowsOf(preset)[0].atMs;
 }
@@ -55,6 +61,18 @@ describe('a strike', () => {
 
       expect([grade, spikes.length > 8]).toEqual([grade, true]);
     }
+  });
+
+  it('grows by the root of the size of its target, so its star does not cover a giant and those beside it', () => {
+    const jab = strikeOf(1);
+    const reach = (drawn: Staged) =>
+      Math.max(...drawn.motes.filter((mote) => mote.shape === 'tongue').map((mote) => Math.abs(mote.x - TARGET.x)));
+
+    const onGiant = reach(stagedOnGiant(jab, landsAtOf(jab)));
+    const onMan = reach(staged(jab, landsAtOf(jab)));
+
+    expect(onGiant / onMan).toBeGreaterThan(1.6);
+    expect(onGiant / onMan).toBeLessThan(2.6);
   });
 
   it('bursts the star of a jab out longest from the far side of the target, the way the blow drives', () => {
