@@ -143,6 +143,16 @@ describe('one stroke of a cut', () => {
     expect(whiteLinesOf(stagedAt(cut, cast, crosses - 0.02))).toEqual([]);
   });
 
+  it('bursts a star of thick spikes out of the target as it crosses, its impact frame, and only for an instant', () => {
+    const spikesAt = (since: number) =>
+      stagedAt(cut, cast, crosses + since).motes.filter((mote) => mote.shape === 'tongue' && mote.blend === 'color');
+
+    expect(spikesAt(-0.02)).toEqual([]);
+    expect(spikesAt(0.03).length).toBeGreaterThanOrEqual(30);
+    expect(spikesAt(0.03).some((spike) => spike.color === tones.rim)).toBe(true);
+    expect(spikesAt(0.15)).toEqual([]);
+  });
+
   it('lights the floor and bursts into sparks and shards as it does, and leaves a glint', () => {
     const struck = stagedAt(cut, cast, crosses + 0.03);
     const after = stagedAt(cut, cast, crosses + 0.3);

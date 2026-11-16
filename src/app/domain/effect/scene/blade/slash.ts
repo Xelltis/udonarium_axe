@@ -7,6 +7,7 @@ import {
   swingPoint,
 } from '@axe/domain/effect/scene/blade/crescent';
 import { drawDrift, drawImpact, drawSeam, type Impact, layCutScore } from '@axe/domain/effect/scene/blade/cut-impact';
+import { drawImpactFrame } from '@axe/domain/effect/scene/blade/impact-frame';
 import { drawCleave } from '@axe/domain/effect/scene/blade/slash-cleave';
 import { drawDrawingCut } from '@axe/domain/effect/scene/blade/slash-iai';
 import { drawSweep } from '@axe/domain/effect/scene/blade/slash-sweep';
@@ -57,12 +58,24 @@ const OPENS_AFTER_S = 0.07;
 const GAPES_S = 0.65;
 const FLURRY_GAPES_S = 0.85;
 /** How far the arc of one stroke, and of each stroke of a flurry, reaches against the reach its form gives. */
-const REACH_ALONE = 0.8;
+const REACH_ALONE = 0.84;
 const REACH_FLURRY = 1.05;
+/**
+ * How one stroke on its own is drawn, which no stroke of a flurry is, in cells: how thick its crescent
+ * is at its belly and how much further its dark rim stands out, as a share of that; how long the cut it
+ * leaves is either side of the target; how hard it lands; and how large the star of its impact frame is.
+ */
+const THICK_ALONE = 0.5;
+const RIM_ALONE = 0.3;
+const HALF_ALONE = 1.05;
+const WEIGHT_ALONE = 1.4;
+const FRAME_ALONE = 1.6;
+/** How far towards its paler band the pale of one stroke on its own is taken from its body. */
+const PALE_ALONE = 0.45;
 /** The tints the strokes of a flurry are taken towards, the last its own colour. */
 const TINTS = ['#3aa0ff', '#9a6bff', '#2fe6c0', '#ffb648'];
 /** How far either side of the target the floor is scored under one stroke, in cells. */
-const SCORE_CELLS = 0.9;
+const SCORE_CELLS = 1.3;
 
 export const slash: Choreography = { lingerS: LINGER_S, draw: drawSlash };
 
@@ -102,7 +115,7 @@ function drawStrokes(stage: Stage): Staged {
     const tinted = flurry && !last;
     const tint = tinted ? mixColor(stage.preset.colorSecondary, TINTS[index % TINTS.length], 0.75) : '';
     const ramp = tinted ? rampOf(stage.preset.colorPrimary, tint, 7) : own;
-    const tones = tinted ? bladeTonesOf(stage.preset.colorPrimary, tint) : ownTones;
+    const tones = tinted ? bladeTonesOf(stage.preset.colorPrimary, tint) : flurry ? ownTones : deepened(ownTones);
     const centre = {
       x: chest.x + frame.across.x * hit.offsetX * cell,
       y: chest.y + frame.across.y * hit.offsetX * cell,
@@ -114,8 +127,8 @@ function drawStrokes(stage: Stage): Staged {
     const before = clock.starts - t;
     if (before > 0 && before < GLINTS_S)
       drawGlint(drawn, swingPoint(swing, swing.from), cell * 0.9 * (1 - before / GLINTS_S), forward);
-    const weight = flurry ? (last ? 1.25 : 0.75) : 1;
-    const thick = cell * (flurry ? (last ? 0.62 : 0.38) : 0.46);
+    const weight = flurry ? (last ? 1.25 : 0.75) : WEIGHT_ALONE;
+    const thick = cell * (flurry ? (last ? 0.62 : 0.38) : THICK_ALONE);
     if (t >= clock.starts) {
       const spent = flurry
         ? Math.max(0.3 * within(t, clock.ends, clock.ends + 0.3), within(t, opensAt, opensAt + BLOSSOM_FADES_S))
@@ -127,6 +140,7 @@ function drawStrokes(stage: Stage): Staged {
         spent,
         flowed: (t - clock.starts) * 5 + index,
         ghosts: t < clock.ends + GHOSTS_S ? (flurry && !last ? 2 : 3) : 0,
+        rim: flurry ? undefined : RIM_ALONE,
       };
       const lines = { ...look, spent: within(t, clock.ends, clock.ends + GHOSTS_S) };
       drawn.ribbons.push(...crescentRibbons(swing, swing.from, clock.head, look));
@@ -136,7 +150,7 @@ function drawStrokes(stage: Stage): Staged {
     const impact: Impact = {
       at: swing.centre,
       way: cutWayOf(swing, hit.angle),
-      half: cell * (flurry ? (last ? 1.1 : 0.8) : 0.8),
+      half: cell * (flurry ? (last ? 1.1 : 0.8) : HALF_ALONE),
       cell,
       ramp,
       tones,
@@ -151,6 +165,7 @@ function drawStrokes(stage: Stage): Staged {
       drawWaitingCut(drawn, { ...swing, travel: impact.way }, impact.half, t - crosses, opensAt - crosses);
       drawSeam(drawn, impact, t - opensAt, FLURRY_GAPES_S, last ? 2.2 : 1.8);
     } else {
+      drawImpactFrame(drawn, impact, cell * FRAME_ALONE, t - crosses);
       drawSeam(drawn, impact, t - crosses - OPENS_AFTER_S, GAPES_S, 2);
       const level = Math.hypot(swing.travel.x, swing.travel.y) || 1;
       const scored = (cell * SCORE_CELLS * within(t, crosses, crosses + 0.08)) / level;
@@ -176,6 +191,11 @@ function drawStrokes(stage: Stage): Staged {
     drawDrift(drawn, chest, cell, own, t - crosses, ends - crosses, 16, seed);
   }
   return drawn;
+}
+
+/** The colours of one stroke on its own: its paler band taken back towards its body, so more of it is of its full colour. */
+function deepened(tones: BladeTones): BladeTones {
+  return { ...tones, pale: mixColor(tones.body, tones.pale, PALE_ALONE) };
 }
 
 /**

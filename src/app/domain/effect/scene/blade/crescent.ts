@@ -48,6 +48,8 @@ export interface CrescentLook {
   readonly ghosts: number;
   /** Whether its white-hot edge is on the outside of its bow, as that of a crescent thrown through the air is; inside it without. */
   readonly leads?: boolean;
+  /** How much further its dark rim stands out about its body, as a share of how thick it is; a thin rim without. */
+  readonly rim?: number;
 }
 
 const STEPS = 22;
@@ -130,7 +132,7 @@ export function crescentRibbons(swing: Swing, tail: number, head: number, look: 
     },
     {
       points: middle,
-      widths: wide.map((width) => width * 1.16 + thick * 0.05 * Math.min(1, (width / thick) * 4)),
+      widths: wide.map((width) => width * 1.16 + thick * (0.05 + (look.rim ?? 0)) * Math.min(1, (width / thick) * 4)),
       color: tones.rim,
       alpha: 0.9 * alpha,
       blend: 'color',
