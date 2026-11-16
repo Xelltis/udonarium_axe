@@ -1,6 +1,7 @@
 import {
   enclosedCells,
   firstPersonRoofOf,
+  modelsUnderRoof,
   roofHeightAt,
   roofRaisedFor,
   sameRoof,
@@ -77,6 +78,19 @@ describe('first-person-roof', () => {
     expect(roof?.heightPx).toBe(GRID);
     expect(roof!.cells.get(cellIndexOf(grid, 4, 4))).toBe(true);
     expect(roofOf([block(4, 4, 1, 1, 3)]).roof!.cells.get(cellIndexOf(grid, 4, 4))).toBe(true);
+  });
+
+  it('raises the roof of a room clear of a block in it drawn as a 3D model taller than its walls', () => {
+    const tree = block(4, 5, 1, 1, 2);
+    tree.modelIdentifier = 'model';
+    tree.modelScale = '1.5';
+    const { grid, roof } = roofOf([...room(), tree]);
+
+    const raised = roofRaisedFor(roof, modelsUnderRoof(grid, [...room(), tree], GRID), 10);
+
+    expect(roofHeightAt(raised!, cellIndexOf(grid, 4, 5))).toBe(GRID * 3 + 10);
+    expect(roofHeightAt(raised!, cellIndexOf(grid, 3, 4))).toBe(GRID * 3 + 10);
+    expect(modelsUnderRoof(grid, room(), GRID)).toEqual([]);
   });
 
   it('puts no roof over the field round a tower standing out in the open', () => {
