@@ -185,4 +185,13 @@ describe('a gust', () => {
 
     expect(JSON.stringify(staged(gust, cast, 700))).toBe(later);
   });
+
+  it('strikes its target with a white flash that lights the floor under it', () => {
+    const struck = staged(gustOf(), castOn([TARGET]), strikesMs + 30);
+    const lit = struck.floor.filter((mark) => mark.shape === 'disc' && mark.blend === 'light');
+    const white = struck.motes.filter((mote) => mote.shape === 'puff' && mote.color === '#ffffff');
+
+    expect(lit.some((mark) => Math.hypot(mark.x - TARGET.x, mark.y - TARGET.y) < CELL * 0.5)).toBe(true);
+    expect(white.length).toBeGreaterThan(0);
+  });
 });

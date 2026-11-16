@@ -137,4 +137,13 @@ describe('a shot of wind', () => {
     expect(flying.ribbons.some((ribbon) => ribbon.blend === 'light')).toBe(true);
     expect(flying.ribbons.some((ribbon) => ribbon.half !== undefined)).toBe(false);
   });
+
+  it('bursts with a white flash that lights the floor under the target', () => {
+    const shot = shotOf();
+    const burst = staged(shot, landsMs(shot) + 30);
+    const lit = burst.floor.filter((mark) => mark.shape === 'disc' && mark.blend === 'light');
+
+    expect(lit.some((mark) => Math.hypot(mark.x - TARGET.x, mark.y - TARGET.y) < CELL * 0.5)).toBe(true);
+    expect(burst.motes.some((mote) => mote.shape === 'puff' && mote.color === '#ffffff')).toBe(true);
+  });
 });
