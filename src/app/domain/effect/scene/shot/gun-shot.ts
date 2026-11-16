@@ -1,6 +1,7 @@
 import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import { type Point, wayBetween } from '@axe/domain/effect/scene/parts';
 import { layCasing, layMuzzleFlash, MUZZLE_FLASH_S } from '@axe/domain/effect/scene/shot/gun-parts';
+import { drawHailShot } from '@axe/domain/effect/scene/shot/hail-shot';
 import {
   detailOf,
   type FiredShot,
@@ -36,10 +37,10 @@ import {
  * pocked. A round that lands in rubble is a heavy one: it goes through, a ring of vapour opening about
  * it as it does, and buries itself in the ground behind in a jet of dirt.
  *
- * A burst rattles: each round leaves the muzzle a little off the last, its flash now larger and now
- * smaller, the casings pile up, and not every round finds the body, the rest kicking dust up round it.
- * A long burst of heavy rounds is walked up the ground onto the target, jets of dirt standing up
- * short of it one after another, and every third round is a tracer that burns its colour.
+ * A burst of light rounds is a hail of fire, as `hail-shot` has it. A burst of heavy rounds rattles:
+ * each leaves the muzzle a little off the last, its flash now larger and now smaller, and a long one
+ * is walked up the ground onto the target, jets of dirt standing up short of it one after another,
+ * and every third round is a tracer that burns its colour.
  */
 
 /** How far each round of a burst leaves the muzzle off the last, in cells. */
@@ -118,11 +119,15 @@ function strikeOf(shot: FiredShot): Strike {
 
 /** Draws one round of a gun at a moment: see the header. */
 export const drawGunShot: ShotLook = (drawn, shot, ramp) => {
+  const heavy = isHeavy(shot);
+  const burst = shot.shots > 1;
+  if (burst && !heavy) {
+    drawHailShot(drawn, shot, ramp);
+    return;
+  }
   const { cell, seconds: t } = shot;
   const since = t - shot.launch;
   if (since < 0) return;
-  const heavy = isHeavy(shot);
-  const burst = shot.shots > 1;
   const detail = detailOf(shot.shots);
   const power = powerOf(shot.grade) * (heavy ? 1.25 : 1);
   const forward = cell * 0.5;
