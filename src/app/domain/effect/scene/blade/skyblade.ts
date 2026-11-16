@@ -17,6 +17,7 @@ import {
   upBlade,
   upSword,
 } from '@axe/domain/effect/scene/blade/sword-pose';
+import { drawReach, reachedApart, sweptWay } from '@axe/domain/effect/scene/blade/sword-reach';
 import {
   drawBroken,
   drawSwingFan,
@@ -52,8 +53,9 @@ import { scatter } from '@axe/domain/effect/scene/wind/wind-parts';
  * the score it left on the floor cools, and the sword breaks into light.
  *
  * One sword is raised and brought down for all the targets of a cast, drawn with the first of them
- * that is drawn, along the line to it; each of the others takes the landing in its turn. Cast by no
- * one, it is raised in a place beside the target.
+ * that is drawn, along the line to it; each of the others takes the landing in its turn, and one the
+ * first torrent does not reach has the sword swept round on to it and a torrent of its own loosed
+ * along the line to it; see `sword-reach`. Cast by no one, it is raised in a place beside the target.
  */
 
 /** How long the sword of steel takes to be raised into sight, at the most as a share of the gathering, in seconds. */
@@ -84,7 +86,9 @@ function drawSkyblade(stage: Stage, impactOf: ImpactLook, lingerS: number): Stag
   const timing = greatSwordTimingOf(duration, stage.blowsAt[0]);
   const targets = stage.targets.length > 0 ? stage.targets : [ownTargetOf(stage)];
   const first = targets[0];
+  const own = targets.find((target) => target.index === stage.index);
   if (first.index === stage.index) drawTechnique(drawn, stage, timing, first, targets, duration + lingerS);
+  else if (own) drawReach(drawn, stage, timing, first, own, duration + lingerS);
   const since = stage.seconds - timing.releasesAt;
   if (since >= 0) {
     const impact = impactOf({
@@ -145,7 +149,10 @@ function drawTechnique(
     drawGatherWind(drawn, pose, paint, coming);
     drawGatherMotes(drawn, pose, paint, heading, coming);
   }
-  drawSword(drawn, pose, paint, heading, timing, t, raised, seed);
+  const apart = targets.length > 1 && since > 0 ? reachedApart(stage, first, targets) : [];
+  const held = apart.length > 0 ? { ...pose, way: sweptWay(pose, stage, first, apart, since) } : pose;
+  const swept = held === pose ? heading : bladeWay(held, swordTiltAt(held, timing, t));
+  drawSword(drawn, held, paint, swept, timing, t, raised, seed);
   if (since < 0.05) {
     const glint = within(t, timing.gatheredAt, timing.swingsAt - 0.05);
     drawLightBlade(drawn, pose, paint, heading, { grown, alpha: 1 - within(since, 0, 0.05), seconds: t, seed, glint });

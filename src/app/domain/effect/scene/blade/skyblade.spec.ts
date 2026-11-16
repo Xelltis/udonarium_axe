@@ -188,11 +188,32 @@ describe('the great sword', () => {
         .length;
 
     expect(steelOf(stagedAt(smite, two, 0.6)).length).toBe(steelOf(stagedAt(smite, cast, 0.6)).length);
-    expect(torrentOf(stagedAt(smite, two, releases + 0.2)).length).toBe(
-      torrentOf(stagedAt(smite, cast, releases + 0.2)).length
-    );
     expect(landedAt(releases + 0.05)).toBe(0);
     expect(landedAt(releases + 0.3)).toBeGreaterThan(0);
+  });
+
+  it('looses a torrent of its own on to each target the first does not reach, in its turn, and sweeps the sword on to it', () => {
+    const other = { x: TARGET.x - CELL, y: TARGET.y + CELL * 3 };
+    const two: EffectCast = { ...cast, targets: [...cast.targets, { identifier: 't1', ...other, z: 0 }] };
+    const inLine: EffectCast = {
+      ...cast,
+      targets: [...cast.targets, { identifier: 't1', x: TARGET.x - CELL * 2, y: TARGET.y, z: 0 }],
+    };
+    const later = releases + sword.stagger / 1000;
+    const reaching = (drawn: Staged) =>
+      torrentOf(drawn).filter((ribbon) =>
+        ribbon.points.some((point) => Math.hypot(point.x - other.x, point.y - other.y) < CELL * 0.8)
+      );
+    const tipOf = (drawn: Staged) => steelOf(drawn).at(-1)!.points[0];
+
+    expect(reaching(stagedAt(sword, two, later - 0.02))).toEqual([]);
+    expect(reaching(stagedAt(sword, two, later + 0.2)).length).toBeGreaterThan(0);
+    expect(torrentOf(stagedAt(sword, inLine, later + 0.2)).length).toBe(
+      torrentOf(stagedAt(sword, cast, later + 0.2)).length
+    );
+    expect(tipOf(stagedAt(sword, two, later + 0.1)).y).toBeGreaterThan(
+      tipOf(stagedAt(sword, cast, later + 0.1)).y + CELL * 0.5
+    );
   });
 
   it('is raised in a place beside the target, and swung from there, when no one casts it', () => {
