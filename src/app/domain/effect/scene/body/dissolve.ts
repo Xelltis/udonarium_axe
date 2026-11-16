@@ -1,5 +1,6 @@
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { bladeTonesOf } from '@axe/domain/effect/scene/blade/blade-tones';
+import { drawCrackLight, drawLetGo, drawStreaming } from '@axe/domain/effect/scene/body/dissolve-burst';
 import {
   type Choreography,
   nothingStaged,
@@ -22,10 +23,13 @@ import {
 /*
  * A piece crumbling to nothing. A band of light runs up it from its feet, cracks of light opening
  * behind it, and as it reaches its head the piece flares white and its own picture, cut into shards,
- * takes its place. The shards peel away from its windward edge, each flashing as it breaks off and
- * rimmed in light as the wind carries it off, breaking up into motes; where they peel from, the shape
- * of the piece is left standing as a pale afterimage, fading. Last of all motes of light rise from
- * where it stood and a ring of light on the floor closes on the spot.
+ * takes its place. The cracks between the shards open and a hard light blazes up behind it, pouring
+ * out through them; then it lets go in a burst, a flash and rays, a ring thrown out over the floor,
+ * splinters of light flung every way and dust kicked up; see `dissolve-burst`. The shards peel away
+ * from its windward edge, each flashing as it breaks off and rimmed in light as the wind carries it
+ * off, breaking up into motes, dust streaming off with them and flakes of light whirling away; where
+ * they peel from, the shape of the piece is left standing as a pale afterimage, fading. Last of all
+ * motes of light rise from where it stood and a ring of light on the floor closes on the spot.
  *
  * The shards are drawn over the table as `timeline/body` has them; what is drawn here about them is
  * set off across the screen from the middle of the picture as they are, so it moves with them.
@@ -65,6 +69,9 @@ export const dissolve: Choreography = {
       drawn.motes.push(haze(middle, cell * 1.7, tones.pale, 0.55 * flaring, forward));
       drawn.motes.push(haze(middle, cell * 1.05, '#ffffff', 0.75 * flaring, forward + 1));
     }
+    drawCrackLight(drawn, stage, shards, middle, tones, forward);
+    drawLetGo(drawn, stage, middle, floor, tones, t - shards[0].letsGoAt, forward);
+    drawStreaming(drawn, stage, shards, middle, tones, forward);
     for (const shard of shards) drawShardLight(drawn, stage, shard, middle, tones, forward);
     drawWind(drawn, stage, shards, middle, tones, forward);
     layFloor(drawn, stage, floor, tones, t);

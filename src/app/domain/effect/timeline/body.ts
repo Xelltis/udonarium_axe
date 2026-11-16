@@ -3,9 +3,11 @@ import { blank, clamp01, type EffectSprite, type Point3, takeRandoms } from '@ax
 /*
  * The crumbling of a piece's own picture, laid over the table where the piece is drawn. As the piece
  * itself fades from the table its picture takes its place, whole, cut into shards along jagged lines.
- * The shards then peel away one by one from its windward edge, its head and the side the wind comes
- * from first and its feet last; each is caught by the wind and carried off to the right and up as
- * the eye sees it, turning about its own middle, shrinking and fading as it goes.
+ * Cracks open between the shards, each pushed out a little from the middle and shrunk about its own,
+ * wider as its turn to go nears; the picture jolts outward as it lets go, and the shards peel away one
+ * by one from its windward edge, its head and the side the wind comes from first and its feet last;
+ * each is kicked out from the middle as it breaks off, caught by the wind and carried off to the right
+ * and up as the eye sees it, turning about its own middle, shrinking and fading as it goes.
  *
  * What is drawn about it in the table's scene, the light rimming each shard and the motes it breaks
  * into, is laid out from the same shards, which `dissolveShards` throws from the same seed.
@@ -33,6 +35,20 @@ const FULL_PACE_S = 4.4;
 const LEAST_PACE = 0.35;
 /** How far the corners where shards meet are thrown off a straight grid, as a share of a shard. */
 const JAGGED = 0.32;
+/**
+ * How the picture cracks before it lets go: how far its shards are pushed out from its middle and
+ * shrunk about their own, as shares, as the cracks open up to the moment it lets go, as each nears its
+ * own peeling, and in the jolt of the moment it lets go, which lasts as long as `JOLT_S` seconds.
+ */
+const CRACK_SPREAD = 0.05;
+const CRACK_SHRINK = 0.08;
+const NEAR_SPREAD = 0.04;
+const NEAR_SHRINK = 0.06;
+const NEARS_S = 0.5;
+const JOLT_SPREAD = 0.08;
+const JOLT_S = 0.3;
+/** How far out from the middle of the picture a shard is kicked as it peels away, as a share of how far out it sat. */
+const KICKED = 0.4;
 
 /** One shard of the picture: its outline, where it sits in the picture, and how it is peeled away and carried off. */
 export interface DissolveShard {
@@ -43,6 +59,8 @@ export interface DissolveShard {
   readonly middle: readonly [number, number];
   /** When it peels away, and how long it flies, in seconds. */
   readonly peelsAt: number;
+  /** When the picture lets go and the first shards peel away, in seconds. */
+  readonly letsGoAt: number;
   readonly flies: number;
   /** How far the wind carries it, to the right and up as the eye sees it, as shares of the size the effect is drawn at. */
   readonly drift: readonly [number, number];
@@ -88,6 +106,7 @@ export function dissolveShards(lastsS: number, random: () => number): DissolveSh
           outline.reduce((sum, [, y]) => sum + y, 0) / outline.length,
         ],
         peelsAt: peelsFrom + clamp01(windward + (order - 0.5) * 0.14) * peelsFor,
+        letsGoAt: peelsFrom,
         flies: flying * (0.8 + 0.4 * flies),
         drift: [1.4 + 1.3 * right, 0.55 + 1.1 * up],
         spin: (spin - 0.5) * 300,
@@ -120,18 +139,50 @@ export function shardPoseAt(shard: DissolveShard, seconds: number, base: number)
     y: (shard.middle[1] - 0.5) * DISSOLVE_PICTURE_HEIGHT * base,
   };
   const since = seconds - shard.peelsAt;
-  if (since < 0) return { ...sits, turned: 0, scale: 1, opacity: shown, flown: -1 };
+  const { spread, shrink } = crackedAt(shard, Math.min(seconds, shard.peelsAt));
+  const at = { x: sits.x * spread, y: sits.y * spread };
+  if (since < 0) return { ...at, turned: 0, scale: 1 - shrink, opacity: shown, flown: -1 };
   const flown = since / shard.flies;
   if (flown >= 1) return null;
   const carried = flown * flown * 0.6 + flown * 0.4;
+  const kicked = KICKED * (1 - Math.pow(1 - Math.min(1, flown * 3), 3));
   return {
-    x: sits.x + shard.drift[0] * base * carried,
-    y: sits.y - shard.drift[1] * base * carried - base * 0.08 * Math.sin(flown * Math.PI),
+    x: at.x + sits.x * kicked + shard.drift[0] * base * carried,
+    y: at.y + sits.y * kicked - shard.drift[1] * base * carried - base * 0.08 * Math.sin(flown * Math.PI),
     turned: shard.spin * flown,
-    scale: 1 - 0.7 * flown,
+    scale: (1 - shrink) * (1 - 0.7 * flown),
     opacity: shown * Math.pow(1 - flown, 1.2),
     flown,
   };
+}
+
+/**
+ * How far the cracks about a shard have opened `seconds` into the crumbling: how far they have opened
+ * up to the moment the picture lets go, from 0 to 1; how far the shard is pushed out from the middle
+ * of the picture, as a share of where it sits; and how far it is shrunk about its own middle.
+ */
+export function crackedAt(
+  shard: DissolveShard,
+  seconds: number
+): { readonly opened: number; readonly spread: number; readonly shrink: number } {
+  const opensFrom = (DISSOLVE_TAKES_OVER_S[0] + DISSOLVE_TAKES_OVER_S[1]) / 2;
+  const cracked = clamp01((seconds - opensFrom) / Math.max(0.01, shard.letsGoAt - opensFrom));
+  const near = clamp01(1 + (seconds - shard.peelsAt) / NEARS_S);
+  const jolted = (seconds - shard.letsGoAt) / JOLT_S;
+  const jolt = jolted > 0 && jolted < 1 ? Math.sin(Math.PI * jolted) : 0;
+  return {
+    opened: cracked,
+    spread: 1 + CRACK_SPREAD * cracked + NEAR_SPREAD * near + JOLT_SPREAD * jolt,
+    shrink: CRACK_SHRINK * cracked + NEAR_SHRINK * near,
+  };
+}
+
+/** Where a spot of a picture drawn at `base` lies from its middle, given as shares across it and down it: in table pixels to the right and down. */
+export function pictureSpotOf(
+  spot: readonly [number, number],
+  base: number
+): { readonly x: number; readonly y: number } {
+  return { x: (spot[0] - 0.5) * DISSOLVE_PICTURE_WIDTH * base, y: (spot[1] - 0.5) * DISSOLVE_PICTURE_HEIGHT * base };
 }
 
 /** How high over its foot the middle of a crumbling picture drawn at `base` stands, in table pixels: on the floor. */

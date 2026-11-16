@@ -66,6 +66,43 @@ describe('a piece crumbling', () => {
     expect(later.length).toBeLessThan(whole.length);
   });
 
+  it('opens cracks between its shards before it lets go, each pushed out and shrunk, the more as its turn nears', () => {
+    const shards = dissolveShards(DURATION_MS / 1000, seededRandom(9));
+    const corner = shards[shards.length - 1];
+    const at = (seconds: number) => shardPoseAt(corner, seconds, CELL)!;
+    const letsGo = corner.letsGoAt;
+
+    expect(at(0.3).scale).toBeGreaterThan(at(letsGo).scale);
+    expect(at(letsGo).scale).toBeGreaterThan(at(corner.peelsAt - 0.01).scale);
+    expect(at(corner.peelsAt - 0.01).scale).toBeLessThan(0.9);
+    expect(at(letsGo - 0.05).x).toBeGreaterThan(at(0.3).x);
+    expect(at(letsGo + 0.15).x).toBeGreaterThan(at(letsGo - 0.05).x);
+  });
+
+  it('blazes a light up behind the picture as the cracks open, and lines its seams with white', () => {
+    const cracking = staged(500).motes;
+    const seams = cracking.filter((mote) => mote.shape === 'flare' && mote.aside !== undefined);
+
+    expect(seams.length).toBeGreaterThan(40);
+    expect(cracking.some((mote) => mote.shape === 'glow' && mote.color === '#ffffff' && mote.size > CELL * 0.8)).toBe(
+      true
+    );
+  });
+
+  it('bursts as it lets go: a flash, a ring thrown out over the floor, splinters flung every way and dust kicked up', () => {
+    const [shard] = dissolveShards(DURATION_MS / 1000, seededRandom(9));
+    const before = staged(shard.letsGoAt * 1000 - 30);
+    const burst = staged(shard.letsGoAt * 1000 + 80);
+    const ringsOf = (drawn: Staged) => drawn.floor.filter((mark) => mark.shape === 'ring' && mark.blend === 'color');
+    const flakesOf = (drawn: Staged) => drawn.motes.filter((mote) => mote.shape === 'flake').length;
+
+    expect(ringsOf(before)).toEqual([]);
+    expect(ringsOf(burst).length).toBeGreaterThan(0);
+    expect(flakesOf(burst)).toBeGreaterThan(flakesOf(before) + 12);
+    expect(burst.motes.filter((mote) => mote.shape === 'smoke').length).toBeGreaterThanOrEqual(6);
+    expect(burst.lights.length).toBeGreaterThan(0);
+  });
+
   it('runs a band of light up the piece from its feet before its picture takes its place', () => {
     const heightOf = (ms: number) => Math.max(...staged(ms).ribbons.map((ribbon) => ribbon.points[0].z));
 
