@@ -1,4 +1,4 @@
-import { crescentRibbons, type Swing } from '@axe/domain/effect/scene/blade/crescent';
+import { speedLines, type Swing } from '@axe/domain/effect/scene/blade/crescent';
 import { flowingMote } from '@axe/domain/effect/scene/breath/breath-draw';
 import { nothingStaged, outCubic, type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { kickedDust } from '@axe/domain/effect/scene/earth/earth-dust';
@@ -15,6 +15,7 @@ import {
   thrownSparks,
 } from '@axe/domain/effect/scene/fire/fire-parts';
 import { ball, floorMark, keptFor, stageKey, throwerFor } from '@axe/domain/effect/scene/parts';
+import { bluntArcRibbons, bluntHeads } from '@axe/domain/effect/scene/strike/blunt-arc';
 import {
   along,
   drawFist,
@@ -34,8 +35,9 @@ import { knockTurnOf } from '@axe/domain/effect/strike-looks';
 
 /*
  * A swing: a heavy blow brought down and round from overhead. The weight of it, a great fist of force,
- * is hauled back up over the one who swings it and a little to its left; it comes down in a thick
- * crescent dragging its afterimages through the target, and lands. A star bursts out of the point
+ * is hauled back up over the one who swings it and a little to its left; it comes down in the thick
+ * hard-edged arc of a blunt weapon, copies of its head left standing along it and lines of speed
+ * along its sweep, dragging its afterimages through the target, and lands. A star bursts out of the point
  * struck, leaning the way the blow carries on, three rings of pressure snap out round it and then go
  * on ringing, quivering about it while the sound of the blow rings; a cone of force and lines of speed
  * burst out the way it is thrown, and it is sent skidding: two scores are dragged along the floor
@@ -43,15 +45,18 @@ import { knockTurnOf } from '@axe/domain/effect/strike-looks';
  */
 
 /** How long the sweep takes before the blow lands, and how long it runs on after it, in seconds. */
-const SWEEP_S = 0.12;
+const SWEEP_S = 0.15;
 const FOLLOWS_S = 0.08;
 /** The turns the head of the swing comes round between, in radians either side of where it lands, and how far back it is hauled before. */
 const FROM_TURN = -2;
 const TO_TURN = 0.95;
 const HAULED_TURN = 0.3;
 /** How far the swing reaches either side of where it lands, and how deep it bows back towards the one who swings, in cells. */
-const SWING_REACH = 1.75;
+const SWING_REACH = 2;
 const SWING_DEPTH = 0.6;
+/** How thick the arc of the swing is at its head, in cells, and how far round behind its head it trails, in radians. */
+const ARC_THICK = 0.86;
+const TRAIL_TURN = 1.6;
 /** When the rings go on ringing, and when they are still, in seconds after the blow, and how fast they quiver, in turns a second. */
 const RINGS_FROM_S = 0.08;
 const RINGS_UNTIL_S = 0.45;
@@ -100,15 +105,17 @@ export function drawSwing(stage: Stage, lingerS: number): Staged {
 
   if (stage.seconds < sweepsAt) {
     const hauling = within(stage.seconds, 0, sweepsAt);
-    const raised = { tones, thick: cell * 0.4, alpha: 0.7 * hauling, spent: 0, flowed: stage.seconds * 7, ghosts: 1 };
-    drawn.ribbons.push(...crescentRibbons(swing, FROM_TURN + 0.4, head, raised));
     drawFist(drawn, tip, cell * (0.3 + 0.18 * hauling), heading, 0, tones, Math.min(1, hauling * 3), cell * 0.3);
     return drawn;
   }
-  const spent = within(t, FOLLOWS_S, FOLLOWS_S + 0.24);
-  const look = { tones, thick: cell * 0.62, alpha: 1, spent, flowed: stage.seconds * 7, ghosts: 3 };
-  drawn.ribbons.push(...crescentRibbons(swing, FROM_TURN - HAULED_TURN, head, look));
-  if (t < FOLLOWS_S) drawFist(drawn, tip, cell * 0.5, heading, 0, tones, 1 - within(t, 0, FOLLOWS_S), forward);
+  const spent = within(t, FOLLOWS_S, FOLLOWS_S + 0.3);
+  const look = { tones, thick: cell * ARC_THICK, alpha: 1, spent, ghosts: 2, heads: 4, forward };
+  const sweptFrom = Math.max(FROM_TURN - HAULED_TURN, head - TRAIL_TURN);
+  drawn.ribbons.push(...bluntArcRibbons(swing, sweptFrom, head, look));
+  drawn.motes.push(...bluntHeads(swing, sweptFrom, head, look));
+  const lines = { tones, thick: look.thick, alpha: 1, spent: within(t, 0, 0.2), flowed: 0, ghosts: 0 };
+  drawn.ribbons.push(...speedLines(swing, sweptFrom, head, lines, cell, stage.seed, 7));
+  if (t < FOLLOWS_S) drawFist(drawn, tip, cell * 0.62, heading, 0, tones, 1 - within(t, 0, FOLLOWS_S), forward);
   if (t < 0) return drawn;
 
   const ends = stage.duration + lingerS - landsAt;

@@ -76,6 +76,21 @@ describe('a strike', () => {
     expect(Math.min(...points.map((point) => point.x))).toBeLessThan(TARGET.x - CELL * 0.3);
   });
 
+  it('draws a swing as the hard thick arc of a blunt weapon, full at its head, with outlines of the head along it', () => {
+    const swing = strikeOf(2);
+    const sweeping = staged(swing, landsAtOf(swing) - 20);
+    const arcs = sweeping.ribbons.filter((ribbon) => ribbon.points.length === 17);
+    const smear = arcs.find((ribbon) => ribbon.core === '#ffffff')!;
+    const widths = smear.widths as number[];
+
+    expect(arcs.length).toBeGreaterThan(3);
+    expect(arcs.every((ribbon) => !ribbon.torn && !ribbon.soft && ribbon.blend === 'color')).toBe(true);
+    expect(widths.at(-1)).toBeGreaterThan(Math.max(...widths) * 0.95);
+    expect(widths.at(-1)).toBeGreaterThan(CELL * 0.5);
+    expect(widths[0]).toBeLessThan(widths.at(-1)! * 0.4);
+    expect(sweeping.motes.filter((mote) => mote.shape === 'hoop').length).toBeGreaterThanOrEqual(6);
+  });
+
   it('drives a cone of force out of the back of what a crushing blow lands on and on past it, which no lighter blow does', () => {
     const conesOf = (preset: EffectPreset) =>
       staged(preset, landsAtOf(preset) + 100).motes.filter((mote) => mote.shape === 'jet');
