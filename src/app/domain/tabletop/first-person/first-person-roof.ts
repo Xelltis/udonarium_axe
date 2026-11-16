@@ -2,6 +2,7 @@ import { FirstPersonWorld } from '@axe/domain/tabletop/first-person/first-person
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellColRow, cellCount, CellGrid, forEachNeighbourCell } from '@axe/domain/tabletop/fog/cell-grid';
 import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
+import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 
@@ -64,19 +65,25 @@ export function enclosedCells(grid: CellGrid, walled: CellBits): CellBits {
  *
  * It is worked out from the board alone, not from what the eye happens to see, so turning to face a
  * tower out in the open does not put a roof over the field, and the roof does not rise and fall as
- * the eye turns. A door counts as a wall whether it stands open or shut.
+ * the eye turns. A door counts as a wall whether it stands open or shut. A block drawn as a 3D model
+ * is no wall: its faces are not drawn, so a roof resting on it would hang over the model in the open.
  */
 export function firstPersonRoofOf(
   grid: CellGrid,
   terrains: readonly Terrain[],
   world: FirstPersonWorld
 ): FirstPersonRoof | null {
-  const heightPx = world.walls.reduce((top, wall) => (wall.terrain ? Math.max(top, wall.topPx) : top), 0);
+  const modelled = new Set(terrains.filter((terrain) => pieceModelOf(terrain)).map((terrain) => terrain.identifier));
+  const heightPx = world.walls.reduce(
+    (top, wall) => (wall.terrain && !modelled.has(wall.terrain) ? Math.max(top, wall.topPx) : top),
+    0
+  );
   if (heightPx <= 0) return null;
   const walled = blockedByTerrain(
     grid,
     terrains,
-    (terrain) => surfaceOf(terrain) === 'floor' && (terrain.hasWall || terrain.isDoor)
+    (terrain) =>
+      surfaceOf(terrain) === 'floor' && (terrain.hasWall || terrain.isDoor) && !modelled.has(terrain.identifier)
   );
   const cells = enclosedCells(grid, walled);
   return cells.isEmpty ? null : { cells, heightPx, rooms: roomsOf(grid, cells, walled) };

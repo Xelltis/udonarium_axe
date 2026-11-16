@@ -67,6 +67,18 @@ describe('first-person-roof', () => {
     expect(roof!.cells.get(cellIndexOf(grid, 4, 5))).toBe(true);
   });
 
+  it('puts no roof over a block drawn as a 3D model, nor counts it among the walls a roof rests on', () => {
+    const lantern = block(4, 4, 1, 1, 3);
+    lantern.modelIdentifier = 'model';
+
+    expect(roofOf([lantern]).roof).toBeNull();
+
+    const { grid, roof } = roofOf([...room(), lantern]);
+    expect(roof?.heightPx).toBe(GRID);
+    expect(roof!.cells.get(cellIndexOf(grid, 4, 4))).toBe(true);
+    expect(roofOf([block(4, 4, 1, 1, 3)]).roof!.cells.get(cellIndexOf(grid, 4, 4))).toBe(true);
+  });
+
   it('puts no roof over the field round a tower standing out in the open', () => {
     const { grid, roof } = roofOf([block(4, 4, 1, 1, 3)]);
 
