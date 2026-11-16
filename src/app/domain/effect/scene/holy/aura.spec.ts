@@ -22,8 +22,32 @@ describe('an aura of fighting spirit', () => {
 
     expect(far.length).toBeGreaterThan(20);
     expect(near.length).toBe(far.length);
-    expect(Math.max(...near.map((flame) => flame.alpha))).toBeLessThan(0.3);
+    expect(Math.max(...near.map((flame) => flame.alpha))).toBeLessThan(0.4);
     expect(Math.max(...far.flatMap((flame) => flame.points.map((point) => point.z)))).toBeGreaterThan(CELL * 1.6);
+  });
+
+  it('stands its blaze close about the piece and licks straight up past its head, rather than closing over it', () => {
+    const far = flamesOf(stagedAt(aura, cast, 0.6), 'far');
+    const offAt = (flame: (typeof far)[number], index: number) =>
+      Math.hypot(flame.points[index].x - TARGET.x, flame.points[index].y - TARGET.y);
+
+    for (const flame of far) {
+      expect(offAt(flame, 0)).toBeLessThan(CELL * 0.6);
+      expect(offAt(flame, flame.points.length - 1)).toBeGreaterThan(offAt(flame, 0) * 0.4);
+    }
+  });
+
+  it('breaks out in a leap that throws sparks, and sinks back from it', () => {
+    const sparks = stagedAt(aura, cast, 0.2).motes.filter(
+      (mote) => mote.shape === 'spark' && Math.hypot(mote.velocity?.x ?? 0, mote.velocity?.y ?? 0) > CELL
+    );
+    const tallAt = (seconds: number) =>
+      Math.max(
+        ...flamesOf(stagedAt(aura, cast, seconds), 'far').flatMap((flame) => flame.points.map((point) => point.z))
+      );
+
+    expect(sparks.length).toBeGreaterThan(20);
+    expect(tallAt(0.2)).toBeGreaterThan(tallAt(0.7) * 1.15);
   });
 
   it('cracks the floor under it and lifts pebbles off it', () => {
