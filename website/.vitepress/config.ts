@@ -253,6 +253,7 @@ export default defineConfig({
             { text: 'ダイス', link: '/manual/dice' },
             { text: '共有メモ', link: '/manual/notes' },
             { text: '射程範囲', link: '/manual/range' },
+            { text: '物差し', link: '/manual/ruler' },
             { text: '地形', link: '/manual/terrain' },
             { text: 'マップマスク', link: '/manual/map-mask' },
             { text: 'ホワイトボード', link: '/manual/white-board' },
@@ -351,6 +352,7 @@ export default defineConfig({
           text: 'リリースノート',
           items: [
             { text: '一覧', link: '/release-notes/' },
+            { text: 'v1.80.0', link: '/release-notes/v1.80.0' },
             { text: 'v1.79.0', link: '/release-notes/v1.79.0' },
             { text: 'v1.78.1', link: '/release-notes/v1.78.1' },
             { text: 'v1.78.0', link: '/release-notes/v1.78.0' },
