@@ -1,6 +1,7 @@
 import { type BreathTiming } from '@axe/domain/effect/breath-timing';
 import { chestOf } from '@axe/domain/effect/scene/breath/breath-cone';
 import { type BreathLook } from '@axe/domain/effect/scene/breath/breath-looks';
+import { drawSandDrift } from '@axe/domain/effect/scene/breath/breath-sand';
 import { type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import { moteAt, type ThrownMote } from '@axe/domain/effect/scene/effect-sim';
@@ -27,7 +28,8 @@ import { lightningRibbons } from '@axe/domain/effect/scene/storm/lightning';
  * piece until the floor has cleared: fire leaves little fires burning on a scorch that cools; ice a
  * frost creeping out over the floor and a mist lying on it; poison stains where its drops fall and a
  * fog that clings; thunder forks leaping from the piece to the floor and to its neighbours, a scorch
- * and sparks; wind the dust and grit it tears off the floor downwind; darkness a disc of shadow and
+ * and sparks; wind the dust and grit it tears off the floor downwind; sand a drift piled against the
+ * piece's feet, heaps of it about and dust and grit scoured off it; darkness a disc of shadow and
  * black embers rising; and the breath that heals a ring of light, motes settling and rising again.
  */
 
@@ -125,6 +127,14 @@ export function throwLeftovers(th: Thrower, stage: Stage, setting: LeftoverSetti
         sparks: [],
         bits: blownGrit(th, floor, th.count(8), blown, downwind),
         spots: [],
+      };
+    case 'sand':
+      return {
+        clouds: blownDust(th, floor, th.count(12), blown, downwind),
+        embers: [],
+        sparks: [],
+        bits: blownGrit(th, floor, th.count(14), blown, downwind),
+        spots: spotsRound(7, 0.35, 1.1, [0.2, 0.36]),
       };
     case 'dark':
       return {
@@ -423,6 +433,9 @@ export function drawLeftovers(drawn: Staged, stage: Stage, setting: LeftoverSett
       break;
     }
     case 'wind':
+      break;
+    case 'sand':
+      drawSandDrift(drawn, floor, left.spots, t, [timing.reachesAt, timing.failsAt], cell, ramp, clearing, mark);
       break;
     case 'dark': {
       const shadowed = Math.min(

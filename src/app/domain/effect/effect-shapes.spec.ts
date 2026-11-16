@@ -26,7 +26,7 @@ describe('the marks of the kinds of effect', () => {
     const unknown = kindGlyphSvg('unknown', colors);
     const marks = EFFECT_KINDS.map((kind) => kindGlyphSvg(kind, colors));
 
-    expect(EFFECT_KINDS).toHaveLength(36);
+    expect(EFFECT_KINDS).toHaveLength(37);
     expect(marks.filter((mark) => mark === unknown)).toEqual([]);
     expect(new Set(marks).size).toBe(EFFECT_KINDS.length);
   });

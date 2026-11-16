@@ -34,6 +34,7 @@ const OWN_SHAPE: Record<SwordPaint['element'], EffectMoteShape> = {
   thunder: 'spark',
   earth: 'chunk',
   dark: 'smoke',
+  wind: 'chunk',
 };
 
 /** How the gathering is at a moment. */
@@ -212,6 +213,8 @@ function ownColor(paint: SwordPaint, index: number): string {
       return index % 2 === 0 ? paint.ramp[1] : '#5b4a3c';
     case 'dark':
       return paint.inner;
+    case 'wind':
+      return index % 2 === 0 ? '#9fc45a' : '#c98a4c';
     default:
       return '#ffffff';
   }

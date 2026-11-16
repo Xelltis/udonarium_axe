@@ -175,6 +175,10 @@ export const kindGlyphSvg = remembered('kindGlyphSvg', (kind: string, colors: Sh
       return glyph(
         `<circle cx="50" cy="50" r="42" fill="none" stroke="${colors.edge}" stroke-width="7"/><circle cx="50" cy="50" r="27" ${solid}/>`
       );
+    case 'quake':
+      return glyph(
+        `<path d="M6 30 L30 40 L24 54 L50 60 L44 74 L94 84" ${stroke}/><path d="M18 64 L40 70 L34 90 L10 84 Z M62 34 L86 44 L80 62 L56 52 Z" fill="${colors.edge}"/>`
+      );
     case 'skyblade':
       return glyph(
         `<path d="M43 24 H57 V74 L50 94 L43 74 Z" ${solid}/><path d="M26 16 H74 V26 H26 Z M45 4 H55 V16 H45 Z" fill="${colors.edge}"/>`

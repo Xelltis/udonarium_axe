@@ -36,6 +36,7 @@ export const SCENE_LINGER_S: Readonly<Partial<Record<EffectKind, number>>> = {
   mushroom: 2.5,
   nova: 2.2,
   projectile: 1.8,
+  quake: 1.8,
   raybeam: 1.2,
   rubble: 1.2,
   sanctuary: 1.2,
@@ -45,7 +46,7 @@ export const SCENE_LINGER_S: Readonly<Partial<Record<EffectKind, number>>> = {
   smite: 1.2,
   upheaval: 1.8,
   vortex: 1.2,
-  warp: 0.6,
+  warp: 1,
 };
 
 /** How long a shot or a blade that travels as a stage of a run lingers, landing nothing of its own. */

@@ -23,10 +23,10 @@ import {
 } from '@axe/domain/effect/scene/choreography';
 import { darkorb, struckOrb } from '@axe/domain/effect/scene/dark/darkorb';
 import { drain } from '@axe/domain/effect/scene/dark/drain';
-import { gravity } from '@axe/domain/effect/scene/dark/gravity';
 import { miasma } from '@axe/domain/effect/scene/dark/miasma';
 import { shadow, struckShadow } from '@axe/domain/effect/scene/dark/shadow';
 import { impact } from '@axe/domain/effect/scene/earth/impact';
+import { quake, struckQuake } from '@axe/domain/effect/scene/earth/quake';
 import { rubble } from '@axe/domain/effect/scene/earth/rubble';
 import { struckImpact, struckRubble } from '@axe/domain/effect/scene/earth/struck';
 import { upheaval } from '@axe/domain/effect/scene/earth/upheaval';
@@ -42,12 +42,13 @@ import { heal } from '@axe/domain/effect/scene/holy/heal';
 import { sanctuary } from '@axe/domain/effect/scene/holy/sanctuary';
 import { shotSmite } from '@axe/domain/effect/scene/holy/shot-smite';
 import { smite } from '@axe/domain/effect/scene/holy/smite';
-import { warp } from '@axe/domain/effect/scene/holy/warp';
 import { hasScenePart, SCENE_LINGER_S, strikesInSceneWith, STRIKING_WITH } from '@axe/domain/effect/scene/scene-kinds';
 import { arc } from '@axe/domain/effect/scene/shot/arc';
 import { arrowrain } from '@axe/domain/effect/scene/shot/arrow-rain';
 import { beam, raybeam } from '@axe/domain/effect/scene/shot/beam';
 import { ballisticWith, projectileWith } from '@axe/domain/effect/scene/shot/shots';
+import { gravity } from '@axe/domain/effect/scene/space/gravity';
+import { warp } from '@axe/domain/effect/scene/space/warp';
 import { bolt, shotBolt } from '@axe/domain/effect/scene/storm/bolt';
 import { frost } from '@axe/domain/effect/scene/storm/frost';
 import { bash } from '@axe/domain/effect/scene/strike/bash';
@@ -96,6 +97,7 @@ const CHOREOGRAPHIES: Partial<Record<EffectKind, Choreography>> = {
   miasma,
   mushroom,
   nova,
+  quake,
   raybeam,
   rubble,
   sanctuary,
@@ -117,13 +119,14 @@ const ALONGSIDE: Partial<Record<EffectKind, Choreography>> = { bisect, dissolve 
  * The looks a shot or a blade lands with that are not the look of the same kind cast on its own: the
  * impact of an arrow or a bullet is a flash and a puff of dust, not the ground stamped in; and what
  * lands in darkness lands in its spikes or in the bursting of its sphere whatever its grade, never
- * in a mire or an eclipse.
+ * in a mire or an eclipse; and what lands in a quake tears a rift open close before its target.
  */
 const LANDINGS: Partial<Record<EffectKind, Choreography>> = {
   impact: struckImpact,
   rubble: struckRubble,
   shadow: struckShadow,
   darkorb: struckOrb,
+  quake: struckQuake,
 };
 
 /**
@@ -159,6 +162,7 @@ const GROWS_BY_ROOT: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'impact',
   'rubble',
   'upheaval',
+  'quake',
   'frost',
   'slash',
   'bolt',

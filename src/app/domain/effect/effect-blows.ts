@@ -1,6 +1,6 @@
 import { curseLookOf, isCurseAlone, takesHoldAt } from '@axe/domain/effect/ailment-looks';
 import { darkStrikesAt } from '@axe/domain/effect/dark-looks';
-import { RUBBLE_FIRST_HEAVE, rubbleHeavesOf } from '@axe/domain/effect/earth-looks';
+import { quakeStrikesOf, RUBBLE_FIRST_HEAVE, rubbleHeavesOf } from '@axe/domain/effect/earth-looks';
 import { type EffectKind } from '@axe/domain/effect/effect-kind';
 import { type EffectPreset } from '@axe/domain/effect/effect-preset';
 import { breaksOutAsAura, type EffectShake, effectShakeOf } from '@axe/domain/effect/effect-shake';
@@ -8,10 +8,11 @@ import { effectLandingTimes } from '@axe/domain/effect/effect-sound-times';
 import { stageLayoutOf } from '@axe/domain/effect/effect-stage';
 import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
 import { frostStrikesOf } from '@axe/domain/effect/ice-looks';
+import { spaceStrikesAt } from '@axe/domain/effect/space-looks';
 import { strikeLandsAt } from '@axe/domain/effect/strike-looks';
 import { boltStrokesOf, CURRENT_REACHES_AT } from '@axe/domain/effect/thunder-looks';
 import { slashHits } from '@axe/domain/effect/timeline/blade';
-import { gustTimingOf, isGust } from '@axe/domain/effect/wind-looks';
+import { blowsAsStorm, gustTimingOf, isGust, stormStrikesOf } from '@axe/domain/effect/wind-looks';
 
 /**
  * A blow an effect lands on its first target: when, on the effect's own clock, how long everything
@@ -54,6 +55,7 @@ const STRIKING_KINDS: ReadonlySet<EffectKind> = new Set<EffectKind>([
   'sanctuary',
   'shadow',
   'darkorb',
+  'quake',
 ]);
 
 /** How long everything holds still on contact, by grade: a light blow barely catches, the heaviest stops the breath. */
@@ -95,8 +97,8 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
   impact: 0.06,
   rubble: RUBBLE_FIRST_HEAVE,
   upheaval: 0.12,
+  quake: 0.12,
   frost: 0.1,
-  gravity: 0.5,
   bisect: 0.05,
   gore: 0.05,
 };
@@ -104,7 +106,8 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
 /**
  * The blows an effect lands on its first target, in the order they land. An effect that strikes
  * nothing, as a heal or a shield, lands none; a run of stages lands one for each of its stages that
- * strikes. A whirlwind lands none, but a gust: its wall strikes the target once and shoves it back.
+ * strikes. A whirlwind lands none, but a gust: its wall strikes the target once and shoves it back;
+ * and a storm, one at each stroke of its lightning.
  * Rubble on its own lands three, one at each heave of the ground, the first held as a blow of its
  * grade is and the others only caught. A curse on its own, and each state drawn in its place, lands
  * one that holds and neither shakes the screen nor throws the piece: the instant it takes hold. A
@@ -112,7 +115,10 @@ const GOES_OFF_AT: Partial<Record<EffectKind, number>> = {
  * its walls rising. A draining lands one as it takes hold, which pulls the piece towards the one who
  * drains it rather than throwing it back, and one as it snaps, which lets the piece fall back. A look
  * of darkness lands one as it is seen to strike: spikes stabbing, a sphere bursting, the corona of an
- * eclipse flaring; and a mire two, as its hands seize and as it closes. The greatest aura on its own lands one as it breaks out,
+ * eclipse flaring; and a mire two, as its hands seize and as it closes. Gravity lands one as a crush
+ * comes down or a singularity falls in on itself. A quake lands one as its rift reaches the target,
+ * and over an area one at each of its three heaves, held as rubble's are. The greatest aura on its
+ * own lands one as it breaks out,
  * which holds and shakes and throws no piece back. Ice on its own lands as the ice it is drawn as does:
  * hail at each of its great shards, the cold that stills an area and a pillar of ice once as they
  * close and once as they shatter. A bolt of lightning lands one as it strikes, once its
@@ -127,7 +133,7 @@ export function effectBlowsOf(preset: EffectPreset): EffectBlow[] {
   const blows: EffectBlow[] = [];
   let held = 0;
   let lastHeldAt = -Infinity;
-  const heaves = !preset.isStaged && preset.effectKind === 'rubble';
+  const heaves = !preset.isStaged && (preset.effectKind === 'rubble' || preset.effectKind === 'quake');
   const takesHold = isCurseAlone(preset);
   const breaksOut = breaksOutAsAura(preset);
   const drains = !preset.isStaged && preset.effectKind === 'drain';
@@ -168,7 +174,8 @@ function strikeTimes(preset: EffectPreset): number[] {
             : window.stage.kind === 'bash'
               ? strikeLandsAt(preset.gradeLevel, lasts / 1000)
               : (holyStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000) ??
-                darkStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000)?.[0]);
+                darkStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000)?.[0] ??
+                spaceStrikesAt(window.stage.kind, preset.gradeLevel, lasts / 1000)?.[0]);
         return Math.round(
           window.startMs + (seen !== undefined ? seen * 1000 : lasts * (GOES_OFF_AT[window.stage.kind] ?? 0))
         );
@@ -176,6 +183,7 @@ function strikeTimes(preset: EffectPreset): number[] {
       .sort((a, b) => a - b);
   }
   if (isGust(preset)) return [Math.round(gustTimingOf(preset.duration / 1000).strikesAt * 1000)];
+  if (blowsAsStorm(preset)) return stormStrikesOf(preset.duration / 1000).map((strike) => Math.round(strike * 1000));
   if (isCurseAlone(preset)) {
     return [Math.round(takesHoldAt(curseLookOf(preset), preset.duration / 1000) * 1000)];
   }
@@ -185,6 +193,10 @@ function strikeTimes(preset: EffectPreset): number[] {
   if (holy !== undefined) return [Math.round(holy * 1000)];
   const dark = darkStrikesAt(preset.effectKind, preset.gradeLevel, preset.duration / 1000);
   if (dark) return dark.map((strike) => Math.round(strike * 1000));
+  const space = spaceStrikesAt(preset.effectKind, preset.gradeLevel, preset.duration / 1000);
+  if (space) return space.map((strike) => Math.round(strike * 1000));
+  const quake = quakeStrikesOf(preset, preset.duration / 1000);
+  if (quake) return quake.map((strike) => Math.round(strike * 1000));
   if (preset.effectKind === 'bolt') {
     return boltStrokesOf(preset.gradeLevel, preset.duration / 1000).map((stroke) => Math.round(stroke * 1000));
   }

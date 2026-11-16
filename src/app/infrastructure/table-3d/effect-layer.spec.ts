@@ -1,4 +1,4 @@
-import type { EffectMote, EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
+import { type EffectMote, type EffectRibbon, sealSeedOf } from '@axe/domain/effect/scene/effect-scene';
 import { EffectLayer, nearerOf } from '@axe/infrastructure/table-3d/effect-layer';
 import { type InstancedBufferGeometry, type Mesh } from 'three/webgpu';
 
@@ -200,6 +200,45 @@ describe('EffectLayer', () => {
     expect(marks.instanceCount).toBe(2);
     expect(look[4]).toBe(look[0] + 1);
     expect(look[5]).toBeCloseTo(0.6, 5);
+    layer.dispose();
+  });
+
+  it('lays a seal as a mark of its own kind, its seed telling its part and how much of it is written', () => {
+    const layer = new EffectLayer();
+    const mark = {
+      x: 1,
+      y: 2,
+      z: 3,
+      radius: 90,
+      width: 0.06,
+      color: '#ffe9a8',
+      alpha: 1,
+      blend: 'color',
+      turn: 0.3,
+      seed: sealSeedOf('star', 3, 0.25),
+    } as const;
+
+    layer.set({
+      motes: [],
+      ribbons: [],
+      floor: [
+        { ...mark, shape: 'rime' },
+        { ...mark, shape: 'seal' },
+      ],
+      lights: [],
+    });
+    const meshes = layer.group.children.filter((object) => (object as Mesh).isMesh) as Mesh[];
+    const marks = meshes
+      .map((mesh) => mesh.geometry as InstancedBufferGeometry)
+      .filter(
+        (geometry) => geometry.getAttribute('look') !== undefined && geometry.getAttribute('motion') === undefined
+      )[1];
+    const look = marks.getAttribute('look').array;
+
+    expect(marks.instanceCount).toBe(2);
+    expect(look[4]).toBe(look[0] + 1);
+    expect(Math.floor(look[7])).toBe(7);
+    expect(look[7] - Math.floor(look[7])).toBeCloseTo(0.75, 5);
     layer.dispose();
   });
 

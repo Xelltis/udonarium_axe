@@ -533,3 +533,90 @@ describe('the dark family', () => {
     expect(new Set(sounds).size).toBe(4);
   });
 });
+
+describe('the family of earth', () => {
+  const seedOf = (name: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.name === name)!;
+
+  it('has an attack for every part an element plays, eight in all, its shot among the shots', () => {
+    const parts = ['衝撃波', '岩石破砕', '地割れ', '地隆', '大地震', '砂塵のブレス', '大地の大剣'];
+
+    for (const name of ['岩弾', ...parts]) expect([name, seedOf(name) !== undefined]).toEqual([name, true]);
+    expect(parts.map((name) => seedOf(name).tagName)).toEqual(parts.map(() => '土'));
+    expect(DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => seed.tagName === '土')).toHaveLength(7);
+    expect(seedOf('岩弾').tagName).toBe('射撃');
+  });
+
+  it('tears a rift on each of a few targets in turn, and heaves all of an area at once, under identifiers of their own', () => {
+    expect(seedOf('地割れ')).toMatchObject({
+      identifier: 'EffectPreset_quake_2',
+      kind: 'quake',
+      grade: 2,
+      targeting: 'multi',
+    });
+    expect(seedOf('地割れ').staggerMs).toBeGreaterThan(100);
+    expect(seedOf('地割れ').areaRadius ?? 0).toBe(0);
+    expect(seedOf('大地震')).toMatchObject({
+      identifier: 'EffectPreset_quake_3',
+      kind: 'quake',
+      grade: 3,
+      areaRadius: 3,
+      staggerMs: 0,
+    });
+    for (const name of ['地割れ', '大地震']) expect((seedOf(name).impactSoundKey ?? '').length).toBeGreaterThan(0);
+  });
+
+  it('breathes sand as the breath of earth, naming no particle of its own', () => {
+    expect(seedOf('砂塵のブレス')).toMatchObject({
+      identifier: 'EffectPreset_breath_earth',
+      kind: 'breath',
+      tagName: '土',
+    });
+    expect(seedOf('砂塵のブレス').moteStyle ?? '').toBe('');
+  });
+});
+
+describe('the family of wind', () => {
+  const seedOf = (name: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.name === name)!;
+
+  it('has an attack for every part an element plays, eight in all, its shot among the shots', () => {
+    const parts = ['突風', '鎌鼬', '真空波', '竜巻', '大嵐', '風のブレス', '風の大剣'];
+
+    for (const name of ['風弾', ...parts]) expect([name, seedOf(name) !== undefined]).toEqual([name, true]);
+    expect(parts.map((name) => seedOf(name).tagName)).toEqual(parts.map(() => '風'));
+    expect(DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => seed.tagName === '風')).toHaveLength(7);
+    expect(seedOf('風弾').tagName).toBe('射撃');
+  });
+
+  it('cuts, flies, storms and swings by looks of the kinds it shares, keyed by its family and its particles', () => {
+    expect(seedOf('鎌鼬')).toMatchObject({
+      identifier: 'EffectPreset_sickle_2',
+      kind: 'slash',
+      slashStyle: 'combo',
+      grade: 2,
+    });
+    expect(seedOf('鎌鼬').maxTargets).toBeGreaterThan(1);
+    expect(seedOf('真空波')).toMatchObject({
+      identifier: 'EffectPreset_vacuum_2',
+      kind: 'projectile',
+      projectileStyle: 'crescent',
+      impactKind: 'vortex',
+      grade: 2,
+    });
+    expect(seedOf('大嵐')).toMatchObject({
+      identifier: 'EffectPreset_storm_3',
+      kind: 'vortex',
+      moteStyle: 'arc',
+      grade: 3,
+      areaRadius: 3,
+      staggerMs: 0,
+    });
+    expect(seedOf('風の大剣')).toMatchObject({
+      identifier: 'EffectPreset_skyblade_wind',
+      kind: 'skyblade',
+      impactKind: 'vortex',
+    });
+    for (const name of ['鎌鼬', '真空波', '大嵐', '風の大剣']) {
+      expect([name, (seedOf(name).impactSoundKey ?? '').length > 0]).toEqual([name, true]);
+    }
+  });
+});

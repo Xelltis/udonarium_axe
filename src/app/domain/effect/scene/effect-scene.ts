@@ -187,9 +187,26 @@ export interface EffectRibbon {
  * its rings, two squares crossed into a star of eight points, and a ring about a cross at its heart.
  * A rime is hoar frost: a patch grown out into needles of uneven length at its edge and mottled
  * within, as thick as its width says, from 1 for a whole sheet down towards 0 for the last patches
- * of it about its middle.
+ * of it about its middle. A seal is the circle a summoning is written in, its lines as heavy as its
+ * width says: with an even seed a band of glyphs written round between rims, picked by the seed, and
+ * with an odd one a star of five points within a ring, with rings about its points and its heart. It
+ * is written round from where it is turned, as far as the fraction of its seed leaves unwritten: all of
+ * it for a whole seed; see {@link sealSeedOf}.
  */
-export type EffectFloorShape = 'ring' | 'disc' | 'sigil' | 'cracks' | 'scorch' | 'fissure' | 'crest' | 'rime';
+export type EffectFloorShape = 'ring' | 'disc' | 'sigil' | 'cracks' | 'scorch' | 'fissure' | 'crest' | 'rime' | 'seal';
+
+/** What makes a seal: its band of glyphs, or its star. */
+export type SealPart = 'glyphs' | 'star';
+
+/**
+ * The seed of a seal: its part and its glyphs, picked by `pattern`, written round as far as `written`
+ * says, from nothing at 0 to all of it at 1.
+ */
+export function sealSeedOf(part: SealPart, pattern: number, written: number): number {
+  const whole = Math.floor(Math.abs(pattern) % 500) * 2 + (part === 'star' ? 1 : 0);
+  const unwritten = Math.min(0.999, Math.max(0, 1 - written));
+  return whole + unwritten;
+}
 
 /** A mark laid flat on the floor, under and round what it is laid at. */
 export interface EffectFloorMark {

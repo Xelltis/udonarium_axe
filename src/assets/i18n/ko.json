@@ -1483,7 +1483,8 @@
         "halo": "빛의 고리",
         "sanctuary": "성역",
         "shadow": "그림자 가시・나락",
-        "darkorb": "암흑구・식"
+        "darkorb": "암흑구・식",
+        "quake": "균열・대지진"
       },
       "targeting": {
         "self": "자신",

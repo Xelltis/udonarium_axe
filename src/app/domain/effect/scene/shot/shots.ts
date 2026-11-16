@@ -14,9 +14,10 @@ import { drawFireShot } from '@axe/domain/effect/scene/shot/fire-shot';
 import { layBallisticFlight } from '@axe/domain/effect/scene/shot/missile-ballistic';
 import { shotLookOf, strikesByItself } from '@axe/domain/effect/scene/shot/shot-looks';
 import { drawThunderShot, isThunderShot } from '@axe/domain/effect/scene/shot/thunder-shot';
+import { drawVacuumBurst, drawVacuumFlight } from '@axe/domain/effect/scene/wind/vacuum-wave';
 import { drawWindBurst, drawWindKnot } from '@axe/domain/effect/scene/wind/wind-shot';
 import { projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
-import { isWindShot } from '@axe/domain/effect/wind-looks';
+import { fliesAsVacuum, isWindShot } from '@axe/domain/effect/wind-looks';
 
 /*
  * What is shot from the caster at a target: an arrow, a round of a gun, a sniper's shot, a missile and
@@ -24,7 +25,8 @@ import { isWindShot } from '@axe/domain/effect/wind-looks';
  * flying, and a blaster's bolt. A meteor is shot from no one: it falls burning out of the sky. Each
  * lands with the look its preset gives for landing, but a bolt of wind, which flies as a knot of air
  * and bursts, a bolt of rock, which flies as a boulder and breaks, a cut thrown off a blade, which
- * lands as crossed cuts, and an arrow or a round that lands in an impact or in rubble, which strikes
+ * lands as crossed cuts, a crescent that lands in a whirlwind, which flies as pressed air and bursts
+ * in a ring of wind, and an arrow or a round that lands in an impact or in rubble, which strikes
  * as its own look draws; a bolt of fire flies as a ball of flame, a bolt of lightning as a ball
  * wound with it, and a bolt of ice as an icicle that breaks over the ice it lands in. A lobbed shot
  * is a ballistic missile, launched straight up and brought down from the sky.
@@ -140,6 +142,7 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
   const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
   if (style === 'meteor') return drawMeteors(stage, lands, ramp);
   const windy = isWindShot(stage.preset);
+  const vacuum = fliesAsVacuum(stage.preset);
   const rocky = isRockShot(stage.preset);
   const burning = isFireShot(stage.preset);
   const charged = isThunderShot(stage.preset);
@@ -153,11 +156,13 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
       ? nothingStaged
       : windy
         ? drawWindBurst
-        : rocky
-          ? breaks
-          : icy
-            ? landsAsIcicle(lands)
-            : lands;
+        : vacuum
+          ? drawVacuumBurst
+          : rocky
+            ? breaks
+            : icy
+              ? landsAsIcicle(lands)
+              : lands;
   const cuts = style === 'crescent' && lands !== null && stage.preset.impactEffectKind === 'slash';
   const drawn = nothingStaged();
   const { cell, duration } = stage;
@@ -233,6 +238,22 @@ function drawProjectile(stage: Stage, lands: LandingLook | null): Staged {
         drawThunderShot(drawn, { ...flight, floorZ: stage.groundZ, shots: timing.shots.length }, ramp);
       } else if (icy) {
         drawIcicle(drawn, { at, way, cell, share, pathAt, seconds: t, seed: stage.seed + index }, ramp);
+      } else if (vacuum) {
+        drawVacuumFlight(
+          drawn,
+          {
+            at,
+            way,
+            cell,
+            share,
+            pathAt,
+            seconds: t,
+            floorZ: stage.groundZ,
+            seed: stage.seed + index,
+            crowd: timing.shots.length * Math.max(1, stage.targets.length),
+          },
+          ramp
+        );
       } else if (style === 'crescent') {
         const volley = { index, count: timing.shots.length, floorZ: stage.groundZ };
         drawFlyingSlash(drawn, { at, way, cell, share, pathAt, fliesS: flies, seconds: t, ...volley }, ramp);

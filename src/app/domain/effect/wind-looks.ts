@@ -4,8 +4,10 @@ import { type EffectPreset } from '@axe/domain/effect/effect-preset';
 /*
  * Which wind a preset blows. A whirlwind is written one way, as a vortex, and drawn two: the least of
  * them, of the lowest grade and over no area, is a gust thrown from its caster onto the target, and
- * every other is a tornado standing over it. A bolt that lands in a whirlwind is a shot of wind, a knot
- * of air that bursts where it lands, unless it is of another element.
+ * every other is a tornado standing over it; one told to carry lightning is a storm, a tornado crowned
+ * with a thundercloud. A bolt that lands in a whirlwind is a shot of wind, a knot of air that bursts
+ * where it lands, unless it is of another element, and a crescent thrown that lands in one is a wave of
+ * the void. A cut of the family of wind is made of sickles of wind.
  */
 
 /** The winds a vortex is drawn as. */
@@ -21,14 +23,69 @@ export function windLookOf(preset: Whirling): WindLook {
   return preset.effectKind === 'vortex' && preset.gradeLevel === 1 && preset.areaRadiusCells <= 0 ? 'gust' : 'tornado';
 }
 
-/** Whether an effect is a gust on its own, rather than a run with one among its stages. */
-export function isGust(preset: Whirling & Pick<EffectPreset, 'isStaged'>): boolean {
-  return !preset.isStaged && preset.effectKind === 'vortex' && windLookOf(preset) === 'gust';
+/** Whether a whirlwind is a storm: one whose own choice of particle is lightning, whatever its grade. */
+export function isStormWind(preset: Pick<EffectPreset, 'effectKind' | 'moteStyle'>): boolean {
+  return preset.effectKind === 'vortex' && preset.moteStyle.trim() === 'arc';
 }
 
-/** Whether an effect is a tornado on its own, rather than a run with one among its stages. */
-export function isTornado(preset: Whirling & Pick<EffectPreset, 'isStaged'>): boolean {
-  return !preset.isStaged && preset.effectKind === 'vortex' && windLookOf(preset) === 'tornado';
+/** Whether an effect is a storm on its own, rather than a run with one among its stages. */
+export function blowsAsStorm(preset: Pick<EffectPreset, 'effectKind' | 'moteStyle' | 'isStaged'>): boolean {
+  return !preset.isStaged && isStormWind(preset);
+}
+
+/** Whether an effect is a gust on its own, rather than a run with one among its stages or a storm. */
+export function isGust(preset: Whirling & Pick<EffectPreset, 'isStaged' | 'moteStyle'>): boolean {
+  return !preset.isStaged && preset.effectKind === 'vortex' && windLookOf(preset) === 'gust' && !isStormWind(preset);
+}
+
+/** Whether an effect is a tornado on its own, rather than a run with one among its stages or a storm. */
+export function isTornado(preset: Whirling & Pick<EffectPreset, 'isStaged' | 'moteStyle'>): boolean {
+  return !preset.isStaged && preset.effectKind === 'vortex' && windLookOf(preset) === 'tornado' && !isStormWind(preset);
+}
+
+/**
+ * When a storm's lightning strikes, in seconds and at the most as a share of its playback: three
+ * strokes once its cloud has gathered, the last two close together.
+ */
+const STORM_STRIKES: readonly (readonly [seconds: number, share: number])[] = [
+  [0.9, 0.27],
+  [1.58, 0.48],
+  [2.02, 0.61],
+];
+/** How long after it starts the thunder a storm lands with first cracks, in seconds. */
+const THUNDER_CRACKS_AFTER_S = 0.28;
+
+/** When a storm's lightning strikes, in seconds of a playback of a length, earliest first. */
+export function stormStrikesOf(durationS: number): number[] {
+  return STORM_STRIKES.map(([seconds, share]) => Math.min(seconds, durationS * share));
+}
+
+/** Where through its playback the landing of a storm sounds, as a share of it: its thunder cracking as the first stroke strikes. */
+export function stormSoundsAt(
+  preset: Pick<EffectPreset, 'effectKind' | 'moteStyle'>,
+  durationS: number
+): number | undefined {
+  if (!isStormWind(preset) || durationS <= 0) return undefined;
+  return Math.max(0, stormStrikesOf(durationS)[0] - THUNDER_CRACKS_AFTER_S) / durationS;
+}
+
+/**
+ * Whether a cut is made of sickles of wind: its own choice of particle says first, and it is of wind
+ * only where that is leaves; with none chosen it is of wind in the family of wind alone.
+ */
+export function cutsAsWind(preset: Pick<EffectPreset, 'effectKind' | 'moteStyle' | 'tagName'>): boolean {
+  if (preset.effectKind !== 'slash') return false;
+  const chosen = preset.moteStyle !== '' && EFFECT_MOTE_OPTIONS.includes(preset.moteStyle);
+  return chosen ? effectMoteOf(preset) === 'leaf' : preset.tagName.trim() === '風';
+}
+
+/** Whether a shot is a wave of the void: a crescent thrown that lands in a whirlwind. */
+export function fliesAsVacuum(
+  preset: Pick<EffectPreset, 'effectKind' | 'projectileLook' | 'impactEffectKind'>
+): boolean {
+  return (
+    preset.effectKind === 'projectile' && preset.projectileLook === 'crescent' && preset.impactEffectKind === 'vortex'
+  );
 }
 
 /** The families that have an element of their own: a shot of one of them is of that element, whatever it lands in. */

@@ -25,6 +25,7 @@ import {
   throwLeftovers,
 } from '@axe/domain/effect/scene/breath/breath-leftovers';
 import { type BreathLook, breathLookOf } from '@axe/domain/effect/scene/breath/breath-looks';
+import { laySandBand } from '@axe/domain/effect/scene/breath/breath-sand';
 import { type Gout, goutAt, type StreamSetting, throwGouts } from '@axe/domain/effect/scene/breath/breath-stream';
 import {
   type Choreography,
@@ -219,6 +220,7 @@ function drawStream(
   const frosted = within(t, timing.reachesAt, timing.reachesAt + 1.2);
   const clearing = 1 - within(t, stage.duration + LINGER_S - 0.8, stage.duration + LINGER_S);
   drawFloorBand(drawn, look, ramp, cone, axisAt, tail, front, blowing * surge, U, frosted, clearing);
+  if (look.element === 'sand' && look.carries) laySandBand(drawn, ramp, cone, axisAt, front, U, frosted, clearing);
 
   const brush: StreamBrush = {
     drawn,
@@ -283,9 +285,10 @@ function drawStream(
       );
     }
   }
-  if (look.element === 'wind' && front > tail) {
+  if ((look.element === 'wind' || look.element === 'sand') && front > tail) {
     drawDustStrip(drawn, cone, axis, tail, front, t, blowing, U);
-    drawCoils(drawn, cone, axis, axisAt, jetEnds, (t * pace) / cone.ends, blowing * surge, U);
+    if (look.element === 'wind')
+      drawCoils(drawn, cone, axis, axisAt, jetEnds, (t * pace) / cone.ends, blowing * surge, U);
   }
   if (blowing > 0) drawMouth(drawn, look, ramp, cone, blowing, surge * flashing, U);
   for (let index = drawnBefore; index < drawn.motes.length; index++) {

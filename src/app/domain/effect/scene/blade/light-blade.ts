@@ -5,6 +5,7 @@ import type { Staged } from '@axe/domain/effect/scene/choreography';
 import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import { glow, lightningPaths, type Point, smokePuff } from '@axe/domain/effect/scene/parts';
 import { scatter } from '@axe/domain/effect/scene/wind/wind-parts';
+import { dressWindBlade } from '@axe/domain/effect/scene/wind/wind-sword';
 
 /*
  * The blade of light that stands on a great sword: a towering blade grown up from the sword's guard,
@@ -13,7 +14,7 @@ import { scatter } from '@axe/domain/effect/scene/wind/wind-parts';
  * race up; and what its element hangs about it: flames
  * licking up off a blade of fire, flakes and mist sinking off one of ice, lightning crawling over
  * one of thunder, grit crumbling off the stone edge of one of earth, black flames and
- * smoke about one of shadow, and stars twinkling about one of light.
+ * smoke about one of shadow, stars twinkling about one of light, and wind wound up one of wind.
  */
 
 /** How wide the blade is along it, from the guard to its point, against its width. */
@@ -237,6 +238,9 @@ function dressBlade(drawn: Staged, pose: SwordPose, paint: SwordPaint, heading: 
           forward,
         });
       });
+      return;
+    case 'wind':
+      dressWindBlade(drawn, pose, paint, heading, look, wide);
       return;
     case 'dark':
       each(14, 0.8, (index, age, share) => {
