@@ -1,22 +1,21 @@
 import { nothingStaged, outCubic, type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
-import { mixColor, rampOf } from '@axe/domain/effect/scene/effect-ramp';
+import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import { ball, floorMark, glow, haze, type Point } from '@axe/domain/effect/scene/parts';
 import { SCENE_LINGER_S } from '@axe/domain/effect/scene/scene-kinds';
 import { drawAfterimage, drawGlints, drawSnap, widthOf } from '@axe/domain/effect/scene/space/blink-after';
 import {
-  type Aside,
-  layFloorRing,
-  layScreenLine,
-  scatterOf,
-  type SpaceTones,
-  spaceTonesOf,
-} from '@axe/domain/effect/scene/space/space-parts';
+  type BoldTones,
+  boldTonesOf,
+  layBoldFloorRing,
+  layBoldScreenLine,
+} from '@axe/domain/effect/scene/space/space-bold';
+import { type Aside, scatterOf } from '@axe/domain/effect/scene/space/space-parts';
 import { spaceBeatAt } from '@axe/domain/effect/space-looks';
 
 /*
- * A blink. A hairline of light splits the air through the piece from the floor to over its head, and
- * space creases in towards it from either side. The seam opens into an eye of night with a burning
- * rim, the piece streaming up into it in threads of light while the dust about its feet is sucked in
+ * A blink, drawn in heavy lines of its colour over dark rims so it reads from far off. A line of light
+ * splits the air through the piece from the floor to over its head, and space creases in towards it
+ * from either side. The seam opens into an eye of night with a burning rim, the piece streaming up into it in threads of light while the dust about its feet is sucked in
  * after it; it narrows, faster and faster, and snaps shut: a cross of white light, the floor lit, and
  * the air rushing in where the piece stood in a ring over the floor. What is left is an afterimage
  * tearing away in lines, and glints drifting down over a fading mark.
@@ -28,6 +27,8 @@ const OPENS_FROM = 0.12;
 const OPEN_BY = 0.58;
 /** How long before it snaps shut the seam starts to narrow, in seconds. */
 const NARROWS_S = 0.26;
+/** How far the colour of the hot edge of a blink is turned from its own, as a share of a round. */
+const HOT_TURN = -0.04;
 /** The night seen within the seam. */
 const DEPTH = '#071226';
 
@@ -47,7 +48,7 @@ function drawSeam(
   chest: Point,
   wide: number,
   high: number,
-  tones: SpaceTones,
+  tones: BoldTones,
   cell: number,
   t: number,
   hot: number,
@@ -65,7 +66,7 @@ function drawSeam(
     }
     for (let step = -2; step <= 2; step++) {
       drawn.motes.push({
-        ...haze(chest, wide * 1.1, mixColor(DEPTH, tones.edge, 0.45), 0.7, forward + 0.6),
+        ...haze(chest, wide * 1.1, mixColor(DEPTH, tones.body, 0.45), 0.7, forward + 0.6),
         aside: { right: 0, up: (step / 2.6) * high * 0.8 },
       });
     }
@@ -76,7 +77,7 @@ function drawSeam(
       drawn.motes.push({
         ...chest,
         size: cell * (0.07 + 0.06 * twinkle),
-        color: star % 3 === 0 ? '#ffffff' : tones.pale,
+        color: star % 3 === 0 ? '#ffffff' : tones.core,
         alpha: 0.95,
         blend: 'color',
         forward: forward + 1,
@@ -86,24 +87,27 @@ function drawSeam(
       });
     }
   }
-  const rim = cell * (0.06 + 0.05 * hot);
+  const rim = cell * (0.2 + 0.08 * hot);
   for (const side of seamSides(Math.max(wide, cell * 0.004), high)) {
     for (const step of side.filter((_step, index) => index % 2 === 1)) {
       drawn.motes.push({
-        ...glow(chest, cell * (0.45 + 0.3 * hot), tones.glow, 0.55 + 0.3 * hot, forward),
+        ...glow(chest, cell * (0.45 + 0.3 * hot), tones.hot, 0.45 + 0.3 * hot, forward),
         aside: step,
       });
     }
-    layScreenLine(drawn, chest, side, {
-      sheath: tones.deep,
-      light: tones.glow,
+    layBoldScreenLine(drawn, chest, side, {
+      rim: tones.rim,
+      body: tones.body,
+      core: hot > 0.5 ? '#ffffff' : tones.core,
+      glow: tones.hot,
       alpha: 1,
+      lit: 0.6 + 0.4 * hot,
       wide: rim,
       forward: forward + 2,
     });
   }
   drawn.motes.push({
-    ...glow(chest, cell * (0.7 + 0.8 * hot) + wide * 2, tones.glow, 0.35 + 0.4 * hot, forward),
+    ...glow(chest, cell * (0.7 + 0.8 * hot) + wide * 2, tones.hot, 0.3 + 0.4 * hot, forward),
   });
 }
 
@@ -113,7 +117,7 @@ function drawThreads(
   stage: Stage,
   chest: Point,
   drawnIn: number,
-  tones: SpaceTones,
+  tones: BoldTones,
   forward: number
 ): void {
   if (drawnIn <= 0.01) return;
@@ -130,9 +134,9 @@ function drawThreads(
     const mote = { ...chest, velocity: { x: 0, y: 0, z: fast }, aside: { right: across, up } };
     drawn.motes.push({
       ...mote,
-      size: cell * 0.09,
-      color: tones.deep,
-      alpha: 0.8 * fade,
+      size: cell * 0.15,
+      color: tones.rim,
+      alpha: 0.85 * fade,
       blend: 'color',
       shape: 'spark',
       trail: 0.05,
@@ -140,8 +144,18 @@ function drawThreads(
     });
     drawn.motes.push({
       ...mote,
+      size: cell * 0.09,
+      color: tones.body,
+      alpha: fade,
+      blend: 'color',
+      shape: 'spark',
+      trail: 0.05,
+      forward: forward + 1.5,
+    });
+    drawn.motes.push({
+      ...mote,
       size: cell * 0.04,
-      color: thread % 3 === 0 ? '#ffffff' : tones.pale,
+      color: thread % 3 === 0 ? '#ffffff' : tones.core,
       alpha: fade,
       blend: 'color',
       shape: 'spark',
@@ -150,9 +164,9 @@ function drawThreads(
     });
     drawn.motes.push({
       ...mote,
-      size: cell * 0.16,
-      color: tones.glow,
-      alpha: 0.6 * fade,
+      size: cell * 0.2,
+      color: tones.hot,
+      alpha: 0.5 * fade,
       blend: 'light',
       shape: 'spark',
       trail: 0.05,
@@ -167,7 +181,7 @@ function drawCreases(
   chest: Point,
   wide: number,
   high: number,
-  tones: SpaceTones,
+  tones: BoldTones,
   cell: number,
   t: number,
   shown: number,
@@ -184,11 +198,14 @@ function drawCreases(
         const v = -1 + (index / 8) * 2;
         return { right: side * (far - bow * (1 - v * v)), up: v * high * 1.15 };
       });
-      layScreenLine(drawn, chest, steps, {
-        sheath: tones.deep,
-        light: tones.glow,
+      layBoldScreenLine(drawn, chest, steps, {
+        rim: tones.rim,
+        body: tones.body,
+        core: tones.core,
+        glow: tones.hot,
         alpha,
-        wide: cell * 0.035,
+        lit: 0.5 * alpha,
+        wide: cell * 0.1,
         forward: forward + 1,
       });
     }
@@ -212,8 +229,8 @@ function drawSuckedIn(drawn: Staged, floor: Point, cell: number, t: number, pull
     const fade = Math.min(1, closing * 5, (1 - closing) * 4) * pull;
     drawn.motes.push({
       ...at,
-      size: cell * 0.07,
-      color: '#7a6a5c',
+      size: cell * 0.11,
+      color: '#6f5d4c',
       alpha: 0.75 * fade,
       blend: 'color',
       shape: 'spark',
@@ -232,7 +249,7 @@ export function drawBlink(stage: Stage): Staged {
   if (t >= duration + LINGER_S) return drawn;
   const snaps = spaceBeatAt('blink', duration);
   const since = t - snaps;
-  const tones = spaceTonesOf(rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7));
+  const tones = boldTonesOf(stage.preset.colorSecondary, stage.preset.colorPrimary, HOT_TURN);
   const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
   const chest = { x: stage.x, y: stage.y, z: stage.z + tall * 0.5 };
   const forward = Math.max(cell, widthOf(stage)) * 0.6;
@@ -245,18 +262,18 @@ export function drawBlink(stage: Stage): Staged {
     const wide = widest * opens * (1 - narrows * narrows) * (1 + 0.04 * Math.sin(t * 31));
     const hot = Math.max(within(t, 0, 0.08) * (1 - opens), narrows);
     const seen = within(t, 0, 0.05);
-    drawn.floor.push(floorMark('disc', floor, cell * 1.6, 1, DEPTH, 0.35 * opens * (1 - narrows * 0.5), 'color', 0));
+    drawn.floor.push(floorMark('disc', floor, cell * 1.6, 1, DEPTH, 0.5 * opens * (1 - narrows * 0.5), 'color', 0));
     for (let ring = 0; ring < 2; ring++) {
       const closing = (t * 1.3 + ring * 0.5) % 1;
       const radius = cell * (0.4 + 1.5 * (1 - closing));
       const alpha = seen * Math.min(1, closing * 3) * (1 - closing * 0.4);
-      layFloorRing(drawn, floor, radius, 0.07, tones, alpha);
+      layBoldFloorRing(drawn, floor, radius, 0.1, tones, alpha, 0.5 * alpha, tones.hot);
     }
     drawCreases(drawn, chest, wide, high, tones, cell, t, seen * (1 - narrows), forward);
     drawSuckedIn(drawn, floor, cell, t, opens * (1 - 0.3 * narrows), forward);
     drawSeam(drawn, chest, wide * seen, high * (0.4 + 0.6 * seen), tones, cell, t, hot, forward);
     drawThreads(drawn, stage, chest, Math.min(1, opens * 0.7 + narrows), tones, forward);
-    drawn.lights.push({ ...chest, color: tones.glow, strength: 0.6 + 1.2 * narrows, reachPx: cell * 2.4 });
+    drawn.lights.push({ ...chest, color: tones.hot, strength: 0.6 + 1.2 * narrows, reachPx: cell * 2.4 });
     return drawn;
   }
   drawSnap(drawn, stage, chest, floor, tones, since, forward);
