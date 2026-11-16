@@ -35,6 +35,7 @@ import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { squareCentreAt } from '@axe/domain/tabletop/move/move-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { ROTATABLE_RANGE_TYPES, SINGLE_GRAB_RANGE_TYPES } from '@axe/domain/tabletop/range-coverage';
+import { isAimedSolid } from '@axe/domain/tabletop/solid/solid-kind';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
@@ -62,7 +63,6 @@ import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
-import { isAimedSolid } from '@axe/domain/tabletop/solid/solid-kind';
 
 /** The panel for choosing the character a range follows, opened by the pointer. */
 const FOLLOW_PANEL: PointerPanelBox = { width: 350, height: 200, reachLeft: 250, reachUp: 175 };

@@ -50,8 +50,8 @@ import { RANGE_DEFAULT_BORDER_COLOR, RANGE_DEFAULT_FILL_COLOR } from '@axe/domai
 import {
   DEFAULT_SOLID_HEIGHT,
   DEFAULT_SOLID_REACH,
-  SolidKind,
   solidFitsShape,
+  SolidKind,
 } from '@axe/domain/tabletop/solid/solid-kind';
 import { isMenuCommandOffered, MENU_COMMANDS } from '@axe/domain/ui/menu-command';
 import { CHARACTER_PANELS, DEFAULT_CHARACTER_PANEL, panelLabelKey } from '@axe/domain/ui/room-panel';
