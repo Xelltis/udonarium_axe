@@ -40,6 +40,7 @@ test.describe('map effects', () => {
 
     // Sent straight to the piece's grab element: the host has no size, so a click would not land on it.
     await page.locator('game-character [appmovable]').first().dispatchEvent('mousedown', { button: 0, buttons: 1 });
+    await page.locator('game-character [appmovable]').first().dispatchEvent('mouseup', { button: 0 });
 
     // Picking the one target it takes casts nothing; the button casts it.
     const fire = panel.getByTestId('effect-library-fire');

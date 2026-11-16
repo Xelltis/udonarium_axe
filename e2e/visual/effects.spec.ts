@@ -19,7 +19,7 @@ async function castOn(page: Page, preset: string) {
   await filter.fill(preset);
   await settle(page);
   await panel
-    .getByRole('button', { name: new RegExp(preset) })
+    .getByRole('button', { name: new RegExp('^\\s*' + preset) })
     .first()
     .click();
   await settle(page);
