@@ -1,4 +1,3 @@
-import { IPeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { readOperatorContact } from '@axe/core/network/server/operator-contact';
 import {
@@ -30,7 +29,7 @@ export function isBanned(reason: unknown): boolean {
 }
 
 /** The backend url without the slashes it may end in; empty when none is configured. */
-export function trimBaseUrl(url: string): string {
+function trimBaseUrl(url: string): string {
   return url.trim().replace(/\/+$/, '');
 }
 
@@ -147,7 +146,7 @@ export function roomInfoOf(summary: RoomSummary): IRoomInfo {
     id: summary.roomId,
     name: summary.name,
     hasPassword: summary.hasPassword,
-    peers: [] as IPeerContext[],
+    peers: [],
     memberCount: summary.members,
     roomKey: summary.roomKey,
     deletable: summary.deletable === true,

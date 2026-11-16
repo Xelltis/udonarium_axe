@@ -4,7 +4,7 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-hand-drag-ghost',
+  selector: 'hand-drag-ghost',
   templateUrl: './hand-drag-ghost.component.html',
   imports: [SafePipe],
 })

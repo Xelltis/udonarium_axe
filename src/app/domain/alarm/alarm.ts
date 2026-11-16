@@ -57,7 +57,7 @@ export class Alarm extends GameObject {
   chkToMe(): boolean {
     if (!PeerCursor.myCursor) return false;
     for (const target of this.targetPeerId) {
-      if (PeerCursor.myCursor.peerId == target) return true;
+      if (PeerCursor.myCursor.peerId === target) return true;
     }
     return false;
   }
@@ -72,8 +72,7 @@ export class Alarm extends GameObject {
     if (this.chkToMe()) {
       setTimeout(() => {
         if (this.isSound) {
-          const text_ = `アラーム(${this.alarmTime}秒)経過${this.targetText}${this.alarmTitle}`;
-          emitAlarmTimeUp({ text: text_ });
+          emitAlarmTimeUp({ seconds: this.alarmTime, target: this.targetText, title: this.alarmTitle });
           const audio = AudioStorage.instance.get(PresetSound.alarm);
           if (audio) SoundEffects.playOnce(audio, 0.5, VolumeType.NOTIFICATION);
         }

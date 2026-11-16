@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /**
  * Where the scene sits inside the room the editor gives it, and how a pointer on the
  * screen maps back onto the cut-in's own coordinates.
@@ -72,7 +73,7 @@ export const STAGE_ZOOM_STEP = 1.5;
 /** Holds a stage zoom between fitting and eight times that; anything not a number goes back to fitting. */
 export function clampStageZoom(zoom: number): number {
   if (!Number.isFinite(zoom)) return MIN_STAGE_ZOOM;
-  return Math.min(MAX_STAGE_ZOOM, Math.max(MIN_STAGE_ZOOM, zoom));
+  return clamp(zoom, MIN_STAGE_ZOOM, MAX_STAGE_ZOOM);
 }
 
 /**
@@ -99,11 +100,6 @@ export function stageFit(scene: StageBox, room: StageBox, zoom = 1): StageFit {
 /** A point on the screen, in the cut-in's own coordinates. */
 export function stageToScene(px: number, py: number, fit: StageFit): { x: number; y: number } {
   return { x: (px - fit.offsetX) / fit.scale, y: (py - fit.offsetY) / fit.scale };
-}
-
-/** A point in the cut-in's own coordinates, on the screen. */
-export function sceneToStage(x: number, y: number, fit: StageFit): { px: number; py: number } {
-  return { px: x * fit.scale + fit.offsetX, py: y * fit.scale + fit.offsetY };
 }
 
 /** How far a drag on the screen carries in the cut-in's own coordinates. */
@@ -213,7 +209,7 @@ function skew(vector: { x: number; y: number }, transform: LayerTransform): { x:
 /** A lean read as a slope, and nothing at all where the figure means nothing. */
 function leanOf(degrees: number): number {
   if (!Number.isFinite(degrees) || degrees === 0) return 0;
-  const held = Math.min(80, Math.max(-80, degrees));
+  const held = clamp(degrees, -80, 80);
   return Math.tan((held * Math.PI) / 180);
 }
 

@@ -202,7 +202,6 @@ export class GameTable extends ObjectNode {
   /** The track put on when the table is switched to, while {@link tableBgm} is `'play'`. */
   @SyncVar() tableBgmIdentifier: string = '';
 
-  gridClipRect: { top: number; right: number; bottom: number; left: number } | null = null;
   /** The terrain pieces on this table. */
   get terrains(): Terrain[] {
     return this.children.filter((o): o is Terrain => o instanceof Terrain);

@@ -11,6 +11,7 @@ import {
   perfCounters,
   perfTimed,
 } from '@axe/core/util/perf-counters';
+import { sameList } from '@axe/core/util/same-list';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party } from '@axe/domain/party/party';
 import { partyIdsOwnedBy } from '@axe/domain/party/party-membership';
@@ -163,8 +164,7 @@ function faceKey(face: WallFace): string {
 
 function sameIds(a: readonly string[] | undefined, b: readonly string[] | undefined): boolean {
   if (a === b) return true;
-  if (!a || !b || a.length !== b.length) return false;
-  return a.every((id, index) => id === b[index]);
+  return !!a && !!b && sameList(a, b);
 }
 
 /** Who is looking, by what they are rather than by the object that says so. */
@@ -203,7 +203,9 @@ export const GUEST_PERSONA = '@guest';
 export class VisionService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly destroyRef = inject(DestroyRef);
   private readonly links = inject(PieceLinksService);
 
@@ -405,17 +407,14 @@ export class VisionService {
   });
 
   /**
-   * The cells a sight-stopping wall stands on.
-   *
-   * Kept with the walls rather than with the scene, so that a piece walking about does not
-   * cut every terrain on the table into cells again.
-   */
-  /**
-   * The cells a wall stands on: how high the tallest reaches, and how low the lowest hangs.
+   * The cells a sight-stopping wall stands on: how high the tallest reaches, and how low the lowest hangs.
    *
    * A cell nothing is standing on is ground, and a block hanging clear of the floor leaves
    * the ground under it just as walkable. Both ends are wanted, since which of them answers
    * turns on where the eye is: over the roof, under the arch, or up against the face.
+   *
+   * Kept with the walls rather than with the scene, so that a piece walking about does not
+   * cut every terrain on the table into cells again.
    */
   readonly blockingCells = computed<{ cells: CellBits; tops: Float32Array; bases: Float32Array } | null>(() => {
     this.standingEpoch();
@@ -985,7 +984,8 @@ export class VisionService {
         viewer,
         found: () => this.foundPieces(),
         fog: () => this.overlayVision(),
-        pointVisible: (x, y, z) => this.recall(`tok:${x}:${y}:${z}`, () => isPointVisible(scene!, x, y, viewer, z)),
+        pointVisible: (x, y, z) =>
+          !scene || this.recall(`tok:${x}:${y}:${z}`, () => isPointVisible(scene, x, y, viewer, z)),
       },
       judged
     );

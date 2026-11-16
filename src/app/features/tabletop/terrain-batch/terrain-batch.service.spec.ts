@@ -22,7 +22,7 @@ describe('TerrainBatchService', () => {
     table.height = 20;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     service = TestBed.inject(TerrainBatchService);
   });
 

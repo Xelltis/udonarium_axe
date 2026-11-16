@@ -1,12 +1,13 @@
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { clamp } from '@axe/core/util/clamp';
 import { resolveMovableLocalCoordinate } from '@axe/ui/directives/movable-helpers';
 
 export interface MovableInteractionContext {
   isGridSnap: boolean;
   isDisable(): boolean;
   isReadOnly(): boolean;
-  isScratcOwner(): boolean;
+  isScratchOwner(): boolean;
   /** Nothing until the directive is set up, and set for as long as it is. */
   input: {
     isGrabbing: boolean;
@@ -72,7 +73,7 @@ export function takePress(e: Event): void {
 export function handleInputStart(context: MovableInteractionContext, e: MouseEvent | TouchEvent): void {
   const input = context.input;
   if (!input) return;
-  const isLocked = (context.isDisable() && !context.isScratcOwner()) || context.isReadOnly();
+  const isLocked = (context.isDisable() && !context.isScratchOwner()) || context.isReadOnly();
   const isContextMenuButton = (e as MouseEvent).button === 1 || (e as MouseEvent).button === 2;
   if (isLocked || isContextMenuButton) {
     if (isContextMenuButton && !isLocked) context.cancelTableGesture();
@@ -123,7 +124,7 @@ export function handleInputMove(context: MovableInteractionContext, e: MouseEven
     return context.cancel();
   }
 
-  if ((context.isDisable() && !context.isScratcOwner()) || context.isReadOnly() || !input.isGrabbing)
+  if ((context.isDisable() && !context.isScratchOwner()) || context.isReadOnly() || !input.isGrabbing)
     return context.cancel();
 
   if (e.cancelable) e.preventDefault();
@@ -155,7 +156,7 @@ export function handleInputMove(context: MovableInteractionContext, e: MouseEven
     if (ratio < context.ratio) context.ratio += (ratio - context.ratio) * 0.1;
   }
 
-  if (!context.isScratcOwner()) {
+  if (!context.isScratchOwner()) {
     context.posX = pointer3d.x;
     context.posY = pointer3d.y;
     context.posZ = pointer3d.z;
@@ -169,8 +170,8 @@ export function handleInputMove(context: MovableInteractionContext, e: MouseEven
 export function dragPointer2d(context: MovableInteractionContext): { x: number; y: number; z: number } {
   const pointer = context.input?.pointer ?? { x: 0, y: 0, z: 0 };
   return {
-    x: Math.min(window.innerWidth - 0.1, Math.max(pointer.x + context.pointerOffset2d.x * context.ratio, 0.1)),
-    y: Math.min(window.innerHeight - 0.1, Math.max(pointer.y + context.pointerOffset2d.y * context.ratio, 0.1)),
+    x: clamp(pointer.x + context.pointerOffset2d.x * context.ratio, 0.1, window.innerWidth - 0.1),
+    y: clamp(pointer.y + context.pointerOffset2d.y * context.ratio, 0.1, window.innerHeight - 0.1),
     z: 0,
   };
 }
@@ -187,7 +188,7 @@ export function handleInputEnd(context: MovableInteractionContext, e: MouseEvent
   if (!input) return;
   if (context.isDisable() || context.isReadOnly()) return context.cancel();
   if (input.isDragging) context.ondragend.emit(e as PointerEvent);
-  if (context.isGridSnap && input.isDragging && !context.isScratcOwner()) context.snapToGrid();
+  if (context.isGridSnap && input.isDragging && !context.isScratchOwner()) context.snapToGrid();
   context.cancel();
   context.onend.emit(e as PointerEvent);
 }

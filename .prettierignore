@@ -6,3 +6,6 @@ CHANGELOG.md
 # VitePress build artifacts (docs site)
 website/.vitepress/dist
 website/.vitepress/cache
+
+# Working files of the yomiyasu skill (git-ignored)
+.yomiyasu

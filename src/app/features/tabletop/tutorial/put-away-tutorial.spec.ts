@@ -36,7 +36,7 @@ describe('putting the first table’s tutorial away', () => {
   });
 
   it('takes every one of the tutorial’s things off the table, and answers how many', () => {
-    expect(putAwayTutorial(tabletopOf())).toBe(TUTORIAL_PARTS.length);
+    expect(putAwayTutorial(tabletopOf(), ObjectStore.instance)).toBe(TUTORIAL_PARTS.length);
 
     for (const identifier of TUTORIAL_PARTS) expect(ObjectStore.instance.get(identifier), identifier).toBeNull();
   });
@@ -44,7 +44,7 @@ describe('putting the first table’s tutorial away', () => {
   it('leaves the sample pieces to be played with', () => {
     const pieces = ObjectStore.instance.getObjects<GameCharacter>(GameCharacter).length;
 
-    putAwayTutorial(tabletopOf());
+    putAwayTutorial(tabletopOf(), ObjectStore.instance);
 
     expect(ObjectStore.instance.getObjects<GameCharacter>(GameCharacter)).toHaveLength(pieces);
   });
@@ -55,7 +55,7 @@ describe('putting the first table’s tutorial away', () => {
     piece.location = { name: 'table', surface: board.identifier, x: 30, y: 40 };
     const boardAt = { ...(board as unknown as { location: { x: number; y: number } }).location };
 
-    putAwayTutorial(tabletopOf());
+    putAwayTutorial(tabletopOf(), ObjectStore.instance);
 
     expect(boardSurfaceOf(piece)).toBe('');
     expect(piece.location.x).toBe(boardAt.x + 30);
@@ -65,13 +65,13 @@ describe('putting the first table’s tutorial away', () => {
   it('takes away only what is left, once some of it has gone already', () => {
     ObjectStore.instance.get('tutorialCoin')!.destroy();
 
-    expect(putAwayTutorial(tabletopOf())).toBe(TUTORIAL_PARTS.length - 1);
-    expect(putAwayTutorial(tabletopOf())).toBe(0);
+    expect(putAwayTutorial(tabletopOf(), ObjectStore.instance)).toBe(TUTORIAL_PARTS.length - 1);
+    expect(putAwayTutorial(tabletopOf(), ObjectStore.instance)).toBe(0);
   });
 
   describe('clearing the first table down to a blank one', () => {
     it('takes away the tutorial, the sample pieces and their parties', () => {
-      clearToBlankTable(tabletopOf());
+      clearToBlankTable(tabletopOf(), ObjectStore.instance);
 
       for (const identifier of [...TUTORIAL_PARTS, ...SAMPLE_PIECES, ...SAMPLE_PARTIES]) {
         expect(ObjectStore.instance.get(identifier), identifier).toBeNull();
@@ -79,7 +79,7 @@ describe('putting the first table’s tutorial away', () => {
     });
 
     it('leaves the table with no picture and its grid shown, as a new table is made', () => {
-      clearToBlankTable(tabletopOf());
+      clearToBlankTable(tabletopOf(), ObjectStore.instance);
       const table = ObjectStore.instance.get<GameTable>(FIRST_TABLE)!;
 
       expect(table.imageIdentifier).toBe(ImageFile.Empty.identifier);
@@ -90,7 +90,7 @@ describe('putting the first table’s tutorial away', () => {
       const table = ObjectStore.instance.get<GameTable>(FIRST_TABLE)!;
       expect(groundSurfaceOf(groundFieldOn(table)!.readChunks()).isFlat).toBe(false);
 
-      clearToBlankTable(tabletopOf());
+      clearToBlankTable(tabletopOf(), ObjectStore.instance);
 
       expect(groundSurfaceOf(groundFieldOn(table)!.readChunks()).isFlat).toBe(true);
     });
@@ -99,7 +99,7 @@ describe('putting the first table’s tutorial away', () => {
       const made = new GameCharacter();
       made.initialize();
 
-      clearToBlankTable(tabletopOf());
+      clearToBlankTable(tabletopOf(), ObjectStore.instance);
 
       expect(ObjectStore.instance.get(made.identifier)).toBe(made);
       made.destroy();

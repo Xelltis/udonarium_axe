@@ -10,9 +10,13 @@ export interface TableWorldBand {
   readonly colour: string;
 }
 
-/** What a sprite shows: a picture, or bands of colour round its edge with nothing inside them. */
+/**
+ * What a sprite shows: a picture, one colour all over it as the page writes one, or bands of colour
+ * round its edge with nothing inside them.
+ */
 export type TableWorldLook =
   | { readonly kind: 'picture'; readonly url: string }
+  | { readonly kind: 'colour'; readonly colour: string }
   | { readonly kind: 'frame'; readonly bands: readonly TableWorldBand[]; readonly radiusPx: number };
 
 /**
@@ -212,6 +216,17 @@ export interface PagePicture {
   readonly offsetY?: number;
   /** Where the picture is the piece, as polygons off its top left corner, in pixels; the whole picture where not given. */
   readonly pickAreas?: readonly (readonly PickPoint2[])[];
+  /** The colour the part is painted under what it shows, and how opaque, where the page tells it. */
+  readonly paper?: PagePaper;
+}
+
+/**
+ * What a part of a piece is painted with under what it shows, as a note's panel under its writing:
+ * the colour, as the page writes one, and how opaque it is, from clear at 0 to solid at 1.
+ */
+export interface PagePaper {
+  readonly colour: string;
+  readonly opacity: number;
 }
 
 /**

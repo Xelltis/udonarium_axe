@@ -1,48 +1,36 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
-  fillHexPath,
   hexCellCenter,
   hexCircumradius,
   hexSpacing,
   hexStartAngle,
+  hexVertices,
   isFlatTopGrid,
   isHexGrid,
-  traceHexPath,
 } from '@axe/domain/tabletop/hex-geometry';
-import {
-  ClipAreaCorn,
-  ClipAreaHexagon,
-  ClipAreaLine,
-  ClipAreaPentagon,
-  ClipAreaSquare,
-  ClipAreaTriangle,
-  GridPosition,
-  RangeRenderSetting,
-  StrokeGridFunc,
-} from '@axe/infrastructure/tabletop/range/range-render-types';
+import { fillHexPath } from '@axe/infrastructure/tabletop/hex-canvas';
+import { ClipArea, RangeRenderSetting, StrokeGridFunc } from '@axe/infrastructure/tabletop/range/range-render-types';
 
-type ClipArea = ClipAreaLine | ClipAreaSquare | ClipAreaTriangle | ClipAreaPentagon | ClipAreaHexagon | ClipAreaCorn;
-
-/** Turns the numbered clip fields into a css polygon, stopping at the first gap. Three points to nine. */
+/** The css polygon a range's cell canvas is cut to, from the corners of its clip. */
 export function clipAreaToPolygonCss(clip: ClipArea): string {
-  return `polygon(${clipAreaPoints(clip)
-    .map(({ x, y }) => `${x}px ${y}px`)
-    .join(', ')})`;
+  return `polygon(${clip.map(({ x, y }) => `${x}px ${y}px`).join(', ')})`;
 }
 
-/** The corners of a clip area, in order, in pixels from the origin of the range. */
-export function clipAreaPoints(clip: ClipArea): { x: number; y: number }[] {
-  // The clip interfaces carry no index signature, so they are read through a record.
-  const c = clip as unknown as Record<string, number>;
-  const points: { x: number; y: number }[] = [];
-  for (let i = 1; ; i++) {
-    const key = `clip${i.toString().padStart(2, '0')}`;
-    const x = c[`${key}x`];
-    const y = c[`${key}y`];
-    if (typeof x !== 'number' || typeof y !== 'number') break;
-    points.push({ x, y });
-  }
-  return points;
+/** A point turned clockwise about the origin by so many degrees. */
+export function rotatePoint(point: { x: number; y: number }, degree: number): { x: number; y: number } {
+  const rad = (Math.PI / 180) * degree;
+  const cosRad = Math.cos(rad);
+  const sinRad = Math.sin(rad);
+  return {
+    x: point.x * cosRad - point.y * sinRad,
+    y: point.x * sinRad + point.y * cosRad,
+  };
+}
+
+/** Points turned clockwise about the origin by so many degrees; the same points when not turned at all. */
+export function rotatePoints(points: { x: number; y: number }[], degree: number): { x: number; y: number }[] {
+  if (degree === 0) return points;
+  return points.map((point) => rotatePoint(point, degree));
 }
 
 /** How far a circle range is cut out to from its origin: its length plus half a cell of margin, in pixels. */
@@ -98,14 +86,10 @@ export function calcGridOffsets(setting: RangeRenderSetting): GridOffsets {
   return { gridSize, gridOffX, gridOffY, offSetX_px, offSetY_px };
 }
 
-// A shared buffer, so the hot loop allocates nothing. Safe on a single thread.
-const _gridPos: GridPosition = { gx: 0, gy: 0 };
-
 /**
  * A function giving the pixel corner of the cell at column `w`, row `h` across a range's canvas.
  *
  * Hex grids shift every other column or row by half a cell, in step with where the range stands.
- * The returned position is one shared object overwritten on each call, so read it before calling again.
  */
 export function generateCalcGridPositionFunc(
   gridType: GridType,
@@ -120,28 +104,22 @@ export function generateCalcGridPositionFunc(
       const isHalfSlideXLine = centerX % (gridSize * 2) < gridSize ? 1 : 0;
       const idAreaWidthMulti4 = areaWidth % 4 === 0 ? 1 : 0;
       const parity = isHalfSlideXLine + idAreaWidthMulti4;
-      return (w, h) => {
-        _gridPos.gx = w * gridSize;
-        _gridPos.gy = (w + parity) % 2 === 1 ? h * gridSize : h * gridSize + gridSize / 2;
-        return _gridPos;
-      };
+      return (w, h) => ({
+        gx: w * gridSize,
+        gy: (w + parity) % 2 === 1 ? h * gridSize : h * gridSize + gridSize / 2,
+      });
     }
     case GridType.HEX_HORIZONTAL: {
       const isHalfSlideYLine = centerY % (gridSize * 2) < gridSize ? 1 : 0;
       const idAreaHeightMulti4 = areaHeight % 4 === 0 ? 1 : 0;
       const parity = isHalfSlideYLine + idAreaHeightMulti4;
-      return (w, h) => {
-        _gridPos.gx = (h + parity) % 2 === 1 ? w * gridSize : w * gridSize + gridSize / 2;
-        _gridPos.gy = h * gridSize;
-        return _gridPos;
-      };
+      return (w, h) => ({
+        gx: (h + parity) % 2 === 1 ? w * gridSize : w * gridSize + gridSize / 2,
+        gy: h * gridSize,
+      });
     }
     default:
-      return (w, h) => {
-        _gridPos.gx = w * gridSize;
-        _gridPos.gy = h * gridSize;
-        return _gridPos;
-      };
+      return (w, h) => ({ gx: w * gridSize, gy: h * gridSize });
   }
 }
 
@@ -151,14 +129,6 @@ const PAINTED_CIRCLE_CORNERS = 64;
 /** Notes a polygon, in pixels from the range's origin, as painted, where the setting takes such notes. */
 export function notePainted(setting: RangeRenderSetting, polygon: readonly { x: number; y: number }[]): void {
   setting.painted?.push(polygon.map(({ x, y }) => ({ x, y })));
-}
-
-/** The corners of a hex about a point, as a canvas traces them. */
-function hexCorners(cx: number, cy: number, s: number, startAngle: number): { x: number; y: number }[] {
-  const corners: { x: number; y: number }[] = [];
-  const note = (x: number, y: number) => corners.push({ x, y });
-  traceHexPath({ moveTo: note, lineTo: note, closePath: () => undefined }, cx, cy, s, startAngle);
-  return corners;
 }
 
 /** Notes a circle about the range's origin as painted, as a polygon of many corners. */
@@ -171,6 +141,21 @@ export function notePaintedCircle(setting: RangeRenderSetting, radius: number): 
       return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
     })
   );
+}
+
+/**
+ * Marks the origin of a range on its outline canvas, with the brush as it is: a small square while
+ * the range follows a character, otherwise a dot.
+ */
+export function markOrigin(context: CanvasRenderingContext2D, offsets: GridOffsets, docking = false): void {
+  const { offSetX_px, offSetY_px } = offsets;
+  context.beginPath();
+  if (docking) {
+    context.strokeRect(offSetX_px - 6, offSetY_px - 6, 12, 12);
+    return;
+  }
+  context.arc(offSetX_px, offSetY_px, 5, 0, 2 * Math.PI, true);
+  context.fill();
 }
 
 /** Sets a canvas up to draw a range in one colour: stroke and fill, a 1px line, and a label font scaled to the grid. */
@@ -187,31 +172,6 @@ export function makeBrush(
   context.textBaseline = 'top';
   context.textAlign = 'center';
   return context;
-}
-
-/**
- * The edges run clockwise seen from above the board, so a positive cross product of
- * the edge with the line to the point puts that point inside.
- */
-export function chkOuterProduct(
-  p1x: number,
-  p1y: number,
-  p2x: number,
-  p2y: number,
-  pchkx: number,
-  pchky: number
-): boolean {
-  const ax = p2x - p1x;
-  const ay = p2y - p1y;
-  const bx = pchkx - p1x;
-  const by = pchky - p1y;
-  const calc = ax * by - ay * bx;
-  return calc >= -0.01; // The tolerance is widened slightly to allow for rounding error.
-}
-
-/** Whether a point, relative to a circle's centre, lies inside or on a circle of that radius. */
-export function chkInCircle(radius: number, pchkx: number, pchky: number): boolean {
-  return radius * radius >= pchkx * pchkx + pchky * pchky;
 }
 
 /** Fills one square grid cell whose top-left corner is at (gx, gy). */
@@ -261,7 +221,7 @@ export function fillHexCellsWhere(
 
       if (keep(col, row, gcx, gcy)) {
         fillHexPath(context, gcx + offsetX, gcy + offsetY, s, startAngle);
-        if (setting.painted) notePainted(setting, hexCorners(gcx, gcy, s, startAngle));
+        if (setting.painted) notePainted(setting, hexVertices(gcx, gcy, s, startAngle));
       }
     }
   }

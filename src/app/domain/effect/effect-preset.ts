@@ -4,6 +4,8 @@ import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { parseAttributesKeepingIdentifier, toAttributesKeepingIdentifier } from '@axe/core/sync/persisted-identifier';
 import { clampOr } from '@axe/core/util/clamp';
+import { darkSoundsAt } from '@axe/domain/effect/dark-looks';
+import { quakeSoundsAt } from '@axe/domain/effect/earth-looks';
 import {
   EffectKind,
   EffectTargeting,
@@ -16,6 +18,10 @@ import {
 } from '@axe/domain/effect/effect-kind';
 import { type EffectStage, parseEffectStages } from '@axe/domain/effect/effect-stage';
 import { stagedEffectDuration } from '@axe/domain/effect/effect-stage-timeline';
+import { holyStrikesAt } from '@axe/domain/effect/holy-looks';
+import { spaceSoundsAt } from '@axe/domain/effect/space-looks';
+import { boltStrokesOf, CURRENT_REACHES_AT } from '@axe/domain/effect/thunder-looks';
+import { stormSoundsAt } from '@axe/domain/effect/wind-looks';
 
 const MIN_DURATION_MS = 120;
 const MAX_DURATION_MS = 6000;
@@ -156,9 +162,27 @@ export class EffectPreset extends GameObject {
     return this.impactKind;
   }
 
-  /** Where through the effect the landing sounds. A projectile sounds it as it lands, and anything else a little later. */
+  /**
+   * Where through the effect the landing sounds. A projectile sounds it as it lands, a look of holy
+   * light, of darkness or a bolt of lightning as it strikes, once it has been seen coming, a quake as
+   * its rock first breaks, a storm as its first lightning strikes, a current of lightning as it reaches
+   * its target, and anything else a little later.
+   */
   get impactSoundAt(): number {
-    if (this.effectKind === 'arc') return 0.4;
+    const holy = holyStrikesAt(this.effectKind, this.gradeLevel, this.duration / 1000);
+    if (holy !== undefined) return holy / (this.duration / 1000);
+    const dark = darkSoundsAt(this.effectKind, this.gradeLevel, this.duration / 1000);
+    if (dark !== undefined) return dark;
+    const space = spaceSoundsAt(this.effectKind, this.gradeLevel, this.duration / 1000);
+    if (space !== undefined) return space;
+    const quake = quakeSoundsAt(this, this.duration / 1000);
+    if (quake !== undefined) return quake;
+    const storm = stormSoundsAt(this, this.duration / 1000);
+    if (storm !== undefined) return storm;
+    // A bolt sounds as it strikes, after its leader, and a current as it reaches its target.
+    if (this.effectKind === 'bolt')
+      return (boltStrokesOf(this.gradeLevel, this.duration / 1000)[0] * 1000) / this.duration;
+    if (this.effectKind === 'arc') return CURRENT_REACHES_AT;
     // A beam sounds as it fires; waiting for the landing leaves the gathering silent.
     if (this.effectKind === 'beam') return 0.28;
     // A great sword of light arrives after it falls; sounded while it is held up it becomes a starting gun.

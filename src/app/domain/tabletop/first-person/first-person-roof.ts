@@ -1,9 +1,12 @@
 import { FirstPersonWorld } from '@axe/domain/tabletop/first-person/first-person-world';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellColRow, cellCount, CellGrid, forEachNeighbourCell } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellColRow, cellCount, CellGrid, cellIndexAt, forEachNeighbourCell } from '@axe/domain/tabletop/fog/cell-grid';
 import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
+import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
+import { terrainTopPx } from '@axe/domain/tabletop/terrain-height';
 
 /** Where the first-person view is roofed over, and how high. */
 export interface FirstPersonRoof {
@@ -64,22 +67,49 @@ export function enclosedCells(grid: CellGrid, walled: CellBits): CellBits {
  *
  * It is worked out from the board alone, not from what the eye happens to see, so turning to face a
  * tower out in the open does not put a roof over the field, and the roof does not rise and fall as
- * the eye turns. A door counts as a wall whether it stands open or shut.
+ * the eye turns. A door counts as a wall whether it stands open or shut. A block drawn as a 3D model
+ * is no wall: its faces are not drawn, so a roof resting on it would hang over the model in the open.
  */
 export function firstPersonRoofOf(
   grid: CellGrid,
   terrains: readonly Terrain[],
   world: FirstPersonWorld
 ): FirstPersonRoof | null {
-  const heightPx = world.walls.reduce((top, wall) => (wall.terrain ? Math.max(top, wall.topPx) : top), 0);
+  const modelled = new Set(terrains.filter((terrain) => pieceModelOf(terrain)).map((terrain) => terrain.identifier));
+  const heightPx = world.walls.reduce(
+    (top, wall) => (wall.terrain && !modelled.has(wall.terrain) ? Math.max(top, wall.topPx) : top),
+    0
+  );
   if (heightPx <= 0) return null;
   const walled = blockedByTerrain(
     grid,
     terrains,
-    (terrain) => surfaceOf(terrain) === 'floor' && (terrain.hasWall || terrain.isDoor)
+    (terrain) =>
+      surfaceOf(terrain) === 'floor' && (terrain.hasWall || terrain.isDoor) && !modelled.has(terrain.identifier)
   );
   const cells = enclosedCells(grid, walled);
   return cells.isEmpty ? null : { cells, heightPx, rooms: roomsOf(grid, cells, walled) };
+}
+
+/**
+ * The blocks drawn as 3D models that stand under a roof might: the cell under the middle of each and
+ * how high its model may reach, which is its block's height taken as many times over as the model is
+ * drawn larger. A roof is raised clear of them as it is of a tall piece, so a tree or a pillar in a
+ * room is not cut off at the top of the walls.
+ */
+export function modelsUnderRoof(grid: CellGrid, terrains: readonly Terrain[], gridSize: number): RoofedStanding[] {
+  const standing: RoofedStanding[] = [];
+  for (const terrain of terrains) {
+    const model = surfaceOf(terrain) === 'floor' ? pieceModelOf(terrain) : null;
+    if (!model) continue;
+    const box = terrainBoxOf(terrain, gridSize);
+    const topPx = terrainTopPx(terrain, gridSize);
+    standing.push({
+      cell: cellIndexAt(grid, (box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2),
+      topPx: topPx + Math.max(0, terrain.height) * gridSize * Math.max(0, model.scale - 1),
+    });
+  }
+  return standing;
 }
 
 /**

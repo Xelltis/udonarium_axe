@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { toGraphemes } from '@axe/core/util/graphemes';
 
 /**
@@ -170,7 +171,7 @@ export function formatGameClockTime(clock: GameClock, periods: readonly string[]
 function wholeWithin(value: unknown, low: number, high: number, fallback: number): number {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
-  return Math.min(high, Math.max(low, Math.floor(number)));
+  return clamp(Math.floor(number), low, high);
 }
 
 /**

@@ -43,7 +43,7 @@
           name="cut-in-name"
           [(ngModel)]="cutInName"
           [placeholder]="'feature.media.cutIn.namePlaceholder' | transloco"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
       </div>
 
@@ -109,12 +109,7 @@
     <label
       class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[12px] font-medium select-none [&_input[type=checkbox]]:size-3.5 [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
     >
-      <input
-        type="checkbox"
-        [(ngModel)]="cutInOriginalSize"
-        name="cutInOriginalSize"
-        [attr.disabled]="!isEditable() ? '' : null"
-      />
+      <input type="checkbox" [(ngModel)]="cutInOriginalSize" name="cutInOriginalSize" [disabled]="!isEditable()" />
       <span>{{
         cutIn()?.videoId
           ? ('feature.media.cutIn.standardSize' | transloco)
@@ -133,7 +128,7 @@
         type="number"
         [min]="minSizeWidth"
         [max]="maxSizeWidth"
-        [attr.disabled]="!isEditable() || cutInOriginalSize ? '' : null"
+        [disabled]="!isEditable() || cutInOriginalSize"
       />
     </div>
     <div class="mb-1 flex min-w-0 flex-1 flex-col gap-1">
@@ -145,7 +140,7 @@
         type="number"
         [min]="minSizeHeight"
         [max]="maxSizeHeight"
-        [attr.disabled]="!isEditable() || cutInOriginalSize ? '' : null"
+        [disabled]="!isEditable() || cutInOriginalSize"
       />
     </div>
   </div>
@@ -158,8 +153,7 @@
         type="checkbox"
         [(ngModel)]="keepImageAspect"
         name="keepImageAspect"
-        [attr.disabled]="!isEditable() || cutInOriginalSize ? '' : null"
-        (click)="chkImageAspect()"
+        [disabled]="!isEditable() || cutInOriginalSize"
       />
       <span>{{ 'feature.media.cutIn.keepAspect' | transloco }}</span>
     </label>
@@ -169,12 +163,7 @@
     <label
       class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[12px] font-medium select-none [&_input[type=checkbox]]:size-3.5 [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
     >
-      <input
-        type="checkbox"
-        [(ngModel)]="cutInFrameless"
-        name="cutInFrameless"
-        [attr.disabled]="!isEditable() ? '' : null"
-      />
+      <input type="checkbox" [(ngModel)]="cutInFrameless" name="cutInFrameless" [disabled]="!isEditable()" />
       <span>{{ 'feature.media.cutIn.frameless' | transloco }}</span>
     </label>
     <span class="text-ui-dim text-[11px]">{{ 'feature.media.cutIn.framelessHint' | transloco }}</span>
@@ -192,7 +181,7 @@
         type="range"
         min="0"
         max="100"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       />
       <input
         class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border w-16! shrink-0 border border-solid px-2 py-1.25 text-right text-[13px] transition-[border-color] outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -201,7 +190,7 @@
         type="number"
         min="0"
         max="100"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       />
     </div>
   </div>
@@ -218,7 +207,7 @@
         type="range"
         min="0"
         max="100"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       />
       <input
         class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border w-16! shrink-0 border border-solid px-2 py-1.25 text-right text-[13px] transition-[border-color] outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -227,7 +216,7 @@
         type="number"
         min="0"
         max="100"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       />
     </div>
   </div>
@@ -243,12 +232,7 @@
       <label
         class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[12px] font-medium select-none [&_input[type=checkbox]]:size-3.5 [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
       >
-        <input
-          type="checkbox"
-          [(ngModel)]="cutInIsLoop"
-          name="cutInIsLoop"
-          [attr.disabled]="!isEditable() ? '' : null"
-        />
+        <input type="checkbox" [(ngModel)]="cutInIsLoop" name="cutInIsLoop" [disabled]="!isEditable()" />
         <span>{{ 'feature.media.cutIn.loop' | transloco }}</span>
       </label>
     </div>
@@ -262,7 +246,7 @@
         [(ngModel)]="cutInOutTime"
         type="number"
         min="0"
-        [attr.disabled]="!isEditable() || cutInIsLoop ? '' : null"
+        [disabled]="!isEditable() || cutInIsLoop"
       />
     </div>
   </div>
@@ -283,19 +267,14 @@
         name="cut-in-tag-name"
         [(ngModel)]="cutInTagName"
         [placeholder]="'feature.media.cutIn.tagNamePlaceholder' | transloco"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       />
     </div>
     <div class="mb-1 flex min-w-0 flex-1 flex-col gap-1 pb-2">
       <label
         class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[12px] font-medium select-none [&_input[type=checkbox]]:size-3.5 [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
       >
-        <input
-          type="checkbox"
-          [(ngModel)]="chatActivate"
-          name="chatActivate"
-          [attr.disabled]="!isEditable() ? '' : null"
-        />
+        <input type="checkbox" [(ngModel)]="chatActivate" name="chatActivate" [disabled]="!isEditable()" />
         <span>{{ 'feature.media.cutIn.chatActivate' | transloco }}</span>
       </label>
     </div>
@@ -351,13 +330,7 @@
     <label
       class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[12px] font-medium select-none [&_input[type=checkbox]]:size-3.5 [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
     >
-      <input
-        type="checkbox"
-        [(ngModel)]="cutInIsVideo"
-        name="cutInIsVideo"
-        [attr.disabled]="!isEditable() ? '' : null"
-        (change)="changeYouTubeInfo()"
-      />
+      <input type="checkbox" [(ngModel)]="cutInIsVideo" name="cutInIsVideo" [disabled]="!isEditable()" />
       <span>{{ 'feature.media.cutIn.youtubeEnabled' | transloco }}</span>
     </label>
   </div>
@@ -372,8 +345,7 @@
         name="cut-in-video-url"
         [(ngModel)]="cutInVideoURL"
         placeholder="https://www.youtube.com/watch?v=..."
-        [attr.disabled]="!isEditable() ? '' : null"
-        (input)="changeYouTubeInfo()"
+        [disabled]="!isEditable()"
       />
     </div>
     <div class="mb-1 flex flex-col gap-1">
@@ -389,7 +361,7 @@
           min="0"
           max="100"
           step="1"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
         <input
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border w-16! shrink-0 border border-solid px-2 py-1.25 text-right text-[13px] transition-[border-color] outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -399,15 +371,14 @@
           min="0"
           max="100"
           step="1"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
       </div>
     </div>
     <p class="text-ui-muted [&_a]:text-ui-accent my-0.5 text-[11px] [&_a]:underline">
       <a href="https://www.youtube.com/terms" target="_blank" (click)="openYouTubeTerms()">{{
         'feature.media.cutIn.youtubeTerms' | transloco
-      }}</a
-      >{{ 'feature.media.cutIn.youtubeTermsNotice' | transloco }}
+      }}</a>{{ 'feature.media.cutIn.youtubeTermsNotice' | transloco }}
     </p>
   }
 </div>

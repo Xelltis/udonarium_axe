@@ -1,5 +1,6 @@
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import type { TranslateFn } from '@axe/application/i18n/translate.token';
+import { joinList } from '@axe/core/util/join-list';
 import { PeerRole, roleLabelKey } from '@axe/domain/peer/peer-role';
 import { type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 
@@ -71,14 +72,6 @@ export function renderReplayLogLine(line: ReplayLogLine, t: TranslateFn, lang: s
   return t(line.key, replayLineParams(line, t, lang));
 }
 
-function joinList(items: readonly string[], lang: string): string {
-  try {
-    return new Intl.ListFormat(lang, { style: 'long', type: 'conjunction' }).format(items);
-  } catch {
-    return items.join(', ');
-  }
-}
-
 const TABLE_PLACE = 'table';
 const DEFAULT_SURFACE = 'floor';
 
@@ -116,13 +109,6 @@ const ICONS: Record<string, string> = {
   [ReplayEventKind.PeerRoleChange]: 'shield_person',
   [ReplayEventKind.Marker]: 'bookmark',
 };
-
-/** The wall-clock time of an event as `HH:MM:SS` in the viewer's time zone. */
-export function formatReplayTime(at: number): string {
-  const date = new Date(at);
-  const pad = (value: number): string => String(value).padStart(2, '0');
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
 
 export { replayScriptElapsed as formatReplayElapsed } from '@axe/domain/replay/replay-script';
 

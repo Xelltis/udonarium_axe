@@ -1,0 +1,32 @@
+<label class="text-ui-muted text-[11px]">{{ label() }}</label>
+@if (slider()) {
+  <input
+    class="w-full [accent-color:var(--ui-accent)] disabled:opacity-50"
+    type="range"
+    [attr.name]="name()"
+    [attr.min]="min()"
+    [attr.max]="max()"
+    [(ngModel)]="value"
+    [disabled]="!editable()"
+  />
+} @else {
+  <input
+    class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-right text-[12px] outline-none disabled:opacity-50"
+    type="number"
+    [attr.name]="name()"
+    [attr.min]="min()"
+    [attr.max]="max()"
+    [(ngModel)]="value"
+    [disabled]="!editable()"
+  />
+}
+<button
+  class="text-ui-dim hover:text-ui-accent m-0 inline-flex size-5 items-center justify-center border-none bg-transparent p-0 shadow-none disabled:opacity-40 [&_.material-icons]:text-[13px]!"
+  type="button"
+  [class.text-ui-accent!]="keyed()"
+  [disabled]="!editable()"
+  [title]="'feature.media.cutInEditor.toggleKey' | transloco"
+  (click)="keyToggled.emit()"
+>
+  <i class="material-icons">diamond</i>
+</button>

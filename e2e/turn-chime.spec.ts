@@ -1,27 +1,10 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { becomeGm, closePanels, holdsFor, openPanel, waitAppReady } from './helpers';
 
 /** The tones the chimes of a turn begin on: the signal's two notes, and the tick's one. */
 const SIGNAL_LOW_HZ = 880;
 const CHIME_HIGH_HZ = 1318.5;
-
-async function becomeGm(page: Page) {
-  await page
-    .locator('ui-panel')
-    .filter({ hasText: '接続情報' })
-    .getByRole('button', { name: /^\s*GM\s*$/ })
-    .click();
-  await expect(page.locator('app-gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
-}
-
-async function closePanels(page: Page) {
-  const panels = page.locator('ui-panel');
-  for (let round = 0; round < 8 && (await panels.count()) > 0; round++) {
-    await panels.first().locator('.bg-ui-titlebar button', { hasText: 'close' }).dispatchEvent('click');
-  }
-  await expect(panels).toHaveCount(0);
-}
 
 /** Every frequency a tone was set to on this page since it was last read. */
 async function tonesSet(page: Page): Promise<number[]> {
@@ -59,8 +42,7 @@ test.describe('the chimes of a turn beginning', () => {
   test('plays nothing for a turn that is not the reader’s own until the master turns the tick on', async ({ page }) => {
     await nextTurn(page);
     await nextTurn(page);
-    await page.waitForTimeout(500);
-    expect(await tonesSet(page)).not.toContain(CHIME_HIGH_HZ);
+    await holdsFor(async () => expect(await tonesSet(page)).not.toContain(CHIME_HIGH_HZ), 500);
 
     await openPanel(page, '部屋設定');
     const panel = page.locator('room-settings-panel');

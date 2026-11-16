@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, si
 import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { CutInService } from '@axe/application/media/cut-in.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { emitStartCutIn } from '@axe/core/event/domain-events';
@@ -9,6 +10,7 @@ import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { portraitElementAt } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
@@ -17,13 +19,16 @@ import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { portraitFitFor } from '@axe/domain/media/cut-in-portrait-fit';
 import { type CutInSpeaker, SPEAKER_NAME_TOKEN } from '@axe/domain/media/cut-in-speaker';
-import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CutInBgmComponent } from '@axe/features/media/cut-in-bgm/cut-in-bgm.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { OpenUrlComponent } from '@axe/ui/components/open-url/open-url.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
+
+/** The bounds the size fields offer while no cut-in is under edit, in pixels. */
+const STAND_IN_MIN_SIZE = 10;
+const STAND_IN_MAX_SIZE = 1200;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,16 +44,18 @@ export class CutInEditorComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly names = inject(PieceNameService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly cutIns = inject(CutInService);
 
   readonly cutIn = input<CutIn | null>(null);
   readonly isEditable = input(false);
 
-  readonly isYouTubeCutIn = signal(false);
-
-  _minSizeWidth = 10;
-  _maxSizeWidth = 10;
-  _minSizeHeight = 1200;
-  _maxSizeHeight = 1200;
+  /** Whether the cut-in under edit plays a YouTube video, read from the cut-in itself as it changes. */
+  readonly isYouTubeCutIn = computed(() => {
+    const c = this.cutIn();
+    if (!c) return false;
+    this.objectChange.versionOf(c.identifier)();
+    return !!c.videoId;
+  });
 
   private get c(): CutIn | null {
     return this.cutIn();
@@ -120,7 +127,10 @@ export class CutInEditorComponent {
     const url = this.cutInImage().url;
     if (!url || untracked(this.pictureSize)?.url === url) return;
     const picture = new Image();
-    picture.onload = () => this.pictureSize.set({ url, width: picture.naturalWidth, height: picture.naturalHeight });
+    picture.onload = () => {
+      this.pictureSize.set({ url, width: picture.naturalWidth, height: picture.naturalHeight });
+      this.fitToOriginal();
+    };
     picture.src = url;
   });
 
@@ -147,79 +157,91 @@ export class CutInEditorComponent {
    * The cut-in's width in pixels, from the width field.
    *
    * Writing it also sets the height when the aspect is kept, from the video's default proportions
-   * or the picture's. While original size is on, reading it first resets the width to the picture's
-   * or video's own. Reads 0 while not editable.
+   * or the picture's, once the picture's size is known. While original size is on it reads the picture's or video's own width, without
+   * writing it to the cut-in. Reads 0 while not editable.
    */
   set cutInWidth(cutInWidth: number) {
-    if (!this.c) return;
-    if (this.editable) this.c.width = cutInWidth;
-    if (this.keepImageAspect) {
-      if (this.isYouTubeCutIn()) {
-        this.c.height = Math.floor((cutInWidth * this.c.defVideoSizeHeight) / this.c.defVideoSizeWidth);
-      } else {
-        this.c.height = Math.floor((cutInWidth * this.originalImgHeight()) / this.originalImgWidth());
-      }
-    }
+    const cutIn = this.c;
+    if (!cutIn) return;
+    if (this.editable) cutIn.width = cutInWidth;
+    if (!this.keepImageAspect) return;
+    const own = this.ownSize(cutIn);
+    if (own.width > 0 && own.height > 0) cutIn.height = Math.floor((cutInWidth * own.height) / own.width);
   }
 
   get cutInWidth(): number {
     if (!this.editable || !this.c) return 0;
-    if (this.cutInOriginalSize) {
-      if (this.isYouTubeCutIn()) {
-        const width = this.c.defVideoSizeWidth;
-        if (this.c.width !== width) this.c.width = width;
-      } else {
-        const width = this.cutInImage().url ? this.originalImgWidth() : 0;
-        if (width > 0 && this.c.width !== width) this.c.width = width;
-      }
-    }
-    return this.c.width;
+    const width = this.c.originalSize ? this.ownSize(this.c).width : 0;
+    return width > 0 ? width : this.c.width;
   }
 
   /**
    * The cut-in's height in pixels, from the height field.
    *
    * Writing it also sets the width when the aspect is kept, from the video's default proportions or
-   * the picture's. While original size is on, reading it first resets the height to the picture's
-   * or video's own. Reads 0 while not editable.
+   * the picture's, once the picture's size is known. While original size is on it reads the picture's or video's own height, without
+   * writing it to the cut-in. Reads 0 while not editable.
    */
   set cutInHeight(cutInHeight: number) {
-    if (!this.c) return;
-    if (this.editable) this.c.height = cutInHeight;
-    if (this.keepImageAspect) {
-      if (this.isYouTubeCutIn()) {
-        this.c.width = Math.floor((cutInHeight * this.c.defVideoSizeWidth) / this.c.defVideoSizeHeight);
-      } else {
-        this.c.width = Math.floor((cutInHeight * this.originalImgWidth()) / this.originalImgHeight());
-      }
-    }
+    const cutIn = this.c;
+    if (!cutIn) return;
+    if (this.editable) cutIn.height = cutInHeight;
+    if (!this.keepImageAspect) return;
+    const own = this.ownSize(cutIn);
+    if (own.width > 0 && own.height > 0) cutIn.width = Math.floor((cutInHeight * own.width) / own.height);
   }
 
   get cutInHeight(): number {
     if (!this.editable || !this.c) return 0;
-    if (this.cutInOriginalSize) {
-      if (this.isYouTubeCutIn()) {
-        const height = this.c.defVideoSizeHeight;
-        if (this.c.height !== height) this.c.height = height;
-      } else {
-        const height = this.cutInImage().url ? this.originalImgHeight() : 0;
-        if (height > 0 && this.c.height !== height) this.c.height = height;
-      }
-    }
-    return this.c.height;
+    const height = this.c.originalSize ? this.ownSize(this.c).height : 0;
+    return height > 0 ? height : this.c.height;
+  }
+
+  /**
+   * The size the cut-in has of its own: a video's default size, or its picture's size, with 0 for a
+   * side that is not known yet.
+   */
+  private ownSize(cutIn: CutIn): { width: number; height: number } {
+    if (cutIn.videoId) return { width: cutIn.defVideoSizeWidth, height: cutIn.defVideoSizeHeight };
+    if (!this.cutInImage().url) return { width: 0, height: 0 };
+    return { width: this.originalImgWidth(), height: this.originalImgHeight() };
+  }
+
+  /**
+   * Writes the cut-in's own size onto it while original size is on, a side at a time as each is
+   * known; does nothing while not editable.
+   */
+  private fitToOriginal(): void {
+    const cutIn = this.c;
+    if (!this.editable || !cutIn || !cutIn.originalSize) return;
+    const { width, height } = this.ownSize(cutIn);
+    if (width > 0 && cutIn.width !== width) cutIn.width = width;
+    if (height > 0 && cutIn.height !== height) cutIn.height = height;
   }
 
   /**
    * Whether changing the width or height keeps the picture's proportions; false and unwritable
    * while not editable.
+   *
+   * Turning it on snaps the height to the video's or picture's proportions at the width the cut-in
+   * has, which waits for a picture whose size is not known yet.
    */
   get keepImageAspect(): boolean {
     if (!this.editable || !this.c) return false;
     return this.c.keepImageAspect;
   }
   set keepImageAspect(aspect: boolean) {
-    if (!this.editable || !this.c) return;
-    this.c.keepImageAspect = aspect;
+    const cutIn = this.c;
+    if (!this.editable || !cutIn) return;
+    cutIn.keepImageAspect = aspect;
+    if (!aspect || !this.cutInImage().url) return;
+    if (cutIn.videoId) {
+      cutIn.height = Math.floor((cutIn.width * cutIn.defVideoSizeHeight) / cutIn.defVideoSizeWidth);
+      return;
+    }
+    const width = this.originalImgWidth();
+    const height = this.originalImgHeight();
+    if (width > 0 && height > 0) cutIn.height = Math.floor((cutIn.width * height) / width);
   }
 
   /** Whether the cut-in is shown without its window frame. */
@@ -231,13 +253,18 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.frameless = frameless;
   }
 
-  /** Whether the cut-in is shown at its picture's or video's own size, which locks the size fields. */
+  /**
+   * Whether the cut-in is shown at its picture's or video's own size, which locks the size fields.
+   * Turning it on writes that size onto the cut-in.
+   */
   get cutInOriginalSize(): boolean {
     if (!this.c) return false;
     return this.editable ? this.c.originalSize : false;
   }
   set cutInOriginalSize(cutInOriginalSize: boolean) {
-    if (this.editable && this.c) this.c.originalSize = cutInOriginalSize;
+    if (!this.editable || !this.c) return;
+    this.c.originalSize = cutInOriginalSize;
+    this.fitToOriginal();
   }
 
   /** Where the cut-in is placed across the screen, as a percentage from 0 to 100. */
@@ -288,22 +315,39 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.chatActivate = chatActivate;
   }
 
-  /** Whether the cut-in plays a YouTube video instead of showing a picture. */
+  /**
+   * Whether the cut-in plays a YouTube video instead of showing a picture. A write that turns the
+   * cut-in into a video, or back into a picture, resets its size to the new kind's own.
+   */
   get cutInIsVideo(): boolean {
     if (!this.c) return false;
     return this.editable ? this.c.isVideoCutIn : false;
   }
   set cutInIsVideo(isVideo: boolean) {
-    if (this.editable && this.c) this.c.isVideoCutIn = isVideo;
+    if (!this.editable || !this.c) return;
+    const cutIn = this.c;
+    this.resizingOnKindChange(cutIn, () => (cutIn.isVideoCutIn = isVideo));
   }
 
-  /** The YouTube URL of a video cut-in. */
+  /**
+   * The YouTube URL of a video cut-in. A write that turns the cut-in into a video, or back into a
+   * picture, resets its size to the new kind's own.
+   */
   get cutInVideoURL(): string {
     if (!this.c) return '';
     return this.editable ? this.c.videoUrl : '';
   }
   set cutInVideoURL(videoUrl: string) {
-    if (this.editable && this.c) this.c.videoUrl = videoUrl;
+    if (!this.editable || !this.c) return;
+    const cutIn = this.c;
+    this.resizingOnKindChange(cutIn, () => (cutIn.videoUrl = videoUrl));
+  }
+
+  private resizingOnKindChange(cutIn: CutIn, write: () => void): void {
+    const wasVideo = !!cutIn.videoId;
+    write();
+    const isVideo = !!cutIn.videoId;
+    if (wasVideo !== isVideo) this.setDefaultControl(isVideo);
   }
 
   /**
@@ -348,33 +392,24 @@ export class CutInEditorComponent {
     if (this.editable && this.c) this.c.audioIdentifier = cutInAudioIdentifier;
   }
 
-  readonly audios = computed(() => {
-    this.objectChange.fileVersion();
-    return this.audioStorage.audios.filter((audio) => !audio.isHidden);
-  });
-
   /** The smallest width the width field allows, which differs for a video cut-in. */
   get minSizeWidth(): number {
-    if (this.c) this._minSizeWidth = this.c.minSizeWidth(this.isYouTubeCutIn());
-    return this._minSizeWidth;
+    return this.c?.minSizeWidth(this.isYouTubeCutIn()) ?? STAND_IN_MIN_SIZE;
   }
 
   /** The largest width the width field allows, which differs for a video cut-in. */
   get maxSizeWidth(): number {
-    if (this.c) this._maxSizeWidth = this.c.maxSizeWidth(this.isYouTubeCutIn());
-    return this._maxSizeWidth;
+    return this.c?.maxSizeWidth(this.isYouTubeCutIn()) ?? STAND_IN_MAX_SIZE;
   }
 
   /** The smallest height the height field allows, which differs for a video cut-in. */
   get minSizeHeight(): number {
-    if (this.c) this._minSizeHeight = this.c.minSizeHeight(this.isYouTubeCutIn());
-    return this._minSizeHeight;
+    return this.c?.minSizeHeight(this.isYouTubeCutIn()) ?? STAND_IN_MIN_SIZE;
   }
 
   /** The largest height the height field allows, which differs for a video cut-in. */
   get maxSizeHeight(): number {
-    if (this.c) this._maxSizeHeight = this.c.maxSizeHeight(this.isYouTubeCutIn());
-    return this._maxSizeHeight;
+    return this.c?.maxSizeHeight(this.isYouTubeCutIn()) ?? STAND_IN_MAX_SIZE;
   }
 
   /** Whether the cut-in's sound is present in this room's audio storage. */
@@ -384,54 +419,24 @@ export class CutInEditorComponent {
   }
 
   /**
-   * Snaps the height to the video's or picture's proportions after the keep-aspect box is clicked,
-   * once the new value has been applied.
-   */
-  chkImageAspect() {
-    if (!this.editable || !this.c) return;
-    const cutIn = this.c;
-    setTimeout(() => {
-      if (this.keepImageAspect) {
-        const imageurl = this.cutInImage().url;
-        if (imageurl.length > 0) {
-          const img = new Image();
-          img.src = imageurl;
-          if (this.isYouTubeCutIn()) {
-            cutIn.height = Math.floor((cutIn.width * cutIn.defVideoSizeHeight) / cutIn.defVideoSizeWidth);
-          } else {
-            cutIn.height = Math.floor((cutIn.width * img.height) / img.width);
-          }
-        }
-      }
-    });
-  }
-
-  /**
-   * Notes whether the cut-in is a video after its video fields change, resetting its size to the
-   * new kind's defaults when it switches.
-   */
-  changeYouTubeInfo() {
-    if (!this.c) return;
-    const isVideo = !!this.c.videoId;
-    if ((!this.isYouTubeCutIn() && isVideo) || (this.isYouTubeCutIn() && !isVideo)) {
-      this.setDefaultControl(isVideo);
-    }
-    this.isYouTubeCutIn.set(isVideo);
-  }
-
-  /**
    * Resets the cut-in's size to a video's default size or to its picture's own size; does nothing
-   * while not editable.
+   * while not editable, and leaves the size as it is for a picture not measured yet.
    */
-  setDefaultControl(isVideo: boolean) {
+  private setDefaultControl(isVideo: boolean) {
     if (!this.editable || !this.c) return;
     if (isVideo) {
       this.c.width = this.c.defVideoSizeWidth;
       this.c.height = this.c.defVideoSizeHeight;
     } else {
-      this.c.width = this.originalImgWidth();
-      this.c.height = this.originalImgHeight();
+      this.writePictureSize(this.c);
     }
+  }
+
+  private writePictureSize(cutIn: CutIn): void {
+    const { width, height } = this.originalImgSize();
+    if (width <= 0 || height <= 0) return;
+    cutIn.width = width;
+    cutIn.height = height;
   }
 
   /** The natural width of the cut-in's picture, or 0 when it has none or it has not loaded yet. */
@@ -474,14 +479,8 @@ export class CutInEditorComponent {
       emitStartCutIn({ cutIn: this.c, speaker: this.trySpeaker() });
       return;
     }
-    if (this.c.originalSize) {
-      const imageurl = this.cutInImage().url;
-      if (imageurl.length > 0) {
-        this.c.width = this.originalImgWidth();
-        this.c.height = this.originalImgHeight();
-      }
-    }
-    this.cutInLauncher.startCutInMySelf(this.c, this.trySpeaker());
+    this.fitToPicture(this.c);
+    this.cutInLauncher?.startCutInMySelf(this.c, this.trySpeaker());
   }
 
   /**
@@ -492,22 +491,17 @@ export class CutInEditorComponent {
    */
   playCutIn() {
     if (!this.c || PeerCursor.isMyselfKeptOffTable) return;
-    if (this.c.originalSize) {
-      const imageurl = this.cutInImage().url;
-      if (imageurl.length > 0) {
-        this.c.width = this.originalImgWidth();
-        this.c.height = this.originalImgHeight();
-      }
-    }
-    if (this.isCutInBgmUploaded() && this.cutInTagName === '') {
-      this.jukebox.stop();
-    }
-    this.cutInLauncher.startCutIn(this.c, undefined, this.trySpeaker());
+    this.fitToPicture(this.c);
+    this.cutIns.launch(this.c, undefined, this.trySpeaker());
+  }
+
+  private fitToPicture(cutIn: CutIn): void {
+    if (cutIn.originalSize) this.writePictureSize(cutIn);
   }
 
   /** Stops the cut-in for everyone in the room; not for a guest on a room server. */
   stopCutIn() {
-    if (this.c && !PeerCursor.isMyselfKeptOffTable) this.cutInLauncher.stopCutIn(this.c);
+    if (this.c && !PeerCursor.isMyselfKeptOffTable) this.cutInLauncher?.stopCutIn(this.c);
   }
 
   /**
@@ -546,14 +540,10 @@ export class CutInEditorComponent {
   private normalizeVideoVolume(videoVolume: number): number {
     const volume = Number(videoVolume);
     if (!Number.isFinite(volume)) return 50;
-    return Math.min(100, Math.max(0, Math.round(volume)));
+    return clamp(Math.round(volume), 0, 100);
   }
 
-  private get cutInLauncher(): CutInLauncher {
-    return this.objectStore.get<CutInLauncher>('CutInLauncher')!;
-  }
-
-  private get jukebox(): Jukebox {
-    return this.objectStore.get<Jukebox>('Jukebox')!;
+  private get cutInLauncher(): CutInLauncher | null {
+    return this.objectStore.get<CutInLauncher>('CutInLauncher') ?? null;
   }
 }

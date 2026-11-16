@@ -74,14 +74,17 @@ export function stringifyTurnHistory(steps: readonly TurnStep[]): string {
 }
 
 /**
- * Writes on the buffs as they stood before a count how far the count moved the status of each that
- * ran out in it while leaving its status moved, by name, so putting them back gives back exactly
- * that much.
+ * Writes on the buffs as they stood before a step how far the step moved the status of each that ran
+ * out in it while leaving its status moved, so putting them back gives back exactly that much.
+ * `ranOut` holds, by name, how far each stood moved in all as it went; what it had moved already as
+ * the record was taken is not the step's to give back.
  */
 export function noteRanOut(entries: readonly BuffSnapshotEntry[], ranOut: ReadonlyMap<string, number>): void {
   for (const entry of entries) {
-    const moved = ranOut.get(entry.name);
-    if (moved !== undefined) entry.lastMoved = moved;
+    const stood = ranOut.get(entry.name);
+    if (stood === undefined) continue;
+    const moved = stood - (entry.modifier?.applied ?? 0);
+    if (moved !== 0) entry.lastMoved = moved;
   }
 }
 

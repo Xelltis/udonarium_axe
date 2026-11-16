@@ -41,11 +41,10 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { DoubleTap } from '@axe/ui/tabletop/double-tap';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
-import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+import { setupDoubleTap, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 
 /** The least a card covers either way, in px, however small its size or its picture. */
 const CARD_SMALLEST_PX = 25;
@@ -278,8 +277,6 @@ export class CardComponent {
   readonly movableOption = signal<MovableOption>({});
   readonly rotableOption = signal<RotableOption>({});
 
-  private readonly doubleTap = new DoubleTap(() => this.input);
-
   constructor() {
     setupMovableRotableForPiece(this, {
       target: this.card,
@@ -295,26 +292,24 @@ export class CardComponent {
         this.displayedImageUrl();
       },
     });
-    this.destroyRef.onDestroy(() => {
-      this.doubleTap.cancel();
-    });
   }
 
-  private readonly inputRef = setupInputHandler({
+  private readonly taps = setupDoubleTap({
     elementRef: this.elementRef,
     destroyRef: this.destroyRef,
     onStart: (e) => this.onInputStart(e),
+    onDoubleTap: () => this.onDoubleClick(),
   });
 
   private get input() {
-    return this.inputRef.current;
+    return this.taps.input.current;
   }
 
   /**
    * Feeds a press on the card to the double-tap detector, which flips the card on the second tap.
    */
   startDoubleClickTimer(e: MouseEvent | TouchEvent) {
-    this.doubleTap.handle(e, () => this.onDoubleClick());
+    this.taps.press(e);
   }
 
   /**
@@ -325,9 +320,7 @@ export class CardComponent {
    * or when someone else online is holding the card face down to peek at it.
    */
   onDoubleClick() {
-    this.doubleTap.cancel();
     if (!this.rolePermission.canEditTabletop()) return;
-    if (!this.doubleTap.isInPlace()) return;
     if (this.ownerIsOnline && !this.isPeeking) return;
     const turnsToFront = !(this.isVisible && !this.isPeeking);
     this.state = turnsToFront ? CardState.FRONT : CardState.BACK;

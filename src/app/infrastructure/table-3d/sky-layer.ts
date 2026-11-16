@@ -1,4 +1,5 @@
 import type { SkyDome, SkyWay } from '@axe/domain/tabletop/world/sky-dome';
+import { sceneDirection } from '@axe/infrastructure/three-kit/board-space';
 import {
   clamp,
   dot,
@@ -37,6 +38,13 @@ const SKY_RADIUS_PX = 40000;
 const GROUND_REACH_PX = 38000;
 /** How far under the board the ground beyond it lies, so the board's own picture always lies over it. */
 const GROUND_DROP_PX = 0.5;
+/**
+ * How far beyond the board the haze is taken to run, in table pixels, which is also how far across
+ * a scene with no board is taken to be.
+ */
+const HAZE_REACH_PX = 3000;
+/** How many times that breadth off the haze has thickened to all but a third of the view. */
+const HAZE_DEPTH = 3;
 /** Where the sky comes in the order things are drawn: before everything, which is all drawn over it. */
 const SKY_ORDER = -100;
 const GROUND_ORDER = -50;
@@ -115,9 +123,9 @@ export class SkyLayer {
     this.stars.value = sky.stars;
     this.groundColour.set(sky.ground);
     (this.ground?.material as MeshLambertNodeMaterial | undefined)?.color.copy(this.groundColour);
-    const across = board ? Math.hypot(board.width, board.height) : 3000;
+    const across = board ? Math.hypot(board.width, board.height) : HAZE_REACH_PX;
     this.haze.color.set(sky.horizon);
-    this.haze.density = 1 / (3 * (across + 3000));
+    this.haze.density = 1 / (HAZE_DEPTH * (across + HAZE_REACH_PX));
     return this.haze;
   }
 
@@ -126,6 +134,7 @@ export class SkyLayer {
     this.dome.position.copy(eye);
   }
 
+  /** Takes the ground away and lets go of the dome's shape and material. */
   dispose(): void {
     this.placeGround(null);
     this.dome.geometry.dispose();
@@ -205,7 +214,7 @@ function colourUniform() {
   return uniform(new Color());
 }
 
-/** A way of the board as the scene's: the board's x, y and z are the scene's x, z and y. */
+/** A way of the board as the scene's, of unit length. */
 function sceneWay(way: SkyWay): Vector3 {
-  return new Vector3(way.x, way.z, way.y).normalize();
+  return sceneDirection(way).normalize();
 }

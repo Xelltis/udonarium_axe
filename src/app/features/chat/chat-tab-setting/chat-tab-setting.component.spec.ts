@@ -290,7 +290,7 @@ describe('ChatTabSettingComponent', () => {
     };
 
     afterEach(() => {
-      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      ChatTabList.forget();
       PeerCursor.myCursor = null!;
     });
 
@@ -376,7 +376,7 @@ describe('ChatTabSettingComponent', () => {
     };
 
     afterEach(() => {
-      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      ChatTabList.forget();
       PeerCursor.myCursor = null!;
     });
 
@@ -386,6 +386,14 @@ describe('ChatTabSettingComponent', () => {
       expect(iconNames()).not.toContain('delete');
       expect(iconNames()).not.toContain('delete_sweep');
       expect(iconNames()).not.toContain('delete_forever');
+    });
+
+    it('draws the name of a tab as closed from the first drawing', async () => {
+      openATabAs(PeerRole.Guest);
+      await fixture.whenStable();
+
+      const name = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[name="tab-name"]')!;
+      expect(name.hasAttribute('disabled')).toBe(true);
     });
 
     it('draws the way to add a tab as unavailable', () => {
@@ -408,7 +416,7 @@ describe('ChatTabSettingComponent', () => {
     beforeEach(() => {});
 
     afterEach(() => {
-      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      ChatTabList.forget();
       PeerCursor.myCursor = null!;
     });
 
@@ -465,7 +473,7 @@ describe('ChatTabSettingComponent', () => {
 
     afterEach(() => {
       vi.restoreAllMocks();
-      (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+      ChatTabList.forget();
       PeerCursor.myCursor = null!;
     });
 

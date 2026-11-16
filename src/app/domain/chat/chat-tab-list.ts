@@ -97,7 +97,7 @@ export class ChatTabList extends ObjectNode implements InnerXml {
     this.update();
   }
 
-  private static _instance: ChatTabList;
+  private static _instance: ChatTabList | undefined;
   /**
    * The room's single tab list: the one in the object store, or one made and initialized under the
    * fixed identifier when there is none yet.
@@ -119,7 +119,7 @@ export class ChatTabList extends ObjectNode implements InnerXml {
    * has any reason to say this.
    */
   static forget(): void {
-    ChatTabList._instance = undefined as unknown as ChatTabList;
+    ChatTabList._instance = undefined;
   }
 
   /** The tabs in their order, the system tab included. */

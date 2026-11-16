@@ -51,7 +51,7 @@ describe('ChatMessageSettingComponent', () => {
   });
 
   afterEach(() => {
-    (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+    ChatTabList.forget();
     localStorage.removeItem('chat-preferences');
   });
 
@@ -114,6 +114,18 @@ describe('ChatMessageSettingComponent', () => {
   it('offers showing the time and the user ID in the simple view', () => {
     expect(root().querySelector('input[name="simpleDispFlagTime"]')).not.toBeNull();
     expect(root().querySelector('input[name="simpleDispFlagUserId"]')).not.toBeNull();
+  });
+
+  it('draws keeping portraits outside as closed from the first drawing while they are drawn inside', async () => {
+    ChatTabList.instance.isPortraitInWindow = true;
+    const late = TestBed.createComponent(ChatMessageSettingComponent);
+    late.detectChanges();
+    await late.whenStable();
+
+    const kept = (late.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      'input[name="isKeepPortraitOutWindow"]'
+    )!;
+    expect(kept.hasAttribute('disabled')).toBe(true);
   });
 
   it('sets the height of the portraits from its box, held to the smallest allowed', async () => {

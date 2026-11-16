@@ -3,7 +3,8 @@ import { isMediaRecordingSupported, recordVideo } from '@axe/core/media/media-re
 import { delay } from '@axe/core/util/delay';
 import { downloadBlob } from '@axe/core/util/download-blob';
 
-export type VideoPaintTarget = OffscreenCanvasRenderingContext2D;
+/** What a frame is painted on: the offscreen canvas WebCodecs encodes, or the canvas a MediaRecorder records. */
+export type VideoPaintTarget = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 /**
  * The sound of a video, handed over a stretch at a time, so a long one is never held whole in
@@ -68,7 +69,7 @@ export function isVideoEncodingSupported(): boolean {
 }
 
 /** Whether this browser has the WebCodecs audio encoder; without it a fast export has no sound. */
-export function isAudioEncodingSupported(): boolean {
+function isAudioEncodingSupported(): boolean {
   return typeof AudioEncoder !== 'undefined' && typeof AudioData !== 'undefined';
 }
 

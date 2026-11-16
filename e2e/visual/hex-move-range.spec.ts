@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { openPanel } from '../helpers';
+import { openPanel, sendMenuEvent } from '../helpers';
 import { closePanels, freeze, prepare, settle, settleLazy, snap, useHexGrid } from './fixtures';
 
 /**
@@ -27,7 +27,7 @@ test('a planned move shows its reach on a hex table', async ({ page }) => {
   await settle(page);
   await closePanels(page);
 
-  await page.locator('game-character').first().dispatchEvent('contextmenu');
+  await sendMenuEvent(page.locator('game-character').first());
   await settle(page, 400);
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });

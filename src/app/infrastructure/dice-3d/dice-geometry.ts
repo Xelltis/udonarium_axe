@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { DieShape, Polyhedron, polyhedronOf } from '@axe/domain/dice/dice-3d/polyhedra';
 import { add, cross, dot, length, normalize, scale, sub, Vec3 } from '@axe/domain/dice/dice-3d/rotation';
 
@@ -247,7 +248,7 @@ function perpendicularTo(n: Vec3): Vec3 {
 }
 
 function slerp(a: Vec3, b: Vec3, t: number): Vec3 {
-  const cosine = Math.min(1, Math.max(-1, dot(a, b)));
+  const cosine = clamp(dot(a, b), -1, 1);
   const angle = Math.acos(cosine);
   if (angle < 1e-6) return a;
   const s = Math.sin(angle);

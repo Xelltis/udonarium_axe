@@ -1,4 +1,5 @@
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableAmbienceSettingsComponent } from '@axe/features/tabletop/table-ambience/table-ambience-settings.component';
@@ -27,6 +28,10 @@ describe('TableAmbienceSettingsComponent', () => {
     return (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[name="ambienceSurface"]')!;
   }
 
+  function fieldIn(fixture: ComponentFixture<TableAmbienceSettingsComponent>, name: string): HTMLInputElement {
+    return (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(`input[name="${name}"]`)!;
+  }
+
   function type(field: HTMLInputElement, value: string): void {
     field.value = value;
     field.dispatchEvent(new Event('input'));
@@ -34,6 +39,38 @@ describe('TableAmbienceSettingsComponent', () => {
 
   it('closes once its seat is made a guest, who may no longer write what it writes', () => {
     expectClosesForAGuest(() => TestBed.createComponent(TableAmbienceSettingsComponent));
+  });
+
+  it('shows a depth set from elsewhere once the change reaches it', async () => {
+    ambience.surfaceHeight = 2;
+    const fixture = TestBed.createComponent(TableAmbienceSettingsComponent);
+    fixture.componentInstance.target = ambience;
+    await fixture.whenStable();
+    expect(fieldIn(fixture, 'ambienceSurface').value).toBe('2');
+
+    ambience.surfaceHeight = 3;
+    TestBed.inject(ObjectChangeService).notifyChanged(ambience.identifier);
+    await fixture.whenStable();
+
+    expect(fieldIn(fixture, 'ambienceSurface').value).toBe('3');
+  });
+
+  it('writes each percentage as a whole share held between 0 and 1, reading what is no number as 0', () => {
+    const fixture = TestBed.createComponent(TableAmbienceSettingsComponent);
+    const component = fixture.componentInstance;
+    component.target = ambience;
+
+    component.turbidityPercent = 150;
+    component.dirtPercent = -20;
+    component.leavesPercent = 33.4;
+    component.flowSpeedPercent = '45' as unknown as number;
+    component.icePercent = Number.NaN;
+
+    expect(ambience.turbidity).toBe(1);
+    expect(ambience.dirtiness).toBe(0);
+    expect(ambience.floatingLeaves).toBeCloseTo(0.33, 10);
+    expect(ambience.flowSpeed).toBeCloseTo(0.45, 10);
+    expect(ambience.iceCover).toBe(0);
   });
 
   it('leaves the water where it stands while its depth is emptied to type a new one', async () => {

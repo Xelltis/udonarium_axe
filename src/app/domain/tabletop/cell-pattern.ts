@@ -125,3 +125,52 @@ export function cellPatternToSet(cells: readonly CellCoord[]): Set<string> {
   for (const c of cells) set.add(cellKey(c.gx, c.gy));
   return set;
 }
+
+function isParityOdd(n: number): boolean {
+  return Math.abs(n % 2) === 1;
+}
+
+/**
+ * The hex cell on the table a cell of a pattern covers, with the pattern's own cell (0, 0) laid on
+ * the cell the range stands in.
+ *
+ * Hex offset coordinates shift odd rows (pointy-topped) or odd columns (flat-topped) by half a
+ * cell, so an offset counted from an even base and from an odd one lands a column or a row apart;
+ * the step is made up where the base and the offset are both odd, and the pattern keeps its shape
+ * wherever the range stands.
+ */
+export function patternCellToWorld(
+  baseCol: number,
+  baseRow: number,
+  gx: number,
+  gy: number,
+  isFlatTop: boolean
+): { col: number; row: number } {
+  if (isFlatTop) {
+    const adj = isParityOdd(baseCol) && isParityOdd(gx) ? 1 : 0;
+    return { col: baseCol + gx, row: baseRow + gy + adj };
+  }
+  const adj = isParityOdd(baseRow) && isParityOdd(gy) ? 1 : 0;
+  return { col: baseCol + gx + adj, row: baseRow + gy };
+}
+
+/**
+ * The inverse of {@link patternCellToWorld}: the cell of a pattern that covers a hex cell of the
+ * table, from the cell the range stands in.
+ */
+export function worldCellToPattern(
+  baseCol: number,
+  baseRow: number,
+  col: number,
+  row: number,
+  isFlatTop: boolean
+): { gx: number; gy: number } {
+  if (isFlatTop) {
+    const gx = col - baseCol;
+    const adj = isParityOdd(baseCol) && isParityOdd(gx) ? 1 : 0;
+    return { gx, gy: row - baseRow - adj };
+  }
+  const gy = row - baseRow;
+  const adj = isParityOdd(baseRow) && isParityOdd(gy) ? 1 : 0;
+  return { gx: col - baseCol - adj, gy };
+}

@@ -15,6 +15,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { clamp } from '@axe/core/util/clamp';
 import { observeSize } from '@axe/core/util/observe-size';
 import { clipCss } from '@axe/domain/media/cut-in-clip';
 import { fillCss } from '@axe/domain/media/cut-in-fill';
@@ -61,7 +62,7 @@ const LETTER_FRAME_BUDGET = 6000;
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-cut-in-stage',
+  selector: 'cut-in-stage',
   templateUrl: './cut-in-stage.component.html',
   host: { class: 'block' },
   imports: [SafePipe],
@@ -327,7 +328,7 @@ export class CutInStageComponent {
     if (letters.length < 1) return;
     const timing = letterTimingOf(motion, layer.letterStaggerMs, layer.letterDurationMs);
     const window = layerWindow(layer, durationMs);
-    const budget = Math.max(30, Math.min(240, Math.floor(LETTER_FRAME_BUDGET / letters.length)));
+    const budget = clamp(Math.floor(LETTER_FRAME_BUDGET / letters.length), 30, 240);
     const handles = letters.map((letter) => {
       const rank = Number(letter.dataset['letterRank']);
       const frames = letterFrames(motion, rank, window, durationMs, layer.fontSizePx, timing, budget);

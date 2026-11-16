@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { InputHandler } from '@axe/ui/directives/input-handler';
 
 type Callback = (srcEvent: TouchEvent | MouseEvent | PointerEvent) => void;
@@ -19,6 +20,21 @@ export enum TableMouseGestureEvent {
   KEYBOARD = 'keyboard',
 }
 
+/** How many pixels of a right-button drag turn the view by one degree. */
+const DRAG_PX_PER_DEGREE = 5;
+/** The height of one line of wheel, in pixels, for a wheel that counts in lines. */
+const WHEEL_LINE_PX = 16;
+/** How much zoom one pixel of wheel gives; the sign makes rolling away zoom in. */
+const WHEEL_ZOOM_PER_PX = -1.5;
+/** The most one wheel event may zoom, either way. */
+const WHEEL_ZOOM_STEP_MAX = 300;
+/** How far one press of an arrow key pans the view, in pixels. */
+const KEY_PAN_STEP_PX = 10;
+/** How far one press of Shift and an arrow key turns the view, in degrees. */
+const KEY_TURN_STEP_DEG = 2;
+/** How much one press of Ctrl and the up or down arrow zooms. */
+const KEY_ZOOM_STEP = 150;
+
 enum Keyboard {
   ArrowLeft = 'ArrowLeft',
   ArrowUp = 'ArrowUp',
@@ -31,14 +47,14 @@ export class TableMouseGesture {
   private currentPositionY: number = 0;
 
   private buttonCode: number = 0;
-  private input: InputHandler | null = null;
+  private readonly input = new InputHandler(this.targetElement, { capture: true });
   /** Whether a press on the table is being held, moved or not. */
   get isGrabbing(): boolean {
-    return this.input!.isGrabbing;
+    return this.input.isGrabbing;
   }
   /** Whether the held press has moved, which tells a drag from a click. */
   get isDragging(): boolean {
-    return this.input!.isDragging;
+    return this.input.isDragging;
   }
 
   private callbackOnWheel = (e: WheelEvent) => this.onWheel(e);
@@ -48,11 +64,6 @@ export class TableMouseGesture {
   onend: Callback | null = null;
   ontransform: OnTransformCallback | null = null;
   constructor(readonly targetElement: HTMLElement) {
-    this.initialize();
-  }
-
-  private initialize() {
-    this.input = new InputHandler(this.targetElement, { capture: true });
     this.addEventListeners();
     this.input.onStart = (e) => this.onInputStart(e);
     this.input.onMove = (e) => this.onInputMove(e);
@@ -61,19 +72,19 @@ export class TableMouseGesture {
 
   /** Drops the press under way, so moving the pointer further neither pans nor turns the view. */
   cancel() {
-    this.input!.cancel();
+    this.input.cancel();
   }
 
   /** Stops listening to the mouse, the wheel and the arrow keys for good. */
   destroy() {
-    this.input!.destroy();
+    this.input.destroy();
     this.removeEventListeners();
   }
 
   /** Notes where a press began and with which button, and passes the press on to `onstart`. */
   onInputStart(ev: MouseEvent | TouchEvent) {
-    this.currentPositionX = this.input!.pointer.x;
-    this.currentPositionY = this.input!.pointer.y;
+    this.currentPositionX = this.input.pointer.x;
+    this.currentPositionY = this.input.pointer.y;
     this.buttonCode = (ev as MouseEvent).button;
     if (this.onstart) this.onstart(ev);
   }
@@ -88,8 +99,8 @@ export class TableMouseGesture {
    * view, with any other it pans.
    */
   onInputMove(ev: MouseEvent | TouchEvent) {
-    const x = this.input!.pointer.x;
-    const y = this.input!.pointer.y;
+    const x = this.input.pointer.x;
+    const y = this.input.pointer.y;
     const deltaX = x - this.currentPositionX;
     const deltaY = y - this.currentPositionY;
 
@@ -105,8 +116,8 @@ export class TableMouseGesture {
 
     if (this.buttonCode === 2) {
       event = TableMouseGestureEvent.ROTATE;
-      rotateZ = -deltaX / 5;
-      rotateX = -deltaY / 5;
+      rotateZ = -deltaX / DRAG_PX_PER_DEGREE;
+      rotateX = -deltaY / DRAG_PX_PER_DEGREE;
     } else {
       transformX = deltaX;
       transformY = deltaY;
@@ -126,7 +137,7 @@ export class TableMouseGesture {
     let pixelDeltaY: number;
     switch (ev.deltaMode) {
       case WheelEvent.DOM_DELTA_LINE:
-        pixelDeltaY = ev.deltaY * 16;
+        pixelDeltaY = ev.deltaY * WHEEL_LINE_PX;
         break;
       case WheelEvent.DOM_DELTA_PAGE:
         pixelDeltaY = ev.deltaY * window.innerHeight;
@@ -138,14 +149,12 @@ export class TableMouseGesture {
 
     const transformX = 0;
     const transformY = 0;
-    let transformZ: number;
 
     const rotateX = 0;
     const rotateY = 0;
     const rotateZ = 0;
 
-    transformZ = pixelDeltaY * -1.5;
-    if (300 ** 2 < transformZ ** 2) transformZ = Math.min(Math.max(transformZ, -300), 300);
+    const transformZ = clamp(pixelDeltaY * WHEEL_ZOOM_PER_PX, -WHEEL_ZOOM_STEP_MAX, WHEEL_ZOOM_STEP_MAX);
 
     if (this.ontransform)
       this.ontransform(transformX, transformY, transformZ, rotateX, rotateY, rotateZ, TableMouseGestureEvent.ZOOM, ev);
@@ -166,38 +175,38 @@ export class TableMouseGesture {
     const rotateY = 0;
     let rotateZ = 0;
 
-    const key = this.getKeyName(ev);
+    const key = ev.key;
     switch (key) {
       case Keyboard.ArrowLeft:
         if (ev.shiftKey) {
-          rotateZ = -2;
+          rotateZ = -KEY_TURN_STEP_DEG;
         } else {
-          transformX = 10;
+          transformX = KEY_PAN_STEP_PX;
         }
         break;
       case Keyboard.ArrowUp:
         if (ev.shiftKey) {
-          rotateX = -2;
+          rotateX = -KEY_TURN_STEP_DEG;
         } else if (ev.ctrlKey) {
-          transformZ = 150;
+          transformZ = KEY_ZOOM_STEP;
         } else {
-          transformY = 10;
+          transformY = KEY_PAN_STEP_PX;
         }
         break;
       case Keyboard.ArrowRight:
         if (ev.shiftKey) {
-          rotateZ = 2;
+          rotateZ = KEY_TURN_STEP_DEG;
         } else {
-          transformX = -10;
+          transformX = -KEY_PAN_STEP_PX;
         }
         break;
       case Keyboard.ArrowDown:
         if (ev.shiftKey) {
-          rotateX = 2;
+          rotateX = KEY_TURN_STEP_DEG;
         } else if (ev.ctrlKey) {
-          transformZ = -150;
+          transformZ = -KEY_ZOOM_STEP;
         } else {
-          transformY = -10;
+          transformY = -KEY_PAN_STEP_PX;
         }
         break;
     }
@@ -213,22 +222,6 @@ export class TableMouseGesture {
         TableMouseGestureEvent.KEYBOARD,
         ev
       );
-  }
-
-  private getKeyName(keyboard: KeyboardEvent): string {
-    if (keyboard.key) return keyboard.key;
-    switch (keyboard.keyCode) {
-      case 37:
-        return Keyboard.ArrowLeft;
-      case 38:
-        return Keyboard.ArrowUp;
-      case 39:
-        return Keyboard.ArrowRight;
-      case 40:
-        return Keyboard.ArrowDown;
-      default:
-        return '';
-    }
   }
 
   private addEventListeners() {

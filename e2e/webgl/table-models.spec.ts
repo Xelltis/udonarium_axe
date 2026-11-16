@@ -1,8 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { closePanels } from '../dungeon-helpers';
 import { boxGlb } from '../glb-helpers';
-import { waitAppReady } from '../helpers';
+import { closePanels, idleOnCanvas, rightClickPiece, waitAppReady } from '../helpers';
 
 /**
  * The 3D models a table drawn on a canvas draws a piece as, in place of its picture: read from a
@@ -12,25 +11,8 @@ import { waitAppReady } from '../helpers';
 
 type Box = { x: number; y: number; width: number; height: number };
 
-type Hooks = {
-  renderer(): string | null;
-  whenIdle(): Promise<void>;
-  sceneStats(): { models: number; draws: number } | null;
-  pieceBoxesOnPage(identifier: string): Box[];
-};
-
-async function idle(page: Page) {
-  await expect
-    .poll(() => page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.renderer() ?? null), {
-      timeout: 20000,
-    })
-    .not.toBeNull();
-  await page.mouse.move(5, 400);
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
-}
-
 function models(page: Page): Promise<number> {
-  return page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.models ?? -1);
+  return page.evaluate(() => window.__axeTable.sceneStats()?.models ?? -1);
 }
 
 /** How many points round the middle of a box on the screen are of a colour, read off a picture of it. */
@@ -68,19 +50,14 @@ test.describe('the 3D models of a table drawn on a canvas', () => {
     page.on('request', (request) => fetched.push(request.url()));
     await waitAppReady(page);
     await closePanels(page);
-    await idle(page);
+    await idleOnCanvas(page);
     const piece = page.locator('game-character').filter({ hasText: 'キャラクターB' }).first();
     const identifier = (await piece.getAttribute('data-object-id'))!;
     const red: [number, number, number] = [230, 20, 20];
-    const box = (
-      await page.evaluate(
-        (id) => (window as unknown as { __axeTable: Hooks }).__axeTable.pieceBoxesOnPage(id),
-        identifier
-      )
-    )[0];
+    const box = (await page.evaluate((id) => window.__axeTable.pieceBoxesOnPage(id), identifier))[0];
     const before = await pointsOfColour(page, box, red);
 
-    await piece.dispatchEvent('contextmenu');
+    await rightClickPiece(piece);
     await page.locator('context-menu').getByText('詳細を表示').click();
     const sheet = page.locator('game-character-sheet');
     await expect(sheet).toBeVisible({ timeout: 10000 });
@@ -92,10 +69,10 @@ test.describe('the 3D models of a table drawn on a canvas', () => {
     await expect.poll(() => models(page)).toBe(1);
     expect(fetched.filter((url) => url.includes('/assets/decoders/') || /(DRACO|KTX2)Loader/.test(url))).toEqual([]);
     await closePanels(page);
-    await idle(page);
+    await idleOnCanvas(page);
     expect(await pointsOfColour(page, box, red)).toBeGreaterThan(before + 10);
 
-    await piece.dispatchEvent('contextmenu');
+    await rightClickPiece(piece);
     await page.locator('context-menu').getByText('詳細を表示').click();
     await sheet.locator('button:has(i:text-is("settings"))').first().click();
     await sheet.getByTestId('piece-model').selectOption({ index: 0 });

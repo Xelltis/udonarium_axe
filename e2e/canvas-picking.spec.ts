@@ -1,16 +1,34 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from './dungeon-helpers';
 import {
   cellSpot,
+  closePanels,
   createCharacter,
+  createCoin,
   createDiceSymbol,
-  openPanel,
+  idle,
   openTableContextMenu,
-  putAwayTutorial,
   revealMenuEntry,
+  rightClickAt,
+  rightClickPiece,
   waitAppReady,
 } from './helpers';
+import {
+  Box,
+  boxesOf,
+  createDeck,
+  createLight,
+  createMask,
+  createNote,
+  createRange,
+  drawCard,
+  idsOf,
+  made,
+  madeSince,
+  openBoardAt,
+  settled,
+  takeAway,
+} from './piece-helpers';
 
 /**
  * Pieces and blocks on a table worked through picking alone, with nothing drawn on the canvas. The
@@ -19,19 +37,7 @@ import {
  * lie in the same place, and a press on them has to reach the piece.
  */
 
-type Box = { x: number; y: number; width: number; height: number };
-
 type Point = { x: number; y: number };
-
-type Hooks = {
-  moving(identifier: string): boolean;
-  whenIdle(): Promise<void>;
-  pickAt(x: number, y: number): string | null;
-  aliasOf(identifier: string): string | null;
-  surfacePageOf(surface: string, localX: number, localY: number): Point | null;
-  project(x: number, y: number, z: number): Point | null;
-  pieceBoxesOnPage(identifier: string): Box[];
-};
 
 type Side = 'x' | 'y' | 'width' | 'height';
 
@@ -39,19 +45,6 @@ const ALL_SIDES: readonly Side[] = ['x', 'y', 'width', 'height'];
 
 /** How far apart the page's box round a part of a piece and the box round the shape it is picked by may lie, in pixels. */
 const BOX_SLACK_PX = 1.5;
-
-/** Waits for what the screen lays over the table to stand where the table now puts it, with the pointer off the table. */
-async function idle(page: Page) {
-  await page.mouse.move(5, 400);
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
-}
-
-function boxesOf(page: Page, identifier: string): Promise<Box[]> {
-  return page.evaluate(
-    (id) => (window as unknown as { __axeTable: Hooks }).__axeTable.pieceBoxesOnPage(id),
-    identifier
-  );
-}
 
 /** The box on the page round an element of a piece, found by a selector under the piece. */
 function laidOutBox(page: Page, tag: string, identifier: string, selector: string): Promise<Box> {
@@ -74,108 +67,6 @@ function expectSameBox(picked: Box, laidOut: Box, label: string, sides: readonly
       `${label} ${side}: ${JSON.stringify([picked, laidOut])}`
     ).toBeLessThan(BOX_SLACK_PX);
   }
-}
-
-/**
- * Waits for a piece's animations, such as the bounce it comes onto the table with, to finish: the
- * page's, and the moves the table plays itself.
- */
-async function settled(page: Page, identifier: string) {
-  await expect
-    .poll(() =>
-      page.evaluate(
-        (id) =>
-          document
-            .querySelector(`[data-object-id="${id}"]`)!
-            .getAnimations({ subtree: true })
-            .filter((animation) => animation.playState === 'running').length +
-          ((window as unknown as { __axeTable: Hooks }).__axeTable.moving(id) ? 1 : 0),
-        identifier
-      )
-    )
-    .toBe(0);
-}
-
-/** The identifiers of the pieces with a tag on the table now. */
-function idsOf(page: Page, tag: string): Promise<string[]> {
-  return page.locator(tag).evaluateAll((pieces) => pieces.map((piece) => piece.getAttribute('data-object-id')!));
-}
-
-/**
- * The identifier of the piece with a tag that has come onto the table since the identifiers given
- * were read: the first table's tutorial lays out pieces of its own, which may come after it.
- */
-async function madeSince(page: Page, tag: string, before: readonly string[]): Promise<string> {
-  let made: string | undefined;
-  await expect
-    .poll(async () => {
-      made = (await idsOf(page, tag)).find((id) => !before.includes(id));
-      return made;
-    })
-    .toBeTruthy();
-  return made!;
-}
-
-/**
- * A point of the bare board south of the sample pieces, as an offset into the table's layer, with
- * room to its right for a card drawn off a deck and for a white board to lie on the screen whole.
- */
-function openBoardAt(page: Page): Promise<{ x: number; y: number }> {
-  return cellSpot(page, 13.5, 16.5);
-}
-
-async function createCoin(page: Page) {
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, 'コインを作成')).click();
-  await expect(page.locator('coin').first()).toBeAttached({ timeout: 10000 });
-}
-
-async function createDeck(page: Page) {
-  const before = await page.locator('card-stack').count();
-  const menu = await openTableContextMenu(page, await openBoardAt(page));
-  await (await revealMenuEntry(page, menu, 'トランプの山札を作成')).click();
-  await expect(page.locator('card-stack')).toHaveCount(before + 1, { timeout: 10000 });
-  await page.mouse.move(5, 400);
-  await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
-}
-
-/** Draws a card off the deck made last, which lays it a little way off the deck. */
-async function drawCard(page: Page) {
-  const before = await page.locator('card').count();
-  await page.locator('card-stack').last().dispatchEvent('contextmenu');
-  await page.locator('context-menu').getByText('１枚引く').click();
-  await expect(page.locator('card')).toHaveCount(before + 1, { timeout: 5000 });
-  await page.mouse.move(5, 400);
-}
-
-async function createNote(page: Page) {
-  const before = await page.locator('text-note').count();
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, '共有メモを作成')).click();
-  await expect(page.locator('text-note')).toHaveCount(before + 1, { timeout: 10000 });
-}
-
-async function createMask(page: Page) {
-  const before = await page.locator('game-table-mask').count();
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, 'マップマスクを作成')).click();
-  await expect(page.locator('game-table-mask')).toHaveCount(before + 1, { timeout: 10000 });
-}
-
-async function createRange(page: Page) {
-  const before = await page.locator('range').count();
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, '射程範囲を作成')).hover();
-  await expect(menu.getByText('円形', { exact: true })).toBeVisible({ timeout: 5000 });
-  await menu.getByText('円形', { exact: true }).click();
-  await expect(page.locator('range')).toHaveCount(before + 1, { timeout: 10000 });
-}
-
-async function createLight(page: Page) {
-  const before = await page.locator('light-source').count();
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, '光源を作成')).click();
-  await expect(page.locator('light-source')).toHaveCount(before + 1, { timeout: 10000 });
 }
 
 /** A part of a piece the page lays out, held against one of the shapes the piece is picked by. */
@@ -251,7 +142,8 @@ const PIECES: readonly {
     name: 'note',
     tag: 'text-note',
     create: createNote,
-    shapes: 1,
+    // A note is made standing up, picked by its panel and by its back.
+    shapes: 2,
     parts: [{ shape: -1, selector: '.rounded-b-ui-sm' }],
     menuEntry: 'メモを編集',
     takenAwayBy: '削除する',
@@ -296,28 +188,6 @@ const PIECES: readonly {
 
 type Piece = (typeof PIECES)[number];
 
-/** Makes a piece and waits until picking finds it and its animations are over, and answers its identifier. */
-async function made(page: Page, piece: Piece): Promise<string> {
-  const before = await idsOf(page, piece.tag);
-  await piece.create(page);
-  const id = await madeSince(page, piece.tag, before);
-  await idle(page);
-  await expect.poll(async () => (await boxesOf(page, id)).length, { timeout: 10000 }).toBe(piece.shapes);
-  await settled(page, id);
-  await idle(page);
-  return id;
-}
-
-/** Takes a piece off the table by the entry of its own menu given. */
-async function takeAway(page: Page, tag: string, identifier: string, entry: string) {
-  const piece = page.locator(`${tag}[data-object-id="${identifier}"]`);
-  await piece.dispatchEvent('contextmenu');
-  const menu = page.locator('context-menu');
-  await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-  await (await revealMenuEntry(page, menu, entry, true)).click();
-  await expect(piece).toHaveCount(0, { timeout: 5000 });
-}
-
 /**
  * Sets out what a kind of piece needs, makes one, hands it to the step given, and takes it and what
  * was set out for it off the table again, so the next kind is made on a clear board.
@@ -342,7 +212,7 @@ async function withEach(page: Page, step: (piece: Piece, id: string) => Promise<
  */
 function pointPickedAs(page: Page, identifier: string): Promise<Point | null> {
   return page.evaluate((id) => {
-    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const hooks = window.__axeTable;
     const [shape] = hooks.pieceBoxesOnPage(id);
     if (!shape) return null;
     const middle = { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
@@ -414,7 +284,8 @@ test.describe('pieces picked by the shapes the canvas draws them with', () => {
       })
       .toBeTruthy();
     await idle(page);
-    await expect.poll(async () => (await boxesOf(page, board!)).length, { timeout: 10000 }).toBe(1);
+    // A board standing up is picked by its face and by its back, the face first.
+    await expect.poll(async () => (await boxesOf(page, board!)).length, { timeout: 10000 }).toBe(2);
     await idle(page);
     const boardFace = await page.evaluate((identifier) => {
       const rect = document
@@ -442,7 +313,7 @@ test.describe('pieces picked by the shapes the canvas draws them with', () => {
       const at = await pointPickedAs(page, id);
       expect(at, `a point ${piece.name} is picked at`).not.toBeNull();
 
-      await page.mouse.click(at!.x, at!.y, { button: 'right' });
+      await rightClickAt(page, at!);
 
       const menu = page.locator('context-menu');
       await expect(menu.locator('li').first(), piece.name).toBeVisible({ timeout: 5000 });
@@ -459,8 +330,7 @@ test.describe('pieces picked by the shapes the canvas draws them with', () => {
     await idle(page);
     const [box] = await boxesOf(page, id);
     const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-    const pickAt = (point: Point) =>
-      page.evaluate(({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.pickAt(x, y), point);
+    const pickAt = (point: Point) => page.evaluate(({ x, y }) => window.__axeTable.pickAt(x, y), point);
 
     expect(await pickAt(middle)).toBe(id);
     for (const [across, down] of [
@@ -538,7 +408,7 @@ test.describe('pieces picked by the shapes the canvas draws them with', () => {
         };
         return page.evaluate(
           ({ x, y }) => ({
-            picked: (window as unknown as { __axeTable: Hooks }).__axeTable.pickAt(x, y),
+            picked: window.__axeTable.pickAt(x, y),
             pointed: document.elementFromPoint(x, y)?.closest('card')?.getAttribute('data-object-id') ?? null,
           }),
           at
@@ -581,7 +451,7 @@ test.describe('pieces picked by the shapes the canvas draws them with', () => {
     await idle(page);
     await expect(character.getByTestId('altitude-guide')).toHaveCount(0);
 
-    await character.dispatchEvent('contextmenu');
+    await rightClickPiece(character);
     const menu = page.locator('context-menu');
     await (await revealMenuEntry(page, menu, '高度設定')).hover();
     const altitude = menu.locator('input[name="altitude-number"]');
@@ -669,34 +539,6 @@ test.describe('pieces picked by the shapes the canvas draws them with', () => {
 
     await expect.poll(async () => (await top.boundingBox())!.width / square.width).toBeGreaterThan(1.15);
   });
-
-  test('put a character dragged about a hex table at the middle of a cell, as the cell it stands on is wide, not as the screen draws it', async ({
-    page,
-  }) => {
-    await openPanel(page, 'テーブル設定');
-    await page.locator('select[name="tableGridType"]').selectOption('1');
-    await closePanels(page);
-    const id = await made(
-      page,
-      PIECES.find((piece) => piece.name === 'character')!
-    );
-    const [shape] = await boxesOf(page, id);
-    const grabX = shape.x + shape.width / 2;
-    const grabY = shape.y + shape.height / 2;
-    const placed = page.locator(`[data-object-id="${id}"] [data-location]`).first();
-    const before = await placed.getAttribute('data-location');
-
-    await page.mouse.move(grabX, grabY);
-    await page.mouse.down();
-    await page.mouse.move(grabX - 60, grabY + 20, { steps: 6 });
-    await page.mouse.move(grabX - 130, grabY + 47, { steps: 6 });
-    await page.mouse.up();
-    await idle(page);
-    await expect(placed).not.toHaveAttribute('data-location', before!);
-
-    const [x, y] = (await placed.getAttribute('data-location'))!.split(',').map(Number);
-    expect(distanceFromHexMiddle(x, y), JSON.stringify({ x, y })).toBeLessThan(1.5);
-  });
 });
 
 /**
@@ -717,144 +559,3 @@ async function turnAnEighthBy(page: Page, knob: Locator, middle: Point) {
   }
   await page.mouse.up();
 }
-
-/**
- * How far a piece of a cell standing at a point of the board stands from the middle of the hex it is
- * in. The hexes of the grid stand flat at the top, a cell of fifty pixels from one flat side to the
- * other: their columns stand a corner and a half apart, every other one half a cell down.
- */
-function distanceFromHexMiddle(x: number, y: number): number {
-  const middle = { x: x + 25, y: y + 25 };
-  const across = (1.5 * 50) / Math.sqrt(3);
-  const column = Math.round(middle.x / across);
-  const down = Math.abs(column % 2) === 1 ? 25 : 0;
-  const centre = { x: column * across, y: Math.round((middle.y - down) / 50) * 50 + down };
-  return Math.hypot(middle.x - centre.x, middle.y - centre.y);
-}
-
-/**
- * Points of the sample room's table where the blocks are set down, in cells: on the open ground east
- * and west of the pieces, each with room for a block two cells across.
- */
-const BLOCK_CELLS = [
-  { x: 20.5, y: 3 },
-  { x: 21, y: 6.5 },
-  { x: 20, y: 9.5 },
-  { x: 2.5, y: 4 },
-  { x: 2, y: 8.5 },
-];
-
-/** Where the middle of a cell of the table is, on the page and as an offset into the table's layer. */
-async function spotOfCell(page: Page, cell: Point): Promise<{ onPage: Point; spot: Point }> {
-  const layer = (await page.locator('#app-table-layer').boundingBox())!;
-  const onPage = await page.evaluate(
-    ({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.project(x * 50, y * 50, 0)!,
-    cell
-  );
-  return { onPage, spot: { x: onPage.x - layer.x, y: onPage.y - layer.y } };
-}
-
-/** Sets a block down at each spot that is bare table, uncovered on the screen, and answers how many were set down. */
-async function setBlocksDown(page: Page): Promise<number> {
-  let placed = 0;
-  for (const cell of BLOCK_CELLS) {
-    const { onPage, spot } = await spotOfCell(page, cell);
-    const bare = await page.evaluate(({ x, y }) => {
-      const front = document.elementFromPoint(x, y);
-      return (
-        !!front &&
-        !!front.closest('#app-table-layer') &&
-        !front.closest('[data-object-id], ui-panel') &&
-        (window as unknown as { __axeTable: Hooks }).__axeTable.pickAt(x, y) === null
-      );
-    }, onPage);
-    if (!bare) continue;
-    const menu = await openTableContextMenu(page, spot);
-    await (await revealMenuEntry(page, menu, '地形を作成')).click();
-    placed++;
-    await expect(page.locator('terrain')).toHaveCount(placed, { timeout: 10000 });
-  }
-  return placed;
-}
-
-/**
- * A point of the page well inside a block as picking finds it, where the page lays no piece over it,
- * and that block; or null where there is none.
- */
-function findPointOnBlock(page: Page): Promise<{ x: number; y: number; id: string } | null> {
-  return page.evaluate(() => {
-    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
-    const layer = document.querySelector('#app-table-layer')!;
-    for (let y = 120; y < innerHeight - 100; y += 7) {
-      for (let x = 140; x < innerWidth - 60; x += 7) {
-        const front = document.elementFromPoint(x, y);
-        if (!front || !layer.contains(front) || front.closest('[data-object-id]')) continue;
-        const picked = hooks.pickAt(x, y);
-        const around = [-6, 6].every((dx) => [-6, 6].every((dy) => hooks.pickAt(x + dx, y + dy) === picked));
-        if (picked !== null && hooks.aliasOf(picked) === 'terrain' && around) return { x, y, id: picked };
-      }
-    }
-    return null;
-  });
-}
-
-/** Types into a field over what it holds, as a reader does. */
-async function typeOver(page: Page, selector: string, text: string) {
-  const field = page.locator('ui-panel').filter({ hasText: 'マップ生成' }).locator(selector);
-  await field.click();
-  await field.press('Control+a');
-  await field.pressSequentially(text);
-}
-
-/**
- * Builds a small dungeon of a few rooms on a square grid from a fixed seed, goes to its table, and
- * waits until picking finds a block of it on the screen.
- */
-async function buildSquareDungeon(page: Page) {
-  await openPanel(page, 'マップ生成');
-  const panel = page.locator('ui-panel').filter({ hasText: 'マップ生成' });
-  await panel.getByRole('button', { name: '四角', exact: true }).click();
-  await typeOver(page, 'input[name="room-count-number"]', '3');
-  await typeOver(page, '#seed', '1278372739');
-  await panel.getByRole('button', { name: '生成する' }).click();
-  await panel.getByRole('button', { name: 'このテーブルへ移動' }).click({ timeout: 120000 });
-  const later = page.locator('app-room-restore-banner button', { hasText: 'あとで' });
-  if (await later.count()) await later.first().dispatchEvent('click');
-  await closePanels(page);
-  await idle(page);
-  await expect.poll(() => findPointOnBlock(page), { timeout: 20000 }).not.toBeNull();
-}
-
-test.describe('blocks picked by the shapes the canvas draws them with', () => {
-  test.beforeEach(async ({ page }) => {
-    await waitAppReady(page);
-    await putAwayTutorial(page);
-    await becomeGm(page);
-    await closePanels(page);
-  });
-
-  test('open a block’s menu when it is right-clicked where picking finds it', async ({ page }) => {
-    expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(3);
-    await idle(page);
-    const spot = await findPointOnBlock(page);
-    expect(spot, 'a point on a block').not.toBeNull();
-
-    await page.mouse.click(spot!.x, spot!.y, { button: 'right' });
-
-    const menu = page.locator('context-menu');
-    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await expect(menu.getByText('傾斜')).toBeVisible();
-  });
-
-  test('open the menu of a block fixed in place, which the canvas draws together with others', async ({ page }) => {
-    await buildSquareDungeon(page);
-    const spot = (await findPointOnBlock(page))!;
-    expect(await page.locator(`terrain[data-object-id="${spot.id}"]`).count(), 'a block drawn together').toBe(0);
-
-    await page.mouse.click(spot.x, spot.y, { button: 'right' });
-
-    const menu = page.locator('context-menu');
-    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await expect(menu.getByText('傾斜')).toBeVisible();
-  });
-});

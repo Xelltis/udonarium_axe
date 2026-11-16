@@ -3,6 +3,15 @@ import type { ReplayFrameImage } from '@axe/infrastructure/replay/replay-canvas'
 
 export type DrawableImage = ReplayFrameImage & { close?(): void };
 
+/** Why a stored picture could not be made drawable: the browser could not load it from its address. */
+export class UnreadableImageError extends Error {
+  override readonly name = 'UnreadableImageError';
+
+  constructor(readonly url: string) {
+    super(`The image at ${url} could not be loaded`);
+  }
+}
+
 /**
  * Turns a stored image into something a canvas can draw.
  *
@@ -15,9 +24,9 @@ export async function toDrawableImage(blob: Blob | null, url: string): Promise<D
   }
   if (url.length < 1) return null;
   const element = await loadImage(url, { crossOrigin: 'anonymous' }).catch(() => {
-    throw new Error(`読めない絵です: ${url}`);
+    throw new UnreadableImageError(url);
   });
-  return element as unknown as ReplayFrameImage;
+  return element;
 }
 
 export interface DrawableImageSource {

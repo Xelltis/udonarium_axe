@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { emitSelectGameTable } from '@axe/core/event/domain-events';
 import { CutIn } from '@axe/domain/media/cut-in';
@@ -8,6 +9,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { ChatLineEditorComponent } from '@axe/features/chat/chat-line-editor/chat-line-editor.component';
 import { SceneEditorComponent } from '@axe/features/scene/scene-editor/scene-editor.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -103,18 +105,60 @@ describe('SceneEditorComponent', () => {
     expect(root.querySelector('[data-testid="scene-bgm-track"]')).not.toBeNull();
   });
 
-  it('shares the scene’s words a moment after the last key, or at once when asked to, as before it is put on', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    open();
-    await redraw();
-    const editor = fixture.componentInstance;
+  describe('sharing the scene’s words', () => {
+    /** Types into the field of the scene's words, as the field tells the editor of each key. */
+    function type(words: string): void {
+      const field = fixture.debugElement.query(By.directive(ChatLineEditorComponent))
+        .componentInstance as ChatLineEditorComponent;
+      field.draftChange.emit(words);
+    }
 
-    editor['writeTextLater'](scene, '夜が来た ［月:image:moon］');
-    expect(scene.text).toBe('');
-    editor.flushText();
+    beforeEach(async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      open();
+      await redraw();
+    });
 
-    expect([scene.text, scene.stamps]).toEqual(['夜が来た ［月:image:moon］', 'image:moon']);
-    vi.useRealTimers();
+    afterEach(() => vi.useRealTimers());
+
+    it('shares them at once when asked to, as before the scene is put on', () => {
+      type('夜が来た ［月:image:moon］');
+      expect(scene.text).toBe('');
+
+      fixture.componentInstance.flushText();
+
+      expect([scene.text, scene.stamps]).toEqual(['夜が来た ［月:image:moon］', 'image:moon']);
+    });
+
+    it('shares them a moment after the last key rather than at every key', () => {
+      type('夜');
+      vi.advanceTimersByTime(300);
+      type('夜が来た');
+      vi.advanceTimersByTime(300);
+      expect(scene.text).toBe('');
+
+      vi.advanceTimersByTime(100);
+
+      expect(scene.text).toBe('夜が来た');
+    });
+
+    it('writes nothing more once the words were shared ahead of the wait', () => {
+      type('夜が来た');
+      fixture.componentInstance.flushText();
+      scene.writeText('別の席が書いた');
+
+      vi.advanceTimersByTime(1000);
+
+      expect(scene.text).toBe('別の席が書いた');
+    });
+
+    it('shares what is still waiting as the editor goes', () => {
+      type('夜が来た');
+
+      fixture.destroy();
+
+      expect(scene.text).toBe('夜が来た');
+    });
   });
 
   it('shows the table chosen, by identifier and name', async () => {

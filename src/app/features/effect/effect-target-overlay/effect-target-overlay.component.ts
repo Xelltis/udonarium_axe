@@ -1,6 +1,9 @@
 import { NgStyle } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import {
+  EffectAreaProspect,
+  EffectCasterMark,
+  EffectProspectMark,
   EffectTargetingService,
   EffectTargetLink,
   EffectTargetMark,
@@ -12,6 +15,10 @@ const LINK_THICKNESS = 5;
 const LINK_LIFT = 6;
 const MARK_SIZE = 56;
 const BADGE_SIZE = 26;
+/** How far each point of the caster's mark stands from its middle. */
+const CASTER_MARK_REACH = 40;
+const CASTER_MARK_COLOR = '#f4fbff';
+const CASTER_MARK_EDGE = '#0b2233';
 
 /** A point of the floor, in table pixels. */
 interface FloorPoint {
@@ -20,9 +27,14 @@ interface FloorPoint {
 }
 
 /**
- * What shows while targets are being chosen: the marks in order, and a line from the caster to each.
+ * What shows while targets are being chosen: the marks in order, a line from the caster to each, and
+ * the mark of the caster itself. For an area attack, the pointer over a piece shows what a press on it
+ * would do before it is pressed: a dotted ring as far as the area would reach and a dashed ring round
+ * each piece it would take in, lines alone with nothing laid over the table.
  *
  * The marks lie flat and only the numbers stand up; flat numbers cannot be read once the board is tilted.
+ * A target is ringed by a circle in the effect's colour and the caster by a pale double-lined diamond, so
+ * the two are told apart by shape as well as by colour.
  */
 @Component({
   selector: 'effect-target-overlay',
@@ -40,6 +52,11 @@ export class EffectTargetOverlayComponent {
    * pieces carry their own numbers.
    */
   readonly badges = input(true);
+  /**
+   * Whether the piece the effect is cast from is given its mark. The first-person view leaves it off:
+   * the caster there is the piece looked out of, whose feet are not in the view.
+   */
+  readonly casterRing = input(true);
   private readonly camera = inject(TABLE_SCREEN);
 
   /**
@@ -65,6 +82,9 @@ export class EffectTargetOverlayComponent {
 
   readonly marks = computed<EffectTargetMark[]>(() => this.targeting.marks());
 
+  /** Where the caster's mark lies, or null where there is no caster to mark or the mark is left off. */
+  readonly caster = computed<EffectCasterMark | null>(() => (this.casterRing() ? this.targeting.casterMark() : null));
+
   /** How far it reaches, drawn once the piece at the centre is settled. */
   readonly area = computed<{ x: number; y: number; z: number; size: number } | null>(() => {
     const center = this.targeting.areaCenter();
@@ -72,6 +92,9 @@ export class EffectTargetOverlayComponent {
     return { ...center, size: this.targeting.areaRadius() * 2 };
   });
   readonly links = computed<EffectTargetLink[]>(() => this.targeting.links());
+
+  /** What a press on the piece under the pointer would reach and take in, or null where there is nothing to show. */
+  readonly prospect = computed<EffectAreaProspect | null>(() => this.targeting.areaProspect());
 
   protected readonly color = this.targeting.markColor;
   protected readonly accent = computed<string>(() => this.targeting.preset()?.colorSecondary ?? '#ff5a33');
@@ -112,6 +135,47 @@ export class EffectTargetOverlayComponent {
       'transform-origin': '0 0',
       'pointer-events': 'none',
     };
+  }
+
+  protected prospectAreaStyle(prospect: EffectAreaProspect): Record<string, string> {
+    const size = prospect.radius * 2;
+    return this.laid(
+      {
+        position: 'absolute',
+        left: '0px',
+        top: '0px',
+        width: size + 'px',
+        height: size + 'px',
+        'box-sizing': 'border-box',
+        'border-radius': '50%',
+        border: `2px dotted ${this.color()}`,
+        'transform-origin': '0 0',
+        'pointer-events': 'none',
+      },
+      this.screen()?.flat(
+        this.squareRound(prospect.center.x, prospect.center.y, size),
+        prospect.center.z + 1,
+        size,
+        size
+      )
+    );
+  }
+
+  protected prospectMarkStyle(mark: EffectProspectMark): Record<string, string> {
+    return this.laid(
+      {
+        position: 'absolute',
+        left: '0px',
+        top: '0px',
+        width: MARK_SIZE + 'px',
+        height: MARK_SIZE + 'px',
+        'border-radius': '50%',
+        border: `2px dashed ${this.color()}`,
+        'transform-origin': '0 0',
+        'pointer-events': 'none',
+      },
+      this.screen()?.flat(this.squareRound(mark.x, mark.y, MARK_SIZE), mark.z + 1, MARK_SIZE, MARK_SIZE)
+    );
   }
 
   protected linkStyle(link: EffectTargetLink): Record<string, string> {
@@ -170,6 +234,39 @@ export class EffectTargetOverlayComponent {
       'border-radius': '50%',
       border: `3px solid ${this.color()}`,
       'box-shadow': `0 0 12px ${this.accent()}`,
+      'transform-origin': '0 0',
+      'pointer-events': 'none',
+    };
+  }
+
+  protected casterStyle(caster: EffectCasterMark): Record<string, string> {
+    const size = Math.round(CASTER_MARK_REACH * Math.SQRT2);
+    return this.laid(
+      this.casterLook(size),
+      this.screen()?.flat(
+        [
+          { x: caster.x, y: caster.y - CASTER_MARK_REACH },
+          { x: caster.x + CASTER_MARK_REACH, y: caster.y },
+          { x: caster.x, y: caster.y + CASTER_MARK_REACH },
+          { x: caster.x - CASTER_MARK_REACH, y: caster.y },
+        ],
+        caster.z + 1,
+        size,
+        size
+      )
+    );
+  }
+
+  private casterLook(size: number): Record<string, string> {
+    return {
+      position: 'absolute',
+      left: '0px',
+      top: '0px',
+      width: size + 'px',
+      height: size + 'px',
+      'box-sizing': 'border-box',
+      border: `6px double ${CASTER_MARK_COLOR}`,
+      'box-shadow': `0 0 0 1px ${CASTER_MARK_EDGE}, inset 0 0 0 1px ${CASTER_MARK_EDGE}`,
       'transform-origin': '0 0',
       'pointer-events': 'none',
     };

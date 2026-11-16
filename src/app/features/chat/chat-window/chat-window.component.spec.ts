@@ -1,12 +1,12 @@
 import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
-import { ObjectChangeService, ObjectDeleteEvent } from '@axe/application/sync/object-change.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { EventChannel } from '@axe/core/event/event-channel';
 import { Network } from '@axe/core/network/network';
 import { childrenChanged$, objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -398,35 +398,35 @@ describe('ChatWindowComponent', () => {
   });
 
   describe('noticing a change of chat tab', () => {
-    it('moves off a tab that is no longer there when the list changes', () => {
+    it('moves off a tab the reader may no longer read when its settings change', () => {
+      const tab = ChatTabList.instance.addChatTab('閉じるタブ', 'closing-tab');
+      ChatTabList.instance.addChatTab('別のタブ', 'open-tab');
+      component.chatTabidentifier = 'closing-tab';
       fixture.detectChanges();
-      const invalidId = 'non-existent-tab-id';
-      const priv = component as unknown as { _chatTabidentifier: { (): string; set(v: string): void } };
-      priv._chatTabidentifier.set(invalidId);
+      const role = PeerCursor.myCursor.role;
+      PeerCursor.myCursor.role = PeerRole.Player;
+      objectChange.notifyChanged(PeerCursor.myCursor.identifier);
 
-      const chatTabList = ChatTabList.instance;
-      objectChanged$.emit({
-        identifier: chatTabList.identifier,
-        aliasName: chatTabList.aliasName,
-        isSendFromSelf: false,
-      });
+      tab.plCanView = false;
+      objectChanged$.emit({ identifier: tab.identifier, aliasName: tab.aliasName, isSendFromSelf: false });
 
-      expect(priv._chatTabidentifier()).not.toBe(invalidId);
+      expect(component.chatTabidentifier).not.toBe('closing-tab');
+      PeerCursor.myCursor.role = role;
+      for (const identifier of ['closing-tab', 'open-tab']) ObjectStore.instance.get(identifier)?.destroy();
     });
 
     it('moves off the open tab once it is deleted', () => {
+      ChatTabList.instance.addChatTab('消えるタブ', 'deleted-tab');
+      ChatTabList.instance.addChatTab('別のタブ', 'left-tab');
+      component.chatTabidentifier = 'deleted-tab';
       fixture.detectChanges();
-      const oldIdentifier = 'non-existent-tab-id';
-      const priv = component as unknown as { _chatTabidentifier: { (): string; set(v: string): void } };
-      priv._chatTabidentifier.set(oldIdentifier);
 
-      (objectChange as unknown as { _objectDeleted$: EventChannel<ObjectDeleteEvent> })._objectDeleted$.emit({
-        aliasName: 'chat-tab',
-        identifier: oldIdentifier,
-        isSendFromSelf: true,
-      });
+      ObjectStore.instance.get('deleted-tab')!.destroy();
+      fixture.detectChanges();
 
-      expect(priv._chatTabidentifier()).not.toBe(oldIdentifier);
+      expect(component.chatTabidentifier).not.toBe('deleted-tab');
+      expect(TestBed.inject(ActiveChatTabService).current()?.identifier).toBe(component.chatTabidentifier);
+      ObjectStore.instance.get('left-tab')?.destroy();
     });
 
     it('goes back to the tab it showed once that comes back after going away, as a tab a join set aside does', () => {
@@ -463,55 +463,36 @@ describe('ChatWindowComponent', () => {
       for (const identifier of ['coming-back-tab', 'picked-tab']) ObjectStore.instance.get(identifier)?.destroy();
     });
 
-    it('scrolls to the bottom after moving on an update', () => {
+    it('scrolls to the bottom after moving off a tab that went away', () => {
+      ChatTabList.instance.addChatTab('消えるタブ', 'scrolled-off-tab');
+      ChatTabList.instance.addChatTab('別のタブ', 'scrolled-to-tab');
+      component.chatTabidentifier = 'scrolled-off-tab';
       fixture.detectChanges();
       const spy = vi.spyOn(component, 'scrollToBottom');
-      const invalidId = 'non-existent-tab-id';
-      const priv = component as unknown as { _chatTabidentifier: { set(v: string): void } };
-      priv._chatTabidentifier.set(invalidId);
 
-      const chatTabList = ChatTabList.instance;
-      objectChanged$.emit({
-        identifier: chatTabList.identifier,
-        aliasName: chatTabList.aliasName,
-        isSendFromSelf: false,
-      });
-
-      expect(spy).toHaveBeenCalledWith(true);
-    });
-
-    it('scrolls to the bottom after moving on a delete', () => {
+      ObjectStore.instance.get('scrolled-off-tab')!.destroy();
       fixture.detectChanges();
-      const spy = vi.spyOn(component, 'scrollToBottom');
-      const oldIdentifier = 'non-existent-tab-id';
-      const priv = component as unknown as { _chatTabidentifier: { set(v: string): void } };
-      priv._chatTabidentifier.set(oldIdentifier);
-
-      (objectChange as unknown as { _objectDeleted$: EventChannel<ObjectDeleteEvent> })._objectDeleted$.emit({
-        aliasName: 'chat-tab',
-        identifier: oldIdentifier,
-        isSendFromSelf: true,
-      });
 
       expect(spy).toHaveBeenCalledWith(true);
+      ObjectStore.instance.get('scrolled-to-tab')?.destroy();
     });
   });
 
-  describe('chatTabsVersion signal', () => {
+  describe('visibleChatTabs signal', () => {
     it('exposes the tab version as a computed signal', () => {
-      expect(typeof component.chatTabsVersion).toBe('function');
+      expect(typeof component.visibleChatTabs).toBe('function');
     });
 
     it('returns the tabs from it', () => {
       fixture.detectChanges();
-      const tabs = component.chatTabsVersion();
+      const tabs = component.visibleChatTabs();
       expect(Array.isArray(tabs)).toBe(true);
     });
 
     it('bumps the version it depends on when the children change', () => {
       fixture.detectChanges();
       const objectChange = TestBed.inject(ObjectChangeService);
-      const tabs = component.chatTabsVersion();
+      const tabs = component.visibleChatTabs();
       if (tabs.length === 0) return; // nothing to check without a tab
 
       const tabId = tabs[0].identifier;
@@ -530,8 +511,7 @@ describe('ChatWindowComponent', () => {
 
       // a scrollable panel is set, so the scroll does not return early
       const panelEl = document.createElement('div');
-      const priv = component as unknown as { panelService: { scrollablePanel: HTMLDivElement | null } };
-      priv.panelService.scrollablePanel = panelEl;
+      TestBed.inject(PanelService).scrollablePanel = panelEl;
 
       vi.useFakeTimers();
       try {
@@ -548,28 +528,23 @@ describe('ChatWindowComponent', () => {
   describe('being looked at again after standing behind another panel', () => {
     it('takes the log back to the bottom when that is where it was', () => {
       fixture.detectChanges();
-      const priv = component as unknown as {
-        panelService: { scrollablePanel: HTMLDivElement | null; activated$: { emit: () => void } };
-      };
-      priv.panelService.scrollablePanel = document.createElement('div');
+      const panelService = TestBed.inject(PanelService);
+      panelService.scrollablePanel = document.createElement('div');
       const scrolled = vi.spyOn(component, 'scrollToBottom');
 
-      priv.panelService.activated$.emit();
+      panelService.activated$.emit();
 
       expect(scrolled).toHaveBeenCalledWith(true);
     });
 
     it('measures how far from the bottom it is when it was reading further up', () => {
       fixture.detectChanges();
-      const priv = component as unknown as {
-        panelService: { scrollablePanel: HTMLDivElement | null; activated$: { emit: () => void } };
-        isNearBottom: { set(value: boolean): void };
-      };
-      priv.panelService.scrollablePanel = document.createElement('div');
-      priv.isNearBottom.set(false);
+      const panelService = TestBed.inject(PanelService);
+      panelService.scrollablePanel = document.createElement('div');
+      component.isNearBottom.set(false);
       const scrolled = vi.spyOn(component, 'scrollToBottom');
 
-      priv.panelService.activated$.emit();
+      panelService.activated$.emit();
 
       expect(scrolled).not.toHaveBeenCalled();
       expect(component.isNearBottom()).toBe(true);
@@ -591,13 +566,12 @@ describe('ChatWindowComponent', () => {
         fixture.detectChanges();
         const panelEl = document.createElement('div');
         Object.defineProperty(panelEl, 'scrollHeight', { value: 1000, configurable: true });
-        const priv = component as unknown as {
-          panelService: { scrollablePanel: HTMLDivElement | null; scrollToBottom$: { emit: () => void } };
-          isAutoScroll: boolean;
-        };
-        priv.panelService.scrollablePanel = panelEl;
-        priv.isAutoScroll = true; // forces the "near the bottom" state
-        const emitSpy = vi.spyOn(priv.panelService.scrollToBottom$, 'emit');
+        Object.defineProperty(panelEl, 'clientHeight', { value: 1000, configurable: true });
+        const panelService = TestBed.inject(PanelService);
+        panelService.scrollablePanel = panelEl;
+        // at the very bottom, which is where the log follows from
+        component.checkAutoScroll();
+        const emitSpy = vi.spyOn(panelService.scrollToBottom$, 'emit');
 
         component.scrollToBottom(false);
 
@@ -615,13 +589,11 @@ describe('ChatWindowComponent', () => {
       fixture.detectChanges();
       const panelEl = document.createElement('div');
       Object.defineProperty(panelEl, 'scrollHeight', { value: 1000, configurable: true });
-      const priv = component as unknown as {
-        panelService: { scrollablePanel: HTMLDivElement | null; scrollToBottom$: { emit: () => void } };
-        isAutoScroll: boolean;
-      };
-      priv.panelService.scrollablePanel = panelEl;
-      priv.isAutoScroll = true;
-      const emitSpy = vi.spyOn(priv.panelService.scrollToBottom$, 'emit');
+      Object.defineProperty(panelEl, 'clientHeight', { value: 1000, configurable: true });
+      const panelService = TestBed.inject(PanelService);
+      panelService.scrollablePanel = panelEl;
+      component.checkAutoScroll();
+      const emitSpy = vi.spyOn(panelService.scrollToBottom$, 'emit');
 
       component.scrollToBottom(false);
 
@@ -636,11 +608,9 @@ describe('ChatWindowComponent', () => {
         fixture.detectChanges();
         const panelEl = document.createElement('div');
         Object.defineProperty(panelEl, 'scrollHeight', { value: 1000, configurable: true });
-        const priv = component as unknown as {
-          panelService: { scrollablePanel: HTMLDivElement | null; scrollToBottom$: { emit: () => void } };
-        };
-        priv.panelService.scrollablePanel = panelEl;
-        const emitSpy = vi.spyOn(priv.panelService.scrollToBottom$, 'emit');
+        const panelService = TestBed.inject(PanelService);
+        panelService.scrollablePanel = panelEl;
+        const emitSpy = vi.spyOn(panelService.scrollToBottom$, 'emit');
 
         component.scrollToBottom(true); // as the "back to the bottom" button does
 
@@ -660,8 +630,7 @@ describe('ChatWindowComponent', () => {
         Object.defineProperty(panelEl, 'scrollHeight', { value: 1000, configurable: true });
         Object.defineProperty(panelEl, 'clientHeight', { value: 500, configurable: true });
         panelEl.scrollTop = 100;
-        const priv = component as unknown as { panelService: { scrollablePanel: HTMLDivElement | null } };
-        priv.panelService.scrollablePanel = panelEl;
+        TestBed.inject(PanelService).scrollablePanel = panelEl;
         component.isNearBottom.set(true);
 
         component.onAddMessage();
@@ -682,8 +651,7 @@ describe('ChatWindowComponent', () => {
         Object.defineProperty(panelEl, 'scrollHeight', { value: 1000, configurable: true });
         Object.defineProperty(panelEl, 'clientHeight', { value: 500, configurable: true });
         panelEl.scrollTop = 499;
-        const priv = component as unknown as { panelService: { scrollablePanel: HTMLDivElement | null } };
-        priv.panelService.scrollablePanel = panelEl;
+        TestBed.inject(PanelService).scrollablePanel = panelEl;
         component.isNearBottom.set(false);
 
         component.onAddMessage();
@@ -696,43 +664,54 @@ describe('ChatWindowComponent', () => {
   });
 
   describe('following only from the very bottom', () => {
-    function setPanel(scrollTop: number) {
-      const panelEl = document.createElement('div');
+    /** Stands the log's own scroller at `scrollTop` of a log 1000 high in a panel 500 high. */
+    function standAt(scrollTop: number): HTMLDivElement {
+      const panelEl = TestBed.inject(PanelService).scrollablePanel!;
       Object.defineProperty(panelEl, 'scrollHeight', { value: 1000, configurable: true });
       Object.defineProperty(panelEl, 'clientHeight', { value: 500, configurable: true });
-      panelEl.scrollTop = scrollTop;
-      const priv = component as unknown as { panelService: { scrollablePanel: HTMLDivElement | null } };
-      priv.panelService.scrollablePanel = panelEl;
-      return priv;
+      Object.defineProperty(panelEl, 'scrollTop', { value: scrollTop, configurable: true, writable: true });
+      return panelEl;
+    }
+
+    /** Whether a message arriving now takes the log down with it. */
+    function follows(): boolean {
+      const emit = vi.spyOn(TestBed.inject(PanelService).scrollToBottom$, 'emit');
+      component.scrollToBottom();
+      const followed = emit.mock.calls.length > 0;
+      emit.mockRestore();
+      return followed;
     }
 
     it('starts following from the bottom', () => {
       fixture.detectChanges();
-      const priv = setPanel(500) as unknown as { isAutoScroll: boolean };
-      priv.isAutoScroll = false;
+      standAt(470);
+      component.checkAutoScroll();
+      expect(follows()).toBe(false);
 
+      standAt(500);
       component.checkAutoScroll();
 
-      expect(priv.isAutoScroll).toBe(true);
+      expect(follows()).toBe(true);
     });
 
     it('does not follow from even a line above it', () => {
       fixture.detectChanges();
-      const priv = setPanel(470) as unknown as { isAutoScroll: boolean };
-      priv.isAutoScroll = true;
-
+      standAt(500);
       component.checkAutoScroll();
 
-      expect(priv.isAutoScroll).toBe(false);
+      standAt(470);
+      component.checkAutoScroll();
+
+      expect(follows()).toBe(false);
     });
 
     it('clears the unread badge on returning to the bottom', () => {
       fixture.detectChanges();
-      const priv = setPanel(500) as unknown as { onScrollPositionChange: () => void };
+      const panelEl = standAt(500);
       component.newMessageCount.set(3);
       component.hasNewMessage.set(true);
 
-      priv.onScrollPositionChange();
+      panelEl.dispatchEvent(new Event('scroll'));
 
       expect(component.newMessageCount()).toBe(0);
       expect(component.hasNewMessage()).toBe(false);
@@ -740,11 +719,11 @@ describe('ChatWindowComponent', () => {
 
     it('keeps the badge while it is reading above it', () => {
       fixture.detectChanges();
-      const priv = setPanel(470) as unknown as { onScrollPositionChange: () => void };
+      const panelEl = standAt(470);
       component.newMessageCount.set(3);
       component.hasNewMessage.set(true);
 
-      priv.onScrollPositionChange();
+      panelEl.dispatchEvent(new Event('scroll'));
 
       expect(component.newMessageCount()).toBe(3);
       expect(component.hasNewMessage()).toBe(true);

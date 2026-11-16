@@ -1,16 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 
-import { closePanels } from './dungeon-helpers';
-import { openPanel } from './helpers';
+import { closePanels, openPanel } from './helpers';
 import { solidPng } from './png-helpers';
-
-export type FaceHooks = {
-  surfacePageOf(surface: string, x: number, y: number): { x: number; y: number } | null;
-  surfaceSizeOf(surface: string): { width: number; height: number } | null;
-  faceAt(pageX: number, pageY: number): string | null;
-  pickAt(pageX: number, pageY: number): string | null;
-  whenIdle(): Promise<void>;
-};
 
 /**
  * Waits for the table to be drawn as it now stands: over a canvas, for the canvas to draw it and for
@@ -18,7 +9,7 @@ export type FaceHooks = {
  * which is done in a frame after the table changes.
  */
 export async function whenDrawn(page: Page): Promise<void> {
-  await page.evaluate(() => (window as unknown as { __axeTable: FaceHooks }).__axeTable.whenIdle());
+  await page.evaluate(() => window.__axeTable.whenIdle());
 }
 
 /** Shows a wall of the table with a plain picture on it, which a wall needs before it is drawn. */
@@ -47,10 +38,11 @@ export async function showWall(page: Page, wallName: string, key: string) {
 
 /** Where a point of a face, across and down it, is drawn on the page. */
 export async function pageOfFace(page: Page, surface: string, x: number, y: number): Promise<{ x: number; y: number }> {
-  const onPage = await page.evaluate(
-    ({ surface, x, y }) => (window as unknown as { __axeTable: FaceHooks }).__axeTable.surfacePageOf(surface, x, y),
-    { surface, x, y }
-  );
+  const onPage = await page.evaluate(({ surface, x, y }) => window.__axeTable.surfacePageOf(surface, x, y), {
+    surface,
+    x,
+    y,
+  });
   expect(onPage).not.toBeNull();
   return onPage!;
 }
@@ -81,10 +73,7 @@ export async function standBack(page: Page) {
   await page.mouse.move(layer.x + 5, layer.y + layer.height / 2);
   await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
   await page.mouse.move(layer.x + layer.width / 2, layer.y + layer.height / 2);
-  const camera = () =>
-    page.evaluate(() =>
-      JSON.stringify((window as unknown as { __axeTable: { camera(): unknown } }).__axeTable.camera())
-    );
+  const camera = () => page.evaluate(() => JSON.stringify(window.__axeTable.camera()));
   const before = await camera();
   for (let notch = 0; notch < 4; notch++) await page.mouse.wheel(0, 300);
   await expect.poll(camera).not.toBe(before);

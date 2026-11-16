@@ -31,6 +31,18 @@ describe('RoomInfo', () => {
     });
   });
 
+  describe('filterByPassword', () => {
+    it('keeps the peers the password lets you join, in their order', async () => {
+      const peerFor = (ok: boolean, peerId: string) =>
+        ({ peerId, verifyPassword: async () => ok }) as unknown as PeerContext;
+      const room = new RoomInfo('rm', 'Room', [peerFor(true, 'a'), peerFor(false, 'b'), peerFor(true, 'c')]);
+
+      const peers = await room.filterByPassword('pass');
+
+      expect(peers.map((peer) => peer.peerId)).toEqual(['a', 'c']);
+    });
+  });
+
   describe('listFrom', () => {
     it('returns nothing for an empty list', () => {
       const rooms = RoomInfo.listFrom([]);

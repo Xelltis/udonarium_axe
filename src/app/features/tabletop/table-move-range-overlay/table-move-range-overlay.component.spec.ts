@@ -106,7 +106,7 @@ describe('TableMoveRangeOverlayComponent', () => {
     table.initialize();
     // Chosen outright: a table first read for is adopted then and there, and the writing that
     // takes would reach the overlay later as a change to the table.
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     return table;
   }
 
@@ -358,6 +358,22 @@ describe('TableMoveRangeOverlayComponent', () => {
       expect(canvases().length).toBe(1);
       expect(painted.get(canvases()[0])?.filled).toContain(MOVE_RANGE_FILL);
     });
+  });
+
+  it('leaves the canvas as it is when handed a view that says the same as the last', () => {
+    const cells = cellsAt(cellIndexOf(grid, 2, 2));
+    const held = cellsAt(cellIndexOf(grid, 3, 3));
+    carry({ characterIdentifier: 'piece', grid, cells, held, showsReach: true });
+    fixture.detectChanges();
+    const paintedBefore = filled.length;
+
+    carry({ characterIdentifier: 'piece', grid, cells, held, showsReach: true });
+    fixture.detectChanges();
+    expect(filled.length).toBe(paintedBefore);
+
+    carry({ characterIdentifier: 'piece', grid, cells, held: null, showsReach: true });
+    fixture.detectChanges();
+    expect(filled.length).toBeGreaterThan(paintedBefore);
   });
 
   it('paints the reach alone where no enemy holds any', () => {

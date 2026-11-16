@@ -1,4 +1,5 @@
 import { Fft } from '@axe/core/audio/fft';
+import { clamp } from '@axe/core/util/clamp';
 
 /** The beat a piece of music keeps, as read from the sound. */
 export interface TempoEstimate {
@@ -214,7 +215,7 @@ function roughTempo(envelope: Float32Array, fps: number): number | null {
     const curvature = before - 2 * bestScore + after;
     if (curvature < 0) lag += (0.5 * (before - after)) / curvature;
   }
-  return Math.min(MAX_BPM, Math.max(MIN_BPM, (fps * 60) / lag));
+  return clamp((fps * 60) / lag, MIN_BPM, MAX_BPM);
 }
 
 /**
@@ -308,7 +309,7 @@ function fitBeat(
       phase = positiveModulo(candidate, periodFrames);
     }
   }
-  const sureness = Math.min(1, Math.max(0, CONFIDENCE_SCALE * correlationAt(envelope, periodFrames)));
+  const sureness = clamp(CONFIDENCE_SCALE * correlationAt(envelope, periodFrames), 0, 1);
   const confidence = lacksAccent(envelope, periodFrames) ? sureness * UNACCENTED_DOUBT : sureness;
   return { bpm: fine.bpm, phase, confidence };
 }

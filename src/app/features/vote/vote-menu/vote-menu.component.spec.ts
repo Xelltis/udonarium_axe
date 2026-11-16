@@ -27,9 +27,7 @@ describe('VoteMenuComponent', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    PeerCursor.myCursor = null!;
-    (PeerCursor as unknown as Record<string, unknown>)['userIdMap'] = new Map();
-    (PeerCursor as unknown as Record<string, unknown>)['peerIdMap'] = new Map();
+    PeerCursor.forget();
   });
 
   it('should create', () => {
@@ -38,30 +36,6 @@ describe('VoteMenuComponent', () => {
 
   it('lets the panel take the pointer again once the drag ends', async () => {
     await expectPanelDragRecovery(VoteMenuComponent);
-  });
-
-  describe('keeping track of who is picked', () => {
-    it('picks somebody who was not picked', () => {
-      component.voteBlockClick('peer-1');
-      expect(component['checkedPeers'].has('peer-1')).toBe(true);
-    });
-
-    it('unpicks somebody who was', () => {
-      component.voteBlockClick('peer-1');
-      component.voteBlockClick('peer-1');
-      expect(component['checkedPeers'].has('peer-1')).toBe(false);
-    });
-
-    it('keeps several peers apart', () => {
-      component.voteBlockClick('peer-a');
-      component.voteBlockClick('peer-b');
-      expect(component['checkedPeers'].has('peer-a')).toBe(true);
-      expect(component['checkedPeers'].has('peer-b')).toBe(true);
-
-      component.voteBlockClick('peer-a');
-      expect(component['checkedPeers'].has('peer-a')).toBe(false);
-      expect(component['checkedPeers'].has('peer-b')).toBe(true);
-    });
   });
 
   describe('onChangeType', () => {
@@ -183,8 +157,7 @@ describe('VoteMenuComponent', () => {
 
   describe('selectedList', () => {
     it('returns who is picked', () => {
-      component['checkedPeers'].add('peer-1');
-      component['checkedPeers'].add('peer-2');
+      component['checkedPeers'].set(['peer-1', 'peer-2']);
       component.includSelf = false;
       const list = component.selectedList();
       expect(list).toContain('peer-1');
@@ -193,7 +166,7 @@ describe('VoteMenuComponent', () => {
     });
 
     it('leaves the caller out when they ask to be left out', () => {
-      component['checkedPeers'].add('peer-1');
+      component['checkedPeers'].set(['peer-1']);
       component.includSelf = false;
       const list = component.selectedList();
       expect(list).toEqual(['peer-1']);
@@ -202,46 +175,53 @@ describe('VoteMenuComponent', () => {
 
   describe('selectedNum', () => {
     it('counts them', () => {
-      component['checkedPeers'].add('peer-1');
+      component['checkedPeers'].set(['peer-1']);
       component.includSelf = false;
       expect(component.selectedNum()).toBe(1);
     });
   });
 
-  describe('isPeerIsDisConnect', () => {
-    it('is false for a peer still connected', () => {
-      const cursor = new PeerCursor();
-      cursor.initialize();
-      cursor.peerId = 'connected-peer';
-      cursor.isDisConnect = false;
-
-      expect(component.isPeerIsDisConnect('connected-peer')).toBe(false);
-    });
-
-    it('is true for one that has dropped', () => {
-      const cursor = new PeerCursor();
-      cursor.initialize();
-      cursor.peerId = 'disconnected-peer';
-      cursor.isDisConnect = true;
-
-      expect(component.isPeerIsDisConnect('disconnected-peer')).toBe(true);
-    });
-
-    it('is true for one that was never there', () => {
-      expect(component.isPeerIsDisConnect('nonexistent')).toBe(true);
-    });
-  });
-
-  describe('setDefaultCheck', () => {
-    it('leaves a dropped peer out of the picked', () => {
-      const cursor = new PeerCursor();
-      cursor.initialize();
-      cursor.peerId = 'disc-peer';
-      cursor.isDisConnect = true;
+  describe('who is picked to start with', () => {
+    it('picks the peers still in the room and leaves a dropped one out', () => {
+      for (const [peerId, dropped] of [
+        ['here-peer', false],
+        ['disc-peer', true],
+      ] as const) {
+        const cursor = new PeerCursor();
+        cursor.initialize();
+        cursor.peerId = peerId;
+        cursor.isDisConnect = dropped;
+      }
+      vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
+        { peerId: 'here-peer' },
+        { peerId: 'disc-peer' },
+      ] as typeof Network.instance.peerContexts);
 
       component.setDefaultCheck();
 
-      expect(component['checkedPeers'].has('disc-peer')).toBe(false);
+      expect(component['checkedPeers']()).toEqual(['here-peer']);
+    });
+
+    it('picks and lets go of a peer from a click on their row', async () => {
+      const cursor = new PeerCursor();
+      cursor.initialize();
+      cursor.peerId = 'row-peer';
+      cursor.isDisConnect = false;
+      vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
+        { peerId: 'row-peer' },
+      ] as typeof Network.instance.peerContexts);
+      component.setDefaultCheck();
+      component.includSelf = false;
+      fixture.detectChanges();
+      const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-peer-id="row-peer"]')!;
+
+      row.click();
+      await fixture.whenStable();
+      expect(component.selectedList()).toEqual([]);
+
+      row.click();
+      await fixture.whenStable();
+      expect(component.selectedList()).toEqual(['row-peer']);
     });
   });
 });

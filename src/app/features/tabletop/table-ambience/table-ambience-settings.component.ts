@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
+import { clamp, clamp01 } from '@axe/core/util/clamp';
 import {
   AMBIENCE_BRIGHTNESS,
   AmbienceBrightness,
@@ -31,12 +33,30 @@ const MAX_CELLS = 100;
 })
 export class TableAmbienceSettingsComponent {
   private readonly t = inject(TRANSLATE_FN);
+  private readonly objectChange = inject(ObjectChangeService);
 
   constructor() {
     closeWhenOffTheTable();
   }
 
   target: TableAmbience | null = null;
+
+  /** The ambience being set, read through its version so a change from the menu or another seat redraws the panel. */
+  private area(): TableAmbience | null {
+    const target = this.target;
+    if (target) this.objectChange.versionOf(target.identifier)();
+    return target;
+  }
+
+  /** Writes a share of the ambience from a percentage, whole and held between 0 and 100, and sends it to the room. */
+  private setPercent(
+    key: 'turbidity' | 'dirtiness' | 'floatingLeaves' | 'flowSpeed' | 'iceCover',
+    value: number
+  ): void {
+    if (!this.target) return;
+    this.target[key] = clamp01(Math.round(Number(value)) / 100);
+    this.target.update();
+  }
 
   readonly kinds = GROUND_AMBIENCE_KINDS;
 
@@ -47,7 +67,7 @@ export class TableAmbienceSettingsComponent {
 
   /** The ambience's name as shown on the table. */
   get name(): string {
-    return this.target?.name ?? '';
+    return this.area()?.name ?? '';
   }
   set name(value: string) {
     if (this.target) this.target.name = value;
@@ -55,7 +75,7 @@ export class TableAmbienceSettingsComponent {
 
   /** Which kind of ground ambience is drawn, such as a swamp; a change is sent to the room. */
   get kind(): string {
-    return this.target?.kind ?? 'swamp';
+    return this.area()?.kind ?? 'swamp';
   }
   set kind(value: string) {
     if (!this.target) return;
@@ -65,7 +85,7 @@ export class TableAmbienceSettingsComponent {
 
   /** How dense the ambience is, as a percentage; a change is sent to the room. */
   get densityPercent(): number {
-    return Math.round((this.target?.density ?? 0) * 100);
+    return Math.round((this.area()?.density ?? 0) * 100);
   }
   set densityPercent(value: number) {
     if (!this.target) return;
@@ -80,41 +100,37 @@ export class TableAmbienceSettingsComponent {
    * it. A field left empty, as while a new depth is typed, changes nothing.
    */
   get surfaceCells(): number {
-    return this.target?.surface ?? 0;
+    return this.area()?.surface ?? 0;
   }
   set surfaceCells(value: number | null) {
     if (!this.target || value === null || `${value}`.trim() === '') return;
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return;
-    this.target.surfaceHeight = Math.min(Math.max(Math.round(numeric * 10) / 10, 0), MAX_SURFACE_CELLS);
+    this.target.surfaceHeight = clamp(Math.round(numeric * 10) / 10, 0, MAX_SURFACE_CELLS);
     this.target.update();
   }
 
   /** How murky the water is, as a percentage; a change is sent to the room. Only water shows it. */
   get turbidityPercent(): number {
-    return Math.round((this.target?.murk ?? 0) * 100);
+    return Math.round((this.area()?.murk ?? 0) * 100);
   }
   set turbidityPercent(value: number) {
-    if (!this.target) return;
-    this.target.turbidity = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
-    this.target.update();
+    this.setPercent('turbidity', value);
   }
 
   /** How dirty the water is, as a percentage; a change is sent to the room. Only water shows it. */
   get dirtPercent(): number {
-    return Math.round((this.target?.dirt ?? 0) * 100);
+    return Math.round((this.area()?.dirt ?? 0) * 100);
   }
   set dirtPercent(value: number) {
-    if (!this.target) return;
-    this.target.dirtiness = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
-    this.target.update();
+    this.setPercent('dirtiness', value);
   }
 
   protected readonly waterPresets = WATER_PRESET_IDS;
 
   /** Which of the looks water can be given it has, or null where its settings match none of them. */
   get waterPreset(): WaterPresetId | null {
-    const target = this.target;
+    const target = this.area();
     return target ? waterPresetOf(target.ambienceColor, target.murk, target.dirt, target.leaves) : null;
   }
   set waterPreset(id: WaterPresetId | null) {
@@ -129,12 +145,10 @@ export class TableAmbienceSettingsComponent {
 
   /** How much of the water floating leaves cover, as a percentage; a change is sent to the room. Only water shows it. */
   get leavesPercent(): number {
-    return Math.round((this.target?.leaves ?? 0) * 100);
+    return Math.round((this.area()?.leaves ?? 0) * 100);
   }
   set leavesPercent(value: number) {
-    if (!this.target) return;
-    this.target.floatingLeaves = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
-    this.target.update();
+    this.setPercent('floatingLeaves', value);
   }
 
   /** The ways water can be set to flow. */
@@ -142,12 +156,10 @@ export class TableAmbienceSettingsComponent {
 
   /** How fast the water flows, as a percentage; a change is sent to the room. Only water shows it. */
   get flowSpeedPercent(): number {
-    return Math.round((this.target?.flow ?? 0) * 100);
+    return Math.round((this.area()?.flow ?? 0) * 100);
   }
   set flowSpeedPercent(value: number) {
-    if (!this.target) return;
-    this.target.flowSpeed = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
-    this.target.update();
+    this.setPercent('flowSpeed', value);
   }
 
   /**
@@ -155,17 +167,15 @@ export class TableAmbienceSettingsComponent {
    * shows it: frozen, it is drawn as ice, still and pale.
    */
   get icePercent(): number {
-    return Math.round((this.target?.ice ?? 0) * 100);
+    return Math.round((this.area()?.ice ?? 0) * 100);
   }
   set icePercent(value: number) {
-    if (!this.target) return;
-    this.target.iceCover = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
-    this.target.update();
+    this.setPercent('iceCover', value);
   }
 
   /** Which way the water flows, in degrees clockwise from the top of the table; a change is sent to the room. */
   get flowDirection(): number {
-    return this.target?.flowHeading ?? 0;
+    return this.area()?.flowHeading ?? 0;
   }
   set flowDirection(value: number) {
     if (!this.target) return;
@@ -185,7 +195,7 @@ export class TableAmbienceSettingsComponent {
 
   /** The default colour is shown as the field's initial value, so it can be left unset. */
   get color(): string {
-    return this.target?.color ?? ambiencePalette('swamp').primary;
+    return this.area()?.color ?? ambiencePalette('swamp').primary;
   }
   set color(value: string) {
     if (!this.target) return;
@@ -195,7 +205,7 @@ export class TableAmbienceSettingsComponent {
 
   /** Whether no colour of its own is set, which disables the reset button. */
   get isDefaultColor(): boolean {
-    return (this.target?.ambienceColor ?? '').trim().length < 1;
+    return (this.area()?.ambienceColor ?? '').trim().length < 1;
   }
 
   /** Clears the ambience's own colour so it goes back to its kind's default, from the reset button. */
@@ -207,7 +217,7 @@ export class TableAmbienceSettingsComponent {
 
   /** How many cells wide the ambience is, held between 1 and 100. */
   get width(): number {
-    return this.target?.width ?? 1;
+    return this.area()?.width ?? 1;
   }
   set width(value: number) {
     if (this.target) this.target.width = clampCells(value);
@@ -215,7 +225,7 @@ export class TableAmbienceSettingsComponent {
 
   /** How many cells tall the ambience is, held between 1 and 100. */
   get height(): number {
-    return this.target?.height ?? 1;
+    return this.area()?.height ?? 1;
   }
   set height(value: number) {
     if (this.target) this.target.height = clampCells(value);
@@ -226,7 +236,7 @@ export class TableAmbienceSettingsComponent {
 
   /** Who the look is drawn for: the master alone, whoever can see it, or the whole room. */
   get shownTo(): ShownTo {
-    return this.target?.shows ?? 'room';
+    return this.area()?.shows ?? 'room';
   }
   set shownTo(value: ShownTo) {
     if (this.target) this.target.shownTo = value;
@@ -239,7 +249,7 @@ export class TableAmbienceSettingsComponent {
 
   /** How bright the ground under it is held, whatever the rest of the table is lit by. */
   get brightness(): AmbienceBrightness {
-    return this.target?.shade ?? DEFAULT_AMBIENCE_BRIGHTNESS;
+    return this.area()?.shade ?? DEFAULT_AMBIENCE_BRIGHTNESS;
   }
   set brightness(value: AmbienceBrightness) {
     if (this.target) this.target.brightness = value;
@@ -252,7 +262,7 @@ export class TableAmbienceSettingsComponent {
 
   /** Whether nobody sees through it, which is what tells a bank of fog from a picture of one. */
   get blocksSight(): boolean {
-    return this.target?.blocksSight ?? false;
+    return this.area()?.blocksSight ?? false;
   }
   set blocksSight(value: boolean) {
     if (this.target) this.target.blocksSight = value;
@@ -260,7 +270,7 @@ export class TableAmbienceSettingsComponent {
 
   /** Whether the ambience is locked in place on the table. */
   get isLock(): boolean {
-    return this.target?.isLock ?? false;
+    return this.area()?.isLock ?? false;
   }
   set isLock(value: boolean) {
     if (this.target) this.target.isLock = value;
@@ -270,5 +280,5 @@ export class TableAmbienceSettingsComponent {
 function clampCells(value: number): number {
   const numeric = Math.round(Number(value));
   if (!Number.isFinite(numeric)) return 1;
-  return Math.min(Math.max(numeric, 1), MAX_CELLS);
+  return clamp(numeric, 1, MAX_CELLS);
 }

@@ -175,12 +175,6 @@ export class MapEditorState {
   }
 
   /**
-   * Marks the start of a stroke or drag; it does nothing, since the step is recorded when the
-   * gesture ends.
-   */
-  beginGesture(): void {}
-
-  /**
    * Records the scene as it stands as one undoable step, dropping anything that could have been
    * redone.
    */
@@ -510,16 +504,19 @@ export class MapEditorState {
     return created;
   }
 
-  /** Adds an empty layer on top and makes it active, as one undoable step. */
-  addEmptyLayer(kind: LayerKind, name: string): MapLayer {
+  /**
+   * Adds an empty layer on top and makes it active, as one undoable step. Left unnamed, it is named
+   * as a layer made for new work is: after its kind, with a count no other layer goes by.
+   */
+  addEmptyLayer(kind: LayerKind, name: string = this.autoLayerName(kind)): MapLayer {
     const created = createLayer(kind, name);
     this.applyCommitted((scene) => addLayer(scene, created));
     this.activeLayerId.set(created.id);
     return created;
   }
 
-  /** Starts a layer for a role by hand, wearing the brush that is in hand. */
-  addEmptyFunctionLayer(role: MapFunctionRole, name: string): FunctionLayer {
+  /** Starts a layer for a role by hand, wearing the brush that is in hand; left unnamed, named after the role. */
+  addEmptyFunctionLayer(role: MapFunctionRole, name: string = this.autoLayerName('function', role)): FunctionLayer {
     const created = createLayer('function', name) as FunctionLayer;
     created.role = role;
     created.spec = { ...this.functionSpec() };
@@ -739,9 +736,11 @@ export class MapEditorState {
 
   /**
    * The selected item together with its layer, or null when nothing is selected or the item is
-   * gone.
+   * gone. It follows the scene as well as the selection, so a view that reads it is drawn again when
+   * the item is changed or undone.
    */
   selectedItem(): { layer: MapLayer; item: ShapeItem | StampItem | TextItem | ImageItem | FreehandStroke } | null {
+    this.tick();
     const sel = this.selection();
     if (!sel) return null;
     const layer = this.findLayerById(sel.layerId);
@@ -767,6 +766,24 @@ export class MapEditorState {
       return item ? { layer, item } : null;
     }
     return null;
+  }
+
+  /** The selected stamp, or null when what is selected is not a stamp. */
+  selectedStamp(): StampItem | null {
+    const selected = this.selectedItem();
+    return selected?.layer.kind === 'stamp' ? (selected.item as StampItem) : null;
+  }
+
+  /** The selected image, or null when what is selected is not an image. */
+  selectedImage(): ImageItem | null {
+    const selected = this.selectedItem();
+    return selected?.layer.kind === 'image' ? (selected.item as ImageItem) : null;
+  }
+
+  /** The selected freehand stroke, or null when what is selected is not one. */
+  selectedFreehand(): FreehandStroke | null {
+    const selected = this.selectedItem();
+    return selected?.layer.kind === 'freehand' ? (selected.item as FreehandStroke) : null;
   }
 
   /**

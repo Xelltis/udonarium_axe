@@ -1,7 +1,6 @@
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import type { ReplayBoardPiece, ReplayBoardScene } from '@axe/domain/replay/replay-board-view';
 import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
-import type { ReplayCameraFrame } from '@axe/domain/replay/video/replay-video-camera';
 import { replayVideoLayout } from '@axe/domain/replay/video/replay-video-layout';
 import {
   buildReplayVideoTimeline,
@@ -235,10 +234,9 @@ describe('drawing a replay video', () => {
       assets: noPictures,
       fontFamily: 'sans-serif',
     });
-    const camera = renderer as unknown as { cameraAt(index: number, localMs: number): ReplayCameraFrame };
 
     for (const index of [1, 2, 3]) {
-      expect(camera.cameraAt(index, 0)).toEqual(camera.cameraAt(index - 1, segments[index - 1].durationMs));
+      expect(renderer.cameraAt(index, 0)).toEqual(renderer.cameraAt(index - 1, segments[index - 1].durationMs));
     }
   });
 

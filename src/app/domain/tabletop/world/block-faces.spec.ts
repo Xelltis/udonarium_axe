@@ -62,6 +62,81 @@ describe('the faces of the blocks', () => {
     expect(faces(block()).caps[0].zPx).toBe(100);
   });
 
+  describe('the faces marked as a sheet’s', () => {
+    function sized(width: number, depth: number, height: number): Terrain {
+      const terrain = Terrain.create('sheet', width, depth, height, 'poster', 'grass');
+      terrain.location = { name: 'table', x: 100, y: 100 };
+      made.push(terrain);
+      return terrain;
+    }
+
+    it('marks none of the faces of a block with thickness every way', () => {
+      const hanging = block();
+      hanging.altitude = 1;
+
+      for (const terrain of [block(), hanging]) {
+        const { walls, caps } = faces(terrain);
+        expect([...walls, ...caps].filter((face) => face.sheet !== undefined)).toEqual([]);
+      }
+    });
+
+    it('draws the sides of a block as wide or as deep as nothing from outside only, and its top from both sides', () => {
+      for (const terrain of [sized(0, 2, 2), sized(2, 0, 2)]) {
+        const { walls, caps } = faces(terrain);
+        expect(walls).toHaveLength(4);
+        expect(walls.map((wall) => wall.sheet)).toEqual(['outside', 'outside', 'outside', 'outside']);
+        expect(caps.map((cap) => cap.sheet)).toEqual(['both']);
+      }
+    });
+
+    it('draws the top of a block as high as nothing lying on the floor from both sides', () => {
+      const { walls, caps } = faces(sized(2, 1, 0));
+
+      expect(walls).toEqual([]);
+      expect(caps.map((cap) => [cap.facing, cap.sheet])).toEqual([['up', 'both']]);
+    });
+
+    it('draws the top and the underside of a block as high as nothing hanging above the floor from outside only', () => {
+      const hanging = sized(2, 1, 0);
+      hanging.altitude = 1;
+      const sloped = sized(2, 1, 0);
+      sloped.altitude = 1;
+      sloped.slopeSides = ['e'];
+
+      for (const terrain of [hanging, sloped]) {
+        const { caps } = faces(terrain);
+        expect(caps.map((cap) => [cap.facing, cap.sheet, cap.zPx])).toEqual([
+          ['up', 'outside', 50 + SHEET_LIFT_PX],
+          ['down', 'outside', 50],
+        ]);
+      }
+    });
+
+    it('marks a sheet on a hex table as on a square one, a block of hex cells having thickness both ways across', () => {
+      const onHex = (terrain: Terrain) => blockFacesOf([terrain], GRID, GridType.HEX_VERTICAL, picture);
+
+      expect(onHex(sized(0, 2, 2)).walls.map((wall) => wall.sheet)).toEqual([
+        'outside',
+        'outside',
+        'outside',
+        'outside',
+      ]);
+      const cells = onHex(sized(1, 1, 2));
+      expect(cells.walls).toHaveLength(6);
+      expect([...cells.walls, ...cells.caps].filter((face) => face.sheet !== undefined)).toEqual([]);
+      expect(onHex(sized(1, 1, 0)).caps.map((cap) => cap.sheet)).toEqual(['both']);
+    });
+
+    it('marks a glass sheet as any other', () => {
+      const glass = Terrain.create('pane', 2, 0, 2, '', '');
+      glass.location = { name: 'table', x: 100, y: 100 };
+      made.push(glass);
+
+      const { walls } = faces(glass);
+      expect(walls.every((wall) => wall.glass && wall.sheet === 'outside')).toBe(true);
+    });
+  });
+
   it('lifts a block by as far as the raised ground under it lifts it', () => {
     const { walls, caps } = blockFacesOf(
       [block()],

@@ -1,0 +1,211 @@
+@let c = current();
+<div class="flex w-full flex-col gap-3 p-2">
+  <section class="flex flex-wrap items-center justify-end gap-2">
+    <button
+      class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.75 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
+      [class.bg-ui-accent-bg!]="isEdit()"
+      [class.border-ui-accent!]="isEdit()"
+      [class.text-ui-accent!]="isEdit()"
+      type="button"
+      (click)="editToggled.emit()"
+    >
+      <i class="material-icons">edit_note</i>
+      {{ 'feature.inventory.sheet.toggleEdit' | transloco }}
+    </button>
+    <sheet-save-buttons
+      [saving]="saving()"
+      [percent]="percent()"
+      (copyPressed)="copyPressed.emit()"
+      (savePressed)="savePressed.emit()"
+    />
+  </section>
+
+  <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2.5 border border-solid p-3">
+    <header
+      class="border-ui-border-panel text-ui-accent flex items-center gap-1.5 border-b border-solid pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-base!"
+    >
+      <i class="material-icons">info</i>
+      {{ 'feature.inventory.sheet.basicInfo' | transloco }}
+    </header>
+    <div class="flex flex-wrap items-start gap-4">
+      <div class="flex shrink-0 gap-3">
+        <div class="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            class="group bg-ui-input border-ui-border-panel hover:border-ui-accent rounded-ui-sm relative aspect-2/3 h-32 cursor-pointer overflow-hidden border border-solid bg-contain bg-center bg-no-repeat p-0 shadow-sm transition-[border-color,transform,box-shadow] hover:scale-[1.04] hover:shadow-md"
+            [style.background-image]="'url(' + $safeNavigationMigration(c.frontImage?.url) + ')' | safe: 'style'"
+            [attr.title]="'feature.inventory.sheet.changeFrontImage' | transloco"
+            (click)="imagePick.emit('front')"
+          >
+            <span
+              class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 [&_.material-icons]:text-[28px]!"
+            >
+              <i class="material-icons">edit</i>
+            </span>
+          </button>
+          <span class="text-ui-muted text-[0.7em]">{{ 'feature.card.faceLabel.front' | transloco }}</span>
+        </div>
+        <div class="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            class="group bg-ui-input border-ui-border-panel hover:border-ui-accent rounded-ui-sm relative aspect-2/3 h-32 cursor-pointer overflow-hidden border border-solid bg-contain bg-center bg-no-repeat p-0 shadow-sm transition-[border-color,transform,box-shadow] hover:scale-[1.04] hover:shadow-md"
+            [style.background-image]="'url(' + $safeNavigationMigration(c.backImage?.url) + ')' | safe: 'style'"
+            [attr.title]="'feature.inventory.sheet.changeBackImage' | transloco"
+            (click)="imagePick.emit('back')"
+          >
+            <span
+              class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 [&_.material-icons]:text-[28px]!"
+            >
+              <i class="material-icons">edit</i>
+            </span>
+          </button>
+          <span class="text-ui-muted text-[0.7em]">{{ 'feature.card.faceLabel.back' | transloco }}</span>
+        </div>
+      </div>
+      <div class="flex min-w-0 flex-1 flex-col gap-2">
+        <label class="flex flex-col gap-1 text-[0.78em]">
+          <span class="text-ui-muted">{{ 'feature.card.field.name' | transloco }}</span>
+          <input
+            type="text"
+            class="border-ui-border-panel bg-ui-input text-ui-text rounded-ui-sm focus:border-ui-accent w-full border border-solid px-2 py-1 text-[0.95em] transition-colors outline-none"
+            [value]="cardOwnName(c)"
+            (change)="setCardOwnName(c, $event)"
+          />
+        </label>
+        <label class="flex flex-col gap-1 text-[0.78em]">
+          <span class="text-ui-muted">{{ 'feature.card.field.size' | transloco }}</span>
+          <input
+            type="number"
+            min="1"
+            max="20"
+            class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent w-24 border border-solid px-2 py-1 text-[0.95em] transition-colors outline-none"
+            [value]="cardOwnSize(c)"
+            (change)="setCardOwnSize(c, $event)"
+          />
+        </label>
+        @if (canReadCardFace(c)) {
+          <label class="flex flex-col gap-1 text-[0.78em]">
+            <span class="text-ui-muted">{{ 'feature.card.field.text' | transloco }}</span>
+            <textarea
+              class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent min-h-20 w-full resize-y border border-solid px-2 py-1 outline-none"
+              [value]="cardOwnFaceText(c)"
+              (input)="setCardOwnFaceText(c, $event)"
+              (blur)="flushCardOwnFaceText()"
+            ></textarea>
+            <span class="text-ui-dim text-[0.72em]">{{ 'feature.card.field.textHint' | transloco }}</span>
+          </label>
+          <label class="flex items-center gap-2 text-[0.78em]">
+            <span class="text-ui-muted">{{ 'feature.card.field.fontSize' | transloco }}</span>
+            <input
+              type="number"
+              min="1"
+              max="120"
+              class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent w-20 border border-solid p-1 outline-none"
+              [value]="cardOwnFaceFontSize(c)"
+              (input)="setCardOwnFaceFontSize(c, $event)"
+            />
+          </label>
+          <label class="flex items-center gap-2 text-[0.78em]">
+            <span class="text-ui-muted">{{ 'feature.card.field.fontColor' | transloco }}</span>
+            <input
+              type="color"
+              class="bg-ui-input border-ui-border-panel rounded-ui-sm focus:border-ui-accent h-8 w-14 cursor-pointer border border-solid p-0.5 outline-none"
+              [value]="cardOwnFaceFontColor(c)"
+              (input)="setCardOwnFaceFontColor(c, $event)"
+            />
+          </label>
+        } @else {
+          <div
+            class="text-ui-muted bg-ui-input border-ui-border-panel flex min-h-20 items-center justify-center gap-1.5 rounded-md border border-solid px-3 py-2 text-[0.78em]"
+            data-card-face-locked
+          >
+            <i class="material-icons text-[16px]!">lock</i>
+            <span>{{ 'feature.disclosure.locked' | transloco }}</span>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2 border border-solid p-3">
+    <header
+      class="border-ui-border-panel text-ui-accent flex items-center gap-1.5 border-b border-solid pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-base!"
+    >
+      <i class="material-icons">aspect_ratio</i>
+      {{ 'feature.inventory.sheet.display' | transloco }}
+    </header>
+    <label class="text-ui-muted flex items-center gap-2 text-[0.78em]">
+      <span class="text-ui-text w-24 shrink-0">{{ 'feature.inventory.sheet.popupWidth' | transloco }}</span>
+      <input
+        type="range"
+        class="flex-1 cursor-pointer"
+        min="250"
+        max="1000"
+        name="card-overview-width-range"
+        [(ngModel)]="c.overViewWidth"
+      />
+      <input
+        type="number"
+        class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm w-18 border border-solid px-1 py-0.5"
+        min="250"
+        max="1000"
+        name="card-overview-width-number"
+        [(ngModel)]="c.overViewWidth"
+        (change)="onChkPopWidth($event)"
+      />
+    </label>
+    <label class="text-ui-muted flex items-center gap-2 text-[0.78em]">
+      <span class="text-ui-text w-24 shrink-0">{{ 'feature.inventory.sheet.popupMaxHeight' | transloco }}</span>
+      <input
+        type="range"
+        class="flex-1 cursor-pointer"
+        min="250"
+        max="1000"
+        name="card-overview-height-range"
+        [(ngModel)]="c.overViewMaxHeight"
+      />
+      <input
+        type="number"
+        class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm w-18 border border-solid px-1 py-0.5"
+        min="250"
+        max="1000"
+        name="card-overview-height-number"
+        [(ngModel)]="c.overViewMaxHeight"
+        (change)="onChkPopMaxHeight($event)"
+      />
+    </label>
+  </section>
+
+  @if (c.detailDataElement && (c.detailDataElement.children.length > 0 || isEdit())) {
+    <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2 border border-solid p-3">
+      <header
+        class="border-ui-border-panel text-ui-accent flex items-center gap-1.5 border-b border-solid pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-base!"
+      >
+        <i class="material-icons">extension</i>
+        {{ 'feature.inventory.sheet.gameData' | transloco }}
+      </header>
+      @for (childElement of c.detailDataElement.children; track childElement.identifier) {
+        <div class="bg-ui-elevated border-ui-border-panel rounded-ui-sm border border-solid px-2.5 py-2">
+          <div class="box-border table w-full">
+            <div
+              class="[&>div]:border-ui-border-panel box-border table-row [&>div]:box-border [&>div]:table-cell [&>div]:border [&>div]:border-solid [&>div]:align-top"
+              game-data-element
+              [gameDataElement]="childElement"
+              [isEdit]="isEdit()"
+            ></div>
+          </div>
+        </div>
+      }
+      @if (isEdit()) {
+        <button
+          class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex w-full cursor-pointer items-center justify-center gap-0.75 border border-dashed px-2 py-1.5 text-[0.78em] leading-[1.4] whitespace-nowrap transition-[background,color] [&_.material-icons]:text-[13px]!"
+          type="button"
+          (click)="addPressed.emit()"
+        >
+          <i class="material-icons">add</i>
+          {{ 'feature.inventory.sheet.addNewItem' | transloco }}
+        </button>
+      }
+    </section>
+  }
+</div>

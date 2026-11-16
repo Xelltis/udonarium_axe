@@ -1,5 +1,6 @@
 import type { TranslateFn } from '@axe/application/i18n/translate.token';
 import type { ImageStorage } from '@axe/core/storage/image-storage';
+import { clamp } from '@axe/core/util/clamp';
 import { stampArtUrl, stampLabelKey, StampMotion, stampNameKey, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { SEAL_FILTER_ID, sealStampSvg } from '@axe/domain/chat/stamp-glyphs';
 import { escapeHtml } from '@axe/ui/text-decoration/decorate-chat-text';
@@ -97,7 +98,7 @@ export function stampViewOf(stampId: string, source: StampViewSource, writtenAs 
 /** How large words are written for a box of the size given: smaller the more there are, within bounds. */
 export function stampWordsSize(words: string, box: number): number {
   const length = Math.max(2, Array.from(words).length);
-  return Math.round(box * Math.max(0.24, Math.min(0.6, 1.25 / length)));
+  return Math.round(box * clamp(1.25 / length, 0.24, 0.6));
 }
 
 /** How many stamps have been written out, for each to give its seal's filter an id of its own. */

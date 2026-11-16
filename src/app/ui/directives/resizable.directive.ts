@@ -1,6 +1,7 @@
 import { afterNextRender, DestroyRef, Directive, ElementRef, inject, input, output } from '@angular/core';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { CSSNumber } from '@axe/core/transform/css-number';
+import { screenDeltaToElementDelta } from '@axe/core/transform/screen-delta';
 import { HandleType, ResizeHandler } from '@axe/ui/directives/resize-handler';
 
 interface BoxSize {
@@ -8,21 +9,6 @@ interface BoxSize {
   top: number;
   width: number;
   height: number;
-}
-
-/**
- * Turns a pointer movement on screen into the same movement along the axes of an element that
- * is turned by `rotationDegrees`, so dragging a turned panel's edge grows it the way it points.
- */
-export function screenDeltaToElementDelta(x: number, y: number, rotationDegrees: number): PointerCoordinate {
-  const radians = (-rotationDegrees * Math.PI) / 180;
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-  return {
-    x: x * cos - y * sin,
-    y: x * sin + y * cos,
-    z: 0,
-  };
 }
 
 /**
@@ -109,21 +95,21 @@ export class ResizableDirective {
     this.handleTypes.forEach((type) => {
       const handle = new ResizeHandler(this.elementRef.nativeElement, type);
       this.handleMap.set(type, handle);
-      handle.input!.onStart = (ev) => this.onResizeStart(ev, handle);
-      handle.input!.onMove = (ev) => this.onResizeMove(ev, handle);
-      handle.input!.onEnd = (ev) => this.onResizeEnd(ev, handle);
-      handle.input!.onContextMenu = (ev) => this.onContextMenu(ev, handle);
+      handle.input.onStart = (ev) => this.onResizeStart(ev, handle);
+      handle.input.onMove = (ev) => this.onResizeMove(ev, handle);
+      handle.input.onEnd = (ev) => this.onResizeEnd(ev, handle);
+      handle.input.onContextMenu = (ev) => this.onContextMenu(ev, handle);
     });
   }
 
   /** Lets go of any resize in progress on every edge and corner. */
   cancel() {
-    this.handleMap.forEach((handle) => handle.input!.cancel());
+    this.handleMap.forEach((handle) => handle.input.cancel());
   }
 
   /** Stops listening on every edge and corner handle. The handle elements stay in place. */
   destroy() {
-    this.handleMap.forEach((handle) => handle.input!.destroy());
+    this.handleMap.forEach((handle) => handle.input.destroy());
   }
 
   private onResizeStart(e: MouseEvent | TouchEvent, handle: ResizeHandler) {
@@ -131,11 +117,11 @@ export class ResizableDirective {
     if ((e as MouseEvent).button === 1 || (e as MouseEvent).button === 2) return this.cancel();
     this.setForeground();
     this.handleMap.forEach((h) => {
-      if (h !== handle) h.input!.cancel();
+      if (h !== handle) h.input.cancel();
     });
 
     this.startPosition = this.calcElementPosition(this.elementRef.nativeElement);
-    this.startPointer = handle.input!.pointer;
+    this.startPointer = handle.input.pointer;
     this.prevTrans = { left: 0, top: 0, width: 0, height: 0 };
 
     this.ostart.emit(e);
@@ -144,8 +130,8 @@ export class ResizableDirective {
 
   private onResizeMove(e: MouseEvent | TouchEvent, handle: ResizeHandler) {
     const localDelta = screenDeltaToElementDelta(
-      handle.input!.pointer.x - this.startPointer.x,
-      handle.input!.pointer.y - this.startPointer.y,
+      handle.input.pointer.x - this.startPointer.x,
+      handle.input.pointer.y - this.startPointer.y,
       this.rotation()
     );
     const trans: BoxSize = {
@@ -228,7 +214,7 @@ export class ResizableDirective {
   }
 
   private onResizeEnd(e: MouseEvent | TouchEvent, handle: ResizeHandler) {
-    if (handle.input!.isDragging && e.cancelable) e.preventDefault();
+    if (handle.input.isDragging && e.cancelable) e.preventDefault();
     this.onend.emit(e);
     e.stopPropagation();
   }

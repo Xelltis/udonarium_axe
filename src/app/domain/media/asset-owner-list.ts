@@ -61,5 +61,5 @@ export class AssetOwnerList extends ObjectNode implements InnerXml {
 }
 
 function kindOf(value: string | null): AssetRemovalKind {
-  return value === 'audio' ? 'audio' : 'image';
+  return value === 'audio' || value === 'model' ? value : 'image';
 }

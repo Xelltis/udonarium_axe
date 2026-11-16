@@ -1,7 +1,6 @@
 import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 import {
   formatReplayElapsed,
-  formatReplayTime,
   renderReplayLogLine,
   replayLineParams,
   type ReplayNameLookup,
@@ -30,13 +29,6 @@ function event(
     ...overrides,
   };
 }
-
-describe('formatReplayTime()', () => {
-  it('writes a time as hours, minutes and seconds', () => {
-    const at = new Date(2026, 0, 1, 9, 5, 3).getTime();
-    expect(formatReplayTime(at)).toBe('09:05:03');
-  });
-});
 
 describe('formatReplayElapsed()', () => {
   it('writes an elapsed time the same way', () => {

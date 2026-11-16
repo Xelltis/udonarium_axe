@@ -4,7 +4,11 @@ import {
   ContextMenuRadialGroup,
   ContextMenuSeparator,
 } from '@axe/application/ui/context-menu.service';
-import { buildCopyAction, buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
+import {
+  buildCopyAction,
+  buildDeleteAction,
+  buildLockToggleAction,
+} from '@axe/application/ui/tabletop-context-menu-actions';
 import { AMBIENCE_BRIGHTNESS } from '@axe/domain/effect/ambience/ambience-brightness';
 import { GROUND_AMBIENCE_KINDS } from '@axe/domain/effect/ambience/ambience-kind';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -23,16 +27,6 @@ const SIZE_STEPS: readonly number[] = [2, 4, 6, 10, 16, 24];
 export interface TableAmbienceContextMenuModel {
   actions: ContextMenuAction[];
   radialGroups: ContextMenuRadialGroup[];
-}
-
-/** The flat list of a ground ambience's right-click menu entries, without the radial menu's grouping. */
-export function buildTableAmbienceContextMenu(
-  ambience: TableAmbience,
-  gridSize: number,
-  onEdit: () => void,
-  t: TranslateFn
-): ContextMenuAction[] {
-  return buildTableAmbienceContextMenuModel(ambience, gridSize, onEdit, t).actions;
 }
 
 /**
@@ -125,13 +119,7 @@ export function buildTableAmbienceContextMenuModel(
     sound: PresetSound.cardPut,
     afterClone: (clone) => (clone.isLock = false),
   });
-  const deleteAction: ContextMenuAction = {
-    name: t('feature.tabletop.contextMenu.delete'),
-    action: () => {
-      ambience.destroy();
-      SoundEffect.play(PresetSound.sweep);
-    },
-  };
+  const deleteAction = buildDeleteAction(ambience, t);
 
   const appearanceActions = [
     settingsAction,

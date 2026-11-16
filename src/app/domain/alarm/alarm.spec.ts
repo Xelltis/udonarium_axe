@@ -175,7 +175,7 @@ describe('Alarm', () => {
       vi.advanceTimersByTime(5000);
 
       expect(timeUpEvents).toHaveLength(1);
-      expect(timeUpEvents[0]).toEqual(expect.objectContaining({ text: expect.any(String) }));
+      expect(timeUpEvents[0]).toEqual({ seconds: 5, target: '対象', title: 'テスト' });
       sub();
     });
 

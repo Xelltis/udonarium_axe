@@ -11,7 +11,7 @@ import { UIPanelComponent } from '@axe/ui/components/ui-panel/ui-panel.component
   template: '<ng-template #layer></ng-template>',
   providers: [{ provide: PANEL_FRAME_COMPONENT, useValue: UIPanelComponent }],
 })
-export class PanelLayerTestHostComponent {
+class PanelLayerTestHostComponent {
   readonly layer = viewChild.required('layer', { read: ViewContainerRef });
 }
 

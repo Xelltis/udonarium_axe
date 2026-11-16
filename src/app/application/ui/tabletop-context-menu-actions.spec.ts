@@ -1,6 +1,7 @@
 import {
   buildAltitudeAction,
   buildCopyAction,
+  buildDeleteAction,
   buildLockToggleAction,
   copyBeside,
 } from '@axe/application/ui/tabletop-context-menu-actions';
@@ -91,6 +92,17 @@ describe('buildCopyAction', () => {
       vi.restoreAllMocks();
       die.destroy();
     }
+  });
+});
+
+describe('buildDeleteAction', () => {
+  it('takes the piece off the table when chosen', () => {
+    const destroy = vi.fn();
+    const action = buildDeleteAction({ destroy } as unknown as TabletopObject, t);
+
+    expect(action.name).toBe('feature.tabletop.contextMenu.delete');
+    action.action?.();
+    expect(destroy).toHaveBeenCalledOnce();
   });
 });
 

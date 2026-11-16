@@ -80,7 +80,9 @@ interface FreeTerms {
  */
 @Injectable({ providedIn: 'root' })
 export class FreeMovePlanService {
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly roomRules = inject(RoomRulesService);
   private readonly objectStore = inject(ObjectStore);
   private readonly pieceStep = inject(PieceStepService);

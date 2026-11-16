@@ -25,3 +25,15 @@ export function tabToShow(visible: readonly ChatTab[], current: string, lost: st
   if (shown && !(lost && shown.isSystemTab && talk)) return current;
   return (talk ?? visible[0])?.identifier ?? '';
 }
+
+/**
+ * Where a view of the chat stands once the tabs in view change: the tab it shows, by
+ * {@link tabToShow}, and the tab it has lost and is to go back to. The tab it was showing is
+ * remembered as lost when it goes away or out of view with none remembered already, and forgotten
+ * once it is gone back to.
+ */
+export function keptTabOf(visible: readonly ChatTab[], current: string, lost: string): { tab: string; lost: string } {
+  const remembered = current && !lost && !visible.some((tab) => tab.identifier === current) ? current : lost;
+  const tab = tabToShow(visible, current, remembered);
+  return { tab, lost: tab === remembered ? '' : remembered };
+}

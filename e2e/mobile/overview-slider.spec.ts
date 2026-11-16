@@ -1,15 +1,14 @@
 import { expect, test } from '@playwright/test';
 
+import { sendMenuEvent, waitMobileReady } from '../helpers';
+
 test.describe('a piece’s overview opened on a phone', () => {
   test('moves a resource with the slider in the overview a tap on the piece brings up', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
-    const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
-    if (await closeStartupPanel.count()) await closeStartupPanel.tap();
+    await waitMobileReady(page);
 
     // The one character wholly on a phone's screen at the start.
     const piece = page.locator('game-character').filter({ hasText: 'キャラクターC' }).first();
-    await piece.dispatchEvent('contextmenu');
+    await sendMenuEvent(piece);
     await page.locator('context-menu').getByText('詳細を表示').tap();
     const sheet = page.locator('game-character-sheet');
     await expect(sheet).toBeVisible({ timeout: 10000 });
@@ -63,10 +62,7 @@ test.describe('a piece’s overview opened on a phone', () => {
   });
 
   test('enlarges a white board from the overview a tap brings up, and closes it at a tap', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
-    const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
-    if (await closeStartupPanel.count()) await closeStartupPanel.tap();
+    await waitMobileReady(page);
 
     // The welcome board at the back of the table, tapped with touches alone as the piece above is.
     const face = page.locator('white-board [data-surface]').first();

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import {
   GROUND_CHUNK_SAMPLE_COUNT,
   GROUND_CHUNK_SAMPLES,
@@ -36,7 +37,7 @@ export function groundChunksOfRaster(raster: GroundRaster): GroundChunkData[] {
           const column = cx * GROUND_CHUNK_SAMPLES + i;
           if (column >= raster.columns) break;
           const steps = Math.round(raster.heights[row * raster.columns + column] / GROUND_HEIGHT_STEP);
-          const height = Math.max(-HEIGHT_LIMIT, Math.min(HEIGHT_LIMIT, steps));
+          const height = clamp(steps, -HEIGHT_LIMIT, HEIGHT_LIMIT);
           heights[j * GROUND_CHUNK_SAMPLES + i] = height;
           if (height !== 0) raised = true;
         }

@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { chatInput, openPanel, waitAppReady } from './helpers';
+import { chatInput, holdsFor, openPanel, waitAppReady } from './helpers';
 
 // The dice are drawn with WebGL, which headless Chromium gives through SwiftShader. The switches
 // are Chromium's own; WebKit refuses to start with them, and Firefox draws WebGL without.
@@ -24,7 +24,7 @@ test.describe('rolling chat dice in 3D', () => {
       .filter({ hasText: '接続情報' })
       .getByRole('button', { name: /^\s*GM\s*$/ })
       .click();
-    await expect(page.locator('app-gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
   }
 
   async function chooseStage(page: Page, stage: 'off' | 'frame' | 'table' | 'both') {
@@ -42,7 +42,7 @@ test.describe('rolling chat dice in 3D', () => {
     await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
     await expect(answers).toHaveCount(before + 1, { timeout: 15000 });
     const answer = answers.last();
-    const text = (await answer.locator('.msg-text').innerText()).trim();
+    const text = (await answer.getByTestId('chat-message-text').innerText()).trim();
     const total = Number(text.match(/→\s*(\d+)\s*$/)?.[1]);
     expect(Number.isFinite(total)).toBe(true);
     return { answer, total };
@@ -72,8 +72,7 @@ test.describe('rolling chat dice in 3D', () => {
   }) => {
     await chooseStage(page, 'off');
     const { answer, total } = await roll(page, '1d20');
-    await page.waitForTimeout(1000);
-    await expect(answer.getByTestId('dice-roll-stage')).toHaveCount(0);
+    await holdsFor(() => expect(answer.getByTestId('dice-roll-stage')).toHaveCount(0), 1000);
 
     await chooseStage(page, 'frame');
 

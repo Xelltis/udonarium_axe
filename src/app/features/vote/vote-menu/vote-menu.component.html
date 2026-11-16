@@ -66,60 +66,14 @@
     </div>
   </div>
 
-  @if (!peerList.length) {
+  @if (!peerIds().length) {
     <div class="text-ui-muted p-4 text-center text-[13px]">{{ 'feature.vote.emptyPeers' | transloco }}</div>
   }
-  <div class="flex flex-col gap-1 px-2 py-1.5">
-    @for (peer of peerList; track peer) {
-      @let peerImage = findPeerImage(peer.peerId);
-      @let controlName = findPeerLastControlName(peer.peerId);
-      @let controlImage = findPeerLastControlImage(peer.peerId);
-      <div
-        class="bg-ui-input border-ui-border-panel hover:bg-ui-hover rounded-ui-sm flex cursor-pointer items-center gap-2 border border-l-[3px] border-solid border-l-transparent px-2 py-1.5 transition-(--ui-transition)"
-        [class.border-l-ui-accent!]="checkedPeers.has(peer.peerId)"
-        [class.bg-ui-accent-bg!]="checkedPeers.has(peer.peerId)"
-        [class.opacity-60]="isPeerIsDisConnect(peer.peerId)"
-        (click)="voteBlockClick(peer.peerId)"
-      >
-        <div
-          class="[&_input[type=checkbox]]:size-3.5 [&_input[type=checkbox]]:cursor-pointer [&_input[type=checkbox]]:[accent-color:var(--ui-accent)]"
-        >
-          <input type="checkbox" [checked]="checkedPeers.has(peer.peerId)" name="vote_chk" readonly />
-        </div>
-        <div class="bg-ui-border-panel rounded-ui-sm size-12 shrink-0 overflow-hidden">
-          @if (peerImage) {
-            <div
-              class="size-full bg-cover bg-top bg-no-repeat"
-              [style.background-image]="'url(' + peerImage.url + ')' | safe: 'style'"
-            ></div>
-          } @else {
-            <div class="text-ui-muted flex size-full items-center justify-center [&_.material-icons]:text-[28px]!">
-              <i class="material-icons">person</i>
-            </div>
-          }
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="text-ui-text truncate text-[13px] font-semibold" [appTextTooltip]="findPeerName(peer.peerId)">
-            {{ findPeerName(peer.peerId) }}
-          </div>
-          <div class="text-ui-muted mt-0.5 truncate text-[11px]">
-            {{ controlName || ('feature.vote.noControlCharacter' | transloco) }}
-          </div>
-          @if (isPeerIsDisConnect(peer.peerId)) {
-            <div class="text-ui-danger mt-0.5 flex items-center gap-0.5 text-[10px] [&_.material-icons]:text-[12px]!">
-              <i class="material-icons">wifi_off</i>{{ 'feature.vote.disconnected' | transloco }}
-            </div>
-          }
-        </div>
-        @if (controlImage) {
-          <div class="bg-ui-border-panel rounded-ui-sm size-10 shrink-0 overflow-hidden opacity-85">
-            <div
-              class="size-full bg-cover bg-top bg-no-repeat"
-              [style.background-image]="'url(' + controlImage.url + ')' | safe: 'style'"
-            ></div>
-          </div>
-        }
-      </div>
-    }
-  </div>
+  <ui-peer-pick-list
+    [peerIds]="peerIds()"
+    [(selected)]="checkedPeers"
+    [noControlLabel]="'feature.vote.noControlCharacter' | transloco"
+    [disconnectedLabel]="'feature.vote.disconnected' | transloco"
+    checkboxName="vote_chk"
+  />
 </div>

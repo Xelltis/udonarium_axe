@@ -42,7 +42,7 @@ import { normalizePeerRole } from '@axe/domain/peer/peer-role';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
-import { VnStage } from '@axe/domain/visual-novel/vn-stage';
+import { VN_STAGE_IDENTIFIER, VnStage } from '@axe/domain/visual-novel/vn-stage';
 import { Vote } from '@axe/domain/vote/vote';
 
 const PREFETCH_IDLE_TIMEOUT_MS = 5000;
@@ -53,15 +53,32 @@ export class AppInitializationService {
   private readonly fileArchiver = inject(FileArchiver);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly appConfigService = inject(AppConfigService);
+  /** Made here so the mouse and touches are followed from the moment the app starts. */
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly audioStorage = inject(AudioStorage);
-  private readonly chatTabList = inject(ChatTabList);
-  private readonly tableSelecter = inject(TableSelecter);
-  private readonly turnState = inject(TurnState);
-  private readonly config = inject(Config);
-  private readonly dataSummarySetting = inject(DataSummarySetting);
-  private readonly statusAilmentCatalog = inject(StatusAilmentCatalog);
+  private readonly imageSharing = inject(ImageSharingSystem);
+  private readonly audioSharing = inject(AudioSharingSystem);
+  private readonly modelSharing = inject(ModelSharingSystem);
+  private readonly objectSynchronizer = inject(ObjectSynchronizer);
+  private get chatTabList(): ChatTabList {
+    return ChatTabList.instance;
+  }
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
+  private get turnState(): TurnState {
+    return TurnState.instance;
+  }
+  private get config(): Config {
+    return Config.instance;
+  }
+  private get dataSummarySetting(): DataSummarySetting {
+    return DataSummarySetting.instance;
+  }
+  private get statusAilmentCatalog(): StatusAilmentCatalog {
+    return StatusAilmentCatalog.instance;
+  }
   private readonly keyboardInset = inject(KeyboardInsetService);
   private readonly personalVolumes = inject(PersonalVolumeService);
   /** Made before the room's jukebox, so the jukebox is heard on this peer from the moment it is. */
@@ -80,12 +97,11 @@ export class AppInitializationService {
     initializeNetworkMessaging();
     this.fileArchiver.initialize();
     this.fileArchiver.mayLoadDrops = () => this.rolePermission.canEditTabletop();
-    ImageSharingSystem.instance.initialize();
-    AudioSharingSystem.instance.initialize();
-    ModelSharingSystem.instance.initialize();
-    ObjectSynchronizer.instance.initialize();
-    this.appConfigService.initialize();
-    this.pointerDeviceService.initialize();
+    this.imageSharing.initialize();
+    this.audioSharing.initialize();
+    this.modelSharing.initialize();
+    this.objectSynchronizer.initialize();
+    void this.appConfigService.initialize();
     this.keyboardInset.initialize();
     keepFocusFromZoomingOnAppleTouch(document, navigator);
 
@@ -131,14 +147,14 @@ export class AppInitializationService {
     const jukebox = new Jukebox('Jukebox');
     jukebox.initialize();
     this.personalVolumes.applyToChannels();
-    AudioSharingSystem.instance.preferredIdentifiers = () => [
+    this.audioSharing.preferredIdentifiers = () => [
       ...(jukebox.audioIdentifier.length > 0 ? [jukebox.audioIdentifier] : []),
       ...BackgroundSound.playing().map((sound) => sound.audioIdentifier),
     ];
     // Music started after the room's sounds were lined up goes ahead of them too.
     this.objectChange.onObjectChangedForAlias(
       ['jukebox', 'background-sound'],
-      () => AudioSharingSystem.instance.preferWaiting(),
+      () => this.audioSharing.preferWaiting(),
       this.destroyRef
     );
 
@@ -163,7 +179,7 @@ export class AppInitializationService {
     const soundEffect = new SoundEffect('SoundEffect');
     soundEffect.initialize();
 
-    const vnStage = new VnStage('VnStage');
+    const vnStage = new VnStage(VN_STAGE_IDENTIFIER);
     vnStage.initialize();
   }
 

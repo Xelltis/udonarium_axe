@@ -73,13 +73,12 @@ export class TextNote extends OwnedTabletopObject {
     const object: TextNote = identifier ? new TextNote(identifier) : new TextNote();
 
     object.createDataElements();
-    object.commonDataElement!.appendChild(DataElement.create('width', width, {}, `width_${object.identifier}`));
-    object.commonDataElement!.appendChild(DataElement.create('height', height, {}, `height_${object.identifier}`));
-    object.commonDataElement!.appendChild(
-      DataElement.create('fontsize', fontSize, {}, `fontsize_${object.identifier}`)
-    );
-    object.commonDataElement!.appendChild(DataElement.create('title', title, {}, `title_${object.identifier}`));
-    object.commonDataElement!.appendChild(
+    const common = object.commonDataElement!;
+    common.appendChild(DataElement.create('width', width, {}, `width_${object.identifier}`));
+    common.appendChild(DataElement.create('height', height, {}, `height_${object.identifier}`));
+    common.appendChild(DataElement.create('fontsize', fontSize, {}, `fontsize_${object.identifier}`));
+    common.appendChild(DataElement.create('title', title, {}, `title_${object.identifier}`));
+    common.appendChild(
       DataElement.create('text', text, { type: DataElementType.NOTE, currentValue: text }, `text_${object.identifier}`)
     );
     object.initialize();

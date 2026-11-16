@@ -96,3 +96,69 @@ export function isBuffDueAt(
   const trigger = buffTriggerOf(element);
   return trigger.length > 0 ? isActor(trigger, acting) : owner.identifier === acting.identifier;
 }
+
+/**
+ * When a buff moves its status again by what it moves at every count, where the buff says so itself:
+ * at the end of the round, or as the turn of the piece carrying it starts or ends.
+ */
+export const BUFF_EFFECT_TIMINGS = ['roundEnd', 'turnStart', 'turnEnd'] as const;
+
+export type BuffEffectTiming = (typeof BUFF_EFFECT_TIMINGS)[number];
+
+const EFFECT_TIMING_MARK = /^(?:発生|tick)\s*[:：]\s*(.*)$/i;
+
+/**
+ * Whether a chat field is written as the moment a buff's effect moves at, `発生:手番終了` or
+ * `tick:turnEnd`, whether or not the moment after the mark can be read.
+ */
+export function isBuffEffectTimingField(token: string): boolean {
+  return EFFECT_TIMING_MARK.test((token ?? '').trim());
+}
+
+/**
+ * Reads the moment a buff's effect moves at out of a chat field, written behind `発生:` or `tick:` in
+ * any of the words a countdown's moment is written in. Null for a field without the mark, and for
+ * one naming no moment an effect can move at, never among them.
+ */
+export function resolveBuffEffectTiming(token: string): BuffEffectTiming | null {
+  const marked = EFFECT_TIMING_MARK.exec((token ?? '').trim());
+  if (!marked) return null;
+  const timing = resolveBuffTiming(marked[1]);
+  return timing !== null && timing !== 'none' ? timing : null;
+}
+
+/**
+ * The moment this buff's effect moves at, where the buff carries one of its own. Null where none is
+ * written, as on every buff laid before there was one, and for an empty or unknown value: such a
+ * buff moves its effect as it is counted down, or at the end of the round where it never is.
+ */
+export function buffEffectTimingOf(element: DataElement): BuffEffectTiming | null {
+  const stored = (element.getAttribute(DataElementAttribute.BUFF_EFFECT_TIMING) ?? '').trim();
+  return (BUFF_EFFECT_TIMINGS as readonly string[]).includes(stored) ? (stored as BuffEffectTiming) : null;
+}
+
+/** Writes the moment a buff's effect moves at, or takes it away for none. */
+export function writeBuffEffectTiming(element: DataElement, timing: BuffEffectTiming | null | ''): void {
+  if (timing) element.setAttribute(DataElementAttribute.BUFF_EFFECT_TIMING, timing);
+  else element.removeAttribute(DataElementAttribute.BUFF_EFFECT_TIMING);
+}
+
+/**
+ * Whether the clock moves this buff's effect now, apart from counting it down, for a turn belonging
+ * to `acting`.
+ *
+ * A buff with a moment of its own moves at that moment alone, the turns being those of the piece
+ * carrying it whatever trigger counts it down. One without moves as it is counted down, which is not
+ * asked here, unless it is never counted down: then it moves at the end of every round.
+ */
+export function isBuffEffectDueAt(
+  element: DataElement,
+  timing: BuffTiming,
+  owner: BuffTurnActor,
+  acting: BuffTurnActor
+): boolean {
+  const own = buffEffectTimingOf(element);
+  if (own === null) return timing === 'roundEnd' && !buffExpires(element);
+  if (own !== timing) return false;
+  return timing === 'roundEnd' || owner.identifier === acting.identifier;
+}

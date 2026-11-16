@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 
 export interface ChatTickerPathSegment {
@@ -86,7 +87,7 @@ export function makeChatTickerRepeatOffsets(
   if (!(perimeter > 0) || !(textWidth > 0)) return [];
   const gap = Number.isFinite(minimumGap) ? Math.max(0, minimumGap) : 0;
   const fitCount = Math.floor(perimeter / (textWidth + gap));
-  const count = Math.max(1, Math.min(MAX_CHAT_TICKER_REPETITIONS, fitCount));
+  const count = clamp(fitCount, 1, MAX_CHAT_TICKER_REPETITIONS);
   const interval = perimeter / count;
   return Array.from({ length: count }, (_, index) => interval * index);
 }

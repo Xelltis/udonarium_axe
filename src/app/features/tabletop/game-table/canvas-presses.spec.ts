@@ -78,6 +78,163 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
     expect(at[0].x).toBeCloseTo(30.4, 6);
   });
 
+  describe('a right click, which the browser places at whole pixels', () => {
+    let at: { x: number; y: number }[];
+    const placedAt = (event: MouseEvent, x: number, y: number) =>
+      Object.defineProperties(event, { pageX: { value: x }, pageY: { value: y } });
+
+    /** Picks a block right of 30.2 and its neighbour left of it, and notes where each press was picked. */
+    beforeEach(() => {
+      at = [];
+      const neighbour = document.createElement('div');
+      root.append(neighbour);
+      entries['a-neighbour'] = { object: {} as TabletopObject, element: neighbour };
+      remove();
+      remove = handCanvasPressesOn(root, {
+        pickAt: (x, y) => {
+          at.push({ x, y });
+          return x > 30.2 ? 'a-block' : 'a-neighbour';
+        },
+        entryOf: (identifier) => entries[identifier],
+        aimedAtTarget: () => aimed,
+      });
+    });
+
+    function menuReaches(): string[] {
+      const reached: string[] = [];
+      block.addEventListener('contextmenu', () => reached.push('block'));
+      entries['a-neighbour'].element!.addEventListener('contextmenu', () => reached.push('neighbour'));
+      return reached;
+    }
+
+    it('is handed to what its press was picked on, at the point the pointer went down at', () => {
+      const reached = menuReaches();
+
+      root.dispatchEvent(placedAt(new PointerEvent('pointerdown', { bubbles: true, button: 2 }), 30.4, 40.6));
+      root.dispatchEvent(placedAt(new MouseEvent('mousedown', { bubbles: true, button: 2 }), 30, 40));
+      root.dispatchEvent(placedAt(new MouseEvent('contextmenu', { bubbles: true, button: 2 }), 30, 40));
+
+      expect(at[2]).toEqual(at[0]);
+      expect(reached).toEqual(['block']);
+    });
+
+    it('is picked at its own point once the pointer has moved off where it went down', () => {
+      const reached = menuReaches();
+
+      root.dispatchEvent(placedAt(new PointerEvent('pointerdown', { bubbles: true, button: 2 }), 30.4, 40.6));
+      root.dispatchEvent(placedAt(new MouseEvent('contextmenu', { bubbles: true, button: 2 }), 12, 40));
+
+      expect(at[1]).toEqual({ x: 12, y: 40 });
+      expect(reached).toEqual(['neighbour']);
+    });
+
+    it('is picked at its own point where no press came before it, as the menu key sends it', () => {
+      const reached = menuReaches();
+
+      root.dispatchEvent(placedAt(new MouseEvent('contextmenu', { bubbles: true }), 31, 40));
+
+      expect(at).toEqual([{ x: 31, y: 40 }]);
+      expect(reached).toEqual(['block']);
+    });
+
+    it('that ends a long press of a finger is picked where the finger went down', () => {
+      const reached = menuReaches();
+
+      root.dispatchEvent(
+        placedAt(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' }), 30.4, 40.6)
+      );
+      root.dispatchEvent(placedAt(new MouseEvent('contextmenu', { bubbles: true }), 30, 41));
+
+      expect(at[1]).toEqual(at[0]);
+      expect(reached).toEqual(['block']);
+    });
+  });
+
+  describe('a click and a double click, which the browser places at whole pixels', () => {
+    let at: { x: number; y: number }[];
+    const placedAt = (event: MouseEvent, x: number, y: number) =>
+      Object.defineProperties(event, { pageX: { value: x }, pageY: { value: y } });
+
+    /** Picks a block right of 30.2 and its neighbour left of it, and notes where each press was picked. */
+    beforeEach(() => {
+      at = [];
+      const neighbour = document.createElement('div');
+      root.append(neighbour);
+      entries['a-neighbour'] = { object: {} as TabletopObject, element: neighbour };
+      remove();
+      remove = handCanvasPressesOn(root, {
+        pickAt: (x, y) => {
+          at.push({ x, y });
+          return x > 30.2 ? 'a-block' : 'a-neighbour';
+        },
+        entryOf: (identifier) => entries[identifier],
+        aimedAtTarget: () => aimed,
+      });
+    });
+
+    function reaches(type: string): string[] {
+      const reached: string[] = [];
+      block.addEventListener(type, () => reached.push('block'));
+      entries['a-neighbour'].element!.addEventListener(type, () => reached.push('neighbour'));
+      return reached;
+    }
+
+    it('hands a click to what its press was picked on, at the point the pointer went down at', () => {
+      const reached = reaches('click');
+
+      root.dispatchEvent(placedAt(new PointerEvent('pointerdown', { bubbles: true }), 30.4, 40.6));
+      root.dispatchEvent(placedAt(new MouseEvent('mousedown', { bubbles: true }), 30, 40));
+      root.dispatchEvent(placedAt(new MouseEvent('click', { bubbles: true }), 30, 40));
+
+      expect(at[2]).toEqual(at[0]);
+      expect(reached).toEqual(['block']);
+    });
+
+    it('hands a double click to what its second press was picked on', () => {
+      const reached = reaches('dblclick');
+
+      root.dispatchEvent(placedAt(new PointerEvent('pointerdown', { bubbles: true }), 30.3, 40.6));
+      root.dispatchEvent(placedAt(new MouseEvent('click', { bubbles: true }), 30, 40));
+      root.dispatchEvent(placedAt(new PointerEvent('pointerdown', { bubbles: true }), 30.4, 40.6));
+      root.dispatchEvent(placedAt(new MouseEvent('click', { bubbles: true }), 30, 40));
+      root.dispatchEvent(placedAt(new MouseEvent('dblclick', { bubbles: true }), 30, 40));
+
+      expect(at[4]).toEqual(at[2]);
+      expect(reached).toEqual(['block']);
+    });
+
+    it('picks a click at its own point once the pointer was let go of off where it went down', () => {
+      const reached = reaches('click');
+
+      root.dispatchEvent(placedAt(new PointerEvent('pointerdown', { bubbles: true }), 30.4, 40.6));
+      root.dispatchEvent(placedAt(new MouseEvent('click', { bubbles: true }), 12, 40));
+
+      expect(at[1]).toEqual({ x: 12, y: 40 });
+      expect(reached).toEqual(['neighbour']);
+    });
+
+    it('picks a click at its own point where no press came before it, as a key sends it', () => {
+      const reached = reaches('click');
+
+      root.dispatchEvent(placedAt(new MouseEvent('click', { bubbles: true }), 31, 40));
+
+      expect(at).toEqual([{ x: 31, y: 40 }]);
+      expect(reached).toEqual(['block']);
+    });
+
+    it('hands the click of a tap to what the finger went down on', () => {
+      const reached = reaches('click');
+
+      root.dispatchEvent(
+        placedAt(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' }), 30.4, 40.6)
+      );
+      root.dispatchEvent(placedAt(new MouseEvent('click', { bubbles: true }), 30, 41));
+
+      expect(at[1]).toEqual(at[0]);
+      expect(reached).toEqual(['block']);
+    });
+  });
+
   it('hands a press on the table to the block picking says it lands on, and stops it there', () => {
     const { reached } = pressOn(root);
     expect(reached).toEqual(['block:mousedown', 'root:mousedown']);

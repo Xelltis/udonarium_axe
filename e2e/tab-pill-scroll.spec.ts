@@ -12,9 +12,9 @@ test.describe('scroll arrows on the chat tab pills', () => {
     await expect(page.locator('chat-window button[title="右にスクロール"]')).toHaveCount(0);
 
     await openChatSettingsMenuItem(page, 'タブ設定');
-    await expect(page.locator('app-chat-tab-setting')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('chat-tab-setting')).toBeVisible({ timeout: 5000 });
     for (let i = 0; i < 10; i++) {
-      await page.locator('app-chat-tab-setting button[title="タブを追加"]').click();
+      await page.locator('chat-tab-setting button[title="タブを追加"]').click();
     }
     await expect(page.locator('chat-window button[title="右にスクロール"]')).toBeVisible({ timeout: 5000 });
     // The chat-tab-setting panel covers it and a click would not reach, so the container's scrollLeft is

@@ -1,8 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
-import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 
 /** A room on the room server, as much of it as deleting it takes. */
@@ -53,7 +53,7 @@ export class RoomDeletionService {
     });
     if (!sure) return 'cancelled';
     try {
-      await Network.deleteRoom(room.roomKey);
+      await Network.instance.deleteRoom(room.roomKey);
       return 'deleted';
     } catch (e) {
       if (e instanceof ServerRoomApiError && e.code === 'room-not-found') return 'gone';

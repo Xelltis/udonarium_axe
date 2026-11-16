@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { terrainBlocksMovement } from '@axe/domain/tabletop/move/blocked-cells';
 import { clearRunAlong, MoveBlock, MovePoint, turnedMoveBlock } from '@axe/domain/tabletop/move/blocked-path';
@@ -181,7 +182,7 @@ export function walkLeg(from: MovePoint, to: MovePoint, limits: LegLimits): Walk
   if (limits.ground) along = Math.min(along, groundRunAlong(from, to, limits.ground.surface, limits.ground.gridSize));
   for (const shape of limits.shut) {
     const enter = entryAlong(from, to, shape);
-    if (enter !== null) along = Math.min(along, Math.max(0, enter - gap));
+    if (enter !== null) along = clamp(enter - gap, 0, along);
   }
   let stopped = false;
   const across = ACROSS_EDGE_PX / length;

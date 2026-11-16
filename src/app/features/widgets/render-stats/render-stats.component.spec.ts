@@ -5,10 +5,6 @@ import { RenderStatsComponent } from '@axe/features/widgets/render-stats/render-
 import { RenderStatsService } from '@axe/features/widgets/render-stats/render-stats.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
-interface ComponentInternals {
-  close: () => void;
-}
-
 describe('RenderStatsComponent', () => {
   let fixture: ComponentFixture<RenderStatsComponent>;
   let widgets: WidgetVisibilityService;
@@ -48,7 +44,7 @@ describe('RenderStatsComponent', () => {
     widgets.renderStats.set(true);
     await fixture.whenStable();
 
-    (fixture.componentInstance as unknown as ComponentInternals).close();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[title="Close"]')!.click();
     await fixture.whenStable();
 
     expect(panel()).toBeNull();

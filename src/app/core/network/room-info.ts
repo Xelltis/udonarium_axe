@@ -1,10 +1,11 @@
-import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
+import { PeerContext } from '@axe/core/network/peer-context';
 
 export interface IRoomInfo {
   readonly id: string;
   readonly name: string;
   readonly hasPassword: boolean;
-  readonly peers: IPeerContext[];
+  /** The peers found in the room, each able to check a password against its own id. */
+  readonly peers: PeerContext[];
   /** How many are in the room. A room server reports a count rather than the peers themselves. */
   readonly memberCount: number;
   /** The key a room server finds the room by; SkyWay rooms have none. */
@@ -12,7 +13,7 @@ export interface IRoomInfo {
   /** Whether the reader may delete the room: a room server's GM of it. SkyWay rooms are never deleted. */
   readonly deletable?: boolean;
 
-  filterByPassword(password: string): IPeerContext[] | Promise<IPeerContext[]>;
+  filterByPassword(password: string): PeerContext[] | Promise<PeerContext[]>;
 }
 
 export class RoomInfo implements IRoomInfo {
@@ -33,8 +34,8 @@ export class RoomInfo implements IRoomInfo {
 
   /** The peers whose id matches the password, which are the ones that password lets you join. */
   async filterByPassword(password: string): Promise<PeerContext[]> {
-    const results = await Promise.all(this.peers.map((p) => p.verifyPassword(password).then((ok) => (ok ? p : null))));
-    return results.filter((p) => p !== null);
+    const verified = await Promise.all(this.peers.map((peer) => peer.verifyPassword(password)));
+    return this.peers.filter((_, index) => verified[index]);
   }
 
   /**

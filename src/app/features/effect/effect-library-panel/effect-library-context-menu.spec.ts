@@ -43,6 +43,34 @@ describe('buildEffectLibraryContextMenu()', () => {
     ]);
   });
 
+  it('offers a reader who may not change the table only what leaves the room as it is', () => {
+    const called: string[] = [];
+    const menu = buildEffectLibraryContextMenu(
+      makePreset(),
+      {
+        onEdit: () => called.push('edit'),
+        onDuplicate: () => called.push('duplicate'),
+        onPreview: () => called.push('preview'),
+        onInsertToken: () => called.push('insertToken'),
+        onPlaceField: () => called.push('placeField'),
+        onAddToHotbar: () => called.push('addToHotbar'),
+        onExport: () => called.push('export'),
+        onRemove: () => called.push('remove'),
+      },
+      t,
+      false
+    );
+
+    expect(names(menu).filter((name) => name.length > 0)).toEqual([
+      'feature.effect.preview',
+      'feature.effect.insertToken',
+      'feature.hotbar.menu.fillFromHere',
+      'feature.effect.exportPreset',
+    ]);
+    for (const entry of menu) entry.action?.();
+    expect(called).toEqual(['preview', 'insertToken', 'addToHotbar', 'export']);
+  });
+
   it('calls only what was chosen', () => {
     const called: string[] = [];
     const menu = buildEffectLibraryContextMenu(

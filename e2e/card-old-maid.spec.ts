@@ -1,16 +1,10 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
-
-async function createCardStack(page: Page) {
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, 'トランプの山札を作成')).click();
-  await expect(page.locator('card-stack').first()).toBeAttached({ timeout: 10000 });
-}
+import { createCardStack, openPanel, rightClickPiece, waitAppReady } from './helpers';
 
 async function openHandRail(page: Page) {
   await openPanel(page, '手札');
-  await expect(page.locator('app-hand-rail .hand-rail')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('hand-rail .hand-rail')).toBeVisible({ timeout: 5000 });
 }
 
 async function dealAll(page: Page) {
@@ -22,7 +16,7 @@ async function dealAll(page: Page) {
 }
 
 async function openCardStackMenu(page: Page) {
-  await page.locator('card-stack').first().dispatchEvent('contextmenu');
+  await rightClickPiece(page.locator('card-stack').first());
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   return menu;
@@ -40,7 +34,7 @@ test.describe('card handling for old maid', () => {
     page,
   }) => {
     await dealAll(page);
-    const hand = page.locator('app-hand-rail');
+    const hand = page.locator('hand-rail');
     await expect(hand).toContainText('手札 53枚', { timeout: 15000 });
     await expect(page.locator('card-stack').first()).toContainText('1', { timeout: 5000 });
 

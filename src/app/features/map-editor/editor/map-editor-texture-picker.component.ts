@@ -1,27 +1,25 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
+import { textureImagesOf } from '@axe/application/file/texture-images';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { isBuiltinMaterial } from '@axe/domain/media/builtin-materials';
-import { ImageTag } from '@axe/domain/media/image-tag';
-import {
-  TEXTURE_ASSET_URLS,
-  TEXTURE_BASE_COLOR,
-  TEXTURE_IDS,
-  TEXTURE_IMAGE_TAG,
-  TextureId,
-} from '@axe/domain/media/texture-catalog';
+import { TEXTURE_ASSET_URLS, TEXTURE_BASE_COLOR, TEXTURE_IDS, TextureId } from '@axe/domain/media/texture-catalog';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/**
+ * The textures to paint or stroke with: the swatches the tool is built with, the pictures the room
+ * filed as textures, a button to take one in, and how large and how turned the texture is laid.
+ */
 @Component({
   selector: 'map-editor-texture-picker',
   templateUrl: './map-editor-texture-picker.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoModule],
+  imports: [FormsModule, TranslocoModule],
   host: { class: 'contents' },
 })
 export class MapEditorTexturePickerComponent {
@@ -38,16 +36,9 @@ export class MapEditorTexturePickerComponent {
   protected readonly textureBaseColor = TEXTURE_BASE_COLOR;
   protected readonly textureAssetUrls = TEXTURE_ASSET_URLS;
 
-  protected readonly imageTextures = computed<ImageFile[]>(() => {
-    this.objectChange.fileVersion();
-    this.objectChange.collectionOf('image-tag')();
-    this.tagLock.track();
-    // What the tool is built with is shown by its own swatches here, and it is in the library
-    // as well, so it is left out of this list rather than offered twice over.
-    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden(), this.tagLock.hides).filter(
-      (file) => !isBuiltinMaterial(file.identifier)
-    );
-  });
+  protected readonly imageTextures = computed<ImageFile[]>(() =>
+    textureImagesOf(this.objectChange, this.rolePermission, this.tagLock)
+  );
 
   protected selectTexture(id: TextureId): void {
     this.state.textureId.set(id);

@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { openPanel, rightClickPiece, waitAppReady } from './helpers';
 
 /** The battle stage the room plays an exchange on: one piece on each side, the bars falling as it lands. */
 test.describe('the battle cut-in', () => {
@@ -10,7 +10,7 @@ test.describe('the battle cut-in', () => {
       .filter({ hasText: '接続情報' })
       .getByRole('button', { name: /^\s*GM\s*$/ })
       .click();
-    await expect(page.locator('app-gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
   }
 
   /** Puts キャラクターA on the left and モンスターA on the right of the lineup, as the master. */
@@ -71,7 +71,7 @@ test.describe('the battle cut-in', () => {
 
   test('shows a change made from the remote controller as the bars fall', async ({ page }) => {
     await waitAppReady(page);
-    await page.locator('game-character').filter({ hasText: 'キャラクターA' }).first().dispatchEvent('contextmenu');
+    await rightClickPiece(page.locator('game-character').filter({ hasText: 'キャラクターA' }).first());
     await page.locator('context-menu').getByText('リモコンを表示').click();
     const remote = page.locator('remote-controller');
     await expect(remote).toBeVisible({ timeout: 10000 });
@@ -85,20 +85,22 @@ test.describe('the battle cut-in', () => {
     await amount.pressSequentially('-5');
     await expect(amount).toHaveValue('-5');
     await remote.getByTestId('remote-battle-on-change').dispatchEvent('click');
+    // The number pops up for a moment only, as early as the blow lands, so it is looked for at every
+    // frame from before the change is made.
+    const popped = page.waitForFunction(
+      () =>
+        [...document.querySelectorAll('[data-testid="battle-cut-in"] [data-testid="battle-pop"]')].some((pop) =>
+          pop.textContent?.includes('-5')
+        ),
+      undefined,
+      { polling: 'raf', timeout: 20000 }
+    );
     await remote.getByTestId('remote-change-execute').dispatchEvent('click');
 
     const stage = page.getByTestId('battle-cut-in');
     await expect(stage).toBeVisible({ timeout: 10000 });
     const struck = stage.getByTestId('battle-plate').last();
     await expect(struck).toContainText('モンスターA');
-    // The number pops up for a moment only, so it is looked for at every frame.
-    await page.waitForFunction(
-      () =>
-        [...document.querySelectorAll('[data-testid="battle-cut-in"] [data-testid="battle-pop"]')].some((pop) =>
-          pop.textContent?.includes('-5')
-        ),
-      undefined,
-      { polling: 'raf', timeout: 10000 }
-    );
+    await popped;
   });
 });

@@ -1,0 +1,22 @@
+<div
+  #box
+  contenteditable="true"
+  class="absolute m-0 box-border border-0 bg-[rgba(127,127,127,0.12)] p-0 outline-1 outline-(--ui-accent) outline-dashed"
+  [style.left.px]="editing().x * state.zoom()"
+  [style.top.px]="editing().y * state.zoom()"
+  [style.font-size.px]="state.fontSize() * state.zoom()"
+  [style.font-weight]="state.textBold() ? 'bold' : 'normal'"
+  [style.font-style]="state.textItalic() ? 'italic' : 'normal'"
+  [style.font-family]="'sans-serif'"
+  [style.line-height]="'1.2'"
+  [style.color]="state.textColor()"
+  [style.caret-color]="state.textColor()"
+  [style.white-space]="'pre'"
+  [style.min-width.px]="1"
+  [style.transform-origin]="'top left'"
+  [style.z-index]="20"
+  [style.cursor]="'text'"
+  (input)="onInput($event)"
+  (keydown)="onKeyDown($event)"
+  (pointerdown)="$event.stopPropagation()"
+></div>

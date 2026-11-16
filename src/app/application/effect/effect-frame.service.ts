@@ -64,6 +64,8 @@ export class EffectFrameService {
             hiddenIdentifiers: this.hiddenOf(active.cast.targets.map((target) => target.identifier)),
             resolveFooting: (identifier) => this.footingOf(identifier, cellPx),
             resolveSize: (identifier) => this.sizeOf(identifier),
+            resolveHeight: (identifier) => this.heightOf(identifier),
+            resolveStanding: () => this.tabletop.characters.map((character) => character.identifier),
           },
           drawn
         );
@@ -113,6 +115,17 @@ export class EffectFrameService {
   private sizeOf(identifier: string): number {
     const size = (this.objectStore.get<TabletopObject>(identifier) as { size?: unknown } | null)?.size;
     return typeof size === 'number' && size > 0 ? size : 1;
+  }
+
+  /**
+   * How tall a piece stands over its foot as it is drawn now, in table pixels: the box of its model, or
+   * its picture where that stands up from the floor; null for one drawn as neither, as one lying flat.
+   */
+  private heightOf(identifier: string): number | null {
+    const model = this.pieces.models().find((drawn) => drawn.owner === identifier);
+    if (model) return model.heightPx;
+    const picture = this.pieces.sprites().find((sprite) => sprite.id === `${identifier}#picture`);
+    return picture && picture.order === undefined ? picture.heightPx : null;
   }
 
   /**

@@ -2,6 +2,8 @@ import { expect, Locator, Page } from '@playwright/test';
 
 import { MENU_GROUP_OF, waitAppReady } from '../helpers';
 
+export { becomeGm, closePanels } from '../helpers';
+
 /** What the graphics card refused to draw on each page made ready for shots, as the page logged it. */
 const refused = new WeakMap<Page, string[]>();
 
@@ -58,10 +60,8 @@ export async function prepare(page: Page) {
  * being readied as the page opens is waited for here, while the clock still runs.
  */
 async function drawWhileClockHeld(page: Page) {
-  await expect
-    .poll(() => page.evaluate(() => !!(window as unknown as CanvasHooks).__axeTable), { timeout: 30_000 })
-    .toBe(true);
-  await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.readyBeforeDrawing(false));
+  await expect.poll(() => page.evaluate(() => !!window.__axeTable), { timeout: 30_000 }).toBe(true);
+  await page.evaluate(() => window.__axeTable?.readyBeforeDrawing(false));
   await drawCanvasThrough(page);
 }
 
@@ -70,7 +70,7 @@ async function drawWhileClockHeld(page: Page) {
  * in the browser a little while after it changes, and the offer comes up once it has, at a moment
  * set by how fast the run goes.
  */
-const NO_RESTORE_OFFER = 'app-room-restore-banner { display: none !important; }';
+const NO_RESTORE_OFFER = 'room-restore-banner { display: none !important; }';
 
 /**
  * Has every change of style take effect at once on a table drawn on a canvas. The canvas draws a
@@ -98,20 +98,6 @@ export async function waitChatEditor(page: Page) {
   await expect(page.locator('chat-window [data-chat-input-mode="rich"]')).toBeVisible({ timeout: 10000 });
 }
 
-export async function becomeGm(page: Page) {
-  const connection = page.locator('ui-panel').filter({ hasText: '接続情報' });
-  await connection.getByRole('button', { name: /^\s*GM\s*$/ }).click();
-  await expect(page.locator('app-gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
-}
-
-export async function closePanels(page: Page) {
-  const panels = page.locator('ui-panel');
-  for (let round = 0; round < 8 && (await panels.count()) > 0; round++) {
-    await panels.first().locator('.bg-ui-titlebar button', { hasText: 'close' }).dispatchEvent('click');
-  }
-  await expect(panels).toHaveCount(0);
-}
-
 const frozen = new WeakSet<Page>();
 
 const CLOCK_ORIGIN = new Date('2026-09-03T00:00:00Z');
@@ -127,7 +113,7 @@ export async function freeze(page: Page) {
   await page.clock.pauseAt(CLOCK_ORIGIN.getTime() + 1000);
   const drift = await page.evaluate(() => performance.now());
   await page.clock.runFor(Math.max(0, Math.round(FROZEN_AT_MS - drift)));
-  await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.holdMotion(true));
+  await page.evaluate(() => window.__axeTable?.holdMotion(true));
   frozen.add(page);
 }
 
@@ -144,7 +130,7 @@ export async function untilStill(page: Page) {
     .poll(
       async () => {
         const moving = await page.evaluate(() => {
-          const hooks = (window as unknown as CanvasHooks).__axeTable;
+          const hooks = window.__axeTable;
           return [...document.querySelectorAll('[data-object-id]')].some((element) =>
             hooks?.moving(element.getAttribute('data-object-id') ?? '')
           );
@@ -259,7 +245,7 @@ export async function useHexGrid(page: Page) {
   await closeModal(page);
 }
 
-export async function holdAnimationsAt(page: Page, ms: number) {
+async function holdAnimationsAt(page: Page, ms: number) {
   await page.evaluate((at) => {
     for (const animation of document.getAnimations()) {
       const endTime = animation.effect?.getComputedTiming().endTime;
@@ -272,20 +258,6 @@ export async function holdAnimationsAt(page: Page, ms: number) {
     }
   }, ms);
 }
-
-type CanvasHooks = {
-  __axeTable?: {
-    drawDueNow(): boolean;
-    whenDrawn(): Promise<void>;
-    busy(): string[];
-    holdFlicker(timeMs: number | null): void;
-    holdMotion(held: boolean): void;
-    readyBeforeDrawing(on: boolean): void;
-    holdMovesAt(ms: number | null): void;
-    chooseLightsAfresh(): void;
-    moving(identifier: string): boolean;
-  };
-};
 
 /**
  * Has the table drawn on a canvas draw through what it was told, with the marks over its pieces laid
@@ -302,7 +274,7 @@ export async function drawCanvasThrough(page: Page) {
       async () => {
         if (frozen.has(page)) await page.clock.runFor(0);
         return page.evaluate(() => {
-          const table = (window as unknown as CanvasHooks).__axeTable;
+          const table = window.__axeTable;
           if (!table || table.drawDueNow()) return [];
           const busy = table.busy();
           return busy.length > 0 ? busy : ['nothing it names'];
@@ -311,7 +283,7 @@ export async function drawCanvasThrough(page: Page) {
       { message: 'what the canvas still waits for before it shows all it was told', timeout: 30_000, intervals: [50] }
     )
     .toEqual([]);
-  await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.whenDrawn());
+  await page.evaluate(() => window.__axeTable?.whenDrawn());
 }
 
 /**
@@ -319,7 +291,7 @@ export async function drawCanvasThrough(page: Page) {
  * whose clock stands at a different moment each run by the time it is shot.
  */
 export async function holdFlicker(page: Page, timeMs: number) {
-  await page.evaluate((at) => (window as unknown as CanvasHooks).__axeTable?.holdFlicker(at), timeMs);
+  await page.evaluate((at) => window.__axeTable?.holdFlicker(at), timeMs);
 }
 
 /** How long a shot may take: a table drawn on a canvas in software takes seconds to bring to the screen. */
@@ -337,7 +309,7 @@ const TURN_FRAME_STAYS_MS = 700;
  * for a shot: a move starts whenever what it plays for arrives, which a held clock does not hold.
  */
 async function holdMovesAt(page: Page, ms: number) {
-  await page.evaluate((at) => (window as unknown as CanvasHooks).__axeTable?.holdMovesAt(at), ms);
+  await page.evaluate((at) => window.__axeTable?.holdMovesAt(at), ms);
 }
 
 export interface SnapOptions {
@@ -353,7 +325,7 @@ export async function snap(page: Page, name: string, options: SnapOptions = {}) 
     await page.clock.runFor(TURN_FRAME_STAYS_MS);
   }
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-  await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.chooseLightsAfresh());
+  await page.evaluate(() => window.__axeTable?.chooseLightsAfresh());
   await holdAnimationsAt(page, options.animationAt ?? 0);
   await page.waitForTimeout(100);
   if (frozen.has(page)) await page.clock.runFor(16);

@@ -1,10 +1,11 @@
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectInventory } from '@axe/application/inventory/object-inventory';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { DataElement } from '@axe/domain/data/data-element';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 import { isKeptFromAnyone } from '@axe/domain/disclosure/disclosure';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -24,7 +25,7 @@ export function getTabTitleKey(inventoryType: string): string {
   switch (inventoryType) {
     case 'table':
       return 'feature.controller.remote.tabTable';
-    case Network.peerId:
+    case Network.instance.peerId:
       return 'feature.controller.remote.tabPersonal';
     case 'graveyard':
       return 'feature.controller.remote.tabGraveyard';
@@ -38,7 +39,7 @@ export function getTabTitle(inventoryType: string): string {
   switch (inventoryType) {
     case 'table':
       return 'テーブル';
-    case Network.peerId:
+    case Network.instance.peerId:
       return '個人';
     case 'graveyard':
       return '墓場';
@@ -58,7 +59,7 @@ export function getInventory(
   switch (inventoryType) {
     case 'table':
       return inventoryService.tableInventory;
-    case Network.peerId:
+    case Network.instance.peerId:
       return inventoryService.privateInventory;
     case 'graveyard':
       return inventoryService.graveyardInventory;
@@ -116,9 +117,7 @@ export function shownChangeDetail(character: GameCharacter, report: string, name
   if (!report || !isKeptFromAnyone(character)) return report;
   const now = character.status.getValue(name, 'now');
   if (slot === 'now' && now !== null) {
-    const element = character.detailDataElement
-      ? DataElement.findElementByReference(character.detailDataElement, name)
-      : null;
+    const element = character.detailDataElement ? findReferencedElement(character.detailDataElement, name) : null;
     if (isResourceSpentAt(element, now, character.status.getValue(name, 'max'))) return report;
   }
   return `[${saidNameOf(character)}] `;

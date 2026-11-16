@@ -19,7 +19,7 @@ export interface FolderTreeRowContext<T> {
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-folder-tree',
+  selector: 'folder-tree',
   templateUrl: './folder-tree.component.html',
   imports: [NgTemplateOutlet, AutoFocusDirective, TranslocoModule],
 })

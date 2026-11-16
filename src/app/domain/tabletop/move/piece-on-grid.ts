@@ -116,6 +116,34 @@ export function pieceCentreOf(piece: PlacedPiece, cellPx: number): { x: number; 
   return { x: piece.location.x + offset, y: piece.location.y + offset };
 }
 
+/** A thing on the table as its middle is worked out from: the corner it is placed by, and what it has of a footprint. */
+export interface PlacedThing {
+  readonly location: { readonly x: number; readonly y: number };
+  /** How many cells across, where the thing measures a width; anything else counts as none. */
+  readonly width?: unknown;
+  /** How many cells deep, where the thing measures a height; anything else counts as none. */
+  readonly height?: unknown;
+  /** How many cells across, where the thing has one size; anything else counts as none. */
+  readonly size?: unknown;
+}
+
+/**
+ * The middle of anything placed on the table, in table px, on cells `cellPx` across.
+ *
+ * A thing that measures a width and a height in cells, as a block or a board does, has its middle
+ * half of each in from its corner; a piece of one size has it as {@link pieceCentreOf} works it out;
+ * and whatever says neither is taken to fill one cell.
+ */
+export function placedCentreOf(thing: PlacedThing, cellPx: number): { x: number; y: number } {
+  if (typeof thing.width === 'number' && typeof thing.height === 'number') {
+    return { x: thing.location.x + (thing.width * cellPx) / 2, y: thing.location.y + (thing.height * cellPx) / 2 };
+  }
+  if (typeof thing.size === 'number') {
+    return pieceCentreOf({ location: thing.location, size: thing.size }, cellPx);
+  }
+  return { x: thing.location.x + cellPx / 2, y: thing.location.y + cellPx / 2 };
+}
+
 /**
  * Where a piece's corner goes for it to stand on a given cell.
  *

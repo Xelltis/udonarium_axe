@@ -14,7 +14,7 @@ import {
 } from '@axe/domain/chat/chat-rich-text';
 import type { ChatSyntaxScan, SyntaxKind } from '@axe/domain/chat-syntax/chat-syntax';
 import { chatNotationEnding, isBattleChatTokenName } from '@axe/domain/effect/effect-chat-token';
-import { buildChatBubble, type ChatBubble } from '@axe/features/chat/chat-editor/chat-editor-bubble';
+import { buildChatBubble, type ChatBubble, chatBubbleGap } from '@axe/features/chat/chat-editor/chat-editor-bubble';
 import type { ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
 import { CHAT_HIGHLIGHT_LIMIT } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ensureChatEditorStyle } from '@axe/features/chat/chat-editor/chat-editor-style';
@@ -137,6 +137,8 @@ const KIND_CLASSES: Partial<Record<SyntaxKind, string>> = {
   aim: 'chat-rich-resource',
   buff: 'chat-rich-buff',
   sweep: 'chat-rich-buff',
+  reset: 'chat-rich-buff',
+  turn: 'chat-rich-buff',
   portrait: 'chat-rich-portrait',
   cutIn: 'chat-rich-cut-in',
   effect: 'chat-rich-effect',
@@ -530,13 +532,7 @@ export class ChatEditorField implements ChatTextField {
    * otherwise cover the toolbar's buttons, and just under it where there is no room above.
    */
   private bubbleGap(placement: string, selectionTop: number, height: number): number {
-    const gap = 8;
-    if (!placement.startsWith('top')) return gap;
-    const toolbar = this.host.toolbarElement?.()?.getBoundingClientRect();
-    if (!toolbar || toolbar.height < 1) return gap;
-    const bottom = selectionTop - gap;
-    const covers = bottom > toolbar.top && bottom - height < toolbar.bottom;
-    return covers ? selectionTop - toolbar.top + 4 : gap;
+    return chatBubbleGap(this.host.toolbarElement?.()?.getBoundingClientRect(), placement, selectionTop, height);
   }
 
   private afterTransaction(transaction: Transaction): void {
@@ -1001,7 +997,8 @@ export class ChatEditorField implements ChatTextField {
         continue;
       }
       if (span.kind === 'cutIn' && !annotated('cutIn', span.from, span.to)) continue;
-      const className = KIND_CLASSES[span.kind];
+      const className =
+        span.kind === 'reset' && span.takes === 'values' ? KIND_CLASSES.resource : KIND_CLASSES[span.kind];
       if (!className) continue;
       const from = out.toPos(span.from, 1);
       const to = out.toPos(span.to, -1);

@@ -4,8 +4,10 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { MotionService } from '@axe/application/ui/motion.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { diceThrow$, messageAdded$ } from '@axe/core/event/domain-events';
+import { Logger } from '@axe/core/logging/logger';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { BoundedMap, BoundedSet } from '@axe/core/util/bounded-map';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
@@ -144,14 +146,14 @@ export class DiceThrowService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly state = signal<ReadonlyMap<string, DiceThrow>>(new Map());
   /** The lines already called to be thrown, kept beyond the throws themselves so none is thrown twice. */
-  private readonly called = new Set<string>();
+  private readonly called = new BoundedSet<string>(KEPT_THROWS * 4);
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   /** The lines just said that are waiting a moment for their call to throw before being laid down still. */
   private readonly waits = new Map<string, ReturnType<typeof setTimeout>>();
   /** What each line read lately throws, which is read afresh from its words otherwise. */
-  private readonly plans = new Map<string, ThrowPlan>();
+  private readonly plans = new BoundedMap<string, ThrowPlan>(KEPT_THROWS * 4);
   /** The frames each line was last given, handed back while nothing in them changes. */
-  private readonly framesGiven = new Map<string, readonly DiceFrame[]>();
+  private readonly framesGiven = new BoundedMap<string, readonly DiceFrame[]>(KEPT_THROWS * 4);
   private tries = 0;
   /** Where the room shows its rolls' dice; a room not yet set up shows none, and is not set up from here. */
   private readonly diceStage = computed<DiceStage>(() => {
@@ -207,7 +209,6 @@ export class DiceThrowService {
     if (given && sameFrames(given, frames)) return given;
     this.framesGiven.delete(messageIdentifier);
     this.framesGiven.set(messageIdentifier, frames);
-    if (this.framesGiven.size > KEPT_THROWS * 4) this.framesGiven.delete(this.framesGiven.keys().next().value!);
     return frames;
   }
 
@@ -289,7 +290,6 @@ export class DiceThrowService {
   private async receive(messageIdentifier: string, speakerIdentifier: string): Promise<void> {
     if (isNetworkIsolated() || this.called.has(messageIdentifier)) return;
     this.called.add(messageIdentifier);
-    if (this.called.size > KEPT_THROWS * 4) this.called.delete(this.called.values().next().value!);
 
     const stage = this.config.diceStage;
     if (stage === 'off') return;
@@ -476,7 +476,6 @@ export class DiceThrowService {
     if (kept) return kept;
     const plan = throwPlanOf(message.rollDetail);
     this.plans.set(message.identifier, plan);
-    if (this.plans.size > KEPT_THROWS * 4) this.plans.delete(this.plans.keys().next().value!);
     return plan;
   }
 
@@ -504,7 +503,8 @@ export class DiceThrowService {
         edge: 'left',
         away: [0, 1, 0],
       });
-    } catch {
+    } catch (reason) {
+      Logger.warn('[DiceThrow] the physics could not work out a throw', reason);
       this.fail(key);
       return null;
     }

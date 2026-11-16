@@ -17,6 +17,7 @@ import {
   Body,
   ContactMaterial,
   ConvexPolyhedron,
+  GSSolver,
   Material,
   NaiveBroadphase,
   Plane,
@@ -64,6 +65,47 @@ const HEAPED_FROM = 8;
 const NAIVE_PAIRS_UP_TO = 12;
 /** How many times a spoiled throw is thrown again before the least spoiled is kept. */
 export const MAX_ATTEMPTS = 8;
+/** How many passes the solver makes over the contacts of a step, which a heap of dice needs to settle cleanly. */
+const SOLVER_ITERATIONS = 16;
+/** How the dice grip and bounce off the floor, the walls and each other. */
+const FLOOR_FRICTION = 0.2;
+const FLOOR_RESTITUTION = 0.45;
+const WALL_FRICTION = 0.12;
+const WALL_RESTITUTION = 0.55;
+const DIE_FRICTION = 0.2;
+const DIE_RESTITUTION = 0.5;
+/** How slowly, and for how long, a die must move before it is put to sleep where it lies. */
+const SLEEP_SPEED_LIMIT = 0.3;
+const SLEEP_TIME_LIMIT = 0.25;
+/** The most damping tiring brings a die to, so it still comes to rest rather than freezing in the air. */
+const MOST_DAMPING = 0.95;
+/** The gap between the dice as they are set out to be thrown, and the width kept clear at each end of a row. */
+const PITCH_GAP = 0.2;
+const ROW_MARGIN = 0.6;
+/** How far from a wall the dice keep as they are set out and as they are aimed. */
+const WALL_CLEARANCE = 0.3;
+/** How far each die is nudged from its place in the row, across the throw. */
+const ACROSS_JITTER = 0.8;
+/** How far behind the tray's edge the first row starts. */
+const START_BEHIND_EDGE = 0.5;
+/** How high above its own radius a die starts, how much higher it may be, and how much higher each row behind is. */
+const START_HEIGHT = 2;
+const HEIGHT_JITTER = 2.5;
+const HEIGHT_PER_ROW = 0.4;
+/** How fast a die is thrown upward at the least, and how much faster it may be. */
+const RISE_LEAST = 4;
+const RISE_JITTER = 6;
+/** How far across the tray a die first comes down: from this share of the way, up to this much further. */
+const LANDING_FROM = 0.12;
+const LANDING_SPREAD = 0.24;
+/** How far across the tray, as a share of its half width, the landing may drift from where the die started. */
+const LANDING_DRIFT = 0.8;
+/** How much of the roll its speed would give a die it is set spinning with at the least, and how much more it may be. */
+const ROLL_LEAST = 0.5;
+const ROLL_JITTER = 0.6;
+/** How fast a die twists about its own axis at the least, and how much faster it may. */
+const SPIN_LEAST = 8;
+const SPIN_JITTER = 14;
 
 const FAULT_ORDER: readonly (ThrowFault | null)[] = [null, 'cocked', 'stacked', 'unsettled', 'outside'];
 
@@ -180,15 +222,15 @@ function substepsFor(bodies: readonly Body[], shapes: readonly DieShape[]): numb
     if (body.sleepState === Body.SLEEPING) return;
     fastest = Math.max(fastest, body.velocity.length() + body.angularVelocity.length() * dieRadiusOf(shapes[index]));
   });
-  return Math.min(MOST_SUBSTEPS, Math.max(1, Math.ceil(fastest / (FRAMES_PER_SECOND * STEP_REACH))));
+  return clamp(Math.ceil(fastest / (FRAMES_PER_SECOND * STEP_REACH)), 1, MOST_SUBSTEPS);
 }
 
 /** Takes more out of every die's motion the longer the throw goes on. */
 function tire(bodies: readonly Body[], frame: number): void {
   const extra = (frame - TIRE_FROM_FRAME) * TIRE_PER_FRAME;
   for (const body of bodies) {
-    body.linearDamping = Math.min(0.95, LINEAR_DAMPING + extra);
-    body.angularDamping = Math.min(0.95, ANGULAR_DAMPING + extra);
+    body.linearDamping = Math.min(MOST_DAMPING, LINEAR_DAMPING + extra);
+    body.angularDamping = Math.min(MOST_DAMPING, ANGULAR_DAMPING + extra);
   }
 }
 
@@ -196,19 +238,26 @@ function buildWorld(
   tray: Tray,
   dice: number
 ): { world: World; diceMaterial: Material; walls: Record<ThrowEdge | 'far', Body> } {
-  const world = new World({ gravity: new Vec3(0, 0, -GRAVITY), allowSleep: true });
+  const solver = new GSSolver();
+  solver.iterations = SOLVER_ITERATIONS;
+  const world = new World({ gravity: new Vec3(0, 0, -GRAVITY), allowSleep: true, solver });
   // Trying every pair is quickest for a few dice; sweeping along an axis wins once there are many.
   world.broadphase = dice <= NAIVE_PAIRS_UP_TO ? new NaiveBroadphase() : new SAPBroadphase(world);
   // Pairs are tried by their boxes rather than their spheres, so that the walls' boxes count.
   world.broadphase.useBoundingBoxes = true;
-  (world.solver as unknown as { iterations: number }).iterations = 16;
 
   const floorMaterial = new Material('floor');
   const wallMaterial = new Material('wall');
   const diceMaterial = new Material('dice');
-  world.addContactMaterial(new ContactMaterial(diceMaterial, floorMaterial, { friction: 0.2, restitution: 0.45 }));
-  world.addContactMaterial(new ContactMaterial(diceMaterial, wallMaterial, { friction: 0.12, restitution: 0.55 }));
-  world.addContactMaterial(new ContactMaterial(diceMaterial, diceMaterial, { friction: 0.2, restitution: 0.5 }));
+  world.addContactMaterial(
+    new ContactMaterial(diceMaterial, floorMaterial, { friction: FLOOR_FRICTION, restitution: FLOOR_RESTITUTION })
+  );
+  world.addContactMaterial(
+    new ContactMaterial(diceMaterial, wallMaterial, { friction: WALL_FRICTION, restitution: WALL_RESTITUTION })
+  );
+  world.addContactMaterial(
+    new ContactMaterial(diceMaterial, diceMaterial, { friction: DIE_FRICTION, restitution: DIE_RESTITUTION })
+  );
 
   world.addBody(new Body({ mass: 0, material: floorMaterial, shape: new Plane() }));
   // Each wall is a half-space facing into the tray, so a die moving however fast never ends up
@@ -264,8 +313,8 @@ function addDie(world: World, shape: DieShape, material: Material): Body {
     linearDamping: LINEAR_DAMPING,
     angularDamping: ANGULAR_DAMPING,
     allowSleep: true,
-    sleepSpeedLimit: 0.3,
-    sleepTimeLimit: 0.25,
+    sleepSpeedLimit: SLEEP_SPEED_LIMIT,
+    sleepTimeLimit: SLEEP_TIME_LIMIT,
   });
   world.addBody(body);
   return body;
@@ -282,22 +331,22 @@ function launch(bodies: Body[], shapes: readonly DieShape[], tray: Tray, edge: T
   const depth = alongX ? tray.halfWidth : tray.halfDepth;
   const span = alongX ? tray.halfDepth : tray.halfWidth;
   // Far enough apart that the largest of them start clear of each other.
-  const pitch = 2 * Math.max(...shapes.map(dieRadiusOf)) + 0.2;
-  const perRow = Math.max(1, Math.floor((span * 2 - 0.6) / pitch));
+  const pitch = 2 * Math.max(...shapes.map(dieRadiusOf)) + PITCH_GAP;
+  const perRow = Math.max(1, Math.floor((span * 2 - ROW_MARGIN) / pitch));
   bodies.forEach((body, index) => {
     const radius = dieRadiusOf(shapes[index]);
     const row = Math.floor(index / perRow);
     const column = index % perRow;
     const inRow = Math.min(perRow, bodies.length - row * perRow);
-    const room = Math.max(0, span - radius - 0.3);
-    const across = clamp((column - (inRow - 1) / 2) * pitch + (random() - 0.5) * 0.8, -room, room);
-    const start = depth + radius + 0.5 + row * pitch;
-    const height = radius + 2 + random() * 2.5 + row * 0.4;
-    const rise = 4 + random() * 6;
+    const room = Math.max(0, span - radius - WALL_CLEARANCE);
+    const across = clamp((column - (inRow - 1) / 2) * pitch + (random() - 0.5) * ACROSS_JITTER, -room, room);
+    const start = depth + radius + START_BEHIND_EDGE + row * pitch;
+    const height = radius + START_HEIGHT + random() * HEIGHT_JITTER + row * HEIGHT_PER_ROW;
+    const rise = RISE_LEAST + random() * RISE_JITTER;
 
     // Where it first comes down, and how fast it has to go to get there in the time it falls.
-    const landing = -depth + depth * 2 * (0.12 + random() * 0.24);
-    const landingAcross = clamp(across + (random() - 0.5) * span * 0.8, -room, room);
+    const landing = -depth + depth * 2 * (LANDING_FROM + random() * LANDING_SPREAD);
+    const landingAcross = clamp(across + (random() - 0.5) * span * LANDING_DRIFT, -room, room);
     const fall = (rise + Math.sqrt(rise * rise + 2 * GRAVITY * (height - radius))) / GRAVITY;
     const reach = landing + start;
     const sideways = landingAcross - across;
@@ -317,8 +366,8 @@ function launch(bodies: Body[], shapes: readonly DieShape[], tray: Tray, edge: T
     rollAxis.normalize();
     const twist = new Vec3(random() - 0.5, random() - 0.5, random() - 0.5);
     twist.normalize();
-    const roll = (speed / radius) * (0.5 + random() * 0.6);
-    const spin = 8 + random() * 14;
+    const roll = (speed / radius) * (ROLL_LEAST + random() * ROLL_JITTER);
+    const spin = SPIN_LEAST + random() * SPIN_JITTER;
     body.angularVelocity.set(
       rollAxis.x * roll + twist.x * spin,
       rollAxis.y * roll + twist.y * spin,

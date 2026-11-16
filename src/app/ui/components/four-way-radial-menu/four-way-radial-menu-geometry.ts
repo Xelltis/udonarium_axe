@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 export type RadialMenuSeat = 'north' | 'east' | 'south' | 'west';
 
 export interface RadialPoint {
@@ -82,7 +83,7 @@ export function annularSectorPolygon(
   const middleRadius = Math.max(1, (safeInnerRadius + safeOuterRadius) / 2);
   const itemAngle = 360 / safeCount;
   const gapAngle = (Math.max(0, gapPx) / middleRadius) * (180 / Math.PI);
-  const halfSpan = Math.max(0.5, Math.min(179.5, (itemAngle - gapAngle) / 2));
+  const halfSpan = clamp((itemAngle - gapAngle) / 2, 0.5, 179.5);
   const centerAngle = angleOnRing(index, safeCount, startAngleDegrees);
   const startAngle = centerAngle - halfSpan;
   const endAngle = centerAngle + halfSpan;
@@ -121,7 +122,7 @@ export function annularSectorLabelPoint(
 export function annularSectorLabelWidth(radius: number, count: number, gapPx = 3): number {
   const safeRadius = Math.max(1, radius);
   const safeCount = Math.max(1, count);
-  if (safeCount === 1) return Math.max(36, Math.min(160, safeRadius * 1.2));
+  if (safeCount === 1) return clamp(safeRadius * 1.2, 36, 160);
   const itemAngleRadians = (Math.PI * 2) / safeCount;
   const gapAngleRadians = Math.max(0, gapPx) / safeRadius;
   const usableHalfAngle = Math.max(0.01, (itemAngleRadians - gapAngleRadians) / 2);

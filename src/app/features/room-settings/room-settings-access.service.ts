@@ -41,7 +41,9 @@ type FlagRule = AnswerOf<boolean>[keyof ConfigRuleAnswers];
 @Injectable({ providedIn: 'root' })
 export class RoomSettingsAccessService {
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly roomRules = inject(RoomRulesService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly display = inject(TabletopDisplayService);

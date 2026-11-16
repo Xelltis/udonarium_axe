@@ -14,6 +14,7 @@ import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { DEFAULT_DJ_SETTINGS, type DjSettings } from '@axe/domain/media/dj-settings';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import { SILENT_PLAYBACK } from '@axe/domain/media/jukebox-playback';
 import { Playlist } from '@axe/domain/media/playlist';
 import { Config } from '@axe/domain/peer/config';
 import { JukeboxEngine } from '@axe/infrastructure/media/jukebox-engine';
@@ -56,7 +57,13 @@ function stubAudioPlayerStop() {
   return vi.spyOn(AudioPlayer.prototype, 'stop').mockImplementation(() => {});
 }
 
-describe('Jukebox', () => {
+/** The player the engine sounds its track through: the one a track was last started on, with play spied on. */
+function soundingPlayer(): AudioPlayer {
+  const contexts = vi.mocked(AudioPlayer.prototype.play).mock.contexts;
+  return contexts[contexts.length - 1] as AudioPlayer;
+}
+
+describe('JukeboxEngine', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({});
   });
@@ -101,6 +108,38 @@ describe('Jukebox', () => {
       jukebox.stop();
       expect(jukebox.audioIdentifier).toBe('');
       expect(jukebox.isPlaying).toBe(false);
+    });
+  });
+
+  describe('letting the engine go', () => {
+    it('stops the players kept spare and lets them go, and takes itself off the room', () => {
+      stubAudioPlayerPlay();
+      const stop = stubAudioPlayerStop();
+      const jukebox = heard(new Jukebox());
+      jukebox.initialize();
+      const engine = engineOf(jukebox);
+      const spares = (engine as unknown as { sparePlayers: AudioPlayer[] }).sparePlayers;
+      const spare = new AudioPlayer();
+      spares.push(spare);
+
+      engine.dispose();
+
+      expect(stop.mock.instances).toContain(spare);
+      expect(spares).toHaveLength(0);
+      expect((jukebox as unknown as { playback: unknown }).playback).toBe(SILENT_PLAYBACK);
+    });
+
+    it('leaves a playback attached since in place', () => {
+      stubAudioPlayerStop();
+      const jukebox = heard(new Jukebox());
+      jukebox.initialize();
+      const before = engineOf(jukebox);
+      const since = new JukeboxEngine(jukebox);
+      since.attach();
+
+      before.dispose();
+
+      expect((jukebox as unknown as { playback: unknown }).playback).toBe(since);
     });
   });
 
@@ -160,7 +199,7 @@ describe('Jukebox', () => {
       jukebox.repeatMode = 'one';
       jukebox.play('bgm-02');
 
-      const player = (engineOf(jukebox) as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+      const player = soundingPlayer();
       expect(player.volumeType).toBe(VolumeType.MASTER);
       expect(player.loop).toBe(true);
       expect(player.followsLoopPoints).toBe(true);
@@ -899,9 +938,8 @@ describe('Jukebox', () => {
         moved.syncData = { ...moved.syncData, startTime: 30, seekCount: (jukebox.seekCount ?? 0) + 1 };
         jukebox.apply(moved);
 
-        const after = (engineOf(jukebox) as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
-        expect(play.mock.contexts).toEqual([after]);
-        expect(after.followsLoopPoints).toBe(true);
+        expect(play).toHaveBeenCalledOnce();
+        expect(soundingPlayer().followsLoopPoints).toBe(true);
       });
 
       it('takes no seek from an older version that sends no count', () => {
@@ -1000,10 +1038,6 @@ describe('Jukebox', () => {
       config.djSettings = { ...DEFAULT_DJ_SETTINGS, ...settings };
     }
 
-    function playerOf(jukebox: Jukebox): AudioPlayer {
-      return (engineOf(jukebox) as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
-    }
-
     /** Players never sound here, as the browser's are mocked; this makes each one sound from its play to its stop. */
     function playersSound(): void {
       const sounding = new WeakSet<AudioPlayer>();
@@ -1038,7 +1072,7 @@ describe('Jukebox', () => {
 
       jukebox.play('a');
 
-      expect(playerOf(jukebox).trim).toBeCloseTo(Math.pow(10, -6 / 20), 6);
+      expect(soundingPlayer().trim).toBeCloseTo(Math.pow(10, -6 / 20), 6);
     });
 
     it('plays a track as it is when the room does not level, or before it has been read', () => {
@@ -1047,11 +1081,11 @@ describe('Jukebox', () => {
       const jukebox = makeJukebox();
 
       jukebox.play('a');
-      expect(playerOf(jukebox).trim).toBe(1);
+      expect(soundingPlayer().trim).toBe(1);
 
       roomMixing();
       jukebox.play('b');
-      expect(playerOf(jukebox).trim).toBe(1);
+      expect(soundingPlayer().trim).toBe(1);
     });
 
     it('plays an effect at the loudness of effects', () => {
@@ -1072,7 +1106,7 @@ describe('Jukebox', () => {
       roomMixing();
       const jukebox = makeJukebox();
       jukebox.play('a');
-      const glide = vi.spyOn(playerOf(jukebox), 'glideTrim');
+      const glide = vi.spyOn(soundingPlayer(), 'glideTrim');
 
       AudioProfile.share('a', reading);
       engineOf(jukebox).refreshMix();
@@ -1086,11 +1120,11 @@ describe('Jukebox', () => {
       const fade = vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
       const jukebox = makeJukebox();
       jukebox.play('a');
-      const before = playerOf(jukebox);
+      const before = soundingPlayer();
 
       jukebox.play('b');
 
-      const after = playerOf(jukebox);
+      const after = soundingPlayer();
       expect(after).not.toBe(before);
       expect(fade.mock.contexts).toEqual([before, after]);
       expect(fade.mock.calls).toEqual([
@@ -1106,14 +1140,14 @@ describe('Jukebox', () => {
       vi.spyOn(AudioPlayer.prototype, 'fadeVolumeTo').mockResolvedValue();
       const jukebox = makeJukebox();
       jukebox.play('a');
-      const first = playerOf(jukebox);
+      const first = soundingPlayer();
       jukebox.play('b');
       await Promise.resolve();
       await Promise.resolve();
 
       jukebox.play('c');
 
-      expect(playerOf(jukebox)).toBe(first);
+      expect(soundingPlayer()).toBe(first);
       expect(first.paused).toBe(false);
     });
 
@@ -1127,12 +1161,12 @@ describe('Jukebox', () => {
       });
       const jukebox = makeJukebox();
       jukebox.play('a');
-      const first = playerOf(jukebox);
+      const first = soundingPlayer();
       jukebox.play('b');
       jukebox.stop();
       jukebox.play('a');
       jukebox.play('c');
-      expect(playerOf(jukebox)).toBe(first);
+      expect(soundingPlayer()).toBe(first);
 
       finishFirstFade!();
       await Promise.resolve();
@@ -1152,7 +1186,7 @@ describe('Jukebox', () => {
       jukebox.play('b');
 
       expect(fade).not.toHaveBeenCalled();
-      expect(playerOf(jukebox).fader).toBe(1);
+      expect(soundingPlayer().fader).toBe(1);
     });
 
     it('cuts straight across without a crossfade, or when nothing was sounding', () => {
@@ -1161,7 +1195,7 @@ describe('Jukebox', () => {
       const stop = vi.mocked(AudioPlayer.prototype.stop);
       const jukebox = makeJukebox();
       jukebox.play('a');
-      const before = playerOf(jukebox);
+      const before = soundingPlayer();
       stop.mockClear();
 
       jukebox.play('b');
@@ -1197,7 +1231,7 @@ describe('Jukebox', () => {
 
       jukebox.resume();
       expect(fade).toHaveBeenLastCalledWith(1, 4000);
-      expect(playerOf(jukebox).fader).toBe(0);
+      expect(soundingPlayer().fader).toBe(0);
     });
 
     it('fades back in when another peer goes on with the track', () => {
@@ -1403,7 +1437,7 @@ describe('Jukebox', () => {
       const brake = vi.spyOn(AudioPlayer.prototype, 'brake').mockResolvedValue();
       const jukebox = makeJukebox();
       jukebox.play('a');
-      const playing = (engineOf(jukebox) as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+      const playing = soundingPlayer();
       vi.spyOn(AudioPlayer.prototype, 'currentTime', 'get').mockReturnValue(33);
 
       jukebox.brakeStop();
@@ -1550,7 +1584,7 @@ describe('Jukebox', () => {
       const jukebox = makeJukebox();
       jukebox.repeatMode = 'all';
       jukebox.play('a');
-      const ending = (engineOf(jukebox) as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+      const ending = soundingPlayer();
       jukebox.play('b');
 
       ending.onEnded!();
@@ -1610,7 +1644,7 @@ describe('Jukebox', () => {
       AudioProfile.share('b', { ...reading, lufs: -24 });
       const jukebox = makeJukebox();
       jukebox.play('a');
-      const sounding = (engineOf(jukebox) as unknown as { audioPlayer: AudioPlayer }).audioPlayer;
+      const sounding = soundingPlayer();
       const levelOfA = sounding.trim;
       const glide = vi.spyOn(sounding, 'glideTrim');
       jukebox.play('b');

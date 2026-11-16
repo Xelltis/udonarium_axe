@@ -22,9 +22,11 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { OverviewMemoPreferenceService } from '@axe/application/ui/overview-memo-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clampOr } from '@axe/core/util/clamp';
 import { turnCache } from '@axe/core/util/turn-cache';
 import { Card } from '@axe/domain/card/card'; //
 import { CardStack } from '@axe/domain/card/card-stack'; //
+import { writeElementField } from '@axe/domain/character/alias-mate-follow';
 import { GameCharacter } from '@axe/domain/character/game-character'; //
 import { ResourceSliderRange, resourceSliderRange } from '@axe/domain/character/resource-slider';
 import {
@@ -62,6 +64,7 @@ import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { edgeDetailAnchor, EdgeDetailSeat } from '@axe/ui/tabletop/edge-detail-layout';
+import { escapeHtml } from '@axe/ui/text-decoration/decorate-chat-text';
 import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -87,6 +90,9 @@ import { TranslocoModule } from '@jsverse/transloco';
   },
 })
 export class OverviewPanelComponent {
+  /** Writes a value typed into a field of a piece, and carries it to the items sharing an alias with it. */
+  protected readonly writeField = writeElementField;
+
   private readonly inventoryService = inject(GameObjectInventoryService);
   protected readonly names = inject(PieceNameService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
@@ -141,7 +147,7 @@ export class OverviewPanelComponent {
     next.delete(element.identifier);
     this.sliderPreview.set(next);
     if (!this.canEdit) return;
-    element.currentValue = (event.target as HTMLInputElement).valueAsNumber;
+    writeElementField(element, 'currentValue', (event.target as HTMLInputElement).valueAsNumber);
   }
 
   /**
@@ -483,12 +489,6 @@ export class OverviewPanelComponent {
     return isSelectValueChosen(cell, option);
   }
 
-  /** Writes a select cell's value; ignored for a reader who may not edit the table. */
-  setTableSelectCellValue(cell: DataElement, value: string): void {
-    if (!this.canEdit) return;
-    cell.value = value;
-  }
-
   /**
    * Writes a select cell's value from its dropdown's change event; ignored for a reader who may not
    * edit the table.
@@ -672,19 +672,19 @@ export class OverviewPanelComponent {
     const alias = this.tabletopObject?.aliasName;
     let width: number = 250;
 
-    if (alias == 'card') {
+    if (alias === 'card') {
       width = this.overViewCardWidth;
     }
 
-    if (alias == 'card-stack') {
+    if (alias === 'card-stack') {
       width = this.overViewCardWidth;
     }
 
-    if (alias == 'text-note') {
+    if (alias === 'text-note') {
       width = this.overViewNoteWidth;
     }
 
-    if (alias == 'character') {
+    if (alias === 'character') {
       width = this.overViewCharacterWidth;
     }
 
@@ -724,24 +724,12 @@ export class OverviewPanelComponent {
 
   /** The width of a note's overview, from the note's own setting held between 250 and 800 pixels. */
   get overViewNoteWidth(): number {
-    const note = this.tabletopObject as TextNote;
-    if (!note) return 250;
-    let width = note.overViewWidth;
-    if (width < 250) width = 250;
-    if (width > 800) width = 800;
-
-    return width;
+    return clampOr((this.tabletopObject as TextNote | null)?.overViewWidth, 250, 800, 250);
   }
 
   /** The tallest a note's overview grows, from the note's own setting held between 250 and 1000 pixels. */
   get overViewNoteMaxHeight(): number {
-    const note = this.tabletopObject as TextNote;
-    if (!note) return 250;
-    let maxHeight = note.overViewMaxHeight;
-    if (maxHeight < 250) maxHeight = 250;
-    if (maxHeight > 1000) maxHeight = 1000;
-
-    return maxHeight;
+    return clampOr((this.tabletopObject as TextNote | null)?.overViewMaxHeight, 250, 1000, 250);
   }
 
   /**
@@ -749,13 +737,7 @@ export class OverviewPanelComponent {
    * pixels.
    */
   get overViewCharacterWidth(): number {
-    const character = this.tabletopObject as GameCharacter;
-    if (!character) return 270;
-    let width = character.overViewWidth;
-    if (width < 270) width = 270;
-    if (width > 800) width = 800;
-
-    return width;
+    return clampOr((this.tabletopObject as GameCharacter | null)?.overViewWidth, 270, 800, 270);
   }
 
   /**
@@ -763,13 +745,13 @@ export class OverviewPanelComponent {
    * 1000 pixels.
    */
   get overViewCharacterMaxHeight(): number {
-    const character = this.tabletopObject as GameCharacter;
-    if (!character) return 250;
-    let maxHeight = character.overViewMaxHeight;
-    if (maxHeight < 250) maxHeight = 250;
-    if (maxHeight > 1000) maxHeight = 1000;
+    return clampOr((this.tabletopObject as GameCharacter | null)?.overViewMaxHeight, 250, 1000, 250);
+  }
 
-    return maxHeight;
+  /** The card or card stack the overview is of, or null for anything else. */
+  private get cardLike(): Card | CardStack | null {
+    const object = this.tabletopObject;
+    return object instanceof Card || object instanceof CardStack ? object : null;
   }
 
   /**
@@ -777,21 +759,7 @@ export class OverviewPanelComponent {
    * pixels.
    */
   get overViewCardWidth(): number {
-    const card = this.tabletopObject as Card;
-    const cardStack = this.tabletopObject as CardStack;
-    let object: Card | CardStack | null = null;
-
-    if (!card && !cardStack) return 250;
-    if (card) {
-      object = card;
-    } else if (cardStack) {
-      object = cardStack;
-    }
-
-    let width = object!.overViewWidth;
-    if (width < 250) width = 250;
-    if (width > 1000) width = 1000;
-    return width;
+    return clampOr(this.cardLike?.overViewWidth, 250, 1000, 250);
   }
 
   /**
@@ -809,39 +777,18 @@ export class OverviewPanelComponent {
    * 1000 pixels.
    */
   get overViewCardMaxHeight(): number {
-    const card = this.tabletopObject as Card;
-    const cardStack = this.tabletopObject as CardStack;
-    let object: Card | CardStack | null = null;
-
-    if (!card && !cardStack) return 250;
-    if (card) {
-      object = card;
-    } else if (cardStack) {
-      object = cardStack;
-    }
-    let maxHeight = object!.overViewMaxHeight;
-    if (maxHeight < 250) maxHeight = 250;
-    if (maxHeight > 1000) maxHeight = 1000;
-    return maxHeight;
+    return clampOr(this.cardLike?.overViewMaxHeight, 250, 1000, 250);
   }
 
   /** Escapes a field's text for HTML, before any links in it are turned into anchors. */
-  escapeHtml(text: string) {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
+  readonly escapeHtml = escapeHtml;
 
   /**
    * The room's markdown helper, looked up under its identifier or the misspelled one older peers
-   * still use.
+   * still use; null in a room that holds neither.
    */
-  get markdown(): MarkDown {
-    // 'markdwon' is the legacy identifier; keep as fallback for old peers in P2P sessions
-    return (this.objectStore.get<MarkDown>('markdown') ?? this.objectStore.get<MarkDown>('markdwon'))!;
+  get markdown(): MarkDown | null {
+    return this.objectStore.get<MarkDown>('markdown') ?? this.objectStore.get<MarkDown>('markdwon');
   }
 
   /**
@@ -849,12 +796,12 @@ export class OverviewPanelComponent {
    * line breaks kept.
    *
    * The check boxes get ids from `baseId`, which is how a click on one is traced back to the field.
+   * A room without the markdown helper shows the text as it was written.
    */
   escapeHtmlMarkDown(text: string, baseId: string): SafeHtml {
-    const textCheckBox = this.markdown.markDownCheckBox(text, baseId);
-    const textTable = this.markdown.markDownTable(textCheckBox);
-
-    return this.domSanitizer.bypassSecurityTrustHtml(textTable.replace(/\n/g, '<br>'));
+    const markdown = this.markdown;
+    const html = markdown ? markdown.markDownTable(markdown.markDownCheckBox(text, baseId)) : escapeHtml(text);
+    return this.domSanitizer.bypassSecurityTrustHtml(html.replace(/\n/g, '<br>'));
   }
 
   /**
@@ -862,9 +809,7 @@ export class OverviewPanelComponent {
    * landed on, if any.
    */
   onClick(event: MouseEvent) {
-    if (this.markdown) {
-      this.markdown.changeMarkDownCheckBox((event.target as HTMLElement).id, event.timeStamp);
-    }
+    this.markdown?.changeMarkDownCheckBox((event.target as HTMLElement).id, event.timeStamp);
   }
 
   /** A shared note's body drawn with formatting, for a note set to be drawn that way. */

@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import {
   formatPersonalSound,
   parsePersonalSound,
@@ -9,7 +9,7 @@ import {
 import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { Config } from '@axe/domain/peer/config';
 
 /** The channel each kind of sound plays through. */
@@ -34,7 +34,6 @@ export const PERSONAL_VOLUME_CHANNELS: Readonly<Record<PersonalVolumeKind, Volum
  */
 @Injectable({ providedIn: 'root' })
 export class PersonalVolumeService {
-  private readonly objectStore = inject(ObjectStore);
   private readonly sound = signal<PersonalSound>(storedSound());
 
   /** One of the listener's own volumes, from 0 to 1, whether or not that kind is turned off. */
@@ -55,7 +54,7 @@ export class PersonalVolumeService {
   /** Sets one of the listener's own volumes, makes it heard at once and remembers it in this browser. */
   set(kind: PersonalVolumeKind, volume: number): void {
     const current = this.sound();
-    this.save({ ...current, volumes: { ...current.volumes, [kind]: Math.min(1, Math.max(0, volume)) } });
+    this.save({ ...current, volumes: { ...current.volumes, [kind]: clamp(volume, 0, 1) } });
   }
 
   /** Turns a kind of sound off or back on for the listener, and remembers it in this browser. */
@@ -69,10 +68,10 @@ export class PersonalVolumeService {
    * the app starts, and whenever the room's volumes change.
    */
   applyToChannels(): void {
-    const config = this.objectStore.get<Config>('Config');
+    const config = Config.instance;
     for (const kind of PERSONAL_VOLUME_KINDS) {
       const channel = PERSONAL_VOLUME_CHANNELS[kind];
-      AudioOutput.setChannelVolume(channel, this.levelOf(kind) * (config?.roomScaleFor(channel) ?? 1));
+      AudioOutput.setChannelVolume(channel, this.levelOf(kind) * config.roomScaleFor(channel));
     }
   }
 

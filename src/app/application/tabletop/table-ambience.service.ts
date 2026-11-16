@@ -16,7 +16,9 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
  */
 @Injectable({ providedIn: 'root' })
 export class TableAmbienceService {
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);

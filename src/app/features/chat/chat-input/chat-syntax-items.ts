@@ -3,6 +3,7 @@ import type { ChatTagLanguage } from '@axe/domain/chat/chat-decoration';
 import type { ChatRichChip } from '@axe/domain/chat/chat-rich-text';
 import { namableInResourceCommand } from '@axe/domain/data/resource-command-words';
 import { isBattleChatTokenName } from '@axe/domain/effect/effect-chat-token';
+import { TURN_CHAT_COMMANDS } from '@axe/domain/tabletop/turn-chat-command';
 import type { ChatChipPlace, ChatFieldSelection } from '@axe/features/chat/chat-input/chat-text-field';
 
 /** What the speaker and the room offer to be written, each by the name it is written with. */
@@ -19,6 +20,8 @@ export interface ChatSyntaxMenuSource {
   /** Commands of the game system that roll as they stand. */
   readonly diceExamples: readonly string[];
   readonly isGameMaster: boolean;
+  /** Whether the reader may move the round, and so may say the commands that move it. */
+  readonly canTakeTurns: boolean;
 }
 
 /** How the items write into the line. */
@@ -55,7 +58,7 @@ export interface ChatSyntaxRow {
   readonly items: readonly ChatSyntaxItem[];
 }
 
-export type ChatSyntaxGroupKey = 'dice' | 'reference' | 'resource' | 'buff' | 'portrait' | 'effect' | 'quote';
+export type ChatSyntaxGroupKey = 'dice' | 'reference' | 'resource' | 'buff' | 'turn' | 'portrait' | 'effect' | 'quote';
 
 /** A kind of syntax and the rows of it there are to write. */
 export interface ChatSyntaxGroup {
@@ -76,11 +79,14 @@ function withHole(writer: ChatSyntaxWriter, before: string, hole: string, after 
 
 /**
  * The syntax the input's insert button offers, a group to each kind: dice, references, resource and
- * buff changes, portraits, effects and cut-ins, and quotes. Each row is named with what it writes, so
- * that a reader who picks from it learns to write the same by hand, and writes it where it is read:
- * a roll at the start of the roll on the first line, a change of a status or a buff as a word of its
- * own at the caret with a word to type over selected, a quote at the start of the line, or a chip. A group the speaker or the room has nothing for is left out, as is the sweep a
- * player cannot use.
+ * buff changes, the round's commands, portraits, effects and cut-ins, and quotes. Each row is named
+ * with what it writes, so that a reader who picks from it learns to write the same by hand, and
+ * writes it where it is read: a roll at the start of the roll on the first line, a change of a status
+ * or a buff as a word of its own at the caret with a word to type over selected, a round command at
+ * the start of the message, a quote at the start of the line, or a chip. The commands that clear a
+ * piece of its buffs, put its values back to their defaults or do both are written whole, in the
+ * words of the reader's language. A group the speaker or the room has nothing for is left out, as are
+ * the sweeps and resets of the whole table and the round commands a player cannot use.
  */
 export function chatSyntaxGroups(
   source: ChatSyntaxMenuSource,
@@ -131,10 +137,22 @@ export function chatSyntaxGroups(
             : { label: '>', written: `:${status.name}>`, run: withHole(writer, `:${status.name}>`, word('text')) },
         ],
       })),
+    single(
+      word('resourceDefault'),
+      `:HP=${word('defaultWord')}`,
+      withHole(writer, ':', 'HP', `=${word('defaultWord')}`)
+    ),
+    single(word('resourceDefaults'), `:*=${word('defaultWord')}`, () => writer.word(`:*=${word('defaultWord')} `)),
     single(word('toTarget'), 't:HP-1', withHole(writer, 't:', 'HP', '-1')),
     single(word('secret'), 's:HP-1', withHole(writer, 's:', 'HP', '-1')),
   ]);
 
+  const clearances: readonly [string, string][] = [
+    ['buffClearAll', '*'],
+    ['buffClearBuffs', `*${word('buffKindWord')}`],
+    ['buffClearDebuffs', `*${word('debuffKindWord')}`],
+    ['buffReset', word('resetWord')],
+  ];
   group('buff', [
     single(
       word('buffPlain'),
@@ -142,13 +160,33 @@ export function chatSyntaxGroups(
       withHole(writer, '&', word('name'), `/${word('buffEffect')}/3`)
     ),
     single(word('buffCalculated'), `&!${word('name')}/HP/+/1/3`, withHole(writer, '&!', word('name'), '/HP/+/1/3')),
+    single(
+      word('buffEffectTiming'),
+      `&!${word('name')}/:HP/+/0~+3/none/${word('buffEffectTimingField')}`,
+      withHole(writer, '&!', word('name'), `/:HP/+/0~+3/none/${word('buffEffectTimingField')}`)
+    ),
     single(word('buffRemove'), `&${word('name')}-`, withHole(writer, '&', word('name'), '-')),
     single(word('buffRoundsDown'), '&R-', () => writer.word('&R- ')),
     single(word('buffClear'), '&D', () => writer.word('&D ')),
+    ...clearances.map(([key, written]) => single(word(key), `&${written}-`, () => writer.word(`&${written}- `))),
     ...(source.isGameMaster
-      ? [single(word('buffSweep'), `&&${word('name')}-`, withHole(writer, '&&', word('name'), '-'))]
+      ? [
+          single(word('buffSweep'), `&&${word('name')}-`, withHole(writer, '&&', word('name'), '-')),
+          ...clearances.map(([key, written]) =>
+            single(word(`${key}Table`), `&&${written}-`, () => writer.word(`&&${written}- `))
+          ),
+        ]
       : []),
   ]);
+
+  group(
+    'turn',
+    (source.canTakeTurns ? TURN_CHAT_COMMANDS : []).map((entry) =>
+      single(word(`turn${entry.command[0].toUpperCase()}${entry.command.slice(1)}`), `&${entry.short}`, () =>
+        writer.prefix(`&${entry.short} `, 'first')
+      )
+    )
+  );
 
   group('portrait', [
     ...source.portraits

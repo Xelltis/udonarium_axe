@@ -21,10 +21,13 @@ export class DoubleTap {
 
   constructor(private readonly inputOf: () => PointerInput | null) {}
 
-  /** Remembers the first tap; calls `run` on the second. */
+  /**
+   * Remembers the first tap; calls `run` on the second. Only a finger and the mouse's main button
+   * tap: a press of another button, which opens a menu or turns the table, is passed over.
+   */
   handle(event: MouseEvent | TouchEvent, run: () => void): void {
     const input = this.inputOf();
-    if (!input) return;
+    if (!input || !isTap(event)) return;
 
     if (!this.timer) {
       this.cancel();
@@ -53,6 +56,10 @@ export class DoubleTap {
     const input = this.inputOf();
     if (input) input.onEnd = null;
   }
+}
+
+function isTap(event: MouseEvent | TouchEvent): boolean {
+  return isTouch(event) || (event as MouseEvent).button === 0;
 }
 
 function isTouch(event: MouseEvent | TouchEvent): boolean {

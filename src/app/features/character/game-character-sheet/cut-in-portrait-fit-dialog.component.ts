@@ -6,6 +6,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { portraitPicturesOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import {
@@ -37,7 +38,7 @@ const ZOOM_STEP = 1.1;
 
 /** The width of the slot for a viewport width: the sheet's usual slot, smaller where the screen is. */
 export function portraitFitFrameWidth(viewportWidth: number): number {
-  return Math.max(MIN_FRAME_WIDTH, Math.min(PORTRAIT_FIT_FRAME.width, viewportWidth - PORTRAIT_FIT_MARGIN * 2 - 48));
+  return clamp(viewportWidth - PORTRAIT_FIT_MARGIN * 2 - 48, MIN_FRAME_WIDTH, PORTRAIT_FIT_FRAME.width);
 }
 
 /**

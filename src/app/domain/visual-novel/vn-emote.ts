@@ -27,6 +27,11 @@ export const VN_EMOTION_MARKS: readonly VnEmotionMark[] = [
   'silence',
 ];
 
+/** The character an emotion mark is drawn as where the marks are offered to pick from; empty for no mark. */
+export function emotionMarkLabelOf(mark: VnEmotionMark): string {
+  return mark === 'none' ? '' : VN_EMOTION_MARK_CHARS[mark];
+}
+
 export interface VnEmote {
   kind: VnMessageKind;
   shape: VnBubbleShape;

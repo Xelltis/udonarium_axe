@@ -74,7 +74,9 @@ describe('DigitalClockComponent', () => {
     widgets.clock.set(true);
     await render();
 
-    (component as unknown as { close: () => void }).close();
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
+      .find((button) => button.textContent?.trim() === 'close')!
+      .click();
     await render();
 
     expect(widgets.clock()).toBe(false);

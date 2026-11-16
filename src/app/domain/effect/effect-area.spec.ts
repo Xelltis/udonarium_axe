@@ -46,6 +46,11 @@ describe('areaShareOf()', () => {
     expect([0, 1, 2].map((index) => areaShareOf(nova, three, index))).toEqual([1, 0.4, 0.4]);
   });
 
+  it('leaves an upheaval whole on every target, which lays itself out over all of them', () => {
+    expect([0, 1, 2].map((index) => areaShareOf(makePreset('upheaval', 3), three, index))).toEqual([1, 1, 1]);
+    expect([0, 1, 2].map((index) => areaShareOf(makePreset('rubble', 3), three, index))).toEqual([1, 0.4, 0.4]);
+  });
+
   it('draws whole on every target what is not an area blast', () => {
     expect(areaShareOf(makePreset('nova', 0), three, 2)).toBe(1);
     expect(areaShareOf(makePreset('heal', 3), three, 2)).toBe(1);

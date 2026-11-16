@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /** How the camera stands, as far as a backdrop cares. */
 export interface BackdropCamera {
   /** The tilt, in degrees; 0 looks straight down. */
@@ -38,7 +39,7 @@ export function backdropOffset(
   follow: number,
   pictureWidth: number
 ): { readonly x: number; readonly y: number } {
-  const share = Number.isFinite(follow) ? Math.min(1, Math.max(0, follow)) : 0;
+  const share = Number.isFinite(follow) ? clamp(follow, 0, 1) : 0;
   if (share === 0) return { x: 0, y: 0 };
 
   const width = Number.isFinite(pictureWidth) && pictureWidth > 0 ? pictureWidth : 0;
@@ -47,7 +48,7 @@ export function backdropOffset(
 
   const tilted = (finite(camera.rotateX) - BACKDROP_REST_TILT_DEGREES) * BACKDROP_TILT_PX_PER_DEGREE;
   const reach = BACKDROP_MAX_RISE_PX * share;
-  const down = Math.min(reach, Math.max(-reach, (tilted + finite(camera.positionY) * BACKDROP_PAN_RATIO) * share));
+  const down = clamp((tilted + finite(camera.positionY) * BACKDROP_PAN_RATIO) * share, -reach, reach);
 
   return { x: width > 0 ? wrapIntoPicture(across, width) : 0, y: down };
 }

@@ -124,7 +124,7 @@ export class AudioFile {
     audio.context.identifier = await FileReaderUtil.calcSHA256Async(arrayBuffer);
     audio.context.blob = new Blob([arrayBuffer], { type: blob.type });
     audio.context.type = audio.context.blob.type;
-    audio.context.url = window.URL.createObjectURL(audio.context.blob);
+    audio.context.url = URL.createObjectURL(audio.context.blob);
     audio.context.name = name ?? audio.context.identifier;
     audio._artworkUrl = extractArtworkUrl(arrayBuffer);
 
@@ -153,22 +153,31 @@ export class AudioFile {
     this.context.type ||= context.type;
     this.context.url ||= context.url;
     this.createURLs();
-    // Extract artwork when blob first arrives (P2P receive path)
     if (!hadBlob && this.context.blob && this._artworkUrl === undefined) {
-      this._artworkUrl = null; // prevent double extraction
-      FileReaderUtil.readAsArrayBufferAsync(this.context.blob).then((buf) => {
-        this._artworkUrl = extractArtworkUrl(buf);
-      });
+      this._artworkUrl = null;
+      void this.readArtwork(this.context.blob);
+    }
+  }
+
+  /**
+   * Reads the artwork embedded in bytes that arrived, in the background. Nothing else reads them
+   * meanwhile, as the artwork counts as read while this runs; bytes that cannot be read leave it unread.
+   */
+  private async readArtwork(blob: Blob): Promise<void> {
+    try {
+      this._artworkUrl = extractArtworkUrl(await FileReaderUtil.readAsArrayBufferAsync(blob));
+    } catch {
+      this._artworkUrl = undefined;
     }
   }
 
   private createURLs() {
-    if (this.context.blob && !this.context.url) this.context.url = window.URL.createObjectURL(this.context.blob);
+    if (this.context.blob && !this.context.url) this.context.url = URL.createObjectURL(this.context.blob);
   }
 
   private revokeURLs() {
     if (!this.context.blob) return;
-    window.URL.revokeObjectURL(this.context.url);
+    URL.revokeObjectURL(this.context.url);
   }
 
   /** A shallow copy of the fields, in the shape sent to peers and handed to `apply`. */

@@ -14,7 +14,7 @@
         <div class="pointer-events-none absolute isolate size-full">
           <img
             class="pointer-events-none absolute size-full"
-            [style.mix-blend-mode]="blendType === 1 ? null : 'hard-light'"
+            style="mix-blend-mode: hard-light"
             [src]="scratchedImageFile().url | safe: 'resourceUrl'"
           />
         </div>
@@ -37,7 +37,7 @@
     @if (imageFile().url.length >= 1) {
       <img
         class="pointer-events-none absolute size-full transform-3d"
-        [style.mix-blend-mode]="blendType === 1 ? null : 'hard-light'"
+        style="mix-blend-mode: hard-light"
         [src]="imageFile().url | safe: 'resourceUrl'"
       />
     }
@@ -267,19 +267,19 @@
                         stroke-linejoin="round"
                       />
                       <line
-                        [attr.x1]="gridInfo.x * gridSize + 15"
-                        [attr.y1]="gridInfo.y * gridSize + 25"
-                        [attr.x2]="gridInfo.x * gridSize + 35"
-                        [attr.y2]="gridInfo.y * gridSize + 25"
+                        [attr.x1]="gridInfo.x * gridSize + gridSize * 0.3"
+                        [attr.y1]="gridInfo.y * gridSize + gridSize * 0.5"
+                        [attr.x2]="gridInfo.x * gridSize + gridSize * 0.7"
+                        [attr.y2]="gridInfo.y * gridSize + gridSize * 0.5"
                         stroke="#22222288"
                         stroke-width="6"
                         stroke-linecap="round"
                       />
                       <line
-                        [attr.x1]="gridInfo.x * gridSize + 25"
-                        [attr.y1]="gridInfo.y * gridSize + 15"
-                        [attr.x2]="gridInfo.x * gridSize + 25"
-                        [attr.y2]="gridInfo.y * gridSize + 35"
+                        [attr.x1]="gridInfo.x * gridSize + gridSize * 0.5"
+                        [attr.y1]="gridInfo.y * gridSize + gridSize * 0.3"
+                        [attr.x2]="gridInfo.x * gridSize + gridSize * 0.5"
+                        [attr.y2]="gridInfo.y * gridSize + gridSize * 0.7"
                         stroke="#22222288"
                         stroke-width="6"
                         stroke-linecap="round"
@@ -295,19 +295,19 @@
                         stroke-linejoin="round"
                       />
                       <line
-                        [attr.x1]="gridInfo.x * gridSize + 15"
-                        [attr.y1]="gridInfo.y * gridSize + 25"
-                        [attr.x2]="gridInfo.x * gridSize + 35"
-                        [attr.y2]="gridInfo.y * gridSize + 25"
+                        [attr.x1]="gridInfo.x * gridSize + gridSize * 0.3"
+                        [attr.y1]="gridInfo.y * gridSize + gridSize * 0.5"
+                        [attr.x2]="gridInfo.x * gridSize + gridSize * 0.7"
+                        [attr.y2]="gridInfo.y * gridSize + gridSize * 0.5"
                         stroke="#8098ff"
                         stroke-width="4"
                         stroke-linecap="round"
                       />
                       <line
-                        [attr.x1]="gridInfo.x * gridSize + 25"
-                        [attr.y1]="gridInfo.y * gridSize + 15"
-                        [attr.x2]="gridInfo.x * gridSize + 25"
-                        [attr.y2]="gridInfo.y * gridSize + 35"
+                        [attr.x1]="gridInfo.x * gridSize + gridSize * 0.5"
+                        [attr.y1]="gridInfo.y * gridSize + gridSize * 0.3"
+                        [attr.x2]="gridInfo.x * gridSize + gridSize * 0.5"
+                        [attr.y2]="gridInfo.y * gridSize + gridSize * 0.7"
                         stroke="#8098ff"
                         stroke-width="4"
                         stroke-linecap="round"

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { MapScene, ReliefLayer } from '@axe/domain/map-editor/scene';
 import { applyGroundDab, GroundBrushKind, GroundDab } from '@axe/domain/tabletop/ground/ground-brush';
 import {
@@ -117,7 +118,7 @@ export function sceneReliefChunks(scene: MapScene): GroundChunkData[] {
       }
       const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
       for (let i = 0; i < heights.length; i++) {
-        heights[i] = Math.max(-HEIGHT_LIMIT, Math.min(HEIGHT_LIMIT, held.heights[i] + chunk.heights[i]));
+        heights[i] = clamp(held.heights[i] + chunk.heights[i], -HEIGHT_LIMIT, HEIGHT_LIMIT);
       }
       summed.set(key, { ...held, heights, paint: paintOver(held.paint, chunk.paint) });
     }

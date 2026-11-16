@@ -91,10 +91,18 @@ function scheduleAngularTick(): void {
 }
 
 /**
+ * The event a seat tells itself once the objects have first synced since its network opened: what
+ * it asked its peers for has come in or been given up, or it has had nothing to ask for a while.
+ * What is better left until the table is there, as asking for pictures and sounds is, waits for it.
+ */
+export const FIRST_SYNC_SETTLED = 'FIRST_SYNC_SETTLED';
+
+/**
  * The events this device tells only itself, which no peer may send it. A peer's OPEN_NETWORK or
  * PEER_RECONNECT would pass for this device's own network; its UPDATE_FILE_RESOURE,
  * UPDATE_AUDIO_RESOURE or UPDATE_MODEL_RESOURE would hand in bytes under a picture's, sound's or
- * model's name that no transfer brought; its VN_MODE would turn this screen to novel mode.
+ * model's name that no transfer brought; its VN_MODE would turn this screen to novel mode; its
+ * FIRST_SYNC_SETTLED would pass for this device's own objects having synced.
  */
 export const LOCAL_ONLY_EVENTS: ReadonlySet<string> = new Set([
   'OPEN_NETWORK',
@@ -109,6 +117,7 @@ export const LOCAL_ONLY_EVENTS: ReadonlySet<string> = new Set([
   'UPDATE_MODEL_RESOURE',
   'LOCAL_OBJECT_UPDATED',
   'VN_MODE',
+  FIRST_SYNC_SETTLED,
 ]);
 
 /**
@@ -119,6 +128,9 @@ export const LOCAL_ONLY_EVENTS: ReadonlySet<string> = new Set([
  * An event this device only tells itself is dropped from anybody. With `own` set the events are
  * this device's own, handed back to it as they went out, and are its own though its peer has come
  * to be called otherwise since they were sent, as when its connection opens or gives up.
+ *
+ * A listener that throws on an event is logged with the event's name. The other listeners still
+ * hear that event, and the events after it are delivered in order.
  */
 export function receiveEvents(events: EventContext[], own = false): void {
   for (const ctx of events) {
@@ -133,12 +145,15 @@ export function receiveEvents(events: EventContext[], own = false): void {
       Logger.warn('[NetworkMessaging]', `${ctx.eventName} from <${ctx.sendFrom}>, not the room server, dropped`);
       continue;
     }
-    networkMessage$.emit({
-      eventName: ctx.eventName,
-      data: ctx.data,
-      sendFrom: ctx.sendFrom,
-      isSendFromSelf: own || ctx.sendFrom === Network.peerId,
-    });
+    networkMessage$.emitEach(
+      {
+        eventName: ctx.eventName,
+        data: ctx.data,
+        sendFrom: ctx.sendFrom,
+        isSendFromSelf: own || ctx.sendFrom === Network.peerId,
+      },
+      (error) => Logger.error(`[NetworkMessaging] ${ctx.eventName} from <${ctx.sendFrom}> threw in a listener`, error)
+    );
   }
   scheduleAngularTick();
 }

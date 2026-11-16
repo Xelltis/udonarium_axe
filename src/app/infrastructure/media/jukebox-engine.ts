@@ -83,20 +83,26 @@ export class JukeboxEngine implements JukeboxPlayback {
     this.room.usePlayback(this);
   }
 
+  /** Stops whatever sounds, lets go of the players kept spare, and takes itself off the room. */
   dispose(): void {
     this.releaseGestures?.();
     this.releaseGestures = null;
     this.stop();
+    for (const player of this.sparePlayers.splice(0)) player.stop();
+    this.room.dropPlayback(this);
   }
 
+  /** Where this peer's player is in the track it holds, in seconds. */
   get currentTime(): number {
     return this.audioPlayer.currentTime;
   }
 
+  /** Where this peer is in the room's track, in seconds: 0 while that has yet to sound here. */
   get soundingTime(): number {
     return this.isSoundingTrack ? this.audioPlayer.currentTime : 0;
   }
 
+  /** The length of the room's track as it sounds here, in seconds: 0 while it has yet to. */
   get duration(): number {
     return this.isSoundingTrack ? this.audioPlayer.duration : 0;
   }
@@ -114,6 +120,7 @@ export class JukeboxEngine implements JukeboxPlayback {
     return this.room.audio;
   }
 
+  /** Sets whether the track sounding goes round. */
   setLoop(loop: boolean): void {
     this.audioPlayer.loop = loop;
   }
@@ -165,10 +172,12 @@ export class JukeboxEngine implements JukeboxPlayback {
     room.moveOnFromEnd();
   }
 
+  /** Plays a sound effect over the music, at the level the room mixes effects to. */
   playSE(audio: AudioFile): void {
     SoundEffects.play(audio, mixLevelOf(audio.identifier, 'effect'));
   }
 
+  /** Cuts a sound effect off. */
   stopSE(identifier: string): void {
     SoundEffects.stop(identifier);
   }
@@ -255,11 +264,13 @@ export class JukeboxEngine implements JukeboxPlayback {
     return roomMix().pauseFadeS * 1000;
   }
 
+  /** Moves the room's track to a point in seconds at once where it sounds, calling off a jump still waiting. */
   seekTo(time: number): void {
     if (this.pendingChange?.kind === 'jump') this.cancelPendingChange();
     if (this.isSoundingTrack) this.audioPlayer.seekTo(time);
   }
 
+  /** Follows the room's track moved by another peer: crossfades there unless already near it, and leaves a change of track waiting for its bar alone. */
   follow(time: number): void {
     if (this.pendingChange?.kind === 'track') return;
     this.cancelPendingChange();
@@ -268,6 +279,7 @@ export class JukeboxEngine implements JukeboxPlayback {
     this.crossfadeSeek(time);
   }
 
+  /** Stops the track sounding, fading it out over the time given; without one, tracks still fading out stop too. */
   stop(fadeMs: number = 0): void {
     this.stopSounding(fadeMs);
   }
@@ -344,6 +356,7 @@ export class JukeboxEngine implements JukeboxPlayback {
     if (player !== this.audioPlayer && !this.sparePlayers.includes(player)) this.sparePlayers.push(player);
   }
 
+  /** Jumps the room's track to a marked place in seconds, on the next beat while the room quantises. */
   jump(time: number): void {
     const wait = this.quantizeWaitMs('beat');
     const jump = () => this.crossfadeSeek(time, JukeboxEngine.JUMP_FADE_MS);
@@ -355,6 +368,7 @@ export class JukeboxEngine implements JukeboxPlayback {
     jump();
   }
 
+  /** How long a change of track waits for the next bar of the track sounding, in milliseconds: 0 for none. */
   barWaitMs(): number {
     return this.quantizeWaitMs('bar');
   }

@@ -2,8 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, u
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { ModalService } from '@axe/application/ui/modal.service';
-import { PanelService } from '@axe/application/ui/panel.service';
 import { ChatLogImages, exportChatLog } from '@axe/domain/chat/chat-log-export';
 import { ChatLogExporter, ChatLogTab } from '@axe/domain/chat/chat-log-exporter';
 import { ChatLogScope } from '@axe/domain/chat/chat-log-rich';
@@ -30,7 +28,7 @@ interface PreparedPreview {
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-chat-log-preview',
+  selector: 'chat-log-preview',
   templateUrl: './chat-log-preview.component.html',
   host: { class: 'block h-full' },
   imports: [TranslocoModule, SafePipe],
@@ -39,8 +37,6 @@ export class ChatLogPreviewComponent {
   private readonly saveDataService = inject(SaveDataService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly preference = inject(ChatLogStylePreferenceService);
-  private readonly modalService = inject(ModalService);
-  private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
 
   readonly styles = CHAT_LOG_STYLES;
@@ -82,7 +78,6 @@ export class ChatLogPreviewComponent {
   });
 
   constructor() {
-    queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('feature.chat.log.previewTitle')));
     effect(() => {
       const tab = this.tab();
       const scope = this.effectiveScope();

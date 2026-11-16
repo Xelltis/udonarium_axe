@@ -3,7 +3,9 @@ import {
   cellKey,
   cellPatternToSet,
   parseCellPattern,
+  patternCellToWorld,
   rotateCellPattern,
+  worldCellToPattern,
 } from '@axe/domain/tabletop/cell-pattern';
 import {
   hexCellCenter,
@@ -58,55 +60,6 @@ function resolveCells(input: CustomRenderInput): CellCoord[] {
   const cells = parseCellPattern(input.cellPattern);
   if (cells.length === 0) return [];
   return rotateCellPattern(cells, quadrantsFromDegrees(input.rotationDegrees));
-}
-
-function isParityOdd(n: number): boolean {
-  return Math.abs(n % 2) === 1;
-}
-
-/**
- * Map a hex offset cell `(gx, gy)` painted in the editor (where the editor base is at row/col 0)
- * to a world hex cell, when the range is placed so that base = (baseCol, baseRow).
- *
- * Hex offset coordinates have parity-dependent layouts (odd-r for pointy-top, odd-q for flat-top).
- * Adding (gx, gy) to (baseCol, baseRow) in raw offset coords gives the wrong cell whenever the
- * base parity differs from the editor's even-parity base — producing mirrored shapes when the
- * range is moved across rows/columns. This adjustment keeps the visual shape stable.
- */
-export function patternCellToWorld(
-  baseCol: number,
-  baseRow: number,
-  gx: number,
-  gy: number,
-  isFlatTop: boolean
-): { col: number; row: number } {
-  if (isFlatTop) {
-    const adj = isParityOdd(baseCol) && isParityOdd(gx) ? 1 : 0;
-    return { col: baseCol + gx, row: baseRow + gy + adj };
-  }
-  const adj = isParityOdd(baseRow) && isParityOdd(gy) ? 1 : 0;
-  return { col: baseCol + gx + adj, row: baseRow + gy };
-}
-
-/**
- * Inverse of {@link patternCellToWorld}: recover the pattern offset `(gx, gy)` given a world
- * cell (col, row) and the rendered range's base cell.
- */
-export function worldCellToPattern(
-  baseCol: number,
-  baseRow: number,
-  col: number,
-  row: number,
-  isFlatTop: boolean
-): { gx: number; gy: number } {
-  if (isFlatTop) {
-    const gx = col - baseCol;
-    const adj = isParityOdd(baseCol) && isParityOdd(gx) ? 1 : 0;
-    return { gx, gy: row - baseRow - adj };
-  }
-  const gy = row - baseRow;
-  const adj = isParityOdd(baseRow) && isParityOdd(gy) ? 1 : 0;
-  return { gx: col - baseCol - adj, gy };
 }
 
 /**
@@ -197,10 +150,7 @@ export function renderCustom(
   const rangeCtx = canvasElementRange.getContext('2d')!;
   makeBrush(rangeCtx, gridSize, setting.rangeColor);
   rangeCtx.lineWidth = 2;
-  // Draw the range origin dot at the BASE CELL CENTER (the cell that contains the range world
-  // position). This anchors the dot visually to pattern cell (0, 0) regardless of where on the
-  // table the range was dropped — without this, the dot floats off-cell whenever the range is
-  // placed off the grid lines.
+  // The origin dot sits at the centre of the cell the range stands in, the pattern's cell (0, 0).
   const canvasCx = setting.areaWidth * gridSize * 0.5;
   const canvasCy = setting.areaHeight * gridSize * 0.5;
   const baseOffset = computeBaseCellOffset(setting, gridSize);
@@ -241,8 +191,3 @@ export function renderCustom(
   }
   return { halfWidthPx, halfHeightPx };
 }
-
-/** Convenience to keep `cellKey` import available for callers that need it. */
-export { cellKey };
-
-/** Local helper used by panels: turn pixel coordinate (relative to grid origin) into a cell key. */

@@ -6,6 +6,7 @@ import { ConcealmentService } from '@axe/application/tabletop/concealment.servic
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { presetSoundLabelKey, soundFileName } from '@axe/domain/media/preset-sound-labels';
@@ -23,18 +24,15 @@ import {
   SWITCH_TOGGLES,
   SwitchAction,
   SwitchActionKind,
-  SwitchShowHide,
-  SwitchSpawn,
 } from '@axe/domain/tabletop/board-switch/switch-definition';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { listedThingLabel } from '@axe/features/disclosure/concealment-context-menu';
+import {
+  SwitchChoice,
+  SwitchChoiceSelectComponent,
+} from '@axe/features/tabletop/board-switch/switch-choice-select.component';
 import { TranslocoModule } from '@jsverse/transloco';
-
-interface NameChoice {
-  value: string;
-  name: string;
-}
 
 /**
  * The list of things a switch does, in the order it does them, for the master to write.
@@ -44,10 +42,10 @@ interface NameChoice {
  * such and kept where it stands, so writing the list back does not lose it.
  */
 @Component({
-  selector: 'app-switch-action-list',
+  selector: 'switch-action-list',
   templateUrl: './switch-action-list.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoModule],
+  imports: [SwitchChoiceSelectComponent, TranslocoModule],
 })
 export class SwitchActionListComponent {
   private readonly effectLibrary = inject(EffectLibraryService);
@@ -65,11 +63,11 @@ export class SwitchActionListComponent {
   protected readonly readers = SWITCH_SECRET_READERS;
   protected readonly full = computed(() => this.actions().length >= MAX_SWITCH_ACTIONS);
 
-  private readonly effectChoices = computed<NameChoice[]>(() =>
+  private readonly effectChoices = computed<SwitchChoice[]>(() =>
     this.effectLibrary.presets().map((preset) => ({ value: preset.name, name: preset.name }))
   );
 
-  private readonly soundChoices = computed<NameChoice[]>(() => {
+  private readonly soundChoices = computed<SwitchChoice[]>(() => {
     this.objectChange.fileVersion();
     return [...this.audioStorage.audios]
       .map((audio) => {
@@ -79,43 +77,26 @@ export class SwitchActionListComponent {
       .sort((left, right) => left.name.localeCompare(right.name, 'ja'));
   });
 
-  private readonly cutInChoices = computed<NameChoice[]>(() => {
+  private readonly cutInChoices = computed<SwitchChoice[]>(() => {
     this.objectChange.collectionOf('cut-in')();
     return this.objectStore.getObjects<CutIn>(CutIn).map((cutIn) => ({ value: cutIn.name, name: cutIn.name }));
   });
 
-  /**
-   * What a played thing can be, with the name already written kept on offer even where nothing in
-   * the room goes by it, so opening the list does not quietly swap it for something else.
-   */
-  protected choicesFor(action: SwitchAction): NameChoice[] {
-    if (action.kind !== 'sound' && action.kind !== 'effect' && action.kind !== 'cutIn') return [];
-    const choices =
-      action.kind === 'sound'
-        ? this.soundChoices()
-        : action.kind === 'effect'
-          ? this.effectChoices()
-          : this.cutInChoices();
-    const name = action.name.trim();
-    if (name.length < 1 || choices.some((choice) => choice.value === name)) return choices;
-    return [{ value: name, name: this.t('feature.boardSwitch.missing', { name }) }, ...choices];
+  /** What a played thing can be: the room's sounds, effects or cut-ins, by name. */
+  protected namesFor(kind: 'sound' | 'effect' | 'cutIn'): readonly SwitchChoice[] {
+    return kind === 'sound' ? this.soundChoices() : kind === 'effect' ? this.effectChoices() : this.cutInChoices();
   }
 
   /**
-   * What a reveal or a conceal can name: what the master has put out of sight, or what stands on
-   * the table being looked at, each with the kind of thing it is. What it already names is kept on
-   * offer even where it is gone, so opening the list does not quietly point it at something else.
+   * What a reveal, a conceal or a spawn can name: what the master has put out of sight, what stands
+   * on the table being looked at, or the pieces of the room, each with the kind of thing it is.
    */
-  protected targetsFor(action: SwitchShowHide | SwitchSpawn): NameChoice[] {
-    const choices =
-      action.kind === 'spawn'
-        ? this.templateChoices()
-        : action.kind === 'reveal'
-          ? this.concealedChoices()
-          : this.concealableChoices();
-    const held = action.target;
-    if (held.identifier.length < 1 || choices.some((choice) => choice.value === held.identifier)) return choices;
-    return [{ value: held.identifier, name: this.t('feature.boardSwitch.missing', { name: held.name }) }, ...choices];
+  protected targetsFor(kind: 'reveal' | 'conceal' | 'spawn'): readonly SwitchChoice[] {
+    return kind === 'spawn'
+      ? this.templateChoices()
+      : kind === 'reveal'
+        ? this.concealedChoices()
+        : this.concealableChoices();
   }
 
   protected setTarget(index: number, identifier: string): void {
@@ -130,7 +111,7 @@ export class SwitchActionListComponent {
   protected readonly toggles = SWITCH_TOGGLES;
 
   /** The tables of the room, which a switch can turn everybody's view to or carry a piece onto. */
-  protected readonly tables = computed<NameChoice[]>(() => {
+  protected readonly tables = computed<SwitchChoice[]>(() => {
     this.objectChange.collectionOf(GameTable.aliasName)();
     return this.objectStore
       .getObjects<GameTable>(GameTable)
@@ -138,7 +119,7 @@ export class SwitchActionListComponent {
   });
 
   /** The pictures the room has, which a switch can lay on the table. */
-  protected readonly images = computed<NameChoice[]>(() => {
+  protected readonly images = computed<SwitchChoice[]>(() => {
     this.objectChange.fileVersion();
     return this.imageStorage.images
       .filter((image) => image.name.trim().length > 0 && !isAccountAvatar(image.identifier))
@@ -146,7 +127,7 @@ export class SwitchActionListComponent {
   });
 
   /** The music the room has, which a switch can put on. */
-  protected readonly tracks = computed<NameChoice[]>(() => {
+  protected readonly tracks = computed<SwitchChoice[]>(() => {
     this.objectChange.fileVersion();
     return [...this.audioStorage.audios]
       .map((audio) => ({ value: audio.identifier, name: soundFileName(audio.name) }))
@@ -154,7 +135,7 @@ export class SwitchActionListComponent {
   });
 
   /** The room's scenes, which a switch can put on. */
-  protected readonly scenes = computed<NameChoice[]>(() => {
+  protected readonly scenes = computed<SwitchChoice[]>(() => {
     this.objectChange.collectionOf(BoardScene.aliasName)();
     return BoardScene.all().map((scene) => ({ value: scene.identifier, name: scene.name }));
   });
@@ -173,7 +154,12 @@ export class SwitchActionListComponent {
   }
 
   /** Points a table, a picture or a track an action names at another, by what it is called too. */
-  protected setRef(index: number, key: 'table' | 'image' | 'bgm', identifier: string, choices: NameChoice[]): void {
+  protected setRef(
+    index: number,
+    key: 'table' | 'image' | 'bgm',
+    identifier: string,
+    choices: readonly SwitchChoice[]
+  ): void {
     const held = this.actions()[index];
     if (!held) return;
     const name = choices.find((choice) => choice.value === identifier)?.name ?? '';
@@ -185,7 +171,7 @@ export class SwitchActionListComponent {
 
   protected setCell(index: number, key: 'col' | 'row', value: string): void {
     const held = this.actions()[index];
-    const cell = Math.max(0, Math.min(999, Math.round(Number(value) || 0)));
+    const cell = clamp(Math.round(Number(value) || 0), 0, 999);
     if (held?.kind === 'carry') this.replace(index, { ...held, [key]: cell });
   }
 
@@ -211,12 +197,12 @@ export class SwitchActionListComponent {
   }
 
   /** What the master has put out of sight, each with the kind of thing it is. */
-  private readonly concealedChoices = computed<NameChoice[]>(() =>
+  private readonly concealedChoices = computed<SwitchChoice[]>(() =>
     this.concealment.concealed().map((object) => ({ value: object.identifier, name: this.labelOf(object) }))
   );
 
   /** What stands on the table being looked at, each with the kind of thing it is. */
-  private readonly concealableChoices = computed<NameChoice[]>(() =>
+  private readonly concealableChoices = computed<SwitchChoice[]>(() =>
     this.concealment.concealable().map((object) => ({ value: object.identifier, name: this.labelOf(object) }))
   );
 
@@ -224,7 +210,7 @@ export class SwitchActionListComponent {
    * The pieces a spawn can copy: every piece in the room, wherever it is kept, each with where that
    * is. Each piece is followed, since moving one to the graveyard changes what it is listed as.
    */
-  private readonly templateChoices = computed<NameChoice[]>(() => {
+  private readonly templateChoices = computed<SwitchChoice[]>(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     return this.objectStore.getObjects<GameCharacter>(GameCharacter).map((piece) => {
       this.objectChange.versionOf(piece.identifier)();

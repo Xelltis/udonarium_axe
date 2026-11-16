@@ -1,4 +1,7 @@
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
+import { DEFAULT_STATUS_AILMENTS } from '@axe/domain/character/builtin-status-ailments';
+import { curseLookOf } from '@axe/domain/effect/ailment-looks';
 import {
   applyEffectPresetSeed,
   createDefaultEffectPresets,
@@ -58,7 +61,7 @@ describe('the effects that come with the tool', () => {
       try {
         // Ending sooner leaves the sound playing over nothing, which drags.
         // A projectile alone would be slowed by that, so its length is given outright.
-        expect(preset.duration).toBe(Math.min(Math.max(seed.durationMs ?? seed.soundMs, 400), 6000));
+        expect(preset.duration).toBe(clamp(seed.durationMs ?? seed.soundMs, 400, 6000));
       } finally {
         ObjectStore.instance.remove(preset);
       }
@@ -170,6 +173,64 @@ describe('the effects that come with the tool', () => {
   });
 });
 
+describe('the effects of the states a room starts with', () => {
+  const seedNamed = (name: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.name === name);
+
+  it('has one under the name of every state in the catalogue, so that putting the state on finds it', () => {
+    for (const ailment of DEFAULT_STATUS_AILMENTS) {
+      const seed = seedNamed(ailment.name);
+
+      expect(seed?.kind, ailment.name).toBe('curse');
+      expect(
+        DEFAULT_EFFECT_PRESET_SEEDS.filter((other) => other.name === ailment.name),
+        ailment.name
+      ).toHaveLength(1);
+    }
+  });
+
+  it('draws each as the state it is named for, and a paralysis under the name it always had', () => {
+    const lookOf = (name: string) => curseLookOf(createSeedOf(name));
+
+    expect(Object.fromEntries(DEFAULT_STATUS_AILMENTS.map((ailment) => [ailment.name, lookOf(ailment.name)]))).toEqual({
+      毒: 'poison',
+      出血: 'bleed',
+      燃焼: 'burn',
+      麻痺: 'shock',
+      睡眠: 'sleep',
+      石化: 'petrify',
+      混乱: 'confuse',
+      魅了: 'charm',
+      恐怖: 'fear',
+      暗闇: 'blind',
+      沈黙: 'silence',
+      鈍足: 'slow',
+    });
+    expect(lookOf('拘束')).toBe('bind');
+    expect(lookOf('呪い')).toBe('curse');
+    expect(seedNamed('麻痺')?.moteStyle).toBe('arc');
+  });
+
+  it('keeps the identifiers of those that were there before', () => {
+    expect(['麻痺', '睡眠', '拘束', '呪い', '石化'].map((name) => seedNamed(name)?.identifier)).toEqual([
+      'EffectPreset_status_paralysis',
+      'EffectPreset_status_sleep',
+      'EffectPreset_status_bind',
+      'EffectPreset_status_curse',
+      'EffectPreset_status_petrify',
+    ]);
+  });
+
+  it('leaves the poison over an area as the miasma it was', () => {
+    expect(seedNamed('毒霧')).toMatchObject({ kind: 'miasma', identifier: 'EffectPreset_miasma_2' });
+  });
+
+  function createSeedOf(name: string): EffectPreset {
+    const preset = new EffectPreset(`seed-of-${name}`);
+    applyEffectPresetSeed(preset, seedNamed(name)!);
+    return preset;
+  }
+});
+
 describe('the newer looks for a projectile', () => {
   const seedOf = (identifier: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.identifier === identifier)!;
 
@@ -211,7 +272,7 @@ describe('the newer looks for a projectile', () => {
     expect(blade.kind).toBe('skyblade');
     expect(blade.durationMs).toBeGreaterThan(1200);
     expect(blade.soundKey).toBe('holyBlade');
-    expect(blade.tagName).toBe('物理');
+    expect(blade.tagName).toBe('聖');
   });
 
   it('gives a beam time to keep firing', () => {
@@ -232,9 +293,25 @@ describe('the newer looks for a projectile', () => {
     expect(sniper.scale).toBeLessThan(seedOf('EffectPreset_bullet_2').scale);
   });
 
+  it('brings the meteor down as a meteor, on up to five targets one after another, with time for its crater to cool', () => {
+    const meteor = seedOf('EffectPreset_projectile_3');
+
+    expect(meteor).toMatchObject({
+      name: '流星',
+      kind: 'projectile',
+      projectileStyle: 'meteor',
+      grade: 3,
+      durationMs: 2000,
+      staggerMs: 130,
+      targeting: 'multi',
+      maxTargets: 5,
+    });
+    expect(meteor.impactKind).toBeUndefined();
+  });
+
   it('lists the newer looks among the choices', () => {
     expect([...PROJECTILE_STYLES]).toEqual(
-      expect.arrayContaining(['crescent', 'blaster', 'tracer', 'missile', 'cruise'])
+      expect.arrayContaining(['crescent', 'blaster', 'tracer', 'missile', 'cruise', 'meteor'])
     );
   });
 
@@ -285,5 +362,261 @@ describe('the newer looks for a projectile', () => {
     expect(new Set(elemental.map((seed) => seed.impactKind)).size).toBe(elemental.length);
     expect(new Set(elemental.map((seed) => seed.impactSoundKey)).size).toBe(elemental.length);
     expect(new Set(elemental.map((seed) => seed.tagName)).size).toBe(elemental.length);
+  });
+});
+
+describe('the shots and the cure that were given another look to land or to play with', () => {
+  const seedOf = (identifier: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.identifier === identifier)!;
+
+  it('lands a ball of spirit and the shots of a blaster in an impact, which leaves no soot', () => {
+    expect(seedOf('EffectPreset_qigong_2')).toMatchObject({ name: '気弾', impactKind: 'impact', soundKey: 'qigong' });
+    for (const identifier of ['EffectPreset_blaster_single', 'EffectPreset_blaster_bolt']) {
+      expect(seedOf(identifier)).toMatchObject({ impactKind: 'impact', soundKey: 'sfShot', impactSoundKey: 'sfHit' });
+    }
+  });
+
+  it('plays the cure of states as a healing, as long as its sound', () => {
+    const cure = seedOf('EffectPreset_status_cure');
+
+    expect(cure).toMatchObject({ name: '状態回復', tagName: '回復', kind: 'heal', soundKey: 'statusCure' });
+    expect(cure.durationMs).toBeUndefined();
+  });
+
+  it('names the particles of a cleansing for the two that cleanse, and for no other healing', () => {
+    const healings = DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => seed.kind === 'heal');
+    const cleansing = healings.filter((seed) => seed.moteStyle === 'cleanse').map((seed) => seed.name);
+
+    expect(cleansing.sort()).toEqual(['状態回復', '状態治療'].sort());
+    for (const seed of healings) expect(['', 'cleanse']).toContain(seed.moteStyle ?? '');
+  });
+});
+
+describe('the holy family', () => {
+  const holy = DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => seed.tagName === '聖');
+  const seedOf = (identifier: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.identifier === identifier)!;
+
+  it('takes in the shot, the breath and the great sword of light that were there before, as they were', () => {
+    expect(seedOf('EffectPreset_holybolt_3')).toMatchObject({ name: '聖光弾', tagName: '聖', kind: 'projectile' });
+    expect(seedOf('EffectPreset_breath_holy')).toMatchObject({ name: '聖なる吐息', tagName: '聖', kind: 'breath' });
+    expect(seedOf('EffectPreset_skyblade')).toMatchObject({ name: '光の大剣', tagName: '聖', kind: 'skyblade' });
+    for (const seed of holy) expect(seed.moteStyle ?? '').toBe('');
+  });
+
+  it('lands the shot and the great sword of light in light that smites, not in a blast of fire', () => {
+    expect(seedOf('EffectPreset_holybolt_3')).toMatchObject({ impactKind: 'smite', impactSoundKey: 'explosionSmall' });
+    expect(seedOf('EffectPreset_skyblade')).toMatchObject({ impactKind: 'smite', impactSoundKey: 'explosionLarge' });
+  });
+
+  it('has an attack for every part an element plays, eight in all', () => {
+    expect(holy.map((seed) => seed.name).sort()).toEqual(
+      ['聖光弾', '聖なる吐息', '光の大剣', '聖印', '裁きの光', '光輪', '聖域', '天罰'].sort()
+    );
+    expect(seedOf('EffectPreset_smite_1')).toMatchObject({
+      name: '聖印',
+      kind: 'smite',
+      grade: 1,
+      targeting: 'single',
+    });
+    expect(seedOf('EffectPreset_smite_2')).toMatchObject({
+      name: '裁きの光',
+      kind: 'smite',
+      grade: 2,
+      targeting: 'multi',
+    });
+    expect(seedOf('EffectPreset_halo_2')).toMatchObject({ name: '光輪', kind: 'halo', grade: 2, targeting: 'single' });
+    expect(seedOf('EffectPreset_sanctuary_3')).toMatchObject({
+      name: '聖域',
+      kind: 'sanctuary',
+      grade: 3,
+      areaRadius: 3,
+    });
+    expect(seedOf('EffectPreset_smite_3')).toMatchObject({ name: '天罰', kind: 'smite', grade: 3, areaRadius: 3 });
+    expect(seedOf('EffectPreset_smite_2').areaRadius ?? 0).toBe(0);
+    expect(seedOf('EffectPreset_smite_2').maxTargets).toBeGreaterThan(1);
+  });
+
+  it('strikes all that an attack over an area takes in at once, and those picked one by one in turn', () => {
+    expect(seedOf('EffectPreset_sanctuary_3').staggerMs).toBe(0);
+    expect(seedOf('EffectPreset_smite_3').staggerMs).toBe(0);
+    expect(seedOf('EffectPreset_smite_2').staggerMs).toBeGreaterThan(150);
+  });
+
+  it('sounds none of its attacks as a healing or as thunder', () => {
+    const attacks = holy.filter((seed) => ['smite', 'halo', 'sanctuary'].includes(seed.kind));
+
+    expect(attacks.length).toBe(5);
+    for (const seed of attacks) {
+      for (const sound of [seed.soundKey, seed.impactSoundKey ?? '']) expect(sound).not.toMatch(/^(cure|heal|thunder)/);
+    }
+  });
+});
+
+describe('the family of lightning', () => {
+  const seedOf = (name: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.name === name)!;
+
+  it('has an attack for every part an element plays, eight in all, its shot among the shots', () => {
+    const parts = ['雷弾', '電撃', '落雷', '電流', '連鎖雷', '雷帝', '雷のブレス', '雷の大剣'];
+
+    for (const name of parts) expect([name, seedOf(name) !== undefined]).toEqual([name, true]);
+    expect(parts.filter((name) => seedOf(name).tagName === '雷')).toHaveLength(7);
+    expect(seedOf('雷弾').tagName).toBe('射撃');
+  });
+
+  it('sends the shot as a bolt that lands in a bolt of lightning, under an identifier of its own', () => {
+    expect(seedOf('雷弾')).toMatchObject({
+      identifier: 'EffectPreset_stormbolt_2',
+      kind: 'projectile',
+      impactKind: 'bolt',
+      grade: 2,
+      targeting: 'multi',
+      soundKey: 'thunderSmall',
+      impactSoundKey: 'thunderBolt',
+      durationMs: 850,
+    });
+    expect(seedOf('雷弾').projectileStyle ?? 'bolt').toBe('bolt');
+    expect(seedOf('雷弾').moteStyle ?? '').toBe('');
+  });
+
+  it('tells the chain from the current by how many it may strike, and gives both a beat between their targets', () => {
+    expect(seedOf('連鎖雷').maxTargets).toBeGreaterThan(seedOf('電流').maxTargets);
+    expect(seedOf('連鎖雷').staggerMs).toBeGreaterThanOrEqual(100);
+    expect(seedOf('電流').staggerMs).toBeGreaterThanOrEqual(50);
+  });
+
+  it('sounds each landing as the lightning strikes', () => {
+    const preset = createEffectPreset(seedOf('電流'));
+    try {
+      expect(preset.impactSoundAt).toBeCloseTo(0.1);
+    } finally {
+      ObjectStore.instance.remove(preset);
+    }
+  });
+});
+
+describe('the dark family', () => {
+  const dark = DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => seed.tagName === '闇');
+  const seedOf = (identifier: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.identifier === identifier)!;
+
+  it('has an attack for every part an element plays in it, beside its curse', () => {
+    expect(dark.map((seed) => seed.name).sort()).toEqual(
+      ['呪い', '暗黒のブレス', '闇の大剣', '生命吸収', '影の棘', '暗黒球', '奈落', '蝕'].sort()
+    );
+    expect(seedOf('EffectPreset_shadow_1')).toMatchObject({
+      name: '影の棘',
+      kind: 'shadow',
+      grade: 1,
+      targeting: 'single',
+    });
+    expect(seedOf('EffectPreset_darkorb_2')).toMatchObject({
+      name: '暗黒球',
+      kind: 'darkorb',
+      grade: 2,
+      targeting: 'multi',
+    });
+    expect(seedOf('EffectPreset_shadow_3')).toMatchObject({ name: '奈落', kind: 'shadow', grade: 3, areaRadius: 3 });
+    expect(seedOf('EffectPreset_darkorb_3')).toMatchObject({ name: '蝕', kind: 'darkorb', grade: 3, areaRadius: 3 });
+    expect(seedOf('EffectPreset_darkorb_2').areaRadius ?? 0).toBe(0);
+    expect(seedOf('EffectPreset_darkorb_2').maxTargets).toBeGreaterThan(1);
+  });
+
+  it('strikes all that an attack over an area takes in at once, and those picked one by one in turn', () => {
+    expect(seedOf('EffectPreset_shadow_3').staggerMs).toBe(0);
+    expect(seedOf('EffectPreset_darkorb_3').staggerMs).toBe(0);
+    expect(seedOf('EffectPreset_darkorb_2').staggerMs).toBeGreaterThan(150);
+  });
+
+  it('gives each of its four new attacks a sound of its own', () => {
+    const sounds = ['shadow_1', 'darkorb_2', 'shadow_3', 'darkorb_3'].map(
+      (key) => seedOf(`EffectPreset_${key}`).soundKey
+    );
+
+    expect(new Set(sounds).size).toBe(4);
+  });
+});
+
+describe('the family of earth', () => {
+  const seedOf = (name: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.name === name)!;
+
+  it('has an attack for every part an element plays, eight in all, its shot among the shots', () => {
+    const parts = ['衝撃波', '岩石破砕', '地割れ', '地隆', '大地震', '砂塵のブレス', '大地の大剣'];
+
+    for (const name of ['岩弾', ...parts]) expect([name, seedOf(name) !== undefined]).toEqual([name, true]);
+    expect(parts.map((name) => seedOf(name).tagName)).toEqual(parts.map(() => '土'));
+    expect(DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => seed.tagName === '土')).toHaveLength(7);
+    expect(seedOf('岩弾').tagName).toBe('射撃');
+  });
+
+  it('tears a rift on each of a few targets in turn, and heaves all of an area at once, under identifiers of their own', () => {
+    expect(seedOf('地割れ')).toMatchObject({
+      identifier: 'EffectPreset_quake_2',
+      kind: 'quake',
+      grade: 2,
+      targeting: 'multi',
+    });
+    expect(seedOf('地割れ').staggerMs).toBeGreaterThan(100);
+    expect(seedOf('地割れ').areaRadius ?? 0).toBe(0);
+    expect(seedOf('大地震')).toMatchObject({
+      identifier: 'EffectPreset_quake_3',
+      kind: 'quake',
+      grade: 3,
+      areaRadius: 3,
+      staggerMs: 0,
+    });
+    for (const name of ['地割れ', '大地震']) expect((seedOf(name).impactSoundKey ?? '').length).toBeGreaterThan(0);
+  });
+
+  it('breathes sand as the breath of earth, naming no particle of its own', () => {
+    expect(seedOf('砂塵のブレス')).toMatchObject({
+      identifier: 'EffectPreset_breath_earth',
+      kind: 'breath',
+      tagName: '土',
+    });
+    expect(seedOf('砂塵のブレス').moteStyle ?? '').toBe('');
+  });
+});
+
+describe('the family of wind', () => {
+  const seedOf = (name: string) => DEFAULT_EFFECT_PRESET_SEEDS.find((seed) => seed.name === name)!;
+
+  it('has an attack for every part an element plays, eight in all, its shot among the shots', () => {
+    const parts = ['突風', '鎌鼬', '真空波', '竜巻', '大嵐', '風のブレス', '風の大剣'];
+
+    for (const name of ['風弾', ...parts]) expect([name, seedOf(name) !== undefined]).toEqual([name, true]);
+    expect(parts.map((name) => seedOf(name).tagName)).toEqual(parts.map(() => '風'));
+    expect(DEFAULT_EFFECT_PRESET_SEEDS.filter((seed) => seed.tagName === '風')).toHaveLength(7);
+    expect(seedOf('風弾').tagName).toBe('射撃');
+  });
+
+  it('cuts, flies, storms and swings by looks of the kinds it shares, keyed by its family and its particles', () => {
+    expect(seedOf('鎌鼬')).toMatchObject({
+      identifier: 'EffectPreset_sickle_2',
+      kind: 'slash',
+      slashStyle: 'combo',
+      grade: 2,
+    });
+    expect(seedOf('鎌鼬').maxTargets).toBeGreaterThan(1);
+    expect(seedOf('真空波')).toMatchObject({
+      identifier: 'EffectPreset_vacuum_2',
+      kind: 'projectile',
+      projectileStyle: 'crescent',
+      impactKind: 'vortex',
+      grade: 2,
+    });
+    expect(seedOf('大嵐')).toMatchObject({
+      identifier: 'EffectPreset_storm_3',
+      kind: 'vortex',
+      moteStyle: 'arc',
+      grade: 3,
+      areaRadius: 3,
+      staggerMs: 0,
+    });
+    expect(seedOf('風の大剣')).toMatchObject({
+      identifier: 'EffectPreset_skyblade_wind',
+      kind: 'skyblade',
+      impactKind: 'vortex',
+    });
+    for (const name of ['鎌鼬', '真空波', '大嵐', '風の大剣']) {
+      expect([name, (seedOf(name).impactSoundKey ?? '').length > 0]).toEqual([name, true]);
+    }
   });
 });

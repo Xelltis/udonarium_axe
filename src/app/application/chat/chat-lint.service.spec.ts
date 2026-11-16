@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatLintService, type ChatLintSource } from '@axe/application/chat/chat-lint.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { Network } from '@axe/core/network/network';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -16,6 +17,7 @@ import { DiceTable } from '@axe/domain/dice/dice-table';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatLintService', () => {
@@ -293,6 +295,63 @@ describe('ChatLintService', () => {
     } finally {
       keptOff.mockRestore();
     }
+  });
+
+  describe('a round command', () => {
+    let turns: TurnOrderService;
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      turns = TestBed.inject(TurnOrderService);
+      turns.reset();
+      TurnState.instance.history = '[]';
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      turns.reset();
+      TurnState.instance.history = '[]';
+      PeerCursor.myCursor.destroy();
+      PeerCursor.myCursor = null!;
+    });
+
+    it('is said to be what it does to every seat that may move the round, and found at fault for one watching', () => {
+      const { session } = watch('&RS');
+      expect(session.diagnostics()).toEqual([
+        expect.objectContaining({ severity: 'info', code: 'turn.roundStart', from: 0, to: 3 }),
+      ]);
+
+      PeerCursor.myCursor.role = PeerRole.Player;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+
+      expect(codesOf(session)).toEqual(['turn.roundStart']);
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+
+      expect(session.diagnostics()).toEqual([expect.objectContaining({ severity: 'error', code: 'turn.no.watching' })]);
+    });
+
+    it('is checked again as the round moves', () => {
+      const { session } = watch('&RS');
+      expect(codesOf(session)).toEqual(['turn.roundStart']);
+
+      turns.next();
+      TestBed.inject(ObjectChangeService).notifyChanged('TurnState');
+
+      expect(codesOf(session)).toEqual(['turn.no.underWay']);
+    });
+
+    it('is checked against the piece spoken as', () => {
+      const sendFrom = signal('');
+      const { session } = watch('&TI', { sendFrom });
+      expect(codesOf(session)).toEqual(['turn.no.noPiece']);
+
+      sendFrom.set(speaker.identifier);
+
+      expect(codesOf(session)).toEqual(['turn.no.notWaiting']);
+    });
   });
 
   it('finds a battle with nobody to strike where the speaker is the one piece selected', () => {

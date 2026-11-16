@@ -11,24 +11,29 @@ export enum HandleType {
   SW = 'sw',
 }
 
+/**
+ * One edge or corner of a resizable element: an invisible strip laid over it that listens for
+ * presses, so dragging the strip resizes the element.
+ */
 export class ResizeHandler {
-  input: InputHandler | null = null;
-  private handle: HTMLElement | null = null;
-  private width = 12;
+  /** The presses on this edge or corner. */
+  readonly input: InputHandler;
+  private readonly handle: HTMLElement;
+  private readonly width = 12;
 
   constructor(
     readonly target: HTMLElement,
     readonly type: HandleType
   ) {
-    this.initialize();
-  }
-
-  private initialize() {
     this.handle = this.target.ownerDocument.createElement('div');
     this.handle.classList.add('ui-resize-handler-' + this.type);
     this.input = new InputHandler(this.handle);
     this.target.appendChild(this.handle);
+    this.lay();
+  }
 
+  /** Lays the strip along its edge, or on its corner, outside the element's own box. */
+  private lay() {
     const style = this.handle.style;
     style.position = 'absolute';
     style.zIndex = '1';
@@ -100,7 +105,7 @@ export class ResizeHandler {
 
   /** Removes the handle element from the target and stops listening for presses on it. */
   destroy() {
-    this.handle!.remove();
-    this.input!.destroy();
+    this.handle.remove();
+    this.input.destroy();
   }
 }

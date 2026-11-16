@@ -33,6 +33,21 @@ describe('CutInLayerPropertiesComponent', () => {
     fixture.detectChanges();
   }
 
+  it('is drawn taking no typing in any field when it is not editable from the first', async () => {
+    const locked = TestBed.createComponent(CutInLayerPropertiesComponent);
+    locked.componentRef.setInput('layer', layer);
+    locked.componentRef.setInput('isEditable', false);
+    locked.detectChanges();
+    await locked.whenStable();
+
+    const fields = [
+      ...(locked.nativeElement as HTMLElement).querySelectorAll<HTMLInputElement>('input, select, textarea'),
+    ];
+    expect(fields.length).toBeGreaterThan(5);
+    expect(fields.filter((field) => !field.disabled).map((field) => field.name)).toEqual([]);
+    locked.destroy();
+  });
+
   it('says nothing without a layer', () => {
     fixture.componentRef.setInput('layer', null);
     fixture.detectChanges();
@@ -72,6 +87,63 @@ describe('CutInLayerPropertiesComponent', () => {
 
     expect(component.x).toBe(42);
     expect(layer.x).toBe(100);
+  });
+
+  describe('the fields a track may move', () => {
+    const NAMES = ['x', 'y', 'scale', 'rotation', 'opacity', 'blur'].map((name) => `cut-in-layer-${name}`);
+
+    async function drawn(): Promise<HTMLElement> {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    /** The diamond that follows the field of a name in the grid. */
+    function diamondOf(host: HTMLElement, name: string): HTMLButtonElement {
+      return host.querySelector(`input[name="${name}"]`)!.nextElementSibling as HTMLButtonElement;
+    }
+
+    it('draws each with its value at the scrubber and a diamond after it', async () => {
+      const host = await drawn();
+
+      expect(host.querySelector<HTMLInputElement>('input[name="cut-in-layer-x"]')!.value).toBe('100');
+      expect(host.querySelector<HTMLInputElement>('input[name="cut-in-layer-opacity"]')!.value).toBe('100');
+      for (const name of NAMES) expect(diamondOf(host, name).textContent?.trim()).toBe('diamond');
+    });
+
+    it('writes what is typed into a field onto the layer', async () => {
+      const host = await drawn();
+      const box = host.querySelector<HTMLInputElement>('input[name="cut-in-layer-x"]')!;
+
+      box.value = '250';
+      box.dispatchEvent(new Event('input'));
+
+      expect(layer.x).toBe(250);
+    });
+
+    it('puts a key down from a field’s diamond, lighting that one alone, and takes it up again', async () => {
+      atPlayhead(400);
+      const host = await drawn();
+
+      diamondOf(host, 'cut-in-layer-rotation').click();
+      await drawn();
+
+      expect(component.keyed('rotation')).toBe(true);
+      expect(diamondOf(host, 'cut-in-layer-rotation').classList.contains('text-ui-accent!')).toBe(true);
+      expect(diamondOf(host, 'cut-in-layer-x').classList.contains('text-ui-accent!')).toBe(false);
+
+      diamondOf(host, 'cut-in-layer-rotation').click();
+      expect(component.keyed('rotation')).toBe(false);
+    });
+
+    it('takes no press on a diamond while the layer is not editable', async () => {
+      fixture.componentRef.setInput('isEditable', false);
+      const host = await drawn();
+
+      for (const name of NAMES) expect(diamondOf(host, name).disabled).toBe(true);
+      for (const name of NAMES)
+        expect(host.querySelector(`input[name="${name}"]`)!.hasAttribute('disabled')).toBe(true);
+    });
   });
 
   it('puts a key down at the scrubber and takes it up again', () => {

@@ -12,8 +12,8 @@ import { ChangeDetectionStrategy, Component, viewChild, ViewContainerRef } from 
  * smaller panel opened from it has to keep its own place, size and close box.
  */
 @Component({
-  selector: 'app-panel-window-layer',
-  template: '<div class="contents" data-panel-window-frame><ng-container #layer /></div><ng-container #overlay />',
+  selector: 'panel-window-layer',
+  templateUrl: './panel-window-layer.component.html',
   host: { class: 'block h-dvh w-screen' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

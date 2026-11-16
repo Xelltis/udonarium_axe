@@ -344,7 +344,7 @@
   </head>
 
   <body>
-    <!-- Shown until the table is drawn, which the app tells it; it stands outside app-root to outlive the start. -->
+    <!-- Shown until the table is drawn, which the app tells it; it stands outside root to outlive the start. -->
     <div id="app-loading" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8">
       <div class="app-loading-sparkles" aria-hidden="true">
         <i>✦</i><i>★</i><i>✦</i><i>♥</i><i>✦</i><i>★</i><i>✦</i><i>♥</i><i>✦</i><i>★</i><i>✦</i><i>♥</i>
@@ -377,6 +377,6 @@
         screen.querySelector('.app-loading-stage').textContent = words[lang];
       })();
     </script>
-    <app-root></app-root>
+    <root></root>
   </body>
 </html>

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { extraLinks, spanningTree } from '@axe/domain/tabletop/dungeon/dungeon-graph';
 import {
   cellAt,
@@ -91,8 +92,8 @@ function paintTunnel(layout: DungeonLayout, x: number, y: number, thickness: num
   const reach = Math.max(1, thickness);
   for (let dy = 0; dy < reach; dy++) {
     for (let dx = 0; dx < reach; dx++) {
-      const cx = Math.min(Math.max(x + dx, 1), layout.width - 2);
-      const cy = Math.min(Math.max(y + dy, 1), layout.height - 2);
+      const cx = clamp(x + dx, 1, layout.width - 2);
+      const cy = clamp(y + dy, 1, layout.height - 2);
       setCell(layout, cx, cy, DungeonCell.Room);
     }
   }

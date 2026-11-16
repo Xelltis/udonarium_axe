@@ -1,4 +1,4 @@
-import { withAlpha } from '@axe/core/util/hex-color';
+import { clamp } from '@axe/core/util/clamp';
 import {
   MapScene,
   newId,
@@ -9,6 +9,7 @@ import {
   TextAlign,
   TextItem,
 } from '@axe/domain/map-editor/scene';
+import { pointToSegmentDistance } from '@axe/domain/map-editor/scene-geometry';
 import {
   BoardPoint,
   boxAround,
@@ -16,7 +17,13 @@ import {
   MarkBox,
   MarkRef,
 } from '@axe/features/tabletop/white-board/white-board-geometry';
-import { MARK_SHADOW, NaturalSize, pictureOf } from '@axe/features/tabletop/white-board/white-board-marks';
+import {
+  isMarkerInk,
+  MARK_SHADOW,
+  markerInk,
+  NaturalSize,
+  pictureOf,
+} from '@axe/features/tabletop/white-board/white-board-marks';
 
 /** Moves whatever was taken hold of, whichever sort of mark it turned out to be. */
 export function moveMark(scene: MapScene, ref: MarkRef, dx: number, dy: number): void {
@@ -152,7 +159,7 @@ export function copyMark(scene: MapScene, ref: MarkRef, offset: number): MarkRef
         const made = {
           ...item,
           id: newId(),
-          points: item.points.map((value, index) => value + (index % 2 === 0 ? offset : offset)),
+          points: item.points.map((value) => value + offset),
         };
         layer.strokes.push(made);
         return { kind: 'stroke', id: made.id };
@@ -178,7 +185,7 @@ export function restack(scene: MapScene, ref: MarkRef, delta: number): void {
     if (!list) continue;
     const at = list.findIndex((entry) => entry.id === ref.id);
     if (at < 0) continue;
-    const to = Math.min(list.length - 1, Math.max(0, at + delta));
+    const to = clamp(at + delta, 0, list.length - 1);
     if (to === at) return;
     const [taken] = list.splice(at, 1);
     list.splice(to, 0, taken);
@@ -258,7 +265,7 @@ export function restyleMark(scene: MapScene, ref: MarkRef, change: MarkStyleChan
     if (ref.kind === 'stroke' && layer.kind === 'freehand') {
       const item = layer.strokes.find((entry) => entry.id === ref.id);
       if (!item) continue;
-      if (change.color) item.color = item.color.startsWith('rgba') ? withAlpha(change.color, 0.38) : change.color;
+      if (change.color) item.color = isMarkerInk(item.color) ? markerInk(change.color) : change.color;
       if (change.width) item.width = change.width;
     }
     if (ref.kind === 'shape' && layer.kind === 'shape') {
@@ -395,7 +402,7 @@ export function fadeMark(scene: MapScene, ref: MarkRef, opacity: number): void {
   for (const layer of scene.layers) {
     if (layer.kind !== 'image') continue;
     const item = layer.items.find((entry) => entry.id === ref.id);
-    if (item) item.opacity = Math.min(1, Math.max(0, opacity));
+    if (item) item.opacity = clamp(opacity, 0, 1);
   }
 }
 
@@ -492,10 +499,13 @@ export function addJoint(scene: MapScene, ref: MarkRef, at: BoardPoint, slack: n
   let nearest = -1;
   let closest = slack;
   for (let joint = 0; joint * 2 + 3 < item.points.length; joint += 1) {
-    const away = awayFromSegment(
-      at,
-      { x: item.points[joint * 2], y: item.points[joint * 2 + 1] },
-      { x: item.points[joint * 2 + 2], y: item.points[joint * 2 + 3] }
+    const away = pointToSegmentDistance(
+      at.x,
+      at.y,
+      item.points[joint * 2],
+      item.points[joint * 2 + 1],
+      item.points[joint * 2 + 2],
+      item.points[joint * 2 + 3]
     );
     if (away <= closest) {
       closest = away;
@@ -513,13 +523,4 @@ export function dropJoint(scene: MapScene, ref: MarkRef, joint: number): boolean
   if (!item || item.points.length <= 4 || joint * 2 + 1 >= item.points.length) return false;
   item.points.splice(joint * 2, 2);
   return true;
-}
-
-function awayFromSegment(at: BoardPoint, from: BoardPoint, to: BoardPoint): number {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const span = dx * dx + dy * dy;
-  if (span === 0) return Math.hypot(at.x - from.x, at.y - from.y);
-  const along = Math.max(0, Math.min(1, ((at.x - from.x) * dx + (at.y - from.y) * dy) / span));
-  return Math.hypot(at.x - (from.x + along * dx), at.y - (from.y + along * dy));
 }

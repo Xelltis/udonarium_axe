@@ -10,7 +10,7 @@
         [class.select-none]="!canView()"
         >{{ canView() ? title() : maskedTitle() }}</span
       >
-      @if (isLock) {
+      @if (isLock()) {
         <i class="material-icons text-ui-titlebar-muted shrink-0 text-[13px]!">lock</i>
       }
     </div>
@@ -21,8 +21,7 @@
       (input)="calcFitHeight()"
       (blur)="onTextAreaBlur()"
       #textArea
-      [attr.data-v]="textNoteVersion()"
-      [style.font-size.px]="fontSize + 9"
+      [style.font-size.px]="fontPx()"
       name="text-note-text"
       [(ngModel)]="text"
       spellcheck="false"
@@ -35,9 +34,9 @@
       [class.select-none]="!canView()"
       [class.whitespace-pre-line]="!formatted() || !canView()"
       [class.note-formatted]="formatted() && canView()"
-      [attr.data-v]="textNoteVersion()"
+      data-part="body"
       [attr.data-formatted]="formatted() ? '' : null"
-      [style.font-size.px]="fontSize + 9"
+      [style.font-size.px]="fontPx()"
       [style.filter]="canView() ? null : 'blur(5px)'"
       [innerHTML]="
         canView()
@@ -60,7 +59,7 @@
   data-hud-box
   appMovable
   [movable.option]="movableOption()"
-  [movable.disable]="isSelected || isLock"
+  [movable.disable]="isEditing() || isLock()"
   (movable.ondragstart)="onMove()"
   (movable.ondragend)="onMoved()"
 >
@@ -68,7 +67,7 @@
     class="pointer-events-none size-full"
     appRotable
     [rotable.option]="rotableOption()"
-    [rotable.disable]="tabletopService.mode2d() && isUpright"
+    [rotable.disable]="tabletopService.mode2d() && isUpright()"
     (rotable.ondragstart)="onMove()"
     (rotable.ondragend)="onMoved()"
   >
@@ -79,9 +78,9 @@
         data-part="panel"
         [class.opacity-0]="!isEditing()"
         [appHudPlace]="{ owner: id, part: 'panel', place: 'face' }"
-        [style.width.px]="width * gridSize"
-        [style.min-height.px]="height * gridSize"
-        [style.max-height.px]="limitHeight() ? height * gridSize : null"
+        [style.width.px]="width() * gridSize()"
+        [style.min-height.px]="height() * gridSize()"
+        [style.max-height.px]="limitHeight() ? height() * gridSize() : null"
       >
         @if (imageFile().url) {
           <img
@@ -93,7 +92,7 @@
         <ng-container [ngTemplateOutlet]="panelContent"></ng-container>
       </div>
     </div>
-    @if (!isLock) {
+    @if (!isLock()) {
       <turn-frame [owner]="id" [stand]="turnStand()" />
     }
   </div>

@@ -65,4 +65,53 @@ describe('parseBuffAppearance()', () => {
     expect(parseBuffAppearance([])).toEqual({});
     expect(parseBuffAppearance(['', '  '])).toEqual({});
   });
+
+  it('reads the moment the effect moves at from a field marked 発生: or tick:, wherever it comes', () => {
+    expect(parseBuffAppearance(['red', '発生:手番終了', '@術者'])).toEqual({
+      color: resolveBuffColor('red'),
+      effectTiming: 'turnEnd',
+      trigger: '術者',
+    });
+    expect(parseBuffAppearance(['none', 'tick:turnStart'])).toEqual({ timing: 'none', effectTiming: 'turnStart' });
+  });
+
+  it('keeps the countdown timing and the moment of the effect apart', () => {
+    expect(parseBuffAppearance(['手番開始', '発生:手番終了'])).toEqual({
+      timing: 'turnStart',
+      effectTiming: 'turnEnd',
+    });
+  });
+
+  it('takes a marked field it cannot read for neither a moment nor an icon', () => {
+    expect(parseBuffAppearance(['発生:いつか'])).toEqual({});
+    expect(parseBuffAppearance(['発生:none', '☠️'])).toEqual({ icon: '☠️' });
+  });
+
+  describe('the words that mark a buff or a debuff (acceptance 3)', () => {
+    it.each([
+      ['デバフ', 'debuff'],
+      ['debuff', 'debuff'],
+      ['バフ', 'buff'],
+      ['buff', 'buff'],
+    ])('reads %s as the kind and never as an icon', (word, kind) => {
+      expect(parseBuffAppearance([word])).toEqual({ kind });
+    });
+
+    it('reads the kind wherever it comes among the colour, the icon and the timing', () => {
+      expect(parseBuffAppearance(['red', 'デバフ', '☠', 'none'])).toEqual({
+        color: resolveBuffColor('red'),
+        kind: 'debuff',
+        icon: '☠',
+        timing: 'none',
+      });
+    });
+
+    it('leaves the kind out where no such word is written', () => {
+      expect('kind' in parseBuffAppearance(['red', '☠'])).toBe(false);
+    });
+
+    it('still takes a word that only holds one of them for an icon', () => {
+      expect(parseBuffAppearance(['デバフ中'])).toEqual({ icon: 'デバフ中' });
+    });
+  });
 });

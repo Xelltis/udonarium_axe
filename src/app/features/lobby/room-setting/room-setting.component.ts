@@ -4,7 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { saveIdentity } from '@axe/core/storage/identity-storage';
@@ -54,15 +54,11 @@ export class RoomSettingComponent {
    */
   protected readonly waitingForConnection = computed(() => {
     this.objectChange.networkVersion();
-    return Network.transport !== 'server' && !Network.isOpen;
+    return Network.instance.transport !== 'server' && !Network.instance.isOpen;
   });
   /** Whether that wait is over without a connection, every try to connect having failed, which only a reload mends. */
   protected readonly unreachable = computed(() => this.waitingForConnection() && this.reach.unreachable());
 
-  /** This browser's peer ID on the network. */
-  get peerId(): string {
-    return Network.peerId;
-  }
   /**
    * Whether this seat is in a room it would have to leave before making one: among peers, joined
    * with anyone else, the peers listed being the others; on a room server, in any room, since
@@ -70,10 +66,12 @@ export class RoomSettingComponent {
    */
   readonly isConnected = computed(() => {
     this.objectChange.networkVersion();
-    return Network.transport === 'server' ? Network.peerContext.isRoom : Network.peerIds.length > 0;
+    return Network.instance.transport === 'server'
+      ? Network.instance.peerContext.isRoom
+      : Network.instance.peerIds.length > 0;
   });
   /** Whether rooms are kept by a room server, which outlasts the last one to leave for a while. */
-  protected readonly onRoomServer = Network.transport === 'server';
+  protected readonly onRoomServer = Network.instance.transport === 'server';
 
   /**
    * This browser's own cursor, which carries the reader's role and the password kept for
@@ -97,25 +95,26 @@ export class RoomSettingComponent {
    * shape a room server withholds goes into the new room only once the reader says to.
    */
   createRoom() {
-    if (Network.transport !== 'server' && !Network.isOpen) return;
+    if (Network.instance.transport !== 'server' && !Network.instance.isOpen) return;
     if (!carriesWithheldInto(null)) {
       this.openNewRoom();
       return;
     }
     void this.withheldEntry.mayEnter(null).then((sure) => {
-      if (sure && !this.isConnected() && (Network.transport === 'server' || Network.isOpen)) this.openNewRoom();
+      if (sure && !this.isConnected() && (Network.instance.transport === 'server' || Network.instance.isOpen))
+        this.openNewRoom();
     });
   }
 
   private openNewRoom(): void {
-    if (Network.transport === 'server') {
+    if (Network.instance.transport === 'server') {
       void this.createServerRoom();
       return;
     }
-    const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
+    const userId = Network.instance.peerContext ? Network.instance.peerContext.userId : PeerContext.generateUserId();
     const roomId = PeerContext.generateId('***');
-    Network.open(userId, roomId, this.roomName(), this.password());
-    PeerCursor.myCursor.peerId = Network.peerId;
+    Network.instance.open(userId, roomId, this.roomName(), this.password());
+    PeerCursor.myCursor.peerId = Network.instance.peerId;
     if (PeerCursor.myCursor.role !== PeerRole.GameMaster) PeerCursor.myCursor.role = PeerRole.GameMaster;
     this.myPeer.reConnectPass = this.password();
     saveIdentity({
@@ -135,17 +134,17 @@ export class RoomSettingComponent {
    */
   private async createServerRoom(): Promise<void> {
     // A room this seat came into while the form was open would go along into the new one.
-    if (this.isCreating() || Network.peerContext.isRoom) return;
+    if (this.isCreating() || Network.instance.peerContext.isRoom) return;
     this.isCreating.set(true);
     this.createError.set('');
     this.createContact.set(null);
     try {
-      const { roomKey, roomId } = await Network.createRoom(this.roomName(), this.password());
+      const { roomKey, roomId } = await Network.instance.createRoom(this.roomName(), this.password());
       // Come into a room meanwhile, the seat stays there, the new room keeping for another time.
-      if (Network.peerContext.isRoom) return;
-      const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
-      Network.open(userId, roomId, this.roomName(), this.password(), roomKey);
-      PeerCursor.myCursor.peerId = Network.peerId;
+      if (Network.instance.peerContext.isRoom) return;
+      const userId = Network.instance.peerContext ? Network.instance.peerContext.userId : PeerContext.generateUserId();
+      Network.instance.open(userId, roomId, this.roomName(), this.password(), roomKey);
+      PeerCursor.myCursor.peerId = Network.instance.peerId;
       this.myPeer.reConnectPass = this.password();
       saveIdentity({
         userId,

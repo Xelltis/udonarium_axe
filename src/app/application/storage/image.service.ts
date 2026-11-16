@@ -10,8 +10,6 @@ const skeletonImage: ImageFile = ImageFile.create('./assets/images/skeleton.png'
 export class ImageService {
   private readonly imageStorage = inject(ImageStorage);
 
-  constructor() {}
-
   /** The picture named, or the skeleton placeholder when it is missing, unknown or empty. */
   getSkeletonOr(arg: ImageFile | string | null): ImageFile {
     if (!arg) return skeletonImage;

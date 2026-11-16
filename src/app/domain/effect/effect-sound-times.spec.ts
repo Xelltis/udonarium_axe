@@ -88,6 +88,30 @@ describe('impactSoundTimes()', () => {
     expect(impactSoundTimes(bullet)[0]).toBeLessThan(impactSoundTimes(bolt)[0]);
   });
 
+  it('lands a meteor 1.05 seconds in, its omen and its fall together, however much longer the effect runs', () => {
+    const seeded = makePreset('projectile', 1200);
+    const long = makePreset('projectile', 4000);
+    seeded.projectileStyle = 'meteor';
+    long.projectileStyle = 'meteor';
+
+    expect(impactSoundTimes(seeded)).toEqual([1050]);
+    expect(impactSoundTimes(long)).toEqual([1050]);
+  });
+
+  it('lands a meteor seven eighths of the way through an effect too short for its fall', () => {
+    const short = makePreset('projectile', 600);
+    short.projectileStyle = 'meteor';
+
+    expect(impactSoundTimes(short)).toEqual([525]);
+  });
+
+  it('lands every other look within three fifths of the effect, as before a meteor was one', () => {
+    const cruise = makePreset('projectile', 1000);
+    cruise.projectileStyle = 'cruise';
+
+    expect(impactSoundTimes(cruise)).toEqual([600]);
+  });
+
   it('sounds each shot of a burst', () => {
     const preset = makePreset('projectile', 2000);
     preset.shots = 5;

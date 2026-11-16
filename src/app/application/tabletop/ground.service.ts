@@ -1,5 +1,6 @@
-import { computed, effect, inject, Injectable, untracked } from '@angular/core';
+import { computed, inject, Injectable, untracked } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ProtocolMarksService } from '@axe/application/sync/protocol-marks.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -49,15 +50,8 @@ export class GroundService {
     });
   });
 
-  constructor() {
-    // Said on this peer's cursor from the moment it is here, so a master shaping the ground knows
-    // whom it reaches.
-    effect(() => {
-      this.objectChange.collectionOf(PeerCursor.aliasName)();
-      const mine = PeerCursor.myCursor;
-      if (mine && mine.groundProtocol !== '1') untracked(() => (mine.groundProtocol = '1'));
-    });
-  }
+  /** Made here so this seat says it knows the ground from the moment its cursor is here, and a master shaping it knows whom it reaches. */
+  private readonly protocolMarks = inject(ProtocolMarksService);
 
   /** How high the ground stands at a point of the board, in table pixels. */
   heightPxAt(x: number, y: number): number {

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { PERF_HEX_MASK_SVG, perfCounters } from '@axe/core/util/perf-counters';
@@ -35,6 +35,11 @@ describe('GameTableMaskComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('has an empty picture, and draws without throwing, while it has no mask', () => {
+    expect(component.imageFile().url).toBe('');
+    expect(() => fixture.detectChanges()).not.toThrow();
+  });
+
   describe('the guide to how high it floats', () => {
     let table: GameTable;
     let mask: GameTableMask;
@@ -44,7 +49,7 @@ describe('GameTableMaskComponent', () => {
       table.width = 20;
       table.height = 20;
       table.initialize();
-      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
       mask = GameTableMask.create('浮くマスク', 4, 2, 1);
       mask.location = { name: 'table', x: 100, y: 200 };
       mask.isAltitudeIndicate = true;
@@ -83,7 +88,10 @@ describe('GameTableMaskComponent', () => {
   });
 
   it('keeps the name of whoever scratches it upright on the screen, however the table is turned', () => {
-    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: true } as IPeerContext);
+    vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+      userId: 'my-user',
+      isOpen: true,
+    } as IPeerContext);
     const mask = GameTableMask.create('testMask', 10, 10, 1);
     mask.owner = 'my-user';
     fixture.componentRef.setInput('gameTableMask', mask);
@@ -141,14 +149,26 @@ describe('GameTableMaskComponent', () => {
   describe('the symmetric difference', () => {
     let mask: GameTableMask;
 
+    /** Picks a cell as the peer scratching the mask does, by pressing on its middle. */
+    function pick(col: number, row: number): void {
+      const size = component.gridSize;
+      component.scratching(true, { offsetX: (col + 0.5) * size, offsetY: (row + 0.5) * size });
+    }
+
     beforeEach(() => {
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: 'my-user',
+        isOpen: true,
+      } as IPeerContext);
       mask = GameTableMask.create('testMask', 10, 10, 1);
+      mask.owner = 'my-user';
       fixture.componentRef.setInput('gameTableMask', mask);
       fixture.detectChanges();
     });
 
     afterEach(() => {
       mask.destroy();
+      vi.restoreAllMocks();
     });
 
     it('does nothing without a mask', () => {
@@ -159,11 +179,8 @@ describe('GameTableMaskComponent', () => {
 
     it('keeps what was scratched onto a clean mask', () => {
       mask.scratchedGrids = '';
-      mask.scratchingGrids = '0:0,1:1';
-      (component as unknown as { _currentScratchingSet: Set<string> | null })._currentScratchingSet = new Set([
-        '0:0',
-        '1:1',
-      ]);
+      pick(0, 0);
+      pick(1, 1);
 
       component.scratched();
 
@@ -172,11 +189,8 @@ describe('GameTableMaskComponent', () => {
 
     it('leaves nothing when everything was already scratched', () => {
       mask.scratchedGrids = '0:0,1:1';
-      mask.scratchingGrids = '0:0,1:1';
-      (component as unknown as { _currentScratchingSet: Set<string> | null })._currentScratchingSet = new Set([
-        '0:0',
-        '1:1',
-      ]);
+      pick(0, 0);
+      pick(1, 1);
 
       component.scratched();
 
@@ -185,11 +199,8 @@ describe('GameTableMaskComponent', () => {
 
     it('keeps only what does not overlap', () => {
       mask.scratchedGrids = '0:0,1:1';
-      mask.scratchingGrids = '1:1,2:2';
-      (component as unknown as { _currentScratchingSet: Set<string> | null })._currentScratchingSet = new Set([
-        '1:1',
-        '2:2',
-      ]);
+      pick(1, 1);
+      pick(2, 2);
 
       component.scratched();
 
@@ -199,7 +210,6 @@ describe('GameTableMaskComponent', () => {
     it('takes the cells as given when there is no set', () => {
       mask.scratchedGrids = '0:0';
       mask.scratchingGrids = '0:0';
-      (component as unknown as { _currentScratchingSet: Set<string> | null })._currentScratchingSet = null;
 
       component.scratched();
 
@@ -208,11 +218,51 @@ describe('GameTableMaskComponent', () => {
     });
   });
 
+  describe('the mark on a cell picked to be covered again', () => {
+    let table: GameTable;
+    let mask: GameTableMask;
+
+    beforeEach(async () => {
+      table = new GameTable('restore-mark-table');
+      table.gridSize = 100;
+      table.initialize();
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
+      mask = GameTableMask.create('testMask', 4, 3, 1);
+      mask.owner = 'someone';
+      mask.scratchedGrids = '1:2';
+      mask.scratchingGrids = '1:2';
+      fixture.componentRef.setInput('gameTableMask', mask);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    afterEach(() => {
+      TableSelecter.instance.viewTableIdentifier = '';
+      mask.destroy();
+      table.destroy();
+    });
+
+    it('draws its cross through the middle of the cell, however large the cell is', () => {
+      const lines = [...(fixture.nativeElement as HTMLElement).querySelectorAll('svg line')].map((line) => [
+        Number(line.getAttribute('x1')),
+        Number(line.getAttribute('y1')),
+        Number(line.getAttribute('x2')),
+        Number(line.getAttribute('y2')),
+      ]);
+
+      expect(lines).toContainEqual([130, 250, 170, 250]);
+      expect(lines).toContainEqual([150, 230, 150, 270]);
+    });
+  });
+
   describe('the scratching buttons', () => {
     let mask: GameTableMask;
 
     beforeEach(() => {
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: true } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: 'my-user',
+        isOpen: true,
+      } as IPeerContext);
       vi.spyOn(SoundEffect, 'play').mockImplementation(() => {});
       mask = GameTableMask.create('testMask', 10, 10, 1);
       mask.owner = 'my-user';
@@ -281,14 +331,20 @@ describe('GameTableMaskComponent', () => {
     }
 
     it('shows the scratcher the buttons to finish or call it off with no connection open, as offline', () => {
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: false } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: 'my-user',
+        isOpen: false,
+      } as IPeerContext);
       mask.scratchingGrids = '0:0';
 
       expect(bandButtons()).toEqual(['done', 'clear']);
     });
 
     it("shows nobody else's scratching once its scratcher is gone", () => {
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: false } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: 'my-user',
+        isOpen: false,
+      } as IPeerContext);
       mask.owner = 'someone-else';
 
       expect(bandButtons()).toEqual([]);
@@ -427,7 +483,7 @@ describe('GameTableMaskComponent', () => {
     });
 
     it('is cut to the open hexes on a hex table', async () => {
-      const selecter = TestBed.inject(TableSelecter);
+      const selecter = TableSelecter.instance;
       const table = new GameTable('mask-layer-hex-table');
       table.gridType = GridType.HEX_VERTICAL;
       table.initialize();
@@ -453,8 +509,11 @@ describe('GameTableMaskComponent', () => {
     let selecter: TableSelecter;
 
     beforeEach(async () => {
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: true } as IPeerContext);
-      selecter = TestBed.inject(TableSelecter);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        userId: 'my-user',
+        isOpen: true,
+      } as IPeerContext);
+      selecter = TableSelecter.instance;
       table = new GameTable('mask-strings-hex-table');
       table.gridType = GridType.HEX_VERTICAL;
       table.gridSize = 50;

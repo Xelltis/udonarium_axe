@@ -2,7 +2,7 @@ import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { ObjectInventory } from '@axe/application/inventory/object-inventory';
 import { readPersonalFolders, writePersonalFolders } from '@axe/application/inventory/personal-folders';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { browserLocalStorage } from '@axe/core/storage/local-preference';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isHandLocation } from '@axe/domain/card/hand-location';
@@ -10,7 +10,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { isResourceElement } from '@axe/domain/character/resource-catalog';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting, type SortKey, SortOrder } from '@axe/domain/data/data-summary-setting';
-import { tagLeafNames } from '@axe/domain/data/summary-tag-list';
+import { watchedLeafNames } from '@axe/domain/data/element-alias';
 import { CONCEALED_LOCATION } from '@axe/domain/tabletop/board-switch/concealment';
 
 type ObjectIdentifier = string;
@@ -22,7 +22,9 @@ type ElementName = string;
 })
 export class GameObjectInventoryService {
   private readonly objectStore = inject(ObjectStore);
-  private readonly dataSummarySetting = inject(DataSummarySetting);
+  private get dataSummarySetting(): DataSummarySetting {
+    return DataSummarySetting.instance;
+  }
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -131,7 +133,7 @@ export class GameObjectInventoryService {
   }
 
   private reloadPersonalFolders(): void {
-    this.personalRoomId = Network.peerContext?.roomId ?? '';
+    this.personalRoomId = Network.instance.peerContext?.roomId ?? '';
     this._personalFolderPaths.set(readPersonalFolders(this.personalStorage, this.personalRoomId));
   }
 
@@ -140,7 +142,7 @@ export class GameObjectInventoryService {
     return !this.isAnyLocation(object.location.name);
   });
   privateInventory: ObjectInventory = new ObjectInventory((object) => {
-    return object.location.name === Network.peerId;
+    return object.location.name === Network.instance.peerId;
   });
   graveyardInventory: ObjectInventory = new ObjectInventory((object) => {
     return object.location.name === 'graveyard';
@@ -166,6 +168,7 @@ export class GameObjectInventoryService {
       this.summarySetting.sortMore,
       this.dataTag,
       this.tableDataTag,
+      this.summarySetting.elementAliases,
     ].join('\n');
   }
 
@@ -211,7 +214,7 @@ export class GameObjectInventoryService {
           this.tagNameMap.set(object.identifier, object.name);
           this.refreshDataElements();
         }
-        if (this.summarySetting.sortKeys.some((key) => key.tag === object.name)) {
+        if (this.sortedByName(object.name)) {
           this.refreshSort();
         }
         if (object.children.length > 0) {
@@ -255,8 +258,23 @@ export class GameObjectInventoryService {
    */
   private isWatchedName(element: DataElement, prevName: string | undefined): boolean {
     if (this.dataTags.length < 1) return isResourceElement(element);
-    const watched = tagLeafNames(this.dataTags);
+    const watched = watchedLeafNames(this.dataTags, this.summarySetting.aliases);
     return watched.includes(prevName ?? '') || watched.includes(element.name);
+  }
+
+  /**
+   * Whether a change to an item of this name can change the order: it is a step of the order, or
+   * one of the items a step written as an alias stands for.
+   */
+  private sortedByName(name: string): boolean {
+    const setting = this.summarySetting;
+    if (setting.sortKeys.some((key) => key.tag === name)) return true;
+    const aliases = setting.aliases;
+    if (aliases.length < 1) return false;
+    return watchedLeafNames(
+      setting.sortKeys.map((key) => key.tag),
+      aliases
+    ).includes(name);
   }
 
   private containsInGameCharacter(element: DataElement): boolean {
@@ -308,9 +326,9 @@ export class GameObjectInventoryService {
 
   private isAnyLocation(location: string): boolean {
     if (isHandLocation(location)) return true;
-    if (location === 'table' || location === Network.peerId || location === 'graveyard') return true;
+    if (location === 'table' || location === Network.instance.peerId || location === 'graveyard') return true;
     if (location === CONCEALED_LOCATION) return true;
-    for (const conn of Network.peerContexts) {
+    for (const conn of Network.instance.peerContexts) {
       if (conn.isOpen && location === conn.peerId) {
         return true;
       }

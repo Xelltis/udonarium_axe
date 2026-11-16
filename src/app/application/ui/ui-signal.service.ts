@@ -11,12 +11,6 @@ export interface NoteResizeData {
   timestamp: number;
 }
 
-export interface JumpIndexData {
-  targetId: string;
-  lineNo: number;
-  timestamp: number;
-}
-
 export interface TableViewRotation {
   x: number;
   y: number;
@@ -61,7 +55,6 @@ export class UiSignalService {
   readonly terrainGridEndVersion = signal(0);
   readonly targetChange = signal<TargetChangeData | null>(null);
   readonly noteResizeRequest = signal<NoteResizeData | null>(null);
-  readonly jumpIndexRequest = signal<JumpIndexData | null>(null);
   readonly tableViewRotation = signal<TableViewRotation | null>(null, { equal: sameRotation });
 
   /**
@@ -105,14 +98,6 @@ export class UiSignalService {
   /** Asks the text note with this identifier to fit its height to its content again. */
   requestNoteResize(identifier: string): void {
     this.noteResizeRequest.set({ identifier, timestamp: Date.now() });
-  }
-
-  /**
-   * Asks the chat palette of a piece to scroll to a line, as picked from its index in a context
-   * menu.
-   */
-  requestJumpIndex(targetId: string, lineNo: number): void {
-    this.jumpIndexRequest.set({ targetId, lineNo, timestamp: Date.now() });
   }
 
   /**

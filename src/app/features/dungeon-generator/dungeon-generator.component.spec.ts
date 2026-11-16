@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SCENE_IMAGE_EXPORTER } from '@axe/application/file/scene-image-exporter';
 import { PartyService } from '@axe/application/party/party.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { DUNGEON_GRID_SIZE } from '@axe/application/tabletop/dungeon-build.service';
@@ -8,6 +9,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { DungeonGeneratorComponent } from '@axe/features/dungeon-generator/dungeon-generator.component';
+import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -75,16 +77,26 @@ type Panel = DungeonGeneratorComponent & {
 const PAINTED = 'painted-ground';
 
 /** The real path decodes the picture it makes, which no test browser will do. */
-function stubPainting(): ReturnType<typeof vi.fn> {
-  const exportStub = vi.fn().mockResolvedValue(new Blob(['floor'], { type: 'image/webp' }));
+function stubPainting(exportScene: SceneExporter): SceneExporter {
+  exportScene.mockResolvedValue(new Blob(['floor'], { type: 'image/webp' }));
   vi.spyOn(ImageStorage.instance, 'addAsync').mockImplementation(async () => ImageStorage.instance.add(PAINTED));
-  return exportStub;
+  return exportScene;
+}
+
+type SceneExporter = ReturnType<typeof vi.fn<typeof exportSceneToBlob>>;
+
+/** Hands the panel an exporter that paints for real until a test tells it what to answer. */
+function provideExporter(): SceneExporter {
+  const exportScene = vi.fn(exportSceneToBlob);
+  TestBed.overrideProvider(SCENE_IMAGE_EXPORTER, { useValue: exportScene });
+  return exportScene;
 }
 
 describe('DungeonGeneratorComponent', () => {
   let component: Panel;
   let fixture: ComponentFixture<DungeonGeneratorComponent>;
   let store: ObjectStore;
+  let exportScene: SceneExporter;
 
   function wipe(): void {}
 
@@ -95,6 +107,7 @@ describe('DungeonGeneratorComponent', () => {
     }).compileComponents();
     store = ObjectStore.instance;
     wipe();
+    exportScene = provideExporter();
     fixture = TestBed.createComponent(DungeonGeneratorComponent);
     component = fixture.componentInstance as Panel;
   });
@@ -268,8 +281,7 @@ describe('DungeonGeneratorComponent', () => {
   });
 
   it('paints the ground and hangs it on the table', async () => {
-    const exportStub = stubPainting();
-    (component as unknown as { exportFn: unknown }).exportFn = exportStub;
+    const exportStub = stubPainting(exportScene);
     component.roomCount.set(3);
 
     await component.generate();
@@ -280,7 +292,7 @@ describe('DungeonGeneratorComponent', () => {
   });
 
   it('builds the dungeon even when the ground cannot be painted', async () => {
-    (component as unknown as { exportFn: unknown }).exportFn = vi.fn().mockRejectedValue(new Error('no canvas'));
+    exportScene.mockRejectedValue(new Error('no canvas'));
     component.roomCount.set(3);
 
     await component.generate();
@@ -290,7 +302,7 @@ describe('DungeonGeneratorComponent', () => {
   });
 
   it('takes the painted ground away with the table it was made for', async () => {
-    (component as unknown as { exportFn: unknown }).exportFn = stubPainting();
+    stubPainting(exportScene);
     component.roomCount.set(3);
     await component.generate();
 
@@ -365,7 +377,7 @@ describe('DungeonGeneratorComponent', () => {
     });
 
     it('builds a table of open ground with notes to match, and the sky that turns with the clock over it', async () => {
-      (component as unknown as { exportFn: unknown }).exportFn = stubPainting();
+      stubPainting(exportScene);
       component.fieldSize.set(20);
 
       await component.generate();
@@ -377,7 +389,7 @@ describe('DungeonGeneratorComponent', () => {
     });
 
     it('raises the ground of the table it builds as high as asked, and offers no height for a town', async () => {
-      (component as unknown as { exportFn: unknown }).exportFn = stubPainting();
+      stubPainting(exportScene);
       component.fieldSize.set(20);
       component.setFieldRelief(2);
       fixture.detectChanges();
@@ -474,9 +486,9 @@ describe('DungeonGeneratorComponent and what a dungeon is asked for', () => {
       imports: [DungeonGeneratorComponent],
       providers: [...TEST_PROVIDERS],
     }).compileComponents();
+    stubPainting(provideExporter());
     fixture = TestBed.createComponent(DungeonGeneratorComponent);
     component = fixture.componentInstance as Panel;
-    (component as unknown as { exportFn: unknown }).exportFn = stubPainting();
   });
 
   afterEach(() => {

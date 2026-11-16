@@ -49,6 +49,29 @@ describe('buff-timeline', () => {
     });
   });
 
+  describe('what a bar says of the buff moving its status at every count', () => {
+    it('says a plain buff moves nothing at every count and has no moment for it', () => {
+      const root = makeRoot();
+      addBuff(root, '猛攻撃', 3, '命中+2');
+
+      expect(toTimelineBars(root)[0]).toMatchObject({ movesAtCounts: false, effectTiming: null });
+    });
+
+    it('says a buff moves at every count, and at which moment where it has one of its own', () => {
+      const root = makeRoot();
+      const buff = addBuff(root, '再生', 3, ':HP+0~+3');
+      buff.setAttribute(DataElementAttribute.BUFF_MOD_TARGET, 'HP');
+      buff.setAttribute(DataElementAttribute.BUFF_MOD_APPLIED, '0');
+      buff.setAttribute(DataElementAttribute.BUFF_MOD_KEPT, '0');
+      buff.setAttribute(DataElementAttribute.BUFF_MOD_KEPT_STEP, '3');
+
+      expect(toTimelineBars(root)[0]).toMatchObject({ movesAtCounts: true, effectTiming: null });
+
+      buff.setAttribute(DataElementAttribute.BUFF_EFFECT_TIMING, 'turnEnd');
+      expect(toTimelineBars(root)[0]).toMatchObject({ movesAtCounts: true, effectTiming: 'turnEnd' });
+    });
+  });
+
   describe('timelineSpan()', () => {
     const row = (rounds: number[]) => ({
       characterIdentifier: 'c',
@@ -66,6 +89,8 @@ describe('buff-timeline', () => {
         timing: 'roundEnd' as const,
         trigger: '',
         modifierTarget: '',
+        movesAtCounts: false,
+        effectTiming: null,
       })),
     });
 

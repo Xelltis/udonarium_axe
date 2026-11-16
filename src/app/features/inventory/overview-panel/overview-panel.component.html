@@ -509,7 +509,8 @@
               <textarea
                 class="text-ui-text hover:bg-ui-hover focus:bg-ui-input box-border size-full resize-none overflow-hidden rounded-xs border-none bg-transparent p-0 font-[inherit] leading-[inherit] wrap-anywhere [word-break:break-word] whitespace-pre-wrap outline-none"
                 name="data-value"
-                [(ngModel)]="dataElm.value"
+                [ngModel]="dataElm.value"
+                (ngModelChange)="writeField(dataElm, 'value', $event)"
                 [readonly]="!canEdit"
                 spellcheck="false"
                 (focus)="textFocus(dataElm.myIdentifer)"
@@ -567,7 +568,7 @@
               size="1"
               name="data-current-value"
               [ngModel]="shownCurrentValue(dataElm)"
-              (ngModelChange)="dataElm.currentValue = $event"
+              (ngModelChange)="writeField(dataElm, 'currentValue', $event)"
               [readonly]="!canEdit"
             />
           </div>
@@ -637,7 +638,8 @@
               class="text-ui-text hover:bg-ui-hover focus:bg-ui-input box-border w-full min-w-12 rounded-xs border-none bg-transparent p-0 text-right font-[inherit] leading-[inherit] outline-none"
               size="1"
               name="data-value"
-              [(ngModel)]="dataElm.value"
+              [ngModel]="dataElm.value"
+              (ngModelChange)="writeField(dataElm, 'value', $event)"
               [readonly]="!canEdit"
             />
           }

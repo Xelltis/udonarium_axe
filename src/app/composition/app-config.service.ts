@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { LoggerService } from '@axe/application/logging/logger.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
@@ -17,53 +17,67 @@ export interface AppConfig {
   localMode: boolean;
 }
 
+/** What `assets/config.json` may hold, before any of it has been checked. */
+interface AppConfigFile {
+  transport?: unknown;
+  backend?: { url?: unknown };
+}
+
+function isAppConfigFile(value: unknown): value is AppConfigFile & Record<string, unknown> {
+  if (typeof value !== 'object' || value === null) return false;
+  const backend = (value as { backend?: unknown }).backend;
+  return backend === undefined || (typeof backend === 'object' && backend !== null);
+}
+
+function defaultAppConfig(): AppConfig {
+  return { transport: 'skyway', backend: { url: '' }, localMode: false };
+}
+
 @Injectable({ providedIn: 'root' })
 export class AppConfigService {
   private readonly logger = inject(LoggerService);
   private readonly localMode = inject(LocalModePreferenceService);
   private readonly serverAuth = inject(ServerAuthService);
   private readonly overlay = inject(OverlayModeService);
+  private readonly assetStore = inject(AssetHttpStore);
 
-  constructor() {}
-
-  peerHistory: string[] = [];
-  isOpen: boolean = false;
-
-  static appConfig: AppConfig = {
-    transport: 'skyway',
-    backend: {
-      url: '',
-    },
-    localMode: false,
-  };
+  /** The configuration the app runs with: the defaults until `initialize()` has loaded the file. */
+  readonly config = signal<AppConfig>(defaultAppConfig());
 
   /**
    * Loads the app configuration and announces it with the load-config event.
    *
    * In local mode no network is used and the file is not read. Otherwise the transport and the
    * backend address come from `assets/config.json`; a missing or unreadable file is logged and
-   * the defaults are kept. The loading finishes after this returns.
+   * the defaults are kept. The promise settles once the configuration is announced and never
+   * rejects; the app's start does not wait for it, so the first screen is not held up by the file.
    */
-  initialize() {
-    this.initAppConfig();
+  async initialize(): Promise<void> {
+    try {
+      const config = await this.loadConfig();
+      this.config.set(config);
+      emitLoadConfig({ config });
+    } catch (e) {
+      this.logger.error('アプリの設定を適用できませんでした', e);
+    }
   }
 
-  private async initAppConfig() {
+  private async loadConfig(): Promise<AppConfig> {
+    const config = defaultAppConfig();
     if (this.localMode.enabled()) {
-      AppConfigService.appConfig.localMode = true;
+      config.localMode = true;
       this.logger.info('ローカル確認モードで起動します。ネットワーク接続は行いません。');
-      emitLoadConfig({ config: AppConfigService.appConfig });
-      return;
+      return config;
     }
 
-    AppConfigService.appConfig.localMode = false;
     try {
       const response = await fetch('./assets/config.json');
       if (response.ok) {
-        const config = await response.json();
-        AppConfigService.appConfig.transport = transportOf(config ?? {});
-        if (config?.backend?.url) {
-          AppConfigService.appConfig.backend.url = config.backend.url;
+        const file: unknown = await response.json();
+        if (isAppConfigFile(file)) {
+          config.transport = transportOf(file);
+          const url = file.backend?.url;
+          if (typeof url === 'string' && url.length > 0) config.backend.url = url;
         }
       } else {
         this.logger.info('config.json が見つかりません。config.json.example を参考に作成してください。');
@@ -71,9 +85,9 @@ export class AppConfigService {
     } catch (e) {
       this.logger.warn('config.json の読み込みに失敗しました', e);
     }
-    AssetHttpStore.instance.configure(assetServerUrl(AppConfigService.appConfig));
-    this.configureServerLogin(AppConfigService.appConfig);
-    emitLoadConfig({ config: AppConfigService.appConfig });
+    this.assetStore.configure(assetServerUrl(config));
+    this.configureServerLogin(config);
+    return config;
   }
 
   /**
@@ -92,7 +106,7 @@ export class AppConfigService {
       this.serverAuth.configure(config.backend.url);
       Network.setServerCredentials(this.serverAuth);
     }
-    AssetHttpStore.instance.useAccess(
+    this.assetStore.useAccess(
       () => Network.instance.assetAccess,
       () => Network.instance.refreshAssetAccess()
     );

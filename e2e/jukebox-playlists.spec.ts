@@ -45,10 +45,10 @@ async function openJukeboxWithTracks(page: Page, role?: 'GM' | 'PL' | '見学'):
   await waitAppReady(page);
   if (role) await becomeRole(page, role);
   await openPanel(page, 'ジュークボックス');
-  const jukebox = page.locator('app-jukebox');
+  const jukebox = page.locator('jukebox');
   await expect(jukebox).toBeVisible({ timeout: 10000 });
   await jukebox
-    .locator('input[type="file"][accept="audio/*"]')
+    .locator('[data-testid="jukebox-file-input"]')
     .setInputFiles(
       TRACKS.map((track) => ({ name: track.name, mimeType: 'audio/wav', buffer: silentWav(track.seconds) }))
     );
@@ -117,7 +117,7 @@ test.describe('playlists in the jukebox', () => {
     await makePlaylist(jukebox, '戦闘');
     await addFromLibrary(jukebox, 'Battle.wav', 'Boss.wav');
 
-    const mini = page.locator('app-mini-jukebox');
+    const mini = page.locator('mini-jukebox');
     await mini.getByRole('button', { name: 'queue_music' }).click();
     await expect(mini.getByTestId('mini-jukebox-playlist-name')).toHaveText('メイン');
     await mini.getByTestId('mini-jukebox-next-playlist').click();
@@ -132,7 +132,7 @@ test.describe('playlists in the jukebox', () => {
     page,
   }) => {
     const jukebox = await openJukeboxWithTracks(page, 'GM');
-    const mini = page.locator('app-mini-jukebox');
+    const mini = page.locator('mini-jukebox');
 
     await jukebox.getByTestId('jukebox-shuffle').click();
     await expect(jukebox.getByTestId('jukebox-shuffle')).toHaveAttribute('aria-pressed', 'true');

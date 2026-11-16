@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { cellSpot } from '../helpers';
+import { cellSpot, sendMenuEvent } from '../helpers';
 import {
   becomeGm,
   chooseMenu,
@@ -35,7 +35,7 @@ async function createAt(page: Page, position: { x: number; y: number }, entry: s
 }
 
 async function lookOutOf(page: Page, piece: ReturnType<Page['locator']>) {
-  await piece.dispatchEvent('contextmenu');
+  await sendMenuEvent(piece);
   await settle(page, 400);
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });

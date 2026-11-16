@@ -50,9 +50,9 @@ export class AudioTag extends ObjectNode {
     return AudioTag.get(audioIdentifier)?.tag === AUDIO_TAG_BGS;
   }
 
-  /** The tag of a sound. Despite the type, it is null when the sound has never been tagged. */
-  static get(audioIdentifier: string): AudioTag {
-    return ObjectStore.instance.get<AudioTag>(`audiotag_${audioIdentifier}`)!;
+  /** The tag of a sound, or null when the sound has never been tagged. */
+  static get(audioIdentifier: string): AudioTag | null {
+    return ObjectStore.instance.get<AudioTag>(`audiotag_${audioIdentifier}`);
   }
 
   /** Makes a tag for a sound, tagged as BGM, and adds it to the room under the identifier `get` looks for. */

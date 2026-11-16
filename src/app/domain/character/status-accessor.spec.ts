@@ -121,6 +121,41 @@ describe('StatusAccessor', () => {
     });
   });
 
+  describe('on a resource with no maximum', () => {
+    let hp: DataElement;
+
+    beforeEach(() => {
+      hp = detailDataElement.getFirstElementByName('HP')!;
+      hp.value = '';
+    });
+
+    it('reads the maximum as nothing', () => {
+      expect(accessor.getValue('HP', 'max')).toBeNull();
+    });
+
+    it('lets the current value go wherever it is written', () => {
+      accessor.setValue('HP', 'now', 300);
+      expect(accessor.getValue('HP', 'now')).toBe(300);
+    });
+
+    it('has no maximum to stop at when it is asked to', () => {
+      const result = accessor.changeValue('HP', 'now', 100, false, true);
+      expect(result).toContain('250');
+      expect(result).not.toContain('(最大)');
+      expect(accessor.getValue('HP', 'now')).toBe(250);
+    });
+
+    it('leaves the maximum empty rather than moving what is not a number', () => {
+      expect(accessor.changeValue('HP', 'max', 10)).toBe('');
+      expect(hp.value).toBe('');
+    });
+
+    it('leaves it empty when a minimum is set under it', () => {
+      accessor.setValue('HP', 'minBase', 5);
+      expect(hp.value).toBe('');
+    });
+  });
+
   describe('getTextType', () => {
     it('returns the current value for a resource', () => {
       expect(accessor.getTextType('HP')).toBe('currentValue');
@@ -292,6 +327,58 @@ describe('StatusAccessor', () => {
 
       accessor.setValue('HP', 'maxCorrection', 50);
       expect(accessor.getValue('HP', 'max')).toBe(250);
+    });
+  });
+
+  describe('a name the room made an alias of', () => {
+    let spare: DataElement;
+    let aliased: StatusAccessor;
+
+    beforeEach(() => {
+      spare = createNumberResource('体力', 180, 120);
+      detailDataElement.children[1].appendChild(spare);
+      aliased = new StatusAccessor(
+        detailDataElement,
+        () => 'テストキャラ',
+        () => [{ name: 'ライフ', candidates: ['HP', '体力', '器用度'] }]
+      );
+    });
+
+    it('is read from the first candidate on the sheet', () => {
+      expect(aliased.getValue('ライフ', 'now')).toBe(150);
+      expect(aliased.getValue('ライフ', 'max')).toBe(200);
+    });
+
+    it('moves every candidate to where the first came to, and reports the first', () => {
+      const report = aliased.changeValue('ライフ', 'now', 3);
+
+      expect(report).toBe('[テストキャラ 150>153] ');
+      expect(detailDataElement.getFirstElementByName('HP')?.currentValue).toBe(153);
+      expect(spare.currentValue).toBe(153);
+      expect(detailDataElement.getFirstElementByName('器用度')?.value).toBe(153);
+    });
+
+    it('holds each candidate under its own maximum', () => {
+      aliased.setValue('ライフ', 'now', 190);
+
+      expect(detailDataElement.getFirstElementByName('HP')?.currentValue).toBe(190);
+      expect(spare.currentValue).toBe(180);
+    });
+
+    it('gives the others what the first was held to, not what was asked for', () => {
+      aliased.setValue('ライフ', 'now', 500);
+
+      expect(detailDataElement.getFirstElementByName('HP')?.currentValue).toBe(200);
+      expect(spare.currentValue).toBe(180);
+      expect(detailDataElement.getFirstElementByName('器用度')?.value).toBe(200);
+    });
+
+    it('leaves a candidate with no maximum alone when the maximum is written', () => {
+      aliased.setValue('ライフ', 'max', 300);
+
+      expect(detailDataElement.getFirstElementByName('HP')?.value).toBe(300);
+      expect(spare.value).toBe(300);
+      expect(detailDataElement.getFirstElementByName('器用度')?.value).toBe(24);
     });
   });
 });

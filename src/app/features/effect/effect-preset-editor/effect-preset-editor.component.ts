@@ -3,12 +3,15 @@ import { FormsModule } from '@angular/forms';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { AILMENT_LOOKS, isAilmentLook } from '@axe/domain/effect/ailment-looks';
+import { BEAM_LOOKS, isBeamLook } from '@axe/domain/effect/beam-looks';
 import { EFFECT_KINDS, EffectKind } from '@axe/domain/effect/effect-kind';
 import { EFFECT_MOTE_OPTIONS } from '@axe/domain/effect/effect-motes';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -24,7 +27,7 @@ import {
   usesTargetLimit,
 } from '@axe/domain/effect/effect-preset-form';
 import { EffectPresetSet } from '@axe/domain/effect/effect-preset-set';
-import { kindGlyphSvg } from '@axe/domain/effect/effect-shapes';
+import { presetGlyphSvg } from '@axe/domain/effect/effect-shapes';
 import {
   EFFECT_STAGE_ROLES,
   type EffectStage,
@@ -43,6 +46,7 @@ import {
   updateStage,
 } from '@axe/domain/effect/effect-stage-form';
 import { presetSoundLabelKey, soundFileName } from '@axe/domain/media/preset-sound-labels';
+import { EffectPreviewComponent } from '@axe/features/effect/effect-preview/effect-preview.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -55,13 +59,14 @@ interface SoundOption {
  * Editing a preset.
  *
  * The values go straight onto the model, which clamps them itself.
- * Fields the kind has no use for are hidden by the form.
+ * Fields the kind has no use for are hidden by the form. A preview kept at the top, above the fields
+ * that scroll, plays the effect as its values stand.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-effect-preset-editor',
+  selector: 'effect-preset-editor',
   templateUrl: './effect-preset-editor.component.html',
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [EffectPreviewComponent, FormsModule, SafePipe, TranslocoModule],
 })
 export class EffectPresetEditorComponent {
   private readonly library = inject(EffectLibraryService);
@@ -72,6 +77,7 @@ export class EffectPresetEditorComponent {
   private readonly panelService = inject(PanelService);
   private readonly saveDataService = inject(SaveDataService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly language = inject(LanguageService);
 
   /** The preset being edited, put there by whoever opened it. */
   readonly presetIdentifier = signal('');
@@ -86,9 +92,10 @@ export class EffectPresetEditorComponent {
    * How often the contents have changed.
    *
    * The preset hands back the same instance every time, so anything computed from it alone
-   * never recomputes. Whatever is drawn from the contents goes through this version.
+   * never recomputes. Whatever is drawn from the contents goes through this version, the preview
+   * at the top among it.
    */
-  private readonly version = computed<number>(() => {
+  protected readonly version = computed<number>(() => {
     const identifier = this.presetIdentifier();
     return identifier.length < 1 ? 0 : this.objectChange.versionOf(identifier)();
   });
@@ -99,18 +106,23 @@ export class EffectPresetEditorComponent {
   protected readonly projectileStyles = PROJECTILE_STYLE_OPTIONS;
   protected readonly slashStyles = SLASH_STYLE_OPTIONS;
   protected readonly motes = EFFECT_MOTE_OPTIONS;
+  /** The states a curse may be drawn as, offered among the particles: see {@link offersAilmentLooks}. */
+  protected readonly ailmentLooks = AILMENT_LOOKS;
+  /** The looks a great beam may be drawn as, offered among the particles: see {@link offersBeamLooks}. */
+  protected readonly beamLooks = BEAM_LOOKS;
 
   readonly notice = signal('');
 
   /** A sound is identified by its path, which says nothing about the sound. */
   protected readonly sounds = computed<SoundOption[]>(() => {
     this.objectChange.fileVersion();
+    const language = this.language.currentLang();
     return [...this.audioStorage.audios]
       .map((audio) => {
         const labelKey = presetSoundLabelKey(audio.identifier);
         return { identifier: audio.identifier, name: labelKey ? this.t(labelKey) : soundFileName(audio.name) };
       })
-      .sort((left, right) => left.name.localeCompare(right.name, 'ja'));
+      .sort((left, right) => left.name.localeCompare(right.name, language));
   });
 
   /** The families on offer, gathered from those already there to help with the typing. */
@@ -144,7 +156,7 @@ export class EffectPresetEditorComponent {
     this.version();
     const preset = this.preset();
     if (!preset) return '';
-    return kindGlyphSvg(preset.effectKind, { core: preset.colorPrimary, edge: preset.colorSecondary });
+    return presetGlyphSvg(preset);
   });
 
   constructor() {
@@ -166,6 +178,26 @@ export class EffectPresetEditorComponent {
 
   protected projectileLabel(style: string): string {
     return this.t(`feature.effect.projectileStyle.${style}`);
+  }
+
+  /**
+   * Whether the states are offered among the particles: for a curse, which is drawn as the one
+   * chosen, and for an effect that already names one, so that the choice it holds is shown.
+   */
+  protected offersAilmentLooks(): boolean {
+    this.version();
+    const preset = this.preset();
+    return !!preset && (preset.effectKind === 'curse' || isAilmentLook(preset.moteStyle));
+  }
+
+  /**
+   * Whether the looks of a great beam are offered among the particles: for a beam, which is drawn as
+   * the one chosen, and for an effect that already names one, so that the choice it holds is shown.
+   */
+  protected offersBeamLooks(): boolean {
+    this.version();
+    const preset = this.preset();
+    return !!preset && (preset.effectKind === 'beam' || isBeamLook(preset.moteStyle));
   }
 
   protected moteLabel(mote: string): string {

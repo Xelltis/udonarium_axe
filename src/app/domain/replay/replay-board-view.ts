@@ -380,48 +380,6 @@ function indexOf(snapshot: ReplayObjectSnapshot): number {
   );
 }
 
-export interface ReplayBoardFraming {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export const REPLAY_BOARD_PADDING_CELLS = 2;
-
-/**
- * The part of the table to frame, in pixels: the pieces with a margin of cells round them, kept
- * within the table.
- *
- * The whole table is framed when there are no pieces or the pieces would give a frame less
- * than a cell across.
- */
-export function framingOf(scene: ReplayBoardScene, paddingCells = REPLAY_BOARD_PADDING_CELLS): ReplayBoardFraming {
-  const whole = { x: 0, y: 0, width: scene.width * scene.gridSize, height: scene.height * scene.gridSize };
-  if (scene.pieces.length < 1) return whole;
-
-  const pad = paddingCells * scene.gridSize;
-  let left = Infinity;
-  let top = Infinity;
-  let right = -Infinity;
-  let bottom = -Infinity;
-  for (const piece of scene.pieces) {
-    const footprint = footprintOf(piece, scene.gridSize);
-    left = Math.min(left, piece.x);
-    top = Math.min(top, piece.y);
-    right = Math.max(right, piece.x + footprint.width);
-    bottom = Math.max(bottom, piece.y + footprint.height);
-  }
-
-  left = Math.max(whole.x, left - pad);
-  top = Math.max(whole.y, top - pad);
-  right = Math.min(whole.width, right + pad);
-  bottom = Math.min(whole.height, bottom + pad);
-  if (right - left < scene.gridSize || bottom - top < scene.gridSize) return whole;
-
-  return { x: left, y: top, width: right - left, height: bottom - top };
-}
-
 /** Cards stand half as tall again as they are wide when their picture is not to hand to say. */
 export const REPLAY_CARD_ASPECT = 1.5;
 

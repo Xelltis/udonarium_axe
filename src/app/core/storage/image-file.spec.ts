@@ -107,8 +107,9 @@ describe('ImageFile', () => {
   });
 
   describe('the thumbnail drawn on this page', () => {
-    type Drawer = { createThumbnailOnMainThread: (context: ImageContext) => Promise<unknown> };
-    const draw = (context: ImageContext) => (ImageFile as unknown as Drawer).createThumbnailOnMainThread(context);
+    type Drawer = { createThumbnailOnMainThread: (url: string, type: string) => Promise<unknown> };
+    const draw = (context: ImageContext) =>
+      (ImageFile as unknown as Drawer).createThumbnailOnMainThread(context.url, context.blob?.type ?? '');
     const context = (): ImageContext => ({
       identifier: 'pic',
       name: '',

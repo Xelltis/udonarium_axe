@@ -40,6 +40,8 @@ export class SkyWayFacade {
   private openAbort: AbortController | null = null;
   /** When joining stops waiting for a member left under this peer's name, for the room and lobby alike. */
   private joinDeadline = 0;
+  /** The unsubscribes under way, by subscription, so each is asked of SkyWay once and can be waited on. */
+  private readonly releasing = new Map<string, Promise<void>>();
 
   onOpen: ((peer: IPeerContext) => void) | null = null;
   onClose: ((peer: IPeerContext) => void) | null = null;
@@ -109,10 +111,10 @@ export class SkyWayFacade {
   leaveImmediately() {
     try {
       if (this.roomPerson?.state !== 'left') {
-        this.roomPerson?.leave().catch(() => {});
+        this.roomPerson?.leave().catch((reason) => AppLogger.debug('[SkyWay] 部屋を抜けられませんでした', reason));
       }
       if (this.lobbyPerson?.state !== 'left') {
-        this.lobbyPerson?.leave().catch(() => {});
+        this.lobbyPerson?.leave().catch((reason) => AppLogger.debug('[SkyWay] ロビーを抜けられませんでした', reason));
       }
     } catch {
       /* unload-time errors swallowed */
@@ -141,6 +143,36 @@ export class SkyWayFacade {
     } catch (err) {
       AppLogger.error('[SkyWay] 再参加失敗', err);
     }
+  }
+
+  /**
+   * Lets go of a subscription this seat holds in the room, and resolves once SkyWay has dropped it,
+   * or could not, which is logged. SkyWay keeps a subscription whose connection has died, so a
+   * stream that is done with one says so here.
+   */
+  releaseSubscription(subscriptionId: string): Promise<void> {
+    const pending = this.releasing.get(subscriptionId);
+    if (pending) return pending;
+    const person = this.roomPerson;
+    if (!person || person.state !== 'joined') return Promise.resolve();
+    if (!person.subscriptions.some((held) => held.id === subscriptionId)) return Promise.resolve();
+
+    const release = person
+      .unsubscribe(subscriptionId)
+      .catch((error) => AppLogger.warn('[SkyWay] サブスクリプション解除失敗', error))
+      .finally(() => this.releasing.delete(subscriptionId));
+    this.releasing.set(subscriptionId, release);
+    return release;
+  }
+
+  /**
+   * Lets go of whatever subscription this seat still holds to a publication, and resolves once it
+   * is gone. SkyWay refuses a second subscription to a publication, so one left over from a stream
+   * that died has to go before the publication is subscribed to again.
+   */
+  async releaseSubscriptionsTo(publicationId: string): Promise<void> {
+    const held = this.roomPerson?.subscriptions.filter((subscription) => subscription.publication.id === publicationId);
+    await Promise.all((held ?? []).map((subscription) => this.releaseSubscription(subscription.id)));
   }
 
   /**

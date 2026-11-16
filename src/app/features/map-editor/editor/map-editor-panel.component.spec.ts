@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RASTER_IMAGE_LOADER } from '@axe/application/file/raster-image-loader';
+import { SCENE_IMAGE_EXPORTER } from '@axe/application/file/scene-image-exporter';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -13,14 +15,17 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
-import { MapEditorFilesService } from '@axe/features/map-editor/editor/map-editor-files.service';
 import { MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
 import {
   buildShapeKindPoints,
+  lineKindSvgMarkup,
   MapEditorPanelComponent,
+  shapeKindSvgMarkup,
 } from '@axe/features/map-editor/editor/map-editor-panel.component';
+import { MapEditorPointer } from '@axe/features/map-editor/editor/map-editor-pointer';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
+import { loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** The gesture is private; the tests borrow its name to reach it. */
@@ -28,11 +33,18 @@ function gestureOf(component: MapEditorPanelComponent): MapEditorGesture {
   return (component as unknown as { gesture: MapEditorGesture }).gesture;
 }
 
+/** What the pointer does on the board, private too, reached the same way. */
+function pointerOf(component: MapEditorPanelComponent): MapEditorPointer {
+  return (component as unknown as { pointer: MapEditorPointer }).pointer;
+}
+
 describe('MapEditorPanelComponent', () => {
   let fixture: ComponentFixture<MapEditorPanelComponent>;
   let component: MapEditorPanelComponent;
   let imageStorage: { addAsync: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
   let table: { imageIdentifier: string; width: number; height: number; gridSize: number; gridType: GridType };
+  let exportStub: ReturnType<typeof vi.fn<typeof exportSceneToBlob>>;
+  let loadImage: ReturnType<typeof vi.fn<typeof loadRasterImage>>;
   let modalService: {
     option: unknown;
     title: string;
@@ -52,14 +64,13 @@ describe('MapEditorPanelComponent', () => {
     TestBed.overrideProvider(ImageStorage, { useValue: imageStorage });
     TestBed.overrideProvider(TabletopService, { useValue: { currentTable: table } });
     TestBed.overrideProvider(ModalService, { useValue: modalService });
+    exportStub = vi.fn(exportSceneToBlob);
+    loadImage = vi.fn(loadRasterImage);
+    TestBed.overrideProvider(SCENE_IMAGE_EXPORTER, { useValue: exportStub });
+    TestBed.overrideProvider(RASTER_IMAGE_LOADER, { useValue: loadImage });
     fixture = TestBed.createComponent(MapEditorPanelComponent);
     component = fixture.componentInstance;
   });
-
-  /** The panel's own file service, which the export is swapped out on. */
-  function files(): MapEditorFilesService {
-    return fixture.debugElement.injector.get(MapEditorFilesService);
-  }
 
   afterEach(() => {
     ImageStorage.instance.images.forEach((image) => ImageStorage.instance.delete(image.identifier));
@@ -140,8 +151,7 @@ describe('MapEditorPanelComponent', () => {
 
   it('sets the exported image as the table background', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
-    const exportStub = vi.fn().mockResolvedValue(blob);
-    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
+    exportStub.mockResolvedValue(blob);
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-1' });
 
     await (component as unknown as { setAsTable: () => Promise<void> }).setAsTable();
@@ -156,8 +166,7 @@ describe('MapEditorPanelComponent', () => {
 
   it('saves the exported image', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
-    const exportStub = vi.fn().mockResolvedValue(blob);
-    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
+    exportStub.mockResolvedValue(blob);
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-2' });
 
     await (component as unknown as { saveImage: () => Promise<void> }).saveImage();
@@ -194,7 +203,7 @@ describe('MapEditorPanelComponent', () => {
 
   it('writes the grid type onto the table', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
-    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = vi.fn().mockResolvedValue(blob);
+    exportStub.mockResolvedValue(blob);
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-3' });
     component['state'].setGridType(GridType.HEX_VERTICAL);
 
@@ -207,12 +216,9 @@ describe('MapEditorPanelComponent', () => {
     component['state'].shapeKind.set('pentagon');
     gestureOf(component).draftStart = { x: 0, y: 0 };
     (component as unknown as { draftCurrent: { x: number; y: number } }).draftCurrent = { x: 100, y: 80 };
-    (component as unknown as { commitShape: (x: number, y: number, w: number, h: number) => void }).commitShape(
-      0,
-      0,
-      100,
-      80
-    );
+    (
+      pointerOf(component) as unknown as { commitShape: (x: number, y: number, w: number, h: number) => void }
+    ).commitShape(0, 0, 100, 80);
     const layer = component['state'].current.layers.find((l) => l.kind === 'shape') as ShapeLayer;
     expect(layer.items[0].shape).toBe('polygon');
     expect(layer.items[0].points.length).toBe(10);
@@ -223,7 +229,7 @@ describe('MapEditorPanelComponent', () => {
     component['state'].lineKind.set('polyline');
     component['state'].strokeDash.set('dashed');
     gestureOf(component).draftPoints = [0, 0, 50, 0, 50, 50];
-    (component as unknown as { commitDraftPolyline: () => void }).commitDraftPolyline();
+    (pointerOf(component) as unknown as { commitDraftPolyline: () => void }).commitDraftPolyline();
     const shapeLayers = component['state'].current.layers.filter((l) => l.kind === 'shape') as ShapeLayer[];
     expect(shapeLayers.length).toBe(1);
     const item = shapeLayers[0].items[0];
@@ -250,11 +256,29 @@ describe('MapEditorPanelComponent', () => {
     expect(kindTitles.length).toBe(4);
   });
 
+  it('hands the same icon for a kind every time it is asked, so the page is not written again', () => {
+    const icons = component as unknown as {
+      shapeKinds: string[];
+      lineKinds: string[];
+      shapeKindSvg(kind: string): unknown;
+      lineKindSvg(kind: string): unknown;
+    };
+
+    for (const kind of icons.shapeKinds) {
+      expect(icons.shapeKindSvg(kind)).toBeTruthy();
+      expect(icons.shapeKindSvg(kind)).toBe(icons.shapeKindSvg(kind));
+    }
+    for (const kind of icons.lineKinds) {
+      expect(icons.lineKindSvg(kind)).toBeTruthy();
+      expect(icons.lineKindSvg(kind)).toBe(icons.lineKindSvg(kind));
+    }
+  });
+
   it('makes a curve from clicked vertices and a press of enter', () => {
     component['state'].tool.set('line');
     component['state'].lineKind.set('curve');
     gestureOf(component).draftPoints = [0, 0, 50, 0, 50, 50];
-    (component as unknown as { commitDraftPolyline: () => void }).commitDraftPolyline();
+    (pointerOf(component) as unknown as { commitDraftPolyline: () => void }).commitDraftPolyline();
     const shapeLayers = component['state'].current.layers.filter((l) => l.kind === 'shape') as ShapeLayer[];
     const item = shapeLayers[0].items[0];
     expect(item.shape).toBe('curve');
@@ -268,7 +292,7 @@ describe('MapEditorPanelComponent', () => {
     component['state'].fillMode.set('solid');
     component['state'].solidColor.set('#123456');
     gestureOf(component).draftPoints = [0, 0, 50, 0, 50, 50];
-    (component as unknown as { commitDraftPolyline: () => void }).commitDraftPolyline();
+    (pointerOf(component) as unknown as { commitDraftPolyline: () => void }).commitDraftPolyline();
     const shapeLayers = component['state'].current.layers.filter((l) => l.kind === 'shape') as ShapeLayer[];
     const item = shapeLayers[0].items[0];
     expect(item.shape).toBe('closedCurve');
@@ -293,9 +317,8 @@ describe('MapEditorPanelComponent', () => {
     const id = layer.items[0].id;
     component['state'].selection.set({ layerId: layer.id, itemId: id });
 
-    const c = component as unknown as { resizeImageTo: (x: number, y: number) => void };
+    const c = pointerOf(component) as unknown as { resizeImageTo: (x: number, y: number) => void };
     const gesture = gestureOf(component);
-    component['state'].beginGesture();
     gesture.imageResize = { item: layer.items[0], anchorX: 60, anchorY: 70 };
     c.resizeImageTo(200, 170);
     c.resizeImageTo(260, 270);
@@ -320,7 +343,7 @@ describe('MapEditorPanelComponent', () => {
     );
     const layer = component['state'].current.layers.find((l) => l.kind === 'image') as ImageLayer;
     component['state'].selection.set({ layerId: layer.id, itemId: layer.items[0].id });
-    const c = component as unknown as { resizeImageTo: (x: number, y: number) => void };
+    const c = pointerOf(component) as unknown as { resizeImageTo: (x: number, y: number) => void };
     const gesture = gestureOf(component);
     gesture.imageResize = { item: layer.items[0], anchorX: 60, anchorY: 70 };
     c.resizeImageTo(62, 71);
@@ -330,8 +353,7 @@ describe('MapEditorPanelComponent', () => {
 
   it('always exports without the grid', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
-    const exportStub = vi.fn().mockResolvedValue(blob);
-    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
+    exportStub.mockResolvedValue(blob);
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-grid' });
 
     await (component as unknown as { saveImage: () => Promise<void> }).saveImage();
@@ -343,9 +365,7 @@ describe('MapEditorPanelComponent', () => {
   it('places an image on its own layer and keeps it pending', async () => {
     imageStorage.get.mockReturnValue({ url: 'blob:test' });
     const image = { naturalWidth: 256, naturalHeight: 128, width: 256, height: 128 } as HTMLImageElement;
-    (component as unknown as { loadImageFn: (url: string) => Promise<HTMLImageElement> }).loadImageFn = vi
-      .fn()
-      .mockResolvedValue(image);
+    loadImage.mockResolvedValue(image);
     component['state'].pendingImageId.set('img-id');
 
     await (component as unknown as { placeImageAt: (x: number, y: number) => Promise<void> }).placeImageAt(200, 150);
@@ -362,7 +382,7 @@ describe('MapEditorPanelComponent', () => {
     component['state'].setGridType(GridType.HEX_VERTICAL);
     const scene = component['state'].current;
     const cell = pointToCell(scene.gridType, 130, 110, scene.cellPx);
-    (component as unknown as { paintSampleAt: (x: number, y: number, tool: string) => void }).paintSampleAt(
+    (pointerOf(component) as unknown as { paintSampleAt: (x: number, y: number, tool: string) => void }).paintSampleAt(
       130,
       110,
       'cellPaint'
@@ -742,5 +762,23 @@ describe('buildShapeKindPoints', () => {
         expect(d).toBeCloseTo(9 * 0.382, 1);
       }
     }
+  });
+});
+
+describe('the icons of the kinds of shape and line', () => {
+  it('draws a rectangle, an ellipse, and a polygon of the shape’s own points', () => {
+    expect(shapeKindSvgMarkup('rect')).toContain('<rect ');
+    expect(shapeKindSvgMarkup('ellipse')).toContain('<ellipse ');
+    expect(shapeKindSvgMarkup('star5')).toContain(`<polygon points="${buildShapeKindPoints('star5')}"`);
+  });
+
+  it('draws each kind of line its own way, in the same box', () => {
+    const drawn = (['straight', 'polyline', 'curve', 'closedCurve'] as const).map((kind) => lineKindSvgMarkup(kind));
+
+    expect(drawn[0]).toContain('<line ');
+    expect(drawn[1]).toContain('<polyline ');
+    expect(drawn[2]).toContain('<path d="M3 18');
+    expect(drawn[3]).toContain(' Z"');
+    for (const markup of drawn) expect(markup).toContain('viewBox="0 0 24 24"');
   });
 });

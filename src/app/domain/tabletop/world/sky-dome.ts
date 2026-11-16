@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /** A way of the board: x to the east, y to the south and z up, of unit length. */
 export interface SkyWay {
   readonly x: number;
@@ -93,7 +94,7 @@ function channels(colour: string): number[] {
 }
 
 function clamp01(value: number): number {
-  return Math.min(1, Math.max(0, value));
+  return clamp(value, 0, 1);
 }
 
 function round(value: number): number {

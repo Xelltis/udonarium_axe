@@ -6,15 +6,17 @@ import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { LightBeam, LightGlow } from '@axe/domain/tabletop/vision-scene';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
-/** A beam laid on the screen over the table's canvas, with the transform that lays each of its fins there. */
+/** A beam laid on the screen over the table's canvas: its colour, and the style that lays each of its fins there. */
 export interface BeamOnScreen {
   readonly beam: LightBeam;
-  readonly fins: readonly string[];
+  readonly background: string;
+  readonly fins: readonly Record<string, string>[];
 }
 
-/** A glow laid on the screen over the table's canvas, with the style that lays it there. */
+/** A glow laid on the screen over the table's canvas: its colour, and the style that lays it there. */
 export interface GlowOnScreen {
   readonly glow: LightGlow;
+  readonly background: string;
   readonly style: Record<string, string>;
 }
 
@@ -46,7 +48,11 @@ export class TableBeamOverlayComponent {
     const laid = this.camera.screenMatrixOf();
     if (!laid) return [];
     const placed = this.placedFins();
-    return this.beams().map((beam, index) => ({ beam, fins: placed[index].map(laid) }));
+    return this.beams().map((beam, index) => ({
+      beam,
+      background: beamBackground(beam),
+      fins: placed[index].map((fin) => finStyle(beam, laid(fin))),
+    }));
   });
 
   /**
@@ -58,49 +64,52 @@ export class TableBeamOverlayComponent {
     const screen = this.camera.screenOf();
     if (!laid || !screen) return [];
     return this.glows().map((glow) => {
-      const at = glow.transform ? null : screen(glow.x, glow.y, glow.z);
-      const transform = at
-        ? `translate(${at.x}px, ${at.y}px) scale(${at.scale}) translate(-50%, -50%)`
-        : laid(new Matrix3D().setCSS(glow.transform!));
-      return { glow, style: this.glowStyle(glow, transform) };
+      let transform: string;
+      if (glow.transform) {
+        transform = laid(new Matrix3D().setCSS(glow.transform));
+      } else {
+        const at = screen(glow.x, glow.y, glow.z);
+        transform = `translate(${at.x}px, ${at.y}px) scale(${at.scale}) translate(-50%, -50%)`;
+      }
+      return { glow, background: glowBackground(glow), style: glowStyle(glow, transform) };
     });
   });
+}
 
-  protected beamBackground(beam: LightBeam): string {
-    return 'linear-gradient(to bottom, ' + beam.color + ' 0%, transparent 88%)';
-  }
+function beamBackground(beam: LightBeam): string {
+  return 'linear-gradient(to bottom, ' + beam.color + ' 0%, transparent 88%)';
+}
 
-  protected finStyle(beam: LightBeam, fin: string): Record<string, string> {
-    return {
-      position: 'absolute',
-      left: '0px',
-      top: '0px',
-      width: beam.width + 'px',
-      height: beam.height + 'px',
-      'transform-origin': '0 0',
-      transform: fin,
-      'clip-path': beam.clip,
-      opacity: '0.16',
-      'pointer-events': 'none',
-    };
-  }
+function finStyle(beam: LightBeam, transform: string): Record<string, string> {
+  return {
+    position: 'absolute',
+    left: '0px',
+    top: '0px',
+    width: beam.width + 'px',
+    height: beam.height + 'px',
+    'transform-origin': '0 0',
+    transform,
+    'clip-path': beam.clip,
+    opacity: '0.16',
+    'pointer-events': 'none',
+  };
+}
 
-  protected glowBackground(glow: LightGlow): string {
-    return 'radial-gradient(circle, ' + glow.color + ' 0%, transparent 72%)';
-  }
+function glowBackground(glow: LightGlow): string {
+  return 'radial-gradient(circle, ' + glow.color + ' 0%, transparent 72%)';
+}
 
-  private glowStyle(glow: LightGlow, transform: string): Record<string, string> {
-    return {
-      position: 'absolute',
-      left: '0px',
-      top: '0px',
-      width: glow.size + 'px',
-      height: glow.size + 'px',
-      'border-radius': '50%',
-      'transform-origin': '0 0',
-      transform,
-      opacity: '0.55',
-      'pointer-events': 'none',
-    };
-  }
+function glowStyle(glow: LightGlow, transform: string): Record<string, string> {
+  return {
+    position: 'absolute',
+    left: '0px',
+    top: '0px',
+    width: glow.size + 'px',
+    height: glow.size + 'px',
+    'border-radius': '50%',
+    'transform-origin': '0 0',
+    transform,
+    opacity: '0.55',
+    'pointer-events': 'none',
+  };
 }

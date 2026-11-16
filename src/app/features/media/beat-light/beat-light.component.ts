@@ -35,7 +35,7 @@ export const BEAT_LIGHT_PEAK_OPACITY = 0.4;
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-beat-light',
+  selector: 'beat-light',
   templateUrl: './beat-light.component.html',
   host: { class: 'pointer-events-none fixed inset-0 z-0', '[class.hidden]': '!allowed()', 'aria-hidden': 'true' },
 })

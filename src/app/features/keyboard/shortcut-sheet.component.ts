@@ -19,7 +19,7 @@ import { UiShortcutSheetComponent } from '@axe/ui/components/shortcut-sheet/shor
  * and the streaming overlay.
  */
 @Component({
-  selector: 'app-shortcut-sheet',
+  selector: 'shortcut-sheet',
   templateUrl: './shortcut-sheet.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [UiShortcutSheetComponent],

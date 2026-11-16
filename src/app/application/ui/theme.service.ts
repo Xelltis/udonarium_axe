@@ -15,7 +15,9 @@ export class ThemeService {
 
   readonly theme = signal<Theme>((readLocal(STORAGE_KEYS.theme) as Theme) ?? 'auto');
 
-  private readonly systemPrefersDark = signal(window.matchMedia('(prefers-color-scheme: dark)').matches);
+  private readonly systemPrefersDark = signal(
+    this.document.defaultView?.matchMedia('(prefers-color-scheme: dark)').matches ?? false
+  );
 
   /** The theme actually on screen, with 'auto' settled against what the system asks for. */
   readonly resolved = computed<Exclude<Theme, 'auto'>>(() => {
@@ -25,10 +27,12 @@ export class ThemeService {
   });
 
   constructor() {
-    const mql = window.matchMedia('(prefers-color-scheme: dark)');
-    const listener = (e: MediaQueryListEvent) => this.systemPrefersDark.set(e.matches);
-    mql.addEventListener('change', listener);
-    this.destroyRef.onDestroy(() => mql.removeEventListener('change', listener));
+    const mql = this.document.defaultView?.matchMedia('(prefers-color-scheme: dark)');
+    if (mql) {
+      const listener = (e: MediaQueryListEvent) => this.systemPrefersDark.set(e.matches);
+      mql.addEventListener('change', listener);
+      this.destroyRef.onDestroy(() => mql.removeEventListener('change', listener));
+    }
 
     AttachedDocuments.begin(this.document);
     const stopWatching = AttachedDocuments.onChange((documents) => this.dress(documents));
@@ -53,6 +57,14 @@ export class ThemeService {
       html.classList.toggle('theme-light', resolved === 'light');
       html.classList.toggle('theme-dark', resolved === 'dark');
     }
+  }
+
+  /** A colour of the theme on screen, as the page names its custom property, or the colour given where it cannot be read. */
+  cssColor(property: string, otherwise: string): string {
+    const view = this.document.defaultView;
+    if (typeof view?.getComputedStyle !== 'function') return otherwise;
+    const colour = view.getComputedStyle(this.document.documentElement).getPropertyValue(property).trim();
+    return colour || otherwise;
   }
 
   /** Moves the theme on through auto, dark and light. The choice is written to localStorage. */

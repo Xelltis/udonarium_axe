@@ -23,10 +23,10 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { saidWithStamp } from '@axe/domain/chat/stamp-line';
 import {
+  emotionMarkLabelOf,
   encodeVnEmote,
   VN_BUBBLE_ANIMATIONS,
   VN_BUBBLE_SHAPES,
-  VN_EMOTION_MARK_CHARS,
   VN_EMOTION_MARKS,
   VN_PORTRAIT_EMOTES,
   vnBodyOf,
@@ -39,7 +39,7 @@ import {
 } from '@axe/domain/visual-novel/vn-emote';
 import { vnEmoteLabel } from '@axe/domain/visual-novel/vn-emote-label';
 import { isVnPortraitPosSet, VN_PORTRAIT_POS_UNSET } from '@axe/domain/visual-novel/vn-portrait-position';
-import { VN_STAGE_SLOT_COUNT } from '@axe/domain/visual-novel/vn-stage-cast';
+import { VN_STAGE_SLOT_INDEXES } from '@axe/domain/visual-novel/vn-stage-cast';
 import { buildBacklogEntryContextMenu } from '@axe/features/visual-novel/visual-novel-backlog/visual-novel-backlog-context-menu';
 import { VisualNovelDirectorService } from '@axe/features/visual-novel/visual-novel-director.service';
 import { VisualNovelEmoteSelectionService } from '@axe/features/visual-novel/visual-novel-emote-selection.service';
@@ -100,7 +100,7 @@ export class VisualNovelBacklogComponent {
   readonly bubbleAnimationOptions = VN_BUBBLE_ANIMATIONS;
   readonly portraitEmoteOptions = VN_PORTRAIT_EMOTES;
   readonly emotionMarkOptions = VN_EMOTION_MARKS;
-  readonly slotIndexes = Array.from({ length: VN_STAGE_SLOT_COUNT }, (_, i) => i);
+  readonly slotIndexes = VN_STAGE_SLOT_INDEXES;
 
   /**
    * The line being read, named rather than numbered.
@@ -229,9 +229,7 @@ export class VisualNovelBacklogComponent {
    * The character an emotion mark is shown as among the choices of the edit form; empty for no
    * mark.
    */
-  emotionMarkLabel(mark: VnEmotionMark): string {
-    return mark === 'none' ? '' : VN_EMOTION_MARK_CHARS[mark];
-  }
+  readonly emotionMarkLabel = emotionMarkLabelOf;
 
   /**
    * What can be done with a line of the log, opened by a right click or a press held on it.

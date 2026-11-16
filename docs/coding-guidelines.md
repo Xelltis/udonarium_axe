@@ -24,7 +24,7 @@
 - `markForCheck()`禁止
 - `detectChanges()`は、作った直後のコンポーネントをその場で描いて中身を使う3か所だけ
   （`panel-window.service`、`stamp-picker.service`、`bottom-sheet.service`）。
-  ほかはテストヘルパー[../src/app/testing/panel-drag-recovery.ts](../src/app/testing/panel-drag-recovery.ts)と各specでのみ使用
+  ほかはテストヘルパー（[../src/app/testing/panel-drag-recovery.ts](../src/app/testing/panel-drag-recovery.ts)・[../src/app/testing/panel-layer.ts](../src/app/testing/panel-layer.ts)）と各specでのみ使用
 - `@SyncObject`由来の値をtemplateでリアクティブに使うときは必ず
   `versionOf(identifier)()` / `collectionOf(aliasName)()`を読んで依存配線する
 - `input.required<T>()`の値をテンプレート以外で読むときは`_initialized`フラグ等で
@@ -48,6 +48,7 @@
 ### context-menu
 
 - 各feature配下に`*-context-menu.ts`を純関数で置き、specで挙動を固定する
+- 複数のfeatureが使う項目の組み立ては`application/ui/`に置く（`tabletop-context-menu-actions.ts`・`surface-switch-context-menu.ts`など）
 - コンポーネント本体は短く保つ
 - 例:
   ```typescript
@@ -62,7 +63,7 @@
 - ドメインモデル（`@SyncObject`クラス）からDIサービスを呼ばない
 - サービス側からモデルを操作する向きを保つ。DIの外の純関数が要る値は、呼び出し側が引数で渡す
 - Angularが作るクラスは、プロセスに1つの部品（`ObjectStore`、`ImageStorage`等）を`.instance`で読まず`inject()`で受け取る（ESLintで検査）。
-  同期される`Config` / `ChatTabList` / `DataSummarySetting` / `TurnState`は`.instance`のまま読む
+  同期される`Config` / `ChatTabList` / `DataSummarySetting` / `StatusAilmentCatalog` / `TableSelecter` / `TurnState`は`.instance`のまま読み、`inject()`では受けない（DIに橋渡ししておらず、ESLintで検査）
 - オーバーレイの部品（パネルの枠・モーダル・右クリックメニュー等）は`application/ui/overlay-components.ts`のトークンで受け取る
 
 ### 横断の部品
@@ -97,12 +98,15 @@
 ### ESLint
 
 - **import順序**: `simple-import-sort`で自動整列（`npm run lint -- --fix`）
+- **厳密な比較**: `eqeqeq`で`==` / `!=`をerror化。nullとundefinedをまとめて見る`== null` / `!= null`だけ許す
 - **未使用import / vars**: `unused-imports`プラグイン（`_`始まりは無視）
 - **相対パスimport禁止**: `no-restricted-imports`で`^\.`を拒否。
-  必ずパスエイリアス(`@axe/*` / `@env/*`)を使う
+  必ずパスエイリアス(`@axe/*` / `@env/*` / `@pkg`)を使う
 - **層境界の自動検査**: `no-restricted-imports`で各レイヤーの逆流importをerror化
 - **feature間のimportは台帳制**: `eslint.config.ts`の`FEATURE_DEPENDENCIES`に載っている辺と`panels`だけ許す。`import()`による遅延importも同じ台帳で検査する（`panels`からの遅延importは除く）。新しい辺を足すときは台帳に書く（減らす方向で）。台帳が循環すると設定の読み込みで失敗する
   - 詳細: [architecture.md#@axe/core/\*](architecture.md#axecore)以降の各層 / [../eslint.config.ts](../eslint.config.ts)
-- **Tailwind class整列**: `eslint-plugin-better-tailwindcss`でcanonical変換 / 並び替え / 改行整形
+- **Tailwind class整列**: `eslint-plugin-better-tailwindcss`でcanonical変換と、重複・非推奨のclassや余分な空白の除去をする。
+  並び替えはPrettierの`prettier-plugin-tailwindcss`が受け持つ。両方で整えると互いに書き換え合うため、
+  better-tailwindcssの`enforce-consistent-class-order`（並び替え）と`enforce-consistent-line-wrapping`（改行整形）は切ってある
 
 設定: [../eslint.config.ts](../eslint.config.ts)

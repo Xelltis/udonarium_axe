@@ -1,6 +1,6 @@
 import { Page } from '@playwright/test';
 
-import { openTableContextMenu, revealMenuEntry } from '../helpers';
+import { openTableContextMenu, revealMenuEntry, sendMenuEvent } from '../helpers';
 import { chatTabText, createRoom, expect, joinRoom, leaveAll, openSeat, say, test, uniqueName } from './room-server';
 
 // What happens on the table of a room on the room server: dice the server rolls, and what it keeps
@@ -14,7 +14,7 @@ async function cardPicture(page: Page): Promise<string> {
 
 /** Opens a card's context menu on this page. */
 async function openCardMenu(page: Page) {
-  await page.locator('card').first().dispatchEvent('contextmenu');
+  await sendMenuEvent(page.locator('card').first());
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5_000 });
   return menu;
@@ -71,7 +71,7 @@ test.describe('the table on the room server', () => {
 
     const tableMenu = await openTableContextMenu(gm.page);
     await (await revealMenuEntry(gm.page, tableMenu, 'トランプの山札を作成')).click();
-    await gm.page.locator('card-stack').first().dispatchEvent('contextmenu');
+    await sendMenuEvent(gm.page.locator('card-stack').first());
     await gm.page.locator('context-menu').getByText('１枚引く').click();
     await expect(gm.page.locator('card')).toHaveCount(1, { timeout: 10_000 });
     const drawnMenu = await openCardMenu(gm.page);

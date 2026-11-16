@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nList, encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { WIDGET_VOTE } from '@axe/application/ui/widget-place';
-import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerFace, peerFaceOf } from '@axe/domain/peer/peer-face';
 import { Vote } from '@axe/domain/vote/vote';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -15,7 +16,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-vote-widget',
+  selector: 'vote-widget',
   templateUrl: './vote-widget.component.html',
   imports: [TextTooltipDirective, DraggableDirective, WidgetPlaceDirective, SafePipe, TranslocoModule],
 })
@@ -79,23 +80,36 @@ export class VoteWidgetComponent {
     const vote = this.vote();
     if (!vote || this.isAnswered()) return;
     vote.voting(choice, PeerCursor.myCursor.peerId);
-    const prefix = vote.isRollCall ? this.t('feature.vote.rollCallPrefix') : this.t('feature.vote.votePrefix');
     const counts = { voted: vote.votedTotalNum(), total: vote.voteAnswer.length };
-    const text =
-      prefix +
-      (vote.isSecret
-        ? this.t('feature.vote.secretAnswered', counts)
-        : this.t('feature.vote.voteResult', { choice, ...counts }));
+    const text = encodeI18nList(
+      [
+        this.prefixOf(vote),
+        vote.isSecret
+          ? encodeI18nMessage('feature.vote.secretAnswered', counts)
+          : encodeI18nMessage('feature.vote.voteResult', { choice, ...counts }),
+      ],
+      ''
+    );
     this.chatMessageService.sendSystemMessageAsLastSpeaker(text, vote.chatTabIdentifier);
+  }
+
+  /** The words a line about a vote opens with, as a roll call or a vote. */
+  private prefixOf(vote: Vote): string {
+    return encodeI18nMessage(vote.isRollCall ? 'feature.vote.rollCallPrefix' : 'feature.vote.votePrefix');
   }
 
   protected abstain(): void {
     const vote = this.vote();
     if (!vote || this.isAnswered()) return;
     vote.voting(null, PeerCursor.myCursor.peerId);
-    const prefix = vote.isRollCall ? this.t('feature.vote.rollCallPrefix') : this.t('feature.vote.votePrefix');
     const counts = { voted: vote.votedTotalNum(), total: vote.voteAnswer.length };
-    const text = prefix + this.t(vote.isSecret ? 'feature.vote.secretAnswered' : 'feature.vote.abstainResult', counts);
+    const text = encodeI18nList(
+      [
+        this.prefixOf(vote),
+        encodeI18nMessage(vote.isSecret ? 'feature.vote.secretAnswered' : 'feature.vote.abstainResult', counts),
+      ],
+      ''
+    );
     this.chatMessageService.sendSystemMessageAsLastSpeaker(text, vote.chatTabIdentifier);
   }
 
@@ -111,19 +125,8 @@ export class VoteWidgetComponent {
     return !this.answersShown() && answer !== -1 && peerId !== PeerCursor.myCursor?.peerId;
   }
 
-  protected findPeerName(peerId: string): string {
-    return PeerCursor.findByPeerId(peerId)?.name ?? '';
-  }
-
-  protected findPeerLastControlName(peerId: string): string {
-    return PeerCursor.findByPeerId(peerId)?.lastControlCharacterName ?? '';
-  }
-
-  protected findPeerImage(peerId: string): ImageFile | null {
-    return PeerCursor.findByPeerId(peerId)?.image ?? null;
-  }
-
-  protected findPeerLastControlImage(peerId: string): ImageFile | null {
-    return PeerCursor.findByPeerId(peerId)?.lastControlImage ?? null;
+  /** How the seat a row is for is shown. */
+  protected faceOf(peerId: string): PeerFace {
+    return peerFaceOf(peerId);
   }
 }

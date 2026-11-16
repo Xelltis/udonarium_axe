@@ -1,0 +1,35 @@
+<div
+  class="border-ui-border-panel rounded-ui-sm bg-ui-input flex size-15 items-center justify-center overflow-hidden border"
+>
+  @if (picture().url) {
+    <img class="size-full object-contain" [src]="picture().url | safe: 'resourceUrl'" [alt]="alt()" />
+  } @else {
+    <div class="text-ui-muted flex size-full items-center justify-center">
+      <i class="material-icons text-[28px]! opacity-40">image_not_supported</i>
+    </div>
+  }
+</div>
+<div class="flex w-full items-center justify-center gap-1">
+  <button
+    class="bg-ui-accent-solid border-ui-accent rounded-ui-sm inline-flex min-w-0 flex-1 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap text-white transition-[background] hover:brightness-110 [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+    type="button"
+    [attr.data-action]="setAction()"
+    (click)="pick.emit()"
+    [title]="'feature.tabletop.maskSheet.setImage' | transloco"
+  >
+    <i class="material-icons">edit</i>
+    {{ 'feature.tabletop.maskSheet.setLabel' | transloco }}
+  </button>
+  @if (picture().isSet) {
+    <button
+      class="text-ui-muted border-ui-border-panel rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-1.25 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap transition-[background] [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
+      type="button"
+      [attr.data-action]="clearAction()"
+      (click)="clear.emit()"
+      [title]="'feature.tabletop.maskSheet.clearImage' | transloco"
+    >
+      <i class="material-icons">close</i>
+      {{ 'feature.tabletop.maskSheet.clearLabel' | transloco }}
+    </button>
+  }
+</div>

@@ -1,6 +1,13 @@
+import { clamp } from '@axe/core/util/clamp';
 import { buffColorOf, buffIconOf, buffIconUrlOf, parseBuffStrength } from '@axe/domain/character/buff-badge';
 import { readBuffModifier } from '@axe/domain/character/buff-modifier';
-import { BuffTiming, buffTimingOf, buffTriggerOf } from '@axe/domain/character/buff-timing';
+import {
+  BuffEffectTiming,
+  buffEffectTimingOf,
+  BuffTiming,
+  buffTimingOf,
+  buffTriggerOf,
+} from '@axe/domain/character/buff-timing';
 import { DataElement } from '@axe/domain/data/data-element';
 
 export interface BuffTimelineBar {
@@ -18,6 +25,10 @@ export interface BuffTimelineBar {
   trigger: string;
   /** The status this buff moves, empty where it moves none. */
   modifierTarget: string;
+  /** Whether the buff moves its status again at every count, so that when it does can be chosen. */
+  movesAtCounts: boolean;
+  /** The moment the buff's effect moves at, where it has one of its own; null where it has none. */
+  effectTiming: BuffEffectTiming | null;
 }
 
 export interface BuffTimelineRow {
@@ -43,6 +54,7 @@ export function toTimelineBars(buffRoot: DataElement | null): BuffTimelineBar[] 
 
       const rounds = Number(data.value);
       const effect = `${data.currentValue ?? ''}`;
+      const modifier = readBuffModifier(data);
       bars.push({
         identifier: data.identifier,
         name: data.name,
@@ -54,7 +66,9 @@ export function toTimelineBars(buffRoot: DataElement | null): BuffTimelineBar[] 
         rounds: Number.isFinite(rounds) ? rounds : 0,
         timing: buffTimingOf(data),
         trigger: buffTriggerOf(data),
-        modifierTarget: readBuffModifier(data)?.target ?? '',
+        modifierTarget: modifier?.target ?? '',
+        movesAtCounts: modifier?.step !== undefined,
+        effectTiming: buffEffectTimingOf(data),
       });
     }
   };
@@ -70,7 +84,7 @@ export function toTimelineBars(buffRoot: DataElement | null): BuffTimelineBar[] 
  */
 export function timelineSpan(rows: readonly BuffTimelineRow[], min = 4, max = 60): number {
   const longest = rows.reduce((total, row) => Math.max(total, ...row.bars.map((bar) => bar.rounds), 0), 0);
-  return Math.min(max, Math.max(min, longest));
+  return clamp(longest, min, max);
 }
 
 /** The round each column stands for, counting from the one being played. */
@@ -81,5 +95,5 @@ export function timelineColumns(currentRound: number, span: number): number[] {
 
 /** Columns a bar covers. Every buff starts at the round being played, so it only needs a width. */
 export function barColumns(rounds: number, span: number): number {
-  return Math.min(span, Math.max(1, rounds));
+  return clamp(rounds, 1, span);
 }

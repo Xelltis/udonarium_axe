@@ -26,7 +26,6 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
-import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
@@ -37,9 +36,7 @@ import { PieceTargetService } from '@axe/application/tabletop/piece-target.servi
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
-import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
-import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -48,44 +45,16 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
-import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
-import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
-import { ViewportService } from '@axe/application/ui/viewport.service';
-import { callResourceChange, resourceChange$ } from '@axe/core/event/domain-events';
-import { getPeerContext } from '@axe/core/network/peer-context-source';
-import { VolumeType } from '@axe/core/storage/audio-output';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { sameFields } from '@axe/core/util/same-fields';
-import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
+import { sameEntries } from '@axe/core/util/same-fields';
+import { BUFF_BADGES_PER_ROW, BuffBadge, countBuffs, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import {
-  HIDDEN_GAUGE_STRIPES,
-  isGaugeInverted,
-  PieceGauge,
-  selectPieceGauges,
-  shownGauge,
-} from '@axe/domain/character/piece-gauge';
-import { isResourceElement } from '@axe/domain/character/resource-catalog';
-import {
-  diffResourceSnapshots,
-  loudestChange,
-  ResourceChange,
-  ResourceChangeKind,
-  ResourceChangeSeverity,
-  resourceChangeSeverity,
-  ResourceSnapshot,
-} from '@axe/domain/character/resource-change';
-import {
-  playsEffectOnChange,
-  playsSoundOnChange,
-  ResourceSoundSet,
-  soundSetOnChange,
-} from '@axe/domain/character/resource-feedback';
+import { HIDDEN_GAUGE_STRIPES, PieceGauge, selectPieceGauges, shownGauge } from '@axe/domain/character/piece-gauge';
 import { DataElement } from '@axe/domain/data/data-element';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -96,15 +65,7 @@ import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { pieceCornerOnSquare } from '@axe/domain/tabletop/move/piece-on-grid';
-import {
-  DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS,
-  multiAngleNameMotionMode,
-  multiAngleOrbitAnimation,
-  multiAnglePieceMotionMode,
-  multiAngleRotationPhase,
-} from '@axe/domain/tabletop/multi-angle';
-import { RideSeat, seatOf } from '@axe/domain/tabletop/ride/ride-rules';
-import { rotationSnapStep, shownAngle } from '@axe/domain/tabletop/rotation-snap';
+import { multiAnglePieceMotionMode } from '@axe/domain/tabletop/multi-angle';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { PieceMotionKind } from '@axe/domain/tabletop/world/piece-motions';
@@ -114,7 +75,11 @@ import {
   GameCharacterMenuService,
   screenCentreOf,
 } from '@axe/features/character/game-character/game-character-menu.service';
+import { PieceMultiAngleOrbit } from '@axe/features/character/game-character/piece-multi-angle-orbit';
+import { PieceResourceChanges } from '@axe/features/character/game-character/piece-resource-changes';
+import { PieceRidingLabels } from '@axe/features/character/game-character/piece-riding-labels';
 import { PieceRightDrag } from '@axe/features/character/game-character/piece-right-drag';
+import { PieceTurnHandles } from '@axe/features/character/game-character/piece-turn-handles';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
 import { KeepTouchDirective } from '@axe/ui/directives/keep-touch.directive';
@@ -124,15 +89,11 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
+import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { hexPedestalGrabStyle, hexPedestalRingStyle } from '@axe/ui/tabletop/hex-pedestal-style';
+import { hexPedestalRingStyle } from '@axe/ui/tabletop/hex-pedestal-style';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
-import { makeMultiAngleCurvedName } from '@axe/ui/tabletop/multi-angle-curved-name';
-import {
-  makeMultiAngleBuffOrbit,
-  makeMultiAngleResourceGauge,
-  MAX_MULTI_ANGLE_RESOURCE_GAUGES,
-} from '@axe/ui/tabletop/multi-angle-orbit-decoration';
+import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -146,71 +107,14 @@ const FALLS: Readonly<Record<string, PieceMotionKind>> = {
 
 const DECOR_BASE_FONT_PX = 10;
 const NAME_BASE_FONT_PX = 15;
-const MULTI_ANGLE_RESOURCE_BUFF_DURATION_FACTOR = 1.25;
 
-type PresetSoundKey = Exclude<keyof typeof PresetSound, 'prototype'>;
-
-const RESOURCE_CHANGE_SOUND_KEYS: Record<
-  ResourceSoundSet,
-  Record<ResourceChangeKind, Record<ResourceChangeSeverity, PresetSoundKey>>
-> = {
-  flesh: {
-    damage: { small: 'damageSmall', medium: 'damageMedium', large: 'damageLarge' },
-    heal: { small: 'healSmall', medium: 'healMedium', large: 'healLarge' },
-  },
-  mech: {
-    damage: { small: 'mechDamageSmall', medium: 'mechDamageMedium', large: 'mechDamageLarge' },
-    heal: { small: 'mechHealSmall', medium: 'mechHealMedium', large: 'mechHealLarge' },
-  },
-};
-
-function resourceChangeSound(kind: ResourceChangeKind, ratio: number, soundSet: ResourceSoundSet): string {
-  return PresetSound[RESOURCE_CHANGE_SOUND_KEYS[soundSet][kind][resourceChangeSeverity(ratio)]];
-}
-
-const FLOATING_CHANGE_MS = 1300;
-const FLOATING_CHANGE_LIMIT = 6;
-const HIT_FLASH_MS = 420;
-const HEAL_AURA_MS = 760;
 /** How large a stamp shows in a bubble, before the labels' supersampling. */
 const SPEECH_STAMP_PX = 56;
-/** The mark each seat is shown with in the riding label. */
-const RIDING_SEAT_ICONS: Readonly<Record<RideSeat, string>> = {
-  rider: 'upgrade',
-  passenger: 'group',
-  cargo: 'backpack',
-  part: 'extension',
-};
-
-/** One piece in a mount's riding card: one riding it, or the mount itself. */
-interface RidingLabel {
-  readonly identifier: string;
-  /** Its name, empty where it is not shown to this reader. */
-  readonly name: string;
-  /** The mark of the seat it rides in, empty for the mount. */
-  readonly icon: string;
-  /** How many ride it, for the mount; 0 for one riding. */
-  readonly aboard: number;
-  /** Whether it is a part of the piece, listed under it, which is aimed at by pressing its row. */
-  readonly part: boolean;
-  /** Whether this seat aims at it. */
-  readonly targeted: boolean;
-  /** The number it is picked as while an effect is being aimed, for a part; 0 where it is not picked. */
-  readonly pick: number;
-  readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string; readonly kept: boolean }[];
-  readonly badges: readonly BuffBadge[];
-}
 /** How large the handles that turn and tip a piece are drawn, whatever the size of the piece. */
 const HANDLE_PX = 28;
 const HANDLE_ICON_PX = 24;
 /** How far the handle that tips a piece stands clear of its picture. */
 const ROLL_HANDLE_GAP_PX = 7;
-/** How far the ring that turns a piece reaches past its pedestal, whatever the size of the piece. */
-const TURN_RING_REACH_PX = 14;
-/** Where the knobs stand round the ring, clockwise from the side the piece faces: there, and behind it. */
-const TURN_KNOB_ANGLES = [0, 180] as const;
-/** How many points round the ring are looked at to leave out of it what the piece hides. */
-const TURN_RING_SAMPLES = 48;
 
 @Component({
   selector: 'game-character',
@@ -230,6 +134,7 @@ const TURN_RING_SAMPLES = 48;
     SafePipe,
     StampComponent,
     TextTooltipDirective,
+    TooltipDirective,
     TranslocoModule,
   ],
   host: {
@@ -250,7 +155,6 @@ export class GameCharacterComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly effectTargeting = inject(EffectTargetingService);
-  private readonly rotationGuide = inject(RotationGuideService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly pieceTarget = inject(PieceTargetService);
   private readonly buffViewPreference = inject(BuffViewPreferenceService);
@@ -287,10 +191,6 @@ export class GameCharacterComponent {
   private readonly motions = inject(PieceMotionsService);
   private readonly pieces = inject(TablePiecesService);
   private readonly tableCamera = inject(TableCameraService);
-  private readonly pick = inject(TablePickService);
-  private readonly heldPiece = inject(HeldPieceService);
-  private readonly viewport = inject(ViewportService);
-  private readonly surfaces = inject(TableSurfaceService);
   private readonly pedestal = viewChild<ElementRef<HTMLElement>>('pedestal');
 
   /**
@@ -307,218 +207,46 @@ export class GameCharacterComponent {
     return pivot && scene ? pageOfTablePoint(scene, pivot.x, pivot.y, pivot.z) : null;
   }
 
-  /**
-   * The handle that tips the piece over, over a table drawn on a canvas: the corner of the picture it
-   * stands against, its top right, and how far off that corner its middle lies, on the screen. It
-   * stands beside the top of the picture, clear of it, so that a press on the picture takes hold of
-   * the piece, and clear of the knobs on the ring round the pedestal below it.
-   */
-  protected readonly rollHandles = computed(() => {
-    const clear = this.rollHandleSizePx() / 2 + this.rollHandleGapPx();
-    return [{ testId: 'roll-grab-head', corner: 1 as const, dx: clear, dy: this.rollHandleSizePx() / 2 }];
-  });
-
   private readonly turnRotable = viewChild('turnRotable', { read: RotableDirective });
   private readonly rollRotable = viewChild('rollRotable', { read: RotableDirective });
 
-  /**
-   * Which handle of the piece is held just now: the ring that turns it, the one that tips it, or
-   * none; from the first step of a turn by it until the turn ends, however it ends.
-   */
-  protected readonly turning = computed<'turn' | 'roll' | null>(() => {
-    if (this.turnRotable()?.turning()) return 'turn';
-    if (this.rollRotable()?.turning()) return 'roll';
-    return null;
+  private readonly turnHandles = new PieceTurnHandles({
+    character: () => this.gameCharacter(),
+    size: () => this.size(),
+    gridSize: () => this.gridSize,
+    rotate: () => this.rotate,
+    roll: () => this.rollSignal(),
+    flat: () => this.mode2dEnabled(),
+    hasPicture: () => this.imageFile().url.length > 0,
+    hexPedestal: () => this.pedestalHexParams(),
+    turningByRing: () => this.turnRotable()?.turning() ?? false,
+    tippingByHandle: () => this.rollRotable()?.turning() ?? false,
+    handleSizePx: () => this.rollHandleSizePx(),
+    handleGapPx: () => this.rollHandleGapPx(),
   });
-
-  /**
-   * Whether this is the piece pressed on the table as a finger presses and not in hand, which has its
-   * handles out as one the pointer is over does: the piece a finger last pressed, or, where the main
-   * pointer cannot hover and so brings nothing out by passing over a piece, the piece last pressed by
-   * anything, a pen's or a trackpad's press there being taken as a finger's.
-   * Only that piece follows whether it is in hand, which changes with each step of a drag.
-   */
-  protected readonly pressChosen = computed(() => {
-    const id = this.gameCharacter()?.identifier;
-    if (!id) return false;
-    const selection = this.selectionSignalService;
-    const chosen = selection.touchedObject() === id || (!this.viewport.canHover() && selection.pressedObject() === id);
-    return chosen && !this.carried();
-  });
-
-  /**
-   * Whether the handles take a press at all. Where the main pointer cannot hover, as the styles that
-   * bring the handles out on hover ask, nothing brings them out by passing over a piece, so only those
-   * of the piece last pressed do, as no other's are drawn; a tap beside a piece then reaches the
-   * table. Where it can, every piece's do, brought out by it over the piece, and a finger's press on
-   * them is taken as any other.
-   */
-  protected readonly handlesPressable = computed(
-    () => this.viewport.canHover() || this.pressChosen() || this.turning() !== null
-  );
-
-  /** The way the piece faces while it is turned, in whole degrees, as the turn under way reads it out. */
-  protected readonly turnAngle = computed(() => this.rotationGuide.turn()?.angle ?? shownAngle(this.rotate));
-
+  /** The handle that tips the piece over, beside the top of its picture. */
+  protected readonly rollHandles = this.turnHandles.rollHandles;
+  /** Which handle of the piece is held just now: the ring that turns it, the one that tips it, or none. */
+  protected readonly turning = this.turnHandles.turning;
+  /** Whether this is the piece pressed on the table as a finger presses and not in hand. */
+  protected readonly pressChosen = this.turnHandles.pressChosen;
+  /** Whether the handles take a press at all. */
+  protected readonly handlesPressable = this.turnHandles.pressable;
+  /** The way the piece faces while it is turned, in whole degrees. */
+  protected readonly turnAngle = this.turnHandles.angle;
   /** The step a held Alt turns the piece by on the table in view. */
-  protected readonly turnSnapStep = computed(() => rotationSnapStep(this.tabletopService.gridType()));
-
-  /**
-   * The ring round the pedestal that turns the piece, in the pedestal's own pixels: where a press
-   * takes hold of it, the pedestal cut out of a hex one, as the rim of a hex pedestal is the
-   * pedestal; the ring drawn, but for what the piece hides of it; and the middles of the knobs on the
-   * side the piece faces and behind it, which turn with it and so tell which way it faces, each with
-   * whether it is shown: a knob behind the picture is hidden by it as the ring is, and one standing
-   * where the handle that tips the piece is drawn gives way to it. Both stay while the piece is turned,
-   * so that the one in hand is never taken away.
-   */
-  protected readonly turnRing = computed(() => {
-    const { grab, middle, radius } = this.turnRingShape();
-    const point = (angle: number, about: number, reach: number) => {
-      const radians = (angle * Math.PI) / 180;
-      return { x: about + reach * Math.sin(radians), y: about - reach * Math.cos(radians) };
-    };
-    const seen = this.turnRingSeen();
-    const clear = this.knobsClearOfRoll();
-    const turning = this.turning() === 'turn';
-    const knobs = TURN_KNOB_ANGLES.map((angle, at) => ({
-      ...point(angle, middle, radius),
-      facing: angle === 0,
-      seen: turning || (seen[Math.round(angle / (360 / TURN_RING_SAMPLES)) % TURN_RING_SAMPLES] && clear[at]),
-    }));
-    return { grab, ring: ringBoxStyle(middle, radius), knobs, arc: ringPathOf(seen, radius), radius };
-  });
-
-  /**
-   * Whether the piece is in hand, from the press on it until it is put down, however that ends: while
-   * it is, nothing round its pedestal is weighed.
-   */
-  private readonly carried = computed(() => {
-    const id = this.gameCharacter()?.identifier;
-    return !!id && this.heldPiece.held()?.identifier === id;
-  });
-
-  /** The piece's picture as it is drawn now, kept as long as it is drawn the same, or null where none is. */
-  private readonly ownPicture = computed(() => {
-    const id = this.gameCharacter()?.identifier;
-    return id ? (this.pieces.sprites().find((sprite) => sprite.id === `${id}#picture`) ?? null) : null;
-  });
-
-  /**
-   * How the piece's picture stands before the eye as it is drawn now, weighed only while the handles
-   * are out and the piece is not being carried: followed as the camera moves and the picture changes.
-   */
-  private readonly pictureSight = computed(() => {
-    const looked =
-      (this.viewport.canHover() && this.hovered() && !this.carried()) ||
-      this.pressChosen() ||
-      this.turning() === 'turn';
-    const picture = looked ? this.ownPicture() : null;
-    if (!picture) return null;
-    this.tableCamera.version();
-    return this.pick.pictureSightOf(picture);
-  });
-
-  /** The middle of the pedestal on the face it stands on, at the height the ring round it is drawn at. */
-  private readonly ringMiddle = computed(() => {
-    const char = this.gameCharacter();
-    if (!char) return null;
-    this.objectChange.versionOf(char.identifier)();
-    const middle = (this.size() * this.gridSize) / 2;
-    const foot = this.pieces.footOf(char);
-    return { ...foot, x: foot.x + middle, y: foot.y + middle };
-  });
-
-  /**
-   * Whether each knob round the ring stands clear, on the screen, of the handle that tips the piece,
-   * beside the top of its picture.
-   */
-  private readonly knobsClearOfRoll = computed<readonly boolean[]>(() => {
-    if (this.turning() === 'turn' || this.mode2dEnabled()) return TURN_KNOB_ANGLES.map(() => true);
-    const sight = this.pictureSight();
-    const middle = this.ringMiddle();
-    if (!sight || !middle || this.imageFile().url.length < 1) {
-      return TURN_KNOB_ANGLES.map(() => true);
-    }
-    const corner = sight.cornerOnPage(1);
-    const [handle] = this.rollHandles();
-    const roll = { x: corner.x + handle!.dx, y: corner.y + handle!.dy };
-    const radius = this.turnRingShape().radius;
-    return TURN_KNOB_ANGLES.map((angle) => {
-      const radians = ((this.rotate + angle) * Math.PI) / 180;
-      const x = middle.x + radius * Math.sin(radians);
-      const y = middle.y - radius * Math.cos(radians);
-      const page = this.surfaces.pageOf(middle.surface, x, y, middle.height);
-      return !page || Math.hypot(page.x - roll.x, page.y - roll.y) >= this.rollHandleSizePx();
-    });
-  });
-
-  /**
-   * Whether the pointer is over the piece, which brings its handles out where the main pointer can
-   * hover; where it cannot, a finger's or a pen's passing over a piece says so too, and brings
-   * nothing out, so a reader weighs it only where the viewport says the main pointer can hover.
-   */
-  protected readonly hovered = signal(false);
-
-  /**
-   * Which of the points round the ring, clockwise from the side the piece faces, the eye sees: those
-   * the piece's own picture stands in front of are left out, so that the ring is drawn round the
-   * piece and behind it rather than over it.
-   */
-  protected readonly turnRingSeen = computed<readonly boolean[]>(() => {
-    const sight = this.pictureSight();
-    const middle = this.ringMiddle();
-    const radius = this.turnRingShape().radius;
-    return Array.from({ length: TURN_RING_SAMPLES }, (_, at) => {
-      if (!sight || !middle) return true;
-      const angle = ((this.rotate + (at * 360) / TURN_RING_SAMPLES) * Math.PI) / 180;
-      const x = middle.x + radius * Math.sin(angle);
-      const y = middle.y - radius * Math.cos(angle);
-      return !sight.hides(middle.surface, x, y, middle.height);
-    });
-  });
-
-  /** Where the ring round the pedestal lies, in the pedestal's own pixels: a hex one's round the hex. */
-  private readonly turnRingShape = computed(() => {
-    const width = this.size() * this.gridSize;
-    const hex = this.pedestalHexParams();
-    const grab = hex
-      ? hexPedestalGrabStyle(hex, { reachPx: TURN_RING_REACH_PX, pedestalCutOut: true })
-      : ringBoxStyle(width / 2, width / 2 + TURN_RING_REACH_PX);
-    return { grab, middle: hex ? hex.L / 2 : width / 2, radius: parseFloat(grab['width']) / 2 };
-  });
-
-  /**
-   * The marks round the ring at every step a held Alt turns the piece to, the table's own directions
-   * that stay put as the ring turns with the piece, on what the eye sees of the ring, in its own
-   * pixels.
-   */
-  protected readonly turnTicks = computed(() => {
-    const radius = this.turnRing().radius;
-    const seen = this.turnRingSeen();
-    const step = this.turnSnapStep();
-    const marks: { x: number; y: number }[] = [];
-    for (let table = 0; table < 360; table += step) {
-      const angle = (((table - this.rotate) % 360) + 360) % 360;
-      if (!seen[Math.round(angle / (360 / TURN_RING_SAMPLES)) % TURN_RING_SAMPLES]) continue;
-      const radians = (angle * Math.PI) / 180;
-      marks.push({ x: radius + radius * Math.sin(radians), y: radius - radius * Math.cos(radians) });
-    }
-    return marks;
-  });
-
-  /**
-   * How far the piece leans, read out while it is tipped: in degrees either way of upright, and a
-   * wedge from upright to it round a dial 20 across, with the point it reaches.
-   */
-  protected readonly rollGauge = computed(() => {
-    const degrees = Math.round(((((this.rollSignal() % 360) + 540) % 360) - 180) * 10) / 10;
-    const radians = (degrees * Math.PI) / 180;
-    const tip = { x: 10 + 7.5 * Math.sin(radians), y: 10 - 7.5 * Math.cos(radians) };
-    const sweep = degrees >= 0 ? 1 : 0;
-    const wedge = degrees === 0 ? '' : `M10 10 L10 2.5 A7.5 7.5 0 0 ${sweep} ${tip.x} ${tip.y} Z`;
-    return { degrees: Math.round(degrees), wedge, tip };
-  });
+  protected readonly turnSnapStep = this.turnHandles.snapStep;
+  /** The ring round the pedestal that turns the piece, with its knobs. */
+  protected readonly turnRing = this.turnHandles.ring;
+  /** Whether the pointer is over the piece, which brings its handles out where the main pointer can hover. */
+  protected readonly hovered = this.turnHandles.hovered;
+  /** Which of the points round the ring the eye sees. */
+  protected readonly turnRingSeen = this.turnHandles.ringSeen;
+  /** The marks round the ring at every step a held Alt turns the piece to. */
+  protected readonly turnTicks = this.turnHandles.ticks;
+  /** How far the piece leans, read out while it is tipped. */
+  protected readonly rollGauge = this.turnHandles.rollGauge;
+  private readonly ringMiddle = this.turnHandles.ringMiddle;
 
   /** Stands the piece upright again, as a double click on the handle that tips it asks. */
   protected standUpright(event: MouseEvent): void {
@@ -582,43 +310,12 @@ export class GameCharacterComponent {
 
   constructor() {
     effect(() => {
-      const snapshot = this.resourceSnapshot();
-      const previous = this.previousResources;
-      this.previousResources = snapshot;
-      if (!previous) return;
-
-      const names = untracked(this.resourceNames);
-      // A part's change is told as the part's, each seat naming the part as it shows it.
-      const changes = diffResourceSnapshots(previous, snapshot, (identifier) => names.get(identifier)?.name ?? '').map(
-        (change) => {
-          const part = names.get(change.identifier)?.part ?? '';
-          return part ? { ...change, part } : change;
-        }
-      );
-      if (changes.length < 1) return;
-
-      // It is drawn here and announced elsewhere. Watching for the difference at each end
-      // would count a value replaced by a load or a sync as a change.
-      const character = untracked(this.gameCharacter);
-      if (!character) return;
-      untracked(() => this.showResourceChanges(changes));
-      callResourceChange({ characterIdentifier: character.identifier, changes });
-    });
-
-    // What another end changed is drawn on word from it; what this end changed is already drawn.
-    resourceChange$.subscribe((event) => {
-      if (event.emittedBy === getPeerContext().peerId) return;
-      if (event.characterIdentifier !== this.gameCharacter()?.identifier) return;
-      this.showResourceChanges(event.changes as ResourceChange[]);
-    }, this.destroyRef);
-
-    effect(() => {
       const highlight = this.selectionSignalService.highlightedObject();
       const char = this.gameCharacter();
       const root = this.rootElementRef();
       if (!highlight || !char || !root) return;
       if (char.identifier !== highlight.identifier) return;
-      if (char.location.name != 'table') return;
+      if (char.location.name !== 'table') return;
 
       if (this.highlightTimer != null) return;
 
@@ -700,17 +397,22 @@ export class GameCharacterComponent {
       });
     });
 
+    effect(() => {
+      const over = this.hovered();
+      const char = this.gameCharacter();
+      if (char) untracked(() => this.effectTargeting.hoverPiece(char.identifier, over));
+    });
+
     this.destroyRef.onDestroy(() => {
       const char = this.gameCharacter();
       if (char) {
+        this.effectTargeting.hoverPiece(char.identifier, false);
         this.motions.turnOnItsOwn(char.identifier, null);
         this.motions.stop(char.identifier);
       }
       clearTimeout(this.highlightTimer);
       clearTimeout(this.unhighlightTimer);
       this.rightDrag.dispose();
-      for (const timer of this.floatingTimers) clearTimeout(timer);
-      this.floatingTimers.clear();
     });
   }
 
@@ -765,121 +467,33 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char.identifier)();
     return char.name;
   });
+  private readonly riding: PieceRidingLabels = new PieceRidingLabels({
+    character: () => this.gameCharacter(),
+    followedTree: (root) => this.followedTree(root),
+    name: () => this.name(),
+    hideName: () => this.hideName(),
+    hideBuff: () => this.hideBuff(),
+    gaugeRows: () => this.gaugeRows(),
+    buffBadges: () => this.buffBadges(),
+    buffRows: () => this.buffChildren(),
+    buffCount: () => this.buffNum(),
+    buffViewMode: () => this.buffViewMode(),
+    labelsRunRound: (): boolean => this.multiAngleNameOrbitEnabled(),
+  });
   /** How many ride this piece where it is a mount, shown by its name since they stand where it stands. */
-  readonly ridersAboard = computed(() => {
-    const char = this.gameCharacter();
-    if (!char) return 0;
-    this.objectChange.versionOf(char.identifier)();
-    if (char.mountable !== '1') return 0;
-    this.objectChange.collectionOf(GameCharacter.aliasName)();
-    for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
-      this.objectChange.versionOf(piece.identifier)();
-    }
-    return this.ride.aboard(char).length;
-  });
-  /**
-   * The mount this piece rides, while it rides one. The piece's name, bars and buffs are drawn in the
-   * mount's riding label then, stacked over the mount's own, rather than over itself.
-   */
-  readonly ridingMount = computed(() => {
-    const char = this.gameCharacter();
-    if (!char) return null;
-    this.objectChange.versionOf(char.identifier)();
-    if (char.ridingOn === '') return null;
-    this.objectChange.versionOf(char.ridingOn)();
-    return this.ride.mountOf(char);
-  });
-  /**
-   * The pieces riding this one, as its riding label shows them over its own labels: their names,
-   * bars and buffs, the one in front nearest, as each would show over itself.
-   */
-  readonly ridingLabels = computed<RidingLabel[]>(
-    () => {
-      const char = this.gameCharacter();
-      if (!char || this.ridersAboard() < 1) return [];
-      this.objectChange.trackMyCursor();
-      const order: Record<RideSeat, number> = { rider: 0, passenger: 1, cargo: 2, part: 3 };
-      return this.ride
-        .aboard(char)
-        .sort((a, b) => order[seatOf(a.rideSeat)] - order[seatOf(b.rideSeat)])
-        .map((piece) => this.ridingLabelOf(piece));
-    },
-    { equal: sameRidingLabels }
-  );
+  readonly ridersAboard = this.riding.ridersAboard;
+  /** The mount this piece rides, while it rides one, in whose riding label its own labels are drawn. */
+  readonly ridingMount = this.riding.ridingMount;
+  /** The pieces riding this one, as its riding label shows them over its own labels. */
+  readonly ridingLabels = this.riding.ridingLabels;
 
   /** The colour a part's number is drawn in while an effect is aimed, as the marks on the table are. */
   protected readonly pickColor = computed(() => this.effectTargeting.markColor());
 
-  /**
-   * The parts of this piece, listed under its own labels as those riding it are listed over them:
-   * their names, bars and buffs, each as it would show over itself.
-   */
-  readonly partLabels = computed<RidingLabel[]>(
-    () => {
-      const char = this.gameCharacter();
-      if (!char) return [];
-      // Any piece may be made a part of this one: the parts of every body are worked out once for all.
-      const parts = this.parts.partsOfFollowed(char);
-      if (parts.length < 1) return [];
-      for (const part of parts) this.objectChange.versionOf(part.identifier)();
-      this.objectChange.trackMyCursor();
-      this.uiSignalService.targetChange();
-      return parts.map((piece) => this.ridingLabelOf(piece));
-    },
-    { equal: sameRidingLabels }
-  );
-
-  private ridingLabelOf(piece: GameCharacter): RidingLabel {
-    const showsName = this.overlay.names() && !this.names.isKept(piece);
-    const detail = this.overlay.resourceBars() ? (piece.detailDataElement ?? null) : null;
-    const readable = this.disclosureService.canView(piece);
-    const gauges =
-      detail && this.followedTree(detail) !== null
-        ? selectPieceGauges(detail).map((gauge) => shownGauge(gauge, readable))
-        : [];
-    const buffs = this.overlay.buffs() && !piece.hideBuff ? (piece.buffDataElement ?? null) : null;
-    const badges = buffs && this.followedTree(buffs) !== null ? toBuffBadges(buffs) : [];
-    return {
-      identifier: piece.identifier,
-      name: showsName ? piece.name : '',
-      icon: RIDING_SEAT_ICONS[seatOf(piece.rideSeat)],
-      aboard: 0,
-      part: seatOf(piece.rideSeat) === 'part',
-      targeted: piece.targeted,
-      pick: seatOf(piece.rideSeat) === 'part' ? (this.effectTargeting.pickOrder().get(piece.identifier) ?? 0) : 0,
-      gauges,
-      badges,
-    };
-  }
-
-  /**
-   * The riding card over a mount ridden, one label for all on it: those riding it, the one in front
-   * lowest, over the mount itself, each with its name, bars and buffs. Empty where nobody rides it.
-   */
-  readonly ridingCard = computed<RidingLabel[]>(
-    () => {
-      const riders = this.ridingLabels();
-      const parts = this.partLabels();
-      const char = this.gameCharacter();
-      if ((riders.length < 1 && parts.length < 1) || !char) return [];
-      return [
-        ...[...riders].reverse(),
-        {
-          identifier: char.identifier,
-          name: this.hideName() ? '' : this.name(),
-          icon: '',
-          aboard: this.ridersAboard(),
-          part: false,
-          targeted: false,
-          pick: 0,
-          gauges: this.gaugeRows(),
-          badges: this.hideBuff() ? [] : this.buffBadges(),
-        },
-        ...parts,
-      ];
-    },
-    { equal: sameRidingLabels }
-  );
+  /** The parts of this piece, listed under its own labels as those riding it are listed over them. */
+  readonly partLabels = this.riding.partLabels;
+  /** The riding card over a mount ridden, one label for all on it; empty where nobody rides it. */
+  readonly ridingCard = this.riding.ridingCard;
 
   /** Aims at a part listed in the piece's card, or lets go of it, from a press on its row. */
   protected aimAtPart(identifier: string, event: Event): void {
@@ -909,18 +523,10 @@ export class GameCharacterComponent {
     this.menu.open(part, this.menuHost, { x: event.clientX, y: event.clientY, z: 0 });
   }
 
-  /**
-   * The parts of the piece, listed in a card of their own under it while its name and bars run round
-   * it, where its riding card is not drawn: each part is still aimed at by pressing its row.
-   */
-  protected readonly partCardInOrbit = computed<RidingLabel[]>(() =>
-    this.multiAngleNameOrbitEnabled() ? this.partLabels() : []
-  );
-
+  /** The parts of the piece, in a card of their own under it while its name and bars run round it. */
+  protected readonly partCardInOrbit = this.riding.partCardInOrbit;
   /** Whether the mount's own labels are drawn in its riding card rather than over it. */
-  protected readonly labelsInRidingCard = computed(
-    () => this.ridingCard().length > 0 && !this.multiAngleNameOrbitEnabled()
-  );
+  protected readonly labelsInRidingCard = this.riding.labelsInRidingCard;
 
   /** How much larger a name stands in the riding card than the bars beside it, as on the piece's own label. */
   protected readonly ridingNameEm = NAME_BASE_FONT_PX / DECOR_BASE_FONT_PX;
@@ -953,11 +559,6 @@ export class GameCharacterComponent {
     return char?.altitude ?? 0;
   });
 
-  /** Sets the piece's height above the table in grid cells; does nothing while no character is bound. */
-  setAltitude(altitude: number) {
-    const char = this.gameCharacter();
-    if (char) char.altitude = altitude;
-  }
   readonly imageFile = computed(
     () => {
       this.objectChange.fileVersion();
@@ -1160,84 +761,49 @@ export class GameCharacterComponent {
       .map((row) => row.gauge)
   );
 
-  /**
-   * The resources of the piece and of its parts, as they stand: a part is drawn as its body, so a
-   * blow to a part is shown on the body, as one to the body is.
-   */
-  private readonly resourceSnapshot = computed<Map<string, ResourceSnapshot>>(() => {
-    const snapshot = new Map<string, ResourceSnapshot>();
-    const char = this.gameCharacter();
-    const elements = this.followedTree(char?.detailDataElement ?? null);
-    if (elements === null || !char) return snapshot;
-
-    for (const piece of [char, ...this.parts.partsOfFollowed(char)]) {
-      const own = piece === char ? elements : this.followedTree(piece.detailDataElement ?? null);
-      for (const element of own ?? []) {
-        if (!isResourceElement(element)) continue;
-        snapshot.set(element.identifier, {
-          current: Number(element.currentValue),
-          max: Number(element.value),
-          inverted: isGaugeInverted(element),
-          playsEffect: playsEffectOnChange(element),
-          playsSound: playsSoundOnChange(element),
-          soundSet: soundSetOnChange(element),
-          changedBySelf: this.objectStore.localChangeCountOf(element.identifier),
-        });
-      }
-    }
-    return snapshot;
+  private readonly resourceChanges = new PieceResourceChanges({
+    character: () => this.gameCharacter(),
+    partsOf: (character) => this.parts.partsOfFollowed(character),
+    followedTree: (root) => this.followedTree(root),
+    localChangeCountOf: (identifier) => this.objectStore.localChangeCountOf(identifier),
+    partNameOf: (identifier) => this.partNameOf(identifier),
+    playEffects: (character, changes) => this.effectAutoPlay.play(character, changes),
+    destroyRef: this.destroyRef,
   });
+  /** The changes to its resources floating over the piece now. */
+  readonly floatingChanges = this.resourceChanges.floating;
+  /** The flash the piece is drawn with for a moment after a hit or a heal. */
+  readonly hitFlash = this.resourceChanges.hitFlash;
 
-  /** The names of the resources of the piece and of its parts, and the part each of the latter is of. */
-  private readonly resourceNames = computed(() => {
-    const char = this.gameCharacter();
-    const names = new Map<string, { name: string; part: string }>();
-    if (!char) return names;
-    for (const piece of [char, ...this.parts.partsOfFollowed(char)]) {
-      const detail = piece.detailDataElement;
-      if (!detail) continue;
-      const part = piece === char ? '' : piece.identifier;
-      for (const element of collectDataElements(detail)) names.set(element.identifier, { name: element.name, part });
-    }
-    return names;
+  private readonly orbit = new PieceMultiAngleOrbit({
+    standsFlat: () => !this.isPoster() && this.tabletopService.mode2d(),
+    display: () => this.tabletopService.display(),
+    identifier: () => this.gameCharacter()?.identifier,
+    name: () => this.name(),
+    riderNames: () =>
+      this.ridingLabels()
+        .map((label) => label.name)
+        .filter((name) => name.length > 0),
+    hideName: () => this.hideName(),
+    hideBuff: () => this.hideBuff(),
+    riding: () => !!this.ridingMount(),
+    footprint: () => this.size() * this.gridSize,
+    gauges: () => this.orbitPieceGauges(),
+    buffs: () => this.buffBadges(),
+    buffIconScale: () => this.buffIconScale(),
   });
-
-  readonly floatingChanges = signal<(ResourceChange & { key: number })[]>([]);
-  readonly hitFlash = transientSignal<'damage' | 'heal' | null>(null, HIT_FLASH_MS);
-
-  private previousResources: Map<string, ResourceSnapshot> | null = null;
-  private floatingKey = 0;
-  private readonly floatingTimers = new Set<ReturnType<typeof setTimeout>>();
-
-  readonly multiAngleNameOrbitEnabled = computed(() => {
-    return !this.isPoster() && this.tabletopService.mode2d() && this.tabletopService.display().multiAngleEnabled;
-  });
-
-  readonly multiAngleResourceBuffOrbitEnabled = computed(() => {
-    return this.multiAngleNameOrbitEnabled() && this.tabletopService.display().multiAngleResourceBuffEnabled;
-  });
-
-  readonly multiAngleCurvedNameLayout = computed(() =>
-    makeMultiAngleCurvedName(this.multiAngleLabelText(), this.size() * this.gridSize)
-  );
-
-  readonly multiAngleLabelText = computed(() => {
-    const riders = this.ridingLabels()
-      .map((label) => label.name)
-      .filter((name) => name.length > 0);
-    if (riders.length > 0) return [...riders, this.name()].join('／');
-    if (this.hideBuff() || this.multiAngleResourceBuffOrbitEnabled()) return this.name();
-    const buffNames = this.buffBadges()
-      .map((buff) => buff.name.trim())
-      .filter((name) => name.length > 0)
-      .join('・');
-    if (buffNames.length < 1) return this.name();
-    const leadingBuff = Array.from(buffNames).slice(0, 5).join('');
-    return `${this.name()}/${leadingBuff}`;
-  });
+  readonly multiAngleNameOrbitEnabled = this.orbit.nameEnabled;
+  readonly multiAngleResourceBuffOrbitEnabled = this.orbit.resourceBuffEnabled;
+  readonly multiAngleCurvedNameLayout = this.orbit.curvedName;
+  readonly multiAngleLabelText = this.orbit.labelText;
 
   /** How a bar kept from this reader is filled: slanting stripes rather than a full bar. */
   protected readonly keptStripes = HIDDEN_GAUGE_STRIPES;
+  /** The fills of the flash on a piece that took damage and of the ring and glow on one that was healed. */
+  protected readonly damageFlashFill = 'radial-gradient(circle, rgba(255,60,60,0.85) 0%, rgba(255,60,60,0) 70%)';
+  protected readonly healAuraFill =
+    'radial-gradient(circle, rgba(120,255,170,0) 42%, rgba(120,255,170,0.9) 60%, rgba(120,255,170,0) 76%)';
+  protected readonly healGlowFill = 'radial-gradient(circle, rgba(90,230,120,0.7) 0%, rgba(90,230,120,0) 70%)';
   /**
    * The name of the stripes the ring round this piece is drawn with, its own: another piece's, in a
    * part of the page that is not drawn, would leave the ring unpainted.
@@ -1253,78 +819,16 @@ export class GameCharacterComponent {
       )
   );
 
-  readonly multiAngleResourceGaugeLayout = computed(() =>
-    makeMultiAngleResourceGauge(this.orbitPieceGauges(), this.size() * this.gridSize)
-  );
-
-  readonly multiAngleBuffOrbitLayout = computed(() => {
-    const name = this.multiAngleCurvedNameLayout();
-    const gauge = this.multiAngleResourceGaugeLayout();
-    const innerExtent = Math.max(name.radius + name.fontSize / 2 + name.strokeWidth / 2, gauge.outerExtent);
-    return makeMultiAngleBuffOrbit(
-      this.buffBadges().length,
-      this.size() * this.gridSize,
-      innerExtent,
-      this.buffIconScale()
-    );
-  });
-
-  readonly multiAngleOrbitVisible = computed(
-    () =>
-      this.multiAngleNameOrbitEnabled() &&
-      !this.ridingMount() &&
-      ((this.name().length > 0 && !this.hideName()) ||
-        (this.multiAngleResourceBuffOrbitEnabled() &&
-          (this.orbitPieceGauges().length > 0 || (!this.hideBuff() && this.buffBadges().length > 0))))
-  );
-
-  readonly multiAngleCurvedNamePathId = computed(
-    () => `multi-angle-curved-name-${this.gameCharacter()?.identifier ?? 'unknown'}`
-  );
-
-  readonly multiAngleNameOrbitAnimation = computed(() => {
-    const display = this.tabletopService.display();
-    return multiAngleOrbitAnimation(
-      multiAngleNameMotionMode(display.multiAngleMotionMode),
-      display.multiAngleRevolutionSeconds,
-      display.multiAnglePauseSeconds
-    );
-  });
-
-  readonly multiAngleResourceBuffOrbitAnimation = computed(() => {
-    const nameAnimation = this.multiAngleNameOrbitAnimation();
-    return {
-      durationSeconds: nameAnimation.durationSeconds * MULTI_ANGLE_RESOURCE_BUFF_DURATION_FACTOR,
-      timingFunction: nameAnimation.timingFunction,
-    };
-  });
-
-  private readonly multiAngleNamePhase = computed(() =>
-    multiAngleRotationPhase(`${this.gameCharacter()?.identifier ?? 'unknown'}:name`)
-  );
-
-  private readonly multiAngleResourceBuffPhase = computed(() =>
-    multiAngleRotationPhase(`${this.gameCharacter()?.identifier ?? 'unknown'}:resource-buff`)
-  );
-
-  private readonly multiAnglePiecePhase = computed(() =>
-    multiAngleRotationPhase(`${this.gameCharacter()?.identifier ?? 'unknown'}:piece`)
-  );
-
-  readonly multiAngleNameOrbitDelaySeconds = computed(
-    () => -this.multiAngleNamePhase() * this.multiAngleNameOrbitAnimation().durationSeconds
-  );
-
-  readonly multiAngleResourceBuffOrbitDelaySeconds = computed(
-    () => -this.multiAngleResourceBuffPhase() * this.multiAngleResourceBuffOrbitAnimation().durationSeconds
-  );
-
-  readonly multiAnglePieceRevolutionSeconds = computed(() => {
-    const seconds = this.tabletopService.display().multiAnglePieceRevolutionSeconds;
-    return Number.isFinite(seconds)
-      ? Math.min(300, Math.max(5, seconds))
-      : DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS;
-  });
+  readonly multiAngleResourceGaugeLayout = this.orbit.resourceGauge;
+  readonly multiAngleBuffOrbitLayout = this.orbit.buffOrbit;
+  readonly multiAngleOrbitVisible = this.orbit.visible;
+  readonly multiAngleCurvedNamePathId = this.orbit.curvedNamePathId;
+  readonly multiAngleNameOrbitAnimation = this.orbit.nameAnimation;
+  readonly multiAngleResourceBuffOrbitAnimation = this.orbit.resourceBuffAnimation;
+  private readonly multiAnglePiecePhase = this.orbit.piecePhase;
+  readonly multiAngleNameOrbitDelaySeconds = this.orbit.nameDelaySeconds;
+  readonly multiAngleResourceBuffOrbitDelaySeconds = this.orbit.resourceBuffDelaySeconds;
+  readonly multiAnglePieceRevolutionSeconds = this.orbit.pieceRevolutionSeconds;
 
   /** The columns the buff icons are laid out in, the same count the panel's height is reckoned by. */
   protected readonly buffBadgeColumns = `repeat(${BUFF_BADGES_PER_ROW}, minmax(0, 1fr))`;
@@ -1488,37 +992,6 @@ export class GameCharacterComponent {
     if (!identifier) return '';
     return this.effectPlayback.tokenReactions().get(identifier) ?? '';
   });
-
-  private showResourceChanges(changes: ResourceChange[]) {
-    const entries = changes.map((change) => ({
-      ...change,
-      label: change.part ? `${this.partNameOf(change.part)} ${change.label}` : change.label,
-      key: ++this.floatingKey,
-    }));
-    this.floatingChanges.update((current) => [...current, ...entries].slice(-FLOATING_CHANGE_LIMIT));
-
-    const kind = entries.some((entry) => entry.kind === 'damage') ? 'damage' : 'heal';
-    this.hitFlash.show(kind, kind === 'damage' ? HIT_FLASH_MS : HEAL_AURA_MS);
-
-    const heard = entries.filter((entry) => entry.playsSound);
-    const loudest = loudestChange(heard);
-    // One line is heard, so all three of what is heard come from it. Taken apart, a point of
-    // damage alongside a large heal would play as a large hurt, in the heal's own voice.
-    if (loudest) {
-      SoundEffect.playLocal(resourceChangeSound(loudest.kind, loudest.ratio, loudest.soundSet), VolumeType.EFFECT);
-    }
-
-    const shown = entries.filter((entry) => entry.playsEffect);
-    const char = this.gameCharacter();
-    if (char && shown.length > 0) this.effectAutoPlay.play(char, shown);
-
-    const keys = new Set(entries.map((entry) => entry.key));
-    const floatTimer = setTimeout(() => {
-      this.floatingTimers.delete(floatTimer);
-      this.floatingChanges.update((current) => current.filter((entry) => !keys.has(entry.key)));
-    }, FLOATING_CHANGE_MS);
-    this.floatingTimers.add(floatTimer);
-  }
 
   /**
    * How a part is named over its body where a change to it is shown: its name as its row shows it, or
@@ -1759,89 +1232,7 @@ export class GameCharacterComponent {
 
   protected readonly buffNum = computed<number>(() => {
     const children = this.buffChildren();
-    let count = 0;
-    for (const child of children) {
-      this.objectChange.versionOf(child.identifier)();
-      if (child.children.length > 0) {
-        count += child.children.length;
-      } else if (child.isNumberResource) {
-        count += 1;
-      }
-    }
-    return count;
+    for (const child of children) this.objectChange.versionOf(child.identifier)();
+    return countBuffs(children);
   });
-}
-
-/**
- * The same list, or one holding entries of the same values in the same order.
- *
- * The bars and buff icons are drawn from those values alone, so a list worked out again from data
- * that did not change them is kept as it was and nothing drawn from it is drawn again.
- */
-function sameEntries<T extends object>(a: readonly T[], b: readonly T[]): boolean {
-  if (a === b) return true;
-  if (a.length !== b.length) return false;
-  return a.every((entry, index) => sameFields(entry, b[index]));
-}
-
-/** The same riding label, or one showing the same pieces with the same names, bars and buffs. */
-function sameRidingLabels(a: readonly RidingLabel[], b: readonly RidingLabel[]): boolean {
-  if (a === b) return true;
-  if (a.length !== b.length) return false;
-  return a.every((label, index) => {
-    const other = b[index];
-    return (
-      label.identifier === other.identifier &&
-      label.name === other.name &&
-      label.icon === other.icon &&
-      label.aboard === other.aboard &&
-      label.part === other.part &&
-      label.targeted === other.targeted &&
-      label.pick === other.pick &&
-      label.gauges.length === other.gauges.length &&
-      label.gauges.every(
-        (row, at) => row.numbers === other.gauges[at].numbers && sameFields(row.gauge, other.gauges[at].gauge)
-      ) &&
-      sameEntries(label.badges, other.badges)
-    );
-  });
-}
-
-/** The box of a circle round a middle of a pedestal, in the pedestal's own pixels, as a style. */
-function ringBoxStyle(middle: number, radius: number): Record<string, string> {
-  return {
-    width: `${radius * 2}px`,
-    height: `${radius * 2}px`,
-    left: `${middle - radius}px`,
-    top: `${middle - radius}px`,
-    borderRadius: '50%',
-  };
-}
-
-/**
- * The ring round a pedestal as a path, in the ring's own pixels: the whole circle where every point
- * round it is seen, or else each run of points seen, round from where one is not.
- */
-function ringPathOf(seen: readonly boolean[], radius: number): string {
-  const count = seen.length;
-  if (seen.every(Boolean)) {
-    return `M${radius} 0 A${radius} ${radius} 0 1 1 ${radius} ${radius * 2} A${radius} ${radius} 0 1 1 ${radius} 0`;
-  }
-  const pointAt = (at: number) => {
-    const radians = (at * 2 * Math.PI) / count;
-    return `${radius + radius * Math.sin(radians)} ${radius - radius * Math.cos(radians)}`;
-  };
-  const hidden = seen.indexOf(false);
-  let path = '';
-  let drawing = false;
-  for (let step = 1; step <= count; step++) {
-    const at = (hidden + step) % count;
-    if (!seen[at]) {
-      drawing = false;
-      continue;
-    }
-    path += `${drawing ? 'L' : 'M'}${pointAt(at)} `;
-    drawing = true;
-  }
-  return path.trim();
 }

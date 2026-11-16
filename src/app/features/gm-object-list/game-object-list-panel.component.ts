@@ -22,6 +22,7 @@ import { bulkVisionTarget, disagreeingVisionFields } from '@axe/domain/tabletop/
 import { buildDisclosureContextMenu } from '@axe/features/disclosure/disclosure-context-menu';
 import {
   buildObjectRow,
+  isDisclosable,
   matchesObjectRowQuery,
   OBJECT_LIST_TYPES,
   ObjectRow,
@@ -30,8 +31,6 @@ import { LightSettingsComponent } from '@axe/features/light-settings/light-setti
 import { KeepTouchDirective } from '@axe/ui/directives/keep-touch.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
-
-type DisclosableArg = Parameters<typeof buildDisclosureContextMenu>[0];
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -332,9 +331,7 @@ export class GameObjectListPanelComponent {
       buildCopyAction(object, gridSize, this.t)
     );
 
-    if (row.disclosable) {
-      actions.push(...buildDisclosureContextMenu(object as unknown as DisclosableArg, this.t));
-    }
+    if (isDisclosable(object)) actions.push(...buildDisclosureContextMenu(object, this.t));
 
     actions.push(ContextMenuSeparator, {
       name: this.t('feature.gmObjectList.menu.delete'),

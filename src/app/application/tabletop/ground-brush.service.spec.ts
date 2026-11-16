@@ -18,7 +18,7 @@ describe('GroundBrushService', () => {
     table.height = 20;
     table.gridSize = 50;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     brush = TestBed.inject(GroundBrushService);
     ground = TestBed.inject(GroundService);
   });

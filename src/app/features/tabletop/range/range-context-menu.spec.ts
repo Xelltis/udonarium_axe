@@ -2,12 +2,12 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
-import { buildRangeContextMenu, buildRangeContextMenuModel } from '@axe/features/tabletop/range/range-context-menu';
+import { buildRangeContextMenuModel } from '@axe/features/tabletop/range/range-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const t = createSyncTranslate('ja');
 
-describe('buildRangeContextMenu', () => {
+describe('buildRangeContextMenuModel', () => {
   it('groups every range action for the 2D menu without changing the ordinary menu', () => {
     const range = RangeArea.create('test', 3, 3, 50);
 
@@ -40,7 +40,7 @@ describe('buildRangeContextMenu', () => {
 
   /** The flat menu of a range on a table of 50px cells, handing the range to `onEdit` for its sheet. */
   function menuOf(range: RangeArea, onEdit: (r: RangeArea) => void = vi.fn()) {
-    return buildRangeContextMenu(
+    return buildRangeContextMenuModel(
       range,
       50,
       { x: 0, y: 0, z: 0 },
@@ -50,7 +50,7 @@ describe('buildRangeContextMenu', () => {
       vi.fn(),
       onEdit,
       t
-    );
+    ).actions;
   }
 
   function shapeMenuOf(range: RangeArea) {
@@ -172,7 +172,7 @@ describe('buildRangeContextMenu', () => {
     const range = RangeArea.create('test', 3, 3, 50);
     const aim = vi.fn();
     const names = () =>
-      buildRangeContextMenu(
+      buildRangeContextMenuModel(
         range,
         50,
         { x: 0, y: 0, z: 0 },
@@ -184,7 +184,7 @@ describe('buildRangeContextMenu', () => {
         t,
         undefined,
         aim
-      );
+      ).actions;
 
     try {
       range.type = 'CIRCLE';

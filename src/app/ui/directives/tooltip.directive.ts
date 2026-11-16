@@ -14,8 +14,10 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
+import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { observeTap, TapGestureHandle } from '@axe/core/input/tap-gesture';
+import { Logger } from '@axe/core/logging/logger';
 import { debounce } from '@axe/core/util/debounce';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { asHoverDetailPlacement } from '@axe/domain/tabletop/hover-detail-placement';
@@ -47,6 +49,11 @@ export class TooltipPanelSource {
   load = inject(TOOLTIP_PANEL_LOADER);
   /** The panel, once it has arrived. */
   panel: Type<TooltipPanelInstance> | null = null;
+  /**
+   * Whether the fetch failed, after which no piece asks for the panel again: the page's files have
+   * gone with a release, and the reader has been asked to reload.
+   */
+  failed = false;
 }
 
 /**
@@ -64,6 +71,8 @@ interface TooltipSession {
 }
 
 const OPEN_DELAY_MS = 100;
+/** How far the pointer may drift during the opening delay and still count as resting. */
+const HOVER_STILL_PX = 2;
 const CLOSE_DELAY_MS = 400;
 /** Later than the 250ms an orientation change gives DraggableDirective, so the seats are placed last. */
 const VIEWPORT_FOLLOW_DELAY_MS = 300;
@@ -78,11 +87,18 @@ export class TooltipDirective {
   private readonly destroyRef = inject(DestroyRef);
   private readonly overlays = inject(OverlayLayers);
   private readonly panels = inject(TooltipPanelSource);
+  private readonly reloadNotice = inject(ReloadNoticeService);
+  /**
+   * The tooltip of the thing this one's host is drawn inside, as a part's row is drawn inside its
+   * body's piece: while the pointer is over this one, that one stands aside.
+   */
+  private readonly outer = inject(TooltipDirective, { skipSelf: true, optional: true });
 
   /** The one showing on screen, whichever piece raised it. */
   private static activeOwner: TooltipDirective | null = null;
 
-  readonly tabletopObject = input.required<TabletopObject>({ alias: 'appTooltip' });
+  /** The thing whose detail is shown; with none the host shows no detail of its own, and one around it shows its own over it. */
+  readonly tabletopObject = input.required<TabletopObject | null>({ alias: 'appTooltip' });
   /** Whether no tooltip opens for now, as over a look on the ground locked in place; one open closes. */
   readonly off = input(false, { alias: 'appTooltipOff' });
 
@@ -99,6 +115,8 @@ export class TooltipDirective {
   private tooltipSession: TooltipSession | null = null;
   private tooltipRotationDegrees = 0;
   private tapGesture: TapGestureHandle | null = null;
+  /** Whether a tap just now belonged to a tooltip inside this one's host, which has shown its own detail for it. */
+  private tapTaken = false;
 
   constructor() {
     afterNextRender(() => {
@@ -116,7 +134,12 @@ export class TooltipDirective {
   }
 
   private onTap() {
-    if (!this.viewport.isTouch()) return;
+    if (this.tapTaken) {
+      this.tapTaken = false;
+      return;
+    }
+    if (!this.viewport.isTouch() || !this.tabletopObject()) return;
+    if (this.outer) this.outer.tapTaken = true;
     this.clearTimer();
     if (this.hasTooltip()) {
       this.closeAll();
@@ -126,14 +149,22 @@ export class TooltipDirective {
   }
 
   private onMouseEnter(e: MouseEvent) {
+    if (!this.tabletopObject()) return;
+    this.outer?.clearTimer();
     this.clearTimer();
     this.tooltipRotationDegrees = this.rotationDegreesAt(e.clientX, e.clientY);
     if (!this.hasTooltip()) this.startOpenTimer();
   }
 
-  private onMouseLeave(_e: MouseEvent) {
+  private onMouseLeave(e: MouseEvent) {
+    if (!this.tabletopObject() && !this.hasTooltip()) return;
     this.clearTimer();
     if (this.hasTooltip()) this.startCloseTimer();
+    const outer = this.outer;
+    const next = e.relatedTarget;
+    if (outer && next instanceof Node && outer.viewContainerRef.element.nativeElement.contains(next)) {
+      outer.onMouseEnter(e);
+    }
   }
 
   private onMouseDown(e: MouseEvent) {
@@ -191,7 +222,7 @@ export class TooltipDirective {
       this.openTooltipTimer = null;
       const magnitude =
         (pointerX - this.pointerDeviceService.pointerX) ** 2 + (pointerY - this.pointerDeviceService.pointerY) ** 2;
-      if (magnitude > 4) {
+      if (magnitude > HOVER_STILL_PX ** 2) {
         this.startOpenTimer();
       } else {
         this.open();
@@ -222,10 +253,13 @@ export class TooltipDirective {
    *
    * A touch or a press anywhere but this piece while it is on its way means the reader has moved
    * on, so it is not shown then, the same as a showing would close.
+   *
+   * A fetch that fails asks the reader to reload the page, as any part of the app that cannot be
+   * fetched does, and is not tried again: every hover would fail the same way.
    */
   private fetchPanelThenOpen() {
     const load = this.panels.load;
-    if (!load) return;
+    if (!load || this.panels.failed) return;
     this.waitingForPanel = true;
     document.body.addEventListener('touchstart', this.callbackOnPressWhileWaiting, true);
     document.body.addEventListener('pointerdown', this.callbackOnPressWhileWaiting, true);
@@ -234,8 +268,11 @@ export class TooltipDirective {
         this.panels.panel = panelClass;
         if (this.waitingForPanel) this.open();
       })
-      .catch(() => {
+      .catch((reason: unknown) => {
+        Logger.warn('[Tooltip] コマの詳細を読み込めませんでした', reason);
+        this.panels.failed = true;
         this.stopWaitingForPanel();
+        this.reloadNotice.tellReloadNeeded();
       });
   }
 
@@ -253,7 +290,8 @@ export class TooltipDirective {
 
   private open() {
     this.closeAll();
-    if (this.pointerDeviceService.isDragging || this.off()) return;
+    const tabletopObject = this.tabletopObject();
+    if (this.pointerDeviceService.isDragging || this.off() || !tabletopObject) return;
     const panelClass = this.panels.panel;
     if (!panelClass) {
       this.fetchPanelThenOpen();
@@ -275,7 +313,7 @@ export class TooltipDirective {
       });
       const element = componentRef.location.nativeElement as HTMLElement;
 
-      componentRef.instance.tabletopObject = this.tabletopObject();
+      componentRef.instance.tabletopObject = tabletopObject;
       if (seat) {
         // A detail on the edge is there to be read, so nothing hovers or focuses it.
         componentRef.instance.edgeSeat = seat;
@@ -299,7 +337,7 @@ export class TooltipDirective {
     document.body.addEventListener('touchstart', this.callbackOnMouseDown, true);
     document.body.addEventListener('mousedown', this.callbackOnMouseDown, true);
     session.deleteOff = this.objectChange.objectDeleted$.subscribe((e) => {
-      if (this.tabletopObject() && this.tabletopObject().identifier === e.identifier) this.closeAll();
+      if (this.tabletopObject()?.identifier === e.identifier) this.closeAll();
     });
 
     const followViewport = debounce(() => this.onViewportChanged(session), VIEWPORT_FOLLOW_DELAY_MS);

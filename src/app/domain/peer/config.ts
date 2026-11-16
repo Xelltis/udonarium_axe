@@ -160,7 +160,7 @@ export class Config extends withRuleAnswers() implements InnerXml {
 
   /** The game system the room rolls dice with by default; blank reads as the generic `DiceBot`. */
   get defaultDiceBot(): string {
-    if (this._defaultDiceBot == '') {
+    if (this._defaultDiceBot === '') {
       return 'DiceBot';
     }
     return this._defaultDiceBot;
@@ -534,7 +534,7 @@ export class Config extends withRuleAnswers() implements InnerXml {
     return answers as RoomRuleAnswers;
   }
 
-  private static _instance: Config;
+  private static _instance: Config | undefined;
   /**
    * The room's one config, shared by every peer under a fixed identifier.
    *
@@ -550,12 +550,20 @@ export class Config extends withRuleAnswers() implements InnerXml {
   }
 
   /**
+   * Forgets the config held here, so that the next reader is given one made anew, as for a room just
+   * started. Only a test between two of its own has any reason to say this.
+   */
+  static forget(): void {
+    Config._instance = undefined;
+  }
+
+  /**
    * Lets go of the one held here as it leaves the store, so that the next reader is given one made
    * anew, as for a room just started, rather than this one put back as it was.
    */
   override onStoreRemoved() {
     super.onStoreRemoved();
-    if (Config._instance === this) Config._instance = undefined as unknown as Config;
+    if (Config._instance === this) Config._instance = undefined;
   }
 
   /**

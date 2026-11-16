@@ -62,6 +62,58 @@ describe('MiniJukeboxComponent', () => {
     expect(lastPlayed()).toBe('bgm-1');
   });
 
+  describe('the track name too long for its box', () => {
+    let textWidth: number;
+    let measured: number;
+
+    beforeEach(() => {
+      measured = 0;
+      vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockImplementation(() => {
+        measured++;
+        return textWidth;
+      });
+      vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(100);
+      addBackgroundSound('long-name', 'とても長い名前の曲');
+      addBackgroundSound('short-name', '短い曲');
+    });
+
+    const title = (): HTMLElement => fixture.nativeElement.querySelector('.whitespace-nowrap');
+
+    it('slides by how far it runs over, and stays still once a name that fits takes its place', async () => {
+      const jukebox = ObjectStore.instance.get<Jukebox>('Jukebox')!;
+      textWidth = 300;
+      jukebox.audioIdentifier = 'long-name';
+      await fixture.whenStable();
+
+      expect(fixture.componentInstance.isTitleScrolling()).toBe(true);
+      expect(title().style.getPropertyValue('--scroll-dist')).toBe('-200px');
+
+      textWidth = 60;
+      jukebox.audioIdentifier = 'short-name';
+      await Promise.resolve();
+      await fixture.whenStable();
+
+      expect(fixture.componentInstance.isTitleScrolling()).toBe(false);
+      expect(title().style.getPropertyValue('--scroll-dist')).toBe('');
+      jukebox.audioIdentifier = '';
+    });
+
+    it('is not measured again by a draw that changes neither the name nor its box', async () => {
+      const jukebox = ObjectStore.instance.get<Jukebox>('Jukebox')!;
+      textWidth = 300;
+      jukebox.audioIdentifier = 'long-name';
+      await fixture.whenStable();
+      const before = measured;
+
+      fixture.componentInstance.isPlaylistOpen.set(true);
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.querySelector('.playlist-dropdown')).not.toBeNull();
+      expect(measured).toBe(before);
+      jukebox.audioIdentifier = '';
+    });
+  });
+
   describe('what each role may touch', () => {
     const control = (testId: string) =>
       (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`)!;
@@ -145,7 +197,7 @@ describe('MiniJukeboxComponent', () => {
       (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
         '[data-testid="mini-jukebox-dj-deck-toggle"]'
       )!;
-    const deck = () => (fixture.nativeElement as HTMLElement).querySelector('app-dj-deck');
+    const deck = () => (fixture.nativeElement as HTMLElement).querySelector('dj-deck');
 
     it('is closed until opened, then opens under the player and is remembered in this browser', async () => {
       await fixture.whenStable();

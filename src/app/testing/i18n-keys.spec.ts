@@ -2,7 +2,13 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { SUPPORTED_LANGS } from '@axe/application/i18n/transloco.config';
+import {
+  isPieceResetCommand,
+  isTableResetCommand,
+  parseBuffClearanceCommand,
+} from '@axe/domain/character/buff-bulk-removal';
 import { CHAT_LINT_CODES } from '@axe/domain/chat-syntax/chat-lint';
+import { readDefaultResetCommand } from '@axe/domain/data/resource-command-words';
 
 type Tree = Record<string, unknown>;
 
@@ -35,6 +41,18 @@ describe('translation keys', () => {
     }
   });
 
+  it('give the chat syntax menu, in every language, words the reset commands are read by', () => {
+    for (const lang of SUPPORTED_LANGS) {
+      const word = (key: string) => dictionaries[lang][`feature.chat.syntax.${key}`];
+
+      expect(parseBuffClearanceCommand(`&*${word('buffKindWord')}-`), lang).toEqual({ kind: 'buffs' });
+      expect(parseBuffClearanceCommand(`&*${word('debuffKindWord')}-`), lang).toEqual({ kind: 'debuffs' });
+      expect(isPieceResetCommand(`&${word('resetWord')}-`), lang).toBe(true);
+      expect(isTableResetCommand(`&&${word('resetWord')}-`), lang).toBe(true);
+      expect(readDefaultResetCommand(`:*=${word('defaultWord')}`), lang).toEqual({ kind: 'all' });
+    }
+  });
+
   it('hold the same keys in every language', () => {
     const reference = Object.keys(dictionaries['ja']).sort();
     for (const lang of SUPPORTED_LANGS) {
@@ -50,6 +68,16 @@ describe('translation keys', () => {
     );
 
     expect(empty).toEqual([]);
+  });
+
+  it('name, in the hint shown while an effect is held ready, the keys and the button that cast it and call it off', () => {
+    for (const lang of SUPPORTED_LANGS) {
+      const hint = dictionaries[lang]['feature.effect.pickingHint'];
+      expect(hint, lang).toContain('Enter');
+      expect(hint, lang).toContain('Esc');
+      expect(hint, lang).toContain(dictionaries[lang]['feature.tabletop.targetBand.fire']);
+    }
+    expect(dictionaries['ja']['feature.effect.pickingHint']).not.toContain(' ');
   });
 
   it('cover every key the screens ask for', () => {

@@ -62,7 +62,7 @@ interface SceneRow {
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-scene-panel',
+  selector: 'scene-panel',
   templateUrl: './scene-panel.component.html',
   imports: [FolderTreeComponent, SceneEditorComponent, SafePipe, TranslocoModule],
 })

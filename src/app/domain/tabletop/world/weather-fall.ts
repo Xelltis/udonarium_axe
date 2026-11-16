@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { ambienceDensityOf, type AmbienceKind } from '@axe/domain/effect/ambience/ambience-kind';
 
@@ -97,7 +98,7 @@ export function weatherFallCount(fall: WeatherFall, acrossPx: number): number {
  * it crosses a step.
  */
 export function weatherFallSquarePx(acrossPx: number): number {
-  const wanted = Math.min(Math.max(acrossPx, 256), 8192);
+  const wanted = clamp(acrossPx, 256, 8192);
   return 2 ** Math.ceil(Math.log2(wanted));
 }
 

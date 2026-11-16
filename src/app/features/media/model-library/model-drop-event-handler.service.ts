@@ -25,7 +25,9 @@ export class ModelDropEventHandlerService {
   private readonly tabletopAction = inject(TabletopActionService);
   private readonly objectStore = inject(ObjectStore);
   private readonly modelStorage = inject(ModelStorage);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
 

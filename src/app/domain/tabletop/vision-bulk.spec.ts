@@ -1,5 +1,5 @@
 import { bulkVisionTarget, disagreeingVisionFields, VisionBulkMember } from '@axe/domain/tabletop/vision-bulk';
-import { applyVisionShape, MutableVisionFields, VisionShape } from '@axe/domain/tabletop/vision-shape';
+import { applyVisionShape, VisionShape } from '@axe/domain/tabletop/vision-shape';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
 
 function piece(overrides: Partial<VisionBulkMember> = {}): VisionBulkMember & { updates: number } {
@@ -38,6 +38,12 @@ describe('bulkVisionTarget', () => {
     expect(target.visionRange).toBe(4);
   });
 
+  it('names the pieces that have an identifier, to be followed by', () => {
+    const target = bulkVisionTarget([piece({ identifier: 'a' }), piece(), piece({ identifier: 'c' })]);
+
+    expect(target.identifiers).toEqual(['a', 'c']);
+  });
+
   it('writes a field to every one of them', () => {
     const a = piece();
     const b = piece();
@@ -65,7 +71,7 @@ describe('bulkVisionTarget', () => {
     const b = piece();
     const target = bulkVisionTarget([a, b]);
 
-    applyVisionShape(target as unknown as MutableVisionFields, VisionShape.CONE);
+    applyVisionShape(target, VisionShape.CONE);
 
     expect(a.visionShape).toBe(VisionShape.CONE);
     expect(b.visionShape).toBe(VisionShape.CONE);

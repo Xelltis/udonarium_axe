@@ -6,14 +6,7 @@ import {
   gridExtentPx,
 } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
-import {
-  fillHexPath,
-  hexLayoutOf,
-  HexPathSink,
-  hexVertices,
-  strokeHexPath,
-  traceHexPath,
-} from '@axe/domain/tabletop/hex-geometry';
+import { hexLayoutOf, HexPathSink, hexVertices, traceHexPath } from '@axe/domain/tabletop/hex-geometry';
 import { boardExtentPx, cellCentre } from '@axe/domain/tabletop/map-grid';
 import { seededRandom } from '@axe/testing/fingerprint';
 import {
@@ -87,14 +80,11 @@ function legacyCellsInBox(grid: CellGrid, minX: number, minY: number, maxX: numb
   return visited;
 }
 
-function recordingSink(log: unknown[]): HexPathSink & { beginPath(): void; stroke(): void; fill(): void } {
+function recordingSink(log: unknown[]): HexPathSink {
   return {
-    beginPath: () => log.push(['beginPath']),
     moveTo: (x, y) => log.push(['moveTo', x, y]),
     lineTo: (x, y) => log.push(['lineTo', x, y]),
     closePath: () => log.push(['closePath']),
-    stroke: () => log.push(['stroke']),
-    fill: () => log.push(['fill']),
   };
 }
 
@@ -145,7 +135,7 @@ describe('hex corners', () => {
     }
   });
 
-  it('traces, strokes and fills a hex with the same calls as before', () => {
+  it('traces a hex with the same calls as before', () => {
     for (const angle of angles) {
       for (const s of radii) {
         for (const [cx, cy] of centres) {
@@ -157,14 +147,6 @@ describe('hex corners', () => {
           const traced: unknown[] = [];
           traceHexPath(recordingSink(traced), cx, cy, s, angle);
           expect(traced).toEqual(path);
-
-          const stroked: unknown[] = [];
-          strokeHexPath(recordingSink(stroked) as unknown as CanvasRenderingContext2D, cx, cy, s, angle);
-          expect(stroked).toEqual([['beginPath'], ...path, ['stroke']]);
-
-          const filled: unknown[] = [];
-          fillHexPath(recordingSink(filled) as unknown as CanvasRenderingContext2D, cx, cy, s, angle);
-          expect(filled).toEqual([['beginPath'], ...path, ['fill']]);
         }
       }
     }

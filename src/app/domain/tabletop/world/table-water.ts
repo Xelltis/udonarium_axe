@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { hexChannels } from '@axe/core/util/hex-color';
 import { type CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import type { WaterCell } from '@axe/domain/tabletop/water/water-cells';
@@ -176,7 +177,7 @@ export function tableWaterOf(
     const wash = channelsOf(tone);
     const murk = channelsOf(murkColorOf(tone));
     const surfaceZ = cell.surfacePx > cell.floorPx ? cell.surfacePx : cell.floorPx + FLAT_SURFACE_LIFT_PX;
-    const frozen = Math.min(Math.max(cell.ice ?? 0, 0), 1);
+    const frozen = clamp(cell.ice ?? 0, 0, 1);
     const open = 1 - frozen;
     const glint = glintOpacity(cell.density, cell.turbidity, cell.dirt) * open;
     const stream = flowVectorOf(cell.flowDirection);
@@ -384,7 +385,7 @@ function over(top: Rgba, under: Rgba): Rgba {
 }
 
 function blend(from: Rgba, to: Rgba, share: number): Rgba {
-  const t = Math.min(1, Math.max(0, share));
+  const t = clamp(share, 0, 1);
   return from.map((value, index) => value + (to[index] - value) * t) as Rgba;
 }
 

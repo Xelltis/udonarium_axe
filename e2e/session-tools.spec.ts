@@ -16,7 +16,7 @@ test.describe('running a session', () => {
     await expect(settings).toBeVisible({ timeout: 15000 });
     await settings.locator('[data-testid="room-settings-tab-archive"]').click();
 
-    const snapshot = page.locator('app-room-snapshot-panel');
+    const snapshot = page.locator('room-snapshot-panel');
     await expect(snapshot).toBeVisible({ timeout: 15000 });
     await expect(snapshot).toContainText('まだスナップショットがありません');
 

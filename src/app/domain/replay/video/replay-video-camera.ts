@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { footprintOf, type ReplayBoardScene } from '@axe/domain/replay/replay-board-view';
 import type { ReplayRoutePoint } from '@axe/domain/replay/replay-route';
 
@@ -88,7 +89,7 @@ function fitAspect(box: ReplayCameraFrame, aspect: number, table: ReplayCameraFr
 /** Keeps a span on the table when the table is wide enough for it, and centres it on the table otherwise. */
 function keepOn(start: number, span: number, tableStart: number, tableSpan: number): number {
   if (span >= tableSpan) return tableStart + (tableSpan - span) / 2;
-  return Math.min(tableStart + tableSpan - span, Math.max(tableStart, start));
+  return clamp(start, tableStart, tableStart + tableSpan - span);
 }
 
 /**
@@ -98,7 +99,7 @@ function keepOn(start: number, span: number, tableStart: number, tableSpan: numb
  * or out.
  */
 export function blendReplayCamera(from: ReplayCameraFrame, to: ReplayCameraFrame, progress: number): ReplayCameraFrame {
-  const p = Math.min(1, Math.max(0, progress));
+  const p = clamp(progress, 0, 1);
   if (p <= 0) return from;
   if (p >= 1) return to;
   const width = from.width * Math.pow(to.width / from.width, p);
@@ -110,7 +111,7 @@ export function blendReplayCamera(from: ReplayCameraFrame, to: ReplayCameraFrame
 
 /** Slow to start and slow to stop, the way a camera operator moves. */
 export function easeInOutCubic(progress: number): number {
-  const p = Math.min(1, Math.max(0, progress));
+  const p = clamp(progress, 0, 1);
   return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
 }
 

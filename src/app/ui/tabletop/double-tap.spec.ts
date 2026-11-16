@@ -30,6 +30,33 @@ describe('DoubleTap', () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
+  it('counts no press of another button, which opens a menu or turns the table', () => {
+    const tap = new DoubleTap(() => input());
+    const run = vi.fn();
+    const right = new MouseEvent('mousedown', { button: 2 });
+    const middle = new MouseEvent('mousedown', { button: 1 });
+
+    tap.handle(right, run);
+    tap.handle(right, run);
+    tap.handle(middle, run);
+    tap.handle(middle, run);
+
+    expect(run).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('leaves a first click waiting through a press of another button', () => {
+    const tap = new DoubleTap(() => input());
+    const run = vi.fn();
+
+    tap.handle(mouse, run);
+    tap.handle(new MouseEvent('mousedown', { button: 2 }), run);
+    expect(run).not.toHaveBeenCalled();
+
+    tap.handle(mouse, run);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
   it('waits for the finger to lift on the second tap', () => {
     // Acting on the press would turn a finger meant to flip a card into a drag.
     const held = input();
@@ -99,5 +126,26 @@ describe('DoubleTap', () => {
     tap.cancel();
 
     expect(held.onEnd).toBeNull();
+  });
+
+  it('forgets the first tap when cancelled, so the next one counts as a first', () => {
+    const tap = new DoubleTap(() => input());
+    const run = vi.fn();
+
+    tap.handle(mouse, run);
+    tap.cancel();
+    tap.handle(mouse, run);
+
+    expect(run).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it('leaves no timer waiting once cancelled', () => {
+    const tap = new DoubleTap(() => input());
+
+    tap.handle(mouse, () => undefined);
+    tap.cancel();
+
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

@@ -1,5 +1,8 @@
 import { parseBuffRemovalCommand } from '@axe/domain/character/buff-bulk-removal';
+import type { DefaultPick } from '@axe/domain/character/default-value';
 import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
+import { readNamedResourceSlot } from '@axe/domain/data/resource-slot';
+import { readTurnChatCommand } from '@axe/domain/tabletop/turn-chat-command';
 
 /** One command picked out of a chat line, in the form it is carried out in, and where it was typed. */
 export interface ResourceCommandSite {
@@ -56,9 +59,11 @@ export function hasSecretEditMark(text: string): boolean {
  * `&` or `t&` is taken off, the rest of the word then read as any other. Each word is a sweep, or
  * else, when it starts with `:`, `&`, `t:` or `t&`, splits into the commands each mark begins. A
  * `:` that starts a status in a buff's fields, as in `&!毒/:HP/+/0~-3/3`, marks the status to stay
- * moved and begins no command of its own. A word that starts any other way holds no command. A stamp
+ * moved and begins no command of its own, and neither does the `:` of a field telling when the buff's
+ * effect moves, `発生:手番終了`. A word that starts any other way holds no command. A stamp
  * put inside the line ends a word as a space does, so one put right after a command is never read as
- * part of it.
+ * part of it. A round command the line opens with, `&T`, is the round's to carry out and lays no
+ * buff.
  */
 export function resourceCommandSites(text: string): ResourceCommandWords {
   const padded = ` ${withInlineStampsAsSpaces(text)}`;
@@ -84,7 +89,9 @@ export function resourceCommandSites(text: string): ResourceCommandWords {
     };
   };
 
+  const round = readTurnChatCommand(text);
   for (const word of normalized.matchAll(/\S+/g)) {
+    if (round && rawAt[word.index] === round.from) continue;
     if (parseBuffRemovalCommand(word[0])) {
       words.sweeps.push(siteOf(word[0], word.index));
       continue;
@@ -105,20 +112,38 @@ export function resourceCommandSites(text: string): ResourceCommandWords {
 /** What stands in for a buff's `:` mark while a word is cut at its commands, one character for one. */
 const LASTING_MARK_HIDDEN = '\u0001';
 
+/** The words a buff's field starts with to tell when its effect moves, `発生:手番終了`, before their `:`. */
+const EFFECT_TIMING_WORD = /^(?:発生|tick)$/i;
+
 /**
- * A word, marks made half-width, with each `:` hidden that starts a status in the fields of a buff
- * command, right after the `/` or comma before the status. Any other `:` begins a resource command.
+ * A word, marks made half-width, with each `:` hidden that belongs to the fields of a buff command:
+ * one that starts a status, right after the `/` or comma before the status, and one after a field
+ * that reads `発生` or `tick` and nothing else, past the buff's name and note, which tells when its
+ * effect moves. Any other `:` begins a resource command.
  */
 function hideLastingMarks(word: string): string {
   let inBuff = false;
+  let fieldFrom = 0;
+  let fieldsBefore = 0;
   let hidden = '';
   for (let index = 0; index < word.length; index++) {
     const character = word[index];
-    if (character === '&') inBuff = true;
-    else if (character === ':' && inBuff && /[/,，、]/.test(word[index - 1] ?? '')) {
-      hidden += LASTING_MARK_HIDDEN;
-      continue;
-    } else if (character === ':') inBuff = false;
+    if (character === '&') {
+      inBuff = true;
+      fieldFrom = index + 1;
+      fieldsBefore = 0;
+    } else if (character === '/' && inBuff) {
+      fieldFrom = index + 1;
+      fieldsBefore++;
+    } else if (character === ':' && inBuff) {
+      const startsStatus = /[/,，、]/.test(word[index - 1] ?? '');
+      const timesEffect = fieldsBefore >= 2 && EFFECT_TIMING_WORD.test(word.slice(fieldFrom, index));
+      if (startsStatus || timesEffect) {
+        hidden += LASTING_MARK_HIDDEN;
+        continue;
+      }
+      inBuff = false;
+    }
     hidden += character;
   }
   return hidden;
@@ -157,4 +182,26 @@ export function resourceCommandParts(command: string): ResourceCommandParts | nu
  */
 export function namableInResourceCommand(name: string): boolean {
   return name.length > 0 && !/[\s:：&＆\-+=>－＋＝＞]/.test(name);
+}
+
+/** The words that stand for an item's default where the amount of a `:` command goes. */
+const DEFAULT_WORDS: readonly string[] = ['既定', '既定値', '規定', '規定値', 'default'];
+
+/**
+ * Reads a `:` command that puts values back to their defaults, or answers null for any other.
+ *
+ * `:*=既定` (`:*=default`) takes every item that keeps a default, and `:HP=既定` the one item named, at
+ * the slot written after its name: `:HP^=既定` its maximum, `:HP_MAX_BUFF=既定` the correction on it. The
+ * word may be written `既定値`, `規定` or `規定値` as well, which a table says for the same thing. It is
+ * read in either width and case, and nothing may follow it. An item named `*` is not
+ * reached by the first form; every other operation on it reads as it always did.
+ */
+export function readDefaultResetCommand(command: string): DefaultPick | null {
+  const parts = resourceCommandParts(command);
+  if (!parts || parts.operator !== '=') return null;
+  if (!DEFAULT_WORDS.includes(parts.amount.trim().normalize('NFKC').toLowerCase())) return null;
+  const name = parts.name.trim();
+  if (name === '*' || name === '＊') return { kind: 'all' };
+  const named = readNamedResourceSlot(parts.name);
+  return { kind: 'item', name: named.name, slot: named.slot };
 }

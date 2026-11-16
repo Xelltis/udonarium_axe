@@ -5,6 +5,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import type { HudAnchor } from '@axe/application/tabletop/hud-frame.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
+import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -12,7 +13,6 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -67,7 +67,7 @@ describe('RangeComponent', () => {
       table.width = 20;
       table.height = 20;
       table.initialize();
-      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
       range = RangeArea.create('浮く範囲', 3, 3, 1);
       range.location = { name: 'table', x: 300, y: 250 };
       range.isAltitudeIndicate = true;
@@ -171,28 +171,16 @@ describe('RangeComponent', () => {
   it('draws itself anew as its length, width or opacity is edited in its sheet', async () => {
     fixture.detectChanges();
     await fixture.whenStable();
-    const drawn = vi.spyOn(component as unknown as { setRange(): void }, 'setRange');
+    const asked = vi.mocked(HTMLCanvasElement.prototype.getContext);
+    asked.mockClear();
 
     (given as RangeArea).commonDataElement!.getFirstElementByName('width')!.value = 7;
     await Promise.resolve();
 
-    expect(drawn).toHaveBeenCalled();
+    expect(asked).toHaveBeenCalled();
   });
 
   describe('the clip version signal', () => {
-    type PrivClipVersion = { _clipVersion: { (): number; update(fn: (v: number) => number): void } };
-
-    it('starts at zero', () => {
-      const priv = component as unknown as PrivClipVersion;
-      expect(priv._clipVersion()).toBe(0);
-    });
-
-    it('counts up on an update', () => {
-      const priv = component as unknown as PrivClipVersion;
-      priv._clipVersion.update((v) => v + 1);
-      expect(priv._clipVersion()).toBe(1);
-    });
-
     it('gives a cone a polygon clip path', () => {
       const range = RangeArea.create('テスト', 3, 5, 1);
       range.type = 'CORN';
@@ -223,7 +211,7 @@ describe('RangeComponent', () => {
       table.width = 20;
       table.height = 20;
       table.initialize();
-      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
       const range = RangeArea.create('テスト', 3, 3, 1);
       range.type = 'SQUARE';
       range.location = { name: 'table', x: 100, y: 200 };
@@ -379,34 +367,11 @@ describe('RangeComponent', () => {
     });
   });
 
-  it('aims at the pieces a circle takes in, and takes the aim off the rest and off pieces out of the fight', () => {
+  it('hands the aim to the piece targets, counted in the squares of the table being viewed', async () => {
     const range = RangeArea.create('円', 1, 2, 50);
     range.type = 'CIRCLE';
-    range.location = { name: 'table', x: 300, y: 300 };
-    const inside = GameCharacter.create('中', 1, '');
-    inside.location = { name: 'table', x: 325, y: 275 };
-    const outside = GameCharacter.create('外', 1, '');
-    outside.location = { name: 'table', x: 600, y: 600 };
-    outside.targeted = true;
-    const resting = GameCharacter.create('除外', 1, '');
-    resting.location = { name: 'table', x: 300, y: 300 };
-    resting.offField = '1';
     fixture.componentRef.setInput('range', range);
-
-    component.targetInside(range);
-
-    expect(inside.targeted).toBe(true);
-    expect(outside.targeted).toBe(false);
-    expect(resting.targeted).toBe(false);
-  });
-
-  it('takes in pieces as far off as its length counts squares, on a table counting squares of two cells', async () => {
-    const range = RangeArea.create('円', 1, 2, 50);
-    range.type = 'CIRCLE';
-    range.location = { name: 'table', x: 300, y: 300 };
-    fixture.componentRef.setInput('range', range);
-    const twoSquaresOff = GameCharacter.create('二マス先', 1, '');
-    twoSquaresOff.location = { name: 'table', x: 425, y: 275 };
+    const aimed = vi.spyOn(TestBed.inject(PieceTargetService), 'targetInsideRange');
     const table = new GameTable();
     table.squareSpan = 2;
     table.initialize();
@@ -415,6 +380,23 @@ describe('RangeComponent', () => {
 
     component.targetInside(range);
 
-    expect(twoSquaresOff.targeted).toBe(true);
+    expect(aimed).toHaveBeenCalledWith(range, 100);
+  });
+
+  it('lets go of what the shape editor says on saving once the range is gone', async () => {
+    const range = RangeArea.create('形', 1, 1, 50);
+    range.type = 'CUSTOM';
+    fixture.componentRef.setInput('range', range);
+    const unsubscribe = vi.fn();
+    const editor = { initialize: vi.fn(), saved: { subscribe: vi.fn(() => ({ unsubscribe })) } };
+    vi.spyOn(TestBed.inject(PanelService), 'open').mockReturnValue(editor as never);
+
+    await (component as unknown as { openCellEditor(range: RangeArea): Promise<void> }).openCellEditor(range);
+    expect(editor.saved.subscribe).toHaveBeenCalledOnce();
+    expect(unsubscribe).not.toHaveBeenCalled();
+
+    fixture.destroy();
+
+    expect(unsubscribe).toHaveBeenCalledOnce();
   });
 });

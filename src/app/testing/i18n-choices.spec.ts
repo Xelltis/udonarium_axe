@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 
 import { CHAT_SOUND_TYPES } from '@axe/domain/chat/chat-sound';
+import { AILMENT_LOOKS } from '@axe/domain/effect/ailment-looks';
 import { AMBIENCE_BRIGHTNESS } from '@axe/domain/effect/ambience/ambience-brightness';
+import { BEAM_LOOKS } from '@axe/domain/effect/beam-looks';
+import { EFFECT_MOTE_OPTIONS } from '@axe/domain/effect/effect-motes';
 import { HOTBAR_SLOT_KINDS } from '@axe/domain/hotbar/hotbar-slot-kind';
 import { CUT_IN_EASING_NAMES } from '@axe/domain/media/cubic-bezier';
 import { CUT_IN_ENTRANCES, CUT_IN_EXITS } from '@axe/domain/media/cut-in-animation-presets';
@@ -56,6 +59,7 @@ const HOTBAR_FAILURES = ['noCharacter', 'notFound', 'noTab', 'offTable', 'empty'
  * a raw key on someone's screen.
  */
 const CHOICES: Record<string, readonly string[]> = {
+  'feature.effect.mote.': [...EFFECT_MOTE_OPTIONS.filter((mote) => mote.length > 0), ...AILMENT_LOOKS, ...BEAM_LOOKS],
   'feature.firstPerson.facing.': FIRST_PERSON_FACING_NAMES,
   'feature.firstPerson.hud.': FIRST_PERSON_PAD_LABELS,
   'common.textures.': [...TEXTURE_IDS, ...WALL_TEXTURE_IDS, ...DUNGEON_PROP_IDS],

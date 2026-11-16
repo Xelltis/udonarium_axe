@@ -55,6 +55,7 @@ import { GameCharacterMenuService } from '@axe/features/character/game-character
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
+import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 
 describe('GameCharacterComponent', () => {
   let component: GameCharacterComponent;
@@ -359,6 +360,109 @@ describe('GameCharacterComponent', () => {
         head.destroy();
         dragon.destroy();
       }
+    });
+
+    describe('the row of a part', () => {
+      function dragonWithPoisonedHead(): { dragon: GameCharacter; head: GameCharacter } {
+        const dragon = GameCharacter.create('ドラゴン', 3, '');
+        dragon.setLocation('table');
+        const head = GameCharacter.create('頭', 1, '');
+        head.setLocation('table');
+        head.ridingOn = dragon.identifier;
+        head.rideSeat = 'part';
+        head.addExtendData();
+        head.buffDataElement!.appendChild(
+          DataElement.create('毒', 3, { type: DataElementType.NUMBER_RESOURCE, currentValue: 'ダメージ2' })
+        );
+        const preference = TestBed.inject(BuffViewPreferenceService);
+        onTestFinished(() => {
+          preference.set('icon');
+          head.destroy();
+          dragon.destroy();
+        });
+        return { dragon, head };
+      }
+
+      it('draws its buffs as this reader has buffs drawn: icons, each with its rounds, or how many there are', async () => {
+        const preference = TestBed.inject(BuffViewPreferenceService);
+        preference.set('icon');
+        const { dragon, head } = dragonWithPoisonedHead();
+        fixture.componentRef.setInput('gameCharacter', dragon);
+        const buffs = (element: HTMLElement) =>
+          element.querySelector<HTMLElement>(
+            `[data-body-part="${head.identifier}"] [data-testid="riding-label-buffs"]`
+          )!;
+
+        let shown = buffs(await draw(fixture));
+        expect(shown.querySelectorAll('[data-testid="buff-badge-grid"] [data-testid="buff-badge"]')).toHaveLength(1);
+        expect(shown.querySelector('[game-data-element-buff]')).toBeNull();
+
+        preference.set('detail');
+        shown = buffs(await draw(fixture));
+        expect(shown.querySelector('[data-testid="buff-badge-grid"]')).toBeNull();
+        expect(shown.querySelector('[game-data-element-buff]')).not.toBeNull();
+        expect(shown.textContent).toContain('毒');
+        expect(shown.textContent).toContain('3');
+
+        preference.set('count');
+        shown = buffs(await draw(fixture));
+        expect(shown.querySelector('[data-testid="buff-badge-grid"]')).toBeNull();
+        expect(shown.querySelector('[game-data-element-buff]')).toBeNull();
+        expect(shown.textContent?.trim()).toBe('バフ1個');
+      });
+
+      it('keeps every row in the card however the buffs are drawn, none folded away', async () => {
+        const { dragon, head } = dragonWithPoisonedHead();
+        const tail = GameCharacter.create('尾', 1, '');
+        tail.setLocation('table');
+        tail.ridingOn = dragon.identifier;
+        tail.rideSeat = 'part';
+        onTestFinished(() => tail.destroy());
+        fixture.componentRef.setInput('gameCharacter', dragon);
+
+        for (const mode of ['icon', 'detail', 'count'] as const) {
+          TestBed.inject(BuffViewPreferenceService).set(mode);
+          const element = await draw(fixture);
+          const rows = [...element.querySelectorAll('[data-testid="riding-label"] [data-body-part]')];
+          expect(rows.map((row) => row.getAttribute('data-body-part'))).toEqual([head.identifier, tail.identifier]);
+          expect(rows.every((row) => row.textContent?.includes('extension'))).toBe(true);
+        }
+      });
+
+      it('shows the detail of its part when pointed at, and stays the row pressed to aim at the part', async () => {
+        const { dragon, head } = dragonWithPoisonedHead();
+        fixture.componentRef.setInput('gameCharacter', dragon);
+
+        await draw(fixture);
+        const row = fixture.debugElement.query(By.css(`[data-body-part="${head.identifier}"]`));
+
+        expect(row.injector.get(TooltipDirective).tabletopObject()).toBe(head);
+        (row.nativeElement as HTMLElement).click();
+        expect(head.targeted).toBe(true);
+        head.targeted = false;
+      });
+
+      it('shows no detail of a part kept from this reader', async () => {
+        const { dragon, head } = dragonWithPoisonedHead();
+        vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockImplementation((one) => one !== head);
+        fixture.componentRef.setInput('gameCharacter', dragon);
+
+        await draw(fixture);
+        const row = fixture.debugElement.query(By.css(`[data-body-part="${head.identifier}"]`));
+
+        expect(row.injector.get(TooltipDirective).tabletopObject()).toBeNull();
+      });
+
+      it('shows no detail of its own on the row of the body or of one riding it', async () => {
+        const { horse } = ride();
+        fixture.componentRef.setInput('gameCharacter', horse);
+
+        await draw(fixture);
+        const rows = fixture.debugElement.queryAll(By.css('[data-testid="riding-label-piece"]'));
+
+        expect(rows).toHaveLength(3);
+        expect(rows.map((row) => row.injector.get(TooltipDirective).tabletopObject())).toEqual([null, null, null]);
+      });
     });
 
     it('draws no labels of its own over a piece riding a mount, and its labels again once it is off', async () => {
@@ -1579,7 +1683,7 @@ describe('GameCharacterComponent', () => {
         return counter;
       };
 
-      const resourceSnapshot = () => component['resourceSnapshot']();
+      const resourceSnapshot = () => component['resourceChanges'].snapshot();
 
       const pieceWithBuff = async () => {
         const character = GameCharacter.create('ゲージ', 1, '');
@@ -2284,6 +2388,30 @@ describe('GameCharacterComponent', () => {
         expect(markerOf()).toBeTruthy();
       } finally {
         character.destroy();
+      }
+    });
+  });
+
+  describe('telling what the pointer is over', () => {
+    it('tells the choosing of an effect’s targets when the pointer comes over the piece and when it leaves', () => {
+      const hover = vi.spyOn(TestBed.inject(EffectTargetingService), 'hoverPiece');
+      const character = GameCharacter.create('hovered', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        const root = fixture.nativeElement.querySelector('[data-hud-box]') as HTMLElement;
+
+        root.dispatchEvent(new Event('pointerenter'));
+        fixture.detectChanges();
+        expect(hover).toHaveBeenLastCalledWith(character.identifier, true);
+
+        root.dispatchEvent(new Event('pointerleave'));
+        fixture.detectChanges();
+        expect(hover).toHaveBeenLastCalledWith(character.identifier, false);
+      } finally {
+        character.destroy();
+        hover.mockRestore();
       }
     });
   });
@@ -3247,12 +3375,6 @@ describe('GameCharacterComponent', () => {
       }).not.toThrow();
     });
 
-    it('sets the altitude without throwing', () => {
-      expect(() => {
-        component.setAltitude(5);
-      }).not.toThrow();
-    });
-
     it('sets up and tears down without throwing', () => {
       expect(() => fixture.detectChanges()).not.toThrow();
       expect(() => fixture.destroy()).not.toThrow();
@@ -3264,13 +3386,13 @@ describe('GameCharacterComponent', () => {
     table.width = 20;
     table.height = 20;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     TestBed.inject(GroundService).dab({ kind: 'raise', x: 2.5, y: 4.5, radius: 3, strength: 1 });
     const character = GameCharacter.create('浮く人', 1, '');
     character.location = { name: 'table', x: 100, y: 200 };
     character.isAltitudeIndicate = true;
     fixture.componentRef.setInput('gameCharacter', character);
-    component.setAltitude(2);
+    character.altitude = 2;
     type Guide = { lifted: { height: number }; ground: { height: number } } | null;
 
     try {

@@ -10,14 +10,12 @@ export class ChatInputDiceBotHelper {
   private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
 
-  gameHelp = '';
-
   /**
    * Starts fetching the dice bot for a game system ahead of time, so the first roll with it does
    * not wait on the download.
    */
   load(gameType: string): void {
-    DiceBot.getHelpMessage(gameType).then(() => {});
+    void DiceBot.getHelpMessage(gameType);
   }
 
   /**
@@ -35,8 +33,7 @@ export class ChatInputDiceBotHelper {
    * has been fetched.
    */
   showHelp(gameType: string): void {
-    DiceBot.getHelpMessage(gameType).then((help) => {
-      this.gameHelp = help;
+    void DiceBot.getHelpMessage(gameType).then((help) => {
       let gameName = this.t('feature.chat.diceBot.title');
       for (const diceBotInfo of DiceBot.diceBotInfos) {
         if (diceBotInfo.id === gameType)
@@ -47,7 +44,7 @@ export class ChatInputDiceBotHelper {
       const option: PanelOption = { title: gameName, left: coordinate.x, top: coordinate.y, width: 600, height: 500 };
       const textView = this.panelService.open(TextViewComponent, option);
       textView.title = gameName;
-      textView.text = this.t('feature.chat.diceBot.intro') + this.gameHelp;
+      textView.text = this.t('feature.chat.diceBot.intro') + help;
     });
   }
 }

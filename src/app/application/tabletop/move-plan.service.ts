@@ -137,7 +137,9 @@ export class MovePlanService {
   private readonly moveRange = inject(MoveRangeService);
   private readonly roomRules = inject(RoomRulesService);
   private readonly pieceStep = inject(PieceStepService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectStore = inject(ObjectStore);
   private readonly zones = inject(EngagementZoneService);
   private readonly links = inject(PieceLinksService);

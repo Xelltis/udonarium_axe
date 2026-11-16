@@ -25,6 +25,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { Card } from '@axe/domain/card/card';
 import { isHandCardOf } from '@axe/domain/card/hand-cards';
 import { findTrumpPairs } from '@axe/domain/card/trump-card';
@@ -52,7 +53,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-hand-rail',
+  selector: 'hand-rail',
   templateUrl: './hand-rail.component.html',
   imports: [DraggableDirective, NgClass, TranslocoModule, CardFacePreviewComponent],
 })
@@ -99,7 +100,7 @@ export class HandRailComponent {
           return;
         }
         const centered = (viewportWidth - el.offsetWidth) / 2;
-        el.style.left = `${Math.max(0, Math.min(centered, viewportWidth - el.offsetWidth))}px`;
+        el.style.left = `${clamp(centered, 0, Math.max(0, viewportWidth - el.offsetWidth))}px`;
         el.style.top = `${Math.max(8, bottom - el.offsetHeight - 8)}px`;
       };
 

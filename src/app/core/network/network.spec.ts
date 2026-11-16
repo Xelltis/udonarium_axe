@@ -1,7 +1,8 @@
-import { Network as LiveNetwork } from '@axe/core/index';
 import { Network } from '@axe/core/network/network';
 
 const singleton = Network as unknown as Record<string, unknown>;
+/** The instance the app holds, taken before any test swaps it out. */
+const liveNetwork = Network.instance;
 
 describe('Network', () => {
   let heldByTheApp: unknown;
@@ -47,6 +48,55 @@ describe('Network', () => {
 
     it('reports no bandwidth in use', () => {
       expect(Network.instance.bandwidthUsage).toBe(0);
+    });
+  });
+
+  describe('the peers it cannot reach', () => {
+    const connected = (connection: object) => {
+      (Network.instance as unknown as { connection: unknown }).connection = connection;
+    };
+
+    it('names those the room lists that it has no open connection to', () => {
+      connected({ peerIds: ['peer-a'], roomPeerIds: ['peer-a', 'peer-b', 'peer-c'] });
+
+      expect(Network.unreachablePeerIds).toEqual(['peer-b', 'peer-c']);
+    });
+
+    it('names nobody where the connection lists no room members, as a room server’s does not', () => {
+      connected({ peerIds: [] });
+
+      expect(Network.unreachablePeerIds).toEqual([]);
+    });
+
+    it('names nobody without a connection', () => {
+      expect(Network.unreachablePeerIds).toEqual([]);
+    });
+  });
+
+  describe('the link to each peer', () => {
+    const connected = (connection: object | null) => {
+      (Network.instance as unknown as { connection: unknown }).connection = connection;
+    };
+
+    afterEach(() => connected(null));
+
+    it('hands on what the connection says of each peer, as a new array', () => {
+      const peerLinks = [
+        { peerId: 'peer-a', state: 'direct' },
+        { peerId: 'peer-b', state: 'relayed' },
+      ];
+      connected({ peerLinks });
+
+      expect(Network.peerLinks).toEqual(peerLinks);
+      expect(Network.peerLinks).not.toBe(peerLinks);
+    });
+
+    it('is empty where the connection says nothing of links, as a room server’s does not, or without one', () => {
+      connected({ peerIds: ['peer-a'] });
+      expect(Network.peerLinks).toEqual([]);
+
+      connected(null);
+      expect(Network.peerLinks).toEqual([]);
     });
   });
 
@@ -357,7 +407,7 @@ describe('Network', () => {
 });
 
 describe('Network, once its own tests are done', () => {
-  it('is the instance the rest of the app imported, so a stand-in for it is read where the app reads it', () => {
-    expect(Network.instance).toBe(LiveNetwork);
+  it('is the instance the rest of the app holds, so a stand-in for it is read where the app reads it', () => {
+    expect(Network.instance).toBe(liveNetwork);
   });
 });

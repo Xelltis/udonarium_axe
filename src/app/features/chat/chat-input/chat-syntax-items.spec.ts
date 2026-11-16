@@ -28,6 +28,7 @@ describe('chatSyntaxGroups', () => {
       cutIns: ['登場'],
       diceExamples: ['CC<=50'],
       isGameMaster: false,
+      canTakeTurns: true,
       ...overrides,
     };
   }
@@ -48,6 +49,7 @@ describe('chatSyntaxGroups', () => {
       'reference',
       'resource',
       'buff',
+      'turn',
       'portrait',
       'effect',
       'quote',
@@ -77,6 +79,12 @@ describe('chatSyntaxGroups', () => {
     run(groups, 'buff', 'buffPlain');
     run(groups, 'buff', 'buffRoundsDown');
     expect(written).toEqual(['word s:HP-1 [HP]', 'word &name/buffEffect/3 [name]', 'word &R- ']);
+  });
+
+  it('offers a buff told when its effect moves, its name selected to be typed over', () => {
+    const groups = chatSyntaxGroups(source(), writer, t);
+    run(groups, 'buff', 'buffEffectTiming');
+    expect(written).toEqual(['word &!name/:HP/+/0~+3/none/buffEffectTimingField [name]']);
   });
 
   it('puts a reference to the target in as a chip too, and leaves an unknown name to type between the braces', () => {
@@ -119,6 +127,67 @@ describe('chatSyntaxGroups', () => {
         .find((group) => group.key === 'buff')!
         .rows.filter((row) => row.items[0].written.startsWith('&&')).length;
     expect(sweeps(false)).toBe(0);
-    expect(sweeps(true)).toBe(1);
+    expect(sweeps(true)).toBe(5);
+  });
+
+  it('offers the commands that clear a piece and put its values back, written whole in the words of the language', () => {
+    const groups = chatSyntaxGroups(source(), writer, t);
+    const writes = (key: string) => groups.find((group) => group.key === key)!.rows.map((row) => row.items[0].written);
+
+    expect(writes('buff')).toEqual(
+      expect.arrayContaining(['&*-', '&*buffKindWord-', '&*debuffKindWord-', '&resetWord-'])
+    );
+    expect(writes('resource')).toEqual(expect.arrayContaining([':HP=defaultWord', ':*=defaultWord']));
+
+    run(groups, 'buff', 'buffClearAll');
+    run(groups, 'buff', 'buffClearDebuffs');
+    run(groups, 'buff', 'buffReset');
+    run(groups, 'resource', 'resourceDefaults');
+    run(groups, 'resource', 'resourceDefault');
+    expect(written).toEqual([
+      'word &*- ',
+      'word &*debuffKindWord- ',
+      'word &resetWord- ',
+      'word :*=defaultWord ',
+      'word :HP=defaultWord [HP]',
+    ]);
+  });
+
+  it('offers the same across the whole table to the game master alone', () => {
+    const tables = (gm: boolean) =>
+      chatSyntaxGroups(source({ isGameMaster: gm }), writer, t)
+        .find((group) => group.key === 'buff')!
+        .rows.map((row) => row.items[0].written)
+        .filter((text) => text.startsWith('&&'));
+
+    expect(tables(false)).toEqual([]);
+    expect(tables(true)).toEqual(['&&name-', '&&*-', '&&*buffKindWord-', '&&*debuffKindWord-', '&&resetWord-']);
+
+    run(chatSyntaxGroups(source({ isGameMaster: true }), writer, t), 'buff', 'buffResetTable');
+    expect(written).toEqual(['word &&resetWord- ']);
+  });
+
+  it('offers a player every round command, written at the start of the line where they are read', () => {
+    const turn = chatSyntaxGroups(source(), writer, t).find((group) => group.key === 'turn')!;
+
+    turn.rows[0].items[0].run();
+    expect(written).toEqual(['prefix &T  first']);
+    expect(turn.rows.map((row) => row.items[0].written)).toEqual([
+      '&T',
+      '&TE',
+      '&TW',
+      '&TI',
+      '&TB',
+      '&RS',
+      '&RN',
+      '&RB',
+      '&RR',
+    ]);
+  });
+
+  it('offers no round command to a seat that may not move the round', () => {
+    const turn = chatSyntaxGroups(source({ canTakeTurns: false }), writer, t).find((group) => group.key === 'turn');
+
+    expect(turn?.rows ?? []).toEqual([]);
   });
 });

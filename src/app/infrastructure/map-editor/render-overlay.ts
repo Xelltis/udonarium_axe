@@ -60,6 +60,14 @@ export interface EditorOverlay {
   measureLabel: { cells: (n: string) => string; angle: (deg: number) => string };
 }
 
+/** The blue everything still being worked on is drawn in. */
+const DRAFT_STROKE = '#5b9dff';
+/** Its fill under a shape being drawn, the cell under the pointer and the reach of the eraser. */
+const DRAFT_FILL = 'rgba(91, 157, 255, 0.2)';
+const HOVER_CELL_FILL = 'rgba(91, 157, 255, 0.25)';
+const ERASER_FILL = 'rgba(91, 157, 255, 0.15)';
+const HANDLE_FILL = '#ffffff';
+
 /**
  * Draws what is still being worked on over the finished map.
  *
@@ -67,166 +75,22 @@ export interface EditorOverlay {
  * drawn, the stamp or picture about to be placed, and the outline and handles of what is selected.
  */
 export function renderOverlay(ctx: CanvasRenderingContext2D, scene: MapScene, overlay: EditorOverlay): void {
-  const tool = overlay.tool;
   ctx.save();
-  ctx.strokeStyle = '#5b9dff';
-  ctx.fillStyle = 'rgba(91, 157, 255, 0.2)';
+  ctx.strokeStyle = DRAFT_STROKE;
+  ctx.fillStyle = DRAFT_FILL;
   ctx.lineWidth = 2;
   ctx.setLineDash([6, 4]);
 
-  if (
-    (tool === 'cellPaint' || tool === 'fill' || (tool === 'cellErase' && !overlay.vectorErase)) &&
-    overlay.hover &&
-    !overlay.panning
-  ) {
-    const cellPx = scene.cellPx;
-    const cell = pointToCell(scene.gridType, overlay.hover.x, overlay.hover.y, cellPx);
-    if (cell.col >= 0 && cell.row >= 0 && cell.col < scene.cols && cell.row < scene.rows) {
-      ctx.save();
-      ctx.setLineDash([]);
-      ctx.fillStyle = 'rgba(91, 157, 255, 0.25)';
-      ctx.strokeStyle = '#5b9dff';
-      ctx.lineWidth = 1;
-      if (scene.gridType === GridType.SQUARE) {
-        ctx.fillRect(cell.col * cellPx, cell.row * cellPx, cellPx, cellPx);
-        ctx.strokeRect(cell.col * cellPx + 0.5, cell.row * cellPx + 0.5, cellPx - 1, cellPx - 1);
-      } else {
-        const center = cellCenter(scene.gridType, cell.col, cell.row, cellPx);
-        ctx.beginPath();
-        ctx.arc(center.x, center.y, cellPx * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
-  }
-
-  if (tool === 'cellErase' && overlay.vectorErase && overlay.hover && !overlay.panning) {
-    ctx.save();
-    ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(91, 157, 255, 0.15)';
-    ctx.strokeStyle = '#5b9dff';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(overlay.hover.x, overlay.hover.y, overlay.eraserSize, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  if (
-    overlay.draftStart &&
-    overlay.draftCurrent &&
-    (tool === 'shape' || (tool === 'line' && overlay.lineKind === 'straight'))
-  ) {
-    const x = Math.min(overlay.draftStart.x, overlay.draftCurrent.x);
-    const y = Math.min(overlay.draftStart.y, overlay.draftCurrent.y);
-    const w = Math.abs(overlay.draftCurrent.x - overlay.draftStart.x);
-    const h = Math.abs(overlay.draftCurrent.y - overlay.draftStart.y);
-    if (tool === 'line') {
-      ctx.beginPath();
-      ctx.moveTo(overlay.draftStart.x, overlay.draftStart.y);
-      ctx.lineTo(overlay.draftCurrent.x, overlay.draftCurrent.y);
-      ctx.stroke();
-    } else {
-      const kind = overlay.shapeKind;
-      ctx.save();
-      ctx.fillStyle = 'rgba(91, 157, 255, 0.2)';
-      ctx.beginPath();
-      if (kind === 'ellipse') {
-        ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
-      } else if (kind === 'rect') {
-        ctx.rect(x, y, w, h);
-      } else {
-        const pts = generateShapePoints(kind, x, y, w, h);
-        if (pts.length >= 2) {
-          ctx.moveTo(pts[0], pts[1]);
-          for (let i = 2; i + 1 < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
-          ctx.closePath();
-        }
-      }
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-    }
-    drawMeasureBox(ctx, overlay, `${(w / scene.cellPx).toFixed(1)} × ${(h / scene.cellPx).toFixed(1)}`);
-  }
-
-  if ((tool === 'polygon' || (tool === 'line' && overlay.multiClickLine)) && overlay.draftPoints.length >= 2) {
-    const lineKind = overlay.lineKind;
-    const smooth = tool === 'line' && (lineKind === 'curve' || lineKind === 'closedCurve');
-    if (smooth) {
-      const verts = overlay.draftPoints.slice();
-      if (overlay.draftCurrent) verts.push(overlay.draftCurrent.x, overlay.draftCurrent.y);
-      const closed = lineKind === 'closedCurve';
-      if (closed && verts.length >= 6) {
-        ctx.save();
-        ctx.fillStyle = 'rgba(91, 157, 255, 0.2)';
-        traceCurvePath(ctx, verts, true);
-        ctx.fill();
-        ctx.restore();
-      }
-      traceCurvePath(ctx, verts, closed);
-      ctx.stroke();
-      drawSegmentMeasure(ctx, scene, overlay);
-    } else {
-      if (tool === 'polygon' && overlay.draftPoints.length >= 4) {
-        ctx.save();
-        ctx.fillStyle = 'rgba(91, 157, 255, 0.2)';
-        ctx.beginPath();
-        ctx.moveTo(overlay.draftPoints[0], overlay.draftPoints[1]);
-        for (let i = 2; i + 1 < overlay.draftPoints.length; i += 2)
-          ctx.lineTo(overlay.draftPoints[i], overlay.draftPoints[i + 1]);
-        if (overlay.draftCurrent) ctx.lineTo(overlay.draftCurrent.x, overlay.draftCurrent.y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      }
-      ctx.beginPath();
-      ctx.moveTo(overlay.draftPoints[0], overlay.draftPoints[1]);
-      for (let i = 2; i + 1 < overlay.draftPoints.length; i += 2)
-        ctx.lineTo(overlay.draftPoints[i], overlay.draftPoints[i + 1]);
-      if (overlay.draftCurrent) ctx.lineTo(overlay.draftCurrent.x, overlay.draftCurrent.y);
-      ctx.stroke();
-      drawSegmentMeasure(ctx, scene, overlay);
-    }
-  }
-
-  if (tool === 'line' && overlay.lineKind === 'straight' && overlay.draftStart && overlay.draftCurrent) {
+  drawHoverCell(ctx, scene, overlay);
+  drawEraserReach(ctx, overlay);
+  drawDraftBox(ctx, scene, overlay);
+  drawDraftPoints(ctx, scene, overlay);
+  if (overlay.tool === 'line' && overlay.lineKind === 'straight' && overlay.draftStart && overlay.draftCurrent) {
     drawSegmentMeasure(ctx, scene, overlay);
   }
-
-  if (tool === 'freehand' && overlay.freehandPoints.length >= 4) {
-    ctx.beginPath();
-    ctx.moveTo(overlay.freehandPoints[0], overlay.freehandPoints[1]);
-    for (let i = 2; i + 1 < overlay.freehandPoints.length; i += 2)
-      ctx.lineTo(overlay.freehandPoints[i], overlay.freehandPoints[i + 1]);
-    ctx.stroke();
-  }
-
-  if (tool === 'stamp' && overlay.stamp) {
-    const { image, size, center, rotation, flipX, flipY } = overlay.stamp;
-    const iw = image.naturalWidth || image.width || size;
-    const ih = image.naturalHeight || image.height || size;
-    const fitScale = iw && ih ? Math.min(size / iw, size / ih) : 1;
-    const w = iw * fitScale;
-    const h = ih * fitScale;
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.translate(center.x, center.y);
-    if (rotation) ctx.rotate((rotation * Math.PI) / 180);
-    ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-    ctx.drawImage(image, -w / 2, -h / 2, w, h);
-    ctx.restore();
-  }
-
-  if (tool === 'image' && overlay.image) {
-    const { image, at, size } = overlay.image;
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.drawImage(image, at.x - size.w / 2, at.y - size.h / 2, size.w, size.h);
-    ctx.restore();
-  }
+  drawFreehandDraft(ctx, overlay);
+  drawStampPreview(ctx, overlay);
+  drawImagePreview(ctx, overlay);
 
   const sel = overlay.selection;
   if (sel) drawSelectionOutline(ctx, scene, sel.layerId, sel.itemId);
@@ -240,11 +104,173 @@ export function renderOverlay(ctx: CanvasRenderingContext2D, scene: MapScene, ov
   ctx.restore();
 }
 
+/** The cell under the pointer while a cell tool is held, filled, and outlined on a square grid. */
+function drawHoverCell(ctx: CanvasRenderingContext2D, scene: MapScene, overlay: EditorOverlay): void {
+  const tool = overlay.tool;
+  const cellTool = tool === 'cellPaint' || tool === 'fill' || (tool === 'cellErase' && !overlay.vectorErase);
+  if (!cellTool || !overlay.hover || overlay.panning) return;
+  const cellPx = scene.cellPx;
+  const cell = pointToCell(scene.gridType, overlay.hover.x, overlay.hover.y, cellPx);
+  if (cell.col < 0 || cell.row < 0 || cell.col >= scene.cols || cell.row >= scene.rows) return;
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.fillStyle = HOVER_CELL_FILL;
+  ctx.strokeStyle = DRAFT_STROKE;
+  ctx.lineWidth = 1;
+  if (scene.gridType === GridType.SQUARE) {
+    ctx.fillRect(cell.col * cellPx, cell.row * cellPx, cellPx, cellPx);
+    ctx.strokeRect(cell.col * cellPx + 0.5, cell.row * cellPx + 0.5, cellPx - 1, cellPx - 1);
+  } else {
+    const center = cellCenter(scene.gridType, cell.col, cell.row, cellPx);
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, cellPx * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** How far the eraser reaches round the pointer while it erases by distance. */
+function drawEraserReach(ctx: CanvasRenderingContext2D, overlay: EditorOverlay): void {
+  if (overlay.tool !== 'cellErase' || !overlay.vectorErase || !overlay.hover || overlay.panning) return;
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.fillStyle = ERASER_FILL;
+  ctx.strokeStyle = DRAFT_STROKE;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(overlay.hover.x, overlay.hover.y, overlay.eraserSize, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** A shape or a straight line dragged out between two points, with its size beside the pointer. */
+function drawDraftBox(ctx: CanvasRenderingContext2D, scene: MapScene, overlay: EditorOverlay): void {
+  const tool = overlay.tool;
+  const { draftStart, draftCurrent } = overlay;
+  if (!draftStart || !draftCurrent) return;
+  if (tool !== 'shape' && !(tool === 'line' && overlay.lineKind === 'straight')) return;
+  const x = Math.min(draftStart.x, draftCurrent.x);
+  const y = Math.min(draftStart.y, draftCurrent.y);
+  const w = Math.abs(draftCurrent.x - draftStart.x);
+  const h = Math.abs(draftCurrent.y - draftStart.y);
+  if (tool === 'line') {
+    ctx.beginPath();
+    ctx.moveTo(draftStart.x, draftStart.y);
+    ctx.lineTo(draftCurrent.x, draftCurrent.y);
+    ctx.stroke();
+  } else {
+    const kind = overlay.shapeKind;
+    ctx.save();
+    ctx.fillStyle = DRAFT_FILL;
+    ctx.beginPath();
+    if (kind === 'ellipse') {
+      ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+    } else if (kind === 'rect') {
+      ctx.rect(x, y, w, h);
+    } else {
+      const pts = generateShapePoints(kind, x, y, w, h);
+      if (pts.length >= 2) {
+        ctx.moveTo(pts[0], pts[1]);
+        for (let i = 2; i + 1 < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+        ctx.closePath();
+      }
+    }
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+  drawMeasureBox(ctx, overlay, `${(w / scene.cellPx).toFixed(1)} × ${(h / scene.cellPx).toFixed(1)}`);
+}
+
+/** A polygon or a line laid down point by point, as far as the pointer, with its last side measured. */
+function drawDraftPoints(ctx: CanvasRenderingContext2D, scene: MapScene, overlay: EditorOverlay): void {
+  const tool = overlay.tool;
+  if (!(tool === 'polygon' || (tool === 'line' && overlay.multiClickLine)) || overlay.draftPoints.length < 2) return;
+  const lineKind = overlay.lineKind;
+  const smooth = tool === 'line' && (lineKind === 'curve' || lineKind === 'closedCurve');
+  if (smooth) {
+    const verts = overlay.draftPoints.slice();
+    if (overlay.draftCurrent) verts.push(overlay.draftCurrent.x, overlay.draftCurrent.y);
+    const closed = lineKind === 'closedCurve';
+    if (closed && verts.length >= 6) {
+      ctx.save();
+      ctx.fillStyle = DRAFT_FILL;
+      traceCurvePath(ctx, verts, true);
+      ctx.fill();
+      ctx.restore();
+    }
+    traceCurvePath(ctx, verts, closed);
+    ctx.stroke();
+    drawSegmentMeasure(ctx, scene, overlay);
+    return;
+  }
+  if (tool === 'polygon' && overlay.draftPoints.length >= 4) {
+    ctx.save();
+    ctx.fillStyle = DRAFT_FILL;
+    traceDraftPoints(ctx, overlay);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  traceDraftPoints(ctx, overlay);
+  ctx.stroke();
+  drawSegmentMeasure(ctx, scene, overlay);
+}
+
+/** Traces the points laid down so far and on to the pointer, where it is still over the map. */
+function traceDraftPoints(ctx: CanvasRenderingContext2D, overlay: EditorOverlay): void {
+  const points = overlay.draftPoints;
+  ctx.beginPath();
+  ctx.moveTo(points[0], points[1]);
+  for (let i = 2; i + 1 < points.length; i += 2) ctx.lineTo(points[i], points[i + 1]);
+  if (overlay.draftCurrent) ctx.lineTo(overlay.draftCurrent.x, overlay.draftCurrent.y);
+}
+
+/** The freehand stroke under way. */
+function drawFreehandDraft(ctx: CanvasRenderingContext2D, overlay: EditorOverlay): void {
+  if (overlay.tool !== 'freehand' || overlay.freehandPoints.length < 4) return;
+  const points = overlay.freehandPoints;
+  ctx.beginPath();
+  ctx.moveTo(points[0], points[1]);
+  for (let i = 2; i + 1 < points.length; i += 2) ctx.lineTo(points[i], points[i + 1]);
+  ctx.stroke();
+}
+
+/** The stamp about to be placed, half seen through, as it will be turned and flipped. */
+function drawStampPreview(ctx: CanvasRenderingContext2D, overlay: EditorOverlay): void {
+  if (overlay.tool !== 'stamp' || !overlay.stamp) return;
+  const { image, size, center, rotation, flipX, flipY } = overlay.stamp;
+  const iw = image.naturalWidth || image.width || size;
+  const ih = image.naturalHeight || image.height || size;
+  const fitScale = iw && ih ? Math.min(size / iw, size / ih) : 1;
+  const w = iw * fitScale;
+  const h = ih * fitScale;
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.translate(center.x, center.y);
+  if (rotation) ctx.rotate((rotation * Math.PI) / 180);
+  ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+  ctx.drawImage(image, -w / 2, -h / 2, w, h);
+  ctx.restore();
+}
+
+/** The picture about to be placed, half seen through. */
+function drawImagePreview(ctx: CanvasRenderingContext2D, overlay: EditorOverlay): void {
+  if (overlay.tool !== 'image' || !overlay.image) return;
+  const { image, at, size } = overlay.image;
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.drawImage(image, at.x - size.w / 2, at.y - size.h / 2, size.w, size.h);
+  ctx.restore();
+}
+
 function drawSelectionOutline(ctx: CanvasRenderingContext2D, scene: MapScene, layerId: string, itemId: string): void {
   const layer = scene.layers.find((l) => l.id === layerId);
   if (!layer) return;
   ctx.save();
-  ctx.strokeStyle = '#5b9dff';
+  ctx.strokeStyle = DRAFT_STROKE;
   ctx.lineWidth = 2;
   ctx.setLineDash([4, 3]);
   if (layer.kind === 'stamp') {
@@ -274,8 +300,8 @@ function drawSelectionOutline(ctx: CanvasRenderingContext2D, scene: MapScene, la
 function drawCurveHandles(ctx: CanvasRenderingContext2D, item: ShapeItem): void {
   ctx.save();
   ctx.setLineDash([]);
-  ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = '#5b9dff';
+  ctx.fillStyle = HANDLE_FILL;
+  ctx.strokeStyle = DRAFT_STROKE;
   ctx.lineWidth = 1.5;
   const p = item.points;
   for (let i = 0; i * 2 + 1 < p.length; i += 1) {
@@ -290,7 +316,7 @@ function drawCurveHandles(ctx: CanvasRenderingContext2D, item: ShapeItem): void 
 function drawImageHandles(ctx: CanvasRenderingContext2D, item: ImageItem): void {
   ctx.save();
   ctx.setLineDash([]);
-  ctx.fillStyle = '#5b9dff';
+  ctx.fillStyle = DRAFT_STROKE;
   const s = 8;
   for (const c of imageCorners(item)) {
     ctx.fillRect(c.x - s / 2, c.y - s / 2, s, s);

@@ -1,6 +1,10 @@
+import { clamp } from '@axe/core/util/clamp';
 import type { ReplayBoardScene } from '@axe/domain/replay/replay-board-view';
 import { containRect, coverRect } from '@axe/domain/replay/replay-picture-fit';
 import { easeInOut } from '@axe/domain/replay/replay-route';
+import { replayPageAt, replayRevealCount } from '@axe/domain/replay/video/replay-page-typing';
+import { replayPlateColor, replayRingColor } from '@axe/domain/replay/video/replay-speaker-color';
+import { stageFigureRect, stageFiguresAt } from '@axe/domain/replay/video/replay-stage';
 import {
   blendReplayCamera,
   easeInOutCubic,
@@ -8,13 +12,12 @@ import {
   type ReplayCameraShot,
   replayCameraTarget,
 } from '@axe/domain/replay/video/replay-video-camera';
-import type { ReplayVideoLayout } from '@axe/domain/replay/video/replay-video-layout';
+import { replaySubtitleFont, type ReplayVideoLayout } from '@axe/domain/replay/video/replay-video-layout';
 import {
   type ReplayCutInSegment,
   type ReplayDiceSegment,
   type ReplayLineSegment,
   type ReplayStageFigure,
-  type ReplayTimedPage,
   type ReplayVideoSegment,
   ReplayVideoStyle,
   type ReplayVideoTimeline,
@@ -26,6 +29,7 @@ import {
   roundedRectPath,
 } from '@axe/infrastructure/replay/replay-canvas';
 import { paintReplayCutInScene } from '@axe/infrastructure/replay/replay-cut-in-painter';
+import { DarknessLayer } from '@axe/infrastructure/replay/replay-darkness-painter';
 import { paintReplayBoard } from '@axe/infrastructure/replay/video/replay-board-painter';
 
 /** Everything a replay video is drawn from. */
@@ -39,17 +43,12 @@ export interface ReplayVideoSource {
 }
 
 const CAMERA_MS = 1_100;
-const STAGE_FADE_MS = 350;
 const BOX_FADE_MS = 260;
 const BACKDROP_FADE_MS = 500;
 const OPEN_FADE_MS = 600;
 const CLOSE_FADE_MS = 900;
 const CHAPTER_FADE_MS = 550;
 const PAGE_FADE_MS = 160;
-const TYPE_MS_PER_CHAR = 30;
-const NAME_PLATE_DEFAULT = '#3b4a7a';
-/** How far a portrait is ever blown up past its own size, so a small picture stays sharp enough to look at. */
-const PORTRAIT_MAX_GROWTH = 2.4;
 
 const OUTCOME_COLOR: Readonly<Record<string, string>> = {
   critical: '#ffd166',
@@ -60,6 +59,19 @@ const OUTCOME_COLOR: Readonly<Record<string, string>> = {
 };
 
 type Backdrop = { kind: 'board' } | { kind: 'image'; identifier: string } | { kind: 'black' };
+
+/** The washes of colour a layout fixes, made once for it rather than on every frame. */
+interface Shades {
+  readonly layout: ReplayVideoLayout;
+  /** The glow behind a black backdrop. */
+  readonly glow: CanvasGradient;
+  /** The fill of the dialogue box. */
+  readonly box: CanvasGradient;
+  /** The band a location is named on. */
+  readonly band: CanvasGradient;
+  /** The band a banner runs across. */
+  readonly banner: CanvasGradient;
+}
 
 /**
  * Draws the frames of a replay video from its timeline.
@@ -74,8 +86,49 @@ export class ReplayVideoRenderer {
   private readonly cameraEnds = new Map<number, ReplayCameraFrame>();
   private readonly scenes = new Map<number, ReplayBoardScene | null>();
   private layer: OffscreenCanvas | null = null;
+  /** The surface the board's darkness is painted on, frame after frame. */
+  private readonly darkness = new DarknessLayer();
+  private shades: Shades | null = null;
 
   constructor(private readonly source: ReplayVideoSource) {}
+
+  /** Lets go of the surfaces the frames were painted on. */
+  dispose(): void {
+    this.darkness.dispose();
+    this.layer = null;
+    this.shades = null;
+  }
+
+  /** The washes of colour for the layout, made on the first frame that needs them. */
+  private shadesOf(ctx: ReplayFrameCanvas): Shades {
+    const { layout } = this.source;
+    if (this.shades?.layout === layout) return this.shades;
+    const tabletop = layout.style === ReplayVideoStyle.Tabletop;
+    const glow = ctx.createRadialGradient(
+      layout.width / 2,
+      layout.height / 2,
+      0,
+      layout.width / 2,
+      layout.height / 2,
+      layout.width * 0.7
+    );
+    glow.addColorStop(0, '#1b2030');
+    glow.addColorStop(1, '#05060a');
+    const box = ctx.createLinearGradient(0, layout.box.y, 0, layout.box.y + layout.box.height);
+    box.addColorStop(0, tabletop ? 'rgba(8, 10, 16, 0.72)' : 'rgba(14, 17, 28, 0.9)');
+    box.addColorStop(1, tabletop ? 'rgba(8, 10, 16, 0.62)' : 'rgba(8, 10, 18, 0.82)');
+    const band = ctx.createLinearGradient(0, 0, layout.width, 0);
+    band.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    band.addColorStop(0.5, 'rgba(0, 0, 0, 0.6)');
+    band.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    const banner = ctx.createLinearGradient(0, 0, layout.width, 0);
+    banner.addColorStop(0, 'rgba(10, 14, 26, 0)');
+    banner.addColorStop(0.2, 'rgba(10, 14, 26, 0.82)');
+    banner.addColorStop(0.8, 'rgba(10, 14, 26, 0.82)');
+    banner.addColorStop(1, 'rgba(10, 14, 26, 0)');
+    this.shades = { layout, glow, box, band, banner };
+    return this.shades;
+  }
 
   get durationMs(): number {
     return this.source.timeline.totalMs;
@@ -120,7 +173,7 @@ export class ReplayVideoRenderer {
     if (segment.kind === 'chapter') this.paintChapter(ctx, segment, localMs, index);
 
     const opening = Math.min(1, atMs / OPEN_FADE_MS);
-    const closing = Math.min(1, Math.max(0, (this.durationMs - atMs) / CLOSE_FADE_MS));
+    const closing = clamp((this.durationMs - atMs) / CLOSE_FADE_MS, 0, 1);
     const shade = 1 - Math.min(opening, closing);
     if (shade > 0) {
       ctx.globalAlpha = shade;
@@ -170,17 +223,7 @@ export class ReplayVideoRenderer {
   private paintBackdropOf(ctx: ReplayFrameCanvas, backdrop: Backdrop, index: number, localMs: number): void {
     const { layout } = this.source;
     if (backdrop.kind === 'black') {
-      const glow = ctx.createRadialGradient(
-        layout.width / 2,
-        layout.height / 2,
-        0,
-        layout.width / 2,
-        layout.height / 2,
-        layout.width * 0.7
-      );
-      glow.addColorStop(0, '#1b2030');
-      glow.addColorStop(1, '#05060a');
-      ctx.fillStyle = glow;
+      ctx.fillStyle = this.shadesOf(ctx).glow;
       ctx.fillRect(0, 0, layout.width, layout.height);
       return;
     }
@@ -212,19 +255,24 @@ export class ReplayVideoRenderer {
         popSize: layout.label.popSize,
         fontFamily: this.source.fontFamily,
       },
-      this.source.assets
+      this.source.assets,
+      (width, height) => this.darkness.layerOf(width, height)
     );
   }
 
   private speakingPiece(segment: ReplayVideoSegment): { identifier: string; color: string } | null {
     if (segment.kind !== 'line' && segment.kind !== 'dice') return null;
     const identifier = segment.focus[0];
-    return identifier ? { identifier, color: ringColor(segment.color) } : null;
+    return identifier ? { identifier, color: replayRingColor(segment.color) } : null;
   }
 
   // Camera --------------------------------------------------------------------------------------
 
-  private cameraAt(index: number, localMs: number): ReplayCameraFrame {
+  /**
+   * Where the camera stands `localMs` into the segment at `index`: on its way from wherever the
+   * segment before left it to the segment's own target, and at the target from the first segment on.
+   */
+  cameraAt(index: number, localMs: number): ReplayCameraFrame {
     const target = this.cameraTarget(index);
     if (index < 1) return target;
     const from = this.cameraAtEndOf(index - 1);
@@ -298,28 +346,9 @@ export class ReplayVideoRenderer {
 
   private paintStage(ctx: ReplayFrameCanvas, index: number, localMs: number): void {
     const segment = this.source.timeline.segments[index];
-    const now = this.stageOf(index);
     const before = index > 0 ? this.stageOf(index - 1) : [];
-    const beforeById = new Map(before.map((figure) => [figure.id, figure]));
-    const nowIds = new Set(now.map((figure) => figure.id));
-    const settle = easeInOut(localMs / STAGE_FADE_MS);
-
-    for (const figure of before) {
-      if (nowIds.has(figure.id) || figure.isLeaving) continue;
-      this.paintFigure(ctx, figure, figure.left, 1 - settle, figure.isActive ? 1 : 0, 0);
-    }
-    const ordered = [...now].sort((a, b) => Number(a.isActive) - Number(b.isActive));
-    for (const figure of ordered) {
-      const earlier = beforeById.get(figure.id);
-      const left = earlier ? earlier.left + (figure.left - earlier.left) * settle : figure.left;
-      const wasActive = earlier ? (earlier.isActive ? 1 : 0) : figure.isActive ? 1 : 0;
-      const active = wasActive + ((figure.isActive ? 1 : 0) - wasActive) * settle;
-      let alpha = earlier ? 1 : settle;
-      if (figure.isLeaving) {
-        const through = segment.durationMs > 0 ? localMs / segment.durationMs : 1;
-        alpha *= 1 - easeInOut((through - 0.4) / 0.6);
-      }
-      this.paintFigure(ctx, figure, left, alpha, active, earlier ? 0 : 1 - settle);
+    for (const standing of stageFiguresAt(this.stageOf(index), before, localMs, segment.durationMs)) {
+      this.paintFigure(ctx, standing.figure, standing.left, standing.alpha, standing.active, standing.rise);
     }
   }
 
@@ -335,13 +364,7 @@ export class ReplayVideoRenderer {
     const picture = this.source.assets.imageOf(figure.imageIdentifier);
     if (!picture || picture.width < 1 || picture.height < 1) return;
     const { layout } = this.source;
-    const most = Math.min(layout.portraitHeight, picture.height * PORTRAIT_MAX_GROWTH);
-    const size = containRect(picture, layout.width * 0.36, most, true);
-    const grow = 0.95 + 0.05 * active;
-    const width = size.width * grow;
-    const height = size.height * grow;
-    const centreX = (leftPercent / 100) * layout.width;
-    const bottom = layout.height + height * 0.02 + rise * layout.height * 0.04;
+    const rect = stageFigureRect(picture, layout, leftPercent, active, rise);
 
     ctx.save();
     ctx.globalAlpha *= alpha;
@@ -350,9 +373,9 @@ export class ReplayVideoRenderer {
     ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
     ctx.shadowBlur = 24 * layout.scale;
     ctx.imageSmoothingQuality = 'high';
-    ctx.translate(centreX, bottom - height);
+    ctx.translate(rect.centreX, rect.top);
     if (figure.isFlipped) ctx.scale(-1, 1);
-    ctx.drawImage(picture, -width / 2, 0, width, height);
+    ctx.drawImage(picture, -rect.width / 2, 0, rect.width, rect.height);
     ctx.restore();
   }
 
@@ -363,21 +386,21 @@ export class ReplayVideoRenderer {
     const segment = segments[index];
     const previous = index > 0 ? segments[index - 1] : null;
     const next = segments[index + 1] ?? null;
-    const hasBox = (one: ReplayVideoSegment | null) => one?.kind === 'line' && one.mode !== 'location';
+    const hasBox = (one: ReplayVideoSegment | null): one is ReplayLineSegment =>
+      one?.kind === 'line' && one.mode !== 'location';
 
     if (segment.kind === 'line' && segment.mode === 'location') {
       this.paintLocation(ctx, segment, localMs);
     }
     if (!hasBox(segment)) {
       if (previous && hasBox(previous) && localMs < BOX_FADE_MS) {
-        this.paintBox(ctx, previous as ReplayLineSegment, previous.durationMs, 1 - localMs / BOX_FADE_MS);
+        this.paintBox(ctx, previous, previous.durationMs, 1 - localMs / BOX_FADE_MS);
       }
       return;
     }
-    const line = segment as ReplayLineSegment;
     const appear = hasBox(previous) ? 1 : easeInOut(localMs / BOX_FADE_MS);
-    const vanish = hasBox(next) ? 1 : Math.min(1, (line.durationMs - localMs) / BOX_FADE_MS + 0.0001);
-    this.paintBox(ctx, line, localMs, Math.min(appear, Math.max(0, vanish)));
+    const vanish = hasBox(next) ? 1 : Math.min(1, (segment.durationMs - localMs) / BOX_FADE_MS + 0.0001);
+    this.paintBox(ctx, segment, localMs, Math.min(appear, Math.max(0, vanish)));
   }
 
   private paintBox(ctx: ReplayFrameCanvas, line: ReplayLineSegment, localMs: number, alpha: number): void {
@@ -391,10 +414,7 @@ export class ReplayVideoRenderer {
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
     ctx.shadowBlur = 30 * layout.scale;
-    const fill = ctx.createLinearGradient(0, box.y, 0, box.y + box.height);
-    fill.addColorStop(0, tabletop ? 'rgba(8, 10, 16, 0.72)' : 'rgba(14, 17, 28, 0.9)');
-    fill.addColorStop(1, tabletop ? 'rgba(8, 10, 16, 0.62)' : 'rgba(8, 10, 18, 0.82)');
-    ctx.fillStyle = fill;
+    ctx.fillStyle = this.shadesOf(ctx).box;
     if (roundedRectPath(ctx, box.x, box.y, box.width, box.height, box.radius)) ctx.fill();
     else ctx.fillRect(box.x, box.y, box.width, box.height);
     ctx.restore();
@@ -405,13 +425,13 @@ export class ReplayVideoRenderer {
     if (layout.face && line.mode === 'speech') this.paintFace(ctx, line, layout.face);
     if (line.mode === 'speech' && line.speaker.length > 0) this.paintPlate(ctx, line.speaker, line.color);
 
-    const page = pageAt(line.pages, localMs);
+    const page = replayPageAt(line.pages, localMs);
     if (page) {
       const into = localMs - page.startMs;
-      const reveal = revealCount(page, into);
+      const reveal = replayRevealCount(page, into);
       const fadeIn = page.startMs > 0 ? Math.min(1, into / PAGE_FADE_MS) : 1;
       ctx.globalAlpha *= fadeIn;
-      ctx.font = `500 ${text.fontSize}px ${this.source.fontFamily}`;
+      ctx.font = replaySubtitleFont(layout, this.source.fontFamily);
       ctx.textBaseline = 'top';
       ctx.fillStyle = line.mode === 'narration' ? '#efe6c8' : '#ffffff';
       ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
@@ -440,7 +460,7 @@ export class ReplayVideoRenderer {
     ctx.save();
     ctx.font = `700 ${plate.fontSize}px ${this.source.fontFamily}`;
     const width = ctx.measureText(speaker).width + plate.padding * 2;
-    ctx.fillStyle = plateColor(color);
+    ctx.fillStyle = replayPlateColor(color);
     ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
     ctx.shadowBlur = 12 * scale;
     if (roundedRectPath(ctx, plate.x, plate.y, width, plate.height, plate.height / 2)) ctx.fill();
@@ -468,7 +488,7 @@ export class ReplayVideoRenderer {
     ctx.save();
     ctx.beginPath();
     ctx.arc(centreX, centreY, radius, 0, Math.PI * 2);
-    ctx.fillStyle = plateColor(line.color);
+    ctx.fillStyle = replayPlateColor(line.color);
     ctx.fill();
     if (picture && picture.width > 0) {
       ctx.clip();
@@ -516,13 +536,9 @@ export class ReplayVideoRenderer {
     const words = line.pages.flatMap((page) => page.lines).join(' ');
     ctx.save();
     ctx.globalAlpha *= alpha;
-    const band = ctx.createLinearGradient(0, 0, layout.width, 0);
-    band.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    band.addColorStop(0.5, 'rgba(0, 0, 0, 0.6)');
-    band.addColorStop(1, 'rgba(0, 0, 0, 0)');
     const y = layout.height * 0.36;
     const height = layout.chapter.titleSize * 1.9;
-    ctx.fillStyle = band;
+    ctx.fillStyle = this.shadesOf(ctx).band;
     ctx.fillRect(0, y - height / 2, layout.width, height);
     ctx.font = `600 ${Math.round(layout.chapter.titleSize * 0.62)}px ${this.source.fontFamily}`;
     ctx.fillStyle = '#ffffff';
@@ -540,7 +556,7 @@ export class ReplayVideoRenderer {
     const { layout } = this.source;
     const panel = layout.dice;
     const enter = easeInOut(localMs / 280);
-    const leave = Math.min(1, Math.max(0, (dice.durationMs - localMs) / 280));
+    const leave = clamp((dice.durationMs - localMs) / 280, 0, 1);
     const alpha = Math.min(enter, leave);
     const colour = OUTCOME_COLOR[dice.outcome] ?? '#ffffff';
     const s = layout.scale;
@@ -618,12 +634,7 @@ export class ReplayVideoRenderer {
     ctx.save();
     ctx.globalAlpha *= alpha;
     ctx.translate((1 - enter) * -layout.width * 0.08, 0);
-    const band = ctx.createLinearGradient(0, 0, layout.width, 0);
-    band.addColorStop(0, 'rgba(10, 14, 26, 0)');
-    band.addColorStop(0.2, 'rgba(10, 14, 26, 0.82)');
-    band.addColorStop(0.8, 'rgba(10, 14, 26, 0.82)');
-    band.addColorStop(1, 'rgba(10, 14, 26, 0)');
-    ctx.fillStyle = band;
+    ctx.fillStyle = this.shadesOf(ctx).banner;
     ctx.fillRect(0, banner.y, layout.width, banner.height);
     ctx.fillStyle = 'rgba(255, 209, 102, 0.9)';
     ctx.fillRect(layout.width * 0.2, banner.y, layout.width * 0.6, Math.max(2, 3 * layout.scale));
@@ -739,47 +750,8 @@ function sameBackdrop(a: Backdrop, b: Backdrop): boolean {
   return a.kind !== 'image' || a.identifier === (b as { identifier: string }).identifier;
 }
 
-/** The page of a line on screen at a moment of it, the last page staying once its time is up. */
-function pageAt(pages: readonly ReplayTimedPage[], localMs: number): ReplayTimedPage | null {
-  let found: ReplayTimedPage | null = null;
-  for (const page of pages) {
-    if (page.startMs <= localMs) found = page;
-    else break;
-  }
-  return found;
-}
-
-/** How many characters of a page have been typed out, fast enough to be done well before it is read. */
-function revealCount(page: ReplayTimedPage, into: number): number {
-  if (page.charCount < 1) return 0;
-  const perChar = Math.min(TYPE_MS_PER_CHAR, (page.durationMs * 0.4) / page.charCount);
-  return Math.min(page.charCount, Math.floor(into / Math.max(1, perChar)) + 1);
-}
-
 function fadeInOut(localMs: number, durationMs: number, fadeMs: number): number {
   const enter = Math.min(1, localMs / fadeMs);
-  const leave = Math.min(1, Math.max(0, (durationMs - localMs) / fadeMs));
+  const leave = clamp((durationMs - localMs) / fadeMs, 0, 1);
   return easeInOut(Math.min(enter, leave));
-}
-
-/**
- * The colour of a name plate: the speaker's own, deepened so white reads on it. A colour too dark
- * or too pale to tell anyone apart by (black is what most rooms leave it at) gives the usual one.
- */
-function plateColor(color: string): string {
-  const match = /^#([0-9a-f]{6})/i.exec(color.trim());
-  if (!match) return NAME_PLATE_DEFAULT;
-  const value = parseInt(match[1], 16);
-  const r = (value >> 16) & 0xff;
-  const g = (value >> 8) & 0xff;
-  const b = value & 0xff;
-  const light = (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
-  if (light < 40 || light > 235) return NAME_PLATE_DEFAULT;
-  const deepen = (channel: number) => Math.round(channel * 0.62);
-  return `rgb(${deepen(r)}, ${deepen(g)}, ${deepen(b)})`;
-}
-
-/** The colour a speaker is ringed in on the board: their own, or gold where theirs would not show. */
-export function ringColor(color: string): string {
-  return plateColor(color) === NAME_PLATE_DEFAULT ? '#ffd166' : color;
 }

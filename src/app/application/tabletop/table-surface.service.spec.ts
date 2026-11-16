@@ -22,7 +22,7 @@ describe('TableSurfaceService', () => {
     table.gridSize = 50;
     table.wallHeight = 6;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     service = TestBed.inject(TableSurfaceService);
   });
 

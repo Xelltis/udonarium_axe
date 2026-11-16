@@ -1,4 +1,5 @@
 import { MAX_MODEL_TRIANGLES } from '@axe/core/storage/gltf-facts';
+import { clamp } from '@axe/core/util/clamp';
 import { isGaugeSpent, selectPieceGauges } from '@axe/domain/character/piece-gauge';
 import type { DataElement } from '@axe/domain/data/data-element';
 
@@ -33,10 +34,7 @@ export function partLayerOf(written: string): PartLayer | null {
     return {
       x: finite(read.x, DEFAULT_PART_LAYER.x),
       y: finite(read.y, DEFAULT_PART_LAYER.y),
-      width: Math.min(
-        LAYER_WIDTH_RANGE.max,
-        Math.max(LAYER_WIDTH_RANGE.min, finite(read.width, DEFAULT_PART_LAYER.width))
-      ),
+      width: clamp(finite(read.width, DEFAULT_PART_LAYER.width), LAYER_WIDTH_RANGE.min, LAYER_WIDTH_RANGE.max),
       order: Math.round(finite(read.order, DEFAULT_PART_LAYER.order)),
     };
   } catch {

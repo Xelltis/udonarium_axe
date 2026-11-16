@@ -1,11 +1,6 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
-import {
-  detachAllFrom,
-  detachFromBoard,
-  gatherOverBoard,
-  standingOn,
-} from '@axe/features/tabletop/white-board/white-board-contents';
+import { detachAllFrom, detachFromBoard, standingOn } from '@axe/features/tabletop/white-board/white-board-contents';
 
 describe('white board contents', () => {
   let board: WhiteBoard;
@@ -41,24 +36,6 @@ describe('white board contents', () => {
     expect(held.location.surface).toBeUndefined();
     expect(held.location.x).toBe(150);
     expect(held.location.y).toBe(240);
-  });
-
-  it('takes up what lies over the board, in the board own coordinates', () => {
-    const over = piece(150, 240);
-    const beside = piece(20, 20);
-
-    expect(gatherOverBoard(board, 200, 150, [over, beside])).toBe(1);
-    expect(over.location.surface).toBe(board.identifier);
-    expect(over.location.x).toBe(50);
-    expect(over.location.y).toBe(40);
-    expect(beside.location.surface).toBeUndefined();
-  });
-
-  it('leaves alone what is already standing on some other board', () => {
-    const other = piece(150, 240, 'another-board');
-
-    expect(gatherOverBoard(board, 200, 150, [other])).toBe(0);
-    expect(other.location.surface).toBe('another-board');
   });
 
   it('clears the board in one go', () => {

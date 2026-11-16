@@ -4,6 +4,7 @@ import { PieceNameService } from '@axe/application/character/piece-name.service'
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { HotbarStoreService } from '@axe/application/hotbar/hotbar-store.service';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -11,12 +12,13 @@ import { getRangeMenuItems } from '@axe/application/tabletop/tabletop-action-hel
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clampOr } from '@axe/core/util/clamp';
 import { BUFF_COLORS } from '@axe/domain/character/buff-appearance';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { selectControllableCharacters } from '@axe/domain/character/owned-characters';
 import { PaletteCommandGroup, paletteCommandGroups } from '@axe/domain/chat/palette-rows';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import { kindGlyphSvg } from '@axe/domain/effect/effect-shapes';
+import { presetGlyphSvg } from '@axe/domain/effect/effect-shapes';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
 import { hotbarSlotLabel } from '@axe/domain/hotbar/hotbar-appearance';
 import { emptyHotbarSlotDraft, HotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
@@ -104,6 +106,7 @@ export class HotbarSlotEditorComponent {
     this.destroyRef.onDestroy(() => this.clearRehearsal());
   }
   private readonly objectStore = inject(ObjectStore);
+  private readonly language = inject(LanguageService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly audioStorage = inject(AudioStorage);
   private readonly effectLibrary = inject(EffectLibraryService);
@@ -163,7 +166,7 @@ export class HotbarSlotEditorComponent {
             const labelKey = presetSoundLabelKey(audio.identifier);
             return { value: audio.identifier, name: labelKey ? this.t(labelKey) : soundFileName(audio.name) };
           })
-          .sort((left, right) => left.name.localeCompare(right.name, 'ja'));
+          .sort((left, right) => left.name.localeCompare(right.name, this.language.currentLang()));
       case 'cutIn':
         this.objectChange.collectionOf('cut-in')();
         return this.objectStore
@@ -184,7 +187,7 @@ export class HotbarSlotEditorComponent {
     return this.effectLibrary.presets().map((preset) => ({
       value: preset.name,
       name: preset.name,
-      glyph: kindGlyphSvg(preset.effectKind, { core: preset.colorPrimary, edge: preset.colorSecondary }),
+      glyph: presetGlyphSvg(preset),
     }));
   });
 
@@ -313,13 +316,13 @@ export class HotbarSlotEditorComponent {
     const options = this.options();
     return options.kind === 'cutIn' && options.soundOnly;
   });
-  /** Every filled slot of the reader's own bar, for a group to pick its steps from. */
   /** Told to pay no heed to what is targeted, the effect plays on the piece that pressed it. */
   protected readonly effectOnSelf = computed(() => {
     const options = this.options();
     return options.kind === 'effect' && options.onSelf;
   });
 
+  /** Every filled slot of the reader's own bar, for a group to pick its steps from. */
   protected readonly stepChoices = computed<{ step: HotbarStep; label: string; key: string; chosen: boolean }[]>(() => {
     if (this.kind() !== 'group') return [];
 
@@ -380,7 +383,7 @@ export class HotbarSlotEditorComponent {
 
   /** The first step runs on the press itself, so what it would wait for is nothing. */
   protected setStepDelay(order: number, delayMs: number): void {
-    const held = Number.isFinite(delayMs) ? Math.max(0, Math.min(MAX_STEP_DELAY_MS, Math.floor(delayMs))) : 0;
+    const held = clampOr(Math.floor(delayMs), 0, MAX_STEP_DELAY_MS, 0);
     const steps = this.groupSteps().map((step, index) => (index === order ? { ...step, delayMs: held } : step));
     this.patchOptions({ steps });
   }
@@ -576,6 +579,21 @@ export class HotbarSlotEditorComponent {
   /** An empty box means "as the shape comes", which is what a size of none stands for. */
   protected patchSize(field: 'length' | 'width', value: number): void {
     this.patchOptions({ [field]: Number.isFinite(value) && value > 0 ? Math.floor(value) : 0 });
+  }
+
+  /** The text of the field or picker an event came from. */
+  protected textOf(event: Event): string {
+    return (event.target as HTMLInputElement | HTMLSelectElement).value;
+  }
+
+  /** Whether the checkbox an event came from is ticked. */
+  protected checkedOf(event: Event): boolean {
+    return (event.target as HTMLInputElement).checked;
+  }
+
+  /** The number in the box an event came from, which is NaN for an empty box. */
+  protected numberOf(event: Event): number {
+    return (event.target as HTMLInputElement).valueAsNumber;
   }
 
   protected patchOptions(patch: Record<string, unknown>): void {

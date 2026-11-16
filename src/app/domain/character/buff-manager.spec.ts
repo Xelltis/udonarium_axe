@@ -1,7 +1,9 @@
+import { BuffAppearance } from '@axe/domain/character/buff-appearance';
 import { BuffManager } from '@axe/domain/character/buff-manager';
 import { parseBuffModifierRequest, readBuffModifier } from '@axe/domain/character/buff-modifier';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
+import { noteRanOut } from '@axe/domain/tabletop/turn-history';
 
 describe('BuffManager', () => {
   let buffDataElement: DataElement;
@@ -129,6 +131,76 @@ describe('BuffManager', () => {
       withStatus.restore(taken);
 
       expect(status.changeValue).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('the kind a buff is marked as (acceptance 4)', () => {
+    const kindOf = (name: string) =>
+      container.getFirstElementByName(name)!.getAttribute(DataElementAttribute.BUFF_KIND);
+
+    it('comes back with a buff the snapshot puts back after it was taken away', () => {
+      manager.addRound('毒霧', '命中-2', 3, { kind: 'debuff' });
+      manager.addRound('加速', '', 2);
+      const taken = manager.snapshot();
+      manager.delete('毒霧');
+
+      manager.restore(taken);
+
+      expect(kindOf('毒霧')).toBe('debuff');
+      expect(kindOf('加速')).toBe('');
+    });
+
+    it('comes back with a buff that ran out and is given back to the turn it was counted in', () => {
+      manager.addRound('毒霧', '命中-2', 1, { kind: 'debuff' });
+      const due = manager.dueAt('roundEnd', { identifier: '', name: '' });
+      manager.expireOneRound();
+      expect(container.getFirstElementByName('毒霧')).toBeNull();
+
+      manager.putBack(due);
+
+      expect(kindOf('毒霧')).toBe('debuff');
+    });
+
+    it('goes back to what the snapshot found on a buff still standing, a mark taken away included', () => {
+      manager.addRound('毒霧', '', 3, { kind: 'debuff' });
+      manager.addRound('加速', '', 2);
+      const taken = manager.snapshot();
+      manager.addRound('毒霧', '', 3, { kind: 'buff' });
+      manager.addRound('加速', '', 2, { kind: 'debuff' });
+
+      manager.restore(taken);
+
+      expect(kindOf('毒霧')).toBe('debuff');
+      expect(kindOf('加速')).toBe('');
+    });
+
+    it('is left alone by a snapshot taken before there was such a mark', () => {
+      manager.addRound('毒霧', '', 3, { kind: 'debuff' });
+      const [entry] = manager.snapshot();
+      const { kind: _kind, ...older } = entry.appearance;
+
+      manager.restore([{ ...entry, appearance: older }]);
+
+      expect(kindOf('毒霧')).toBe('debuff');
+    });
+
+    it('stays as a buff is piled on, lengthened or started over without a word for it', () => {
+      manager.addRound('毒霧', '命中-2', 3, { kind: 'debuff' });
+
+      manager.stackRound('毒霧', '命中-2', 3);
+      expect(kindOf('毒霧')).toBe('debuff');
+      manager.extendRound('毒霧', '', 2);
+      expect(kindOf('毒霧')).toBe('debuff');
+      manager.addRound('毒霧', '命中-1', 3);
+      expect(kindOf('毒霧')).toBe('debuff');
+    });
+
+    it('changes where the buff is laid again with the other word', () => {
+      manager.addRound('毒霧', '', 3, { kind: 'debuff' });
+
+      manager.stackRound('毒霧', '', 3, { kind: 'buff' });
+
+      expect(kindOf('毒霧')).toBe('buff');
     });
   });
 
@@ -675,7 +747,9 @@ describe('BuffManager', () => {
         expect(status.getValue('命中', 'now')).toBe(7);
         expect(ranOut.get('毒')).toBe(-3);
 
-        sheeted.putBack(due.map((entry) => ({ ...entry, lastMoved: ranOut.get(entry.name) })));
+        noteRanOut(due, ranOut);
+        expect(due[0].lastMoved).toBe(-3);
+        sheeted.putBack(due);
 
         expect(status.getValue('命中', 'now')).toBe(10);
         expect(sheeted.find('毒')!.value).toBe(1);
@@ -691,7 +765,8 @@ describe('BuffManager', () => {
         expect(ranOut.get('リジェネ')).toBe(10);
         expect(status.getValue('命中', 'now')).toBe(20);
 
-        sheeted.putBack(due.map((entry) => ({ ...entry, lastMoved: ranOut.get(entry.name) })));
+        noteRanOut(due, ranOut);
+        sheeted.putBack(due);
 
         expect(status.getValue('命中', 'now')).toBe(10);
       });
@@ -705,7 +780,8 @@ describe('BuffManager', () => {
         const ranOut = new Map<string, number>();
 
         expect(sheeted.expireAt('roundEnd', owner, ranOut)).toEqual(['毒']);
-        expect(ranOut.size).toBe(0);
+        noteRanOut(due, ranOut);
+        expect(due[0].lastMoved).toBeUndefined();
         sheeted.putBack(due);
 
         expect(status.getValue('命中', 'now')).toBe(7);
@@ -777,6 +853,247 @@ describe('BuffManager', () => {
 
       expect(sheeted.find('気合')).toBeTruthy();
       expect(status.getValue('命中', 'now')).toBe(10);
+    });
+
+    describe('one that is never counted down', () => {
+      const owner = { identifier: 'owner', name: 'テストキャラ' };
+      const nobody = { identifier: '', name: '' };
+
+      function grantHeld(name: string, target: string, amount: string): DataElement {
+        const request = parseBuffModifierRequest(target, '+', amount)!;
+        sheeted.addRound(name, '', 3, { timing: 'none' });
+        const data = sheeted.find(name)!;
+        sheeted.applyModifier(data, request);
+        return data;
+      }
+
+      it('moves its status at the end of every round, and stays as it is', () => {
+        const data = grantHeld('再生', ':命中', '0~+3');
+
+        expect(sheeted.expireAt('roundEnd', nobody)).toEqual([]);
+        expect(status.getValue('命中', 'now')).toBe(13);
+        sheeted.expireAt('roundEnd', nobody);
+
+        expect(status.getValue('命中', 'now')).toBe(16);
+        expect(sheeted.find('再生')).toBe(data);
+        expect(data.value).toBe(3);
+        expect(data.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('none');
+      });
+
+      it('moves nothing as a turn starts or ends', () => {
+        grantHeld('再生', ':命中', '0~+3');
+
+        sheeted.expireAt('turnStart', owner);
+        sheeted.expireAt('turnEnd', owner);
+
+        expect(status.getValue('命中', 'now')).toBe(10);
+      });
+
+      it('moves nothing where it moves its status once and not at every count', () => {
+        grantHeld('加護', '命中', '2');
+
+        sheeted.expireAt('roundEnd', nobody);
+        sheeted.decreaseRound();
+
+        expect(status.getValue('命中', 'now')).toBe(12);
+        expect(sheeted.find('加護')!.currentValue).toBe('');
+      });
+
+      it('moves once at a count made by hand, keeping its rounds, and not at one added by hand', () => {
+        const data = grantHeld('再生', ':命中', '0~+3');
+
+        sheeted.decreaseRound();
+        expect(status.getValue('命中', 'now')).toBe(13);
+        expect(data.value).toBe(3);
+
+        sheeted.increaseRound();
+        expect(status.getValue('命中', 'now')).toBe(13);
+        expect(data.value).toBe(3);
+      });
+
+      it('gives back all it moved as it is taken off, where it is not marked to stay moved', () => {
+        grantHeld('鍛錬', '命中', '1~+2');
+        sheeted.expireAt('roundEnd', nobody);
+        sheeted.expireAt('roundEnd', nobody);
+        expect(status.getValue('命中', 'now')).toBe(15);
+        expect(sheeted.find('鍛錬')!.currentValue).toBe('命中+5~+2');
+
+        expect(sheeted.delete('鍛錬')).toBe(true);
+
+        expect(status.getValue('命中', 'now')).toBe(10);
+      });
+
+      it('leaves what it moved as it is taken off, where it is marked to stay moved', () => {
+        grantHeld('再生', ':命中', '0~+3');
+        sheeted.expireAt('roundEnd', nobody);
+        sheeted.expireAt('roundEnd', nobody);
+
+        sheeted.delete('再生');
+
+        expect(status.getValue('命中', 'now')).toBe(16);
+      });
+
+      it('has a round it moved in given back from a record taken before', () => {
+        grantHeld('再生', ':命中', '0~+3');
+        sheeted.expireAt('roundEnd', nobody);
+        const before = sheeted.snapshot();
+        sheeted.expireAt('roundEnd', nobody);
+        expect(status.getValue('命中', 'now')).toBe(16);
+
+        sheeted.restore(before);
+
+        expect(status.getValue('命中', 'now')).toBe(13);
+        expect(sheeted.find('再生')!.value).toBe(3);
+      });
+    });
+
+    describe('one whose effect has a moment of its own', () => {
+      const owner = { identifier: 'owner', name: 'テストキャラ' };
+      const caster = { identifier: 'caster', name: '術者' };
+      const nobody = { identifier: '', name: '' };
+
+      function grantTimed(
+        name: string,
+        target: string,
+        amount: string,
+        round: number,
+        appearance: BuffAppearance
+      ): DataElement {
+        const request = parseBuffModifierRequest(target, '+', amount)!;
+        sheeted.addRound(name, '', round, appearance);
+        const data = sheeted.find(name)!;
+        sheeted.applyModifier(data, request);
+        return data;
+      }
+
+      it('moves at that moment on the turn of the piece carrying it, and not as it is counted down', () => {
+        const data = grantTimed('再生', ':命中', '0~+3', 3, {
+          timing: 'turnStart',
+          trigger: caster.identifier,
+          effectTiming: 'turnEnd',
+        });
+
+        sheeted.expireAt('turnStart', caster);
+        expect(data.value).toBe(2);
+        expect(status.getValue('命中', 'now')).toBe(10);
+
+        sheeted.expireAt('turnEnd', caster);
+        expect(status.getValue('命中', 'now')).toBe(10);
+
+        sheeted.expireAt('turnEnd', owner);
+        expect(status.getValue('命中', 'now')).toBe(13);
+        expect(data.value).toBe(2);
+      });
+
+      it('moves a buff never counted down at that moment, and no longer at the end of the round', () => {
+        grantTimed('再生', ':命中', '0~+3', 3, { timing: 'none', effectTiming: 'turnStart' });
+
+        sheeted.expireAt('roundEnd', nobody);
+        expect(status.getValue('命中', 'now')).toBe(10);
+
+        sheeted.expireAt('turnStart', owner);
+        expect(status.getValue('命中', 'now')).toBe(13);
+      });
+
+      it('moves as many times as its moment comes before it runs out, and never after', () => {
+        grantTimed('毒', ':命中', '0~-1', 2, { timing: 'roundEnd', effectTiming: 'turnStart' });
+
+        sheeted.expireAt('turnStart', owner);
+        sheeted.expireAt('roundEnd', nobody);
+        sheeted.expireAt('turnStart', owner);
+        expect(sheeted.expireAt('roundEnd', nobody)).toEqual(['毒']);
+        sheeted.expireAt('turnStart', owner);
+
+        expect(status.getValue('命中', 'now')).toBe(8);
+      });
+
+      it('moves first and is counted after where both fall on one moment, the last count included', () => {
+        grantTimed('毒', ':命中', '0~-1', 2, { timing: 'roundEnd', effectTiming: 'roundEnd' });
+
+        sheeted.expireAt('roundEnd', nobody);
+        expect(status.getValue('命中', 'now')).toBe(9);
+        expect(sheeted.expireAt('roundEnd', nobody)).toEqual(['毒']);
+
+        expect(status.getValue('命中', 'now')).toBe(8);
+      });
+
+      it('does not move one whose rounds are spent and that has yet to be cleared', () => {
+        const data = grantTimed('毒', ':命中', '0~-1', 1, { timing: 'roundEnd', effectTiming: 'turnStart' });
+        sheeted.decreaseRound();
+        expect(data.value).toBe(0);
+
+        sheeted.expireAt('turnStart', owner);
+
+        expect(status.getValue('命中', 'now')).toBe(10);
+      });
+
+      it('is counted by hand without moving, whether or not it is ever counted down', () => {
+        const timed = grantTimed('毒', ':命中', '0~-1', 3, { timing: 'roundEnd', effectTiming: 'turnEnd' });
+        grantTimed('再生', ':命中', '0~+3', 3, { timing: 'none', effectTiming: 'turnEnd' });
+
+        sheeted.decreaseRound();
+
+        expect(timed.value).toBe(2);
+        expect(status.getValue('命中', 'now')).toBe(10);
+      });
+
+      it('gives back all it moved as it runs out, where it is not marked to stay moved', () => {
+        grantTimed('集中', '命中', '1~+1', 1, { timing: 'roundEnd', effectTiming: 'turnStart' });
+        sheeted.expireAt('turnStart', owner);
+        expect(status.getValue('命中', 'now')).toBe(12);
+
+        sheeted.expireAt('roundEnd', nobody);
+
+        expect(status.getValue('命中', 'now')).toBe(10);
+      });
+
+      it('is among the buffs a turn opening gives back, and moves again as the turn comes back', () => {
+        grantTimed('再生', ':命中', '0~+3', 3, { timing: 'none', effectTiming: 'turnStart' });
+        const due = sheeted.dueAt('turnStart', owner);
+        expect(due.map((entry) => entry.name)).toEqual(['再生']);
+        sheeted.expireAt('turnStart', owner);
+        expect(status.getValue('命中', 'now')).toBe(13);
+
+        sheeted.putBack(due);
+        expect(status.getValue('命中', 'now')).toBe(10);
+
+        sheeted.expireAt('turnStart', owner);
+        expect(status.getValue('命中', 'now')).toBe(13);
+      });
+
+      it('has all it moved since a record given back as it comes back from running out', () => {
+        grantTimed('毒', ':命中', '0~-1', 1, { timing: 'roundEnd', effectTiming: 'turnEnd' });
+        const before = sheeted.snapshot();
+        const ranOut = new Map<string, number>();
+        sheeted.expireAt('turnEnd', owner, ranOut);
+        sheeted.expireAt('roundEnd', nobody, ranOut);
+        expect(status.getValue('命中', 'now')).toBe(9);
+        expect(sheeted.find('毒')).toBeNull();
+
+        noteRanOut(before, ranOut);
+        sheeted.restore(before);
+
+        expect(status.getValue('命中', 'now')).toBe(10);
+        expect(sheeted.find('毒')!.getAttribute(DataElementAttribute.BUFF_EFFECT_TIMING)).toBe('turnEnd');
+      });
+
+      it('carries its moment in a record only where it has one', () => {
+        grantTimed('毒', ':命中', '0~-1', 2, { timing: 'roundEnd', effectTiming: 'turnEnd' });
+        grantTimed('加護', '命中', '1', 2, { timing: 'roundEnd' });
+
+        const [timed, plain] = sheeted.snapshot();
+
+        expect(timed.appearance.effectTiming).toBe('turnEnd');
+        expect('effectTiming' in plain.appearance).toBe(false);
+      });
+
+      it('loses its moment as it is laid again with an empty one', () => {
+        const data = grantTimed('毒', ':命中', '0~-1', 2, { timing: 'roundEnd', effectTiming: 'turnEnd' });
+
+        sheeted.addRound('毒', '', 2, { effectTiming: '' });
+
+        expect(DataElementAttribute.BUFF_EFFECT_TIMING in data.toAttributes()).toBe(false);
+      });
     });
 
     describe('stackModifier', () => {

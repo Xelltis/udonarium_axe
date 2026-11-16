@@ -1,4 +1,4 @@
-import { pieceCentreOf, pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
+import { pieceCentreOf, pieceCentreOffsetPx, placedCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 
 describe('the middle of a piece', () => {
   const at = { x: 100, y: 40 };
@@ -17,5 +17,23 @@ describe('the middle of a piece', () => {
   it('takes a size that is not a number of cells as none', () => {
     expect(pieceCentreOf({ location: at, size: -2 }, 50)).toEqual(at);
     expect(pieceCentreOf({ location: at, size: Number.NaN }, 50)).toEqual(at);
+  });
+});
+
+describe('the middle of anything placed on the table', () => {
+  const at = { x: 100, y: 40 };
+
+  it('is half the width and half the height in for a thing that measures both', () => {
+    expect(placedCentreOf({ location: at, width: 2, height: 4 }, 50)).toEqual({ x: 150, y: 140 });
+  });
+
+  it('is where the piece has its middle for a thing of one size, a point for a piece of none', () => {
+    expect(placedCentreOf({ location: at, size: 2 }, 50)).toEqual({ x: 150, y: 90 });
+    expect(placedCentreOf({ location: at, size: 0 }, 50)).toEqual(at);
+  });
+
+  it('takes a thing that says neither as filling one cell', () => {
+    expect(placedCentreOf({ location: at }, 50)).toEqual({ x: 125, y: 65 });
+    expect(placedCentreOf({ location: at, width: 'wide' }, 50)).toEqual({ x: 125, y: 65 });
   });
 });

@@ -1,0 +1,20 @@
+<div
+  class="bg-ui-elevated border-ui-border-panel flex flex-col gap-1.5 rounded-sm border border-solid px-3 py-2.5"
+  [class]="place()"
+>
+  <div
+    class="border-ui-border-panel text-ui-accent mt-0 mb-2 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"
+  >
+    <i class="material-icons">info</i>{{ 'feature.inventory.sheet.basicInfo' | transloco }}
+  </div>
+  <div class="box-border table w-full">
+    <div
+      class="[&>div]:border-ui-border-panel box-border table-row [&>div]:box-border [&>div]:table-cell [&>div]:border [&>div]:border-solid [&>div]:align-top"
+      game-data-element
+      [gameDataElement]="element()"
+      [isTagLocked]="true"
+      [isEdit]="false"
+      [hideSectionTitle]="true"
+    ></div>
+  </div>
+</div>

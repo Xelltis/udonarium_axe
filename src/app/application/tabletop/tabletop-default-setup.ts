@@ -15,7 +15,7 @@ import {
   DataElementType,
 } from '@axe/domain/data/data-element';
 import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-setting';
-import { ImageTag } from '@axe/domain/media/image-tag';
+import { fileUntaggedImage } from '@axe/domain/media/image-tagging';
 import { Party, PARTY_COLORS } from '@axe/domain/party/party';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
@@ -110,7 +110,7 @@ export function makeDefaultTable(imageStorage: ImageStorage): void {
   const bgFileContext = ImageFile.createEmpty('testTableBackgroundImage_image').toContext();
   bgFileContext.url = './assets/images/table_forest_clearing.webp';
   const testBgFile = imageStorage.add(bgFileContext);
-  ImageTag.create(testBgFile.identifier).tag = '背景';
+  fileUntaggedImage(testBgFile.identifier, '背景');
   gameTable.name = '最初のテーブル';
   gameTable.imageIdentifier = testBgFile.identifier;
   gameTable.width = 32;
@@ -259,7 +259,7 @@ function makeModelledSample(sample: ModelledSample, imageStorage: ImageStorage, 
   const context = ImageFile.createEmpty(`${sample.identifier}_image`).toContext();
   context.url = `./assets/images/piece_${sample.model}_3d.webp`;
   const picture = imageStorage.add(context);
-  ImageTag.create(picture.identifier).tag = sample.monster ? 'モンスター' : '';
+  fileUntaggedImage(picture.identifier, sample.monster ? 'モンスター' : '');
   character.location.x = sample.cell.x * 50;
   character.location.y = sample.cell.y * 50;
   character.initialize();
@@ -315,7 +315,7 @@ export function makeDefaultTabletopObjects(
   testCharacter.location.x = 16 * 50;
   testCharacter.location.y = 11 * 50;
   testCharacter.initialize();
-  ImageTag.create(testFile.identifier).tag = 'モンスター';
+  fileUntaggedImage(testFile.identifier, 'モンスター');
 
   CharacterTemplateFactory.createDefault(testCharacter, 'モンスターA', 1, testFile.identifier);
   testCharacter.isNpc = true;
@@ -340,7 +340,7 @@ export function makeDefaultTabletopObjects(
   testCharacter.initialize();
 
   testFile = imageStorage.add(fileContext);
-  ImageTag.create(testFile.identifier).tag = 'モンスター';
+  fileUntaggedImage(testFile.identifier, 'モンスター');
   CharacterTemplateFactory.createDefault(testCharacter, 'モンスターC', 3, testFile.identifier);
   testCharacter.isNpc = true;
   testCharacter.partyIdentifier = monsters.identifier;
@@ -353,7 +353,7 @@ export function makeDefaultTabletopObjects(
 
   testFile = imageStorage.add(fileContext);
 
-  ImageTag.create(testFile.identifier).tag = '';
+  fileUntaggedImage(testFile.identifier, '');
   testCharacter.location.x = 18 * 50;
   testCharacter.location.y = 14 * 50;
   testCharacter.initialize();
@@ -379,7 +379,7 @@ export function makeDefaultTabletopObjects(
   fileContext.url = './assets/images/piece_scout.webp';
   testFile = imageStorage.add(fileContext);
 
-  ImageTag.create(testFile.identifier).tag = '';
+  fileUntaggedImage(testFile.identifier, '');
 
   testCharacter.initialize();
   testCharacter.location.x = 22 * 50;

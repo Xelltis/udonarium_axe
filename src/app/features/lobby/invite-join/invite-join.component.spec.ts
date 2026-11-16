@@ -6,7 +6,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
 import type { Account } from '@axe/core/network/server/server-protocol';
@@ -122,7 +122,7 @@ describe('InviteJoinComponent', () => {
       refreshProviders: vi.fn().mockResolvedValue(undefined),
     };
     PeerCursor.myCursor = { reConnectPass: '', role: PeerRole.Player, update: vi.fn() } as unknown as PeerCursor;
-    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(true);
+    vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -187,7 +187,7 @@ describe('InviteJoinComponent', () => {
   });
 
   it('says it could not get in once reaching the network is given up, rather than saying it is joining', async () => {
-    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+    vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(false);
     await setup('#join?r=a1b&n=room');
     expect(bannerText()).toContain('参加しています');
 
@@ -199,9 +199,9 @@ describe('InviteJoinComponent', () => {
   });
 
   it('leaves a seat in the room it made while the invitation waited, rather than taking it to the invited one', async () => {
-    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+    vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(false);
     await setup('#join?r=a1b&n=room');
-    vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('made-room');
+    vi.spyOn(Network.instance, 'requestedRoomId', 'get').mockReturnValue('made-room');
 
     const change = TestBed.inject(ObjectChangeService) as unknown as {
       _networkOpen$: { emit(event: { peerId: string }): void };
@@ -238,11 +238,11 @@ describe('InviteJoinComponent', () => {
       _networkOpen$: { emit(event: { peerId: string }): void };
     };
 
-    vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('a1b');
+    vi.spyOn(Network.instance, 'requestedRoomId', 'get').mockReturnValue('a1b');
     change._networkOpen$.emit({ peerId: 'invited-room-peer' });
     expect(location.hash).toBe('#join?r=a1b&n=room');
 
-    vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('made-room');
+    vi.spyOn(Network.instance, 'requestedRoomId', 'get').mockReturnValue('made-room');
     change._networkOpen$.emit({ peerId: 'made-room-peer' });
     expect(location.hash).toBe('');
   });
@@ -253,7 +253,7 @@ describe('InviteJoinComponent', () => {
     await setup('#join?r=a1b&n=room');
     await eventually(() => expect(findRoom).toHaveBeenCalled());
 
-    vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('made-room');
+    vi.spyOn(Network.instance, 'requestedRoomId', 'get').mockReturnValue('made-room');
     found(createRoom());
     await flush();
 
@@ -263,7 +263,7 @@ describe('InviteJoinComponent', () => {
   });
 
   it('joins nothing when a connection opens after it said it could not get in', async () => {
-    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+    vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(false);
     await setup('#join?r=a1b&n=room');
     TestBed.inject(NetworkReachService).giveUp();
     fixture.detectChanges();
@@ -308,7 +308,7 @@ describe('InviteJoinComponent', () => {
 
   it('leaves the role of a room the seat went into meanwhile when it cannot get in', async () => {
     join.mockImplementation(async () => {
-      vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('zzz');
+      vi.spyOn(Network.instance, 'requestedRoomId', 'get').mockReturnValue('zzz');
       PeerCursor.myCursor.role = PeerRole.GameMaster;
       return false;
     });
@@ -432,7 +432,7 @@ describe('InviteJoinComponent', () => {
       buildInviteLink('', { roomId: 'a1b', roomName: 'room', roomKey: KEY, password, role: null, overlay: false });
 
     beforeEach(() => {
-      vi.spyOn(Network, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
     });
 
     it('finds the room by the key in the link and joins it there', async () => {
@@ -472,7 +472,7 @@ describe('InviteJoinComponent', () => {
 
     it('hands the server the invitation the link carries before joining', async () => {
       findServerRoom.mockResolvedValue(serverRoom(false));
-      const setServerInvite = vi.spyOn(Network, 'setServerInvite').mockImplementation(() => {});
+      const setServerInvite = vi.spyOn(Network.instance, 'setServerInvite').mockImplementation(() => {});
       await setup(
         buildInviteLink('', {
           roomId: 'a1b',
@@ -588,7 +588,7 @@ describe('InviteJoinComponent', () => {
         await setup(link(''));
         await eventually(() => expect(bannerText()).toContain('PL・GMとして入るには'));
 
-        vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('made-room');
+        vi.spyOn(Network.instance, 'requestedRoomId', 'get').mockReturnValue('made-room');
         (
           TestBed.inject(ObjectChangeService) as unknown as { _networkOpen$: { emit(event: object): void } }
         )._networkOpen$.emit({ peerId: 'made-room-peer' });

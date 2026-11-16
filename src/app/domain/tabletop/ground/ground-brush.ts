@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import {
   GROUND_CHUNK_SAMPLE_COUNT,
   GROUND_CHUNK_SAMPLES,
@@ -97,7 +98,7 @@ export function applyGroundDab(chunks: readonly GroundChunkData[], dab: GroundDa
             : dab.kind === 'flatten'
               ? height + ((dab.level ?? 0) / GROUND_HEIGHT_STEP - height) * share
               : height + (neighbourhoodOf(sampleAt, i, j) - height) * share;
-      chunk.heights[at] = Math.max(-HEIGHT_LIMIT - 1, Math.min(HEIGHT_LIMIT, Math.round(to)));
+      chunk.heights[at] = clamp(Math.round(to), -HEIGHT_LIMIT - 1, HEIGHT_LIMIT);
     }
   }
   return [...changed.values()];

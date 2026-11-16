@@ -1,15 +1,9 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
-
-async function createCardStack(page: Page) {
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, 'トランプの山札を作成')).click();
-  await expect(page.locator('card-stack').first()).toBeAttached({ timeout: 10000 });
-}
+import { createCardStack, rightClickPiece, spotOnShape, waitAppReady } from './helpers';
 
 async function drawOne(page: Page) {
-  await page.locator('card-stack').first().dispatchEvent('contextmenu');
+  await rightClickPiece(page.locator('card-stack').first());
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await menu.getByText('１枚引く').click();
@@ -17,7 +11,7 @@ async function drawOne(page: Page) {
 }
 
 async function openCardMenu(page: Page) {
-  await page.locator('card').first().dispatchEvent('contextmenu');
+  await rightClickPiece(page.locator('card').first());
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   return menu;
@@ -25,12 +19,6 @@ async function openCardMenu(page: Page) {
 
 type Point = { x: number; y: number };
 type Box = Point & { width: number; height: number };
-type ArrowHooks = {
-  whenIdle(): Promise<void>;
-  project(x: number, y: number, z: number): Point | null;
-  pieceBoxesOnPage(identifier: string): Box[];
-};
-
 /** Whether a box on the page holds a point. */
 function holds(box: Box, point: Point): boolean {
   return point.x >= box.x && point.x <= box.x + box.width && point.y >= box.y && point.y <= box.y + box.height;
@@ -43,7 +31,7 @@ function holds(box: Box, point: Point): boolean {
  */
 async function arrowEndsOnPage(page: Page): Promise<Point[]> {
   await page.mouse.move(5, 400);
-  await page.evaluate(() => (window as unknown as { __axeTable: ArrowHooks }).__axeTable.whenIdle());
+  await page.evaluate(() => window.__axeTable.whenIdle());
   const ends = await page.getByTestId('target-arrow').evaluate((element) => {
     const read = (name: string) => Number((element as HTMLElement).dataset[name]);
     return [
@@ -51,20 +39,13 @@ async function arrowEndsOnPage(page: Page): Promise<Point[]> {
       { x: read('toX'), y: read('toY') },
     ];
   });
-  return page.evaluate(
-    (points) =>
-      points.map((point) => (window as unknown as { __axeTable: ArrowHooks }).__axeTable.project(point.x, point.y, 0)!),
-    ends
-  );
+  return page.evaluate((points) => points.map((point) => window.__axeTable.project(point.x, point.y, 0)!), ends);
 }
 
 /** The box on the page round where the table puts a piece. */
 async function boxOnPage(page: Page, piece: Locator): Promise<Box> {
   const identifier = (await piece.getAttribute('data-object-id'))!;
-  const [box] = await page.evaluate(
-    (id) => (window as unknown as { __axeTable: ArrowHooks }).__axeTable.pieceBoxesOnPage(id),
-    identifier
-  );
+  const [box] = await page.evaluate((id) => window.__axeTable.pieceBoxesOnPage(id), identifier);
   return box;
 }
 
@@ -84,8 +65,8 @@ test.describe('card handling for trading card games', () => {
     await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
     await expect(page.getByText('ターゲットにする対象をクリックしてください')).toBeVisible();
 
-    await page.locator('card-stack').first().dispatchEvent('mousedown');
-    await page.locator('card-stack').first().dispatchEvent('mouseup');
+    const onDeck = await spotOnShape(page.locator('card-stack').first());
+    await page.mouse.click(onDeck.x, onDeck.y);
     await expect(page.getByTestId('target-arrow')).toHaveCount(1, { timeout: 5000 });
     const [from, to] = await arrowEndsOnPage(page);
     const card = await boxOnPage(page, page.locator('card').first());

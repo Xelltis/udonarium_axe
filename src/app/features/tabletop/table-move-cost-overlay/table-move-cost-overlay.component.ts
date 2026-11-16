@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { clamp } from '@axe/core/util/clamp';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { CellGrid, cellGridOf, cellIndexOf, gridExtentPx } from '@axe/domain/tabletop/fog/cell-grid';
+import { CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { MOST_MOVE_COST_EXTRA } from '@axe/domain/tabletop/table-move-cost';
 import { TableMoveCostService } from '@axe/features/tabletop/table-move-cost-overlay/table-move-cost.service';
-import { moveRangePolygons } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
-import { overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
+import { cellAreaPath } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
+import { fitCanvasToGrid } from '@axe/ui/tabletop/fit-canvas-to-grid';
 import { laidOnCanvasFloor } from '@axe/ui/tabletop/laid-on-canvas-floor';
 import { translateZCss, Z_OFFSET_MASK_PX } from '@axe/ui/tabletop/z-offset';
 
@@ -25,7 +26,7 @@ const ROAD_ALPHA = 0.32;
 
 /** How solidly a stretch is drawn, so that the dearer ground of two reads as the dearer one. */
 function alphaFor(charge: number): number {
-  const share = Math.min(1, Math.max(0, (charge - 1) / (MOST_MOVE_COST_EXTRA - 1)));
+  const share = clamp((charge - 1) / (MOST_MOVE_COST_EXTRA - 1), 0, 1);
   return LEAST_ALPHA + share * (MOST_ALPHA - LEAST_ALPHA);
 }
 
@@ -84,31 +85,11 @@ export class TableMoveCostOverlayComponent {
   }
 
   private paint(canvas: HTMLCanvasElement, grid: CellGrid, patches: readonly CostPatch[]): void {
-    const extent = gridExtentPx(grid);
-    const width = Math.max(1, Math.ceil(extent.maxX - extent.minX));
-    const height = Math.max(1, Math.ceil(extent.maxY - extent.minY));
-    const scale = overlayScale(width, height);
-    const pixelWidth = Math.max(1, Math.ceil(width * scale));
-    const pixelHeight = Math.max(1, Math.ceil(height * scale));
-    if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
-    if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
-    canvas.style.left = extent.minX + 'px';
-    canvas.style.top = extent.minY + 'px';
-    canvas.style.width = width + 'px';
-    canvas.style.height = height + 'px';
-
-    const context = canvas.getContext('2d');
+    const context = fitCanvasToGrid(canvas, grid);
     if (!context) return;
-    context.setTransform(scale, 0, 0, scale, -extent.minX * scale, -extent.minY * scale);
-    context.clearRect(extent.minX, extent.minY, width, height);
 
     for (const patch of patches) {
-      const area = new Path2D();
-      for (const polygon of moveRangePolygons(grid, patch.cells)) {
-        area.moveTo(polygon[0].x, polygon[0].y);
-        for (let corner = 1; corner < polygon.length; corner++) area.lineTo(polygon[corner].x, polygon[corner].y);
-        area.closePath();
-      }
+      const area = cellAreaPath(grid, patch.cells);
       context.globalAlpha = patch.eases ? ROAD_ALPHA : alphaFor(patch.charge);
       context.fillStyle = patch.color;
       context.fill(area);

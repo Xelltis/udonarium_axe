@@ -2,21 +2,18 @@ import { TestBed } from '@angular/core/testing';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
-import {
-  buildTableAmbienceContextMenu,
-  buildTableAmbienceContextMenuModel,
-} from '@axe/features/tabletop/table-ambience/table-ambience-context-menu';
+import { buildTableAmbienceContextMenuModel } from '@axe/features/tabletop/table-ambience/table-ambience-context-menu';
 
-const t = ((key: string) => key) as Parameters<typeof buildTableAmbienceContextMenu>[3];
+const t = ((key: string) => key) as Parameters<typeof buildTableAmbienceContextMenuModel>[3];
 
-type Menu = ReturnType<typeof buildTableAmbienceContextMenu>;
+type Menu = ReturnType<typeof buildTableAmbienceContextMenuModel>['actions'];
 type SubMenu = { subActions: { name: string; action: () => void }[] };
 
 function findByName(menu: Menu, fragment: string) {
   return menu.find((item) => 'name' in item && item.name.includes(fragment));
 }
 
-describe('buildTableAmbienceContextMenu', () => {
+describe('buildTableAmbienceContextMenuModel', () => {
   let store: ObjectStore;
 
   beforeEach(() => {
@@ -45,10 +42,7 @@ describe('buildTableAmbienceContextMenu', () => {
     made.isLock = true;
     vi.spyOn(ambience, 'clone').mockReturnValue(made);
 
-    const copy = findByName(
-      buildTableAmbienceContextMenu(ambience, 50, () => undefined, t),
-      'copy'
-    );
+    const copy = findByName(buildTableAmbienceContextMenuModel(ambience, 50, () => undefined, t).actions, 'copy');
     (copy as { action: () => void }).action();
 
     expect(table.ambiences).toContain(made);
@@ -59,7 +53,7 @@ describe('buildTableAmbienceContextMenu', () => {
   it('switches kind on a choice', () => {
     const ambience = makeAmbience();
     const kinds = findByName(
-      buildTableAmbienceContextMenu(ambience, 50, () => undefined, t),
+      buildTableAmbienceContextMenuModel(ambience, 50, () => undefined, t).actions,
       'kind'
     ) as SubMenu;
     kinds.subActions.find((item) => item.name.includes('vent'))!.action();
@@ -69,7 +63,7 @@ describe('buildTableAmbienceContextMenu', () => {
   it('marks the kind in use', () => {
     const ambience = makeAmbience();
     const kinds = findByName(
-      buildTableAmbienceContextMenu(ambience, 50, () => undefined, t),
+      buildTableAmbienceContextMenuModel(ambience, 50, () => undefined, t).actions,
       'kind'
     ) as SubMenu;
     expect(kinds.subActions.find((item) => item.name.includes('swamp'))!.name.startsWith('✔')).toBe(true);
@@ -78,7 +72,7 @@ describe('buildTableAmbienceContextMenu', () => {
   it('takes a change of density', () => {
     const ambience = makeAmbience();
     const density = findByName(
-      buildTableAmbienceContextMenu(ambience, 50, () => undefined, t),
+      buildTableAmbienceContextMenuModel(ambience, 50, () => undefined, t).actions,
       'density'
     ) as SubMenu;
     density.subActions.find((item) => item.name.includes('densityThick'))!.action();
@@ -91,7 +85,7 @@ describe('buildTableAmbienceContextMenu', () => {
     ambience.location.y = 400;
 
     const size = findByName(
-      buildTableAmbienceContextMenu(ambience, 50, () => undefined, t),
+      buildTableAmbienceContextMenuModel(ambience, 50, () => undefined, t).actions,
       'size'
     ) as SubMenu;
     size.subActions.find((item) => item.name.startsWith('6') || item.name.includes(' 6 '))!.action();
@@ -103,7 +97,7 @@ describe('buildTableAmbienceContextMenu', () => {
 
   it('passes the settings action through', () => {
     let opened = 0;
-    const menu = buildTableAmbienceContextMenu(makeAmbience(), 50, () => (opened += 1), t);
+    const menu = buildTableAmbienceContextMenuModel(makeAmbience(), 50, () => (opened += 1), t).actions;
     (findByName(menu, 'settings') as { action: () => void }).action();
     expect(opened).toBe(1);
   });
@@ -120,13 +114,13 @@ describe('buildTableAmbienceContextMenu', () => {
     expect(radialActions).toEqual(expect.arrayContaining(ordinaryActions));
     expect(radialActions).toHaveLength(ordinaryActions.length);
     expect(model.actions.map((action) => action.name)).toEqual(
-      buildTableAmbienceContextMenu(makeAmbience(), 50, () => undefined, t).map((action) => action.name)
+      buildTableAmbienceContextMenuModel(makeAmbience(), 50, () => undefined, t).actions.map((action) => action.name)
     );
   });
 
   it('takes it out of the store on delete', () => {
     const ambience = makeAmbience();
-    const menu = buildTableAmbienceContextMenu(ambience, 50, () => undefined, t);
+    const menu = buildTableAmbienceContextMenuModel(ambience, 50, () => undefined, t).actions;
     (findByName(menu, 'delete') as { action: () => void }).action();
     expect(store.get(ambience.identifier)).toBeNull();
   });

@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { ModalService } from '@axe/application/ui/modal.service';
-import { PanelService } from '@axe/application/ui/panel.service';
+import { ModalContent, ModalService } from '@axe/application/ui/modal.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -10,8 +9,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   templateUrl: './open-url.component.html',
   imports: [TranslocoModule],
 })
-export class OpenUrlComponent {
-  private readonly panelService = inject(PanelService);
+export class OpenUrlComponent implements ModalContent {
   private readonly modalService = inject(ModalService);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -19,6 +17,8 @@ export class OpenUrlComponent {
   title: string = '';
   subTitle: string = '';
   urlObj: URL | null = null;
+  /** The bar's title: the page's own and its subtitle, as far as the link came with them. */
+  readonly modalTitle: string;
 
   constructor() {
     const modalService = this.modalService;
@@ -28,19 +28,18 @@ export class OpenUrlComponent {
     this.title = option.title ? (option.title as string) : '';
     this.subTitle = option.subTitle ? (option.subTitle as string) : '';
     this.urlObj = this.isValid ? new URL(this.url) : null;
-    queueMicrotask(() => {
-      let titleBar: string;
-      if (this.title && this.subTitle) {
-        titleBar = this.t('ui.openUrl.panelTitleWithTitleAndSubtitle', { title: this.title, subTitle: this.subTitle });
-      } else if (this.title) {
-        titleBar = this.t('ui.openUrl.panelTitleWithTitle', { title: this.title });
-      } else if (this.subTitle) {
-        titleBar = this.t('ui.openUrl.panelTitleWithSubtitleOnly', { subTitle: this.subTitle });
-      } else {
-        titleBar = this.t('ui.openUrl.panelTitle');
-      }
-      this.modalService.title = this.panelService.title = titleBar;
-    });
+    if (this.title && this.subTitle) {
+      this.modalTitle = this.t('ui.openUrl.panelTitleWithTitleAndSubtitle', {
+        title: this.title,
+        subTitle: this.subTitle,
+      });
+    } else if (this.title) {
+      this.modalTitle = this.t('ui.openUrl.panelTitleWithTitle', { title: this.title });
+    } else if (this.subTitle) {
+      this.modalTitle = this.t('ui.openUrl.panelTitleWithSubtitleOnly', { subTitle: this.subTitle });
+    } else {
+      this.modalTitle = this.t('ui.openUrl.panelTitle');
+    }
   }
 
   /** Whether the link is a well-formed http or https address that may be opened. */

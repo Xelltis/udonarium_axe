@@ -1,3 +1,4 @@
+import { retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
 import type { Table3dFogAirSheet } from '@axe/infrastructure/table-3d/table-3d-port';
 import {
   CanvasTexture,
@@ -43,6 +44,7 @@ export class FogAirLayer {
     return this.hung.length;
   }
 
+  /** Hangs these sheets in place of those hung before, each repainted where its painting changed, and drifting where things may move. */
   set(sheets: readonly Table3dFogAirSheet[], moving: boolean): void {
     const same =
       sheets.length === this.hung.length &&
@@ -83,6 +85,7 @@ export class FogAirLayer {
     return changed;
   }
 
+  /** Takes down every sheet and lets go of its picture. */
   dispose(): void {
     this.clear();
   }
@@ -90,6 +93,7 @@ export class FogAirLayer {
   private hang(sheet: Table3dFogAirSheet, index: number): void {
     const picture = new CanvasTexture(sheet.canvas);
     picture.colorSpace = SRGBColorSpace;
+    retakeCanvasPicture(picture, sheet.canvas);
     const material = new MeshBasicNodeMaterial({
       map: picture,
       transparent: true,
@@ -111,10 +115,7 @@ export class FogAirLayer {
   /** Takes up what the page has painted on a sheet since, letting the picture go first where its size changed. */
   private repaint(hung: HungSheet, sheet: Table3dFogAirSheet): void {
     if (sheet.revision === hung.sheet.revision) return;
-    const size = `${sheet.canvas.width}x${sheet.canvas.height}`;
-    const image = hung.picture.image as HTMLCanvasElement;
-    if (size !== `${image.width}x${image.height}`) hung.picture.dispose();
-    hung.picture.needsUpdate = true;
+    retakeCanvasPicture(hung.picture, sheet.canvas);
     hung.material.opacity = sheet.alpha;
     hung.mesh.scale.set(sheet.box.width, 1, sheet.box.height);
     hung.sheet = sheet;
@@ -143,7 +144,7 @@ export class FogAirLayer {
  * to the north-west and as far to the south-east, easing in and out at either end, as the page's
  * drift does.
  */
-function driftAt(sheet: Table3dFogAirSheet, seconds: number): { x: number; y: number } {
+export function driftAt(sheet: Table3dFogAirSheet, seconds: number): { x: number; y: number } {
   const duration = Math.max(sheet.durationSec, 1);
   const along = (seconds - sheet.delaySec) / duration;
   const lap = Math.floor(along);

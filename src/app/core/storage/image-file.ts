@@ -95,6 +95,11 @@ export class ImageFile {
     return this.state <= ImageState.NULL;
   }
 
+  /** Whether the picture is here in whole: its bytes, or a link to it; a thumbnail alone is not enough. */
+  get isReady(): boolean {
+    return ImageState.COMPLETE <= this.state;
+  }
+
   private constructor() {}
 
   /**
@@ -163,7 +168,7 @@ export class ImageFile {
       imageFile.context.blob = new Blob([arrayBuffer], { type: converted.type });
     }
     imageFile.context.name = name ?? '';
-    imageFile.context.url = window.URL.createObjectURL(imageFile.context.blob);
+    imageFile.context.url = URL.createObjectURL(imageFile.context.blob);
 
     imageFile.context.thumbnail = await ImageFile.createThumbnailAsync(imageFile.context);
 
@@ -186,15 +191,15 @@ export class ImageFile {
       name: '',
       type: blob.type,
       blob,
-      url: window.URL.createObjectURL(blob),
+      url: URL.createObjectURL(blob),
       thumbnail: { type: '', blob: null, url: '' },
     };
     try {
       const thumbnail = await ImageFile.createThumbnailAsync(context);
-      window.URL.revokeObjectURL(thumbnail.url);
+      URL.revokeObjectURL(thumbnail.url);
       context.thumbnail = { type: thumbnail.type, blob: thumbnail.blob, url: '' };
     } finally {
-      window.URL.revokeObjectURL(context.url);
+      URL.revokeObjectURL(context.url);
       context.url = '';
     }
     return context;
@@ -218,13 +223,13 @@ export class ImageFile {
     if (!this.context.blob && context.blob) this.context.blob = context.blob;
     if (!this.context.type && context.type) this.context.type = context.type;
     if (!this.context.url && context.url) {
-      if (this.state !== ImageState.URL) window.URL.revokeObjectURL(this.context.url);
+      if (this.state !== ImageState.URL) URL.revokeObjectURL(this.context.url);
       this.context.url = context.url;
     }
     if (!this.context.thumbnail.blob && context.thumbnail.blob) this.context.thumbnail.blob = context.thumbnail.blob;
     if (!this.context.thumbnail.type && context.thumbnail.type) this.context.thumbnail.type = context.thumbnail.type;
     if (!this.context.thumbnail.url && context.thumbnail.url) {
-      if (this.state !== ImageState.URL) window.URL.revokeObjectURL(this.context.thumbnail.url);
+      if (this.state !== ImageState.URL) URL.revokeObjectURL(this.context.thumbnail.url);
       this.context.thumbnail.url = context.thumbnail.url;
     }
     this.createURLs();
@@ -251,31 +256,32 @@ export class ImageFile {
 
   private createURLs() {
     if (this.state === ImageState.URL) return;
-    if (this.context.blob && this.context.url === '') this.context.url = window.URL.createObjectURL(this.context.blob);
+    if (this.context.blob && this.context.url === '') this.context.url = URL.createObjectURL(this.context.blob);
     if (this.context.thumbnail.blob && this.context.thumbnail.url === '')
-      this.context.thumbnail.url = window.URL.createObjectURL(this.context.thumbnail.blob);
+      this.context.thumbnail.url = URL.createObjectURL(this.context.thumbnail.blob);
   }
 
   private revokeURLs() {
     if (this.state === ImageState.URL) return;
-    window.URL.revokeObjectURL(this.context.url);
-    window.URL.revokeObjectURL(this.context.thumbnail.url);
+    URL.revokeObjectURL(this.context.url);
+    URL.revokeObjectURL(this.context.thumbnail.url);
   }
 
   private static async createThumbnailAsync(context: ImageContext): Promise<ThumbnailContext> {
     const type = context.blob?.type ?? '';
     const fromWorker = context.blob ? await createThumbnailInWorker(context.blob, type, THUMBNAIL_MAX_SIZE) : null;
     if (fromWorker) {
-      return { type: fromWorker.type, blob: fromWorker, url: window.URL.createObjectURL(fromWorker) };
+      return { type: fromWorker.type, blob: fromWorker, url: URL.createObjectURL(fromWorker) };
     }
-    return ImageFile.createThumbnailOnMainThread(context);
+    return ImageFile.createThumbnailOnMainThread(context.url, type);
   }
 
   /**
-   * Draws the thumbnail on this page. Settles either way, as when the canvas makes no blob of an
-   * image that reads as having no size, so that whoever waits on it is not left waiting for ever.
+   * Draws the thumbnail on this page, from the image at the URL, as a picture of the type given.
+   * Settles either way, as when the canvas makes no blob of an image that reads as having no size,
+   * so that whoever waits on it is not left waiting for ever.
    */
-  private static createThumbnailOnMainThread(context: ImageContext): Promise<ThumbnailContext> {
+  private static createThumbnailOnMainThread(url: string, type: string): Promise<ThumbnailContext> {
     return new Promise((resolve, reject) => {
       const image: HTMLImageElement = new Image();
       image.onload = () => {
@@ -298,13 +304,13 @@ export class ImageFile {
             reject(new Error('the canvas made no thumbnail'));
             return;
           }
-          resolve({ type: blob.type, blob, url: window.URL.createObjectURL(blob) });
-        }, context.blob!.type);
+          resolve({ type: blob.type, blob, url: URL.createObjectURL(blob) });
+        }, type);
       };
       image.onabort = image.onerror = () => {
         reject();
       };
-      image.src = context.url;
+      image.src = url;
     });
   }
 

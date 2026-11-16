@@ -8,18 +8,13 @@ describe('game table walls', () => {
     expect(WALL_SIDES.map((side) => side.along)).toEqual(['width', 'width', 'depth', 'depth']);
   });
 
-  it('reads which walls a table shows and what hangs on them', () => {
+  it('reads which walls a table shows', () => {
     const table = {
       showNorthWall: true,
       showSouthWall: false,
       showWestWall: true,
       showEastWall: false,
-      northWallImageIdentifier: 'n',
-      southWallImageIdentifier: 's',
-      westWallImageIdentifier: 'w',
-      eastWallImageIdentifier: 'e',
     } as GameTable;
     expect(WALL_SIDES.map((side) => side.shown(table))).toEqual([true, false, true, false]);
-    expect(WALL_SIDES.map((side) => side.imageIdentifier(table))).toEqual(['n', 's', 'w', 'e']);
   });
 });

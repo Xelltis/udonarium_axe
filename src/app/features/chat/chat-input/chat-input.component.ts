@@ -28,28 +28,24 @@ import { stampLabel, stampWords } from '@axe/application/chat/stamp-words';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BatchService } from '@axe/application/ui/batch.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
-import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
-import { SkinService } from '@axe/application/ui/skin.service';
-import { ThemeService } from '@axe/application/ui/theme.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { callWritingAMessage } from '@axe/core/event/domain-events';
+import { Logger } from '@axe/core/logging/logger';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { coalesce, debounce } from '@axe/core/util/debounce';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { ChatBubbleColors, chatBubbleOf, chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
 import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { composeChatOutgoing, composeStampOutgoing } from '@axe/domain/chat/chat-outgoing';
@@ -61,22 +57,20 @@ import { holdsTargetNumber, mayPinTargetNumber } from '@axe/domain/chat/target-n
 import type { ChatDiagnostic } from '@axe/domain/chat-syntax/chat-lint';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
-import { readRollLine, rollableText } from '@axe/domain/dice/dice-roll-line';
 import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
-import { ChatColorSettingComponent } from '@axe/features/chat/chat-color-setting/chat-color-setting.component';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
-import type { ChatEditorField, ChatEditorHost, ChatEditorStart } from '@axe/features/chat/chat-editor/chat-editor';
-import {
-  CHAT_EDITOR_LOADER,
-  CHAT_HIGHLIGHT_LIMIT,
-  type ChatEditorModule,
-} from '@axe/features/chat/chat-editor/chat-editor-loader';
+import type { ChatEditorField } from '@axe/features/chat/chat-editor/chat-editor';
+import { CHAT_HIGHLIGHT_LIMIT } from '@axe/features/chat/chat-editor/chat-editor-loader';
+import { ChatEditorMount } from '@axe/features/chat/chat-input/chat-editor-mount';
+import { chatFieldWriter } from '@axe/features/chat/chat-input/chat-field-writer';
+import { CHAT_INPUT_BAR_BUTTON_CLASS, ChatInputColors } from '@axe/features/chat/chat-input/chat-input-colors';
+import { ChatInputColorsComponent } from '@axe/features/chat/chat-input/chat-input-colors.component';
 import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input-dicebot';
-import { allowsChat, lineStartOf } from '@axe/features/chat/chat-input/chat-input-helpers';
+import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatInputHistory } from '@axe/features/chat/chat-input/chat-input-history';
 import {
   type ChatSyntaxGroup,
@@ -92,17 +86,14 @@ import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { AnchoredPopover } from '@axe/ui/anchored-popover';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
 import { PortraitSliderComponent } from '@axe/ui/components/portrait-slider/portrait-slider.component';
-import { ComposingMarkDirective, whenNotComposing } from '@axe/ui/directives/composing-mark.directive';
+import { ComposingMarkDirective } from '@axe/ui/directives/composing-mark.directive';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { RovingToolbarDirective } from '@axe/ui/directives/roving-toolbar.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
-import { ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { followPlainBox, type PlainBoxStand } from '@axe/ui/plain-box-handover';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
-const COLOR_SETTING_PANEL = 'chat-color-setting';
 /** The room a select's list wants above it before it opens upward: the most it shows at once. */
 const LIST_ROOM = 240;
 
@@ -127,20 +118,16 @@ const LIST_ROOM = 240;
     TranslocoModule,
     ChatToolbarComponent,
     RovingToolbarDirective,
+    ChatInputColorsComponent,
   ],
 })
 export class ChatInputComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
   private readonly mobileLayout = inject(MobileLayoutService);
-  protected readonly barButtonClass =
-    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent aria-expanded:bg-ui-hover rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]! pointer-coarse:h-8 pointer-coarse:min-w-8';
+  protected readonly barButtonClass = CHAT_INPUT_BAR_BUTTON_CLASS;
   protected readonly barWordButtonClass =
     'text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[12px] font-semibold transition-colors hover:shadow-none pointer-coarse:h-8 pointer-coarse:min-w-8';
   protected readonly ruleClass = 'bg-ui-border-panel h-4 w-px shrink-0 @max-[420px]:hidden';
-  protected readonly colorSampleClass =
-    'flex size-5 items-center justify-center rounded-[5px] text-[12px] leading-none font-bold shadow-[0_0_0_1px_var(--ui-border-panel)]';
-  protected readonly panelRowClass =
-    'text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px]';
   protected readonly findingsChipClass =
     'border-ui-border-panel bg-ui-elevated text-ui-muted shadow-ui-sm data-[severity=error]:text-ui-danger data-[severity=warning]:text-ui-warning data-[severity=info]:text-ui-accent absolute right-5 bottom-1 z-1 m-0 flex h-4.5 min-h-4.5! cursor-pointer after:absolute after:-inset-x-1 after:-inset-y-2 items-center gap-0.5 rounded-full border border-solid px-1.5 text-[11px] leading-none font-semibold hover:shadow-none [&_i]:text-[13px]!';
   /**
@@ -153,7 +140,7 @@ export class ChatInputComponent {
     'text-ui-text hover:bg-ui-hover data-[severity=error]:[&_i]:text-ui-danger data-[severity=warning]:[&_i]:text-ui-warning data-[severity=info]:[&_i]:text-ui-accent rounded-ui-sm m-0 flex w-full cursor-pointer items-start gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px] leading-snug [&_i]:mt-px [&_i]:text-[15px]!';
 
   private readonly colorsButton = viewChild<ElementRef<HTMLElement>>('colorsButton');
-  private readonly colorsPanel = viewChild<ElementRef<HTMLElement>>('colorsPanel');
+  private readonly colorsPanel = viewChild(ChatInputColorsComponent);
   private readonly findingsButton = viewChild<ElementRef<HTMLElement>>('findingsButton');
   private readonly findingsPanel = viewChild<ElementRef<HTMLElement>>('findingsPanel');
   /** The bar of buttons over the box, which the bar over a selection keeps clear of. */
@@ -175,7 +162,7 @@ export class ChatInputComponent {
     this.closePanel();
     if (wasOpen) return;
     const anchor = which === 'colors' ? this.colorsButton() : this.findingsButton();
-    const panel = which === 'colors' ? this.colorsPanel() : this.findingsPanel();
+    const panel = which === 'colors' ? this.colorsPanel()?.panel() : this.findingsPanel();
     if (!anchor || !panel) return;
     const popover = new AnchoredPopover(
       () => anchor.nativeElement,
@@ -200,18 +187,6 @@ export class ChatInputComponent {
     open?.popover.close();
     open?.popover.destroy();
     this.panel.set(null);
-  }
-
-  /** Speaks in one of the three colours, from the colour popover. */
-  protected pickColor(index: number): void {
-    this.setColorNum(index);
-    this.closePanel();
-  }
-
-  /** Opens the colour settings from the colour popover. */
-  protected openColorSetting(): void {
-    this.closePanel();
-    this.showColorSetting();
   }
 
   /**
@@ -283,35 +258,7 @@ export class ChatInputComponent {
     chatSyntaxGroups(this.syntaxSource.sourceFor(this.sendFrom, this.gameType), this.syntaxWriter, this.t);
 
   /** Writes what the toolbar's insert button picks into the box, and goes back to writing. */
-  private readonly syntaxWriter: ChatSyntaxWriter = {
-    insert: (text, select) =>
-      this.writeIntoField((field) => {
-        const { from, to } = field.selection();
-        const picked = select ? { from: from + select.from, to: from + select.to } : undefined;
-        field.replaceRange(from, to, text, picked);
-      }),
-    word: (text, select) =>
-      this.writeIntoField((field) => {
-        const { from, to } = field.selection();
-        const space = from > 0 && !/\s/.test(field.text()[from - 1]) ? ' ' : '';
-        const at = from + space.length;
-        const picked = select ? { from: at + select.from, to: at + select.to } : undefined;
-        field.replaceRange(from, to, space + text, picked, true);
-      }),
-    prefix: (text, line = 'caret') =>
-      this.writeIntoField((field) => {
-        const { from, to } = field.selection();
-        const lineStart =
-          line === 'caret'
-            ? lineStartOf(field.text(), from)
-            : line === 'roll'
-              ? readRollLine(rollableText(field.text().split('\n')[0])).rollFrom
-              : 0;
-        const shifted = (at: number) => (at < lineStart ? at : at + text.length);
-        field.replaceRange(lineStart, lineStart, text, { from: shifted(from), to: shifted(to) }, true);
-      }),
-    chip: (chip, place) => this.writeIntoField((field) => field.insertChip(chip, place)),
-  };
+  private readonly syntaxWriter: ChatSyntaxWriter = chatFieldWriter((edit) => this.writeIntoField(edit));
 
   private writeIntoField(write: (field: ChatTextField) => void): void {
     const field = this.textField();
@@ -330,7 +277,6 @@ export class ChatInputComponent {
     this.onInput();
   }
   private readonly batchService = inject(BatchService);
-  private readonly contextMenu = inject(ContextMenuService);
   private readonly language = inject(LanguageService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly stampPicker = inject(StampPickerService);
@@ -340,8 +286,6 @@ export class ChatInputComponent {
   /** Whether the room lets stamps be sent as lines, which puts the button for them beside the send button. */
   protected readonly stampLinesOn = computed(() => this.stampRules.isOn('line'));
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly panelService = inject(PanelService);
-  private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly vision = inject(VisionService);
   protected readonly names = inject(PieceNameService);
@@ -376,27 +320,52 @@ export class ChatInputComponent {
 
   private readonly injector = inject(Injector);
   private readonly chatPreferences = inject(ChatPreferencesService);
-  private readonly editorLoader = inject(CHAT_EDITOR_LOADER);
   private readonly editorHost = viewChild<ElementRef<HTMLElement>>('editorHost');
-  private readonly editorModule = signal<ChatEditorModule | null>(null);
-  private readonly editorUnreachable = signal(false);
-  private readonly richField = signal<ChatEditorField | null>(null);
-  private editorRequested = false;
-  private editorFetched = false;
-  /** Where the box stood when one kind gave way to the other, for the other to start from. */
-  private handover: ChatEditorStart | null = null;
-  /** Where the reader stands in the plain box the editor arrived to take the place of, read as it is put in. */
-  private plainStand: (() => PlainBoxStand) | null = null;
+  private readonly hostElement = inject(ElementRef<HTMLElement>);
 
-  /**
-   * Which box lines are typed into: the editor that draws them as they will look, the plain box
-   * while it is on its way, or the plain box for a reader who has not asked for the editor or
-   * whose browser could not fetch it.
-   */
-  protected readonly inputMode = computed<'rich' | 'loading' | 'plain'>(() => {
-    if (!this.chatPreferences.richInput() || this.editorUnreachable()) return 'plain';
-    return this.editorModule() ? 'rich' : 'loading';
+  /** The editor that draws lines as they will look, fetched and put in its place for a reader who has it on. */
+  private readonly editor: ChatEditorMount = new ChatEditorMount({
+    place: () => this.editorHost()?.nativeElement ?? null,
+    plainField: () => this.plainField(),
+    text: () => this.text,
+    view: () => this.hostElement.nativeElement.ownerDocument.defaultView,
+    api: {
+      mode: 'chat',
+      placeholder: () => this.placeholderText(),
+      submit: () => this.sendChat(null),
+      historyStep: (direction) => this.moveHistory(null, direction),
+      suggestionStep: (direction) => {
+        this.autoCompleteSwitch.emit(direction);
+        return this.autoCompleteListLen() > 1;
+      },
+      changed: (text) => {
+        this.text = text;
+        this.onInput();
+      },
+      session: () => untracked(() => this.activeSession()),
+      completionWords: () => this.syntaxSource.completionWordsFor(this.sendFrom),
+      language: () => this.syntaxSource.tagLanguage(),
+      cutInNames: () => this.syntaxSource.chatCutInNames(),
+      portraitImage: (raw) => this.syntaxSource.portraitImage(this.sendFrom, raw),
+      openRuby: () => this.toolbar()?.openRuby(),
+      toolbarElement: () => this.editsBar()?.nativeElement ?? null,
+      translate: (key, params) => this.t(key, params),
+      stampHtml: (stampId, key) => this.syntaxSource.stampHtml(stampId, key),
+      linted: (marked) => {
+        this.lintMarked.set({ marked });
+        if (this.openPanel() === 'findings' && this.findings().length < 1) this.closePanel();
+      },
+    },
   });
+  private readonly richField = this.editor.field;
+
+  /** Which box lines are typed into; see {@link ChatEditorMount.mode}. */
+  protected readonly inputMode = this.editor.mode;
+
+  /** Fetches the editor in spare time, or at once on the first touch of the box; see {@link ChatEditorMount.request}. */
+  protected requestEditor(soon = false): void {
+    this.editor.request(soon);
+  }
 
   /** What lines are typed into, while the reader may speak in the tab. */
   readonly textField = computed<ChatTextField | null>(() => this.richField() ?? this.plainField());
@@ -520,111 +489,6 @@ export class ChatInputComponent {
     );
   });
 
-  private readonly editorHostApi: ChatEditorHost = {
-    mode: 'chat',
-    placeholder: () => this.placeholderText(),
-    submit: () => this.sendChat(null),
-    historyStep: (direction) => this.moveHistory(null, direction),
-    suggestionStep: (direction) => {
-      this.autoCompleteSwitch.emit(direction);
-      return this.autoCompleteListLen() > 1;
-    },
-    changed: (text) => {
-      this.text = text;
-      this.onInput();
-    },
-    session: () => untracked(() => this.activeSession()),
-    completionWords: () => this.syntaxSource.completionWordsFor(this.sendFrom),
-    language: () => this.syntaxSource.tagLanguage(),
-    cutInNames: () => this.syntaxSource.chatCutInNames(),
-    portraitImage: (raw) => this.syntaxSource.portraitImage(this.sendFrom, raw),
-    openRuby: () => this.toolbar()?.openRuby(),
-    toolbarElement: () => this.editsBar()?.nativeElement ?? null,
-    translate: (key, params) => this.t(key, params),
-    stampHtml: (stampId, key) => this.syntaxSource.stampHtml(stampId, key),
-    linted: (marked) => {
-      this.lintMarked.set({ marked });
-      if (this.openPanel() === 'findings' && this.findings().length < 1) this.closePanel();
-    },
-  };
-
-  /**
-   * Fetches the editor once the page has drawn and has time to spare, or at once on the first touch
-   * of the box, for a reader who has it on; none for a box taken away meanwhile.
-   */
-  protected requestEditor(soon = false): void {
-    if (this.editorFetched || !this.chatPreferences.richInput()) return;
-    if (soon) return this.fetchEditor();
-    if (this.editorRequested) return;
-    this.editorRequested = true;
-    const fetch = () => {
-      if (!this.destroyRef.destroyed) this.fetchEditor();
-    };
-    const view = this.hostElement.nativeElement.ownerDocument.defaultView;
-    if (view?.requestIdleCallback) view.requestIdleCallback(fetch, { timeout: 2000 });
-    else setTimeout(fetch, 200);
-  }
-
-  private fetchEditor(): void {
-    if (this.editorFetched) return;
-    this.editorFetched = true;
-    void this.editorLoader().then((module) => {
-      if (!module) {
-        this.editorUnreachable.set(true);
-        return;
-      }
-      whenNotComposing(this.plainField()?.element, () => {
-        const box = this.plainField()?.element;
-        this.plainStand = box ? followPlainBox(box) : null;
-        this.editorModule.set(module);
-      });
-    });
-  }
-
-  private readonly hostElement = inject(ElementRef<HTMLElement>);
-
-  /** Puts the editor into its place when it is drawn, and takes it down when the place goes. */
-  private followEditorHost(): void {
-    const host = this.editorHost()?.nativeElement ?? null;
-    const module = this.editorModule();
-    untracked(() => {
-      const field = this.richField();
-      if (field && field.parent !== host) {
-        this.handover = field.snapshot();
-        field.destroy();
-        this.richField.set(null);
-      }
-      if (host && module && !this.richField()) {
-        const stand = this.plainStand?.();
-        this.plainStand = null;
-        const start = this.handover ??
-          stand ?? { selection: { from: this.text.length, to: this.text.length }, focused: false };
-        this.handover = null;
-        this.richField.set(module.mountChatEditor(host, { ...start, text: this.text }, this.editorHostApi));
-      }
-      if (!host && this.handover) this.restorePlainBox();
-    });
-  }
-
-  /**
-   * Puts the caret back where it stood, in the plain box that took the editor's place, its text put
-   * in with it, as the box's own is written in only after; where none did, as when the seat may no
-   * longer speak, it is let go, for no later editor to take it up.
-   */
-  private restorePlainBox(): void {
-    afterNextRender(
-      () => {
-        const field = this.plainField();
-        const start = this.handover;
-        this.handover = null;
-        if (!field || !start) return;
-        if (start.focused) field.focus();
-        field.setText(start.text, start.selection);
-      },
-      { injector: this.injector }
-    );
-  }
-
   /** Puts the caret in the box lines are typed into, where there is one. */
   focusInput(): void {
     this.textField()?.focus();
@@ -688,7 +552,9 @@ export class ChatInputComponent {
   readonly rolledGameType = computed(() => {
     this.objectChange.versionOf('Config')();
     const own = this._gameType();
-    return own == 'DiceBot' && !this.gameTypeByUser() ? (this.config?.defaultDiceBot ?? own) : own;
+    return own === 'DiceBot' && !this.gameTypeByUser()
+      ? (this.objectStore.get<Config>('Config')?.defaultDiceBot ?? own)
+      : own;
   });
 
   /**
@@ -747,7 +613,7 @@ export class ChatInputComponent {
    * what is typed in it since. A palette's box then keeps the height it had as the line came in, so
    * that the list under it holds still; what is typed grows it as before.
    */
-  protected readonly putIn = signal(true);
+  readonly putIn = signal(true);
   /** The height a palette's box is held at while it holds a line put into it; null to fit its line. */
   protected readonly heldHeight = signal<number | null>(null);
   private readonly richBox = viewChild<ElementRef<HTMLElement>>('richBox');
@@ -844,19 +710,13 @@ export class ChatInputComponent {
     }, this.destroyRef);
     this.destroyRef.onDestroy(() => {
       this.batchService.remove(this);
-      if (this.writingEventInterval) {
-        clearTimeout(this.writingEventInterval);
-        this.writingEventInterval = null;
-      }
-      if (this.calcFitHeightInterval) {
-        clearTimeout(this.calcFitHeightInterval);
-        this.calcFitHeightInterval = null;
-      }
+      this.writingNoticeRest.cancel();
+      this.kickCalcFitHeight.cancel();
     });
     effect(() => {
       if (this.canSpeak() && this.chatPreferences.richInput()) untracked(() => this.requestEditor());
     });
-    effect(() => this.followEditorHost());
+    effect(() => this.editor.follow());
     // Written on the box itself rather than bound, so that letting go of it leaves a height the
     // reader gave the box by its corner as it is: a height on the box other than the one last written
     // there was given it by hand, as the browser writes one as the corner is dragged.
@@ -906,7 +766,7 @@ export class ChatInputComponent {
       refreshedField = field;
     });
     afterEveryRender(() => this.richField()?.followRoot());
-    this.destroyRef.onDestroy(() => this.richField()?.destroy());
+    this.destroyRef.onDestroy(() => this.editor.destroy());
     effect(() => {
       const req = this.uiSignalService.chatInputTextRequest();
       if (!req) return;
@@ -942,11 +802,6 @@ export class ChatInputComponent {
         if (target instanceof ChatMessage) this.focusInput();
       });
     });
-  }
-
-  /** The room's shared configuration. */
-  get config(): Config {
-    return this.objectStore.get<Config>('Config')!;
   }
 
   /**
@@ -994,7 +849,11 @@ export class ChatInputComponent {
     return this.sendTo != null && this.sendTo.length > 0;
   }
 
-  readonly colorSelectNo = signal(0);
+  /** The colours the lines go out in, for whoever is speaking. */
+  protected readonly colors: ChatInputColors = new ChatInputColors({ sendFrom: () => this._sendFrom() });
+
+  /** Which of the three colour slots the next line is sent in. */
+  readonly colorSelectNo = this.colors.selected.asReadonly();
 
   /** Whether the speaker is a character rather than this seat's own cursor. */
   get isGameCharacter(): boolean {
@@ -1005,95 +864,35 @@ export class ChatInputComponent {
     return false;
   }
 
-  /**
-   * The speaking character's chat colour in the given slot, or the default colour when the speaker
-   * is not a character.
-   */
-  characterChatColor(num: number) {
-    const object = this.objectStore.get(this.sendFrom);
-    if (!(object instanceof GameCharacter)) return DEFAULT_CHAT_COLOR;
-    this.objectChange.versionOf(object.identifier)();
-    return chatColorOf(object, num);
+  /** The speaking character's chat colour in the given slot; see {@link ChatInputColors.characterColorOf}. */
+  characterChatColor(num: number): string {
+    return this.colors.characterColorOf(num);
   }
 
   /** The colour in the slot currently chosen, which the next line is sent in. */
-  get selectChatColor() {
-    return this.chatColor(this.colorSelectNo());
-  }
-
-  private readonly theme = inject(ThemeService);
-  private readonly skins = inject(SkinService);
-  private readonly colorStyle = new ChatColorStylePipe();
-
-  /**
-   * The colour a line is shown in from one of the three slots and the bubble it sits on, on this
-   * reader's theme: the box written in shows it, and the colour buttons draw it as a sample.
-   */
-  protected lookOf(slot: number): Record<string, string> | null {
-    const theme = this.theme.resolved();
-    const bubbles = this.chatBubbles(slot);
-    return this.colorStyle.transform(
-      this.chatColor(slot),
-      theme,
-      theme === 'dark' ? bubbles.dark : bubbles.light,
-      this.skins.toneOf(theme)
-    );
+  get selectChatColor(): string {
+    return this.colors.selectedColor;
   }
 
   /** How the line being written will look, in the slot chosen. */
-  protected readonly lineLook = computed(() => this.lookOf(this.colorSelectNo()));
+  protected readonly lineLook = this.colors.lineLook;
 
-  /**
-   * The colour the line is sent in, drawn under the letter of the colour button and ringed with its
-   * bubble, so a dark ink still shows on a dark bar.
-   */
-  protected readonly lineInk = computed(() => {
-    const look = this.lineLook();
-    return {
-      'background-color': look?.['color'] ?? this.selectChatColor,
-      'box-shadow': `0 0 0 1px ${look?.['background-color'] ?? 'var(--ui-border-panel)'}`,
-    };
-  });
+  /** The colour the line is sent in, as the colour button draws it; see {@link ChatInputColors.lineInk}. */
+  protected readonly lineInk = this.colors.lineInk;
 
-  /**
-   * Whether the colours of the lines come from the character spoken as: they do but for a guest,
-   * whose colour panel sets the colours of their own lines instead.
-   */
-  private colorsFromCharacter(object: unknown): object is GameCharacter {
-    this.objectChange.trackMyCursor();
-    return object instanceof GameCharacter && canRoleEdit(PeerCursor.myRole);
-  }
-
-  /** The bubble the sender asked for on each theme, which travels with the message. */
-  private chatBubbles(num: number): ChatBubbleColors {
-    const object = this.objectStore.get(this.sendFrom);
-    const source = this.colorsFromCharacter(object) ? object : this.myPeer;
-    this.objectChange.versionOf(source.identifier)();
-    return chatBubbleOf(source, num);
-  }
-
-  /**
-   * The speaker's chat colour in the given slot, taken from the character or from this seat's own
-   * cursor.
-   */
+  /** The speaker's chat colour in the given slot; see {@link ChatInputColors.colorOf}. */
   chatColor(num: number): string {
-    const object = this.objectStore.get(this.sendFrom);
-    if (this.colorsFromCharacter(object)) return this.characterChatColor(num);
-    return this.playerChatColor(num);
+    return this.colors.colorOf(num);
   }
 
   /** This seat's own chat colour in the given slot. */
-  playerChatColor(num: number) {
-    this.objectChange.versionOf(this.myPeer.identifier)();
-    return chatColorOf(this.myPeer, num);
+  playerChatColor(num: number): string {
+    return this.colors.playerColorOf(num);
   }
 
-  /**
-   * Chooses which of the three colour slots the next line uses; values outside 0 to 2 are clamped.
-   */
-  setColorNum(num: number) {
-    const clamped = Math.min(2, Math.max(0, num));
-    this.colorSelectNo.set(clamped);
+  /** Chooses which of the three colour slots the next line uses; values outside 0 to 2 are clamped. */
+  setColorNum(num: number): void {
+    this.colors.select(num);
   }
 
   /**
@@ -1157,7 +956,8 @@ export class ChatInputComponent {
     );
   });
 
-  private writingEventInterval: ReturnType<typeof setTimeout> | null = null;
+  /** The 200ms after a typing notice in which no other goes out. */
+  private readonly writingNoticeRest = debounce(() => {}, 200);
   private previousWritingLength: number = 0;
 
   private readonly diceBotCatalog = inject(DiceBotCatalogService);
@@ -1191,8 +991,6 @@ export class ChatInputComponent {
     if (standing && standing.identifier !== this.sendTo) this.sendTo = standing.identifier;
   }
 
-  private calcFitHeightInterval: ReturnType<typeof setTimeout> | null = null;
-
   /**
    * Tells the other peers this seat is typing, and grows the text area to fit.
    *
@@ -1201,7 +999,7 @@ export class ChatInputComponent {
    */
   onInput() {
     this.openUp();
-    if (this.writingEventInterval === null && this.previousWritingLength <= this.text.length) {
+    if (!this.writingNoticeRest.pending() && this.previousWritingLength <= this.text.length) {
       let sendTo: string | undefined;
       if (this.isDirect) {
         const object = this.objectStore.get(this.sendTo);
@@ -1211,9 +1009,7 @@ export class ChatInputComponent {
         }
       }
       callWritingAMessage(this.chatTabidentifier(), sendTo, this.sendFrom);
-      this.writingEventInterval = setTimeout(() => {
-        this.writingEventInterval = null;
-      }, 200);
+      this.writingNoticeRest();
     }
     this.previousWritingLength = this.text.length;
     this.calcFitHeight();
@@ -1305,16 +1101,16 @@ export class ChatInputComponent {
       sendTo: this.sendTo,
       portraitIndex: this.portraitIndex,
       color: this.selectChatColor,
-      bubbles: this.chatBubbles(this.colorSelectNo()),
+      bubbles: this.colors.selectedBubbles,
       replyTo: this.replyTarget()?.identifier ?? '',
       quoteOf: this.quoteTarget()?.identifier ?? '',
       toTicker: this.showsTickerSwitch() && this.sendsToTicker(),
       targetNumber: this.lintSession.targetNumber()?.chosen?.total,
     };
     this.chosenTargetNumber.set('');
-    DiceBot.gameSystemForLineAsync(this.gameType, draft.text).then((gameSystem) => {
-      this.chat.emit(composeChatOutgoing({ ...draft, gameSystem }));
-    });
+    DiceBot.gameSystemForLineAsync(this.gameType, draft.text)
+      .then((gameSystem) => this.chat.emit(composeChatOutgoing({ ...draft, gameSystem })))
+      .catch((reason: unknown) => Logger.error('[ChatInput] 発言を送れませんでした', reason));
     this.text = '';
     this.textField()?.setText('', undefined, false);
     this.previousWritingLength = this.text.length;
@@ -1363,7 +1159,7 @@ export class ChatInputComponent {
           sendTo: this.sendTo,
           portraitIndex: this.portraitIndex,
           color: this.selectChatColor,
-          bubbles: this.chatBubbles(this.colorSelectNo()),
+          bubbles: this.colors.selectedBubbles,
         },
         stampId,
         words
@@ -1375,14 +1171,7 @@ export class ChatInputComponent {
    * Refits the box on the next task, after the new text has reached the DOM; repeated calls before
    * then run it once.
    */
-  kickCalcFitHeight() {
-    if (this.calcFitHeightInterval == null) {
-      this.calcFitHeightInterval = setTimeout(() => {
-        this.calcFitHeightInterval = null;
-        this.calcFitHeight();
-      }, 0);
-    }
-  }
+  readonly kickCalcFitHeight = coalesce(() => this.calcFitHeight(), 0);
 
   /**
    * Lets a palette's box fit what it holds again, as something is typed in it or it is pressed: not as
@@ -1423,11 +1212,6 @@ export class ChatInputComponent {
     this.openUp();
   }
 
-  /** The dice bot help text last fetched for the help panel. */
-  get gameHelp(): string {
-    return this.dicebotHelper.gameHelp;
-  }
-
   /** Starts fetching the dice bot for the game system just picked in the selector. */
   loadDiceBot(gameType: string) {
     this.dicebotHelper.load(gameType);
@@ -1446,44 +1230,8 @@ export class ChatInputComponent {
     this.dicebotHelper.showHelp(this.gameType);
   }
 
-  /**
-   * Opens the chat colour settings for the speaker, or closes them if they are already open.
-   *
-   * A character speaker gets its own colours; otherwise the panel edits this seat's player colours.
-   */
-  showColorSetting() {
-    // Pressing it again puts the panel away, rather than laying another one over it.
-    if (this.panelService.closeSingle(COLOR_SETTING_PANEL)) return;
-    // A guest, who may not write a piece, sets the colours of their own lines instead.
-    const object = this.objectStore.get(this.sendFrom);
-    if (object instanceof GameCharacter && canRoleEdit(PeerCursor.myRole)) {
-      const coordinate = this.pointerDeviceService.pointers[0];
-      const title = object.name.length
-        ? this.t('feature.chat.input.colorSettingWithChar', { name: object.name })
-        : this.t('feature.chat.input.colorSetting');
-      const option: PanelOption = {
-        title: title,
-        left: coordinate.x + 50,
-        top: coordinate.y - 200,
-        width: 384,
-        height: 300,
-        single: COLOR_SETTING_PANEL,
-      };
-      const component = this.panelService.open<ChatColorSettingComponent>(ChatColorSettingComponent, option);
-      component.tabletopObject = object;
-    } else {
-      const coordinate = this.pointerDeviceService.pointers[0];
-      const title = this.t('feature.chat.input.colorSetting');
-      const option: PanelOption = {
-        title: title,
-        left: coordinate.x + 50,
-        top: coordinate.y - 150,
-        width: 384,
-        height: 282,
-        single: COLOR_SETTING_PANEL,
-      };
-      const component = this.panelService.open<ChatColorSettingComponent>(ChatColorSettingComponent, option);
-      component.tabletopObject = null;
-    }
+  /** Opens the chat colour settings for the speaker, or closes them; see {@link ChatInputColors.openSetting}. */
+  showColorSetting(): void {
+    this.colors.openSetting();
   }
 }

@@ -23,7 +23,7 @@ test.describe('deleting after the question', () => {
     await waitAppReady(page);
     await becomeGm(page);
     await openPanel(page, 'カットイン');
-    const list = page.locator('app-cut-in-list');
+    const list = page.locator('cut-in-list');
     const entries = list.locator('ul[role="listbox"] > li[role="option"]');
     await expect(entries.first()).toBeVisible({ timeout: 5000 });
     const before = await entries.count();

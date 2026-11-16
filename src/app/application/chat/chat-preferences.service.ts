@@ -2,6 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { computed, DestroyRef, effect, inject, Injectable, signal } from '@angular/core';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
+import { clamp } from '@axe/core/util/clamp';
 import {
   ChatSoundSetting,
   clampChatSoundVolume,
@@ -278,7 +279,7 @@ export class ChatPreferencesService {
 
 function clampFontSize(v: number): number {
   if (!Number.isFinite(v)) return CHAT_FONT_SIZE_DEFAULT;
-  return Math.min(CHAT_FONT_SIZE_MAX, Math.max(CHAT_FONT_SIZE_MIN, Math.round(v)));
+  return clamp(Math.round(v), CHAT_FONT_SIZE_MIN, CHAT_FONT_SIZE_MAX);
 }
 
 function readAutoFollow(): boolean {
@@ -286,13 +287,17 @@ function readAutoFollow(): boolean {
   return v == null ? true : v === '1';
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 function readStored(): StoredChatPreferences {
   try {
     const raw = readLocal(STORAGE_KEYS.chatPreferences);
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return {};
-    const source = parsed as Record<string, unknown>;
+    if (!isRecord(parsed)) return {};
+    const source = parsed;
     const stored: StoredChatPreferences = {};
     if (typeof source['fontSize'] === 'number') stored.fontSize = clampFontSize(source['fontSize']);
     if (source['showVnEmoteBadge'] === true) stored.showVnEmoteBadge = true;
@@ -327,8 +332,8 @@ function readColors(value: unknown): string[] | null {
 }
 
 function readDisplay(value: unknown): ChatDisplayPreferences | null {
-  if (!value || typeof value !== 'object') return null;
-  const source = value as Record<string, unknown>;
+  if (!isRecord(value)) return null;
+  const source = value;
   const portraitHeight = source['portraitHeight'];
   const simpleDispFlagTime = source['simpleDispFlagTime'];
   const simpleDispFlagUserId = source['simpleDispFlagUserId'];
@@ -343,20 +348,20 @@ function readDisplay(value: unknown): ChatDisplayPreferences | null {
 }
 
 function readScoped(value: unknown): ChatScopedSetting | null {
-  if (!value || typeof value !== 'object') return null;
-  const source = value as Record<string, unknown>;
+  if (!isRecord(value)) return null;
+  const source = value;
   const scope = source['scope'] === 'perTab' ? 'perTab' : 'all';
   const all = Number(source['all']);
   return { scope, all: Number.isFinite(all) && all !== 0 ? 1 : 0 };
 }
 
 function readScopedSound(value: unknown): ChatScopedSoundSetting | null {
-  if (!value || typeof value !== 'object') return null;
-  const source = value as Record<string, unknown>;
+  if (!isRecord(value)) return null;
+  const source = value;
   const tabs: Record<string, ChatSoundSetting> = {};
   const storedTabs = source['tabs'];
-  if (storedTabs && typeof storedTabs === 'object') {
-    for (const [name, raw] of Object.entries(storedTabs as Record<string, unknown>)) {
+  if (isRecord(storedTabs)) {
+    for (const [name, raw] of Object.entries(storedTabs)) {
       const sound = readSound(raw);
       if (sound) tabs[name] = sound;
     }
@@ -369,8 +374,8 @@ function readScopedSound(value: unknown): ChatScopedSoundSetting | null {
 }
 
 function readSound(value: unknown): ChatSoundSetting | null {
-  if (!value || typeof value !== 'object') return null;
-  const source = value as Record<string, unknown>;
+  if (!isRecord(value)) return null;
+  const source = value;
   return {
     enabled: source['enabled'] === true,
     volume: clampChatSoundVolume(source['volume']),
@@ -379,11 +384,11 @@ function readSound(value: unknown): ChatSoundSetting | null {
 }
 
 function readTabs(value: unknown): Record<string, ChatTabPreferences> | null {
-  if (!value || typeof value !== 'object') return null;
+  if (!isRecord(value)) return null;
   const tabs: Record<string, ChatTabPreferences> = {};
-  for (const [identifier, raw] of Object.entries(value as Record<string, unknown>)) {
-    if (!raw || typeof raw !== 'object') continue;
-    const source = raw as Record<string, unknown>;
+  for (const [identifier, raw] of Object.entries(value)) {
+    if (!isRecord(raw)) continue;
+    const source = raw;
     const portraitDisplayFlag = source['portraitDisplayFlag'];
     const chatSimpleDispFlag = source['chatSimpleDispFlag'];
     if (typeof portraitDisplayFlag !== 'number' || typeof chatSimpleDispFlag !== 'number') continue;

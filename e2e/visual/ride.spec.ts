@@ -1,11 +1,11 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { spotOnPiece } from '../helpers';
-import { centreOf, pedestal, piece, pinnedPiece, Point, settle as settlePiece } from '../see-through-helpers';
+import { drag, sendMenuEvent, spotOnPiece } from '../helpers';
+import { centreOf, pedestal, piece, pinnedPiece, settle as settlePiece } from '../see-through-helpers';
 import { BARE_BOARD_AT, becomeGm, closePanels, prepare, snap } from './fixtures';
 
 async function chooseRide(page: Page, name: string, entry: string) {
-  await piece(page, name).dispatchEvent('contextmenu');
+  await sendMenuEvent(piece(page, name));
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await menu.getByText('乗り物', { exact: true }).hover();
@@ -13,14 +13,6 @@ async function chooseRide(page: Page, name: string, entry: string) {
   await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
   // Off whatever piece the menu left the pointer over, whose card would cover the next one reached for.
   await page.mouse.move(5, 400);
-}
-
-async function drag(page: Page, from: Point, to: Point) {
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
-  await page.mouse.move(to.x, to.y, { steps: 8 });
-  await page.mouse.up();
 }
 
 /**

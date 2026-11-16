@@ -1,4 +1,5 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
@@ -45,6 +46,7 @@ export class TabletopShortcutEventHandlerService {
   private readonly selection = inject(SelectionSignalService);
   private readonly objectStore = inject(ObjectStore);
   private readonly targets = inject(PieceTargetService);
+  private readonly effectTargeting = inject(EffectTargetingService);
   private readonly disclosure = inject(DisclosureService);
   private readonly snackbar = inject(SnackbarService);
   private readonly firstPerson = inject(FirstPersonService);
@@ -111,7 +113,7 @@ export class TabletopShortcutEventHandlerService {
   }
 
   private takeAimsAway(): void {
-    if (!this.targets.anything()) return;
+    if (!this.targets.anything() && !this.effectTargeting.isPicking()) return;
     this.targets.clear();
     this.snackbar.show(this.t('feature.keyboard.tabletop.targetsCleared'));
   }

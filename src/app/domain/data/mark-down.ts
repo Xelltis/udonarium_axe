@@ -26,7 +26,7 @@ export class MarkDown extends GameObject {
     if (!object) return;
 
     // The guard against the same event arriving twice.
-    if (this.clickTimeStamp == timeStamp) {
+    if (this.clickTimeStamp === timeStamp) {
       return;
     } else {
       this.clickTimeStamp = timeStamp;
@@ -52,7 +52,7 @@ export class MarkDown extends GameObject {
     let newText = '';
     let i;
     for (i = 0; i < matchText.length; i++) {
-      if (i != clickIndex) {
+      if (i !== clickIndex) {
         newText += splitText[i] + matchText[i];
       } else {
         newText += splitText[i] + changeText;

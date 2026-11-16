@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { chatInput, chatInputText, chatTabPill, waitAppReady } from './helpers';
+import { chatInput, chatInputText, chatTabPill, sendMenuEvent, waitAppReady } from './helpers';
 
 test.describe('the stream chat widget', () => {
   test.beforeEach(async ({ page }) => {
@@ -95,13 +95,14 @@ test.describe('the character a chat line is sent as', () => {
   test('keeps the slider of a speaker with several portraits on the line of the buttons where there is room', async ({
     page,
   }) => {
-    await page.locator('game-character').first().dispatchEvent('contextmenu');
+    // The piece stands under the chat window the room opens with, where no click reaches it.
+    await sendMenuEvent(page.locator('game-character').first());
     await page.locator('context-menu').getByText('詳細を表示').click();
     const sheet = page.locator('game-character-sheet');
     await expect(sheet).toBeVisible({ timeout: 10000 });
     await sheet.locator('button[title="立ち絵を追加"]').click();
     await page.locator('modal img').nth(1).click();
-    await page.locator('ui-panel', { has: sheet }).locator('.bg-ui-titlebar button').last().dispatchEvent('click');
+    await page.locator('ui-panel', { has: sheet }).getByTestId('panel-close').dispatchEvent('click');
     await expect(sheet).toBeHidden();
     await page.locator('chat-window ng-select[name="send-from"]').click();
     await page.locator('ng-dropdown-panel .ng-option', { hasText: 'モンスターA' }).click();

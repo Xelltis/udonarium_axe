@@ -2,6 +2,7 @@ import {
   cutInScenesOf,
   replaySampleAt,
   replaySceneDurationOf,
+  replaySceneSizeOf,
   sceneImageIdentifiers,
 } from '@axe/domain/replay/replay-cut-in-scene';
 import type { ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
@@ -153,5 +154,24 @@ describe('sceneImageIdentifiers()', () => {
     ]).get('cut-1')!;
 
     expect(sceneImageIdentifiers(found)).toEqual(['image-a']);
+  });
+});
+
+describe('replaySceneSizeOf()', () => {
+  it('reaches to the far edge of the layer that reaches furthest each way', () => {
+    const found = cutInScenesOf([
+      scene('scene-1'),
+      layer('layer-1', 'scene-1', { x: 100, y: 0, width: 320, height: 180 }, 0),
+      layer('layer-2', 'scene-1', { x: 0, y: 300, width: 200, height: 100 }, 1),
+    ]).get('cut-1')!;
+
+    expect(replaySceneSizeOf(found)).toEqual({ width: 420, height: 400 });
+  });
+
+  it('is never under a pixel each way, even with no layers', () => {
+    expect(replaySceneSizeOf({ durationMs: 0, sceneLoop: false, backgroundColor: '', layers: [] })).toEqual({
+      width: 1,
+      height: 1,
+    });
   });
 });

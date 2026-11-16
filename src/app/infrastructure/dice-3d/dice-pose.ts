@@ -1,9 +1,10 @@
+import { clamp } from '@axe/core/util/clamp';
 import {
+  ACCENT_SECONDS,
   type DiceThrowResult,
   FRAME_STRIDE,
   FRAMES_PER_SECOND,
 } from '@axe/infrastructure/dice-3d/dice-physics-message';
-import { ACCENT_SECONDS } from '@axe/infrastructure/dice-3d/dice-physics-message';
 import { type BufferGeometry, CanvasTexture, type Group, type Material, type Mesh, Quaternion } from 'three';
 
 /**
@@ -39,16 +40,18 @@ export interface PosedThrow {
   readonly restSeconds: number;
 }
 
+/** The two frames' turns a die is set between, read into the same pair each time. */
+const turnBefore = new Quaternion();
+const turnAfter = new Quaternion();
+
 /** Sets every die where the recording has it some seconds in, between the two frames about that moment. */
 export function poseThrow(posed: PosedThrow, seconds: number, opacity = 1): void {
   const { result, bodies } = posed;
   const count = bodies.length;
-  const at = Math.min(Math.max(seconds * FRAMES_PER_SECOND, 0), result.frameCount - 1);
+  const at = clamp(seconds * FRAMES_PER_SECOND, 0, result.frameCount - 1);
   const before = Math.floor(at);
   const after = Math.min(before + 1, result.frameCount - 1);
   const t = at - before;
-  const q0 = new Quaternion();
-  const q1 = new Quaternion();
   bodies.forEach((body, index) => {
     const a = (before * count + index) * FRAME_STRIDE;
     const b = (after * count + index) * FRAME_STRIDE;
@@ -58,9 +61,9 @@ export function poseThrow(posed: PosedThrow, seconds: number, opacity = 1): void
       f[a + 1] + (f[b + 1] - f[a + 1]) * t,
       f[a + 2] + (f[b + 2] - f[a + 2]) * t
     );
-    q0.set(f[a + 3], f[a + 4], f[a + 5], f[a + 6]);
-    q1.set(f[b + 3], f[b + 4], f[b + 5], f[b + 6]);
-    body.quaternion.slerpQuaternions(q0, q1, t);
+    turnBefore.set(f[a + 3], f[a + 4], f[a + 5], f[a + 6]);
+    turnAfter.set(f[b + 3], f[b + 4], f[b + 5], f[b + 6]);
+    body.quaternion.slerpQuaternions(turnBefore, turnAfter, t);
 
     // The patch under the die spreads and fades as the die leaves the floor.
     const lift = Math.max(0, body.position.z - posed.restHeights[index]);

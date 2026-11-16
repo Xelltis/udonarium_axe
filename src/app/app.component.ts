@@ -16,9 +16,11 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
+import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
 import { LegacyScratchMaskMigrationService } from '@axe/application/tabletop/legacy-scratch-mask-migration.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
@@ -53,6 +55,7 @@ import { CardEventHandlerService } from '@axe/features/card/card-event-handler.s
 import { HandDragGhostComponent } from '@axe/features/card/hand-rail/hand-drag-ghost.component';
 import { HandRailComponent } from '@axe/features/card/hand-rail/hand-rail.component';
 import { CcfoliaRoomImportEventHandlerService } from '@axe/features/ccfolia-room-import/ccfolia-room-import-event-handler.service';
+import { ResetUndoEventHandlerService } from '@axe/features/character/reset-undo/reset-undo-event-handler.service';
 import { ChatSettingsEventHandlerService } from '@axe/features/chat/chat-settings-event-handler.service';
 import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-event-handler.service';
 import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
@@ -71,6 +74,7 @@ import { TabletopShortcutEventHandlerService } from '@axe/features/keyboard/tabl
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { NetworkIndicatorComponent } from '@axe/features/lobby/network-indicator/network-indicator.component';
+import { PeerHeartbeatEventHandlerService } from '@axe/features/lobby/peer-heartbeat-event-handler.service';
 import { BeatLightComponent } from '@axe/features/media/beat-light/beat-light.component';
 import { CutInEventHandlerService } from '@axe/features/media/cut-in-event-handler.service';
 import { MiniJukeboxComponent } from '@axe/features/media/mini-jukebox/mini-jukebox.component';
@@ -79,7 +83,13 @@ import { ModelDropEventHandlerService } from '@axe/features/media/model-library/
 import { TurnSoundEventHandlerService } from '@axe/features/media/turn-sound/turn-sound-event-handler.service';
 import { FabDrawerComponent } from '@axe/features/menu/fab-drawer/fab-drawer.component';
 import { MobileShellComponent } from '@axe/features/mobile/mobile-shell/mobile-shell.component';
-import { RoomPanelService, START_PANEL_LEFT } from '@axe/features/panels/room-panel.service';
+import {
+  RoomPanelService,
+  START_CHAT_BOTTOM_GAP,
+  START_CHAT_SIZE,
+  START_PANEL_LEFT,
+  START_PANEL_TOP,
+} from '@axe/features/panels/room-panel.service';
 import { PlToolbarComponent } from '@axe/features/pl-tools/pl-toolbar/pl-toolbar.component';
 import { ReplayBoardBannerComponent } from '@axe/features/replay/replay-board-banner/replay-board-banner.component';
 import { ReplayEventHandlerService } from '@axe/features/replay/replay-event-handler.service';
@@ -87,9 +97,10 @@ import { ReplayIndicatorComponent } from '@axe/features/replay/replay-indicator/
 import { ReplayStagingBannerComponent } from '@axe/features/replay/replay-staging-banner/replay-staging-banner.component';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { RoomRestoreBannerComponent } from '@axe/features/room-archive/room-restore-banner/room-restore-banner.component';
+import { StatusAilmentEffectEventHandlerService } from '@axe/features/status-ailment/status-ailment-effect-event-handler.service';
 import { StreamingOverlayComponent } from '@axe/features/streaming-overlay/streaming-overlay.component';
 import { SwitchNoticeComponent } from '@axe/features/tabletop/board-switch/switch-notice.component';
-import { FogMemoryWriterService } from '@axe/features/tabletop/fog-of-war/fog-memory-writer.service';
+import { FogMemoryEventHandlerService } from '@axe/features/tabletop/fog-of-war/fog-memory-event-handler.service';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { GroundBrushBandComponent } from '@axe/features/tabletop/ground-brush-band/ground-brush-band.component';
 import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
@@ -114,7 +125,7 @@ import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directiv
 import { version as APP_VERSION } from '@pkg';
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-root',
+  selector: 'root',
   templateUrl: './app.component.html',
   imports: [
     BeatLightComponent,
@@ -164,13 +175,17 @@ export class AppComponent {
   private readonly motion = inject(MotionService);
   private readonly renderLite = inject(RenderLiteService);
   private readonly language = inject(LanguageService);
-  readonly visualNovel = inject(VisualNovelModeService);
+  protected readonly visualNovel = inject(VisualNovelModeService);
   protected readonly battleCutIn = inject(BattleCutInStateService);
   /** Whose hand rail is open, which the rail is fetched for only once it first is. */
   protected readonly handRail = inject(HandRailService);
+  /** The brush that shapes the ground, whose band is fetched the first time it is taken up. */
+  protected readonly groundBrush = inject(GroundBrushService);
+  /** The staging of a replay's scene, whose banner is fetched the first time a scene is staged. */
+  protected readonly replayStaging = inject(ReplayStagingService);
   /** Whether the page was opened from an invitation, which the join is fetched for only then. */
   protected readonly invited = parseInviteLink(location.hash) !== null;
-  readonly widgets = inject(WidgetVisibilityService);
+  protected readonly widgets = inject(WidgetVisibilityService);
   private readonly rolePermission = inject(RolePermissionService);
   /**
    * Whether this seat draws the game master's bar, which only the game master does while it is not
@@ -182,20 +197,20 @@ export class AppComponent {
     this.objectChange.trackMyCursor();
     return PeerCursor.myRole === PeerRole.Player && this.widgets.plToolbar();
   });
-  readonly viewport = inject(ViewportService);
-  readonly mobile = inject(MobileLayoutService);
-  readonly overlayMode = inject(OverlayModeService);
-  readonly firstPerson = inject(FirstPersonService);
-  readonly thirdPerson = inject(ThirdPersonService);
+  protected readonly viewport = inject(ViewportService);
+  protected readonly mobile = inject(MobileLayoutService);
+  protected readonly overlayMode = inject(OverlayModeService);
+  protected readonly firstPerson = inject(FirstPersonService);
+  protected readonly thirdPerson = inject(ThirdPersonService);
 
-  readonly isTableSplit = computed(() => this.mobile.isActive() && !this.visualNovel.active());
+  protected readonly isTableSplit = computed(() => this.mobile.isActive() && !this.visualNovel.active());
   private readonly roomPanels = inject(RoomPanelService);
   private readonly fileArchiver = inject(FileArchiver);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly overlays = inject(OverlayLayers);
 
-  readonly modalLayerViewContainerRef = viewChild.required('modalLayer', { read: ViewContainerRef });
+  private readonly modalLayerViewContainerRef = viewChild.required('modalLayer', { read: ViewContainerRef });
 
   protected readonly tabletop = inject(TabletopService);
   /** The ticker is drawn for the screens that asked for it, and not fetched for the rest. */
@@ -227,6 +242,8 @@ export class AppComponent {
     inject(TurnFocusEventHandlerService);
     inject(TargetReleaseEventHandlerService);
     inject(EffectChatEventHandlerService);
+    inject(StatusAilmentEffectEventHandlerService);
+    inject(ResetUndoEventHandlerService);
     inject(BattleCutInEventHandlerService);
     inject(BattleChatEventHandlerService);
     inject(VoteEventHandlerService);
@@ -235,6 +252,7 @@ export class AppComponent {
     inject(CutInEventHandlerService);
     inject(MixEventHandlerService);
     inject(NetworkEventHandlerService);
+    inject(PeerHeartbeatEventHandlerService);
     inject(RoomArchiveEventHandlerService);
     inject(ReplayEventHandlerService);
     inject(ImageDropEventHandlerService);
@@ -243,7 +261,7 @@ export class AppComponent {
     inject(AssetRemovalEventHandlerService);
     inject(MovePlanEventHandlerService);
     inject(CcfoliaRoomImportEventHandlerService);
-    inject(FogMemoryWriterService);
+    inject(FogMemoryEventHandlerService);
     inject(CutInService);
     inject(AudioAnalysisService);
     inject(SpeechBubbleService);
@@ -259,11 +277,13 @@ export class AppComponent {
     afterNextRender(() => {
       startupLoading.begin();
       this.overlays.main = this.modalLayerViewContainerRef();
-      const startPanels: [RoomPanelName, PanelOption][] = [['peerMenu', { left: START_PANEL_LEFT, top: 10 }]];
+      const startPanels: [RoomPanelName, PanelOption][] = [
+        ['peerMenu', { left: START_PANEL_LEFT, top: START_PANEL_TOP }],
+      ];
       if (!this.viewport.isCompact()) {
-        const chatHeight = 460;
-        const top = Math.max(10, window.innerHeight - chatHeight - 20);
-        startPanels.push(['chatWindow', { width: 660, height: chatHeight, left: START_PANEL_LEFT, top }]);
+        const { width, height } = START_CHAT_SIZE;
+        const top = Math.max(START_PANEL_TOP, window.innerHeight - height - START_CHAT_BOTTOM_GAP);
+        startPanels.push(['chatWindow', { width, height, left: START_PANEL_LEFT, top }]);
       }
       // The chat window overlaps the connection panel, and stands over it.
       this.roomPanels.openInTurn(startPanels);

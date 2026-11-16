@@ -1,5 +1,5 @@
 import { hexChannels } from '@axe/core/util/hex-color';
-import { mixColor, rampOf, stepOf } from '@axe/domain/effect/scene/effect-ramp';
+import { flameRampOf, isFlame, mixColor, rampOf, stepOf } from '@axe/domain/effect/scene/effect-ramp';
 
 const brightness = (color: string) => hexChannels(color)!.reduce((sum, channel) => sum + channel, 0);
 
@@ -32,5 +32,34 @@ describe('stepOf() and mixColor()', () => {
   it('takes one colour towards another', () => {
     expect(mixColor('#000000', '#ffffff', 0.5)).toBe('#808080');
     expect(mixColor('#102030', '#ffffff', 0)).toBe('#102030');
+  });
+});
+
+describe('isFlame() and flameRampOf()', () => {
+  it('takes red and orange for the colour of flame, and gold, blue and grey for something else', () => {
+    expect(isFlame('#ff4d2e')).toBe(true);
+    expect(isFlame('#ff7a3d')).toBe(true);
+    expect(isFlame('#ff2f14')).toBe(true);
+    expect(isFlame('#ffc24a')).toBe(false);
+    expect(isFlame('#ffb320')).toBe(false);
+    expect(isFlame('#39a7ff')).toBe(false);
+    expect(isFlame('#808080')).toBe(false);
+  });
+
+  it('takes the middle steps of a fire through orange and gold, with no blue to turn them to salmon', () => {
+    const plain = rampOf('#fff0b8', '#ff3a12', 7);
+    const fire = flameRampOf('#fff0b8', '#ff3a12');
+    const blueOf = (color: string) => hexChannels(color)![2];
+
+    expect(fire).toHaveLength(7);
+    expect([fire[0], fire[1], fire[4], fire[5], fire[6]]).toEqual([plain[0], plain[1], plain[4], plain[5], plain[6]]);
+    expect(blueOf(fire[2])).toBeLessThan(blueOf(plain[2]) / 2);
+    expect(blueOf(fire[3])).toBeLessThan(blueOf(plain[3]) / 2);
+    expect(brightness(fire[3])).toBeGreaterThan(brightness(fire[2]));
+    expect(brightness(fire[2])).toBeGreaterThan(brightness(fire[1]));
+  });
+
+  it('leaves the steps of an effect that is no flame as they are', () => {
+    expect(flameRampOf('#dff6ff', '#39a7ff')).toEqual(rampOf('#dff6ff', '#39a7ff', 7));
   });
 });

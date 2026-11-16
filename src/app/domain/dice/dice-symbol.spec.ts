@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -305,14 +305,14 @@ describe('DiceSymbol', () => {
     it('can be seen by its owner', () => {
       const dice = DiceSymbol.create('d6', DiceType.D6, 1);
       dice.owner = 'my-user';
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user' } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'my-user' } as IPeerContext);
       expect(dice.isMine).toBe(true);
       expect(dice.isVisible).toBe(true);
     });
 
     it("is nobody's while it is unowned, though this seat has no user id, as offline", () => {
       const dice = DiceSymbol.create('d6', DiceType.D6, 1);
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: '' } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: '' } as IPeerContext);
       expect(dice.isMine).toBe(false);
       expect(dice.isVisible).toBe(true);
     });
@@ -320,7 +320,7 @@ describe('DiceSymbol', () => {
     it('cannot be seen by anybody else', () => {
       const dice = DiceSymbol.create('d6', DiceType.D6, 1);
       dice.owner = 'other-user';
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user' } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'my-user' } as IPeerContext);
       expect(dice.isMine).toBe(false);
       expect(dice.isVisible).toBe(false);
     });

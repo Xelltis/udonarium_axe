@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { SaveProgress } from '@axe/application/file/save-progress';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -10,6 +11,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { clamp } from '@axe/core/util/clamp';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -51,7 +53,7 @@ function itemsOf(element: DataElement, visit: (element: DataElement) => void): D
 }
 
 @Component({
-  selector: 'app-dice-symbol-sheet',
+  selector: 'dice-symbol-sheet',
   templateUrl: './dice-symbol-sheet.component.html',
   host: { class: 'block box-border h-full overflow-y-auto p-3 text-ui-text bg-ui-panel' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -102,8 +104,9 @@ export class DiceSymbolSheetComponent {
     });
   });
 
-  readonly isSaving = signal(false);
-  readonly progressPercent = signal(0);
+  private readonly saveProgress = new SaveProgress();
+  readonly isSaving = this.saveProgress.isSaving;
+  readonly progressPercent = this.saveProgress.percent;
 
   constructor() {
     closeWhenOffTheTable();
@@ -215,7 +218,7 @@ export class DiceSymbolSheetComponent {
     if (!dice) return;
     const num = Number(value);
     if (!Number.isFinite(num)) return;
-    dice.komaImageHeight = Math.min(750, Math.max(50, num));
+    dice.komaImageHeight = clamp(num, 50, 750);
   }
 
   /** Turns the die to a face directly, without rolling it. */
@@ -289,14 +292,8 @@ export class DiceSymbolSheetComponent {
       this.snackbar.show(this.translateFn('feature.inventory.sheet.saveWithheld'));
       return;
     }
-    this.isSaving.set(true);
-    this.progressPercent.set(0);
-    await this.saveDataService.saveGameObjectAsync(dice, 'xml_' + dice.name, (percent) => {
-      this.progressPercent.set(percent);
-    });
-    setTimeout(() => {
-      this.isSaving.set(false);
-      this.progressPercent.set(0);
-    }, 500);
+    await this.saveProgress.run((onProgress) =>
+      this.saveDataService.saveGameObjectAsync(dice, 'xml_' + dice.name, onProgress)
+    );
   }
 }

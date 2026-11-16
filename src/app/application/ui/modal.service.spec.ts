@@ -74,6 +74,41 @@ describe('ModalService', () => {
     }));
   });
 
+  describe('the title in the frame', () => {
+    function openWith(content: new () => unknown, option: unknown): ModalService {
+      const service = TestBed.inject(ModalService);
+      let childInjector: Injector | undefined;
+      const panelComponentRef = {
+        instance: { content: () => ({ createComponent: (made: new () => unknown) => ({ instance: new made() }) }) },
+        destroy: () => undefined,
+        onDestroy: () => undefined,
+      };
+      const parentViewContainerRef = {
+        injector: TestBed.inject(Injector),
+        length: 0,
+        createComponent: (_component: unknown, options: { injector: Injector }) => {
+          childInjector = options.injector;
+          return panelComponentRef;
+        },
+      } as unknown as ViewContainerRef;
+      void service.open(content, option, parentViewContainerRef);
+      return childInjector!.get(ModalService);
+    }
+
+    it('takes the title the dialog was opened with', () => {
+      expect(openWith(class {}, { title: 'Opened with' }).title).toBe('Opened with');
+    });
+
+    it('lets a content that names its own title have it shown instead', () => {
+      class Named {
+        readonly modalTitle = 'Named by the content';
+      }
+
+      expect(openWith(Named, { title: 'Opened with' }).title).toBe('Named by the content');
+      expect(openWith(Named, undefined).title).toBe('Named by the content');
+    });
+  });
+
   describe('open lifecycle', () => {
     it('passes an action direction to the modal it opens', async () => {
       const service = TestBed.inject(ModalService);

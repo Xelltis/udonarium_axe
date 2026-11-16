@@ -1,14 +1,19 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { clamp } from '@axe/core/util/clamp';
 import { isImageStampId, MAP_STAMP_TAG, toImageStampId } from '@axe/domain/map-editor/image-stamp';
 import { STAMP_CATEGORIES, StampCategory, StampDef } from '@axe/domain/map-editor/stamp-types';
 import { getStampsByCategory } from '@axe/domain/map-editor/stamps';
 import { ImageTag } from '@axe/domain/media/image-tag';
+import { tagImageUnlessKept } from '@axe/domain/media/image-tagging';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -34,6 +39,8 @@ export class MapEditorStampPickerComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tagLock = inject(ImageTagLockService);
+  private readonly snackbar = inject(SnackbarService);
+  private readonly t = inject(TRANSLATE_FN);
 
   private readonly stampFileInput = viewChild<ElementRef<HTMLInputElement>>('stampFileInput');
 
@@ -42,7 +49,7 @@ export class MapEditorStampPickerComponent {
 
   protected readonly stampImages = computed<ImageFile[]>(() => {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('image-tag')();
+    trackEvery(this.objectChange, 'image-tag');
     this.tagLock.track();
     return ImageTag.searchImages([MAP_STAMP_TAG], this.rolePermission.canSeeHidden(), this.tagLock.hides);
   });
@@ -62,7 +69,7 @@ export class MapEditorStampPickerComponent {
   protected selectImageStamp(file: ImageFile): void {
     this.state.stampId.set(toImageStampId(file.identifier));
     this.state.stampColor.set(null);
-    this.state.stampSize.set(Math.min(256, Math.max(16, this.state.current.cellPx)));
+    this.state.stampSize.set(clamp(this.state.current.cellPx, 16, 256));
   }
 
   protected isActiveImageStamp(file: ImageFile): boolean {
@@ -85,8 +92,8 @@ export class MapEditorStampPickerComponent {
     if (!file || !file.type.startsWith('image/')) return;
     const imageFile = await this.imageStorage.addAsync(file, { putBack: true });
     if (!imageFile) return;
-    const tag = ImageTag.get(imageFile.identifier) ?? ImageTag.create(imageFile.identifier);
-    tag.tag = MAP_STAMP_TAG;
+    const kept = tagImageUnlessKept(imageFile.identifier, MAP_STAMP_TAG);
+    if (kept) this.snackbar.show(this.t('feature.mapEditor.props.stampKeptPrivate', { tag: kept }));
     this.objectChange.notifyCollectionChanged('image-tag');
     this.selectImageStamp(imageFile);
   }

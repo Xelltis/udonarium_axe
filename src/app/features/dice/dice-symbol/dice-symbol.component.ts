@@ -14,6 +14,7 @@ import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.servic
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { DiceRollService } from '@axe/application/dice/dice-roll.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
@@ -27,8 +28,7 @@ import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/co
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
-import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
-import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
+import { sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
@@ -39,15 +39,12 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { PieceMotionKind } from '@axe/domain/tabletop/world/piece-motions';
 import { buildDiceSymbolContextMenu } from '@axe/features/dice/dice-symbol/dice-symbol-context-menu';
-import { MovableOption } from '@axe/ui/directives/movable.directive';
-import { MovableDirective } from '@axe/ui/directives/movable.directive';
-import { RotableOption } from '@axe/ui/directives/rotable.directive';
-import { RotableDirective } from '@axe/ui/directives/rotable.directive';
+import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
+import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
-import { DoubleTap } from '@axe/ui/tabletop/double-tap';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
-import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+import { setupDoubleTap, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { TurnFrameComponent, type TurnStand } from '@axe/ui/tabletop/turn-frame/turn-frame.component';
 
 /** How long the die rolls before it settles, which is the length of the tumble animation. */
@@ -261,17 +258,12 @@ export class DiceSymbolComponent {
   readonly movableOption = signal<MovableOption>({});
   readonly rotableOption = signal<RotableOption>({});
 
-  private readonly doubleTap = new DoubleTap(() => this.input);
-
-  private readonly inputRef = setupInputHandler({
+  private readonly taps = setupDoubleTap({
     elementRef: this.elementRef,
     destroyRef: this.destroyRef,
     onStart: (e) => this.onInputStart(e),
+    onDoubleTap: () => this.onDoubleClick(),
   });
-
-  private get input() {
-    return this.inputRef.current;
-  }
 
   constructor() {
     afterNextRender(() => {
@@ -285,9 +277,6 @@ export class DiceSymbolComponent {
       target: this.diceSymbol,
       collideLayers: ['terrain'],
       footprint: () => ({ width: this.size() * this.gridSize, height: this.size() * this.gridSize }),
-    });
-    this.destroyRef.onDestroy(() => {
-      this.doubleTap.cancel();
     });
   }
 
@@ -336,8 +325,8 @@ export class DiceSymbolComponent {
     const name = this.diceSymbol().name.trim();
     const message =
       name.length > 0
-        ? this.translateFn('feature.dice.log.reveal', { name, face })
-        : this.translateFn('feature.dice.log.revealNoName', { face });
+        ? encodeI18nMessage('feature.dice.log.reveal', { name, face })
+        : encodeI18nMessage('feature.dice.log.revealNoName', { face });
     this.chat.sendSystemNotice('diceReveal', message);
   }
 
@@ -356,17 +345,15 @@ export class DiceSymbolComponent {
 
   /** Counts a press toward a double tap, which rolls the die. */
   startDoubleClickTimer(e: MouseEvent | TouchEvent) {
-    this.doubleTap.handle(e, () => this.onDoubleClick());
+    this.taps.press(e);
   }
 
   /**
-   * Rolls the die on a double tap, for a role that may edit the table and a reader who can see its
-   * face. A second tap that has strayed from the first does nothing.
+   * Rolls the die on a double tap in one place, for a role that may edit the table and a reader who
+   * can see its face.
    */
   onDoubleClick() {
-    this.doubleTap.cancel();
     if (!this.rolePermission.canEditTabletop()) return;
-    if (!this.doubleTap.isInPlace()) return;
     if (this.readsFace()) this.diceRoll();
   }
 

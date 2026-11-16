@@ -1,10 +1,11 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { chatInput, revealMenuEntry, waitAppReady } from './helpers';
+import { chatInput, revealMenuEntry, sendMenuEvent, waitAppReady } from './helpers';
 
 /** Marks a piece of the starting table as a target, from its menu. */
 async function markTarget(page: Page, identifier: string) {
-  await page.locator(`game-character[data-object-id="${identifier}"]`).first().dispatchEvent('contextmenu');
+  // Some of the pieces marked stand under the chat window the room opens with, where no click reaches them.
+  await sendMenuEvent(page.locator(`game-character[data-object-id="${identifier}"]`).first());
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });
   await (await revealMenuEntry(page, menu, 'ターゲット', true)).click();

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { cellCenterOf, cellCount, CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { FLAT_GROUND, groundLiftOfBlock, GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
@@ -154,7 +155,7 @@ export function landingLeanAt(
  * far side of it rather than climbing the wall on the way past.
  */
 export function hopHeightAt(progress: number, fromZ: number, toZ: number, liftPx: number): number {
-  const along = Math.min(1, Math.max(0, progress));
+  const along = clamp(progress, 0, 1);
   const arch = 4 * along * (1 - along);
   return fromZ + (toZ - fromZ) * along + liftPx * arch;
 }

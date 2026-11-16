@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
@@ -60,10 +62,12 @@ describe('GameClockWidgetComponent', () => {
 
   it('lets the master step the time on and back, saying each step in the chat', () => {
     const root = open(PeerRole.GameMaster);
-    const said = vi.mocked(TestBed.inject(ChatMessageService).sendSystemNotice);
+    const spy = vi.mocked(TestBed.inject(ChatMessageService).sendSystemNotice);
+    const t = TestBed.inject(TRANSLATE_FN);
+    const said = () => decodeI18nMessage(spy.mock.lastCall?.[1] ?? '', t);
 
     root.querySelector<HTMLButtonElement>('[data-testid="game-clock-on"]')!.click();
-    expect(said).toHaveBeenLastCalledWith('clock', '時間を進めました: 1日目 昼');
+    expect(said()).toBe('時間を進めました: 1日目 昼');
     root.querySelector<HTMLButtonElement>('[data-testid="game-clock-on"]')!.click();
     fixture.detectChanges();
     expect(text(root, 'game-clock-time')).toBe('夕');

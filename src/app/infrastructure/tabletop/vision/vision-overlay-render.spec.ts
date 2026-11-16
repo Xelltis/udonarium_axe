@@ -2,8 +2,8 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { OverlayPlan, OverlayShape, OverlayVision } from '@axe/domain/tabletop/vision-scene';
+import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import {
-  animationIntensity,
   drawOverlayPlan,
   fillUnwalkedCells,
   hexToRgba,
@@ -287,9 +287,9 @@ describe('vision-overlay-render', () => {
       ];
       const surface = { originX: 0, originY: 0, cells };
       const first = fakeContext();
-      drawOverlayPlan(first.ctx, darkPlan(), 800, 600, 0, undefined, 0, surface);
+      drawOverlayPlan(first.ctx, darkPlan(), 800, 600, { surface });
       const second = fakeContext();
-      drawOverlayPlan(second.ctx, darkPlan(), 800, 600, 0, undefined, 0, surface);
+      drawOverlayPlan(second.ctx, darkPlan(), 800, 600, { surface });
 
       const firstFill = first.ops.find((o) => o.name === 'fill');
       const secondFill = second.ops.find((o) => o.name === 'fill');
@@ -407,7 +407,7 @@ describe('vision-overlay-render', () => {
         shadows: [],
       };
       const { ctx, ops } = fakeContext();
-      drawOverlayPlan(ctx, plan, 800, 600, 0, undefined, 10, { originX: -25, originY: -30 });
+      drawOverlayPlan(ctx, plan, 800, 600, { margin: 10, surface: { originX: -25, originY: -30 } });
 
       expect(ops.find((o) => o.name === 'translate')?.args).toEqual([35, 40]);
       expect(ops.find((o) => o.name === 'fillRect')?.args).toEqual([-25, -30, 800, 600]);
@@ -430,7 +430,7 @@ describe('vision-overlay-render', () => {
         ],
       ];
       const { ctx, ops } = fakeContext();
-      drawOverlayPlan(ctx, plan, 800, 600, 0, undefined, 0, { originX: -25, originY: -30, cells });
+      drawOverlayPlan(ctx, plan, 800, 600, { surface: { originX: -25, originY: -30, cells } });
 
       expect(ops.some((o) => o.name === 'fillRect')).toBe(false);
       expect(ops.filter((o) => o.name === 'lineTo')).toHaveLength(2);
@@ -464,7 +464,7 @@ describe('vision-overlay-render', () => {
       const img = { complete: true, naturalWidth: 10, width: 10, height: 20 } as unknown as HTMLImageElement;
       const images = new Map<string, HTMLImageElement>([['token.png', img]]);
       const { ctx, ops } = fakeContext();
-      drawOverlayPlan(ctx, plan, 1000, 1000, 0, images);
+      drawOverlayPlan(ctx, plan, 1000, 1000, { images });
       expect(ops.some((o) => o.name === 'drawImage')).toBe(true);
       expect(ops.some((o) => o.name === 'transform')).toBe(true);
     });
@@ -484,7 +484,7 @@ describe('vision-overlay-render', () => {
       const images = new Map<string, HTMLImageElement>([['token.png', img]]);
       const { ctx, ops } = fakeContext();
 
-      drawOverlayPlan(ctx, plan, 1000, 1000, 0, images, 0, undefined, 0.5);
+      drawOverlayPlan(ctx, plan, 1000, 1000, { images, scale: 0.5 });
 
       const laid = ops.findIndex((o) => o.name === 'transform');
       expect(laid).toBeGreaterThan(-1);
@@ -589,7 +589,7 @@ describe('softening the shadows', () => {
 
     for (let draw = 0; draw < 3; draw++) {
       const { ctx } = fakeContext();
-      drawOverlayPlan(ctx, planWith('baked.png'), 400, 400, 0, images);
+      drawOverlayPlan(ctx, planWith('baked.png'), 400, 400, { images });
     }
 
     expect(bakes).toHaveLength(1);
@@ -668,7 +668,7 @@ describe('the baked surfaces', () => {
     const plan = planWithDarkness('flicker');
 
     const { ctx, ops } = fakeContext();
-    drawOverlayPlan(ctx, plan, 800, 600, 1000, undefined, 10, undefined, 0.5);
+    drawOverlayPlan(ctx, plan, 800, 600, { timeMs: 1000, margin: 10, scale: 0.5 });
 
     // Half a canvas pixel to the board pixel, said once, at the top.
     expect(ops.find((o) => o.name === 'setTransform')?.args).toEqual([0.5, 0, 0, 0.5, 0, 0]);

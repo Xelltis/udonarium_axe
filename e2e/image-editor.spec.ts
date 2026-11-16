@@ -51,7 +51,7 @@ function editorFrame(page: Page): Locator {
  */
 async function restingFrame(page: Page) {
   await editorFrame(page).evaluate((element) => {
-    const panel = element.closest('.draggable-panel') ?? element;
+    const panel = element.closest('[data-testid="ui-panel"]') ?? element;
     const ending = panel
       .getAnimations({ subtree: true })
       .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity);

@@ -29,7 +29,7 @@ export function releaseReadPictures(drawn: Iterable<Texture>, undrawn: Iterable<
     waiting.set(picture.source, sharing);
   }
   for (const picture of undrawn) {
-    if (!waiting.has(picture.source)) letGo(picture.source.data);
+    if (!waiting.has(picture.source)) closeReadPixels(picture.source.data);
   }
   for (const [source, sharing] of waiting) {
     for (const picture of sharing) {
@@ -38,14 +38,14 @@ export function releaseReadPictures(drawn: Iterable<Texture>, undrawn: Iterable<
         before?.(sent);
         picture.onUpdate = before;
         sharing.delete(picture);
-        if (sharing.size === 0) letGo((source as Texture['source']).data);
+        if (sharing.size === 0) closeReadPixels((source as Texture['source']).data);
       };
     }
   }
 }
 
-/** Closes pixels that can be closed, as a decoded bitmap's. */
-function letGo(pixels: unknown): void {
+/** Closes pixels that can be closed, as a decoded bitmap's; a canvas or an image element is left as it is. */
+export function closeReadPixels(pixels: unknown): void {
   const closable = pixels as { close?: unknown } | null | undefined;
   if (typeof closable?.close === 'function') (closable as { close(): void }).close();
 }

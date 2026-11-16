@@ -19,6 +19,8 @@ import {
   plateGaugeAt,
 } from '@axe/features/battle-cut-in/battle-cut-in-overlay/battle-cut-in-overlay.component';
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
+import { BATTLE_FIGURE_PX } from '@axe/features/battle-cut-in/battle-stage-layout';
+import { MirroredPictureService } from '@axe/features/battle-cut-in/mirrored-picture.service';
 import type { EffectOverlay } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -197,6 +199,42 @@ describe('BattleCutInOverlayComponent', () => {
 
       expect(root.querySelector('img[alt="勇者"]')?.classList.contains('-scale-x-100')).toBe(true);
       expect(root.querySelector('img[alt="ゴブリン"]')?.classList.contains('-scale-x-100')).toBe(false);
+    } finally {
+      ImageStorage.instance.delete('facing-hero');
+      ImageStorage.instance.delete('facing-goblin');
+    }
+  });
+
+  it('asks for the turned picture of a fighter drawn turned, without the fighters being worked out again as it is made', () => {
+    for (const identifier of ['facing-hero', 'facing-goblin']) {
+      ImageStorage.instance.add({
+        identifier,
+        name: `${identifier}.webp`,
+        type: 'image/webp',
+        blob: new Blob(['picture'], { type: 'image/webp' }),
+        url: `blob:${identifier}`,
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+    }
+    const made = signal(0);
+    const asked = vi.spyOn(TestBed.inject(MirroredPictureService), 'of').mockImplementation(() => {
+      made();
+      return '';
+    });
+    try {
+      const played = scene();
+      play({
+        ...played,
+        attacker: { ...played.attacker, image: 'facing-hero', facing: 'left' },
+        defenders: [{ ...played.defenders[0], image: 'facing-goblin', facing: 'left' }],
+      });
+      const views = fixture.componentInstance.views();
+
+      expect(asked.mock.calls.map(([url]) => url)).toEqual(['blob:facing-hero']);
+
+      made.set(1);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.views()).toBe(views);
     } finally {
       ImageStorage.instance.delete('facing-hero');
       ImageStorage.instance.delete('facing-goblin');
@@ -454,6 +492,17 @@ describe('BattleCutInOverlayComponent', () => {
       runFrameAfterWait(1000);
 
       expect(heard).not.toHaveBeenCalled();
+    });
+
+    it('hangs the sign of a state off the top of a fighter, who stands taller than a cell is wide', async () => {
+      const stage = await playMoving(scene({ effect: 'EffectPreset_status_charm', defeatEffect: '' }));
+      const timeline = stage.timeline()!;
+
+      runFramesAt(timeline.impact + 900);
+
+      const drawn = stage.sceneFrame();
+      const sign = drawn.motes.find((mote) => mote.shape === 'heart' && mote.aside !== undefined)!;
+      expect(sign.z - drawn.floor[0].z).toBeCloseTo(BATTLE_FIGURE_PX, 3);
     });
 
     it('draws the blow as on the table, its marks on the floor under the fighters and the rest over them', async () => {

@@ -12,8 +12,8 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
-import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -27,9 +27,13 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { GameCharacter } from '@axe/domain/character/game-character';
+import { debounce } from '@axe/core/util/debounce';
+import { writeElementField } from '@axe/domain/character/alias-mate-follow';
+import { isOffDefault, readDefault } from '@axe/domain/character/default-value';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
+import { owningCharacterOf } from '@axe/domain/character/owning-character';
 import { ResourceSliderRange, resourceSliderRange } from '@axe/domain/character/resource-slider';
 import {
   DataElement,
@@ -78,7 +82,6 @@ import {
 } from '@axe/features/data-element/game-data-element/game-data-element-structure-ops';
 import { GameDataElementTableViewComponent } from '@axe/features/data-element/game-data-element/game-data-element-table-view.component';
 import {
-  escapeHtml,
   fieldHasOptions,
   isTableCellField as isTableCellFieldShared,
   isUrlText,
@@ -98,6 +101,7 @@ import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.dir
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { escapeHtml } from '@axe/ui/text-decoration/decorate-chat-text';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
@@ -148,7 +152,7 @@ export class GameDataElementComponent {
   private readonly panelService = inject(PanelService);
   private readonly rangeShapeInvoke = inject(RangeShapeInvokeService);
   private readonly effectLibrary = inject(EffectLibraryService);
-  private readonly effectCast = inject(EffectCastService);
+  private readonly effectTargeting = inject(EffectTargetingService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly resourceSliders = inject(ResourceSliderService);
   private readonly edit = inject(DataElementEditService);
@@ -246,7 +250,7 @@ export class GameDataElementComponent {
    * while a change typed into them waits to be written, the element still holds what was there.
    */
   private keepsDrafts(): boolean {
-    return this.updateTimer !== null;
+    return this.writing || this.soon.pending() || this.afterSteps.pending();
   }
 
   private readonly _name = linkedSignal<{ name: string }, string>({
@@ -265,7 +269,46 @@ export class GameDataElementComponent {
   }
   set name(name: string) {
     this._name.set(name);
-    this.setUpdateTimer();
+    this.writeSoon();
+  }
+
+  /**
+   * Whether the row shows the mark that puts it back to its default: the field keeps one it does not
+   * stand at now, and this seat may edit the sheet. A field at its default, or keeping none, shows
+   * nothing, and neither does a picture.
+   */
+  readonly showsDefaultMark = computed(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    return !this.isReadOnly() && !this.isImage() && isOffDefault(element);
+  });
+
+  /** What the mark says the field goes back to: `既定値 12`, a resource as what is left over its maximum. */
+  readonly defaultMarkTip = computed(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    return this.t('feature.dataElement.field.backToDefault', { value: this.defaultShown(element) });
+  });
+
+  private defaultShown(element: DataElement): string {
+    const now = readDefault(element, 'now');
+    if (element.fieldType === DataElementFieldType.CHECK) {
+      return this.t(`feature.dataElement.field.${now === 1 ? 'defaultChecked' : 'defaultUnchecked'}`);
+    }
+    if (!element.isNumberResource) return `${now ?? ''}`;
+    const max = readDefault(element, 'max');
+    return `${now ?? '-'}/${max ?? '-'}`;
+  }
+
+  /**
+   * Puts this one field back to the default it keeps, from the mark on its row, and carries the value
+   * to the alias mates that keep none. Nothing for a seat that may not edit the sheet.
+   */
+  backToDefault(event?: Event): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    if (this.isReadOnly()) return;
+    this.edit.backToDefault(this.gameDataElement());
   }
 
   readonly isDuplicateName = computed(() => {
@@ -288,7 +331,7 @@ export class GameDataElementComponent {
   set value(value: number | string) {
     if (this.isValueLocked()) return;
     this._value.set(value);
-    this.setUpdateTimer();
+    this.writeSoon();
   }
 
   private readonly _currentValue = linkedSignal<{ currentValue: number | string }, number | string>({
@@ -306,7 +349,7 @@ export class GameDataElementComponent {
   set currentValue(currentValue: number | string) {
     if (this.isValueLocked()) return;
     this._currentValue.set(currentValue);
-    this.setUpdateTimer();
+    this.writeSoon();
   }
 
   /**
@@ -365,7 +408,7 @@ export class GameDataElementComponent {
     const clamped = clampToBounds(this._value(), { min: this.valueMinAttr(), max: this.valueMaxAttr() });
     if (clamped !== this._value()) {
       this._value.set(clamped);
-      this.setUpdateTimer();
+      this.writeSoon();
     }
   }
 
@@ -382,7 +425,7 @@ export class GameDataElementComponent {
     });
     if (clamped !== this._currentValue()) {
       this._currentValue.set(clamped);
-      this.setUpdateTimer();
+      this.writeSoon();
     }
   }
 
@@ -425,7 +468,7 @@ export class GameDataElementComponent {
     const next = stepValue(this._value(), delta, { min: this.valueMinAttr(), max: this.valueMaxAttr() });
     if (next === null) return;
     this._value.set(next);
-    this.setUpdateTimer(STEP_COMMIT_MS);
+    this.writeAfterSteps();
   }
 
   /** Moves what is left of a resource one step from its ± button, written as one change after a run of presses. */
@@ -437,7 +480,7 @@ export class GameDataElementComponent {
     });
     if (next === null) return;
     this._currentValue.set(next);
-    this.setUpdateTimer(STEP_COMMIT_MS);
+    this.writeAfterSteps();
   }
 
   /**
@@ -499,18 +542,20 @@ export class GameDataElementComponent {
   readonly iconPickerOpen = signal(false);
   readonly templateMenuOpen = signal(false);
 
-  readonly fieldTypeItems: { type: DataElementFieldTypeValue; label: string }[] = FIELD_TYPE_CATALOG.map((entry) => ({
-    type: entry.type,
-    label: this.t(entry.labelKey),
-  }));
+  /** The kinds a field can be, each with the key of its name. */
+  readonly fieldTypeItems: readonly { type: DataElementFieldTypeValue; labelKey: string }[] = FIELD_TYPE_CATALOG;
 
   /** The effects on offer, held by name so the same row works in any room. */
   readonly effectNames = computed<string[]>(() => this.effectLibrary.presets().map((preset) => preset.name));
 
+  /**
+   * Casts the effect the row names from the piece the sheet is of, or holds it ready from that piece
+   * where it needs a target and nobody is aimed at.
+   */
   protected invokeEffect(): void {
     const preset = this.effectLibrary.findByName(String(this.currentValue ?? ''));
-    const character = this.findOwningCharacter();
-    if (preset && character) this.effectCast.fireFromCharacter(preset, character);
+    const character = owningCharacterOf(this.gameDataElement());
+    if (preset && character) this.effectTargeting.castFrom(preset, character);
   }
 
   /** Sets the heading icon picked in the icon picker, or takes it away for empty, and closes the picker. */
@@ -518,8 +563,6 @@ export class GameDataElementComponent {
     this.icon = name;
     this.iconPickerOpen.set(false);
   }
-
-  private updateTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.touchDrag?.cancel());
@@ -554,8 +597,8 @@ export class GameDataElementComponent {
   updateKomaIconMaxValue(root: DataElement) {
     const image = root.getFirstElementByName('image');
     const icon = root.getElementsByName('ICON');
-    if (icon) {
-      icon[0].value = image!.children.length - 1;
+    if (icon && image) {
+      icon[0].value = image.children.length - 1;
       if (+icon[0].currentValue > +icon[0].value) icon[0].currentValue = icon[0].value;
     }
   }
@@ -724,9 +767,7 @@ export class GameDataElementComponent {
    * something inside the row.
    */
   onStructureDragLeave(event: DragEvent): void {
-    // Only clear the indicator when the cursor truly left this host element.
-    // dragleave also fires when the cursor moves into a child element (event bubbles up),
-    // so we check relatedTarget to distinguish the two cases.
+    // dragleave also comes when the pointer only moves onto a child element.
     const host = event.currentTarget as HTMLElement | null;
     if (host && event.relatedTarget instanceof Node && host.contains(event.relatedTarget)) return;
     this.structureDropPosition.set(null);
@@ -957,25 +998,6 @@ export class GameDataElementComponent {
   }
 
   /**
-   * Destroys this picture of a character's image list, and narrows its `ICON` field to match. The
-   * first picture in the list is never deleted.
-   */
-  deleteImageElement() {
-    const root: DataElement = this.gameDataElement().parent!.parent as DataElement;
-    if (this.gameDataElement().parent!.children[0] != this.gameDataElement()) {
-      this.gameDataElement().destroy();
-      this.updateKomaIconMaxValue(root);
-    }
-  }
-
-  /** Sets the element's data type, and the field type that goes with it. */
-  setElementType(type: string) {
-    const element = this.gameDataElement();
-    element.setAttribute('type', type);
-    element.setFieldType(DataElement.fieldTypeFromDataType(type));
-  }
-
-  /**
    * Changes what kind of field this is, keeping the older data type in step, and closes the field's
    * settings.
    */
@@ -1034,7 +1056,7 @@ export class GameDataElementComponent {
    */
   copyReferencePath(event?: MouseEvent): void {
     event?.stopPropagation();
-    this.edit.copyReference(this.gameDataElement());
+    void this.edit.copyReference(this.gameDataElement());
   }
 
   private hasFlag(attribute: string): boolean {
@@ -1165,22 +1187,47 @@ export class GameDataElementComponent {
     this.objectChange.notifyChanged(element.identifier);
   }
 
-  private setUpdateTimer(delayMs = 66) {
-    clearTimeout(this.updateTimer ?? undefined);
-    this.updateTimer = setTimeout(() => {
-      const element = this.gameDataElement();
-      const nextName = this.name.trim();
-      if (element.name !== nextName) {
-        if (this.isDuplicateElementName(nextName, element)) {
-          this._name.set(element.name);
-        } else {
-          element.name = nextName;
-        }
+  private readonly soon = debounce(() => this.writeDrafts(), 66);
+  private readonly afterSteps = debounce(() => this.writeDrafts(), STEP_COMMIT_MS);
+  /** Whether the drafts are being written now, when they are still held as a waiting write holds them. */
+  private writing = false;
+
+  /** Writes the drafts, holding them as drafts until they are written. */
+  private writeDrafts(): void {
+    this.writing = true;
+    try {
+      this.write();
+    } finally {
+      this.writing = false;
+    }
+  }
+
+  /** Writes the drafts to the element once typing pauses, in place of any write still waiting. */
+  private writeSoon(): void {
+    this.afterSteps.cancel();
+    this.soon();
+  }
+
+  /** Writes the drafts once a run of ± presses ends, in place of any write still waiting. */
+  private writeAfterSteps(): void {
+    this.soon.cancel();
+    this.afterSteps();
+  }
+
+  private write(): void {
+    const element = this.gameDataElement();
+    const nextName = this.name.trim();
+    if (element.name !== nextName) {
+      if (this.isDuplicateElementName(nextName, element)) {
+        this._name.set(element.name);
+      } else {
+        element.name = nextName;
       }
-      if (element.currentValue !== this.currentValue) element.currentValue = this.currentValue;
-      if (element.value !== this.value) element.value = this.value;
-      this.updateTimer = null;
-    }, delayMs);
+    }
+    GameObject.batch(() => {
+      if (element.currentValue !== this.currentValue) writeElementField(element, 'currentValue', this.currentValue);
+      if (element.value !== this.value) writeElementField(element, 'value', this.value);
+    });
   }
 
   private isDuplicateElementName(name: string, element: DataElement): boolean {
@@ -1221,22 +1268,8 @@ export class GameDataElementComponent {
     this.editCheckedIds.add(dataElmIdentifier);
   }
 
-  /** Sets the data type from a picker's choice, an emptied choice counting as none. */
-  onSetElementType(value: string): void {
-    this.setElementType(value ?? '');
-  }
-
   /** Changes the field type from the field type picker, an emptied choice counting as text. */
   onSetFieldType(value: DataElementFieldTypeValue): void {
     this.setElementFieldType(value ?? DataElementFieldType.TEXT);
-  }
-
-  private findOwningCharacter(): GameCharacter | null {
-    let cursor: unknown = this.gameDataElement();
-    while (cursor) {
-      if (cursor instanceof GameCharacter) return cursor;
-      cursor = (cursor as { parent?: unknown }).parent;
-    }
-    return null;
   }
 }

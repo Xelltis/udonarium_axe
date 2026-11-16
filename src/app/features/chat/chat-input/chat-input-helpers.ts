@@ -1,4 +1,4 @@
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CHAT_INPUT_ATTR } from '@axe/features/chat/chat-input/chat-text-field';
 
@@ -20,7 +20,7 @@ export function allowsChat(gameCharacter: GameCharacter, myPeerId: string, ignor
       return false;
     default:
       if (!ignoreNonTalk && gameCharacter.nonTalkFlag) return false;
-      for (const conn of Network.peerContexts) {
+      for (const conn of Network.instance.peerContexts) {
         if (conn.isOpen && gameCharacter.location.name === conn.peerId) {
           return false;
         }

@@ -11,22 +11,22 @@
           <div class="mb-0.5 text-[9px] font-bold tracking-widest text-white/70 uppercase">
             {{ 'feature.media.jukebox.nowPlayingLabel' | transloco }}
           </div>
-          @if (jukebox.audio) {
-            <div class="truncate text-[13px] font-semibold text-white" [appTextTooltip]="jukebox.audio.name">
-              {{ jukebox.audio.name }}
+          @if (nowPlaying) {
+            <div class="truncate text-[13px] font-semibold text-white" [appTextTooltip]="nowPlaying.name">
+              {{ nowPlaying.name }}
             </div>
             <div class="mt-px text-[11px] text-white/60">
-              {{ playback.tagLabel(getTagOf(jukebox.audio)) }}
+              {{ playback.tagLabel(getTagOf(nowPlaying)) }}
               @if (playback.isPaused()) {
                 · {{ 'feature.media.jukebox.paused' | transloco }}
               }
             </div>
           }
         </div>
-        @if (jukebox.audio && canOperate()) {
+        @if (nowPlaying && canOperate()) {
           <button
             class="border-ui-border-panel absolute top-2 right-2 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid bg-black/45 p-0 text-white/80 transition-[background,color] hover:border-(--ui-danger) hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) [&_.material-icons]:text-[18px]!"
-            (click)="stopBGM(jukebox.audio)"
+            (click)="stopBGM(nowPlaying)"
             [title]="'feature.media.jukebox.stopBgmSe' | transloco"
           >
             <i class="material-icons">stop</i>
@@ -35,7 +35,7 @@
       </div>
     } @else {
       <div class="text-ui-accent w-8 shrink-0 text-center text-[28px] [&_.material-icons]:text-[28px]!">
-        @if (jukebox.audio && playback.isPlaying()) {
+        @if (nowPlaying && playback.isPlaying()) {
           <i class="material-icons text-ui-accent animate-[pulse_1.4s_ease-in-out_infinite]">music_note</i>
         } @else {
           <i class="material-icons">music_note</i>
@@ -45,12 +45,12 @@
         <div class="text-ui-accent mb-0.5 text-[9px] font-bold tracking-widest uppercase">
           {{ 'feature.media.jukebox.nowPlayingLabel' | transloco }}
         </div>
-        @if (jukebox.audio) {
-          <div class="text-ui-text truncate text-[13px] font-semibold" [appTextTooltip]="jukebox.audio.name">
-            {{ jukebox.audio.name }}
+        @if (nowPlaying) {
+          <div class="text-ui-text truncate text-[13px] font-semibold" [appTextTooltip]="nowPlaying.name">
+            {{ nowPlaying.name }}
           </div>
           <div class="text-ui-muted mt-px text-[11px]">
-            {{ playback.tagLabel(getTagOf(jukebox.audio)) }}
+            {{ playback.tagLabel(getTagOf(nowPlaying)) }}
             @if (playback.isPaused()) {
               · {{ 'feature.media.jukebox.paused' | transloco }}
             }
@@ -61,10 +61,10 @@
           </div>
         }
       </div>
-      @if (jukebox.audio) {
+      @if (nowPlaying) {
         <button
           class="bg-ui-hover border-ui-border-panel text-ui-muted inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid p-0 transition-[background,color] hover:border-(--ui-danger) hover:bg-(--ui-danger-bg) hover:text-(--ui-danger) [&_.material-icons]:text-[18px]!"
-          (click)="stopBGM(jukebox.audio)"
+          (click)="stopBGM(nowPlaying)"
           [title]="'feature.media.jukebox.stopBgmSe' | transloco"
         >
           <i class="material-icons">stop</i>
@@ -144,7 +144,7 @@
         type="button"
         class="text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[13px]!"
         [class.text-ui-accent!]="isSeekLocked()"
-        (click)="toggleSeekLock()"
+        (click)="playback.toggleSeekLock()"
         [disabled]="!canOperate()"
         [title]="
           isSeekLocked()
@@ -166,10 +166,10 @@
         min="0"
         max="100"
         step="0.1"
-        [value]="displayProgress() * 100"
+        [value]="seekBar.displayProgress() * 100"
         [disabled]="!canOperate() || !playback.isPlaying() || isSeekLocked()"
-        (input)="onSeekInput($event)"
-        (change)="onSeekCommit($event)"
+        (input)="seekBar.onInput($event)"
+        (change)="seekBar.onCommit($event)"
         [attr.aria-label]="'feature.media.jukebox.seek' | transloco"
       />
       <span
@@ -279,42 +279,17 @@
         <i class="material-icons">tune</i>{{ 'common.panel.soundSettings' | transloco }}
       </button>
     </div>
-    <ui-volume-row
-      icon="headphones"
-      [label]="'feature.media.jukebox.auditionLabel' | transloco"
-      name="audition-volume"
-      [value]="auditionVolume"
-      [muted]="isMuted('audition')"
-      (valueChange)="auditionVolume = $event"
-      (mutedChange)="setMuted('audition', $event)"
-    />
-    <ui-volume-row
-      icon="library_music"
-      [label]="'feature.media.jukebox.bgmLabel' | transloco"
-      name="bgm-volume"
-      [value]="volume"
-      [muted]="isMuted('bgm')"
-      (valueChange)="volume = $event"
-      (mutedChange)="setMuted('bgm', $event)"
-    />
-    <ui-volume-row
-      icon="star"
-      [label]="'feature.media.jukebox.seLabel' | transloco"
-      name="se-volume"
-      [value]="seVolume"
-      [muted]="isMuted('se')"
-      (valueChange)="seVolume = $event"
-      (mutedChange)="setMuted('se', $event)"
-    />
-    <ui-volume-row
-      icon="waves"
-      [label]="'feature.media.jukebox.bgsLabel' | transloco"
-      name="background-volume"
-      [value]="backgroundVolume"
-      [muted]="isMuted('background')"
-      (valueChange)="backgroundVolume = $event"
-      (mutedChange)="setMuted('background', $event)"
-    />
+    @for (row of ownVolumeRows; track row.kind) {
+      <ui-volume-row
+        [icon]="row.icon"
+        [label]="row.label | transloco"
+        [name]="row.name"
+        [value]="personalVolumes.get(row.kind)"
+        [muted]="personalVolumes.isMuted(row.kind)"
+        (valueChange)="personalVolumes.set(row.kind, $event)"
+        (mutedChange)="personalVolumes.setMuted(row.kind, $event)"
+      />
+    }
     <div class="border-ui-border-panel mt-1.5 border-t border-solid pt-1.5"></div>
     <div class="flex items-baseline gap-1.5 pb-0.5" data-testid="jukebox-room-volumes">
       <i class="material-icons text-ui-accent w-4 shrink-0 self-center text-center text-[13px]!">group</i>
@@ -329,42 +304,24 @@
       icon="group"
       [label]="'feature.media.jukebox.roomLabel' | transloco"
       name="room-volume"
-      [value]="roomVolume"
+      [value]="roomVolumes.volume()"
       [max]="2"
       [canMute]="false"
-      [disabled]="!canChangeRoomVolume()"
-      (valueChange)="roomVolume = $event"
+      [disabled]="!roomVolumes.canChange()"
+      (valueChange)="roomVolumes.set($event)"
     />
-    <ui-volume-row
-      icon="library_music"
-      [label]="'feature.media.jukebox.bgmLabel' | transloco"
-      name="room-bgm-volume"
-      [value]="roomVolumeOf('bgm')"
-      [max]="2"
-      [canMute]="false"
-      [disabled]="!canChangeRoomVolume()"
-      (valueChange)="setRoomVolumeOf('bgm', $event)"
-    />
-    <ui-volume-row
-      icon="star"
-      [label]="'feature.media.jukebox.seLabel' | transloco"
-      name="room-se-volume"
-      [value]="roomVolumeOf('se')"
-      [max]="2"
-      [canMute]="false"
-      [disabled]="!canChangeRoomVolume()"
-      (valueChange)="setRoomVolumeOf('se', $event)"
-    />
-    <ui-volume-row
-      icon="waves"
-      [label]="'feature.media.jukebox.bgsLabel' | transloco"
-      name="room-background-volume"
-      [value]="roomVolumeOf('background')"
-      [max]="2"
-      [canMute]="false"
-      [disabled]="!canChangeRoomVolume()"
-      (valueChange)="setRoomVolumeOf('background', $event)"
-    />
+    @for (row of roomVolumeRows; track row.kind) {
+      <ui-volume-row
+        [icon]="row.icon"
+        [label]="row.label | transloco"
+        [name]="row.name"
+        [value]="roomVolumes.volumes()[row.kind]"
+        [max]="2"
+        [canMute]="false"
+        [disabled]="!roomVolumes.canChange()"
+        (valueChange)="roomVolumes.setKind(row.kind, $event)"
+      />
+    }
   </div>
 
   <div class="bg-ui-panel border-ui-border-panel shrink-0 border-b border-solid px-2.5 py-2">
@@ -398,6 +355,15 @@
     <div
       class="bg-ui-panel border-ui-border-panel sticky -top-2 z-2 -mx-2 flex shrink-0 flex-wrap gap-1 border-b border-solid px-2.5 py-1.5"
     >
+      <button
+        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex cursor-pointer items-center rounded-full border border-solid bg-transparent px-2.5 py-0.75 text-[11px] font-medium whitespace-nowrap transition-[background,color,border-color] select-none"
+        [class.bg-ui-accent-bg!]="selectTag() === null"
+        [class.text-ui-accent!]="selectTag() === null"
+        [class.border-ui-accent!]="selectTag() === null"
+        (click)="selectTag.set(null)"
+      >
+        {{ 'feature.media.jukebox.tagAll' | transloco }}
+      </button>
       @for (tag of tagList(); track tag) {
         <button
           class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text inline-flex cursor-pointer items-center rounded-full border border-solid bg-transparent px-2.5 py-0.75 text-[11px] font-medium whitespace-nowrap transition-[background,color,border-color] select-none"
@@ -412,24 +378,25 @@
     </div>
 
     <div class="flex flex-1 flex-col overflow-y-auto">
-      @for (audio of audios(); track audio.identifier) {
+      @for (row of rows(); track row.audio.identifier) {
+        @let audio = row.audio;
+        @let audioTag = row.tag;
+        @let sePlaying = audioTag === 'SE' && isSePlaying(audio);
         <div
           class="border-ui-border-panel hover:bg-ui-hover flex items-center gap-2 border-b border-solid px-2.5 py-1.5 transition-[background]"
           (contextmenu)="onLibraryContextMenu($event, audio)"
-          [class.bg-ui-accent-bg!]="
-            audio === jukebox.audio || (audio === auditionPlayer.audio && !auditionPlayer.paused)
-          "
-          [class.pl-1.75!]="audio === jukebox.audio || (audio === auditionPlayer.audio && !auditionPlayer.paused)"
-          [class.border-l-[3px]]="audio === jukebox.audio || (audio === auditionPlayer.audio && !auditionPlayer.paused)"
-          [class.border-l-ui-accent!]="audio === jukebox.audio"
-          [class.border-l-ui-dim!]="audio === auditionPlayer.audio && !auditionPlayer.paused && audio !== jukebox.audio"
+          [class.bg-ui-accent-bg!]="audio === nowPlaying || (audio === auditionPlayer.audio && !auditionPlayer.paused)"
+          [class.pl-1.75!]="audio === nowPlaying || (audio === auditionPlayer.audio && !auditionPlayer.paused)"
+          [class.border-l-[3px]]="audio === nowPlaying || (audio === auditionPlayer.audio && !auditionPlayer.paused)"
+          [class.border-l-ui-accent!]="audio === nowPlaying"
+          [class.border-l-ui-dim!]="audio === auditionPlayer.audio && !auditionPlayer.paused && audio !== nowPlaying"
         >
           <div class="w-5 shrink-0 text-center">
-            @if (audio === jukebox.audio) {
+            @if (audio === nowPlaying) {
               <i class="material-icons text-ui-accent text-base!">library_music</i>
-            } @else if (getTagOf(audio) === 'SE' && isSePlaying(audio)) {
+            } @else if (sePlaying) {
               <i class="material-icons text-ui-accent text-base!">graphic_eq</i>
-            } @else if (isBackgroundSound(audio) && backgroundSounds.isPlaying(audio)) {
+            } @else if (row.isBackgroundSound && backgroundSounds.isPlaying(audio)) {
               <i class="material-icons text-ui-accent text-base!">waves</i>
             } @else if (audio === auditionPlayer.audio && !auditionPlayer.paused) {
               <i class="material-icons text-ui-muted text-base!">headphones</i>
@@ -453,15 +420,13 @@
             </div>
             <select
               class="bg-ui-input border-ui-border-panel text-ui-muted rounded-ui-sm focus:border-ui-accent w-fit cursor-pointer border border-solid px-1 py-px text-[10px] outline-none disabled:cursor-not-allowed disabled:opacity-40"
-              [ngModel]="getTagOf(audio)"
+              [ngModel]="audioTag"
               (ngModelChange)="setTagOf(audio, $event)"
               [disabled]="!canOperate() || isOnAnyPlaylist(audio)"
               [title]="isOnAnyPlaylist(audio) ? ('feature.media.jukebox.tagDisabled' | transloco) : ''"
             >
               @for (tag of tagList(); track tag) {
-                @if (tag !== allTag()) {
-                  <option [value]="tag">{{ playback.tagLabel(tag) }}</option>
-                }
+                <option [value]="tag">{{ playback.tagLabel(tag) }}</option>
               }
             </select>
           </div>
@@ -484,8 +449,8 @@
                 <i class="material-icons">stop</i>
               </button>
             }
-            @if (getTagOf(audio) === 'SE') {
-              @if (isSePlaying(audio)) {
+            @if (audioTag === 'SE') {
+              @if (sePlaying) {
                 <button
                   class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                   (click)="stopSE(audio)"
@@ -504,7 +469,7 @@
                   <i class="material-icons">play_arrow</i>
                 </button>
               }
-            } @else if (isBackgroundSound(audio)) {
+            } @else if (row.isBackgroundSound) {
               @if (backgroundSounds.isPlaying(audio)) {
                 <button
                   class="bg-ui-accent-bg border-ui-accent text-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
@@ -526,7 +491,7 @@
                   <i class="material-icons">play_arrow</i>
                 </button>
               }
-            } @else if (audio !== jukebox.audio) {
+            } @else if (audio !== nowPlaying) {
               <button
                 class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                 (click)="playBGM(audio)"
@@ -545,7 +510,7 @@
                 <i class="material-icons">stop</i>
               </button>
             }
-            @if (getTagOf(audio) === 'BGM') {
+            @if (audioTag === 'BGM') {
               @if (!isInPlaylist(audio)) {
                 <button
                   class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
@@ -674,10 +639,10 @@
       @for (audio of playlistAudios(); track audio.identifier; let i = $index) {
         <div
           class="border-ui-border-panel hover:bg-ui-hover flex cursor-default items-center gap-2 border-b border-solid px-2.5 py-1.5 transition-[background]"
-          [class.bg-ui-accent-bg!]="audio === jukebox.audio"
-          [class.pl-1.75!]="audio === jukebox.audio"
-          [class.border-l-[3px]]="audio === jukebox.audio"
-          [class.border-l-ui-accent!]="audio === jukebox.audio"
+          [class.bg-ui-accent-bg!]="audio === nowPlaying"
+          [class.pl-1.75!]="audio === nowPlaying"
+          [class.border-l-[3px]]="audio === nowPlaying"
+          [class.border-l-ui-accent!]="audio === nowPlaying"
           [attr.draggable]="canOperate()"
           (dragstart)="onPlaylistDragStart(i)"
           (dragover)="onPlaylistDragOver($event, i)"
@@ -690,7 +655,7 @@
             <i class="material-icons">drag_indicator</i>
           </div>
           <div class="w-5 shrink-0 text-center">
-            @if (audio === jukebox.audio) {
+            @if (audio === nowPlaying) {
               <i class="material-icons text-ui-accent text-base!">library_music</i>
             } @else {
               <i class="material-icons text-ui-dim text-base! opacity-40">music_note</i>
@@ -717,7 +682,7 @@
             </div>
           </div>
           <div class="flex shrink-0 gap-1">
-            @if (audio !== jukebox.audio) {
+            @if (audio !== nowPlaying) {
               <button
                 class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex size-7 cursor-pointer items-center justify-center border border-solid p-0 transition-[background,color,border-color] disabled:cursor-not-allowed disabled:opacity-35 [&_.material-icons]:text-base!"
                 (click)="playFromPlaylist(audio)"
@@ -772,7 +737,14 @@
       <span class="text-[11px] opacity-70">{{
         (isCompact() ? 'feature.media.jukebox.clickToSelectTouch' : 'feature.media.jukebox.clickToSelect') | transloco
       }}</span>
-      <input type="file" class="hidden" (change)="handleFileSelect($event)" multiple accept="audio/*" />
+      <input
+        type="file"
+        class="hidden"
+        data-testid="jukebox-file-input"
+        (change)="handleFileSelect($event)"
+        multiple
+        accept="audio/*,.ogg,.oga,.opus"
+      />
       <span class="text-[11px] opacity-45">{{ 'feature.media.jukebox.maxFileSize' | transloco }}</span>
     </label>
 

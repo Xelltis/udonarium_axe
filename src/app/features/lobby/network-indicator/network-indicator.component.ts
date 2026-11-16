@@ -1,6 +1,11 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
+
+/** How long the indicator stays up after traffic, and again for traffic that came meanwhile. */
+const SHOWN_MS = 650;
+/** The bytes in transit from which the network counts as busy. */
+const BUSY_BYTES = 3 * 1024;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,7 +25,7 @@ export class NetworkIndicatorComponent {
     afterNextRender(() => {
       const repeatFunc = () => {
         if (this.needRepeat) {
-          this.timer = setTimeout(repeatFunc, 650);
+          this.timer = setTimeout(repeatFunc, SHOWN_MS);
           this.needRepeat = false;
         } else {
           this.timer = null;
@@ -29,10 +34,10 @@ export class NetworkIndicatorComponent {
       };
 
       this.objectChange.eventActivity$.subscribe(() => {
-        if (this.needRepeat || Network.bandwidthUsage < 3 * 1024) return;
+        if (this.needRepeat || Network.instance.bandwidthUsage < BUSY_BYTES) return;
         if (this.timer === null) {
           this.elementRef.nativeElement.style.display = 'block';
-          this.timer = setTimeout(repeatFunc, 650);
+          this.timer = setTimeout(repeatFunc, SHOWN_MS);
         } else {
           this.needRepeat = true;
         }

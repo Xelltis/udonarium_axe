@@ -63,15 +63,11 @@ describe('TabletopDisplaySettingComponent', () => {
     TestBed.inject(TabletopDisplayPreferenceService).forget();
     TestBed.inject(ViewModePreferenceService).choose('auto');
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
   });
 
   it('should be created', () => {
     expect(component).toBeTruthy();
-  });
-
-  it('asks for no change detector', () => {
-    expect((component as unknown as { changeDetector?: unknown }).changeDetector).toBeUndefined();
   });
 
   it('lets the panel take the pointer again once the drag ends', async () => {
@@ -103,6 +99,13 @@ describe('TabletopDisplaySettingComponent', () => {
     expect(TestBed.inject(TabletopDisplayPreferenceService).own()).toEqual({
       cutInMultiDirectionMode: 'four-directions',
     });
+  });
+
+  it("reads what a square comes to from the room's answer before the table's", () => {
+    table.cellDistance = 1;
+    Config.instance.cellDistance = 5;
+
+    expect(component.cellSummary().distance).toBe(5);
   });
 
   it('hands the mark a piece faces by to the room', () => {

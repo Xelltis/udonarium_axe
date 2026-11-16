@@ -16,8 +16,10 @@ export class ChatInputHistory {
   /**
    * Steps through the sent lines and returns the one landed on.
    *
-   * A negative direction goes to older lines, starting from the newest. Stepping forward past the
-   * newest returns an empty string, which stands for the blank draft.
+   * The lines and the blank draft make a ring. A negative direction goes to older lines, starting
+   * from the newest, and from the oldest back to the blank draft; a positive one goes to newer lines,
+   * from the blank draft to the oldest and past the newest back to the blank draft. The blank draft
+   * comes back as an empty string.
    */
   navigate(direction: number): string {
     if (direction < 0 && this.cursor < 0) {

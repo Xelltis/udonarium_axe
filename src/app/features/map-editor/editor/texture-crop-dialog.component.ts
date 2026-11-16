@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { IMAGE_REGION_CROPPER } from '@axe/application/file/image-region-cropper';
+import { RASTER_IMAGE_LOADER } from '@axe/application/file/raster-image-loader';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
-import { cropImageRegion } from '@axe/features/tabletop/map-image-grid-adjuster/map-image-grid-region';
-import { loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
+import { clamp } from '@axe/core/util/clamp';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface TextureCropDialogOption {
@@ -20,12 +21,12 @@ export const TEXTURE_CROP_MARGIN = 48;
  * minimum and the usual size.
  */
 export function fitCropStage(viewportWidth: number): number {
-  return Math.max(TEXTURE_CROP_MIN_STAGE, Math.min(TEXTURE_CROP_STAGE, viewportWidth - TEXTURE_CROP_MARGIN));
+  return clamp(viewportWidth - TEXTURE_CROP_MARGIN, TEXTURE_CROP_MIN_STAGE, TEXTURE_CROP_STAGE);
 }
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-texture-crop-dialog',
+  selector: 'texture-crop-dialog',
   templateUrl: './texture-crop-dialog.component.html',
   host: { class: 'block text-ui-text' },
   imports: [TranslocoModule],
@@ -35,8 +36,8 @@ export class TextureCropDialogComponent {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly t = inject(TRANSLATE_FN);
 
-  private readonly cropFn = cropImageRegion;
-  private readonly loadImageFn = loadRasterImage;
+  private readonly cropRegion = inject(IMAGE_REGION_CROPPER);
+  private readonly loadImage = inject(RASTER_IMAGE_LOADER);
 
   private readonly stageSignal = signal(fitCropStage(window.innerWidth));
   protected get stage(): number {
@@ -78,7 +79,7 @@ export class TextureCropDialogComponent {
   private async prepare(): Promise<void> {
     if (!this.objectUrl) return;
     try {
-      const image = await this.loadImageFn(this.objectUrl);
+      const image = await this.loadImage(this.objectUrl);
       this.image = image;
       const w = image.naturalWidth || image.width;
       const h = image.naturalHeight || image.height;
@@ -123,7 +124,7 @@ export class TextureCropDialogComponent {
     const cursorY = event.clientY - rect.top;
     const before = this.scale();
     const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
-    const after = Math.max(this.minScale, Math.min(this.minScale * 8, before * factor));
+    const after = clamp(before * factor, this.minScale, this.minScale * 8);
     if (after === before) return;
     const ratio = after / before;
     this.scale.set(after);
@@ -140,8 +141,8 @@ export class TextureCropDialogComponent {
     const frameTop = (this.stage - this.frame) / 2;
     const minX = frameLeft + this.frame - w;
     const minY = frameTop + this.frame - h;
-    this.tx.set(Math.min(frameLeft, Math.max(minX, this.tx())));
-    this.ty.set(Math.min(frameTop, Math.max(minY, this.ty())));
+    this.tx.set(clamp(this.tx(), minX, frameLeft));
+    this.ty.set(clamp(this.ty(), minY, frameTop));
   }
 
   protected cancel(): void {
@@ -160,7 +161,7 @@ export class TextureCropDialogComponent {
     const sy = (frameTop - this.ty()) / scale;
     const sSize = this.frame / scale;
     try {
-      const blob = await this.cropFn(this.image, sx, sy, sSize, sSize, 512);
+      const blob = await this.cropRegion(this.image, sx, sy, sSize, sSize, 512);
       this.modalService.resolve(blob);
     } catch {
       this.modalService.resolve(null);

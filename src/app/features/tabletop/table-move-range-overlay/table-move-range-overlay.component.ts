@@ -20,28 +20,28 @@ import { PERF_MOVE_RANGE_PAINT, perfCounters } from '@axe/core/util/perf-counter
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, cellCount, CellGrid, gridExtentPx, sameCellGrid } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellCount, CellGrid, sameCellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { cellPathsFor, wayRunsOn } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
-import { overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
+import { fitCanvasToGrid } from '@axe/ui/tabletop/fit-canvas-to-grid';
 import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
 export const MOVE_RANGE_FILL = 'rgba(90, 170, 255, 0.28)';
-export const MOVE_RANGE_BORDER = 'rgba(120, 200, 255, 0.95)';
+const MOVE_RANGE_BORDER = 'rgba(120, 200, 255, 0.95)';
 /** The ground an enemy holds, shown under the reach so the two read as one picture. */
 /** The reach of a move being taken over what stands in the way rather than around it. */
-export const MOVE_JUMP_FILL = 'rgba(160, 130, 255, 0.28)';
-export const MOVE_JUMP_BORDER = 'rgba(195, 175, 255, 0.95)';
+const MOVE_JUMP_FILL = 'rgba(160, 130, 255, 0.28)';
+const MOVE_JUMP_BORDER = 'rgba(195, 175, 255, 0.95)';
 
 export const MOVE_ZOC_FILL = 'rgba(230, 80, 80, 0.22)';
-export const MOVE_ZOC_BORDER = 'rgba(240, 120, 120, 0.75)';
+const MOVE_ZOC_BORDER = 'rgba(240, 120, 120, 0.75)';
 const MOVE_RANGE_BORDER_WIDTH_PX = 3;
 
 /** The way a move is being planned along, drawn over the reach it is being planned within. */
-export const MOVE_WAY_STROKE = 'rgba(255, 236, 140, 0.95)';
-export const MOVE_WAY_SHADOW = 'rgba(0, 0, 0, 0.55)';
-export const MOVE_WAY_SETTLED = 'rgba(255, 200, 60, 0.95)';
+const MOVE_WAY_STROKE = 'rgba(255, 236, 140, 0.95)';
+const MOVE_WAY_SHADOW = 'rgba(0, 0, 0, 0.55)';
+const MOVE_WAY_SETTLED = 'rgba(255, 200, 60, 0.95)';
 const MOVE_WAY_WIDTH_PX = 5;
 const MOVE_WAY_HEAD_PX = 16;
 const MOVE_WAYPOINT_RADIUS_PX = 7;
@@ -54,7 +54,7 @@ export const MOVE_WAY_OTHERS = 'rgba(150, 205, 255, 0.9)';
 const MOVE_WAY_OTHERS_WIDTH_PX = 4;
 /** The reach of a piece somebody else has picked, drawn fainter than the reader's own. */
 export const MOVE_RANGE_OTHERS_FILL = 'rgba(150, 205, 255, 0.2)';
-export const MOVE_RANGE_OTHERS_BORDER = 'rgba(170, 220, 255, 0.95)';
+const MOVE_RANGE_OTHERS_BORDER = 'rgba(170, 220, 255, 0.95)';
 /** Somebody else's reach is outlined in dashes, so whose it is reads without a legend. */
 const MOVE_RANGE_OTHERS_DASH = [10, 6];
 
@@ -120,6 +120,19 @@ interface Painting {
   ways: readonly DrawnWay[];
 }
 
+/** Two paintings that would draw the same: each part the same, on a board that comes out the same. */
+function samePainting(a: Painting | null, b: Painting | null): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.cells === b.cells &&
+    a.held === b.held &&
+    a.plan === b.plan &&
+    a.reaches === b.reaches &&
+    a.ways === b.ways &&
+    sameBoard(a.grid, b.grid)
+  );
+}
+
 /** Whether a cell belongs on the layer being drawn. Everything does where there is no layer. */
 function layerTest(layer: Layer | null): (cell: number) => boolean {
   if (!layer) return () => true;
@@ -158,7 +171,9 @@ type DrawnWay = { grid: CellGrid; way: number[] };
 export class TableMoveRangeOverlayComponent {
   private readonly moveRange = inject(MoveRangeService);
   private readonly movePlan = inject(MovePlanService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);
@@ -243,6 +258,35 @@ export class TableMoveRangeOverlayComponent {
   protected readonly othersWays = computed<DrawnWay[]>(
     () => this.moving().map((other) => ({ grid: other.grid, way: other.way })),
     { equal: sameWays }
+  );
+
+  /**
+   * What there is to draw this time round, whichever of the three the table is showing.
+   *
+   * Held as long as every part of it stands: the layers are worked out from it and the canvases
+   * painted from it, and neither is to be done again for a painting that says the same.
+   */
+  private readonly painting = computed<Painting | null>(
+    () => {
+      const plan = this.plan();
+      const range = this.view();
+      const reaches = this.othersReach();
+      const ways = this.othersWays();
+      if (plan) return { grid: plan.grid, cells: plan.reach, held: null, plan, reaches, ways };
+      if (range) {
+        return {
+          grid: range.grid,
+          cells: range.showsReach ? range.cells : null,
+          held: range.held,
+          plan: null,
+          reaches,
+          ways,
+        };
+      }
+      if (reaches.length) return { grid: reaches[0].grid, cells: null, held: null, plan: null, reaches, ways };
+      return null;
+    },
+    { equal: samePainting }
   );
 
   /**
@@ -341,50 +385,14 @@ export class TableMoveRangeOverlayComponent {
     return union;
   }
 
-  /** What there is to draw this time round, whichever of the three the table is showing. */
-  private painting(): Painting | null {
-    const plan = this.plan();
-    const range = this.view();
-    const reaches = this.othersReach();
-    const ways = this.othersWays();
-    if (plan) return { grid: plan.grid, cells: plan.reach, held: null, plan, reaches, ways };
-    if (range) {
-      return {
-        grid: range.grid,
-        cells: range.showsReach ? range.cells : null,
-        held: range.held,
-        plan: null,
-        reaches,
-        ways,
-      };
-    }
-    if (reaches.length) return { grid: reaches[0].grid, cells: null, held: null, plan: null, reaches, ways };
-    return null;
-  }
-
   private paint(canvas: HTMLCanvasElement, painting: Painting, layer: Layer | null): void {
     perfCounters.bump(PERF_MOVE_RANGE_PAINT);
     const { grid, plan } = painting;
     const cells = this.partOf(painting.cells, layer);
     const held = this.partOf(painting.held, layer);
     const onLayer = layerTest(layer);
-    const extent = gridExtentPx(grid);
-    const width = Math.max(1, Math.ceil(extent.maxX - extent.minX));
-    const height = Math.max(1, Math.ceil(extent.maxY - extent.minY));
-    const scale = overlayScale(width, height);
-    const pixelWidth = Math.max(1, Math.ceil(width * scale));
-    const pixelHeight = Math.max(1, Math.ceil(height * scale));
-    if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
-    if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
-    canvas.style.left = extent.minX + 'px';
-    canvas.style.top = extent.minY + 'px';
-    canvas.style.width = width + 'px';
-    canvas.style.height = height + 'px';
-
-    const context = canvas.getContext('2d');
+    const context = fitCanvasToGrid(canvas, grid);
     if (!context) return;
-    context.setTransform(scale, 0, 0, scale, -extent.minX * scale, -extent.minY * scale);
-    context.clearRect(extent.minX, extent.minY, width, height);
 
     for (const other of painting.reaches) {
       const reach = this.partOf(other.reach, layer);

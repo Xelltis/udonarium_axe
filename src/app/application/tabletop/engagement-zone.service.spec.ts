@@ -742,22 +742,22 @@ describe('EngagementZoneService', () => {
     });
 
     it('is forming while turns are kept, and comes into force as a turn ends', () => {
-      TestBed.inject(TurnState).phase = 'acting';
+      TurnState.instance.phase = 'acting';
       const zone = service.formAt({ x: 5.5 * GRID, y: 5.5 * GRID }, [pieceAt(5, 5), pieceAt(5, 6, true)])!;
       expect(zone.isForming).toBe(true);
 
       TestBed.inject(TurnHooksService).turnEnded();
 
       expect(zone.isForming).toBe(false);
-      TestBed.inject(TurnState).phase = 'idle';
+      TurnState.instance.phase = 'idle';
     });
 
     it('forms at once while turns are kept, where it is asked to', () => {
-      TestBed.inject(TurnState).phase = 'acting';
+      TurnState.instance.phase = 'acting';
       const zone = service.formAt({ x: 5.5 * GRID, y: 5.5 * GRID }, [pieceAt(5, 5), pieceAt(5, 6, true)], true)!;
 
       expect(zone.isForming).toBe(false);
-      TestBed.inject(TurnState).phase = 'idle';
+      TurnState.instance.phase = 'idle';
     });
 
     it('forms nothing for fewer than two pieces', () => {

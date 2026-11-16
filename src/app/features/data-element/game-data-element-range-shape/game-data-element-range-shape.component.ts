@@ -5,7 +5,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
-import { GameCharacter } from '@axe/domain/character/game-character';
+import { owningCharacterOf } from '@axe/domain/character/owning-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import {
   decodeRangeShapeField,
@@ -78,21 +78,12 @@ export class GameDataElementRangeShapeComponent {
 
   protected spawnRangeShape(): void {
     const value = this.rangeShapeValue();
-    const character = this.owningCharacter();
+    const character = owningCharacterOf(this.element());
     if (character) {
       this.rangeShapeInvoke.spawnForCharacter(character, value);
       return;
     }
     const coordinate = this.pointerDeviceService.pointers[0];
     this.rangeShapeInvoke.spawnAt({ x: coordinate?.x ?? 0, y: coordinate?.y ?? 0, z: 0 }, value);
-  }
-
-  private owningCharacter(): GameCharacter | null {
-    let cursor: unknown = this.element();
-    while (cursor) {
-      if (cursor instanceof GameCharacter) return cursor;
-      cursor = (cursor as { parent?: unknown }).parent;
-    }
-    return null;
   }
 }

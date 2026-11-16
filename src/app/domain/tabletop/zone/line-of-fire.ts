@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import type { MovePoint } from '@axe/domain/tabletop/move/blocked-path';
 import { entryAlong } from '@axe/domain/tabletop/move/free-path';
 import { zoneCovers, ZoneShape } from '@axe/domain/tabletop/zone/zone-geometry';
@@ -53,7 +54,7 @@ function distanceToSegment(point: MovePoint, from: MovePoint, to: MovePoint): nu
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const length = dx * dx + dy * dy;
-  const along = length > 0 ? Math.max(0, Math.min(1, ((point.x - from.x) * dx + (point.y - from.y) * dy) / length)) : 0;
+  const along = length > 0 ? clamp(((point.x - from.x) * dx + (point.y - from.y) * dy) / length, 0, 1) : 0;
   return Math.hypot(point.x - (from.x + dx * along), point.y - (from.y + dy * along));
 }
 

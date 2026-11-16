@@ -22,8 +22,6 @@ import {
 } from '@axe/domain/replay/replay-soundtrack';
 import type { ReplayVideoTimeline } from '@axe/domain/replay/video/replay-video-timeline';
 
-export const REPLAY_VIDEO_FPS = 60;
-
 /** Why a video could not be made: nothing to show, its sound could not be mixed, or the encoding failed. */
 export type ReplayVideoFailure = 'empty' | 'sound' | 'encode';
 

@@ -8,6 +8,7 @@ import {
   RoomSettingsUiTab,
 } from '@axe/domain/ui/room-settings-tab';
 import { RoomArchiveSettingsComponent } from '@axe/features/room-settings/room-archive-settings/room-archive-settings.component';
+import { RoomElementAliasSettingsComponent } from '@axe/features/room-settings/room-element-alias-settings/room-element-alias-settings.component';
 import { RoomGeneralSettingsComponent } from '@axe/features/room-settings/room-general-settings/room-general-settings.component';
 import { RoomMoveRangeSettingsComponent } from '@axe/features/room-settings/room-move-range-settings/room-move-range-settings.component';
 import { RoomNoticeSettingsComponent } from '@axe/features/room-settings/room-notice-settings/room-notice-settings.component';
@@ -37,6 +38,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   host: { class: 'block' },
   imports: [
     RoomArchiveSettingsComponent,
+    RoomElementAliasSettingsComponent,
     RoomGeneralSettingsComponent,
     RoomMoveRangeSettingsComponent,
     RoomNoticeSettingsComponent,

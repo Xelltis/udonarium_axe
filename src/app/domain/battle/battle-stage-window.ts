@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /**
  * How large each reader has the battle stage drawn: over the whole screen, or in a window of three
  * sizes that leaves the rest of the screen to work in while the exchange plays.
@@ -127,5 +128,5 @@ function readShare(value: unknown, fallback: number): number {
 }
 
 function clampShare(value: number): number {
-  return Math.min(1, Math.max(0, value));
+  return clamp(value, 0, 1);
 }

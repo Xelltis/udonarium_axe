@@ -1,10 +1,13 @@
 import { Network } from '@axe/core/network/network';
-import { localDispatch } from '@axe/core/network/network-messaging';
+import { FIRST_SYNC_SETTLED, localDispatch } from '@axe/core/network/network-messaging';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { ASSET_RETRY_DELAY_MS, ASSET_RETRY_LIMIT } from '@axe/core/storage/asset-retries';
+import { BufferSharingTask } from '@axe/core/storage/buffer-sharing-task';
 import { ImageContext, ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
-import { CatalogItem, ImageStorage } from '@axe/core/storage/image-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
+import { FIRST_SYNC_HOLD_MAX_MS } from '@axe/core/storage/shared-asset-sharing-system';
+import { CatalogItem } from '@axe/core/storage/shared-asset-storage';
 import type { MockInstance } from 'vitest';
 
 type ImageSharingSystemPrivate = {
@@ -187,7 +190,7 @@ describe('ImageSharingSystem', () => {
       receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }]);
 
       await vi.waitFor(() => expect(ImageStorage.instance.get(pictureId)?.state).toBe(ImageState.COMPLETE));
-      expect(download).toHaveBeenCalledWith(pictureId);
+      expect(download).toHaveBeenCalledWith(pictureId, { first: false });
       expect(requestsSent()).toEqual([]);
     });
 
@@ -358,7 +361,7 @@ describe('ImageSharingSystem', () => {
       ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: 'map.png' }]);
 
       await vi.waitFor(() => expect(ImageStorage.instance.get(pictureId)?.state).toBe(ImageState.COMPLETE));
-      expect(download).toHaveBeenCalledWith(pictureId);
+      expect(download).toHaveBeenCalledWith(pictureId, { first: false });
       expect(ImageStorage.instance.get(pictureId)?.name).toBe('map.png');
     });
 
@@ -423,6 +426,245 @@ describe('ImageSharingSystem', () => {
       receiveCatalogue([{ identifier: pictureId, state: ImageState.COMPLETE }]);
 
       expect(download).not.toHaveBeenCalled();
+      expect(requestsSent()).toHaveLength(1);
+    });
+  });
+
+  describe('a catalogue from a peer whose pictures are still coming in', () => {
+    const sharingStatic = ImageSharingSystem as unknown as { _instance?: { cleanups: (() => void)[] } };
+    const ORIGINAL_PEER_ID = Object.getOwnPropertyDescriptor(Network, 'peerId')!;
+    const ORIGINAL_PEER_IDS = Object.getOwnPropertyDescriptor(Network, 'peerIds')!;
+
+    interface FakeTask {
+      identifier: string;
+      sendTo: undefined;
+      start: () => void;
+      cancel: () => void;
+      onfinish: ((task: FakeTask, data: unknown) => void) | null;
+    }
+
+    let send: MockInstance<Network['send']>;
+    let tasks: FakeTask[];
+
+    const requestsSent = () =>
+      send.mock.calls
+        .map(([context, sendTo]) => ({ ...(context as { eventName: string; data: unknown }), sendTo }))
+        .filter((context) => context.eventName === 'REQUEST_FILE_RESOURE');
+    const wantedIn = (request: { data: unknown }) =>
+      (request.data as { identifiers: CatalogItem[] }).identifiers.map((item) => item.identifier);
+    const receiveCatalogue = (identifiers: string[], from: string) =>
+      localDispatch(
+        'SYNCHRONIZE_FILE_LIST',
+        identifiers.map((identifier) => ({ identifier, state: ImageState.COMPLETE })),
+        from
+      );
+    const arrived = (identifier: string): ImageContext => ({
+      identifier,
+      name: identifier,
+      type: 'image/png',
+      blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+      url: '',
+      thumbnail: { type: 'image/png', blob: new Blob([new Uint8Array([1])], { type: 'image/png' }), url: '' },
+    });
+
+    beforeEach(() => {
+      sharingStatic._instance?.cleanups.forEach((cleanup) => cleanup());
+      sharingStatic._instance = undefined;
+      Object.defineProperty(Network, 'peerIds', { get: () => ['self-peer', 'peer-a', 'peer-b'], configurable: true });
+      Object.defineProperty(Network, 'peerId', { get: () => 'self-peer', configurable: true });
+      send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      vi.spyOn(ImageStorage.instance, 'synchronize').mockImplementation(() => {});
+      vi.spyOn(ImageStorage.instance, 'lazySynchronize').mockImplementation(() => {});
+      tasks = [];
+      vi.spyOn(BufferSharingTask, 'createReceiveTask').mockImplementation((identifier: string) => {
+        const task: FakeTask = { identifier, sendTo: undefined, start: () => {}, cancel: () => {}, onfinish: null };
+        tasks.push(task);
+        return task as never;
+      });
+      ImageSharingSystem.instance.initialize();
+    });
+
+    afterEach(() => {
+      sharingStatic._instance?.cleanups.forEach((cleanup) => cleanup());
+      sharingStatic._instance = undefined;
+      for (const image of ImageStorage.instance.images) ImageStorage.instance.delete(image.identifier);
+      Object.defineProperty(Network, 'peerId', ORIGINAL_PEER_ID);
+      Object.defineProperty(Network, 'peerIds', ORIGINAL_PEER_IDS);
+    });
+
+    it('asks that peer for nothing until they have come, then for what it still lacks', () => {
+      localDispatch('START_FILE_TRANSMISSION', { taskIdentifier: 'several-pictures' }, 'peer-a');
+
+      receiveCatalogue(['on-its-way', 'still-lacking'], 'peer-a');
+
+      expect(requestsSent()).toEqual([]);
+      expect(ImageStorage.instance.get('still-lacking')).not.toBeNull();
+
+      tasks[0].onfinish?.(tasks[0], [arrived('on-its-way')]);
+
+      expect(requestsSent()).toHaveLength(1);
+      expect(requestsSent()[0].sendTo).toBe('peer-a');
+      expect(wantedIn(requestsSent()[0])).toEqual(['still-lacking']);
+    });
+
+    it('asks that peer for nothing more when the pictures that came were all it lacked', () => {
+      localDispatch('START_FILE_TRANSMISSION', { taskIdentifier: 'several-pictures' }, 'peer-a');
+      receiveCatalogue(['on-its-way'], 'peer-a');
+
+      tasks[0].onfinish?.(tasks[0], [arrived('on-its-way')]);
+
+      expect(requestsSent()).toEqual([]);
+    });
+
+    it('still asks another peer whose catalogue names pictures it lacks', () => {
+      localDispatch('START_FILE_TRANSMISSION', { taskIdentifier: 'several-pictures' }, 'peer-a');
+
+      receiveCatalogue(['still-lacking'], 'peer-b');
+
+      expect(requestsSent().map((request) => request.sendTo)).toEqual(['peer-b']);
+    });
+
+    it('asks at once for a catalogue that comes after the pictures, as from a peer that sends in order', () => {
+      localDispatch('START_FILE_TRANSMISSION', { taskIdentifier: 'several-pictures' }, 'peer-a');
+      tasks[0].onfinish?.(tasks[0], [arrived('on-its-way')]);
+
+      receiveCatalogue(['on-its-way', 'still-lacking'], 'peer-a');
+
+      expect(requestsSent()).toHaveLength(1);
+      expect(wantedIn(requestsSent()[0])).toEqual(['still-lacking']);
+    });
+
+    it('forgets what a peer that left was to be asked for', () => {
+      localDispatch('START_FILE_TRANSMISSION', { taskIdentifier: 'several-pictures' }, 'peer-a');
+      receiveCatalogue(['still-lacking'], 'peer-a');
+
+      localDispatch('DISCONNECT_PEER', { peerId: 'peer-a' });
+      tasks[0].onfinish?.(tasks[0], null);
+
+      expect(requestsSent()).toEqual([]);
+    });
+  });
+
+  describe('holding its requests until the objects have first synced', () => {
+    const sharingStatic = ImageSharingSystem as unknown as { _instance?: { cleanups: (() => void)[] } };
+    const ORIGINAL_PEER_ID = Object.getOwnPropertyDescriptor(Network, 'peerId')!;
+    const ORIGINAL_PEER_IDS = Object.getOwnPropertyDescriptor(Network, 'peerIds')!;
+
+    let send: MockInstance<Network['send']>;
+    let synchronize: MockInstance<ImageStorage['synchronize']>;
+
+    const requestsSent = () =>
+      send.mock.calls
+        .map(([context, sendTo]) => ({ ...(context as { eventName: string; data: unknown }), sendTo }))
+        .filter((context) => context.eventName === 'REQUEST_FILE_RESOURE');
+    const wantedIn = (request: { data: unknown }) =>
+      (request.data as { identifiers: CatalogItem[] }).identifiers.map((item) => item.identifier);
+    const receiveCatalogue = (identifiers: string[], from = 'peer-a') =>
+      localDispatch(
+        'SYNCHRONIZE_FILE_LIST',
+        identifiers.map((identifier) => ({ identifier, state: ImageState.COMPLETE })),
+        from
+      );
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      sharingStatic._instance?.cleanups.forEach((cleanup) => cleanup());
+      sharingStatic._instance = undefined;
+      Object.defineProperty(Network, 'peerIds', { get: () => ['self-peer', 'peer-a', 'peer-b'], configurable: true });
+      Object.defineProperty(Network, 'peerId', { get: () => 'self-peer', configurable: true });
+      send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      synchronize = vi.spyOn(ImageStorage.instance, 'synchronize').mockImplementation(() => {});
+      vi.spyOn(ImageStorage.instance, 'lazySynchronize').mockImplementation(() => {});
+      ImageSharingSystem.instance.initialize();
+      localDispatch('OPEN_NETWORK', { peerId: 'self-peer' });
+      localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+      synchronize.mockClear();
+    });
+
+    afterEach(() => {
+      sharingStatic._instance?.cleanups.forEach((cleanup) => cleanup());
+      sharingStatic._instance = undefined;
+      for (const image of ImageStorage.instance.images) ImageStorage.instance.delete(image.identifier);
+      Object.defineProperty(Network, 'peerId', ORIGINAL_PEER_ID);
+      Object.defineProperty(Network, 'peerIds', ORIGINAL_PEER_IDS);
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    });
+
+    it('asks for no picture a catalogue names until then, and makes a place for each meanwhile', () => {
+      receiveCatalogue(['table-picture', 'piece-picture']);
+
+      expect(requestsSent()).toEqual([]);
+      expect(ImageStorage.instance.get('table-picture')).not.toBeNull();
+      expect(ImageStorage.instance.get('piece-picture')).not.toBeNull();
+    });
+
+    it('asks each peer once they have, for every picture it named, those preferred first', () => {
+      ImageSharingSystem.instance.preferredIdentifiers = () => ['table-picture'];
+      receiveCatalogue(['piece-picture', 'table-picture'], 'peer-a');
+      receiveCatalogue(['piece-picture'], 'peer-b');
+
+      localDispatch(FIRST_SYNC_SETTLED, {});
+      localDispatch(FIRST_SYNC_SETTLED, {});
+
+      expect(requestsSent().map((request) => request.sendTo)).toEqual(['peer-a', 'peer-b']);
+      expect(wantedIn(requestsSent()[0])).toEqual(['table-picture', 'piece-picture']);
+      expect(wantedIn(requestsSent()[1])).toEqual(['piece-picture']);
+      ImageSharingSystem.instance.preferredIdentifiers = () => [];
+    });
+
+    it('asks anyway twenty seconds after its first peer connected, though the objects have not synced', () => {
+      receiveCatalogue(['overdue']);
+
+      vi.advanceTimersByTime(FIRST_SYNC_HOLD_MAX_MS - 1);
+      expect(requestsSent()).toEqual([]);
+      vi.advanceTimersByTime(1);
+
+      expect(requestsSent()).toHaveLength(1);
+    });
+
+    it('does not take a peer’s word that the objects have synced', () => {
+      receiveCatalogue(['not-yet']);
+
+      localDispatch(FIRST_SYNC_SETTLED, {}, 'peer-a');
+
+      expect(requestsSent()).toEqual([]);
+    });
+
+    it('still sends its own catalogue at once to a peer that names fewer', () => {
+      vi.spyOn(ImageStorage.instance, 'getCatalog').mockReturnValue([
+        { identifier: 'held-here', state: ImageState.COMPLETE },
+        { identifier: 'held-here-too', state: ImageState.COMPLETE },
+      ]);
+
+      receiveCatalogue([]);
+
+      expect(synchronize).toHaveBeenCalledWith('peer-a');
+    });
+
+    it('still takes from the room’s asset store at once what a catalogue names', async () => {
+      const store = AssetHttpStore.instance;
+      store.configure('https://rooms.example');
+      store.useAccess(() => ({ roomKey: '0123456789abcdef0123456789abcdef', token: 'asset-1' }));
+      const download = vi.spyOn(store, 'download').mockResolvedValue('missing');
+      try {
+        receiveCatalogue(['c'.repeat(64)]);
+
+        expect(download).toHaveBeenCalledWith('c'.repeat(64), { first: false });
+        expect(requestsSent()).toEqual([]);
+      } finally {
+        await vi.advanceTimersByTimeAsync(0);
+        (ImageSharingSystem.instance as unknown as { forgetMisses: () => void }).forgetMisses();
+        store.configure(null);
+        store.useAccess(null);
+      }
+    });
+
+    it('holds nothing where a room server keeps the room', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+
+      receiveCatalogue(['from-a-seat']);
+
       expect(requestsSent()).toHaveLength(1);
     });
   });

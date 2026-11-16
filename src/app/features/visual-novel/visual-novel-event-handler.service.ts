@@ -3,9 +3,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { VnStage } from '@axe/domain/visual-novel/vn-stage';
-
-const STAGE_IDENTIFIER = 'VnStage';
+import { VN_STAGE_IDENTIFIER, VnStage, vnStageOf } from '@axe/domain/visual-novel/vn-stage';
 
 /**
  * Looks after novel mode's stage on every screen, whether novel mode is open there or not.
@@ -21,7 +19,7 @@ export class VisualNovelEventHandlerService {
 
   /** Whether the screening on the stage was started by a seat that is no longer a game master. */
   readonly directorDemoted = computed(() => {
-    this.objectChange.versionOf(STAGE_IDENTIFIER)();
+    this.objectChange.versionOf(VN_STAGE_IDENTIFIER)();
     const stage = this.stage;
     if (stage?.isDirected !== true) return false;
     this.objectChange.collectionOf(PeerCursor.aliasName)();
@@ -45,6 +43,6 @@ export class VisualNovelEventHandlerService {
   }
 
   private get stage(): VnStage | null {
-    return this.objectStore.get<VnStage>(STAGE_IDENTIFIER) ?? null;
+    return vnStageOf(this.objectStore);
   }
 }

@@ -32,4 +32,4 @@
 | `config.json`        | Axe本体の`assets/config.json`。どの方式で、どのサーバーにつなぐかを書く（→ [config.jsonを書く](/guide/configuration)）   |
 | SkyWay               | NTTドコモビジネスが提供する、ブラウザ同士をつなぐサービス。SkyWay版で使う。アカウントとアプリの作成が要る                |
 
-サーバーの側の用語は、バックエンドの文書の[用語](https://xelltis.github.io/udonarium_axe_backend/guide/#用語)にあります。
+サーバーの側の用語はバックエンドの文書の[用語](https://xelltis.github.io/udonarium_axe_backend/guide/#用語)にあります。

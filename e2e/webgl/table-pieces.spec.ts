@@ -1,14 +1,17 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { closePanels } from '../dungeon-helpers';
+import { closePanels, createCharacter, createCoin, createDiceSymbol, idleOnCanvas, waitAppReady } from '../helpers';
 import {
-  cellSpot,
-  createCharacter,
-  createDiceSymbol,
-  openTableContextMenu,
-  revealMenuEntry,
-  waitAppReady,
-} from '../helpers';
+  createDeck,
+  createMask,
+  createNote,
+  createRange,
+  drawCard,
+  idsOf,
+  made as madePiece,
+  madeSince,
+  takeAway,
+} from '../piece-helpers';
 
 /**
  * Pieces drawn on the canvas. The page still lays each piece out, clear, to take its presses, and
@@ -18,37 +21,9 @@ import {
  * e2e/canvas-picking.spec.ts, with nothing drawn.
  */
 
-type Box = { x: number; y: number; width: number; height: number };
-
-type Hooks = {
-  renderer(): string | null;
-  moving(identifier: string): boolean;
-  edgesOnPage(): [number, number, number, number][];
-  whenIdle(): Promise<void>;
-  pickAt(x: number, y: number): string | null;
-  pieceBoxesOnPage(identifier: string): Box[];
-};
-
 /** How near an edge of a piece's box a point may lie and be left out, in pixels. */
 const EDGE_SLACK_PX = 3;
 const STEP_PX = 3;
-
-async function idle(page: Page) {
-  await expect
-    .poll(() => page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.renderer() ?? null), {
-      timeout: 20000,
-    })
-    .not.toBeNull();
-  await page.mouse.move(5, 400);
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
-}
-
-function boxesOf(page: Page, identifier: string): Promise<Box[]> {
-  return page.evaluate(
-    (id) => (window as unknown as { __axeTable: Hooks }).__axeTable.pieceBoxesOnPage(id),
-    identifier
-  );
-}
 
 /** A picture of the screen, read into the page so its colours can be looked up there, beside the one taken before it. */
 async function grabScreen(page: Page): Promise<void> {
@@ -67,101 +42,6 @@ async function grabScreen(page: Page): Promise<void> {
       canvas.getContext('2d')!.getImageData(0, 0, image.width, image.height),
     ];
   }, shot.toString('base64'));
-}
-
-/**
- * Waits for a piece's animations, such as the bounce it comes onto the table with, to finish: the
- * page's, and the moves the canvas plays itself.
- */
-async function settled(page: Page, identifier: string) {
-  await expect
-    .poll(() =>
-      page.evaluate(
-        (id) =>
-          document
-            .querySelector(`[data-object-id="${id}"]`)!
-            .getAnimations({ subtree: true })
-            .filter((animation) => animation.playState === 'running').length +
-          ((window as unknown as { __axeTable: Hooks }).__axeTable.moving(id) ? 1 : 0),
-        identifier
-      )
-    )
-    .toBe(0);
-}
-
-/** The identifiers of the pieces with a tag on the table now. */
-function idsOf(page: Page, tag: string): Promise<string[]> {
-  return page.locator(tag).evaluateAll((pieces) => pieces.map((piece) => piece.getAttribute('data-object-id')!));
-}
-
-/**
- * The identifier of the piece with a tag that has come onto the table since the identifiers given
- * were read: the first table's tutorial lays out pieces of its own, which may come after it.
- */
-async function madeSince(page: Page, tag: string, before: readonly string[]): Promise<string> {
-  let made: string | undefined;
-  await expect
-    .poll(async () => {
-      made = (await idsOf(page, tag)).find((id) => !before.includes(id));
-      return made;
-    })
-    .toBeTruthy();
-  return made!;
-}
-
-/**
- * A point of the bare board south of the sample pieces, as an offset into the table's layer, with
- * room to its right for a card drawn off a deck.
- */
-function openBoardAt(page: Page): Promise<{ x: number; y: number }> {
-  return cellSpot(page, 13.5, 16.5);
-}
-
-async function createCoin(page: Page) {
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, 'コインを作成')).click();
-  await expect(page.locator('coin').first()).toBeAttached({ timeout: 10000 });
-}
-
-async function createDeck(page: Page) {
-  const before = await page.locator('card-stack').count();
-  const menu = await openTableContextMenu(page, await openBoardAt(page));
-  await (await revealMenuEntry(page, menu, 'トランプの山札を作成')).click();
-  await expect(page.locator('card-stack')).toHaveCount(before + 1, { timeout: 10000 });
-  await page.mouse.move(5, 400);
-  await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
-}
-
-/** Draws a card off the deck made last, which lays it a little way off the deck. */
-async function drawCard(page: Page) {
-  const before = await page.locator('card').count();
-  await page.locator('card-stack').last().dispatchEvent('contextmenu');
-  await page.locator('context-menu').getByText('１枚引く').click();
-  await expect(page.locator('card')).toHaveCount(before + 1, { timeout: 5000 });
-  await page.mouse.move(5, 400);
-}
-
-async function createNote(page: Page) {
-  const before = await page.locator('text-note').count();
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, '共有メモを作成')).click();
-  await expect(page.locator('text-note')).toHaveCount(before + 1, { timeout: 10000 });
-}
-
-async function createMask(page: Page) {
-  const before = await page.locator('game-table-mask').count();
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, 'マップマスクを作成')).click();
-  await expect(page.locator('game-table-mask')).toHaveCount(before + 1, { timeout: 10000 });
-}
-
-async function createRange(page: Page) {
-  const before = await page.locator('range').count();
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, '射程範囲を作成')).hover();
-  await expect(menu.getByText('円形', { exact: true })).toBeVisible({ timeout: 5000 });
-  await menu.getByText('円形', { exact: true }).click();
-  await expect(page.locator('range')).toHaveCount(before + 1, { timeout: 10000 });
 }
 
 /**
@@ -191,32 +71,16 @@ const PIECES: readonly {
   },
   // A deck stands in 30 layers under its plate and its top card.
   { name: 'deck', tag: 'card-stack', create: createDeck, shapes: 32, takenAwayBy: '山札を削除する' },
-  { name: 'note', tag: 'text-note', create: createNote, shapes: 1, takenAwayBy: '削除する' },
+  // A note is made standing up, picked by its panel and by its back.
+  { name: 'note', tag: 'text-note', create: createNote, shapes: 2, takenAwayBy: '削除する' },
   { name: 'mask', tag: 'game-table-mask', create: createMask, shapes: 1, takenAwayBy: '削除する' },
   { name: 'range', tag: 'range', create: createRange, shapes: 1, takenAwayBy: '削除する' },
   { name: 'character', tag: 'game-character', create: createCharacter, shapes: 1, takenAwayBy: '墓場に移動' },
 ];
 
 /** Makes a piece and waits until the canvas draws it and its animations are over, and answers its identifier. */
-async function made(page: Page, piece: (typeof PIECES)[number]): Promise<string> {
-  const before = await idsOf(page, piece.tag);
-  await piece.create(page);
-  const id = await madeSince(page, piece.tag, before);
-  await idle(page);
-  await expect.poll(async () => (await boxesOf(page, id)).length, { timeout: 10000 }).toBe(piece.shapes);
-  await settled(page, id);
-  await idle(page);
-  return id;
-}
-
-/** Takes a piece off the table by the entry of its own menu given. */
-async function takeAway(page: Page, tag: string, identifier: string, entry: string) {
-  const piece = page.locator(`${tag}[data-object-id="${identifier}"]`);
-  await piece.dispatchEvent('contextmenu');
-  const menu = page.locator('context-menu');
-  await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-  await (await revealMenuEntry(page, menu, entry, true)).click();
-  await expect(piece).toHaveCount(0, { timeout: 5000 });
+function made(page: Page, piece: (typeof PIECES)[number]): Promise<string> {
+  return madePiece(page, piece, idleOnCanvas);
 }
 
 /**
@@ -227,7 +91,7 @@ async function takeAway(page: Page, tag: string, identifier: string, entry: stri
 function changesRound(page: Page, identifier: string) {
   return page.evaluate(
     ({ identifier, slack, step }) => {
-      const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+      const hooks = window.__axeTable;
       const [before, after] = (window as unknown as { __shots: ImageData[] }).__shots.slice(-2);
       const boxes = hooks.pieceBoxesOnPage(identifier);
       const left = Math.min(...boxes.map((box) => box.x)) - 40;
@@ -289,7 +153,7 @@ test.describe('pieces drawn on a canvas', () => {
       const setOut = piece.leavesBehind ? await idsOf(page, piece.leavesBehind.tag) : [];
       await piece.prepare?.(page);
       const left = piece.leavesBehind ? await madeSince(page, piece.leavesBehind.tag, setOut) : null;
-      await idle(page);
+      await idleOnCanvas(page);
       await grabScreen(page);
       const id = await made(page, piece);
       await grabScreen(page);

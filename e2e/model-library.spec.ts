@@ -3,8 +3,7 @@ import { join } from 'node:path';
 
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from './dungeon-helpers';
-import { openPanel, waitAppReady } from './helpers';
+import { becomeGm, closePanels, openPanel, rightClickPiece, waitAppReady } from './helpers';
 
 /**
  * The room's 3D models as media: read in from a file, shown by a picture of each and the one chosen
@@ -57,17 +56,13 @@ async function dropOnPiece(page: Page, modelId: string, piece: Locator): Promise
  * as, and closes the sheet again.
  */
 async function withModelChoice(page: Page, piece: Locator, step: (choice: Locator) => Promise<void>): Promise<void> {
-  await piece.dispatchEvent('contextmenu');
+  await rightClickPiece(piece);
   await page.locator('context-menu').getByText('詳細を表示').click();
   const sheet = page.locator('game-character-sheet');
   await expect(sheet).toBeVisible({ timeout: 10000 });
   await sheet.locator('button:has(i:text-is("settings"))').first().click();
   await step(sheet.getByTestId('piece-model'));
-  await page
-    .locator('ui-panel', { has: sheet })
-    .locator('.bg-ui-titlebar button', { hasText: 'close' })
-    .first()
-    .dispatchEvent('click');
+  await page.locator('ui-panel', { has: sheet }).getByTestId('panel-close').first().dispatchEvent('click');
   await expect(sheet).toHaveCount(0);
 }
 

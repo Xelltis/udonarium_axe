@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { withAlpha } from '@axe/core/util/hex-color';
 import { PERF_AMBIENCE_LAYER, perfCounters } from '@axe/core/util/perf-counters';
 import {
@@ -161,8 +162,9 @@ const STRIKE_SPAN_MS = 460;
 /**
  * How hard the lightning flashes. Only weather that carries it flashes at all.
  *
- * It is worked out from the elapsed time alone, so every screen flashes on the same beat.
- * It flashes twice rather than once; once alone it is a camera rather than lightning.
+ * It is worked out from the elapsed time alone, with nothing kept between frames; each screen counts
+ * its own time, so the beat is its own. It flashes twice rather than once; once alone it is a camera
+ * rather than lightning.
  */
 export function skyAmbienceFlash(kind: AmbienceKind, elapsed: number, density: number): number {
   if (kind !== 'storm') return 0;
@@ -501,8 +503,8 @@ function carriedMote(
   const pace = Math.hypot(vx, vy);
   if (r.d < 0.55 && pace > STREAK_FROM_PX_PER_SECOND) {
     // A streak is a disc drawn long, whose bright core is a fraction of its width; thinner than this, it is not seen.
-    const size = (5 + 3 * r.a) * Math.min(Math.max(near, 0.8), 2);
-    const length = Math.min(Math.max(pace * STREAK_SECONDS, 3 * size), 180);
+    const size = (5 + 3 * r.a) * clamp(near, 0.8, 2);
+    const length = clamp(pace * STREAK_SECONDS, 3 * size, 180);
     return {
       x,
       y,

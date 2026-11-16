@@ -22,7 +22,7 @@ describe('RoomSettingsAccessService', () => {
 
   afterEach(() => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
   });
 
   describe('a rule of play', () => {

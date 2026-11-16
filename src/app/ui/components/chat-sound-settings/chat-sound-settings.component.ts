@@ -3,7 +3,14 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { FormsModule } from '@angular/forms';
 import { ChatPreferencesService, ChatSettingScope } from '@axe/application/chat/chat-preferences.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { CHAT_SOUND_TYPES, ChatSoundSetting, ChatSoundType, playChatSound } from '@axe/domain/chat/chat-sound';
+import {
+  CHAT_SOUND_TYPES,
+  ChatSoundSetting,
+  ChatSoundType,
+  DEFAULT_CHAT_SOUND_TYPE,
+  isChatSoundType,
+  playChatSound,
+} from '@axe/domain/chat/chat-sound';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -26,7 +33,9 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class UiChatSoundSettingsComponent {
   private readonly chatPrefs = inject(ChatPreferencesService);
-  private readonly chatTabList = inject(ChatTabList);
+  private get chatTabList(): ChatTabList {
+    return ChatTabList.instance;
+  }
   private readonly objectChange = inject(ObjectChangeService);
 
   readonly scopes: readonly ChatSettingScope[] = ['all', 'perTab'];
@@ -92,11 +101,8 @@ export class UiChatSoundSettingsComponent {
     return Math.round(volume * 100);
   }
 
-  /**
-   * Reads the choice from the sound dropdown as a sound type; the dropdown offers only known types,
-   * so it is not checked.
-   */
+  /** Reads the choice from the sound dropdown as a sound type, falling back to the default for one it does not know. */
   asSoundType(value: string): ChatSoundType {
-    return value as ChatSoundType;
+    return isChatSoundType(value) ? value : DEFAULT_CHAT_SOUND_TYPE;
   }
 }

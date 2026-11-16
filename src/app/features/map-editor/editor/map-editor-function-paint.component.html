@@ -165,69 +165,17 @@
       }
     </div>
 
-    <label class="flex cursor-pointer items-center gap-1.5 select-none">
-      <input
-        type="checkbox"
-        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-        [ngModel]="state.functionSpec().terrain.blocksSight"
-        (ngModelChange)="setTerrainPaint({ blocksSight: $event })"
-      />
-      {{ 'feature.mapEditor.function.terrainBlocksSight' | transloco }}
-    </label>
-    <label class="flex cursor-pointer items-center gap-1.5 select-none">
-      <input
-        type="checkbox"
-        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-        [ngModel]="state.functionSpec().terrain.blocksLight"
-        (ngModelChange)="setTerrainPaint({ blocksLight: $event })"
-      />
-      {{ 'feature.mapEditor.function.terrainBlocksLight' | transloco }}
-    </label>
-    <label class="flex cursor-pointer items-center gap-1.5 select-none">
-      <input
-        type="checkbox"
-        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-        [ngModel]="state.functionSpec().terrain.blocksClimb"
-        (ngModelChange)="setTerrainPaint({ blocksClimb: $event })"
-      />
-      {{ 'feature.mapEditor.function.terrainBlocksClimb' | transloco }}
-    </label>
-    <label class="flex cursor-pointer items-center gap-1.5 select-none">
-      <input
-        type="checkbox"
-        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-        [ngModel]="state.functionSpec().terrain.tiledTexture"
-        (ngModelChange)="setTerrainPaint({ tiledTexture: $event })"
-      />
-      {{ 'feature.mapEditor.function.terrainTiled' | transloco }}
-    </label>
-    <label class="flex cursor-pointer items-center gap-1.5 select-none">
-      <input
-        type="checkbox"
-        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-        [ngModel]="state.functionSpec().terrain.showsGrid"
-        (ngModelChange)="setTerrainPaint({ showsGrid: $event })"
-      />
-      {{ 'feature.mapEditor.function.terrainGrid' | transloco }}
-    </label>
-    <label class="flex cursor-pointer items-center gap-1.5 select-none">
-      <input
-        type="checkbox"
-        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-        [ngModel]="state.functionSpec().terrain.dropShadow"
-        (ngModelChange)="setTerrainPaint({ dropShadow: $event })"
-      />
-      {{ 'feature.mapEditor.function.terrainShadow' | transloco }}
-    </label>
-    <label class="flex cursor-pointer items-center gap-1.5 select-none">
-      <input
-        type="checkbox"
-        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-        [ngModel]="state.functionSpec().terrain.surfaceShading"
-        (ngModelChange)="setTerrainPaint({ surfaceShading: $event })"
-      />
-      {{ 'feature.mapEditor.function.terrainShading' | transloco }}
-    </label>
+    @for (flag of terrainFlags; track flag.key) {
+      <label class="flex cursor-pointer items-center gap-1.5 select-none">
+        <input
+          type="checkbox"
+          class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [ngModel]="state.functionSpec().terrain[flag.key]"
+          (ngModelChange)="setTerrainFlag(flag.key, $event)"
+        />
+        {{ flag.labelKey | transloco }}
+      </label>
+    }
   }
 
   @if (state.functionRole() === 'object') {
@@ -533,7 +481,7 @@
       <p class="text-ui-muted text-[10px] leading-snug">
         {{ 'feature.mapEditor.function.triggerPressHint' | transloco }}
       </p>
-      <app-switch-definition-fields
+      <switch-definition-fields
         data-testid="trigger-press-fields"
         [definition]="pressDefinition()"
         (changed)="setPressDefinition($event)"

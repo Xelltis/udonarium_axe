@@ -3,16 +3,15 @@
 > **AXE** — Adventure. eXperience. Encore.
 > 冒険を。経験に。もう一度。
 
-このページは、Udonarium Axeの成り立ち（名前と系譜）と、取り込ませていただいた仕事のクレジットをまとめたものです。
+このページはUdonarium Axeの成り立ち（名前と系譜）と、取り込ませていただいた仕事のクレジットをまとめたものです。
 
-Udonarium Axeは、ブラウザ上で動作するTRPGオンラインセッション支援ツールです。
+Udonarium Axeはブラウザ上で動作するTRPGオンラインセッション支援ツールです。
 SkyWay版では、テーブル上のオブジェクト（コマ・カード・ダイスなど）はブラウザ同士のP2P通信で直接同期され、ゲームデータが中央のサーバーに保存されることはありません。
 設置する人が[サーバー版（ベータ）](/guide/choose)を選んだ配置先では、卓のやりとりが部屋のサーバーを通り、卓は最後の1人が抜けてからしばらく（既定では24時間）サーバーに残ります。
 
 <NetworkDiagram />
 
-[Udonarium](https://github.com/TK11235/udonarium)（TK11235）を源流とし、その派生である
-[Udonarium Lily](https://github.com/entyu/udonarium_lily)（entyu）の機能・コードを受け継いでいます。
+[Udonarium](https://github.com/TK11235/udonarium)（TK11235）を源流とし、その派生である[Udonarium Lily](https://github.com/entyu/udonarium_lily)（entyu）の機能・コードを受け継いでいます。
 そのうえで実装の土台を新しく作り直し、独自の機能を加えました。
 
 ::: tip 動作確認しているブラウザ
@@ -29,8 +28,7 @@ SkyWay版では、テーブル上のオブジェクト（コマ・カード・�
 ## 系譜とクレジット
 
 本プロジェクトは以下のMITライセンス作品の系譜にあります。
-Lilyで追加された立ち絵差分・カットイン・バフ／デバフ管理・画像タグ等のコードを継承し、
-実装基盤を現行Angularで作り直したうえで独自機能を加えています。
+Lilyで追加された立ち絵差分・カットイン・バフ／デバフ管理・画像タグ等のコードを継承し、実装基盤を現行Angularで作り直したうえで独自機能を加えています。
 
 | 作品               | 作者                      | リポジトリ                                                        |
 | ------------------ | ------------------------- | ----------------------------------------------------------------- |
@@ -38,7 +36,7 @@ Lilyで追加された立ち絵差分・カットイン・バフ／デバフ管�
 | **Udonarium Lily** | entyu（円柱）             | [entyu/udonarium_lily](https://github.com/entyu/udonarium_lily)   |
 | **Udonarium Axe**  | SavageChieftain / Xelltis | [Xelltis/udonarium_axe](https://github.com/Xelltis/udonarium_axe) |
 
-::: info 機能の切り分けについて
+::: info 機能の切り分けは暫定です
 上記の機能の切り分けは、各リポジトリのLICENSE・コード・公開情報を根拠にした暫定整理です。
 :::
 

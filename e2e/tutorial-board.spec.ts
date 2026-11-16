@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { closePanels } from './dungeon-helpers';
+import { closePanels } from './helpers';
 
 const TUTORIAL = '[data-object-id^="tutorial"], white-board [data-surface^="tutorial"]';
 
@@ -10,7 +10,7 @@ async function openTutorialBoardMenu(page: Page) {
   await expect(face).toBeAttached({ timeout: 20000 });
   const find = () =>
     page.evaluate(() => {
-      const hooks = (window as unknown as { __axeTable: { pickAt(x: number, y: number): string | null } }).__axeTable;
+      const hooks = window.__axeTable;
       const box = document.querySelector('white-board [data-surface="tutorialBoard"]')!.getBoundingClientRect();
       for (let y = box.top + box.height * 0.6; y < box.bottom; y += 8) {
         for (let x = box.left + 20; x < box.right - 20; x += 8) {
@@ -32,7 +32,7 @@ test.describe('the tutorial the first table opens with', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('game-character').first()).toBeAttached({ timeout: 20000 });
-    await page.waitForFunction(() => !!(window as { __axeTable?: unknown }).__axeTable, undefined, { timeout: 20000 });
+    await page.waitForFunction(() => !!window.__axeTable, undefined, { timeout: 20000 });
     await closePanels(page);
   });
 

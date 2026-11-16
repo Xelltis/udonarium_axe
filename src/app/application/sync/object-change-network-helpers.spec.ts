@@ -160,6 +160,20 @@ describe('object-change-network-helpers', () => {
     offBindings();
   });
 
+  it('rolls a die thrown by another peer but not the echo of one thrown here', () => {
+    const targets = makeTargets();
+    const offBindings = subscribeNetworkBindings(networkMessage$, targets);
+    const rolled: IdentifierEvent[] = [];
+    const offReceive = targets.rollDiceSymbol$.subscribe((e) => rolled.push(e));
+
+    localDispatch('ROLL_DICE_SYMBOL', { identifier: 'own-die' });
+    localDispatch('ROLL_DICE_SYMBOL', { identifier: 'their-die' }, 'remote-peer');
+
+    expect(rolled).toEqual([{ identifier: 'their-die' }]);
+    offReceive();
+    offBindings();
+  });
+
   it('unsubscribes when the cleanup is called', () => {
     const targets = makeTargets();
     const offBindings = subscribeNetworkBindings(networkMessage$, targets);

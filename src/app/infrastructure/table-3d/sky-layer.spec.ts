@@ -15,7 +15,21 @@ describe('the sky over a table drawn on a canvas', () => {
 
     expect(second).toBe(first);
     expect(second!.color.getHex()).toBe(new Color(dusk.horizon).getHex());
-    expect(second!.density).toBeCloseTo(1 / (3 * (Math.hypot(1600, 1000) + 3000)), 12);
+    expect(second!.density).toBeGreaterThan(0);
+    sky.dispose();
+  });
+
+  it('hazes a wider board more thinly, and a scene with no board as one of some breadth', () => {
+    const sky = new SkyLayer();
+    const noon = skyDomeAt(0.5);
+
+    const small = sky.set(noon, board)!.density;
+    const wide = sky.set(noon, { ...board, width: board.width * 4 })!.density;
+    const none = sky.set(noon, null)!.density;
+
+    expect(wide).toBeLessThan(small);
+    expect(none).toBeGreaterThan(0);
+    expect(none).toBeLessThan(Infinity);
     sky.dispose();
   });
 

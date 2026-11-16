@@ -124,7 +124,7 @@ export class ScenarioTextService {
 
   /**
    * The tab a text is said in: the one named, else the one being read. The system tab, which only
-   * the system says anything in, gives way to the first tab anyone else may speak in.
+   * the system says anything in, gives way to the first tab that is not the system tab.
    */
   private tabOf(identifier: string, speaker: VerbatimSpeaker): ChatTab | null {
     const named = identifier ? this.objectStore.get(identifier) : null;

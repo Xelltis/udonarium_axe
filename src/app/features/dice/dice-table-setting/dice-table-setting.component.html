@@ -16,7 +16,7 @@
     </div>
 
     <ul class="m-0 flex-1 list-none overflow-y-auto px-0 py-1" role="listbox">
-      @for (diceTable of getDiceTables(); track diceTable.identifier) {
+      @for (diceTable of tables(); track diceTable.identifier) {
         <li
           class="text-ui-muted not-disabled:hover:bg-ui-hover not-disabled:hover:text-ui-text mx-1 my-0 flex cursor-pointer items-center gap-1.5 rounded-sm px-2.5 py-1.5 transition-colors"
           [class.bg-ui-accent-bg!]="selectedTable?.identifier === diceTable.identifier"
@@ -35,7 +35,7 @@
   </aside>
 
   <main class="bg-ui-elevated flex flex-col gap-0 overflow-y-auto px-3.5 py-3">
-    @if (getDiceTables().length === 0) {
+    @if (tables().length === 0) {
       <div
         class="text-ui-dim flex h-full flex-col items-center justify-center gap-2 text-center [&_.material-icons]:text-[36px]! [&_.material-icons]:opacity-40 [&_p]:m-0 [&_p]:text-[13px]!"
       >
@@ -53,7 +53,7 @@
       </div>
     }
 
-    @if (getDiceTables().length > 0 && !selectedTable) {
+    @if (tables().length > 0 && !selectedTable) {
       <div
         class="text-ui-dim flex h-full flex-col items-center justify-center gap-2 text-center [&_.material-icons]:text-[36px]! [&_.material-icons]:opacity-40 [&_p]:m-0 [&_p]:text-[13px]!"
       >
@@ -73,7 +73,7 @@
           [ngModel]="tableName()"
           (ngModelChange)="setTableName($event)"
           [placeholder]="'feature.dice.tableSetting.tableTitlePlaceholder' | transloco"
-          [attr.disabled]="!isWritable ? '' : null"
+          [disabled]="!isWritable"
         />
       </div>
 
@@ -88,7 +88,7 @@
             [ngModel]="tableDice()"
             (ngModelChange)="setTableDice($event)"
             [placeholder]="'feature.dice.tableSetting.dicePlaceholder' | transloco"
-            [attr.disabled]="!isWritable ? '' : null"
+            [disabled]="!isWritable"
           />
         </div>
         <div class="mb-1 flex min-w-0 flex-1 flex-col gap-1.25">
@@ -101,7 +101,7 @@
             [ngModel]="tableCommand()"
             (ngModelChange)="setTableCommand($event)"
             [placeholder]="'feature.dice.tableSetting.commandPlaceholder' | transloco"
-            [attr.disabled]="!isWritable ? '' : null"
+            [disabled]="!isWritable"
           />
         </div>
       </div>
@@ -112,7 +112,6 @@
         }}</label>
         <ng-select
           class="ud-select sys-select"
-          (change)="loadDiceBot($event)"
           [ngModel]="gameType()"
           (ngModelChange)="setGameType($event)"
           [ngModelOptions]="{ standalone: true }"

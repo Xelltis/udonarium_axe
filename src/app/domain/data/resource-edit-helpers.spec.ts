@@ -1,5 +1,7 @@
+import { statusAilmentPlanted$ } from '@axe/core/event/domain-events';
 import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { toBuffBadges } from '@axe/domain/character/buff-badge';
+import { buffEffectTimingOf } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { newStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -58,6 +60,18 @@ describe('resource-edit-helpers', () => {
 
     beforeEach(() => {
       character = GameCharacter.create('テスト戦士', 1, '');
+    });
+
+    it('reads the forms that put values back as it did before there were any, leaving them to be read first', () => {
+      const read = (command: string) => {
+        const edit = createDefaultResourceEdit();
+        return { ok: convertCommandToResourceEdit(edit, command, character, false), command: edit.command };
+      };
+
+      expect(read(':*=既定').ok).toBe(false);
+      expect(read(':*=default').ok).toBe(false);
+      expect(read(':HP=default').ok).toBe(false);
+      expect(read(':HP=既定')).toEqual({ ok: true, command: '既定+(1d1-1)' });
     });
 
     it('reads a command that adds to a resource', () => {
@@ -356,6 +370,103 @@ describe('resource-edit-helpers', () => {
       });
     });
 
+    describe('a buff told when its effect moves', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+      const momentOf = (name: string) => buffEffectTimingOf(character.buffs.find(name)!);
+      const hp = () => character.status.getValue('HP', 'now');
+
+      beforeEach(() => {
+        character.status.setValue('HP', 'now', 10);
+      });
+
+      it('carries the moment written behind 発生: or tick:, beside its timing and its trigger', () => {
+        edit('&!再生/:HP/+/0~+3/none/発生:手番開始');
+        edit('&!活力/:HP/+/0~+1/3/@術者/発生:手番終了');
+        edit('&!鼓動/:HP/+/0~+1/3/turnStart/術者/tick:roundEnd');
+
+        expect(momentOf('再生')).toBe('turnStart');
+        expect(character.buffs.find('再生')!.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('none');
+        expect(momentOf('活力')).toBe('turnEnd');
+        expect(character.buffs.find('活力')!.getAttribute(DataElementAttribute.BUFF_TRIGGER)).toBe('術者');
+        expect(character.buffs.find('活力')!.value).toBe(3);
+        expect(momentOf('鼓動')).toBe('roundEnd');
+        expect(character.buffs.find('鼓動')!.getAttribute(DataElementAttribute.BUFF_TRIGGER)).toBe('術者');
+      });
+
+      it('carries none where none is written, and writes no attribute for it', () => {
+        edit('&!再生/:HP/+/0~+3/none');
+
+        expect(momentOf('再生')).toBeNull();
+        expect(DataElementAttribute.BUFF_EFFECT_TIMING in character.buffs.find('再生')!.toAttributes()).toBe(false);
+      });
+
+      it('reads the moment where the rounds go as the rounds left out', () => {
+        edit('&!再生/:HP/+/0~+3/発生:手番開始');
+
+        expect(momentOf('再生')).toBe('turnStart');
+        expect(character.buffs.find('再生')!.value).toBe(3);
+      });
+
+      it('puts the moment on every row of a buff moving several statuses', () => {
+        character.detailDataElement!.appendChild(DataElement.create('命中', 5, {}));
+
+        edit('&!祝福/:HP+0~+1,命中+1~+1/none/発生:手番終了');
+
+        expect(character.buffs.list().map((row) => buffEffectTimingOf(row))).toEqual(['turnEnd', 'turnEnd']);
+      });
+
+      it('loses the moment as the buff is laid anew without one, and keeps it as it is stacked on', () => {
+        edit('&!再生/:HP/+/0~+3/none/発生:手番開始');
+        edit('&+!再生/:HP/+/0~+3/none');
+        expect(momentOf('再生')).toBe('turnStart');
+
+        edit('&!再生/:HP/+/0~+3/none');
+        expect(momentOf('再生')).toBeNull();
+      });
+
+      it('leaves a moment it cannot read out, taking it for no icon', () => {
+        edit('&!再生/:HP/+/0~+3/none/発生:いつか');
+
+        expect(momentOf('再生')).toBeNull();
+        expect(character.buffs.find('再生')!.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('');
+      });
+
+      it('moves a buff that never runs out once at &R-, and not at &R+', () => {
+        edit('&!再生/:HP/+/0~+3/none');
+
+        edit('&R-');
+        expect(hp()).toBe(13);
+        edit('&R+');
+        expect(hp()).toBe(13);
+        expect(character.buffs.find('再生')!.value).toBe(3);
+      });
+
+      it('counts a buff with a moment of its own down at &R- without moving it', () => {
+        edit('&!再生/:HP/+/0~+3/none/発生:手番開始');
+        edit('&!毒/:HP/+/0~-1/3/発生:手番終了');
+
+        edit('&R-');
+
+        expect(hp()).toBe(10);
+        expect(character.buffs.find('毒')!.value).toBe(2);
+      });
+
+      it('gives back all a buff that never runs out moved as it is taken off, unless it is marked with a colon', () => {
+        edit('&!鍛錬/HP/+/0~+3/none');
+        edit('&R-');
+        edit('&R-');
+        expect(hp()).toBe(16);
+
+        edit('&鍛錬-');
+        expect(hp()).toBe(10);
+
+        edit('&!再生/:HP/+/0~+3/none');
+        edit('&R-');
+        edit('&再生-');
+        expect(hp()).toBe(13);
+      });
+    });
+
     describe('a buff named after a state the room keeps', () => {
       const edit = (command: string, targeted = false) =>
         applyBuffEdit({ command, object: character, targeted }, character);
@@ -397,6 +508,14 @@ describe('resource-edit-helpers', () => {
         expect(data.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('🤕');
         expect(data.getAttribute(DataElementAttribute.BUFF_COLOR)).toBe('gray');
         expect(data.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('turnEnd');
+      });
+
+      it('puts a state on with the moment its effect moves at where the command writes one, and without where it does not', () => {
+        edit('&麻痺/行動できない/3/発生:手番終了');
+        expect(buffEffectTimingOf(character.buffs.find('麻痺')!)).toBe('turnEnd');
+
+        edit('&麻痺');
+        expect(buffEffectTimingOf(character.buffs.find('麻痺')!)).toBeNull();
       });
 
       it('lays the state to stay with a timing where the rounds go, and tells of no rounds', () => {
@@ -464,6 +583,196 @@ describe('resource-edit-helpers', () => {
         edit('&転倒しそう');
 
         expect(character.buffs.find('転倒しそう')!.currentValue).toBe('');
+      });
+    });
+
+    describe('a word marking a buff or a debuff where the rounds go', () => {
+      const lay = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+      const kindOf = (name: string) => character.buffs.find(name)!.getAttribute(DataElementAttribute.BUFF_KIND);
+
+      it('marks the buff and lays it for the rounds it has when none are written', () => {
+        lay('&毒霧/命中-2/デバフ');
+        lay('&毒煙/命中-2');
+
+        const marked = character.buffs.find('毒霧')!;
+        expect(kindOf('毒霧')).toBe('debuff');
+        expect(marked.value).toBe(character.buffs.find('毒煙')!.value);
+        expect(marked.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('');
+      });
+
+      it('reads the look written after it, and marks a buff that moves a status the same way', () => {
+        character.detailDataElement!.appendChild(DataElement.create('命中', 5, {}));
+
+        lay('&祝福/回避+1/buff/red');
+        lay('&!呪い/命中/-/2/debuff');
+
+        expect(kindOf('祝福')).toBe('buff');
+        expect(character.buffs.find('祝福')!.getAttribute(DataElementAttribute.BUFF_COLOR)).toBe(
+          resolveBuffColor('red')
+        );
+        expect(kindOf('呪い')).toBe('debuff');
+        expect(character.buffs.find('呪い')!.value).toBe(3);
+        expect(character.status.getValue('命中', 'now')).toBe(3);
+      });
+
+      it('reads every form written before as it did', () => {
+        lay('&加護/防護+1/5/デバフ');
+        lay('&継続/毎R2点/none');
+        lay('&眠り/行動不能/デバフ中');
+
+        expect([character.buffs.find('加護')!.value, kindOf('加護')]).toEqual([5, 'debuff']);
+        expect(character.buffs.find('継続')!.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('none');
+        expect(kindOf('眠り')).toBe('');
+        expect(character.buffs.find('眠り')!.value).toBe(3);
+      });
+    });
+
+    describe('clearing a piece of its buffs (acceptance 5)', () => {
+      const edit = (command: string, targeted = false, piece = character) =>
+        applyBuffEdit({ command, object: piece, targeted }, piece);
+      const names = (piece = character) => piece.buffs.list().map((data) => data.name);
+      const made: GameCharacter[] = [];
+
+      beforeEach(() => {
+        character.detailDataElement!.appendChild(DataElement.create('命中', 5, {}));
+        character.detailDataElement!.appendChild(DataElement.create('回避', 6, {}));
+      });
+
+      afterEach(() => {
+        StatusAilmentCatalog.instance.ailments = [];
+        for (const piece of made.splice(0)) piece.destroy();
+      });
+
+      it('takes every buff with &*-, giving back what a buff moved but not what it leaves moved', () => {
+        edit('&!猛攻撃/命中/+/2/3');
+        edit('&!出血/:回避/-/1/3');
+        edit('&加護/防護+1/none');
+        expect(character.status.getValue('命中', 'now')).toBe(7);
+        expect(character.status.getValue('回避', 'now')).toBe(5);
+
+        const text = edit('&*-');
+
+        expect(text).toBe('すべてのバフを解除（3件）    ');
+        expect(names()).toEqual([]);
+        expect(character.status.getValue('命中', 'now')).toBe(5);
+        expect(character.status.getValue('回避', 'now')).toBe(5);
+      });
+
+      it('counts a buff that moves several statuses once, and gives back every status it moved', () => {
+        edit('&!全力攻撃/命中+2,回避-2/3');
+
+        expect(edit('&*-')).toBe('すべてのバフを解除（1件）    ');
+        expect(names()).toEqual([]);
+        expect(character.status.getValue('命中', 'now')).toBe(5);
+        expect(character.status.getValue('回避', 'now')).toBe(6);
+      });
+
+      it('leaves the buff the piece rides two up by while it rides so, and takes it once it has got off', () => {
+        edit('&!二人乗り/命中/-/2/none');
+        edit('&加速//2');
+        character.rideTwoUpFrom = 'mount';
+        character.rideTwoUpBuff = character.buffs.find('二人乗り')!.identifier;
+
+        expect(edit('&*-')).toBe('すべてのバフを解除（1件）    ');
+        expect(names()).toEqual(['二人乗り']);
+        expect(character.status.getValue('命中', 'now')).toBe(3);
+        expect(edit('&*-')).toBe('解除するバフはありません    ');
+
+        character.rideTwoUpFrom = '';
+
+        expect(edit('&*-')).toBe('すべてのバフを解除（1件）    ');
+        expect(names()).toEqual([]);
+        expect(character.status.getValue('命中', 'now')).toBe(5);
+      });
+
+      it('takes the buffs alone with &*バフ- and the debuffs alone with &*デバフ-, in either spelling', () => {
+        StatusAilmentCatalog.instance.ailments = [newStatusAilment('毒')];
+        const laid = () => {
+          for (const name of names()) character.buffs.delete(name);
+          character.buffs.addRound('毒', '', 3);
+          edit('&加速//2');
+          edit('&毒霧/命中-2/3/デバフ');
+        };
+
+        laid();
+        expect(edit('&*バフ-')).toBe('バフを解除（1件）    ');
+        expect(names()).toEqual(['毒', '毒霧']);
+
+        laid();
+        expect(edit('&*buff-')).toBe('バフを解除（1件）    ');
+
+        laid();
+        expect(edit('&*デバフ-')).toBe('デバフを解除（2件）    ');
+        expect(names()).toEqual(['加速']);
+
+        laid();
+        expect(edit('&*debuff-')).toBe('デバフを解除（2件）    ');
+        expect(names()).toEqual(['加速']);
+      });
+
+      it('says so when there is nothing to take, by the kind asked for', () => {
+        expect(edit('&*-')).toBe('解除するバフはありません    ');
+        expect(edit('&*バフ-')).toBe('解除するバフはありません    ');
+        expect(edit('&*デバフ-')).toBe('解除するデバフはありません    ');
+      });
+
+      it('names the piece aimed at as everyone reads it, and never the buffs', () => {
+        edit('&秘密の加護/防護+1/3');
+        character.hideName = true;
+
+        const text = edit('t&*-', true);
+
+        expect(text).toBe('[？？？] すべてのバフを解除（1件）    ');
+        expect(text).not.toContain('秘密の加護');
+      });
+
+      it('clears the parts that go with the piece and tells how many lost any', () => {
+        character.setLocation('table');
+        const part = GameCharacter.create('テスト戦士の盾', 1, '');
+        made.push(part);
+        part.ridingOn = character.identifier;
+        part.rideSeat = 'part';
+        part.setLocation('table');
+        part.buffs.addRound('硬化', '', 3);
+        part.buffs.addRound('毒', '', 3, { kind: 'debuff' });
+        edit('&加速//2');
+
+        expect(edit('&*デバフ-')).toBe('デバフを解除（本体と部位1・1件）    ');
+        expect(edit('&*-')).toBe('すべてのバフを解除（本体と部位1・2件）    ');
+        expect(names(part)).toEqual([]);
+      });
+
+      it('tells nobody a state was put on as states come off, so nothing is played for them', () => {
+        StatusAilmentCatalog.instance.ailments = [newStatusAilment('毒'), newStatusAilment('麻痺')];
+        edit('&毒');
+        edit('&麻痺');
+        const planted: string[] = [];
+        const stop = statusAilmentPlanted$.subscribe((event) => planted.push(event.name));
+
+        edit('&*-');
+        stop();
+
+        expect(names()).toEqual([]);
+        expect(planted).toEqual([]);
+      });
+
+      it('still takes off the one buff of that name for any other word after the star', () => {
+        character.buffs.addRound('*毒', '', 3);
+        character.buffs.addRound('加速', '', 2);
+
+        expect(edit('&*毒-')).toBe('*毒を消去    ');
+        expect(names()).toEqual(['加速']);
+      });
+
+      it('leaves taking a buff off by its name, counting rounds and clearing those at nought as they were', () => {
+        character.buffs.addRound('バフ', '', 3);
+        character.buffs.addRound('加速', '', 1);
+
+        expect(edit('&バフ-')).toBe('バフを消去    ');
+        expect(edit('&なし-')).toBe('');
+        expect(edit('&R-')).toBe('バフRを減少    ');
+        expect(edit('&D')).toBe('0R以下のバフを消去    ');
+        expect(names()).toEqual([]);
       });
     });
 

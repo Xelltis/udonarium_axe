@@ -9,6 +9,17 @@ import {
 import { fieldBoardSize, planField } from '@axe/domain/tabletop/field/field-generator';
 import { propAt } from '@axe/domain/tabletop/field/field-layout';
 import { FIELD_MODEL_IDS, fieldModelDrawnSize, type FieldModelId } from '@axe/domain/tabletop/field/field-models';
+import {
+  cellOfLayoutPoint,
+  layoutPointOfSample,
+  sampleOfLayoutPoint,
+} from '@axe/domain/tabletop/field/field-sample-points';
+import {
+  cellDistancesFrom,
+  settlementSiteOf,
+  TERRACE_APRON_CELLS,
+  TERRACE_BLEND_CELLS,
+} from '@axe/domain/tabletop/field/settlement-terrace';
 import { TOWN_KITS } from '@axe/domain/tabletop/field/town-models';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { MAP_MAX_TERRAINS } from '@axe/domain/tabletop/map-blocks';
@@ -504,6 +515,66 @@ describe('the ground of a field raised as high as asked', () => {
     expect(flat.layout.objects.some((object) => object.prop === 'hill')).toBe(true);
     expect(raised.layout.objects.some((object) => object.prop === 'hill')).toBe(false);
     expect(raised.layout.relief).not.toBeNull();
+  });
+
+  it('levels a village into a terrace and raises the open country round it', () => {
+    const plan = planField({ atmosphere: 'village', size: 40, density: 50, seed: 7, relief: 3 });
+    const { layout } = plan;
+    const relief = layout.relief!;
+    const site = settlementSiteOf(layout.settlement!, layout.width, layout.height);
+    const distance = cellDistancesFrom(site, layout.width, layout.height);
+    const heightAt = (x: number, y: number) => relief.heights[(y * 2 + 1) * relief.columns + x * 2 + 1];
+
+    const onSite = new Set<number>();
+    const beyond = new Set<number>();
+    for (let y = 0; y < layout.height; y++) {
+      for (let x = 0; x < layout.width; x++) {
+        const d = distance[y * layout.width + x];
+        if (d <= TERRACE_APRON_CELLS) onSite.add(Math.round(heightAt(x, y) * 1000));
+        else if (d > TERRACE_APRON_CELLS + TERRACE_BLEND_CELLS) beyond.add(Math.round(heightAt(x, y) * 1000));
+      }
+    }
+    expect(onSite.size).toBe(1);
+    expect(beyond.size).toBeGreaterThan(1);
+    expect(Math.max(...relief.heights)).toBeLessThanOrEqual(3);
+    expect(Math.min(...relief.heights)).toBeGreaterThanOrEqual(0);
+  });
+
+  it('leaves a settlement as it was where no height is asked for', () => {
+    const flat = planField({ atmosphere: 'stoneFort', size: 40, density: 50, seed: 7 });
+    const asked = planField({ atmosphere: 'stoneFort', size: 40, density: 50, seed: 7, relief: 0 });
+
+    expect(asked.layout.relief ?? null).toBeNull();
+    expect(asked.blocks).toEqual(flat.blocks);
+  });
+
+  it('terraces a fort on a hex board as well', () => {
+    const plan = planField({
+      atmosphere: 'barbarianFort',
+      size: 30,
+      density: 50,
+      seed: 3,
+      relief: 2,
+      gridType: GridType.HEX_VERTICAL,
+    });
+    const { layout } = plan;
+    const relief = layout.relief!;
+    const site = settlementSiteOf(layout.settlement!, layout.width, layout.height);
+    const middle = layout.settlement!.ring!.middle;
+    const sample = sampleOfLayoutPoint(GridType.HEX_VERTICAL, middle);
+    const level = relief.heights[sample.row * relief.columns + sample.column];
+
+    let checked = 0;
+    for (let row = 0; row < relief.rows; row++) {
+      for (let column = 0; column < relief.columns; column++) {
+        const cell = cellOfLayoutPoint(layoutPointOfSample(GridType.HEX_VERTICAL, column, row));
+        if (cell.x < 0 || cell.x >= layout.width || cell.y < 0 || cell.y >= layout.height) continue;
+        if (!site[cell.y * layout.width + cell.x]) continue;
+        expect(relief.heights[row * relief.columns + column]).toBeCloseTo(level, 5);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
   });
 
   it('digs the ground under open water down from the shore, no deeper than the water asks, and raises the land from over its surface', () => {

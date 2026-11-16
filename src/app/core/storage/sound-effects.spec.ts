@@ -41,6 +41,34 @@ describe('SoundEffects', () => {
     });
   });
 
+  describe('onChange()', () => {
+    it('tells of a play asked for, begun and ended, and of a stop, until the telling is stopped', async () => {
+      const audio = audioFileWith({ identifier: 'se-told', blob: new Blob(['x']) });
+      const told = vi.fn();
+      const stop = SoundEffects.onChange(told);
+
+      SoundEffects.play(audio);
+      expect(told).toHaveBeenCalledTimes(1);
+
+      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(1));
+      const source = audioCtxMock.createBufferSource.mock.results[0].value as AudioBufferSourceNodeMock;
+      await vi.waitFor(() => expect(source.start).toHaveBeenCalled());
+      expect(told).toHaveBeenCalledTimes(2);
+      expect(SoundEffects.isPlaying('se-told')).toBe(true);
+
+      (source as unknown as { onended: () => void }).onended();
+      expect(told).toHaveBeenCalledTimes(3);
+      expect(SoundEffects.isPlaying('se-told')).toBe(false);
+
+      SoundEffects.stop('se-told');
+      expect(told).toHaveBeenCalledTimes(4);
+
+      stop();
+      SoundEffects.stop('se-told');
+      expect(told).toHaveBeenCalledTimes(4);
+    });
+  });
+
   describe('playOnce()', () => {
     async function connectedChannel(): Promise<unknown> {
       let gain: GainNodeMock | undefined;

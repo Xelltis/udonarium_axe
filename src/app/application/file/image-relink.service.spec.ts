@@ -63,9 +63,9 @@ describe('ImageRelinkService', () => {
 
     service().replace(old, next);
 
-    expect(ImageTag.get(next.identifier).tag).toBe('背景');
-    expect(ImageTag.get(next.identifier).isSecret).toBe(true);
-    expect(ImageTag.get(old.identifier).tag).toBe(SYSTEM_RESERVED_TAG);
+    expect(ImageTag.get(next.identifier)!.tag).toBe('背景');
+    expect(ImageTag.get(next.identifier)!.isSecret).toBe(true);
+    expect(ImageTag.get(old.identifier)!.tag).toBe(SYSTEM_RESERVED_TAG);
   });
 
   it('leaves the tag and keeping back of a picture already filed alone when the edit comes out as it', () => {
@@ -78,9 +78,9 @@ describe('ImageRelinkService', () => {
 
     service().replace(old, next);
 
-    expect(ImageTag.get(next.identifier).tag).toBe('伏せ札');
-    expect(ImageTag.get(next.identifier).isSecret).toBe(true);
-    expect(ImageTag.get(old.identifier).tag).toBe(SYSTEM_RESERVED_TAG);
+    expect(ImageTag.get(next.identifier)!.tag).toBe('伏せ札');
+    expect(ImageTag.get(next.identifier)!.isSecret).toBe(true);
+    expect(ImageTag.get(old.identifier)!.tag).toBe(SYSTEM_RESERVED_TAG);
   });
 
   it('does nothing when the picture comes out the same', () => {

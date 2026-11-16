@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { SaveProgress } from '@axe/application/file/save-progress';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -22,7 +23,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-cut-in-list',
+  selector: 'cut-in-list',
   templateUrl: './cut-in-list.component.html',
   imports: [TextTooltipDirective, FormsModule, CutInEditorComponent, CutInSceneEditorComponent, TranslocoModule],
 })
@@ -36,7 +37,8 @@ export class CutInListComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
 
-  selectedCutIn: CutIn | null = null;
+  /** The cut-in picked in the list for editing, or null when none is. */
+  readonly selectedCutIn = signal<CutIn | null>(null);
 
   /**
    * How many ways a cut-in faces on a table seen from above.
@@ -62,8 +64,9 @@ export class CutInListComponent {
   readonly tabs = ['Basic', 'Scene'] as const;
   readonly activeTab = signal<(typeof this.tabs)[number]>('Basic');
 
-  readonly isSaving = signal(false);
-  readonly progressPercent = signal(0);
+  private readonly saveProgress = new SaveProgress();
+  readonly isSaving = this.saveProgress.isSaving;
+  readonly progressPercent = this.saveProgress.percent;
 
   constructor() {
     queueMicrotask(
@@ -73,7 +76,7 @@ export class CutInListComponent {
 
   /** Whether a cut-in is picked in the list. */
   get isSelected(): boolean {
-    return this.selectedCutIn !== null;
+    return this.selectedCutIn() !== null;
   }
 
   /**
@@ -96,21 +99,21 @@ export class CutInListComponent {
 
   /** Whether the room has no cut-ins. */
   get isEmpty(): boolean {
-    return this.getCutIns().length <= 0;
+    return this.cutIns().length <= 0;
   }
 
   /**
    * Every cut-in in the room, for the list. The room's cut-ins coming and going are followed, so the
    * list is drawn again when one goes after a question asked elsewhere has been answered.
    */
-  getCutIns(): CutIn[] {
+  readonly cutIns = computed<CutIn[]>(() => {
     this.objectChange.collectionOf(CutIn.aliasName)();
     return this.objectStore.getObjects(CutIn);
-  }
+  });
 
   /** Picks the cut-in with the given identifier for editing, or clears the pick when it is not found. */
   selectCutIn(identifier: string) {
-    this.selectedCutIn = this.objectStore.get<CutIn>(identifier);
+    this.selectedCutIn.set(this.objectStore.get<CutIn>(identifier));
   }
 
   /** Picks the cut-in named by a select element's value, from its change event. */
@@ -133,21 +136,12 @@ export class CutInListComponent {
 
   /** Saves the picked cut-in to a file named after it, showing progress while the file is written. */
   async save() {
-    if (!this.selectedCutIn) return;
-    this.isSaving.set(true);
-    this.progressPercent.set(0);
-
-    this.selectedCutIn.selected = true;
-    const fileName: string = 'cut_' + this.selectedCutIn.name;
-
-    await this.saveDataService.saveGameObjectAsync(this.selectedCutIn, fileName, (percent) => {
-      this.progressPercent.set(percent);
+    const cutIn = this.selectedCutIn();
+    if (!cutIn) return;
+    await this.saveProgress.run((onProgress) => {
+      cutIn.selected = true;
+      return this.saveDataService.saveGameObjectAsync(cutIn, 'cut_' + cutIn.name, onProgress);
     });
-
-    setTimeout(() => {
-      this.isSaving.set(false);
-      this.progressPercent.set(0);
-    }, 500);
   }
 
   /**
@@ -158,7 +152,7 @@ export class CutInListComponent {
    */
   async delete(): Promise<void> {
     if (!this.canEditCutIns) return;
-    const cutIn = this.selectedCutIn;
+    const cutIn = this.selectedCutIn();
     if (this.isEmpty || !cutIn) return;
     const sure = await this.confirm.ask({
       message: this.t('feature.media.cutIn.deleteConfirm', { name: cutIn.name }),
@@ -166,8 +160,8 @@ export class CutInListComponent {
       danger: true,
     });
     if (!sure) return;
-    if (this.selectedCutIn !== cutIn || !this.canEditCutIns) return;
+    if (this.selectedCutIn() !== cutIn || !this.canEditCutIns) return;
     cutIn.destroy();
-    this.selectedCutIn = null;
+    this.selectedCutIn.set(null);
   }
 }

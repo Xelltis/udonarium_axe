@@ -24,9 +24,9 @@ test.describe('clearing a buff off the whole table', () => {
   }) => {
     await waitAppReady(page);
     await setRole(page, 'GM');
-    await expect(page.locator('app-gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
     await openPanel(page, 'バフマネージャー');
-    const panel = page.locator('app-buff-manager-panel');
+    const panel = page.locator('buff-manager-panel');
     await panel.locator('[data-testid="buff-sweep"] summary').click();
     await panel.getByTestId('buff-sweep-name').check();
     await expect(nameChoices(page).first()).toBeAttached();

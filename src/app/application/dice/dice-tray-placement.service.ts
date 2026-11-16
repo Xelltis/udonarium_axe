@@ -5,6 +5,7 @@ import { TableCameraService } from '@axe/application/tabletop/table-camera.servi
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { dieRadiusOf } from '@axe/domain/dice/dice-3d/polyhedra';
 import { Tray } from '@axe/domain/dice/dice-3d/throw-validation';
@@ -155,7 +156,7 @@ function onTheBoard(
   const fit = (at: number, half: number, length: number) => {
     if (!(length > 0)) return at;
     if (half * 2 >= length) return length / 2;
-    return Math.min(length - half, Math.max(half, at));
+    return clamp(at, half, length - half);
   };
   return [fit(x, reach[0], size[0]), fit(y, reach[1], size[1])];
 }

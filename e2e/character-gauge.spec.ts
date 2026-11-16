@@ -1,13 +1,13 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { createCharacter, revealMenuEntry, waitAppReady } from './helpers';
+import { createCharacter, revealMenuEntry, rightClickPiece, sendMenuEvent, waitAppReady } from './helpers';
 
 function newCharacterPiece(page: Page) {
   return page.locator('game-character').filter({ hasText: '新しいキャラクター' }).first();
 }
 
 async function openSheet(page: Page) {
-  await newCharacterPiece(page).dispatchEvent('contextmenu');
+  await rightClickPiece(newCharacterPiece(page));
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await menu.getByText('詳細を表示').click();
@@ -17,7 +17,8 @@ async function openSheet(page: Page) {
 }
 
 async function selectBuffView(page: Page, label: string) {
-  await newCharacterPiece(page).dispatchEvent('contextmenu');
+  // The buff view a spec opened before this may lie over the piece, where no click reaches it.
+  await sendMenuEvent(newCharacterPiece(page));
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await (await revealMenuEntry(page, menu, 'バフの表示')).hover();
@@ -28,7 +29,7 @@ async function selectBuffView(page: Page, label: string) {
 }
 
 async function addBuff(page: Page, count = 1) {
-  await newCharacterPiece(page).dispatchEvent('contextmenu');
+  await rightClickPiece(newCharacterPiece(page));
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await (await revealMenuEntry(page, menu, 'バフ編集')).click();

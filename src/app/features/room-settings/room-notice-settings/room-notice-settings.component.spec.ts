@@ -43,7 +43,7 @@ describe('RoomNoticeSettingsComponent', () => {
   afterEach(() => {
     Config.instance.systemNotices = DEFAULT_SYSTEM_NOTICES;
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
   });
 
   it('offers each kind where it always went, every tab of the room, and nowhere', () => {

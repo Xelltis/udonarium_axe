@@ -16,7 +16,7 @@ import { TranslocoModule } from '@jsverse/transloco';
  * only safe because what the seat was wearing when the panel opened can be put back.
  */
 @Component({
-  selector: 'app-skin-panel',
+  selector: 'skin-panel',
   templateUrl: './skin-panel.component.html',
   imports: [TranslocoModule, SkinPickerComponent, DiceMatComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,

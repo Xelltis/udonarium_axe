@@ -25,6 +25,7 @@
   <div class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-3">
     @if (tab() === 'general') {
       <room-general-settings />
+      <room-element-alias-settings />
     }
 
     @if (tab() === 'battle') {
@@ -71,7 +72,7 @@
         class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-3 border border-solid p-3"
         data-testid="room-settings-skin"
       >
-        <app-skin-picker />
+        <skin-picker />
       </div>
     }
 

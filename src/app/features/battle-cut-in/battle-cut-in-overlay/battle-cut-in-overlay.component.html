@@ -110,7 +110,7 @@
           @for (sprite of sprites(); track sprite.key) {
             <div class="backface-visible" [ngStyle]="sprite.style">
               @if (sprite.paint) {
-                <div class="size-full" [ngStyle]="sprite.paint" [innerHTML]="sprite.svg | safe: 'html'"></div>
+                <div class="size-full" [ngStyle]="sprite.paint"></div>
               }
             </div>
           }

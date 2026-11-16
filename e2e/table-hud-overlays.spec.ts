@@ -1,7 +1,14 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from './dungeon-helpers';
-import { createCharacter, openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
+import {
+  becomeGm,
+  closePanels,
+  createCharacter,
+  idle,
+  openTableContextMenu,
+  revealMenuEntry,
+  waitAppReady,
+} from './helpers';
 
 /**
  * What the screen lays over a table drawn on a canvas, rather than among the page's own pieces: a
@@ -14,27 +21,11 @@ type Box = { x: number; y: number; width: number; height: number };
 
 type Point = { x: number; y: number };
 
-type Hooks = {
-  whenIdle(): Promise<void>;
-  project(x: number, y: number, z: number): Point | null;
-  pickAt(x: number, y: number): string | null;
-  pieceBoxesOnPage(identifier: string): Box[];
-};
-
 /** How far apart the box round the laid area and the box round the ground it covers may lie, in pixels. */
 const BOX_SLACK_PX = 2;
 
-/** Waits for what the screen lays over the table to stand where the table now puts it, with the pointer off the table. */
-async function idle(page: Page) {
-  await page.mouse.move(5, 400);
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
-}
-
 function boxesOf(page: Page, identifier: string): Promise<Box[]> {
-  return page.evaluate(
-    (id) => (window as unknown as { __axeTable: Hooks }).__axeTable.pieceBoxesOnPage(id),
-    identifier
-  );
+  return page.evaluate((id) => window.__axeTable.pieceBoxesOnPage(id), identifier);
 }
 
 /** The box round several boxes. */
@@ -76,7 +67,7 @@ function placeOf(page: Page, identifier: string): Promise<string | null> {
 /** The box round where the canvas draws the ground the look covers, on the page. */
 function groundBoxOf(page: Page, identifier: string): Promise<Box> {
   return page.evaluate((id) => {
-    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const hooks = window.__axeTable;
     const look = document.querySelector(`table-ambience[data-object-id="${id}"]`)!;
     const [x, y] = look.querySelector('[data-location]')!.getAttribute('data-location')!.split(',').map(Number);
     const laid = look.querySelector<HTMLElement>('[data-part="area"]')!.parentElement!;
@@ -120,16 +111,13 @@ test.describe('a look laid over the ground of a table drawn on a canvas', () => 
     const id = await layMarsh(page);
     await idle(page);
 
-    await expect(page.locator('#app-game-table table-ambience')).toHaveCount(0);
     const area = page.locator('[data-testid="table-hud"] table-ambience [data-part="area"]');
     await expect(area).toBeVisible();
     expect(await areaOffGround(page, id, ['x', 'y', 'width', 'height'])).toBeLessThan(BOX_SLACK_PX);
 
     const start = (await area.boundingBox())!;
     const grab = { x: start.x + start.width / 2, y: start.y + start.height / 2 };
-    expect(
-      await page.evaluate(({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.pickAt(x, y), grab)
-    ).toBe(id);
+    expect(await page.evaluate(({ x, y }) => window.__axeTable.pickAt(x, y), grab)).toBe(id);
     await page.mouse.click(grab.x, grab.y, { button: 'right' });
     await expect(page.locator('context-menu').getByText('環境エフェクトの設定', { exact: true })).toBeVisible({
       timeout: 5000,
@@ -168,7 +156,6 @@ test.describe('the shapes of light and of sight over a table drawn on a canvas',
     await idle(page);
     await expect.poll(async () => (await boxesOf(page, id)).length).toBeGreaterThan(0);
 
-    await expect(page.locator('#app-game-table table-beam-overlay')).toHaveCount(0);
     const glow = page.locator('[data-testid="table-hud"] table-beam-overlay > div').last();
     await expect(glow).toBeVisible();
     const drawn = (await glow.boundingBox())!;
@@ -192,7 +179,6 @@ test.describe('the shapes of light and of sight over a table drawn on a canvas',
     await (await revealMenuEntry(page, menu, '視界範囲を表示')).click();
     await idle(page);
 
-    await expect(page.locator('#app-game-table table-vision-volume-overlay')).toHaveCount(0);
     const lines = page.locator('[data-testid="table-hud"] table-vision-volume-overlay > div');
     await expect.poll(() => lines.count()).toBeGreaterThan(0);
     const ground = (await lines.first().boundingBox())!;

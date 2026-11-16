@@ -15,15 +15,14 @@ import { buildStellarAppspotCharacter } from '@axe/domain/character/import/syste
 /**
  * Reads a warehouse character with the profile for its system, falling back to the general parser.
  *
- * `systemHint` is the system slug the sheet was fetched under. A system with a dedicated profile is
- * tried with it first; any other, or data that profile does not recognise, is read generally with
- * that system's headings and given the system's dice bot where the data names none.
+ * `systemHint` is the system slug the sheet was fetched under. The sheet is always read generally
+ * first, with that system's headings; a system with a dedicated profile then builds its own reading
+ * on top of the general one, which fills in whatever the profile does not speak for. Any other
+ * system, or data the profile does not recognise, keeps the general reading and is given the
+ * system's dice bot where the data names none.
  */
 export function parseAppspotCharacterForSystem(parsed: unknown, systemHint?: string): ImportedCharacter | null {
   const slug = (systemHint ?? '').trim().toLowerCase();
-  // Read generally first, so that whatever the profile does not speak for is still there to fill
-  // in with: a sheet fetched by its address used to come in without what the same sheet pasted as
-  // json brought, since the profile stood in place of the general reading rather than on top of it.
   const general = parseAppspotCharacter(parsed, appspotLabelMap(slug));
 
   if (slug === 'dx3') {

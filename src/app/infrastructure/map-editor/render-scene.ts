@@ -1,3 +1,4 @@
+import { clamp01 } from '@axe/core/util/clamp';
 import { catmullRomSegments } from '@axe/domain/map-editor/curve-geometry';
 import { functionInkOf } from '@axe/domain/map-editor/function-layer';
 import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
@@ -29,14 +30,13 @@ import {
   GROUND_SAMPLES_PER_CELL,
 } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import {
-  fillHexPath,
   hexCircumradius,
   hexStartAngle,
   isFlatTopGrid,
   isHexGrid,
-  strokeHexPath,
   traceHexPath,
 } from '@axe/domain/tabletop/hex-geometry';
+import { fillHexPath, strokeHexPath } from '@axe/infrastructure/tabletop/hex-canvas';
 export interface RenderHelpers {
   texturePattern(
     fill: { textureId: string; scale: number; rotation: number },
@@ -220,6 +220,54 @@ function fitStampBox(image: CanvasImageSource, size: number): { w: number; h: nu
   return { w: iw * scale, h: ih * scale };
 }
 
+/** How a scene's cells are drawn: as hexes of a circumradius from a first corner, or as squares. */
+interface CellGeometry {
+  readonly hex: boolean;
+  readonly s: number;
+  readonly startAngle: number;
+}
+
+function cellGeometryOf(scene: MapScene): CellGeometry {
+  const hex = isHexGrid(scene.gridType);
+  return {
+    hex,
+    s: hex ? hexCircumradius(scene.cellPx) : 0,
+    startAngle: hex ? hexStartAngle(isFlatTopGrid(scene.gridType)) : 0,
+  };
+}
+
+/** Adds one cell's outline to the path being traced. */
+function traceCell(
+  ctx: CanvasRenderingContext2D,
+  scene: MapScene,
+  col: number,
+  row: number,
+  geometry: CellGeometry
+): void {
+  if (geometry.hex) {
+    const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
+    traceHexPath(ctx, x, y, geometry.s, geometry.startAngle);
+  } else {
+    ctx.rect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
+  }
+}
+
+/** Fills one cell with the context's current fill. */
+function fillCell(
+  ctx: CanvasRenderingContext2D,
+  scene: MapScene,
+  col: number,
+  row: number,
+  geometry: CellGeometry
+): void {
+  if (geometry.hex) {
+    const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
+    fillHexPath(ctx, x, y, geometry.s, geometry.startAngle);
+  } else {
+    ctx.fillRect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
+  }
+}
+
 function clipCellPath(
   ctx: CanvasRenderingContext2D,
   scene: MapScene,
@@ -228,9 +276,7 @@ function clipCellPath(
   maxX: number,
   maxY: number
 ): void {
-  const hex = isHexGrid(scene.gridType);
-  const s = hex ? hexCircumradius(scene.cellPx) : 0;
-  const startAngle = hex ? hexStartAngle(isFlatTopGrid(scene.gridType)) : 0;
+  const geometry = cellGeometryOf(scene);
   const a = pointToCell(scene.gridType, minX, minY, scene.cellPx);
   const b = pointToCell(scene.gridType, maxX, maxY, scene.cellPx);
   const c0 = Math.min(a.col, b.col) - 1;
@@ -242,11 +288,7 @@ function clipCellPath(
     for (let row = r0; row <= r1; row += 1) {
       const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
       if (x < minX || x > maxX || y < minY || y > maxY) continue;
-      if (hex) {
-        traceHexPath(ctx, x, y, s, startAngle);
-      } else {
-        ctx.rect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
-      }
+      traceCell(ctx, scene, col, row, geometry);
     }
   }
   ctx.clip();
@@ -262,7 +304,7 @@ function drawImageItem(
   const image = helpers.rasterImage?.(item);
   if (!image) return;
   ctx.save();
-  ctx.globalAlpha = layerAlpha * (Number.isFinite(item.opacity) ? Math.max(0, Math.min(1, item.opacity)) : 1);
+  ctx.globalAlpha = layerAlpha * (Number.isFinite(item.opacity) ? clamp01(item.opacity) : 1);
   if (item.clipToCells) {
     const minX = item.x - item.w / 2;
     const minY = item.y - item.h / 2;
@@ -418,14 +460,6 @@ function drawGridLines(ctx: CanvasRenderingContext2D, scene: MapScene, width: nu
   ctx.restore();
 }
 
-/**
- * Draws the map onto the canvas: its background, then each visible layer in order at its own
- * opacity, then the grid.
- *
- * The cells painted for what they do are drawn only when asked for, and the grid follows the
- * scene's own setting unless the options say otherwise. A text being edited in place can be left
- * out.
- */
 /** How high ground has to stand for its tint to be at its deepest, in cells. */
 const RELIEF_FULL_CELLS = 4;
 /** The colour each kind of ground is painted in on the editor's map, in the order of `GROUND_PAINT_LAYERS`. */
@@ -455,14 +489,23 @@ function drawReliefPaint(
   const kinds = RELIEF_PAINT_COLOURS.length;
   for (let j = 0; j < GROUND_CHUNK_SAMPLES; j++) {
     for (let i = 0; i < GROUND_CHUNK_SAMPLES; i++) {
-      const shares = paint.subarray((j * GROUND_CHUNK_SAMPLES + i) * kinds, (j * GROUND_CHUNK_SAMPLES + i + 1) * kinds);
-      const total = shares.reduce((sum, share) => sum + share, 0);
+      const at = (j * GROUND_CHUNK_SAMPLES + i) * kinds;
+      let total = 0;
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      for (let kind = 0; kind < kinds; kind++) {
+        const share = paint[at + kind];
+        if (share === 0) continue;
+        const [kr, kg, kb] = RELIEF_PAINT_COLOURS[kind];
+        total += share;
+        r += kr * share;
+        g += kg * share;
+        b += kb * share;
+      }
       if (total <= 0) continue;
-      const colour = [0, 1, 2].map((channel) =>
-        Math.round(shares.reduce((sum, share, kind) => sum + RELIEF_PAINT_COLOURS[kind][channel] * share, 0) / total)
-      );
       const cover = (Math.min(total, GROUND_PAINT_FULL) / GROUND_PAINT_FULL) * RELIEF_PAINT_COVER;
-      ctx.fillStyle = `rgba(${colour.join(', ')}, ${cover})`;
+      ctx.fillStyle = `rgba(${Math.round(r / total)}, ${Math.round(g / total)}, ${Math.round(b / total)}, ${cover})`;
       ctx.fillRect((left + i - 0.5) * step, (top + j - 0.5) * step, step, step);
     }
   }
@@ -509,6 +552,14 @@ function drawReliefLayer(ctx: CanvasRenderingContext2D, layer: ReliefLayer, cell
   }
 }
 
+/**
+ * Draws the map onto the canvas: its background, then each visible layer in order at its own
+ * opacity, then the grid.
+ *
+ * The cells painted for what they do are drawn only when asked for, and the grid follows the
+ * scene's own setting unless the options say otherwise. A text being edited in place can be left
+ * out.
+ */
 export function renderScene(
   ctx: CanvasRenderingContext2D,
   scene: MapScene,
@@ -530,20 +581,13 @@ export function renderScene(
     ctx.globalAlpha = layer.opacity;
     switch (layer.kind) {
       case 'cell': {
-        const hex = isHexGrid(scene.gridType);
-        const s = hex ? hexCircumradius(scene.cellPx) : 0;
-        const startAngle = hex ? hexStartAngle(isFlatTopGrid(scene.gridType)) : 0;
+        const geometry = cellGeometryOf(scene);
         for (const [key, fill] of Object.entries(layer.cells)) {
           const resolved = resolveFill(fill, helpers, scene.cellPx);
           if (!resolved) continue;
           const { col, row } = parseCellKey(key);
           ctx.fillStyle = resolved;
-          if (hex) {
-            const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
-            fillHexPath(ctx, x, y, s, startAngle);
-          } else {
-            ctx.fillRect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
-          }
+          fillCell(ctx, scene, col, row, geometry);
         }
         break;
       }
@@ -570,18 +614,11 @@ export function renderScene(
         break;
       case 'function': {
         if (!options?.drawFunctionLayers) break;
-        const hex = isHexGrid(scene.gridType);
-        const s = hex ? hexCircumradius(scene.cellPx) : 0;
-        const startAngle = hex ? hexStartAngle(isFlatTopGrid(scene.gridType)) : 0;
+        const geometry = cellGeometryOf(scene);
         ctx.fillStyle = functionInkOf(layer.role, layer.spec);
         for (const key of Object.keys(layer.cells)) {
           const { col, row } = parseCellKey(key);
-          if (hex) {
-            const { x, y } = cellCenter(scene.gridType, col, row, scene.cellPx);
-            fillHexPath(ctx, x, y, s, startAngle);
-          } else {
-            ctx.fillRect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
-          }
+          fillCell(ctx, scene, col, row, geometry);
         }
         if (layer.role === 'object') drawObjectPlacements(ctx, layer, scene, helpers);
         break;

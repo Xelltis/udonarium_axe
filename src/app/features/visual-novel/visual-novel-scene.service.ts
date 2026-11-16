@@ -8,10 +8,8 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { VnStage, VnStageTransition } from '@axe/domain/visual-novel/vn-stage';
+import { VN_STAGE_IDENTIFIER, VnStage, vnStageOf, VnStageTransition } from '@axe/domain/visual-novel/vn-stage';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
-
-const STAGE_IDENTIFIER = 'VnStage';
 
 @Injectable({ providedIn: 'root' })
 export class VisualNovelSceneService {
@@ -23,11 +21,11 @@ export class VisualNovelSceneService {
   private readonly chatMessageService = inject(ChatMessageService);
 
   private get stage(): VnStage | null {
-    return this.objectStore.get<VnStage>(STAGE_IDENTIFIER) ?? null;
+    return vnStageOf(this.objectStore);
   }
 
   readonly backgroundUrl = computed(() => {
-    this.objectChange.versionOf(STAGE_IDENTIFIER)();
+    this.objectChange.versionOf(VN_STAGE_IDENTIFIER)();
     this.objectChange.fileVersion();
     const identifier = this.stage?.backgroundImageIdentifier ?? '';
     if (identifier.length < 1) return '';
@@ -37,12 +35,12 @@ export class VisualNovelSceneService {
   readonly hasBackground = computed(() => this.backgroundUrl().length > 0);
 
   readonly transition = computed<VnStageTransition>(() => {
-    this.objectChange.versionOf(STAGE_IDENTIFIER)();
+    this.objectChange.versionOf(VN_STAGE_IDENTIFIER)();
     return this.stage?.transition ?? 'fade';
   });
 
   readonly transitionTrigger = computed(() => {
-    this.objectChange.versionOf(STAGE_IDENTIFIER)();
+    this.objectChange.versionOf(VN_STAGE_IDENTIFIER)();
     return this.stage?.transitionTrigger ?? 0;
   });
 
@@ -56,7 +54,7 @@ export class VisualNovelSceneService {
    */
   pickBackground(): void {
     if (!this.canDirect()) return;
-    this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((identifier) => {
+    void this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((identifier) => {
       const stage = this.stage;
       if (!stage || typeof identifier !== 'string') return;
       stage.setBackground(identifier);

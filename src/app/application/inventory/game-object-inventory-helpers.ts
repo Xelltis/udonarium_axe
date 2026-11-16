@@ -1,6 +1,7 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
 import { DataElement } from '@axe/domain/data/data-element';
 import { type SortKey, SortOrder } from '@axe/domain/data/data-summary-setting';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 /**
@@ -32,8 +33,8 @@ export function sortObjectsByKeys(objects: TabletopObject[], keys: readonly Sort
 
   objects.sort((a, b) => {
     for (const { tag, direction } of steps) {
-      const aElm = a.rootDataElement ? DataElement.findElementByReference(a.rootDataElement, tag) : null;
-      const bElm = b.rootDataElement ? DataElement.findElementByReference(b.rootDataElement, tag) : null;
+      const aElm = a.rootDataElement ? findReferencedElement(a.rootDataElement, tag) : null;
+      const bElm = b.rootDataElement ? findReferencedElement(b.rootDataElement, tag) : null;
       if (!aElm && !bElm) continue;
       if (!bElm) return -1;
       if (!aElm) return 1;

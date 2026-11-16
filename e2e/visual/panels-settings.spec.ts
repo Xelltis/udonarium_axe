@@ -65,9 +65,9 @@ test('the cut-in editor looks the same', async ({ page }) => {
   await prepare(page);
   await closePanels(page);
   await openPanel(page, 'カットイン');
-  await expect(page.locator('app-cut-in-list')).toBeVisible({ timeout: 10000 });
-  await page.locator('app-cut-in-list button[title="新しいカットインを作る"]').click();
-  await expect(page.locator('app-cut-in-list cut-in-editor')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('cut-in-list')).toBeVisible({ timeout: 10000 });
+  await page.locator('cut-in-list button[title="新しいカットインを作る"]').click();
+  await expect(page.locator('cut-in-list cut-in-editor')).toBeVisible({ timeout: 5000 });
   await expect(page.locator('cut-in-editor input[name="cut-in-width"]')).toHaveValue(PICTURE_WIDTH, { timeout: 10000 });
   await snap(page, 'panels-cut-in-editor');
 });

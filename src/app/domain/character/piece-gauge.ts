@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 
 export interface PieceGauge {
@@ -57,7 +58,7 @@ export function isResourceSpentAt(element: DataElement | null, current: number, 
  * are, or, for a piece whose contents are kept from the reader, full and grey with marks for the
  * numbers until the resource runs out, so how much is left is not told by how long the bar is.
  */
-export function shownGaugeReading(
+function shownGaugeReading(
   current: number,
   max: number,
   inverted: boolean,
@@ -88,7 +89,7 @@ export function shownGauge(
  */
 export function gaugeRatio(current: number, max: number): number {
   if (!Number.isFinite(current) || !Number.isFinite(max) || max <= 0) return 0;
-  return Math.min(1, Math.max(0, current / max));
+  return clamp(current / max, 0, 1);
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   createCharacter,
   expectChatText,
   openChatSettingsMenuItem,
+  rightClickPiece,
   waitAppReady,
 } from './helpers';
 
@@ -197,7 +198,7 @@ test.describe('the chat editor', () => {
     await input.click();
     await page.keyboard.type('ドラッグで選ぶ言葉');
     await expectChatText(input, 'ドラッグで選ぶ言葉');
-    const panel = page.locator('.draggable-panel').filter({ has: page.locator('chat-window') });
+    const panel = page.locator('[data-testid="ui-panel"]').filter({ has: page.locator('chat-window') });
     const before = (await panel.boundingBox())!;
     const box = (await page.locator('chat-window [data-chat-input-box]').boundingBox())!;
     const line = (await input.locator('p').first().boundingBox())!;
@@ -432,7 +433,7 @@ test.describe('the palette written in the editor', () => {
   }) => {
     await withEditor(page);
     await createCharacter(page);
-    await page.locator('game-character').first().dispatchEvent('contextmenu');
+    await rightClickPiece(page.locator('game-character').last());
     await page.locator('context-menu').getByText('チャットパレットを表示').click();
     const palette = page.locator('chat-palette');
     await palette.getByRole('button', { name: '編集', exact: true }).click();
@@ -475,7 +476,7 @@ test.describe('the palette opened for editing', () => {
   test('opens the editor at about where the list was scrolled to', async ({ page }) => {
     await withEditor(page);
     await createCharacter(page);
-    await page.locator('game-character').first().dispatchEvent('contextmenu');
+    await rightClickPiece(page.locator('game-character').last());
     await page.locator('context-menu').getByText('チャットパレットを表示').click();
     const palette = page.locator('chat-palette');
     await palette.getByRole('button', { name: '編集', exact: true }).click();

@@ -9,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ActionPresentation, actionPresentationOf } from '@axe/application/ui/action-presentation';
 import {
   ContextMenuAction,
   ContextMenuRadialGroup,
@@ -17,6 +18,7 @@ import {
 } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelRotationDegrees, PanelService } from '@axe/application/ui/panel.service';
+import { clamp } from '@axe/core/util/clamp';
 import {
   DEFAULT_RADIAL_MENU_ROTATION_SPEED,
   MAX_RADIAL_MENU_ROTATION_SPEED,
@@ -38,13 +40,6 @@ import {
   seatTextRotation,
 } from '@axe/ui/components/four-way-radial-menu/four-way-radial-menu-geometry';
 import { TranslocoModule } from '@jsverse/transloco';
-
-interface ActionPresentation {
-  label: string;
-  kind: 'checkbox' | 'radio' | 'selected' | 'none';
-  checked: boolean | null;
-  icon: string | null;
-}
 
 interface RadialFlyout {
   action: ContextMenuAction;
@@ -68,8 +63,6 @@ const CHILD_LIST_WIDTH_PX = 128;
 const CHILD_ITEM_HEIGHT_PX = 28;
 const ROOT_LABEL_HEIGHT_PX = 28;
 const CHILD_ITEM_GAP_PX = 2;
-const CHILD_LIST_VERTICAL_PADDING_PX = 8;
-const DETACHED_BRANCH_ITEMS_ENABLED = true;
 const SECTOR_GAP_PX = 3;
 const MENU_VIEWPORT_MARGIN_PX = 12;
 const PARENT_CLICK_PAUSE_MS = 3000;
@@ -103,7 +96,6 @@ export class FourWayRadialMenuComponent {
   protected readonly manualRotationDegrees = signal(0);
   protected readonly manualRotationTransitionEnabled = signal(true);
   protected readonly manualRotationStyleDegrees = computed(() => Number(this.manualRotationDegrees().toFixed(6)));
-  protected readonly detachedBranchItemsEnabled = DETACHED_BRANCH_ITEMS_ENABLED;
   protected readonly pausedParentIndex = signal<number | null>(null);
   protected readonly flyout = signal<RadialFlyout | null>(null);
   protected readonly flyoutItems = computed(() => {
@@ -131,7 +123,7 @@ export class FourWayRadialMenuComponent {
   );
   protected readonly ringRadius = computed(() => {
     const shortestSide = Math.min(this.viewport().width, this.viewport().height);
-    const baseRadius = Math.max(82, Math.min(138, shortestSide / 2 - ITEM_HALF_EXTENT_PX - 12));
+    const baseRadius = clamp(shortestSide / 2 - ITEM_HALF_EXTENT_PX - 12, 82, 138);
     return Math.max(baseRadius, this.clearanceRadius() + ITEM_HALF_EXTENT_PX + RING_CLEARANCE_GAP_PX);
   });
   protected readonly rootInnerRadius = computed(() => Math.max(1, this.ringRadius() - ROOT_BAND_HALF_DEPTH_PX));
@@ -140,11 +132,7 @@ export class FourWayRadialMenuComponent {
     const childCount = this.maxChildCount();
     if (childCount < 1) return this.rootOuterRadius() + MENU_VIEWPORT_MARGIN_PX;
 
-    const listHeight =
-      childCount * this.childItemHeight() +
-      (DETACHED_BRANCH_ITEMS_ENABLED
-        ? Math.max(0, childCount - 1) * CHILD_ITEM_GAP_PX
-        : CHILD_LIST_VERTICAL_PADDING_PX);
+    const listHeight = childCount * this.childItemHeight() + Math.max(0, childCount - 1) * CHILD_ITEM_GAP_PX;
     const farEdge = this.childListAnchorRadius() + listHeight;
     return Math.hypot(farEdge, this.childListWidth() / 2) + MENU_VIEWPORT_MARGIN_PX;
   });
@@ -178,7 +166,7 @@ export class FourWayRadialMenuComponent {
   protected ringDurationSeconds(): number {
     const configured = Number(this.contextMenuService.radialMenuRotationSpeed);
     const speed = Number.isFinite(configured)
-      ? Math.max(MIN_RADIAL_MENU_ROTATION_SPEED, Math.min(configured, MAX_RADIAL_MENU_ROTATION_SPEED))
+      ? clamp(configured, MIN_RADIAL_MENU_ROTATION_SPEED, MAX_RADIAL_MENU_ROTATION_SPEED)
       : DEFAULT_RADIAL_MENU_ROTATION_SPEED;
     return 360 / speed;
   }
@@ -414,22 +402,7 @@ export class FourWayRadialMenuComponent {
   }
 
   protected actionPresentation(action: ContextMenuAction): ActionPresentation {
-    const match = action.name.match(/^([☑☐◉○✔])\s*/);
-    const label = match ? action.name.slice(match[0].length) : action.name;
-    switch (match?.[1]) {
-      case '☑':
-        return { label, kind: 'checkbox', checked: true, icon: 'check_box' };
-      case '☐':
-        return { label, kind: 'checkbox', checked: false, icon: 'check_box_outline_blank' };
-      case '◉':
-        return { label, kind: 'radio', checked: true, icon: 'radio_button_checked' };
-      case '○':
-        return { label, kind: 'radio', checked: false, icon: 'radio_button_unchecked' };
-      case '✔':
-        return { label, kind: 'selected', checked: true, icon: 'check' };
-      default:
-        return { label, kind: 'none', checked: null, icon: null };
-    }
+    return actionPresentationOf(action.name);
   }
 
   protected hasSubActions(action: ContextMenuAction): boolean {

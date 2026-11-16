@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 export const FIRST_PERSON_UNIT_PX = 256;
 export const MAX_PIECE_TEXT_SCREEN_PX = 28;
 /** How far up from the bottom of the view a lifted piece's feet are held, as a share of half the view's height. */
@@ -39,7 +40,7 @@ export function nightSkyAt(liftPx: number, viewHeightPx: number): string {
  * the dark below alike, until water nothing can be seen through is its own colour all round.
  */
 export function waterSkyAt(deepColor: string, liftPx: number, viewHeightPx: number, murk = 0): string {
-  const clear = 1 - Math.min(Math.max(Number.isFinite(murk) ? murk : 0, 0), 1);
+  const clear = 1 - clamp(Number.isFinite(murk) ? murk : 0, 0, 1);
   const toward = (share: number) => `${round(100 - share * clear)}%`;
   const stops: (readonly [string, number])[] = [
     [`color-mix(in srgb, ${deepColor} ${toward(45)}, #b8e8ff)`, 0],
@@ -65,7 +66,7 @@ export function scaleOf(gridSize: number): number {
 }
 
 export function perspectivePx(widthPx: number, fovDeg: number): number {
-  const half = (Math.min(Math.max(fovDeg, 1), 179) * Math.PI) / 360;
+  const half = (clamp(fovDeg, 1, 179) * Math.PI) / 360;
   return Math.max(1, widthPx) / 2 / Math.tan(half);
 }
 
@@ -79,7 +80,7 @@ export function fadeOutPx(depthPx: number): number {
 
 export function shadeFor(depth: number, depthPx: number): number {
   if (depthPx <= 0) return 0;
-  return round(Math.min(Math.max(depth / depthPx, 0), 1) * MAX_SHADE);
+  return round(clamp(depth / depthPx, 0, 1) * MAX_SHADE);
 }
 
 export function billboardStyle(
@@ -210,7 +211,7 @@ export function pieceChromeBottomPercent(at: {
   const angle = ((at.pitchDeg ?? 0) * Math.PI) / 180 + Math.atan(roomPx / at.perspective);
   const highestZ = angle >= Math.PI / 2 ? Infinity : at.eyeZ + at.depthPx * Math.tan(angle);
   const percent = ((Math.min(topZ, highestZ) - at.baseZ) / at.heightPx) * 100;
-  return round(Math.min(Math.max(percent, 0), 100));
+  return round(clamp(percent, 0, 100));
 }
 
 export function billboardHudTransform(textScale: number): string | null {

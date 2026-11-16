@@ -1,10 +1,11 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { closePanels } from './dungeon-helpers';
 import {
+  closePanels,
   openTableContextMenu,
   putAwayTutorial,
   revealMenuEntry,
+  rightClickPiece,
   spotOnPiece,
   tableMenuSpot,
   waitAppReady,
@@ -31,7 +32,7 @@ test.describe('terrain', () => {
       .getByRole('button', { name: /^\s*GM\s*$/ })
       .click();
     const terrain = page.locator('terrain').first();
-    await terrain.dispatchEvent('contextmenu');
+    await rightClickPiece(terrain);
     await page.locator('context-menu').getByText('テクスチャを外して透明にする').click();
     // The page draws the clear top itself; over a table drawn on a canvas the top is laid on the screen.
     const top = terrain.getByTestId('terrain-glass-face').or(terrain.locator('[data-part="top"]')).first();

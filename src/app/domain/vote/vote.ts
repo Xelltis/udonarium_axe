@@ -7,6 +7,11 @@ export interface VoteContext {
   peerId: string;
 }
 
+/** The answer of a peer who abstained, dropped out, or is no longer in the room. */
+export const VOTE_ABSTAINED = -2;
+/** The answer of a peer who has not answered yet. */
+export const VOTE_UNANSWERED = -1;
+
 @SyncObject('Vote')
 export class Vote extends GameObject {
   @SyncVar() initTimeStamp = 0;
@@ -29,21 +34,22 @@ export class Vote extends GameObject {
   @SyncVar() chatTabIdentifier = '';
 
   /**
-   * The answer a peer has given in the current vote: the index of their choice, -1 while they have
-   * not answered, or -2 when they abstained, dropped out, or are no longer in the room.
+   * The answer a peer has given in the current vote: the index of their choice, `VOTE_UNANSWERED`
+   * while they have not answered, or `VOTE_ABSTAINED` when they abstained, dropped out, or are no
+   * longer in the room.
    */
   voteAnswerByPeerId(peerId: string): number {
     const peer = PeerCursor.findByPeerId(peerId);
     if (peer) {
-      if (peer.voteId == this.voteId) {
+      if (peer.voteId === this.voteId) {
         return peer.voteAnswer;
       }
       if (peer.isDisConnect) {
-        return -2;
+        return VOTE_ABSTAINED;
       }
-      return -1;
+      return VOTE_UNANSWERED;
     } else {
-      return -2; // counted as an abstention
+      return VOTE_ABSTAINED;
     }
   }
 
@@ -94,10 +100,10 @@ export class Vote extends GameObject {
    */
   isVoteEnd(peerId: string): boolean {
     for (const targetPeer of this.targetPeerId) {
-      if (targetPeer == peerId) {
+      if (targetPeer === peerId) {
         const peer = PeerCursor.findByPeerId(peerId);
         if (!peer) return true;
-        if (peer.voteId == this.voteId) return true;
+        if (peer.voteId === this.voteId) return true;
       }
     }
     return false;
@@ -114,7 +120,7 @@ export class Vote extends GameObject {
     if (choice) {
       PeerCursor.myCursor.voteAnswer = this.choices.indexOf(choice);
     } else {
-      PeerCursor.myCursor.voteAnswer = -2;
+      PeerCursor.myCursor.voteAnswer = VOTE_ABSTAINED;
     }
     PeerCursor.myCursor.voteId = this.voteId;
 
@@ -128,7 +134,7 @@ export class Vote extends GameObject {
    */
   chkFinishVote() {
     if (this.isFinish || PeerCursor.isMyselfKeptOffTable) return;
-    if (this.chairId == PeerCursor.myCursor?.peerId && this.votedTotalNum() == this.targetPeerId.length) {
+    if (this.chairId === PeerCursor.myCursor?.peerId && this.votedTotalNum() === this.targetPeerId.length) {
       this.finish();
     }
   }
@@ -139,7 +145,7 @@ export class Vote extends GameObject {
    */
   finishByChair() {
     if (this.isFinish || PeerCursor.isMyselfKeptOffTable) return;
-    if (this.chairId != PeerCursor.myCursor?.peerId) return;
+    if (this.chairId !== PeerCursor.myCursor?.peerId) return;
     this.finish();
   }
 
@@ -158,6 +164,11 @@ export class Vote extends GameObject {
     return this.targetPeerId.length - this.votedTotalNum();
   }
 
+  /**
+   * Closes the vote and announces its result on the next turn of the event loop rather than at
+   * once: the finish is reached from inside a synced update and from a peer's own answer, and
+   * whoever posts the result to chat must not do so in the middle of either.
+   */
   private finish() {
     this.isFinish = true;
     const result = this.result();
@@ -172,7 +183,7 @@ export class Vote extends GameObject {
       voteTitle: this.voteTitle,
       voted: this.votedTotalNum(),
       total: this.targetPeerId.length,
-      abstained: this.votedNumByIndex(-2),
+      abstained: this.votedNumByIndex(VOTE_ABSTAINED),
       unanswered: this.unansweredNum(),
       tally: this.isRollCall ? [] : this.choices.map((choice) => ({ choice, count: this.votedNumByChoice(choice) })),
       chatTabIdentifier: this.chatTabIdentifier,
@@ -184,19 +195,19 @@ export class Vote extends GameObject {
     const answer: number[] = this.voteAnswer;
     let count = 0;
     for (const ans of answer) {
-      if (ans >= 0 || ans == -2) {
+      if (ans >= 0 || ans === VOTE_ABSTAINED) {
         count++;
       }
     }
     return count;
   }
 
-  /** How many peers gave this answer index, where -2 counts abstentions. */
+  /** How many peers gave this answer index, where `VOTE_ABSTAINED` counts abstentions. */
   votedNumByIndex(index: number): number {
     const answer: number[] = this.voteAnswer;
     let count = 0;
     for (const ans of answer) {
-      if (ans == index) {
+      if (ans === index) {
         count++;
       }
     }
@@ -206,15 +217,15 @@ export class Vote extends GameObject {
   /**
    * How many peers picked this choice.
    *
-   * A choice that is not on the list is looked up as the index -1, which counts the peers who have
-   * not answered yet.
+   * A choice that is not on the list is looked up as the index -1, which is `VOTE_UNANSWERED` and
+   * counts the peers who have not answered yet.
    */
   votedNumByChoice(choice: string): number {
     const index = this.choices.indexOf(choice);
     return this.votedNumByIndex(index);
   }
 
-  /** The choice text for an answer index, or empty for -1, -2 or any index off the list. */
+  /** The choice text for an answer index, or empty for an unanswered or abstained one or any index off the list. */
   indexToChoice(index: number): string {
     if (index < 0) return '';
     if (index >= this.choices.length) return '';
@@ -224,7 +235,7 @@ export class Vote extends GameObject {
   /** Whether this client is one of the peers asked. */
   chkToMe(): boolean {
     for (const target of this.targetPeerId) {
-      if (PeerCursor.myCursor.peerId == target) return true;
+      if (PeerCursor.myCursor.peerId === target) return true;
     }
     return false;
   }

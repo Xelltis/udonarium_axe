@@ -1,4 +1,4 @@
-import { Component, ComponentRef, computed, ViewContainerRef } from '@angular/core';
+import { Component, ComponentRef, computed, signal, ViewContainerRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { LOAD_FAILURE_NOTICE } from '@axe/application/ui/overlay-components';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
@@ -607,5 +607,29 @@ describe('PanelService', () => {
       service.claimScrollablePanel(log);
       expect(service.scrollablePanel).toBe(log);
     });
+  });
+
+  it('stands as wide as its content while the content that asked says so, until that content goes', () => {
+    const service = newPanelService();
+    const across = signal(false);
+    expect(service.shrunkToContentWidth()).toBe(false);
+
+    const takeBack = service.shrinkToContentWidthWhen(across);
+    expect(service.shrunkToContentWidth()).toBe(false);
+    across.set(true);
+    expect(service.shrunkToContentWidth()).toBe(true);
+
+    takeBack();
+    expect(service.shrunkToContentWidth()).toBe(false);
+  });
+
+  it('keeps the ask of content that came later when earlier content goes', () => {
+    const service = newPanelService();
+    const takeBackFirst = service.shrinkToContentWidthWhen(signal(false));
+    service.shrinkToContentWidthWhen(signal(true));
+
+    takeBackFirst();
+
+    expect(service.shrunkToContentWidth()).toBe(true);
   });
 });

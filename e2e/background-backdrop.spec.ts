@@ -11,7 +11,7 @@ const PICTURES = [
 async function becomeGameMaster(page: Page) {
   const connection = page.locator('ui-panel').filter({ hasText: '接続情報' });
   await connection.getByRole('button', { name: /^\s*GM\s*$/ }).click();
-  await expect(page.locator('app-gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
 }
 
 async function standBehind(settings: Locator, index: number, picture: string) {

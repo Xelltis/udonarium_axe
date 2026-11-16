@@ -38,9 +38,7 @@
             class="flex min-w-0 items-baseline gap-x-1 overflow-hidden pr-1 pl-2.5 text-(length:--chat-font-size) font-medium whitespace-nowrap text-inherit"
           >
             <!-- The name gives way last: who and when shrink away first in a narrow window. -->
-            <span class="msg-name min-w-0 truncate" [title]="displayName(chatMessage.name)">{{
-              displayName(chatMessage.name)
-            }}</span>
+            <span class="msg-name min-w-0 truncate" [title]="shownName()">{{ shownName() }}</span>
             @if (showsServerRoll) {
               <i
                 class="material-icons text-ui-accent shrink-0 self-center text-[13px]!"
@@ -88,50 +86,11 @@
             </button>
           }
           <div
+            data-testid="chat-message-text"
             class="msg-text [&_a]:text-ui-accent px-2.5 pt-0.5 align-top text-(length:--chat-font-size) leading-normal whitespace-pre-line text-inherit"
             [class.select-text!]="isSelectingText()"
           >
-            @if (isEditing()) {
-              <div class="py-1">
-                <ng-container [ngTemplateOutlet]="editBox" />
-              </div>
-            } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
-              <ng-container [ngTemplateOutlet]="lineWords" />
-              @if (rolledAtTold(); as told) {
-                <span class="text-ui-dim ml-0.5 text-[0.9em]" data-testid="chat-message-rolled-at">（{{ told }}）</span>
-              }
-              @if (sentStamp(); as stampId) {
-                <div class="py-0.5" data-testid="chat-message-stamp">
-                  <ui-stamp
-                    [stampId]="stampId"
-                    [size]="stampLineSize(stampId, false)"
-                    [play]="animeState() === 'active' ? 1 : 0"
-                  />
-                </div>
-              }
-              @if (shownAttachments().length > 0) {
-                <div class="mt-1.5 flex flex-wrap gap-1.5 whitespace-normal">
-                  @for (image of shownAttachments(); track image.identifier) {
-                    <img
-                      class="message-attachment-image border-ui-border-panel bg-ui-elevated block size-auto max-h-30 max-w-[min(180px,100%)] rounded-sm border border-solid object-contain"
-                      [src]="image.url | safe: 'resourceUrl'"
-                      [alt]="'feature.chat.message.attachment' | transloco"
-                    />
-                  }
-                </div>
-              }
-              @if (canDisclose()) {
-                <button (click)="discloseMessage()">{{ 'feature.chat.message.discloseSecret' | transloco }}</button>
-              }
-            } @else {
-              <span>{{ 'feature.chat.message.secretDice' | transloco }}</span>
-            }
-            @if (!isEditing() && isEdited()) {
-              &nbsp;<ng-container
-                [ngTemplateOutlet]="editedMark"
-                [ngTemplateOutletContext]="{ label: 'feature.chat.message.edited' }"
-              />
-            }
+            <ng-container [ngTemplateOutlet]="lineBody" [ngTemplateOutletContext]="{ compact: false }" />
           </div>
           <ng-container [ngTemplateOutlet]="historyPanel" />
           @if (chatMessage.isDicebot && !isEditing()) {
@@ -139,7 +98,7 @@
               <dice-roll-stage [messageIdentifier]="chatMessage.identifier" />
             </div>
           }
-          <ng-container [ngTemplateOutlet]="reactionRow" />
+          <chat-message-reactions [message]="chatMessage" [mayAnswer]="canAnswerWithStamps" />
           <ng-container [ngTemplateOutlet]="actionToolbar" />
         </div>
       </div>
@@ -163,7 +122,7 @@
           "
         >
           <span class="pl-2.5 align-top text-(length:--chat-font-size) font-medium text-inherit">
-            <font class="msg-name">{{ displayName(chatMessage.name) }}</font>
+            <font class="msg-name">{{ shownName() }}</font>
             @if (showsServerRoll) {
               <i
                 class="material-icons text-ui-accent align-middle text-[12px]!"
@@ -188,86 +147,144 @@
             }
             <ng-container [ngTemplateOutlet]="bookmarkMarks" />
             @if (replyPreview(); as preview) {
-              <button
-                type="button"
-                class="rounded-r-ui-sm ml-2 inline-flex max-w-[18em] cursor-pointer items-center gap-1 overflow-hidden border-0 border-l-2 border-l-(--ui-quote-border) bg-(--ui-quote-bg) px-1.5 py-0.5 align-middle text-[11px] text-(--ui-quote-text) transition-colors hover:bg-(--ui-quote-hover-bg)"
-                [title]="preview.text"
-                (click)="jumpToReplyTarget()"
-              >
-                <i class="material-icons text-[11px]! text-(--ui-quote-name)">reply</i>
-                <span class="font-semibold text-(--ui-quote-name)">{{ preview.name }}</span>
-                <span class="truncate">{{ preview.text }}</span>
-              </button>
+              <ng-container
+                [ngTemplateOutlet]="compactPreview"
+                [ngTemplateOutletContext]="{ preview, icon: 'reply', isReply: true }"
+              />
             }
             @if (quotePreview(); as preview) {
-              <button
-                type="button"
-                class="rounded-r-ui-sm ml-2 inline-flex max-w-[18em] cursor-pointer items-center gap-1 overflow-hidden border-0 border-l-2 border-l-(--ui-quote-border) bg-(--ui-quote-bg) px-1.5 py-0.5 align-middle text-[11px] text-(--ui-quote-text) transition-colors hover:bg-(--ui-quote-hover-bg)"
-                [title]="preview.text"
-                (click)="jumpToQuoteTarget()"
-              >
-                <i class="material-icons text-[11px]! text-(--ui-quote-name)">format_quote</i>
-                <span class="font-semibold text-(--ui-quote-name)">{{ preview.name }}</span>
-                <span class="truncate">{{ preview.text }}</span>
-              </button>
+              <ng-container
+                [ngTemplateOutlet]="compactPreview"
+                [ngTemplateOutletContext]="{ preview, icon: 'format_quote', isReply: false }"
+              />
             }
             <font
+              data-testid="chat-message-text"
               class="msg-text [&_a]:text-ui-accent px-2.5 pt-0.5 align-top text-(length:--chat-font-size) leading-normal whitespace-pre-line text-inherit"
               [class.select-text!]="isSelectingText()"
             >
-              @if (isEditing()) {
-                <span class="ml-1.5 inline-flex w-full max-w-md flex-col align-top">
-                  <ng-container [ngTemplateOutlet]="editBox" />
-                </span>
-              } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
-                <ng-container [ngTemplateOutlet]="lineWords" />
-                @if (rolledAtTold(); as told) {
-                  <span class="text-ui-dim ml-0.5 text-[0.9em]" data-testid="chat-message-rolled-at"
-                    >（{{ told }}）</span
-                  >
-                }
-                @if (sentStamp(); as stampId) {
-                  <span class="inline-block align-middle" data-testid="chat-message-stamp">
-                    <ui-stamp
-                      [stampId]="stampId"
-                      [size]="stampLineSize(stampId, true)"
-                      [play]="animeState() === 'active' ? 1 : 0"
-                    />
-                  </span>
-                }
-                @if (shownAttachments().length > 0) {
-                  <span class="ml-1.5 inline-flex align-middle">
-                    @for (image of shownAttachments(); track image.identifier) {
-                      <img
-                        class="message-attachment-image border-ui-border-panel bg-ui-elevated block size-auto max-h-12 max-w-18 rounded-sm border border-solid object-contain"
-                        [src]="image.url | safe: 'resourceUrl'"
-                        [alt]="'feature.chat.message.attachment' | transloco"
-                      />
-                    }
-                  </span>
-                }
-                @if (canDisclose()) {
-                  <button (click)="discloseMessage()">{{ 'feature.chat.message.discloseSecret' | transloco }}</button>
-                }
-              } @else {
-                <span>{{ 'feature.chat.message.secretDice' | transloco }}</span>
-              }
-              @if (!isEditing() && isEdited()) {
-                <ng-container
-                  [ngTemplateOutlet]="editedMark"
-                  [ngTemplateOutletContext]="{ label: 'feature.chat.message.editedSimple' }"
-                />
-              }
+              <ng-container [ngTemplateOutlet]="lineBody" [ngTemplateOutletContext]="{ compact: true }" />
             </font>
           </span>
           <ng-container [ngTemplateOutlet]="historyPanel" />
-          <ng-container [ngTemplateOutlet]="reactionRow" />
+          <chat-message-reactions [message]="chatMessage" [mayAnswer]="canAnswerWithStamps" />
           <ng-container [ngTemplateOutlet]="actionToolbar" />
         </div>
       </div>
     }
   </div>
 </div>
+
+<!-- The line this one answers or quotes, as a chip in the run of the compact line that jumps to it. -->
+<ng-template #compactPreview let-preview="preview" let-icon="icon" let-isReply="isReply">
+  <button
+    type="button"
+    class="rounded-r-ui-sm ml-2 inline-flex max-w-[18em] cursor-pointer items-center gap-1 overflow-hidden border-0 border-l-2 border-l-(--ui-quote-border) bg-(--ui-quote-bg) px-1.5 py-0.5 align-middle text-[11px] text-(--ui-quote-text) transition-colors hover:bg-(--ui-quote-hover-bg)"
+    [title]="preview.text"
+    (click)="isReply ? jumpToReplyTarget() : jumpToQuoteTarget()"
+  >
+    <i class="material-icons text-[11px]! text-(--ui-quote-name)">{{ icon }}</i>
+    <span class="font-semibold text-(--ui-quote-name)">{{ preview.name }}</span>
+    <span class="truncate">{{ preview.text }}</span>
+  </button>
+</ng-template>
+
+<!--
+  What stands in the line's body: the box it is edited in, or its words with what was rolled at,
+  its stamp, its pictures and the button that shows a kept-back roll, or the cover over a roll kept
+  from this reader; then the mark of a line that was edited. The compact view keeps it all in the
+  run of the line, so its stamp and pictures are inline and smaller.
+-->
+<ng-template #lineBody let-compact="compact">
+  @if (isEditing()) {
+    @if (compact) {
+      <span class="ml-1.5 inline-flex w-full max-w-md flex-col align-top">
+        <ng-container [ngTemplateOutlet]="editBox" />
+      </span>
+    } @else {
+      <div class="py-1">
+        <ng-container [ngTemplateOutlet]="editBox" />
+      </div>
+    }
+  } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
+    <ng-container [ngTemplateOutlet]="lineWords" />
+    @if (rolledAtTold(); as told) {
+      <span class="text-ui-dim ml-0.5 text-[0.9em]" data-testid="chat-message-rolled-at">（{{ told }}）</span>
+    }
+    @if (sentStamp(); as stampId) {
+      @if (compact) {
+        <span class="inline-block align-middle" data-testid="chat-message-stamp">
+          <ng-container [ngTemplateOutlet]="lineStamp" [ngTemplateOutletContext]="{ stampId, compact }" />
+        </span>
+      } @else {
+        <div class="py-0.5" data-testid="chat-message-stamp">
+          <ng-container [ngTemplateOutlet]="lineStamp" [ngTemplateOutletContext]="{ stampId, compact }" />
+        </div>
+      }
+    }
+    @if (shownAttachments().length > 0) {
+      @if (compact) {
+        <span class="ml-1.5 inline-flex align-middle">
+          @for (image of shownAttachments(); track image.identifier) {
+            <img
+              class="message-attachment-image border-ui-border-panel bg-ui-elevated block size-auto max-h-12 max-w-18 rounded-sm border border-solid object-contain"
+              [src]="image.url | safe: 'resourceUrl'"
+              [alt]="'feature.chat.message.attachment' | transloco"
+            />
+          }
+        </span>
+      } @else {
+        <div class="mt-1.5 flex flex-wrap gap-1.5 whitespace-normal">
+          @for (image of shownAttachments(); track image.identifier) {
+            <img
+              class="message-attachment-image border-ui-border-panel bg-ui-elevated block size-auto max-h-30 max-w-[min(180px,100%)] rounded-sm border border-solid object-contain"
+              [src]="image.url | safe: 'resourceUrl'"
+              [alt]="'feature.chat.message.attachment' | transloco"
+            />
+          }
+        </div>
+      }
+    }
+    @if (canDisclose()) {
+      <button (click)="discloseMessage()">{{ 'feature.chat.message.discloseSecret' | transloco }}</button>
+    }
+    @if (canUndoReset()) {
+      <button type="button" data-testid="reset-undo" (click)="undoReset()">
+        {{ 'feature.chat.reset.undo' | transloco }}
+      </button>
+    } @else if (resetUndoResult(); as ended) {
+      <span class="text-ui-dim ml-0.5 text-[0.9em]" data-testid="reset-undo-result">
+        @if (ended.restored < 1) {
+          {{ 'feature.chat.reset.undoNone' | transloco }}
+        } @else if (ended.skipped > 0) {
+          {{ 'feature.chat.reset.undoSkipped' | transloco: ended }}
+        } @else {
+          {{ 'feature.chat.reset.undone' | transloco: ended }}
+        }
+      </span>
+    }
+  } @else {
+    <span>{{ 'feature.chat.message.secretDice' | transloco }}</span>
+  }
+  @if (!isEditing() && isEdited()) {
+    @if (compact) {
+      <ng-container
+        [ngTemplateOutlet]="editedMark"
+        [ngTemplateOutletContext]="{ label: 'feature.chat.message.editedSimple' }"
+      />
+    } @else {
+      &nbsp;<ng-container
+        [ngTemplateOutlet]="editedMark"
+        [ngTemplateOutletContext]="{ label: 'feature.chat.message.edited' }"
+      />
+    }
+  }
+</ng-template>
+
+<!-- The stamp the line was sent with, played once as the line comes in. -->
+<ng-template #lineStamp let-stampId="stampId" let-compact="compact">
+  <ui-stamp [stampId]="stampId" [size]="stampLineSize(stampId, compact)" [play]="animeState() === 'active' ? 1 : 0" />
+</ng-template>
 
 <!-- The edited mark opens the line's history where one was kept; a line edited before then is only marked. -->
 <ng-template #editedMark let-label="label">
@@ -342,30 +359,6 @@
   held on the line opens. A touch screen has no hover, so it reaches the line through that press
   alone.
 -->
-<ng-template #reactionRow>
-  @if (reactionChips().length > 0) {
-    <div class="flex flex-wrap gap-1 px-2.5 pt-1 pb-0.5" data-testid="chat-message-reactions">
-      @for (chip of reactionChips(); track chip.stampId) {
-        <button
-          type="button"
-          class="border-ui-border-panel bg-ui-elevated text-ui-muted hover:border-ui-accent inline-flex h-8 cursor-pointer items-center gap-0.5 rounded-full border border-solid py-0 pr-2 pl-0.5 text-[11px] tabular-nums transition-colors disabled:cursor-default"
-          [class.border-ui-accent!]="chip.mine"
-          [class.bg-ui-accent-bg!]="chip.mine"
-          [class.text-ui-accent!]="chip.mine"
-          [title]="reactionNames(chip)"
-          [attr.aria-pressed]="chip.mine"
-          [attr.data-testid]="'chat-message-reaction-' + chip.stampId"
-          [disabled]="!canPressReaction(chip)"
-          (click)="toggleReaction(chip.stampId)"
-        >
-          <ui-stamp [stampId]="chip.stampId" [size]="28" [play]="chip.play" />
-          <span data-reaction-count>{{ chip.count }}</span>
-        </button>
-      }
-    </div>
-  }
-</ng-template>
-
 <ng-template #actionToolbar>
   @if (toolbarTools(); as tools) {
     <div
@@ -447,16 +440,16 @@
 <!-- What the line says, with the words for how novel mode stages it. -->
 <ng-template #lineWords>
   @if (sentStamp(); as stampId) {
-    @if (chatMessage.saidWithStamp; as said) {
+    @if (chatMessage.saidWithStamp) {
       <span
         #messageBody
         data-chat-search-text
         data-testid="chat-message-said-with-stamp"
-        [innerHTML]="escapeHtmlAndRuby(said) | linkify | safe"
+        [innerHTML]="bodyHtml() | linkify | safe"
       ></span>
     }
   } @else {
-    <span #messageBody data-chat-search-text [innerHTML]="escapeHtmlAndRuby(chatMessage.text) | linkify | safe"></span>
+    <span #messageBody data-chat-search-text [innerHTML]="bodyHtml() | linkify | safe"></span>
   }
   @for (badge of emoteBadges(); track $index) {
     <span class="rounded-ui bg-ui-accent-bg text-ui-accent ml-1 px-1 align-middle text-[10px] whitespace-nowrap">{{

@@ -78,7 +78,7 @@ function resultMessageContextOf(
 
   if (originalMessage.to != null && 0 < originalMessage.to.length) {
     context.to = originalMessage.to;
-    if (originalMessage.to.indexOf(originalMessage.from) < 0) {
+    if (!originalMessage.to.includes(originalMessage.from)) {
       context.to += ` ${originalMessage.from}`;
     }
   }
@@ -559,13 +559,13 @@ export class DiceBot extends GameObject {
     const splitText = text.split(/\s/);
 
     const diceTable = this.getDiceTables();
-    if (!diceTable || splitText.length == 0) {
+    if (!diceTable || splitText.length === 0) {
       return;
     }
 
     let rollTable: DiceTable | null = null;
     for (const table of diceTable) {
-      if (table.command == splitText[0]) {
+      if (table.command === splitText[0]) {
         rollTable = table;
       }
     }
@@ -602,7 +602,7 @@ export class DiceBot extends GameObject {
         const tablePalette = rollTable.diceTablePalette!.getPalette();
         for (const entry of tablePalette) {
           const splitOneTable = entry.split(/[:：,，\s]/);
-          if (splitOneTable[0] == rolledDiceNum[0]) {
+          if (splitOneTable[0] === rolledDiceNum[0]) {
             tableAns = entry.replace(/\\n/g, '\n');
           }
         }

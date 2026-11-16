@@ -92,17 +92,22 @@ export function handCanvasPressesOn(root: HTMLElement, routes: CanvasPressRoutes
   };
 }
 
+/** The presses the browser sends after the pointer goes down, placed at whole pixels. */
+const FOLLOWS_POINTER_DOWN: readonly string[] = ['mousedown', 'contextmenu', 'click', 'dblclick'];
+
 /**
- * The point a press is picked at: the point the pointer went down at, for the mouse press the browser
- * sends after it, which it rounds to whole pixels, so that both are handed to the same thing even at
- * the edge of a piece.
+ * The point a press is picked at: the point the pointer went down at, for the mouse press, the right
+ * click, the click and the double click the browser sends after it, which it rounds to whole pixels,
+ * so that all of them are handed to the same thing even at the edge of a piece. One with no press
+ * before it, as the menu key sends a right click and a key a click, or one made after the pointer
+ * moved on, as a click let go of elsewhere, is picked where it is.
  */
 function samePress(
   point: { x: number; y: number } | null,
   type: string,
   pointerDown: { x: number; y: number } | null
 ): { x: number; y: number } | null {
-  if (!point || type !== 'mousedown' || !pointerDown) return point;
+  if (!point || !FOLLOWS_POINTER_DOWN.includes(type) || !pointerDown) return point;
   return Math.abs(point.x - pointerDown.x) < 1 && Math.abs(point.y - pointerDown.y) < 1 ? pointerDown : point;
 }
 

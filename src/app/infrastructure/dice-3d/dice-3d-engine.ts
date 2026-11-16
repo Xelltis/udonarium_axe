@@ -23,6 +23,10 @@ import {
   FacePicture,
   lookFor,
 } from '@axe/infrastructure/dice-3d/dice-textures';
+import { placeFrameCamera } from '@axe/infrastructure/dice-3d/frame-camera';
+import { type BakedLight, bakeLight } from '@axe/infrastructure/three-kit/baked-light';
+import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
+import { letGoOfWebglRenderer, webglRendererOn } from '@axe/infrastructure/three-kit/webgl-renderer';
 import {
   AdditiveBlending,
   BufferAttribute,
@@ -46,8 +50,7 @@ import {
   SRGBColorSpace,
   Texture,
   Vector2,
-  Vector3,
-  WebGLRenderer,
+  type WebGLRenderer,
 } from 'three';
 
 /** One die of a throw: its shape and the numbers it wears. */
@@ -138,7 +141,8 @@ export interface PreparedThrow extends PosedThrow {
   readonly owned: readonly MeshPhysicalMaterial[];
 }
 
-const TEXTURE_CACHE_SIZE = 24;
+/** How many materials for dice of a colour and finish are kept at the most, the least recently worn let go first. */
+const MATERIAL_CACHE_SIZE = 24;
 /** Every shape and way of numbering it a roll can throw, whose engravings are cut ahead. */
 const ENGRAVINGS: readonly (readonly [DieShape, DieLabels])[] = [
   ['d6', 'standard'],
@@ -151,11 +155,6 @@ const ENGRAVINGS: readonly (readonly [DieShape, DieLabels])[] = [
   ['d6', 'd3'],
 ];
 const SHADOW_MAP_PX = 1024;
-/** How the frame's camera looks at the tray: its field of view, and how high above the floor it stands. */
-const FRAME_FOV = 18;
-const FRAME_ELEVATION = (72 * Math.PI) / 180;
-/** How high the tallest die stands as it rests, so one against the far wall keeps its top in the frame. */
-const TALLEST_DIE = 2;
 /**
  * How far past the tray shadows are cast: a little in a frame, whose edges are the tray's walls, and
  * further on the table, where a die flying in from outside the tray throws its shadow on the board.
@@ -188,6 +187,12 @@ export class Dice3dEngine {
   private readonly tableCamera = new PerspectiveCamera();
   private readonly light = new DirectionalLight(0xffffff, 2.4);
   private readonly shadowCatcher: Mesh;
+  /** The size of the renderer's canvas, read into the same vector each time. */
+  private readonly drawnSize = new Vector2();
+  /** The tray and the view the light's shadow was last laid out for, so it is laid out again only for another. */
+  private shadowLaidFor: { halfWidth: number; halfDepth: number; inFrame: boolean } | null = null;
+  /** The studio the dice mirror, baked into the light of the scene. */
+  private readonly studio: BakedLight;
   private readonly geometries = new Map<DieShape, BufferGeometry>();
   private readonly contactGeometry = new PlaneGeometry(1, 1);
   private readonly contactTexture = contactTexture();
@@ -197,7 +202,7 @@ export class Dice3dEngine {
   private readonly engravings = new Map<string, CanvasTexture>();
   /** Where the marks lie on every die of a shape numbered the same way, for the dice not of resin. */
   private readonly marks = new Map<string, CanvasTexture>();
-  private metalLight: Texture | null = null;
+  private metalLight: BakedLight | null = null;
   /** The pictures dice have worn, each made a texture once, by its key. */
   private readonly pictures = new Map<string, Texture>();
   /** The average colour of each picture, which the ink of a die wearing it stands out from. */
@@ -209,31 +214,28 @@ export class Dice3dEngine {
    * page's randomness for its name, which a quiet moment must leave as it found it.
    */
   private readonly carved = new Map<string, HTMLCanvasElement>();
+  /** Calls off the engraving waiting for a quiet moment, while one waits. */
+  private cancelEngraving: (() => void) | null = null;
   private lost = false;
+  private disposed = false;
 
   private constructor() {
     this.canvas = document.createElement('canvas');
-    this.renderer = new WebGLRenderer({
-      canvas: this.canvas,
-      antialias: true,
-      alpha: true,
-      premultipliedAlpha: true,
-      powerPreference: 'high-performance',
-    });
-    this.renderer.outputColorSpace = SRGBColorSpace;
+    this.renderer = webglRendererOn(this.canvas, { premultipliedAlpha: true, powerPreference: 'high-performance' });
     // The neutral curve keeps a die the colour the roll was said in, where others wash it out.
     this.renderer.toneMapping = NeutralToneMapping;
     this.renderer.toneMappingExposure = 1;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFShadowMap;
-    this.renderer.setClearColor(0x000000, 0);
-    this.canvas.addEventListener('webglcontextlost', (event) => {
-      event.preventDefault();
+    // The renderer asks the browser for the context back itself; this engine draws no more once it
+    // is lost, and is given up with the throws.
+    this.canvas.addEventListener('webglcontextlost', () => {
       this.lost = true;
     });
 
     const pmrem = new PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(diceStudio(), 0.02).texture;
+    this.studio = bakeLight(pmrem, diceStudio(), 0.02);
+    this.scene.environment = this.studio.texture;
     pmrem.dispose();
 
     this.light.castShadow = true;
@@ -268,6 +270,7 @@ export class Dice3dEngine {
     engine.layOut(warm.tray, { kind: 'frame' }, 2);
     await engine.renderer.compileAsync(engine.scene, engine.frameCamera);
     engine.scene.remove(warm.root);
+    engine.release(warm);
     engine.engraveAhead();
     return engine;
   }
@@ -417,17 +420,23 @@ export class Dice3dEngine {
 
   /** Lets the renderer and everything it holds go. */
   dispose(): void {
+    this.disposed = true;
+    this.cancelEngraving?.();
+    this.cancelEngraving = null;
     this.geometries.forEach((geometry) => geometry.dispose());
     this.materials.forEach(disposeMaterial);
     this.engravings.forEach((engraving) => engraving.dispose());
     this.marks.forEach((marks) => marks.dispose());
     this.metalLight?.dispose();
+    this.studio.dispose();
     this.pictures.forEach((picture) => picture.dispose());
     this.carved.clear();
     this.contactGeometry.dispose();
     this.contactTexture.dispose();
     this.haloTexture.dispose();
-    this.renderer.dispose();
+    this.light.shadow.dispose();
+    disposeObject(this.shadowCatcher);
+    letGoOfWebglRenderer(this.renderer);
   }
 
   /** Grows the canvas to hold a picture of a size, and points the drawing at its top left corner. */
@@ -435,11 +444,11 @@ export class Dice3dEngine {
     const width = Math.max(1, Math.round(size.width));
     const height = Math.max(1, Math.round(size.height));
     if (this.renderer.getPixelRatio() !== size.pixelRatio) this.renderer.setPixelRatio(size.pixelRatio);
-    const current = this.renderer.getSize(new Vector2());
+    const current = this.renderer.getSize(this.drawnSize);
     if (current.x < width || current.y < height) {
       this.renderer.setSize(Math.max(current.x, width), Math.max(current.y, height), false);
     }
-    const canvasHeight = this.renderer.getSize(new Vector2()).y;
+    const canvasHeight = this.renderer.getSize(this.drawnSize).y;
     // WebGL counts up from the foot of the canvas, so the top left corner is the canvas's height
     // less the picture's above its foot.
     this.renderer.setViewport(0, canvasHeight - height, width, height);
@@ -449,6 +458,29 @@ export class Dice3dEngine {
 
   private layOut(tray: Tray, view: ThrowView, aspect: number) {
     const inFrame = view.kind === 'frame';
+    const laid = this.shadowLaidFor;
+    if (!laid || laid.halfWidth !== tray.halfWidth || laid.halfDepth !== tray.halfDepth || laid.inFrame !== inFrame) {
+      this.layOutShadow(tray, inFrame);
+      this.shadowLaidFor = { halfWidth: tray.halfWidth, halfDepth: tray.halfDepth, inFrame };
+    }
+
+    if (view.kind === 'table') {
+      // The eye stands where the table is seen from, so the light shines off the dice toward it;
+      // the projection is the page's own, taken from there.
+      const camera = this.tableCamera;
+      const [ex, ey, ez] = view.eye ?? [0, 0, 0];
+      camera.matrixWorld.makeTranslation(ex, ey, ez);
+      camera.matrixWorldInverse.makeTranslation(-ex, -ey, -ez);
+      camera.projectionMatrix.fromArray(Array.from(view.projection)).multiply(camera.matrixWorld);
+      camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+      return camera;
+    }
+    placeFrameCamera(this.frameCamera, tray, aspect);
+    return this.frameCamera;
+  }
+
+  /** Lays the floor that takes the shadows and the light that casts them out for a tray, seen in a frame or on the table. */
+  private layOutShadow(tray: Tray, inFrame: boolean): void {
     (this.shadowCatcher.material as ShadowMaterial).opacity = inFrame ? FRAME_SHADOW_OPACITY : TABLE_SHADOW_OPACITY;
     if (inFrame) {
       this.shadowCatcher.scale.set(FRAME_FLOOR_REACH * 2, FRAME_FLOOR_REACH * 2, 1);
@@ -475,20 +507,6 @@ export class Dice3dEngine {
     shadow.far = span * 6;
     shadow.updateProjectionMatrix();
     this.light.shadow.radius = (PENUMBRA * SHADOW_MAP_PX) / (shadow.right - shadow.left);
-
-    if (view.kind === 'table') {
-      // The eye stands where the table is seen from, so the light shines off the dice toward it;
-      // the projection is the page's own, taken from there.
-      const camera = this.tableCamera;
-      const [ex, ey, ez] = view.eye ?? [0, 0, 0];
-      camera.matrixWorld.makeTranslation(ex, ey, ez);
-      camera.matrixWorldInverse.makeTranslation(-ex, -ey, -ez);
-      camera.projectionMatrix.fromArray(Array.from(view.projection)).multiply(camera.matrixWorld);
-      camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
-      return camera;
-    }
-    fitFrameCamera(this.frameCamera, tray, aspect);
-    return this.frameCamera;
   }
 
   private geometryOf(shape: DieShape): BufferGeometry {
@@ -538,11 +556,10 @@ export class Dice3dEngine {
       return !this.engravings.has(key) && !this.carved.has(key);
     });
     const next = pending[0];
-    if (!next || this.lost) return;
-    const idle = globalThis.requestIdleCallback;
-    const later = (work: () => void) =>
-      typeof idle === 'function' ? idle(work, { timeout: 2000 }) : setTimeout(work, 50);
-    later(() => {
+    if (!next || this.lost || this.disposed) return;
+    this.cancelEngraving = atQuietMoment(() => {
+      this.cancelEngraving = null;
+      if (this.disposed) return;
       this.carvingOf(next[0], next[1]);
       this.engraveAhead();
     });
@@ -607,7 +624,7 @@ export class Dice3dEngine {
   private textureOf(picture: DicePicture): Texture {
     let texture = this.pictures.get(picture.key);
     if (!texture) {
-      texture = new Texture(picture.source as TexImageSource);
+      texture = new Texture(picture.source);
       texture.colorSpace = SRGBColorSpace;
       texture.wrapS = texture.wrapT = RepeatWrapping;
       texture.flipY = false;
@@ -622,10 +639,10 @@ export class Dice3dEngine {
   private metalStudio(): Texture {
     if (!this.metalLight) {
       const pmrem = new PMREMGenerator(this.renderer);
-      this.metalLight = pmrem.fromScene(diceStudio(true), 0.02).texture;
+      this.metalLight = bakeLight(pmrem, diceStudio(true), 0.02);
       pmrem.dispose();
     }
-    return this.metalLight;
+    return this.metalLight.texture;
   }
 
   private marksOf(shape: DieShape, labels: DieLabels): CanvasTexture {
@@ -669,7 +686,7 @@ export class Dice3dEngine {
     if (made === 'glass') material.attenuationColor = new Color(look.body);
     if (made !== 'resin') this.dress(material, made, shape, labels, look, 0);
     this.materials.set(key, material);
-    if (this.materials.size > TEXTURE_CACHE_SIZE) {
+    if (this.materials.size > MATERIAL_CACHE_SIZE) {
       const [oldest, dropped] = this.materials.entries().next().value!;
       this.materials.delete(oldest);
       disposeMaterial(dropped);
@@ -690,38 +707,17 @@ const STILL_D6: DiceThrowResult = {
 };
 
 /**
- * Sets the frame's camera high above the tray and a little in front of it, looking down at it, as
- * far back as it needs to be for the whole floor and the dice resting against its walls to fit the frame.
- * The tray is the frame's own shape, so its walls stand about at the frame's edges.
+ * Has work done at a quiet moment of the page, or soon where the page has none to offer, and answers
+ * what calls it off.
  */
-function fitFrameCamera(camera: PerspectiveCamera, tray: Tray, aspect: number): void {
-  camera.aspect = aspect;
-  camera.fov = FRAME_FOV;
-  const direction = new Vector3(0, -Math.cos(FRAME_ELEVATION), Math.sin(FRAME_ELEVATION));
-  const corners = [-1, 1].flatMap((sx) =>
-    [-1, 1].flatMap((sy) => [0, TALLEST_DIE].map((z) => new Vector3(sx * tray.halfWidth, sy * tray.halfDepth, z)))
-  );
-  let near = 1;
-  let far = 400;
-  for (let i = 0; i < 40; i++) {
-    const distance = (near + far) / 2;
-    camera.position.copy(direction).multiplyScalar(distance);
-    camera.lookAt(0, 0, 0);
-    camera.updateMatrixWorld();
-    camera.updateProjectionMatrix();
-    const fits = corners.every((corner) => {
-      const p = corner.clone().project(camera);
-      return Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1;
-    });
-    if (fits) far = distance;
-    else near = distance;
+function atQuietMoment(work: () => void): () => void {
+  const idle = globalThis.requestIdleCallback;
+  if (typeof idle === 'function') {
+    const handle = idle(work, { timeout: 2000 });
+    return () => globalThis.cancelIdleCallback(handle);
   }
-  camera.position.copy(direction).multiplyScalar(far);
-  camera.lookAt(0, 0, 0);
-  camera.near = Math.max(0.5, far * 0.2);
-  camera.far = far * 3;
-  camera.updateMatrixWorld();
-  camera.updateProjectionMatrix();
+  const handle = setTimeout(work, 50);
+  return () => clearTimeout(handle);
 }
 
 /** Lets a die's material go with its faces' picture; its engraving is shared, and kept. */

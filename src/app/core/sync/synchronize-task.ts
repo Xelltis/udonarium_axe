@@ -18,12 +18,23 @@ export class SynchronizeTask {
 
   onsynchronize: ((task: SynchronizeTask, identifier: string) => void) | null = null;
   onfinish: ((task: SynchronizeTask) => void) | null = null;
-  ontimeout: ((task: SynchronizeTask, remainedRequests: SynchronizeRequest[]) => void) | null = null;
+  /**
+   * The task ran out of time or its peer left: with the requests that may be asked again, and
+   * those given up, which have been asked as often as their ttl allowed.
+   */
+  ontimeout:
+    | ((task: SynchronizeTask, remainedRequests: SynchronizeRequest[], givenUpRequests: SynchronizeRequest[]) => void)
+    | null = null;
 
   private requestMap: Map<ObjectIdentifier, SynchronizeRequest> = new Map();
   private timeoutTimer: ResettableTimeout | null = null;
 
   private constructor(readonly peerId: PeerId) {}
+
+  /** How many of the objects asked for are still to arrive; none once the task has finished. */
+  get pendingCount(): number {
+    return this.requestMap.size;
+  }
 
   /**
    * Starts asking for the requested objects: from the peer when it holds them, else from the room.
@@ -102,10 +113,12 @@ export class SynchronizeTask {
   private timeout() {
     if (this.ontimeout) {
       const remained: SynchronizeRequest[] = [];
+      const givenUp: SynchronizeRequest[] = [];
       for (const request of this.requestMap.values()) {
         if (0 <= request.ttl) remained.push(request);
+        else givenUp.push(request);
       }
-      this.ontimeout(this, remained);
+      this.ontimeout(this, remained, givenUp);
     }
     this.finish();
   }

@@ -5,8 +5,8 @@ import {
   hexSpacing,
   hexStartAngle,
   isFlatTopGrid,
-  strokeHexPath,
 } from '@axe/domain/tabletop/hex-geometry';
+import { strokeHexPath } from '@axe/infrastructure/tabletop/hex-canvas';
 
 export class GridLineRender {
   /**
@@ -60,10 +60,10 @@ export class GridLineRender {
   render(
     width: number,
     height: number,
-    gridSize: number = 50,
-    gridType: GridType = GridType.SQUARE,
-    gridColor: string = '#000000e6',
-    gridFontColor: string = gridColor,
+    gridSize: number,
+    gridType: GridType,
+    gridColor: string,
+    gridFontColor: string,
     overTerrain = false,
     offsetTop: number = 0,
     offsetLeft: number = 0,
@@ -102,10 +102,10 @@ export class GridLineRender {
   renderViewport(
     widthPx: number,
     heightPx: number,
-    gridSize: number = 50,
-    gridType: GridType = GridType.SQUARE,
-    gridColor: string = '#000000e6',
-    gridFontColor: string = gridColor,
+    gridSize: number,
+    gridType: GridType,
+    gridColor: string,
+    gridFontColor: string,
     offsetTopPx: number = 0,
     offsetLeftPx: number = 0,
     drawLabels: boolean = true,

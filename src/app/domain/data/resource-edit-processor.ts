@@ -1,14 +1,20 @@
-import { emitDiceBotUnreachable } from '@axe/core/event/domain-events';
+import { emitDiceBotUnreachable, emitResetCarriedOut } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import {
   describeBuffRemoval,
+  describeBuffsLacking,
+  isClearedWithBody,
+  isPieceResetCommand,
+  isTableResetCommand,
+  parseBuffClearanceCommand,
   parseBuffRemovalCommand,
   removeBuffsAcross,
 } from '@axe/domain/character/buff-bulk-removal';
 import { halfWidthBuffCommand } from '@axe/domain/character/buff-command';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
+import { resetAcross, ResetRecorder } from '@axe/domain/character/piece-reset';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -22,14 +28,17 @@ import {
   unwrapEmbeddedRolls,
   unwrapParentheses,
 } from '@axe/domain/data/embedded-roll';
-import { resourceCommandSites } from '@axe/domain/data/resource-command-words';
+import { readDefaultResetCommand, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import {
+  ailmentsForBuffRemoval,
   applyBuffEdit,
+  applyDefaultReset,
   applyResourceEditReport,
   applyTextEdit,
   type BuffEdit,
   convertCommandToResourceEdit,
   createDefaultResourceEdit,
+  type DefaultResetEdit,
   parseResourceEditOption,
   type ResourceEdit,
   type ResourceEditOption,
@@ -86,7 +95,8 @@ export class ResourceEditProcessor {
    *
    * A `t` prefix aims a command at the message's target character instead of the speaker, and an `s` prefix
    * makes the report a secret. A `&&` command sweeps buffs off every piece on the table instead; see
-   * {@link parseBuffRemovalCommand}. The work continues asynchronously and ends in a system message on the same
+   * {@link parseBuffRemovalCommand}. `:*=既定` and `:HP=既定` put values back to their defaults, and `&リセット-`
+   * and `&&リセット-` clear the buffs and then put the values back; see {@link readDefaultResetCommand}. The work continues asynchronously and ends in a system message on the same
    * chat tab; the promise returned settles once it has.
    */
   checkResourceEditCommand(
@@ -143,6 +153,9 @@ export class ResourceEditProcessor {
    * Works out and applies the collected resource and buff commands, then posts one report to the chat tab.
    *
    * Untargeted commands act on the speaker's character and are skipped when the speaker is not a character.
+   * A command that clears the pieces aimed at of their buffs, or puts their values back to their defaults,
+   * skips a part aimed at along with its body, which the body is cleared and put back with. `&リセット-` is
+   * carried out as `&*-` and then `:*=既定`.
    * Amounts are rolled with the game system the loader gives for the message. A command whose amount cannot
    * be worked out is named in the report instead of applied. When the loader gives a system whose code could
    * not be fetched, no amount is worked out or reported as unreadable, and the sender is told the dice bot
@@ -158,6 +171,7 @@ export class ResourceEditProcessor {
     buffSweeps: readonly string[] = []
   ) {
     const allEditList: ResourceEdit[] = [];
+    const defaultResets: DefaultResetEdit[] = [];
     const unreadableCommands: string[] = [];
     const gameSystem = await this.loadGameSystemAsync(originalMessage.tags ? originalMessage.tags[0] : '');
     const canWorkOutAmounts = !this.isUnreachable(gameSystem);
@@ -172,10 +186,19 @@ export class ResourceEditProcessor {
         continue;
       }
 
+      const pick = readDefaultResetCommand(oneText);
+      if (pick) {
+        const aimedAt = resourceByCharacter
+          .filter((other) => other.resourceCommand === oneText && other.object)
+          .map((other) => other.object);
+        if (!targeted || !isClearedWithBody(object, aimedAt)) defaultResets.push({ object, targeted, pick });
+        continue;
+      }
+
       const oneResourceEdit = this.defaultResourceEdit();
       if (!this.commandToEdit(oneResourceEdit, oneText, object, targeted)) continue;
 
-      if (oneResourceEdit.operator != '>') {
+      if (oneResourceEdit.operator !== '>') {
         if (!canWorkOutAmounts) {
           leftAmountsAlone = true;
           continue;
@@ -198,12 +221,26 @@ export class ResourceEditProcessor {
     }
 
     const repBuffCommandList: BuffEdit[] = [];
+    const aimedAtBy = (command: string) =>
+      buffByCharacter.filter((buff) => buff.buffCommand === command && buff.object).map((buff) => buff.object);
     for (const buff of buffByCharacter) {
       const oneText = buff.buffCommand;
       const targeted = !!oneText.match(/^t&/i);
+      if (isPieceResetCommand(halfWidthBuffCommand(oneText))) {
+        const object = targeted ? buff.object : sendFromObject;
+        if (object == null) {
+          Logger.debug('[DiceBot] 送信元がキャラクターではないためバフ操作不可');
+          continue;
+        }
+        if (targeted && isClearedWithBody(object, aimedAtBy(oneText))) continue;
+        repBuffCommandList.push({ command: targeted ? 't&*-' : '&*-', object, targeted });
+        defaultResets.push({ object, targeted, pick: { kind: 'all' } });
+        continue;
+      }
       if (targeted) {
         const object = buff.object;
         const replaceText = halfWidthBuffCommand(oneText);
+        if (parseBuffClearanceCommand(replaceText) && isClearedWithBody(object, aimedAtBy(oneText))) continue;
         repBuffCommandList.push({
           command: replaceText,
           object: object,
@@ -230,7 +267,8 @@ export class ResourceEditProcessor {
       unreadableCommands,
       originalMessage,
       isSecret,
-      buffSweeps
+      buffSweeps,
+      defaultResets
     );
   }
 
@@ -359,13 +397,25 @@ export class ResourceEditProcessor {
     return applyBuffEdit(buff, character);
   }
 
+  /**
+   * Carries the collected commands out and posts the one report: the changes of statuses in the order
+   * written, then the buff commands, then the sweeps, a reset of the table among them, and only then
+   * the values a `:` command or `&リセット-` puts back to their defaults, wherever in the line those were
+   * written. A buff that moved a status puts back what it
+   * moved as it is taken off, so a value put back first would have that taken from it a second time.
+   *
+   * What the commands that clear a piece of buffs, sweep the table and put values back did is kept as it
+   * is done, each piece remembered just before the first of them reaches it, and told this device once
+   * the report is posted, so the one who sent the line may take it back; see {@link ResetRecorder}.
+   */
   private applyResourceBuffEdits(
     allEditList: ResourceEdit[],
     buffList: BuffEdit[],
     unreadableCommands: string[],
     originalMessage: ChatMessage,
     isSecret: boolean,
-    buffSweeps: readonly string[] = []
+    buffSweeps: readonly string[] = [],
+    defaultResets: readonly DefaultResetEdit[] = []
   ) {
     // What is said to everyone, and the same in full, which differs only where a piece's contents
     // are kept from anyone; the full one is then told those who may see what every such piece keeps.
@@ -382,7 +432,7 @@ export class ResourceEditProcessor {
       if (edit.targeted) {
         add(`[${saidNameOf(character)}] `);
       }
-      if (edit.operator == '>') {
+      if (edit.operator === '>') {
         add(this.textEdit(edit, character));
       } else {
         const report = this.resourceEdit(edit, character);
@@ -399,11 +449,21 @@ export class ResourceEditProcessor {
         isDiceRoll = true;
       }
     }
+    const recorder = new ResetRecorder();
+    const withParts = (piece: GameCharacter) => [piece, ...piece.partsAlong()];
     for (const buff of buffList) {
+      if (parseBuffClearanceCommand(buff.command)) recorder.watch(withParts(buff.object));
       add(this.buffEdit(buff, buff.object));
     }
     for (const sweep of buffSweeps) {
-      add(this.sweepBuffs(sweep));
+      add(isTableResetCommand(sweep) ? this.resetTable(sweep, recorder) : this.sweepBuffs(sweep, recorder));
+    }
+    for (const reset of defaultResets) {
+      recorder.watch(withParts(reset.object));
+      const report = applyDefaultReset(reset);
+      if (reset.targeted && report.shown !== '') add(`[${saidNameOf(reset.object)}] `);
+      add(report.shown, report.full);
+      for (const piece of report.kept) kept.add(piece);
     }
     for (const unreadable of unreadableCommands) {
       add(unreadable);
@@ -411,7 +471,7 @@ export class ResourceEditProcessor {
     text = text.replace(/\s+$/, '');
     full = full.replace(/\s+$/, '');
 
-    if (text == '') return;
+    if (text === '') return;
     let fromText: string;
     let nameText: string;
     if (isDiceRoll) {
@@ -435,9 +495,11 @@ export class ResourceEditProcessor {
     };
     const chatTab = ObjectStore.instance.get<ChatTab>(originalMessage.tabIdentifier);
     if (chatTab) {
-      chatTab.addMessage(resourceMessage);
+      const posted = chatTab.addMessage(resourceMessage);
       if (full !== text)
         tellThoseWhoMaySee(chatTab, { ...resourceMessage, timestamp: originalMessage.timestamp + 3 }, full, [...kept]);
+      const record = recorder.finish();
+      if (record.pieces.length > 0) emitResetCarriedOut({ messageIdentifier: posted.identifier, record });
     }
   }
 
@@ -445,19 +507,42 @@ export class ResourceEditProcessor {
    * Carries out one `&&` sweep across the pieces on the table and returns its report.
    *
    * Only the game master may sweep; anyone else is told so and nothing is taken. A sweep that finds
-   * nothing says so rather than reporting a removal.
+   * nothing says so rather than reporting a removal. `recorder` remembers how each piece stood first,
+   * whatever the sweep picks by, so any sweep may be taken back.
    */
-  sweepBuffs(command: string): string {
+  sweepBuffs(command: string, recorder?: ResetRecorder): string {
     const rule = parseBuffRemovalCommand(command);
     if (!rule) return '';
     if (PeerCursor.myRole !== PeerRole.GameMaster) return `バフの一括解除はGMだけが使えます（${command}）    `;
-    const onTable = ObjectStore.instance
+    const onTable = this.piecesOnTable();
+    recorder?.watch(onTable);
+    const removed = removeBuffsAcross(onTable, rule, ailmentsForBuffRemoval(rule));
+    const what = describeBuffRemoval(rule);
+    if (removed.buffs < 1) return `卓全体に${describeBuffsLacking(rule)}はありません    `;
+    return `卓全体から${what}を解除（${removed.characters}体・${removed.buffs}件）    `;
+  }
+
+  private piecesOnTable(): GameCharacter[] {
+    return ObjectStore.instance
       .getObjects<GameCharacter>(GameCharacter)
       .filter((character) => character.location.name === 'table');
-    const removed = removeBuffsAcross(onTable, rule);
-    const what = describeBuffRemoval(rule);
-    if (removed.buffs < 1) return `卓全体に${what}はありません    `;
-    return `卓全体から${what}を解除（${removed.characters}体・${removed.buffs}件）    `;
+  }
+
+  /**
+   * Carries out `&&リセット-` and returns its report: every buff off every piece on the table, and then
+   * the values of each back to their defaults, each piece taken on its own.
+   *
+   * Only the game master may; anyone else is told so and nothing is changed. The report gives counts
+   * alone, so nothing a piece keeps from anyone is said. `recorder` remembers how each piece stood
+   * first. The work itself is {@link resetAcross}, which the buttons that reset pieces share.
+   */
+  resetTable(command: string, recorder?: ResetRecorder): string {
+    if (PeerCursor.myRole !== PeerRole.GameMaster) return `卓全体のリセットはGMだけが使えます（${command}）    `;
+    const onTable = this.piecesOnTable();
+    recorder?.watch(onTable);
+    const reset = resetAcross(onTable, { rule: { kind: 'all' }, values: true });
+    if (reset.characters < 1) return '卓全体に解除するバフも戻す値もありません    ';
+    return `卓全体をリセット（${reset.characters}体・バフ${reset.buffs}件・値${reset.items}項目）    `;
   }
 
   private messageSendGameCharacter(from: string): GameCharacter | null {

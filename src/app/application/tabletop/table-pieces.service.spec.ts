@@ -48,7 +48,7 @@ describe('TablePiecesService', () => {
     table.height = 20;
     table.gridSize = gridSize;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     const face = { isEmpty: false, url: 'blob:face' } as unknown as ImageFile;
     vi.spyOn(TestBed.inject(ImageService), 'getEmptyOr').mockReturnValue(face);
     pieces = TestBed.inject(TablePiecesService);
@@ -89,7 +89,7 @@ describe('TablePiecesService', () => {
     ground.dab({ kind: 'raise', x: 2.5, y: 4.5, radius: 3, strength: 1 });
     const block = Terrain.create('block', 1, 1, 1, '', '');
     block.location = { name: 'table', x: 100, y: 200 };
-    TestBed.inject(TableSelecter).viewTable!.appendChild(block);
+    TableSelecter.instance.viewTable!.appendChild(block);
     const die = dieAt(100, 200);
     die.posZ = gridSize;
 
@@ -103,7 +103,7 @@ describe('TablePiecesService', () => {
     ground.dab({ kind: 'raise', x: 4, y: 6, radius: 4, strength: 1 });
     const block = Terrain.create('block', 4, 4, 1, '', '');
     block.location = { name: 'table', x: 100, y: 200 };
-    TestBed.inject(TableSelecter).viewTable!.appendChild(block);
+    TableSelecter.instance.viewTable!.appendChild(block);
     const lift = ground.lowestPxIn(100, 200, 4 * gridSize, 4 * gridSize);
     const heights = [100, 230].map((x) => {
       const die = dieAt(x, 330);
@@ -120,7 +120,7 @@ describe('TablePiecesService', () => {
     ground.dab({ kind: 'raise', x: 10, y: 10, radius: 3, strength: 1 });
     const vast = Terrain.create('vast', 20, 20, 1, '', '');
     vast.location = { name: 'table', x: 0, y: 0 };
-    TestBed.inject(TableSelecter).viewTable!.appendChild(vast);
+    TableSelecter.instance.viewTable!.appendChild(vast);
     const die = dieAt(480, 480);
     die.posZ = gridSize;
 
@@ -145,7 +145,7 @@ describe('TablePiecesService', () => {
     pond.location = { name: 'table', x: 100, y: 200 };
     pond.surfaceHeight = 0.5;
     pond.iceCover = 1;
-    TestBed.inject(TableSelecter).viewTable!.appendChild(pond);
+    TableSelecter.instance.viewTable!.appendChild(pond);
     await Promise.resolve();
     await Promise.resolve();
     const die = dieAt(100, 200);
@@ -245,11 +245,11 @@ describe('TablePiecesService', () => {
     const parts = () => pieces.sprites().filter((sprite) => sprite.owner === die.identifier);
     const before = parts();
 
-    TestBed.inject(ObjectChangeService).notifyChanged(TestBed.inject(TableSelecter).viewTable!.identifier);
+    TestBed.inject(ObjectChangeService).notifyChanged(TableSelecter.instance.viewTable!.identifier);
 
     parts().forEach((part, index) => expect(part).toBe(before[index]));
-    TestBed.inject(TableSelecter).viewTable!.gridSize = gridSize * 2;
-    TestBed.inject(ObjectChangeService).notifyChanged(TestBed.inject(TableSelecter).viewTable!.identifier);
+    TableSelecter.instance.viewTable!.gridSize = gridSize * 2;
+    TestBed.inject(ObjectChangeService).notifyChanged(TableSelecter.instance.viewTable!.identifier);
     expect(parts()[0].widthPx).toBe(gridSize * 2);
   });
 
@@ -265,8 +265,8 @@ describe('TablePiecesService', () => {
     under.location = { name: 'table', x: 100, y: 200 };
     const elsewhere = Terrain.create('elsewhere', 1, 1, 1, '', '');
     elsewhere.location = { name: 'table', x: 600, y: 600 };
-    TestBed.inject(TableSelecter).viewTable!.appendChild(under);
-    TestBed.inject(TableSelecter).viewTable!.appendChild(elsewhere);
+    TableSelecter.instance.viewTable!.appendChild(under);
+    TableSelecter.instance.viewTable!.appendChild(elsewhere);
     const change = TestBed.inject(ObjectChangeService);
     const parts = () => pieces.sprites().filter((sprite) => sprite.owner === character.identifier);
     const before = parts();
@@ -289,7 +289,7 @@ describe('TablePiecesService', () => {
     const endless = Terrain.create('endless', 1, 1, 1, '', '');
     endless.location = { name: 'table', x: 0, y: 0 };
     endless.width = Number.POSITIVE_INFINITY;
-    TestBed.inject(TableSelecter).viewTable!.appendChild(endless);
+    TableSelecter.instance.viewTable!.appendChild(endless);
     const parts = () => pieces.sprites().filter((sprite) => sprite.owner === character.identifier);
     const before = parts();
 
@@ -311,7 +311,7 @@ describe('TablePiecesService', () => {
     const slope = Terrain.create('slope', 2, 2, 1, '', '');
     slope.location = { name: 'table', x: 500, y: 500 };
     slope.isSlope = true;
-    TestBed.inject(TableSelecter).viewTable!.appendChild(slope);
+    TableSelecter.instance.viewTable!.appendChild(slope);
     const transient = TestBed.inject(TransientPlacementService);
     const facing = () => pieces.sprites().find((sprite) => sprite.owner === character.identifier)!.facing;
 
@@ -332,7 +332,7 @@ describe('TablePiecesService', () => {
 
     const board = WhiteBoard.create('board', 4, 2, 1, 'late-board');
     board.location = { name: 'table', x: 400, y: 600 };
-    TestBed.inject(TableSelecter).viewTable!.appendChild(board);
+    TableSelecter.instance.viewTable!.appendChild(board);
     await Promise.resolve();
     expect(centre()).not.toEqual(onFloor);
 
@@ -374,7 +374,7 @@ describe('TablePiecesService', () => {
   it('carries the pieces standing on a white board this seat moves along with it', () => {
     const board = WhiteBoard.create('board', 4, 2, 1);
     board.location = { name: 'table', x: 100, y: 200 };
-    TestBed.inject(TableSelecter).viewTable!.appendChild(board);
+    TableSelecter.instance.viewTable!.appendChild(board);
     const die = dieAt(0, 0);
     die.location = { name: 'table', x: 10, y: 10, surface: board.identifier };
     const centre = () => pieces.sprites().find((sprite) => sprite.id === `${die.identifier}#frame`)!.centre;
@@ -517,7 +517,7 @@ describe('TablePiecesService', () => {
   it('lays a map mask flat over its place from the picture the page takes of it', () => {
     const mask = GameTableMask.create('mask', 3, 2, 50);
     mask.location = { name: 'table', x: 100, y: 200 };
-    TestBed.inject(TableSelecter).viewTable!.appendChild(mask);
+    TableSelecter.instance.viewTable!.appendChild(mask);
 
     TestBed.inject(PiecePicturesService).show(mask.identifier, { url: 'blob:mask', widthPx: 150, heightPx: 100 });
 
@@ -566,14 +566,20 @@ describe('TablePiecesService', () => {
     expect(drapes()).toBeDefined();
   });
 
-  it('stands a white board where its face is, from the picture the page takes of what it wears', () => {
+  it('stands a white board where its face is, from the picture the page takes of what it wears, with its back in its own colour', () => {
     const board = WhiteBoard.create('board', 4, 2, 1);
+    board.opacity = 0.6;
+    board.color = '#336699';
     board.location = { name: 'table', x: 100, y: 200 };
-    TestBed.inject(TableSelecter).viewTable!.appendChild(board);
+    TableSelecter.instance.viewTable!.appendChild(board);
 
     TestBed.inject(PiecePicturesService).show(board.identifier, { url: 'blob:board', widthPx: 200, heightPx: 100 });
 
-    expect(pieces.sprites()).toMatchObject([{ id: `${board.identifier}#face`, widthPx: 200, heightPx: 100 }]);
+    expect(pieces.sprites()).toMatchObject([
+      { id: `${board.identifier}#face`, widthPx: 200, heightPx: 100, look: { kind: 'picture', url: 'blob:board' } },
+      { id: `${board.identifier}#back`, widthPx: 200, heightPx: 100, look: { kind: 'colour', colour: '#336699' } },
+    ]);
+    expect(pieces.sprites()[1].opacity).toBe(0.6);
   });
 
   it('turns a piece about the middle of its first sprite lying on its face, on the face it is drawn on', () => {
@@ -626,7 +632,7 @@ describe('TablePiecesService', () => {
   });
 
   it('turns a character’s picture with the piece on a table seen from above that shows facing by turning it', () => {
-    const table = TestBed.inject(TableSelecter).viewTable!;
+    const table = TableSelecter.instance.viewTable!;
     table.mode2d = true;
     const hero = GameCharacter.create('hero', 1, 'hero.png');
     hero.location = { name: 'table', x: 100, y: 200 };

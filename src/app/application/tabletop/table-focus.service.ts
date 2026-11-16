@@ -10,7 +10,9 @@ import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/
 /** Brings the table view to a piece, on whichever face of the table the piece stands. */
 @Injectable({ providedIn: 'root' })
 export class TableFocusService {
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectStore = inject(ObjectStore);
   private readonly selection = inject(SelectionSignalService);
 

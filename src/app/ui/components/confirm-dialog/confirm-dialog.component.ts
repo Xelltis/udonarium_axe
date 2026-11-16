@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmDialogOption } from '@axe/application/ui/confirm-option';
-import { ModalService } from '@axe/application/ui/modal.service';
+import { ModalContent, ModalService } from '@axe/application/ui/modal.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**
@@ -26,11 +26,13 @@ import { TranslocoModule } from '@jsverse/transloco';
   host: { class: 'block text-ui-text', '(keydown.escape)': 'onEscape($event)' },
   imports: [TranslocoModule],
 })
-export class ConfirmDialogComponent {
+export class ConfirmDialogComponent implements ModalContent {
   private readonly modalService = inject(ModalService);
   private readonly t = inject(TRANSLATE_FN);
 
   readonly option: ConfirmDialogOption;
+  /** The question's own title, or the plain one for a question asked without. */
+  readonly modalTitle: string;
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly cancelButton = viewChild.required<ElementRef<HTMLButtonElement>>('cancelButton');
@@ -45,9 +47,7 @@ export class ConfirmDialogComponent {
       cancelLabel: raw?.cancelLabel,
       danger: raw?.danger ?? false,
     };
-    queueMicrotask(() => {
-      this.modalService.title = this.option.title ?? this.t('common.dialog.confirmTitle');
-    });
+    this.modalTitle = this.option.title ?? this.t('common.dialog.confirmTitle');
 
     let opener: HTMLElement | null = null;
     afterNextRender(() => {

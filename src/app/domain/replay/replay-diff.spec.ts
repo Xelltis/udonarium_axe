@@ -6,6 +6,7 @@ import {
   flattenSyncData,
   hasChangedKey,
   isSameSyncValue,
+  syncDataOf,
   syncValueOf,
 } from '@axe/domain/replay/replay-diff';
 
@@ -170,5 +171,14 @@ describe('cloneSyncData()', () => {
     source.tags.push('b');
     expect(copy['location']).toEqual({ x: 1, y: 2 });
     expect(copy['tags']).toEqual(['a']);
+  });
+});
+
+describe('syncDataOf()', () => {
+  it('reads the synced data off the context an object gives', () => {
+    const syncData = { name: 'orc', attributes: { location: { x: 1, y: 2 } } };
+    const object = { toContext: () => ({ identifier: 'a', aliasName: 'character', syncData }) };
+
+    expect(syncDataOf(object)).toBe(syncData);
   });
 });

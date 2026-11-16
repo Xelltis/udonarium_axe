@@ -3,6 +3,7 @@ import { PersonalVolumeService } from '@axe/application/media/personal-volume.se
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { DEFAULT_ROOM_VOLUMES, MAX_ROOM_VOLUME, RoomVolumeKind, RoomVolumes } from '@axe/domain/media/room-volumes';
 import { Config } from '@axe/domain/peer/config';
 
@@ -48,7 +49,7 @@ export class RoomVolumeService {
   setKind(kind: RoomVolumeKind, volume: number): void {
     if (!this.rolePermission.canEditShared()) return;
     const config = this.objectStore.get<Config>('Config');
-    if (config) config.setRoomVolumeOf(kind, Math.min(MAX_ROOM_VOLUME, Math.max(0, volume)));
+    if (config) config.setRoomVolumeOf(kind, clamp(volume, 0, MAX_ROOM_VOLUME));
     this.personalVolumes.applyToChannels();
   }
 }

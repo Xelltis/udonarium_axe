@@ -1,30 +1,31 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BottomSheetService } from '@axe/application/ui/bottom-sheet.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
-import { Card, CardState } from '@axe/domain/card/card';
+import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
-import { GameCharacter } from '@axe/domain/character/game-character';
+import { GameCharacter, KOMA_IMAGE_SECTION, PORTRAIT_POSITION_SECTION } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/data/data-element';
-import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { GameCharacterSheetComponent } from '@axe/features/character/game-character-sheet/game-character-sheet.component';
 import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import type { MockInstance } from 'vitest';
 
 describe('GameCharacterSheetComponent', () => {
   let component: GameCharacterSheetComponent;
   let fixture: ComponentFixture<GameCharacterSheetComponent>;
-  let pointerDeviceService: PointerDeviceService;
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
@@ -36,7 +37,6 @@ describe('GameCharacterSheetComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(GameCharacterSheetComponent);
     component = fixture.componentInstance;
-    pointerDeviceService = TestBed.inject(PointerDeviceService);
   });
 
   it('should create', () => {
@@ -59,6 +59,23 @@ describe('GameCharacterSheetComponent', () => {
     await component.saveToXML();
     expect(save).toHaveBeenCalledTimes(1);
     vi.restoreAllMocks();
+  });
+
+  it('leaves the sections the portrait panel edits out of the list of details', () => {
+    const character = GameCharacter.create('勇者', 1, '');
+    character.addExtendData();
+    character.detailDataElement!.appendChild(DataElement.create('能力値', '', {}));
+    component.tabletopObject = character;
+
+    const names = component.detailElements().map((section) => section.name);
+
+    expect(character.detailDataElement!.children.map((section) => (section as DataElement).name)).toEqual(
+      expect.arrayContaining([PORTRAIT_POSITION_SECTION, KOMA_IMAGE_SECTION])
+    );
+    expect(names).toContain('能力値');
+    expect(names).not.toContain(PORTRAIT_POSITION_SECTION);
+    expect(names).not.toContain(KOMA_IMAGE_SECTION);
+    character.destroy();
   });
 
   it('copies nothing of a card whose face a room server keeps from this seat, and says so', () => {
@@ -162,6 +179,134 @@ describe('GameCharacterSheetComponent', () => {
     } finally {
       character.destroy();
     }
+  });
+
+  describe('the defaults of the piece, from the top of the sheet (acceptance 18)', () => {
+    let character: GameCharacter;
+    let hit: DataElement;
+    let shown: MockInstance<SnackbarService['show']>;
+
+    const host = () => fixture.nativeElement as HTMLElement;
+    const capture = () => host().querySelector<HTMLButtonElement>('[data-testid="sheet-capture-defaults"]');
+    const clear = () => host().querySelector<HTMLButtonElement>('[data-testid="sheet-clear-defaults"]');
+    const t = () => TestBed.inject(TRANSLATE_FN);
+
+    function open(role: PeerRole): void {
+      PeerCursor.createMyCursor().role = role;
+      component.tabletopObject = character;
+      fixture.detectChanges();
+    }
+
+    beforeEach(() => {
+      character = GameCharacter.create('ヒロ', 1, '');
+      for (const child of [...character.detailDataElement!.children]) child.destroy();
+      const section = DataElement.create('能力', '', {});
+      character.detailDataElement!.appendChild(section);
+      hit = DataElement.create('命中', 5, { fieldType: 'number' });
+      section.appendChild(hit);
+      section.appendChild(DataElement.create('筋力', '12', {}));
+      section.appendChild(DataElement.create('種族', '人間', {}));
+      shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+      character.destroy();
+      vi.restoreAllMocks();
+    });
+
+    it('offers both buttons to a seat that may edit the sheet, and neither to one that only watches', () => {
+      open(PeerRole.Player);
+      expect(capture()?.textContent?.trim()).toBe(t()('feature.dataElement.field.captureDefaults'));
+      expect(clear()?.textContent?.trim()).toBe(t()('feature.dataElement.field.clearDefaults'));
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+      expect(capture()).toBeNull();
+      expect(clear()).toBeNull();
+    });
+
+    it('asks with the number of items it will mark, and marks them once confirmed', async () => {
+      open(PeerRole.Player);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+
+      await component.captureDefaults();
+
+      expect(ask).toHaveBeenCalledExactlyOnceWith(t()('feature.dataElement.field.captureConfirm', { count: 2 }));
+      expect(hit.getAttribute('cs-default')).toBe('5');
+      expect(character.detailDataElement!.getFirstElementByName('筋力')!.getAttribute('cs-default')).toBe('12');
+      expect(character.detailDataElement!.getFirstElementByName('種族')!.toAttributes()).not.toHaveProperty(
+        'cs-default'
+      );
+    });
+
+    it('marks nothing where the reader thinks better of it', async () => {
+      open(PeerRole.Player);
+      vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+
+      await component.captureDefaults();
+
+      expect(hit.toAttributes()).not.toHaveProperty('cs-default');
+    });
+
+    it('asks with the number of items that keep a default before taking them away', async () => {
+      open(PeerRole.Player);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+      await component.captureDefaults();
+      ask.mockClear();
+
+      await component.clearDefaults();
+
+      expect(ask.mock.calls[0][0]).toMatchObject({
+        message: t()('feature.dataElement.field.clearConfirm', { count: 2 }),
+      });
+      expect(hit.toAttributes()).not.toHaveProperty('cs-default');
+    });
+
+    it('only says so, asking nothing, where there is nothing to mark or to take away', async () => {
+      hit.value = '';
+      character.detailDataElement!.getFirstElementByName('筋力')!.value = '強い';
+      open(PeerRole.Player);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+
+      await component.captureDefaults();
+      await component.clearDefaults();
+
+      expect(ask).not.toHaveBeenCalled();
+      expect(shown.mock.calls.map(([text]) => text)).toEqual([
+        t()('feature.dataElement.field.captureNone'),
+        t()('feature.dataElement.field.clearNone'),
+      ]);
+    });
+
+    it('offers both in the menu of a narrow sheet to a seat that may edit, and neither to one that only watches', () => {
+      const menu = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+      const offered = () => (menu.mock.calls.at(-1)![1] as { name?: string }[]).map((action) => action.name);
+      const both = [t()('feature.dataElement.field.captureDefaults'), t()('feature.dataElement.field.clearDefaults')];
+
+      open(PeerRole.Player);
+      component.openSheetMenu(new MouseEvent('click'));
+      expect(offered()).toEqual(expect.arrayContaining(both));
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      component.openSheetMenu(new MouseEvent('click'));
+      expect(offered()).not.toContain(both[0]);
+      expect(offered()).not.toContain(both[1]);
+    });
+
+    it('does neither for a seat that only watches, though it is asked to', async () => {
+      hit.setAttribute('cs-default', '3');
+      open(PeerRole.Guest);
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+
+      await component.captureDefaults();
+      await component.clearDefaults();
+
+      expect(ask).not.toHaveBeenCalled();
+      expect(hit.getAttribute('cs-default')).toBe('3');
+    });
   });
 
   it('closes the sheet of a piece other than a character once its seat is made a guest', () => {
@@ -268,6 +413,56 @@ describe('GameCharacterSheetComponent', () => {
     }
   });
 
+  it('saves and copies a note from the buttons its toolbar ends with, keeping the save button busy meanwhile', async () => {
+    vi.useFakeTimers();
+    const note = TextNote.create('メモ', '洞窟');
+    let finish = () => {};
+    const save = vi
+      .spyOn(TestBed.inject(SaveDataService), 'saveGameObjectAsync')
+      .mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
+    const cloned = vi.spyOn(note, 'clone').mockReturnValue(note);
+    component.tabletopObject = note;
+    try {
+      fixture.detectChanges();
+      const [copyButton, saveButton] = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('sheet-save-buttons button'),
+      ];
+
+      copyButton.click();
+      expect(cloned).toHaveBeenCalledTimes(1);
+
+      saveButton.click();
+      fixture.detectChanges();
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(saveButton.disabled).toBe(true);
+
+      finish();
+      await vi.advanceTimersByTimeAsync(500);
+      fixture.detectChanges();
+      expect(saveButton.disabled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+      note.destroy();
+    }
+  });
+
+  it('draws the form of a range for a range, with its basic information inside', () => {
+    const range = RangeArea.create('範囲', 1, 3, 100);
+    component.tabletopObject = range;
+    try {
+      fixture.detectChanges();
+      const form = (fixture.nativeElement as HTMLElement).querySelector('sheet-range-form')!;
+
+      expect(form.querySelector('[data-testid="range-free-placement"]')).not.toBeNull();
+      expect(form.querySelector('sheet-basics-card [game-data-element]')).not.toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelector('sheet-save-buttons')).toBeNull();
+    } finally {
+      range.destroy();
+    }
+  });
+
   it('edits a card and adds to it as well', () => {
     const card = Card.create('効果カード', 'front.png', 'back.png');
     component.tabletopObject = card;
@@ -348,117 +543,46 @@ describe('GameCharacterSheetComponent', () => {
     }
   });
 
-  it('debounces card face text while typing and flushes it on request', () => {
+  it('writes face text still waiting to its card at once when the sheet turns to another piece', () => {
     vi.useFakeTimers();
     const card = Card.create('Information', 'front.png', 'back.png');
+    const next = Card.create('Next', 'front.png', 'back.png');
     component.tabletopObject = card;
-    const textarea = document.createElement('textarea');
-    textarea.value = 'First draft';
 
     try {
-      component.setCardOwnFaceText(card, { target: textarea } as unknown as Event);
+      fixture.detectChanges();
+      const textarea = (fixture.nativeElement as HTMLElement).querySelector(
+        'sheet-card-form textarea'
+      ) as HTMLTextAreaElement;
+      textarea.value = 'Typed and left';
+      textarea.dispatchEvent(new Event('input'));
       expect(card.faceText).toBe('');
 
-      vi.advanceTimersByTime(65);
-      expect(card.faceText).toBe('');
-      vi.advanceTimersByTime(1);
-      expect(card.faceText).toBe('First draft');
+      component.tabletopObject = next;
 
-      textarea.value = 'Final draft';
-      component.setCardOwnFaceText(card, { target: textarea } as unknown as Event);
-      component.flushCardOwnFaceText();
-      expect(card.faceText).toBe('Final draft');
+      expect(card.faceText).toBe('Typed and left');
+      expect(next.faceText).toBe('');
     } finally {
       vi.useRealTimers();
       card.destroy();
+      next.destroy();
     }
   });
 
-  it('takes a new font size as it is typed rather than waiting for the field to be left', () => {
-    const card = Card.create('Sized card', 'front.png', 'back.png');
-    component.tabletopObject = card;
+  it('draws the form of a note for a note and passes its picture button on to the picker', () => {
+    const note = TextNote.create('メモ', '洞窟');
+    component.tabletopObject = note;
+    const opened = vi.spyOn(component, 'openModal').mockImplementation(() => {});
 
     try {
       fixture.detectChanges();
-      const field = fixture.nativeElement.querySelector('input[type="number"][max="120"]') as HTMLInputElement;
-      expect(field.value).toBe(`${Card.DEFAULT_FACE_FONT_SIZE}`);
+      const form = (fixture.nativeElement as HTMLElement).querySelector('sheet-note-form')!;
+      form.querySelector<HTMLButtonElement>('button')!.click();
 
-      field.value = '1';
-      field.dispatchEvent(new Event('input'));
-      expect(card.faceFontSize).toBe(1);
+      expect(opened).toHaveBeenCalledWith('imageIdentifier', true);
     } finally {
-      card.destroy();
-    }
-  });
-
-  it('lets a colour be picked for the face text and keeps it from a hidden card', () => {
-    const card = Card.create('Coloured card', 'front.png', 'back.png');
-    component.tabletopObject = card;
-    const picker = document.createElement('input');
-    picker.type = 'color';
-    picker.value = '#ff8800';
-
-    try {
-      component.setCardOwnFaceFontColor(card, { target: picker } as unknown as Event);
-      expect(card.faceFontColor).toBe('#ff8800');
-      expect(component.cardOwnFaceFontColor(card)).toBe('#ff8800');
-
-      card.state = CardState.BACK;
-      card.owner = 'another-user';
-      expect(component.cardOwnFaceFontColor(card)).toBe(Card.DEFAULT_FACE_FONT_COLOR);
-
-      picker.value = '#00ff00';
-      component.setCardOwnFaceFontColor(card, { target: picker } as unknown as Event);
-      expect(card.faceFontColor).toBe('#ff8800');
-    } finally {
-      card.destroy();
-    }
-  });
-
-  it('does not put a hidden card face text into the editing DOM', () => {
-    const card = Card.create('Hidden card', 'front.png', 'back.png');
-    card.faceText = 'secret text';
-    card.state = CardState.BACK;
-    card.owner = 'another-user';
-    component.tabletopObject = card;
-
-    try {
-      fixture.detectChanges();
-      expect(fixture.nativeElement.querySelector('[data-card-face-locked]')).toBeTruthy();
-      expect(fixture.nativeElement.querySelector('textarea')).toBeNull();
-      expect(fixture.nativeElement.textContent).not.toContain('secret text');
-      expect(component.cardOwnFaceText(card)).toBe('');
-    } finally {
-      card.destroy();
-    }
-  });
-
-  it('ignores text updates while the card face is hidden', () => {
-    const card = Card.create('Hidden card', 'front.png', 'back.png');
-    card.faceText = 'original secret';
-    card.state = CardState.BACK;
-    card.owner = 'another-user';
-    const textarea = document.createElement('textarea');
-    textarea.value = 'attempted overwrite';
-
-    try {
-      component.setCardOwnFaceText(card, { target: textarea } as unknown as Event);
-      expect(card.faceText).toBe('original secret');
-    } finally {
-      card.destroy();
-    }
-  });
-
-  it('keeps another users claimed face out of the editor even if its state is front', () => {
-    const card = Card.create('Claimed card', 'front.png', 'back.png');
-    card.faceText = 'claimed secret';
-    card.owner = 'another-user';
-
-    try {
-      expect(component.canReadCardFace(card)).toBe(false);
-      expect(component.cardOwnFaceText(card)).toBe('');
-    } finally {
-      card.destroy();
+      vi.restoreAllMocks();
+      note.destroy();
     }
   });
 
@@ -520,17 +644,6 @@ describe('GameCharacterSheetComponent', () => {
     } finally {
       character.destroy();
     }
-  });
-
-  it('ends the drag when the height of a die changes too', () => {
-    const diceSymbol = { komaImageHeight: 200 } as DiceSymbol;
-    component.tabletopObject = diceSymbol;
-    pointerDeviceService.isDragging = true;
-
-    component.chkDiceKomaSize(10);
-
-    expect(diceSymbol.komaImageHeight).toBe(50);
-    expect(pointerDeviceService.isDragging).toBe(false);
   });
 
   describe('the terrain settings', () => {

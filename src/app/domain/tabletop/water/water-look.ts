@@ -1,4 +1,4 @@
-import { clamp01 } from '@axe/core/util/clamp';
+import { clamp, clamp01 } from '@axe/core/util/clamp';
 import { ambiencePalette } from '@axe/domain/effect/ambience/ambience-kind';
 
 /** How dark the depths are against the colour of the water. */
@@ -147,7 +147,7 @@ function rgbOf(color: string): [number, number, number] | null {
 }
 
 function hex2(value: number): string {
-  return Math.min(Math.max(value, 0), 255).toString(16).padStart(2, '0');
+  return clamp(value, 0, 255).toString(16).padStart(2, '0');
 }
 
 function round(value: number): number {

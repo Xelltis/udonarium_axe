@@ -15,7 +15,9 @@ import { plantStatusAilment } from '@axe/domain/character/status-ailment-plant';
  */
 @Injectable({ providedIn: 'root' })
 export class StatusAilmentService {
-  private readonly catalog = inject(StatusAilmentCatalog);
+  private get catalog(): StatusAilmentCatalog {
+    return StatusAilmentCatalog.instance;
+  }
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
 
@@ -23,6 +25,19 @@ export class StatusAilmentService {
     this.objectChange.versionOf(this.catalog.identifier)();
     return this.catalog.ailments;
   });
+
+  /** Whether putting a state on a piece plays the effect of the same name over it; off unless the room asked. */
+  readonly playsEffectOnPlant = computed<boolean>(() => {
+    this.objectChange.versionOf(this.catalog.identifier)();
+    return this.catalog.playsEffectOnPlant;
+  });
+
+  /** Asks the room to play the effect of the same name as a state is put on, or not to; nothing for a seat that may not edit the table. */
+  setPlaysEffectOnPlant(plays: boolean): void {
+    if (!this.rolePermission.canEditTabletop()) return;
+    this.catalog.playsEffectOnPlant = plays;
+    this.objectChange.notifyChanged(this.catalog.identifier);
+  }
 
   /** Replaces the room's list of states with this one. */
   save(list: readonly StatusAilment[]): void {

@@ -52,15 +52,7 @@ async function buildDungeon(page: Page, gridLabel: string) {
   await settleUntilVisible(page, goTo, 120000);
   await goTo.click();
   await settle(page, 400);
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          (window as unknown as { __axeTable?: { sceneStats(): { chunks: number } | null } }).__axeTable?.sceneStats()
-            ?.chunks ?? 0
-      )
-    )
-    .toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => window.__axeTable?.sceneStats()?.chunks ?? 0)).toBeGreaterThan(0);
 }
 
 /**

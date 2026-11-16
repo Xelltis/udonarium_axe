@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { seededRandom } from '@axe/core/util/seeded-random';
 import type { MapLightKind, MapPoint, MapRect } from '@axe/domain/tabletop/map-blocks';
 
@@ -218,7 +219,7 @@ export function laySettlement(
 ): SettlementLayout {
   const plot = new Plot(width, height);
   const rng = seededRandom(seed + 6151);
-  const fill = Math.min(Math.max(density, 0), 100) / 50;
+  const fill = clamp(density, 0, 100) / 50;
   if (kind === 'village') layVillage(plot, rng, fill);
   else if (kind === 'barbarianFort') layBarbarianFort(plot, rng, fill);
   else layStoneFort(plot, rng, fill);
@@ -324,7 +325,7 @@ function layRoad(plot: Plot, rng: () => number, along: 'x' | 'y', at: number): n
       middle += middle > at + 1 ? -1 : middle < at - 1 ? 1 : rng() < 0.5 ? -1 : 1;
       turn += between(4, 8, rng);
     }
-    middle = Math.min(Math.max(middle, 3), breadth - 5);
+    middle = clamp(middle, 3, breadth - 5);
     middles.push(middle);
     const rect = along === 'x' ? { x: step, y: middle, w: 1, h: 2 } : { x: middle, y: step, w: 2, h: 1 };
     plot.paint(rect, SETTLEMENT_ZONES.road);
@@ -594,8 +595,8 @@ function layStoneFort(plot: Plot, rng: () => number, fill: number): void {
 
   const innerW = x1 - x0 - 1;
   const innerH = y1 - y0 - 1;
-  const keepW = Math.min(14, Math.max(LEAST_ROOM + 2, innerW - 6));
-  const keepH = Math.min(9, Math.max(LEAST_ROOM + 2, Math.min(innerH - 3, Math.round(innerH * 0.45))));
+  const keepW = clamp(innerW - 6, LEAST_ROOM + 2, 14);
+  const keepH = clamp(Math.min(innerH - 3, Math.round(innerH * 0.45)), LEAST_ROOM + 2, 9);
   const keep = { x: x0 + 1 + Math.round((innerW - keepW) / 2), y: y0 + 2, w: keepW, h: keepH };
   if (plot.free(keep)) {
     houseWithRooms(plot, keep, between(3, 5, rng), 'stoneRoomWall', 's', rng);
@@ -604,14 +605,14 @@ function layStoneFort(plot: Plot, rng: () => number, fill: number): void {
   const below = keep.y + keep.h + 1;
   for (let i = 0; i < buildings; i++) {
     const west = i % 2 === 0;
-    const narrow = Math.max(3, Math.min(5, Math.round(innerH * 0.3)));
+    const narrow = clamp(Math.round(innerH * 0.3), 3, 5);
     const spots = [
       {
         rect: {
           x: west ? x0 + 1 : x1 - 5,
           y: below,
           w: 5,
-          h: Math.min(Math.max(5, Math.round(innerH * 0.4)), y1 - 3 - below),
+          h: clamp(Math.round(innerH * 0.4), 5, y1 - 3 - below),
         },
         facing: west ? 'e' : 'w',
       },

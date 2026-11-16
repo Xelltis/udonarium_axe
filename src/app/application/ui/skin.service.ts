@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { computed, DestroyRef, effect, inject, Injectable, linkedSignal, signal } from '@angular/core';
+import { computed, DestroyRef, effect, inject, Injectable, linkedSignal, signal, WritableSignal } from '@angular/core';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { Logger } from '@axe/core/logging/logger';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -77,12 +77,12 @@ export class SkinService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly archiver = inject(FileArchiver);
 
-  private readonly chosen: Record<SkinMode, ReturnType<typeof signal<string>>> = {
+  private readonly chosen: Record<SkinMode, WritableSignal<string>> = {
     light: signal(asSkinId(readLocal(SKIN_KEY.light), 'light')),
     dark: signal(asSkinId(readLocal(SKIN_KEY.dark), 'dark')),
   };
 
-  private readonly recipes: Record<SkinMode, ReturnType<typeof signal<SkinRecipe>>> = {
+  private readonly recipes: Record<SkinMode, WritableSignal<SkinRecipe>> = {
     light: signal(parseRecipe(readLocal(RECIPE_KEY.light), 'light')),
     dark: signal(parseRecipe(readLocal(RECIPE_KEY.dark), 'dark')),
   };
@@ -93,7 +93,7 @@ export class SkinService {
    * They belong to the ladder rather than to the skin, so a stack survives trying other
    * skins on. The bytes live in their own database; only the arrangement is held here.
    */
-  private readonly stacks: Record<SkinMode, ReturnType<typeof signal<SkinLayer[]>>> = {
+  private readonly stacks: Record<SkinMode, WritableSignal<SkinLayer[]>> = {
     light: signal(parseLayers(readLocal(LAYERS_KEY.light))),
     dark: signal(parseLayers(readLocal(LAYERS_KEY.dark))),
   };
@@ -102,7 +102,7 @@ export class SkinService {
    * The mat each ladder lays under the dice in a line's frame. Like the stack it belongs to the
    * ladder, and its picture's bytes live with the stack's.
    */
-  private readonly mats: Record<SkinMode, ReturnType<typeof signal<DiceMat>>> = {
+  private readonly mats: Record<SkinMode, WritableSignal<DiceMat>> = {
     light: signal(parseMat(readLocal(MAT_KEY.light))),
     dark: signal(parseMat(readLocal(MAT_KEY.dark))),
   };
@@ -110,7 +110,7 @@ export class SkinService {
   /** Where each layer's bytes are reachable, once they have been fetched out of the store. */
   private readonly urls = signal<Readonly<Record<string, string>>>({});
 
-  private readonly images = SkinImageStore.instance;
+  private readonly images = inject(SkinImageStore);
 
   /** Which ladder is on screen, settled the same way the light/dark switch settles it. */
   readonly mode = computed<SkinMode>(() => this.theme.resolved());

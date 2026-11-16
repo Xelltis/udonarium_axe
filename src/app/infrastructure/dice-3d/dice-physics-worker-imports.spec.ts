@@ -1,29 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+
+import { loadedBy } from '@axe/testing/module-imports';
 
 const WORKER = 'src/app/infrastructure/dice-3d/dice-physics.worker.ts';
-const IMPORT = /^(?:import|export)\s+(type\s+)?([^'";]*?)\s*from\s*'([^']+)'/gms;
 /**
  * Modules that set up the synchronised objects or the network as they load, which a worker has no use
  * for, and the drawing library, which only the page draws with.
  */
 const PAGE_ONLY = /^(@axe\/core\/(sync|network)\/|@angular\/|three)/;
-
-/** The modules a file loads when it runs: every import not marked as bringing in types alone. */
-function loadedBy(file: string): string[] {
-  const loaded: string[] = [];
-  for (const [, typeOnly, clause, path] of readFileSync(file, 'utf8').matchAll(IMPORT)) {
-    if (typeOnly) continue;
-    const named = clause.match(/\{([^}]*)\}/)?.[1];
-    const bare = clause.replace(/\{[^}]*\}/, '').replace(/[,\s]/g, '');
-    const values = (named ?? '')
-      .split(',')
-      .map((name) => name.trim())
-      .filter((name) => name.length > 0 && !name.startsWith('type '));
-    if (named !== undefined && !bare && values.length === 0) continue;
-    loaded.push(path);
-  }
-  return loaded;
-}
 
 function fileOf(path: string): string {
   const base = path.replace('@axe/', 'src/app/');

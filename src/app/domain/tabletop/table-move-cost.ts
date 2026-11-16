@@ -1,5 +1,6 @@
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
+import { clamp } from '@axe/core/util/clamp';
 import { CellRect } from '@axe/domain/tabletop/cell-rectangles';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { MOST_MOVE_COST_EXTRA } from '@axe/domain/tabletop/move/move-cost-limits';
@@ -80,7 +81,7 @@ export class TableMoveCost extends ObjectNode {
 export function asMoveCostExtra(value: unknown): number {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return DEFAULT_MOVE_COST_EXTRA;
-  return Math.min(MOST_MOVE_COST_EXTRA, Math.max(1, Math.round(amount)));
+  return clamp(Math.round(amount), 1, MOST_MOVE_COST_EXTRA);
 }
 
 /** The dear ground laid on a table, or none when there is no table. */

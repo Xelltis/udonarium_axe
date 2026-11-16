@@ -57,7 +57,7 @@ export function quatConjugate(q: Quat): Quat {
   return [-q[0], -q[1], -q[2], q[3]];
 }
 
-export function quatNormalize(q: Quat): Quat {
+function quatNormalize(q: Quat): Quat {
   const l = Math.hypot(q[0], q[1], q[2], q[3]);
   return l > 0 ? [q[0] / l, q[1] / l, q[2] / l, q[3] / l] : IDENTITY;
 }

@@ -23,6 +23,7 @@ import {
 } from '@axe/infrastructure/dice-3d/dice-textures';
 import { diceNodeMaterial } from '@axe/infrastructure/table-3d/dice-node-materials';
 import type { Table3dDiceThrow } from '@axe/infrastructure/table-3d/table-3d-port';
+import { type BakedLight, bakeLight } from '@axe/infrastructure/three-kit/baked-light';
 import {
   AdditiveBlending,
   BufferAttribute,
@@ -87,7 +88,7 @@ export class TableDiceLayer {
   private readonly contactGeometry = new PlaneGeometry(1, 1);
   private contactPicture: CanvasTexture | null = null;
   private haloPicture: CanvasTexture | null = null;
-  private studios: { plain: Texture; metal: Texture } | null = null;
+  private studios: { plain: BakedLight; metal: BakedLight } | null = null;
   private readonly warmed = new Set<DiceMaterial>();
   private changed = false;
 
@@ -167,6 +168,7 @@ export class TableDiceLayer {
     return changed;
   }
 
+  /** Lets go of every throw shown, of the shapes and pictures the dice share, and of the studios they are lit in. */
   dispose(): void {
     for (const [key, shown] of this.shownThrows) this.letGo(key, shown);
     for (const geometry of this.geometries.values()) geometry.dispose();
@@ -202,7 +204,7 @@ export class TableDiceLayer {
         seed: swirlSeedOf(draw.seedKey ?? '', index),
         ...(wrapped ? { picture: wrapped } : {}),
         ...(made === 'glass' ? { tint: new Color(look.body) } : {}),
-        studio: made === 'metal' ? studios.metal : studios.plain,
+        studio: made === 'metal' ? studios.metal.texture : studios.plain.texture,
       });
       this.dress(material, true);
       materials.push(material);
@@ -256,12 +258,12 @@ export class TableDiceLayer {
   }
 
   /** The studio the dice mirror, as a chat frame lights them, and the brighter one metal mirrors. */
-  private studiosFor(): { plain: Texture; metal: Texture } {
+  private studiosFor(): { plain: BakedLight; metal: BakedLight } {
     if (!this.studios) {
       const pmrem = new PMREMGenerator(this.renderer());
       this.studios = {
-        plain: pmrem.fromScene(diceStudio(), 0.02).texture,
-        metal: pmrem.fromScene(diceStudio(true), 0.02).texture,
+        plain: bakeLight(pmrem, diceStudio(), 0.02),
+        metal: bakeLight(pmrem, diceStudio(true), 0.02),
       };
       pmrem.dispose();
     }
@@ -296,14 +298,19 @@ export class TableDiceLayer {
     faces = new CanvasTexture(drawDiceFaces(shape, labels, colors, onFaces?.source ?? null));
     faces.colorSpace = SRGBColorSpace;
     this.faces.set(key, faces);
-    if (this.faces.size > FACES_KEPT) {
-      const [oldest, dropped] = this.faces.entries().next().value!;
-      if (![...this.shownThrows.values()].some((shown) => shown.materials.some((m) => usesMap(m, dropped)))) {
-        this.faces.delete(oldest);
-        dropped.dispose();
-      }
-    }
+    if (this.faces.size > FACES_KEPT) this.dropFaces(faces);
     return faces;
+  }
+
+  /** Lets go of the oldest faces' picture no die on the table wears, keeping the one just made. */
+  private dropFaces(made: CanvasTexture): void {
+    const worn = [...this.shownThrows.values()].flatMap((shown) => shown.materials);
+    for (const [key, kept] of this.faces) {
+      if (kept === made || worn.some((material) => usesMap(material, kept))) continue;
+      this.faces.delete(key);
+      kept.dispose();
+      return;
+    }
   }
 
   private engravingOf(shape: DieShape, labels: DieLabels): CanvasTexture {
@@ -328,7 +335,7 @@ export class TableDiceLayer {
   private textureOf(picture: DicePicture): Texture {
     let texture = this.pictures.get(picture.key);
     if (!texture) {
-      texture = new Texture(picture.source as TexImageSource);
+      texture = new Texture(picture.source);
       texture.colorSpace = SRGBColorSpace;
       texture.wrapS = texture.wrapT = RepeatWrapping;
       texture.flipY = false;

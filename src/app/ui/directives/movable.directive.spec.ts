@@ -12,9 +12,11 @@ import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { SYNC_WRITE_DELAY_MS } from '@axe/core/util/sync-write-delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable, GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { TERRAIN_PICK_LAYER } from '@axe/domain/tabletop/pick/terrain-pick';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -49,8 +51,9 @@ describe('MovableDirective', () => {
       fixture = TestBed.createComponent(TestHostComponent);
     });
 
-    it('builds without a tabletop object', () => {
+    it('builds and draws without a tabletop object', async () => {
       expect(() => fixture.detectChanges()).not.toThrow();
+      await fixture.whenStable();
     });
 
     it('says which piece is moving only while it moves', () => {
@@ -60,23 +63,29 @@ describe('MovableDirective', () => {
 
       expect(element.style.willChange).toBe('');
 
-      directive['promoteWhileMoving'](true);
+      directive.onInputStart(new MouseEvent('mousedown', { button: 0 }));
       expect(element.style.willChange).toBe('transform');
 
       directive.cancel();
       expect(element.style.willChange).toBe('');
     });
 
-    it('sets a position with no tabletop object', () => {
-      fixture.detectChanges();
-      const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
-      expect(() => directive['setPosition'](null as unknown as TabletopObject)).not.toThrow();
+    it('draws a piece that has no location without complaint', async () => {
+      fixture.componentInstance.movableOption.set({ tabletopObject: {} as TabletopObject });
+      expect(() => fixture.detectChanges()).not.toThrow();
+      await fixture.whenStable();
     });
 
-    it('sets a position for an object with no location', () => {
+    it('snaps to the usual fifty-pixel cell when no table is being viewed', () => {
+      vi.spyOn(TableSelecter.instance, 'viewTable', 'get').mockReturnValue(null);
       fixture.detectChanges();
       const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
-      expect(() => directive['setPosition']({} as unknown as TabletopObject)).not.toThrow();
+      directive.posX = 70;
+      directive.posY = 140;
+
+      directive.snapToGrid();
+
+      expect([directive.posX, directive.posY]).toEqual([50, 150]);
     });
 
     it('snaps to the cell under the grid snap on a table that has no squares to lay pieces out in', () => {
@@ -210,11 +219,13 @@ describe('MovableDirective', () => {
 
     function drawnAt(surface: string | undefined, x: number, y: number, z: number): HTMLElement {
       const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
-      directive['tabletopObject'] = { location: { name: 'table', x, y, surface } } as TabletopObject;
+      fixture.componentInstance.movableOption.set({
+        tabletopObject: { identifier: 'drawn', location: { name: 'table', x, y, surface } } as TabletopObject,
+      });
+      fixture.detectChanges();
       directive.posX = x;
       directive.posY = y;
       directive.posZ = z;
-      directive['markLocation']();
       return fixture.debugElement.children[0].nativeElement as HTMLElement;
     }
 
@@ -293,7 +304,7 @@ describe('MovableDirective a piece drawn inside another', () => {
 describe('MovableDirective layers', () => {
   @Component({
     selector: 'layer-host',
-    template: `<div appMovable [movable.option]="{ layerName: 'character', colideLayers: ['terrain'] }"></div>`,
+    template: `<div appMovable [movable.option]="{ layerName: 'character', collideLayers: ['terrain'] }"></div>`,
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [MovableDirective],
   })
@@ -1293,7 +1304,7 @@ describe('MovableDirective showing a dragged piece ahead of its object', () => {
     expect(transient.placementOf(piece.identifier)).toMatchObject({ surface: 'floor', x: 120 });
     expect(piece.location.x).not.toBe(120);
 
-    vi.advanceTimersByTime(66);
+    vi.advanceTimersByTime(SYNC_WRITE_DELAY_MS);
     expect(piece.location.x).toBe(120);
     expect(transient.placementOf(piece.identifier)).not.toBeNull();
   });
@@ -1308,7 +1319,7 @@ describe('MovableDirective showing a dragged piece ahead of its object', () => {
     directive.cancel();
     expect(transient.placementOf(piece.identifier)).not.toBeNull();
 
-    vi.advanceTimersByTime(66);
+    vi.advanceTimersByTime(SYNC_WRITE_DELAY_MS);
     expect(transient.placementOf(piece.identifier)).toBeNull();
   });
 

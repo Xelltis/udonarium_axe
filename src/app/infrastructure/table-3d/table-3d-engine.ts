@@ -25,6 +25,13 @@ import { CoinLayer } from '@axe/infrastructure/table-3d/coin-layer';
 import { ConeLamp } from '@axe/infrastructure/table-3d/cone-lamp';
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
 import { EffectLayer } from '@axe/infrastructure/table-3d/effect-layer';
+import {
+  fieldOfViewDeg,
+  finishingOf,
+  pictureKey,
+  unwornPictureKeys,
+  wornPictures,
+} from '@axe/infrastructure/table-3d/engine-rules';
 import { changedChunks, chunkSignatures, facesByOwner, OwnedFaces } from '@axe/infrastructure/table-3d/face-chunks';
 import {
   boardGeometry,
@@ -36,7 +43,7 @@ import {
   mergedFaces,
   wallGeometry,
 } from '@axe/infrastructure/table-3d/face-geometry';
-import { type FaceLook, faceMaterialOf, lookOf } from '@axe/infrastructure/table-3d/face-materials';
+import { type FaceLook, faceMaterialOf, lookOf, pictureOfLook } from '@axe/infrastructure/table-3d/face-materials';
 import { FloorCanvasLayer } from '@axe/infrastructure/table-3d/floor-canvas-layer';
 import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
@@ -61,9 +68,12 @@ import type {
 import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { TableDiceLayer } from '@axe/infrastructure/table-3d/table-dice-layer';
 import { TablePost } from '@axe/infrastructure/table-3d/table-post';
-import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
+import { lampColour, NO_LIGHT, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
 import { WeatherLayer } from '@axe/infrastructure/table-3d/weather-layer';
+import { BOARD_TO_SCENE } from '@axe/infrastructure/three-kit/board-space';
+import { createCanvasRenderer } from '@axe/infrastructure/three-kit/canvas-renderer';
+import { colourNode } from '@axe/infrastructure/three-kit/colour-node';
 import { disposeObject, forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import { sourceTriangleOf } from '@axe/infrastructure/three-kit/model-faces';
 import {
@@ -76,7 +86,6 @@ import {
   sRGBTransferOETF,
   texture,
   vec2,
-  type vec3,
   vec4,
 } from 'three/tsl';
 import {
@@ -107,7 +116,7 @@ import {
   TextureLoader,
   Vector2,
   Vector3,
-  WebGPURenderer,
+  type WebGPURenderer,
 } from 'three/webgpu';
 
 /**
@@ -169,10 +178,18 @@ const GROUND_PAINT_TILE_CELLS = 2;
 const SKY_DISTANCE_BOARDS = 1.5;
 /** How many pixels a side the map of the shadows the sun and the moon throw is drawn in. */
 const SKY_SHADOW_PX = 2048;
+/**
+ * How far the shadows the sun and the moon throw are pulled back from the faces that throw them,
+ * in depth and then along their normals in table pixels, so a face does not shadow itself in stripes.
+ */
+const SKY_SHADOW_BIAS = -0.0005;
+const SKY_SHADOW_NORMAL_BIAS = 1;
 /** How many lights the scene lights itself with at the most, each throwing shadows of its own. */
 const SHADOW_LIGHTS = TABLE_3D_QUALITY.high.shadowedLights;
 /** How many pixels a side each face of the map of a lamp's shadows is drawn in. */
 const LAMP_SHADOW_PX = 512;
+/** How far a lamp's shadows are pulled back in depth from the faces that throw them. */
+const LAMP_SHADOW_BIAS = -0.002;
 /**
  * How many samples a picture laid on a face is read with along the way the face runs off from the
  * eye: the board and the blocks are seen aslant, and read with one they blur ever more towards the
@@ -190,6 +207,8 @@ const drawingRoom = new Vector2();
 
 /** How much of the cone of a lamp thrown one way, from its edge in, its light fades over. */
 const THROWN_LAMP_PENUMBRA = 0.3;
+/** How far along its way the target a lamp thrown one way is aimed at stands from it, in table pixels; only the way matters. */
+const THROWN_LAMP_AIM_PX = 100;
 
 /** How long at least the shadows are left as they are after they were drawn again for pieces that moved, in milliseconds. */
 const PIECE_SHADOWS_MS = 150;
@@ -197,26 +216,21 @@ const PIECE_SHADOWS_MS = 150;
 /** How high anything on the table is reckoned to stand, for the shadows of the sun and the moon to reach it, in table pixels. */
 const TALLEST_PX = 2000;
 
-/**
- * The board's axes as the scene's: the board runs x to the east, y to the south and z up, and the
- * scene x to the east, y up and z to the south, which is the board's space seen in a mirror and so
- * the right-handed space a graphics library works in.
- */
-const BOARD_TO_SCENE = new Matrix4().set(1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1);
+/** The eye's y, which runs down the page, turned to run up it as the camera's does. */
+const PAGE_UP = new Matrix4().makeScale(1, -1, 1);
 
-/** The eye's space as the camera's: the eye stands `focalPx` out along z, and the camera's y runs up the page. */
-function eyeToCamera(focalPx: number): Matrix4 {
-  return new Matrix4().makeScale(1, -1, 1).multiply(new Matrix4().makeTranslation(0, 0, -focalPx));
-}
+/** The eye of the view the camera is set to, and the board's points carried into the camera's space, worked out afresh each time it is set. */
+const eyeOfView = new Matrix4();
+const toCamera = new Matrix4();
+/** Where the camera stands in the scene, read afresh each time it is set. */
+const cameraAt = new Vector3();
 
 /** Makes the engine that draws the table on a canvas, through WebGPU where it can and WebGL2 elsewhere. */
 export async function createTable3dEngine(
   canvas: HTMLCanvasElement,
   options: Table3dEngineOptions
 ): Promise<Table3dEngine> {
-  const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: true, forceWebGL: options.forceWebGL });
-  await renderer.init();
-  renderer.setClearColor(0x000000, 0);
+  const renderer = await createCanvasRenderer(canvas, { alpha: true, forceWebGL: options.forceWebGL });
   renderer.shadowMap.enabled = true;
   const backend = (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend ? 'webgpu' : 'webgl2';
   return new ThreeTableEngine(renderer, backend);
@@ -266,6 +280,8 @@ class ThreeTableEngine implements Table3dEngine {
   /** The lamps of the slots, each throwing its light all round or one way, so the scene never has to be built again as lamps change. */
   private readonly lamps = Array.from({ length: SHADOW_LIGHTS }, () => new ConeLamp(0xffffff, 0, 1, 0));
   private laidLamps: readonly Table3dShadowLight[] = [];
+  /** How strong each lamp lights in its colour, written anew each time the lamps are lit. */
+  private readonly lampStrengths = this.lamps.map(() => new Vector3());
   /**
    * The lights effects throw over the table, which throw no shadows: in the scene from the start and
    * left dark while no effect lights, so the scene is not built again as effects come and go.
@@ -363,8 +379,8 @@ class ThreeTableEngine implements Table3dEngine {
     this.sun.castShadow = true;
     this.sun.shadow.autoUpdate = false;
     this.sun.shadow.mapSize.set(SKY_SHADOW_PX, SKY_SHADOW_PX);
-    this.sun.shadow.bias = -0.0005;
-    this.sun.shadow.normalBias = 1;
+    this.sun.shadow.bias = SKY_SHADOW_BIAS;
+    this.sun.shadow.normalBias = SKY_SHADOW_NORMAL_BIAS;
     this.sun.shadow.camera.layers.enable(SHADOW_CASTERS_LAYER);
     for (const lamp of this.lamps) {
       lamp.target.position.set(0, -1, 0);
@@ -372,7 +388,7 @@ class ThreeTableEngine implements Table3dEngine {
       lamp.castShadow = true;
       lamp.shadow.autoUpdate = false;
       lamp.shadow.mapSize.set(LAMP_SHADOW_PX, LAMP_SHADOW_PX);
-      lamp.shadow.bias = -0.002;
+      lamp.shadow.bias = LAMP_SHADOW_BIAS;
       lamp.shadow.camera.layers.enable(SHADOW_CASTERS_LAYER);
       this.scene.add(lamp, lamp.target);
     }
@@ -411,7 +427,7 @@ class ThreeTableEngine implements Table3dEngine {
     const strengths = this.effectLamps.map((lamp, index) => {
       const light = lights[index];
       lamp.intensity = light ? light.strength * LIGHT_SCALE : 0;
-      if (!light) return lampColour({ r: 0, g: 0, b: 0 }, 0);
+      if (!light) return NO_LIGHT;
       lamp.position.set(light.x, light.z, light.y);
       lamp.distance = Math.max(1, light.reachPx);
       lamp.color.set(light.color || '#ffffff');
@@ -429,50 +445,58 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   /**
-   * Stands each lamp where its light is and lights it as strong as the dark leaves room for, so a
-   * board lit by one is as bright as the dark would let a lamp make it; a slot with no light in it is
-   * left dark, still in the scene, so the scene is not built again as lamps come and go. Has the
-   * shadows of a lamp that moved drawn again.
+   * Lights each lamp as strong as the dark leaves room for, so a board lit by one is as bright as the
+   * dark would let a lamp make it, and stands it where its light is where the lights moved; a slot
+   * with no light in it is left dark, still in the scene, so the scene is not built again as lamps
+   * come and go. A lamp that only flickers keeps its place and its shadows.
    */
   private lightLamps(moved = true): void {
     const room = Math.max(0, 1 - this.veil.ambient);
     const free = this.lamps.slice(0, this.lampSlots);
     for (const lamp of this.lamps) lamp.intensity = 0;
     this.litLamps.clear();
-    const strengths = this.laidLamps.map((light) => {
+    const strengths = this.laidLamps.map((light, index) => {
       const strength = room * animationIntensity(light.animation, this.flickeredAt);
       const lamp = free.shift();
-      if (!lamp) return lampColour({ r: 0, g: 0, b: 0 }, 0);
+      if (!lamp) return NO_LIGHT;
       lamp.intensity = strength * LIGHT_SCALE;
       this.litLamps.add(lamp);
-      lamp.position.set(light.x, light.z, light.y);
-      lamp.distance = Math.max(1, light.dimPx * LAMP_REACH);
-      lamp.color.set(light.color || '#ffffff');
-      if (light.angle < 360) {
-        const axis = lightAxis(light);
-        lamp.target.position.set(light.x + axis.x * 100, light.z + axis.z * 100, light.y + axis.y * 100);
-        lamp.target.updateMatrixWorld();
-        lamp.angle = ((light.angle / 2) * Math.PI) / 180;
-        lamp.penumbra = THROWN_LAMP_PENUMBRA;
-      } else {
-        lamp.target.position.set(light.x, light.z - 1, light.y);
-        lamp.target.updateMatrixWorld();
-        lamp.angle = Math.PI;
-        lamp.penumbra = 0;
-      }
-      this.placeShadow(lamp, moved);
-      return lampColour(lamp.color, strength);
+      if (moved) this.placeLamp(lamp, light);
+      return lampColour(lamp.color, strength, this.lampStrengths[index]);
     });
     this.veil.setLamps(this.laidLamps, strengths);
   }
 
-  /** Sets the box a lamp's shadows are worked out in to its reach, and has them drawn again where it moved. */
-  private placeShadow(lamp: ConeLamp, moved: boolean): void {
+  /**
+   * Stands a lamp where its light is, in its colour, reaching as far as its light dims, turned the
+   * way it throws where it throws one way, with the box its shadows are worked out in set to its
+   * reach, and has its shadows drawn again.
+   */
+  private placeLamp(lamp: ConeLamp, light: Table3dShadowLight): void {
+    lamp.position.set(light.x, light.z, light.y);
+    lamp.distance = Math.max(1, light.dimPx * LAMP_REACH);
+    lamp.color.set(light.color || '#ffffff');
+    if (light.angle < 360) {
+      const axis = lightAxis(light);
+      lamp.target.position.set(
+        light.x + axis.x * THROWN_LAMP_AIM_PX,
+        light.z + axis.z * THROWN_LAMP_AIM_PX,
+        light.y + axis.y * THROWN_LAMP_AIM_PX
+      );
+      lamp.target.updateMatrixWorld();
+      lamp.angle = ((light.angle / 2) * Math.PI) / 180;
+      lamp.penumbra = THROWN_LAMP_PENUMBRA;
+    } else {
+      lamp.target.position.set(light.x, light.z - 1, light.y);
+      lamp.target.updateMatrixWorld();
+      lamp.angle = Math.PI;
+      lamp.penumbra = 0;
+    }
     const camera = lamp.shadow.camera;
     camera.near = 1;
     camera.far = lamp.distance;
     camera.updateProjectionMatrix();
-    if (moved) lamp.shadow.needsUpdate = true;
+    lamp.shadow.needsUpdate = true;
   }
 
   /**
@@ -636,13 +660,11 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   setWorld(world: TableWorld): void {
-    this.placeBoard(world.board);
-    this.layers.place(
-      world.layers,
-      world.board,
-      () => (world.board!.ground ? groundGeometry(world.board!.ground) : boardGeometry(world.board!)),
-      `${this.boardShape}|${this.groundGeneration}`
-    );
+    const board = world.board;
+    this.placeBoard(board);
+    const shape = board ? () => (board.ground ? groundGeometry(board.ground) : boardGeometry(board)) : null;
+    const shapeKey = `${this.boardShape}|${this.groundGeneration}`;
+    this.layers.place(world.layers, board, shape, shapeKey);
     if (world.walls !== this.laidWalls || world.caps !== this.laidCaps) {
       this.laidWalls = world.walls;
       this.laidCaps = world.caps;
@@ -657,13 +679,7 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.laidBackdrops = world.backdrops;
     this.standBackdrops();
-    this.water.set(
-      world.water,
-      world.board
-        ? () => (world.board!.ground ? groundGeometry(world.board!.ground) : boardGeometry(world.board!))
-        : null,
-      `${this.boardShape}|${this.groundGeneration}`
-    );
+    this.water.set(world.water, shape, shapeKey);
     if (world.sprites !== this.laidSprites) {
       this.laidSprites = world.sprites;
       this.piecesMoved();
@@ -677,25 +693,23 @@ class ThreeTableEngine implements Table3dEngine {
    * written in again, and of the materials that wore them.
    */
   private forgetPictures(world: TableWorld): void {
-    const worn = new Set<string>();
-    for (const face of [...world.walls, ...world.caps]) worn.add(face.pictureUrl);
-    for (const wall of world.walls) if (wall.gridUrl) worn.add(wall.gridUrl);
-    for (const sprite of world.sprites) if (sprite.look.kind === 'picture') worn.add(sprite.look.url);
-    for (const layer of [...world.layers, ...world.backdrops]) worn.add(layer.pictureUrl);
-    for (const [key, picture] of this.loaded) {
-      const url = key.slice(0, key.lastIndexOf('|'));
-      if (worn.has(url)) continue;
-      picture.dispose();
+    const worn = wornPictures(world);
+    for (const key of unwornPictureKeys(this.loaded.keys(), worn)) {
+      this.loaded.get(key)!.dispose();
       this.loaded.delete(key);
-      this.looks.get(key)?.dispose();
-      this.looks.delete(key);
+    }
+    for (const [look, material] of this.looks) {
+      const url = pictureOfLook(look);
+      if (url === null || worn.has(url)) continue;
+      material.dispose();
+      this.looks.delete(look);
     }
   }
 
   setCamera(view: Table3dCamera): void {
     const focal = view.focalPx ?? TABLE_PERSPECTIVE_PX;
-    const eye = new Matrix4().fromArray(view.eye as number[]);
-    const toCamera = eyeToCamera(focal).multiply(eye).multiply(BOARD_TO_SCENE);
+    eyeOfView.fromArray(view.eye as number[]);
+    toCamera.makeTranslation(0, 0, -focal).premultiply(PAGE_UP).multiply(eyeOfView).multiply(BOARD_TO_SCENE);
     if (view.orthographic) {
       Object.assign(this.orthographic, {
         left: -view.width / 2,
@@ -706,7 +720,7 @@ class ThreeTableEngine implements Table3dEngine {
       this.orthographic.updateProjectionMatrix();
       this.camera = this.orthographic;
     } else {
-      this.perspective.fov = (2 * Math.atan(view.height / 2 / focal) * 180) / Math.PI;
+      this.perspective.fov = fieldOfViewDeg(view.height, focal);
       this.perspective.aspect = view.width / Math.max(1, view.height);
       this.perspective.near = view.nearPx ?? NEAR_PX;
       this.perspective.updateProjectionMatrix();
@@ -714,7 +728,7 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.camera.matrix.copy(toCamera).invert();
     this.camera.updateMatrixWorld(true);
-    const at = new Vector3().setFromMatrixPosition(this.camera.matrixWorld);
+    const at = cameraAt.setFromMatrixPosition(this.camera.matrixWorld);
     const least = { near: view.nearPx ?? NEAR_PX, far: FAR_PX };
     const depth = cameraDepthOver(
       { x: at.x, y: at.z, z: at.y },
@@ -733,6 +747,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.sprites.face(view.axes);
     this.fadePx = view.fadePx ?? 0;
     this.water.lookFromAmongPieces(view.nearPx !== undefined);
+    this.effects.seeFromWithin(view.nearPx !== undefined);
     this.layFog();
     this.changed = true;
   }
@@ -835,7 +850,9 @@ class ThreeTableEngine implements Table3dEngine {
 
   warmDice(materials: readonly DiceMaterial[]): void {
     for (const material of materials) {
-      void this.dice.warm(material, (staging) => this.renderer.compileAsync(staging, this.camera, this.scene));
+      void this.dice.warm(material, (staging) =>
+        this.post.compileApart(this.scene, this.camera, this.finishing(), staging)
+      );
     }
   }
 
@@ -922,14 +939,9 @@ class ThreeTableEngine implements Table3dEngine {
     return true;
   }
 
-  /**
-   * The finishing the scene is drawn through now: the glow spilled only where anything glows, the
-   * lamps of a dark table, so a table with nothing glowing on it is drawn straight onto the canvas at
-   * any quality short of the one that shades its corners.
-   */
+  /** The finishing the scene is drawn through now, as {@link finishingOf} has it. */
   private finishing(): Table3dQualityPlan {
-    const glowing = this.veil.glowRevision > 0;
-    return this.plan.bloom && !glowing ? { ...this.plan, bloom: false } : this.plan;
+    return finishingOf(this.plan, this.veil.glowRevision > 0);
   }
 
   /**
@@ -1010,7 +1022,7 @@ class ThreeTableEngine implements Table3dEngine {
     if (!board) return;
     const material = new MeshLambertNodeMaterial({ transparent: true, side: DoubleSide });
     material.colorNode = boardColour(
-      board.pictureUrl ? this.picture(board.pictureUrl) : null,
+      board.pictureUrl ? this.sharedPicture(board.pictureUrl, false) : null,
       board.veiled,
       board.ground?.paint ? { pictures: this.paintedGround(), tilePx: board.gridSize * GROUND_PAINT_TILE_CELLS } : null
     );
@@ -1049,16 +1061,7 @@ class ThreeTableEngine implements Table3dEngine {
     const geometry = this.boardGround
       ? gridOverGround(this.boardGround, grid.box, GRID_LIFT_PX)
       : gridOverBoard(this.boardHexes, grid.box, GRID_LIFT_PX);
-    const material = new MeshBasicNodeMaterial({
-      map: this.gridPicture,
-      transparent: true,
-      opacity: grid.opacity,
-      depthWrite: false,
-      side: DoubleSide,
-      ...LAID_OVER_FACES,
-    });
-    this.veil.cover(material);
-    this.grid = new Mesh(geometry, material);
+    this.grid = new Mesh(geometry, this.gridMaterial(grid.opacity));
     this.grid.renderOrder = 1;
     this.scene.add(this.grid);
   }
@@ -1141,19 +1144,24 @@ class ThreeTableEngine implements Table3dEngine {
     }
     const grid = this.lastGrid;
     if (!grid || !this.gridPicture || this.gridded.length === 0) return;
+    this.topsGrid = new Mesh(griddedTops(this.gridded, grid.box, GRID_LIFT_PX), this.gridMaterial(grid.opacity));
+    this.topsGrid.renderOrder = 1;
+    this.topsGrid.visible = grid.opacity > 0;
+    this.scene.add(this.topsGrid);
+  }
+
+  /** The material the grid is drawn with, on the board or on the tops of the blocks: its picture, as opaque as it is shown, laid over the faces. */
+  private gridMaterial(opacity: number): MeshBasicNodeMaterial {
     const material = new MeshBasicNodeMaterial({
       map: this.gridPicture,
       transparent: true,
-      opacity: grid.opacity,
+      opacity,
       depthWrite: false,
       side: DoubleSide,
       ...LAID_OVER_FACES,
     });
     this.veil.cover(material);
-    this.topsGrid = new Mesh(griddedTops(this.gridded, grid.box, GRID_LIFT_PX), material);
-    this.topsGrid.renderOrder = 1;
-    this.topsGrid.visible = grid.opacity > 0;
-    this.scene.add(this.topsGrid);
+    return material;
   }
 
   private faceMaterial(face: FaceLook): MeshBasicNodeMaterial | MeshLambertNodeMaterial {
@@ -1166,7 +1174,7 @@ class ThreeTableEngine implements Table3dEngine {
 
   /** A picture shared by every face that wears it the same way, tiled or stretched. */
   private sharedPicture(url: string, tiled: boolean): Texture {
-    const key = `${url}|${tiled}`;
+    const key = pictureKey(url, String(tiled));
     let picture = this.loaded.get(key);
     if (!picture) {
       picture = this.picture(url);
@@ -1182,7 +1190,7 @@ class ThreeTableEngine implements Table3dEngine {
    * white, into the edge of what is solid.
    */
   private spritePicture(url: string): Texture {
-    const key = `${url}|sprite`;
+    const key = pictureKey(url, 'sprite');
     let picture = this.loaded.get(key);
     if (!picture) {
       picture = this.picture(url, () => this.sprites.picturesCame());
@@ -1222,11 +1230,6 @@ class ThreeTableEngine implements Table3dEngine {
     picture.anisotropy = Math.min(PICTURE_ANISOTROPY, this.renderer.getMaxAnisotropy());
     return picture;
   }
-}
-
-/** A colour the library's colour-space functions answer, which they do not say is a colour. */
-function colourNode(node: unknown): ReturnType<typeof vec3> {
-  return node as ReturnType<typeof vec3>;
 }
 
 /** The pictures painted ground is drawn with, in the order of `GROUND_PAINT_LAYERS`, and how wide a tile of them is. */

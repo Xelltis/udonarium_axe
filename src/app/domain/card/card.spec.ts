@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
@@ -260,7 +260,9 @@ describe('Card', () => {
       const card = new Card();
       card.owner = 'user123';
 
-      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{ userId: 'user123', isOpen: true } as IPeerContext]);
+      vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
+        { userId: 'user123', isOpen: true } as IPeerContext,
+      ]);
 
       expect(card.ownerIsOnline).toBe(true);
     });
@@ -269,7 +271,9 @@ describe('Card', () => {
       const card = new Card();
       card.owner = 'user123';
 
-      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{ userId: 'user123', isOpen: false } as IPeerContext]);
+      vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
+        { userId: 'user123', isOpen: false } as IPeerContext,
+      ]);
 
       expect(card.ownerIsOnline).toBe(false);
     });
@@ -284,7 +288,7 @@ describe('Card', () => {
       const card = new Card();
       const mockUserId = 'current-user';
 
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: mockUserId } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: mockUserId } as IPeerContext);
       card.owner = mockUserId;
 
       expect(card.isPeeking).toBe(true);
@@ -293,7 +297,7 @@ describe('Card', () => {
     it('should return false for isPeeking when owned by different user', () => {
       const card = new Card();
 
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user1' } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'user1' } as IPeerContext);
       card.owner = 'user2';
 
       expect(card.isPeeking).toBe(false);
@@ -352,7 +356,7 @@ describe('Card', () => {
     it('should be visible when in hand', () => {
       const card = new Card();
 
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'user1' } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'user1' } as IPeerContext);
       card.owner = 'user1';
 
       expect(card.isVisible).toBe(true);
@@ -369,7 +373,7 @@ describe('Card', () => {
       const card = new Card();
       card.state = CardState.BACK;
 
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'me' } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'me' } as IPeerContext);
       card.toHand('me');
 
       expect(card.isInMyHand).toBe(true);
@@ -379,7 +383,7 @@ describe('Card', () => {
     it('one in somebody elses cannot', () => {
       const card = new Card();
 
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'me' } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'me' } as IPeerContext);
       card.toHand('other');
 
       expect(card.isInMyHand).toBe(false);
@@ -392,7 +396,7 @@ describe('Card', () => {
       card.state = CardState.BACK;
       card.owner = '';
 
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'someone' } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'someone' } as IPeerContext);
       expect(card.isVisible).toBe(false);
     });
 
@@ -535,7 +539,7 @@ describe('Card', () => {
     let card: Card;
 
     beforeEach(() => {
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: '', isOpen: false } as IPeerContext);
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: '', isOpen: false } as IPeerContext);
       PeerCursor.createMyCursor();
       card = Card.create('伏せ札', 'front.png', 'back.png');
       card.state = CardState.BACK;

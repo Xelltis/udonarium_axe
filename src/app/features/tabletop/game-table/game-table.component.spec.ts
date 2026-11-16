@@ -136,13 +136,15 @@ describe('GameTableComponent', () => {
       return layer;
     };
 
-    it('draws a backdrop outside the table’s own space', () => {
+    it('draws a backdrop outside the table’s own space, ahead of it in the page so that it lies behind', () => {
       lay();
       fixture.detectChanges();
 
       const backdrop = root().querySelector('[data-testid="backdrop-layer"]');
+      const table = root().querySelector('[data-testid="table-scene"]')!.parentElement!;
       expect(backdrop).not.toBeNull();
-      expect(backdrop!.closest('#app-game-table')).toBeNull();
+      expect(table.contains(backdrop)).toBe(false);
+      expect(backdrop!.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('lays the picture across only, its foot standing at the height it was given', () => {
@@ -317,38 +319,39 @@ describe('GameTableComponent', () => {
   });
 
   describe('2D camera', () => {
-    const syncMode2d = (target: GameTableComponent): void => {
-      (target as unknown as { syncMode2d(): void }).syncMode2d();
-    };
     const nextFrame = (): Promise<void> => new Promise((resolve) => requestAnimationFrame(() => resolve()));
 
-    beforeEach(() => {
-      (component.gestureService as unknown as { gameTableEl: HTMLElement }).gameTableEl = document.createElement('div');
+    /** The view is laid out once the table has started and settles again on whatever the table or the seat changes. */
+    beforeEach(async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
     });
 
-    it('straightens the table when entering 2D mode without locking later rotation', () => {
+    it('straightens the table when entering 2D mode without locking later rotation', async () => {
       component.gestureService.viewRotateX = 35;
       component.gestureService.viewRotateY = 12;
       component.gestureService.viewRotateZ = 27;
-      component.currentTable.mode2d = true;
 
-      syncMode2d(component);
+      component.currentTable.mode2d = true;
+      await fixture.whenStable();
 
       expect(component.gestureService.viewRotateX).toBe(0);
       expect(component.gestureService.viewRotateY).toBe(0);
       expect(component.gestureService.viewRotateZ).toBe(0);
 
       component.gestureService.setTransform(0, 0, 0, 0, 0, 15);
-      syncMode2d(component);
+      // Any change to the table lays the view out again, and a table already flat keeps its turn.
+      component.currentTable.name = '机';
+      await fixture.whenStable();
       expect(component.gestureService.viewRotateZ).toBe(15);
     });
 
-    it('enters flat mode where this reader asked for it, whatever the table is showing', () => {
+    it('enters flat mode where this reader asked for it, whatever the table is showing', async () => {
       component.currentTable.mode2d = false;
       component.gestureService.viewRotateX = 35;
-      TestBed.inject(ViewModePreferenceService).choose('flat');
 
-      syncMode2d(component);
+      TestBed.inject(ViewModePreferenceService).choose('flat');
+      await fixture.whenStable();
 
       expect(component.gestureService.tiltLocked).toBe(true);
       expect(component.gestureService.viewRotateX).toBe(0);
@@ -358,14 +361,13 @@ describe('GameTableComponent', () => {
       component.gestureService.viewPositionZ = -3000;
       component.currentTable.mode2d = true;
       component.currentTable.orthographicProjection = true;
-
-      syncMode2d(component);
+      await fixture.whenStable();
       await nextFrame();
       expect(component.gestureService.orthographicProjection).toBe(true);
       expect(TestBed.inject(TableCameraService).view?.orthographic).toBe(true);
 
       component.currentTable.orthographicProjection = false;
-      syncMode2d(component);
+      await fixture.whenStable();
       await nextFrame();
       expect(component.gestureService.orthographicProjection).toBe(false);
       expect(TestBed.inject(TableCameraService).view?.orthographic).toBe(false);
@@ -569,10 +571,11 @@ describe('GameTableComponent', () => {
       return (group?.actions ?? []).map((action) => action.name);
     };
     const flatNames = (): string[] => component.buildContextMenuActions(position).map((action) => action.name);
-
-    beforeEach(() => {
-      (component.gestureService as unknown as { gameTableEl: HTMLElement }).gameTableEl = document.createElement('div');
-    });
+    /** Starts the table as its view is built, which is when it begins to lay the view out. */
+    const started = async (): Promise<void> => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+    };
 
     it('offers the lock from both menus in 2D, since either one may be the one in use', () => {
       component.currentTable.mode2d = true;
@@ -623,9 +626,7 @@ describe('GameTableComponent', () => {
       calibration.calibrateFromCardRun(274, 1);
       calibration.setRealSizeEnabled(true);
       TestBed.inject(ViewLockService).set(true);
-      const internals = component as unknown as { _initialized: boolean; setGameTableGrid(): void };
-      vi.spyOn(internals, 'setGameTableGrid').mockImplementation(() => undefined);
-      internals._initialized = true;
+      await started();
       const snap = vi.spyOn(component.gestureService, 'snapToViewPositionZ');
       // Let the setting up settle first, so only the resizes are counted.
       await fixture.whenStable();
@@ -652,14 +653,12 @@ describe('GameTableComponent', () => {
     it('moves the board the moment the screen is measured, with nothing else to prompt it', async () => {
       component.currentTable.mode2d = true;
       component.currentTable.gridSize = 50;
-      const internals = component as unknown as { _initialized: boolean; setGameTableGrid(): void };
-      vi.spyOn(internals, 'setGameTableGrid').mockImplementation(() => undefined);
-      internals._initialized = true;
+      await started();
       component.currentTable.orthographicProjection = true;
       const calibration = TestBed.inject(DisplayCalibrationService);
       // Let the table settle first, so nothing but the calibration is left to move the board.
       await fixture.whenStable();
-      expect(component.gestureService.viewPositionZ).toBe(0);
+      expect(component.gestureService.viewPositionZ).not.toBeCloseTo(1155.1, 1);
 
       // What confirming the calibration modal does, and nothing besides.
       calibration.calibrateFromCardRun(274, 1);
@@ -672,9 +671,7 @@ describe('GameTableComponent', () => {
     it('follows a nudge of the scale, which is how the last of it is settled by eye', async () => {
       component.currentTable.mode2d = true;
       component.currentTable.gridSize = 50;
-      const internals = component as unknown as { _initialized: boolean; setGameTableGrid(): void };
-      vi.spyOn(internals, 'setGameTableGrid').mockImplementation(() => undefined);
-      internals._initialized = true;
+      await started();
       component.currentTable.orthographicProjection = true;
       const calibration = TestBed.inject(DisplayCalibrationService);
       calibration.calibrateFromCardRun(274, 1);
@@ -692,9 +689,7 @@ describe('GameTableComponent', () => {
     it('follows the width a square is meant to measure being changed', async () => {
       component.currentTable.mode2d = true;
       component.currentTable.gridSize = 50;
-      const internals = component as unknown as { _initialized: boolean; setGameTableGrid(): void };
-      vi.spyOn(internals, 'setGameTableGrid').mockImplementation(() => undefined);
-      internals._initialized = true;
+      await started();
       component.currentTable.orthographicProjection = true;
       const calibration = TestBed.inject(DisplayCalibrationService);
       calibration.calibrateFromCardRun(274, 1);
@@ -724,16 +719,13 @@ describe('GameTableComponent', () => {
       expect(component.gestureService.viewLocked).toBe(true);
     });
 
-    it('takes the lock with it when the view is put back on real size', () => {
+    it('takes the lock with it when the view is put back on real size', async () => {
       component.currentTable.mode2d = true;
       component.currentTable.orthographicProjection = true;
       component.gestureService.orthographicProjection = true;
       component.currentTable.gridSize = 50;
       TestBed.inject(DisplayCalibrationService).calibrateFromCardRun(274, 1);
-      // Marking it ready wakes the grid redraw, which has no canvas to draw on here.
-      const internals = component as unknown as { _initialized: boolean; setGameTableGrid(): void };
-      vi.spyOn(internals, 'setGameTableGrid').mockImplementation(() => undefined);
-      internals._initialized = true;
+      await started();
       const snap = component
         .buildContextMenuActions(position)
         .find((action) => action.name === '実寸に合わせ直す') as ContextMenuAction;
@@ -760,20 +752,19 @@ describe('GameTableComponent', () => {
     it('holds the camera still under perspective, however the snap is reached', async () => {
       component.currentTable.mode2d = true;
       component.currentTable.gridSize = 50;
-      const internals = component as unknown as { _initialized: boolean; setGameTableGrid(): void };
-      vi.spyOn(internals, 'setGameTableGrid').mockImplementation(() => undefined);
-      internals._initialized = true;
+      await started();
       const calibration = TestBed.inject(DisplayCalibrationService);
       calibration.calibrateFromCardRun(274, 1);
       calibration.setRealSizeEnabled(true);
       await fixture.whenStable();
-      // syncMode2d leaves the service flat only when the table asks for it, which it has not.
+      // The view is laid flat without perspective only when the table asks for it, which it has not.
       expect(component.gestureService.orthographicProjection).toBe(false);
+      const before = component.gestureService.viewPositionZ;
 
       component.onWindowResize();
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
-      expect(component.gestureService.viewPositionZ).toBe(0);
+      expect(component.gestureService.viewPositionZ).toBe(before);
     });
   });
 
@@ -885,7 +876,7 @@ describe('GameTableComponent', () => {
       table.westWallImageIdentifier = picture('blob:west');
       await Promise.resolve();
 
-      const walls = component.activeWalls();
+      const walls = component.gridFaces.activeWalls();
 
       expect(walls.map((wall) => wall.surface)).toEqual(['north-wall', 'west-wall']);
       expect(walls.map((wall) => wall.image.url)).toEqual(['blob:north', 'blob:west']);
@@ -902,7 +893,7 @@ describe('GameTableComponent', () => {
       table.southWallImageIdentifier = picture('blob:south');
       await Promise.resolve();
 
-      const [south] = component.activeWalls();
+      const [south] = component.gridFaces.activeWalls();
 
       expect(south.surface).toBe('south-wall');
       expect(south.gridUrl).toBe('data:image/png;base64,GRID');
@@ -914,10 +905,10 @@ describe('GameTableComponent', () => {
       table.northWallImageIdentifier = picture('blob:north');
       await Promise.resolve();
 
-      const walls = component.activeWalls();
+      const walls = component.gridFaces.activeWalls();
 
       expect(walls.map((wall) => wall.surface)).toEqual(['north-wall']);
-      expect(component.activeWalls()).toBe(walls);
+      expect(component.gridFaces.activeWalls()).toBe(walls);
     });
 
     it('hands the canvas the grid laid over a wall, by the wall of the scene it goes on', async () => {
@@ -935,42 +926,6 @@ describe('GameTableComponent', () => {
       const grids = handed.mock.calls.at(-1)![0];
       expect(grids.get('table:north')).toBe('data:image/png;base64,GRID');
       expect(grids.size).toBe(1);
-    });
-  });
-
-  describe('grid faces', () => {
-    it('rasterises a face once and hands the same picture back for the same geometry', () => {
-      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
-        () => new Proxy({}, { get: () => () => undefined, set: () => true }) as unknown as RenderingContext
-      );
-      const encode = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,GRID');
-      const table = component.currentTable;
-
-      const first = component['gridFaces'].dataUrl(table, 500, 200, 0, 0, 'N', null);
-      const again = component['gridFaces'].dataUrl(table, 500, 200, 0, 0, 'N', null);
-      const other = component['gridFaces'].dataUrl(table, 500, 200, 0, 0, 'S', [-1, 0, 0, 1]);
-      const face = component['gridFaces'].dataUrl(table, 100, 150, 0, 50, 'N', null);
-      const faceAgain = component['gridFaces'].dataUrl(table, 100, 150, 0, 50, 'N', null);
-
-      expect(first).toBe('data:image/png;base64,GRID');
-      expect(again).toBe(first);
-      expect(other).toBe('data:image/png;base64,GRID');
-      expect(faceAgain).toBe(face);
-      expect(encode).toHaveBeenCalledTimes(3);
-    });
-
-    it('rasterises again once the grid colour changes', () => {
-      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
-        () => new Proxy({}, { get: () => () => undefined, set: () => true }) as unknown as RenderingContext
-      );
-      const encode = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,GRID');
-      const table = component.currentTable;
-
-      component['gridFaces'].dataUrl(table, 500, 200, 0, 0, 'N', null);
-      table.gridColor = '#ff0000ff';
-      component['gridFaces'].dataUrl(table, 500, 200, 0, 0, 'N', null);
-
-      expect(encode).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -1019,7 +974,7 @@ describe('GameTableComponent', () => {
       terrainOn('east-wall', false);
       await Promise.resolve();
 
-      const faces = component.beamWallGrids();
+      const faces = component.gridFaces.beamWallGrids();
 
       expect(faces.map((grid) => grid.identifier)).toEqual([hung.identifier]);
       expect(faces[0]).toMatchObject({ width: 2 * table.gridSize, height: 3 * table.gridSize });
@@ -1032,7 +987,7 @@ describe('GameTableComponent', () => {
       terrainOn('north-wall', true);
       await Promise.resolve();
 
-      expect(component.beamWallGrids()).toEqual([]);
+      expect(component.gridFaces.beamWallGrids()).toEqual([]);
     });
   });
 

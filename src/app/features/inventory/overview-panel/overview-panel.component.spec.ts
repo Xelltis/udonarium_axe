@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
+import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -12,6 +14,7 @@ import {
   DataElementType,
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
+import { MarkDown } from '@axe/domain/data/mark-down';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -37,6 +40,17 @@ describe('OverviewPanelComponent', () => {
     fixture = TestBed.createComponent(OverviewPanelComponent);
     component = fixture.componentInstance;
   });
+
+  /** Has the inventory, which the panel reads its rows from, offer these rows for any piece. */
+  function spyOnInventoryTags(tags: (DataElement | null)[] = []) {
+    class TagsOfAnyPiece extends Map<string, (DataElement | null)[]> {
+      override get(): (DataElement | null)[] {
+        return tags;
+      }
+    }
+    const inventory = TestBed.inject(GameObjectInventoryService).tableInventory;
+    return vi.spyOn(inventory, 'dataElementMap', 'get').mockReturnValue(new TagsOfAnyPiece());
+  }
 
   it('should create', () => {
     expect(component).toBeTruthy();
@@ -65,6 +79,66 @@ describe('OverviewPanelComponent', () => {
     const panel = fixture.nativeElement.querySelector('[data-tooltip-rotation]') as HTMLElement;
     expect(panel.dataset['tooltipRotation']).toBe('90');
     expect(panel.style.transform).toBe('rotateZ(90deg)');
+  });
+
+  describe('how large a detail may grow', () => {
+    it('holds a card and a stack to their own setting between 250 and 1000', () => {
+      const card = Card.create('card', 'front', 'back');
+      const stack = CardStack.create('stack');
+      card.overViewWidth = 400;
+      card.overViewMaxHeight = 2000;
+      stack.overViewWidth = 100;
+      stack.overViewMaxHeight = 640;
+
+      component.tabletopObject = card;
+      expect([component.overViewCardWidth, component.overViewCardMaxHeight]).toEqual([400, 1000]);
+      component.tabletopObject = stack;
+      expect([component.overViewCardWidth, component.overViewCardMaxHeight]).toEqual([250, 640]);
+
+      card.destroy();
+      stack.destroy();
+    });
+
+    it('falls back to the least size for anything that is not a card, and for a size that is no number', () => {
+      const card = Card.create('card', 'front', 'back');
+      card.overViewWidth = null as unknown as number;
+      const note = TextNote.create('note', 'text');
+
+      component.tabletopObject = card;
+      expect(component.overViewCardWidth).toBe(250);
+      component.tabletopObject = note;
+      expect([component.overViewCardWidth, component.overViewCardMaxHeight]).toEqual([250, 250]);
+      component.tabletopObject = null;
+      expect([component.overViewCardWidth, component.overViewNoteWidth, component.overViewCharacterWidth]).toEqual([
+        250, 250, 270,
+      ]);
+
+      card.destroy();
+      note.destroy();
+    });
+  });
+
+  describe('a markdown field', () => {
+    const htmlOf = (safe: unknown) =>
+      (safe as { changingThisBreaksApplicationSecurity: string }).changingThisBreaksApplicationSecurity;
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it("draws its check boxes through the room's markdown helper, found under either identifier", () => {
+      const helper = new MarkDown('overview-markdown-helper');
+      vi.spyOn(ObjectStore.instance, 'get').mockImplementation(
+        (identifier) => (identifier === 'markdwon' ? helper : null) as never
+      );
+
+      expect(htmlOf(component.escapeHtmlMarkDown('[x] done', 'field'))).toContain('id="field_mark_00000000"');
+    });
+
+    it('shows the text as written, escaped, in a room that holds no markdown helper', () => {
+      vi.spyOn(ObjectStore.instance, 'get').mockReturnValue(null);
+
+      expect(htmlOf(component.escapeHtmlMarkDown('<b>[x]</b>\nnext', 'field'))).toBe('&lt;b&gt;[x]&lt;/b&gt;<br>next');
+      expect(() => component.onClick(new MouseEvent('click'))).not.toThrow();
+    });
   });
 
   describe('a detail pinned to a screen edge', () => {
@@ -322,8 +396,7 @@ describe('OverviewPanelComponent', () => {
       group.appendChild(field);
       character.detailDataElement!.appendChild(section);
       component.tabletopObject = character;
-      const getInventoryTagsSpy = vi.spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags');
-      getInventoryTagsSpy.mockReturnValue([]);
+      const getInventoryTagsSpy = spyOnInventoryTags();
 
       try {
         expect(component.inventoryDataElms).toEqual([field]);
@@ -348,8 +421,7 @@ describe('OverviewPanelComponent', () => {
       group.appendChild(field);
       character.detailDataElement!.appendChild(section);
       component.tabletopObject = character;
-      const getInventoryTagsSpy = vi.spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags');
-      getInventoryTagsSpy.mockReturnValue([]);
+      const getInventoryTagsSpy = spyOnInventoryTags();
 
       try {
         expect(component.inventoryDataElms).toEqual([section]);
@@ -368,11 +440,7 @@ describe('OverviewPanelComponent', () => {
       });
       character.detailDataElement!.appendChild(field);
       component.tabletopObject = character;
-      const getInventoryTagsSpy = vi.spyOn(
-        component as unknown as { getInventoryTags: () => DataElement[] },
-        'getInventoryTags'
-      );
-      getInventoryTagsSpy.mockReturnValue([inventoryField]);
+      const getInventoryTagsSpy = spyOnInventoryTags([inventoryField]);
 
       try {
         expect(component.inventoryDataElms).toEqual([inventoryField, field]);
@@ -399,11 +467,7 @@ describe('OverviewPanelComponent', () => {
       character.detailDataElement!.appendChild(section);
       character.detailDataElement!.appendChild(memo);
       component.tabletopObject = character;
-      const getInventoryTagsSpy = vi.spyOn(
-        component as unknown as { getInventoryTags: () => DataElement[] },
-        'getInventoryTags'
-      );
-      getInventoryTagsSpy.mockReturnValue([hp, mp, memo]);
+      const getInventoryTagsSpy = spyOnInventoryTags([hp, mp, memo]);
 
       try {
         expect(component.inventoryDataElms).toEqual([section, memo]);
@@ -442,8 +506,7 @@ describe('OverviewPanelComponent', () => {
       table.appendChild(row);
       character.detailDataElement!.appendChild(table);
       component.tabletopObject = character;
-      const getInventoryTagsSpy = vi.spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags');
-      getInventoryTagsSpy.mockReturnValue([]);
+      const getInventoryTagsSpy = spyOnInventoryTags();
 
       try {
         fixture.detectChanges();
@@ -488,8 +551,7 @@ describe('OverviewPanelComponent', () => {
       table.appendChild(row);
       character.detailDataElement!.appendChild(table);
       component.tabletopObject = character;
-      const getInventoryTagsSpy = vi.spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags');
-      getInventoryTagsSpy.mockReturnValue([]);
+      const getInventoryTagsSpy = spyOnInventoryTags();
 
       try {
         fixture.detectChanges();
@@ -566,8 +628,7 @@ describe('OverviewPanelComponent', () => {
       table.appendChild(row);
       character.detailDataElement!.appendChild(table);
       component.tabletopObject = character;
-      const getInventoryTagsSpy = vi.spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags');
-      getInventoryTagsSpy.mockReturnValue([]);
+      const getInventoryTagsSpy = spyOnInventoryTags();
 
       try {
         fixture.detectChanges();
@@ -599,8 +660,7 @@ describe('OverviewPanelComponent', () => {
       resource.currentValue = 10;
       character.detailDataElement!.appendChild(resource);
       component.tabletopObject = character;
-      const getInventoryTagsSpy = vi.spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags');
-      getInventoryTagsSpy.mockReturnValue([]);
+      const getInventoryTagsSpy = spyOnInventoryTags();
 
       try {
         fixture.detectChanges();
@@ -628,8 +688,7 @@ describe('OverviewPanelComponent', () => {
         resource.currentValue = 12;
         character.detailDataElement!.appendChild(resource);
         component.tabletopObject = character;
-        const spy = vi.spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags');
-        spy.mockReturnValue([]);
+        const spy = spyOnInventoryTags();
         tagsSpy = spy;
       });
 
@@ -736,8 +795,7 @@ describe('OverviewPanelComponent', () => {
       });
       character.detailDataElement!.appendChild(imageField);
       component.tabletopObject = character;
-      const getInventoryTagsSpy = vi.spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags');
-      getInventoryTagsSpy.mockReturnValue([]);
+      const getInventoryTagsSpy = spyOnInventoryTags();
 
       try {
         fixture.detectChanges();
@@ -765,8 +823,7 @@ describe('OverviewPanelComponent', () => {
       });
       character.detailDataElement!.appendChild(imageField);
       component.tabletopObject = character;
-      const getInventoryTagsSpy = vi.spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags');
-      getInventoryTagsSpy.mockReturnValue([]);
+      const getInventoryTagsSpy = spyOnInventoryTags();
 
       try {
         fixture.detectChanges();
@@ -805,9 +862,7 @@ describe('OverviewPanelComponent', () => {
       const popup = { [DataElementAttribute.ROLE]: DataElementRole.FIELD, [DataElementAttribute.POPUP]: 'true' };
       character.detailDataElement!.appendChild(DataElement.create('職業', '剣士', popup));
       component.tabletopObject = character;
-      tagsSpy = vi
-        .spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags')
-        .mockReturnValue([]);
+      tagsSpy = spyOnInventoryTags();
     });
 
     afterEach(() => {
@@ -890,9 +945,7 @@ describe('OverviewPanelComponent', () => {
       const check = DataElement.create('転倒', 0, { ...popup, type: DataElementType.CHECK });
       for (const element of [note, text, resource, check]) character.detailDataElement!.appendChild(element);
       component.tabletopObject = character;
-      tagsSpy = vi
-        .spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags')
-        .mockReturnValue([]);
+      tagsSpy = spyOnInventoryTags();
     });
 
     afterEach(() => {

@@ -9,6 +9,7 @@ import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { effectCast$ } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import {
   DEFAULT_TABLE_CAMERA_VIEW,
@@ -22,6 +23,7 @@ import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { partOf } from '@axe/domain/tabletop/world/page-boxes';
 import { pointOnFace } from '@axe/domain/tabletop/world/table-sprites';
 import { clearToBlankTable, putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
+import type { Table3dStats } from '@axe/infrastructure/table-3d/table-3d-port';
 
 /** What the end-to-end suite can ask the table, in a browser driven by automation. */
 export interface TableTestHooks {
@@ -90,26 +92,7 @@ export interface TableTestHooks {
    */
   paintAt(x: number, y: number): number[] | null;
   /** What the canvas's engine holds, counted, or null while there is none. */
-  sceneStats(): {
-    chunks: number;
-    boardGridTriangles: number;
-    topsGridTriangles: number;
-    sprites: number;
-    coins: number;
-    layers: number;
-    waterParts: number;
-    fogAirSheets: number;
-    sky: boolean;
-    backdrops: number;
-    effects: number;
-    models: number;
-    modelMeshes: number;
-    veilRevision: number;
-    lightMapRevision: number;
-    shadowCasters: number;
-    draws: number;
-    drawCalls: number;
-  } | null;
+  sceneStats(): Table3dStats | null;
   /** How wide and deep the board of the scene runs, in table pixels, or null where there is no board. */
   sceneBoard(): { widthPx: number; depthPx: number } | null;
   /**
@@ -141,6 +124,8 @@ export interface TableTestHooks {
    * handle pieces are measured at.
    */
   lookFromNear(): void;
+  /** How many effects were cast for the room to play, this seat's own among them, since the table was put up. */
+  effectsCast(): number;
 }
 
 type HookedWindow = Window & { __axeTable?: TableTestHooks };
@@ -165,30 +150,56 @@ function nearView(layout: TableLayout): TableCameraView {
   );
 }
 
+/** What the hooks answer from: the table's services, and what only the table's view can do. */
+export interface TableTestHookSources {
+  readonly pick: TablePickService;
+  readonly camera: TableCameraService;
+  readonly overlap: TabletopOverlapService;
+  readonly surfaces: TableSurfaceService;
+  readonly scene: Table3dService;
+  readonly hud: HudFrameService;
+  readonly motions: PieceMotionsService;
+  readonly ground: GroundService;
+  readonly pictures: PiecePicturesService;
+  readonly dice: DiceRenderService;
+  readonly tabletop: TabletopService;
+  readonly store: ObjectStore;
+  /** Puts the camera at a view, as the table's gestures would. */
+  readonly moveCamera: (view: TableCameraView) => void;
+  /** Brings the page up to date, as its own refresh would. */
+  readonly refresh: () => void;
+  /** The part of a piece a press at a point of the page lands on, or null; none where not given. */
+  readonly partAt?: (identifier: string, pageX: number, pageY: number) => string | null;
+}
+
 /**
  * Puts the table's test hooks on the window, in a browser that says automation drives it and in
  * no other. Answers the function that takes them off again.
  */
-export function installTableTestHooks(
-  win: Window,
-  pick: TablePickService,
-  camera: TableCameraService,
-  overlap: TabletopOverlapService,
-  surfaces: TableSurfaceService,
-  scene: Table3dService,
-  hud: HudFrameService,
-  motions: PieceMotionsService,
-  ground: GroundService,
-  pictures: PiecePicturesService,
-  dice: DiceRenderService,
-  tabletop: TabletopService,
-  moveCamera: (view: TableCameraView) => void,
-  refresh: () => void,
-  partAt: (identifier: string, pageX: number, pageY: number) => string | null = () => null
-): () => void {
+export function installTableTestHooks(win: Window, sources: TableTestHookSources): () => void {
   if (!win.navigator.webdriver) return () => undefined;
+  const {
+    pick,
+    camera,
+    overlap,
+    surfaces,
+    scene,
+    hud,
+    motions,
+    ground,
+    pictures,
+    dice,
+    tabletop,
+    store,
+    moveCamera,
+    refresh,
+    partAt = () => null,
+  } = sources;
   const hooked = win as HookedWindow;
+  let cast = 0;
+  const stopCounting = effectCast$.subscribe(() => cast++);
   hooked.__axeTable = {
+    effectsCast: () => cast,
     pickAt: (pageX, pageY) => pick.pickAt(pageX, pageY)?.target.id ?? null,
     pressedAt: (pageX, pageY) => pick.pressedAt(pageX, pageY)?.target.id ?? null,
     pickAllAt: (pageX, pageY) => pick.allAt(pageX, pageY).map((hit) => hit.target.id),
@@ -200,7 +211,7 @@ export function installTableTestHooks(
       return { x: onPage.x, y: onPage.y };
     },
     camera: () => camera.view,
-    aliasOf: (identifier) => ObjectStore.instance.get(identifier)?.aliasName ?? null,
+    aliasOf: (identifier) => store.get(identifier)?.aliasName ?? null,
     renderer: () => scene.backend(),
     whenIdle: () => scene.whenIdle().then(() => hud.writeNow()),
     busy: () => [
@@ -230,8 +241,8 @@ export function installTableTestHooks(
     diceResting: () => dice.diceResting,
     modelFaceAt: (pageX, pageY) => scene.modelFaceAt(pageX, pageY),
     partAt,
-    putAwayTutorial: () => putAwayTutorial(tabletop),
-    clearToBlankTable: () => clearToBlankTable(tabletop),
+    putAwayTutorial: () => putAwayTutorial(tabletop, store),
+    clearToBlankTable: () => clearToBlankTable(tabletop, store),
     lookFromNear: () => {
       const layout = camera.layout;
       if (layout) moveCamera(nearView(layout));
@@ -299,6 +310,7 @@ export function installTableTestHooks(
     },
   };
   return () => {
+    stopCounting();
     delete hooked.__axeTable;
   };
 }

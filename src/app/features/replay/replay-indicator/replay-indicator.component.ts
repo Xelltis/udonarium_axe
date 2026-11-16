@@ -14,7 +14,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-replay-indicator',
+  selector: 'replay-indicator',
   templateUrl: './replay-indicator.component.html',
   imports: [TranslocoModule],
 })

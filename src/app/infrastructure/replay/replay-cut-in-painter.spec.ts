@@ -180,13 +180,19 @@ describe('paintReplayCutInScene()', () => {
 
   it('lays speed lines down as wedges rather than as one wash', () => {
     const { ctx, fills } = recorder();
-    const scene = sceneOf([{ kind: 'fill', fillShape: 'speedlines', fillFrom: '#222222' }]);
+    const wedges = vi.spyOn(ctx, 'moveTo');
+    const filledIn: string[] = [];
+    vi.spyOn(ctx, 'fill').mockImplementation(() => {
+      filledIn.push(String(ctx.fillStyle));
+    });
+    // A ray of 7 degrees, three rays apart: eighteen wedges go round, the last of them past the full turn.
+    const scene = sceneOf([{ kind: 'fill', fillShape: 'speedlines', fillFrom: '#222222', fillScalePx: 84 }]);
 
     paintReplayCutInScene(ctx, area, scene, assets, 0);
 
-    // Wedges are filled as paths, so the rectangle count stays low while the colour is used.
-    expect(ctx.fillStyle).toBeDefined();
-    expect(fills.every((fill) => fill.color !== undefined)).toBe(true);
+    expect(wedges).toHaveBeenCalledTimes(18);
+    expect(filledIn).toEqual(Array(18).fill('#222222'));
+    expect(fills).toHaveLength(0);
   });
 
   it('lays halftone down as a grid of dots', () => {
@@ -254,17 +260,14 @@ describe('paintReplayCutInScene()', () => {
     expect(images[0].width).toBeGreaterThan(100);
   });
 
-  it('draws nothing of a picture that has no size to it', () => {
+  it('draws a picture that has no size to it over its whole box, rather than at no size at all', () => {
     const nothing: ReplayFrameAssets = { imageOf: () => image(0, 0) };
     const { ctx, images } = recorder();
-    const scene = sceneOf([{ imageIdentifier: 'pic', objectFit: 'cover' }]);
+    const scene = sceneOf([{ imageIdentifier: 'pic', objectFit: 'cover', width: 400, height: 200 }]);
 
     paintReplayCutInScene(ctx, area, scene, nothing, 0);
 
-    for (const drawn of images) {
-      expect(Number.isFinite(drawn.width)).toBe(true);
-      expect(Number.isFinite(drawn.height)).toBe(true);
-    }
+    expect(images.map((drawn) => [drawn.width, drawn.height])).toEqual([[400, 200]]);
   });
 
   it('runs a band across the way the browser runs it', () => {

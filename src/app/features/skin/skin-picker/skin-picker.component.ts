@@ -52,7 +52,7 @@ function swatchFrom(id: string, tokens: Readonly<Record<string, string>>): Swatc
 }
 
 @Component({
-  selector: 'app-skin-picker',
+  selector: 'skin-picker',
   templateUrl: './skin-picker.component.html',
   imports: [TranslocoModule, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,

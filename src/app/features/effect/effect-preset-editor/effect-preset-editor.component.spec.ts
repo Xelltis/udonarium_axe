@@ -1,11 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { EffectCastService } from '@axe/application/effect/effect-cast.service';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { AILMENT_LOOKS } from '@axe/domain/effect/ailment-looks';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { EffectPresetSet } from '@axe/domain/effect/effect-preset-set';
 import { EffectPresetEditorComponent } from '@axe/features/effect/effect-preset-editor/effect-preset-editor.component';
+import { EffectPreviewComponent } from '@axe/features/effect/effect-preview/effect-preview.component';
 import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -17,7 +22,8 @@ describe('EffectPresetEditorComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [EffectPresetEditorComponent],
-      providers: [...TEST_PROVIDERS],
+      // The preview's small stage is left unmade: what is checked is which effect it is given.
+      providers: [...TEST_PROVIDERS, { provide: EFFECT_STAGE_LOADER, useValue: () => Promise.resolve(null) }],
     });
     fixture = TestBed.createComponent(EffectPresetEditorComponent);
     change = TestBed.inject(ObjectChangeService);
@@ -40,6 +46,55 @@ describe('EffectPresetEditorComponent', () => {
 
   it('closes once its seat is made a guest, who may no longer write what it writes', () => {
     expectClosesForAGuest(() => TestBed.createComponent(EffectPresetEditorComponent));
+  });
+
+  describe('the preview at the top', () => {
+    function previews(): EffectPreviewComponent[] {
+      return fixture.debugElement
+        .queryAll(By.directive(EffectPreviewComponent))
+        .map((preview) => preview.componentInstance as EffectPreviewComponent);
+    }
+
+    it('is the one preview, of the effect being edited, held above the fields that scroll', () => {
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const top = host.querySelector<HTMLElement>('[data-testid="effect-editor-preview"]')!;
+      const fields = host.querySelector<HTMLElement>('[data-testid="effect-editor-fields"]')!;
+
+      expect(previews()).toHaveLength(1);
+      expect(previews()[0].preset()).toBe(preset);
+      expect(host.querySelectorAll('canvas')).toHaveLength(1);
+      expect(top.querySelector('effect-preview')).not.toBeNull();
+      expect(top.nextElementSibling).toBe(fields);
+      expect(top.className.split(/\s+/)).toContain('shrink-0');
+      expect(fields.className.split(/\s+/)).toEqual(expect.arrayContaining(['min-h-0', 'flex-1', 'overflow-y-auto']));
+      expect(fields.querySelector('effect-preview')).toBeNull();
+    });
+
+    it('follows the values as they are edited', () => {
+      fixture.detectChanges();
+      const [preview] = previews();
+      const usual = preview.zoomOut();
+
+      const editor = fixture.componentInstance as unknown as { editNumber(key: string, value: string): void };
+      editor.editNumber('scale', '2');
+      fixture.detectChanges();
+
+      expect(preview.zoomOut()).toBeCloseTo(usual * 2);
+    });
+
+    it('keeps the button that tries the effect out on the table', () => {
+      const tried = vi.spyOn(TestBed.inject(EffectCastService), 'preview').mockReturnValue({} as never);
+      fixture.detectChanges();
+
+      const button = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find((one) =>
+        one.textContent?.includes('play_arrow')
+      )!;
+      button.click();
+
+      expect(tried).toHaveBeenCalledWith(preset);
+      tried.mockRestore();
+    });
   });
 
   it('says so when the preset is not there', () => {
@@ -72,6 +127,26 @@ describe('EffectPresetEditorComponent', () => {
 
     expect(text()).toContain('弾数');
     expect(text()).toContain('着弾演出');
+  });
+
+  it('offers the states among the particles of a curse, and of nothing else that names none', () => {
+    const offered = () =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('select[name="effect-mote"] optgroup option')].map(
+        (option) => (option as HTMLOptionElement).value
+      );
+    fixture.detectChanges();
+    expect(offered()).toEqual([]);
+
+    preset.kind = 'curse';
+    change.notifyChanged(preset.identifier);
+    fixture.detectChanges();
+    expect(offered()).toEqual([...AILMENT_LOOKS]);
+
+    preset.kind = 'burst';
+    preset.moteStyle = 'sleep';
+    change.notifyChanged(preset.identifier);
+    fixture.detectChanges();
+    expect(offered()).toContain('sleep');
   });
 
   it('shows the limit only for something that takes several targets', () => {

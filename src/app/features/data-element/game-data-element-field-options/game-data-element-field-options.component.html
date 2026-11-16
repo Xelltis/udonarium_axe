@@ -53,7 +53,7 @@
           name="data-gauge-color"
           class="h-7! w-12! shrink-0 cursor-pointer p-0.5!"
           [value]="gaugeColorShown()"
-          (change)="setGaugeColor($any($event.target).value)"
+          (change)="onGaugeColorInput($event)"
         />
         @if (gaugeFixedColor()) {
           <button
@@ -124,6 +124,43 @@
       <label class="grid-cols-[auto_minmax(3.8rem,1fr)]">
         <span>{{ 'feature.dataElement.field.maxCorrection' | transloco }}</span>
         <input type="number" name="data-max-correction" [(ngModel)]="maxCorrectionText" placeholder="0" />
+      </label>
+    }
+    @if (canKeepDefault()) {
+      <label class="grid-cols-[auto_minmax(3.8rem,1fr)]" [title]="'feature.dataElement.field.defaultHint' | transloco">
+        <span>{{ 'feature.dataElement.field.default' | transloco }}</span>
+        @if (isCheckField()) {
+          <select
+            name="data-default"
+            data-testid="data-default"
+            [ngModel]="defaultText"
+            (ngModelChange)="defaultText = $event"
+          >
+            <option [ngValue]="''">{{ 'feature.dataElement.field.defaultNone' | transloco }}</option>
+            <option [ngValue]="'1'">{{ 'feature.dataElement.field.defaultChecked' | transloco }}</option>
+            <option [ngValue]="'0'">{{ 'feature.dataElement.field.defaultUnchecked' | transloco }}</option>
+          </select>
+        } @else {
+          <input
+            type="number"
+            name="data-default"
+            data-testid="data-default"
+            [(ngModel)]="defaultText"
+            [placeholder]="'feature.dataElement.field.defaultNone' | transloco"
+          />
+        }
+      </label>
+    }
+    @if (canKeepDefaultMax()) {
+      <label class="grid-cols-[auto_minmax(3.8rem,1fr)]" [title]="'feature.dataElement.field.defaultHint' | transloco">
+        <span>{{ 'feature.dataElement.field.defaultMax' | transloco }}</span>
+        <input
+          type="number"
+          name="data-default-max"
+          data-testid="data-default-max"
+          [(ngModel)]="defaultMaxText"
+          [placeholder]="'feature.dataElement.field.defaultNone' | transloco"
+        />
       </label>
     }
     @if (canShowPieceGauge()) {

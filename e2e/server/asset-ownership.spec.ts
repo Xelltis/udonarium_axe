@@ -16,7 +16,7 @@ const tagIn = (page: Page, tag: string) => page.locator('file-storage label').fi
 /** The row of the jukebox's library that names the sound. */
 const soundRowIn = (page: Page, name: string) =>
   page
-    .locator('app-jukebox div.border-b')
+    .locator('jukebox div.border-b')
     .filter({ has: page.locator('select') })
     .filter({ has: page.getByText(name, { exact: true }) });
 
@@ -75,11 +75,11 @@ test.describe('what a player added, and a tag kept to one', () => {
 
     await openPanel(gm.page, 'ジュークボックス');
     await gm.page
-      .locator('app-jukebox input[type="file"][accept="audio/*"]')
+      .locator('jukebox [data-testid="jukebox-file-input"]')
       .setInputFiles({ name: 'gms.wav', mimeType: 'audio/wav', buffer: uniqueWav() });
     await openPanel(pl.page, 'ジュークボックス');
     await pl.page
-      .locator('app-jukebox input[type="file"][accept="audio/*"]')
+      .locator('jukebox [data-testid="jukebox-file-input"]')
       .setInputFiles({ name: 'mine.wav', mimeType: 'audio/wav', buffer: uniqueWav() });
     await expect(soundRowIn(pl.page, 'gms.wav')).toBeVisible({ timeout: 20_000 });
     await expect(soundRowIn(pl.page, 'gms.wav').getByTestId('jukebox-remove')).toHaveCount(0);

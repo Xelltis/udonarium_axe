@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import {
   cellAt,
   DungeonCell,
@@ -41,7 +42,7 @@ export interface DoorHanging {
 /** A door width rounded to whole cells and kept between one and four; missing or not a number gives one. */
 export function clampDoorWidth(width: number | undefined): number {
   if (width === undefined || !Number.isFinite(width)) return MIN_DOOR_WIDTH;
-  return Math.min(MAX_DOOR_WIDTH, Math.max(MIN_DOOR_WIDTH, Math.round(width)));
+  return clamp(Math.round(width), MIN_DOOR_WIDTH, MAX_DOOR_WIDTH);
 }
 
 /** The widths a door is hung between, held in order and within what a door may be. */
@@ -54,7 +55,7 @@ export function doorWidthsFor(asked?: DoorWidths): DoorWidths {
 /** The share of double doors rounded and kept between 0 and 100; missing or not a number gives the default. */
 export function clampDoubleDoorPercent(percent: number | undefined): number {
   if (percent === undefined || !Number.isFinite(percent)) return DEFAULT_DOUBLE_DOOR_PERCENT;
-  return Math.min(MAX_DOUBLE_DOOR_PERCENT, Math.max(MIN_DOUBLE_DOOR_PERCENT, Math.round(percent)));
+  return clamp(Math.round(percent), MIN_DOUBLE_DOOR_PERCENT, MAX_DOUBLE_DOOR_PERCENT);
 }
 
 /** Which way the passage runs where a door stands, so the slab can be set across it. */

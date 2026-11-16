@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /**
  * A layer let in a part at a time.
  *
@@ -47,7 +48,7 @@ export function isCutInWipe(value: unknown): value is CutInWipe {
 /** How much of the layer has been let in, held between none of it and all of it. */
 export function wipeAmount(amount: number): number {
   if (!Number.isFinite(amount)) return 1;
-  return Math.min(1, Math.max(0, amount));
+  return clamp(amount, 0, 1);
 }
 
 /**

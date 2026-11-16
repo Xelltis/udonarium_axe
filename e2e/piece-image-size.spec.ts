@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { rightClickPiece, waitAppReady } from './helpers';
 
 test.describe("a piece picture's width and height", () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     const piece = page.locator('game-character').filter({ hasText: 'キャラクターB' }).first();
-    await piece.dispatchEvent('contextmenu');
+    await rightClickPiece(piece);
     await page.locator('context-menu').getByText('詳細を表示').click();
     const sheet = page.locator('game-character-sheet');
     await expect(sheet).toBeVisible({ timeout: 10000 });
@@ -51,15 +51,7 @@ test.describe("a piece picture's width and height", () => {
         }));
       }
       const id = (await piece.getAttribute('data-object-id'))!;
-      const sprites = await page.evaluate(
-        (identifier) =>
-          (
-            window as unknown as {
-              __axeTable: { spritesOf(id: string): { part: string; widthPx: number; heightPx: number }[] };
-            }
-          ).__axeTable.spritesOf(identifier),
-        id
-      );
+      const sprites = await page.evaluate((identifier) => window.__axeTable.spritesOf(identifier), id);
       const sprite = sprites.find((each) => each.part === 'picture');
       return { width: `${sprite?.widthPx}px`, height: `${sprite?.heightPx}px` };
     };

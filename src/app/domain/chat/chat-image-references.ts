@@ -1,6 +1,7 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
 import { CHARACTER_REFERENCE } from '@axe/domain/chat/chat-reference';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 
 /** A line with the pictures it named taken out of its words, and every picture it now carries. */
 export interface LiftedImageReferences {
@@ -28,7 +29,7 @@ export function liftImageReferences(
   const rest = text.replace(CHARACTER_REFERENCE, (match, name) => {
     if (match.match(/^[tTｔＴ].*/)) return match;
 
-    const element = DataElement.findElementByReference(root, toHalfWidth(name));
+    const element = findReferencedElement(root, toHalfWidth(name));
     if (!element || element.fieldType !== DataElementFieldType.IMAGE) return match;
 
     const imageIdentifier = String(element.value ?? '').trim();

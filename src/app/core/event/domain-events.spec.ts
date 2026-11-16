@@ -86,11 +86,11 @@ describe('domain-events emit→subscribe wiring', () => {
     const pop: unknown[] = [];
     const u1 = alarmTimeUp$.subscribe((e) => timeUp.push(e));
     const u2 = alarmPop$.subscribe((e) => pop.push(e));
-    emitAlarmTimeUp({ text: 'ring' });
+    emitAlarmTimeUp({ seconds: 1, target: '', title: 'ring' });
     emitAlarmPop({ title: 'pop', time: 1000 });
     u1();
     u2();
-    expect(timeUp).toEqual([{ text: 'ring' }]);
+    expect(timeUp).toEqual([{ seconds: 1, target: '', title: 'ring' }]);
     expect(pop).toEqual([{ title: 'pop', time: 1000 }]);
   });
 

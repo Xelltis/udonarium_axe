@@ -6,6 +6,7 @@ import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { InputHandler } from '@axe/ui/directives/input-handler';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { RotableOption, RotableTabletopObject, TurnAbout } from '@axe/ui/directives/rotable.directive';
+import { DoubleTap } from '@axe/ui/tabletop/double-tap';
 
 export interface MovableSetup<T extends TabletopObject> {
   readonly target: Signal<T | null | undefined>;
@@ -32,7 +33,7 @@ function applyMovableOption<T extends TabletopObject>(
   const snapOrigin = opts.snapOrigin?.(piece);
   signal.set({
     tabletopObject: piece,
-    colideLayers: opts.collideLayers ? [...opts.collideLayers] : undefined,
+    collideLayers: opts.collideLayers ? [...opts.collideLayers] : undefined,
     snapStyle,
     snapOrigin,
     snapToSquare: opts.snapToSquare ? (at) => opts.snapToSquare!(piece, at) : undefined,
@@ -116,4 +117,36 @@ export function setupInputHandler(opts: InputHandlerSetup): InputHandlerRef {
     ref.current = null;
   });
   return ref;
+}
+
+export interface DoubleTapSetup extends InputHandlerSetup {
+  /** Runs on a second tap that landed where the first did. */
+  readonly onDoubleTap: () => void;
+}
+
+export interface DoubleTapRef {
+  /** The piece's input handler, which holds nothing before the first render or once destroyed. */
+  readonly input: InputHandlerRef;
+  /** Counts a press on the piece towards a double tap. */
+  press(event: MouseEvent | TouchEvent): void;
+}
+
+/**
+ * Attaches an input handler to a piece and watches the presses handed to `press` for a double tap.
+ *
+ * A second tap that strayed from the first runs nothing, and a tap still waited on is forgotten
+ * with the component. With a finger, the second tap acts when it lifts.
+ */
+export function setupDoubleTap(opts: DoubleTapSetup): DoubleTapRef {
+  const input = setupInputHandler(opts);
+  const doubleTap = new DoubleTap(() => input.current);
+  opts.destroyRef.onDestroy(() => doubleTap.cancel());
+  return {
+    input,
+    press: (event) =>
+      doubleTap.handle(event, () => {
+        doubleTap.cancel();
+        if (doubleTap.isInPlace()) opts.onDoubleTap();
+      }),
+  };
 }

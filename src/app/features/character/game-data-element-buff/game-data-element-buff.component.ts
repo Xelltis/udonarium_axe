@@ -1,12 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
+import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { debounce } from '@axe/core/util/debounce';
 import { BUFF_COLORS, DEFAULT_BUFF_COLOR } from '@axe/domain/character/buff-appearance';
 import {
   buffBadgeOf,
@@ -15,10 +17,23 @@ import {
   buffIconUrlOf,
   parseBuffStrength,
 } from '@axe/domain/character/buff-badge';
-import { BUFF_TIMINGS, buffExpires, BuffTiming, buffTimingOf, buffTriggerOf } from '@axe/domain/character/buff-timing';
+import { BUFF_KINDS, type BuffKind, buffKindOf, markBuffKind } from '@axe/domain/character/buff-kind';
+import { readBuffModifier } from '@axe/domain/character/buff-modifier';
+import {
+  BUFF_EFFECT_TIMINGS,
+  BUFF_TIMINGS,
+  BuffEffectTiming,
+  buffEffectTimingOf,
+  buffExpires,
+  BuffTiming,
+  buffTimingOf,
+  buffTriggerOf,
+  writeBuffEffectTiming,
+} from '@axe/domain/character/buff-timing';
 import { buffTriggerOptions, selectedTriggerValue } from '@axe/domain/character/buff-trigger-options';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
+import { owningCharacterOf } from '@axe/domain/character/owning-character';
+import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 import { BuffBadgeComponent } from '@axe/features/character/buff-badge/buff-badge.component';
 import { loadFileSelecter } from '@axe/ui/components/file-selecter/file-selecter-loader';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -39,6 +54,7 @@ export class GameDataElementBuffComponent {
   private readonly inventory = inject(GameObjectInventoryService);
   private readonly modalService = inject(ModalService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly statusAilments = inject(StatusAilmentService);
 
   readonly isReadOnly = computed(() => !this.rolePermission.canEditTabletop());
 
@@ -55,7 +71,39 @@ export class GameDataElementBuffComponent {
     return element.children.length;
   });
 
-  private readonly _name = signal<string>('');
+  /** The buff's name, value and current value as its element holds them, read through its version. */
+  private readonly held = computed(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    return { name: element.name, value: element.value, currentValue: element.currentValue };
+  });
+
+  private readonly writeSoon = debounce(() => this.writeDrafts(), 66);
+  /** Whether the drafts are being written now, when they are still held as a waiting write holds them. */
+  private writing = false;
+
+  /** Writes the drafts, holding them as drafts until they are written. */
+  private writeDrafts(): void {
+    this.writing = true;
+    try {
+      this.write();
+    } finally {
+      this.writing = false;
+    }
+  }
+
+  /**
+   * Whether the drafts in the row's boxes are kept as typed rather than following the element:
+   * while a change typed into them waits to be written, the element still holds what was there.
+   */
+  private keepsDrafts(): boolean {
+    return this.writing || this.writeSoon.pending();
+  }
+
+  private readonly _name = linkedSignal<{ name: string }, string>({
+    source: this.held,
+    computation: (held, previous) => (previous && this.keepsDrafts() ? previous.value : held.name),
+  });
   /**
    * The buff's name as typed in the row, following the element whenever it changes.
    *
@@ -63,25 +111,30 @@ export class GameDataElementBuffComponent {
    * does not send an update to the room.
    */
   get name(): string {
-    this.objectChange.versionOf(this.gameDataElement().identifier)();
     return this._name();
   }
   set name(name: string) {
     this._name.set(name);
-    this.setUpdateTimer();
+    this.writeSoon();
   }
 
-  private readonly _value = signal<number | string>(0);
+  private readonly _value = linkedSignal<{ value: number | string }, number | string>({
+    source: this.held,
+    computation: (held, previous) => (previous && this.keepsDrafts() ? previous.value : held.value),
+  });
   /** The buff's value field, written to the synced element after the same short pause as the name. */
   get value(): number | string {
     return this._value();
   }
   set value(value: number | string) {
     this._value.set(value);
-    this.setUpdateTimer();
+    this.writeSoon();
   }
 
-  private readonly _currentValue = signal<number | string>(0);
+  private readonly _currentValue = linkedSignal<{ currentValue: number | string }, number | string>({
+    source: this.held,
+    computation: (held, previous) => (previous && this.keepsDrafts() ? previous.value : held.currentValue),
+  });
   /**
    * The buff's current value, which is also the text its strength is read from.
    *
@@ -92,7 +145,7 @@ export class GameDataElementBuffComponent {
   }
   set currentValue(currentValue: number | string) {
     this._currentValue.set(currentValue);
-    this.setUpdateTimer();
+    this.writeSoon();
   }
 
   readonly iconChoices = ['✦', '☠️', '🛡️', '⚔️', '🔥', '❄️', '💤', '💫', '🍀', '⛓️', '👁️', '💊'];
@@ -152,6 +205,50 @@ export class GameDataElementBuffComponent {
     return buffTriggerOf(element);
   });
 
+  readonly kindChoices = BUFF_KINDS;
+
+  /**
+   * Whether the buff is a buff or a debuff: as it is marked, or, unmarked, a debuff where it goes by
+   * the name of a state the room keeps. A further row of a buff that moves several statuses is what
+   * the buff's first row is.
+   */
+  readonly kind = computed<BuffKind>(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    for (const row of element.parent?.children ?? []) this.objectChange.versionOf(row.identifier)();
+    return buffKindOf(element, this.statusAilments.ailments());
+  });
+
+  /**
+   * Marks the buff a buff or a debuff by hand, and tells the room the element changed. Nothing for a
+   * seat that may not edit the table.
+   */
+  selectKind(kind: BuffKind): void {
+    if (this.isReadOnly()) return;
+    const element = this.gameDataElement();
+    markBuffKind(element, kind);
+    this.objectChange.notifyChanged(element.identifier);
+  }
+
+  readonly effectTimingChoices = BUFF_EFFECT_TIMINGS;
+
+  /** The moment the buff's effect moves at, where it has one of its own; empty where it has none. */
+  readonly effectTiming = computed<BuffEffectTiming | ''>(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    return buffEffectTimingOf(element) ?? '';
+  });
+
+  /**
+   * Whether there is a moment to choose for the buff's effect: it moves a status again at every
+   * count, or it carries a moment already, which can then be taken away.
+   */
+  readonly canTimeEffect = computed(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    return readBuffModifier(element)?.step !== undefined || buffEffectTimingOf(element) !== null;
+  });
+
   /**
    * The pieces a buff may be timed by, leaving out those on the table this reader cannot see and those
    * whose name is kept from them.
@@ -180,6 +277,17 @@ export class GameDataElementBuffComponent {
     const element = this.gameDataElement();
     element.setAttribute(DataElementAttribute.BUFF_TIMING, timing);
     if (timing === 'roundEnd') element.removeAttribute(DataElementAttribute.BUFF_TRIGGER);
+    this.objectChange.notifyChanged(element.identifier);
+  }
+
+  /**
+   * Sets the moment the buff's effect moves at, and tells the room the element changed. An empty
+   * choice takes it away, so the effect moves as the buff is counted down, or at the end of the round
+   * for a buff that never is.
+   */
+  selectEffectTiming(timing: BuffEffectTiming | ''): void {
+    const element = this.gameDataElement();
+    writeBuffEffectTiming(element, timing);
     this.objectChange.notifyChanged(element.identifier);
   }
 
@@ -222,73 +330,11 @@ export class GameDataElementBuffComponent {
     this.objectChange.notifyChanged(element.identifier);
   }
 
-  private updateTimer: ReturnType<typeof setTimeout> | null = null;
-
-  constructor() {
-    effect(() => {
-      const element = this.gameDataElement();
-      this.objectChange.versionOf(element.identifier)();
-      this.setValues(element);
-    });
-  }
-
-  /** Appends a placeholder numeric resource named TEST under this element. The template does not call it. */
-  addElement() {
-    this.gameDataElement().appendChild(
-      DataElement.create('TEST', 8, { type: DataElementType.NUMBER_RESOURCE, currentValue: '001' }, 'TEST')
-    ); // + '_' + character.identifier
-  }
-
-  /**
-   * Destroys this element outright.
-   *
-   * Unlike `deletBuff`, it does not go through the owning character, so a status the buff moved is
-   * not put back. The template does not call it.
-   */
-  deleteElement() {
-    this.gameDataElement().destroy();
-  }
-
-  /** Moves this element one place earlier among its siblings; the first one stays put. */
-  upElement() {
-    const parentElement = this.gameDataElement().parent!;
-    const index: number = parentElement.children.indexOf(this.gameDataElement());
-    if (index > 0) {
-      const prevElement = parentElement.children[index - 1];
-      parentElement.insertBefore(this.gameDataElement(), prevElement);
-    }
-  }
-
-  /** Moves this element one place later among its siblings; the last one stays put. */
-  downElement() {
-    const parentElement = this.gameDataElement().parent!;
-    const index: number = parentElement.children.indexOf(this.gameDataElement());
-    if (index < parentElement.children.length - 1) {
-      const nextElement = parentElement.children[index + 1];
-      parentElement.insertBefore(nextElement, this.gameDataElement());
-    }
-  }
-
-  /** Writes the element's `type` attribute, which decides how a data element is shown and edited. */
-  setElementType(type: string) {
-    this.gameDataElement().setAttribute('type', type);
-  }
-
-  private setValues(object: DataElement) {
-    this._name.set(object.name);
-    this._currentValue.set(object.currentValue);
-    this._value.set(object.value);
-  }
-
-  private setUpdateTimer() {
-    clearTimeout(this.updateTimer ?? undefined);
-    this.updateTimer = setTimeout(() => {
-      if (this.gameDataElement().name !== this.name) this.gameDataElement().name = this.name;
-      if (this.gameDataElement().currentValue !== this.currentValue)
-        this.gameDataElement().currentValue = this.currentValue;
-      if (this.gameDataElement().value !== this.value) this.gameDataElement().value = this.value;
-      this.updateTimer = null;
-    }, 66);
+  private write(): void {
+    const element = this.gameDataElement();
+    if (element.name !== this.name) element.name = this.name;
+    if (element.currentValue !== this.currentValue) element.currentValue = this.currentValue;
+    if (element.value !== this.value) element.value = this.value;
   }
 
   /**
@@ -298,18 +344,8 @@ export class GameDataElementBuffComponent {
    * it is simply destroyed.
    */
   deletBuff(data: DataElement) {
-    // Through the owner, so a buff that moved a status puts it back on the way out.
-    const owner = ownerCharacterOf(data);
+    const owner = owningCharacterOf(data);
     if (owner) owner.buffs.removeWhole(data);
     else data.destroy();
   }
-}
-
-function ownerCharacterOf(data: DataElement): GameCharacter | null {
-  let node = data.parent;
-  while (node) {
-    if (node instanceof GameCharacter) return node;
-    node = node.parent;
-  }
-  return null;
 }

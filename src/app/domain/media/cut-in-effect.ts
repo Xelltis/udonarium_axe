@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /**
  * The small, always-running touches a layer can be given.
  *
@@ -40,7 +41,7 @@ export function effectMovesOverTime(effect: CutInEffect): boolean {
  * strength, or for no effect, the layer is left as it is. Blinking ignores the strength.
  */
 export function effectAt(effect: CutInEffect, ms: number, strength = 1): EffectSample {
-  const force = Number.isFinite(strength) ? Math.min(3, Math.max(0, strength)) : 1;
+  const force = Number.isFinite(strength) ? clamp(strength, 0, 3) : 1;
   if (effect === 'none' || force <= 0) return STILL;
 
   switch (effect) {

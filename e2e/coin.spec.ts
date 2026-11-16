@@ -1,15 +1,9 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
-
-async function createCoin(page: Page) {
-  const menu = await openTableContextMenu(page);
-  await (await revealMenuEntry(page, menu, 'コインを作成')).click();
-  await expect(page.locator('coin').first()).toBeAttached({ timeout: 10000 });
-}
+import { createCoin, rightClickPiece, waitAppReady } from './helpers';
 
 async function openCoinMenu(page: Page) {
-  await page.locator('coin').first().dispatchEvent('contextmenu');
+  await rightClickPiece(page.locator('coin').first());
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   return menu;

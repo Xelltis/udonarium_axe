@@ -175,7 +175,7 @@
             (click)="allTabBoxCheck()"
           >
             {{
-              existsMultiMoveSelectedInTab()
+              multi.anyListedPicked()
                 ? ('feature.inventory.panel.deselectAll' | transloco)
                 : ('feature.inventory.panel.selectAll' | transloco)
             }}
@@ -196,12 +196,12 @@
             'feature.inventory.panel.moveTargetLabel' | transloco
           }}</span>
           <div class="flex flex-wrap items-center gap-1">
-            @for (loc of multiMoveLocations; track loc.name) {
+            @for (loc of multiMoveLocations(); track loc.tab) {
               <button
                 class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-solid rounded-ui-sm h-6.5 cursor-pointer border border-solid px-2 text-[11px] transition-[background,color] hover:text-white disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-inherit"
                 type="button"
                 [disabled]="picked < 1"
-                (click)="moveToAndClose(loc.name)"
+                (click)="multi.moveAndClose(locationOfTab(loc.tab))"
               >
                 {{ loc.labelKey | transloco }}
               </button>
@@ -230,7 +230,7 @@
                 [disabled]="picked < 1"
                 [attr.aria-label]="'feature.inventory.panel.hideInInventory' | transloco"
                 [title]="'feature.inventory.panel.hideInInventory' | transloco"
-                (click)="multiSetHideInventory(true)"
+                (click)="multi.setHideInventory(true)"
               >
                 <i class="material-icons" aria-hidden="true">visibility_off</i>
               </button>
@@ -240,7 +240,7 @@
                 [disabled]="picked < 1"
                 [attr.aria-label]="'feature.inventory.panel.showInInventory' | transloco"
                 [title]="'feature.inventory.panel.showInInventory' | transloco"
-                (click)="multiSetHideInventory(false)"
+                (click)="multi.setHideInventory(false)"
               >
                 <i class="material-icons" aria-hidden="true">visibility</i>
               </button>
@@ -265,7 +265,7 @@
                       : 'feature.inventory.panel.resourceSlidersHideAll'
                     ) | transloco
                   "
-                  (click)="multiSetResourceSliders(shown)"
+                  (click)="multi.setResourceSliders(shown)"
                 >
                   {{
                     (shown
@@ -284,7 +284,7 @@
               class="border-ui-danger text-ui-danger hover:bg-ui-danger rounded-ui-sm inline-flex h-6.5 cursor-pointer items-center gap-0.75 border border-solid bg-transparent px-2 text-[11px] transition-[background,color] hover:text-white disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[14px]!"
               type="button"
               [disabled]="picked < 1"
-              (click)="deleteAndClose()"
+              (click)="multi.deleteAndClose()"
             >
               <i class="material-icons">delete</i>{{ 'feature.inventory.panel.delete' | transloco }}
             </button>
@@ -489,11 +489,11 @@
                 @if (isMultiMove()) {
                   <td class="border-ui-border-panel w-0 border-b border-solid px-1 py-0.5">
                     <input
-                      class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
+                      class="size-3.5 cursor-pointer align-middle accent-(--ui-accent)"
                       type="checkbox"
                       [checked]="multiMoveTargets().has(row.object.identifier)"
                       (click)="$event.stopPropagation()"
-                      (change)="toggleMultiMoveTarget($event, $any(row.object))"
+                      (change)="multi.setPickedFrom($event, row.object)"
                     />
                   </td>
                 }
@@ -564,7 +564,7 @@
                         @case ('ailment') {
                           @let ailment = table.columns[$index].ailment!;
                           <input
-                            class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
+                            class="size-3.5 cursor-pointer align-middle accent-(--ui-accent)"
                             type="checkbox"
                             [title]="ailment.effect || ailment.name"
                             [checked]="isAilmentOn(row.object, ailment)"
@@ -580,14 +580,15 @@
                             name="table-current-value"
                             [style.color]="cell.element!.nowValueColor || null"
                             [title]="cell.element!.currentValue + ' / ' + cell.element!.value"
-                            [(ngModel)]="cell.element!.currentValue"
+                            [ngModel]="cell.element!.currentValue"
+                            (ngModelChange)="writeField(cell.element!, 'currentValue', $event)"
                             [readonly]="!canEdit()"
                             (click)="$event.stopPropagation()"
                           />
                         }
                         @case ('check') {
                           <input
-                            class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
+                            class="size-3.5 cursor-pointer align-middle accent-(--ui-accent)"
                             type="checkbox"
                             [checked]="cell.element!.isChecked"
                             [disabled]="!canEdit()"
@@ -602,7 +603,8 @@
                           <input
                             class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent w-16 rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-center font-[inherit] text-[12px] outline-none"
                             name="table-value"
-                            [(ngModel)]="cell.element!.value"
+                            [ngModel]="cell.element!.value"
+                            (ngModelChange)="writeField(cell.element!, 'value', $event)"
                             [readonly]="!canEdit()"
                             (click)="$event.stopPropagation()"
                           />
@@ -636,7 +638,8 @@
               [style.color]="dataElm.nowValueColor || null"
               size="1"
               name="data-current-value"
-              [(ngModel)]="dataElm.currentValue"
+              [ngModel]="dataElm.currentValue"
+              (ngModelChange)="writeField(dataElm, 'currentValue', $event)"
             />
             @let max = resourceMax(dataElm);
             @if (max !== null) {
@@ -654,13 +657,14 @@
             picked row the gauge answers as it always has; the keyboard reaches it either way.
           -->
           <input
-            class="block h-3.5 w-full [accent-color:var(--ui-accent)]"
+            class="block h-3.5 w-full accent-(--ui-accent)"
             [class.pointer-events-none]="selectedIdentifier() !== owner?.identifier"
             type="range"
             min="0"
             [max]="dataElm.value"
             name="data-current-value"
-            [(ngModel)]="dataElm.currentValue"
+            [ngModel]="dataElm.currentValue"
+            (ngModelChange)="writeField(dataElm, 'currentValue', $event)"
             [style.--min]="0"
             [style.--max]="asNumber(dataElm.value)"
             [style.--val]="asNumber(dataElm.currentValue)"
@@ -689,7 +693,8 @@
                 class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent box-border min-w-[2em] flex-1 [appearance:textfield] rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-right font-[inherit] text-[13px] font-bold transition-[border-color] outline-none hover:[appearance:number-input] focus:[appearance:number-input]"
                 size="1"
                 name="data-value"
-                [(ngModel)]="dataElm.value"
+                [ngModel]="dataElm.value"
+                (ngModelChange)="writeField(dataElm, 'value', $event)"
               />
             }
           </span>
@@ -762,10 +767,10 @@
     }
     @if (isMultiMove()) {
       <input
-        class="size-3.5 shrink-0 cursor-pointer [accent-color:var(--ui-accent)]"
+        class="size-3.5 shrink-0 cursor-pointer accent-(--ui-accent)"
         type="checkbox"
         [checked]="multiMoveTargets().has(gameObject.identifier)"
-        (change)="toggleMultiMoveTarget($event, $any(gameObject))"
+        (change)="multi.setPickedFrom($event, gameObject)"
       />
     }
 
@@ -885,7 +890,7 @@
         }
       } @else if (gameObject.rootDataElement && canView(gameObject)) {
         <div class="grid w-full grid-cols-2 items-start gap-x-2 gap-y-0.75">
-          @for (dataElm of getInventoryTags($any(gameObject)); track dataElm?.identifier ?? $index) {
+          @for (dataElm of getInventoryTags(gameObject); track dataElm?.identifier ?? $index) {
             <ng-container
               *ngTemplateOutlet="dataElmTag; context: { dataElm: dataElm, owner: gameObject }"
             ></ng-container>
@@ -922,8 +927,8 @@
         [value]="node.name"
         (click)="$event.stopPropagation()"
         (keydown.escape)="folders.cancelFolderRename()"
-        (keydown.enter)="folders.commitFolderRename(node.path, $any($event.target).value)"
-        (blur)="folders.commitFolderRename(node.path, $any($event.target).value, true)"
+        (keydown.enter)="folders.commitFolderRenameFrom(node.path, $event)"
+        (blur)="folders.commitFolderRenameFrom(node.path, $event, true)"
       />
     } @else {
       <span class="truncate">{{ node.path ? node.name : ('feature.inventory.panel.unfiled' | transloco) }}</span>

@@ -94,5 +94,5 @@
   </label>
 
   <p class="text-ui-muted m-0 text-[11px] leading-snug">{{ 'feature.boardSwitch.actionsHint' | transloco }}</p>
-  <app-switch-action-list [actions]="definition().actions" (actionsChange)="emit('actions', $event)" />
+  <switch-action-list [actions]="definition().actions" (actionsChange)="emit('actions', $event)" />
 </div>

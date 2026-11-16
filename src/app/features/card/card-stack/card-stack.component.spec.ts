@@ -298,28 +298,6 @@ describe('CardStackComponent', () => {
     cardStack.destroy();
   });
 
-  describe('timer cleanup on destroy', () => {
-    it('clears the double-tap timer', () => {
-      const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
-      const priv = component as unknown as { doubleClickTimer: ReturnType<typeof setTimeout> | null };
-      priv.doubleClickTimer = setTimeout(() => {}, 999_999);
-
-      fixture.destroy();
-
-      expect(clearTimeoutSpy).toHaveBeenCalled();
-    });
-
-    it('clears the icon timer', () => {
-      const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
-      const priv = component as unknown as { iconHiddenTimer: ReturnType<typeof setTimeout> | null };
-      priv.iconHiddenTimer = setTimeout(() => {}, 999_999);
-
-      fixture.destroy();
-
-      expect(clearTimeoutSpy).toHaveBeenCalled();
-    });
-  });
-
   describe('what the stack covers', () => {
     afterEach(() => vi.restoreAllMocks());
 

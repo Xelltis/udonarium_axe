@@ -42,7 +42,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-pl-toolbar',
+  selector: 'pl-toolbar',
   templateUrl: './pl-toolbar.component.html',
   imports: [DraggableDirective, SafePipe, TranslocoModule, UiButtonGuideComponent, UiIconButtonComponent],
 })

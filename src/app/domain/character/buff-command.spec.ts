@@ -38,6 +38,15 @@ describe('buff-command', () => {
     expect(splitBuffRounds([])).toEqual({ rounds: undefined, look: [] });
   });
 
+  it('reads a word marking a buff or a debuff where the rounds go as part of the look, the rounds left out', () => {
+    expect(splitBuffRounds(['デバフ'])).toEqual({ rounds: undefined, look: ['デバフ'] });
+    expect(splitBuffRounds(['Debuff', 'red'])).toEqual({ rounds: undefined, look: ['Debuff', 'red'] });
+    expect(splitBuffRounds(['バフ', 'none'])).toEqual({ rounds: undefined, look: ['バフ', 'none'] });
+    expect(splitBuffRounds(['ｂｕｆｆ'])).toEqual({ rounds: undefined, look: ['ｂｕｆｆ'] });
+    expect(splitBuffRounds(['3', 'デバフ'])).toEqual({ rounds: '3', look: ['デバフ'] });
+    expect(splitBuffRounds(['デバフ3'])).toEqual({ rounds: 'デバフ3', look: [] });
+  });
+
   it('takes the stacking mark off before the rest is read', () => {
     expect(readBuffStacking('&++!猛攻撃/攻撃/+/2/3')).toEqual({ piles: 'extend', command: '&!猛攻撃/攻撃/+/2/3' });
     expect(readBuffStacking('&加護')).toEqual({ piles: 'none', command: '&加護' });
@@ -76,6 +85,16 @@ describe('buff-command', () => {
     });
   });
 
+  it('takes a word that marks a debuff after a timing for the kind, not for the piece the timing waits on', () => {
+    expect(readCalculatedBuffLook(['none', 'デバフ'])).toEqual({ timing: 'none', kind: 'debuff' });
+    expect(readCalculatedBuffLook(['', 'buff'])).toEqual({ kind: 'buff' });
+    expect(readCalculatedBuffLook(['手番開始', '術者', 'デバフ'])).toEqual({
+      timing: 'turnStart',
+      trigger: '術者',
+      kind: 'debuff',
+    });
+  });
+
   it('places each field after the marks', () => {
     const command = 't&+!猛攻撃/攻撃/+/2';
     expect(buffCommandFields(command).map((field) => [field.text, command.slice(field.from, field.to)])).toEqual([
@@ -84,5 +103,38 @@ describe('buff-command', () => {
       ['+', '+'],
       ['2', '2'],
     ]);
+  });
+
+  describe('the moment the effect moves at', () => {
+    it('is read after a timing without being taken for the bare name of a trigger', () => {
+      expect(readCalculatedBuffLook(['none', '発生:手番開始'])).toEqual({ timing: 'none', effectTiming: 'turnStart' });
+    });
+
+    it('is read beside an @ trigger', () => {
+      expect(readCalculatedBuffLook(['@術者', '発生:手番終了'])).toEqual({ trigger: '術者', effectTiming: 'turnEnd' });
+    });
+
+    it('is read after a timing and the bare name of a trigger', () => {
+      expect(readCalculatedBuffLook(['手番開始', '術者', 'tick:turnEnd'])).toEqual({
+        timing: 'turnStart',
+        trigger: '術者',
+        effectTiming: 'turnEnd',
+      });
+    });
+
+    it('stands where the rounds go as the rounds left out', () => {
+      expect(splitBuffRounds(['発生:手番開始', 'red'])).toEqual({ rounds: undefined, look: ['発生:手番開始', 'red'] });
+      expect(splitBuffRounds(['3', '発生:手番開始'])).toEqual({ rounds: '3', look: ['発生:手番開始'] });
+    });
+
+    it('is among the fields after the amount of the commands the manual gives', () => {
+      const read = readCalculatedBuff('&!再生/:HP/+/0~+3/3/@術者/発生:手番終了');
+      expect(read.requests).toEqual([
+        { target: 'HP', slot: 'now', operator: 'add', amount: 0, step: 3, lasting: true },
+      ]);
+      const { rounds, look } = splitBuffRounds(read.rest);
+      expect(rounds).toBe('3');
+      expect(readCalculatedBuffLook(look)).toEqual({ trigger: '術者', effectTiming: 'turnEnd' });
+    });
   });
 });

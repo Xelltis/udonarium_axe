@@ -3,6 +3,7 @@ import { randomInt } from 'node:crypto';
 import { Page } from '@playwright/test';
 
 import { boxGlb } from '../glb-helpers';
+import { sendMenuEvent } from '../helpers';
 import { uploadOf, watchAssets } from './asset-helpers';
 import { createRoom, expect, joinRoom, leaveAll, openSeat, test, uniqueName } from './room-server';
 
@@ -17,7 +18,7 @@ function uniqueGlb(): Buffer {
 /** Gives the first character on the table a model read from a file, from the settings of its sheet. */
 async function giveModel(page: Page, name: string, bytes: Buffer): Promise<void> {
   const piece = page.locator('game-character').first();
-  await piece.dispatchEvent('contextmenu');
+  await sendMenuEvent(piece);
   await page.locator('context-menu').getByText('詳細を表示').click();
   const sheet = page.locator('game-character-sheet');
   await expect(sheet).toBeVisible({ timeout: 10_000 });

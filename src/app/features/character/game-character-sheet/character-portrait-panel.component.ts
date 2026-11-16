@@ -8,6 +8,7 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { clamp } from '@axe/core/util/clamp';
 import { portraitElementAt, portraitNameOf, setPortraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -108,7 +109,7 @@ export class CharacterPortraitPanelComponent {
     const iconEl = char.detailDataElement?.getFirstElementByName('ICON');
     if (!iconEl) return;
     const max = char.imageDataElement.children.length - 1;
-    iconEl.currentValue = Math.max(0, Math.min(index, max));
+    iconEl.currentValue = clamp(index, 0, Math.max(0, max));
     iconEl.value = max;
     char.update();
   }
@@ -124,7 +125,7 @@ export class CharacterPortraitPanelComponent {
 
   /** Moves where the character's portrait stands in chat, from the arrows beside the position. */
   setPortraitPos(pos: number): void {
-    this.character().portraitPosition = Math.max(0, Math.min(pos, MAX_PORTRAIT_POSITION));
+    this.character().portraitPosition = clamp(pos, 0, MAX_PORTRAIT_POSITION);
   }
 
   /**

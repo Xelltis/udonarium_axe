@@ -215,6 +215,20 @@ describe('AudioFile', () => {
       expect(audio.toContext().type).toBe('audio/mpeg');
     });
 
+    it('leaves the artwork unread when the bytes that arrived cannot be read', async () => {
+      vi.spyOn(FileReader.prototype, 'readAsArrayBuffer').mockImplementation(function (this: FileReader) {
+        queueMicrotask(() => this.onerror?.call(this, new ProgressEvent('error') as ProgressEvent<FileReader>));
+      });
+      const audio = AudioFile.createEmpty('id1');
+      const blob = new Blob(['data'], { type: 'audio/mpeg' });
+
+      audio.apply({ identifier: '', name: '', type: 'audio/mpeg', blob, url: '' });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(audio.artworkUrl).toBeNull();
+      expect((audio as unknown as { _artworkUrl: unknown })._artworkUrl).toBeUndefined();
+    });
+
     it('makes a url when bytes arrive where there were none', () => {
       const audio = AudioFile.createEmpty('id1');
       const blob = new Blob(['data'], { type: 'audio/mpeg' });

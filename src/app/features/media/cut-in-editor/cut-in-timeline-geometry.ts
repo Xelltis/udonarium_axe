@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /**
  * Where a moment falls along the timeline, and what the pointer lands on.
  *
@@ -45,7 +46,7 @@ export const TIMELINE_ZOOM_STEP = 1.5;
 /** Holds a timeline zoom between fitting and 32 times that; anything not a number goes back to fitting. */
 export function clampZoom(zoom: number): number {
   if (!Number.isFinite(zoom)) return MIN_TIMELINE_ZOOM;
-  return Math.min(MAX_TIMELINE_ZOOM, Math.max(MIN_TIMELINE_ZOOM, zoom));
+  return clamp(zoom, MIN_TIMELINE_ZOOM, MAX_TIMELINE_ZOOM);
 }
 
 /** How wide the track stands once drawn out. Never narrower than the room it has. */
@@ -95,7 +96,7 @@ export function snapToNearby(
   pxPerSec: number,
   magnetPx = MAGNET_PX
 ): number {
-  const held = Math.min(durationMs, Math.max(0, ms));
+  const held = clamp(ms, 0, durationMs);
   let best: number | null = null;
   let bestGap = Infinity;
 
@@ -149,7 +150,7 @@ export function bandDraggedTo(
     return { startMs: moved, endMs: layer.endMs };
   }
 
-  const moved = Math.min(durationMs, Math.max(ms, startMs + leastMs));
+  const moved = clamp(ms, startMs + leastMs, durationMs);
   return { startMs: layer.startMs, endMs: moved >= durationMs ? 0 : moved };
 }
 
@@ -181,7 +182,7 @@ export function xToMs(x: number, pxPerSec: number): number {
 export function snapMs(ms: number, durationMs: number, gridMs = SNAP_MS): number {
   const grid = gridMs > 0 ? gridMs : 1;
   const snapped = Math.round(ms / grid) * grid;
-  return Math.min(durationMs, Math.max(0, snapped));
+  return clamp(snapped, 0, durationMs);
 }
 
 /** Where a layer's time on screen falls along the track. */
@@ -190,8 +191,8 @@ export function barRect(
   durationMs: number,
   pxPerSec: number
 ): { left: number; width: number } {
-  const startMs = Math.min(Math.max(0, layer.startMs), durationMs);
-  const endMs = layer.endMs > 0 ? Math.min(Math.max(startMs, layer.endMs), durationMs) : durationMs;
+  const startMs = clamp(layer.startMs, 0, durationMs);
+  const endMs = layer.endMs > 0 ? clamp(layer.endMs, startMs, durationMs) : durationMs;
   return { left: msToX(startMs, pxPerSec), width: Math.max(1, msToX(endMs - startMs, pxPerSec)) };
 }
 

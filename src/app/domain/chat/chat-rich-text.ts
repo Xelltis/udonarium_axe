@@ -272,7 +272,7 @@ function flatten(line: ChatRichLine): { text: string; marks: ChatDecoration | nu
  * as it is written: the commands ending it plain whatever they were put in. A backslash may stand on either side of a mark next to it, as one is written after a
  * mark it would otherwise keep from taking effect, so what it is drawn in does not count.
  */
-export function sameRichLine(a: ChatRichLine, b: ChatRichLine): boolean {
+function sameRichLine(a: ChatRichLine, b: ChatRichLine): boolean {
   const left = flatten(a);
   const right = flatten(b);
   return (

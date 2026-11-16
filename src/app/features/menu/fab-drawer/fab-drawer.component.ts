@@ -5,11 +5,10 @@ import {
   Component,
   computed,
   DestroyRef,
-  effect,
   ElementRef,
   inject,
+  linkedSignal,
   signal,
-  untracked,
   viewChild,
 } from '@angular/core';
 import { RoomFilesService } from '@axe/application/file/room-files.service';
@@ -59,7 +58,7 @@ const FAB_MARGIN_PX = 12;
  * them; a screen without the drawer has a picker of its own.
  */
 @Component({
-  selector: 'app-fab-drawer',
+  selector: 'fab-drawer',
   templateUrl: './fab-drawer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -115,8 +114,17 @@ export class FabDrawerComponent {
   /** The drawer as this seat is offered it, in the order this screen has it arranged. */
   protected readonly fabNodes = computed<MenuNodeView[]>(() => this.menuCommands.viewOf(this.fabLayout()));
 
-  /** Which of the drawer's menus is open beside it, if any; opening one closes the one before. */
-  protected readonly fabSubmenu = signal<string | null>(null);
+  /**
+   * Which of the drawer's menus is open beside it, if any; opening one closes the one before.
+   *
+   * The button guide coming out closes it, as what a small menu holds is written out beside it with
+   * the rest and one left open would only say it twice, over the names beside it. So does a save,
+   * which gets the menu out of the way as it runs.
+   */
+  protected readonly fabSubmenu = linkedSignal<{ closes: boolean }, string | null>({
+    source: () => ({ closes: this.guide.shown() || this.roomFiles.isSaving() }),
+    computation: (source, previous) => (source.closes ? null : (previous?.value ?? null)),
+  });
 
   /** The small menu open beside the drawer, once the drawer still holds one by that name. */
   protected readonly openGroup = computed<MenuGroupView | null>(() => {
@@ -144,12 +152,6 @@ export class FabDrawerComponent {
       this.zipInput()?.nativeElement.click();
     });
     inject(DestroyRef).onDestroy(() => this.menuCommands.registerFilePicker(null));
-
-    // What a small menu holds is written out beside it with the rest, so one left open would only
-    // say it twice, and over the names beside it. A save gets the menu out of the way as it runs.
-    effect(() => {
-      if (this.guide.shown() || this.roomFiles.isSaving()) untracked(() => this.fabSubmenu.set(null));
-    });
 
     afterNextRender(() => this.measureFabSides());
   }

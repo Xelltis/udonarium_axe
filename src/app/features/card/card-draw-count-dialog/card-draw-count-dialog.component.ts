@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { clamp } from '@axe/core/util/clamp';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface CardDrawCountDialogOption {
@@ -54,7 +55,7 @@ export class CardDrawCountDialogComponent {
 
   private clampCount(value: number): number {
     if (this.maxCount < 1) return 0;
-    return Math.min(this.maxCount, Math.max(1, this.normalizePositiveInteger(value, 1)));
+    return clamp(this.normalizePositiveInteger(value, 1), 1, this.maxCount);
   }
 
   private normalizePositiveInteger(value: unknown, fallback: number): number {

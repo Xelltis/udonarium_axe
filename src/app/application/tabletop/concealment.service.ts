@@ -29,7 +29,9 @@ const PLACED_KINDS = [GameCharacter, TextNote, DiceSymbol, Coin, CardStack] as c
 export class ConcealmentService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
 
   /** What stands on the table being looked at and could be put out of sight. */
   concealable(): TabletopObject[] {

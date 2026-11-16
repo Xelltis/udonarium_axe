@@ -70,6 +70,24 @@ describe('MapEditorTexturePickerComponent', () => {
     expect(picker.imageTextures().map((f) => f.identifier)).toEqual(['mine']);
   });
 
+  it('sets how large and how turned the texture is laid from its two sliders', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const [scale, rotation] = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLInputElement>('input[type="range"]'),
+    ];
+    expect(scale.value).toBe(String(state.textureScale()));
+    expect(rotation.value).toBe(String(state.textureRotation()));
+
+    scale.value = '2';
+    scale.dispatchEvent(new Event('input'));
+    rotation.value = '90';
+    rotation.dispatchEvent(new Event('input'));
+
+    expect(Number(state.textureScale())).toBe(2);
+    expect(Number(state.textureRotation())).toBe(90);
+  });
+
   it('selects a pattern by its prefixed id and switches to pattern fill', () => {
     picker.selectImageTexture(ImageFile.create('tex-9'));
     expect(state.textureId()).toBe('image:tex-9');
@@ -84,7 +102,7 @@ describe('MapEditorTexturePickerComponent', () => {
     await picker.onTextureFileSelected(upload());
 
     expect(imageStorage.addAsync).toHaveBeenCalledWith(blob, { putBack: true });
-    expect(ImageTag.get('cropped-1').tag).toBe('テクスチャ');
+    expect(ImageTag.get('cropped-1')!.tag).toBe('テクスチャ');
     expect(state.textureId()).toBe('image:cropped-1');
     expect(state.fillMode()).toBe('texture');
   });

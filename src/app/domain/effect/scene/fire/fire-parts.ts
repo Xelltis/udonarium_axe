@@ -1,23 +1,14 @@
 import { outCubic, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import { moteAt, type ThrownMote } from '@axe/domain/effect/scene/effect-sim';
-import {
-  ball,
-  floorMark,
-  glow,
-  haze,
-  hueOf,
-  lightBall,
-  type Point,
-  smokePuff,
-  type Thrower,
-} from '@axe/domain/effect/scene/parts';
+import { floorMark, glow, lightBall, type Point, smokePuff, type Thrower } from '@axe/domain/effect/scene/parts';
 
 /*
  * The parts of what burns and blows apart, each thrown once from a seed and drawn as it flies:
  * balls of flame cooling down the ramp, clouds of smoke and dust, rocks and grit, burning brands,
- * sparks and embers; and on the floor, shock rings, a band of dust and a scorch. A look of fire is
- * these, thrown as many, as fast and as large as it asks.
+ * sparks and embers; and on the floor, shock rings, a band of dust and a scorch. What goes off
+ * throws these, as many, as fast and as large as it asks; the body of a fire itself, its flames
+ * and its smoke, is drawn as `fire-body` has it.
  *
  * Every length is in cells and every speed in cells a second; a ramp runs from the deepest shadow at
  * 0 to white at 6.
@@ -27,7 +18,12 @@ export const SMOKE = '#221d26';
 export const STONE = '#6e625b';
 export const DUST = '#7a6a5c';
 export const WARM = '#ffb060';
-const BRAND = '#2a1d1c';
+/** The black of soot burnt into the floor, and the glow of embers in it. */
+const SOOT = '#0e0b10';
+const EMBER = '#ff7a2c';
+/** How thin a shock ring is drawn as it dies and how much thicker as it sets out, as shares of how heavy it is. */
+const SHOCK_RING_THIN = 0.12;
+const SHOCK_RING_SWELL = 0.3;
 
 /** One ball of flame: where it flies, how wide it is, in cells, and how much of its life it burns before it is smoke. */
 export interface FireBall {
@@ -79,121 +75,6 @@ export interface Brand {
   readonly power: number;
 }
 
-/** Everything a look of fire throws. */
-export interface FireThrow {
-  readonly fire: readonly FireBall[];
-  readonly clouds: readonly Cloud[];
-  readonly sparks: readonly ThrownMote[];
-  readonly embers: readonly ThrownMote[];
-  readonly brands: readonly Brand[];
-  readonly bits: readonly Bit[];
-}
-
-/** Draws all a look of fire has thrown at a moment, what is behind first: smoke and debris, the flame, then light. */
-export function drawFireThrow(
-  drawn: Staged,
-  thrown: FireThrow,
-  t: number,
-  cell: number,
-  ramp: readonly string[],
-  forward: number
-): void {
-  for (const cloud of thrown.clouds) drawCloud(drawn, cloud, t, cell, forward);
-  for (const bit of thrown.bits) drawBit(drawn, bit, t, cell, ramp, forward);
-  for (const fire of thrown.fire) drawFire(drawn, fire, t, cell, ramp, forward);
-  for (const brand of thrown.brands) drawBrand(drawn, brand, t, cell, ramp, forward);
-  for (const [index, spark] of thrown.sparks.entries()) drawSpark(drawn, spark, t, cell, ramp, index, forward);
-  for (const [index, ember] of thrown.embers.entries()) drawEmber(drawn, ember, t, cell, ramp, index, forward);
-}
-
-/**
- * A ball of flame at a moment: three balls a step apart down the ramp, the hotter the smaller and the
- * higher, cooling a step at a time; one that turns to smoke fades into a cloud swelling as it rises,
- * one that burns out shrinks away to nothing.
- */
-export function drawFire(
-  drawn: Staged,
-  fire: FireBall,
-  t: number,
-  cell: number,
-  ramp: readonly string[],
-  forward: number
-): void {
-  const now = moteAt(fire.mote, t);
-  if (!now) return;
-  const age = now.age;
-  const sway = fire.sway ? Math.sin(fire.variant * 3 + t * 7) * fire.sway * cell * age : 0;
-  const at = sway ? { x: now.x + sway, y: now.y, z: now.z } : now;
-  const smokes = fire.burns < 1;
-  if (age < fire.burns) {
-    const burnt = age / fire.burns;
-    const hottest = fire.hottest ?? 5;
-    const step = Math.max(
-      1,
-      Math.min(hottest, burnt < 0.06 ? 5 : burnt < 0.28 ? 4 : burnt < 0.52 ? 3 : burnt < 0.78 ? 2 : 1)
-    );
-    const dying = within(burnt, smokes ? 0.55 : 0.6, 1);
-    const size = cell * fire.size * (1 - (fire.taper ?? 0.4) * burnt) * (smokes ? 1 : 1 - 0.75 * dying);
-    const alpha = smokes ? 1 - dying : 1 - dying * dying * dying;
-    const near = Math.max(forward, size * 0.6);
-    if (fire.soft) {
-      // Soft light: a wide glow of the colour and a white heart, drawn out behind it as it streams.
-      const velocity = { x: now.vx, y: now.vy, z: now.vz };
-      const streaming = fire.streak ? fire.streak : 0;
-      drawn.motes.push(haze(at, size * 2, hueOf(ramp), 0.4 * alpha, near));
-      drawn.motes.push(glow(at, size * 1.6, ramp[3], 0.45 * alpha, near));
-      drawn.motes.push({
-        ...glow(at, size * 0.7, ramp[4], 0.8 * alpha, near),
-        shape: streaming ? 'comet' : 'puff',
-        velocity,
-        trail: streaming,
-        blend: 'light',
-      });
-      if (burnt < 0.5)
-        drawn.motes.push({
-          ...glow(at, size * 0.3, '#ffffff', alpha, near + 1),
-          shape: streaming ? 'comet' : 'puff',
-          velocity,
-          trail: streaming * 0.6,
-          blend: 'light',
-        });
-      return;
-    }
-    if (burnt < 0.45) drawn.motes.push(glow(at, size * 1.5, ramp[step], 0.2 * (1 - burnt / 0.45), near));
-    const drawnOut = fire.streak ? Math.hypot(now.vx, now.vy, now.vz) * fire.streak : 0;
-    if (drawnOut > size * 0.5) {
-      // Streaming fast it is drawn out behind it, round at its head: three comets a step apart.
-      const velocity = { x: now.vx, y: now.vy, z: now.vz };
-      for (const [share, lift, step2] of [
-        [1, 0, step - 1],
-        [0.72, 0.05, step],
-        [0.4, 0.1, step + 1],
-      ] as const) {
-        if (share < 0.5 && burnt >= 0.6) continue;
-        drawn.motes.push({
-          ...ball(at, size * share, ramp[step2], alpha, near + size * lift, fire.variant + share * 3),
-          shape: 'comet',
-          velocity,
-          trail: fire.streak! * share,
-        });
-      }
-    } else {
-      drawn.motes.push(ball(at, size, ramp[step - 1], alpha, near, fire.variant));
-      const body = { x: at.x, y: at.y, z: at.z + size * 0.09 };
-      drawn.motes.push(ball(body, size * 0.78, ramp[step], alpha, near + size * 0.05, fire.variant + 1.3));
-      if (burnt < 0.6) {
-        const core = { x: at.x, y: at.y, z: at.z + size * 0.16 };
-        drawn.motes.push(ball(core, size * 0.42, ramp[step + 1], alpha, near + size * 0.1, fire.variant + 2.9));
-      }
-    }
-  }
-  if (!smokes || age < fire.burns * 0.6) return;
-  const smoked = within(age, fire.burns * 0.6, 1);
-  const size = cell * fire.size * (0.9 + smoked * 1.1);
-  const alpha = Math.min(within(smoked, 0, 0.2), 1 - smoked) * 0.7;
-  drawn.motes.push(smokePuff(at, size, mixColor(SMOKE, ramp[0], 0.25), alpha, forward));
-}
-
 /** A cloud at a moment: three soft discs, swelling as it drifts and thinning away. */
 export function drawCloud(drawn: Staged, cloud: Cloud, t: number, cell: number, forward: number): void {
   const at = moteAt(cloud.mote, t);
@@ -243,40 +124,6 @@ export function drawBit(
     variant: bit.variant,
     forward,
   });
-}
-
-/** A burning brand at a moment: a streak of flame behind it while it flies, little flames licking up where it lands. */
-export function drawBrand(
-  drawn: Staged,
-  brand: Brand,
-  t: number,
-  cell: number,
-  ramp: readonly string[],
-  forward: number
-): void {
-  const now = moteAt(brand.mote, t);
-  if (!now) return;
-  const burning = (1 - now.age * now.age) * brand.power;
-  if (!now.landed) {
-    drawn.motes.push({
-      ...glow(now, cell * 0.13, ramp[4], burning + 0.2, forward),
-      shape: 'spark',
-      velocity: { x: now.vx, y: now.vy, z: now.vz },
-      trail: 0.07,
-    });
-    drawn.motes.push(glow(now, cell * 0.45, ramp[4], 0.35 * burning, forward));
-  } else {
-    drawn.motes.push(glow(now, cell * 0.6, WARM, 0.3 * burning, forward));
-    for (let lick = 0; lick < 3; lick++) {
-      const phase = (t * 2.3 + lick / 3 + brand.power) % 1;
-      const flame = { x: now.x + (lick - 1) * cell * 0.04, y: now.y, z: now.z + cell * (0.04 + phase * 0.26) };
-      const size = cell * 0.17 * (1 - phase) * burning;
-      if (size > cell * 0.02) {
-        drawn.motes.push(ball(flame, size, ramp[Math.max(1, 5 - Math.floor(phase * 4))], 1, forward, lick));
-      }
-    }
-  }
-  drawn.motes.push({ ...ball(now, cell * 0.11, BRAND, 1, forward, 3), shape: 'chunk', spin: now.landed ? 0 : t * 9 });
 }
 
 /** A spark at a moment: a streak of light drawn out by its speed, cooling as it falls. */
@@ -377,7 +224,27 @@ export function layScorch(
   }
 }
 
-/** A shock ring racing out along the floor, thinning and fading over `lifeS` seconds. */
+/**
+ * Soot left on the floor by what burns it without being fire, as a bolt of lightning or a beam: a
+ * soft-edged smudge, black at its heart, glowing like embers at once and cooling over `coolS` seconds,
+ * and gone as `clearing` falls to nothing. It is of the colour of soot and of heat whatever the colour
+ * of what burnt it.
+ */
+export function laySoot(drawn: Staged, floor: Point, reach: number, t: number, coolS: number, clearing: number): void {
+  if (t < 0 || clearing <= 0) return;
+  const spread = reach * Math.min(1, 0.4 + (0.6 * t) / 0.08);
+  drawn.floor.push(floorMark('disc', floor, spread * 1.7, 1, SMOKE, 0.7 * clearing, 'color', 0));
+  drawn.floor.push(floorMark('disc', floor, spread * 0.95, 1, SOOT, 0.65 * clearing, 'color', 0));
+  const heat = Math.pow(Math.max(0, 1 - t / coolS), 1.4);
+  if (heat <= 0) return;
+  drawn.floor.push(floorMark('disc', floor, spread * (0.5 + 0.7 * heat), 1, EMBER, 0.7 * heat * clearing, 'light', 0));
+}
+
+/**
+ * A shock ring racing out along the floor over `lifeS` seconds: a thin line of light over a band of
+ * its colour, which keeps its colour on a bright floor, fast at first, thinning as it goes and fading
+ * all the way. `thick` is how heavy a ring it is; it is drawn far thinner than that.
+ */
 export function layShockRing(
   drawn: Staged,
   floor: Point,
@@ -391,8 +258,9 @@ export function layShockRing(
   const left = 1 - t / lifeS;
   if (t < 0 || left <= 0) return;
   const radius = from + (to - from) * (1 - left * left * left);
-  const width = Math.max(thick * 0.25, thick * left + thick * 0.1) / radius;
-  drawn.floor.push(floorMark('ring', floor, radius, width, color, Math.min(1, left * 1.6), 'light', 0));
+  const width = (thick * (SHOCK_RING_THIN + SHOCK_RING_SWELL * left)) / radius;
+  drawn.floor.push(floorMark('ring', floor, radius, width * 2, color, 0.4 * left, 'color', 0));
+  drawn.floor.push(floorMark('ring', floor, radius, width, color, 0.85 * left, 'light', 0));
 }
 
 /** A band of dust thrown out along the floor behind the shock, as far as `reach`, with a hot edge, over `lifeS` seconds. */
@@ -412,48 +280,6 @@ export function layDustBand(
   const width = Math.max(thick * 0.25, thick * (1 - band)) / radius;
   drawn.floor.push(floorMark('ring', floor, radius, width, DUST, Math.min(1, 1.15 - band) * 0.7, 'color', 0));
   drawn.floor.push(floorMark('ring', floor, radius * 0.97, width * 0.35, ramp[3], (1 - band) * 0.8, 'light', 0));
-}
-
-/** Balls of flame flung out every way and up from a heart, some turning to smoke. */
-export function flungFire(
-  th: Thrower,
-  heart: Point,
-  count: number,
-  options: {
-    speed?: readonly [number, number];
-    from?: number;
-    smokes?: number;
-    bornAt?: readonly [number, number];
-  } = {}
-): FireBall[] {
-  const U = th.cell;
-  const [slow, fast] = options.speed ?? [0.8, 3.4];
-  return Array.from({ length: count }, () => {
-    const way = th.outward();
-    const from = th.range(0, options.from ?? 0.3) * U;
-    const speed = th.range(slow, fast) * U;
-    const smokes = th.chance(options.smokes ?? 0.45);
-    const big = th.chance(0.3);
-    const bornAt = options.bornAt ? th.range(options.bornAt[0], options.bornAt[1]) : 0;
-    return {
-      mote: th.mote({
-        x: heart.x + way.cos * from,
-        y: heart.y + way.sin * from,
-        z: heart.z + th.range(-0.15, 0.2) * U,
-        vx: way.cos * speed,
-        vy: way.sin * speed,
-        vz: th.range(-0.2, 0.8) * speed * 0.6 + 1.7 * U,
-        bornAt,
-        life: th.lifeOf(bornAt, smokes ? 1.1 : 0.45, smokes ? 2 : 0.95),
-        gravity: -th.range(1.6, 3) * U,
-        drag: 3.2,
-        bounce: 0,
-      }),
-      size: big ? th.range(0.55, 0.75) : th.range(0.22, 0.45),
-      burns: smokes ? th.range(0.38, 0.5) : 1,
-      variant: th.range(0, 6),
-    };
-  });
 }
 
 /** Sparks flying out from a heart, slowed, falling and bouncing off the floor. */
@@ -584,42 +410,6 @@ export function billowingSmoke(
       size: th.range(small, large),
       color: SMOKE,
       alpha: 0.7,
-    };
-  });
-}
-
-/** Plumes of smoke rising from about a heart as a column, slowing as they climb and drifting apart. */
-export function risingPlumes(
-  th: Thrower,
-  heart: Point,
-  count: number,
-  bornAt: readonly [number, number],
-  rise: readonly [number, number],
-  length: number,
-  size: readonly [number, number] = [0.7, 1]
-): Cloud[] {
-  const U = th.cell;
-  return Array.from({ length: count }, () => {
-    const way = th.outward();
-    const born = th.range(bornAt[0], bornAt[1]);
-    return {
-      mote: th.mote({
-        x: heart.x + way.cos * th.range(0, 0.4) * U,
-        y: heart.y + way.sin * th.range(0, 0.4) * U,
-        z: heart.z + th.range(0, 0.4) * U,
-        vx: way.cos * th.range(0.1, 0.4) * U,
-        vy: way.sin * th.range(0.1, 0.4) * U,
-        vz: th.range(rise[0], rise[1]) * U,
-        bornAt: born,
-        life: th.lifeOf(born, 2, 3),
-        gravity: -0.15 * U,
-        drag: 0.5,
-        bounce: 0,
-      }),
-      size: th.range(size[0], size[1]),
-      color: SMOKE,
-      alpha: 0.6,
-      plume: length,
     };
   });
 }

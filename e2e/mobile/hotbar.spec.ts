@@ -1,15 +1,14 @@
 import { expect, Page, test } from '@playwright/test';
 
+import { waitMobileReady } from '../helpers';
+
 /** Which widgets show comes from localStorage, so it is set before the page loads to have the bar out. */
 async function showHotbar(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('ui-widgets', JSON.stringify({ hotbar: true }));
     localStorage.removeItem('ui-hotbar');
   });
-  await page.goto('/');
-  await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
-  const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
-  if (await closeStartupPanel.count()) await closeStartupPanel.click();
+  await waitMobileReady(page);
   await expect(page.locator('[data-testid="hotbar"]')).toBeVisible({ timeout: 10000 });
 }
 

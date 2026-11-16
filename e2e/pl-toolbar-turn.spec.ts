@@ -12,7 +12,7 @@ test.describe('the turn on the player tools', () => {
       .filter({ hasText: '接続情報' })
       .getByRole('button', { name: /^\s*PL\s*$/ })
       .click();
-    const bar = page.locator('app-pl-toolbar');
+    const bar = page.locator('pl-toolbar');
     const owned = bar.locator('[title="所有キャラクター一覧"]');
     await expect(owned).toBeVisible({ timeout: 10000 });
     await owned.click();
@@ -37,15 +37,7 @@ test.describe('the turn on the player tools', () => {
     const viewport = page.viewportSize()!;
     /** How far the middle of a piece, the one whose turn it is unless another is named, lies from the middle of the screen. */
     const offCentre = async (of = identifier) => {
-      const boxes = await page.evaluate(
-        (id) =>
-          (
-            window as unknown as {
-              __axeTable: { pieceBoxesOnPage(id: string): { x: number; y: number; width: number; height: number }[] };
-            }
-          ).__axeTable.pieceBoxesOnPage(id),
-        of
-      );
+      const boxes = await page.evaluate((id) => window.__axeTable.pieceBoxesOnPage(id), of);
       const box = boxes[0];
       if (!box) return Number.POSITIVE_INFINITY;
       return Math.hypot(box.x + box.width / 2 - viewport.width / 2, box.y + box.height / 2 - viewport.height / 2);

@@ -847,7 +847,7 @@ describe('MoveRangeService and the ground an enemy holds', () => {
 
   describe('the rules the room answers for', () => {
     afterEach(() => {
-      (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+      Config.forget();
     });
 
     it('leaves a table that the room has never been asked about ruling itself', () => {

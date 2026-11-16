@@ -1,4 +1,5 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -15,6 +16,7 @@ import { capturePointer } from '@axe/core/input/pointer-capture';
 import { canvasToBlob } from '@axe/core/storage/canvas-blob';
 import { FileArchiver, MAX_LOADED_IMAGE_BYTES } from '@axe/core/storage/file-archiver';
 import { ImageFile } from '@axe/core/storage/image-file';
+import { clamp } from '@axe/core/util/clamp';
 import { ConnectedColorEraser } from '@axe/domain/media/erase-connected-color';
 import {
   centeredRect,
@@ -63,7 +65,7 @@ export type ImageEditOutcome =
   | { readonly kind: 'closed' };
 
 /** The ratios offered for the part kept, width over height; null leaves it free, 0 takes the picture's own. */
-export const CROP_RATIOS: readonly { readonly key: string; readonly ratio: number | null }[] = [
+const CROP_RATIOS: readonly { readonly key: string; readonly ratio: number | null }[] = [
   { key: 'free', ratio: null },
   { key: 'original', ratio: 0 },
   { key: '1:1', ratio: 1 },
@@ -73,7 +75,7 @@ export const CROP_RATIOS: readonly { readonly key: string; readonly ratio: numbe
 ];
 
 /** What the buttons over the picture do to it, each with its mark and its name. */
-export const ORIENT_ACTIONS = [
+const ORIENT_ACTIONS = [
   { id: 'turn-left', icon: 'rotate_left', label: 'ui.imageEditor.turnLeft' },
   { id: 'turn-right', icon: 'rotate_right', label: 'ui.imageEditor.turnRight' },
   { id: 'flip-across', icon: 'flip', label: 'ui.imageEditor.flipAcross' },
@@ -84,7 +86,7 @@ export const ORIENT_ACTIONS = [
 export type OrientActionId = (typeof ORIENT_ACTIONS)[number]['id'];
 
 /** The shares of its size a picture can be put out at with one press. */
-export const SCALE_PRESETS = [25, 50, 75, 100] as const;
+const SCALE_PRESETS = [25, 50, 75, 100] as const;
 
 interface Picture {
   readonly width: number;
@@ -137,6 +139,9 @@ export class ImageEditorComponent {
   readonly cropRatios = CROP_RATIOS;
   readonly orientActions = ORIENT_ACTIONS;
   readonly scalePresets = SCALE_PRESETS;
+  /** What every button under the picture looks like; each adds its own size. */
+  protected readonly toolButtonClass =
+    'bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text cursor-pointer border border-solid transition-[background,color] disabled:cursor-default disabled:opacity-40';
 
   readonly state = signal<ImageEditorState>('loading');
   /** Whether the last try at storing the picture failed, which leaves it open to try again. */
@@ -255,7 +260,7 @@ export class ImageEditorComponent {
   constructor() {
     const destroyRef = inject(DestroyRef);
     destroyRef.onDestroy(() => this.finish({ kind: 'closed' }));
-    queueMicrotask(() => this.watchArea(destroyRef));
+    afterNextRender(() => this.watchArea(destroyRef));
   }
 
   private watchArea(destroyRef: DestroyRef): void {
@@ -475,7 +480,7 @@ export class ImageEditorComponent {
    * frame, once however many times the slider moved before it.
    */
   setTolerance(value: number): void {
-    this.tolerance.set(Math.max(0, Math.min(128, Math.round(value) || 0)));
+    this.tolerance.set(clamp(Math.round(value) || 0, 0, 128));
     if (this.redrawPending) return;
     this.redrawPending = true;
     requestAnimationFrame(() => {
@@ -504,7 +509,8 @@ export class ImageEditorComponent {
   /** Leaves this picture out; alone, that closes the panel. */
   skip(): void {
     this.finish({ kind: 'skipped' });
-    if (!this.request()?.position || this.request()!.position!.count <= 1) this.panelService.close();
+    const position = this.request()?.position;
+    if (!position || position.count <= 1) this.panelService.close();
   }
 
   /** Takes this picture and the rest still to come in as they are. */
@@ -605,8 +611,8 @@ export class ImageEditorComponent {
     if (box.width <= 0 || box.height <= 0) return null;
     const size = this.pictureSize();
     return {
-      x: Math.min(Math.max(0, ((event.clientX - box.left) / box.width) * size.width), size.width),
-      y: Math.min(Math.max(0, ((event.clientY - box.top) / box.height) * size.height), size.height),
+      x: clamp(((event.clientX - box.left) / box.width) * size.width, 0, size.width),
+      y: clamp(((event.clientY - box.top) / box.height) * size.height, 0, size.height),
     };
   }
 

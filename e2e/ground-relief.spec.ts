@@ -1,7 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from './dungeon-helpers';
-import { openPanel, waitAppReady } from './helpers';
+import { becomeGm, closePanels, openPanel, waitAppReady, whenTableIdle } from './helpers';
 
 /**
  * The ground of a table, which the master raises, digs and paints with a brush laid on the table or
@@ -11,14 +10,6 @@ import { openPanel, waitAppReady } from './helpers';
 
 type Box = { x: number; y: number; width: number; height: number };
 
-type Hooks = {
-  whenIdle(): Promise<void>;
-  pieceBoxesOnPage(identifier: string): Box[];
-  groundAt(x: number, y: number): number;
-  paintAt(x: number, y: number): number[] | null;
-  sceneBoard(): { widthPx: number; depthPx: number } | null;
-};
-
 /**
  * Waits for what the screen lays over the table to stand where the table now puts it, with the
  * pointer off the table and the detail of any piece it passed over gone.
@@ -26,7 +17,7 @@ type Hooks = {
 async function idle(page: Page) {
   await page.mouse.move(5, 400);
   await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
+  await whenTableIdle(page);
 }
 
 /** The box on the page round the pedestal of a piece, once picking finds the piece. */
@@ -34,10 +25,7 @@ async function pedestalOf(page: Page, identifier: string): Promise<Box> {
   let pedestal: Box | undefined;
   await expect
     .poll(async () => {
-      [pedestal] = await page.evaluate(
-        (id) => (window as unknown as { __axeTable: Hooks }).__axeTable.pieceBoxesOnPage(id),
-        identifier
-      );
+      [pedestal] = await page.evaluate((id) => window.__axeTable.pieceBoxesOnPage(id), identifier);
       return pedestal;
     })
     .toBeTruthy();
@@ -47,7 +35,7 @@ async function pedestalOf(page: Page, identifier: string): Promise<Box> {
 /** How high the ground stands under the middle of a piece, in table pixels. */
 async function groundUnder(page: Page, piece: Locator): Promise<number> {
   const [x, y] = (await piece.locator('[data-location]').first().getAttribute('data-location'))!.split(',').map(Number);
-  return page.evaluate(({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.groundAt(x + 25, y + 25), {
+  return page.evaluate(({ x, y }) => window.__axeTable.groundAt(x + 25, y + 25), {
     x,
     y,
   });
@@ -56,7 +44,7 @@ async function groundUnder(page: Page, piece: Locator): Promise<number> {
 /** How high the ground stands all over the board, read every half cell, in table pixels. */
 function groundHeights(page: Page): Promise<number[]> {
   return page.evaluate(() => {
-    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const hooks = window.__axeTable;
     const board = hooks.sceneBoard();
     const heights: number[] = [];
     for (let y = 0; y <= (board?.depthPx ?? 0); y += 25) {
@@ -74,7 +62,7 @@ function raisedSince(before: readonly number[], after: readonly number[]): numbe
 /** The most of each kind of ground painted anywhere on the board, grass, dirt, rock and sand in turn, each out of fifteen. */
 function mostPainted(page: Page): Promise<number[]> {
   return page.evaluate(() => {
-    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const hooks = window.__axeTable;
     const board = hooks.sceneBoard();
     const most = [0, 0, 0, 0];
     for (let y = 0; y <= (board?.depthPx ?? 0); y += 25) {
@@ -88,7 +76,7 @@ function mostPainted(page: Page): Promise<number[]> {
 
 /** Lays a stroke of the brush across the editor's map, from a point a share of the way across and down it. */
 async function strokeAcrossMap(page: Page, across: number, down: number): Promise<void> {
-  const board = (await page.locator('app-map-editor-panel canvas').first().boundingBox())!;
+  const board = (await page.locator('map-editor-panel canvas').first().boundingBox())!;
   const from = { x: board.x + board.width * across, y: board.y + board.height * down };
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
@@ -97,7 +85,7 @@ async function strokeAcrossMap(page: Page, across: number, down: number): Promis
 }
 
 async function bringTableIn(page: Page): Promise<void> {
-  const editor = page.locator('app-map-editor-panel');
+  const editor = page.locator('map-editor-panel');
   await editor.getByRole('button', { name: 'テーブルを取り込む' }).click();
   await page.locator('confirm-dialog').getByRole('button', { name: 'OK' }).click();
   await expect(page.locator('confirm-dialog')).toHaveCount(0);
@@ -153,7 +141,7 @@ test.describe('the ground of a table', () => {
     const unpainted = await mostPainted(page);
 
     await openPanel(page, 'マップエディター');
-    const editor = page.locator('app-map-editor-panel');
+    const editor = page.locator('map-editor-panel');
     await expect(editor).toBeVisible({ timeout: 15000 });
     await bringTableIn(page);
 

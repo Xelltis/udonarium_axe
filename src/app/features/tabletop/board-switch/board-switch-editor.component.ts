@@ -15,7 +15,7 @@ import { TranslocoModule } from '@jsverse/transloco';
  * not the master's is shown nothing of what the switch does.
  */
 @Component({
-  selector: 'app-board-switch-editor',
+  selector: 'board-switch-editor',
   templateUrl: './board-switch-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SwitchDefinitionFieldsComponent, TranslocoModule],

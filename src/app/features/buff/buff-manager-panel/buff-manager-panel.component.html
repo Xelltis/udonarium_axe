@@ -241,6 +241,40 @@
             </select>
           }
         </div>
+        <label class="text-ui-muted text-[11px]">{{ 'feature.character.buff.kind' | transloco }}</label>
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 cursor-pointer border border-solid px-1 py-0.5 text-[11px]"
+          name="selectedKind"
+          data-testid="buff-selected-kind"
+          [ngModel]="selectedKind()"
+          (ngModelChange)="setKind($event)"
+        >
+          @for (choice of kindChoices; track choice) {
+            <option [ngValue]="choice">{{ 'feature.character.buff.kind_' + choice | transloco }}</option>
+          }
+        </select>
+        @if (selectedBar()?.movesAtCounts || selectedBar()?.effectTiming) {
+          <label class="text-ui-muted text-[11px]">{{ 'feature.character.buff.effectTiming' | transloco }}</label>
+          <select
+            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 cursor-pointer border border-solid px-1 py-0.5 text-[11px]"
+            name="selectedEffectTiming"
+            data-testid="buff-selected-effect-timing"
+            [ngModel]="selectedBar()?.effectTiming ?? ''"
+            (ngModelChange)="setEffectTiming($event)"
+          >
+            <option [ngValue]="''">
+              {{
+                (selectedBar()?.timing === 'none'
+                  ? 'feature.character.buff.effectTiming_everyRound'
+                  : 'feature.character.buff.effectTiming_onCount'
+                ) | transloco
+              }}
+            </option>
+            @for (choice of effectTimingChoices; track choice) {
+              <option [ngValue]="choice">{{ 'feature.character.buff.effectTiming_' + choice | transloco }}</option>
+            }
+          </select>
+        }
       </div>
       <div class="mt-1.5 flex items-center gap-2">
         @if (selectedBar()?.modifierTarget; as target) {
@@ -305,6 +339,39 @@
             />
             {{ 'feature.buffManager.sweepByName' | transloco }}
           </label>
+          <label class="flex cursor-pointer items-center gap-1">
+            <input
+              type="radio"
+              name="sweepKind"
+              value="all"
+              data-testid="buff-sweep-all"
+              [checked]="sweepKind() === 'all'"
+              (change)="sweepKind.set('all')"
+            />
+            {{ 'feature.buffManager.sweepAll' | transloco }}
+          </label>
+          <label class="flex cursor-pointer items-center gap-1">
+            <input
+              type="radio"
+              name="sweepKind"
+              value="buffs"
+              data-testid="buff-sweep-buffs"
+              [checked]="sweepKind() === 'buffs'"
+              (change)="sweepKind.set('buffs')"
+            />
+            {{ 'feature.buffManager.sweepBuffsOnly' | transloco }}
+          </label>
+          <label class="flex cursor-pointer items-center gap-1">
+            <input
+              type="radio"
+              name="sweepKind"
+              value="debuffs"
+              data-testid="buff-sweep-debuffs"
+              [checked]="sweepKind() === 'debuffs'"
+              (change)="sweepKind.set('debuffs')"
+            />
+            {{ 'feature.buffManager.sweepDebuffsOnly' | transloco }}
+          </label>
         </div>
 
         @if (sweepKind() === 'rounds') {
@@ -341,9 +408,29 @@
           }
         }
 
-        <div class="flex items-center gap-2">
+        <label
+          class="flex cursor-pointer items-center gap-1"
+          [title]="'feature.buffManager.sweepWithValuesHint' | transloco"
+        >
+          <input
+            type="checkbox"
+            name="sweepWithValues"
+            data-testid="buff-sweep-with-values"
+            [ngModel]="sweepWithValues()"
+            (ngModelChange)="sweepWithValues.set($event)"
+          />
+          {{ 'feature.buffManager.sweepWithValues' | transloco }}
+        </label>
+
+        <div class="flex flex-wrap items-center gap-2">
           <span class="text-ui-muted flex-1" data-testid="buff-sweep-count">
-            @if (sweepCount().buffs > 0) {
+            @if (sweepWithValues()) {
+              @if (sweepReach().buffs > 0 || sweepReach().items > 0) {
+                {{ 'feature.buffManager.sweepCountWithValues' | transloco: sweepReach() }}
+              } @else {
+                {{ 'feature.buffManager.sweepNothing' | transloco }}
+              }
+            } @else if (sweepCount().buffs > 0) {
               {{ 'feature.buffManager.sweepCount' | transloco: sweepCount() }}
             } @else {
               {{ 'feature.buffManager.sweepNone' | transloco }}
@@ -353,7 +440,7 @@
             type="button"
             class="rounded-ui-sm border-ui-border-panel text-ui-text hover:border-ui-danger hover:text-ui-danger cursor-pointer border border-solid bg-transparent px-2 py-0.5 text-[11px] transition-colors disabled:cursor-default disabled:opacity-45"
             data-testid="buff-sweep-run"
-            [disabled]="sweepCount().buffs < 1"
+            [disabled]="!canSweep()"
             (click)="sweep()"
           >
             {{ 'feature.buffManager.sweepRun' | transloco }}
@@ -449,6 +536,44 @@
           <option value="">{{ 'feature.character.buff.triggerPlaceholder' | transloco }}</option>
           @for (option of builderTriggerOptions(); track option.value) {
             <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+
+        <label class="text-ui-muted text-[11px]" [title]="'feature.buffManager.builderEffectTimingHint' | transloco">{{
+          'feature.character.buff.effectTiming' | transloco
+        }}</label>
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 cursor-pointer border border-solid px-1 py-0.5 text-[11px] disabled:opacity-40"
+          data-testid="buff-builder-effect-timing"
+          [title]="'feature.buffManager.builderEffectTimingHint' | transloco"
+          [disabled]="!builderCanTimeEffect()"
+          [ngModel]="builderEffectTiming()"
+          (ngModelChange)="builderEffectTiming.set($event)"
+          name="builderEffectTiming"
+        >
+          <option [ngValue]="''">
+            {{
+              (builderTiming() === 'none'
+                ? 'feature.character.buff.effectTiming_everyRound'
+                : 'feature.character.buff.effectTiming_onCount'
+              ) | transloco
+            }}
+          </option>
+          @for (choice of effectTimingChoices; track choice) {
+            <option [ngValue]="choice">{{ 'feature.character.buff.effectTiming_' + choice | transloco }}</option>
+          }
+        </select>
+
+        <label class="text-ui-muted text-[11px]">{{ 'feature.character.buff.kind' | transloco }}</label>
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 cursor-pointer border border-solid px-1 py-0.5 text-[11px]"
+          data-testid="buff-builder-kind"
+          [ngModel]="builderKind()"
+          (ngModelChange)="builderKindPicked.set($event)"
+          name="builderKind"
+        >
+          @for (choice of kindChoices; track choice) {
+            <option [ngValue]="choice">{{ 'feature.character.buff.kind_' + choice | transloco }}</option>
           }
         </select>
 

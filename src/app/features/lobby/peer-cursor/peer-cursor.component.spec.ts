@@ -1,13 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { BatchService } from '@axe/application/ui/batch.service';
-import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerCursorComponent } from '@axe/features/lobby/peer-cursor/peer-cursor.component';
@@ -35,11 +32,8 @@ describe('PeerCursorComponent', () => {
   afterEach(() => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.delete(object, false);
     ObjectStore.instance.clearDeleteHistory();
-    PeerCursor.myCursor = null!;
-    (PeerCursor as unknown as Record<string, unknown>)['userIdMap'] = new Map();
-    (PeerCursor as unknown as Record<string, unknown>)['peerIdMap'] = new Map();
-    (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
-    (PeerCursorComponent as unknown as Record<string, unknown>)['_sentLogoutIdentifiers'] = new Set();
+    PeerCursor.forget();
+    ChatTabList.forget();
   });
 
   it('should create', () => {
@@ -71,58 +65,6 @@ describe('PeerCursorComponent', () => {
 
   it('tears down without throwing when no timer was set', () => {
     expect(() => fixture.destroy()).not.toThrow();
-  });
-
-  describe('listening for a heartbeat', () => {
-    it('queues work on the heartbeat of another cursor', () => {
-      const myCursor = PeerCursor.createMyCursor();
-      myCursor.peerId = 'my-peer';
-
-      const remoteCursor = new PeerCursor();
-      remoteCursor.initialize();
-      remoteCursor.peerId = 'remote-peer';
-
-      fixture.componentRef.setInput('cursor', remoteCursor);
-      fixture.detectChanges();
-
-      const addSpy = vi.spyOn(batchService, 'add');
-
-      localDispatch('HEART_BEAT', [Date.now(), 'my-peer', null, 1], 'remote-peer');
-
-      expect(addSpy).toHaveBeenCalled();
-    });
-
-    it('ignores its own', () => {
-      const myCursor = PeerCursor.createMyCursor();
-      myCursor.peerId = 'my-peer';
-
-      fixture.componentRef.setInput('cursor', myCursor);
-      fixture.detectChanges();
-
-      const addSpy = vi.spyOn(batchService, 'add');
-
-      localDispatch('HEART_BEAT', [Date.now(), 'other', null, 1], 'other-peer');
-
-      expect(addSpy).not.toHaveBeenCalled();
-    });
-
-    it('ignores a heartbeat from another peer', () => {
-      const myCursor = PeerCursor.createMyCursor();
-      myCursor.peerId = 'my-peer';
-
-      const remoteCursor = new PeerCursor();
-      remoteCursor.initialize();
-      remoteCursor.peerId = 'remote-peer';
-
-      fixture.componentRef.setInput('cursor', remoteCursor);
-      fixture.detectChanges();
-
-      const addSpy = vi.spyOn(batchService, 'add');
-
-      localDispatch('HEART_BEAT', [Date.now(), 'my-peer', null, 1], 'different-peer');
-
-      expect(addSpy).not.toHaveBeenCalled();
-    });
   });
 
   describe('listening for a cursor to move', () => {
@@ -199,185 +141,6 @@ describe('PeerCursorComponent', () => {
     });
   });
 
-  describe('the heartbeat', () => {
-    const heartbeats = () =>
-      vi
-        .mocked(Network.instance.send)
-        .mock.calls.filter(([context]) => (context as { eventName: string }).eventName === 'HEART_BEAT');
-
-    beforeEach(() => {
-      vi.useFakeTimers();
-      vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{ peerId: 'remote-peer', isOpen: true }] as never);
-      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
-      void ChatTabList.instance;
-    });
-
-    afterEach(() => {
-      fixture.destroy();
-      vi.useRealTimers();
-      vi.restoreAllMocks();
-    });
-
-    function watch(cursor: PeerCursor): void {
-      fixture.componentRef.setInput('cursor', cursor);
-      fixture.detectChanges();
-      vi.advanceTimersByTime(5_000);
-    }
-
-    it('beats for this seat between browsers that talk to each other', () => {
-      const myCursor = PeerCursor.createMyCursor();
-      myCursor.peerId = 'my-peer';
-
-      watch(myCursor);
-
-      expect(heartbeats().length).toBeGreaterThan(0);
-    });
-
-    it('does not beat through a room server', () => {
-      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
-      const myCursor = PeerCursor.createMyCursor();
-      myCursor.peerId = 'my-peer';
-
-      watch(myCursor);
-
-      expect(heartbeats()).toEqual([]);
-    });
-
-    it('counts a quiet seat as there through a room server while the server lists it, and as dropped once it does not', () => {
-      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
-      const listed = vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['remote-peer']);
-      PeerCursor.createMyCursor().peerId = 'my-peer';
-      const remoteCursor = new PeerCursor();
-      remoteCursor.initialize();
-      remoteCursor.peerId = 'remote-peer';
-      remoteCursor.timestampReceive = Date.now() - 50_000;
-
-      watch(remoteCursor);
-      expect(remoteCursor.isDisConnect).toBe(false);
-
-      listed.mockReturnValue([]);
-      vi.advanceTimersByTime(5_000);
-      expect(remoteCursor.isDisConnect).toBe(true);
-    });
-  });
-
-  describe('chkDisConnect', () => {
-    it('counts a peer as dropped once it goes quiet for too long', () => {
-      const myCursor = PeerCursor.createMyCursor();
-      myCursor.peerId = 'my-peer';
-      // ChatTabList singleton must exist in ObjectStore for chkDisConnect()
-      void ChatTabList.instance;
-
-      const remoteCursor = new PeerCursor();
-      remoteCursor.initialize();
-      remoteCursor.peerId = 'remote-peer';
-      remoteCursor.isDisConnect = false;
-      remoteCursor.timestampReceive = Date.now() - 50_000;
-
-      fixture.componentRef.setInput('cursor', remoteCursor);
-      fixture.detectChanges();
-
-      const priv = component as unknown as { chkDisConnect: () => void };
-      priv.chkDisConnect();
-
-      expect(remoteCursor.isDisConnect).toBe(true);
-    });
-
-    it('counts one still connected inside that time', () => {
-      const myCursor = PeerCursor.createMyCursor();
-      myCursor.peerId = 'my-peer';
-      void ChatTabList.instance;
-
-      const remoteCursor = new PeerCursor();
-      remoteCursor.initialize();
-      remoteCursor.peerId = 'remote-peer';
-      remoteCursor.isDisConnect = true;
-      remoteCursor.timestampReceive = Date.now();
-
-      fixture.componentRef.setInput('cursor', remoteCursor);
-      fixture.detectChanges();
-
-      const priv = component as unknown as { chkDisConnect: () => void };
-      priv.chkDisConnect();
-
-      expect(remoteCursor.isDisConnect).toBe(false);
-    });
-
-    it('does not drop a peer twice, so the message is not repeated', () => {
-      const myCursor = PeerCursor.createMyCursor();
-      myCursor.peerId = 'my-peer';
-      void ChatTabList.instance;
-
-      const remoteCursor = new PeerCursor();
-      remoteCursor.initialize();
-      remoteCursor.peerId = 'remote-peer';
-      remoteCursor.isDisConnect = true;
-      remoteCursor.timestampReceive = Date.now() - 50_000;
-
-      fixture.componentRef.setInput('cursor', remoteCursor);
-      fixture.detectChanges();
-
-      const chatService = TestBed.inject(ChatMessageService);
-      const chatSpy = vi.spyOn(chatService, 'sendSystemMessageOnePlayer');
-
-      const priv = component as unknown as { chkDisConnect: () => void };
-      priv.chkDisConnect();
-
-      expect(remoteCursor.isDisConnect).toBe(true);
-      expect(chatSpy).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('not saying goodbye twice', () => {
-    beforeEach(() => {
-      // clears the static set before each test
-      (PeerCursorComponent as unknown as Record<string, unknown>)['_sentLogoutIdentifiers'] = new Set();
-    });
-
-    it('says it once however often it is asked', () => {
-      const myCursor = PeerCursor.createMyCursor();
-      myCursor.peerId = 'my-peer';
-      const tabList = ChatTabList.instance;
-      const tab = new ChatTab();
-      tab.initialize();
-      tabList.appendChild(tab);
-
-      const remoteCursor = new PeerCursor();
-      remoteCursor.initialize();
-      remoteCursor.peerId = 'remote-peer';
-      remoteCursor.userId = 'user-1';
-
-      fixture.componentRef.setInput('cursor', remoteCursor);
-      fixture.detectChanges();
-
-      const chatService = TestBed.inject(ChatMessageService);
-      const chatSpy = vi.spyOn(chatService, 'sendSystemMessageOnePlayer');
-
-      const priv = component as unknown as { logoutMessage: () => void };
-      priv.logoutMessage(); // the first
-      priv.logoutMessage(); // the second, which the static Set stops
-
-      expect(chatSpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('says nothing for its own cursor', () => {
-      const myCursor = PeerCursor.createMyCursor();
-      myCursor.peerId = 'my-peer';
-      void ChatTabList.instance;
-
-      fixture.componentRef.setInput('cursor', myCursor);
-      fixture.detectChanges();
-
-      const chatService = TestBed.inject(ChatMessageService);
-      const chatSpy = vi.spyOn(chatService, 'sendSystemMessageOnePlayer');
-
-      const priv = component as unknown as { logoutMessage: () => void };
-      priv.logoutMessage();
-
-      expect(chatSpy).not.toHaveBeenCalled();
-    });
-  });
-
   describe('tearing down', () => {
     it('clears the update timer', () => {
       const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
@@ -388,20 +151,6 @@ describe('PeerCursorComponent', () => {
 
       expect(clearTimeoutSpy).toHaveBeenCalled();
       expect(priv.updateTimer).toBeNull();
-    });
-
-    it('clears the timestamp timer', () => {
-      const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
-      const priv = component as unknown as {
-        timestampTimer: ReturnType<typeof setTimeout> | null;
-        timestampTimerEnabled: boolean;
-      };
-      priv.timestampTimer = setTimeout(() => {}, 999_999);
-
-      fixture.destroy();
-
-      expect(clearTimeoutSpy).toHaveBeenCalled();
-      expect(priv.timestampTimer).toBeNull();
     });
   });
 });

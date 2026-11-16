@@ -1,7 +1,7 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -252,56 +252,11 @@ export function buildInventoryObjectContextMenu(
   return actions;
 }
 
-interface MultiMoveContextMenuCallbacks {
-  multiMove: (location: string) => void;
-  toggleMultiMove: () => void;
-  multiDelete: () => void;
-}
-
-/**
- * The menu for the pieces picked in multi-select.
- *
- * It offers a move to each location other than the tab on view, and delete when that tab is the
- * graveyard. Each entry leaves multi-select once it has run.
- */
-export function buildInventoryMultiMoveContextMenu(
-  selectedTab: string,
-  callbacks: MultiMoveContextMenuCallbacks,
-  t: TranslateFn
-): ContextMenuAction[] {
-  const actions: ContextMenuAction[] = [];
-
-  for (const location of inventoryLocations(t)) {
-    if (selectedTab === location.name) continue;
-    actions.push({
-      name: location.alias,
-      action: () => {
-        callbacks.multiMove(location.name);
-        callbacks.toggleMultiMove();
-        SoundEffect.play(PresetSound.piecePut);
-      },
-    });
-  }
-
-  if (selectedTab === 'graveyard') {
-    actions.push({
-      name: t('feature.inventory.contextMenu.multiDelete'),
-      action: () => {
-        callbacks.multiDelete();
-        callbacks.toggleMultiMove();
-        SoundEffect.play(PresetSound.sweep);
-      },
-    });
-  }
-
-  return actions;
-}
-
 function inventoryLocations(t: TranslateFn): Array<{ name: string; alias: string }> {
   return [
     { name: 'table', alias: t('feature.inventory.contextMenu.moveTable') },
     { name: 'common', alias: t('feature.inventory.contextMenu.moveCommon') },
-    { name: Network.peerId, alias: t('feature.inventory.contextMenu.movePersonal') },
+    { name: Network.instance.peerId, alias: t('feature.inventory.contextMenu.movePersonal') },
     { name: 'graveyard', alias: t('feature.inventory.contextMenu.moveGraveyard') },
   ];
 }

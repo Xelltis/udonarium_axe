@@ -125,6 +125,36 @@ describe('ChatMessageService', () => {
       expect(ChatTabList.instance.chatTabs.map((tab) => tab.chatMessages.length)).toEqual(before);
     });
 
+    it('can still be written for this seat alone where the room sends its kind nowhere', () => {
+      const cursor = PeerCursor.myCursor;
+      PeerCursor.myCursor = { userId: 'me', identifier: 'seat' } as PeerCursor;
+      try {
+        route('round', NOTICE_OFF);
+
+        const told = service.tellSelfSystemNotice('round', 'バフを解除しました。')!;
+
+        expect(ChatTabList.instance.chatTabs[0].chatMessages).toContain(told);
+        expect([told.from, told.to, told.isSystemToPL]).toEqual(['me', 'me', true]);
+        expect([told.isDisplayableTo('me'), told.isDisplayableTo('another')]).toEqual([true, false]);
+      } finally {
+        PeerCursor.myCursor = cursor;
+      }
+    });
+
+    it('is written for nobody where this seat has no cursor to address it to', () => {
+      const cursor = PeerCursor.myCursor;
+      PeerCursor.myCursor = null!;
+      try {
+        const before = ChatTabList.instance.chatTabs.map((tab) => tab.chatMessages.length);
+
+        expect(service.tellSelfSystemNotice('round', 'バフを解除しました。')).toBeNull();
+
+        expect(ChatTabList.instance.chatTabs.map((tab) => tab.chatMessages.length)).toEqual(before);
+      } finally {
+        PeerCursor.myCursor = cursor;
+      }
+    });
+
     it('goes where its kind always went once the tab chosen for it is gone', () => {
       route('round', 'a-tab-since-deleted');
 
@@ -1039,13 +1069,60 @@ describe('ChatMessageService', () => {
         other.destroy();
       });
 
-      it('reads no resource edit out of the line, but does among peers', () => {
+      it('reads no resource edit out of the line', () => {
         speak(':HP-3');
         expect(resourceEdits).toEqual([]);
+      });
 
+      it.each(['&*-', '&*バフ-', '&*デバフ-', 't&*-', 't&*debuff-', '&&*-', '&&*バフ-', 's&*-'])(
+        'reads no clearing of buffs out of the line %s, on a room server or among peers',
+        (line) => {
+          speak(line);
+          vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+          speak(line);
+          expect(resourceEdits).toEqual([]);
+
+          PeerCursor.myCursor.role = PeerRole.Player;
+          const again = speak(line);
+          expect(resourceEdits).toEqual([again.identifier]);
+        }
+      );
+
+      it.each([
+        ':*=既定',
+        ':HP=default',
+        ':HP^=既定',
+        't:*=既定',
+        '&リセット-',
+        't&reset-',
+        '&&リセット-',
+        's&リセット-',
+      ])(
+        'reads no putting back of values out of the line %s, on a room server or among peers (acceptance 15)',
+        (line) => {
+          speak(line);
+          vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+          speak(line);
+          expect(resourceEdits).toEqual([]);
+
+          PeerCursor.myCursor.role = PeerRole.Player;
+          const again = speak(line);
+          expect(resourceEdits).toEqual([again.identifier]);
+        }
+      );
+
+      it('changes no piece among peers either, where a guest may change none by its sheet', () => {
         vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+
         const message = speak(':HP-3 @笑顔');
-        expect(resourceEdits).toEqual([message.identifier]);
+
+        expect(resourceEdits).toEqual([]);
+        expect(message.imageIdentifier).toBe('img-1');
+        expect(character.selectedPortraitIndex).toBe(0);
+
+        PeerCursor.myCursor.role = PeerRole.Player;
+        const again = speak(':HP-3 @笑顔');
+        expect(resourceEdits).toEqual([again.identifier]);
         expect(character.selectedPortraitIndex).toBe(1);
       });
     });

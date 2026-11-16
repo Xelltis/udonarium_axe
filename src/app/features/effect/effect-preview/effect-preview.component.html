@@ -1,5 +1,7 @@
 <div
-  class="relative h-28 overflow-hidden rounded-[3px] bg-black/80"
+  class="relative overflow-hidden rounded-[3px] bg-black/80"
+  [class.h-28]="!fill()"
+  [class.h-full]="fill()"
   data-testid="effect-preview-stage"
   aria-hidden="true"
 >

@@ -1,6 +1,9 @@
+import { Card } from '@axe/domain/card/card';
 import { Disclosable, normalizeDisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { buildRangeShapeThumbnail, ThumbnailCell } from '@axe/domain/tabletop/range-shape-editor-utils';
 import { surfaceOf, TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 
 export interface ObjectListTypeConfig {
   key: string;
@@ -64,54 +67,37 @@ function hasProp<K extends string>(object: unknown, key: K): object is Record<K,
   return object != null && key in (object as object);
 }
 
-interface ImageLike {
-  url?: string;
-}
-
-function urlOf(image: ImageLike | null | undefined): string {
-  return image?.url ?? '';
+/** Whether an object is of a kind that carries a disclosure setting: who may see what it holds. */
+export function isDisclosable(object: TabletopObject): object is TabletopObject & Disclosable {
+  return hasProp(object, 'disclosureMode');
 }
 
 /** The picture for the row: a character's piece, the face of a card, the table view of terrain. Empty for anything else. */
 export function resolveObjectImageUrl(object: TabletopObject, typeKey: string): string {
-  const view = object as unknown as {
-    imageFile?: ImageLike;
-    frontImage?: ImageLike | null;
-    wallImage?: ImageLike | null;
-    floorImage?: ImageLike | null;
-    hasWall?: boolean;
-  };
-  if (typeKey === 'card') return urlOf(view.frontImage);
-  if (typeKey === 'terrain') {
-    const wall = view.wallImage;
-    const floor = view.floorImage;
-    return urlOf(view.hasWall && wall ? wall : (floor ?? wall));
+  if (object instanceof Card) return object.frontImage?.url ?? '';
+  if (object instanceof Terrain) {
+    const wall = object.wallImage;
+    const floor = object.floorImage;
+    return (object.hasWall && wall ? wall : (floor ?? wall))?.url ?? '';
   }
-  if (typeKey === 'character' || typeKey === 'dice-symbol' || typeKey === 'coin') return urlOf(view.imageFile);
+  if (typeKey === 'character' || typeKey === 'dice-symbol' || typeKey === 'coin') return object.imageFile?.url ?? '';
   return '';
 }
 
 /** The thumbnail of a custom range, drawn as the custom range field draws it. Null for anything else. */
 export function resolveRangeThumbnail(object: TabletopObject): RangeThumbnail | null {
-  const range = object as unknown as {
-    type?: string;
-    cellPattern?: string;
-    customGridType?: string;
-    gridColor?: string;
-    rangeColor?: string;
-  };
-  if (range.type !== 'CUSTOM' || !range.cellPattern) return null;
+  if (!(object instanceof RangeArea) || object.type !== 'CUSTOM' || !object.cellPattern) return null;
   const gridType =
-    range.customGridType === 'hex-vertical' || range.customGridType === 'hex-horizontal'
-      ? range.customGridType
+    object.customGridType === 'hex-vertical' || object.customGridType === 'hex-horizontal'
+      ? object.customGridType
       : 'square';
-  const thumbnail = buildRangeShapeThumbnail(range.cellPattern, gridType);
+  const thumbnail = buildRangeShapeThumbnail(object.cellPattern, gridType);
   if (!thumbnail.hasCells) return null;
   return {
     viewBox: thumbnail.viewBox,
     cells: thumbnail.cells,
-    gridColor: range.gridColor ?? '#FFFF00',
-    rangeColor: range.rangeColor ?? '#000000',
+    gridColor: object.gridColor ?? '#FFFF00',
+    rangeColor: object.rangeColor ?? '#000000',
   };
 }
 
@@ -146,8 +132,6 @@ export function buildObjectRow(
     locationKind = 'other';
   }
 
-  const disclosable = hasProp(object, 'disclosureMode');
-
   return {
     object,
     identifier: object.identifier,
@@ -155,20 +139,20 @@ export function buildObjectRow(
     imageUrl: resolveObjectImageUrl(object, typeKey),
     rangeThumbnail: typeKey === 'range' ? resolveRangeThumbnail(object) : null,
     name: object.name,
-    hasOwner: hasProp(object, 'hasOwner') ? Boolean((object as { hasOwner: boolean }).hasOwner) : false,
-    ownerName: hasProp(object, 'ownerName') ? String((object as { ownerName: string }).ownerName) : '',
-    disclosable,
-    disclosureMode: disclosable ? normalizeDisclosureMode((object as unknown as Disclosable).disclosureMode) : '',
+    hasOwner: hasProp(object, 'hasOwner') ? Boolean(object.hasOwner) : false,
+    ownerName: hasProp(object, 'ownerName') ? String(object.ownerName) : '',
+    disclosable: isDisclosable(object),
+    disclosureMode: isDisclosable(object) ? normalizeDisclosureMode(object.disclosureMode) : '',
     locationKind,
     locationDetail,
     surface: surfaceOf(object),
     isLock: hasProp(object, 'isLocked')
-      ? Boolean((object as { isLocked: boolean }).isLocked)
+      ? Boolean(object.isLocked)
       : hasProp(object, 'isLock')
-        ? Boolean((object as { isLock: boolean }).isLock)
+        ? Boolean(object.isLock)
         : false,
-    isHidden: hasProp(object, 'hideInventory') ? Boolean((object as { hideInventory: boolean }).hideInventory) : false,
-    isNpc: typeKey === 'character' && hasProp(object, 'isNpc') ? Boolean((object as { isNpc: boolean }).isNpc) : false,
+    isHidden: hasProp(object, 'hideInventory') ? Boolean(object.hideInventory) : false,
+    isNpc: typeKey === 'character' && hasProp(object, 'isNpc') ? Boolean(object.isNpc) : false,
   };
 }
 

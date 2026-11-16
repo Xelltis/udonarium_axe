@@ -3,7 +3,6 @@ import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
-import { PanelService } from '@axe/application/ui/panel.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { StampPack } from '@axe/domain/chat/stamp-pack';
@@ -27,7 +26,6 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class StampPackPanelComponent {
   private readonly packService = inject(StampPackService);
-  private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
   private readonly fileArchiver = inject(FileArchiver);
   private readonly confirm = inject(ConfirmService);
@@ -46,10 +44,6 @@ export class StampPackPanelComponent {
 
   /** What the panel has to say about the last thing tried, empty when nothing. */
   protected readonly notice = signal('');
-
-  constructor() {
-    queueMicrotask(() => (this.panelService.title = this.t('feature.chat.stampPack.title')));
-  }
 
   protected choose(identifier: string): void {
     this.chosenIdentifier.set(identifier);

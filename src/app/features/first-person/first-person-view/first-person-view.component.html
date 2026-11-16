@@ -210,7 +210,7 @@
     @if (effectEye(); as eye) {
       <div class="pointer-events-none absolute top-0 left-0" data-testid="first-person-effects">
         <table-effect-overlay class="contents" [eye]="eye" />
-        <effect-target-overlay class="contents" [badges]="false" />
+        <effect-target-overlay class="contents" [badges]="false" [casterRing]="false" />
       </div>
     }
   </div>
@@ -226,7 +226,7 @@
     <div class="flex items-center gap-2">
       <button
         type="button"
-        class="flex h-10 items-center gap-1 rounded-sm bg-amber-600 px-3 text-white hover:bg-amber-500 disabled:opacity-40"
+        class="flex h-10 items-center gap-1 rounded-sm bg-amber-600 px-3 text-white hover:bg-amber-500 disabled:opacity-40 pointer-coarse:h-11"
         data-testid="first-person-cast"
         [disabled]="pickCount() < 1"
         (click)="castPicks()"
@@ -236,7 +236,7 @@
       </button>
       <button
         type="button"
-        class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 text-white hover:bg-black/80"
+        class="flex h-10 items-center gap-1 rounded-sm bg-black/60 px-3 text-white hover:bg-black/80 pointer-coarse:h-11"
         data-testid="first-person-cancel-pick"
         (click)="cancelPicks()"
       >

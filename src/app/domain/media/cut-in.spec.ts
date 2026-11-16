@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { CUT_IN_TITLE_BAR_HEIGHT, CutIn, cutInPanelChrome } from '@axe/domain/media/cut-in';
+import { CUT_IN_TITLE_BAR_HEIGHT, CutIn, cutInPanelBox, cutInPanelChrome } from '@axe/domain/media/cut-in';
 import { encodeCutInTracks } from '@axe/domain/media/cut-in-keyframe';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
@@ -90,6 +90,49 @@ describe('CutIn', () => {
     it('leaves no room above a frameless one', () => {
       cutIn.frameless = true;
       expect(cutInPanelChrome(cutIn)).toBe(0);
+    });
+  });
+
+  describe('cutInPanelBox()', () => {
+    let cutIn: CutIn;
+
+    beforeEach(() => {
+      cutIn = new CutIn();
+      cutIn.initialize();
+      cutIn.width = 400;
+      cutIn.height = 200;
+    });
+
+    it('places a framed cut-in by its share of the room left over, standing taller by the title bar', () => {
+      cutIn.x_pos = 50;
+      cutIn.y_pos = 100;
+
+      expect(cutInPanelBox(cutIn, { width: 1000, height: 625 })).toEqual({
+        left: 300,
+        top: 625 - 200 - CUT_IN_TITLE_BAR_HEIGHT,
+        width: 400,
+        height: 200 + CUT_IN_TITLE_BAR_HEIGHT,
+      });
+    });
+
+    it('gives a frameless cut-in no title bar', () => {
+      cutIn.frameless = true;
+      cutIn.x_pos = 0;
+      cutIn.y_pos = 50;
+
+      expect(cutInPanelBox(cutIn, { width: 1000, height: 600 })).toEqual({
+        left: 0,
+        top: 200,
+        width: 400,
+        height: 200,
+      });
+    });
+
+    it('starts a cut-in larger than the viewport from the left and the top', () => {
+      cutIn.x_pos = 80;
+      cutIn.y_pos = 80;
+
+      expect(cutInPanelBox(cutIn, { width: 300, height: 100 })).toMatchObject({ left: 0, top: 0 });
     });
   });
 

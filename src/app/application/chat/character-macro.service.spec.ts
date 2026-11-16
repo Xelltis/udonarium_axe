@@ -2,12 +2,15 @@ import { TestBed } from '@angular/core/testing';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CharacterMacroService', () => {
@@ -47,7 +50,7 @@ describe('CharacterMacroService', () => {
     vi.restoreAllMocks();
     // The room outlives the fixture, so a system left on it turns up in whatever runs next.
     Config.instance.defaultDiceBot = '';
-    (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+    ChatTabList.forget();
   });
 
   it('speaks as the character, into the tab it was given', () => {
@@ -229,6 +232,68 @@ describe('CharacterMacroService', () => {
       expect(named.mock.calls[0][3]).toBe('宝箱');
       expect(named.mock.calls[1][1]).toBe('1d100<={目星}');
       expect(sendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('a line that opens with a round command', () => {
+    const rounds: number[] = [];
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      rounds.length = 0;
+      TestBed.inject(TurnOrderService).reset();
+      TurnState.instance.history = '[]';
+      sendMessage.mockImplementation(() => {
+        rounds.push(TurnState.instance.round);
+        return { identifier: `said-${rounds.length}` } as never;
+      });
+    });
+
+    afterEach(() => {
+      TestBed.inject(TurnOrderService).reset();
+      TurnState.instance.history = '[]';
+    });
+
+    it('says the command, moves the round, and then says the rest filled in from the piece', () => {
+      const speaker = character('術者');
+      speaker.chatPalette?.setPalette('//威力=7');
+
+      const said = service.send(speaker, '&RS 2d6+{威力} 攻撃', { tab, replyTo: 'answered' });
+
+      expect(sendMessage.mock.calls.map((call: unknown[]) => call[1])).toEqual(['&RS', '2d6+7 攻撃']);
+      expect(sendMessage.mock.calls.map((call: unknown[]) => call[3])).toEqual([
+        speaker.identifier,
+        speaker.identifier,
+      ]);
+      expect(sendMessage.mock.calls.map((call: unknown[]) => call[9])).toEqual([undefined, 'answered']);
+      expect(rounds).toEqual([0, 1]);
+      expect(said?.identifier).toBe('said-2');
+    });
+
+    it('does the same for a line a hotbar slot or a switch has a piece say', async () => {
+      const speaker = character('術者');
+
+      await service.sendAsCharacter(speaker, '&RS 始めます', { tab });
+
+      expect(sendMessage.mock.calls.map((call: unknown[]) => call[1])).toEqual(['&RS', '始めます']);
+      expect(rounds).toEqual([0, 1]);
+    });
+
+    it('does the same for a line said as the reader themselves', async () => {
+      await service.sendAsSelf('&RS 始めます', { tab });
+
+      expect(sendMessage.mock.calls.map((call: unknown[]) => call[1])).toEqual(['&RS', '始めます']);
+      expect(rounds).toEqual([0, 1]);
+    });
+
+    it('leaves a buff named as a command is to be laid as a buff', () => {
+      const speaker = character('術者');
+
+      service.send(speaker, '&RS/効果/3', { tab });
+
+      expect(sendMessage.mock.calls.map((call: unknown[]) => call[1])).toEqual(['&RS/効果/3']);
+      expect(TurnState.instance.round).toBe(0);
     });
   });
 });

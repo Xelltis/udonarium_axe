@@ -5,6 +5,7 @@ import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut
 import { BattleLaunchService } from '@axe/application/battle/battle-launch.service';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { PartyService } from '@axe/application/party/party.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -12,6 +13,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { joinList } from '@axe/core/util/join-list';
 import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
 import {
   BATTLE_GENRES,
@@ -89,6 +91,7 @@ export class BattleCutInPanelComponent {
   protected readonly stageSizes = BATTLE_STAGE_SIZES;
   protected readonly stageSizeLabelKeys = BATTLE_STAGE_SIZE_LABEL_KEYS;
   private readonly launch = inject(BattleLaunchService);
+  private readonly language = inject(LanguageService);
   private readonly library = inject(EffectLibraryService);
   private readonly permission = inject(RolePermissionService);
   private readonly disclosure = inject(DisclosureService);
@@ -181,7 +184,7 @@ export class BattleCutInPanelComponent {
     return {
       attacker: nameOf(bout.attacker),
       byTurn: bout.attacker === TurnState.instance.currentIdentifier,
-      defenders: bout.defenders.map(nameOf).join('、'),
+      defenders: joinList(bout.defenders.map(nameOf), this.language.currentLang()),
     };
   });
 

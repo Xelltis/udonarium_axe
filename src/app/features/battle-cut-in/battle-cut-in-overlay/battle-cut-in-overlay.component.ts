@@ -95,7 +95,6 @@ import {
   hasEffectPaintLayer,
 } from '@axe/features/effect/effect-sprite-style';
 import type { EffectOverlay, EffectOverlayView } from '@axe/infrastructure/table-3d/table-3d-port';
-import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { Z_BATTLE_CUT_IN } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -110,20 +109,6 @@ const VIEWPOINT: EffectViewpoint = {
 };
 /** The fallen go down where they stand, rather than raised to where a blow lands on them. */
 const DEFEAT_VIEWPOINT: EffectViewpoint = { ...VIEWPOINT, risePx: 0 };
-
-/**
- * How much larger a cut is drawn on the stage than on the table: a fighter stands taller against a
- * cell than a piece does, and a cut is to cross the whole of it.
- */
-const STAGE_CUT_SCALE = 1.8;
-
-/** The preset an effect is drawn with on the stage: a cut drawn the larger, any other as it is. */
-function onStage(preset: EffectPreset): EffectPreset {
-  if (preset.effectKind !== 'slash') return preset;
-  const larger = Object.create(preset) as EffectPreset;
-  Object.defineProperty(larger, 'sizeScale', { value: preset.sizeScale * STAGE_CUT_SCALE });
-  return larger;
-}
 
 /** A sound the stage plays, and the moment of the stage it is heard at, in milliseconds. */
 interface BattleSound {
@@ -146,7 +131,6 @@ export interface SpriteFrame {
   style: Record<string, string>;
   /** The inner layer that carries the look and the animation, where the sprite has one. */
   paint: Record<string, string> | null;
-  svg: string;
 }
 
 /**
@@ -266,7 +250,7 @@ export interface PlateFrame {
   selector: 'battle-cut-in-overlay',
   templateUrl: './battle-cut-in-overlay.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgStyle, NgTemplateOutlet, SafePipe, TranslocoModule],
+  imports: [NgStyle, NgTemplateOutlet, TranslocoModule],
   host: { class: 'contents', '(document:keydown.escape)': 'pressEscape()', '(window:resize)': 'measureScreen()' },
 })
 export class BattleCutInOverlayComponent {
@@ -619,7 +603,6 @@ export class BattleCutInOverlayComponent {
         key: `${layer.prefix}-${sprite.key}`,
         style: effectSpriteStyle(sprite, layer.viewpoint),
         paint: hasEffectPaintLayer(sprite) ? effectPaintStyle(sprite) : null,
-        svg: sprite.svg,
       }));
     })
   );
@@ -644,10 +627,14 @@ export class BattleCutInOverlayComponent {
     const drawn = nothingStaged();
     for (const layer of layers) {
       looks.stageEffect(
-        onStage(layer.preset),
+        layer.preset,
         layer.cast,
         layer.elapsed,
-        { cellPx: BATTLE_SCENE_CELL_PX, resolveFooting: (identifier) => footings.get(identifier) ?? null },
+        {
+          cellPx: BATTLE_SCENE_CELL_PX,
+          resolveFooting: (identifier) => footings.get(identifier) ?? null,
+          resolveHeight: (identifier) => (footings.has(identifier) ? BATTLE_FIGURE_PX : null),
+        },
         drawn
       );
     }
@@ -666,6 +653,9 @@ export class BattleCutInOverlayComponent {
     return frame.floor.length > 0 ? { ...frame, floor: [] } : frame;
   });
 
+  protected readonly figureHeight = BATTLE_FIGURE_PX;
+  protected readonly shadowWidth = BATTLE_CELL_PX * 1.6;
+
   constructor() {
     const destroyRef = inject(DestroyRef);
     afterNextRender(() => void this.startOverPage(destroyRef));
@@ -681,6 +671,12 @@ export class BattleCutInOverlayComponent {
       const root = this.root()?.nativeElement;
       if (!root) return;
       onCleanup(observeSize(root, (size) => this.viewport.set(size)));
+    });
+
+    effect(() => {
+      for (const view of this.views()) {
+        if (view.mirrored && view.imageUrl.length > 0) untracked(() => this.mirrors.of(view.imageUrl));
+      }
     });
 
     effect((onCleanup) => {
@@ -815,9 +811,6 @@ export class BattleCutInOverlayComponent {
     return 1 - fallen * (reaction === 'flinch' ? 0.65 : 1);
   }
 
-  protected readonly figureHeight = BATTLE_FIGURE_PX;
-  protected readonly shadowWidth = BATTLE_CELL_PX * 1.6;
-
   /** The sounds the stage plays, each at the moment of the stage it is heard at. */
   private soundsOf(timeline: BattleTimeline): BattleSound[] {
     const sounds: BattleSound[] = [];
@@ -859,7 +852,6 @@ export class BattleCutInOverlayComponent {
     const image = fighter.image.length > 0 ? this.images.get(fighter.image) : null;
     const imageUrl = image?.url ?? '';
     const mirrored = fighter.facing === side;
-    if (mirrored && imageUrl.length > 0) this.mirrors.of(imageUrl);
     return {
       key: `${striking ? 'a' : 'd'}-${fighter.identifier}`,
       fighter,

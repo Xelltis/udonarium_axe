@@ -1,6 +1,7 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { copyMask } from '@axe/application/tabletop/copy-mask';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
 import { buildAltitudeAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -120,11 +121,7 @@ export function buildGameTableMaskContextMenu(params: MaskMenuParams): ContextMe
   menuArray.push({
     name: t('feature.tabletop.contextMenu.copy'),
     action: () => {
-      const cloneObject = mask.clone();
-      cloneObject.location.x += gridSize;
-      cloneObject.location.y += gridSize;
-      cloneObject.isLock = false;
-      if (mask.parent) mask.parent.appendChild(cloneObject);
+      copyMask(mask, gridSize);
       SoundEffect.play(PresetSound.cardPut);
     },
   });

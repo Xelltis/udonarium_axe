@@ -5,7 +5,7 @@ import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { type ImageDroppedEvent } from '@axe/core/event/domain-events';
 import { EventChannel } from '@axe/core/event/event-channel';
-import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { isTabletopDropTarget } from '@axe/ui/tabletop/table-drop-target';
@@ -43,13 +43,14 @@ describe('ImageDropEventHandlerService', () => {
   let localCoordinate: { x: number; y: number; z: number };
 
   function setup(): void {
+    // The drop lands on the table in view: one of 20 by 20 cells of 50 px, as a table is made.
+    new GameTable().initialize();
     TestBed.configureTestingModule({
       providers: [
         ...TEST_PROVIDERS,
         { provide: ObjectChangeService, useValue: { imageDropped$ } },
         { provide: TabletopActionService, useValue: { createGameCharacterWith } },
         { provide: TablePickService, useValue: { landingAt: () => localCoordinate } },
-        { provide: TableSelecter, useValue: { viewTable: { width: 20, height: 20, gridSize: 50 } } },
         {
           provide: RolePermissionService,
           useValue: {

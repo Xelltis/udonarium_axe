@@ -7,6 +7,7 @@ import {
   getDiceMenuItems,
 } from '@axe/application/tabletop/tabletop-action-helpers';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { clamp } from '@axe/core/util/clamp';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** As many as a handful thrown at once, which is as many as a row of them stays readable at. */
@@ -80,11 +81,11 @@ export class DiceSymbolCreateDialogComponent {
 
   private clampTypeIndex(value: number): number {
     const index = this.normalizePositiveInteger(value, 0);
-    return Math.min(this.diceItems.length - 1, Math.max(0, index));
+    return clamp(index, 0, this.diceItems.length - 1);
   }
 
   private clampCount(value: number): number {
-    return Math.min(this.maxCount, Math.max(1, this.normalizePositiveInteger(value, 1)));
+    return clamp(this.normalizePositiveInteger(value, 1), 1, this.maxCount);
   }
 
   private normalizePositiveInteger(value: unknown, fallback: number): number {

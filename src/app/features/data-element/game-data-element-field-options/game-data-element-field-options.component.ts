@@ -3,6 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import {
+  clearDefault,
+  type DefaultSlot,
+  defaultSlotsOf,
+  plainNumberIn,
+  readDefault,
+  writeDefault,
+} from '@axe/domain/character/default-value';
 import { fixedGaugeColor, gaugeColor, gaugeFixedColorOf } from '@axe/domain/character/piece-gauge';
 import {
   playsEffectOnChange,
@@ -11,7 +19,7 @@ import {
   ResourceSoundSet,
   soundSetOnChange,
 } from '@axe/domain/character/resource-feedback';
-import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
+import { DataElement, DataElementAttribute, DataElementFieldType } from '@axe/domain/data/data-element';
 import {
   isTableCellField,
   tableCellLineage,
@@ -155,6 +163,62 @@ export class GameDataElementFieldOptionsComponent {
     this.syncMaxToEffective();
   }
 
+  /**
+   * Whether the field may keep a default for what it holds, the value a reset puts it back to: a
+   * number, a resource, a checkbox, and a line of text while it holds a number or keeps one already.
+   */
+  canKeepDefault(): boolean {
+    const element = this.element();
+    this.objectChange.versionOf(element.identifier)();
+    if (!defaultSlotsOf(element).includes('now')) return false;
+    if (element.fieldType !== DataElementFieldType.TEXT) return true;
+    return plainNumberIn(element.value) != null || readDefault(element, 'now') != null;
+  }
+
+  /** Whether the field may keep a default for its maximum as well, which only a resource may. */
+  canKeepDefaultMax(): boolean {
+    const element = this.element();
+    this.objectChange.versionOf(element.identifier)();
+    return defaultSlotsOf(element).includes('max');
+  }
+
+  /** Whether the field is a checkbox, whose default is chosen rather than typed. */
+  isCheckField(): boolean {
+    return this.fieldType() === DataElementFieldType.CHECK;
+  }
+
+  /** The default the field keeps for what it holds, as typed; empty where it keeps none. */
+  get defaultText(): string {
+    return this.defaultOf('now');
+  }
+  set defaultText(value: string | number | null | undefined) {
+    this.setDefault('now', value);
+  }
+
+  /** The default a resource keeps for its maximum, as typed; empty where it keeps none. */
+  get defaultMaxText(): string {
+    return this.defaultOf('max');
+  }
+  set defaultMaxText(value: string | number | null | undefined) {
+    this.setDefault('max', value);
+  }
+
+  private defaultOf(slot: DefaultSlot): string {
+    const element = this.element();
+    this.objectChange.versionOf(element.identifier)();
+    const kept = readDefault(element, slot);
+    return kept == null ? '' : String(kept);
+  }
+
+  /** Gives the field a default for a slot, or takes it away for an empty value or one that is no number. */
+  private setDefault(slot: DefaultSlot, value: string | number | null | undefined): void {
+    const element = this.element();
+    const text = value == null ? '' : String(value).trim();
+    const number = text.length > 0 ? Number(text) : Number.NaN;
+    if (!Number.isFinite(number) || !writeDefault(element, slot, number)) clearDefault(element, slot);
+    this.objectChange.notifyChanged(element.identifier);
+  }
+
   /** The label a check field in a table carries beside its box. Setting blank text removes it. */
   get tableCellText(): string {
     return this.attrText(DataElementAttribute.CELL_TEXT);
@@ -237,6 +301,11 @@ export class GameDataElementFieldOptionsComponent {
   /** What the colour box shows: the colour set, else the colour of a full bar. */
   gaugeColorShown(): string {
     return this.gaugeFixedColor() || gaugeColor(1, this.isGaugeInverted());
+  }
+
+  /** Sets the bar's colour to what its colour field holds, from an event of that field. */
+  onGaugeColorInput(event: Event): void {
+    this.setGaugeColor((event.target as HTMLInputElement | HTMLSelectElement).value);
   }
 
   /** Sets the colour the resource's bar stands in, or lets it follow how full it stands again for empty. */

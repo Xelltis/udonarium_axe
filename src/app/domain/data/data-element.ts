@@ -84,6 +84,10 @@ export const DataElementAttribute = {
   GAUGE_COLOR: 'cs-gauge-color',
   RESOURCE_SLIDER: 'cs-resource-slider',
   OVER_RESOURCE: 'cs-over-resource',
+  DEFAULT: 'cs-default',
+  DEFAULT_MAX: 'cs-default-max',
+  DEFAULT_MAX_CORRECTION: 'cs-default-max-correction',
+  DEFAULT_MIN_CORRECTION: 'cs-default-min-correction',
   CHANGE_EFFECT: 'cs-change-effect',
   CHANGE_SOUND: 'cs-change-sound',
   CHANGE_SOUND_SET: 'cs-change-sound-set',
@@ -91,6 +95,7 @@ export const DataElementAttribute = {
   BUFF_COLOR: 'cs-buff-color',
   BUFF_TIMING: 'cs-buff-timing',
   BUFF_TRIGGER: 'cs-buff-trigger',
+  BUFF_EFFECT_TIMING: 'cs-buff-effect-timing',
   BUFF_MOD_TARGET: 'cs-buff-mod-target',
   BUFF_MOD_SLOT: 'cs-buff-mod-slot',
   BUFF_MOD_OPERATOR: 'cs-buff-mod-operator',
@@ -99,6 +104,7 @@ export const DataElementAttribute = {
   BUFF_MOD_KEPT: 'cs-buff-mod-kept',
   BUFF_MOD_KEPT_STEP: 'cs-buff-mod-kept-step',
   BUFF_GROUP: 'cs-buff-group',
+  BUFF_KIND: 'cs-buff-kind',
   GAP_DISTANCE: 'cs-gap-distance',
   LOOP_HORIZONTAL: 'cs-loop-horizontal',
   LOOP_VERTICAL: 'cs-loop-vertical',
@@ -571,7 +577,7 @@ export class DataElement extends ObjectNode {
       if (this.isNumberResource) {
         const current: number = this.currentValue as number;
         const value: number = this.value as number;
-        if (current <= value * SAN_WARNING_THRESHOLD && current == this.currentValue && value == this.value) {
+        if (current <= value * SAN_WARNING_THRESHOLD && current === this.currentValue && value === this.value) {
           return SAN_WARNING_COLOR;
         }
       }

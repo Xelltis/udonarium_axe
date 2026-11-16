@@ -6,13 +6,13 @@ test.describe('the roll call and vote menu (vote-menu)', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await page.locator('chat-window button[title="点呼・投票"]').click();
-    await expect(page.locator('app-vote-menu')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('vote-menu')).toBeVisible({ timeout: 5000 });
   });
 
   test('hides the counts of a vote that hides its answers until it closes, and writes only that someone answered to the chat', async ({
     page,
   }) => {
-    const menu = page.locator('app-vote-menu');
+    const menu = page.locator('vote-menu');
     await menu.locator('input[name="vm_type"]').nth(1).check();
     await menu.locator('input[name="voteTitle"]').fill('方針');
     await menu.locator('input[name="voteContents"]').fill('賛成 反対');

@@ -1,5 +1,6 @@
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
+import { clamp } from '@axe/core/util/clamp';
 
 /** How many layers a table may lay, under and over it together. */
 export const MAX_TABLE_BACKGROUND_LAYERS = 6;
@@ -30,7 +31,7 @@ export const DEFAULT_BACKDROP_HEIGHT = 0;
 function unitOr(value: unknown, fallback: number): number {
   if (value === null || value === undefined || value === '') return fallback;
   const number = Number(value);
-  return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : fallback;
+  return Number.isFinite(number) ? clamp(number, 0, 1) : fallback;
 }
 
 /** Reads a stored layer placement, falling back to under the board for anything unknown. */

@@ -28,6 +28,7 @@ import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switc
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { imageFileEqual } from '@axe/core/storage/image-file';
+import { clamp } from '@axe/core/util/clamp';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { copyDetailSchema } from '@axe/domain/card/deck-builder';
@@ -39,27 +40,43 @@ import { CardGameService } from '@axe/features/card/card-game.service';
 import { buildCardStackContextMenu } from '@axe/features/card/card-stack/card-stack-context-menu';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { CardFaceTextComponent } from '@axe/ui/components/card-face-text/card-face-text.component';
-import { MovableOption } from '@axe/ui/directives/movable.directive';
-import { MovableDirective } from '@axe/ui/directives/movable.directive';
-import { RotableOption } from '@axe/ui/directives/rotable.directive';
-import { RotableDirective } from '@axe/ui/directives/rotable.directive';
+import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
+import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { DoubleTap } from '@axe/ui/tabletop/double-tap';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
-import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+import { setupDoubleTap, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** The cell, in px, that the offsets for drawn and scattered cards were laid out for. */
 const LAID_OUT_FOR_CELL_PX = 50;
+
+/**
+ * Where a drawn card lands from its deck, in px of the laid-out cell: each card of one draw a step
+ * further along than the one before, and anywhere within the jitter past that.
+ */
+const DRAW_OFFSET_PX = { x: 100, y: 25 };
+const DRAW_STEP_PX = { x: 18, y: 8 };
+const DRAW_JITTER_PX = 50;
+
+/** How far to either side a card of a deck broken up lands from where the deck lay, in px. */
+const BREAK_SCATTER_PX = 25;
+
+/** How far to either side a pile of a deck split up lands from where the deck lay, in px. */
+const SPLIT_SCATTER_PX = 50;
 
 /** How wide the edge of the plate a stack's top card lies in is, round the picture, in px. */
 const STACK_PLATE_BORDER_PX = 5;
 
 /** How deep the plate of a stack with no cards is, in px. */
 const EMPTY_STACK_PX = 100;
+
+/** A random offset of up to `reach` to either side. */
+function scatter(reach: number): number {
+  return reach - Math.random() * reach * 2;
+}
 
 @Component({
   selector: 'card-stack',
@@ -244,8 +261,6 @@ export class CardStackComponent {
   readonly movableOption = signal<MovableOption>({});
   readonly rotableOption = signal<RotableOption>({});
 
-  private readonly doubleTap = new DoubleTap(() => this.input);
-
   constructor() {
     this.objectChange.shuffleCardStack$.subscribe((event) => {
       if (event.identifier === this.cardStack().identifier) {
@@ -266,24 +281,22 @@ export class CardStackComponent {
         this.imageFile();
       },
     });
-    this.destroyRef.onDestroy(() => {
-      this.doubleTap.cancel();
-    });
   }
 
-  private readonly inputRef = setupInputHandler({
+  private readonly taps = setupDoubleTap({
     elementRef: this.elementRef,
     destroyRef: this.destroyRef,
     onStart: (e) => this.onInputStart(e),
+    onDoubleTap: () => this.onDoubleClick(),
   });
 
   private get input() {
-    return this.inputRef.current;
+    return this.taps.input.current;
   }
 
   /** Feeds a press into the double-tap detector, which draws a card when a second press lands in place. */
   startDoubleClickTimer(e: MouseEvent | TouchEvent) {
-    this.doubleTap.handle(e, () => this.onDoubleClick());
+    this.taps.press(e);
   }
 
   /**
@@ -293,9 +306,7 @@ export class CardStackComponent {
    * presses.
    */
   onDoubleClick() {
-    this.doubleTap.cancel();
     if (!this.rolePermission.canEditTabletop()) return;
-    if (!this.doubleTap.isInPlace()) return;
     if (this.drawCard() != null) {
       SoundEffect.play(PresetSound.cardDraw);
     }
@@ -316,7 +327,7 @@ export class CardStackComponent {
     if (this.rolePermission.canEditTabletop()) this.cardStack().toTopmost();
     this.iconHiding.touch();
 
-    this.selectionSignalService.selectObject(this.cardStack().identifier, 'GameCharacter');
+    this.selectionSignalService.selectObject(this.cardStack().identifier, this.cardStack().aliasName);
   }
 
   /**
@@ -384,7 +395,7 @@ export class CardStackComponent {
 
   private drawCards(count: number): Card[] {
     const normalizedCount = Number.isFinite(count) ? Math.floor(count) : 0;
-    const drawCount = Math.min(Math.max(0, normalizedCount), this.cardStack().cards.length);
+    const drawCount = clamp(normalizedCount, 0, this.cardStack().cards.length);
     const cards: Card[] = [];
     for (let index = 0; index < drawCount; index++) {
       const card = this.drawCardAt(index);
@@ -399,8 +410,8 @@ export class CardStackComponent {
     if (card) {
       this.cardStack().update();
       const scale = this.gridSize / LAID_OUT_FOR_CELL_PX;
-      card.location.x += (100 + index * 18 + Math.random() * 50) * scale;
-      card.location.y += (25 + index * 8 + Math.random() * 50) * scale;
+      card.location.x += (DRAW_OFFSET_PX.x + index * DRAW_STEP_PX.x + Math.random() * DRAW_JITTER_PX) * scale;
+      card.location.y += (DRAW_OFFSET_PX.y + index * DRAW_STEP_PX.y + Math.random() * DRAW_JITTER_PX) * scale;
       card.setLocation(this.cardStack().location.name);
     }
     return card;
@@ -457,8 +468,8 @@ export class CardStackComponent {
     const cards = this.cardStack().drawCardAll().reverse();
     const scale = this.gridSize / LAID_OUT_FOR_CELL_PX;
     for (const card of cards) {
-      card.location.x += (25 - Math.random() * 50) * scale;
-      card.location.y += (25 - Math.random() * 50) * scale;
+      card.location.x += scatter(BREAK_SCATTER_PX) * scale;
+      card.location.y += scatter(BREAK_SCATTER_PX) * scale;
       card.toTopmost();
       card.setLocation(this.cardStack().location.name);
     }
@@ -476,8 +487,8 @@ export class CardStackComponent {
     const scale = this.gridSize / LAID_OUT_FOR_CELL_PX;
     for (let i = 0; i < split; i++) {
       const cardStack = CardStack.create(this.cardStack().name);
-      cardStack.location.x = this.cardStack().location.x + (50 - Math.random() * 100) * scale;
-      cardStack.location.y = this.cardStack().location.y + (50 - Math.random() * 100) * scale;
+      cardStack.location.x = this.cardStack().location.x + scatter(SPLIT_SCATTER_PX) * scale;
+      cardStack.location.y = this.cardStack().location.y + scatter(SPLIT_SCATTER_PX) * scale;
       cardStack.posZ = this.cardStack().posZ;
       cardStack.location.name = this.cardStack().location.name;
       cardStack.rotate = this.rotate;

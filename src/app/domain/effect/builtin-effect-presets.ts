@@ -1,5 +1,6 @@
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { EffectKind, EffectTargeting, ProjectileStyle, SlashStyle } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { type EffectStage, encodeEffectStages } from '@axe/domain/effect/effect-stage';
@@ -45,6 +46,40 @@ export interface EffectPresetSeed {
   moteStyle?: string;
   /** The run this effect goes through. Left off for an effect that draws one look. */
   stages?: EffectStage[];
+}
+
+/**
+ * The effect of a state a piece is put in: a curse under the state's own name, so that putting the
+ * state on finds it, drawn as the state its particles name, on up to six pieces a tenth of a second
+ * apart unless it says otherwise.
+ */
+function ailmentSeed(
+  key: string,
+  name: string,
+  colorPrimary: string,
+  colorSecondary: string,
+  soundKey: PresetSoundKey,
+  soundMs: number,
+  moteStyle: string,
+  more: Partial<EffectPresetSeed> = {}
+): EffectPresetSeed {
+  return {
+    identifier: `EffectPreset_status_${key}`,
+    name,
+    tagName: '状態異常',
+    kind: 'curse',
+    colorPrimary,
+    colorSecondary,
+    soundMs,
+    staggerMs: 100,
+    scale: 1.1,
+    targeting: 'multi',
+    maxTargets: 6,
+    soundKey,
+    grade: 2,
+    moteStyle,
+    ...more,
+  };
 }
 
 /** A sound too short or too long makes no effect at all, so it is kept within this range. */
@@ -101,6 +136,7 @@ const STAGED_SEEDS: readonly EffectPresetSeed[] = [
     soundKey: 'iceSmall',
     impactSoundKey: 'iceLarge',
     grade: 2,
+    impactKind: 'frost',
     stages: [
       { role: 'travel', kind: 'projectile', durationMs: 480 },
       { role: 'impact', kind: 'frost', durationMs: 520 },
@@ -129,6 +165,120 @@ const STAGED_SEEDS: readonly EffectPresetSeed[] = [
       { role: 'field', kind: 'flame', durationMs: 2400 },
     ],
   },
+];
+
+/** An attack of the holy family, in its gold and white. */
+function holySeed(
+  key: string,
+  name: string,
+  kind: EffectKind,
+  grade: number,
+  soundKey: PresetSoundKey,
+  soundMs: number,
+  more: Partial<EffectPresetSeed> = {}
+): EffectPresetSeed {
+  return {
+    identifier: `EffectPreset_${key}`,
+    name,
+    tagName: '聖',
+    kind,
+    colorPrimary: '#fffbe0',
+    colorSecondary: '#ffc24a',
+    soundMs,
+    staggerMs: 0,
+    scale: 1.2,
+    targeting: 'single',
+    maxTargets: 1,
+    soundKey,
+    grade,
+    ...more,
+  };
+}
+
+/**
+ * The attacks of holy light: a seal over one head, pillars falling on several in turn, a halo closing
+ * on one, a sanctuary raised over an area, and the light of heaven coming down on one.
+ */
+const HOLY_SEEDS: readonly EffectPresetSeed[] = [
+  holySeed('smite_1', '聖印', 'smite', 1, 'flashImpact', 1802, { scale: 1.1 }),
+  holySeed('smite_2', '裁きの光', 'smite', 2, 'holy', 4310, {
+    scale: 1.3,
+    staggerMs: 240,
+    targeting: 'multi',
+    maxTargets: 4,
+    impactSoundKey: 'flashImpact',
+  }),
+  holySeed('halo_2', '光輪', 'halo', 2, 'superArts', 2560),
+  holySeed('sanctuary_3', '聖域', 'sanctuary', 3, 'summon', 3553, {
+    scale: 1.4,
+    targeting: 'multi',
+    maxTargets: 8,
+    areaRadius: 3,
+    impactSoundKey: 'flashImpact',
+  }),
+  holySeed('smite_3', '天罰', 'smite', 3, 'holyBlade', 4310, {
+    scale: 1.5,
+    targeting: 'multi',
+    maxTargets: 8,
+    areaRadius: 3,
+    impactSoundKey: 'explosionLarge',
+  }),
+];
+
+/** An attack of the dark family, in its violet over black. */
+function darkSeed(
+  key: string,
+  name: string,
+  kind: EffectKind,
+  grade: number,
+  soundKey: PresetSoundKey,
+  soundMs: number,
+  more: Partial<EffectPresetSeed> = {}
+): EffectPresetSeed {
+  return {
+    identifier: `EffectPreset_${key}`,
+    name,
+    tagName: '闇',
+    kind,
+    colorPrimary: '#e3b3ff',
+    colorSecondary: '#6a1fc2',
+    soundMs,
+    staggerMs: 0,
+    scale: 1.2,
+    targeting: 'single',
+    maxTargets: 1,
+    soundKey,
+    grade,
+    ...more,
+  };
+}
+
+/**
+ * The attacks of darkness: spikes out of one target's shadow, a black sphere on each of several in
+ * turn, a mire of hands opened over an area, and an eclipse hung over one.
+ */
+const DARK_SEEDS: readonly EffectPresetSeed[] = [
+  darkSeed('shadow_1', '影の棘', 'shadow', 1, 'gravity', 1855, { scale: 1.1, impactSoundKey: 'damageLarge' }),
+  darkSeed('darkorb_2', '暗黒球', 'darkorb', 2, 'gravityLarge', 3788, {
+    staggerMs: 260,
+    targeting: 'multi',
+    maxTargets: 4,
+    impactSoundKey: 'explosionSmall',
+  }),
+  darkSeed('shadow_3', '奈落', 'shadow', 3, 'earthUpheaval', 5042, {
+    scale: 1.4,
+    targeting: 'multi',
+    maxTargets: 8,
+    areaRadius: 3,
+    impactSoundKey: 'statusCurse',
+  }),
+  darkSeed('darkorb_3', '蝕', 'darkorb', 3, 'dark', 4206, {
+    scale: 1.5,
+    targeting: 'multi',
+    maxTargets: 8,
+    areaRadius: 3,
+    impactSoundKey: 'explosionLarge',
+  }),
 ];
 
 export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
@@ -177,87 +327,29 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     soundKey: 'bashLarge',
     grade: 3,
   },
-  {
-    identifier: 'EffectPreset_status_paralysis',
-    name: '麻痺',
-    tagName: '状態異常',
-    kind: 'curse',
-    colorPrimary: '#ffe98a',
-    colorSecondary: '#b08a1f',
-    soundMs: 1567,
-    staggerMs: 90,
-    scale: 1.1,
-    targeting: 'multi',
-    maxTargets: 6,
-    soundKey: 'thunderBolt',
-    grade: 2,
-    moteStyle: 'arc',
-  },
-  {
-    identifier: 'EffectPreset_status_sleep',
-    name: '睡眠',
-    tagName: '状態異常',
-    kind: 'curse',
-    colorPrimary: '#bfd4ff',
-    colorSecondary: '#3f4f9c',
-    soundMs: 5460,
-    staggerMs: 110,
-    scale: 1.1,
-    targeting: 'multi',
-    maxTargets: 6,
-    soundKey: 'statusSleep',
-    grade: 2,
-  },
-  {
-    identifier: 'EffectPreset_status_bind',
-    name: '拘束',
-    tagName: '状態異常',
-    kind: 'curse',
-    colorPrimary: '#d6c2a8',
-    colorSecondary: '#6b4f33',
-    soundMs: 5512,
-    staggerMs: 110,
+  ailmentSeed('paralysis', '麻痺', '#ffe98a', '#b08a1f', 'thunderBolt', 1567, 'arc'),
+  ailmentSeed('sleep', '睡眠', '#bfd4ff', '#3f4f9c', 'statusSleep', 5460, 'sleep'),
+  ailmentSeed('bind', '拘束', '#b9d98a', '#5e4426', 'statusBind', 5512, 'bind', { scale: 1.2 }),
+  ailmentSeed('curse', '呪い', '#d5aaff', '#3a1f66', 'statusCurse', 2717, '', { tagName: '闇', scale: 1.2, grade: 3 }),
+  ailmentSeed('petrify', '石化', '#d8d8d0', '#5a5a52', 'statusPetrify', 1384, 'petrify', {
     scale: 1.2,
-    targeting: 'multi',
-    maxTargets: 6,
-    soundKey: 'statusBind',
-    grade: 2,
-  },
-  {
-    identifier: 'EffectPreset_status_curse',
-    name: '呪い',
-    tagName: '闇',
-    kind: 'curse',
-    colorPrimary: '#d5aaff',
-    colorSecondary: '#3a1f66',
-    soundMs: 2717,
-    staggerMs: 100,
-    scale: 1.2,
-    targeting: 'multi',
-    maxTargets: 6,
-    soundKey: 'statusCurse',
-    grade: 3,
-  },
-  {
-    identifier: 'EffectPreset_status_petrify',
-    name: '石化',
-    tagName: '状態異常',
-    kind: 'curse',
-    colorPrimary: '#d8d8d0',
-    colorSecondary: '#5a5a52',
-    soundMs: 1384,
-    staggerMs: 100,
-    scale: 1.2,
-    targeting: 'multi',
     maxTargets: 4,
-    soundKey: 'statusPetrify',
     grade: 3,
-  },
+  }),
+  ailmentSeed('poison', '毒', '#b9f26b', '#5a2b8c', 'poison', 2482, 'poison'),
+  ailmentSeed('bleed', '出血', '#ff5a4d', '#7a0d16', 'damageLarge', 1332, 'bleed'),
+  ailmentSeed('burn', '燃焼', '#ffb347', '#d8320f', 'fireMedium', 3500, 'burn'),
+  ailmentSeed('confuse', '混乱', '#ffe76a', '#b0489c', 'warp', 1411, 'confuse'),
+  ailmentSeed('charm', '魅了', '#ff8fc0', '#b01457', 'buff', 2064, 'charm'),
+  ailmentSeed('fear', '恐怖', '#9fc4ff', '#1e1a4a', 'dark', 4206, 'fear'),
+  ailmentSeed('blind', '暗闇', '#8d7ab8', '#1a1426', 'drain', 3239, 'blind'),
+  ailmentSeed('silence', '沈黙', '#9fd0ff', '#2b4fa8', 'reflect', 1176, 'silence'),
+  ailmentSeed('slow', '鈍足', '#e9d49a', '#3c4a7a', 'gravity', 1855, 'slow'),
   {
     identifier: 'EffectPreset_status_cure',
     name: '状態回復',
     tagName: '回復',
-    kind: 'warp',
+    kind: 'heal',
     colorPrimary: '#eaffd4',
     colorSecondary: '#49c9ff',
     soundMs: 2351,
@@ -267,6 +359,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     maxTargets: 6,
     soundKey: 'statusCure',
     grade: 2,
+    moteStyle: 'cleanse',
   },
   {
     identifier: 'EffectPreset_slash_1',
@@ -382,7 +475,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
   {
     identifier: 'EffectPreset_breath_holy',
     name: '聖なる吐息',
-    tagName: '回復',
+    tagName: '聖',
     kind: 'breath',
     colorPrimary: '#fffbe0',
     colorSecondary: '#ffc24a',
@@ -457,7 +550,8 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     maxTargets: 5,
     soundKey: 'fireLarge',
     grade: 3,
-    durationMs: 1200,
+    durationMs: 2000,
+    projectileStyle: 'meteor',
     impactSoundKey: 'explosionLarge',
   },
   {
@@ -665,7 +759,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     maxTargets: 1,
     soundKey: 'sfShot',
     grade: 1,
-    impactKind: 'burst',
+    impactKind: 'impact',
     projectileStyle: 'blaster',
     durationMs: 520,
     impactSoundKey: 'sfHit',
@@ -684,7 +778,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     maxTargets: 3,
     soundKey: 'sfShot',
     grade: 2,
-    impactKind: 'burst',
+    impactKind: 'impact',
     projectileStyle: 'blaster',
     shots: 6,
     shotInterval: 110,
@@ -715,7 +809,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
   {
     identifier: 'EffectPreset_skyblade',
     name: '光の大剣',
-    tagName: '物理',
+    tagName: '聖',
     kind: 'skyblade',
     colorPrimary: '#ffeaa8',
     colorSecondary: '#ffb320',
@@ -726,6 +820,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     maxTargets: 3,
     soundKey: 'holyBlade',
     grade: 3,
+    impactKind: 'smite',
     durationMs: 3000,
     impactSoundKey: 'explosionLarge',
   },
@@ -828,7 +923,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     colorSecondary: '#ff3b6b',
     soundMs: 2038,
     staggerMs: 0,
-    scale: 0.7,
+    scale: 1,
     targeting: 'single',
     maxTargets: 1,
     soundKey: 'sfBeam',
@@ -864,7 +959,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     colorSecondary: '#5fb8ff',
     soundMs: 4493,
     staggerMs: 0,
-    scale: 1.5,
+    scale: 1,
     targeting: 'single',
     maxTargets: 1,
     soundKey: 'collapse',
@@ -896,7 +991,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     colorSecondary: '#7a0d15',
     soundMs: 1752,
     staggerMs: 0,
-    scale: 1.35,
+    scale: 1,
     targeting: 'single',
     maxTargets: 1,
     soundKey: 'slashLarge',
@@ -938,6 +1033,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     grade: 3,
     impactSoundKey: 'beamSmall',
     durationMs: 3000,
+    moteStyle: 'prism',
   },
   {
     identifier: 'EffectPreset_smg_2',
@@ -1034,6 +1130,24 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     impactSoundKey: 'damageLarge',
   },
   {
+    identifier: 'EffectPreset_stormbolt_2',
+    name: '雷弾',
+    tagName: '射撃',
+    kind: 'projectile',
+    colorPrimary: '#f0f7ff',
+    colorSecondary: '#7b5cff',
+    soundMs: 1332,
+    staggerMs: 100,
+    scale: 1.1,
+    targeting: 'multi',
+    maxTargets: 3,
+    soundKey: 'thunderSmall',
+    grade: 2,
+    impactKind: 'bolt',
+    durationMs: 850,
+    impactSoundKey: 'thunderBolt',
+  },
+  {
     identifier: 'EffectPreset_stonebolt_2',
     name: '岩弾',
     tagName: '射撃',
@@ -1090,7 +1204,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
   {
     identifier: 'EffectPreset_holybolt_3',
     name: '聖光弾',
-    tagName: '射撃',
+    tagName: '聖',
     kind: 'projectile',
     colorPrimary: '#fffbe0',
     colorSecondary: '#ffc24a',
@@ -1101,7 +1215,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     maxTargets: 4,
     soundKey: 'holy',
     grade: 3,
-    impactKind: 'burst',
+    impactKind: 'smite',
     durationMs: 1200,
     impactSoundKey: 'explosionSmall',
   },
@@ -1185,8 +1299,8 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     name: '生命吸収',
     tagName: '闇',
     kind: 'drain',
-    colorPrimary: '#ff9ad4',
-    colorSecondary: '#7a1f4f',
+    colorPrimary: '#ffc2d4',
+    colorSecondary: '#c8143c',
     soundMs: 3239,
     staggerMs: 120,
     scale: 1.2,
@@ -1195,6 +1309,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     soundKey: 'drain',
     grade: 2,
   },
+  ...DARK_SEEDS,
   {
     identifier: 'EffectPreset_warp_1',
     name: '転移',
@@ -1270,6 +1385,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     maxTargets: 6,
     soundKey: 'cleanse',
     grade: 1,
+    moteStyle: 'cleanse',
   },
   {
     identifier: 'EffectPreset_qigong_2',
@@ -1285,7 +1401,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     maxTargets: 3,
     soundKey: 'qigong',
     grade: 2,
-    impactKind: 'burst',
+    impactKind: 'impact',
     durationMs: 900,
     impactSoundKey: 'explosionSmall',
   },
@@ -1473,12 +1589,43 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     areaRadius: 3,
   },
   {
+    identifier: 'EffectPreset_blizzard_2',
+    name: '吹雪',
+    tagName: '氷',
+    kind: 'vortex',
+    colorPrimary: '#f2fbff',
+    colorSecondary: '#2f8dff',
+    soundMs: 3318,
+    staggerMs: 90,
+    scale: 1.2,
+    targeting: 'multi',
+    maxTargets: 4,
+    soundKey: 'windLarge',
+    impactSoundKey: 'iceSmall',
+    grade: 2,
+  },
+  {
+    identifier: 'EffectPreset_frost_coffin',
+    name: '氷棺',
+    tagName: '氷',
+    kind: 'frost',
+    colorPrimary: '#f2fbff',
+    colorSecondary: '#1e6bff',
+    soundMs: 4032,
+    staggerMs: 120,
+    scale: 1.4,
+    targeting: 'single',
+    maxTargets: 1,
+    soundKey: 'iceLarge',
+    grade: 3,
+  },
+  {
     identifier: 'EffectPreset_impact_1',
     name: '衝撃波',
     tagName: '土',
     kind: 'impact',
-    colorPrimary: '#ffe9a8',
-    colorSecondary: '#ff8a2b',
+    colorPrimary: '#ead7ae',
+    colorSecondary: '#9a6a3a',
     soundMs: 2691,
     staggerMs: 0,
     scale: 1.5,
@@ -1519,6 +1666,54 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     areaRadius: 3,
   },
   {
+    identifier: 'EffectPreset_quake_2',
+    name: '地割れ',
+    tagName: '土',
+    kind: 'quake',
+    colorPrimary: '#f2d6a2',
+    colorSecondary: '#8c5a2b',
+    soundMs: 2691,
+    staggerMs: 140,
+    scale: 1.3,
+    targeting: 'multi',
+    maxTargets: 3,
+    soundKey: 'stoneHit',
+    impactSoundKey: 'rockBreak',
+    grade: 2,
+  },
+  {
+    identifier: 'EffectPreset_quake_3',
+    name: '大地震',
+    tagName: '土',
+    kind: 'quake',
+    colorPrimary: '#f0d09a',
+    colorSecondary: '#7a4a22',
+    soundMs: 5042,
+    staggerMs: 0,
+    scale: 1.5,
+    targeting: 'multi',
+    maxTargets: 8,
+    soundKey: 'earthUpheaval',
+    impactSoundKey: 'rockBreak',
+    grade: 3,
+    areaRadius: 3,
+  },
+  {
+    identifier: 'EffectPreset_breath_earth',
+    name: '砂塵のブレス',
+    tagName: '土',
+    kind: 'breath',
+    colorPrimary: '#f2cf8e',
+    colorSecondary: '#7a4a1c',
+    soundMs: 4493,
+    staggerMs: 110,
+    scale: 1.35,
+    targeting: 'multi',
+    maxTargets: 4,
+    soundKey: 'collapse',
+    grade: 3,
+  },
+  {
     identifier: 'EffectPreset_vortex_1',
     name: '突風',
     tagName: '風',
@@ -1548,6 +1743,78 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     soundKey: 'windLarge',
     grade: 3,
     areaRadius: 3,
+  },
+  {
+    identifier: 'EffectPreset_sickle_2',
+    name: '鎌鼬',
+    tagName: '風',
+    kind: 'slash',
+    colorPrimary: '#f4fff8',
+    colorSecondary: '#4f8f7a',
+    soundMs: 2712,
+    staggerMs: 160,
+    scale: 1.3,
+    targeting: 'multi',
+    maxTargets: 4,
+    soundKey: 'slashCombo',
+    impactSoundKey: 'windSmall',
+    grade: 2,
+    slashStyle: 'combo',
+  },
+  {
+    identifier: 'EffectPreset_vacuum_2',
+    name: '真空波',
+    tagName: '風',
+    kind: 'projectile',
+    colorPrimary: '#f2fff6',
+    colorSecondary: '#3f9a78',
+    soundMs: 1071,
+    staggerMs: 120,
+    scale: 1.3,
+    targeting: 'multi',
+    maxTargets: 3,
+    soundKey: 'windSmall',
+    grade: 2,
+    impactKind: 'vortex',
+    projectileStyle: 'crescent',
+    durationMs: 1000,
+    impactSoundKey: 'windLarge',
+  },
+  {
+    identifier: 'EffectPreset_storm_3',
+    name: '大嵐',
+    tagName: '風',
+    kind: 'vortex',
+    colorPrimary: '#eef4ff',
+    colorSecondary: '#3c4a66',
+    soundMs: 3318,
+    staggerMs: 0,
+    scale: 1.4,
+    targeting: 'multi',
+    maxTargets: 8,
+    soundKey: 'windLarge',
+    impactSoundKey: 'thunderLarge',
+    grade: 3,
+    areaRadius: 3,
+    moteStyle: 'arc',
+  },
+  {
+    identifier: 'EffectPreset_skyblade_wind',
+    name: '風の大剣',
+    tagName: '風',
+    kind: 'skyblade',
+    colorPrimary: '#effff4',
+    colorSecondary: '#2f8f68',
+    soundMs: 4310,
+    staggerMs: 140,
+    scale: 1.8,
+    targeting: 'multi',
+    maxTargets: 3,
+    soundKey: 'holyBlade',
+    grade: 3,
+    impactKind: 'vortex',
+    durationMs: 3000,
+    impactSoundKey: 'windLarge',
   },
   {
     identifier: 'EffectPreset_heal_1',
@@ -1624,6 +1891,7 @@ export const DEFAULT_EFFECT_PRESET_SEEDS: readonly EffectPresetSeed[] = [
     soundKey: 'buff',
     grade: 2,
   },
+  ...HOLY_SEEDS,
   ...STAGED_SEEDS,
 ];
 
@@ -1636,7 +1904,7 @@ export function applyEffectPresetSeed(preset: EffectPreset, seed: EffectPresetSe
   preset.colorSecondary = seed.colorSecondary;
   // An effect runs as long as its sound; ending sooner leaves the sound playing on.
   // A projectile is the exception: dragged out by the sound of the shot it would fly slowly, so its own length is used.
-  preset.durationMs = Math.min(Math.max(seed.durationMs ?? seed.soundMs, MIN_EFFECT_MS), MAX_EFFECT_MS);
+  preset.durationMs = clamp(seed.durationMs ?? seed.soundMs, MIN_EFFECT_MS, MAX_EFFECT_MS);
   preset.impactSoundIdentifier = seed.impactSoundKey ? PresetSound[seed.impactSoundKey] : '';
   preset.staggerMs = seed.staggerMs;
   preset.scale = seed.scale;

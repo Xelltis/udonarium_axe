@@ -1,7 +1,6 @@
 import { DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
 import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
@@ -19,22 +18,15 @@ import { AuthorityEvent, MAX_MEMBERS } from '@axe/core/network/server/server-pro
 import { ACCOUNT_USER_ID_PREFIX } from '@axe/core/network/server/server-protocol';
 import { SAME_NAME_MEMBER_ERROR } from '@axe/core/network/skyway/same-name-member';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
-import { AssetRetries } from '@axe/core/storage/asset-retries';
-import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
-import { AudioStorage } from '@axe/core/storage/audio-storage';
-import { hasChosenIconByHand, noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
 import { guestUserIdAfter, guestUserIdOf, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
-import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
-import { ImageStorage } from '@axe/core/storage/image-storage';
-import { MODEL_TYPE } from '@axe/core/storage/model-file';
-import { ModelSharingSystem } from '@axe/core/storage/model-sharing-system';
-import { ModelStorage } from '@axe/core/storage/model-storage';
 import { handOverOwnership } from '@axe/domain/peer/ownership';
-import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit, DEFAULT_PEER_ROLE } from '@axe/domain/peer/peer-role';
 import { markSeatWithheld } from '@axe/domain/peer/withheld-table';
+import { AccountLookService } from '@axe/features/lobby/account-look.service';
 import { IdleSeatService } from '@axe/features/lobby/idle-seat.service';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
+import { RoomAssetSyncService } from '@axe/features/lobby/room-asset-sync.service';
 import { ServerWatchService } from '@axe/features/lobby/server-watch.service';
 
 /** What to say for each reason the room server gives for keeping a role as it was. */
@@ -50,8 +42,6 @@ function openApart(contact: string): void {
   window.open(contact, '_blank', 'noopener,noreferrer');
 }
 
-/** How long after somebody leaves the room's list of pictures and sounds is read again. */
-const ROOM_ASSET_RELIST_MS = 30_000;
 /** How long the word that the seat is about to be let out stays: until it would be. */
 const IDLE_NOTICE_MS = 5 * 60_000;
 /** How long the word that the seat was let out stays, offering to go back in: as good as for good. */
@@ -62,7 +52,6 @@ const UPLOAD_NOTICE_MS = 15_000;
 @Injectable({ providedIn: 'root' })
 export class NetworkEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
-  private readonly assetRemoval = inject(AssetRemovalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly chatClock = inject(ChatClockService);
@@ -73,13 +62,9 @@ export class NetworkEventHandlerService {
   private readonly t = inject(TRANSLATE_FN);
   private readonly idleSeat = inject(IdleSeatService);
   private readonly serverWatch = inject(ServerWatchService);
-  private readonly imageStorage = inject(ImageStorage);
-  private readonly audioStorage = inject(AudioStorage);
   private readonly assetHttpStore = inject(AssetHttpStore);
-  private readonly imageSharingSystem = inject(ImageSharingSystem);
-  private readonly audioSharingSystem = inject(AudioSharingSystem);
-  private readonly modelStorage = inject(ModelStorage);
-  private readonly modelSharingSystem = inject(ModelSharingSystem);
+  private readonly roomAssets = inject(RoomAssetSyncService);
+  private readonly accountLook = inject(AccountLookService);
 
   /**
    * How often and how slowly it reconnects after a server error, meaning the token backend is out of reach.
@@ -104,9 +89,6 @@ export class NetworkEventHandlerService {
   private serverErrorReconnectAttempts = 0;
   private otherErrorReconnectAttempts = 0;
   private serverErrorReconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  /** The room's list of pictures and sounds, when the server could not give it just then. */
-  private readonly roomAssetListRetries = new AssetRetries();
-  private roomAssetRelistTimer: ReturnType<typeof setTimeout> | null = null;
   private localMode = false;
   /** The notice saying the seat is about to be let out, to take away once the page is used again. */
   private idleNotice: number | null = null;
@@ -114,29 +96,15 @@ export class NetworkEventHandlerService {
   private followedAccountUserId: string | null | undefined = undefined;
   /** The last account followed, kept after a logout so its user id is never taken for the tab's own. */
   private lastAccountUserId = '';
-  /** The account's name and avatar lent to the cursor, empty for what was not lent, to give back on logout. */
-  private lentLook = { name: '', imageIdentifier: '' };
 
   constructor() {
     this.destroyRef.onDestroy(() => {
-      this.roomAssetListRetries.clear();
-      if (this.roomAssetRelistTimer) clearTimeout(this.roomAssetRelistTimer);
-      this.imageStorage.receivedUploadTurn = () => 0;
-      this.audioStorage.receivedUploadTurn = () => 0;
-      this.modelStorage.receivedUploadTurn = () => 0;
       this.assetHttpStore.onUploadsPaused = () => {};
       this.assetHttpStore.onUploadBlocked = () => {};
       this.assetHttpStore.onRoomStorageFull = () => {};
     });
-    this.imageStorage.receivedUploadTurn = () => this.turnToPutUpReceived();
-    this.audioStorage.receivedUploadTurn = () => this.turnToPutUpReceived();
-    this.modelStorage.receivedUploadTurn = () => this.turnToPutUpReceived();
     this.assetHttpStore.onUploadsPaused = (paused) => {
-      if (!paused) {
-        this.imageStorage.resumePaused();
-        this.audioStorage.resumePaused();
-        this.modelStorage.resumePaused();
-      }
+      if (!paused) this.roomAssets.resumePaused();
       this.tellUploadsPaused(paused);
     };
     this.assetHttpStore.onUploadBlocked = () => this.tellUploadBlocked();
@@ -154,7 +122,7 @@ export class NetworkEventHandlerService {
       if (message.eventName !== 'SERVER_ROLE_CHANGED' || !message.isSendFromSelf) return;
       this.serverWatch.noteRoleTold();
       this.takeServerRole();
-      this.bringAssetsIntoRoom();
+      this.roomAssets.bringIntoRoom();
     }, this.destroyRef);
     effect(() => {
       const account = this.auth.account();
@@ -181,8 +149,8 @@ export class NetworkEventHandlerService {
       PeerCursor.myCursor.peerId = peer.peerId;
       PeerCursor.myCursor.userId = peer.userId;
       this.takeServerRole();
-      this.bringAssetsIntoRoom();
-      this.fetchRoomAssets();
+      this.roomAssets.bringIntoRoom();
+      this.roomAssets.fetchRoomAssets();
       // Outside a room nobody hands out roles, and a role a room gave must not keep the solo table
       // read-only; on a room server, waiting outside a room is playing as a player.
       if (Network.transport === 'server' && !peer.isRoom) PeerCursor.myCursor.role = DEFAULT_PEER_ROLE;
@@ -190,7 +158,7 @@ export class NetworkEventHandlerService {
       // A room server's clock sets the chat's as the seat comes in, though nobody else may be there.
       if (peer.isRoom && Network.serverClockOffset !== null) this.chatClock.calibrate();
       const account = Network.transport === 'server' ? this.auth.account() : null;
-      if (account) this.lendAccountLook(account);
+      if (account) this.accountLook.lend(account);
     }, this.destroyRef);
     this.objectChange.networkError$.subscribe((event) => {
       if (this.localMode) return;
@@ -249,22 +217,18 @@ export class NetworkEventHandlerService {
     }, this.destroyRef);
     // Somebody who left may still be putting up what it added, and can name it to nobody once it is
     // there; the room's list is read again a little later for it.
-    this.objectChange.peerDisconnect$.subscribe(() => {
-      if (Network.transport !== 'server' || !Network.peerContext.isRoom || this.roomAssetRelistTimer) return;
-      const peerId = Network.peerId;
-      this.roomAssetRelistTimer = setTimeout(() => {
-        this.roomAssetRelistTimer = null;
-        if (Network.peerId === peerId && Network.peerContext.isRoom) this.fetchRoomAssetList(peerId);
-      }, ROOM_ASSET_RELIST_MS);
-    }, this.destroyRef);
+    this.objectChange.peerDisconnect$.subscribe(() => this.roomAssets.relistAfterLeave(), this.destroyRef);
     this.objectChange.peerReconnect$.subscribe((event) => {
       if (this.localMode) return;
       if (event.state === 'recovered' && event.peerId === Network.peerId) {
         this.takeServerRole();
-        this.bringAssetsIntoRoom();
-        this.fetchRoomAssets();
+        this.roomAssets.bringIntoRoom();
+        this.roomAssets.fetchRoomAssets();
       }
-      if (event.state === 'resumed' && event.peerId === Network.peerId) this.catchUpAfterResume();
+      if (event.state === 'resumed' && event.peerId === Network.peerId) {
+        this.takeServerRole();
+        this.roomAssets.catchUpAfterResume();
+      }
       // The link to a room server is this reader's own, so the word of it is shown here alone,
       // rather than written for the whole room, which a guest may not write to anyway. A screen
       // made for streaming shows none of it.
@@ -371,97 +335,6 @@ export class NetworkEventHandlerService {
     if (!canRoleEdit(cursor.role)) cursor.role = DEFAULT_PEER_ROLE;
     if (cursor.userId.length < 1) cursor.userId = this.standbyUserId() ?? PeerContext.generateUserId();
     Network.playAlone(cursor.userId);
-  }
-
-  /**
-   * How many turns this seat waits to put up a picture or sound a guest named, which every GM and PL
-   * in the room received at once: one for each linked GM or PL whose peer id comes before this
-   * seat's, so that the first has put it up before the next finds the store lacking it.
-   */
-  private turnToPutUpReceived(): number {
-    const mine = Network.peerId;
-    const ahead = PeerCursor.linkedCursors().filter(
-      (cursor) => cursor !== PeerCursor.myCursor && canRoleEdit(cursor.role) && cursor.peerId < mine
-    );
-    return ahead.length;
-  }
-
-  /**
-   * Puts the pictures and sounds this seat holds up to the room server's room it is in, as a GM or a
-   * PL may: those added outside the room, brought from another, or added while the line was down. A
-   * guest, who may put nothing up, names them to the others instead, for them to take from it.
-   */
-  private bringAssetsIntoRoom(): void {
-    const role = Network.serverRole;
-    if (!Network.peerContext.isRoom) return;
-    if (role !== 'gm' && role !== 'pl') {
-      if (role === 'guest') {
-        this.imageStorage.synchronize();
-        this.audioStorage.synchronize();
-        this.modelStorage.synchronize();
-      }
-      return;
-    }
-    this.imageStorage.uploadAllToAssetStore();
-    this.audioStorage.uploadAllToAssetStore();
-    this.modelStorage.uploadAllToAssetStore();
-    // What the room is playing goes up ahead of the rest, for everyone to hear it soonest.
-    this.audioSharingSystem.preferWaiting();
-  }
-
-  /**
-   * Catches up after coming back on a new link the room server asked for, which some servers do
-   * every few minutes: what was added here while the link was down goes up, and the room's list is
-   * read again for what it gained meanwhile. The rest is the same room as before, so neither every
-   * picture and sound held nor what the store was found to lack is asked about again.
-   */
-  private catchUpAfterResume(): void {
-    this.takeServerRole();
-    if (Network.transport !== 'server' || !Network.peerContext.isRoom) return;
-    const role = Network.serverRole;
-    if (role === 'gm' || role === 'pl') {
-      this.imageStorage.uploadMissedToAssetStore();
-      this.audioStorage.uploadMissedToAssetStore();
-      this.modelStorage.uploadMissedToAssetStore();
-    }
-    this.fetchRoomAssetList(Network.peerId);
-  }
-
-  /**
-   * Fetches what the room server's room holds that this seat lacks: the pictures and sounds left in
-   * a room everybody had gone from, which no member's catalog names any more. Each room starts with
-   * a clean slate of what the store was found to lack. A list the server could not give just then is
-   * asked for again a few times, while the seat is still in the room. What the list holds that the
-   * room removed is taken out of the store again, when this seat may remove it.
-   */
-  private fetchRoomAssets(): void {
-    this.roomAssetListRetries.clear();
-    if (Network.transport !== 'server' || !Network.peerContext.isRoom) return;
-    this.imageSharingSystem.forgetMisses();
-    this.audioSharingSystem.forgetMisses();
-    this.modelSharingSystem.forgetMisses();
-    this.fetchRoomAssetList(Network.peerId);
-  }
-
-  private fetchRoomAssetList(peerId: string): void {
-    void this.assetHttpStore.listRoomAssets().then((assets) => {
-      if (Network.peerId !== peerId || !Network.peerContext.isRoom) return;
-      if (!assets) {
-        this.roomAssetListRetries.schedule('list', () => this.fetchRoomAssetList(peerId));
-        return;
-      }
-      this.roomAssetListRetries.forget('list');
-      const pictures = assets.filter((asset) => asset.type.startsWith('image/'));
-      const sounds = assets.filter((asset) => asset.type.startsWith('audio/'));
-      const models = assets.filter((asset) => asset.type === MODEL_TYPE);
-      this.imageStorage.forgetUploaded(pictures.map((asset) => asset.id));
-      this.audioStorage.forgetUploaded(sounds.map((asset) => asset.id));
-      this.modelStorage.forgetUploaded(models.map((asset) => asset.id));
-      this.assetRemoval.takeOut(assets.map((asset) => asset.id));
-      this.imageSharingSystem.fetchListed(pictures);
-      this.audioSharingSystem.fetchListed(sounds);
-      this.modelSharingSystem.fetchListed(models);
-    });
   }
 
   /**
@@ -577,8 +450,8 @@ export class NetworkEventHandlerService {
     if (userId) this.lastAccountUserId = userId;
     if (this.localMode || Network.transport !== 'server') return;
     const account = this.auth.account();
-    if (account) this.lendAccountLook(account);
-    else this.takeBackAccountLook();
+    if (account) this.accountLook.lend(account);
+    else this.accountLook.takeBack();
     if (previous === undefined || previous === userId || !Network.isOpen) return;
 
     const peer = Network.peerContext;
@@ -602,54 +475,6 @@ export class NetworkEventHandlerService {
     const account = this.auth.account();
     if (account) return peer.userId !== account.userId;
     return peer.userId.startsWith(ACCOUNT_USER_ID_PREFIX) || peer.userId === this.lastAccountUserId;
-  }
-
-  /**
-   * Puts the account's name on the cursor where it still has the default, and its avatar where the
-   * icon is still the default and the account has never chosen one by hand in this browser. What is
-   * still as lent before, as when the login moves straight on to another account or to a new
-   * avatar, counts as the default, and the account's own avatar, chosen again, as lent. An icon found chosen already, as one picked before the login,
-   * counts as chosen by hand from then on, so the avatar does not come over it once a reload has
-   * taken it back to the default.
-   */
-  private lendAccountLook(account: { userId: string; name: string; avatarUrl: string | null }): void {
-    const cursor = PeerCursor.myCursor;
-    if (!cursor) return;
-    const lent = this.lentLook;
-    const nameFree = cursor.name === DEFAULT_CURSOR_NAME || (lent.name !== '' && cursor.name === lent.name);
-    if (nameFree && account.name) {
-      cursor.name = account.name;
-      lent.name = account.name;
-    }
-    const icon = cursor.imageIdentifier;
-    if (account.avatarUrl && icon === account.avatarUrl) {
-      lent.imageIdentifier = icon;
-      return;
-    }
-    const iconLent = lent.imageIdentifier !== '' && icon === lent.imageIdentifier;
-    if (icon !== DEFAULT_CURSOR_IMAGE_IDENTIFIER && !iconLent) {
-      noteIconChosenByHand(account.userId);
-      return;
-    }
-    if (!account.avatarUrl || hasChosenIconByHand(account.userId)) {
-      if (iconLent) cursor.imageIdentifier = DEFAULT_CURSOR_IMAGE_IDENTIFIER;
-      lent.imageIdentifier = '';
-      return;
-    }
-    cursor.imageIdentifier = this.imageStorage.add(account.avatarUrl).identifier;
-    lent.imageIdentifier = cursor.imageIdentifier;
-  }
-
-  /** Puts the defaults back on the cursor where it still has the account's name or avatar as lent. */
-  private takeBackAccountLook(): void {
-    const cursor = PeerCursor.myCursor;
-    const lent = this.lentLook;
-    this.lentLook = { name: '', imageIdentifier: '' };
-    if (!cursor) return;
-    if (lent.name && cursor.name === lent.name) cursor.name = DEFAULT_CURSOR_NAME;
-    if (lent.imageIdentifier && cursor.imageIdentifier === lent.imageIdentifier) {
-      cursor.imageIdentifier = DEFAULT_CURSOR_IMAGE_IDENTIFIER;
-    }
   }
 
   /**

@@ -62,6 +62,18 @@
           }
         }
       }
+      @if (showsDefaultMark()) {
+        <button
+          type="button"
+          class="text-ui-accent hover:bg-ui-hover ml-0.5 inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-(--gde-radius-control) border-none bg-transparent p-0 text-[1.1em] leading-none group-data-narrow/sheet:size-6"
+          data-testid="default-mark"
+          [attr.aria-label]="defaultMarkTip()"
+          [appTextTooltip]="defaultMarkTip()"
+          (click)="backToDefault($event)"
+        >
+          ↺
+        </button>
+      }
     </div>
     <div
       class="elm-value-cell text-ui-text relative box-border grid min-h-7.5 min-w-0 grid-cols-[minmax(0,1fr)] items-center gap-1 rounded-(--gde-radius-line) px-1.75 py-1 text-[0.78em] group-data-compact/sheet:grid-cols-[minmax(0,1fr)_auto]! [&_input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color])]:w-full [&_input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color])]:min-w-0 [&_input[type=number]]:w-full [&_input[type=number]]:min-w-0"
@@ -441,7 +453,7 @@
             (change)="onSetFieldType($event)"
           >
             @for (item of fieldTypeItems; track item.type) {
-              <ng-option [value]="item.type">{{ item.label }}</ng-option>
+              <ng-option [value]="item.type">{{ item.labelKey | transloco }}</ng-option>
             }
           </ng-select>
           @for (action of fieldActions(); track action.id) {

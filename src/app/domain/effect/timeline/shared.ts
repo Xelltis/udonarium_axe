@@ -1,4 +1,4 @@
-import { clamp01 } from '@axe/core/util/clamp';
+import { clamp, clamp01 } from '@axe/core/util/clamp';
 import { seededRandom } from '@axe/core/util/seeded-random';
 
 export { clamp01 };
@@ -33,8 +33,6 @@ export interface EffectSprite {
   animation: string;
   /** What the animated layer turns about. Empty for its centre. */
   origin: string;
-  /** Anything but empty is drawn as a drawing, and must not change with the elapsed time. */
-  svg: string;
   /** True to lay it flat on the board, false to face it at the camera. */
   flat: boolean;
 }
@@ -74,7 +72,7 @@ const LARGEST_COUNTED_CELLS = 4;
  * otherwise blow up too.
  */
 export function targetScaleOf(options: EffectSpriteOptions, identifier: string, aimed: boolean): number {
-  const cells = Math.min(LARGEST_COUNTED_CELLS, Math.max(1, options.resolveSize?.(identifier) ?? 1));
+  const cells = clamp(options.resolveSize?.(identifier) ?? 1, 1, LARGEST_COUNTED_CELLS);
   return aimed ? Math.sqrt(cells) : cells;
 }
 
@@ -113,7 +111,6 @@ export function blank(): EffectSprite {
     shadow: '',
     animation: '',
     origin: '',
-    svg: '',
     flat: false,
   };
 }
@@ -140,6 +137,6 @@ export function normalize(value: number): number {
  * is clamped.
  */
 export function easeOutCubic(value: number): number {
-  const clamped = Math.min(Math.max(value, 0), 1);
+  const clamped = clamp(value, 0, 1);
   return 1 - Math.pow(1 - clamped, 3);
 }

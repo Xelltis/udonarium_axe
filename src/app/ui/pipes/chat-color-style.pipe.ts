@@ -10,7 +10,7 @@ import {
 import { chatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 
 /** What the bubble aims for when it is worked out: the reading standard for body text. */
-export const CHAT_TARGET_RATIO = 4.5;
+const CHAT_TARGET_RATIO = 4.5;
 
 /**
  * How badly a pair has to read before the panel says anything about it.
@@ -63,7 +63,7 @@ function searchChatBubble(color: string, baseTone: number): string {
   const textLum = relativeLuminance(rgb);
   // Measured on the colour as it will be written out, so what is returned is what was tested:
   // a tone that clears the standard as a float can fall a hair under it once it is a byte.
-  const shown = (tone: number) => parseHexColor(cssToHex(rgbToCss(lchToRgb({ tone, chroma: tint, hue }))))!;
+  const shown = (tone: number) => parseHexColor(cssToHex(rgbToCss(lchToRgb({ tone, chroma: tint, hue })))) ?? rgb;
   const at = (tone: number) => relativeLuminance(shown(tone));
   const reads = (tone: number) => contrastRatio(textLum, at(tone)) >= CHAT_TARGET_RATIO;
 
@@ -111,32 +111,43 @@ function borderFor(bubbleCss: string): string {
   return rgbToCss(lchToRgb({ tone: tone > 50 ? tone - 14 : tone + 16, chroma, hue }));
 }
 
+/**
+ * The colour a message is shown in, and the bubble it sits on, as the styles to draw it with; null
+ * for no colour or one that is not a hex colour.
+ *
+ * The colour is the reader's own and is used exactly as it was chosen. The bubble is
+ * theirs too when they have set one for this theme; where they have not, one is worked
+ * out that the colour can be read on.
+ */
+export function chatColorStyle(
+  color: string | null | undefined,
+  theme: 'light' | 'dark' = 'light',
+  bubble?: string | null,
+  base?: number
+): Record<string, string> | null {
+  if (!color) return null;
+  if (!parseHexColor(color)) return null;
+
+  const chosenRgb = bubble ? parseHexColor(bubble) : null;
+  const chosen = chosenRgb ? rgbToCss(chosenRgb) : autoChatBubble(color, theme, base);
+
+  return {
+    color,
+    'background-color': chosen,
+    '--bubble-bg': chosen,
+    '--ui-bubble-caret-border': borderFor(chosen),
+  };
+}
+
 @Pipe({ name: 'chatColorStyle', pure: true })
 export class ChatColorStylePipe implements PipeTransform {
-  /**
-   * The colour a message is shown in, and the bubble it sits on.
-   *
-   * The colour is the reader's own and is used exactly as it was chosen. The bubble is
-   * theirs too when they have set one for this theme; where they have not, one is worked
-   * out that the colour can be read on.
-   */
+  /** The styles a message's colour and bubble are drawn with; see {@link chatColorStyle}. */
   transform(
     color: string | null | undefined,
     theme: 'light' | 'dark' = 'light',
     bubble?: string | null,
     base?: number
   ): Record<string, string> | null {
-    if (!color) return null;
-    if (!parseHexColor(color)) return null;
-
-    const chosen =
-      bubble && parseHexColor(bubble) ? rgbToCss(parseHexColor(bubble)!) : autoChatBubble(color, theme, base);
-
-    return {
-      color,
-      'background-color': chosen,
-      '--bubble-bg': chosen,
-      '--ui-bubble-caret-border': borderFor(chosen),
-    };
+    return chatColorStyle(color, theme, bubble, base);
   }
 }

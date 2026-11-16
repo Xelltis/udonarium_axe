@@ -103,7 +103,9 @@ export class GameTableMaskComponent {
   private readonly modalService = inject(ModalService);
   private readonly coordinateService = inject(CoordinateService);
   private readonly tablePick = inject(TablePickService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly pieces = inject(TablePiecesService);
   private readonly tabletopService = inject(TabletopService);
@@ -156,14 +158,10 @@ export class GameTableMaskComponent {
 
   readonly gameTableMask = input<GameTableMask | null>(null);
 
-  /** Whether a locked mask shows its lock mark; setting it writes straight to the mask. */
+  /** Whether a locked mask shows its lock mark. */
   get dispLockMark(): boolean {
     const mask = this.gameTableMask();
     return mask?.dispLockMark ?? false;
-  }
-  set dispLockMark(disp: boolean) {
-    const mask = this.gameTableMask();
-    if (mask) mask.dispLockMark = disp;
   }
 
   readonly name = computed(() => {
@@ -189,61 +187,26 @@ export class GameTableMaskComponent {
     const mask = this.gameTableMask();
     return Math.max(0, mask?.height ?? 0);
   }
-  /** The mask's own opacity, or 0 when there is no mask. */
-  get opacity(): number {
-    const mask = this.gameTableMask();
-    return mask?.opacity ?? 0;
-  }
   readonly imageFile = computed(
     () => {
       const mask = this.gameTableMask();
       this.objectChange.fileVersion();
-      if (!mask) throw new Error('gameTableMask is not set');
+      if (!mask) return ImageFile.Empty;
       this.objectChange.versionOf(mask.identifier)();
       return mask.imageFile;
     },
     { equal: imageFileEqual() }
   );
-  /** Whether the mask is locked in place; setting it writes straight to the mask. */
+  /** Whether the mask is locked in place. */
   get isLock(): boolean {
     const mask = this.gameTableMask();
     return mask?.isLock ?? false;
   }
-  set isLock(isLock: boolean) {
-    const mask = this.gameTableMask();
-    if (mask) mask.isLock = isLock;
-  }
 
-  /** The blend type for the mask picture, always 0, which draws it with hard-light blending. */
-  get blendType(): number {
-    return 0;
-  }
-
-  /**
-   * The mask's `color`, its colour element's `value`; setting it writes straight to the mask.
-   *
-   * Nothing in the app reads or writes it: the template fills a mask that has no picture with
-   * `bgcolor`.
-   */
-  get color(): string {
-    const mask = this.gameTableMask();
-    return mask?.color ?? '';
-  }
-  set color(color: string) {
-    const mask = this.gameTableMask();
-    if (mask) mask.color = color;
-  }
-  /**
-   * The background colour a mask without a picture is filled with; setting it writes straight to
-   * the mask.
-   */
+  /** The background colour a mask without a picture is filled with. */
   get bgcolor(): string {
     const mask = this.gameTableMask();
     return mask?.bgcolor ?? '';
-  }
-  set bgcolor(bgcolor: string) {
-    const mask = this.gameTableMask();
-    if (mask) mask.bgcolor = bgcolor;
   }
 
   /**
@@ -449,23 +412,6 @@ export class GameTableMaskComponent {
     const mask = this.gameTableMask();
     return mask?.altitude ?? 0;
   }
-  set altitude(altitude: number) {
-    const mask = this.gameTableMask();
-    if (mask) mask.altitude = altitude;
-  }
-
-  /**
-   * Whether the mask shows a line and label for its altitude; setting it writes straight to the
-   * mask.
-   */
-  get isAltitudeIndicate(): boolean {
-    const mask = this.gameTableMask();
-    return mask?.isAltitudeIndicate ?? false;
-  }
-  set isAltitudeIndicate(isAltitudeIndicate: boolean) {
-    const mask = this.gameTableMask();
-    if (mask) mask.isAltitudeIndicate = isAltitudeIndicate;
-  }
 
   /** Whether someone is scratching the mask, which is whenever it has an owner. */
   get isScratching(): boolean {
@@ -473,11 +419,6 @@ export class GameTableMaskComponent {
     return !!mask?.owner;
   }
 
-  /** Whether a peer has taken the mask to scratch it. */
-  get hasOwner(): boolean {
-    const mask = this.gameTableMask();
-    return mask?.hasOwner ?? false;
-  }
   /**
    * Whether the peer scratching the mask is still connected; the scratcher's banner only shows
    * while they are.
@@ -667,24 +608,11 @@ export class GameTableMaskComponent {
    *
    * While dragging, a cell is toggled once as the pointer enters it; a fresh press may toggle the
    * same cell again. Picks are written to the mask after 250 ms without a new one, so a drag
-   * reaches other peers as one change. A point off the mask is ignored. When the table's grid is
-   * hidden, its grid clip is cleared.
+   * reaches other peers as one change. A point off the mask is ignored.
    */
   scratching(isStart: boolean, position: { offsetX: number; offsetY: number } | null = null) {
     const mask = this.gameTableMask();
     if (!mask || !mask.isMine) return;
-    const tableSelecter = this.tableSelecter;
-
-    if (!tableSelecter.viewTable?.gridShow) {
-      const viewTable = tableSelecter.viewTable;
-      if (viewTable)
-        viewTable.gridClipRect = {
-          top: 0,
-          right: 0,
-          bottom: 0,
-          left: 0,
-        };
-    }
     let offsetX;
     let offsetY;
     if (position) {
@@ -786,7 +714,7 @@ export class GameTableMaskComponent {
       inventoryService: this.inventoryService,
       createMenu: this.createMenu,
       onStartScratch: () => {
-        if (mask.owner != '') {
+        if (mask.owner !== '') {
           this.isPreview = false;
           this.settleScratching.cancel();
           this._currentScratchingSet = null;

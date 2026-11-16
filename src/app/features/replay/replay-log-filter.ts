@@ -62,17 +62,6 @@ export function matchesReplayLogFilter(event: ReplayEvent, filter: ReplayLogFilt
 }
 
 /**
- * The events of a replay that belong in the log under the chosen filter, in their original order.
- */
-export function filterReplayEvents(
-  events: readonly ReplayEvent[],
-  filter: ReplayLogFilter,
-  viewer: ReplayViewer
-): ReplayEvent[] {
-  return events.filter((event) => matchesReplayLogFilter(event, filter, viewer));
-}
-
-/**
  * The user ids that performed any of the events, each once, in the order they first appear. The
  * room server is nobody at the table, and is left out.
  */

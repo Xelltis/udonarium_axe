@@ -34,7 +34,7 @@ const BEAT_FLASH = 0.2;
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-dj-deck',
+  selector: 'dj-deck',
   templateUrl: './dj-deck.component.html',
   imports: [FormsModule, TranslocoModule, UiKnobComponent],
 })

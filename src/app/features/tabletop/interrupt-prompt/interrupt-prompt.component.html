@@ -32,19 +32,21 @@
             }
           </button>
         }
-        @if ((choice()?.zones?.length ?? 0) > 1) {
-          <span class="text-ui-muted text-[0.86em]">{{ 'feature.zone.interrupt.pullInto' | transloco }}</span>
-          @for (zone of choice()!.zones; track zone.id) {
-            <button
-              type="button"
-              class="border-ui-border-panel cursor-pointer rounded-full border border-solid px-3 py-1 text-[0.86em]"
-              [class]="choice()!.zone === zone.id ? 'bg-ui-accent-solid text-white' : 'text-ui-muted bg-transparent'"
-              [attr.aria-pressed]="choice()!.zone === zone.id"
-              data-testid="interrupt-zone"
-              (click)="chooseZone(zone.id)"
-            >
-              {{ 'feature.zone.interrupt.zoneOf' | transloco: { name: zone.name } }}
-            </button>
+        @if (choice(); as chosen) {
+          @if (chosen.zones.length > 1) {
+            <span class="text-ui-muted text-[0.86em]">{{ 'feature.zone.interrupt.pullInto' | transloco }}</span>
+            @for (zone of chosen.zones; track zone.id) {
+              <button
+                type="button"
+                class="border-ui-border-panel cursor-pointer rounded-full border border-solid px-3 py-1 text-[0.86em]"
+                [class]="chosen.zone === zone.id ? 'bg-ui-accent-solid text-white' : 'text-ui-muted bg-transparent'"
+                [attr.aria-pressed]="chosen.zone === zone.id"
+                data-testid="interrupt-zone"
+                (click)="chooseZone(zone.id)"
+              >
+                {{ 'feature.zone.interrupt.zoneOf' | transloco: { name: zone.name } }}
+              </button>
+            }
           }
         }
         @if (range(); as range) {

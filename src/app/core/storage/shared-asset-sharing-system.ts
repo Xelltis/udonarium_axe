@@ -1,8 +1,14 @@
 import { fileResourceUpdated$ } from '@axe/core/event/domain-events';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
-import { localDispatch, NetworkMessage, networkMessage$, networkSend } from '@axe/core/network/network-messaging';
-import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import {
+  FIRST_SYNC_SETTLED,
+  localDispatch,
+  NetworkMessage,
+  networkMessage$,
+  networkSend,
+} from '@axe/core/network/network-messaging';
+import { AssetDownloadMiss, AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AssetRetries } from '@axe/core/storage/asset-retries';
 import { BufferSharingTask } from '@axe/core/storage/buffer-sharing-task';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
@@ -11,13 +17,28 @@ import {
   SharedAssetContext,
   SharedAssetFile,
   SharedAssetStorage,
+  WireContext,
 } from '@axe/core/storage/shared-asset-storage';
 
 /**
  * How long a finished transfer waits before telling everyone else what this seat now holds.
  * Transfers finish in runs while a room fills up, and each run needs to be told only once.
  */
-const CATALOG_BROADCAST_DELAY_MS = 1000;
+export const CATALOG_BROADCAST_DELAY_MS = 1000;
+
+/**
+ * The longest a seat puts off asking its peers for files after its first peer connects, should the
+ * objects not have synced by then: files are not to be kept back for good by a sync that fails.
+ */
+export const FIRST_SYNC_HOLD_MAX_MS = 20_000;
+
+/** A transfer under way, as far as the lists of those being sent and received need to know it. */
+export interface SharingTask {
+  readonly identifier: string;
+  /** The peer it goes to, for one being sent. */
+  readonly sendTo: string | undefined;
+  cancel(): void;
+}
 
 /** What tells one kind of shared file from another to what trades them between peers. */
 export interface SharedAssetTrade<F extends SharedAssetFile<C>, C extends SharedAssetContext> {
@@ -42,13 +63,21 @@ export interface SharedAssetTrade<F extends SharedAssetFile<C>, C extends Shared
  * Trades the files of one kind between peers, as the sounds and the 3D models are traded:
  * catalogues, requests, transfers one file at a time from each peer holding one, and the room
  * server's asset store where the room has one.
+ *
+ * Between peers, a seat asks for no file until its objects have first synced after its network
+ * opened, or a while after its first peer connected at the latest. The catalogues are traded and
+ * places made for what they name meanwhile, and what a peer asks for is sent at once.
+ *
+ * A kind traded in another shape, as the pictures are, with their thumbnails ahead of the bytes and
+ * several to a transfer, overrides the protected steps: what is asked for out of a catalogue, how
+ * what is asked for is sent and received, and how what came is taken in.
  */
 export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends SharedAssetContext> {
-  private sendTaskMap: Map<string, BufferSharingTask<C>> = new Map();
-  private receiveTaskMap: Map<string, BufferSharingTask<C>> = new Map();
+  protected readonly sendTaskMap = new Map<string, SharingTask>();
+  protected readonly receiveTaskMap = new Map<string, SharingTask>();
   private maxSendTask: number = 2;
   private maxReceiveTask: number = 4;
-  private cleanups: (() => void)[] = [];
+  protected cleanups: (() => void)[] = [];
   /**
    * Those being fetched from the asset server, so a second catalogue does not fetch one again, each
    * with the first peer whose catalogue named it meanwhile, to ask should the server fail.
@@ -60,6 +89,13 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
   private httpBarred: Set<string> = new Set();
   /** Those the room's list named that the asset server could not send just then. */
   private httpRetries = new AssetRetries();
+  /** The peer each transfer coming in is from. */
+  private readonly incomingFrom = new Map<string, string>();
+  /** The latest catalogue of each peer that is not to be asked just yet, kept to ask it from later. */
+  private readonly heldCatalogs = new Map<string, CatalogItem[]>();
+  /** Whether the objects have yet to sync for the first time since the network opened. */
+  private awaitsFirstSync = false;
+  private firstSyncHoldTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Those to fetch before any other, such as what the room is playing.
@@ -71,8 +107,14 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
 
   protected constructor(private readonly trade: SharedAssetTrade<F, C>) {}
 
-  private get storage(): SharedAssetStorage<F, C> {
+  /** The store this seat keeps the kind in. */
+  protected get storage(): SharedAssetStorage<F, C> {
     return this.trade.storage();
+  }
+
+  /** The names the messages that trade the kind go by. */
+  protected get messages(): SharedAssetTrade<F, C>['messages'] {
+    return this.trade.messages;
   }
 
   /**
@@ -84,14 +126,29 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
   initialize(): void {
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
+    this.cleanups.push(() => this.forgetFirstSync());
     const { messages } = this.trade;
 
     this.cleanups.push(
       networkMessage$.subscribe((msg) => {
         switch (msg.eventName) {
+          case 'OPEN_NETWORK':
+            if (msg.isSendFromSelf) this.awaitFirstSync();
+            break;
+          case 'CLOSE_NETWORK':
+            if (msg.isSendFromSelf) this.forgetFirstSync();
+            break;
+          case FIRST_SYNC_SETTLED:
+            if (msg.isSendFromSelf) this.askAfterFirstSync();
+            break;
           case 'CONNECT_PEER':
-            if ((msg as NetworkMessage<{ peerId: string }>).isSendFromSelf)
+            if ((msg as NetworkMessage<{ peerId: string }>).isSendFromSelf) {
               this.storage.synchronize((msg as NetworkMessage<{ peerId: string }>).data.peerId);
+              this.limitFirstSyncHold();
+            }
+            break;
+          case 'DISCONNECT_PEER':
+            this.heldCatalogs.delete((msg as NetworkMessage<{ peerId: string }>).data.peerId);
             break;
           case this.storage.catalogMessage:
             if (!msg.isSendFromSelf) this.answerCatalog(msg.data as CatalogItem[], msg.sendFrom);
@@ -105,10 +162,10 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
             }
             break;
           case messages.update:
-            this.takeIn(msg.data as C[]);
+            this.takeIn(msg.data);
             break;
           case messages.start:
-            this.answerStart((msg.data as { fileIdentifier: string }).fileIdentifier, msg.sendFrom);
+            this.answerStart(this.transferIn(msg.data), msg.sendFrom);
             break;
         }
       })
@@ -116,36 +173,147 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
   }
 
   /**
-   * Asks for one a peer's catalogue names that this seat lacks: from the asset server where it is
-   * there, or else of that peer, a preferred one first. A peer naming fewer than this seat holds is
-   * sent this seat's catalogue, while nothing is being traded.
+   * Asks for what a peer's catalogue names that this seat lacks: from the asset server where it is
+   * there, or else of that peer. A peer naming fewer than this seat holds is sent this seat's
+   * catalogue, while nothing is being traded.
    */
   private answerCatalog(otherCatalog: CatalogItem[], sendFrom: string): void {
-    const request: CatalogItem[] = [];
-    for (const item of this.preferredFirst(otherCatalog)) {
-      if (this.storage.isRemoved(item.identifier) || this.httpBarred.has(item.identifier)) continue;
-      let file = this.storage.get(item.identifier);
-      if (file === null) {
-        file = this.trade.createEmpty(item.identifier, item.name);
-        this.storage.add(file);
-      }
-      if (file.state < this.storage.complete && !this.receiveTaskMap.has(item.identifier)) {
-        if (this.fetchOverHttp(item.identifier, sendFrom)) continue;
-        request.push({ identifier: item.identifier, state: file.state });
-      }
-    }
-    if (request.length < 1 && !this.hasActiveTask() && otherCatalog.length < this.storage.getCatalog().length) {
+    const wanted = this.wantedOf(otherCatalog, sendFrom);
+    if (wanted.length < 1 && !this.hasActiveTask() && otherCatalog.length < this.storage.getCatalog().length) {
       this.storage.synchronize(sendFrom);
     }
-    if (request.length < 1 || this.isLimitReceiveTask()) return;
-    this.request([this.pickRequest(request)], sendFrom);
+    this.ask(wanted, otherCatalog, sendFrom);
   }
 
   /**
-   * Sends one asked for that this seat holds more of, picked at random, or passes the request on to
-   * another candidate where this seat is sending enough already. What this seat holds back for the
-   * room server's operator is not sent when asked for either, nor one it is sending to another peer
-   * just then, as a transfer is known by the file alone.
+   * What a peer is to be asked for out of its catalogue: what this seat lacks, is not receiving and
+   * is not taking from the asset server, those preferred first. A place is made for each one named.
+   */
+  private wantedOf(catalog: readonly CatalogItem[], peerId: string): CatalogItem[] {
+    const wanted: CatalogItem[] = [];
+    for (const item of this.preferredFirst(catalog)) {
+      if (this.storage.isRemoved(item.identifier) || this.httpBarred.has(item.identifier)) continue;
+      const file = this.placeFor(item.identifier, item.name);
+      if (file.state < this.storage.complete && !this.receiveTaskMap.has(item.identifier)) {
+        if (this.fetchOverHttp(item.identifier, peerId)) continue;
+        wanted.push({ identifier: item.identifier, state: file.state });
+      }
+    }
+    return wanted;
+  }
+
+  /**
+   * Asks a peer for what is wanted out of its catalogue, or keeps the catalogue to ask from later
+   * while the peer is not to be asked: until the objects have first synced, and where a transfer
+   * from it does not say what it carries, until that has come. Nothing is asked for while this
+   * seat is receiving enough.
+   */
+  private ask(wanted: CatalogItem[], catalog: readonly CatalogItem[], peerId: string): void {
+    this.heldCatalogs.delete(peerId);
+    if (wanted.length < 1) return;
+    if (this.holdsRequestsTo(peerId)) {
+      this.heldCatalogs.set(peerId, [...catalog]);
+      if (this.holdsForFirstSync) this.limitFirstSyncHold();
+      return;
+    }
+    if (this.isLimitReceiveTask()) return;
+    this.request(this.toRequest(wanted), peerId);
+  }
+
+  /** Asks a peer for what the catalogue kept for it names that this seat still lacks. */
+  private askHeld(peerId: string): void {
+    const catalog = this.heldCatalogs.get(peerId);
+    if (catalog) this.ask(this.wantedOf(catalog, peerId), catalog, peerId);
+  }
+
+  private holdsRequestsTo(peerId: string): boolean {
+    if (this.holdsForFirstSync) return true;
+    return !this.asksDuringTransfer() && this.isReceivingFrom(peerId);
+  }
+
+  /**
+   * Whether peers are not asked for files yet because the objects have not first synced: a seat new
+   * to a room gets its table and chat before the files, which would crowd them on a slow line.
+   * A room server keeps the objects itself and hands the files out apart, so nothing waits there.
+   */
+  private get holdsForFirstSync(): boolean {
+    return this.awaitsFirstSync && Network.authorityPeerId == null;
+  }
+
+  /** Starts over for a network that has opened: peers are asked for nothing until its objects sync. */
+  private awaitFirstSync(): void {
+    this.forgetFirstSync();
+    this.awaitsFirstSync = true;
+  }
+
+  /** Drops what was kept to ask the peers of a network that is no more. */
+  private forgetFirstSync(): void {
+    if (this.firstSyncHoldTimer !== null) clearTimeout(this.firstSyncHoldTimer);
+    this.firstSyncHoldTimer = null;
+    this.awaitsFirstSync = false;
+    this.heldCatalogs.clear();
+  }
+
+  /** Sees that peers are asked a while from now at the latest, whether the objects have synced or not. */
+  private limitFirstSyncHold(): void {
+    if (!this.awaitsFirstSync || this.firstSyncHoldTimer !== null) return;
+    this.firstSyncHoldTimer = setTimeout(() => {
+      this.firstSyncHoldTimer = null;
+      this.askAfterFirstSync();
+    }, FIRST_SYNC_HOLD_MAX_MS);
+  }
+
+  /** Asks every peer for what its catalogue named while the objects were yet to sync. */
+  private askAfterFirstSync(): void {
+    if (!this.awaitsFirstSync) return;
+    if (this.firstSyncHoldTimer !== null) clearTimeout(this.firstSyncHoldTimer);
+    this.firstSyncHoldTimer = null;
+    this.awaitsFirstSync = false;
+    for (const peerId of [...this.heldCatalogs.keys()]) {
+      if (!this.holdsRequestsTo(peerId)) this.askHeld(peerId);
+    }
+  }
+
+  private isReceivingFrom(peerId: string): boolean {
+    for (const [identifier, from] of this.incomingFrom) {
+      if (from === peerId && this.receiveTaskMap.has(identifier)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Whether a peer is asked for more while a transfer from it is still coming in. It is where a
+   * transfer is known by the one file it carries, as that file is then left out of what is asked
+   * for. Where it is not, the peer's catalogue is kept and asked from once the transfer has been
+   * taken in, as the catalogue may reach this seat ahead of the last pieces of the transfer.
+   */
+  protected asksDuringTransfer(): boolean {
+    return true;
+  }
+
+  /**
+   * To be called once a transfer has ended and what it brought has been taken in: asks the peer it
+   * came from for what its catalogue named meanwhile.
+   */
+  protected transferTakenIn(identifier: string): void {
+    const from = this.incomingFrom.get(identifier);
+    this.incomingFrom.delete(identifier);
+    if (from !== undefined && !this.holdsRequestsTo(from)) this.askHeld(from);
+  }
+
+  /**
+   * What to ask a peer for, out of all its catalogue names that this seat lacks: one of them, a
+   * preferred one first, as one comes at a time.
+   */
+  protected toRequest(wanted: readonly CatalogItem[]): CatalogItem[] {
+    return [this.pickRequest(wanted)];
+  }
+
+  /**
+   * Sends what is asked for that this seat holds more of, or passes the request on to another
+   * candidate where this seat is sending enough already. What this seat holds back for the room
+   * server's operator is not sent when asked for either, nor one it is sending to another peer just
+   * then, as a transfer is known by the file alone.
    */
   private answerRequest(
     data: { identifiers: CatalogItem[]; receiver: string; candidatePeers: string[] },
@@ -161,9 +329,7 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
       );
     });
     if (!this.isLimitSendTask() && 0 < randomRequest.length && !this.existsSendTask(data.receiver)) {
-      const item = randomRequest[Math.floor(Math.random() * randomRequest.length)];
-      const file = this.storage.get(item.identifier);
-      if (file) this.startSendTask(file, data.receiver);
+      this.sendRequested(randomRequest, data.receiver);
       return;
     }
     const candidatePeers: string[] = data.candidatePeers;
@@ -172,14 +338,33 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
     if (candidatePeers.length > 0) networkSend(eventName, data, candidatePeers[0]);
   }
 
-  /** Takes in entries that came, but none the room removed; one the store lacked goes up from here. */
-  private takeIn(contexts: C[]): void {
-    for (const context of contexts) {
-      if (this.storage.isRemoved(context.identifier)) continue;
-      if (context.blob) context.blob = new Blob([context.blob], { type: context.type });
-      this.storage.add(context);
-      if (this.httpMissed.has(context.identifier)) this.storage.uploadReceived(context.identifier);
-    }
+  /** Sends one of those asked for that this seat can send, picked at random. */
+  protected sendRequested(requested: CatalogItem[], sendTo: string): void {
+    const item = requested[Math.floor(Math.random() * requested.length)];
+    const file = this.storage.get(item.identifier);
+    if (file) void this.startSendTask(file, sendTo);
+  }
+
+  /** Takes in the entries that came, from a peer or the room's asset store, as the update message carries them. */
+  protected takeIn(data: unknown): void {
+    for (const context of data as WireContext<C>[]) this.keep(context);
+  }
+
+  /**
+   * Keeps one that came, with its bytes wrapped up again, but none the room removed; one the store
+   * lacked goes up from here.
+   */
+  protected keep(context: WireContext<C>): void {
+    if (this.storage.isRemoved(context.identifier)) return;
+    if (context.blob) context.blob = new Blob([context.blob], { type: context.type });
+    const wrapped = context as C;
+    this.storage.add(wrapped);
+    if (this.httpMissed.has(wrapped.identifier)) this.storage.uploadReceived(wrapped.identifier);
+  }
+
+  /** The identifier of the transfer a peer begins, as the start message carries it. */
+  protected transferIn(data: unknown): string {
+    return (data as { fileIdentifier: string }).fileIdentifier;
   }
 
   /** Takes a transfer a peer begins, or cancels it for one already coming, already held, or removed. */
@@ -189,6 +374,7 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
       Logger.warn(`[${this.trade.logName}] タスクキャンセル`, identifier);
       networkSend(`CANCEL_TASK_${identifier}`, null, sendFrom);
     } else {
+      this.incomingFrom.set(identifier, sendFrom);
       this.startReceiveTask(identifier);
     }
   }
@@ -217,13 +403,22 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
     ];
     for (const { id, name } of ordered) {
       if (this.storage.isRemoved(id) || this.httpBarred.has(id)) continue;
-      let file = this.storage.get(id);
-      if (file === null) {
-        file = this.trade.createEmpty(id, name);
-        this.storage.add(file);
-      }
+      const file = this.placeFor(id, name);
       if (file.state < this.storage.complete && !this.receiveTaskMap.has(id)) this.fetchOverHttp(id, null);
     }
+  }
+
+  /**
+   * The entry held for one a catalogue or the room's list names: the one held already, or else a
+   * placeholder made for it, under the name given where one is.
+   */
+  protected placeFor(identifier: string, name?: string): F {
+    let file = this.storage.get(identifier);
+    if (file === null) {
+      file = this.trade.createEmpty(identifier, name);
+      this.storage.add(file);
+    }
+    return file;
   }
 
   /**
@@ -262,8 +457,7 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
    * have been without the server. With no such peer, one the server lacks, or sends bytes for that do
    * not match, is left, and one it could not send just then is tried again later. Only the server's
    * lacking it keeps it from being fetched from there again. One the operator took down is asked of
-   * nobody. The name stays the one the catalogue or the room's list gave, or else the one it was put
-   * up under.
+   * nobody.
    *
    * A preferred one goes ahead of the others waiting their turn, and moves to the front should it be
    * waiting already.
@@ -279,33 +473,43 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
       return true;
     }
     this.httpFetching.set(identifier, catalogPeer);
-    void store
-      .download(identifier, { first })
-      .then((fetched) => {
-        if (typeof fetched !== 'string') {
+    void this.receiveOverHttp(identifier, first)
+      .then((received) => {
+        if (received === true) {
           this.httpRetries.forget(identifier);
-          const name = this.storage.get(identifier)?.name || fetched.name;
-          const { blob } = fetched;
-          localDispatch(this.trade.messages.update, [{ identifier, name, type: blob.type, blob, url: '' }]);
-          this.storage.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
           return;
         }
-        if (fetched === 'blocked') {
+        if (received === 'blocked') {
           this.letGoOfBarred(identifier);
           return;
         }
-        if (fetched === 'missing') this.httpMissed.add(identifier);
+        if (received === 'missing') this.httpMissed.add(identifier);
         const file = this.storage.get(identifier);
         if (!file || this.storage.complete <= file.state) return;
         const namedBy = this.httpFetching.get(identifier) ?? null;
         if (namedBy === null) {
-          if (fetched === 'failed') this.httpRetries.schedule(identifier, () => this.fetchListedAgain(identifier));
+          if (received === 'failed') this.httpRetries.schedule(identifier, () => this.fetchListedAgain(identifier));
           return;
         }
         if (this.receiveTaskMap.has(identifier) || this.isLimitReceiveTask()) return;
         this.request([{ identifier, state: file.state }], namedBy);
       })
       .finally(() => this.httpFetching.delete(identifier));
+    return true;
+  }
+
+  /**
+   * Takes one from the room's asset store, ahead of the others waiting where asked, and says whether
+   * it is in, or else why it is not. The name stays the one the catalogue or the room's list gave, or
+   * else the one it was put up under.
+   */
+  protected async receiveOverHttp(identifier: string, first: boolean): Promise<true | AssetDownloadMiss> {
+    const fetched = await AssetHttpStore.instance.download(identifier, { first });
+    if (typeof fetched === 'string') return fetched;
+    const name = this.storage.get(identifier)?.name || fetched.name;
+    const { blob } = fetched;
+    localDispatch(this.trade.messages.update, [{ identifier, name, type: blob.type, blob, url: '' }]);
+    this.storage.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
     return true;
   }
 
@@ -328,19 +532,19 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
    * the bytes cannot be read, the transfer is called off, and the peer told so.
    */
   private async startSendTask(file: F, sendTo: string): Promise<void> {
-    const task = BufferSharingTask.createSendTask<C>(file.identifier, sendTo);
+    const task = BufferSharingTask.createSendTask<WireContext<C>>(file.identifier, sendTo);
     this.sendTaskMap.set(file.identifier, task);
 
     networkSend(this.trade.messages.start, { fileIdentifier: file.identifier }, sendTo);
 
-    const context = { identifier: file.identifier, name: file.name, blob: null, type: '', url: '' } as C;
+    const context = { identifier: file.identifier, name: file.name, blob: null, type: '', url: '' } as WireContext<C>;
     if (file.blob) {
       const buf = await FileReaderUtil.readAsArrayBufferAsync(file.blob).catch(() => null);
       if (!buf) {
         this.stopSendTask(file.identifier);
         return;
       }
-      context.blob = new Uint8Array(buf) as unknown as Blob;
+      context.blob = new Uint8Array(buf);
       context.type = file.blob.type;
     } else {
       context.url = file.url;
@@ -359,43 +563,40 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
    * Takes in one a peer sends. Its name is left as the catalogue gave it while it comes, as progress
    * written into the name would show in every place it is shown.
    */
-  private startReceiveTask(identifier: string): void {
-    let file = this.storage.get(identifier);
-    if (!file) {
-      file = this.trade.createEmpty(identifier);
-      this.storage.add(file);
-    }
-    const task = BufferSharingTask.createReceiveTask<C>(identifier);
+  protected startReceiveTask(identifier: string): void {
+    const file = this.placeFor(identifier);
+    const task = BufferSharingTask.createReceiveTask<WireContext<C>>(identifier);
     this.receiveTaskMap.set(identifier, task);
 
-    const coming = file;
     task.onprogress = () => {
-      coming.apply(coming.toContext());
+      file.apply(file.toContext());
     };
     task.onfinish = (task, data) => {
       this.stopReceiveTask(task.identifier);
       if (data && !this.storage.isRemoved(data.identifier)) {
         if (data.blob) data.blob = new Blob([data.blob], { type: data.type });
-        this.storage.add(data);
-        localDispatch(this.trade.messages.update, [data]);
+        const wrapped = data as C;
+        this.storage.add(wrapped);
+        localDispatch(this.trade.messages.update, [wrapped]);
       }
       this.storage.lazySynchronize(CATALOG_BROADCAST_DELAY_MS);
+      this.transferTakenIn(task.identifier);
     };
 
     task.start();
   }
 
-  private stopSendTask(identifier: string): void {
+  protected stopSendTask(identifier: string): void {
     this.sendTaskMap.get(identifier)?.cancel();
     this.sendTaskMap.delete(identifier);
   }
 
-  private stopReceiveTask(identifier: string): void {
+  protected stopReceiveTask(identifier: string): void {
     this.receiveTaskMap.get(identifier)?.cancel();
     this.receiveTaskMap.delete(identifier);
   }
 
-  /** Asks a peer for one, naming every other peer as one to pass the request on to. */
+  /** Asks a peer for what is listed, naming every other peer as one to pass the request on to. */
   private request(request: CatalogItem[], peerId: string): void {
     const peerIds = Network.peerIds.filter((id) => id !== Network.peerId);
     networkSend(

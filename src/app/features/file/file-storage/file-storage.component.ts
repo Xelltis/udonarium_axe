@@ -113,7 +113,7 @@ export class FileStorageComponent {
     this.objectChange.collectionOf('image-tag')();
     this.tagLock.track();
     const imageFileList: ImageFile[] = [];
-    if (this.selectTag() == ALL_TAG) return this.getAllImage();
+    if (this.selectTag() === ALL_TAG) return this.getAllImage();
     for (const imageFile of this.fileStorageService.images) {
       const identifier = imageFile.context.identifier;
       const imageTag = ImageTag.get(identifier);
@@ -121,10 +121,10 @@ export class FileStorageComponent {
       if (imageTag) {
         this.objectChange.versionOf(imageTag.identifier)();
         const tag: string = imageTag.tag;
-        if (tag == this.selectTag() && this.mayShow(imageFile)) {
+        if (tag === this.selectTag() && this.mayShow(imageFile)) {
           imageFileList.push(imageFile);
         }
-      } else if (this.selectTag() == '' && this.mayShow(imageFile)) {
+      } else if (this.selectTag() === '' && this.mayShow(imageFile)) {
         imageFileList.push(imageFile);
       }
     }
@@ -163,7 +163,7 @@ export class FileStorageComponent {
       if (imageTag) {
         this.objectChange.versionOf(imageTag.identifier)();
         const tag = imageTag.tag;
-        if (tag && tag != SYSTEM_RESERVED_TAG && !this.tagLock.hides(tag)) tags.push(tag);
+        if (tag && tag !== SYSTEM_RESERVED_TAG && !this.tagLock.hides(tag)) tags.push(tag);
       }
     }
 

@@ -18,31 +18,17 @@ import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { forgetWithheldTable } from '@axe/domain/peer/withheld-table';
 import { resetChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
-import { readdirSync, readFileSync, statSync } from 'fs';
-import { basename, join, resolve } from 'path';
+import { ComponentResources } from '@axe/testing/component-resources';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 Logger.setLevel(LogLevel.NONE);
 
-const srcAppDir = resolve(process.cwd(), 'src/app');
-const fileMap = new Map<string, string>();
+const componentResources = new ComponentResources(resolve(process.cwd(), 'src/app'));
 
-function buildFileMap(dir: string): void {
-  for (const name of readdirSync(dir)) {
-    const fullPath = join(dir, name);
-    if (statSync(fullPath).isDirectory()) {
-      buildFileMap(fullPath);
-    } else if (name.endsWith('.html') || name.endsWith('.css')) {
-      fileMap.set(name, fullPath);
-    }
-  }
-}
-buildFileMap(srcAppDir);
-
-const resourceResolver = (url: string): Promise<{ text(): Promise<string> }> => {
-  const name = basename(url);
-  const absPath = fileMap.get(name);
-  const content = absPath ? readFileSync(absPath, 'utf-8') : '';
-  return Promise.resolve({ text: () => Promise.resolve(content) });
+const resourceResolver = async (url: string): Promise<{ text(): Promise<string> }> => {
+  const content = componentResources.read(url);
+  return { text: () => Promise.resolve(content) };
 };
 
 // happy-dom has no WebRTC API; @skyway-sdk/core touches RTC* at import time.

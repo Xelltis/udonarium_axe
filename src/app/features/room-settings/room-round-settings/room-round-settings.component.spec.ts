@@ -27,7 +27,7 @@ describe('RoomRoundSettingsComponent', () => {
 
   afterEach(() => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
   });
 
   it('lets only the master turn the sounds of a turn beginning on or off', async () => {
@@ -86,7 +86,7 @@ describe('RoomRoundSettingsComponent', () => {
     it('puts the parties in the order the round would take them', () => {
       component.turnOrderMode.value = 'faction';
 
-      expect(component.factionOrder.map((entry) => entry.name)).toEqual(['味方', '敵', '無所属']);
+      expect(component.factionOrder().map((entry) => entry.name)).toEqual(['味方', '敵', '無所属']);
     });
 
     it('moves a side up the order and writes it down', () => {
@@ -94,7 +94,7 @@ describe('RoomRoundSettingsComponent', () => {
 
       component.moveSide(monsters.identifier, -1);
 
-      expect(component.factionOrder.map((entry) => entry.side)).toEqual([
+      expect(component.factionOrder().map((entry) => entry.side)).toEqual([
         monsters.identifier,
         heroes.identifier,
         '@none',
@@ -104,11 +104,11 @@ describe('RoomRoundSettingsComponent', () => {
 
     it('will not move the first side any higher', () => {
       component.turnOrderMode.value = 'faction';
-      const before = component.factionOrder.map((entry) => entry.side);
+      const before = component.factionOrder().map((entry) => entry.side);
 
       component.moveSide(heroes.identifier, -1);
 
-      expect(component.factionOrder.map((entry) => entry.side)).toEqual(before);
+      expect(component.factionOrder().map((entry) => entry.side)).toEqual(before);
     });
 
     it('leaves the pieces on no party out of the order when asked to', () => {
@@ -116,7 +116,30 @@ describe('RoomRoundSettingsComponent', () => {
 
       component.factionSkipUnassigned.value = true;
 
-      expect(component.factionOrder.map((entry) => entry.side)).toEqual([heroes.identifier, monsters.identifier]);
+      expect(component.factionOrder().map((entry) => entry.side)).toEqual([heroes.identifier, monsters.identifier]);
+    });
+
+    it('draws the order again as a side is moved or a party renamed, without being told to', async () => {
+      const names = (): string[] =>
+        Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="faction-order"] li')).map(
+          (row) => row.querySelector('span.grow')?.textContent?.trim() ?? ''
+        );
+      const shows = (expected: string[]): Promise<void> =>
+        vi.waitFor(async () => {
+          await fixture.whenStable();
+          expect(names()).toEqual(expected);
+        });
+      component.turnOrderMode.value = 'faction';
+      await shows(['味方', '敵', '無所属']);
+
+      component.moveSide(monsters.identifier, -1);
+      await shows(['敵', '味方', '無所属']);
+
+      heroes.name = '勇者';
+      await shows(['敵', '勇者', '無所属']);
+
+      component.factionSkipUnassigned.value = true;
+      await shows(['敵', '勇者']);
     });
 
     it('writes nothing for a reader who may not edit the table', () => {
@@ -129,7 +152,7 @@ describe('RoomRoundSettingsComponent', () => {
       component.factionSkipUnassigned.value = true;
 
       expect(Config.instance.factionSkipUnassigned).toBe(false);
-      expect(component.factionOrder.map((entry) => entry.side)[0]).toBe(heroes.identifier);
+      expect(component.factionOrder().map((entry) => entry.side)[0]).toBe(heroes.identifier);
     });
   });
 });

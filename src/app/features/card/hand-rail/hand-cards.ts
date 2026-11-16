@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { Card } from '@axe/domain/card/card';
 import { isHandCardOf, selectHandCardsOf } from '@axe/domain/card/hand-cards';
 
@@ -21,7 +22,7 @@ export function reorderHandCards(cards: readonly Card[], from: number, insertAt:
   const next = [...cards];
   const [moved] = next.splice(from, 1);
   const target = insertAt > from ? insertAt - 1 : insertAt;
-  next.splice(Math.max(0, Math.min(next.length, target)), 0, moved);
+  next.splice(clamp(target, 0, next.length), 0, moved);
 
   return next;
 }

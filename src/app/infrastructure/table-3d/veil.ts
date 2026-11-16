@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
 import { litByLamps } from '@axe/infrastructure/table-3d/lamp-lighting';
 import type {
@@ -6,6 +7,7 @@ import type {
   Table3dShadowLight,
   Table3dVeil,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { colourNode } from '@axe/infrastructure/three-kit/colour-node';
 import {
   diffuseColor,
   float,
@@ -26,6 +28,8 @@ import {
   CanvasTexture,
   LinearFilter,
   type Material,
+  MeshLambertNodeMaterial,
+  MeshStandardNodeMaterial,
   NoColorSpace,
   type NodeMaterial,
   Vector3,
@@ -80,12 +84,7 @@ export class SceneVeil {
    * pixels, x to the east, y to the south and z up.
    */
   setLamps(lights: readonly Table3dShadowLight[], strengths: readonly ReturnType<typeof lampColour>[]): void {
-    this.lamps.slice(0, this.shadowSlots).forEach((lamp, index) => {
-      const light = lights[index];
-      lamp.at.value.set(light?.x ?? 0, light?.z ?? 0, light?.y ?? 0);
-      lamp.reach.value = Math.max(1, light?.dimPx ?? 1);
-      lamp.colour.value.copy(strengths[index] ?? new Vector3());
-    });
+    this.stand(this.lamps.slice(0, this.shadowSlots), lights, (light) => light.dimPx, strengths);
   }
 
   /**
@@ -94,11 +93,21 @@ export class SceneVeil {
    * the east, y to the south and z up.
    */
   setEffectLamps(lights: readonly Table3dEffectLight[], strengths: readonly ReturnType<typeof lampColour>[]): void {
-    this.lamps.slice(this.shadowSlots).forEach((lamp, index) => {
+    this.stand(this.lamps.slice(this.shadowSlots), lights, (light) => light.reachPx, strengths);
+  }
+
+  /** Stands each of these lamps where its light is, reaching as far as the light does, in its strength; a lamp with no light goes dark. */
+  private stand<L extends { x: number; y: number; z: number }>(
+    lamps: readonly ShadowLamp[],
+    lights: readonly L[],
+    reachOf: (light: L) => number,
+    strengths: readonly ReturnType<typeof lampColour>[]
+  ): void {
+    lamps.forEach((lamp, index) => {
       const light = lights[index];
       lamp.at.value.set(light?.x ?? 0, light?.z ?? 0, light?.y ?? 0);
-      lamp.reach.value = Math.max(1, light?.reachPx ?? 1);
-      lamp.colour.value.copy(strengths[index] ?? new Vector3());
+      lamp.reach.value = Math.max(1, light ? reachOf(light) : 1);
+      lamp.colour.value.copy(strengths[index] ?? NO_LIGHT);
     });
   }
 
@@ -135,9 +144,8 @@ export class SceneVeil {
     const node = material as NodeMaterial;
     if (taking === 'lit') {
       litByLamps(material);
-      (material as unknown as { emissiveNode: unknown }).emissiveNode = diffuseColor.rgb.mul(
-        this.lifted.sub(this.ambientNode())
-      );
+      if (material instanceof MeshLambertNodeMaterial || material instanceof MeshStandardNodeMaterial)
+        material.emissiveNode = diffuseColor.rgb.mul(this.lifted.sub(this.ambientNode()));
       node.outputNode = this.fogged(vec4(output.rgb.add(this.glowing), output.a));
     } else {
       node.outputNode = this.fogged(
@@ -158,12 +166,13 @@ export class SceneVeil {
 
   /** Lays the darkness as the page has drawn it now, or lights the scene whole; answers whether anything changed. */
   setLightMap(map: Table3dLightMap | null): boolean {
-    const darkness = map ? Math.min(1, Math.max(0, map.darkness)) : 0;
+    const darkness = map ? clamp(map.darkness, 0, 1) : 0;
     const changed = this.light.set(map) || darkness !== this.darkness.value;
     this.darkness.value = darkness;
     return changed;
   }
 
+  /** Lets go of the pictures the veil, the darkness and the glow are read from. */
   dispose(): void {
     this.fog.dispose();
     this.light.dispose();
@@ -247,6 +256,7 @@ class BoardPicture {
     return true;
   }
 
+  /** Lets go of the picture and forgets the canvas it was taken from. */
   dispose(): void {
     this.picture.dispose();
     this.laidCanvas = null;
@@ -287,11 +297,6 @@ function clearCanvas(): HTMLCanvasElement {
   return canvas;
 }
 
-/** A colour the library's colour-space functions answer, which they do not say is a colour. */
-function colourNode(node: unknown): ReturnType<typeof vec3> {
-  return node as ReturnType<typeof vec3>;
-}
-
 /** A lamp lighting what the scene draws unlit: where it stands in the scene, how far it reaches and its strength in colour. */
 interface ShadowLamp {
   readonly at: ReturnType<typeof vectorUniform>;
@@ -307,7 +312,17 @@ function numberUniform() {
   return uniform(1);
 }
 
-/** A light's colour as strong as a lamp lights with it, in the light the scene is worked out in. */
-export function lampColour(colour: { r: number; g: number; b: number }, strength: number): Vector3 {
-  return new Vector3(colour.r * strength, colour.g * strength, colour.b * strength);
+/** The strength of a slot with no lamp in it: no light of any colour. Read, never written to. */
+export const NO_LIGHT = new Vector3();
+
+/**
+ * A light's colour as strong as a lamp lights with it, in the light the scene is worked out in,
+ * written into the vector given or into a new one.
+ */
+export function lampColour(
+  colour: { r: number; g: number; b: number },
+  strength: number,
+  into: Vector3 = new Vector3()
+): Vector3 {
+  return into.set(colour.r * strength, colour.g * strength, colour.b * strength);
 }

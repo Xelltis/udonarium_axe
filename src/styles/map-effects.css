@@ -63,8 +63,8 @@
  * Shakes the screen on impact. Without damping, nobody can tell whether the shaking has stopped.
  *
  * The amplitude is not a variable but kept as separate keyframes for each strength.
- * Custom properties are inherited, so setting one on the board invalidates the style of everything
- * under it, and the 6000px-square layer is rebuilt and shows dark and undrawn for a few frames.
+ * Custom properties are inherited, so setting one on the shaken root would invalidate the style of
+ * everything under it, the table's canvas included, for a few frames.
  */
 @keyframes effectShakeSoft {
   0% {

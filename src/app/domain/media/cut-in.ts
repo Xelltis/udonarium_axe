@@ -138,7 +138,7 @@ export class CutIn extends GameObject implements InnerXml {
     if (this.validUrl(this.videoUrl)) {
       const url = new URL(this.videoUrl);
       const hostname = url.hostname;
-      if (hostname == 'youtube.com' || hostname == 'www.youtube.com') {
+      if (hostname === 'youtube.com' || hostname === 'www.youtube.com') {
         const shortsMatch = url.pathname.match(/^\/shorts\/([^/?&#]+)/);
         if (shortsMatch) {
           ret = encodeURI(shortsMatch[1]);
@@ -146,7 +146,7 @@ export class CutIn extends GameObject implements InnerXml {
           const tmp = this.videoUrl.split('v=');
           if (tmp[1]) ret = encodeURI(tmp[1].split(/[?&#/]/)[0]);
         }
-      } else if (hostname == 'youtu.be') {
+      } else if (hostname === 'youtu.be') {
         const tmp = this.videoUrl.split('youtu.be/');
         if (tmp[1]) ret = encodeURI(tmp[1].split(/[?&#/]/)[0]);
       } else {
@@ -205,8 +205,8 @@ export class CutIn extends GameObject implements InnerXml {
   /** False only when a sound is named but its file is missing from this peer's storage. */
   get isValidAudio(): boolean {
     return (
-      this.audioName.length == 0 ||
-      this.audioIdentifier.length == 0 ||
+      this.audioName.length === 0 ||
+      this.audioIdentifier.length === 0 ||
       !!AudioStorage.instance.get(this.audioIdentifier)
     );
   }
@@ -274,4 +274,24 @@ export const CUT_IN_TITLE_BAR_HEIGHT = 25;
 /** How much taller the panel stands than the cut-in itself. A frameless one wears no title bar. */
 export function cutInPanelChrome(cutIn: CutIn): number {
   return cutIn.frameless ? 0 : CUT_IN_TITLE_BAR_HEIGHT;
+}
+
+/**
+ * Where a cut-in's panel stands in a viewport and how large it is: the cut-in's own size with the
+ * room its title bar takes, placed by its position as a share of the room left over across and down.
+ * A cut-in larger than the viewport starts from the left or the top edge.
+ */
+export function cutInPanelBox(
+  cutIn: CutIn,
+  viewport: { readonly width: number; readonly height: number }
+): { left: number; top: number; width: number; height: number } {
+  const chrome = cutInPanelChrome(cutIn);
+  const marginWidth = Math.max(0, viewport.width - cutIn.width);
+  const marginHeight = Math.max(0, viewport.height - cutIn.height - chrome);
+  return {
+    left: (marginWidth * cutIn.x_pos) / 100,
+    top: (marginHeight * cutIn.y_pos) / 100,
+    width: cutIn.width,
+    height: cutIn.height + chrome,
+  };
 }

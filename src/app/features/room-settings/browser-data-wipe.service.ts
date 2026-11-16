@@ -1,5 +1,6 @@
 import { DOCUMENT, inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { dropInvitationFromAddress } from '@axe/application/lobby/invitation-address';
 import { leavingLoss, leavingLossText } from '@axe/application/lobby/leaving-loss';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
@@ -28,6 +29,10 @@ export class BrowserDataWipeService {
    * The wipe is left to the next load, before the app starts, so nothing this page still holds is
    * written back. Where that cannot be asked for, it is wiped here instead, as far as it goes. The
    * browser is not let ask again whether to leave the page, which would keep a page wiped under it.
+   *
+   * An invitation is taken off the page's address while playing offline, where the wipe forgets
+   * that, and the page, starting afresh online, would go into a room the reader had not gone into.
+   * Online it is left, to take the reader back into the room it was in.
    */
   async wipe(): Promise<boolean> {
     const lost = leavingLossText(leavingLoss(), this.t);
@@ -42,19 +47,10 @@ export class BrowserDataWipeService {
     if (!sure) return false;
     if (!requestBrowserDataWipe()) await wipeBrowserData();
     Network.letPageGo();
-    if (this.localModePreference.enabled()) this.dropInvitation();
+    const win = this.document.defaultView;
+    if (win && this.localModePreference.enabled()) dropInvitationFromAddress(win);
     this.reload();
     return true;
-  }
-
-  /**
-   * Takes an invitation off the page's address while playing offline, where the wipe forgets that,
-   * and the page, starting afresh online, would go into a room the reader had not gone into. Online
-   * it is left, to take the reader back into the room it was in.
-   */
-  private dropInvitation(): void {
-    const win = this.document.defaultView;
-    if (win) win.history.replaceState(null, '', win.location.pathname + win.location.search);
   }
 
   /** Loads the page again, which is where a wipe asked for happens. */

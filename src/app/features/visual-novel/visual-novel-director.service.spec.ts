@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -21,7 +21,7 @@ describe('VisualNovelDirectorService', () => {
   let nextTimestamp = 1000;
 
   function addMessage(text: string): void {
-    tab.addMessage({ from: Network.peerContext.userId, name: 'アリス', text, timestamp: nextTimestamp++ });
+    tab.addMessage({ from: Network.instance.peerContext.userId, name: 'アリス', text, timestamp: nextTimestamp++ });
   }
 
   function notifyStage(): void {

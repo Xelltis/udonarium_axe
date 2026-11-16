@@ -3,6 +3,7 @@ import { BattleLaunchLoaderService } from '@axe/application/battle/battle-launch
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { NamedCueService } from '@axe/application/media/named-cue.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { BoardSceneLoader } from '@axe/application/tabletop/board-scene-loader';
@@ -48,6 +49,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
+import { SwitchNoticeService } from '@axe/features/tabletop/board-switch/switch-notice.service';
 
 /** How long a switch stays down after a press, so a double click or an eager finger presses once. */
 export const SWITCH_COOLDOWN_MS = 1500;
@@ -101,7 +103,9 @@ export class SwitchPressService {
   private readonly speaker = inject(ChatSpeakerService);
   private readonly cues = inject(NamedCueService);
   private readonly vision = inject(VisionService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectStore = inject(ObjectStore);
   private readonly triggers = inject(TableTriggerService);
   private readonly concealment = inject(ConcealmentService);
@@ -111,6 +115,8 @@ export class SwitchPressService {
   private readonly tableBgm = inject(TableBgmService);
   private readonly boardScenes = inject(BoardSceneLoader);
   private readonly battle = inject(BattleLaunchLoaderService);
+  private readonly notices = inject(SwitchNoticeService);
+  private readonly t = inject(TRANSLATE_FN);
 
   private readonly running = new Set<string>();
   private readonly pressedAt = new Map<string, number>();
@@ -199,6 +205,9 @@ export class SwitchPressService {
           await this.run(action, context);
         } catch {
           // One thing going wrong is no reason to leave the rest of the switch undone.
+          this.notices.showAtPointer(
+            this.t('feature.boardSwitch.actionFailed', { kind: this.t(`feature.boardSwitch.kind.${action.kind}`) })
+          );
         }
       }
       if (context.removesSelf && !context.trial) this.removeHost(target);

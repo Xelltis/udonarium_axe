@@ -5,7 +5,21 @@ import { ObjectFactory } from '@axe/core/sync/object-factory';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { xml2element } from '@axe/core/util/xml-util';
+import { buffKindMarkOf, buffKindOf } from '@axe/domain/character/buff-kind';
+import { BuffManager } from '@axe/domain/character/buff-manager';
+import { buffEffectTimingOf, buffTimingOf, writeBuffEffectTiming } from '@axe/domain/character/buff-timing';
+import {
+  captureDefaults,
+  clearDefaults,
+  countDefaults,
+  readDefault,
+  resetToDefaults,
+  writeDefault,
+} from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { StatusAccessor } from '@axe/domain/character/status-accessor';
+import { newStatusAilment } from '@axe/domain/character/status-ailment';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -15,7 +29,9 @@ import {
   DataElementAttribute,
   DataElementFieldType,
   DataElementRole,
+  DataElementType,
 } from '@axe/domain/data/data-element';
+import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { HotbarSlot } from '@axe/domain/hotbar/hotbar-slot';
@@ -45,11 +61,6 @@ describe('save and load round trip', () => {
     TestBed.configureTestingModule({});
     store = ObjectStore.instance;
     serializer = ObjectSerializer.instance;
-    (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
-  });
-
-  afterEach(() => {
-    (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
   });
 
   describe('the stamps put on lines of chat', () => {
@@ -77,7 +88,7 @@ describe('save and load round trip', () => {
 
   describe("the room's own rules", () => {
     afterEach(() => {
-      (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+      Config.forget();
     });
 
     it('carries every answer through a save and a load', () => {
@@ -497,6 +508,458 @@ describe('save and load round trip', () => {
     });
   });
 
+  describe("the moment a buff's effect moves at", () => {
+    const nobody = { identifier: '', name: '' };
+    const owner = { identifier: 'owner', name: '持ち主' };
+    let status: StatusAccessor;
+
+    beforeEach(() => {
+      const detail = DataElement.create('detail', '');
+      detail.appendChild(DataElement.create('HP', 200, { type: 'numberResource', currentValue: '10' }));
+      status = new StatusAccessor(detail, () => owner.name);
+    });
+
+    /** A buff laid by a command on a sheet of its own, as the row that is saved. */
+    function laid(command: string): DataElement {
+      const character = GameCharacter.create('再生する者', 1, '');
+      applyBuffEdit({ command, object: character, targeted: false }, character);
+      return character.buffs.list()[0];
+    }
+
+    /** The row read back from its xml, in buffs counted against the sheet above. */
+    function loaded(xml: string): { row: DataElement; buffs: BuffManager } {
+      const row = serializer.parseXml(xml) as DataElement;
+      const root = DataElement.create('バフ', '');
+      const container = DataElement.create('バフ/デバフ', '');
+      root.appendChild(container);
+      container.appendChild(row);
+      return {
+        row,
+        buffs: new BuffManager(
+          root,
+          () => owner,
+          () => status
+        ),
+      };
+    }
+
+    const hp = () => status.getValue('HP', 'now');
+
+    it('goes through a save and a load, and the buff moves at it as before', () => {
+      const xml = serializer.toXml(laid('&!再生/:HP/+/0~+3/none/発生:手番開始'));
+      expect(xml).toContain('cs-buff-effect-timing="turnStart"');
+
+      const { row, buffs } = loaded(xml);
+
+      expect(buffEffectTimingOf(row)).toBe('turnStart');
+      expect(buffTimingOf(row)).toBe('none');
+      buffs.expireAt('roundEnd', nobody);
+      expect(hp()).toBe(10);
+      buffs.expireAt('turnStart', owner);
+      expect(hp()).toBe(13);
+    });
+
+    it('reads a buff that never runs out, saved before there was such a moment, as moving at the end of the round', () => {
+      const xml = serializer.toXml(laid('&!再生/:HP/+/0~+3/none'));
+      expect(xml).not.toContain('cs-buff-effect-timing');
+
+      const { row, buffs } = loaded(xml);
+
+      expect(buffEffectTimingOf(row)).toBeNull();
+      buffs.expireAt('turnStart', owner);
+      expect(hp()).toBe(10);
+      buffs.expireAt('roundEnd', nobody);
+      expect(hp()).toBe(13);
+      expect(row.value).toBe('3');
+    });
+
+    it('leaves a buff that never runs out and moves nothing at every count as it always was', () => {
+      const xml = serializer.toXml(laid('&!加護/HP/+/2/none'));
+      expect(xml).not.toContain('cs-buff-effect-timing');
+
+      const { buffs } = loaded(xml);
+      buffs.expireAt('roundEnd', nobody);
+      buffs.expireAt('turnStart', owner);
+      buffs.expireAt('turnEnd', owner);
+
+      expect(hp()).toBe(10);
+    });
+
+    it('reads a missing, an empty and an unknown moment as none, so the buff moves as it is counted down', () => {
+      const saved = serializer.toXml(laid('&!毒/:HP/+/0~-1/3/手番開始'));
+      const written = (value: string) =>
+        saved.replace('cs-buff-timing=', `cs-buff-effect-timing="${value}" cs-buff-timing=`);
+
+      for (const xml of [saved, written(''), written('someday'), written('none')]) {
+        status.setValue('HP', 'now', 10);
+        const { row, buffs } = loaded(xml);
+
+        expect(buffEffectTimingOf(row)).toBeNull();
+        buffs.expireAt('roundEnd', nobody);
+        buffs.expireAt('turnEnd', owner);
+        expect(hp()).toBe(10);
+        buffs.expireAt('turnStart', owner);
+        expect(hp()).toBe(9);
+      }
+    });
+
+    it('adds one attribute to what an older version reads, and changes none of the others', () => {
+      const row = laid('&!再生/:HP/+/0~+3/3/手番開始/@術者/発生:手番終了');
+      const withMoment = serializer.toXml(row);
+      writeBuffEffectTiming(row, '');
+      const without = serializer.toXml(row);
+
+      expect(withMoment).not.toBe(without);
+      expect(withMoment.replace(' cs-buff-effect-timing="turnEnd"', '')).toBe(without);
+      expect(without).toContain('cs-buff-timing="turnStart"');
+      expect(without).toContain('cs-buff-trigger="術者"');
+      expect(without).toContain('cs-buff-mod-kept-step="3"');
+    });
+  });
+
+  describe('whether a buff is a buff or a debuff', () => {
+    const poison = newStatusAilment('毒');
+
+    afterEach(() => {
+      StatusAilmentCatalog.instance.ailments = [];
+      store.clearDeleteHistory();
+    });
+
+    /**
+     * The buffs the commands lay on a piece, as the element that holds them is saved. The piece is
+     * written and read by its buff element, the part of it this is about, since happy-dom reads no
+     * attribute with a dot in its name, which a whole piece carries.
+     */
+    function saved(...commands: string[]): string {
+      const character = GameCharacter.create('区分の確認', 1, '');
+      for (const command of commands) applyBuffEdit({ command, object: character, targeted: false }, character);
+      const xml = serializer.toXml(character.buffDataElement!);
+      character.destroy();
+      store.clearDeleteHistory();
+      return xml;
+    }
+
+    /** The buff rows read back from the xml, with the element they came in. */
+    function loaded(xml: string): { root: DataElement; rows: DataElement[] } {
+      const root = serializer.parseXml(xml) as DataElement;
+      return { root, rows: new BuffManager(root).list() };
+    }
+
+    const kindsOf = (rows: readonly DataElement[]) =>
+      rows.map((row) => [row.name, buffKindOf(row, StatusAilmentCatalog.instance.ailments)]);
+
+    it('goes through a save and a load of a single piece with the mark it was given', () => {
+      const xml = saved('&毒霧/命中-2/3/デバフ', '&猛攻撃/攻撃+2/3', '&祝福/回避+1/3/バフ');
+      expect(xml).toContain('cs-buff-kind="debuff"');
+      expect(xml).toContain('cs-buff-kind="buff"');
+
+      const { root, rows } = loaded(xml);
+
+      expect(rows.map((row) => [row.name, buffKindMarkOf(row)])).toEqual([
+        ['毒霧', 'debuff'],
+        ['猛攻撃', null],
+        ['祝福', 'buff'],
+      ]);
+      expect(serializer.toXml(root)).toBe(xml);
+    });
+
+    it('reads a piece saved before there was a mark by the room’s list of states alone, and writes it back as it was', () => {
+      const xml = saved('&毒/毎R2点/3', '&猛攻撃/攻撃+2/3');
+      expect(xml).not.toContain('cs-buff-kind');
+      StatusAilmentCatalog.instance.ailments = [poison];
+
+      const { root, rows } = loaded(xml);
+
+      expect(kindsOf(rows)).toEqual([
+        ['毒', 'debuff'],
+        ['猛攻撃', 'buff'],
+      ]);
+      expect(serializer.toXml(root)).toBe(xml);
+    });
+
+    it('takes a piece brought into another room by its marks, not by that room’s list of states', () => {
+      StatusAilmentCatalog.instance.ailments = [poison];
+      const xml = saved('&毒', '&毒霧/命中-2/3/バフ');
+      StatusAilmentCatalog.instance.ailments = [newStatusAilment('毒霧')];
+
+      expect(kindsOf(loaded(xml).rows)).toEqual([
+        ['毒', 'debuff'],
+        ['毒霧', 'buff'],
+      ]);
+    });
+
+    it('reads an empty mark and one it does not know as no mark', () => {
+      const xml = saved('&毒霧/命中-2/3/デバフ', '&毒/毎R2点/3/デバフ');
+      StatusAilmentCatalog.instance.ailments = [poison];
+
+      for (const mark of ['', 'curse']) {
+        const { rows } = loaded(xml.replaceAll('cs-buff-kind="debuff"', `cs-buff-kind="${mark}"`));
+
+        expect(kindsOf(rows)).toEqual([
+          ['毒霧', 'buff'],
+          ['毒', 'debuff'],
+        ]);
+      }
+    });
+
+    it('adds one attribute to what an older version reads, and changes none of the others', () => {
+      const { rows } = loaded(saved('&毒霧/命中-2/3/red/☠/手番開始/デバフ'));
+      const marked = serializer.toXml(rows[0]);
+      rows[0].removeAttribute(DataElementAttribute.BUFF_KIND);
+
+      expect(marked.replace(' cs-buff-kind="debuff"', '')).toBe(serializer.toXml(rows[0]));
+      expect(marked).toContain('cs-buff-icon="☠"');
+    });
+  });
+
+  describe('the defaults the items of a sheet go back to', () => {
+    const DEFAULT_ATTRIBUTES = [
+      DataElementAttribute.DEFAULT,
+      DataElementAttribute.DEFAULT_MAX,
+      DataElementAttribute.DEFAULT_MAX_CORRECTION,
+      DataElementAttribute.DEFAULT_MIN_CORRECTION,
+    ];
+    let made: GameCharacter[] = [];
+
+    afterEach(() => {
+      for (const piece of made) piece.destroy();
+      made = [];
+      store.clearDeleteHistory();
+    });
+
+    /** A piece whose sheet holds a resource, two numbers and a checkbox, none with a default. */
+    function piece(name = '既定値の確認'): GameCharacter {
+      const character = GameCharacter.create(name, 1, '');
+      for (const child of [...character.detailDataElement!.children]) child.destroy();
+      const section = DataElement.create('能力', '');
+      character.detailDataElement!.appendChild(section);
+      section.appendChild(
+        DataElement.create('HP', 20, {
+          type: DataElementType.NUMBER_RESOURCE,
+          currentValue: 20,
+          [DataElementAttribute.MAX_BASE]: '20',
+        })
+      );
+      const number = () => ({ [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.NUMBER });
+      section.appendChild(DataElement.create('命中', 3, number()));
+      section.appendChild(DataElement.create('回避', 0, number()));
+      section.appendChild(
+        DataElement.create('転倒', 0, {
+          type: DataElementType.CHECK,
+          [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.CHECK,
+        })
+      );
+      made.push(character);
+      return character;
+    }
+
+    const item = (character: GameCharacter, name: string) => character.detailDataElement!.getFirstElementByName(name)!;
+
+    /**
+     * The sheet of a piece as it is saved. The piece is written and read by its sheet, the part of it
+     * this is about, since happy-dom reads no attribute with a dot in its name, which a whole piece
+     * carries.
+     */
+    const saved = (character: GameCharacter) => serializer.toXml(character.detailDataElement!);
+
+    /** A piece holding the sheet read back from the xml. */
+    function loaded(xml: string): GameCharacter {
+      const character = piece('読み込んだコマ');
+      for (const child of [...character.detailDataElement!.children]) child.destroy();
+      store.clearDeleteHistory();
+      const root = serializer.parseXml(xml) as DataElement;
+      for (const child of [...root.children]) character.detailDataElement!.appendChild(child);
+      return character;
+    }
+
+    const held = (character: GameCharacter) =>
+      ['命中', '回避', '転倒']
+        .map((name) => `${item(character, name).value}`)
+        .concat(`${item(character, 'HP').currentValue}`);
+
+    it('gives a piece made in a new room none of them, and a putting back nothing to change', () => {
+      const fresh = GameCharacter.create('新しいコマ', 1, '');
+      made.push(fresh);
+      const xml = serializer.toXml(fresh.rootDataElement!);
+
+      expect(xml).not.toContain('cs-default');
+      expect(countDefaults(fresh)).toBe(0);
+      expect(resetToDefaults(fresh).flatMap((reset) => reset.changes)).toEqual([]);
+      expect(serializer.toXml(fresh.rootDataElement!)).toBe(xml);
+    });
+
+    it('reads a piece saved before there were defaults with none, puts nothing back, and writes it as it was', () => {
+      const old = piece();
+      item(old, '命中').value = 9;
+      const xml = saved(old);
+      expect(xml).not.toContain('cs-default');
+
+      const read = loaded(xml);
+
+      expect(countDefaults(read)).toBe(0);
+      expect(resetToDefaults(read).flatMap((reset) => reset.changes)).toEqual([]);
+      expect(held(read)).toEqual(['9', '0', '0', '20']);
+      expect(saved(read)).toBe(xml);
+    });
+
+    it('goes through a save and a load with every default it was given, and puts the same values back', () => {
+      const before = piece();
+      item(before, 'HP').setAttribute(DataElementAttribute.MAX_CORRECTION, '5');
+      captureDefaults(before);
+      item(before, 'HP').currentValue = 4;
+      item(before, '命中').value = 7;
+      item(before, '回避').value = 2;
+      item(before, '転倒').value = 1;
+      const xml = saved(before);
+      for (const attribute of DEFAULT_ATTRIBUTES) expect(xml).toContain(`${attribute}="`);
+
+      const read = loaded(xml);
+
+      for (const name of ['HP', '命中', '回避', '転倒']) {
+        for (const attribute of DEFAULT_ATTRIBUTES) {
+          expect(item(read, name).getAttribute(attribute), `${name} ${attribute}`).toBe(
+            item(before, name).getAttribute(attribute)
+          );
+        }
+      }
+      expect(saved(read)).toBe(xml);
+      resetToDefaults(read);
+      expect(held(read)).toEqual(['3', '0', '0', '20']);
+    });
+
+    it('keeps a default of 0 apart from no default through a save and a load', () => {
+      const before = piece();
+      writeDefault(item(before, '回避'), 'now', 0);
+      item(before, '回避').value = 6;
+      item(before, '命中').value = 6;
+      const xml = saved(before);
+      expect(xml).toContain('cs-default="0"');
+
+      const read = loaded(xml);
+
+      expect(readDefault(item(read, '回避'), 'now')).toBe(0);
+      expect(readDefault(item(read, '命中'), 'now')).toBeNull();
+      resetToDefaults(read);
+      expect(held(read)).toEqual(['6', '0', '0', '20']);
+    });
+
+    it('reads an empty default and one that is no number as none, never as 0', () => {
+      const before = piece();
+      writeDefault(item(before, '命中'), 'now', 1);
+      item(before, '命中').value = 6;
+      const xml = saved(before);
+
+      for (const written of ['', ' ', 'abc']) {
+        const read = loaded(xml.replace('cs-default="1"', `cs-default="${written}"`));
+
+        expect(readDefault(item(read, '命中'), 'now'), `"${written}"`).toBeNull();
+        expect(resetToDefaults(read).flatMap((reset) => reset.changes)).toEqual([]);
+        expect(`${item(read, '命中').value}`).toBe('6');
+      }
+    });
+
+    it('carries the defaults with a single piece written out and brought into another room', () => {
+      const before = piece();
+      captureDefaults(before);
+      const whole = serializer.toXml(before);
+      for (const attribute of DEFAULT_ATTRIBUTES) expect(whole).toContain(`${attribute}="`);
+      const xml = saved(before);
+
+      const read = loaded(xml);
+      item(read, '命中').value = 8;
+      resetToDefaults(read);
+
+      expect(`${item(read, '命中').value}`).toBe('3');
+      expect(countDefaults(read)).toBe(countDefaults(before));
+    });
+
+    it('adds its attributes to what an older version reads, and changes none of the others', () => {
+      const before = piece();
+      const plain = saved(before);
+      captureDefaults(before);
+      const marked = saved(before);
+
+      expect(marked.replace(/ cs-default(?:-max|-max-correction|-min-correction)?="[^"]*"/g, '')).toBe(plain);
+      clearDefaults(before);
+      expect(saved(before)).toBe(plain);
+    });
+
+    describe('a sheet kept in lines of text, as one made before numbers had a kind of their own', () => {
+      /** A piece whose sheet holds lines of text alone: two numbers, a line of prose and an empty one. */
+      function classic(): GameCharacter {
+        const character = piece('従来形式のコマ');
+        const section = character.detailDataElement!.children[0];
+        for (const child of [...section.children]) child.destroy();
+        store.clearDeleteHistory();
+        section.appendChild(DataElement.create('命中', '3'));
+        section.appendChild(DataElement.create('回避', '0'));
+        section.appendChild(DataElement.create('種族', '人間'));
+        section.appendChild(DataElement.create('備考', ''));
+        return character;
+      }
+
+      const lines = (character: GameCharacter) =>
+        ['命中', '回避', '種族', '備考'].map((name) => `${item(character, name).value}`);
+
+      it('reads one saved before there were defaults with none, and puts nothing back', () => {
+        const old = classic();
+        const xml = saved(old);
+        expect(xml).not.toContain('cs-default');
+
+        const read = loaded(xml);
+
+        expect(countDefaults(read)).toBe(0);
+        expect(resetToDefaults(read).flatMap((reset) => reset.changes)).toEqual([]);
+        expect(lines(read)).toEqual(['3', '0', '人間', '']);
+        expect(saved(read)).toBe(xml);
+      });
+
+      it('marks the lines holding a number alone, a 0 among them, and carries them through a save and a load', () => {
+        const before = classic();
+        expect(captureDefaults(before)).toBe(2);
+        const xml = saved(before);
+        expect(xml.match(/cs-default="/g)).toHaveLength(2);
+
+        const read = loaded(xml);
+        item(read, '命中').value = '7';
+        item(read, '回避').value = '強化中';
+        item(read, '種族').value = '獣人';
+        item(read, '備考').value = '5';
+
+        expect(readDefault(item(read, '回避'), 'now')).toBe(0);
+        expect(readDefault(item(read, '種族'), 'now')).toBeNull();
+        expect(readDefault(item(read, '備考'), 'now')).toBeNull();
+        resetToDefaults(read);
+        expect(lines(read)).toEqual(['3', '0', '獣人', '5']);
+      });
+
+      it('reads an empty default on a line and one that is no number as none, never as 0', () => {
+        const before = classic();
+        writeDefault(item(before, '命中'), 'now', 1);
+        item(before, '命中').value = '6';
+        const xml = saved(before);
+
+        for (const written of ['', ' ', 'abc']) {
+          const read = loaded(xml.replace('cs-default="1"', `cs-default="${written}"`));
+
+          expect(readDefault(item(read, '命中'), 'now'), `"${written}"`).toBeNull();
+          expect(resetToDefaults(read).flatMap((reset) => reset.changes)).toEqual([]);
+          expect(`${item(read, '命中').value}`).toBe('6');
+        }
+      });
+
+      it('adds only its attribute to what an older version reads of the lines', () => {
+        const before = classic();
+        const plain = saved(before);
+        captureDefaults(before);
+
+        expect(saved(before).replace(/ cs-default="[^"]*"/g, '')).toBe(plain);
+        clearDefaults(before);
+        expect(saved(before)).toBe(plain);
+      });
+    });
+  });
+
   describe('hotbar round trip', () => {
     function hotbarFor(userId: string): Hotbar {
       const hotbar = new Hotbar(`Hotbar_${userId}`);
@@ -569,7 +1032,7 @@ describe('save and load round trip', () => {
     // Given an Element, parseXml bypasses the DOMParser, so the child <chat-tab> elements
     // reach parseXml directly as Elements.
 
-    it('discards both starting tabs, the case that broke when the list was mutated mid-iteration', () => {
+    it('discards both starting tabs', () => {
       const instance = ChatTabList.instance;
       instance.addChatTab('Tab1');
       instance.addChatTab('Tab2');

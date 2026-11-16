@@ -15,10 +15,11 @@ import {
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { ActionPresentation, actionPresentationOf } from '@axe/application/ui/action-presentation';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { screenDeltaToElementDelta } from '@axe/core/transform/screen-delta';
 import { debounce } from '@axe/core/util/debounce';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -26,16 +27,6 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 const SUBMENU_OVERLAP_PX = 4;
 const SUBMENU_RISE_PX = 16;
-
-function screenDeltaToMenuDelta(x: number, y: number, rotationDegrees: number): { x: number; y: number } {
-  const radians = (-rotationDegrees * Math.PI) / 180;
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-  return {
-    x: x * cos - y * sin,
-    y: x * sin + y * cos,
-  };
-}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -50,7 +41,6 @@ export class ContextMenuComponent {
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
-  private readonly uiSignalService = inject(UiSignalService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -128,7 +118,7 @@ export class ContextMenuComponent {
         document.addEventListener('touchstart', this.callbackOnOutsideClick, true);
         document.addEventListener('mousedown', this.callbackOnOutsideClick, true);
       }
-      this.indexMenuPosion();
+      this.placeIndexMenu();
     });
     afterRenderEffect({
       mixedReadWrite: () => {
@@ -143,6 +133,11 @@ export class ContextMenuComponent {
       document.removeEventListener('touchstart', this.callbackOnOutsideClick, true);
       document.removeEventListener('mousedown', this.callbackOnOutsideClick, true);
     });
+  }
+
+  /** How a row is drawn from the mark at the head of its name; see {@link actionPresentationOf}. */
+  protected actionPresentation(action: ContextMenuAction): ActionPresentation {
+    return actionPresentationOf(action.name);
   }
 
   /** Whether something is being dragged, during which the menu lets the pointer through. */
@@ -183,8 +178,8 @@ export class ContextMenuComponent {
   }
 
   /** Moves the index menu one menu-width to the left of where it opened; other menus are left alone. */
-  indexMenuPosion() {
-    if (this.title != this.indexTitle) return;
+  placeIndexMenu() {
+    if (this.title !== this.indexTitle) return;
 
     const panel: HTMLElement = this.rootElementRef().nativeElement;
     const panelBox = panel.getBoundingClientRect();
@@ -193,7 +188,6 @@ export class ContextMenuComponent {
     const newLeft = panelBox.left - w;
 
     panel.style.left = newLeft + 'px';
-    //    panel.style.right = newRight + 'px';
   }
 
   private adjustPositionRoot() {
@@ -262,7 +256,7 @@ export class ContextMenuComponent {
         : placed.bottom > window.innerHeight - margin
           ? window.innerHeight - margin - placed.bottom
           : 0;
-    const localCorrection = screenDeltaToMenuDelta(screenX, screenY, this.contextMenuService.rotationDegrees);
+    const localCorrection = screenDeltaToElementDelta(screenX, screenY, this.contextMenuService.rotationDegrees);
     left += localCorrection.x;
     top += localCorrection.y;
     submenu.style.left = `${left}px`;
@@ -291,9 +285,9 @@ export class ContextMenuComponent {
     if (this.subMenu()) this.subMenu.set(undefined);
   }
 
-  /** Called when an index row is clicked: asks for a jump to that line of the item it belongs to. */
-  indexAction(indexline: number, id: string) {
-    this.uiSignalService.requestJumpIndex(id, indexline);
+  /** Called when an index row is clicked: goes to the line it names, the menu staying as it is. */
+  indexAction(action: ContextMenuAction) {
+    action.action?.();
   }
 
   /**
@@ -343,6 +337,6 @@ export class ContextMenuComponent {
 
   /** Closes the whole context menu, submenus and all. */
   close() {
-    if (this.contextMenuService) this.contextMenuService.close();
+    this.contextMenuService.close();
   }
 }

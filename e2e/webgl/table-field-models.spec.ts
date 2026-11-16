@@ -1,23 +1,14 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from '../dungeon-helpers';
-import { openPanel, waitAppReady } from '../helpers';
+import { becomeGm, closePanels, openPanel, waitAppReady } from '../helpers';
 
 /**
  * Open country generated for a table drawn on a canvas, its trees, bushes and rocks stood as the 3D
  * models bundled with the app, the many copies of each drawn together with its few meshes.
  */
 
-type Hooks = {
-  renderer(): string | null;
-  whenIdle(): Promise<void>;
-  sceneStats(): { models: number; modelMeshes: number } | null;
-};
-
 function stats(page: Page): Promise<{ models: number; modelMeshes: number }> {
-  return page.evaluate(
-    () => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats() ?? { models: -1, modelMeshes: -1 }
-  );
+  return page.evaluate(() => window.__axeTable.sceneStats() ?? { models: -1, modelMeshes: -1 });
 }
 
 test.describe('open country generated for a table drawn on a canvas', () => {
@@ -34,7 +25,7 @@ test.describe('open country generated for a table drawn on a canvas', () => {
     await panel.locator('#seed').fill('1278372739');
     await panel.getByRole('button', { name: '生成する' }).click();
     await panel.getByRole('button', { name: 'このテーブルへ移動' }).click({ timeout: 120000 });
-    const later = page.locator('app-room-restore-banner button', { hasText: 'あとで' });
+    const later = page.locator('room-restore-banner button', { hasText: 'あとで' });
     if (await later.count()) await later.first().dispatchEvent('click');
     await closePanels(page);
 

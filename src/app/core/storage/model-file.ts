@@ -86,14 +86,14 @@ export class ModelFile {
     model.context.identifier = await FileReaderUtil.calcSHA256Async(bytes);
     model.context.blob = new Blob([bytes], { type: MODEL_TYPE });
     model.context.type = MODEL_TYPE;
-    model.context.url = window.URL.createObjectURL(model.context.blob);
+    model.context.url = URL.createObjectURL(model.context.blob);
     model.context.name = name ?? model.context.identifier;
     return model;
   }
 
   /** Revokes the object URL made for the bytes, so it stops holding memory. */
   destroy(): void {
-    if (this.context.blob && this.context.url) window.URL.revokeObjectURL(this.context.url);
+    if (this.context.blob && this.context.url) URL.revokeObjectURL(this.context.url);
   }
 
   /**
@@ -106,7 +106,7 @@ export class ModelFile {
     if (context.name) this.context.name = context.name;
     this.context.blob ??= context.blob;
     this.context.type ||= context.type || (this.context.blob ? MODEL_TYPE : '');
-    if (this.context.blob && !this.context.url) this.context.url = window.URL.createObjectURL(this.context.blob);
+    if (this.context.blob && !this.context.url) this.context.url = URL.createObjectURL(this.context.blob);
   }
 
   /** A shallow copy of the fields, in the shape sent to peers and handed to `apply`. */

@@ -7,7 +7,6 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -30,8 +29,9 @@ export class GameCharacterGeneratorComponent {
   private readonly panelService = inject(PanelService);
   private readonly roomPanels = inject(RoomPanelService);
   private readonly imageStorage = inject(ImageStorage);
-  private readonly objectSerializer = inject(ObjectSerializer);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly rolePermission = inject(RolePermissionService);
@@ -79,12 +79,6 @@ export class GameCharacterGeneratorComponent {
     if (!viewTable) return;
     const tableMask = GameTableMask.create(this.t('feature.character.generator.defaultMaskName'), 5, 5, 100);
     viewTable.appendChild(tableMask);
-  }
-
-  /** Builds whatever objects an XML save fragment describes, for a role that may edit the table. */
-  createGameCharacterForXML(xml: string) {
-    if (!this.canEdit) return;
-    this.objectSerializer.parseXml(xml);
   }
 
   /**

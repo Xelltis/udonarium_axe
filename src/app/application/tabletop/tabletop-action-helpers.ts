@@ -1,7 +1,7 @@
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
-import { ImageTag } from '@axe/domain/media/image-tag';
+import { fileUntaggedImage } from '@axe/domain/media/image-tagging';
 
 export const TERRAIN_TEXTURE_PATH = './assets/images/terrain_crate.webp';
 export const TRUMP_BACK_IMAGE_PATH = './assets/images/trump/z02.webp';
@@ -11,7 +11,7 @@ export function bundledTerrainImage(imageStorage: ImageStorage): ImageFile {
   const kept = imageStorage.get(TERRAIN_TEXTURE_PATH);
   if (kept) return kept;
   const image = imageStorage.add(TERRAIN_TEXTURE_PATH);
-  ImageTag.create(image.identifier).tag = '地形';
+  fileUntaggedImage(image.identifier, '地形');
   return image;
 }
 

@@ -1,7 +1,7 @@
 import type { TableWorldCap, TableWorldWall } from '@axe/domain/tabletop/world/table-world';
 
 /** How many cells along each side a chunk of the table's faces covers. */
-export const CHUNK_CELLS = 16;
+const CHUNK_CELLS = 16;
 
 /** The faces of one block, or of the table's walls, and the chunk they are drawn in. */
 export interface OwnedFaces {
@@ -12,8 +12,8 @@ export interface OwnedFaces {
 
 /**
  * The faces of the table sorted by what they belong to, a block or the table itself, as the part
- * of a face's name before its colon. Each owner's faces are drawn in the chunk its first point
- * stands in, so a block is never split between two.
+ * of a face's name before its colon, or the whole name where it has none. Each owner's faces are
+ * drawn in the chunk its first point stands in, so a block is never split between two.
  */
 export function facesByOwner(
   walls: readonly TableWorldWall[],
@@ -23,7 +23,8 @@ export function facesByOwner(
   const chunkPx = CHUNK_CELLS * gridSize;
   const owned = new Map<string, OwnedFaces>();
   const entryFor = (id: string, x: number, y: number) => {
-    const owner = id.slice(0, id.indexOf(':'));
+    const colon = id.indexOf(':');
+    const owner = colon < 0 ? id : id.slice(0, colon);
     let entry = owned.get(owner);
     if (!entry) {
       entry = { chunk: `${Math.floor(x / chunkPx)},${Math.floor(y / chunkPx)}`, walls: [], caps: [] };

@@ -1,12 +1,16 @@
+import { clamp } from '@axe/core/util/clamp';
 import type { ModelPainter, ModelStage } from '@axe/infrastructure/model-viewer/model-viewer-port';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
 import { meshesOf, triangleCentresOf } from '@axe/infrastructure/three-kit/model-faces';
+import { cappedPixelRatio } from '@axe/infrastructure/three-kit/pixel-ratio';
+import { letGoOfWebglRenderer, webglRendererOn } from '@axe/infrastructure/three-kit/webgl-renderer';
 import {
   Box3,
   BufferAttribute,
   BufferGeometry,
   DirectionalLight,
+  DoubleSide,
   HemisphereLight,
   Mesh,
   MeshBasicMaterial,
@@ -15,7 +19,6 @@ import {
   Raycaster,
   Scene,
   Sphere,
-  SRGBColorSpace,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -87,10 +90,7 @@ class Showcase {
 /** A renderer on a canvas, or null where the browser cannot make one. */
 function rendererOn(canvas: HTMLCanvasElement, keepsDrawing: boolean): WebGLRenderer | null {
   try {
-    const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: keepsDrawing });
-    renderer.outputColorSpace = SRGBColorSpace;
-    renderer.setClearColor(0x000000, 0);
-    return renderer;
+    return webglRendererOn(canvas, { preserveDrawingBuffer: keepsDrawing });
   } catch {
     return null;
   }
@@ -98,6 +98,8 @@ function rendererOn(canvas: HTMLCanvasElement, keepsDrawing: boolean): WebGLRend
 
 class Stage implements ModelStage {
   private readonly showcase = new Showcase();
+  private readonly ray = new Raycaster();
+  private readonly pointer = new Vector2();
   /** The shapes the painted faces are shown with, over the model. */
   private painted: Mesh[] = [];
   /** The middles of the model's triangles in the scene, by mesh, worked out once the model is shown. */
@@ -139,7 +141,7 @@ class Stage implements ModelStage {
 
   turnBy(acrossPx: number, downPx: number): void {
     this.showcase.turn -= acrossPx * DRAG_TURN;
-    this.showcase.tip = Math.max(-MOST_TIP, Math.min(MOST_TIP, this.showcase.tip + downPx * DRAG_TURN));
+    this.showcase.tip = clamp(this.showcase.tip + downPx * DRAG_TURN, -MOST_TIP, MOST_TIP);
     this.showcase.place();
     this.draw();
   }
@@ -154,9 +156,9 @@ class Stage implements ModelStage {
     const width = this.canvas.clientWidth;
     const height = this.canvas.clientHeight;
     if (!model || !(width > 0) || !(height > 0)) return new Map();
-    const ray = new Raycaster();
-    ray.setFromCamera(new Vector2((canvasX / width) * 2 - 1, -(canvasY / height) * 2 + 1), this.showcase.camera);
-    const hit = ray.intersectObject(model, true)[0];
+    this.pointer.set((canvasX / width) * 2 - 1, -(canvasY / height) * 2 + 1);
+    this.ray.setFromCamera(this.pointer, this.showcase.camera);
+    const hit = this.ray.intersectObject(model, true)[0];
     if (!hit) return new Map();
     const reach = (widthShare * this.showcase.radius) ** 2;
     const found = new Map<number, number[]>();
@@ -221,7 +223,7 @@ class Stage implements ModelStage {
           polygonOffset: true,
           polygonOffsetFactor: -1,
           polygonOffsetUnits: -4,
-          side: 2,
+          side: DoubleSide,
         })
       );
       this.painted.push(shown);
@@ -235,7 +237,7 @@ class Stage implements ModelStage {
   resize(): void {
     const width = Math.max(1, this.canvas.clientWidth);
     const height = Math.max(1, this.canvas.clientHeight);
-    this.renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(cappedPixelRatio());
     this.renderer.setSize(width, height, false);
     this.showcase.camera.aspect = width / height;
     this.showcase.camera.updateProjectionMatrix();
@@ -254,8 +256,7 @@ class Stage implements ModelStage {
     this.clearFaces();
     this.showcase.letGo();
     this.reader.dispose();
-    this.renderer.dispose();
-    this.renderer.forceContextLoss();
+    letGoOfWebglRenderer(this.renderer);
   }
 
   /** The middle of each triangle of each mesh of the model, in the scene, three numbers a triangle. */
@@ -292,6 +293,8 @@ class Stage implements ModelStage {
 
 class Painter implements ModelPainter {
   private readonly reader: HeldModelReader;
+  /** The one lit scene every model is painted in, turned a little so a face and a side both show. */
+  private readonly showcase = new Showcase();
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(
@@ -299,6 +302,7 @@ class Painter implements ModelPainter {
     private readonly renderer: WebGLRenderer
   ) {
     this.reader = new HeldModelReader(() => this.renderer);
+    this.showcase.turn = Math.PI / 6;
   }
 
   paint(url: string, sizePx: number): Promise<Blob | null> {
@@ -309,24 +313,24 @@ class Painter implements ModelPainter {
 
   dispose(): void {
     this.reader.dispose();
-    this.renderer.dispose();
-    this.renderer.forceContextLoss();
+    letGoOfWebglRenderer(this.renderer);
   }
 
   private async paintNow(url: string, sizePx: number): Promise<Blob | null> {
     const gltf = await this.reader.read(url);
     if (!gltf) return null;
-    const showcase = new Showcase();
-    showcase.turn = Math.PI / 6;
-    showcase.hold(gltf.scene);
-    this.renderer.setPixelRatio(1);
-    this.renderer.setSize(sizePx, sizePx, false);
-    showcase.camera.aspect = 1;
-    showcase.camera.updateProjectionMatrix();
-    this.renderer.render(showcase.scene, showcase.camera);
-    const picture = await new Promise<Blob | null>((resolve) => this.canvas.toBlob(resolve, 'image/webp', 0.9));
-    showcase.letGo();
-    return picture;
+    const showcase = this.showcase;
+    try {
+      showcase.hold(gltf.scene);
+      this.renderer.setPixelRatio(1);
+      this.renderer.setSize(sizePx, sizePx, false);
+      showcase.camera.aspect = 1;
+      showcase.camera.updateProjectionMatrix();
+      this.renderer.render(showcase.scene, showcase.camera);
+      return await new Promise<Blob | null>((resolve) => this.canvas.toBlob(resolve, 'image/webp', 0.9));
+    } finally {
+      showcase.letGo();
+    }
   }
 }
 

@@ -40,29 +40,13 @@
     <table class="w-full border-collapse text-[0.8rem]">
       <thead>
         <tr>
-          <th
-            class="border-ui-border-panel text-ui-muted border-b border-solid px-2.5 py-1.5 text-center text-[0.72rem] font-semibold tracking-[0.04em] whitespace-nowrap uppercase"
-          >
-            {{ 'feature.lobby.lobby.roomId' | transloco }}
-          </th>
-          <th
-            class="border-ui-border-panel text-ui-muted border-b border-solid px-2.5 py-1.5 text-center text-[0.72rem] font-semibold tracking-[0.04em] whitespace-nowrap uppercase"
-          >
-            {{ 'feature.lobby.lobby.roomName' | transloco }}
-          </th>
-          <th
-            class="border-ui-border-panel text-ui-muted border-b border-solid px-2.5 py-1.5 text-center text-[0.72rem] font-semibold tracking-[0.04em] whitespace-nowrap uppercase"
-          >
-            {{ 'feature.lobby.lobby.pw' | transloco }}
-          </th>
-          <th
-            class="border-ui-border-panel text-ui-muted border-b border-solid px-2.5 py-1.5 text-center text-[0.72rem] font-semibold tracking-[0.04em] whitespace-nowrap uppercase"
-          >
-            {{ 'feature.lobby.lobby.participants' | transloco }}
-          </th>
-          <th
-            class="border-ui-border-panel text-ui-muted border-b border-solid px-2.5 py-1.5 text-center text-[0.72rem] font-semibold tracking-[0.04em] whitespace-nowrap uppercase"
-          ></th>
+          @for (heading of roomHeadings; track $index) {
+            <th
+              class="border-ui-border-panel text-ui-muted border-b border-solid px-2.5 py-1.5 text-center text-[0.72rem] font-semibold tracking-[0.04em] whitespace-nowrap uppercase"
+            >
+              {{ heading ? (heading | transloco) : '' }}
+            </th>
+          }
         </tr>
       </thead>
       <tbody class="[&_tr:hover_td]:bg-ui-hover [&_tr:last-child_td]:border-b-0">

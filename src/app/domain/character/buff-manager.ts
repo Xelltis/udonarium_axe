@@ -1,6 +1,7 @@
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { BuffAppearance } from '@axe/domain/character/buff-appearance';
 import { buffGroupOf, isBuffGroupMember } from '@axe/domain/character/buff-group';
+import { buffKindMarkOf, writeBuffKindMark } from '@axe/domain/character/buff-kind';
 import {
   BuffModifier,
   clearBuffModifier,
@@ -13,7 +14,16 @@ import {
   writeBuffModifier,
 } from '@axe/domain/character/buff-modifier';
 import { stackBuffEffect } from '@axe/domain/character/buff-stack';
-import { buffExpires, BuffTiming, buffTimingOf, BuffTurnActor, isBuffDueAt } from '@axe/domain/character/buff-timing';
+import {
+  buffEffectTimingOf,
+  buffExpires,
+  BuffTiming,
+  buffTimingOf,
+  BuffTurnActor,
+  isBuffDueAt,
+  isBuffEffectDueAt,
+  writeBuffEffectTiming,
+} from '@axe/domain/character/buff-timing';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 
@@ -25,8 +35,8 @@ export interface BuffSnapshotEntry {
   appearance: BuffAppearance;
   modifier: BuffModifier | null;
   /**
-   * For a buff that leaves its status moved and has run out since this was taken: how far the
-   * count it ran out at moved the status, which putting it back gives back. None where nothing says,
+   * For a buff that leaves its status moved and has run out since this was taken: how far it moved
+   * the status between then and going, which putting it back gives back. None where nothing says,
    * which gives back nothing, as a buff gone some other way moved nothing as it went.
    */
   lastMoved?: number;
@@ -227,18 +237,25 @@ export class BuffManager {
    * status of one that moves at every count as the round's own countdown does, down to the count it
    * runs out at and no further.
    *
-   * Nothing is removed here, even at zero; `deleteZeroRound` does that. A buff held until cleared
-   * is left alone.
+   * A buff held until cleared keeps its count and moves its status once all the same, as it does at
+   * the end of a round. One whose effect has a moment of its own is counted and nothing more, since
+   * that moment is the clock's to bring.
+   *
+   * Nothing is removed here, even at zero; `deleteZeroRound` does that.
    */
   decreaseRound(): void {
     this.gather();
     const container = this.container;
     if (!container) return;
     for (const data of container.children) {
-      if (!buffExpires(data)) continue;
+      const movesByCount = buffEffectTimingOf(data) === null;
+      if (!buffExpires(data)) {
+        if (movesByCount) this.stepModifier(data);
+        continue;
+      }
       const sum = parseInt(String(data.value)) - 1;
       data.value = sum;
-      if (sum >= 0) this.stepModifier(data, sum === 0);
+      if (sum >= 0 && movesByCount) this.stepModifier(data, sum === 0);
     }
   }
 
@@ -283,8 +300,14 @@ export class BuffManager {
    * their names. `acting` is whose turn it is, which a buff pinned to a trigger character
    * waits for; it is unused at the end of a round, where everything counts down.
    *
+   * Each buff in turn first moves its status where this is the moment its effect moves at, a moment
+   * of its own or, for one never counted down, the end of the round; then it is counted down. A buff
+   * whose effect has a moment of its own does not move it by being counted, and one that has run
+   * out of rounds no longer moves it at all.
+   *
    * A buff that leaves its status moved and runs out here is written into `ranOut`, where given,
-   * with how far its last count moved the status, for a record of the count to give back exactly.
+   * with how far it stood moved in all as it went, for a record taken before to give back exactly
+   * what was moved since.
    */
   expireAt(timing: BuffTiming, acting: BuffTurnActor, ranOut?: Map<string, number>): string[] {
     this.gather();
@@ -294,29 +317,42 @@ export class BuffManager {
     const owner = this.owner();
     const expired: string[] = [];
     for (const data of [...container.children]) {
+      if (this.effectMovesAt(data, timing, owner, acting)) this.stepModifier(data);
       if (!isBuffDueAt(data, timing, owner, acting)) continue;
+      const movesByCount = buffEffectTimingOf(data) === null;
       const round = parseInt(String(data.value)) - 1;
       data.value = round;
       if (round <= 0) {
         if (!isBuffGroupMember(data)) expired.push(data.name);
         // Only the count that brings it to nought is its last; one already standing there has had it.
-        const moved = round === 0 ? this.stepModifier(data, true) : null;
-        if (moved != null) ranOut?.set(data.name, moved);
+        if (round === 0 && movesByCount) this.stepModifier(data, true);
+        const standing = readBuffModifier(data);
+        if (standing?.lasting) ranOut?.set(data.name, standing.applied);
         this.remove(data);
-      } else {
+      } else if (movesByCount) {
         this.stepModifier(data);
       }
     }
     return expired;
   }
 
+  /** Whether the clock moves the buff's effect at this moment, which it never does once its rounds are spent. */
+  private effectMovesAt(data: DataElement, timing: BuffTiming, owner: BuffTurnActor, acting: BuffTurnActor): boolean {
+    if (!isBuffEffectDueAt(data, timing, owner, acting)) return false;
+    return !buffExpires(data) || parseInt(String(data.value)) > 0;
+  }
+
   /**
-   * The buffs whose moment this is, as they stand before they are counted down, for a turn's opening
-   * to give them back should the piece wait.
+   * The buffs whose moment this is, to be counted down or to move their status, as they stand before
+   * either, for a turn's opening to give them back should the piece wait.
    */
   dueAt(timing: BuffTiming, acting: BuffTurnActor): BuffSnapshotEntry[] {
     const owner = this.owner();
-    return this.snapshotOf(this.list().filter((data) => isBuffDueAt(data, timing, owner, acting)));
+    return this.snapshotOf(
+      this.list().filter(
+        (data) => isBuffDueAt(data, timing, owner, acting) || this.effectMovesAt(data, timing, owner, acting)
+      )
+    );
   }
 
   /**
@@ -536,12 +572,15 @@ function isBuffRow(node: ObjectNode): boolean {
 
 function readAppearance(data: DataElement): BuffAppearance {
   const group = buffGroupOf(data);
+  const effectTiming = buffEffectTimingOf(data);
   return {
     timing: buffTimingOf(data),
     trigger: data.getAttribute(DataElementAttribute.BUFF_TRIGGER) ?? '',
     color: data.getAttribute(DataElementAttribute.BUFF_COLOR) ?? '',
     icon: data.getAttribute(DataElementAttribute.BUFF_ICON) ?? '',
+    kind: buffKindMarkOf(data) ?? '',
     ...(group.length > 0 ? { group } : {}),
+    ...(effectTiming ? { effectTiming } : {}),
   };
 }
 
@@ -553,6 +592,7 @@ function applyAppearance(data: DataElement, appearance: BuffAppearance): void {
     if (appearance.trigger.length > 0) data.setAttribute(DataElementAttribute.BUFF_TRIGGER, appearance.trigger);
     else data.removeAttribute(DataElementAttribute.BUFF_TRIGGER);
   }
+  if (appearance.effectTiming !== undefined) writeBuffEffectTiming(data, appearance.effectTiming);
   if (appearance.color !== undefined) {
     if (appearance.color.length > 0) data.setAttribute(DataElementAttribute.BUFF_COLOR, appearance.color);
     else data.removeAttribute(DataElementAttribute.BUFF_COLOR);
@@ -561,6 +601,7 @@ function applyAppearance(data: DataElement, appearance: BuffAppearance): void {
     if (appearance.icon.length > 0) data.setAttribute(DataElementAttribute.BUFF_ICON, appearance.icon);
     else data.removeAttribute(DataElementAttribute.BUFF_ICON);
   }
+  if (appearance.kind !== undefined) writeBuffKindMark(data, appearance.kind);
   if (appearance.group !== undefined) {
     if (appearance.group.length > 0) data.setAttribute(DataElementAttribute.BUFF_GROUP, appearance.group);
     else data.removeAttribute(DataElementAttribute.BUFF_GROUP);

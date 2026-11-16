@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { withoutExtension } from '@axe/core/util/file-name';
 
 /** A point on a picture, in its pixels. */
@@ -75,10 +76,10 @@ export function wholeRect(size: EditSize): EditRect {
 
 /** A rectangle brought onto whole pixels and inside the picture, at least a pixel each way. */
 export function clampRect(rect: EditRect, size: EditSize): EditRect {
-  const width = Math.min(Math.max(1, Math.round(rect.width)), size.width);
-  const height = Math.min(Math.max(1, Math.round(rect.height)), size.height);
-  const x = Math.min(Math.max(0, Math.round(rect.x)), size.width - width);
-  const y = Math.min(Math.max(0, Math.round(rect.y)), size.height - height);
+  const width = clamp(Math.round(rect.width), 1, size.width);
+  const height = clamp(Math.round(rect.height), 1, size.height);
+  const x = clamp(Math.round(rect.x), 0, size.width - width);
+  const y = clamp(Math.round(rect.y), 0, size.height - height);
   return { x, y, width, height };
 }
 
@@ -88,10 +89,10 @@ export function clampRect(rect: EditRect, size: EditSize): EditRect {
  * other comes as near to the pointer as the ratio and the picture allow.
  */
 export function rectFromCorners(from: EditPoint, to: EditPoint, ratio: number | null, size: EditSize): EditRect {
-  const anchorX = Math.min(Math.max(0, from.x), size.width);
-  const anchorY = Math.min(Math.max(0, from.y), size.height);
-  const towardX = Math.min(Math.max(0, to.x), size.width);
-  const towardY = Math.min(Math.max(0, to.y), size.height);
+  const anchorX = clamp(from.x, 0, size.width);
+  const anchorY = clamp(from.y, 0, size.height);
+  const towardX = clamp(to.x, 0, size.width);
+  const towardY = clamp(to.y, 0, size.height);
   const signX = towardX >= anchorX ? 1 : -1;
   const signY = towardY >= anchorY ? 1 : -1;
   let width = Math.abs(towardX - anchorX);

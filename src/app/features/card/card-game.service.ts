@@ -1,5 +1,6 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Network } from '@axe/core/network/network';
@@ -95,7 +96,7 @@ export class CardGameService {
   dealAll(cardStack: CardStack, keepJokerCount = 1): DealResult {
     const seats = this.participants();
     if (seats.length < 1) {
-      this.chatMessageService.sendSystemNotice('card', this.t('feature.cardStack.message.noSeats'));
+      this.chatMessageService.sendSystemNotice('card', encodeI18nMessage('feature.cardStack.message.noSeats'));
       return { dealt: 0, participants: 0 };
     }
 
@@ -117,7 +118,7 @@ export class CardGameService {
     SoundEffect.play(PresetSound.cardDraw);
     this.chatMessageService.sendSystemNotice(
       'card',
-      this.t('feature.cardStack.message.dealt', { count: cards.length, players: seats.length })
+      encodeI18nMessage('feature.cardStack.message.dealt', { count: cards.length, players: seats.length })
     );
     return { dealt: cards.length, participants: seats.length };
   }
@@ -134,7 +135,7 @@ export class CardGameService {
     SoundEffect.play(PresetSound.cardDraw);
     this.chatMessageService.sendSystemNotice(
       'card',
-      this.t('feature.card.message.drewFromHand', { from: fromName, to: PeerCursor.myCursor?.name ?? '' })
+      encodeI18nMessage('feature.card.message.drewFromHand', { from: fromName, to: PeerCursor.myCursor?.name ?? '' })
     );
     return true;
   }
@@ -158,7 +159,10 @@ export class CardGameService {
     SoundEffect.play(PresetSound.cardPut);
     this.chatMessageService.sendSystemNotice(
       'card',
-      this.t('feature.card.message.gaveFromHand', { from: PeerCursor.myCursor?.name ?? '', to: receiver.name })
+      encodeI18nMessage('feature.card.message.gaveFromHand', {
+        from: PeerCursor.myCursor?.name ?? '',
+        to: receiver.name,
+      })
     );
     return true;
   }
@@ -212,7 +216,7 @@ export class CardGameService {
     SoundEffect.play(PresetSound.cardDraw);
     this.chatMessageService.sendSystemNotice(
       'card',
-      this.t('feature.card.message.handedOver', {
+      encodeI18nMessage('feature.card.message.handedOver', {
         name: PeerCursor.myCursor?.name ?? '',
         from: absent.name,
         to: receiver.name,
@@ -244,7 +248,7 @@ export class CardGameService {
     SoundEffect.play(PresetSound.cardPut);
     this.chatMessageService.sendSystemNotice(
       'card',
-      this.t('feature.card.message.discardedPairs', {
+      encodeI18nMessage('feature.card.message.discardedPairs', {
         name: PeerCursor.myCursor?.name ?? '',
         ranks: pairs.map((pair) => this.rankLabel(pair[0])).join('・'),
       })

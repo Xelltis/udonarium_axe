@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
 import { Z_TABLE_BANDS } from '@axe/ui/z-layers';
@@ -24,18 +24,13 @@ export class InterruptPromptComponent {
   private readonly interrupts = inject(MoveInterruptService);
   private readonly rolePermission = inject(RolePermissionService);
 
-  private readonly now = signal(Date.now());
   protected readonly zIndex = Z_TABLE_BANDS;
 
   protected readonly waiting = this.interrupts.waiting;
   protected readonly offer = this.interrupts.offer;
   protected readonly choice = this.interrupts.choice;
-
-  /** How many whole seconds the move this peer declared has left to wait. */
-  protected readonly secondsLeft = computed(() => {
-    const waiting = this.waiting();
-    return waiting ? Math.max(0, Math.ceil((waiting.deadline - this.now()) / 1000)) : 0;
-  });
+  /** How many whole seconds the move this peer declared has left to wait, as the service counts it. */
+  protected readonly secondsLeft = this.interrupts.secondsLeft;
 
   /** Whether this reader may settle a wait, as a game master. */
   protected readonly mayRule = computed(() => {
@@ -50,23 +45,6 @@ export class InterruptPromptComponent {
     if (spans.length < 1) return null;
     return { min: Math.floor(spans[0].from), max: Math.ceil(spans[spans.length - 1].to) };
   });
-
-  constructor() {
-    let timer: ReturnType<typeof setInterval> | null = null;
-    effect(() => {
-      const waiting = this.waiting();
-      if (waiting && timer === null) {
-        timer = setInterval(() => this.now.set(Date.now()), 250);
-      } else if (!waiting && timer !== null) {
-        clearInterval(timer);
-        timer = null;
-      }
-      this.now.set(Date.now());
-    });
-    inject(DestroyRef).onDestroy(() => {
-      if (timer !== null) clearInterval(timer);
-    });
-  }
 
   protected isChosen(pieceId: string): boolean {
     return this.choice()?.pieces.includes(pieceId) ?? false;

@@ -7,7 +7,7 @@
       class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm focus:border-ui-accent box-border w-full border border-solid px-2 py-1 text-[12px] outline-none disabled:cursor-not-allowed disabled:opacity-50"
       name="cut-in-layer-name"
       [(ngModel)]="name"
-      [attr.disabled]="!isEditable() ? '' : null"
+      [disabled]="!isEditable()"
     />
 
     @if (layer.kind === 'image') {
@@ -48,19 +48,14 @@
           name="cut-in-layer-portrait-slot"
           data-testid="cut-in-portrait-slot"
           [(ngModel)]="portraitSlot"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
         {{ 'feature.media.cutInEditor.portraitSlot' | transloco }}
       </label>
       <label
         class="text-ui-muted flex cursor-pointer items-center gap-1 py-0.5 text-[11px] select-none [&_input]:size-3.5 [&_input]:[accent-color:var(--ui-accent)]"
       >
-        <input
-          type="checkbox"
-          name="cut-in-layer-image-crops"
-          [(ngModel)]="imageCrops"
-          [attr.disabled]="!isEditable() ? '' : null"
-        />
+        <input type="checkbox" name="cut-in-layer-image-crops" [(ngModel)]="imageCrops" [disabled]="!isEditable()" />
         {{ 'feature.media.cutInEditor.imageCrops' | transloco }}
       </label>
       @if (imageCrops) {
@@ -73,7 +68,7 @@
             min="0"
             max="100"
             [(ngModel)]="objectPosX"
-            [attr.disabled]="!isEditable() ? '' : null"
+            [disabled]="!isEditable()"
           />
           <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.objectPosY' | transloco }}</label>
           <input
@@ -83,7 +78,7 @@
             min="0"
             max="100"
             [(ngModel)]="objectPosY"
-            [attr.disabled]="!isEditable() ? '' : null"
+            [disabled]="!isEditable()"
           />
         </div>
       }
@@ -95,7 +90,7 @@
         name="cut-in-layer-text"
         [(ngModel)]="text"
         [placeholder]="'feature.media.cutInEditor.textPlaceholder' | transloco"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       ></textarea>
       <div class="flex items-center gap-1.5">
         <button
@@ -117,7 +112,7 @@
           type="number"
           min="1"
           [(ngModel)]="fontSizePx"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.fontWeight' | transloco }}</label>
         <input
@@ -128,7 +123,7 @@
           max="900"
           step="100"
           [(ngModel)]="fontWeight"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.color' | transloco }}</label>
         <input
@@ -136,14 +131,14 @@
           name="cut-in-layer-color"
           type="color"
           [(ngModel)]="color"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.align' | transloco }}</label>
         <select
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid p-1 text-[12px] outline-none disabled:opacity-50"
           name="cut-in-layer-align"
           [(ngModel)]="textAlign"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         >
           @for (align of textAligns; track align) {
             <option [value]="align">{{ 'feature.media.cutInEditor.align' + align | transloco }}</option>
@@ -155,7 +150,7 @@
           name="cut-in-layer-stroke-color"
           type="color"
           [(ngModel)]="strokeColor"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.strokeWidth' | transloco }}</label>
         <input
@@ -164,7 +159,7 @@
           type="number"
           min="0"
           [(ngModel)]="strokeWidthPx"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.letterSpacing' | transloco }}</label>
         <input
@@ -172,7 +167,7 @@
           name="cut-in-layer-letter-spacing"
           type="number"
           [(ngModel)]="letterSpacingPx"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.lineHeight' | transloco }}</label>
         <input
@@ -182,17 +177,12 @@
           min="40"
           max="400"
           [(ngModel)]="lineHeight"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
         <label
           class="text-ui-muted col-span-2 flex cursor-pointer items-center gap-1 py-0.5 text-[11px] select-none [&_input]:size-3.5 [&_input]:[accent-color:var(--ui-accent)]"
         >
-          <input
-            type="checkbox"
-            name="cut-in-layer-vertical"
-            [(ngModel)]="vertical"
-            [attr.disabled]="!isEditable() ? '' : null"
-          />
+          <input type="checkbox" name="cut-in-layer-vertical" [(ngModel)]="vertical" [disabled]="!isEditable()" />
           {{ 'feature.media.cutInEditor.vertical' | transloco }}
         </label>
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.letterMotion' | transloco }}</label>
@@ -201,7 +191,7 @@
           name="cut-in-layer-letter-motion"
           data-testid="cut-in-letter-motion"
           [(ngModel)]="letterMotion"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         >
           @for (motion of letterMotions; track motion) {
             <option [value]="motion">
@@ -236,7 +226,7 @@
             step="10"
             [placeholder]="'feature.media.cutInEditor.letterDefault' | transloco"
             [(ngModel)]="letterStaggerMs"
-            [attr.disabled]="!isEditable() ? '' : null"
+            [disabled]="!isEditable()"
           />
         }
         @if (letterTakesDuration) {
@@ -250,7 +240,7 @@
             step="50"
             [placeholder]="'feature.media.cutInEditor.letterDefault' | transloco"
             [(ngModel)]="letterDurationMs"
-            [attr.disabled]="!isEditable() ? '' : null"
+            [disabled]="!isEditable()"
           />
         }
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.fontFamily' | transloco }}</label>
@@ -259,7 +249,7 @@
           name="cut-in-layer-font-family"
           [(ngModel)]="fontFamily"
           [placeholder]="'feature.media.cutInEditor.fontFamilyPlaceholder' | transloco"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
         <div class="col-start-2 flex flex-wrap gap-1">
           @for (preset of fontPresets; track preset.id) {
@@ -289,7 +279,7 @@
           name="cut-in-layer-fill-from"
           type="color"
           [(ngModel)]="fillFrom"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
         <label
           class="text-ui-muted col-span-2 flex cursor-pointer items-center gap-1 py-0.5 text-[11px] select-none [&_input]:size-3.5 [&_input]:[accent-color:var(--ui-accent)]"
@@ -298,7 +288,7 @@
             type="checkbox"
             name="cut-in-layer-fill-gradient"
             [(ngModel)]="fillGradient"
-            [attr.disabled]="!isEditable() ? '' : null"
+            [disabled]="!isEditable()"
           />
           {{ 'feature.media.cutInEditor.fillGradient' | transloco }}
         </label>
@@ -307,7 +297,7 @@
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid p-1 text-[12px] outline-none disabled:opacity-50"
           name="cut-in-layer-fill-shape-any"
           [(ngModel)]="fillShape"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         >
           @for (shape of fillShapes; track shape) {
             <option [value]="shape">{{ 'feature.media.cutInEditor.fillShape' + shape | transloco }}</option>
@@ -322,7 +312,7 @@
             min="2"
             max="200"
             [(ngModel)]="fillScalePx"
-            [attr.disabled]="!isEditable() ? '' : null"
+            [disabled]="!isEditable()"
           />
         }
         @if (fillGradient) {
@@ -332,7 +322,7 @@
             name="cut-in-layer-fill-to"
             type="color"
             [(ngModel)]="fillTo"
-            [attr.disabled]="!isEditable() ? '' : null"
+            [disabled]="!isEditable()"
           />
           <label
             class="text-ui-muted col-span-2 flex cursor-pointer items-center gap-1 py-0.5 text-[11px] select-none [&_input]:size-3.5 [&_input]:[accent-color:var(--ui-accent)]"
@@ -341,7 +331,7 @@
               type="checkbox"
               name="cut-in-layer-fill-has-mid"
               [(ngModel)]="fillHasMid"
-              [attr.disabled]="!isEditable() ? '' : null"
+              [disabled]="!isEditable()"
             />
             {{ 'feature.media.cutInEditor.fillHasMid' | transloco }}
           </label>
@@ -352,7 +342,7 @@
               name="cut-in-layer-fill-mid"
               type="color"
               [(ngModel)]="fillMid"
-              [attr.disabled]="!isEditable() ? '' : null"
+              [disabled]="!isEditable()"
             />
           }
           <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.fillAngle' | transloco }}</label>
@@ -361,49 +351,29 @@
             name="cut-in-layer-fill-angle"
             type="number"
             [(ngModel)]="fillAngleDeg"
-            [attr.disabled]="!isEditable() ? '' : null"
+            [disabled]="!isEditable()"
           />
         }
       </div>
     }
 
     <div class="grid grid-cols-[2.6rem_minmax(0,1fr)_auto] items-center gap-x-1.5 gap-y-1">
-      <label class="text-ui-muted text-[11px]">X</label>
-      <input
-        class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-right text-[12px] outline-none disabled:opacity-50"
+      <cut-in-track-field
+        label="X"
         name="cut-in-layer-x"
-        type="number"
-        [(ngModel)]="x"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [(value)]="x"
+        [keyed]="keyed('x')"
+        [editable]="isEditable()"
+        (keyToggled)="toggleKey('x')"
       />
-      <button
-        class="text-ui-dim hover:text-ui-accent m-0 inline-flex size-5 items-center justify-center border-none bg-transparent p-0 shadow-none disabled:opacity-40 [&_.material-icons]:text-[13px]!"
-        type="button"
-        [class.text-ui-accent!]="keyed('x')"
-        [disabled]="!isEditable()"
-        [title]="'feature.media.cutInEditor.toggleKey' | transloco"
-        (click)="toggleKey('x')"
-      >
-        <i class="material-icons">diamond</i>
-      </button>
-      <label class="text-ui-muted text-[11px]">Y</label>
-      <input
-        class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-right text-[12px] outline-none disabled:opacity-50"
+      <cut-in-track-field
+        label="Y"
         name="cut-in-layer-y"
-        type="number"
-        [(ngModel)]="y"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [(value)]="y"
+        [keyed]="keyed('y')"
+        [editable]="isEditable()"
+        (keyToggled)="toggleKey('y')"
       />
-      <button
-        class="text-ui-dim hover:text-ui-accent m-0 inline-flex size-5 items-center justify-center border-none bg-transparent p-0 shadow-none disabled:opacity-40 [&_.material-icons]:text-[13px]!"
-        type="button"
-        [class.text-ui-accent!]="keyed('y')"
-        [disabled]="!isEditable()"
-        [title]="'feature.media.cutInEditor.toggleKey' | transloco"
-        (click)="toggleKey('y')"
-      >
-        <i class="material-icons">diamond</i>
-      </button>
 
       <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.widthLabel' | transloco }}</label>
       <input
@@ -411,7 +381,7 @@
         name="cut-in-layer-width"
         type="number"
         [(ngModel)]="width"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       />
       <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.heightLabel' | transloco }}</label>
       <input
@@ -419,85 +389,45 @@
         name="cut-in-layer-height"
         type="number"
         [(ngModel)]="height"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       />
 
-      <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.scaleLabel' | transloco }}</label>
-      <input
-        class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-right text-[12px] outline-none disabled:opacity-50"
+      <cut-in-track-field
+        [label]="'feature.media.cutInEditor.scaleLabel' | transloco"
         name="cut-in-layer-scale"
-        type="number"
-        [(ngModel)]="scalePercent"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [(value)]="scalePercent"
+        [keyed]="keyed('scaleX')"
+        [editable]="isEditable()"
+        (keyToggled)="toggleKey('scaleX')"
       />
-      <button
-        class="text-ui-dim hover:text-ui-accent m-0 inline-flex size-5 items-center justify-center border-none bg-transparent p-0 shadow-none disabled:opacity-40 [&_.material-icons]:text-[13px]!"
-        type="button"
-        [class.text-ui-accent!]="keyed('scaleX')"
-        [disabled]="!isEditable()"
-        [title]="'feature.media.cutInEditor.toggleKey' | transloco"
-        (click)="toggleKey('scaleX')"
-      >
-        <i class="material-icons">diamond</i>
-      </button>
-      <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.rotationLabel' | transloco }}</label>
-      <input
-        class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-right text-[12px] outline-none disabled:opacity-50"
+      <cut-in-track-field
+        [label]="'feature.media.cutInEditor.rotationLabel' | transloco"
         name="cut-in-layer-rotation"
-        type="number"
-        [(ngModel)]="rotation"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [(value)]="rotation"
+        [keyed]="keyed('rotation')"
+        [editable]="isEditable()"
+        (keyToggled)="toggleKey('rotation')"
       />
-      <button
-        class="text-ui-dim hover:text-ui-accent m-0 inline-flex size-5 items-center justify-center border-none bg-transparent p-0 shadow-none disabled:opacity-40 [&_.material-icons]:text-[13px]!"
-        type="button"
-        [class.text-ui-accent!]="keyed('rotation')"
-        [disabled]="!isEditable()"
-        [title]="'feature.media.cutInEditor.toggleKey' | transloco"
-        (click)="toggleKey('rotation')"
-      >
-        <i class="material-icons">diamond</i>
-      </button>
 
-      <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.opacityLabel' | transloco }}</label>
-      <input
-        class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-right text-[12px] outline-none disabled:opacity-50"
+      <cut-in-track-field
+        [label]="'feature.media.cutInEditor.opacityLabel' | transloco"
         name="cut-in-layer-opacity"
-        type="number"
-        min="0"
-        max="100"
-        [(ngModel)]="opacityPercent"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [min]="0"
+        [max]="100"
+        [(value)]="opacityPercent"
+        [keyed]="keyed('opacity')"
+        [editable]="isEditable()"
+        (keyToggled)="toggleKey('opacity')"
       />
-      <button
-        class="text-ui-dim hover:text-ui-accent m-0 inline-flex size-5 items-center justify-center border-none bg-transparent p-0 shadow-none disabled:opacity-40 [&_.material-icons]:text-[13px]!"
-        type="button"
-        [class.text-ui-accent!]="keyed('opacity')"
-        [disabled]="!isEditable()"
-        [title]="'feature.media.cutInEditor.toggleKey' | transloco"
-        (click)="toggleKey('opacity')"
-      >
-        <i class="material-icons">diamond</i>
-      </button>
-      <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.blurLabel' | transloco }}</label>
-      <input
-        class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-right text-[12px] outline-none disabled:opacity-50"
+      <cut-in-track-field
+        [label]="'feature.media.cutInEditor.blurLabel' | transloco"
         name="cut-in-layer-blur"
-        type="number"
-        min="0"
-        [(ngModel)]="blur"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [min]="0"
+        [(value)]="blur"
+        [keyed]="keyed('blur')"
+        [editable]="isEditable()"
+        (keyToggled)="toggleKey('blur')"
       />
-      <button
-        class="text-ui-dim hover:text-ui-accent m-0 inline-flex size-5 items-center justify-center border-none bg-transparent p-0 shadow-none disabled:opacity-40 [&_.material-icons]:text-[13px]!"
-        type="button"
-        [class.text-ui-accent!]="keyed('blur')"
-        [disabled]="!isEditable()"
-        [title]="'feature.media.cutInEditor.toggleKey' | transloco"
-        (click)="toggleKey('blur')"
-      >
-        <i class="material-icons">diamond</i>
-      </button>
 
       <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.skewXLabel' | transloco }}</label>
       <input
@@ -507,7 +437,7 @@
         min="-80"
         max="80"
         [(ngModel)]="skewXDeg"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       />
       <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.skewYLabel' | transloco }}</label>
       <input
@@ -517,7 +447,7 @@
         min="-80"
         max="80"
         [(ngModel)]="skewYDeg"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       />
 
       <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.clipLabel' | transloco }}</label>
@@ -525,7 +455,7 @@
         class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm col-span-2 box-border w-full border border-solid p-1 text-[12px] outline-none disabled:opacity-50"
         name="cut-in-layer-clip"
         [(ngModel)]="clip"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       >
         @for (shape of clips; track shape) {
           <option [value]="shape">{{ 'feature.media.cutInEditor.clip' + shape | transloco }}</option>
@@ -537,33 +467,24 @@
         class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm col-span-2 box-border w-full border border-solid p-1 text-[12px] outline-none disabled:opacity-50"
         name="cut-in-layer-wipe"
         [(ngModel)]="wipeShape"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       >
         @for (shape of wipes; track shape) {
           <option [value]="shape">{{ 'feature.media.cutInEditor.wipe' + shape | transloco }}</option>
         }
       </select>
       @if (wipeShape !== 'none') {
-        <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.wipeAmount' | transloco }}</label>
-        <input
-          class="w-full [accent-color:var(--ui-accent)] disabled:opacity-50"
+        <cut-in-track-field
+          [label]="'feature.media.cutInEditor.wipeAmount' | transloco"
           name="cut-in-layer-wipe-amount"
-          type="range"
-          min="0"
-          max="100"
-          [(ngModel)]="wipePercent"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [min]="0"
+          [max]="100"
+          [slider]="true"
+          [(value)]="wipePercent"
+          [keyed]="keyed('wipe')"
+          [editable]="isEditable()"
+          (keyToggled)="toggleKey('wipe')"
         />
-        <button
-          class="text-ui-dim hover:text-ui-accent m-0 inline-flex size-5 items-center justify-center border-none bg-transparent p-0 shadow-none disabled:opacity-40 [&_.material-icons]:text-[13px]!"
-          type="button"
-          [class.text-ui-accent!]="keyed('wipe')"
-          [disabled]="!isEditable()"
-          [title]="'feature.media.cutInEditor.toggleKey' | transloco"
-          (click)="toggleKey('wipe')"
-        >
-          <i class="material-icons">diamond</i>
-        </button>
       }
 
       <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.crumbleLabel' | transloco }}</label>
@@ -571,33 +492,24 @@
         class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm col-span-2 box-border w-full border border-solid p-1 text-[12px] outline-none disabled:opacity-50"
         name="cut-in-layer-crumble"
         [(ngModel)]="crumbleShape"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       >
         @for (shape of wipes; track shape) {
           <option [value]="shape">{{ 'feature.media.cutInEditor.wipe' + shape | transloco }}</option>
         }
       </select>
       @if (crumbleShape !== 'none') {
-        <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.crumbleAmount' | transloco }}</label>
-        <input
-          class="w-full [accent-color:var(--ui-accent)] disabled:opacity-50"
+        <cut-in-track-field
+          [label]="'feature.media.cutInEditor.crumbleAmount' | transloco"
           name="cut-in-layer-crumble-amount"
-          type="range"
-          min="0"
-          max="100"
-          [(ngModel)]="crumblePercent"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [min]="0"
+          [max]="100"
+          [slider]="true"
+          [(value)]="crumblePercent"
+          [keyed]="keyed('crumble')"
+          [editable]="isEditable()"
+          (keyToggled)="toggleKey('crumble')"
         />
-        <button
-          class="text-ui-dim hover:text-ui-accent m-0 inline-flex size-5 items-center justify-center border-none bg-transparent p-0 shadow-none disabled:opacity-40 [&_.material-icons]:text-[13px]!"
-          type="button"
-          [class.text-ui-accent!]="keyed('crumble')"
-          [disabled]="!isEditable()"
-          [title]="'feature.media.cutInEditor.toggleKey' | transloco"
-          (click)="toggleKey('crumble')"
-        >
-          <i class="material-icons">diamond</i>
-        </button>
       }
 
       <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.startMsLabel' | transloco }}</label>
@@ -607,7 +519,7 @@
         type="number"
         min="0"
         [(ngModel)]="startMs"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       />
       <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.endMsLabel' | transloco }}</label>
       <input
@@ -616,7 +528,7 @@
         type="number"
         min="0"
         [(ngModel)]="endMs"
-        [attr.disabled]="!isEditable() ? '' : null"
+        [disabled]="!isEditable()"
       />
     </div>
     @if (keyedHere) {
@@ -626,7 +538,7 @@
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid p-1 text-[12px] outline-none disabled:opacity-50"
           name="cut-in-layer-easing"
           [(ngModel)]="easingHere"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         >
           @if (easingHere === '') {
             <option value="">{{ 'feature.media.cutInEditor.easingMixed' | transloco }}</option>
@@ -648,7 +560,7 @@
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid p-1 text-[12px] outline-none disabled:opacity-50"
           name="cut-in-layer-effect"
           [(ngModel)]="effect"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         >
           @for (name of effects; track name) {
             <option [value]="name">{{ 'feature.media.cutInEditor.effect' + name | transloco }}</option>
@@ -663,7 +575,7 @@
             min="0"
             max="300"
             [(ngModel)]="effectStrength"
-            [attr.disabled]="!isEditable() ? '' : null"
+            [disabled]="!isEditable()"
           />
         }
         @if (effectHasColor) {
@@ -673,7 +585,7 @@
             name="cut-in-layer-effect-color"
             type="color"
             [(ngModel)]="effectColor"
-            [attr.disabled]="!isEditable() ? '' : null"
+            [disabled]="!isEditable()"
           />
         }
         <label class="text-ui-muted text-[11px]">{{ 'feature.media.cutInEditor.look' | transloco }}</label>
@@ -681,7 +593,7 @@
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid p-1 text-[12px] outline-none disabled:opacity-50"
           name="cut-in-layer-look"
           [(ngModel)]="look"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         >
           <option value="">{{ 'feature.media.cutInEditor.presetPick' | transloco }}</option>
           @for (preset of looks; track preset.id) {
@@ -701,7 +613,7 @@
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid p-1 text-[12px] outline-none disabled:opacity-50"
           name="cut-in-layer-entrance"
           [(ngModel)]="entrance"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         >
           <option value="">{{ 'feature.media.cutInEditor.presetPick' | transloco }}</option>
           @for (name of entrances; track name) {
@@ -713,7 +625,7 @@
           class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm box-border w-full border border-solid p-1 text-[12px] outline-none disabled:opacity-50"
           name="cut-in-layer-exit"
           [(ngModel)]="exit"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         >
           <option value="">{{ 'feature.media.cutInEditor.presetPick' | transloco }}</option>
           @for (name of exits; track name) {
@@ -727,7 +639,7 @@
           type="number"
           min="1"
           [(ngModel)]="presetMs"
-          [attr.disabled]="!isEditable() ? '' : null"
+          [disabled]="!isEditable()"
         />
       </div>
       <span class="text-ui-dim text-[11px]">{{ 'feature.media.cutInEditor.presetHint' | transloco }}</span>

@@ -1,6 +1,7 @@
 import { Logger } from '@axe/core/logging/logger';
 import { AssetAccess, Connection, ConnectionCallback, ServerCredentialSource } from '@axe/core/network/connection';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
+import { PeerLink } from '@axe/core/network/peer-link';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { CreateRoomResponse, InviteMessage, ServerRole } from '@axe/core/network/server/server-protocol';
 import { Transport, transportOf } from '@axe/core/network/transport';
@@ -46,6 +47,20 @@ export class Network {
   /** Contexts of every peer connected or still connecting, as a new array. */
   static get peers(): IPeerContext[] {
     return Network.instance.peers;
+  }
+  /**
+   * Ids of the peers the room lists that this device has no open connection to, so that nothing
+   * sent to one peer alone reaches them; empty on a room server or without a connection.
+   */
+  static get unreachablePeerIds(): string[] {
+    return Network.instance.unreachablePeerIds;
+  }
+  /**
+   * How this device reaches each of the others in a room where the seats link to each other, those
+   * the room only lists among them, as a new array; empty on a room server or without a connection.
+   */
+  static get peerLinks(): PeerLink[] {
+    return Network.instance.peerLinks;
   }
   /** This device's peer context; the same value as peer. */
   static get peerContext(): IPeerContext {
@@ -191,6 +206,17 @@ export class Network {
   }
   get peers(): IPeerContext[] {
     return this.connection ? [...this.connection.peers] : [];
+  }
+
+  get unreachablePeerIds(): string[] {
+    const listed = this.connection?.roomPeerIds ?? [];
+    if (listed.length < 1) return [];
+    const open = new Set(this.connection?.peerIds);
+    return listed.filter((peerId) => !open.has(peerId));
+  }
+
+  get peerLinks(): PeerLink[] {
+    return [...(this.connection?.peerLinks ?? [])];
   }
 
   get peerContext(): IPeerContext {
@@ -358,9 +384,9 @@ export class Network {
     }
     const pending = this.pendingInvite;
     const invite = pending && pending.roomKey === roomKey ? pending.invite : '';
-    this.openAsync(() => {
-      if (invite) this.connection!.useInvite?.(invite);
-      this.connection!.open(userId, roomId, roomName, password, roomKey);
+    this.openAsync((connection) => {
+      if (invite) connection.useInvite?.(invite);
+      connection.open(userId, roomId, roomName, password, roomKey);
     });
   }
 
@@ -371,18 +397,19 @@ export class Network {
       Logger.warn('[Network] 既に接続済みです');
       this.close();
     }
-    this.openAsync(() => this.connection!.openStandby(userId));
+    this.openAsync((connection) => connection.openStandby(userId));
   }
 
-  private async openAsync(connectFn: () => void) {
+  private async openAsync(connectFn: (connection: Connection) => void) {
     const promise = this.dynamicImport();
     this.connectionClassPromise = promise;
     this.connectionClass = await promise;
-    if (this.connectionClassPromise != promise) return;
+    if (this.connectionClassPromise !== promise) return;
 
     Logger.debug('[Network] open');
-    this.connection = this.initializeConnection();
-    connectFn();
+    const connection = this.initializeConnection();
+    this.connection = connection;
+    connectFn(connection);
 
     window.addEventListener('pagehide', this.callbackPageHide);
     window.addEventListener('pageshow', this.callbackPageShow);

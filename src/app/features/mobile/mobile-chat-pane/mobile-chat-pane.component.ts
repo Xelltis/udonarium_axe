@@ -4,7 +4,7 @@ import { ChatWindowComponent } from '@axe/features/chat/chat-window/chat-window.
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-mobile-chat-pane',
+  selector: 'mobile-chat-pane',
   templateUrl: './mobile-chat-pane.component.html',
   host: { class: 'contents' },
   providers: [PanelService],

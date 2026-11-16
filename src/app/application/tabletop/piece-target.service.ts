@@ -1,9 +1,13 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { RangeArea } from '@axe/domain/tabletop/range';
+import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
 
 @Injectable({ providedIn: 'root' })
 export class PieceTargetService {
@@ -11,6 +15,8 @@ export class PieceTargetService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly uiSignal = inject(UiSignalService);
   private readonly effectTargeting = inject(EffectTargetingService);
+  private readonly zones = inject(EngagementZoneService);
+  private readonly vision = inject(VisionService);
 
   /**
    * The pieces on the table aimed at, read again as an aim is put on or taken off, as a piece
@@ -52,6 +58,27 @@ export class PieceTargetService {
       piece.targeted = next;
       this.uiSignal.notifyTargetChange(piece.identifier, piece.aliasName);
     }
+  }
+
+  /**
+   * Aims at every piece a range takes in that the reader can see, counted in squares of `squarePx`,
+   * and at nothing else. A piece in an engagement zone is taken in where the range takes in the
+   * zone's centre; a piece taken out of the fight is not taken in at all.
+   */
+  targetInsideRange(range: RangeArea, squarePx: number): void {
+    const shape = {
+      type: range.type,
+      length: range.length,
+      width: range.width,
+      rotate: range.rotate,
+      origin: { x: range.location.x, y: range.location.y },
+    };
+    const reading = this.zones.reading();
+    const inside = this.objectStore
+      .getObjects<GameCharacter>(GameCharacter)
+      .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece))
+      .filter((piece) => rangeCovers(shape, squarePx, reading.pointOf(piece)) === true);
+    this.setOnly(inside);
   }
 
   /** Takes the aim off these pieces, saying so for each that was aimed at, and leaves every other as it is. */

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
 import { GroundChunkData } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import {
@@ -509,7 +510,7 @@ function sanitizePlacement(value: unknown): BlockPlacement | null {
 function countIn(held: Record<string, unknown>, key: string, fallback: number, least: number, most: number): number {
   const amount = Number(held[key]);
   if (!Number.isFinite(amount)) return fallback;
-  return Math.min(most, Math.max(least, amount));
+  return clamp(amount, least, most);
 }
 
 function flagIn(held: Record<string, unknown>, key: string, fallback: boolean): boolean {
@@ -578,119 +579,147 @@ function sanitizeLight(value: unknown): TerrainLightSpec {
  */
 export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
   const held = asRecord(value);
-  const moveCost = asRecord(held['moveCost']);
-  const hazard = asRecord(held['hazard']);
-  const terrain = asRecord(held['terrain']);
-  const object = asRecord(held['object']);
-  const mask = asRecord(held['mask']);
-  const trigger = asRecord(held['trigger']);
-  const fallback = DEFAULT_FUNCTION_SPEC;
-
   return {
-    hazard: {
-      kind: asHazardKind(hazard['kind']),
-      element: textIn(hazard, 'element', fallback.hazard.element),
-      depth: waterDepthOf(hazard['depth']),
-      turbidity: waterTurbidityOf(hazard['turbidity']),
-      dirt: waterDirtOf(hazard['dirt']),
-      color: textIn(hazard, 'color', fallback.hazard.color),
-      leaves: waterLeavesOf(hazard['leaves']),
-      flowSpeed: waterFlowSpeedOf(hazard['flowSpeed']),
-      flowDirection: waterFlowDirectionOf(hazard['flowDirection']),
-      ice: waterIceOf(hazard['ice']),
-      extraCost: asHazardExtraCost(hazard['extraCost']),
-    },
-    moveCost: {
-      blocks: flagIn(moveCost, 'blocks', fallback.moveCost.blocks),
-      halves: flagIn(moveCost, 'halves', fallback.moveCost.halves),
-      extraCost: asMoveCostExtra(moveCost['extraCost']),
-      color: textIn(moveCost, 'color', fallback.moveCost.color),
-    },
-    terrain: {
-      name: textIn(terrain, 'name', fallback.terrain.name),
-      imageIdentifier: textIn(terrain, 'imageIdentifier', fallback.terrain.imageIdentifier),
-      altitude: countIn(terrain, 'altitude', fallback.terrain.altitude, -999, 999),
-      showsAltitude: flagIn(terrain, 'showsAltitude', fallback.terrain.showsAltitude),
-      height: countIn(terrain, 'height', fallback.terrain.height, 0, 99),
-      mode: countIn(terrain, 'mode', fallback.terrain.mode, 0, 3),
-      blocksSight: flagIn(terrain, 'blocksSight', fallback.terrain.blocksSight),
-      blocksLight: flagIn(terrain, 'blocksLight', fallback.terrain.blocksLight),
-      blocksClimb: flagIn(terrain, 'blocksClimb', fallback.terrain.blocksClimb),
-      tiledTexture: flagIn(terrain, 'tiledTexture', fallback.terrain.tiledTexture),
-      showsGrid: flagIn(terrain, 'showsGrid', fallback.terrain.showsGrid),
-      dropShadow: flagIn(terrain, 'dropShadow', fallback.terrain.dropShadow),
-      surfaceShading: flagIn(terrain, 'surfaceShading', fallback.terrain.surfaceShading),
-      locked: flagIn(terrain, 'locked', fallback.terrain.locked),
-      doorStyle: textIn(terrain, 'doorStyle', fallback.terrain.doorStyle),
-      doorOpen: flagIn(terrain, 'doorOpen', fallback.terrain.doorOpen),
-      doorMirrored: flagIn(terrain, 'doorMirrored', fallback.terrain.doorMirrored),
-      slope: flagIn(terrain, 'slope', fallback.terrain.slope),
-      slopeDirection: countIn(terrain, 'slopeDirection', fallback.terrain.slopeDirection, 0, 4),
-      slopeSides: encodeSlopeSides(parseSlopeSides(textIn(terrain, 'slopeSides', fallback.terrain.slopeSides))),
-      light: sanitizeLight(terrain['light']),
-      images: sanitizeFaceImages(terrain['images']),
-      model: textIn(terrain, 'model', fallback.terrain.model),
-      modelScale: textIn(terrain, 'modelScale', fallback.terrain.modelScale),
-      modelTurn: textIn(terrain, 'modelTurn', fallback.terrain.modelTurn),
-      paintedObject: flagIn(terrain, 'paintedObject', fallback.terrain.paintedObject),
-      placement: sanitizePlacement(terrain['placement']),
-    },
-    object: {
-      model: textIn(object, 'model', fallback.object.model),
-      name: textIn(object, 'name', fallback.object.name),
-      arrangement: asObjectArrangement(object['arrangement']),
-      density: amountIn(object, 'density', fallback.object.density, 0.05, 1),
-      size: amountIn(object, 'size', fallback.object.size, 0.1, 20),
-      height: amountIn(object, 'height', fallback.object.height, 0, 20),
-      sizeJitter: amountIn(object, 'sizeJitter', fallback.object.sizeJitter, 0, 0.5),
-      turn: amountIn(object, 'turn', fallback.object.turn, 0, 359),
-      turnRandom: flagIn(object, 'turnRandom', fallback.object.turnRandom),
-      blocksMove: flagIn(object, 'blocksMove', fallback.object.blocksMove),
-      blocksSight: flagIn(object, 'blocksSight', fallback.object.blocksSight),
-      seed: Math.round(amountIn(object, 'seed', fallback.object.seed, 0, 2 ** 31 - 1)),
-    },
-    mask: {
-      name: textIn(mask, 'name', fallback.mask.name),
-      color: textIn(mask, 'color', fallback.mask.color),
-      opacity: countIn(mask, 'opacity', fallback.mask.opacity, 0, 1),
-      altitude: countIn(mask, 'altitude', fallback.mask.altitude, -999, 999),
-      locked: flagIn(mask, 'locked', fallback.mask.locked),
-      showsLockMark: flagIn(mask, 'showsLockMark', fallback.mask.showsLockMark),
-      owner: textIn(mask, 'owner', fallback.mask.owner),
-      scratchedGrids: textIn(mask, 'scratchedGrids', fallback.mask.scratchedGrids),
-      scratchingGrids: textIn(mask, 'scratchingGrids', fallback.mask.scratchingGrids),
-      preview: flagIn(mask, 'preview', fallback.mask.preview),
-      placement: sanitizePlacement(mask['placement']),
-    },
-    trigger: {
-      name: textIn(trigger, 'name', fallback.trigger.name),
-      moment: asTriggerMoment(trigger['moment']),
-      targets: asTriggerTarget(trigger['targets']),
-      once: flagIn(trigger, 'once', fallback.trigger.once),
-      repeat: textIn(trigger, 'repeat', fallback.trigger.repeat),
-      open: flagIn(trigger, 'open', fallback.trigger.open),
-      shownTo: textIn(trigger, 'shownTo', fallback.trigger.shownTo),
-      reveals: flagIn(trigger, 'reveals', fallback.trigger.reveals),
-      say: textIn(trigger, 'say', fallback.trigger.say),
-      ailment: textIn(trigger, 'ailment', fallback.trigger.ailment),
-      ailmentRounds: countIn(trigger, 'ailmentRounds', fallback.trigger.ailmentRounds, 0, 999),
-      check: textIn(trigger, 'check', fallback.trigger.check),
-      checkTarget: textIn(trigger, 'checkTarget', fallback.trigger.checkTarget),
-      checkRoll: textIn(trigger, 'checkRoll', fallback.trigger.checkRoll),
-      passAmount: textIn(trigger, 'passAmount', fallback.trigger.passAmount),
-      silent: flagIn(trigger, 'silent', fallback.trigger.silent),
-      color: textIn(trigger, 'color', fallback.trigger.color),
-      element: textIn(trigger, 'element', fallback.trigger.element),
-      amount: textIn(trigger, 'amount', fallback.trigger.amount),
-      effect: textIn(trigger, 'effect', fallback.trigger.effect),
-      sound: textIn(trigger, 'sound', fallback.trigger.sound),
-      cutIn: textIn(trigger, 'cutIn', fallback.trigger.cutIn),
-      warps: flagIn(trigger, 'warps', fallback.trigger.warps),
-      warpCol: countIn(trigger, 'warpCol', fallback.trigger.warpCol, 0, 999),
-      warpRow: countIn(trigger, 'warpRow', fallback.trigger.warpRow, 0, 999),
-      warpTable: textIn(trigger, 'warpTable', fallback.trigger.warpTable),
-      ...pressFields(trigger, fallback.trigger),
-    },
+    hazard: sanitizeHazard(held['hazard']),
+    moveCost: sanitizeMoveCost(held['moveCost']),
+    terrain: sanitizeTerrain(held['terrain']),
+    object: sanitizeObject(held['object']),
+    mask: sanitizeMask(held['mask']),
+    trigger: sanitizeTrigger(held['trigger']),
+  };
+}
+
+function sanitizeHazard(value: unknown): FunctionSpec['hazard'] {
+  const hazard = asRecord(value);
+  const fallback = DEFAULT_FUNCTION_SPEC.hazard;
+  return {
+    kind: asHazardKind(hazard['kind']),
+    element: textIn(hazard, 'element', fallback.element),
+    depth: waterDepthOf(hazard['depth']),
+    turbidity: waterTurbidityOf(hazard['turbidity']),
+    dirt: waterDirtOf(hazard['dirt']),
+    color: textIn(hazard, 'color', fallback.color),
+    leaves: waterLeavesOf(hazard['leaves']),
+    flowSpeed: waterFlowSpeedOf(hazard['flowSpeed']),
+    flowDirection: waterFlowDirectionOf(hazard['flowDirection']),
+    ice: waterIceOf(hazard['ice']),
+    extraCost: asHazardExtraCost(hazard['extraCost']),
+  };
+}
+
+function sanitizeMoveCost(value: unknown): FunctionSpec['moveCost'] {
+  const moveCost = asRecord(value);
+  const fallback = DEFAULT_FUNCTION_SPEC.moveCost;
+  return {
+    blocks: flagIn(moveCost, 'blocks', fallback.blocks),
+    halves: flagIn(moveCost, 'halves', fallback.halves),
+    extraCost: asMoveCostExtra(moveCost['extraCost']),
+    color: textIn(moveCost, 'color', fallback.color),
+  };
+}
+
+function sanitizeTerrain(value: unknown): TerrainPaintSpec {
+  const terrain = asRecord(value);
+  const fallback = DEFAULT_FUNCTION_SPEC.terrain;
+  return {
+    name: textIn(terrain, 'name', fallback.name),
+    imageIdentifier: textIn(terrain, 'imageIdentifier', fallback.imageIdentifier),
+    altitude: countIn(terrain, 'altitude', fallback.altitude, -999, 999),
+    showsAltitude: flagIn(terrain, 'showsAltitude', fallback.showsAltitude),
+    height: countIn(terrain, 'height', fallback.height, 0, 99),
+    mode: countIn(terrain, 'mode', fallback.mode, 0, 3),
+    blocksSight: flagIn(terrain, 'blocksSight', fallback.blocksSight),
+    blocksLight: flagIn(terrain, 'blocksLight', fallback.blocksLight),
+    blocksClimb: flagIn(terrain, 'blocksClimb', fallback.blocksClimb),
+    tiledTexture: flagIn(terrain, 'tiledTexture', fallback.tiledTexture),
+    showsGrid: flagIn(terrain, 'showsGrid', fallback.showsGrid),
+    dropShadow: flagIn(terrain, 'dropShadow', fallback.dropShadow),
+    surfaceShading: flagIn(terrain, 'surfaceShading', fallback.surfaceShading),
+    locked: flagIn(terrain, 'locked', fallback.locked),
+    doorStyle: textIn(terrain, 'doorStyle', fallback.doorStyle),
+    doorOpen: flagIn(terrain, 'doorOpen', fallback.doorOpen),
+    doorMirrored: flagIn(terrain, 'doorMirrored', fallback.doorMirrored),
+    slope: flagIn(terrain, 'slope', fallback.slope),
+    slopeDirection: countIn(terrain, 'slopeDirection', fallback.slopeDirection, 0, 4),
+    slopeSides: encodeSlopeSides(parseSlopeSides(textIn(terrain, 'slopeSides', fallback.slopeSides))),
+    light: sanitizeLight(terrain['light']),
+    images: sanitizeFaceImages(terrain['images']),
+    model: textIn(terrain, 'model', fallback.model),
+    modelScale: textIn(terrain, 'modelScale', fallback.modelScale),
+    modelTurn: textIn(terrain, 'modelTurn', fallback.modelTurn),
+    paintedObject: flagIn(terrain, 'paintedObject', fallback.paintedObject),
+    placement: sanitizePlacement(terrain['placement']),
+  };
+}
+
+function sanitizeObject(value: unknown): FunctionSpec['object'] {
+  const object = asRecord(value);
+  const fallback = DEFAULT_FUNCTION_SPEC.object;
+  return {
+    model: textIn(object, 'model', fallback.model),
+    name: textIn(object, 'name', fallback.name),
+    arrangement: asObjectArrangement(object['arrangement']),
+    density: amountIn(object, 'density', fallback.density, 0.05, 1),
+    size: amountIn(object, 'size', fallback.size, 0.1, 20),
+    height: amountIn(object, 'height', fallback.height, 0, 20),
+    sizeJitter: amountIn(object, 'sizeJitter', fallback.sizeJitter, 0, 0.5),
+    turn: amountIn(object, 'turn', fallback.turn, 0, 359),
+    turnRandom: flagIn(object, 'turnRandom', fallback.turnRandom),
+    blocksMove: flagIn(object, 'blocksMove', fallback.blocksMove),
+    blocksSight: flagIn(object, 'blocksSight', fallback.blocksSight),
+    seed: Math.round(amountIn(object, 'seed', fallback.seed, 0, 2 ** 31 - 1)),
+  };
+}
+
+function sanitizeMask(value: unknown): MaskPaintSpec {
+  const mask = asRecord(value);
+  const fallback = DEFAULT_FUNCTION_SPEC.mask;
+  return {
+    name: textIn(mask, 'name', fallback.name),
+    color: textIn(mask, 'color', fallback.color),
+    opacity: countIn(mask, 'opacity', fallback.opacity, 0, 1),
+    altitude: countIn(mask, 'altitude', fallback.altitude, -999, 999),
+    locked: flagIn(mask, 'locked', fallback.locked),
+    showsLockMark: flagIn(mask, 'showsLockMark', fallback.showsLockMark),
+    owner: textIn(mask, 'owner', fallback.owner),
+    scratchedGrids: textIn(mask, 'scratchedGrids', fallback.scratchedGrids),
+    scratchingGrids: textIn(mask, 'scratchingGrids', fallback.scratchingGrids),
+    preview: flagIn(mask, 'preview', fallback.preview),
+    placement: sanitizePlacement(mask['placement']),
+  };
+}
+
+function sanitizeTrigger(value: unknown): TriggerPaintSpec {
+  const trigger = asRecord(value);
+  const fallback = DEFAULT_FUNCTION_SPEC.trigger;
+  return {
+    name: textIn(trigger, 'name', fallback.name),
+    moment: asTriggerMoment(trigger['moment']),
+    targets: asTriggerTarget(trigger['targets']),
+    once: flagIn(trigger, 'once', fallback.once),
+    repeat: textIn(trigger, 'repeat', fallback.repeat),
+    open: flagIn(trigger, 'open', fallback.open),
+    shownTo: textIn(trigger, 'shownTo', fallback.shownTo),
+    reveals: flagIn(trigger, 'reveals', fallback.reveals),
+    say: textIn(trigger, 'say', fallback.say),
+    ailment: textIn(trigger, 'ailment', fallback.ailment),
+    ailmentRounds: countIn(trigger, 'ailmentRounds', fallback.ailmentRounds, 0, 999),
+    check: textIn(trigger, 'check', fallback.check),
+    checkTarget: textIn(trigger, 'checkTarget', fallback.checkTarget),
+    checkRoll: textIn(trigger, 'checkRoll', fallback.checkRoll),
+    passAmount: textIn(trigger, 'passAmount', fallback.passAmount),
+    silent: flagIn(trigger, 'silent', fallback.silent),
+    color: textIn(trigger, 'color', fallback.color),
+    element: textIn(trigger, 'element', fallback.element),
+    amount: textIn(trigger, 'amount', fallback.amount),
+    effect: textIn(trigger, 'effect', fallback.effect),
+    sound: textIn(trigger, 'sound', fallback.sound),
+    cutIn: textIn(trigger, 'cutIn', fallback.cutIn),
+    warps: flagIn(trigger, 'warps', fallback.warps),
+    warpCol: countIn(trigger, 'warpCol', fallback.warpCol, 0, 999),
+    warpRow: countIn(trigger, 'warpRow', fallback.warpRow, 0, 999),
+    warpTable: textIn(trigger, 'warpTable', fallback.warpTable),
+    ...pressFields(trigger, fallback),
   };
 }
 

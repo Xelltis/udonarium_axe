@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { SlopeGridKind, SlopeSide, slopeSideAzimuth, slopeSideNormal } from '@axe/domain/tabletop/terrain-slope';
 
 /** A point on a block's top, in pixels from the corner the block is drawn from. */
@@ -109,7 +110,7 @@ export function buildSlopeRoof(
 export function slopeHeightAt(roof: SlopeRoof, x: number, y: number): number {
   let nearest = Infinity;
   for (const line of roof.sides) nearest = Math.min(nearest, depthInto(line, { x, y }));
-  return Math.min(roof.heightPx, Math.max(0, nearest * roof.pitch));
+  return clamp(nearest * roof.pitch, 0, roof.heightPx);
 }
 
 /**

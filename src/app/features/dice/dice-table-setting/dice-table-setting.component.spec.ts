@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { DiceTable } from '@axe/domain/dice/dice-table';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -41,7 +42,7 @@ describe('DiceTableSettingComponent', () => {
 
       component.createDiceTable();
 
-      expect(component.getDiceTables()).toHaveLength(0);
+      expect(component.tables()).toHaveLength(0);
     });
 
     it('leaves a table where it is', () => {
@@ -52,7 +53,7 @@ describe('DiceTableSettingComponent', () => {
 
       component.delete();
 
-      expect(component.getDiceTables().map((table) => table.identifier)).toContain(made.identifier);
+      expect(component.tables().map((table) => table.identifier)).toContain(made.identifier);
     });
 
     it('rewrites none of what a table answers', () => {
@@ -103,6 +104,19 @@ describe('DiceTableSettingComponent', () => {
       expect(names).not.toContain('delete');
     });
 
+    it('draws the fields of a table as closed from the first drawing', async () => {
+      beSeat(PeerRole.Player);
+      component.createDiceTable();
+      beSeat(PeerRole.Guest);
+
+      await drawn();
+
+      const name = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+        'input[name="dice-table-name"]'
+      )!;
+      expect(name.hasAttribute('disabled')).toBe(true);
+    });
+
     it('draws both for a player', async () => {
       beSeat(PeerRole.Player);
       component.createDiceTable();
@@ -120,7 +134,7 @@ describe('DiceTableSettingComponent', () => {
     });
 
     afterEach(() => {
-      for (const table of component.getDiceTables()) table.destroy();
+      for (const table of component.tables()) table.destroy();
       vi.restoreAllMocks();
     });
 
@@ -139,7 +153,7 @@ describe('DiceTableSettingComponent', () => {
       expect(ask).toHaveBeenCalledWith(
         expect.objectContaining({ message: expect.stringContaining('遭遇表'), okLabel: '削除', danger: true })
       );
-      expect(component.getDiceTables()).toContain(made);
+      expect(component.tables()).toContain(made);
     });
 
     it('throws it away for everyone on a yes', async () => {
@@ -149,7 +163,7 @@ describe('DiceTableSettingComponent', () => {
 
       await component.delete();
 
-      expect(component.getDiceTables()).not.toContain(made);
+      expect(component.tables()).not.toContain(made);
     });
 
     it('keeps both when another table was picked while the question was open', async () => {
@@ -165,7 +179,7 @@ describe('DiceTableSettingComponent', () => {
 
       await component.delete();
 
-      expect(component.getDiceTables()).toEqual(expect.arrayContaining([first, second]));
+      expect(component.tables()).toEqual(expect.arrayContaining([first, second]));
     });
   });
 
@@ -257,11 +271,11 @@ describe('DiceTableSettingComponent', () => {
   describe('making and editing a table from the panel', () => {
     beforeEach(() => {
       PeerCursor.myCursor = { role: PeerRole.Player, identifier: 'seat-cursor' } as PeerCursor;
-      for (const table of component.getDiceTables()) table.destroy();
+      for (const table of component.tables()) table.destroy();
     });
 
     afterEach(() => {
-      for (const table of component.getDiceTables()) table.destroy();
+      for (const table of component.tables()) table.destroy();
     });
 
     /** Draws the panel and lets what ngModel writes into its boxes settle. */
@@ -285,9 +299,22 @@ describe('DiceTableSettingComponent', () => {
       buttonNamed(host, '表を作成')!.click();
       await drawn();
 
-      expect(component.getDiceTables()).toHaveLength(1);
+      expect(component.tables()).toHaveLength(1);
       expect(host.querySelector('input[name="dice-table-name"]')).not.toBeNull();
       expect(host.textContent).not.toContain('ダイス表がありません');
+    });
+
+    it('lists a table made at another seat, and drops one thrown away there, without being asked to redraw', async () => {
+      const host = await drawn();
+      expect(host.querySelectorAll('li[role="option"]')).toHaveLength(0);
+
+      const table = DiceTable.create();
+      await fixture.whenStable();
+      expect(host.querySelectorAll('li[role="option"]')).toHaveLength(1);
+
+      table.destroy();
+      await fixture.whenStable();
+      expect(host.querySelectorAll('li[role="option"]')).toHaveLength(0);
     });
 
     it('makes another table from the add button at the head of the list, and picks it', async () => {
@@ -297,7 +324,7 @@ describe('DiceTableSettingComponent', () => {
 
       host.querySelector<HTMLButtonElement>('button[title="新しい表を作る"]')!.click();
 
-      expect(component.getDiceTables()).toHaveLength(2);
+      expect(component.tables()).toHaveLength(2);
       expect(component.selectedTable).not.toBe(first);
     });
 
@@ -317,6 +344,28 @@ describe('DiceTableSettingComponent', () => {
       }
 
       expect([table.name, table.dice, table.command]).toEqual(['暴走表', '2d6', 'runaway']);
+    });
+
+    it('starts fetching the dice bot of the game system picked, once, as it writes it to the table', () => {
+      const fetching = vi.spyOn(DiceBot, 'getHelpMessage').mockResolvedValue('');
+      component.createDiceTable();
+
+      component.setGameType('Cthulhu7th');
+
+      expect(component.gameType()).toBe('Cthulhu7th');
+      expect(fetching.mock.calls).toEqual([['Cthulhu7th']]);
+      fetching.mockRestore();
+    });
+
+    it('fetches no dice bot for a seat that may not change tables', () => {
+      const fetching = vi.spyOn(DiceBot, 'getHelpMessage').mockResolvedValue('');
+      component.createDiceTable();
+      PeerCursor.myCursor = { role: PeerRole.Guest, identifier: 'seat-cursor' } as PeerCursor;
+
+      component.setGameType('Cthulhu7th');
+
+      expect(fetching).not.toHaveBeenCalled();
+      fetching.mockRestore();
     });
 
     it('opens the entries for editing with the edit button, saying so, and closes them with confirm', async () => {

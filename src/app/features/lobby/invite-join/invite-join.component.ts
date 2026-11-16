@@ -5,24 +5,26 @@ import {
   DestroyRef,
   effect,
   inject,
+  linkedSignal,
   signal,
   untracked,
 } from '@angular/core';
 import { StartRoomService } from '@axe/application/file/start-room.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { dropInvitationFromAddress } from '@axe/application/lobby/invitation-address';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { PeerContext } from '@axe/core/network/peer-context';
 import { isBanned, ServerRoomApiError } from '@axe/core/network/server/server-room-api';
+import { hasWatchedWithoutLogin, noteWatchedWithoutLogin } from '@axe/core/storage/watched-without-login';
 import { InviteLinkParams, parseInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { dropInvitationFromAddress } from '@axe/features/lobby/leave-room';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { OperatorContactComponent } from '@axe/features/lobby/operator-contact/operator-contact.component';
 import {
@@ -39,12 +41,9 @@ type InviteJoinState = 'idle' | 'joining' | 'askLogin' | 'offline' | 'notFound' 
 /** The states an invitation is over in, gone into its room or not, which the table waits on to be set out. */
 const INVITATION_OVER: ReadonlySet<InviteJoinState> = new Set(['offline', 'notFound', 'failed', 'banned', 'done']);
 
-/** Where a tab keeps the rooms its reader chose to watch rather than log in for, so a reload does not ask again. */
-const WATCHED_WITHOUT_LOGIN_KEY = 'udonarium-axe.watched-without-login';
-
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-invite-join',
+  selector: 'invite-join',
   templateUrl: './invite-join.component.html',
   imports: [OperatorContactComponent, TranslocoModule],
 })
@@ -63,7 +62,17 @@ export class InviteJoinComponent {
   private readonly auth = inject(ServerAuthService);
   private readonly startRoom = inject(StartRoomService);
 
-  private readonly state = signal<InviteJoinState>('idle');
+  /**
+   * How the invitation stands. One still joining has failed once reaching the network is given up
+   * on, as it will not come.
+   */
+  private readonly state = linkedSignal<boolean, InviteJoinState>({
+    source: this.reach.unreachable,
+    computation: (unreachable, previous) => {
+      const held = previous?.value ?? 'idle';
+      return unreachable && held === 'joining' ? 'failed' : held;
+    },
+  });
   private readonly roomName = signal('');
   /** The operator's contact looking the room up was refused with; null for none. */
   private readonly refusalContact = signal<string | null>(null);
@@ -132,15 +141,12 @@ export class InviteJoinComponent {
       this.state.set('offline');
       return;
     }
-    this.state.set('joining');
-    effect(() => {
-      if (this.reach.unreachable() && untracked(this.state) === 'joining') this.state.set('failed');
-    });
+    this.state.set(this.reach.unreachable() ? 'failed' : 'joining');
     effect(() => {
       if (this.auth.account() && untracked(this.state) === 'askLogin') this.answerLogin?.();
     });
 
-    if (Network.isOpen) {
+    if (Network.instance.isOpen) {
       void this.joinOrSayFailed(params);
       return;
     }
@@ -173,14 +179,7 @@ export class InviteJoinComponent {
 
   /** Goes in without logging in, to watch, which this tab then remembers for the room. */
   protected watch(): void {
-    const roomKey = this.askedRoomKey;
-    try {
-      const watched = readWatchedWithoutLogin();
-      if (!watched.includes(roomKey))
-        sessionStorage.setItem(WATCHED_WITHOUT_LOGIN_KEY, JSON.stringify([...watched, roomKey]));
-    } catch {
-      // a tab that keeps nothing asks again on a reload
-    }
+    noteWatchedWithoutLogin(this.askedRoomKey);
     this.answerLogin?.();
   }
 
@@ -194,7 +193,7 @@ export class InviteJoinComponent {
    */
   private async logInOrWatch(roomKey: string): Promise<void> {
     if (!this.auth.isConfigured || this.auth.account()) return;
-    if (this.overlayMode.active() || readWatchedWithoutLogin().includes(roomKey)) return;
+    if (this.overlayMode.active() || hasWatchedWithoutLogin(roomKey)) return;
     if (this.auth.offersLogin() === null) await this.auth.refreshProviders();
     if (this.auth.offersLogin() !== true || this.auth.account()) return;
     this.askedRoomKey = roomKey;
@@ -240,13 +239,13 @@ export class InviteJoinComponent {
    * made, where its role is that room's.
    */
   private async join(params: InviteLinkParams): Promise<void> {
-    if (Network.transport === 'server') {
+    if (Network.instance.transport === 'server') {
       await this.joinThroughServer(params);
       return;
     }
     const room = await this.roomJoin.findRoom(params.roomId);
     if (this.movedOn(params)) return;
-    const peerContexts = (room?.peers ?? []) as PeerContext[];
+    const peerContexts = room?.peers ?? [];
     if (!room || peerContexts.length < 1) {
       this.state.set('notFound');
       return;
@@ -307,7 +306,7 @@ export class InviteJoinComponent {
     if (this.movedOn(params)) return;
 
     PeerCursor.myCursor.reConnectPass = password;
-    if (params.invite) Network.setServerInvite(params.invite, room.roomKey ?? '');
+    if (params.invite) Network.instance.setServerInvite(params.invite, room.roomKey ?? '');
     if (!(await this.roomJoin.joinServerRoom(room, password))) {
       this.state.set('failed');
       return;
@@ -330,15 +329,5 @@ export class InviteJoinComponent {
     if (!role) return;
     PeerCursor.myCursor.role = role;
     PeerCursor.myCursor.update();
-  }
-}
-
-/** The rooms this tab's reader chose to watch rather than log in for, by key. */
-function readWatchedWithoutLogin(): string[] {
-  try {
-    const read: unknown = JSON.parse(sessionStorage.getItem(WATCHED_WITHOUT_LOGIN_KEY) ?? '[]');
-    return Array.isArray(read) ? read.filter((key): key is string => typeof key === 'string') : [];
-  } catch {
-    return [];
   }
 }

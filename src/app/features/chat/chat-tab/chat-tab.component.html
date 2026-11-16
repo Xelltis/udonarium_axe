@@ -4,8 +4,8 @@
   #logContainer
 >
   <div class="w-full shrink-0" [style.marginBottom.px]="bottomSpace" #messageContainer>
-    @if (chatMessages.length) {
-      @for (chatMessage of chatMessages; track trackByChatMessage($index, chatMessage)) {
+    @if (chatMessages().length) {
+      @for (chatMessage of chatMessages(); track chatMessage.identifier) {
         @if (chatMessage.isShownInChat) {
           <chat-message
             [chatMessage]="chatMessage"
@@ -18,7 +18,7 @@
         }
       }
     }
-    @if (!chatMessages.length && !readOnly() && showsSamples()) {
+    @if (!chatMessages().length && !readOnly() && showsSamples()) {
       @for (chatMessage of sampleMessages; track chatMessage) {
         <chat-message
           [chatMessage]="chatMessage"

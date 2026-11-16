@@ -100,7 +100,7 @@
             {{ 'feature.scene.empty' | transloco }}
           </p>
         }
-        <app-folder-tree
+        <folder-tree
           [tree]="tree()"
           [shelf]="shelf"
           [row]="sceneRow"
@@ -111,12 +111,7 @@
       </div>
       @if (pickedScene(); as scene) {
         <div class="border-ui-border-panel min-h-0 flex-1 overflow-y-auto border-t border-solid @[620px]:border-t-0">
-          <app-scene-editor
-            [scene]="scene"
-            [canEdit]="canEdit()"
-            (apply)="apply(scene)"
-            (overwrite)="overwrite(scene)"
-          />
+          <scene-editor [scene]="scene" [canEdit]="canEdit()" (apply)="apply(scene)" (overwrite)="overwrite(scene)" />
         </div>
       }
     </div>

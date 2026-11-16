@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { emitAlarmPop, emitAlarmTimeUp } from '@axe/core/event/domain-events';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
@@ -19,9 +20,11 @@ describe('AlarmEventHandlerService', () => {
   });
 
   it('sends a system message when the time is up', () => {
-    emitAlarmTimeUp({ text: 'time up' });
+    emitAlarmTimeUp({ seconds: 30, target: ' >全員 ', title: '休憩' });
 
-    expect(chatStub.sendSystemMessageAsLastSpeaker).toHaveBeenCalledWith('time up');
+    expect(chatStub.sendSystemMessageAsLastSpeaker).toHaveBeenCalledWith(
+      encodeI18nMessage('feature.alarm.timeUpMessage', { seconds: 30, target: ' >全員 ', title: '休憩' })
+    );
   });
 
   it('opens the alarm panel with its title and time', () => {

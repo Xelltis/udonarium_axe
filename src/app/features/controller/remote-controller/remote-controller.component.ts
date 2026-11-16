@@ -14,8 +14,10 @@ import {
 import { FormsModule } from '@angular/forms';
 import { BattleLaunchService } from '@axe/application/battle/battle-launch.service';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
+import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -29,12 +31,15 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { Logger } from '@axe/core/logging/logger';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { BattleTake } from '@axe/domain/battle/battle-take';
+import { writeElementField } from '@axe/domain/character/alias-mate-follow';
 import { BUFF_COLORS, resolveBuffColor } from '@axe/domain/character/buff-appearance';
+import { BUFF_KINDS, type BuffKind, buffKindFrom } from '@axe/domain/character/buff-kind';
 import { ControllerResourcePick, controllerShowsResource } from '@axe/domain/character/controller-resource-pick';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
@@ -43,8 +48,7 @@ import { isChangeableElementType } from '@axe/domain/character/status-accessor';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatPalette } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
+import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { tellThoseWhoMaySee } from '@axe/domain/chat/game-master-lines';
 import { PaletteRow, paletteRowsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -57,6 +61,7 @@ import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { ControllerInputComponent } from '@axe/features/controller/controller-input/controller-input.component';
 import {
   addBuffRound,
+  chosenKindMark,
   decreaseBuffRound,
   deleteZeroRoundBuffs,
   parseBuffInput,
@@ -87,6 +92,9 @@ const SLOT_LABEL_KEYS: Record<ResourceSlot, string> = {
   minCorrection: 'feature.controller.remote.slotMinCorrection',
 };
 
+/** How soon a second click on the same palette line counts with the first, sending the line. */
+const PALETTE_DOUBLE_CLICK_MS = 400;
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'remote-controller',
@@ -102,6 +110,9 @@ const SLOT_LABEL_KEYS: Record<ResourceSlot, string> = {
   ],
 })
 export class RemoteControllerComponent {
+  /** Writes a value typed into a field of a piece, and carries it to the items sharing an alias with it. */
+  protected readonly writeField = writeElementField;
+
   protected readonly isCompact = inject(ViewportService).isCompact;
   readonly chatMessageService = inject(ChatMessageService);
   private readonly characterMacro = inject(CharacterMacroService);
@@ -118,6 +129,7 @@ export class RemoteControllerComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly battle = inject(BattleLaunchService);
   private readonly names = inject(PieceNameService);
+  private readonly statusAilments = inject(StatusAilmentService);
   protected readonly rolePermission = inject(RolePermissionService);
 
   /**
@@ -176,13 +188,15 @@ export class RemoteControllerComponent {
     return this._gameSystem == null ? '' : this._gameSystem.ID;
   }
   set gameType(gameType: string) {
-    DiceBot.loadGameSystemAsync(gameType).then((gameSystem) => {
-      this._gameSystem = gameSystem;
-      const char = this.character();
-      if (char?.remoteController) {
-        char.remoteController.dicebot = gameSystem.ID;
-      }
-    });
+    DiceBot.loadGameSystemAsync(gameType)
+      .then((gameSystem) => {
+        this._gameSystem = gameSystem;
+        const char = this.character();
+        if (char?.remoteController) {
+          char.remoteController.dicebot = gameSystem.ID;
+        }
+      })
+      .catch((reason) => Logger.warn('[RemoteController] failed to load the dice bot', gameType, reason));
   }
 
   /**
@@ -209,23 +223,17 @@ export class RemoteControllerComponent {
     return this.objectStore.get<ChatTab>(this.chatTabidentifier())!;
   });
 
-  readonly chatTabsVersion = computed(() => {
-    this.objectChange.collectionOf('chat-tab')();
-    this.objectChange.versionOf(ChatTabList.instance.identifier)();
-    const tabs = this.chatMessageService.chatTabs;
-    for (const tab of tabs) this.objectChange.versionOf(tab.identifier)();
-    return [...tabs];
-  });
+  private readonly visibleChatTabs = inject(VisibleChatTabsService).tabs;
 
   /**
    * The tabs the panel may send its word to: those this seat's role may read and speak in, which
    * leaves out the system tab, where nobody speaks.
    */
   readonly sendableChatTabs = computed(() => {
-    const tabs = this.chatTabsVersion();
+    const tabs = this.visibleChatTabs();
     this.objectChange.trackMyCursor();
     const role = PeerCursor.myRole;
-    return tabs.filter((tab) => canRoleViewTab(tab, role) && canRoleSpeakTab(tab, role));
+    return tabs.filter((tab) => canRoleSpeakTab(tab, role));
   });
   /** This user's own cursor. */
   get myPeer(): PeerCursor {
@@ -344,6 +352,19 @@ export class RemoteControllerComponent {
   readonly buffSectionOpen = signal(true);
   readonly buffColors = BUFF_COLORS;
   readonly buffColorId = signal('');
+
+  readonly buffKinds = BUFF_KINDS;
+  /** The kind picked on the form by hand, or null while the choice is left as it came. */
+  readonly buffKindPicked = signal<BuffKind | null>(null);
+  /**
+   * The kind the choice shows: the one picked by hand, or, left as it came, the kind the name typed
+   * makes the buff, a debuff for a state the room keeps and a buff for anything else. A kind written
+   * on the line itself still wins over it.
+   */
+  readonly buffKind = computed<BuffKind>(() => {
+    const name = parseBuffInput(this.text().trim())?.buffname ?? '';
+    return this.buffKindPicked() ?? buffKindFrom(null, name, this.statusAilments.ailments());
+  });
   readonly counterSectionOpen = signal(true);
 
   readonly chatTabidentifier = signal('');
@@ -387,7 +408,8 @@ export class RemoteControllerComponent {
    * Puts the buff typed into the buff field on every ticked target and announces it in the chat,
    * from Enter or the add button.
    *
-   * A colour chosen in the panel is added unless the typed line names one. A `+` in front of the
+   * A colour chosen in the panel is added unless the typed line names one, and so is the kind picked
+   * there, as {@link chosenKindMark} reads it. A `+` in front of the
    * name adds the line's number to a buff of that name already standing, and `++` lengthens it by
    * the rounds as well. Empty text does nothing, and with no ticked target an error is shown
    * instead.
@@ -410,6 +432,11 @@ export class RemoteControllerComponent {
     if (appearance.color === undefined && this.buffColorId().length > 0) {
       appearance.color = resolveBuffColor(this.buffColorId());
       bufftext += `/${this.buffColorId()}`;
+    }
+    const kind = chosenKindMark(appearance, this.buffKindPicked(), parsed.buffname, this.statusAilments.ailments());
+    if (kind) {
+      appearance.kind = kind;
+      bufftext += `/${this.t(`feature.character.buff.kind_${kind}`)}`;
     }
     if (parsed.piles === 'none') addBuffRound(gameCharacters, parsed.buffname, parsed.sub, parsed.round, appearance);
     else pileBuffRound(gameCharacters, parsed.piles, parsed.buffname, parsed.sub, parsed.round, appearance);
@@ -509,7 +536,7 @@ export class RemoteControllerComponent {
   }
 
   /**
-   * Puts a palette line into the buff field; clicking the same line again within 400ms sends it as
+   * Puts a palette line into the buff field; clicking the same line again within `PALETTE_DOUBLE_CLICK_MS` sends it as
    * a buff.
    */
   clickPalette(line: string) {
@@ -521,7 +548,7 @@ export class RemoteControllerComponent {
       this.text.set(line);
       this.doubleClickTimer = setTimeout(() => {
         this.doubleClickTimer = null;
-      }, 400);
+      }, PALETTE_DOUBLE_CLICK_MS);
     }
   }
 
@@ -787,7 +814,7 @@ export class RemoteControllerComponent {
   remoteChangeValue() {
     const gameCharacters = this.getTargetCharacters(true);
     const chosen = this.remoteControllerSelect();
-    if (chosen.name == '') {
+    if (chosen.name === '') {
       this.errorMessageController = this.t('feature.controller.remote.noChangeTarget');
       return;
     }
@@ -809,7 +836,7 @@ export class RemoteControllerComponent {
       shownParts.push(shownChangeDetail(object, report, name, nowOrMax));
     }
     const text = parts.join('');
-    if (text != '') {
+    if (text !== '') {
       const sign = this.remoteNumber < 0 ? '' : '+';
       const messageOf = (detail: string) =>
         this.t('feature.controller.remote.changeValueMessage', {

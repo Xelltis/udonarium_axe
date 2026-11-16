@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { DieLabels } from '@axe/domain/dice/dice-3d/dice-throw-plan';
 import { DieShape, polyhedronOf } from '@axe/domain/dice/dice-3d/polyhedra';
 import { atlasOf } from '@axe/infrastructure/dice-3d/dice-geometry';
@@ -41,8 +42,11 @@ export function lookFor(body: string, inkAskedFor = ''): DiceColors {
   return { body: rgbText(rgb), ink, accent: reddish ? ink : ACCENT };
 }
 
-/** A picture as the faces are drawn with it: anything a canvas can draw, with its size. */
-export type FacePicture = CanvasImageSource & { readonly width: number; readonly height: number };
+/** A picture as the faces are drawn with it: anything a canvas can draw and a graphics card can take, with its size. */
+export type FacePicture = Exclude<CanvasImageSource, SVGImageElement> & {
+  readonly width: number;
+  readonly height: number;
+};
 
 /**
  * Draws the faces of a die: every face's cell in the body's colour, with its marks in the ink. A
@@ -228,8 +232,7 @@ function normalsFromDepth(depth: ImageData, out: CanvasRenderingContext2D): void
   const { width, height } = depth;
   const heights = boxBlur(redChannel(depth), width, height, BLUR_RADIUS);
   const image = out.createImageData(width, height);
-  const at = (x: number, y: number) =>
-    heights[Math.min(height - 1, Math.max(0, y)) * width + Math.min(width - 1, Math.max(0, x))];
+  const at = (x: number, y: number) => heights[clamp(y, 0, height - 1) * width + clamp(x, 0, width - 1)];
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       // Cut in, so the surface falls where the marks are: its slope across is their rise across,
@@ -260,7 +263,7 @@ function boxBlur(values: Float32Array, width: number, height: number, radius: nu
   const span = radius * 2 + 1;
   for (let y = 0; y < height; y++) {
     let sum = 0;
-    for (let x = -radius; x <= radius; x++) sum += values[y * width + Math.min(width - 1, Math.max(0, x))];
+    for (let x = -radius; x <= radius; x++) sum += values[y * width + clamp(x, 0, width - 1)];
     for (let x = 0; x < width; x++) {
       across[y * width + x] = sum / span;
       sum += values[y * width + Math.min(width - 1, x + radius + 1)] - values[y * width + Math.max(0, x - radius)];
@@ -268,7 +271,7 @@ function boxBlur(values: Float32Array, width: number, height: number, radius: nu
   }
   for (let x = 0; x < width; x++) {
     let sum = 0;
-    for (let y = -radius; y <= radius; y++) sum += across[Math.min(height - 1, Math.max(0, y)) * width + x];
+    for (let y = -radius; y <= radius; y++) sum += across[clamp(y, 0, height - 1) * width + x];
     for (let y = 0; y < height; y++) {
       down[y * width + x] = sum / span;
       sum += across[Math.min(height - 1, y + radius + 1) * width + x] - across[Math.max(0, y - radius) * width + x];

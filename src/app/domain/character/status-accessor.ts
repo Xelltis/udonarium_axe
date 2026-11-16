@@ -1,5 +1,8 @@
+import { GameObject } from '@axe/core/sync/game-object';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
+import type { ElementAliasTable } from '@axe/domain/data/element-alias';
+import { findReferencedElements } from '@axe/domain/data/element-reference';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 
 type SlotType = 'value' | 'currentValue' | 'maxBase' | 'maxCorrection' | 'minBase' | 'minCorrection';
@@ -32,10 +35,63 @@ export function isChangeableElementType(type: string): boolean {
   return CHANGEABLE_TYPES.has(type);
 }
 
+/** The whole number a value or current value holds, or null when it is empty or not a number. */
+function integerHeldIn(raw: number | string): number | null {
+  const number = parseInt(raw as string);
+  return Number.isFinite(number) ? number : null;
+}
+
+/** The number a value or current value holds, or null when it is empty or not a number. */
+function numberHeldIn(raw: number | string): number | null {
+  if (raw === '') return null;
+  const number = Number(raw);
+  return Number.isFinite(number) ? number : null;
+}
+
+/** Where on an item a slot of its value is kept, or null when the item has no such slot. */
+function storageOf(data: DataElement, slot: ResourceSlot): SlotType | null {
+  if (data.type === DataElementType.NUMBER_RESOURCE) return STORAGE_OF_SLOT[slot];
+  if (data.type === DataElementType.TEXT) return slot === 'now' ? 'value' : null;
+  return null;
+}
+
+/**
+ * Resource fields have a 3-layer constraint built from the effective min/max
+ * (= base + correction) configured on the element:
+ *   currentValue ∈ [effectiveMin, value (currentMax)]
+ *   value (currentMax) ∈ [effectiveMin, effectiveMax]
+ * `null` from getters means unbounded on that side, as is a current maximum that is empty or not
+ * a number. A resource set to go over its maximum has no upper bound on its current value.
+ */
+export function heldWithinBounds(data: DataElement, type: 'value' | 'currentValue', input: number): number {
+  if (!Number.isFinite(input)) return input;
+  let result = input;
+  const effectiveMin = data.effectiveMin;
+  if (effectiveMin != null) result = Math.max(effectiveMin, result);
+  let upper: number | null = null;
+  if (type === 'currentValue') {
+    const currentMax = numberHeldIn(data.value);
+    if (currentMax != null && !allowsOverResource(data)) upper = currentMax;
+  } else {
+    upper = data.effectiveMax;
+  }
+  if (upper != null) result = Math.min(upper, result);
+  return result;
+}
+
+/**
+ * Reads and writes a piece's sheet by the names chat commands and the room's rules use.
+ *
+ * A name is looked up with the room's aliases counted. It is read from the first item an alias
+ * stands for on this sheet, and a value written under it goes to every one of them: the first is
+ * written, and the others are given what the first came to hold, each within its own bounds.
+ */
 export class StatusAccessor {
   constructor(
     private readonly detailDataElement: DataElement | null,
-    private readonly characterName: () => string
+    private readonly characterName: () => string,
+    /** The aliases a name is looked up with; the room's own where none are handed in. */
+    private readonly aliases?: () => ElementAliasTable
   ) {}
 
   /**
@@ -65,10 +121,7 @@ export class StatusAccessor {
    */
   getType(name: string, nowOrMax: ResourceSlot): string | null {
     const data = this.findData(name);
-    if (!data) return null;
-    if (data.type === DataElementType.NUMBER_RESOURCE) return STORAGE_OF_SLOT[nowOrMax];
-    if (data.type === DataElementType.TEXT) return nowOrMax === 'now' ? 'value' : null;
-    return null;
+    return data ? storageOf(data, nowOrMax) : null;
   }
 
   /**
@@ -83,15 +136,19 @@ export class StatusAccessor {
 
   /**
    * The number held in a slot of the item, or null when there is no such item or slot. The value
-   * and current value are read as integers, and an unset base reads as 0.
+   * and current value are read as integers, null when empty or not a number, and an unset base
+   * reads as 0.
    */
   getValue(name: string, nowOrMax: ResourceSlot): number | null {
     const data = this.findData(name);
-    if (!data) return null;
-    const type = this.getType(name, nowOrMax) as SlotType | null;
+    return data ? StatusAccessor.readSlot(data, nowOrMax) : null;
+  }
+
+  private static readSlot(data: DataElement, slot: ResourceSlot): number | null {
+    const type = storageOf(data, slot);
     if (type == null) return null;
-    if (type === 'value') return parseInt(data.value as string);
-    if (type === 'currentValue') return parseInt(data.currentValue as string);
+    if (type === 'value') return integerHeldIn(data.value);
+    if (type === 'currentValue') return integerHeldIn(data.currentValue);
     if (type === 'maxBase') return data.maxBase ?? 0;
     if (type === 'maxCorrection') return data.maxCorrection;
     if (type === 'minBase') return data.minBase ?? 0;
@@ -108,12 +165,30 @@ export class StatusAccessor {
    * back inside the new bounds. A correction of 0 is removed rather than stored.
    */
   setValue(name: string, nowOrMax: ResourceSlot, setValue: number): boolean {
-    const data = this.findData(name);
-    if (!data) return false;
-    const type = this.getType(name, nowOrMax) as SlotType | null;
+    const [first, ...mates] = this.findAll(name);
+    if (!first) return false;
+    return GameObject.batch(() => {
+      if (!StatusAccessor.writeSlot(first, nowOrMax, setValue)) return false;
+      const storage = storageOf(first, nowOrMax);
+      const settled =
+        storage === 'value' || storage === 'currentValue'
+          ? (StatusAccessor.readSlot(first, nowOrMax) ?? setValue)
+          : setValue;
+      for (const mate of mates) StatusAccessor.writeSlot(mate, nowOrMax, settled);
+      return true;
+    });
+  }
+
+  /**
+   * Writes a number into a slot of one item, as {@link setValue} writes the item a name stands for:
+   * held within the item's bounds, a base or a correction carrying the maximum and the current value
+   * along. False when the item has no such slot.
+   */
+  static writeSlot(data: DataElement, slot: ResourceSlot, setValue: number): boolean {
+    const type = storageOf(data, slot);
     if (type == null) return false;
     if (type === 'value' || type === 'currentValue') {
-      const clamped = StatusAccessor.clampToBounds(data, type, setValue);
+      const clamped = heldWithinBounds(data, type, setValue);
       if (type === 'value') {
         data.value = clamped;
       } else {
@@ -141,36 +216,17 @@ export class StatusAccessor {
       }
     }
     // Re-clamp value (currentMax) / currentValue to the new effective bounds.
-    const reclampedValue = StatusAccessor.clampToBounds(data, 'value', Number(data.value));
-    if (Number.isFinite(reclampedValue) && reclampedValue !== Number(data.value)) data.value = reclampedValue;
-    const reclampedCurrent = StatusAccessor.clampToBounds(data, 'currentValue', Number(data.currentValue));
-    if (Number.isFinite(reclampedCurrent) && reclampedCurrent !== Number(data.currentValue))
-      data.currentValue = reclampedCurrent;
-    return true;
-  }
-
-  /**
-   * Resource fields have a 3-layer constraint built from the effective min/max
-   * (= base + correction) configured on the element:
-   *   currentValue ∈ [effectiveMin, value (currentMax)]
-   *   value (currentMax) ∈ [effectiveMin, effectiveMax]
-   * `null` from getters means unbounded on that side. A resource set to go over its maximum has no
-   * upper bound on its current value.
-   */
-  private static clampToBounds(data: DataElement, type: 'value' | 'currentValue', input: number): number {
-    if (!Number.isFinite(input)) return input;
-    let result = input;
-    const effectiveMin = data.effectiveMin;
-    if (effectiveMin != null) result = Math.max(effectiveMin, result);
-    let upper: number | null = null;
-    if (type === 'currentValue') {
-      const currentMax = Number(data.value);
-      if (Number.isFinite(currentMax) && !allowsOverResource(data)) upper = currentMax;
-    } else {
-      upper = data.effectiveMax;
+    const heldValue = numberHeldIn(data.value);
+    if (heldValue != null) {
+      const reclampedValue = heldWithinBounds(data, 'value', heldValue);
+      if (reclampedValue !== heldValue) data.value = reclampedValue;
     }
-    if (upper != null) result = Math.min(upper, result);
-    return result;
+    const heldCurrent = numberHeldIn(data.currentValue);
+    if (heldCurrent != null) {
+      const reclampedCurrent = heldWithinBounds(data, 'currentValue', heldCurrent);
+      if (reclampedCurrent !== heldCurrent) data.currentValue = reclampedCurrent;
+    }
+    return true;
   }
 
   /**
@@ -178,15 +234,14 @@ export class StatusAccessor {
    * there is no such item.
    */
   setText(name: string, text: string): boolean {
-    const data = this.findData(name);
-    if (!data) return false;
-    const type = this.getTextType(name);
-    if (type == null) return false;
-    if (type === 'value') {
-      data.value = text;
-    } else {
-      data.currentValue = text;
-    }
+    const targets = this.findAll(name);
+    if (targets.length < 1) return false;
+    GameObject.batch(() => {
+      for (const data of targets) {
+        if (data.type === DataElementType.NUMBER_RESOURCE) data.currentValue = text;
+        else data.value = text;
+      }
+    });
     return true;
   }
 
@@ -209,17 +264,11 @@ export class StatusAccessor {
     let target = oldNum + addValue;
 
     if (type === 'value' || type === 'currentValue') {
-      // Legacy floor: limitMin flag applies a 0 floor if no effective min is configured.
       if (limitMin && data.effectiveMin == null && target < 0) target = 0;
-      // Legacy ceiling for currentValue: limitMax flag caps at value SyncVar (currentMax).
       if (limitMax && type === 'currentValue') {
-        const currentMax = +data.value;
-        if (Number.isFinite(currentMax) && target > currentMax) target = currentMax;
+        const currentMax = numberHeldIn(data.value);
+        if (currentMax != null && target > currentMax) target = currentMax;
       }
-    } else {
-      // Base/correction targets: limit flags don't apply (they have no inherent bounds).
-      void limitMin;
-      void limitMax;
     }
 
     this.setValue(name, nowOrMax, target);
@@ -233,6 +282,11 @@ export class StatusAccessor {
   }
 
   private findData(reference: string): DataElement | null {
-    return this.detailDataElement ? DataElement.findElementByReference(this.detailDataElement, reference) : null;
+    return this.findAll(reference)[0] ?? null;
+  }
+
+  private findAll(reference: string): DataElement[] {
+    if (!this.detailDataElement) return [];
+    return findReferencedElements(this.detailDataElement, reference, this.aliases?.());
   }
 }

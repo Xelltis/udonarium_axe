@@ -2,6 +2,12 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { InnerXml } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import {
+  type ElementAliasTable,
+  NO_ELEMENT_ALIASES,
+  readElementAliases,
+  writeElementAliases,
+} from '@axe/domain/data/element-alias';
 import { splitSummaryTags } from '@axe/domain/data/summary-tag-list';
 
 export enum SortOrder {
@@ -47,7 +53,7 @@ export function writeSortKeys(keys: readonly SortKey[]): string {
 
 @SyncObject('summary-setting')
 export class DataSummarySetting extends GameObject implements InnerXml {
-  private static _instance: DataSummarySetting;
+  private static _instance: DataSummarySetting | undefined;
   /**
    * The room's one summary setting, shared by every peer under a fixed identifier.
    *
@@ -70,7 +76,7 @@ export class DataSummarySetting extends GameObject implements InnerXml {
    * is read. Only a test between two of its own has any reason to say this.
    */
   static forget(): void {
-    DataSummarySetting._instance = undefined as unknown as DataSummarySetting;
+    DataSummarySetting._instance = undefined;
   }
 
   /**
@@ -99,11 +105,40 @@ export class DataSummarySetting extends GameObject implements InnerXml {
 
   @SyncVar() folderPaths: string[] = [];
 
+  /**
+   * The room's aliases for sheet items, written by `writeElementAliases`. Empty for a room that has
+   * named none, which is also how a room saved before there were aliases reads.
+   */
+  @SyncVar() elementAliases: string = '';
+
+  /**
+   * The aliases of the room as it stands, without making a setting where the room has none yet.
+   *
+   * Looking a reference up must not put anything into the room, so this only reads what is there.
+   */
+  static aliasesInRoom(): ElementAliasTable {
+    return ObjectStore.instance.get<DataSummarySetting>('DataSummarySetting')?.aliases ?? NO_ELEMENT_ALIASES;
+  }
+
+  private _elementAliases!: string;
+  private _aliases: ElementAliasTable | undefined;
+  /** The room's aliases for sheet items, read from `elementAliases` and cached. */
+  get aliases(): ElementAliasTable {
+    if (this._aliases === undefined || this._elementAliases !== this.elementAliases) {
+      this._elementAliases = this.elementAliases;
+      this._aliases = readElementAliases(this.elementAliases);
+    }
+    return this._aliases;
+  }
+  set aliases(aliases: ElementAliasTable) {
+    this.elementAliases = writeElementAliases(aliases);
+  }
+
   private _sortMore!: string;
-  private _extraSortKeys!: readonly SortKey[];
+  private _extraSortKeys: readonly SortKey[] | undefined;
   /** The steps of the order after the second, read from `sortMore` and cached. */
   get extraSortKeys(): readonly SortKey[] {
-    if (this._sortMore !== this.sortMore) {
+    if (this._extraSortKeys === undefined || this._sortMore !== this.sortMore) {
       this._sortMore = this.sortMore;
       this._extraSortKeys = readSortKeys(this.sortMore);
     }
@@ -123,23 +158,23 @@ export class DataSummarySetting extends GameObject implements InnerXml {
   }
 
   private _dataTag!: string;
-  private _dataTags!: string[];
+  private _dataTags: string[] | undefined;
   /** The display items the room lists for each piece in the inventory, split from `dataTag` and cached. */
   get dataTags(): string[] {
-    if (this._dataTag !== this.dataTag) {
+    if (this._dataTags === undefined || this._dataTag !== this.dataTag) {
       this._dataTag = this.dataTag;
-      this._dataTags = splitSummaryTags(this.dataTag);
+      this._dataTags = splitSummaryTags(this.dataTag ?? '');
     }
     return this._dataTags;
   }
 
   private _tableDataTag!: string;
-  private _tableDataTags!: string[];
+  private _tableDataTags: string[] | undefined;
   /** The display items shown as columns when the inventory is laid out as a table, split from `tableDataTag`. */
   get tableDataTags(): string[] {
-    if (this._tableDataTag !== this.tableDataTag) {
+    if (this._tableDataTags === undefined || this._tableDataTag !== this.tableDataTag) {
       this._tableDataTag = this.tableDataTag;
-      this._tableDataTags = splitSummaryTags(this.tableDataTag);
+      this._tableDataTags = splitSummaryTags(this.tableDataTag ?? '');
     }
     return this._tableDataTags;
   }

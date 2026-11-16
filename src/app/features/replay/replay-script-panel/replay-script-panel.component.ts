@@ -22,7 +22,7 @@ export const REPLAY_SCRIPT_FORMATS = [ReplayScriptFormat.Novel, ReplayScriptForm
 /**
  * Exports a recording as something to read.
  *
- * It works from the same storyboard as the video, so the chapter breaks and the narration match it.
+ * It works from the storyboard, which cuts the recording into shots and chapters.
  * What is visible follows the role of whoever exports it, as it does for the video.
  */
 @Component({

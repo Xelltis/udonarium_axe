@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import {
   DEFAULT_NOTICE_PLACE,
@@ -25,7 +24,6 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class RoomNoticeSettingsComponent {
   private readonly access = inject(RoomSettingsAccessService);
-  private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
 
   readonly isSharedReadOnly = this.access.isSharedReadOnly;
@@ -37,7 +35,7 @@ export class RoomNoticeSettingsComponent {
   readonly noticeTabs = computed(() => {
     this.objectChange.collectionOf('chat-tab')();
     this.objectChange.versionOf('ChatTabList')();
-    const tabs = this.objectStore.get<ChatTabList>('ChatTabList')?.chatTabs ?? [];
+    const tabs = ChatTabList.instance.chatTabs;
     return tabs.map((tab) => {
       this.objectChange.versionOf(tab.identifier)();
       return { identifier: tab.identifier, name: tab.name };

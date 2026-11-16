@@ -23,17 +23,12 @@ import { DataElementTypeGridComponent } from '@axe/features/data-element/data-el
 import { DataElementEditService } from '@axe/features/data-element/game-data-element/data-element-edit.service';
 import { HEADING_ICON_GROUPS } from '@axe/features/data-element/game-data-element/data-element-icons';
 import type { MoveTarget } from '@axe/features/data-element/game-data-element/game-data-element-structure-drop';
-import type { SiblingMove } from '@axe/features/data-element/game-data-element/game-data-element-structure-ops';
+import {
+  SIBLING_MOVES,
+  type SiblingMove,
+} from '@axe/features/data-element/game-data-element/game-data-element-structure-ops';
 import { GameDataElementFieldOptionsComponent } from '@axe/features/data-element/game-data-element-field-options/game-data-element-field-options.component';
 import { TranslocoModule } from '@jsverse/transloco';
-
-/** The steps a group can take among those beside it, in the order the editor offers them. */
-const MOVES: readonly { id: SiblingMove; icon: string; labelKey: string }[] = [
-  { id: 'moveToTop', icon: 'vertical_align_top', labelKey: 'common.reorder.toTop' },
-  { id: 'moveUp', icon: 'arrow_upward', labelKey: 'common.reorder.up' },
-  { id: 'moveDown', icon: 'arrow_downward', labelKey: 'common.reorder.down' },
-  { id: 'moveToBottom', icon: 'vertical_align_bottom', labelKey: 'common.reorder.toBottom' },
-];
 
 let nextEditorId = 0;
 
@@ -69,7 +64,7 @@ export class DataElementGroupEditorComponent {
   /** The group being edited, which a copy or a new group takes the place of. */
   protected readonly current = linkedSignal(() => this.element());
   protected readonly view = signal<'main' | 'moveTo' | 'addField' | 'templates' | 'icons'>('main');
-  protected readonly moves = MOVES;
+  protected readonly moves = SIBLING_MOVES;
   protected readonly iconGroups = HEADING_ICON_GROUPS;
   protected readonly idPrefix = `group-editor-${nextEditorId++}`;
 
@@ -94,7 +89,7 @@ export class DataElementGroupEditorComponent {
       templates: this.edit.templatesFor(element),
       canSaveTemplate: this.edit.canSaveAsTemplate(element),
       canDuplicate: this.edit.canDuplicate(element),
-      canMove: Object.fromEntries(MOVES.map((move) => [move.id, this.edit.canMove(element, move.id)])),
+      canMove: Object.fromEntries(SIBLING_MOVES.map((move) => [move.id, this.edit.canMove(element, move.id)])),
       moveTargets: isSection ? [] : this.edit.moveTargetsOf(element),
     };
   });

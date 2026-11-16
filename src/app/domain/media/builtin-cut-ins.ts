@@ -11,7 +11,8 @@ import { CutInLayer, type CutInLayerKind, type CutInTextAlign } from '@axe/domai
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import { type CutInSound, encodeCutInSounds } from '@axe/domain/media/cut-in-sound';
 import type { CutInWipe } from '@axe/domain/media/cut-in-wipe';
-import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
+import { SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
+import { tagImage } from '@axe/domain/media/image-tagging';
 import { PresetSound } from '@axe/domain/media/sound-effect';
 
 /**
@@ -469,7 +470,7 @@ function registerPicture(imageStorage: ImageStorage, identifier: string, url: st
   const context = ImageFile.createEmpty(identifier).toContext();
   context.url = url;
   const file = imageStorage.add(context);
-  ImageTag.create(file.identifier).tag = SYSTEM_RESERVED_TAG;
+  tagImage(file.identifier, SYSTEM_RESERVED_TAG);
   return file.identifier;
 }
 

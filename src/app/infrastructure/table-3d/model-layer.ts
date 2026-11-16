@@ -161,6 +161,8 @@ export class ModelLayer {
   private laid: readonly TableWorldModel[] = [];
   private changed = false;
   private lastTimeMs: number | null = null;
+  /** Whether the layer has been let go of, after which a model still being read is let go of as it comes. */
+  private disposed = false;
 
   constructor(
     private readonly dress: (material: Material) => void,
@@ -186,6 +188,7 @@ export class ModelLayer {
     return meshes;
   }
 
+  /** Whether any model is still being read. */
   get isLoading(): boolean {
     return this.loading.size > 0;
   }
@@ -227,7 +230,9 @@ export class ModelLayer {
     return changed;
   }
 
+  /** Lets go of every model stood or herded, of the models read, and of the reader; nothing is drawn after. */
   dispose(): void {
+    this.disposed = true;
     for (const stood of this.stood.values()) {
       this.group.remove(stood.root);
       forgetDrawn(stood.root);
@@ -320,19 +325,20 @@ export class ModelLayer {
   /** Stands a model that plays a motion where its piece is, as a copy of its own. */
   private stand(model: TableWorldModel, loaded: LoadedModel): void {
     let stood = this.stood.get(model.owner);
+    let rechosen = false;
     if (!stood) {
       stood = this.instanceOf(model, loaded);
       this.stood.set(model.owner, stood);
       this.group.add(stood.root);
     } else if (stood.idleName !== model.model.idle || stood.walkName !== model.model.walk) {
       chooseMotions(stood, model, loaded);
-      stood.walking = !model.walking;
+      rechosen = true;
     }
     const inner = stood.root.children[0];
     inner.position.set(-loaded.foot.x, -loaded.foot.y, -loaded.foot.z);
     placementOf(model, loaded).decompose(stood.root.position, stood.root.quaternion, stood.root.scale);
     stood.root.updateMatrixWorld(true);
-    this.walk(stood, model.walking);
+    this.walk(stood, model.walking, rechosen);
   }
 
   /** Stands the copies of a model that plays no motion where their pieces are, its herd grown where it is too small. */
@@ -374,9 +380,12 @@ export class ModelLayer {
     }
   }
 
-  /** Plays a model's walk while its piece is moved, and holds it in the first pose of its idle otherwise. */
-  private walk(stood: StoodModel, walking: boolean): void {
-    if (stood.walking === walking) return;
+  /**
+   * Plays a model's walk while its piece is moved, and holds it in the first pose of its idle
+   * otherwise; a motion already playing is left alone unless its motions were chosen afresh.
+   */
+  private walk(stood: StoodModel, walking: boolean, rechosen = false): void {
+    if (stood.walking === walking && !rechosen) return;
     stood.walking = walking;
     stood.mixer.stopAllAction();
     const action = walking ? (stood.walk ?? stood.idle) : stood.idle;
@@ -405,10 +414,10 @@ export class ModelLayer {
       walk: null,
       idleName: '',
       walkName: '',
-      walking: true,
+      walking: false,
     };
     chooseMotions(stood, model, loaded);
-    this.walk(stood, false);
+    this.walk(stood, false, true);
     return stood;
   }
 
@@ -418,10 +427,15 @@ export class ModelLayer {
     this.loading.add(url);
     this.parse(url).then(
       (loaded) => {
+        if (this.disposed) {
+          if (loaded) disposeObject(loaded.gltf.scene);
+          return;
+        }
         this.loaded.set(url, loaded);
         this.settle(url);
       },
       () => {
+        if (this.disposed) return;
         this.loaded.set(url, null);
         this.settle(url);
       }

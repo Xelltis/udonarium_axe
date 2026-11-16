@@ -1,4 +1,5 @@
-import { Injectable, Signal } from '@angular/core';
+import { inject, Injectable, Signal } from '@angular/core';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 
 /** How long a word about a press that came to nothing stays on the screen. */
@@ -20,11 +21,18 @@ export interface SwitchNotice {
  */
 @Injectable({ providedIn: 'root' })
 export class SwitchNoticeService {
+  private readonly pointerDevice = inject(PointerDeviceService);
   private readonly held = transientSignal<SwitchNotice | null>(null, SWITCH_NOTICE_MS);
 
   readonly notice: Signal<SwitchNotice | null> = this.held;
 
   show(text: string, x: number, y: number): void {
     this.held.show({ text, x, y });
+  }
+
+  /** Says a word beside wherever the pointer is now, for what has no press of its own to answer. */
+  showAtPointer(text: string): void {
+    const { x, y } = this.pointerDevice.pointer;
+    this.show(text, x, y);
   }
 }

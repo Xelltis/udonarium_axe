@@ -1,4 +1,5 @@
 import { FillStyle, MapScene } from '@axe/domain/map-editor/scene';
+import { forEachSceneFill } from '@axe/domain/map-editor/scene-fills';
 import { IMAGE_TEXTURE_PREFIX, imageTextureIdentifier, isImageTextureId } from '@axe/domain/map-editor/textures';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 
@@ -64,8 +65,8 @@ export function isZipArchive(data: Uint8Array): boolean {
   return data.length >= 4 && data[0] === 0x50 && data[1] === 0x4b && data[2] === 0x03 && data[3] === 0x04;
 }
 
-function remapFill(fill: FillStyle | null | undefined, map: Map<string, string>): void {
-  if (!fill || fill.type !== 'texture' || !isImageTextureId(fill.textureId)) return;
+function remapFill(fill: FillStyle, map: Map<string, string>): void {
+  if (fill.type !== 'texture' || !isImageTextureId(fill.textureId)) return;
   const next = map.get(imageTextureIdentifier(fill.textureId));
   if (next) fill.textureId = IMAGE_TEXTURE_PREFIX + next;
 }
@@ -78,19 +79,12 @@ function remapFill(fill: FillStyle | null | undefined, map: Map<string, string>)
  * image layers. Identifiers missing from the map are left as they are.
  */
 export function remapSceneImageIdentifiers(scene: MapScene, map: Map<string, string>): void {
+  forEachSceneFill(scene, (fill) => remapFill(fill, map));
   for (const layer of scene.layers) {
-    if (layer.kind === 'cell') {
-      for (const fill of Object.values(layer.cells)) remapFill(fill, map);
-    } else if (layer.kind === 'shape') {
-      for (const item of layer.items) {
-        remapFill(item.fill, map);
-        remapFill(item.stroke?.fill, map);
-      }
-    } else if (layer.kind === 'image') {
-      for (const item of layer.items) {
-        const next = map.get(item.imageIdentifier);
-        if (next) item.imageIdentifier = next;
-      }
+    if (layer.kind !== 'image') continue;
+    for (const item of layer.items) {
+      const next = map.get(item.imageIdentifier);
+      if (next) item.imageIdentifier = next;
     }
   }
 }

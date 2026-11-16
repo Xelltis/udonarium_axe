@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { ModalService } from '@axe/application/ui/modal.service';
-import { PanelService } from '@axe/application/ui/panel.service';
+import { ModalContent, ModalService } from '@axe/application/ui/modal.service';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -8,8 +7,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
   templateUrl: './text-view.component.html',
   host: { class: 'block' },
 })
-export class TextViewComponent {
-  private readonly panelService = inject(PanelService);
+export class TextViewComponent implements ModalContent {
   private readonly modalService = inject(ModalService);
 
   text: string = '';
@@ -17,13 +15,12 @@ export class TextViewComponent {
 
   constructor() {
     const option = this.modalService.option as Record<string, unknown>;
-    if (option && option.title != null) {
-      this.title = option.title ? (option.title as string) : '';
-      this.text = option.text ? (option.text as string) : '';
-    }
-    queueMicrotask(() => {
-      this.panelService.title = this.title;
-      this.modalService.title = this.title;
-    });
+    this.title = option?.title ? (option.title as string) : '';
+    this.text = option?.text ? (option.text as string) : '';
+  }
+
+  /** The title it was opened with, which the frame it stands in shows. */
+  get modalTitle(): string {
+    return this.title;
   }
 }

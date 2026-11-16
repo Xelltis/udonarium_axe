@@ -1,8 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ImageTag } from '@axe/domain/media/image-tag';
+import { ImageTagLock } from '@axe/domain/media/image-tag-lock';
 import { MapEditorStampPickerComponent } from '@axe/features/map-editor/editor/map-editor-stamp-picker.component';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -67,9 +69,24 @@ describe('MapEditorStampPickerComponent', () => {
 
     const created = ImageTag.get('uploaded-stamp');
     expect(created).toBeTruthy();
-    expect(created.tag).toBe('マップスタンプ');
+    expect(created!.tag).toBe('マップスタンプ');
     expect(state.stampId()).toBe('media:uploaded-stamp');
     expect(input.value).toBe('');
+  });
+
+  it('leaves an uploaded picture kept under a private tag there, selects it all the same, and says so once', async () => {
+    ImageTag.create('kept-stamp').tag = '秘蔵';
+    ImageTagLock.lock('秘蔵', 'owner_me');
+    const show = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+    imageStorage.addAsync.mockResolvedValue({ identifier: 'kept-stamp' });
+    const input = { files: [new File([new Uint8Array([1])], 'x.png', { type: 'image/png' })], value: 'x' };
+
+    await picker.onStampFileSelected({ target: input } as unknown as Event);
+
+    expect(ImageTag.get('kept-stamp')?.tag).toBe('秘蔵');
+    expect(state.stampId()).toBe('media:kept-stamp');
+    expect(show).toHaveBeenCalledOnce();
+    expect(show.mock.calls[0][0]).toContain('自分専用のタグ「秘蔵」');
   });
 
   it('may put back a picture the room removed, and uses none it could not', async () => {

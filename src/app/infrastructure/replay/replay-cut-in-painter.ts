@@ -1,6 +1,8 @@
+import { clamp } from '@axe/core/util/clamp';
 import { clipPoints } from '@axe/domain/media/cut-in-clip';
 import { fillScaleOf, fillStops, rayDegOf } from '@axe/domain/media/cut-in-fill';
-import { letterMotionOf, letterPoseAt, lettersOf, letterTimingOf } from '@axe/domain/media/cut-in-letter-motion';
+import { layoutCutInText } from '@axe/domain/media/cut-in-letter-layout';
+import { letterMotionOf, letterPoseAt, letterTimingOf } from '@axe/domain/media/cut-in-letter-motion';
 import { withSpeakerName } from '@axe/domain/media/cut-in-speaker';
 import { wipePoints } from '@axe/domain/media/cut-in-wipe';
 import {
@@ -9,6 +11,7 @@ import {
   type ReplayCutInScene,
   replaySampleAt,
   replaySceneDurationOf,
+  replaySceneSizeOf,
 } from '@axe/domain/replay/replay-cut-in-scene';
 import { containRect, coverRect } from '@axe/domain/replay/replay-picture-fit';
 import {
@@ -35,7 +38,7 @@ export function paintReplayCutInScene(
   const durationMs = replaySceneDurationOf(scene);
   const ms = scene.sceneLoop ? elapsedMs % durationMs : Math.min(elapsedMs, durationMs);
 
-  const stage = sceneStage(scene);
+  const stage = replaySceneSizeOf(scene);
   const fit = Math.min(area.width / stage.width, area.height / stage.height, 1);
   const originX = area.x + (area.width - stage.width * fit) / 2;
   const originY = area.y + (area.height - stage.height * fit) / 2;
@@ -50,7 +53,7 @@ export function paintReplayCutInScene(
     if (!sample.visible || sample.opacity <= 0) continue;
 
     ctx.save();
-    ctx.globalAlpha = Math.min(1, Math.max(0, sample.opacity));
+    ctx.globalAlpha = clamp(sample.opacity, 0, 1);
     if (sample.blur > 0) ctx.filter = `blur(${sample.blur * fit}px)`;
 
     // A canvas has one shadow rather than a list of filters, so the light and the shadow
@@ -78,7 +81,7 @@ export function paintReplayCutInScene(
     clipTo(ctx, layer, left, top);
     wipeTo(ctx, layer, layer.wipeShape, sample.wipe, left, top);
     wipeTo(ctx, layer, layer.crumbleShape, sample.crumble, left, top);
-    const sinceMs = ms - Math.min(durationMs, Math.max(0, layer.startMs));
+    const sinceMs = ms - clamp(layer.startMs, 0, durationMs);
     paintLayer(ctx, layer, left, top, assets, fontFamily, sinceMs);
 
     ctx.restore();
@@ -89,7 +92,7 @@ export function paintReplayCutInScene(
 function leanBy(ctx: ReplayFrameCanvas, skewXDeg: number, skewYDeg: number): void {
   if (!skewXDeg && !skewYDeg) return;
 
-  const held = (degrees: number) => Math.tan((Math.min(80, Math.max(-80, degrees || 0)) * Math.PI) / 180);
+  const held = (degrees: number) => Math.tan((clamp(degrees || 0, -80, 80) * Math.PI) / 180);
   ctx.transform(1, held(skewYDeg), held(skewXDeg), 1, 0, 0);
 }
 
@@ -118,12 +121,8 @@ function clipTo(ctx: ReplayFrameCanvas, layer: ReplayCutInLayer, left: number, t
 const UNKNOWN_SPEAKER = '？？？';
 
 /**
- * The words of a text layer, laid out the way the browser lays them out.
- *
- * Lines are broken where they were written, letters are set as far apart as they were
- * told, and a layer told to run downwards is drawn a character at a time down columns
- * going right to left — which is how vertical Japanese is set. A layer whose letters come
- * on one at a time has each letter drawn where `letterPoseAt` puts it, `sinceMs` after the
+ * The words of a text layer, drawn where `layoutCutInText` lays them out. A layer whose letters
+ * come on one at a time has each letter drawn where `letterPoseAt` puts it, `sinceMs` after the
  * layer came on, as the stage does.
  */
 function paintWords(
@@ -135,91 +134,45 @@ function paintWords(
   sinceMs: number
 ): void {
   ctx.font = `${layer.fontWeight} ${layer.fontSizePx}px ${fontFamily}`;
-  const spaced = ctx as unknown as { letterSpacing?: string };
-  const wasSpaced = spaced.letterSpacing;
-  if ('letterSpacing' in ctx) spaced.letterSpacing = `${layer.letterSpacingPx}px`;
+  const spaced = 'letterSpacing' in ctx;
+  const wasSpaced = spaced ? ctx.letterSpacing : '0px';
+  if (spaced) ctx.letterSpacing = `${layer.letterSpacingPx}px`;
 
   // A video does not know who a cut-in was played for, so a name asked for is left unknown.
   const words = withSpeakerName(layer.text, null, UNKNOWN_SPEAKER);
-  const lines = words.split('\n');
   const stroked = layer.strokeWidthPx > 0 && layer.strokeColor.length > 0;
   ctx.strokeStyle = layer.strokeColor;
   ctx.lineWidth = layer.strokeWidthPx * 2;
   ctx.fillStyle = layer.color;
   ctx.textBaseline = 'middle';
 
-  const step = layer.fontSizePx * Math.max(0.4, layer.lineHeight);
   const motion = letterMotionOf(layer.letterMotion);
   const timing = motion ? letterTimingOf(motion, layer.letterStaggerMs, layer.letterDurationMs) : null;
-  const placed = lettersOf(words);
-  const drawLetter = (letter: string, rank: number, x: number, y: number) => {
+  const box = { left, top, width: layer.width, height: layer.height };
+  const { align, runs } = layoutCutInText(words, box, layer, !!motion, (text) => ctx.measureText(text).width);
+  ctx.textAlign = align;
+
+  for (const run of runs) {
     if (!motion || !timing) {
-      if (stroked) ctx.strokeText(letter, x, y);
-      ctx.fillText(letter, x, y);
-      return;
+      if (stroked) ctx.strokeText(run.text, run.x, run.y);
+      ctx.fillText(run.text, run.x, run.y);
+      continue;
     }
-    const pose = letterPoseAt(motion, rank, sinceMs, layer.fontSizePx, timing);
-    if (pose.opacity <= 0) return;
+    const pose = letterPoseAt(motion, run.rank, sinceMs, layer.fontSizePx, timing);
+    if (pose.opacity <= 0) continue;
     ctx.save();
     ctx.globalAlpha *= pose.opacity;
-    ctx.translate(x + pose.dx, y + pose.dy);
+    ctx.translate(run.x + pose.dx, run.y + pose.dy);
     ctx.rotate((pose.rotateDeg * Math.PI) / 180);
     ctx.scale(pose.scale, pose.scale);
-    if (stroked) ctx.strokeText(letter, 0, 0);
-    ctx.fillText(letter, 0, 0);
+    if (stroked) ctx.strokeText(run.text, 0, 0);
+    ctx.fillText(run.text, 0, 0);
     ctx.restore();
-  };
-
-  if (layer.vertical) {
-    ctx.textAlign = 'center';
-    const blockWidth = step * lines.length;
-    // The first line is the rightmost column, which is the way vertical Japanese reads.
-    const rightmost = left + (layer.width - blockWidth) / 2 + blockWidth - step / 2;
-
-    for (const [column, letters] of placed.entries()) {
-      const x = rightmost - column * step;
-      const down = layer.fontSizePx + layer.letterSpacingPx;
-      const startY = top + (layer.height - letters.length * down) / 2 + down / 2;
-
-      for (const [at, letter] of letters.entries()) drawLetter(letter.text, letter.rank, x, startY + at * down);
-    }
-  } else if (motion) {
-    // Each letter is drawn on its own, centred where it would stand in the line.
-    ctx.textAlign = 'center';
-    const startY = top + (layer.height - lines.length * step) / 2 + step / 2;
-
-    for (const [at, letters] of placed.entries()) {
-      const y = startY + at * step;
-      const lineWidth = ctx.measureText(letters.map((letter) => letter.text).join('')).width;
-      const lineLeft =
-        layer.textAlign === 'left'
-          ? left
-          : layer.textAlign === 'right'
-            ? left + layer.width - lineWidth
-            : left + (layer.width - lineWidth) / 2;
-      let before = '';
-      for (const letter of letters) {
-        const x = lineLeft + ctx.measureText(before).width + ctx.measureText(letter.text).width / 2;
-        drawLetter(letter.text, letter.rank, x, y);
-        before += letter.text;
-      }
-    }
-  } else {
-    ctx.textAlign = layer.textAlign === 'left' ? 'left' : layer.textAlign === 'right' ? 'right' : 'center';
-    const x =
-      layer.textAlign === 'left' ? left : layer.textAlign === 'right' ? left + layer.width : left + layer.width / 2;
-    const startY = top + (layer.height - lines.length * step) / 2 + step / 2;
-
-    for (const [at, line] of lines.entries()) {
-      const y = startY + at * step;
-      if (stroked) ctx.strokeText(line, x, y);
-      ctx.fillText(line, x, y);
-    }
   }
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  if ('letterSpacing' in ctx) spaced.letterSpacing = wasSpaced ?? '0px';
+  if (spaced) ctx.letterSpacing = wasSpaced;
 }
 
 /** What has been let in so far, cut over whatever outline the layer already has. */
@@ -437,15 +390,4 @@ function paintStripes(
     at++;
   }
   ctx.restore();
-}
-
-/** The box the layers take up between them, which stands in for the cut-in's own size. */
-function sceneStage(scene: ReplayCutInScene): { width: number; height: number } {
-  let width = 1;
-  let height = 1;
-  for (const layer of scene.layers) {
-    width = Math.max(width, layer.x + layer.width);
-    height = Math.max(height, layer.y + layer.height);
-  }
-  return { width, height };
 }

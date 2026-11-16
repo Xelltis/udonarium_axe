@@ -1,6 +1,7 @@
 import type { TableWorldCoin, TableWorldCoinSide } from '@axe/domain/tabletop/world/table-coins';
 import { pointOnFace, turnedAbout, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
 import { paintCoinSide } from '@axe/infrastructure/table-3d/coin-sides';
+import { sceneDirection } from '@axe/infrastructure/three-kit/board-space';
 import { forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import {
   BufferGeometry,
@@ -24,16 +25,13 @@ const SIDE_PX = 256;
 const ROUND_SEGMENTS = 48;
 const RIM_SEGMENTS = 24;
 
-/** A direction of the board's space as the scene's, whose axes run east, up and south. */
-function sceneDirection(v: { x: number; y: number; z: number }): Vector3 {
-  return new Vector3(v.x, v.z, v.y);
-}
-
 /** A side of a coin, painted once for every coin of that size showing it. */
 interface PaintedSide {
   readonly texture: CanvasTexture;
   readonly material: MeshBasicNodeMaterial;
   users: number;
+  /** Calls off the picture still coming to be painted on it, where one is. */
+  readonly callOff: () => void;
 }
 
 interface DrawnCoin {
@@ -81,6 +79,7 @@ export class CoinLayer {
     for (const [id, drawn] of this.drawn) if (!wanted.has(id)) this.forget(id, drawn);
   }
 
+  /** Lets go of every coin drawn and of the rim they share. */
   dispose(): void {
     for (const [id, drawn] of this.drawn) this.forget(id, drawn);
     this.rim.dispose();
@@ -113,22 +112,33 @@ export class CoinLayer {
       texture.colorSpace = SRGBColorSpace;
       const material = new MeshBasicNodeMaterial({ map: texture, transparent: true, alphaTest: 0.01 });
       this.dress(material);
-      painted = { texture, material, users: 0 };
+      const callOff = look.pictureUrl ? this.paintPicture(look, radius, canvas, texture) : () => undefined;
+      painted = { texture, material, users: 0, callOff };
       this.sides.set(key, painted);
-      if (look.pictureUrl) this.paintPicture(look, radius, canvas, texture);
     }
     painted.users++;
     return painted.material;
   }
 
-  private paintPicture(look: TableWorldCoinSide, radius: number, canvas: HTMLCanvasElement, texture: CanvasTexture) {
+  /** Has a side painted again with its picture once that has come, and answers what calls the painting off. */
+  private paintPicture(
+    look: TableWorldCoinSide,
+    radius: number,
+    canvas: HTMLCanvasElement,
+    texture: CanvasTexture
+  ): () => void {
     const picture = new Image();
     picture.onload = () => {
+      picture.onload = null;
       paintCoinSide(canvas, look.side, radius * 2, picture);
       texture.needsUpdate = true;
       this.needsFrame();
     };
     picture.src = look.pictureUrl;
+    return () => {
+      picture.onload = null;
+      picture.src = '';
+    };
   }
 
   private forget(id: string, drawn: DrawnCoin): void {
@@ -139,6 +149,7 @@ export class CoinLayer {
     for (const key of drawn.sides) {
       const painted = this.sides.get(key);
       if (!painted || --painted.users > 0) continue;
+      painted.callOff();
       painted.texture.dispose();
       painted.material.dispose();
       this.sides.delete(key);

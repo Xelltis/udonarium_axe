@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { emitStartVote } from '@axe/core/event/domain-events';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -197,7 +199,10 @@ describe('VoteWidgetComponent', () => {
 
       internals.voteSend('反対');
 
-      const text = chatStub.sendSystemMessageAsLastSpeaker.mock.calls[0][0] as string;
+      const text = decodeI18nMessage(
+        chatStub.sendSystemMessageAsLastSpeaker.mock.calls[0][0] as string,
+        TestBed.inject(TRANSLATE_FN)
+      );
       expect(text).toContain('回答しました');
       expect(text).not.toContain('反対');
     });
@@ -207,7 +212,10 @@ describe('VoteWidgetComponent', () => {
 
       internals.abstain();
 
-      const text = chatStub.sendSystemMessageAsLastSpeaker.mock.calls[0][0] as string;
+      const text = decodeI18nMessage(
+        chatStub.sendSystemMessageAsLastSpeaker.mock.calls[0][0] as string,
+        TestBed.inject(TRANSLATE_FN)
+      );
       expect(text).toContain('回答しました');
       expect(text).not.toContain('棄権');
     });

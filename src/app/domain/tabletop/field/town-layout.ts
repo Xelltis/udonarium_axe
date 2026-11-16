@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { TownPlan } from '@axe/domain/tabletop/field/field-atmosphere';
 import { fbm, makeValueNoise } from '@axe/domain/tabletop/field/field-noise';
@@ -131,7 +132,7 @@ function heightFor(lot: MapRect, plan: TownPlan, width: number, height: number, 
   if (plan.downtown) {
     const reach = Math.hypot(width / 2, height / 2) || 1;
     const nearness = 1 - Math.hypot(lot.x + lot.w / 2 - width / 2, lot.y + lot.h / 2 - height / 2) / reach;
-    share = Math.min(1, Math.max(0, nearness * 0.8 + share * 0.35));
+    share = clamp(nearness * 0.8 + share * 0.35, 0, 1);
   }
   return Math.round((least + (most - least) * share) * 10) / 10;
 }
@@ -184,7 +185,7 @@ export function layTown(plan: TownPlan, width: number, height: number, seed: num
   const rng = seededRandom(seed + 6007);
   const ground = new Uint8Array(width * height).fill(plan.zones.street);
   const buildings: FieldBuilding[] = [];
-  const built = Math.min(1, Math.max(0, (1 - plan.vacancy / 100) * (0.5 + density / 100)));
+  const built = clamp((1 - plan.vacancy / 100) * (0.5 + density / 100), 0, 1);
 
   const rows = blockSpans(height, plan, rng);
   const shared = blockSpans(width, plan, rng);

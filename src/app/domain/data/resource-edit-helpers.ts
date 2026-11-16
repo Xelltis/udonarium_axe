@@ -2,6 +2,14 @@ import { toHalfWidth } from '@axe/core/util/string-util';
 import { isAimedAtStatus } from '@axe/domain/character/aimed-at-buff';
 import { parseBuffAppearance } from '@axe/domain/character/buff-appearance';
 import {
+  type BuffClearanceRule,
+  type BuffRemovalRule,
+  describeBuffRemoval,
+  describeBuffsLacking,
+  parseBuffClearanceCommand,
+  removeBuffsWithParts,
+} from '@axe/domain/character/buff-bulk-removal';
+import {
   buffCommandKind,
   readBuffStacking,
   readCalculatedBuff,
@@ -19,13 +27,19 @@ import {
 } from '@axe/domain/character/buff-modifier';
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { buffExpires } from '@axe/domain/character/buff-timing';
+import {
+  type DefaultPick,
+  type DefaultValueChange,
+  type PieceDefaultReset,
+  resetToDefaults,
+} from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { plantStatusAilment, statusAilmentAsCommanded } from '@axe/domain/character/status-ailment-plant';
-import { DataElement } from '@axe/domain/data/data-element';
+import { findReferencedElement } from '@axe/domain/data/element-reference';
 import { findEmbeddedRolls, replaceEmbeddedRolls } from '@axe/domain/data/embedded-roll';
 import { resourceCommandParts } from '@axe/domain/data/resource-command-words';
 import { readNamedResourceSlot, type ResourceSlot, resourceSlotLabel } from '@axe/domain/data/resource-slot';
@@ -255,7 +269,7 @@ export function applyResourceEditReport(edit: ResourceEdit, character: GameChara
 
   // Snapshot effective bounds BEFORE applying so we can report shifts when corrections move them.
   const targetElement = character.detailDataElement
-    ? DataElement.findElementByReference(character.detailDataElement, edit.target)
+    ? findReferencedElement(character.detailDataElement, edit.target)
     : null;
   const oldEffectiveMax = targetElement?.effectiveMax ?? null;
   const oldEffectiveMin = targetElement?.effectiveMin ?? null;
@@ -329,6 +343,67 @@ export function applyResourceEditReport(edit: ResourceEdit, character: GameChara
 /** What stands in for a value said to be set on a piece whose contents are kept from anyone. */
 const KEPT_VALUE = '？';
 
+/** One `:` command that puts a piece's values back to their defaults, ready to be carried out. */
+export interface DefaultResetEdit {
+  object: GameCharacter;
+  targeted: boolean;
+  pick: DefaultPick;
+}
+
+/** The chat text reporting values put back, the pieces whose contents it keeps from anyone, and what changed. */
+export interface DefaultResetReport extends ResourceEditReport {
+  readonly kept: readonly GameCharacter[];
+  readonly resets: readonly PieceDefaultReset[];
+}
+
+function describeDefaultChange(change: DefaultValueChange): string {
+  const label = resourceSlotLabel(change.slot);
+  const shown = (value: number | string) => (`${value}` === '' ? '-' : `${value}`);
+  return `${change.name}${label.length > 0 ? `(${label})` : ''}:${shown(change.before)}→${shown(change.after)}`;
+}
+
+/**
+ * Puts a piece and the parts that go with it back to their defaults and returns the chat text
+ * reporting it; see {@link resetToDefaults}.
+ *
+ * Each item that changed is told with what it held before and after, the items of a part after the
+ * part's name. Of a piece whose contents are kept from anyone, everyone is told only how many items
+ * changed. The text says so where every item already stood at its default, and where nothing asked
+ * for keeps one. Both texts are empty where one item was named and the piece has none by that name.
+ */
+export function applyDefaultReset(edit: DefaultResetEdit): DefaultResetReport {
+  const resets = resetToDefaults(edit.object, edit.pick);
+  const named = edit.pick.kind === 'item' ? edit.pick : null;
+  const label = named ? `${named.name}${slotSuffix(named.slot)}` : '';
+  const said = (text: string): DefaultResetReport => ({ full: text, shown: text, kept: [], resets });
+
+  if (!resets.some((reset) => reset.found)) return said('');
+  if (resets.every((reset) => reset.defaults < 1)) {
+    return said(named ? `${label}に既定値はありません    ` : '既定値のある項目はありません    ');
+  }
+  const changed = resets.filter((reset) => reset.changes.length > 0);
+  if (changed.length < 1) return said(named ? `${label}は既定値のままです    ` : '既定値のままです    ');
+
+  let full = '既定値に戻す';
+  let shown = '既定値に戻す';
+  const kept: GameCharacter[] = [];
+  for (const reset of changed) {
+    const part = reset.piece === edit.object ? '' : ` 部位「${saidNameOf(reset.piece)}」`;
+    const items = `${part} ${reset.changes.map(describeDefaultChange).join(' ')}`;
+    full += items;
+    if (isKeptFromAnyone(reset.piece)) {
+      kept.push(reset.piece);
+      shown += `${part}（${reset.changes.length}項目）`;
+    } else shown += items;
+  }
+  return { full: `${full}    `, shown: `${shown}    `, kept, resets };
+}
+
+function slotSuffix(slot: ResourceSlot): string {
+  const label = resourceSlotLabel(slot);
+  return label.length > 0 ? `(${label})` : '';
+}
+
 /**
  * `&!name/status/op/amount/R/timing/trigger` - a buff that moves a status as it goes on and
  * moves it back as it runs out, so the table stops doing the arithmetic by hand.
@@ -338,6 +413,9 @@ const KEPT_VALUE = '？';
  * gets a row of its own, the first under the buff's name and the rest under the name and their
  * status, all of them marked as the one buff, so that a version that knows no such buff shows them
  * as buffs of their own that each put back what they moved.
+ *
+ * A field `発生:手番終了` (`tick:turnEnd`) after the rounds gives the effect a moment of its own to move
+ * at, in place of moving as the buff is counted down.
  *
  * `&+!` stacks: a second helping moves the status again and the buff remembers both, rather than
  * putting the first one back, and `&++!` lengthens the buff by the rounds asked for as well.
@@ -371,7 +449,9 @@ function grantCalculatedBuff(
   if (!stacking) character.buffs.removeGroupMembers(name);
   const grouped = requests.length > 1;
   const group = grouped ? name : stacking ? undefined : '';
-  const appearance = { ...readCalculatedBuffLook(look), group };
+  const written = readCalculatedBuffLook(look);
+  // Laid anew, a buff written without a moment for its effect has none, whatever one of its name had.
+  const appearance = { ...written, effectTiming: written.effectTiming ?? (stacking ? undefined : ''), group };
 
   const missing: string[] = [];
   const effects: string[] = [];
@@ -409,7 +489,8 @@ function grantCalculatedBuff(
  * Runs one `&` buff command on the character and returns the chat text reporting it.
  *
  * `&R-` and `&R+` move every buff's remaining rounds, `&D` clears buffs at zero rounds or fewer, `&name-`
- * removes one buff, `&!` adds a buff that changes a status, and anything else adds a plain
+ * removes one buff, `&*-`, `&*バフ-` and `&*デバフ-` clear the piece and its parts of every buff, of
+ * the buffs or of the debuffs, `&!` adds a buff that changes a status, and anything else adds a plain
  * `name/effect/rounds/appearance` buff; one named after a state the room keeps puts that state on,
  * what the command leaves out read from the room's list of states. A `+` right after the ampersand
  * stacks onto a buff of the same name rather than starting it over, and `++` lengthens it by the
@@ -423,6 +504,7 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
   }
 
   const kind = buffCommandKind(command);
+  const clearance = parseBuffClearanceCommand(command);
   if (kind === 'roundsDown') {
     character.buffs.decreaseRound();
     text += 'バフRを減少    ';
@@ -432,6 +514,8 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
   } else if (kind === 'clearZero') {
     character.buffs.deleteZeroRound();
     text += '0R以下のバフを消去    ';
+  } else if (clearance) {
+    text += clearBuffs(character, clearance);
   } else if (kind === 'remove') {
     const reg1 = removedBuffName(command);
     if (character.buffs.delete(reg1)) {
@@ -491,6 +575,26 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
 }
 
 /**
+ * The states the room keeps, for a removal that tells a debuff from a buff by them; none for a
+ * removal that never asks, which leaves the room's list unread.
+ */
+export function ailmentsForBuffRemoval(rule: BuffRemovalRule): readonly StatusAilment[] {
+  return rule.kind === 'buffs' || rule.kind === 'debuffs' ? StatusAilmentCatalog.instance.ailments : [];
+}
+
+/**
+ * Clears a piece and the parts that go with it of what the rule picks, and says how many buffs went,
+ * never which: the names would tell what a piece that hides its buffs wears. The buff a piece rides
+ * two up by stays while it rides so.
+ */
+function clearBuffs(character: GameCharacter, rule: BuffClearanceRule): string {
+  const removed = removeBuffsWithParts(character, rule, ailmentsForBuffRemoval(rule));
+  if (removed.buffs < 1) return `解除する${describeBuffsLacking(rule)}はありません    `;
+  const reach = removed.parts > 0 ? `本体と部位${removed.parts}・` : '';
+  return `${describeBuffRemoval(rule)}を解除（${reach}${removed.buffs}件）    `;
+}
+
+/**
  * A plain buff naming a state the room keeps, put on as the room describes the state: the note,
  * the rounds and the look the command writes stand in for the state's own, and the rest, the
  * status the state moves among it, is the state's. Laid on top of one already worn, the buff
@@ -505,7 +609,11 @@ function plantCommandedState(state: StatusAilment, parts: string[], character: G
     rounds: Number.isNaN(rounds) ? null : rounds,
     look,
   });
-  plantStatusAilment(character, ailment, look.trigger ? { trigger: look.trigger } : {});
+  plantStatusAilment(character, ailment, {
+    ...(look.trigger ? { trigger: look.trigger } : {}),
+    ...(look.effectTiming ? { effectTiming: look.effectTiming } : {}),
+    ...(look.kind ? { kind: look.kind } : {}),
+  });
   const counted = ailment.rounds > 0 && ailment.timing !== 'none';
   const told = [ailment.name, ailment.effect, counted ? `${ailment.rounds}R` : '', ...written.look];
   return `バフを付与 ${told.filter((part) => part.length > 0).join('/')}    `;

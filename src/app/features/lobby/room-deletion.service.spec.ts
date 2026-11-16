@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import {
   roomDeletionMessageKey,
@@ -21,7 +21,7 @@ describe('RoomDeletionService', () => {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     service = TestBed.inject(RoomDeletionService);
     ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
-    deleteRoom = vi.spyOn(Network, 'deleteRoom').mockResolvedValue(undefined);
+    deleteRoom = vi.spyOn(Network.instance, 'deleteRoom').mockResolvedValue(undefined);
   });
 
   afterEach(() => {

@@ -39,8 +39,8 @@ test.describe('the keyboard on a panel', () => {
   }) => {
     await openPanel(page, 'カットイン');
     const minimize = page
-      .locator('app-cut-in-list')
-      .locator('xpath=ancestor::*[contains(@class, "draggable-panel")]')
+      .locator('cut-in-list')
+      .locator('xpath=ancestor::*[@data-testid="ui-panel"]')
       .getByRole('button', { name: '最小化' });
     await minimize.focus();
     await page.keyboard.press('Shift+Tab');

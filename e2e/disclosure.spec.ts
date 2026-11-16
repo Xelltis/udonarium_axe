@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { openPanel, sendMenuEvent, waitAppReady } from './helpers';
 
 /**
  * Disclosure works by keeping what must not be seen out of sight, so when it breaks nothing happens
@@ -15,7 +15,7 @@ test.describe('how far information is disclosed', () => {
     const panel = page.locator('ui-panel').filter({ hasText: '接続情報' });
     await panel.getByRole('button', { name: new RegExp(`^\\s*${role}\\s*$`) }).click();
     // The toolbar is swapped once the role has gone round.
-    const toolbar = role === 'GM' ? 'app-gm-toolbar [title^="暗闇"]' : 'app-pl-toolbar [title="所有キャラクター一覧"]';
+    const toolbar = role === 'GM' ? 'gm-toolbar [title^="暗闇"]' : 'pl-toolbar [title="所有キャラクター一覧"]';
     if (role !== '見学') await expect(page.locator(toolbar)).toBeVisible({ timeout: 10000 });
   }
 
@@ -41,7 +41,8 @@ test.describe('how far information is disclosed', () => {
   }
 
   async function openSheet(page: Page, index: number) {
-    await page.locator('game-character').nth(index).dispatchEvent('contextmenu');
+    // The pieces are taken by their place among the room's own, and stand under the panels the room opens with.
+    await sendMenuEvent(page.locator('game-character').nth(index));
     await page.locator('context-menu li').filter({ hasText: '詳細を表示' }).click();
     await expect(page.locator('game-character-sheet')).toBeVisible({ timeout: 10000 });
   }
@@ -73,12 +74,14 @@ test.describe('how far information is disclosed', () => {
 
     // A piece left public opens as before. With this passing, the missing menu below can be said to
     // be one that truly does not open, rather than one not drawn yet.
-    await page.locator('game-character').nth(PUBLIC).dispatchEvent('contextmenu');
+    // The pieces are taken by their place among the room's own, and stand under the panels the room opens with.
+    await sendMenuEvent(page.locator('game-character').nth(PUBLIC));
     await expect(page.locator('context-menu li').filter({ hasText: '詳細を表示' })).toBeVisible({ timeout: 5000 });
     await dismissMenu(page);
 
     // The hidden piece opens a menu that only aims at it.
-    await page.locator('game-character').nth(HIDDEN).dispatchEvent('contextmenu');
+    // The pieces are taken by their place among the room's own, and stand under the panels the room opens with.
+    await sendMenuEvent(page.locator('game-character').nth(HIDDEN));
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').filter({ hasText: 'ターゲット' }).first()).toBeVisible({ timeout: 5000 });
     await expect(menu.locator('li').filter({ hasText: '詳細を表示' })).toHaveCount(0);

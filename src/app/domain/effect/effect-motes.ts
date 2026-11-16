@@ -14,6 +14,7 @@ const MOTE_BY_TAG: Record<string, EffectMote> = {
   雷: 'arc',
   風: 'leaf',
   闇: 'haze',
+  聖: 'spark',
   状態異常: 'haze',
   土: 'spark',
   射撃: 'spark',
@@ -24,12 +25,12 @@ const MOTE_BY_TAG: Record<string, EffectMote> = {
 const MOTE_STYLES: readonly EffectMote[] = ['spark', 'frost', 'arc', 'leaf', 'haze', 'none'];
 
 /** Whether a stored value names a known kind of particle. Empty is not one; it leaves the choice to the family. */
-export function isEffectMote(value: unknown): value is EffectMote {
+function isEffectMote(value: unknown): value is EffectMote {
   return typeof value === 'string' && MOTE_STYLES.includes(value as EffectMote);
 }
 
 /** What is given outright wins; otherwise the family decides. */
-export function effectMoteOf(preset: EffectPreset): EffectMote {
+export function effectMoteOf(preset: Pick<EffectPreset, 'moteStyle' | 'tagName'>): EffectMote {
   if (isEffectMote(preset.moteStyle)) return preset.moteStyle;
   return MOTE_BY_TAG[preset.tagName.trim()] ?? 'spark';
 }

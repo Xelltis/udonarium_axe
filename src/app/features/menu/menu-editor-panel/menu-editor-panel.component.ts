@@ -85,7 +85,7 @@ function marksInUse(): string[] {
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-menu-editor-panel',
+  selector: 'menu-editor-panel',
   templateUrl: './menu-editor-panel.component.html',
   imports: [FormsModule, IconPickerComponent, MenuCommandPickerComponent, TranslocoModule],
 })

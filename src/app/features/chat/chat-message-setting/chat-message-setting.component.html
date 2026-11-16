@@ -113,12 +113,7 @@
       <span class="text-ui-muted flex-1 text-[12px]">{{
         'feature.chat.messageSetting.portraitInWindow' | transloco
       }}</span>
-      <input
-        type="checkbox"
-        [(ngModel)]="chatTabList.isPortraitInWindow"
-        name="portraitInWindow"
-        (click)="changePortraitInWindow()"
-      />
+      <input type="checkbox" [(ngModel)]="chatTabList.isPortraitInWindow" name="portraitInWindow" />
     </label>
     <label class="flex cursor-pointer items-center justify-between gap-2 py-1">
       <span class="text-ui-muted flex-1 text-[12px]">{{
@@ -128,8 +123,7 @@
         type="checkbox"
         [(ngModel)]="chatTabList.isKeepPortraitOutWindow"
         name="isKeepPortraitOutWindow"
-        (click)="changeKeepPortraitOutWindow()"
-        [attr.disabled]="chatTabList.isPortraitInWindow ? '' : null"
+        [disabled]="chatTabList.isPortraitInWindow"
       />
     </label>
   </section>
@@ -148,7 +142,7 @@
         name="systemAvatarVisible"
         [ngModel]="systemAvatarVisible()"
         (ngModelChange)="setSystemAvatarVisible($event)"
-        [attr.disabled]="canEditRoom() ? null : ''"
+        [disabled]="!canEditRoom()"
       />
     </label>
     <label class="flex cursor-pointer items-center justify-between gap-2 py-1">
@@ -158,7 +152,7 @@
         name="speakerAvatarVisible"
         [ngModel]="speakerAvatarVisible()"
         (ngModelChange)="setSpeakerAvatarVisible($event)"
-        [attr.disabled]="canEditRoom() ? null : ''"
+        [disabled]="!canEditRoom()"
       />
     </label>
     <p class="text-ui-dim m-0 mb-1 text-[11px]">{{ 'feature.chat.systemAvatar.showSpeakerHint' | transloco }}</p>
@@ -249,8 +243,8 @@
         type="checkbox"
         [(ngModel)]="chatTabList.simpleDispFlagTime"
         name="simpleDispFlagTime"
-        (click)="changeDispFlagTime()"
-        [attr.disabled]="chatTab?.chatSimpleDispFlag ? null : ''"
+        (click)="redrawChat()"
+        [disabled]="!chatTab?.chatSimpleDispFlag"
       />
     </label>
     <label class="flex cursor-pointer items-center justify-between gap-2 py-1">
@@ -259,8 +253,8 @@
         type="checkbox"
         [(ngModel)]="chatTabList.simpleDispFlagUserId"
         name="simpleDispFlagUserId"
-        (click)="changeDispFlagUserId()"
-        [attr.disabled]="chatTab?.chatSimpleDispFlag ? null : ''"
+        (click)="redrawChat()"
+        [disabled]="!chatTab?.chatSimpleDispFlag"
       />
     </label>
   </section>

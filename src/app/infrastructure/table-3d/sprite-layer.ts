@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import type { GridType } from '@axe/domain/tabletop/grid-type';
 import type { GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { GroundCells } from '@axe/domain/tabletop/world/ground-cells';
@@ -9,11 +10,15 @@ import {
   type TableWorldSprite,
 } from '@axe/domain/tabletop/world/table-sprites';
 import { boxOverGround } from '@axe/infrastructure/table-3d/face-geometry';
+import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
+import { sceneDirection } from '@axe/infrastructure/three-kit/board-space';
+import { colourNode } from '@axe/infrastructure/three-kit/colour-node';
 import { forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
-import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
+import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, vec4 } from 'three/tsl';
 import {
   type BufferGeometry,
   CanvasTexture,
+  Color,
   DoubleSide,
   FrontSide,
   Group,
@@ -29,9 +34,6 @@ import {
 /** How many texture pixels a frame is drawn at per table pixel, at most, and how big it may get. */
 const FRAME_DETAIL = 4;
 const FRAME_MAX_PX = 1024;
-
-/** Draws a sprite lying flat on a face in front of the face, past the depth's rounding. */
-const PULLED_FORWARD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 };
 
 /**
  * Where the sprites standing up come in the order things are drawn: after all that is laid over
@@ -58,11 +60,6 @@ export const SHADOW_CASTERS_LAYER = 1;
 /** How far into its picture a board throwing a shadow lets light through, as a share of its opacity. */
 const CASTER_ALPHA_TEST = 0.5;
 
-/** A direction of the board's space as the scene's, whose axes run east, up and south. */
-function sceneDirection(v: { x: number; y: number; z: number }): Vector3 {
-  return new Vector3(v.x, v.z, v.y);
-}
-
 /**
  * The turn that lays a square of the scene, facing out along its z, along a sprite's directions
  * across and down: the square's x runs across, its y up against down, and it faces out of the side
@@ -75,12 +72,12 @@ function turnAlong(across: { x: number; y: number; z: number }, down: { x: numbe
   return new Matrix4().makeBasis(x, y, z);
 }
 
-/** An eye for working out the way a sprite lies that does not turn to the eye, which never reads it. */
 /** Whether a sprite stands up off what it stands on, turned to the eye or held upright, rather than lying on it. */
 function standsUp(sprite: TableWorldSprite): boolean {
   return sprite.facing === 'eye' || Math.abs(sprite.facing.down.z) > 0.5;
 }
 
+/** An eye for working out the way a sprite lies that does not turn to the eye, which never reads it. */
 const UNUSED_EYE: EyeAxes = { right: { x: 1, y: 0, z: 0 }, up: { x: 0, y: 0, z: 1 } };
 
 /** Turns a sprite that faces the eye to an eye looking along these axes, and on by its own turn. */
@@ -96,6 +93,9 @@ export interface DrapedFloor {
   readonly gridType: GridType;
 }
 
+/** A look drawn from a picture, one that has come from elsewhere or a frame drawn here, rather than one colour all over. */
+type PicturedLook = Exclude<TableWorldLook, { kind: 'colour' }>;
+
 interface Drawn {
   readonly mesh: Mesh;
   readonly look: string;
@@ -106,7 +106,8 @@ interface Drawn {
 /**
  * The sprites of the pieces on the table, each a square of the scene stretched to its size and laid
  * where it lies. A sprite turned to the eye is turned again each time the camera turns. Sprites
- * showing the same thing the same way share one material.
+ * showing the same thing the same way share one material. A sprite of one colour is drawn in it at
+ * its own opacity, with no picture: as the back of a white board.
  */
 export class SpriteLayer {
   readonly group = new Group();
@@ -328,6 +329,7 @@ export class SpriteLayer {
     return material;
   }
 
+  /** Lets go of every sprite drawn, of the materials and frames they share, and of the square they are drawn on. */
   dispose(): void {
     this.square.dispose();
     for (const material of this.casterMaterials.values()) material.dispose();
@@ -351,18 +353,21 @@ export class SpriteLayer {
       opacity: sprite.opacity ?? 1,
       depthWrite: !lying,
       side: sprite.twoSided || sprite.drapes ? DoubleSide : FrontSide,
-      ...(lying ? PULLED_FORWARD : {}),
+      ...(lying ? LAID_OVER_FACES : {}),
     });
-    material.map = this.texture(sprite.look, sprite.widthPx, sprite.heightPx);
-    if (sprite.look.kind === 'picture') material.colorNode = shown(material.map, sprite.brightness);
-    else if (sprite.brightness !== 1) material.colorNode = dimmed(material.map, sprite.brightness);
+    if (sprite.look.kind === 'colour') material.color = new Color(sprite.look.colour);
+    else {
+      material.map = this.texture(sprite.look, sprite.widthPx, sprite.heightPx);
+      if (sprite.look.kind === 'picture') material.colorNode = shown(material.map, sprite.brightness);
+      else if (sprite.brightness !== 1) material.colorNode = dimmed(material.map, sprite.brightness);
+    }
     this.dress(material);
     showOnceCome(material);
     this.materials.set(key, material);
     return material;
   }
 
-  private texture(look: TableWorldLook, width: number, height: number): Texture {
+  private texture(look: PicturedLook, width: number, height: number): Texture {
     if (look.kind === 'picture') return this.pictureOf(look.url);
     const key = frameKey(look, width, height);
     let frame = this.frames.get(key);
@@ -401,11 +406,6 @@ export class SpriteLayer {
  */
 const PICTURE_SHARPNESS = -1;
 
-/** A colour the library's colour-space functions answer, which they do not say is a colour. */
-function colourNode(node: unknown): ReturnType<typeof vec3> {
-  return node as ReturnType<typeof vec3>;
-}
-
 /**
  * A picture whose colours carry its clearness, as a sprite's picture is held, shown as the page
  * shows it: its colours taken back apart from its clearness, and dimmed as the page dims one.
@@ -433,8 +433,13 @@ function showOnceCome(material: MeshBasicNodeMaterial): void {
 
 /** What sprites sharing a material have alike: what they show, how bright and how clear, from which sides, and whether they lie flat. */
 function lookKey(sprite: TableWorldSprite): string {
+  const look = sprite.look;
   const shown =
-    sprite.look.kind === 'picture' ? sprite.look.url : frameKey(sprite.look, sprite.widthPx, sprite.heightPx);
+    look.kind === 'picture'
+      ? look.url
+      : look.kind === 'colour'
+        ? `colour:${look.colour}`
+        : frameKey(look, sprite.widthPx, sprite.heightPx);
   return `${shown}|${sprite.brightness}|${sprite.opacity ?? 1}|${sprite.twoSided}|${sprite.order !== undefined}|${!!sprite.drapes}`;
 }
 
@@ -448,7 +453,7 @@ function frameKey(look: Extract<TableWorldLook, { kind: 'frame' }>, width: numbe
  * ones before it.
  */
 function drawFrame(look: Extract<TableWorldLook, { kind: 'frame' }>, width: number, height: number): HTMLCanvasElement {
-  const detail = Math.max(0.25, Math.min(FRAME_DETAIL, FRAME_MAX_PX / Math.max(width, height, 1)));
+  const detail = clamp(FRAME_MAX_PX / Math.max(width, height, 1), 0.25, FRAME_DETAIL);
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(width * detail));
   canvas.height = Math.max(1, Math.round(height * detail));

@@ -2,7 +2,7 @@
   <div
     class="border-ui-border-panel bg-ui-panel sticky -top-2 z-1 -mx-2 -mt-2 mb-0 flex shrink-0 flex-wrap gap-1 border-b border-solid px-2.5 py-2"
   >
-    @for (tag of tagList; track tag) {
+    @for (tag of tagList(); track tag) {
       <label class="inline-flex cursor-pointer">
         <input
           class="peer hidden"
@@ -11,7 +11,6 @@
           [value]="tag"
           [ngModel]="selectTag()"
           (ngModelChange)="selectTag.set($event)"
-          (change)="resetBtn()"
         />
         <span
           class="border-ui-border-panel text-ui-muted peer-checked:border-ui-accent peer-checked:bg-ui-accent-bg peer-checked:text-ui-accent hover:bg-ui-hover hover:text-ui-text inline-flex items-center rounded-full border border-solid bg-transparent px-2.5 py-0.75 text-xs font-medium whitespace-nowrap transition-colors select-none"

@@ -1,11 +1,14 @@
 import { inject, Injectable } from '@angular/core';
 import { BattleLaunchLoaderService } from '@axe/application/battle/battle-launch-loader.service';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
+import { PieceResetService } from '@axe/application/character/piece-reset.service';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { StealthService } from '@axe/application/character/stealth.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
@@ -23,6 +26,7 @@ import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-i
 import { RideMenuModel, RideService } from '@axe/application/tabletop/ride.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -35,6 +39,7 @@ import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { putOnBattleSide, standingBattleSide } from '@axe/domain/battle/battle-side';
 import { type BuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { buildConditionContextMenu } from '@axe/features/character/game-character/condition-context-menu';
 import {
@@ -43,6 +48,12 @@ import {
   FightMenuEntries,
 } from '@axe/features/character/game-character/game-character-context-menu';
 import { buildPartContextMenu } from '@axe/features/character/game-character/part-context-menu';
+import {
+  doesAnything,
+  offeredPieceResets,
+  type PieceResetChoice,
+  resetRequestOf,
+} from '@axe/features/character/game-character/piece-reset-context-menu';
 import { buildRideContextMenu, RideMenuEntries } from '@axe/features/character/game-character/ride-context-menu';
 import {
   buildZoneContextMenu,
@@ -108,6 +119,7 @@ export class GameCharacterMenuService {
   private readonly thirdPerson = inject(ThirdPersonService);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly effectCast = inject(EffectCastService);
+  private readonly effectTargeting = inject(EffectTargetingService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly engagementZones = inject(EngagementZoneService);
   private readonly ride = inject(RideService);
@@ -117,6 +129,8 @@ export class GameCharacterMenuService {
   private readonly disclosureService = inject(DisclosureService);
   private readonly battle = inject(BattleLaunchLoaderService);
   private readonly roomPanels = inject(RoomPanelService);
+  private readonly pieceReset = inject(PieceResetService);
+  private readonly confirm = inject(ConfirmService);
 
   /**
    * Opens a character's menu at a position, if the reader may view the piece.
@@ -197,6 +211,12 @@ export class GameCharacterMenuService {
             : undefined,
         onStopFollowing: this.thirdPerson.isFollowing(char.identifier) ? () => this.thirdPerson.stop() : undefined,
         onSetNameHidden: this.rolePermission.canSeeHidden() ? (hidden) => (char.hideName = hidden) : undefined,
+        onResetPiece: this.rolePermission.canEditTabletop()
+          ? (choice) => void this.resetPiece(char, choice)
+          : undefined,
+        resetOffers: this.rolePermission.canEditTabletop()
+          ? offeredPieceResets((request) => this.pieceReset.count(this.pieceReset.withParts(char), request))
+          : [],
       },
       this.translateFn,
       overlapEntries,
@@ -229,6 +249,34 @@ export class GameCharacterMenuService {
     } else {
       this.contextMenuService.openRadial(...args);
     }
+  }
+
+  /**
+   * Resets a piece and the parts that go with it as its menu asked, once the reader has confirmed
+   * what that reaches, and reports it in chat on a line the reset can be taken back from. Nothing
+   * for a seat that may not edit the table, or where the reset would by now do nothing. The report
+   * names the piece as everyone may be told it, and gives counts alone.
+   */
+  async resetPiece(char: GameCharacter, choice: PieceResetChoice): Promise<void> {
+    if (!this.rolePermission.canEditTabletop()) return;
+    const request = resetRequestOf(choice);
+    const reach = this.pieceReset.count(this.pieceReset.withParts(char), request);
+    if (!doesAnything(reach)) return;
+    const asked = this.translateFn(`feature.character.contextMenu.resetConfirm_${choice}`, {
+      name: this.shownName(char),
+      buffs: reach.buffs,
+      items: reach.items,
+    });
+    if (!(await this.confirm.ask(asked))) return;
+    this.pieceReset.run(this.pieceReset.withParts(char), request, (done) =>
+      doesAnything(done)
+        ? encodeI18nMessage(`feature.character.contextMenu.resetDone_${choice}`, {
+            name: saidNameOf(char),
+            buffs: done.buffs,
+            items: done.items,
+          })
+        : null
+    );
   }
 
   /** Opens the menu of a piece the reader may not view: only what aims at it. */
@@ -414,7 +462,6 @@ export class GameCharacterMenuService {
     );
   }
 
-  /** Fires an effect from a character sheet. It is looked up by name, so the same row works in any room. */
   /**
    * Plays the battle stage with the piece striking: at the pieces aimed at, or, with none, at the
    * other side of the master's lineup.
@@ -426,9 +473,13 @@ export class GameCharacterMenuService {
     else battle?.playLineupAs(char, 'everywhere');
   }
 
+  /**
+   * Fires an effect from a character sheet, or holds it ready from the piece where it needs a target
+   * and nobody is aimed at. It is looked up by name, so the same row works in any room.
+   */
   private invokeEffect(char: GameCharacter, name: string): void {
     const preset = this.effectLibrary.findByName(name);
-    if (preset) this.effectCast.fireFromCharacter(preset, char);
+    if (preset) this.effectTargeting.castFrom(preset, char);
   }
 
   private showDetail(gameObject: GameCharacter) {

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   DataElement,
   DataElementAttribute,
@@ -8,6 +9,8 @@ import {
   DataElementType,
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { DataElementEditService } from '@axe/features/data-element/game-data-element/data-element-edit.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -39,6 +42,121 @@ describe('DataElementEditService', () => {
   });
 
   afterEach(() => TestBed.inject(SnackbarService).dismiss());
+
+  describe('the defaults of a piece (acceptance 18)', () => {
+    const originalCursor = PeerCursor.myCursor;
+    let made: GameCharacter[] = [];
+
+    function beSeat(role: PeerRole): void {
+      PeerCursor.myCursor = { role, userId: 'me', identifier: 'seat' } as PeerCursor;
+    }
+
+    /** A piece whose sheet holds one item of each kind: those that may keep a default, and those that may not. */
+    function piece(name: string): GameCharacter {
+      const character = GameCharacter.create(name, 1, '');
+      for (const child of [...character.detailDataElement!.children]) child.destroy();
+      const section = DataElement.create('能力', '');
+      character.detailDataElement!.appendChild(section);
+      const add = (item: DataElement) => section.appendChild(item);
+      add(DataElement.create('HP', 20, { type: DataElementType.NUMBER_RESOURCE, currentValue: 4 }));
+      add(DataElement.create('命中', 5, { [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.NUMBER }));
+      add(DataElement.create('転倒', 1, { type: DataElementType.CHECK, fieldType: DataElementFieldType.CHECK }));
+      add(DataElement.create('筋力', '12'));
+      add(DataElement.create('種族', '人間'));
+      add(DataElement.create('メモ', '3', { type: DataElementType.NOTE }));
+      add(DataElement.create('姿勢', '1', { [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.SELECT }));
+      add(DataElement.create('合計', '1', { [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.CALC }));
+      made.push(character);
+      return character;
+    }
+
+    function partOf(body: GameCharacter, name: string): GameCharacter {
+      const part = piece(name);
+      part.ridingOn = body.identifier;
+      part.rideSeat = 'part';
+      return part;
+    }
+
+    const item = (character: GameCharacter, name: string) => character.detailDataElement!.getFirstElementByName(name)!;
+    const marked = (character: GameCharacter) =>
+      character
+        .detailDataElement!.children[0].children.filter((element) => `${element.getAttribute('cs-default')}` !== '')
+        .map((element) => element.name);
+
+    beforeEach(() => beSeat(PeerRole.Player));
+
+    afterEach(() => {
+      PeerCursor.myCursor = originalCursor;
+      for (const character of made) character.destroy();
+      made = [];
+    });
+
+    it('makes what the piece and its parts hold now their defaults, on the kinds that may keep one alone', () => {
+      const body = piece('竜');
+      const head = partOf(body, '竜の頭');
+
+      expect(service.countDefaultsToCapture(body)).toBe(8);
+      expect(service.captureDefaults(body)).toBe(8);
+
+      expect(marked(body)).toEqual(['HP', '命中', '転倒', '筋力']);
+      expect(marked(head)).toEqual(['HP', '命中', '転倒', '筋力']);
+      expect(item(body, 'HP').toAttributes()).toMatchObject({ 'cs-default': '4', 'cs-default-max': '20' });
+      expect(item(body, '転倒').getAttribute('cs-default')).toBe('1');
+      expect(item(body, '筋力').getAttribute('cs-default')).toBe('12');
+    });
+
+    it('takes every default off the piece and its parts', () => {
+      const body = piece('竜');
+      const head = partOf(body, '竜の頭');
+      service.captureDefaults(body);
+
+      expect(service.countDefaultsKept(body)).toBe(8);
+      expect(service.clearDefaults(body)).toBe(8);
+
+      expect(marked(body)).toEqual([]);
+      expect(marked(head)).toEqual([]);
+      expect(Object.keys(item(body, 'HP').toAttributes()).filter((key) => key.startsWith('cs-default'))).toEqual([]);
+      expect(service.countDefaultsKept(body)).toBe(0);
+    });
+
+    it('puts one field back to its default', () => {
+      const body = piece('騎士');
+      service.captureDefaults(body);
+      item(body, '命中').value = 9;
+      item(body, '筋力').value = '15';
+
+      expect(service.backToDefault(item(body, '命中'))).toBe(true);
+
+      expect(item(body, '命中').value).toBe(5);
+      expect(item(body, '筋力').value).toBe('15');
+    });
+
+    it('does none of it for a seat that only watches', () => {
+      const body = piece('騎士');
+      beSeat(PeerRole.Guest);
+
+      expect(service.captureDefaults(body)).toBe(0);
+      expect(marked(body)).toEqual([]);
+
+      beSeat(PeerRole.Player);
+      service.captureDefaults(body);
+      item(body, '命中').value = 9;
+      beSeat(PeerRole.Guest);
+
+      expect(service.clearDefaults(body)).toBe(0);
+      expect(service.backToDefault(item(body, '命中'))).toBe(false);
+      expect(marked(body)).toEqual(['HP', '命中', '転倒', '筋力']);
+      expect(item(body, '命中').value).toBe(9);
+    });
+
+    it('puts nothing back for a field on no piece', () => {
+      const { hp } = sheet();
+      hp.setAttribute('cs-default', '3');
+
+      expect(service.backToDefault(hp)).toBe(false);
+      expect(hp.value).toBe(10);
+    });
+  });
 
   describe('renaming', () => {
     it('takes a new name', () => {
@@ -149,5 +267,24 @@ describe('DataElementEditService', () => {
 
     TestBed.inject(SnackbarService).runAction();
     expect(names(basic)).toEqual(['HP', 'MP']);
+  });
+
+  describe('copying the path of an element', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('says the path was copied once the clipboard has it', async () => {
+      const { hp } = sheet();
+      const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+
+      await expect(service.copyReference(hp)).resolves.toBe(true);
+      expect(write).toHaveBeenCalledWith(DataElement.formatReferencePath(hp));
+    });
+
+    it('says the path was not copied where the browser refuses the write', async () => {
+      const { hp } = sheet();
+      vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new DOMException('denied', 'NotAllowedError'));
+
+      await expect(service.copyReference(hp)).resolves.toBe(false);
+    });
   });
 });

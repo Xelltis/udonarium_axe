@@ -1,3 +1,4 @@
+import { BoundedMap } from '@axe/core/util/bounded-map';
 import {
   buildReplayBoardScene,
   collectBoardAssetIds,
@@ -120,8 +121,8 @@ export class ReplayVideoProduction {
   private readonly images: ReplayImageCache;
   private readonly boards = new Map<number, readonly ReplayObjectSnapshot[]>();
   private readonly recent: number[] = [];
-  private readonly scenes = new Map<number, ReplayBoardScene | null>();
-  private readonly wanted = new Map<number, string[]>();
+  private readonly scenes = new BoundedMap<number, ReplayBoardScene | null>(16);
+  private readonly wanted = new BoundedMap<number, string[]>(32);
 
   constructor(private readonly input: ReplayVideoProductionInput) {
     this.fontFamily = replayVideoFontFamily(input.text.lang);
@@ -221,8 +222,9 @@ export class ReplayVideoProduction {
     await this.images.ensure(this.imagesOf(index));
   }
 
-  /** Lets the pictures and boards go. */
+  /** Lets the pictures, the boards and the surfaces the frames were painted on go. */
   dispose(): void {
+    this.renderer.dispose();
     this.images.dispose();
     this.boards.clear();
     this.scenes.clear();
@@ -252,14 +254,14 @@ export class ReplayVideoProduction {
       wanted.push(...previous.stage.map((figure) => figure.imageIdentifier));
     }
     const found = [...new Set(wanted.filter((identifier) => identifier.length > 0))];
-    keepRecent(this.wanted, index, found, 32);
+    this.wanted.set(index, found);
     return found;
   }
 
   private sceneAt(applied: number): ReplayBoardScene | null {
     if (this.scenes.has(applied)) return this.scenes.get(applied) ?? null;
     const scene = buildReplayBoardScene(this.boardAt(applied), this.input.viewer);
-    keepRecent(this.scenes, applied, scene, 16);
+    this.scenes.set(applied, scene);
     return scene;
   }
 
@@ -289,12 +291,6 @@ export class ReplayVideoProduction {
       if (old !== 0 && old % CHECKPOINT_EVERY !== 0 && !this.recent.includes(old)) this.boards.delete(old);
     }
   }
-}
-
-/** Keeps a value, letting the oldest go once more than `limit` are kept. */
-function keepRecent<K, V>(map: Map<K, V>, key: K, value: V, limit: number): void {
-  map.set(key, value);
-  if (map.size > limit) map.delete(map.keys().next().value as K);
 }
 
 /**

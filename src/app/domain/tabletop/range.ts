@@ -106,6 +106,16 @@ export class RangeArea extends TabletopObject {
   }
 
   /**
+   * Sizes the range to the box round its cell pattern, at least one cell each way, so a shape of its
+   * own cells is counted and painted at the size it was drawn.
+   */
+  fitToPattern(): void {
+    const bb = cellPatternBoundingBox(parseCellPattern(this.cellPattern));
+    this.length = Math.max(1, bb.height);
+    this.width = Math.max(1, bb.width);
+  }
+
+  /**
    * Bumps the follow counter, wrapping at 50, so that peers see a change and redraw the range while
    * it follows a character.
    */
@@ -171,15 +181,12 @@ export class RangeArea extends TabletopObject {
     opacity: number,
     options: { isRotatable?: boolean; identifier?: string } = {}
   ): RangeArea {
-    const cells = parseCellPattern(cellPattern);
-    const bb = cellPatternBoundingBox(cells);
-    const width = Math.max(1, bb.width);
-    const length = Math.max(1, bb.height);
-    const object = RangeArea.create(name, width, length, opacity, options.identifier);
+    const object = RangeArea.create(name, 1, 1, opacity, options.identifier);
     object._type = 'CUSTOM';
     object.cellPattern = cellPattern;
     object.customGridType = gridType;
     object.isRotatable = options.isRotatable === true;
+    object.fitToPattern();
     return object;
   }
 

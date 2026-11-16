@@ -21,7 +21,10 @@ import { DataElement, type DataElementFieldTypeValue } from '@axe/domain/data/da
 import { DataElementTypeGridComponent } from '@axe/features/data-element/data-element-editor/data-element-type-grid.component';
 import { DataElementEditService } from '@axe/features/data-element/game-data-element/data-element-edit.service';
 import type { MoveTarget } from '@axe/features/data-element/game-data-element/game-data-element-structure-drop';
-import type { SiblingMove } from '@axe/features/data-element/game-data-element/game-data-element-structure-ops';
+import {
+  SIBLING_MOVES,
+  type SiblingMove,
+} from '@axe/features/data-element/game-data-element/game-data-element-structure-ops';
 import {
   fieldHasOptions,
   tableCellLineage,
@@ -29,14 +32,6 @@ import {
 import { GameDataElementFieldOptionsComponent } from '@axe/features/data-element/game-data-element-field-options/game-data-element-field-options.component';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
-
-/** The steps a field can take among the rows beside it, in the order the editor offers them. */
-const MOVES: readonly { id: SiblingMove; icon: string; labelKey: string }[] = [
-  { id: 'moveToTop', icon: 'vertical_align_top', labelKey: 'common.reorder.toTop' },
-  { id: 'moveUp', icon: 'arrow_upward', labelKey: 'common.reorder.up' },
-  { id: 'moveDown', icon: 'arrow_downward', labelKey: 'common.reorder.down' },
-  { id: 'moveToBottom', icon: 'vertical_align_bottom', labelKey: 'common.reorder.toBottom' },
-];
 
 let nextEditorId = 0;
 
@@ -69,7 +64,7 @@ export class DataElementFieldEditorComponent {
   /** The row being edited, which a copy or a new row below takes the place of. */
   protected readonly current = linkedSignal(() => this.element());
   protected readonly view = signal<'main' | 'moveTo'>('main');
-  protected readonly moves = MOVES;
+  protected readonly moves = SIBLING_MOVES;
   protected readonly idPrefix = `field-editor-${nextEditorId++}`;
 
   private readonly nameBox = viewChild<ElementRef<HTMLInputElement>>('nameBox');
@@ -85,7 +80,7 @@ export class DataElementFieldEditorComponent {
       hasOptions: fieldHasOptions(element),
       canAddAfter: this.edit.canAddFieldAfter(element),
       canDuplicate: this.edit.canDuplicate(element),
-      canMove: Object.fromEntries(MOVES.map((move) => [move.id, this.edit.canMove(element, move.id)])),
+      canMove: Object.fromEntries(SIBLING_MOVES.map((move) => [move.id, this.edit.canMove(element, move.id)])),
       moveTargets: this.edit.moveTargetsOf(element),
     };
   });
@@ -155,11 +150,15 @@ export class DataElementFieldEditorComponent {
     this.edit.togglePopup(this.current());
   }
 
-  /** Copies the row's path, as formulas write it, and says so. */
-  copyReference(): void {
+  /** Copies the row's path, as formulas write it, and says whether it was copied. */
+  async copyReference(): Promise<void> {
     const path = DataElement.formatReferencePath(this.current());
-    this.edit.copyReference(this.current());
-    if (path) this.snackbar.show(this.t('feature.dataElement.editor.referenceCopied', { path }));
+    if (!path) return;
+    const copied = await this.edit.copyReference(this.current());
+    const key = copied
+      ? 'feature.dataElement.editor.referenceCopied'
+      : 'feature.dataElement.editor.referenceCopyFailed';
+    this.snackbar.show(this.t(key, { path }));
   }
 
   /** Adds a row just below this one and goes on to edit it, its name ready to be typed over. */

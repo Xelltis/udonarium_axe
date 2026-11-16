@@ -25,7 +25,7 @@ describe('painting ground that goes off and then walking into it', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     paint = TestBed.inject(FunctionalPaintService);
     fire = TestBed.inject(TriggerFireService);
   });

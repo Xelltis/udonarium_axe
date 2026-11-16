@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import {
   asCutInMultiDirectionMode,
   CutInMultiDirectionMode,
@@ -142,7 +143,7 @@ function finiteInRange(value: unknown, fallback: number, min: number, max: numbe
   if (value === '' || value === null || value === undefined) return fallback;
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
-  const clamped = Math.min(max, Math.max(min, numeric));
+  const clamped = clamp(numeric, min, max);
   return round ? Math.round(clamped) : clamped;
 }
 

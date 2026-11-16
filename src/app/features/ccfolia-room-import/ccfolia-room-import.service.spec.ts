@@ -4,6 +4,7 @@ import { ArchiveEntries } from '@axe/core/storage/room-archive';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { ImageTag } from '@axe/domain/media/image-tag';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -90,6 +91,22 @@ describe('CcfoliaRoomImportService', () => {
     const table = tables()[tables().length - 1];
     expect(table.imageIdentifier).toBe('image-2');
     expect(table.backgroundImageIdentifier).toBe('image-1');
+  });
+
+  it('leaves a picture the room had already tagged under the tag it was given', async () => {
+    (ImageTag.get('image-1') ?? ImageTag.create('image-1')).tag = 'モンスター';
+
+    await service.importAsync(entriesOf(roomData(), ['bg.jpeg']));
+
+    expect(ImageTag.get('image-1')?.tag).toBe('モンスター');
+  });
+
+  it('files a picture whose tag is still empty under the import', async () => {
+    (ImageTag.get('image-1') ?? ImageTag.create('image-1')).tag = '';
+
+    await service.importAsync(entriesOf(roomData(), ['bg.jpeg']));
+
+    expect(ImageTag.get('image-1')?.tag).toBe('ココフォリア');
   });
 
   it('may put back a picture the room removed, and leaves the board without one it could not', async () => {

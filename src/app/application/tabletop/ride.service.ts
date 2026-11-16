@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
@@ -118,7 +119,9 @@ export interface RideMenuModel {
 export class RideService {
   private readonly objectStore = inject(ObjectStore);
   private readonly roomRules = inject(RoomRulesService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly zones = inject(EngagementZoneService);
   private readonly links = inject(PieceLinksService);
   private readonly chat = inject(ChatMessageService);
@@ -275,7 +278,7 @@ export class RideService {
     this.links.carryBound(mount);
     this.chat.sendSystemNotice(
       'movement',
-      this.t(`feature.ride.chat.on_${seat}`, {
+      encodeI18nMessage(`feature.ride.chat.on_${seat}`, {
         name: this.names.said(piece),
         mount: this.names.said(mount),
         action: this.actionOf(piece, seat, 'on'),
@@ -300,7 +303,7 @@ export class RideService {
     if (mount) {
       this.chat.sendSystemNotice(
         'movement',
-        this.t('feature.ride.chat.off', {
+        encodeI18nMessage('feature.ride.chat.off', {
           name: this.names.said(piece),
           mount: this.names.said(mount),
           action: this.actionOf(piece, seat, 'off'),
@@ -411,7 +414,7 @@ export class RideService {
     });
     this.chat.sendSystemNotice(
       'movement',
-      this.t(prone ? 'feature.ride.chat.prone' : 'feature.ride.chat.up', { name: this.names.said(piece) })
+      encodeI18nMessage(prone ? 'feature.ride.chat.prone' : 'feature.ride.chat.up', { name: this.names.said(piece) })
     );
     for (const one of thrown) this.fall(one);
     return true;
@@ -463,7 +466,11 @@ export class RideService {
     });
     this.chat.sendSystemNotice(
       'movement',
-      this.t('feature.ride.chat.fell', { name: this.names.said(piece), mount: this.names.said(mount), metres })
+      encodeI18nMessage('feature.ride.chat.fell', {
+        name: this.names.said(piece),
+        mount: this.names.said(mount),
+        metres,
+      })
     );
     this.settleTwoUp(mount.identifier);
     const damage = this.config()?.fallDamage ?? null;
@@ -509,7 +516,7 @@ export class RideService {
     if (given !== '')
       this.chat.sendSystemNotice(
         'movement',
-        this.t('feature.ride.chat.twoUpOn', { name: this.names.said(piece), buff: name })
+        encodeI18nMessage('feature.ride.chat.twoUpOn', { name: this.names.said(piece), buff: name })
       );
   }
 
@@ -525,7 +532,7 @@ export class RideService {
     piece.buffs.remove(given);
     this.chat.sendSystemNotice(
       'movement',
-      this.t('feature.ride.chat.twoUpOff', { name: this.names.said(piece), buff: name })
+      encodeI18nMessage('feature.ride.chat.twoUpOff', { name: this.names.said(piece), buff: name })
     );
   }
 
@@ -659,7 +666,7 @@ export class RideService {
    */
   private actionOf(piece: GameCharacter, seat: RideSeat, way: 'on' | 'off'): string {
     const minor = seat === 'rider' ? this.steers(piece) : seat === 'cargo' && way === 'off';
-    return this.t(minor ? 'feature.ride.chat.minorAction' : 'feature.ride.chat.majorAction');
+    return encodeI18nMessage(minor ? 'feature.ride.chat.minorAction' : 'feature.ride.chat.majorAction');
   }
 
   /** How close two pieces stand, in table pixels, to be at one point. */

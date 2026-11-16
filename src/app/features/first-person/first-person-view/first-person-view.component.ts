@@ -36,6 +36,7 @@ import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.se
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
+import { observeSize } from '@axe/core/util/observe-size';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { HIDDEN_GAUGE_STRIPES, selectPieceGauges, shownGauge } from '@axe/domain/character/piece-gauge';
@@ -63,7 +64,7 @@ import {
   signedTurnDeg,
 } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { cameraOf } from '@axe/domain/tabletop/first-person/first-person-look';
-import { roofRaisedFor, sameRoof } from '@axe/domain/tabletop/first-person/first-person-roof';
+import { modelsUnderRoof, roofRaisedFor, sameRoof } from '@axe/domain/tabletop/first-person/first-person-roof';
 import { pieceStandPx } from '@axe/domain/tabletop/first-person/first-person-stand';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
@@ -469,7 +470,8 @@ export class FirstPersonViewComponent {
 
   /**
    * The roof over the ground the board shuts in, each room's raised clear over the tallest piece this
-   * seat sees standing in it, so a great piece is not cut off at the top of the walls. A piece the
+   * seat sees standing in it and over the tallest block drawn as a 3D model, so a great piece or a
+   * tree is not cut off at the top of the walls. A piece the
    * seat cannot see raises nothing, which would give it away. A piece that changes without raising
    * the roof any differently leaves the scene as it is.
    */
@@ -482,7 +484,8 @@ export class FirstPersonViewComponent {
         cell: cellIndexAt(grid, piece.centre.x, piece.centre.y),
         topPx: piece.basePx + piece.stand.heightPx,
       }));
-      return roofRaisedFor(roof, standing, this.gridSize() * ROOF_CLEARANCE_CELLS);
+      const models = modelsUnderRoof(grid, this.firstPerson.table()?.terrains ?? [], this.gridSize());
+      return roofRaisedFor(roof, [...standing, ...models], this.gridSize() * ROOF_CLEARANCE_CELLS);
     },
     { equal: sameRoof }
   );
@@ -943,10 +946,7 @@ export class FirstPersonViewComponent {
       this.height.set(element.clientHeight || window.innerHeight);
     };
     read();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(read);
-    observer.observe(element);
-    this.destroyRef.onDestroy(() => observer.disconnect());
+    this.destroyRef.onDestroy(observeSize(element, read));
   }
 }
 

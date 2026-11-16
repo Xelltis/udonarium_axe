@@ -33,7 +33,6 @@ import {
   MultiAngleFontScale,
 } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { cellWidthInches, clampCellMm } from '@axe/domain/tabletop/physical-scale';
-import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
@@ -68,7 +67,9 @@ export class TabletopDisplaySettingComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly roomRules = inject(RoomRulesService);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly rolePermission = inject(RolePermissionService);
   private readonly panelService = inject(PanelService);
   private readonly modalService = inject(ModalService);
@@ -359,8 +360,11 @@ export class TabletopDisplaySettingComponent {
   /** What a square comes to on this screen, read at a glance rather than worked out. */
   readonly cellSummary = computed(() => {
     const mm = this.cellMm;
+    this.objectChange.versionOf('Config')();
+    this.objectChange.versionOf(this.tableSelecter.identifier)();
     const table = this.tableSelecter.viewTable;
-    const rules = resolveRoomRules(null, table);
+    if (table) this.objectChange.versionOf(table.identifier)();
+    const rules = this.roomRules.rulesFor(table);
     return {
       mm: Math.round(mm * 10) / 10,
       inches: Math.round(cellWidthInches(mm) * 100) / 100,

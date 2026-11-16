@@ -68,6 +68,11 @@ function buildHexSvgMask(polygons: string[], pixelW: number, pixelH: number): st
   if (!polygons.length) return EMPTY_MASK;
   perfCounters.bump(PERF_HEX_MASK_SVG);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${pixelW}" height="${pixelH}"><g fill="#000">${polygons.join('')}</g></svg>`;
+  return svgDataUrl(svg, pixelW, pixelH);
+}
+
+/** A CSS layer that draws an SVG once at its own size from the top left corner. */
+function svgDataUrl(svg: string, pixelW: number, pixelH: number): string {
   return `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}") 0px 0px / ${pixelW}px ${pixelH}px no-repeat`;
 }
 
@@ -103,7 +108,7 @@ function visibilityOf(params: BuildMaskCssParams): (gridStr: string) => boolean 
 }
 
 function hexCellPolygons(
-  params: BuildMaskCssParams,
+  params: Pick<BuildMaskCssParams, 'width' | 'height' | 'gridSize' | 'gridType'>,
   include: (gridStr: string) => boolean
 ): { polygons: string[]; geo: HexMaskGeometry } | null {
   const geo = computeHexMaskGeometry(params.width, params.height, params.gridSize, params.gridType);
@@ -163,28 +168,9 @@ export function buildHexOutlineMask(gridSize: number, gridType: GridType, width:
 }
 
 function buildHexOutlineMaskAfresh(gridSize: number, gridType: GridType, width: number, height: number): string {
-  const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
-  if (!geo) return '';
-  const isFlatTop = isFlatTopGrid(gridType);
-  const s = hexCircumradius(gridSize);
-  const maskS = s + 1;
-  const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
-
-  const verts = hexCornerOffsets(maskS, isFlatTop);
-
-  const polygons: string[] = [];
-  for (let col = 0; col < width; col++) {
-    for (let row = 0; row < height; row++) {
-      const { x, y } = hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
-      const cx = x + geo.offsetX;
-      const cy = y + geo.offsetY;
-      const points = verts.map((v) => `${cx + v.x},${cy + v.y}`).join(' ');
-      polygons.push(`<polygon points="${points}"/>`);
-    }
-  }
-
-  if (!polygons.length) return '';
-  return buildHexSvgMask(polygons, geo.pixelW, geo.pixelH);
+  const cells = hexCellPolygons({ width, height, gridSize, gridType }, () => true);
+  if (!cells?.polygons.length) return '';
+  return buildHexSvgMask(cells.polygons, cells.geo.pixelW, cells.geo.pixelH);
 }
 
 /**
@@ -235,7 +221,7 @@ function buildHexOuterBorderSvgAfresh(gridSize: number, gridType: GridType, widt
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${geo.pixelW}" height="${geo.pixelH}">` +
     `<g stroke="#ccc" stroke-width="2" stroke-linecap="round">${lines.join('')}</g></svg>`;
-  return `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}") 0px 0px / ${geo.pixelW}px ${geo.pixelH}px no-repeat`;
+  return svgDataUrl(svg, geo.pixelW, geo.pixelH);
 }
 
 /**

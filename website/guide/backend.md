@@ -1,7 +1,7 @@
 # サーバーを置く
 
-このページは、選んだ方式に合ったサーバーを置き、動いているかを確かめるためのものです。
-置く手順そのものは、[udonarium_axe_backend](https://xelltis.github.io/udonarium_axe_backend/)の文書にあります。
+このページは選んだ方式に合ったサーバーを置き、動いているかを確かめるためのものです。
+置く手順そのものは[udonarium_axe_backend](https://xelltis.github.io/udonarium_axe_backend/)の文書にあります。
 ここでは、どの手順を読めばよいか、Axeの側に持ち帰る値、置いたあとの確かめかたを説明します。
 
 <SetupSteps here="server" />
@@ -22,8 +22,8 @@ AxeはサーバーのURLを知り、サーバーはAxeのOriginを知ってい�
 
 ### 1. SkyWayのアプリを作る
 
-[SkyWayのアプリを作る](https://xelltis.github.io/udonarium_axe_backend/skyway/app)の手順で、アプリを作り、アプリケーションIDとシークレットキーを控えます。
-シークレットキーは、ほかの人に見せないでください。
+[SkyWayのアプリを作る](https://xelltis.github.io/udonarium_axe_backend/skyway/app)の手順でアプリを作り、アプリケーションIDとシークレットキーを控えます。
+シークレットキーはほかの人に見せないでください。
 
 ### 2. トークン発行サーバーを置く
 
@@ -43,7 +43,7 @@ AxeはサーバーのURLを知り、サーバーはAxeのOriginを知ってい�
 | `SKYWAY_SECRET`               | 手順1のシークレットキー                      |
 | `ACCESS_CONTROL_ALLOW_ORIGIN` | AxeのOrigin（例：`https://axe.example.com`） |
 
-ほかの値と、くわしい意味は、バックエンドの文書の[設定項目（SkyWay版）](https://xelltis.github.io/udonarium_axe_backend/skyway/configuration)にあります。
+ほかの値とくわしい意味は、バックエンドの文書の[設定項目（SkyWay版）](https://xelltis.github.io/udonarium_axe_backend/skyway/configuration)にあります。
 
 本家ユドナリウムのトークン発行サーバー（[TK11235/udonarium-backend](https://github.com/TK11235/udonarium-backend)）を置いても構いません。
 Axeが使うAPI（`GET /v1/status`と`POST /v1/skyway2023/token`）は、本家と同じです。
@@ -67,8 +67,8 @@ Axeを置いてから、部屋を作って確かめます（→ [config.jsonを�
 
 ### 1. Discordのアプリを作る
 
-部屋のサーバーは、GMとPLにDiscordでログインしてもらいます。
-[Discordのアプリを作る](https://xelltis.github.io/udonarium_axe_backend/server/discord)の手順で、アプリを作り、Client IDとClient Secretを控えます。
+部屋のサーバーでは、GMとPLがDiscordでログインします。
+[Discordのアプリを作る](https://xelltis.github.io/udonarium_axe_backend/server/discord)の手順でアプリを作り、Client IDとClient Secretを控えます。
 
 ### 2. 部屋のサーバーを置く
 
@@ -82,13 +82,14 @@ Axeを置いてから、部屋を作って確かめます（→ [config.jsonを�
 ::: warning `ACCESS_CONTROL_ALLOW_ORIGIN`を`*`にしないでください
 サーバー版では、`*`（すべて許可）にするとログインが通らず、部屋も作れません。
 ログインのあとで戻れるのは、名前で書いたOriginのページだけだからです。
-AxeのOriginを、`https://axe.example.com`のように書いてください。
+AxeのOriginを`https://axe.example.com`のように書いてください。
 :::
 
 ### 3. 動いているかを確かめる
 
-部屋のサーバーは、ブラウザでじかに開いても確かめられません。
-Originを付けて尋ねる必要があるので、ターミナルで次のコマンドを打ちます（`Origin`には、`ACCESS_CONTROL_ALLOW_ORIGIN`に書いたURLを入れます）。
+部屋のサーバーはブラウザでじかに開いても確かめられません。
+Originを付けて尋ねる必要があるので、ターミナルで次のコマンドを打ちます。
+`Origin`には`ACCESS_CONTROL_ALLOW_ORIGIN`に書いたURLを入れます。
 
 ```sh
 curl -H "Origin: https://axe.example.com" https://<部屋のサーバーのURL>/v1/auth/config

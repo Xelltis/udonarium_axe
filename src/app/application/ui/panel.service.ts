@@ -1,21 +1,29 @@
-import { ComponentRef, inject, Injectable, reflectComponentType, signal, ViewContainerRef } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import {
+  ComponentRef,
+  computed,
+  inject,
+  Injectable,
+  reflectComponentType,
+  Signal,
+  signal,
+  Type,
+  untracked,
+  ViewContainerRef,
+} from '@angular/core';
 import { LOAD_FAILURE_NOTICE, PANEL_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { isTabbablePanel } from '@axe/application/ui/panel-drag-helpers';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { Logger } from '@axe/core/logging/logger';
+import { clamp } from '@axe/core/util/clamp';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-
-declare const Type: FunctionConstructor;
-interface Type<T> {
-  new (...args: unknown[]): T;
-}
 
 export type PanelRotationDegrees = 0 | 90 | 180 | 270;
 
 function panelKindOf(childComponent: Type<unknown>): string {
-  const selector = reflectComponentType(childComponent as never)?.selector;
+  const selector = reflectComponentType(childComponent)?.selector;
   return selector && selector.length > 0 ? selector : '';
 }
 
@@ -110,6 +118,11 @@ export interface PanelOption {
   stillWanted?: () => boolean;
 }
 
+/** A panel on its way from one frame to another. What it holds belongs to the frame. */
+export interface PanelHandoff {
+  panel: PanelService;
+}
+
 /**
  * What the frame a panel is drawn in offers it.
  *
@@ -117,11 +130,6 @@ export interface PanelOption {
  * to hold more than one panel, so a panel asks it to be taken away rather than tearing the
  * frame down itself.
  */
-/** A panel on its way from one frame to another. What it holds belongs to the frame. */
-export interface PanelHandoff {
-  panel: PanelService;
-}
-
 export interface PanelFrame {
   /** Tells one frame from another. */
   readonly frameKey: string;
@@ -166,12 +174,12 @@ type PanelServiceAssignableKey =
 @Injectable()
 export class PanelService {
   private readonly overlays = inject(OverlayLayers);
+  private readonly document = inject(DOCUMENT);
   /** Told when the code of a panel opened by `openLazy` cannot be fetched. */
   private readonly loadFailureNotice = inject(LOAD_FAILURE_NOTICE);
   private frame: PanelFrame | null = null;
   private actionRotationDegrees: PanelRotationDegrees = 0;
   private static readonly singles = new Map<string, PanelService>();
-  /** Names spoken for by a panel whose code is still being fetched. */
   /** The single names asked for and not arrived yet, each with the latest request for it. */
   private static readonly opening = new Map<string, object>();
   /**
@@ -229,7 +237,20 @@ export class PanelService {
    * Whether the panel, shrunk to its content, stands as wide as the content is, as the turn order
    * laid across does, rather than as the narrow bar every shrunk panel is. The content says so.
    */
-  readonly shrunkToContentWidth = signal(false);
+  readonly shrunkToContentWidth = computed(() => this.contentWidthAsked()?.() ?? false);
+  private readonly contentWidthAsked = signal<Signal<boolean> | null>(null);
+
+  /**
+   * Has the panel, shrunk to its content, stand as wide as the content while the given signal is
+   * true. The content calls it once and calls what comes back as it goes, which takes the ask back
+   * unless other content has asked since.
+   */
+  shrinkToContentWidthWhen(asks: Signal<boolean>): () => void {
+    this.contentWidthAsked.set(asks);
+    return () => {
+      if (untracked(this.contentWidthAsked) === asks) this.contentWidthAsked.set(null);
+    };
+  }
   /** Buttons the content put in the title bar, beside the ones every panel wears. */
   readonly headerControls = signal<readonly PanelHeaderControl[]>([]);
 
@@ -277,6 +298,12 @@ export class PanelService {
    * shrink - so the content asks rather than writing it, the way it asks to be shrunk.
    */
   readonly resizeRequest$ = new EventChannel<{ width: number; height: number } | null>();
+  /**
+   * Fires with the frame's new size when the reader has resized it by its edge with this panel in
+   * front, for a panel that keeps the size it was left at. A size the frame was given from code, as
+   * by full screen or a narrow screen, does not fire it.
+   */
+  readonly resized$ = new EventChannel<PanelSize>();
   /**
    * Asks the frame to shrink the panel to its content, or to let it out again.
    *
@@ -333,13 +360,6 @@ export class PanelService {
   }
 
   /**
-   * Whether a panel is standing under this name.
-   *
-   * `closeSingle` answers the same question but shuts the panel to do it, which is no use to
-   * anything that only wants to know. One still being opened counts as open, for the same
-   * reason it does there.
-   */
-  /**
    * Has this panel found by another single name from now on, letting go of the one it held, as a
    * panel that comes to show something else is then found by that. A panel already holding the name
    * closes, as one does when another is opened under it.
@@ -355,6 +375,13 @@ export class PanelService {
     PanelService.noteSingles();
   }
 
+  /**
+   * Whether a panel is standing under this name.
+   *
+   * `closeSingle` answers the same question but shuts the panel to do it, which is no use to
+   * anything that only wants to know. One still being opened counts as open, for the same
+   * reason it does there.
+   */
   hasSingle(name: string): boolean {
     PanelService.singlesVersion();
     return PanelService.opening.has(name) || PanelService.singles.has(name);
@@ -581,11 +608,12 @@ export class PanelService {
    * Outside a browser the option comes back as it is.
    */
   static clampPanelOptionToViewport(option: PanelOption, fallback: PanelService): PanelOption {
-    if (typeof window === 'undefined') return option;
+    const view = fallback.document.defaultView;
+    if (!view) return option;
     const width = option.width ?? fallback.width;
     const height = option.height ?? fallback.height;
-    const viewportW = window.innerWidth;
-    const viewportH = window.innerHeight;
+    const viewportW = view.innerWidth;
+    const viewportH = view.innerHeight;
     const adjusted: PanelOption = { ...option };
     const sideways = option.rotationDegrees === 90 || option.rotationDegrees === 270;
     if (sideways && option.left !== undefined && option.top !== undefined) {
@@ -594,24 +622,20 @@ export class PanelService {
       const centerX = option.left + width / 2;
       const centerY = option.top + height / 2;
       const clampedCenterX =
-        visualWidth >= viewportW
-          ? viewportW / 2
-          : Math.max(visualWidth / 2, Math.min(centerX, viewportW - visualWidth / 2));
+        visualWidth >= viewportW ? viewportW / 2 : clamp(centerX, visualWidth / 2, viewportW - visualWidth / 2);
       const clampedCenterY =
-        visualHeight >= viewportH
-          ? viewportH / 2
-          : Math.max(visualHeight / 2, Math.min(centerY, viewportH - visualHeight / 2));
+        visualHeight >= viewportH ? viewportH / 2 : clamp(centerY, visualHeight / 2, viewportH - visualHeight / 2);
       adjusted.left = clampedCenterX - width / 2;
       adjusted.top = clampedCenterY - height / 2;
       return adjusted;
     }
     if (option.left !== undefined) {
       const maxLeft = Math.max(0, viewportW - width);
-      adjusted.left = Math.max(0, Math.min(option.left, maxLeft));
+      adjusted.left = clamp(option.left, 0, maxLeft);
     }
     if (option.top !== undefined) {
       const maxTop = Math.max(0, viewportH - height);
-      adjusted.top = Math.max(0, Math.min(option.top, maxTop));
+      adjusted.top = clamp(option.top, 0, maxTop);
     }
     return adjusted;
   }

@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { TablePoint, TableRay } from '@axe/domain/tabletop/camera/table-camera';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 
@@ -108,7 +109,7 @@ export function withinOutline(outline: readonly PickPoint2[], x: number, y: numb
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const length = dx * dx + dy * dy;
-    const share = length > 0 ? Math.min(1, Math.max(0, ((x - a.x) * dx + (y - a.y) * dy) / length)) : 0;
+    const share = length > 0 ? clamp(((x - a.x) * dx + (y - a.y) * dy) / length, 0, 1) : 0;
     if (Math.hypot(x - (a.x + dx * share), y - (a.y + dy * share)) <= reach) return true;
   }
   return false;
@@ -380,8 +381,8 @@ function hitDraped(ray: TableRay, shape: PickDraped): PickShapeHit | null {
     return insideOutline(outline, point.x, point.y) && point.z <= shape.heightAt(point.x, point.y);
   };
   const start = at(ray, from);
-  const startX = Math.min(Math.max(start.x, x), x + width);
-  const startY = Math.min(Math.max(start.y, y), y + height);
+  const startX = clamp(start.x, x, x + width);
+  const startY = clamp(start.y, y, y + height);
   if (start.z <= shape.heightAt(startX, startY)) return null;
   let previous = from;
   for (let i = 1; i <= ROOF_STEPS; i++) {

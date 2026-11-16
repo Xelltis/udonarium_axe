@@ -1,16 +1,14 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { chatInput, createCharacter, expectChatText, revealMenuEntry, waitAppReady } from './helpers';
-
-/** Says each line into the chat window, waiting for the box to empty after each. */
-async function say(page: Page, lines: string[]) {
-  const input = chatInput(page).first();
-  for (const line of lines) {
-    await input.fill(line);
-    await input.press('Enter');
-    await expectChatText(input, '');
-  }
-}
+import {
+  chatInput,
+  createCharacter,
+  expectChatText,
+  revealMenuEntry,
+  say,
+  sendMenuEvent,
+  waitAppReady,
+} from './helpers';
 
 /** The dice bot's answer to a roll, by the roll as it writes it. */
 function answerTo(page: Page, roll: string): Locator {
@@ -19,14 +17,14 @@ function answerTo(page: Page, roll: string): Locator {
 
 /** What an answer came to: the last number its arrows lead to. */
 async function totalOf(answer: Locator): Promise<number> {
-  const text = (await answer.locator('.msg-text').innerText()).trim();
+  const text = (await answer.getByTestId('chat-message-text').innerText()).trim();
   const steps = text.split('→').map((step) => step.trim());
   return Number(steps.filter((step) => /^-?\d+$/.test(step)).at(-1));
 }
 
 /** Picks an entry from an answer's menu. */
 async function fromMenuOf(page: Page, answer: Locator, entry: string) {
-  await answer.locator('.msg-text').click({ button: 'right' });
+  await answer.getByTestId('chat-message-text').click({ button: 'right' });
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });
   await (await revealMenuEntry(page, menu, entry, true)).click();
@@ -93,7 +91,8 @@ test.describe('the number to beat', () => {
     await seat('GM');
     await say(page, ['探索判定：目標値13']);
     await createCharacter(page);
-    await page.locator('game-character').first().dispatchEvent('contextmenu');
+    // The piece stands under the chat window the room opens with, where no click reaches it.
+    await sendMenuEvent(page.locator('game-character').first());
     await page.locator('context-menu').getByText('チャットパレットを表示').click();
     const palette = page.locator('chat-palette');
     const box = chatInput(palette);

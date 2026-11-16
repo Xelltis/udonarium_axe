@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { soundOnlyCutIn$, startCutIn$, stopCutInByBgm$ } from '@axe/core/event/domain-events';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { encodeLaunchSpeaker } from '@axe/domain/media/cut-in-speaker';
@@ -427,8 +427,8 @@ describe('CutInLauncher', () => {
       const startSpy = vi.spyOn(launcher, 'startSelfCutIn').mockImplementation(() => {});
 
       // addressed to another user
-      const origUserId = Network.peerContext.userId;
-      (Network.peerContext as { userId: string }).userId = 'my-user';
+      const origUserId = Network.instance.peerContext.userId;
+      (Network.instance.peerContext as { userId: string }).userId = 'my-user';
 
       const ctx2 = launcher.toContext();
       ctx2.syncData = {
@@ -440,7 +440,7 @@ describe('CutInLauncher', () => {
       launcher.apply(ctx2);
 
       expect(startSpy).not.toHaveBeenCalled();
-      (Network.peerContext as { userId: string }).userId = origUserId;
+      (Network.instance.peerContext as { userId: string }).userId = origUserId;
     });
 
     it('says the music stopped the cut-ins when that stamp changes', () => {

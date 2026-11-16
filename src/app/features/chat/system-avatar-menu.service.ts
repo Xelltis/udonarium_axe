@@ -62,7 +62,7 @@ export class SystemAvatarMenuService {
    */
   changeImage(kind: SystemAvatarKind): void {
     if (!this.rolePermission.canEditTabletop()) return;
-    this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((identifier) => {
+    void this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((identifier) => {
       if (identifier == null) return;
       this.systemAvatar.setImage(kind, identifier);
     });

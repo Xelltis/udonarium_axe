@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
@@ -33,8 +35,9 @@ describe('RideService', () => {
     PeerCursor.myCursor.role = PeerRole.Player;
     service = TestBed.inject(RideService);
     said = [];
+    const t = TestBed.inject(TRANSLATE_FN);
     vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockImplementation((kind, text: string) => {
-      if (kind === 'movement') said.push(text);
+      if (kind === 'movement') said.push(decodeI18nMessage(text, t));
       return null as never;
     });
   });
@@ -47,7 +50,7 @@ describe('RideService', () => {
     Config.instance.fallDamage = null;
     Config.instance.twoUpBuff = null;
     Config.instance.zoneEnabled = null;
-    const turns = TestBed.inject(TurnState);
+    const turns = TurnState.instance;
     turns.round = 0;
     turns.phase = 'idle';
     turns.currentIdentifier = '';
@@ -261,7 +264,7 @@ describe('RideService', () => {
       const notices = shown();
       const horse = horseAt(5, 5);
       const rider = pieceAt('騎士', 5, 5);
-      const turns = TestBed.inject(TurnState);
+      const turns = TurnState.instance;
       turns.round = 1;
       turns.phase = 'acting';
       turns.currentIdentifier = rider.identifier;
@@ -339,7 +342,7 @@ describe('RideService', () => {
 
   describe('while turns are taken', () => {
     function turnOf(piece: GameCharacter, round = 1): string {
-      const turns = TestBed.inject(TurnState);
+      const turns = TurnState.instance;
       turns.round = round;
       turns.phase = 'acting';
       turns.currentIdentifier = piece.identifier;
@@ -373,9 +376,7 @@ describe('RideService', () => {
       turnOf(rider);
       service.dismount(rider);
 
-      expect([...TestBed.inject(TurnState).actedIdentifiers].sort()).toEqual(
-        [horse.identifier, friend.identifier].sort()
-      );
+      expect([...TurnState.instance.actedIdentifiers].sort()).toEqual([horse.identifier, friend.identifier].sort());
     });
 
     it('ends the turn of the one behind where it gets off in the turn of the one in front', () => {
@@ -388,7 +389,7 @@ describe('RideService', () => {
       turnOf(rider);
       service.dismount(friend);
 
-      expect(TestBed.inject(TurnState).actedIdentifiers).toEqual([friend.identifier]);
+      expect(TurnState.instance.actedIdentifiers).toEqual([friend.identifier]);
     });
 
     it('keeps a rider from moving a mount that has moved in another turn this round', () => {
@@ -472,7 +473,7 @@ describe('RideService', () => {
     }
 
     function turnOf(piece: GameCharacter, round = 1): string {
-      const turns = TestBed.inject(TurnState);
+      const turns = TurnState.instance;
       turns.round = round;
       turns.phase = 'acting';
       turns.currentIdentifier = piece.identifier;

@@ -5,11 +5,12 @@ import { AssetRemovalService } from '@axe/application/file/asset-removal.service
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
-import { PersonalVolumeKind } from '@axe/application/media/personal-volumes';
 import { RoomVolumeService } from '@axe/application/media/room-volume.service';
+import { roomSoundKindRow, soundKindRow } from '@axe/application/media/sound-kind-rows';
 import { ReportService } from '@axe/application/moderation/report.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -27,30 +28,40 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Playlist } from '@axe/domain/media/playlist';
-import { RoomVolumeKind } from '@axe/domain/media/room-volumes';
 import { BackgroundSoundPlaybackService } from '@axe/features/media/background-sound-playback.service';
 import {
   buildLibraryTrackMenu,
   buildPlaylistTrackMenu,
   PlaylistTarget,
 } from '@axe/features/media/jukebox/playlist-context-menu';
-import {
-  formatTrackLength,
-  formatTrackTime,
-  JukeboxPlaybackService,
-  PlaylistView,
-} from '@axe/features/media/jukebox-playback.service';
+import { JukeboxPlaybackService, PlaylistView } from '@axe/features/media/jukebox-playback.service';
+import { JukeboxSeekBar } from '@axe/features/media/jukebox-seek-bar';
 import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { UiVolumeRowComponent } from '@axe/ui/components/volume-row/volume-row.component';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/** The kinds of the listener's own volumes the jukebox panel lists, in its order. */
+const JUKEBOX_VOLUME_KINDS = ['audition', 'bgm', 'se', 'background'] as const;
+
+/** The kinds of the room's volumes the jukebox panel lists under the room's overall one. */
+const JUKEBOX_ROOM_VOLUME_KINDS = ['bgm', 'se', 'background'] as const;
+
+/** What the jukebox panel calls each kind it lists, as a translation key. */
+const JUKEBOX_VOLUME_LABELS: Readonly<Record<(typeof JUKEBOX_VOLUME_KINDS)[number], string>> = {
+  audition: 'feature.media.jukebox.auditionLabel',
+  bgm: 'feature.media.jukebox.bgmLabel',
+  se: 'feature.media.jukebox.seLabel',
+  background: 'feature.media.jukebox.bgsLabel',
+};
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-jukebox',
+  selector: 'jukebox',
   templateUrl: './jukebox.component.html',
   host: { class: 'block' },
+  providers: [JukeboxSeekBar],
   imports: [TextTooltipDirective, FormsModule, TranslocoModule, UiVolumeRowComponent],
 })
 export class JukeboxComponent {
@@ -70,13 +81,10 @@ export class JukeboxComponent {
   private readonly t = inject(TRANSLATE_FN);
   protected readonly playback = inject(JukeboxPlaybackService);
   protected readonly backgroundSounds = inject(BackgroundSoundPlaybackService);
-  private readonly personalVolumes = inject(PersonalVolumeService);
-  private readonly roomVolumes = inject(RoomVolumeService);
+  protected readonly personalVolumes = inject(PersonalVolumeService);
+  protected readonly roomVolumes = inject(RoomVolumeService);
   private readonly assetRemoval = inject(AssetRemovalService);
   private readonly ownership = inject(AssetOwnershipService);
-
-  /** Whether this player may move the room volume, which only the game master may, as with the room's other settings. */
-  readonly canChangeRoomVolume = this.roomVolumes.canChange;
 
   /** Whether this player may change what the room plays, which a guest may not. */
   readonly canOperate = this.playback.canOperate;
@@ -97,38 +105,23 @@ export class JukeboxComponent {
   }
 
   /**
-   * The room-wide volume every player's sound is multiplied by, from the room volume slider.
-   *
-   * It lives in the room's synced config, so changing it changes what everyone hears, and only the
-   * game master may change it. Reads 1 before the config exists.
+   * This player's own volumes as the panel lists them, the ones the music it plays goes through.
+   * The sound settings panel holds the rest. Each is heard at once scaled by the room's volume, and
+   * is remembered in this browser and never shared.
    */
-  get roomVolume(): number {
-    return this.roomVolumes.volume();
-  }
+  protected readonly ownVolumeRows = JUKEBOX_VOLUME_KINDS.map((kind) => ({
+    ...soundKindRow(kind),
+    label: JUKEBOX_VOLUME_LABELS[kind],
+  }));
 
-  set roomVolume(volume: number) {
-    this.roomVolumes.set(volume);
-  }
-
-  /** The room's volume for one kind of sound, from 0 to 2, which its overall volume scales in turn. */
-  roomVolumeOf(kind: RoomVolumeKind): number {
-    return this.roomVolumes.volumes()[kind];
-  }
-
-  /** Sets the room's volume for one kind of sound for everyone. Only the game master may. */
-  setRoomVolumeOf(kind: RoomVolumeKind, volume: number): void {
-    this.roomVolumes.setKind(kind, volume);
-  }
-
-  /** Whether this player has turned a kind of sound off for themselves. */
-  isMuted(kind: PersonalVolumeKind): boolean {
-    return this.personalVolumes.isMuted(kind);
-  }
-
-  /** Turns a kind of sound off or back on for this player alone, remembered in this browser. */
-  setMuted(kind: PersonalVolumeKind, muted: boolean): void {
-    this.personalVolumes.setMuted(kind, muted);
-  }
+  /**
+   * The room's volumes as the panel lists them under its overall one. They live in the room's synced
+   * config, so moving one changes what everyone hears, and only the game master may.
+   */
+  protected readonly roomVolumeRows = JUKEBOX_ROOM_VOLUME_KINDS.map((kind) => ({
+    ...roomSoundKindRow(kind),
+    label: JUKEBOX_VOLUME_LABELS[kind],
+  }));
 
   /** Opens the panel holding every one of this player's sound settings, beside the pointer. */
   openSoundSettings(): void {
@@ -136,50 +129,13 @@ export class JukeboxComponent {
     this.roomPanels.open('soundSettings', { left: coordinate.x + 25, top: coordinate.y + 25 });
   }
 
-  /**
-   * This player's own BGM volume, heard at once scaled by the room volume. Not shared, and
-   * remembered in this browser like the other volumes of this player's own.
-   */
-  get volume(): number {
-    return this.personalVolumes.get('bgm');
-  }
-  set volume(volume: number) {
-    this.personalVolumes.set('bgm', volume);
-  }
-
-  /** This player's volume for previewing a track alone. */
-  get auditionVolume(): number {
-    return this.personalVolumes.get('audition');
-  }
-  set auditionVolume(auditionVolume: number) {
-    this.personalVolumes.set('audition', auditionVolume);
-  }
-
-  /** This player's sound-effect volume. */
-  get seVolume(): number {
-    return this.personalVolumes.get('se');
-  }
-  set seVolume(seVolume: number) {
-    this.personalVolumes.set('se', seVolume);
-  }
-
-  /** This player's volume for the room's background sounds. */
-  get backgroundVolume(): number {
-    return this.personalVolumes.get('background');
-  }
-  set backgroundVolume(backgroundVolume: number) {
-    this.personalVolumes.set('background', backgroundVolume);
-  }
-
-  readonly allTag = computed(() => this.t('feature.media.jukebox.tagAll'));
-
   readonly audios = computed(() => {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('audio-tag')();
+    trackEvery(this.objectChange, 'audio-tag');
     this.objectChange.versionOf('Jukebox')();
     const all = this.audioStorage.audios.filter((audio) => !audio.isHidden);
     const tag = this.selectTag();
-    if (tag === this.allTag()) return all;
+    if (tag === null) return all;
     return all.filter((audio) => {
       const audioTag = AudioTag.get(audio.identifier);
       const t = audioTag?.tag || 'BGM';
@@ -187,7 +143,18 @@ export class JukeboxComponent {
     });
   });
 
-  readonly selectTag = signal(this.t('feature.media.jukebox.tagAll'));
+  /** The library's rows: each file listed with the tag it is filed under, looked up once per change. */
+  protected readonly rows = computed(() =>
+    this.audios().map((audio) => {
+      const filed = AudioTag.get(audio.identifier);
+      if (filed) this.objectChange.versionOf(filed.identifier)();
+      const tag = filed?.tag || 'BGM';
+      return { audio, tag, isBackgroundSound: tag === AUDIO_TAG_BGS };
+    })
+  );
+
+  /** The tag the library is narrowed to, or null to list every file. */
+  readonly selectTag = signal<string | null>(null);
 
   readonly viewMode = signal<'library' | 'playlist'>('library');
 
@@ -226,45 +193,23 @@ export class JukeboxComponent {
     return held;
   });
 
-  /** Whether the seek bar is being dragged, and where to, from 0 to 1, so playback moving on does not pull it back. */
-  readonly isSeeking = signal(false);
-  readonly seekPreview = signal(0);
+  /** The seek bar over the room's track, with the drag on it that is this panel's own. */
+  readonly seekBar = inject(JukeboxSeekBar);
 
   /**
    * The position and length of the room's track, read out as `1:23 / 4:56`. Empty while nothing is
    * held, leaving the space it takes so the seek bar keeps its length when a track starts.
    */
-  readonly timeDisplay = computed(() => {
-    this._tick();
-    this.objectChange.versionOf('Jukebox')();
-    if (!this.playback.isPlaying() && !this.playback.isPaused()) return '';
-    const duration = this.playback.duration();
-    const at = this.isSeeking() ? this.seekPreview() * duration : this.playback.position();
-    return `${formatTrackTime(at)} / ${duration > 0 ? formatTrackLength(duration) : '—'}`;
-  });
-
-  /** How far through the room's track it is, from 0 to 1. */
-  readonly progress = computed(() => {
-    this._tick();
-    this.objectChange.versionOf('Jukebox')();
-    const duration = this.playback.duration();
-    return duration > 0 ? Math.min(1, this.playback.position() / duration) : 0;
-  });
-
-  /** Where the seek bar stands: where it is being dragged to, or how far through the track it is. */
-  readonly displayProgress = computed(() => (this.isSeeking() ? this.seekPreview() : this.progress()));
+  readonly timeDisplay = computed(() => this.seekBar.time() ?? '');
 
   /** Whether the seek bar is locked for the whole room. */
-  readonly isSeekLocked = computed(() => {
-    this.objectChange.versionOf('Jukebox')();
-    return this.jukebox?.isSeekLocked ?? true;
-  });
+  readonly isSeekLocked = this.playback.isSeekLocked;
 
   private dragFromIndex: number | null = null;
 
   readonly tagList = computed((): string[] => {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('audio-tag')();
+    trackEvery(this.objectChange, 'audio-tag');
     const tags = new Set<string>(JukeboxComponent.PRESET_TAGS);
     for (const audio of this.audioStorage.audios) {
       if (audio.isHidden) continue;
@@ -272,8 +217,7 @@ export class JukeboxComponent {
       const t = audioTag?.tag || 'BGM';
       tags.add(t);
     }
-    const sorted = [...tags].sort();
-    return [this.allTag(), ...sorted];
+    return [...tags].sort();
   });
 
   static readonly PRESET_TAGS = ['BGM', 'SE', AUDIO_TAG_BGS];
@@ -477,8 +421,13 @@ export class JukeboxComponent {
     this.contextMenuService.open(this.pointerDeviceService.pointers[0], actions, audio.name);
   }
   /** The room's synced jukebox, which plays BGM and sound effects for everyone. */
-  get jukebox(): Jukebox {
-    return this.objectStore.get<Jukebox>('Jukebox')!;
+  get jukebox(): Jukebox | null {
+    return this.objectStore.get<Jukebox>('Jukebox') ?? null;
+  }
+
+  /** The track the room is set to, or null when none is set or the room has no jukebox yet. */
+  get nowPlaying(): AudioFile | null {
+    return this.jukebox?.audio ?? null;
   }
 
   /** The playlist the playlist tab shows, or null before the room has one. */
@@ -489,20 +438,19 @@ export class JukeboxComponent {
 
   readonly auditionPlayer: AudioPlayer = new AudioPlayer();
 
-  private readonly _tick = signal(0);
+  private readonly seTick = signal(0);
 
   readonly nowPlayingArtwork = computed(() => {
-    this._tick();
+    this.playback.clock();
     this.objectChange.versionOf('Jukebox')();
-    return this.jukebox?.audio?.artworkUrl ?? null;
+    return this.nowPlaying?.artworkUrl ?? null;
   });
 
   constructor() {
     queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('feature.media.jukebox.title')));
     this.auditionPlayer.volumeType = VolumeType.AUDITION;
     this.destroyRef.onDestroy(() => this.stop());
-    const timer = setInterval(() => this._tick.update((v) => v + 1), 500);
-    this.destroyRef.onDestroy(() => clearInterval(timer));
+    this.destroyRef.onDestroy(SoundEffects.onChange(() => this.seTick.update((count) => count + 1)));
   }
 
   /** Previews a track for this player only, from its audition button. */
@@ -515,10 +463,6 @@ export class JukeboxComponent {
     this.auditionPlayer.stop();
   }
 
-  /**
-   * Removes a sound from the whole room, once the game master has said so, and stops it here if it
-   * was being tried.
-   */
   /** Whether a sound is one that may be reported: one a person added, named by its hash. */
   isReportable(audio: AudioFile): boolean {
     return AssetHttpStore.isAssetId(audio.identifier);
@@ -534,6 +478,10 @@ export class JukeboxComponent {
     });
   }
 
+  /**
+   * Removes a sound from the whole room, once the game master has said so, and stops it here if it
+   * was being tried.
+   */
   async removeAudio(audio: AudioFile): Promise<void> {
     if (!this.mayRemove(audio)) return;
     if ((await this.assetRemoval.removeAfterAsking('audio', [audio.identifier])) < 1) return;
@@ -552,17 +500,18 @@ export class JukeboxComponent {
 
   /** Stops the room's BGM, but only if this track is the one playing. */
   stopBGM(audio: AudioFile) {
-    if (this.jukebox.audio === audio) this.playback.stop();
+    if (this.nowPlaying === audio) this.playback.stop();
   }
 
   /** Stops a sound effect for the whole room. */
   stopSE(audio: AudioFile) {
     if (!this.canOperate()) return;
-    this.jukebox.stopSE(audio.identifier);
+    this.jukebox?.stopSE(audio.identifier);
   }
 
   /** Whether a sound effect is sounding on this player's side, which swaps its play button for stop. */
   isSePlaying(audio: AudioFile): boolean {
+    this.seTick();
     return SoundEffects.isPlaying(audio.identifier);
   }
 
@@ -581,24 +530,6 @@ export class JukeboxComponent {
     const files = input.files;
     if (files && files.length) this.fileArchiver.load(files);
     input.value = '';
-  }
-
-  /** Locks or unlocks the seek bar for the whole room. */
-  toggleSeekLock(): void {
-    if (this.jukebox && this.canOperate()) this.jukebox.isSeekLocked = !this.jukebox.isSeekLocked;
-  }
-
-  /** Shows where the seek bar is being dragged to without moving playback yet. */
-  onSeekInput(event: Event): void {
-    this.isSeeking.set(true);
-    this.seekPreview.set((event.target as HTMLInputElement).valueAsNumber / 100);
-  }
-
-  /** Moves the room's track to where the seek bar was let go, while its length is known, and ends the drag. */
-  onSeekCommit(event: Event): void {
-    const duration = this.playback.duration();
-    if (duration > 0) this.playback.seek(((event.target as HTMLInputElement).valueAsNumber / 100) * duration);
-    this.isSeeking.set(false);
   }
 
   /** Opens the cut-in list panel beside the pointer. */

@@ -1,4 +1,5 @@
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
+import { clamp } from '@axe/core/util/clamp';
 import { boardOffset, type TableCameraView, type TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 
 /** A point of the board, in table pixels: x to the east, y to the south and z up. */
@@ -37,16 +38,13 @@ export const THIRD_PERSON_FOV_DEG = 60;
 
 /** An orbit turned round the piece and tipped up or down, held between how far it may look up and down. */
 export function orbitTurned(orbit: ThirdPersonOrbit, turnDeg: number, downDeg: number): ThirdPersonOrbit {
-  const down = Math.min(MAX_THIRD_PERSON_DOWN_DEG, Math.max(MIN_THIRD_PERSON_DOWN_DEG, orbit.downDeg + downDeg));
+  const down = clamp(orbit.downDeg + downDeg, MIN_THIRD_PERSON_DOWN_DEG, MAX_THIRD_PERSON_DOWN_DEG);
   return { ...orbit, turnDeg: (((orbit.turnDeg + turnDeg) % 360) + 360) % 360, downDeg: down };
 }
 
 /** An orbit brought nearer the piece, or taken further back, held between how near and far it may stand. */
 export function orbitPushed(orbit: ThirdPersonOrbit, boomCells: number): ThirdPersonOrbit {
-  const boom = Math.min(
-    MAX_THIRD_PERSON_BOOM_CELLS,
-    Math.max(MIN_THIRD_PERSON_BOOM_CELLS, orbit.boomCells + boomCells)
-  );
+  const boom = clamp(orbit.boomCells + boomCells, MIN_THIRD_PERSON_BOOM_CELLS, MAX_THIRD_PERSON_BOOM_CELLS);
   return { ...orbit, boomCells: boom };
 }
 
@@ -65,7 +63,7 @@ export function eyeBackFrom(target: BoardPoint, yawDeg: number, downDeg: number,
 
 /** How far in front of the box the camera looks through its eye stands, for it to see as tall as `fovDeg`. */
 export function perspectiveForFov(heightPx: number, fovDeg: number): number {
-  return Math.max(1, heightPx) / 2 / Math.tan((Math.min(Math.max(fovDeg, 1), 179) * Math.PI) / 360);
+  return Math.max(1, heightPx) / 2 / Math.tan((clamp(fovDeg, 1, 179) * Math.PI) / 360);
 }
 
 /**

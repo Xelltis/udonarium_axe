@@ -2,6 +2,7 @@ import { DestroyRef, inject, Injectable } from '@angular/core';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -11,7 +12,9 @@ export class ChatSettingsEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly chatTabList = inject(ChatTabList);
+  private get chatTabList(): ChatTabList {
+    return ChatTabList.instance;
+  }
   private readonly preferences = inject(ChatPreferencesService);
 
   constructor() {
@@ -52,7 +55,7 @@ export class ChatSettingsEventHandlerService {
     const stored = this.preferences.display();
     if (!stored) return;
     const list = this.chatTabList;
-    list.portraitHeight = Math.min(list.maxPortraitSize, Math.max(list.minPortraitSize, stored.portraitHeight));
+    list.portraitHeight = clamp(stored.portraitHeight, list.minPortraitSize, list.maxPortraitSize);
     list.isPortraitInWindow = stored.isPortraitInWindow;
     list.isKeepPortraitOutWindow = stored.isKeepPortraitOutWindow;
     list.simpleDispFlagTime = stored.simpleDispFlagTime;

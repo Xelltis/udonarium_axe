@@ -79,7 +79,7 @@
             name="table-name"
             [(ngModel)]="tableName"
             [placeholder]="'feature.tabletop.tableSetting.tableNamePlaceholder' | transloco"
-            [attr.disabled]="!isEditable ? '' : null"
+            [disabled]="!isEditable"
           />
           <label class="text-ui-muted self-start pt-1.5 text-[11px]">{{
             'feature.tabletop.tableSetting.cutIns' | transloco
@@ -110,7 +110,7 @@
               [(ngModel)]="tableBgmChoice"
               name="tableBgmChoice"
               data-testid="table-bgm"
-              [attr.disabled]="!isEditable ? '' : null"
+              [disabled]="!isEditable"
             >
               <option [ngValue]="''">{{ 'feature.tabletop.tableSetting.tableBgmKeep' | transloco }}</option>
               <option [ngValue]="'stop'">{{ 'feature.tabletop.tableSetting.tableBgmStop' | transloco }}</option>
@@ -135,22 +135,12 @@
         <div class="grid grid-cols-[8rem_1fr] items-center gap-3">
           <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.imageTable' | transloco }}</label>
           <div class="flex items-start gap-2">
-            @if (tableBackgroundImage.url) {
-              <img
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input hover:border-ui-accent block h-16.5 w-22 cursor-pointer border border-solid object-contain transition-colors"
-                [src]="tableBackgroundImage.url | safe: 'resourceUrl'"
-                (click)="openBgImageModal()"
-                [alt]="'feature.tabletop.tableSetting.imageTableAlt' | transloco"
-              />
-            } @else {
-              <button
-                type="button"
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:bg-ui-input hover:text-ui-accent m-0 flex h-16.5 w-22 cursor-pointer items-center justify-center border border-dashed p-1 text-center text-[11px] leading-[1.4] transition-colors hover:shadow-none"
-                (click)="openBgImageModal()"
-              >
-                {{ 'feature.tabletop.tableSetting.addImageTable' | transloco }}
-              </button>
-            }
+            <ui-image-picker-tile
+              [url]="tableBackgroundImage.url"
+              [alt]="'feature.tabletop.tableSetting.imageTableAlt' | transloco"
+              [addLabel]="'feature.tabletop.tableSetting.addImageTable' | transloco"
+              (pick)="openBgImageModal()"
+            />
             <button
               type="button"
               class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:text-ui-accent m-0 inline-flex cursor-pointer items-center gap-1.5 self-center border border-solid px-2.5 py-1.5 text-[11px] whitespace-nowrap transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -164,22 +154,12 @@
 
           <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.imageBg' | transloco }}</label>
           <div class="flex">
-            @if (tableDistanceviewImage.url) {
-              <img
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input hover:border-ui-accent block h-16.5 w-22 cursor-pointer border border-solid object-contain transition-colors"
-                [src]="tableDistanceviewImage.url | safe: 'resourceUrl'"
-                (click)="openDistanceViewImageModal()"
-                [alt]="'feature.tabletop.tableSetting.imageBgAlt' | transloco"
-              />
-            } @else {
-              <button
-                type="button"
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:bg-ui-input hover:text-ui-accent m-0 flex h-16.5 w-22 cursor-pointer items-center justify-center border border-dashed p-1 text-center text-[11px] leading-[1.4] transition-colors hover:shadow-none"
-                (click)="openDistanceViewImageModal()"
-              >
-                {{ 'feature.tabletop.tableSetting.addImageBg' | transloco }}
-              </button>
-            }
+            <ui-image-picker-tile
+              [url]="tableDistanceviewImage.url"
+              [alt]="'feature.tabletop.tableSetting.imageBgAlt' | transloco"
+              [addLabel]="'feature.tabletop.tableSetting.addImageBg' | transloco"
+              (pick)="openDistanceViewImageModal()"
+            />
           </div>
 
           <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.bgFilter' | transloco }}</label>
@@ -187,7 +167,7 @@
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableDistanceviewFilter"
             name="tableDistanceviewFilter"
-            [attr.disabled]="!isEditable ? '' : null"
+            [disabled]="!isEditable"
           >
             <option value="">{{ 'feature.tabletop.tableSetting.bgFilterNone' | transloco }}</option>
             <option value="white">{{ 'feature.tabletop.tableSetting.bgFilterWhite' | transloco }}</option>
@@ -199,23 +179,13 @@
           }}</label>
           <div class="flex flex-col gap-1.5" data-testid="table-foreground-setting">
             <div class="flex items-start gap-2">
-              @if (tableForegroundImage.url) {
-                <img
-                  class="rounded-ui-sm border-ui-border-panel bg-ui-input hover:border-ui-accent block h-16.5 w-22 cursor-pointer border border-solid object-contain transition-colors"
-                  [src]="tableForegroundImage.url | safe: 'resourceUrl'"
-                  (click)="openForegroundImageModal()"
-                  [alt]="'feature.tabletop.tableSetting.imageForegroundAlt' | transloco"
-                />
-              } @else {
-                <button
-                  type="button"
-                  data-testid="table-foreground-pick"
-                  class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:bg-ui-input hover:text-ui-accent m-0 flex h-16.5 w-22 cursor-pointer items-center justify-center border border-dashed p-1 text-center text-[11px] leading-[1.4] transition-colors hover:shadow-none"
-                  (click)="openForegroundImageModal()"
-                >
-                  {{ 'feature.tabletop.tableSetting.addImageForeground' | transloco }}
-                </button>
-              }
+              <ui-image-picker-tile
+                [url]="tableForegroundImage.url"
+                [alt]="'feature.tabletop.tableSetting.imageForegroundAlt' | transloco"
+                [addLabel]="'feature.tabletop.tableSetting.addImageForeground' | transloco"
+                addTestId="table-foreground-pick"
+                (pick)="openForegroundImageModal()"
+              />
               @if (tableForegroundImage.url) {
                 <button
                   type="button"
@@ -242,7 +212,7 @@
                   data-testid="table-foreground-opacity"
                   [ngModel]="tableForegroundOpacity"
                   (ngModelChange)="tableForegroundOpacity = $event"
-                  [attr.disabled]="!isEditable ? '' : null"
+                  [disabled]="!isEditable"
                 />
                 <span class="text-ui-muted w-9 text-right tabular-nums">{{ tableForegroundOpacity }}%</span>
               </label>
@@ -255,7 +225,7 @@
                   data-testid="table-foreground-fit"
                   [ngModel]="tableForegroundFit"
                   (ngModelChange)="tableForegroundFit = $event"
-                  [attr.disabled]="!isEditable ? '' : null"
+                  [disabled]="!isEditable"
                 >
                   @for (fit of foregroundFits; track fit) {
                     <option [ngValue]="fit">
@@ -289,28 +259,18 @@
             @for (wall of wallFields; track wall.key) {
               <div class="flex flex-col items-center gap-1">
                 <span class="text-ui-muted text-[11px]">{{ wall.label | transloco }}</span>
-                @if (wall.image().url) {
-                  <img
-                    class="rounded-ui-sm border-ui-border-panel bg-ui-input hover:border-ui-accent block h-16.5 w-22 cursor-pointer border border-solid object-contain transition-colors"
-                    [src]="wall.image().url | safe: 'resourceUrl'"
-                    (click)="wall.open()"
-                    [alt]="wall.alt | transloco"
-                  />
-                } @else {
-                  <button
-                    type="button"
-                    class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:bg-ui-input hover:text-ui-accent m-0 flex h-16.5 w-22 cursor-pointer items-center justify-center border border-dashed p-1 text-center text-[11px] leading-[1.4] transition-colors hover:shadow-none"
-                    (click)="wall.open()"
-                  >
-                    {{ wall.add | transloco }}
-                  </button>
-                }
+                <ui-image-picker-tile
+                  [url]="wallImage(wall).url"
+                  [alt]="wall.alt | transloco"
+                  [addLabel]="wall.add | transloco"
+                  (pick)="openWallImage(wall)"
+                />
                 <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[12px] select-none">
                   <input
                     type="checkbox"
                     class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-                    [ngModel]="wall.show()"
-                    (ngModelChange)="wall.setShow($event)"
+                    [ngModel]="wallShown(wall)"
+                    (ngModelChange)="setWallShown(wall, $event)"
                     [name]="'tableShow-' + wall.key"
                   />
                   {{ 'feature.tabletop.tableSetting.showWall' | transloco }}
@@ -321,226 +281,7 @@
         </div>
       </div>
 
-      <div class="mb-3.5 flex flex-col gap-2">
-        <div class="flex items-center gap-2">
-          <div class="border-ui-accent flex-1 border-l-2 border-solid pl-2">
-            <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
-              'feature.tabletop.tableSetting.sectionBackgroundLayers' | transloco
-            }}</span>
-          </div>
-          <button
-            class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover border border-solid px-2 py-0.5 text-[12px] disabled:cursor-not-allowed disabled:opacity-40"
-            type="button"
-            data-testid="background-layer-add"
-            [disabled]="!canAddBackgroundLayer"
-            (click)="addBackgroundLayer()"
-          >
-            {{ 'feature.tabletop.tableSetting.backgroundLayerAdd' | transloco }}
-          </button>
-        </div>
-        <p class="text-ui-dim m-0 text-[11px]">
-          {{ 'feature.tabletop.tableSetting.backgroundLayerHint' | transloco }}
-        </p>
-
-        @for (layer of backgroundLayers; track layer.identifier; let index = $index) {
-          <div
-            class="rounded-ui-sm border-ui-border-panel flex flex-col gap-2 border border-solid p-2"
-            data-testid="background-layer-row"
-          >
-            <div class="flex flex-wrap items-center gap-2">
-              <label class="text-ui-text flex cursor-pointer items-center gap-1.5 text-[13px] select-none">
-                <input
-                  type="checkbox"
-                  class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-                  [attr.name]="'backgroundLayerEnabled' + index"
-                  [ngModel]="backgroundLayerEnabled(layer)"
-                  (ngModelChange)="setBackgroundLayerEnabled(layer, $event)"
-                />
-                {{
-                  'feature.tabletop.tableSetting.backgroundLayerIndex_' + backgroundLayerPlacement(layer)
-                    | transloco: { index: backgroundLayerNumber(layer) }
-                }}
-              </label>
-              <span class="flex-1"></span>
-              <button
-                class="text-ui-muted cursor-pointer border-0 bg-transparent p-0 leading-none disabled:cursor-not-allowed disabled:opacity-40"
-                type="button"
-                data-testid="background-layer-move-up"
-                [title]="'feature.tabletop.tableSetting.backgroundLayerMoveUp' | transloco"
-                [disabled]="!canMoveBackgroundLayer(layer, -1)"
-                (click)="moveBackgroundLayer(layer, -1)"
-              >
-                <i class="material-icons text-[15px]!">arrow_upward</i>
-              </button>
-              <button
-                class="text-ui-muted cursor-pointer border-0 bg-transparent p-0 leading-none disabled:cursor-not-allowed disabled:opacity-40"
-                type="button"
-                data-testid="background-layer-move-down"
-                [title]="'feature.tabletop.tableSetting.backgroundLayerMoveDown' | transloco"
-                [disabled]="!canMoveBackgroundLayer(layer, 1)"
-                (click)="moveBackgroundLayer(layer, 1)"
-              >
-                <i class="material-icons text-[15px]!">arrow_downward</i>
-              </button>
-              <button
-                class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover border border-solid px-2 py-0.5 text-[12px]"
-                type="button"
-                data-testid="background-layer-image"
-                (click)="openBackgroundLayerImage(layer)"
-              >
-                {{ 'feature.tabletop.tableSetting.backgroundLayerImage' | transloco }}
-              </button>
-              <button
-                class="rounded-ui-sm border-ui-border-panel hover:bg-ui-hover border border-solid px-2 py-0.5 text-[12px]"
-                type="button"
-                data-testid="background-layer-remove"
-                (click)="removeBackgroundLayer(layer)"
-              >
-                {{ 'feature.tabletop.tableSetting.backgroundLayerRemove' | transloco }}
-              </button>
-            </div>
-
-            @if (backgroundLayerImage(layer).url) {
-              <div
-                class="bg-ui-elevated h-14 rounded-sm bg-contain bg-center bg-no-repeat"
-                [style.background-image]="'url(' + backgroundLayerImage(layer).url + ')' | safe: 'style'"
-              ></div>
-            }
-
-            <div class="grid grid-cols-[8rem_1fr] items-center gap-x-3 gap-y-2">
-              <label class="text-ui-muted text-[11px]">{{
-                'feature.tabletop.tableSetting.backgroundLayerPlacement' | transloco
-              }}</label>
-              <select
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-1 py-0.5 text-[13px]"
-                data-testid="background-layer-placement"
-                [attr.name]="'backgroundLayerPlacement' + index"
-                [ngModel]="backgroundLayerPlacement(layer)"
-                (ngModelChange)="setBackgroundLayerPlacement(layer, $event)"
-              >
-                @for (placement of tableLayerPlacements; track placement) {
-                  <option [value]="placement">
-                    {{ 'feature.tabletop.tableSetting.backgroundLayerPlacement_' + placement | transloco }}
-                  </option>
-                }
-              </select>
-
-              <label class="text-ui-muted text-[11px]">{{
-                'feature.tabletop.tableSetting.backgroundLayerSpeedX' | transloco
-              }}</label>
-              <input
-                type="number"
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-24 border border-solid px-1 py-0.5 text-[13px]"
-                [min]="-maxBackgroundScrollSpeed"
-                [max]="maxBackgroundScrollSpeed"
-                step="5"
-                data-testid="background-layer-speed-x"
-                [attr.name]="'backgroundLayerSpeedX' + index"
-                [ngModel]="backgroundLayerSpeedX(layer)"
-                (ngModelChange)="setBackgroundLayerSpeedX(layer, $event)"
-              />
-
-              <label class="text-ui-muted text-[11px]">{{
-                'feature.tabletop.tableSetting.backgroundLayerSpeedY' | transloco
-              }}</label>
-              <input
-                type="number"
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-24 border border-solid px-1 py-0.5 text-[13px]"
-                [min]="-maxBackgroundScrollSpeed"
-                [max]="maxBackgroundScrollSpeed"
-                step="5"
-                data-testid="background-layer-speed-y"
-                [attr.name]="'backgroundLayerSpeedY' + index"
-                [ngModel]="backgroundLayerSpeedY(layer)"
-                [disabled]="backgroundLayerPlacement(layer) === 'backdrop'"
-                [title]="
-                  backgroundLayerPlacement(layer) === 'backdrop'
-                    ? ('feature.tabletop.tableSetting.backgroundLayerSpeedYBackdrop' | transloco)
-                    : ''
-                "
-                (ngModelChange)="setBackgroundLayerSpeedY(layer, $event)"
-              />
-
-              <label class="text-ui-muted text-[11px]">{{
-                'feature.tabletop.tableSetting.backgroundLayerOpacity' | transloco
-              }}</label>
-              <div class="flex items-center gap-2">
-                <input
-                  type="range"
-                  class="min-w-20 flex-1 cursor-pointer [accent-color:var(--ui-accent)]"
-                  min="0"
-                  max="100"
-                  step="5"
-                  data-testid="background-layer-opacity"
-                  [attr.name]="'backgroundLayerOpacity' + index"
-                  [ngModel]="backgroundLayerOpacityPercent(layer)"
-                  (ngModelChange)="setBackgroundLayerOpacityPercent(layer, $event)"
-                />
-                <span class="text-ui-text w-10 text-right tabular-nums"
-                  >{{ backgroundLayerOpacityPercent(layer) }}%</span
-                >
-              </div>
-
-              <label class="text-ui-muted text-[11px]">{{
-                'feature.tabletop.tableSetting.backgroundLayerScale' | transloco
-              }}</label>
-              <input
-                type="number"
-                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border w-24 border border-solid px-1 py-0.5 text-[13px]"
-                [min]="minBackgroundLayerScale"
-                [max]="maxBackgroundLayerScale"
-                step="0.1"
-                data-testid="background-layer-scale"
-                [attr.name]="'backgroundLayerScale' + index"
-                [ngModel]="backgroundLayerScale(layer)"
-                (ngModelChange)="setBackgroundLayerScale(layer, $event)"
-              />
-
-              @if (backgroundLayerPlacement(layer) === 'backdrop') {
-                <label class="text-ui-muted text-[11px]">{{
-                  'feature.tabletop.tableSetting.backgroundLayerFollow' | transloco
-                }}</label>
-                <div class="flex items-center gap-2">
-                  <input
-                    type="range"
-                    class="min-w-20 flex-1 cursor-pointer [accent-color:var(--ui-accent)]"
-                    min="0"
-                    max="100"
-                    step="5"
-                    data-testid="background-layer-follow"
-                    [attr.name]="'backgroundLayerFollow' + index"
-                    [ngModel]="backgroundLayerFollowPercent(layer)"
-                    (ngModelChange)="setBackgroundLayerFollowPercent(layer, $event)"
-                  />
-                  <span class="text-ui-text w-10 text-right tabular-nums"
-                    >{{ backgroundLayerFollowPercent(layer) }}%</span
-                  >
-                </div>
-
-                <label class="text-ui-muted text-[11px]">{{
-                  'feature.tabletop.tableSetting.backgroundLayerHeight' | transloco
-                }}</label>
-                <div class="flex items-center gap-2">
-                  <input
-                    type="range"
-                    class="min-w-20 flex-1 cursor-pointer [accent-color:var(--ui-accent)]"
-                    min="0"
-                    max="100"
-                    step="5"
-                    data-testid="background-layer-height"
-                    [attr.name]="'backgroundLayerHeight' + index"
-                    [ngModel]="backgroundLayerHeightPercent(layer)"
-                    (ngModelChange)="setBackgroundLayerHeightPercent(layer, $event)"
-                  />
-                  <span class="text-ui-text w-10 text-right tabular-nums"
-                    >{{ backgroundLayerHeightPercent(layer) }}%</span
-                  >
-                </div>
-              }
-            </div>
-          </div>
-        }
-      </div>
+      <table-background-layers class="mb-3.5 flex flex-col gap-2" [table]="selectedTable" [editable]="isEditable" />
       <div class="mb-3.5 flex flex-col gap-2">
         <div class="border-ui-accent border-l-2 border-solid pl-2">
           <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
@@ -549,70 +290,34 @@
         </div>
         <div class="grid grid-cols-[8rem_1fr] items-center gap-x-3 gap-y-2.5">
           <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.width' | transloco }}</label>
-          <div class="flex items-center gap-2">
-            <input
-              type="range"
-              class="flex-1 [accent-color:var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="tableWidth"
-              min="{{ minSize }}"
-              max="{{ maxSize }}"
-              name="tableWidth"
-              [attr.disabled]="!isEditable ? '' : null"
-            />
-            <input
-              type="number"
-              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent w-[4.5em] border border-solid px-1.5 py-1 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="tableWidth"
-              min="{{ minSize }}"
-              max="{{ maxSize }}"
-              name="table-width"
-              [attr.disabled]="!isEditable ? '' : null"
-            />
-          </div>
+          <ui-range-number-field
+            rangeName="tableWidth"
+            numberName="table-width"
+            [(value)]="tableWidth"
+            [min]="minSize"
+            [max]="maxSize"
+            [disabled]="!isEditable"
+          />
 
           <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.height' | transloco }}</label>
-          <div class="flex items-center gap-2">
-            <input
-              type="range"
-              class="flex-1 [accent-color:var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="tableHeight"
-              min="{{ minSize }}"
-              max="{{ maxSize }}"
-              name="table-height-range"
-              [attr.disabled]="!isEditable ? '' : null"
-            />
-            <input
-              type="number"
-              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent w-[4.5em] border border-solid px-1.5 py-1 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="tableHeight"
-              min="{{ minSize }}"
-              max="{{ maxSize }}"
-              name="table-height-num"
-              [attr.disabled]="!isEditable ? '' : null"
-            />
-          </div>
+          <ui-range-number-field
+            rangeName="table-height-range"
+            numberName="table-height-num"
+            [(value)]="tableHeight"
+            [min]="minSize"
+            [max]="maxSize"
+            [disabled]="!isEditable"
+          />
 
           <label class="text-ui-muted text-[11px]">{{ 'feature.tabletop.tableSetting.wallHeight' | transloco }}</label>
-          <div class="flex items-center gap-2">
-            <input
-              type="range"
-              class="flex-1 [accent-color:var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="tableWallHeight"
-              min="{{ minWallHeight }}"
-              max="{{ maxWallHeight }}"
-              name="tableWallHeight"
-              [attr.disabled]="!isEditable ? '' : null"
-            />
-            <input
-              type="number"
-              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent w-[4.5em] border border-solid px-1.5 py-1 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              [(ngModel)]="tableWallHeight"
-              min="{{ minWallHeight }}"
-              max="{{ maxWallHeight }}"
-              name="table-wall-height-num"
-              [attr.disabled]="!isEditable ? '' : null"
-            />
-          </div>
+          <ui-range-number-field
+            rangeName="tableWallHeight"
+            numberName="table-wall-height-num"
+            [(value)]="tableWallHeight"
+            [min]="minWallHeight"
+            [max]="maxWallHeight"
+            [disabled]="!isEditable"
+          />
 
           <label class="text-ui-muted text-[11px]" for="table-cell-size-num">{{
             'feature.tabletop.tableSetting.cellSize' | transloco
@@ -658,7 +363,7 @@
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableGridType"
             name="tableGridType"
-            [attr.disabled]="!isEditable ? '' : null"
+            [disabled]="!isEditable"
           >
             <option value="-1">{{ 'feature.tabletop.tableSetting.gridTypeNone' | transloco }}</option>
             <option value="0">{{ 'feature.tabletop.tableSetting.gridTypeSquare' | transloco }}</option>
@@ -676,7 +381,7 @@
               [(ngModel)]="tableSquareSpan"
               name="tableSquareSpan"
               data-testid="table-square-span"
-              [attr.disabled]="!isEditable ? '' : null"
+              [disabled]="!isEditable"
             >
               @for (span of squareSpans; track span) {
                 <option [ngValue]="span">
@@ -703,7 +408,7 @@
                 [(ngModel)]="tableGridColor"
                 name="tableGridColor"
                 list="table-grid-color-list"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
             </div>
             <div class="flex items-center gap-1.25">
@@ -716,7 +421,7 @@
                 [(ngModel)]="tableGridFontColor"
                 name="tableGridFontColor"
                 list="table-grid-color-list"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
             </div>
           </div>
@@ -736,7 +441,7 @@
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableSnapMode"
             name="tableSnapMode"
-            [attr.disabled]="!isEditable ? '' : null"
+            [disabled]="!isEditable"
           >
             <option value="off">{{ 'feature.tabletop.tableSetting.snapOff' | transloco }}</option>
             <option value="center">{{ 'feature.tabletop.tableSetting.snapCenter' | transloco }}</option>
@@ -785,7 +490,7 @@
               [(ngModel)]="tableMagneticAnomaly"
               name="tableMagneticAnomaly"
               data-testid="table-magnetic-anomaly"
-              [attr.disabled]="!isEditable ? '' : null"
+              [disabled]="!isEditable"
             />
             {{ 'feature.tabletop.tableSetting.magneticAnomaly' | transloco }}
           </label>
@@ -819,7 +524,7 @@
                 class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
                 [(ngModel)]="tableLightSnapToGrid"
                 name="tableLightSnapToGrid"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
               {{ 'feature.tabletop.tableSetting.lightSnapToGrid' | transloco }}
             </label>
@@ -835,7 +540,7 @@
                 class="w-full cursor-pointer [accent-color:var(--ui-accent)]"
                 [(ngModel)]="tableDarknessLevelPercent"
                 name="tableDarknessLevelPercent"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
               <span class="text-ui-muted text-right text-[11px]">{{ tableDarknessLevelPercent }}%</span>
 
@@ -849,7 +554,7 @@
                 class="w-full cursor-pointer [accent-color:var(--ui-accent)]"
                 [(ngModel)]="tableGlobalIlluminationPercent"
                 name="tableGlobalIlluminationPercent"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
               <span class="text-ui-muted text-right text-[11px]">{{ tableGlobalIlluminationPercent }}%</span>
 
@@ -861,7 +566,7 @@
                 class="rounded-ui-sm border-ui-border-panel col-span-2 h-6.5 w-12 cursor-pointer border border-solid bg-transparent px-0.5 py-px disabled:cursor-not-allowed disabled:opacity-50"
                 [(ngModel)]="tableAmbientColor"
                 name="tableAmbientColor"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
             </div>
 
@@ -898,7 +603,7 @@
               class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
               [(ngModel)]="tableFogEnabled"
               name="tableFogEnabled"
-              [attr.disabled]="!isEditable ? '' : null"
+              [disabled]="!isEditable"
             />
             {{ 'feature.tabletop.tableSetting.fogEnabled' | transloco }}
           </label>
@@ -910,7 +615,7 @@
                 class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 [(ngModel)]="tableFogMode"
                 name="tableFogMode"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               >
                 @for (mode of fogModes; track mode) {
                   <option [value]="mode">{{ fogModeLabel(mode) }}</option>
@@ -925,7 +630,7 @@
                 class="rounded-ui-sm border-ui-border-panel col-span-2 h-6.5 w-12 cursor-pointer border border-solid bg-transparent px-0.5 py-px disabled:cursor-not-allowed disabled:opacity-50"
                 [(ngModel)]="tableFogColor"
                 name="tableFogColor"
-                [attr.disabled]="!isEditable ? '' : null"
+                [disabled]="!isEditable"
               />
             </div>
             <p class="text-ui-muted m-0 text-[11px]">
@@ -956,7 +661,7 @@
             class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
             [(ngModel)]="tableWeatherKind"
             name="tableWeatherKind"
-            [attr.disabled]="!isEditable ? '' : null"
+            [disabled]="!isEditable"
           >
             <option value="">{{ 'feature.tabletop.tableSetting.weatherNone' | transloco }}</option>
             @for (kind of weatherKinds; track kind) {
@@ -970,7 +675,7 @@
             [(ngModel)]="tableSkyKind"
             name="tableSkyKind"
             data-testid="table-sky-kind"
-            [attr.disabled]="!isEditable ? '' : null"
+            [disabled]="!isEditable"
           >
             @for (kind of skyKinds; track kind) {
               <option [value]="kind">{{ 'feature.tabletop.tableSetting.skyKind_' + kind | transloco }}</option>
@@ -989,7 +694,7 @@
               class="w-full cursor-pointer [accent-color:var(--ui-accent)]"
               [(ngModel)]="tableWeatherDensityPercent"
               name="tableWeatherDensityPercent"
-              [attr.disabled]="!isEditable ? '' : null"
+              [disabled]="!isEditable"
             />
             <span class="text-ui-muted text-right text-[11px]">{{ tableWeatherDensityPercent }}%</span>
 
@@ -999,7 +704,7 @@
               class="rounded-ui-sm border-ui-border-panel h-6.5 w-12 cursor-pointer border border-solid bg-transparent px-0.5 py-px disabled:cursor-not-allowed disabled:opacity-50"
               [(ngModel)]="tableWeatherColor"
               name="tableWeatherColor"
-              [attr.disabled]="!isEditable ? '' : null"
+              [disabled]="!isEditable"
             />
             <button
               type="button"

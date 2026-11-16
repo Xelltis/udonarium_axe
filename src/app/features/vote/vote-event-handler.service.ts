@@ -1,6 +1,6 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { encodeI18nList, encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FinishVoteEvent } from '@axe/core/event/domain-events';
 
@@ -9,7 +9,6 @@ export class VoteEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
-  private readonly t = inject(TRANSLATE_FN);
 
   constructor() {
     this.objectChange.finishVote$.subscribe((event) => {
@@ -20,19 +19,19 @@ export class VoteEventHandlerService {
   private resultText(event: FinishVoteEvent): string {
     const parts: string[] = [];
     if (event.isRollCall) {
-      parts.push(this.t('feature.vote.rollCallFinish', { voted: event.voted, total: event.total }));
+      parts.push(encodeI18nMessage('feature.vote.rollCallFinish', { voted: event.voted, total: event.total }));
     } else {
-      parts.push(this.t('feature.vote.voteFinish', { title: event.voteTitle }));
+      parts.push(encodeI18nMessage('feature.vote.voteFinish', { title: event.voteTitle }));
       for (const tally of event.tally) {
-        parts.push(this.t('feature.vote.tallyEntry', { choice: tally.choice, count: tally.count }));
+        parts.push(encodeI18nMessage('feature.vote.tallyEntry', { choice: tally.choice, count: tally.count }));
       }
     }
     if (event.abstained > 0) {
-      parts.push(this.t('feature.vote.abstainCount', { count: event.abstained }));
+      parts.push(encodeI18nMessage('feature.vote.abstainCount', { count: event.abstained }));
     }
     if (event.unanswered > 0) {
-      parts.push(this.t('feature.vote.unansweredCount', { count: event.unanswered }));
+      parts.push(encodeI18nMessage('feature.vote.unansweredCount', { count: event.unanswered }));
     }
-    return parts.join(' ');
+    return encodeI18nList(parts, ' ');
   }
 }

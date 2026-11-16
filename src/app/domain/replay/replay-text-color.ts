@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { contrastRatio, parseHexColor, relativeLuminance } from '@axe/core/util/tonal-color';
 
 export const REPLAY_MIN_CONTRAST = 4.5;
@@ -20,7 +21,7 @@ export function readableOn(color: string, background: [number, number, number], 
   const wantsLighter = backdrop < 0.5;
   for (let step = 1; step <= 20; step += 1) {
     const lightness = wantsLighter ? 0.5 + step * 0.025 : 0.5 - step * 0.025;
-    const lifted = hslToRgb(hue, saturation, Math.max(0, Math.min(1, lightness)));
+    const lifted = hslToRgb(hue, saturation, clamp(lightness, 0, 1));
     if (contrastRatio(relativeLuminance(lifted), backdrop) >= REPLAY_MIN_CONTRAST) return toHex(lifted);
   }
   return fallback;
@@ -28,16 +29,21 @@ export function readableOn(color: string, background: [number, number, number], 
 
 function toHex([r, g, b]: [number, number, number]): string {
   const part = (value: number): string =>
-    Math.round(Math.max(0, Math.min(1, value)) * 255)
+    Math.round(clamp(value, 0, 1) * 255)
       .toString(16)
       .padStart(2, '0');
   return `#${part(r)}${part(g)}${part(b)}`;
 }
 
+/** The lightness of a colour, as HSL has it: halfway between its strongest and weakest channel, on the channels' own scale. */
+export function lightnessOf([r, g, b]: [number, number, number]): number {
+  return (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
+}
+
 function rgbToHsl([r, g, b]: [number, number, number]): [number, number, number] {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
-  const lightness = (max + min) / 2;
+  const lightness = lightnessOf([r, g, b]);
   if (max === min) return [0, 0, lightness];
 
   const delta = max - min;

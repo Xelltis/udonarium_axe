@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { IMAGE_REGION_CROPPER } from '@axe/application/file/image-region-cropper';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { Logger } from '@axe/core/logging/logger';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GridType } from '@axe/domain/tabletop/game-table';
@@ -8,7 +10,6 @@ import {
   MapImageGridAdjusterComponent,
   MapImageGridAdjusterOption,
 } from '@axe/features/tabletop/map-image-grid-adjuster/map-image-grid-adjuster.component';
-import { cropImageRegion } from '@axe/features/tabletop/map-image-grid-adjuster/map-image-grid-region';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 
 const VIEW_CELL_BASE = 48;
@@ -18,15 +19,18 @@ describe('MapImageGridAdjusterComponent', () => {
   let component: MapImageGridAdjusterComponent;
   let modalService: { option: unknown; title: string; resolve: ReturnType<typeof vi.fn> };
   let imageStorage: { get: ReturnType<typeof vi.fn>; addAsync: ReturnType<typeof vi.fn> };
+  let cropRegion: ReturnType<typeof vi.fn>;
 
   async function setup(option: MapImageGridAdjusterOption) {
     modalService = { option, title: '', resolve: vi.fn() };
     imageStorage = { get: vi.fn().mockReturnValue(null), addAsync: vi.fn() };
+    cropRegion = vi.fn();
     TestBed.configureTestingModule({
       imports: [MapImageGridAdjusterComponent],
     });
     TestBed.overrideProvider(ModalService, { useValue: modalService });
     TestBed.overrideProvider(ImageStorage, { useValue: imageStorage });
+    TestBed.overrideProvider(IMAGE_REGION_CROPPER, { useValue: cropRegion });
     await TestBed.compileComponents();
     fixture = TestBed.createComponent(MapImageGridAdjusterComponent);
     component = fixture.componentInstance;
@@ -113,6 +117,18 @@ describe('MapImageGridAdjusterComponent', () => {
     const after = component.tx() - frame().fx;
 
     expect(after).toBeCloseTo(before, 5);
+  });
+
+  it('keeps the picture where it sits in the frame as the grid changes shape', async () => {
+    await setup({ imageIdentifier: 'x', gridSize: 48 });
+    makeReady(480, 240);
+
+    const before = { x: component.tx() - frame().fx, y: component.ty() - frame().fy };
+    component.setGridType(GridType.HEX_VERTICAL);
+    const after = { x: component.tx() - frame().fx, y: component.ty() - frame().fy };
+
+    expect(after.x).toBeCloseTo(before.x, 5);
+    expect(after.y).toBeCloseTo(before.y, 5);
   });
 
   it('fits to cover with the axes locked, scaling both alike', async () => {
@@ -202,8 +218,7 @@ describe('MapImageGridAdjusterComponent', () => {
     fixture.detectChanges();
 
     const fakeBlob = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/webp' });
-    const cropFn = vi.fn().mockResolvedValue(fakeBlob);
-    (component as unknown as { cropFn: typeof cropImageRegion }).cropFn = cropFn;
+    cropRegion.mockResolvedValue(fakeBlob);
     const fakeImage = ImageFile.createEmpty('new-id');
     imageStorage.addAsync.mockResolvedValue(fakeImage);
 
@@ -217,8 +232,8 @@ describe('MapImageGridAdjusterComponent', () => {
 
     await component.apply();
 
-    expect(cropFn).toHaveBeenCalledOnce();
-    const args = cropFn.mock.calls[0];
+    expect(cropRegion).toHaveBeenCalledOnce();
+    const args = cropRegion.mock.calls[0];
     expect(args[1]).toBeCloseTo(expectX, 5);
     expect(args[2]).toBeCloseTo(expectY, 5);
     expect(args[3]).toBeCloseTo(expectW, 5);
@@ -230,6 +245,42 @@ describe('MapImageGridAdjusterComponent', () => {
       height: component.rows(),
       gridType: GridType.SQUARE,
     });
+  });
+
+  it('says the picture could not be cropped, apart from one that could not be read, and logs why', async () => {
+    await setup({ imageIdentifier: 'x', gridSize: 48 });
+    makeReady(480, 240);
+    component.fit();
+    fixture.detectChanges();
+    const reason = new Error('canvas context unavailable');
+    cropRegion.mockRejectedValue(reason);
+    const logged = vi.spyOn(Logger, 'error').mockImplementation(() => {});
+
+    await component.apply();
+    fixture.detectChanges();
+
+    expect(component.loadState()).toBe('crop-error');
+    expect(component.processing()).toBe(false);
+    expect(fixture.nativeElement.querySelector('[data-testid="grid-adjuster-crop-error"]')).not.toBeNull();
+    expect(logged).toHaveBeenCalledWith(expect.any(String), reason);
+    expect(modalService.resolve).not.toHaveBeenCalled();
+    logged.mockRestore();
+  });
+
+  it('says so too when the room does not keep the cropped picture', async () => {
+    await setup({ imageIdentifier: 'x', gridSize: 48 });
+    makeReady(480, 240);
+    component.fit();
+    fixture.detectChanges();
+    cropRegion.mockResolvedValue(new Blob([new Uint8Array([1])], { type: 'image/webp' }));
+    imageStorage.addAsync.mockResolvedValue(null);
+    const logged = vi.spyOn(Logger, 'error').mockImplementation(() => {});
+
+    await component.apply();
+
+    expect(component.loadState()).toBe('crop-error');
+    expect(modalService.resolve).not.toHaveBeenCalled();
+    logged.mockRestore();
   });
 
   it('shrinks the view so a wide frame fits the stage, and still commits', async () => {
@@ -247,8 +298,7 @@ describe('MapImageGridAdjusterComponent', () => {
     expect(component.canApply()).toBe(true);
 
     const fakeBlob = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/webp' });
-    const cropFn = vi.fn().mockResolvedValue(fakeBlob);
-    (component as unknown as { cropFn: typeof cropImageRegion }).cropFn = cropFn;
+    cropRegion.mockResolvedValue(fakeBlob);
     const fakeImage = ImageFile.createEmpty('grid-id');
     imageStorage.addAsync.mockResolvedValue(fakeImage);
 

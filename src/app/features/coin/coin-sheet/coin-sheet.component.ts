@@ -13,7 +13,7 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
-  selector: 'app-coin-sheet',
+  selector: 'coin-sheet',
   templateUrl: './coin-sheet.component.html',
   host: { class: 'block box-border h-full overflow-y-auto p-3 text-ui-text bg-ui-panel' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -104,7 +104,8 @@ export class CoinSheetComponent {
     if (!coin) return;
     this.modalService.open<string>(FileSelecterComponent).then((value) => {
       if (value == null) return;
-      this.faceElement(coin, face)!.value = value;
+      const element = this.faceElement(coin, face);
+      if (element) element.value = value;
     });
   }
 

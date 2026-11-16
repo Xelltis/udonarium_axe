@@ -1,7 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from '../dungeon-helpers';
-import { openPanel, waitAppReady } from '../helpers';
+import { becomeGm, closePanels, idleOnCanvas, openPanel, waitAppReady } from '../helpers';
 import { solidPng } from '../png-helpers';
 
 /**
@@ -9,29 +8,13 @@ import { solidPng } from '../png-helpers';
  * ground running out beyond the board to the horizon in place of the page's background.
  */
 
-type Hooks = {
-  renderer(): string | null;
-  whenIdle(): Promise<void>;
-  sceneStats(): { sky: boolean; backdrops: number } | null;
-};
-
-async function idle(page: Page) {
-  await expect
-    .poll(() => page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.renderer() ?? null), {
-      timeout: 20000,
-    })
-    .not.toBeNull();
-  await page.mouse.move(5, 400);
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
-}
-
 function skyShown(page: Page): Promise<boolean | undefined> {
-  return page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.sky);
+  return page.evaluate(() => window.__axeTable.sceneStats()?.sky);
 }
 
 /** How many pictures laid behind everything the canvas stands round the board. */
 function backdrops(page: Page): Promise<number | undefined> {
-  return page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.backdrops);
+  return page.evaluate(() => window.__axeTable.sceneStats()?.backdrops);
 }
 
 /** The colour of the screen at a point, read off a picture of it. */
@@ -60,7 +43,7 @@ test.describe('the sky over a table drawn on a canvas', () => {
     await waitAppReady(page);
     await becomeGm(page);
     await closePanels(page);
-    await idle(page);
+    await idleOnCanvas(page);
     expect(await skyShown(page)).toBe(false);
     const viewport = page.viewportSize()!;
     const past = { x: 60, y: viewport.height - 40 };
@@ -71,7 +54,7 @@ test.describe('the sky over a table drawn on a canvas', () => {
     await closePanels(page);
 
     await expect.poll(() => skyShown(page)).toBe(true);
-    await idle(page);
+    await idleOnCanvas(page);
     const after = await colourAt(page, past.x, past.y);
     expect(Math.max(...after.map((value, index) => Math.abs(value - before[index])))).toBeGreaterThan(20);
 

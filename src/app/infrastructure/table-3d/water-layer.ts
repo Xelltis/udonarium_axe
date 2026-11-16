@@ -15,7 +15,10 @@ import type {
   TableWorldWater,
   WaterPart,
 } from '@axe/domain/tabletop/world/table-water';
+import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
+import type { DarknessTaking } from '@axe/infrastructure/table-3d/veil';
 import { lotusTileUrl } from '@axe/infrastructure/tabletop/water/lotus-texture';
+import { colourNode } from '@axe/infrastructure/three-kit/colour-node';
 import {
   attribute,
   float,
@@ -65,9 +68,6 @@ const ICE_ORDER = 1.75;
 const LEAF_ORDER = 1000.5;
 const SHORE_ORDER = 1001;
 
-/** Draws a face laid over another in front of it, past the depth's rounding. */
-const PULLED_FORWARD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 };
-
 /** How many cells one repeat of the net of light spans on the floor, as the page draws it. */
 const CAUSTIC_CELLS = 2.6;
 /**
@@ -109,8 +109,6 @@ const SECOND_NET_SCALE = 1.45;
 const SECOND_NET_SHARE = 0.75;
 const GLINT_SECONDS = 57;
 
-type Taking = 'lit' | 'unlit';
-
 /**
  * The water on the table: its surfaces coloured by the depths under them and glinting, its floors
  * darkened and crossed by a moving net of light, its sides where it stands over lower ground, and the
@@ -138,7 +136,7 @@ export class WaterLayer {
   private changed = false;
 
   constructor(
-    private readonly dress: (material: Material, taking: Taking) => void,
+    private readonly dress: (material: Material, taking: DarknessTaking) => void,
     private readonly picture: (url: string) => Texture
   ) {}
 
@@ -199,6 +197,7 @@ export class WaterLayer {
     return changed;
   }
 
+  /** Takes every water away and lets go of the tiles and pictures it is drawn with. */
   dispose(): void {
     this.clear();
     this.netTile?.dispose();
@@ -363,7 +362,7 @@ export class WaterLayer {
   /** The colour a point is laid in, from sRGB, and how opaque. */
   private colour() {
     const colour = attribute('color', 'vec4');
-    return { rgb: vec3(sRGBTransferEOTF(colour.rgb) as unknown as ReturnType<typeof vec3>), a: colour.a };
+    return { rgb: vec3(colourNode(sRGBTransferEOTF(colour.rgb))), a: colour.a };
   }
 
   /** The surface: its colour, with the sky glinting on the ripples as they drift with the flow. */
@@ -418,7 +417,7 @@ export class WaterLayer {
   /** The floor: the colour of the depths, crossed by the net of light the surface throws down. */
   private floorMaterial(netCells: number): MeshLambertNodeMaterial {
     const material = this.material(false);
-    Object.assign(material, PULLED_FORWARD);
+    Object.assign(material, LAID_OVER_FACES);
     const { rgb, a } = this.colour();
     const at = vec2(positionWorld.x, positionWorld.z).div(this.cellPx.mul(netCells));
     const { first, second } = this.nets(at, attribute('extra', 'float').mul(this.floorNet));
@@ -468,7 +467,7 @@ export class WaterLayer {
       transparent: true,
       depthWrite: false,
       side: DoubleSide,
-      ...(pulled ? PULLED_FORWARD : {}),
+      ...(pulled ? LAID_OVER_FACES : {}),
     });
   }
 }
@@ -487,7 +486,6 @@ function repeatingTile(alpha: Uint8ClampedArray, size: number): Texture {
   return tile;
 }
 
-/** Four figures of every eight, from the one given, as one attribute of a point carries them. */
 /**
  * Three figures to a point, the first from each list: the surface carries how strongly it glints, how
  * strongly a current streaks it and how much of it is frozen in one attribute, as a graphics card
@@ -549,6 +547,7 @@ function surfacesOf(water: TableWorldWater): { open: Surface; frozen: Surface } 
   return { open: kept(false), frozen: kept(true) };
 }
 
+/** Four figures of every eight, from the one given, as one attribute of a point carries them. */
 function everyOther(values: Float32Array, from: number): Float32Array {
   const picked = new Float32Array(values.length / 2);
   for (let i = 0, j = 0; i < values.length; i += 8, j += 4) picked.set(values.subarray(i + from, i + from + 4), j);
@@ -557,7 +556,7 @@ function everyOther(values: Float32Array, from: number): Float32Array {
 
 /** A colour from sRGB into the light the scene is lit in. */
 function linearOf(colour: Node<'vec3'>): Node<'vec3'> {
-  return sRGBTransferEOTF(colour) as unknown as Node<'vec3'>;
+  return colourNode(sRGBTransferEOTF(colour));
 }
 
 /** A colour laid over another as opaque as it is, as the page lays one picture over another. */

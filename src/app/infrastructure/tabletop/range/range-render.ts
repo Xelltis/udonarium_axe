@@ -14,15 +14,7 @@ import {
   renderTriangle,
 } from '@axe/infrastructure/tabletop/range/range-render-polygon';
 import { renderCircle, renderCorn } from '@axe/infrastructure/tabletop/range/range-render-radial';
-import type {
-  ClipAreaCorn,
-  ClipAreaHexagon,
-  ClipAreaLine,
-  ClipAreaPentagon,
-  ClipAreaSquare,
-  ClipAreaTriangle,
-  RangeRenderSetting,
-} from '@axe/infrastructure/tabletop/range/range-render-types';
+import type { ClipArea, RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
 
 export class RangeRender {
   constructor(
@@ -36,37 +28,37 @@ export class RangeRender {
   }
 
   /** Draws a line range onto this pair of canvases and gives back its clip. */
-  renderLine(setting: RangeRenderSetting): ClipAreaLine {
+  renderLine(setting: RangeRenderSetting): ClipArea {
     return renderLine(this.canvasElement, this.canvasElementRange, setting);
   }
 
   /** Draws a square range onto this pair of canvases and gives back its clip. */
-  renderSquare(setting: RangeRenderSetting): ClipAreaSquare {
+  renderSquare(setting: RangeRenderSetting): ClipArea {
     return renderSquare(this.canvasElement, this.canvasElementRange, setting);
   }
 
   /** Draws a diamond range onto this pair of canvases and gives back its clip. */
-  renderDiamond(setting: RangeRenderSetting): ClipAreaSquare {
+  renderDiamond(setting: RangeRenderSetting): ClipArea {
     return renderDiamond(this.canvasElement, this.canvasElementRange, setting);
   }
 
   /** Draws a cone range onto this pair of canvases and gives back its clip. */
-  renderCorn(setting: RangeRenderSetting): ClipAreaCorn {
+  renderCorn(setting: RangeRenderSetting): ClipArea {
     return renderCorn(this.canvasElement, this.canvasElementRange, setting);
   }
 
   /** Draws a triangle range onto this pair of canvases and gives back its clip. */
-  renderTriangle(setting: RangeRenderSetting): ClipAreaTriangle {
+  renderTriangle(setting: RangeRenderSetting): ClipArea {
     return renderTriangle(this.canvasElement, this.canvasElementRange, setting);
   }
 
   /** Draws a pentagon range onto this pair of canvases and gives back its clip. */
-  renderPentagon(setting: RangeRenderSetting): ClipAreaPentagon {
+  renderPentagon(setting: RangeRenderSetting): ClipArea {
     return renderPentagon(this.canvasElement, this.canvasElementRange, setting);
   }
 
   /** Draws a hexagon range onto this pair of canvases and gives back its clip. */
-  renderHexagon(setting: RangeRenderSetting): ClipAreaHexagon {
+  renderHexagon(setting: RangeRenderSetting): ClipArea {
     return renderHexagon(this.canvasElement, this.canvasElementRange, setting);
   }
 

@@ -1,3 +1,4 @@
+import { clamp01 } from '@axe/core/util/clamp';
 import { backgroundScrollAnimation, backgroundTileSize } from '@axe/domain/tabletop/background-scroll';
 import type { TableWorldBackdrop } from '@axe/domain/tabletop/world/table-layers';
 import { float, smoothstep, texture, uniform, uv, vec2, vec4 } from 'three/tsl';
@@ -154,8 +155,4 @@ export class BackdropRing {
     this.stood = [];
     this.changed = true;
   }
-}
-
-function clamp01(value: number): number {
-  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
 }

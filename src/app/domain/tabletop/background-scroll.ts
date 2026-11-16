@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /** How fast a layer may be asked to drift, in pixels a second. */
 export const MAX_BACKGROUND_SCROLL_SPEED = 2000;
 /** How far a layer may be blown up or shrunk from the size the picture was drawn at. */
@@ -63,9 +64,7 @@ export function backgroundTileSize(
   board?: { width: number; height: number } | null
 ): { width: number; height: number } | null {
   if (!natural || natural.width <= 0 || natural.height <= 0) return null;
-  const clamped = Number.isFinite(scale)
-    ? Math.min(MAX_BACKGROUND_LAYER_SCALE, Math.max(MIN_BACKGROUND_LAYER_SCALE, scale))
-    : 1;
+  const clamped = Number.isFinite(scale) ? clamp(scale, MIN_BACKGROUND_LAYER_SCALE, MAX_BACKGROUND_LAYER_SCALE) : 1;
   const wide = natural.width * clamped;
   const tall = natural.height * clamped;
   const held = holdingRatio(wide, tall, board);

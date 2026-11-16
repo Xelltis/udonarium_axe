@@ -110,6 +110,14 @@ describe('the room server protocol, held to the server’s fixtures', () => {
     expect(readServerMessage({ ...messages.server.assetToken, keptRole: 'king' })).toBeNull();
   });
 
+  it('reads an error with or without the protocol version the server speaks, but not with one that is no number', () => {
+    const { protocolVersion: _version, ...withoutVersion } = messages.server.error;
+
+    expect(readServerMessage(messages.server.error)).toEqual(messages.server.error);
+    expect(readServerMessage(withoutVersion)).toEqual(withoutVersion);
+    expect(readServerMessage({ ...messages.server.error, protocolVersion: '6' })).toBeNull();
+  });
+
   it('reads how a server with a limit on its requests takes big pictures and sounds, and the ticket for one', () => {
     const { upload } = http.uploadTicket;
 

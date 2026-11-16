@@ -20,3 +20,22 @@ export function sheetPanelBox(
 ): { left: number; top: number; width: number; height: number } {
   return { left: at.x - width / 2, top: at.y - height / 2, width, height };
 }
+
+/** The size of a small panel opened by the pointer, and how far up and to the left of the pointer its corner sits. */
+export interface PointerPanelBox {
+  readonly width: number;
+  readonly height: number;
+  readonly reachLeft: number;
+  readonly reachUp: number;
+}
+
+/**
+ * Where a small panel opened from a menu sits: its corner a fixed reach up and to the left of the
+ * pointer, so the pointer lands inside it.
+ */
+export function panelOptionAt(
+  at: { x: number; y: number },
+  box: PointerPanelBox
+): { left: number; top: number; width: number; height: number } {
+  return { left: at.x - box.reachLeft, top: at.y - box.reachUp, width: box.width, height: box.height };
+}

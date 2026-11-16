@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { openPanel, rightClickPiece, waitAppReady } from './helpers';
 
 /** The game master picks, in the room settings, which values and resources the remote controllers show. */
 test.describe('the values and resources the remote controller shows', () => {
@@ -10,11 +10,11 @@ test.describe('the values and resources the remote controller shows', () => {
       .filter({ hasText: '接続情報' })
       .getByRole('button', { name: /^\s*GM\s*$/ })
       .click();
-    await expect(page.locator('app-gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
   }
 
   async function openRemote(page: Page) {
-    await page.locator('game-character').filter({ hasText: 'キャラクターA' }).first().dispatchEvent('contextmenu');
+    await rightClickPiece(page.locator('game-character').filter({ hasText: 'キャラクターA' }).first());
     await page.locator('context-menu').getByText('リモコンを表示').click();
     const remote = page.locator('remote-controller');
     await expect(remote).toBeVisible({ timeout: 10000 });

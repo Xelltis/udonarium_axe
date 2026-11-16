@@ -15,6 +15,37 @@ export interface RangeShapeInput {
 /** The shapes whose coverage is worked out. */
 export const COVERED_RANGE_TYPES: readonly string[] = ['CIRCLE', 'LINE', 'SQUARE'];
 
+/** The shapes that can be turned; a drawn shape says for itself whether it can. */
+export const ROTATABLE_RANGE_TYPES: readonly string[] = [
+  'LINE',
+  'CORN',
+  'SQUARE',
+  'RHOMBUS',
+  'TRIANGLE',
+  'PENTAGON',
+  'HEXAGON',
+];
+
+/** The shapes that can follow a character about, which are the ones spread round a point. */
+export const FOLLOWABLE_RANGE_TYPES: readonly string[] = [
+  'CIRCLE',
+  'SQUARE',
+  'RHOMBUS',
+  'TRIANGLE',
+  'PENTAGON',
+  'HEXAGON',
+];
+
+/** The shapes turned by one handle held out past the shape, rather than by handles along it. */
+export const SINGLE_GRAB_RANGE_TYPES: readonly string[] = [
+  'SQUARE',
+  'RHOMBUS',
+  'TRIANGLE',
+  'PENTAGON',
+  'HEXAGON',
+  'CUSTOM',
+];
+
 /** How far past an edge a point may stand and still be in, in pixels: the edge counts as in. */
 const ON_EDGE_PX = 1e-6;
 

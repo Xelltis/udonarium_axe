@@ -153,3 +153,14 @@ export function buildCopyAction<T extends TabletopObject>(
     },
   };
 }
+
+/** The delete entry for a piece, which takes it off the table and plays the sweep. */
+export function buildDeleteAction(obj: TabletopObject, t: TranslateFn): ContextMenuAction {
+  return {
+    name: t('feature.tabletop.contextMenu.delete'),
+    action: () => {
+      obj.destroy();
+      SoundEffect.play(PresetSound.sweep);
+    },
+  };
+}

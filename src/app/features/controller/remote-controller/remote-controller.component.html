@@ -203,6 +203,24 @@
             }
           </div>
 
+          <div class="flex items-center gap-1 px-2 pt-1">
+            <span class="text-ui-muted min-w-[3em] text-[11px] select-none">{{
+              'feature.character.buff.kind' | transloco
+            }}</span>
+            <select
+              class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm cursor-pointer border border-solid px-1 py-0.5 text-[11px]"
+              name="remoteBuffKind"
+              data-testid="remote-buff-kind"
+              [ngModel]="buffKind()"
+              (ngModelChange)="buffKindPicked.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+            >
+              @for (choice of buffKinds; track choice) {
+                <option [ngValue]="choice">{{ 'feature.character.buff.kind_' + choice | transloco }}</option>
+              }
+            </select>
+          </div>
+
           <div class="flex items-start gap-1.25 px-2 py-1">
             <textarea
               class="bg-ui-input border-ui-border-input text-ui-text focus:border-ui-accent rounded-ui-sm max-h-20 min-h-10 flex-1 resize-y border border-solid px-1.5 py-1 font-[inherit] text-[12px] outline-none"
@@ -532,7 +550,8 @@
                   [style.color]="dataElm.nowValueColor || null"
                   type="number"
                   name="data-current-value"
-                  [(ngModel)]="dataElm.currentValue"
+                  [ngModel]="dataElm.currentValue"
+                  (ngModelChange)="writeField(dataElm, 'currentValue', $event)"
                 />
                 <span
                   class="text-ui-dim self-end px-px pb-0.5 text-[12px]"
@@ -543,7 +562,8 @@
                   class="text-ui-text hover:border-b-ui-border-panel focus:border-b-ui-accent focus:bg-ui-input w-full min-w-0 [appearance:textfield] border-b border-none border-b-transparent bg-transparent px-0.5 py-px text-center font-[inherit] text-[13px] font-bold outline-none focus:appearance-auto"
                   type="number"
                   name="data-value"
-                  [(ngModel)]="dataElm.value"
+                  [ngModel]="dataElm.value"
+                  (ngModelChange)="writeField(dataElm, 'value', $event)"
                 />
               </div>
             </div>
@@ -580,7 +600,8 @@
               <input
                 class="text-ui-text hover:border-b-ui-border-panel focus:border-b-ui-accent focus:bg-ui-input w-full min-w-0 [appearance:textfield] border-b border-none border-b-transparent bg-transparent px-0.5 py-px text-center font-[inherit] text-[13px] font-bold outline-none focus:appearance-auto"
                 name="data-value"
-                [(ngModel)]="dataElm.value"
+                [ngModel]="dataElm.value"
+                (ngModelChange)="writeField(dataElm, 'value', $event)"
               />
             </div>
           }

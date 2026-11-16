@@ -8,8 +8,6 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { ModalService } from '@axe/application/ui/modal.service';
-import { PanelService } from '@axe/application/ui/panel.service';
 import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
 import { GameObject } from '@axe/core/sync/game-object';
 import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
@@ -57,7 +55,7 @@ interface ScenarioTextRow {
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-scenario-text-panel',
+  selector: 'scenario-text-panel',
   templateUrl: './scenario-text-panel.component.html',
   imports: [
     FormsModule,
@@ -76,8 +74,6 @@ export class ScenarioTextPanelComponent {
   private readonly confirm = inject(ConfirmService);
   private readonly contextMenu = inject(ContextMenuService);
   private readonly pointer = inject(PointerDeviceService);
-  private readonly modalService = inject(ModalService);
-  private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
 
   protected readonly speakers = SCENARIO_TEXT_SPEAKERS;
@@ -182,7 +178,6 @@ export class ScenarioTextPanelComponent {
   });
 
   constructor() {
-    queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('feature.scenarioText.title')));
     inject(DestroyRef).onDestroy(() => this.flushWrite());
   }
 

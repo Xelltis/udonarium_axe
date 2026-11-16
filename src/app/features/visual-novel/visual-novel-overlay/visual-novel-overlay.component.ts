@@ -3,17 +3,16 @@ import {
   Component,
   computed,
   DestroyRef,
-  effect,
   inject,
+  linkedSignal,
   signal,
-  untracked,
-  viewChild,
+  Type,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPaletteHandle, ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
-import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
+import { SystemAvatarKind } from '@axe/application/chat/system-avatar.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -21,17 +20,19 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { TurnChatCommandService } from '@axe/application/turn/turn-chat-command.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
-import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { Logger } from '@axe/core/logging/logger';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { chatColorOf } from '@axe/domain/chat/chat-color';
-import { ChatMessage } from '@axe/domain/chat/chat-message';
+import type { ChatTab } from '@axe/domain/chat/chat-tab';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -41,25 +42,20 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { keyboardShortcutsOf, shortcutKeysText } from '@axe/domain/ui/keyboard-shortcuts';
 import { isAudienceOffered } from '@axe/domain/ui/menu-command';
-import { encodeVnEmote, VN_EMOTION_MARK_CHARS, vnEmoteOf, VnEmotionMark } from '@axe/domain/visual-novel/vn-emote';
+import { encodeVnEmote } from '@axe/domain/visual-novel/vn-emote';
 import { vnEmoteLabel } from '@axe/domain/visual-novel/vn-emote-label';
 import {
   isVnPortraitPosSet,
   toPortraitSlot,
-  toStageResetAt,
   VN_PORTRAIT_POS_UNSET,
 } from '@axe/domain/visual-novel/vn-portrait-position';
 import {
-  buildVnStage,
   leftOfSlot,
   slotBandLeft,
   slotBandWidth,
   slotLabelLeftInBand,
-  stageCutFor,
-  VN_STAGE_LOOKBACK,
   VN_STAGE_SLOT_COUNT,
-  VnStageCharacter,
-  VnStageSource,
+  VN_STAGE_SLOT_INDEXES,
 } from '@axe/domain/visual-novel/vn-stage-cast';
 import { GameCharacterSheetComponent } from '@axe/features/character/game-character-sheet/game-character-sheet.component';
 import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
@@ -71,7 +67,7 @@ import { VisualNovelDirectorService } from '@axe/features/visual-novel/visual-no
 import { VisualNovelDisplayPanelComponent } from '@axe/features/visual-novel/visual-novel-display-panel/visual-novel-display-panel.component';
 import { VisualNovelEmotePanelComponent } from '@axe/features/visual-novel/visual-novel-emote-panel/visual-novel-emote-panel.component';
 import { VisualNovelEmoteSelectionService } from '@axe/features/visual-novel/visual-novel-emote-selection.service';
-import { readableMessageName, readableMessageText } from '@axe/features/visual-novel/visual-novel-message';
+import { VnStageViewService } from '@axe/features/visual-novel/visual-novel-overlay/vn-stage-view.service';
 import {
   closeVisualNovelPanels,
   VISUAL_NOVEL_PANELS,
@@ -79,10 +75,11 @@ import {
   VN_DIRECTION_PANEL,
   VN_DISPLAY_PANEL,
   VN_EMOTE_PANEL,
+  VN_SHEET_PANEL,
 } from '@axe/features/visual-novel/visual-novel-panels';
 import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-novel-playback.service';
 import { VisualNovelSceneService } from '@axe/features/visual-novel/visual-novel-scene.service';
-import { VisualNovelSettingsService, VnLayout } from '@axe/features/visual-novel/visual-novel-settings.service';
+import { VisualNovelSettingsService } from '@axe/features/visual-novel/visual-novel-settings.service';
 import {
   isTypingTarget,
   type VisualNovelCommand,
@@ -101,18 +98,9 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { Z_VISUAL_NOVEL_PANEL, Z_VISUAL_NOVEL_PANEL_ABOVE } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
+import type GameSystemClass from 'bcdice/lib/game_system';
 
 const WHEEL_THROTTLE_MS = 160;
-
-const EMOTION_MARK_COLORS: Record<Exclude<VnEmotionMark, 'none'>, string> = {
-  surprise: 'text-red-500',
-  question: 'text-sky-500',
-  anger: 'text-red-600',
-  sweat: 'text-sky-500',
-  heart: 'text-pink-500',
-  note: 'text-amber-500',
-  silence: 'text-gray-500',
-};
 
 /** The balloon, of which one opens at a time. */
 type VisualNovelPopover = 'soundBoard' | 'slotGuide' | 'palette' | 'shortcutHelp';
@@ -127,6 +115,8 @@ type VisualNovelPopover = 'soundBoard' | 'slotGuide' | 'palette' | 'shortcutHelp
     '(window:keyup)': 'onKeyup($event)',
     '(window:blur)': 'stopSkip()',
   },
+  // One of these to an overlay, as what the stage shows is worked out for the overlay drawing it.
+  providers: [VnStageViewService],
   imports: [
     FormsModule,
     SafePipe,
@@ -155,10 +145,9 @@ export class VisualNovelOverlayComponent {
   private readonly names = inject(PieceNameService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly turnCommands = inject(TurnChatCommandService);
   private readonly imageService = inject(ImageService);
-  private readonly systemAvatar = inject(SystemAvatarService);
   private readonly systemAvatarMenu = inject(SystemAvatarMenuService);
-  private readonly audioStorage = inject(AudioStorage);
   private readonly paletteRegistry = inject(ChatPaletteRegistryService);
   private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
@@ -211,7 +200,6 @@ export class VisualNovelOverlayComponent {
    * A flag per kind would mean writing close-the-others every time, and one missed leaves two open.
    */
   private readonly openPopover = signal<VisualNovelPopover | null>(null);
-  private readonly soundBoard = viewChild(VisualNovelSoundBoardComponent);
   readonly isSkipping = this.playback.isSkipping;
 
   readonly selectedKind = this.emoteSelection.kind;
@@ -223,7 +211,7 @@ export class VisualNovelOverlayComponent {
 
   readonly messageKindOptions = this.emoteSelection.messageKindOptions;
   readonly isGameMaster = this.emoteSelection.isGameMaster;
-  readonly slotIndexes = Array.from({ length: VN_STAGE_SLOT_COUNT }, (_, i) => i);
+  readonly slotIndexes = VN_STAGE_SLOT_INDEXES;
   /** The keys novel mode answers, less those for what this reader's role may not do. */
   readonly shortcutHelpItems = computed(() => {
     this.objectChange.trackMyCursor();
@@ -244,7 +232,20 @@ export class VisualNovelOverlayComponent {
     this.playback.setChatTab(identifier);
   }
 
-  private readonly _sendFrom = signal('');
+  /**
+   * Whoever was chosen to speak, kept while they still can: a character for as long as it is in the
+   * room, and the reader themselves for as long as they are a game master. Anybody else gives way
+   * to the first character that can be spoken as.
+   */
+  private readonly _sendFrom = linkedSignal<{ listed: GameCharacter[]; isGameMaster: boolean }, string>({
+    source: () => ({ listed: this.listedCharacters(), isGameMaster: this.isGameMaster() }),
+    computation: ({ listed, isGameMaster }, previous) => {
+      const current = previous?.value ?? '';
+      if (this.objectStore.get(current) instanceof GameCharacter) return current;
+      if (isGameMaster && current.length > 0 && current === PeerCursor.myCursor?.identifier) return current;
+      return listed[0]?.identifier ?? '';
+    },
+  });
   /**
    * The identifier of whoever the next line is sent as: a character, or the game master's own
    * cursor.
@@ -286,12 +287,29 @@ export class VisualNovelOverlayComponent {
   readonly currentFullParts = this.playback.currentFullParts;
   readonly currentIsDiceCommand = this.playback.currentIsDiceCommand;
 
-  private readonly currentEmote = this.playback.currentEmote;
+  private readonly stage = inject(VnStageViewService);
 
-  readonly speakerName = computed(() => {
-    this.language.currentLang();
-    return readableMessageName(this.currentMessage(), this.t);
-  });
+  /** What the stage shows for the line being read; see {@link VnStageViewService}. */
+  readonly speakerName = this.stage.speakerName;
+  readonly isShoutShape = this.stage.isShoutShape;
+  readonly bubbleBoxClass = this.stage.bubbleBoxClass;
+  readonly bubbleEnterClass = this.stage.bubbleEnterClass;
+  readonly bubbleAnimationClass = this.stage.bubbleAnimationClass;
+  readonly portraitEmoteClass = this.stage.portraitEmoteClass;
+  readonly emotionMark = this.stage.emotionMark;
+  readonly stageCharacters = this.stage.stageCharacters;
+  readonly activeStageCharacter = this.stage.activeStageCharacter;
+  readonly diceCommand = this.stage.diceCommand;
+  readonly systemSpeaker = this.stage.systemSpeaker;
+  readonly narrationKind = this.stage.narrationKind;
+  readonly speechVisible = this.stage.speechVisible;
+  readonly speechLayout = this.stage.speechLayout;
+  readonly bubbleAnchor = this.stage.bubbleAnchor;
+  readonly bubbleTextSizeClass = this.stage.bubbleTextSizeClass;
+  readonly narrationTextSizeClass = this.stage.narrationTextSizeClass;
+  readonly speakClass = this.stage.speakClass;
+  readonly isLeavingLine = this.stage.isLeavingLine;
+  readonly portraitAnimationClass = this.stage.portraitAnimationClass;
 
   readonly announcedLine = computed(() => {
     if (this.isTyping()) return '';
@@ -306,80 +324,10 @@ export class VisualNovelOverlayComponent {
     return message ? [message] : [];
   });
 
-  readonly isShoutShape = computed(() => this.currentEmote().shape === 'shout');
-
   /** Joins lists of classes into one for a `[class]` binding made of several, leaving out the empty ones. */
   protected classes(...lists: string[]): string {
     return lists.filter((list) => list.length > 0).join(' ');
   }
-
-  readonly bubbleBoxClass = computed(() => {
-    switch (this.currentEmote().shape) {
-      case 'thought':
-        return 'vn-bubble-thought bg-white/92 px-6 py-4 shadow-xl';
-      case 'shout':
-        return 'px-8 py-6 font-bold';
-      case 'whisper':
-        return 'vn-bubble-whisper px-5 py-3 shadow-xl';
-      default:
-        return 'vn-bubble-normal rounded-2xl bg-white/92 px-5 py-3 shadow-xl';
-    }
-  });
-
-  readonly bubbleEnterClass = computed(() => {
-    if (this.settings.reduceMotion()) return '';
-    if (this.currentEmote().bubbleAnimation === 'pop') return 'animate-vn-pop';
-    switch (this.currentEmote().shape) {
-      case 'thought':
-        return 'vn-enter-thought';
-      case 'shout':
-        return 'vn-enter-shout';
-      case 'whisper':
-        return 'vn-enter-whisper';
-      default:
-        return 'vn-enter-normal';
-    }
-  });
-
-  readonly bubbleAnimationClass = computed(() => {
-    if (this.settings.reduceMotion()) return '';
-    switch (this.currentEmote().bubbleAnimation) {
-      case 'shake':
-        return 'animate-vn-shake';
-      case 'pulse':
-        return 'animate-vn-pulse';
-      case 'float':
-        return 'animate-vn-float';
-      default:
-        return '';
-    }
-  });
-
-  readonly portraitEmoteClass = computed(() => {
-    if (this.settings.reduceMotion()) return '';
-    switch (this.currentEmote().portraitEmote) {
-      case 'jump':
-        return 'animate-vn-jump';
-      case 'tremble':
-        return 'animate-vn-tremble';
-      case 'zoom':
-        return 'animate-vn-zoom';
-      case 'nod':
-        return 'animate-vn-nod';
-      case 'sway':
-        return 'animate-vn-sway origin-bottom';
-      case 'droop':
-        return 'animate-vn-droop';
-      default:
-        return '';
-    }
-  });
-
-  readonly emotionMark = computed(() => {
-    const mark = this.currentEmote().emotionMark;
-    if (mark === 'none') return null;
-    return { char: VN_EMOTION_MARK_CHARS[mark], colorClass: EMOTION_MARK_COLORS[mark] };
-  });
 
   readonly hasEmoteSelection = this.emoteSelection.hasSelection;
 
@@ -393,254 +341,30 @@ export class VisualNovelOverlayComponent {
     this.emoteSelection.reset();
   }
 
-  readonly stageCharacters = computed<VnStageCharacter[]>(() => {
-    this.objectChange.fileVersion();
-    this.objectChange.collectionOf(GameCharacter.aliasName)();
-    this.language.currentLang();
-    const messages = this.messages();
-    const index = this.currentIndex();
-    if (index < 0) return [];
-    const window: VnStageSource[] = [];
-    for (let i = Math.max(0, index - VN_STAGE_LOOKBACK); i <= index; i++) {
-      const message = messages[i];
-      window.push({
-        name: readableMessageName(message, this.t),
-        placedAt: message.placedAt,
-        sendFrom: message.sendFrom ?? '',
-        imageIdentifier: message.imageIdentifier ?? '',
-        imagePos: message.imagePos,
-        vnPortraitPos: message.vnPortraitPos,
-        isSystemMessage: message.isSystemMessage,
-        isDicebot: message.isDicebot,
-        isGameCharacter: this.isGameCharacterSender(message.sendFrom ?? ''),
-        isDiceCommand: this.playback.isDiceCommandAt(i),
-        emote: vnEmoteOf(message.vnEmote, readableMessageText(message, this.t)),
-      });
-    }
-    return buildVnStage(
-      window,
-      (imageIdentifier) => this.imageService.getEmptyOr(imageIdentifier).url,
-      (source) => this.stageSlotOf(source),
-      stageCutFor(this.stageResetAt(), messages[index].placedAt, this.playback.isLatest())
-    );
-  });
-
-  /** When the portraits of the tab being read were last cleared, if they ever were. */
-  private readonly stageResetAt = computed(() => {
-    const tab = this.chatTab();
-    if (!tab) return 0;
-    this.objectChange.versionOf(tab.identifier)();
-    return toStageResetAt(tab.vnPortraitResetAt);
-  });
-
-  /** A line of its own beats the character's novel-mode place, which beats where it stands in chat. */
-  private stageSlotOf(source: VnStageSource): number {
-    const linePosition = toPortraitSlot(source.vnPortraitPos);
-    if (linePosition != null) return linePosition;
-    const character = this.objectStore.get(source.sendFrom);
-    if (character instanceof GameCharacter) {
-      this.objectChange.versionOf(character.identifier)();
-      const novelPosition = toPortraitSlot(character.vnPortraitPos);
-      if (novelPosition != null) return novelPosition;
-      const chatPosition = character.portraitPosition;
-      if (chatPosition != null) return chatPosition;
-    }
-    return toPortraitSlot(source.imagePos) ?? 0;
-  }
-
-  private isGameCharacterSender(identifier: string): boolean {
-    if (identifier.length < 1) return false;
-    return this.objectStore.get(identifier) instanceof GameCharacter;
-  }
-
-  readonly activeStageCharacter = computed(
-    () => this.stageCharacters().find((character) => character.isActive) ?? null
-  );
-
-  readonly diceCommand = computed(() => {
-    if (!this.currentIsDiceCommand()) return null;
-    this.language.currentLang();
-    const message = this.currentMessage();
-    if (!message) return null;
-    return { name: readableMessageName(message, this.t) };
-  });
-
-  readonly systemSpeaker = computed(() => {
-    const message = this.currentMessage();
-    if (!message) return null;
-    const visible = this.systemAvatar.isVisible();
-    const speakerVisible = this.systemAvatar.isSpeakerVisible();
-    if (message.isDicebot) {
-      const roller = this.findDiceRoller(message);
-      const rollerImageUrl = roller?.imageUrl ?? '';
-      const speakerUrl = rollerImageUrl.length > 0 ? rollerImageUrl : this.playerImageUrl(message);
-      const speaks = speakerVisible && speakerUrl.length > 0;
-      return {
-        kind: 'dice' as SystemAvatarKind,
-        imageUrl: speaks ? speakerUrl : visible ? this.systemAvatar.diceUrl() : '',
-        isSpeaker: speaks,
-        speakerName: '',
-        rollerName: roller?.name ?? '',
-        rollerImageUrl,
-      };
-    }
-    if (message.isSystemMessage || message.isSystem) {
-      return {
-        kind: 'system' as SystemAvatarKind,
-        imageUrl: visible ? this.systemAvatar.systemUrl() : '',
-        isSpeaker: false,
-        speakerName: '',
-        rollerName: '',
-        rollerImageUrl: '',
-      };
-    }
-    // What the game master says as themselves is addressed to the table rather than spoken in
-    // the scene, so it is given the place the room's own notices get, under their own picture
-    // rather than in a balloon over a portrait they are not standing behind.
-    if (this.playback.currentSpeakerKind() === 'gameMaster' && this.currentEmote().kind === 'normal') {
-      return {
-        kind: 'system' as SystemAvatarKind,
-        imageUrl: this.playerImageUrl(message),
-        isSpeaker: true,
-        speakerName: readableMessageName(message, this.t),
-        rollerName: '',
-        rollerImageUrl: '',
-      };
-    }
-    return null;
-  });
-
   protected onSystemAvatarContextMenu(event: Event, kind: SystemAvatarKind): void {
     this.systemAvatarMenu.openContextMenu(event, kind);
   }
-
-  private playerImageUrl(message: ChatMessage): string {
-    this.objectChange.collectionOf('PeerCursor')();
-    const userId = message.originFrom || message.from;
-    if (!userId) return '';
-    return PeerCursor.findByUserId(userId)?.image?.url ?? '';
-  }
-
-  private findDiceRoller(message: ChatMessage): { name: string; imageUrl: string } | null {
-    this.objectChange.fileVersion();
-    const matched = /^<(?:Secret-)?BCDice[：:](.+)>$/.exec(message.name ?? '');
-    const messages = this.messages();
-    const index = this.currentIndex();
-    for (let i = index - 1; i >= Math.max(0, index - 5); i--) {
-      const candidate = messages[i];
-      if (!candidate) continue;
-      if (candidate.timestamp === message.timestamp - 1 && candidate.from === (message.originFrom ?? '')) {
-        return {
-          name: matched?.[1] ?? candidate.name ?? '',
-          imageUrl: this.imageService.getEmptyOr(candidate.imageIdentifier ?? '').url,
-        };
-      }
-    }
-    return matched ? { name: matched[1], imageUrl: '' } : null;
-  }
-
-  readonly narrationKind = computed(() => {
-    if (!this.currentMessage() || this.systemSpeaker()) return null;
-    const kind = this.currentEmote().kind;
-    return kind === 'normal' ? null : kind;
-  });
-
-  readonly speechVisible = computed(
-    () =>
-      this.currentMessage() != null && !this.systemSpeaker() && !this.narrationKind() && !this.currentIsDiceCommand()
-  );
-
-  /**
-   * Which of the three ways of showing a line this one is shown in.
-   *
-   * A balloon needs somebody to come from. A line whose speaker has no portrait on the stage -
-   * said by a player as themselves, or left standing after the stage was cleared - would float
-   * in the middle of the screen as a balloon with its tail pointing at nothing, so such a line
-   * falls back to the window at the foot of the screen.
-   */
-  readonly speechLayout = computed<VnLayout | null>(() => {
-    if (!this.speechVisible()) return null;
-    const layout = this.settings.layout();
-    if (layout === 'bubble' && !this.activeStageCharacter()) return 'adv';
-    return layout;
-  });
-
-  readonly bubbleAnchor = computed(() => {
-    if (this.speechLayout() !== 'bubble') return null;
-    const active = this.activeStageCharacter();
-    if (!active) return null;
-    return { left: Math.min(83, Math.max(17, active.left)), bottom: '58vh' };
-  });
-
-  readonly bubbleTextSizeClass = computed(() => {
-    switch (this.settings.textSize()) {
-      case 'small':
-        return 'text-[13px]/relaxed';
-      case 'large':
-        return 'text-[19px]/relaxed';
-      default:
-        return 'text-[15px]/relaxed';
-    }
-  });
-
-  readonly narrationTextSizeClass = computed(() => {
-    switch (this.settings.textSize()) {
-      case 'small':
-        return 'text-base/loose';
-      case 'large':
-        return 'text-2xl/loose';
-      default:
-        return 'text-lg/loose';
-    }
-  });
-
-  readonly speakClass = computed(() => {
-    if (this.settings.reduceMotion()) return '';
-    return this.currentIndex() % 2 === 0 ? 'animate-vn-speak-a' : 'animate-vn-speak-b';
-  });
-
-  /**
-   * Whether the line being read is one somebody leaves on.
-   *
-   * The portrait and the line fade away together once the words are all there. Waiting for the
-   * typing to finish rather than starting on a timer means a long parting line is read in full
-   * however long it takes to appear.
-   */
-  readonly isLeavingLine = computed(() => {
-    if (this.settings.reduceMotion()) return false;
-    return this.currentEmote().exited && !this.isTyping();
-  });
-
-  readonly portraitAnimationClass = computed(() => {
-    if (this.settings.reduceMotion()) return '';
-    switch (this.settings.portraitAnimation()) {
-      case 'fade':
-        return 'animate-vn-fade-in';
-      case 'slide':
-        return 'animate-vn-slide-in';
-      case 'bounce':
-        return 'animate-vn-bounce-in';
-      default:
-        return '';
-    }
-  });
 
   /**
    * The characters this seat may speak as. A piece on the table it cannot see is left out, as in
    * the chat; the one already chosen stays.
    */
-  readonly gameCharacters = computed(() => {
+  readonly gameCharacters = computed(() => this.speakableCharacters(this.sendFrom));
+
+  /** The characters this seat may speak as, whoever is chosen; the first is who speaks when nobody is. */
+  private readonly listedCharacters = computed(() => this.speakableCharacters(''));
+
+  private speakableCharacters(chosen: string): GameCharacter[] {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     const all = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const character of all) this.objectChange.versionOf(character.identifier)();
     const myPeerId = PeerCursor.myCursor?.peerId ?? '';
-    const chosen = this.sendFrom;
     return all.filter(
       (character) =>
         allowsChat(character, myPeerId) &&
         (character.identifier === chosen || (this.vision.mayBeListed(character) && !this.names.isKept(character)))
     );
-  });
+  }
 
   /**
    * Who a line can be sent as.
@@ -723,7 +447,7 @@ export class VisualNovelOverlayComponent {
     this.objectChange.versionOf(object.identifier)();
     const children = object.imageDataElement?.children ?? [];
     if (children.length < 1) return null;
-    const index = Math.min(Math.max(0, object.selectedPortraitIndex), children.length - 1);
+    const index = clamp(object.selectedPortraitIndex, 0, children.length - 1);
     const element = children[index] as DataElement | undefined;
     const url = this.imageService.getEmptyOr((element?.value as string) ?? '').url;
     return { index, count: children.length, url, name: portraitNameOf(element) };
@@ -809,7 +533,6 @@ export class VisualNovelOverlayComponent {
   }
 
   constructor() {
-    this._sendFrom.set(this.gameCharacters()[0]?.identifier ?? '');
     this.playback.attach();
     this.destroyRef.onDestroy(() => this.playback.detach());
     // The windows are put up outside this screen, so leaving novel mode does not take them.
@@ -818,18 +541,6 @@ export class VisualNovelOverlayComponent {
     // last closed should not be waiting to be sent when it is opened again.
     this.destroyRef.onDestroy(() => this.emoteSelection.reset());
 
-    const seTimer = setInterval(() => {
-      if (this.isPopover('soundBoard')) this.soundBoard()?.refresh();
-    }, 500);
-    this.destroyRef.onDestroy(() => clearInterval(seTimer));
-
-    effect(() => {
-      const characters = this.gameCharacters();
-      const current = untracked(() => this._sendFrom());
-      const object = untracked(() => this.objectStore.get(current));
-      if (object instanceof GameCharacter) return;
-      this._sendFrom.set(characters[0]?.identifier ?? '');
-    });
     this.paletteRegistry.register(this.paletteHandle);
     this.destroyRef.onDestroy(() => this.paletteRegistry.unregister(this.paletteHandle));
   }
@@ -954,14 +665,14 @@ export class VisualNovelOverlayComponent {
   toggleBacklog(): void {
     if (this.panelService.closeSingle(VN_BACKLOG_PANEL)) return;
     this.closePopovers();
-    const width = Math.min(700, Math.max(320, window.innerWidth - 48));
+    const width = clamp(window.innerWidth - 48, 320, 700);
     this.panelService.open<VisualNovelBacklogComponent>(VisualNovelBacklogComponent, {
       title: this.t('feature.visualNovel.log'),
       // Off to the side rather than over the middle, which is where the portraits stand.
       left: Math.max(8, window.innerWidth - width - 24),
       top: 24,
       width,
-      height: Math.min(560, Math.max(240, window.innerHeight - 220)),
+      height: clamp(window.innerHeight - 220, 240, 560),
       minWidth: 320,
       minHeight: 200,
       layer: Z_VISUAL_NOVEL_PANEL,
@@ -974,18 +685,9 @@ export class VisualNovelOverlayComponent {
 
   /** Opens the staging window above the button that was pressed, or closes it when it is open. */
   toggleEmote(event?: Event): void {
-    if (this.panelService.closeSingle(VN_EMOTE_PANEL)) return;
-    this.closePopovers();
-    const size = { width: 320, height: Math.min(440, Math.max(240, window.innerHeight - 220)) };
-    this.panelService.open<VisualNovelEmotePanelComponent>(VisualNovelEmotePanelComponent, {
-      title: this.t('feature.visualNovel.emote.title'),
-      ...this.spotFor(event, size),
-      ...size,
-      minWidth: 260,
-      minHeight: 180,
-      layer: Z_VISUAL_NOVEL_PANEL_ABOVE,
-      single: VN_EMOTE_PANEL,
-      minimizeToContent: true,
+    this.toggleVnPanel(VN_EMOTE_PANEL, VisualNovelEmotePanelComponent, 'feature.visualNovel.emote.title', event, {
+      height: 440,
+      clearance: 220,
     });
   }
 
@@ -993,19 +695,13 @@ export class VisualNovelOverlayComponent {
 
   /** Opens the direction window above the button that was pressed, or closes it when it is open. */
   toggleDirection(event?: Event): void {
-    if (this.panelService.closeSingle(VN_DIRECTION_PANEL)) return;
-    this.closePopovers();
-    const size = { width: 320, height: Math.min(420, Math.max(240, window.innerHeight - 220)) };
-    this.panelService.open<VisualNovelDirectionPanelComponent>(VisualNovelDirectionPanelComponent, {
-      title: this.t('feature.visualNovel.direction.title'),
-      ...this.spotFor(event, size),
-      ...size,
-      minWidth: 260,
-      minHeight: 180,
-      layer: Z_VISUAL_NOVEL_PANEL_ABOVE,
-      single: VN_DIRECTION_PANEL,
-      minimizeToContent: true,
-    });
+    this.toggleVnPanel(
+      VN_DIRECTION_PANEL,
+      VisualNovelDirectionPanelComponent,
+      'feature.visualNovel.direction.title',
+      event,
+      { height: 420, clearance: 220 }
+    );
   }
 
   /** Whichever tab is being read, in a window of its own, to be watched beside the stage. */
@@ -1025,17 +721,41 @@ export class VisualNovelOverlayComponent {
    * open.
    */
   toggleDisplaySettings(event?: Event): void {
-    if (this.panelService.closeSingle(VN_DISPLAY_PANEL)) return;
+    this.toggleVnPanel(
+      VN_DISPLAY_PANEL,
+      VisualNovelDisplayPanelComponent,
+      'feature.visualNovel.settings.title',
+      event,
+      {
+        height: 520,
+        clearance: 160,
+      }
+    );
+  }
+
+  /**
+   * Opens one of the small windows of the bar above the button that was pressed, or closes it when
+   * it is open: as tall as asked, less where the screen is short, the clearance being what is left
+   * for the bar and the line under it.
+   */
+  private toggleVnPanel(
+    name: string,
+    component: Type<unknown>,
+    titleKey: string,
+    event: Event | undefined,
+    fit: { height: number; clearance: number }
+  ): void {
+    if (this.panelService.closeSingle(name)) return;
     this.closePopovers();
-    const size = { width: 320, height: Math.min(520, Math.max(240, window.innerHeight - 160)) };
-    this.panelService.open<VisualNovelDisplayPanelComponent>(VisualNovelDisplayPanelComponent, {
-      title: this.t('feature.visualNovel.settings.title'),
+    const size = { width: 320, height: clamp(window.innerHeight - fit.clearance, 240, fit.height) };
+    this.panelService.open(component, {
+      title: this.t(titleKey),
       ...this.spotFor(event, size),
       ...size,
       minWidth: 260,
       minHeight: 180,
       layer: Z_VISUAL_NOVEL_PANEL_ABOVE,
-      single: VN_DISPLAY_PANEL,
+      single: name,
       minimizeToContent: true,
     });
   }
@@ -1075,22 +795,15 @@ export class VisualNovelOverlayComponent {
     },
   };
 
-  private sheetPanelService: PanelService | null = null;
-  readonly sheetOpen = signal(false);
+  /** Whether the speaker's character sheet is open over novel mode. */
+  readonly sheetOpen = computed(() => this.panelService.hasSingle(VN_SHEET_PANEL));
 
   /**
    * Opens the speaker's character sheet in a window over novel mode, or closes it when it is open;
    * does nothing when the speaker is not a character.
    */
   toggleCharacterSheet(): void {
-    if (this.sheetPanelService?.isShow) {
-      this.sheetPanelService.close();
-      this.sheetPanelService = null;
-      this.sheetOpen.set(false);
-      return;
-    }
-    this.sheetPanelService = null;
-    this.sheetOpen.set(false);
+    if (this.panelService.closeSingle(VN_SHEET_PANEL)) return;
     const object = this.objectStore.get(this._sendFrom());
     if (!(object instanceof GameCharacter)) return;
     this.closePopovers();
@@ -1100,13 +813,12 @@ export class VisualNovelOverlayComponent {
       left: 60,
       top: 60,
       width: 800,
-      height: Math.min(600, Math.max(360, window.innerHeight - 320)),
+      height: clamp(window.innerHeight - 320, 360, 600),
       layer: Z_VISUAL_NOVEL_PANEL,
+      single: VN_SHEET_PANEL,
     };
     const component = this.panelService.open<GameCharacterSheetComponent>(GameCharacterSheetComponent, option);
     component.tabletopObject = object;
-    this.sheetPanelService = (component as unknown as { panelService: PanelService }).panelService;
-    this.sheetOpen.set(true);
   }
 
   /** Opens or closes the balloon listing the speaker's chat palette. */
@@ -1126,7 +838,7 @@ export class VisualNovelOverlayComponent {
    */
   pickSlot(slot: number): void {
     const character = this.mayEditTable() ? this.speakerCharacter() : null;
-    if (character) character.vnPortraitPos = Math.min(VN_STAGE_SLOT_COUNT - 1, Math.max(0, slot));
+    if (character) character.vnPortraitPos = clamp(slot, 0, VN_STAGE_SLOT_COUNT - 1);
     this.closePopovers();
   }
 
@@ -1223,7 +935,8 @@ export class VisualNovelOverlayComponent {
    * is sent. Auto play stops. Nothing is sent without a tab, with an empty line, or when this user
    * may not speak in the tab; a speaker that no longer exists is replaced by the first character,
    * or this user's cursor. A scene line plays the transition, and the input and attached sound are
-   * cleared.
+   * cleared. A round command the line opens with is said first and moves the round, and the rest
+   * is said after it with the staging and the sound (see `TurnChatCommandService.say`).
    */
   send(): void {
     this.stopAutoPlay();
@@ -1235,36 +948,60 @@ export class VisualNovelOverlayComponent {
       sendFrom = this.gameCharacters()[0]?.identifier ?? PeerCursor.myCursor?.identifier ?? '';
       this._sendFrom.set(sendFrom);
     }
+    const emote = encodeVnEmote({ ...this.emoteSelection.emote(), flipped: this.speakerFlip() === true });
+    const attachedSe = this.attachedSe();
+    this.turnCommands.say(text, sendFrom, tab, (part, last) => {
+      if (last) this.speak(tab, part, sendFrom, emote, attachedSe);
+      else this.sayNow(tab, part, null, sendFrom, '');
+    });
+    if (this.selectedKind() === 'scene') this.scene.playTransition();
+    this.attachedSe.set(null);
+    this.text.set('');
+    this.playback.followLatest();
+  }
+
+  /**
+   * Says one line as the speaker, through the speaker's palette and under the dice system the line
+   * is rolled with, and plays the sound attached to it once it is sent.
+   */
+  private speak(tab: ChatTab, text: string, sendFrom: string, emote: string, attachedSe: AttachedSound | null): void {
     const speaker = this.objectStore.get(sendFrom);
     let evaluated = text;
     if (speaker instanceof GameCharacter) {
       const palette = speaker.chatPalette;
       if (palette) evaluated = palette.evaluate(text, speaker.rootDataElement ?? undefined);
     }
-    const emote = encodeVnEmote({ ...this.emoteSelection.emote(), flipped: this.speakerFlip() === true });
-    const attachedSe = this.attachedSe();
-    DiceBot.gameSystemForLineAsync(this.gameType, evaluated).then((gameSystem) => {
-      this.chatMessageService.sendMessage(
-        tab,
-        evaluated,
-        gameSystem,
-        sendFrom,
-        undefined,
-        this.portraitIndexOf(sendFrom),
-        this.colorOf(sendFrom),
-        [{ text: evaluated, object: null }],
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        emote
-      );
-      if (attachedSe && this.mayEditTable()) this.jukebox?.play(attachedSe.identifier);
-    });
-    if (this.selectedKind() === 'scene') this.scene.playTransition();
-    this.attachedSe.set(null);
-    this.text.set('');
-    this.playback.followLatest();
+    DiceBot.gameSystemForLineAsync(this.gameType, evaluated)
+      .then((gameSystem) => {
+        this.sayNow(tab, evaluated, gameSystem, sendFrom, emote);
+        if (attachedSe && this.mayEditTable()) this.jukebox?.play(attachedSe.identifier);
+      })
+      .catch((reason: unknown) => Logger.error('[VisualNovel] 発言を送れませんでした', reason));
+  }
+
+  /** Sends a line worked out already to the tab, as the speaker and with the staging given. */
+  private sayNow(
+    tab: ChatTab,
+    text: string,
+    gameSystem: GameSystemClass | null,
+    sendFrom: string,
+    emote: string
+  ): void {
+    this.chatMessageService.sendMessage(
+      tab,
+      text,
+      gameSystem,
+      sendFrom,
+      undefined,
+      this.portraitIndexOf(sendFrom),
+      this.colorOf(sendFrom),
+      [{ text, object: null }],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      emote
+    );
   }
 
   private portraitIndexOf(sendFrom: string): number {

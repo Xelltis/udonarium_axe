@@ -1,5 +1,6 @@
 import {
   afterNextRender,
+  booleanAttribute,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -71,6 +72,9 @@ const CASTER_HANDS: Point3 = { ...CASTER_POINT, z: CELL_PX * 0.6 };
  * table is by default and drawn as the table's scene draws it, so that it can be seen before it is
  * put to use. An aimed effect is fired from a stand-in a few cells off. Nothing sounds. While motion
  * is turned off, it shows one still halfway through the effect.
+ *
+ * It is a strip of its own height unless told to fill the box it is put in. An effect that hands back
+ * the same object after its values are changed is followed through {@link version}.
  */
 @Component({
   selector: 'effect-preview',
@@ -85,6 +89,14 @@ export class EffectPreviewComponent {
 
   /** The effect to play; nothing plays without one. */
   readonly preset = input<EffectPreset | null>(null);
+  /**
+   * How often the values of the effect have changed. An effect being edited stays the same object,
+   * so whoever edits it counts its changes here: each one draws the effect anew and plays it from
+   * the start.
+   */
+  readonly version = input(0);
+  /** Whether the stage takes the whole height of the box the preview is put in rather than its own. */
+  readonly fill = input(false, { transform: booleanAttribute });
 
   private readonly stageCanvas = viewChild<ElementRef<HTMLCanvasElement>>('stageCanvas');
   private readonly stage = signal<EffectStage | null>(null);
@@ -94,11 +106,12 @@ export class EffectPreviewComponent {
 
   /** How long the playback has been going, in milliseconds, from nothing again for each new effect. */
   private readonly sinceStart = linkedSignal({
-    source: () => ({ preset: this.preset(), moving: this.moving() }),
+    source: () => ({ preset: this.preset(), version: this.version(), moving: this.moving() }),
     computation: () => 0,
   });
 
   readonly frame = computed<EffectPreviewFrame>(() => {
+    this.version();
     const preset = this.preset();
     if (!preset) return { round: 0, elapsed: 0 };
     if (!this.moving()) return { round: 0, elapsed: preset.duration * STILL_AT };
@@ -119,6 +132,7 @@ export class EffectPreviewComponent {
 
   /** What the effect draws on the small stage at this moment of the playback, as the table would draw it. */
   readonly sceneFrame = computed<EffectFrame>(() => {
+    this.version();
     const preset = this.preset();
     const cast = this.cast();
     const looks = this.sceneLooks.looks();
@@ -135,7 +149,10 @@ export class EffectPreviewComponent {
   });
 
   /** How far off the camera stands, further for a larger effect so that it stays in the box. */
-  readonly zoomOut = computed(() => USUAL_ZOOM_OUT * Math.max(1, this.preset()?.sizeScale ?? 1));
+  readonly zoomOut = computed(() => {
+    this.version();
+    return USUAL_ZOOM_OUT * Math.max(1, this.preset()?.sizeScale ?? 1);
+  });
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -144,6 +161,7 @@ export class EffectPreviewComponent {
     effect(() => this.stage()?.show(this.sceneFrame()));
     destroyRef.onDestroy(() => untracked(this.stage)?.dispose());
     effect((onCleanup) => {
+      this.version();
       if (!this.preset() || !this.moving() || typeof requestAnimationFrame !== 'function') return;
       const startedAt = performance.now();
       let handle = 0;

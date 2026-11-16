@@ -22,6 +22,7 @@ export interface ModelStage {
     chosen: ReadonlyMap<number, ReadonlySet<number>>,
     others: readonly ReadonlyMap<number, ReadonlySet<number>>[]
   ): void;
+  /** Stops drawing and lets go of the model and the renderer. */
   dispose(): void;
 }
 
@@ -32,6 +33,7 @@ export interface ModelPainter {
    * fitted to the picture, or null where it cannot be read or drawn.
    */
   paint(url: string, sizePx: number): Promise<Blob | null>;
+  /** Lets go of the renderer and the models read. */
   dispose(): void;
 }
 

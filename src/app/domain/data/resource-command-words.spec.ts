@@ -1,5 +1,10 @@
 import { parseBuffRemovalCommand } from '@axe/domain/character/buff-bulk-removal';
-import { hasSecretEditMark, resourceCommandParts, resourceCommandSites } from '@axe/domain/data/resource-command-words';
+import {
+  hasSecretEditMark,
+  readDefaultResetCommand,
+  resourceCommandParts,
+  resourceCommandSites,
+} from '@axe/domain/data/resource-command-words';
 
 /**
  * The way commands were picked out of a line before they kept their place, to hold the new reading
@@ -96,6 +101,40 @@ describe('resourceCommandSites', () => {
     expect(resourceCommandSites(line).secret).toBe(true);
   });
 
+  it('picks the commands that clear a piece out as buff commands, and those that clear the table as sweeps', () => {
+    const words = resourceCommandSites('戦闘終了 &*- t&*デバフ- ＆＊バフ－ &&*- &&*debuff-');
+
+    expect(words.buffs.map((site) => site.command)).toEqual(['&*-', 't&*デバフ-', '&＊バフ－']);
+    expect(words.sweeps.map((site) => site.command)).toEqual(['&&*-', '&&*debuff-']);
+    expect(words.secret).toBe(false);
+  });
+
+  it('takes a clearing written after s as secret, and one that opens the line for no round command', () => {
+    for (const line of ['s&*-', 'st&*バフ-', 's&&*-', 'S&&*デバフ-']) {
+      const read = resourceCommandSites(line);
+      expect(read.buffs.length + read.sweeps.length, line).toBe(1);
+      expect(read.secret, line).toBe(true);
+    }
+    expect(resourceCommandSites('&*-').buffs.map((site) => site.command)).toEqual(['&*-']);
+  });
+
+  it('picks the commands that put values back out as resource commands, and the one word that resets as a buff command or a sweep', () => {
+    const words = resourceCommandSites('戦闘終了 :*=既定 t:HP^=default ：＊＝既定 &リセット- t&reset- &&リセット-');
+
+    expect(words.resources.map((site) => site.command)).toEqual([':*=既定', 't:HP^=default', ':＊＝既定']);
+    expect(words.buffs.map((site) => site.command)).toEqual(['&リセット-', 't&reset-']);
+    expect(words.sweeps.map((site) => site.command)).toEqual(['&&リセット-']);
+    expect(words.secret).toBe(false);
+  });
+
+  it('takes a reset written after s as secret', () => {
+    for (const line of ['s:*=既定', 'st:*=default', 's&リセット-', 'st&reset-', 's&&リセット-']) {
+      const read = resourceCommandSites(line);
+      expect(read.resources.length + read.buffs.length + read.sweeps.length, line).toBe(1);
+      expect(read.secret, line).toBe(true);
+    }
+  });
+
   it('spans each command where it was typed', () => {
     const line = '攻撃 :HP-1:MP-2 &加護/3';
     const words = resourceCommandSites(line);
@@ -179,5 +218,71 @@ describe('resourceCommandParts', () => {
 
   it('answers null when nothing follows the name', () => {
     expect(resourceCommandParts(':HP')).toBeNull();
+  });
+
+  it('keeps the field telling when a buff moves its effect in the buff command, its colon and all', () => {
+    const line =
+      '&!再生/:HP/+/0~+3/none/発生:手番開始 t&!毒/:HP+0~-1/3/@術者/tick：turnEnd/red &再生/回復/発生:手番終了';
+    const words = resourceCommandSites(line);
+
+    expect(words.buffs.map((site) => site.command)).toEqual([
+      '&!再生/:HP/+/0~+3/none/発生:手番開始',
+      't&!毒/:HP+0~-1/3/@術者/tick:turnEnd/red',
+      '&再生/回復/発生:手番終了',
+    ]);
+    expect(words.resources).toEqual([]);
+    expect(line.slice(words.buffs[0].from, words.buffs[0].to)).toBe('&!再生/:HP/+/0~+3/none/発生:手番開始');
+  });
+
+  it('still cuts a resource command begun right after a buff, whatever the field before it reads', () => {
+    const words = resourceCommandSites('&毒/3:HP-3 &発生:HP-1 &毒/発生:HP-1 &毒/効果/発生力:HP-1');
+
+    expect(words.buffs.map((site) => site.command)).toEqual(['&毒/3', '&発生', '&毒/発生', '&毒/効果/発生力']);
+    expect(words.resources.map((site) => site.command)).toEqual([':HP-3', ':HP-1', ':HP-1', ':HP-1']);
+  });
+});
+
+describe('readDefaultResetCommand', () => {
+  it.each([':*=既定', ':*=default', ':*=Default', ':*=ＤＥＦＡＵＬＴ', '：＊＝既定', 't:*=既定', ':*= 既定 '])(
+    'reads %s as putting every item back',
+    (command) => {
+      expect(readDefaultResetCommand(command)).toEqual({ kind: 'all' });
+    }
+  );
+
+  it.each(['既定', '既定値', '規定', '規定値', 'default'])(
+    'takes %s for the word, for every item and for one',
+    (word) => {
+      expect(readDefaultResetCommand(`:*=${word}`)).toEqual({ kind: 'all' });
+      expect(readDefaultResetCommand(`t:HP^=${word}`)).toEqual({ kind: 'item', name: 'HP', slot: 'max' });
+    }
+  );
+
+  it('reads the one item named, at the slot written after its name', () => {
+    expect(readDefaultResetCommand(':HP=既定')).toEqual({ kind: 'item', name: 'HP', slot: 'now' });
+    expect(readDefaultResetCommand('t:HP^=default')).toEqual({ kind: 'item', name: 'HP', slot: 'max' });
+    expect(readDefaultResetCommand(':HP_MAX_BUFF=既定')).toEqual({ kind: 'item', name: 'HP', slot: 'maxCorrection' });
+    expect(readDefaultResetCommand(':HP_MIN_BUFF=既定')).toEqual({ kind: 'item', name: 'HP', slot: 'minCorrection' });
+    expect(readDefaultResetCommand(':HP_MAX=既定')).toEqual({ kind: 'item', name: 'HP', slot: 'maxBase' });
+    expect(readDefaultResetCommand(':*^=既定')).toEqual({ kind: 'item', name: '*', slot: 'max' });
+  });
+
+  it.each([
+    ':HP=10',
+    ':HP-3',
+    ':*+1',
+    ':*=3',
+    ':*>既定',
+    ':*-既定',
+    ':HP=既定L',
+    ':HP=既定値L',
+    ':HP=既定の値',
+    ':HP=規定外',
+    ':HP=定',
+    ':HP={既定}',
+    ':HP=既定+1',
+    ':HP',
+  ])('leaves %s to be read as it always was', (command) => {
+    expect(readDefaultResetCommand(command)).toBeNull();
   });
 });

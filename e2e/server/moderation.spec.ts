@@ -199,12 +199,12 @@ test.describe('a room whose store is full', () => {
 
     await openPanel(gm.page, 'ジュークボックス');
     await gm.page
-      .locator('app-jukebox input[type="file"][accept="audio/*"]')
+      .locator('jukebox [data-testid="jukebox-file-input"]')
       .setInputFiles({ name: 'big.wav', mimeType: 'audio/wav', buffer: uniqueWav(1_200_000) });
 
     await expect(gm.page.getByText('部屋の置き場所がいっぱいで')).toBeVisible({ timeout: 30_000 });
     await openPanel(pl.page, 'ジュークボックス');
-    await expect(pl.page.locator('app-jukebox').getByText('big.wav')).toBeVisible({ timeout: 60_000 });
+    await expect(pl.page.locator('jukebox').getByText('big.wav')).toBeVisible({ timeout: 60_000 });
     await leaveAll(gm, pl);
   });
 });

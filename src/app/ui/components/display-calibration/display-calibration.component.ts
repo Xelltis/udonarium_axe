@@ -15,6 +15,7 @@ import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-displ
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
+import { clamp } from '@axe/core/util/clamp';
 import {
   cardRunWidthMm,
   cellWidthInches,
@@ -40,7 +41,7 @@ const MAX_FRAME_PX = 4000;
  * same width.
  */
 @Component({
-  selector: 'app-display-calibration',
+  selector: 'display-calibration',
   templateUrl: './display-calibration.component.html',
   host: { class: 'block text-ui-text' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -184,7 +185,7 @@ export class DisplayCalibrationComponent {
 }
 
 function clampFrame(value: number): number {
-  return Math.round(Math.min(Math.max(value, MIN_FRAME_PX), MAX_FRAME_PX));
+  return Math.round(clamp(value, MIN_FRAME_PX, MAX_FRAME_PX));
 }
 
 function startingFramePx(pxPerMm: number | null, cards: number): number {

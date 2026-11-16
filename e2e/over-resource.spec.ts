@@ -1,13 +1,13 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { createCharacter, waitAppReady } from './helpers';
+import { createCharacter, rightClickPiece, waitAppReady } from './helpers';
 
 function newCharacterPiece(page: Page) {
   return page.locator('game-character').filter({ hasText: '新しいキャラクター' }).first();
 }
 
 async function openSheet(page: Page) {
-  await newCharacterPiece(page).dispatchEvent('contextmenu');
+  await rightClickPiece(newCharacterPiece(page));
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
   await menu.getByText('詳細を表示').click();

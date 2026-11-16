@@ -3,6 +3,7 @@ import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { Attributes } from '@axe/core/sync/attributes';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
+import { clamp } from '@axe/core/util/clamp';
 import { handLocationOf, isHandLocation, isHandOf } from '@axe/domain/card/hand-location';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -62,12 +63,10 @@ export class Card extends OwnedTabletopObject {
    */
   get faceFontSize(): number {
     const value = Number(this.getCommonValue('fontsize', Card.DEFAULT_FACE_FONT_SIZE));
-    return Number.isFinite(value) ? Math.max(1, Math.min(120, Math.round(value))) : Card.DEFAULT_FACE_FONT_SIZE;
+    return Number.isFinite(value) ? clamp(Math.round(value), 1, 120) : Card.DEFAULT_FACE_FONT_SIZE;
   }
   set faceFontSize(value: number) {
-    const normalized = Number.isFinite(value)
-      ? Math.max(1, Math.min(120, Math.round(value)))
-      : Card.DEFAULT_FACE_FONT_SIZE;
+    const normalized = Number.isFinite(value) ? clamp(Math.round(value), 1, 120) : Card.DEFAULT_FACE_FONT_SIZE;
     this.setOrCreateCommonValue('fontsize', normalized);
   }
   /** Colour of the face text as `#rrggbb`; anything else reads and writes as the default colour. */

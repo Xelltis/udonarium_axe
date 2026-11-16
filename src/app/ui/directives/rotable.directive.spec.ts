@@ -239,7 +239,7 @@ describe('RotableDirective', () => {
     });
 
     it('turns in steps of the faces and corners with Alt held on a hex grid', () => {
-      vi.spyOn(TestBed.inject(TableSelecter), 'viewTable', 'get').mockReturnValue({
+      vi.spyOn(TableSelecter.instance, 'viewTable', 'get').mockReturnValue({
         gridType: GridType.HEX_VERTICAL,
       } as GameTable);
 
@@ -250,7 +250,7 @@ describe('RotableDirective', () => {
     });
 
     it('turns a custom range by quarter turns with Alt held, on a hex grid too, and keeps the angle let go', () => {
-      vi.spyOn(TestBed.inject(TableSelecter), 'viewTable', 'get').mockReturnValue({
+      vi.spyOn(TableSelecter.instance, 'viewTable', 'get').mockReturnValue({
         gridType: GridType.HEX_VERTICAL,
       } as GameTable);
       const range = new RangeArea();

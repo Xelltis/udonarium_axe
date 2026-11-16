@@ -12,7 +12,7 @@ import { TranslocoModule } from '@jsverse/transloco';
  * is the harness's choice, not a reader's.
  */
 @Component({
-  selector: 'app-gpu-notice',
+  selector: 'gpu-notice',
   templateUrl: './gpu-notice.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoModule],

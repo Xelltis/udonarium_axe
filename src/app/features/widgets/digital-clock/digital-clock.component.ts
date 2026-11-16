@@ -3,12 +3,12 @@ import { WIDGET_CLOCK } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { CLOCK_GHOST_PATTERN, formatClockParts } from '@axe/features/widgets/digital-clock/clock-format';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
-import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
+import { topRightFallback, WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-digital-clock',
+  selector: 'digital-clock',
   templateUrl: './digital-clock.component.html',
   imports: [DraggableDirective, WidgetPlaceDirective, TranslocoModule],
 })
@@ -20,10 +20,7 @@ export class DigitalClockComponent {
   protected readonly parts = signal(formatClockParts(new Date()));
 
   protected readonly widgetName = WIDGET_CLOCK;
-  protected readonly fallback = (el: HTMLElement) => ({
-    left: Math.max(8, window.innerWidth - el.offsetWidth - 8),
-    top: 8,
-  });
+  protected readonly fallback = topRightFallback(8);
 
   constructor() {
     const timer = setInterval(() => this.parts.set(formatClockParts(new Date())), 1000);

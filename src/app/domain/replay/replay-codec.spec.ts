@@ -244,6 +244,60 @@ describe('reading a broken recording', () => {
     expect(decodeReplayManifest(encode({ v: REPLAY_FORMAT_VERSION, manifest: { formatVersion: 99 } }))).toBeNull();
   });
 
+  it('reads the cast and the chunks field by field, filling what is broken in with defaults', () => {
+    const bytes = encode({
+      v: REPLAY_FORMAT_VERSION,
+      manifest: {
+        formatVersion: REPLAY_FORMAT_VERSION,
+        recordedBy: { userId: 'gm', role: 'king', sinceSeq: 'x', stray: true },
+        detailLevel: 'everything',
+        actors: ['nobody'],
+        targets: [{ identifier: 't1', ownerIdentifier: 7 }],
+        keyframes: [{ seq: 3, at: 'now', byteSize: 10 }],
+        chunks: [{ index: 0, seqEnd: 4 }],
+        derivedFrom: { roomName: 2, startedAt: 5 },
+      },
+    });
+    const manifest = decodeReplayManifest(bytes)!;
+
+    expect(manifest.recordedBy).toEqual({
+      userId: 'gm',
+      peerId: '',
+      name: '',
+      role: PeerRole.Guest,
+      imageIdentifier: '',
+      sinceSeq: 0,
+    });
+    expect(manifest.detailLevel).toBe(ReplayDetailLevel.Full);
+    expect(manifest.actors[0].userId).toBe('');
+    expect(manifest.targets[0]).toEqual({ identifier: 't1', aliasName: '', name: '', sinceSeq: 0 });
+    expect(manifest.keyframes[0]).toEqual({ seq: 3, at: 0, byteSize: 10 });
+    expect(manifest.chunks[0]).toEqual({ index: 0, seqStart: 0, seqEnd: 4, eventCount: 0, byteSize: 0 });
+    expect(manifest.derivedFrom).toEqual({ roomName: '', startedAt: 5 });
+  });
+
+  it('keeps only the fields of an event it knows, each of its own type', () => {
+    const bytes = encode({
+      v: REPLAY_FORMAT_VERSION,
+      events: [
+        {
+          seq: 1,
+          kind: ReplayEventKind.ChatMessage,
+          targetId: 4,
+          merged: 'two',
+          signal: { name: 'ping', data: 1, stray: true },
+          stray: 'x',
+        },
+      ],
+    });
+    const [event] = decodeReplayEvents(bytes);
+
+    expect('targetId' in event).toBe(false);
+    expect('merged' in event).toBe(false);
+    expect('stray' in event).toBe(false);
+    expect(event.signal).toEqual({ name: 'ping', data: 1 });
+  });
+
   it('fills a missing list in as empty', () => {
     const bytes = encode({
       v: REPLAY_FORMAT_VERSION,

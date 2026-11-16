@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
@@ -22,9 +23,11 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { TableEffectOverlayComponent } from '@axe/features/effect/table-effect-overlay/table-effect-overlay.component';
 import { FirstPersonLookService, LOOK_RETURN_MS } from '@axe/features/first-person/first-person-look.service';
 import { scaleOf } from '@axe/features/first-person/first-person-style';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
+import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
 import { vi } from 'vitest';
@@ -45,10 +48,21 @@ describe('FirstPersonViewComponent', () => {
     PeerCursor.myCursor.role = PeerRole.Player;
   });
 
+  /** The pictures a test put in the room for its pieces, taken out again after it. */
+  const pictures: string[] = [];
+
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    for (const identifier of pictures.splice(0)) ImageStorage.instance.delete(identifier);
   });
+
+  /** Puts a picture in the room for a piece to wear, and answers its identifier. */
+  function pictured(identifier: string): string {
+    ImageStorage.instance.add(identifier);
+    pictures.push(identifier);
+    return identifier;
+  }
 
   function mount(): ComponentFixture<FirstPersonViewComponent> {
     const fixture = TestBed.createComponent(FirstPersonViewComponent);
@@ -58,6 +72,20 @@ describe('FirstPersonViewComponent', () => {
 
   function element(fixture: ComponentFixture<FirstPersonViewComponent>): HTMLElement {
     return fixture.nativeElement as HTMLElement;
+  }
+
+  /** Lets a piece's picture arrive at a size of its own, as the browser tells its image once it has loaded. */
+  function arrive(
+    fixture: ComponentFixture<FirstPersonViewComponent>,
+    piece: GameCharacter,
+    width: number,
+    height: number
+  ): void {
+    const picture = element(fixture).querySelector<HTMLImageElement>(`[data-piece="${piece.identifier}"] img`)!;
+    Object.defineProperty(picture, 'naturalWidth', { value: width, configurable: true });
+    Object.defineProperty(picture, 'naturalHeight', { value: height, configurable: true });
+    picture.dispatchEvent(new Event('load'));
+    fixture.detectChanges();
   }
 
   function pieceAt(col: number, row: number, rotate = 0): GameCharacter {
@@ -101,8 +129,9 @@ describe('FirstPersonViewComponent', () => {
       lookOf(fixture).lookTo({ yaw: 0, pitch: 20 });
       fixture.detectChanges();
 
-      const eye = (fixture.componentInstance as unknown as { effectEye(): { rotation: { x: number } } }).effectEye();
-      expect(eye.rotation.x).toBe(110);
+      const effects = fixture.debugElement.query(By.directive(TableEffectOverlayComponent))
+        .componentInstance as TableEffectOverlayComponent;
+      expect(effects.eye()?.rotation.x).toBe(110);
     });
 
     it('goes back to where the piece faces when brought back, at once with motion turned down', () => {
@@ -682,6 +711,26 @@ describe('FirstPersonViewComponent', () => {
     ObjectStore.instance.remove(preset);
   });
 
+  it('gives the buttons that cast and call off an effect held ready a height a finger can press', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
+    const preset = new EffectPreset();
+    preset.initialize();
+    ObjectStore.instance.add(preset, false);
+    lookOutOf(pieceAt(4, 7));
+    const fixture = mount();
+    const targeting = TestBed.inject(EffectTargetingService);
+
+    targeting.begin(preset);
+    fixture.detectChanges();
+
+    for (const name of ['first-person-cast', 'first-person-cancel-pick']) {
+      const button = element(fixture).querySelector<HTMLElement>(`[data-testid="${name}"]`);
+      expect(button?.className.split(/\s+/)).toContain('pointer-coarse:h-11');
+    }
+    targeting.cancel();
+    ObjectStore.instance.remove(preset);
+  });
+
   it('keeps the controls out of the middle of the foot of the view, where the hotbar sits', () => {
     lookOutOf(pieceAt(4, 7));
 
@@ -786,11 +835,7 @@ describe('FirstPersonViewComponent', () => {
       w: number,
       h: number
     ) {
-      const loaded = { target: { naturalWidth: w, naturalHeight: h } } as unknown as Event;
-      (
-        fixture.componentInstance as unknown as { notePictureAspect(url: string, event: Event): void }
-      ).notePictureAspect(piece.imageFile.url, loaded);
-      fixture.detectChanges();
+      arrive(fixture, piece, w, h);
     }
 
     function boxOf(fixture: ComponentFixture<FirstPersonViewComponent>, piece: GameCharacter) {
@@ -799,7 +844,7 @@ describe('FirstPersonViewComponent', () => {
     }
 
     it('stands a great piece as wide as its ground and as tall as its picture', () => {
-      const giant = GameCharacter.create('巨竜', 3, '');
+      const giant = GameCharacter.create('巨竜', 3, pictured('giant-picture'));
       giant.location = { name: 'table', x: 3 * GRID, y: 0 };
       lookOutOf(pieceAt(4, 8));
       const fixture = mount();
@@ -811,7 +856,7 @@ describe('FirstPersonViewComponent', () => {
     });
 
     it('stands a picture given a height of its own that tall', () => {
-      const tall = GameCharacter.create('塔', 1, '');
+      const tall = GameCharacter.create('塔', 1, pictured('tower-picture'));
       tall.location = { name: 'table', x: 4 * GRID, y: 3 * GRID };
       tall.specifyKomaImageFlag = true;
       tall.komaImageHeight = 120;
@@ -924,7 +969,8 @@ describe('FirstPersonViewComponent', () => {
   });
 
   it('stands the readings, the name and the marks above the picture rather than over it', () => {
-    const enemy = pieceAt(4, 4);
+    const enemy = GameCharacter.create('コマ', 1, pictured('enemy-picture'));
+    enemy.location = { name: 'table', x: 4 * GRID, y: 4 * GRID };
     lookOutOf(pieceAt(4, 7));
     const fixture = mount();
     const chromeOf = () =>
@@ -937,12 +983,7 @@ describe('FirstPersonViewComponent', () => {
     expect(chromeOf().querySelector('[data-testid="first-person-gauges"]')).not.toBeNull();
     expect(chromeOf().textContent).toContain(enemy.name);
 
-    const wide = { target: { naturalWidth: 200, naturalHeight: 100 } } as unknown as Event;
-    (fixture.componentInstance as unknown as { notePictureAspect(url: string, event: Event): void }).notePictureAspect(
-      enemy.imageFile.url,
-      wide
-    );
-    fixture.detectChanges();
+    arrive(fixture, enemy, 200, 100);
 
     const billboard = element(fixture).querySelector<HTMLElement>(`[data-piece="${enemy.identifier}"]`)!;
     expect(parseFloat(billboard.style.height)).toBeCloseTo((GRID / 2) * scaleOf(GRID), 1);
@@ -1101,11 +1142,13 @@ describe('FirstPersonViewComponent', () => {
       await Promise.resolve();
     }
 
+    /** What the view draws behind the scene and hands the weather drawn over the screen. */
     function inside(fixture: ComponentFixture<FirstPersonViewComponent>) {
-      return fixture.componentInstance as unknown as {
-        skyGradient(): string | null;
-        pieceViews(): { id: string; water: unknown }[];
-        screenWeather(): { current?: { across: number; toward: number } | null } | undefined;
+      const weather = fixture.debugElement.query(By.directive(TableWeatherOverlayComponent))
+        .componentInstance as TableWeatherOverlayComponent;
+      return {
+        skyGradient: () => element(fixture).querySelector<HTMLElement>('[data-sky-gradient]')?.style.background ?? null,
+        screenWeather: () => weather.weather(),
       };
     }
 

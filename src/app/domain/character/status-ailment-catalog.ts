@@ -4,6 +4,8 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { formatStatusAilments, parseStatusAilments, StatusAilment } from '@axe/domain/character/status-ailment';
 
 const CATALOG_IDENTIFIER = 'StatusAilmentCatalog';
+/** The attribute that says whether putting a state on a piece plays the effect of the same name. */
+const PLANT_EFFECT_ATTRIBUTE = 'plantEffect';
 
 /**
  * The states a room keeps on hand, written one to a line.
@@ -14,7 +16,7 @@ const CATALOG_IDENTIFIER = 'StatusAilmentCatalog';
  */
 @SyncObject('status-ailment-catalog')
 export class StatusAilmentCatalog extends ObjectNode {
-  private static _instance: StatusAilmentCatalog;
+  private static _instance: StatusAilmentCatalog | undefined;
   /**
    * The room's single catalog: the one in the object store, or one made and initialized under the
    * fixed identifier when there is none yet.
@@ -33,8 +35,18 @@ export class StatusAilmentCatalog extends ObjectNode {
    */
   override onStoreRemoved() {
     super.onStoreRemoved();
-    if (StatusAilmentCatalog._instance === this)
-      StatusAilmentCatalog._instance = undefined as unknown as StatusAilmentCatalog;
+    if (StatusAilmentCatalog._instance === this) StatusAilmentCatalog._instance = undefined;
+  }
+
+  /**
+   * Forgets the catalog held here, so that the next reader is given one made anew.
+   *
+   * The catalog is held here as well as in the store, and one that never reached the store, or was
+   * taken out of it some other way than by being removed, would be put back as it was the moment it
+   * is read. Only a test between two of its own has any reason to say this.
+   */
+  static forget(): void {
+    StatusAilmentCatalog._instance = undefined;
   }
 
   /**
@@ -50,6 +62,22 @@ export class StatusAilmentCatalog extends ObjectNode {
   }
 
   /**
+   * Whether putting a state on a piece plays the effect of the same name over it.
+   *
+   * Off unless the room has asked for it, as a resource plays no effect unless its field asks: a
+   * room saved before this could be asked reads as not having asked. It travels and is saved with
+   * the catalog, as an attribute of it.
+   */
+  get playsEffectOnPlant(): boolean {
+    return this.getAttribute(PLANT_EFFECT_ATTRIBUTE) === 'true';
+  }
+
+  set playsEffectOnPlant(plays: boolean) {
+    if (plays === this.playsEffectOnPlant) return;
+    this.setAttribute(PLANT_EFFECT_ATTRIBUTE, plays ? 'true' : 'false');
+  }
+
+  /**
    * Reads a catalog from room data into the room's existing catalog and destroys the copy that was
    * loaded, so there is only ever one.
    */
@@ -60,6 +88,7 @@ export class StatusAilmentCatalog extends ObjectNode {
     const catalog = StatusAilmentCatalog.instance;
     if (catalog === this) return;
     catalog.value = this.value;
+    catalog.playsEffectOnPlant = this.playsEffectOnPlant;
     catalog.update();
     this.destroy();
   }

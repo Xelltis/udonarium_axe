@@ -1,164 +1,100 @@
+import { type GreatSwordTiming, greatSwordTimingOf } from '@axe/domain/effect/great-sword-looks';
+import { greatBlade } from '@axe/domain/effect/scene/blade/great-blade';
+import { drawLightBlade } from '@axe/domain/effect/scene/blade/light-blade';
+import {
+  drawGatherMotes,
+  drawGatherWind,
+  type GatherLook,
+  layGatherGround,
+} from '@axe/domain/effect/scene/blade/sword-gather';
+import { type SwordPaint, swordPaintOf } from '@axe/domain/effect/scene/blade/sword-paint';
+import {
+  bladeWay,
+  type SwordPose,
+  swordPoseOf,
+  swordTiltAt,
+  underTorrent,
+  upBlade,
+  upSword,
+} from '@axe/domain/effect/scene/blade/sword-pose';
+import { drawReach, reachedApart, sweptWay } from '@axe/domain/effect/scene/blade/sword-reach';
+import {
+  drawBroken,
+  drawSwingFan,
+  drawTorrent,
+  layTorrentFloor,
+  torrentAt,
+} from '@axe/domain/effect/scene/blade/sword-torrent';
+import { drawWake } from '@axe/domain/effect/scene/blade/sword-wake';
+import { drawTorrentElement } from '@axe/domain/effect/scene/blade/torrent-element';
 import {
   type Choreography,
   nothingStaged,
   outCubic,
   type Stage,
   type Staged,
+  type StageTarget,
   within,
 } from '@axe/domain/effect/scene/choreography';
-import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
-import type { ThrownMote } from '@axe/domain/effect/scene/effect-sim';
-import { drawEmber, layShockRing, risingEmbers } from '@axe/domain/effect/scene/fire/fire-parts';
-import {
-  glow,
-  haze,
-  hueOf,
-  keptFor,
-  type Point,
-  stageKey,
-  starBurst,
-  throwerFor,
-} from '@axe/domain/effect/scene/parts';
+import { layShockRing } from '@axe/domain/effect/scene/fire/fire-parts';
+import { floorMark, glow, lightBall, type Point, starBurst } from '@axe/domain/effect/scene/parts';
+import { scatter } from '@axe/domain/effect/scene/wind/wind-parts';
 
 /*
- * A great blade of light: light rises in a column from the caster's feet and gathers into a vast
- * blade standing over it, white at its heart and its edge in the colour, embers drawn up about it;
- * then it falls, turning about its foot, its tip sweeping down through the air in a trail of light
- * onto the target, and where it strikes the look it was given goes off, and the blade breaks into
- * light and is gone.
+ * A great sword. Its wielder raises a sword overhead. Light is drawn in to it from all about and up
+ * off the ground, the floor lights under them and the scene dims; the blade brightens and a blade of
+ * radiance grows up from it, many cells tall, white at its heart and of its element at its edge. For
+ * a beat everything hangs, and a glint runs up the blade. Then it is brought down towards the
+ * target, turning about the hands that hold it, a vast fan of light behind it, and as it comes level
+ * it is let go: everything is white for an instant, and a torrent of the element erupts along the
+ * line from the wielder through the target and well past it, washing over every piece in the line.
+ * Where the target stands the look the sword was given to land with goes off within the torrent. The
+ * torrent thins from the wielder's end and passes on; motes drift up along the whole of its path,
+ * the score it left on the floor cools, and the sword breaks into light.
+ *
+ * One sword is raised and brought down for all the targets of a cast, drawn with the first of them
+ * that is drawn, along the line to it; each of the others takes the landing in its turn, and one the
+ * first torrent does not reach has the sword swept round on to it and a torrent of its own loosed
+ * along the line to it; see `sword-reach`. Cast by no one, it is raised in a place beside the target.
  */
 
-/** Where in its playback the light has risen, the blade has formed, and the blade has fallen. */
-const RISEN = 0.24;
-const FORMED = 0.5;
-/** The shortest the blade is, in cells, so it reads as a sword however near its target. */
-const SHORTEST = 6;
-/** How long the blade takes to break into light after it strikes, in seconds. */
-const BREAKS_S = 0.35;
+/** How long the sword of steel takes to be raised into sight, at the most as a share of the gathering, in seconds. */
+const RAISED_S = 0.3;
+const RAISED_SHARE = 0.22;
+/** How long everything is white as the blade is let go, and how long its rays last, in seconds. */
+const WHITE_S = 0.09;
+const RAYS_S = 0.26;
+/** How long the sword takes to break into light once the torrent has passed, in seconds. */
+const BREAKS_S = 0.5;
+/** How long the score on the floor glows, and how long before the end everything left clears, in seconds. */
+const COOLS_S = 1.5;
+const CLEARS_S = 0.6;
+/** How many shards of light the sword breaks into. */
+const SHARDS = 16;
 
-/** How the look it strikes with is drawn, as the table of looks drawn in the scene gives it. */
-export type ImpactLook = (stage: Stage) => Staged;
+/** How the look it lands with is drawn, as the table of looks drawn in the scene gives it. */
+type ImpactLook = (stage: Stage) => Staged;
 
-const thrownByStage = new Map<string, readonly ThrownMote[]>();
-
-/** The great blade, striking with the look `impactOf` gives for its preset's kind of landing, which lingers `lingerS`. */
-export function skybladeWith(impactOf: (stage: Stage) => Staged, lingerS: number): Choreography {
-  return { lingerS, draw: (stage) => drawSkyblade(stage, impactOf) };
+/** The great sword, landing with the look `impactOf` gives for its preset's kind of landing, which lingers `lingerS`. */
+export function skybladeWith(impactOf: ImpactLook, lingerS: number): Choreography {
+  return { lingerS, draw: (stage) => drawSkyblade(stage, impactOf, lingerS) };
 }
 
-function drawSkyblade(stage: Stage, impactOf: (stage: Stage) => Staged): Staged {
+function drawSkyblade(stage: Stage, impactOf: ImpactLook, lingerS: number): Staged {
   const drawn = nothingStaged();
-  const { cell, duration } = stage;
-  const t = stage.seconds;
-  const strikes = stage.blowsAt[0] ?? duration * 0.68;
-  const ramp = rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7);
-  const foot = stage.origin
-    ? { x: stage.origin.x, y: stage.origin.y, z: stage.groundZ }
-    : { x: stage.x - cell * 3, y: stage.y + cell * 3, z: stage.groundZ };
-  const target = { x: stage.x, y: stage.y, z: stage.groundZ };
-  const toward = { x: target.x - foot.x, y: target.y - foot.y };
-  const span = Math.hypot(toward.x, toward.y) || 1;
-  const way = { x: toward.x / span, y: toward.y / span };
-  const length = Math.max(span, cell * SHORTEST);
-  // Once it has fallen it lies along the way to the target, leaning down so its tip meets the floor there.
-  const fallen = Math.atan2(-cell * 0.3, span);
-  const embers = keptFor(thrownByStage, stageKey(stage, duration + 1), () => {
-    const th = throwerFor(stage, duration + 1);
-    return risingEmbers(th, { ...foot, z: foot.z + cell * 0.2 }, th.count(28), [0, strikes], 0.4);
-  });
-  const forward = cell * 0.4;
-
-  const rising = within(t, 0, RISEN * duration);
-  const forming = within(t, RISEN * duration, FORMED * duration);
-  const falling = within(t, FORMED * duration, strikes);
-  const breaking = within(t, strikes, strikes + BREAKS_S);
-  // The way the blade points: straight up while it forms, turning down onto the target as it falls.
-  const tilt = Math.PI / 2 + (fallen - Math.PI / 2) * (falling * falling);
-  const pointing = (angle: number) => ({ x: way.x * Math.cos(angle), y: way.y * Math.cos(angle), z: Math.sin(angle) });
-
-  for (const [index, ember] of embers.entries()) drawEmber(drawn, ember, t, cell, ramp, index, forward);
-
-  if (breaking < 1) {
-    // While the light rises it is a column; as it forms it is a blade of its full length.
-    // Falling, it is drawn in to just reach the target, so its tip comes down on it rather than past it.
-    const standing = rising < 1 ? length * 0.6 * outCubic(rising) : length * (0.6 + 0.4 * outCubic(forming));
-    const tall = standing + (Math.hypot(span, cell * 0.3) - standing) * falling * falling;
-    const wide = cell * (rising < 1 ? 0.6 * rising : 0.6 + 0.6 * forming) * (1 - breaking);
-    const flash = breaking > 0 ? 1 - breaking : 1;
-    const dir = pointing(tilt);
-    for (const [colour, share] of [
-      [ramp[1], 1.15],
-      [ramp[3], 1],
-      [ramp[5], 0.6],
-      ['#ffffff', 0.3],
-    ] as const) {
-      const reach = Math.max(tall - wide * share, 2);
-      drawn.motes.push({
-        x: foot.x + dir.x * tall,
-        y: foot.y + dir.y * tall,
-        z: foot.z + dir.z * tall,
-        size: wide * share,
-        color: colour,
-        alpha: flash,
-        blend: 'color',
-        shape: 'tongue',
-        velocity: { x: dir.x * reach, y: dir.y * reach, z: dir.z * reach },
-        trail: 1,
-        variant: stage.seed + t,
-        forward,
-      });
-    }
-    // A halo of its colour all along the blade.
-    const shining = flash * Math.max(rising, forming);
-    for (let along = 1; along <= 4; along++) {
-      const share = along / 4;
-      const at = {
-        x: foot.x + dir.x * tall * share * 0.9,
-        y: foot.y + dir.y * tall * share * 0.9,
-        z: foot.z + dir.z * tall * share * 0.9,
-      };
-      drawn.motes.push(haze(at, wide * 4, hueOf(ramp), 0.3 * shining, forward));
-      drawn.motes.push(glow(at, wide * 3, ramp[4], 0.3 * shining, forward));
-    }
-    // As it falls its tip sweeps a trail of light behind it.
-    if (falling > 0 && falling < 1) {
-      const points: Point[] = [];
-      for (let back = 10; back >= 0; back--) {
-        const was = Math.max(0, falling - back * 0.035);
-        const angle = Math.PI / 2 + (fallen - Math.PI / 2) * was * was;
-        const d = pointing(angle);
-        points.push({ x: foot.x + d.x * tall * 0.97, y: foot.y + d.y * tall * 0.97, z: foot.z + d.z * tall * 0.97 });
-      }
-      const shares = points.map((_point, index) => index / (points.length - 1));
-      drawn.ribbons.push({
-        points,
-        widths: shares.map((share) => cell * 1.6 * share),
-        color: hueOf(ramp),
-        core: ramp[5],
-        alpha: 0.9,
-        alphas: shares,
-        blend: 'light',
-      });
-    }
-  }
-  if (t >= strikes) {
-    drawn.motes.push(...lightAt(target, cell, ramp, t - strikes, forward));
-    layShockRing(drawn, target, cell * 0.4, cell * 3.4, cell * 0.2, hueOf(ramp), t - strikes, 0.5);
-    drawn.motes.push(
-      ...starBurst(
-        { ...target, z: target.z + cell * 0.5 },
-        cell * 3,
-        hueOf(ramp),
-        (t - strikes) / 0.3,
-        forward * 2,
-        8,
-        stage.seed
-      )
-    );
+  const { duration } = stage;
+  const timing = greatSwordTimingOf(duration, stage.blowsAt[0]);
+  const targets = stage.targets.length > 0 ? stage.targets : [ownTargetOf(stage)];
+  const first = targets[0];
+  const own = targets.find((target) => target.index === stage.index);
+  if (first.index === stage.index) drawTechnique(drawn, stage, timing, first, targets, duration + lingerS);
+  else if (own) drawReach(drawn, stage, timing, first, own, duration + lingerS);
+  const since = stage.seconds - timing.releasesAt;
+  if (since >= 0) {
     const impact = impactOf({
       ...stage,
-      seconds: t - strikes,
-      duration: Math.max(0.4, duration - strikes),
+      seconds: since,
+      duration: Math.max(0.4, duration - timing.releasesAt),
       blowsAt: [0],
     });
     drawn.motes.push(...impact.motes);
@@ -166,24 +102,154 @@ function drawSkyblade(stage: Stage, impactOf: (stage: Stage) => Staged): Staged 
     drawn.floor.push(...impact.floor);
     drawn.lights.push(...impact.lights);
   }
-  const shining = Math.max(rising < 1 ? rising : 1 - falling * 0.5, 0) * (1 - breaking);
-  if (shining > 0.05 && t < strikes) {
-    const middle = pointing(tilt);
-    drawn.lights.push({
-      x: foot.x + middle.x * length * 0.3,
-      y: foot.y + middle.y * length * 0.3,
-      z: foot.z + middle.z * length * 0.3,
-      color: ramp[4],
-      strength: 0.9 * shining,
-      reachPx: cell * 3,
-    });
-  }
   return drawn;
 }
 
-/** The blade breaking into light where it strikes. */
-function lightAt(at: Point, cell: number, ramp: readonly string[], since: number, forward: number) {
-  if (since > 0.25) return [];
-  const left = 1 - since / 0.25;
-  return [glow({ ...at, z: at.z + cell * 0.4 }, cell * 2.4 * (1.2 - left * 0.2), ramp[5], left, forward * 2)];
+/** The target a stage plays on, for a stage told of no targets. */
+function ownTargetOf(stage: Stage): StageTarget {
+  return { index: stage.index, x: stage.x, y: stage.y, z: stage.z, groundZ: stage.groundZ, widthPx: stage.cell };
+}
+
+/** The one sword of a cast at a moment, from its raising to the last of what it left; see the head of this file. */
+function drawTechnique(
+  drawn: Staged,
+  stage: Stage,
+  timing: GreatSwordTiming,
+  first: StageTarget,
+  targets: readonly StageTarget[],
+  ends: number
+): void {
+  const t = stage.seconds;
+  const U = stage.cell;
+  const { preset, seed } = stage;
+  const pose = swordPoseOf(stage, first);
+  const paint = swordPaintOf(preset.impactEffectKind, preset.colorPrimary, preset.colorSecondary);
+  const heading = bladeWay(pose, swordTiltAt(pose, timing, t));
+  const since = t - timing.releasesAt;
+  const raised = Math.min(RAISED_S, timing.gatheredAt * RAISED_SHARE);
+  const grown = outCubic(within(t, raised * 0.5, timing.gatheredAt));
+  const clearing = 1 - within(t, ends - CLEARS_S, ends);
+  const pieces = [...targets, ...(stage.bystanders ?? [])];
+  const gather: GatherLook = {
+    gathered: within(t, 0, timing.gatheredAt),
+    alpha: 1 - within(t, timing.releasesAt, timing.thinsAt),
+    grown,
+    hangs: t >= timing.gatheredAt,
+    seconds: t,
+    seed,
+  };
+  layGatherGround(drawn, pose, paint, gather);
+  const torrent = torrentAt(pose, timing, t, seed);
+  const reached = since < 0 ? 0 : (torrent?.head ?? pose.runs);
+  layTorrentFloor(drawn, pose, paint, torrent, reached, 1 - within(since, 0.2, COOLS_S), clearing, seed);
+
+  const drawing = 1 - within(t, timing.swingsAt, timing.releasesAt);
+  if (drawing > 0) {
+    const coming = { ...gather, alpha: drawing };
+    drawGatherWind(drawn, pose, paint, coming);
+    drawGatherMotes(drawn, pose, paint, heading, coming);
+  }
+  const apart = targets.length > 1 && since > 0 ? reachedApart(stage, first, targets) : [];
+  const held = apart.length > 0 ? { ...pose, way: sweptWay(pose, stage, first, apart, since) } : pose;
+  const swept = held === pose ? heading : bladeWay(held, swordTiltAt(held, timing, t));
+  drawSword(drawn, held, paint, swept, timing, t, raised, seed);
+  if (since < 0.05) {
+    const glint = within(t, timing.gatheredAt, timing.swingsAt - 0.05);
+    drawLightBlade(drawn, pose, paint, heading, { grown, alpha: 1 - within(since, 0, 0.05), seconds: t, seed, glint });
+  }
+  drawSwingFan(drawn, pose, paint, timing, t, (seconds) => swordTiltAt(pose, timing, seconds));
+  if (torrent) {
+    drawTorrent(drawn, pose, paint, torrent, 1 - within(since, 0, WHITE_S));
+    drawTorrentElement(drawn, pose, paint, torrent);
+    drawBroken(drawn, pose, paint, torrent, pieces);
+  }
+  drawRelease(drawn, pose, paint, since, seed);
+  drawWake(drawn, pose, paint, { timing, seconds: t, clearing, seed, pieces });
+
+  if (since < 0) {
+    const lit = upBlade(pose, heading, 0.3);
+    drawn.lights.push({ ...lit, color: paint.ramp[4], strength: 0.85 * grown, reachPx: U * 3.4 });
+  } else if (torrent) {
+    const lit = underTorrent(pose, torrent.tail + (torrent.head - torrent.tail) * 0.5);
+    drawn.lights.push({
+      ...lit,
+      z: pose.floorZ + pose.thick * 0.4,
+      color: paint.ramp[4],
+      strength: torrent.alpha * (0.8 + 0.2 * Math.sin(since * 47)),
+      reachPx: U * 6,
+    });
+  }
+}
+
+/** The sword of steel in its wielder's hands: raised into sight, held, brought down, and broken into light once the torrent has passed. */
+function drawSword(
+  drawn: Staged,
+  pose: SwordPose,
+  paint: SwordPaint,
+  heading: Point,
+  timing: GreatSwordTiming,
+  t: number,
+  raised: number,
+  seed: number
+): void {
+  const U = pose.cell;
+  const broken = within(t, timing.spentAt, timing.spentAt + BREAKS_S);
+  const formed = outCubic(within(t, 0, raised));
+  const tip = upSword(pose, heading, pose.steel * (0.65 + 0.35 * formed));
+  const axis = { x: -heading.x, y: -heading.y, z: -heading.z };
+  if (broken < 1) {
+    const sword = greatBlade(tip, axis, pose.steel, {
+      ramp: paint.ramp,
+      alpha: (1 - broken) * Math.min(1, formed * 2),
+      formed,
+      glint: 0,
+      forward: U * 0.4,
+    });
+    drawn.ribbons.push(...sword.ribbons);
+    drawn.motes.push(...sword.motes);
+  }
+  if (broken <= 0) return;
+  const since = t - timing.spentAt;
+  for (let index = 0; index < SHARDS; index++) {
+    const age = (since - scatter(index, seed + 71) * 0.3) / 0.9;
+    if (age <= 0 || age >= 1) continue;
+    const at = upSword(pose, heading, pose.steel * (0.1 + (index / SHARDS) * 0.85));
+    const turn = index * 2.4 + seed;
+    const out = U * 0.5 * outCubic(age);
+    drawn.motes.push({
+      x: at.x + Math.cos(turn) * out,
+      y: at.y + Math.sin(turn) * out,
+      z: at.z + U * 0.9 * age,
+      size: U * (0.1 + 0.05 * (index % 3)),
+      color: index % 2 === 0 ? paint.ramp[4] : paint.ramp[3],
+      alpha: (1 - age) * (0.6 + 0.4 * Math.sin(since * 23 + index * 2.1)),
+      blend: 'light',
+      shape: 'flake',
+      spin: since * (4 + (index % 3)) + index,
+      variant: index,
+      forward: U * 0.4,
+    });
+  }
+}
+
+/**
+ * The instant the blade is let go: white before the wielder and on the floor there, rays of light
+ * thrown out from it, and rings racing out over the floor.
+ */
+function drawRelease(drawn: Staged, pose: SwordPose, paint: SwordPaint, since: number, seed: number): void {
+  if (since < 0 || since >= 0.6) return;
+  const U = pose.cell;
+  const floor = underTorrent(pose, U * 0.4);
+  const burst = { ...floor, z: (pose.hands.z + pose.floorZ) / 2 };
+  const dark = paint.element === 'dark';
+  const white = dark ? paint.rim : '#ffffff';
+  const left = 1 - within(since, 0, WHITE_S);
+  if (left > 0) {
+    drawn.floor.push(floorMark('disc', floor, U * 2.2, 1, white, 0.45 * left, 'light', 0));
+    drawn.motes.push(glow(burst, U * 3, paint.halo, 0.7 * left, U * 0.6));
+    drawn.motes.push(lightBall(burst, U * 0.7, white, left, U * 0.6 + 1));
+  }
+  drawn.motes.push(...starBurst(burst, U * 3.6, paint.halo, since / RAYS_S, U * 0.6 + 2, 8, seed));
+  layShockRing(drawn, floor, U * 0.5, U * 5, U * 0.3, dark ? paint.rim : paint.sheath, since, 0.55);
+  layShockRing(drawn, floor, U * 0.3, U * 3, U * 0.2, white, since - 0.06, 0.45);
 }

@@ -29,6 +29,6 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('app-fab-drawer [data-testid="fab-toggle"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('fab-drawer [data-testid="fab-toggle"]')).toBeTruthy();
   });
 });

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -32,6 +33,12 @@ describe('FileSelecterComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  /** Every picture the picker offers, with every tag on show. */
+  function offered(): string[] {
+    component.selectTag.set(component['allTag']);
+    return component.images().map((image) => image.identifier);
+  }
+
   it('offers no account’s avatar among the pictures to pick, untagged or all', () => {
     const storage = TestBed.inject(ImageStorage);
     const avatar = storage.add('https://cdn.discordapp.com/avatars/1/a.png');
@@ -41,7 +48,7 @@ describe('FileSelecterComponent', () => {
       expect(shown()).toContain(plain.identifier);
       expect(shown()).not.toContain(avatar.identifier);
 
-      component.selectTag.set(component.tagList[1]);
+      component.selectTag.set(component.tagList()[1]);
       expect(shown()).not.toContain(avatar.identifier);
     } finally {
       storage.delete(avatar.identifier);
@@ -200,7 +207,26 @@ describe('FileSelecterComponent', () => {
     it('offers what a person put there', () => {
       put('a-drawing', 'コマ');
 
-      expect(component.getAllImage().map((image) => image.identifier)).toContain('a-drawing');
+      expect(offered()).toContain('a-drawing');
+    });
+
+    it('follows a picture being tagged, and its tag being changed at another seat', () => {
+      const objectChange = TestBed.inject(ObjectChangeService);
+      TestBed.inject(ImageStorage).add('a-drawing');
+      component.selectTag.set('コマ');
+      expect(component.images()).toEqual([]);
+
+      const tag = ImageTag.create('a-drawing');
+      tag.tag = 'コマ';
+      objectChange.notifyCollectionChanged('image-tag');
+      expect(component.images().map((image) => image.identifier)).toEqual(['a-drawing']);
+      expect(component.tagList()).toContain('コマ');
+
+      tag.tag = '背景';
+      objectChange.notifyChanged(tag.identifier);
+      expect(component.images()).toEqual([]);
+      expect(component.tagList()).toContain('背景');
+      expect(component.tagList()).not.toContain('コマ');
     });
 
     it('keeps back what the tool brought with it, whatever language the screen is in', () => {
@@ -208,8 +234,8 @@ describe('FileSelecterComponent', () => {
       // so matching it against a translation would leave these on show for half the world.
       put('a-die-face', SYSTEM_RESERVED_TAG);
 
-      expect(component.getAllImage().map((image) => image.identifier)).not.toContain('a-die-face');
-      expect(component.tagList).not.toContain(SYSTEM_RESERVED_TAG);
+      expect(offered()).not.toContain('a-die-face');
+      expect(component.tagList()).not.toContain(SYSTEM_RESERVED_TAG);
     });
 
     describe('one the master is keeping back', () => {
@@ -229,34 +255,34 @@ describe('FileSelecterComponent', () => {
       it('is not offered to a player', () => {
         playing(PeerRole.Player);
 
-        expect(component.getAllImage().map((image) => image.identifier)).not.toContain('the-twist');
+        expect(offered()).not.toContain('the-twist');
       });
 
       it('is not offered to a guest either', () => {
         playing(PeerRole.Guest);
 
-        expect(component.getAllImage().map((image) => image.identifier)).not.toContain('the-twist');
+        expect(offered()).not.toContain('the-twist');
       });
 
       it('is offered to the master', () => {
         playing(PeerRole.GameMaster);
 
-        expect(component.getAllImage().map((image) => image.identifier)).toContain('the-twist');
+        expect(offered()).toContain('the-twist');
       });
 
       it('offers no tag that holds nothing but what is kept back', () => {
-        ImageTag.get('the-twist').tag = '仕掛け';
+        ImageTag.get('the-twist')!.tag = '仕掛け';
         playing(PeerRole.Player);
 
-        expect(component.tagList).not.toContain('仕掛け');
+        expect(component.tagList()).not.toContain('仕掛け');
       });
 
       it('offers the tag where something under it is there to be picked', () => {
-        ImageTag.get('the-twist').tag = '仕掛け';
+        ImageTag.get('the-twist')!.tag = '仕掛け';
         put('a-hint', '仕掛け');
         playing(PeerRole.Player);
 
-        expect(component.tagList).toContain('仕掛け');
+        expect(component.tagList()).toContain('仕掛け');
       });
     });
   });
@@ -275,19 +301,20 @@ describe('FileSelecterComponent', () => {
       ImageTagLock.lock('ボス', 'owner_someone-else');
       PeerCursor.createMyCursor().role = PeerRole.Player;
 
-      expect(component.tagList).not.toContain('ボス');
-      expect(component.getAllImage().map((image) => image.identifier)).not.toContain('the-boss');
+      expect(component.tagList()).not.toContain('ボス');
+      expect(offered()).not.toContain('the-boss');
 
       PeerCursor.myCursor.role = PeerRole.GameMaster;
-      expect(component.tagList).toContain('ボス');
-      expect(component.getAllImage().map((image) => image.identifier)).toContain('the-boss');
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      expect(component.tagList()).toContain('ボス');
+      expect(offered()).toContain('the-boss');
     });
 
     it('offers them to the one who keeps it', () => {
       ImageTagLock.lock('ボス', TestBed.inject(AssetOwnershipService).myOwnerKey());
       PeerCursor.createMyCursor().role = PeerRole.Player;
 
-      expect(component.getAllImage().map((image) => image.identifier)).toContain('the-boss');
+      expect(offered()).toContain('the-boss');
     });
   });
 });

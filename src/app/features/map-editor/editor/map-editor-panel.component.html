@@ -198,40 +198,6 @@
             </label>
           } @else {
             <map-editor-texture-picker />
-            <label class="flex items-center justify-between gap-2">
-              <span class="text-ui-muted">{{ 'feature.mapEditor.props.textureScale' | transloco }}</span>
-              <span class="flex items-center gap-1">
-                <input
-                  class="w-24"
-                  type="range"
-                  min="0.25"
-                  max="3"
-                  step="0.25"
-                  [ngModel]="state.textureScale()"
-                  (ngModelChange)="state.textureScale.set($event)"
-                />
-                <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
-                  >{{ state.textureScale() }}×</span
-                >
-              </span>
-            </label>
-            <label class="flex items-center justify-between gap-2">
-              <span class="text-ui-muted">{{ 'feature.mapEditor.props.textureRotation' | transloco }}</span>
-              <span class="flex items-center gap-1">
-                <input
-                  class="w-24"
-                  type="range"
-                  min="0"
-                  max="360"
-                  step="15"
-                  [ngModel]="state.textureRotation()"
-                  (ngModelChange)="state.textureRotation.set($event)"
-                />
-                <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
-                  >{{ state.textureRotation() }}°</span
-                >
-              </span>
-            </label>
           }
         </div>
       }
@@ -284,40 +250,6 @@
             </label>
           } @else {
             <map-editor-texture-picker />
-            <label class="flex items-center justify-between gap-2">
-              <span class="text-ui-muted">{{ 'feature.mapEditor.props.textureScale' | transloco }}</span>
-              <span class="flex items-center gap-1">
-                <input
-                  class="w-24"
-                  type="range"
-                  min="0.25"
-                  max="3"
-                  step="0.25"
-                  [ngModel]="state.textureScale()"
-                  (ngModelChange)="state.textureScale.set($event)"
-                />
-                <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
-                  >{{ state.textureScale() }}×</span
-                >
-              </span>
-            </label>
-            <label class="flex items-center justify-between gap-2">
-              <span class="text-ui-muted">{{ 'feature.mapEditor.props.textureRotation' | transloco }}</span>
-              <span class="flex items-center gap-1">
-                <input
-                  class="w-24"
-                  type="range"
-                  min="0"
-                  max="360"
-                  step="15"
-                  [ngModel]="state.textureRotation()"
-                  (ngModelChange)="state.textureRotation.set($event)"
-                />
-                <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
-                  >{{ state.textureRotation() }}°</span
-                >
-              </span>
-            </label>
           }
           <label class="flex items-center justify-between gap-2">
             <span class="text-ui-muted">{{ 'feature.mapEditor.props.strokeWidth' | transloco }}</span>
@@ -639,28 +571,12 @@
             (dblclick)="onDoubleClick()"
           ></canvas>
           @if (editingText(); as editing) {
-            <div
-              #textEditor
-              contenteditable="true"
-              class="absolute m-0 box-border border-0 bg-[rgba(127,127,127,0.12)] p-0 outline-1 outline-(--ui-accent) outline-dashed"
-              [style.left.px]="editing.x * state.zoom()"
-              [style.top.px]="editing.y * state.zoom()"
-              [style.font-size.px]="state.fontSize() * state.zoom()"
-              [style.font-weight]="state.textBold() ? 'bold' : 'normal'"
-              [style.font-style]="state.textItalic() ? 'italic' : 'normal'"
-              [style.font-family]="'sans-serif'"
-              [style.line-height]="'1.2'"
-              [style.color]="state.textColor()"
-              [style.caret-color]="state.textColor()"
-              [style.white-space]="'pre'"
-              [style.min-width.px]="1"
-              [style.transform-origin]="'top left'"
-              [style.z-index]="20"
-              [style.cursor]="'text'"
-              (input)="onTextInput($event)"
-              (keydown)="onTextEditorKeyDown($event)"
-              (pointerdown)="$event.stopPropagation()"
-            ></div>
+            <map-editor-text-box
+              [editing]="editing"
+              (drafted)="textDraft.set($event)"
+              (committed)="commitTextEdit()"
+              (cancelled)="cancelTextEdit()"
+            />
           }
         </div>
       </div>
@@ -678,7 +594,7 @@
           >
             {{ 'feature.mapEditor.draft.finish' | transloco }}
           </button>
-          <button class="bg-ui-input hover:bg-ui-hover rounded-ui-sm px-2 py-0.5" (click)="cancelDraftPublic()">
+          <button class="bg-ui-input hover:bg-ui-hover rounded-ui-sm px-2 py-0.5" (click)="cancelDraft()">
             {{ 'feature.mapEditor.draft.cancel' | transloco }}
           </button>
         </div>
@@ -755,7 +671,7 @@
         class="hover:bg-ui-hover rounded-ui-sm inline-flex size-7 items-center justify-center disabled:opacity-40"
         [disabled]="!state.selection()"
         [title]="'feature.mapEditor.layers.delete' | transloco"
-        (click)="deleteSelectionPublic()"
+        (click)="deleteSelection()"
       >
         <i class="material-icons text-[16px]!">delete</i>
       </button>

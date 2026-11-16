@@ -128,33 +128,7 @@
     </div>
   </div>
 
-  <div
-    #colorsPanel
-    popover="manual"
-    data-testid="chat-input-colors"
-    class="rounded-ui-lg border-ui-border-menu bg-ui-menu text-ui-text shadow-ui-lg fixed inset-auto m-0 flex-col gap-1 border border-solid p-1.5 text-[12px]"
-  >
-    @if (openPanel() === 'colors') {
-      <div class="flex items-center gap-0.5">
-        @for (i of [0, 1, 2]; track i) {
-          <button
-            type="button"
-            [class]="barButtonClass"
-            [attr.aria-pressed]="colorSelectNo() === i"
-            [title]="'feature.chat.input.colorSlot' | transloco: { n: i + 1 }"
-            [attr.aria-label]="'feature.chat.input.colorSlot' | transloco: { n: i + 1 }"
-            (click)="pickColor(i)"
-          >
-            <span [class]="colorSampleClass" [ngStyle]="lookOf(i)">A</span>
-          </button>
-        }
-      </div>
-      <button type="button" [class]="panelRowClass" (click)="openColorSetting()">
-        <i class="material-icons text-[16px]!">palette</i>
-        <span>{{ 'feature.chat.input.colorSetting' | transloco }}</span>
-      </button>
-    }
-  </div>
+  <chat-input-colors [colors]="colors" [open]="openPanel() === 'colors'" (closed)="closePanel()" />
 
   @if (!boxFullWidth()) {
     <div
@@ -404,8 +378,7 @@
                 [attr.aria-label]="'feature.chat.lint.list' | transloco"
                 (click)="togglePanel('findings')"
               >
-                <i class="material-icons">{{ severityIcon(worstSeverity()) }}</i
-                >{{ findings().length }}
+                <i class="material-icons">{{ severityIcon(worstSeverity()) }}</i>{{ findings().length }}
               </button>
             }
           } @else {

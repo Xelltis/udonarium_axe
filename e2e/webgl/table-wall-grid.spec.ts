@@ -1,7 +1,14 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from '../dungeon-helpers';
-import { openPanel, putAwayTutorial, waitAppReady } from '../helpers';
+import {
+  becomeGm,
+  closePanels,
+  openPanel,
+  putAwayTutorial,
+  waitAppReady,
+  whenCanvasDraws,
+  whenTableIdle,
+} from '../helpers';
 import { showWall } from '../table-face-helpers';
 
 /**
@@ -9,20 +16,10 @@ import { showWall } from '../table-face-helpers';
  * picture as the page lays it, cell labels and all.
  */
 
-type Hooks = {
-  renderer(): string | null;
-  whenIdle(): Promise<void>;
-  faceAt(x: number, y: number): string | null;
-};
-
 async function idle(page: Page) {
-  await expect
-    .poll(() => page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.renderer() ?? null), {
-      timeout: 20000,
-    })
-    .not.toBeNull();
+  await whenCanvasDraws(page);
   await page.mouse.move(5, 790);
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
+  await whenTableIdle(page);
 }
 
 /** A picture of the screen, read into the page so its colours can be looked up there. */
@@ -62,7 +59,7 @@ test.describe('the grid over a wall of a table drawn on a canvas', () => {
     await grabScreen(page);
 
     const onWall = await page.evaluate(() => {
-      const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+      const hooks = window.__axeTable;
       const [before, after] = (window as unknown as { __shots: ImageData[] }).__shots.slice(-2);
       const layer = document.querySelector('#app-table-layer')!;
       const result = { wall: 0, changed: 0 };

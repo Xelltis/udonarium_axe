@@ -7,6 +7,13 @@
     <div class="text-ui-danger flex flex-1 items-center justify-center text-[13px]">
       {{ 'feature.tabletop.tableSetting.gridAdjuster.loadError' | transloco }}
     </div>
+  } @else if (loadState() === 'crop-error') {
+    <div
+      class="text-ui-danger flex flex-1 items-center justify-center text-[13px]"
+      data-testid="grid-adjuster-crop-error"
+    >
+      {{ 'feature.tabletop.tableSetting.gridAdjuster.cropError' | transloco }}
+    </div>
   } @else {
     <div class="flex min-h-0 flex-1 gap-3">
       <div

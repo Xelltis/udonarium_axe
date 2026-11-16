@@ -57,4 +57,29 @@ describe('MapEditorSelectedItemComponent', () => {
     expect(state.selection()).toBeNull();
     expect((state.current.layers.find((layer) => layer.kind === 'stamp') as StampLayer).items).toHaveLength(0);
   });
+
+  it('follows the picked stamp as it is changed, and as the change and the stamp are undone', async () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const size = (): string | undefined =>
+      element.querySelector('input[type="range"] + span')?.textContent?.trim() ?? undefined;
+    state.stampId.set('door-single');
+    state.stampSize.set(64);
+    state.placeStamp(100, 100, 'スタンプ 1');
+    state.selection.set(state.hitTest(100, 100));
+    await fixture.whenStable();
+    expect(size()).toBe('64px');
+
+    state.updateSelectedStamp({ size: 128 });
+    await fixture.whenStable();
+    expect(size()).toBe('128px');
+
+    state.undo();
+    await fixture.whenStable();
+    expect(size()).toBe('64px');
+
+    state.undo();
+    await fixture.whenStable();
+    expect(size()).toBeUndefined();
+    expect(element.querySelector('[data-testid="map-editor-select-guide"]')).not.toBeNull();
+  });
 });

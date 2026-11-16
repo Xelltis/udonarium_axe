@@ -1,15 +1,6 @@
-import { expect, Locator, Page, test } from '@playwright/test';
+import { expect, Locator, test } from '@playwright/test';
 
-import { openPanel, panelAtRest, waitAppReady } from './helpers';
-
-async function becomeGm(page: Page) {
-  await page
-    .locator('ui-panel')
-    .filter({ hasText: '接続情報' })
-    .getByRole('button', { name: /^\s*GM\s*$/ })
-    .click();
-  await expect(page.locator('app-gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
-}
+import { becomeGm, openPanel, panelAtRest, waitAppReady } from './helpers';
 
 /** A point on the part of a face that shows, however far the faces after it lie over it. */
 async function onFace(face: Locator): Promise<{ x: number; y: number }> {
@@ -75,7 +66,7 @@ test.describe('the turn order shrunk from the inventory', () => {
 
     await panel.getByRole('button', { name: '行動順を横に並べる' }).click();
     await expect(strip).toHaveAttribute('data-across', 'true');
-    const across = (await panel.locator('.draggable-panel').boundingBox())!;
+    const across = (await panel.locator('[data-testid="ui-panel"]').boundingBox())!;
     expect(across.x + across.width).toBeLessThanOrEqual(1280);
     await expect(faces).toHaveCount(count);
   });

@@ -1,8 +1,10 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from './dungeon-helpers';
 import {
+  becomeGm,
   cellSpot,
+  closePanels,
+  drag,
   openTableContextMenu,
   putAwayTutorial,
   revealMenuEntry,
@@ -11,7 +13,7 @@ import {
   waitAppReady,
 } from './helpers';
 import { piece, placeOf, Point, settle } from './see-through-helpers';
-import { FaceHooks, faceOf, pageOfFace, showWall, standBack, whenDrawn } from './table-face-helpers';
+import { faceOf, pageOfFace, showWall, standBack, whenDrawn } from './table-face-helpers';
 
 /**
  * A piece let go of over another face than the one it stands on moves onto that face: a white board
@@ -19,16 +21,6 @@ import { FaceHooks, faceOf, pageOfFace, showWall, standBack, whenDrawn } from '.
  * pointer against the faces, which is what a canvas will have to do, so here the pieces are dragged
  * there with the pointer and the face the page then draws them on is read back.
  */
-
-/** Drags from one point to another with the pointer, running `whileHeld` over the end before letting go. */
-async function drag(page: Page, from: Point, to: Point, whileHeld?: () => Promise<void>) {
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
-  await page.mouse.move(to.x, to.y, { steps: 8 });
-  await whileHeld?.();
-  await page.mouse.up();
-}
 
 /**
  * The sample piece carried from face to face: one with nothing standing in front of it, whose picture
@@ -52,7 +44,7 @@ async function makeBoard(page: Page): Promise<string> {
  */
 async function bareSpotOf(page: Page, surface: string): Promise<{ local: Point; onPage: Point }> {
   const spot = await page.evaluate((surface) => {
-    const hooks = (window as unknown as { __axeTable: FaceHooks }).__axeTable;
+    const hooks = window.__axeTable;
     const size = hooks.surfaceSizeOf(surface);
     if (!size) return null;
     // A white board's face is laid on the screen; a wall of the table has no element of its own.

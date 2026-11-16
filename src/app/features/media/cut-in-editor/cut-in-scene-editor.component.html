@@ -162,17 +162,12 @@
       min="0.1"
       step="0.1"
       [(ngModel)]="sceneDurationSeconds"
-      [attr.disabled]="!isEditable() || !scene() ? '' : null"
+      [disabled]="!isEditable() || !scene()"
     />
     <label
       class="text-ui-muted flex cursor-pointer items-center gap-1 text-[11px] select-none [&_input]:size-3.5 [&_input]:[accent-color:var(--ui-accent)]"
     >
-      <input
-        type="checkbox"
-        name="cut-in-scene-loop"
-        [(ngModel)]="sceneLoop"
-        [attr.disabled]="!isEditable() || !scene() ? '' : null"
-      />
+      <input type="checkbox" name="cut-in-scene-loop" [(ngModel)]="sceneLoop" [disabled]="!isEditable() || !scene()" />
       {{ 'feature.media.cutInEditor.sceneLoop' | transloco }}
     </label>
   </div>
@@ -220,7 +215,7 @@
         </button>
       </div>
       @if (scene(); as scene) {
-        <app-cut-in-stage
+        <cut-in-stage
           class="pointer-events-none absolute inset-0"
           [scene]="scene"
           [sceneWidth]="sceneWidth()"

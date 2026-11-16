@@ -1,5 +1,10 @@
 export type SyncData = Readonly<Record<string, unknown>>;
 
+/** The synced data an object holds now, read off its context, as the replay patches and compares it. */
+export function syncDataOf(object: { toContext(): { syncData: Record<string | symbol, unknown> } }): SyncData {
+  return object.toContext().syncData;
+}
+
 export const SYNC_ATTRIBUTES_KEY = 'attributes';
 const ATTRIBUTE_PREFIX = `${SYNC_ATTRIBUTES_KEY}.`;
 

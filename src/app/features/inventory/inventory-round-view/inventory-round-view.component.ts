@@ -6,7 +6,6 @@ import {
   computed,
   DestroyRef,
   DOCUMENT,
-  effect,
   ElementRef,
   inject,
   signal,
@@ -315,10 +314,7 @@ export class InventoryRoundViewComponent {
     });
     // Laid across, the panel stands as wide as the turn order runs, rather than as the narrow bar.
     const panel = inject(PanelService, { optional: true });
-    if (panel) {
-      effect(() => panel.shrunkToContentWidth.set(this.across()));
-      destroyRef.onDestroy(() => panel.shrunkToContentWidth.set(false));
-    }
+    if (panel) destroyRef.onDestroy(panel.shrinkToContentWidthWhen(this.across));
     // Laid the other way, the turn order runs towards another edge of the screen.
     // The room is read as the turn order first comes, which an empty round puts off until a piece
     // joins it, and again as it is laid the other way; the faces move only once it has been read.

@@ -24,7 +24,7 @@ import {
 } from '@axe/domain/game-clock/game-clock';
 import { clockSky, SKY_ARC, SKY_HEIGHT, SKY_STARS, SKY_WIDTH } from '@axe/features/widgets/game-clock/clock-sky';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
-import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
+import { topRightFallback, WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** How many skies have been drawn on the page, for each to name its colours apart from another's. */
@@ -43,7 +43,7 @@ export const GAME_CLOCK_TOP_PX = 136;
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-game-clock-widget',
+  selector: 'game-clock-widget',
   templateUrl: './game-clock-widget.component.html',
   imports: [DraggableDirective, WidgetPlaceDirective, FormsModule, TranslocoModule],
 })
@@ -57,10 +57,7 @@ export class GameClockWidgetComponent {
    * there. Shown from the start, it keeps clear of the middle of the screen, where the panels open
    * and would lie under it.
    */
-  protected readonly fallback = (el: HTMLElement) => ({
-    left: Math.max(8, window.innerWidth - el.offsetWidth - 8),
-    top: GAME_CLOCK_TOP_PX,
-  });
+  protected readonly fallback = topRightFallback(GAME_CLOCK_TOP_PX);
 
   protected readonly steps = GAME_CLOCK_STEPS;
   protected readonly skyId = `game-clock-sky-${++skiesDrawn}`;

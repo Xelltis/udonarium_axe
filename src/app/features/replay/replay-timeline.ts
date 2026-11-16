@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
 
 export const REPLAY_TIMELINE_BUCKETS = 48;
@@ -37,7 +38,7 @@ export function replayTimelinePosition(events: readonly ReplayEvent[], index: nu
   const clamped = Math.max(0, Math.min(events.length - 1, index));
   const span = spanOf(events);
   if (span <= 0) return clamped / (events.length - 1);
-  return Math.max(0, Math.min(1, (events[clamped].t - events[0].t) / span));
+  return clamp((events[clamped].t - events[0].t) / span, 0, 1);
 }
 
 /**
@@ -46,7 +47,7 @@ export function replayTimelinePosition(events: readonly ReplayEvent[], index: nu
  */
 export function replayTimelineIndexAt(events: readonly ReplayEvent[], ratio: number): number {
   if (events.length < 2) return 0;
-  const clamped = Math.max(0, Math.min(1, ratio));
+  const clamped = clamp(ratio, 0, 1);
   const span = spanOf(events);
   if (span <= 0) return Math.round(clamped * (events.length - 1));
 

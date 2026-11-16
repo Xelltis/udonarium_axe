@@ -414,7 +414,7 @@ describe('DungeonBuildService', () => {
       const viewed = new GameTable('table-of-sixty');
       viewed.gridSize = 60;
       viewed.initialize();
-      TestBed.inject(TableSelecter).viewTableIdentifier = viewed.identifier;
+      TableSelecter.instance.viewTableIdentifier = viewed.identifier;
       const dragon = GameCharacter.create('竜', 3, '');
       dragon.location = { name: 'table', x: 1000, y: 1000 };
       dragon.mountable = '1';
@@ -787,6 +787,25 @@ describe('DungeonBuildService', () => {
     await build();
 
     expect(ImageTag.get(url)?.tag).toBe('テクスチャ');
+  });
+
+  it('brings a bundled picture back under the tag its removed copy was left with', async () => {
+    const url = WALL_TEXTURE_ASSET_URLS.wall_ashlar;
+    ImageTag.create(url).tag = 'テクスチャ';
+
+    await build();
+
+    expect(ImageTag.get(url)?.tag).toBe('テクスチャ');
+    expect(ObjectStore.instance.getObjects(ImageTag).filter((tag) => tag.imageIdentifier === url)).toHaveLength(1);
+  });
+
+  it('tags a bundled picture it brings back whose tag was left empty', async () => {
+    const url = WALL_TEXTURE_ASSET_URLS.wall_ashlar;
+    ImageTag.create(url);
+
+    await build();
+
+    expect(ImageTag.get(url)?.tag).toBe('地形');
   });
 
   it('takes a picture from the library as it is', async () => {

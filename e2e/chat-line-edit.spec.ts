@@ -9,7 +9,7 @@ async function sayAndEdit(page: Page, words: string): Promise<{ line: Locator; e
   await input.press('Enter');
   await expectChatText(input, '');
   const line = page.locator('chat-tab chat-message').filter({ hasText: words }).last();
-  await line.locator('.msg-text').hover();
+  await line.getByTestId('chat-message-text').hover();
   await line.getByTestId('chat-message-action-edit').click();
   const editor = line.locator('[data-chat-line-edit]');
   await expect(editor).toBeVisible();

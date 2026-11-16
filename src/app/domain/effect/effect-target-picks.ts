@@ -23,13 +23,3 @@ export function toggleEffectPick(picks: readonly string[], identifier: string, l
 export function effectPickOrder(picks: readonly string[], identifier: string): number {
   return picks.indexOf(identifier) + 1;
 }
-
-/**
- * Whether this choice filled it.
- *
- * It should fire the moment it fills, and not when a full selection merely changes.
- */
-export function reachedEffectPickLimit(before: readonly string[], after: readonly string[], limit: number): boolean {
-  const capacity = Math.max(limit, 1);
-  return before.length < capacity && after.length >= capacity;
-}

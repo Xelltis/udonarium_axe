@@ -27,6 +27,14 @@ export interface SharedAssetContext {
   url: string;
 }
 
+/**
+ * A context as it travels to a peer: the bytes as an array, which the packing carries where a Blob
+ * would not go, until the receiver wraps them up again.
+ */
+export type WireContext<C extends SharedAssetContext> = Omit<C, 'blob'> & {
+  blob: Uint8Array<ArrayBuffer> | Blob | null;
+};
+
 /** A file traded between peers and put up to the room's asset store, kept under the SHA-256 of its bytes. */
 export interface SharedAssetFile<C extends SharedAssetContext> {
   readonly identifier: string;
@@ -61,6 +69,11 @@ export interface SharedAssetKind<F extends SharedAssetFile<C>, C extends SharedA
   readonly readAsync: (blob: Blob) => Promise<F>;
   /** Whether one is neither put up nor named to peers, as one every seat holds beside its own page. */
   readonly keptHome?: (identifier: string) => boolean;
+  /**
+   * Whether the catalogue names each file as well, for the placeholder a peer makes to go by its
+   * name before the bytes come; left out, as for the pictures, where a room holds too many.
+   */
+  readonly catalogNames?: boolean;
 }
 
 /**
@@ -580,10 +593,12 @@ export class SharedAssetStorage<F extends SharedAssetFile<C>, C extends SharedAs
   /**
    * What this seat holds in full, or by a link where a kind may be held so, which is what it
    * advertises so that peers can request what they lack. Those still going up to the asset server,
-   * those the operator barred, and those every seat holds beside its own page are left out.
+   * those the operator barred, and those every seat holds beside its own page are left out. Each is
+   * named where the kind names its catalogue.
    */
   getCatalog(): CatalogItem[] {
     const catalog: CatalogItem[] = [];
+    const named = this.kind.catalogNames ?? true;
     for (const file of this.files) {
       if (
         this.kind.complete <= file.state &&
@@ -591,7 +606,8 @@ export class SharedAssetStorage<F extends SharedAssetFile<C>, C extends SharedAs
         !this.barred.has(file.identifier) &&
         !this.kind.keptHome?.(file.identifier)
       ) {
-        catalog.push({ identifier: file.identifier, state: file.state, name: file.name });
+        const item = { identifier: file.identifier, state: file.state };
+        catalog.push(named ? { ...item, name: file.name } : item);
       }
     }
     return catalog;

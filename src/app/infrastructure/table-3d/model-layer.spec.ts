@@ -292,6 +292,36 @@ describe('ModelLayer', () => {
     expect(layer.motionOf('knight')).toBe('Idle');
   });
 
+  it('lets go of a model read after the layer was, rather than standing it in the layer', async () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const geometry = new BufferGeometry();
+    const scene = new Group();
+    scene.add(new Mesh(geometry));
+    const letGo = vi.spyOn(geometry, 'dispose');
+    let read: (loaded: unknown) => void = () => undefined;
+    vi.spyOn(layer as unknown as { parse(url: string): Promise<unknown> }, 'parse').mockReturnValue(
+      new Promise((resolve) => (read = resolve))
+    );
+
+    layer.set([knight()]);
+    layer.dispose();
+    read({
+      gltf: { scene, animations: [new AnimationClip('Idle', 1, [])] },
+      size: MADE.size,
+      foot: new Vector3(),
+      animated: true,
+    });
+    await Promise.resolve();
+
+    expect(layer.group.children).toHaveLength(0);
+    expect((layer as unknown as { loaded: Map<string, unknown> }).loaded.size).toBe(0);
+    expect(letGo).toHaveBeenCalledTimes(1);
+  });
+
   it('stands a model a part is painted over as a copy of its own, leaving out the faces of the lost parts', () => {
     const layer = new ModelLayer(
       () => undefined,

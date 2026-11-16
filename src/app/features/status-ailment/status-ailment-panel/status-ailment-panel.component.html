@@ -26,6 +26,23 @@
     <p class="text-ui-dim m-0 px-3 py-2 text-[11px]">{{ 'feature.statusAilment.readOnly' | transloco }}</p>
   }
 
+  <label
+    class="border-ui-border-panel flex shrink-0 items-start gap-1.5 border-b border-solid px-3 py-1.5 text-[11px]"
+    [class.cursor-pointer]="canEdit()"
+    [title]="'feature.statusAilment.plantEffectHint' | transloco"
+  >
+    <input
+      class="mt-px shrink-0"
+      type="checkbox"
+      name="status-ailment-plant-effect"
+      data-testid="status-ailment-plant-effect"
+      [checked]="playsEffectOnPlant()"
+      [disabled]="!canEdit()"
+      (change)="setPlaysEffectOnPlant($any($event.target).checked)"
+    />
+    <span>{{ 'feature.statusAilment.plantEffect' | transloco }}</span>
+  </label>
+
   <div class="min-h-0 flex-1 overflow-y-auto px-3 py-2">
     @if (ailments().length < 1) {
       <p class="text-ui-dim m-0 py-6 text-center text-[11px]">{{ 'feature.statusAilment.empty' | transloco }}</p>

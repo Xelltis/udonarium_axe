@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } from './helpers';
+import { openTableContextMenu, putAwayTutorial, revealMenuEntry, rightClickPiece, waitAppReady } from './helpers';
 
 /** A block the master turns into a switch speaks into the chat when a player presses it. */
 test.describe('switches', () => {
@@ -13,7 +13,7 @@ test.describe('switches', () => {
   }
 
   async function terrainMenu(page: Page, item: string) {
-    await page.locator('terrain').last().locator('[data-hud-box]').dispatchEvent('contextmenu');
+    await rightClickPiece(page.locator('terrain').last());
     await page.locator('context-menu li').filter({ hasText: item }).first().click();
   }
 
@@ -33,7 +33,7 @@ test.describe('switches', () => {
     await waitAppReady(page);
     await putAwayTutorial(page);
     await becomeRole(page, 'GM');
-    await expect(page.locator('app-gm-toolbar [data-testid="gm-toolbar-fold"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('gm-toolbar [data-testid="gm-toolbar-fold"]')).toBeVisible({ timeout: 10000 });
     const menu = await openTableContextMenu(page);
     await (await revealMenuEntry(page, menu, '地形を作成')).click();
     await expect(page.locator('terrain')).toHaveCount(1, { timeout: 10000 });

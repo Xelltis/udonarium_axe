@@ -1,35 +1,15 @@
-import {
-  ClipAreaHexagon,
-  ClipAreaLine,
-  ClipAreaPentagon,
-  ClipAreaSquare,
-  ClipAreaTriangle,
-  RangeRenderSetting,
-} from '@axe/infrastructure/tabletop/range/range-render-types';
+import { insideConvexPolygon } from '@axe/domain/tabletop/range-geometry';
+import { ClipArea, RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
 import {
   calcGridOffsets,
-  chkOuterProduct,
   fillGridCells,
   makeBrush,
+  markOrigin,
   notePainted,
+  rotatePoints,
 } from '@axe/infrastructure/tabletop/range/range-render-util';
 
 type Point = { x: number; y: number };
-
-function rotatePoint(point: Point, degree: number): Point {
-  const rad = (Math.PI / 180) * degree;
-  const cosRad = Math.cos(rad);
-  const sinRad = Math.sin(rad);
-  return {
-    x: point.x * cosRad - point.y * sinRad,
-    y: point.x * sinRad + point.y * cosRad,
-  };
-}
-
-function rotatePoints(points: Point[], degree: number): Point[] {
-  if (degree === 0) return points;
-  return points.map((point) => rotatePoint(point, degree));
-}
 
 /**
  * Draws a line range: a band `width` cells wide running `range` cells out from the origin at `degree`.
@@ -42,101 +22,28 @@ export function renderLine(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaLine {
-  const offsets = calcGridOffsets(setting);
-  const { gridSize, offSetX_px, offSetY_px } = offsets;
-
-  canvasElement.width = setting.areaWidth * gridSize;
-  canvasElement.height = setting.areaHeight * gridSize;
-  let context: CanvasRenderingContext2D = canvasElement.getContext('2d')!;
-
-  const p1x_ = 0;
-  const p1y_ = 0.5 * setting.width * gridSize;
-  const p2x_ = 0;
-  const p2y_ = -0.5 * setting.width * gridSize;
-  const p3x_ = setting.range * gridSize;
-  const p3y_ = -0.5 * setting.width * gridSize;
-  const p4x_ = setting.range * gridSize;
-  const p4y_ = 0.5 * setting.width * gridSize;
-
-  const clip01x_ = p1x_ - gridSize * 1.0;
-  const clip01y_ = p1y_ + gridSize * 1.0;
-  const clip02x_ = p2x_ - gridSize * 1.0;
-  const clip02y_ = p2y_ - gridSize * 1.0;
-  const clip03x_ = p3x_ + gridSize * 1.0;
-  const clip03y_ = p3y_ - gridSize * 1.0;
-  const clip04x_ = p4x_ + gridSize * 1.0;
-  const clip04y_ = p4y_ + gridSize * 1.0;
-
-  const rad = (Math.PI / 180) * setting.degree;
-  const p1x = p1x_ * Math.cos(rad) - p1y_ * Math.sin(rad);
-  const p1y = p1x_ * Math.sin(rad) + p1y_ * Math.cos(rad);
-  const p2x = p2x_ * Math.cos(rad) - p2y_ * Math.sin(rad);
-  const p2y = p2x_ * Math.sin(rad) + p2y_ * Math.cos(rad);
-  const p3x = p3x_ * Math.cos(rad) - p3y_ * Math.sin(rad);
-  const p3y = p3x_ * Math.sin(rad) + p3y_ * Math.cos(rad);
-  const p4x = p4x_ * Math.cos(rad) - p4y_ * Math.sin(rad);
-  const p4y = p4x_ * Math.sin(rad) + p4y_ * Math.cos(rad);
-
-  const clip: ClipAreaLine = {
-    clip01x: clip01x_ * Math.cos(rad) - clip01y_ * Math.sin(rad),
-    clip01y: clip01x_ * Math.sin(rad) + clip01y_ * Math.cos(rad),
-    clip02x: clip02x_ * Math.cos(rad) - clip02y_ * Math.sin(rad),
-    clip02y: clip02x_ * Math.sin(rad) + clip02y_ * Math.cos(rad),
-    clip03x: clip03x_ * Math.cos(rad) - clip03y_ * Math.sin(rad),
-    clip03y: clip03x_ * Math.sin(rad) + clip03y_ * Math.cos(rad),
-    clip04x: clip04x_ * Math.cos(rad) - clip04y_ * Math.sin(rad),
-    clip04y: clip04x_ * Math.sin(rad) + clip04y_ * Math.cos(rad),
-  };
-
-  notePainted(setting, [
-    { x: p1x, y: p1y },
-    { x: p2x, y: p2y },
-    { x: p3x, y: p3y },
-    { x: p4x, y: p4y },
-  ]);
-  makeBrush(context, gridSize, setting.gridColor);
-
-  if (setting.fillOutLine) {
-    context.beginPath();
-    context.moveTo(p1x + offSetX_px, p1y + offSetY_px);
-    context.lineTo(p2x + offSetX_px, p2y + offSetY_px);
-    context.lineTo(p3x + offSetX_px, p3y + offSetY_px);
-    context.lineTo(p4x + offSetX_px, p4y + offSetY_px);
-    context.lineTo(p1x + offSetX_px, p1y + offSetY_px);
-    context.fill();
-  } else {
-    fillGridCells(
-      context,
-      setting,
-      offsets,
-      (gcx, gcy) =>
-        chkOuterProduct(p1x, p1y, p2x, p2y, gcx, gcy) &&
-        chkOuterProduct(p2x, p2y, p3x, p3y, gcx, gcy) &&
-        chkOuterProduct(p3x, p3y, p4x, p4y, gcx, gcy) &&
-        chkOuterProduct(p4x, p4y, p1x, p1y, gcx, gcy)
-    );
-  }
-
-  canvasElementRange.width = setting.areaWidth * gridSize;
-  canvasElementRange.height = setting.areaHeight * gridSize;
-  context = canvasElementRange.getContext('2d')!;
-
-  makeBrush(context, gridSize, setting.rangeColor);
-  context.beginPath();
-  context.lineWidth = 2;
-  context.moveTo(p1x + offSetX_px, p1y + offSetY_px);
-  context.lineTo(p2x + offSetX_px, p2y + offSetY_px);
-  context.lineTo(p3x + offSetX_px, p3y + offSetY_px);
-  context.lineTo(p4x + offSetX_px, p4y + offSetY_px);
-  context.lineTo(p1x + offSetX_px, p1y + offSetY_px);
-  context.stroke();
-
-  context.beginPath();
-  context.arc(offSetX_px, offSetX_px, 5, 0, 2 * Math.PI, true);
-  context.fill();
-
-  return clip;
+): ClipArea {
+  const g = setting.gridSize;
+  const half = 0.5 * setting.width * g;
+  const far = setting.range * g;
+  return renderConvexPolygon(
+    canvasElement,
+    canvasElementRange,
+    setting,
+    [
+      { x: 0, y: half },
+      { x: 0, y: -half },
+      { x: far, y: -half },
+      { x: far, y: half },
+    ],
+    [
+      { x: -g, y: half + g },
+      { x: -g, y: -half - g },
+      { x: far + g, y: -half - g },
+      { x: far + g, y: half + g },
+    ],
+    false
+  );
 }
 
 /**
@@ -149,10 +56,10 @@ export function renderSquare(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaSquare {
+): ClipArea {
   const r = setting.range * setting.gridSize;
   const g = setting.gridSize;
-  return renderQuadrilateral(
+  return renderConvexPolygon(
     canvasElement,
     canvasElementRange,
     setting,
@@ -167,7 +74,8 @@ export function renderSquare(
       { x: -r - g, y: -r - g },
       { x: r + g, y: -r - g },
       { x: r + g, y: r + g },
-    ]
+    ],
+    setting.isDocking
   );
 }
 
@@ -182,10 +90,10 @@ export function renderDiamond(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaSquare {
+): ClipArea {
   const r = setting.range * setting.gridSize;
   const reach = r + setting.gridSize * 1.2;
-  return renderQuadrilateral(
+  return renderConvexPolygon(
     canvasElement,
     canvasElementRange,
     setting,
@@ -200,100 +108,9 @@ export function renderDiamond(
       { x: 0, y: -reach },
       { x: reach, y: 0 },
       { x: 0, y: reach },
-    ]
+    ],
+    setting.isDocking
   );
-}
-
-/**
- * Draws a four-cornered range whose corners, and the corners of the clip around it, are given
- * clockwise about its centre before turning by `degree`.
- */
-function renderQuadrilateral(
-  canvasElement: HTMLCanvasElement,
-  canvasElementRange: HTMLCanvasElement,
-  setting: RangeRenderSetting,
-  corners: Point[],
-  clipCorners: Point[]
-): ClipAreaSquare {
-  const offsets = calcGridOffsets(setting);
-  const { gridSize, offSetX_px, offSetY_px } = offsets;
-
-  canvasElement.width = setting.areaWidth * gridSize;
-  canvasElement.height = setting.areaHeight * gridSize;
-  let context: CanvasRenderingContext2D = canvasElement.getContext('2d')!;
-
-  const p = rotatePoints(corners, setting.degree);
-  const [p1, p2, p3, p4] = p;
-  notePainted(setting, p);
-  const clipPoints = rotatePoints(clipCorners, setting.degree);
-
-  const clip: ClipAreaSquare = {
-    clip01x: clipPoints[0].x,
-    clip01y: clipPoints[0].y,
-    clip02x: clipPoints[1].x,
-    clip02y: clipPoints[1].y,
-    clip03x: clipPoints[2].x,
-    clip03y: clipPoints[2].y,
-    clip04x: clipPoints[3].x,
-    clip04y: clipPoints[3].y,
-  };
-
-  makeBrush(context, gridSize, setting.gridColor);
-
-  if (setting.fillOutLine) {
-    context.beginPath();
-    context.moveTo(p1.x + offSetX_px, p1.y + offSetY_px);
-    context.lineTo(p2.x + offSetX_px, p2.y + offSetY_px);
-    context.lineTo(p3.x + offSetX_px, p3.y + offSetY_px);
-    context.lineTo(p4.x + offSetX_px, p4.y + offSetY_px);
-    context.lineTo(p1.x + offSetX_px, p1.y + offSetY_px);
-    context.fill();
-  } else {
-    fillGridCells(context, setting, offsets, (gcx, gcy) => insideConvexPolygon(p, gcx, gcy));
-  }
-
-  canvasElementRange.width = setting.areaWidth * gridSize;
-  canvasElementRange.height = setting.areaHeight * gridSize;
-  context = canvasElementRange.getContext('2d')!;
-
-  makeBrush(context, gridSize, setting.rangeColor);
-  context.beginPath();
-  context.lineWidth = 2;
-  context.moveTo(p1.x + offSetX_px, p1.y + offSetY_px);
-  context.lineTo(p2.x + offSetX_px, p2.y + offSetY_px);
-  context.lineTo(p3.x + offSetX_px, p3.y + offSetY_px);
-  context.lineTo(p4.x + offSetX_px, p4.y + offSetY_px);
-  context.lineTo(p1.x + offSetX_px, p1.y + offSetY_px);
-  context.stroke();
-
-  if (setting.isDocking) {
-    context.beginPath();
-    context.strokeRect(offSetX_px - 6, offSetY_px - 6, 12, 12);
-  } else {
-    context.beginPath();
-    context.arc(offSetX_px, offSetX_px, 5, 0, 2 * Math.PI, true);
-    context.fill();
-  }
-
-  return clip;
-}
-
-function regularPolygonVertices(n: number, radius: number, degree: number): Point[] {
-  const verts: Point[] = [];
-  for (let i = 0; i < n; i++) {
-    const a = (((360 / n) * i - 90 + degree) * Math.PI) / 180;
-    verts.push({ x: Math.cos(a) * radius, y: Math.sin(a) * radius });
-  }
-  return verts;
-}
-
-function insideConvexPolygon(verts: Point[], gcx: number, gcy: number): boolean {
-  for (let i = 0; i < verts.length; i++) {
-    const a = verts[i];
-    const b = verts[(i + 1) % verts.length];
-    if (!chkOuterProduct(a.x, a.y, b.x, b.y, gcx, gcy)) return false;
-  }
-  return true;
 }
 
 /**
@@ -305,53 +122,8 @@ export function renderTriangle(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaTriangle {
-  const offsets = calcGridOffsets(setting);
-  const { gridSize, offSetX_px, offSetY_px } = offsets;
-
-  canvasElement.width = setting.areaWidth * gridSize;
-  canvasElement.height = setting.areaHeight * gridSize;
-  let context = canvasElement.getContext('2d')!;
-
-  const r = setting.range * gridSize;
-  const verts = regularPolygonVertices(3, r, setting.degree);
-  notePainted(setting, verts);
-
-  const clip: ClipAreaTriangle = {
-    clip01x: verts[0].x * 1.2,
-    clip01y: verts[0].y * 1.2,
-    clip02x: verts[1].x * 1.2,
-    clip02y: verts[1].y * 1.2,
-    clip03x: verts[2].x * 1.2,
-    clip03y: verts[2].y * 1.2,
-  };
-
-  makeBrush(context, gridSize, setting.gridColor);
-  if (setting.fillOutLine) {
-    context.beginPath();
-    context.moveTo(verts[0].x + offSetX_px, verts[0].y + offSetY_px);
-    for (let i = 1; i < verts.length; i++) context.lineTo(verts[i].x + offSetX_px, verts[i].y + offSetY_px);
-    context.closePath();
-    context.fill();
-  } else {
-    fillGridCells(context, setting, offsets, (gcx, gcy) => insideConvexPolygon(verts, gcx, gcy));
-  }
-
-  canvasElementRange.width = setting.areaWidth * gridSize;
-  canvasElementRange.height = setting.areaHeight * gridSize;
-  context = canvasElementRange.getContext('2d')!;
-  makeBrush(context, gridSize, setting.rangeColor);
-  context.beginPath();
-  context.lineWidth = 2;
-  context.moveTo(verts[0].x + offSetX_px, verts[0].y + offSetY_px);
-  for (let i = 1; i < verts.length; i++) context.lineTo(verts[i].x + offSetX_px, verts[i].y + offSetY_px);
-  context.closePath();
-  context.stroke();
-  context.beginPath();
-  context.arc(offSetX_px, offSetY_px, 5, 0, 2 * Math.PI, true);
-  context.fill();
-
-  return clip;
+): ClipArea {
+  return renderRegularPolygon(canvasElement, canvasElementRange, setting, 3);
 }
 
 /**
@@ -363,57 +135,8 @@ export function renderPentagon(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaPentagon {
-  const offsets = calcGridOffsets(setting);
-  const { gridSize, offSetX_px, offSetY_px } = offsets;
-
-  canvasElement.width = setting.areaWidth * gridSize;
-  canvasElement.height = setting.areaHeight * gridSize;
-  let context = canvasElement.getContext('2d')!;
-
-  const r = setting.range * gridSize;
-  const verts = regularPolygonVertices(5, r, setting.degree);
-  notePainted(setting, verts);
-
-  const clip: ClipAreaPentagon = {
-    clip01x: verts[0].x * 1.2,
-    clip01y: verts[0].y * 1.2,
-    clip02x: verts[1].x * 1.2,
-    clip02y: verts[1].y * 1.2,
-    clip03x: verts[2].x * 1.2,
-    clip03y: verts[2].y * 1.2,
-    clip04x: verts[3].x * 1.2,
-    clip04y: verts[3].y * 1.2,
-    clip05x: verts[4].x * 1.2,
-    clip05y: verts[4].y * 1.2,
-  };
-
-  makeBrush(context, gridSize, setting.gridColor);
-  if (setting.fillOutLine) {
-    context.beginPath();
-    context.moveTo(verts[0].x + offSetX_px, verts[0].y + offSetY_px);
-    for (let i = 1; i < verts.length; i++) context.lineTo(verts[i].x + offSetX_px, verts[i].y + offSetY_px);
-    context.closePath();
-    context.fill();
-  } else {
-    fillGridCells(context, setting, offsets, (gcx, gcy) => insideConvexPolygon(verts, gcx, gcy));
-  }
-
-  canvasElementRange.width = setting.areaWidth * gridSize;
-  canvasElementRange.height = setting.areaHeight * gridSize;
-  context = canvasElementRange.getContext('2d')!;
-  makeBrush(context, gridSize, setting.rangeColor);
-  context.beginPath();
-  context.lineWidth = 2;
-  context.moveTo(verts[0].x + offSetX_px, verts[0].y + offSetY_px);
-  for (let i = 1; i < verts.length; i++) context.lineTo(verts[i].x + offSetX_px, verts[i].y + offSetY_px);
-  context.closePath();
-  context.stroke();
-  context.beginPath();
-  context.arc(offSetX_px, offSetY_px, 5, 0, 2 * Math.PI, true);
-  context.fill();
-
-  return clip;
+): ClipArea {
+  return renderRegularPolygon(canvasElement, canvasElementRange, setting, 5);
 }
 
 /**
@@ -425,57 +148,90 @@ export function renderHexagon(
   canvasElement: HTMLCanvasElement,
   canvasElementRange: HTMLCanvasElement,
   setting: RangeRenderSetting
-): ClipAreaHexagon {
+): ClipArea {
+  return renderRegularPolygon(canvasElement, canvasElementRange, setting, 6);
+}
+
+/** How much larger than a regular polygon its clip is. */
+const REGULAR_CLIP_GROWTH = 1.2;
+
+/**
+ * Draws a regular range of `n` corners lying `range` cells from its centre, the first straight up
+ * before the turn by `degree`, with its clip the same shape grown by a fifth and its origin a dot.
+ */
+function renderRegularPolygon(
+  canvasElement: HTMLCanvasElement,
+  canvasElementRange: HTMLCanvasElement,
+  setting: RangeRenderSetting,
+  n: number
+): ClipArea {
+  const corners = regularPolygonVertices(n, setting.range * setting.gridSize, setting.degree);
+  const clipCorners = corners.map(({ x, y }) => ({ x: x * REGULAR_CLIP_GROWTH, y: y * REGULAR_CLIP_GROWTH }));
+  return renderConvexPolygon(canvasElement, canvasElementRange, setting, corners, clipCorners, false, 0);
+}
+
+/**
+ * Draws a convex range whose corners, and the corners of the clip around it, are given clockwise
+ * about its centre, turned by `degree` unless already turned.
+ *
+ * The grid canvas is filled with the cells whose centres fall inside, or with the exact shape when
+ * `fillOutLine` is set; the outline canvas gets the shape's edge and the origin, marked with a
+ * small square when `docking` or a dot otherwise.
+ */
+function renderConvexPolygon(
+  canvasElement: HTMLCanvasElement,
+  canvasElementRange: HTMLCanvasElement,
+  setting: RangeRenderSetting,
+  corners: Point[],
+  clipCorners: Point[],
+  docking: boolean,
+  degree = setting.degree
+): ClipArea {
   const offsets = calcGridOffsets(setting);
   const { gridSize, offSetX_px, offSetY_px } = offsets;
 
   canvasElement.width = setting.areaWidth * gridSize;
   canvasElement.height = setting.areaHeight * gridSize;
-  let context = canvasElement.getContext('2d')!;
+  let context: CanvasRenderingContext2D = canvasElement.getContext('2d')!;
 
-  const r = setting.range * gridSize;
-  const verts = regularPolygonVertices(6, r, setting.degree);
-  notePainted(setting, verts);
+  const points = rotatePoints(corners, degree);
+  notePainted(setting, points);
+  const clip = rotatePoints(clipCorners, degree);
 
-  const clip: ClipAreaHexagon = {
-    clip01x: verts[0].x * 1.2,
-    clip01y: verts[0].y * 1.2,
-    clip02x: verts[1].x * 1.2,
-    clip02y: verts[1].y * 1.2,
-    clip03x: verts[2].x * 1.2,
-    clip03y: verts[2].y * 1.2,
-    clip04x: verts[3].x * 1.2,
-    clip04y: verts[3].y * 1.2,
-    clip05x: verts[4].x * 1.2,
-    clip05y: verts[4].y * 1.2,
-    clip06x: verts[5].x * 1.2,
-    clip06y: verts[5].y * 1.2,
+  const trace = () => {
+    context.beginPath();
+    context.moveTo(points[0].x + offSetX_px, points[0].y + offSetY_px);
+    for (let i = 1; i < points.length; i++) context.lineTo(points[i].x + offSetX_px, points[i].y + offSetY_px);
+    context.closePath();
   };
 
   makeBrush(context, gridSize, setting.gridColor);
   if (setting.fillOutLine) {
-    context.beginPath();
-    context.moveTo(verts[0].x + offSetX_px, verts[0].y + offSetY_px);
-    for (let i = 1; i < verts.length; i++) context.lineTo(verts[i].x + offSetX_px, verts[i].y + offSetY_px);
-    context.closePath();
+    trace();
     context.fill();
   } else {
-    fillGridCells(context, setting, offsets, (gcx, gcy) => insideConvexPolygon(verts, gcx, gcy));
+    fillGridCells(context, setting, offsets, (gcx, gcy) => insideConvexPolygon(points, gcx, gcy));
   }
 
   canvasElementRange.width = setting.areaWidth * gridSize;
   canvasElementRange.height = setting.areaHeight * gridSize;
   context = canvasElementRange.getContext('2d')!;
+
   makeBrush(context, gridSize, setting.rangeColor);
-  context.beginPath();
   context.lineWidth = 2;
-  context.moveTo(verts[0].x + offSetX_px, verts[0].y + offSetY_px);
-  for (let i = 1; i < verts.length; i++) context.lineTo(verts[i].x + offSetX_px, verts[i].y + offSetY_px);
-  context.closePath();
+  trace();
   context.stroke();
-  context.beginPath();
-  context.arc(offSetX_px, offSetY_px, 5, 0, 2 * Math.PI, true);
-  context.fill();
+
+  markOrigin(context, offsets, docking);
 
   return clip;
+}
+
+function regularPolygonVertices(n: number, radius: number, degree: number): Point[] {
+  const verts: Point[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (((360 / n) * i - 90 + degree) * Math.PI) / 180;
+    verts.push({ x: Math.cos(a) * radius, y: Math.sin(a) * radius });
+  }
+  return verts;
 }

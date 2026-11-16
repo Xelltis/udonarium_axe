@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { clamp } from '@axe/core/util/clamp';
 import { CUT_IN_EASING_NAMES, type CutInEasingName, isCutInEasing } from '@axe/domain/media/cubic-bezier';
 import {
   applyEntrance,
@@ -47,6 +48,7 @@ import {
   toggleKeyAt,
   valueAt,
 } from '@axe/features/media/cut-in-editor/cut-in-keyframe-edit';
+import { CutInTrackFieldComponent } from '@axe/features/media/cut-in-editor/cut-in-track-field.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -63,7 +65,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'cut-in-layer-properties',
   templateUrl: './cut-in-layer-properties.component.html',
   host: { class: 'block' },
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [FormsModule, SafePipe, TranslocoModule, CutInTrackFieldComponent],
 })
 export class CutInLayerPropertiesComponent {
   private readonly modalService = inject(ModalService);
@@ -184,7 +186,7 @@ export class CutInLayerPropertiesComponent {
     return Math.round(this.tracked('opacity', 1) * 100);
   }
   set opacityPercent(percent: number) {
-    this.writeTracked('opacity', Math.min(1, Math.max(0, (Number(percent) || 0) / 100)));
+    this.writeTracked('opacity', clamp((Number(percent) || 0) / 100, 0, 1));
   }
 
   /** The layer's blur at the scrubber, in pixels, never negative; a write lands on a key there if one stands. */
@@ -275,7 +277,7 @@ export class CutInLayerPropertiesComponent {
     return Math.round(this.layer()?.objectPosX ?? 50);
   }
   set objectPosX(objectPosX: number) {
-    this.write((layer) => (layer.objectPosX = Math.min(100, Math.max(0, Number(objectPosX) || 0))));
+    this.write((layer) => (layer.objectPosX = clamp(Number(objectPosX) || 0, 0, 100)));
   }
 
   /** Which part of a cropped picture stays in view down, from 0 (top) to 100 (bottom). */
@@ -283,7 +285,7 @@ export class CutInLayerPropertiesComponent {
     return Math.round(this.layer()?.objectPosY ?? 50);
   }
   set objectPosY(objectPosY: number) {
-    this.write((layer) => (layer.objectPosY = Math.min(100, Math.max(0, Number(objectPosY) || 0))));
+    this.write((layer) => (layer.objectPosY = clamp(Number(objectPosY) || 0, 0, 100)));
   }
 
   /** The words a text layer shows. */
@@ -320,7 +322,7 @@ export class CutInLayerPropertiesComponent {
     return Math.round(this.layer()?.fontWeight ?? 700);
   }
   set fontWeight(fontWeight: number) {
-    this.write((layer) => (layer.fontWeight = Math.min(900, Math.max(100, Number(fontWeight) || 400))));
+    this.write((layer) => (layer.fontWeight = clamp(Number(fontWeight) || 400, 100, 900)));
   }
 
   /** A text layer's font family; empty uses the default. */
@@ -373,7 +375,7 @@ export class CutInLayerPropertiesComponent {
     return Math.round(this.layer()?.skewXDeg ?? 0);
   }
   set skewXDeg(skewXDeg: number) {
-    this.write((layer) => (layer.skewXDeg = Math.min(80, Math.max(-80, Number(skewXDeg) || 0))));
+    this.write((layer) => (layer.skewXDeg = clamp(Number(skewXDeg) || 0, -80, 80)));
   }
 
   /** How far the layer leans up or down, in degrees held between -80 and 80. */
@@ -381,7 +383,7 @@ export class CutInLayerPropertiesComponent {
     return Math.round(this.layer()?.skewYDeg ?? 0);
   }
   set skewYDeg(skewYDeg: number) {
-    this.write((layer) => (layer.skewYDeg = Math.min(80, Math.max(-80, Number(skewYDeg) || 0))));
+    this.write((layer) => (layer.skewYDeg = clamp(Number(skewYDeg) || 0, -80, 80)));
   }
 
   /**
@@ -417,7 +419,7 @@ export class CutInLayerPropertiesComponent {
     return Math.round(this.tracked('wipe', 1) * 100);
   }
   set wipePercent(percent: number) {
-    this.writeTracked('wipe', Math.min(1, Math.max(0, (Number(percent) || 0) / 100)));
+    this.writeTracked('wipe', clamp((Number(percent) || 0) / 100, 0, 1));
   }
 
   /**
@@ -440,7 +442,7 @@ export class CutInLayerPropertiesComponent {
     return Math.round(this.tracked('crumble', 1) * 100);
   }
   set crumblePercent(percent: number) {
-    this.writeTracked('crumble', Math.min(1, Math.max(0, (Number(percent) || 0) / 100)));
+    this.writeTracked('crumble', clamp((Number(percent) || 0) / 100, 0, 1));
   }
 
   /** Extra space between a text layer's letters, in pixels; negative draws them closer. */
@@ -456,7 +458,7 @@ export class CutInLayerPropertiesComponent {
     return Math.round((this.layer()?.lineHeight ?? 1.15) * 100);
   }
   set lineHeight(percent: number) {
-    const lineHeight = Math.min(4, Math.max(0.4, (Number(percent) || 115) / 100));
+    const lineHeight = clamp((Number(percent) || 115) / 100, 0.4, 4);
     this.write((layer) => (layer.lineHeight = lineHeight));
   }
 
@@ -481,7 +483,7 @@ export class CutInLayerPropertiesComponent {
     return this.layer()?.letterStaggerMs ?? 0;
   }
   set letterStaggerMs(ms: number) {
-    const held = Math.min(LETTER_STAGGER_MAX_MS, Math.max(0, Math.round(Number(ms) || 0)));
+    const held = clamp(Math.round(Number(ms) || 0), 0, LETTER_STAGGER_MAX_MS);
     this.write((layer) => (layer.letterStaggerMs = held));
   }
 
@@ -491,7 +493,7 @@ export class CutInLayerPropertiesComponent {
   }
   set letterDurationMs(ms: number) {
     const asked = Math.round(Number(ms) || 0);
-    const held = asked <= 0 ? 0 : Math.min(LETTER_DURATION_MAX_MS, Math.max(LETTER_DURATION_MIN_MS, asked));
+    const held = asked <= 0 ? 0 : clamp(asked, LETTER_DURATION_MIN_MS, LETTER_DURATION_MAX_MS);
     this.write((layer) => (layer.letterDurationMs = held));
   }
 
@@ -527,10 +529,7 @@ export class CutInLayerPropertiesComponent {
     return Math.round(this.layer()?.fillScalePx ?? DEFAULT_FILL_SCALE_PX);
   }
   set fillScalePx(fillScalePx: number) {
-    const scale = Math.min(
-      MAX_FILL_SCALE_PX,
-      Math.max(MIN_FILL_SCALE_PX, Number(fillScalePx) || DEFAULT_FILL_SCALE_PX)
-    );
+    const scale = clamp(Number(fillScalePx) || DEFAULT_FILL_SCALE_PX, MIN_FILL_SCALE_PX, MAX_FILL_SCALE_PX);
     this.write((layer) => (layer.fillScalePx = scale));
   }
 
@@ -632,7 +631,7 @@ export class CutInLayerPropertiesComponent {
     return Math.round((this.layer()?.effectStrength ?? 1) * 100);
   }
   set effectStrength(percent: number) {
-    const strength = Math.min(3, Math.max(0, (Number(percent) || 0) / 100));
+    const strength = clamp((Number(percent) || 0) / 100, 0, 3);
     this.write((layer) => (layer.effectStrength = strength));
   }
 

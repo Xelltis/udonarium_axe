@@ -1,7 +1,14 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { closePanels } from './dungeon-helpers';
-import { openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } from './helpers';
+import {
+  closePanels,
+  drag,
+  openTableContextMenu,
+  putAwayTutorial,
+  revealMenuEntry,
+  rightClickPiece,
+  waitAppReady,
+} from './helpers';
 
 /**
  * A card or a deck let go of over a deck goes into it. The deck it lands on is worked out from
@@ -20,14 +27,6 @@ const RING_CLEARANCE_PX = 40;
 /** How far in from the corner a piece stands at, on the table, a point taken to be over the piece lies. */
 const FLOOR_INSET_PX = 20;
 
-async function drag(page: Page, from: Point, to: Point) {
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
-  await page.mouse.move(to.x, to.y, { steps: 8 });
-  await page.mouse.up();
-}
-
 /**
  * The point of the page over the floor a little in from where a piece stands on the table, which a
  * press takes hold of the piece at: a drag from one such point to another moves the piece by just
@@ -37,13 +36,12 @@ async function floorPointOf(page: Page, piece: Locator): Promise<Point> {
   const [x, y, z] = (await piece.locator('[data-location]').first().getAttribute('data-location'))!
     .split(',')
     .map(Number);
-  return page.evaluate(
-    ({ x, y, z, inset }) =>
-      (
-        window as unknown as { __axeTable: { project(x: number, y: number, z: number): Point | null } }
-      ).__axeTable.project(x + inset, y + inset, z)!,
-    { x, y, z, inset: FLOOR_INSET_PX }
-  );
+  return page.evaluate(({ x, y, z, inset }) => window.__axeTable.project(x + inset, y + inset, z)!, {
+    x,
+    y,
+    z,
+    inset: FLOOR_INSET_PX,
+  });
 }
 
 /** The middle of where a piece is drawn: its host has no box of its own, the part that moves has. */
@@ -62,14 +60,7 @@ async function bareSpots(page: Page, count: number, cardDrawn = false): Promise<
   const layer = (await page.locator('#app-table-layer').boundingBox())!;
   const spots = await page.evaluate(
     ({ left, top, count, cardDrawn, RING_CLEARANCE_PX }) => {
-      const hooks = (
-        window as unknown as {
-          __axeTable: {
-            drawnAt(x: number, y: number): string | null;
-            pickAt(x: number, y: number): string | null;
-          };
-        }
-      ).__axeTable;
+      const hooks = window.__axeTable;
       const feet = [...document.querySelectorAll<HTMLElement>('[data-testid="turn-ring"]')].map((element) =>
         element.getBoundingClientRect()
       );
@@ -149,7 +140,7 @@ test.describe('letting go of cards over a deck', () => {
     const [spot] = await bareSpots(page, 1, true);
     await makeDeck(page, spot);
     const deck = page.locator('card-stack').first();
-    await deck.dispatchEvent('contextmenu');
+    await rightClickPiece(deck);
     await page.locator('context-menu').getByText('１枚引く').click();
     const card = page.locator('card');
     await expect(card).toHaveCount(1, { timeout: 5000 });

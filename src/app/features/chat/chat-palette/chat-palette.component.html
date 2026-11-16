@@ -249,8 +249,9 @@
           class="text-ui-accent bg-ui-elevated border-ui-border-panel box-border cursor-default border-t border-solid px-2 pt-1.25 pb-0.5 text-[0.8em] leading-[1.65] font-bold whitespace-pre select-none first:border-t-0"
           [attr.data-line]="row.lineIndex"
         >
-          <span class="mr-0.75 opacity-60">{{ 'feature.chat.palette.headingBullet' | transloco }}</span
-          >{{ row.headingName }}
+          <span class="mr-0.75 opacity-60">{{ 'feature.chat.palette.headingBullet' | transloco }}</span>{{
+            row.headingName
+          }}
         </div>
       } @else if (row.kind === 'variable') {
         <div

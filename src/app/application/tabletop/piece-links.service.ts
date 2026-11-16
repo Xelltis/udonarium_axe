@@ -18,7 +18,9 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 @Injectable({ providedIn: 'root' })
 export class PieceLinksService {
   private readonly objectStore = inject(ObjectStore);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly objectChange = inject(ObjectChangeService);
 
   /** The piece holding on to this one, where it is on the table and in the fight; null otherwise. */

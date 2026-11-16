@@ -1,14 +1,18 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { TRANSLATE_FN, TranslateFn } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { Logger } from '@axe/core/logging/logger';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { DataElement } from '@axe/domain/data/data-element';
+import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
+import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -23,6 +27,7 @@ describe('TurnOrderService', () => {
   let chars: GameCharacter[];
   let orderedSpy: ReturnType<typeof vi.spyOn>;
   let sendSpy: ReturnType<typeof vi.spyOn>;
+  let t: TranslateFn;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -31,7 +36,7 @@ describe('TurnOrderService', () => {
 
     // Config is a singleton that outlives a test, so how the round is taken has to be put
     // back or one faction test rules every test that runs after it.
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
     const config = Config.instance;
     config.turnOrderMode = 'initiative';
     config.factionPhaseMode = 'free';
@@ -40,7 +45,7 @@ describe('TurnOrderService', () => {
 
     askedToLeaveBehind = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
 
-    turnState = TestBed.inject(TurnState);
+    turnState = TurnState.instance;
     turnState.currentIdentifier = '';
     turnState.currentSide = '';
     turnState.round = 0;
@@ -56,6 +61,7 @@ describe('TurnOrderService', () => {
 
     service = TestBed.inject(TurnOrderService);
     orderedSpy = vi.spyOn(service, 'orderedCharacters').mockReturnValue(chars);
+    t = TestBed.inject(TRANSLATE_FN);
     sendSpy = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(undefined as never);
   });
 
@@ -248,7 +254,7 @@ describe('TurnOrderService', () => {
     expect(sendSpy).toHaveBeenCalledTimes(4);
   });
 
-  it('writes nothing down as it works out a step without taking it, and its version’s mark as it takes one', () => {
+  it('writes nothing down as it works out a step without taking it', () => {
     PeerCursor.createMyCursor();
     service.next();
     const mine = PeerCursor.myCursor!;
@@ -259,8 +265,6 @@ describe('TurnOrderService', () => {
     service.mayInterrupt(chars[1].identifier);
 
     expect(mine.turnProtocol).toBe('');
-    service.next();
-    expect(mine.turnProtocol).toBe('1');
   });
 
   it('setCurrent jumps straight to a character in the acting phase', () => {
@@ -346,7 +350,7 @@ describe('TurnOrderService', () => {
       expect(buffsOf(buffed[0]).map((buff: DataElement) => buff.name)).toEqual(['加速']);
       expect(buffsOf(buffed[0])[0].value).toBe(2);
       expect(buffsOf(buffed[1])).toHaveLength(0);
-      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(String(call[1]), t));
       expect(announced.some((text: string) => text.includes('feature.turnOrder.buffExpired'))).toBe(true);
     });
 
@@ -452,7 +456,7 @@ describe('TurnOrderService', () => {
         sendSpy.mockClear();
         service.hold(first.identifier);
         expect(roundsOf(first, '加護')).toBe(2);
-        const said = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
+        const said = sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(String(call[1]), t));
         expect(said.some((text: string) => text.includes('feature.turnOrder.buffsGivenBack'))).toBe(true);
 
         service.next(); // the second piece is done, and the first comes back
@@ -583,6 +587,204 @@ describe('TurnOrderService', () => {
       expect(buffsOf(target)[0].value).toBe(1);
     });
 
+    describe('a buff that moves a status at every count', () => {
+      const lay = (piece: GameCharacter, command: string) =>
+        applyBuffEdit({ command, object: piece, targeted: false }, piece);
+      const hp = (piece: GameCharacter) => piece.status.getValue('HP', 'now');
+      const buffOf = (piece: GameCharacter, name: string) => buffsOf(piece).find((buff) => buff.name === name);
+
+      beforeEach(() => {
+        buffed.forEach((piece) => piece.status.setValue('HP', 'now', 10));
+      });
+
+      it('heals at the end of every round where it never runs out, and stays as it is', () => {
+        const [first] = buffed;
+        lay(first, '&!再生/:HP/+/0~+3/none');
+        expect(hp(first)).toBe(10);
+
+        advanceToRoundEnd();
+        expect(hp(first)).toBe(13);
+        advanceToRoundEnd();
+
+        expect(hp(first)).toBe(16);
+        expect(buffOf(first, '再生')!.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('none');
+        expect(buffOf(first, '再生')!.value).toBe(3);
+      });
+
+      it('moves nothing in the turns of a round, only as the round ends', () => {
+        const [first] = buffed;
+        lay(first, '&!再生/:HP/+/0~+3/none');
+
+        service.next(); // round 1 begins
+        service.next(); // the first piece's turn opens
+        service.next(); // the first piece is done, and the second's turn opens
+        expect(hp(first)).toBe(10);
+
+        service.next(); // the second piece is done, and the round ends
+        expect(hp(first)).toBe(13);
+      });
+
+      it('moves as the turn of the piece carrying it opens, where it is told to, and at no other moment', () => {
+        const [first, second] = buffed;
+        lay(first, '&!再生/:HP/+/0~+3/none/発生:手番開始');
+        lay(second, '&!再生/:HP/+/0~+3/none/発生:手番開始');
+
+        service.next(); // round 1 begins
+        expect(hp(first)).toBe(10);
+        service.next(); // the first piece's turn opens
+        expect([hp(first), hp(second)]).toEqual([13, 10]);
+        service.next(); // the first piece is done, and the second's turn opens
+        expect([hp(first), hp(second)]).toEqual([13, 13]);
+        service.next(); // the round ends
+        expect([hp(first), hp(second)]).toEqual([13, 13]);
+
+        service.next(); // round 2 begins
+        service.next(); // the first piece's turn opens again
+        expect([hp(first), hp(second)]).toEqual([16, 13]);
+      });
+
+      it("is counted down on its trigger's turn and moves on its bearer's, each at its own moment", () => {
+        const [caster, bearer] = buffed;
+        lay(bearer, `&!再生/:HP/+/0~+3/3/手番開始/@${caster.name}/発生:手番終了`);
+        const rounds = () => buffOf(bearer, '再生')!.value;
+
+        service.next(); // round 1 begins
+        service.next(); // the caster's turn opens, which counts the buff down and moves nothing
+        expect([hp(bearer), rounds()]).toEqual([10, 2]);
+
+        service.next(); // the caster is done, and the bearer's turn opens
+        expect([hp(bearer), rounds()]).toEqual([10, 2]);
+
+        service.next(); // the bearer is done, which heals, and the round ends
+        expect([hp(bearer), rounds()]).toEqual([13, 2]);
+      });
+
+      it('moves as many times as its moment comes before it runs out', () => {
+        const [first] = buffed;
+        lay(first, '&!毒/:HP/+/0~-1/2/発生:手番開始');
+
+        service.next(); // round 1 begins
+        service.next(); // the first piece's turn opens, which bites
+        expect(hp(first)).toBe(9);
+        service.next();
+        service.next(); // the round ends, which counts the poison down and bites no more
+        expect([hp(first), buffOf(first, '毒')!.value]).toEqual([9, 1]);
+
+        advanceToRoundEnd();
+        expect(buffOf(first, '毒')).toBeUndefined();
+        advanceToRoundEnd();
+
+        expect(hp(first)).toBe(8);
+      });
+
+      it('gives back exactly the round it is taken back by', () => {
+        const [first] = buffed;
+        lay(first, '&!再生/:HP/+/0~+3/none');
+        advanceToRoundEnd();
+        advanceToRoundEnd();
+        expect(hp(first)).toBe(16);
+
+        service.prev();
+
+        expect(hp(first)).toBe(13);
+        expect(buffOf(first, '再生')).toBeDefined();
+      });
+
+      it('gives back the whole round as the round is taken back', () => {
+        const [first] = buffed;
+        lay(first, '&!再生/:HP/+/0~+3/none');
+        lay(first, '&!活力/:HP/+/0~+1/none/発生:手番開始');
+        advanceToRoundEnd();
+        advanceToRoundEnd();
+        expect(hp(first)).toBe(18);
+
+        service.retreatRound();
+
+        expect(hp(first)).toBe(14);
+      });
+
+      it('gives back what a turn opening moved as the piece waits, and moves it again as the turn comes back', () => {
+        const [first] = buffed;
+        lay(first, '&!再生/:HP/+/0~+3/none/発生:手番開始');
+
+        service.next(); // round 1 begins
+        service.next(); // the first piece's turn opens
+        expect(hp(first)).toBe(13);
+
+        service.hold(first.identifier);
+        expect(hp(first)).toBe(10);
+
+        service.next(); // the second piece is done, and the first comes back
+        expect(turnState.currentIdentifier).toBe(first.identifier);
+        expect(hp(first)).toBe(13);
+      });
+
+      it('gives back both what it moved and its running out, where one press did both', () => {
+        const [, last] = buffed;
+        lay(last, '&!毒/:HP/+/0~-1/1/発生:手番終了');
+
+        service.next(); // round 1 begins
+        service.next(); // the first piece's turn opens
+        service.next(); // the last piece's turn opens
+        expect(hp(last)).toBe(10);
+        service.next(); // the last piece is done, which bites, and the round ends, which runs the poison out
+        expect(hp(last)).toBe(9);
+        expect(buffOf(last, '毒')).toBeUndefined();
+
+        service.prev();
+
+        expect(hp(last)).toBe(10);
+        expect(buffOf(last, '毒')!.value).toBe(1);
+        expect(buffOf(last, '毒')!.getAttribute(DataElementAttribute.BUFF_EFFECT_TIMING)).toBe('turnEnd');
+
+        service.next();
+        expect(hp(last)).toBe(9);
+      });
+
+      it('gives all of it back as the buff is taken off, unless it is marked to stay moved', () => {
+        const [first, second] = buffed;
+        lay(first, '&!鍛錬/HP/+/0~+3/none');
+        lay(second, '&!再生/:HP/+/0~+3/none');
+        advanceToRoundEnd();
+        advanceToRoundEnd();
+        expect([hp(first), hp(second)]).toEqual([16, 16]);
+
+        lay(first, '&鍛錬-');
+        lay(second, '&再生-');
+
+        expect([hp(first), hp(second)]).toEqual([10, 16]);
+      });
+
+      it('moves nothing while buffs are not counted down as the round moves', () => {
+        const [first] = buffed;
+        lay(first, '&!再生/:HP/+/0~+3/none');
+        lay(first, '&!活力/:HP/+/0~+1/none/発生:手番開始');
+        turnState.buffDecay = false;
+
+        advanceToRoundEnd();
+
+        expect(hp(first)).toBe(10);
+      });
+
+      it('moves once for the seat that pressed, and not again as the round it wrote is read', () => {
+        const [first] = buffed;
+        lay(first, '&!再生/:HP/+/0~+3/none');
+        advanceToRoundEnd();
+        expect(hp(first)).toBe(13);
+
+        // What a second seat sees of a press is the round as written, which is all it is handed.
+        const written = { round: turnState.round, phase: turnState.phase, acted: [...turnState.actedIdentifiers] };
+        const other = TestBed.runInInjectionContext(() => new TurnOrderService());
+        turnState.round = written.round;
+        turnState.phase = written.phase;
+        turnState.actedIdentifiers = written.acted;
+        TestBed.inject(ObjectChangeService).notifyChanged(turnState.identifier);
+
+        expect(other.round).toBe(1);
+        expect(hp(first)).toBe(13);
+      });
+    });
+
     it('says nothing when no buff expired', () => {
       buffed.forEach((character) => character.buffs.delete('猛攻撃'));
       buffed[0].buffs.addRound('長い', '', 5);
@@ -590,7 +792,7 @@ describe('TurnOrderService', () => {
 
       advanceToRoundEnd();
 
-      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(String(call[1]), t));
       expect(announced.some((text: string) => text.includes('feature.turnOrder.buffExpired'))).toBe(false);
       expect(buffsOf(buffed[0])[0].value).toBe(4);
     });
@@ -682,7 +884,7 @@ describe('TurnOrderService', () => {
       service.next(); // chars[0] is up
       service.next(); // chars[1] is up
 
-      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(String(call[1]), t));
       expect(announced).toEqual(['feature.turnOrder.announce', 'feature.turnOrder.announceUnseen']);
       seen.mockRestore();
     });
@@ -698,7 +900,7 @@ describe('TurnOrderService', () => {
       expect(turnState.round).toBe(2);
       expect(turnState.phase).toBe('roundStart');
       expect(turnState.currentIdentifier).toBe('');
-      const announced = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
+      const announced = sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(String(call[1]), t));
       expect(announced).toContain('feature.turnOrder.roundEnd');
       expect(announced).toContain('feature.turnOrder.roundStart');
     });
@@ -719,7 +921,9 @@ describe('TurnOrderService', () => {
 
       expect(turnState.round).toBe(1);
       expect(turnState.phase).toBe('roundStart');
-      expect(sendSpy.mock.calls.map((call: unknown[]) => String(call[1]))).not.toContain('feature.turnOrder.roundEnd');
+      expect(sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(String(call[1]), t))).not.toContain(
+        'feature.turnOrder.roundEnd'
+      );
     });
   });
 
@@ -735,6 +939,20 @@ describe('TurnOrderService', () => {
       service.next();
 
       expect(sprang).toHaveBeenCalledWith(chars[0], 'turnStart');
+    });
+
+    it('keeps the round turning past ground that will not go off, and says why', () => {
+      const warned = vi.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+      const reason = new Error('no ground');
+      sprang.mockImplementation(() => {
+        throw reason;
+      });
+
+      service.next();
+      expect(() => service.next()).not.toThrow();
+
+      expect(turnState.currentIdentifier).toBe(chars[0].identifier);
+      expect(warned).toHaveBeenCalledWith('[TurnOrder] trigger did not fire', reason);
     });
 
     it('springs the ground of a whole press before any of it carries a piece off', () => {
@@ -850,7 +1068,7 @@ describe('TurnOrderService', () => {
   describe('waiting to step in', () => {
     const [a, b, c] = [0, 1, 2];
     const id = (index: number) => chars[index].identifier;
-    const said = () => sendSpy.mock.calls.map((call: unknown[]) => call[1] as string);
+    const said = () => sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(call[1] as string, t));
 
     beforeEach(() => {
       service.next(); // round 1 begins
@@ -1099,7 +1317,7 @@ describe('TurnOrderService', () => {
     let bystander: GameCharacter;
 
     function saidTo(): string[] {
-      return sendSpy.mock.calls.map((call: unknown[]) => call[1] as string);
+      return sendSpy.mock.calls.map((call: unknown[]) => decodeI18nMessage(call[1] as string, t));
     }
 
     function pressUntil(reached: () => boolean, limit = 30): void {

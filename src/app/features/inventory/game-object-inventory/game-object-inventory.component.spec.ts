@@ -13,7 +13,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { resourceElementsOf } from '@axe/domain/character/resource-catalog';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -60,7 +60,7 @@ describe('GameObjectInventoryComponent', () => {
 
   afterEach(() => {
     localStorage.removeItem('ui-inventory-view');
-    (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+    Config.forget();
   });
 
   it('should create', () => {
@@ -118,7 +118,7 @@ describe('GameObjectInventoryComponent', () => {
     beforeEach(() => {
       PeerCursor.myCursor = { role: PeerRole.GameMaster, identifier: 'seat-cursor' } as PeerCursor;
       vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockReturnValue(undefined as never);
-      const turnState = TestBed.inject(TurnState);
+      const turnState = TurnState.instance;
       Object.assign(turnState, {
         round: 0,
         phase: 'idle',
@@ -140,7 +140,7 @@ describe('GameObjectInventoryComponent', () => {
 
     afterEach(() => {
       turnOrder.reset();
-      TestBed.inject(TurnState).history = '[]';
+      TurnState.instance.history = '[]';
       vi.restoreAllMocks();
     });
 
@@ -358,7 +358,7 @@ describe('GameObjectInventoryComponent', () => {
       // Personal folders live on the device, so they outlive the store cleanup too.
       localStorage.clear();
       // The summary settings are a synced singleton, so its folders outlive the store cleanup.
-      (DataSummarySetting as unknown as Record<string, unknown>)['_instance'] = undefined;
+      DataSummarySetting.forget();
       vi.unstubAllGlobals();
       vi.restoreAllMocks();
     });
@@ -517,7 +517,7 @@ describe('GameObjectInventoryComponent', () => {
 
       it('folds the shared folders after the reader has been through their own', () => {
         const mine = putInShared('相棒');
-        mine.setLocation(Network.peerId);
+        mine.setLocation(Network.instance.peerId);
         mine.folderName = '手持ち';
         const villager = putInShared('村長');
         villager.folderName = '村';
@@ -557,7 +557,7 @@ describe('GameObjectInventoryComponent', () => {
         const shared = putInShared('村長');
         shared.folderName = '村';
         const mine = putInShared('相棒');
-        mine.setLocation(Network.peerId);
+        mine.setLocation(Network.instance.peerId);
         mine.folderName = '村';
         TestBed.inject(InventoryViewPreferenceService).setFoldsOnOpen(true);
         const panel = opened();
@@ -695,6 +695,21 @@ describe('GameObjectInventoryComponent', () => {
 
       component.folders.startFolderRename('第1話');
       component.folders.commitFolderRename('第1話', '序章');
+      expect(goblin.folderName).toBe('序章');
+    });
+
+    it('renames to what the name field holds when it is committed from the field', () => {
+      const goblin = putInShared('ゴブリン');
+      goblin.folderName = '第1話';
+      component.selectTab.set('common');
+      const field = document.createElement('input');
+      field.value = '序章';
+      const typed = new Event('blur');
+      Object.defineProperty(typed, 'target', { value: field });
+
+      component.folders.startFolderRename('第1話');
+      component.folders.commitFolderRenameFrom('第1話', typed, true);
+
       expect(goblin.folderName).toBe('序章');
     });
 
@@ -881,7 +896,7 @@ describe('GameObjectInventoryComponent', () => {
       const shared = putInShared('ゴブリン');
       shared.folderName = '第1話';
       const mine = GameCharacter.create('相棒', 1, '');
-      mine.setLocation(Network.peerId);
+      mine.setLocation(Network.instance.peerId);
       mine.folderName = '第1話';
 
       component.selectTab.set(PERSONAL_INVENTORY_TAB);
@@ -895,7 +910,7 @@ describe('GameObjectInventoryComponent', () => {
       const shared = putInShared('ゴブリン');
       shared.folderName = '第1話';
       const mine = GameCharacter.create('相棒', 1, '');
-      mine.setLocation(Network.peerId);
+      mine.setLocation(Network.instance.peerId);
       mine.folderName = '第1話';
       vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
 
@@ -1078,7 +1093,7 @@ describe('GameObjectInventoryComponent', () => {
 
       dragOnto(goblin, tab(PERSONAL_INVENTORY_TAB));
 
-      expect(goblin.location.name).toBe(Network.peerId);
+      expect(goblin.location.name).toBe(Network.instance.peerId);
     });
 
     it('moves the ticked selection along and lets it go from the selection', () => {
@@ -1277,7 +1292,7 @@ describe('GameObjectInventoryComponent', () => {
     describe('reading the cast as a table', () => {
       afterEach(() => {
         TestBed.inject(StatusAilmentService).save([]);
-        (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+        StatusAilmentCatalog.forget();
       });
 
       function tableRows(): HTMLElement[] {
@@ -1327,6 +1342,32 @@ describe('GameObjectInventoryComponent', () => {
 
         const value = tableRows()[0].querySelector('input[name="table-current-value"]') as HTMLElement;
         expect(value.style.color).not.toBe('');
+      });
+
+      it('shows an alias as a column, and sets every item behind it when the column is typed in', async () => {
+        const piece = putOnTable('二つ持ち');
+        const speeds = [10, 12].map((current, at) => {
+          const group = DataElement.create(at === 0 ? '基本' : '戦闘', '');
+          const speed = DataElement.create('行動値', 20, {
+            type: DataElementType.NUMBER_RESOURCE,
+            currentValue: current,
+          });
+          piece.detailDataElement!.appendChild(group);
+          group.appendChild(speed);
+          return speed;
+        });
+        DataSummarySetting.instance.aliases = [{ name: '行動値', candidates: ['基本/行動値', '戦闘/行動値'] }];
+        TestBed.inject(GameObjectInventoryService).tableDataTag = '行動値';
+        component.setViewMode('table');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const input = tableRows()[0].querySelector('input[name="table-current-value"]') as HTMLInputElement;
+        expect(input.value).toBe('10');
+        input.value = '15';
+        input.dispatchEvent(new Event('input'));
+
+        expect(speeds.map((speed) => Number(speed.currentValue))).toEqual([15, 15]);
       });
 
       it('gives the heading and every row the same columns', () => {
@@ -1636,7 +1677,7 @@ describe('GameObjectInventoryComponent', () => {
 
         afterEach(() => {
           localStorage.removeItem('ui-inventory-round-in-play');
-          TestBed.inject(TurnState).round = 0;
+          TurnState.instance.round = 0;
           vi.restoreAllMocks();
         });
 
@@ -1658,7 +1699,7 @@ describe('GameObjectInventoryComponent', () => {
         });
 
         it('comes back once a round has begun', async () => {
-          TestBed.inject(TurnState).round = 2;
+          TurnState.instance.round = 2;
           await Promise.resolve();
           viewPreference().setRoundInPlay(true);
           fixture.detectChanges();
@@ -1761,7 +1802,7 @@ describe('GameObjectInventoryComponent', () => {
 
       it('shows the display items of a piece on the personal tab too', () => {
         const mine = putOnTable('相棒');
-        mine.setLocation(Network.peerId);
+        mine.setLocation(Network.instance.peerId);
         TestBed.inject(GameObjectInventoryService).dataTag = 'HP';
         component.selectTab.set(PERSONAL_INVENTORY_TAB);
         fixture.detectChanges();
@@ -2341,7 +2382,7 @@ describe('GameObjectInventoryComponent', () => {
 
     beforeEach(() => {
       peerId = 'peer-before';
-      vi.spyOn(Network, 'peerId', 'get').mockImplementation(() => peerId);
+      vi.spyOn(Network.instance, 'peerId', 'get').mockImplementation(() => peerId);
       fixture.detectChanges();
     });
 
@@ -2382,7 +2423,7 @@ describe('GameObjectInventoryComponent', () => {
       peerId = 'peer-after';
       component.selectTab.set(PERSONAL_INVENTORY_TAB);
 
-      expect(component.multiMoveLocations.map((loc) => loc.name)).toEqual(['table', 'common', 'graveyard']);
+      expect(component.multiMoveLocations().map((loc) => loc.tab)).toEqual(['table', 'common', 'graveyard']);
     });
   });
 

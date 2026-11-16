@@ -47,7 +47,7 @@ describe('ThirdPersonService', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     PeerCursor.createMyCursor();
     PeerCursor.myCursor.role = PeerRole.GameMaster;
     PeerCursor.myCursor.userId = 'me';

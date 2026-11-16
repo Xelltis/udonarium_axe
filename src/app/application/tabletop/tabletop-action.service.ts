@@ -23,6 +23,7 @@ import {
 import { StartupLoadingService } from '@axe/application/ui/startup-loading.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { clamp } from '@axe/core/util/clamp';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { toDeckCardSources } from '@axe/domain/card/deck-builder';
@@ -32,6 +33,7 @@ import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { type AmbienceKind } from '@axe/domain/effect/ambience/ambience-kind';
 import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
+import { fileUntaggedImage } from '@axe/domain/media/image-tagging';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Party } from '@axe/domain/party/party';
 import { isAccountAvatar } from '@axe/domain/peer/account-avatar';
@@ -69,12 +71,12 @@ export class TabletopActionService {
   private readonly partyService = inject(PartyService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly setOut = inject(PartySetOutService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly viewMode = inject(ViewModePreferenceService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly startupLoading = inject(StartupLoadingService);
-
-  constructor() {}
 
   /** Makes a character with the default name and no picture, centred on a point; see `createGameCharacterWith`. */
   createGameCharacter(position: PointerCoordinate): GameCharacter {
@@ -203,8 +205,8 @@ export class TabletopActionService {
     const title = speaker.trim() || this.t('feature.tabletop.action.defaultNoteName');
     const lines = text.split('\n');
     const longest = Math.max(...lines.map((line) => line.length));
-    const width = Math.max(3, Math.min(8, Math.ceil(longest / 12)));
-    const height = Math.max(2, Math.min(8, Math.ceil(lines.length / 3)));
+    const width = clamp(Math.ceil(longest / 12), 3, 8);
+    const height = clamp(Math.ceil(lines.length / 3), 2, 8);
     const note = TextNote.create(title, text, 14, width, height);
     note.isUpright = !this.tabletopService.mode2d();
     note.location.x = Math.floor(Math.random() * 200 - 100);
@@ -355,13 +357,13 @@ export class TabletopActionService {
     const back = TRUMP_BACK_IMAGE_PATH;
     if (!this.imageStorage.get(back)) {
       const image = this.imageStorage.add(back);
-      ImageTag.create(image.identifier).tag = 'トランプ';
+      fileUntaggedImage(image.identifier, 'トランプ');
     }
     for (const trump of getTrumpCardCodes()) {
       const url: string = './assets/images/trump/' + trump + '.webp';
       if (!this.imageStorage.get(url)) {
         const image = this.imageStorage.add(url);
-        ImageTag.create(image.identifier).tag = 'トランプ';
+        fileUntaggedImage(image.identifier, 'トランプ');
       }
       const card = Card.create(this.t('feature.tabletop.action.defaultCardName'), url, back);
       cardStack.putOnBottom(card);
@@ -376,11 +378,11 @@ export class TabletopActionService {
 
     if (!this.imageStorage.get(front)) {
       const image = this.imageStorage.add(front);
-      ImageTag.create(image.identifier).tag = 'トランプ';
+      fileUntaggedImage(image.identifier, 'トランプ');
     }
     if (!this.imageStorage.get(back)) {
       const image = this.imageStorage.add(back);
-      ImageTag.create(image.identifier).tag = 'トランプ';
+      fileUntaggedImage(image.identifier, 'トランプ');
     }
 
     const card = Card.create(this.t('feature.tabletop.action.defaultCardName'), front, back);

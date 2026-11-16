@@ -26,6 +26,8 @@ export interface ContextMenuAction {
   name: string;
   action?: () => void;
   enabled?: boolean;
+  /** The line a row of an index names, shown before its name; the row's action goes to it. */
+  line?: number;
   altitudeHandle?: TabletopObject;
   type?: ContextMenuType;
   subActions?: ContextMenuAction[];

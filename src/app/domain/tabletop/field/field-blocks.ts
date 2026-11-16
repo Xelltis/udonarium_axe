@@ -7,7 +7,7 @@ import {
   FieldPropId,
   TownPlan,
 } from '@axe/domain/tabletop/field/field-atmosphere';
-import { FieldLayout } from '@axe/domain/tabletop/field/field-layout';
+import { FieldLayout, FieldObject } from '@axe/domain/tabletop/field/field-layout';
 import {
   FIELD_PROP_MODELS,
   fieldModelAt,
@@ -26,7 +26,7 @@ import { MapAmbience, MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } fr
  * How wide a clump of the same thing is allowed to grow before it is broken in two.
  *
  * A wood merged without limit becomes one canopy the size of the board, which reads as a
- * plateau rather than trees. Three cells is a stand of trees.
+ * plateau rather than trees. Four cells is a stand of trees.
  */
 export const FIELD_MERGE_SPAN = 4;
 
@@ -234,17 +234,77 @@ export function fieldToBlocks(
   season: FieldSeason = '',
   gridType: GridType = GridType.SQUARE
 ): MapBlocks {
-  const blocks: MapBlock[] = [];
-  const paint: MapPaint[] = [];
   const span = mergeSpan;
+  const blocks: MapBlock[] = [];
+  const paint: MapPaint[] = [...bandPaint(layout, atmosphere, span)];
 
+  blocks.push(...markedPropBlocks(layout, atmosphere, seed, span, models, season));
+  if (atmosphere.town) {
+    for (const building of layout.buildings) blocks.push(...buildingBlocks(building, atmosphere.town, span, models));
+  }
+
+  const settled = layout.settlement
+    ? settlementBlocks(layout.settlement, layout.width, layout.height, span, models, gridType)
+    : null;
+  if (settled) {
+    blocks.push(...settled.blocks);
+    paint.push(...settled.paint);
+  }
+
+  paint.push(...poolPaint(layout));
+  for (const object of layout.objects) blocks.push(...standingThingBlocks(object, atmosphere, seed, models, season));
+
+  const lights = [...findFires(layout, atmosphere, seed), ...(settled?.lights ?? [])].map((light, room) => ({
+    ...light,
+    room,
+  }));
+
+  return {
+    blocks,
+    paint,
+    ambiences: [
+      ...watersOf(layout, atmosphere, gridType),
+      ...layout.pools.map((pool) => ({
+        rect: { x: pool.x, y: pool.y, w: pool.w, h: pool.h },
+        kind: pool.kind,
+        density: pool.density,
+        name: pool.name,
+      })),
+      ...(settled?.ambiences ?? []),
+    ],
+    ...(settled && settled.slows.length > 0 ? { slows: settled.slows } : {}),
+    traps: [],
+    torchRooms: lights.map((light) => light.room),
+    torchSpots: lights.map((light) => ({ x: light.x, y: light.y })),
+    lights,
+  };
+}
+
+/** Each band of ground, painted as merged rectangles of its floor texture. */
+function bandPaint(layout: FieldLayout, atmosphere: FieldAtmosphere, span: number): MapPaint[] {
+  const paint: MapPaint[] = [];
   atmosphere.bands.forEach((band, index) => {
     const mask = maskOfBand(layout, index);
     for (const rect of mergeMaskToRects(mask, layout.width, layout.height, span)) {
       paint.push({ kind: 'floor', rect, material: { kind: 'texture', id: band.floor ?? band.texture } });
     }
   });
+  return paint;
+}
 
+/**
+ * The things laid flat on the ground, marked cell by cell: a model to a cell where the field has
+ * models for them, merged blocks of the mood's skin otherwise.
+ */
+function markedPropBlocks(
+  layout: FieldLayout,
+  atmosphere: FieldAtmosphere,
+  seed: number,
+  span: number,
+  models: boolean,
+  season: FieldSeason
+): MapBlock[] {
+  const blocks: MapBlock[] = [];
   for (const prop of FIELD_PROP_IDS) {
     if (FIELD_PROP_SHAPES[prop].layers) continue;
     const shape = FIELD_PROP_SHAPES[prop];
@@ -278,123 +338,95 @@ export function fieldToBlocks(
       });
     }
   }
+  return blocks;
+}
 
-  if (atmosphere.town) {
-    for (const building of layout.buildings) blocks.push(...buildingBlocks(building, atmosphere.town, span, models));
-  }
-
-  const settled = layout.settlement
-    ? settlementBlocks(layout.settlement, layout.width, layout.height, span, models, gridType)
-    : null;
-  if (settled) {
-    blocks.push(...settled.blocks);
-    paint.push(...settled.paint);
-  }
-
-  // Last laid wins where two patches cover one cell, so a pool goes down over the band it lies in.
-  for (const pool of layout.pools) {
-    paint.push({
-      kind: 'hazard',
-      rect: { x: pool.x, y: pool.y, w: pool.w, h: pool.h },
-      material: { kind: 'texture', id: pool.texture },
-      hazard: pool.hazard,
-    });
-  }
-
-  for (const object of layout.objects) {
-    const shape = FIELD_PROP_SHAPES[object.prop];
-    const skin = object.skin ?? { side: shape.side, top: shape.top };
-    const reach = (object.span - 1) / 2;
-    const rect = { x: object.x - reach, y: object.y - reach, w: object.span, h: object.span };
-    const model = models ? fieldModelAt(object.prop, object.x, object.y, seed, atmosphere.id, season) : null;
-
-    if (model) {
-      blocks.push(modelledThing(object, shape, skin, rect, model));
-      continue;
-    }
-
-    if (shape.trunk) {
-      const trunk = shape.trunk;
-      blocks.push({
-        kind: 'prop',
-        rect: { x: object.x, y: object.y, w: 1, h: 1 },
-        blocksSight: false,
-        locked: false,
-        rooms: [],
-        skin: { side: { kind: 'texture', id: trunk.side }, top: { kind: 'texture', id: trunk.top } },
-        height: trunk.height + object.lift,
-        footprint: { w: trunk.width, d: trunk.width },
-        rotate: object.spin,
-        thing: object.prop,
-      });
-    }
-
-    // Layer on layer, each narrower than the one under it and each sitting a little off it.
-    // They share the one turn: a layer turned past the one below makes a screw, not a rock.
-    // Only what hangs is lifted. A rock or a hill starts on the earth: carrying its own
-    // variation upward would leave it floating a fraction of a cell above the ground it sits on.
-    let standing = shape.altitude != null ? shape.altitude + object.lift : 0;
-    const layers = shape.layers ?? [{ spread: object.span, height: shape.height }];
-    layers.forEach((layer, index) => {
-      const spread = Math.min(layer.spread, object.span);
-      const squash = 1 + object.squash * (index % 2 === 0 ? 1 : -1);
-      blocks.push({
-        kind: 'prop',
-        rect,
-        blocksSight: shape.blocksSight && spread > 1,
-        locked: false,
-        rooms: [],
-        skin: { side: { kind: 'texture', id: skin.side }, top: { kind: 'texture', id: skin.top } },
-        height: layer.height,
-        footprint: { w: spread * squash, d: spread / squash },
-        altitude: standing,
-        rotate: object.spin,
-        offset: object.drift[index],
-        thing: object.prop,
-      });
-      standing += layer.height;
-    });
-
-    for (const arm of shape.arms ?? []) {
-      blocks.push({
-        kind: 'prop',
-        rect: { x: object.x, y: object.y, w: 1, h: 1 },
-        blocksSight: false,
-        locked: false,
-        rooms: [],
-        skin: { side: { kind: 'texture', id: skin.side }, top: { kind: 'texture', id: skin.top } },
-        height: arm.height,
-        footprint: { w: arm.size, d: arm.size },
-        altitude: (shape.altitude ?? 0) + object.lift + arm.at,
-        rotate: object.spin,
-        offset: { x: arm.reach, y: 0 },
-        thing: object.prop,
-      });
-    }
-  }
-
-  const lights = [...findFires(layout, atmosphere, seed), ...(settled?.lights ?? [])].map((light, room) => ({
-    ...light,
-    room,
+/** The pools as hazard paint. Last laid wins where two patches cover one cell, so a pool goes down over the band it lies in. */
+function poolPaint(layout: FieldLayout): MapPaint[] {
+  return layout.pools.map((pool) => ({
+    kind: 'hazard',
+    rect: { x: pool.x, y: pool.y, w: pool.w, h: pool.h },
+    material: { kind: 'texture', id: pool.texture },
+    hazard: pool.hazard,
   }));
+}
 
-  return {
-    blocks,
-    paint,
-    ambiences: [
-      ...watersOf(layout, atmosphere, gridType),
-      ...layout.pools.map((pool) => ({
-        rect: { x: pool.x, y: pool.y, w: pool.w, h: pool.h },
-        kind: pool.kind,
-        density: pool.density,
-        name: pool.name,
-      })),
-      ...(settled?.ambiences ?? []),
-    ],
-    ...(settled && settled.slows.length > 0 ? { slows: settled.slows } : {}),
-    traps: [],
-    torchRooms: lights.map((light) => light.room),
-    torchSpots: lights.map((light) => ({ x: light.x, y: light.y })),
-    lights,
-  };
+/**
+ * One standing thing: its model where the field has one, else its trunk, its layers and its arms.
+ *
+ * Layer on layer, each narrower than the one under it and each sitting a little off it. They share
+ * the one turn: a layer turned past the one below makes a screw, not a rock. Only what hangs is
+ * lifted. A rock or a hill starts on the earth: carrying its own variation upward would leave it
+ * floating a fraction of a cell above the ground it sits on.
+ */
+function standingThingBlocks(
+  object: FieldObject,
+  atmosphere: FieldAtmosphere,
+  seed: number,
+  models: boolean,
+  season: FieldSeason
+): MapBlock[] {
+  const shape = FIELD_PROP_SHAPES[object.prop];
+  const skin = object.skin ?? { side: shape.side, top: shape.top };
+  const reach = (object.span - 1) / 2;
+  const rect = { x: object.x - reach, y: object.y - reach, w: object.span, h: object.span };
+  const model = models ? fieldModelAt(object.prop, object.x, object.y, seed, atmosphere.id, season) : null;
+  if (model) return [modelledThing(object, shape, skin, rect, model)];
+
+  const blocks: MapBlock[] = [];
+  if (shape.trunk) {
+    const trunk = shape.trunk;
+    blocks.push({
+      kind: 'prop',
+      rect: { x: object.x, y: object.y, w: 1, h: 1 },
+      blocksSight: false,
+      locked: false,
+      rooms: [],
+      skin: { side: { kind: 'texture', id: trunk.side }, top: { kind: 'texture', id: trunk.top } },
+      height: trunk.height + object.lift,
+      footprint: { w: trunk.width, d: trunk.width },
+      rotate: object.spin,
+      thing: object.prop,
+    });
+  }
+
+  let standing = shape.altitude != null ? shape.altitude + object.lift : 0;
+  const layers = shape.layers ?? [{ spread: object.span, height: shape.height }];
+  layers.forEach((layer, index) => {
+    const spread = Math.min(layer.spread, object.span);
+    const squash = 1 + object.squash * (index % 2 === 0 ? 1 : -1);
+    blocks.push({
+      kind: 'prop',
+      rect,
+      blocksSight: shape.blocksSight && spread > 1,
+      locked: false,
+      rooms: [],
+      skin: { side: { kind: 'texture', id: skin.side }, top: { kind: 'texture', id: skin.top } },
+      height: layer.height,
+      footprint: { w: spread * squash, d: spread / squash },
+      altitude: standing,
+      rotate: object.spin,
+      offset: object.drift[index],
+      thing: object.prop,
+    });
+    standing += layer.height;
+  });
+
+  for (const arm of shape.arms ?? []) {
+    blocks.push({
+      kind: 'prop',
+      rect: { x: object.x, y: object.y, w: 1, h: 1 },
+      blocksSight: false,
+      locked: false,
+      rooms: [],
+      skin: { side: { kind: 'texture', id: skin.side }, top: { kind: 'texture', id: skin.top } },
+      height: arm.height,
+      footprint: { w: arm.size, d: arm.size },
+      altitude: (shape.altitude ?? 0) + object.lift + arm.at,
+      rotate: object.spin,
+      offset: { x: arm.reach, y: 0 },
+      thing: object.prop,
+    });
+  }
+  return blocks;
 }

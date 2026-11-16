@@ -6,8 +6,8 @@ import {
   emitXmlLoaded,
   type FileTooLarge,
 } from '@axe/core/event/domain-events';
-import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
@@ -86,6 +86,18 @@ export interface ImageLoadResult {
 }
 
 /**
+ * A file as the sound it is, or null for one that is no sound. A browser's word for a file is
+ * taken where it says a sound; otherwise the name decides, since browsers disagree about some
+ * sounds (Firefox calls an `.ogg` a video, and some systems give no type at all), and the file is
+ * then held under the type its name stands for.
+ */
+function asSound(file: File): File | null {
+  if (file.type.startsWith('audio/')) return file;
+  const byName = MimeType.type(file.name);
+  return byName.startsWith('audio/') ? new File([file], file.name, { type: byName }) : null;
+}
+
+/**
  * Whether a dropped file may be room or object XML: typed as plain text or XML, and not
  * named as some other kind of file.
  *
@@ -108,7 +120,7 @@ export class FileArchiver {
     return FileArchiver._instance;
   }
 
-  networkService = Network;
+  networkService = Network.instance;
 
   /**
    * Whether the reader may bring dropped files in, asked at each drop. A guest may not. Until the
@@ -320,8 +332,9 @@ export class FileArchiver {
     return ImageStorage.instance.addAsync(file, { putBack: true });
   }
 
-  private async handleAudio(file: File, run: LoadRun) {
-    if (!file.type.startsWith('audio/')) return;
+  private async handleAudio(given: File, run: LoadRun) {
+    const file = asSound(given);
+    if (!file) return;
     if (file.size > MAX_LOADED_AUDIO_BYTES) {
       Logger.warn(`[FileArchiver] ファイルサイズ制限超過: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
       run.tooLarge.push({ name: file.name, kind: 'audio', limitBytes: MAX_LOADED_AUDIO_BYTES });

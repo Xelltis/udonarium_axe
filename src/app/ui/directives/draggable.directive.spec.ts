@@ -44,6 +44,11 @@ class StackHostComponent {
 })
 class RegionsHostComponent {}
 
+/** Presses the mouse down on an element, as the reader does to take hold of it. */
+function press(element: HTMLElement): void {
+  element.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+}
+
 describe('DraggableDirective', () => {
   it('should be defined', () => {
     expect(DraggableDirective).toBeDefined();
@@ -74,8 +79,7 @@ describe('DraggableDirective', () => {
       directive = fixture.debugElement.children[0].injector.get(DraggableDirective);
       const cancel = vi.spyOn(directive, 'cancel');
 
-      const start = (directive as unknown as { onInputStart(event: MouseEvent): void }).onInputStart.bind(directive);
-      start(new MouseEvent('mousedown', { button: 0 }));
+      press(fixture.debugElement.children[0].nativeElement);
 
       expect(cancel).toHaveBeenCalled();
     });
@@ -86,8 +90,7 @@ describe('DraggableDirective', () => {
       directive = fixture.debugElement.children[0].injector.get(DraggableDirective);
       const cancel = vi.spyOn(directive, 'cancel');
 
-      const start = (directive as unknown as { onInputStart(event: MouseEvent): void }).onInputStart.bind(directive);
-      start(new MouseEvent('mousedown', { button: 0 }));
+      press(fixture.debugElement.children[0].nativeElement);
 
       expect(cancel).not.toHaveBeenCalled();
     });
@@ -98,8 +101,8 @@ describe('DraggableDirective', () => {
       const ended: unknown[] = [];
       directive.onend.subscribe((event) => ended.push(event));
 
-      const end = (directive as unknown as { onInputEnd(event: MouseEvent): void }).onInputEnd.bind(directive);
-      end(new MouseEvent('mouseup'));
+      press(fixture.debugElement.children[0].nativeElement);
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 
       expect(ended).toHaveLength(1);
     });
@@ -140,9 +143,7 @@ describe('DraggableDirective', () => {
       element.style.opacity = '0.5';
       element.style.willChange = 'top, left';
 
-      // call the private method to stand in for onInputEnd
-      // the real handler is internal, so check that destruct is safe to call
-      expect(() => directive['destroy']()).not.toThrow();
+      expect(() => directive.destroy()).not.toThrow();
     });
 
     it('survives a null querySelector result while correcting the position', () => {
@@ -172,9 +173,14 @@ describe('DraggableDirective', () => {
     let fixture: ComponentFixture<RegionsHostComponent>;
     let directive: DraggableDirective;
 
+    /** Whether a press on the element is left to the contents, which no drag then starts from. */
     function claimed(selector: string): boolean {
-      const target = fixture.nativeElement.querySelector(selector) as HTMLElement;
-      return (directive as unknown as { isUnhandleElement(target: HTMLElement): boolean }).isUnhandleElement(target);
+      const started = vi.fn();
+      const listening = directive.onstart.subscribe(started);
+      press(fixture.nativeElement.querySelector(selector) as HTMLElement);
+      directive.cancel();
+      listening.unsubscribe();
+      return !started.mock.calls.length;
     }
 
     beforeEach(async () => {
@@ -222,9 +228,7 @@ describe('DraggableDirective', () => {
     }
 
     function pressOn(fixture: ComponentFixture<StackHostComponent>): void {
-      const directive = fixture.debugElement.children[0].injector.get(DraggableDirective);
-      const start = (directive as unknown as { onInputStart(event: MouseEvent): void }).onInputStart.bind(directive);
-      start(new MouseEvent('mousedown', { button: 0 }));
+      press(fixture.debugElement.children[0].nativeElement);
     }
 
     beforeEach(() => {

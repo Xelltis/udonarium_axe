@@ -2,6 +2,7 @@ import { DestroyRef, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import {
   diceBotUnreachable$,
@@ -26,7 +27,8 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
  *
  * What a rolled command showed goes onto the dice a piece keeps on the table. Only the sender
  * applies it: the faces are synchronised fields, so everybody sees them turn, and applying it at
- * the receiving end as well would set the same dice twice.
+ * the receiving end as well would set the same dice twice. A guest, who may turn no die on the
+ * table by hand, turns none by a roll; on a room server the server would put each face back besides.
  *
  * A line that went unrolled because its game system could not be fetched, or because the room
  * server would not roll it or has not answered, is pointed out to the sender alone, since for
@@ -48,6 +50,7 @@ export class DiceChatEventHandlerService {
   private readonly objectStore = inject(ObjectStore);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly snackbar = inject(SnackbarService);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly t = inject(TRANSLATE_FN);
   /**
    * The line last pointed out as unrolled. One line can go unrolled for each target it was sent to
@@ -64,8 +67,7 @@ export class DiceChatEventHandlerService {
       const source = this.objectStore.get<ChatMessage>(event.sourceMessageIdentifier);
       const result = this.objectStore.get<ChatMessage>(event.resultMessageIdentifier);
       if (!(source instanceof ChatMessage) || !(result instanceof ChatMessage)) return;
-      // A guest on a room server writes no die; the server would put each face back.
-      if (!source.isSendFromSelf || PeerCursor.isMyselfKeptOffTable) return;
+      if (!source.isSendFromSelf || !this.rolePermission.canEditTabletop()) return;
 
       const token = parseDiceChatToken(source.text);
       const rolls = result.rollDetail?.faces ?? [];

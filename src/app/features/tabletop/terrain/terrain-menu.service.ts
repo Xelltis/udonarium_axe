@@ -6,14 +6,12 @@ import { BoardSwitchService } from '@axe/application/tabletop/board-switch.servi
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { switchWasPressed } from '@axe/domain/tabletop/board-switch/board-switch';
-import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { gridSlopeSides } from '@axe/domain/tabletop/terrain-slope';
 import { buildConcealMenu } from '@axe/features/disclosure/concealment-context-menu';
@@ -31,7 +29,6 @@ import { buildTerrainContextMenuModel } from '@axe/features/tabletop/terrain/ter
  */
 @Injectable({ providedIn: 'root' })
 export class TerrainMenuService {
-  private readonly contextMenuService = inject(ContextMenuService);
   private readonly createMenu = inject(CreateObjectMenuService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly objectPanels = inject(ObjectPanelService);
@@ -97,20 +94,7 @@ export class TerrainMenuService {
       gridSlopeSides(this.tabletopService.currentTable.gridType),
       switchEntries
     );
-    const display = this.tabletopService.display();
-    if (this.tabletopService.mode2d() && display.tabletopMenuStyle !== 'standard') {
-      this.contextMenuService.openRadial(
-        menuPosition,
-        menu.actions,
-        menu.radialGroups,
-        terrain.name,
-        display.tabletopMenuStyle === 'radial',
-        display.radialMenuRotationSpeed,
-        multiAngleFontScaleFactor(display.multiAngleFontScale)
-      );
-      return;
-    }
-    this.contextMenuService.open(menuPosition, menu.actions, terrain.name);
+    this.pieceContextMenu.openPieceMenu(menuPosition, menu, terrain.name);
   }
 
   private showDetail(terrain: Terrain): void {

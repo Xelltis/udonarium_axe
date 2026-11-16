@@ -3,7 +3,7 @@ import { SwitchNoticeService } from '@axe/features/tabletop/board-switch/switch-
 
 /** The word beside the pointer about a press on painted ground that came to nothing. */
 @Component({
-  selector: 'app-switch-notice',
+  selector: 'switch-notice',
   templateUrl: './switch-notice.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents' },

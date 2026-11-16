@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { DungeonPropId, TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
 import { FurnishingPlan } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { RoomShape } from '@axe/domain/tabletop/dungeon/room-shapes';
@@ -60,7 +61,7 @@ export const MAX_WALL_HEIGHT = 6;
 /** A dungeon wall height rounded to the nearest half and kept within range; not a number gives the lowest. */
 export function clampWallHeight(height: number): number {
   if (!Number.isFinite(height)) return MIN_WALL_HEIGHT;
-  return Math.min(MAX_WALL_HEIGHT, Math.max(MIN_WALL_HEIGHT, Math.round(height * 2) / 2));
+  return clamp(Math.round(height * 2) / 2, MIN_WALL_HEIGHT, MAX_WALL_HEIGHT);
 }
 
 /**

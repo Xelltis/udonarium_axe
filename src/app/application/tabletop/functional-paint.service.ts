@@ -1,6 +1,7 @@
-import { inject, Injectable } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectNode } from '@axe/core/sync/object-node';
+import { clamp } from '@axe/core/util/clamp';
 import { ambienceKindOf } from '@axe/domain/effect/ambience/ambience-kind';
 import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
 import { stashOf } from '@axe/domain/tabletop/board-switch/concealment';
@@ -164,7 +165,7 @@ const MASK_OPACITY_FULL = 100;
 function setMaskOpacity(mask: GameTableMask, fraction: number): void {
   const element = mask.commonDataElement?.getFirstElementByName('opacity');
   if (!element) return;
-  element.currentValue = Math.round(Math.min(1, Math.max(0, fraction)) * MASK_OPACITY_FULL);
+  element.currentValue = Math.round(clamp(fraction, 0, 1) * MASK_OPACITY_FULL);
 }
 
 /** The cells a table is closed on, in the editor's own way of naming them. */
@@ -335,7 +336,9 @@ function moveCostSpecOf(area: TableMoveCost): MoveCostPaintSpec {
 
 @Injectable({ providedIn: 'root' })
 export class FunctionalPaintService {
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
 
   /** Lays what was painted on the table, making and unmaking only the blocks the plan names. */
   apply(plan: FunctionPaintPlan): boolean {

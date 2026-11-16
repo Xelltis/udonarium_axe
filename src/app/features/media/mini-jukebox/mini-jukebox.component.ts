@@ -1,10 +1,11 @@
 import {
-  afterEveryRender,
   afterNextRender,
+  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
+  effect,
   ElementRef,
   inject,
   linkedSignal,
@@ -17,15 +18,14 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
+import { observeSize } from '@axe/core/util/observe-size';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { BackgroundSoundPlaybackService } from '@axe/features/media/background-sound-playback.service';
-import {
-  formatTrackLength,
-  formatTrackTime,
-  JukeboxPlaybackService,
-} from '@axe/features/media/jukebox-playback.service';
+import { JukeboxPlaybackService } from '@axe/features/media/jukebox-playback.service';
+import { JukeboxSeekBar } from '@axe/features/media/jukebox-seek-bar';
 import { DjDeckComponent } from '@axe/features/media/mini-jukebox/dj-deck/dj-deck.component';
 import { readDeckOpen, writeDeckOpen } from '@axe/features/media/mini-jukebox/dj-deck-preference';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -34,8 +34,9 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-mini-jukebox',
+  selector: 'mini-jukebox',
   templateUrl: './mini-jukebox.component.html',
+  providers: [JukeboxSeekBar],
   imports: [TextTooltipDirective, FormsModule, DraggableDirective, TranslocoModule, DjDeckComponent],
 })
 export class MiniJukeboxComponent {
@@ -51,15 +52,17 @@ export class MiniJukeboxComponent {
   readonly isMinimized = signal(false);
   /** Whether the DJ deck is open under the player, remembered in this browser. */
   readonly isDeckOpen = signal(readDeckOpen());
+  /**
+   * Whether the track's name is too long for its box and so slides along it. Measured when the
+   * name or the width of its box changes, not on every draw of the player.
+   */
   readonly isTitleScrolling = signal(false);
-  readonly isSeekLocked = computed<boolean>(() => {
-    this.objectChange.versionOf('Jukebox')();
-    return this.jukebox?.isSeekLocked ?? true;
-  });
+  private readonly titleBoxWidth = signal(0);
+  readonly isSeekLocked = this.playback.isSeekLocked;
+  /** The seek bar over the room's track, with the drag on it that is this player's own. */
+  protected readonly seekBar = inject(JukeboxSeekBar);
   readonly playerEl = viewChild.required<ElementRef<HTMLElement>>('playerEl');
   readonly titleTextEl = viewChild<ElementRef<HTMLElement>>('titleTextEl');
-
-  private readonly _tick = signal(0);
 
   /** The sound the jukebox last played, kept while it is stopped so it can be played again. */
   readonly lastAudioIdentifier = linkedSignal<string, string>({
@@ -85,25 +88,27 @@ export class MiniJukeboxComponent {
       this.expandedWidth = el.offsetWidth;
       this.expandedHeight = el.offsetHeight;
     });
-    afterEveryRender(() => {
-      const textEl = this.titleTextEl()?.nativeElement;
-      if (!textEl) {
-        this.isTitleScrolling.set(false);
-        return;
-      }
-      const containerEl = textEl.parentElement;
-      if (!containerEl) return;
-      const overflow = textEl.scrollWidth - containerEl.clientWidth;
-      if (overflow > 2) {
-        textEl.style.setProperty('--scroll-dist', `-${overflow}px`);
-        this.isTitleScrolling.set(true);
-      } else {
-        textEl.style.removeProperty('--scroll-dist');
-        this.isTitleScrolling.set(false);
-      }
+    effect((onCleanup) => {
+      const box = this.titleTextEl()?.nativeElement.parentElement;
+      if (!box) return;
+      onCleanup(observeSize(box, (size) => this.titleBoxWidth.set(size.width)));
     });
-    const timer = setInterval(() => this._tick.update((v) => v + 1), 250);
-    this.destroyRef.onDestroy(() => clearInterval(timer));
+    afterRenderEffect({
+      earlyRead: () => {
+        this.trackName();
+        this.titleBoxWidth();
+        const textEl = this.titleTextEl()?.nativeElement;
+        const box = textEl?.parentElement;
+        return textEl && box ? textEl.scrollWidth - box.clientWidth : 0;
+      },
+      write: (overflow) => {
+        const textEl = this.titleTextEl()?.nativeElement;
+        const scrolls = !!textEl && overflow() > 2;
+        if (scrolls) textEl.style.setProperty('--scroll-dist', `-${overflow()}px`);
+        else textEl?.style.removeProperty('--scroll-dist');
+        this.isTitleScrolling.set(scrolls);
+      },
+    });
   }
 
   private get jukebox(): Jukebox | null {
@@ -155,35 +160,17 @@ export class MiniJukeboxComponent {
   );
 
   readonly artworkUrl = computed(() => {
-    this._tick();
+    this.playback.clock();
     this.objectChange.versionOf('Jukebox')();
     return this.jukebox?.audio?.artworkUrl ?? null;
   });
 
-  readonly progress = computed(() => {
-    this._tick();
-    this.objectChange.versionOf('Jukebox')();
-    const ct = this.playback.position();
-    const dur = this.playback.duration();
-    return dur > 0 && isFinite(dur) ? ct / dur : 0;
-  });
-
-  readonly isSeeking = signal(false);
-  readonly seekPreview = signal(0);
-  readonly displayProgress = computed(() => (this.isSeeking() ? this.seekPreview() : this.progress()));
-
-  readonly timeDisplay = computed(() => {
-    this._tick();
-    this.objectChange.versionOf('Jukebox')();
-    if (!this.isPlaying() && !this.isPaused()) return '—';
-    const dur = this.playback.duration();
-    const ct = this.isSeeking() ? this.seekPreview() * dur : this.playback.position();
-    return `${formatTrackTime(ct)} / ${dur > 0 ? formatTrackLength(dur) : '—'}`;
-  });
+  /** The position and length of the room's track, or a dash while no track is held. */
+  readonly timeDisplay = computed(() => this.seekBar.time() ?? '—');
 
   /** Where the places marked in the room's track lie along the seek bar, as percentages of its length. */
   readonly cueMarks = computed<{ slot: number; percent: number }[]>(() => {
-    this._tick();
+    this.playback.clock();
     this.objectChange.versionOf('Jukebox')();
     const identifier = this.jukebox?.audioIdentifier ?? '';
     if (!identifier) return [];
@@ -231,28 +218,6 @@ export class MiniJukeboxComponent {
     this.playback.stepPlaylist(direction);
   }
 
-  /** Shows where the seek bar is being dragged to without moving playback yet. */
-  onSeekInput(event: Event) {
-    const value = (event.target as HTMLInputElement).valueAsNumber / 100;
-    this.isSeeking.set(true);
-    this.seekPreview.set(value);
-  }
-
-  /**
-   * Seeks the room's music to where the user let go of the seek bar.
-   *
-   * The seek is skipped while the track's duration is unknown, but the drag preview ends either
-   * way.
-   */
-  onSeekCommit(event: Event) {
-    const value = (event.target as HTMLInputElement).valueAsNumber / 100;
-    const dur = this.playback.duration();
-    if (isFinite(dur) && dur > 0) {
-      this.playback.seek(value * dur);
-    }
-    this.isSeeking.set(false);
-  }
-
   /** Opens or closes the track list under the player. */
   togglePlaylist() {
     this.isPlaylistOpen.update((v) => !v);
@@ -263,13 +228,6 @@ export class MiniJukeboxComponent {
     const open = !this.isDeckOpen();
     this.isDeckOpen.set(open);
     writeDeckOpen(open);
-  }
-
-  /**
-   * Locks or unlocks the seek bar; the lock is kept on the jukebox, so it holds for the whole room.
-   */
-  toggleSeekLock() {
-    if (this.jukebox && this.canOperate()) this.jukebox.isSeekLocked = !this.jukebox.isSeekLocked;
   }
 
   /**
@@ -287,8 +245,8 @@ export class MiniJukeboxComponent {
       const margin = 3;
       const maxLeft = Math.max(margin, window.innerWidth - this.expandedWidth - margin);
       const maxTop = Math.max(margin, window.innerHeight - this.expandedHeight - margin);
-      const left = Math.min(Math.max(parseFloat(this.initialLeft) || 0, margin), maxLeft);
-      const top = Math.min(Math.max(parseFloat(this.initialTop) || 0, margin), maxTop);
+      const left = clamp(parseFloat(this.initialLeft) || 0, margin, maxLeft);
+      const top = clamp(parseFloat(this.initialTop) || 0, margin, maxTop);
       el.style.left = `${left}px`;
       el.style.top = `${top}px`;
     }

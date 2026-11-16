@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { Lch, lchToRgb, parseHexColor, relativeLuminance, rgbToLch } from '@axe/core/util/tonal-color';
 
 /** Which side of the light/dark switch a skin dresses. */
@@ -193,7 +194,7 @@ function rampOf(mode: SkinMode, contrast: SkinContrast): Ramp {
 
 function hex(lch: Lch): string {
   const byte = (channel: number) =>
-    Math.round(Math.min(1, Math.max(0, channel)) * 255)
+    Math.round(clamp(channel, 0, 1) * 255)
       .toString(16)
       .padStart(2, '0');
   const [r, g, b] = lchToRgb(lch);
@@ -202,7 +203,7 @@ function hex(lch: Lch): string {
 
 function alpha(lch: Lch, amount: number): string {
   const [r, g, b] = lchToRgb(lch);
-  const byte = (channel: number) => Math.round(Math.min(1, Math.max(0, channel)) * 255);
+  const byte = (channel: number) => Math.round(clamp(channel, 0, 1) * 255);
   return `rgba(${byte(r)}, ${byte(g)}, ${byte(b)}, ${Number(amount.toFixed(3))})`;
 }
 
@@ -221,13 +222,13 @@ function ground(tone: number, ramp: Ramp): number {
 const READABLE_GROUND = 68;
 
 function surface(stop: Stop, recipe: SkinRecipe, ramp: Ramp): Lch {
-  const lift = Math.max(-MAX_LIFT, Math.min(MAX_LIFT, recipe.lift ?? 0));
-  const spread = Math.max(MIN_SPREAD, Math.min(MAX_SPREAD, recipe.spread ?? 0));
+  const lift = clamp(recipe.lift ?? 0, -MAX_LIFT, MAX_LIFT);
+  const spread = clamp(recipe.spread ?? 0, MIN_SPREAD, MAX_SPREAD);
   const reach = Math.abs(ramp.elevated.tone - ramp.bg.tone) || 1;
   const below = ramp.elevated.tone - stop.tone;
   const moved = stop.tone - (spread * below) / reach + lift;
   const tone = below > 0 ? ground(moved, ramp) : moved;
-  return { tone: Math.max(2, Math.min(98, tone)), chroma: recipe.chroma * stop.share, hue: recipe.hue };
+  return { tone: clamp(tone, 2, 98), chroma: recipe.chroma * stop.share, hue: recipe.hue };
 }
 
 /** The colour the ink is drawn in, which is the surfaces' own hue unless a skin says otherwise. */

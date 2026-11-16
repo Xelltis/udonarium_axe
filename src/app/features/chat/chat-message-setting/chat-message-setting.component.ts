@@ -164,7 +164,7 @@ export class ChatMessageSettingComponent {
    * here.
    */
   get chatTabList(): ChatTabList {
-    return this.objectStore.get<ChatTabList>('ChatTabList')!;
+    return ChatTabList.instance;
   }
 
   /**
@@ -277,30 +277,11 @@ export class ChatMessageSettingComponent {
     this.uiSignalService.notifyChatRedraw();
   }
 
-  /** Redraws the chat after the compact display is changed. */
-  changeSimpleDisp() {
-    this.uiSignalService.notifyChatRedraw();
-  }
-
-  /** Redraws the chat once the box for showing times in the compact display is clicked. */
-  changeDispFlagTime() {
-    this.uiSignalService.notifyChatRedraw();
-  }
-
-  /** Redraws the chat once the box for showing IDs in the compact display is clicked. */
-  changeDispFlagUserId() {
-    this.uiSignalService.notifyChatRedraw();
-  }
-
   /**
-   * Answers a click on the box for showing portraits inside the window. The box writes the setting
-   * itself, so there is nothing more to do.
+   * Redraws the chat once a box of the compact display, for showing times or IDs, is clicked. The
+   * box writes the setting itself.
    */
-  changePortraitInWindow() {}
-
-  /**
-   * Answers a click on the box for keeping portraits outside the window. The box writes the setting
-   * itself, so there is nothing more to do.
-   */
-  changeKeepPortraitOutWindow() {}
+  redrawChat(): void {
+    this.uiSignalService.notifyChatRedraw();
+  }
 }

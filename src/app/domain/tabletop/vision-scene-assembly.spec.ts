@@ -241,6 +241,14 @@ describe('vision scene assembly', () => {
     expect(casters[0]).toEqual(expect.objectContaining({ x: 125, y: 125, radiusPx: 25 }));
   });
 
+  it('throws no shadow from a piece of no size, which is drawn as a point', () => {
+    const point = standing('Point', 100, 100);
+    point.size = 0;
+    point.castsShadow = true;
+
+    expect(collectShadowCasters([point], 50)).toEqual([]);
+  });
+
   it('gives every visible floor character eyes at its centre', () => {
     const seer = standing('Seer', 100, 100);
     seer.visionRange = 4;

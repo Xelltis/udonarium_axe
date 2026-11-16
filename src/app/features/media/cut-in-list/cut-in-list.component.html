@@ -17,14 +17,14 @@
     </div>
 
     <ul class="m-0 flex-1 list-none overflow-y-auto px-0 py-1" role="listbox">
-      @for (cutIn of getCutIns(); track cutIn.identifier) {
+      @for (cutIn of cutIns(); track cutIn.identifier) {
         <li
           class="text-ui-muted hover:bg-ui-hover hover:text-ui-text mx-1 flex cursor-pointer items-center gap-1.5 rounded-sm px-2.5 py-1.5 transition-[background]"
-          [class.bg-ui-accent-bg!]="selectedCutIn?.identifier === cutIn.identifier"
-          [class.text-ui-accent!]="selectedCutIn?.identifier === cutIn.identifier"
+          [class.bg-ui-accent-bg!]="selectedCutIn()?.identifier === cutIn.identifier"
+          [class.text-ui-accent!]="selectedCutIn()?.identifier === cutIn.identifier"
           (click)="selectCutIn(cutIn.identifier)"
           role="option"
-          [attr.aria-selected]="selectedCutIn?.identifier === cutIn.identifier"
+          [attr.aria-selected]="selectedCutIn()?.identifier === cutIn.identifier"
         >
           <i class="material-icons shrink-0 text-[15px]! opacity-70">slideshow</i>
           <span class="truncate text-[13px]" [appTextTooltip]="cutIn.name">{{ cutIn.name }}</span>
@@ -71,7 +71,7 @@
       </div>
     }
 
-    @if (!isEmpty && !selectedCutIn) {
+    @if (!isEmpty && !selectedCutIn()) {
       <div
         class="text-ui-dim flex flex-1 flex-col items-center justify-center gap-2.5 p-6 text-center [&_.material-icons]:text-[40px]! [&_.material-icons]:opacity-40"
       >
@@ -80,7 +80,7 @@
       </div>
     }
 
-    @if (selectedCutIn) {
+    @if (selectedCutIn()) {
       <div class="border-ui-border-panel flex shrink-0 gap-1 border-b border-solid px-2 pt-2" role="tablist">
         @for (tab of tabs; track tab) {
           <button
@@ -99,15 +99,15 @@
       </div>
     }
 
-    @if (selectedCutIn && activeTab() === 'Basic') {
-      <cut-in-editor [cutIn]="selectedCutIn" [isEditable]="isEditable" />
+    @if (selectedCutIn() && activeTab() === 'Basic') {
+      <cut-in-editor [cutIn]="selectedCutIn()" [isEditable]="isEditable" />
     }
 
-    @if (selectedCutIn && activeTab() === 'Scene') {
-      <cut-in-scene-editor class="min-h-0 flex-1" [cutIn]="selectedCutIn" [isEditable]="isEditable" />
+    @if (selectedCutIn() && activeTab() === 'Scene') {
+      <cut-in-scene-editor class="min-h-0 flex-1" [cutIn]="selectedCutIn()" [isEditable]="isEditable" />
     }
 
-    @if (selectedCutIn) {
+    @if (selectedCutIn()) {
       <div class="border-ui-border-panel bg-ui-panel flex shrink-0 gap-2 border-t border-solid px-3.5 py-2.5">
         <button
           class="bg-ui-accent-solid rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border-none px-3 py-1.25 text-[13px] font-semibold text-white transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50 [&_.material-icons]:text-[15px]!"

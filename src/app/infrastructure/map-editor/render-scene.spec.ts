@@ -290,6 +290,30 @@ describe('renderScene', () => {
       expect(stepFills(ctx)).toBeGreaterThan(0);
     });
 
+    it('mixes the colours of the kinds of ground a sample is painted with, in their shares', () => {
+      const ctx = createMockCtx();
+      const styles = new Map<string, number>();
+      const fill = ctx.fillRect.bind(ctx);
+      ctx.fillRect = (...args: Parameters<CanvasRenderingContext2D['fillRect']>) => {
+        styles.set(String(ctx.fillStyle), (styles.get(String(ctx.fillStyle)) ?? 0) + 1);
+        fill(...args);
+      };
+      const layer = createLayer('relief', 'relief') as ReliefLayer;
+      dabRelief(layer, { kind: 'paint', x: 1, y: 1, radius: 1, strength: 1, layer: 'sand' });
+      dabRelief(layer, { kind: 'paint', x: 1.4, y: 1, radius: 0.6, strength: 0.5, layer: 'grass' });
+      dabRelief(layer, { kind: 'paint', x: 0.8, y: 1.2, radius: 0.5, strength: 0.3, layer: 'rock' });
+
+      renderScene(ctx, sceneWith(layer), helpers, { drawGrid: false, drawFunctionLayers: true });
+
+      expect([...styles.entries()]).toEqual([
+        ['rgba(217, 194, 140, 0.13999999999999999)', 4],
+        ['rgba(217, 194, 140, 0.3733333333333333)', 1],
+        ['rgba(207, 187, 139, 0.42)', 2],
+        ['rgba(188, 178, 128, 0.7)', 1],
+        ['rgba(137, 158, 88, 0.5133333333333333)', 1],
+      ]);
+    });
+
     it('tints every sample it raises, and lines where it crosses a whole cell', () => {
       const ctx = createMockCtx();
 

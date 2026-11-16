@@ -35,6 +35,13 @@
   --ui-text: #e6edf3;
   --ui-text-muted: #8b949e;
   --ui-text-dim: #677079;
+  /* Small text that tells something, such as a count or a kind: 4.5:1 or more on every ground.
+     Mixed from the text colours, as the three below are from theirs, so a skin carries them along */
+  --ui-text-meta: color-mix(in srgb, var(--ui-text) 50%, var(--ui-text-muted));
+  /* A word picked out among such text, such as a reach that takes in an area */
+  --ui-text-notable: var(--ui-warning);
+  /* What is written on the accent colour */
+  --ui-accent-ink: var(--ui-bg);
 
   /* Accent (electric blue) */
   --ui-accent: #58a6ff;
@@ -66,6 +73,10 @@
   /* Input fields */
   --ui-input-bg: rgba(13, 17, 23, 0.8);
   --ui-input-border: rgba(48, 54, 61, 0.8);
+  /* The outline of a button or a field that has to be told from the ground: 3:1 or more */
+  --ui-control-border: color-mix(in srgb, var(--ui-text-muted) 75%, var(--ui-elevated));
+  /* The ground a mark drawn in an effect's own bright colours stands on, dark in both themes */
+  --ui-glyph-bg: var(--ui-bg);
 
   /* Shadows */
   --ui-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
@@ -112,6 +123,9 @@
   --ui-text: #4c4564;
   --ui-text-muted: #6e6486;
   --ui-text-dim: #7f7494;
+  --ui-text-meta: color-mix(in srgb, var(--ui-text) 75%, var(--ui-text-muted));
+  --ui-text-notable: color-mix(in srgb, var(--ui-warning) 80%, black);
+  --ui-accent-ink: #ffffff;
   --color-ui-accent-solid: var(--color-ui-accent);
 
   --ui-accent: #1e66f5;
@@ -138,6 +152,8 @@
 
   --ui-input-bg: #ebe2f1;
   --ui-input-border: rgba(91, 64, 116, 0.28);
+  --ui-control-border: color-mix(in srgb, var(--ui-text) 70%, var(--ui-elevated));
+  --ui-glyph-bg: color-mix(in srgb, var(--ui-text) 85%, black);
 
   --ui-shadow-sm: 0 2px 8px rgba(91, 64, 116, 0.14);
   --ui-shadow-md: 0 4px 20px rgba(91, 64, 116, 0.18), 0 1px 4px rgba(91, 64, 116, 0.1);

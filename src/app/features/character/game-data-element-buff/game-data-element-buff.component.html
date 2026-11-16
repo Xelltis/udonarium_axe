@@ -129,6 +129,25 @@
                   <option [ngValue]="choice">{{ 'feature.character.buff.timing_' + choice | transloco }}</option>
                 }
               </select>
+              <i
+                class="material-icons text-ui-dim text-[13px]! leading-none"
+                data-testid="buff-row-kind-cue"
+                aria-hidden="true"
+                >swap_vert</i
+              >
+              <select
+                class="text-ui-muted hover:bg-ui-hover focus:bg-ui-input rounded-ui-sm cursor-pointer border-none bg-transparent p-0.5 text-[11px] outline-none"
+                name="buffKind"
+                data-testid="buff-row-kind"
+                [ngModel]="kind()"
+                (ngModelChange)="selectKind($event)"
+                [title]="'feature.character.buff.kind' | transloco"
+                [attr.aria-label]="'feature.character.buff.kind' | transloco"
+              >
+                @for (choice of kindChoices; track choice) {
+                  <option [ngValue]="choice">{{ 'feature.character.buff.kind_' + choice | transloco }}</option>
+                }
+              </select>
               @if (timing() !== 'roundEnd') {
                 <select
                   class="text-ui-muted hover:bg-ui-hover focus:bg-ui-input rounded-ui-sm min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0.5 text-[11px] outline-none"
@@ -145,6 +164,33 @@
                 </select>
               }
             </div>
+            @if (canTimeEffect()) {
+              <div class="col-span-3 -mt-0.5 flex items-center gap-1 pl-7">
+                <i class="material-icons text-ui-dim text-[13px]! leading-none" aria-hidden="true">autorenew</i>
+                <select
+                  class="text-ui-muted hover:bg-ui-hover focus:bg-ui-input rounded-ui-sm cursor-pointer border-none bg-transparent p-0.5 text-[11px] outline-none"
+                  name="buffEffectTiming"
+                  data-testid="buff-row-effect-timing"
+                  [ngModel]="effectTiming()"
+                  (ngModelChange)="selectEffectTiming($event)"
+                  [title]="'feature.character.buff.effectTiming' | transloco"
+                >
+                  <option [ngValue]="''">
+                    {{
+                      (expires()
+                        ? 'feature.character.buff.effectTiming_onCount'
+                        : 'feature.character.buff.effectTiming_everyRound'
+                      ) | transloco
+                    }}
+                  </option>
+                  @for (choice of effectTimingChoices; track choice) {
+                    <option [ngValue]="choice">
+                      {{ 'feature.character.buff.effectTiming_' + choice | transloco }}
+                    </option>
+                  }
+                </select>
+              </div>
+            }
           </div>
         }
         @default {
@@ -193,6 +239,11 @@
             <buff-badge [badge]="badge()"></buff-badge>
           </span>
           <span data-testid="buff-row-text">{{ name }} / {{ currentValue }} / {{ expires() ? value : '∞' }}R</span>
+          @if (badge().effectTiming; as moment) {
+            <span class="text-[0.8em] opacity-80" data-testid="buff-row-effect-timing-mark">
+              {{ 'feature.character.buff.effectTimingMark_' + moment | transloco }}</span
+            >
+          }
         </span>
       }
     }

@@ -610,6 +610,8 @@ const isMember = (value: unknown): value is Member =>
 
 const isStringOrNull = (value: unknown): boolean => value === null || typeof value === 'string';
 const isNumberOrNull = (value: unknown): boolean => value === null || typeof value === 'number';
+/** Whether a value is a number or nothing, as a field the server may leave out. */
+const isOptionalNumber = (value: unknown): boolean => value === undefined || typeof value === 'number';
 
 const isEvent = (value: unknown): value is EventContext => isRecord(value) && typeof value['eventName'] === 'string';
 
@@ -665,7 +667,9 @@ export function readServerMessage(value: unknown): ServerMessage | null {
         ? (value as unknown as SeenMessage)
         : null;
     case 'error':
-      return typeof value['code'] === 'string' ? (value as unknown as ErrorMessage) : null;
+      return typeof value['code'] === 'string' && isOptionalNumber(value['protocolVersion'])
+        ? (value as unknown as ErrorMessage)
+        : null;
     default:
       return null;
   }

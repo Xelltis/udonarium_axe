@@ -2,10 +2,7 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ContextMenuType } from '@axe/application/ui/context-menu.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
-import {
-  buildTextNoteContextMenu,
-  buildTextNoteContextMenuModel,
-} from '@axe/features/tabletop/text-note/text-note-context-menu';
+import { buildTextNoteContextMenuModel } from '@axe/features/tabletop/text-note/text-note-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const t = createSyncTranslate('ja');
@@ -34,14 +31,14 @@ function makeTextNote(
     isUpright: false,
     location: { x: 0, y: 0 },
     destroy: vi.fn(),
-    clone: vi.fn(() => ({ location: { x: 0, y: 0 }, toTopmost: vi.fn() })),
+    clone: vi.fn(() => ({ location: { x: 0, y: 0 }, toTopmost: vi.fn(), update: vi.fn() })),
     ...overrides,
   };
 }
 
 const names = (a: { name: string }[]) => a.map((x) => x.name);
 
-describe('buildTextNoteContextMenu()', () => {
+describe('buildTextNoteContextMenuModel()', () => {
   beforeEach(() => {
     PeerCursor.myCursor = null!;
   });
@@ -66,13 +63,13 @@ describe('buildTextNoteContextMenu()', () => {
 
   it('leads with editing the note, and offers altitude, standing, locking, copying and deleting', () => {
     const note = makeTextNote();
-    const menu = buildTextNoteContextMenu(
+    const menu = buildTextNoteContextMenuModel(
       note as unknown as TextNote,
       50,
       makeService(),
       { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
-    );
+    ).actions;
     expect(menu[0].name).toBe('メモを編集');
     const altitude = menu.find((m) => m.name === '高度設定');
     expect(altitude?.subActions?.length).toBe(2);
@@ -85,13 +82,13 @@ describe('buildTextNoteContextMenu()', () => {
 
   it('offers to unlock what is locked, and does', () => {
     const note = makeTextNote({ isLock: true });
-    const menu = buildTextNoteContextMenu(
+    const menu = buildTextNoteContextMenuModel(
       note as unknown as TextNote,
       50,
       makeService(),
       { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
-    );
+    ).actions;
     const unlockEntry = menu.find((m) => m.name === '固定解除');
     expect(unlockEntry).toBeDefined();
     unlockEntry!.action!();
@@ -100,80 +97,81 @@ describe('buildTextNoteContextMenu()', () => {
 
   it('offers to lay down what stands and to stand up what lies flat', () => {
     const standing = makeTextNote({ isUpright: true });
-    const standingMenu = buildTextNoteContextMenu(
+    const standingMenu = buildTextNoteContextMenuModel(
       standing as unknown as TextNote,
       50,
       makeService(),
       { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
-    );
+    ).actions;
     expect(names(standingMenu)).toContain('寝かせる');
 
     const laying = makeTextNote({ isUpright: false });
-    const layingMenu = buildTextNoteContextMenu(
+    const layingMenu = buildTextNoteContextMenuModel(
       laying as unknown as TextNote,
       50,
       makeService(),
       { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
-    );
+    ).actions;
     expect(names(layingMenu)).toContain('直立させる');
   });
 
   it('opens the note for editing', () => {
     const note = makeTextNote();
     const onShowDetail = vi.fn();
-    const menu = buildTextNoteContextMenu(
+    const menu = buildTextNoteContextMenuModel(
       note as unknown as TextNote,
       50,
       makeService(),
       { onSetUpright: vi.fn(), onShowDetail },
       t
-    );
+    ).actions;
     menu.find((m) => m.name === 'メモを編集')!.action!();
     expect(onShowDetail).toHaveBeenCalled();
   });
 
   it('destroys the note', () => {
     const note = makeTextNote();
-    const menu = buildTextNoteContextMenu(
+    const menu = buildTextNoteContextMenuModel(
       note as unknown as TextNote,
       50,
       makeService(),
       { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
-    );
+    ).actions;
     menu.find((m) => m.name === '削除する')!.action!();
     expect(note.destroy).toHaveBeenCalled();
   });
 
   it('makes a copy a cell down and across, laid over the rest', () => {
-    const copy = { location: { x: 100, y: 150 }, toTopmost: vi.fn() };
+    const copy = { location: { x: 100, y: 150 }, toTopmost: vi.fn(), update: vi.fn() };
     const note = makeTextNote({ clone: vi.fn(() => copy) });
-    const menu = buildTextNoteContextMenu(
+    const menu = buildTextNoteContextMenuModel(
       note as unknown as TextNote,
       50,
       makeService(),
       { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
-    );
+    ).actions;
 
     menu.find((m) => m.name === 'コピーを作る')!.action!();
 
     expect(note.clone).toHaveBeenCalledOnce();
     expect(copy.location).toEqual({ x: 150, y: 200 });
     expect(copy.toTopmost).toHaveBeenCalled();
+    expect(copy.update).toHaveBeenCalled();
   });
 
   it('draws exactly two separators without permission', () => {
     const note = makeTextNote();
-    const menu = buildTextNoteContextMenu(
+    const menu = buildTextNoteContextMenuModel(
       note as unknown as TextNote,
       50,
       makeService(),
       { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
-    );
+    ).actions;
     expect(menu.filter((m) => m.type === ContextMenuType.SEPARATOR)).toHaveLength(2);
   });
 

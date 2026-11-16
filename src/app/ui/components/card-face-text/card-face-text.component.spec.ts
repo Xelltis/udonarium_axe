@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { Card, CardState } from '@axe/domain/card/card';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -17,7 +17,7 @@ describe('CardFaceTextComponent', () => {
       providers: [...TEST_PROVIDERS],
     }).compileComponents();
 
-    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'me' } as IPeerContext);
+    vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'me' } as IPeerContext);
     fixture = TestBed.createComponent(CardFaceTextComponent);
     objectChange = TestBed.inject(ObjectChangeService);
     card = Card.create('Card', 'front.png', 'back.png');

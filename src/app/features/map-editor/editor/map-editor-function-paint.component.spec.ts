@@ -87,4 +87,51 @@ describe('MapEditorFunctionPaintComponent', () => {
       expect(dresser().state.functionSpec().terrain.images.wall).toBe('already-kept');
     });
   });
+
+  describe('the yes-or-no settings of the terrain brush', () => {
+    const FLAGS = [
+      'blocksSight',
+      'blocksLight',
+      'blocksClimb',
+      'tiledTexture',
+      'showsGrid',
+      'dropShadow',
+      'surfaceShading',
+    ] as const;
+
+    function state(): MapEditorState {
+      return (component as unknown as { state: MapEditorState }).state;
+    }
+
+    function boxes(): HTMLInputElement[] {
+      return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('input[type="checkbox"]'));
+    }
+
+    beforeEach(async () => {
+      state().functionRole.set('terrain');
+      await fixture.whenStable();
+    });
+
+    it('stand as checkboxes in their order, each showing what the brush holds', async () => {
+      const held = FLAGS.map((flag) => state().functionSpec().terrain[flag]);
+
+      expect(
+        boxes()
+          .slice(-FLAGS.length)
+          .map((box) => box.checked)
+      ).toEqual(held);
+    });
+
+    it('each write the one setting they stand for', async () => {
+      for (const [index, flag] of FLAGS.entries()) {
+        const before = { ...state().functionSpec().terrain };
+        const box = boxes().slice(-FLAGS.length)[index];
+
+        box.click();
+        await fixture.whenStable();
+
+        expect(state().functionSpec().terrain).toEqual({ ...before, [flag]: !before[flag] });
+      }
+    });
+  });
 });

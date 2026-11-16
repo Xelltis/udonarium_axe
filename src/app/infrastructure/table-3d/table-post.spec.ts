@@ -38,6 +38,29 @@ describe('TablePost', () => {
     expect(compileAsync.mock.calls.map(([thing]) => thing)).toEqual([first]);
   });
 
+  it('readies a thing standing apart from the scene as it would be drawn in the scene, drawing onto the canvas again after', async () => {
+    const staging = new Scene();
+    const canvas = { isCanvas: true };
+    const order: string[] = [];
+    const compileAsync = vi.fn(async (thing: Object3D, _camera: unknown, target: Scene) => {
+      order.push(
+        `readied ${thing === staging ? 'apart' : 'within'} ${target === scene ? 'in the scene' : 'elsewhere'}`
+      );
+    });
+    const renderer = {
+      compileAsync,
+      getRenderTarget: () => canvas,
+      getMRT: () => null,
+      setRenderTarget: vi.fn((target: unknown) => order.push(target === canvas ? 'canvas' : 'other')),
+      setMRT: vi.fn(),
+      _nodes: null,
+    } as unknown as WebGPURenderer;
+
+    await new TablePost(renderer, glow).compileApart(scene, camera, TABLE_3D_QUALITY.light, staging);
+
+    expect(order).toEqual(['readied apart in the scene', 'canvas']);
+  });
+
   it('has the renderer take every drawing of the scene for a frame of its own, before it is drawn', () => {
     const update = vi.fn();
     const { renderer, render } = notingRenderer({ update });

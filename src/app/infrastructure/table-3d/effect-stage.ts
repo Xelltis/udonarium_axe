@@ -1,13 +1,22 @@
 import { MAX_EFFECT_LIGHTS } from '@axe/domain/effect/effect-light';
 import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
 import { EffectLayer } from '@axe/infrastructure/table-3d/effect-layer';
+import {
+  STAGE_FIELD_OF_VIEW,
+  STAGE_LIGHT,
+  stageCameraPlace,
+  stageLampOf,
+} from '@axe/infrastructure/table-3d/effect-stage-view';
+import { fieldOfViewDeg } from '@axe/infrastructure/table-3d/engine-rules';
 import type {
   EffectOverlay,
   EffectOverlayView,
   EffectStage,
   EffectStageOptions,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { createCanvasRenderer } from '@axe/infrastructure/three-kit/canvas-renderer';
 import { letGoOfRenderer } from '@axe/infrastructure/three-kit/dispose';
+import { cappedPixelRatio } from '@axe/infrastructure/three-kit/pixel-ratio';
 import { abs, float, fract, max, min, mix, smoothstep, uv, vec2, vec3 } from 'three/tsl';
 import {
   Color,
@@ -21,16 +30,11 @@ import {
   RingGeometry,
   Scene,
   Vector3,
-  WebGPURenderer,
+  type WebGPURenderer,
 } from 'three/webgpu';
 
-/** How far above level the board is looked at from, and how far round, in degrees, as the table is by default. */
-const LOOK_DOWN_DEG = 40;
-const LOOK_ROUND_DEG = 10;
-/** How wide the camera sees, in degrees. */
-const FIELD_OF_VIEW = 30;
-/** How strong the light of an effect is made against the scene's own light. */
-const LIGHT_SCALE = 2.2;
+/** The colour the stage clears to about its board. */
+const STAGE_BACKGROUND = 0x0b0d11;
 const BOARD = new Color(0x2a2f38);
 const LINE = new Color(0x4a5260);
 const FIGURE = new Color(0x9fb0c4);
@@ -39,13 +43,14 @@ const ACROSS = new Vector3(1, 0, 0);
 /**
  * A small stage an effect is played on, apart from the table: a board with its grid, a stand-in piece
  * at its middle and another where an aimed effect is fired from, lit softly, and the effect drawn
- * among them by the same layer the table draws it with, so a preview looks as the table will.
+ * among them by the same layer the table draws it with, so a preview looks as the table will. Its eye
+ * stands close among what the effect draws, so what comes close enough to fill the view thins away.
  */
 class SmallStage implements EffectStage {
   private readonly scene = new Scene();
-  private readonly camera = new PerspectiveCamera(FIELD_OF_VIEW, 1, 1, 10000);
+  private readonly camera = new PerspectiveCamera(STAGE_FIELD_OF_VIEW, 1, 1, 10000);
   private readonly effects = new EffectLayer();
-  private readonly lamps = Array.from({ length: MAX_EFFECT_LIGHTS }, () => new PointLight(0xffffff, 0, 1, 1));
+  private readonly lamps = Array.from({ length: MAX_EFFECT_LIGHTS }, () => new PointLight(0xffffff, 0, 1, 0));
   private readonly owned: { dispose(): void }[] = [];
   private zoomOut: number;
 
@@ -56,10 +61,11 @@ class SmallStage implements EffectStage {
   ) {
     const { cellPx, across, down } = options;
     this.zoomOut = options.zoomOut ?? 1;
-    this.scene.add(new HemisphereLight(0xdfe8ff, 0x20242c, 1.6));
+    this.scene.add(new HemisphereLight(0xdfe8ff, 0x20242c, STAGE_LIGHT));
     for (const lamp of this.lamps) this.scene.add(lamp);
     this.scene.add(this.board(cellPx, across, down));
     for (const figure of options.figures) this.scene.add(...this.standIn(figure.x, figure.y, cellPx, figure.dim));
+    this.effects.seeFromWithin(true);
     this.scene.add(this.effects.group);
     this.resize();
   }
@@ -97,15 +103,33 @@ class SmallStage implements EffectStage {
     return [new Mesh(column, body), new Mesh(ring, foot)];
   }
 
+  /**
+   * Readies the graphics card to draw the stage's own board and stand-ins, so the frame that first
+   * shows an effect does not stop to build what drawing them asks for. A card that would not build
+   * them ahead builds them on that frame instead.
+   */
+  async ready(): Promise<void> {
+    try {
+      await this.renderer.compileAsync(this.scene, this.camera);
+    } catch {
+      // Built on the first frame instead.
+    }
+  }
+
   show(frame: EffectFrame): void {
     this.effects.set(frame);
     this.lamps.forEach((lamp, index) => {
       const light = frame.lights[index];
-      lamp.intensity = light ? light.strength * LIGHT_SCALE * 10000 : 0;
-      if (!light) return;
+      if (!light) {
+        lamp.intensity = 0;
+        return;
+      }
+      const lit = stageLampOf(light);
+      lamp.intensity = lit.intensity;
+      lamp.distance = lit.distance;
+      lamp.decay = lit.decay;
       lamp.position.set(light.x, light.z, light.y);
       lamp.color.set(light.color);
-      lamp.distance = light.reachPx * 1.5;
     });
     this.renderer.render(this.scene, this.camera);
   }
@@ -119,21 +143,16 @@ class SmallStage implements EffectStage {
   resize(): void {
     const width = Math.max(1, this.canvas.clientWidth);
     const height = Math.max(1, this.canvas.clientHeight);
-    this.renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(cappedPixelRatio());
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
-    // Far enough off for the board to fill the width, a little over the stand-in's middle.
-    const { cellPx, across } = this.options;
-    const across2 = (across * cellPx * 0.5) / Math.tan(((FIELD_OF_VIEW / 2) * Math.PI) / 180) / this.camera.aspect;
-    const distance = across2 * 0.85 * this.zoomOut;
-    const down = (LOOK_DOWN_DEG * Math.PI) / 180;
-    const round = (LOOK_ROUND_DEG * Math.PI) / 180;
-    const level = Math.cos(down) * distance;
-    this.camera.position.set(Math.sin(round) * level, Math.sin(down) * distance, Math.cos(round) * level);
-    this.camera.lookAt(0, cellPx * 0.45, 0);
+    const place = stageCameraPlace(this.options, this.camera.aspect, this.zoomOut);
+    this.camera.position.set(...place.position);
+    this.camera.lookAt(...place.lookAt);
     this.camera.updateProjectionMatrix();
   }
 
+  /** Lets go of the effects, of the board and stand-ins, and of the renderer. */
   dispose(): void {
     this.effects.dispose();
     for (const thing of this.owned) thing.dispose();
@@ -145,17 +164,28 @@ class SmallStage implements EffectStage {
  * A see-through canvas over a floor the page draws in 3D, effects drawn on it by the same layer the
  * table draws them with, seen as the page sees that floor: the eye where the box's perspective puts
  * it, the floor tipped and grown about its origin. Light adds to the page under it; nothing else of
- * the canvas covers it.
+ * the canvas covers it. That eye stands close to the floor, so what comes close enough to fill the
+ * view thins away.
  */
 class OverPage implements EffectOverlay {
   private readonly scene = new Scene();
-  private readonly camera = new PerspectiveCamera(FIELD_OF_VIEW, 1, 1, 10000);
+  private readonly camera = new PerspectiveCamera(STAGE_FIELD_OF_VIEW, 1, 1, 10000);
   private readonly effects = new EffectLayer(true);
   private width = 0;
   private height = 0;
 
   constructor(private readonly renderer: WebGPURenderer) {
+    this.effects.seeFromWithin(true);
     this.scene.add(this.effects.group);
+  }
+
+  /** Readies the graphics card to draw the canvas, so the frame that first shows an effect does not stop to. */
+  async ready(): Promise<void> {
+    try {
+      await this.renderer.compileAsync(this.scene, this.camera);
+    } catch {
+      // Built on the first frame instead.
+    }
   }
 
   show(frame: EffectFrame, view: EffectOverlayView): void {
@@ -172,7 +202,7 @@ class OverPage implements EffectOverlay {
     const width = Math.max(1, view.width);
     const height = Math.max(1, view.height);
     if (width !== this.width || height !== this.height) {
-      this.renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio || 1));
+      this.renderer.setPixelRatio(cappedPixelRatio());
       this.renderer.setSize(width, height, false);
       this.width = width;
       this.height = height;
@@ -184,7 +214,7 @@ class OverPage implements EffectOverlay {
       .set(width / 2 - view.originX, view.originY - height / 2, view.perspectivePx)
       .divideScalar(scale)
       .applyQuaternion(this.camera.quaternion);
-    this.camera.fov = (2 * Math.atan(height / 2 / view.perspectivePx) * 180) / Math.PI;
+    this.camera.fov = fieldOfViewDeg(height, view.perspectivePx);
     this.camera.aspect = width / height;
     this.camera.near = (view.perspectivePx * 0.02) / scale;
     this.camera.far = (view.perspectivePx * 20) / scale;
@@ -192,34 +222,41 @@ class OverPage implements EffectOverlay {
     this.camera.updateMatrixWorld();
   }
 
+  /** Lets go of the effects and of the renderer. */
   dispose(): void {
     this.effects.dispose();
     void letGoOfRenderer(this.renderer);
   }
 }
 
-/** Makes a see-through canvas to draw effects over a floor the page draws, or null where the browser cannot draw one. */
+/**
+ * Makes a see-through canvas to draw effects over a floor the page draws, or null where the browser
+ * cannot draw one. The canvas is handed back at once and readied behind it, so the first effect is
+ * not held up; a frame that comes before it is ready builds what is left.
+ */
 export async function createEffectOverlay(canvas: HTMLCanvasElement): Promise<EffectOverlay | null> {
   try {
-    const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: true });
-    await renderer.init();
-    renderer.setClearColor(0x000000, 0);
-    return new OverPage(renderer);
+    const overlay = new OverPage(await createCanvasRenderer(canvas, { alpha: true }));
+    void overlay.ready();
+    return overlay;
   } catch {
     return null;
   }
 }
 
-/** Makes a small stage on a canvas to play an effect on, or null where the browser cannot draw one. */
+/**
+ * Makes a small stage on a canvas to play an effect on, or null where the browser cannot draw one.
+ * The stage is handed back at once and readied behind it, as the overlay is.
+ */
 export async function createEffectStage(
   canvas: HTMLCanvasElement,
   options: EffectStageOptions
 ): Promise<EffectStage | null> {
   try {
-    const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: false });
-    await renderer.init();
-    renderer.setClearColor(0x0b0d11, 1);
-    return new SmallStage(renderer, canvas, options);
+    const renderer = await createCanvasRenderer(canvas, { alpha: false, background: STAGE_BACKGROUND });
+    const stage = new SmallStage(renderer, canvas, options);
+    void stage.ready();
+    return stage;
   } catch {
     return null;
   }

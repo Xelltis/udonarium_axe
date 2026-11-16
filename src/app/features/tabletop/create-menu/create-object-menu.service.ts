@@ -87,15 +87,13 @@ export class CreateObjectMenuService implements CreateObjectMenu {
         .filter((character) => this.vision.isTokenVisible(character) && !this.names.isKept(character))
         .map((character) => ({ identifier: character.identifier, name: character.name })),
     };
-    const request = await this.modalService
-      .openLazy<DiceCreateRequest | null>(this.loadDiceCreateDialog, {
-        ...option,
-        title: this.t('feature.dice.createDialog.title'),
-        // A few fields in a frame half the screen wide read as a mistake. It takes the width
-        // its own asking needs.
-        fitWidth: true,
-      })
-      .catch(() => null);
+    const request = await this.modalService.openLazy<DiceCreateRequest | null>(this.loadDiceCreateDialog, {
+      ...option,
+      title: this.t('feature.dice.createDialog.title'),
+      // A few fields in a frame half the screen wide read as a mistake. It takes the width
+      // its own asking needs.
+      fitWidth: true,
+    });
     if (!request) return;
 
     const item = getDiceMenuItems()[request.typeIndex];

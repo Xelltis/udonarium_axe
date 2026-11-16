@@ -1,18 +1,39 @@
 import { TestBed } from '@angular/core/testing';
 import { messageAdded$, selectGameTable$ } from '@axe/core/event/domain-events';
+import { LogThrottle } from '@axe/core/logging/log-throttle';
+import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
-import { localDispatch, receiveEvents } from '@axe/core/network/network-messaging';
+import { FIRST_SYNC_SETTLED, localDispatch, networkMessage$, receiveEvents } from '@axe/core/network/network-messaging';
 import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
+import { CatalogDigest, digestOf } from '@axe/core/sync/catalog-digest';
 import { GameObject } from '@axe/core/sync/game-object';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
+import {
+  CATALOG_TICK_MS,
+  FIRST_SYNC_GRACE_MS,
+  ObjectSynchronizer,
+  RECONCILE_INTERVAL_MS,
+  RECONCILE_QUIET_MS,
+  SAME_DIFFERENCE_RETRY_MS,
+  SETTLED_CATALOG_MIN_INTERVAL_MS,
+  SYNC_PROGRESS_NOTICE_MS,
+} from '@axe/core/sync/object-synchronizer';
+import { syncProgressChanged$ } from '@axe/core/sync/sync-progress-events';
 import { SynchronizeRequest, SynchronizeTask } from '@axe/core/sync/synchronize-task';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DataElement } from '@axe/domain/data/data-element';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import type { MockInstance } from 'vitest';
+
+/** The peers the spied send was told to send an event to, in order; undefined for everybody. */
+function sentTo(send: MockInstance<Network['send']>, eventName: string): (string | undefined)[] {
+  return send.mock.calls
+    .filter(([context]) => (context as { eventName: string }).eventName === eventName)
+    .map(([, sendTo]) => sendTo);
+}
 
 describe('ObjectSynchronizer', () => {
   describe('instance (singleton)', () => {
@@ -36,6 +57,8 @@ describe('ObjectSynchronizer', () => {
 
   describe('requestFullSync', () => {
     afterEach(() => {
+      ObjectSynchronizer.instance.destroy();
+      vi.useRealTimers();
       vi.restoreAllMocks();
     });
 
@@ -64,23 +87,25 @@ describe('ObjectSynchronizer', () => {
     });
 
     it('answers another peer asking for a catalogue', () => {
+      vi.useFakeTimers();
       ObjectSynchronizer.instance.initialize();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
-      const sendCatalogSpy = vi.spyOn(ObjectSynchronizer.instance as any, 'sendCatalog').mockImplementation(() => {});
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
 
       localDispatch('REQUEST_CATALOG', {}, 'peer-a');
+      vi.advanceTimersByTime(CATALOG_TICK_MS);
 
-      expect(sendCatalogSpy).toHaveBeenCalledWith('peer-a');
+      expect(sentTo(send, 'SYNCHRONIZE_GAME_OBJECT')).toEqual(['peer-a']);
     });
 
     it('does not answer its own request', () => {
+      vi.useFakeTimers();
       ObjectSynchronizer.instance.initialize();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed to reach a private method
-      const sendCatalogSpy = vi.spyOn(ObjectSynchronizer.instance as any, 'sendCatalog').mockImplementation(() => {});
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
 
       localDispatch('REQUEST_CATALOG', {});
+      vi.advanceTimersByTime(CATALOG_TICK_MS);
 
-      expect(sendCatalogSpy).not.toHaveBeenCalled();
+      expect(sentTo(send, 'SYNCHRONIZE_GAME_OBJECT')).toEqual([]);
     });
   });
 
@@ -131,48 +156,41 @@ describe('ObjectSynchronizer', () => {
 
   describe('through a room server', () => {
     const AUTHORITY = '@authority';
-    let sendCatalog: ReturnType<typeof vi.fn>;
-
-    const sentTo = (eventName: string) =>
-      vi
-        .mocked(Network.instance.send)
-        .mock.calls.filter(([context]) => (context as { eventName: string }).eventName === eventName)
-        .map(([, sendTo]) => sendTo);
 
     beforeEach(() => {
       vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(AUTHORITY);
       vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-a', isOpen: true }] as never);
       vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
-      sendCatalog = vi.fn();
       ObjectSynchronizer.instance.initialize();
     });
 
     afterEach(() => {
       localDispatch('DISCONNECT_PEER', { peerId: AUTHORITY }, AUTHORITY);
       ObjectSynchronizer.instance.destroy();
+      vi.useRealTimers();
       vi.restoreAllMocks();
     });
 
     it('trades catalogs with the server alone as peers connect', () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      vi.spyOn(ObjectSynchronizer.instance as any, 'sendCatalog').mockImplementation(sendCatalog);
+      vi.useFakeTimers();
 
       localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
       localDispatch('CONNECT_PEER', { peerId: AUTHORITY });
+      vi.advanceTimersByTime(CATALOG_TICK_MS);
 
-      expect(sendCatalog.mock.calls).toEqual([[AUTHORITY]]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'SYNCHRONIZE_GAME_OBJECT')).toEqual([AUTHORITY]);
     });
 
     it('asks the server alone for a full sync', () => {
       expect(ObjectSynchronizer.instance.requestFullSync()).toBe(1);
 
-      expect(sentTo('REQUEST_CATALOG')).toEqual([AUTHORITY]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'REQUEST_CATALOG')).toEqual([AUTHORITY]);
     });
 
     it('asks the server for what its catalog offers', () => {
       localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'kept-by-the-server', version: 1 }], AUTHORITY);
 
-      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
     });
 
     it('asks the server for a change it passes on of what this seat saw deleted, never deleting it', () => {
@@ -182,8 +200,8 @@ describe('ObjectSynchronizer', () => {
 
       localDispatch('UPDATE_GAME_OBJECT', { ...gone.toContext(), majorVersion: 5 }, 'peer-a');
 
-      expect(sentTo('DELETE_GAME_OBJECT')).toEqual([]);
-      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'DELETE_GAME_OBJECT')).toEqual([]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
       expect(ObjectStore.instance.isDeleted('lost-here')).toBe(false);
       ObjectStore.instance.clearDeleteHistory();
     });
@@ -266,7 +284,7 @@ describe('ObjectSynchronizer', () => {
 
       localDispatch('UPDATE_GAME_OBJECT', { ...gone.toContext(), majorVersion: 5 });
 
-      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'REQUEST_GAME_OBJECT')).toEqual([]);
       expect(ObjectStore.instance.isDeleted('deleted-by-me')).toBe(true);
       ObjectStore.instance.clearDeleteHistory();
     });
@@ -278,8 +296,8 @@ describe('ObjectSynchronizer', () => {
 
       localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'brought-back', version: 1 }], AUTHORITY);
 
-      expect(sentTo('DELETE_GAME_OBJECT')).toEqual([]);
-      expect(sentTo('REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'DELETE_GAME_OBJECT')).toEqual([]);
+      expect(sentTo(vi.mocked(Network.instance.send), 'REQUEST_GAME_OBJECT')).toEqual([AUTHORITY]);
       expect(ObjectStore.instance.isDeleted('brought-back')).toBe(false);
       ObjectStore.instance.clearDeleteHistory();
     });
@@ -571,10 +589,14 @@ describe('ObjectSynchronizer', () => {
       localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'asking-a', version: 1 }], 'peer-a');
       const [task] = internals().tasks;
 
-      task.ontimeout?.(task, [
-        { identifier: 'held-by-a-and-gone', version: 1, holderIds: ['peer-a', 'peer-gone'], ttl: 1 },
-        { identifier: 'held-by-the-gone', version: 1, holderIds: ['peer-gone'], ttl: 1 },
-      ]);
+      task.ontimeout?.(
+        task,
+        [
+          { identifier: 'held-by-a-and-gone', version: 1, holderIds: ['peer-a', 'peer-gone'], ttl: 1 },
+          { identifier: 'held-by-the-gone', version: 1, holderIds: ['peer-gone'], ttl: 1 },
+        ],
+        []
+      );
 
       expect(internals().requestMap.get('held-by-a-and-gone')?.holderIds).toEqual(['peer-a']);
       expect(internals().requestMap.has('held-by-the-gone')).toBe(false);
@@ -614,9 +636,477 @@ describe('ObjectSynchronizer', () => {
       const [task] = internals().tasks;
       internals().requestMap.set('moving-on', { identifier: 'moving-on', version: 2, holderIds: ['peer-a'], ttl: 2 });
 
-      task.ontimeout?.(task, [{ identifier: 'moving-on', version: 1, holderIds: ['peer-a'], ttl: 1 }]);
+      task.ontimeout?.(task, [{ identifier: 'moving-on', version: 1, holderIds: ['peer-a'], ttl: 1 }], []);
 
       expect(internals().requestMap.get('moving-on')?.version).toBe(2);
+    });
+
+    it('logs a request given up after its retries, once for a run of them from one peer', () => {
+      const warned = vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+      (ObjectSynchronizer.instance as unknown as { givenUpLog: LogThrottle }).givenUpLog.reset();
+      peers = [{ peerId: 'peer-a', isOpen: true }];
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'never-answered', version: 1 }], 'peer-a');
+      const givenUp = () => warned.mock.calls.filter(([message]) => message.includes('諦めました'));
+
+      vi.advanceTimersByTime(30_000);
+      vi.advanceTimersByTime(30_000);
+      expect(givenUp()).toHaveLength(0);
+      expect(requested()).toHaveLength(3);
+
+      vi.advanceTimersByTime(30_000);
+
+      expect(givenUp()).toHaveLength(1);
+      expect(givenUp()[0][0]).toContain('peer-a');
+      expect(givenUp()[0][1]).toEqual(['never-answered']);
+      expect(requested()).toHaveLength(3);
+    });
+  });
+
+  describe('reconciling catalogues between peers', () => {
+    type Internals = {
+      requestMap: Map<string, SynchronizeRequest>;
+      peerMap: Map<string, SynchronizeTask[]>;
+      tasks: SynchronizeTask[];
+      differences: Map<string, unknown>;
+      lastChangeAt: number;
+    };
+    const internals = () => ObjectSynchronizer.instance as unknown as Internals;
+    let peers: { peerId: string; isOpen: boolean }[];
+    let send: MockInstance<Network['send']>;
+
+    /** What the spied send was told to send under an event name, as [data, peer] pairs in order. */
+    const sent = (eventName: string) =>
+      send.mock.calls
+        .filter(([context]) => (context as { eventName: string }).eventName === eventName)
+        .map(([context, sendTo]) => [(context as { data: unknown }).data, sendTo]);
+    const eventNames = () => [
+      ...new Set(send.mock.calls.map(([context]) => (context as { eventName: string }).eventName)),
+    ];
+    const catalogsTo = (peerId: string) => sent('SYNCHRONIZE_GAME_OBJECT').filter(([, sendTo]) => sendTo === peerId);
+    const ownDigest = (): CatalogDigest => digestOf(ObjectStore.instance.getCatalog());
+    const otherDigest = (): CatalogDigest => ({ count: ownDigest().count + 1, hash: 12345 });
+    const flushCatalogs = () => vi.advanceTimersByTime(CATALOG_TICK_MS * 4);
+    const store = (identifier: string) => {
+      const object = new GameObject(identifier);
+      ObjectStore.instance.add(object, false);
+      return object;
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      peers = [
+        { peerId: 'peer-a', isOpen: true },
+        { peerId: 'peer-b', isOpen: true },
+      ];
+      vi.spyOn(Network, 'peerContexts', 'get').mockImplementation(() => peers as never);
+      send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      vi.spyOn(Logger, 'info').mockImplementation(() => {});
+      vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+      internals().requestMap.clear();
+      internals().peerMap.clear();
+      internals().tasks = [];
+      internals().lastChangeAt = Number.NEGATIVE_INFINITY;
+      ObjectSynchronizer.instance.initialize();
+      store('card-1');
+      store('card-2');
+    });
+
+    afterEach(() => {
+      for (const peer of [...peers]) localDispatch('DISCONNECT_PEER', { peerId: peer.peerId }, peer.peerId);
+      ObjectSynchronizer.instance.destroy();
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it('sends every connected peer its digest at each interval, and nothing else while they agree', () => {
+      vi.advanceTimersByTime(RECONCILE_INTERVAL_MS);
+      expect(sent('CATALOG_DIGEST')).toEqual([
+        [ownDigest(), 'peer-a'],
+        [ownDigest(), 'peer-b'],
+      ]);
+
+      for (let round = 0; round < 3; round++) {
+        localDispatch('CATALOG_DIGEST', ownDigest(), 'peer-a');
+        localDispatch('CATALOG_DIGEST', ownDigest(), 'peer-b');
+        vi.advanceTimersByTime(RECONCILE_INTERVAL_MS);
+      }
+
+      expect(eventNames()).toEqual(['CATALOG_DIGEST']);
+      expect(sent('CATALOG_DIGEST')).toHaveLength(8);
+    });
+
+    it('waits on no answer to a digest, from a peer that does not know the message or any other', () => {
+      vi.advanceTimersByTime(RECONCILE_INTERVAL_MS);
+      vi.advanceTimersByTime(RECONCILE_INTERVAL_MS);
+
+      expect(sent('CATALOG_DIGEST')).toHaveLength(4);
+      expect(eventNames()).toEqual(['CATALOG_DIGEST']);
+      expect(internals().requestMap.size).toBe(0);
+      expect(internals().tasks).toHaveLength(0);
+      expect(internals().differences.size).toBe(0);
+      expect(vi.getTimerCount()).toBe(1);
+    });
+
+    it('lets a message it does not know pass without a word back', () => {
+      expect(() =>
+        receiveEvents([
+          { eventName: 'A_MESSAGE_FROM_A_LATER_VERSION', sendFrom: 'peer-a', data: { count: 1, hash: 2 } },
+        ])
+      ).not.toThrow();
+      flushCatalogs();
+
+      expect(send).not.toHaveBeenCalled();
+      expect(ObjectStore.instance.getCatalog()).toHaveLength(2);
+    });
+
+    it('sends a peer the catalogue once two of its digests in a row have differed', () => {
+      localDispatch('CATALOG_DIGEST', otherDigest(), 'peer-a');
+      flushCatalogs();
+      expect(catalogsTo('peer-a')).toHaveLength(0);
+
+      localDispatch('CATALOG_DIGEST', otherDigest(), 'peer-a');
+      flushCatalogs();
+
+      expect(catalogsTo('peer-a')).toHaveLength(1);
+      expect((catalogsTo('peer-a')[0][0] as { identifier: string }[]).map((item) => item.identifier)).toEqual([
+        'card-1',
+        'card-2',
+      ]);
+      expect(catalogsTo('peer-b')).toHaveLength(0);
+      expect(sent('REQUEST_CATALOG')).toHaveLength(0);
+    });
+
+    it('starts counting afresh once a digest agrees', () => {
+      localDispatch('CATALOG_DIGEST', otherDigest(), 'peer-a');
+      localDispatch('CATALOG_DIGEST', ownDigest(), 'peer-a');
+      localDispatch('CATALOG_DIGEST', otherDigest(), 'peer-a');
+      flushCatalogs();
+
+      expect(catalogsTo('peer-a')).toHaveLength(0);
+    });
+
+    it('does not send the catalogue again over the same difference until a long while has passed', () => {
+      const theirs = otherDigest();
+      for (let round = 0; round < 6; round++) {
+        localDispatch('CATALOG_DIGEST', theirs, 'peer-a');
+        flushCatalogs();
+      }
+      expect(catalogsTo('peer-a')).toHaveLength(1);
+
+      localDispatch('CATALOG_DIGEST', { ...theirs, hash: theirs.hash + 1 }, 'peer-a');
+      flushCatalogs();
+      expect(catalogsTo('peer-a')).toHaveLength(2);
+
+      vi.advanceTimersByTime(SAME_DIFFERENCE_RETRY_MS);
+      localDispatch('CATALOG_DIGEST', { ...theirs, hash: theirs.hash + 1 }, 'peer-a');
+      flushCatalogs();
+      expect(catalogsTo('peer-a')).toHaveLength(3);
+    });
+
+    it('compares no digests while objects are still changing', () => {
+      localDispatch('UPDATE_GAME_OBJECT', ObjectStore.instance.get('card-1')!.toContext(), 'peer-b');
+      localDispatch('CATALOG_DIGEST', otherDigest(), 'peer-a');
+      localDispatch('CATALOG_DIGEST', otherDigest(), 'peer-a');
+      vi.advanceTimersByTime(RECONCILE_QUIET_MS - 1);
+      expect(sent('CATALOG_DIGEST')).toHaveLength(0);
+      expect(catalogsTo('peer-a')).toHaveLength(0);
+
+      vi.advanceTimersByTime(1);
+      localDispatch('CATALOG_DIGEST', otherDigest(), 'peer-a');
+      localDispatch('CATALOG_DIGEST', otherDigest(), 'peer-a');
+      flushCatalogs();
+
+      expect(catalogsTo('peer-a')).toHaveLength(1);
+    });
+
+    it('takes no digest from a peer it has no open connection to', () => {
+      localDispatch('CATALOG_DIGEST', otherDigest(), 'peer-relayed');
+      localDispatch('CATALOG_DIGEST', otherDigest(), 'peer-relayed');
+      flushCatalogs();
+
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('does not bring back what was deleted here when catalogues are traded over a difference', () => {
+      const gone = store('deleted-here');
+      ObjectStore.instance.delete(gone, false);
+      const theirs = digestOf([...ObjectStore.instance.getCatalog(), { identifier: 'deleted-here', version: 5 }]);
+
+      localDispatch('CATALOG_DIGEST', theirs, 'peer-a');
+      localDispatch('CATALOG_DIGEST', theirs, 'peer-a');
+      flushCatalogs();
+      expect((catalogsTo('peer-a')[0][0] as { identifier: string }[]).map((item) => item.identifier)).toEqual([
+        'card-1',
+        'card-2',
+      ]);
+
+      localDispatch(
+        'SYNCHRONIZE_GAME_OBJECT',
+        [
+          { identifier: 'card-1', version: 0 },
+          { identifier: 'deleted-here', version: 5 },
+        ],
+        'peer-a'
+      );
+
+      expect(sent('DELETE_GAME_OBJECT')).toEqual([[{ aliasName: '', identifier: 'deleted-here' }, 'peer-a']]);
+      expect(sent('REQUEST_GAME_OBJECT')).toEqual([]);
+      expect(ObjectStore.instance.get('deleted-here')).toBeNull();
+      expect(ObjectStore.instance.isDeleted('deleted-here')).toBe(true);
+      ObjectStore.instance.clearDeleteHistory();
+    });
+
+    it('sends everybody the catalogue once what it asked for has come in, and holds a second round back', () => {
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'wanted', version: 1 }], 'peer-a');
+      expect(sent('REQUEST_GAME_OBJECT')).toEqual([['wanted', 'peer-a']]);
+      flushCatalogs();
+      expect(sent('SYNCHRONIZE_GAME_OBJECT')).toHaveLength(0);
+
+      localDispatch('UPDATE_GAME_OBJECT', new GameObject('wanted').toContext(), 'peer-a');
+      flushCatalogs();
+      expect(catalogsTo('peer-a')).toHaveLength(1);
+      expect(catalogsTo('peer-b')).toHaveLength(1);
+
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'wanted-next', version: 1 }], 'peer-a');
+      localDispatch('UPDATE_GAME_OBJECT', new GameObject('wanted-next').toContext(), 'peer-a');
+      flushCatalogs();
+      expect(catalogsTo('peer-b')).toHaveLength(1);
+
+      vi.advanceTimersByTime(SETTLED_CATALOG_MIN_INTERVAL_MS);
+      expect(catalogsTo('peer-a')).toHaveLength(2);
+      expect(catalogsTo('peer-b')).toHaveLength(2);
+    });
+
+    it('sends everybody the catalogue a while after its first peer connects, having had nothing to ask for', () => {
+      localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+      flushCatalogs();
+      expect(catalogsTo('peer-a')).toHaveLength(1);
+      expect(catalogsTo('peer-b')).toHaveLength(0);
+
+      vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS);
+      flushCatalogs();
+      expect(catalogsTo('peer-a')).toHaveLength(2);
+      expect(catalogsTo('peer-b')).toHaveLength(1);
+
+      localDispatch('CONNECT_PEER', { peerId: 'peer-b' });
+      vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS);
+      flushCatalogs();
+      expect(catalogsTo('peer-a')).toHaveLength(2);
+      expect(catalogsTo('peer-b')).toHaveLength(2);
+    });
+
+    describe('saying that its first sync has settled', () => {
+      let settled: boolean[];
+      let stopListening: () => void;
+
+      beforeEach(() => {
+        settled = [];
+        stopListening = networkMessage$.subscribe((message) => {
+          if (message.eventName === FIRST_SYNC_SETTLED) settled.push(message.isSendFromSelf);
+        });
+      });
+
+      afterEach(() => stopListening());
+
+      it('says so to this seat alone once what it asked for has come in, and once only for a network', () => {
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'wanted', version: 1 }], 'peer-a');
+        flushCatalogs();
+        expect(settled).toEqual([]);
+
+        localDispatch('UPDATE_GAME_OBJECT', new GameObject('wanted').toContext(), 'peer-a');
+        flushCatalogs();
+        expect(settled).toEqual([true]);
+        expect(sent(FIRST_SYNC_SETTLED)).toEqual([]);
+
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'wanted-next', version: 1 }], 'peer-a');
+        localDispatch('UPDATE_GAME_OBJECT', new GameObject('wanted-next').toContext(), 'peer-a');
+        localDispatch('CONNECT_PEER', { peerId: 'peer-b' });
+        vi.advanceTimersByTime(SETTLED_CATALOG_MIN_INTERVAL_MS + FIRST_SYNC_GRACE_MS);
+        expect(settled).toEqual([true]);
+      });
+
+      it('says so again for the next network that opens', () => {
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS);
+        expect(settled).toHaveLength(1);
+
+        localDispatch('OPEN_NETWORK', { peerId: 'self' });
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS * 2);
+        expect(settled).toHaveLength(1);
+
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS);
+        expect(settled).toHaveLength(2);
+      });
+
+      it('says so five seconds after its first peer connects when it has nothing to ask for', () => {
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS - 1);
+        expect(settled).toEqual([]);
+        vi.advanceTimersByTime(1);
+        expect(settled).toEqual([true]);
+        expect(FIRST_SYNC_GRACE_MS).toBe(5_000);
+      });
+
+      it('does not say so while what it asked for is still to come', () => {
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'slow-to-come', version: 1 }], 'peer-a');
+
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS);
+
+        expect(settled).toEqual([]);
+      });
+    });
+
+    describe('how far its sync has come', () => {
+      let told: number;
+      let stopListening: () => void;
+      const synchronizer = () => ObjectSynchronizer.instance;
+      const wanted = (...identifiers: string[]) => identifiers.map((identifier) => ({ identifier, version: 1 }));
+      const arrives = (identifier: string) =>
+        localDispatch('UPDATE_GAME_OBJECT', new GameObject(identifier).toContext(), 'peer-a');
+
+      beforeEach(() => {
+        told = 0;
+        stopListening = syncProgressChanged$.subscribe(() => told++);
+      });
+
+      afterEach(() => stopListening());
+
+      it('counts what is still to come, asked for already or waiting to be', () => {
+        expect(synchronizer().pendingCount).toBe(0);
+
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted('one', 'two', 'three'), 'peer-a');
+        expect(synchronizer().pendingCount).toBe(3);
+
+        arrives('one');
+        expect(synchronizer().pendingCount).toBe(2);
+        arrives('two');
+        arrives('three');
+        expect(synchronizer().pendingCount).toBe(0);
+      });
+
+      it('counts what waits behind the tasks under way as well', () => {
+        const many = Array.from({ length: 32 * 32 + 5 }, (_, index) => `object-${index}`);
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted(...many), 'peer-a');
+
+        expect(internals().requestMap.size).toBe(5);
+        expect(synchronizer().pendingCount).toBe(many.length);
+      });
+
+      it('is settled only once its first sync is, and not again until then on another network', () => {
+        expect(synchronizer().isSettled).toBe(false);
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS);
+        expect(synchronizer().isSettled).toBe(true);
+
+        localDispatch('OPEN_NETWORK', { peerId: 'self' });
+        expect(synchronizer().isSettled).toBe(false);
+      });
+
+      it('notes when it began to wait and when something asked for last arrived, and nothing else', () => {
+        vi.advanceTimersByTime(1_000);
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted('one', 'two'), 'peer-a');
+        const began = synchronizer().lastProgressAt;
+        expect(began).toBe(performance.now());
+
+        vi.advanceTimersByTime(2_000);
+        localDispatch('UPDATE_GAME_OBJECT', new GameObject('not-asked-for').toContext(), 'peer-a');
+        expect(synchronizer().lastProgressAt).toBe(began);
+
+        arrives('one');
+        expect(synchronizer().lastProgressAt).toBe(began + 2_000);
+      });
+
+      it('does not take a request given up for something arriving', () => {
+        (ObjectSynchronizer.instance as unknown as { givenUpLog: LogThrottle }).givenUpLog.reset();
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted('never-answered'), 'peer-a');
+        const began = synchronizer().lastProgressAt;
+
+        vi.advanceTimersByTime(90_000);
+
+        expect(synchronizer().pendingCount).toBe(0);
+        expect(synchronizer().lastProgressAt).toBe(began);
+      });
+
+      it('tells of a run of changes to the count once, a while after the first of them', () => {
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted('one', 'two', 'three'), 'peer-a');
+        arrives('one');
+        arrives('two');
+        expect(told).toBe(0);
+
+        vi.advanceTimersByTime(SYNC_PROGRESS_NOTICE_MS);
+        expect(told).toBe(1);
+        expect(SYNC_PROGRESS_NOTICE_MS).toBe(250);
+
+        vi.advanceTimersByTime(SYNC_PROGRESS_NOTICE_MS * 4);
+        expect(told).toBe(1);
+      });
+
+      it('tells no more than four times a second however much arrives', () => {
+        const many = Array.from({ length: 200 }, (_, index) => `object-${index}`);
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted(...many), 'peer-a');
+        for (const identifier of many) {
+          arrives(identifier);
+          vi.advanceTimersByTime(5);
+        }
+
+        expect(told).toBe(4);
+      });
+
+      it('tells of the first sync settling, and of starting over on another network', () => {
+        localDispatch('CONNECT_PEER', { peerId: 'peer-a' });
+        vi.advanceTimersByTime(FIRST_SYNC_GRACE_MS + SYNC_PROGRESS_NOTICE_MS);
+        expect(told).toBe(1);
+
+        localDispatch('OPEN_NETWORK', { peerId: 'self' });
+        vi.advanceTimersByTime(SYNC_PROGRESS_NOTICE_MS);
+        expect(told).toBe(2);
+      });
+
+      it('tells nothing once it has been torn down', () => {
+        localDispatch('SYNCHRONIZE_GAME_OBJECT', wanted('one'), 'peer-a');
+        ObjectSynchronizer.instance.destroy();
+
+        vi.advanceTimersByTime(SYNC_PROGRESS_NOTICE_MS * 2);
+
+        expect(told).toBe(0);
+      });
+    });
+
+    it('asks a peer for its catalogue again once a request to it has used up its retries, and not at every one', () => {
+      (ObjectSynchronizer.instance as unknown as { givenUpLog: LogThrottle }).givenUpLog.reset();
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'never-answered', version: 1 }], 'peer-a');
+
+      vi.advanceTimersByTime(60_000);
+      expect(sent('REQUEST_CATALOG')).toEqual([]);
+      vi.advanceTimersByTime(30_000);
+      expect(sent('REQUEST_CATALOG')).toEqual([[{}, 'peer-a']]);
+
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'never-answered-either', version: 1 }], 'peer-a');
+      vi.advanceTimersByTime(90_000);
+      expect(sent('REQUEST_CATALOG')).toHaveLength(2);
+
+      localDispatch('SYNCHRONIZE_GAME_OBJECT', [{ identifier: 'nor-this', version: 1 }], 'peer-a');
+      vi.advanceTimersByTime(90_000);
+      expect(sent('REQUEST_CATALOG')).toHaveLength(2);
+    });
+
+    it('leaves all of it alone where a room server keeps the room', () => {
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      localDispatch('CONNECT_PEER', { peerId: '@authority' });
+      flushCatalogs();
+      const catalogsAtConnect = sent('SYNCHRONIZE_GAME_OBJECT').length;
+
+      vi.advanceTimersByTime(RECONCILE_INTERVAL_MS + FIRST_SYNC_GRACE_MS);
+      localDispatch('CATALOG_DIGEST', otherDigest(), '@authority');
+      localDispatch('CATALOG_DIGEST', otherDigest(), '@authority');
+      flushCatalogs();
+
+      expect(sent('CATALOG_DIGEST')).toEqual([]);
+      expect(sent('SYNCHRONIZE_GAME_OBJECT')).toHaveLength(catalogsAtConnect);
     });
   });
 });

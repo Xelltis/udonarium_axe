@@ -32,7 +32,7 @@
 </ng-template>
 <!--
   The board is a box on the screen round where the table's canvas draws it, and its face is laid on
-  it in perspective, clear as the canvas draws a picture of it, with what hangs on the face; the
+  it in perspective, clear as the canvas draws a picture of it, with what hangs on the face over it; the
   table lays the pieces on the board over it, and its handles stand at the corners of its foot.
 -->
 @let id = whiteBoard().identifier;
@@ -67,6 +67,17 @@
       <div class="absolute inset-0 opacity-0" #face data-part="face">
         <ng-container [ngTemplateOutlet]="faceLook"></ng-container>
       </div>
+    </div>
+    <!-- The moving pictures are laid on the face in a box of their own, which is not drawn from
+         behind: the back of a board shows its colour alone, as the canvas draws it. The box over
+         the face still takes the presses from either side. -->
+    <div
+      class="pointer-events-none backface-hidden"
+      data-testid="white-board-live-pictures"
+      [style.width.px]="widthPx()"
+      [style.height.px]="heightPx()"
+      [appHudPlace]="{ owner: id, part: 'face', place: 'face' }"
+    >
       <ng-container [ngTemplateOutlet]="livePictureLayer"></ng-container>
     </div>
     @if (!isLock()) {

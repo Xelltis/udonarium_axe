@@ -1,15 +1,18 @@
-import { computed, DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable } from '@angular/core';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ProtocolMarksService } from '@axe/application/sync/protocol-marks.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { Logger } from '@axe/core/logging/logger';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ExpiredBuffEntry, formatExpiredBuffs } from '@axe/domain/character/buff-expiry';
 import { BuffSnapshotEntry } from '@axe/domain/character/buff-manager';
@@ -95,21 +98,18 @@ export class TurnOrderService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly hooks = inject(TurnHooksService);
   private readonly t = inject(TRANSLATE_FN);
+  /** Made here so this seat's mark of the turns it runs is said before any round is pressed. */
+  private readonly protocolMarks = inject(ProtocolMarksService);
 
   /** What the turn opened in this press counted down, written down as it goes for a wait to give back. */
   private opening: TurnOpening | null = null;
   /**
    * What the step under way has seen run out of the buffs that leave their status moved, by piece
-   * and then by name, with how far their last count moved it; none outside a step.
+   * and then by name, with how far each stood moved in all as it went; none outside a step.
    */
   private ranOut: Map<string, Map<string, number>> | null = null;
 
   constructor() {
-    effect(() => {
-      this.objectChange.collectionOf(PeerCursor.aliasName)();
-      const mine = PeerCursor.myCursor;
-      if (mine && mine.turnProtocol !== '1') untracked(() => (mine.turnProtocol = '1'));
-    });
     this.objectChange.onObjectChangedForIdentifier(
       'TurnState',
       () => {
@@ -162,6 +162,11 @@ export class TurnOrderService {
   /** What a side is called and the colour it is shown in. */
   sideName(side: string): string {
     return describeSide(side, this.parties(), this.t('feature.turnOrder.unassignedSide')).name;
+  }
+
+  /** The name a side goes by in a line said to the room, which each reader translates where it has none. */
+  private saidSideName(side: string): string {
+    return describeSide(side, this.parties(), '').name || encodeI18nMessage('feature.turnOrder.unassignedSide');
   }
 
   /** The colour a side is shown in, taken from the party it stands for. */
@@ -385,7 +390,9 @@ export class TurnOrderService {
 
   /** Everyone on the table, whether or not they take a turn. */
   private allCharacters(): GameCharacter[] {
-    return this.inventory.tableInventory.tabletopObjects as GameCharacter[];
+    return this.inventory.tableInventory.tabletopObjects.filter(
+      (object): object is GameCharacter => object instanceof GameCharacter
+    );
   }
 
   /**
@@ -499,7 +506,10 @@ export class TurnOrderService {
       if (step.round < startedAt) break;
     }
     this.turnState.history = stringifyTurnHistory(steps);
-    this.chat.sendSystemNotice('round', this.t('feature.turnOrder.retreatRoundAnnounce', { n: this.turnState.round }));
+    this.chat.sendSystemNotice(
+      'round',
+      encodeI18nMessage('feature.turnOrder.retreatRoundAnnounce', { n: this.turnState.round })
+    );
   }
 
   /**
@@ -517,7 +527,7 @@ export class TurnOrderService {
 
     this.applyStep(last);
     this.turnState.history = stringifyTurnHistory(steps);
-    this.chat.sendSystemNotice('round', this.t('feature.turnOrder.undoAnnounce'));
+    this.chat.sendSystemNotice('round', encodeI18nMessage('feature.turnOrder.undoAnnounce'));
   }
 
   /**
@@ -547,9 +557,6 @@ export class TurnOrderService {
    */
   private press(work: (state: TurnSnapshot, table: TurnTable, live: TurnLive) => TurnOutcome | null): void {
     this.opening = null;
-    // This seat's mark of the version of the turns it runs, said before the round it steps is read.
-    const mine = PeerCursor.myCursor;
-    if (mine && mine.turnProtocol !== '1') mine.turnProtocol = '1';
     this.triggerFire.carryingAfter(() => this.step(() => work(this.snapshot(), this.turnTable(), this.live) !== null));
   }
 
@@ -599,19 +606,19 @@ export class TurnOrderService {
           this.announceCharacter(effect.identifier, effect.announcement);
           break;
         case 'roundStart':
-          this.chat.sendSystemNotice('round', this.t('feature.turnOrder.roundStart', { n: effect.round }));
+          this.chat.sendSystemNotice('round', encodeI18nMessage('feature.turnOrder.roundStart', { n: effect.round }));
           break;
         case 'roundEnd':
-          this.chat.sendSystemNotice('round', this.t('feature.turnOrder.roundEnd', { n: effect.round }));
+          this.chat.sendSystemNotice('round', encodeI18nMessage('feature.turnOrder.roundEnd', { n: effect.round }));
           break;
         case 'sidePhaseStart':
           this.chat.sendSystemNotice(
             'round',
-            this.t('feature.turnOrder.sidePhaseStart', { name: this.sideName(effect.side) })
+            encodeI18nMessage('feature.turnOrder.sidePhaseStart', { name: this.saidSideName(effect.side) })
           );
           break;
         case 'reset':
-          this.chat.sendSystemNotice('round', this.t('feature.turnOrder.resetAnnounce'));
+          this.chat.sendSystemNotice('round', encodeI18nMessage('feature.turnOrder.resetAnnounce'));
           break;
         case 'buffs':
           this.expireBuffs(effect.timing, this.actorOf(effect.identifier));
@@ -690,8 +697,9 @@ export class TurnOrderService {
     if (!(character instanceof GameCharacter)) return;
     try {
       this.triggerFire.standingOn(character, moment);
-    } catch {
+    } catch (reason) {
       // Ground that will not go off is no reason for the round to stop turning.
+      Logger.warn('[TurnOrder] trigger did not fire', reason);
     }
   }
 
@@ -706,8 +714,10 @@ export class TurnOrderService {
   }
 
   /**
-   * Runs out the buffs whose moment it is. Only the peer that pressed runs this, so the countdown
-   * drops once even between peers.
+   * Runs out the buffs whose moment it is, and moves the status of those whose effect moves at it: a
+   * buff with a moment of its own for that, and one never counted down at the end of the round. Only
+   * the peer that pressed runs this, so the countdown drops once, and an effect moves once, even
+   * between peers.
    */
   private expireBuffs(timing: BuffTiming, acting: BuffTurnActor): void {
     if (!this.turnState.buffDecay) return;
@@ -730,7 +740,7 @@ export class TurnOrderService {
 
     const detail = formatExpiredBuffs(entries);
     if (detail !== '') {
-      this.chat.sendSystemNotice('round', this.t('feature.turnOrder.buffExpired', { detail }));
+      this.chat.sendSystemNotice('round', encodeI18nMessage('feature.turnOrder.buffExpired', { detail }));
     }
   }
 
@@ -760,8 +770,8 @@ export class TurnOrderService {
     this.chat.sendSystemNotice(
       'round',
       this.vision.isSeenByParty(character)
-        ? this.t(`feature.turnOrder.${announcement}`, { name: this.names.said(character) })
-        : this.t(`feature.turnOrder.${announcement}Unseen`)
+        ? encodeI18nMessage(`feature.turnOrder.${announcement}`, { name: this.names.said(character) })
+        : encodeI18nMessage(`feature.turnOrder.${announcement}Unseen`)
     );
   }
 }

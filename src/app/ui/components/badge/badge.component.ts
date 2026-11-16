@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, linkedSignal } from '@angular/core';
 
 @Component({
   selector: 'badge',
@@ -7,15 +7,11 @@ import { ChangeDetectionStrategy, Component, effect, input, signal } from '@angu
 })
 export class BadgeComponent {
   readonly count = input(0);
-  readonly animeState = signal<'active' | 'inactive'>('active');
-
-  constructor() {
-    effect(() => {
-      this.count();
-      this.animeState.set('inactive');
-      queueMicrotask(() => this.animeState.set('active'));
-    });
-  }
+  /** Bouncing from each new count until the bounce has finished. */
+  readonly animeState = linkedSignal<number, 'active' | 'inactive'>({
+    source: this.count,
+    computation: () => 'active',
+  });
 
   /** Called when the bounce animation finishes, so the badge rests until its count changes again. */
   onBounceEnd() {

@@ -191,15 +191,13 @@ test.describe('joining a room', () => {
     const samplePieces = (page: Page) => page.locator('[data-object-id^="testCharacter_"]');
 
     await expect(samplePieces(gm.page)).not.toHaveCount(0, { timeout: 20_000 });
-    await gm.page.evaluate(() =>
-      (window as { __axeTable?: { clearToBlankTable(): void } }).__axeTable!.clearToBlankTable()
-    );
+    await gm.page.evaluate(() => window.__axeTable.clearToBlankTable());
     await expect(samplePieces(gm.page)).toHaveCount(0);
     await openChatSettingsMenuItem(gm.page, 'タブ設定');
-    await gm.page.locator('app-chat-tab-setting li[role="option"]').filter({ hasText: 'サブタブ' }).click();
-    await gm.page.locator('app-chat-tab-setting input[name="allow-delete-tab"]').check();
+    await gm.page.locator('chat-tab-setting li[role="option"]').filter({ hasText: 'サブタブ' }).click();
+    await gm.page.locator('chat-tab-setting input[name="allow-delete-tab"]').check();
     await gm.page
-      .locator('app-chat-tab-setting')
+      .locator('chat-tab-setting')
       .getByRole('button', { name: /タブ削除/ })
       .click();
     await expect(gm.page.locator('chat-window .chat-tab-pill', { hasText: 'サブタブ' })).toHaveCount(0);

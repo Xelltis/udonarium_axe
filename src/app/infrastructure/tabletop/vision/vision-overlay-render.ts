@@ -1,4 +1,5 @@
-import { hexChannels } from '@axe/core/util/hex-color';
+import { clamp } from '@axe/core/util/clamp';
+import { hexChannels, withAlpha } from '@axe/core/util/hex-color';
 import { CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { OverlayPlan, OverlayShape, OverlayVision, ShadowShape } from '@axe/domain/tabletop/vision-scene';
@@ -19,16 +20,12 @@ interface ResolvedSurface extends OverlaySurface {
   heightPx: number;
 }
 
-/**
- * A CSS `rgba()` colour from a hex colour of three or six digits, with or without the `#`; anything
- * unreadable gives white at the same alpha.
- */
-export function hexToRgba(color: string, alpha: number): string {
-  const [r, g, b] = hexChannels(color) ?? [255, 255, 255];
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
+const WHITE = '#ffffff';
 
-export { animationIntensity };
+/** A CSS `rgba()` colour from a hex colour at an alpha; anything not written in hex gives white at the same alpha. */
+export function hexToRgba(color: string, alpha: number): string {
+  return withAlpha(hexChannels(color) ? color : WHITE, alpha);
+}
 
 function glowColor(shape: OverlayShape, alpha: number, timeMs: number): string {
   if (shape.animation === 'neon') {
@@ -46,9 +43,7 @@ function beginClips(ctx: CanvasRenderingContext2D, shape: OverlayShape): boolean
   ctx.save();
   if (hasPolygon && polygon) {
     ctx.beginPath();
-    ctx.moveTo(polygon[0].x, polygon[0].y);
-    for (let i = 1; i < polygon.length; i++) ctx.lineTo(polygon[i].x, polygon[i].y);
-    ctx.closePath();
+    tracePolygon(ctx, polygon);
     ctx.clip();
   }
   if (hasCone) {
@@ -90,12 +85,17 @@ function carveReveal(ctx: CanvasRenderingContext2D, shape: OverlayShape): void {
  */
 const polygonPaths = new WeakMap<object, Path2D>();
 
+/** Traces one polygon onto a path, from its first corner round to its last, and closes it. */
+function tracePolygon(sink: PathSink, polygon: readonly { x: number; y: number }[]): void {
+  sink.moveTo(polygon[0].x, polygon[0].y);
+  for (let i = 1; i < polygon.length; i++) sink.lineTo(polygon[i].x, polygon[i].y);
+  sink.closePath();
+}
+
 function tracePolygons(sink: PathSink, polygons: { x: number; y: number }[][]): void {
   for (const polygon of polygons) {
     if (polygon.length < 3) continue;
-    sink.moveTo(polygon[0].x, polygon[0].y);
-    for (let i = 1; i < polygon.length; i++) sink.lineTo(polygon[i].x, polygon[i].y);
-    sink.closePath();
+    tracePolygon(sink, polygon);
   }
 }
 
@@ -148,9 +148,7 @@ function clipToPolygon(ctx: CanvasRenderingContext2D, clip: { x: number; y: numb
   if (!clip || clip.length < 3) return false;
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(clip[0].x, clip[0].y);
-  for (let i = 1; i < clip.length; i++) ctx.lineTo(clip[i].x, clip[i].y);
-  ctx.closePath();
+  tracePolygon(ctx, clip);
   ctx.clip();
   return true;
 }
@@ -163,9 +161,7 @@ function drawShadow(ctx: CanvasRenderingContext2D, shadow: ShadowShape): void {
   gradient.addColorStop(1, hexToRgba(shadow.color, 0));
   ctx.fillStyle = gradient;
   ctx.beginPath();
-  ctx.moveTo(shadow.points[0].x, shadow.points[0].y);
-  for (let i = 1; i < shadow.points.length; i++) ctx.lineTo(shadow.points[i].x, shadow.points[i].y);
-  ctx.closePath();
+  tracePolygon(ctx, shadow.points);
   ctx.fill();
   if (clipped) ctx.restore();
 }
@@ -305,7 +301,7 @@ export function overlayScale(
   const pixels = width * height;
   const side = Math.max(1, width, height);
   if (!(pixels > budget)) return Math.min(1, LONGEST_PICTURE_PX / side);
-  return Math.min(OVERLAY_LONGEST_PX / side, Math.max(minScale, Math.sqrt(budget / pixels)));
+  return clamp(Math.sqrt(budget / pixels), minScale, OVERLAY_LONGEST_PX / side);
 }
 
 export interface BakeCanvas {
@@ -378,10 +374,7 @@ function traceCells(sink: PathSink, grid: CellGrid, keep: (index: number) => boo
   if (isHexGrid(grid.type)) {
     for (let index = 0; index < grid.cols * grid.rows; index++) {
       if (!keep(index)) continue;
-      const points = cellPolygonOf(grid, index);
-      sink.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < points.length; i++) sink.lineTo(points[i].x, points[i].y);
-      sink.closePath();
+      tracePolygon(sink, cellPolygonOf(grid, index));
       any = true;
     }
     return any;
@@ -479,11 +472,7 @@ export function fillCells(
   keep: (index: number) => boolean,
   blurPx = 0
 ): void {
-  const previous = ctx.filter;
-  if (blurPx > 0) ctx.filter = `blur(${blurPx.toFixed(1)}px)`;
-  ctx.beginPath();
-  if (traceCells(ctx, grid, keep)) ctx.fill();
-  if (blurPx > 0) ctx.filter = previous;
+  fillMask(ctx, grid, { keep }, blurPx);
 }
 
 interface OverlayBounds {
@@ -646,22 +635,31 @@ function paintShadows(
   }
 }
 
-/**
- * Draws the lighting and vision overlay: the darkness, the glowing lights and the shadows. The
- * margin widens the canvas around the table on every side.
- */
+/** What an overlay is drawn with beyond its plan and size. */
+export interface OverlayDrawOptions {
+  /** The moment the lights flicker at, in milliseconds; the start of time unless given. */
+  readonly timeMs?: number;
+  /** The pictures the shadows are cast from, by url; a shadow whose picture is missing is cast as a shape. */
+  readonly images?: Map<string, HTMLImageElement>;
+  /** How far the canvas is widened around the table on every side, in board pixels. */
+  readonly margin?: number;
+  /** Where the surface lies and the cells it is made of; the whole canvas from its origin unless given. */
+  readonly surface?: OverlaySurface;
+  /** How many canvas pixels there are to a board pixel; one unless given. */
+  readonly scale?: number;
+  /** A surface to gather a pass on before it is cut back to what can be seen, where there is one. */
+  readonly scratch?: BakeCanvas | null;
+}
+
+/** Draws the lighting and vision overlay: the darkness, the glowing lights and the shadows. */
 export function drawOverlayPlan(
   ctx: CanvasRenderingContext2D,
   plan: OverlayPlan,
   widthPx: number,
   heightPx: number,
-  timeMs = 0,
-  images?: Map<string, HTMLImageElement>,
-  margin = 0,
-  surface?: OverlaySurface,
-  scale = 1,
-  scratch?: BakeCanvas | null
+  options: OverlayDrawOptions = {}
 ): void {
+  const { timeMs = 0, images, margin = 0, surface, scale = 1, scratch } = options;
   const resolved = resolvedSurfaceOf(widthPx, heightPx, surface);
   const offsetX = margin - resolved.originX;
   const offsetY = margin - resolved.originY;

@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { cellSpot } from '../helpers';
+import { cellSpot, sendMenuEvent } from '../helpers';
 import {
   becomeGm,
   chooseMenu,
@@ -66,10 +66,7 @@ async function clearOfMarks(page: Page, at: { x: number; y: number }): Promise<{
           const box = ring.getBoundingClientRect();
           return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
         }) &&
-        (window as unknown as { __axeTable: { pickAt(x: number, y: number): string | null } }).__axeTable.pickAt(
-          x,
-          y
-        ) === null,
+        window.__axeTable.pickAt(x, y) === null,
       { x: table.x + point.x, y: table.y + point.y }
     );
     if (clear) return point;
@@ -79,15 +76,7 @@ async function clearOfMarks(page: Page, at: { x: number; y: number }): Promise<{
 
 /** Waits for the water to be built in the scene of the canvas. */
 async function waterBuilt(page: Page) {
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          (window as unknown as { __axeTable: { sceneStats(): { waterParts: number } | null } }).__axeTable.sceneStats()
-            ?.waterParts ?? 0
-      )
-    )
-    .toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => window.__axeTable.sceneStats()?.waterParts ?? 0)).toBeGreaterThan(0);
 }
 
 /** Makes a piece at a point, and leaves the pointer off the table, where its card would cover the pond laid beside it. */
@@ -131,7 +120,7 @@ async function openPondMenu(page: Page): Promise<Locator> {
   if (pondAt) {
     await page.locator('#app-table-layer').click({ button: 'right', position: pondAt });
   } else {
-    await page.locator('table-ambience').first().dispatchEvent('contextmenu');
+    await sendMenuEvent(page.locator('table-ambience').first());
   }
   await settle(page, 400);
   const menu = page.locator('context-menu');
@@ -255,7 +244,7 @@ test('a ditch dug from a pond fills with its water, standing as high as the pond
   await page.mouse.up();
   await page.getByTestId('ground-brush-close').click();
   await expect(page.getByTestId('ground-brush-band')).toHaveCount(0);
-  await page.evaluate(() => (window as unknown as { __axeTable: { whenIdle(): Promise<void> } }).__axeTable.whenIdle());
+  await page.evaluate(() => window.__axeTable.whenIdle());
   await freeze(page);
   await layPond(page, await cellSpot(page, 12.5, 15.5));
   await leavePond(page);
@@ -329,7 +318,7 @@ test('a piece looks out from under the surface of a pond', async ({ page }) => {
   const piece = page.locator('game-character').last();
   await layPond(page, await cellSpot(page, POND_CELL.x, POND_CELL.y));
   await setWaterLevel(page, '2');
-  await piece.dispatchEvent('contextmenu');
+  await sendMenuEvent(piece);
   await settle(page, 400);
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });

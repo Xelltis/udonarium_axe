@@ -1,15 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { chatTabPill, openPanel, waitAppReady } from './helpers';
-
-async function becomeGm(page: Page) {
-  await page
-    .locator('ui-panel')
-    .filter({ hasText: '接続情報' })
-    .getByRole('button', { name: /^\s*GM\s*$/ })
-    .click();
-  await expect(page.locator('app-gm-toolbar button').first()).toBeVisible({ timeout: 10000 });
-}
+import { becomeGm, chatTabPill, openPanel, waitAppReady } from './helpers';
 
 /** Starts the next round, or hands the turn on, from the round bar of the inventory. */
 async function nextTurn(page: Page) {

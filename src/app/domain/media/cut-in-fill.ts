@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /**
  * How a band layer is painted.
  *
@@ -29,12 +30,12 @@ export interface CutInFill {
 export function fillScaleOf(fill: CutInFill): number {
   const asked = Number(fill.scalePx);
   const scale = Number.isFinite(asked) && asked > 0 ? asked : DEFAULT_FILL_SCALE_PX;
-  return Math.min(MAX_FILL_SCALE_PX, Math.max(MIN_FILL_SCALE_PX, scale));
+  return clamp(scale, MIN_FILL_SCALE_PX, MAX_FILL_SCALE_PX);
 }
 
 /** How wide a ray of a converging fill is, in degrees. */
 export function rayDegOf(fill: CutInFill): number {
-  return Math.min(20, Math.max(0.3, fillScaleOf(fill) / 12));
+  return clamp(fillScaleOf(fill) / 12, 0.3, 20);
 }
 
 /** Whether a stored value names one of the ways a band layer can be painted. */

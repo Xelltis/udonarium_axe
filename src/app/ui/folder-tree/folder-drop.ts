@@ -4,7 +4,7 @@
  * which is the nearer one.
  */
 export const FOLDER_DROPZONE_SELECTOR = '[data-folder-dropzone], [data-folder-area]';
-export const FOLDER_PATH_ATTRIBUTE = 'data-folder-path';
+const FOLDER_PATH_ATTRIBUTE = 'data-folder-path';
 
 /**
  * The folder path of the drop zone an element sits in, null when it is in none, and empty for a

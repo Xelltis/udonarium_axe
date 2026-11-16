@@ -1,6 +1,6 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import {
   canClaimOwnership,
   canEditDisclosure,
@@ -41,7 +41,7 @@ function candidateName(cursor: PeerCursor): string {
  * was left out for that, and otherwise that no other player is there.
  */
 export function noCandidatesKey(): string {
-  const leftOut = Network.peerContexts.some((context) => {
+  const leftOut = Network.instance.peerContexts.some((context) => {
     const cursor = PeerCursor.findByPeerId(context.peerId);
     return cursor !== null && !cursor.isMine && !mayBeChosen(cursor);
   });
@@ -50,7 +50,7 @@ export function noCandidatesKey(): string {
 
 function audienceCandidates(object: DisclosableObject): DisclosureCandidate[] {
   const result: DisclosureCandidate[] = [];
-  for (const context of Network.peerContexts) {
+  for (const context of Network.instance.peerContexts) {
     const cursor = PeerCursor.findByPeerId(context.peerId);
     if (!cursor || cursor.isMine || cursor.isGameMaster || !mayBeOffered(cursor, object.disclosureUserIds)) continue;
     result.push({ userId: cursor.userId, name: candidateName(cursor) });
@@ -67,9 +67,9 @@ function ownerCandidates(object: DisclosableObject): DisclosureCandidate[] {
   const result: DisclosureCandidate[] = [];
   const myCursor = PeerCursor.myCursor;
   if (myCursor) result.push({ userId: myCursor.userId, name: candidateName(myCursor) });
-  const narrowed = Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
+  const narrowed = Network.instance.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
   if (narrowed && ownerRuledByServer(object)) return result;
-  for (const context of Network.peerContexts) {
+  for (const context of Network.instance.peerContexts) {
     const cursor = PeerCursor.findByPeerId(context.peerId);
     if (!cursor || cursor.isMine || !mayBeOffered(cursor, [object.owner ?? ''])) continue;
     result.push({ userId: cursor.userId, name: candidateName(cursor) });
@@ -94,7 +94,7 @@ export function buildDisclosureContextMenu(object: DisclosableObject, t: Transla
   const canEdit = canEditDisclosure(viewer) && canRoleEdit(PeerCursor.myRole);
   const canClaim =
     myUserId.length > 0 &&
-    canClaimOwnership(object, viewer, Network.authorityPeerId !== null && object instanceof TextNote) &&
+    canClaimOwnership(object, viewer, Network.instance.authorityPeerId !== null && object instanceof TextNote) &&
     canRoleEdit(PeerCursor.myRole);
   const showOwnerMenu = isGameMaster || canClaim;
   if (!canEdit && !showOwnerMenu) return [];

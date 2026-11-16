@@ -62,6 +62,12 @@ export const CENTERED_EFFECT_KINDS: readonly EffectKind[] = [
   'curse',
   'warp',
   'gravity',
+  'smite',
+  'halo',
+  'sanctuary',
+  'shadow',
+  'darkorb',
+  'quake',
 ];
 
 const AIMED: ReadonlySet<EffectKind> = new Set(AIMED_EFFECT_KINDS);
@@ -95,6 +101,7 @@ const CUTTING: Partial<Record<EffectKind, (context: CutPictureContext) => void>>
       c.center,
       c.base,
       c.progress,
+      c.preset.duration / 1000,
       c.random,
       imageOf(c.options, c.target.identifier)
     ),

@@ -1,4 +1,6 @@
+import { WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RoomFilesService } from '@axe/application/file/room-files.service';
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
@@ -453,6 +455,26 @@ describe('FabDrawerComponent', () => {
       fixture.detectChanges();
 
       expect(fixture.nativeElement.querySelector('[data-testid="fab-submenu-gameResources"]')).toBeNull();
+    });
+
+    it('closes a small menu left open as a save runs, and lets one be opened again', () => {
+      const entry = () => fixture.nativeElement.querySelector('[data-testid="fab-entry-gameResources"]') as HTMLElement;
+      const submenu = () => fixture.nativeElement.querySelector('[data-testid="fab-submenu-gameResources"]');
+      const saving = (TestBed.inject(RoomFilesService) as unknown as { saving: WritableSignal<boolean> }).saving;
+      entry().click();
+      fixture.detectChanges();
+      expect(submenu()).toBeTruthy();
+
+      saving.set(true);
+      fixture.detectChanges();
+      expect(submenu()).toBeNull();
+
+      saving.set(false);
+      fixture.detectChanges();
+      expect(submenu()).toBeNull();
+      entry().click();
+      fixture.detectChanges();
+      expect(submenu()).toBeTruthy();
     });
 
     describe('once somebody has arranged the drawer', () => {

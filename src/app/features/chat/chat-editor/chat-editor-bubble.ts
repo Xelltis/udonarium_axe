@@ -18,6 +18,29 @@ export interface ChatBubble {
   relabel(): void;
 }
 
+/** How far the bar stands from the selection where nothing is in its way, in pixels. */
+const BUBBLE_GAP = 8;
+
+/**
+ * How far from the selection its bar stands: just over it, or over the toolbar where it would
+ * otherwise cover the toolbar's buttons, and just under it where there is no room above.
+ *
+ * `toolbar` is where the toolbar over the box stands on the screen, where there is one;
+ * `selectionTop` and `height` are the top of the selection and the height of the bar.
+ */
+export function chatBubbleGap(
+  toolbar: { top: number; bottom: number; height: number } | null | undefined,
+  placement: string,
+  selectionTop: number,
+  height: number
+): number {
+  if (!placement.startsWith('top')) return BUBBLE_GAP;
+  if (!toolbar || toolbar.height < 1) return BUBBLE_GAP;
+  const bottom = selectionTop - BUBBLE_GAP;
+  const covers = bottom > toolbar.top && bottom - height < toolbar.bottom;
+  return covers ? selectionTop - toolbar.top + 4 : BUBBLE_GAP;
+}
+
 /**
  * The bar that opens over the words selected: bold, italic, a line through, the colours, and a
  * ruby over them. A press on it keeps the selection where it is, so what it does falls on it.

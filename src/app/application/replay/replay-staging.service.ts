@@ -5,7 +5,7 @@ import type { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { canMergeReplayEvents, mergeReplayEvents } from '@axe/domain/replay/replay-coalescer';
-import { cloneSyncData, type SyncData } from '@axe/domain/replay/replay-diff';
+import { cloneSyncData, type SyncData, syncDataOf } from '@axe/domain/replay/replay-diff';
 import {
   PUBLIC_VISIBILITY,
   type ReplayEvent,
@@ -103,11 +103,13 @@ export class ReplayStagingService {
     });
     batch.forEach((message, index) => {
       const identifier = (message.data as { identifier?: unknown } | null)?.identifier;
-      const from = typeof identifier === 'string' ? first.get(identifier) : undefined;
-      if (from !== undefined && message.eventName === 'UPDATE_GAME_OBJECT') {
-        const to = last.get(identifier as string) as number;
-        if (index === from) return this.handleMessage(message.eventName, batch[to].data, message.at);
-        if (index <= to) return;
+      if (typeof identifier === 'string' && message.eventName === 'UPDATE_GAME_OBJECT') {
+        const from = first.get(identifier);
+        const to = last.get(identifier);
+        if (from !== undefined && to !== undefined) {
+          if (index === from) return this.handleMessage(message.eventName, batch[to].data, message.at);
+          if (index <= to) return;
+        }
       }
       this.handleMessage(message.eventName, message.data, message.at);
     });
@@ -125,7 +127,7 @@ export class ReplayStagingService {
     this.shadows.clear();
     this.partOwners.clear();
     for (const object of this.objectStore.getObjects()) {
-      this.shadows.set(object.identifier, cloneSyncData(object.toContext().syncData as SyncData));
+      this.shadows.set(object.identifier, cloneSyncData(syncDataOf(object)));
       const piece = pieceOf(object);
       if (piece) this.partOwners.set(object.identifier, piece.identifier);
       this.namesAtStart.set(object.identifier, this.snapshotOf(object));

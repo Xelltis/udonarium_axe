@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { callFlipCoin } from '@axe/core/event/domain-events';
@@ -36,10 +37,10 @@ export class CoinFlipService {
     coin.face = face;
     coin.toTopmost();
 
-    const text = this.t('feature.coin.message.flipped', {
+    const text = encodeI18nMessage('feature.coin.message.flipped', {
       who: PeerCursor.myCursor?.name ?? '',
       name: coin.name,
-      face: this.faceLabel(face),
+      face: encodeI18nMessage(faceKeyOf(face)),
     });
     // Heads or tails is a two-sided die, so it lands in the tab the thrower is reading.
     const tab = this.activeChatTab.current();
@@ -54,6 +55,11 @@ export class CoinFlipService {
 
   /** The translated name of a coin face, for the flip announcement and the coin sheet. */
   faceLabel(face: CoinFace): string {
-    return this.t(face === 'front' ? 'feature.coin.face.front' : 'feature.coin.face.back');
+    return this.t(faceKeyOf(face));
   }
+}
+
+/** The translation key of a coin face's name. */
+function faceKeyOf(face: CoinFace): string {
+  return face === 'front' ? 'feature.coin.face.front' : 'feature.coin.face.back';
 }

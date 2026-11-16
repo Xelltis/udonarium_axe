@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -38,7 +39,13 @@ export class VisualNovelSoundBoardComponent {
   readonly attach = output<AttachedSound>();
   readonly played = output<void>();
 
+  /** Bumped whenever a sound effect starts or ends on this device, which no object of the room tells. */
   private readonly seTick = signal(0);
+
+  constructor() {
+    const stop = SoundEffects.onChange(() => this.seTick.update((tick) => tick + 1));
+    inject(DestroyRef).onDestroy(stop);
+  }
 
   private get jukebox(): Jukebox | null {
     return this.objectStore.get<Jukebox>('Jukebox');
@@ -55,7 +62,7 @@ export class VisualNovelSoundBoardComponent {
   /** The sounds brought to this room, which is where somebody looks for their own first. */
   readonly soundEffects = computed<AttachedSound[]>(() => {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('audio-tag')();
+    trackEvery(this.objectChange, 'audio-tag');
     return this.audioStorage.audios
       .filter((audio) => !audio.isHidden && AudioTag.get(audio.identifier)?.tag === 'SE')
       .map((audio) => ({ identifier: audio.identifier, name: audio.name }))
@@ -71,7 +78,7 @@ export class VisualNovelSoundBoardComponent {
    */
   readonly presetSoundEffects = computed<AttachedSound[]>(() => {
     this.objectChange.fileVersion();
-    this.language.currentLang();
+    const language = this.language.currentLang();
     return (
       this.audioStorage.audios
         .filter((audio) => audio.isHidden)
@@ -80,7 +87,7 @@ export class VisualNovelSoundBoardComponent {
         .filter((sound) => sound.labelKey.length > 0)
         .map((sound) => ({ identifier: sound.identifier, name: this.t(sound.labelKey) }))
         .filter((sound) => this.matchesSoundFilter(sound.name))
-        .sort((left, right) => left.name.localeCompare(right.name, 'ja'))
+        .sort((left, right) => left.name.localeCompare(right.name, language))
     );
   });
 
@@ -108,30 +115,27 @@ export class VisualNovelSoundBoardComponent {
 
   readonly bgmTracks = computed(() => {
     this.objectChange.fileVersion();
-    this.objectChange.collectionOf('audio-tag')();
+    trackEvery(this.objectChange, 'audio-tag');
     return this.audioStorage.audios.filter(
       (audio) => !audio.isHidden && (AudioTag.get(audio.identifier)?.tag ?? 'BGM') === 'BGM'
     );
   });
 
   readonly playingBgmIdentifier = computed(() => {
-    this.seTick();
+    this.objectChange.collectionOf(Jukebox.aliasName)();
+    this.objectChange.versionOf('Jukebox')();
     const jukebox = this.jukebox;
     return jukebox?.isPlaying ? jukebox.audioIdentifier : '';
   });
 
-  /** Plays a track on the room's jukebox and refreshes which track shows as playing. */
+  /** Plays a track on the room's jukebox. */
   playBgm(identifier: string): void {
-    if (!this.mayPlay) return;
-    this.jukebox?.play(identifier);
-    this.seTick.update((tick) => tick + 1);
+    if (this.mayPlay) this.jukebox?.play(identifier);
   }
 
-  /** Stops the room's jukebox and refreshes which track shows as playing. */
+  /** Stops the room's jukebox. */
   stopBgm(): void {
-    if (!this.mayPlay) return;
-    this.jukebox?.stop();
-    this.seTick.update((tick) => tick + 1);
+    if (this.mayPlay) this.jukebox?.stop();
   }
 
   /**
@@ -156,16 +160,11 @@ export class VisualNovelSoundBoardComponent {
   }
 
   /**
-   * Whether a sound effect is playing, which turns its button into a stop button; rechecked when
-   * the board refreshes.
+   * Whether a sound effect is playing, which turns its button into a stop button; followed as the
+   * effects of this device start and end.
    */
   isSoundEffectPlaying(identifier: string): boolean {
     this.seTick();
     return SoundEffects.isPlaying(identifier);
-  }
-
-  /** The board is asked again about what is playing whenever it is opened. */
-  refresh(): void {
-    this.seTick.update((tick) => tick + 1);
   }
 }

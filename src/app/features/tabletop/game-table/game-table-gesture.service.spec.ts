@@ -46,7 +46,6 @@ describe('GameTableGestureService', () => {
     });
     service = TestBed.inject(GameTableGestureService);
     rootEl = document.createElement('div');
-    (service as unknown as { rootEl: HTMLElement }).rootEl = rootEl;
   });
 
   describe('tiltLocked', () => {
@@ -124,12 +123,17 @@ describe('GameTableGestureService', () => {
     });
 
     it('writes where the camera stands to the table, in the frame the table moves in', async () => {
-      service.setTransform(40, 0, 0, 0, 0, 0);
-      expect(rootEl.dataset['camera']).toBeUndefined();
+      service.initialize(rootEl, () => true);
+      try {
+        service.setTransform(40, 0, 0, 0, 0, 0);
+        expect(rootEl.dataset['camera']).toBeUndefined();
 
-      await nextFrame();
+        await nextFrame();
 
-      expect(rootEl.dataset['camera']).toBe('140.0000,0.0000,0.0000,50.0000,0.0000,10.0000,0');
+        expect(rootEl.dataset['camera']).toBe('140.0000,0.0000,0.0000,50.0000,0.0000,10.0000,0');
+      } finally {
+        service.destroy();
+      }
     });
 
     it('says nothing about the way it faces when the view was only slid', async () => {
@@ -350,15 +354,22 @@ describe('GameTableGestureService', () => {
   });
 
   describe('zooming with the wheel and the keys', () => {
-    /** One notch of the wheel, which arrives as a step of at most 300 towards or away from the board. */
+    /** One notch of the wheel on the table, which arrives as a step of at most 300 towards or away from the board. */
     const wheel = (tZ: number): void => {
-      service.isTableTransformMode = true;
-      const gesture = service as unknown as { onTableMouseTransform(...args: unknown[]): void };
-      gesture.onTableMouseTransform(0, 0, tZ, 0, 0, 0, {}, { cancelable: false, preventDefault: () => undefined });
+      rootEl.dispatchEvent(new WheelEvent('wheel', { deltaY: -tZ / 1.5, cancelable: true }));
     };
 
     beforeEach(() => {
+      document.body.appendChild(rootEl);
+      service.initialize(rootEl, () => true);
+      // A press let go leaves the table ready to be moved, which is how the wheel finds it.
+      service.cancelInput();
       document.body.focus();
+    });
+
+    afterEach(() => {
+      service.destroy();
+      rootEl.remove();
     });
 
     it('comes in past life size and stops well short of the eye', () => {
@@ -517,32 +528,36 @@ describe('GameTableGestureService', () => {
   });
 
   describe('pressing painted ground', () => {
-    type Gestures = {
-      rootEl: HTMLElement;
-      getGridShow: () => boolean;
-      onTableMouseStart(e: MouseEvent): void;
-      onTableMouseEnd(e: MouseEvent): void;
-    };
-    let gestures: Gestures;
     let press: ReturnType<typeof vi.spyOn>;
     let floor: HTMLElement;
 
     beforeEach(() => {
-      gestures = service as unknown as Gestures;
       floor = document.createElement('div');
-      gestures.rootEl = floor;
-      gestures.getGridShow = () => false;
+      document.body.appendChild(floor);
+      service.initialize(floor, () => false);
       vi.spyOn(TestBed.inject(TablePickService), 'landingAt').mockReturnValue({ x: 125, y: 75, z: 0 });
       press = vi.spyOn(TestBed.inject(SwitchPressService), 'pressGroundAt').mockResolvedValue('pressed');
     });
 
-    afterEach(() => vi.restoreAllMocks());
+    afterEach(() => {
+      service.destroy();
+      floor.remove();
+      vi.restoreAllMocks();
+    });
+
+    /** A press on something on the table, or on the bare table, as the mouse makes one. */
+    function pressOn(target: HTMLElement, button = 0): void {
+      if (target !== floor && !floor.contains(target)) floor.appendChild(target);
+      target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button, clientX: 10, clientY: 10 }));
+    }
+
+    function letGo(button = 0): void {
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button, clientX: 10, clientY: 10 }));
+    }
 
     function click(target: HTMLElement, button = 0): void {
-      const event = new MouseEvent('mousedown', { button, clientX: 10, clientY: 10 });
-      Object.defineProperty(event, 'target', { value: target });
-      gestures.onTableMouseStart(event);
-      gestures.onTableMouseEnd(new MouseEvent('mouseup', { button, clientX: 10, clientY: 10 }));
+      pressOn(target, button);
+      letGo(button);
     }
 
     it('presses the ground under a left click on the bare table', () => {
@@ -552,11 +567,9 @@ describe('GameTableGestureService', () => {
     });
 
     it('presses nothing after a click that turned the view', () => {
-      const event = new MouseEvent('mousedown', { button: 0 });
-      Object.defineProperty(event, 'target', { value: floor });
-      gestures.onTableMouseStart(event);
+      pressOn(floor);
       service.isTableTransformed = true;
-      gestures.onTableMouseEnd(new MouseEvent('mouseup', { button: 0 }));
+      letGo();
 
       expect(press).not.toHaveBeenCalled();
     });
@@ -574,7 +587,7 @@ describe('GameTableGestureService', () => {
 
     it('holds no marquee ready on a press on the bare table while a piece is followed, as a drag then turns the camera round it', () => {
       const arm = vi.fn(() => true);
-      (gestures as unknown as { marqueeGesture: unknown }).marqueeGesture = {
+      (service as unknown as { marqueeGesture: unknown }).marqueeGesture = {
         arm,
         release: () => false,
         cancel: () => undefined,
@@ -592,8 +605,9 @@ describe('GameTableGestureService', () => {
 
     it('stretches an open marquee to where the move is, rather than where the pointer was last kept', () => {
       const updatePointer = vi.fn();
-      (gestures as unknown as { marqueeGesture: unknown }).marqueeGesture = {
+      (service as unknown as { marqueeGesture: unknown }).marqueeGesture = {
         updatePointer,
+        cancel: () => undefined,
         isActive: true,
         isArmed: false,
       };
@@ -601,7 +615,7 @@ describe('GameTableGestureService', () => {
       Object.defineProperties(move, { pageX: { value: 140 }, pageY: { value: 90 } });
 
       (
-        gestures as unknown as {
+        service as unknown as {
           onTableMouseTransform(...args: unknown[]): void;
         }
       ).onTableMouseTransform(0, 0, 0, 0, 0, 0, {}, move);

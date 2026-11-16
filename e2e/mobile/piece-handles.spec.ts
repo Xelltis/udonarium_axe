@@ -1,6 +1,6 @@
 import { expect, Locator, test } from '@playwright/test';
 
-import { closePanels } from '../dungeon-helpers';
+import { closePanels, waitMobileShell } from '../helpers';
 
 type Box = { x: number; y: number; width: number; height: number };
 
@@ -25,8 +25,7 @@ test.describe('character pieces seen on a phone', () => {
   test('puts the tilt handle right of the picture, clear of the picture, the name, the HP bar and the buffs', async ({
     page,
   }) => {
-    await page.goto('/');
-    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
+    await waitMobileShell(page);
 
     const piece = page
       .locator('game-character')
@@ -57,8 +56,7 @@ test.describe('character pieces seen on a phone', () => {
   test('brings out the handles of the piece last touched, and only of that one, and puts them away on a tap on the table', async ({
     page,
   }) => {
-    await page.goto('/');
-    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
+    await waitMobileShell(page);
     await closePanels(page);
 
     const pieces = page
@@ -94,11 +92,7 @@ test.describe('character pieces seen on a phone', () => {
     expect(await lookOf(other!)).toBe('0 none');
 
     const bare = await page.evaluate(() => {
-      const hooks = (
-        window as unknown as {
-          __axeTable: { drawnAt(x: number, y: number): string | null; pickAt(x: number, y: number): string | null };
-        }
-      ).__axeTable;
+      const hooks = window.__axeTable;
       const table = document.querySelector('#app-table-layer')!;
       for (let y = 140; y < innerHeight - 140; y += 30) {
         for (let x = 40; x < innerWidth - 40; x += 30) {

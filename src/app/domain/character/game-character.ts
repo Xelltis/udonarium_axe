@@ -3,6 +3,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { generateUuid } from '@axe/core/util/uuid';
 import { BuffManager } from '@axe/domain/character/buff-manager';
 import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
@@ -74,6 +75,11 @@ function standOnBody(part: GameCharacter, body: GameCharacter): void {
   part.location.x = body.location.x + offset;
   part.location.y = body.location.y + offset;
 }
+
+/** The name of the sheet section that holds where a character's portrait stands. */
+export const PORTRAIT_POSITION_SECTION = '立ち絵位置';
+/** The name of the sheet section that holds which of a character's pictures its piece shows. */
+export const KOMA_IMAGE_SECTION = 'コマ画像';
 
 @SyncObject('character')
 export class GameCharacter extends OwnedTabletopObject {
@@ -214,7 +220,6 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() chatBubbleLight: string[] = [...DEFAULT_CHAT_BUBBLE_CODES];
   @SyncVar() chatBubbleDark: string[] = [...DEFAULT_CHAT_BUBBLE_CODES];
   @SyncVar() overViewDataTags: string[] = [];
-  @SyncVar() syncDummyCounter: number = 0;
   /**
    * How each of the character's portraits sits in a cut-in's portrait slot, as
    * `cut-in-portrait-fit.ts` writes it. Empty leaves every portrait to the cut-in's own framing.
@@ -274,7 +279,7 @@ export class GameCharacter extends OwnedTabletopObject {
     this.addExtendData();
     const element = this.detailDataElement?.getFirstElementByName('POS');
     if (!element) return;
-    element.currentValue = Math.max(0, Math.min(VN_PORTRAIT_SLOT_COUNT - 1, Math.round(pos)));
+    element.currentValue = clamp(Math.round(pos), 0, VN_PORTRAIT_SLOT_COUNT - 1);
     this.update();
   }
 
@@ -483,6 +488,14 @@ export class GameCharacter extends OwnedTabletopObject {
     for (const part of parts) part.destroy();
   }
 
+  /**
+   * Sends the chat colours on to the room after one of them was written in place. The three lists
+   * are changed slot by slot rather than assigned, which on its own sends nothing.
+   */
+  touchChatColors(): void {
+    this.update();
+  }
+
   /** Raises the piece above the other pieces it overlaps on the table. */
   toTopmost() {
     moveToTopmost(this);
@@ -601,67 +614,39 @@ export class GameCharacter extends OwnedTabletopObject {
     const detail = this.detailDataElement;
     if (!detail) return;
 
-    const portraitPosEl = detail.getElementsByName('立ち絵位置');
-    if (portraitPosEl.length == 0) {
-      const testElement: DataElement = this.createDetailSectionElement('立ち絵位置', `立ち絵位置${this.identifier}`);
-      const groupElement: DataElement = this.createDetailGroupElement('基本', `立ち絵位置基本${this.identifier}`);
-      detail.appendChild(testElement);
-      testElement.appendChild(groupElement);
-      groupElement.appendChild(
-        DataElement.create(
-          'POS',
-          11,
-          {
-            [DataElementAttribute.ROLE]: DataElementRole.FIELD,
-            type: DataElementType.NUMBER_RESOURCE,
-            currentValue: '0',
-          },
-          `POS_${this.identifier}`
-        )
-      );
-    }
-
-    const iconNum = detail.getElementsByName('コマ画像');
-    if (iconNum.length == 0) {
-      const elementKoma: DataElement = this.createDetailSectionElement('コマ画像', `コマ画像${this.identifier}`);
-      const groupElement: DataElement = this.createDetailGroupElement('基本', `コマ画像基本${this.identifier}`);
-      detail.appendChild(elementKoma);
-
-      //puts the piece picture in after the portrait
-      const portraitPosEls = detail.getElementsByName('立ち絵位置');
-      if (portraitPosEls.length != 0) {
-        const parentElement = portraitPosEls[0].parent;
-        if (!parentElement) return;
-        const index: number = parentElement.children.indexOf(portraitPosEls[0]);
-        if (index < parentElement.children.length - 1) {
-          const nextElement = parentElement.children[index + 1];
-
-          parentElement.insertBefore(elementKoma, nextElement);
-        }
-      }
-      elementKoma.appendChild(groupElement);
-      groupElement.appendChild(
-        DataElement.create(
-          'ICON',
-          (this.imageDataElement?.children.length ?? 1) - 1,
-          {
-            [DataElementAttribute.ROLE]: DataElementRole.FIELD,
-            type: DataElementType.NUMBER_RESOURCE,
-            currentValue: 0,
-          },
-          `ICON_${this.identifier}`
-        )
-      );
-    }
+    this.ensureDetailSection(detail, PORTRAIT_POSITION_SECTION, null, () =>
+      DataElement.create(
+        'POS',
+        11,
+        {
+          [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+          type: DataElementType.NUMBER_RESOURCE,
+          currentValue: '0',
+        },
+        `POS_${this.identifier}`
+      )
+    );
+    this.ensureDetailSection(detail, KOMA_IMAGE_SECTION, PORTRAIT_POSITION_SECTION, () =>
+      DataElement.create(
+        'ICON',
+        (this.imageDataElement?.children.length ?? 1) - 1,
+        {
+          [DataElementAttribute.ROLE]: DataElementRole.FIELD,
+          type: DataElementType.NUMBER_RESOURCE,
+          currentValue: 0,
+        },
+        `ICON_${this.identifier}`
+      )
+    );
 
     const buff = this.buffDataElement;
     if (!buff) return;
     const isbuff = buff.getElementsByName('バフ/デバフ');
-    if (isbuff.length == 0) {
+    if (isbuff.length === 0) {
       const buffElement: DataElement = DataElement.create('バフ/デバフ', '', {}, `バフ/デバフ${this.identifier}`);
       buff.appendChild(buffElement);
     }
-    if (this.remoteController == null) {
+    if (this.remoteController === null) {
       const controller: BuffPalette = new BuffPalette(`RemotController_${this.identifier}`);
       controller.setPalette(`コントローラ入力例：
 マッスルベアー DB+2 3
@@ -759,6 +744,29 @@ export class GameCharacter extends OwnedTabletopObject {
     return child.fieldRole === DataElementRole.FIELD || child.children.length === 0;
   }
 
+  /**
+   * Adds a section of this name to the detail, holding one group `基本` with the field `makeField`
+   * makes, unless the detail already has a section of that name. The section goes at the end, or
+   * right after the first section named `after` when there is one.
+   */
+  private ensureDetailSection(
+    detail: DataElement,
+    name: string,
+    after: string | null,
+    makeField: () => DataElement
+  ): void {
+    if (detail.getElementsByName(name).length > 0) return;
+    const section = this.createDetailSectionElement(name, `${name}${this.identifier}`);
+    const group = this.createDetailGroupElement('基本', `${name}基本${this.identifier}`);
+    detail.appendChild(section);
+    const previous = after ? detail.getElementsByName(after)[0] : undefined;
+    const parent = previous?.parent;
+    const next = parent ? parent.children[parent.children.indexOf(previous) + 1] : undefined;
+    if (parent && next) parent.insertBefore(section, next);
+    section.appendChild(group);
+    group.appendChild(makeField());
+  }
+
   private createDetailSectionElement(name: string, identifier?: string): DataElement {
     return DataElement.create(
       name,
@@ -806,7 +814,7 @@ export class GameCharacter extends OwnedTabletopObject {
     let res = cloneObject.name.match(reg);
 
     let cloneNumber: number;
-    if (res != null && res.length == 3) {
+    if (res !== null && res.length === 3) {
       objectname = res[1];
       cloneNumber = parseInt(res[2]) + 1;
     } else {
@@ -816,10 +824,10 @@ export class GameCharacter extends OwnedTabletopObject {
 
     const list = ObjectStore.instance.getObjects(GameCharacter);
     for (const character of list) {
-      if (character.location.name == 'graveyard') continue;
+      if (character.location.name === 'graveyard') continue;
 
       res = character.name.match(reg);
-      if (res != null && res.length == 3 && res[1] == objectname) {
+      if (res !== null && res.length === 3 && res[1] === objectname) {
         const numberChk = parseInt(res[2]) + 1;
         if (cloneNumber <= numberChk) {
           cloneNumber = numberChk;

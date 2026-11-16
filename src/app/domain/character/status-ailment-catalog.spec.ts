@@ -10,12 +10,12 @@ describe('StatusAilmentCatalog', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({});
     clearStore();
-    (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+    StatusAilmentCatalog.forget();
   });
 
   afterEach(() => {
     clearStore();
-    (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+    StatusAilmentCatalog.forget();
   });
 
   it('holds one catalogue for the room', () => {
@@ -51,6 +51,66 @@ describe('StatusAilmentCatalog', () => {
     // A newline in an attribute is folded into a space when the xml is read back, so the
     // list has to sit in the body of the element.
     expect(xml).toContain('毒\n麻痺');
+  });
+
+  describe('whether putting a state on plays its effect', () => {
+    afterEach(() => {
+      StatusAilmentCatalog.instance.playsEffectOnPlant = false;
+    });
+
+    it('is off in a room just started', () => {
+      expect(StatusAilmentCatalog.instance.playsEffectOnPlant).toBe(false);
+      expect(ObjectSerializer.instance.toXml(StatusAilmentCatalog.instance)).not.toContain('plantEffect="true"');
+    });
+
+    it('reads as off from a room saved before it could be asked for, even over a room that had asked', () => {
+      const room = StatusAilmentCatalog.instance;
+      room.playsEffectOnPlant = true;
+
+      ObjectSerializer.instance.parseXml(
+        '<status-ailment-catalog identifier="LoadedCatalog">毒</status-ailment-catalog>'
+      );
+
+      expect(StatusAilmentCatalog.instance).toBe(room);
+      expect(room.playsEffectOnPlant).toBe(false);
+    });
+
+    it('comes back as it was saved, on and off', () => {
+      for (const asked of [true, false]) {
+        StatusAilmentCatalog.instance.ailments = [newStatusAilment('毒')];
+        StatusAilmentCatalog.instance.playsEffectOnPlant = asked;
+        const xml = ObjectSerializer.instance.toXml(StatusAilmentCatalog.instance);
+        StatusAilmentCatalog.instance.playsEffectOnPlant = !asked;
+
+        ObjectSerializer.instance.parseXml(xml.replace('identifier="StatusAilmentCatalog"', 'identifier="Loaded"'));
+
+        expect(StatusAilmentCatalog.instance.playsEffectOnPlant, `${asked}`).toBe(asked);
+        expect(StatusAilmentCatalog.instance.ailments.map((entry) => entry.name)).toEqual(['毒']);
+      }
+    });
+
+    it('reads anything but a plain yes as off: no value, an empty one, a number or a word', () => {
+      for (const written of ['', 'plantEffect=""', 'plantEffect="1"', 'plantEffect="on"', 'plantEffect="TRUE"']) {
+        StatusAilmentCatalog.instance.playsEffectOnPlant = true;
+
+        ObjectSerializer.instance.parseXml(
+          `<status-ailment-catalog identifier="LoadedCatalog" ${written}>毒</status-ailment-catalog>`
+        );
+
+        expect(StatusAilmentCatalog.instance.playsEffectOnPlant, written).toBe(false);
+      }
+    });
+
+    it('is told to the room only when it changes', () => {
+      const room = StatusAilmentCatalog.instance;
+      const update = vi.spyOn(room, 'update');
+
+      room.playsEffectOnPlant = false;
+      expect(update).not.toHaveBeenCalled();
+      room.playsEffectOnPlant = true;
+      expect(update).toHaveBeenCalledTimes(1);
+      update.mockRestore();
+    });
   });
 
   it('reads a loaded catalogue into the one the room already has', () => {

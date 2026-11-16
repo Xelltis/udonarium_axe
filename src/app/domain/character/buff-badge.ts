@@ -1,7 +1,8 @@
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { DEFAULT_BUFF_COLOR } from '@axe/domain/character/buff-appearance';
 import { buffGroupOf, isBuffGroupMember } from '@axe/domain/character/buff-group';
-import { buffExpires } from '@axe/domain/character/buff-timing';
+import { type BuffKind, buffKindMarkOf } from '@axe/domain/character/buff-kind';
+import { BuffEffectTiming, buffEffectTimingOf, buffExpires } from '@axe/domain/character/buff-timing';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 
 export interface BuffBadge {
@@ -15,7 +16,11 @@ export interface BuffBadge {
   rounds: number;
   /** Whether the rounds mean anything: a buff that waits to be taken away counts nothing down. */
   expires: boolean;
+  /** The moment the buff's effect moves at, where it has one of its own; null where it has none. */
+  effectTiming: BuffEffectTiming | null;
   color: string;
+  /** The kind the buff is marked as by hand or by a command, or null where it carries no mark. */
+  kindMark: BuffKind | null;
 }
 
 export const BUFF_BADGES_PER_ROW = 5;
@@ -63,6 +68,19 @@ export function buffIconUrlOf(icon: string): string {
 
 /** What a picture's name is made of, which no emoji is. */
 const IDENTIFIER_LIKE = /^[A-Za-z0-9_.:-]+$/;
+
+/**
+ * How many buffs the rows under a piece's buffs hold: every row of a row that holds rows of its own,
+ * and each row of a kind that time takes away.
+ */
+export function countBuffs(rows: readonly DataElement[]): number {
+  let count = 0;
+  for (const row of rows) {
+    if (row.children.length > 0) count += row.children.length;
+    else if (row.isNumberResource) count += 1;
+  }
+  return count;
+}
 
 /**
  * Folds each buff into a badge of its icon, its strength and the rounds left. A buff that moves
@@ -113,6 +131,8 @@ export function buffBadgeOf(data: DataElement, effect = `${data.currentValue ?? 
     strength: parseBuffStrength(effect),
     rounds: Number.isFinite(rounds) ? rounds : 0,
     expires: buffExpires(data),
+    effectTiming: buffEffectTimingOf(data),
     color: buffColorOf(data),
+    kindMark: buffKindMarkOf(data),
   };
 }

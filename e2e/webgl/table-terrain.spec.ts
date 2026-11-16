@@ -1,7 +1,16 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from '../dungeon-helpers';
-import { openPanel, openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } from '../helpers';
+import {
+  becomeGm,
+  closePanels,
+  openPanel,
+  openTableContextMenu,
+  putAwayTutorial,
+  revealMenuEntry,
+  waitAppReady,
+  whenCanvasDraws,
+  whenTableIdle,
+} from '../helpers';
 import { showWall, standBack } from '../table-face-helpers';
 
 /**
@@ -11,17 +20,6 @@ import { showWall, standBack } from '../table-face-helpers';
  */
 
 type Point = { x: number; y: number };
-
-type Hooks = {
-  renderer(): string | null;
-  whenIdle(): Promise<void>;
-  pickAt(x: number, y: number): string | null;
-  aliasOf(identifier: string): string | null;
-  edgesOnPage(): [number, number, number, number][];
-  drawnAt(x: number, y: number): string | null;
-  surfacePageOf(surface: string, localX: number, localY: number): { x: number; y: number } | null;
-  project(x: number, y: number, z: number): { x: number; y: number } | null;
-};
 
 /** What changed on the screen between two pictures of it, on blocks and off them. */
 interface Changes {
@@ -57,14 +55,10 @@ const STEP_PX = 9;
  * has left, and is waited out too, as a picture would take it for blocks drawn or hidden under it.
  */
 async function idle(page: Page) {
-  await expect
-    .poll(() => page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.renderer() ?? null), {
-      timeout: 20000,
-    })
-    .not.toBeNull();
+  await whenCanvasDraws(page);
   await page.mouse.move(5, 400);
   await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
+  await whenTableIdle(page);
 }
 
 /** A picture of the screen, read into the page so its colours can be looked up there. */
@@ -87,10 +81,7 @@ async function grabScreen(page: Page): Promise<void> {
 /** Where a cell of the table is drawn, on the page and as an offset into the table's layer. */
 async function spotOfCell(page: Page, cell: Point): Promise<{ onPage: Point; spot: Point }> {
   const layer = (await page.locator('#app-table-layer').boundingBox())!;
-  const onPage = await page.evaluate(
-    ({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.project(x * 50, y * 50, 0)!,
-    cell
-  );
+  const onPage = await page.evaluate(({ x, y }) => window.__axeTable.project(x * 50, y * 50, 0)!, cell);
   return { onPage, spot: { x: onPage.x - layer.x, y: onPage.y - layer.y } };
 }
 
@@ -99,10 +90,7 @@ async function setBlocksDown(page: Page): Promise<number> {
   let placed = 0;
   for (const cell of BLOCK_CELLS) {
     const { onPage, spot } = await spotOfCell(page, cell);
-    const bare = await page.evaluate(
-      ({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.drawnAt(x, y) === null,
-      onPage
-    );
+    const bare = await page.evaluate(({ x, y }) => window.__axeTable.drawnAt(x, y) === null, onPage);
     if (!bare) continue;
     const menu = await openTableContextMenu(page, spot);
     await (await revealMenuEntry(page, menu, '地形を作成')).click();
@@ -120,7 +108,7 @@ async function setBlocksDown(page: Page): Promise<number> {
 function changesBetweenShots(page: Page): Promise<Changes> {
   return page.evaluate(
     ({ slack, step }) => {
-      const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+      const hooks = window.__axeTable;
       const shots = (window as unknown as { __shots: ImageData[] }).__shots;
       const [before, after] = shots.slice(-2);
       const layer = document.querySelector('#app-table-layer')!;
@@ -161,7 +149,7 @@ function changesBetweenShots(page: Page): Promise<Changes> {
 /** A point of the page on a block as picking finds it, where the page draws no piece over it, and that block. */
 async function pointOnBlock(page: Page): Promise<{ x: number; y: number; id: string }> {
   const found = await page.evaluate(() => {
-    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const hooks = window.__axeTable;
     const layer = document.querySelector('#app-table-layer')!;
     for (let y = 120; y < innerHeight - 100; y += 7) {
       for (let x = 140; x < innerWidth - 60; x += 7) {
@@ -259,7 +247,7 @@ test.describe('blocks drawn on a canvas', () => {
     await idle(page);
     const from = await pointOnBlock(page);
     const onWall = await page.evaluate(() => {
-      const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+      const hooks = window.__axeTable;
       for (let down = 400; down > 0; down -= 25) {
         const onPage = hooks.surfacePageOf('north-wall', 550, down);
         if (onPage && onPage.y > 30 && onPage.y < innerHeight - 100) return onPage;
@@ -278,7 +266,7 @@ test.describe('blocks drawn on a canvas', () => {
 
     const drawn = await page.evaluate(
       ({ id, step }) => {
-        const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+        const hooks = window.__axeTable;
         const [before, after] = (window as unknown as { __shots: ImageData[] }).__shots.slice(-2);
         const edges = hooks.edgesOnPage();
         const layer = document.querySelector('#app-table-layer')!;

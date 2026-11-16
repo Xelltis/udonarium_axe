@@ -238,6 +238,18 @@ export class PeerCursor extends GameObject {
   private static peerIdMap: Map<PeerId, ObjectIdentifier> = new Map();
   /** The user each cursor that left the store stood for, by its identifier, the latest last. */
   private static goneUserIds: Map<ObjectIdentifier, UserId> = new Map();
+
+  /**
+   * Forgets my own cursor and which cursor stands for which user and peer, so the next test starts
+   * with nobody known. Only a test between two of its own has any reason to say this.
+   */
+  static forget(): void {
+    PeerCursor.myCursor = null!;
+    PeerCursor.userIdMap = new Map();
+    PeerCursor.peerIdMap = new Map();
+    PeerCursor.goneUserIds = new Map();
+  }
+
   chatColorCode: string[] = [...DEFAULT_CHAT_COLOR_CODES];
   /** The bubble each colour is shown on, per theme. An empty entry is worked out instead. */
   chatBubbleLight: string[] = [...DEFAULT_CHAT_BUBBLE_CODES];
@@ -460,7 +472,7 @@ export class PeerCursor extends GameObject {
     const voteId = this.voteId;
     super.apply(context);
 
-    if (voteId != this.voteId) {
+    if (voteId !== this.voteId) {
       this.vote?.chkFinishVote();
     }
   }

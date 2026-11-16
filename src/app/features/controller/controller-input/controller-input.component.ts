@@ -16,10 +16,11 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
@@ -89,7 +90,7 @@ export class ControllerInputComponent {
   }
 
   set colorSelectNo(num: number) {
-    this._colorSelectNo = Math.max(0, Math.min(2, num));
+    this._colorSelectNo = clamp(num, 0, 2);
   }
 
   /**
@@ -274,7 +275,7 @@ export class ControllerInputComponent {
     if (locationName === 'table') return !gameCharacter.hideInventory;
     if (locationName === this.myPeer?.peerId) return true;
     if (locationName === 'graveyard') return false;
-    for (const conn of Network.peerContexts) {
+    for (const conn of Network.instance.peerContexts) {
       if (conn.isOpen && locationName === conn.peerId) return false;
     }
     return true;

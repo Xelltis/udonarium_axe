@@ -75,6 +75,82 @@ describe('EffectLibraryService', () => {
     expect(service.presets().some((preset) => preset.name === seed.name)).toBe(true);
   });
 
+  describe('adding the defaults a room does not have', () => {
+    function written(): Record<string, string> {
+      return Object.fromEntries(
+        service.presets().map((preset) => [preset.identifier, JSON.stringify(preset.toContext())])
+      );
+    }
+
+    it('builds every default in a room that has none', () => {
+      expect(service.addMissingDefaults()).toBe(DEFAULT_EFFECT_PRESET_SEEDS.length);
+      expect(service.presets()).toHaveLength(DEFAULT_EFFECT_PRESET_SEEDS.length);
+    });
+
+    it('builds only the defaults that are missing, as a room saved before they were bundled lacks them', () => {
+      service.restoreDefaults();
+      const [first, second] = DEFAULT_EFFECT_PRESET_SEEDS;
+      ObjectStore.instance.remove(service.get(first.identifier)!);
+      ObjectStore.instance.remove(service.get(second.identifier)!);
+      const before = written();
+
+      expect(service.addMissingDefaults()).toBe(2);
+
+      expect(service.presets()).toHaveLength(DEFAULT_EFFECT_PRESET_SEEDS.length);
+      expect(service.get(first.identifier)?.name).toBe(first.name);
+      expect(service.get(second.identifier)?.name).toBe(second.name);
+      expect(written()).toMatchObject(before);
+    });
+
+    it('leaves a default the table adjusted, and an effect of the table’s own, exactly as they are', () => {
+      service.restoreDefaults();
+      const [missing, adjusted] = DEFAULT_EFFECT_PRESET_SEEDS;
+      ObjectStore.instance.remove(service.get(missing.identifier)!);
+      const preset = service.get(adjusted.identifier)!;
+      preset.name = '書き換えた名前';
+      preset.scale = 99;
+      preset.colorPrimary = '#123456';
+      const own = service.create('卓のエフェクト');
+      const before = written();
+      const update = vi.spyOn(preset, 'update');
+
+      service.addMissingDefaults();
+
+      expect(written()).toMatchObject(before);
+      expect(service.get(adjusted.identifier)?.name).toBe('書き換えた名前');
+      expect(service.get(own.identifier)).toBe(own);
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it('builds nothing the second time', () => {
+      service.restoreDefaults();
+      ObjectStore.instance.remove(service.get(DEFAULT_EFFECT_PRESET_SEEDS[0].identifier)!);
+      service.addMissingDefaults();
+      const before = written();
+
+      expect(service.addMissingDefaults()).toBe(0);
+
+      expect(written()).toEqual(before);
+    });
+
+    it('brings back a default the table deleted, under its own identifier, saying first that it is coming back', () => {
+      service.restoreDefaults();
+      const seed = DEFAULT_EFFECT_PRESET_SEEDS[0];
+      service.get(seed.identifier)!.destroy();
+      const before = written();
+      const announce = vi.spyOn(ObjectStore.instance, 'announceComingBack');
+
+      expect(service.addMissingDefaults()).toBe(1);
+
+      expect(announce).toHaveBeenCalledWith([seed.identifier]);
+      expect(service.get(seed.identifier)?.name).toBe(seed.name);
+      expect(service.presets()).toHaveLength(DEFAULT_EFFECT_PRESET_SEEDS.length);
+      expect(written()).toMatchObject(before);
+      expect(service.addMissingDefaults()).toBe(0);
+      announce.mockRestore();
+    });
+  });
+
   it('can build one from nothing', () => {
     const preset = service.create('新しいエフェクト');
 

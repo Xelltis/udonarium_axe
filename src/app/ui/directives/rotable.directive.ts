@@ -15,6 +15,7 @@ import { ObjectChangeEvent, ObjectChangeService } from '@axe/application/sync/ob
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
+import { SYNC_WRITE_DELAY_MS } from '@axe/core/util/sync-write-delay';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { QUARTER_TURN_DEGREES, rotationSnapStep, shownAngle, snapAngle } from '@axe/domain/tabletop/rotation-snap';
@@ -62,7 +63,9 @@ export class RotableDirective {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly rotationGuide = inject(RotationGuideService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly destroyRef = inject(DestroyRef);
 
   private tabletopObject: RotableTabletopObject | null = null;
@@ -379,9 +382,8 @@ export class RotableDirective {
   snapToPolygonal(polygonal: number = 24) {
     if (polygonal <= 1) return;
     if (this.tabletopObject instanceof RangeArea) {
-      const range = this.tabletopObject as RangeArea;
       if (this.turnsByQuarters) polygonal = 360 / QUARTER_TURN_DEGREES;
-      else if (range.subDivisionSnapPolygonal) polygonal = 240;
+      else if (this.tabletopObject.subDivisionSnapPolygonal) polygonal = 240;
     }
     this.rotate = this.rotate < 0 ? this.rotate - 180 / polygonal : this.rotate + 180 / polygonal;
     this.rotate -= this.rotate % (360 / polygonal);
@@ -404,7 +406,7 @@ export class RotableDirective {
         this.valueChange.emit(this.rotate);
         if (this.tabletopObject) this.tabletopObject.rotate = this.rotate;
         this.updateTimer = null;
-      }, 66);
+      }, SYNC_WRITE_DELAY_MS);
     }
   }
 

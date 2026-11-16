@@ -26,8 +26,8 @@ async function openPictures(page: Page): Promise<Locator> {
 /** Opens the jukebox and hands back the sounds it lists. */
 async function openSounds(page: Page): Promise<Locator> {
   await openPanel(page, 'ジュークボックス');
-  await expect(page.locator('app-jukebox')).toBeVisible({ timeout: 10000 });
-  return page.locator('app-jukebox .text-ui-text.truncate');
+  await expect(page.locator('jukebox')).toBeVisible({ timeout: 10000 });
+  return page.locator('jukebox .text-ui-text.truncate');
 }
 
 /** Opens the inventory and hands back its graveyard tab, which says how many pieces lie there. */
@@ -83,7 +83,7 @@ test.describe('the room this browser starts on', () => {
     await expect(pictures).toHaveCount(picturesBefore + 1, { timeout: 10_000 });
     const sounds = await openSounds(page);
     const soundsBefore = await sounds.count();
-    await page.locator('app-jukebox input[type="file"][accept="audio/*"]').setInputFiles({
+    await page.locator('jukebox [data-testid="jukebox-file-input"]').setInputFiles({
       name: 'tiny.mp3',
       mimeType: 'audio/mpeg',
       buffer: TINY_MP3,

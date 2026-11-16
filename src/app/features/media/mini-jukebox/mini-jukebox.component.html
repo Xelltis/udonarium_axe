@@ -98,7 +98,7 @@
         class="text-ui-dim hover:bg-ui-hover hover:text-ui-text m-0 inline-flex size-4.5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:border-transparent hover:shadow-none disabled:cursor-not-allowed disabled:opacity-30 [&_.material-icons]:text-[12px]!"
         [class.text-ui-accent!]="isSeekLocked()"
         (mousedown)="$event.stopPropagation()"
-        (click)="toggleSeekLock()"
+        (click)="playback.toggleSeekLock()"
         [disabled]="!canOperate()"
         [title]="
           isSeekLocked()
@@ -119,14 +119,14 @@
           class="seek-bar m-0 h-5 w-full cursor-pointer appearance-none bg-transparent p-0 [-webkit-appearance:none] disabled:pointer-events-none disabled:cursor-default disabled:opacity-40"
           [class.pointer-events-none]="isSeekLocked()"
           [class.cursor-default]="isSeekLocked()"
-          [value]="displayProgress() * 100"
-          [style.--seek-progress]="displayProgress() * 100 + '%'"
+          [value]="seekBar.displayProgress() * 100"
+          [style.--seek-progress]="seekBar.displayProgress() * 100 + '%'"
           min="0"
           max="100"
           step="0.1"
           [disabled]="!canOperate() || !isPlaying()"
-          (input)="onSeekInput($event)"
-          (change)="onSeekCommit($event)"
+          (input)="seekBar.onInput($event)"
+          (change)="seekBar.onCommit($event)"
         />
         @for (mark of cueMarks(); track mark.slot) {
           <span
@@ -226,7 +226,7 @@
 
     @if (isDeckOpen()) {
       @defer (on immediate) {
-        <app-dj-deck></app-dj-deck>
+        <dj-deck></dj-deck>
       } @placeholder {
         <div class="border-ui-border-panel h-40 border-t border-solid"></div>
       }

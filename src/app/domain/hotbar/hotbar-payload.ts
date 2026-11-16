@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { holdsHotbarCell, HotbarCell } from '@axe/domain/hotbar/hotbar-size';
 import { HotbarSlotKind } from '@axe/domain/hotbar/hotbar-slot-kind';
 import { CharacterPanelName, DEFAULT_CHARACTER_PANEL, toCharacterPanelName } from '@axe/domain/ui/room-panel';
@@ -6,7 +7,6 @@ export type EffectCastMode = 'cast' | 'field' | 'preview';
 export type TurnAction = 'next' | 'prev' | 'reset';
 
 export type RangeSlotOptions = Extract<HotbarPayload, { kind: 'range' }>;
-export type GroupSlotOptions = Extract<HotbarPayload, { kind: 'group' }>;
 
 /** As long as a reader will wait for the next step of a group, and no longer. */
 export const MAX_STEP_DELAY_MS = 10_000;
@@ -259,7 +259,7 @@ function readSteps(value: unknown, fallbackDelayMs: number): HotbarStep[] {
 function readPercent(value: unknown, fallback: number): number {
   const held = Number(value);
   if (!Number.isFinite(held)) return fallback;
-  return Math.round(Math.max(0, Math.min(100, held)));
+  return Math.round(clamp(held, 0, 100));
 }
 
 function readOneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {

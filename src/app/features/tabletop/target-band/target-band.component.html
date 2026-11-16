@@ -2,7 +2,53 @@
   A step above the band a move is worked out on, which sits at bottom-28 with the hints the table
   gives while a piece is held, so an aim kept through a move is read beside it rather than under it.
 -->
-@if (count() > 0) {
+@if (aiming()) {
+  <div
+    class="bg-ui-panel shadow-ui-md text-ui-text pointer-events-none fixed bottom-40 left-1/2 flex max-w-[92vw] -translate-x-1/2 items-center gap-2 rounded-full py-1.5 pr-1.5 pl-4 text-sm opacity-95"
+    data-testid="target-band"
+    data-aiming="true"
+    [style.zIndex]="zIndex"
+  >
+    <i class="material-icons text-ui-accent text-[16px]!" aria-hidden="true">my_location</i>
+    <span
+      class="inline-block w-12 shrink-0 overflow-hidden text-center whitespace-nowrap tabular-nums"
+      data-testid="target-band-count"
+      [attr.aria-label]="'feature.tabletop.targetBand.picked' | transloco: { count: picked(), max: limit() }"
+    >
+      {{ picked() }}/{{ limit() }}
+    </span>
+    <button
+      type="button"
+      class="bg-ui-accent pointer-events-auto inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1 rounded-full border-none px-4 text-[0.86em] whitespace-nowrap text-black disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[16px]!"
+      [attr.title]="'feature.effect.fireHint' | transloco"
+      [disabled]="picked() < 1"
+      data-testid="target-band-fire"
+      (click)="fire($event)"
+    >
+      <i class="material-icons" aria-hidden="true">bolt</i>
+      {{ 'feature.tabletop.targetBand.fire' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="border-ui-border-panel text-ui-muted hover:bg-ui-hover pointer-events-auto inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-full border border-solid bg-transparent px-3 text-[0.86em] whitespace-nowrap"
+      [attr.title]="'feature.effect.cancelHint' | transloco"
+      data-testid="target-band-cancel"
+      (click)="cancel($event)"
+    >
+      {{ 'feature.tabletop.targetBand.cancel' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="border-ui-border-panel text-ui-muted hover:bg-ui-accent-solid pointer-events-auto inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid bg-transparent p-0 transition-[background,color] hover:text-white [&_.material-icons]:text-[16px]!"
+      [attr.title]="'feature.tabletop.targetBand.clearHint' | transloco"
+      [attr.aria-label]="'feature.tabletop.targetBand.clear' | transloco"
+      data-testid="target-band-clear"
+      (click)="clear($event)"
+    >
+      <i class="material-icons" aria-hidden="true">close</i>
+    </button>
+  </div>
+} @else if (count() > 0) {
   <div
     class="bg-ui-panel shadow-ui-md text-ui-text pointer-events-none fixed bottom-40 left-1/2 flex max-w-[92vw] -translate-x-1/2 items-center gap-2 rounded-full py-1.5 pr-1.5 pl-4 text-sm opacity-95"
     data-testid="target-band"

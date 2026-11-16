@@ -223,14 +223,18 @@ export function collectLights(
   return lights;
 }
 
-/** The pieces standing on the floor that throw a shadow, each as a square the size of the piece. */
+/**
+ * The pieces standing on the floor that throw a shadow, each as a square the size of the piece. A
+ * piece of no size, drawn as a point, throws none.
+ */
 export function collectShadowCasters(characters: readonly GameCharacter[], gridSize: number): ShadowCaster[] {
   const casters: ShadowCaster[] = [];
   for (const character of characters) {
     if (!character.isVisibleOnTable || !character.castsShadow) continue;
     if (surfaceOf(character) !== 'floor') continue;
-    const size = (character.size || 1) * gridSize;
-    const half = size / 2;
+    const half = pieceCentreOffsetPx(character, gridSize);
+    if (half <= 0) continue;
+    const size = half * 2;
     casters.push({
       ownerId: character.identifier,
       x: character.location.x + half,

@@ -4,6 +4,7 @@ import {
   buffBadgeOf,
   buffIconOf,
   buffIconUrlOf,
+  countBuffs,
   parseBuffStrength,
   toBuffBadges,
 } from '@axe/domain/character/buff-badge';
@@ -63,6 +64,28 @@ describe('toBuffBadges()', () => {
       expires: false,
       color: '#2e7d32',
     });
+  });
+
+  it('carries the kind the buff is marked as, and none where it carries no mark', () => {
+    const cursed = buff('呪い', '命中-1', 3);
+    cursed.setAttribute(DataElementAttribute.BUFF_KIND, 'debuff');
+    const odd = buff('祝福', '命中+1', 3);
+    odd.setAttribute(DataElementAttribute.BUFF_KIND, 'curse');
+
+    expect(buffBadgeOf(cursed).kindMark).toBe('debuff');
+    expect(buffBadgeOf(buff('毒', '', 3)).kindMark).toBeNull();
+    expect(buffBadgeOf(odd).kindMark).toBeNull();
+  });
+
+  it('carries the moment the effect moves at where the buff has one of its own, and none otherwise', () => {
+    const row = buff('再生', ':HP+0~+3', 3, '💚');
+    expect(buffBadgeOf(row).effectTiming).toBeNull();
+
+    row.setAttribute(DataElementAttribute.BUFF_EFFECT_TIMING, 'turnStart');
+    expect(buffBadgeOf(row).effectTiming).toBe('turnStart');
+
+    row.setAttribute(DataElementAttribute.BUFF_EFFECT_TIMING, '');
+    expect(buffBadgeOf(row).effectTiming).toBeNull();
   });
 
   it('folds a buff into its icon, its strength and the rounds left', () => {
@@ -125,5 +148,22 @@ describe('buffIconUrlOf()', () => {
 
     expect(buffIconUrlOf('☠️')).toBe('');
     expect(buffIconUrlOf('')).toBe('');
+  });
+});
+
+describe('countBuffs()', () => {
+  it('counts each row that time takes away, and every row of a row holding rows of its own', () => {
+    const poison = DataElement.create('毒', 3, { type: DataElementType.NUMBER_RESOURCE, currentValue: 'ダメージ2' });
+    const group = DataElement.create('祝福', '', {});
+    group.appendChild(DataElement.create('命中', 2, { type: DataElementType.NUMBER_RESOURCE, currentValue: '+1' }));
+    group.appendChild(DataElement.create('回避', 2, { type: DataElementType.NUMBER_RESOURCE, currentValue: '+1' }));
+    const note = DataElement.create('メモ', '', {});
+
+    try {
+      expect(countBuffs([])).toBe(0);
+      expect(countBuffs([poison, group, note])).toBe(3);
+    } finally {
+      for (const element of [poison, group, note]) element.destroy();
+    }
   });
 });

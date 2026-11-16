@@ -11,6 +11,7 @@ import {
   TextItem,
   TextOutline,
 } from '@axe/domain/map-editor/scene';
+import { pointToSegmentDistance } from '@axe/domain/map-editor/scene-geometry';
 import { eraseStrokeAtPoint } from '@axe/domain/map-editor/scene-ops';
 import { generateShapePoints } from '@axe/domain/map-editor/shape-points';
 import { BoardPoint, MarkRef } from '@axe/features/tabletop/white-board/white-board-geometry';
@@ -197,9 +198,27 @@ export function noteAt(at: BoardPoint, text: string, style: MarkStyle, card: str
   return { ...wordsAt(at, text, style), background: card };
 }
 
+/** How solid a marker's ink is, which is what lets the words under it be read. */
+export const MARKER_ALPHA = 0.38;
+
+/** A colour as a marker lays it down: the same colour, let through. */
+export function markerInk(color: string): string {
+  return withAlpha(color, MARKER_ALPHA);
+}
+
+/**
+ * Whether a stroke was drawn with the marker.
+ *
+ * A stroke is kept as its points, colour and width and nothing more, so the see-through colour a
+ * marker lays down is what tells it from a pen's.
+ */
+export function isMarkerInk(color: string): boolean {
+  return color.startsWith('rgba');
+}
+
 /** Ink that lets what is under it show through, for marking up rather than drawing. */
 export function highlighterStyle(style: MarkStyle): MarkStyle {
-  return { ...style, color: withAlpha(style.color, 0.38), width: Math.max(style.width * 3, 14) };
+  return { ...style, color: markerInk(style.color), width: Math.max(style.width * 3, 14) };
 }
 
 /**
@@ -240,7 +259,7 @@ function thin(points: readonly number[], first: number, last: number, slack: num
   let at = first;
 
   for (let i = first + 1; i < last; i++) {
-    const off = awayFromLine(points[i * 2], points[i * 2 + 1], ax, ay, bx, by);
+    const off = pointToSegmentDistance(points[i * 2], points[i * 2 + 1], ax, ay, bx, by);
     if (off > worst) {
       worst = off;
       at = i;
@@ -248,15 +267,6 @@ function thin(points: readonly number[], first: number, last: number, slack: num
   }
   if (worst <= slack) return [ax, ay, bx, by];
   return [...thin(points, first, at, slack).slice(0, -2), ...thin(points, at, last, slack)];
-}
-
-function awayFromLine(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const span = dx * dx + dy * dy;
-  if (span === 0) return Math.hypot(px - ax, py - ay);
-  const along = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / span));
-  return Math.hypot(px - (ax + along * dx), py - (ay + along * dy));
 }
 
 /**

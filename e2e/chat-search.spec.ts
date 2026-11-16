@@ -1,15 +1,6 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-import { chatInput, expectChatText, waitAppReady } from './helpers';
-
-async function say(page: Page, lines: string[]) {
-  const textarea = chatInput(page);
-  for (const line of lines) {
-    await textarea.fill(line);
-    await textarea.press('Enter');
-    await expectChatText(textarea, '');
-  }
-}
+import { chatInput, say, waitAppReady } from './helpers';
 
 test.describe('searching the chat', () => {
   test.beforeEach(async ({ page }) => {

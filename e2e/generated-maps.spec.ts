@@ -1,7 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from './dungeon-helpers';
-import { openPanel, waitAppReady } from './helpers';
+import { becomeGm, closePanels, openPanel, waitAppReady } from './helpers';
 
 /**
  * The pieces on a table just generated, among its trees, walls, buildings and fields and over its
@@ -10,13 +9,6 @@ import { openPanel, waitAppReady } from './helpers';
  * wherever it was put, as on any other table. Where a press lands and where a piece goes are worked
  * out by picking, the same whether or not the table is drawn.
  */
-
-type Hooks = {
-  whenIdle(): Promise<void>;
-  moving(identifier: string): boolean;
-  pickAt(x: number, y: number): string | null;
-  pressedAt(x: number, y: number): string | null;
-};
 
 /** Generates open country, or a settlement of the mood named, from a fixed seed, and goes to its table. */
 async function generate(page: Page, seed: string, mood?: string) {
@@ -27,10 +19,10 @@ async function generate(page: Page, seed: string, mood?: string) {
   await panel.locator('#seed').fill(seed);
   await panel.getByRole('button', { name: '生成する' }).click();
   await panel.getByRole('button', { name: 'このテーブルへ移動' }).click({ timeout: 120000 });
-  const later = page.locator('app-room-restore-banner button', { hasText: 'あとで' });
+  const later = page.locator('room-restore-banner button', { hasText: 'あとで' });
   if (await later.count()) await later.first().dispatchEvent('click');
   await closePanels(page);
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
+  await page.evaluate(() => window.__axeTable.whenIdle());
 }
 
 /**
@@ -40,7 +32,7 @@ async function generate(page: Page, seed: string, mood?: string) {
  */
 function spotBehindOf(page: Page, identifier: string): Promise<{ x: number; y: number; behind: boolean } | null> {
   return page.evaluate((id) => {
-    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const hooks = window.__axeTable;
     const base = document.querySelector(`game-character[data-object-id="${id}"] [data-part="pedestal"]`);
     if (!base) return null;
     const box = base.getBoundingClientRect();
@@ -63,7 +55,7 @@ function spotBehindOf(page: Page, identifier: string): Promise<{ x: number; y: n
  */
 function spotOf(page: Page, identifier: string): Promise<{ x: number; y: number } | null> {
   return page.evaluate((id) => {
-    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const hooks = window.__axeTable;
     const base = document.querySelector(`game-character[data-object-id="${id}"] [data-part="pedestal"]`);
     if (!base) return null;
     const box = base.getBoundingClientRect();
@@ -95,13 +87,12 @@ async function settled(page: Page, identifier: string) {
           document
             .querySelector(`[data-object-id="${id}"]`)!
             .getAnimations({ subtree: true })
-            .filter((animation) => animation.playState === 'running').length +
-          ((window as unknown as { __axeTable: Hooks }).__axeTable.moving(id) ? 1 : 0),
+            .filter((animation) => animation.playState === 'running').length + (window.__axeTable.moving(id) ? 1 : 0),
         identifier
       )
     )
     .toBe(0);
-  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
+  await page.evaluate(() => window.__axeTable.whenIdle());
 }
 
 /**
@@ -155,12 +146,8 @@ test.describe('pieces on a field just generated', () => {
       const from = await spotBehindOf(page, hidden!.id);
       expect(from, `the piece is still taken up, from ${await placeOf(page, hidden!.id)}`).not.toBeNull();
       const was = await placeOf(page, hidden!.id);
-      await page.waitForTimeout(600);
       // What a press there takes just before it is made, told if the piece is not moved by it.
-      const pressed = await page.evaluate(
-        ([x, y]) => (window as unknown as { __axeTable: Hooks }).__axeTable.pressedAt(x, y),
-        [from!.x, from!.y]
-      );
+      const pressed = await page.evaluate(([x, y]) => window.__axeTable.pressedAt(x, y), [from!.x, from!.y]);
       await dragTo(page, from!, { x: from!.x + by.x, y: from!.y + by.y });
       await expect
         .poll(() => placeOf(page, hidden!.id), {

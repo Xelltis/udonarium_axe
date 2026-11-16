@@ -11,6 +11,7 @@ import {
   VN_STAGE_MAX,
   VN_STAGE_MIN_GAP,
   VN_STAGE_SLOT_COUNT,
+  VN_STAGE_SLOT_INDEXES,
   VnStageSource,
 } from '@axe/domain/visual-novel/vn-stage-cast';
 
@@ -398,5 +399,13 @@ describe('clearing the stage', () => {
     const window = [alice(10), bob(15), alice(30)];
     buildVnStage(window, () => 'url', messageSlotOf, 20);
     expect(window).toHaveLength(3);
+  });
+});
+
+describe('VN_STAGE_SLOT_INDEXES', () => {
+  it('names every place on the stage from the left', () => {
+    expect(VN_STAGE_SLOT_INDEXES).toHaveLength(VN_STAGE_SLOT_COUNT);
+    expect(VN_STAGE_SLOT_INDEXES[0]).toBe(0);
+    expect(VN_STAGE_SLOT_INDEXES.at(-1)).toBe(VN_STAGE_SLOT_COUNT - 1);
   });
 });

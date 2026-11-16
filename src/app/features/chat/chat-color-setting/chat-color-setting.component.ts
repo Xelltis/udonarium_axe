@@ -156,14 +156,14 @@ export class ChatColorSettingComponent {
   /**
    * Writes a slot's text colour to the piece, or to the reader's cursor when no piece was given.
    *
-   * A piece's change reaches the other peers through its sync counter; the reader's own colours are
+   * A piece's change is sent on to the other peers; the reader's own colours are
    * stored in the chat preferences. Either way the previews redraw.
    */
   changeColor(event: string, num: number): void {
     if (this.tabletopObject && !this.mayEditPiece()) return;
     if (this.tabletopObject) {
       this.tabletopObject.chatColorCode[num] = event;
-      this.bumpCharacter();
+      this.tabletopObject.touchChatColors();
     } else {
       this.myPeer.chatColorCode[num] = event;
       this.chatSettings.captureColors();
@@ -179,7 +179,7 @@ export class ChatColorSettingComponent {
     if (this.tabletopObject && !this.mayEditPiece()) return;
     const codes = theme === 'dark' ? this.owner.chatBubbleDark : this.owner.chatBubbleLight;
     codes[num] = event;
-    if (this.tabletopObject) this.bumpCharacter();
+    if (this.tabletopObject) this.tabletopObject.touchChatColors();
     else this.chatSettings.captureColors();
     this.touched();
   }
@@ -212,12 +212,6 @@ export class ChatColorSettingComponent {
   /** The name on the preview bubbles: the piece's name, or the reader's own when no named piece was given. */
   get speakerName(): string {
     return this.tabletopObject?.name || this.myPeer.name;
-  }
-
-  private bumpCharacter(): void {
-    const object = this.tabletopObject;
-    if (!object) return;
-    object.syncDummyCounter = object.syncDummyCounter < 2 ? object.syncDummyCounter + 1 : 0;
   }
 
   private touched(): void {

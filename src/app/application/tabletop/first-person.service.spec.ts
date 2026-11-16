@@ -12,6 +12,8 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { FogMemory } from '@axe/domain/tabletop/fog/fog-memory';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { ensureGroundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { moveNeighbourToward } from '@axe/domain/tabletop/move/move-neighbours';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
@@ -40,7 +42,7 @@ describe('FirstPersonService', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
-    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
     PeerCursor.createMyCursor();
     PeerCursor.myCursor.role = PeerRole.Player;
     PeerCursor.myCursor.userId = 'me';
@@ -100,6 +102,16 @@ describe('FirstPersonService', () => {
       expect(service().showing()).toBe(true);
       expect(service().forced()).toBe(false);
       expect(service().pose()).toEqual({ x: 260, y: 275, z: 40, yaw: 90 });
+    });
+
+    it('stands the eye on the raised ground the piece is drawn on', () => {
+      const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT).fill(64);
+      ensureGroundFieldOn(table).writeChunk({ cx: 0, cy: 0, heights, paint: null });
+      const piece = pieceAt(5, 5, 90);
+
+      service().enterSeat(piece.identifier);
+
+      expect(service().pose()).toEqual({ x: 260, y: 275, z: 40 + GRID, yaw: 90 });
     });
 
     it('puts a player on the piece the table names while a game master is in the room', () => {

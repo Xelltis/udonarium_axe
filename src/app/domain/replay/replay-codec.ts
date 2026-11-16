@@ -1,12 +1,20 @@
 import { decode, encode } from '@axe/core/util/message-pack';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import {
   GM_ONLY_VISIBILITY,
   PLAYERS_VISIBILITY,
   PUBLIC_VISIBILITY,
   REPLAY_FORMAT_VERSION,
+  type ReplayActorSnapshot,
+  type ReplayChunkMeta,
+  ReplayDetailLevel,
   type ReplayEvent,
+  type ReplayEventKind,
+  type ReplayKeyframeMeta,
   type ReplayManifest,
   type ReplayPatch,
+  type ReplaySignal,
+  type ReplayTargetSnapshot,
   type ReplayVisibility,
 } from '@axe/domain/replay/replay-event';
 
@@ -70,16 +78,26 @@ export function decodeReplayManifest(bytes: Uint8Array): ReplayManifest | null {
  */
 export function toManifest(value: unknown): ReplayManifest | null {
   if (!isRecord(value) || !isSupportedReplayFormat(value['formatVersion'])) return null;
-  return {
-    ...(value as unknown as ReplayManifest),
+  const manifest: ReplayManifest = {
+    formatVersion: asNumber(value['formatVersion']),
     roomName: asString(value['roomName']),
     startedAt: asNumber(value['startedAt']),
     endedAt: typeof value['endedAt'] === 'number' ? value['endedAt'] : null,
-    actors: asArray(value['actors']),
-    targets: asArray(value['targets']),
-    keyframes: asArray(value['keyframes']),
-    chunks: asArray(value['chunks']),
+    recordedBy: asActor(value['recordedBy']),
+    detailLevel: asDetailLevel(value['detailLevel']),
+    actors: asArray<unknown>(value['actors']).map(asActor),
+    targets: asArray<unknown>(value['targets']).map(asTarget),
+    keyframes: asArray<unknown>(value['keyframes']).map(asKeyframe),
+    chunks: asArray<unknown>(value['chunks']).map(asChunk),
   };
+  const derivedFrom = value['derivedFrom'];
+  if (isRecord(derivedFrom)) {
+    manifest.derivedFrom = {
+      roomName: asString(derivedFrom['roomName']),
+      startedAt: asNumber(derivedFrom['startedAt']),
+    };
+  }
+  return manifest;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -96,6 +114,67 @@ function asNumber(value: unknown): number {
 
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+const PEER_ROLES: readonly string[] = Object.values(PeerRole);
+
+/** A role read from a file; anything unknown is a guest, who sees the least. */
+function asRole(value: unknown): PeerRole {
+  return typeof value === 'string' && PEER_ROLES.includes(value) ? (value as PeerRole) : PeerRole.Guest;
+}
+
+const DETAIL_LEVELS: readonly string[] = Object.values(ReplayDetailLevel);
+
+/** A detail level read from a file; anything unknown counts as a full recording. */
+function asDetailLevel(value: unknown): ReplayDetailLevel {
+  return typeof value === 'string' && DETAIL_LEVELS.includes(value)
+    ? (value as ReplayDetailLevel)
+    : ReplayDetailLevel.Full;
+}
+
+function asActor(value: unknown): ReplayActorSnapshot {
+  const held = isRecord(value) ? value : {};
+  return {
+    userId: asString(held['userId']),
+    peerId: asString(held['peerId']),
+    name: asString(held['name']),
+    role: asRole(held['role']),
+    imageIdentifier: asString(held['imageIdentifier']),
+    sinceSeq: asNumber(held['sinceSeq']),
+  };
+}
+
+function asTarget(value: unknown): ReplayTargetSnapshot {
+  const held = isRecord(value) ? value : {};
+  const target: ReplayTargetSnapshot = {
+    identifier: asString(held['identifier']),
+    aliasName: asString(held['aliasName']),
+    name: asString(held['name']),
+    sinceSeq: asNumber(held['sinceSeq']),
+  };
+  if (typeof held['ownerIdentifier'] === 'string') target.ownerIdentifier = held['ownerIdentifier'];
+  return target;
+}
+
+function asKeyframe(value: unknown): ReplayKeyframeMeta {
+  const held = isRecord(value) ? value : {};
+  return { seq: asNumber(held['seq']), at: asNumber(held['at']), byteSize: asNumber(held['byteSize']) };
+}
+
+function asChunk(value: unknown): ReplayChunkMeta {
+  const held = isRecord(value) ? value : {};
+  return {
+    index: asNumber(held['index']),
+    seqStart: asNumber(held['seqStart']),
+    seqEnd: asNumber(held['seqEnd']),
+    eventCount: asNumber(held['eventCount']),
+    byteSize: asNumber(held['byteSize']),
+  };
+}
+
+function asSignal(value: unknown): ReplaySignal | null {
+  if (!isRecord(value)) return null;
+  return { name: asString(value['name']), data: value['data'] };
 }
 
 function asVisibility(value: unknown): ReplayVisibility {
@@ -130,25 +209,25 @@ function fromWire(wire: unknown): ReplayEvent | null {
   if (typeof wire['seq'] !== 'number' || typeof wire['kind'] !== 'string') return null;
 
   const event: ReplayEvent = {
-    ...(wire as unknown as ReplayEvent),
     seq: wire['seq'],
     at: asNumber(wire['at']),
     t: asNumber(wire['t']),
-    kind: wire['kind'] as ReplayEvent['kind'],
+    kind: wire['kind'] as ReplayEventKind,
     actorId: asString(wire['actorId']),
     detail: isRecord(wire['detail']) ? wire['detail'] : {},
     visibility: asVisibility(wire['visibility']),
   };
-  if (!isRecord(wire['patch'])) delete event.patch;
+  if (typeof wire['targetId'] === 'string') event.targetId = wire['targetId'];
+  if (isPatch(wire['patch'])) event.patch = wire['patch'];
   const parts = asArray<unknown>(wire['parts']).filter(isPatch);
   if (parts.length > 0) event.parts = parts;
-  else delete event.parts;
   const removedParts = asArray<unknown>(wire['removedParts']).filter(
     (identifier): identifier is string => typeof identifier === 'string' && identifier.length > 0
   );
   if (removedParts.length > 0) event.removedParts = removedParts;
-  else delete event.removedParts;
-  if (!isRecord(wire['signal'])) delete event.signal;
+  const signal = asSignal(wire['signal']);
+  if (signal) event.signal = signal;
+  if (typeof wire['merged'] === 'number') event.merged = wire['merged'];
   return event;
 }
 

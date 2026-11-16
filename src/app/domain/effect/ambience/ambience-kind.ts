@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 /**
  * The kinds of effect laid over the board and left there.
  *
@@ -104,5 +105,5 @@ export function ambienceColorOf(kind: AmbienceKind, color: string): string {
 export function ambienceDensityOf(value: number): number {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return DEFAULT_AMBIENCE_DENSITY;
-  return Math.min(Math.max(numeric, 0), 1);
+  return clamp(numeric, 0, 1);
 }

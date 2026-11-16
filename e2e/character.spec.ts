@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-import { createCharacter, spotOnPiece, waitAppReady } from './helpers';
+import { createCharacter, rightClickPiece, spotOnPiece, waitAppReady } from './helpers';
 
 test.describe('the character sheet (detail panel)', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await createCharacter(page);
-    await page.locator('game-character').first().dispatchEvent('contextmenu');
+    await rightClickPiece(page.locator('game-character').last());
     await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
     await page.locator('context-menu').getByText('詳細を表示').click();
     await expect(page.locator('game-character-sheet')).toBeVisible({ timeout: 10000 });
@@ -27,7 +27,7 @@ test.describe('resources shown as sliders', () => {
   }) => {
     await waitAppReady(page);
     const piece = page.locator('game-character').filter({ hasText: 'キャラクターB' }).first();
-    await piece.dispatchEvent('contextmenu');
+    await rightClickPiece(piece);
     await page.locator('context-menu').getByText('詳細を表示').click();
     const sheet = page.locator('game-character-sheet');
     await expect(sheet).toBeVisible({ timeout: 10000 });

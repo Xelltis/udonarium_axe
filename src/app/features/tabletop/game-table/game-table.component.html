@@ -8,8 +8,8 @@
 </ng-template>
 <div
   class="pointer-events-none absolute inset-0 -m-1.25 bg-cover bg-center bg-no-repeat [&.is-filter]:filter-[blur(5px)] [&.is-filter]:will-change-[filter] [&.is-filter]:after:block [&.is-filter]:after:size-full [&.is-filter]:after:content-[''] [&.is-filter.black]:after:bg-[hsl(0,0%,10%)] [&.is-filter.black]:after:opacity-30 [&.is-filter.white]:after:bg-[hsl(0,0%,97%)] [&.is-filter.white]:after:opacity-20"
-  [ngClass]="[backgroundFilterType ? 'is-filter' : '', backgroundFilterType]"
-  [style.background-image]="'url(' + backgroundImage.url + ')' | safe: 'style'"
+  [ngClass]="[backgroundFilterType() ? 'is-filter' : '', backgroundFilterType()]"
+  [style.background-image]="'url(' + backgroundImage().url + ')' | safe: 'style'"
 ></div>
 <!--
   The backdrops: pictures laid across the screen behind the table, each moved a little for the
@@ -45,7 +45,7 @@
 }
 <div
   class="absolute inset-0 m-auto block size-full touch-manipulation overflow-hidden select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
-  [class.cursor-grabbing]="isPointerDragging"
+  [class.cursor-grabbing]="isPointerDragging()"
   [class.animate-effect-shake-soft]="screenShake() === 'soft'"
   [class.animate-effect-shake-hard]="screenShake() === 'hard'"
   #root
@@ -81,7 +81,11 @@
   <!-- The pieces over a table drawn on a canvas: flat on the screen, each where the canvas draws it. -->
   <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
     @for (ambience of ambiences(); track ambience.identifier) {
-      <table-ambience [ambience]="ambience"></table-ambience>
+      @defer (on immediate) {
+        <table-ambience [ambience]="ambience"></table-ambience>
+      } @error {
+        <ng-container appReloadNotice />
+      }
     }
     <div class="pointer-events-none" data-testid="table-floor-plane" appFloorPlane>
       <ng-container [ngTemplateOutlet]="floorMarks"></ng-container>
@@ -108,7 +112,7 @@
         [appHudPlace]="{ owner: mask.identifier }"
       ></game-table-mask>
     }
-    @for (textNote of textNotesOverCanvas(); track textNote.identifier) {
+    @for (textNote of textNotes(); track textNote.identifier) {
       <text-note
         class="block"
         [textNote]="textNote"
@@ -116,7 +120,7 @@
         [appHudPlace]="{ owner: textNote.identifier }"
       ></text-note>
     }
-    @for (cardStack of cardStacksOverCanvas(); track cardStack.identifier) {
+    @for (cardStack of cardStacks(); track cardStack.identifier) {
       <card-stack
         class="block"
         [cardStack]="cardStack"
@@ -124,10 +128,10 @@
         [appHudPlace]="{ owner: cardStack.identifier }"
       ></card-stack>
     }
-    @for (card of cardsOverCanvas(); track card.identifier) {
+    @for (card of cards(); track card.identifier) {
       <card class="block" [card]="card" [appTooltip]="card" [appHudPlace]="{ owner: card.identifier }"></card>
     }
-    @for (coin of coinsOverCanvas(); track coin.identifier) {
+    @for (coin of coins(); track coin.identifier) {
       <coin class="block" [coin]="coin" [appTooltip]="coin" [appHudPlace]="{ owner: coin.identifier }"></coin>
     }
     @for (character of charactersOverCanvas(); track character.identifier) {
@@ -138,7 +142,7 @@
         [appHudPlace]="{ owner: character.identifier }"
       ></game-character>
     }
-    @for (diceSymbol of diceSymbolsOverCanvas(); track diceSymbol.identifier) {
+    @for (diceSymbol of diceSymbols(); track diceSymbol.identifier) {
       <dice-symbol
         class="block"
         [diceSymbol]="diceSymbol"
@@ -159,7 +163,11 @@
     <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
   </div>
 </div>
-<table-weather-overlay></table-weather-overlay>
+@defer (when hasWeather()) {
+  <table-weather-overlay></table-weather-overlay>
+} @error {
+  <ng-container appReloadNotice />
+}
 @defer (when laysForeground()) {
   <table-foreground-overlay></table-foreground-overlay>
 } @error {
@@ -172,28 +180,20 @@
   piece in hand never has two things talking over each other at the foot of the screen.
 -->
 @if (holdHint(); as hint) {
-  <div
-    class="bg-ui-panel shadow-ui-md text-ui-muted pointer-events-none absolute bottom-28 left-1/2 z-160 flex max-w-[92vw] -translate-x-1/2 items-center gap-2 rounded-full px-4 py-1.5 text-[0.86em] leading-snug opacity-95"
-    data-testid="hold-hint"
-  >
-    <i class="material-icons text-ui-dim text-[15px]!">mouse</i>
+  <table-hint-band band="bottom" icon="mouse" data-testid="hold-hint">
     <span class="min-w-0">{{ hint.footing | transloco }}</span>
     @if (hint.lift) {
       <span class="text-ui-dim">/</span>
       <span class="min-w-0">{{ hint.lift | transloco }}</span>
     }
-  </div>
+  </table-hint-band>
 }
 <!--
   Said from the same band as a piece in hand, which a turn never shares it with: the turn is under
   way only while its handle is held.
 -->
 @if (rotateHint(); as hint) {
-  <div
-    class="bg-ui-panel shadow-ui-md text-ui-muted pointer-events-none absolute bottom-28 left-1/2 z-160 flex max-w-[92vw] -translate-x-1/2 items-center gap-2 rounded-full px-4 py-1.5 text-[0.86em] leading-snug opacity-95"
-    data-testid="rotate-hint"
-  >
-    <i class="material-icons text-ui-dim text-[15px]!">rotate_right</i>
+  <table-hint-band band="bottom" icon="rotate_right" data-testid="rotate-hint">
     <span class="text-ui-text min-w-[3ch] text-right font-medium tabular-nums" data-testid="rotate-hint-angle"
       >{{ hint.angle }}°</span
     >
@@ -204,19 +204,11 @@
           | transloco: { step: hint.step }
       }}</span>
     }
-  </div>
+  </table-hint-band>
 }
 @if (isPickingEffectTarget()) {
-  <div
-    class="bg-ui-panel text-ui-text pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full px-4 py-1.5 text-sm opacity-90"
-  >
-    {{ 'feature.effect.pickingHint' | transloco }}
-  </div>
+  <table-hint-band band="top">{{ 'feature.effect.pickingHint' | transloco }}</table-hint-band>
 }
 @if (isPickingTarget()) {
-  <div
-    class="bg-ui-panel text-ui-text pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-full px-4 py-1.5 text-sm opacity-90"
-  >
-    {{ 'feature.card.targetPickingHint' | transloco }}
-  </div>
+  <table-hint-band band="top">{{ 'feature.card.targetPickingHint' | transloco }}</table-hint-band>
 }

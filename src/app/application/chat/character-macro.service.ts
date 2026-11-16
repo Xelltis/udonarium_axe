@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { TurnChatCommandService } from '@axe/application/turn/turn-chat-command.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { buildMacroMessage } from '@axe/domain/chat/character-macro';
@@ -55,6 +56,7 @@ export class CharacterMacroService {
   private readonly objectStore = inject(ObjectStore);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly activeChatTab = inject(ActiveChatTabService);
+  private readonly turnCommands = inject(TurnChatCommandService);
   private readonly t = inject(TRANSLATE_FN);
 
   /** The pieces on the table someone has marked, which a line aimed at a target speaks to. */
@@ -69,12 +71,25 @@ export class CharacterMacroService {
    *
    * References to the piece's data in the line are filled in and the marked pieces stand in as the
    * targets unless others are given. Answers null, sending nothing, when there is no tab to speak
-   * into.
+   * into. A line that opens with a round command, `&T`, is said as the command, which moves the
+   * round, and then as the rest (see `TurnChatCommandService.say`); the stamp and what the line
+   * answers and quotes go with the last of them said.
    */
   send(character: GameCharacter, line: string, options: MacroSendOptions = {}): ChatMessage | null {
     const tab = this.resolveTab(options.tab);
     if (!tab) return null;
+    return this.turnCommands.say(line, options.sendFrom ?? character.identifier, tab, (text, last) =>
+      this.sayLine(
+        character,
+        text,
+        tab,
+        last ? options : { ...options, stamp: undefined, replyTo: undefined, quoteOf: undefined }
+      )
+    );
+  }
 
+  /** Says one line as a piece into a tab, as {@link send} tells. */
+  private sayLine(character: GameCharacter, line: string, tab: ChatTab, options: MacroSendOptions): ChatMessage {
     const targets = options.targets ?? this.markedCharacters();
     const message = buildMacroMessage(character, line, targets, this.t('feature.chat.palette.noTarget'));
     const bubbles = this.resolveBubblesOption(character, options);
@@ -115,7 +130,7 @@ export class CharacterMacroService {
     const gameType =
       options.gameType ||
       chosenSystem(character.chatPalette?.dicebot) ||
-      chosenSystem(this.objectStore.get<Config>('Config')?.defaultDiceBot) ||
+      chosenSystem(Config.instance.defaultDiceBot) ||
       this.chatMessageService.gameType;
     const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
     return this.markedAs(options, () => this.send(character, line, { ...options, gameSystem }));
@@ -126,7 +141,8 @@ export class CharacterMacroService {
    * is picked.
    *
    * Dice are rolled under the system asked for, else the room's default, else whatever chat is set
-   * to. Answers null, sending nothing, when there is no tab to speak into or nobody to speak as.
+   * to. Answers null, sending nothing, when there is no tab to speak into or nobody to speak as. A
+   * round command the line opens with is carried out as in {@link send}.
    */
   async sendAsSelf(
     line: string,
@@ -136,12 +152,12 @@ export class CharacterMacroService {
     const cursor = PeerCursor.myCursor;
     if (!tab || !cursor) return null;
     const gameType =
-      options.gameType ||
-      chosenSystem(this.objectStore.get<Config>('Config')?.defaultDiceBot) ||
-      this.chatMessageService.gameType;
+      options.gameType || chosenSystem(Config.instance.defaultDiceBot) || this.chatMessageService.gameType;
     const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
     return this.markedAs(options, () =>
-      this.chatMessageService.sendMessage(tab, line, gameSystem, cursor.identifier, '', 0, cursor.chatColorCode[0])
+      this.turnCommands.say(line, cursor.identifier, tab, (text) =>
+        this.chatMessageService.sendMessage(tab, text, gameSystem, cursor.identifier, '', 0, cursor.chatColorCode[0])
+      )
     );
   }
 
@@ -163,7 +179,7 @@ export class CharacterMacroService {
     const gameType =
       options.gameType ||
       chosenSystem(character?.chatPalette?.dicebot) ||
-      chosenSystem(this.objectStore.get<Config>('Config')?.defaultDiceBot) ||
+      chosenSystem(Config.instance.defaultDiceBot) ||
       this.chatMessageService.gameType;
     const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
     const text = character ? evaluateCharacterReferences(line, character).text : line;

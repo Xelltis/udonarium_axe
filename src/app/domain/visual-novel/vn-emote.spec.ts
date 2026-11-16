@@ -1,6 +1,7 @@
 import {
   buildLegacyVnEmoteSuffix,
   decodeVnEmote,
+  emotionMarkLabelOf,
   encodeVnEmote,
   hasVnEmote,
   legacyVnSuffixSite,
@@ -321,5 +322,16 @@ describe('legacyVnSuffixSite', () => {
 
   it('finds nothing where no bracket ends the line', () => {
     expect(legacyVnSuffixSite('〔叫び〕 です')).toBeNull();
+  });
+});
+
+describe('emotionMarkLabelOf()', () => {
+  it('gives the character a mark is drawn as', () => {
+    expect(emotionMarkLabelOf('anger')).toBe('💢');
+    expect(emotionMarkLabelOf('note')).toBe('♪');
+  });
+
+  it('gives nothing for no mark', () => {
+    expect(emotionMarkLabelOf('none')).toBe('');
   });
 });

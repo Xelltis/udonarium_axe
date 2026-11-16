@@ -16,11 +16,11 @@ describe('ChatTabList', () => {
     TestBed.configureTestingModule({});
     store = ObjectStore.instance;
     // Reset singleton
-    (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+    ChatTabList.forget();
   });
 
   afterEach(() => {
-    (ChatTabList as unknown as { _instance: ChatTabList | undefined })._instance = undefined;
+    ChatTabList.forget();
   });
 
   describe('instance (singleton)', () => {

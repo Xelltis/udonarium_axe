@@ -1,15 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { closePanels, holdsFor, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, placeOf, Point, pointsOnPicture, settle } from './see-through-helpers';
-
-async function closePanels(page: Page) {
-  const panels = page.locator('ui-panel');
-  for (let round = 0; round < 8 && (await panels.count()) > 0; round++) {
-    await panels.first().locator('.bg-ui-titlebar button', { hasText: 'close' }).dispatchEvent('click');
-  }
-  await expect(panels).toHaveCount(0);
-}
 
 async function drag(page: Page, from: Point, to: Point) {
   await page.mouse.move(from.x, from.y);
@@ -55,8 +47,7 @@ test.describe('the see-through parts of a piece’s picture', () => {
       .poll(() =>
         page.evaluate(
           ([x, y, id]) => {
-            const hooks = (window as unknown as { __axeTable?: { pickAt(x: number, y: number): string | null } })
-              .__axeTable;
+            const hooks = window.__axeTable;
             return hooks?.pickAt(x as number, y as number) === id;
           },
           [at.x, at.y, backId] as const
@@ -91,9 +82,8 @@ test.describe('the see-through parts of a piece’s picture', () => {
 
     await hoverOnto(page, at);
     await drag(page, at, { x: at.x + 100, y: at.y + 20 });
-    await page.waitForTimeout(500);
 
-    expect(await placeOf(front)).toBe(before);
+    await holdsFor(async () => expect(await placeOf(front)).toBe(before), 500);
   });
 });
 

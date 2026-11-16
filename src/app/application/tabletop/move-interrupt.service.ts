@@ -1,7 +1,7 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
@@ -129,11 +129,12 @@ export class MoveInterruptService {
   private readonly objectStore = inject(ObjectStore);
   private readonly roomRules = inject(RoomRulesService);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly tableSelecter = inject(TableSelecter);
+  private get tableSelecter(): TableSelecter {
+    return TableSelecter.instance;
+  }
   private readonly zones = inject(EngagementZoneService);
   private readonly vision = inject(VisionService);
   private readonly chat = inject(ChatMessageService);
-  private readonly t = inject(TRANSLATE_FN);
   private readonly names = inject(PieceNameService);
 
   private readonly waitingMove = signal<WaitingMove | null>(null);
@@ -146,6 +147,15 @@ export class MoveInterruptService {
 
   /** The move this peer has declared and is waiting on, for saying so at the foot of the screen. */
   readonly waiting = this.waitingMove.asReadonly();
+
+  /** When the waiting move last looked for its answers, which is as often as what is left of its wait is told. */
+  private readonly lookedAt = signal(Date.now());
+
+  /** How many whole seconds the move this peer declared has left to wait; none where no move waits. */
+  readonly secondsLeft = computed(() => {
+    const waiting = this.waitingMove();
+    return waiting ? Math.max(0, Math.ceil((waiting.deadline - this.lookedAt()) / 1000)) : 0;
+  });
 
   /** A declared move this peer may answer, or rule on as a game master; null where there is none. */
   readonly offer = computed<InterruptOffer | null>(() => {
@@ -280,7 +290,10 @@ export class MoveInterruptService {
     const claims = this.claimsFor(id, responders);
     const byId = new Map(candidates.map((candidate) => [candidate.id, candidate]));
     const reaches = (claim: InterruptClaim) =>
-      claim.pieces.every((piece) => byId.has(piece) && inSpans(byId.get(piece)!.spans, claim.along));
+      claim.pieces.every((piece) => {
+        const candidate = byId.get(piece);
+        return candidate !== undefined && inSpans(candidate.spans, claim.along);
+      });
     const outsideStop = resolveClaims(
       claims.filter((claim) => claim.pieces.every((piece) => byId.get(piece)?.zones.length === 0)),
       reaches,
@@ -336,7 +349,7 @@ export class MoveInterruptService {
   ): ZoneClaim | null {
     const point = pointAtLength(path, claim.along);
     const fits = this.zonesFitting(
-      claim.pieces.map((piece) => byId.get(piece)!),
+      claim.pieces.flatMap((piece) => byId.get(piece) ?? []),
       point,
       terms
     );
@@ -352,11 +365,11 @@ export class MoveInterruptService {
     const inZones = [...new Set(pieces.filter((piece) => piece.member).flatMap((piece) => piece.zones))];
     if (inZones.length > 0) return inZones;
     if (pieces.length < 1 || !point) return [];
-    return pieces[0].zones.filter(
-      (zone) =>
-        pieces.every((piece) => piece.zones.includes(zone)) &&
-        zoneCovers(terms.holding.find((hold) => hold.id === zone)!.shape, point)
-    );
+    return pieces[0].zones.filter((zone) => {
+      if (!pieces.every((piece) => piece.zones.includes(zone))) return false;
+      const held = terms.holding.find((hold) => hold.id === zone);
+      return held !== undefined && zoneCovers(held.shape, point);
+    });
   }
 
   /**
@@ -401,7 +414,7 @@ export class MoveInterruptService {
     }
     this.chat.sendSystemNotice(
       'movement',
-      this.t('feature.zone.chat.interrupted', {
+      encodeI18nMessage('feature.zone.chat.interrupted', {
         names: pieces.map((piece) => this.names.said(piece)).join('、'),
         mover: this.names.said(mover),
       })
@@ -480,6 +493,7 @@ export class MoveInterruptService {
     const deadline = Date.now() + INTERRUPT_WAIT_MS;
     return new Promise((resolve) => {
       const look = () => {
+        this.lookedAt.set(Date.now());
         const verdict = this.verdictFor(id);
         if (verdict) return resolve(verdict);
         if ([...responders].every((responder) => this.answerOf(responder, id) !== null)) return resolve('all');

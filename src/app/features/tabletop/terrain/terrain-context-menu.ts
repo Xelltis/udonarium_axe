@@ -8,6 +8,8 @@ import {
 } from '@axe/application/ui/context-menu.service';
 import {
   buildAltitudeAction,
+  buildCopyAction,
+  buildDeleteAction,
   buildLockToggleAction,
   buildToggleAction,
 } from '@axe/application/ui/tabletop-context-menu-actions';
@@ -20,29 +22,6 @@ import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-obje
 export interface TerrainContextMenuModel {
   actions: ContextMenuAction[];
   radialGroups: ContextMenuRadialGroup[];
-}
-
-/** The terrain's right-click menu as a flat list, without the groups a radial menu needs. */
-export function buildTerrainContextMenu(
-  terrain: Terrain,
-  gridSize: number,
-  objectPosition: PointerCoordinate,
-  inventoryService: GameObjectInventoryService,
-  createMenu: CreateObjectMenu,
-  onEdit: (t: Terrain) => void,
-  t: TranslateFn,
-  overlapEntries: ContextMenuAction[] = []
-): ContextMenuAction[] {
-  return buildTerrainContextMenuModel(
-    terrain,
-    gridSize,
-    objectPosition,
-    inventoryService,
-    createMenu,
-    onEdit,
-    t,
-    overlapEntries
-  ).actions;
 }
 
 /**
@@ -275,24 +254,11 @@ export function buildTerrainContextMenuModel(
       onEdit(terrain);
     },
   };
-  const copyAction: ContextMenuAction = {
-    name: t('feature.tabletop.contextMenu.copy'),
-    action: () => {
-      const cloneObject = terrain.clone();
-      cloneObject.location.x += gridSize;
-      cloneObject.location.y += gridSize;
-      cloneObject.isLocked = false;
-      if (terrain.parent) terrain.parent.appendChild(cloneObject);
-      SoundEffect.play(PresetSound.blockPut);
-    },
-  };
-  const deleteAction: ContextMenuAction = {
-    name: t('feature.tabletop.contextMenu.delete'),
-    action: () => {
-      terrain.destroy();
-      SoundEffect.play(PresetSound.sweep);
-    },
-  };
+  const copyAction = buildCopyAction(terrain, gridSize, t, {
+    sound: PresetSound.blockPut,
+    afterClone: (clone) => (clone.isLocked = false),
+  });
+  const deleteAction = buildDeleteAction(terrain, t);
   const createAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.createObject'),
     action: undefined,

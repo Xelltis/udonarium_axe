@@ -1,0 +1,17 @@
+@if (url()) {
+  <img
+    class="rounded-ui-sm border-ui-border-panel bg-ui-input hover:border-ui-accent block h-16.5 w-22 cursor-pointer border border-solid object-contain transition-colors"
+    [src]="url() | safe: 'resourceUrl'"
+    [alt]="alt()"
+    (click)="pick.emit()"
+  />
+} @else {
+  <button
+    type="button"
+    class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:bg-ui-input hover:text-ui-accent m-0 flex h-16.5 w-22 cursor-pointer items-center justify-center border border-dashed p-1 text-center text-[11px] leading-[1.4] transition-colors hover:shadow-none"
+    [attr.data-testid]="addTestId()"
+    (click)="pick.emit()"
+  >
+    {{ addLabel() }}
+  </button>
+}

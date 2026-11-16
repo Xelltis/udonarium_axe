@@ -6,6 +6,7 @@
  * nothing else, so the keyframes handed to the browser and the frames of a replay video come out
  * the same.
  */
+import { clamp } from '@axe/core/util/clamp';
 import { toGraphemes } from '@axe/core/util/graphemes';
 
 /**
@@ -69,7 +70,7 @@ export function letterTimingOf(motion: LetterMotion, staggerMs: unknown, duratio
     staggerMs: Number.isFinite(stagger) && stagger > 0 ? Math.min(LETTER_STAGGER_MAX_MS, stagger) : base.staggerMs,
     durationMs:
       Number.isFinite(duration) && duration > 0 && base.durationMs > 0
-        ? Math.min(LETTER_DURATION_MAX_MS, Math.max(LETTER_DURATION_MIN_MS, duration))
+        ? clamp(duration, LETTER_DURATION_MIN_MS, LETTER_DURATION_MAX_MS)
         : base.durationMs,
   };
 }
@@ -98,7 +99,7 @@ export function letterMotionKeepsMoving(motion: LetterMotion): boolean {
 function progress(rank: number, sinceMs: number, timing: LetterTiming): number {
   const into = sinceMs - rank * timing.staggerMs;
   if (timing.durationMs <= 0) return into >= 0 ? 1 : 0;
-  return Math.min(1, Math.max(0, into / timing.durationMs));
+  return clamp(into / timing.durationMs, 0, 1);
 }
 
 /** Overshoots a little before settling, as a thing popped into place does. */

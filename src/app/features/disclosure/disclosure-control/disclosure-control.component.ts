@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { FormsModule } from '@angular/forms';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Network } from '@axe/core/index';
+import { Network } from '@axe/core/network/network';
 import { Card } from '@axe/domain/card/card';
 import {
   Disclosable,
@@ -102,14 +102,14 @@ export class DisclosureControlComponent {
     const myCursor = PeerCursor.myCursor;
     if (myCursor) candidates.push({ userId: myCursor.userId, name: myCursor.name || myCursor.userId.slice(0, 6) });
     const owner = this.owner();
-    const narrowed = Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
+    const narrowed = Network.instance.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
     const object = this.object();
     if (narrowed && ownerRuledByServer(object) && (!owner || object instanceof Card)) {
       const holder = owner && owner !== myCursor?.userId ? PeerCursor.findByUserId(owner) : null;
       if (holder) candidates.push({ userId: holder.userId, name: holder.name || holder.userId.slice(0, 6) });
       return candidates;
     }
-    for (const context of Network.peerContexts) {
+    for (const context of Network.instance.peerContexts) {
       const cursor = PeerCursor.findByPeerId(context.peerId);
       if (!cursor || cursor.isMine || !mayBeOffered(cursor, [owner])) continue;
       candidates.push({ userId: cursor.userId, name: cursor.name || cursor.userId.slice(0, 6) });
@@ -172,7 +172,7 @@ export class DisclosureControlComponent {
   audienceCandidates(): AudienceCandidate[] {
     const candidates: AudienceCandidate[] = [];
     const chosen = this.object().disclosureUserIds;
-    for (const context of Network.peerContexts) {
+    for (const context of Network.instance.peerContexts) {
       const cursor = PeerCursor.findByPeerId(context.peerId);
       if (!cursor || cursor.isMine || cursor.isGameMaster || !mayBeOffered(cursor, chosen)) continue;
       candidates.push({ userId: cursor.userId, name: cursor.name || cursor.userId.slice(0, 6), role: cursor.role });

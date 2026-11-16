@@ -14,7 +14,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-npc-bar',
+  selector: 'npc-bar',
   templateUrl: './npc-bar.component.html',
   host: { class: 'contents' },
   imports: [FormsModule, SafePipe, TranslocoModule],

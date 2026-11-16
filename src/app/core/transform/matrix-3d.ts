@@ -74,7 +74,7 @@ export class Matrix3D {
     if (data == null) return this;
 
     const l = data.length;
-    if (l == 16) {
+    if (l === 16) {
       this.m11 = data[0];
       this.m12 = data[1];
       this.m13 = data[2];
@@ -91,7 +91,7 @@ export class Matrix3D {
       this.m42 = data[13];
       this.m43 = data[14];
       this.m44 = data[15];
-    } else if (l == 6) {
+    } else if (l === 6) {
       this.m11 = data[0];
       this.m12 = data[1];
       this.m13 = 0;
@@ -108,7 +108,7 @@ export class Matrix3D {
       this.m42 = data[5];
       this.m43 = 0;
       this.m44 = 1;
-    } else if (l == 9) {
+    } else if (l === 9) {
       this.m11 = data[0];
       this.m12 = data[1];
       this.m13 = 0;
@@ -286,8 +286,10 @@ export class Matrix3D {
   }
 
   /** Adds a translation after the current transform, given as a point or as x, y and z. */
-  appendPosition(positionOrX: IPoint3D | number, y?: number, z?: number): Matrix3D {
-    const position = typeof positionOrX === 'number' ? { x: positionOrX, y: y!, z: z!, w: 1 } : positionOrX;
+  appendPosition(position: IPoint3D): Matrix3D;
+  appendPosition(x: number, y: number, z: number): Matrix3D;
+  appendPosition(positionOrX: IPoint3D | number, y = 0, z = 0): Matrix3D {
+    const position = typeof positionOrX === 'number' ? { x: positionOrX, y, z, w: 1 } : positionOrX;
     return this.append(Matrix3D.makePosition(position, Matrix3D._scratch));
   }
 
@@ -387,7 +389,7 @@ export class Matrix3D {
    * else leaves the matrix as it was.
    */
   setCSS(cssString: string): Matrix3D {
-    if (!cssString || cssString == 'none') return this.identity();
+    if (!cssString || cssString === 'none') return this.identity();
     const parts = cssString.replace('matrix3d(', '').replace('matrix(', '').replace(')', '').split(',');
     const trans = parts.map((p) => CSSNumber.parse(p));
     return this.setData(trans);
@@ -399,7 +401,7 @@ export class Matrix3D {
    * With `force2D`, a `matrix3d()` is flattened to its effect on the plane first.
    */
   appendCSS(cssString: string, force2D: boolean = false): Matrix3D {
-    if (!cssString || cssString == 'none') return this;
+    if (!cssString || cssString === 'none') return this;
     if (force2D && cssString.indexOf('matrix3d') >= 0) {
       return this.append(Matrix3D._scratch.setCSS(cssString).flatten());
     }

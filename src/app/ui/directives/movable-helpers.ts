@@ -94,7 +94,7 @@ export function applyPointerEvents(elements: HTMLElement[], isEnable: boolean) {
  */
 export function setLayerCollidable(
   layerHash: { [layerName: string]: MovableLayerItem[] },
-  colideLayers: string[],
+  collideLayers: string[],
   self: MovableLayerItem,
   selfIsGrabbing: boolean,
   isCollidable: boolean
@@ -108,7 +108,7 @@ export function setLayerCollidable(
       // can fire synthetic pointer-events-toggle mousemoves with `buttons === 0`, which
       // PointerDeviceService treats as drag-end, cancelling the drag.
       isEnable = false;
-    } else if (-1 < colideLayers.indexOf(layerName)) {
+    } else if (-1 < collideLayers.indexOf(layerName)) {
       isEnable = selfIsGrabbing ? isCollidable : true;
     } else {
       isEnable = !isCollidable;

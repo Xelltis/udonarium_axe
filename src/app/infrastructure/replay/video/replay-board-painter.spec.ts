@@ -302,4 +302,58 @@ describe('drawing the board of a replay video', () => {
 
     expect(drawn).toMatchObject({ x: -1000, y: -1000, width: 2000, height: 2000 });
   });
+
+  it('cuts the tiles of a tiled face from one pattern of its picture, placed anew for every frame', () => {
+    vi.stubGlobal(
+      'DOMMatrix',
+      class {
+        a = 1;
+        b = 0;
+        c = 0;
+        d = 1;
+        e = 0;
+        f = 0;
+      }
+    );
+    const cobbles = image(64, 64);
+    const placed: { a: number; d: number; e: number; f: number }[] = [];
+    const pattern = {
+      setTransform: ({ a, d, e, f }: { a: number; d: number; e: number; f: number }) => placed.push({ a, d, e, f }),
+    };
+    const createPattern = vi.fn(() => pattern);
+    const frame = () => {
+      const canvas = recorder();
+      Object.assign(canvas.ctx, { createPattern });
+      paintReplayBoard(
+        canvas.ctx,
+        {
+          scene: scene([wall({ view: 1, tiled: true, imageIdentifier: 'cobbles', x: 150, y: 200 })]),
+          before: null,
+          camera: { x: 0, y: 0, width: 1000, height: 1000 },
+          area: { x: 0, y: 0, width: 1000, height: 1000 },
+          beat: null,
+          highlight: null,
+          dim: 0,
+          labelSize: 20,
+          popSize: 40,
+          fontFamily: 'sans-serif',
+        },
+        { imageOf: (identifier) => (identifier === 'cobbles' ? cobbles : null) }
+      );
+      return canvas;
+    };
+
+    const first = frame();
+    const second = frame();
+
+    expect(first.fills.filter((one) => one.color === '[object Object]')).toHaveLength(1);
+    expect(second.images.some((one) => one.image === cobbles)).toBe(false);
+    expect(createPattern).toHaveBeenCalledTimes(1);
+    // The tiles are cut a cell to one, from the block's own top left corner.
+    expect(placed).toEqual([
+      { a: 50 / 64, d: 50 / 64, e: -100, f: -25 },
+      { a: 50 / 64, d: 50 / 64, e: -100, f: -25 },
+    ]);
+    vi.unstubAllGlobals();
+  });
 });

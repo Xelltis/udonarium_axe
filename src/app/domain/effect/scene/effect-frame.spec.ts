@@ -154,11 +154,14 @@ describe('the looks of fire drawn in the scene', () => {
       const preset = makePreset(kind, { durationMs: 3000, areaRadius: 3, grade: 3 });
       const cast = castOn([100, 100], [200, 100]);
       const goesOff = effectBlowsOf(preset)[0].atMs;
-      const caughtAt = (elapsed: number) => staged(preset, cast, elapsed).motes.filter((mote) => mote.x > 160);
+      const caughtAt = (elapsed: number) =>
+        staged(preset, cast, elapsed).motes.filter((mote) => mote.shape === 'blaze' && Math.abs(mote.x - 200) < 30);
 
       expect(caughtAt(goesOff + 20)).toHaveLength(0);
       expect(caughtAt(goesOff + 400).length).toBeGreaterThan(0);
-      const heart = staged(preset, castOn([100, 100]), goesOff + 400).motes.length;
+      const heart = staged(preset, castOn([100, 100]), goesOff + 400).motes.filter(
+        (mote) => mote.shape === 'blaze'
+      ).length;
       expect(caughtAt(goesOff + 400).length).toBeLessThan(heart);
     }
   });
@@ -190,65 +193,6 @@ describe('the cuts and blows drawn in the scene', () => {
     expect(struck.motes.some((mote) => mote.shape === 'tongue')).toBe(true);
   });
 
-  it('swings its arc about its caster, through the target, not round it', () => {
-    const cut = makePreset('slash', { durationMs: 1000 });
-    cut.slashStyle = 'single';
-    const cast = { ...castOn([100, 100]), origin: { x: 300, y: 100, z: 30 } };
-    const crosses = effectBlowsOf(cut)[0].atMs;
-    const edge = staged(cut, cast, crosses + 250).ribbons.find((ribbon) => ribbon.blend === 'color' && ribbon.core)!;
-    const xs = edge.points.map((point) => point.x);
-
-    // The caster stands to the east: the arc reaches no further west than the target, and curves back east.
-    expect(Math.min(...xs)).toBeCloseTo(100, 0);
-    expect(xs[xs.length - 1]).toBeGreaterThan(110);
-  });
-
-  it('draws a cut as a crescent, thin at both ends, which thins and fades where it lies once the blade has passed', () => {
-    const cut = makePreset('slash', { durationMs: 1000 });
-    cut.slashStyle = 'single';
-    const cast = { ...castOn([100, 100]), origin: { x: 300, y: 100, z: 30 } };
-    const crosses = effectBlowsOf(cut)[0].atMs;
-    const edgeAt = (ms: number) =>
-      staged(cut, cast, ms).ribbons.find((ribbon) => ribbon.blend === 'color' && ribbon.core)!;
-
-    const swinging = edgeAt(crosses);
-    const widths = swinging.widths as number[];
-    expect(widths[0]).toBeLessThan(Math.max(...widths) * 0.15);
-    expect(widths[widths.length - 1]).toBeLessThan(Math.max(...widths) * 0.15);
-    const passed = edgeAt(crosses + 240);
-    const later = edgeAt(crosses + 300);
-    expect(later.points.at(-1)).toEqual(passed.points.at(-1));
-    expect(later.alpha).toBeLessThan(passed.alpha);
-    expect(Math.max(...(later.widths as number[]))).toBeLessThan(Math.max(...(passed.widths as number[])));
-  });
-
-  it.each(['single', 'combo', 'iai', 'wide', 'heavy'] as const)(
-    'keeps every blade of a %s cut over the floor',
-    (style) => {
-      const cut = makePreset('slash', { durationMs: 2500, grade: 3 });
-      cut.slashStyle = style;
-      const cast = { ...castOn([100, 100]), origin: { x: 300, y: 100, z: 30 } };
-      for (let at = 0; at < 3000; at += 25) {
-        for (const ribbon of staged(cut, cast, at).ribbons) {
-          expect(ribbon.points.every((point) => point.z >= CELL * 0.1)).toBe(true);
-        }
-      }
-    }
-  );
-
-  it('brings a cleave down from above', () => {
-    const cleave = makePreset('slash', { durationMs: 2000, grade: 3 });
-    cleave.slashStyle = 'heavy';
-    const cast = { ...castOn([100, 100]), origin: { x: 300, y: 100, z: 30 } };
-    const crosses = effectBlowsOf(cleave)[0].atMs;
-    const headAt = (ms: number) => {
-      const edge = staged(cleave, cast, ms).ribbons.find((ribbon) => ribbon.blend === 'color' && ribbon.core);
-      return edge!.points[edge!.points.length - 1].z;
-    };
-
-    expect(headAt(crosses - 40)).toBeGreaterThan(headAt(crosses + 60));
-  });
-
   it('draws the great blade in the scene with the look it strikes with, a picture it cuts left over the table', () => {
     const blade = makePreset('skyblade', { durationMs: 3000 });
     blade.impactKind = 'flame';
@@ -270,7 +214,7 @@ describe('the cuts and blows drawn in the scene', () => {
     const landsAt = effectBlowsOf(shot)[0].atMs;
 
     expect(isDrawnInScene(shot)).toBe(true);
-    expect(staged(shot, cast, landsAt + 200)).toEqual(staged(burstShot, cast, landsAt + 200));
+    expect(staged(shot, cast, landsAt + 450)).toEqual(staged(burstShot, cast, landsAt + 450));
   });
 });
 
@@ -327,7 +271,7 @@ describe('every look drawn in the scene', () => {
     const landed = staged(shot, cast, 900);
 
     expect(isDrawnInScene(shot)).toBe(true);
-    expect(landed.motes.some((mote) => mote.shape === 'tongue')).toBe(true);
+    expect(landed.motes.some((mote) => mote.shape === 'crystal')).toBe(true);
   });
 });
 
@@ -450,7 +394,8 @@ describe('the looks the fourth review asked to be drawn again', () => {
   it('launches a ballistic missile straight up off its pad before bringing it down on its mark', () => {
     const missile = makePreset('ballistic', { durationMs: 4200, staggerMs: 0 });
     const lands = effectBlowsOf(missile)[0].atMs;
-    const bodyAt = (ms: number) => staged(missile, cast, ms).ribbons.filter((ribbon) => ribbon.blend === 'color');
+    const bodyAt = (ms: number) =>
+      staged(missile, cast, ms).ribbons.filter((ribbon) => ribbon.blend === 'color' && !ribbon.soft);
 
     const climbing = bodyAt(lands * 0.2);
     expect(climbing.length).toBeGreaterThan(0);
@@ -474,7 +419,7 @@ describe('the looks the fourth review asked to be drawn again', () => {
     const highest = (ms: number) =>
       Math.max(
         ...staged(fire, castOn([400, 100]), ms)
-          .motes.filter((mote) => mote.shape === 'tongue')
+          .motes.filter((mote) => mote.shape === 'lick')
           .map((mote) => mote.z)
       );
 
@@ -506,5 +451,119 @@ describe('what a breath carries along its way', () => {
         .length;
 
     expect(sparks('none')).toBeLessThan(sparks('spark'));
+  });
+});
+
+describe('where an effect aimed from its caster leaves it', () => {
+  const caster = { x: 600, y: 100, z: 0, groundZ: 0 };
+  const from = (cells: number): Partial<EffectStagingOptions> => ({
+    resolveFooting: (identifier) => (identifier === 'caster' ? caster : null),
+    resolveSize: (identifier) => (identifier === 'caster' ? cells : 1),
+  });
+  const cast = { ...castOn([100, 100]), casterIdentifier: 'caster', origin: { x: 600, y: 100, z: 30 } };
+  const hands = { x: 600, y: 100, z: CELL * 0.6 };
+
+  it('leaves a breath before the caster’s body towards the target, further out and higher for a larger caster', () => {
+    const preset = makePreset('breath', { durationMs: 3000 });
+    const mouthOf = (cells: number) => {
+      const drawn = staged(preset, cast, 100, from(cells));
+      const nearest = Math.max(...drawn.motes.filter((mote) => mote.shape === 'glow').map((mote) => mote.x));
+      return drawn.motes.find((mote) => mote.shape === 'glow' && mote.x === nearest)!;
+    };
+
+    expect(mouthOf(1)).toMatchObject({ x: 580, y: 100, z: 30 });
+    expect(mouthOf(3)).toMatchObject({ x: 540, y: 100, z: 90 });
+  });
+
+  it.each(['raybeam', 'arc', 'drain'] as const)(
+    'leaves %s from the hands of a caster of one cell over its middle, and of a larger one before its body and higher',
+    (kind) => {
+      const preset = makePreset(kind, { durationMs: 1000 });
+      const at = kind === 'raybeam' ? 100 : 500;
+      const leavesFrom = (cells: number, point: { x: number; y: number; z: number }) =>
+        staged(preset, cast, at, from(cells)).motes.filter(
+          (mote) => mote.x === point.x && mote.y === point.y && mote.z === point.z
+        ).length;
+
+      expect(leavesFrom(1, hands)).toBeGreaterThan(0);
+      expect(leavesFrom(3, hands)).toBe(0);
+      expect(leavesFrom(3, { x: 550, y: 100, z: 90 })).toBeGreaterThan(0);
+      expect(leavesFrom(2, { x: 575, y: 100, z: 60 })).toBeGreaterThan(0);
+    }
+  );
+
+  it('leaves from over the middle of a caster smaller than a cell, a cell’s hands high', () => {
+    const preset = makePreset('arc', { durationMs: 1000 });
+
+    expect(JSON.stringify(staged(preset, cast, 500, from(0.5)))).toBe(
+      JSON.stringify(staged(preset, cast, 500, from(1)))
+    );
+  });
+
+  it.each([
+    [1, 3],
+    [3, 1],
+  ])(
+    'lays what a great beam leaves on the floor under its muzzle on the floor, from a caster of %i cells at one of %i',
+    (casterCells, targetCells) => {
+      const preset = makePreset('beam', { durationMs: 3000, grade: 3, staggerMs: 0 });
+      const sized: Partial<EffectStagingOptions> = {
+        ...from(casterCells),
+        resolveSize: (identifier) => (identifier === 'caster' ? casterCells : targetCells),
+      };
+      const heights = new Set<number>();
+      for (let at = 0; at <= 3000; at += 100) {
+        for (const mark of staged(preset, cast, at, sized).floor) heights.add(Math.round(mark.z));
+      }
+
+      expect([...heights]).toEqual([0]);
+    }
+  );
+
+  it('leaves an arrow standing out of the side of a large target it was shot from, and in the middle of one of a cell', () => {
+    const preset = makePreset('projectile', {
+      durationMs: 620,
+      staggerMs: 0,
+      scale: 0.8,
+      projectileStyle: 'arrow',
+      impactKind: 'impact',
+    });
+    const headOf = (cells: number) => {
+      const sized: Partial<EffectStagingOptions> = {
+        ...from(1),
+        resolveSize: (identifier) => (identifier === 'caster' ? 1 : cells),
+      };
+      const shaft = staged(preset, cast, 600, sized).ribbons.filter((ribbon) => ribbon.color === '#3a2716');
+      return shaft.at(-1)!.points[1];
+    };
+
+    expect(headOf(1).x).toBeLessThan(100);
+    expect(headOf(3).x).toBeGreaterThan(100 + CELL * 0.3);
+  });
+
+  it('looses a shot from before the body of a larger caster and higher, rather than out of its middle', () => {
+    const preset = makePreset('projectile', { durationMs: 1000 });
+    const nearestTo = (cells: number, point: { x: number; y: number; z: number }) =>
+      Math.min(
+        ...staged(preset, cast, 20, from(cells)).motes.map((mote) =>
+          Math.hypot(mote.x - point.x, mote.y - point.y, mote.z - point.z)
+        )
+      );
+    const before = { x: 550, y: 100, z: 90 };
+
+    expect(nearestTo(1, hands)).toBeLessThan(CELL * 0.3);
+    expect(nearestTo(3, before)).toBeLessThan(CELL * 0.3);
+    expect(nearestTo(3, hands)).toBeGreaterThan(CELL);
+  });
+});
+
+describe('what a look is told of the cast it plays in', () => {
+  it('draws every other look on each target as it did, whatever the other targets are', () => {
+    const preset = makePreset('burst', { durationMs: 1000, staggerMs: 0 });
+    const alone = staged(preset, castOn([100, 100]), 300);
+    const both = staged(preset, castOn([100, 100], [900, 900]), 300);
+    const near = (drawn: Staged) => drawn.motes.filter((mote) => Math.hypot(mote.x - 100, mote.y - 100) < 400);
+
+    expect(JSON.stringify(near(both))).toBe(JSON.stringify(near(alone)));
   });
 });

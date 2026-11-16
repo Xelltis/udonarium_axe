@@ -61,21 +61,18 @@
           <div
             data-testid="hit-flash"
             class="animate-hit-flash pointer-events-none absolute inset-0 rounded-full"
-            [ngStyle]="{ background: 'radial-gradient(circle, rgba(255,60,60,0.85) 0%, rgba(255,60,60,0) 70%)' }"
+            [style.background]="damageFlashFill"
           ></div>
         }
         @if (hitFlash() === 'heal') {
           <div
             data-testid="heal-aura"
             class="animate-heal-rise pointer-events-none absolute inset-0 rounded-full"
-            [ngStyle]="{
-              background:
-                'radial-gradient(circle, rgba(120,255,170,0) 42%, rgba(120,255,170,0.9) 60%, rgba(120,255,170,0) 76%)',
-            }"
+            [style.background]="healAuraFill"
           ></div>
           <div
             class="animate-heal-glow pointer-events-none absolute inset-0 rounded-full"
-            [ngStyle]="{ background: 'radial-gradient(circle, rgba(90,230,120,0.7) 0%, rgba(90,230,120,0) 70%)' }"
+            [style.background]="healGlowFill"
           ></div>
         }
         @if (!isLock && canTurn() && canHandle()) {
@@ -629,41 +626,12 @@
                     (mousedown)="cycleBuffView($event)"
                     appKeepTouch
                   >
-                    @switch (buffViewMode()) {
-                      @case ('detail') {
-                        <div
-                          class="animate-buff-swap flex w-max flex-col items-start justify-end whitespace-nowrap [-webkit-font-smoothing:antialiased] [text-rendering:optimizeLegibility]"
-                        >
-                          @for (childElement of buffChildren(); track childElement.identifier) {
-                            <div
-                              class="block w-max whitespace-nowrap"
-                              game-data-element-buff
-                              [gameDataElement]="childElement"
-                              [isEdit]="false"
-                              [isPieceMode]="true"
-                            ></div>
-                          }
-                        </div>
-                      }
-                      @case ('count') {
-                        <span
-                          class="animate-buff-swap bg-ui-panel text-ui-text rounded-full px-[0.6em] py-[0.15em] text-[1.1em] leading-normal whitespace-nowrap"
-                          >{{ 'feature.character.buff.count' | transloco: { count: buffNum() } }}</span
-                        >
-                      }
-                      @default {
-                        <div
-                          class="animate-buff-swap grid w-max items-end gap-[0.8em]"
-                          data-testid="buff-badge-grid"
-                          [style.grid-template-columns]="buffBadgeColumns"
-                          [style.font-size.em]="buffIconScale()"
-                        >
-                          @for (badge of buffBadges(); track badge.identifier) {
-                            <buff-badge [badge]="badge"></buff-badge>
-                          }
-                        </div>
-                      }
-                    }
+                    <ng-container
+                      *ngTemplateOutlet="
+                        buffsView;
+                        context: { mode: buffViewMode(), badges: buffBadges(), rows: buffChildren(), count: buffNum() }
+                      "
+                    ></ng-container>
                   </button>
                 </div>
               </div>
@@ -831,6 +799,44 @@
   </div>
 }
 
+<ng-template #buffsView let-mode="mode" let-badges="badges" let-rows="rows" let-count="count">
+  @switch (mode) {
+    @case ('detail') {
+      <div
+        class="animate-buff-swap flex w-max flex-col items-start justify-end whitespace-nowrap [-webkit-font-smoothing:antialiased] [text-rendering:optimizeLegibility]"
+      >
+        @for (childElement of rows; track childElement.identifier) {
+          <div
+            class="block w-max whitespace-nowrap"
+            game-data-element-buff
+            [gameDataElement]="childElement"
+            [isEdit]="false"
+            [isPieceMode]="true"
+          ></div>
+        }
+      </div>
+    }
+    @case ('count') {
+      <span
+        class="animate-buff-swap bg-ui-panel text-ui-text rounded-full px-[0.6em] py-[0.15em] text-[1.1em] leading-normal whitespace-nowrap"
+        >{{ 'feature.character.buff.count' | transloco: { count: count } }}</span
+      >
+    }
+    @default {
+      <div
+        class="animate-buff-swap grid w-max items-end gap-[0.8em]"
+        data-testid="buff-badge-grid"
+        [style.grid-template-columns]="buffBadgeColumns"
+        [style.font-size.em]="buffIconScale()"
+      >
+        @for (badge of badges; track badge.identifier) {
+          <buff-badge [badge]="badge"></buff-badge>
+        }
+      </div>
+    }
+  }
+</ng-template>
+
 <ng-template #gaugeRowView let-row>
   @let gauge = row.gauge;
   <div
@@ -866,6 +872,7 @@
     [class.pointer-events-auto]="label.part"
     [class.cursor-pointer]="label.part"
     [class.ring-2]="label.targeted"
+    [appTooltip]="label.detail"
     (click)="label.part && aimAtPart(label.identifier, $event)"
     (contextmenu)="label.part && openPartMenu(label.identifier, $event)"
   >
@@ -879,15 +886,23 @@
         {{ label.pick }}
       </div>
     }
-    @if (label.badges.length > 0) {
+    @if (label.badges.length > 0 || label.buffRows.length > 0 || label.buffCount > 0) {
       <div
-        class="grid w-max items-end gap-[0.8em]"
-        [style.grid-template-columns]="buffBadgeColumns"
-        [style.font-size.em]="buffIconScale()"
+        data-testid="riding-label-buffs"
+        class="flex w-max justify-start"
+        [attr.data-buff-view]="label.buffView"
+        [ngClass]="
+          label.buffView === 'detail'
+            ? 'border-ui-border-panel bg-ui-panel text-ui-text rounded-[1.2em] border border-solid px-[0.5em] py-[0.15em]'
+            : ''
+        "
       >
-        @for (badge of label.badges; track badge.identifier) {
-          <buff-badge [badge]="badge"></buff-badge>
-        }
+        <ng-container
+          *ngTemplateOutlet="
+            buffsView;
+            context: { mode: label.buffView, badges: label.badges, rows: label.buffRows, count: label.buffCount }
+          "
+        ></ng-container>
       </div>
     }
     @for (row of label.gauges; track row.gauge.identifier) {

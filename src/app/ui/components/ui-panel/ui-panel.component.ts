@@ -27,9 +27,18 @@ import { PanelDropZone, pointerOf, tearOffBox } from '@axe/application/ui/panel-
 import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { observeSize } from '@axe/core/util/observe-size';
 import { holdLiveState } from '@axe/ui/components/ui-panel/live-state';
+import { PanelBarButtonComponent } from '@axe/ui/components/ui-panel/panel-bar-button.component';
+import { fullScreenBox, leastSizeCorrection, viewportShift } from '@axe/ui/components/ui-panel/panel-geometry';
 import { PanelTabSlotComponent } from '@axe/ui/components/ui-panel/panel-tab-slot.component';
 import { PanelTabStripComponent } from '@axe/ui/components/ui-panel/panel-tab-strip.component';
+import {
+  PanelTab,
+  PanelTabHandle,
+  PanelTabsFrame,
+  PanelTabsHolder,
+} from '@axe/ui/components/ui-panel/panel-tabs-holder';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { ResizableDirective } from '@axe/ui/directives/resizable.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -39,27 +48,13 @@ const PANEL_FLOOR_OPACITY = 0.25;
 /** How tall the row of names is, which the strip itself is drawn at (`h-7`). */
 const TAB_STRIP_HEIGHT_PX = 28;
 
+/** How wide a panel is when it is shrunk to its title. */
+const SHRUNK_WIDTH_PX = 128;
+
 /** Tells one frame from another while a panel is dragged between them. */
 let framesOpened = 0;
 
-/** One panel standing in a frame: what it is, where it is drawn, and what it was built into. */
-export interface PanelTabHandle {
-  panel: PanelService;
-  slot: ComponentRef<PanelTabSlotComponent>;
-  body: ComponentRef<unknown>;
-  /**
-   * The size it wants back when it stands in a frame of its own again.
-   *
-   * Nothing until it is folded into a group: a panel standing alone is the size of its frame,
-   * and that is not known when the panel is built - the size is written on the frame after.
-   */
-  box: { width: number; height: number } | null;
-}
-
-interface PanelTab extends PanelTabHandle {
-  /** Dropped when the panel leaves, or the frame goes on answering for a panel it lost. */
-  unsubscribe: () => void;
-}
+export type { PanelTabHandle } from '@axe/ui/components/ui-panel/panel-tabs-holder';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -74,9 +69,10 @@ interface PanelTab extends PanelTabHandle {
     NgComponentOutlet,
     TextTooltipDirective,
     PanelTabStripComponent,
+    PanelBarButtonComponent,
   ],
 })
-export class UIPanelComponent implements PanelFrame, PanelDropFrame {
+export class UIPanelComponent implements PanelFrame, PanelDropFrame, PanelTabsFrame {
   panelService = inject(PanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly destroyRef = inject(DestroyRef);
@@ -149,8 +145,11 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   readonly titleBar = viewChild.required<ElementRef<HTMLDivElement>>('titleBar');
   private readonly slots = viewChild.required('slots', { read: ViewContainerRef });
 
-  readonly tabs = signal<readonly PanelTab[]>([]);
-  readonly activeIndex = signal(0);
+  private readonly held = new PanelTabsHolder(this.panelService, this);
+  /** The panels this frame holds, in the order their names are drawn. */
+  readonly tabs = this.held.tabs;
+  /** Which of the tabs is in front. */
+  readonly activeIndex = this.held.activeIndex;
 
   /**
    * The panel this frame is wearing: its name, its buttons, the kind it is faded by.
@@ -158,7 +157,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
    * A frame nothing was ever built into answers with its own, which is what a frame put up
    * by hand is.
    */
-  readonly activePanel = computed<PanelService>(() => this.tabs()[this.activeIndex()]?.panel ?? this.panelService);
+  readonly activePanel = this.held.activePanel;
 
   readonly frameKey = `panel-${(framesOpened += 1)}`;
   /** Whether a panel let go of now would join this frame. */
@@ -271,11 +270,8 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   }
 
   protected onTabMoved(move: { from: number; to: number }): void {
-    const held = this.tabs()[move.from];
-    if (!held) return;
-    const rest = this.tabs().filter((tab) => tab !== held);
-    this.tabs.set([...rest.slice(0, move.to), held, ...rest.slice(move.to)]);
-    this.selectTab(this.tabs().indexOf(held));
+    const at = this.held.move(move.from, move.to);
+    if (at !== null) this.selectTab(at);
   }
 
   /**
@@ -353,7 +349,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
 
   /** How many panels this frame holds as tabs. */
   tabCount(): number {
-    return this.tabs().length;
+    return this.held.count();
   }
 
   /**
@@ -362,50 +358,21 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
    * The panel's `activated$` is emitted after the next render, once it is showing.
    */
   selectTab(index: number): void {
-    const tabs = this.tabs();
-    if (index < 0 || index >= tabs.length) return;
-    this.activeIndex.set(index);
-    const shown = tabs[index];
+    const shown = this.held.select(index);
+    if (!shown) return;
     afterNextRender({ read: () => shown.panel.activated$.emit() }, { injector: this.injector });
   }
 
   private tabOf(panel: PanelService): PanelTab | null {
-    return this.tabs().find((tab) => tab.panel === panel) ?? null;
+    return this.held.find(panel);
   }
 
   private holdTab(handle: PanelTabHandle): void {
-    const tab: PanelTab = { ...handle, unsubscribe: this.listenTo(handle.panel) };
-    this.tabs.update((held) => [...held, tab]);
-    this.selectTab(this.tabs().length - 1);
-  }
-
-  /**
-   * Follows what a panel asks of the frame it stands in.
-   *
-   * The frame's own panel is already followed from where the frame was built, so only the
-   * ones folded in from elsewhere are taken up here. What a panel asks for while it is behind
-   * another is not the frame's business: it would shrink or stretch around something nobody
-   * is looking at.
-   */
-  private listenTo(panel: PanelService): () => void {
-    if (panel === this.panelService) return () => undefined;
-    const stopShrink = panel.shrinkRequest$.subscribe((shrunk) => {
-      if (panel === this.activePanel()) this.setShrunk(shrunk);
-    });
-    const stopResize = panel.resizeRequest$.subscribe((size) => {
-      if (panel === this.activePanel()) this.resizeTo(size);
-    });
-    return () => {
-      stopShrink();
-      stopResize();
-    };
+    this.selectTab(this.held.hold(handle));
   }
 
   private dropTab(tab: PanelTab): void {
-    tab.unsubscribe();
-    this.tabs.update((held) => held.filter((entry) => entry !== tab));
-    this.activeIndex.set(Math.min(this.activeIndex(), Math.max(0, this.tabs().length - 1)));
-    this.selectTab(this.activeIndex());
+    this.selectTab(this.held.drop(tab));
   }
 
   private scrollablePanel(): ElementRef<HTMLDivElement> | null {
@@ -454,20 +421,27 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
         const ground = this.scrollablePanel();
         if (ground) this.panelService.setDefaultScrollablePanel(ground.nativeElement);
         this.clampPanelToViewport(this.draggablePanel().nativeElement);
-        if (this.panelService.leastSize) {
-          this.timerCheckWindowSize = setInterval(() => {
-            this.keepLeastSize();
-          }, 500);
-        }
+        if (this.panelService.leastSize) this.watchLeastSize();
       },
     });
     afterNextRender({ read: () => this.destroyRef.onDestroy(this.panelDrag.register(this)) });
+  }
+
+  /**
+   * Keeps a panel whose content names a least size at it, as the panel or the window it stands
+   * in is resized, until the frame goes.
+   */
+  private watchLeastSize(): void {
+    const panel = this.draggablePanel().nativeElement;
+    const view = panel.ownerDocument.defaultView ?? window;
+    const keep = () => this.keepLeastSize();
+    const stopWatching = observeSize(panel, keep);
+    view.addEventListener('resize', keep);
     this.destroyRef.onDestroy(() => {
-      if (this.timerCheckWindowSize) {
-        clearInterval(this.timerCheckWindowSize);
-        this.timerCheckWindowSize = null;
-      }
+      stopWatching();
+      view.removeEventListener('resize', keep);
     });
+    keep();
   }
 
   /** The title of the frame's own panel, shown in the title bar when it is the one in front. */
@@ -610,7 +584,6 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   }
 
   protected readonly portraitDispByMouse = signal(true);
-  private timerCheckWindowSize: ReturnType<typeof setInterval> | null = null;
 
   protected readonly chatPortraitComponent = inject(CHAT_PORTRAIT_COMPONENT);
   protected readonly cardStackListComponent = inject(CARD_STACK_LIST_COMPONENT);
@@ -635,40 +608,25 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   /**
    * Keeps the panel at least as large as its content needs, and pulls it back inside the window.
    *
-   * Polled every half second for a panel whose content names a least size; does nothing while it
-   * needs none.
+   * Called as the panel or the window is resized for a panel whose content names a least size;
+   * does nothing while it needs none.
    */
   private keepLeastSize() {
     const least = this.panelService.leastSize?.();
     if (!least) return;
 
     const panel = this.draggablePanel().nativeElement;
-
-    const nowW = parseInt(panel.style.width);
-    const nowH = parseInt(panel.style.height);
-    if (nowW < least.width) {
-      panel.style.width = least.width + 'px';
-    }
-    if (nowH < least.height) {
-      panel.style.height = least.height + 'px';
-    }
-    const winW = window.innerWidth;
-    const winH = window.innerHeight;
-
-    const offsetL: number = panel.offsetLeft;
-    const offsetT: number = panel.offsetTop;
-
-    const overR = offsetL + least.width - winW;
-    if (overR >= 0) {
-      const newOffL = offsetL - overR <= 0 ? 0 : offsetL - overR;
-      panel.style.left = newOffL + 'px';
-    }
-
-    const overB = offsetT + least.height - winH;
-    if (overB >= 0) {
-      const newOffT = offsetT - overB <= 0 ? 0 : offsetT - overB;
-      panel.style.top = newOffT + 'px';
-    }
+    const now = {
+      left: panel.offsetLeft,
+      top: panel.offsetTop,
+      width: parseInt(panel.style.width),
+      height: parseInt(panel.style.height),
+    };
+    const fix = leastSizeCorrection(now, least, { width: window.innerWidth, height: window.innerHeight });
+    if (fix.width !== undefined) panel.style.width = `${fix.width}px`;
+    if (fix.height !== undefined) panel.style.height = `${fix.height}px`;
+    if (fix.left !== undefined) panel.style.left = `${fix.left}px`;
+    if (fix.top !== undefined) panel.style.top = `${fix.top}px`;
   }
 
   /**
@@ -677,7 +635,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
    * The size it had is put aside on the way out and given back on the way in, so a panel that
    * grew to show everything returns to whatever the reader had set it to.
    */
-  private resizeTo(size: { width: number; height: number } | null): void {
+  resizeTo(size: { width: number; height: number } | null): void {
     if (this.isFullScreen() || this.isCompact()) return;
 
     if (size) {
@@ -742,7 +700,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     if (shrunk) {
       this.preWidth = panel.offsetWidth;
       this.preHeight = unfolded ? this.height : panel.offsetHeight;
-      this.width = 128;
+      this.width = SHRUNK_WIDTH_PX;
     } else {
       this.width = this.preWidth;
       this.height = this.preHeight;
@@ -772,11 +730,7 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     if (this.isMinimized() || this.isShrunk()) return;
 
     const panel = this.draggablePanel().nativeElement;
-    if (this.isFullScreen()) {
-      this.isFullScreen.set(false);
-    } else {
-      this.isFullScreen.set(true);
-    }
+    this.isFullScreen.update((fullScreen) => !fullScreen);
 
     if (this.isFullScreen()) {
       this.preLeft = panel.offsetLeft;
@@ -813,7 +767,10 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     }
   }
 
-  /** Records the place and size the reader resized the panel to, and pulls it back inside the window. */
+  /**
+   * Records the place and size the reader resized the panel to, pulls it back inside the window and
+   * tells the panel in front its new size.
+   */
   onPanelResizeEnd(): void {
     const panel = this.draggablePanel().nativeElement;
     this.left = panel.offsetLeft;
@@ -821,14 +778,12 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     this.width = panel.offsetWidth;
     this.height = panel.offsetHeight;
     this.clampPanelToViewport(panel);
+    this.activePanel().resized$.emit({ width: this.width, height: this.height });
   }
 
   private applyFullScreenLayout(panel: HTMLElement): void {
-    const width = this.isSideways ? window.innerHeight : window.innerWidth;
-    const height = this.isSideways ? window.innerWidth : window.innerHeight;
-    const left = (window.innerWidth - width) / 2;
-    const top = (window.innerHeight - height) / 2;
-    this.applyPanelBox(panel, left, top, width, height);
+    const box = fullScreenBox({ width: window.innerWidth, height: window.innerHeight }, this.isSideways);
+    this.applyPanelBox(panel, box.left, box.top, box.width, box.height);
   }
 
   private applyPanelBox(panel: HTMLElement, left: number, top: number, width: number, height: number): void {
@@ -850,21 +805,10 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
    */
   private clampPanelToViewport(panel: HTMLElement): void {
     const view = panel.ownerDocument.defaultView ?? window;
-    const rect = panel.getBoundingClientRect();
-    let diffX = 0;
-    let diffY = 0;
-
-    if (view.innerWidth < rect.width) diffX = view.innerWidth / 2 - (rect.left + rect.width / 2);
-    else if (rect.left < 0) diffX = -rect.left;
-    else if (view.innerWidth < rect.right) diffX = view.innerWidth - rect.right;
-
-    if (view.innerHeight < rect.height) diffY = view.innerHeight / 2 - (rect.top + rect.height / 2);
-    else if (rect.top < 0) diffY = -rect.top;
-    else if (view.innerHeight < rect.bottom) diffY = view.innerHeight - rect.bottom;
-
-    if (diffX === 0 && diffY === 0) return;
-    this.left = panel.offsetLeft + diffX;
-    this.top = panel.offsetTop + diffY;
+    const shift = viewportShift(panel.getBoundingClientRect(), { width: view.innerWidth, height: view.innerHeight });
+    if (shift.x === 0 && shift.y === 0) return;
+    this.left = panel.offsetLeft + shift.x;
+    this.top = panel.offsetTop + shift.y;
     panel.style.left = `${this.left}px`;
     panel.style.top = `${this.top}px`;
   }
@@ -904,10 +848,6 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
    * A frame holding tabs goes with all of them; one with none closes its own panel.
    */
   close() {
-    if (this.timerCheckWindowSize) {
-      clearInterval(this.timerCheckWindowSize);
-      this.timerCheckWindowSize = null;
-    }
     if (this.tabs().length > 0) this.self?.destroy();
     else this.panelService.close();
   }

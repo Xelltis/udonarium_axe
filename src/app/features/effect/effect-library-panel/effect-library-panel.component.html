@@ -1,10 +1,18 @@
-<div class="text-ui-text bg-ui-elevated flex h-full flex-col overflow-hidden text-[13px]">
-  <div class="border-ui-border-panel bg-ui-panel shrink-0 border-b border-solid px-3 py-2">
-    <div class="flex items-center gap-2">
-      <div class="relative flex flex-1 items-center">
-        <i class="material-icons text-ui-dim pointer-events-none absolute left-2 text-[16px]!">search</i>
+<div
+  class="text-ui-text bg-ui-elevated @container relative flex h-full flex-col overflow-hidden text-[13px]"
+  (pointerdown)="closeMenuFrom($event)"
+>
+  <div
+    class="border-ui-border-panel bg-ui-panel relative z-2 flex shrink-0 flex-col gap-1.5 border-b border-solid px-2.5 py-2"
+    data-testid="effect-library-filters"
+  >
+    <div class="flex items-center gap-1.5">
+      <div
+        class="border-ui-border-control bg-ui-input focus-within:border-ui-accent rounded-ui-sm relative flex h-8 min-w-0 flex-1 items-center gap-1.5 border border-solid px-2 pointer-coarse:h-11"
+      >
+        <i class="material-icons text-ui-meta pointer-events-none shrink-0 text-[16px]!" aria-hidden="true">search</i>
         <input
-          class="border-ui-border-input bg-ui-input text-ui-text rounded-ui-sm w-full border border-solid px-7 py-1.5 text-[13px] outline-none"
+          class="text-ui-text placeholder:text-ui-meta h-full min-w-0 flex-1 rounded-none border-none bg-transparent p-0 text-[13px] shadow-none outline-none [&::-webkit-search-cancel-button]:hidden"
           type="search"
           [placeholder]="'feature.effect.searchPlaceholder' | transloco"
           [attr.aria-label]="'feature.effect.searchPlaceholder' | transloco"
@@ -12,264 +20,671 @@
           (ngModelChange)="query.set($event)"
         />
         @if (hasFilter()) {
+          <span
+            class="text-ui-meta shrink-0 text-[11px] whitespace-nowrap tabular-nums"
+            data-testid="effect-library-count"
+            >{{ 'feature.effect.matchCount' | transloco: { count: matchCount() } }}</span
+          >
           <button
-            class="text-ui-dim hover:text-ui-text absolute right-1.5 cursor-pointer border-none bg-transparent p-0.5 [&_.material-icons]:text-[16px]!"
+            class="text-ui-meta hover:text-ui-text relative m-0 inline-flex size-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 pointer-coarse:size-11 [&_.material-icons]:text-[16px]!"
             type="button"
+            data-testid="effect-library-clear"
+            [attr.aria-label]="'feature.effect.clearFilter' | transloco"
             [title]="'feature.effect.clearFilter' | transloco"
+            [attr.data-guide-label]="'feature.effect.clearFilter' | transloco"
             (click)="clearFilters()"
           >
-            <i class="material-icons">close</i>
+            <i class="material-icons" aria-hidden="true">close</i>
+            @if (guideShown()) {
+              <ng-container
+                *ngTemplateOutlet="guideName; context: { $implicit: 'feature.effect.clearFilter' | transloco }"
+              ></ng-container>
+            }
           </button>
         }
       </div>
       <button
-        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 [&_.material-icons]:text-[16px]!"
+        class="border-ui-border-control text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 border border-solid bg-transparent px-2.5 text-[12.5px] whitespace-nowrap disabled:cursor-default disabled:opacity-40 pointer-coarse:h-11 pointer-coarse:min-w-11 [&_.material-icons]:text-[17px]!"
         type="button"
+        data-testid="effect-library-create"
+        [disabled]="!canChangeRoom()"
+        [attr.aria-label]="'feature.effect.createPreset' | transloco"
         [title]="'feature.effect.createPreset' | transloco"
+        [attr.data-guide-label]="'feature.effect.createPreset' | transloco"
         (click)="createPreset()"
       >
-        <i class="material-icons">add</i>
+        <i class="material-icons" aria-hidden="true">add</i>{{ 'feature.effect.add' | transloco }}
       </button>
-      <button
-        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 [&_.material-icons]:text-[16px]!"
-        [class.text-ui-accent!]="autoPlayEnabled()"
-        [class.border-ui-accent!]="autoPlayEnabled()"
-        type="button"
-        [attr.aria-pressed]="autoPlayEnabled()"
-        [title]="'feature.effect.autoPlay' | transloco"
-        (click)="toggleAutoPlay()"
-      >
-        <i class="material-icons">favorite</i>
-      </button>
-      <button
-        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 [&_.material-icons]:text-[16px]!"
-        type="button"
-        [title]="'feature.effect.exportLibrary' | transloco"
-        (click)="exportLibrary()"
-      >
-        <i class="material-icons">file_download</i>
-      </button>
-      <button
-        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 [&_.material-icons]:text-[16px]!"
-        type="button"
-        [title]="'feature.effect.restoreDefaults' | transloco"
-        (click)="restoreDefaults()"
-      >
-        <i class="material-icons">restore</i>
-      </button>
-    </div>
-
-    <div class="mt-2 flex flex-wrap items-center gap-1">
-      @for (grade of gradeLevels; track grade) {
+      <div class="relative shrink-0" data-effect-menu>
         <button
-          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover cursor-pointer rounded-full border border-solid bg-transparent px-2 py-0.5 text-[11px]"
-          [class.bg-ui-accent-bg!]="gradeFilter() === grade"
-          [class.text-ui-accent!]="gradeFilter() === grade"
+          class="border-ui-border-control text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 inline-flex h-8 cursor-pointer items-center justify-center gap-1 border border-solid bg-transparent px-2 text-[12.5px] whitespace-nowrap @min-[420px]:px-2.5 pointer-coarse:h-11 pointer-coarse:min-w-11 [&_.material-icons]:text-[17px]!"
+          [class.border-ui-accent!]="menuOpen()"
+          [class.bg-ui-accent-bg!]="menuOpen()"
           type="button"
-          [attr.aria-pressed]="gradeFilter() === grade"
-          (click)="toggleGrade(grade)"
+          data-testid="effect-library-menu-button"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="menuOpen()"
+          [attr.aria-label]="'feature.effect.menu' | transloco"
+          [title]="'feature.effect.menu' | transloco"
+          [attr.data-guide-label]="'feature.effect.menu' | transloco"
+          (click)="toggleMenu()"
         >
-          {{ gradeLabel(grade) }}
+          <i class="material-icons" aria-hidden="true">more_vert</i
+          ><span class="hidden @min-[420px]:inline" [class.inline!]="guideShown()">{{
+            'feature.effect.menu' | transloco
+          }}</span>
         </button>
-      }
-      <button
-        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover inline-flex cursor-pointer items-center gap-0.5 rounded-full border border-solid bg-transparent py-0.5 pr-2 pl-1.5 text-[11px] [&_.material-icons]:text-[13px]!"
-        [class.bg-ui-accent-bg!]="targetingFilter() === 'single'"
-        [class.text-ui-accent!]="targetingFilter() === 'single'"
-        type="button"
-        [attr.aria-pressed]="targetingFilter() === 'single'"
-        (click)="toggleTargeting('single')"
-      >
-        <i class="material-icons">person</i>{{ 'feature.effect.filterSingle' | transloco }}
-      </button>
-      <button
-        class="border-ui-border-panel text-ui-muted hover:bg-ui-hover inline-flex cursor-pointer items-center gap-0.5 rounded-full border border-solid bg-transparent py-0.5 pr-2 pl-1.5 text-[11px] [&_.material-icons]:text-[13px]!"
-        [class.bg-ui-accent-bg!]="targetingFilter() === 'multi'"
-        [class.text-ui-accent!]="targetingFilter() === 'multi'"
-        type="button"
-        [attr.aria-pressed]="targetingFilter() === 'multi'"
-        (click)="toggleTargeting('multi')"
-      >
-        <i class="material-icons">groups</i>{{ 'feature.effect.filterMulti' | transloco }}
-      </button>
-      <span class="border-ui-border-panel mx-1 h-4 border-l border-solid"></span>
-      @for (tag of tags(); track tag) {
-        <button
-          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover cursor-pointer rounded-full border border-solid bg-transparent px-2 py-0.5 text-[11px]"
-          [class.bg-ui-accent-bg!]="tagFilter() === tag"
-          [class.text-ui-accent!]="tagFilter() === tag"
-          type="button"
-          [attr.aria-pressed]="tagFilter() === tag"
-          (click)="toggleTag(tag)"
-        >
-          {{ tag }}
-        </button>
-      }
-    </div>
-  </div>
-
-  @if (isPicking()) {
-    <div
-      class="border-ui-border-panel bg-ui-accent-bg text-ui-text shrink-0 border-b border-solid px-3 py-2 text-[12px]"
-    >
-      <div class="flex items-center gap-2">
-        <i class="material-icons text-ui-accent text-[16px]!">ads_click</i>
-        <span class="flex-1 truncate">
-          {{
-            'feature.effect.picking' | transloco: { name: pickingName(), count: pickedNames().length, max: pickLimit() }
-          }}
-        </span>
-        <button
-          class="bg-ui-accent rounded-ui-sm cursor-pointer border-none px-2 py-1 text-[12px] text-black disabled:cursor-default disabled:opacity-40"
-          type="button"
-          [disabled]="pickedNames().length < 1"
-          (click)="confirmTargets()"
-        >
-          {{ 'feature.effect.fire' | transloco }}
-        </button>
-        <button
-          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover rounded-ui-sm cursor-pointer border border-solid bg-transparent px-2 py-1 text-[12px]"
-          type="button"
-          (click)="cancelTargets()"
-        >
-          {{ 'feature.effect.cancelPicking' | transloco }}
-        </button>
-      </div>
-      <p class="text-ui-muted m-0 mt-1 text-[11px]">{{ 'feature.effect.pickingHint' | transloco }}</p>
-    </div>
-  }
-
-  <div class="border-ui-border-panel text-ui-muted shrink-0 border-b border-solid px-3 py-1.5 text-[12px]">
-    @if (targetNames().length > 0) {
-      {{ 'feature.effect.targets' | transloco: { names: targetNames().join('、') } }}
-      @if (casterName()) {
-        <span class="ml-1">{{ 'feature.effect.caster' | transloco: { name: casterName() } }}</span>
-      }
-    } @else {
-      {{ 'feature.effect.noTarget' | transloco }}
-    }
-  </div>
-
-  <div class="flex-1 overflow-y-auto">
-    @if (recent().length > 0 && !hasFilter()) {
-      <div
-        class="bg-ui-panel text-ui-muted border-ui-border-panel sticky top-0 z-1 border-b border-solid px-3 py-1 text-[11px] font-semibold tracking-wider"
-      >
-        {{ 'feature.effect.recent' | transloco }}
-      </div>
-      <div class="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-1 px-2 py-1.5">
-        @for (preset of recent(); track preset.identifier) {
-          <ng-container *ngTemplateOutlet="tile; context: { $implicit: preset }"></ng-container>
+        @if (menuOpen()) {
+          <div
+            class="bg-ui-surface border-ui-border-control rounded-ui shadow-ui-lg absolute top-full right-0 z-10 mt-1 w-max max-w-[min(290px,calc(100cqw-20px))] border border-solid py-1 text-[13px]"
+            role="menu"
+            data-testid="effect-library-menu"
+            [attr.aria-label]="'feature.effect.menu' | transloco"
+            (keydown)="moveInMenu($event)"
+          >
+            <button
+              class="text-ui-text hover:bg-ui-hover focus-visible:bg-ui-hover m-0 flex min-h-8.5 w-full cursor-pointer items-center gap-2 rounded-none border-none bg-transparent px-3 py-1 text-left text-[13px] disabled:cursor-default disabled:opacity-40 pointer-coarse:min-h-11 [&_.material-icons]:text-[17px]!"
+              type="button"
+              role="menuitem"
+              data-testid="effect-library-restore-defaults"
+              [disabled]="!canChangeRoom()"
+              (click)="runFromMenu('restoreDefaults')"
+            >
+              <i class="material-icons text-ui-meta shrink-0" aria-hidden="true">restore</i
+              >{{ 'feature.effect.restoreDefaults' | transloco }}
+            </button>
+            <button
+              class="text-ui-text hover:bg-ui-hover focus-visible:bg-ui-hover m-0 flex min-h-8.5 w-full cursor-pointer items-center gap-2 rounded-none border-none bg-transparent px-3 py-1 text-left text-[13px] disabled:cursor-default disabled:opacity-40 pointer-coarse:min-h-11 [&_.material-icons]:text-[17px]!"
+              type="button"
+              role="menuitem"
+              data-testid="effect-library-add-missing"
+              [disabled]="!canAddMissingDefaults()"
+              (click)="runFromMenu('addMissingDefaults')"
+            >
+              <i class="material-icons text-ui-meta shrink-0" aria-hidden="true">library_add</i
+              >{{ 'feature.effect.addMissingDefaults' | transloco }}
+            </button>
+            <div class="border-ui-border-panel my-1 border-t border-solid" role="separator"></div>
+            <button
+              class="text-ui-text hover:bg-ui-hover focus-visible:bg-ui-hover m-0 flex min-h-8.5 w-full cursor-pointer items-center gap-2 rounded-none border-none bg-transparent px-3 py-1 text-left text-[13px] pointer-coarse:min-h-11 [&_.material-icons]:text-[17px]!"
+              type="button"
+              role="menuitem"
+              data-testid="effect-library-export"
+              (click)="runFromMenu('exportLibrary')"
+            >
+              <i class="material-icons text-ui-meta shrink-0" aria-hidden="true">file_download</i
+              >{{ 'feature.effect.exportLibrary' | transloco }}
+            </button>
+            <div class="border-ui-border-panel my-1 border-t border-solid" role="separator"></div>
+            <button
+              class="text-ui-text hover:bg-ui-hover focus-visible:bg-ui-hover m-0 flex min-h-8.5 w-full cursor-pointer items-center gap-2 rounded-none border-none bg-transparent px-3 py-1 text-left text-[13px] pointer-coarse:min-h-11 [&_.material-icons]:text-[17px]!"
+              type="button"
+              role="menuitemcheckbox"
+              data-testid="effect-library-auto-play"
+              [attr.aria-checked]="autoPlayEnabled()"
+              (click)="runFromMenu('toggleAutoPlay')"
+            >
+              <i
+                class="material-icons shrink-0"
+                [class.text-ui-accent]="autoPlayEnabled()"
+                [class.text-ui-meta]="!autoPlayEnabled()"
+                aria-hidden="true"
+                >{{ autoPlayEnabled() ? 'check_box' : 'check_box_outline_blank' }}</i>{{
+                'feature.effect.autoPlay' | transloco
+              }}
+            </button>
+            <div class="border-ui-border-panel my-1 border-t border-solid" role="separator"></div>
+            <button
+              class="text-ui-text hover:bg-ui-hover focus-visible:bg-ui-hover m-0 flex min-h-8.5 w-full cursor-pointer items-center gap-2 rounded-none border-none bg-transparent px-3 py-1 text-left text-[13px] pointer-coarse:min-h-11 [&_.material-icons]:text-[17px]!"
+              type="button"
+              role="menuitem"
+              data-testid="effect-library-collapse-all"
+              (click)="runFromMenu('collapseAll')"
+            >
+              <i class="material-icons text-ui-meta shrink-0" aria-hidden="true">unfold_less</i
+              >{{ 'feature.effect.collapseAll' | transloco }}
+            </button>
+            <button
+              class="text-ui-text hover:bg-ui-hover focus-visible:bg-ui-hover m-0 flex min-h-8.5 w-full cursor-pointer items-center gap-2 rounded-none border-none bg-transparent px-3 py-1 text-left text-[13px] pointer-coarse:min-h-11 [&_.material-icons]:text-[17px]!"
+              type="button"
+              role="menuitem"
+              data-testid="effect-library-expand-all"
+              (click)="runFromMenu('expandAll')"
+            >
+              <i class="material-icons text-ui-meta shrink-0" aria-hidden="true">unfold_more</i
+              >{{ 'feature.effect.expandAll' | transloco }}
+            </button>
+          </div>
         }
       </div>
-    }
+    </div>
 
-    @if (matchCount() < 1) {
-      <div
-        class="text-ui-dim flex flex-col items-center justify-center gap-2.5 p-6 text-center [&_.material-icons]:text-[40px]! [&_.material-icons]:opacity-40"
-      >
-        <i class="material-icons">auto_awesome</i>
-        <p class="m-0 text-[13px]">
-          {{ (hasFilter() ? 'feature.effect.noMatch' : 'feature.effect.empty') | transloco }}
-        </p>
+    @if (isCompact()) {
+      <div class="flex items-center gap-1.5">
+        <select
+          class="border-ui-border-control bg-ui-input text-ui-text rounded-ui-sm h-11 min-w-0 flex-1 border border-solid px-2 text-[12.5px]"
+          data-testid="effect-library-grade-select"
+          [class.border-ui-accent!]="gradeFilter() !== null"
+          [attr.aria-label]="'feature.effect.gradeLabel' | transloco"
+          [ngModel]="gradeFilter()"
+          (ngModelChange)="gradeFilter.set($event)"
+        >
+          <option [ngValue]="null">
+            {{ 'feature.effect.gradeLabel' | transloco }}: {{ 'feature.effect.filterAll' | transloco }}
+          </option>
+          @for (grade of gradeLevels; track grade) {
+            <option [ngValue]="grade">{{ 'feature.effect.gradeLabel' | transloco }}: {{ gradeLabel(grade) }}</option>
+          }
+        </select>
+        <select
+          class="border-ui-border-control bg-ui-input text-ui-text rounded-ui-sm h-11 min-w-0 flex-1 border border-solid px-2 text-[12.5px]"
+          data-testid="effect-library-reach-select"
+          [class.border-ui-accent!]="reachFilter() !== null"
+          [attr.aria-label]="'feature.effect.targetsLabel' | transloco"
+          [ngModel]="reachFilter()"
+          (ngModelChange)="reachFilter.set($event)"
+        >
+          <option [ngValue]="null">
+            {{ 'feature.effect.targetsLabel' | transloco }}: {{ 'feature.effect.filterAll' | transloco }}
+          </option>
+          @for (reach of reachChoices; track reach.value) {
+            <option [ngValue]="reach.value">
+              {{ 'feature.effect.targetsLabel' | transloco }}: {{ reach.label | transloco }}
+            </option>
+          }
+        </select>
+      </div>
+    } @else {
+      <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        <div class="flex items-center gap-1.5" role="group" [attr.aria-label]="'feature.effect.gradeLabel' | transloco">
+          <span class="text-ui-meta shrink-0 text-[11.5px]" aria-hidden="true">{{
+            'feature.effect.gradeLabel' | transloco
+          }}</span>
+          <div
+            class="border-ui-border-control rounded-ui-sm inline-flex shrink-0 overflow-hidden border border-solid"
+            data-testid="effect-library-grades"
+          >
+            <button
+              class="text-ui-text hover:bg-ui-hover m-0 h-6.5 cursor-pointer rounded-none border-none bg-transparent px-2 text-[12px] whitespace-nowrap pointer-coarse:h-11 pointer-coarse:min-w-11"
+              [class.bg-ui-accent!]="gradeFilter() === null"
+              [class.text-ui-accent-ink!]="gradeFilter() === null"
+              [class.font-semibold]="gradeFilter() === null"
+              type="button"
+              [attr.aria-pressed]="gradeFilter() === null"
+              (click)="gradeFilter.set(null)"
+            >
+              {{ 'feature.effect.filterAll' | transloco }}
+            </button>
+            @for (grade of gradeLevels; track grade) {
+              <button
+                class="border-ui-border-control text-ui-text hover:bg-ui-hover m-0 h-6.5 cursor-pointer rounded-none border-0 border-l border-solid bg-transparent px-2 text-[12px] whitespace-nowrap pointer-coarse:h-11 pointer-coarse:min-w-11"
+                [class.bg-ui-accent!]="gradeFilter() === grade"
+                [class.text-ui-accent-ink!]="gradeFilter() === grade"
+                [class.font-semibold]="gradeFilter() === grade"
+                type="button"
+                [attr.aria-pressed]="gradeFilter() === grade"
+                (click)="gradeFilter.set(grade)"
+              >
+                {{ gradeLabel(grade) }}
+              </button>
+            }
+          </div>
+        </div>
+        <div
+          class="flex items-center gap-1.5"
+          role="group"
+          [attr.aria-label]="'feature.effect.targetsLabel' | transloco"
+        >
+          <span class="text-ui-meta shrink-0 text-[11.5px]" aria-hidden="true">{{
+            'feature.effect.targetsLabel' | transloco
+          }}</span>
+          <div
+            class="border-ui-border-control rounded-ui-sm inline-flex shrink-0 overflow-hidden border border-solid"
+            data-testid="effect-library-reaches"
+          >
+            <button
+              class="text-ui-text hover:bg-ui-hover m-0 h-6.5 cursor-pointer rounded-none border-none bg-transparent px-2 text-[12px] whitespace-nowrap pointer-coarse:h-11 pointer-coarse:min-w-11"
+              [class.bg-ui-accent!]="reachFilter() === null"
+              [class.text-ui-accent-ink!]="reachFilter() === null"
+              [class.font-semibold]="reachFilter() === null"
+              type="button"
+              [attr.aria-pressed]="reachFilter() === null"
+              (click)="reachFilter.set(null)"
+            >
+              {{ 'feature.effect.filterAll' | transloco }}
+            </button>
+            @for (reach of reachChoices; track reach.value) {
+              <button
+                class="border-ui-border-control text-ui-text hover:bg-ui-hover m-0 inline-flex h-6.5 cursor-pointer items-center gap-0.5 rounded-none border-0 border-l border-solid bg-transparent px-2 text-[12px] whitespace-nowrap pointer-coarse:h-11 pointer-coarse:min-w-11 [&_.material-icons]:text-[14px]!"
+                [class.bg-ui-accent!]="reachFilter() === reach.value"
+                [class.text-ui-accent-ink!]="reachFilter() === reach.value"
+                [class.font-semibold]="reachFilter() === reach.value"
+                type="button"
+                [attr.data-reach]="reach.value"
+                [attr.aria-pressed]="reachFilter() === reach.value"
+                (click)="reachFilter.set(reach.value)"
+              >
+                <i class="material-icons" aria-hidden="true">{{ reach.icon }}</i>{{ reach.label | transloco }}
+              </button>
+            }
+          </div>
+        </div>
       </div>
     }
+  </div>
 
-    @for (group of groups(); track group.tag) {
+  <div
+    class="border-ui-border-panel shrink-0 border-b border-solid px-2.5 py-2 text-[12px]"
+    data-testid="effect-library-stance"
+    [attr.data-stance]="isPicking() ? 'aiming' : 'idle'"
+  >
+    <div class="flex h-22.5 gap-2">
       <div
-        class="bg-ui-panel text-ui-muted border-ui-border-panel sticky top-0 z-1 flex cursor-pointer items-center gap-1 border-b border-solid px-3 py-1 text-[11px] font-semibold tracking-wider"
-        role="button"
-        [attr.aria-expanded]="!isCollapsed(group.tag)"
-        (click)="toggleGroup(group.tag)"
+        class="border-ui-border-panel h-22.5 w-32 shrink-0 overflow-hidden rounded-[3px] border border-solid"
+        data-testid="effect-library-preview"
+        aria-hidden="true"
       >
-        <i class="material-icons text-[14px]!">{{ isCollapsed(group.tag) ? 'chevron_right' : 'expand_more' }}</i>
-        {{ group.tag || ('feature.effect.untagged' | transloco) }}
-        <span class="text-ui-dim font-normal">{{ group.presets.length }}</span>
+        @if (previewMade()) {
+          <effect-preview class="h-full" fill [preset]="previewed()" [version]="previewVersion()" />
+        }
       </div>
-      @if (!isCollapsed(group.tag)) {
-        <div class="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-1 px-2 py-1.5">
-          @for (preset of group.presets; track preset.identifier) {
-            <ng-container *ngTemplateOutlet="tile; context: { $implicit: preset }"></ng-container>
+      <div class="flex min-w-0 flex-1 flex-col">
+        <div class="flex h-7 shrink-0 items-center gap-1.5" data-testid="effect-library-stance-name">
+          @if (isPicking()) {
+            <i class="material-icons text-ui-accent shrink-0 text-[16px]!" aria-hidden="true">ads_click</i>
+            <span class="min-w-0 flex-1 truncate font-semibold" [title]="pickingName()">{{ pickingName() }}</span>
+            <span class="text-ui-meta shrink-0 tabular-nums" data-testid="effect-library-stance-count"
+              >{{ pickedNames().length }}/{{ pickLimit() }}</span
+            >
+          } @else {
+            <span class="text-ui-meta min-w-0 flex-1 truncate">{{ 'feature.effect.stanceEmpty' | transloco }}</span>
+          }
+        </div>
+        <div class="flex h-7 shrink-0 items-center gap-1.5" data-testid="effect-library-stance-caster">
+          <span class="text-ui-meta shrink-0">{{
+            (isPicking() ? 'feature.effect.casterLabel' : 'feature.effect.casterNextLabel') | transloco
+          }}</span>
+          @if (isChangingCaster()) {
+            <span class="min-w-0 flex-1 truncate font-semibold" data-testid="effect-library-caster-name">{{
+              'feature.effect.casterPressPiece' | transloco
+            }}</span>
+          } @else {
+            <span
+              class="min-w-0 flex-1 truncate"
+              [class.text-ui-meta]="!casterName()"
+              data-testid="effect-library-caster-name"
+              [title]="casterName()"
+              >{{ casterName() || ('feature.effect.none' | transloco) }}</span
+            >
+          }
+          @if (isPicking()) {
+            <button
+              class="border-ui-border-control text-ui-text hover:bg-ui-hover rounded-ui-sm relative m-0 inline-flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-1 text-[11.5px] whitespace-nowrap @min-[420px]:px-1.5 pointer-coarse:min-w-11 pointer-coarse:before:absolute pointer-coarse:before:-inset-x-1 pointer-coarse:before:-inset-y-2.5 [&_.material-icons]:text-[14px]!"
+              [class.bg-ui-accent-bg!]="isChangingCaster()"
+              [class.border-ui-accent!]="isChangingCaster()"
+              type="button"
+              [attr.aria-pressed]="isChangingCaster()"
+              [attr.aria-label]="'feature.effect.changeCaster' | transloco"
+              [title]="'feature.effect.changeCasterHint' | transloco"
+              [attr.data-guide-label]="'feature.effect.changeCaster' | transloco"
+              data-testid="effect-library-change-caster"
+              (click)="toggleCasterChange()"
+            >
+              <i class="material-icons" aria-hidden="true">touch_app</i
+              ><span class="hidden @min-[420px]:inline" [class.inline!]="guideShown()">{{
+                'feature.effect.changeCasterShort' | transloco
+              }}</span>
+            </button>
+            <button
+              class="border-ui-border-control text-ui-text hover:bg-ui-hover rounded-ui-sm relative m-0 inline-flex h-6 min-w-6 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-1 text-[11.5px] whitespace-nowrap disabled:cursor-default disabled:opacity-40 @min-[420px]:px-1.5 pointer-coarse:min-w-11 pointer-coarse:before:absolute pointer-coarse:before:-inset-x-1 pointer-coarse:before:-inset-y-2.5 [&_.material-icons]:text-[14px]!"
+              type="button"
+              [disabled]="!hasCaster()"
+              [attr.aria-label]="'feature.effect.noCaster' | transloco"
+              [title]="'feature.effect.noCasterHint' | transloco"
+              [attr.data-guide-label]="'feature.effect.noCaster' | transloco"
+              data-testid="effect-library-no-caster"
+              (click)="clearCaster()"
+            >
+              <i class="material-icons" aria-hidden="true">block</i
+              ><span class="hidden @min-[420px]:inline" [class.inline!]="guideShown()">{{
+                'feature.effect.noCasterShort' | transloco
+              }}</span>
+            </button>
+          }
+        </div>
+        <div class="flex h-8.5 shrink-0 items-center gap-1.5" data-testid="effect-library-stance-targets">
+          <span class="text-ui-meta shrink-0">{{ 'feature.effect.targetsLabel' | transloco }}</span>
+          <div
+            class="flex h-full min-w-0 flex-1 scrollbar-thin flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden"
+            data-testid="effect-library-target-chips"
+          >
+            @for (chip of targetChips(); track chip.identifier) {
+              <span
+                class="border-ui-border-control shrink-0 rounded-full border border-solid px-2 text-[11px]/4.5 whitespace-nowrap"
+                data-testid="effect-library-target-chip"
+                >{{ chip.name }}</span
+              >
+            } @empty {
+              <span class="text-ui-meta shrink-0 whitespace-nowrap">{{ 'feature.effect.none' | transloco }}</span>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mt-1.5 flex gap-2">
+      <button
+        class="bg-ui-accent text-ui-accent-ink rounded-ui-sm m-0 h-8 min-w-0 flex-1 cursor-pointer truncate border-none px-2 text-[12.5px] font-semibold disabled:cursor-default disabled:opacity-40 pointer-coarse:h-11"
+        type="button"
+        [disabled]="!canFire()"
+        [title]="'feature.effect.fireHint' | transloco"
+        data-testid="effect-library-fire"
+        (click)="confirmTargets()"
+      >
+        {{ 'feature.effect.fire' | transloco
+        }}<span class="pointer-coarse:hidden" [class.invisible]="!canFire()" aria-hidden="true">{{
+          'feature.effect.fireKey' | transloco
+        }}</span>
+      </button>
+      <button
+        class="border-ui-border-control text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 h-8 shrink-0 cursor-pointer border border-solid bg-transparent px-4 text-[12.5px] whitespace-nowrap disabled:cursor-default disabled:opacity-40 pointer-coarse:h-11"
+        type="button"
+        [disabled]="!isPicking()"
+        [title]="'feature.effect.cancelHint' | transloco"
+        data-testid="effect-library-cancel"
+        (click)="cancelTargets()"
+      >
+        {{ 'feature.effect.cancelPicking' | transloco
+        }}<span class="pointer-coarse:hidden" [class.invisible]="!isPicking()" aria-hidden="true">{{
+          'feature.effect.cancelKey' | transloco
+        }}</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="flex min-h-0 flex-1" data-testid="effect-library-list">
+    <nav
+      class="border-ui-border-panel bg-ui-panel w-23 shrink-0 scrollbar-thin overflow-x-hidden overflow-y-auto border-r border-solid py-0.5 @min-[420px]:w-28"
+      data-testid="effect-library-index"
+      [attr.aria-label]="'feature.effect.familyIndex' | transloco"
+      (keydown)="moveAlongIndex($event)"
+    >
+      @for (entry of families(); track entry.tag) {
+        <button
+          class="text-ui-text hover:bg-ui-hover m-0 flex h-5.5 w-full cursor-pointer items-center gap-1.5 rounded-none border-0 border-l-[3px] border-solid border-transparent bg-transparent pr-2 pl-1.75 text-left text-[12px] whitespace-nowrap pointer-coarse:h-11"
+          [class.border-l-ui-accent!]="entry.tag === shownFamily()"
+          [class.bg-ui-accent-bg!]="entry.tag === shownFamily()"
+          [class.font-semibold]="entry.tag === shownFamily()"
+          [class.opacity-45]="entry.count < 1"
+          [class.cursor-default!]="entry.count < 1"
+          type="button"
+          data-family-entry
+          [attr.data-family]="entry.tag"
+          [attr.aria-current]="entry.tag === shownFamily() ? 'true' : null"
+          [attr.aria-disabled]="entry.count < 1 ? 'true' : null"
+          [attr.tabindex]="entry.tag === indexStop() ? 0 : -1"
+          [title]="familyLabel(entry.tag)"
+          (click)="jumpToFamily(entry.tag)"
+        >
+          <span
+            class="size-2.5 shrink-0 rounded-[3px]"
+            [style.background]="familyColor(entry.tag)"
+            aria-hidden="true"
+          ></span>
+          <span class="min-w-0 flex-1 truncate">{{ familyLabel(entry.tag) }}</span>
+          <span
+            class="text-ui-meta shrink-0 text-[11px] font-normal tabular-nums"
+            [attr.aria-label]="'feature.effect.familyCount' | transloco: { count: entry.count }"
+            >{{ entry.count }}</span
+          >
+        </button>
+      }
+    </nav>
+
+    <div
+      class="relative min-h-0 min-w-0 flex-1 scrollbar-thin overflow-y-auto"
+      data-testid="effect-library-rows"
+      #list
+      (keydown)="moveAmongTiles($event)"
+      (scroll)="followScroll()"
+    >
+      @if (recent().length > 0 && !hasFilter()) {
+        <div
+          class="bg-ui-surface text-ui-text border-ui-border-panel sticky top-0 z-1 flex h-6.5 items-center gap-1.5 border-b border-solid px-2.5 text-[12px] font-semibold [&_.material-icons]:text-[15px]!"
+        >
+          <i class="material-icons text-ui-meta" aria-hidden="true">history</i>
+          {{ 'feature.effect.recent' | transloco }}
+        </div>
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(184px,1fr))] gap-1 px-2 py-1.5">
+          @for (preset of recent(); track preset.identifier) {
+            <ng-container
+              *ngTemplateOutlet="tile; context: { $implicit: preset, key: recentKey(preset) }"
+            ></ng-container>
           }
         </div>
       }
-    }
+
+      @if (matchCount() < 1) {
+        <div
+          class="text-ui-meta flex flex-col items-center gap-1 px-4 py-6 text-center text-[13px]"
+          data-testid="effect-library-empty"
+        >
+          @if (!hasFilter()) {
+            <i class="material-icons text-[40px]! opacity-60" aria-hidden="true">auto_awesome</i>
+            <p class="m-0">{{ 'feature.effect.empty' | transloco }}</p>
+          } @else {
+            <p class="m-0">
+              {{
+                searched()
+                  ? ('feature.effect.noMatchFor' | transloco: { query: searched() })
+                  : ('feature.effect.noMatch' | transloco)
+              }}
+            </p>
+            <p class="m-0">{{ 'feature.effect.searchHelp' | transloco }}</p>
+            <button
+              class="border-ui-border-control text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 mt-2 inline-flex h-8 cursor-pointer items-center gap-1 border border-solid bg-transparent px-2.5 text-[12.5px] whitespace-nowrap pointer-coarse:h-11 [&_.material-icons]:text-[17px]!"
+              type="button"
+              data-testid="effect-library-clear-all"
+              (click)="clearFilters()"
+            >
+              <i class="material-icons" aria-hidden="true">close</i>{{ 'feature.effect.clearFilter' | transloco }}
+            </button>
+          }
+        </div>
+      }
+
+      @for (group of groups(); track group.tag) {
+        <section [attr.data-family-section]="group.tag">
+          <button
+            class="bg-ui-surface text-ui-text border-ui-border-panel sticky top-0 z-1 m-0 flex h-6.5 w-full cursor-pointer items-center gap-1.5 rounded-none border-0 border-b border-solid px-2.5 text-left text-[12px] font-semibold [&_.material-icons]:text-[15px]!"
+            type="button"
+            data-family-heading
+            [attr.aria-expanded]="!isCollapsed(group.tag)"
+            (click)="toggleGroup(group.tag)"
+          >
+            <span
+              class="h-3.5 w-1 shrink-0 rounded-xs"
+              [style.background]="familyColor(group.tag)"
+              aria-hidden="true"
+            ></span>
+            <i class="material-icons text-ui-meta" aria-hidden="true">{{
+              isCollapsed(group.tag) ? 'chevron_right' : 'expand_more'
+            }}</i>
+            <span class="min-w-0 truncate">{{ familyLabel(group.tag) }}</span>
+            <span class="text-ui-meta shrink-0 text-[11.5px] font-normal">{{
+              'feature.effect.familyCount' | transloco: { count: group.presets.length }
+            }}</span>
+          </button>
+          @if (!isCollapsed(group.tag)) {
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(184px,1fr))] gap-1 px-2 py-1.5">
+              @for (preset of group.presets; track preset.identifier) {
+                <ng-container
+                  *ngTemplateOutlet="tile; context: { $implicit: preset, key: groupKey(group.tag, preset) }"
+                ></ng-container>
+              }
+            </div>
+          }
+        </section>
+      }
+
+      @if (fields().length > 0) {
+        <div
+          class="bg-ui-surface text-ui-text border-ui-border-panel sticky top-0 z-1 flex h-6.5 items-center border-b border-solid px-2.5 text-[12px] font-semibold"
+          data-testid="effect-library-fields-heading"
+        >
+          {{ 'feature.effect.fields' | transloco }}
+        </div>
+        <div class="flex flex-wrap gap-1 px-2.5 py-1.5" data-testid="effect-library-fields">
+          @for (field of fields(); track field.identifier) {
+            <span
+              class="border-ui-border-control inline-flex items-center gap-1 rounded-full border border-solid px-2 py-0.5 text-[11px]"
+            >
+              {{ fieldName(field) }}
+              @if (canChangeRoom()) {
+                <button
+                  class="text-ui-meta hover:text-ui-danger relative m-0 inline-flex cursor-pointer items-center justify-center border-none bg-transparent p-0 pointer-coarse:size-9 [&_.material-icons]:text-[13px]!"
+                  type="button"
+                  [attr.aria-label]="'feature.effect.removeField' | transloco"
+                  [title]="'feature.effect.removeField' | transloco"
+                  [attr.data-guide-label]="'feature.effect.removeField' | transloco"
+                  (click)="removeField(field)"
+                >
+                  <i class="material-icons" aria-hidden="true">close</i>
+                  @if (guideShown()) {
+                    <ng-container
+                      *ngTemplateOutlet="guideName; context: { $implicit: 'feature.effect.removeField' | transloco }"
+                    ></ng-container>
+                  }
+                </button>
+              }
+            </span>
+          }
+        </div>
+      }
+
+      @if (tailSpace() > 0) {
+        <div aria-hidden="true" [style.height.px]="tailSpace()"></div>
+      }
+    </div>
   </div>
 
-  @if (fields().length > 0) {
-    <div class="border-ui-border-panel text-ui-muted shrink-0 border-t border-solid px-3 py-1.5 text-[12px]">
-      <div class="mb-1 text-[11px] font-semibold tracking-wider">{{ 'feature.effect.fields' | transloco }}</div>
-      <div class="flex flex-wrap gap-1">
-        @for (field of fields(); track field.identifier) {
-          <span
-            class="border-ui-border-panel inline-flex items-center gap-1 rounded-full border border-solid px-2 py-0.5 text-[11px]"
-          >
-            {{ fieldName(field) }}
-            <button
-              class="text-ui-dim hover:text-ui-danger cursor-pointer border-none bg-transparent p-0 [&_.material-icons]:text-[13px]!"
-              type="button"
-              [title]="'feature.effect.removeField' | transloco"
-              (click)="removeField(field)"
-            >
-              <i class="material-icons">close</i>
-            </button>
-          </span>
-        }
-      </div>
-    </div>
-  }
-
-  @if (notice()) {
-    <div class="border-ui-border-panel text-ui-muted shrink-0 border-t border-solid px-3 py-1.5 text-[12px]">
-      {{ notice() }}
-    </div>
-  }
-  @if (lastFired()) {
-    <div class="border-ui-border-panel text-ui-muted shrink-0 border-t border-solid px-3 py-1.5 text-[12px]">
-      {{ 'feature.effect.fired' | transloco: { names: lastFired() } }}
-    </div>
-  }
+  <div
+    class="border-ui-border-panel text-ui-meta h-7 shrink-0 truncate border-t border-solid px-2.5 text-xs/7"
+    data-testid="effect-library-notice"
+    role="status"
+    [title]="noticeLine()"
+  >
+    {{ noticeLine() }}
+  </div>
 </div>
 
-<ng-template #tile let-preset>
-  <div class="group relative flex">
+<ng-template #guideName let-label>
+  <span
+    class="bg-ui-elevated border-ui-accent text-ui-text rounded-ui shadow-ui-sm pointer-events-none absolute top-full right-0 z-20 mt-0.5 box-border border border-solid px-2 py-0.5 text-[11px]/4 font-normal tracking-normal whitespace-nowrap"
+    data-testid="button-guide-label"
+    aria-hidden="true"
+    >{{ label }}</span
+  >
+</ng-template>
+
+<ng-template #tile let-preset let-key="key">
+  @let row = rowOf(preset);
+  <div class="group relative flex min-w-0" (mouseenter)="pointAt(preset)" (mouseleave)="pointAway(preset)">
     <button
-      class="border-ui-border-panel hover:bg-ui-hover hover:border-ui-accent rounded-ui-sm text-ui-text flex w-full cursor-pointer flex-col items-start gap-1 border border-solid bg-transparent px-2 py-1.5 text-left transition-[background,border-color]"
+      class="border-ui-border-control hover:bg-ui-hover hover:border-ui-accent ring-ui-accent rounded-ui-sm text-ui-text m-0 box-border flex min-h-10 w-full min-w-0 cursor-pointer items-center gap-1.75 border border-solid bg-transparent py-0.5 pr-2 pl-1.25 text-left transition-[background,border-color] ring-inset pointer-coarse:min-h-12! pointer-coarse:pr-12"
       [class.border-ui-accent!]="isPickingPreset(preset)"
       [class.bg-ui-accent-bg!]="isPickingPreset(preset)"
+      [class.ring-1]="isPickingPreset(preset)"
       type="button"
       [attr.aria-pressed]="isPickingPreset(preset)"
-      [title]="preset.name + ' — ' + targetLabel(preset) + ' / ' + gradeLabel(preset.gradeLevel)"
-      (click)="fire(preset)"
+      [attr.aria-label]="row.summary"
+      [attr.tabindex]="tabStopKey() === key ? 0 : -1"
+      [attr.data-tile-key]="key"
+      data-effect-tile
+      [title]="row.summary"
+      (click)="choose(preset)"
+      (keydown.enter)="enterOnTile(preset, $event)"
+      (focus)="focusTile(preset, key)"
+      (blur)="pointAway(preset)"
       (contextmenu)="openPresetMenu(preset, $event)"
     >
-      <span class="flex w-full items-center gap-1.5">
-        <span class="size-4 shrink-0" [innerHTML]="glyphOf(preset) | safe: 'html'"></span>
-        <span class="size-2.5 shrink-0 rounded-full" [style.background]="swatchStyle(preset)"></span>
-        @if (preset.gmOnly) {
-          <i class="material-icons text-ui-dim text-[11px]!" [title]="'feature.effect.gmOnly' | transloco"
-            >visibility_off</i
-          >
-        }
-        <span class="text-ui-dim ml-auto text-[10px]">{{ gradeLabel(preset.gradeLevel) }}</span>
-      </span>
-      <span class="w-full truncate text-[12px]">{{ preset.name }}</span>
       <span
-        class="border-ui-border-panel text-ui-dim inline-flex max-w-full items-center gap-0.5 rounded-full border border-solid px-1.5 text-[10px] [&_.material-icons]:text-[11px]!"
-        [class.text-ui-accent]="isMulti(preset)"
-        [class.border-ui-accent]="isMulti(preset)"
-      >
-        <i class="material-icons">{{ targetIcon(preset) }}</i>
-        <span class="truncate">{{ targetLabel(preset) }}</span>
+        class="bg-ui-glyph rounded-ui-sm box-border block size-7 shrink-0 p-1"
+        data-effect-glyph
+        aria-hidden="true"
+        [innerHTML]="row.glyph | safe: 'html'"
+      ></span>
+      <span class="block min-w-0 flex-1">
+        <span class="line-clamp-2 text-[13px]/4 wrap-anywhere" data-effect-name>
+          @for (part of row.name; track $index) {
+            @if (part.hit) {
+              <mark class="rounded-xs bg-[#f2cc60] px-px text-black">{{ part.text }}</mark>
+            } @else {
+              <span>{{ part.text }}</span>
+            }
+          }
+          @if (preset.gmOnly) {
+            <i
+              class="material-icons text-ui-meta align-[-2px] text-[12px]!"
+              role="img"
+              [attr.aria-label]="'feature.effect.gmOnly' | transloco"
+              [title]="'feature.effect.gmOnly' | transloco"
+              >visibility_off</i
+            >
+          }
+        </span>
+        <span class="text-ui-meta flex items-center gap-1 overflow-hidden text-[11px]/3.75 whitespace-nowrap">
+          <span class="text-ui-warning shrink-0 tracking-[-1px]" data-effect-grade aria-hidden="true"
+            >{{ row.stars }}<span class="text-ui-dim">{{ row.blanks }}</span></span
+          >
+          <span
+            class="inline-flex shrink-0 items-center gap-0.5 [&_.material-icons]:text-[13px]!"
+            [class.text-ui-notable]="row.reach === 'area'"
+            [class.font-semibold]="row.reach === 'area'"
+            data-effect-reach
+            [attr.data-reach]="row.reach"
+            ><i class="material-icons" aria-hidden="true">{{ row.reachIcon }}</i
+            >{{ row.reachLabel }}</span
+          >
+          <span class="min-w-0 truncate" data-effect-kind>
+            @for (part of row.kind; track $index) {
+              @if (part.hit) {
+                <mark class="rounded-xs bg-[#f2cc60] px-px text-black">{{ part.text }}</mark>
+              } @else {
+                <span>{{ part.text }}</span>
+              }
+            }
+          </span>
+        </span>
       </span>
     </button>
+    @if (canChangeRoom()) {
+      <button
+        class="bg-ui-surface border-ui-border-control text-ui-text hover:border-ui-accent rounded-ui-sm absolute top-1/2 right-1 m-0 hidden size-7 -translate-y-1/2 cursor-pointer items-center justify-center border border-solid p-0 group-focus-within:inline-flex group-hover:inline-flex pointer-coarse:hidden! [&_.material-icons]:text-[15px]!"
+        type="button"
+        tabindex="-1"
+        data-effect-edit
+        [attr.aria-label]="'feature.effect.editPreset' | transloco"
+        [title]="'feature.effect.editPreset' | transloco"
+        [attr.data-guide-label]="'feature.effect.editPreset' | transloco"
+        (click)="openEditor(preset)"
+      >
+        <i class="material-icons" aria-hidden="true">edit</i>
+        @if (guideShown()) {
+          <ng-container
+            *ngTemplateOutlet="guideName; context: { $implicit: 'feature.effect.editPreset' | transloco }"
+          ></ng-container>
+        }
+      </button>
+    }
     <button
-      class="bg-ui-panel border-ui-border-panel text-ui-muted hover:text-ui-accent rounded-ui-sm absolute top-1 right-1 hidden cursor-pointer items-center justify-center border border-solid p-0.5 group-hover:inline-flex [&_.material-icons]:text-[13px]!"
+      class="text-ui-text absolute top-0 right-0 m-0 hidden h-full w-11 cursor-pointer items-center justify-center border-none bg-transparent p-0 pointer-coarse:inline-flex [&_.material-icons]:text-[20px]!"
       type="button"
-      [title]="'feature.effect.editPreset' | transloco"
-      (click)="openEditor(preset)"
+      tabindex="-1"
+      data-effect-more
+      [attr.aria-label]="'feature.effect.menu' | transloco"
+      (click)="openPresetMenu(preset, $event)"
     >
-      <i class="material-icons">edit</i>
+      <i class="material-icons" aria-hidden="true">more_vert</i>
     </button>
   </div>
 </ng-template>

@@ -43,9 +43,9 @@ function wav(loop: boolean): Buffer {
 async function openJukeboxWithTracks(page: Page): Promise<Locator> {
   await waitAppReady(page);
   await openPanel(page, 'ジュークボックス');
-  const jukebox = page.locator('app-jukebox');
+  const jukebox = page.locator('jukebox');
   await expect(jukebox).toBeVisible({ timeout: 10000 });
-  await jukebox.locator('input[type="file"][accept="audio/*"]').setInputFiles([
+  await jukebox.locator('[data-testid="jukebox-file-input"]').setInputFiles([
     { name: 'Looped.wav', mimeType: 'audio/wav', buffer: wav(true) },
     { name: 'Plain.wav', mimeType: 'audio/wav', buffer: wav(false) },
   ]);

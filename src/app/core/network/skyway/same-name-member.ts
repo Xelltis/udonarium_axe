@@ -43,7 +43,7 @@ export interface NamedMemberChannel {
 }
 
 /** Whether the SDK refused a join because a member under the same name is in the channel. */
-export function isSameNameRefusal(error: unknown): boolean {
+function isSameNameRefusal(error: unknown): boolean {
   return (
     typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'alreadySameNameMemberExist'
   );

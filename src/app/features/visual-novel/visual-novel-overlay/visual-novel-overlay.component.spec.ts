@@ -8,6 +8,7 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -23,10 +24,17 @@ import { AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { leftOfSlot, VN_STAGE_SLOT_COUNT } from '@axe/domain/visual-novel/vn-stage-cast';
 import { chatStreamPanelName } from '@axe/features/chat/chat-stream/chat-stream-panel.service';
 import { VisualNovelOverlayComponent } from '@axe/features/visual-novel/visual-novel-overlay/visual-novel-overlay.component';
-import { VN_BACKLOG_PANEL } from '@axe/features/visual-novel/visual-novel-panels';
+import {
+  VN_BACKLOG_PANEL,
+  VN_DIRECTION_PANEL,
+  VN_DISPLAY_PANEL,
+  VN_EMOTE_PANEL,
+  VN_SHEET_PANEL,
+} from '@axe/features/visual-novel/visual-novel-panels';
 import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-novel-playback.service';
 import { VisualNovelSceneService } from '@axe/features/visual-novel/visual-novel-scene.service';
 import { VisualNovelSettingsService } from '@axe/features/visual-novel/visual-novel-settings.service';
@@ -255,6 +263,28 @@ describe('VisualNovelOverlayComponent', () => {
       ''
     );
     expect(component.text()).toBe('');
+  });
+
+  it('says a round command first, moves the round, and then says the rest', async () => {
+    createComponent();
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const turns = TestBed.inject(TurnOrderService);
+    turns.reset();
+    const rounds: number[] = [];
+    const sendSpy = vi.spyOn(TestBed.inject(ChatMessageService), 'sendMessage').mockImplementation(() => {
+      rounds.push(TurnState.instance.round);
+      return null as unknown as ChatMessage;
+    });
+    vi.spyOn(DiceBot, 'gameSystemForLineAsync').mockResolvedValue(null as unknown as GameSystemClass);
+
+    component.text.set('&RS 始めます');
+    component.send();
+    await vi.waitFor(() => expect(sendSpy).toHaveBeenCalledTimes(2), { timeout: 5000 });
+
+    expect(sendSpy.mock.calls.map((call) => call[1])).toEqual(['&RS', '始めます']);
+    expect(rounds).toEqual([0, 1]);
+    turns.reset();
+    TurnState.instance.history = '[]';
   });
 
   it('sends nothing for an empty line', async () => {
@@ -1416,6 +1446,40 @@ describe('VisualNovelOverlayComponent', () => {
     expect(component.isBacklogOpen()).toBe(false);
     expect(vnMode.active()).toBe(true);
   });
+  it('opens the speaker sheet and closes it again by the same button, and knows when it is closed elsewhere', () => {
+    addMessage('やあ', 'アリス', addImage());
+    createComponent();
+    const panels = TestBed.inject(PanelService);
+
+    component.toggleCharacterSheet();
+    expect(component.sheetOpen()).toBe(true);
+    expect(panels.hasSingle(VN_SHEET_PANEL)).toBe(true);
+
+    component.toggleCharacterSheet();
+    expect(component.sheetOpen()).toBe(false);
+
+    component.toggleCharacterSheet();
+    panels.closeSingle(VN_SHEET_PANEL);
+    expect(component.sheetOpen()).toBe(false);
+  });
+
+  it('opens each small window of the bar by its own name and closes it by the same button', () => {
+    createComponent();
+    const panels = TestBed.inject(PanelService);
+    const toggles: [string, () => void][] = [
+      [VN_EMOTE_PANEL, () => component.toggleEmote()],
+      [VN_DIRECTION_PANEL, () => component.toggleDirection()],
+      [VN_DISPLAY_PANEL, () => component.toggleDisplaySettings()],
+    ];
+
+    for (const [name, toggle] of toggles) {
+      toggle();
+      expect(panels.hasSingle(name)).toBe(true);
+      toggle();
+      expect(panels.hasSingle(name)).toBe(false);
+    }
+  });
+
   describe('clearing the portraits', () => {
     it('empties the stage and keeps the notice out of the script', () => {
       const image = addImage();
@@ -1587,6 +1651,24 @@ describe('VisualNovelOverlayComponent', () => {
 
       // First, so it is not hunted for among a long cast.
       expect(component.speakerOptions()[0].identifier).toBe(PeerCursor.myCursor.identifier);
+    });
+
+    it('keeps the game master as the speaker once they choose themselves, whatever the cast does', async () => {
+      addMessage('やあ', 'アリス', addImage());
+      createComponent();
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+      component.sendFrom = PeerCursor.myCursor.identifier;
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(component.sendFrom).toBe(PeerCursor.myCursor.identifier);
+      const character = component.gameCharacters()[0];
+      character.name = 'アリス2';
+      TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(component.sendFrom).toBe(PeerCursor.myCursor.identifier);
     });
 
     it('takes the offer away again once the role is given up', () => {

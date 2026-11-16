@@ -1,17 +1,20 @@
-import { Signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { MapScene, sceneHeightPx, sceneWidthPx, ShapeItem } from '@axe/domain/map-editor/scene';
-import { serializeScene } from '@axe/domain/map-editor/serialize';
+import { deserializeScene, serializeScene } from '@axe/domain/map-editor/serialize';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { WhiteBoardEditorComponent } from '@axe/features/tabletop/white-board/white-board-editor.component';
+import { SAVE_DELAY } from '@axe/features/tabletop/white-board/white-board-keeper';
+import { WhiteBoardLayerDrawerComponent } from '@axe/features/tabletop/white-board/white-board-layer-drawer.component';
+import { RULER_WIDTH } from '@axe/features/tabletop/white-board/white-board-rulers';
 import {
+  BOARD_TOOLS,
   BoardPoint,
   BoardTool,
   createBoardScene,
   freehandLayer,
-  MarkRef,
   MarkStyle,
   penStroke,
   shapeBetween,
@@ -21,27 +24,6 @@ import {
 } from '@axe/features/tabletop/white-board/white-board-scene';
 import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
-
-interface EditorInternals {
-  bindToBoard(board: WhiteBoard): void;
-  onKeyDown(event: KeyboardEvent): void;
-  onKeyUp(event: KeyboardEvent): void;
-  onPointerDown(event: PointerEvent): void;
-  onPointerMove(event: PointerEvent): void;
-  onPointerUp(event: PointerEvent): void;
-  sliding: Signal<boolean>;
-  undo(): void;
-  touched(): void;
-  hold(marks: MarkRef[]): void;
-  ticks(axis: 'x' | 'y'): { at: number; px: number }[];
-  redraw(): Promise<void>;
-  scene: MapScene;
-  tool: WritableSignal<BoardTool>;
-  held: Signal<MarkRef[]>;
-  laying: WritableSignal<BoardPoint[]>;
-  panning: Signal<boolean>;
-  zoom: WritableSignal<number>;
-}
 
 interface Call {
   method: string;
@@ -87,49 +69,127 @@ function recordingContext(): { context: CanvasRenderingContext2D; calls: Call[];
   return { context, calls, count: (method) => calls.filter((call) => call.method === method).length };
 }
 
-describe('WhiteBoardEditorComponent', () => {
-  function board(cols: number, rows: number): WhiteBoard {
-    const made = WhiteBoard.create('ホワイトボード', cols, rows, 1);
-    made.scene = serializeScene(createBoardScene(cols, rows, 50));
-    return made;
-  }
+/** An editor open on a board, driven the way a reader drives it: by its keys, its buttons and its sheet. */
+interface Mounted {
+  fixture: ComponentFixture<WhiteBoardEditorComponent>;
+  editor: WhiteBoardEditorComponent;
+  board: WhiteBoard;
+  root: HTMLElement;
+  canvas: HTMLCanvasElement;
+}
 
-  function mount(): {
-    fixture: ComponentFixture<WhiteBoardEditorComponent>;
-    editor: EditorInternals;
-    board: WhiteBoard;
-  } {
+describe('WhiteBoardEditorComponent', () => {
+  /**
+   * Opens the editor on a board twenty squares by fifteen, drawn on beforehand by `seed`.
+   *
+   * The sheet has no size on screen here, so a pointer's place on the page is its place on the board.
+   */
+  function mount(seed: (scene: MapScene) => void = () => undefined): Mounted {
     TestBed.configureTestingModule({ imports: [WhiteBoardEditorComponent], providers: [...TEST_PROVIDERS] });
     const fixture = TestBed.createComponent(WhiteBoardEditorComponent);
-    const editor = fixture.componentInstance as unknown as EditorInternals;
-    const made = board(20, 15);
-    editor.bindToBoard(made);
-    return { fixture, editor, board: made };
+    const board = WhiteBoard.create('ホワイトボード', 20, 15, 1);
+    const scene = createBoardScene(20, 15, 50);
+    seed(scene);
+    board.scene = serializeScene(scene);
+    fixture.componentInstance.bindToBoard(board);
+    fixture.detectChanges();
+    const root = (fixture.nativeElement as HTMLElement).firstElementChild as HTMLElement;
+    return { fixture, editor: fixture.componentInstance, board, root, canvas: root.querySelector('canvas')! };
   }
 
-  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
-    expectClosesForAGuest(() => mount());
-  });
-
-  function key(init: KeyboardEventInit & { key: string }): KeyboardEvent {
-    return new KeyboardEvent('keydown', { cancelable: true, ...init });
+  /** The drawing as the board is handed it once the editor has been left alone for a moment. */
+  function drawing(board: WhiteBoard): MapScene {
+    vi.advanceTimersByTime(SAVE_DELAY);
+    return deserializeScene(board.scene)!;
   }
 
-  function addRect(editor: EditorInternals, from: BoardPoint, to: BoardPoint): ShapeItem {
+  function shapes(board: WhiteBoard): ShapeItem[] {
+    return shapeLayer(drawing(board)).items;
+  }
+
+  function press(
+    root: HTMLElement,
+    init: KeyboardEventInit & { key: string },
+    from: HTMLElement = root
+  ): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', { cancelable: true, bubbles: true, ...init });
+    from.dispatchEvent(event);
+    return event;
+  }
+
+  function pointer(canvas: HTMLElement, type: string, at: BoardPoint, init: PointerEventInit = {}): void {
+    canvas.dispatchEvent(
+      new PointerEvent(type, {
+        clientX: at.x,
+        clientY: at.y,
+        button: 0,
+        buttons: 1,
+        pointerId: 1,
+        bubbles: true,
+        ...init,
+      })
+    );
+  }
+
+  function drag(canvas: HTMLElement, from: BoardPoint, through: BoardPoint[], to: BoardPoint): void {
+    pointer(canvas, 'pointerdown', from);
+    for (const at of through) pointer(canvas, 'pointermove', at);
+    pointer(canvas, 'pointerup', to, { buttons: 0 });
+  }
+
+  function click(canvas: HTMLElement, at: BoardPoint): void {
+    drag(canvas, at, [], at);
+  }
+
+  function toolButton(root: HTMLElement, tool: BoardTool): HTMLButtonElement {
+    return root.firstElementChild!.querySelectorAll('button')[BOARD_TOOLS.indexOf(tool)];
+  }
+
+  function iconButton(root: HTMLElement, icon: string): HTMLButtonElement {
+    const found = [...root.querySelectorAll('button')].find((button) => button.textContent?.trim() === icon);
+    if (!found) throw new Error(`no button drawn with ${icon}`);
+    return found;
+  }
+
+  function stage(canvas: HTMLElement): HTMLElement {
+    return canvas.closest('.overflow-auto') as HTMLElement;
+  }
+
+  /** How big the sheet is shown, read off the room laid out for a board a thousand pixels wide. */
+  function zoomShown(made: Mounted): number {
+    made.fixture.detectChanges();
+    const sized = stage(made.canvas).firstElementChild as HTMLElement;
+    return (parseFloat(sized.style.width) - RULER_WIDTH) / 1000;
+  }
+
+  function chooseZoom(made: Mounted, label: string): void {
+    made.fixture.detectChanges();
+    const select = made.root.querySelector('select[name="board-zoom"]') as HTMLSelectElement;
+    select.selectedIndex = [...select.options].findIndex((option) => option.textContent?.trim() === label);
+    select.dispatchEvent(new Event('change'));
+    made.fixture.detectChanges();
+  }
+
+  function rect(scene: MapScene, from: BoardPoint, to: BoardPoint): ShapeItem {
     const item = shapeBetween('rect', from, to, STYLE);
-    shapeLayer(editor.scene).items.push(item);
+    shapeLayer(scene).items.push(item);
     return item;
   }
 
-  function shapes(editor: EditorInternals): ShapeItem[] {
-    return shapeLayer(editor.scene).items;
-  }
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) => callback(null));
+  });
 
   afterEach(() => {
     ObjectStore.instance.getObjects().forEach((object) => ObjectStore.instance.delete(object, false));
     ObjectStore.instance.clearDeleteHistory();
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it('closes once its seat is made a guest, who may no longer write what it writes', () => {
+    expectClosesForAGuest(() => mount());
   });
 
   it('puts its keys first on the cheat sheet while it is open', () => {
@@ -141,25 +201,35 @@ describe('WhiteBoardEditorComponent', () => {
   });
 
   it('undoes back to the board as it was opened, not to a blank sheet', () => {
-    const { editor } = mount();
-    expect(sceneWidthPx(editor.scene)).toBe(1000);
+    const { board, root, canvas } = mount();
+    drag(canvas, { x: 0, y: 0 }, [{ x: 10, y: 10 }], { x: 20, y: 20 });
+    expect(drawing(board).layers).toHaveLength(1);
 
-    editor.scene.layers.push({
-      id: 'freehand-0',
-      kind: 'freehand',
-      name: 'freehand',
-      visible: true,
-      locked: false,
-      opacity: 1,
-      strokes: [{ id: 'stroke-0', points: [0, 0, 10, 10], color: '#000000', width: 2 }],
-    });
-    editor.touched();
+    iconButton(root, 'undo').click();
 
-    editor.undo();
+    const back = drawing(board);
+    expect(sceneWidthPx(back)).toBe(1000);
+    expect(sceneHeightPx(back)).toBe(750);
+    expect(back.layers).toHaveLength(0);
+  });
 
-    expect(sceneWidthPx(editor.scene)).toBe(1000);
-    expect(sceneHeightPx(editor.scene)).toBe(750);
-    expect(editor.scene.layers).toHaveLength(0);
+  it('hands the layer drawer the same sheets until the drawing changes, so it is not drawn again for nothing', () => {
+    const { fixture, root, canvas } = mount((scene) => rect(scene, { x: 10, y: 10 }, { x: 60, y: 40 }));
+    const drawer = fixture.debugElement.query(By.directive(WhiteBoardLayerDrawerComponent))
+      .componentInstance as WhiteBoardLayerDrawerComponent;
+    const before = drawer.groups();
+    expect(before).toHaveLength(1);
+
+    press(root, { key: 'v' });
+    fixture.detectChanges();
+    expect(drawer.groups()).toBe(before);
+    press(root, { key: 'p' });
+
+    drag(canvas, { x: 100, y: 100 }, [{ x: 110, y: 110 }], { x: 120, y: 120 });
+    fixture.detectChanges();
+    expect(drawer.groups()).not.toBe(before);
+    expect(drawer.groups()).toHaveLength(2);
+    expect(drawer.layerCount()).toBe(2);
   });
 
   describe('keyboard', () => {
@@ -174,157 +244,176 @@ describe('WhiteBoardEditorComponent', () => {
       ['t', 'text'],
       ['n', 'note'],
     ])('picks the %s tool on %s', (pressed, tool) => {
-      const { editor } = mount();
-      editor.tool.set(pressed === 'p' ? 'select' : 'pen');
-      const event = key({ key: pressed });
+      const { editor, root } = mount();
+      if (pressed === 'p') press(root, { key: 'v' });
 
-      editor.onKeyDown(event);
+      const event = press(root, { key: pressed });
 
       expect(editor.tool()).toBe(tool);
       expect(event.defaultPrevented).toBe(true);
     });
 
     it('leaves the keys alone while something is being typed', () => {
-      const { editor } = mount();
-      const input = document.createElement('input');
-      document.body.appendChild(input);
-      const event = key({ key: 'v' });
-      input.dispatchEvent(event);
+      const { editor, root } = mount();
+      const name = root.querySelector('input[name="board-name"]') as HTMLInputElement;
 
-      editor.onKeyDown(event);
+      press(root, { key: 'v' }, name);
 
       expect(editor.tool()).toBe('pen');
-      input.remove();
+    });
+
+    it('lets go of what was held on undo, since the mark may no longer be there', () => {
+      const { editor, root, canvas } = mount();
+      press(root, { key: 'r' });
+      drag(canvas, { x: 10, y: 10 }, [{ x: 40, y: 40 }], { x: 60, y: 60 });
+      expect(editor.selected()?.kind).toBe('shape');
+
+      press(root, { key: 'z', ctrlKey: true });
+
+      expect(editor.held()).toEqual([]);
+      expect(editor.selected()).toBeNull();
     });
 
     it('undoes on ctrl+z and redoes on ctrl+y or ctrl+shift+z', () => {
-      const { editor } = mount();
-      freehandLayer(editor.scene).strokes.push(penStroke([0, 0, 10, 10], STYLE));
-      editor.touched();
+      const { board, root, canvas } = mount();
+      drag(canvas, { x: 0, y: 0 }, [{ x: 10, y: 10 }], { x: 20, y: 20 });
 
-      editor.onKeyDown(key({ key: 'z', ctrlKey: true }));
-      expect(editor.scene.layers).toHaveLength(0);
+      press(root, { key: 'z', ctrlKey: true });
+      expect(drawing(board).layers).toHaveLength(0);
 
-      editor.onKeyDown(key({ key: 'y', ctrlKey: true }));
-      expect(editor.scene.layers).toHaveLength(1);
+      press(root, { key: 'y', ctrlKey: true });
+      expect(drawing(board).layers).toHaveLength(1);
 
-      editor.onKeyDown(key({ key: 'z', ctrlKey: true }));
-      editor.onKeyDown(key({ key: 'z', ctrlKey: true, shiftKey: true }));
-      expect(editor.scene.layers).toHaveLength(1);
+      press(root, { key: 'z', ctrlKey: true });
+      press(root, { key: 'z', ctrlKey: true, shiftKey: true });
+      expect(drawing(board).layers).toHaveLength(1);
     });
 
     it('removes what is held on delete', () => {
-      const { editor } = mount();
-      const rect = addRect(editor, { x: 10, y: 10 }, { x: 60, y: 40 });
-      editor.hold([{ kind: 'shape', id: rect.id }]);
+      const { editor, board, root, canvas } = mount((scene) => rect(scene, { x: 10, y: 10 }, { x: 60, y: 40 }));
+      press(root, { key: 'v' });
+      click(canvas, { x: 30, y: 20 });
+      expect(editor.held()).toHaveLength(1);
 
-      editor.onKeyDown(key({ key: 'Delete' }));
+      press(root, { key: 'Delete' });
 
-      expect(shapes(editor)).toHaveLength(0);
+      expect(shapes(board)).toHaveLength(0);
       expect(editor.held()).toHaveLength(0);
     });
 
     it('holds every mark on ctrl+a', () => {
-      const { editor } = mount();
-      addRect(editor, { x: 10, y: 10 }, { x: 60, y: 40 });
-      addRect(editor, { x: 100, y: 100 }, { x: 160, y: 140 });
-      textLayer(editor.scene).items.push(wordsAt({ x: 200, y: 200 }, 'hello', STYLE));
+      const { editor, root } = mount((scene) => {
+        rect(scene, { x: 10, y: 10 }, { x: 60, y: 40 });
+        rect(scene, { x: 100, y: 100 }, { x: 160, y: 140 });
+        textLayer(scene).items.push(wordsAt({ x: 200, y: 200 }, 'hello', STYLE));
+      });
 
-      editor.onKeyDown(key({ key: 'a', ctrlKey: true }));
+      press(root, { key: 'a', ctrlKey: true });
 
       expect(editor.held()).toHaveLength(3);
     });
 
     it('duplicates what is held on ctrl+d and takes hold of the copy', () => {
-      const { editor } = mount();
-      const rect = addRect(editor, { x: 10, y: 10 }, { x: 60, y: 40 });
-      editor.hold([{ kind: 'shape', id: rect.id }]);
+      let made!: ShapeItem;
+      const { editor, board, root } = mount((scene) => (made = rect(scene, { x: 10, y: 10 }, { x: 60, y: 40 })));
+      press(root, { key: 'a', ctrlKey: true });
 
-      editor.onKeyDown(key({ key: 'd', ctrlKey: true }));
+      press(root, { key: 'd', ctrlKey: true });
 
-      expect(shapes(editor)).toHaveLength(2);
-      expect(editor.held()[0].id).not.toBe(rect.id);
-      expect(shapes(editor)[1].points.slice(0, 2)).toEqual([26, 26]);
+      expect(shapes(board)).toHaveLength(2);
+      expect(editor.held()[0].id).not.toBe(made.id);
+      expect(shapes(board)[1].points.slice(0, 2)).toEqual([26, 26]);
     });
 
     it('copies on ctrl+c and pastes on ctrl+v', () => {
-      const { editor } = mount();
-      const rect = addRect(editor, { x: 10, y: 10 }, { x: 60, y: 40 });
-      editor.hold([{ kind: 'shape', id: rect.id }]);
+      const { board, root } = mount((scene) => rect(scene, { x: 10, y: 10 }, { x: 60, y: 40 }));
+      press(root, { key: 'a', ctrlKey: true });
 
-      editor.onKeyDown(key({ key: 'c', ctrlKey: true }));
-      editor.onKeyDown(key({ key: 'v', ctrlKey: true }));
-      editor.onKeyDown(key({ key: 'v', ctrlKey: true }));
+      press(root, { key: 'c', ctrlKey: true });
+      press(root, { key: 'v', ctrlKey: true });
+      press(root, { key: 'v', ctrlKey: true });
 
-      expect(shapes(editor)).toHaveLength(3);
+      expect(shapes(board)).toHaveLength(3);
     });
 
     it('brings forward on ctrl+] and sends back on ctrl+[', () => {
-      const { editor } = mount();
-      const under = addRect(editor, { x: 10, y: 10 }, { x: 60, y: 40 });
-      const over = addRect(editor, { x: 20, y: 20 }, { x: 70, y: 50 });
-      editor.hold([{ kind: 'shape', id: under.id }]);
+      let under!: ShapeItem;
+      let over!: ShapeItem;
+      const { editor, board, root, canvas } = mount((scene) => {
+        under = rect(scene, { x: 10, y: 10 }, { x: 60, y: 40 });
+        over = rect(scene, { x: 200, y: 200 }, { x: 270, y: 250 });
+      });
+      press(root, { key: 'v' });
+      click(canvas, { x: 30, y: 20 });
+      expect(editor.held()).toEqual([{ kind: 'shape', id: under.id }]);
 
-      editor.onKeyDown(key({ key: ']', ctrlKey: true }));
-      expect(shapes(editor).map((item) => item.id)).toEqual([over.id, under.id]);
+      press(root, { key: ']', ctrlKey: true });
+      expect(shapes(board).map((item) => item.id)).toEqual([over.id, under.id]);
 
-      editor.onKeyDown(key({ key: '[', ctrlKey: true }));
-      expect(shapes(editor).map((item) => item.id)).toEqual([under.id, over.id]);
+      press(root, { key: '[', ctrlKey: true });
+      expect(shapes(board).map((item) => item.id)).toEqual([under.id, over.id]);
     });
 
     it('sets a path down on enter and throws it away on escape', () => {
-      const { editor } = mount();
-      editor.tool.set('path');
-      editor.laying.set([
-        { x: 0, y: 0 },
-        { x: 50, y: 20 },
-        { x: 80, y: 90 },
-      ]);
+      const { editor, board, root, canvas } = mount();
+      toolButton(root, 'path').click();
+      click(canvas, { x: 0, y: 0 });
+      click(canvas, { x: 50, y: 20 });
+      click(canvas, { x: 80, y: 90 });
+      expect(editor.laying()).toHaveLength(3);
 
-      editor.onKeyDown(key({ key: 'Escape' }));
+      press(root, { key: 'Escape' });
       expect(editor.laying()).toHaveLength(0);
-      expect(shapes(editor)).toHaveLength(0);
+      expect(shapes(board)).toHaveLength(0);
 
-      editor.laying.set([
-        { x: 0, y: 0 },
-        { x: 50, y: 20 },
-      ]);
-      editor.onKeyDown(key({ key: 'Enter' }));
-      expect(shapes(editor)).toHaveLength(1);
+      click(canvas, { x: 0, y: 0 });
+      click(canvas, { x: 50, y: 20 });
+      press(root, { key: 'Enter' });
+      expect(shapes(board)).toHaveLength(1);
       expect(editor.tool()).toBe('select');
       expect(editor.held()).toHaveLength(1);
     });
 
     it('pans only while the space bar is held', () => {
-      const { editor } = mount();
+      const { fixture, root, canvas } = mount();
 
-      editor.onKeyDown(key({ key: ' ' }));
-      expect(editor.panning()).toBe(true);
+      press(root, { key: ' ' });
+      fixture.detectChanges();
+      expect(stage(canvas).classList).toContain('cursor-grab');
 
-      editor.onKeyUp(new KeyboardEvent('keyup', { key: ' ' }));
-      expect(editor.panning()).toBe(false);
+      root.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }));
+      fixture.detectChanges();
+      expect(stage(canvas).classList).not.toContain('cursor-grab');
     });
 
     it('zooms with ctrl and plus, minus and zero', () => {
-      const { editor } = mount();
+      const made = mount();
 
-      editor.onKeyDown(key({ key: '=', ctrlKey: true }));
-      expect(editor.zoom()).toBeCloseTo(1.15);
+      press(made.root, { key: '=', ctrlKey: true });
+      expect(zoomShown(made)).toBeCloseTo(1.15);
 
-      editor.onKeyDown(key({ key: '-', ctrlKey: true }));
-      expect(editor.zoom()).toBeCloseTo(1);
+      press(made.root, { key: '-', ctrlKey: true });
+      expect(zoomShown(made)).toBeCloseTo(1);
 
-      editor.zoom.set(2);
-      editor.onKeyDown(key({ key: '0', ctrlKey: true }));
-      expect(editor.zoom()).toBe(1);
+      chooseZoom(made, '200%');
+      expect(zoomShown(made)).toBe(2);
+      press(made.root, { key: '0', ctrlKey: true });
+      expect(zoomShown(made)).toBe(1);
     });
   });
 
   describe('rulers', () => {
-    it('writes a number every fifty pixels at full size', () => {
-      const { editor } = mount();
+    function ticks(made: Mounted, axis: 'x' | 'y'): { at: number; px: number }[] {
+      made.fixture.detectChanges();
+      const ruler = made.root.querySelector(axis === 'x' ? '.cursor-ew-resize' : '.cursor-ns-resize')!;
+      return [...ruler.querySelectorAll('span')].map((mark) => ({
+        at: Number(mark.textContent),
+        px: parseFloat(axis === 'x' ? mark.style.left : mark.style.top) - 1,
+      }));
+    }
 
-      const marks = editor.ticks('x');
+    it('writes a number every fifty pixels at full size', () => {
+      const marks = ticks(mount(), 'x');
 
       expect(marks).toHaveLength(21);
       expect(marks[1]).toEqual({ at: 50, px: 50 });
@@ -332,20 +421,20 @@ describe('WhiteBoardEditorComponent', () => {
     });
 
     it('spaces the numbers out when the sheet is shrunk', () => {
-      const { editor } = mount();
-      editor.zoom.set(0.5);
+      const made = mount();
+      chooseZoom(made, '50%');
 
-      const marks = editor.ticks('y');
+      const marks = ticks(made, 'y');
 
       expect(marks.map((mark) => mark.at)).toEqual([0, 100, 200, 300, 400, 500, 600, 700]);
       expect(marks[1].px).toBe(50);
     });
 
     it('keeps the fifty pixel step when the sheet is enlarged', () => {
-      const { editor } = mount();
-      editor.zoom.set(2);
+      const made = mount();
+      chooseZoom(made, '200%');
 
-      const marks = editor.ticks('x');
+      const marks = ticks(made, 'x');
 
       expect(marks).toHaveLength(21);
       expect(marks[1]).toEqual({ at: 50, px: 100 });
@@ -353,30 +442,11 @@ describe('WhiteBoardEditorComponent', () => {
   });
 
   describe('pointer gestures', () => {
-    function pointer(type: string, x: number, y: number, init: PointerEventInit = {}): PointerEvent {
-      const event = new PointerEvent(type, { clientX: x, clientY: y, button: 0, buttons: 1, pointerId: 1, ...init });
-      document.body.dispatchEvent(event);
-      return event;
-    }
-
-    function drag(editor: EditorInternals, from: BoardPoint, through: BoardPoint[], to: BoardPoint, init = {}) {
-      editor.onPointerDown(pointer('pointerdown', from.x, from.y, init));
-      for (const at of through) editor.onPointerMove(pointer('pointermove', at.x, at.y, init));
-      editor.onPointerUp(pointer('pointerup', to.x, to.y, { ...init, buttons: 0 }));
-    }
-
-    function mounted() {
-      const made = mount();
-      made.fixture.detectChanges();
-      return made;
-    }
-
     it('lays a pen stroke through the points the pointer passed', () => {
-      const { editor } = mounted();
-      editor.tool.set('pen');
+      const { board, canvas } = mount();
 
       drag(
-        editor,
+        canvas,
         { x: 10, y: 10 },
         [
           { x: 40, y: 20 },
@@ -385,7 +455,7 @@ describe('WhiteBoardEditorComponent', () => {
         { x: 120, y: 60 }
       );
 
-      const strokes = freehandLayer(editor.scene).strokes;
+      const strokes = freehandLayer(drawing(board)).strokes;
       expect(strokes).toHaveLength(1);
       expect(strokes[0].points.slice(0, 2)).toEqual([10, 10]);
       expect(strokes[0].points.slice(-2)).toEqual([80, 60]);
@@ -393,11 +463,11 @@ describe('WhiteBoardEditorComponent', () => {
     });
 
     it('draws a line from where the drag began to where it ended, and takes hold of it', () => {
-      const { editor } = mounted();
-      editor.tool.set('line');
+      const { editor, board, root, canvas } = mount();
+      press(root, { key: 'l' });
 
       drag(
-        editor,
+        canvas,
         { x: 100, y: 100 },
         [
           { x: 150, y: 120 },
@@ -406,82 +476,81 @@ describe('WhiteBoardEditorComponent', () => {
         { x: 300, y: 140 }
       );
 
-      expect(shapes(editor)).toHaveLength(1);
-      expect(shapes(editor)[0].shape).toBe('line');
-      expect(shapes(editor)[0].points).toEqual([100, 100, 300, 140]);
-      expect(editor.held()).toEqual([{ kind: 'shape', id: shapes(editor)[0].id }]);
+      const drawn = shapes(board);
+      expect(drawn).toHaveLength(1);
+      expect(drawn[0].shape).toBe('line');
+      expect(drawn[0].points).toEqual([100, 100, 300, 140]);
+      expect(editor.held()).toEqual([{ kind: 'shape', id: drawn[0].id }]);
     });
 
     it('draws nothing from a drag too short to have meant anything', () => {
-      const { editor } = mounted();
-      editor.tool.set('shape');
+      const { board, root, canvas } = mount();
+      press(root, { key: 'r' });
 
-      drag(editor, { x: 100, y: 100 }, [], { x: 102, y: 101 });
+      drag(canvas, { x: 100, y: 100 }, [], { x: 102, y: 101 });
 
-      expect(shapes(editor)).toHaveLength(0);
+      expect(shapes(board)).toHaveLength(0);
     });
 
     it('takes hold of the mark under the pointer and carries it with the drag', () => {
-      const { editor } = mounted();
-      const rect = addRect(editor, { x: 100, y: 100 }, { x: 200, y: 160 });
-      editor.tool.set('select');
+      let made!: ShapeItem;
+      const { editor, board, root, canvas } = mount(
+        (scene) => (made = rect(scene, { x: 100, y: 100 }, { x: 200, y: 160 }))
+      );
+      press(root, { key: 'v' });
 
-      drag(editor, { x: 150, y: 130 }, [{ x: 170, y: 140 }], { x: 190, y: 150 });
+      drag(canvas, { x: 150, y: 130 }, [{ x: 170, y: 140 }], { x: 190, y: 150 });
 
-      expect(editor.held()).toEqual([{ kind: 'shape', id: rect.id }]);
-      expect(rect.points.slice(0, 2)).toEqual([120, 110]);
+      expect(editor.held()).toEqual([{ kind: 'shape', id: made.id }]);
+      expect(shapes(board)[0].points.slice(0, 2)).toEqual([120, 110]);
     });
 
     it('drags a band over empty sheet and takes hold of everything inside it', () => {
-      const { editor } = mounted();
-      const inside = addRect(editor, { x: 100, y: 100 }, { x: 140, y: 140 });
-      addRect(editor, { x: 600, y: 600 }, { x: 640, y: 640 });
-      editor.tool.set('select');
+      let inside!: ShapeItem;
+      const { editor, root, canvas } = mount((scene) => {
+        inside = rect(scene, { x: 100, y: 100 }, { x: 140, y: 140 });
+        rect(scene, { x: 600, y: 600 }, { x: 640, y: 640 });
+      });
+      press(root, { key: 'v' });
 
-      drag(editor, { x: 50, y: 50 }, [{ x: 200, y: 200 }], { x: 300, y: 300 });
+      drag(canvas, { x: 50, y: 50 }, [{ x: 200, y: 200 }], { x: 300, y: 300 });
 
       expect(editor.held()).toEqual([{ kind: 'shape', id: inside.id }]);
     });
 
     it('slides the sheet on the middle button instead of marking it', () => {
-      const { editor } = mounted();
-      editor.tool.set('pen');
+      const { fixture, board, canvas } = mount();
 
-      editor.onPointerDown(pointer('pointerdown', 10, 10, { button: 1, buttons: 4 }));
-      expect(editor.sliding()).toBe(true);
-      editor.onPointerMove(pointer('pointermove', 30, 30, { buttons: 4 }));
-      editor.onPointerUp(pointer('pointerup', 30, 30, { button: 1, buttons: 0 }));
+      pointer(canvas, 'pointerdown', { x: 10, y: 10 }, { button: 1, buttons: 4 });
+      fixture.detectChanges();
+      expect(stage(canvas).classList).toContain('cursor-grabbing');
+      pointer(canvas, 'pointermove', { x: 30, y: 30 }, { buttons: 4 });
+      pointer(canvas, 'pointerup', { x: 30, y: 30 }, { button: 1, buttons: 0 });
+      fixture.detectChanges();
 
-      expect(editor.sliding()).toBe(false);
-      expect(freehandLayer(editor.scene).strokes).toHaveLength(0);
+      expect(stage(canvas).classList).not.toContain('cursor-grabbing');
+      expect(freehandLayer(drawing(board)).strokes).toHaveLength(0);
     });
 
     it('rubs out the words under the eraser', () => {
-      const { editor } = mounted();
-      textLayer(editor.scene).items.push(wordsAt({ x: 200, y: 200 }, 'hello', STYLE));
-      editor.tool.set('eraser');
+      const { board, root, canvas } = mount((scene) =>
+        textLayer(scene).items.push(wordsAt({ x: 200, y: 200 }, 'hello', STYLE))
+      );
+      press(root, { key: 'e' });
 
-      editor.onPointerDown(pointer('pointerdown', 210, 210));
-      editor.onPointerUp(pointer('pointerup', 210, 210, { buttons: 0 }));
+      click(canvas, { x: 210, y: 210 });
 
-      expect(textLayer(editor.scene).items).toHaveLength(0);
+      expect(textLayer(drawing(board)).items).toHaveLength(0);
     });
   });
 
   describe('saving', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
     it('writes the drawing down a breath after the last change', () => {
-      const { fixture, editor, board } = mount();
-      fixture.detectChanges();
-      vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) => callback(null));
+      const { board, canvas } = mount();
       const before = board.scene;
-      freehandLayer(editor.scene).strokes.push(penStroke([0, 0, 10, 10], STYLE));
-      editor.touched();
+      drag(canvas, { x: 0, y: 0 }, [{ x: 10, y: 10 }], { x: 20, y: 20 });
 
-      vi.advanceTimersByTime(599);
+      vi.advanceTimersByTime(SAVE_DELAY - 1);
       expect(board.scene).toBe(before);
 
       vi.advanceTimersByTime(1);
@@ -490,11 +559,9 @@ describe('WhiteBoardEditorComponent', () => {
     });
 
     it('writes it down at once when the editor is closed within that breath', () => {
-      const { fixture, editor, board } = mount();
-      fixture.detectChanges();
+      const { fixture, board, canvas } = mount();
       const before = board.scene;
-      freehandLayer(editor.scene).strokes.push(penStroke([0, 0, 10, 10], STYLE));
-      editor.touched();
+      drag(canvas, { x: 0, y: 0 }, [{ x: 10, y: 10 }], { x: 20, y: 20 });
 
       fixture.destroy();
 
@@ -508,22 +575,24 @@ describe('WhiteBoardEditorComponent', () => {
 
   describe('redraw', () => {
     it('paints the marks, the ruling and the hold onto a sheet of the board size', async () => {
+      vi.useRealTimers();
       const recorder = recordingContext();
       vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
         () => recorder.context as unknown as RenderingContext
       );
-      const { fixture, editor } = mount();
-      fixture.detectChanges();
-      freehandLayer(editor.scene).strokes.push(penStroke([0, 0, 10, 10, 20, 5], STYLE));
-      const rect = addRect(editor, { x: 100, y: 100 }, { x: 160, y: 140 });
-      textLayer(editor.scene).items.push(wordsAt({ x: 200, y: 200 }, 'hello', STYLE));
-      editor.hold([{ kind: 'shape', id: rect.id }]);
+      const { fixture, root, canvas } = mount((scene) => {
+        freehandLayer(scene).strokes.push(penStroke([0, 0, 10, 10, 20, 5], STYLE));
+        rect(scene, { x: 100, y: 100 }, { x: 160, y: 140 });
+        textLayer(scene).items.push(wordsAt({ x: 200, y: 200 }, 'hello', STYLE));
+      });
+      press(root, { key: 'v' });
+      click(canvas, { x: 130, y: 120 });
       await fixture.whenStable();
       recorder.calls.length = 0;
 
-      await editor.redraw();
+      press(root, { key: ']', ctrlKey: true });
+      await fixture.whenStable();
 
-      const canvas = fixture.nativeElement.querySelector('canvas') as HTMLCanvasElement;
       expect(canvas.width).toBe(1000);
       expect(canvas.height).toBe(750);
       expect(recorder.calls.filter((call) => call.method === 'fillText').map((call) => call.args[0])).toEqual([

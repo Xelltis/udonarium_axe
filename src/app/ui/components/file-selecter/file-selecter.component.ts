@@ -5,8 +5,8 @@ import { ImageUploadPreferenceService } from '@axe/application/file/image-upload
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { ModalService } from '@axe/application/ui/modal.service';
-import { PanelService } from '@axe/application/ui/panel.service';
+import { trackEvery } from '@axe/application/sync/track-every';
+import { ModalContent, ModalService } from '@axe/application/ui/modal.service';
 import { emitSelectFile } from '@axe/core/event/domain-events';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -24,8 +24,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule],
 })
-export class FileSelecterComponent {
-  private readonly panelService = inject(PanelService);
+export class FileSelecterComponent implements ModalContent {
   private readonly modalService = inject(ModalService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly editQueue = inject(ImageEditQueue);
@@ -36,6 +35,7 @@ export class FileSelecterComponent {
   private readonly t = inject(TRANSLATE_FN);
 
   isAllowedEmpty: boolean = false;
+  readonly modalTitle: string;
   /** The one account's avatar the picker may offer: the reader's own, as an icon is chosen; none else. */
   private ownAvatar: string | null = null;
 
@@ -60,26 +60,27 @@ export class FileSelecterComponent {
    *
    * Pictures the game master has kept back are left out for everyone else.
    */
-  getAllImage(): ImageFile[] {
-    return this.fileStorageService.images.filter((imageFile) => this.mayShow(imageFile));
+  private getAllImage(): ImageFile[] {
+    return this.imageStorage.images.filter((imageFile) => this.mayShow(imageFile));
   }
 
   readonly images = computed(() => {
     this.objectChange.fileVersion();
+    trackEvery(this.objectChange, 'image-tag');
     this.tagLock.track();
     const imageFileList: ImageFile[] = [];
-    if (this.selectTag() == this.allTag) return this.getAllImage();
+    if (this.selectTag() === this.allTag) return this.getAllImage();
 
-    for (const imageFile of this.fileStorageService.images) {
+    for (const imageFile of this.imageStorage.images) {
       const identifier = imageFile.context.identifier;
 
-      if (ImageTag.get(identifier)) {
-        const tag: string = ImageTag.get(identifier).tag;
-        if (this.selectTag() == tag && this.mayShow(imageFile)) {
+      const imageTag = ImageTag.get(identifier);
+      if (imageTag) {
+        if (this.selectTag() === imageTag.tag && this.mayShow(imageFile)) {
           imageFileList.push(imageFile);
         }
       } else {
-        if (this.selectTag() == '' && this.mayShow(imageFile)) {
+        if (this.selectTag() === '' && this.mayShow(imageFile)) {
           imageFileList.push(imageFile);
         }
       }
@@ -88,29 +89,16 @@ export class FileSelecterComponent {
     return imageFileList;
   });
 
-  selectedFile: ImageFile | null = null;
-  /** Whether `selectedFile` holds an image; nothing in this picker sets it, so false unless a caller does. */
-  get isSelected(): boolean {
-    return this.selectedFile !== null;
-  }
-  /**
-   * The tag record of the chosen image, or null with nothing chosen.
-   *
-   * An image without one is given a new tag record, which is shared with the room.
-   */
-  get selectedImageTag(): ImageTag | null {
-    if (!this.isSelected || this.selectedFile === null) return null;
-    const imageTag = ImageTag.get(this.selectedFile.identifier);
-    return imageTag ? imageTag : ImageTag.create(this.selectedFile.identifier);
-  }
-
   /**
    * The tags offered as filters above the pictures: untagged first, then all, then each tag
    * that has at least one picture the local user may pick.
    */
-  get tagList(): string[] {
+  readonly tagList = computed<string[]>(() => {
+    this.objectChange.fileVersion();
+    trackEvery(this.objectChange, 'image-tag');
+    this.tagLock.track();
     const tags: string[] = [];
-    for (const imageFile of this.fileStorageService.images) {
+    for (const imageFile of this.imageStorage.images) {
       // A tag whose pictures are every one of them kept back is not offered either: picking
       // it would open on nothing, and its name says there is something there to find.
       if (!this.mayShow(imageFile)) continue;
@@ -122,37 +110,9 @@ export class FileSelecterComponent {
     tags2.unshift(this.allTag);
     tags2.unshift('');
     return tags2;
-  }
+  });
 
   readonly selectTag = signal('');
-  fileStorageService = this.imageStorage;
-
-  identifierList: string[] = [];
-  newTagName: string = '';
-
-  /** Called when a tag filter is chosen; does nothing. */
-  resetBtn() {}
-
-  /**
-   * Adds an image to, or removes it from, the list of checked identifiers.
-   *
-   * An image without a tag record is given one first, which is shared with the room.
-   */
-  onChange(fileName: string, checked: boolean) {
-    const imageTag = ImageTag.get(fileName);
-    if (!imageTag) ImageTag.create(fileName);
-
-    if (checked) {
-      if (!this.identifierList.includes(fileName)) {
-        this.identifierList.push(fileName);
-      }
-    } else {
-      const index = this.identifierList.indexOf(fileName);
-      if (index >= 0) {
-        this.identifierList.splice(index, 1);
-      }
-    }
-  }
 
   /** Only a seat that may edit the table may bring in new pictures, as in the media library. */
   get canUpload(): boolean {
@@ -202,7 +162,7 @@ export class FileSelecterComponent {
     const option = this.modalService.option as Record<string, unknown>;
     this.isAllowedEmpty = !!option?.isAllowedEmpty;
     this.ownAvatar = typeof option?.['ownAvatar'] === 'string' ? option['ownAvatar'] : null;
-    queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('ui.fileSelecter.panelTitle')));
+    this.modalTitle = this.t('ui.fileSelecter.panelTitle');
   }
 
   /**

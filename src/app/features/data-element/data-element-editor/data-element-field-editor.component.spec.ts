@@ -95,6 +95,7 @@ describe('DataElementFieldEditorComponent', () => {
 
   it('shows the settings of a kind that has them', () => {
     const { hp } = sheet();
+    hp.value = '満タン';
     const host = open(hp);
     expect(host.querySelector('game-data-element-field-options')).toBeNull();
 
@@ -102,6 +103,13 @@ describe('DataElementFieldEditorComponent', () => {
     fixture.detectChanges();
 
     expect(host.querySelector('game-data-element-field-options')).not.toBeNull();
+  });
+
+  it('shows a line of text holding a number the setting of its default', () => {
+    const { hp } = sheet();
+    const host = open(hp);
+
+    expect(host.querySelector('game-data-element-field-options [name="data-default"]')).not.toBeNull();
   });
 
   it('steps the row down, and greys out what it cannot do from there', () => {
@@ -163,5 +171,23 @@ describe('DataElementFieldEditorComponent', () => {
 
     expect(hp.getAttribute(DataElementAttribute.POPUP)).toBe('true');
     expect(host.querySelector('[data-testid="field-editor-popup"]')?.getAttribute('aria-checked')).toBe('true');
+  });
+
+  describe('copying the path of the row', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('says the path was copied only when the clipboard took it', async () => {
+      const { hp } = sheet();
+      open(hp);
+      const snackbar = TestBed.inject(SnackbarService);
+      const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+
+      await fixture.componentInstance.copyReference();
+      expect(snackbar.current()?.message).toContain('コピーしました');
+
+      write.mockRejectedValue(new DOMException('denied', 'NotAllowedError'));
+      await fixture.componentInstance.copyReference();
+      expect(snackbar.current()?.message).toContain('コピーできませんでした');
+    });
   });
 });

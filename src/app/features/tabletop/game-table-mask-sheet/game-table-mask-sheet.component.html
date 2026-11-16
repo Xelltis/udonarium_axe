@@ -68,49 +68,14 @@
         <label class="text-ui-muted min-w-22.5 pt-2 text-[12px]">{{
           'feature.tabletop.maskSheet.image' | transloco
         }}</label>
-        <div
-          class="border-ui-border-panel rounded-ui-sm bg-ui-panel flex w-36 flex-col items-center gap-1 border-2 px-1.5 py-2"
-        >
-          <div
-            class="border-ui-border-panel rounded-ui-sm bg-ui-input flex size-15 items-center justify-center overflow-hidden border"
-          >
-            @if (maskImage().url) {
-              <img
-                class="size-full object-contain"
-                [src]="maskImage().url | safe: 'resourceUrl'"
-                [alt]="'feature.tabletop.maskSheet.maskImageAlt' | transloco"
-              />
-            } @else {
-              <div class="text-ui-muted flex size-full items-center justify-center">
-                <i class="material-icons text-[28px]! opacity-40">image_not_supported</i>
-              </div>
-            }
-          </div>
-          <div class="flex w-full items-center justify-center gap-1">
-            <button
-              class="bg-ui-accent-solid border-ui-accent rounded-ui-sm inline-flex min-w-0 flex-1 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap text-white transition-[background] hover:brightness-110 [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
-              type="button"
-              data-action="set-mask-image"
-              (click)="openMaskImageModal()"
-              [title]="'feature.tabletop.maskSheet.setImage' | transloco"
-            >
-              <i class="material-icons">edit</i>
-              {{ 'feature.tabletop.maskSheet.setLabel' | transloco }}
-            </button>
-            @if (maskImage().isSet) {
-              <button
-                class="text-ui-muted border-ui-border-panel rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-1.25 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap transition-[background] [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
-                type="button"
-                data-action="clear-mask-image"
-                (click)="clearMaskImage()"
-                [title]="'feature.tabletop.maskSheet.clearImage' | transloco"
-              >
-                <i class="material-icons">close</i>
-                {{ 'feature.tabletop.maskSheet.clearLabel' | transloco }}
-              </button>
-            }
-          </div>
-        </div>
+        <mask-picture-field
+          setAction="set-mask-image"
+          clearAction="clear-mask-image"
+          [picture]="maskImage()"
+          [alt]="'feature.tabletop.maskSheet.maskImageAlt' | transloco"
+          (pick)="openMaskImageModal()"
+          (clear)="clearMaskImage()"
+        />
       </div>
       <div class="mb-2 flex items-center gap-2 last:mb-0">
         <label class="text-ui-muted min-w-22.5 text-[12px]">{{ 'feature.tabletop.maskSheet.color' | transloco }}</label>
@@ -196,49 +161,14 @@
         <label class="text-ui-muted min-w-22.5 pt-2 text-[12px]">{{
           'feature.tabletop.maskSheet.image' | transloco
         }}</label>
-        <div
-          class="border-ui-border-panel rounded-ui-sm bg-ui-panel flex w-36 flex-col items-center gap-1 border-2 px-1.5 py-2"
-        >
-          <div
-            class="border-ui-border-panel rounded-ui-sm bg-ui-input flex size-15 items-center justify-center overflow-hidden border"
-          >
-            @if (scratchedImage().url) {
-              <img
-                class="size-full object-contain"
-                [src]="scratchedImage().url | safe: 'resourceUrl'"
-                [alt]="'feature.tabletop.maskSheet.scratchedImageAlt' | transloco"
-              />
-            } @else {
-              <div class="text-ui-muted flex size-full items-center justify-center">
-                <i class="material-icons text-[28px]! opacity-40">image_not_supported</i>
-              </div>
-            }
-          </div>
-          <div class="flex w-full items-center justify-center gap-1">
-            <button
-              class="bg-ui-accent-solid border-ui-accent rounded-ui-sm inline-flex min-w-0 flex-1 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid px-1.5 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap text-white transition-[background] hover:brightness-110 [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
-              type="button"
-              data-action="set-scratched-image"
-              (click)="openScratchedImageModal()"
-              [title]="'feature.tabletop.maskSheet.setImage' | transloco"
-            >
-              <i class="material-icons">edit</i>
-              {{ 'feature.tabletop.maskSheet.setLabel' | transloco }}
-            </button>
-            @if (scratchedImage().isSet) {
-              <button
-                class="text-ui-muted border-ui-border-panel rounded-ui-sm hover:bg-ui-hover hover:text-ui-text inline-flex min-w-0 shrink-0 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-1.25 py-0.75 text-[11px] leading-[1.2] whitespace-nowrap transition-[background] [&_.material-icons]:shrink-0 [&_.material-icons]:text-[13px]!"
-                type="button"
-                data-action="clear-scratched-image"
-                (click)="clearScratchedImage()"
-                [title]="'feature.tabletop.maskSheet.clearImage' | transloco"
-              >
-                <i class="material-icons">close</i>
-                {{ 'feature.tabletop.maskSheet.clearLabel' | transloco }}
-              </button>
-            }
-          </div>
-        </div>
+        <mask-picture-field
+          setAction="set-scratched-image"
+          clearAction="clear-scratched-image"
+          [picture]="scratchedImage()"
+          [alt]="'feature.tabletop.maskSheet.scratchedImageAlt' | transloco"
+          (pick)="openScratchedImageModal()"
+          (clear)="clearScratchedImage()"
+        />
       </div>
       <div class="mb-2 flex items-center gap-2 last:mb-0">
         <label class="text-ui-muted min-w-22.5 text-[12px]">{{ 'feature.tabletop.maskSheet.color' | transloco }}</label>

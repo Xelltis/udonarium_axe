@@ -15,6 +15,7 @@ describe('effectMoteOf()', () => {
     expect(effectMoteOf(makePreset('雷'))).toBe('arc');
     expect(effectMoteOf(makePreset('風'))).toBe('leaf');
     expect(effectMoteOf(makePreset('闇'))).toBe('haze');
+    expect(effectMoteOf(makePreset('聖'))).toBe('spark');
   });
 
   it('takes what is given outright over that', () => {

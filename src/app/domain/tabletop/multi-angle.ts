@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 export type MultiAngleSeatKey = 'down' | 'left' | 'up' | 'right';
 export type MultiAngleMotionMode = 'continuous' | 'quarter-turn' | 'piece-quarter-turn';
 export type MultiAngleOrbitMode = Exclude<MultiAngleMotionMode, 'piece-quarter-turn'>;
@@ -57,7 +58,7 @@ export function multiAnglePieceMotionMode(mode: MultiAngleMotionMode): MultiAngl
 }
 
 function finiteInRange(value: number, fallback: number, min: number, max: number): number {
-  return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+  return Number.isFinite(value) ? clamp(value, min, max) : fallback;
 }
 
 function percentage(value: number, total: number): string {

@@ -148,6 +148,17 @@ export function replaySceneDurationOf(scene: ReplayCutInScene): number {
   return Math.min(60_000, Math.max(100, scene.durationMs, lastMoment));
 }
 
+/** The box the layers take up between them, which stands in for the cut-in's own size; never under a pixel each way. */
+export function replaySceneSizeOf(scene: ReplayCutInScene): { width: number; height: number } {
+  let width = 1;
+  let height = 1;
+  for (const layer of scene.layers) {
+    width = Math.max(width, layer.x + layer.width);
+    height = Math.max(height, layer.y + layer.height);
+  }
+  return { width, height };
+}
+
 /** Everything about a layer at one moment, the way the editor would show it. */
 export interface ReplayLayerSample {
   visible: boolean;

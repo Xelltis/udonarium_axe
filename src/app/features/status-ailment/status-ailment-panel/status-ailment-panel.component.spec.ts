@@ -28,7 +28,7 @@ describe('StatusAilmentPanelComponent', () => {
   afterEach(() => {
     fixture?.destroy();
     service.save([]);
-    (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
+    StatusAilmentCatalog.forget();
   });
 
   it('takes a state and shows it', () => {
@@ -125,6 +125,38 @@ describe('StatusAilmentPanelComponent', () => {
 
       expect(component.iconUrlOf(service.ailments()[0])).toBe('');
       expect(fixture.nativeElement.textContent).toContain('☠️');
+    });
+  });
+
+  describe('the choice to play the effect of a state as it is put on', () => {
+    const box = () =>
+      fixture.nativeElement.querySelector('[data-testid="status-ailment-plant-effect"]') as HTMLInputElement;
+
+    afterEach(() => {
+      StatusAilmentCatalog.instance.playsEffectOnPlant = false;
+    });
+
+    it('starts unticked, and asks the room as it is ticked', () => {
+      fixture.detectChanges();
+      expect(box().checked).toBe(false);
+
+      box().checked = true;
+      box().dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      expect(service.playsEffectOnPlant()).toBe(true);
+      expect(box().checked).toBe(true);
+    });
+
+    it('shows what the room asked and cannot be changed by one who cannot edit the table', () => {
+      service.setPlaysEffectOnPlant(true);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
+      fixture.detectChanges();
+
+      expect(box().checked).toBe(true);
+      expect(box().disabled).toBe(true);
+      component.setPlaysEffectOnPlant(false);
+      expect(service.playsEffectOnPlant()).toBe(true);
     });
   });
 

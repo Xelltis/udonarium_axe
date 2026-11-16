@@ -14,7 +14,8 @@ import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 /** How far a stored number may sit from a whole number of cells and still be counted as on the grid. */
 const GRID_TOLERANCE = 1e-6;
 
-function wholeCells(value: number): number | null {
+/** A length in cells as a whole number, where it lies on the grid within the tolerance; null where it does not. */
+function cellsOnGrid(value: number): number | null {
   const rounded = Math.round(value);
   return Number.isFinite(value) && Math.abs(value - rounded) < GRID_TOLERANCE ? rounded : null;
 }
@@ -40,8 +41,8 @@ function turnsBy(rotate: number, step: number): boolean {
 export function blockFootprintOf(terrain: Terrain, grid: CellGrid): number[] | null {
   if (surfaceOf(terrain) !== 'floor' || grid.sizePx <= 0) return null;
   const g = grid.sizePx;
-  const width = wholeCells(finite(terrain.width) ?? NaN);
-  const depth = wholeCells(finite(terrain.depth) ?? NaN);
+  const width = cellsOnGrid(finite(terrain.width) ?? NaN);
+  const depth = cellsOnGrid(finite(terrain.depth) ?? NaN);
   const height = finite(terrain.height);
   const altitude = finite(terrain.altitude);
   const rotate = finite(terrain.rotate);
@@ -51,10 +52,10 @@ export function blockFootprintOf(terrain: Terrain, grid: CellGrid): number[] | n
   if (isHexGrid(grid.type)) return turnsBy(rotate, 60) ? hexFootprint(terrain, grid, width, depth) : null;
   if (!turnsBy(rotate, 90)) return null;
   const box = terrainBoxOf(terrain, g);
-  const left = wholeCells(box.minX / g);
-  const top = wholeCells(box.minY / g);
-  const right = wholeCells(box.maxX / g);
-  const bottom = wholeCells(box.maxY / g);
+  const left = cellsOnGrid(box.minX / g);
+  const top = cellsOnGrid(box.minY / g);
+  const right = cellsOnGrid(box.maxX / g);
+  const bottom = cellsOnGrid(box.maxY / g);
   if (left === null || top === null || right === null || bottom === null) return null;
   const cells: number[] = [];
   for (let row = top; row < bottom; row++) {

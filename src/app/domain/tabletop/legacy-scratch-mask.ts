@@ -1,9 +1,10 @@
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { clamp } from '@axe/core/util/clamp';
 import { DataElement } from '@axe/domain/data/data-element';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
+import { GameTableScratchMask, isScratchCellCovered } from '@axe/domain/tabletop/game-table-scratch-mask';
 import { TabletopLocation } from '@axe/domain/tabletop/tabletop-object';
 
 /** A regular mask counts its opacity out of this; it draws at the current value over it. */
@@ -20,12 +21,6 @@ const LEGACY_COMMON_ELEMENTS = ['name', 'width', 'height'] as const;
 
 const HEX_COLOUR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const CELL_KEY = /^\d+:\d+$/;
-
-/**
- * What a cell of the legacy map holds once it has been scratched open, in each form it can reach
- * here: as sent by a peer, or read back from a saved room as text.
- */
-const OPEN_CELL_VALUES: ReadonlySet<unknown> = new Set<unknown>([false, 0, 'false', '0']);
 
 /**
  * The identifier of the regular mask a legacy scratch mask becomes.
@@ -70,11 +65,11 @@ export function legacyScratchedGridsOf(legacy: {
   const cells = new Set<string>();
   const map = legacy.M;
   if (Array.isArray(map)) {
-    const rows = Math.min(Math.max(1, legacy.height), LEGACY_MAP_SIDE);
-    const cols = Math.min(Math.max(1, legacy.width), LEGACY_MAP_SIDE);
+    const rows = clamp(legacy.height, 1, LEGACY_MAP_SIDE);
+    const cols = clamp(legacy.width, 1, LEGACY_MAP_SIDE);
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
-        if (OPEN_CELL_VALUES.has(map[LEGACY_MAP_SIDE * y + x])) cells.add(`${x}:${y}`);
+        if (!isScratchCellCovered(map[LEGACY_MAP_SIDE * y + x])) cells.add(`${x}:${y}`);
       }
     }
   }

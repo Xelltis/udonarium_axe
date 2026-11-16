@@ -1,4 +1,5 @@
 import { Logger } from '@axe/core/logging/logger';
+import { readBackendUrl } from '@axe/core/network/backend-url';
 import {
   AssetAccess,
   Connection,
@@ -249,21 +250,34 @@ export class ServerConnection implements Connection {
 
   /** Takes the room server's address from the app config's backend url. */
   configure(config: Record<string, unknown>): void {
-    const url = (config['backend'] as { url?: unknown } | undefined)?.url;
-    this.baseUrl = typeof url === 'string' ? url : '';
+    this.baseUrl = readBackendUrl(config);
   }
 
   /** Opens a session in no room. Nothing connects; the lobby lists the rooms over HTTP. */
   openStandby(userId?: string): void {
     this.stopped = false;
     pageActivity.watch();
-    void PeerContext.create(userId ?? PeerContext.generateUserId()).then((peer) => {
-      if (this.stopped) return;
-      this.me = peer;
-      this.accountSeat = false;
-      peer.isOpen = true;
-      this.callback.onOpen?.(peer);
-    });
+    void this.standBy(userId ?? PeerContext.generateUserId());
+  }
+
+  private async standBy(userId: string): Promise<void> {
+    const peer = await this.makePeer(() => PeerContext.create(userId));
+    if (!peer || this.stopped) return;
+    this.me = peer;
+    this.accountSeat = false;
+    peer.isOpen = true;
+    this.callback.onOpen?.(peer);
+  }
+
+  /** The peer made, or null once the session has been ended for its failing to be made. */
+  private async makePeer(make: () => Promise<PeerContext>): Promise<PeerContext | null> {
+    try {
+      return await make();
+    } catch (reason) {
+      const error = reason instanceof Error ? reason : new Error(String(reason));
+      if (!this.stopped) this.fail(error.name, `the peer could not be made: ${error.message}`);
+      return null;
+    }
   }
 
   /** Gives the connection the login to say hello with; without one every seat is a guest's. */
@@ -295,8 +309,10 @@ export class ServerConnection implements Connection {
       if (!this.stopped) this.fail(isBanned(reason) ? BANNED : SERVER_UNREACHABLE, 'the login could not be refreshed');
       return;
     }
-    const peer = await PeerContext.createRoom(credentials?.userId ?? this.guestUserId(userId), roomId, roomName, '');
-    if (this.stopped) return;
+    const peer = await this.makePeer(() =>
+      PeerContext.createRoom(credentials?.userId ?? this.guestUserId(userId), roomId, roomName, '')
+    );
+    if (!peer || this.stopped) return;
     peer.password = password;
     this.me = peer;
     this.accountSeat = credentials != null;
@@ -821,28 +837,8 @@ export class ServerConnection implements Connection {
     this.accessTokenRenewal.stop();
     this.assetTokenRenewal.stop();
     this.idleWatch.stop();
-    // What was still gathering to go out goes with the link, but for the requests kept for later,
-    // those already on their way out ahead of the rest.
-    this.keepRequests(this.unwritten);
-    this.unwritten = [];
-    this.stopPacing();
-    this.keepRequests(this.outbound);
-    this.dropQueued();
-    // The server asked the seat back on another link. It comes straight back, and nobody is told it
-    // went: the welcome sets the members right.
-    if (askedBack && !this.stopped && this.refusal == null) {
-      if (wasWelcomed) {
-        this.comingBack = true;
-        this.connectSocket();
-        return;
-      }
-      // Asked back before its first welcome, as while the room changes hands, a seat coming in tries
-      // again after the usual wait. One that was coming back unseen is told of the drop below, as
-      // after any link that failed.
-      if (!this.everWelcomed && this.reconnectScheduler.schedule(SOCKET_KEY, () => this.connectSocket()) != null) {
-        return;
-      }
-    }
+    this.keepUnsent();
+    if (askedBack && this.tryComingBack(wasWelcomed)) return;
     const wasComingBack = this.comingBack;
     this.comingBack = false;
     if ((wasWelcomed || wasComingBack) && this.authority) {
@@ -851,7 +847,45 @@ export class ServerConnection implements Connection {
     }
     for (const peerId of [...this.members.keys()]) this.removeMember(peerId);
     if (this.stopped) return;
+    this.decideAfterDrop();
+  }
 
+  /**
+   * Lets what was still gathering to go out go with the link, but for the requests kept for later,
+   * those already on their way out ahead of the rest.
+   */
+  private keepUnsent(): void {
+    this.keepRequests(this.unwritten);
+    this.unwritten = [];
+    this.stopPacing();
+    this.keepRequests(this.outbound);
+    this.dropQueued();
+  }
+
+  /**
+   * Whether a seat the server asked back on another link is on its way back, so that nobody is told
+   * it went. One that was in the room comes straight back: the welcome sets the members right. Asked
+   * back before its first welcome, as while the room changes hands, a seat coming in tries again
+   * after the usual wait. One that was coming back unseen, one stopped and one refused are told of
+   * the drop instead, as after any link that failed.
+   */
+  private tryComingBack(wasWelcomed: boolean): boolean {
+    if (this.stopped || this.refusal != null) return false;
+    if (wasWelcomed) {
+      this.comingBack = true;
+      this.connectSocket();
+      return true;
+    }
+    return !this.everWelcomed && this.reconnectScheduler.schedule(SOCKET_KEY, () => this.connectSocket()) != null;
+  }
+
+  /**
+   * What follows a link that dropped, for a seat not stopped: it leaves for the page left alone,
+   * tries the login again for a token turned down, ends the session for a refusal it cannot try
+   * again after or for a server never reached, and otherwise tries the link again, ending the
+   * session where no try is left.
+   */
+  private decideAfterDrop(): void {
     const refusal = this.refusal;
     this.refusal = null;
     if (refusal === IDLE) {

@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -69,7 +71,7 @@ describe('CoinFlipService', () => {
     vi.useRealTimers();
 
     expect(sendSystemMessage).toHaveBeenCalledOnce();
-    const text = sendSystemMessage.mock.calls[0][0] as string;
+    const text = decodeI18nMessage(sendSystemMessage.mock.calls[0][0] as string, TestBed.inject(TRANSLATE_FN));
     expect(text).toContain('わたし');
     expect(text).toContain('コイン');
     expect(text).toContain(service.faceLabel(face));

@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
+import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -17,8 +19,9 @@ describe('GameClockService', () => {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     service = TestBed.inject(GameClockService);
     notices = [];
+    const t = TestBed.inject(TRANSLATE_FN);
     vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice').mockImplementation((kind, text) => {
-      notices.push({ kind, text });
+      notices.push({ kind, text: decodeI18nMessage(text, t) });
       return null;
     });
   });

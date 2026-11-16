@@ -3,11 +3,16 @@ import { PieceNameService } from '@axe/application/character/piece-name.service'
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { GameSystemPrefetchService } from '@axe/application/dice/game-system-prefetch.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TurnChatCommandService } from '@axe/application/turn/turn-chat-command.service';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { BoundedMap } from '@axe/core/util/bounded-map';
+import { sameList } from '@axe/core/util/same-list';
 import { sameSet } from '@axe/core/util/same-set';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -40,7 +45,9 @@ import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { checkRollLine, isSecretRollLine, rollableText, type RollCheck } from '@axe/domain/dice/dice-roll-line';
 import { DiceTable } from '@axe/domain/dice/dice-table';
 import { CutIn } from '@axe/domain/media/cut-in';
+import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import type { TurnChatCommand, TurnChatRefusal } from '@axe/domain/tabletop/turn-chat-command';
 
 /** How a text is sent: typed into chat, or from a palette. */
 export type ChatLintPath = ChatLintContext['path'];
@@ -135,6 +142,9 @@ export class ChatLintService {
   private readonly imageStorage = inject(ImageStorage);
   private readonly stampRules = inject(StampRulesService);
   private readonly selection = inject(SelectionSignalService);
+  private readonly turnOrder = inject(TurnOrderService);
+  private readonly turnCommands = inject(TurnChatCommandService);
+  private readonly inventory = inject(GameObjectInventoryService);
 
   private readonly systems = inject(GameSystemPrefetchService);
 
@@ -188,9 +198,9 @@ export class ChatLintService {
       const selectedPiece = selected ? this.objectStore.get(selected.identifier) : null;
       return selectedPiece instanceof GameCharacter && selectedPiece.isVisibleOnTable ? [selectedPiece] : [];
     },
-    { equal: (a, b) => a.length === b.length && a.every((piece, index) => piece === b[index]) }
+    { equal: sameList }
   );
-  private readonly rollChecks = new Map<string, RollCheck>();
+  private readonly rollChecks = new BoundedMap<string, RollCheck>(ROLL_CHECKS_KEPT);
 
   /** Starts checking a text, for as long as its signals are read. */
   watch(source: ChatLintSource): ChatLintWatch {
@@ -230,7 +240,7 @@ export class ChatLintService {
    * What a text is checked against, which follows the room, not the text: the text itself is read
    * only as a reference or a roll in it is checked, and a palette's variables only where they change.
    * The room's pictures, which portraits are found among, and its states, which a buff may name,
-   * are followed too.
+   * are followed too, and the round where the text holds a command of it.
    * Whether the seat is kept off the table turns on the room server too, which no signal tells, so
    * it is read as each text is checked. A palette's line is rolled as it goes out, each `\n` written
    * in it broken into a line of its own.
@@ -284,6 +294,7 @@ export class ChatLintService {
       hasEffectTarget: candidates.length > 0,
       hasBattleDefender: candidates.some((piece) => piece !== speaker),
       isGameMaster,
+      piecesOnTable: () => pieces.filter((piece) => piece.location.name === 'table'),
       get keptOffTable() {
         return PeerCursor.isMyselfKeptOffTable;
       },
@@ -319,7 +330,21 @@ export class ChatLintService {
         const line = fill(sent(message), targets[0]);
         return system != null && isSecretRollLine(system, DiceBot.isUnreachable(system), line);
       },
+      turnCommandRefusal: (command: TurnChatCommand) => this.turnCommandRefusal(command, sendFrom),
     };
+  }
+
+  /**
+   * Why a round command said now as the speaker would move nothing, as saying it would find. Read
+   * only for a text that holds one, which is then checked again as the round, how the room takes
+   * its turns, its parties and the pieces on the table change.
+   */
+  private turnCommandRefusal(command: TurnChatCommand, sendFrom: string): TurnChatRefusal | null {
+    this.turnOrder.progress();
+    this.objectChange.versionOf('Config')();
+    this.objectChange.collectionOf(Party.aliasName)();
+    this.inventory.inventoryVersion();
+    return this.turnCommands.refusalOf(command, sendFrom);
   }
 
   /** The pieces in the room, each followed, so that what reads them is read again as any of them changes. */
@@ -438,7 +463,6 @@ export class ChatLintService {
     }
     const check = checkRollLine(system, unreachable, text);
     this.rollChecks.set(key, check);
-    if (this.rollChecks.size > ROLL_CHECKS_KEPT) this.rollChecks.delete(this.rollChecks.keys().next().value!);
     return check;
   }
 

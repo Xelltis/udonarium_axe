@@ -1,9 +1,13 @@
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
+import type { ObjectStore } from '@axe/core/sync/object-store';
 
 export type VnStageTransition = 'none' | 'fade' | 'wipe';
 
 export const VN_STAGE_TRANSITIONS: readonly VnStageTransition[] = ['none', 'fade', 'wipe'];
+
+/** The identifier of the room's one novel-mode stage. */
+export const VN_STAGE_IDENTIFIER = 'VnStage';
 
 @SyncObject('vn-stage')
 export class VnStage extends GameObject {
@@ -56,4 +60,9 @@ export class VnStage extends GameObject {
     this.transition = transition;
     this.transitionTrigger = this.transitionTrigger + 1;
   }
+}
+
+/** The room's novel-mode stage, or null before the room has one. */
+export function vnStageOf(store: ObjectStore): VnStage | null {
+  return store.get<VnStage>(VN_STAGE_IDENTIFIER) ?? null;
 }

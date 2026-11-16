@@ -1,7 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { closePanels } from '../dungeon-helpers';
-import { putAwayTutorial, waitAppReady } from '../helpers';
+import { closePanels, holdsFor, putAwayTutorial, waitAppReady } from '../helpers';
 
 /**
  * The table drawn on a canvas through three.js, for a seat that has asked for it. The board is drawn
@@ -11,14 +10,6 @@ import { putAwayTutorial, waitAppReady } from '../helpers';
 
 type Point = { x: number; y: number };
 
-type SceneHooks = {
-  renderer(): string | null;
-  whenIdle(): Promise<void>;
-  sceneBoard(): { widthPx: number; depthPx: number } | null;
-  project(x: number, y: number, z: number): Point | null;
-  sceneStats(): { draws: number } | null;
-};
-
 /** How far apart two readings of one point may be and still be the same colour. */
 const SAME_COLOUR = 3;
 /** How far inside and outside an edge of the board the colour is read, in pixels. */
@@ -26,14 +17,11 @@ const AWAY_PX = 6;
 
 async function sceneDrawn(page: Page) {
   await expect
-    .poll(
-      () => page.evaluate(() => (window as unknown as { __axeTable?: SceneHooks }).__axeTable?.renderer() ?? null),
-      {
-        timeout: 20000,
-      }
-    )
+    .poll(() => page.evaluate(() => window.__axeTable?.renderer() ?? null), {
+      timeout: 20000,
+    })
     .not.toBeNull();
-  await page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.whenIdle());
+  await page.evaluate(() => window.__axeTable.whenIdle());
   await expect(page.getByTestId('table-scene-cover')).toHaveCount(0);
 }
 
@@ -43,7 +31,7 @@ async function sceneDrawn(page: Page) {
  */
 async function edgePoints(page: Page): Promise<{ inside: Point; outside: Point }[]> {
   return page.evaluate((away) => {
-    const hooks = (window as unknown as { __axeTable: SceneHooks }).__axeTable;
+    const hooks = window.__axeTable;
     const board = hooks.sceneBoard()!;
     const { widthPx: w, depthPx: d } = board;
     // The middle of each edge, with the way into the board from it.
@@ -133,7 +121,7 @@ async function expectBoardWhereTheCameraPutsIt(page: Page, least = 1) {
 /** Waits for the view to glide to where it was sent and for the canvas to draw it there. */
 async function viewSettled(page: Page) {
   await page.waitForTimeout(400);
-  await page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.whenIdle());
+  await page.evaluate(() => window.__axeTable.whenIdle());
 }
 
 /**
@@ -141,8 +129,7 @@ async function viewSettled(page: Page) {
  * loading has come: a frame asked for over and over would keep a graphics card busy for nothing.
  */
 async function expectNothingDrawnWhileNothingChanges(page: Page) {
-  const draws = () =>
-    page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.sceneStats()?.draws ?? -1);
+  const draws = () => page.evaluate(() => window.__axeTable.sceneStats()?.draws ?? -1);
   let settled = await draws();
   await expect
     .poll(
@@ -156,10 +143,9 @@ async function expectNothingDrawnWhileNothingChanges(page: Page) {
       { timeout: 15000 }
     )
     .toBe(true);
-  await page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.whenIdle());
+  await page.evaluate(() => window.__axeTable.whenIdle());
   settled = await draws();
-  await page.waitForTimeout(2000);
-  expect(await draws(), 'frames drawn while nothing changed').toBe(settled);
+  await holdsFor(async () => expect(await draws(), 'frames drawn while nothing changed').toBe(settled), 2000);
 }
 
 /**
@@ -178,9 +164,7 @@ test.describe('the table drawn on a canvas', () => {
   test('draws the board where the camera puts it', async ({ page }) => {
     await sceneDrawn(page);
     const expected = test.info().project.name === 'chromium-webgpu' ? 'webgpu' : 'webgl2';
-    expect(await page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.renderer())).toBe(
-      expected
-    );
+    expect(await page.evaluate(() => window.__axeTable.renderer())).toBe(expected);
     await expectBoardWhereTheCameraPutsIt(page, test.info().project.use.isMobile ? 0 : 1);
     await expectNothingDrawnWhileNothingChanges(page);
 

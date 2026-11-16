@@ -46,6 +46,6 @@ test.describe('the hotbar', () => {
 
     await slots(page).nth(3).click();
 
-    await expect(page.locator('app-jukebox')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('jukebox')).toBeVisible({ timeout: 10000 });
   });
 });

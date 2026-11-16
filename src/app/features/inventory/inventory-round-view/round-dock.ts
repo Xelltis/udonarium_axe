@@ -1,3 +1,5 @@
+import { clamp } from '@axe/core/util/clamp';
+
 /** How large a face is drawn where there is room for every face at its full size. */
 export const DOCK_FACE = 48;
 /** The room after a face drawn at its full size. */
@@ -62,10 +64,10 @@ export function layDock(entries: readonly DockEntry[], room: number, headingLeng
   const placed: { key: string; kind: 'heading' | 'piece'; at: number; size: number; step: number }[] = [];
   let at = 0;
   for (const entry of entries) {
-    const { size, step } =
-      entry.kind === 'heading' ? { size: headingLength, step: headingLength } : sizes.get(entry.key)!;
-    placed.push({ key: entry.key, kind: entry.kind, at, size, step });
-    at += step;
+    const one = entry.kind === 'heading' ? { size: headingLength, step: headingLength } : sizes.get(entry.key);
+    if (!one) continue;
+    placed.push({ key: entry.key, kind: entry.kind, at, size: one.size, step: one.step });
+    at += one.step;
   }
   const slots = placed.map((one, index): DockSlot => {
     const following = placed[index + 1];
@@ -116,17 +118,17 @@ function shareRoom(
   let held = 0;
   let sharing = 0;
   for (const entry of entries) {
-    if (entry.kind === 'piece' && !fixed.has(entry.key)) {
+    const one = entry.kind === 'heading' ? { size: headingLength, step: headingLength } : fixed.get(entry.key);
+    if (!one) {
       sharing++;
       continue;
     }
-    const one = entry.kind === 'heading' ? { size: headingLength, step: headingLength } : fixed.get(entry.key)!;
     held += entry === last ? one.size : one.step;
   }
   const stepping = sharing - (lastShares ? 1 : 0);
   const left = room - held;
   const fitting = sharing > 0 ? (left - stepping * DOCK_TIGHT_GAP) / sharing : DOCK_FACE;
-  const size = Math.min(DOCK_FACE, Math.max(DOCK_LEAST_FACE, fitting));
+  const size = clamp(fitting, DOCK_LEAST_FACE, DOCK_FACE);
   const step =
     fitting >= DOCK_LEAST_FACE
       ? size + DOCK_TIGHT_GAP
