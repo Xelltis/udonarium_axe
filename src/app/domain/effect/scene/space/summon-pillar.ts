@@ -1,16 +1,19 @@
 import { outCubic, type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
 import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import { floorMark, glow, haze, type Point } from '@axe/domain/effect/scene/parts';
-import { layWound, scatterOf, type SpaceTones, tippedCircle } from '@axe/domain/effect/scene/space/space-parts';
+import { layBoldBand, layBoldFloorRing } from '@axe/domain/effect/scene/space/space-bold';
+import { scatterOf, tippedCircle } from '@axe/domain/effect/scene/space/space-parts';
+import { type SummonTones } from '@axe/domain/effect/scene/space/summon-circle';
 
 /*
- * What rises out of a summoning's circle: rays of light welling up through its lines, the pillar they
- * gather into about the one it calls, rings running up it and motes winding up within it; and the
- * arrival, as the pillar flares, a ring races out over the floor and light is thrown up and out.
+ * What rises out of a summoning's circle: rays welling up through its lines, the pillar they gather
+ * into about the one it calls, a soft body of its deep colour with a gold heart and heavy streaks of it
+ * running up its sides, rings running up it and motes winding up within it; and the arrival, as the
+ * pillar flares, heavy rings race out over the floor and light is thrown up and out.
  */
 
 /** How many lines of light the pillar is made of, and how wide it is against the circle. */
-const PILLAR_LINES = 14;
+const PILLAR_LINES = 12;
 const PILLAR_SHARE = 0.5;
 
 /** Rays of light welling up through the lines of the circle, more and faster as it wakes. */
@@ -19,7 +22,7 @@ export function drawRisingRays(
   stage: Stage,
   floor: Point,
   reach: number,
-  tones: SpaceTones,
+  tones: SummonTones,
   amount: number,
   forward: number
 ): void {
@@ -42,9 +45,9 @@ export function drawRisingRays(
     const velocity = { x: 0, y: 0, z: rise / life };
     drawn.motes.push({
       ...at,
-      size: cell * 0.1,
-      color: tones.deep,
-      alpha: 0.7 * fade,
+      size: cell * 0.2,
+      color: tones.rim,
+      alpha: 0.85 * fade,
       blend: 'color',
       shape: 'spark',
       velocity,
@@ -53,8 +56,19 @@ export function drawRisingRays(
     });
     drawn.motes.push({
       ...at,
-      size: cell * 0.05,
-      color: ray % 4 === 0 ? '#ffffff' : tones.pale,
+      size: cell * 0.12,
+      color: tones.body,
+      alpha: fade,
+      blend: 'color',
+      shape: 'spark',
+      velocity,
+      trail: 0.12,
+      forward: forward + 0.5,
+    });
+    drawn.motes.push({
+      ...at,
+      size: cell * 0.06,
+      color: ray % 4 === 0 ? '#ffffff' : tones.gold,
       alpha: fade,
       blend: 'light',
       shape: 'spark',
@@ -66,15 +80,16 @@ export function drawRisingRays(
 }
 
 /**
- * The pillar of light about the one called: growing up out of the circle as it wakes, flaring as what
- * it calls arrives, then rising away off the floor and thinning out.
+ * The pillar about the one called, a soft body of its deep colour with a gold heart and streaks
+ * running up its sides: growing up out of the circle as it wakes, flaring as what it calls arrives,
+ * then rising away off the floor and thinning out.
  */
 export function drawPillar(
   drawn: Staged,
   stage: Stage,
   floor: Point,
   reach: number,
-  tones: SpaceTones,
+  tones: SummonTones,
   welling: number,
   since: number,
   forward: number
@@ -89,44 +104,73 @@ export function drawPillar(
   const high = cell * (0.4 + 2.4 * welling + 1.6 * (since >= 0 ? Math.min(1, since / 0.2) : 0));
   const base = floor.z + cell * 4 * away;
   const top = base + high * (1 - 0.5 * away);
+  drawn.ribbons.push({
+    points: [0, 0.5, 1].map((share) => ({ x: floor.x, y: floor.y, z: base + (top - base) * share })),
+    widths: [radius * 2.1, radius * 2, radius * 1.7],
+    color: tones.body,
+    core: mixColor(tones.gold, '#ffffff', flare),
+    alpha: (0.5 + 0.3 * flare) * shown,
+    alphas: [1, 0.75, 0],
+    blend: 'color',
+    soft: 0.7,
+    torn: 0.2,
+    flowed: -t * 3,
+  });
   for (let line = 0; line < PILLAR_LINES; line++) {
     const turn = (line / PILLAR_LINES) * Math.PI * 2 + t * 0.6;
     const flicker = 0.75 + 0.25 * Math.sin(t * 19 + line * 2.7);
-    const reachUp = top - (top - base) * 0.35 * scatterOf(line, 13);
+    const from = (top - base) * 0.3 * scatterOf(line, 11);
+    const reachUp = top - (top - base) * 0.45 * scatterOf(line, 13);
     const points = [0, 0.5, 1].map((share) => ({
       x: floor.x + Math.cos(turn) * radius,
       y: floor.y + Math.sin(turn) * radius,
-      z: base + (reachUp - base) * share,
+      z: base + from + (reachUp - base - from) * share,
     }));
     const about = points.map((point) => ({ x: floor.x, y: floor.y, z: point.z }));
-    layWound(drawn, points, about, {
-      sheath: tones.edge,
-      light: flare > 0.3 ? '#ffffff' : tones.glow,
-      heart: mixColor(tones.pale, '#ffffff', flare),
-      wide: cell * (0.1 + 0.1 * flare),
-      alpha: 0.65 * shown,
-      lit: shown * flicker * (1 + flare),
-      nearShare: 0.55,
-      alphas: [1, 0.8, 0],
-    });
+    layBoldBand(
+      drawn,
+      points,
+      {
+        rim: tones.rim,
+        body: tones.body,
+        core: mixColor(tones.gold, '#ffffff', flare),
+        glow: flare > 0.3 ? '#ffffff' : tones.gold,
+        lit: 0.6 * shown * flicker * (1 + flare),
+        wide: cell * (0.08 + 0.08 * flare),
+        alpha: 0.8 * shown,
+        alphas: [0.4, 1, 0],
+        torn: 0.5,
+        flowed: t * 4 + line,
+      },
+      about,
+      0.45
+    );
   }
   for (let ring = 0; ring < 3; ring++) {
     const rise = (t * 0.9 + ring / 3) % 1;
     const middle = { x: floor.x, y: floor.y, z: base + (top - base) * rise };
-    layWound(drawn, tippedCircle(middle, radius * (1.08 - 0.25 * rise), 36, 0, 0), middle, {
-      sheath: tones.deep,
-      light: tones.glow,
-      wide: cell * 0.08,
-      alpha: 0.6 * shown * (1 - rise),
-      lit: shown * (1 - rise) * Math.min(1, rise * 6),
-      nearShare: 0.6,
-    });
+    const alpha = shown * (1 - rise) * Math.min(1, rise * 6);
+    layBoldBand(
+      drawn,
+      tippedCircle(middle, radius * (1.08 - 0.25 * rise), 32, 0, 0),
+      {
+        rim: tones.rim,
+        body: tones.body,
+        core: tones.gold,
+        glow: tones.gold,
+        lit: 0.6 * alpha,
+        wide: cell * 0.13,
+        alpha,
+      },
+      middle,
+      0.6
+    );
   }
   const middle = { x: floor.x, y: floor.y, z: (base + top) / 2 };
   for (let step = -1; step <= 1; step++) {
     const at = { ...middle, z: middle.z + step * (top - base) * 0.3 };
-    drawn.motes.push(haze(at, radius * 2.2, tones.edge, 0.3 * shown, forward * 0.5));
-    drawn.motes.push(glow(at, radius * 2.6, tones.glow, (0.35 + 0.45 * flare) * shown, forward * 0.5));
+    drawn.motes.push(haze(at, radius * 2.3, tones.body, 0.32 * shown, forward * 0.5));
+    drawn.motes.push(glow(at, radius * 1.4, tones.gold, (0.2 + 0.5 * flare) * shown, forward * 0.5));
   }
   for (let mote = 0; mote < 26; mote++) {
     const climb = (t * (0.35 + 0.3 * scatterOf(mote, 17)) + scatterOf(mote, 19)) % 1;
@@ -140,8 +184,8 @@ export function drawPillar(
     drawn.motes.push({
       ...glow(
         at,
-        cell * 0.11,
-        mote % 3 === 0 ? '#ffffff' : tones.pale,
+        cell * 0.15,
+        mote % 3 === 0 ? '#ffffff' : tones.gold,
         shown * Math.min(1, climb * 5, (1 - climb) * 3),
         forward
       ),
@@ -168,13 +212,13 @@ export function drawArrival(
   stage: Stage,
   middle: Point,
   reach: number,
-  tones: SpaceTones,
+  tones: SummonTones,
   since: number
 ): void {
   const { cell } = stage;
   if (since < 0.16) {
     const left = 1 - since / 0.16;
-    drawn.floor.push(floorMark('disc', middle, reach * 1.6, 1, tones.glow, 0.5 * left, 'light', 0));
+    drawn.floor.push(floorMark('disc', middle, reach * 1.6, 1, tones.gold, 0.45 * left, 'light', 0));
     drawn.floor.push(floorMark('disc', middle, reach * 0.9, 1, '#ffffff', 0.4 * left, 'light', 0));
   }
   if (since < 0.5) {
@@ -187,17 +231,24 @@ export function drawArrival(
     });
   }
   for (const [delay, lasts, to, thick] of [
-    [0, 0.7, 2.3, 0.14],
-    [0.12, 1, 1.8, 0.09],
+    [0, 0.7, 2.3, 0.32],
+    [0.12, 1, 1.8, 0.2],
   ] as const) {
     const share = (since - delay) / lasts;
     if (share < 0 || share >= 1) continue;
     const left = 1 - share;
     const radius = reach * (0.95 + (to - 0.95) * outCubic(share));
     const width = (cell * thick * (0.35 + 0.65 * left)) / radius;
-    drawn.floor.push(floorMark('ring', middle, radius, width * 3, tones.glow, 0.6 * left, 'light', 0));
-    drawn.floor.push(floorMark('ring', middle, radius, width * 2.2, tones.deep, 0.8 * left, 'color', 0));
-    drawn.floor.push(floorMark('ring', middle, radius, width * 0.8, tones.pale, left, 'color', 0));
+    layBoldFloorRing(
+      drawn,
+      middle,
+      radius,
+      width,
+      { rim: tones.ink, body: tones.body, core: tones.gold },
+      left,
+      left,
+      tones.gold
+    );
   }
 }
 
@@ -207,12 +258,12 @@ export function drawArrivingLight(
   stage: Stage,
   floor: Point,
   chest: Point,
-  tones: SpaceTones,
+  tones: SummonTones,
   since: number,
   forward: number
 ): void {
   const { cell } = stage;
-  if (since < 0.5) drawn.motes.push(glow(chest, cell * 4.4, tones.glow, 0.7 * (1 - since / 0.5), forward));
+  if (since < 0.5) drawn.motes.push(glow(chest, cell * 4.4, tones.gold, 0.6 * (1 - since / 0.5), forward));
   for (let glint = 0; glint < 34; glint++) {
     const born = scatterOf(glint, 31) * 0.08;
     const age = since - born;
@@ -229,8 +280,8 @@ export function drawArrivingLight(
     drawn.motes.push({
       ...glow(
         at,
-        cell * (0.13 - 0.05 * (age / 1.6)),
-        glint % 3 === 0 ? '#ffffff' : tones.pale,
+        cell * (0.18 - 0.06 * (age / 1.6)),
+        glint % 3 === 0 ? '#ffffff' : tones.gold,
         1 - age / 1.6,
         forward + 1
       ),

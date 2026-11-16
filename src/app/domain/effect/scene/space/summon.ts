@@ -1,13 +1,13 @@
 import { nothingStaged, outCubic, type Stage, type Staged, within } from '@axe/domain/effect/scene/choreography';
-import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import { floorMark, glow, haze, lightBall, type Point, starBurst } from '@axe/domain/effect/scene/parts';
 import { SCENE_LINGER_S } from '@axe/domain/effect/scene/scene-kinds';
-import { type SpaceTones, spaceTonesOf } from '@axe/domain/effect/scene/space/space-parts';
 import {
   bandPenAt,
   type CircleLook,
   drawPen,
   layCircle,
+  type SummonTones,
+  summonTonesOf,
   traceStar,
 } from '@axe/domain/effect/scene/space/summon-circle';
 import {
@@ -19,8 +19,9 @@ import {
 import { spaceBeatAt } from '@axe/domain/effect/space-looks';
 
 /*
- * A summoning. The floor darkens and a pen of light runs round it, writing a band of glyphs between two
- * rims; then it traces a star of five points within, stroke by stroke in one line. The circle wakes:
+ * A summoning, told by its own colours: bodies of the full colour of its deep colour on a near black,
+ * with gold burning through them. The floor darkens and a pen of gold runs round it, writing a band of
+ * glyphs between two rims; then it traces a star of five points within, stroke by stroke in one line. The circle wakes:
  * its band turns one way and its star the other, faster and faster, light welling up through every line
  * of it into a pillar about the one it calls, rings running up the pillar and motes rising in it. Then
  * what is called arrives: the circle blazes white, the pillar flares and a ring races out over the
@@ -73,7 +74,7 @@ function turnedBy(t: number, from: number, arrives: number, rate: number): numbe
 }
 
 /** The circle as it is seen at a moment of the summoning. */
-function circleAt(stage: Stage, t: number, arrives: number): CircleLook {
+function circleAt(stage: Stage, t: number, arrives: number, tones: SummonTones): CircleLook {
   const since = t - arrives;
   const burnsFrom = arrives + BURNS_OUT_AFTER_S;
   const band = Math.min(
@@ -98,16 +99,20 @@ function circleAt(stage: Stage, t: number, arrives: number): CircleLook {
     lit: Math.max(blaze, (0.75 + 0.25 * pulse * waking) * (1 - 0.75 * cooling)),
     white: blaze,
     pattern: stage.seed % 97,
-    heart: rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7)[4],
+    heart: tones.gold,
   };
 }
 
-/** The floor the circle is written on, darkened, and lit from it while the circle is awake. */
-function layGround(drawn: Staged, floor: Point, reach: number, tones: SpaceTones, t: number, arrives: number): void {
+/** The floor the circle is written on, darkened to its near black within a rim of its deep colour, and lit from it while the circle is awake. */
+function layGround(drawn: Staged, floor: Point, reach: number, tones: SummonTones, t: number, arrives: number): void {
   const dark = Math.min(within(t, 0, 0.3), 1 - within(t, arrives + 1.2, arrives + 2.4));
-  drawn.floor.push(floorMark('disc', floor, reach * 1.45, 1, tones.ink, 0.62 * dark, 'color', 0));
+  drawn.floor.push(floorMark('disc', floor, reach * 1.5, 1, tones.rim, 0.6 * dark, 'color', 0));
+  drawn.floor.push(floorMark('disc', floor, reach * 1.08, 1, tones.ink, 0.75 * dark, 'color', 0));
   const glowing = within(t, STAR_BY_S, arrives) * (1 - within(t, arrives + 0.2, arrives + 1.4));
-  if (glowing > 0.01) drawn.floor.push(floorMark('disc', floor, reach * 1.2, 1, tones.glow, 0.3 * glowing, 'light', 0));
+  if (glowing > 0.01) {
+    drawn.floor.push(floorMark('disc', floor, reach * 1.05, 1, tones.body, 0.45 * glowing, 'color', 0));
+    drawn.floor.push(floorMark('disc', floor, reach * 1.2, 1, tones.gold, 0.12 * glowing, 'light', 0));
+  }
 }
 
 /** Motes drifting down over the circle as it burns out. */
@@ -115,7 +120,7 @@ function drawDrifting(
   drawn: Staged,
   floor: Point,
   reach: number,
-  tones: SpaceTones,
+  tones: SummonTones,
   cell: number,
   since: number,
   forward: number
@@ -135,8 +140,8 @@ function drawDrifting(
     drawn.motes.push({
       ...glow(
         at,
-        cell * (0.1 + 0.04 * Math.sin(since * 13 + mote)),
-        mote % 3 === 0 ? '#ffffff' : tones.pale,
+        cell * (0.15 + 0.05 * Math.sin(since * 13 + mote)),
+        mote % 3 === 0 ? '#ffffff' : tones.gold,
         1 - age,
         forward
       ),
@@ -154,13 +159,13 @@ export function drawSummon(stage: Stage): Staged {
   if (t >= duration + LINGER_S) return drawn;
   const arrives = spaceBeatAt('summon', duration);
   const since = t - arrives;
-  const tones = spaceTonesOf(rampOf(stage.preset.colorPrimary, stage.preset.colorSecondary, 7));
+  const tones = summonTonesOf(stage.preset.colorPrimary, stage.preset.colorSecondary);
   const floor = { x: stage.x, y: stage.y, z: stage.groundZ };
   const chest = { x: stage.x, y: stage.y, z: stage.z + tall * 0.5 };
   const circle = circleOf(stage);
   const { middle, reach } = circle;
   const forward = cell * 0.4;
-  const look = circleAt(stage, t, arrives);
+  const look = circleAt(stage, t, arrives, tones);
   const welling = outCubic(within(t, STAR_BY_S, arrives));
   const gone = within(t, arrives + 0.15, arrives + 1.1);
 
@@ -183,14 +188,14 @@ export function drawSummon(stage: Stage): Staged {
     );
     if (t < STAR_BY_S + 0.12 && t >= BAND_BY_S - 0.02) {
       const left = 1 - within(t, BAND_BY_S - 0.02, BAND_BY_S + 0.25);
-      drawn.floor.push(floorMark('ring', middle, reach * 0.99, 0.05, '#ffffff', left, 'light', 0));
+      drawn.floor.push(floorMark('ring', middle, reach * 0.99, 0.08, tones.gold, left, 'light', 0));
     }
-    drawRisingRays(drawn, stage, middle, reach, { ...tones, pale: look.heart }, welling * (1 - gone), forward);
+    drawRisingRays(drawn, stage, middle, reach, tones, welling * (1 - gone), forward);
     if (since < 0) {
       drawn.lights.push({
         ...middle,
         z: middle.z + cell * 0.5,
-        color: tones.glow,
+        color: tones.gold,
         strength: 0.5 + 1.1 * welling,
         reachPx: reach * 1.6,
       });
@@ -203,8 +208,8 @@ export function drawSummon(stage: Stage): Staged {
   if (since < 0) {
     if (welling > 0.6) {
       const near = (welling - 0.6) / 0.4;
-      drawn.motes.push(haze(chest, tall * 1.6, tones.edge, 0.25 * near, forward));
-      drawn.motes.push(glow(chest, tall * 2, tones.glow, 0.4 * near, forward));
+      drawn.motes.push(haze(chest, tall * 1.6, tones.body, 0.3 * near, forward));
+      drawn.motes.push(glow(chest, tall * 1.6, tones.gold, 0.35 * near, forward));
     }
     return drawn;
   }
@@ -212,7 +217,7 @@ export function drawSummon(stage: Stage): Staged {
   if (since < 0.3) {
     const left = 1 - since / 0.3;
     drawn.motes.push(lightBall(chest, cell * 0.9 * left, '#ffffff', 1, forward + 3));
-    drawn.motes.push(...starBurst(chest, cell * 3, tones.glow, since / 0.3, forward + 3, 10, stage.seed % 9));
+    drawn.motes.push(...starBurst(chest, cell * 3.4, tones.gold, since / 0.3, forward + 3, 10, stage.seed % 9));
   }
   return drawn;
 }
