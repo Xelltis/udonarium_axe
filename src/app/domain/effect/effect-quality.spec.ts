@@ -62,9 +62,11 @@ function heaviestCastOf(kind: EffectKind, count = 4): { preset: EffectPreset; ca
  * a sniper's shot, arrows, missiles in a swarm and a cruise missile, the shots of spirit, of a curse and
  * of holy light, and a rain of arrows on as many as the bundled one takes and on few enough to fall
  * doubled; and the looks that bless, each healing, cleansing, barrier and aura on as many as the
- * bundled one takes; the blows of a strike by their grades, each on as many as the bundled one takes
- * and as long as it plays; a cleave and a drawing cut, and a great sword of earth on four and one of
- * ice on three, each target off the line to the first taking a torrent of its own; the looks of darkness by their grades, a mire and an eclipse over an area on
+ * bundled one takes; the greatest fire over an area on eight, as long as the bundled one; the blows of
+ * a strike by their grades, each on as many as the bundled one takes and as long as it plays; a cleave
+ * and a drawing cut, and a great sword of earth on four and one of ice on three, each target off the
+ * line to the first taking a torrent of its own; the looks of darkness by their grades, a mire and an
+ * eclipse over an area on
  * eight, a draining on three, and a great blade that lands in a black sphere; and the looks of space
  * and time by their grades, a blink and a summoning, a crush on six and a singularity over an area on
  * eight; a rift on three and a quake over an area on eight, a breath of sand, sickles of wind on
@@ -144,6 +146,7 @@ const CHOSEN_LOOKS: readonly (readonly [EffectKind, Partial<EffectPreset>, numbe
   ['barrier', { grade: 2, durationMs: 1080 }, 6],
   ['barrier', { grade: 3, durationMs: 1176 }, 6],
   ['aura', { grade: 2, durationMs: 2064 }, 6],
+  ['mushroom', { durationMs: 10606, areaRadius: 4 }, 8],
   ['aura', { grade: 3, durationMs: 2560 }, 1],
   ['bash', { grade: 1, durationMs: 1056 }, 1],
   ['bash', { grade: 2, durationMs: 1080, staggerMs: 90 }, 3],

@@ -160,6 +160,17 @@ describe('the grades of a piece set ablaze', () => {
     expect(burning(3).motes.filter(isFire).length).toBeGreaterThan(burning(1).motes.filter(isFire).length * 1.5);
   });
 
+  it('catches the least fire in a flash and a ring of light, leaping up past its height before it settles low', () => {
+    const least = presetOf('flame', { grade: 1, durationMs: 1071 });
+    const caught = staged(least, 200);
+    const tallestAt = (atMs: number) => tallestOf(staged(least, atMs));
+
+    expect(caught.motes.some((mote) => mote.shape === 'puff' && mote.size > CELL * 0.5)).toBe(true);
+    expect(caught.floor.some((mark) => mark.shape === 'ring')).toBe(true);
+    expect(tallestAt(300)).toBeGreaterThan(tallestAt(800) * 1.5);
+    expect(tallestAt(300)).toBeGreaterThan(CELL * 1.3);
+  });
+
   it('stands its fire on every side of the piece, held to its own depth so the piece hides what is beyond it', () => {
     const flames = burning(2).motes.filter(isFire);
 

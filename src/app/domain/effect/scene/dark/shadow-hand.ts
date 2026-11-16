@@ -32,9 +32,9 @@ export interface HandPose {
 }
 
 /** How wide an arm is along it, from its root to the heel of its palm, in cells. */
-const ARM_WIDTHS = [0.17, 0.14, 0.11, 0.085, 0.07, 0.09, 0.125];
+const ARM_WIDTHS = [0.24, 0.19, 0.15, 0.12, 0.1, 0.125, 0.17];
 /** How long a finger is, in cells, and the angles the fingers and the thumb are spread at, in radians. */
-const FINGER_CELLS = 0.5;
+const FINGER_CELLS = 0.62;
 const SPREAD = [-1.05, -0.42, -0.12, 0.2, 0.52];
 
 function add(a: Point, b: Point, far: number): Point {
@@ -46,11 +46,11 @@ function unit(way: Point): Point {
   return { x: way.x / length, y: way.y / length, z: way.z / length };
 }
 
-/** Lays one band of a hand: its burning edge, frayed, to be covered by its body. */
-function edgeOf(points: Point[], widths: number[], tones: DarkTones, alpha: number, t: number) {
+/** Lays one band of a hand: its burning edge, frayed, a little wider than its body by `rim`, to be covered by its body. */
+function edgeOf(points: Point[], widths: number[], rim: number, tones: DarkTones, alpha: number, t: number) {
   return {
     points,
-    widths: widths.map((width) => width * 1.5 + 3),
+    widths: widths.map((width) => width * 1.35 + rim),
     color: tones.edge,
     core: tones.glow,
     alpha,
@@ -77,7 +77,7 @@ export function drawHand(drawn: Staged, hand: Hand, cell: number, tones: DarkTon
     ? {
         x: hand.grabs.x - facing.x * U * 0.22,
         y: hand.grabs.y - facing.y * U * 0.22,
-        z: Math.min(hand.grabs.z, hand.root.z + high) - high * 0.3 * pose.pulled,
+        z: Math.max(hand.root.z + U * 0.45, Math.min(hand.grabs.z, hand.root.z + high) - high * 0.3 * pose.pulled),
       }
     : upright;
   const closing = hand.grabs ? pose.grip : 0;
@@ -126,11 +126,11 @@ export function drawHand(drawn: Staged, hand: Hand, cell: number, tones: DarkTon
       z: bent.z - 0.6 * curl,
     });
     const tip = add(joint, claw, long * 0.32);
-    bands.push({ points: [base, knuckle, joint, tip], widths: [U * 0.085, U * 0.072, U * 0.05, 0] });
+    bands.push({ points: [base, knuckle, joint, tip], widths: [U * 0.11, U * 0.095, U * 0.07, 0] });
   });
-  bands.push({ points: [wrist, add(wrist, along, U * 0.14)], widths: [U * 0.12, U * 0.2] });
-  drawn.motes.push(haze(wrist, U * 0.6, tones.edge, 0.35 * pose.risen, cell * 0.4));
-  for (const band of bands) drawn.ribbons.push(edgeOf(band.points, band.widths, tones, pose.risen, pose.t));
+  bands.push({ points: [wrist, add(wrist, along, U * 0.16)], widths: [U * 0.16, U * 0.26] });
+  drawn.motes.push(haze(wrist, U * 0.8, tones.edge, 0.4 * pose.risen, cell * 0.4));
+  for (const band of bands) drawn.ribbons.push(edgeOf(band.points, band.widths, U * 0.06, tones, pose.risen, pose.t));
   for (const band of bands) {
     drawn.ribbons.push({
       points: band.points,

@@ -6,6 +6,7 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { prismHuesOf } from '@axe/domain/effect/scene/beam/prism-beam';
 import { nothingStaged, type Staged } from '@axe/domain/effect/scene/choreography';
 import { type EffectStagingOptions, stageEffect } from '@axe/domain/effect/scene/effect-frame';
+import { rampOf } from '@axe/domain/effect/scene/effect-ramp';
 import type { EffectRibbon } from '@axe/domain/effect/scene/effect-scene';
 
 const CELL = 50;
@@ -194,8 +195,13 @@ describe('a great beam', () => {
 describe('a beam of many hues', () => {
   const preset = beamOf({ colorPrimary: '#fff3b0', colorSecondary: '#ff4fd8', durationMs: 3000, moteStyle: 'prism' });
   const fires = effectBlowsOf(preset)[0].atMs;
-  const strandsOf = (drawn: Staged) =>
-    drawn.ribbons.filter((ribbon) => ribbon.about && ribbon.points.length > RING_POINTS && ribbon.core);
+  const hues = new Set(prismHuesOf(rampOf('#fff3b0', '#ff4fd8', 7)[1]));
+  const bandsOf = (drawn: Staged) =>
+    drawn.ribbons.filter(
+      (ribbon) => ribbon.blend === 'color' && !ribbon.about && hues.has(ribbon.color) && widest(ribbon) > CELL * 0.5
+    );
+  const heartOf = (drawn: Staged) =>
+    drawn.ribbons.find((ribbon) => ribbon.points.length === BODY_POINTS && ribbon.color === '#ffffff')!;
 
   it('takes its hues round the wheel of colour from the colour it is given, all of them apart', () => {
     const hues = prismHuesOf('#ff0000');
@@ -207,33 +213,31 @@ describe('a beam of many hues', () => {
     expect(prismHuesOf('#00ff00')[0]).not.toBe(hues[0]);
   });
 
-  it('braids five strands of five hues about a white core, each strand laid behind the core and before it', () => {
+  it('lays its colour down a thick body in wide bands of five hues, over a dark sheath and under a white heart', () => {
     const drawn = staged(preset, fires + 600);
-    const strands = strandsOf(drawn);
-    const core = drawn.ribbons.findIndex(
-      (ribbon) => ribbon.color === '#ffffff' && ribbon.points.length === BODY_POINTS
-    );
+    const bands = bandsOf(drawn);
+    const heart = drawn.ribbons.indexOf(heartOf(drawn));
+    const sheath = bodyOf(drawn).find((ribbon) => brightness(ribbon.color) < 100)!;
 
-    expect(new Set(strands.map((strand) => strand.color)).size).toBe(5);
-    expect(strands.filter((strand) => strand.half === 'far')).toHaveLength(5);
-    expect(strands.filter((strand) => strand.half === 'near')).toHaveLength(5);
-    expect(core).toBeGreaterThan(-1);
-    for (const strand of strands) expect(drawn.ribbons.indexOf(strand) < core).toBe(strand.half === 'far');
+    expect(new Set(bands.map((band) => band.color)).size).toBe(5);
+    expect(Math.max(...bands.map(widest))).toBeGreaterThan(CELL * 1.1);
+    expect(widest(sheath)).toBeGreaterThan(Math.max(...bands.map(widest)));
+    expect(drawn.ribbons.indexOf(sheath)).toBeLessThan(drawn.ribbons.indexOf(bands[0]));
+    for (const band of bands) expect(drawn.ribbons.indexOf(band)).toBeLessThan(heart);
+    expect(widest(heartOf(drawn))).toBeLessThan(Math.max(...bands.map(widest)) * 0.4);
   });
 
-  it('turns its braid as it pours, and opens it where the beam ends', () => {
-    const strand = (ms: number) => strandsOf(staged(preset, fires + ms))[0];
-    const off = (ribbon: EffectRibbon, index: number) =>
-      Math.hypot(
-        ribbon.points[index].x - ribbon.about![index].x,
-        ribbon.points[index].y - ribbon.about![index].y,
-        ribbon.points[index].z - ribbon.about![index].z
-      );
+  it('pours its bands down the beam the way it runs, each keeping its hue', () => {
+    const muzzle = heartOf(staged(preset, fires + 600)).points[0];
+    const startsOf = (ms: number, hue: string) =>
+      bandsOf(staged(preset, ms))
+        .filter((band) => band.color === hue && band.points[0].x > muzzle.x + 1)
+        .map((band) => band.points[0].x);
+    const hue = [...hues][2];
+    const before = Math.min(...startsOf(fires + 600, hue));
+    const after = startsOf(fires + 630, hue);
 
-    expect(strand(700).points[12]).not.toEqual(strand(600).points[12]);
-    expect(Math.max(...[34, 36, 38, 40].map((index) => off(strand(600), index)))).toBeGreaterThan(
-      off(strand(600), 20) * 1.3
-    );
+    expect(after.some((start) => start > before + CELL * 0.1 && start < before + CELL * 0.3)).toBe(true);
   });
 
   it('lights the floor in many hues rather than washing it in one', () => {
@@ -245,7 +249,7 @@ describe('a beam of many hues', () => {
   it('is drawn as the plain great beam where its particles name no look of a beam', () => {
     const plain = beamOf({ colorPrimary: '#fff3b0', colorSecondary: '#ff4fd8', durationMs: 3000, moteStyle: 'spark' });
 
-    expect(strandsOf(staged(plain, fires + 600))).toEqual([]);
+    expect(bandsOf(staged(plain, fires + 600))).toEqual([]);
     expect(JSON.stringify(staged(plain, fires + 600))).toBe(
       JSON.stringify(
         staged(beamOf({ colorPrimary: '#fff3b0', colorSecondary: '#ff4fd8', durationMs: 3000 }), fires + 600)

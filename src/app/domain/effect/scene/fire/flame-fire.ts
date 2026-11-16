@@ -19,12 +19,25 @@ const FLARE_LEAPS = 0.4;
 /**
  * The fire of each grade: how many tongues stand round the feet and lick up the body, how tall the
  * tongues at the feet are and how far out they stand, in cells, how many of them roar up far past the
- * rest, and how many flames break off a second.
+ * rest, how many flames break off a second, how many clouds of smoke roll off it a second, how much
+ * wider than their height has them its tongues are, how much further they leap as it catches, and how
+ * much hotter they burn.
  */
 export const FIRES = {
-  1: { feet: 4, body: 3, tall: 0.8, ring: 0.38, roaring: 0, flamelets: 6, smoke: 2 },
-  2: { feet: 6, body: 4, tall: 1.05, ring: 0.42, roaring: 0, flamelets: 12, smoke: 4 },
-  3: { feet: 8, body: 5, tall: 1.3, ring: 0.5, roaring: 3, flamelets: 18, smoke: 6 },
+  1: {
+    feet: 6,
+    body: 3,
+    tall: 0.76,
+    ring: 0.42,
+    roaring: 0,
+    flamelets: 9,
+    smoke: 4,
+    wide: 1.7,
+    flares: 2.6,
+    hot: 1.2,
+  },
+  2: { feet: 6, body: 4, tall: 1.05, ring: 0.42, roaring: 0, flamelets: 12, smoke: 4, wide: 1, flares: 1, hot: 1 },
+  3: { feet: 8, body: 5, tall: 1.3, ring: 0.5, roaring: 3, flamelets: 18, smoke: 6, wide: 1, flares: 1, hot: 1 },
 } as const;
 
 /** A tongue of flame standing about the piece: where it stands, how wide and tall, how hot, and how it flickers. */
@@ -85,10 +98,18 @@ export function heatAt(t: number, duration: number): number {
 }
 
 /** Where a tongue is rooted, which way it leans and how far it reaches at a moment, in table pixels. */
-export function tongueAt(tongue: Tongue, foot: Point, floor: Point, t: number, fierce: number, cell: number) {
+export function tongueAt(
+  tongue: Tongue,
+  foot: Point,
+  floor: Point,
+  t: number,
+  fierce: number,
+  cell: number,
+  flares = 1
+) {
   const [p1, p2, p3] = tongue.phases;
   const [w1, w2, w3] = tongue.rates;
-  const leaps = 1 + flareAt(t);
+  const leaps = 1 + flareAt(t) * flares;
   const tall =
     cell * tongue.height * fierce * leaps * (0.74 + 0.18 * Math.sin(w1 * t + p1) + 0.1 * Math.sin(w2 * t + p2));
   const leanX = -Math.cos(tongue.angle) * 0.2 + 0.14 * Math.sin(w3 * t + p3);
@@ -121,9 +142,9 @@ export function throwFire(th: Thrower, foot: Point, grade: 1 | 2 | 3, duration: 
       ((index + th.range(-0.3, 0.3)) / fire.feet) * Math.PI * 2,
       fire.ring * th.range(0.75, 1.1),
       0,
-      th.range(0.26, 0.36) * (0.7 + 0.3 * fire.tall),
+      th.range(0.26, 0.36) * (0.7 + 0.3 * fire.tall) * fire.wide,
       fire.tall * th.range(0.8, 1.2),
-      th.range(0.4, 0.66)
+      th.range(0.4, 0.66) * fire.hot
     )
   );
   const upBody = Array.from({ length: fire.body }, (_unused, index) =>
@@ -131,9 +152,9 @@ export function throwFire(th: Thrower, foot: Point, grade: 1 | 2 | 3, duration: 
       ((index + 0.5 + th.range(-0.3, 0.3)) / fire.body) * Math.PI * 2,
       fire.ring * th.range(0.45, 0.7),
       th.range(0.25, 0.75) * Math.min(1, fire.tall),
-      th.range(0.18, 0.26),
+      th.range(0.18, 0.26) * fire.wide,
       fire.tall * th.range(0.55, 0.85),
-      th.range(0.3, 0.48)
+      th.range(0.3, 0.48) * fire.hot
     )
   );
   const roaring = Array.from({ length: fire.roaring }, (_unused, index) =>
@@ -143,7 +164,7 @@ export function throwFire(th: Thrower, foot: Point, grade: 1 | 2 | 3, duration: 
       0,
       th.range(0.5, 0.62),
       fire.tall * th.range(1.35, 1.6),
-      th.range(0.55, 0.72)
+      th.range(0.55, 0.72) * fire.hot
     )
   );
   const tongues = [...roaring, ...atFeet, ...upBody];

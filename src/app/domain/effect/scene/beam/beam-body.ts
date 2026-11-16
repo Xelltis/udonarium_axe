@@ -57,6 +57,8 @@ export interface BeamPose {
   readonly line: BeamLine;
   /** How wide the sheath of its body is, in table pixels. */
   readonly wide: number;
+  /** How wide it is without its flicker, in table pixels, where that is known. */
+  readonly steady?: number;
   readonly seconds: number;
   readonly seed: number;
   /** How much of it is there, from nothing to 1. */

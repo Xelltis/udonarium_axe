@@ -2,14 +2,36 @@ import type { Staged } from '@axe/domain/effect/scene/choreography';
 import { mixColor } from '@axe/domain/effect/scene/effect-ramp';
 import { sealSeedOf } from '@axe/domain/effect/scene/effect-scene';
 import { floorMark, glow, type Point } from '@axe/domain/effect/scene/parts';
-import { layFloorLine, type SpaceTones } from '@axe/domain/effect/scene/space/space-parts';
+import { hueTone, layBoldBand } from '@axe/domain/effect/scene/space/space-bold';
 
 /*
  * The circle a summoning is written in, laid flat on the floor: a band of glyphs between rims, written
  * round by a pen of light, and a star of five points within it, traced stroke by stroke in one line by
- * the same pen, each turning its own way once it is written. Every line of it is laid four times,
- * light glowing under a deep sheath, a body of colour and a pale heart, so it holds on a bright table.
+ * the same pen, each turning its own way once it is written. A summoning is told by its own colours:
+ * bodies of the full colour of its deep colour, set on a near black, with lines of its light colour
+ * taken to gold burning through them. Every line of it is laid four times, light glowing under a heavy
+ * underlay of near black, a body of the deep colour and a gold heart, so it holds on a bright table.
  */
+
+/** The colours of a summoning: its near black, the dark of its rims, the full colour of its bodies, its gold, and the pale of its gold. */
+export interface SummonTones {
+  readonly ink: string;
+  readonly rim: string;
+  readonly body: string;
+  readonly gold: string;
+  readonly pale: string;
+}
+
+/** The colours of a summoning: its bodies of the hue of its deep colour, and its gold of the hue of its light colour. */
+export function summonTonesOf(light: string, deep: string): SummonTones {
+  return {
+    ink: hueTone(deep, 0.07, 0.7),
+    rim: hueTone(deep, 0.17, 0.85),
+    body: hueTone(deep, 0.42, 1),
+    gold: hueTone(light, 0.55, 1),
+    pale: hueTone(light, 0.82, 1),
+  };
+}
 
 /** Where the points of the star lie out from the middle of the circle, as a share of its reach: as the floor mark lays them. */
 const STAR_REACH = 0.7;
@@ -29,7 +51,7 @@ export interface CircleLook {
   readonly white: number;
   /** What picks its glyphs. */
   readonly pattern: number;
-  /** The colour of the heart of its lines: the light colour of the effect. */
+  /** The colour of the heart of its lines: the gold of the effect. */
   readonly heart: string;
 }
 
@@ -53,8 +75,8 @@ export function bandPenAt(middle: Point, reach: number, turn: number, written: n
 }
 
 /**
- * Lays one part of the circle as a mark, four times over: light glowing wide under a deep sheath, a
- * body of colour and a pale heart, since colour is laid over light.
+ * Lays one part of the circle as a mark, four times over: light glowing wide under a heavy underlay of
+ * near black, a body of the deep colour and a gold heart, since colour is laid over light.
  */
 function laySealPart(
   drawn: Staged,
@@ -63,25 +85,25 @@ function laySealPart(
   part: 'glyphs' | 'star',
   written: number,
   turn: number,
-  tones: SpaceTones,
+  tones: SummonTones,
   look: CircleLook
 ): void {
   if (written <= 0.002 || look.alpha <= 0.01) return;
   const seed = sealSeedOf(part, look.pattern, written);
   if (look.lit > 0.01) {
-    const light = mixColor(tones.glow, '#ffffff', look.white);
-    drawn.floor.push(floorMark('seal', floor, reach, 0.24, light, 0.6 * look.lit, 'light', seed, turn));
+    const light = mixColor(tones.gold, '#ffffff', look.white);
+    drawn.floor.push(floorMark('seal', floor, reach, 0.3, light, 0.32 * look.lit, 'light', seed, turn));
   }
-  drawn.floor.push(floorMark('seal', floor, reach, 0.12, tones.ink, 0.9 * look.alpha, 'color', seed, turn));
-  drawn.floor.push(floorMark('seal', floor, reach, 0.07, tones.edge, look.alpha, 'color', seed, turn));
-  const heart = mixColor(look.heart, '#ffffff', 0.15 + 0.85 * look.white);
+  drawn.floor.push(floorMark('seal', floor, reach, 0.23, tones.ink, 0.95 * look.alpha, 'color', seed, turn));
+  drawn.floor.push(floorMark('seal', floor, reach, 0.14, tones.body, look.alpha, 'color', seed, turn));
+  const heart = mixColor(look.heart, '#ffffff', 0.85 * look.white);
   drawn.floor.push(
-    floorMark('seal', floor, reach, 0.032, heart, look.alpha * Math.min(1, 0.35 + look.lit), 'color', seed, turn)
+    floorMark('seal', floor, reach, 0.06, heart, look.alpha * Math.min(1, 0.45 + look.lit), 'color', seed, turn)
   );
 }
 
 /** Lays the circle on the floor as it is seen at a moment. */
-export function layCircle(drawn: Staged, floor: Point, reach: number, tones: SpaceTones, look: CircleLook): void {
+export function layCircle(drawn: Staged, floor: Point, reach: number, tones: SummonTones, look: CircleLook): void {
   laySealPart(drawn, floor, reach, 'glyphs', look.band, look.bandTurn, tones, look);
   laySealPart(drawn, floor, reach, 'star', look.star, look.starTurn, tones, look);
 }
@@ -97,7 +119,7 @@ export function traceStar(
   turn: number,
   traced: number,
   alpha: number,
-  tones: SpaceTones,
+  tones: SummonTones,
   cell: number,
   forward: number
 ): Point | null {
@@ -112,15 +134,19 @@ export function traceStar(
     points.push({ x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share, z: floor.z });
   }
   const head = points[points.length - 1];
-  layFloorLine(drawn, points, cell * 0.11, tones.deep, tones.glow, alpha, alpha);
+  layBoldBand(
+    drawn,
+    points.map((point) => ({ ...point, z: point.z + 1 })),
+    { rim: tones.ink, body: tones.body, core: tones.gold, glow: tones.gold, lit: alpha, wide: cell * 0.2, alpha }
+  );
   if (traced < 1) drawPen(drawn, head, tones, cell, forward);
   return head;
 }
 
-/** The pen of light that writes the circle: a bright point on the floor throwing a spark or two. */
-export function drawPen(drawn: Staged, at: Point, tones: SpaceTones, cell: number, forward: number): void {
+/** The pen of light that writes the circle: a burning point of gold on the floor throwing a spark or two. */
+export function drawPen(drawn: Staged, at: Point, tones: SummonTones, cell: number, forward: number): void {
   const lifted = { x: at.x, y: at.y, z: at.z + cell * 0.06 };
-  drawn.motes.push(glow(lifted, cell * 0.9, tones.glow, 0.8, forward));
-  drawn.motes.push({ ...glow(lifted, cell * 0.5, '#ffffff', 1, forward + 1), shape: 'star', spin: at.x * 0.1 });
-  drawn.floor.push(floorMark('disc', at, cell * 0.5, 1, tones.glow, 0.6, 'light', 0));
+  drawn.motes.push(glow(lifted, cell * 1.1, tones.gold, 0.8, forward));
+  drawn.motes.push({ ...glow(lifted, cell * 0.65, '#ffffff', 1, forward + 1), shape: 'star', spin: at.x * 0.1 });
+  drawn.floor.push(floorMark('disc', at, cell * 0.55, 1, tones.gold, 0.6, 'light', 0));
 }

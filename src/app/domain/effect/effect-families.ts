@@ -29,7 +29,6 @@ export const EFFECT_FAMILY_ORDER: readonly string[] = [
   '強化',
   '撃破',
   '組み立て',
-  '範囲',
 ];
 
 const FAMILY_COLORS: Readonly<Record<string, EffectFamilyColor>> = {
