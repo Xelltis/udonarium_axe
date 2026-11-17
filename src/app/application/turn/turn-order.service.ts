@@ -465,11 +465,12 @@ export class TurnOrderService {
    *
    * A round pressed on while pieces are still waiting takes their turn away without ever
    * showing it happening, so the ones being left behind are named and the press has to be
-   * made a second time.
+   * made a second time. Asked not to ask, as by an AI that has weighed the waiting pieces itself
+   * and has nobody at the screen to answer, it moves the round on at once.
    */
-  async advanceRound(): Promise<void> {
+  async advanceRound(options: { readonly ask?: boolean } = {}): Promise<void> {
     if (!this.canTakeTurns) return;
-    if (!(await this.mayLeaveTheseBehind())) return;
+    if (options.ask !== false && !(await this.mayLeaveTheseBehind())) return;
     this.press(roundAdvance);
   }
 
