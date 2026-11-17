@@ -47,7 +47,7 @@ Axeのタブ（つないだ席の権限で実行する）
 
 - **読む** — `get_room`・`list_pieces`・`get_piece`（シートの木とチャットパレット）・`get_turn_order`・`read_chat`・`list_assets`・`read_scenario_text`・`wait_for_events`。シナリオテキストはどのピアにも届き、画面だけがGMに限っているので、`list_assets`のシナリオテキストと`read_scenario_text`もGMの席でだけ答える
 - **チャットとダイス** — `send_chat`は入力欄と同じ`ChatSendService.send`を通るので、チャットの特殊記法がそのまま効く。ダイスの式なら`diceRolled$`で行ごとの答えを3秒まで待って一緒に返し、間に合わなければ振り直さないよう添え書きを付ける（遅れた答えは`wait_for_events`に届く）。コマとして話す行はそのコマのシートを参照し、リソースも変えるので、`as`に渡せるのは席がシートを開けるコマだけ。`to`にコマの名前を渡すと、そのコマのオーナーの席への秘話になり、ほかの席がオーナーでないコマは断る。手番のコマンドに本文を続けた行は断る（本文は手番が動いたあとに非同期で送られ、AIの印が付かないため）。`roll_dice`は、ダイスボットが振れない式なら送る前に断る。シークレットは、ダイスボットがすでにシークレットと読む式でなければ頭に`S`を付ける
-- **コマとシート** — `move_piece`は`PieceStepService.step`（ドラッグと同じ着地）。`change_resource`は`:HP-5`のような行をそのコマとして送り、値が変わるのを待って前と後を返す（`ResourceEditProcessor`の記録と秘匿にそのまま乗る）。シートの値を読み書きする道具（`change_resource`・`set_sheet_value`）は、その席がシートを開けるコマ（`AgentViews.sheetOpen`）にだけ効き、`add_buff`・`remove_buff`はバフを隠していないコマにだけ効く。`advance_turn`の`next_round`は`TurnOrderService.advanceRound({ ask: false })`で、未行動のコマがいても確認を出さずに進める（画面の前に人がいないため）
+- **コマとシート** — `move_piece`は`PieceStepService.step`（ドラッグと同じ着地）。`change_resource`は`:HP-5`のような行をそのコマとして送り、値が変わるのを待って前と後を返す（`ResourceEditProcessor`の記録と秘匿にそのまま乗る）。シートの値を読み書きする道具（`change_resource`・`set_sheet_value`）は、その席がシートを開けるコマ（`AgentViews.sheetOpen`）にだけ効き、`add_buff`・`remove_buff`は、バフを隠したコマにはGMの席でだけ効く。`advance_turn`の`next_round`は`TurnOrderService.advanceRound({ ask: false })`で、未行動のコマがいても確認を出さずに進める（画面の前に人がいないため）
 - **GMの道具** — `fire_effect`はエフェクトの対象数の上限（`targetLimit`）までのコマに撃ち、残りを`not_hit`で返す。マス撃ちは`EffectCastService.fireAt`（コマのいない的）。`switch_table`はGMの切り替えと同じく卓のBGMとカットインも出す。`place_range`の`facing`は北から時計回りの角度で、射程の`rotate`は`facing - 90`（`rotate`の0は東向き）
 
 ## 起きたこと
