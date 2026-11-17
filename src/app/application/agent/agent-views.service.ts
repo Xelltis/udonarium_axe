@@ -144,7 +144,7 @@ export class AgentViews {
   }
 
   piece(piece: GameCharacter): AgentPiece {
-    const sheetOpen = this.disclosure.canView(piece);
+    const sheetOpen = this.sheetOpen(piece);
     const hidden = this.permission.canSeeHidden() && piece.stealth === '1';
     return {
       id: piece.identifier,
@@ -168,7 +168,7 @@ export class AgentViews {
 
   /** A piece's sheet as a tree of named values, or null where this seat may not open it. */
   sheet(piece: GameCharacter): readonly AgentSheetItem[] | null {
-    if (!this.disclosure.canView(piece)) return null;
+    if (!this.sheetOpen(piece)) return null;
     const root = piece.detailDataElement;
     return root ? root.children.map((item) => this.sheetItem(item)) : [];
   }
