@@ -143,10 +143,21 @@ describe('buffIconUrlOf()', () => {
     expect(buffIconUrlOf('image-1')).toBe('blob:poison');
   });
 
+  it('finds a picture the app carries, named by its path with slashes and brackets, as a die’s face is', () => {
+    const face = './assets/images/dice/6_dice/6_dice[1].png';
+    vi.spyOn(ImageStorage.instance, 'get').mockImplementation((identifier: string) =>
+      identifier === face ? ({ identifier, url: face } as ImageFile) : null
+    );
+
+    expect(buffIconUrlOf(face)).toBe(face);
+  });
+
   it('leaves a mark as a mark, since no picture goes by that name', () => {
     vi.spyOn(ImageStorage.instance, 'get').mockReturnValue(null);
 
     expect(buffIconUrlOf('☠️')).toBe('');
+    expect(buffIconUrlOf('毒')).toBe('');
+    expect(buffIconUrlOf('A')).toBe('');
     expect(buffIconUrlOf('')).toBe('');
   });
 });

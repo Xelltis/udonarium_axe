@@ -66,8 +66,12 @@ export function buffIconUrlOf(icon: string): string {
   return ImageStorage.instance.get(icon)?.url ?? '';
 }
 
-/** What a picture's name is made of, which no emoji is. */
-const IDENTIFIER_LIKE = /^[A-Za-z0-9_.:-]+$/;
+/**
+ * What a picture's name is made of, which no emoji and no word of a mark is: printable ASCII with no
+ * space. A picture brought in goes by its hash, and one the app carries, as a die's face, by its path,
+ * brackets and slashes and all.
+ */
+const IDENTIFIER_LIKE = /^[\x21-\x7e]+$/;
 
 /**
  * How many buffs the rows under a piece's buffs hold: every row of a row that holds rows of its own,
