@@ -33,6 +33,7 @@ describe('RoomSharedViewSettingsComponent', () => {
   });
 
   afterEach(() => {
+    fixture.destroy();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
     Config.forget();
   });

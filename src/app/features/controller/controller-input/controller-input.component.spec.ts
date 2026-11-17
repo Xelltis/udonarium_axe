@@ -17,6 +17,7 @@ describe('ControllerInputComponent', () => {
   });
 
   beforeEach(() => {
+    PeerCursor.createMyCursor();
     fixture = TestBed.createComponent(ControllerInputComponent);
     component = fixture.componentInstance;
   });

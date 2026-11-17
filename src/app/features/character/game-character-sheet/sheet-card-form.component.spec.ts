@@ -207,6 +207,7 @@ describe('SheetCardFormComponent', () => {
     card.faceText = 'original secret';
     card.state = CardState.BACK;
     card.owner = 'another-user';
+    fixture.componentRef.setInput('card', card);
     const textarea = document.createElement('textarea');
     textarea.value = 'attempted overwrite';
 
@@ -222,6 +223,7 @@ describe('SheetCardFormComponent', () => {
     const card = Card.create('Claimed card', 'front.png', 'back.png');
     card.faceText = 'claimed secret';
     card.owner = 'another-user';
+    fixture.componentRef.setInput('card', card);
 
     try {
       expect(component.canReadCardFace(card)).toBe(false);

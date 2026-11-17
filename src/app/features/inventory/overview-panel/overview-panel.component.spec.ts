@@ -369,9 +369,13 @@ describe('OverviewPanelComponent', () => {
       component.tabletopObject = {
         detailDataElement: { children: mockChildren },
       } as unknown as TabletopObject;
-      const result = component.dataElms;
-      expect(result.length).toBe(2);
-      expect(result.every((e) => e != null)).toBe(true);
+      try {
+        const result = component.dataElms;
+        expect(result.length).toBe(2);
+        expect(result.every((e) => e != null)).toBe(true);
+      } finally {
+        component.tabletopObject = null;
+      }
     });
 
     it('leaves them out of the ranges', () => {
@@ -379,9 +383,13 @@ describe('OverviewPanelComponent', () => {
       component.tabletopObject = {
         commonDataElement: { children: mockChildren },
       } as unknown as TabletopObject;
-      const result = component.rangeElms;
-      expect(result.length).toBe(1);
-      expect(result[0]).toBeTruthy();
+      try {
+        const result = component.rangeElms;
+        expect(result.length).toBe(1);
+        expect(result[0]).toBeTruthy();
+      } finally {
+        component.tabletopObject = null;
+      }
     });
 
     it('adds the fields the elements themselves ask to pop up', () => {

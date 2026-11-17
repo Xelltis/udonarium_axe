@@ -65,6 +65,10 @@ describe('ChatMessageComponent', () => {
   });
 
   it('should create', () => {
+    const message = new ChatMessage();
+    message.initialize();
+    fixture.componentRef.setInput('chatMessage', message);
+
     expect(component).toBeTruthy();
   });
 
@@ -814,11 +818,18 @@ describe('ChatMessageComponent', () => {
   });
 
   describe('escapeHtmlAndRuby', () => {
+    /** A line said under the given identifier, with nothing else told of it. */
+    function lineWithId(identifier: string): ChatMessage {
+      const message = new ChatMessage(identifier);
+      message.initialize();
+      return message;
+    }
+
     it('reads the version signal', () => {
       const objectChange = TestBed.inject(ObjectChangeService);
       const spy = vi.spyOn(objectChange, 'versionOf');
-      const mockMessage = { identifier: 'test-msg-id' } as ChatMessage;
-      fixture.componentRef.setInput('chatMessage', mockMessage);
+      const message = lineWithId('test-msg-id');
+      fixture.componentRef.setInput('chatMessage', message);
 
       component.escapeHtmlAndRuby('テスト');
 
@@ -826,8 +837,8 @@ describe('ChatMessageComponent', () => {
     });
 
     it('writes the ruby out in full, which lays out in every browser', () => {
-      const mockMessage = { identifier: 'ruby-msg-id' } as ChatMessage;
-      fixture.componentRef.setInput('chatMessage', mockMessage);
+      const message = lineWithId('ruby-msg-id');
+      fixture.componentRef.setInput('chatMessage', message);
 
       const result = component.escapeHtmlAndRuby('前｜漢字《かんじ》後');
 
@@ -835,8 +846,8 @@ describe('ChatMessageComponent', () => {
     });
 
     it('escapes both the text and the ruby over it', () => {
-      const mockMessage = { identifier: 'ruby-escape-msg-id' } as ChatMessage;
-      fixture.componentRef.setInput('chatMessage', mockMessage);
+      const message = lineWithId('ruby-escape-msg-id');
+      fixture.componentRef.setInput('chatMessage', message);
 
       const result = component.escapeHtmlAndRuby('｜<本文>《"ルビ"》');
 
@@ -844,8 +855,8 @@ describe('ChatMessageComponent', () => {
     });
 
     it('wraps a quoted line in a quotation', () => {
-      const mockMessage = { identifier: 'quote-msg-id' } as ChatMessage;
-      fixture.componentRef.setInput('chatMessage', mockMessage);
+      const message = lineWithId('quote-msg-id');
+      fixture.componentRef.setInput('chatMessage', message);
 
       const result = component.escapeHtmlAndRuby('hello\n> quoted line\nworld');
 
@@ -853,8 +864,8 @@ describe('ChatMessageComponent', () => {
     });
 
     it('gathers consecutive quoted lines into one', () => {
-      const mockMessage = { identifier: 'quote-msg-id-2' } as ChatMessage;
-      fixture.componentRef.setInput('chatMessage', mockMessage);
+      const message = lineWithId('quote-msg-id-2');
+      fixture.componentRef.setInput('chatMessage', message);
 
       const result = component.escapeHtmlAndRuby('> @プレイヤー\n> aaaaaaaaaa');
 
@@ -862,7 +873,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('writes a line holding a seal the same each time, so it is not drawn again for nothing', () => {
-      fixture.componentRef.setInput('chatMessage', { identifier: 'seal-msg-id' } as ChatMessage);
+      fixture.componentRef.setInput('chatMessage', lineWithId('seal-msg-id'));
 
       const first = component.escapeHtmlAndRuby('了解［了解:seal:ok］と［了解:seal:ok］');
       const again = component.escapeHtmlAndRuby('了解［了解:seal:ok］と［了解:seal:ok］');
@@ -874,7 +885,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('gives the seals of a line drawn in two places filters of their own in each', () => {
-      const message = { identifier: 'seal-msg-twice' } as ChatMessage;
+      const message = lineWithId('seal-msg-twice');
       fixture.componentRef.setInput('chatMessage', message);
       const other = TestBed.createComponent(ChatMessageComponent);
       other.componentRef.setInput('chatMessage', message);
@@ -889,7 +900,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('draws a line of stamps alone as large as a stamp sent on its own, in either layout', () => {
-      fixture.componentRef.setInput('chatMessage', { identifier: 'stamps-alone' } as ChatMessage);
+      fixture.componentRef.setInput('chatMessage', lineWithId('stamps-alone'));
       const height = (markup: string) => /height:(\d+)px/.exec(markup)?.[1];
 
       expect(height(component.escapeHtmlAndRuby('［了解:seal:ok］［了解:seal:ok］'))).toBe('96');
@@ -901,7 +912,7 @@ describe('ChatMessageComponent', () => {
     it('follows the pictures arriving only for a line holding a room picture', () => {
       const objectChange = TestBed.inject(ObjectChangeService);
       const followed = vi.spyOn(objectChange, 'fileVersion');
-      fixture.componentRef.setInput('chatMessage', { identifier: 'picture-msg-id' } as ChatMessage);
+      fixture.componentRef.setInput('chatMessage', lineWithId('picture-msg-id'));
 
       component.escapeHtmlAndRuby('ただの発言［了解:seal:ok］');
       expect(followed).not.toHaveBeenCalled();
@@ -911,8 +922,8 @@ describe('ChatMessageComponent', () => {
     });
 
     it('leaves an unquoted line alone', () => {
-      const mockMessage = { identifier: 'no-quote-msg-id' } as ChatMessage;
-      fixture.componentRef.setInput('chatMessage', mockMessage);
+      const message = lineWithId('no-quote-msg-id');
+      fixture.componentRef.setInput('chatMessage', message);
 
       const result = component.escapeHtmlAndRuby('普通のメッセージ\n>not a quote (no space)');
 

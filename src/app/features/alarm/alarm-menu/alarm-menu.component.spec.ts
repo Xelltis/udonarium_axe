@@ -21,6 +21,7 @@ describe('AlarmMenuComponent', () => {
   });
 
   beforeEach(() => {
+    PeerCursor.createMyCursor();
     fixture = TestBed.createComponent(AlarmMenuComponent);
     component = fixture.componentInstance;
   });
