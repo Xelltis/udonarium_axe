@@ -444,10 +444,12 @@ function endTurn(): Promise<void> {
 // what a test leaves to happen later, such as a render it scheduled, a timer it set or a promise it
 // left rejected, would go off in another test or not at all, and anything it threw would be put down
 // to that test or to none. The turn is taken while the test's page is still up, so it comes in the
-// test that left it.
+// test that left it. A render that runs in the turn may ask for a part of its own, which is waited
+// for in turn: the last test of a file would otherwise leave it arriving as the page is taken down.
 afterEach(async () => {
   await lazyLoadsSettled();
   await endTurn();
+  await lazyLoadsSettled();
 });
 
 beforeEach(async () => {
