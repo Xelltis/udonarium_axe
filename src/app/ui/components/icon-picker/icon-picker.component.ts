@@ -1,10 +1,12 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
   ElementRef,
   inject,
+  Injector,
   input,
   output,
   signal,
@@ -23,7 +25,8 @@ const LIST_MIN_HEIGHT = 200;
  *
  * The names run into the thousands, so nothing is offered until something is typed; before that
  * the caller's own marks stand in, which are the ones somebody is most likely to want. Typing
- * searches the whole catalogue.
+ * searches the whole catalogue. The marks are drawn only while the list stands open, since a panel
+ * may hold a picker on every row and each would otherwise carry its whole list unseen.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,6 +38,7 @@ const LIST_MIN_HEIGHT = 200;
 export class IconPickerComponent {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
 
   private readonly popoverRef = viewChild.required<ElementRef<HTMLElement>>('popover');
   private readonly searchRef = viewChild<ElementRef<HTMLInputElement>>('search');
@@ -83,11 +87,19 @@ export class IconPickerComponent {
    * Opens the list of marks, or closes it if it is open.
    *
    * The search starts empty each time, so the list opens on the marks close to hand rather than on
-   * whatever was last hunted for.
+   * whatever was last hunted for. The marks are only drawn once it stands open, so it is put in
+   * place again after they are, by the height it has with them in it.
    */
   protected toggle(): void {
     this.query.set('');
-    if (this.list.toggle()) this.searchRef()?.nativeElement.focus();
+    if (!this.list.toggle()) return;
+    this.searchRef()?.nativeElement.focus();
+    afterNextRender(
+      () => {
+        if (this.isOpen()) this.list.place();
+      },
+      { injector: this.injector }
+    );
   }
 
   /** Hides the list; nothing when it is already closed. */

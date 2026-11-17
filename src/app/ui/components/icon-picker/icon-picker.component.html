@@ -45,20 +45,22 @@
     role="listbox"
     data-testid="icon-picker-list"
   >
-    @for (name of matches(); track name) {
-      <button
-        type="button"
-        class="rounded-ui-sm hover:bg-ui-menu-hover hover:text-ui-accent text-ui-text flex size-8 cursor-pointer items-center justify-center border border-solid border-transparent bg-transparent transition-colors [&_i]:text-[20px]!"
-        [class.border-ui-accent]="name === value()"
-        [class.bg-ui-selected]="name === value()"
-        role="option"
-        [attr.aria-selected]="name === value()"
-        [title]="name"
-        [attr.data-testid]="'icon-picker-choice-' + name"
-        (click)="pick(name)"
-      >
-        <i class="material-icons">{{ name }}</i>
-      </button>
+    @if (isOpen()) {
+      @for (name of matches(); track name) {
+        <button
+          type="button"
+          class="rounded-ui-sm hover:bg-ui-menu-hover hover:text-ui-accent text-ui-text flex size-8 cursor-pointer items-center justify-center border border-solid border-transparent bg-transparent transition-colors [&_i]:text-[20px]!"
+          [class.border-ui-accent]="name === value()"
+          [class.bg-ui-selected]="name === value()"
+          role="option"
+          [attr.aria-selected]="name === value()"
+          [title]="name"
+          [attr.data-testid]="'icon-picker-choice-' + name"
+          (click)="pick(name)"
+        >
+          <i class="material-icons">{{ name }}</i>
+        </button>
+      }
     }
   </div>
 
