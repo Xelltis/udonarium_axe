@@ -20,7 +20,7 @@ import { checkAgentInput } from '@axe/core/agent/agent-schema';
 import type { AgentToolDefinition } from '@axe/core/agent/agent-tools';
 
 import type { CallOutcome } from '../tab-link';
-import { costOf, promptTokensOf } from './gm-models';
+import { costOf, isPriced, promptTokensOf, tokensOf } from './gm-models';
 
 /** The part of the API the game master uses, so that a stand-in can take its place in the specs. */
 export interface GmApi {
@@ -42,6 +42,10 @@ export interface GmLedger {
   spentUsd: number;
   /** The most the bridge spends while it runs, or Infinity for no limit. */
   readonly limitUsd: number;
+  /** The tokens models with no price have used while the bridge has run. */
+  spentTokens: number;
+  /** The most tokens such models use while the bridge runs, or Infinity for no limit. */
+  readonly limitTokens: number;
 }
 
 /** Hands a tool call to the tab, as the bridge's link does. */
@@ -139,7 +143,7 @@ export class GameMaster {
     private readonly call: GmTabCall,
     private readonly hooks: GmHooks,
     start: { readonly settings: GmSettings; readonly instructions: string; readonly notes: string },
-    private readonly ledger: GmLedger = { spentUsd: 0, limitUsd: Infinity }
+    private readonly ledger: GmLedger = { spentUsd: 0, limitUsd: Infinity, spentTokens: 0, limitTokens: Infinity }
   ) {
     this.settings = start.settings;
     this.instructions = start.instructions;
@@ -157,6 +161,11 @@ export class GameMaster {
 
   get budgetUsd(): number {
     return this.settings.budgetUsd;
+  }
+
+  /** Whether what the model run costs is known, so that it is held by dollars rather than by tokens. */
+  get priced(): boolean {
+    return isPriced(this.settings.model);
   }
 
   /**
@@ -285,7 +294,8 @@ export class GameMaster {
       // Another model took over meanwhile, and cannot read this conversation's thinking.
       if (this.conversation !== conversation) return { kind: 'done' };
       if (this.ledger.spentUsd >= this.ledger.limitUsd) return { kind: 'budget', of: 'bridge' };
-      if (this.spentUsd >= this.settings.budgetUsd) return { kind: 'budget', of: 'start' };
+      if (this.priced && this.spentUsd >= this.settings.budgetUsd) return { kind: 'budget', of: 'start' };
+      if (!this.priced && this.ledger.spentTokens >= this.ledger.limitTokens) return { kind: 'budget', of: 'bridge' };
       let message: Anthropic.Message;
       try {
         message = await this.ask(conversation, signal);
@@ -307,7 +317,7 @@ export class GameMaster {
       if (message.stop_reason !== 'tool_use' || calls.length === 0) {
         // A response cut off or refused may end on a call that cannot be trusted: it is answered, not run.
         if (calls.length > 0) conversation.messages.push({ role: 'user', content: this.unrun(calls, 'was cut off') });
-        if (message.stop_reason === 'refusal') return { kind: 'failed', message: 'Claude declined to go on.' };
+        if (message.stop_reason === 'refusal') return { kind: 'failed', message: 'The model declined to go on.' };
         if (message.stop_reason === 'max_tokens') return { kind: 'failed', message: 'The response was cut off.' };
         if (message.stop_reason === 'model_context_window_exceeded') this.contextTokens = Number.MAX_SAFE_INTEGER;
         return { kind: 'done' };
@@ -326,11 +336,15 @@ export class GameMaster {
     return { kind: 'done' };
   }
 
-  /** Counts what a response cost against this start and against the bridge. */
+  /**
+   * Counts what a response cost against this start and against the bridge: in dollars for a model whose
+   * prices are known, and in tokens against the bridge for one whose are not.
+   */
   private charge(usage: Anthropic.Usage): void {
     const cost = costOf(this.settings.model, usage);
     this.spentUsd += cost;
     this.ledger.spentUsd += cost;
+    if (!this.priced) this.ledger.spentTokens += tokensOf(usage);
   }
 
   /** Sends the conversation and waits for the whole response, asking again for one it could not read. */

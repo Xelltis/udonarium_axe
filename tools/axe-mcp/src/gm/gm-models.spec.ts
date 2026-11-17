@@ -1,8 +1,8 @@
-import { costOf, GM_MODEL_OFFERS, isGmModel, promptTokensOf } from './gm-models';
+import { costOf, gmModelOffers, isGmModel, promptTokensOf } from './gm-models';
 
 describe('the models the game master runs on', () => {
   it('offers the current Opus first, then Sonnet and Haiku', () => {
-    expect(GM_MODEL_OFFERS.map((model) => model.id)).toEqual([
+    expect(gmModelOffers().map((model) => model.id)).toEqual([
       'claude-opus-5-5',
       'claude-sonnet-5-5',
       'claude-haiku-5-5',

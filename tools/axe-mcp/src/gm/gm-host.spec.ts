@@ -4,7 +4,7 @@ import { TabLink } from '../tab-link';
 import { TestTab, until } from '../test-tab';
 import { FakeApi, reply, toolUse } from './fake-api';
 import { GmHost } from './gm-host';
-import { GM_MODEL_OFFERS } from './gm-models';
+import { CLAUDE_MODELS, gmModelOffers, namedModel, useGmModels } from './gm-models';
 
 const GM: AgentSeat = { name: 'AI GM', role: 'gm', scope: 'write' };
 const SETTINGS = { model: 'claude-opus-5-5', effort: 'medium', budgetUsd: 5 };
@@ -23,7 +23,7 @@ describe('GmHost', () => {
       bridge: '1.80.0',
       log: () => undefined,
       mode: 'gm',
-      models: GM_MODEL_OFFERS,
+      models: gmModelOffers(),
       tabGraceMs: 0,
     });
     api = new FakeApi();
@@ -32,6 +32,7 @@ describe('GmHost', () => {
   });
 
   afterEach(async () => {
+    useGmModels(CLAUDE_MODELS);
     host.close();
     for (const tab of tabs.splice(0)) tab.close();
     await link.close();
@@ -84,7 +85,7 @@ describe('GmHost', () => {
     await until(() => lastStatus(tab)?.problem?.includes('claude-other') === true);
     expect(api.sent).toEqual([]);
 
-    tab.say({ type: 'gm.start', settings: { ...SETTINGS, model: 'x'.repeat(5000) }, instructions: '', notes: '' });
+    tab.say({ type: 'gm.start', settings: { ...SETTINGS, model: 'x'.repeat(100) }, instructions: '', notes: '' });
     await until(() => lastStatus(tab)?.problem?.includes('xxx') === true);
     expect(lastStatus(tab)?.problem).toBe(`This bridge does not run ${'x'.repeat(100)}.`);
     expect(lastStatus(tab)?.starts).toBe(3);
@@ -222,7 +223,7 @@ describe('GmHost', () => {
       bridge: '1.80.0',
       log: () => undefined,
       mode: 'gm',
-      models: GM_MODEL_OFFERS,
+      models: gmModelOffers(),
       tabGraceMs: 0,
     });
     host = new GmHost({ link, api, log: () => undefined, quietMs: 40, longestWaitMs: 150, maxUsd: 0.05 });
@@ -237,6 +238,41 @@ describe('GmHost', () => {
     expect(lastStatus(tab)).toMatchObject({ halted: 'budget', problem: expect.stringContaining('--max-usd') });
 
     tab.say({ type: 'gm.start', settings: { ...SETTINGS, budgetUsd: 1000 }, instructions: '', notes: '' });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(lastStatus(tab)).toMatchObject({ run: 'off' });
+    expect(api.sent).toHaveLength(1);
+  });
+
+  it('holds a model with no price by the tokens it uses, telling them in place of dollars', async () => {
+    host.close();
+    await link.close();
+    useGmModels([namedModel('llama-at-hand', null)]);
+    link = new TabLink({
+      port: 0,
+      origins: ['http://localhost:4200'],
+      bridge: '1.80.0',
+      log: () => undefined,
+      mode: 'gm',
+      models: gmModelOffers(),
+      tabGraceMs: 0,
+    });
+    host = new GmHost({ link, api, log: () => undefined, quietMs: 40, longestWaitMs: 150, maxTokens: 10_000 });
+    port = await link.listen();
+    const tab = await connect();
+    await until(() => lastStatus(tab) !== undefined);
+    expect(lastStatus(tab)?.tokens).toEqual({ spent: 0, limit: 10_000 });
+
+    const settings = { ...SETTINGS, model: 'llama-at-hand', budgetUsd: 0.0001 };
+    api.replies.push(reply([], 'end_turn', { input_tokens: 9000, output_tokens: 2000 }));
+    tab.say({ type: 'gm.start', settings, instructions: '', notes: '' });
+    await until(() => api.sent.length === 1 && lastStatus(tab)?.run === 'waiting');
+    // What it spent is not known, so the dollars of the start do not stop it: the tokens do.
+    expect(lastStatus(tab)).toMatchObject({ spentUsd: 0, tokens: { spent: 11_000, limit: 10_000 } });
+
+    tab.say({ type: 'gm.nudge', direction: '' });
+    await until(() => lastStatus(tab)?.halted !== undefined);
+    expect(lastStatus(tab)).toMatchObject({ halted: 'budget', problem: expect.stringContaining('--max-tokens') });
+    tab.say({ type: 'gm.start', settings, instructions: '', notes: '' });
     await new Promise((resolve) => setTimeout(resolve, 60));
     expect(lastStatus(tab)).toMatchObject({ run: 'off' });
     expect(api.sent).toHaveLength(1);

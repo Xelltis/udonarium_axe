@@ -1,6 +1,12 @@
 import { AGENT_BRIDGE_PORT } from '@axe/core/agent/agent-protocol';
 
-import { DEFAULT_ORIGINS, GM_MAX_USD_DEFAULT, readOptions } from './options';
+import {
+  DEFAULT_ORIGINS,
+  GM_MAX_TOKENS_DEFAULT,
+  GM_MAX_USD_DEFAULT,
+  OPENAI_BASE_URL_DEFAULT,
+  readOptions,
+} from './options';
 
 describe('readOptions', () => {
   it('waits for a tab on the usual port, speaks MCP over standard input and output, and trusts the pages Axe is served from', () => {
@@ -11,9 +17,63 @@ describe('readOptions', () => {
       origins: DEFAULT_ORIGINS,
       token: null,
       maxUsd: GM_MAX_USD_DEFAULT,
+      provider: 'claude',
+      baseUrl: OPENAI_BASE_URL_DEFAULT,
+      models: [],
+      price: null,
+      maxTokens: GM_MAX_TOKENS_DEFAULT,
       help: false,
       version: false,
     });
+  });
+
+  it('runs the game master on another provider’s models, at its address, priced or counted in tokens', () => {
+    expect(
+      readOptions(
+        [
+          'gm',
+          '--provider',
+          'openai',
+          '--base-url',
+          'http://127.0.0.1:11434/v1/',
+          '--model',
+          'llama3.3',
+          '--model',
+          'qwen3',
+          '--model',
+          'llama3.3',
+          '--max-tokens',
+          '500000',
+        ],
+        {}
+      )
+    ).toMatchObject({
+      mode: 'gm',
+      provider: 'openai',
+      baseUrl: 'http://127.0.0.1:11434/v1',
+      models: ['llama3.3', 'qwen3'],
+      price: null,
+      maxTokens: 500000,
+    });
+    expect(readOptions(['gm', '--provider', 'openai', '--model', 'gpt-test', '--price', '2.5,10'], {})).toMatchObject({
+      baseUrl: OPENAI_BASE_URL_DEFAULT,
+      price: { input: 2.5, output: 10 },
+    });
+  });
+
+  it('says what is wrong with the options of another provider', () => {
+    const errorOf = (argv: string[]) => {
+      const read = readOptions(argv, {});
+      return 'error' in read ? read.error : '';
+    };
+
+    expect(errorOf(['gm', '--provider', 'gemini'])).toContain('claude or openai');
+    expect(errorOf(['gm', '--provider', 'openai'])).toContain('--model');
+    expect(errorOf(['--provider', 'openai', '--model', 'm'])).toContain('goes with gm');
+    expect(errorOf(['gm', '--model', 'm'])).toContain('--provider openai');
+    expect(errorOf(['gm', '--provider', 'openai', '--model', 'm', '--price', '2'])).toContain('two sums');
+    expect(errorOf(['gm', '--provider', 'openai', '--model', 'm', '--base-url', 'ftp://x'])).toContain('web address');
+    expect(errorOf(['gm', '--max-tokens', '0'])).toContain('above 0');
   });
 
   it('takes another port, HTTP, more pages and a token', () => {

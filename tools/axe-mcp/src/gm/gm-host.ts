@@ -2,7 +2,7 @@ import type { GmHalt, GmRun, GmStatus, GmTabMessage } from '@axe/core/agent/agen
 
 import type { TabLink } from '../tab-link';
 import { GameMaster, type GmApi, type GmLedger, type TurnEnd, type TurnReason } from './game-master';
-import { isGmModel } from './gm-models';
+import { isGmModel, isPriced, noneIsPriced } from './gm-models';
 
 export interface GmHostOptions {
   readonly link: TabLink;
@@ -14,6 +14,8 @@ export interface GmHostOptions {
   readonly longestWaitMs?: number;
   /** The most the bridge spends while it runs, over every start, whatever the tab asks; none if left out. */
   readonly maxUsd?: number;
+  /** The most tokens models with no price use while the bridge runs, over every start; none if left out. */
+  readonly maxTokens?: number;
 }
 
 /** How long the room must stay quiet, unless told otherwise: long enough for a roll to come back. */
@@ -51,7 +53,12 @@ export class GmHost {
   private readonly ledger: GmLedger;
 
   constructor(private readonly options: GmHostOptions) {
-    this.ledger = { spentUsd: 0, limitUsd: options.maxUsd ?? Infinity };
+    this.ledger = {
+      spentUsd: 0,
+      limitUsd: options.maxUsd ?? Infinity,
+      spentTokens: 0,
+      limitTokens: options.maxTokens ?? Infinity,
+    };
     options.link.onGm((message) => this.hear(message));
     options.link.onChange((tab) => {
       if (tab && this.run !== 'off' && !this.seatMayRun()) {
@@ -72,6 +79,7 @@ export class GmHost {
 
   /** How the game master stands, as the tab is told it. */
   status(): GmStatus {
+    const tokens = this.tokensTold();
     return {
       run: this.run,
       ...(this.halted ? { halted: this.halted } : {}),
@@ -81,6 +89,7 @@ export class GmHost {
       contextTokens: this.master?.contextTokens ?? 0,
       kept: this.master?.kept ?? false,
       ...(this.problem ? { problem: this.problem } : {}),
+      ...(tokens ? { tokens } : {}),
       starts: this.starts,
     };
   }
@@ -154,8 +163,9 @@ export class GmHost {
       this.tell();
       return;
     }
-    if (this.ledger.spentUsd >= this.ledger.limitUsd) {
-      this.problem = this.bridgeSpent();
+    const priced = isPriced(message.settings.model);
+    if (this.ledger.spentUsd >= this.ledger.limitUsd || (!priced && this.tokensSpent())) {
+      this.problem = this.bridgeSpent(priced);
       this.tell();
       return;
     }
@@ -257,7 +267,7 @@ export class GmHost {
         }
         break;
       case 'budget':
-        if (end.of === 'bridge') this.problem = this.bridgeSpent();
+        if (end.of === 'bridge') this.problem = this.bridgeSpent(this.master?.priced ?? true);
         this.halt('budget');
         return;
       case 'key':
@@ -294,11 +304,30 @@ export class GmHost {
     this.tell();
   }
 
-  private bridgeSpent(): string {
+  /** Whether the models with no price have used the tokens the bridge lets them. */
+  private tokensSpent(): boolean {
+    return this.ledger.spentTokens >= this.ledger.limitTokens;
+  }
+
+  /** Why the bridge runs no further: its dollars spent, or for a model with no price its tokens used. */
+  private bridgeSpent(priced: boolean): string {
+    if (!priced && this.tokensSpent()) {
+      return (
+        `The bridge has used the ${this.ledger.limitTokens} tokens it may use while it runs. ` +
+        'Start the bridge again, with a larger --max-tokens if need be, to go on.'
+      );
+    }
     return (
       `The bridge has spent the $${this.ledger.limitUsd} it may spend while it runs. ` +
       'Start the bridge again, with a larger --max-usd if need be, to go on.'
     );
+  }
+
+  /** The tokens told to the tab in place of dollars, while the model run, or every model offered, has no price. */
+  private tokensTold(): GmStatus['tokens'] {
+    const unpriced = this.master ? !this.master.priced : noneIsPriced();
+    if (!unpriced || !Number.isFinite(this.ledger.limitTokens)) return undefined;
+    return { spent: this.ledger.spentTokens, limit: this.ledger.limitTokens };
   }
 
   private tell(): void {

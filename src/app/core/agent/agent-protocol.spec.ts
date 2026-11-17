@@ -46,6 +46,7 @@ describe('readBridgeMessage', () => {
       contextTokens: 12000,
       kept: true,
       problem: 'out of budget',
+      tokens: { spent: 1200, limit: 2000000 },
       starts: 2,
     };
     expect(readBridgeMessage({ type: 'gm.status', status })).toEqual({ type: 'gm.status', status });

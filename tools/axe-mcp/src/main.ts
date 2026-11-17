@@ -2,11 +2,13 @@ import Anthropic from '@anthropic-ai/sdk';
 import { AGENT_BRIDGE_PATH } from '@axe/core/agent/agent-protocol';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
+import type { GmApi } from './gm/game-master';
 import { GmHost } from './gm/gm-host';
-import { GM_MODEL_OFFERS } from './gm/gm-models';
+import { gmModelOffers, namedModel, useGmModels } from './gm/gm-models';
+import { openAiApi } from './gm/openai-api';
 import { serveMcpOverHttp } from './http';
 import { createMcpServer } from './mcp-server';
-import { readOptions, USAGE } from './options';
+import { type BridgeOptions, readOptions, USAGE } from './options';
 import { TabLink } from './tab-link';
 
 declare const __AXE_VERSION__: string | undefined;
@@ -36,7 +38,7 @@ async function main(): Promise<void> {
   }
 
   if (options.mode === 'gm') {
-    await runGameMaster(options.port, options.origins, options.maxUsd);
+    await runGameMaster(options);
     return;
   }
 
@@ -70,25 +72,44 @@ async function main(): Promise<void> {
 }
 
 /**
- * Runs the game master: Claude through the API, with the key from the environment, acting on the tab
- * that connects. It runs until stopped with Ctrl+C, as nothing speaks to it on standard input.
+ * The way to the provider the game master is run on, with the key from the environment: Claude's API,
+ * or the chat completions API of another, whose models are offered by the names given at the start.
  */
-async function runGameMaster(tabPort: number, origins: readonly string[], maxUsd: number): Promise<void> {
+function gameMasterApi(options: BridgeOptions): GmApi {
+  if (options.provider === 'openai') {
+    useGmModels(options.models.map((name) => namedModel(name, options.price)));
+    return openAiApi({ baseUrl: options.baseUrl, apiKey: process.env['AXE_GM_API_KEY']?.trim() ?? '' });
+  }
   if (!process.env['ANTHROPIC_API_KEY']?.trim()) {
     log('gm needs a Claude API key: set ANTHROPIC_API_KEY before starting the bridge.');
     process.exit(2);
   }
   const client = new Anthropic({ maxRetries: 2 });
-  const link = new TabLink({ port: tabPort, origins, bridge: VERSION, log, mode: 'gm', models: GM_MODEL_OFFERS });
-  const host = new GmHost({
-    link,
-    api: { stream: (body, options) => client.messages.stream(body, options) },
+  return { stream: (body, sending) => client.messages.stream(body, sending) };
+}
+
+/**
+ * Runs the game master: an AI through its provider's API, acting on the tab that connects. It runs
+ * until stopped with Ctrl+C, as nothing speaks to it on standard input.
+ */
+async function runGameMaster(options: BridgeOptions): Promise<void> {
+  const api = gameMasterApi(options);
+  const link = new TabLink({
+    port: options.port,
+    origins: options.origins,
+    bridge: VERSION,
     log,
-    maxUsd,
+    mode: 'gm',
+    models: gmModelOffers(),
   });
+  const host = new GmHost({ link, api, log, maxUsd: options.maxUsd, maxTokens: options.maxTokens });
   const port = await link.listen();
   log(`Axe game master ${VERSION}: waiting for a tab of Axe at ws://127.0.0.1:${port}${AGENT_BRIDGE_PATH}`);
-  log(`It spends at most $${maxUsd} while it runs (--max-usd).`);
+  if (options.provider === 'openai') log(`It runs ${options.models.join(', ')} at ${options.baseUrl}.`);
+  log(`It spends at most $${options.maxUsd} while it runs (--max-usd).`);
+  if (options.provider === 'openai' && !options.price) {
+    log(`No price was given, so it uses at most ${options.maxTokens} tokens while it runs (--max-tokens).`);
+  }
   const stop = () => {
     host.close();
     void link.close().then(() => process.exit(0));

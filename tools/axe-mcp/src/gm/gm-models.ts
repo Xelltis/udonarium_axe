@@ -9,15 +9,16 @@ interface Prices {
   readonly output: number;
 }
 
-/** A model the game master can be run on, with what it costs. */
-interface GmModel extends GmModelOffer {
-  readonly prices: Prices;
+/** A model the game master can be run on, with what it costs where that is known. */
+export interface GmModel extends GmModelOffer {
+  /** What it costs, or null for a model whose prices the bridge was not told: its use is counted in tokens. */
+  readonly prices: Prices | null;
   /** Above this many tokens of prompt a request is charged at the dearer prices, where the model has them. */
   readonly longPrompt?: { readonly over: number; readonly prices: Prices };
 }
 
-/** The models offered, best first, at the prices of the pricing page as read on 2026-11-17. */
-const GM_MODELS: readonly GmModel[] = [
+/** Claude's models, best first, at the prices of the pricing page as read on 2026-11-17. */
+export const CLAUDE_MODELS: readonly GmModel[] = [
   {
     id: 'claude-opus-5-5',
     name: 'Claude Opus 5.5',
@@ -36,12 +37,48 @@ const GM_MODELS: readonly GmModel[] = [
   },
 ];
 
+/** The models the bridge runs: Claude's unless it was started on another provider's. */
+let models: readonly GmModel[] = CLAUDE_MODELS;
+
+/** Has the bridge run these models from now on, as the provider it was started on offers them. */
+export function useGmModels(offered: readonly GmModel[]): void {
+  models = offered;
+}
+
+/**
+ * A model of a provider the bridge has no table of prices for, by the name the provider knows it by:
+ * priced as told when the bridge was started, in US dollars for a million tokens read and written, or
+ * not priced at all.
+ */
+export function namedModel(id: string, price: { readonly input: number; readonly output: number } | null): GmModel {
+  const prices = price && {
+    input: price.input,
+    write5m: price.input,
+    write1h: price.input,
+    read: price.input,
+    output: price.output,
+  };
+  return { id, name: id, prices };
+}
+
 /** The models as the panel offers them. */
-export const GM_MODEL_OFFERS: readonly GmModelOffer[] = GM_MODELS.map(({ id, name }) => ({ id, name }));
+export function gmModelOffers(): readonly GmModelOffer[] {
+  return models.map(({ id, name }) => ({ id, name }));
+}
 
 /** Whether the bridge runs a model. */
 export function isGmModel(id: string): boolean {
-  return GM_MODELS.some((model) => model.id === id);
+  return models.some((model) => model.id === id);
+}
+
+/** Whether what a model costs is known, so that its use is counted in dollars rather than in tokens. */
+export function isPriced(id: string): boolean {
+  return models.some((model) => model.id === id && model.prices !== null);
+}
+
+/** Whether the bridge knows what none of its models costs, as with a provider it was told no prices for. */
+export function noneIsPriced(): boolean {
+  return models.every((model) => model.prices === null);
 }
 
 /** The tokens a response was charged for, as its usage tells them. */
@@ -61,10 +98,18 @@ export function promptTokensOf(usage: ChargedTokens): number {
   return usage.input_tokens + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0);
 }
 
-/** What a response cost in US dollars, as reckoned from its usage; an unknown model costs nothing reckoned. */
+/** Every token a response was charged for: the whole prompt and what was written. */
+export function tokensOf(usage: ChargedTokens): number {
+  return promptTokensOf(usage) + usage.output_tokens;
+}
+
+/**
+ * What a response cost in US dollars, as reckoned from its usage; a model that is unknown or has no
+ * prices costs nothing reckoned, and is held by the tokens it uses instead.
+ */
 export function costOf(modelId: string, usage: ChargedTokens): number {
-  const model = GM_MODELS.find((each) => each.id === modelId);
-  if (!model) return 0;
+  const model = models.find((each) => each.id === modelId);
+  if (!model?.prices) return 0;
   const prices =
     model.longPrompt && promptTokensOf(usage) > model.longPrompt.over ? model.longPrompt.prices : model.prices;
   const written = usage.cache_creation_input_tokens ?? 0;

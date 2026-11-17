@@ -7,6 +7,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { GM_DEFAULT_SETTINGS } from '@axe/core/agent/agent-gm';
 import {
   GM_INSTRUCTIONS_MAX,
+  GM_MODEL_NAME_MAX,
   GM_NOTES_MAX,
   type GmBridgeMessage,
   type GmEffort,
@@ -74,7 +75,7 @@ export function readAiGmPreferences(raw: string | null): AiGmPreferences {
   }
   const settings = (stored['settings'] ?? {}) as Record<string, unknown>;
   const budget = typeof settings['budgetUsd'] === 'number' ? settings['budgetUsd'] : NaN;
-  const model = textOf(settings['model'], 100);
+  const model = textOf(settings['model'], GM_MODEL_NAME_MAX);
   const effort = EFFORTS.find((each) => each === settings['effort']);
   return {
     settings: {

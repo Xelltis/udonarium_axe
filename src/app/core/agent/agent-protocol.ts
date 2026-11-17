@@ -9,7 +9,7 @@
  */
 
 /** The version of the talk. Raised on any change to the messages; the tools' definitions are compared by their digest. */
-export const AGENT_PROTOCOL_VERSION = 3;
+export const AGENT_PROTOCOL_VERSION = 4;
 
 /** The port the bridge waits for a tab on, unless told another. */
 export const AGENT_BRIDGE_PORT = 47610;
@@ -108,12 +108,19 @@ export interface GmStatus {
   /** What went wrong last, for the panel to show. */
   readonly problem?: string;
   /**
+   * For a model whose prices the bridge does not know: the tokens used while the bridge has run, and
+   * the most it may use, which hold it in place of the sums of dollars. Left out for a priced model.
+   */
+  readonly tokens?: { readonly spent: number; readonly limit: number };
+  /**
    * How many askings to start the bridge has answered since it was started itself. A tab that asked
    * tells the answer to its asking, which counts one more, from what the bridge told of itself before.
    */
   readonly starts: number;
 }
 
+/** The longest the name of a model may be. */
+export const GM_MODEL_NAME_MAX = 100;
 /** The longest the game master's instructions may be. */
 export const GM_INSTRUCTIONS_MAX = 50_000;
 /** The longest the game master's notebook may be. */
@@ -250,7 +257,7 @@ function modelsOf(raw: unknown): GmModelOffer[] | null {
 /** Settings as a tab sent them, or null where one is missing or out of bounds. */
 export function readGmSettings(raw: unknown): GmSettings | null {
   const settings = recordOf(raw);
-  if (!settings || !isText(settings['model']) || settings['model'] === '') return null;
+  if (!settings || !textUpTo(settings['model'], GM_MODEL_NAME_MAX) || settings['model'] === '') return null;
   const effort = settings['effort'];
   const budget = settings['budgetUsd'];
   if (!EFFORTS.includes(effort as GmEffort)) return null;
@@ -267,6 +274,8 @@ function statusOf(raw: unknown): GmStatus | null {
   if (halted !== undefined && !HALTS.includes(halted as GmHalt)) return null;
   const problem = status['problem'];
   if (problem !== undefined && !isText(problem)) return null;
+  const tokens = status['tokens'] === undefined ? undefined : recordOf(status['tokens']);
+  if (tokens === null || (tokens && (!isCount(tokens['spent']) || !isCount(tokens['limit'])))) return null;
   return {
     run: status['run'] as GmRun,
     ...(halted === undefined ? {} : { halted: halted as GmHalt }),
@@ -276,6 +285,7 @@ function statusOf(raw: unknown): GmStatus | null {
     contextTokens: status['contextTokens'],
     kept: status['kept'],
     ...(problem === undefined ? {} : { problem }),
+    ...(tokens ? { tokens: { spent: tokens['spent'] as number, limit: tokens['limit'] as number } } : {}),
     starts: status['starts'],
   };
 }
