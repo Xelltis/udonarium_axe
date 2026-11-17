@@ -10,6 +10,7 @@ import {
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { LYING_LIFT_PX } from '@axe/domain/tabletop/world/table-sprites';
 import { PEER_MENU_WIDTH, START_PANEL_LEFT } from '@axe/features/panels/room-panel.service';
 import { firstTableView, firstViewPoints } from '@axe/features/tabletop/game-table/first-table-view';
 
@@ -60,7 +61,7 @@ describe('the view a first table opens with', () => {
     const board = table.whiteBoards[0];
 
     expect(firstViewPoints(table)).toEqual(
-      expect.arrayContaining([expect.objectContaining({ x: 0, y: -board.height * table.gridSize, z: 0 })])
+      expect.arrayContaining([expect.objectContaining({ x: 0, y: -board.height * table.gridSize, z: LYING_LIFT_PX })])
     );
   });
 

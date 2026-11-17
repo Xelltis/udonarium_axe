@@ -25,7 +25,7 @@ function frontOf(sprite: TableWorldSprite): { x: number; y: number; z: number } 
 }
 
 describe('the sprite a white board is drawn with', () => {
-  it('lays the picture of its face over the whole face of a board lying flat, in the order of lying things', () => {
+  it('lays the picture of its face over the whole face of a board lying flat, as far off the floor as anything lying flat', () => {
     const [face] = whiteBoardSprites({ id: 'board', frame: frameOf(0), picture: PICTURE, ...LOOK });
 
     expect(face).toMatchObject({ id: 'board#face', kind: 'white-board', widthPx: 200, heightPx: 100 });
