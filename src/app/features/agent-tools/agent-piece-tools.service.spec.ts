@@ -101,6 +101,36 @@ describe('AgentPieceTools', () => {
     expect(say).toHaveBeenLastCalledWith(':体力^=20', goblin.identifier, '', '', signal);
   });
 
+  it('neither reads nor changes a resource of a piece whose sheet the seat may not open', async () => {
+    const dragon = pieceAt('ドラゴン', 1, 1);
+    hp(dragon, 250, 300);
+    PeerCursor.myCursor.role = PeerRole.Player;
+    vi.spyOn(views, 'sheet').mockReturnValue(null);
+    const say = vi.spyOn(TestBed.inject(AgentChatTools), 'say');
+
+    await expect(call('change_resource', { piece: 'ドラゴン', name: '体力', by: 0 })).rejects.toThrow(
+      'This seat may not open the sheet of ドラゴン.'
+    );
+    await expect(call('change_resource', { piece: 'ドラゴン', name: '体力', by: -1 })).rejects.toThrow(AgentToolError);
+    expect(say).not.toHaveBeenCalled();
+  });
+
+  it('neither adds nor takes off a buff of a piece that keeps its buffs from the seat', async () => {
+    const dragon = pieceAt('ドラゴン', 1, 1);
+    dragon.hideBuff = true;
+    dragon.buffs.addRound('怒り', '', 3);
+    PeerCursor.myCursor.role = PeerRole.Player;
+
+    await expect(call('remove_buff', { piece: 'ドラゴン', name: '怒り' })).rejects.toThrow(
+      'This seat is not shown the buffs of ドラゴン.'
+    );
+    await expect(call('remove_buff', { piece: 'ドラゴン', name: 'ない' })).rejects.toThrow(/not shown the buffs/);
+    await expect(call('add_buff', { piece: 'ドラゴン', name: '毒', note: '', rounds: 2 })).rejects.toThrow(
+      /not shown the buffs/
+    );
+    expect(dragon.buffs.list().map((buff) => buff.name)).toEqual(['怒り']);
+  });
+
   it('says nothing for a change that changes nothing, and refuses what it cannot change', async () => {
     const goblin = pieceAt('ゴブリン', 1, 1);
     hp(goblin, 10, 12);

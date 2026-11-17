@@ -45,12 +45,12 @@ export class AgentPieceTools {
     change_resource: (args, { signal }) => this.changeResource(args, signal),
     set_sheet_value: (args) => this.setSheetValue(args),
     add_buff: (args) => {
-      const piece = this.read.piece(textArg(args, 'piece'));
+      const piece = this.buffsOpen(this.read.piece(textArg(args, 'piece')));
       piece.buffs.addRound(textArg(args, 'name').trim(), textArg(args, 'note'), numberArg(args, 'rounds', 3));
       return this.views.piece(piece);
     },
     remove_buff: (args) => {
-      const piece = this.read.piece(textArg(args, 'piece'));
+      const piece = this.buffsOpen(this.read.piece(textArg(args, 'piece')));
       const name = textArg(args, 'name').trim();
       if (!piece.buffs.delete(name)) {
         throw new AgentToolError('not_found', `${this.views.nameOf(piece)} has no buff named ${name}.`);
@@ -96,7 +96,7 @@ export class AgentPieceTools {
   }
 
   private async changeResource(args: Readonly<Record<string, unknown>>, signal: AbortSignal): Promise<unknown> {
-    const piece = this.read.piece(textArg(args, 'piece'));
+    const piece = this.sheetOpen(this.read.piece(textArg(args, 'piece')));
     const name = textArg(args, 'name').trim();
     const by = args['by'];
     const to = args['to'];
@@ -140,10 +140,27 @@ export class AgentPieceTools {
     return { piece: this.views.nameOf(piece), item: item.name, value: item.value };
   }
 
-  private sheetItem(piece: GameCharacter, name: string): DataElement {
+  /**
+   * A piece whose sheet this seat may open, or a refusal: what a tool reads or writes of a sheet, a
+   * resource among it, is kept to the pieces whose sheets the seat is shown.
+   */
+  private sheetOpen(piece: GameCharacter): GameCharacter {
     if (!this.permission.isGameMaster() && !this.views.sheet(piece)) {
       throw new AgentToolError('not_allowed', `This seat may not open the sheet of ${this.views.nameOf(piece)}.`);
     }
+    return piece;
+  }
+
+  /** A piece whose buffs this seat is shown, or a refusal: a piece may keep its buffs from the players. */
+  private buffsOpen(piece: GameCharacter): GameCharacter {
+    if (piece.hideBuff && !this.permission.canSeeHidden()) {
+      throw new AgentToolError('not_allowed', `This seat is not shown the buffs of ${this.views.nameOf(piece)}.`);
+    }
+    return piece;
+  }
+
+  private sheetItem(piece: GameCharacter, name: string): DataElement {
+    this.sheetOpen(piece);
     const root = piece.detailDataElement;
     const item = root ? DataElement.findElementByReference(root, name.trim()) : null;
     if (!item) throw new AgentToolError('not_found', `${this.views.nameOf(piece)} has no sheet item named ${name}.`);
