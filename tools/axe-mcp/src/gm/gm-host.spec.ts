@@ -85,9 +85,12 @@ describe('GmHost', () => {
     expect(api.sent).toEqual([]);
 
     tab.say({ type: 'gm.start', settings: { ...SETTINGS, model: 'x'.repeat(5000) }, instructions: '', notes: '' });
-    await until(() => lastStatus(tab)?.starts === 3);
-    expect(lastStatus(tab)?.problem).toBe(`This bridge does not run ${'x'.repeat(80)}.`);
-    // Each asking is counted as it is answered, so a tab tells the answer to its own.
+    await until(() => lastStatus(tab)?.problem?.includes('xxx') === true);
+    expect(lastStatus(tab)?.problem).toBe(`This bridge does not run ${'x'.repeat(100)}.`);
+    // Each asking is counted as it is answered, so a tab tells the answer to its own; a change is not one.
+    const told = statuses(tab).length;
+    tab.say({ type: 'gm.update', settings: { ...SETTINGS, budgetUsd: 7 }, instructions: '', notes: '' });
+    await until(() => statuses(tab).length > told);
     expect(lastStatus(tab)?.starts).toBe(3);
   });
 

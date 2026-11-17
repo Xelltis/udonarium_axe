@@ -23,7 +23,7 @@ const LONGEST_WAIT_MS = 15_000;
 /** The most events kept for the next turn; the oldest are let go beyond it. */
 const EVENTS_KEPT = 200;
 /** How much of a model's name a tab asked for is told back in a refusal. */
-const MODEL_NAME_SHOWN = 80;
+const MODEL_NAME_SHOWN = 100;
 /** How many turns in a row may fail before the game master is stopped. */
 const FAILURES_TO_STOP = 3;
 
