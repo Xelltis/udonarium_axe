@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { AgentViews } from '@axe/application/agent/agent-views.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { diceRolled$ } from '@axe/core/event/domain-events';
+import { Network } from '@axe/core/network/network';
 import type { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -107,18 +108,28 @@ describe('AgentChatTools', () => {
   });
 
   it('whispers to the seat that owns a piece named, and refuses a piece no seat here owns', async () => {
+    vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId: 'ai-gm-user' } as IPeerContext);
+    const player = new PeerCursor();
+    player.name = 'プレイヤー1';
+    player.userId = 'player-user';
+    player.initialize();
     const hero = GameCharacter.create('アリス', 1, '');
     hero.location = { name: 'table', x: 0, y: 0 };
-    hero.owner = 'ai-gm-user';
+    hero.owner = 'player-user';
     hero.update();
     const goblin = GameCharacter.create('ゴブリン', 1, '');
     goblin.location = { name: 'table', x: 50, y: 0 };
     goblin.update();
+    const mine = GameCharacter.create('村長', 1, '');
+    mine.location = { name: 'table', x: 100, y: 0 };
+    mine.owner = 'ai-gm-user';
+    mine.update();
 
     await call('send_chat', { text: '鍵は樽の中だ', to: 'アリス' });
-    expect(said()[0].sendTo).toEqual(['ai-gm-user']);
+    expect(said()[0].sendTo).toEqual(['player-user']);
 
     await expect(call('send_chat', { text: '聞こえるか', to: 'ゴブリン' })).rejects.toThrow(/would reach nobody/);
+    await expect(call('send_chat', { text: '聞こえるか', to: '村長' })).rejects.toThrow(/would reach nobody/);
     expect(said()).toHaveLength(1);
   });
 

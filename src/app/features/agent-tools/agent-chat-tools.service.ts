@@ -136,7 +136,7 @@ export class AgentChatTools {
 
   /**
    * Whom a whisper is to: a seat by its name, or the seat that owns a piece this seat sees. A piece
-   * no seat here owns is refused, since a whisper to it would reach nobody.
+   * no other seat here owns is refused, since a whisper to it would reach nobody.
    */
   private recipientOf(name: string): string {
     const seats = this.objectStore.getObjects<PeerCursor>(PeerCursor);
@@ -151,10 +151,10 @@ export class AgentChatTools {
       'seat or piece'
     );
     const owner = piece.owner ? PeerCursor.findByUserId(piece.owner) : null;
-    if (!owner) {
+    if (!owner || owner === PeerCursor.myCursor) {
       throw new AgentToolError(
         'invalid_input',
-        `No seat here owns ${this.views.nameOf(piece)}, so a whisper to it would reach nobody. Whisper to a seat by its name.`
+        `No other seat here owns ${this.views.nameOf(piece)}, so a whisper to it would reach nobody. Whisper to a seat by its name.`
       );
     }
     return owner.identifier;
