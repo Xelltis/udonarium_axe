@@ -37,7 +37,10 @@ export class GmHost {
   private run: GmRun = 'off';
   private halted: GmHalt | undefined;
   private problem: string | undefined;
-  /** The refusal last shown of a change to a model the bridge does not run, while it is still shown. */
+  /**
+   * The refusal of a model the bridge does not run, asked for at a start or in a change, until one it
+   * runs is named. Kept apart from what went wrong last, so neither is lost to the other.
+   */
   private modelRefused: string | undefined;
   /** How many askings to start have been answered. */
   private starts = 0;
@@ -80,7 +83,7 @@ export class GmHost {
       budgetUsd: this.master?.budgetUsd ?? 0,
       contextTokens: this.master?.contextTokens ?? 0,
       kept: this.master?.kept ?? false,
-      ...(this.problem ? { problem: this.problem } : {}),
+      ...(this.modelRefused || this.problem ? { problem: this.modelRefused ?? this.problem } : {}),
       starts: this.starts,
     };
   }
@@ -123,22 +126,23 @@ export class GmHost {
   /**
    * Takes a change of settings, instructions and notes to the game master. A model the bridge has no
    * price for is not changed to, since what it spent would count as nothing: the rest of the change
-   * is taken with the model kept, and the refusal is shown until a model the bridge runs is named.
+   * is taken with the model kept, and the refusal is shown until a model the bridge runs is named,
+   * a game master held or not.
    */
   private update(message: Extract<GmTabMessage, { type: 'gm.update' }>): void {
     if (this.master) {
-      const known = isGmModel(message.settings.model);
-      const settings = known ? message.settings : { ...message.settings, model: this.master.model };
+      const settings = isGmModel(message.settings.model)
+        ? message.settings
+        : { ...message.settings, model: this.master.model };
       this.master.update(settings, message.instructions, message.notes);
-      if (!known) {
-        this.modelRefused = `This bridge does not run ${message.settings.model}.`;
-        this.problem = this.modelRefused;
-      } else {
-        if (this.problem === this.modelRefused) this.problem = undefined;
-        this.modelRefused = undefined;
-      }
     }
+    this.modelRefused = this.refusalOf(message.settings.model);
     this.tell();
+  }
+
+  /** The refusal of a model the bridge does not run, or nothing for one it does. */
+  private refusalOf(model: string): string | undefined {
+    return isGmModel(model) ? undefined : `This bridge does not run ${model}.`;
   }
 
   /** Whether the seat connected is the game master's, let to change the room. */
@@ -149,8 +153,8 @@ export class GmHost {
 
   private start(message: Extract<GmTabMessage, { type: 'gm.start' }>): void {
     this.starts++;
-    if (!isGmModel(message.settings.model)) {
-      this.problem = `This bridge does not run ${message.settings.model}.`;
+    this.modelRefused = this.refusalOf(message.settings.model);
+    if (this.modelRefused) {
       this.tell();
       return;
     }

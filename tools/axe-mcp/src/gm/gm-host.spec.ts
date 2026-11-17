@@ -83,6 +83,9 @@ describe('GmHost', () => {
     tab.say({ type: 'gm.start', settings: { ...SETTINGS, model: 'claude-other' }, instructions: '', notes: '' });
     await until(() => lastStatus(tab)?.problem?.includes('claude-other') === true);
     expect(api.sent).toEqual([]);
+    // Naming a model it runs lets go of the refusal, before any game master has run.
+    tab.say({ type: 'gm.update', settings: SETTINGS, instructions: '', notes: '' });
+    await until(() => lastStatus(tab)?.problem?.includes("game master's seat") === true);
     // Each asking is counted as it is answered, so a tab tells the answer to its own.
     expect(lastStatus(tab)?.starts).toBe(2);
   });
