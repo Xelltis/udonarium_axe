@@ -310,6 +310,7 @@ export default defineConfig({
             { text: 'シナリオテキスト', link: '/manual/scenario-text' },
             { text: 'マップエディター', link: '/manual/map-editor' },
             { text: 'マップ生成', link: '/manual/map-generator' },
+            { text: 'AI連携（MCP）', link: '/manual/ai-link' },
           ],
         },
         {

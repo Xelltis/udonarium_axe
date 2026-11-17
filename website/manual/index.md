@@ -119,6 +119,7 @@
 | [オブジェクト一覧（GM）](/manual/gm-object-list) | テーブルの上の物を一覧で見て、まとめて直す              |
 | [マップエディター](/manual/map-editor)           | セル・図形・スタンプでマップを作る（GMだけ）            |
 | [マップ生成](/manual/map-generator)              | ダンジョンとフィールドをボタン1つで組み立てる（GMだけ） |
+| [AI連携（MCP）](/manual/ai-link)                 | AIに部屋を読ませ、操作させる                            |
 
 ### 保存と記録
 
