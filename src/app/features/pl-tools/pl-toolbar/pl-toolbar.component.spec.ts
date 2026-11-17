@@ -13,6 +13,7 @@ import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -49,6 +50,7 @@ describe('PlToolbarComponent', () => {
 
   afterEach(() => {
     PeerCursor.myCursor = null!;
+    Config.forget();
   });
 
   function bar(): HTMLElement | null {
@@ -229,7 +231,7 @@ describe('PlToolbarComponent', () => {
     });
 
     it('offers the next press only while the piece up is the player’s own, and hands the turn on with it', async () => {
-      const next = vi.spyOn(TestBed.inject(TurnOrderService), 'next').mockImplementation(() => undefined);
+      const next = vi.spyOn(TestBed.inject(TurnOrderService), 'endTurn').mockImplementation(() => undefined);
       piece.owner = 'someone-else';
       const others = (await draw()).querySelector<HTMLButtonElement>('[data-testid="pl-turn-next"]')!;
       expect(others.classList.contains('invisible')).toBe(true);
@@ -243,6 +245,19 @@ describe('PlToolbarComponent', () => {
       own.click();
 
       expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    it('says the button ends the turn and hands it to nobody where a side moves freely through its phase', async () => {
+      const endTurn = vi.spyOn(TestBed.inject(TurnOrderService), 'endTurn').mockImplementation(() => undefined);
+      Config.instance.turnOrderMode = 'faction';
+      Config.instance.factionPhaseMode = 'free';
+      piece.owner = 'me';
+      const own = (await draw()).querySelector<HTMLButtonElement>('[data-testid="pl-turn-next"]')!;
+
+      expect(own.textContent).toContain('終了');
+      expect(own.getAttribute('aria-label')).toBe('自分のキャラクターの手番を終える（次に動くコマは陣営の中で選ぶ）');
+      own.click();
+      expect(endTurn).toHaveBeenCalledTimes(1);
     });
 
     it('names a piece off the table as nothing to press, as the view has nowhere to go', async () => {

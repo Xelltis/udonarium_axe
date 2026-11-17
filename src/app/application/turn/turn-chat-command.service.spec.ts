@@ -184,11 +184,11 @@ describe('TurnChatCommandService', () => {
       turns.next();
       turns.next();
       expect(turnState.currentIdentifier).toBe(hero.identifier);
-      const next = vi.spyOn(turns, 'next');
+      const endTurn = vi.spyOn(turns, 'endTurn');
 
       say('&TE', PeerCursor.myCursor.identifier);
 
-      expect(next).toHaveBeenCalledOnce();
+      expect(endTurn).toHaveBeenCalledOnce();
       expect(turnState.currentIdentifier).toBe(squire.identifier);
       expect(turnState.actedIdentifiers).toEqual([hero.identifier]);
       expect(hero.buffs.find('加護')).toBeNull();
@@ -370,6 +370,33 @@ describe('TurnChatCommandService', () => {
       expect(noticesToMe()).toEqual([]);
     });
 
+    it('ends the turn with &TE without handing it on, the side choosing who goes next', () => {
+      say('&T', hero.identifier);
+      const recorded = parseTurnHistory(turnState.history).length;
+
+      say('&手番終了', hero.identifier);
+
+      expect(turnState.currentIdentifier).toBe('');
+      expect(turnState.phase).toBe('acting');
+      expect(turnState.actedIdentifiers).toEqual([hero.identifier]);
+      expect(parseTurnHistory(turnState.history)).toHaveLength(recorded + 1);
+      expect(noticesToMe()).toEqual([]);
+
+      say('&T', squire.identifier);
+      say('&TE', squire.identifier);
+      expect(turnState.currentSide).toBe(monsters.identifier);
+      expect(turnState.currentIdentifier).toBe('');
+    });
+
+    it('ends no turn with &TE while nobody is up, and tells the speaker alone', () => {
+      const before = standing();
+
+      say('&TE', hero.identifier);
+
+      expect(standing()).toEqual(before);
+      expect(noticesToMe()[0].text).toContain('feature.chat.lint.turn.no.nobodyUp');
+    });
+
     it('reads &手番 the same', () => {
       say('&手番', hero.identifier);
 
@@ -491,17 +518,6 @@ describe('TurnChatCommandService', () => {
       say('&TE', hero.identifier);
 
       expect(turnState.actedIdentifiers).toContain(squire.identifier);
-      expect(noticesToMe()).toEqual([]);
-    });
-
-    it('presses the round on with &TE while nobody is up, as the next button does', () => {
-      const next = vi.spyOn(turns, 'next');
-      const recorded = parseTurnHistory(turnState.history).length;
-
-      say('&TE', hero.identifier);
-
-      expect(next).toHaveBeenCalledOnce();
-      expect(parseTurnHistory(turnState.history)).toHaveLength(recorded + 1);
       expect(noticesToMe()).toEqual([]);
     });
 

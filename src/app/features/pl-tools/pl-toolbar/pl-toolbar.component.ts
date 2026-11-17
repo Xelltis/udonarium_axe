@@ -190,6 +190,15 @@ export class PlToolbarComponent {
     return isOwnedByUser(piece, PeerCursor.myCursor?.userId ?? '');
   });
 
+  /**
+   * Whether ending this player's turn hands it on to nobody, as where a side moves freely through
+   * its phase and chooses who goes next: the button then says it ends the turn, not that it goes on.
+   */
+  protected readonly endsOnly = computed<boolean>(() => {
+    this.objectChange.versionOf('Config')();
+    return this.turnOrder.turnOrderMode === 'faction' && this.turnOrder.factionPhaseMode === 'free';
+  });
+
   /** The piece whose turn it is, while it stands on the table for the view to go to. */
   protected readonly turnPieceOnTable = computed<GameCharacter | null>(() => {
     const piece = this.turnPiece();
@@ -204,9 +213,12 @@ export class PlToolbarComponent {
     if (piece) this.tableFocus.focusOn(piece);
   }
 
-  /** Ends this player's own piece's turn, handing it on as the round's next press does. */
+  /**
+   * Ends this player's own piece's turn: handed on as the round's next press does, except where a
+   * side moves freely through its phase and chooses who goes next.
+   */
   protected passTurn(): void {
-    if (this.ownTurn()) this.turnOrder.next();
+    if (this.ownTurn()) this.turnOrder.endTurn();
   }
 
   protected activeImageUrl(): string {

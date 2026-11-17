@@ -36,6 +36,7 @@ import {
 import {
   roundAdvance,
   roundCloseInPassing,
+  roundEndTurn,
   roundGiveTurn,
   roundHold,
   roundInterrupt,
@@ -428,6 +429,18 @@ export class TurnOrderService {
   next(): void {
     if (!this.canTakeTurns) return;
     this.press(roundNext);
+  }
+
+  /**
+   * Ends the turn of whoever is up, as the piece's own player or a line of chat says it is done.
+   *
+   * Where a side moves freely through its phase the turn is not handed on, the side choosing who
+   * goes next; anywhere else it is a press of the round. Does nothing for a reader who may not take
+   * turns.
+   */
+  endTurn(): void {
+    if (!this.canTakeTurns) return;
+    this.press(roundEndTurn);
   }
 
   /**

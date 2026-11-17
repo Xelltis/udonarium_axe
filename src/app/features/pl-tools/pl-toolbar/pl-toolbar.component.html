@@ -130,13 +130,19 @@
                 [class.invisible]="!ownTurn()"
                 [disabled]="!ownTurn()"
                 [attr.aria-hidden]="ownTurn() ? null : 'true'"
-                [attr.aria-label]="'feature.plTools.turn.nextHint' | transloco"
-                [title]="'feature.plTools.turn.nextHint' | transloco"
-                [attr.data-guide-label]="ownTurn() ? ('feature.plTools.turn.nextHint' | transloco) : null"
+                [attr.aria-label]="
+                  (endsOnly() ? 'feature.plTools.turn.endHint' : 'feature.plTools.turn.nextHint') | transloco
+                "
+                [title]="(endsOnly() ? 'feature.plTools.turn.endHint' : 'feature.plTools.turn.nextHint') | transloco"
+                [attr.data-guide-label]="
+                  ownTurn()
+                    ? ((endsOnly() ? 'feature.plTools.turn.endHint' : 'feature.plTools.turn.nextHint') | transloco)
+                    : null
+                "
                 (click)="passTurn()"
               >
-                {{ 'feature.plTools.turn.next' | transloco }}
-                <i class="material-icons" aria-hidden="true">chevron_right</i>
+                {{ (endsOnly() ? 'feature.plTools.turn.end' : 'feature.plTools.turn.next') | transloco }}
+                <i class="material-icons" aria-hidden="true">{{ endsOnly() ? 'check' : 'chevron_right' }}</i>
               </button>
             }
           }

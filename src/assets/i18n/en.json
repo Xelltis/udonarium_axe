@@ -724,7 +724,9 @@
       "turn": {
         "focus": "Move the view to {{name}}",
         "next": "Next",
-        "nextHint": "Next: end your character’s turn and hand it on"
+        "nextHint": "Next: end your character’s turn and hand it on",
+        "end": "Done",
+        "endHint": "Done: end your character’s turn (your side chooses who moves next)"
       },
       "active": {
         "title": "Character being moved",
@@ -4721,7 +4723,7 @@
         },
         "turn": {
           "take": "Starts the speaking piece's turn (side by side, in a free phase)",
-          "end": "Ends the turn and hands it on",
+          "end": "Ends the turn and hands it on (in a side's free phase, only marks it done, handing it to nobody)",
           "wait": "Has the piece whose turn it is wait, to step in later",
           "stepIn": "Steps the speaking piece in, where it is waiting",
           "back": "Takes the turn order back one step",

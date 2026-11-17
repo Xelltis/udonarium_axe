@@ -1,6 +1,7 @@
 import {
   roundAdvance,
   roundCloseInPassing,
+  roundEndTurn,
   roundGiveTurn,
   roundHold,
   roundInterrupt,
@@ -306,6 +307,58 @@ describe('the round taken side by side', () => {
     expect(roundSide({ currentSide: 'green', acted: ['a1', 'a2'] }, sides)).toBe('blue');
     expect(roundSide({ currentSide: 'red', acted: [] }, sides)).toBe('red');
     expect(roundSide({ currentSide: 'red', acted: [] }, table())).toBe('');
+  });
+});
+
+describe('a turn ended by the piece taking it', () => {
+  const free = table({
+    mode: 'faction',
+    factionPhaseMode: 'free',
+    order: ['a1', 'a2', 'b1'],
+    sides: [
+      { side: 'red', members: ['a1', 'a2'] },
+      { side: 'blue', members: ['b1'] },
+    ],
+    sideOf: (id) => (id.startsWith('a') ? 'red' : id.startsWith('b') ? 'blue' : null),
+  });
+  /** Red's phase open, nobody up as a free side's phase opens. */
+  const redOpen = press(IDLE, 2, free);
+
+  it('leaves nobody up where a side moves freely and still has pieces to move, the side choosing who goes next', () => {
+    const a2Up = roundGiveTurn(redOpen, free, 'a2')!.state;
+    const outcome = roundEndTurn(a2Up, free);
+
+    expect(outcome.state).toMatchObject({ phase: 'acting', currentSide: 'red', currentIdentifier: '', acted: ['a2'] });
+    expect(done(outcome)).toEqual(['ground:turnEnd:a2', 'buffs:turnEnd:a2', 'turnEnded']);
+  });
+
+  it('opens the next side’s phase once nobody on the side is left to move, with nobody up there either', () => {
+    const lastOfRed = roundGiveTurn(roundEndTurn(roundGiveTurn(redOpen, free, 'a2')!.state, free).state, free, 'a1')!;
+    const outcome = roundEndTurn(lastOfRed.state, free);
+
+    expect(outcome.state).toMatchObject({ currentSide: 'blue', currentIdentifier: '', acted: ['a2', 'a1'] });
+    expect(done(outcome)).toContain('side:blue');
+  });
+
+  it('takes up again a turn stepped into, rather than leaving nobody up', () => {
+    const a1Up = roundGiveTurn(redOpen, free, 'a1')!.state;
+    const a2Waits = roundHold(a1Up, free, 'a2')!.state;
+    const a2StepsIn = roundInterrupt(a2Waits, free, 'a2')!.state;
+    const outcome = roundEndTurn(a2StepsIn, free);
+
+    expect(outcome.state).toMatchObject({ currentIdentifier: 'a1' });
+    expect(done(outcome)).toContain('resumeAnnounce:a1');
+  });
+
+  it('is a press of the round where the side moves by initiative, the round goes piece by piece, or nobody is up', () => {
+    const byInitiative = { ...free, factionPhaseMode: 'initiative' as const };
+    const a1Up = press(IDLE, 2, byInitiative);
+    expect(roundEndTurn(a1Up, byInitiative).state).toEqual(roundNext(a1Up, byInitiative).state);
+
+    const aUp = press(IDLE, 2);
+    expect(roundEndTurn(aUp, table()).state).toEqual(roundNext(aUp, table()).state);
+
+    expect(roundEndTurn(redOpen, free).state).toEqual(roundNext(redOpen, free).state);
   });
 });
 
