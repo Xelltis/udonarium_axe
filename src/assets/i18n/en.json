@@ -177,7 +177,7 @@
   "feature": {
     "aiGm": {
       "title": "AI GM",
-      "hint": "Let Claude take this game master's seat, with a Claude API key kept in the bridge on this computer. The key never enters the browser. The AI's lines are marked, and it can be stopped at any time.",
+      "hint": "Let an AI take this game master's seat, with an API key kept in the bridge on this computer. It runs on Claude at first, and on other AIs by how the bridge is started. The key never enters the browser. The AI's lines are marked, and it can be stopped at any time.",
       "state": {
         "unlinked": "Not connected to a bridge",
         "linking": "Looking for the bridge…",
@@ -187,11 +187,12 @@
         "thinking": "Thinking…",
         "asked": "Stopped",
         "budget": "Stopped: the spending limit was reached",
-        "key": "Stopped: the API key was refused. Check the key given to the bridge",
+        "key": "To run it on Claude, create an API key in the Claude Console. A key of a workspace with a spending limit is recommended. Never paste the key into chat or this panel.",
         "failed": "Stopped after failing several times",
         "seat": "Stopped: the seat is no longer the game master's"
       },
       "spent": "Spent ${{spent}} of ${{budget}} · conversation {{tokens}} tokens (estimate)",
+      "spentTokens": "Used {{spent}} of {{budget}} tokens · conversation {{tokens}} tokens (the cost is not counted)",
       "gameMasterOnly": "The AI GM can be started only on the game master's seat",
       "start": "Start",
       "resume": "Resume",
@@ -244,10 +245,11 @@
       "setup": {
         "heading": "Starting the bridge",
         "download": "Get axe-mcp.mjs from the releases (Node.js 22 or later is needed).",
-        "key": "Create an API key in the Claude Console. A key of a workspace with a spending limit is recommended. Never paste the key into chat or this panel.",
+        "key": "To run it on Claude, create an API key in the Claude Console. A key of a workspace with a spending limit is recommended. Never paste the key into chat or this panel.",
         "start": "Start the bridge with the key in an environment variable (macOS and Linux)",
         "powerShell": "In Windows PowerShell",
-        "connect": "Press Connect in this panel, then Start."
+        "connect": "Press Connect in this panel, then Start.",
+        "otherProvider": "To run it on another AI, start the bridge with gm --provider openai --base-url <address> --model <name>, with the key in AXE_GM_API_KEY. Any API compatible with OpenAI is reached, a model served on this computer among them."
       },
       "notice": {
         "started": "{{name}} started the AI GM",

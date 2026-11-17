@@ -177,7 +177,7 @@
   "feature": {
     "aiGm": {
       "title": "AI GM",
-      "hint": "이 컴퓨터의 브리지에 둔 Claude API 키로 Claude에게 이 GM 자리를 맡깁니다. 키는 브라우저에 들어가지 않습니다. AI의 발언에는 표시가 붙고, 언제든지 멈출 수 있습니다.",
+      "hint": "이 컴퓨터의 브리지에 둔 API 키로 AI에게 이 GM 자리를 맡깁니다. 처음에는 Claude로 움직이고, 브리지를 시작하는 방법에 따라 다른 AI로도 바꿀 수 있습니다. 키는 브라우저에 들어가지 않습니다. AI의 발언에는 표시가 붙고, 언제든지 멈출 수 있습니다.",
       "state": {
         "unlinked": "브리지에 연결되어 있지 않습니다",
         "linking": "브리지를 찾고 있습니다…",
@@ -187,11 +187,12 @@
         "thinking": "생각하고 있습니다…",
         "asked": "멈췄습니다",
         "budget": "사용 금액 상한에 도달해 멈췄습니다",
-        "key": "API 키를 쓸 수 없어 멈췄습니다. 브리지에 넘긴 키를 확인하세요",
+        "key": "Claude로 움직일 때는 Claude Console에서 API 키를 만듭니다. 사용 금액 상한을 둔 워크스페이스의 키를 권합니다. 키를 채팅이나 이 화면에 붙여 넣지 마세요.",
         "failed": "실패가 이어져 멈췄습니다",
         "seat": "GM 자리가 아니게 되어 멈췄습니다"
       },
       "spent": "사용 ${{spent}} / 상한 ${{budget}} · 대화 길이 {{tokens}} 토큰 (추정)",
+      "spentTokens": "사용 토큰 {{spent}} / 상한 {{budget}} · 대화 길이 {{tokens}} 토큰 (요금은 세지 않습니다)",
       "gameMasterOnly": "AI GM은 GM 자리에서만 시작할 수 있습니다",
       "start": "시작",
       "resume": "이어서 시작",
@@ -244,10 +245,11 @@
       "setup": {
         "heading": "브리지 시작하는 법",
         "download": "릴리스에서 axe-mcp.mjs를 받습니다 (Node.js 22 이상이 필요합니다).",
-        "key": "Claude Console에서 API 키를 만듭니다. 사용 금액 상한을 둔 워크스페이스의 키를 권합니다. 키를 채팅이나 이 화면에 붙여 넣지 마세요.",
+        "key": "Claude로 움직일 때는 Claude Console에서 API 키를 만듭니다. 사용 금액 상한을 둔 워크스페이스의 키를 권합니다. 키를 채팅이나 이 화면에 붙여 넣지 마세요.",
         "start": "키를 환경 변수에 넣고 브리지를 시작합니다 (macOS와 Linux)",
         "powerShell": "Windows PowerShell에서는 다음과 같습니다",
-        "connect": "이 화면에서 [연결]을 누른 뒤 [시작]을 누릅니다."
+        "connect": "이 화면에서 [연결]을 누른 뒤 [시작]을 누릅니다.",
+        "otherProvider": "Claude 이외의 AI로 움직일 때는 시작하는 줄에 gm --provider openai --base-url 주소 --model 모델 이름을 붙이고, 키는 AXE_GM_API_KEY에 넣습니다. OpenAI 호환 API라면 이 컴퓨터에서 돌리는 모델에도 연결할 수 있습니다."
       },
       "notice": {
         "started": "{{name}} 님이 AI GM을 시작했습니다",

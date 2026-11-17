@@ -71,15 +71,30 @@ export class AiGmPanelComponent {
     return kind === 'connecting' || kind === 'connected' || kind === 'lost';
   });
 
-  /** What it spent and may spend, in dollars, once a bridge has told it. */
+  /**
+   * What it spent and may spend, once a bridge has told it: in dollars, or for a model whose prices the
+   * bridge does not know in the tokens it used and may use while the bridge runs.
+   */
   protected readonly spending = computed(() => {
     const status = this.gm.status();
-    if (!status || status.budgetUsd <= 0) return null;
+    if (!status) return null;
+    const tokens = status.contextTokens.toLocaleString();
+    if (status.tokens) {
+      return {
+        key: 'feature.aiGm.spentTokens',
+        spent: status.tokens.spent.toLocaleString(),
+        budget: status.tokens.limit.toLocaleString(),
+        near: status.tokens.spent >= status.tokens.limit * 0.8,
+        tokens,
+      };
+    }
+    if (status.budgetUsd <= 0) return null;
     return {
+      key: 'feature.aiGm.spent',
       spent: status.spentUsd.toFixed(2),
       budget: status.budgetUsd.toFixed(2),
       near: status.spentUsd >= status.budgetUsd * 0.8,
-      tokens: status.contextTokens.toLocaleString(),
+      tokens,
     };
   });
 

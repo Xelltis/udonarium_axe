@@ -119,6 +119,27 @@ describe('AiGmPanelComponent', () => {
     expect(find(host, 'ai-gm-model-not-run')?.textContent).toContain('このブリッジでは動かせません');
   });
 
+  it('tells what a model with no price used in tokens, in place of dollars', async () => {
+    state.set({ kind: 'connected', bridge: '1.80.0', mode: 'gm', models: gm.models() });
+    status.set({
+      run: 'waiting',
+      model: 'model-at-hand',
+      spentUsd: 0,
+      budgetUsd: 5,
+      contextTokens: 12000,
+      kept: true,
+      tokens: { spent: 1_700_000, limit: 2_000_000 },
+      starts: 1,
+    });
+    const { host } = await panel();
+
+    const spent = find(host, 'ai-gm-spent')!;
+    expect(spent.textContent).toContain('1,700,000');
+    expect(spent.textContent).toContain('2,000,000');
+    expect(spent.textContent).not.toContain('$');
+    expect(spent.classList).toContain('text-ui-danger');
+  });
+
   it('shows what the bridge says went wrong last', async () => {
     state.set({ kind: 'connected', bridge: '1.80.0', mode: 'gm', models: gm.models() });
     status.set({

@@ -177,7 +177,7 @@
   "feature": {
     "aiGm": {
       "title": "AI GM",
-      "hint": "手元のブリッジに置いたClaude APIのキーで、ClaudeにこのGMの席を任せます。キーはブラウザに入りません。AIの発言には印が付き、いつでも止められます。",
+      "hint": "手元のブリッジに置いたAPIキーで、AIにこのGMの席を任せます。初めはClaudeで動き、ブリッジの起動のしかたでほかのAIにも替えられます。キーはブラウザに入りません。AIの発言には印が付き、いつでも止められます。",
       "state": {
         "unlinked": "ブリッジにつないでいません",
         "linking": "ブリッジを探しています…",
@@ -187,11 +187,12 @@
         "thinking": "考えています…",
         "asked": "止めました",
         "budget": "使用額の上限に届いたので止まりました",
-        "key": "APIキーが使えないので止まりました。ブリッジに渡したキーを確かめてください",
+        "key": "Claudeで動かすときは、Claude ConsoleでAPIキーを作ります。使用額の上限を付けたワークスペースのキーをおすすめします。キーをチャットやこの画面に貼らないでください。",
         "failed": "失敗が続いたので止まりました",
         "seat": "GMの席でなくなったので止まりました"
       },
       "spent": "使った額${{spent}}／上限${{budget}}・会話の長さ{{tokens}}トークン（見積もり）",
+      "spentTokens": "使ったトークン{{spent}}／上限{{budget}}・会話の長さ{{tokens}}トークン（料金は数えていません）",
       "gameMasterOnly": "AI GMはGMの席でだけ始められます",
       "start": "始める",
       "resume": "続きから始める",
@@ -244,10 +245,11 @@
       "setup": {
         "heading": "ブリッジの起動のしかた",
         "download": "リリースからaxe-mcp.mjsを入手します（Node.js 22以降が要ります）。",
-        "key": "Claude ConsoleでAPIキーを作ります。使用額の上限を付けたワークスペースのキーをおすすめします。キーをチャットやこの画面に貼らないでください。",
+        "key": "Claudeで動かすときは、Claude ConsoleでAPIキーを作ります。使用額の上限を付けたワークスペースのキーをおすすめします。キーをチャットやこの画面に貼らないでください。",
         "start": "キーを環境変数に入れてブリッジを起動します（macOSとLinux）",
         "powerShell": "WindowsのPowerShellでは次のとおりです",
-        "connect": "この画面で［つなぐ］を押してから［始める］を押します。"
+        "connect": "この画面で［つなぐ］を押してから［始める］を押します。",
+        "otherProvider": "Claude以外のAIで動かすときは、起動の行にgm --provider openai --base-url アドレス --model モデル名を付け、キーはAXE_GM_API_KEYに入れます。OpenAI互換のAPIなら、手元で動かすモデルにもつなげます。"
       },
       "notice": {
         "started": "{{name}} がAI GMを始めました",

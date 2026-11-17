@@ -34,7 +34,7 @@
         data-testid="ai-gm-spent"
         [class.text-ui-danger]="spending.near"
       >
-        {{ 'feature.aiGm.spent' | transloco: spending }}
+        {{ spending.key | transloco: spending }}
       </p>
     }
     @if (gm.bridgeRunsGm()) {
@@ -316,6 +316,7 @@
         }}</code>
       </li>
       <li>{{ 'feature.aiGm.setup.connect' | transloco }}</li>
+      <li>{{ 'feature.aiGm.setup.otherProvider' | transloco }}</li>
     </ol>
   </details>
 </div>
