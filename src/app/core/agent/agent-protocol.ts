@@ -9,7 +9,7 @@
  */
 
 /** The version of the talk. Raised on any change to the messages; the tools' definitions are compared by their digest. */
-export const AGENT_PROTOCOL_VERSION = 2;
+export const AGENT_PROTOCOL_VERSION = 3;
 
 /** The port the bridge waits for a tab on, unless told another. */
 export const AGENT_BRIDGE_PORT = 47610;
