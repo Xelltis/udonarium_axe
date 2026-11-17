@@ -19,6 +19,16 @@ interface Sent {
   };
 }
 
+/** What the stand-in for a provider of the chat completions API was sent. */
+interface ChatSent {
+  readonly key: string | undefined;
+  readonly body: {
+    readonly model: string;
+    readonly messages: readonly { readonly role: string; readonly content: unknown }[];
+    readonly tools?: readonly { readonly function: { readonly name: string } }[];
+  };
+}
+
 type Block =
   | { readonly type: 'text'; readonly text: string }
   | { readonly type: 'tool_use'; readonly id: string; readonly name: string; readonly input: unknown };
@@ -111,6 +121,56 @@ function fakeClaude(): Promise<{ server: Server; port: number; sent: Sent[] }> {
   );
 }
 
+/**
+ * A stand-in for a provider that speaks the chat completions API, as OpenAI and a model served at hand
+ * do: it answers a turn by calling send_chat, and the answer to that call by ending the turn with a
+ * word aside.
+ */
+function fakeChatCompletions(): Promise<{ server: Server; port: number; sent: ChatSent[] }> {
+  const sent: ChatSent[] = [];
+  const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+    let raw = '';
+    req.on('data', (chunk) => (raw += chunk));
+    req.on('end', () => {
+      if (req.method !== 'POST' || req.url !== '/v1/chat/completions') {
+        res.writeHead(404).end();
+        return;
+      }
+      const body = JSON.parse(raw) as ChatSent['body'];
+      sent.push({ key: /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1], body });
+      const answered = body.messages.at(-1)?.role === 'tool';
+      const direction = /The person at your seat says: (.+)/.exec(JSON.stringify(body.messages))?.[1];
+      const message = answered
+        ? { role: 'assistant', content: '場面を進めました' }
+        : {
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              {
+                id: `call_${sent.length}`,
+                type: 'function',
+                function: {
+                  name: 'send_chat',
+                  arguments: JSON.stringify({ text: direction ? '霧の中から船が現れた！' : '港へようこそ' }),
+                },
+              },
+            ],
+          };
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          id: 'chatcmpl-test',
+          choices: [{ index: 0, finish_reason: answered ? 'stop' : 'tool_calls', message }],
+          usage: { prompt_tokens: 1500, completion_tokens: 80 },
+        })
+      );
+    });
+  });
+  return new Promise((resolve) =>
+    server.listen(0, '127.0.0.1', () => resolve({ server, port: (server.address() as AddressInfo).port, sent }))
+  );
+}
+
 test.describe('the AI game master', () => {
   test.beforeAll(() => {
     buildBridgeIfStale();
@@ -191,6 +251,78 @@ test.describe('the AI game master', () => {
     } finally {
       bridge?.kill();
       claude.server.close();
+    }
+  });
+
+  test('runs on another provider through the chat completions API, its use counted in tokens', async ({
+    page,
+  }, info) => {
+    const port = 47760 + info.parallelIndex;
+    const provider = await fakeChatCompletions();
+    let bridge: ChildProcess | null = null;
+    try {
+      bridge = spawn(
+        'node',
+        [
+          BRIDGE,
+          'gm',
+          '--port',
+          String(port),
+          '--provider',
+          'openai',
+          '--base-url',
+          `http://127.0.0.1:${provider.port}/v1`,
+          '--model',
+          'model-at-hand',
+        ],
+        { env: { ...process.env, AXE_GM_API_KEY: KEY }, stdio: 'ignore' }
+      );
+      await page.addInitScript(
+        (linkPort) => localStorage.setItem('axe.ai-link', JSON.stringify({ port: linkPort, scope: 'read' })),
+        port
+      );
+      await waitAppReady(page);
+      await becomeGm(page);
+      await putAwayTutorial(page);
+      await openFabMenu(page);
+      await page.getByTestId('fab-ai-gm').click();
+      const panel = page.locator('ai-gm-panel');
+      const state = panel.getByTestId('ai-gm-state');
+      await panel.getByTestId('ai-gm-link-toggle').click();
+      await expect(state).toHaveAttribute('data-state', 'off', { timeout: 15000 });
+
+      // The model kept here is Claude's, which this bridge does not run: it is said so, and another is chosen.
+      await expect(panel.getByTestId('ai-gm-model-not-run')).toBeVisible();
+      await expect(panel.getByTestId('ai-gm-start')).toBeDisabled();
+      await panel.getByTestId('ai-gm-model-model-at-hand').check();
+      await expect(panel.getByTestId('ai-gm-model-not-run')).toHaveCount(0);
+
+      await panel.getByTestId('ai-gm-start').click();
+      const opened = page.locator('chat-tab chat-message').filter({ hasText: '港へようこそ' });
+      await expect(opened.getByTestId('chat-message-ai')).toBeAttached({ timeout: 15000 });
+      await expect(panel.getByTestId('ai-gm-aside').first()).toContainText('場面を進めました');
+      await expect(state).toHaveAttribute('data-state', 'waiting');
+      // No price was told for the model, so what it used is told in tokens.
+      await expect(panel.getByTestId('ai-gm-spent')).toContainText('3,160');
+      await expect(panel.getByTestId('ai-gm-spent')).not.toContainText('$');
+
+      await panel.getByTestId('ai-gm-direction').fill('船を出して');
+      await panel.getByTestId('ai-gm-nudge').click();
+      const ship = page.locator('chat-tab chat-message').filter({ hasText: '霧の中から船が現れた！' });
+      await expect(ship.getByTestId('chat-message-ai')).toBeAttached({ timeout: 15000 });
+
+      await panel.getByTestId('ai-gm-stop').click();
+      await expect(state).toHaveAttribute('data-state', 'asked');
+
+      expect(provider.sent.length).toBeGreaterThanOrEqual(4);
+      expect(provider.sent.every((request) => request.key === KEY)).toBe(true);
+      expect(provider.sent[0].body.model).toBe('model-at-hand');
+      expect(provider.sent[0].body.tools?.some((tool) => tool.function.name === 'send_chat')).toBe(true);
+      const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }));
+      expect(stored).not.toContain(KEY);
+    } finally {
+      bridge?.kill();
+      provider.server.close();
     }
   });
 });
