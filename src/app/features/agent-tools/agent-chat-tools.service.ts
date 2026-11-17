@@ -151,7 +151,7 @@ export class AgentChatTools {
       'seat or piece'
     );
     const owner = piece.owner ? PeerCursor.findByUserId(piece.owner) : null;
-    if (!owner || owner === PeerCursor.myCursor) {
+    if (!owner || owner.userId === PeerCursor.myCursor?.userId) {
       throw new AgentToolError(
         'invalid_input',
         `No other seat here owns ${this.views.nameOf(piece)}, so a whisper to it would reach nobody. Whisper to a seat by its name.`
