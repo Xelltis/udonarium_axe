@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Runs the specs that can reach the staged sources.
+ * Runs the specs that can reach the sources it is handed: the staged files before a commit, the
+ * files of the commits not yet pushed before a push.
  *
  * `vitest related` works this out by transforming every spec and everything it imports, which
  * means compiling the whole app before a single test runs. Here the imports are read off the files
@@ -14,7 +15,7 @@
  * by those types. What comes out is kept in node_modules/.cache under the file's contents, so a
  * run reads again only the files changed since the last.
  *
- * Every spec runs when the staged files include a runner config, a setup file, or anything a setup
+ * Every spec runs when the files handed include a runner config, a setup file, or anything a setup
  * file imports at any depth without waiting, since setup loads those into every spec. What setup
  * imports only for a spec that builds a TestBed module, the providers every module is given, adds
  * every spec that names TestBed, as setup tells such a spec by that word.
@@ -194,7 +195,7 @@ for (const file of stagedPaths) {
   }
 }
 if (staged.size === 0) {
-  console.log('[vitest-related] no staged sources touch a spec; nothing to run');
+  console.log('[vitest-related] no changed sources touch a spec; nothing to run');
   process.exit(0);
 }
 if (setupFiles.size === 0) {
@@ -248,8 +249,8 @@ if (stagedProvider !== undefined) {
   for (const spec of testBedSpecs) specs.add(spec);
 }
 if (specs.size === 0) {
-  console.log('[vitest-related] no spec reaches the staged sources; nothing to run');
+  console.log('[vitest-related] no spec reaches the changed sources; nothing to run');
   process.exit(0);
 }
-console.log(`[vitest-related] ${specs.size} spec(s) reach the staged sources`);
+console.log(`[vitest-related] ${specs.size} spec(s) reach the changed sources`);
 run([...specs].sort());

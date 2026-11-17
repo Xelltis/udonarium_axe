@@ -72,7 +72,7 @@ chore(release): bump version to 1.2.2
 | ------------ | --------------------------------------------------------------- |
 | `commit-msg` | `commitlint`（メッセージ形式検査）                              |
 | `pre-commit` | stagedの`src/`に`eslint` + `vitest related`（関係するspecだけ） |
-| `pre-push`   | `npx vitest run`（全量） + `npm run build`                      |
+| `pre-push`   | pushするコミットの`src/`に`vitest related` + `npm run build`    |
 
 `pre-commit`の`vitest related`はstagedファイルからimportを逆にたどって当たるspecだけを回す
 （[scripts/vitest-related.mjs](../scripts/vitest-related.mjs)。テンプレートは隣の`.ts`に読み替える）。
@@ -83,7 +83,8 @@ chore(release): bump version to 1.2.2
 ただし、ランナーの設定（`vitest.config.mts`など）や、テストのセットアップが静的なimportで読み込むファイル
 （間接的に読むものも含む）をstagedにしたときは、どのspecにも影響するので全量を回す。
 セットアップが`TestBed`を使うspecのためだけに読み込むサービス（`loadGlobalTestProviders()`の先）に
-当たったときは、本文に`TestBed`を含むspecをすべて足す。全量は`pre-push`とCIが見る。
+当たったときは、本文に`TestBed`を含むspecをすべて足す。`pre-push`は、まだpushしていないコミットが
+変えたファイルをまとめて同じスクリプトに渡す。全量はCIが見る。
 
 設定: [../lefthook.yml](../lefthook.yml)
 

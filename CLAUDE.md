@@ -92,7 +92,7 @@ composition → features → ui → application → infrastructure → domain �
 - 複数の論理的変更を1コミットに混ぜない
 - **lefthook迂回は絶対禁止**（`--no-verify` / `LEFTHOOK=0` / `core.hooksPath`変更等）。
   フックが落ちたら原因を直してから再コミットする
-  - `commit-msg`: `commitlint` / `pre-commit`: staged分の`eslint` + `vitest related` / `pre-push`: `npx vitest run` + `npm run build`
+  - `commit-msg`: `commitlint` / `pre-commit`: staged分の`eslint` + `vitest related` / `pre-push`: push分の`vitest related` + `npm run build`
 - mainへのPRでは[.github/workflows/ci.yml](.github/workflows/ci.yml)が
   format / lint / **両テスト経路** / build / websiteビルドを回す（E2Eは所要時間の都合で手元のみ）
 
