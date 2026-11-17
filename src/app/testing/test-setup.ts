@@ -307,13 +307,22 @@ function applyConfigureTestingModuleWrapper(): void {
 // test's own thirty; one that names its time keeps it.
 const WAIT_FOR_MS = 10_000;
 
+// vi.waitFor looks again every 50ms unless it is told otherwise, while what a spec waits on is mostly
+// a promise or a timer of the page a moment away, so a wait spent most of its time asleep. A wait
+// that names no interval looks every millisecond, and under a fake clock each look moves the clock on
+// by that millisecond; one that names its interval keeps it. A wait ends the moment what it waits for
+// holds, so a spec that also means to see what follows a moment later waits for that as well.
+const WAIT_FOR_INTERVAL_MS = 1;
+
 function applyWaitForDefault(): void {
   if ((vi.waitFor as unknown as Record<string, unknown>)[WRAPPER_SENTINEL]) return;
   const waitFor = vi.waitFor;
   const wrapped = ((callback, options) =>
     waitFor(
       callback,
-      typeof options === 'number' ? options : { timeout: WAIT_FOR_MS, ...options }
+      typeof options === 'number'
+        ? { timeout: options, interval: WAIT_FOR_INTERVAL_MS }
+        : { timeout: WAIT_FOR_MS, interval: WAIT_FOR_INTERVAL_MS, ...options }
     )) as typeof vi.waitFor;
   (wrapped as unknown as Record<string, unknown>)[WRAPPER_SENTINEL] = true;
   vi.waitFor = wrapped;

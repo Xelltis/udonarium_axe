@@ -46,14 +46,6 @@ describe('DiceThrowService', () => {
   let placedFor: string[];
   let placedCounts: number[][];
 
-  /**
-   * `vi.waitFor` looking every millisecond rather than every 50. A throw comes to rest, or is worked
-   * out, a moment after it is asked for, so a look costs next to nothing, while the default spent
-   * most of the file asleep between them. Under a fake clock each look moves it on by that millisecond.
-   */
-  const until = <T>(callback: () => T | Promise<T>, options: { timeout?: number } = {}): Promise<T> =>
-    vi.waitFor(callback, { interval: 1, ...options });
-
   function fixPeerContext(): void {
     const self = {
       peerId: 'peer-self',
@@ -114,9 +106,9 @@ describe('DiceThrowService', () => {
   /** Throws a roll's dice and has them come to rest at once, as though their recording had played. */
   async function throwToRest(line: ChatMessage): Promise<void> {
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
-    await until(() => expect(thrown(line)?.phase).toBe('rolling'), { timeout: 10_000 });
+    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'), { timeout: 10_000 });
     service.played(line.identifier, performance.now() - 60_000);
-    await until(() => expect(thrown(line)?.phase).toBe('settled'), { timeout: 10_000 });
+    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('settled'), { timeout: 10_000 });
   }
 
   /** A worker that takes every throw and answers none, so the dice thrown stay on the move. */
@@ -189,7 +181,7 @@ describe('DiceThrowService', () => {
 
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
 
-    await until(() => expect(thrown(line)?.phase).toBe('rolling'));
+    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
     expect(thrown(line)?.shown).toEqual(['17', '2']);
     expect(thrown(line)?.dice.map((die) => die.shape)).toEqual(['d20', 'd6']);
     expect(thrown(line)?.color).toBe('#3b5bdb');
@@ -201,7 +193,7 @@ describe('DiceThrowService', () => {
 
       callDiceThrow({ messageIdentifier: line.identifier }, 'here');
 
-      await until(() => expect(thrown(line)?.phase).toBe('rolling'));
+      await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
       expect(thrown(line)?.look).toEqual({ ...PLAIN_DICE_LOOK, material: 'marble', body: '#1e6b52', ink: '#f6f3ec' });
       expect(thrown(line)?.color).toBe('#1e6b52');
     });
@@ -211,7 +203,7 @@ describe('DiceThrowService', () => {
 
       callDiceThrow({ messageIdentifier: line.identifier }, 'here');
 
-      await until(() => expect(thrown(line)?.phase).toBe('rolling'));
+      await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
       expect(thrown(line)?.look.material).toBe('metal');
       expect(thrown(line)?.color).toBe('#c92a2a');
     });
@@ -241,7 +233,7 @@ describe('DiceThrowService', () => {
   it('throws one of each die to try a look out on, in place of the try before', async () => {
     const first = service.tryOut({ ...PLAIN_DICE_LOOK, material: 'marble', body: '#5f3dc4', ink: '' }, '#000000');
 
-    await until(() => expect(service.throws().get(first)?.phase).toBe('rolling'));
+    await vi.waitFor(() => expect(service.throws().get(first)?.phase).toBe('rolling'));
     expect(
       service
         .throws()
@@ -277,12 +269,12 @@ describe('DiceThrowService', () => {
     const lines = Array.from({ length: KEPT_THROWS }, () => answer());
     const last = lines[lines.length - 1];
     for (const line of lines.slice(0, -1)) callDiceThrow({ messageIdentifier: line.identifier }, 'here');
-    await until(() => expect(thrown(lines[lines.length - 2])?.phase).toBe('settled'));
+    await vi.waitFor(() => expect(thrown(lines[lines.length - 2])?.phase).toBe('settled'));
 
     service.tryOut(PLAIN_DICE_LOOK, '#2b8a3e');
     callDiceThrow({ messageIdentifier: last.identifier }, 'here');
 
-    await until(() => expect(thrown(last)?.phase).toBe('settled'));
+    await vi.waitFor(() => expect(thrown(last)?.phase).toBe('settled'));
     expect(thrown(lines[0])).toBeDefined();
   });
 
@@ -290,7 +282,7 @@ describe('DiceThrowService', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const line = answer();
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
-    await until(() => expect(thrown(line)?.phase).toBe('rolling'));
+    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
 
     const result = thrown(line)!.result!;
     await vi.advanceTimersByTimeAsync((result.frameCount / 60) * 1000 + 2000);
@@ -302,7 +294,7 @@ describe('DiceThrowService', () => {
 
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
 
-    await until(() => expect(thrown(line)?.phase).toBe('rolling'));
+    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
     expect(thrown(line)?.outcome).toBe('critical');
   });
 
@@ -310,7 +302,7 @@ describe('DiceThrowService', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const line = answer();
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
-    await until(() => expect(thrown(line)?.phase).toBe('rolling'));
+    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
     const total = ((thrown(line)!.result!.frameCount - 1) / 60) * 1000;
 
     service.played(line.identifier, performance.now() + 1500);
@@ -339,7 +331,7 @@ describe('DiceThrowService', () => {
       Config.instance.diceStage = 'table';
       TestBed.tick();
 
-      await until(() => expect(started).toBe(1));
+      await vi.waitFor(() => expect(started).toBe(1));
     } finally {
       releaseWorker();
     }
@@ -365,7 +357,7 @@ describe('DiceThrowService', () => {
     ObjectStore.instance.add(line);
     tab.appendChild(line);
 
-    await until(() => expect(thrown(line)?.phase).toBe('rolling'));
+    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
   });
 
   it('stops waiting for a line that never comes', async () => {
@@ -381,7 +373,7 @@ describe('DiceThrowService', () => {
   it('throws the same line once, however often it is called', async () => {
     const line = answer();
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
-    await until(() => expect(thrown(line)?.phase).toBe('rolling'));
+    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
     const first = thrown(line);
 
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
@@ -416,7 +408,7 @@ describe('DiceThrowService', () => {
     callDiceThrow({ messageIdentifier: mine.identifier }, 'here');
     callDiceThrow({ messageIdentifier: theirs.identifier }, 'here');
 
-    await until(() => expect(thrown(mine)?.phase).toBe('rolling'));
+    await vi.waitFor(() => expect(thrown(mine)?.phase).toBe('rolling'));
     expect(thrown(theirs)).toBeUndefined();
   });
 
@@ -455,7 +447,7 @@ describe('DiceThrowService', () => {
 
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
 
-    await until(() => expect(thrownOn(line, 'frame').map((t) => t.phase)).toEqual(Array(3).fill('rolling')), {
+    await vi.waitFor(() => expect(thrownOn(line, 'frame').map((t) => t.phase)).toEqual(Array(3).fill('rolling')), {
       timeout: 15000,
     });
     const trays = thrownOn(line, 'frame');
@@ -486,7 +478,7 @@ describe('DiceThrowService', () => {
 
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
 
-    await until(() => expect(thrown(line)?.phase).toBe('settled'));
+    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('settled'));
     expect(thrown(line)?.still).toBe(true);
     expect(thrown(line)?.shown).toEqual(['5', '0']);
   });
@@ -497,7 +489,7 @@ describe('DiceThrowService', () => {
 
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
 
-    await until(() => expect(thrown(line)?.phase).toBe('settled'));
+    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('settled'));
     const { dice, result } = thrown(line)!;
     dice.forEach((die, index) => {
       const at = index * 7 + 3;
@@ -512,7 +504,7 @@ describe('DiceThrowService', () => {
 
     for (const line of lines) callDiceThrow({ messageIdentifier: line.identifier }, 'here');
 
-    await until(() => expect(lines.every((line) => thrown(line)?.result)).toBe(true));
+    await vi.waitFor(() => expect(lines.every((line) => thrown(line)?.result)).toBe(true));
     expect(lines.map((line) => thrown(line)?.still)).toEqual([...Array(MAX_TUMBLING).fill(false), true]);
   });
 
@@ -524,7 +516,7 @@ describe('DiceThrowService', () => {
     async function throwAll(lines: ChatMessage[]): Promise<void> {
       for (const line of lines) {
         callDiceThrow({ messageIdentifier: line.identifier }, 'here');
-        await until(() => expect(thrownOn(line, 'frame').length).toBeGreaterThan(0));
+        await vi.waitFor(() => expect(thrownOn(line, 'frame').length).toBeGreaterThan(0));
       }
     }
 
@@ -567,7 +559,7 @@ describe('DiceThrowService', () => {
       const lines = [answer({ faces: d6s(100) }), answer({ faces: d6s(150) })];
 
       await throwAll(lines);
-      await until(() => expect(thrownOn(lines[1], 'table').length).toBeGreaterThan(0));
+      await vi.waitFor(() => expect(thrownOn(lines[1], 'table').length).toBeGreaterThan(0));
 
       expect(thrownOn(lines[1], 'frame').every((t) => !t.still)).toBe(true);
       expect(thrownOn(lines[1], 'table').every((t) => t.still)).toBe(true);
@@ -580,7 +572,7 @@ describe('DiceThrowService', () => {
 
     for (const line of lines) callDiceThrow({ messageIdentifier: line.identifier }, 'here');
 
-    await until(() => expect(thrown(lines[lines.length - 1])?.phase).toBe('settled'));
+    await vi.waitFor(() => expect(thrown(lines[lines.length - 1])?.phase).toBe('settled'));
     expect(service.throws().size).toBe(KEPT_THROWS);
     expect(thrown(lines[0])).toBeUndefined();
   });
@@ -644,7 +636,7 @@ describe('DiceThrowService', () => {
     useDicePhysicsWorkerFactory(() => worker as unknown as Worker);
     const line = answer();
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
-    await until(() => expect(held.some((job) => job.request.key === line.identifier)).toBe(true));
+    await vi.waitFor(() => expect(held.some((job) => job.request.key === line.identifier)).toBe(true));
 
     service.fail(line.identifier);
     const job = held.find((held) => held.request.key === line.identifier)!;
@@ -658,7 +650,7 @@ describe('DiceThrowService', () => {
   it('puts a throw away when its dice cannot be drawn', async () => {
     const line = answer();
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
-    await until(() => expect(thrown(line)?.phase).toBe('rolling'));
+    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
 
     service.fail(line.identifier);
 
@@ -772,7 +764,7 @@ describe('DiceThrowService', () => {
 
       service.showStill(line.identifier);
       callDiceThrow({ messageIdentifier: line.identifier }, 'here');
-      await until(() => expect(thrown(line)?.phase).toBe('rolling'));
+      await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
       await vi.advanceTimersByTimeAsync(LINE_WAIT_MS + 1);
 
       expect(thrown(line)?.still).toBe(false);
@@ -802,7 +794,7 @@ describe('DiceThrowService', () => {
 
       callDiceThrow({ messageIdentifier: line.identifier, speakerIdentifier: 'goblin' }, 'here');
 
-      await until(() => expect(thrownOnTable(line)?.phase).toBe('rolling'));
+      await vi.waitFor(() => expect(thrownOnTable(line)?.phase).toBe('rolling'));
       expect(thrownOnTable(line)?.stage).toBe('table');
       expect(thrownOnTable(line)?.placement).toBe(placement);
       expect(thrownOnTable(line)?.tray).toEqual(placement!.tray);
@@ -818,7 +810,7 @@ describe('DiceThrowService', () => {
 
       callDiceThrow({ messageIdentifier: line.identifier, speakerIdentifier: 'goblin' }, 'here');
 
-      await until(() => expect(thrownOn(line, 'table')).toHaveLength(2));
+      await vi.waitFor(() => expect(thrownOn(line, 'table')).toHaveLength(2));
       expect(placedCounts).toEqual([[30, 30]]);
       expect(thrownOn(line, 'table').map((t) => t.key)).toEqual([
         `${line.identifier}:table`,
@@ -862,8 +854,8 @@ describe('DiceThrowService', () => {
 
       callDiceThrow({ messageIdentifier: line.identifier }, 'here');
 
-      await until(() => expect(thrown(line)?.phase).toBe('rolling'));
-      await until(() => expect(thrownOnTable(line)?.phase).toBe('rolling'));
+      await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
+      await vi.waitFor(() => expect(thrownOnTable(line)?.phase).toBe('rolling'));
       expect(thrown(line)?.stage).toBe('frame');
       expect(thrownOnTable(line)?.stage).toBe('table');
       expect(thrown(line)?.shown).toEqual(['17', '2']);
@@ -876,7 +868,7 @@ describe('DiceThrowService', () => {
 
       for (const line of lines) callDiceThrow({ messageIdentifier: line.identifier }, 'here');
 
-      await until(() => expect(lines.every((line) => thrownOnTable(line)?.result)).toBe(true));
+      await vi.waitFor(() => expect(lines.every((line) => thrownOnTable(line)?.result)).toBe(true));
       expect(lines.map((line) => thrownOnTable(line)?.still)).toEqual(Array(MAX_TUMBLING).fill(false));
     });
 
@@ -886,7 +878,7 @@ describe('DiceThrowService', () => {
 
       callDiceThrow({ messageIdentifier: line.identifier }, 'here');
 
-      await until(() => expect(thrown(line)?.phase).toBe('settled'));
+      await vi.waitFor(() => expect(thrown(line)?.phase).toBe('settled'));
       expect(thrownOnTable(line)).toBeUndefined();
     });
   });

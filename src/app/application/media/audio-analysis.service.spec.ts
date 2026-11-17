@@ -30,6 +30,7 @@ describe('AudioAnalysisService', () => {
   let canEditTabletop: boolean;
   let analyzer: ReturnType<typeof vi.fn<(blob: Blob) => Promise<AudioAnalysisResult | null>>>;
   const added: string[] = [];
+  const delays = { sharing: 0, watching: 0, gap: 0 };
 
   function addSound(identifier: string): void {
     AudioStorage.instance.add({
@@ -47,7 +48,7 @@ describe('AudioAnalysisService', () => {
       providers: [
         ...TEST_PROVIDERS,
         { provide: AUDIO_ANALYZER, useValue: analyzer },
-        { provide: AUDIO_ANALYSIS_DELAYS, useValue: { sharing: 0, watching: 0, gap: 0 } },
+        { provide: AUDIO_ANALYSIS_DELAYS, useValue: delays },
         {
           provide: RolePermissionService,
           useValue: {
@@ -61,6 +62,14 @@ describe('AudioAnalysisService', () => {
     const service = TestBed.inject(AudioAnalysisService);
     TestBed.tick();
     return service;
+  }
+
+  /**
+   * Waits out the pause the service takes after a reading before it looks for the next sound to read,
+   * so that a reading it goes on to begin after the one a test waited for is counted as well.
+   */
+  function nextLookDue(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, delays.gap));
   }
 
   beforeEach(() => {
@@ -78,6 +87,7 @@ describe('AudioAnalysisService', () => {
     start();
 
     await vi.waitFor(() => expect(AudioTag.get('track-a')?.analysis).toBeTruthy());
+    await nextLookDue();
     expect(AudioProfile.analysisOf('track-a')?.lufs).toBe(-11);
     expect(analyzer).toHaveBeenCalledTimes(1);
   });
@@ -115,6 +125,7 @@ describe('AudioAnalysisService', () => {
     start();
 
     await vi.waitFor(() => expect(AudioTag.get('track-e')?.analysis).toBeTruthy());
+    await nextLookDue();
     expect(analyzer).toHaveBeenCalledTimes(1);
     expect(AudioProfile.analysisOf('track-d')?.lufs).toBe(-20);
   });
@@ -220,6 +231,8 @@ describe('AudioAnalysisService', () => {
     TestBed.tick();
 
     await vi.waitFor(() => expect(analyzer).toHaveBeenCalledTimes(2));
+    await nextLookDue();
+    expect(analyzer).toHaveBeenCalledTimes(2);
     expect(service.isPending('broken')).toBe(false);
   });
 
