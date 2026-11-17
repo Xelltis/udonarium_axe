@@ -1,0 +1,171 @@
+import { DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
+import { AgentToolRunner } from '@axe/application/agent/agent-tool-runner.service';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { AgentBridgeClient, type AgentLinkState } from '@axe/core/agent/agent-bridge-client';
+import { AGENT_BRIDGE_PORT, type AgentScope, type AgentSeat } from '@axe/core/agent/agent-protocol';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { AgentToolsSetup } from '@axe/features/agent-tools/agent-tools-setup.service';
+import { version as APP_VERSION } from '@pkg';
+
+/** What this browser keeps of the link: the bridge's port, and what the AI was last let do. */
+interface StoredLink {
+  readonly port: number;
+  readonly scope: AgentScope;
+}
+
+function readStoredLink(): StoredLink {
+  try {
+    const stored = JSON.parse(readLocal(STORAGE_KEYS.aiLink) ?? '{}') as Partial<StoredLink>;
+    const port = Number(stored.port);
+    return {
+      port: Number.isInteger(port) && port > 0 && port < 65536 ? port : AGENT_BRIDGE_PORT,
+      scope: stored.scope === 'write' ? 'write' : 'read',
+    };
+  } catch {
+    return { port: AGENT_BRIDGE_PORT, scope: 'read' };
+  }
+}
+
+/** How long the link waits before looking for the bridge again, once it has none. */
+const RETRY_MS = 3000;
+
+/**
+ * This seat's link to an AI: the bridge on this computer it connects to, what it lets the AI do, and
+ * where the link stands. Once its person presses Connect, it keeps looking for the bridge until it is
+ * pressed to stop, so that the AI may be started before or after and restarted at will. The link holds
+ * while the panel is closed, and is let go of with the page: a page opened afresh is connected only
+ * when its person presses Connect again. Everyone in the room is told when a seat starts or ends a
+ * link, or changes what it lets the AI do, so that nobody plays beside an AI without knowing.
+ */
+@Injectable({ providedIn: 'root' })
+export class AiLinkService {
+  private readonly runner = inject(AgentToolRunner);
+  private readonly chat = inject(ChatMessageService);
+  private readonly permission = inject(RolePermissionService);
+  private readonly objectChange = inject(ObjectChangeService);
+  private readonly tools = inject(AgentToolsSetup);
+  private client: AgentBridgeClient | null = null;
+  private retry: ReturnType<typeof setTimeout> | null = null;
+
+  /** Where the link stands. */
+  readonly state = signal<AgentLinkState>({ kind: 'idle' });
+  /** The port the bridge waits on. */
+  readonly port = signal(AGENT_BRIDGE_PORT);
+  /** What the person at the seat lets the AI do; a seat that watches lets it read only, whatever this says. */
+  readonly scope = signal<AgentScope>('read');
+
+  constructor() {
+    const stored = readStoredLink();
+    this.port.set(stored.port);
+    this.scope.set(stored.scope);
+    effect(() => {
+      const cursor = PeerCursor.myCursor;
+      if (cursor) this.objectChange.versionOf(cursor.identifier)();
+      this.permission.role();
+      untracked(() => this.client?.tellSeat());
+    });
+    inject(DestroyRef).onDestroy(() => {
+      this.stopRetrying();
+      this.client?.close();
+    });
+  }
+
+  /** The seat as the bridge is told it. */
+  seat(): AgentSeat {
+    const role = this.permission.role();
+    return {
+      name: PeerCursor.myCursor?.name ?? '',
+      role,
+      scope: canRoleEdit(role) ? this.scope() : 'read',
+    };
+  }
+
+  /** Whether the person wants the link: it is connected, or looking for the bridge. */
+  wanted(): boolean {
+    return this.client !== null;
+  }
+
+  /** Connects to the bridge, letting go of any link before, and keeps looking for it until told to stop. */
+  connect(): void {
+    this.tools.ensure();
+    this.stopRetrying();
+    this.client?.close();
+    const client = new AgentBridgeClient({
+      port: this.port(),
+      app: APP_VERSION,
+      seat: () => this.seat(),
+      run: (tool, args, signal) => this.runner.run(tool, args, this.seat().scope, signal),
+      onState: (state) => this.become(client, state),
+    });
+    this.client = client;
+    client.connect();
+  }
+
+  /** Lets go of the bridge, telling the room where the AI was connected. */
+  disconnect(): void {
+    const client = this.client;
+    if (!client) return;
+    const wasConnected = client.current.kind === 'connected';
+    this.client = null;
+    this.stopRetrying();
+    client.close();
+    this.tools.release();
+    this.state.set({ kind: 'idle' });
+    if (wasConnected) this.tellRoom('feature.aiLink.notice.ended');
+  }
+
+  /** Changes what the AI is let do, telling the bridge, and the room where the AI is connected. */
+  setScope(scope: AgentScope): void {
+    if (scope === this.scope()) return;
+    this.scope.set(scope);
+    this.store();
+    if (this.state().kind !== 'connected') return;
+    this.client?.tellSeat();
+    this.tellRoom(scope === 'write' ? 'feature.aiLink.notice.nowWrite' : 'feature.aiLink.notice.nowRead');
+  }
+
+  /** Changes the port the bridge is looked for on, from the next connection. */
+  setPort(port: number): void {
+    if (!Number.isInteger(port) || port < 1 || port > 65535) return;
+    this.port.set(port);
+    this.store();
+  }
+
+  private become(client: AgentBridgeClient, state: AgentLinkState): void {
+    if (this.client !== client) return;
+    const was = this.state().kind;
+    this.state.set(state);
+    if (state.kind === 'connected' && was !== 'connected') {
+      this.tellRoom(
+        this.seat().scope === 'write' ? 'feature.aiLink.notice.startedWrite' : 'feature.aiLink.notice.startedRead'
+      );
+    }
+    if (state.kind === 'lost') {
+      if (was === 'connected') this.tellRoom('feature.aiLink.notice.lost');
+      this.stopRetrying();
+      this.retry = setTimeout(() => {
+        this.retry = null;
+        if (this.client === client) client.connect();
+      }, RETRY_MS);
+    }
+  }
+
+  private stopRetrying(): void {
+    if (this.retry !== null) clearTimeout(this.retry);
+    this.retry = null;
+  }
+
+  private tellRoom(key: string): void {
+    this.chat.sendSystemNotice('room', encodeI18nMessage(key, { name: PeerCursor.myCursor?.name ?? '' }));
+  }
+
+  private store(): void {
+    writeLocal(STORAGE_KEYS.aiLink, JSON.stringify({ port: this.port(), scope: this.scope() }));
+  }
+}

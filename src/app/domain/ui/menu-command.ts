@@ -247,6 +247,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   panel('inventory', 'folder_shared', 'inventory', 'app.fab.inventory'),
   panel('buffManager', 'timeline', 'buffManager', 'feature.buffManager.title', { audience: 'playing' }),
   panel('statusAilment', 'list_alt', 'statusAilment', 'feature.statusAilment.title'),
+  panel('aiLink', 'smart_toy', 'aiLink', 'feature.aiLink.title', { testId: 'fab-ai-link' }),
   panel('diceTableSetting', 'casino', 'diceTableSetting', 'feature.dice.tableSetting.title'),
   panel('myDice', 'format_paint', 'myDice', 'feature.dice.myDice.title', { audience: 'playing' }),
   panel('images', 'photo_library', 'fileStorage', 'app.fab.images'),

@@ -100,6 +100,7 @@ const FAB: MenuLayout = {
       ],
       { testId: 'fab-display', menuTestId: 'seat-display' }
     ),
+    item('aiLink'),
     item('buttonGuide'),
   ],
 };
