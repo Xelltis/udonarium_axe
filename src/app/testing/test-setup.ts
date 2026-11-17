@@ -1,7 +1,5 @@
 import '@angular/compiler';
 
-import { setImmediate } from 'node:timers';
-
 import { EnvironmentProviders, NO_ERRORS_SCHEMA, Provider } from '@angular/core';
 import { ɵresolveComponentResources as resolveComponentResources } from '@angular/core';
 import { ɵgetCleanupHook as getCleanupHook, TestBed, TestModuleMetadata } from '@angular/core/testing';
@@ -430,27 +428,9 @@ beforeAll(async () => {
     : null;
 });
 
-/**
- * Settles once the event loop has taken a turn, by Node's own timers rather than the page's, which a
- * test may have handed over to fake ones that never fire.
- */
-function endTurn(): Promise<void> {
-  return new Promise((resolve) => setImmediate(resolve));
-}
-
 // A test can start loading a part of the app lazily, as setting out the first table's tutorial does;
-// the part must arrive before the test's page is taken down, or it lands in the next file's. Many
-// tests wait on nothing but promises, so the event loop would otherwise never turn between them:
-// what a test leaves to happen later, such as a render it scheduled, a timer it set or a promise it
-// left rejected, would go off in another test or not at all, and anything it threw would be put down
-// to that test or to none. The turn is taken while the test's page is still up, so it comes in the
-// test that left it. A render that runs in the turn may ask for a part of its own, which is waited
-// for in turn: the last test of a file would otherwise leave it arriving as the page is taken down.
-afterEach(async () => {
-  await lazyLoadsSettled();
-  await endTurn();
-  await lazyLoadsSettled();
-});
+// the part must arrive before the test's page is taken down, or it lands in the next file's.
+afterEach(() => lazyLoadsSettled());
 
 beforeEach(async () => {
   // A test that turns logging up, as the logger specs do, must not leave the next one printing.
