@@ -37,6 +37,8 @@ export class GmHost {
   private run: GmRun = 'off';
   private halted: GmHalt | undefined;
   private problem: string | undefined;
+  /** The refusal last shown of a change to a model the bridge does not run, while it is still shown. */
+  private modelRefused: string | undefined;
   /** How many askings to start have been answered. */
   private starts = 0;
   private events: Readonly<Record<string, unknown>>[] = [];
@@ -94,13 +96,7 @@ export class GmHost {
         this.start(message);
         return;
       case 'gm.update':
-        if (this.master && !isGmModel(message.settings.model)) {
-          this.problem = `This bridge does not run ${message.settings.model}.`;
-          this.tell();
-          return;
-        }
-        this.master?.update(message.settings, message.instructions, message.notes);
-        this.tell();
+        this.update(message);
         return;
       case 'gm.events':
         if (this.run === 'off') return;
@@ -122,6 +118,27 @@ export class GmHost {
         this.halt('asked');
         return;
     }
+  }
+
+  /**
+   * Takes a change of settings, instructions and notes to the game master. A model the bridge has no
+   * price for is not changed to, since what it spent would count as nothing: the rest of the change
+   * is taken with the model kept, and the refusal is shown until a model the bridge runs is named.
+   */
+  private update(message: Extract<GmTabMessage, { type: 'gm.update' }>): void {
+    if (this.master) {
+      const known = isGmModel(message.settings.model);
+      const settings = known ? message.settings : { ...message.settings, model: this.master.model };
+      this.master.update(settings, message.instructions, message.notes);
+      if (!known) {
+        this.modelRefused = `This bridge does not run ${message.settings.model}.`;
+        this.problem = this.modelRefused;
+      } else {
+        if (this.problem === this.modelRefused) this.problem = undefined;
+        this.modelRefused = undefined;
+      }
+    }
+    this.tell();
   }
 
   /** Whether the seat connected is the game master's, let to change the room. */

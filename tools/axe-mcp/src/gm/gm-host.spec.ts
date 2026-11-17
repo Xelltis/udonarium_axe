@@ -93,8 +93,18 @@ describe('GmHost', () => {
     tab.say({ type: 'gm.start', settings: SETTINGS, instructions: '', notes: '' });
     await until(() => api.sent.length === 1 && lastStatus(tab)?.run === 'waiting');
 
-    tab.say({ type: 'gm.update', settings: { ...SETTINGS, model: 'claude-other' }, instructions: '', notes: '' });
+    tab.say({
+      type: 'gm.update',
+      settings: { ...SETTINGS, model: 'claude-other', budgetUsd: 9 },
+      instructions: '',
+      notes: '',
+    });
     await until(() => lastStatus(tab)?.problem?.includes('claude-other') === true);
+    // The rest of the change is taken, with the model kept.
+    expect(lastStatus(tab)).toMatchObject({ run: 'waiting', model: 'claude-opus-5-5', budgetUsd: 9 });
+
+    tab.say({ type: 'gm.update', settings: { ...SETTINGS, budgetUsd: 9 }, instructions: '', notes: '' });
+    await until(() => lastStatus(tab)?.problem === undefined);
     expect(lastStatus(tab)).toMatchObject({ run: 'waiting', model: 'claude-opus-5-5' });
   });
 
