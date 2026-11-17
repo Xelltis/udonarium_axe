@@ -191,7 +191,11 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
         text: { type: 'string', minLength: 1, maxLength: 2000 },
         as: SPEAKER,
         tab: TAB,
-        to: { type: 'string', description: 'Whisper to this seat or piece only, by name.', minLength: 1 },
+        to: {
+          type: 'string',
+          description: 'Whisper to this seat only, by its name or by the name of a piece it owns.',
+          minLength: 1,
+        },
       },
       ['text']
     ),

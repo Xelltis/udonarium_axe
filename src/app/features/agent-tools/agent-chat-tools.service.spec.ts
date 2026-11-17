@@ -104,6 +104,22 @@ describe('AgentChatTools', () => {
     expect(said()[0].sendTo).toEqual(['ai-gm-user']);
   });
 
+  it('whispers to the seat that owns a piece named, and refuses a piece no seat here owns', async () => {
+    const hero = GameCharacter.create('アリス', 1, '');
+    hero.location = { name: 'table', x: 0, y: 0 };
+    hero.owner = 'ai-gm-user';
+    hero.update();
+    const goblin = GameCharacter.create('ゴブリン', 1, '');
+    goblin.location = { name: 'table', x: 50, y: 0 };
+    goblin.update();
+
+    await call('send_chat', { text: '鍵は樽の中だ', to: 'アリス' });
+    expect(said()[0].sendTo).toEqual(['ai-gm-user']);
+
+    await expect(call('send_chat', { text: '聞こえるか', to: 'ゴブリン' })).rejects.toThrow(/would reach nobody/);
+    expect(said()).toHaveLength(1);
+  });
+
   it('returns the dice bot’s answer with a line that rolls', async () => {
     const stop = diceRolled$.subscribe(() => undefined);
     const pending = call('roll_dice', { command: '2d6+1' });

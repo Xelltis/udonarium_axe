@@ -123,19 +123,30 @@ export class AgentChatTools {
     return this.read.piece(as).identifier;
   }
 
-  /** Whom a whisper is to: a seat by its name, or a piece this seat sees. */
+  /**
+   * Whom a whisper is to: a seat by its name, or the seat that owns a piece this seat sees. A piece
+   * no seat here owns is refused, since a whisper to it would reach nobody.
+   */
   private recipientOf(name: string): string {
     const seats = this.objectStore.getObjects<PeerCursor>(PeerCursor);
     const seat = seats.find((cursor) => cursor.name === name.trim());
     if (seat) return seat.identifier;
     const pieces = this.views.visiblePieces();
-    return findOne(
+    const piece = findOne(
       pieces,
       name,
-      (piece) => piece.identifier,
-      (piece) => this.views.nameOf(piece),
+      (each) => each.identifier,
+      (each) => this.views.nameOf(each),
       'seat or piece'
-    ).identifier;
+    );
+    const owner = piece.owner ? PeerCursor.findByUserId(piece.owner) : null;
+    if (!owner) {
+      throw new AgentToolError(
+        'invalid_input',
+        `No seat here owns ${this.views.nameOf(piece)}, so a whisper to it would reach nobody. Whisper to a seat by its name.`
+      );
+    }
+    return owner.identifier;
   }
 
   /**
