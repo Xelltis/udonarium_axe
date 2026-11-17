@@ -106,9 +106,22 @@ describe('GmHost', () => {
     // The rest of the change is taken, with the model kept.
     expect(lastStatus(tab)).toMatchObject({ run: 'waiting', model: 'claude-opus-5-5', budgetUsd: 9 });
 
+    api.replies.push(reply([]));
+    tab.say({ type: 'gm.events', events: [{ event: { kind: 'chat', text: '扉を開ける' }, wake: 'line' }] });
+    await until(() => api.sent.length === 2 && lastStatus(tab)?.run === 'waiting');
+    expect(lastStatus(tab)?.problem).toContain('claude-other');
+
     tab.say({ type: 'gm.update', settings: { ...SETTINGS, budgetUsd: 9 }, instructions: '', notes: '' });
     await until(() => lastStatus(tab)?.problem === undefined);
     expect(lastStatus(tab)).toMatchObject({ run: 'waiting', model: 'claude-opus-5-5' });
+
+    tab.say({ type: 'gm.update', settings: { ...SETTINGS, model: 'claude-other' }, instructions: '', notes: '' });
+    await until(() => lastStatus(tab)?.problem?.includes('claude-other') === true);
+    tab.say({ type: 'seat', seat: { ...GM, scope: 'read' } });
+    await until(() => lastStatus(tab)?.halted === 'seat');
+    expect(lastStatus(tab)?.problem).toMatch(
+      /^The seat is no longer the game master's.* This bridge does not run claude-other\.$/
+    );
   });
 
   it('opens at once when started, the model greeting the table, then waits', async () => {

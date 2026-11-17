@@ -105,7 +105,7 @@ export interface GmStatus {
   readonly contextTokens: number;
   /** Whether a conversation is kept to carry on from. */
   readonly kept: boolean;
-  /** What went wrong last, for the panel to show. */
+  /** What went wrong last, and after it a model asked for that the bridge does not run, for the panel to show. */
   readonly problem?: string;
   /**
    * How many askings to start the bridge has answered since it was started itself. A tab that asked
