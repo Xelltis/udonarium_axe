@@ -224,7 +224,7 @@
         "tabsHint": "아무것도 고르지 않으면 모든 탭을 듣습니다",
         "pieces": "AI가 움직이는 말",
         "noPieces": "아직 없습니다",
-        "piecesHint": "NPC 표시가 있는 말과 이 자리가 주인인 말입니다. 플레이어의 말에는 주인을 설정하세요"
+        "piecesHint": "NPC 표시가 있는 말과 이 자리가 주인인 말입니다. NPC 표시는 말의 오른쪽 클릭 메뉴에서 붙입니다"
       },
       "instructions": {
         "heading": "AI GM에게 주는 지시",
