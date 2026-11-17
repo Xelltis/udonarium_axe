@@ -120,6 +120,13 @@ const VISUAL_USE = {
   reducedMotion: 'no-preference' as const,
 };
 
+/**
+ * The pictures of what the page lays over the table and of nothing the canvas draws: panels, the
+ * toolbars, the rail, a chat line and the novel band. The page draws them the same whichever way the
+ * canvas is drawn, so they are taken once, with the canvas drawn through WebGL2.
+ */
+const PICTURES_OF_THE_PAGE_ALONE = /visual\/(?:chat-ruby|panels-settings|startup-rail|toolbars|vn-overlay)\.spec\.ts/;
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -232,6 +239,7 @@ export default defineConfig({
         actionTimeout: 30000,
       },
       testMatch: /visual\/.*\.spec\.ts/,
+      testIgnore: PICTURES_OF_THE_PAGE_ALONE,
       retries: 0,
       timeout: 120000,
       workers: 3,
