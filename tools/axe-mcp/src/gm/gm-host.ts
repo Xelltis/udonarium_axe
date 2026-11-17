@@ -39,8 +39,7 @@ export class GmHost {
   private problem: string | undefined;
   /**
    * The refusal of a model the bridge does not run, asked for at a start or in a change, until one it
-   * runs is named or the tab that asked goes away. Kept apart from what went wrong last and told
-   * after it, so neither is lost to the other.
+   * runs is named. Kept and told apart from what went wrong last, so neither is lost to the other.
    */
   private modelRefused: string | undefined;
   /** How many askings to start have been answered. */
@@ -70,14 +69,12 @@ export class GmHost {
       } else {
         // Nothing can be done at the table without the tab: the turn is given up, to be taken again.
         this.turn?.abort();
-        this.modelRefused = undefined;
       }
     });
   }
 
   /** How the game master stands, as the tab is told it. */
   status(): GmStatus {
-    const problem = [this.problem, this.modelRefused].filter(Boolean).join(' ');
     return {
       run: this.run,
       ...(this.halted ? { halted: this.halted } : {}),
@@ -86,7 +83,8 @@ export class GmHost {
       budgetUsd: this.master?.budgetUsd ?? 0,
       contextTokens: this.master?.contextTokens ?? 0,
       kept: this.master?.kept ?? false,
-      ...(problem ? { problem } : {}),
+      ...(this.problem ? { problem: this.problem } : {}),
+      ...(this.modelRefused ? { refused: this.modelRefused } : {}),
       starts: this.starts,
     };
   }

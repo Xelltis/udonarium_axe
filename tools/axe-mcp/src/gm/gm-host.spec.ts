@@ -81,11 +81,12 @@ describe('GmHost', () => {
     expect(lastStatus(tab)).toMatchObject({ run: 'off', problem: expect.stringContaining("game master's seat") });
 
     tab.say({ type: 'gm.start', settings: { ...SETTINGS, model: 'claude-other' }, instructions: '', notes: '' });
-    await until(() => lastStatus(tab)?.problem?.includes('claude-other') === true);
+    await until(() => lastStatus(tab)?.refused !== undefined);
+    expect(lastStatus(tab)?.refused).toBe('This bridge does not run claude-other.');
     expect(api.sent).toEqual([]);
     // Naming a model it runs lets go of the refusal, before any game master has run.
     tab.say({ type: 'gm.update', settings: SETTINGS, instructions: '', notes: '' });
-    await until(() => lastStatus(tab)?.problem?.includes("game master's seat") === true);
+    await until(() => lastStatus(tab)?.refused === undefined);
     // Each asking is counted as it is answered, so a tab tells the answer to its own.
     expect(lastStatus(tab)?.starts).toBe(2);
   });
@@ -102,26 +103,40 @@ describe('GmHost', () => {
       instructions: '',
       notes: '',
     });
-    await until(() => lastStatus(tab)?.problem?.includes('claude-other') === true);
+    await until(() => lastStatus(tab)?.refused !== undefined);
     // The rest of the change is taken, with the model kept.
     expect(lastStatus(tab)).toMatchObject({ run: 'waiting', model: 'claude-opus-5-5', budgetUsd: 9 });
 
+    tab.say({ type: 'gm.update', settings: { ...SETTINGS, budgetUsd: 9 }, instructions: '', notes: '' });
+    await until(() => lastStatus(tab)?.refused === undefined);
+    expect(lastStatus(tab)).toMatchObject({ run: 'waiting', model: 'claude-opus-5-5' });
+  });
+
+  it('keeps a model refused shown through a turn, and beside what goes wrong after it', async () => {
+    const tab = await connect();
+    api.replies.push(reply([]));
+    tab.say({ type: 'gm.start', settings: SETTINGS, instructions: '', notes: '' });
+    await until(() => api.sent.length === 1 && lastStatus(tab)?.run === 'waiting');
+    tab.say({ type: 'gm.update', settings: { ...SETTINGS, model: 'claude-other' }, instructions: '', notes: '' });
+    await until(() => lastStatus(tab)?.refused !== undefined);
+
+    const turnsBefore = statuses(tab).filter((status) => status.run === 'thinking').length;
     api.replies.push(reply([]));
     tab.say({ type: 'gm.events', events: [{ event: { kind: 'chat', text: '扉を開ける' }, wake: 'line' }] });
-    await until(() => api.sent.length === 2 && lastStatus(tab)?.run === 'waiting');
-    expect(lastStatus(tab)?.problem).toContain('claude-other');
+    await until(
+      () =>
+        statuses(tab).filter((status) => status.run === 'thinking').length > turnsBefore &&
+        lastStatus(tab)?.run === 'waiting'
+    );
+    expect(lastStatus(tab)).toMatchObject({ refused: 'This bridge does not run claude-other.' });
+    expect(lastStatus(tab)?.problem).toBeUndefined();
 
-    tab.say({ type: 'gm.update', settings: { ...SETTINGS, budgetUsd: 9 }, instructions: '', notes: '' });
-    await until(() => lastStatus(tab)?.problem === undefined);
-    expect(lastStatus(tab)).toMatchObject({ run: 'waiting', model: 'claude-opus-5-5' });
-
-    tab.say({ type: 'gm.update', settings: { ...SETTINGS, model: 'claude-other' }, instructions: '', notes: '' });
-    await until(() => lastStatus(tab)?.problem?.includes('claude-other') === true);
     tab.say({ type: 'seat', seat: { ...GM, scope: 'read' } });
     await until(() => lastStatus(tab)?.halted === 'seat');
-    expect(lastStatus(tab)?.problem).toMatch(
-      /^The seat is no longer the game master's.* This bridge does not run claude-other\.$/
-    );
+    expect(lastStatus(tab)).toMatchObject({
+      problem: expect.stringContaining('no longer the game master'),
+      refused: 'This bridge does not run claude-other.',
+    });
   });
 
   it('opens at once when started, the model greeting the table, then waits', async () => {

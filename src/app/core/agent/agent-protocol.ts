@@ -105,8 +105,10 @@ export interface GmStatus {
   readonly contextTokens: number;
   /** Whether a conversation is kept to carry on from. */
   readonly kept: boolean;
-  /** What went wrong last, and after it a model asked for that the bridge does not run, for the panel to show. */
+  /** What went wrong last, for the panel to show. */
   readonly problem?: string;
+  /** The refusal of a model asked for that the bridge does not run, standing until one it runs is named. */
+  readonly refused?: string;
   /**
    * How many askings to start the bridge has answered since it was started itself. A tab that asked
    * tells the answer to its asking, which counts one more, from what the bridge told of itself before.
@@ -267,6 +269,8 @@ function statusOf(raw: unknown): GmStatus | null {
   if (halted !== undefined && !HALTS.includes(halted as GmHalt)) return null;
   const problem = status['problem'];
   if (problem !== undefined && !isText(problem)) return null;
+  const refused = status['refused'];
+  if (refused !== undefined && !isText(refused)) return null;
   return {
     run: status['run'] as GmRun,
     ...(halted === undefined ? {} : { halted: halted as GmHalt }),
@@ -276,6 +280,7 @@ function statusOf(raw: unknown): GmStatus | null {
     contextTokens: status['contextTokens'],
     kept: status['kept'],
     ...(problem === undefined ? {} : { problem }),
+    ...(refused === undefined ? {} : { refused }),
     starts: status['starts'],
   };
 }

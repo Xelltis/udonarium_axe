@@ -107,6 +107,25 @@ describe('AiGmPanelComponent', () => {
     expect(gm.start.mock.calls).toEqual([[false], [true]]);
   });
 
+  it('shows what went wrong last and a model the bridge refused, each on a line of its own', async () => {
+    state.set({ kind: 'connected', bridge: '1.80.0', mode: 'gm', models: gm.models() });
+    status.set({
+      run: 'off',
+      model: 'claude-opus-5-5',
+      spentUsd: 0,
+      budgetUsd: 5,
+      contextTokens: 0,
+      kept: true,
+      problem: 'The key was rejected.',
+      refused: 'This bridge does not run claude-other.',
+      starts: 1,
+    });
+    const { host } = await panel();
+
+    expect(find(host, 'ai-gm-problem')?.textContent).toContain('The key was rejected.');
+    expect(find(host, 'ai-gm-refused')?.textContent).toContain('This bridge does not run claude-other.');
+  });
+
   it('shows what it spent, stops it, and asks it to go on with a word while it runs', async () => {
     state.set({ kind: 'connected', bridge: '1.80.0', mode: 'gm', models: gm.models() });
     status.set({
