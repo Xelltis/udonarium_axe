@@ -1,8 +1,8 @@
 import { SurfaceFrame, Vec3 } from '@axe/domain/tabletop/surface-space';
 import { SurfaceLean } from '@axe/domain/tabletop/terrain-slope-surface';
 import {
-  LYING_LIFT_PX,
   lyingPicture,
+  ORDER_OVER_LYING,
   PagePicture,
   pointOnFace,
   TableWorldSprite,
@@ -14,13 +14,6 @@ export const CHARACTER_KIND = 'character';
 
 /** How far the page lifts a character off the face it stands on, so it is drawn over what lies flat there. */
 const LIFT_PX = 1;
-
-/**
- * How much later than its lift says the parts of a character lying on its face are drawn among the things
- * lying flat: after a card, a note, a mask and a range lying there, which are lifted as far as
- * `LYING_LIFT_PX` to clear a terrain as high as nothing, so they stay under what stands on them.
- */
-const ORDER_OVER_LYING = LYING_LIFT_PX;
 
 /** A character on the table, as much of it as the canvas draws. */
 export interface CharacterLayout {

@@ -11,6 +11,14 @@ import { SurfaceFrame, Vec3 } from '@axe/domain/tabletop/surface-space';
  */
 export const LYING_LIFT_PX = 1;
 
+/**
+ * How much later than its lift says what stands on a face is drawn among the things lying flat there,
+ * as the pedestal and the shadow of a piece and the frame of a die are: after a card, a note, a mask
+ * and a range, which are lifted as far as `LYING_LIFT_PX` to clear a terrain as high as nothing, so
+ * those stay under what stands on them.
+ */
+export const ORDER_OVER_LYING = LYING_LIFT_PX;
+
 /** A band of colour round the inside of a sprite's edge, drawn over the bands before it. */
 export interface TableWorldBand {
   readonly widthPx: number;
@@ -63,9 +71,10 @@ export interface TableWorldSprite {
   /** Whether a press on a clear part of its picture passes through it, as through a piece's picture. */
   readonly seeThrough?: boolean;
   /**
-   * For a sprite lying flat on a face, how far off the face the page lifts it, which says which of
-   * the sprites lying in one place is drawn over which: the higher over the lower, and of two as
-   * high the later over the earlier. A sprite that stands up from its face has none.
+   * For a sprite lying flat on a face, where it comes among the sprites lying in one place: the
+   * greater is drawn over the lesser, and of two alike the later over the earlier. It is how far off
+   * the face the page lifts the sprite, and `ORDER_OVER_LYING` more for what stands on the face. A
+   * sprite that stands up from its face has none.
    */
   readonly order?: number;
   /**
