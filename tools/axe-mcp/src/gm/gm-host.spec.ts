@@ -168,7 +168,49 @@ describe('GmHost', () => {
     api.replies.push(reply([]));
     const second = await connect();
     await until(() => api.sent.length === 4);
-    expect(api.sent[3].messages.at(-1)!.content as string).toContain('北へ向かう');
+    // The line had reached the conversation before the tab went away: it is not told twice.
+    expect(JSON.stringify(api.sent[3].messages).split('北へ向かう')).toHaveLength(2);
+    expect(api.sent[3].messages.at(-1)!.content as string).toContain('a player spoke');
     expect(heardOf(second, 'gm.notes')).toEqual([{ type: 'gm.notes', notes: '港町に着いた' }]);
+  });
+
+  it('stops once the seat is no longer the game master’s, let to change the room', async () => {
+    const tab = await connect();
+    api.replies.push(reply([]));
+    tab.say({ type: 'gm.start', settings: SETTINGS, instructions: '', notes: '' });
+    await until(() => api.sent.length === 1 && lastStatus(tab)?.run === 'waiting');
+
+    tab.say({ type: 'seat', seat: { ...GM, scope: 'read' } });
+    await until(() => lastStatus(tab)?.halted !== undefined);
+    expect(lastStatus(tab)).toMatchObject({ run: 'off', halted: 'seat' });
+  });
+
+  it('holds what the bridge may spend over every start, so that starting again does not spend more', async () => {
+    host.close();
+    await link.close();
+    link = new TabLink({
+      port: 0,
+      origins: ['http://localhost:4200'],
+      bridge: '1.80.0',
+      log: () => undefined,
+      mode: 'gm',
+      models: GM_MODEL_OFFERS,
+      tabGraceMs: 0,
+    });
+    host = new GmHost({ link, api, log: () => undefined, quietMs: 40, longestWaitMs: 150, maxUsd: 0.05 });
+    port = await link.listen();
+    const tab = await connect();
+    // 10,000 × $4 + 1,000 × $20 a million tokens: 6 cents, over the bridge's 5.
+    api.replies.push(reply([], 'end_turn', { input_tokens: 10_000, output_tokens: 1000 }));
+    tab.say({ type: 'gm.start', settings: SETTINGS, instructions: '', notes: '' });
+    await until(() => api.sent.length === 1 && lastStatus(tab)?.run === 'waiting');
+    tab.say({ type: 'gm.nudge', direction: '' });
+    await until(() => lastStatus(tab)?.halted !== undefined);
+    expect(lastStatus(tab)).toMatchObject({ halted: 'budget', problem: expect.stringContaining('--max-usd') });
+
+    tab.say({ type: 'gm.start', settings: { ...SETTINGS, budgetUsd: 1000 }, instructions: '', notes: '' });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(lastStatus(tab)).toMatchObject({ run: 'off' });
+    expect(api.sent).toHaveLength(1);
   });
 });

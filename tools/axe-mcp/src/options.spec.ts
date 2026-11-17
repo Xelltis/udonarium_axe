@@ -1,6 +1,6 @@
 import { AGENT_BRIDGE_PORT } from '@axe/core/agent/agent-protocol';
 
-import { DEFAULT_ORIGINS, readOptions } from './options';
+import { DEFAULT_ORIGINS, GM_MAX_USD_DEFAULT, readOptions } from './options';
 
 describe('readOptions', () => {
   it('waits for a tab on the usual port, speaks MCP over standard input and output, and trusts the pages Axe is served from', () => {
@@ -10,6 +10,7 @@ describe('readOptions', () => {
       http: null,
       origins: DEFAULT_ORIGINS,
       token: null,
+      maxUsd: GM_MAX_USD_DEFAULT,
       help: false,
       version: false,
     });
@@ -48,6 +49,17 @@ describe('readOptions', () => {
     expect(readOptions(['gm', '--port', '5000'], {})).toMatchObject({ mode: 'gm', port: 5000, http: null });
     expect(readOptions(['gm', '--http', '5001'], {})).toMatchObject({ error: expect.stringContaining('--http') });
     expect(readOptions(['--port', '5000', 'gm'], {})).toEqual({ error: 'Unknown option: gm' });
+  });
+
+  it('takes what the game master may spend while the bridge runs, from the flag over the environment', () => {
+    expect(readOptions(['gm'], { AXE_GM_MAX_USD: '50' })).toMatchObject({ maxUsd: 50 });
+    expect(readOptions(['gm', '--max-usd', '7.5'], { AXE_GM_MAX_USD: '50' })).toMatchObject({ maxUsd: 7.5 });
+    for (const bad of ['', '0', '-1', 'lots']) {
+      expect(readOptions(['gm', '--max-usd', bad], {})).toMatchObject({ error: expect.stringContaining('--max-usd') });
+    }
+    expect(readOptions(['gm'], { AXE_GM_MAX_USD: '' })).toMatchObject({
+      error: expect.stringContaining('AXE_GM_MAX_USD'),
+    });
   });
 
   it('asks for help or the version', () => {

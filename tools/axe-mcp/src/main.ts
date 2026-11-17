@@ -36,7 +36,7 @@ async function main(): Promise<void> {
   }
 
   if (options.mode === 'gm') {
-    await runGameMaster(options.port, options.origins);
+    await runGameMaster(options.port, options.origins, options.maxUsd);
     return;
   }
 
@@ -73,16 +73,22 @@ async function main(): Promise<void> {
  * Runs the game master: Claude through the API, with the key from the environment, acting on the tab
  * that connects. It runs until stopped with Ctrl+C, as nothing speaks to it on standard input.
  */
-async function runGameMaster(tabPort: number, origins: readonly string[]): Promise<void> {
+async function runGameMaster(tabPort: number, origins: readonly string[], maxUsd: number): Promise<void> {
   if (!process.env['ANTHROPIC_API_KEY']?.trim()) {
     log('gm needs a Claude API key: set ANTHROPIC_API_KEY before starting the bridge.');
     process.exit(2);
   }
   const client = new Anthropic({ maxRetries: 2 });
   const link = new TabLink({ port: tabPort, origins, bridge: VERSION, log, mode: 'gm', models: GM_MODEL_OFFERS });
-  const host = new GmHost({ link, api: { stream: (body, options) => client.messages.stream(body, options) }, log });
+  const host = new GmHost({
+    link,
+    api: { stream: (body, options) => client.messages.stream(body, options) },
+    log,
+    maxUsd,
+  });
   const port = await link.listen();
   log(`Axe game master ${VERSION}: waiting for a tab of Axe at ws://127.0.0.1:${port}${AGENT_BRIDGE_PATH}`);
+  log(`It spends at most $${maxUsd} while it runs (--max-usd).`);
   const stop = () => {
     host.close();
     void link.close().then(() => process.exit(0));

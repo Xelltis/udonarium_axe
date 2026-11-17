@@ -88,8 +88,11 @@ export interface GmEventEntry {
 /** Whether the game master runs, and if so whether it is waiting or taking its turn. */
 export type GmRun = 'off' | 'waiting' | 'thinking';
 
-/** Why the game master stopped: asked to, out of budget, refused the key, or failed to start. */
-export type GmHalt = 'asked' | 'budget' | 'key' | 'failed';
+/**
+ * Why the game master stopped: asked to, out of budget, the key refused, turns failing, or the seat no
+ * longer the game master's.
+ */
+export type GmHalt = 'asked' | 'budget' | 'key' | 'failed' | 'seat';
 
 /** How the game master stands, as the bridge tells the panel. */
 export interface GmStatus {
@@ -193,7 +196,7 @@ const SCOPES: readonly AgentScope[] = ['read', 'write'];
 const EFFORTS: readonly GmEffort[] = ['low', 'medium', 'high'];
 const WAKES: readonly GmWake[] = ['line', 'called', 'turn'];
 const RUNS: readonly GmRun[] = ['off', 'waiting', 'thinking'];
-const HALTS: readonly GmHalt[] = ['asked', 'budget', 'key', 'failed'];
+const HALTS: readonly GmHalt[] = ['asked', 'budget', 'key', 'failed', 'seat'];
 
 function recordOf(raw: unknown): Record<string, unknown> | null {
   if (typeof raw === 'string') {

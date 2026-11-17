@@ -15,9 +15,18 @@ export interface BridgeOptions {
   readonly origins: readonly string[];
   /** What an MCP client over HTTP must show as a bearer token, or null for none. */
   readonly token: string | null;
+  /** With gm, the most the bridge spends while it runs, in US dollars, whatever a tab asks. */
+  readonly maxUsd: number;
   readonly help: boolean;
   readonly version: boolean;
 }
+
+/**
+ * What the game master may spend while the bridge runs unless told otherwise, in US dollars: a tab sets
+ * a budget for each start, but a tab taken over could start again and again, so the bridge holds a
+ * limit of its own that no tab can raise.
+ */
+export const GM_MAX_USD_DEFAULT = 20;
 
 export const USAGE = `Usage: node axe-mcp.mjs [options]
        node axe-mcp.mjs gm [options]
@@ -33,17 +42,26 @@ Options:
   --port <port>          Port the Axe tab connects to (default ${AGENT_BRIDGE_PORT})
   --http <port>          Serve MCP over HTTP on 127.0.0.1:<port>/mcp instead of standard input and output
   --allow-origin <url>   Also accept a tab from this page, such as https://example.com (repeatable)
+  --max-usd <dollars>    With gm, the most it spends while it runs, over every start (default ${GM_MAX_USD_DEFAULT})
   --help                 Show this help
   --version              Show the version
 
 Environment:
   AXE_MCP_ALLOW_ORIGINS  More pages to accept a tab from, separated by commas
   AXE_MCP_TOKEN          With --http, the bearer token an MCP client must send
-  ANTHROPIC_API_KEY      With gm, the Claude API key the game master is run with`;
+  ANTHROPIC_API_KEY      With gm, the Claude API key the game master is run with
+  AXE_GM_MAX_USD         With gm, the same as --max-usd`;
 
 function portOf(text: string | undefined, flag: string): number | string {
   const port = Number(text);
   return Number.isInteger(port) && port > 0 && port < 65536 ? port : `${flag} needs a port from 1 to 65535`;
+}
+
+function dollarsOf(text: string | undefined, name: string): number | string {
+  const dollars = Number(text);
+  return text !== undefined && text.trim() !== '' && Number.isFinite(dollars) && dollars > 0
+    ? dollars
+    : `${name} needs a sum of dollars above 0, such as 20`;
 }
 
 function originOf(text: string): string | null {
@@ -63,6 +81,12 @@ export function readOptions(
   let port = AGENT_BRIDGE_PORT;
   let http: number | null = null;
   let mode: BridgeMode = 'mcp';
+  let maxUsd = GM_MAX_USD_DEFAULT;
+  if (env['AXE_GM_MAX_USD'] !== undefined) {
+    const read = dollarsOf(env['AXE_GM_MAX_USD'], 'AXE_GM_MAX_USD');
+    if (typeof read === 'string') return { error: read };
+    maxUsd = read;
+  }
   const origins = new Set(DEFAULT_ORIGINS);
   let help = false;
   let version = false;
@@ -96,6 +120,12 @@ export function readOptions(
         origins.add(origin);
         break;
       }
+      case '--max-usd': {
+        const read = dollarsOf(argv[++i], '--max-usd');
+        if (typeof read === 'string') return { error: read };
+        maxUsd = read;
+        break;
+      }
       case '--help':
       case '-h':
         help = true;
@@ -112,5 +142,5 @@ export function readOptions(
   if (mode === 'gm' && http !== null)
     return { error: 'gm runs the game master itself and serves no MCP: leave out --http' };
   const token = env['AXE_MCP_TOKEN']?.trim() || null;
-  return { mode, port, http, origins: [...origins], token, help, version };
+  return { mode, port, http, origins: [...origins], token, maxUsd, help, version };
 }

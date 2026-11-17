@@ -1,4 +1,10 @@
-import Anthropic, { APIError, APIUserAbortError, AuthenticationError, PermissionDeniedError } from '@anthropic-ai/sdk';
+import Anthropic, {
+  APIError,
+  APIUserAbortError,
+  AuthenticationError,
+  BadRequestError,
+  PermissionDeniedError,
+} from '@anthropic-ai/sdk';
 import {
   GM_GUIDE,
   GM_NOTES_TOOL,
@@ -21,7 +27,21 @@ export interface GmApi {
   stream(
     body: Anthropic.MessageStreamParams,
     options: { readonly signal: AbortSignal }
-  ): { finalMessage(): Promise<Anthropic.Message> };
+  ): {
+    finalMessage(): Promise<Anthropic.Message>;
+    /** The response as far as it came, to reckon what a response that failed on the way still cost. */
+    readonly currentMessage?: Anthropic.Message | undefined;
+  };
+}
+
+/**
+ * What the bridge may spend while it runs, whatever the tab asks: kept by the bridge and shared by
+ * every start, so that a tab cannot spend more by stopping and starting again.
+ */
+export interface GmLedger {
+  spentUsd: number;
+  /** The most the bridge spends while it runs, or Infinity for no limit. */
+  readonly limitUsd: number;
 }
 
 /** Hands a tool call to the tab, as the bridge's link does. */
@@ -45,8 +65,10 @@ export interface GmHooks {
 /** Why a turn the game master was taking came to an end. */
 export type TurnEnd =
   | { readonly kind: 'done' }
-  | { readonly kind: 'stopped' }
-  | { readonly kind: 'budget' }
+  /** Given up; `told` says whether what the turn was opened with had reached the conversation. */
+  | { readonly kind: 'stopped'; readonly told: boolean }
+  /** Out of the budget of this start (`start`) or of what the bridge may spend while it runs (`bridge`). */
+  | { readonly kind: 'budget'; readonly of: 'start' | 'bridge' }
   | { readonly kind: 'key'; readonly message: string }
   | { readonly kind: 'failed'; readonly message: string };
 
@@ -116,7 +138,8 @@ export class GameMaster {
     private readonly api: GmApi,
     private readonly call: GmTabCall,
     private readonly hooks: GmHooks,
-    start: { readonly settings: GmSettings; readonly instructions: string; readonly notes: string }
+    start: { readonly settings: GmSettings; readonly instructions: string; readonly notes: string },
+    private readonly ledger: GmLedger = { spentUsd: 0, limitUsd: Infinity }
   ) {
     this.settings = start.settings;
     this.instructions = start.instructions;
@@ -136,11 +159,16 @@ export class GameMaster {
     return this.settings.budgetUsd;
   }
 
-  /** Begins anew, from the next turn: the conversation is let go of and what was spent is counted from nothing. */
+  /**
+   * Begins again, counting what this start spends from nothing: afresh, letting the conversation and
+   * anything left to tell it go, or carrying on from the conversation kept.
+   */
   restart(fresh: boolean): void {
-    if (fresh) this.conversation = null;
+    if (fresh) {
+      this.conversation = null;
+      this.toTell.length = 0;
+    }
     this.spentUsd = 0;
-    this.toTell.length = 0;
   }
 
   /**
@@ -168,13 +196,15 @@ export class GameMaster {
     direction: string,
     signal: AbortSignal
   ): Promise<TurnEnd> {
-    if (!this.conversation) {
+    const opening = !this.conversation;
+    if (opening) {
       const opened = await this.open(signal);
       if (opened.kind !== 'done') return opened;
     }
     const conversation = this.conversation!;
     this.reclaimUnanswered(conversation);
-    if (conversation.messages.length > 1 || reasons.some((reason) => reason !== 'nudge') || events.length > 0) {
+    // A conversation just opened is asked to begin by its opening; anything more is told in a turn of its own.
+    if (!opening || reasons.some((reason) => reason !== 'nudge') || events.length > 0) {
       conversation.messages.push({ role: 'user', content: gmTurnPrompt(reasons, events) });
     }
     if (direction.trim()) this.toTell.push(`The person at your seat says: ${direction.trim()}`);
@@ -182,7 +212,11 @@ export class GameMaster {
       conversation.messages.push({ role: 'system', content: this.toTell.splice(0).join('\n\n') });
     }
     const end = await this.converse(conversation, REQUESTS_PER_TURN, signal, false);
-    if (end.kind === 'done' && this.contextTokens > SET_ASIDE_AT) return this.setAside(signal);
+    if (end.kind === 'stopped') return { kind: 'stopped', told: true };
+    // Another model took over meanwhile: the conversation is no longer the one kept, and nothing is set aside.
+    if (end.kind === 'done' && this.contextTokens > SET_ASIDE_AT && this.conversation === conversation) {
+      return this.setAside(conversation, signal);
+    }
     return end;
   }
 
@@ -203,10 +237,10 @@ export class GameMaster {
   /** Opens a conversation on the room as it stands and the recent chat, read through the tab. */
   private async open(signal: AbortSignal): Promise<TurnEnd> {
     const room = await this.call('get_room', {}, TOOL_TIMEOUT_MS, signal);
-    if (signal.aborted) return { kind: 'stopped' };
+    if (signal.aborted) return { kind: 'stopped', told: false };
     if (!room.ok) return { kind: 'failed', message: `${room.error.code}: ${room.error.message}` };
     const chat = await this.call('read_chat', { limit: OPENING_CHAT_LINES }, TOOL_TIMEOUT_MS, signal);
-    if (signal.aborted) return { kind: 'stopped' };
+    if (signal.aborted) return { kind: 'stopped', told: false };
     const carriesOn = this.notes.trim() !== '';
     this.conversation = {
       system: [
@@ -230,14 +264,14 @@ export class GameMaster {
 
   /**
    * Asks the model to write its notebook, then lets the conversation go, so that the next turn opens a
-   * new one on the notebook and the chat.
+   * new one on the notebook and the chat. The turn before is done either way: a setting aside given up
+   * is tried again after the next turn.
    */
-  private async setAside(signal: AbortSignal): Promise<TurnEnd> {
-    const conversation = this.conversation!;
+  private async setAside(conversation: Conversation, signal: AbortSignal): Promise<TurnEnd> {
     conversation.messages.push({ role: 'user', content: GM_SET_ASIDE_PROMPT });
     const end = await this.converse(conversation, REQUESTS_TO_SET_ASIDE, signal, true);
-    if (end.kind === 'done' || end.kind === 'failed') this.conversation = null;
-    return end;
+    if ((end.kind === 'done' || end.kind === 'failed') && this.conversation === conversation) this.conversation = null;
+    return end.kind === 'stopped' ? { kind: 'done' } : end;
   }
 
   /** Asks the model, runs the tools it calls and asks again, until it ends its turn or a limit is met. */
@@ -248,16 +282,23 @@ export class GameMaster {
     notebookOnly: boolean
   ): Promise<TurnEnd> {
     for (let asked = 0; asked < requests; asked++) {
-      if (this.spentUsd >= this.settings.budgetUsd) return { kind: 'budget' };
+      // Another model took over meanwhile, and cannot read this conversation's thinking.
+      if (this.conversation !== conversation) return { kind: 'done' };
+      if (this.ledger.spentUsd >= this.ledger.limitUsd) return { kind: 'budget', of: 'bridge' };
+      if (this.spentUsd >= this.settings.budgetUsd) return { kind: 'budget', of: 'start' };
       let message: Anthropic.Message;
       try {
         message = await this.ask(conversation, signal);
       } catch (error) {
+        // A request the API would not take may not be taken again: the conversation is let go of, to be
+        // opened anew on the notebook.
+        if (error instanceof BadRequestError && this.conversation === conversation) this.conversation = null;
         return this.endOf(error, signal);
       }
-      this.spentUsd += costOf(this.settings.model, message.usage);
+      this.charge(message.usage);
       this.contextTokens = promptTokensOf(message.usage) + message.usage.output_tokens;
-      conversation.messages.push({ role: 'assistant', content: message.content });
+      // A response with nothing in it, as one refused before it began, may not stand in the conversation.
+      if (message.content.length > 0) conversation.messages.push({ role: 'assistant', content: message.content });
       for (const block of message.content) {
         if (block.type === 'text' && block.text.trim()) this.hooks.said(block.text.trim());
       }
@@ -280,31 +321,40 @@ export class GameMaster {
         results.push(await this.run(call, signal, notebookOnly));
       }
       conversation.messages.push({ role: 'user', content: results });
-      if (signal.aborted) return { kind: 'stopped' };
+      if (signal.aborted) return { kind: 'stopped', told: true };
     }
     return { kind: 'done' };
+  }
+
+  /** Counts what a response cost against this start and against the bridge. */
+  private charge(usage: Anthropic.Usage): void {
+    const cost = costOf(this.settings.model, usage);
+    this.spentUsd += cost;
+    this.ledger.spentUsd += cost;
   }
 
   /** Sends the conversation and waits for the whole response, asking again for one it could not read. */
   private async ask(conversation: Conversation, signal: AbortSignal): Promise<Anthropic.Message> {
     for (let attempt = 0; ; attempt++) {
+      const stream = this.api.stream(
+        {
+          model: this.settings.model,
+          max_tokens: MAX_TOKENS,
+          thinking: { type: 'adaptive' },
+          output_config: { effort: this.settings.effort },
+          system: conversation.system,
+          tools: [...GM_API_TOOLS],
+          messages: conversation.messages,
+          cache_control: { type: 'ephemeral' },
+        },
+        { signal }
+      );
       try {
-        return await this.api
-          .stream(
-            {
-              model: this.settings.model,
-              max_tokens: MAX_TOKENS,
-              thinking: { type: 'adaptive' },
-              output_config: { effort: this.settings.effort },
-              system: conversation.system,
-              tools: [...GM_API_TOOLS],
-              messages: conversation.messages,
-              cache_control: { type: 'ephemeral' },
-            },
-            { signal }
-          )
-          .finalMessage();
+        return await stream.finalMessage();
       } catch (error) {
+        // What came before it failed was still charged for.
+        const partial = stream.currentMessage;
+        if (partial) this.charge(partial.usage);
         // A tool input streamed as written may not parse; nothing but that is asked again.
         if (error instanceof APIError || signal.aborted || attempt >= UNREADABLE_RETRIES) throw error;
       }
@@ -347,7 +397,7 @@ export class GameMaster {
   }
 
   private endOf(error: unknown, signal: AbortSignal): TurnEnd {
-    if (signal.aborted || error instanceof APIUserAbortError) return { kind: 'stopped' };
+    if (signal.aborted || error instanceof APIUserAbortError) return { kind: 'stopped', told: true };
     if (error instanceof AuthenticationError || error instanceof PermissionDeniedError) {
       return { kind: 'key', message: error.message };
     }

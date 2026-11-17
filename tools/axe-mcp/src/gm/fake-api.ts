@@ -3,8 +3,12 @@ import { APIUserAbortError } from '@anthropic-ai/sdk';
 
 import type { GmApi } from './game-master';
 
-/** A response the stand-in gives: the message, a failure to throw, or one that never comes until given up. */
-export type FakeReply = Anthropic.Message | Error | 'hang';
+/**
+ * A response the stand-in gives: the message, a failure to throw (with the response as far as it came),
+ * or one that never comes until given up.
+ */
+export type FakeReply =
+  Anthropic.Message | Error | { readonly fail: Error; readonly partial: Anthropic.Message } | 'hang';
 
 /** Usage as a response reports it, with whatever the spec sets. */
 export function usage(set: Partial<Anthropic.Usage> = {}): Anthropic.Usage {
@@ -51,6 +55,7 @@ export class FakeApi implements GmApi {
     this.sent.push(JSON.parse(JSON.stringify(body)) as Anthropic.MessageStreamParams);
     const next = this.replies.shift() ?? new Error('No reply was given for this request.');
     return {
+      currentMessage: typeof next === 'object' && 'fail' in next ? next.partial : undefined,
       finalMessage: () =>
         new Promise<Anthropic.Message>((resolve, reject) => {
           if (next === 'hang') {
@@ -58,6 +63,7 @@ export class FakeApi implements GmApi {
             return;
           }
           if (next instanceof Error) reject(next);
+          else if ('fail' in next) reject(next.fail);
           else resolve(next);
         }),
     };

@@ -1,7 +1,7 @@
 import type { GmHalt, GmRun, GmStatus, GmTabMessage } from '@axe/core/agent/agent-protocol';
 
 import type { TabLink } from '../tab-link';
-import { GameMaster, type GmApi, type TurnEnd, type TurnReason } from './game-master';
+import { GameMaster, type GmApi, type GmLedger, type TurnEnd, type TurnReason } from './game-master';
 import { isGmModel } from './gm-models';
 
 export interface GmHostOptions {
@@ -12,6 +12,8 @@ export interface GmHostOptions {
   readonly quietMs?: number;
   /** The longest a turn waits for the room to go quiet. */
   readonly longestWaitMs?: number;
+  /** The most the bridge spends while it runs, over every start, whatever the tab asks; none if left out. */
+  readonly maxUsd?: number;
 }
 
 /** How long the room must stay quiet, unless told otherwise: long enough for a roll to come back. */
@@ -42,10 +44,17 @@ export class GmHost {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private firstReasonAt = 0;
   private failures = 0;
+  private readonly ledger: GmLedger;
 
   constructor(private readonly options: GmHostOptions) {
+    this.ledger = { spentUsd: 0, limitUsd: options.maxUsd ?? Infinity };
     options.link.onGm((message) => this.hear(message));
     options.link.onChange((tab) => {
+      if (tab && this.run !== 'off' && !this.seatMayRun()) {
+        this.problem = "The seat is no longer the game master's, let to change the room.";
+        this.halt('seat');
+        return;
+      }
       if (tab) {
         this.tell();
         if (this.master) options.link.tellGm({ type: 'gm.notes', notes: this.master.notes });
@@ -107,15 +116,25 @@ export class GmHost {
     }
   }
 
-  private start(message: Extract<GmTabMessage, { type: 'gm.start' }>): void {
+  /** Whether the seat connected is the game master's, let to change the room. */
+  private seatMayRun(): boolean {
     const seat = this.options.link.current?.seat;
+    return seat?.role === 'gm' && seat.scope === 'write';
+  }
+
+  private start(message: Extract<GmTabMessage, { type: 'gm.start' }>): void {
     if (!isGmModel(message.settings.model)) {
       this.problem = `This bridge does not run ${message.settings.model}.`;
       this.tell();
       return;
     }
-    if (seat?.role !== 'gm' || seat.scope !== 'write') {
+    if (!this.seatMayRun()) {
       this.problem = "The game master runs only on the game master's seat, let to change the room.";
+      this.tell();
+      return;
+    }
+    if (this.ledger.spentUsd >= this.ledger.limitUsd) {
+      this.problem = this.bridgeSpent();
       this.tell();
       return;
     }
@@ -124,8 +143,11 @@ export class GmHost {
       this.tell();
       return;
     }
-    if (this.master) this.master.update(message.settings, message.instructions, message.notes);
-    else {
+    if (this.master) {
+      // Begun again first, so that what changed while it was stopped is still told to the conversation kept.
+      this.master.restart(message.fresh);
+      this.master.update(message.settings, message.instructions, message.notes);
+    } else {
       this.master = new GameMaster(
         this.options.api,
         (tool, args, timeoutMs, signal) => this.options.link.call(tool, args, timeoutMs, signal),
@@ -134,10 +156,10 @@ export class GmHost {
           said: (text) => this.options.link.tellGm({ type: 'gm.said', text, at: Date.now() }),
           changed: () => this.tell(),
         },
-        message
+        message,
+        this.ledger
       );
     }
-    this.master.restart(message.fresh);
     this.run = 'waiting';
     this.halted = undefined;
     this.problem = undefined;
@@ -186,7 +208,12 @@ export class GmHost {
     this.tell();
     const turn = new AbortController();
     this.turn = turn;
-    const end = await master.takeTurn(reasons, events, direction, turn.signal);
+    let end: TurnEnd;
+    try {
+      end = await master.takeTurn(reasons, events, direction, turn.signal);
+    } catch (error) {
+      end = { kind: 'failed', message: error instanceof Error ? error.message : String(error) };
+    }
     // Stopped meanwhile, and perhaps started again: this turn is no longer the one that counts.
     if (this.turn !== turn) return;
     this.turn = null;
@@ -200,12 +227,16 @@ export class GmHost {
         this.problem = undefined;
         break;
       case 'stopped':
-        // Given up as the tab went away: taken again, with what came since, once it is back.
+        // Given up as the tab went away: taken again once it is back. What already reached the
+        // conversation is not told again, only that the turn is still to be taken.
         for (const reason of reasons) this.addReason(reason);
-        this.events = [...events, ...this.events];
-        this.direction = [direction, this.direction].filter(Boolean).join('\n');
+        if (!end.told) {
+          this.events = [...events, ...this.events];
+          this.direction = [direction, this.direction].filter(Boolean).join('\n');
+        }
         break;
       case 'budget':
+        if (end.of === 'bridge') this.problem = this.bridgeSpent();
         this.halt('budget');
         return;
       case 'key':
@@ -240,6 +271,13 @@ export class GmHost {
     this.direction = '';
     if (wasRunning) this.options.log(`The game master stopped (${why}).`);
     this.tell();
+  }
+
+  private bridgeSpent(): string {
+    return (
+      `The bridge has spent the $${this.ledger.limitUsd} it may spend while it runs. ` +
+      'Start the bridge again, with a larger --max-usd if need be, to go on.'
+    );
   }
 
   private tell(): void {

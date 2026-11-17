@@ -1,5 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk';
-import { AuthenticationError } from '@anthropic-ai/sdk';
+import { AuthenticationError, BadRequestError } from '@anthropic-ai/sdk';
 import { GM_GUIDE, GM_SET_ASIDE_PROMPT } from '@axe/core/agent/agent-gm';
 import type { GmSettings } from '@axe/core/agent/agent-protocol';
 
@@ -153,7 +153,7 @@ describe('GameMaster', () => {
       reply([])
     );
 
-    expect(await master.takeTurn(['nudge'], [], '', signal)).toEqual({ kind: 'budget' });
+    expect(await master.takeTurn(['nudge'], [], '', signal)).toEqual({ kind: 'budget', of: 'start' });
     // 1000 × $4 + 1000 × $20 a million tokens.
     expect(master.spentUsd).toBeCloseTo(0.024);
     expect(api.sent).toHaveLength(1);
@@ -227,11 +227,66 @@ describe('GameMaster', () => {
     await vi.waitFor(() => expect(api.sent).toHaveLength(2));
     stop.abort();
 
-    expect(await turn).toEqual({ kind: 'stopped' });
+    expect(await turn).toEqual({ kind: 'stopped', told: true });
     await master.takeTurn(['line'], [], '', signal);
     const messages = api.sent[2].messages;
     expect(messages.at(-1)).toEqual({ role: 'system', content: 'The person at your seat says: まとめて' });
     expect(messages.filter((message) => message.role === 'system')).toHaveLength(1);
+  });
+
+  it('ends a turn whose model was changed during it, without setting aside the conversation that took over', async () => {
+    api.replies.push(reply([]));
+    await master.takeTurn(['nudge'], [], '', signal);
+    answer = () => {
+      master.update({ ...SETTINGS, model: 'claude-sonnet-5-5' }, '舞台は港町', '');
+      return { ok: true, value: {} };
+    };
+    api.replies.push(reply([toolUse('t1', 'get_room', {})], 'tool_use', { cache_read_input_tokens: SET_ASIDE_AT }));
+
+    expect(await master.takeTurn(['line'], [], '', signal)).toEqual({ kind: 'done' });
+    expect(api.sent).toHaveLength(2);
+    expect(master.kept).toBe(false);
+  });
+
+  it('tells a conversation kept what was changed while it was stopped, once started again', async () => {
+    api.replies.push(reply([]), reply([]));
+    await master.takeTurn(['nudge'], [], '', signal);
+    master.restart(false);
+    master.update(SETTINGS, '舞台は雪山', '人の書いたメモ');
+    await master.takeTurn(['nudge'], [], '', signal);
+
+    expect(api.sent[1].messages.at(-1)).toEqual({
+      role: 'system',
+      content:
+        "The game master's instructions are now:\n舞台は雪山\n\n" +
+        'The person at your seat rewrote your notebook. It now reads:\n人の書いたメモ',
+    });
+  });
+
+  it('keeps out a response with nothing in it, and opens anew after a request the API would not take', async () => {
+    api.replies.push(reply([]), reply([], 'refusal'), reply([]));
+    await master.takeTurn(['nudge'], [], '', signal);
+    expect(await master.takeTurn(['line'], [], '', signal)).toMatchObject({ kind: 'failed' });
+    await master.takeTurn(['line'], [], '', signal);
+    expect(api.sent[2].messages.every((message) => message.content.length > 0)).toBe(true);
+
+    api.replies.push(new BadRequestError(400, {}, 'messages: text content blocks must be non-empty', new Headers()));
+    expect(await master.takeTurn(['line'], [], '', signal)).toMatchObject({ kind: 'failed' });
+    expect(master.kept).toBe(false);
+  });
+
+  it('counts what a response that failed on the way still cost', async () => {
+    api.replies.push(
+      {
+        fail: new SyntaxError('Unexpected end of JSON input'),
+        partial: reply([], 'end_turn', { input_tokens: 1000, output_tokens: 1000 }),
+      },
+      reply([])
+    );
+    await master.takeTurn(['nudge'], [], '', signal);
+
+    // The failed one, 1000 × $4 + 1000 × $20, and the one that came, 100 × $4 + 50 × $20, a million tokens.
+    expect(master.spentUsd).toBeCloseTo(0.024 + 0.0014);
   });
 
   it('gives up on a key the API refuses, and asks again for a response it could not read', async () => {
