@@ -43,7 +43,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "npm run build"
+        "prepareCmd": "npm run build && npm run build:mcp"
       }
     ],
     [
@@ -60,6 +60,10 @@
           {
             "path": "dist/axe_*.zip",
             "label": "Udonarium Axe ${nextRelease.version} (zip)"
+          },
+          {
+            "path": "tools/axe-mcp/dist/axe-mcp.mjs",
+            "label": "Udonarium Axe MCP bridge ${nextRelease.version} (axe-mcp.mjs)"
           }
         ]
       }
