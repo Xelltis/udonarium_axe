@@ -12,6 +12,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { ScenarioText } from '@axe/domain/scenario-text/scenario-text';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -171,6 +172,30 @@ describe('AgentReadTools', () => {
     expect(call('list_assets', { kind: 'tables' })).toEqual([{ id: table.identifier, name: '洞窟' }]);
     expect(call('list_assets', { kind: 'scenes' })).toEqual([]);
     expect(() => call('list_assets', { kind: 'weather' })).toThrow(/no kind of thing called weather/);
+  });
+
+  it('lists and reads the scenario texts on the game master’s seat only', () => {
+    const text = new ScenarioText();
+    text.title = '導入';
+    text.folderName = '第1話';
+    text.write('村長「よく来てくれた」');
+    text.initialize();
+
+    expect(call('list_assets', { kind: 'scenario_texts' })).toEqual([{ id: text.identifier, name: '導入' }]);
+    expect(call('read_scenario_text', { text: '導入' })).toEqual({
+      id: text.identifier,
+      title: '導入',
+      folder: '第1話',
+      text: '村長「よく来てくれた」',
+    });
+
+    PeerCursor.myCursor.role = PeerRole.Player;
+    for (const [tool, args] of [
+      ['list_assets', { kind: 'scenario_texts' }],
+      ['read_scenario_text', { text: '導入' }],
+    ] as const) {
+      expect(() => call(tool, args)).toThrow(expect.objectContaining({ code: 'not_allowed' }) as AgentToolError);
+    }
   });
 
   it('waits for a chat line said after it began, and carries on from the cursor it returned', async () => {

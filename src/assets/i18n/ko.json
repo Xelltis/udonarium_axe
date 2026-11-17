@@ -222,6 +222,7 @@
         "get_turn_order": "행동 순서 읽기",
         "read_chat": "채팅 읽기",
         "list_assets": "사용할 수 있는 것 목록",
+        "read_scenario_text": "시나리오 텍스트 읽기",
         "wait_for_events": "일어난 일 기다리기",
         "send_chat": "발언하기",
         "roll_dice": "주사위 굴리기",

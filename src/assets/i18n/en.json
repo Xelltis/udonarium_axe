@@ -222,6 +222,7 @@
         "get_turn_order": "Read the turn order",
         "read_chat": "Read the chat",
         "list_assets": "List what can be used",
+        "read_scenario_text": "Read a scenario text",
         "wait_for_events": "Wait for what happens",
         "send_chat": "Say something in chat",
         "roll_dice": "Roll dice",

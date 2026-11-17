@@ -222,6 +222,7 @@
         "get_turn_order": "行動順を読む",
         "read_chat": "チャットを読む",
         "list_assets": "使える物の一覧",
+        "read_scenario_text": "シナリオテキストを読む",
         "wait_for_events": "起きたことを待つ",
         "send_chat": "発言する",
         "roll_dice": "ダイスを振る",

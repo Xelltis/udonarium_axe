@@ -70,6 +70,7 @@ export class AgentReadTools {
     get_turn_order: () => this.turnOrder(),
     read_chat: (args) => this.readChat(args),
     list_assets: (args) => this.assets(textArg(args, 'kind'), args['name'], numberArg(args, 'limit', 100)),
+    read_scenario_text: (args) => this.scenarioText(textArg(args, 'text')),
     wait_for_events: (args, { signal }) =>
       this.events.waitFor(
         typeof args['after'] === 'string' ? args['after'] : undefined,
@@ -233,6 +234,7 @@ export class AgentReadTools {
       case 'scenes':
         return listed(BoardScene.all().map((scene) => ({ id: scene.identifier, name: scene.name })));
       case 'scenario_texts':
+        this.mustBeGameMaster();
         return listed(ScenarioText.all().map((text) => ({ id: text.identifier, name: text.title })));
       case 'tables':
         return listed(this.views.tables().map((table) => ({ id: table.identifier, name: table.name })));
@@ -249,6 +251,24 @@ export class AgentReadTools {
       default:
         throw new AgentToolError('invalid_input', `There is no kind of thing called ${kind}.`);
     }
+  }
+
+  private scenarioText(reference: string): unknown {
+    this.mustBeGameMaster();
+    const text = findOne(
+      ScenarioText.all(),
+      reference,
+      (each) => each.identifier,
+      (each) => each.title,
+      'scenario text'
+    );
+    return { id: text.identifier, title: text.title, folder: text.folderName, text: text.text };
+  }
+
+  /** Scenario texts reach every peer, and only the screen keeps them to the game master: so does this. */
+  private mustBeGameMaster(): void {
+    if (!this.permission.isGameMaster())
+      throw new AgentToolError('not_allowed', "Scenario texts are the game master's, read on that seat only.");
   }
 
   private soundKind(identifier: string): 'bgm' | 'ambient' | 'sound_effects' {

@@ -47,6 +47,7 @@ describe('AGENT_TOOLS', () => {
       'get_turn_order',
       'read_chat',
       'list_assets',
+      'read_scenario_text',
       'wait_for_events',
     ]);
     expect(agentToolOf('send_chat')?.access).toBe('write');

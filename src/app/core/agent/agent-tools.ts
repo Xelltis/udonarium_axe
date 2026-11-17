@@ -120,8 +120,8 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     access: 'read',
     description:
       'List the things of one kind the room has, by name and id, to use with the other tools: effects, music (bgm), ' +
-      'ambient sounds, sound effects, cut-ins, images, scenes, scenario texts, tables, ranges on the table in view, ' +
-      'or the dice systems.',
+      "ambient sounds, sound effects, cut-ins, images, scenes, scenario texts (on the game master's seat only), " +
+      'tables, ranges on the table in view, or the dice systems.',
     input: input(
       {
         kind: {
@@ -145,6 +145,17 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
       },
       ['kind']
     ),
+  },
+  {
+    name: 'read_scenario_text',
+    title: 'Read a scenario text',
+    access: 'read',
+    description:
+      "Read one of the game master's scenario texts (see list_assets) before it is said: its title, folder and the " +
+      "passage as written, in the chat syntax. Only on the game master's seat.",
+    input: input({ text: { type: 'string', description: 'The scenario text, by name or id.', minLength: 1 } }, [
+      'text',
+    ]),
   },
   {
     name: 'wait_for_events',
