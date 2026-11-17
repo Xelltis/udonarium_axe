@@ -1,5 +1,6 @@
 import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { FlatPieceLayout, maskSprites, rangeSprites } from '@axe/domain/tabletop/world/flat-piece-sprites';
+import { LYING_LIFT_PX } from '@axe/domain/tabletop/world/table-sprites';
 
 const mask: FlatPieceLayout = {
   id: 'mask',
@@ -17,11 +18,11 @@ describe('the sprites of pieces the page draws flat', () => {
       {
         id: 'mask#picture',
         kind: 'game-table-mask',
-        centre: { x: 175, y: 250, z: 50.1 },
+        centre: { x: 175, y: 250, z: 0 + (LYING_LIFT_PX + 0.1) + 50 },
         widthPx: 150,
         heightPx: 100,
         look: { kind: 'picture', url: 'blob:mask' },
-        order: 50.1,
+        order: 0 + (LYING_LIFT_PX + 0.1) + 50,
       },
     ]);
   });
@@ -37,14 +38,18 @@ describe('the sprites of pieces the page draws flat', () => {
       picture: { url: 'blob:cells', widthPx: 300, heightPx: 200, offsetX: -150, offsetY: -100 },
     });
 
-    expect(cells).toMatchObject({ id: 'range#picture', kind: 'range', centre: { x: 100, y: 200, z: 50.25 } });
+    expect(cells).toMatchObject({
+      id: 'range#picture',
+      kind: 'range',
+      centre: { x: 100, y: 200, z: 0 + (LYING_LIFT_PX + 0.25) + 50 },
+    });
   });
 
   it('has a range lying on the ground follow it, as far over it as it floats and the page lifts a range, and nothing else', () => {
     const [onGround] = rangeSprites({ ...mask, id: 'range', overGroundPx: 50 });
     const [maskSprite] = maskSprites({ ...mask, overGroundPx: 50 });
 
-    expect(onGround.drapes).toEqual({ liftPx: 50.25 });
+    expect(onGround.drapes).toEqual({ liftPx: 50 + (LYING_LIFT_PX + 0.25) });
     expect(rangeSprites({ ...mask, id: 'range' })[0].drapes).toBeUndefined();
     expect(maskSprite.drapes).toBeUndefined();
   });

@@ -1,6 +1,6 @@
 import { clamp01 } from '@axe/core/util/clamp';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
-import { PagePicture, pointOnFace, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
+import { LYING_LIFT_PX, PagePicture, pointOnFace, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
 /** The alias a white board is known by. */
 export const WHITE_BOARD_KIND = 'white-board';
@@ -32,8 +32,8 @@ export interface WhiteBoardLayout {
 export function whiteBoardSprites(board: WhiteBoardLayout): TableWorldSprite[] {
   const picture = board.picture;
   if (!picture || !(picture.widthPx > 0) || !(picture.heightPx > 0)) return [];
-  const centre = pointOnFace(board.frame, picture.widthPx / 2, picture.heightPx / 2);
   const lying = Math.abs(board.frame.normal.z) >= LYING_NORMAL;
+  const centre = pointOnFace(board.frame, picture.widthPx / 2, picture.heightPx / 2, lying ? LYING_LIFT_PX : 0);
   const side = {
     owner: board.id,
     kind: WHITE_BOARD_KIND,

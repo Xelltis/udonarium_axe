@@ -1,12 +1,18 @@
 import { clamp01 } from '@axe/core/util/clamp';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
-import { PagePaper, pointOnFace, TableWorldSprite, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
+import {
+  LYING_LIFT_PX,
+  PagePaper,
+  pointOnFace,
+  TableWorldSprite,
+  turnedOnFace,
+} from '@axe/domain/tabletop/world/table-sprites';
 
 /** The alias a note is known by. */
 export const TEXT_NOTE_KIND = 'text-note';
 
 /** How far the page lifts a note off the face it stands on, so it is drawn over what lies flat there. */
-const LIFT_PX = 0.15;
+const LIFT_PX = LYING_LIFT_PX + 0.15;
 
 /** A note on the table, as much of it as is drawn. */
 export interface TextNoteLayout {

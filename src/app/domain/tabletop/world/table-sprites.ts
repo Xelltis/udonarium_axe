@@ -4,6 +4,14 @@ import type { PickPoint2 } from '@axe/domain/tabletop/pick/pick-geometry';
 import { SurfaceFrame, Vec3 } from '@axe/domain/tabletop/surface-space';
 
 /** A band of colour round the inside of a sprite's edge, drawn over the bands before it. */
+/**
+ * How far off the face it lies on anything lying flat is drawn, before a lift of its own: over the top
+ * of a block as high as nothing lying there, drawn a hair off the face and a step more for each such
+ * block under it (`SHEET_LIFT_PX` and the steps over it, in block-faces), so a card, a note or a mask
+ * laid on such a block lies over it rather than under. It is far less than shows.
+ */
+export const LYING_LIFT_PX = 1;
+
 export interface TableWorldBand {
   readonly widthPx: number;
   /** A colour as the page writes one. */

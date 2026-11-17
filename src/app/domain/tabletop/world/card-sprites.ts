@@ -1,12 +1,12 @@
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
-import { pointOnFace, TableWorldSprite, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
+import { LYING_LIFT_PX, pointOnFace, TableWorldSprite, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
 
 /** The aliases a card and a stack of cards are known by. */
 export const CARD_KIND = 'card';
 export const CARD_STACK_KIND = 'card-stack';
 
 /** How far the page lifts a card or a stack off the face it lies on, and how much more for each step up the pile. */
-const LIFT_PX = 0.15;
+const LIFT_PX = LYING_LIFT_PX + 0.15;
 const LIFT_PER_ZINDEX_PX = 0.001;
 
 /** How much smaller a card peeked at is drawn than the back it is peeked through, and how clear. */

@@ -1,13 +1,13 @@
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
-import { lyingPicture, PagePicture, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
+import { LYING_LIFT_PX, lyingPicture, PagePicture, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
 /** The aliases a map mask and a range are known by. */
 export const MASK_KIND = 'game-table-mask';
 export const RANGE_KIND = 'range';
 
 /** How far the page lifts a mask and a range off the face they lie on. */
-const MASK_LIFT_PX = 0.1;
-const RANGE_LIFT_PX = 0.25;
+const MASK_LIFT_PX = LYING_LIFT_PX + 0.1;
+const RANGE_LIFT_PX = LYING_LIFT_PX + 0.25;
 
 /** A piece the page draws flat over its place, on the table: a map mask, or a range. */
 export interface FlatPieceLayout {

@@ -1,5 +1,6 @@
 import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { CardLayout, cardSprites, CardStackLayout, cardStackSprites } from '@axe/domain/tabletop/world/card-sprites';
+import { LYING_LIFT_PX } from '@axe/domain/tabletop/world/table-sprites';
 
 const floor = surfaceFrame('floor', { widthPx: 1000, depthPx: 800, wallHeightPx: 300 });
 
@@ -38,11 +39,11 @@ describe('the sprites cards are drawn with', () => {
     expect(face).toMatchObject({
       id: 'card#face',
       kind: 'card',
-      centre: { x: 150, y: 275, z: 0.15 + 0.003 },
+      centre: { x: 150, y: 275, z: LYING_LIFT_PX + 0.15 + 0.003 },
       widthPx: 100,
       heightPx: 150,
       look: { kind: 'picture', url: 'blob:front' },
-      order: 0.15 + 0.003,
+      order: LYING_LIFT_PX + 0.15 + 0.003,
     });
   });
 
@@ -71,7 +72,7 @@ describe('the sprites cards are drawn with', () => {
     const top = sprites[4];
     // The plate reaches its rim's width past the top card's picture on every side.
     expect(plate).toMatchObject({ widthPx: 110, heightPx: 160, centre: { x: 150, y: 275 } });
-    expect(plate.centre.z).toBeCloseTo(0.15 + 0.002 + 4, 9);
+    expect(plate.centre.z).toBeCloseTo(LYING_LIFT_PX + 0.15 + 0.002 + 4, 9);
     expect(top).toMatchObject({ widthPx: 100, heightPx: 150, centre: plate.centre });
     expect(top.facing).not.toEqual(plate.facing);
   });
@@ -79,7 +80,7 @@ describe('the sprites cards are drawn with', () => {
   it('thickens a stack with its cards up to a limit, in layers of two colours in turn spaced evenly through it', () => {
     const thick = cardStackSprites({ ...stack, cardCount: 200 });
     const layers = thick.filter((sprite) => sprite.id.includes('#layer-'));
-    const base = 0.15 + 0.002;
+    const base = LYING_LIFT_PX + 0.15 + 0.002;
 
     expect(layers).toHaveLength(30);
     expect(thick.find((sprite) => sprite.id === 'stack#plate')!.centre.z).toBeCloseTo(base + 60, 9);
