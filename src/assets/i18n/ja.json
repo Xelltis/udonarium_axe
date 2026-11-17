@@ -175,6 +175,83 @@
     }
   },
   "feature": {
+    "aiGm": {
+      "title": "AI GM",
+      "hint": "手元のブリッジに置いたClaude APIのキーで、ClaudeにこのGMの席を任せます。キーはブラウザに入りません。AIの発言には印が付き、いつでも止められます。",
+      "state": {
+        "unlinked": "ブリッジにつないでいません",
+        "linking": "ブリッジを探しています…",
+        "mcpBridge": "つながっているブリッジはAI GMを動かしません。gmを付けて起動したブリッジにつないでください",
+        "off": "止まっています",
+        "waiting": "動いています（次の出番を待っています）",
+        "thinking": "考えています…",
+        "asked": "止めました",
+        "budget": "使用額の上限に届いたので止まりました",
+        "key": "APIキーが使えないので止まりました。ブリッジに渡したキーを確かめてください",
+        "failed": "失敗が続いたので止まりました"
+      },
+      "spent": "使った額${{spent}}／上限${{budget}}・会話の長さ{{tokens}}トークン（見積もり）",
+      "gameMasterOnly": "AI GMはGMの席でだけ始められます",
+      "start": "始める",
+      "resume": "続きから始める",
+      "restart": "最初から始める",
+      "stop": "止める",
+      "nudge": {
+        "heading": "AIに進めてもらう",
+        "placeholder": "AIへの一言（なくてもかまいません。プレイヤーには見えません）",
+        "send": "進めてもらう",
+        "hint": "すぐにAIの番にします。一言はAIにだけ届きます"
+      },
+      "settings": {
+        "heading": "動かし方",
+        "model": "モデル",
+        "effort": "考える深さ",
+        "efforts": {
+          "low": "速く",
+          "medium": "ふつう",
+          "high": "じっくり"
+        },
+        "mode": "出番",
+        "modes": {
+          "respond": "発言に応える",
+          "respondHint": "聞くタブでプレイヤーが話すと、数秒待ってから応えます",
+          "called": "呼ばれたときだけ",
+          "calledHint": "呼び名を含む発言、AIの席への秘話、AIのコマの手番、［進めてもらう］のときだけ動きます"
+        },
+        "callName": "呼び名",
+        "budget": "使用額の上限（ドル）",
+        "tabs": "聞くタブ",
+        "tabsHint": "どれも選ばなければ、すべてのタブを聞きます",
+        "pieces": "AIが動かすコマ",
+        "noPieces": "まだありません",
+        "piecesHint": "NPCの印があるコマと、この席が持ち主のコマです。プレイヤーのコマには持ち主を設定してください"
+      },
+      "instructions": {
+        "heading": "AI GMへの指示",
+        "placeholder": "世界観、口調、使うルール、シナリオの流れ、秘密など",
+        "hint": "このブラウザにだけ保存し、部屋には同期も保存もしません。部屋のシナリオテキストもAIが読めます"
+      },
+      "notes": {
+        "heading": "AIのメモ",
+        "hint": "AIが場面を覚えておくために書きます。直してもかまいません。会話が長くなると、AIはこのメモと最近のチャットから続けます"
+      },
+      "asides": {
+        "heading": "AIの独り言",
+        "empty": "まだありません"
+      },
+      "setup": {
+        "heading": "ブリッジの起動のしかた",
+        "download": "リリースからaxe-mcp.mjsを入手します（Node.js 22以降が要ります）。",
+        "key": "Claude ConsoleでAPIキーを作ります。使用額の上限を付けたワークスペースのキーをおすすめします。キーをチャットやこの画面に貼らないでください。",
+        "start": "キーを環境変数に入れてブリッジを起動します（macOSとLinux）",
+        "powerShell": "WindowsのPowerShellでは次のとおりです",
+        "connect": "この画面で［つなぐ］を押してから［始める］を押します。"
+      },
+      "notice": {
+        "started": "{{name}} がAI GMを始めました",
+        "stopped": "{{name}} のAI GMが止まりました"
+      }
+    },
     "aiLink": {
       "title": "AI連携",
       "hint": "AI（Claudeなど）に、この席のまま部屋を読ませたり操作させたりします。AIの側で動くブリッジ（axe-mcp）に、このタブをつなぎます。",

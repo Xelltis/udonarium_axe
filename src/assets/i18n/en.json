@@ -175,6 +175,83 @@
     }
   },
   "feature": {
+    "aiGm": {
+      "title": "AI GM",
+      "hint": "Let Claude take this game master's seat, with a Claude API key kept in the bridge on this computer. The key never enters the browser. The AI's lines are marked, and it can be stopped at any time.",
+      "state": {
+        "unlinked": "Not connected to a bridge",
+        "linking": "Looking for the bridge…",
+        "mcpBridge": "The bridge connected does not run the AI GM. Connect to a bridge started with gm",
+        "off": "Stopped",
+        "waiting": "Running (waiting for its next turn)",
+        "thinking": "Thinking…",
+        "asked": "Stopped",
+        "budget": "Stopped: the spending limit was reached",
+        "key": "Stopped: the API key was refused. Check the key given to the bridge",
+        "failed": "Stopped after failing several times"
+      },
+      "spent": "Spent ${{spent}} of ${{budget}} · conversation {{tokens}} tokens (estimate)",
+      "gameMasterOnly": "The AI GM can be started only on the game master's seat",
+      "start": "Start",
+      "resume": "Resume",
+      "restart": "Start over",
+      "stop": "Stop",
+      "nudge": {
+        "heading": "Ask the AI to go on",
+        "placeholder": "A word to the AI (optional; players do not see it)",
+        "send": "Go on",
+        "hint": "Gives the AI its turn now. The word reaches the AI only"
+      },
+      "settings": {
+        "heading": "How it runs",
+        "model": "Model",
+        "effort": "Thinking",
+        "efforts": {
+          "low": "Quick",
+          "medium": "Normal",
+          "high": "Thorough"
+        },
+        "mode": "When it acts",
+        "modes": {
+          "respond": "Answer players",
+          "respondHint": "When a player speaks in a tab it listens to, it answers after a few seconds",
+          "called": "Only when called",
+          "calledHint": "Acts only on a line with its call name, a whisper to its seat, its pieces' turns, or Go on"
+        },
+        "callName": "Call name",
+        "budget": "Spending limit (USD)",
+        "tabs": "Tabs it listens to",
+        "tabsHint": "With none chosen, it listens to every tab",
+        "pieces": "Pieces the AI runs",
+        "noPieces": "None yet",
+        "piecesHint": "Pieces marked as NPCs, and pieces owned by this seat. Set an owner on the players' pieces"
+      },
+      "instructions": {
+        "heading": "Instructions for the AI GM",
+        "placeholder": "Setting, tone, rules in use, the scenario's course, secrets…",
+        "hint": "Kept in this browser only, never synchronised or saved with the room. The AI can also read the room's scenario texts"
+      },
+      "notes": {
+        "heading": "The AI's notebook",
+        "hint": "The AI writes it to remember the story; you may edit it. When the conversation grows long, the AI carries on from this notebook and the recent chat"
+      },
+      "asides": {
+        "heading": "The AI's asides",
+        "empty": "Nothing yet"
+      },
+      "setup": {
+        "heading": "Starting the bridge",
+        "download": "Get axe-mcp.mjs from the releases (Node.js 22 or later is needed).",
+        "key": "Create an API key in the Claude Console. A key of a workspace with a spending limit is recommended. Never paste the key into chat or this panel.",
+        "start": "Start the bridge with the key in an environment variable (macOS and Linux)",
+        "powerShell": "In Windows PowerShell",
+        "connect": "Press Connect in this panel, then Start."
+      },
+      "notice": {
+        "started": "{{name}} started the AI GM",
+        "stopped": "{{name}}'s AI GM stopped"
+      }
+    },
     "aiLink": {
       "title": "AI link",
       "hint": "Lets an AI (such as Claude) read the room, or act in it, as this seat. This tab connects to the bridge (axe-mcp) the AI runs.",

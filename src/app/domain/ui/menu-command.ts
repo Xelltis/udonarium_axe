@@ -248,6 +248,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   panel('buffManager', 'timeline', 'buffManager', 'feature.buffManager.title', { audience: 'playing' }),
   panel('statusAilment', 'list_alt', 'statusAilment', 'feature.statusAilment.title'),
   panel('aiLink', 'smart_toy', 'aiLink', 'feature.aiLink.title', { testId: 'fab-ai-link' }),
+  panel('aiGm', 'support_agent', 'aiGm', 'feature.aiGm.title', { audience: 'gameMaster', testId: 'fab-ai-gm' }),
   panel('diceTableSetting', 'casino', 'diceTableSetting', 'feature.dice.tableSetting.title'),
   panel('myDice', 'format_paint', 'myDice', 'feature.dice.myDice.title', { audience: 'playing' }),
   panel('images', 'photo_library', 'fileStorage', 'app.fab.images'),

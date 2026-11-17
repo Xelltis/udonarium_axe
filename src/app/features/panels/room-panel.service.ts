@@ -372,6 +372,11 @@ export class RoomPanelService {
             import('@axe/features/ai-link/ai-link-panel/ai-link-panel.component').then((m) => m.AiLinkPanelComponent),
           option: { width: 480, height: 640, minWidth: 360, minHeight: 360, single: 'ai-link' },
         };
+      case 'aiGm':
+        return {
+          load: () => import('@axe/features/ai-gm/ai-gm-panel/ai-gm-panel.component').then((m) => m.AiGmPanelComponent),
+          option: { width: 500, height: 720, minWidth: 360, minHeight: 400, single: 'ai-gm' },
+        };
     }
   }
 }

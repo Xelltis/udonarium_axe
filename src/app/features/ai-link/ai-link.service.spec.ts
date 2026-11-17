@@ -114,6 +114,36 @@ describe('AiLinkService', () => {
     expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.aiLink)!)).toEqual({ port: 47610, scope: 'write' });
   });
 
+  it('passes on what a game-master bridge tells, keeps its latest status and notebook, and tells it what it is asked to', () => {
+    const link = make();
+    const heard: unknown[] = [];
+    link.gmHeard.subscribe((message) => heard.push(message));
+    expect(link.tellGm({ type: 'gm.stop' })).toBe(false);
+    link.connect();
+    sockets[0].greet();
+    const status = {
+      run: 'waiting',
+      model: 'claude-opus-5-5',
+      spentUsd: 0,
+      budgetUsd: 5,
+      contextTokens: 0,
+      kept: true,
+    };
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status }) });
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.notes', notes: '一行目' }) });
+
+    expect(heard).toEqual([
+      { type: 'gm.status', status },
+      { type: 'gm.notes', notes: '一行目' },
+    ]);
+    expect(link.latestGm()).toEqual({ status, notes: '一行目' });
+    expect(link.tellGm({ type: 'gm.nudge', direction: '' })).toBe(true);
+    expect(sockets[0].sent.at(-1)).toEqual({ type: 'gm.nudge', direction: '' });
+
+    link.disconnect();
+    expect(link.latestGm()).toEqual({ status: null, notes: null });
+  });
+
   it('lets a watching seat give the AI reading only, whatever was chosen', () => {
     localStorage.setItem(STORAGE_KEYS.aiLink, JSON.stringify({ port: 5000, scope: 'write' }));
     role = PeerRole.Guest;

@@ -5,13 +5,21 @@ import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AgentBridgeClient, type AgentLinkState } from '@axe/core/agent/agent-bridge-client';
-import { AGENT_BRIDGE_PORT, type AgentScope, type AgentSeat } from '@axe/core/agent/agent-protocol';
+import {
+  AGENT_BRIDGE_PORT,
+  type AgentScope,
+  type AgentSeat,
+  type GmBridgeMessage,
+  type GmStatus,
+  type GmTabMessage,
+} from '@axe/core/agent/agent-protocol';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { AgentToolsSetup } from '@axe/features/agent-tools/agent-tools-setup.service';
 import { version as APP_VERSION } from '@pkg';
+import { Subject } from 'rxjs';
 
 /** What this browser keeps of the link: the bridge's port, and what the AI was last let do. */
 interface StoredLink {
@@ -59,6 +67,10 @@ export class AiLinkService {
   readonly port = signal(AGENT_BRIDGE_PORT);
   /** What the person at the seat lets the AI do; a seat that watches lets it read only, whatever this says. */
   readonly scope = signal<AgentScope>('read');
+  /** What a bridge running the game master tells of itself. */
+  readonly gmHeard = new Subject<GmBridgeMessage>();
+  /** What the bridge connected last told of the game master, for whoever comes to listen later. */
+  private gmLatest: { status: GmStatus | null; notes: string | null } = { status: null, notes: null };
 
   constructor() {
     const stored = readStoredLink();
@@ -96,12 +108,19 @@ export class AiLinkService {
     this.tools.ensure();
     this.stopRetrying();
     this.client?.close();
+    this.gmLatest = { status: null, notes: null };
     const client = new AgentBridgeClient({
       port: this.port(),
       app: APP_VERSION,
       seat: () => this.seat(),
       run: (tool, args, signal) => this.runner.run(tool, args, this.seat().scope, signal),
       onState: (state) => this.become(client, state),
+      onGm: (message) => {
+        if (this.client !== client) return;
+        if (message.type === 'gm.status') this.gmLatest = { ...this.gmLatest, status: message.status };
+        if (message.type === 'gm.notes') this.gmLatest = { ...this.gmLatest, notes: message.notes };
+        this.gmHeard.next(message);
+      },
     });
     this.client = client;
     client.connect();
@@ -128,6 +147,16 @@ export class AiLinkService {
     if (this.state().kind !== 'connected') return;
     this.client?.tellSeat();
     this.tellRoom(scope === 'write' ? 'feature.aiLink.notice.nowWrite' : 'feature.aiLink.notice.nowRead');
+  }
+
+  /** How the game master stood and its notebook, as the bridge connected last told them. */
+  latestGm(): { readonly status: GmStatus | null; readonly notes: string | null } {
+    return this.client?.current.kind === 'connected' ? this.gmLatest : { status: null, notes: null };
+  }
+
+  /** Tells a bridge running the game master something, returning whether it went. */
+  tellGm(message: GmTabMessage): boolean {
+    return this.client?.tellGm(message) ?? false;
   }
 
   /** Changes the port the bridge is looked for on, from the next connection. */
