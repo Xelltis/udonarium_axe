@@ -53,6 +53,14 @@ export class StatusAilmentCatalog extends ObjectNode {
    * The states the catalog holds, read from its one-to-a-line text. Assigning a list rewrites that
    * text, which travels with the room.
    */
+  /**
+   * The icons of the states, which may each name a picture; a save keeps the ones that do, so that a
+   * state whose picture nothing else in the room uses comes back with it.
+   */
+  get carriedImageIdentifiers(): readonly string[] {
+    return this.ailments.map((ailment) => ailment.icon.trim()).filter((icon) => icon.length > 0);
+  }
+
   get ailments(): StatusAilment[] {
     return parseStatusAilments(`${this.value}`);
   }

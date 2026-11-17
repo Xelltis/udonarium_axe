@@ -41,6 +41,7 @@ import type { ChatLogLabels, ChatLogScope } from '@axe/domain/chat/chat-log-rich
 import { ChatLogStyle, isPlainChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
+import { DataElementAttribute } from '@axe/domain/data/data-element';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AssetOwnerList } from '@axe/domain/media/asset-owner-list';
 import { AudioTagList } from '@axe/domain/media/audio-tag-list';
@@ -242,7 +243,7 @@ export class SaveDataService {
 
     const named: ImageFile[] = this.withCarried(
       [...this.searchImageFiles(roomXml), ...this.searchImageFiles(chatXml)],
-      [...this.objectStore.getObjects(WhiteBoard), this.appConfig]
+      [...this.objectStore.getObjects(WhiteBoard), this.appConfig, this.statusAilmentCatalog]
     );
     const images = everything ? this.withEveryHeld(named) : named;
     for (const image of images) {
@@ -394,6 +395,10 @@ export class SaveDataService {
       for (const { name, value } of Array.from(element.attributes)) {
         if (!value) continue;
         if (IMAGE_ATTRIBUTE.test(name)) images[value] = this.imageStorage.get(value);
+        // A buff's icon is a mark or the name of a picture; only a picture held here is kept.
+        if (name === DataElementAttribute.BUFF_ICON && this.imageStorage.get(value)) {
+          images[value] = this.imageStorage.get(value);
+        }
         if (!STAMP_ATTRIBUTE.test(name)) continue;
         for (const stampId of value.split(/\s+/)) {
           const ref = stampOf(stampId);
