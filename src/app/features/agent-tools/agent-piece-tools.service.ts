@@ -153,7 +153,7 @@ export class AgentPieceTools {
 
   /** A piece whose buffs this seat is shown, or a refusal: a piece may keep its buffs from the players. */
   private buffsOpen(piece: GameCharacter): GameCharacter {
-    if (piece.hideBuff && !this.permission.canSeeHidden()) {
+    if (!this.views.buffsOpen(piece)) {
       throw new AgentToolError('not_allowed', `This seat is not shown the buffs of ${this.views.nameOf(piece)}.`);
     }
     return piece;

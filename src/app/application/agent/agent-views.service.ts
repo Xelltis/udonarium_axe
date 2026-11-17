@@ -156,7 +156,7 @@ export class AgentViews {
       npc: piece.isNpc,
       targeted: piece.targeted,
       resources: sheetOpen ? this.resourcesOf(piece) : [],
-      buffs: piece.hideBuff && !this.permission.canSeeHidden() ? [] : this.buffsOf(piece),
+      buffs: this.buffsOpen(piece) ? this.buffsOf(piece) : [],
       ...(hidden ? { hidden: true as const } : {}),
     };
   }
@@ -164,6 +164,11 @@ export class AgentViews {
   /** Whether this seat may open a piece's sheet: the game master and the seat that owns it always may. */
   sheetOpen(piece: GameCharacter): boolean {
     return this.disclosure.canView(piece);
+  }
+
+  /** Whether this seat is shown a piece's buffs: a piece may keep them from the players. */
+  buffsOpen(piece: GameCharacter): boolean {
+    return !piece.hideBuff || this.permission.canSeeHidden();
   }
 
   /** A piece's sheet as a tree of named values, or null where this seat may not open it. */
