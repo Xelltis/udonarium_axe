@@ -152,6 +152,7 @@ describe('AiLinkService', () => {
 
     link.lendWrite();
     link.setScope('write');
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.aiLink)!)).toMatchObject({ scope: 'write', lentFrom: null });
     link.takeBack();
     expect(link.scope()).toBe('write');
   });

@@ -158,32 +158,28 @@ export class AiLinkService {
    * back over it afterwards.
    */
   setScope(scope: AgentScope): void {
-    this.lentFrom = null;
-    this.store();
-    this.changeScope(scope);
+    this.changeScope(scope, null);
   }
 
   /** Lets the AI change the room for as long as a game master runs, remembering what it was let do before. */
   lendWrite(): void {
-    this.lentFrom ??= this.scope();
-    this.store();
-    this.changeScope('write');
+    this.changeScope('write', this.lentFrom ?? this.scope());
   }
 
   /** Gives back what the AI was let do before a game master was let change the room, if one was. */
   takeBack(): void {
     const before = this.lentFrom;
     if (before === null) return;
-    this.lentFrom = null;
-    this.store();
-    this.changeScope(before);
+    this.changeScope(before, null);
   }
 
-  private changeScope(scope: AgentScope): void {
-    if (scope === this.scope()) return;
+  /** Sets what the AI is let do and what it was let do before a lending, keeping both, and tells of a change. */
+  private changeScope(scope: AgentScope, lentFrom: AgentScope | null): void {
+    const changed = scope !== this.scope();
     this.scope.set(scope);
+    this.lentFrom = lentFrom;
     this.store();
-    if (this.state().kind !== 'connected') return;
+    if (!changed || this.state().kind !== 'connected') return;
     this.client?.tellSeat();
     this.tellRoom(scope === 'write' ? 'feature.aiLink.notice.nowWrite' : 'feature.aiLink.notice.nowRead');
   }
