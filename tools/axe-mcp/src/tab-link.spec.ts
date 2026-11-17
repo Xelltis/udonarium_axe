@@ -47,6 +47,8 @@ describe('TabLink', () => {
       protocol: AGENT_PROTOCOL_VERSION,
       tools: agentToolsDigest(),
       bridge: '1.80.0',
+      mode: 'mcp',
+      models: [],
     });
     expect(link.current).toEqual({ app: '1.80.0', seat: SEAT });
     expect(await link.call('move_piece', { col: 2 }, 1000)).toEqual({
@@ -225,6 +227,35 @@ describe('TabLink', () => {
     expect(outcome).toMatchObject({ ok: false, error: { code: 'not_connected' } });
     expect(!outcome.ok && outcome.error.message).toContain(`port ${port}`);
     await second.close();
+  });
+
+  it('as a game master, greets a tab with the models it runs, and passes what each side tells the other', async () => {
+    await link.close();
+    link = new TabLink({
+      port: 0,
+      origins: ['http://localhost:4200'],
+      bridge: '1.80.0',
+      log: () => undefined,
+      mode: 'gm',
+      models: [{ id: 'claude-opus-5-5', name: 'Claude Opus 5.5' }],
+    });
+    port = await link.listen();
+    const told: unknown[] = [];
+    link.onGm((message) => told.push(message));
+    expect(link.tellGm({ type: 'gm.notes', notes: 'まだ誰もいない' })).toBe(false);
+
+    const axe = tab();
+    await axe.welcome(SEAT);
+    await until(() => link.current !== null);
+    expect(axe.heard[0]).toMatchObject({ mode: 'gm', models: [{ id: 'claude-opus-5-5', name: 'Claude Opus 5.5' }] });
+
+    axe.say({ type: 'gm.nudge', direction: '酒場へ' });
+    await until(() => told.length > 0);
+    expect(told).toEqual([{ type: 'gm.nudge', direction: '酒場へ' }]);
+
+    expect(link.tellGm({ type: 'gm.notes', notes: '一行目' })).toBe(true);
+    await until(() => axe.heard.length > 1);
+    expect(axe.heard[1]).toEqual({ type: 'gm.notes', notes: '一行目' });
   });
 
   it('lets go of a tab that stops answering the heartbeat', async () => {

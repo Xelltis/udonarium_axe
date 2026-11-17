@@ -40,6 +40,8 @@ class FakeSocket {
         protocol: AGENT_PROTOCOL_VERSION,
         tools: agentToolsDigest(),
         bridge: '1.80.0',
+        mode: 'mcp',
+        models: [],
       }),
     });
   }
@@ -96,7 +98,7 @@ describe('AiLinkService', () => {
     sockets[0].greet();
 
     expect(sockets[0].url).toBe('ws://127.0.0.1:47610/axe');
-    expect(link.state()).toEqual({ kind: 'connected', bridge: '1.80.0' });
+    expect(link.state()).toEqual({ kind: 'connected', bridge: '1.80.0', mode: 'mcp', models: [] });
     expect(sockets[0].sent[0]).toMatchObject({ type: 'welcome', seat: { role: 'gm', scope: 'read' } });
     expect(notices).toEqual([expect.stringContaining('feature.aiLink.notice.startedRead')]);
   });

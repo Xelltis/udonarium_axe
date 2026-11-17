@@ -39,6 +39,11 @@ export class TestTab {
     this.socket.send(JSON.stringify({ type: 'welcome', protocol, tools, app: '1.80.0', seat }));
   }
 
+  /** Says something to the bridge as a tab would. */
+  say(message: unknown): void {
+    this.socket.send(JSON.stringify(message));
+  }
+
   close(): void {
     this.socket.close();
   }

@@ -55,7 +55,7 @@ describe('AiLinkPanelComponent', () => {
   });
 
   it('says which bridge it is connected to, and lets go of it at a press', async () => {
-    state.set({ kind: 'connected', bridge: '1.80.0' });
+    state.set({ kind: 'connected', bridge: '1.80.0', mode: 'mcp', models: [] });
     const host = await panel();
 
     expect(text(host, 'ai-link-state')).toBe('つながっています（ブリッジ1.80.0）');

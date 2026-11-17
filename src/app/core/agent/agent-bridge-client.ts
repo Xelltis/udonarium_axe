@@ -3,6 +3,10 @@ import {
   AGENT_BRIDGE_PATH,
   AGENT_PROTOCOL_VERSION,
   type AgentSeat,
+  type BridgeMode,
+  type GmBridgeMessage,
+  type GmModelOffer,
+  type GmTabMessage,
   readBridgeMessage,
   type TabMessage,
 } from '@axe/core/agent/agent-protocol';
@@ -12,7 +16,13 @@ import { agentToolsDigest } from '@axe/core/agent/agent-tools';
 export type AgentLinkState =
   | { readonly kind: 'idle' }
   | { readonly kind: 'connecting' }
-  | { readonly kind: 'connected'; readonly bridge: string }
+  | {
+      readonly kind: 'connected';
+      readonly bridge: string;
+      readonly mode: BridgeMode;
+      /** The models the bridge runs as the game master; none for an MCP bridge. */
+      readonly models: readonly GmModelOffer[];
+    }
   /** The bridge turned this tab away: another tab is connected, or its tools are not this tab's. */
   | { readonly kind: 'refused'; readonly reason: 'busy' | 'protocol'; readonly bridge: string }
   /** No bridge answered, or the one connected went away. */
@@ -39,6 +49,8 @@ export interface AgentBridgeClientOptions {
   /** Runs a tool the AI called, giving it up once the signal says the AI did. */
   readonly run: (tool: string, args: Readonly<Record<string, unknown>>, signal: AbortSignal) => Promise<AgentOutcome>;
   readonly onState: (state: AgentLinkState) => void;
+  /** Hears what a game-master bridge tells of itself. */
+  readonly onGm?: (message: GmBridgeMessage) => void;
   readonly createSocket?: (url: string) => AgentSocket;
 }
 
@@ -104,6 +116,13 @@ export class AgentBridgeClient {
       this.send(this.socket, { type: 'seat', seat: this.options.seat() });
   }
 
+  /** Tells a game-master bridge something, returning whether it went: not while unconnected. */
+  tellGm(message: GmTabMessage): boolean {
+    if (this.state.kind !== 'connected' || !this.socket || this.socket.readyState !== OPEN) return false;
+    this.send(this.socket, message);
+    return true;
+  }
+
   private hear(socket: AgentSocket, data: unknown): void {
     const text = typeof data === 'string' ? data : String(data);
     const message = readBridgeMessage(text);
@@ -125,7 +144,7 @@ export class AgentBridgeClient {
           app: this.options.app,
           seat: this.options.seat(),
         });
-        this.become({ kind: 'connected', bridge: message.bridge });
+        this.become({ kind: 'connected', bridge: message.bridge, mode: message.mode, models: message.models });
         return;
       case 'refuse':
         this.become({ kind: 'refused', reason: message.reason, bridge: message.bridge });
@@ -135,6 +154,11 @@ export class AgentBridgeClient {
         return;
       case 'cancel':
         this.running.get(message.id)?.abort();
+        return;
+      case 'gm.status':
+      case 'gm.notes':
+      case 'gm.said':
+        if (this.state.kind === 'connected') this.options.onGm?.(message);
         return;
     }
   }

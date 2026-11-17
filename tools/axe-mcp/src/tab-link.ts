@@ -6,6 +6,10 @@ import {
   type AgentError,
   type AgentSeat,
   type BridgeMessage,
+  type BridgeMode,
+  type GmBridgeMessage,
+  type GmModelOffer,
+  type GmTabMessage,
   readTabMessage,
 } from '@axe/core/agent/agent-protocol';
 import { agentToolsDigest } from '@axe/core/agent/agent-tools';
@@ -30,6 +34,10 @@ export interface TabLinkOptions {
   readonly origins: readonly string[];
   /** The version of the bridge, as the tab is told it. */
   readonly bridge: string;
+  /** What the bridge is run as, as the tab is told it: `mcp` unless said. */
+  readonly mode?: BridgeMode;
+  /** The models a game-master bridge runs, as the tab is told them. */
+  readonly models?: readonly GmModelOffer[];
   readonly log: (line: string) => void;
   /** How often the tab is asked whether it is still there, in milliseconds. */
   readonly heartbeatMs?: number;
@@ -70,6 +78,7 @@ export class TabLink {
   private heartbeat: ReturnType<typeof setInterval> | null = null;
   private readonly pending = new Map<string, Pending>();
   private readonly listeners = new Set<(tab: ConnectedTab | null) => void>();
+  private readonly gmListeners = new Set<(message: GmTabMessage) => void>();
   private nextId = 1;
 
   constructor(private readonly options: TabLinkOptions) {}
@@ -122,6 +131,19 @@ export class TabLink {
   onChange(listener: (tab: ConnectedTab | null) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** Hears what the tab tells a game-master bridge. */
+  onGm(listener: (message: GmTabMessage) => void): () => void {
+    this.gmListeners.add(listener);
+    return () => this.gmListeners.delete(listener);
+  }
+
+  /** Tells the connected tab how the game master stands, returning whether there was a tab to tell. */
+  tellGm(message: GmBridgeMessage): boolean {
+    if (!this.tab || !this.socket) return false;
+    this.send(this.socket, message);
+    return true;
   }
 
   /**
@@ -223,7 +245,7 @@ export class TabLink {
       }
     });
     socket.on('error', () => socket.terminate());
-    this.send(socket, { type: 'hello', ...hello });
+    this.send(socket, { type: 'hello', ...hello, mode: this.options.mode ?? 'mcp', models: this.options.models ?? [] });
   }
 
   private hear(socket: WebSocket, text: string): void {
@@ -259,6 +281,9 @@ export class TabLink {
         return;
       case 'result':
         this.settle(message.id, message.ok ? { ok: true, value: message.value } : { ok: false, error: message.error });
+        return;
+      default:
+        if (this.tab && this.socket === socket) for (const listener of this.gmListeners) listener(message);
         return;
     }
   }

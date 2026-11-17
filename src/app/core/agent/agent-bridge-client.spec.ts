@@ -40,7 +40,15 @@ class FakeSocket implements AgentSocket {
 }
 
 const SEAT: AgentSeat = { name: 'AI GM', role: 'gm', scope: 'write' };
-const HELLO = { type: 'hello', protocol: AGENT_PROTOCOL_VERSION, tools: agentToolsDigest(), bridge: '1.80.0' };
+const HELLO = {
+  type: 'hello',
+  protocol: AGENT_PROTOCOL_VERSION,
+  tools: agentToolsDigest(),
+  bridge: '1.80.0',
+  mode: 'mcp',
+  models: [],
+};
+const CONNECTED: AgentLinkState = { kind: 'connected', bridge: '1.80.0', mode: 'mcp', models: [] };
 
 /** Lets the promises queued so far settle. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -79,7 +87,7 @@ describe('AgentBridgeClient', () => {
     expect(socket.sent).toEqual([
       { type: 'welcome', protocol: AGENT_PROTOCOL_VERSION, tools: agentToolsDigest(), app: '1.80.0', seat: SEAT },
     ]);
-    expect(states).toEqual([{ kind: 'connecting' }, { kind: 'connected', bridge: '1.80.0' }]);
+    expect(states).toEqual([{ kind: 'connecting' }, CONNECTED]);
   });
 
   it('runs each call it is handed and answers it by its id', async () => {
@@ -145,6 +153,40 @@ describe('AgentBridgeClient', () => {
     expect(socket.sent[1]).toEqual({ type: 'seat', seat: { ...SEAT, scope: 'read' } });
   });
 
+  it('hears a game-master bridge out, and tells it what the panel asks only while connected', () => {
+    const heard: unknown[] = [];
+    client = new AgentBridgeClient({
+      port: 47610,
+      app: '1.80.0',
+      seat: () => seat,
+      run: (tool, args, signal) => run(tool, args, signal),
+      onState: (state) => states.push(state),
+      onGm: (message) => heard.push(message),
+      createSocket: (url) => (socket = new FakeSocket(url)),
+    });
+    expect(client.tellGm({ type: 'gm.stop' })).toBe(false);
+
+    client.connect();
+    socket.open();
+    socket.hear({ ...HELLO, mode: 'gm', models: [{ id: 'claude-opus-5-5', name: 'Claude Opus 5.5' }] });
+    expect(states.at(-1)).toEqual({
+      kind: 'connected',
+      bridge: '1.80.0',
+      mode: 'gm',
+      models: [{ id: 'claude-opus-5-5', name: 'Claude Opus 5.5' }],
+    });
+
+    socket.hear({ type: 'gm.notes', notes: '一行目' });
+    socket.hear({ type: 'gm.said', text: '酒場の場面へ', at: 5 });
+    expect(heard).toEqual([
+      { type: 'gm.notes', notes: '一行目' },
+      { type: 'gm.said', text: '酒場の場面へ', at: 5 },
+    ]);
+
+    expect(client.tellGm({ type: 'gm.nudge', direction: '' })).toBe(true);
+    expect(socket.sent.at(-1)).toEqual({ type: 'gm.nudge', direction: '' });
+  });
+
   it('turns away a bridge whose tools are not this tab’s, and hears a bridge turn it away', () => {
     client.connect();
     socket.open();
@@ -181,7 +223,7 @@ describe('AgentBridgeClient', () => {
     socket.onmessage?.({ data: 'not json' });
     socket.hear({ type: 'gossip' });
 
-    expect(states.at(-1)).toEqual({ kind: 'connected', bridge: '1.80.0' });
+    expect(states.at(-1)).toEqual(CONNECTED);
   });
 
   it('says no bridge answered, or that the one connected went away, giving up what it was running', async () => {
