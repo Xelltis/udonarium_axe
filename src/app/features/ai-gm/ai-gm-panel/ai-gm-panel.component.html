@@ -1,8 +1,8 @@
 <div class="text-ui-text bg-ui-elevated flex h-full min-h-0 flex-col gap-2.5 overflow-y-auto p-3 text-[13px]">
-  <p class="text-ui-dim m-0 text-xs/relaxed">{{ 'feature.aiGm.hint' | transloco }}</p>
+  <p class="text-ui-dim m-0 shrink-0 text-xs/relaxed">{{ 'feature.aiGm.hint' | transloco }}</p>
 
   <section
-    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2 border border-solid p-3"
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex shrink-0 flex-col gap-2 border border-solid p-3"
     data-testid="ai-gm-status"
   >
     <div class="flex items-center gap-2">
@@ -79,7 +79,7 @@
 
   @if (gm.running()) {
     <section
-      class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1.5 border border-solid p-3"
+      class="border-ui-border-panel bg-ui-surface rounded-ui flex shrink-0 flex-col gap-1.5 border border-solid p-3"
       data-testid="ai-gm-nudge-section"
     >
       <div class="border-ui-accent border-l-2 border-solid pl-2">
@@ -109,7 +109,7 @@
   }
 
   <section
-    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2 border border-solid p-3"
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex shrink-0 flex-col gap-2 border border-solid p-3"
     data-testid="ai-gm-settings"
   >
     <div class="border-ui-accent border-l-2 border-solid pl-2">
@@ -232,7 +232,7 @@
   </section>
 
   <section
-    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1.5 border border-solid p-3"
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex shrink-0 flex-col gap-1.5 border border-solid p-3"
     data-testid="ai-gm-instructions-section"
   >
     <div class="border-ui-accent border-l-2 border-solid pl-2">
@@ -251,7 +251,7 @@
   </section>
 
   <section
-    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1.5 border border-solid p-3"
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex shrink-0 flex-col gap-1.5 border border-solid p-3"
     data-testid="ai-gm-notes-section"
   >
     <div class="border-ui-accent border-l-2 border-solid pl-2">
@@ -269,7 +269,7 @@
   </section>
 
   <section
-    class="border-ui-border-panel bg-ui-surface rounded-ui flex min-h-16 flex-col gap-1.5 border border-solid p-3"
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex min-h-16 shrink-0 flex-col gap-1.5 border border-solid p-3"
     data-testid="ai-gm-asides"
   >
     <div class="border-ui-accent border-l-2 border-solid pl-2">
@@ -285,7 +285,10 @@
     }
   </section>
 
-  <details class="border-ui-border-panel bg-ui-surface rounded-ui border border-solid p-3" data-testid="ai-gm-setup">
+  <details
+    class="border-ui-border-panel bg-ui-surface rounded-ui shrink-0 border border-solid p-3"
+    data-testid="ai-gm-setup"
+  >
     <summary class="cursor-pointer text-[12px] font-semibold">{{ 'feature.aiGm.setup.heading' | transloco }}</summary>
     <ol class="m-0 mt-2 flex flex-col gap-2 pl-5 text-xs/relaxed">
       <li>
