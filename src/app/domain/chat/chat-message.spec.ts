@@ -408,6 +408,24 @@ describe('ChatMessage', () => {
       expect(restored.quoteOf).toBe('msg-quote-1');
     });
 
+    it('keeps the mark of a line an AI sent through the saved data, and writes nothing for a line without', () => {
+      const msg = new ChatMessage();
+      msg.initialize();
+      msg.via = 'ai';
+      const plain = new ChatMessage();
+      plain.initialize();
+
+      const xml = msg.toXml();
+      expect(xml).toContain('via="ai"');
+      expect(plain.toXml()).not.toContain('via=');
+      expect(plain.isByAi).toBe(false);
+
+      store.delete(msg, false);
+      store.clearDeleteHistory();
+      const restored = ObjectSerializer.instance.parseXml(xml) as ChatMessage;
+      expect(restored.isByAi).toBe(true);
+    });
+
     it('keeps which attachments came only with the stamps through the saved data, and writes nothing for a line without', () => {
       const msg = new ChatMessage();
       msg.initialize();

@@ -175,6 +175,85 @@
     }
   },
   "feature": {
+    "aiLink": {
+      "title": "AI連携",
+      "hint": "AI（Claudeなど）に、この席のまま部屋を読ませたり操作させたりします。AIの側で動くブリッジ（axe-mcp）に、このタブをつなぎます。",
+      "connect": "つなぐ",
+      "disconnect": "切る",
+      "port": "ブリッジの番号",
+      "waiting": "ブリッジが動き出すまで、数秒ごとに探し続けます。",
+      "state": {
+        "idle": "つないでいません",
+        "connecting": "ブリッジを探しています…",
+        "connected": "つながっています（ブリッジ{{bridge}}）",
+        "unreachable": "ブリッジが見つかりません。AIの側でブリッジが動いているか、番号が合っているかを確かめてください",
+        "lost": "ブリッジとの接続が切れました",
+        "busy": "ブリッジには別のタブがつながっています。そちらを切ってから、もう一度つないでください",
+        "protocol": "ブリッジ（{{bridge}}）とこのAxeの版が合いません。このAxeと同じリリースのブリッジを使ってください"
+      },
+      "scope": {
+        "heading": "AIに許すこと",
+        "read": "読むだけ",
+        "readHint": "部屋の様子・コマ・チャットを読むだけで、何も変えません",
+        "write": "書くことも許す",
+        "writeHint": "発言・ダイス・コマの移動など、この席でできることをAIがします",
+        "watchOnly": "見学の席では、AIは読むだけです"
+      },
+      "history": {
+        "heading": "AIがしたこと",
+        "empty": "まだありません",
+        "clear": "消す",
+        "refused": "断りました"
+      },
+      "setup": {
+        "heading": "つなぎ方",
+        "download": "リリースのページからaxe-mcp.mjsを落とします（Node.js 22以上で動きます）。",
+        "claudeCode": "Claude Codeでは、次を実行します（パスは落とした場所に書き換えます）。",
+        "claudeDesktop": "Claude Desktopでは、設定ファイルのmcpServersに次を足します。",
+        "connect": "AIを起動してから、このパネルの［つなぐ］を押します。Claude Codeでは /mcp__axe__run_session と打つと、GMとして動き始めます。プロンプトを選べないアプリでは、AIに「axe://guide/run-sessionを読んでGMをして」と頼みます。",
+        "copy": "コピー",
+        "copied": "コピーしました",
+        "origin": "このページ（{{origin}}）はブリッジが最初から受け付けるページではないので、上の起動のしかたには --allow-originを付けてあります。"
+      },
+      "tools": {
+        "get_room": "部屋を見る",
+        "list_pieces": "コマの一覧",
+        "get_piece": "コマを読む",
+        "get_turn_order": "行動順を読む",
+        "read_chat": "チャットを読む",
+        "list_assets": "使える物の一覧",
+        "wait_for_events": "起きたことを待つ",
+        "send_chat": "発言する",
+        "roll_dice": "ダイスを振る",
+        "move_piece": "コマを動かす",
+        "change_resource": "リソースを変える",
+        "set_sheet_value": "シートに書く",
+        "add_buff": "バフを付ける",
+        "remove_buff": "バフを外す",
+        "set_targets": "ターゲットを選ぶ",
+        "advance_turn": "行動順を進める",
+        "create_piece": "コマを置く",
+        "remove_piece": "コマを下げる",
+        "fire_effect": "エフェクトを撃つ",
+        "play_sound": "音を鳴らす",
+        "stop_sound": "音を止める",
+        "play_cut_in": "カットインを出す",
+        "stop_cut_in": "カットインを止める",
+        "switch_table": "テーブルを切り替える",
+        "apply_scene": "シーンを適用する",
+        "send_scenario_text": "シナリオテキストを送る",
+        "place_range": "射程を置く",
+        "remove_range": "射程を消す"
+      },
+      "notice": {
+        "startedRead": "{{name}} がAI連携をはじめました（読むだけ）",
+        "startedWrite": "{{name}} がAI連携をはじめました（書くことも許す）",
+        "nowRead": "{{name}} のAI連携を「読むだけ」に変えました",
+        "nowWrite": "{{name}} のAI連携を「書くことも許す」に変えました",
+        "ended": "{{name}} がAI連携を終えました",
+        "lost": "{{name}} のAI連携が切れました"
+      }
+    },
     "gpuNotice": {
       "title": "グラフィックアクセラレーションが無効になっています",
       "body": "このブラウザは GPU を使わずに画面を描いているため、Udonarium Axe がとても重くなります。ブラウザの設定でグラフィックアクセラレーションを有効にすることを強くおすすめします。",
@@ -4213,6 +4292,7 @@
         "more": "その他の操作",
         "edit": "編集",
         "serverRoll": "部屋のサーバーが振ったダイスです。振った人には出目を変えられません",
+        "byAi": "AIが送った発言",
         "pinTargetNumber": "この結果を目標値にする",
         "pinPresentedTargetNumber": "この目標値を固定する",
         "unpinTargetNumber": "目標値の固定を外す",

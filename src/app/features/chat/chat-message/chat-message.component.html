@@ -47,6 +47,14 @@
                 >verified_user</i
               >
             }
+            @if (chatMessage.isByAi) {
+              <i
+                class="material-icons text-ui-accent shrink-0 self-center text-[13px]!"
+                data-testid="chat-message-ai"
+                [title]="'feature.chat.message.byAi' | transloco"
+                >smart_toy</i
+              >
+            }
             <span class="min-w-0 shrink-100 truncate">
               <span class="tip"> | </span>
               <span class="tip msg-from" [title]="chatMessage.from">{{ shortFrom(chatMessage.from) }}</span>
@@ -129,6 +137,14 @@
                 data-testid="chat-message-server-roll"
                 [title]="'feature.chat.message.serverRoll' | transloco"
                 >verified_user</i
+              >
+            }
+            @if (chatMessage.isByAi) {
+              <i
+                class="material-icons text-ui-accent align-middle text-[12px]!"
+                data-testid="chat-message-ai"
+                [title]="'feature.chat.message.byAi' | transloco"
+                >smart_toy</i
               >
             }
             <!-- The colon is an element of its own, so no whitespace slips in between the name and it. -->

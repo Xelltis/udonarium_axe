@@ -175,6 +175,85 @@
     }
   },
   "feature": {
+    "aiLink": {
+      "title": "AI link",
+      "hint": "Lets an AI (such as Claude) read the room, or act in it, as this seat. This tab connects to the bridge (axe-mcp) the AI runs.",
+      "connect": "Connect",
+      "disconnect": "Disconnect",
+      "port": "Bridge port",
+      "waiting": "Looking for the bridge every few seconds until it starts.",
+      "state": {
+        "idle": "Not connected",
+        "connecting": "Looking for the bridge…",
+        "connected": "Connected (bridge {{bridge}})",
+        "unreachable": "No bridge found. Check that the AI is running the bridge, and that the port matches",
+        "lost": "The connection to the bridge was lost",
+        "busy": "Another tab is connected to the bridge. Disconnect it, then connect again",
+        "protocol": "The bridge ({{bridge}}) does not match this Axe. Use the bridge of the same release as this Axe"
+      },
+      "scope": {
+        "heading": "What the AI may do",
+        "read": "Read only",
+        "readHint": "It reads the room, the pieces and the chat, and changes nothing",
+        "write": "Also act",
+        "writeHint": "It speaks, rolls dice, moves pieces and does whatever else this seat may do",
+        "watchOnly": "From a watching seat, the AI may only read"
+      },
+      "history": {
+        "heading": "What the AI did",
+        "empty": "Nothing yet",
+        "clear": "Clear",
+        "refused": "Refused"
+      },
+      "setup": {
+        "heading": "How to connect",
+        "download": "Download axe-mcp.mjs from the release page (it runs on Node.js 22 or later).",
+        "claudeCode": "In Claude Code, run this (with the path where you saved it).",
+        "claudeDesktop": "In Claude Desktop, add this to mcpServers in the settings file.",
+        "connect": "Start the AI, then press Connect in this panel. In Claude Code, type /mcp__axe__run_session to have it run the session as the GM. In an app that cannot pick prompts, ask the AI to \"read axe://guide/run-session and be the GM\".",
+        "copy": "Copy",
+        "copied": "Copied",
+        "origin": "This page ({{origin}}) is not one the bridge accepts by default, so --allow-origin is added to the commands above."
+      },
+      "tools": {
+        "get_room": "Look at the room",
+        "list_pieces": "List the pieces",
+        "get_piece": "Read a piece",
+        "get_turn_order": "Read the turn order",
+        "read_chat": "Read the chat",
+        "list_assets": "List what can be used",
+        "wait_for_events": "Wait for what happens",
+        "send_chat": "Say something in chat",
+        "roll_dice": "Roll dice",
+        "move_piece": "Move a piece",
+        "change_resource": "Change a resource",
+        "set_sheet_value": "Write on a sheet",
+        "add_buff": "Add a buff",
+        "remove_buff": "Remove a buff",
+        "set_targets": "Choose the targets",
+        "advance_turn": "Move the turn",
+        "create_piece": "Put a new piece on the table",
+        "remove_piece": "Take a piece off the table",
+        "fire_effect": "Fire an effect",
+        "play_sound": "Play a sound",
+        "stop_sound": "Stop a sound",
+        "play_cut_in": "Show a cut-in",
+        "stop_cut_in": "Stop a cut-in",
+        "switch_table": "Switch the table",
+        "apply_scene": "Set a scene",
+        "send_scenario_text": "Send a scenario text",
+        "place_range": "Place a range",
+        "remove_range": "Remove a range"
+      },
+      "notice": {
+        "startedRead": "{{name}} linked an AI (read only)",
+        "startedWrite": "{{name}} linked an AI (also acting)",
+        "nowRead": "{{name}}'s AI link is now read only",
+        "nowWrite": "{{name}}'s AI link may now also act",
+        "ended": "{{name}} ended their AI link",
+        "lost": "{{name}}'s AI link was lost"
+      }
+    },
     "gpuNotice": {
       "title": "Graphics acceleration is turned off",
       "body": "This browser is drawing the page without the GPU, which makes Udonarium Axe very slow. We strongly recommend turning graphics acceleration on in the browser’s settings.",
@@ -4213,6 +4292,7 @@
         "more": "More actions",
         "edit": "Edit",
         "serverRoll": "The room server rolled these dice, so the roller could not change them.",
+        "byAi": "Sent by an AI",
         "pinTargetNumber": "Use this result as the target number",
         "pinPresentedTargetNumber": "Use this as the target number",
         "unpinTargetNumber": "Stop using it as the target number",

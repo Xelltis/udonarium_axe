@@ -175,6 +175,85 @@
     }
   },
   "feature": {
+    "aiLink": {
+      "title": "AI 연동",
+      "hint": "AI(Claude 등)가 이 자리 그대로 방을 읽거나 조작하게 합니다. AI 쪽에서 실행되는 브리지(axe-mcp)에 이 탭을 연결합니다.",
+      "connect": "연결",
+      "disconnect": "끊기",
+      "port": "브리지 번호",
+      "waiting": "브리지가 시작될 때까지 몇 초마다 계속 찾습니다.",
+      "state": {
+        "idle": "연결되어 있지 않습니다",
+        "connecting": "브리지를 찾는 중…",
+        "connected": "연결되었습니다(브리지 {{bridge}})",
+        "unreachable": "브리지를 찾을 수 없습니다. AI 쪽에서 브리지가 실행 중인지, 번호가 맞는지 확인하세요",
+        "lost": "브리지와의 연결이 끊겼습니다",
+        "busy": "다른 탭이 브리지에 연결되어 있습니다. 그쪽을 끊은 뒤 다시 연결하세요",
+        "protocol": "브리지({{bridge}})와 이 Axe의 버전이 맞지 않습니다. 이 Axe와 같은 릴리스의 브리지를 사용하세요"
+      },
+      "scope": {
+        "heading": "AI에게 허용할 것",
+        "read": "읽기만",
+        "readHint": "방의 상황·말·채팅을 읽기만 하고 아무것도 바꾸지 않습니다",
+        "write": "쓰기도 허용",
+        "writeHint": "발언·주사위·말 이동 등 이 자리에서 할 수 있는 일을 AI가 합니다",
+        "watchOnly": "관전 자리에서는 AI가 읽기만 합니다"
+      },
+      "history": {
+        "heading": "AI가 한 일",
+        "empty": "아직 없습니다",
+        "clear": "지우기",
+        "refused": "거부함"
+      },
+      "setup": {
+        "heading": "연결 방법",
+        "download": "릴리스 페이지에서 axe-mcp.mjs를 내려받습니다(Node.js 22 이상에서 동작합니다).",
+        "claudeCode": "Claude Code에서는 다음을 실행합니다(경로는 내려받은 위치로 바꿉니다).",
+        "claudeDesktop": "Claude Desktop에서는 설정 파일의 mcpServers에 다음을 추가합니다.",
+        "connect": "AI를 시작한 뒤 이 패널의 [연결]을 누릅니다. Claude Code에서는 /mcp__axe__run_session을 입력하면 GM으로 진행을 시작합니다. 프롬프트를 고를 수 없는 앱에서는 AI에게 \"axe://guide/run-session을 읽고 GM을 해 줘\"라고 부탁합니다.",
+        "copy": "복사",
+        "copied": "복사했습니다",
+        "origin": "이 페이지({{origin}})는 브리지가 처음부터 받아들이는 페이지가 아니므로, 위의 실행 방법에 --allow-origin을 붙여 두었습니다."
+      },
+      "tools": {
+        "get_room": "방 보기",
+        "list_pieces": "말 목록",
+        "get_piece": "말 읽기",
+        "get_turn_order": "행동 순서 읽기",
+        "read_chat": "채팅 읽기",
+        "list_assets": "사용할 수 있는 것 목록",
+        "wait_for_events": "일어난 일 기다리기",
+        "send_chat": "발언하기",
+        "roll_dice": "주사위 굴리기",
+        "move_piece": "말 이동",
+        "change_resource": "리소스 변경",
+        "set_sheet_value": "시트에 쓰기",
+        "add_buff": "버프 부여",
+        "remove_buff": "버프 해제",
+        "set_targets": "타깃 선택",
+        "advance_turn": "행동 순서 진행",
+        "create_piece": "말 놓기",
+        "remove_piece": "말 내리기",
+        "fire_effect": "이펙트 발동",
+        "play_sound": "소리 재생",
+        "stop_sound": "소리 정지",
+        "play_cut_in": "컷인 표시",
+        "stop_cut_in": "컷인 정지",
+        "switch_table": "테이블 전환",
+        "apply_scene": "장면 적용",
+        "send_scenario_text": "시나리오 텍스트 보내기",
+        "place_range": "사거리 놓기",
+        "remove_range": "사거리 지우기"
+      },
+      "notice": {
+        "startedRead": "{{name}} 님이 AI 연동을 시작했습니다(읽기만)",
+        "startedWrite": "{{name}} 님이 AI 연동을 시작했습니다(쓰기도 허용)",
+        "nowRead": "{{name}} 님의 AI 연동을 「읽기만」으로 바꿨습니다",
+        "nowWrite": "{{name}} 님의 AI 연동을 「쓰기도 허용」으로 바꿨습니다",
+        "ended": "{{name}} 님이 AI 연동을 끝냈습니다",
+        "lost": "{{name}} 님의 AI 연동이 끊겼습니다"
+      }
+    },
     "gpuNotice": {
       "title": "그래픽 가속이 꺼져 있습니다",
       "body": "이 브라우저는 GPU를 쓰지 않고 화면을 그리고 있어 Udonarium Axe가 매우 무거워집니다. 브라우저 설정에서 그래픽 가속을 켜는 것을 강력히 권장합니다.",
@@ -4213,6 +4292,7 @@
         "more": "그 밖의 조작",
         "edit": "편집",
         "serverRoll": "방 서버가 굴린 주사위입니다. 굴린 사람은 눈을 바꿀 수 없습니다.",
+        "byAi": "AI가 보낸 발언",
         "pinTargetNumber": "이 결과를 목표값으로 하기",
         "pinPresentedTargetNumber": "이 목표값을 고정",
         "unpinTargetNumber": "목표값 고정 해제",
