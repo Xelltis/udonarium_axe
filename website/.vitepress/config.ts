@@ -312,6 +312,7 @@ export default defineConfig({
             { text: 'マップ生成', link: '/manual/map-generator' },
             { text: 'AI連携（MCP）', link: '/manual/ai-link' },
             { text: 'AI GM', link: '/manual/ai-gm' },
+            { text: 'AI連携の道具とブリッジの設定', link: '/manual/ai-link-reference' },
           ],
         },
         {

@@ -131,6 +131,7 @@ $env:ANTHROPIC_API_KEY="sk-ant-..."; node C:\path\to\axe-mcp.mjs gm
 
 止めるときは、端末でCtrl+Cを押します。自分のサーバーに置いたAxeとつなぐときは、AI連携と同じく`--allow-origin`とそのページのアドレスを足します（[自分で置いたAxeとつなぐ](/manual/ai-link#自分で置いたaxeとつなぐ)）。
 パネルの**ブリッジの起動のしかた**には、開いているページに合わせたコマンドが出ます。
+起動のときに足せる指定の一覧は、[AI連携の道具とブリッジの設定](/manual/ai-link-reference#起動のときに足せる指定)にあります。
 
 ## 始める
 
