@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "types": ["node", "vitest/globals"],
+    "paths": {
+      "@axe/*": ["../../src/app/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../src/app/core/agent/*.ts"],
+  "exclude": ["../../src/app/core/agent/*.spec.ts"]
+}
