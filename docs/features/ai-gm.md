@@ -9,7 +9,7 @@ APIキーはブリッジの環境変数にだけ置き、ブラウザに入れ�
 Axeのタブ（GMの席）
   ├ AI GMのパネルと AiGmService: 開始・停止・設定・指示・メモ、起きたことの中継
   └ 道具（AgentToolRunner。AI連携と同じ）
-        │ WebSocket（ws://127.0.0.1:47610/axe、やりとりの版2）
+        │ WebSocket（ws://127.0.0.1:47610/axe、やりとりの版3）
 ブリッジ（axe-mcp.mjs gm）
   ├ GmHost: 番を回す時の判断、状態の通知
   └ GameMaster: 会話・キャッシュの配置・区切り直し・費用
