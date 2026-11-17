@@ -208,6 +208,17 @@ describe('AiGmService', () => {
     });
   });
 
+  it('tells that the model chosen is none of those the bridge connected runs', () => {
+    const gm = make();
+    expect(gm.modelNotRun()).toBe(false);
+
+    gm.update({ settings: { ...GM_DEFAULT_SETTINGS, model: 'claude-kept-from-before' } });
+    expect(gm.modelNotRun()).toBe(true);
+
+    state.set({ kind: 'idle' });
+    expect(gm.modelNotRun()).toBe(false);
+  });
+
   it('gives the AI link back what it let the AI do before, once the game master stops', () => {
     const gm = make();
     heard.next({ type: 'gm.status', status: status() });

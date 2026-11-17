@@ -28,11 +28,6 @@
         {{ problem }}
       </p>
     }
-    @if (gm.status()?.refused; as refused) {
-      <p class="text-ui-danger m-0 text-[11px] leading-relaxed wrap-break-word" data-testid="ai-gm-refused">
-        {{ refused }}
-      </p>
-    }
     @if (spending(); as spending) {
       <p
         class="text-ui-muted m-0 text-[11px] tabular-nums"
@@ -137,6 +132,11 @@
         </label>
       } @empty {
         <span class="text-[12px]">{{ gm.preferences().settings.model }}</span>
+      }
+      @if (gm.modelNotRun()) {
+        <p class="text-ui-danger m-0 text-[11px] leading-relaxed" data-testid="ai-gm-model-not-run">
+          {{ 'feature.aiGm.settings.modelNotRun' | transloco }}
+        </p>
       }
     </div>
 

@@ -206,6 +206,7 @@
       "settings": {
         "heading": "움직이는 방식",
         "model": "모델",
+        "modelNotRun": "선택해 둔 모델은 이 브리지에서 움직일 수 없습니다. 모델을 다시 선택해 주세요",
         "effort": "생각의 깊이",
         "efforts": {
           "low": "빠르게",

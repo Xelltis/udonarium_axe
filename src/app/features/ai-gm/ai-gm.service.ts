@@ -137,6 +137,15 @@ export class AiGmService {
     const state = this.link.state();
     return state.kind === 'connected' && state.mode === 'gm';
   });
+  /**
+   * Whether the model chosen here is none of those the bridge connected runs, as one kept from another
+   * version of the bridge may be: the bridge then refuses to start, and keeps to the model it runs.
+   */
+  readonly modelNotRun = computed(() => {
+    const models = this.models();
+    return models.length > 0 && !models.some((model) => model.id === this.preferences().settings.model);
+  });
+
   /** The models the bridge connected runs. */
   readonly models = computed<readonly GmModelOffer[]>(() => {
     const state = this.link.state();

@@ -206,6 +206,7 @@
       "settings": {
         "heading": "動かし方",
         "model": "モデル",
+        "modelNotRun": "選んでいたモデルは、このブリッジでは動かせません。モデルを選び直してください",
         "effort": "考える深さ",
         "efforts": {
           "low": "速く",

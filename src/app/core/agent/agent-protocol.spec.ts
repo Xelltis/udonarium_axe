@@ -46,7 +46,6 @@ describe('readBridgeMessage', () => {
       contextTokens: 12000,
       kept: true,
       problem: 'out of budget',
-      refused: 'This bridge does not run claude-other.',
       starts: 2,
     };
     expect(readBridgeMessage({ type: 'gm.status', status })).toEqual({ type: 'gm.status', status });

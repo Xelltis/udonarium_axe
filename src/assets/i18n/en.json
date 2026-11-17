@@ -206,6 +206,7 @@
       "settings": {
         "heading": "How it runs",
         "model": "Model",
+        "modelNotRun": "This bridge does not run the model that was chosen. Choose a model again.",
         "effort": "Thinking",
         "efforts": {
           "low": "Quick",
