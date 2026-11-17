@@ -161,6 +161,11 @@ export class AgentViews {
     };
   }
 
+  /** Whether this seat may open a piece's sheet: the game master and the seat that owns it always may. */
+  sheetOpen(piece: GameCharacter): boolean {
+    return this.disclosure.canView(piece);
+  }
+
   /** A piece's sheet as a tree of named values, or null where this seat may not open it. */
   sheet(piece: GameCharacter): readonly AgentSheetItem[] | null {
     if (!this.disclosure.canView(piece)) return null;

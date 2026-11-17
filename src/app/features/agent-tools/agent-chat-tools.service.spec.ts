@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { AgentViews } from '@axe/application/agent/agent-views.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { diceRolled$ } from '@axe/core/event/domain-events';
 import type { IPeerContext } from '@axe/core/network/peer-context';
@@ -71,6 +72,7 @@ describe('AgentChatTools', () => {
     PeerCursor.myCursor = null!;
     resetPeerContextProvider();
     vi.useRealTimers();
+    vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
   });
 
@@ -118,6 +120,19 @@ describe('AgentChatTools', () => {
 
     await expect(call('send_chat', { text: '聞こえるか', to: 'ゴブリン' })).rejects.toThrow(/would reach nobody/);
     expect(said()).toHaveLength(1);
+  });
+
+  it('does not speak as a piece whose sheet the seat may not open, which a line said as it would read and write', async () => {
+    const dragon = GameCharacter.create('ドラゴン', 1, '');
+    dragon.location = { name: 'table', x: 0, y: 0 };
+    dragon.update();
+    vi.spyOn(TestBed.inject(AgentViews), 'sheetOpen').mockReturnValue(false);
+
+    await expect(call('send_chat', { text: '{体力}', as: 'ドラゴン' })).rejects.toThrow(
+      'This seat may not open the sheet of ドラゴン, so it does not speak as it.'
+    );
+    await expect(call('send_chat', { text: ':体力-5', as: 'ドラゴン' })).rejects.toThrow(/does not speak as it/);
+    expect(said()).toEqual([]);
   });
 
   it('returns the dice bot’s answer with a line that rolls', async () => {

@@ -145,7 +145,7 @@ export class AgentPieceTools {
    * resource among it, is kept to the pieces whose sheets the seat is shown.
    */
   private sheetOpen(piece: GameCharacter): GameCharacter {
-    if (!this.permission.isGameMaster() && !this.views.sheet(piece)) {
+    if (!this.views.sheetOpen(piece)) {
       throw new AgentToolError('not_allowed', `This seat may not open the sheet of ${this.views.nameOf(piece)}.`);
     }
     return piece;

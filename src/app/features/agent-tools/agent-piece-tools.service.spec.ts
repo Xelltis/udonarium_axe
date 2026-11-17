@@ -105,7 +105,7 @@ describe('AgentPieceTools', () => {
     const dragon = pieceAt('ドラゴン', 1, 1);
     hp(dragon, 250, 300);
     PeerCursor.myCursor.role = PeerRole.Player;
-    vi.spyOn(views, 'sheet').mockReturnValue(null);
+    vi.spyOn(views, 'sheetOpen').mockReturnValue(false);
     const say = vi.spyOn(TestBed.inject(AgentChatTools), 'say');
 
     await expect(call('change_resource', { piece: 'ドラゴン', name: '体力', by: 0 })).rejects.toThrow(

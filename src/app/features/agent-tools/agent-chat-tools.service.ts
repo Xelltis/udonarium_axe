@@ -117,10 +117,21 @@ export class AgentChatTools {
     return { lines, dice };
   }
 
-  /** Who says the line: the seat, or a piece it sees. */
+  /**
+   * Who says the line: the seat, or a piece it sees whose sheet it may open. A line said as a piece
+   * reads that piece's sheet where it refers to a value and writes it where it changes a resource, so
+   * a piece whose sheet the seat is not shown is not spoken as.
+   */
   private speakerOf(as: string): string {
     if (as === '' || as.toLowerCase() === 'self') return PeerCursor.myCursor?.identifier ?? '';
-    return this.read.piece(as).identifier;
+    const piece = this.read.piece(as);
+    if (!this.views.sheetOpen(piece)) {
+      throw new AgentToolError(
+        'not_allowed',
+        `This seat may not open the sheet of ${this.views.nameOf(piece)}, so it does not speak as it.`
+      );
+    }
+    return piece.identifier;
   }
 
   /**
