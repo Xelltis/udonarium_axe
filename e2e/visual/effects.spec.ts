@@ -41,7 +41,10 @@ for (const [preset, name, at, differs] of [
   ['一閃', 'effect-slash', 1700, 0],
   ['極太ビーム', 'effect-beam', 1400, 0.08],
 ] as const) {
-  test(`${name} looks the same ${at}ms into the cast`, async ({ page }) => {
+  test(`${name} looks the same ${at}ms into the cast`, async ({ page }, testInfo) => {
+    // Drawn through WebGPU in software, an effect's scene alone takes over a minute to put together,
+    // and past the two a scene is given once others are drawn beside it.
+    test.slow(testInfo.project.name === 'visual-webgpu');
     await prepare(page);
     await closePanels(page);
     await createCharacter(page);
