@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import type { AgentHandler } from '@axe/application/agent/agent-tool-runner.service';
 import { AgentViews } from '@axe/application/agent/agent-views.service';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ScenarioTextService } from '@axe/application/chat/scenario-text.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
@@ -61,6 +62,7 @@ export class AgentGmTools {
   private readonly actions = inject(TabletopActionService);
   private readonly ground = inject(StandingGroundService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly chat = inject(ChatMessageService);
 
   readonly handlers: Readonly<Record<string, AgentHandler>> = {
     fire_effect: (args) => this.fireEffect(args),
@@ -83,7 +85,8 @@ export class AgentGmTools {
         'scenario text'
       );
       const named = textArg(args, 'tab');
-      const sent = this.scenarioTexts.send(text, named ? { tab: this.read.tab(named).identifier } : {});
+      const to = named ? { tab: this.read.tab(named).identifier } : {};
+      const sent = this.chat.asAiWords(() => this.scenarioTexts.send(text, to));
       if (!sent) throw new AgentToolError('failed', `${text.title} could not be sent.`);
       return { sent: text.title };
     },

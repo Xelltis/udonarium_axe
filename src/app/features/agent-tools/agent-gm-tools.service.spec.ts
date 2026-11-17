@@ -12,12 +12,15 @@ import type { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { ScenarioText } from '@axe/domain/scenario-text/scenario-text';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -148,6 +151,22 @@ describe('AgentGmTools', () => {
     expect(stopMusic).toHaveBeenCalled();
     expect(stopAmbient).toHaveBeenCalled();
     await expect(call('play_sound', { kind: 'bgm', sound: '無音' })).rejects.toThrow('There is no sound named 無音');
+  });
+
+  it('says a scenario text marked as the AI’s, as the lines it sends are', async () => {
+    const main = new ChatTab();
+    main.name = 'メイン';
+    main.initialize();
+    ChatTabList.instance.addChatTab(main);
+    const text = new ScenarioText();
+    text.title = '導入';
+    text.text = '嵐の夜、宿の扉が開く。';
+    text.initialize();
+
+    expect(await call('send_scenario_text', { text: '導入' })).toEqual({ sent: '導入' });
+    const [line] = [...main.chatMessages];
+    expect(line.text).toBe('嵐の夜、宿の扉が開く。');
+    expect(line.isByAi).toBe(true);
   });
 
   it('shows a cut-in by name', async () => {
