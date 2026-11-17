@@ -48,7 +48,8 @@ const TAB: AgentSchema = {
 };
 const SPEAKER: AgentSchema = {
   type: 'string',
-  description: 'Who speaks: a piece (id or name), or "self" for the seat itself. Leave out for the seat.',
+  description:
+    'Who speaks: a piece whose sheet this seat may open (id or name), or "self" for the seat itself. Leave out for the seat.',
 };
 
 function input(properties: Record<string, AgentSchema>, required: readonly string[] = []): AgentObjectSchema {
@@ -193,7 +194,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
         tab: TAB,
         to: {
           type: 'string',
-          description: 'Whisper to this seat only, by its name or by the name of a piece it owns.',
+          description: 'Whisper to this seat only, by its name or by the name of a piece another seat owns.',
           minLength: 1,
         },
       },
@@ -240,7 +241,8 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     access: 'write',
     description:
       'Raise, lower or set a resource of a piece (HP, MP and so on). Give either `by` or `to`. The change is written ' +
-      'to chat as the controller writes it. Returns the value before and after.',
+      'to chat as the controller writes it. Returns the value before and after. Refused for a piece whose sheet ' +
+      'this seat may not open.',
     input: input(
       {
         piece: PIECE,
@@ -274,7 +276,8 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     name: 'add_buff',
     title: 'Add a buff',
     access: 'write',
-    description: 'Put a buff on a piece for some rounds, with a short note of what it does.',
+    description:
+      'Put a buff on a piece for some rounds, with a short note of what it does. Refused for a piece that keeps its buffs from this seat.',
     input: input(
       {
         piece: PIECE,
@@ -289,7 +292,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     name: 'remove_buff',
     title: 'Remove a buff',
     access: 'write',
-    description: 'Take a buff off a piece.',
+    description: 'Take a buff off a piece. Refused for a piece that keeps its buffs from this seat.',
     input: input({ piece: PIECE, name: { type: 'string', minLength: 1 } }, ['piece', 'name']),
   },
   {
