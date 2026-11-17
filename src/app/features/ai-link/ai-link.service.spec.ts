@@ -140,6 +140,22 @@ describe('AiLinkService', () => {
     expect(again.scope()).toBe('read');
   });
 
+  it('lets what the person chooses stand, giving nothing back over it', () => {
+    const link = make();
+    link.connect();
+    sockets[0].greet('gm');
+    link.setScope('write');
+    link.lendWrite();
+    link.setScope('read');
+    link.takeBack();
+    expect(link.scope()).toBe('read');
+
+    link.lendWrite();
+    link.setScope('write');
+    link.takeBack();
+    expect(link.scope()).toBe('write');
+  });
+
   it('does not leave what a game master was lent to a bridge that runs none', () => {
     localStorage.setItem(STORAGE_KEYS.aiLink, JSON.stringify({ port: 47610, scope: 'write', lentFrom: 'read' }));
     const link = make();

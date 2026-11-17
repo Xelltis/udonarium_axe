@@ -152,21 +152,22 @@ export class AiLinkService {
     if (wasConnected) this.tellRoom('feature.aiLink.notice.ended');
   }
 
-  /** Changes what the AI is let do, telling the bridge, and the room where the AI is connected. */
+  /**
+   * Changes what the AI is let do as the person at the seat chooses, telling the bridge, and the room
+   * where the AI is connected. What the person chooses stands: nothing lent to a game master is given
+   * back over it afterwards.
+   */
   setScope(scope: AgentScope): void {
-    if (scope === this.scope()) return;
-    this.scope.set(scope);
+    this.lentFrom = null;
     this.store();
-    if (this.state().kind !== 'connected') return;
-    this.client?.tellSeat();
-    this.tellRoom(scope === 'write' ? 'feature.aiLink.notice.nowWrite' : 'feature.aiLink.notice.nowRead');
+    this.changeScope(scope);
   }
 
   /** Lets the AI change the room for as long as a game master runs, remembering what it was let do before. */
   lendWrite(): void {
     this.lentFrom ??= this.scope();
     this.store();
-    this.setScope('write');
+    this.changeScope('write');
   }
 
   /** Gives back what the AI was let do before a game master was let change the room, if one was. */
@@ -175,7 +176,16 @@ export class AiLinkService {
     if (before === null) return;
     this.lentFrom = null;
     this.store();
-    this.setScope(before);
+    this.changeScope(before);
+  }
+
+  private changeScope(scope: AgentScope): void {
+    if (scope === this.scope()) return;
+    this.scope.set(scope);
+    this.store();
+    if (this.state().kind !== 'connected') return;
+    this.client?.tellSeat();
+    this.tellRoom(scope === 'write' ? 'feature.aiLink.notice.nowWrite' : 'feature.aiLink.notice.nowRead');
   }
 
   /** Told by an AI GM panel as it opens (`true`) and closes (`false`). */
