@@ -214,6 +214,11 @@ describe('AiGmService', () => {
 
     gm.update({ settings: { ...GM_DEFAULT_SETTINGS, model: 'claude-kept-from-before' } });
     expect(gm.modelNotRun()).toBe(true);
+    told = [];
+    expect(gm.mayStart()).toBe(false);
+    expect(gm.start(false)).toBe(false);
+    expect(told).toEqual([]);
+    expect(scope()).toBe('read');
 
     state.set({ kind: 'idle' });
     expect(gm.modelNotRun()).toBe(false);

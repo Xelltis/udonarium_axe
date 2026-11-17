@@ -137,19 +137,19 @@ export class AiGmService {
     const state = this.link.state();
     return state.kind === 'connected' && state.mode === 'gm';
   });
-  /**
-   * Whether the model chosen here is none of those the bridge connected runs, as one kept from another
-   * version of the bridge may be: the bridge then refuses to start, and keeps to the model it runs.
-   */
-  readonly modelNotRun = computed(() => {
-    const models = this.models();
-    return models.length > 0 && !models.some((model) => model.id === this.preferences().settings.model);
-  });
-
   /** The models the bridge connected runs. */
   readonly models = computed<readonly GmModelOffer[]>(() => {
     const state = this.link.state();
     return state.kind === 'connected' ? state.models : [];
+  });
+  /**
+   * Whether the model chosen here is none of those the bridge connected runs, as one kept from another
+   * version of the bridge may be. It is not started with: the bridge would refuse, and a game master
+   * running keeps to the model it runs.
+   */
+  readonly modelNotRun = computed(() => {
+    const models = this.models();
+    return models.length > 0 && !models.some((model) => model.id === this.preferences().settings.model);
   });
   /** Whether the game master runs now. */
   readonly running = computed(() => this.bridgeRunsGm() && (this.status()?.run ?? 'off') !== 'off');
@@ -189,9 +189,12 @@ export class AiGmService {
     });
   }
 
-  /** Whether the game master may be started here: on the game master's seat, with a bridge that runs it. */
+  /**
+   * Whether the game master may be started here: on the game master's seat, with a bridge that runs
+   * it and the model chosen.
+   */
   mayStart(): boolean {
-    return this.bridgeRunsGm() && this.permission.isGameMaster();
+    return this.bridgeRunsGm() && this.permission.isGameMaster() && !this.modelNotRun();
   }
 
   /** Starts it, letting the AI change the room, carrying on from the conversation the bridge kept unless told afresh. */
