@@ -1,3 +1,96 @@
+## [1.80.0](https://github.com/Xelltis/udonarium_axe/compare/v1.79.0...v1.80.0) (2026-11-17)
+
+### ✨ Features
+
+* **agent-tools:** let the game master's seat read scenario texts, and keep them from other seats ([51f6b54](https://github.com/Xelltis/udonarium_axe/commit/51f6b5499f8e2f8207e5eff7aaafa5ab334495db))
+* **agent:** define how a tab talks to a bridge that runs the game master ([8981e17](https://github.com/Xelltis/udonarium_axe/commit/8981e172d7da6972b922d704c4a986699a869678))
+* **agent:** define the tools an AI can call on the table ([14cc73d](https://github.com/Xelltis/udonarium_axe/commit/14cc73d87fc8413c0059b3001ff78c7dbb0e3db2))
+* **agent:** run the tools an AI calls, as the seat it is linked to ([fecfc86](https://github.com/Xelltis/udonarium_axe/commit/fecfc869273b0acd6d974315ac8541d2d714f2ca))
+* **ai-gm:** run Claude as the game master from a panel of the menu ([a6f9b80](https://github.com/Xelltis/udonarium_axe/commit/a6f9b8092d5763475b47c7b844d30f4762b49464))
+* **ai-gm:** tell what a model with no price used in tokens, and how to run another AI ([44a8bad](https://github.com/Xelltis/udonarium_axe/commit/44a8bad4d4a3c71cec3620c418788d618bb7d414))
+* **ai-link:** link a seat to an AI from a panel of the menu ([ee47934](https://github.com/Xelltis/udonarium_axe/commit/ee479340639a4191bff936dc75adf780c2f36b8f))
+* **axe-mcp:** run Claude as the game master with gm, the API key kept in the bridge ([08ce00c](https://github.com/Xelltis/udonarium_axe/commit/08ce00c054376f7de146ee3bb08fb0eb1c56490c))
+* **axe-mcp:** run the game master on any provider that speaks the chat completions API ([82e147a](https://github.com/Xelltis/udonarium_axe/commit/82e147a87b22c17b383eb0851ae3014afd1f9166))
+* **chat:** mark the lines an AI linked to a seat sends ([0d8cb3a](https://github.com/Xelltis/udonarium_axe/commit/0d8cb3a1ba30d9682884f45378b69c9aff5b7d8a))
+* **mcp:** add the bridge between an MCP client and a tab of Axe ([caf237f](https://github.com/Xelltis/udonarium_axe/commit/caf237f3157e149ba58417fa76c5234ede9c00b6))
+* **range:** aim at the pieces a solid range reaches, high or low ([8575233](https://github.com/Xelltis/udonarium_axe/commit/85752336abd6ed703e3e5943ac9c868c74625eac))
+* **range:** draw a range standing up off the table as a solid ([dd38782](https://github.com/Xelltis/udonarium_axe/commit/dd387823c607b775d7fa0722169553c615bdb45a))
+* **range:** let a range keep what it stands up as ([4d2cbb5](https://github.com/Xelltis/udonarium_axe/commit/4d2cbb5eb40bf2bc8efa8361ef229c8c5daba21c))
+* **range:** move and point a solid range within the room round its caster ([e3b2741](https://github.com/Xelltis/udonarium_axe/commit/e3b2741e1bff8f3906a5964e75a96396e4bf2350))
+* **range:** stand a range up from the menus, its sheet, the toolbar and the hotbar ([7b9b4e8](https://github.com/Xelltis/udonarium_axe/commit/7b9b4e85101b0e5acf127c22559fea4347e6a07e))
+* **range:** work out solid ranges and measurements in three dimensions ([7dea19c](https://github.com/Xelltis/udonarium_axe/commit/7dea19c77ab58bc2e934d2e984ac2c17b4273e8a))
+* **ruler:** leave a ruler lying on the table for everyone ([8f07673](https://github.com/Xelltis/udonarium_axe/commit/8f076733be9f64d76de0ad3a646a3a8d86073d0c))
+* **ruler:** list the rulers left on the table in the object list ([90ee6e6](https://github.com/Xelltis/udonarium_axe/commit/90ee6e623f684f64764cdcbdd97e9aa3dcd6ea61))
+* **ruler:** measure the table in three dimensions with a ruler ([558283b](https://github.com/Xelltis/udonarium_axe/commit/558283b6a70589503fdf252655c0b71f463822b8))
+* **ruler:** say the lengths in metres or feet where the room counts in them ([e2dd8e7](https://github.com/Xelltis/udonarium_axe/commit/e2dd8e722d8f03d6307a40ed901196c894785d2b))
+* **ruler:** show the room the ruler a seat is laying ([44f62b5](https://github.com/Xelltis/udonarium_axe/commit/44f62b57c2a9ccca1d75fb23f0a12697ccc2d58e))
+* **turn-order:** let a side moving freely choose who goes next once a turn is ended ([bb23e3b](https://github.com/Xelltis/udonarium_axe/commit/bb23e3b016eb647cc094aa2e88bac5cadb5f16b7))
+
+### 🐛 Bug Fixes
+
+* **agent-tools:** keep an AI from speaking as a piece whose sheet its seat may not open ([79a08e9](https://github.com/Xelltis/udonarium_axe/commit/79a08e91925d23e85ea61dbc17445cb06fc4ef63))
+* **agent-tools:** keep an AI from the resources and buffs of pieces its seat is not shown ([9240d5b](https://github.com/Xelltis/udonarium_axe/commit/9240d5bd3b589857e2092cfb26af5180a9c4a1ad))
+* **agent-tools:** mark a scenario text an AI sends as the AI's ([d0351c8](https://github.com/Xelltis/udonarium_axe/commit/d0351c8822ad8e9a18b3a665ed7f13265c4213bd))
+* **agent-tools:** refuse a whisper to a piece the AI's own seat owns ([ce053a0](https://github.com/Xelltis/udonarium_axe/commit/ce053a045eb47bf8559cf3316f449bda139899c5))
+* **agent-tools:** tell the AI's own seat by its user rather than by its cursor ([c9d1b98](https://github.com/Xelltis/udonarium_axe/commit/c9d1b98ac70a82135f11a4674029ea50cae0f5fd))
+* **agent-tools:** whisper to the seat that owns a piece named, and refuse a piece no seat owns ([b83e545](https://github.com/Xelltis/udonarium_axe/commit/b83e54508db30591f9202778641fe49904f99ed0))
+* **agent:** raise the version of the talk for the count of starts a bridge tells ([8c3628d](https://github.com/Xelltis/udonarium_axe/commit/8c3628d47301a0f6017e490bb4654597a2a75756))
+* **agent:** say in the tools' descriptions whose sheets and buffs an AI reaches ([a5eaa28](https://github.com/Xelltis/udonarium_axe/commit/a5eaa2892846b2b7a7e8e9601db2c193624bb9fe))
+* **agent:** word whom a whisper goes to as the other descriptions word a seat ([65be97b](https://github.com/Xelltis/udonarium_axe/commit/65be97b8b7c581475d1552a89c174e7c30403703))
+* **ai-gm:** do not ask to start with a model the bridge connected does not run ([9303702](https://github.com/Xelltis/udonarium_axe/commit/93037026997f6ae332dea08eb48fa451c6ccfb80))
+* **ai-gm:** give back what the AI was let do when a start is refused or the page is opened again ([c393e7b](https://github.com/Xelltis/udonarium_axe/commit/c393e7b6c2e1138535e78d0848e4fbb83df41e14))
+* **ai-gm:** hand on what happens without losing or doubling it, and keep the person's words ([21134c0](https://github.com/Xelltis/udonarium_axe/commit/21134c0be8e7979f38d41637e911e1dd355dabfc))
+* **ai-gm:** say in the panel that the model chosen is none of those the bridge runs ([a4fcb43](https://github.com/Xelltis/udonarium_axe/commit/a4fcb43617069e35753281a0dc7df655dd965302))
+* **ai-gm:** show a model the bridge refused on a line of its own, until one it runs is named ([eafd998](https://github.com/Xelltis/udonarium_axe/commit/eafd99850814adbcbdce53e4920353b49ad99f57))
+* **ai-gm:** tell how to mark a piece as an NPC, rather than to give the players' pieces owners ([a1968fa](https://github.com/Xelltis/udonarium_axe/commit/a1968fa2a0c35f447695c8607f69a0d4d9c1645c))
+* **ai-link:** keep the lists of the AI panels from being cut short as they grow ([816da45](https://github.com/Xelltis/udonarium_axe/commit/816da45fe96287b59bafbb827ad0f5424a66ad4b))
+* **ai-link:** let what the person chooses stand over what a game master was lent ([33868c3](https://github.com/Xelltis/udonarium_axe/commit/33868c3e22703ab06854f4cf71d3f2ca67526612))
+* **axe-mcp:** keep the game master's conversation whole, and its spending within a limit of its own ([f09312b](https://github.com/Xelltis/udonarium_axe/commit/f09312bee63bf6df184841ca7877ce0b37227a4c))
+* **axe-mcp:** keep the model the game master runs when told to change to one with no price ([18712e7](https://github.com/Xelltis/udonarium_axe/commit/18712e7381aed34497f00179e8eb5693c1a31374))
+* **axe-mcp:** keep the refusal of a model apart from what went wrong last ([e7f07d3](https://github.com/Xelltis/udonarium_axe/commit/e7f07d35f13c4b90a890558fea81ec40b3e35164))
+* **axe-mcp:** take the rest of a change that names a model the bridge does not run ([01561c0](https://github.com/Xelltis/udonarium_axe/commit/01561c04c0de9eae37952a111584eb8de79927f7))
+* **axe-mcp:** tell what went wrong last before a model refused, not instead of it ([3ba7b36](https://github.com/Xelltis/udonarium_axe/commit/3ba7b363a68c1c7691a438b32e7e4cdc1a9d1c1f))
+* **buff:** show a picture the app carries as an icon, as the faces of the dice ([4d02294](https://github.com/Xelltis/udonarium_axe/commit/4d022948c131ea6dfc66fd8e76b1f01c5b55625b))
+* **range:** settle solids and rulers as the review found ([577899f](https://github.com/Xelltis/udonarium_axe/commit/577899fd31c42be2a58c88eff866ebbe3b918936))
+* **save:** keep the pictures used only as the icons of buffs and states ([e2476e3](https://github.com/Xelltis/udonarium_axe/commit/e2476e3f672794fee1184cf4975616d030a88ba2))
+* **table-3d:** keep a piece's pedestal and shadow and a die's frame over what lies flat under them ([9c1c4c9](https://github.com/Xelltis/udonarium_axe/commit/9c1c4c9943fec76368d73e6cd68f27d5a54f44f2))
+* **table-3d:** lay a white board lying flat over a terrain as high as nothing, with what is on it ([e85149a](https://github.com/Xelltis/udonarium_axe/commit/e85149aa0f92d73b46e5e3034b288ec71af29647))
+* **table-3d:** lay cards, notes, masks and ranges over a terrain as high as nothing ([1c66b60](https://github.com/Xelltis/udonarium_axe/commit/1c66b60e2d452925e3ada3d2db079b3e88283578))
+* **table-3d:** lay the later of two terrains as high as nothing over the earlier where they overlap ([7880067](https://github.com/Xelltis/udonarium_axe/commit/7880067e81b5ce2996cd50f311daaf7fd7191707))
+
+### ⚡ Performance
+
+* **tabletop:** keep the white board and the ruler's parts out of the initial bundle ([270727f](https://github.com/Xelltis/udonarium_axe/commit/270727f7f606ff26107cbf2a79fc18532a68a6ff))
+
+### 📝 Documentation
+
+* add a manual page on the bridge's options and each tool an AI is given ([0b8a30a](https://github.com/Xelltis/udonarium_axe/commit/0b8a30a93dcf68dcac35489dea9da07ca1d4cf33))
+* correct who may buff a piece that hides its buffs, and when a model is kept ([6f2da5d](https://github.com/Xelltis/udonarium_axe/commit/6f2da5d0e58e2732f97834ace3002758bfb533b8))
+* describe ending a turn in a side's free phase ([8347b99](https://github.com/Xelltis/udonarium_axe/commit/8347b994c2d15e6f1365f215f19cfc9bf7febc28))
+* describe running the AI game master on an AI other than Claude ([0edba7c](https://github.com/Xelltis/udonarium_axe/commit/0edba7c27414c76bf1362ab1b405c5764ec3c618))
+* describe solid ranges and the ruler ([572ece1](https://github.com/Xelltis/udonarium_axe/commit/572ece145be2b2920488bc32af48c58d3540c6a8))
+* describe the AI game master ([ba1549d](https://github.com/Xelltis/udonarium_axe/commit/ba1549d6b660644c78365c401ad91dc7cd4240ca))
+* describe the AI link ([8293183](https://github.com/Xelltis/udonarium_axe/commit/82931838e0ccd540ec4ac11e8d5bcd85485c45d4))
+* describe the bridge's spending limit and when the AI game master stops ([f9d1157](https://github.com/Xelltis/udonarium_axe/commit/f9d1157d3d891aa350bd4b020f73d47a74cd2d4c))
+* describe the panel's word on a model the bridge does not run ([eaa38c1](https://github.com/Xelltis/udonarium_axe/commit/eaa38c1783b1473324b6247523c7fded76758f9b))
+* describe what the AI game master is lent, and whose sheets an AI's tools reach ([52717ae](https://github.com/Xelltis/udonarium_axe/commit/52717ae20fe0f7724e32d3c670a42318d0d7bb14))
+* describe where a model the bridge refused is told ([70e4a69](https://github.com/Xelltis/udonarium_axe/commit/70e4a692ff040c19018f6019ff0c232a441b9df6))
+* explain the AI link from its words to a first try, for someone new to MCP ([7f21027](https://github.com/Xelltis/udonarium_axe/commit/7f2102740f62a78bf5c8e4c58e9d8e1b301a91ae))
+* name the model among why a start cannot be pressed, and the version of the talk ([103424d](https://github.com/Xelltis/udonarium_axe/commit/103424d096dfe225032f428492e84f711a41c214))
+* note the fixes to terrains as high as nothing and to the icons of buffs in v1.80.0 ([f29ef69](https://github.com/Xelltis/udonarium_axe/commit/f29ef697f0cb36a4e01ed56d036ecc1d2a59c2b3))
+* **range:** say the aim handle's wheel lifts a cell a time ([08a7f58](https://github.com/Xelltis/udonarium_axe/commit/08a7f58d2af01725d7b14b00900d2d8700d75c5c))
+* **ruler:** explain the readings in metres and feet ([5e9c63e](https://github.com/Xelltis/udonarium_axe/commit/5e9c63ea6bd63f129fd8819ac02e2eb1ef2eb80b))
+* say when the bridge still refuses a model at a start ([c5dd378](https://github.com/Xelltis/udonarium_axe/commit/c5dd37842ca9678368b68f17d710efac62debf4f))
+* tidy the README into a short way in, leaving the details to the guide ([738e212](https://github.com/Xelltis/udonarium_axe/commit/738e212c0e602a0ff99bb4af5633a67ac591216a))
+* walk someone new to it through running the AI game master for the first time ([c840296](https://github.com/Xelltis/udonarium_axe/commit/c840296cd2d2e78b02a8f77d0ca45d8667fec45a))
+
+### ♻️ Refactor
+
+* **agent:** ask in one place whether a seat is shown a piece's buffs ([6b90a4b](https://github.com/Xelltis/udonarium_axe/commit/6b90a4bf5a2634997063e66cf254bcc9fddc3daf))
+* **agent:** ask in one place whether a seat may open a sheet ([47e445d](https://github.com/Xelltis/udonarium_axe/commit/47e445d163aba5e11512d9b8619df4f77fdb2e2d))
+* **ai-link:** keep what the AI is let do and what was lent in one write ([5bca0fe](https://github.com/Xelltis/udonarium_axe/commit/5bca0fe7e76e1c41f7a40bf576d1cb2abf3f0f9d))
+* **table-3d:** keep in one place how far past lying things a standing thing is drawn ([3727cee](https://github.com/Xelltis/udonarium_axe/commit/3727cee93ab8f16d617630fa002e41f462e8e641))
+
 ## [1.79.0](https://github.com/Xelltis/udonarium_axe/compare/v1.78.1...v1.79.0) (2026-11-16)
 
 ### ✨ Features
