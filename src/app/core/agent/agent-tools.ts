@@ -194,7 +194,8 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
         tab: TAB,
         to: {
           type: 'string',
-          description: 'Whisper to this seat only, by its name or by the name of a piece another seat owns.',
+          description:
+            'Whisper to one seat only: that seat’s name, or the name of a piece it owns. A piece of this seat’s own is refused.',
           minLength: 1,
         },
       },
@@ -262,7 +263,8 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     name: 'set_sheet_value',
     title: 'Write on a sheet',
     access: 'write',
-    description: 'Write a value into a named item of a piece’s sheet. Numbers are written as text.',
+    description:
+      'Write a value into a named item of a piece’s sheet. Numbers are written as text. Refused for a piece whose sheet this seat may not open.',
     input: input(
       {
         piece: PIECE,
