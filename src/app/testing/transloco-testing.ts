@@ -1,7 +1,7 @@
-import { EnvironmentProviders, importProvidersFrom, Provider } from '@angular/core';
+import { EnvironmentProviders, importProvidersFrom, inject, provideAppInitializer, Provider } from '@angular/core';
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { SUPPORTED_LANGS, SupportedLang } from '@axe/application/i18n/transloco.config';
-import { Translation, TranslocoTestingModule } from '@jsverse/transloco';
+import { Translation, TranslocoService, TranslocoTestingModule } from '@jsverse/transloco';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -10,6 +10,35 @@ const enDict = JSON.parse(readFileSync(resolve(process.cwd(), 'src/assets/i18n/e
 const koDict = JSON.parse(readFileSync(resolve(process.cwd(), 'src/assets/i18n/ko.json'), 'utf-8')) as Translation;
 
 const dictionaries: Record<SupportedLang, Translation> = { ja: jaDict, en: enDict, ko: koDict };
+
+/**
+ * A dictionary as Transloco keeps one: every string under the keys that lead to it, joined by dots.
+ */
+function flattened(dictionary: Translation): Translation {
+  const flat: Translation = {};
+  const lay = (value: unknown, key: string): void => {
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      for (const [name, inner] of Object.entries(value)) lay(inner, key ? `${key}.${name}` : name);
+    } else {
+      flat[key] = value;
+    }
+  };
+  lay(dictionary, '');
+  return flat;
+}
+
+/**
+ * The dictionaries laid flat once, for every module a spec builds to share. Loading them through
+ * Transloco lays each flat and copies it again for every module, some twenty thousand strings a
+ * module, which took longer than most specs' own work; so they are put where the service keeps what
+ * it has loaded, as they would stand once loaded. The service copies a dictionary before it changes
+ * one, and these are frozen, so no spec can change them for the next.
+ */
+const flatDictionaries: Record<SupportedLang, Translation> = {
+  ja: Object.freeze(flattened(jaDict)),
+  en: Object.freeze(flattened(enDict)),
+  ko: Object.freeze(flattened(koDict)),
+};
 
 export function provideTranslocoTesting(): (Provider | EnvironmentProviders)[] {
   return [
@@ -21,9 +50,12 @@ export function provideTranslocoTesting(): (Provider | EnvironmentProviders)[] {
           defaultLang: 'ja',
           fallbackLang: 'ja',
         },
-        preloadLangs: true,
       })
     ),
+    provideAppInitializer(() => {
+      const kept = (inject(TranslocoService) as unknown as { translations: Map<string, Translation> }).translations;
+      for (const lang of SUPPORTED_LANGS) kept.set(lang, flatDictionaries[lang]);
+    }),
   ];
 }
 
