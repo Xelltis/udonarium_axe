@@ -5,6 +5,7 @@ import { DEFAULT_ORIGINS, readOptions } from './options';
 describe('readOptions', () => {
   it('waits for a tab on the usual port, speaks MCP over standard input and output, and trusts the pages Axe is served from', () => {
     expect(readOptions([], {})).toEqual({
+      mode: 'mcp',
       port: AGENT_BRIDGE_PORT,
       http: null,
       origins: DEFAULT_ORIGINS,
@@ -41,6 +42,12 @@ describe('readOptions', () => {
     expect(readOptions([], { AXE_MCP_ALLOW_ORIGINS: 'nope' })).toMatchObject({
       error: expect.stringContaining('nope'),
     });
+  });
+
+  it('runs the game master itself when told gm first, serving no MCP', () => {
+    expect(readOptions(['gm', '--port', '5000'], {})).toMatchObject({ mode: 'gm', port: 5000, http: null });
+    expect(readOptions(['gm', '--http', '5001'], {})).toMatchObject({ error: expect.stringContaining('--http') });
+    expect(readOptions(['--port', '5000', 'gm'], {})).toEqual({ error: 'Unknown option: gm' });
   });
 
   it('asks for help or the version', () => {

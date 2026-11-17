@@ -1,10 +1,12 @@
-import { AGENT_BRIDGE_PORT, AGENT_TRUSTED_ORIGINS } from '@axe/core/agent/agent-protocol';
+import { AGENT_BRIDGE_PORT, AGENT_TRUSTED_ORIGINS, type BridgeMode } from '@axe/core/agent/agent-protocol';
 
 /** The pages of Axe a tab may connect from unless told more. */
 export const DEFAULT_ORIGINS: readonly string[] = AGENT_TRUSTED_ORIGINS;
 
 /** How the bridge was asked to run. */
 export interface BridgeOptions {
+  /** Whether it hands an AI app's calls on (`mcp`), or runs the game master itself (`gm`). */
+  readonly mode: BridgeMode;
   /** The port a tab connects on. */
   readonly port: number;
   /** The port an MCP client connects on over HTTP, or null to speak MCP over standard input and output. */
@@ -18,9 +20,14 @@ export interface BridgeOptions {
 }
 
 export const USAGE = `Usage: node axe-mcp.mjs [options]
+       node axe-mcp.mjs gm [options]
 
 Lets an AI use a tab of Udonarium Axe through the Model Context Protocol.
 Open Axe, press "Connect" in its AI link panel, and the AI's tools act through that seat.
+
+With gm, the bridge runs Claude as the game master itself, through the Claude API, instead of
+speaking MCP. Set ANTHROPIC_API_KEY to the key it uses; the key stays in this program and never
+reaches Axe. Start and stop the game master from the AI game master panel of Axe.
 
 Options:
   --port <port>          Port the Axe tab connects to (default ${AGENT_BRIDGE_PORT})
@@ -31,7 +38,8 @@ Options:
 
 Environment:
   AXE_MCP_ALLOW_ORIGINS  More pages to accept a tab from, separated by commas
-  AXE_MCP_TOKEN          With --http, the bearer token an MCP client must send`;
+  AXE_MCP_TOKEN          With --http, the bearer token an MCP client must send
+  ANTHROPIC_API_KEY      With gm, the Claude API key the game master is run with`;
 
 function portOf(text: string | undefined, flag: string): number | string {
   const port = Number(text);
@@ -54,6 +62,7 @@ export function readOptions(
 ): BridgeOptions | { error: string } {
   let port = AGENT_BRIDGE_PORT;
   let http: number | null = null;
+  let mode: BridgeMode = 'mcp';
   const origins = new Set(DEFAULT_ORIGINS);
   let help = false;
   let version = false;
@@ -68,6 +77,10 @@ export function readOptions(
   }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
+    if (i === 0 && arg === 'gm') {
+      mode = 'gm';
+      continue;
+    }
     switch (arg) {
       case '--port':
       case '--http': {
@@ -96,6 +109,8 @@ export function readOptions(
     }
   }
   if (http !== null && http === port) return { error: '--http and --port need different ports' };
+  if (mode === 'gm' && http !== null)
+    return { error: 'gm runs the game master itself and serves no MCP: leave out --http' };
   const token = env['AXE_MCP_TOKEN']?.trim() || null;
-  return { port, http, origins: [...origins], token, help, version };
+  return { mode, port, http, origins: [...origins], token, help, version };
 }

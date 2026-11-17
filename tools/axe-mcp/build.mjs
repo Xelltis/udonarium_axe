@@ -51,16 +51,25 @@ function packageDirsOf(inputs) {
   return [...dirs].sort();
 }
 
-function licenseTextIn(dir) {
-  const file = readdirSync(dir).find((name) => /^(license|licence|copying)(\.|$)/i.test(name));
-  return file ? readFileSync(resolve(dir, file), 'utf8').trim() : null;
+/**
+ * The license a package ships, or, for one published without it, the text kept in licenses/ as its
+ * source repository has it.
+ */
+function licenseTextIn(dir, name) {
+  // Every license file a package ships, as one that changed its license keeps the old beside the new.
+  const files = readdirSync(dir)
+    .filter((each) => /^(license|licence|copying)([.-]|$)/i.test(each))
+    .sort();
+  if (files.length > 0) return files.map((file) => readFileSync(resolve(dir, file), 'utf8').trim()).join('\n\n');
+  const kept = resolve(here, 'licenses', `${name.replace('/', '__')}.txt`);
+  return existsSync(kept) ? readFileSync(kept, 'utf8').trim() : null;
 }
 
 const notices = [`Udonarium Axe\n\n${readFileSync(resolve(root, 'LICENSE'), 'utf8').trim()}`];
 const missing = [];
 for (const dir of packageDirsOf(Object.keys(result.metafile.inputs))) {
   const pkg = JSON.parse(readFileSync(resolve(dir, 'package.json'), 'utf8'));
-  const text = existsSync(dir) ? licenseTextIn(dir) : null;
+  const text = existsSync(dir) ? licenseTextIn(dir, pkg.name) : null;
   if (!text) missing.push(`${pkg.name}@${pkg.version}`);
   notices.push(`${pkg.name}@${pkg.version} (${pkg.license})\n\n${text ?? `Licensed under ${pkg.license}.`}`);
 }
