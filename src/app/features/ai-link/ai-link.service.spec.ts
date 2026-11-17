@@ -6,6 +6,7 @@ import { agentToolsDigest } from '@axe/core/agent/agent-tools';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { AiLinkService } from '@axe/features/ai-link/ai-link.service';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** The sockets the service opened, newest last, each a stand-in a spec plays the bridge through. */
@@ -31,7 +32,7 @@ class FakeSocket {
     this.readyState = 3;
   }
 
-  greet(): void {
+  greet(mode: 'mcp' | 'gm' = 'mcp'): void {
     this.readyState = 1;
     this.onopen?.({});
     this.onmessage?.({
@@ -40,7 +41,7 @@ class FakeSocket {
         protocol: AGENT_PROTOCOL_VERSION,
         tools: agentToolsDigest(),
         bridge: '1.80.0',
-        mode: 'mcp',
+        mode,
         models: [],
       }),
     });
@@ -55,6 +56,7 @@ class FakeSocket {
 describe('AiLinkService', () => {
   let role: PeerRole;
   let notices: string[];
+  let openPanel: ReturnType<typeof vi.fn>;
 
   function make(): AiLinkService {
     TestBed.configureTestingModule({
@@ -74,6 +76,7 @@ describe('AiLinkService', () => {
           provide: ChatMessageService,
           useValue: { sendSystemNotice: (_kind: string, text: string) => notices.push(text) },
         },
+        { provide: RoomPanelService, useValue: { open: openPanel } },
       ],
     });
     return TestBed.inject(AiLinkService);
@@ -82,6 +85,7 @@ describe('AiLinkService', () => {
   beforeEach(() => {
     sockets.length = 0;
     notices = [];
+    openPanel = vi.fn();
     role = PeerRole.GameMaster;
     localStorage.removeItem(STORAGE_KEYS.aiLink);
     vi.stubGlobal('WebSocket', FakeSocket);
@@ -142,6 +146,27 @@ describe('AiLinkService', () => {
 
     link.disconnect();
     expect(link.latestGm()).toEqual({ status: null, notes: null });
+  });
+
+  it('opens the AI GM panel on reaching a bridge that runs the game master, unless it is open already', () => {
+    const link = make();
+    link.connect();
+    sockets[0].greet('mcp');
+    expect(openPanel).not.toHaveBeenCalled();
+
+    link.connect();
+    sockets[1].greet('gm');
+    expect(openPanel).toHaveBeenCalledWith('aiGm');
+
+    openPanel.mockClear();
+    link.noteGmPanel(true);
+    link.connect();
+    sockets[2].greet('gm');
+    expect(openPanel).not.toHaveBeenCalled();
+    link.noteGmPanel(false);
+    link.connect();
+    sockets[3].greet('gm');
+    expect(openPanel).toHaveBeenCalledWith('aiGm');
   });
 
   it('lets a watching seat give the AI reading only, whatever was chosen', () => {

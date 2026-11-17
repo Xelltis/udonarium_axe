@@ -6,6 +6,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GM_DEFAULT_SETTINGS } from '@axe/core/agent/agent-gm';
 import {
+  type AgentScope,
   GM_INSTRUCTIONS_MAX,
   GM_NOTES_MAX,
   type GmBridgeMessage,
@@ -19,6 +20,8 @@ import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { type AiGmMode, type AiGmWakeContext, aiGmWakeOf } from '@axe/features/ai-gm/ai-gm-wake';
 import { AiLinkService } from '@axe/features/ai-link/ai-link.service';
@@ -112,6 +115,13 @@ export class AiGmService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private relay: AbortController | null = null;
+  /**
+   * How far what happens has been handed on: kept while the link is lost, so that what happened
+   * meanwhile is handed on once it is back, and let go of once the game master is stopped.
+   */
+  private cursor: string | null = null;
+  /** What the AI link let the AI do before the game master was started, to give back once it stops. */
+  private scopeBefore: AgentScope | null = null;
 
   readonly preferences = signal<AiGmPreferences>(readAiGmPreferences(readLocal(STORAGE_KEYS.aiGm)));
   /** How the game master stands, as the bridge last told it; null until a bridge running it is connected. */
@@ -171,6 +181,7 @@ export class AiGmService {
   /** Starts it, letting the AI change the room, carrying on from the conversation the bridge kept unless told afresh. */
   start(fresh: boolean): boolean {
     if (!this.mayStart()) return false;
+    this.scopeBefore ??= this.link.scope();
     this.link.setScope('write');
     const { settings, instructions, notes } = this.preferences();
     return this.link.tellGm({ type: 'gm.start', settings, instructions, notes, fresh });
@@ -185,12 +196,15 @@ export class AiGmService {
     return this.running() && this.link.tellGm({ type: 'gm.nudge', direction });
   }
 
-  /** Changes what is kept of it, telling a running game master what it is told of. */
+  /**
+   * Changes what is kept of it, telling the bridge what the game master is told of, stopped or not:
+   * the bridge keeps the notebook too, and would give back its own over one rewritten here.
+   */
   update(changes: Partial<AiGmPreferences>): void {
     const next = { ...this.preferences(), ...changes };
     this.preferences.set(next);
     this.store();
-    if (!this.running()) return;
+    if (!this.bridgeRunsGm()) return;
     if ('settings' in changes || 'instructions' in changes || 'notes' in changes) {
       this.link.tellGm({
         type: 'gm.update',
@@ -206,8 +220,13 @@ export class AiGmService {
       case 'gm.status': {
         const was = this.status();
         this.status.set(message.status);
+        if (message.status.run === 'off') this.cursor = null;
         if (was && was.run === 'off' && message.status.run !== 'off') this.tellRoom('feature.aiGm.notice.started');
-        if (was && was.run !== 'off' && message.status.run === 'off') this.tellRoom('feature.aiGm.notice.stopped');
+        if (was && was.run !== 'off' && message.status.run === 'off') {
+          this.tellRoom('feature.aiGm.notice.stopped');
+          if (this.scopeBefore) this.link.setScope(this.scopeBefore);
+          this.scopeBefore = null;
+        }
         return;
       }
       case 'gm.notes':
@@ -227,11 +246,19 @@ export class AiGmService {
 
   private wakeContext(): AiGmWakeContext {
     const { mode, callName, tabs } = this.preferences();
+    const me = PeerCursor.myCursor?.userId ?? '';
+    const line = (id: string) => {
+      const message = this.objectStore.get<ChatMessage>(id);
+      return message instanceof ChatMessage ? message : null;
+    };
+    // Tabs chosen in another room, or since taken away, are not listened to: with none left, every tab is.
+    const here = new Set(ChatTabList.instance.chatTabs.map((tab) => tab.identifier));
     return {
       mode,
       callName,
-      tabs,
-      seatName: PeerCursor.myCursor?.name ?? '',
+      tabs: tabs.filter((tab) => here.has(tab)),
+      saidHere: (id) => me !== '' && line(id)?.from === me,
+      whisperedHere: (id) => me !== '' && (line(id)?.sendTo.includes(me) ?? false),
       runsPiece: (id) => {
         const piece = this.objectStore.get<GameCharacter>(id);
         return piece instanceof GameCharacter && this.runsPiece(piece);
@@ -243,7 +270,8 @@ export class AiGmService {
     if (this.relay) return;
     const relay = new AbortController();
     this.relay = relay;
-    void this.pump(relay.signal, this.events.cursorNow());
+    this.cursor ??= this.events.cursorNow();
+    void this.pump(relay.signal);
   }
 
   private stopRelay(): void {
@@ -251,12 +279,14 @@ export class AiGmService {
     this.relay = null;
   }
 
-  /** Hands on everything that happens from the cursor, as it happens, until the relay is stopped. */
-  private async pump(signal: AbortSignal, from: string): Promise<void> {
-    let cursor = from;
+  /**
+   * Hands on everything that happens from the cursor, as it happens, until the relay is stopped. The
+   * cursor moves on only past what reached the bridge.
+   */
+  private async pump(signal: AbortSignal): Promise<void> {
     while (!signal.aborted) {
       const began = Date.now();
-      const batch = await this.events.waitFor(cursor, WAIT_MS, signal);
+      const batch = await this.events.waitFor(this.cursor ?? undefined, WAIT_MS, signal);
       if (signal.aborted) return;
       if (batch.events.length > 0) {
         const context = this.wakeContext();
@@ -266,13 +296,14 @@ export class AiGmService {
           return wake ? { event: plain, wake } : { event: plain };
         });
         for (let at = 0; at < entries.length; at += EVENTS_AT_ONCE) {
-          this.link.tellGm({ type: 'gm.events', events: entries.slice(at, at + EVENTS_AT_ONCE) });
+          // Not handed on, as the link is going: taken up again from here once it is back.
+          if (!this.link.tellGm({ type: 'gm.events', events: entries.slice(at, at + EVENTS_AT_ONCE) })) return;
         }
       } else if (Date.now() - began < 1000) {
         // A log that is not keeping anything answers at once: wait before asking again.
         await sleep(1000, signal);
       }
-      cursor = batch.cursor;
+      if (!signal.aborted) this.cursor = batch.cursor;
     }
   }
 

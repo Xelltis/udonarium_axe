@@ -5,12 +5,15 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import type { AgentLinkState } from '@axe/core/agent/agent-bridge-client';
 import { GM_DEFAULT_SETTINGS } from '@axe/core/agent/agent-gm';
-import type { GmBridgeMessage, GmStatus, GmTabMessage } from '@axe/core/agent/agent-protocol';
+import type { AgentScope, GmBridgeMessage, GmStatus, GmTabMessage } from '@axe/core/agent/agent-protocol';
 import type { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import type { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { AI_GM_DEFAULT_CALL_NAME, AiGmService, readAiGmPreferences } from '@axe/features/ai-gm/ai-gm.service';
@@ -81,7 +84,9 @@ describe('AiGmService', () => {
   let state: ReturnType<typeof signal<AgentLinkState>>;
   let batches: AgentEventBatch[];
   let waiting: ((batch: AgentEventBatch) => void) | null;
+  let scope: ReturnType<typeof signal<AgentScope>>;
   let setScope: ReturnType<typeof vi.fn>;
+  let sends: boolean;
   let latest: { status: GmStatus | null; notes: string | null };
 
   /** Something happens in the room: a wait under way hears it at once, as the log's own does. */
@@ -110,8 +115,9 @@ describe('AiGmService', () => {
             state,
             gmHeard: heard,
             latestGm: () => latest,
+            scope,
             setScope,
-            tellGm: (message: GmTabMessage) => (told.push(message), state().kind === 'connected'),
+            tellGm: (message: GmTabMessage) => (told.push(message), sends && state().kind === 'connected'),
           },
         },
         {
@@ -141,7 +147,9 @@ describe('AiGmService', () => {
     batches = [];
     waiting = null;
     latest = { status: null, notes: null };
-    setScope = vi.fn();
+    scope = signal<AgentScope>('read');
+    setScope = vi.fn((next: AgentScope) => scope.set(next));
+    sends = true;
     localStorage.removeItem(STORAGE_KEYS.aiGm);
     setPeerContextProvider({
       peerContext: { userId: 'gm-user' } as IPeerContext,
@@ -175,9 +183,24 @@ describe('AiGmService', () => {
     expect(gm.start(true)).toBe(true);
     expect(setScope).toHaveBeenCalledWith('write');
     // What the tab tells the bridge: how to run it and what the person wrote, never a key.
-    expect(told).toEqual([
-      { type: 'gm.start', settings: GM_DEFAULT_SETTINGS, instructions: '舞台は港町', notes: '', fresh: true },
-    ]);
+    expect(told.at(-1)).toEqual({
+      type: 'gm.start',
+      settings: GM_DEFAULT_SETTINGS,
+      instructions: '舞台は港町',
+      notes: '',
+      fresh: true,
+    });
+  });
+
+  it('gives the AI link back what it let the AI do before, once the game master stops', () => {
+    const gm = make();
+    heard.next({ type: 'gm.status', status: status() });
+    gm.start(false);
+    expect(scope()).toBe('write');
+    heard.next({ type: 'gm.status', status: status({ run: 'waiting' }) });
+    heard.next({ type: 'gm.status', status: status({ run: 'off', halted: 'asked' }) });
+
+    expect(scope()).toBe('read');
   });
 
   it('takes up what the bridge told before it was listened to, its notebook over the one kept here', () => {
@@ -254,24 +277,86 @@ describe('AiGmService', () => {
     expect(told).toEqual([]);
   });
 
-  it('tells a running game master what the person changed, and keeps it all out of the room', () => {
+  it('tells the bridge what the person changed, stopped or not, and keeps it all out of the room', () => {
+    state.set({ kind: 'idle' });
     const gm = make();
     const objects = ObjectStore.instance.getObjects().length;
     gm.update({ notes: '一行目' });
     expect(told).toEqual([]);
 
-    heard.next({ type: 'gm.status', status: status({ run: 'waiting' }) });
+    // Stopped, the bridge still keeps the notebook, and would give its own back over this one.
+    state.set(GM_BRIDGE);
+    gm.update({ notes: '人の書いたメモ' });
     gm.update({ settings: { ...GM_DEFAULT_SETTINGS, budgetUsd: 2 } });
     gm.update({ mode: 'called' });
     expect(told).toEqual([
+      { type: 'gm.update', settings: GM_DEFAULT_SETTINGS, instructions: '', notes: '人の書いたメモ' },
       {
         type: 'gm.update',
         settings: { ...GM_DEFAULT_SETTINGS, budgetUsd: 2 },
         instructions: '',
-        notes: '一行目',
+        notes: '人の書いたメモ',
       },
     ]);
     expect(ObjectStore.instance.getObjects()).toHaveLength(objects);
+  });
+
+  it('hands on what happened while the link was lost once it is back, from where it stopped', async () => {
+    const gm = make();
+    heard.next({ type: 'gm.status', status: status({ run: 'waiting' }) });
+    TestBed.tick();
+    happen({ cursor: 'r.1', events: [{ kind: 'seat_joined', seat: 'ボブ' }] });
+    await vi.waitFor(() => expect(told).toHaveLength(1));
+
+    // The link goes as a batch is being handed on: it does not reach the bridge, and is not passed over.
+    sends = false;
+    happen({ cursor: 'r.2', events: [{ kind: 'seat_left', seat: 'ボブ' }] });
+    await vi.waitFor(() => expect(told).toHaveLength(2));
+    state.set({ kind: 'lost', unreachable: false });
+    TestBed.tick();
+    expect(gm.running()).toBe(false);
+
+    sends = true;
+    const asked: (string | undefined)[] = [];
+    const log = TestBed.inject(AgentEventLog) as unknown as { waitFor: (after?: string) => Promise<unknown> };
+    const waitFor = log.waitFor;
+    log.waitFor = (...args: Parameters<typeof waitFor>) => (asked.push(args[0]), waitFor(...args));
+    state.set(GM_BRIDGE);
+    heard.next({ type: 'gm.status', status: status({ run: 'waiting' }) });
+    TestBed.tick();
+    await vi.waitFor(() => expect(asked).toEqual(['r.1']));
+  });
+
+  it('listens to every tab when the tabs chosen are not in this room, and tells its own seat apart by who sent a line', async () => {
+    localStorage.setItem(STORAGE_KEYS.aiGm, JSON.stringify({ tabs: ['a-tab-of-another-room'] }));
+    const gm = make();
+    const tab = new ChatTab();
+    tab.name = 'メイン';
+    tab.initialize();
+    ChatTabList.instance.addChatTab(tab);
+    const said = (from: string, text: string) =>
+      tab.addMessage({ from, name: 'プレイヤー', text, timestamp: Date.now(), tag: '', imageIdentifier: '' });
+    const mine = said('gm-user', '補足です');
+    const theirs = said('player-user', '扉を開けます');
+    const line = (message: ChatMessage, text: string) => ({
+      kind: 'chat' as const,
+      id: message.identifier,
+      tab: tab.identifier,
+      time: 1,
+      speaker: 'プレイヤー',
+      seat: 'プレイヤー',
+      text,
+      by_ai: false,
+    });
+    heard.next({ type: 'gm.status', status: status({ run: 'waiting' }) });
+    TestBed.tick();
+    happen({ cursor: 'r.2', events: [line(mine, '補足です'), line(theirs, '扉を開けます')] });
+
+    await vi.waitFor(() => expect(told).toHaveLength(1));
+    const [first, second] = (told[0] as Extract<GmTabMessage, { type: 'gm.events' }>).events;
+    expect(first.wake).toBeUndefined();
+    expect(second.wake).toBe('line');
+    expect(gm.preferences().tabs).toEqual(['a-tab-of-another-room']);
   });
 
   it('runs the pieces marked as NPCs and those of its own seat', () => {

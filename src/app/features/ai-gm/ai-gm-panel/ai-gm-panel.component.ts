@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AGENT_BRIDGE_PORT, AGENT_TRUSTED_ORIGINS, type GmEffort } from '@axe/core/agent/agent-protocol';
@@ -11,7 +11,17 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 /** What the panel says of the game master, by the i18n key under feature.aiGm.state. */
 export type AiGmStateKey =
-  'unlinked' | 'linking' | 'mcpBridge' | 'off' | 'waiting' | 'thinking' | 'asked' | 'budget' | 'key' | 'failed';
+  | 'unlinked'
+  | 'linking'
+  | 'mcpBridge'
+  | 'off'
+  | 'waiting'
+  | 'thinking'
+  | 'asked'
+  | 'budget'
+  | 'key'
+  | 'failed'
+  | 'seat';
 
 /**
  * The panel the game master's seat runs Claude as the game master from: how it stands and what it
@@ -37,6 +47,12 @@ export class AiGmPanelComponent {
   /** The word to the game master being written. */
   protected readonly direction = signal('');
   protected readonly isGameMaster = computed(() => this.permission.isGameMaster());
+  /**
+   * The notebook as it stood when the person began writing in it, held while they write: one the AI
+   * writes meanwhile does not take the words from under them, and theirs is told when they finish.
+   */
+  private readonly notesBeingWritten = signal<string | null>(null);
+  protected readonly notesShown = computed(() => this.notesBeingWritten() ?? this.gm.preferences().notes);
 
   protected readonly stateKey = computed<AiGmStateKey>(() => {
     const state = this.link.state();
@@ -71,7 +87,10 @@ export class AiGmPanelComponent {
     this.objectChange.collectionOf('chat-tab')();
     return ChatTabList.instance.chatTabs
       .filter((tab) => !tab.isSystemTab)
-      .map((tab) => ({ identifier: tab.identifier, name: tab.name }));
+      .map((tab) => {
+        this.objectChange.versionOf(tab.identifier)();
+        return { identifier: tab.identifier, name: tab.name };
+      });
   });
 
   /** What the bridge is started with beyond the file: this page where it is not trusted already, and the port. */
@@ -93,6 +112,11 @@ export class AiGmPanelComponent {
   protected toggleLink(): void {
     if (this.linking()) this.link.disconnect();
     else this.link.connect();
+  }
+
+  constructor() {
+    this.link.noteGmPanel(true);
+    inject(DestroyRef).onDestroy(() => this.link.noteGmPanel(false));
   }
 
   protected setModel(model: string): void {
@@ -132,6 +156,14 @@ export class AiGmPanelComponent {
 
   protected setNotes(notes: string): void {
     this.gm.update({ notes });
+  }
+
+  protected beginNotes(): void {
+    this.notesBeingWritten.set(this.gm.preferences().notes);
+  }
+
+  protected endNotes(): void {
+    this.notesBeingWritten.set(null);
   }
 
   protected nudge(): void {

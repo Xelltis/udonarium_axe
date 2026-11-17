@@ -43,7 +43,7 @@ describe('AiGmPanelComponent', () => {
     nudge: vi.fn(() => true),
     update: vi.fn((changes: Partial<AiGmPreferences>) => preferences.update((now) => ({ ...now, ...changes }))),
   };
-  const link = { state, port: signal(47610), connect: vi.fn(), disconnect: vi.fn() };
+  const link = { state, port: signal(47610), connect: vi.fn(), disconnect: vi.fn(), noteGmPanel: vi.fn() };
 
   beforeEach(() => {
     role = PeerRole.GameMaster;
@@ -77,6 +77,13 @@ describe('AiGmPanelComponent', () => {
     find(host, 'ai-gm-link-toggle')!.click();
     expect(link.connect).toHaveBeenCalled();
     expect(find(host, 'ai-gm-start')).toBeNull();
+  });
+
+  it('tells the AI link it is open while it is, so that reaching the bridge does not open another', async () => {
+    const fixture = TestBed.createComponent(AiGmPanelComponent);
+    expect(link.noteGmPanel).toHaveBeenLastCalledWith(true);
+    fixture.destroy();
+    expect(link.noteGmPanel).toHaveBeenLastCalledWith(false);
   });
 
   it('says a bridge that hands an AI app’s calls on does not run the game master', async () => {
@@ -139,6 +146,25 @@ describe('AiGmPanelComponent', () => {
     budget.dispatchEvent(new Event('change'));
     expect(preferences().settings.budgetUsd).toBe(12);
     expect(find(host, 'ai-gm-pieces')?.textContent).toContain('ゴブリン');
+    expect(find(host, 'ai-gm-aside')?.textContent).toContain('酒場の場面へ');
+  });
+
+  it('keeps the words being written in the notebook when the AI writes it meanwhile, and tells them when done', async () => {
+    state.set({ kind: 'connected', bridge: '1.80.0', mode: 'gm', models: gm.models() });
+    preferences.update((now) => ({ ...now, notes: 'AIのメモ' }));
+    const { host, settle } = await panel();
+    const notes = find<HTMLTextAreaElement>(host, 'ai-gm-notes')!;
+    notes.dispatchEvent(new Event('focus'));
+    notes.value = '人が書きかけ';
+    preferences.update((now) => ({ ...now, notes: 'AIが書き直したメモ' }));
+    await settle();
+    expect(notes.value).toBe('人が書きかけ');
+
+    notes.dispatchEvent(new Event('change'));
+    notes.dispatchEvent(new Event('blur'));
+    await settle();
+    expect(gm.update).toHaveBeenLastCalledWith({ notes: '人が書きかけ' });
+    expect(notes.value).toBe('人が書きかけ');
     expect(find(host, 'ai-gm-aside')?.textContent).toContain('酒場の場面へ');
   });
 });

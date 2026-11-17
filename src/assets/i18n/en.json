@@ -188,7 +188,8 @@
         "asked": "Stopped",
         "budget": "Stopped: the spending limit was reached",
         "key": "Stopped: the API key was refused. Check the key given to the bridge",
-        "failed": "Stopped after failing several times"
+        "failed": "Stopped after failing several times",
+        "seat": "Stopped: the seat is no longer the game master's"
       },
       "spent": "Spent ${{spent}} of ${{budget}} · conversation {{tokens}} tokens (estimate)",
       "gameMasterOnly": "The AI GM can be started only on the game master's seat",

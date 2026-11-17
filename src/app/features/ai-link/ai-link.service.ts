@@ -18,6 +18,7 @@ import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { AgentToolsSetup } from '@axe/features/agent-tools/agent-tools-setup.service';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { version as APP_VERSION } from '@pkg';
 import { Subject } from 'rxjs';
 
@@ -58,6 +59,7 @@ export class AiLinkService {
   private readonly permission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tools = inject(AgentToolsSetup);
+  private readonly panels = inject(RoomPanelService);
   private client: AgentBridgeClient | null = null;
   private retry: ReturnType<typeof setTimeout> | null = null;
 
@@ -69,6 +71,8 @@ export class AiLinkService {
   readonly scope = signal<AgentScope>('read');
   /** What a bridge running the game master tells of itself. */
   readonly gmHeard = new Subject<GmBridgeMessage>();
+  /** How many AI GM panels are open, as they tell it: one is opened on reaching a game-master bridge if none is. */
+  private gmPanels = 0;
   /** What the bridge connected last told of the game master, for whoever comes to listen later. */
   private gmLatest: { status: GmStatus | null; notes: string | null } = { status: null, notes: null };
 
@@ -149,6 +153,11 @@ export class AiLinkService {
     this.tellRoom(scope === 'write' ? 'feature.aiLink.notice.nowWrite' : 'feature.aiLink.notice.nowRead');
   }
 
+  /** Told by an AI GM panel as it opens (`true`) and closes (`false`). */
+  noteGmPanel(open: boolean): void {
+    this.gmPanels = Math.max(0, this.gmPanels + (open ? 1 : -1));
+  }
+
   /** How the game master stood and its notebook, as the bridge connected last told them. */
   latestGm(): { readonly status: GmStatus | null; readonly notes: string | null } {
     return this.client?.current.kind === 'connected' ? this.gmLatest : { status: null, notes: null };
@@ -174,6 +183,8 @@ export class AiLinkService {
       this.tellRoom(
         this.seat().scope === 'write' ? 'feature.aiLink.notice.startedWrite' : 'feature.aiLink.notice.startedRead'
       );
+      // A bridge running the game master is worked from the AI GM panel, which also hands it what happens.
+      if (state.mode === 'gm' && this.gmPanels === 0) this.panels.open('aiGm');
     }
     if (state.kind === 'lost') {
       if (was === 'connected') this.tellRoom('feature.aiLink.notice.lost');

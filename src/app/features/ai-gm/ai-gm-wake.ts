@@ -9,8 +9,10 @@ export interface AiGmWakeContext {
   readonly mode: AiGmMode;
   /** The name the game master is called by in a line; empty for none. */
   readonly callName: string;
-  /** The name of the seat the game master acts through, as chat lines name seats. */
-  readonly seatName: string;
+  /** Whether a chat line, by its id, was said at the seat the game master acts through. */
+  readonly saidHere: (lineId: string) => boolean;
+  /** Whether a chat line, by its id, is a whisper to the seat the game master acts through. */
+  readonly whisperedHere: (lineId: string) => boolean;
   /** The chat tabs listened to, by identifier; none for every tab. */
   readonly tabs: readonly string[];
   /** Whether the game master runs a piece. */
@@ -26,8 +28,8 @@ export interface AiGmWakeContext {
 export function aiGmWakeOf(event: AgentEvent, context: AiGmWakeContext): GmWake | undefined {
   if (event.kind === 'turn') return event.current && context.runsPiece(event.current.id) ? 'turn' : undefined;
   if (event.kind !== 'chat' || event.by_ai || event.system || !event.seat) return undefined;
-  if (event.seat === context.seatName) return undefined;
-  if (event.to?.includes(context.seatName)) return 'called';
+  if (context.saidHere(event.id)) return undefined;
+  if (context.whisperedHere(event.id)) return 'called';
   const name = context.callName.trim().toLowerCase();
   if (name && (event.text ?? '').toLowerCase().includes(name)) return 'called';
   if (context.mode !== 'respond') return undefined;
