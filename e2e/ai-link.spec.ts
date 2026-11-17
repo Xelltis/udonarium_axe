@@ -1,14 +1,9 @@
-import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { expect, test } from '@playwright/test';
 
+import { BRIDGE, buildBridgeIfStale } from './ai-bridge';
 import { openFabMenu, putAwayTutorial, waitAppReady } from './helpers';
-
-/** The bridge as a release carries it, built from the sources where it has not been yet. */
-const BRIDGE = 'tools/axe-mcp/dist/axe-mcp.mjs';
 
 /** What a tool answered, read back from its JSON text. */
 function answerOf(result: Awaited<ReturnType<Client['callTool']>>): Record<string, unknown> {
@@ -19,7 +14,7 @@ function answerOf(result: Awaited<ReturnType<Client['callTool']>>): Record<strin
 
 test.describe('linking an AI', () => {
   test.beforeAll(() => {
-    if (!existsSync(BRIDGE)) execFileSync('node', ['tools/axe-mcp/build.mjs'], { stdio: 'inherit' });
+    buildBridgeIfStale();
   });
 
   test('lets an AI started with the bridge speak in chat as the seat, marked as the AI’s, and move a piece', async ({

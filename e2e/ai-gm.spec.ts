@@ -1,14 +1,12 @@
-import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { type ChildProcess, spawn } from 'node:child_process';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import { expect, test } from '@playwright/test';
 
+import { BRIDGE, buildBridgeIfStale } from './ai-bridge';
 import { becomeGm, openFabMenu, putAwayTutorial, waitAppReady } from './helpers';
 
-/** The bridge as a release carries it, built from the sources where it has not been yet. */
-const BRIDGE = 'tools/axe-mcp/dist/axe-mcp.mjs';
 /** The key the bridge is started with, which only the stand-in for the API ever sees. */
 const KEY = 'sk-ant-e2e-not-a-real-key';
 
@@ -115,7 +113,7 @@ function fakeClaude(): Promise<{ server: Server; port: number; sent: Sent[] }> {
 
 test.describe('the AI game master', () => {
   test.beforeAll(() => {
-    if (!existsSync(BRIDGE)) execFileSync('node', ['tools/axe-mcp/build.mjs'], { stdio: 'inherit' });
+    buildBridgeIfStale();
   });
 
   test('runs from its panel with the key kept in the bridge: opens the session, goes on when asked, and stops', async ({
@@ -177,6 +175,19 @@ test.describe('the AI game master', () => {
       expect(asked.body.messages.at(-1)).toMatchObject({ role: 'system' });
       const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }));
       expect(stored).not.toContain(KEY);
+
+      // Linked again from the AI link panel, the AI GM panel comes back to work the game master from.
+      await page.locator('ui-panel').filter({ has: panel }).getByTestId('panel-close').dispatchEvent('click');
+      await expect(panel).toHaveCount(0);
+      await openFabMenu(page);
+      await page.getByTestId('fab-ai-link').click();
+      const link = page.locator('ai-link-panel');
+      await link.getByTestId('ai-link-toggle').click();
+      await expect(link.getByTestId('ai-link-state')).toHaveAttribute('data-state', 'idle');
+      await link.getByTestId('ai-link-toggle').click();
+      await expect(page.locator('ai-gm-panel').getByTestId('ai-gm-state')).toHaveAttribute('data-state', 'asked', {
+        timeout: 15000,
+      });
     } finally {
       bridge?.kill();
       claude.server.close();
