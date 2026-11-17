@@ -115,7 +115,39 @@ describe('AiLinkService', () => {
 
     expect(sockets[0].sent[1]).toMatchObject({ type: 'seat', seat: { scope: 'write' } });
     expect(notices[1]).toContain('feature.aiLink.notice.nowWrite');
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.aiLink)!)).toEqual({ port: 47610, scope: 'write' });
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.aiLink)!)).toEqual({
+      port: 47610,
+      scope: 'write',
+      lentFrom: null,
+    });
+  });
+
+  it('lends a game master the changing of the room and takes it back, kept across a page opened again', () => {
+    const link = make();
+    link.connect();
+    sockets[0].greet('gm');
+    link.lendWrite();
+    expect(link.scope()).toBe('write');
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.aiLink)!)).toMatchObject({ scope: 'write', lentFrom: 'read' });
+
+    TestBed.resetTestingModule();
+    const again = make();
+    expect(again.scope()).toBe('write');
+    again.takeBack();
+    expect(again.scope()).toBe('read');
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.aiLink)!)).toMatchObject({ scope: 'read', lentFrom: null });
+    again.takeBack();
+    expect(again.scope()).toBe('read');
+  });
+
+  it('does not leave what a game master was lent to a bridge that runs none', () => {
+    localStorage.setItem(STORAGE_KEYS.aiLink, JSON.stringify({ port: 47610, scope: 'write', lentFrom: 'read' }));
+    const link = make();
+    link.connect();
+    sockets[0].greet('mcp');
+
+    expect(link.scope()).toBe('read');
+    expect(sockets[0].sent.at(-1)).toMatchObject({ type: 'seat', seat: { scope: 'read' } });
   });
 
   it('passes on what a game-master bridge tells, keeps its latest status and notebook, and tells it what it is asked to', () => {
@@ -132,6 +164,7 @@ describe('AiLinkService', () => {
       budgetUsd: 5,
       contextTokens: 0,
       kept: true,
+      starts: 1,
     };
     sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status }) });
     sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.notes', notes: '一行目' }) });

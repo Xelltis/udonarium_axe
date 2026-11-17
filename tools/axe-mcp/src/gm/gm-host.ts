@@ -37,6 +37,8 @@ export class GmHost {
   private run: GmRun = 'off';
   private halted: GmHalt | undefined;
   private problem: string | undefined;
+  /** How many askings to start have been answered. */
+  private starts = 0;
   private events: Readonly<Record<string, unknown>>[] = [];
   private reasons = new Set<TurnReason>();
   private direction = '';
@@ -77,6 +79,7 @@ export class GmHost {
       contextTokens: this.master?.contextTokens ?? 0,
       kept: this.master?.kept ?? false,
       ...(this.problem ? { problem: this.problem } : {}),
+      starts: this.starts,
     };
   }
 
@@ -123,6 +126,7 @@ export class GmHost {
   }
 
   private start(message: Extract<GmTabMessage, { type: 'gm.start' }>): void {
+    this.starts++;
     if (!isGmModel(message.settings.model)) {
       this.problem = `This bridge does not run ${message.settings.model}.`;
       this.tell();

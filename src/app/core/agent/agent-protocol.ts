@@ -107,6 +107,11 @@ export interface GmStatus {
   readonly kept: boolean;
   /** What went wrong last, for the panel to show. */
   readonly problem?: string;
+  /**
+   * How many askings to start the bridge has answered since it was started itself. A tab that asked
+   * tells the answer to its asking, which counts one more, from what the bridge told of itself before.
+   */
+  readonly starts: number;
 }
 
 /** The longest the game master's instructions may be. */
@@ -257,7 +262,7 @@ function statusOf(raw: unknown): GmStatus | null {
   const status = recordOf(raw);
   if (!status || !RUNS.includes(status['run'] as GmRun) || !isText(status['model'])) return null;
   if (!isCount(status['spentUsd']) || !isCount(status['budgetUsd']) || !isCount(status['contextTokens'])) return null;
-  if (typeof status['kept'] !== 'boolean') return null;
+  if (typeof status['kept'] !== 'boolean' || !isCount(status['starts'])) return null;
   const halted = status['halted'];
   if (halted !== undefined && !HALTS.includes(halted as GmHalt)) return null;
   const problem = status['problem'];
@@ -271,6 +276,7 @@ function statusOf(raw: unknown): GmStatus | null {
     contextTokens: status['contextTokens'],
     kept: status['kept'],
     ...(problem === undefined ? {} : { problem }),
+    starts: status['starts'],
   };
 }
 

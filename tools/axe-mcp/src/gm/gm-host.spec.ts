@@ -70,6 +70,7 @@ describe('GmHost', () => {
       budgetUsd: 0,
       contextTokens: 0,
       kept: false,
+      starts: 0,
     });
   });
 
@@ -82,6 +83,8 @@ describe('GmHost', () => {
     tab.say({ type: 'gm.start', settings: { ...SETTINGS, model: 'claude-other' }, instructions: '', notes: '' });
     await until(() => lastStatus(tab)?.problem?.includes('claude-other') === true);
     expect(api.sent).toEqual([]);
+    // Each asking is counted as it is answered, so a tab tells the answer to its own.
+    expect(lastStatus(tab)?.starts).toBe(2);
   });
 
   it('opens at once when started, the model greeting the table, then waits', async () => {

@@ -6,7 +6,6 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GM_DEFAULT_SETTINGS } from '@axe/core/agent/agent-gm';
 import {
-  type AgentScope,
   GM_INSTRUCTIONS_MAX,
   GM_NOTES_MAX,
   type GmBridgeMessage,
@@ -120,8 +119,12 @@ export class AiGmService {
    * meanwhile is handed on once it is back, and let go of once the game master is stopped.
    */
   private cursor: string | null = null;
-  /** What the AI link let the AI do before the game master was started, to give back once it stops. */
-  private scopeBefore: AgentScope | null = null;
+  /**
+   * How many askings to start the bridge had answered when it was last asked here, while the answer
+   * to that asking is awaited; null otherwise. What the bridge tells of itself meanwhile, in answer to
+   * anything else, still counts as many.
+   */
+  private askedAfter: number | null = null;
 
   readonly preferences = signal<AiGmPreferences>(readAiGmPreferences(readLocal(STORAGE_KEYS.aiGm)));
   /** How the game master stands, as the bridge last told it; null until a bridge running it is connected. */
@@ -157,7 +160,7 @@ export class AiGmService {
   constructor() {
     // What the bridge told before anyone here listened: the notebook it holds is newer than the one kept.
     const latest = this.link.latestGm();
-    if (latest.status) this.status.set(latest.status);
+    if (latest.status) this.hear({ type: 'gm.status', status: latest.status });
     if (latest.notes !== null) this.hear({ type: 'gm.notes', notes: latest.notes });
     const heard = this.link.gmHeard.subscribe((message) => this.hear(message));
     effect(() => {
@@ -165,7 +168,11 @@ export class AiGmService {
       untracked(() => (running ? this.startRelay() : this.stopRelay()));
     });
     effect(() => {
-      if (!this.bridgeRunsGm()) untracked(() => this.status.set(null));
+      if (this.bridgeRunsGm()) return;
+      untracked(() => {
+        this.status.set(null);
+        this.askedAfter = null;
+      });
     });
     inject(DestroyRef).onDestroy(() => {
       heard.unsubscribe();
@@ -181,10 +188,12 @@ export class AiGmService {
   /** Starts it, letting the AI change the room, carrying on from the conversation the bridge kept unless told afresh. */
   start(fresh: boolean): boolean {
     if (!this.mayStart()) return false;
-    this.scopeBefore ??= this.link.scope();
-    this.link.setScope('write');
+    this.link.lendWrite();
     const { settings, instructions, notes } = this.preferences();
-    return this.link.tellGm({ type: 'gm.start', settings, instructions, notes, fresh });
+    const told = this.link.tellGm({ type: 'gm.start', settings, instructions, notes, fresh });
+    if (told) this.askedAfter = this.status()?.starts ?? 0;
+    else this.link.takeBack();
+    return told;
   }
 
   stop(): void {
@@ -215,6 +224,11 @@ export class AiGmService {
     }
   }
 
+  /**
+   * Takes in what the bridge tells. Told that the game master is off, in answer to an asking to start
+   * or with none awaited, it gives back what the AI was let do before: stopped, refused, or found
+   * stopped on coming back to the page.
+   */
   private hear(message: GmBridgeMessage): void {
     switch (message.type) {
       case 'gm.status': {
@@ -222,11 +236,10 @@ export class AiGmService {
         this.status.set(message.status);
         if (message.status.run === 'off') this.cursor = null;
         if (was && was.run === 'off' && message.status.run !== 'off') this.tellRoom('feature.aiGm.notice.started');
-        if (was && was.run !== 'off' && message.status.run === 'off') {
-          this.tellRoom('feature.aiGm.notice.stopped');
-          if (this.scopeBefore) this.link.setScope(this.scopeBefore);
-          this.scopeBefore = null;
-        }
+        if (was && was.run !== 'off' && message.status.run === 'off') this.tellRoom('feature.aiGm.notice.stopped');
+        const answered = this.askedAfter === null || message.status.starts > this.askedAfter;
+        if (answered) this.askedAfter = null;
+        if (answered && message.status.run === 'off') this.link.takeBack();
         return;
       }
       case 'gm.notes':

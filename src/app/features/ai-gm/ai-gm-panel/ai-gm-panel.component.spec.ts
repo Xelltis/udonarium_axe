@@ -94,7 +94,7 @@ describe('AiGmPanelComponent', () => {
 
   it('starts it only on the game master’s seat, and starts over where a conversation is kept', async () => {
     state.set({ kind: 'connected', bridge: '1.80.0', mode: 'gm', models: gm.models() });
-    status.set({ run: 'off', model: '', spentUsd: 0, budgetUsd: 0, contextTokens: 0, kept: true });
+    status.set({ run: 'off', model: '', spentUsd: 0, budgetUsd: 0, contextTokens: 0, kept: true, starts: 0 });
     role = PeerRole.Player;
     const { host, settle } = await panel();
     expect(find<HTMLButtonElement>(host, 'ai-gm-start')!.disabled).toBe(true);
@@ -116,6 +116,7 @@ describe('AiGmPanelComponent', () => {
       budgetUsd: 5,
       contextTokens: 12000,
       kept: true,
+      starts: 1,
     });
     const { host } = await panel();
 

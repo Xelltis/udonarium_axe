@@ -29,7 +29,16 @@ const GM_BRIDGE: AgentLinkState = {
 };
 
 function status(set: Partial<GmStatus> = {}): GmStatus {
-  return { run: 'off', model: 'claude-opus-5-5', spentUsd: 0, budgetUsd: 5, contextTokens: 0, kept: false, ...set };
+  return {
+    run: 'off',
+    model: 'claude-opus-5-5',
+    spentUsd: 0,
+    budgetUsd: 5,
+    contextTokens: 0,
+    kept: false,
+    starts: 0,
+    ...set,
+  };
 }
 
 describe('readAiGmPreferences', () => {
@@ -85,7 +94,7 @@ describe('AiGmService', () => {
   let batches: AgentEventBatch[];
   let waiting: ((batch: AgentEventBatch) => void) | null;
   let scope: ReturnType<typeof signal<AgentScope>>;
-  let setScope: ReturnType<typeof vi.fn>;
+  let lentFrom: AgentScope | null;
   let sends: boolean;
   let latest: { status: GmStatus | null; notes: string | null };
 
@@ -116,7 +125,14 @@ describe('AiGmService', () => {
             gmHeard: heard,
             latestGm: () => latest,
             scope,
-            setScope,
+            lendWrite: () => {
+              lentFrom ??= scope();
+              scope.set('write');
+            },
+            takeBack: () => {
+              if (lentFrom !== null) scope.set(lentFrom);
+              lentFrom = null;
+            },
             tellGm: (message: GmTabMessage) => (told.push(message), sends && state().kind === 'connected'),
           },
         },
@@ -148,7 +164,7 @@ describe('AiGmService', () => {
     waiting = null;
     latest = { status: null, notes: null };
     scope = signal<AgentScope>('read');
-    setScope = vi.fn((next: AgentScope) => scope.set(next));
+    lentFrom = null;
     sends = true;
     localStorage.removeItem(STORAGE_KEYS.aiGm);
     setPeerContextProvider({
@@ -181,7 +197,7 @@ describe('AiGmService', () => {
     role = PeerRole.GameMaster;
     gm.update({ instructions: '舞台は港町' });
     expect(gm.start(true)).toBe(true);
-    expect(setScope).toHaveBeenCalledWith('write');
+    expect(scope()).toBe('write');
     // What the tab tells the bridge: how to run it and what the person wrote, never a key.
     expect(told.at(-1)).toEqual({
       type: 'gm.start',
@@ -197,9 +213,36 @@ describe('AiGmService', () => {
     heard.next({ type: 'gm.status', status: status() });
     gm.start(false);
     expect(scope()).toBe('write');
-    heard.next({ type: 'gm.status', status: status({ run: 'waiting' }) });
-    heard.next({ type: 'gm.status', status: status({ run: 'off', halted: 'asked' }) });
+    heard.next({ type: 'gm.status', status: status({ run: 'waiting', starts: 1 }) });
+    expect(scope()).toBe('write');
+    heard.next({ type: 'gm.status', status: status({ run: 'off', halted: 'asked', starts: 1 }) });
 
+    expect(scope()).toBe('read');
+  });
+
+  it('gives it back when the bridge refuses to start, and not on what the bridge told before it answered', () => {
+    const gm = make();
+    heard.next({ type: 'gm.status', status: status({ starts: 3 }) });
+    gm.start(false);
+    heard.next({ type: 'gm.status', status: status({ starts: 3 }) });
+    expect(scope()).toBe('write');
+
+    heard.next({ type: 'gm.status', status: status({ starts: 4, problem: 'This bridge has spent its limit.' }) });
+    expect(scope()).toBe('read');
+  });
+
+  it('gives it back when the asking to start could not be sent, and when the bridge is found stopped on coming back', () => {
+    sends = false;
+    const unsent = make();
+    expect(unsent.start(false)).toBe(false);
+    expect(scope()).toBe('read');
+
+    TestBed.resetTestingModule();
+    sends = true;
+    lentFrom = 'read';
+    scope.set('write');
+    latest = { status: status(), notes: null };
+    make();
     expect(scope()).toBe('read');
   });
 

@@ -26,6 +26,8 @@ import { Subject } from 'rxjs';
 interface StoredLink {
   readonly port: number;
   readonly scope: AgentScope;
+  /** What the AI was let do before a game master was let change the room, or null where none was. */
+  readonly lentFrom: AgentScope | null;
 }
 
 function readStoredLink(): StoredLink {
@@ -35,9 +37,10 @@ function readStoredLink(): StoredLink {
     return {
       port: Number.isInteger(port) && port > 0 && port < 65536 ? port : AGENT_BRIDGE_PORT,
       scope: stored.scope === 'write' ? 'write' : 'read',
+      lentFrom: stored.lentFrom === 'write' || stored.lentFrom === 'read' ? stored.lentFrom : null,
     };
   } catch {
-    return { port: AGENT_BRIDGE_PORT, scope: 'read' };
+    return { port: AGENT_BRIDGE_PORT, scope: 'read', lentFrom: null };
   }
 }
 
@@ -71,6 +74,11 @@ export class AiLinkService {
   readonly scope = signal<AgentScope>('read');
   /** What a bridge running the game master tells of itself. */
   readonly gmHeard = new Subject<GmBridgeMessage>();
+  /**
+   * What the AI was let do before a game master was let change the room, to give back once it stops:
+   * kept with the link, so a page opened again while it runs still gives it back.
+   */
+  private lentFrom: AgentScope | null = null;
   /** How many AI GM panels are open, as they tell it: one is opened on reaching a game-master bridge if none is. */
   private gmPanels = 0;
   /** What the bridge connected last told of the game master, for whoever comes to listen later. */
@@ -80,6 +88,7 @@ export class AiLinkService {
     const stored = readStoredLink();
     this.port.set(stored.port);
     this.scope.set(stored.scope);
+    this.lentFrom = stored.lentFrom;
     effect(() => {
       const cursor = PeerCursor.myCursor;
       if (cursor) this.objectChange.versionOf(cursor.identifier)();
@@ -153,6 +162,22 @@ export class AiLinkService {
     this.tellRoom(scope === 'write' ? 'feature.aiLink.notice.nowWrite' : 'feature.aiLink.notice.nowRead');
   }
 
+  /** Lets the AI change the room for as long as a game master runs, remembering what it was let do before. */
+  lendWrite(): void {
+    this.lentFrom ??= this.scope();
+    this.store();
+    this.setScope('write');
+  }
+
+  /** Gives back what the AI was let do before a game master was let change the room, if one was. */
+  takeBack(): void {
+    const before = this.lentFrom;
+    if (before === null) return;
+    this.lentFrom = null;
+    this.store();
+    this.setScope(before);
+  }
+
   /** Told by an AI GM panel as it opens (`true`) and closes (`false`). */
   noteGmPanel(open: boolean): void {
     this.gmPanels = Math.max(0, this.gmPanels + (open ? 1 : -1));
@@ -180,6 +205,8 @@ export class AiLinkService {
     const was = this.state().kind;
     this.state.set(state);
     if (state.kind === 'connected' && was !== 'connected') {
+      // What a game master was lent is not left to a bridge that runs none.
+      if (state.mode !== 'gm') this.takeBack();
       this.tellRoom(
         this.seat().scope === 'write' ? 'feature.aiLink.notice.startedWrite' : 'feature.aiLink.notice.startedRead'
       );
@@ -206,6 +233,9 @@ export class AiLinkService {
   }
 
   private store(): void {
-    writeLocal(STORAGE_KEYS.aiLink, JSON.stringify({ port: this.port(), scope: this.scope() }));
+    writeLocal(
+      STORAGE_KEYS.aiLink,
+      JSON.stringify({ port: this.port(), scope: this.scope(), lentFrom: this.lentFrom })
+    );
   }
 }

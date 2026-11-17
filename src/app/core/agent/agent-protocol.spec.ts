@@ -46,6 +46,7 @@ describe('readBridgeMessage', () => {
       contextTokens: 12000,
       kept: true,
       problem: 'out of budget',
+      starts: 2,
     };
     expect(readBridgeMessage({ type: 'gm.status', status })).toEqual({ type: 'gm.status', status });
     expect(readBridgeMessage({ type: 'gm.notes', notes: '村に着いた' })).toEqual({
@@ -70,11 +71,15 @@ describe('readBridgeMessage', () => {
       { type: 'hello', protocol: 2, tools: 'abc', bridge: 'x', mode: 'gm', models: [{ id: 'm' }] },
       {
         type: 'gm.status',
-        status: { run: 'asleep', model: 'm', spentUsd: 0, budgetUsd: 5, contextTokens: 0, kept: false },
+        status: { run: 'asleep', model: 'm', spentUsd: 0, budgetUsd: 5, contextTokens: 0, kept: false, starts: 0 },
       },
       {
         type: 'gm.status',
-        status: { run: 'off', model: 'm', spentUsd: -1, budgetUsd: 5, contextTokens: 0, kept: false },
+        status: { run: 'off', model: 'm', spentUsd: -1, budgetUsd: 5, contextTokens: 0, kept: false, starts: 0 },
+      },
+      {
+        type: 'gm.status',
+        status: { run: 'off', model: 'm', spentUsd: 0, budgetUsd: 5, contextTokens: 0, kept: false },
       },
       { type: 'gm.notes', notes: 'x'.repeat(8001) },
       { type: 'gm.said', text: 'x' },
