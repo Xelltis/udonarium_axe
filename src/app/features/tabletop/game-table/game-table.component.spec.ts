@@ -1,8 +1,10 @@
+import { inject, provideAppInitializer } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CardTargetService } from '@axe/application/card/card-target.service';
 import { DiceRenderService } from '@axe/application/dice/dice-render.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
@@ -33,6 +35,13 @@ import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache
 import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
+/**
+ * Starts the page as one opened with an invitation, as the app's own initializer would, so the table
+ * waits on the room rather than setting out the sample pieces. None of these tests is about the sample,
+ * which game-table-start-room.spec sets out, and making its pieces took most of each test.
+ */
+const OPENED_WITH_INVITATION = provideAppInitializer(() => inject(StartRoomService).prepare('#join?r=room&n=room'));
+
 describe('GameTableComponent', () => {
   let component: GameTableComponent;
   let fixture: ComponentFixture<GameTableComponent>;
@@ -40,7 +49,7 @@ describe('GameTableComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [GameTableComponent],
-      providers: [...TEST_PROVIDERS],
+      providers: [...TEST_PROVIDERS, OPENED_WITH_INVITATION],
     }).compileComponents();
   });
 
@@ -1061,6 +1070,7 @@ describe('GameTableComponent and the dice thrown on it', () => {
       imports: [GameTableComponent],
       providers: [
         ...TEST_PROVIDERS,
+        OPENED_WITH_INVITATION,
         {
           provide: DiceRenderService,
           useFactory: () => {

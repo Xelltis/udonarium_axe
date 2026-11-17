@@ -138,13 +138,19 @@ describe('PiecePartPicturesService', () => {
     expect(pictures.pictureOf(body)?.url).toBe('blob:drawn-1');
     expect(drawn).toHaveLength(2);
     expect(drawn[1].looks[0].lost).toBe(true);
-    finish[1]();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(pictures.pictureOf(body)?.url).toBe('blob:drawn-2');
-    // The picture before is kept a while for what may still be reading it, then let go of.
-    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:drawn-1');
-    await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:drawn-1'), { timeout: 7000 });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      finish[1]();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(pictures.pictureOf(body)?.url).toBe('blob:drawn-2');
+      // The picture before is kept a while for what may still be reading it, then let go of.
+      expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:drawn-1');
+      vi.advanceTimersByTime(5000);
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:drawn-1');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('draws a piece put back under the same identifier from the piece as it now is, not the one taken out', () => {

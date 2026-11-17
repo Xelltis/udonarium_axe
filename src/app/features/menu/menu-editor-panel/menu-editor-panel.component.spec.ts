@@ -71,7 +71,17 @@ describe('MenuEditorPanelComponent', () => {
     fixture.detectChanges();
   }
 
+  /**
+   * Lets the event loop turn once. Whatever a WeakRef points at, as happy-dom's cache of what a query
+   * found does, is kept alive until it turns, so a test started straight from the one before keeps
+   * every panel drawn so far, some 170MB each, for the collector to wade through in the tests after.
+   */
+  function turnOfTheEventLoop(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
   beforeEach(async () => {
+    await turnOfTheEventLoop();
     for (const key of KEYS) localStorage.removeItem(key);
     await TestBed.configureTestingModule({
       imports: [MenuEditorPanelComponent],

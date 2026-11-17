@@ -198,6 +198,60 @@ function everyFrame(visit: (kind: string, drawn: Staged, cast: EffectCast) => vo
   }
 }
 
+/** Notes each kind of thing a frame draws more of, for either blend, than the scene draws in a frame. */
+function noteOverBudget(kind: string, drawn: Staged, over: Set<string>): void {
+  for (const blend of ['light', 'color'] as const) {
+    const motes = drawn.motes.filter((mote) => mote.blend === blend).length;
+    const marks = drawn.floor.filter((mark) => mark.blend === blend).length;
+    const points = drawn.ribbons
+      .filter((ribbon) => ribbon.blend === blend)
+      .reduce((sum, ribbon) => sum + ribbon.points.length, 0);
+    if (motes > EFFECT_FRAME_BUDGET.motes) over.add(`${kind} motes`);
+    if (marks > EFFECT_FRAME_BUDGET.marks) over.add(`${kind} marks`);
+    if (points > EFFECT_FRAME_BUDGET.ribbonPoints) over.add(`${kind} ribbon points`);
+  }
+}
+
+/** Notes a frame that draws anything too far from every target and the caster, or too far below the floor. */
+function noteAstray(kind: string, drawn: Staged, cast: EffectCast, astray: Set<string>): void {
+  const anchors = [...cast.targets, cast.origin!];
+  const farthest = (FARTHEST_CELLS * CELL) ** 2;
+  const check = (x: number, y: number, z: number) => {
+    let near = Infinity;
+    for (const anchor of anchors) near = Math.min(near, (x - anchor.x) ** 2 + (y - anchor.y) ** 2);
+    if (near > farthest) astray.add(`${kind} far`);
+    if (z < -DEEPEST_CELLS * CELL) astray.add(`${kind} below`);
+  };
+  for (const mote of drawn.motes) check(mote.x, mote.y, mote.z);
+  for (const ribbon of drawn.ribbons) for (const point of ribbon.points) check(point.x, point.y, point.z);
+  for (const mark of drawn.floor) check(mark.x, mark.y, 0);
+}
+
+/** What the checks on every frame found: the casts that drew over the budget, and those that drew astray. */
+interface EveryFrameFindings {
+  over: Set<string>;
+  astray: Set<string>;
+}
+
+let everyFrameFindings: EveryFrameFindings | null = null;
+
+/**
+ * Every frame staged once and checked for both the budget and the bounds, the first time either is
+ * asked for. Staging every frame is nearly all of the time these checks take, and a frame comes out
+ * the same whichever check reads it, as the last test holds.
+ */
+function findingsOfEveryFrame(): EveryFrameFindings {
+  if (!everyFrameFindings) {
+    const findings: EveryFrameFindings = { over: new Set(), astray: new Set() };
+    everyFrame((kind, drawn, cast) => {
+      noteOverBudget(kind, drawn, findings.over);
+      noteAstray(kind, drawn, cast, findings.astray);
+    });
+    everyFrameFindings = findings;
+  }
+  return everyFrameFindings;
+}
+
 describe('the quality of the effects', () => {
   it('draws nothing from unseeded randomness, so every seat draws the same frame', () => {
     const unseeded = sources().filter((path) => /Math\.random\s*\(/.test(readFileSync(path, 'utf-8')));
@@ -208,21 +262,7 @@ describe('the quality of the effects', () => {
   it(
     'keeps the heaviest cast of every kind and look within what the scene draws in a frame',
     () => {
-      const over = new Set<string>();
-      everyFrame((kind, drawn) => {
-        for (const blend of ['light', 'color'] as const) {
-          const motes = drawn.motes.filter((mote) => mote.blend === blend).length;
-          const marks = drawn.floor.filter((mark) => mark.blend === blend).length;
-          const points = drawn.ribbons
-            .filter((ribbon) => ribbon.blend === blend)
-            .reduce((sum, ribbon) => sum + ribbon.points.length, 0);
-          if (motes > EFFECT_FRAME_BUDGET.motes) over.add(`${kind} motes`);
-          if (marks > EFFECT_FRAME_BUDGET.marks) over.add(`${kind} marks`);
-          if (points > EFFECT_FRAME_BUDGET.ribbonPoints) over.add(`${kind} ribbon points`);
-        }
-      });
-
-      expect([...over]).toEqual([]);
+      expect([...findingsOfEveryFrame().over]).toEqual([]);
     },
     EVERY_FRAME_TIMEOUT_MS
   );
@@ -230,22 +270,7 @@ describe('the quality of the effects', () => {
   it(
     `draws nothing further than ${FARTHEST_CELLS} cells from the targets and the caster, nor below the floor`,
     () => {
-      const astray = new Set<string>();
-      everyFrame((kind, drawn, cast) => {
-        const anchors = [...cast.targets, cast.origin!];
-        const farthest = (FARTHEST_CELLS * CELL) ** 2;
-        const check = (x: number, y: number, z: number) => {
-          let near = Infinity;
-          for (const anchor of anchors) near = Math.min(near, (x - anchor.x) ** 2 + (y - anchor.y) ** 2);
-          if (near > farthest) astray.add(`${kind} far`);
-          if (z < -DEEPEST_CELLS * CELL) astray.add(`${kind} below`);
-        };
-        for (const mote of drawn.motes) check(mote.x, mote.y, mote.z);
-        for (const ribbon of drawn.ribbons) for (const point of ribbon.points) check(point.x, point.y, point.z);
-        for (const mark of drawn.floor) check(mark.x, mark.y, 0);
-      });
-
-      expect([...astray]).toEqual([]);
+      expect([...findingsOfEveryFrame().astray]).toEqual([]);
     },
     EVERY_FRAME_TIMEOUT_MS
   );
