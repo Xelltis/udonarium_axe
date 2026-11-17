@@ -87,6 +87,7 @@ describe('GmHost', () => {
     tab.say({ type: 'gm.start', settings: { ...SETTINGS, model: 'x'.repeat(5000) }, instructions: '', notes: '' });
     await until(() => lastStatus(tab)?.problem?.includes('xxx') === true);
     expect(lastStatus(tab)?.problem).toBe(`This bridge does not run ${'x'.repeat(100)}.`);
+    expect(lastStatus(tab)?.starts).toBe(3);
     // Each asking is counted as it is answered, so a tab tells the answer to its own; a change is not one.
     const told = statuses(tab).length;
     tab.say({ type: 'gm.update', settings: { ...SETTINGS, budgetUsd: 7 }, instructions: '', notes: '' });
