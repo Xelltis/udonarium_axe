@@ -50,6 +50,7 @@ describe('AiGmPanelComponent', () => {
     role = PeerRole.GameMaster;
     state.set({ kind: 'idle' });
     status.set(null);
+    gm.modelNotRun.set(false);
     vi.clearAllMocks();
     TestBed.configureTestingModule({
       imports: [AiGmPanelComponent],
@@ -116,7 +117,24 @@ describe('AiGmPanelComponent', () => {
     gm.modelNotRun.set(true);
     await settle();
     expect(find(host, 'ai-gm-model-not-run')?.textContent).toContain('このブリッジでは動かせません');
-    gm.modelNotRun.set(false);
+  });
+
+  it('shows what the bridge says went wrong last', async () => {
+    state.set({ kind: 'connected', bridge: '1.80.0', mode: 'gm', models: gm.models() });
+    status.set({
+      run: 'off',
+      halted: 'key',
+      model: 'claude-opus-5-5',
+      spentUsd: 0,
+      budgetUsd: 5,
+      contextTokens: 0,
+      kept: true,
+      problem: 'The key was rejected.',
+      starts: 1,
+    });
+    const { host } = await panel();
+
+    expect(find(host, 'ai-gm-problem')?.textContent).toContain('The key was rejected.');
   });
 
   it('shows what it spent, stops it, and asks it to go on with a word while it runs', async () => {
