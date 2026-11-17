@@ -94,6 +94,11 @@ export class GmHost {
         this.start(message);
         return;
       case 'gm.update':
+        if (this.master && !isGmModel(message.settings.model)) {
+          this.problem = `This bridge does not run ${message.settings.model}.`;
+          this.tell();
+          return;
+        }
         this.master?.update(message.settings, message.instructions, message.notes);
         this.tell();
         return;

@@ -87,6 +87,17 @@ describe('GmHost', () => {
     expect(lastStatus(tab)?.starts).toBe(2);
   });
 
+  it('keeps the model it runs when told to change to one it has no price for', async () => {
+    const tab = await connect();
+    api.replies.push(reply([]));
+    tab.say({ type: 'gm.start', settings: SETTINGS, instructions: '', notes: '' });
+    await until(() => api.sent.length === 1 && lastStatus(tab)?.run === 'waiting');
+
+    tab.say({ type: 'gm.update', settings: { ...SETTINGS, model: 'claude-other' }, instructions: '', notes: '' });
+    await until(() => lastStatus(tab)?.problem?.includes('claude-other') === true);
+    expect(lastStatus(tab)).toMatchObject({ run: 'waiting', model: 'claude-opus-5-5' });
+  });
+
   it('opens at once when started, the model greeting the table, then waits', async () => {
     const tab = await connect();
     api.replies.push(
