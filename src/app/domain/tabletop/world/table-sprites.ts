@@ -3,7 +3,6 @@ import { TablePoint } from '@axe/domain/tabletop/camera/table-camera';
 import type { PickPoint2 } from '@axe/domain/tabletop/pick/pick-geometry';
 import { SurfaceFrame, Vec3 } from '@axe/domain/tabletop/surface-space';
 
-/** A band of colour round the inside of a sprite's edge, drawn over the bands before it. */
 /**
  * How far off the face it lies on anything lying flat is drawn, before a lift of its own: over the top
  * of a block as high as nothing lying there, drawn a hair off the face and a step more for each such
@@ -12,6 +11,7 @@ import { SurfaceFrame, Vec3 } from '@axe/domain/tabletop/surface-space';
  */
 export const LYING_LIFT_PX = 1;
 
+/** A band of colour round the inside of a sprite's edge, drawn over the bands before it. */
 export interface TableWorldBand {
   readonly widthPx: number;
   /** A colour as the page writes one. */
