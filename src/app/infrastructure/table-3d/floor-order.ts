@@ -9,9 +9,29 @@
  *
  * A pull ahead is told in the depth's own steps, and in steps of how steeply the face is seen. The
  * pictures over the board are laid on the board's own shape and need no more than one step; the
- * faces of the blocks are other shapes, told apart from the floor by the slant as well.
+ * faces of the blocks are other shapes, told apart from the floor by the slant as well. Only a face
+ * lying level in the floor's plane or on another level face is, as a sheet's flat face and the top
+ * of a block sunk to the floor do; every other face of a block is pulled by the steps alone, as
+ * {@link withoutSlant} gives its pull.
  */
 export const LAYERS_OVER_BOARD = { polygonOffset: true, polygonOffsetFactor: 0, polygonOffsetUnits: -1 } as const;
+
+/** How far ahead of what lies behind it in the same plane a material is drawn; see {@link LAYERS_OVER_BOARD}. */
+export interface FloorPull {
+  readonly polygonOffset: true;
+  readonly polygonOffsetFactor: number;
+  readonly polygonOffsetUnits: number;
+}
+
+/**
+ * A pull ahead told in the depth's steps alone, for a face of a block lying neither in the floor's
+ * plane nor on another level face. The faces lying in its own plane, as a sheet stood against a wall,
+ * are pulled the same way, so the steps alone keep them in order; pulled by the slant as well, a face
+ * seen more steeply than another it meets at an edge would be drawn over it there, though behind it.
+ */
+export function withoutSlant(pull: FloorPull): FloorPull {
+  return { ...pull, polygonOffsetFactor: 0 };
+}
 
 /** The faces of the blocks, drawn ahead of the board and what is laid over it; see {@link LAYERS_OVER_BOARD}. */
 export const FACES_OVER_FLOOR = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 } as const;

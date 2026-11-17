@@ -74,7 +74,8 @@ function overlapping(a: FlatTop['box'], b: FlatTop['box']): boolean {
  * The faces of a block with no thickness one way are marked as a sheet's: its sides where it is as
  * wide or as deep as nothing, drawn from outside only, as they stand a hair apart back to back; and
  * its top and underside where it is as high as nothing, from outside only where it hangs above the
- * floor and so has both, and from both sides where it lies on the floor with a top alone.
+ * floor and so has both, and from both sides where it lies on the floor with a top alone. The flat
+ * top of a block with some height sunk into the floor up to its top is marked as lying on the floor.
  */
 export function blockFacesOf(
   terrains: readonly Terrain[],
@@ -120,6 +121,7 @@ export function blockFacesOf(
         pictureUrl: url,
         ...look,
         ...capSheet,
+        ...(facing === 'up' && block.topOnFloor && !block.roof ? { onFloor: true } : {}),
         ...(facing === 'up' && terrain.isGrid ? { gridded: true } : {}),
       });
     };
@@ -271,6 +273,8 @@ interface LaidOutBlock {
   readonly flat: boolean;
   /** Whether it is a rectangular block as wide or as deep as nothing, its sides standing back to back. */
   readonly thin: boolean;
+  /** Whether it is a block with some height sunk into the floor up to its top, which lies in the floor's plane. */
+  readonly topOnFloor: boolean;
   readonly roof: SlopeRoof | null;
   /** A point of the block's own frame, where it stands on the board as `ax`/`ay`. */
   onBoard(point: SlopePoint): { ax: number; ay: number };
@@ -289,6 +293,7 @@ function laidOut(terrain: Terrain, gridSize: number, gridType: GridType, groundL
   const topPx = terrainTopPx(terrain, gridSize) + lift;
   const basePx = topPx - terrain.height * gridSize;
   const roof = terrainSlopeRoofOf(terrain, gridSize, gridType);
+  const flat = terrain.height * gridSize < SHEET_LIFT_PX;
   const turn = (terrain.rotate * Math.PI) / 180;
   const cos = Math.cos(turn);
   const sin = Math.sin(turn);
@@ -301,8 +306,9 @@ function laidOut(terrain: Terrain, gridSize: number, gridType: GridType, groundL
     depth,
     basePx,
     topPx,
-    flat: terrain.height * gridSize < SHEET_LIFT_PX,
+    flat,
     thin: outline.length === 4 && (width < SHEET_LIFT_PX * 2 || depth < SHEET_LIFT_PX * 2),
+    topOnFloor: !flat && Math.abs(topPx - groundLiftPx) < SHEET_LIFT_PX,
     roof,
     onBoard(point) {
       const moved = door ? movedByDoor(door, point.x, point.y) : point;
