@@ -1,6 +1,7 @@
 import { SurfaceFrame, Vec3 } from '@axe/domain/tabletop/surface-space';
 import { SurfaceLean } from '@axe/domain/tabletop/terrain-slope-surface';
 import {
+  LYING_LIFT_PX,
   lyingPicture,
   PagePicture,
   pointOnFace,
@@ -13,6 +14,13 @@ export const CHARACTER_KIND = 'character';
 
 /** How far the page lifts a character off the face it stands on, so it is drawn over what lies flat there. */
 const LIFT_PX = 1;
+
+/**
+ * How much later than its lift says the parts of a character lying on its face are drawn among the things
+ * lying flat: after a card, a note, a mask and a range lying there, which are lifted as far as
+ * `LYING_LIFT_PX` to clear a terrain as high as nothing, so they stay under what stands on them.
+ */
+const ORDER_OVER_LYING = LYING_LIFT_PX;
 
 /** A character on the table, as much of it as the canvas draws. */
 export interface CharacterLayout {
@@ -187,6 +195,7 @@ export function characterSprites(character: CharacterLayout): TableWorldSprite[]
         pedestal
       ),
       id: `${character.id}#pedestal`,
+      order: out + ORDER_OVER_LYING,
       centre: { x: middle.x + off.x, y: middle.y + off.y, z: middle.z + off.z },
       facing: { across: ground.across, down: ground.down },
       ...(reachesPast(pedestal, size)
@@ -220,7 +229,7 @@ export function characterSprites(character: CharacterLayout): TableWorldSprite[]
       brightness: 0,
       opacity: SHADOW_OPACITY,
       twoSided: false,
-      order: out,
+      order: out + ORDER_OVER_LYING,
     });
   }
   const { w, h } = pictureSize(character, picture.width, picture.height);
@@ -264,7 +273,7 @@ export function characterSprites(character: CharacterLayout): TableWorldSprite[]
       ...base,
       centre: pointOnFace(character.frame, middleAcross, middleDown, out),
       facing: { across: ground.across, down: ground.down },
-      order: out,
+      order: out + ORDER_OVER_LYING,
     });
   }
   return sprites;

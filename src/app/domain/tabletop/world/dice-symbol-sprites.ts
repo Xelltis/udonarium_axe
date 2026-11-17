@@ -1,11 +1,18 @@
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
-import { pointOnFace, TableWorldSprite, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
+import { LYING_LIFT_PX, pointOnFace, TableWorldSprite, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
 
 /** The alias a die is known by, which its sprites are told apart by. */
 export const DICE_SYMBOL_KIND = 'dice-symbol';
 
 /** How far the page lifts a die off the face it stands on, so it is drawn over what lies flat there. */
 const LIFT_PX = 1;
+
+/**
+ * How much later than its lift says the parts of a die lying on its face are drawn among the things
+ * lying flat: after a card, a note, a mask and a range lying there, which are lifted as far as
+ * `LYING_LIFT_PX` to clear a terrain as high as nothing, so they stay under what stands on them.
+ */
+const ORDER_OVER_LYING = LYING_LIFT_PX;
 
 /** The frame a die stands in: a band of its own colour inside a thin dark rim. */
 const FRAME_BAND_PX = 6;
@@ -73,7 +80,7 @@ export function diceSymbolSprites(die: DiceSymbolLayout): TableWorldSprite[] {
       },
       brightness: die.frameBrightness,
       twoSided: false,
-      order: out,
+      order: out + ORDER_OVER_LYING,
     },
   ];
   const picture = die.picture;
@@ -108,7 +115,7 @@ export function diceSymbolSprites(die: DiceSymbolLayout): TableWorldSprite[] {
         z: middle.z - (axes.down.z * height) / 2,
       },
       facing: axes,
-      order: out,
+      order: out + ORDER_OVER_LYING,
     });
   }
   return sprites;

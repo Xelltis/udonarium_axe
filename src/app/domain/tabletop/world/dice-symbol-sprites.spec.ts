@@ -1,5 +1,6 @@
 import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { DiceSymbolLayout, diceSymbolSprites } from '@axe/domain/tabletop/world/dice-symbol-sprites';
+import { rangeSprites } from '@axe/domain/tabletop/world/flat-piece-sprites';
 
 const dims = { widthPx: 1000, depthPx: 800, wallHeightPx: 300 };
 
@@ -21,6 +22,21 @@ const die: DiceSymbolLayout = {
 };
 
 describe('the sprites a die is drawn with', () => {
+  it('draws its frame after a range lying on the same face, so it shows on it', () => {
+    const [range] = rangeSprites({
+      id: 'range',
+      frame: die.frame,
+      x: 0,
+      y: 0,
+      z: 0,
+      altitudePx: 0,
+      picture: { url: 'blob:range', widthPx: 400, heightPx: 400 },
+    });
+    const [frame] = diceSymbolSprites(die);
+
+    expect(frame.order).toBeGreaterThan(range.order!);
+  });
+
   it('lays its frame on the floor, lifted as the page lifts a die, in its colour inside a dark rim', () => {
     const [frame] = diceSymbolSprites(die);
 
@@ -33,7 +49,7 @@ describe('the sprites a die is drawn with', () => {
       heightPx: 50,
       facing: { across: { x: 1, y: 0, z: 0 }, down: { x: 0, y: 1, z: 0 } },
       twoSided: false,
-      order: 1,
+      order: 2,
     });
     expect(frame.look).toEqual({
       kind: 'frame',
