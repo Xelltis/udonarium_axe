@@ -1,4 +1,7 @@
-import { expect, Locator, Page } from '@playwright/test';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
+
+import { expect, Locator, Page, test } from '@playwright/test';
 
 import type { TableTestHooks } from '../src/app/features/tabletop/game-table/table-test-hooks';
 
@@ -216,8 +219,41 @@ export async function triesToConnect(page: Page) {
   await page.addInitScript(() => localStorage.removeItem('ui-local-mode'));
 }
 
+/** Where each test leaves the lazily loaded parts of the app it asked for: `scripts/e2e-related.mjs` reads them. */
+const LOADS_DIR = join('node_modules', '.cache', 'axe-e2e', 'loads');
+
+/** A script the build names after the source it loads as it goes, with the hash of what it holds. */
+const LAZY_PART = /\/((?!chunk-)[^/]+)-[A-Za-z0-9_-]{8}\.js$/;
+
+const loadsKept = new WeakSet<object>();
+
+/**
+ * Keeps, for the test that is running, the name of each part of the app its browser asks for as it
+ * goes: a panel's code is loaded when the panel is first opened, so the names tell which panels and
+ * overlays a test went through. `scripts/e2e-related.mjs` picks the specs a change can reach by
+ * them. Call before the page is opened.
+ */
+export function keepLoadedParts(page: Page): void {
+  const context = page.context();
+  if (loadsKept.has(context)) return;
+  loadsKept.add(context);
+  const info = test.info();
+  const dir = join(LOADS_DIR, info.project.name);
+  const kept = join(dir, `${info.testId}.txt`);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(kept, `${relative(process.cwd(), info.file).split('\\').join('/')}\n`);
+  const seen = new Set<string>();
+  context.on('request', (request) => {
+    const part = LAZY_PART.exec(new URL(request.url()).pathname)?.[1];
+    if (part === undefined || seen.has(part)) return;
+    seen.add(part);
+    appendFileSync(kept, `${part}\n`);
+  });
+}
+
 /** Opens the app afresh and waits for it to be ready, with the camera near the board. */
 export async function waitAppReady(page: Page) {
+  keepLoadedParts(page);
   await avoidWebKitBackdropStall(page);
   // A load off the build takes well under a second, but with three browsers running the suite at
   // once a load was seen to take past the default fifteen seconds in Firefox.
@@ -395,6 +431,7 @@ export async function dragAndLeave(
  * where it is.
  */
 export async function waitMobileShell(page: Page): Promise<void> {
+  keepLoadedParts(page);
   await page.goto('/');
   await expect(page.locator('mobile-shell nav')).toBeVisible({ timeout: 20000 });
 }

@@ -13,6 +13,7 @@
     "e2e": "ng build && playwright test",
     "e2e:ui": "ng build && playwright test --ui",
     "e2e:serve": "node e2e/serve-dist.mjs",
+    "e2e:related": "ng build && node scripts/e2e-related.mjs --run",
     "build:mcp": "npm run build -w tools/axe-mcp",
     "test:mcp": "npm test -w tools/axe-mcp"
   },

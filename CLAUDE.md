@@ -75,6 +75,7 @@ composition → features → ui → application → infrastructure → domain �
 | `npx vitest run`                              | ユニットテスト（直接Vitest、上記とは別経路）                                                                                 |
 | `npm run e2e`                                 | Playwright E2E                                                                                                               |
 | `npm run e2e:ui`                              | Playwright UIモード                                                                                                          |
+| `npm run e2e:related`                         | 変えた所に届くE2Eだけ（`-- --visual`で演出の比較も。記録は`npm run e2e`を1回流すとできる）                                   |
 | `npx playwright test --project=visual-webgl2` | 演出のスクリーンショット比較（手元のみ・基準画像は`e2e/visual/__screenshots__/webgl2/`。WebGPUは`visual-webgpu`と`webgpu/`） |
 | `npx playwright test --project=server`        | 部屋のサーバーの結合（手元のみ・隣に`udonarium_axe_backend`とビルド済みの`dist`が要る）                                      |
 | `npm run lint`                                | ESLint                                                                                                                       |

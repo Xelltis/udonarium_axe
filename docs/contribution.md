@@ -109,6 +109,12 @@ chore(release): bump version to 1.2.2
 E2Eは載せていない。PlaywrightはCIだと5ブラウザぶん走る設定で、Pull Request
 1回に何十分もかかる。手元で`npm run e2e`を回す。
 
+変えた所に届くspecだけを回すなら`npm run e2e:related`を使う（[scripts/e2e-related.mjs](../scripts/e2e-related.mjs)）。
+specはアプリをimportしないので、テストごとに読み込んだ遅延チャンクの名前を`node_modules/.cache/axe-e2e/`へ残し、
+ソースのimportと突き合わせて選ぶ。対象はまだpushしていない変更で、`--since <コミット>`かファイル名で変えられる。
+起動時に読み込むソースやe2eの共有ヘルパーを変えたときは全部を回し、記録がまだ無いspecも回す。
+記録は`npm run e2e`を1回流すとできる。演出の比較も含めるなら`npm run e2e:related -- --visual`とする。
+
 演出の見た目は`e2e/visual/`のスクリーンショット比較で守る。
 `npx playwright test --project=visual-webgl2`と`--project=visual-webgpu`が、卓をWebGL2とWebGPUで描いて
 `e2e/visual/__screenshots__/webgl2/`と`webgpu/`の基準画像と比べる。2つは順に1つずつ流す。パネルやツールバーのようにページだけを撮る場面は、卓の描き方で絵が変わらないのでWebGL2側でだけ撮る。時計を止め、アニメーションを終端まで送ってから撮るので、同じ機械なら同じ絵になる。

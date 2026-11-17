@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { closePanels } from './helpers';
+import { closePanels, keepLoadedParts } from './helpers';
 
 const TUTORIAL = '[data-object-id^="tutorial"], white-board [data-surface^="tutorial"]';
 
@@ -30,6 +30,7 @@ async function openTutorialBoardMenu(page: Page) {
 
 test.describe('the tutorial the first table opens with', () => {
   test.beforeEach(async ({ page }) => {
+    keepLoadedParts(page);
     await page.goto('/');
     await expect(page.locator('game-character').first()).toBeAttached({ timeout: 20000 });
     await page.waitForFunction(() => !!window.__axeTable, undefined, { timeout: 20000 });
