@@ -122,12 +122,10 @@ describe('AgentChatTools', () => {
     goblin.update();
     const left = new PeerCursor();
     left.name = 'AI GM';
-    left.userId = 'ai-gm-user';
     left.initialize();
-    const find = PeerCursor.findByUserId.bind(PeerCursor);
-    vi.spyOn(PeerCursor, 'findByUserId').mockImplementation((userId) =>
-      userId === 'ai-gm-user' ? left : find(userId)
-    );
+    const synced = left.toContext();
+    left.apply({ ...synced, syncData: { ...synced.syncData, userId: 'ai-gm-user' } });
+    expect(PeerCursor.findByUserId('ai-gm-user')).toBe(left);
     const mine = GameCharacter.create('村長', 1, '');
     mine.location = { name: 'table', x: 100, y: 0 };
     mine.owner = 'ai-gm-user';
