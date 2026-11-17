@@ -1,5 +1,6 @@
 import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { CharacterLayout, characterRollPivot, characterSprites } from '@axe/domain/tabletop/world/character-sprites';
+import { rangeSprites } from '@axe/domain/tabletop/world/flat-piece-sprites';
 
 const dims = { widthPx: 1000, depthPx: 800, wallHeightPx: 300 };
 
@@ -26,6 +27,22 @@ const character: CharacterLayout = {
 };
 
 describe('the sprites a character is drawn with', () => {
+  it('draws its pedestal and its shadow after a range lying on the same face, so they show on it', () => {
+    const [range] = rangeSprites({
+      id: 'range',
+      frame: character.frame,
+      x: 0,
+      y: 0,
+      z: 0,
+      altitudePx: 0,
+      picture: { url: 'blob:range', widthPx: 400, heightPx: 400 },
+    });
+    const lying = characterSprites({ ...character, dropShadow: true }).filter((sprite) => sprite.order !== undefined);
+
+    expect(lying.map((sprite) => sprite.id)).toEqual(expect.arrayContaining(['hero#pedestal', 'hero#shadow']));
+    for (const sprite of lying) expect(sprite.order).toBeGreaterThan(range.order!);
+  });
+
   it('lays the pedestal on the floor under the piece and stands the picture up from its middle, as wide as the cell', () => {
     const [pedestal, picture] = characterSprites(character);
 
@@ -34,7 +51,7 @@ describe('the sprites a character is drawn with', () => {
       kind: 'character',
       centre: { x: 125, y: 225, z: 1 },
       look: { kind: 'picture', url: 'blob:pedestal' },
-      order: 1,
+      order: 2,
     });
     expect(picture).toMatchObject({
       id: 'hero#picture',
@@ -128,7 +145,7 @@ describe('the sprites a character is drawn with', () => {
       heightPx: 50,
       brightness: 0,
       opacity: 0.7,
-      order: 1,
+      order: 2,
     });
   });
 

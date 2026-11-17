@@ -26,6 +26,87 @@
     </div>
   </div>
 
+  <div
+    class="bg-ui-elevated border-ui-border-panel col-span-2 flex flex-col gap-1.5 rounded-sm border border-solid px-3 py-2.5"
+    data-testid="range-solid"
+  >
+    <div
+      class="border-ui-border-panel text-ui-accent mt-0 mb-2 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"
+    >
+      <i class="material-icons">view_in_ar</i>{{ 'feature.inventory.sheet.solid' | transloco }}
+    </div>
+    <div class="grid grid-cols-5 gap-1.5">
+      @for (item of solidItems(rangeArea.type); track item.kind) {
+        <button
+          type="button"
+          class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm flex cursor-pointer flex-col items-center gap-0.75 border border-solid px-1 pt-2 pb-1.5 text-[0.75em] leading-[1.2] whitespace-nowrap transition-[background,color,border-color] [&_.material-icons]:text-[18px]!"
+          [class.bg-ui-accent-bg!]="rangeArea.solidKind === item.kind"
+          [class.text-ui-accent!]="rangeArea.solidKind === item.kind"
+          [class.border-ui-accent!]="rangeArea.solidKind === item.kind"
+          [class.font-semibold]="rangeArea.solidKind === item.kind"
+          [attr.data-solid-kind]="item.kind || 'flat'"
+          (click)="rangeArea.solidKind = item.kind"
+        >
+          <i class="material-icons">{{ item.icon }}</i>
+          <span>{{ item.labelKey | transloco }}</span>
+        </button>
+      }
+    </div>
+    @if (rangeArea.solidKind === 'column') {
+      <label class="flex items-center gap-1.5 text-[0.82em]">
+        <span class="text-ui-muted min-w-[8em] shrink-0 text-[0.85em] whitespace-nowrap">{{
+          'feature.inventory.sheet.solidHeight' | transloco
+        }}</span>
+        <input
+          type="number"
+          min="0.5"
+          step="0.5"
+          class="w-20"
+          name="solidHeight"
+          data-testid="range-solid-height"
+          [ngModel]="rangeArea.columnHeight"
+          (ngModelChange)="setNumber($event, (value) => (rangeArea.columnHeight = value))"
+        />
+      </label>
+    }
+    @if (rangeArea.solidKind === 'column' || rangeArea.solidKind === 'sphere') {
+      <label class="flex items-center gap-1.5 text-[0.82em]">
+        <span class="text-ui-muted min-w-[8em] shrink-0 text-[0.85em] whitespace-nowrap">{{
+          'feature.inventory.sheet.solidReach' | transloco
+        }}</span>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          class="w-20"
+          name="solidReach"
+          data-testid="range-solid-reach"
+          [ngModel]="rangeArea.reachSquares"
+          (ngModelChange)="setNumber($event, (value) => (rangeArea.reachSquares = value))"
+        />
+      </label>
+      <div class="text-ui-muted text-[0.75em]">{{ 'feature.inventory.sheet.solidReachHint' | transloco }}</div>
+    }
+    @if (rangeArea.solidKind === 'cone' || rangeArea.solidKind === 'beam') {
+      <label class="flex items-center gap-1.5 text-[0.82em]">
+        <span class="text-ui-muted min-w-[8em] shrink-0 text-[0.85em] whitespace-nowrap">{{
+          'feature.inventory.sheet.solidPitch' | transloco
+        }}</span>
+        <input
+          type="number"
+          min="-90"
+          max="90"
+          step="5"
+          class="w-20"
+          name="solidPitch"
+          data-testid="range-solid-pitch"
+          [ngModel]="rangeArea.aimPitch"
+          (ngModelChange)="setNumber($event, (value) => (rangeArea.aimPitch = value))"
+        />
+      </label>
+    }
+  </div>
+
   <div class="bg-ui-elevated border-ui-border-panel flex flex-col gap-1.5 rounded-sm border border-solid px-3 py-2.5">
     <div
       class="border-ui-border-panel text-ui-accent mt-0 mb-2 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"

@@ -243,16 +243,30 @@ export class HudFrameService {
       if (style.width !== null) element.style.width = style.width;
       if (style.height !== null) element.style.height = style.height;
       element.style.zIndex = style.zIndex;
+      if (style.clipPath !== undefined || element.dataset['hudClipped'] !== undefined) {
+        element.style.clipPath = style.clipPath ?? '';
+        if (style.clipPath !== undefined) element.dataset['hudClipped'] = '';
+        else delete element.dataset['hudClipped'];
+      }
     }
   }
 }
 
-/** The style an element is put with; a size of null leaves the element's own size alone. */
+/**
+ * The style an element is put with; a size of null leaves the element's own size alone. An element
+ * put over a part drawn smaller than its box is cut to the outline of where the part is drawn.
+ */
 interface HudStyle {
   readonly transform: string;
   readonly width: string | null;
   readonly height: string | null;
   readonly zIndex: string;
+  readonly clipPath?: string;
+}
+
+/** The CSS that cuts an element laid over a box to an outline of the page, as a polygon within the box. */
+function outlineClip(outline: readonly { x: number; y: number }[], box: PageBox): string {
+  return `polygon(${outline.map((point) => `${px(point.x - box.left)} ${px(point.y - box.top)}`).join(', ')})`;
 }
 
 function px(value: number): string {
@@ -350,6 +364,7 @@ function styleOf(
       width: px(within.width),
       height: px(within.height),
       zIndex: '',
+      ...(part.outline ? { clipPath: outlineClip(part.outline, part) } : {}),
     };
   }
   if (place === 'face' || place === 'cover') {

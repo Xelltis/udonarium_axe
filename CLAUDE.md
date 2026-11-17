@@ -80,6 +80,8 @@ composition → features → ui → application → infrastructure → domain �
 | `npm run lint`                                | ESLint                                                                                                                       |
 | `npm run format`                              | Prettier整形                                                                                                                 |
 | `npm run format:check`                        | Prettierチェックのみ                                                                                                         |
+| `npm run build:mcp`                           | AI連携のブリッジ（`tools/axe-mcp`）を1ファイル`tools/axe-mcp/dist/axe-mcp.mjs`に束ねる                                       |
+| `npm run test:mcp`                            | ブリッジのテスト（Node。CIでは型検査・テスト・ビルドを別ジョブで回す）                                                       |
 
 ## コミット・フック規約（要点）
 

@@ -1,5 +1,5 @@
 import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
-import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
+import { LYING_LIFT_PX, type TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { TextNoteLayout, textNoteSprites } from '@axe/domain/tabletop/world/text-note-sprites';
 
 const note: TextNoteLayout = {
@@ -21,7 +21,7 @@ describe('the sprite a note is drawn with', () => {
     expect(panel).toMatchObject({
       id: 'note#panel',
       kind: 'text-note',
-      centre: { x: 200, y: 300, z: 0.15 + 50 + 40 },
+      centre: { x: 200, y: 300, z: LYING_LIFT_PX + 0.15 + 50 + 40 },
       widthPx: 100,
       heightPx: 80,
       facing: { across: { x: 1, y: 0, z: 0 }, down: { x: -0, y: -0, z: -1 } },
@@ -87,8 +87,8 @@ describe('the sprite a note is drawn with', () => {
   it('lays its panel back from that line with its top furthest off, lying flat in its order', () => {
     const [panel] = textNoteSprites({ ...note, upright: false });
 
-    expect(panel.centre).toEqual({ x: 200, y: 300 - 40, z: 0.15 + 50 });
-    expect(panel.order).toBe(0.15 + 50);
+    expect(panel.centre).toEqual({ x: 200, y: 300 - 40, z: LYING_LIFT_PX + 0.15 + 50 });
+    expect(panel.order).toBe(LYING_LIFT_PX + 0.15 + 50);
   });
 
   it('draws nothing of a note whose panel is not pictured yet', () => {

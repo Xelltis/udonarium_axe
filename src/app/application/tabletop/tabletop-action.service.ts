@@ -46,6 +46,7 @@ import { gatherSpotsAround } from '@axe/domain/tabletop/move/gather-cells';
 import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import type { SolidKind } from '@axe/domain/tabletop/solid/solid-kind';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -304,6 +305,16 @@ export class TabletopActionService {
     range.type = typeName;
     const data = range.commonDataElement?.getFirstElementByName('opacity');
     if (data) data.currentValue = 60;
+    return range;
+  }
+
+  /**
+   * Makes a range of a shape standing up as a kind at a point, at the default size of its shape and
+   * the default height a column stands to.
+   */
+  createSolidRangeArea(position: PointerCoordinate, typeName: string, kind: SolidKind): RangeArea {
+    const range = this.createRangeArea(position, typeName);
+    range.solidKind = kind;
     return range;
   }
 

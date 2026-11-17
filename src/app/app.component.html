@@ -137,6 +137,11 @@
 } @error {
   <ng-container appReloadNotice />
 }
+@defer (when ruler.inHand()) {
+  <ruler-band />
+} @error {
+  <ng-container appReloadNotice />
+}
 <interrupt-prompt />
 <ui-snackbar />
 <div #modalLayer></div>

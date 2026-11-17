@@ -6,12 +6,36 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { cellPatternBoundingBox, parseCellPattern } from '@axe/domain/tabletop/cell-pattern';
 import { centerFollowerOnCharacter } from '@axe/domain/tabletop/following';
 import { appendPieceDataElements } from '@axe/domain/tabletop/piece-data-elements';
+import {
+  asSolidKind,
+  DEFAULT_SOLID_HEIGHT,
+  DEFAULT_SOLID_REACH,
+  isAimedSolid,
+  SolidKind,
+  solidKindOf,
+} from '@axe/domain/tabletop/solid/solid-kind';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export const RANGE_DEFAULT_FILL_COLOR = '#FFFF00';
 export const RANGE_DEFAULT_BORDER_COLOR = '#000000';
 /** The name older rooms saved the diamond under. */
 const LEGACY_DIAMOND = 'DIAMOND';
+
+/**
+ * The value as a number, or the default where it is none: a synchronised number arrives as text from
+ * saved data, and as empty text from a version that does not know the field, which is not nought.
+ */
+function numberOr(value: unknown, otherwise: number): number {
+  if (typeof value === 'string' && value.trim() === '') return otherwise;
+  const read = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(read) ? read : otherwise;
+}
+
+/** The value as a number above nought, or the default where it is not one. */
+function positiveOr(value: unknown, otherwise: number): number {
+  const read = numberOr(value, otherwise);
+  return read > 0 ? read : otherwise;
+}
 
 @SyncObject('range')
 export class RangeArea extends TabletopObject {
@@ -42,6 +66,23 @@ export class RangeArea extends TabletopObject {
   @SyncVar() freePlacement: boolean = false;
   /** The hotbar slot that laid this out, so the same slot can take it down again later. */
   @SyncVar() laidByHotbarSlot: string = '';
+  /** What it stands up as, written as {@link SolidKind}; read through {@link solidKind}. */
+  @SyncVar() solid: string = '';
+  /** How tall it stands as a column, in the range's squares; read through {@link columnHeight}. */
+  @SyncVar() solidHeight: number = DEFAULT_SOLID_HEIGHT;
+  /**
+   * How far from the piece it follows a sphere or a column may be put, in the range's squares; read
+   * through {@link reachSquares}.
+   */
+  @SyncVar() solidReach: number = DEFAULT_SOLID_REACH;
+  /** How steeply a cone or a beam points up, in degrees; read through {@link aimPitch}. */
+  @SyncVar() pitch: number = 0;
+  /**
+   * How far a sphere or a column stands from the middle of the piece it follows, east and south, in
+   * the table's cells; read through {@link casterOffset}.
+   */
+  @SyncVar() casterOffsetX: number = 0;
+  @SyncVar() casterOffsetY: number = 0;
 
   /**
    * Whether it is put down wherever it is let go, as {@link freePlacement} is set: true alone, or the
@@ -57,6 +98,74 @@ export class RangeArea extends TabletopObject {
   /** Sets it to be put down wherever it is let go, or not; see {@link placesFreely}. */
   set placesFreely(free: boolean) {
     this.freePlacement = free;
+  }
+
+  /**
+   * What it stands up as: flat where it was never set or set to a kind nobody knows, and a column
+   * where it was set to a round kind its shape cannot take.
+   */
+  get solidKind(): SolidKind {
+    return solidKindOf(asSolidKind(this.solid), this.type);
+  }
+  set solidKind(kind: SolidKind) {
+    this.solid = kind;
+  }
+
+  /** Whether it stands up off the table at all. */
+  get isSolid(): boolean {
+    return this.solidKind !== '';
+  }
+
+  /**
+   * How tall it stands as a column, in the range's squares: the default where it is not a number
+   * above nought, as where a version that does not know it passed it on empty.
+   */
+  get columnHeight(): number {
+    return positiveOr(this.solidHeight, DEFAULT_SOLID_HEIGHT);
+  }
+  set columnHeight(height: number) {
+    this.solidHeight = height;
+  }
+
+  /**
+   * How far a sphere or a column may be put from the piece it follows, in the range's squares: the
+   * default where it is not a number, and nought, which keeps it on the piece, where it is less.
+   */
+  get reachSquares(): number {
+    const reach = numberOr(this.solidReach, DEFAULT_SOLID_REACH);
+    return Math.max(0, reach);
+  }
+  set reachSquares(reach: number) {
+    this.solidReach = reach;
+  }
+
+  /** How steeply a cone or a beam points up, in degrees, held between straight down and straight up. */
+  get aimPitch(): number {
+    return Math.max(-90, Math.min(90, numberOr(this.pitch, 0)));
+  }
+  set aimPitch(pitch: number) {
+    this.pitch = pitch;
+  }
+
+  /**
+   * How far a sphere or a column stands from the middle of the piece it follows, east and south, in
+   * the table's cells; nought each way where it is not a number.
+   */
+  get casterOffset(): { x: number; y: number } {
+    return { x: numberOr(this.casterOffsetX, 0), y: numberOr(this.casterOffsetY, 0) };
+  }
+  set casterOffset(offset: { x: number; y: number }) {
+    this.casterOffsetX = offset.x;
+    this.casterOffsetY = offset.y;
+  }
+
+  /**
+   * Whether it is put off the middle of the piece it follows: a sphere or a column, which stands where
+   * it was put round the piece, rather than a flat range, a cone or a beam, which start from its
+   * middle.
+   */
+  get keepsCasterOffset(): boolean {
+    return this.isSolid && !isAimedSolid(this.solidKind);
   }
 
   /**
@@ -138,7 +247,8 @@ export class RangeArea extends TabletopObject {
 
   /**
    * Moves the range onto the centre of the character it follows, on a table whose cells are
-   * `gridSize` across, and bumps the follow counter.
+   * `gridSize` across, and bumps the follow counter. A sphere or a column is moved as far off that
+   * centre as it was put round the character.
    *
    * When that character is gone, the range stops following instead.
    */
@@ -150,6 +260,11 @@ export class RangeArea extends TabletopObject {
     }
 
     centerFollowerOnCharacter(this, object, gridSize);
+    if (this.keepsCasterOffset) {
+      const offset = this.casterOffset;
+      this.location.x += offset.x * gridSize;
+      this.location.y += offset.y * gridSize;
+    }
     this.followingCounterDummyCount();
   }
 

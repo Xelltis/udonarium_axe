@@ -142,6 +142,8 @@ export interface Table3dStats {
   readonly coins: number;
   /** The canvases the page paints on laid over the board. */
   readonly floorCanvases: number;
+  /** The ranges standing up off the table drawn. */
+  readonly solids: number;
   /** The pictures drawn drifting under and over the board, which is those whose pictures have come. */
   readonly layers: number;
   /** The parts of the water drawn: its surfaces, floors, sides and shore, each where there is any. */

@@ -67,6 +67,10 @@ describe('HotbarRunnerService', () => {
       rotateSnap: true,
       shiftX: false,
       shiftY: false,
+      solid: '',
+      solidHeight: 3,
+      solidReach: 6,
+      pitch: 0,
       ...patch,
     };
   }
@@ -170,6 +174,20 @@ describe('HotbarRunnerService', () => {
       expect(range.subDivisionSnapPolygonal).toBe(false);
       expect(range.offSetX).toBe(true);
       expect(range.offSetY).toBe(false);
+    });
+
+    it('stands the range up the way the slot asks for', () => {
+      const range = RangeArea.create('射程範囲', 3, 3, 100);
+      range.type = 'CORN';
+      vi.spyOn(TestBed.inject(TabletopActionService), 'createRangeArea').mockReturnValue(range);
+      const slot = slotOf('range', 'CORN', rangePayload({ solid: 'cone', pitch: 25, solidHeight: 2, solidReach: 4 }));
+
+      expect(run(slot, character)).toEqual({ ok: true });
+
+      expect(range.solidKind).toBe('cone');
+      expect(range.aimPitch).toBe(25);
+      expect(range.columnHeight).toBe(2);
+      expect(range.reachSquares).toBe(4);
     });
 
     it('lays a range shape of its own out when the slot carries one', () => {

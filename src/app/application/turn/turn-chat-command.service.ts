@@ -63,8 +63,9 @@ export class TurnChatCommandService {
    *
    * A command may be said by the seats that may press its button in the turn order, which is every
    * seat that may take turns and none that is only watching, whoever's piece is speaking or up.
-   * Past that it moves something where its button would: a turn is ended as the next button is
-   * pressed, a piece waits or steps in where the round lets it, and a step is taken back where one
+   * Past that it moves something where its button would: a turn is ended as the player's own end
+   * button ends it (handed on, except where a side moves freely and chooses who goes next), a piece
+   * waits or steps in where the round lets it, and a step is taken back where one
    * is recorded. A turn is taken by the piece speaking, side by side with the side free to choose,
    * while its side's phase is open and it has neither had its turn nor begun to wait.
    */
@@ -78,7 +79,8 @@ export class TurnChatCommandService {
         if (!speaker) return 'noPiece';
         return this.takingRefusal(speaker);
       case 'end':
-        return null;
+        // Where a side moves freely, ending a turn hands nothing on, so there must be a turn to end.
+        return this.movesFreely() && this.turnOrder.phase === 'acting' && !up ? 'nobodyUp' : null;
       case 'wait':
         if (!up) return 'nobodyUp';
         return this.turnOrder.mayHold(up.identifier) ? null : 'cannotWait';
@@ -97,10 +99,15 @@ export class TurnChatCommandService {
     }
   }
 
+  /** Whether turns go side by side, each side choosing freely who moves next in its phase. */
+  private movesFreely(): boolean {
+    return this.turnOrder.turnOrderMode === 'faction' && this.turnOrder.factionPhaseMode === 'free';
+  }
+
   /** Why the piece cannot take its turn now, by the rules of a side moving freely through its phase. */
   private takingRefusal(piece: GameCharacter): TurnChatRefusal | null {
     const turns = this.turnOrder;
-    if (turns.turnOrderMode !== 'faction' || turns.factionPhaseMode !== 'free') return 'fixedOrder';
+    if (!this.movesFreely()) return 'fixedOrder';
     if (!isTurnUnderWay(turns.phase)) return 'notUnderWay';
     if (!turns.orderedCharacters().includes(piece)) return 'notInOrder';
     if (turns.isHeld(piece.identifier)) return 'waiting';
@@ -122,6 +129,7 @@ export class TurnChatCommandService {
       case 'take':
         return this.turnOrder.setCurrent(sendFrom);
       case 'end':
+        return this.turnOrder.endTurn();
       case 'roundStart':
         return this.turnOrder.next();
       case 'wait':

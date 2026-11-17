@@ -2,6 +2,7 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { fileUntaggedImage } from '@axe/domain/media/image-tagging';
+import type { SolidKind } from '@axe/domain/tabletop/solid/solid-kind';
 
 export const TERRAIN_TEXTURE_PATH = './assets/images/terrain_crate.webp';
 export const TRUMP_BACK_IMAGE_PATH = './assets/images/trump/z02.webp';
@@ -175,4 +176,22 @@ export function getRangeMenuEntries(): RangeMenuEntry[] {
           }
         : item
     );
+}
+
+/** A range standing up off the table offered by the menus, as the flat shape it stands up from and its kind. */
+export interface SolidRangeMenuItem {
+  readonly menuName: string;
+  readonly typeName: string;
+  readonly kind: SolidKind;
+}
+
+/** The ranges standing up off the table the create menu and the player's toolbar offer, in order. */
+export function getSolidRangeMenuItems(): readonly SolidRangeMenuItem[] {
+  return [
+    { menuName: 'feature.tabletop.action.solidRangeSphere', typeName: 'CIRCLE', kind: 'sphere' },
+    { menuName: 'feature.tabletop.action.solidRangeCylinder', typeName: 'CIRCLE', kind: 'column' },
+    { menuName: 'feature.tabletop.action.solidRangeCone', typeName: 'CORN', kind: 'cone' },
+    { menuName: 'feature.tabletop.action.solidRangeBeam', typeName: 'LINE', kind: 'beam' },
+    { menuName: 'feature.tabletop.action.solidRangeSquareColumn', typeName: 'SQUARE', kind: 'column' },
+  ];
 }

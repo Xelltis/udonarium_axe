@@ -27,6 +27,36 @@ const BOX_SIDES: readonly TerrainImageSlot[] = ['north', 'east', 'south', 'west'
 export const SHEET_LIFT_PX = 0.5;
 
 /**
+ * How much further off its face the top of a block as high as nothing is drawn for each such block
+ * under it at the same height, and how many it counts at most. Two lying one over the other at one
+ * height could not be told apart by the depth and showed through each other; the one laid later is
+ * drawn a step higher, so it lies over the earlier. A step is far less than shows and still more than
+ * the depth tells apart from any distance the table is seen from, and the most they reach stays under
+ * where things lying on a face are drawn (`LYING_LIFT_PX`), so a card laid on them lies over them.
+ */
+const FLAT_LEVEL_STEP_PX = 0.1;
+const FLAT_LEVELS = 4;
+
+/** Where the top of a block as high as nothing lies on the board, for telling which others it lies over. */
+interface FlatTop {
+  readonly basePx: number;
+  readonly box: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
+  readonly level: number;
+}
+
+/** The box round the points of an outline laid on the board. */
+function boxOf(points: readonly { ax: number; ay: number }[]): FlatTop['box'] {
+  const xs = points.map((point) => point.ax);
+  const ys = points.map((point) => point.ay);
+  return { left: Math.min(...xs), top: Math.min(...ys), right: Math.max(...xs), bottom: Math.max(...ys) };
+}
+
+/** Whether two boxes share some of the board, more than an edge. */
+function overlapping(a: FlatTop['box'], b: FlatTop['box']): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+/**
  * The faces of the blocks standing on the floor: each block's sides standing from its foot to its
  * top, and its top, with its underside where it hangs above the floor.
  *
@@ -56,6 +86,7 @@ export function blockFacesOf(
 ): { walls: TableWorldWall[]; caps: TableWorldCap[] } {
   const walls: TableWorldWall[] = [];
   const caps: TableWorldCap[] = [];
+  const flatTops: FlatTop[] = [];
   for (const terrain of terrains) {
     if (surfaceOf(terrain) !== 'floor') continue;
     const cover = coverOf(terrain);
@@ -126,7 +157,7 @@ export function blockFacesOf(
     }
     if (terrain.hasFloor || terrain.hasWall) {
       const top = picture('top', 'floor');
-      const topPx = block.topPx + (block.flat && !block.roof ? SHEET_LIFT_PX : 0);
+      const topPx = block.topPx + (block.flat && !block.roof ? flatLiftOf(block, flatTops) : 0);
       const pieces = cut ? clearedCells(cut, block.width, block.depth) : [{ cell: '', outline: block.outline }];
       if (block.roof) {
         block.roof.faces.forEach((face, index) => {
@@ -148,6 +179,24 @@ export function blockFacesOf(
     }
   }
   return { walls, caps };
+}
+
+/**
+ * How far off its face the top of a block as high as nothing is drawn: a hair, and a step more for
+ * each of those laid before it at the same height whose tops it overlaps, counted to the most. It is
+ * noted down for the blocks laid after it.
+ */
+function flatLiftOf(block: LaidOutBlock, laidBefore: FlatTop[]): number {
+  const box = boxOf(block.outline.map((point) => block.onBoard(point)));
+  const under = laidBefore.filter(
+    (other) => Math.abs(other.basePx - block.basePx) < SHEET_LIFT_PX && overlapping(other.box, box)
+  );
+  const level = Math.min(
+    FLAT_LEVELS,
+    under.reduce((highest, other) => Math.max(highest, other.level + 1), 0)
+  );
+  laidBefore.push({ basePx: block.basePx, box, level });
+  return SHEET_LIFT_PX + level * FLAT_LEVEL_STEP_PX;
 }
 
 /**

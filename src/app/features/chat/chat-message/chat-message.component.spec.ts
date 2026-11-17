@@ -1757,6 +1757,35 @@ describe('ChatMessageComponent', () => {
     });
   });
 
+  describe('a line an AI sent', () => {
+    let tab: ChatTab;
+    const mark = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="chat-message-ai"]');
+
+    beforeEach(() => {
+      beMyself('me');
+      tab = ChatTabList.instance.addChatTab('メイン');
+    });
+
+    afterEach(() => tab.destroy());
+
+    it('wears the mark of an AI in either layout, and a line a person sent wears none', () => {
+      const fromAi = tab.addMessage({ from: 'someone', name: 'AI GM', text: 'ようこそ', timestamp: 1000, via: 'ai' });
+      fixture.componentRef.setInput('chatMessage', fromAi);
+      fixture.detectChanges();
+      expect(mark()?.textContent?.trim()).toBe('smart_toy');
+      expect(mark()?.getAttribute('title')).toBe('AIが送った発言');
+
+      fixture.componentRef.setInput('chatSimpleDispFlag', true);
+      fixture.detectChanges();
+      expect(mark()).not.toBeNull();
+
+      const fromPerson = tab.addMessage({ from: 'someone', name: 'ノア', text: 'こんにちは', timestamp: 2000 });
+      fixture.componentRef.setInput('chatMessage', fromPerson);
+      fixture.detectChanges();
+      expect(mark()).toBeNull();
+    });
+  });
+
   describe('a line the room server rolled', () => {
     let tab: ChatTab;
     let transport: MockInstance<() => Transport>;

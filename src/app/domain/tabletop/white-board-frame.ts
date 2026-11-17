@@ -1,5 +1,6 @@
 import { SurfaceFrame, Vec3 } from '@axe/domain/tabletop/surface-space';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { LYING_LIFT_PX } from '@axe/domain/tabletop/world/table-sprites';
 
 /**
  * The face of a white board in the board's space: its top-left corner, the way across and the way
@@ -8,6 +9,10 @@ import { WhiteBoard } from '@axe/domain/tabletop/white-board';
  * A board lies flat at a pitch of nothing and is raised about its foot, the edge nearest the
  * bottom of it, up to standing at ninety; it turns about the middle of that foot. What stands on it
  * is laid out across and down the face from the top-left corner, as on the table itself.
+ *
+ * A board lying flat lies as far off what it lies on as anything lying flat is drawn
+ * (`LYING_LIFT_PX`), over a terrain as high as nothing; its face, what is drawn on it and what is put
+ * on it all lie there with it.
  */
 export function whiteBoardFrame(
   board: Pick<WhiteBoard, 'width' | 'height' | 'pitch' | 'rotate' | 'posZ'> & { location: { x: number; y: number } },
@@ -19,7 +24,7 @@ export function whiteBoardFrame(
   const turn = (board.rotate * Math.PI) / 180;
   const footX = board.location.x + width / 2;
   const footY = board.location.y + height;
-  const footZ = board.posZ;
+  const footZ = board.posZ + (board.pitch === 0 ? LYING_LIFT_PX : 0);
   const place = (x: number, y: number): Vec3 => {
     const across = x - width / 2;
     const down = y - height;

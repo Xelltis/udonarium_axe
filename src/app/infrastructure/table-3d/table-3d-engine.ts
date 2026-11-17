@@ -49,6 +49,7 @@ import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
 import { ModelLayer } from '@axe/infrastructure/table-3d/model-layer';
 import { SkyLayer } from '@axe/infrastructure/table-3d/sky-layer';
+import { SolidLayer } from '@axe/infrastructure/table-3d/solid-layer';
 import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
 import type {
   Table3dCamera,
@@ -312,6 +313,7 @@ class ThreeTableEngine implements Table3dEngine {
     (material) => this.veil.cover(material)
   );
   private readonly floorCanvases = new FloorCanvasLayer();
+  private readonly solids = new SolidLayer();
   private readonly fogAir = new FogAirLayer();
   private readonly weather = new WeatherLayer();
   private readonly effects = new EffectLayer();
@@ -366,6 +368,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.sprites.group);
     this.scene.add(this.coins.group);
     this.scene.add(this.floorCanvases.group);
+    this.scene.add(this.solids.group);
     this.scene.add(this.layers.group);
     this.scene.add(this.water.group);
     this.scene.add(this.fogAir.group);
@@ -632,6 +635,7 @@ class ThreeTableEngine implements Table3dEngine {
       sprites: this.sprites.group.children.length,
       coins: this.coins.group.children.length,
       floorCanvases: this.floorCanvases.group.children.length,
+      solids: this.solids.count,
       layers: this.layers.shown,
       waterParts: this.water.shown,
       fogAirSheets: this.fogAir.shown,
@@ -672,6 +676,8 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.sprites.set(world.sprites);
     this.coins.set(world.coins);
+    this.solids.set(world.solids);
+    this.solids.setGuides(world.guides);
     if (world.models !== this.laidModels) {
       this.laidModels = world.models;
       this.models.set(world.models);
@@ -965,6 +971,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.sprites.dispose();
     this.coins.dispose();
     this.floorCanvases.dispose();
+    this.solids.dispose();
     this.layers.dispose();
     this.water.dispose();
     this.fogAir.dispose();

@@ -69,6 +69,7 @@ export interface ChatMessageContext {
   aimedTogether?: string;
   rolledAt?: string;
   mastersWords?: string;
+  via?: string;
 }
 
 @SyncObject('chat')
@@ -151,6 +152,12 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    * that never wrote it, reads back empty.
    */
   @SyncVar() mastersWords: string;
+  /**
+   * What sent the line on the speaker's behalf: `ai` for an AI linked to the speaker's seat, else
+   * nothing. Left without an initialiser, as `mastersWords` is: any other line, and one of a room or
+   * a version that never wrote it, reads back empty.
+   */
+  @SyncVar() via: string;
   @SyncVar() messColor: string;
   /** The bubble the sender asked for on each theme. Empty is worked out from the colour. */
   @SyncVar() messBubbleLight: string = '';
@@ -429,6 +436,10 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    */
   get isSystem(): boolean {
     return this.tags.includes('system');
+  }
+  /** Whether an AI linked to the speaker's seat sent the line. */
+  get isByAi(): boolean {
+    return `${this.via ?? ''}` === 'ai';
   }
   /** Whether the line is a dice bot's answer to a roll. */
   get isDicebot(): boolean {

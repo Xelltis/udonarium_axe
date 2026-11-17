@@ -59,6 +59,19 @@ export class EffectCastService {
   }
 
   /**
+   * Fires at a point of the table, where no piece need stand, for the whole room: from a caster where
+   * one is given, from nowhere otherwise.
+   */
+  fireAt(preset: EffectPreset, point: { x: number; y: number; z: number }, caster: GameCharacter | null): EffectCast {
+    const cast: EffectCast = {
+      ...this.buildCast(preset, [], caster),
+      targets: [{ identifier: '', x: point.x, y: point.y, z: point.z }],
+    };
+    callEffectCast(cast);
+    return cast;
+  }
+
+  /**
    * Casts from a piece: at its targets if it has any, on itself if not.
    * Used from the effects on a character sheet and from a piece's own menu.
    */

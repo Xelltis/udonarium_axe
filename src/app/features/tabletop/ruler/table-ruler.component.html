@@ -1,0 +1,38 @@
+<!--
+  The ruler is a box on the screen round where the table's canvas draws its line, cut to it, stacked
+  among the pieces, and a box over every piece's with a handle at each of its ends, so no piece
+  standing on an end covers its handle.
+-->
+@let id = ruler().identifier;
+<div class="pointer-events-none" data-hud-box [appHudPlace]="{ owner: id }">
+  <div
+    data-part="solid"
+    data-testid="table-ruler-line"
+    class="pointer-events-auto"
+    [class.cursor-move]="movable()"
+    [appHudPlace]="{ owner: id, part: 'solid' }"
+    [appRulerGrab]="ruler()"
+    rulerGrabbed="both"
+    (grabStart)="onPicked()"
+    (grabEnd)="onPut()"
+  ></div>
+</div>
+@if (ends(); as ends) {
+  @if (movable()) {
+    <div class="pointer-events-none" [appHudPlace]="{ owner: id, raised: true }">
+      @for (end of ['from', 'to']; track end) {
+        <div
+          data-hud-control
+          data-testid="table-ruler-end"
+          class="border-ui-border-panel bg-ui-elevated pointer-events-none size-4 cursor-grab rounded-full border-2 border-solid opacity-0 group-hover:pointer-events-auto group-hover:opacity-90 group-active:pointer-events-auto group-active:opacity-90"
+          [attr.data-ruler-end]="end"
+          [appHudPlace]="{ owner: id, at: end === 'from' ? ends.from : ends.to }"
+          [appRulerGrab]="ruler()"
+          [rulerGrabbed]="end === 'from' ? 'from' : 'to'"
+          (grabStart)="onPicked()"
+          (grabEnd)="onPut()"
+        ></div>
+      }
+    </div>
+  }
+}

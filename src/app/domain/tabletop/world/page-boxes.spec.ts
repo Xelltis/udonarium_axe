@@ -2,9 +2,11 @@ import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import {
   blockPageBoxes,
   COIN_PART,
+  convexHull,
   drawnRanks,
   piecePageBoxes,
   quadMatrix,
+  SOLID_PART,
   TOP_PART,
 } from '@axe/domain/tabletop/world/page-boxes';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
@@ -424,6 +426,48 @@ describe('quadMatrix', () => {
 describe('blockPageBoxes', () => {
   const scene = new Matrix3D().identity();
 
+  it('boxes nothing of a range standing up wholly behind the eye', () => {
+    const behind = new Matrix3D().identity();
+    behind.m44 = -1;
+    const boxes = blockPageBoxes(
+      [
+        {
+          id: 'sphere',
+          layer: 'range',
+          order: 1,
+          shapes: [{ kind: 'solid', solid: { kind: 'sphere', centre: { x: 100, y: 100, z: 0 }, radius: 50 } }],
+        },
+      ],
+      behind,
+      EYE
+    );
+
+    expect(boxes.has('sphere')).toBe(false);
+  });
+
+  it('boxes a range standing up round where it is drawn, cut to the outline round it', () => {
+    const boxes = blockPageBoxes(
+      [
+        {
+          id: 'sphere',
+          layer: 'range',
+          order: 1,
+          shapes: [{ kind: 'solid', solid: { kind: 'sphere', centre: { x: 100, y: 100, z: 0 }, radius: 50 } }],
+        },
+      ],
+      scene,
+      EYE
+    );
+    const box = boxes.get('sphere')!;
+
+    expect(box.whole.left).toBeCloseTo(50);
+    expect(box.whole.width).toBeCloseTo(100);
+    const part = box.parts.get(SOLID_PART)!;
+    expect(part.outline!.length).toBeGreaterThan(8);
+    for (const point of part.outline!) expect(Math.hypot(point.x - 100, point.y - 100)).toBeLessThanOrEqual(50.001);
+    expect(box.onGround).toBe(true);
+  });
+
   it('boxes a block round its top and its foot, and its top with the corners of a square one', () => {
     const boxes = blockPageBoxes(
       [
@@ -484,5 +528,27 @@ describe('blockPageBoxes', () => {
     expect(top.left).toBeCloseTo(0, 6);
     expect(top.width).toBeCloseTo(20, 6);
     expect(top.corners).toBeUndefined();
+  });
+});
+
+describe('convexHull', () => {
+  it('runs round the outermost points and leaves those within out', () => {
+    const hull = convexHull([
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 5, y: 5 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+      { x: 5, y: 0 },
+    ]);
+    expect(hull).toHaveLength(4);
+    expect(hull).toEqual(
+      expect.arrayContaining([
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 10 },
+        { x: 0, y: 10 },
+      ])
+    );
   });
 });

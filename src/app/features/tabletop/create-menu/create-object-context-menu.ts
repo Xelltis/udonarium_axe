@@ -4,6 +4,7 @@ import { TabletopActionService } from '@axe/application/tabletop/tabletop-action
 import {
   getDiceMenuItems,
   getRangeMenuEntries,
+  getSolidRangeMenuItems,
   RangeMenuItem,
 } from '@axe/application/tabletop/tabletop-action-helpers';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
@@ -61,6 +62,7 @@ export function buildCreateObjectMenuGroups(
     [
       madeAndPicked('feature.tabletop.action.createCoin', PresetSound.dicePut, () => actions.createCoin(position)),
       rangeMenu(position, hands),
+      solidRangeMenu(position, hands),
       madeAndPicked('feature.tabletop.action.createLight', PresetSound.cardPut, () =>
         actions.createLightSource(position)
       ),
@@ -109,6 +111,20 @@ function rangeMenu(position: PointerCoordinate, { actions, t }: CreateMenuHands)
         ? { name: t(entry.menuName), action: undefined, subActions: entry.variants.map(make) }
         : make(entry)
     ),
+  };
+}
+
+function solidRangeMenu(position: PointerCoordinate, { actions, t }: CreateMenuHands): ContextMenuAction {
+  return {
+    name: t('feature.tabletop.action.createSolidRange'),
+    action: undefined,
+    subActions: getSolidRangeMenuItems().map((item) => ({
+      name: t(item.menuName),
+      action: () => {
+        actions.createSolidRangeArea(position, item.typeName, item.kind);
+        SoundEffect.play(PresetSound.dicePut);
+      },
+    })),
   };
 }
 

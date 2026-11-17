@@ -430,6 +430,71 @@
         </div>
       </div>
 
+      <div class="flex flex-col gap-1" data-testid="hotbar-editor-range-solid">
+        <span class="text-ui-muted">{{ 'feature.inventory.sheet.solid' | transloco }}</span>
+        <div class="flex flex-wrap items-center gap-1">
+          @for (choice of solidChoices(); track choice.kind) {
+            <button
+              type="button"
+              class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:bg-ui-hover cursor-pointer border border-solid bg-transparent px-2 py-0.5 text-[11px]"
+              [class.border-ui-accent!]="rangeSolid() === choice.kind"
+              [class.text-ui-accent!]="rangeSolid() === choice.kind"
+              [attr.data-solid-kind]="choice.kind || 'flat'"
+              (click)="patchOptions({ solid: choice.kind })"
+            >
+              {{ choice.labelKey | transloco }}
+            </button>
+          }
+        </div>
+        @if (rangeSolid() !== '') {
+          <div class="flex flex-wrap items-center gap-2">
+            @if (rangeSolid() === 'column') {
+              <label class="flex items-center gap-1">
+                <span class="text-ui-muted text-[11px]">{{ 'feature.inventory.sheet.solidHeight' | transloco }}</span>
+                <input
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  data-testid="hotbar-editor-range-solid-height"
+                  class="border-ui-border-panel bg-ui-elevated text-ui-text w-16 rounded-[3px] border border-solid px-1.5 py-1"
+                  [value]="rangeSolidHeight()"
+                  (input)="patchNumber('solidHeight', numberOf($event))"
+                />
+              </label>
+            }
+            @if (rangeSolid() === 'column' || rangeSolid() === 'sphere') {
+              <label class="flex items-center gap-1">
+                <span class="text-ui-muted text-[11px]">{{ 'feature.inventory.sheet.solidReach' | transloco }}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  data-testid="hotbar-editor-range-solid-reach"
+                  class="border-ui-border-panel bg-ui-elevated text-ui-text w-16 rounded-[3px] border border-solid px-1.5 py-1"
+                  [value]="rangeSolidReach()"
+                  (input)="patchNumber('solidReach', numberOf($event))"
+                />
+              </label>
+            }
+            @if (rangeSolid() === 'cone' || rangeSolid() === 'beam') {
+              <label class="flex items-center gap-1">
+                <span class="text-ui-muted text-[11px]">{{ 'feature.inventory.sheet.solidPitch' | transloco }}</span>
+                <input
+                  type="number"
+                  min="-90"
+                  max="90"
+                  step="5"
+                  data-testid="hotbar-editor-range-solid-pitch"
+                  class="border-ui-border-panel bg-ui-elevated text-ui-text w-16 rounded-[3px] border border-solid px-1.5 py-1"
+                  [value]="rangePitch()"
+                  (input)="patchNumber('pitch', numberOf($event))"
+                />
+              </label>
+            }
+          </div>
+        }
+      </div>
+
       <label class="flex items-center gap-2">
         <input type="checkbox" [checked]="docksToPiece()" (change)="patchOptions({ dock: checkedOf($event) })" />
         <span>{{ 'feature.hotbar.editor.dock' | transloco }}</span>

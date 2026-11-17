@@ -255,3 +255,147 @@ describe('The saved name of what it follows.', () => {
     expect(restored.followingCharacterIdentifier).toBe('char-1');
   });
 });
+
+describe('a range standing up off the table', () => {
+  const parse = (xml: string) => ObjectSerializer.instance.parseXml(xml) as RangeArea;
+
+  it('reads a range saved before it could stand up as flat, at the default height, reach and tip', () => {
+    const range = parse('<range type="CIRCLE"></range>');
+
+    expect(range.solidKind).toBe('');
+    expect(range.isSolid).toBe(false);
+    expect(range.columnHeight).toBe(3);
+    expect(range.reachSquares).toBe(6);
+    expect(range.aimPitch).toBe(0);
+    expect(range.casterOffset).toEqual({ x: 0, y: 0 });
+  });
+
+  it('saves what it stands up as and reads it back as it was', () => {
+    const range = RangeArea.create('test', 1, 3, 50);
+    range.type = 'CIRCLE';
+    range.solidKind = 'sphere';
+    range.columnHeight = 4.5;
+    range.reachSquares = 8;
+    range.aimPitch = -30;
+    range.casterOffset = { x: 2, y: -1.5 };
+
+    const saved = range.toXml();
+    expect(saved).toContain('solid="sphere"');
+    expect(saved).toContain('solidHeight="4.5"');
+    expect(saved).toContain('solidReach="8"');
+    expect(saved).toContain('pitch="-30"');
+    expect(saved).toContain('casterOffsetX="2" casterOffsetY="-1.5"');
+    range.destroy();
+
+    const read = parse(
+      '<range type="CIRCLE" solid="sphere" solidHeight="4.5" solidReach="8" pitch="-30" casterOffsetX="2" casterOffsetY="-1.5"></range>'
+    );
+
+    expect(read.solidKind).toBe('sphere');
+    expect(read.columnHeight).toBe(4.5);
+    expect(read.reachSquares).toBe(8);
+    expect(read.aimPitch).toBe(-30);
+    expect(read.casterOffset).toEqual({ x: 2, y: -1.5 });
+    read.destroy();
+  });
+
+  it('reads the empty text a version that does not know the fields passes on as the defaults, never as nought', () => {
+    const range = parse(
+      '<range type="CORN" solid="" solidHeight="" solidReach="" pitch="" casterOffsetX="" casterOffsetY=""></range>'
+    );
+
+    expect(range.solidKind).toBe('');
+    expect(range.columnHeight).toBe(3);
+    expect(range.reachSquares).toBe(6);
+    expect(range.aimPitch).toBe(0);
+    expect(range.casterOffset).toEqual({ x: 0, y: 0 });
+    range.destroy();
+  });
+
+  it('falls back to the defaults, not to nothing a number, when the fields arrive missing', () => {
+    const range = RangeArea.create('test', 1, 3, 50);
+    const context = range.toContext();
+    range.apply({ ...context, syncData: { ...context.syncData, attributes: {} } });
+
+    expect(range.solidKind).toBe('');
+    expect(range.columnHeight).toBe(3);
+    expect(range.reachSquares).toBe(6);
+    expect(range.aimPitch).toBe(0);
+    expect(range.casterOffset).toEqual({ x: 0, y: 0 });
+    range.destroy();
+  });
+
+  it('stays standing when a version that does not know the fields moves it, as that version passes them back on', () => {
+    const range = RangeArea.create('test', 1, 3, 50);
+    range.type = 'CIRCLE';
+    range.solidKind = 'column';
+    range.columnHeight = 2;
+    const older = range.toContext();
+    const attributes = older.syncData['attributes'] as Record<string, unknown>;
+    attributes['location'] = { name: 'table', x: 300, y: 400 };
+    older.majorVersion += 1;
+
+    range.apply(older);
+
+    expect(range.location.x).toBe(300);
+    expect(range.solidKind).toBe('column');
+    expect(range.columnHeight).toBe(2);
+    range.destroy();
+  });
+
+  it('reads a kind nobody knows as flat, and a round kind its shape cannot take as a column', () => {
+    expect(parse('<range type="CIRCLE" solid="dome"></range>').solidKind).toBe('');
+    expect(parse('<range type="SQUARE" solid="sphere"></range>').solidKind).toBe('column');
+    expect(parse('<range type="CORN" solid="cone"></range>').solidKind).toBe('cone');
+  });
+
+  it('keeps a tip between straight down and straight up, and a reach no less than nought', () => {
+    const range = parse('<range type="CORN" pitch="120" solidReach="-2"></range>');
+
+    expect(range.aimPitch).toBe(90);
+    expect(range.reachSquares).toBe(0);
+    range.destroy();
+  });
+});
+
+describe('a solid range following a character', () => {
+  it('stands a sphere or a column as far off the character as it was put', () => {
+    const character = GameCharacter.create('対象', 2, '');
+    character.location.x = 100;
+    character.location.y = 200;
+    const range = RangeArea.create('範囲', 3, 5, 1);
+    range.type = 'CIRCLE';
+    range.solidKind = 'sphere';
+    range.casterOffset = { x: 1.5, y: -2 };
+    range.followingCharacterIdentifier = character.identifier;
+
+    range.following(80);
+
+    expect([range.location.x, range.location.y]).toEqual([300, 120]);
+    character.destroy();
+    range.destroy();
+  });
+
+  it('starts a cone, a beam and a flat range from the middle of the character whatever offset it holds', () => {
+    const character = GameCharacter.create('対象', 1, '');
+    character.location.x = 0;
+    character.location.y = 0;
+    for (const [type, kind] of [
+      ['CORN', 'cone'],
+      ['LINE', 'beam'],
+      ['CIRCLE', ''],
+    ] as const) {
+      const range = RangeArea.create('範囲', 3, 5, 1);
+      range.type = type;
+      range.solidKind = kind;
+      range.casterOffset = { x: 3, y: 3 };
+      range.followingCharacterIdentifier = character.identifier;
+
+      range.following(50);
+
+      expect([range.location.x, range.location.y]).toEqual([25, 25]);
+      range.destroy();
+    }
+    character.destroy();
+  });
+});

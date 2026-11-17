@@ -17,6 +17,7 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
@@ -34,10 +35,12 @@ import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { squareCentreAt } from '@axe/domain/tabletop/move/move-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { ROTATABLE_RANGE_TYPES, SINGLE_GRAB_RANGE_TYPES } from '@axe/domain/tabletop/range-coverage';
+import { isAimedSolid } from '@axe/domain/tabletop/solid/solid-kind';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
 import { buildRangeContextMenuModel } from '@axe/features/tabletop/range/range-context-menu';
+import { SolidAimDirective } from '@axe/features/tabletop/range/solid-aim.directive';
 import { PictureRegion } from '@axe/infrastructure/image/element-picture';
 import {
   initialRangeClip,
@@ -52,6 +55,7 @@ import {
 import { AltitudeGuideComponent, altitudeGuideOf } from '@axe/ui/components/altitude-guide/altitude-guide.component';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
+import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
@@ -74,6 +78,8 @@ const FOLLOW_PANEL: PointerPanelBox = { width: 350, height: 200, reachLeft: 250,
     TooltipDirective,
     RotableDirective,
     SelectableDirective,
+    SolidAimDirective,
+    ReloadNoticeDirective,
   ],
   host: {
     class: 'group',
@@ -97,6 +103,7 @@ export class RangeComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly pieceTarget = inject(PieceTargetService);
+  private readonly solidRanges = inject(SolidRangeService);
 
   readonly range = input.required<RangeArea>();
 
@@ -200,9 +207,41 @@ export class RangeComponent {
     return rangeQuadrantCells(this.range());
   });
 
+  /** Where the range stands up off the table, or null while it lies flat. */
+  protected readonly placedSolid = computed(() => {
+    this.rangeVersion();
+    return this.solidRanges.placedOf(this.range().identifier);
+  });
+
+  /**
+   * Where the handle that points a cone or a beam standing up stands: at its tip, over the table drawn
+   * on a canvas. Nothing for any other range.
+   */
+  protected readonly aimTip = computed(() => {
+    const placed = this.placedSolid();
+    if (!placed || !isAimedSolid(placed.solid.kind)) return null;
+    const tip = this.solidRanges.heldPointOf(placed);
+    return { surface: 'floor', x: tip.x, y: tip.y, height: tip.z };
+  });
+
+  /**
+   * Whether the range is pointed from the piece it follows rather than moved about: a cone or a beam
+   * starts from the piece, so only the handle at its tip moves it.
+   */
+  protected readonly pointedFromCaster = computed(() => {
+    const placed = this.placedSolid();
+    return !!placed?.caster && isAimedSolid(placed.solid.kind);
+  });
+
+  /**
+   * Whether the handle that turns the range is shown: for a flat range of a shape that turns, and for
+   * a column of one, which turns its ground about its point. A sphere does not turn, and a cone or a
+   * beam is pointed by the handle at its tip instead.
+   */
   readonly isRotatableRangeType = computed(() => {
     this.rangeVersion();
     const range = this.range();
+    if (range.isSolid && range.solidKind !== 'column') return false;
     if (range.type === 'CUSTOM') return range.isRotatable === true;
     return ROTATABLE_RANGE_TYPES.includes(range.type);
   });
@@ -225,6 +264,8 @@ export class RangeComponent {
   readonly turnPoint = computed(() => {
     const range = this.range();
     this.rangeVersion();
+    const solid = this.placedSolid();
+    if (solid) return { surface: 'floor', x: solid.origin.x, y: solid.origin.y, height: solid.origin.z };
     const foot = this.pieces.footOf(range);
     return { ...foot, height: foot.height + this.altitude() * this.gridSize };
   });
@@ -242,7 +283,7 @@ export class RangeComponent {
     const x = about.x + across * Math.cos(turn) - down * Math.sin(turn);
     const y = about.y + across * Math.sin(turn) + down * Math.cos(turn);
     const placedZ = this.transient.placed().get(range.identifier)?.z ?? range.posZ;
-    const onGround = about.surface === 'floor' && Math.abs(placedZ) < 1;
+    const onGround = !this.placedSolid() && about.surface === 'floor' && Math.abs(placedZ) < 1;
     const height = onGround ? this.standing.heightPxAt(x, y) + this.altitude() * this.gridSize : about.height;
     return { ...about, x, y, height };
   });
@@ -429,7 +470,21 @@ export class RangeComponent {
   /** Plays the put-down sound when a drag or a turn of the range ends. */
   onMoved() {
     SoundEffect.play(PresetSound.cardPut);
+    this.dragged = true;
   }
+
+  /**
+   * Keeps a sphere or a column following a piece where it was let go round the piece, within its
+   * room, once the drag that moved it has put it down and kept it to the grid.
+   */
+  onPutDown() {
+    if (!this.dragged) return;
+    this.dragged = false;
+    this.solidRanges.settleRoundCaster(this.range());
+  }
+
+  /** Whether the press now ending moved the range, rather than only pressing it. */
+  private dragged = false;
 
   /** Redraws the range at the angle it is being turned to, while the rotate grip is dragged. */
   onRotateChanged(degree: number) {

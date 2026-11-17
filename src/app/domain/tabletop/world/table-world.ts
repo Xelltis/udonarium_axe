@@ -19,6 +19,7 @@ import { GroundMesh, hexGroundMesh, squareGroundMesh } from '@axe/domain/tableto
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import type { TableWorldBackdrop, TableWorldLayer } from '@axe/domain/tabletop/world/table-layers';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
+import type { TableWorldGuide, TableWorldSolid } from '@axe/domain/tabletop/world/table-solids';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { NO_WATER, type TableWorldWater } from '@axe/domain/tabletop/world/table-water';
 
@@ -161,6 +162,10 @@ export interface TableWorld {
   readonly backdrops: readonly TableWorldBackdrop[];
   /** The pieces and blocks drawn as 3D models. */
   readonly models: readonly TableWorldModel[];
+  /** The ranges standing up off the table. */
+  readonly solids: readonly TableWorldSolid[];
+  /** The lines this seat is shown while it moves or points a range standing up off the table. */
+  readonly guides: readonly TableWorldGuide[];
 }
 
 /**
@@ -177,6 +182,8 @@ export function sameTableWorld(a: TableWorld, b: TableWorld): boolean {
       sameValue(a.sprites, b.sprites) &&
       sameValue(a.coins, b.coins) &&
       sameValue(a.models, b.models) &&
+      sameValue(a.solids, b.solids) &&
+      sameValue(a.guides, b.guides) &&
       sameValue(a.layers, b.layers) &&
       sameValue(a.backdrops, b.backdrops) &&
       sameValue(a.water, b.water))
@@ -210,6 +217,8 @@ export const EMPTY_TABLE_WORLD: TableWorld = {
   water: NO_WATER,
   backdrops: [],
   models: [],
+  solids: [],
+  guides: [],
 };
 
 /**
@@ -266,6 +275,8 @@ export function tableWorldOf(
     water: NO_WATER,
     backdrops: [],
     models: [],
+    solids: [],
+    guides: [],
   };
 }
 

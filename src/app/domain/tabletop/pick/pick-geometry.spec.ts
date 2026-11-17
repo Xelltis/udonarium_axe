@@ -4,6 +4,7 @@ import {
   insideOutline,
   PickDraped,
   PickPoint2,
+  PickShape,
   withinOutline,
 } from '@axe/domain/tabletop/pick/pick-geometry';
 
@@ -163,5 +164,21 @@ describe('pick geometry', () => {
     expect(withinOutline(square, 12, 5, 3)).toBe(true);
     expect(withinOutline(square, 14, 5, 3)).toBe(false);
     expect(withinOutline(square, 5, 5, 0)).toBe(true);
+  });
+});
+
+describe('a range standing up off the table', () => {
+  it('is met where the line of sight first comes into it, and missed where it passes by', () => {
+    const sphere: PickShape = { kind: 'solid', solid: { kind: 'sphere', centre: { x: 0, y: 0, z: 0 }, radius: 50 } };
+    const down = { origin: { x: 0, y: 0, z: 1000 }, direction: { x: 0, y: 0, z: -1 }, from: 0 };
+    expect(hitShape(down, sphere)?.t).toBeCloseTo(950);
+    expect(hitShape({ ...down, origin: { x: 60, y: 0, z: 1000 } }, sphere)).toBeNull();
+  });
+
+  it('is met all along a line seen from infinitely far, before where the line is told from', () => {
+    const sphere: PickShape = { kind: 'solid', solid: { kind: 'sphere', centre: { x: 0, y: 0, z: 0 }, radius: 50 } };
+    const hit = hitShape({ origin: { x: 0, y: 0, z: 0 }, direction: { x: 0, y: 0, z: -1 } }, sphere);
+    expect(hit?.t).toBeCloseTo(-50);
+    expect(hit?.point.z).toBeCloseTo(50);
   });
 });

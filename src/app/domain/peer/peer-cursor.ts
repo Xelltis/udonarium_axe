@@ -69,6 +69,13 @@ export class PeerCursor extends GameObject {
   /** A game master's word on a declared move: `id|now` to settle it with the answers in, `id|drop` to let it go. */
   @SyncVar() interruptVerdict = '';
   /**
+   * The ruler this peer is laying on the table, as `encodeRulerLine` writes it, for the room to see it
+   * measure; empty while it has none laid.
+   */
+  @SyncVar() measuring = '';
+  /** The table that ruler is laid on, since a point means nothing on another table. */
+  @SyncVar() measuringTable = '';
+  /**
    * `1` once this peer's version keeps engagement zones in order, so it may be the one that writes
    * what follows from them. Empty on a cursor from a version that knows nothing of zones.
    */

@@ -36,6 +36,7 @@ import {
 import {
   roundAdvance,
   roundCloseInPassing,
+  roundEndTurn,
   roundGiveTurn,
   roundHold,
   roundInterrupt,
@@ -431,6 +432,18 @@ export class TurnOrderService {
   }
 
   /**
+   * Ends the turn of whoever is up, as the piece's own player or a line of chat says it is done.
+   *
+   * Where a side moves freely through its phase the turn is not handed on, the side choosing who
+   * goes next; anywhere else it is a press of the round. Does nothing for a reader who may not take
+   * turns.
+   */
+  endTurn(): void {
+    if (!this.canTakeTurns) return;
+    this.press(roundEndTurn);
+  }
+
+  /**
    * Ends the turns of pieces taking theirs in the one being taken, ahead of it, as a mount's does
    * when the one riding it in front gets off: they have had their turn this round. Does nothing
    * while no turn is being taken, or for a piece that has had its turn already.
@@ -465,11 +478,12 @@ export class TurnOrderService {
    *
    * A round pressed on while pieces are still waiting takes their turn away without ever
    * showing it happening, so the ones being left behind are named and the press has to be
-   * made a second time.
+   * made a second time. Asked not to ask, as by an AI that has weighed the waiting pieces itself
+   * and has nobody at the screen to answer, it moves the round on at once.
    */
-  async advanceRound(): Promise<void> {
+  async advanceRound(options: { readonly ask?: boolean } = {}): Promise<void> {
     if (!this.canTakeTurns) return;
-    if (!(await this.mayLeaveTheseBehind())) return;
+    if (options.ask !== false && !(await this.mayLeaveTheseBehind())) return;
     this.press(roundAdvance);
   }
 

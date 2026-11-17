@@ -19,6 +19,7 @@ import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
 import { DEFAULT_TABLE_CAMERA_VIEW, pageOfTablePoint, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -348,6 +349,42 @@ describe('TablePickService', () => {
 
     block.isLocked = false;
     expect(service.pressedAt(frame.x, frame.y)?.target.id).toBe(block.identifier);
+  });
+
+  it('takes a press on a range standing up off the table, and hands one to a piece within it', async () => {
+    const range = RangeArea.create('aura', 1, 3, 100);
+    range.type = 'CIRCLE';
+    range.solidKind = 'sphere';
+    range.location = { name: 'table', x: 5.5 * GRID, y: 5.5 * GRID };
+    table.appendChild(range);
+    const die = DiceSymbol.create('D6', DiceType.D6, 1);
+    die.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+    await settled();
+
+    const overDie = onPage(5, 5, 1);
+    expect(service.pickAt(overDie.x, overDie.y)?.target.id).toBe(range.identifier);
+    expect(service.pressedAt(overDie.x, overDie.y)?.target.id).toBe(die.identifier);
+    const overGround = onPage(7, 5, 60);
+    expect(service.pressedAt(overGround.x, overGround.y)?.target).toMatchObject({
+      id: range.identifier,
+      layer: 'range',
+    });
+  });
+
+  it('keeps a press on a range standing up over a card lying under it, which is no piece to hand it to', async () => {
+    vi.spyOn(TestBed.inject(PictureSizeService), 'sizeOf').mockReturnValue({ width: 2, height: 3 });
+    const range = RangeArea.create('aura', 1, 3, 100);
+    range.type = 'CIRCLE';
+    range.solidKind = 'sphere';
+    range.location = { name: 'table', x: 5.5 * GRID, y: 5.5 * GRID };
+    table.appendChild(range);
+    const card = Card.create('card', 'front', 'back');
+    card.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+    await settled();
+    const overCard = pageOfTablePoint(camera.sceneMatrix()!, 5 * GRID + 40, 5 * GRID + 60, 0.15);
+
+    expect(service.allAt(overCard.x, overCard.y).map((hit) => hit.target.id)).toContain(card.identifier);
+    expect(service.pressedAt(overCard.x, overCard.y)?.target.id).toBe(range.identifier);
   });
 
   it('keeps a press on a locked door, and on a locked switch, with a piece behind it', async () => {

@@ -80,6 +80,7 @@ describe('the list of keys', () => {
       'target',
       'clearTargets',
       'disclosure',
+      'ruler',
     ]);
   });
 });

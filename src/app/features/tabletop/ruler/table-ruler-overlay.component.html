@@ -1,0 +1,27 @@
+<!--
+  Each ruler's reading over the middle of the ruler, outlined and with nothing under it: the straight
+  length on the first line, and what else it measures on the second.
+-->
+@for (shown of readings(); track shown.id) {
+  <div
+    class="pointer-events-none absolute z-100000 -translate-x-1/2 -translate-y-full text-center leading-tight font-bold whitespace-nowrap [-webkit-text-stroke:3px_rgba(0,0,0,0.7)] [paint-order:stroke_fill]"
+    data-testid="ruler-reading"
+    [style.left.px]="shown.left"
+    [style.top.px]="shown.top"
+    [style.color]="shown.colour"
+  >
+    @if (shown.name) {
+      <div class="text-[11px]" data-testid="ruler-reading-name">{{ shown.name }}</div>
+    }
+    <div class="text-[15px]" data-testid="ruler-reading-straight">
+      {{ 'feature.ruler.straight.' + shown.reading.unit | transloco: { value: shown.reading.straight } }}
+    </div>
+    <div class="text-[11px]" data-testid="ruler-reading-detail">
+      {{ 'feature.ruler.level.' + shown.reading.unit | transloco: { value: shown.reading.level } }}
+      {{ 'feature.ruler.rise.' + shown.reading.unit | transloco: { value: shown.reading.rise } }}
+      @if (shown.reading.steps !== null) {
+        {{ 'feature.ruler.steps' | transloco: { value: shown.reading.steps } }}
+      }
+    </div>
+  </div>
+}

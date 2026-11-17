@@ -16,6 +16,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { COVERED_RANGE_TYPES, FOLLOWABLE_RANGE_TYPES } from '@axe/domain/tabletop/range-coverage';
+import { isAimedSolid, SolidKind, solidKindsFor } from '@axe/domain/tabletop/solid/solid-kind';
 import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
 
 export interface RangeContextMenuModel {
@@ -26,9 +27,10 @@ export interface RangeContextMenuModel {
 /**
  * A range's right-click menu, as a flat list and as groups for the radial menu.
  *
- * It offers altitude, lock and (for circles and polygons) following a character; the shape, plus
- * cell editing and rotation for a custom shape; edit, copy and delete; and creating a new object at
- * the pointer. A copy is offset by one grid cell and unlocked.
+ * It offers altitude, lock and (for circles and polygons, and for any shape standing up) following a
+ * character; the shape and what it stands up as, plus cell editing and rotation for a custom shape;
+ * edit, copy and delete; and creating a new object at the pointer. A copy is offset by one grid cell
+ * and unlocked.
  */
 export function buildRangeContextMenuModel(
   range: RangeArea,
@@ -62,13 +64,14 @@ export function buildRangeContextMenuModel(
         ];
   const followAction = buildFollowAction(range, objectStore, onDockingWindowOpen, t);
   const shapeAction = buildShapeAction(range, t);
+  const solidAction = buildSolidAction(range, gridSize, objectStore, t);
   const customActions = buildCustomActions(range, onEditCells, t);
   const editAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.rangeEdit'),
     action: () => onEdit(range),
   };
   const targetActions: ContextMenuAction[] =
-    onTargetInside && COVERED_RANGE_TYPES.includes(range.type)
+    onTargetInside && (range.isSolid || COVERED_RANGE_TYPES.includes(range.type))
       ? [{ name: t('feature.tabletop.contextMenu.rangeTargetInside'), action: () => onTargetInside(range) }]
       : [];
   const copyAction = buildCopyAction(range, gridSize, t, {
@@ -83,7 +86,7 @@ export function buildRangeContextMenuModel(
   };
 
   const positionActions = [altitudeAction, lockAction, ...freeActions, ...(followAction ? [followAction] : [])];
-  const shapeActions = [shapeAction, ...customActions, ...targetActions];
+  const shapeActions = [shapeAction, solidAction, ...customActions, ...targetActions];
   const actions: ContextMenuAction[] = [
     ...positionActions,
     ContextMenuSeparator,
@@ -129,8 +132,9 @@ function buildFollowAction(
   onDockingWindowOpen: () => void,
   t: TranslateFn
 ): ContextMenuAction | null {
-  if (!FOLLOWABLE_RANGE_TYPES.includes(range.type)) return null;
-  return objectStore.get(range.followingCharacterIdentifier) != null
+  const following = objectStore.get(range.followingCharacterIdentifier) != null;
+  if (!following && !range.isSolid && !FOLLOWABLE_RANGE_TYPES.includes(range.type)) return null;
+  return following
     ? {
         name: t('feature.tabletop.contextMenu.unfollow'),
         action: () => {
@@ -177,6 +181,57 @@ function buildShapeAction(range: RangeArea, t: TranslateFn): ContextMenuAction {
       pick('CUSTOM', 'shapeCustom'),
     ],
   };
+}
+
+/** The labels the kinds a range can stand up as go by in its menu. */
+const SOLID_LABELS: Record<SolidKind, string> = {
+  '': 'solidFlat',
+  column: 'solidColumn',
+  sphere: 'solidSphere',
+  cone: 'solidCone',
+  beam: 'solidBeam',
+};
+
+/**
+ * The kinds a range can stand up as, the current one ticked, and the ways to put it back: a sphere or
+ * a column following a piece onto the piece again, and a cone or a beam level again.
+ */
+function buildSolidAction(
+  range: RangeArea,
+  gridSize: number,
+  objectStore: ObjectStore,
+  t: TranslateFn
+): ContextMenuAction {
+  const pick = (kind: SolidKind): ContextMenuAction => ({
+    name: (range.solidKind === kind ? '✔ ' : '') + t(`feature.tabletop.contextMenu.${SOLID_LABELS[kind]}`),
+    action: () => {
+      range.solidKind = kind;
+      SoundEffect.play(PresetSound.sweep);
+    },
+  });
+  const subActions: ContextMenuAction[] = solidKindsFor(range.type).map(pick);
+  const following = objectStore.get(range.followingCharacterIdentifier) != null;
+  if (range.keepsCasterOffset && following) {
+    subActions.push({
+      name: t('feature.tabletop.contextMenu.solidBackToCaster'),
+      action: () => {
+        range.casterOffset = { x: 0, y: 0 };
+        range.altitude = 0;
+        range.following(gridSize);
+        SoundEffect.play(PresetSound.sweep);
+      },
+    });
+  }
+  if (isAimedSolid(range.solidKind)) {
+    subActions.push({
+      name: t('feature.tabletop.contextMenu.solidLevel'),
+      action: () => {
+        range.aimPitch = 0;
+        SoundEffect.play(PresetSound.sweep);
+      },
+    });
+  }
+  return { name: t('feature.tabletop.contextMenu.solid'), action: undefined, subActions };
 }
 
 function buildCustomActions(

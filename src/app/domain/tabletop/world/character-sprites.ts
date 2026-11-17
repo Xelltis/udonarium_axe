@@ -2,6 +2,7 @@ import { SurfaceFrame, Vec3 } from '@axe/domain/tabletop/surface-space';
 import { SurfaceLean } from '@axe/domain/tabletop/terrain-slope-surface';
 import {
   lyingPicture,
+  ORDER_OVER_LYING,
   PagePicture,
   pointOnFace,
   TableWorldSprite,
@@ -187,6 +188,7 @@ export function characterSprites(character: CharacterLayout): TableWorldSprite[]
         pedestal
       ),
       id: `${character.id}#pedestal`,
+      order: out + ORDER_OVER_LYING,
       centre: { x: middle.x + off.x, y: middle.y + off.y, z: middle.z + off.z },
       facing: { across: ground.across, down: ground.down },
       ...(reachesPast(pedestal, size)
@@ -220,7 +222,7 @@ export function characterSprites(character: CharacterLayout): TableWorldSprite[]
       brightness: 0,
       opacity: SHADOW_OPACITY,
       twoSided: false,
-      order: out,
+      order: out + ORDER_OVER_LYING,
     });
   }
   const { w, h } = pictureSize(character, picture.width, picture.height);
@@ -264,7 +266,7 @@ export function characterSprites(character: CharacterLayout): TableWorldSprite[]
       ...base,
       centre: pointOnFace(character.frame, middleAcross, middleDown, out),
       facing: { across: ground.across, down: ground.down },
-      order: out,
+      order: out + ORDER_OVER_LYING,
     });
   }
   return sprites;

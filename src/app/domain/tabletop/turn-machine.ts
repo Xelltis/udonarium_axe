@@ -121,6 +121,18 @@ export function roundNext(state: TurnSnapshot, table: TurnTable, live?: TurnLive
 }
 
 /**
+ * Ends the turn of whoever is up, as a piece says it is done.
+ *
+ * Where a side moves freely through its phase, the turn is not handed on: whoever is next is the
+ * side's to choose, and nobody is up until one takes the turn. A turn stepped into is still taken up
+ * again, and once nobody on the side is left to move the next side's phase opens, as a press of the
+ * round opens it. Anywhere else, and while nobody is up, it is a press of the round.
+ */
+export function roundEndTurn(state: TurnSnapshot, table: TurnTable, live?: TurnLive): TurnOutcome {
+  return new TurnRun(state, table, live).endTurn();
+}
+
+/**
  * Has a piece wait to step in later in the round; null where it may not.
  *
  * A waiting piece is passed over by the round, and has its turn once nobody else is waiting, unless
@@ -220,6 +232,17 @@ class TurnRun {
       this.do({ kind: 'turnEnded' });
       this.handOnward(this.table.order);
     }
+    return this.outcome();
+  }
+
+  endTurn(): TurnOutcome {
+    const free = this.table.mode === 'faction' && this.table.factionPhaseMode === 'free';
+    if (!free || this.state.phase !== 'acting' || this.state.currentIdentifier.length < 1) return this.next();
+    this.closeCurrentPiece();
+    if (this.resumeInterrupted()) return this.outcome();
+    const side = roundSide(this.state, this.table);
+    if (this.firstWaiting(this.membersOfSide(side))) this.write({ currentIdentifier: '', opening: '' });
+    else this.openSide(nextSide(side, this.table.sides, (group) => this.hasWaiting(group)));
     return this.outcome();
   }
 

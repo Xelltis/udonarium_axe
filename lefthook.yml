@@ -7,8 +7,16 @@ pre-commit:
   parallel: true
   jobs:
     - name: lint
-      glob: 'src/**/*.{ts,html}'
+      glob:
+        - 'src/**/*.{ts,html}'
+        - 'tools/axe-mcp/src/**/*.ts'
       run: npx eslint {staged_files}
+
+    - name: test-mcp
+      glob:
+        - 'tools/axe-mcp/**/*.{ts,mts,mjs,json}'
+        - 'src/app/core/agent/**/*.ts'
+      run: npx tsc -p tools/axe-mcp/tsconfig.json && npm run test:mcp
 
     - name: test
       glob:
@@ -22,6 +30,9 @@ pre-push:
   jobs:
     - name: test
       run: npx vitest run
+
+    - name: test-mcp
+      run: npm run test:mcp
 
     - name: build
       run: npm run build

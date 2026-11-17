@@ -1,6 +1,8 @@
 import type { Matrix3D } from '@axe/core/transform/matrix-3d';
-import { pageOfTablePoint, TablePoint } from '@axe/domain/tabletop/camera/table-camera';
+import { drawnScaleAt, pageOfTablePoint, TablePoint } from '@axe/domain/tabletop/camera/table-camera';
 import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
+import type { Solid } from '@axe/domain/tabletop/solid/solid';
+import { solidSamplePoints } from '@axe/domain/tabletop/solid/solid-points';
 import { lyingPlaceOfOwners } from '@axe/domain/tabletop/world/lying-order';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { EyeAxes, pointOnFace, spriteBoxCorners, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
@@ -36,6 +38,11 @@ export interface PagePart extends PageBox {
   readonly corners?: readonly [PagePoint, PagePoint, PagePoint, PagePoint];
   /** For a part drawn with one sprite, how large it is on the table, in table pixels across and down. */
   readonly size?: { readonly width: number; readonly height: number };
+  /**
+   * For a part whose box is larger than where it is drawn, as a sphere's is, the outline round where
+   * it is drawn, in page pixels, which what is put over the box is cut to.
+   */
+  readonly outline?: readonly PagePoint[];
 }
 
 /** A piece as it is drawn on the page: the box round all of it, and its parts by name. */
@@ -270,6 +277,12 @@ export function blockPageBoxes(
 ): Map<string, PiecePageBoxes> {
   const boxes = new Map<string, PiecePageBoxes>();
   for (const target of targets) {
+    const solids = target.shapes.flatMap((shape) => (shape.kind === 'solid' ? [shape.solid] : []));
+    if (solids.length) {
+      const box = solidPageBoxes(solids, scene, eye);
+      if (box) boxes.set(target.id, box);
+      continue;
+    }
     const all: TablePoint[] = [];
     const tops: TablePoint[] = [];
     let flat = true;
@@ -307,6 +320,54 @@ export function blockPageBoxes(
     });
   }
   return boxes;
+}
+
+/** The part a range standing up off the table is drawn as, among the parts a piece's boxes are named by. */
+export const SOLID_PART = 'solid';
+
+/**
+ * Where solids are drawn on the page: the box round them, as the whole and as their one part, and
+ * the outline round where they are drawn, which that part is cut to. They are put under everything
+ * standing on the table, as a range lying on the ground is, since a piece is seen through them and
+ * the pointer resting on it is for the piece. Only what lies in front of the eye is drawn on the page,
+ * so the points behind it are left out; null where none is in front of it.
+ */
+function solidPageBoxes(solids: readonly Solid[], scene: Matrix3D, eye: EyeAxes): PiecePageBoxes | null {
+  const points = solids
+    .flatMap((solid) => solidSamplePoints(solid))
+    .filter((point) => drawnScaleAt(scene, point.x, point.y, point.z) > 0);
+  if (points.length === 0) return null;
+  const onPage = points.map((point) => pageOfTablePoint(scene, point.x, point.y, point.z));
+  const whole = boxRound(onPage);
+  const middle = {
+    x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
+    y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
+    z: points.reduce((sum, point) => sum + point.z, 0) / points.length,
+  };
+  return {
+    whole,
+    parts: new Map([[SOLID_PART, { ...whole, scale: scaleAt(scene, eye, middle), outline: convexHull(onPage) }]]),
+    nearness: Math.max(...points.map((point) => nearnessOf(scene, point))),
+    onGround: true,
+  };
+}
+
+/** The smallest convex outline round some points of the page, running round them. */
+export function convexHull(points: readonly PagePoint[]): PagePoint[] {
+  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  if (sorted.length < 3) return sorted;
+  const cross = (o: PagePoint, a: PagePoint, b: PagePoint) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower: PagePoint[] = [];
+  for (const point of sorted) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) lower.pop();
+    lower.push(point);
+  }
+  const upper: PagePoint[] = [];
+  for (const point of [...sorted].reverse()) {
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) upper.pop();
+    upper.push(point);
+  }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
 }
 
 /**

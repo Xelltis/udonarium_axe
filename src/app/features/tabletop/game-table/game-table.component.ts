@@ -37,6 +37,7 @@ import { PieceLinksService } from '@axe/application/tabletop/piece-links.service
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePartPickService } from '@axe/application/tabletop/piece-part-pick.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
+import { RulerService } from '@axe/application/tabletop/ruler.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -68,6 +69,7 @@ import { trackLazyLoad } from '@axe/core/util/lazy-loads';
 import { observeSize } from '@axe/core/util/observe-size';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { glideToCentre } from '@axe/domain/tabletop/camera/camera-glide';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
@@ -75,6 +77,7 @@ import { squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 import { zoomToViewPositionZ } from '@axe/domain/tabletop/physical-scale';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { tableForegroundOf } from '@axe/domain/tabletop/table-foreground';
+import { TableRuler } from '@axe/domain/tabletop/table-ruler';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { boardShapeOf } from '@axe/domain/tabletop/world/table-world';
 import { CardComponent } from '@axe/features/card/card/card.component';
@@ -111,6 +114,9 @@ import { GameTableMaskComponent } from '@axe/features/tabletop/game-table-mask/g
 import { TableInterruptOverlayComponent } from '@axe/features/tabletop/interrupt-prompt/table-interrupt-overlay.component';
 import { LightSourceComponent } from '@axe/features/tabletop/light-source/light-source.component';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
+import { handRulerPressesOn } from '@axe/features/tabletop/ruler/ruler-input';
+import { TableRulerComponent } from '@axe/features/tabletop/ruler/table-ruler.component';
+import { TableRulerOverlayComponent } from '@axe/features/tabletop/ruler/table-ruler-overlay.component';
 import { SceneFadeOverlayComponent } from '@axe/features/tabletop/scene-fade-overlay/scene-fade-overlay.component';
 import { TableAltitudeGuideOverlayComponent } from '@axe/features/tabletop/table-altitude-guide-overlay/table-altitude-guide-overlay.component';
 import { TableAmbienceComponent } from '@axe/features/tabletop/table-ambience/table-ambience.component';
@@ -176,6 +182,8 @@ const CHARACTER_GENERATOR_PANEL = { width: 460, height: 420 };
     TableBeamOverlayComponent,
     TableTargetOverlayComponent,
     TableAltitudeGuideOverlayComponent,
+    TableRulerOverlayComponent,
+    TableRulerComponent,
     TableDropPreviewComponent,
     TableMoveRangeOverlayComponent,
     TableMoveBlockOverlayComponent,
@@ -217,6 +225,7 @@ export class GameTableComponent {
   private readonly tableSurfaces = inject(TableSurfaceService);
   protected readonly table3d = inject(Table3dService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
+  private readonly ruler = inject(RulerService);
   private readonly hudFrame = inject(HudFrameService);
   private readonly pieceMotions = inject(PieceMotionsService);
   private readonly ground = inject(GroundService);
@@ -341,6 +350,7 @@ export class GameTableComponent {
     this.destroyRef.onDestroy(observeSize(root, () => this.updateCameraLayout()));
     this.followGridShown();
     this.followFaceGrids();
+    this.destroyRef.onDestroy(handRulerPressesOn(root, this.ruler));
     this.destroyRef.onDestroy(
       handCanvasPressesOn(root, {
         pickAt: (x, y) => this.tablePick.pressedAt(x, y)?.target.id ?? null,
@@ -725,6 +735,24 @@ export class GameTableComponent {
     this.objectChangeService.collectionOf('range')();
     return this.tabletopService.ranges;
   });
+  /**
+   * Whether any ruler is to be read on the table: this seat's own in hand, one another seat is laying,
+   * or one left lying on it. The overlay that says what they measure is not loaded before.
+   */
+  protected readonly measuresAnything = computed(() => {
+    if (this.ruler.inHand() || this.tableRulers().length > 0) return true;
+    this.objectChangeService.collectionOf(PeerCursor.aliasName)();
+    return this.objectStore.getObjects<PeerCursor>(PeerCursor).some((cursor) => {
+      this.objectChangeService.versionOf(cursor.identifier)();
+      return cursor.measuring !== '';
+    });
+  });
+
+  /** The rulers left lying on the table. */
+  readonly tableRulers = computed(() => {
+    this.objectChangeService.collectionOf(TableRuler.aliasName)();
+    return this.objectStore.getObjects<TableRuler>(TableRuler).filter((ruler) => ruler.isVisibleOnTable);
+  });
   readonly lightSources = computed(() => {
     this.objectChangeService.collectionOf('light-source')();
     return this.tabletopService.lightSources;
@@ -939,13 +967,18 @@ export class GameTableComponent {
   private readonly rotationGuide = inject(RotationGuideService);
 
   /**
-   * What is said while something is being turned: how far it has turned, and how to snap it to the
-   * grid's directions. A hand with no Alt key is told only the angle.
+   * What is said while something is being turned: how far it has turned, how far it is pointed up
+   * where it is pointed up as well, and how to snap it to the grid's directions. A hand with no Alt
+   * key is told only the angle.
    */
   protected readonly rotateHint = computed(() => {
     const turn = this.rotationGuide.turn();
     if (!turn) return null;
-    return { ...turn, offersSnap: !this.viewport.isTouch() };
+    const aimed = turn.pitch !== undefined;
+    const snapKey = turn.snapping
+      ? `feature.tabletop.rotateHint.${aimed ? 'snappingAim' : 'snapping'}`
+      : `feature.tabletop.rotateHint.${aimed ? 'holdAltAim' : 'holdAlt'}`;
+    return { ...turn, offersSnap: !this.viewport.isTouch(), snapKey };
   });
 
   /**

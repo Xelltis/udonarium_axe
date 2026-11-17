@@ -33,6 +33,8 @@ export const ROOM_PANELS = [
   'skin',
   'soundSettings',
   'menuEditor',
+  'aiLink',
+  'aiGm',
 ] as const;
 
 export type CharacterPanelName = (typeof CHARACTER_PANELS)[number];
@@ -77,6 +79,8 @@ const LABEL_KEYS: Record<PanelName, string> = {
   skin: 'feature.skin.title',
   soundSettings: 'common.panel.soundSettings',
   menuEditor: 'feature.menuEditor.title',
+  aiLink: 'feature.aiLink.title',
+  aiGm: 'feature.aiGm.title',
 };
 
 /** Anything unknown reads as the chat palette, which is where a panel slot starts. */

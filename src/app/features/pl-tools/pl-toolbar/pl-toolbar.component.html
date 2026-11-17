@@ -46,6 +46,17 @@
                       <span class="truncate">{{ item.menuName | transloco }}</span>
                     </li>
                   }
+                  <li class="border-ui-border-panel my-0.5 border-t border-solid" role="separator"></li>
+                  @for (item of solidRangeMenuItems; track item.menuName) {
+                    <li
+                      class="rounded-ui-sm hover:bg-ui-menu-hover hover:text-ui-accent flex cursor-pointer items-center gap-2 px-2 py-1.5 text-[12px]"
+                      [attr.data-testid]="'pl-solid-range-' + item.kind + '-' + item.typeName"
+                      (click)="createRange(item.typeName, item.kind)"
+                    >
+                      <i class="material-icons text-ui-dim text-[14px]!">view_in_ar</i>
+                      <span class="truncate">{{ item.menuName | transloco }}</span>
+                    </li>
+                  }
                 </ul>
               }
             </div>
@@ -119,13 +130,19 @@
                 [class.invisible]="!ownTurn()"
                 [disabled]="!ownTurn()"
                 [attr.aria-hidden]="ownTurn() ? null : 'true'"
-                [attr.aria-label]="'feature.plTools.turn.nextHint' | transloco"
-                [title]="'feature.plTools.turn.nextHint' | transloco"
-                [attr.data-guide-label]="ownTurn() ? ('feature.plTools.turn.nextHint' | transloco) : null"
+                [attr.aria-label]="
+                  (endsOnly() ? 'feature.plTools.turn.endHint' : 'feature.plTools.turn.nextHint') | transloco
+                "
+                [title]="(endsOnly() ? 'feature.plTools.turn.endHint' : 'feature.plTools.turn.nextHint') | transloco"
+                [attr.data-guide-label]="
+                  ownTurn()
+                    ? ((endsOnly() ? 'feature.plTools.turn.endHint' : 'feature.plTools.turn.nextHint') | transloco)
+                    : null
+                "
                 (click)="passTurn()"
               >
-                {{ 'feature.plTools.turn.next' | transloco }}
-                <i class="material-icons" aria-hidden="true">chevron_right</i>
+                {{ (endsOnly() ? 'feature.plTools.turn.end' : 'feature.plTools.turn.next') | transloco }}
+                <i class="material-icons" aria-hidden="true">{{ endsOnly() ? 'check' : 'chevron_right' }}</i>
               </button>
             }
           }

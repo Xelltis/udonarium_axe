@@ -55,6 +55,8 @@ Udonarium Axeが**追加**または**大きく拡張・再設計**した機能�
 | [GMの道具](features/gm-tools.md)                     | シーン、シナリオテキスト、ゲーム内時間、オブジェクト一覧、投票 |
 | [マップエディターとスイッチ](features/map-editor.md) | 機能塗り、スイッチ                                             |
 | [マップ生成](features/map-generator.md)              | ダンジョン、フィールド、市街、村と砦                           |
+| [AI連携（MCP）](features/ai-link.md)                 | AIに部屋を読ませ操作させるブリッジと道具                       |
+| [AI GM](features/ai-gm.md)                           | ブリッジがClaude APIを呼び、GMの席を任せる仕組み               |
 
 ## 保存と記録
 

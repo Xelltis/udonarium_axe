@@ -1,0 +1,160 @@
+<div class="text-ui-text bg-ui-elevated flex h-full min-h-0 flex-col gap-2.5 overflow-y-auto p-3 text-[13px]">
+  <p class="text-ui-dim m-0 text-xs/relaxed">{{ 'feature.aiLink.hint' | transloco }}</p>
+
+  <section
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2 border border-solid p-3"
+    data-testid="ai-link-status"
+  >
+    <div class="flex items-center gap-2">
+      <i
+        class="material-icons text-[20px]!"
+        [class.text-ui-accent]="stateKey() === 'connected'"
+        [class.text-ui-dim]="stateKey() !== 'connected'"
+        >smart_toy</i
+      >
+      <span class="min-w-0 flex-1 leading-snug" data-testid="ai-link-state" [attr.data-state]="stateKey()">
+        {{ 'feature.aiLink.state.' + stateKey() | transloco: { bridge: bridge() } }}
+      </span>
+      <button
+        type="button"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text hover:bg-ui-hover shrink-0 cursor-pointer border border-solid px-3 py-1 text-[13px]"
+        data-testid="ai-link-toggle"
+        (click)="toggle()"
+      >
+        {{ (linking() ? 'feature.aiLink.disconnect' : 'feature.aiLink.connect') | transloco }}
+      </button>
+    </div>
+    @if (stateKey() === 'unreachable' || stateKey() === 'lost') {
+      <p class="text-ui-dim m-0 text-[11px] leading-relaxed">{{ 'feature.aiLink.waiting' | transloco }}</p>
+    }
+    <label class="text-ui-muted flex items-center gap-2 text-[11px]">
+      {{ 'feature.aiLink.port' | transloco }}
+      <input
+        type="number"
+        min="1"
+        max="65535"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-24 border border-solid px-2 py-0.5 text-right text-[12px] outline-none"
+        data-testid="ai-link-port"
+        [value]="link.port()"
+        (change)="setPort($any($event.target).value)"
+      />
+    </label>
+  </section>
+
+  <section
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1.5 border border-solid p-3"
+    data-testid="ai-link-scope"
+  >
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-[12px] font-semibold">{{ 'feature.aiLink.scope.heading' | transloco }}</span>
+    </div>
+    @for (choice of ['read', 'write']; track choice) {
+      <label
+        class="hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-start gap-2 px-1.5 py-1"
+        [class.opacity-50]="choice === 'write' && !mayWrite()"
+      >
+        <input
+          type="radio"
+          name="ai-link-scope"
+          class="mt-0.5 size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+          [attr.data-testid]="'ai-link-scope-' + choice"
+          [checked]="link.seat().scope === choice"
+          [disabled]="choice === 'write' && !mayWrite()"
+          (change)="setScope($any(choice))"
+        />
+        <span class="flex flex-col">
+          <span>{{ 'feature.aiLink.scope.' + choice | transloco }}</span>
+          <span class="text-ui-dim text-[11px]">{{ 'feature.aiLink.scope.' + choice + 'Hint' | transloco }}</span>
+        </span>
+      </label>
+    }
+    @if (!mayWrite()) {
+      <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.aiLink.scope.watchOnly' | transloco }}</p>
+    }
+  </section>
+
+  <section
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex min-h-24 shrink-0 flex-col gap-1.5 border border-solid p-3"
+    data-testid="ai-link-history"
+  >
+    <div class="flex items-center gap-2">
+      <div class="border-ui-accent flex-1 border-l-2 border-solid pl-2">
+        <span class="text-[12px] font-semibold">{{ 'feature.aiLink.history.heading' | transloco }}</span>
+      </div>
+      @if (runner.history().length > 0) {
+        <button
+          type="button"
+          class="text-ui-muted hover:text-ui-text cursor-pointer border-0 bg-transparent text-[11px]"
+          (click)="runner.clearHistory()"
+        >
+          {{ 'feature.aiLink.history.clear' | transloco }}
+        </button>
+      }
+    </div>
+    @for (entry of runner.history(); track entry.at + entry.tool + entry.input) {
+      <div class="flex items-baseline gap-2 text-[12px]" data-testid="ai-link-history-entry">
+        <span class="text-ui-dim shrink-0 tabular-nums">{{ timeOf(entry.at) }}</span>
+        <span class="shrink-0 font-semibold">{{
+          nameKeyOf(entry.tool) ? (nameKeyOf(entry.tool)! | transloco) : entry.tool
+        }}</span>
+        <span class="text-ui-muted min-w-0 flex-1 truncate" [title]="entry.input">{{ entry.input }}</span>
+        @if (entry.error; as error) {
+          <span class="text-ui-danger shrink-0" [title]="error.message">{{
+            'feature.aiLink.history.refused' | transloco
+          }}</span>
+        }
+      </div>
+    } @empty {
+      <p class="text-ui-dim m-0 text-[12px]">{{ 'feature.aiLink.history.empty' | transloco }}</p>
+    }
+  </section>
+
+  <details class="border-ui-border-panel bg-ui-surface rounded-ui border border-solid p-3" data-testid="ai-link-setup">
+    <summary class="cursor-pointer text-[12px] font-semibold">{{ 'feature.aiLink.setup.heading' | transloco }}</summary>
+    <ol class="m-0 mt-2 flex flex-col gap-2 pl-5 text-xs/relaxed">
+      <li>
+        {{ 'feature.aiLink.setup.download' | transloco }}
+        <a class="text-ui-accent" target="_blank" rel="noopener" [href]="releasesUrl">{{ releasesUrl }}</a>
+      </li>
+      <li class="flex flex-col gap-1">
+        <span>{{ 'feature.aiLink.setup.claudeCode' | transloco }}</span>
+        <div class="flex items-start gap-1">
+          <code
+            class="bg-ui-input rounded-ui-sm block min-w-0 flex-1 px-2 py-1 font-mono text-[11px] break-all"
+            data-testid="ai-link-claude-code"
+            >{{ claudeCodeCommand() }}</code
+          >
+          <button
+            type="button"
+            class="rounded-ui-sm border-ui-border-panel bg-ui-input hover:bg-ui-hover shrink-0 cursor-pointer border border-solid px-2 py-0.5 text-[11px]"
+            (click)="copy('code')"
+          >
+            {{ (copied() === 'code' ? 'feature.aiLink.setup.copied' : 'feature.aiLink.setup.copy') | transloco }}
+          </button>
+        </div>
+      </li>
+      <li class="flex flex-col gap-1">
+        <span>{{ 'feature.aiLink.setup.claudeDesktop' | transloco }}</span>
+        <div class="flex items-start gap-1">
+          <pre
+            class="bg-ui-input rounded-ui-sm m-0 min-w-0 flex-1 overflow-x-auto px-2 py-1 font-mono text-[11px]"
+            data-testid="ai-link-claude-desktop"
+            >{{ claudeDesktopConfig() }}</pre>
+          <button
+            type="button"
+            class="rounded-ui-sm border-ui-border-panel bg-ui-input hover:bg-ui-hover shrink-0 cursor-pointer border border-solid px-2 py-0.5 text-[11px]"
+            (click)="copy('desktop')"
+          >
+            {{ (copied() === 'desktop' ? 'feature.aiLink.setup.copied' : 'feature.aiLink.setup.copy') | transloco }}
+          </button>
+        </div>
+      </li>
+      <li>{{ 'feature.aiLink.setup.connect' | transloco }}</li>
+    </ol>
+    @if (untrustedOrigin()) {
+      <p class="text-ui-dim m-0 mt-2 text-[11px] leading-relaxed" data-testid="ai-link-origin-note">
+        {{ 'feature.aiLink.setup.origin' | transloco: { origin } }}
+      </p>
+    }
+  </details>
+</div>

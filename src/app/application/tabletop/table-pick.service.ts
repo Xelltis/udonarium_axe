@@ -4,6 +4,8 @@ import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PlacedRulerService } from '@axe/application/tabletop/placed-ruler.service';
+import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -16,7 +18,13 @@ import { pageOfTablePoint, tableEyeMatrix, TableRay, tableRayOfPage } from '@axe
 import { groundLiftOfBlock, GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { AMBIENCE_PICK_LAYER, ambiencePickTarget } from '@axe/domain/tabletop/pick/ambience-pick';
 import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
-import { PickCylinder, PickDraped, PickShape, withinOutline } from '@axe/domain/tabletop/pick/pick-geometry';
+import {
+  crossingLevel,
+  PickCylinder,
+  PickDraped,
+  PickShape,
+  withinOutline,
+} from '@axe/domain/tabletop/pick/pick-geometry';
 import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { beamPickTarget, TERRAIN_PICK_LAYER, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
@@ -74,6 +82,8 @@ export class TablePickService {
   private readonly coordinates = inject(CoordinateService);
   private readonly pointerDevice = inject(PointerDeviceService);
   private readonly pieces = inject(TablePiecesService);
+  private readonly solidRanges = inject(SolidRangeService);
+  private readonly placedRulers = inject(PlacedRulerService);
   private readonly pictures = inject(PictureSizeService);
   private readonly looks = inject(TableAmbienceService);
   private readonly objectStore = inject(ObjectStore);
@@ -96,6 +106,19 @@ export class TablePickService {
   }
 
   /**
+   * Where the line of sight through a point of the page crosses the level of a height over the table,
+   * as a handle held at that height is moved over it; null before the table has a camera, or for a
+   * line running level, which crosses no level of its own.
+   */
+  levelAt(pageX: number, pageY: number, height: number): { x: number; y: number } | null {
+    const ray = this.rayAt(pageX, pageY);
+    if (!ray) return null;
+    const t = crossingLevel(ray, height);
+    if (t === null) return null;
+    return { x: ray.origin.x + ray.direction.x * t, y: ray.origin.y + ray.direction.y * t };
+  }
+
+  /**
    * What a point of the page lands on first, a block, a piece or a look laid over the ground, or null
    * where it lands on nothing.
    */
@@ -110,9 +133,12 @@ export class TablePickService {
    * locked block pass through to what lay under it. A piece standing in a wood is pressed, not the
    * tree in front of it; a locked block with no piece behind it is pressed itself, for its menu. A
    * door and a switch are pressed themselves whatever stands behind them, as they are there to be.
+   * A range standing up off the table, and a ruler left lying on it, lets a press through to a
+   * character or a die within it or behind it, as it is seen through it, so a piece wrapped in a
+   * range is still taken.
    */
   pressedAt(pageX: number, pageY: number): PickHit | null {
-    const hits = this.allAt(pageX, pageY);
+    const hits = passingSolids(this.allAt(pageX, pageY));
     const first = hits[0];
     if (!first || !this.lockedBlock(first.target)) return first ?? null;
     for (const hit of hits) {
@@ -192,7 +218,12 @@ export class TablePickService {
   }
 
   private everyTarget(): PickTarget[] {
-    return [...this.targets(), ...this.pieceTargets(), ...this.ambienceTargets()];
+    return [...this.targets(), ...this.pieceTargets(), ...this.solidTargets(), ...this.ambienceTargets()];
+  }
+
+  /** The targets of the ranges standing up off the table in view, and of the rulers left lying on it. */
+  private solidTargets(): PickTarget[] {
+    return untracked(() => [...this.solidRanges.pickTargets(), ...this.placedRulers.pickTargets()]);
   }
 
   /**
@@ -249,6 +280,7 @@ export class TablePickService {
         const target = make(terrain);
         if (target) targets.push(target);
       }
+      for (const solid of this.solidTargets()) if (identifiers.has(solid.id)) targets.push(solid);
       return targets;
     });
   }
@@ -488,4 +520,25 @@ export class TablePickService {
 /** The corners a sprite is picked by: its own shape where it is see-through, the box round it otherwise. */
 function spritePickCorners(sprite: TableWorldSprite, eye: ReturnType<typeof eyeAxesOf>) {
   return sprite.seeThrough ? spriteCorners(sprite, eye) : spriteBoxCorners(sprite, eye);
+}
+
+/** Whether a target is a range standing up off the table. */
+function isSolidTarget(target: PickTarget): boolean {
+  return target.shapes.some((shape) => shape.kind === 'solid');
+}
+
+/** The layers of the pieces standing on the table that a solid lets a press through to: characters and dice. */
+const SEEN_THROUGH_SOLIDS: readonly string[] = ['character', 'dice-symbol'];
+
+/**
+ * The hits along a line of sight past the ranges standing up in front of a piece standing on the
+ * table: each such range is passed over where a character or a die stands behind it, and kept where
+ * only blocks, the ground or what lies flat on it lies behind, so a solid over a map mask or a card
+ * is still pressed itself.
+ */
+function passingSolids(hits: readonly PickHit[]): PickHit[] {
+  const isStanding = (hit: PickHit) => SEEN_THROUGH_SOLIDS.includes(hit.target.layer);
+  let from = 0;
+  while (from < hits.length && isSolidTarget(hits[from].target) && hits.slice(from + 1).some(isStanding)) from++;
+  return hits.slice(from);
 }

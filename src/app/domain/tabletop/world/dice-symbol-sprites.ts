@@ -1,5 +1,10 @@
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
-import { pointOnFace, TableWorldSprite, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
+import {
+  ORDER_OVER_LYING,
+  pointOnFace,
+  TableWorldSprite,
+  turnedOnFace,
+} from '@axe/domain/tabletop/world/table-sprites';
 
 /** The alias a die is known by, which its sprites are told apart by. */
 export const DICE_SYMBOL_KIND = 'dice-symbol';
@@ -73,7 +78,7 @@ export function diceSymbolSprites(die: DiceSymbolLayout): TableWorldSprite[] {
       },
       brightness: die.frameBrightness,
       twoSided: false,
-      order: out,
+      order: out + ORDER_OVER_LYING,
     },
   ];
   const picture = die.picture;
@@ -108,7 +113,7 @@ export function diceSymbolSprites(die: DiceSymbolLayout): TableWorldSprite[] {
         z: middle.z - (axes.down.z * height) / 2,
       },
       facing: axes,
-      order: out,
+      order: out + ORDER_OVER_LYING,
     });
   }
   return sprites;

@@ -21,6 +21,7 @@ export const OBJECT_LIST_TYPES: readonly ObjectListTypeConfig[] = [
   { key: 'text-note', alias: 'text-note', icon: 'sticky_note_2', labelKey: 'feature.gmObjectList.typeNote' },
   { key: 'terrain', alias: 'terrain', icon: 'terrain', labelKey: 'feature.gmObjectList.typeTerrain' },
   { key: 'range', alias: 'range', icon: 'radar', labelKey: 'feature.gmObjectList.typeRange' },
+  { key: 'table-ruler', alias: 'table-ruler', icon: 'straighten', labelKey: 'feature.gmObjectList.typeRuler' },
   {
     key: 'light-source',
     alias: 'light-source',

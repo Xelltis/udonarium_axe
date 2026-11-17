@@ -9,6 +9,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
+import { RulerService } from '@axe/application/tabletop/ruler.service';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -158,6 +159,7 @@ export class MenuCommandService {
   private readonly mobile = inject(MobileLayoutService);
   private readonly viewport = inject(ViewportService);
   private readonly groundBrush = inject(GroundBrushService);
+  private readonly ruler = inject(RulerService);
 
   private readonly roomFiles = inject(RoomFilesService);
   private filePicker: (() => void) | null = null;
@@ -390,6 +392,8 @@ export class MenuCommandService {
         return this.darknessEnabled();
       case 'groundBrush':
         return this.groundBrush.active();
+      case 'ruler':
+        return this.ruler.inHand();
       case 'fog':
         return this.fogEnabled();
       case 'nameLabels':
@@ -515,6 +519,9 @@ export class MenuCommandService {
         return;
       case 'groundBrush':
         this.groundBrush.active.update((active) => !active);
+        return;
+      case 'ruler':
+        this.ruler.toggle();
         return;
       case 'fog':
         this.flipTable('fogEnabled');

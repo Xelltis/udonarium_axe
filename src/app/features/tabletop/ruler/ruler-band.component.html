@@ -1,0 +1,70 @@
+<!-- Said at the foot of the screen, as the band of a move is: see move-plan-band. -->
+@if (ruler.inHand()) {
+  <div
+    class="bg-ui-panel shadow-ui-md text-ui-text pointer-events-auto fixed bottom-28 left-1/2 flex max-w-[92vw] -translate-x-1/2 items-center gap-3 rounded-full py-1.5 pr-1.5 pl-3 text-sm opacity-95"
+    data-testid="ruler-band"
+    [style.zIndex]="zIndex"
+  >
+    <i class="material-icons text-ui-accent text-[18px]!">straighten</i>
+    @if (ruler.measured(); as measured) {
+      <span class="flex min-w-0 flex-wrap items-baseline gap-x-3 tabular-nums" data-testid="ruler-band-reading">
+        <span class="font-semibold">
+          {{ 'feature.ruler.straight.' + measured.reading.unit | transloco: { value: measured.reading.straight } }}
+        </span>
+        <span class="text-ui-muted">{{
+          'feature.ruler.level.' + measured.reading.unit | transloco: { value: measured.reading.level }
+        }}</span>
+        <span class="text-ui-muted">{{
+          'feature.ruler.rise.' + measured.reading.unit | transloco: { value: measured.reading.rise }
+        }}</span>
+        @if (measured.reading.steps !== null) {
+          <span class="text-ui-muted">{{ 'feature.ruler.steps' | transloco: { value: measured.reading.steps } }}</span>
+        }
+      </span>
+      <span class="flex shrink-0 items-center gap-0.5">
+        <button
+          type="button"
+          class="bg-ui-accent-solid flex h-8 cursor-pointer items-center gap-1 rounded-full border-none px-3 text-[0.86em] text-white"
+          data-testid="ruler-leave"
+          [attr.title]="'feature.ruler.leaveHint' | transloco"
+          (click)="ruler.leaveOnTable()"
+        >
+          <i class="material-icons text-[16px]!">push_pin</i>
+          {{ 'feature.ruler.leave' | transloco }}
+        </button>
+        <button
+          type="button"
+          class="hover:bg-ui-hover text-ui-muted flex size-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0"
+          data-testid="ruler-lift-up"
+          [attr.aria-label]="'feature.ruler.liftUp' | transloco"
+          [attr.title]="'feature.ruler.liftUp' | transloco"
+          (click)="ruler.liftEnd(1)"
+        >
+          <i class="material-icons text-[20px]!">arrow_upward</i>
+        </button>
+        <button
+          type="button"
+          class="hover:bg-ui-hover text-ui-muted flex size-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0"
+          data-testid="ruler-lift-down"
+          [attr.aria-label]="'feature.ruler.liftDown' | transloco"
+          [attr.title]="'feature.ruler.liftDown' | transloco"
+          (click)="ruler.liftEnd(-1)"
+        >
+          <i class="material-icons text-[20px]!">arrow_downward</i>
+        </button>
+      </span>
+    } @else {
+      <span class="text-ui-muted min-w-0" data-testid="ruler-band-hint">{{ 'feature.ruler.hint' | transloco }}</span>
+    }
+    <button
+      type="button"
+      class="hover:bg-ui-hover text-ui-muted flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0"
+      data-testid="ruler-put-away"
+      [attr.aria-label]="'feature.ruler.putAway' | transloco"
+      [attr.title]="'feature.ruler.putAway' | transloco"
+      (click)="ruler.putAway()"
+    >
+      <i class="material-icons text-[20px]!">close</i>
+    </button>
+  </div>
+}

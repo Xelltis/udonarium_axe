@@ -255,7 +255,10 @@ export class HotbarRunnerService {
     return OK;
   }
 
-  /** The range wears what the slot describes: a name and a size, its colours, and how it paints. */
+  /**
+   * The range wears what the slot describes: a name and a size, its colours, how it paints, and what
+   * it stands up as.
+   */
   private dressRange(range: RangeArea, options: RangeSlotOptions): void {
     const name = options.name.trim();
     if (name) range.name = name;
@@ -269,6 +272,10 @@ export class HotbarRunnerService {
     range.subDivisionSnapPolygonal = options.rotateSnap;
     range.offSetX = options.shiftX;
     range.offSetY = options.shiftY;
+    range.solidKind = options.solid;
+    range.columnHeight = options.solidHeight;
+    range.reachSquares = options.solidReach;
+    range.aimPitch = options.pitch;
   }
 
   private namedRange(typeName: string, character: GameCharacter): RangeArea | null {

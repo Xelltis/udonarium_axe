@@ -20,6 +20,7 @@ import {
 import { framingView } from '@axe/domain/tabletop/camera/table-framing';
 import type { PickDraped } from '@axe/domain/tabletop/pick/pick-geometry';
 import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
+import { solidSamplePoints } from '@axe/domain/tabletop/solid/solid-points';
 import { partOf } from '@axe/domain/tabletop/world/page-boxes';
 import { pointOnFace } from '@axe/domain/tabletop/world/table-sprites';
 import { clearToBlankTable, putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
@@ -97,7 +98,8 @@ export interface TableTestHooks {
   sceneBoard(): { widthPx: number; depthPx: number } | null;
   /**
    * The boxes on the page round each shape a piece is picked by, in the order the piece is drawn
-   * with them: for a die, its frame and then its picture; for a coin, the side turned out.
+   * with them: for a die, its frame and then its picture; for a coin, the side turned out; for a range
+   * standing up or a ruler left lying, the box round the solid it is picked by.
    */
   pieceBoxesOnPage(identifier: string): { x: number; y: number; width: number; height: number }[];
   /** Where a point of a face (the floor, a wall or a board), lifted some way off it, is drawn on the page. */
@@ -261,7 +263,9 @@ export function installTableTestHooks(win: Window, sources: TableTestHookSources
     surfaceSizeOf: (surface) => surfaces.sizeOf(surface),
     pieceBoxesOnPage: (identifier) => {
       const scene = camera.sceneMatrix();
-      const target = pick.pieceTargets().find((candidate) => candidate.id === identifier);
+      const target =
+        pick.pieceTargets().find((candidate) => candidate.id === identifier) ??
+        pick.targetsOf(new Set([identifier]))[0];
       if (!scene || !target) return [];
       const boxRound = (corners: { x: number; y: number }[]) => {
         const xs = corners.map((corner) => corner.x);
@@ -287,6 +291,11 @@ export function installTableTestHooks(win: Window, sources: TableTestHookSources
             return pageOfTablePoint(scene, at.x, at.y, at.z);
           });
           return [boxRound(rim)];
+        }
+        if (shape.kind === 'solid') {
+          return [
+            boxRound(solidSamplePoints(shape.solid).map((point) => pageOfTablePoint(scene, point.x, point.y, point.z))),
+          ];
         }
         if (shape.kind === 'draped') {
           return [

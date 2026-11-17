@@ -97,10 +97,21 @@
       <terrain class="block" [terrain]="terrain" [appHudPlace]="{ owner: terrain.identifier }"></terrain>
     }
     @for (board of whiteBoards(); track board.identifier) {
-      <white-board class="block" [whiteBoard]="board" [appHudPlace]="{ owner: board.identifier }"></white-board>
+      @defer (on immediate) {
+        <white-board class="block" [whiteBoard]="board" [appHudPlace]="{ owner: board.identifier }"></white-board>
+      } @error {
+        <ng-container appReloadNotice />
+      }
     }
     @for (range of ranges(); track range.identifier) {
       <range class="absolute top-0 left-0 size-0" [range]="range"></range>
+    }
+    @defer (when tableRulers().length > 0) {
+      @for (ruler of tableRulers(); track ruler.identifier) {
+        <table-ruler class="absolute top-0 left-0 size-0" [ruler]="ruler"></table-ruler>
+      }
+    } @error {
+      <ng-container appReloadNotice />
     }
     @for (light of lightSources(); track light.identifier) {
       <light-source class="block" [lightSource]="light" [appHudPlace]="{ owner: light.identifier }"></light-source>
@@ -161,6 +172,11 @@
     <effect-target-overlay class="contents"></effect-target-overlay>
     <table-drop-preview></table-drop-preview>
     <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
+    @defer (when measuresAnything()) {
+      <table-ruler-overlay class="contents"></table-ruler-overlay>
+    } @error {
+      <ng-container appReloadNotice />
+    }
   </div>
 </div>
 @defer (when hasWeather()) {
@@ -197,11 +213,16 @@
     <span class="text-ui-text min-w-[3ch] text-right font-medium tabular-nums" data-testid="rotate-hint-angle"
       >{{ hint.angle }}°</span
     >
+    @if (hint.pitch !== undefined) {
+      <span class="text-ui-dim">/</span>
+      <span class="text-ui-text font-medium whitespace-nowrap tabular-nums" data-testid="rotate-hint-pitch">{{
+        'feature.tabletop.rotateHint.pitch' | transloco: { pitch: hint.pitch }
+      }}</span>
+    }
     @if (hint.offersSnap) {
       <span class="text-ui-dim">/</span>
       <span class="min-w-0" [class.text-ui-accent]="hint.snapping" data-testid="rotate-hint-snap">{{
-        (hint.snapping ? 'feature.tabletop.rotateHint.snapping' : 'feature.tabletop.rotateHint.holdAlt')
-          | transloco: { step: hint.step }
+        hint.snapKey | transloco: { step: hint.step }
       }}</span>
     }
   </table-hint-band>

@@ -46,6 +46,9 @@ const FORBID_FOR_UI = {
 /* Imports between features are allowed only along the edges that exist now. A new edge is added here
    on purpose (the aim is not to add more). A lazy import() is an edge as much as a static one. */
 const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
+  'agent-tools': ['chat', 'media'],
+  'ai-gm': ['ai-link'],
+  'ai-link': ['agent-tools'],
   alarm: [],
   'battle-cut-in': ['effect'],
   buff: [],
@@ -216,7 +219,7 @@ const FEATURE_RULES = Object.entries(FEATURE_DEPENDENCIES).flatMap(([feature, al
 
 export default defineConfig([
   {
-    ignores: ['projects/**/*', 'website/**'],
+    ignores: ['projects/**/*', 'website/**', 'tools/axe-mcp/dist/**'],
   },
   {
     files: ['**/*.ts'],
@@ -362,6 +365,14 @@ export default defineConfig([
   /* Relative imports are allowed under the e2e/ directory: e2e has no path aliases set up. */
   {
     files: ['e2e/**/*.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  /* The MCP bridge is a Node program of its own: its files import one another by relative path,
+   * and only the agent definitions it shares with the app by alias. */
+  {
+    files: ['tools/axe-mcp/**/*.ts'],
     rules: {
       'no-restricted-imports': 'off',
     },

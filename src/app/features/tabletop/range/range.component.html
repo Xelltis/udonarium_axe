@@ -1,8 +1,8 @@
 <!--
-  The range is a box on the screen round where the table's canvas draws its cells, stacked among the
-  pieces, and a box over every piece's with its handle and its lock on the point it turns about, so
-  no piece standing on the range covers its handle. Its cells are drawn here, out of sight, for the
-  canvas to draw a picture of.
+  The range is a box on the screen round where the table's canvas draws its cells, or the solid it
+  stands up as cut to the outline round it, stacked among the pieces, and a box over every piece's
+  with its handle and its lock on the point it turns about, so no piece standing on the range covers
+  its handle. Its cells are drawn here, out of sight, for the canvas to draw a picture of.
 -->
 @let id = range().identifier;
 <div
@@ -12,18 +12,28 @@
   [appHudPlace]="{ owner: id }"
   appMovable
   [movable.option]="movableOption()"
-  [movable.disable]="isLock()"
+  [movable.disable]="isLock() || pointedFromCaster()"
   [appSelectable]="range()"
   (movable.ondragstart)="onMove()"
   (movable.ondragend)="onMoved()"
+  (movable.onend)="onPutDown()"
 >
-  <div
-    data-part="picture"
-    class="pointer-events-auto"
-    [style.clip-path]="pointerClipPath()"
-    [appTooltip]="range()"
-    [appHudPlace]="{ owner: id, part: 'picture', place: 'cover' }"
-  ></div>
+  @if (placedSolid()) {
+    <div
+      data-part="solid"
+      class="pointer-events-auto"
+      [appTooltip]="range()"
+      [appHudPlace]="{ owner: id, part: 'solid' }"
+    ></div>
+  } @else {
+    <div
+      data-part="picture"
+      class="pointer-events-auto"
+      [style.clip-path]="pointerClipPath()"
+      [appTooltip]="range()"
+      [appHudPlace]="{ owner: id, part: 'picture', place: 'cover' }"
+    ></div>
+  }
   @if (altitudeGuide(); as guide) {
     <altitude-guide [owner]="id" [guide]="guide" [colour]="range().rangeColor" />
   }
@@ -57,6 +67,27 @@
     }
   </div>
 </div>
+@if (aimTip(); as tip) {
+  @defer (on immediate) {
+    <div class="pointer-events-none" [appHudPlace]="{ owner: id, raised: true }">
+      @if (!isLock()) {
+        <div
+          data-hud-control
+          data-testid="range-aim-grab"
+          class="border-ui-border-panel bg-ui-elevated text-ui-muted pointer-events-none box-border flex size-10.5 cursor-grab items-center justify-center rounded-full border-2 border-solid p-0 opacity-0 group-hover:pointer-events-auto group-hover:opacity-86 group-active:pointer-events-auto group-active:opacity-86 [&_.material-icons]:text-[26px]!"
+          [appHudPlace]="{ owner: id, at: tip }"
+          [appSolidAim]="range()"
+          (aimStart)="onMove()"
+          (aimEnd)="onMoved()"
+        >
+          <i class="material-icons">my_location</i>
+        </div>
+      }
+    </div>
+  } @error {
+    <ng-container appReloadNotice />
+  }
+}
 <div class="pointer-events-none fixed top-0 left-0 opacity-0">
   <div class="absolute" #cells [style.width.px]="0" [style.height.px]="0" [style.clip-path]="clipPath()">
     <div class="absolute" [style.top.px]="0" [style.left.px]="-1 * areaQuadrantSize() * squarePx">

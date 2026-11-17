@@ -1,5 +1,7 @@
 import { clamp } from '@axe/core/util/clamp';
 import { TablePoint, TableRay } from '@axe/domain/tabletop/camera/table-camera';
+import type { Solid } from '@axe/domain/tabletop/solid/solid';
+import { solidEntryAlong } from '@axe/domain/tabletop/solid/solid-touch';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 
 /** A point across the board, in table pixels. */
@@ -72,7 +74,13 @@ export interface PickDraped {
   readonly high: number;
 }
 
-export type PickShape = PickPrism | PickQuad | PickCylinder | PickFloor | PickOnFace | PickDraped;
+/** A range standing up off the table, as it is drawn: a column, a sphere, a cone or a beam. */
+export interface PickSolid {
+  readonly kind: 'solid';
+  readonly solid: Solid;
+}
+
+export type PickShape = PickPrism | PickQuad | PickCylinder | PickFloor | PickOnFace | PickDraped | PickSolid;
 
 /** Where a line of sight meets a shape. */
 export interface PickShapeHit {
@@ -127,7 +135,7 @@ export function insideOutline(outline: readonly PickPoint2[], x: number, y: numb
 }
 
 /** Where the line crosses the level z, or null when it runs level. */
-function crossingLevel(ray: TableRay, z: number): number | null {
+export function crossingLevel(ray: TableRay, z: number): number | null {
   if (Math.abs(ray.direction.z) < EPSILON) return null;
   return (z - ray.origin.z) / ray.direction.z;
 }
@@ -353,7 +361,22 @@ export function hitShape(ray: TableRay, shape: PickShape): PickShapeHit | null {
       return hitOnFace(ray, shape);
     case 'draped':
       return hitDraped(ray, shape);
+    case 'solid':
+      return hitSolid(ray, shape);
   }
+}
+
+/** How far each way along a line of sight seen from infinitely far a solid is looked for, in table pixels. */
+const SOLID_SIGHT_PX = 1e6;
+
+/** Where the line first comes into a solid, from the eye on, or from where it starts within it. */
+function hitSolid(ray: TableRay, shape: PickSolid): PickShapeHit | null {
+  const from = ray.from ?? -SOLID_SIGHT_PX;
+  const to = from + 2 * SOLID_SIGHT_PX;
+  const share = solidEntryAlong(shape.solid, at(ray, from), at(ray, to));
+  if (share === null) return null;
+  const t = from + (to - from) * share;
+  return { t, point: at(ray, t) };
 }
 
 /**

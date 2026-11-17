@@ -3,6 +3,8 @@ import { STORAGE_KEY_PREFIXES, STORAGE_KEYS, storageKeyFor } from '@axe/core/sto
 describe('the keys the app keeps settings under in the browser', () => {
   it('stays as every browser already keeps them, letter for letter', () => {
     expect(STORAGE_KEYS).toEqual({
+      aiGm: 'axe.ai-gm',
+      aiLink: 'axe.ai-link',
       ambienceFrameStep: 'ui-ambience-frame-step',
       audioAnalyses: 'audio-analyses',
       battleCutIn: 'axe.battle.cutIn',

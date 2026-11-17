@@ -110,7 +110,7 @@ export class ChatMessageService {
       text,
       imagePos: -1,
       messColor: messageColor,
-      ...this.mastersMark(),
+      ...this.speakerMarks(),
     };
     return chatTab.addMessage(chatMessage);
   }
@@ -316,7 +316,7 @@ export class ChatMessageService {
       messColor: resolveMessageColor(color, '#000000'),
       sendFrom,
       senderRole: PeerCursor.myRole,
-      ...this.mastersMark(),
+      ...this.speakerMarks(),
       stamp: stampId,
     };
     if (stamp.kind === 'image') chatMessage.attachmentImageIdentifiers = JSON.stringify([stamp.imageIdentifier]);
@@ -409,7 +409,7 @@ export class ChatMessageService {
       messColor: messageColor,
       sendFrom: sendFrom,
       senderRole: PeerCursor.myRole,
-      ...this.mastersMark(),
+      ...this.speakerMarks(),
     };
     if (attachments.length > 0) {
       chatMessage.attachmentImageIdentifiers = JSON.stringify(attachments);
@@ -497,7 +497,7 @@ export class ChatMessageService {
       messColor: resolveMessageColor(color, '#000000'),
       sendFrom: '',
       senderRole: PeerCursor.myRole,
-      ...this.mastersMark(),
+      ...this.speakerMarks(),
     };
     if (answers) chatMessage.answersTargetNumber = '1';
     if (stamped.pictures.length > 0) {
@@ -540,7 +540,7 @@ export class ChatMessageService {
       imagePos: -1,
       messColor: resolveMessageColor(options.color, as.kind === 'system' ? '#006633' : '#000000'),
       senderRole: PeerCursor.myRole,
-      ...this.mastersMark(),
+      ...this.speakerMarks(),
     };
     if (as.kind === 'system') {
       chatMessage.name = encodeI18nMessage('common.chat.systemName');
@@ -713,8 +713,28 @@ export class ChatMessageService {
     }
   }
 
-  private mastersMark(): Pick<ChatMessageContext, 'mastersWords'> {
-    return this.mastersWordsDepth > 0 ? { mastersWords: '1' } : {};
+  /** How deep the sending is in lines an AI linked to this seat sent; see {@link asAiWords}. */
+  private aiWordsDepth = 0;
+
+  /**
+   * Sends, through `send`, which sends at once, lines an AI linked to this seat sent on its behalf:
+   * each is marked as the AI's, so that everyone at the table can tell them from the person's.
+   */
+  asAiWords<T>(send: () => T): T {
+    this.aiWordsDepth++;
+    try {
+      return send();
+    } finally {
+      this.aiWordsDepth--;
+    }
+  }
+
+  /** The marks on a line for who wrote it: the master's words, or an AI's. */
+  private speakerMarks(): Pick<ChatMessageContext, 'mastersWords' | 'via'> {
+    return {
+      ...(this.mastersWordsDepth > 0 ? { mastersWords: '1' } : {}),
+      ...(this.aiWordsDepth > 0 ? { via: 'ai' } : {}),
+    };
   }
 
   private findObjectName(identifier: string): string {

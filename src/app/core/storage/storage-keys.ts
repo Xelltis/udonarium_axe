@@ -6,6 +6,8 @@
  * first written, whatever pattern later ones follow.
  */
 export const STORAGE_KEYS = {
+  aiGm: 'axe.ai-gm',
+  aiLink: 'axe.ai-link',
   ambienceFrameStep: 'ui-ambience-frame-step',
   audioAnalyses: 'audio-analyses',
   battleCutIn: 'axe.battle.cutIn',

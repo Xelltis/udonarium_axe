@@ -18,6 +18,8 @@ import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DEFAULT_BATTLE_SETTINGS } from '@axe/domain/battle/battle-settings';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { newStatusAilment } from '@axe/domain/character/status-ailment';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { exportChatLog } from '@axe/domain/chat/chat-log-export';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -228,6 +230,56 @@ describe('SaveDataService', () => {
       };
 
       expect(privateApi.buildRoomFiles(false).map((file) => file.name)).toContain(`${kept}.webp`);
+    });
+  });
+
+  describe('the pictures used as the icons of buffs and states', () => {
+    const icon = 'f'.repeat(64);
+    const dieFace = './assets/images/dice/6_dice/6_dice[1].png';
+
+    beforeEach(() => {
+      ImageStorage.instance.add({
+        identifier: icon,
+        name: 'poison.webp',
+        type: 'image/webp',
+        blob: new Blob(['picture'], { type: 'image/webp' }),
+        url: 'blob:poison',
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+      ImageStorage.instance.add(dieFace);
+    });
+
+    afterEach(() => {
+      StatusAilmentCatalog.instance.ailments = [];
+      ImageStorage.instance.delete(icon);
+      ImageStorage.instance.delete(dieFace);
+    });
+
+    it('saves a picture that only a state of the room uses as its icon, and links a bundled one', async () => {
+      StatusAilmentCatalog.instance.ailments = [
+        { ...newStatusAilment('毒'), icon },
+        { ...newStatusAilment('麻痺'), icon: dieFace },
+        { ...newStatusAilment('炎上'), icon: '🔥' },
+      ];
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+      };
+
+      const files = privateApi.buildRoomFiles(false);
+      expect(files.map((file) => file.name)).toContain(`${icon}.webp`);
+      const links = await files.find((file) => file.name === 'imagelink.xml')!.text();
+      expect(links).toContain(`url="${dieFace}"`);
+    });
+
+    it('saves a picture that only a buff on a piece uses as its icon, leaving a mark that names none', () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      // A piece's buffs as its XML writes them. happy-dom refuses the dotted attributes of a whole
+      // piece, so the search is given the buffs alone.
+      const xml =
+        `<character><data name="buff"><data name="毒" cs-buff-icon="${icon}"></data>` +
+        '<data name="炎上" cs-buff-icon="🔥"></data></data></character>';
+
+      expect(privateApi.searchImageFiles(xml).map((image) => image.identifier)).toEqual([icon]);
     });
   });
 

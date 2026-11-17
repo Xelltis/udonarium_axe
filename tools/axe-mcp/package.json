@@ -1,0 +1,22 @@
+{
+  "name": "udonarium-axe-mcp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The bridge that lets an AI use a tab of Udonarium Axe through the Model Context Protocol.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.4.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "ws": "8.22.1",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@types/ws": "8.18.2",
+    "esbuild": "0.28.2"
+  }
+}

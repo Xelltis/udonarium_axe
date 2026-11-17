@@ -8,6 +8,8 @@ export interface TurnInProgress {
   readonly step: number;
   /** Whether it is being snapped to that step now. */
   readonly snapping: boolean;
+  /** For something pointed up or down as well, as a cone standing up off the table, how far up from level, in whole degrees. */
+  readonly pitch?: number;
 }
 
 /**

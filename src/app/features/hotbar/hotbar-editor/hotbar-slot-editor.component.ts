@@ -47,6 +47,12 @@ import { presetSoundLabelKey, soundFileName } from '@axe/domain/media/preset-sou
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { RANGE_DEFAULT_BORDER_COLOR, RANGE_DEFAULT_FILL_COLOR } from '@axe/domain/tabletop/range';
+import {
+  DEFAULT_SOLID_HEIGHT,
+  DEFAULT_SOLID_REACH,
+  solidFitsShape,
+  SolidKind,
+} from '@axe/domain/tabletop/solid/solid-kind';
 import { isMenuCommandOffered, MENU_COMMANDS } from '@axe/domain/ui/menu-command';
 import { CHARACTER_PANELS, DEFAULT_CHARACTER_PANEL, panelLabelKey } from '@axe/domain/ui/room-panel';
 import { EffectPreviewComponent } from '@axe/features/effect/effect-preview/effect-preview.component';
@@ -79,6 +85,15 @@ interface PalettePick {
   /** `tab / heading`, either alone, or empty for a line written under neither. */
   group: string;
 }
+
+/** Every kind a range laid out by a slot can stand up as, flat first, as the editor offers them. */
+const SOLID_CHOICES: readonly { kind: SolidKind; labelKey: string }[] = [
+  { kind: '', labelKey: 'feature.inventory.sheet.solidFlat' },
+  { kind: 'column', labelKey: 'feature.inventory.sheet.solidColumn' },
+  { kind: 'sphere', labelKey: 'feature.inventory.sheet.solidSphere' },
+  { kind: 'cone', labelKey: 'feature.inventory.sheet.solidCone' },
+  { kind: 'beam', labelKey: 'feature.inventory.sheet.solidBeam' },
+];
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -467,6 +482,38 @@ export class HotbarSlotEditorComponent {
     const options = this.options();
     return options.kind === 'range' && options.shiftY;
   });
+  /**
+   * The kinds a range laid out by the slot can stand up as, flat first: those the shape it names can
+   * take, a column for a shape of its own cells, and all of them while it names none yet.
+   */
+  protected readonly solidChoices = computed(() => {
+    const named = this.draft().value.trim();
+    const type = named.startsWith('{') ? 'CUSTOM' : named;
+    if (!type) return SOLID_CHOICES;
+    return SOLID_CHOICES.filter((choice) => solidFitsShape(choice.kind, type));
+  });
+
+  protected readonly rangeSolid = computed<SolidKind>(() => {
+    const options = this.options();
+    return options.kind === 'range' ? options.solid : '';
+  });
+  protected readonly rangeSolidHeight = computed(() => {
+    const options = this.options();
+    return options.kind === 'range' ? options.solidHeight : DEFAULT_SOLID_HEIGHT;
+  });
+  protected readonly rangeSolidReach = computed(() => {
+    const options = this.options();
+    return options.kind === 'range' ? options.solidReach : DEFAULT_SOLID_REACH;
+  });
+  protected readonly rangePitch = computed(() => {
+    const options = this.options();
+    return options.kind === 'range' ? options.pitch : 0;
+  });
+
+  /** Writes a number typed into a box of the slot's options, and nothing while the box is empty or not a number. */
+  protected patchNumber(field: 'solidHeight' | 'solidReach' | 'pitch', value: number): void {
+    if (Number.isFinite(value)) this.patchOptions({ [field]: value });
+  }
 
   /**
    * Loads the slot the hotbar opened this editor for: which page and slot it is, and the draft to

@@ -1,6 +1,7 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { blockFacesOf, SHEET_LIFT_PX } from '@axe/domain/tabletop/world/block-faces';
+import { LYING_LIFT_PX } from '@axe/domain/tabletop/world/table-sprites';
 
 const GRID = 50;
 const picture = (identifier: string) => `blob:${identifier}`;
@@ -60,6 +61,35 @@ describe('the faces of the blocks', () => {
     expect(faces(tile).caps[0]).toMatchObject({ zPx: SHEET_LIFT_PX, facing: 'up' });
     expect(faces(tile).walls).toEqual([]);
     expect(faces(block()).caps[0].zPx).toBe(100);
+  });
+
+  it('lays the top of a block as high as nothing over that of another laid before it where they overlap, never under the things lying on them', () => {
+    const tile = (x: number, y: number) => {
+      const laid = Terrain.create('tile', 2, 2, 0, 'stone', 'rug');
+      laid.location = { name: 'table', x, y };
+      made.push(laid);
+      return laid;
+    };
+    const first = tile(100, 100);
+    const second = tile(150, 150);
+    const apart = tile(400, 400);
+    const third = tile(120, 120);
+    const fourth = tile(400, 400);
+
+    const tops = blockFacesOf([first, second, apart, third, fourth], GRID, GridType.SQUARE, picture).caps.map(
+      (cap) => cap.zPx
+    );
+    // Each over every one before it that it overlaps; one standing apart from the rest as low as the first.
+    expect(tops[0]).toBe(SHEET_LIFT_PX);
+    expect(tops[1]).toBeGreaterThan(tops[0]);
+    expect(tops[2]).toBe(SHEET_LIFT_PX);
+    expect(tops[3]).toBeGreaterThan(tops[1]);
+    expect(tops[4]).toBeGreaterThan(tops[2]);
+    // However many lie one over another, all stay under where the things lying on them are drawn.
+    const piled = Array.from({ length: 12 }, () => tile(100, 100));
+    for (const cap of blockFacesOf(piled, GRID, GridType.SQUARE, picture).caps) {
+      expect(cap.zPx).toBeLessThan(LYING_LIFT_PX);
+    }
   });
 
   describe('the faces marked as a sheet’s', () => {
