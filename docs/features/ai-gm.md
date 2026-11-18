@@ -9,7 +9,7 @@ APIキーはブリッジの環境変数にだけ置き、ブラウザに入れ�
 Axeのタブ（GMの席）
   ├ AI GMのパネルと AiGmService: 開始・停止・設定・指示・メモ、起きたことの中継
   └ 道具（AgentToolRunner。AI連携と同じ）
-        │ WebSocket（ws://127.0.0.1:47610/axe、やりとりの版4）
+        │ WebSocket（ws://127.0.0.1:47610/axe、やりとりの版5）
 ブリッジ（axe-mcp.mjs gm）
   ├ GmHost: 番を回す時の判断、状態の通知
   └ GameMaster: 会話・キャッシュの配置・区切り直し・費用
@@ -24,7 +24,7 @@ Claude API
 
 ## やりとり
 
-`AGENT_PROTOCOL_VERSION`は4。`hello`に`mode`（`mcp`か`gm`）と、`gm`なら選べるモデルの一覧を載せる。パネルは`gm`のブリッジにつながったときだけ開始の操作を出す。
+`AGENT_PROTOCOL_VERSION`は5。`hello`に`mode`（`mcp`か`gm`）と、`gm`なら選べるモデルの一覧を載せる。パネルはどちらのブリッジにつながっても開始の操作を出し、`mcp`のときはモデル・考える深さ・上限額を出さない（[MCPのAIに番を渡す](#mcpのaiに番を渡す)）。
 
 | 向き  | 種類        | 中身                                                                                                                                                                                                            |
 | ----- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -95,6 +95,22 @@ AIの行（`by_ai`）・システムの行・AIの席の人（人のGM）の行�
 | `seat`   | つないだ席がGMでなくなったか、AI連携の範囲が`read`になった                   |
 
 断り（`refusal`）の代わりのモデルへの切り替え（SDKの`betaRefusalFallbackMiddleware`）は使わない。会話の途中でモデルが替わると、思考のブロックの扱いと費用の数え方が複雑になるため。
+
+## MCPのAIに番を渡す
+
+`gm`を付けずに起動したブリッジ（`mode`が`mcp`）も、タブからの`gm.start` / `gm.update` / `gm.events` / `gm.nudge` / `gm.stop`を受ける。モデルを呼ぶ代わりに、MCPでつないだAIのアプリ（Claude Codeなど）へ番を渡す。受け持つのは`tools/axe-mcp/src/gm/turn-desk`の`TurnDesk`。
+
+- AIには、ブリッジ自身が答える道具を2つ足す（`GM_DESK_TOOLS`）。`wait_for_turn`は次の番を待ち、`update_notes`はメモを書く。卓の道具の一覧のダイジェスト（`agentToolsDigest`）には入れない
+- 番が要る時の判断は`GmHost`と同じ（理由が付いてから4秒静かになるまで待ち、最初の理由から15秒で打ち切る。**進めてもらう**はすぐ）。時が来たら、待っている`wait_for_turn`に`{ turn: true, reasons, direction?, events, instructions?, notes? }`を返す。待っているAIがいなければ番を取っておき、次に待ちに来たときに渡す
+- 指示とメモは、AIにまだ渡していないか、渡したあとで変わったときだけ番に載せる。AIが`update_notes`で書いたメモは`gm.notes`でタブへ送り、AIには返さない
+- AIがもう一度`wait_for_turn`を呼ぶと、前の番が終わったとみなして`waiting`に戻す。番を渡してからそれまでが`thinking`
+- 時間切れ・開始前・停止は`{ turn: false, running, note }`で返し、AIは呼び直す。待てるのは1つだけで、あとから来た待ちが前の待ちに取って代わる
+- `gm.status`に`attended`を載せる。待っている`wait_for_turn`があるか、AIが最後に道具を呼んでから2分以内なら真。動いているのに偽のとき、パネルは「AIが番を待っていません」（状態`away`）を出す
+- 新しく始めた卓（`fresh`か、まだ番を渡していない）は、始めてすぐ最初の番を渡す。続きから始めたときは卓で何か起きるのを待つ
+- 費用・モデル・会話の区切り直しはAIのアプリのもの。`gm.status`の`model`は空、額は0で、パネルは使った額を出さない
+- AI向けの手引きは`RUN_AI_GM_PROMPT`（プロンプト`run_ai_gm`、リソース`axe://guide/run-ai-gm`）。`GM_GUIDE`と同じ本文を`gmGuide()`から作り、指示がどこから来るかの1行だけを替える（`gm`はシステムプロンプト、MCPは`wait_for_turn`の結果）
+- 書くことの貸し借り（`lendWrite` / `takeBack`）は`gm`と同じ。`gm.status`が`off`で、聞いている`AiGmService`がいないときは、`AiLinkService`が自分で返す（パネルを一度も開いていないページ）
+- 動いているGMを見つけたのに聞いている`AiGmService`がいないとき（開き直したページ）は、`AiLinkService`がAI GMのパネルを開く。起きたことを送るのはパネルが作る`AiGmService`なので
 
 ## タブの側
 
