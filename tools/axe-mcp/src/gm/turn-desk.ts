@@ -5,10 +5,10 @@ import {
   type GmRun,
   type GmStatus,
   type GmTabMessage,
-  type GmWake,
 } from '@axe/core/agent/agent-protocol';
 
 import type { TabLink } from '../tab-link';
+import { TurnGathering } from './turn-gathering';
 
 export interface TurnDeskOptions {
   readonly link: TabLink;
@@ -43,14 +43,6 @@ export type TurnWait =
       readonly note: string;
     };
 
-type TurnReason = GmWake | 'nudge';
-
-/** How long the room must stay quiet, unless told otherwise: long enough for a roll to come back. */
-const QUIET_MS = 4000;
-/** The longest a turn waits, unless told otherwise, however busy the room is. */
-const LONGEST_WAIT_MS = 15_000;
-/** The most events kept for the next turn; the oldest are let go beyond it. */
-const EVENTS_KEPT = 200;
 /** How long the AI counts as there after its last call, unless told otherwise. */
 const ATTENDED_MS = 120_000;
 
@@ -69,9 +61,9 @@ const SOMEONE_WAITS =
  * Hands the turns of the game master to an AI connected over MCP, for the tab connected to the bridge.
  * The tab starts and stops the game master and tells what happens in the room, each event marked where
  * it calls for a turn, as it does to a bridge that runs the model itself; here the model is the AI's
- * own, which asks for its turn with a tool and is answered once something calls for one and the room
- * has gone quiet for a few seconds (at once when the person at the seat asks). The waiting is timed
- * here rather than in the tab, as a tab out of sight is given few timers. The instructions and the
+ * own, which asks for its turn with a tool and is answered once a turn is due, as {@link TurnGathering}
+ * tells it, the keeper of when one is for either kind of bridge. A turn due with no AI waiting is kept
+ * for the one that asks next. The instructions and the
  * notebook travel with a turn whenever the AI has not had them as they stand. The tab is told how the
  * game master stands, and whether an AI is there to take the turns at all.
  */
@@ -80,13 +72,7 @@ export class TurnDesk {
   private halted: GmHalt | undefined;
   private problem: string | undefined;
   private starts = 0;
-  private events: Readonly<Record<string, unknown>>[] = [];
-  private reasons = new Set<TurnReason>();
-  private direction = '';
-  private timer: ReturnType<typeof setTimeout> | null = null;
-  private firstReasonAt = 0;
-  /** Whether a turn is due: the room went quiet after a reason, and no AI was waiting to be handed it. */
-  private due = false;
+  private readonly gathering: TurnGathering;
   private instructions = '';
   private notes = '';
   /**
@@ -108,6 +94,12 @@ export class TurnDesk {
   private attendedTold = false;
 
   constructor(private readonly options: TurnDeskOptions) {
+    this.gathering = new TurnGathering({
+      quietMs: options.quietMs,
+      longestWaitMs: options.longestWaitMs,
+      mayTake: () => this.run === 'waiting' && this.waiter !== null && options.link.current !== null,
+      due: () => this.handOver(),
+    });
     options.link.onGm((message) => this.hear(message));
     options.link.onChange((tab) => {
       if (!tab) return;
@@ -119,7 +111,7 @@ export class TurnDesk {
       this.tell();
       if (this.handed || this.notes) options.link.tellGm({ type: 'gm.notes', notes: this.notes });
       // A turn that fell due while the tab was away is handed over now that it is back.
-      this.handOver();
+      this.gathering.lookAgain();
     });
   }
 
@@ -186,7 +178,6 @@ export class TurnDesk {
     if (this.run === 'thinking') {
       this.run = 'waiting';
       this.tell();
-      if (this.reasons.size > 0) this.schedule(this.reasons.has('nudge'));
     }
     return new Promise<TurnWait>((resolve) => {
       const answer = (given: TurnWait) => {
@@ -204,7 +195,8 @@ export class TurnDesk {
       signal?.addEventListener('abort', onAbort, { once: true });
       this.waiter = answer;
       this.tellIfAttendanceChanged();
-      this.handOver();
+      // What was gathered while nobody waited, or while the last turn was taken, is looked at now.
+      this.gathering.lookAgain();
     });
   }
 
@@ -263,20 +255,10 @@ export class TurnDesk {
         this.tell();
         return;
       case 'gm.events':
-        if (this.run === 'off') return;
-        for (const entry of message.events) {
-          this.events.push(entry.event);
-          if (entry.wake) this.addReason(entry.wake);
-        }
-        if (this.events.length > EVENTS_KEPT) this.events.splice(0, this.events.length - EVENTS_KEPT);
-        if (this.reasons.size > 0) this.schedule(false);
+        if (this.run !== 'off') this.gathering.heard(message.events);
         return;
       case 'gm.nudge':
-        if (this.run === 'off') return;
-        this.addReason('nudge');
-        if (message.direction.trim())
-          this.direction = [this.direction, message.direction.trim()].filter(Boolean).join('\n');
-        this.schedule(true);
+        if (this.run !== 'off') this.gathering.nudged(message.direction);
         return;
       case 'gm.stop':
         this.halt('asked');
@@ -311,57 +293,20 @@ export class TurnDesk {
     this.run = 'waiting';
     this.halted = undefined;
     this.problem = undefined;
-    this.events = [];
-    this.reasons.clear();
-    this.direction = '';
-    this.due = false;
+    this.gathering.clear();
     this.options.log('The game master started, its turns handed to the AI connected over MCP.');
     this.tell();
     // A new session opens at once, the AI greeting the table; one carried on waits for the room.
-    if (opens) {
-      this.addReason('nudge');
-      this.schedule(true);
-    }
+    if (opens) this.gathering.nudged();
   }
 
-  private addReason(reason: TurnReason): void {
-    if (this.reasons.size === 0) this.firstReasonAt = Date.now();
-    this.reasons.add(reason);
-  }
-
-  /** Has the next turn fall due once the room has been quiet long enough, or at once. */
-  private schedule(now: boolean): void {
-    if (this.run !== 'waiting' || this.reasons.size === 0) return;
-    if (this.timer) clearTimeout(this.timer);
-    // The room spoke again: a turn that had fallen due waits for it to go quiet once more.
-    this.due = false;
-    const quiet = this.options.quietMs ?? QUIET_MS;
-    const longest = this.options.longestWaitMs ?? LONGEST_WAIT_MS;
-    const delay = now ? 0 : Math.max(0, Math.min(quiet, this.firstReasonAt + longest - Date.now()));
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      this.due = true;
-      this.handOver();
-    }, delay);
-  }
-
-  /** Hands the turn due to the AI waiting for it, with what it has not been told. */
+  /** Hands the turn that is due to the AI waiting for it, with what it has not been told. */
   private handOver(): void {
     const waiter = this.waiter;
-    if (!waiter || !this.due || this.run !== 'waiting' || this.reasons.size === 0) return;
-    // Nothing can be done at the table without the tab: the turn is kept until it is back.
-    if (!this.options.link.current) return;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
-    const reasons = gmWakeReasons([...this.reasons]);
-    const events = this.events;
-    const direction = this.direction;
+    const gathered = waiter ? this.gathering.take() : null;
+    if (!waiter || !gathered) return;
     const had = this.told.get(this.waiting);
     const told = had && had.fresh === this.freshFrom ? had : null;
-    this.reasons = new Set();
-    this.events = [];
-    this.direction = '';
-    this.due = false;
     this.told.set(this.waiting, { instructions: this.instructions, notes: this.notes, fresh: this.freshFrom });
     this.handed = true;
     this.run = 'thinking';
@@ -369,9 +314,9 @@ export class TurnDesk {
     this.holderSeenAt = Date.now();
     waiter({
       turn: true,
-      reasons,
-      ...(direction ? { direction } : {}),
-      events,
+      reasons: gmWakeReasons(gathered.reasons),
+      ...(gathered.direction ? { direction: gathered.direction } : {}),
+      events: gathered.events,
       ...(told?.instructions === this.instructions ? {} : { instructions: this.instructions }),
       ...(told?.notes === this.notes ? {} : { notes: this.notes }),
     });
@@ -379,15 +324,10 @@ export class TurnDesk {
   }
 
   private halt(why: GmHalt): void {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
     const wasRunning = this.run !== 'off';
     this.run = 'off';
     this.halted = wasRunning ? why : this.halted;
-    this.events = [];
-    this.reasons.clear();
-    this.direction = '';
-    this.due = false;
+    this.gathering.clear();
     if (wasRunning) {
       this.options.log(`The game master stopped (${why}).`);
       this.waiter?.({ turn: false, running: false, note: STOPPED });

@@ -109,7 +109,7 @@ AIの行（`by_ai`）・システムの行・AIの席の人（人のGM）の行�
 `gm`を付けずに起動したブリッジ（`mode`が`mcp`）も、タブからの`gm.start` / `gm.update` / `gm.events` / `gm.nudge` / `gm.stop`を受ける。モデルを呼ぶ代わりに、MCPでつないだAIのアプリ（Claude Codeなど）へ番を渡す。受け持つのは`tools/axe-mcp/src/gm/turn-desk`の`TurnDesk`。
 
 - AIには、ブリッジ自身が答える道具を2つ足す（`GM_DESK_TOOLS`）。`wait_for_turn`は次の番を待ち、`update_notes`はメモを書く。卓の道具の一覧のダイジェスト（`agentToolsDigest`）には入れない
-- 番が要る時の判断は`GmHost`と同じ（理由が付いてから4秒静かになるまで待ち、最初の理由から15秒で打ち切る。**進めてもらう**はすぐ）。時が来たら、待っている`wait_for_turn`に`{ turn: true, reasons, direction?, events, instructions?, notes? }`を返す。待っているAIがいなければ番を取っておき、次に待ちに来たときに渡す
+- 番が要る時の判断は`tools/axe-mcp/src/gm/turn-gathering`の`TurnGathering`が1か所で持ち、`GmHost`と`TurnDesk`の両方が使う（理由が付いてから4秒静かになるまで待ち、最初の理由から15秒で打ち切る。**進めてもらう**はすぐ。番になったあとに卓がまた動けば、静かになるのを待ち直す。タブが切れている間は番にしない）。2つが違うのは、番になったあと誰が取るかだけ。時が来たら、待っている`wait_for_turn`に`{ turn: true, reasons, direction?, events, instructions?, notes? }`を返す。待っているAIがいなければ番を取っておき、次に待ちに来たときに渡す
 - 指示とメモは、AIにまだ渡していないか、渡したあとで変わったときだけ番に載せる。AIが`update_notes`で書いたメモは`gm.notes`でタブへ送り、AIには返さない
 - AIがもう一度`wait_for_turn`を呼ぶと、前の番が終わったとみなして`waiting`に戻す。番を渡してからそれまでが`thinking`
 - 時間切れ・開始前・停止は`{ turn: false, running, note }`で返し、AIは呼び直す。待てるのは1つだけで、あとから来た待ちが前の待ちに取って代わる
