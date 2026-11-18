@@ -246,6 +246,8 @@ test('a generated sewer runs its water down the passages and pours it into the b
   for (let step = 0; step < 4; step++) await page.keyboard.press('Control+ArrowDown');
   await settle(page, 400);
   await letImagesArrive(page);
+  // The water runs and falls by the clock, which stands wherever generating the sewer left it.
+  await holdSceneAt(page, MILLS_HELD_AT_MS);
   await snap(page, 'dungeon-sewer', { timeout: 150000 });
 
   for (let step = 0; step < 5; step++) await page.keyboard.press('Control+ArrowDown');

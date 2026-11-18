@@ -30,6 +30,14 @@ export function keepWaitingTimers(): void {
     if (!realSet || !realClear) continue;
     const waiting = new Set<unknown>();
     page[set] = (...args: unknown[]) => {
+      // One that goes off once is let go of as it does, with what its callback holds on to.
+      const [callback] = args;
+      if (set !== 'setInterval' && typeof callback === 'function') {
+        args[0] = (...given: unknown[]) => {
+          waiting.delete(handle);
+          return (callback as (...given: unknown[]) => unknown)(...given);
+        };
+      }
       const handle = realSet.apply(globalThis, args);
       waiting.add(handle);
       return handle;

@@ -57,6 +57,8 @@ const SHARED_WITH_BRIDGE = /^src\/app\/core\/agent\//;
 const STARTS_BRIDGE = /from '\.\/ai-bridge'/;
 /** A script started as a worker of its own, by the address of its file. */
 const WORKER_STARTED = /new\s+(?:Shared)?Worker\(\s*new URL\(\s*['"]([^'"]+)['"]\s*,\s*import\.meta\.url/g;
+/** A picture the comparisons are made against, by its name. */
+const BASELINE = /^e2e\/visual\/__screenshots__\/[^/]+\/(.+)\.png$/;
 /** What every picture is taken through, beside the above. */
 const REACHES_EVERY_PICTURE = [/^e2e\/visual\/(?!.*\.spec\.ts$)/];
 
@@ -168,6 +170,15 @@ for (const file of changed) {
     pickEvery(() => true, `${file} reaches every spec`);
     continue;
   }
+  const picture = BASELINE.exec(file)?.[1];
+  if (picture !== undefined) {
+    // A picture taken again is checked by the spec that takes it, told by the picture's name in it; a
+    // name put together as the spec runs is found in none, and every picture is taken then.
+    const takers = allSpecs.filter((spec) => isPicture(spec) && readFileSync(spec, 'utf-8').includes(`'${picture}'`));
+    if (takers.length > 0) for (const spec of takers) pick(spec, `takes ${file}`);
+    else pickEvery(isPicture, `${file} is a picture no spec names outright`);
+    continue;
+  }
   if (REACHES_EVERY_PICTURE.some((pattern) => pattern.test(file))) {
     pickEvery(isPicture, `${file} reaches every picture`);
     continue;
@@ -225,7 +236,14 @@ if (flags.has('--run')) {
     for (const projects of runs) {
       const result = spawnSync(
         'npx',
-        ['playwright', 'test', ...projects.map((project) => `--project=${project}`), ...kinds[kind]],
+        [
+          'playwright',
+          'test',
+          ...projects.map((project) => `--project=${project}`),
+          // One way of drawing leaves out the pictures of the page alone: a pick of only those is none of its.
+          ...(kind === 'visual' ? ['--pass-with-no-tests'] : []),
+          ...kinds[kind],
+        ],
         { stdio: 'inherit', shell: process.platform === 'win32' }
       );
       if (result.status !== 0) process.exit(result.status ?? 1);

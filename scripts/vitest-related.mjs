@@ -18,7 +18,8 @@
  * Every spec runs when the files handed include a runner config, a setup file, or anything a setup
  * file imports at any depth without waiting, since setup loads those into every spec. With
  * `--disk-specs`, as before a push, the specs that read files off the disk run as well whatever was
- * changed: a dictionary, a model or a source one of them checks is reached by no import. What setup
+ * changed: a dictionary, a model or a source one of them checks is reached by no import. A changed
+ * dictionary adds every spec that names TestBed as well, for the words those draw. What setup
  * imports only for a spec that builds a TestBed module, the providers every module is given, adds
  * every spec that names TestBed, as setup tells such a spec by that word.
  */
@@ -82,12 +83,22 @@ const stagedPaths = process.argv
   .filter((arg) => !arg.startsWith('--'))
   .map((f) => posix.normalize(f.replaceAll('\\', '/')));
 
-/** The specs that read files off the disk, run with `--disk-specs` whatever was changed. */
+/** A dictionary, which the test setup gives every TestBed module: a spec that names TestBed may check its words. */
+const DICTIONARY = /^src\/assets\/i18n\/[^/]+\.json$/;
+
+/**
+ * The specs run with `--disk-specs` whatever sources were changed: those that read files off the
+ * disk, and, where a dictionary was changed, every spec that names TestBed, since the words a
+ * component draws come out of the dictionaries the setup hands it.
+ */
 function diskSpecs() {
   if (!withDiskSpecs || stagedPaths.length === 0) return [];
-  return sourcesUnder('src').filter(
-    (file) => file.endsWith('.spec.ts') && READS_DISK.test(readFileSync(file, 'utf-8'))
-  );
+  const dictionaryChanged = stagedPaths.some((file) => DICTIONARY.test(file));
+  return sourcesUnder('src').filter((file) => {
+    if (!file.endsWith('.spec.ts')) return false;
+    const source = readFileSync(file, 'utf-8');
+    return READS_DISK.test(source) || (dictionaryChanged && source.includes(TEST_BED_WORD));
+  });
 }
 
 const stagedConfig = stagedPaths.find((file) => configs.has(file));
@@ -115,7 +126,7 @@ if (staged.size === 0) {
     process.exit(0);
   }
   console.log(
-    `[vitest-related] no changed source is imported by a spec; running the ${fromDisk.length} that read files`
+    `[vitest-related] no changed source is imported by a spec; running the ${fromDisk.length} that read files or draw a changed dictionary's words`
   );
   run(fromDisk.sort());
 }
