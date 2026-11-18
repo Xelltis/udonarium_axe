@@ -19,6 +19,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { forgetWithheldTable } from '@axe/domain/peer/withheld-table';
 import { resetChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { ComponentResources } from '@axe/testing/component-resources';
+import { callOffWaitingTimers, keepWaitingTimers } from '@axe/testing/waiting-timers';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -326,6 +327,14 @@ function applyWaitForDefault(): void {
   vi.waitFor = wrapped;
 }
 applyWaitForDefault();
+
+// A timer a test set and left - a notice due off the screen in six seconds, a send to be tried again
+// while the line is full, a batch's next tick - goes off in whichever test the worker has reached by
+// then, in another file as often as not, and one that sets itself again goes on through every file
+// after. A page of the file's own would take them with it as it closed, so as each file ends, the
+// timers it still has waiting are called off.
+keepWaitingTimers();
+afterAll(() => callOffWaitingTimers());
 
 // Angular registers the hooks that tear a TestBed module down as @angular/core/testing is first
 // evaluated. A worker that runs file after file without isolation evaluates it once, so every file
