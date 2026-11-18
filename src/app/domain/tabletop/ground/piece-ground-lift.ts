@@ -32,3 +32,29 @@ export function pieceGroundLiftAt(
   }
   return ground.heightAt(middleX / gridSize, middleY / gridSize) * gridSize;
 }
+
+/**
+ * How high the highest thing to land on stands under a point, for what comes down on it from
+ * `belowPx`, in table pixels: the top of a block over the point that can be stood on, lifted as far
+ * as the raised ground lifts the block, or else the ground itself. A block whose top stands over
+ * where the thing comes down from is no place to land, as a bridge over a spout. `blocks` are the
+ * terrain blocks that may be over the point.
+ */
+export function standingTopPxAt(
+  ground: GroundSurface,
+  gridSize: number,
+  gridType: GridType,
+  blocks: Iterable<Terrain>,
+  x: number,
+  y: number,
+  belowPx: number
+): number {
+  let highest = ground.heightAt(x / gridSize, y / gridSize) * gridSize;
+  for (const terrain of blocks) {
+    if (!canBeStoodOn(terrain) || !terrainCovers(terrain, gridSize, x, y)) continue;
+    const lift = ground.isFlat ? 0 : groundLiftOfBlock(ground, gridSize, terrain);
+    const top = terrainTopPxAt(terrain, gridSize, gridType, x, y) + lift;
+    if (top <= belowPx && top > highest) highest = top;
+  }
+  return highest;
+}

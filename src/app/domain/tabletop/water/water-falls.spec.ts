@@ -165,6 +165,19 @@ describe('waterColumnsOf()', () => {
     expect(columns[0]).toMatchObject({ bottomPx: 12, onWater: false, color: SPOUT_WATER_COLOUR });
   });
 
+  it('asks what it lands on for water coming down from the height of its mouth, where it lands', () => {
+    const grid = cellGridOf(5, 4, G, GridType.SQUARE);
+    const asked: number[][] = [];
+
+    const columns = waterColumnsOf(grid, new Map(), [spout()], (x, y, belowPx) => {
+      asked.push([x, y, belowPx]);
+      return 30;
+    });
+
+    expect(asked).toEqual([[2.5 * G, G + 0.3 * G, 60]]);
+    expect(columns[0].bottomPx).toBe(30);
+  });
+
   it('pours nothing from a spout no higher than what lies below it', () => {
     const { grid, cells } = channelAndBasin();
     expect(waterColumnsOf(grid, cells, [spout({ mouthPx: 15 })])).toEqual([]);

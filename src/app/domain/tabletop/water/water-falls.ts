@@ -136,15 +136,16 @@ export function waterFallsOf(grid: CellGrid, cells: ReadonlyMap<number, WaterCel
 }
 
 /**
- * The water pouring from each spout, down to the water under where it lands, or to the ground
- * there, which `groundAt` gives the height of. It takes the look of the water it pours into. A
- * spout no higher than what lies below it pours nothing.
+ * The water pouring from each spout, down to the water under where it lands, or to what it lands on
+ * there, the ground or a block on it, which `landingAt` gives the height of for water coming down
+ * from the height of the mouth. It takes the look of the water it pours into. A spout no higher than
+ * what lies below it pours nothing.
  */
 export function waterColumnsOf(
   grid: CellGrid,
   cells: ReadonlyMap<number, WaterCell>,
   spouts: readonly WaterSpout[],
-  groundAt: (x: number, y: number) => number = () => 0
+  landingAt: (x: number, y: number, belowPx: number) => number = () => 0
 ): WaterColumn[] {
   const throwPx = SPOUT_THROW_CELLS * Math.max(grid.sizePx, 1);
   const columns: WaterColumn[] = [];
@@ -152,7 +153,7 @@ export function waterColumnsOf(
     const x = spout.x + spout.outX * throwPx;
     const y = spout.y + spout.outY * throwPx;
     const water = cells.get(cellIndexAt(grid, x, y));
-    const bottomPx = water ? Math.max(water.surfacePx, water.floorPx) : groundAt(x, y);
+    const bottomPx = water ? Math.max(water.surfacePx, water.floorPx) : landingAt(x, y, spout.mouthPx);
     if (spout.mouthPx - bottomPx < 1) continue;
     columns.push({
       key: spout.key,

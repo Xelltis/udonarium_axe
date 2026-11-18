@@ -52,7 +52,7 @@ import type { EffectJolt } from '@axe/domain/effect/effect-reaction';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { pieceGroundLiftAt } from '@axe/domain/tabletop/ground/piece-ground-lift';
+import { pieceGroundLiftAt, standingTopPxAt } from '@axe/domain/tabletop/ground/piece-ground-lift';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
 import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
@@ -816,6 +816,17 @@ export class TablePiecesService {
     const z = moving?.z ?? piece.posZ;
     const onFloor = surface === 'floor';
     return { frame, onFloor, x, y, z: onFloor ? z + this.groundLiftOf(piece, x, y, z) : z, placedZ: z };
+  }
+
+  /**
+   * How high what comes down on a point of the table from `belowPx` lands, in table pixels: on the
+   * top of a block there that can be stood on, as the table draws it, or else on the ground. Read
+   * inside a computed, the blocks over the point and the ground are followed.
+   */
+  landingPxAt(x: number, y: number, belowPx: number): number {
+    const table = this.tableShape();
+    const gridSize = table.gridSize > 0 ? table.gridSize : 50;
+    return standingTopPxAt(this.ground.surface(), gridSize, table.gridType, this.blocksOver(x, y), x, y, belowPx);
   }
 
   /**

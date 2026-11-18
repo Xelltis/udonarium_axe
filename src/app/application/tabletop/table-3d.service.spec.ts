@@ -450,6 +450,34 @@ describe('Table3dService', () => {
     expect(engines[0].worlds.at(-1)!.water.falls.points.length).toBe(0);
   });
 
+  it('lands the water of a spout on the top of a block under it, and on the floor again once the block is moved away', async () => {
+    const scene = service();
+    const table = new GameTable();
+    table.initialize();
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
+    const block = Terrain.create('台', 1, 1, 0.5, '', '');
+    block.location = { name: 'table', x: 100, y: 100 };
+    table.appendChild(block);
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.tick();
+    const lowestOf = () =>
+      Math.min(...[...engines[0].worlds.at(-1)!.water.falls.points].filter((_, index) => index % 3 === 2));
+
+    engines[0].spoutsHeard([{ key: 'pipe:0', x: 125, y: 100, mouthPx: 60, outX: 0, outY: 1, widthPx: 12 }]);
+    await Promise.resolve();
+    TestBed.tick();
+    expect(lowestOf()).toBe(25);
+
+    block.location = { name: 'table', x: 300, y: 300 };
+    block.update();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.tick();
+    expect(lowestOf()).toBe(0);
+    table.destroy();
+  });
+
   it('draws the scene and the camera on the frame after it is given a canvas, and once only', async () => {
     const scene = service();
     scene.attach(document.createElement('canvas'));
