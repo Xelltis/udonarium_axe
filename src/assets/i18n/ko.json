@@ -5459,7 +5459,6 @@
         "model_prop_containerGreen": "컨테이너(초록)",
         "model_prop_drainPipe": "배수관",
         "model_prop_barrel": "나무통",
-        "model_prop_valvePipe": "밸브 달린 배관",
         "model_prop_pipe": "배관(직관)",
         "model_prop_pipeValve": "배관(밸브)",
         "model_prop_pipeElbow": "배관(굽은 곳)",

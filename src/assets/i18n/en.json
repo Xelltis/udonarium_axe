@@ -5459,7 +5459,6 @@
         "model_prop_containerGreen": "Container (green)",
         "model_prop_drainPipe": "Drain pipe",
         "model_prop_barrel": "Barrel",
-        "model_prop_valvePipe": "Pipe with a valve",
         "model_prop_pipe": "Pipe (straight)",
         "model_prop_pipeValve": "Pipe (with a valve)",
         "model_prop_pipeElbow": "Pipe (bend)",

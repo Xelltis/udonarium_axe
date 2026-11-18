@@ -17,7 +17,6 @@ export const FURNISHING_MODEL_IDS = [
   'prop_barTable',
   'prop_drainPipe',
   'prop_barrel',
-  'prop_valvePipe',
   'prop_ladder',
   'prop_pipe',
   'prop_pipeValve',

@@ -5459,7 +5459,6 @@
         "model_prop_containerGreen": "コンテナ（緑）",
         "model_prop_drainPipe": "排水管",
         "model_prop_barrel": "樽",
-        "model_prop_valvePipe": "バルブの付いた配管",
         "model_prop_pipe": "配管（直管）",
         "model_prop_pipeValve": "配管（バルブ付き）",
         "model_prop_pipeElbow": "配管（曲がり）",

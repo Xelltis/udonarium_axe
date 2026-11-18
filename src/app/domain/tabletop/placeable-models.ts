@@ -113,7 +113,6 @@ const FURNISHING: readonly Row[] = [
   ['prop_containerGreen', 4.012, 2.004, 1.7, 4, true, true],
   ['prop_drainPipe', 1, 1, 2.005, 1, false, false],
   ['prop_barrel', 0.66, 0.687, 0.9, 0.69, true, false],
-  ['prop_valvePipe', 0.86, 0.384, 1.105, 0.86, true, false],
   ['prop_ladder', 1, 1, 2.515, 1, false, false],
   ['prop_pipe', 1, 1, 0.7, 1, true, false],
   ['prop_pipeValve', 1, 1, 1.1, 1, true, false],

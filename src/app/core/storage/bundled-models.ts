@@ -89,7 +89,6 @@ const BUNDLED_MAP_MODELS: Readonly<Record<string, readonly string[]>> = {
   prop_rubble: ['8c90f620fb7f1f2df587831cb68878b6fe2d04ee83e05d7f8ffa1435dbc41341'],
   prop_shopCounter: ['cdbe800bf26d54d7e3cc9883dfc348d56ada534a0da310f09113e47b5485056c'],
   prop_stool: ['190e0f3ebf610b520072ff6f8b44a56febbbadcf0297572ee809661a4b949839'],
-  prop_valvePipe: ['6bd63bdc372e9cc67797fd0d87bd1b23f9bbac0f870fbf3d24a57bc5a397db63'],
   rail_fence: ['734df47cb01c814c3ec267b1798569194d597ad7a4fb3827546180b2f4ac7f88'],
   rock_angular: ['1f994c6bd7eb9d52d2944f6789c25008a28ad3c1db485e781b5e008a758e6af2'],
   rock_boulder: ['0ef7bb538fb640534ad96fa690a50ee561333a243be159f4d42076129f924085'],
