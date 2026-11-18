@@ -21,10 +21,6 @@ describe('AiGmPanelComponent', () => {
     instructions: '',
     notes: '',
   });
-  const bridgeRunsGm = computed(() => {
-    const now = state();
-    return now.kind === 'connected' && now.mode === 'gm';
-  });
   const linked = computed(() => state().kind === 'connected');
   const bridgeHandsTurns = computed(() => {
     const now = state();
@@ -37,7 +33,6 @@ describe('AiGmPanelComponent', () => {
     status,
     asides: signal([{ text: '酒場の場面へ', at: 0 }]),
     linked,
-    bridgeRunsGm,
     bridgeHandsTurns,
     running,
     unattended,

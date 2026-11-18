@@ -214,7 +214,6 @@ describe('AiGmService', () => {
     state.set({ ...GM_BRIDGE, mode: 'mcp', models: [] });
     gm.update({ settings: { ...GM_DEFAULT_SETTINGS, model: 'claude-kept-from-before' } });
     expect(gm.bridgeHandsTurns()).toBe(true);
-    expect(gm.bridgeRunsGm()).toBe(false);
     expect(gm.modelNotRun()).toBe(false);
 
     expect(gm.start(false)).toBe(true);

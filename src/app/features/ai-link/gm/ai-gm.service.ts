@@ -137,11 +137,6 @@ export class AiGmService {
 
   /** Whether a bridge is connected: either kind takes the game master, running it or handing its turns on. */
   readonly linked = computed(() => this.link.state().kind === 'connected');
-  /** Whether the bridge connected runs the game master itself, on a model of its own with a key it holds. */
-  readonly bridgeRunsGm = computed(() => {
-    const state = this.link.state();
-    return state.kind === 'connected' && state.mode === 'gm';
-  });
   /**
    * Whether the bridge connected hands the game master's turns to an AI app connected over MCP, whose
    * model and spending are that app's and not chosen here.
