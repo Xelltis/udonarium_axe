@@ -3,9 +3,19 @@ import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { callOffWaitingTimers } from '@axe/testing/waiting-timers';
 
 @SyncObject('test-setup-leftover')
 class Leftover extends GameObject {}
+
+/**
+ * The wait the store is in before its next sweep of what was deleted, or null while it waits for
+ * none. It is the one mark kept outside a test's own module that a timer alone takes down: with the
+ * timers a file leaves called off as it ends, the mark has to be taken down with the rest of the store.
+ */
+function sweepWaitOf(store: ObjectStore): unknown {
+  return (store as unknown as { garbageSweepCooldown: unknown }).garbageSweepCooldown;
+}
 
 describe('the shared test setup', () => {
   it('hands each test an empty object store', () => {
@@ -43,6 +53,20 @@ describe('the shared test setup', () => {
     second.initialize();
 
     expect(ObjectStore.instance.get('test-setup-fixed-identifier')).toBe(second);
+  });
+
+  it('takes a deletion, after which the store waits a while before it sweeps again, and the wait called off as a file ends', () => {
+    const gone = new Leftover('test-setup-swept-identifier');
+    gone.initialize();
+    ObjectStore.instance.delete(gone, false);
+    expect(sweepWaitOf(ObjectStore.instance)).not.toBeNull();
+
+    // As the end of a file does: the timer that would end the wait never goes off.
+    callOffWaitingTimers();
+  });
+
+  it('hands the next test a store that waits for nothing, though the timer that ends its wait was called off', () => {
+    expect(sweepWaitOf(ObjectStore.instance)).toBeNull();
   });
 
   it('takes a configuration announced, which the channel replays to later listeners', () => {
