@@ -7,14 +7,15 @@
  * `keepLoadedParts` in e2e/helpers.ts), a panel's code being loaded when the panel is first opened.
  * The sources are sorted by how the app comes to load them. What the page loads as it starts is
  * reached by every spec. What is loaded only as it goes belongs to the parts that lead to it, and is
- * reached by the specs that asked for one of those. What nothing loads is reached by none. A worker
- * is loaded with the file that starts it. The sources of the AI bridge are reached by the specs that
- * start the bridge.
+ * reached by the specs that asked for one of those. A worker is loaded with the file that starts it.
+ * The sources of the AI bridge are reached by the specs that start the bridge.
  *
  * It errs towards running a spec. Specs are picked only for a change whose reach can be told, which
- * `change-reach.mjs` decides for this picker and the unit one alike: every spec runs for a file it
- * knows nothing of, as the build's settings or a file the app is served, and for a helper of the suite
- * itself. A spec that has left nothing behind yet runs too.
+ * `change-reach.mjs` decides for this picker and the unit one alike, and `e2e-reach.mjs` for the
+ * sources of the app: every spec runs for a file nobody knows anything of, as the build's settings or
+ * a file the app is served, for a helper of the suite itself, for a source nothing is seen to load,
+ * and for a part of the app new under its name. A spec with a test that has left nothing behind runs
+ * too.
  *
  *   node scripts/e2e-related.mjs               the specs reached by what is not yet pushed
  *   node scripts/e2e-related.mjs --since main  ... by what has changed since a commit
@@ -29,6 +30,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 
 import { kindOfChange } from './change-reach.mjs';
+import { partNameOf, reachOfSource, reasonsOf, specsReachedThroughParts } from './e2e-reach.mjs';
 import { importedFrom, resolveSpecifier, RuntimeImports, sourcesUnder } from './runtime-imports.mjs';
 
 /**
@@ -38,11 +40,13 @@ import { importedFrom, resolveSpecifier, RuntimeImports, sourcesUnder } from './
  */
 const { loadsDir: LOADS_DIR, projects: PROJECTS } = JSON.parse(readFileSync('e2e/related.json', 'utf-8'));
 const ENTRY = 'src/main.ts';
+/** What the name of a test is kept after in what it leaves, and what joins the groups it stands in to its title. */
+const { titleMark: TITLE_MARK, titleJoint: TITLE_JOINT } = JSON.parse(readFileSync('e2e/related.json', 'utf-8'));
 /**
- * What the specs that start the AI bridge run beside the app: the bridge is built from these and run
- * as a program of its own, which no part the browser asks for tells of.
+ * The sources of the app the AI bridge is built from as well. The bridge is run as a program of its
+ * own beside the app, which no part the browser asks for tells of, so these reach the specs that
+ * start it beside what the page loads them with.
  */
-/** The sources of the app the bridge is built from as well, which reach its specs beside what the page loads them with. */
 const SHARED_WITH_BRIDGE = /^src\/app\/core\/agent\//;
 /** How a spec that starts the bridge is told: it takes the bridge's place from the helper that builds it. */
 const STARTS_BRIDGE = /from '\.\/ai-bridge'/;
@@ -56,16 +60,76 @@ function git(...args) {
   return result.status === 0 ? result.stdout.split('\n').filter(Boolean) : null;
 }
 
-/** The files changed and not yet pushed: in the commits the remote lacks, and in the working tree. */
+/**
+ * The files changed and not yet pushed, in the commits the remote lacks and in the working tree, each
+ * with whether it is new under its name: added, renamed or copied, rather than changed where it stood.
+ */
 function changedFiles(since) {
   const base =
     since ??
     git('rev-parse', '--verify', '--quiet', '@{push}')?.[0] ??
     git('merge-base', 'HEAD', 'origin/main')?.[0] ??
     'HEAD';
-  const committed = git('diff', '--name-only', `${base}...HEAD`) ?? [];
-  const working = git('status', '--porcelain', '--untracked-files=all') ?? [];
-  return [...new Set([...committed, ...working.map((line) => line.slice(3).split(' -> ').pop())])];
+  const fresh = new Map();
+  const note = (file, isFresh) => fresh.set(file, isFresh || fresh.get(file) === true);
+  for (const line of git('diff', '--name-status', `${base}...HEAD`) ?? []) {
+    const [status, ...paths] = line.split('\t');
+    note(paths.at(-1), /^[ARC]/.test(status));
+  }
+  for (const line of git('status', '--porcelain', '--untracked-files=all') ?? []) {
+    note(line.slice(3).split(' -> ').pop(), /[ARC?]/.test(line.slice(0, 2)));
+  }
+  return [...fresh].map(([file, isFresh]) => ({ file, fresh: isFresh }));
+}
+
+/** The files the build swaps in for others, by any of its configurations: each with the file it stands in for. */
+function swappedIn() {
+  const standsInFor = new Map();
+  const visit = (value) => {
+    if (value === null || typeof value !== 'object') return;
+    if (Array.isArray(value.fileReplacements)) {
+      for (const swap of value.fileReplacements) {
+        if (typeof swap?.with === 'string' && typeof swap?.replace === 'string') {
+          standsInFor.set(posix.normalize(swap.with), posix.normalize(swap.replace));
+        }
+      }
+    }
+    for (const inner of Object.values(value)) visit(inner);
+  };
+  visit(JSON.parse(readFileSync('angular.json', 'utf-8')));
+  return standsInFor;
+}
+
+/**
+ * The tests each spec has now, by name, as Playwright lists them for every project; null where it
+ * cannot list them. A test is named by the groups it stands in and its own title.
+ */
+function testsListed() {
+  const listed = spawnSync('npx', ['playwright', 'test', '--list', '--reporter=json'], {
+    encoding: 'utf-8',
+    maxBuffer: 64 * 1024 * 1024,
+    shell: process.platform === 'win32',
+  });
+  let report;
+  try {
+    report = JSON.parse(listed.stdout);
+  } catch {
+    return null;
+  }
+  const tests = new Map();
+  const ids = new Map();
+  const visit = (suite, groups) => {
+    for (const spec of suite.specs ?? []) {
+      const file = posix.join('e2e', spec.file.split('\\').join('/'));
+      const title = [...groups, spec.title].join(TITLE_JOINT);
+      if (!tests.has(file)) tests.set(file, new Set());
+      tests.get(file).add(title);
+      ids.set(spec.id, title);
+    }
+    for (const inner of suite.suites ?? []) visit(inner, [...groups, inner.title]);
+  };
+  for (const file of report.suites ?? []) visit(file, []);
+  return { tests: new Map([...tests].map(([file, titles]) => [file, [...titles]])), ids };
 }
 
 function specsUnder(dir) {
@@ -76,18 +140,27 @@ function specsUnder(dir) {
   });
 }
 
-/** The parts of the app each spec's tests asked for as they went, by what they left behind. */
-function loadsKept() {
+/**
+ * The parts of the app each test of each spec asked for as it went, by what it left behind, under the
+ * test's name. A test that left its name is taken by it; one that left none, as before names were
+ * kept, by the name Playwright lists under what it was filed as, and is passed over where it lists
+ * none. What a test left under several projects is put together.
+ */
+function loadsKept(ids) {
   const loads = new Map();
   if (!existsSync(LOADS_DIR)) return loads;
   for (const project of readdirSync(LOADS_DIR)) {
     for (const file of readdirSync(posix.join(LOADS_DIR, project))) {
-      const [spec, ...parts] = readFileSync(posix.join(LOADS_DIR, project, file), 'utf-8')
+      const [spec, ...lines] = readFileSync(posix.join(LOADS_DIR, project, file), 'utf-8')
         .split('\n')
         .filter(Boolean);
       if (spec === undefined) continue;
-      if (!loads.has(spec)) loads.set(spec, new Set());
-      for (const part of parts) loads.get(spec).add(part);
+      const named = lines.find((line) => line.startsWith(TITLE_MARK));
+      const title = named?.slice(TITLE_MARK.length) ?? ids.get(file.replace(/\.txt$/, ''));
+      if (title === undefined) continue;
+      if (!loads.has(spec)) loads.set(spec, new Map());
+      if (!loads.get(spec).has(title)) loads.get(spec).set(title, new Set());
+      for (const line of lines) if (!line.startsWith(TITLE_MARK)) loads.get(spec).get(title).add(line);
     }
   }
   return loads;
@@ -101,12 +174,19 @@ function howSourcesLoad() {
   const files = new Set(sourcesUnder('src'));
   const runtimeImports = new RuntimeImports();
   const waited = new Map();
+  const waitedBySpecs = new Map();
   const lazyParts = new Set();
   for (const file of files) {
     const text = readFileSync(file, 'utf-8');
     const read = runtimeImports.of(text);
-    if (file.endsWith('.spec.ts') || file.startsWith('src/app/testing/')) continue;
     const resolved = (specifiers) => specifiers.map((specifier) => resolveSpecifier(specifier, file, files));
+    if (file.endsWith('.spec.ts') || file.startsWith('src/app/testing/')) {
+      waitedBySpecs.set(
+        file,
+        resolved([...read.waited, ...read.dynamic]).filter((dependency) => dependency !== null)
+      );
+      continue;
+    }
     // A worker is started by its file's address rather than imported, and runs whenever what starts it
     // does: it and what it imports are loaded with the file that starts it.
     const workers = [...text.matchAll(WORKER_STARTED)].map(([, address]) => address);
@@ -120,14 +200,16 @@ function howSourcesLoad() {
   const atStart = importedFrom([ENTRY], waited);
   const leadingParts = new Map();
   for (const part of lazyParts) {
-    const name = posix.basename(part, '.ts');
+    const name = partNameOf(part);
     for (const file of importedFrom([part], waited)) {
       if (atStart.has(file)) continue;
       if (!leadingParts.has(file)) leadingParts.set(file, new Set());
       leadingParts.get(file).add(name);
     }
   }
-  return { files, atStart, leadingParts };
+  // What the specs and what is written for them load, through whatever those load in turn.
+  const forSpecsAlone = importedFrom([...waitedBySpecs.keys()], new Map([...waited, ...waitedBySpecs]));
+  return { files, atStart, leadingParts, forSpecsAlone, standsInFor: swappedIn(), lazyParts };
 }
 
 const flags = new Set();
@@ -139,11 +221,19 @@ for (const args = process.argv.slice(2); args.length > 0;) {
   else if (arg.startsWith('--')) flags.add(arg);
   else named.push(arg);
 }
-const changed = (named.length > 0 ? named : changedFiles(since)).map((file) => posix.normalize(file));
+// A file named by hand is new under its name where it was added or renamed and is not pushed yet, or
+// where git does not know it; one that stands as git has it has stood all along.
+function standingOf(files) {
+  const unpushed = new Map(changedFiles(since).map(({ file, fresh }) => [file, fresh]));
+  const tracked = new Set(git('ls-files', '--', ...files) ?? []);
+  return files.map((file) => ({ file, fresh: unpushed.get(file) ?? !tracked.has(file) }));
+}
+const changed = (named.length > 0 ? standingOf(named.map((file) => posix.normalize(file))) : changedFiles(since)).map(
+  ({ file, fresh }) => ({ file: posix.normalize(file), fresh })
+);
 
 const allSpecs = specsUnder('e2e');
 const isPicture = (spec) => spec.startsWith('e2e/visual/');
-const loads = loadsKept();
 const picked = new Map();
 /** What each spec says, read once however many changed files ask. */
 const specTexts = new Map();
@@ -182,9 +272,10 @@ function pickForSuiteFile(file) {
   else pickEvery(() => true, `${file} reaches every spec`);
 }
 
-const { files, atStart, leadingParts } = howSourcesLoad();
+const how = howSourcesLoad();
+const lazyPartNames = new Map([...how.lazyParts].map((part) => [part, partNameOf(part)]));
 const partsChanged = new Map();
-for (const file of changed) {
+for (const { file, fresh } of changed) {
   const change = kindOfChange(file);
   if (change.kind === 'apart') continue;
   if (change.kind === 'bridge' || SHARED_WITH_BRIDGE.test(file)) {
@@ -202,26 +293,33 @@ for (const file of changed) {
   }
   const { source } = change;
   if (source.endsWith('.spec.ts') || source.startsWith('src/app/testing/')) continue;
-  if (!files.has(source)) {
-    if (existsSync(file)) pickEvery(() => true, `${file} is no source the imports tell of`);
+  // A source taken away is loaded by nothing any more; what loaded it has changed with it.
+  if (!existsSync(file)) continue;
+  const reach = reachOfSource(source, how);
+  if (reach.none !== undefined) continue;
+  if (reach.every !== undefined) {
+    pickEvery(() => true, `${file} ${reach.every}`);
     continue;
   }
-  if (atStart.has(source)) {
-    pickEvery(() => true, `${file} is loaded as the page starts`);
-    continue;
-  }
-  for (const part of leadingParts.get(source) ?? []) {
-    if (!partsChanged.has(part)) partsChanged.set(part, file);
+  // A part is new where its own file is: under a new name, no test on record has asked for it by that.
+  const own = lazyPartNames.get(source);
+  for (const part of reach.parts) {
+    const known = partsChanged.get(part);
+    if (!known) partsChanged.set(part, { file, fresh: fresh && part === own });
+    else if (fresh && part === own) partsChanged.set(part, { file, fresh: true });
   }
 }
-for (const spec of allSpecs) {
-  const asked = loads.get(spec);
-  if (asked === undefined) {
-    if (partsChanged.size > 0) pick(spec, 'has left nothing to tell what it reaches');
-    continue;
-  }
-  const part = [...partsChanged.keys()].find((name) => asked.has(name));
-  if (part !== undefined) pick(spec, `asks for ${part}, which ${partsChanged.get(part)} is loaded with`);
+if (partsChanged.size > 0) {
+  // The tests are listed only where a pick is narrowed by what they left: it takes Playwright a while.
+  const listed = testsListed();
+  const through = specsReachedThroughParts({
+    partsChanged,
+    specs: allSpecs,
+    tests: listed?.tests ?? null,
+    kept: loadsKept(listed?.ids ?? new Map()),
+  });
+  if (through.every !== undefined) pickEvery(() => true, through.every);
+  for (const [spec, why] of through.picked) pick(spec, why);
 }
 
 const kinds = { e2e: [], visual: [] };
@@ -229,11 +327,7 @@ for (const spec of [...picked.keys()].sort()) kinds[isPicture(spec) ? 'visual' :
 const total = { e2e: allSpecs.filter((spec) => !isPicture(spec)).length, visual: allSpecs.filter(isPicture).length };
 for (const kind of ['e2e', 'visual']) {
   console.log(`[e2e-related] ${kind}: ${kinds[kind].length} of ${total[kind]} spec(s)`);
-  if (kinds[kind].length === total[kind]) {
-    if (total[kind] > 0) console.log(`  every one: ${picked.get(kinds[kind][0])}`);
-    continue;
-  }
-  for (const spec of kinds[kind]) console.log(`  ${spec}  (${picked.get(spec)})`);
+  for (const line of reasonsOf(kinds[kind], (spec) => picked.get(spec), total[kind])) console.log(`  ${line}`);
 }
 
 if (flags.has('--run')) {

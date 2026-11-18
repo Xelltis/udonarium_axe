@@ -248,9 +248,13 @@ export function keepLoadedParts(page: Page): void {
   // What an earlier run left is kept and added to: a run that fails or is stopped part of the way asks
   // for less than the test goes through, and what it leaves alone would tell too little.
   const spec = relative(process.cwd(), info.file).split('\\').join('/');
+  // The test's name, by the groups it stands in and its own title, which the picker tells it by: what
+  // Playwright files a test under differs from one project to the next.
+  const name = `${related.titleMark}${info.titlePath.slice(1).join(related.titleJoint)}`;
   const before = existsSync(kept) ? readFileSync(kept, 'utf-8').split('\n').filter(Boolean) : [];
-  const seen = new Set<string>(before[0] === spec ? before.slice(1) : []);
-  writeFileSync(kept, [spec, ...seen].map((line) => `${line}\n`).join(''));
+  const parts = before.slice(1).filter((line) => !line.startsWith(related.titleMark));
+  const seen = new Set<string>(before[0] === spec ? parts : []);
+  writeFileSync(kept, [spec, name, ...seen].map((line) => `${line}\n`).join(''));
   context.on('request', (request) => {
     const part = LAZY_PART.exec(new URL(request.url()).pathname)?.[1];
     if (part === undefined || seen.has(part)) return;

@@ -114,7 +114,7 @@ E2Eは載せていない。PlaywrightはCIだと5ブラウザぶん走る設定�
 変えた所に届くspecだけを回すなら`npm run e2e:related`を使う（[scripts/e2e-related.mjs](../scripts/e2e-related.mjs)）。
 specはアプリをimportしないので、テストごとに読み込んだ遅延チャンクの名前を`node_modules/.cache/axe-e2e/`へ残し、
 ソースのimportと突き合わせて選ぶ。対象はまだpushしていない変更で、`--since <コミット>`かファイル名で変えられる。
-起動時に読み込むソースやe2eの共有ヘルパーを変えたときは全部を回し、記録がまだ無いspecも回す。
+specを外すのは、変更が届かないと言い切れるときだけにする。起動時に読み込むソース、e2eの共有ヘルパー、importから読み込まれ方が分からないソース、新しく足したか名前を変えた遅延チャンクのどれかを変えたときは全部を回す。ビルドが差し替えるファイル（`environment.prod.ts`）は差し替え元として読む。記録の無いテストが1つでもあるspecは回す。足したテスト、名前を変えたテスト、途中で止めた実行で流れなかったテストがこれにあたる。決まりは[scripts/e2e-reach.mjs](../scripts/e2e-reach.mjs)にあり、`src/app/testing/e2e-reach.spec.ts`が固定する。
 Web Workerは起動する側のファイルと一緒に読み込まれるものとして数え、AI連携のブリッジのソース（`tools/axe-mcp`と`src/app/core/agent`）はブリッジを起動するspecに届くものとする。
 記録は`npm run e2e`を1回流すとできる。記録は実行のたびに足していき、途中で落ちた実行が短い記録で上書きしないようにしてある。演出の比較も含めるなら`npm run e2e:related -- --visual`とし、2つの描き方は1つずつ順に回る。
 
