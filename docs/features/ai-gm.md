@@ -20,7 +20,15 @@ Claude API
 - ループと費用の上限は、キーと同じブリッジに置く。タブが渡せるのは開始・停止・指示・起きたことだけで、任意のリクエストを中継させない。タブが決める上限額は始めるたびに数え直すので、タブが乗っ取られて始め直しを繰り返したときのために、ブリッジにも起動している間の上限（`--max-usd`・`AXE_GM_MAX_USD`、初めは20ドル）を置く。これはどの始め直しにもまたがって数え、タブからは変えられない
 - 道具はAI連携と同じく`call`と`result`でタブが走らせる。許可の確認・見える範囲の絞り込み・AIの印・パネルの履歴はそのまま効く
 - 番を回す前に待つ時間（静かになるまでの数秒）はブリッジで測る。隠れたタブはタイマーが間引かれるので、タブは起きたことを起きた順に送るだけにする
-- 内容は`core/agent`の`agent-gm`（手引き・道具の一覧・番の書き出し）、`tools/axe-mcp/src/gm`（`GameMaster`・`GmHost`・料金表）、`features/ai-gm`（`AiGmService`・番を回す規則`aiGmWakeOf`・パネル）。`features/ai-gm`は`ai-link`だけに依存する
+- 内容は`core/agent`の`agent-gm`（手引き・道具の一覧・番の書き出し）、`tools/axe-mcp/src/gm`（`GameMaster`・`GmHost`・料金表）、`features/ai-link/gm`（`AiGmService`・番を回す規則`aiGmWakeOf`・パネル）。`features/ai-link/gm`は`ai-link`だけに依存する
+
+## 画面
+
+AI GMは独立したパネルを持たず、AI連携のパネル（`features/ai-link/ai-link-panel`）の半分に入る。パネルは上に接続の状態と「AIに許すこと」をいつも出し、下を「接続と履歴」「GMを任せる」のタブで切り替える。「GMを任せる」の中身は`features/ai-link/gm/ai-gm-panel`（セレクターは`ai-gm-panel`のまま）。
+
+- どちらのタブを出すかは`application/agent`の`AiLinkViewService`が持つ。パネルの外から「GMを任せる」を出したい所（`gm`のブリッジにつながったとき、動いているGMを見つけたとき、メニューの`aiGm`）は、これを`gm`にしてから`aiLink`のパネルを開く
+- メニューのコマンド`aiGm`と部屋のパネルの名前`aiGm`は残す（既定の並びからは外した）。利用者が並べ替えて保存したメニューに入っているため。開くのは`aiLink`と同じパネルで、タブだけが違う
+- `features/ai-gm`は`features/ai-link/gm`へ移した。AI連携のパネルがAI GMの部品を持ち、AI GMがAI連携のサービスを使うので、2つのfeatureに分けたままでは層の決まり（featureどうしは循環しない）に合わない
 
 ## やりとり
 
@@ -126,6 +134,6 @@ AIの行（`by_ai`）・システムの行・AIの席の人（人のGM）の行�
 
 ## テスト
 
-- 番を回す規則・やりとりの読み取り・手引きは`core/agent`と`features/ai-gm`の単体テスト
+- 番を回す規則・やりとりの読み取り・手引きは`core/agent`と`features/ai-link/gm`の単体テスト
 - `GameMaster`は偽のAPI（`fake-api.ts`）で、リクエストの前半が前回と同じであること（キャッシュが読まれる形）、上限、取り消し、`stop_reason`ごとの扱い、区切り直しを確かめる。`GmHost`は本物の`TabLink`とテスト用のタブで、待ってから回すこと・止めること・タブが戻ったら回し直すことを確かめる
 - e2eの`ai-gm.spec.ts`はMessages APIのSSEを返すローカルのサーバーに`ANTHROPIC_BASE_URL`でブリッジを向け、開始・一言・停止と、キーがブリッジからしかAPIに届かないことを確かめる。課金される本物のAPIは呼ばない
