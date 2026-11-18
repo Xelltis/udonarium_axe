@@ -291,9 +291,30 @@ describe('TurnDesk', () => {
     expect(await desk.waitForTurn(2000, undefined, first)).toMatchObject({ turn: true });
     tab.say({ type: 'gm.nudge', direction: '' });
 
+    desk.noteCall(first);
+    desk.noteCall(second);
     expect(await desk.waitForTurn(2000, undefined, second)).toMatchObject({ turn: false });
-    await until(() => desk.status().attended === false, 2000);
+
+    // The first makes no call of its own for a while; the second's own calls do not count as its.
+    await new Promise((resolve) => setTimeout(resolve, 260));
+    desk.noteCall(second);
     expect(await desk.waitForTurn(2000, undefined, second)).toMatchObject({ turn: true });
+  });
+
+  it('keeps a turn that fell due while the tab was away, and hands it over once the tab is back', async () => {
+    const tab = await connect();
+    await open(tab);
+    const waiting = desk.waitForTurn(3000);
+    await until(() => desk.status().run === 'waiting');
+    tab.say({ type: 'gm.events', events: [{ event: LINE, wake: 'line' }] });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    tab.close();
+    await until(() => link.current === null);
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    expect(desk.status().run).toBe('waiting');
+
+    await connect();
+    expect(await waiting).toMatchObject({ turn: true, events: [LINE] });
   });
 
   it('lets a later wait take the place of an earlier one', async () => {

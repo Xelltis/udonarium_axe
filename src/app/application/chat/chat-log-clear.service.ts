@@ -85,7 +85,11 @@ export class ChatLogClearService {
     const lines = this.linesWithin(tab, reach);
     if (reach && lines.length === 0) return;
     for (const line of lines) line.destroy();
-    if (!reach) tab.portraitReset();
+    if (!reach) {
+      // The whole log takes whatever else the tab holds with it, as a tab read from another version may.
+      for (const child of [...tab.children]) if (!(child instanceof ChatMessage)) child.destroy();
+      tab.portraitReset();
+    }
 
     const cursor = PeerCursor.myCursor;
     const user = cursor?.name?.trim() || cursor?.identifier || '';

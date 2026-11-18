@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -96,6 +96,13 @@ export class AgentViews {
   private readonly permission = inject(RolePermissionService);
   private readonly objectStore = inject(ObjectStore);
   private readonly t = inject(TRANSLATE_FN);
+
+  /**
+   * The chat tabs the AI is let read, by identifier, or null for every tab the seat reads. Set while a
+   * game master runs with tabs chosen for it to listen to, so that it does not read for itself the
+   * talk it is kept from hearing.
+   */
+  readonly tabsRead = signal<ReadonlySet<string> | null>(null);
 
   /** The grid the pieces of the table in view move over. */
   grid(table: GameTable = this.tabletop.currentTable): CellGrid {

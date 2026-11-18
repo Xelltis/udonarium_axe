@@ -1,5 +1,6 @@
 import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { AgentEventLog } from '@axe/application/agent/agent-event-log.service';
+import { AgentViews } from '@axe/application/agent/agent-views.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -110,6 +111,7 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 export class AiGmService {
   private readonly link = inject(AiLinkService);
   private readonly events = inject(AgentEventLog);
+  private readonly views = inject(AgentViews);
   private readonly chat = inject(ChatMessageService);
   private readonly permission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -193,6 +195,13 @@ export class AiGmService {
       untracked(() => (running ? this.startRelay() : this.stopRelay()));
     });
     effect(() => {
+      // While it runs with tabs chosen, the tools it reads the chat with are kept to those tabs too.
+      const chosen = this.running() ? this.preferences().tabs : [];
+      this.objectChange.collectionOf('chat-tab')();
+      const here = chosen.filter((tab) => ChatTabList.instance.chatTabs.some((each) => each.identifier === tab));
+      untracked(() => this.views.tabsRead.set(here.length > 0 ? new Set(here) : null));
+    });
+    effect(() => {
       if (this.linked()) return;
       untracked(() => {
         this.status.set(null);
@@ -200,6 +209,7 @@ export class AiGmService {
       });
     });
     inject(DestroyRef).onDestroy(() => {
+      this.views.tabsRead.set(null);
       heard.unsubscribe();
       this.stopRelay();
     });

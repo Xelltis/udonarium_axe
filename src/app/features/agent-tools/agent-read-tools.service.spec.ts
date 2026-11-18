@@ -146,6 +146,20 @@ describe('AgentReadTools', () => {
     expect(read.lines[0].seat).toBe('AI GM');
     expect(read.lines[1].secret).toBe(true);
     expect((call('read_chat', { limit: 1 }) as { lines: unknown[] }).lines).toHaveLength(1);
+
+    // While the game master is let hear only some tabs, the others are refused, and the first it hears
+    // stands in for the open tab where that is one it does not.
+    const [open, other] = [ChatTabList.instance.chatTabs[0], ChatTabList.instance.addChatTab('雑談')];
+    other.addMessage({ from: 'someone', name: '誰か', text: 'ここだけの話', timestamp: 1 });
+    const views = TestBed.inject(AgentViews);
+    views.tabsRead.set(new Set([open.identifier]));
+    expect(() => call('read_chat', { tab: '雑談' })).toThrow(/keeps the tab 雑談 from the game master/);
+    expect((call('read_chat', { tab: open.name }) as { lines: unknown[] }).lines.length).toBeGreaterThan(0);
+    views.tabsRead.set(new Set([other.identifier]));
+    expect((call('read_chat') as { lines: { text: string }[] }).lines.map((line) => line.text)).toEqual([
+      'ここだけの話',
+    ]);
+    views.tabsRead.set(null);
   });
 
   it('names the seat a line came from, this seat’s own before its cursor knows its user, and says plainly who sent it', () => {

@@ -104,7 +104,7 @@ export function createMcpServer(link: TabLink, version: string, desk?: TurnDesk)
     const args = request.params.arguments ?? {};
     const problems = checkAgentInput(tool.input, args);
     if (problems.length > 0) return failure(`invalid_input: ${problems.join('; ')}`);
-    desk?.noteCall();
+    desk?.noteCall(server);
     if (desk && tool.name === GM_TURN_TOOL_NAME) {
       if (args['again'] === true) desk.beginAnew(server);
       return answer(await desk.waitForTurn(waitOf(args), extra.signal, server));

@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { ChatLogClearService, clearedMomentText, localMomentText } from '@axe/application/chat/chat-log-clear.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { Network } from '@axe/core/network/network';
+import { ObjectNode } from '@axe/core/sync/object-node';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -41,12 +42,17 @@ describe('ChatLogClearService', () => {
     beSeat(PeerRole.Player);
     say('先週の発言', 1000);
     say('今日の発言', 5000);
+    const stray = new ObjectNode();
+    stray.initialize();
+    tab.appendChild(stray);
     const reset = vi.spyOn(tab, 'portraitReset');
 
     service.clear(tab);
 
     expect(said()).toEqual([]);
     expect(reset).toHaveBeenCalledTimes(1);
+    // Whatever else the tab held went with the whole log: only the notice of the clearing is left.
+    expect(tab.children).toHaveLength(1);
     expect(noticeKeys()).toEqual(['common.chat.logClearedBy {"user":"アリス"}']);
   });
 

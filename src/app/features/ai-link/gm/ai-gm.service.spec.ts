@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { type AgentEventBatch, AgentEventLog } from '@axe/application/agent/agent-event-log.service';
+import { AgentViews } from '@axe/application/agent/agent-views.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import type { AgentLinkState } from '@axe/core/agent/agent-bridge-client';
@@ -444,6 +445,26 @@ describe('AiGmService', () => {
     expect(first.wake).toBeUndefined();
     expect(second.wake).toBe('line');
     expect(gm.preferences().tabs).toEqual(['a-tab-of-another-room']);
+    // No tab of this room is chosen, so the tools read every tab as well.
+    expect(TestBed.inject(AgentViews).tabsRead()).toBeNull();
+  });
+
+  it('keeps the tools the AI reads the chat with to the tabs chosen for it, while it runs', () => {
+    const main = ChatTabList.instance.addChatTab('メイン');
+    ChatTabList.instance.addChatTab('雑談');
+    const gm = make();
+    const views = TestBed.inject(AgentViews);
+    gm.update({ tabs: [main.identifier] });
+    TestBed.tick();
+    expect(views.tabsRead()).toBeNull();
+
+    heard.next({ type: 'gm.status', status: status({ run: 'waiting' }) });
+    TestBed.tick();
+    expect([...(views.tabsRead() ?? [])]).toEqual([main.identifier]);
+
+    heard.next({ type: 'gm.status', status: status({ run: 'off' }) });
+    TestBed.tick();
+    expect(views.tabsRead()).toBeNull();
   });
 
   it('runs the pieces marked as NPCs and those of its own seat', () => {

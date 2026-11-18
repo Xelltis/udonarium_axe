@@ -90,21 +90,34 @@ export class AgentReadTools {
     );
   }
 
-  /** A chat tab by id or name, or the tab this seat has open where none is named. */
+  /**
+   * A chat tab by id or name, or the tab this seat has open where none is named. While the game master
+   * is let hear only some tabs, one of the others is refused, and the first it hears stands in for the
+   * open tab where that is one of them.
+   */
   tab(reference: string): ChatTab {
     const tabs = ChatTabList.instance.chatTabs;
+    const read = this.views.tabsRead();
     if (reference.trim() === '') {
       const open = this.activeTab.current() ?? tabs[0];
-      if (!open) throw new AgentToolError('not_found', 'The room has no chat tab.');
-      return open;
+      const let_ = read && open && !read.has(open.identifier) ? tabs.find((tab) => read.has(tab.identifier)) : open;
+      if (!let_) throw new AgentToolError('not_found', 'The room has no chat tab.');
+      return let_;
     }
-    return findOne(
+    const tab = findOne(
       tabs,
       reference,
-      (tab) => tab.identifier,
-      (tab) => tab.name,
+      (each) => each.identifier,
+      (each) => each.name,
       'chat tab'
     );
+    if (read && !read.has(tab.identifier)) {
+      throw new AgentToolError(
+        'not_allowed',
+        `The person at the seat keeps the tab ${tab.name} from the game master. Read the tabs you are let hear.`
+      );
+    }
+    return tab;
   }
 
   /** The dice system lines are rolled under, as the chat box rolls them. */

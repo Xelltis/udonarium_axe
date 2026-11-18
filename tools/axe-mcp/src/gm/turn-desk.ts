@@ -102,6 +102,8 @@ export class TurnDesk {
   private handed = false;
   private waiter: ((answer: TurnWait) => void) | null = null;
   private lastCallAt = 0;
+  /** When the conversation taking the turn last showed it was there: handed the turn, or called a tool. */
+  private holderSeenAt = 0;
   private attendedTimer: ReturnType<typeof setTimeout> | null = null;
   private attendedTold = false;
 
@@ -116,6 +118,8 @@ export class TurnDesk {
       }
       this.tell();
       if (this.handed || this.notes) options.link.tellGm({ type: 'gm.notes', notes: this.notes });
+      // A turn that fell due while the tab was away is handed over now that it is back.
+      this.handOver();
     });
   }
 
@@ -135,9 +139,13 @@ export class TurnDesk {
     };
   }
 
-  /** Notes that the AI called a tool, which shows it is there. */
-  noteCall(): void {
+  /**
+   * Notes that an AI called a tool, which shows it is there; the conversation taking the turn is
+   * noted apart, since only its own calls show that the turn is still being taken.
+   */
+  noteCall(conversation: object = this): void {
     this.seen();
+    if (conversation === this.waiting) this.holderSeenAt = Date.now();
     this.tellIfAttendanceChanged();
   }
 
@@ -164,8 +172,11 @@ export class TurnDesk {
    */
   waitForTurn(timeoutMs: number, signal?: AbortSignal, conversation: object = this): Promise<TurnWait> {
     // Another conversation waiting keeps its place: were each to take the other's, neither would wait.
-    // So does one taking its turn, for as long as it shows it is there.
-    const busy = this.waiter !== null || (this.run === 'thinking' && this.attended());
+    // So does one taking its turn, for as long as its own calls show it is there: one that went away
+    // in the middle of a turn leaves the next to whoever asks.
+    const takingTurn =
+      this.run === 'thinking' && Date.now() - this.holderSeenAt < (this.options.attendedMs ?? ATTENDED_MS);
+    const busy = this.waiter !== null || takingTurn;
     if (busy && this.waiting !== conversation) {
       return Promise.resolve({ turn: false, running: this.run !== 'off', note: SOMEONE_WAITS });
     }
@@ -330,6 +341,8 @@ export class TurnDesk {
   private handOver(): void {
     const waiter = this.waiter;
     if (!waiter || !this.due || this.run !== 'waiting' || this.reasons.size === 0) return;
+    // Nothing can be done at the table without the tab: the turn is kept until it is back.
+    if (!this.options.link.current) return;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     const reasons = gmWakeReasons([...this.reasons]);
@@ -345,6 +358,7 @@ export class TurnDesk {
     this.handed = true;
     this.run = 'thinking';
     this.seen();
+    this.holderSeenAt = Date.now();
     waiter({
       turn: true,
       reasons,
