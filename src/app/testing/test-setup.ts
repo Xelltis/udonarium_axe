@@ -336,6 +336,15 @@ applyWaitForDefault();
 keepWaitingTimers();
 afterAll(() => callOffWaitingTimers());
 
+// The dice bot starts fetching the dice library as it is first imported and waits for it nowhere, so
+// the library may be evaluated in the middle of whichever test the worker has reached. Evaluated
+// while a test has the clock faked, its Ruby runtime cannot take the stand-in Date for the class it
+// builds Time on and throws; the import stays failed for every file the worker runs after. Each file
+// therefore has the library in, on the real clock, before its first test.
+beforeAll(async () => {
+  await import('@axe/domain/dice/bcdice/bcdice-loader');
+});
+
 // Angular registers the hooks that tear a TestBed module down as @angular/core/testing is first
 // evaluated. A worker that runs file after file without isolation evaluates it once, so every file
 // after the first would keep the module the one before it built. The unit-test builder registers
