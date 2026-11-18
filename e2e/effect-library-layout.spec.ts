@@ -437,6 +437,17 @@ test.describe('the list of effects', () => {
       await panel.getByTestId('effect-library-reaches').locator('[data-reach="area"]').click();
       await expect(panel.getByTestId('effect-library-count')).toBeVisible();
 
+      // A button eases from one colour to the next as it is pressed: the colours are measured once every
+      // one of them has come to rest, not part of the way between two.
+      await panel.evaluate((root) =>
+        Promise.all(
+          root
+            .getAnimations({ subtree: true })
+            .filter((animation) => animation instanceof CSSTransition)
+            .map((animation) => animation.finished.catch(() => undefined))
+        )
+      );
+
       const measured = await panel.evaluate((root) => {
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = 1;
