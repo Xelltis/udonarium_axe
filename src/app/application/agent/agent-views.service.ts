@@ -10,6 +10,7 @@ import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { SYSTEM_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { cellColRow, type CellGrid, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
@@ -106,13 +107,15 @@ export class AgentViews {
   readonly tabsRead = signal<ReadonlySet<string> | null>(null);
 
   /**
-   * Whether a line is the AI's to read where it is kept to some tabs: a line of one of those tabs, one
-   * the table itself put out, the damage of a trap or the turn of a round being the game's own and no
-   * talk beside it, or a whisper to this seat, wherever it was said.
+   * Whether a line is the AI's to read where it is kept to some tabs: a line of one of those tabs, a
+   * line of the tab the table puts its own notices in, which is nobody's talk and no tab to choose, or
+   * a whisper to this seat, wherever it was said. It goes by the tab alone and never by what kind of
+   * line it is: the answer to a roll or to a change of a resource is said in the tab it was asked in,
+   * and is kept from the AI with the talk of that tab.
    */
   private reads(message: ChatMessage): boolean {
     const read = this.tabsRead();
-    if (!read || read.has(message.tabIdentifier) || message.isSystem) return true;
+    if (!read || read.has(message.tabIdentifier) || message.tabIdentifier === SYSTEM_CHAT_TAB_IDENTIFIER) return true;
     const me = PeerCursor.myCursor?.userId ?? '';
     return me !== '' && message.sendTo.includes(me);
   }

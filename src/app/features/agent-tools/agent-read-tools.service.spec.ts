@@ -166,10 +166,21 @@ describe('AgentReadTools', () => {
         ...more,
       });
 
+    const notices = ChatTabList.instance.ensureSystemTab();
     const lines = [
       say('扉を開けます', { from: 'someone' }),
       beside('ここだけの話'),
-      beside('罠が作動した', { tag: 'system' }),
+      // The answer to a roll made beside is said beside, and is kept from it with the rest of that tab.
+      beside('(2D6) ＞ 7', { tag: 'system', from: 'System-BCDice' }),
+      beside('投票が始まりました', { tag: 'system-message', from: 'System' }),
+      notices.addMessage({
+        from: 'System',
+        name: 'System',
+        text: '罠が作動した',
+        timestamp: (said += 1000),
+        tag: 'system-message',
+        imageIdentifier: '',
+      }),
       beside('GMにだけ', { to: 'ai-gm-user' }),
     ];
     const meant = ['扉を開けます', '罠が作動した', 'GMにだけ'];
@@ -186,7 +197,7 @@ describe('AgentReadTools', () => {
     // As it reads back, from either tab.
     const read = (tab: string) =>
       (call('read_chat', { tab }) as { lines: { text: string }[] }).lines.map((line) => line.text);
-    expect([...read('メイン'), ...read('雑談')]).toEqual(meant);
+    expect([...read('メイン'), ...read(notices.name), ...read('雑談')]).toEqual(meant);
 
     // What it wrote itself is told back to it whichever tab it wrote it in, and it finds any tab to write in.
     expect(views.chatLine(lines[1])?.text).toBe('ここだけの話');
@@ -197,6 +208,8 @@ describe('AgentReadTools', () => {
     expect(lines.flatMap((line) => views.lineRead(line)?.text ?? [])).toEqual([
       '扉を開けます',
       'ここだけの話',
+      '(2D6) ＞ 7',
+      '投票が始まりました',
       '罠が作動した',
       'GMにだけ',
     ]);
