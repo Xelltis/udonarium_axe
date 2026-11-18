@@ -133,6 +133,10 @@ class SmallStage implements EffectStage {
     this.drawing.draw();
   }
 
+  waiting(): boolean {
+    return this.drawing.waiting;
+  }
+
   zoom(out: number): void {
     if (out === this.zoomOut) return;
     this.zoomOut = out;

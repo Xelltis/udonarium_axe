@@ -100,11 +100,18 @@ export class EffectPreviewComponent {
 
   private readonly stageCanvas = viewChild<ElementRef<HTMLCanvasElement>>('stageCanvas');
   private readonly stage = signal<EffectStage | null>(null);
+  /** Whether the small stage is still being made, before which nothing of the effect can be seen. */
+  private stagePending = true;
 
   /** Whether the preview moves, as the room's effects do only while motion is on. */
   private readonly moving = computed(() => this.motion.enabled());
 
-  /** How long the playback has been going, in milliseconds, from nothing again for each new effect. */
+  /**
+   * How long the playback has been going, in milliseconds, from nothing again for each new effect.
+   * The time the effect cannot be seen is left out, while the stage is being made and while it readies
+   * the graphics card for a frame it was asked to show, so the effect plays from its start once it
+   * can be drawn. Where no stage can be made the time runs on, with nothing to wait for.
+   */
   private readonly sinceStart = linkedSignal({
     source: () => ({ preset: this.preset(), version: this.version(), moving: this.moving() }),
     computation: () => 0,
@@ -156,17 +163,20 @@ export class EffectPreviewComponent {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
-    afterNextRender(() => void this.startStage(destroyRef));
+    afterNextRender(() => void this.startStage(destroyRef).finally(() => (this.stagePending = false)));
     effect(() => this.stage()?.zoom(this.zoomOut()));
     effect(() => this.stage()?.show(this.sceneFrame()));
     destroyRef.onDestroy(() => untracked(this.stage)?.dispose());
     effect((onCleanup) => {
       this.version();
       if (!this.preset() || !this.moving() || typeof requestAnimationFrame !== 'function') return;
-      const startedAt = performance.now();
+      let startedAt = performance.now();
+      let last = startedAt;
       let handle = 0;
       const tick = (now: number) => {
-        this.sinceStart.set(now - startedAt);
+        if (this.stagePending || untracked(this.stage)?.waiting()) startedAt += now - last;
+        else this.sinceStart.set(now - startedAt);
+        last = now;
         handle = requestAnimationFrame(tick);
       };
       handle = requestAnimationFrame(tick);

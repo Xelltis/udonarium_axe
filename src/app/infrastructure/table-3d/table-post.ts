@@ -1,3 +1,4 @@
+import { READIED_ONE_BY_ONE, readyThings } from '@axe/infrastructure/table-3d/readying';
 import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { ao } from 'three/addons/tsl/display/GTAONode.js';
@@ -21,8 +22,6 @@ const BLOOM_THRESHOLD = 0;
 const SAMPLES = 4;
 /** How large the shading of corners and creases is worked out, beside the screen. */
 const AO_SCALE = 0.5;
-/** How many new things are readied one by one; more than that, and the whole scene is readied at once. */
-const READIED_ONE_BY_ONE = 24;
 
 const drawingSize = new Vector2();
 
@@ -83,15 +82,10 @@ export class TablePost {
     this.lay(scene, camera, plan);
     const renderer = this.renderer;
     const pass = this.scenePass;
-    if (things.length > READIED_ONE_BY_ONE) {
-      await (pass ? pass.compileAsync(renderer) : renderer.compileAsync(scene, camera));
-      return;
-    }
-    await this.throughFinishing(async () => {
-      for (const thing of things) {
-        if (isWithin(thing, scene)) await renderer.compileAsync(thing, camera, scene);
-      }
-    });
+    const whole = () => (pass ? pass.compileAsync(renderer) : renderer.compileAsync(scene, camera));
+    const one = (thing: Object3D) => renderer.compileAsync(thing, camera, scene);
+    if (things.length > READIED_ONE_BY_ONE) await readyThings(things, scene, { one, whole });
+    else await this.throughFinishing(() => readyThings(things, scene, { one, whole }));
   }
 
   /**
@@ -171,10 +165,4 @@ export class TablePost {
     pipeline.outputNode = colour;
     return pipeline;
   }
-}
-
-/** Whether a thing stands in a scene, under it however deep. */
-function isWithin(thing: Object3D, scene: Scene): boolean {
-  for (let at: Object3D | null = thing; at; at = at.parent) if (at === scene) return true;
-  return false;
 }

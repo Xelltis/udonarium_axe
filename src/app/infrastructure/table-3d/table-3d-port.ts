@@ -339,8 +339,16 @@ export interface EffectStageOptions {
 
 /** A small stage apart from the table that an effect is played on, as an editor previews it. */
 export interface EffectStage {
-  /** Draws what the effect draws at a moment. */
+  /**
+   * Draws what the effect draws at a moment: at once, or, where the effect is of a kind new to the
+   * graphics card, once the card is readied for it.
+   */
   show(frame: EffectFrame): void;
+  /**
+   * Whether what it was last asked to show is still to be drawn, the card being readied for it. What
+   * plays is held meanwhile by whoever keeps its time, so that none of it passes unseen.
+   */
+  waiting(): boolean;
   /** Fits the drawing to the canvas as it is laid out now. */
   resize(): void;
   /** Stands the camera this much further off than to fit the board, for a larger effect to stay in sight. */

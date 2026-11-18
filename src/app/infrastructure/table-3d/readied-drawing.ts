@@ -1,4 +1,5 @@
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
+import { readyThings } from '@axe/infrastructure/table-3d/readying';
 import type { Camera, Object3D, Scene } from 'three/webgpu';
 
 /** What of a renderer a scene is readied and drawn with. */
@@ -9,11 +10,6 @@ export interface ReadyingRenderer {
 
 /** How many builds may follow one another before a scene asked for is drawn whatever is left to build. */
 const BUILDS_BEFORE_DRAWING = 3;
-
-function isWithin(thing: Object3D, scene: Object3D): boolean {
-  for (let at: Object3D | null = thing; at; at = at.parent) if (at === scene) return true;
-  return false;
-}
 
 /**
  * Draws a scene only once the graphics card is readied for every kind of thing in it. A kind built
@@ -34,6 +30,14 @@ export class ReadiedDrawing {
     private readonly scene: Scene,
     private readonly camera: Camera
   ) {}
+
+  /**
+   * Whether a drawing asked for is still to come, the card being readied for it: what the scene shows
+   * meanwhile is older than what it was last asked to show.
+   */
+  get waiting(): boolean {
+    return this.wanted && !this.gone;
+  }
 
   /** Draws the scene now, or once the card is readied for the kinds in it that are new to it. */
   draw(): void {
@@ -72,33 +76,16 @@ export class ReadiedDrawing {
     }
     this.readying = true;
     this.builtInARow++;
-    void this.build(fresh.things).then((whole) => {
+    void readyThings(fresh.things, this.scene, {
+      one: (thing) => this.renderer.compileAsync(thing, this.camera, this.scene),
+      whole: () => this.renderer.compileAsync(this.scene, this.camera),
+      stop: () => this.gone,
+    }).then((whole) => {
       // Marked only where every thing was built: one passed over leaves its kind to be asked after
       // again, should it come back, rather than built on the frame that first draws it.
       if (whole) this.kinds.markReadied(fresh.kinds);
       this.readying = false;
       this.go();
     });
-  }
-
-  /**
-   * Builds what drawing the things asks for, and answers whether all of them were built: one taken
-   * out of the scene meanwhile is passed over, and nothing more is built once this is let go of.
-   */
-  private async build(things: readonly Object3D[]): Promise<boolean> {
-    let whole = true;
-    for (const thing of things) {
-      if (this.gone) return false;
-      if (!isWithin(thing, this.scene)) {
-        whole = false;
-        continue;
-      }
-      try {
-        await this.renderer.compileAsync(thing, this.camera, this.scene);
-      } catch {
-        // Built on the frame that first draws it instead.
-      }
-    }
-    return whole;
   }
 }

@@ -62,6 +62,46 @@ describe('ReadiedDrawing', () => {
     expect(renderer.built).toEqual([thing]);
   });
 
+  it('says a drawing is still to come from when it is asked for until it is drawn, and never for readying alone', async () => {
+    expect(drawing.waiting).toBe(false);
+    scene.add(box());
+    drawing.ready();
+    expect(drawing.waiting).toBe(false);
+
+    drawing.draw();
+    expect(drawing.waiting).toBe(true);
+
+    await renderer.finish();
+    expect(renderer.drawn).toBe(1);
+    expect(drawing.waiting).toBe(false);
+
+    scene.add(box());
+    drawing.draw();
+    drawing.dispose();
+    expect(drawing.waiting).toBe(false);
+  });
+
+  it('readies the whole scene at once where more than a few things are new to the card', async () => {
+    const colours = Array.from({ length: 25 }, (_, index) => index);
+    for (const colour of colours)
+      scene.add(
+        new Mesh(
+          new BoxGeometry(1, 1, 1),
+          new MeshBasicMaterial({
+            color: colour,
+            wireframe: colour % 2 === 0,
+            transparent: colour % 3 === 0,
+            opacity: 1 - colour / 100,
+          })
+        )
+      );
+    drawing.draw();
+
+    expect(renderer.built).toEqual([scene]);
+    await renderer.finish();
+    expect(renderer.drawn).toBe(1);
+  });
+
   it('builds what came into the scene while it was building before it draws', async () => {
     const first = box();
     const second = box();

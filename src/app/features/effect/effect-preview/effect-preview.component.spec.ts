@@ -42,6 +42,8 @@ describe('EffectPreviewComponent', () => {
   let frames: FrameRequestCallback[];
   let shown: EffectFrame[];
   let zooms: number[];
+  let waiting: boolean;
+  let made: boolean;
 
   beforeEach(async () => {
     // The 2D context of happy-dom has no drawing functions; what is checked is what is placed.
@@ -55,8 +57,11 @@ describe('EffectPreviewComponent', () => {
     vi.spyOn(performance, 'now').mockReturnValue(1000);
     shown = [];
     zooms = [];
+    waiting = false;
+    made = false;
     const stage = {
       show: (frame: EffectFrame) => shown.push(frame),
+      waiting: () => waiting,
       resize: () => undefined,
       zoom: (out: number) => zooms.push(out),
       dispose: () => undefined,
@@ -69,7 +74,10 @@ describe('EffectPreviewComponent', () => {
           provide: EFFECT_STAGE_LOADER,
           useValue: () =>
             Promise.resolve({
-              createEffectStage: () => Promise.resolve(stage),
+              createEffectStage: () => {
+                made = true;
+                return Promise.resolve(stage);
+              },
               createEffectOverlay: () => Promise.resolve(null),
             }),
         },
@@ -80,6 +88,10 @@ describe('EffectPreviewComponent', () => {
     await TestBed.inject(EffectSceneLooksService).load();
     fixture = TestBed.createComponent(EffectPreviewComponent);
     component = fixture.componentInstance;
+    // The time of the playback stands still until the small stage is made, so it is made first.
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(made).toBe(true));
+    for (let turn = 0; turn < 3; turn++) await Promise.resolve();
   });
 
   afterEach(() => {
@@ -231,6 +243,23 @@ describe('EffectPreviewComponent', () => {
 
     expect(stage().classList.contains('h-28')).toBe(false);
     expect(stage().classList.contains('h-full')).toBe(true);
+  });
+
+  it('holds the playback while the stage readies the graphics card for what it was asked to show, and plays on from there', () => {
+    const preset = presetOf('burst', 1000);
+    show(preset);
+    runFramesAt(100);
+    expect(component.frame()).toEqual(effectPreviewFrameAt(preset, 100));
+
+    waiting = true;
+    runFramesAt(2100);
+    runFramesAt(4100);
+    expect(component.frame()).toEqual(effectPreviewFrameAt(preset, 100));
+
+    waiting = false;
+    runFramesAt(4200);
+    expect(component.frame()).toEqual(effectPreviewFrameAt(preset, 200));
+    expect(effectPreviewFrameAt(preset, 200)).not.toEqual(effectPreviewFrameAt(preset, 100));
   });
 
   it('holds one still halfway through while motion is turned off', () => {
