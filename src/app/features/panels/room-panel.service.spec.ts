@@ -64,6 +64,14 @@ describe('RoomPanelService', () => {
     expect(view.tab()).toBe('link');
   });
 
+  it('turns the AI link panel to the game master’s half too when it is opened by that name among the panels opened in turn', () => {
+    const view = TestBed.inject(AiLinkViewService);
+
+    service.openInTurn([['chatWindow'], ['aiGm']]);
+
+    expect(view.tab()).toBe('gm');
+  });
+
   it('offers to send a panel on the table to a window of its own', () => {
     service.open('cutInList');
 

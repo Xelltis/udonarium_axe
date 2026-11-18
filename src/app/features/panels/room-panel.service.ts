@@ -4,7 +4,13 @@ import { EFFECT_LIBRARY_MIN_SIZE, readEffectLibrarySize } from '@axe/application
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { browserLocalStorage } from '@axe/core/storage/local-preference';
-import { panelLabelKey, RoomPanelName, STATUS_AILMENT_PANEL } from '@axe/domain/ui/room-panel';
+import {
+  panelLabelKey,
+  RoomPanelName,
+  roomPanelNamed,
+  StandingRoomPanelName,
+  STATUS_AILMENT_PANEL,
+} from '@axe/domain/ui/room-panel';
 import { PanelWindowService } from '@axe/features/panels/panel-window.service';
 
 /**
@@ -56,15 +62,19 @@ export class RoomPanelService {
     setup?: (instance: T) => void,
     host?: ViewContainerRef
   ): void {
-    // Asked for by the game master's name, the AI link panel is opened on that half, and from there on
-    // is the AI link panel by its own name: moved into a window of its own and brought back, it is
-    // opened again by that, and keeps the half it was showing.
-    if (name === 'aiGm') {
-      this.aiLinkView.show('gm');
-      this.openFrom('aiLink', this.panelOf('aiLink').load, extra, setup, host);
-      return;
-    }
-    this.openFrom(name, this.panelOf(name).load, extra, setup, host);
+    const panel = this.turnedTo(name);
+    this.openFrom(panel, this.panelOf(panel).load, extra, setup, host);
+  }
+
+  /**
+   * The panel a name asks for, turned to the half of it the name means where it is one the panel used
+   * to go by. From there on the panel goes by its own name: moved into a window of its own and brought
+   * back, it is opened again by that, and keeps the half it was showing.
+   */
+  private turnedTo(name: RoomPanelName): StandingRoomPanelName {
+    const { panel, half } = roomPanelNamed(name);
+    if (half) this.aiLinkView.show(half);
+    return panel;
   }
 
   /**
@@ -72,7 +82,7 @@ export class RoomPanelService {
    * that may stand several at a time is never told of.
    */
   isOpen(name: RoomPanelName): boolean {
-    const single = this.panelOf(name).option.single;
+    const single = this.panelOf(roomPanelNamed(name).panel).option.single;
     return single !== undefined && this.panelService.hasSingle(single);
   }
 
@@ -85,7 +95,8 @@ export class RoomPanelService {
    */
   openInTurn(requests: readonly (readonly [RoomPanelName, PanelOption?])[]): void {
     let ahead: Promise<unknown> = Promise.resolve();
-    for (const [name, extra] of requests) {
+    for (const [asked, extra] of requests) {
+      const name = this.turnedTo(asked);
       const fetched = this.panelOf(name).load();
       fetched.catch(() => undefined);
       const inTurn = ahead.then(() => fetched);
@@ -99,7 +110,7 @@ export class RoomPanelService {
   }
 
   private openFrom<T>(
-    name: RoomPanelName,
+    name: StandingRoomPanelName,
     load: () => Promise<Type<unknown>>,
     extra: PanelOption = {},
     setup?: (instance: T) => void,
@@ -162,7 +173,7 @@ export class RoomPanelService {
     ];
   }
 
-  private panelOf(name: RoomPanelName): RoomPanel {
+  private panelOf(name: StandingRoomPanelName): RoomPanel {
     switch (name) {
       case 'chatWindow':
         return {
@@ -385,9 +396,6 @@ export class RoomPanelService {
             ),
           option: { width: 440, height: 680, minWidth: 340, minHeight: 360 },
         };
-      case 'aiGm':
-        // The game master is run from a half of the AI link panel, which `open` turns the panel to.
-        return this.panelOf('aiLink');
       case 'aiLink':
         return {
           load: () =>
