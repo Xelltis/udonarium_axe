@@ -8,15 +8,27 @@ describe('the dictionaries every spec is given', () => {
 
   it('stand as Transloco itself leaves them once it has loaded them', async () => {
     const transloco = TestBed.inject(TranslocoService);
+    const kept = transloco as unknown as { cache: Map<string, unknown> };
     for (const lang of SUPPORTED_LANGS) {
       const given = transloco.getTranslation(lang);
       expect(Object.keys(given).length).toBeGreaterThan(1000);
 
+      kept.cache.delete(lang);
       await firstValueFrom(transloco.load(lang));
 
       const loaded = transloco.getTranslation(lang);
       expect(loaded).not.toBe(given);
       expect(loaded).toEqual(given);
+    }
+  });
+
+  it('are not laid again by a load, as a pipe in a template makes', async () => {
+    const transloco = TestBed.inject(TranslocoService);
+    for (const lang of SUPPORTED_LANGS) {
+      const given = transloco.getTranslation(lang);
+
+      expect(await firstValueFrom(transloco.load(lang))).toBe(given);
+      expect(transloco.getTranslation(lang)).toBe(given);
     }
   });
 

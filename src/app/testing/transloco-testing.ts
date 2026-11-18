@@ -4,6 +4,7 @@ import { SUPPORTED_LANGS, SupportedLang } from '@axe/application/i18n/transloco.
 import { Translation, TranslocoService, TranslocoTestingModule } from '@jsverse/transloco';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { Observable, of } from 'rxjs';
 
 const jaDict = JSON.parse(readFileSync(resolve(process.cwd(), 'src/assets/i18n/ja.json'), 'utf-8')) as Translation;
 const enDict = JSON.parse(readFileSync(resolve(process.cwd(), 'src/assets/i18n/en.json'), 'utf-8')) as Translation;
@@ -31,8 +32,10 @@ function flattened(dictionary: Translation): Translation {
  * The dictionaries laid flat once, for every module a spec builds to share. Loading them through
  * Transloco lays each flat and copies it again for every module, some twenty thousand strings a
  * module, which took longer than most specs' own work; so they are put where the service keeps what
- * it has loaded, as they would stand once loaded. The service copies a dictionary before it changes
- * one, and these are frozen, so no spec can change them for the next.
+ * it has loaded, and where it keeps each load it has made, as they would stand once loaded: read
+ * at once or through a load, as a pipe in a template reads, a dictionary is never laid again. The
+ * service copies a dictionary before it changes one, and these are frozen, so no spec can change them
+ * for the next.
  */
 const flatDictionaries: Record<SupportedLang, Translation> = {
   ja: Object.freeze(flattened(jaDict)),
@@ -53,8 +56,14 @@ export function provideTranslocoTesting(): (Provider | EnvironmentProviders)[] {
       })
     ),
     provideAppInitializer(() => {
-      const kept = (inject(TranslocoService) as unknown as { translations: Map<string, Translation> }).translations;
-      for (const lang of SUPPORTED_LANGS) kept.set(lang, flatDictionaries[lang]);
+      const service = inject(TranslocoService) as unknown as {
+        translations: Map<string, Translation>;
+        cache: Map<string, Observable<Translation>>;
+      };
+      for (const lang of SUPPORTED_LANGS) {
+        service.translations.set(lang, flatDictionaries[lang]);
+        service.cache.set(lang, of(flatDictionaries[lang]));
+      }
     }),
   ];
 }
