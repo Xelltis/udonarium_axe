@@ -373,6 +373,9 @@ export class Table3dService {
     const underwater = weather?.kind === 'underwater' ? weather : null;
     const moving = this.motion.enabled();
     const spouts = this.spouts();
+    // What pours from a spout lands on the ground, which is read without being followed: followed
+    // here, so that the water lands on the ground as it is shaped afterwards.
+    if (spouts.length > 0) this.ground.surface();
     if (!grid || (cells.size < 1 && spouts.length < 1)) return tableWaterOf(grid, cells, [], [], moving, underwater);
     return tableWaterOf(
       grid,

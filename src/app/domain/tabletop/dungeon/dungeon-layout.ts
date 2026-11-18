@@ -105,7 +105,6 @@ export const FURNISHING_IDS = [
   'containerBlue',
   'containerGreen',
   'barrel',
-  'valve',
   'pipe',
   'pipeValve',
   'pipeElbow',

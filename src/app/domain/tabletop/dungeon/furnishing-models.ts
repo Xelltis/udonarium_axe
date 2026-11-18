@@ -60,7 +60,6 @@ export const FURNISHING_MODELS: Readonly<Partial<Record<FurnishingId, Furnishing
   containerBlue: 'prop_containerBlue',
   containerGreen: 'prop_containerGreen',
   barrel: 'prop_barrel',
-  valve: 'prop_valvePipe',
   pipe: 'prop_pipe',
   pipeValve: 'prop_pipeValve',
   pipeElbow: 'prop_pipeElbow',

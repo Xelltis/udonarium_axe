@@ -56,7 +56,6 @@ export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
     blocksSight: true,
   },
   barrel: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 0.9, fill: 0.7, blocksSight: false, spin: 45 },
-  valve: { skin: { side: 'wall_metal', top: 'metal_grate' }, height: 1.1, fill: 0.86, blocksSight: false },
   pipe: { skin: { side: 'wall_metal', top: 'wall_metal' }, height: 0.7, fill: 0.4, blocksSight: false, whole: true },
   pipeValve: {
     skin: { side: 'wall_metal', top: 'metal_grate' },

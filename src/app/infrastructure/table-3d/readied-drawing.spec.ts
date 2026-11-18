@@ -87,17 +87,36 @@ describe('ReadiedDrawing', () => {
     expect(renderer.drawn).toBe(1);
   });
 
-  it('passes over a thing taken out of the scene before its turn to be built', async () => {
+  it('passes over a thing taken out of the scene before its turn, and builds it after all should it come back', async () => {
     const first = box();
     const second = box();
     scene.add(first, second);
     drawing.draw();
     scene.remove(second);
 
+    // Not everything was built, so nothing is taken as readied yet: what is left is asked after again.
     await renderer.finish();
+    expect(renderer.built).toEqual([first, first]);
     await renderer.finish();
-    expect(renderer.built).toEqual([first]);
     expect(renderer.drawn).toBe(1);
+
+    scene.add(second);
+    drawing.draw();
+    expect(renderer.built).toEqual([first, first, second]);
+    await renderer.finish();
+    expect(renderer.drawn).toBe(2);
+  });
+
+  it('draws the scene as it stands once things new to the card have kept coming through three builds', async () => {
+    scene.add(box());
+    drawing.draw();
+    for (let build = 0; build < 3; build++) {
+      scene.add(box());
+      await renderer.finish();
+    }
+
+    expect(renderer.drawn).toBe(1);
+    expect(renderer.built).toHaveLength(3);
   });
 
   it('draws nothing once it is let go of, a building under way or not', async () => {
