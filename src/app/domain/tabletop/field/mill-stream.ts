@@ -1,4 +1,5 @@
 import { seededRandom } from '@axe/core/util/seeded-random';
+import { HEADED_ORTHOGONAL_STEPS } from '@axe/domain/tabletop/cell-steps';
 import {
   type MillKind,
   SETTLEMENT_ZONES,
@@ -66,12 +67,7 @@ const WINDMILL_LEAST_ROOM = 1;
 const MILL_SEED = 8521;
 
 /** The four ways a stream runs on from a cell, with the heading that is, in degrees clockwise from the top. */
-const STEPS: readonly (readonly [number, number, number])[] = [
-  [0, -1, 0],
-  [1, 0, 90],
-  [0, 1, 180],
-  [-1, 0, 270],
-];
+const STEPS = HEADED_ORTHOGONAL_STEPS;
 
 /** The heading a stream's state is given when it comes in over the top edge of the board: south. */
 const SOUTH = 2;

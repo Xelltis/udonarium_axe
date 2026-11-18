@@ -20,7 +20,15 @@ import { FieldBuilding } from '@axe/domain/tabletop/field/town-layout';
 import { roofUnitModelOf, TOWN_KITS } from '@axe/domain/tabletop/field/town-models';
 import { areasOver } from '@axe/domain/tabletop/field/water-areas';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { MapAmbience, MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } from '@axe/domain/tabletop/map-blocks';
+import {
+  GENERATED_WATER_DENSITY,
+  MapAmbience,
+  MapBlock,
+  MapBlocks,
+  MapLight,
+  MapLightKind,
+  MapPaint,
+} from '@axe/domain/tabletop/map-blocks';
 
 /**
  * How wide a clump of the same thing is allowed to grow before it is broken in two.
@@ -124,9 +132,6 @@ function findFires(layout: FieldLayout, atmosphere: FieldAtmosphere, seed: numbe
   return lights;
 }
 
-/** How thick the water over a band is laid: as the settings of water lay a pond. */
-const FIELD_WATER_DENSITY = 0.6;
-
 /**
  * The water lying over the bands that have any, as few areas as cover each band: the surface at the
  * board, which on raised ground is dug down under it.
@@ -140,7 +145,7 @@ function watersOf(layout: FieldLayout, atmosphere: FieldAtmosphere, gridType: Gr
       waters.push({
         rect,
         kind: 'water',
-        density: FIELD_WATER_DENSITY,
+        density: GENERATED_WATER_DENSITY,
         name: 'water',
         water: { surface: 0, color, turbidity, dirt, leaves, ice },
       });

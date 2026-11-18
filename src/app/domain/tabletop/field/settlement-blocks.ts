@@ -26,9 +26,8 @@ import {
 import { alongTurn, outwardTurn, type SettlementModelId } from '@axe/domain/tabletop/field/settlement-models';
 import { areasOver } from '@axe/domain/tabletop/field/water-areas';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { GROUND_HEIGHT_STEP } from '@axe/domain/tabletop/ground/ground-chunk-data';
-import { groundChunksOfRaster, type GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
-import { groundLiftOfBlock, groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
+import { blockLiftsTo } from '@axe/domain/tabletop/ground/block-lift';
+import { type GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import type {
   MapAmbience,
@@ -39,6 +38,7 @@ import type {
   MapRect,
   MapSlowGround,
 } from '@axe/domain/tabletop/map-blocks';
+import { GENERATED_WATER_DENSITY } from '@axe/domain/tabletop/map-blocks';
 import { blockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
 
 /** What a settlement comes to on the table: what stands, what is painted, what is slow to cross, the water and the lights. */
@@ -172,7 +172,6 @@ const CROP_MODELS: Readonly<Record<CropKind, SettlementModelId>> = {
 const CROP_BLOCK_CELLS = 0.02;
 
 /** How thick a settlement's water is laid: as the settings of water lay a pond. */
-const WATER_DENSITY = 0.6;
 
 /** What a paddy's water is: shallow over its mud, murky and green, its surface this many cells over the ground it floods. */
 const PADDY_WATER = { surface: 0.08, color: '#6e7448', turbidity: 0.8, dirt: 0.35, leaves: 0, ice: 0 } as const;
@@ -243,27 +242,6 @@ function cutUp(rect: MapRect, span: number): MapRect[] {
     }
   }
   return parts;
-}
-
-/**
- * How far a block standing on a rectangle of the board is lifted to stand at `level`: as far as the
- * table lets it down under that, to the lowest of the ground under the square the block covers, as
- * the ground is kept on the table. Nothing where the ground is flat.
- */
-function liftsTo(
-  level: number,
-  ground: GroundRaster | null,
-  gridType: GridType
-): (rect: MapRect, shift?: MapPoint) => number | undefined {
-  if (!ground) return () => undefined;
-  const surface = groundSurfaceOf(groundChunksOfRaster(ground));
-  const stood = Math.round(level / GROUND_HEIGHT_STEP) * GROUND_HEIGHT_STEP;
-  return (rect, shift) => {
-    const origin = blockOrigin(rect, { type: gridType, sizePx: 1 });
-    const location = { x: origin.x + (shift?.x ?? 0), y: origin.y + (shift?.y ?? 0) };
-    const lift = stood - groundLiftOfBlock(surface, 1, { location, width: rect.w, depth: rect.h });
-    return lift > 0 ? lift : undefined;
-  };
 }
 
 /**
@@ -377,7 +355,7 @@ function streamOf(
       ambiences.push({
         rect,
         kind: 'water',
-        density: WATER_DENSITY,
+        density: GENERATED_WATER_DENSITY,
         name: 'water',
         water: { surface: streamSurfaceOver(level), ...STREAM_WATER, flowDirection: flow },
       });
@@ -478,7 +456,7 @@ export function settlementBlocks(
     });
   }
   const mills = settlement.mills ?? [];
-  const liftOf = mills.length > 0 ? liftsTo(level, ground, gridType) : () => undefined;
+  const liftOf = mills.length > 0 ? blockLiftsTo(level, ground, gridType) : () => undefined;
   for (const mill of mills) blocks.push(...millBlocks(mill, span, models, liftOf, gridType));
 
   const paint: MapPaint[] = [];
@@ -511,7 +489,7 @@ export function settlementBlocks(
         ambiences.push({
           rect: area,
           kind: 'water',
-          density: WATER_DENSITY,
+          density: GENERATED_WATER_DENSITY,
           name: 'water',
           water: { ...PADDY_WATER, surface: level + PADDY_WATER.surface },
         });

@@ -1,4 +1,5 @@
 import { TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
+import { SQUARE_STEPS_WITH_CORNERS } from '@axe/domain/tabletop/cell-steps';
 import {
   cellAt,
   DungeonCell,
@@ -179,16 +180,7 @@ function edgeRing(room: DungeonRoom): { x: number; y: number }[] {
   return ring;
 }
 
-const AROUND: readonly [number, number][] = [
-  [-1, -1],
-  [0, -1],
-  [1, -1],
-  [-1, 0],
-  [1, 0],
-  [-1, 1],
-  [0, 1],
-  [1, 1],
-];
+const AROUND = SQUARE_STEPS_WITH_CORNERS;
 
 /** The cells furniture stands on, which nothing else is to be put down on. */
 export function furnishedCells(layout: DungeonLayout): Set<number> {

@@ -1,3 +1,4 @@
+import { HEADED_ORTHOGONAL_STEPS, SQUARE_STEPS_WITH_CORNERS } from '@axe/domain/tabletop/cell-steps';
 import type { WaterwayPlan } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import {
   cellAt,
@@ -13,27 +14,13 @@ import {
 import { levelUnder } from '@axe/domain/tabletop/field/field-sample-points';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
-import { GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
-import { boardExtentPx, cellCentre, MapGrid } from '@axe/domain/tabletop/map-grid';
+import { GroundRaster, groundRasterOver } from '@axe/domain/tabletop/ground/ground-raster';
+import { cellCentre } from '@axe/domain/tabletop/map-grid';
 
-const AROUND: readonly [number, number][] = [
-  [-1, -1],
-  [0, -1],
-  [1, -1],
-  [-1, 0],
-  [1, 0],
-  [-1, 1],
-  [0, 1],
-  [1, 1],
-];
+const AROUND = SQUARE_STEPS_WITH_CORNERS;
 
 /** The four ways water runs on from a cell, with the heading that is, in degrees clockwise from the top. */
-const STEPS: readonly [number, number, number][] = [
-  [0, -1, 0],
-  [1, 0, 90],
-  [0, 1, 180],
-  [-1, 0, 270],
-];
+const STEPS = HEADED_ORTHOGONAL_STEPS;
 
 /**
  * The walls a pipe can come out of, as where the wall lies from the water and which way the pipe faces
@@ -114,11 +101,6 @@ export function cutWaterways(layout: DungeonLayout, plan: WaterwayPlan): void {
  * stone, a door, a stair or a piece of furniture.
  */
 export function reliefOfWaterways(layout: DungeonLayout, plan: WaterwayPlan, gridType: GridType): GroundRaster {
-  const grid: MapGrid = { type: gridType, sizePx: 1 };
-  const extent = boardExtentPx(layout, grid);
-  const columns = Math.ceil(extent.widthPx * GROUND_SAMPLES_PER_CELL) + 1;
-  const rows = Math.ceil(extent.heightPx * GROUND_SAMPLES_PER_CELL) + 1;
-  const heights = new Float32Array(columns * rows);
   const kinds = layout.waterway?.kinds;
   const levelAt = (x: number, y: number): number => {
     if (!kinds || !inBounds(layout, x, y)) return plan.walkway;
@@ -127,15 +109,9 @@ export function reliefOfWaterways(layout: DungeonLayout, plan: WaterwayPlan, gri
     if (kind === WaterwayKind.Basin || kind === WaterwayKind.Outfall) return plan.basin.bed;
     return plan.walkway;
   };
-  for (let row = 0; row < rows; row++) {
-    for (let column = 0; column < columns; column++) {
-      const x = column / GROUND_SAMPLES_PER_CELL;
-      const y = row / GROUND_SAMPLES_PER_CELL;
-      heights[row * columns + column] = levelUnder(gridType, x, y, levelAt);
-    }
-  }
+  const { columns, rows, heights } = groundRasterOver(layout, gridType, (x, y) => levelUnder(gridType, x, y, levelAt));
   for (const cell of standingCells(layout)) {
-    const centre = cellCentre(cell, grid);
+    const centre = cellCentre(cell, { type: gridType, sizePx: 1 });
     const across = sampleSpan(centre.x, columns);
     const down = sampleSpan(centre.y, rows);
     for (let row = down.from; row <= down.to; row++) {

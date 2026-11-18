@@ -1,3 +1,4 @@
+import { HEADED_ORTHOGONAL_STEPS, SQUARE_STEPS_WITH_CORNERS } from '@axe/domain/tabletop/cell-steps';
 import { atmosphereById } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import { DEFAULT_BLOCK_OPTIONS, layoutToBlocks } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
 import { generateDungeon, planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
@@ -20,23 +21,9 @@ const PLAN = SEWER.waterways!;
  */
 const MOST_WATER_AREAS = 150;
 
-const STEPS: readonly [number, number, number][] = [
-  [0, -1, 0],
-  [1, 0, 90],
-  [0, 1, 180],
-  [-1, 0, 270],
-];
+const STEPS = HEADED_ORTHOGONAL_STEPS;
 
-const AROUND: readonly [number, number][] = [
-  [-1, -1],
-  [0, -1],
-  [1, -1],
-  [-1, 0],
-  [1, 0],
-  [-1, 1],
-  [0, 1],
-  [1, 1],
-];
+const AROUND = SQUARE_STEPS_WITH_CORNERS;
 
 function dry(cell: number): boolean {
   return cell === DungeonCell.Room || cell === DungeonCell.Corridor || cell === DungeonCell.Door;

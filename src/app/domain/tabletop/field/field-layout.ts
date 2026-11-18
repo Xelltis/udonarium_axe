@@ -5,18 +5,11 @@ import { makeValueNoise, ValueNoise, warpedFbm } from '@axe/domain/tabletop/fiel
 import { layoutPointOf } from '@axe/domain/tabletop/field/field-sample-points';
 import { layMillStream } from '@axe/domain/tabletop/field/mill-stream';
 import { laySettlement, type SettlementLayout } from '@axe/domain/tabletop/field/settlement-layout';
-import {
-  digStreamBed,
-  flatGroundOf,
-  terraceLevelOf,
-  terraceSettlement,
-} from '@axe/domain/tabletop/field/settlement-terrace';
+import { digStreamBed, terraceSettlement } from '@axe/domain/tabletop/field/settlement-terrace';
 import { FieldBuilding, layTown } from '@axe/domain/tabletop/field/town-layout';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
-import { GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
+import { GroundRaster, groundRasterOver } from '@axe/domain/tabletop/ground/ground-raster';
 import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
-import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
 
 export interface FieldLayout {
   width: number;
@@ -385,11 +378,12 @@ export function generateField(
     if (reliefCells > 0) {
       const raised = raiseGround(atmosphere, new Uint8Array(width * height), width, height, heightAt);
       const country = reliefOf(atmosphere, { width, height }, gridType, reliefCells, raised, heightAt);
-      raster = terraceSettlement(country, settlement, { width, height }, gridType);
-      settlementLevel = terraceLevelOf(country, settlement, { width, height }, gridType);
+      const terrace = terraceSettlement(country, settlement, { width, height }, gridType);
+      raster = terrace.ground;
+      settlementLevel = terrace.level;
     }
     if (settlement.stream) {
-      const under = raster ?? flatGroundOf({ width, height }, gridType);
+      const under = raster ?? groundRasterOver({ width, height }, gridType);
       raster = digStreamBed(under, settlement, { width, height }, gridType, settlementLevel);
     }
   } else if (atmosphere.town) {
@@ -557,19 +551,11 @@ function reliefOf(
   const dug = Math.min(reliefCells, Math.max(0, ...atmosphere.bands.map((band) => band.water?.depth ?? 0)));
   const fall = shore - lowest || 1;
   const rise = dug > 0 ? Math.min(SHORE_RISE_CELLS, reliefCells) : 0;
-  const extent = boardExtentPx(size, { type: gridType, sizePx: 1 });
-  const columns = Math.ceil(extent.widthPx * GROUND_SAMPLES_PER_CELL) + 1;
-  const rows = Math.ceil(extent.heightPx * GROUND_SAMPLES_PER_CELL) + 1;
-  const heights = new Float32Array(columns * rows);
-  for (let j = 0; j < rows; j++) {
-    for (let i = 0; i < columns; i++) {
-      const at = layoutPointOf(gridType, i / GROUND_SAMPLES_PER_CELL, j / GROUND_SAMPLES_PER_CELL);
-      const raisedTo = heightAt(at.x, at.y);
-      heights[j * columns + i] =
-        dug > 0 && raisedTo <= shore
-          ? 0 - dug * Math.min(1, (shore - raisedTo) / fall)
-          : rise + (reliefCells - rise) * clamp((raisedTo - shore) / span, 0, 1);
-    }
-  }
-  return { columns, rows, heights };
+  return groundRasterOver(size, gridType, (x, y) => {
+    const at = layoutPointOf(gridType, x, y);
+    const raisedTo = heightAt(at.x, at.y);
+    return dug > 0 && raisedTo <= shore
+      ? 0 - dug * Math.min(1, (shore - raisedTo) / fall)
+      : rise + (reliefCells - rise) * clamp((raisedTo - shore) / span, 0, 1);
+  });
 }

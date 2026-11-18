@@ -19,6 +19,14 @@ const DIAGONAL_STEPS: readonly CellStep[] = [
 /** All eight ways out of a square: its sides first, then its corners. */
 export const SQUARE_STEPS_WITH_CORNERS: readonly CellStep[] = [...ORTHOGONAL_STEPS, ...DIAGONAL_STEPS];
 
+/** A step across a side of a square, with the heading that is, in degrees clockwise from straight up. */
+export type HeadedStep = readonly [number, number, number];
+
+/** The four ways out of a square across its sides, each with its heading, clockwise from straight up. */
+export const HEADED_ORTHOGONAL_STEPS: readonly HeadedStep[] = ORTHOGONAL_STEPS.map(
+  ([dx, dy], side) => [dx, dy, side * 90] as const
+);
+
 const FLAT_TOP_EVEN_COLUMN_STEPS: readonly CellStep[] = [
   [0, -1],
   [1, -1],

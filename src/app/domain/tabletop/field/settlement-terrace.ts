@@ -10,7 +10,6 @@ import { SETTLEMENT_ZONES, SettlementLayout } from '@axe/domain/tabletop/field/s
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
-import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
 
 /** How far round the settlement the ground is kept as level as the settlement itself, in cells. */
 export const TERRACE_APRON_CELLS = 1;
@@ -97,6 +96,12 @@ export function cellDistancesFrom(site: Uint8Array, width: number, height: numbe
   return distance;
 }
 
+/** A settlement's terrace: the ground with its site levelled, and the height the site is levelled to. */
+export interface SettlementTerrace {
+  readonly ground: GroundRaster;
+  readonly level: number;
+}
+
 /**
  * Levels the ground under a settlement into a terrace.
  *
@@ -113,11 +118,12 @@ export function terraceSettlement(
   gridType: GridType,
   apronCells = TERRACE_APRON_CELLS,
   blendCells = TERRACE_BLEND_CELLS
-): GroundRaster {
+): SettlementTerrace {
   const { width, height } = size;
   const site = settlementSiteOf(layout, width, height);
   const distance = cellDistancesFrom(site, width, height);
-  const level = terraceLevelOf(raster, layout, size, gridType);
+  const middle = settlementMiddleOf(layout, site, width, height);
+  const level = Math.max(0, sampleHeightAt(raster, gridType, middle.x, middle.y));
   const heights = new Float32Array(raster.heights.length);
   for (let row = 0; row < raster.rows; row++) {
     for (let column = 0; column < raster.columns; column++) {
@@ -129,30 +135,7 @@ export function terraceSettlement(
       heights[index] = level * (1 - away) + raster.heights[index] * away;
     }
   }
-  return { columns: raster.columns, rows: raster.rows, heights };
-}
-
-/**
- * How high {@link terraceSettlement} levels a settlement's site on the raster of the open country: as
- * high as the open country stands at the settlement's middle, never below the floor.
- */
-export function terraceLevelOf(
-  raster: GroundRaster,
-  layout: SettlementLayout,
-  size: { width: number; height: number },
-  gridType: GridType
-): number {
-  const site = settlementSiteOf(layout, size.width, size.height);
-  const middle = settlementMiddleOf(layout, site, size.width, size.height);
-  return Math.max(0, sampleHeightAt(raster, gridType, middle.x, middle.y));
-}
-
-/** The ground of a board left on the board everywhere, a sample to every half cell over it, as the open country's raster is laid. */
-export function flatGroundOf(size: { width: number; height: number }, gridType: GridType): GroundRaster {
-  const extent = boardExtentPx(size, { type: gridType, sizePx: 1 });
-  const columns = Math.ceil(extent.widthPx * GROUND_SAMPLES_PER_CELL) + 1;
-  const rows = Math.ceil(extent.heightPx * GROUND_SAMPLES_PER_CELL) + 1;
-  return { columns, rows, heights: new Float32Array(columns * rows) };
+  return { ground: { columns: raster.columns, rows: raster.rows, heights }, level };
 }
 
 /**

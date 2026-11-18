@@ -18,9 +18,9 @@ import { DataSummarySetting, SortOrder } from '@axe/domain/data/data-summary-set
 import { fileUntaggedImage } from '@axe/domain/media/image-tagging';
 import { Party, PARTY_COLORS } from '@axe/domain/party/party';
 import { GameTable } from '@axe/domain/tabletop/game-table';
-import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { GridType } from '@axe/domain/tabletop/grid-type';
 import { ensureGroundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
-import { groundChunksOfRaster } from '@axe/domain/tabletop/ground/ground-raster';
+import { groundChunksOfRaster, groundRasterOver } from '@axe/domain/tabletop/ground/ground-raster';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 
 function addBuffRound(character: GameCharacter, name: string, subcom: string, round: number): void {
@@ -418,14 +418,7 @@ function sampleStepAt(x: number, y: number): number {
  * that two newcomers who meet each with a first table of their own find one step between them.
  */
 function raiseSampleStep(table: GameTable): void {
-  const columns = table.width * GROUND_SAMPLES_PER_CELL + 1;
-  const rows = table.height * GROUND_SAMPLES_PER_CELL + 1;
-  const heights = new Float32Array(columns * rows);
-  for (let j = 0; j < rows; j++) {
-    for (let i = 0; i < columns; i++) {
-      heights[j * columns + i] = sampleStepAt(i / GROUND_SAMPLES_PER_CELL, j / GROUND_SAMPLES_PER_CELL);
-    }
-  }
+  const raster = groundRasterOver({ width: table.width, height: table.height }, GridType.SQUARE, sampleStepAt);
   const field = ensureGroundFieldOn(table);
-  for (const chunk of groundChunksOfRaster({ columns, rows, heights })) field.writeChunk(chunk);
+  for (const chunk of groundChunksOfRaster(raster)) field.writeChunk(chunk);
 }

@@ -1,4 +1,5 @@
 import {
+  HEADED_ORTHOGONAL_STEPS,
   hexSideStepsAt,
   hexStepsAt,
   ORTHOGONAL_STEPS,
@@ -126,6 +127,21 @@ describe('the steps out of a cell', () => {
           }
         }
       }
+    }
+  });
+});
+
+describe('the ways out of a square with their headings', () => {
+  it('are the four ways across its sides, each headed a quarter turn on from the last, from straight up', () => {
+    expect(HEADED_ORTHOGONAL_STEPS.map(([dx, dy]) => [dx, dy])).toEqual(ORTHOGONAL_STEPS.map((step) => [...step]));
+    expect(HEADED_ORTHOGONAL_STEPS.map(([, , heading]) => heading)).toEqual([0, 90, 180, 270]);
+  });
+
+  it('head each step the way it goes on the board, y running down', () => {
+    for (const [dx, dy, heading] of HEADED_ORTHOGONAL_STEPS) {
+      const turn = (heading * Math.PI) / 180;
+      expect(Math.sin(turn)).toBeCloseTo(dx, 9);
+      expect(-Math.cos(turn)).toBeCloseTo(dy, 9);
     }
   });
 });

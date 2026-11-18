@@ -22,11 +22,13 @@ import {
 } from '@axe/domain/tabletop/dungeon/furnishing-models';
 import { mergeMaskToRects } from '@axe/domain/tabletop/dungeon/rect-merge';
 import { furnishedCells, FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing';
+import { reliefOfWaterways } from '@axe/domain/tabletop/dungeon/sewer-channels';
 import { areasOver } from '@axe/domain/tabletop/field/water-areas';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { blockLiftsTo } from '@axe/domain/tabletop/ground/block-lift';
 import { HAZARD_PRESETS } from '@axe/domain/tabletop/hazard-presets';
 import {
+  GENERATED_WATER_DENSITY,
   MapAmbience,
   MapBlock,
   MapBlocks,
@@ -40,9 +42,6 @@ import {
 
 /** How thick the look over a pool of dangerous ground is laid. */
 const HAZARD_AMBIENCE_DENSITY = 0.5;
-
-/** How thick the water of a channel or a basin is laid: as the settings of water lay a pond. */
-const WATER_DENSITY = 0.6;
 
 /** How tall a pipe over a basin stands, as a share of the walls of the place. */
 const SPOUT_HEIGHT_SHARE = 0.6;
@@ -273,7 +272,7 @@ function watersOf(layout: DungeonLayout, plan: WaterwayPlan, gridType: GridType)
       waters.push({
         rect,
         kind: 'water',
-        density: WATER_DENSITY,
+        density: GENERATED_WATER_DENSITY,
         name: 'water',
         water: {
           surface: level.surface,
@@ -314,16 +313,22 @@ function wadingOf(
  * the wall, as high as most of the walls.
  *
  * The water is let in under it, and what stands on the ground is let down to the lowest of it under
- * its foot, so the pipe is lifted by as much as that lets it down, to stand as the walkway does.
+ * its foot, so the pipe is lifted by as much as that lets it down, to stand as the walkway does:
+ * `liftOf` answers how far, for the foot it stands on.
  */
-function spoutBlock(spout: DungeonSpout, plan: WaterwayPlan, wallHeight: number, models: boolean): MapBlock {
+function spoutBlock(
+  spout: DungeonSpout,
+  wallHeight: number,
+  models: boolean,
+  liftOf: ReturnType<typeof blockLiftsTo>
+): MapBlock {
   const turn = (spout.facing * Math.PI) / 180;
   const ax = Math.round(Math.cos(turn));
   const ay = Math.round(Math.sin(turn));
-  const dug = plan.walkway - plan.basin.bed;
+  const rect = { x: spout.x, y: spout.y, w: 1, h: 1 };
   const block = {
     kind: 'prop' as const,
-    rect: { x: spout.x, y: spout.y, w: 1, h: 1 },
+    rect,
     blocksSight: false,
     blocksClimb: false,
     locked: false,
@@ -338,18 +343,20 @@ function spoutBlock(spout: DungeonSpout, plan: WaterwayPlan, wallHeight: number,
     return {
       ...block,
       height: SPOUT_MODEL_HEIGHT,
-      altitude: dug,
+      altitude: liftOf(rect),
       model: 'prop_drainPipe',
       modelTurn: (spout.facing + 270) % 360,
     };
   }
   const back = (1 - SPOUT_DEPTH) / 2;
+  const footprint = ax === 0 ? { w: 1, d: SPOUT_DEPTH } : { w: SPOUT_DEPTH, d: 1 };
+  const offset = { x: ax === 0 ? 0 : -ax * back, y: ay === 0 ? 0 : -ay * back };
   return {
     ...block,
     height: wallHeight * SPOUT_HEIGHT_SHARE,
-    altitude: dug * Math.min(1, SPOUT_DEPTH * GROUND_SAMPLES_PER_CELL),
-    footprint: ax === 0 ? { w: 1, d: SPOUT_DEPTH } : { w: SPOUT_DEPTH, d: 1 },
-    offset: { x: ax === 0 ? 0 : -ax * back, y: ay === 0 ? 0 : -ay * back },
+    altitude: liftOf(rect, offset, footprint),
+    footprint,
+    offset,
   };
 }
 
@@ -475,9 +482,14 @@ export function layoutToBlocks(
   const wading = waterways ? wadingOf(layout, waterways, gridType) : { slows: [], harms: [] };
   if (waterways) {
     ambiences.push(...watersOf(layout, waterways, gridType));
+    const liftOf = blockLiftsTo(
+      waterways.walkway,
+      layout.relief ?? reliefOfWaterways(layout, waterways, gridType),
+      gridType
+    );
     for (const spout of layout.spouts ?? []) {
       if (cellAt(layout, spout.x, spout.y) !== DungeonCell.Water) continue;
-      blocks.push(spoutBlock(spout, waterways, atmosphere.wallHeight, options.models === true));
+      blocks.push(spoutBlock(spout, atmosphere.wallHeight, options.models === true, liftOf));
     }
   }
 
