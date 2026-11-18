@@ -67,6 +67,8 @@ interface TooltipSession {
   readonly refs: ComponentRef<TooltipPanelInstance>[];
   readonly seats: EdgeDetailSeat[] | null;
   deleteOff?: () => void;
+  /** Stops watching the thing for being moved from where a detail was opened beside it. */
+  movedOff?: () => void;
   detach: () => void;
 }
 
@@ -339,6 +341,12 @@ export class TooltipDirective {
     session.deleteOff = this.objectChange.objectDeleted$.subscribe((e) => {
       if (this.tabletopObject()?.identifier === e.identifier) this.closeAll();
     });
+    if (!seats) {
+      const stoodAt = placeOf(tabletopObject);
+      session.movedOff = this.objectChange.onObjectChangedForIdentifier(tabletopObject.identifier, () => {
+        if (this.tooltipSession === session && placeOf(tabletopObject) !== stoodAt) this.closeAll();
+      });
+    }
 
     const followViewport = debounce(() => this.onViewportChanged(session), VIEWPORT_FOLLOW_DELAY_MS);
     const host = this.viewContainerRef.element.nativeElement as Element;
@@ -403,6 +411,8 @@ export class TooltipDirective {
     if (TooltipDirective.activeOwner === this) TooltipDirective.activeOwner = null;
     session.deleteOff?.();
     session.deleteOff = undefined;
+    session.movedOff?.();
+    session.movedOff = undefined;
     session.detach();
     this.clearTimer();
 
@@ -425,4 +435,13 @@ export class TooltipDirective {
     element.removeEventListener('mouseenter', this.callbackOnMouseEnter, false);
     element.removeEventListener('mouseleave', this.callbackOnMouseLeave, false);
   }
+}
+
+/**
+ * Where a thing stands, as one text. A detail opened beside a piece stays where the pointer was;
+ * left there once the piece is put down somewhere else, it can lie over the piece and take the
+ * presses meant for it, so it is put away as soon as its piece stands anywhere else.
+ */
+function placeOf(object: TabletopObject): string {
+  return `${object.location.x},${object.location.y},${object.posZ}`;
 }
