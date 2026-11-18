@@ -143,26 +143,22 @@ describe('TurnDesk', () => {
     });
   });
 
-  it('waits for the room to go quiet again where it spoke after a turn fell due with no AI waiting', async () => {
+  it('hands on, in the order it was said, what the room said after a turn fell due with no AI waiting', async () => {
     const tab = await connect();
     await open(tab);
     tab.say({ type: 'gm.events', events: [{ event: LINE, wake: 'line' }] });
-    await new Promise((resolve) => setTimeout(resolve, 90));
     tab.say({ type: 'gm.events', events: [{ event: { ...LINE, id: 'm2' }, wake: 'line' }] });
-    await new Promise((resolve) => setTimeout(resolve, 10));
 
-    // The room spoke ten milliseconds ago: the turn is not handed over before it has been quiet.
-    const began = Date.now();
-    const turn = await desk.waitForTurn(2000);
-    expect(turn).toMatchObject({ turn: true });
-    expect(Date.now() - began).toBeGreaterThanOrEqual(20);
-
-    // And the timer that brought it is spent: what calls for the next turn is waited on in its turn.
-    const next = desk.waitForTurn(2000);
-    tab.say({ type: 'gm.events', events: [{ event: { ...LINE, id: 'm3' }, wake: 'line' }] });
-    const again = Date.now();
-    expect(await next).toMatchObject({ turn: true, events: [{ ...LINE, id: 'm3' }] });
-    expect(Date.now() - again).toBeGreaterThanOrEqual(30);
+    // How long the room is waited on is the gathering's to keep, and its spec holds it to the
+    // millisecond. Here nothing said is lost or put out of order, whether the second line came in
+    // time for the first turn or makes the next.
+    const told: unknown[] = [];
+    while (told.length < 2) {
+      const turn = await desk.waitForTurn(2000);
+      if (!turn.turn) throw new Error('no turn was handed over');
+      told.push(...turn.events);
+    }
+    expect(told).toEqual([LINE, { ...LINE, id: 'm2' }]);
   });
 
   it('tells each conversation the instructions and the notebook it has not had, and again one that begins anew', async () => {

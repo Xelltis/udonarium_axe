@@ -1,7 +1,8 @@
 import { type GatheredTurn, TurnGathering } from './turn-gathering';
 
 const LINE = { kind: 'chat', id: 'm1', text: '扉を開けます' };
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Lets the time given pass on the clock the gathering waits by, which is stood in for: a wait is to the millisecond. */
+const pause = (ms: number) => vi.advanceTimersByTimeAsync(ms);
 
 describe('TurnGathering', () => {
   let takeable: boolean;
@@ -9,6 +10,7 @@ describe('TurnGathering', () => {
   let gathering: TurnGathering;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     takeable = true;
     taken = [];
     gathering = new TurnGathering({
@@ -22,7 +24,10 @@ describe('TurnGathering', () => {
     });
   });
 
-  afterEach(() => gathering.clear());
+  afterEach(() => {
+    gathering.clear();
+    vi.useRealTimers();
+  });
 
   it('is due once the room has been quiet after something that calls for a turn, with all that happened', async () => {
     gathering.heard([{ event: { kind: 'piece_moved' } }]);
@@ -84,8 +89,25 @@ describe('TurnGathering', () => {
     gathering.lookAgain();
     expect(gathering.isDue).toBe(false);
     expect(taken).toEqual([]);
-    await pause(80);
+    await pause(39);
+    expect(taken).toEqual([]);
+    await pause(1);
     expect(taken).toHaveLength(1);
+    expect(taken[0].events).toEqual([LINE, { kind: 'chat', id: 'm2' }]);
+  });
+
+  it('waits on nothing once a turn is taken: what calls for the next is waited on in its turn', async () => {
+    gathering.heard([{ event: LINE, wake: 'line' }]);
+    await pause(40);
+    expect(taken.splice(0)).toHaveLength(1);
+    await pause(1000);
+    expect(taken).toEqual([]);
+
+    gathering.heard([{ event: { ...LINE, id: 'm3' }, wake: 'line' }]);
+    await pause(39);
+    expect(taken).toEqual([]);
+    await pause(1);
+    expect(taken).toEqual([{ reasons: ['line'], events: [{ ...LINE, id: 'm3' }], direction: '' }]);
   });
 
   it('puts a turn given up back to be taken again, what it carried told once only', async () => {
