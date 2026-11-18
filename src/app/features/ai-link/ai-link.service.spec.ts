@@ -203,17 +203,24 @@ describe('AiLinkService', () => {
     expect(TestBed.inject(AiLinkViewService).tab()).toBe('gm');
   });
 
-  it('leaves the giving back to whoever hears what the bridge tells of the game master', () => {
+  it('leaves the giving back to whoever keeps the game master here, and to nobody who merely listens', () => {
     const off = { run: 'off', model: '', spentUsd: 0, budgetUsd: 0, contextTokens: 0, kept: false, starts: 0 };
+    const tell = () => sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: off }) });
     localStorage.setItem(STORAGE_KEYS.aiLink, JSON.stringify({ port: 47610, scope: 'write', lentFrom: 'read' }));
     const link = make();
-    const heard = link.gmHeard.subscribe(() => undefined);
+    const listening = link.gmHeard.subscribe(() => undefined);
+    const gone = link.keepsGm();
     link.connect();
     sockets[0].greet('mcp');
-    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: off }) });
-
+    tell();
     expect(link.scope()).toBe('write');
-    heard.unsubscribe();
+
+    // The keeper goes; a listener still there keeps nothing, and the link gives back what was lent.
+    gone();
+    gone();
+    tell();
+    expect(link.scope()).toBe('read');
+    listening.unsubscribe();
   });
 
   it('passes on what a game-master bridge tells, keeps its latest status and notebook, and tells it what it is asked to', () => {

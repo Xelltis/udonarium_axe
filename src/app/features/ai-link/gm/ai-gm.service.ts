@@ -185,6 +185,7 @@ export class AiGmService {
     if (latest.status) this.hear({ type: 'gm.status', status: latest.status });
     if (latest.notes !== null) this.hear({ type: 'gm.notes', notes: latest.notes });
     const heard = this.link.gmHeard.subscribe((message) => this.hear(message));
+    const gone = this.link.keepsGm();
     effect(() => {
       const running = this.running();
       // The tabs it is kept to are told to where its lines are made before anything is handed on, so
@@ -209,6 +210,7 @@ export class AiGmService {
     inject(DestroyRef).onDestroy(() => {
       this.views.tabsRead.set(null);
       heard.unsubscribe();
+      gone();
       this.stopRelay();
     });
   }

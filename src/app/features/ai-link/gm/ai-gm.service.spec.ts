@@ -124,6 +124,7 @@ describe('AiGmService', () => {
           useValue: {
             state,
             gmHeard: heard,
+            keepsGm: () => () => undefined,
             latestGm: () => latest,
             scope,
             lendWrite: () => {

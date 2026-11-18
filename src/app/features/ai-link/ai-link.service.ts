@@ -86,6 +86,7 @@ export class AiLinkService {
    * panel is opened on it on reaching a game-master bridge if none does.
    */
   private gmPanels = 0;
+  private gmKeepers = 0;
   /** What the bridge connected last told of the game master, for whoever comes to listen later. */
   private gmLatest: { status: GmStatus | null; notes: string | null } = { status: null, notes: null };
 
@@ -137,9 +138,9 @@ export class AiLinkService {
         if (this.client !== client) return;
         if (message.type === 'gm.status') {
           this.gmLatest = { ...this.gmLatest, status: message.status };
-          // With nobody here to hear it: what a game master was lent is given back once none runs, and
-          // one found running, as on a page opened again, gets its panel, which hands it what happens.
-          if (!this.gmHeard.observed) {
+          // With nobody here keeping the game master: what one was lent is given back once none runs,
+          // and one found running, as on a page opened again, gets its panel, which hands it what happens.
+          if (this.gmKeepers === 0) {
             if (message.status.run === 'off') this.takeBack();
             else if (this.gmPanels === 0) this.openGmHalf();
           }
@@ -195,6 +196,20 @@ export class AiLinkService {
     if (!changed || this.state().kind !== 'connected') return;
     this.client?.tellSeat();
     this.tellRoom(scope === 'write' ? 'feature.aiLink.notice.nowWrite' : 'feature.aiLink.notice.nowRead');
+  }
+
+  /**
+   * Told by whoever keeps the game master here, handing it what happens and giving back what it was
+   * lent: for as long as one does, that is none of the link's to do. Answers how the keeper says it
+   * is gone. Whoever merely listens to {@link gmHeard} is no keeper, however many do.
+   */
+  keepsGm(): () => void {
+    this.gmKeepers++;
+    let kept = true;
+    return () => {
+      if (kept) this.gmKeepers--;
+      kept = false;
+    };
   }
 
   /** Told by an AI GM panel as it opens (`true`) and closes (`false`). */
