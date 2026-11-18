@@ -731,4 +731,21 @@ describe('sweeping the record of what was deleted', () => {
     expect(sweep).toHaveBeenCalledTimes(1);
     sweep.mockRestore();
   });
+
+  it('sweeps on the first delete after the record is cleared, without waiting out the second', () => {
+    const store = ObjectStore.instance;
+    const sweep = vi.spyOn(asPrivate(store), 'runGarbageCollection');
+    const before = DataElement.create('gone-before', '', {});
+    before.initialize();
+    store.delete(before, false);
+    sweep.mockClear();
+
+    store.clearDeleteHistory();
+    const after = DataElement.create('gone-after', '', {});
+    after.initialize();
+    store.delete(after, false);
+
+    expect(sweep).toHaveBeenCalledTimes(1);
+    expect(asPrivate(store).garbageSweepCooldown).not.toBeNull();
+  });
 });
