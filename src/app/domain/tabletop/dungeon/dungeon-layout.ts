@@ -106,6 +106,10 @@ export const FURNISHING_IDS = [
   'containerGreen',
   'barrel',
   'valve',
+  'pipe',
+  'pipeValve',
+  'pipeElbow',
+  'pipeEnd',
 ] as const;
 
 export type FurnishingId = (typeof FURNISHING_IDS)[number];

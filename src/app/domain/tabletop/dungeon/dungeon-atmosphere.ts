@@ -439,7 +439,8 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
    * The party climbs down through a maintenance hatch. Every passage is wide enough for a channel of
    * foul water down its middle with a walkway either side, and the channels run on into the cisterns
    * and settling tanks, basins sunk in the floor of the biggest rooms and of those at the ends of
-   * things. Smugglers keep their goods back here, and the pumps are at the bottom of it all. Lanterns
+   * things. Smugglers keep their goods heaped in the corners back here, and the pumps are at the bottom
+   * of it all, a pipe run round its walls with a valve every few lengths. Lanterns
    * hang on the walls and the gates are iron grates that lift.
    */
   sewer: {
@@ -480,10 +481,10 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
       wading: { extraCost: 1, amount: '1d6', ailment: '毒', moment: 'turnStart', color: '#39452a', thing: 'sewage' },
     },
     furnishings: [
-      { piece: 'valve', arrangement: 'grid', roles: ['boss'], every: 3 },
-      { piece: 'crate', arrangement: 'scatter', roles: ['treasure'], every: 6 },
-      { piece: 'barrel', arrangement: 'scatter', roles: ['entrance', 'treasure', 'chamber'], every: 9 },
-      { piece: 'valve', arrangement: 'scatter', roles: ['boss', 'chamber'], every: 12 },
+      { piece: 'pipe', arrangement: 'pipeRun', roles: ['boss'], every: 3 },
+      { piece: 'crate', arrangement: 'corners', roles: ['treasure'], every: 7, pieces: ['crate', 'crate', 'barrel'] },
+      { piece: 'barrel', arrangement: 'corners', roles: ['entrance', 'chamber'], every: 14 },
+      { piece: 'pipe', arrangement: 'pipeRun', roles: ['chamber'], every: 2, most: 6 },
     ],
   },
 };

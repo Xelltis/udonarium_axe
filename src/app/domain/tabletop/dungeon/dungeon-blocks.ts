@@ -199,6 +199,8 @@ function findLights(
  *
  * Where models are asked for, a piece stands as its model when it is one block; a run whose model is
  * one cell of it, as a counter's is, is built of a block to a cell, each standing as that model.
+ * A piece whose model is made to the whole of its cell, as a part of a pipe is, takes the whole cell
+ * as its model, so that it meets the part in the next cell.
  */
 function furnishingBlocks(piece: DungeonFurnishing, span: number, options: DungeonBlockOptions): MapBlock[] {
   const run = piece.w > 1 || piece.h > 1;
@@ -224,7 +226,7 @@ function furnishingBlocks(piece: DungeonFurnishing, span: number, options: Dunge
         },
         height: shape.height,
         footprint:
-          shape.fill >= 1
+          shape.fill >= 1 || (model && shape.whole)
             ? undefined
             : !run
               ? { w: shape.fill, d: shape.fill }
