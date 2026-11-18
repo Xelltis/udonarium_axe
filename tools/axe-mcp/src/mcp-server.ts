@@ -53,7 +53,8 @@ function waitOf(args: Readonly<Record<string, unknown>>): number {
  * tab and its answer handed back as JSON text, and the guides to running a session and to the chat
  * syntax. It holds none of the game itself. Given a desk, it also lets the AI be the game master the
  * AI GM panel runs: waiting for its turn and keeping its notebook are answered by the desk, and every
- * call shows the desk that the AI is there.
+ * call shows the desk that the AI is there. Each server is one conversation to the desk, which tells
+ * it the instructions and the notebook it has not had; taking the prompt or the guide begins one anew.
  */
 export function createMcpServer(link: TabLink, version: string, desk?: TurnDesk): Server {
   const tools: readonly AgentToolDefinition[] = desk ? [...AGENT_TOOLS, ...GM_DESK_TOOLS] : AGENT_TOOLS;
@@ -104,8 +105,18 @@ export function createMcpServer(link: TabLink, version: string, desk?: TurnDesk)
     const problems = checkAgentInput(tool.input, args);
     if (problems.length > 0) return failure(`invalid_input: ${problems.join('; ')}`);
     desk?.noteCall();
-    if (desk && tool.name === GM_TURN_TOOL_NAME) return answer(await desk.waitForTurn(waitOf(args), extra.signal));
-    if (desk && tool.name === GM_NOTES_TOOL_NAME) return answer(desk.writeNotes(String(args['notes'] ?? '')));
+    if (desk && tool.name === GM_TURN_TOOL_NAME) {
+      if (args['again'] === true) desk.beginAnew(server);
+      return answer(await desk.waitForTurn(waitOf(args), extra.signal, server));
+    }
+    if (desk && tool.name === GM_NOTES_TOOL_NAME) {
+      const kept = desk.writeNotes(String(args['notes'] ?? ''), server);
+      return kept
+        ? answer(kept)
+        : failure(
+            'not_allowed: The game master is not started, and the notebook is kept for it. Wait for a turn first.'
+          );
+    }
     const timeout = tool.name === 'wait_for_events' ? waitOf(args) + WAIT_MARGIN_MS : CALL_TIMEOUT_MS;
     const outcome = await link.call(tool.name, args, timeout, extra.signal);
     if (!outcome.ok) return failure(`${outcome.error.code}: ${outcome.error.message}`);
@@ -119,6 +130,8 @@ export function createMcpServer(link: TabLink, version: string, desk?: TurnDesk)
   server.setRequestHandler(GetPromptRequestSchema, (request) => {
     const prompt = prompts.find((each) => each.name === request.params.name);
     if (!prompt) throw new Error(`There is no prompt named ${request.params.name}.`);
+    // A conversation set to be the game master begins here, and has had no instructions yet.
+    if (prompt.name === RUN_AI_GM_PROMPT_NAME) desk?.beginAnew(server);
     return {
       description: prompt.title,
       messages: [{ role: 'user' as const, content: { type: 'text' as const, text: prompt.text } }],
@@ -163,6 +176,7 @@ export function createMcpServer(link: TabLink, version: string, desk?: TurnDesk)
     };
     const text = guides[request.params.uri];
     if (text === undefined) throw new Error(`There is no resource at ${request.params.uri}.`);
+    if (request.params.uri === RUN_AI_GM_GUIDE_URI) desk?.beginAnew(server);
     return { contents: [{ uri: request.params.uri, mimeType: 'text/markdown', text }] };
   });
 

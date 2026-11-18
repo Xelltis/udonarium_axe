@@ -58,6 +58,7 @@ describe('AiLinkService', () => {
   let role: PeerRole;
   let notices: string[];
   let openPanel: ReturnType<typeof vi.fn>;
+  let panelStands: boolean;
 
   function make(): AiLinkService {
     TestBed.configureTestingModule({
@@ -77,7 +78,7 @@ describe('AiLinkService', () => {
           provide: ChatMessageService,
           useValue: { sendSystemNotice: (_kind: string, text: string) => notices.push(text) },
         },
-        { provide: RoomPanelService, useValue: { open: openPanel } },
+        { provide: RoomPanelService, useValue: { open: openPanel, isOpen: () => panelStands } },
       ],
     });
     return TestBed.inject(AiLinkService);
@@ -87,6 +88,7 @@ describe('AiLinkService', () => {
     sockets.length = 0;
     notices = [];
     openPanel = vi.fn();
+    panelStands = false;
     role = PeerRole.GameMaster;
     localStorage.removeItem(STORAGE_KEYS.aiLink);
     vi.stubGlobal('WebSocket', FakeSocket);
@@ -189,6 +191,16 @@ describe('AiLinkService', () => {
     link.noteGmPanel(true);
     sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: waiting }) });
     expect(openPanel).not.toHaveBeenCalled();
+  });
+
+  it('turns an AI link panel standing already to the game master’s half rather than opening it again', () => {
+    panelStands = true;
+    const link = make();
+    link.connect();
+    sockets[0].greet('gm');
+
+    expect(openPanel).not.toHaveBeenCalled();
+    expect(TestBed.inject(AiLinkViewService).tab()).toBe('gm');
   });
 
   it('leaves the giving back to whoever hears what the bridge tells of the game master', () => {

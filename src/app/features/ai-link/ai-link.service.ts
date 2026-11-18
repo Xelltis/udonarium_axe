@@ -240,10 +240,12 @@ export class AiLinkService {
     }
   }
 
-  /** Opens the AI link panel on the half the game master is run from, or turns it to that half where it is open. */
+  /** Opens the AI link panel on the half the game master is run from, or turns it to that half where it stands. */
   private openGmHalf(): void {
     this.view.show('gm');
-    this.panels.open('aiLink');
+    // One standing already is turned by that alone: opened again it would be closed and made anew,
+    // losing where its person put it.
+    if (!this.panels.isOpen('aiLink')) this.panels.open('aiLink');
   }
 
   private stopRetrying(): void {

@@ -60,6 +60,15 @@ export class RoomPanelService {
   }
 
   /**
+   * Whether one of the room's panels that stands one at a time is standing now, or on its way to. One
+   * that may stand several at a time is never told of.
+   */
+  isOpen(name: RoomPanelName): boolean {
+    const single = this.panelOf(name).option.single;
+    return single !== undefined && this.panelService.hasSingle(single);
+  }
+
+  /**
    * Opens several of the room's panels together, each standing over those before it in the list.
    *
    * A panel stands over every panel opened before it, and the code of each arrives when it will.

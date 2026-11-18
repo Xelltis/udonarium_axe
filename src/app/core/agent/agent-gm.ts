@@ -102,6 +102,12 @@ export const GM_TURN_TOOL: AgentToolDefinition = {
         minimum: 1,
         maximum: 50,
       },
+      again: {
+        type: 'boolean',
+        description:
+          'Pass true on your first call in a conversation, or whenever you no longer have the instructions and ' +
+          'the notebook: they are then given with your next turn whether they have changed or not.',
+      },
     },
     additionalProperties: false,
   },
@@ -120,7 +126,7 @@ export const RUN_AI_GM_GUIDE_URI = 'axe://guide/run-ai-gm';
 export const RUN_AI_GM_PROMPT = `You are asked to be the AI game master of the room you are connected to, run from the AI GM panel of Udonarium Axe by the person at your seat.
 
 # How to run
-1. Call ${GM_TURN_TOOL_NAME}. It answers once the person at the seat has started you and something calls for a turn of yours. With turn false, nothing has yet: call it again. Keep calling it for as long as the session runs, and do not stop to ask whether to go on.
+1. Call ${GM_TURN_TOOL_NAME}, with again true the first time. It answers once the person at the seat has started you and something calls for a turn of yours. With turn false, nothing has yet: call it again. Keep calling it for as long as the session runs, and do not stop to ask whether to go on.
 2. On your first turn, call get_room, list_pieces, get_turn_order and read_chat to learn the table before you speak.
 3. Take your turn with the tools, then call ${GM_TURN_TOOL_NAME} again. That call ends your turn.
 - Do not follow the room with wait_for_events: ${GM_TURN_TOOL_NAME} hands you what you are meant to hear. The person at the seat chooses in the panel which chat tabs reach you and when you are woken.

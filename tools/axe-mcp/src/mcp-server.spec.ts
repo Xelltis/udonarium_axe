@@ -179,6 +179,15 @@ describe('createMcpServer', () => {
       expect(tab.heard.filter((message) => (message as { type?: string })?.type === 'call')).toEqual([]);
     });
 
+    it('refuses the notebook to an AI while the game master is not started', async () => {
+      await connectTab();
+
+      expect(await gm.callTool({ name: 'update_notes', arguments: { notes: '勝手なメモ' } })).toMatchObject({
+        isError: true,
+        content: [{ type: 'text', text: expect.stringMatching(/^not_allowed: The game master is not started/) }],
+      });
+    });
+
     it('counts any call as the AI being there', async () => {
       const tab = await connectTab();
       tab.answer = () => ({ ok: true });

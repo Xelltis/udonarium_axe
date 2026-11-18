@@ -86,8 +86,15 @@ export class TurnDesk {
   private due = false;
   private instructions = '';
   private notes = '';
-  /** The instructions and the notebook as the AI last had them, or null where it has had none. */
-  private told: { instructions: string; notes: string } | null = null;
+  /**
+   * The instructions and the notebook as each conversation of the AI last had them. A conversation is
+   * whatever asks in its name: each client of the bridge is one, and a client that begins anew says so.
+   */
+  private readonly told = new WeakMap<object, { instructions: string; notes: string; fresh: number }>();
+  /** How many times the game master was started afresh, after each of which every conversation is told anew. */
+  private freshFrom = 0;
+  /** The conversation waiting for the turn now, whose turn it will be. */
+  private waiting: object = this;
   /** Whether a turn was ever handed over, so that there is a session to carry on. */
   private handed = false;
   private waiter: ((answer: TurnWait) => void) | null = null;
@@ -147,11 +154,13 @@ export class TurnDesk {
   /**
    * Waits for the AI's next turn, for as long as given: answered with the turn once one is due, or
    * told to ask again. Asking ends the turn the AI was taking. One call waits at a time; a later one
-   * takes the place of an earlier.
+   * takes the place of an earlier. The instructions and the notebook go with the turn where the
+   * conversation asking has not had them as they stand.
    */
-  waitForTurn(timeoutMs: number, signal?: AbortSignal): Promise<TurnWait> {
+  waitForTurn(timeoutMs: number, signal?: AbortSignal, conversation: object = this): Promise<TurnWait> {
     this.waiter?.({ turn: false, running: this.run !== 'off', note: TAKEN_OVER });
     this.waiter = null;
+    this.waiting = conversation;
     if (this.run === 'thinking') {
       this.run = 'waiting';
       this.tell();
@@ -177,10 +186,23 @@ export class TurnDesk {
     });
   }
 
-  /** Writes the notebook anew as the AI gives it, telling the tab, and says how it went. */
-  writeNotes(notes: string): { readonly kept: number } {
+  /**
+   * Has a conversation told the instructions and the notebook again with its next turn, as one that
+   * begins anew in a client the bridge already knows has had neither.
+   */
+  beginAnew(conversation: object = this): void {
+    this.told.delete(conversation);
+  }
+
+  /**
+   * Writes the notebook anew as the AI gives it, telling the tab, and says how it went; null while the
+   * game master is not started, when the notebook is the person's own and no AI's to write.
+   */
+  writeNotes(notes: string, conversation: object = this): { readonly kept: number } | null {
+    if (this.run === 'off') return null;
     this.notes = notes.slice(0, GM_NOTES_MAX);
-    if (this.told) this.told = { ...this.told, notes: this.notes };
+    const told = this.told.get(conversation);
+    if (told) this.told.set(conversation, { ...told, notes: this.notes });
     this.options.link.tellGm({ type: 'gm.notes', notes: this.notes });
     return { kept: this.notes.length };
   }
@@ -253,7 +275,7 @@ export class TurnDesk {
     }
     const opens = message.fresh || !this.handed;
     if (message.fresh) {
-      this.told = null;
+      this.freshFrom++;
       this.handed = false;
     }
     this.run = 'waiting';
@@ -281,6 +303,8 @@ export class TurnDesk {
   private schedule(now: boolean): void {
     if (this.run !== 'waiting' || this.reasons.size === 0) return;
     if (this.timer) clearTimeout(this.timer);
+    // The room spoke again: a turn that had fallen due waits for it to go quiet once more.
+    this.due = false;
     const quiet = this.options.quietMs ?? QUIET_MS;
     const longest = this.options.longestWaitMs ?? LONGEST_WAIT_MS;
     const delay = now ? 0 : Math.max(0, Math.min(quiet, this.firstReasonAt + longest - Date.now()));
@@ -295,15 +319,18 @@ export class TurnDesk {
   private handOver(): void {
     const waiter = this.waiter;
     if (!waiter || !this.due || this.run !== 'waiting' || this.reasons.size === 0) return;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
     const reasons = gmWakeReasons([...this.reasons]);
     const events = this.events;
     const direction = this.direction;
-    const told = this.told;
+    const had = this.told.get(this.waiting);
+    const told = had && had.fresh === this.freshFrom ? had : null;
     this.reasons = new Set();
     this.events = [];
     this.direction = '';
     this.due = false;
-    this.told = { instructions: this.instructions, notes: this.notes };
+    this.told.set(this.waiting, { instructions: this.instructions, notes: this.notes, fresh: this.freshFrom });
     this.handed = true;
     this.run = 'thinking';
     this.seen();

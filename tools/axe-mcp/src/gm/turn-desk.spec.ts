@@ -143,6 +143,60 @@ describe('TurnDesk', () => {
     });
   });
 
+  it('waits for the room to go quiet again where it spoke after a turn fell due with no AI waiting', async () => {
+    const tab = await connect();
+    await open(tab);
+    tab.say({ type: 'gm.events', events: [{ event: LINE, wake: 'line' }] });
+    await new Promise((resolve) => setTimeout(resolve, 90));
+    tab.say({ type: 'gm.events', events: [{ event: { ...LINE, id: 'm2' }, wake: 'line' }] });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    // The room spoke ten milliseconds ago: the turn is not handed over before it has been quiet.
+    const began = Date.now();
+    const turn = await desk.waitForTurn(2000);
+    expect(turn).toMatchObject({ turn: true });
+    expect(Date.now() - began).toBeGreaterThanOrEqual(20);
+
+    // And the timer that brought it is spent: what calls for the next turn is waited on in its turn.
+    const next = desk.waitForTurn(2000);
+    tab.say({ type: 'gm.events', events: [{ event: { ...LINE, id: 'm3' }, wake: 'line' }] });
+    const again = Date.now();
+    expect(await next).toMatchObject({ turn: true, events: [{ ...LINE, id: 'm3' }] });
+    expect(Date.now() - again).toBeGreaterThanOrEqual(30);
+  });
+
+  it('tells each conversation the instructions and the notebook it has not had, and again one that begins anew', async () => {
+    const tab = await connect();
+    const first = {};
+    const second = {};
+    start(tab, { instructions: '古城の探索', notes: '門の前' });
+    expect(await desk.waitForTurn(2000, undefined, first)).toMatchObject({
+      instructions: '古城の探索',
+      notes: '門の前',
+    });
+
+    tab.say({ type: 'gm.nudge', direction: '' });
+    expect(await desk.waitForTurn(2000, undefined, first)).not.toHaveProperty('instructions');
+
+    tab.say({ type: 'gm.nudge', direction: '' });
+    expect(await desk.waitForTurn(2000, undefined, second)).toMatchObject({
+      instructions: '古城の探索',
+      notes: '門の前',
+    });
+
+    desk.beginAnew(first);
+    tab.say({ type: 'gm.nudge', direction: '' });
+    expect(await desk.waitForTurn(2000, undefined, first)).toMatchObject({ instructions: '古城の探索' });
+  });
+
+  it('keeps the notebook from an AI while the game master is not started', async () => {
+    const tab = await connect();
+
+    expect(desk.writeNotes('勝手に書いたメモ')).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(tab.heard.some((message) => (message as { type?: string })?.type === 'gm.notes')).toBe(false);
+  });
+
   it('hands over at once what the person at the seat asks, with their word', async () => {
     const tab = await connect();
     await open(tab);
