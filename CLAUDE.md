@@ -44,6 +44,8 @@ composition → features → ui → application → infrastructure → domain �
 - **context-menu**: 各feature配下に`*-context-menu.ts`を純関数で置き、specで固定
 - **ドメインモデルからDIサービスを呼ばない**。サービス側からモデルを操作する向きを保つ
 - **import**: 相対パス禁止（`@axe/*` / `@env/*`）、層境界はESLintでerror化
+- **修正**: 指摘された行だけを塞がない。直す前に、破れている決まり・その決まりを通る経路・決まりを置く1か所を書く。同じ領域で2度指摘が出たら作り直す（[修正の進め方](docs/coding-guidelines.md#修正の進め方)。指摘のレベルの基準と、レビューの報告の形もそこにある）
+- **テストを流す時**: e2eとvisualは毎回流さない。pushの前に`npm run e2e:related`を1回、visualは描画に関わる変更のときだけ。レビューと改修を繰り返している間の各回は流さない（[テストを流す時](docs/coding-guidelines.md#テストを流す時)）
 
 ## パスエイリアス
 
