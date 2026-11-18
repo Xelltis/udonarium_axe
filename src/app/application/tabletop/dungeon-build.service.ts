@@ -26,6 +26,7 @@ import {
   MapAmbience,
   MapBlock,
   MapBlocks,
+  MapHarm,
   MapLight,
   MapLightKind,
   MapMaterial,
@@ -250,6 +251,7 @@ export class DungeonBuildService {
     this.layAmbiences(table, blocks.ambiences, grid);
     this.layHazards(table, blocks.paint);
     this.laySlowGround(table, blocks.slows ?? []);
+    this.layHarms(table, blocks.harms ?? []);
     this.setTraps(table, blocks.traps);
     this.standLights(table, blocks.lights, options.wallHeight, grid);
     this.musterParty(table, options.muster ?? []);
@@ -445,6 +447,8 @@ export class DungeonBuildService {
         ambience.dirtiness = patch.water.dirt;
         ambience.floatingLeaves = patch.water.leaves;
         ambience.iceCover = patch.water.ice;
+        ambience.flowSpeed = patch.water.flowSpeed ?? 0;
+        ambience.flowDirection = patch.water.flowDirection ?? 0;
       }
       ambience.isLock = true;
       const at = blockOrigin(patch.rect, grid);
@@ -507,6 +511,29 @@ export class DungeonBuildService {
       harm.color = preset.color;
       // Nobody is meant to be surprised by a lake of lava: the room can see the ground it is
       // painted on, which is the whole of what makes it a hazard rather than a trap.
+      harm.open = true;
+      harm.initialize();
+      table.appendChild(harm);
+    }
+  }
+
+  /**
+   * Ground that hurts whoever is caught in it and does nothing else, as the foul water of a sewer: its
+   * look and its going are laid with the rest, so this is the harm, in the open where the room can see it.
+   */
+  private layHarms(table: GameTable, harms: readonly MapHarm[]): void {
+    for (const patch of harms) {
+      const harm = new TableTrigger();
+      harm.name = this.t(`feature.tabletop.dungeonGenerator.piece.${patch.thing}`);
+      harm.col = patch.rect.x;
+      harm.row = patch.rect.y;
+      harm.width = patch.rect.w;
+      harm.height = patch.rect.h;
+      harm.moment = patch.moment;
+      harm.element = patch.amount.length > 0 ? HAZARD_RESOURCE : '';
+      harm.amount = patch.amount;
+      harm.ailment = patch.ailment;
+      harm.color = patch.color;
       harm.open = true;
       harm.initialize();
       table.appendChild(harm);

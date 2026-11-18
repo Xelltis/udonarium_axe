@@ -94,7 +94,9 @@ const NATURE: readonly Row[] = [
 
 /**
  * The furniture, made a unit to the cell. The doors are left to the terrain's own doors, which open;
- * the shipping containers alone are tall enough to hide behind, and rubble is walked over.
+ * the shipping containers alone are tall enough to hide behind, rubble is walked over, and a drain
+ * pipe or a ladder on the wall at one edge of its cell is walked past. Those two are made as wide and
+ * deep as the whole cell, so that they stay at its edge.
  */
 const FURNISHING: readonly Row[] = [
   ['prop_crate', 1.002, 1.002, 0.78, 1, true, false],
@@ -108,6 +110,10 @@ const FURNISHING: readonly Row[] = [
   ['prop_containerRed', 4.012, 2.004, 1.7, 4, true, true],
   ['prop_containerBlue', 4.012, 2.004, 1.7, 4, true, true],
   ['prop_containerGreen', 4.012, 2.004, 1.7, 4, true, true],
+  ['prop_drainPipe', 1, 1, 2.005, 1, false, false],
+  ['prop_barrel', 0.66, 0.687, 0.9, 0.69, true, false],
+  ['prop_valvePipe', 0.86, 0.384, 1.105, 0.86, true, false],
+  ['prop_ladder', 1, 1, 2.515, 1, false, false],
 ];
 
 /**

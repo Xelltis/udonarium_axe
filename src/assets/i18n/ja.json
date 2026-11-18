@@ -152,7 +152,9 @@
       "container_red": "コンテナ（赤）",
       "container_blue": "コンテナ（青）",
       "container_green": "コンテナ（緑）",
-      "door_shutter": "シャッター"
+      "door_shutter": "シャッター",
+      "wall_sewer_brick": "下水道のレンガ壁",
+      "ladder_up": "上りはしご"
     },
     "reorder": {
       "toTop": "いちばん上へ",
@@ -3216,7 +3218,8 @@
           "sandTomb": "砂の墳墓",
           "illegalBar": "違法BAR",
           "abandonedBuilding": "廃ビル",
-          "containerWarehouse": "コンテナ倉庫"
+          "containerWarehouse": "コンテナ倉庫",
+          "sewer": "下水道"
         },
         "role": {
           "entrance": "入口の間",
@@ -3250,6 +3253,14 @@
             "boss": "管理事務所",
             "deadEnd": "資材置き場",
             "chamber": "保管区画"
+          },
+          "sewer": {
+            "entrance": "点検口",
+            "hall": "集水槽",
+            "treasure": "密輸品の隠し場",
+            "boss": "ポンプ室",
+            "deadEnd": "沈殿槽",
+            "chamber": "作業室"
           }
         },
         "piece": {
@@ -3281,6 +3292,10 @@
           "containerRed": "コンテナ",
           "containerBlue": "コンテナ",
           "containerGreen": "コンテナ",
+          "barrel": "樽",
+          "valve": "バルブ付きの配管",
+          "drainPipe": "排水管",
+          "sewage": "汚水",
           "hiddenDoor": "隠し扉",
           "palisade": "丸太の柵",
           "watchtower": "見張り塔",
@@ -5423,6 +5438,10 @@
         "model_prop_containerRed": "コンテナ（赤）",
         "model_prop_containerBlue": "コンテナ（青）",
         "model_prop_containerGreen": "コンテナ（緑）",
+        "model_prop_drainPipe": "排水管",
+        "model_prop_barrel": "樽",
+        "model_prop_valvePipe": "バルブの付いた配管",
+        "model_prop_ladder": "鉄のはしご",
         "model_log_wall": "丸太の壁",
         "model_plank_wall": "板の壁",
         "model_timber_frame_wall": "木骨の壁",

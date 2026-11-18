@@ -15,6 +15,10 @@ export const FURNISHING_MODEL_IDS = [
   'prop_counter',
   'prop_shopCounter',
   'prop_barTable',
+  'prop_drainPipe',
+  'prop_barrel',
+  'prop_valvePipe',
+  'prop_ladder',
   'door_wood',
   'door_steel',
   'door_iron_grate',
@@ -51,6 +55,8 @@ export const FURNISHING_MODELS: Readonly<Partial<Record<FurnishingId, Furnishing
   containerRed: 'prop_containerRed',
   containerBlue: 'prop_containerBlue',
   containerGreen: 'prop_containerGreen',
+  barrel: 'prop_barrel',
+  valve: 'prop_valvePipe',
 };
 
 /** The pieces whose model is one cell of a run: a counter of any length is a row of them, ends meeting. */

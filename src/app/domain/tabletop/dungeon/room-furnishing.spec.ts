@@ -23,7 +23,7 @@ import {
 import { GridType } from '@axe/domain/tabletop/game-table';
 
 const SEEDS = [1, 7, 42, 1234, 99999];
-const FURNISHED = ['illegalBar', 'abandonedBuilding', 'containerWarehouse'] as const;
+const FURNISHED = ['illegalBar', 'abandonedBuilding', 'containerWarehouse', 'sewer'] as const;
 
 function open(layout: DungeonLayout, x: number, y: number): boolean {
   const cell = cellAt(layout, x, y);

@@ -152,7 +152,9 @@
       "container_red": "컨테이너(빨강)",
       "container_blue": "컨테이너(파랑)",
       "container_green": "컨테이너(초록)",
-      "door_shutter": "셔터"
+      "door_shutter": "셔터",
+      "wall_sewer_brick": "하수도 벽돌 벽",
+      "ladder_up": "올라가는 사다리"
     },
     "reorder": {
       "toTop": "맨 위로",
@@ -3216,7 +3218,8 @@
           "sandTomb": "모래 무덤",
           "illegalBar": "불법 바",
           "abandonedBuilding": "폐건물",
-          "containerWarehouse": "컨테이너 창고"
+          "containerWarehouse": "컨테이너 창고",
+          "sewer": "하수도"
         },
         "role": {
           "entrance": "입구의 방",
@@ -3250,6 +3253,14 @@
             "boss": "관리 사무소",
             "deadEnd": "자재 보관소",
             "chamber": "보관 구역"
+          },
+          "sewer": {
+            "entrance": "점검구",
+            "hall": "집수조",
+            "treasure": "밀수품 은닉처",
+            "boss": "펌프실",
+            "deadEnd": "침전조",
+            "chamber": "작업실"
           }
         },
         "piece": {
@@ -3281,6 +3292,10 @@
           "containerRed": "컨테이너",
           "containerBlue": "컨테이너",
           "containerGreen": "컨테이너",
+          "barrel": "나무통",
+          "valve": "밸브 달린 배관",
+          "drainPipe": "배수관",
+          "sewage": "오수",
           "hiddenDoor": "비밀 문",
           "palisade": "통나무 울타리",
           "watchtower": "망루",
@@ -5423,6 +5438,10 @@
         "model_prop_containerRed": "컨테이너(빨강)",
         "model_prop_containerBlue": "컨테이너(파랑)",
         "model_prop_containerGreen": "컨테이너(초록)",
+        "model_prop_drainPipe": "배수관",
+        "model_prop_barrel": "나무통",
+        "model_prop_valvePipe": "밸브 달린 배관",
+        "model_prop_ladder": "철 사다리",
         "model_log_wall": "통나무 벽",
         "model_plank_wall": "판자 벽",
         "model_timber_frame_wall": "목골 벽",

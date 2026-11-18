@@ -28,7 +28,8 @@ export interface FurnishingShape {
  * A bar's counter is a pale top over the same tubes its walls are lit by, and its tables are
  * lit from inside, which is most of what tells a bar from a back room. What an abandoned
  * building leaves behind is steel desks shoved off square and rubble where the ceiling came
- * down. A shipping container is the size of one, a little taller than a man is.
+ * down. A shipping container is the size of one, a little taller than a man is. A sewer keeps
+ * barrels about, and pipes standing up out of its floor with a wheel to turn the water off by.
  */
 export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
   counter: { skin: { side: 'wall_neon', top: 'marble' }, height: 0.55, fill: 0.8, blocksSight: false },
@@ -48,6 +49,8 @@ export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
     fill: 1,
     blocksSight: true,
   },
+  barrel: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 0.9, fill: 0.7, blocksSight: false, spin: 45 },
+  valve: { skin: { side: 'wall_metal', top: 'metal_grate' }, height: 1.1, fill: 0.86, blocksSight: false },
 };
 
 /** How long and how wide a shipping container stands on the floor, in cells. */

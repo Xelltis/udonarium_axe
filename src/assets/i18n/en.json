@@ -152,7 +152,9 @@
       "container_red": "Container (red)",
       "container_blue": "Container (blue)",
       "container_green": "Container (green)",
-      "door_shutter": "Roller shutter"
+      "door_shutter": "Roller shutter",
+      "wall_sewer_brick": "Sewer brick wall",
+      "ladder_up": "Ladder up"
     },
     "reorder": {
       "toTop": "Move to the top",
@@ -3216,7 +3218,8 @@
           "sandTomb": "Sand tomb",
           "illegalBar": "Illegal bar",
           "abandonedBuilding": "Abandoned building",
-          "containerWarehouse": "Container warehouse"
+          "containerWarehouse": "Container warehouse",
+          "sewer": "Sewer"
         },
         "role": {
           "entrance": "Entrance hall",
@@ -3250,6 +3253,14 @@
             "boss": "Site office",
             "deadEnd": "Supply room",
             "chamber": "Storage bay"
+          },
+          "sewer": {
+            "entrance": "Maintenance hatch",
+            "hall": "Cistern",
+            "treasure": "Smugglers' cache",
+            "boss": "Pump room",
+            "deadEnd": "Settling tank",
+            "chamber": "Workroom"
           }
         },
         "piece": {
@@ -3281,6 +3292,10 @@
           "containerRed": "Container",
           "containerBlue": "Container",
           "containerGreen": "Container",
+          "barrel": "Barrel",
+          "valve": "Valved pipe",
+          "drainPipe": "Drain pipe",
+          "sewage": "Sewage",
           "hiddenDoor": "Hidden door",
           "palisade": "Palisade",
           "watchtower": "Watchtower",
@@ -5423,6 +5438,10 @@
         "model_prop_containerRed": "Container (red)",
         "model_prop_containerBlue": "Container (blue)",
         "model_prop_containerGreen": "Container (green)",
+        "model_prop_drainPipe": "Drain pipe",
+        "model_prop_barrel": "Barrel",
+        "model_prop_valvePipe": "Pipe with a valve",
+        "model_prop_ladder": "Iron ladder",
         "model_log_wall": "Log wall",
         "model_plank_wall": "Plank wall",
         "model_timber_frame_wall": "Timber-frame wall",

@@ -1,6 +1,7 @@
 import { DungeonPropId } from '@axe/domain/media/texture-catalog';
 import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
 import { TrapKind } from '@axe/domain/tabletop/trap-presets';
+import type { TriggerMoment } from '@axe/domain/tabletop/trigger-event';
 
 /** What a thing is made of: one of the bundled pictures, or one out of the image storage. */
 export type MapMaterial = { kind: 'texture'; id: string } | { kind: 'library'; identifier: string };
@@ -168,6 +169,30 @@ export interface MapWater {
   leaves: number;
   /** How much of it is frozen over, from 0 for open water to 1 for ice. */
   ice: number;
+  /** How fast it flows, from 0 for still water to 1 for a racing river. Left out, it lies still. */
+  flowSpeed?: number;
+  /** Which way it flows, in degrees clockwise from the top of the table. Left out, towards the top. */
+  flowDirection?: number;
+}
+
+/**
+ * Ground that hurts whoever is caught in it, laid open for the room to see: the foul water of a sewer.
+ *
+ * What it looks like is laid as an area of its own, and what it costs to wade as slow ground; this is
+ * the harm alone.
+ */
+export interface MapHarm {
+  rect: MapRect;
+  /** What it is called on the table, as one of the pieces the generator names. */
+  thing: string;
+  /** What it takes from whoever it catches, as a number or a handful of dice. Empty takes nothing. */
+  amount: string;
+  /** The state it leaves a piece in, by the name the room keeps it under. Empty leaves none. */
+  ailment: string;
+  /** When it takes it. */
+  moment: TriggerMoment;
+  /** The colour the ground is drawn in on the table. */
+  color: string;
 }
 
 /** Ground that is slow to cross and nothing worse: a field of wheat, a flooded paddy. */
@@ -185,6 +210,8 @@ export interface MapBlocks {
   ambiences: MapAmbience[];
   /** Ground slow to cross, as a field of tall crops is. Left out, there is none. */
   slows?: MapSlowGround[];
+  /** Ground that hurts whoever is caught in it, as foul water does. Left out, there is none. */
+  harms?: MapHarm[];
   traps: MapTrap[];
   torchRooms: number[];
   torchSpots: MapPoint[];

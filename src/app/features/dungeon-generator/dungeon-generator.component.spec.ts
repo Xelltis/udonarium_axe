@@ -6,7 +6,9 @@ import { DUNGEON_GRID_SIZE } from '@axe/application/tabletop/dungeon-build.servi
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { atmosphereById } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GROUND_HEIGHT_STEP } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { DungeonGeneratorComponent } from '@axe/features/dungeon-generator/dungeon-generator.component';
 import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
@@ -299,6 +301,27 @@ describe('DungeonGeneratorComponent', () => {
 
     expect(component.builtTable()).not.toBeNull();
     expect(component.builtTable()!.imageIdentifier).toBe('');
+  });
+
+  it('raises the floor of a sewer it builds and digs its water down into it, and leaves a dry dungeon flat', async () => {
+    stubPainting(exportScene);
+    component.roomCount.set(3);
+    component.seed.set(7);
+    component.chooseAtmosphere('sewer');
+
+    await component.generate();
+
+    const water = atmosphereById('sewer').waterways!;
+    const heights = groundFieldOn(component.builtTable()!)!
+      .readChunks()
+      .flatMap((chunk) => [...chunk.heights]);
+    expect(Math.max(...heights)).toBe(water.walkway / GROUND_HEIGHT_STEP);
+    expect(heights).toContain(Math.round(water.channel.bed / GROUND_HEIGHT_STEP));
+
+    component.chooseAtmosphere('stoneDungeon');
+    await component.generate();
+
+    expect(groundFieldOn(component.builtTable()!)).toBeNull();
   });
 
   it('takes the painted ground away with the table it was made for', async () => {

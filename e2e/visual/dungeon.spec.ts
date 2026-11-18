@@ -36,7 +36,7 @@ async function settleUntilVisible(page: Page, locator: Locator, limitMs: number)
  * flicker is left at whatever moment the stop caught it; stopped first, it is drawn at the same
  * moments every run.
  */
-async function buildDungeon(page: Page, gridLabel: string) {
+async function buildDungeon(page: Page, gridLabel: string, atmosphere?: string) {
   await page.locator('[data-testid="fab-entry-table"]').click();
   await settle(page);
   await page.locator('[data-testid="fab-submenu-table"] [data-testid="fab-entry-dungeonGenerator"]').click();
@@ -45,6 +45,10 @@ async function buildDungeon(page: Page, gridLabel: string) {
   await settleLazy(page, grid);
   await grid.click();
   await settle(page);
+  if (atmosphere) {
+    await panel.getByRole('button', { name: atmosphere, exact: true }).click();
+    await settle(page);
+  }
   await typeInto(page, panel.locator('input[name="room-count-number"]'), ROOMS);
   await typeInto(page, panel.locator('#seed'), SEED);
   await panel.getByRole('button', { name: '生成する' }).click();
@@ -128,3 +132,32 @@ for (const grid of GRIDS) {
     await snap(page, `${grid.name}-turned`, { timeout: 150000 });
   });
 }
+
+/**
+ * A generated sewer: its channels cut down the passages and falling over their weirs, a basin sunk in
+ * a room and the pipes pouring into it out of the walls.
+ */
+test('a generated sewer runs its water down the passages and pours it into the basins', async ({ page }) => {
+  test.setTimeout(600000);
+  await prepare(page);
+  await becomeGm(page);
+  await closePanels(page);
+  await freeze(page);
+  await buildDungeon(page, '四角', '下水道');
+  await hideFloorLight(page);
+  await holdTorches(page);
+  await hidePieces(page);
+  await closePanels(page);
+  await settle(page, 400);
+  await letImagesArrive(page);
+  await page.locator('body').click({ position: { x: 1200, y: 780 } });
+  for (let step = 0; step < 4; step++) await page.keyboard.press('Control+ArrowDown');
+  await settle(page, 400);
+  await letImagesArrive(page);
+  await snap(page, 'dungeon-sewer', { timeout: 150000 });
+
+  for (let step = 0; step < 5; step++) await page.keyboard.press('Control+ArrowDown');
+  await settle(page, 400);
+  await letImagesArrive(page);
+  await snap(page, 'dungeon-sewer-wide', { timeout: 150000 });
+});

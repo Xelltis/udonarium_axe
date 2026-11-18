@@ -16,6 +16,8 @@ Comment: 本プロジェクトで作成した素材です。作り方は次の�
  rock_moss, sand, sea, shallows, steppe, stone_paving_big, stone_paving_small, stone_tileの
  16点はAdobe Fireflyによる生成。同フォルダの残りとimages/walls/*.webpは
  ローカルのComfyUIによる生成で、繰り返しても継ぎ目が出ないよう切り出したもの。
+ ただしimages/walls/wall_sewer_brick.webpは、同じフォルダのwall_brick.webpを暗く緑がかった
+ 色に変え、苔・ぬめり・水垢を作図で重ねたもので、継ぎ目のなさはもとの絵のまま。
  images/tiles/metal_grate.webpとimages/dungeon/*.webpは作図。
  images/lights/*.webpはローカルのComfyUIによる生成で、背景を抜いたもの。
  images/tiles/poison_pool.webpとimages/walls/cactus_skin.webpもローカルの
@@ -80,14 +82,18 @@ Comment: 野外の木・茂み・岩・サボテン・廃材の3Dモデル。木
  CC0 1.0 Universalで提供すると示す。
 
 Files: models/props/*
-Copyright: 2026 SavageChieftain / Xelltis（形）
- ambientCG (ambientcg.com)（木・金属・革・布・コンクリートの写真）
+Copyright: 2026 SavageChieftain / Xelltis（形・ぬめりと汚れの絵）
+ ambientCG (ambientcg.com)（木・金属・塗装した金属・革・布・コンクリート・岩の写真）
 License: MIT and CC0-1.0
 Comment: ダンジョンの家具（木箱・スツール・事務机・賭博台・瓦礫・コンテナ・カウンター・売り台・
- バーのテーブル）と扉（板戸・鉄の扉・鉄格子・石の扉・シャッター・サルーンの扉）の3Dモデル。角を丸めた箱・円柱・波板を組んだもので、形は本プロジェクトで作成
- した（MIT）。絵はambientCGの素材の色の画像（1K-JPG）を縮めたもの（CC0）。Planks021・
+ バーのテーブル）と扉（板戸・鉄の扉・鉄格子・石の扉・シャッター・サルーンの扉）、下水道の物
+ （排水管・樽・バルブの付いた配管・鉄のはしご）の3Dモデル。角を丸めた箱・円柱・回転体・波板を
+ 組んだもので、形は本プロジェクトで作成した（MIT）。絵はambientCGの素材の色の画像（1K-JPG）を
+ 縮めたもの（CC0）。Planks021・
  Planks037A・CorrugatedSteel005・Metal029・Metal063・Leather037・Fabric030・Concrete042A・
- Rust009・Rock048から。カウンター・売り台・バーのテーブルの天板と側面は、本プロジェクトの
+ Rust009・Rock048・PaintedMetal004・PaintedMetal006から。鉄のはしごの絵はMetal063にRust009を
+ まだらに混ぜたもの。排水管の口のぬめりと壁を伝う汚れの絵は本プロジェクトで描いた（MIT）。
+ カウンター・売り台・バーのテーブルの天板と側面は、本プロジェクトの
  images/tiles/marble.webp・wood_plank.webp・neon_floor.webpとimages/walls/wall_neon.webpを使う。
  ライセンスのページ https://docs.ambientcg.com/license/ が、ambientCGのすべての素材を
  CC0 1.0 Universalで提供すると示す。
