@@ -13,7 +13,7 @@ Show every finding of the review to the user, in Japanese. The user cannot see t
 
 - For each finding, write where it is and **which operation leads to which result**, without leaving anything out. Do not shrink a finding to one line
 - Rate each finding by the scale below, and say that the rating is your own
-- Write the count of the round as 「N件（Critical a・High b・Middle c・Low d・対象外 e）」, and add a table of the counts per round when looping
+- Write the count of the round as 「N件（Critical a・High b・Middle c・Low d・Out of scope e）」, and add a table of the counts per round when looping
 
 ### Severity scale
 
