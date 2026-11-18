@@ -163,7 +163,9 @@ const BUNDLED_MAP_MODELS: Readonly<Record<string, readonly string[]>> = {
     'a9c6e0e09e84467aee8fb67328d73b25e0434b0d5a6b869c6b9950d2154db034',
     'c14fadb4be9596d16ced08ad5dc19effdac80a2b2ab84ee95665b30fa682d137',
   ],
+  watermill: ['c2861bc1a6e12113169edb9e7fa8b5854d1f2aba2dbf72d46934c3ed4ed1ea27'],
   well: ['cc10f1eb64ae1dfaf32d3a55c363f876e6534c0155c80ddd0cf3213d0cd3c8f0'],
+  windmill: ['2d90d2865085490e3b502a28f67c7aae6f10df60faf658fd10c3745acc23d26b'],
 };
 
 const BUNDLED_MAP_NAMES: ReadonlyMap<string, string> = new Map(

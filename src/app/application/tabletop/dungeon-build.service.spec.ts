@@ -302,7 +302,14 @@ describe('DungeonBuildService', () => {
     const waters = table.children.filter(
       (child): child is TableAmbience => child instanceof TableAmbience && child.kind === 'water'
     );
-    expect(waters.length).toBe(plan.layout.settlement!.crops.filter((crop) => crop.crop === 'rice').length);
+    const still = waters.filter((water) => water.flow === 0);
+    const running = waters.filter((water) => water.flow > 0);
+    expect(still.length).toBe(plan.layout.settlement!.crops.filter((crop) => crop.crop === 'rice').length);
+    expect(running.length).toBeGreaterThan(0);
+    expect(running.length).toBe(plan.blocks.ambiences.filter((ambience) => ambience.water?.flowSpeed).length);
+    expect(running.reduce((cells, water) => cells + water.width * water.height, 0)).toBe(
+      plan.layout.settlement!.stream!.cells.filter((cell) => !cell.bridge).length
+    );
 
     const grown = planField({ atmosphere: 'village', size: 40, density: 50, seed: 3, models: true });
     const fields = (await service.build(grown.layout, grown.atmosphere, grown.blocks, options())).table.terrains.filter(

@@ -2,11 +2,15 @@ import { clamp } from '@axe/core/util/clamp';
 import {
   cellOfLayoutPoint,
   layoutPointOfSample,
+  levelUnder,
   sampleOfLayoutPoint,
 } from '@axe/domain/tabletop/field/field-sample-points';
+import { STREAM_DEPTH } from '@axe/domain/tabletop/field/mill-stream';
 import { SETTLEMENT_ZONES, SettlementLayout } from '@axe/domain/tabletop/field/settlement-layout';
 import { GridType } from '@axe/domain/tabletop/grid-type';
+import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
+import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
 
 /** How far round the settlement the ground is kept as level as the settlement itself, in cells. */
 export const TERRACE_APRON_CELLS = 1;
@@ -15,7 +19,8 @@ export const TERRACE_BLEND_CELLS = 2;
 
 /**
  * The cells a settlement stands on: everything it laid down (roads, yards, floors, fields and
- * paddies, walls and gates, buildings, crops, things and fires), each as 1.
+ * paddies, walls and gates, buildings, crops, things and fires, and a village's stream and mills),
+ * each as 1.
  */
 export function settlementSiteOf(layout: SettlementLayout, width: number, height: number): Uint8Array {
   const site = new Uint8Array(width * height);
@@ -112,8 +117,7 @@ export function terraceSettlement(
   const { width, height } = size;
   const site = settlementSiteOf(layout, width, height);
   const distance = cellDistancesFrom(site, width, height);
-  const middle = settlementMiddleOf(layout, site, width, height);
-  const level = Math.max(0, sampleHeightAt(raster, gridType, middle.x, middle.y));
+  const level = terraceLevelOf(raster, layout, size, gridType);
   const heights = new Float32Array(raster.heights.length);
   for (let row = 0; row < raster.rows; row++) {
     for (let column = 0; column < raster.columns; column++) {
@@ -123,6 +127,62 @@ export function terraceSettlement(
       const y = clamp(cell.y, 0, height - 1);
       const away = clamp((distance[y * width + x] - apronCells) / blendCells, 0, 1);
       heights[index] = level * (1 - away) + raster.heights[index] * away;
+    }
+  }
+  return { columns: raster.columns, rows: raster.rows, heights };
+}
+
+/**
+ * How high {@link terraceSettlement} levels a settlement's site on the raster of the open country: as
+ * high as the open country stands at the settlement's middle, never below the floor.
+ */
+export function terraceLevelOf(
+  raster: GroundRaster,
+  layout: SettlementLayout,
+  size: { width: number; height: number },
+  gridType: GridType
+): number {
+  const site = settlementSiteOf(layout, size.width, size.height);
+  const middle = settlementMiddleOf(layout, site, size.width, size.height);
+  return Math.max(0, sampleHeightAt(raster, gridType, middle.x, middle.y));
+}
+
+/** The ground of a board left on the board everywhere, a sample to every half cell over it, as the open country's raster is laid. */
+export function flatGroundOf(size: { width: number; height: number }, gridType: GridType): GroundRaster {
+  const extent = boardExtentPx(size, { type: gridType, sizePx: 1 });
+  const columns = Math.ceil(extent.widthPx * GROUND_SAMPLES_PER_CELL) + 1;
+  const rows = Math.ceil(extent.heightPx * GROUND_SAMPLES_PER_CELL) + 1;
+  return { columns, rows, heights: new Float32Array(columns * rows) };
+}
+
+/**
+ * The ground with the bed of a settlement's stream dug into it, `STREAM_DEPTH` under the level the
+ * settlement stands at, in every cell of the stream but its bridges. A sample is dug only where every
+ * cell it lies under is the stream's, so the banks slope down inside the stream's own cells and the
+ * ground of every other cell, and of the bridges, is left as it was.
+ */
+export function digStreamBed(
+  raster: GroundRaster,
+  layout: SettlementLayout,
+  size: { width: number; height: number },
+  gridType: GridType,
+  level: number
+): GroundRaster {
+  const { width, height } = size;
+  const wet = new Uint8Array(width * height);
+  for (const cell of layout.stream?.cells ?? []) {
+    if (!cell.bridge) wet[cell.y * width + cell.x] = 1;
+  }
+  const bed = level - STREAM_DEPTH;
+  const bedAt = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < width && y < height && wet[y * width + x] ? bed : Number.POSITIVE_INFINITY;
+  const heights = Float32Array.from(raster.heights);
+  for (let row = 0; row < raster.rows; row++) {
+    for (let column = 0; column < raster.columns; column++) {
+      const index = row * raster.columns + column;
+      const x = column / GROUND_SAMPLES_PER_CELL;
+      const y = row / GROUND_SAMPLES_PER_CELL;
+      heights[index] = Math.min(heights[index], levelUnder(gridType, x, y, bedAt));
     }
   }
   return { columns: raster.columns, rows: raster.rows, heights };

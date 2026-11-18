@@ -14,6 +14,7 @@ import {
   layoutPointOfSample,
   sampleOfLayoutPoint,
 } from '@axe/domain/tabletop/field/field-sample-points';
+import { STREAM_DEPTH } from '@axe/domain/tabletop/field/mill-stream';
 import {
   cellDistancesFrom,
   settlementSiteOf,
@@ -350,13 +351,21 @@ describe('planField()', () => {
     }
   });
 
-  it('leaves open country open enough to walk over', () => {
+  it('leaves open country open enough to walk over, the water of a stream waded through', () => {
     for (const id of FIELD_ATMOSPHERE_IDS.filter((each) => !FIELD_ATMOSPHERES[each].town)) {
       for (const seed of SEEDS) {
         const plan = planField({ atmosphere: id, size: 40, density: 100, seed });
-        const taken = plan.layout.props.filter((prop) => prop !== '').length;
+        const width = plan.layout.width;
+        const waded = new Set(
+          (plan.layout.settlement?.stream?.cells ?? [])
+            .filter((cell) => !cell.bridge)
+            .map((cell) => cell.y * width + cell.x)
+        );
+        const taken = plan.layout.props.filter(
+          (prop, cell) => prop !== '' && prop !== 'clearing' && !waded.has(cell)
+        ).length;
 
-        expect(taken / plan.layout.props.length).toBeLessThan(0.5);
+        expect(taken / plan.layout.props.length, `${id} ${seed}`).toBeLessThan(0.5);
       }
     }
   });
@@ -517,27 +526,36 @@ describe('the ground of a field raised as high as asked', () => {
     expect(raised.layout.relief).not.toBeNull();
   });
 
-  it('levels a village into a terrace and raises the open country round it', () => {
+  it('levels a village into a terrace and raises the open country round it, the bed of its stream dug into the terrace', () => {
     const plan = planField({ atmosphere: 'village', size: 40, density: 50, seed: 7, relief: 3 });
     const { layout } = plan;
     const relief = layout.relief!;
     const site = settlementSiteOf(layout.settlement!, layout.width, layout.height);
     const distance = cellDistancesFrom(site, layout.width, layout.height);
     const heightAt = (x: number, y: number) => relief.heights[(y * 2 + 1) * relief.columns + x * 2 + 1];
+    const waded = new Set(
+      layout.settlement!.stream!.cells.filter((cell) => !cell.bridge).map((cell) => cell.y * layout.width + cell.x)
+    );
+    const level = layout.settlementLevel!;
 
     const onSite = new Set<number>();
+    const beds = new Set<number>();
     const beyond = new Set<number>();
     for (let y = 0; y < layout.height; y++) {
       for (let x = 0; x < layout.width; x++) {
         const d = distance[y * layout.width + x];
-        if (d <= TERRACE_APRON_CELLS) onSite.add(Math.round(heightAt(x, y) * 1000));
+        if (waded.has(y * layout.width + x)) beds.add(Math.round(heightAt(x, y) * 1000));
+        else if (d <= TERRACE_APRON_CELLS) onSite.add(Math.round(heightAt(x, y) * 1000));
         else if (d > TERRACE_APRON_CELLS + TERRACE_BLEND_CELLS) beyond.add(Math.round(heightAt(x, y) * 1000));
       }
     }
-    expect(onSite.size).toBe(1);
+    expect(waded.size).toBeGreaterThan(0);
+    expect([...onSite]).toEqual([Math.round(level * 1000)]);
+    expect(level).toBeGreaterThanOrEqual(0);
+    expect([...beds]).toEqual([Math.round((level - STREAM_DEPTH) * 1000)]);
     expect(beyond.size).toBeGreaterThan(1);
     expect(Math.max(...relief.heights)).toBeLessThanOrEqual(3);
-    expect(Math.min(...relief.heights)).toBeGreaterThanOrEqual(0);
+    expect(Math.min(...relief.heights)).toBeGreaterThanOrEqual(Math.min(0, level - STREAM_DEPTH) - 1e-6);
   });
 
   it('leaves a settlement as it was where no height is asked for', () => {

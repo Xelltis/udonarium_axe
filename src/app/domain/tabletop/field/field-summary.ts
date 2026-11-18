@@ -42,7 +42,7 @@ export function buildFieldSummary(input: FieldSummaryInput): string {
 
   const perProp = new Map<FieldPropId, number>();
   for (const mark of layout.props) {
-    if (!mark || mark === 'pool' || mark === 'building') continue;
+    if (!mark || mark === 'pool' || mark === 'building' || mark === 'clearing') continue;
     perProp.set(mark, (perProp.get(mark) ?? 0) + 1);
   }
   const counts = [...perProp.entries()]

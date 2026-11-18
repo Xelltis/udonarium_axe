@@ -72,6 +72,39 @@ export interface SettlementFire extends MapPoint {
   readonly kind: MapLightKind;
 }
 
+/**
+ * A cell a stream runs through, and which way its water runs on out of it, in degrees clockwise from
+ * the top of the board: 0, 90, 180 or 270, always towards the next cell of the stream, and off the
+ * board out of the last.
+ */
+export interface SettlementStreamCell extends MapPoint {
+  readonly flow: number;
+  /** Whether a road crosses the stream here, the water running under it and the road left dry. */
+  readonly bridge: boolean;
+}
+
+/** A stream a cell wide running across a board from its top edge to its bottom edge, its cells in the order the water runs. */
+export interface SettlementStream {
+  readonly cells: readonly SettlementStreamCell[];
+}
+
+/** The mills a village works: one whose sails turn in the wind, and one whose wheel the stream turns. */
+export const MILL_KINDS = ['windmill', 'watermill'] as const;
+
+export type MillKind = (typeof MILL_KINDS)[number];
+
+/**
+ * A mill standing on the cells of a rectangle, turned as its model is: by `turn` degrees clockwise
+ * from facing south, so that at 90 it faces west, at 180 north and at 270 east. A windmill's sails
+ * face the way it does; a watermill's wheel is the column or row of its rectangle on its east side
+ * at nought, turned with it, standing in the stream, its house the rest of it.
+ */
+export interface SettlementMill {
+  readonly kind: MillKind;
+  readonly rect: MapRect;
+  readonly turn: number;
+}
+
 /** A settlement laid out on a board. */
 export interface SettlementLayout {
   readonly kind: SettlementKind;
@@ -88,6 +121,10 @@ export interface SettlementLayout {
   readonly taken: Uint8Array;
   /** The middle of what a fort's wall rings round and how far the wall reaches from it each way, or null for a village. */
   readonly ring: { readonly middle: MapPoint; readonly reach: MapPoint } | null;
+  /** The stream run through a village. Left out, none runs through it. */
+  readonly stream?: SettlementStream;
+  /** The mills a village works. Left out, it has none. */
+  readonly mills?: readonly SettlementMill[];
 }
 
 /** How tall each kind of wall stands, in cells. */
@@ -208,7 +245,9 @@ class Plot {
 
 /**
  * Lays a settlement out on a board of the size given, the same from the same seed. `density`, from 0
- * to 100, says how full of buildings, fields and things it is, a middling 50 by default.
+ * to 100, says how full of buildings, fields and things it is, a middling 50 by default. A village's
+ * stream and mills are not laid here but run through it afterwards, where it left room for them
+ * (`layMillStream`).
  */
 export function laySettlement(
   kind: SettlementKind,

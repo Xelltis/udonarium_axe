@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels, freeze, holdFlicker, prepare, settle, settleLazy, snap } from './fixtures';
+import { becomeGm, closePanels, freeze, holdFlicker, holdSceneAt, prepare, settle, settleLazy, snap } from './fixtures';
 
 /** The same dungeon every run: the generator lays rooms and walls out from the seed alone. */
 const SEED = '1278372739';
@@ -130,6 +130,89 @@ for (const grid of GRIDS) {
     await settle(page, 400);
     await letImagesArrive(page);
     await snap(page, `${grid.name}-turned`, { timeout: 150000 });
+  });
+}
+
+/**
+ * The moment the stream and the mills are held at, any one, so long as it is the same every run: the
+ * clock stands wherever generating the village left it, and the sails and the wheel turn by it.
+ */
+const MILLS_HELD_AT_MS = 5000;
+
+/** Builds a settlement of the mood named in open country, from the seed, with the clock already stopped. */
+async function buildSettlement(page: Page, mood: string, seed: string, gridLabel = '四角') {
+  await page.locator('[data-testid="fab-entry-table"]').click();
+  await settle(page);
+  await page.locator('[data-testid="fab-submenu-table"] [data-testid="fab-entry-dungeonGenerator"]').click();
+  const panel = page.locator('ui-panel').filter({ hasText: 'マップ生成' });
+  const field = panel.getByRole('button', { name: 'フィールド', exact: true });
+  await settleLazy(page, field);
+  await field.click();
+  await settle(page);
+  await panel.getByRole('button', { name: gridLabel, exact: true }).click();
+  await settle(page);
+  await panel.getByRole('button', { name: mood, exact: true }).click();
+  await settle(page);
+  await typeInto(page, panel.locator('#seed'), seed);
+  await panel.getByRole('button', { name: '生成する' }).click();
+  const goTo = panel.getByRole('button', { name: 'このテーブルへ移動' });
+  await settleUntilVisible(page, goTo, 120000);
+  await goTo.click();
+  await settle(page, 400);
+  await expect.poll(() => page.evaluate(() => window.__axeTable?.sceneStats()?.models ?? 0)).toBeGreaterThan(0);
+}
+
+/**
+ * A generated village: its stream cut through the ground between the houses and under the road, the
+ * mill on its bank with its wheel in the water, and the windmill, their wheel and sails turned as far
+ * as the stopped clock has them.
+ */
+test('a generated village runs a stream past its watermill, and stands a windmill', async ({ page }) => {
+  test.setTimeout(600000);
+  await prepare(page);
+  await becomeGm(page);
+  await closePanels(page);
+  await freeze(page);
+  await buildSettlement(page, '農村', '20261106');
+  await hideFloorLight(page);
+  await holdTorches(page);
+  await hidePieces(page);
+  await closePanels(page);
+  await settle(page, 400);
+  await letImagesArrive(page);
+  await page.locator('body').click({ position: { x: 1200, y: 780 } });
+  for (let step = 0; step < 6; step++) await page.keyboard.press('Control+ArrowDown');
+  await settle(page, 400);
+  await letImagesArrive(page);
+  await letImagesArrive(page);
+  await holdSceneAt(page, MILLS_HELD_AT_MS);
+  await snap(page, 'village-mills', { timeout: 150000 });
+});
+
+for (const grid of [
+  { label: 'ヘクス（縦）', name: 'village-mills-hex-flat' },
+  { label: 'ヘクス（横）', name: 'village-mills-hex-pointy' },
+]) {
+  test(`a generated village stands its mills on hexes, ${grid.name}`, async ({ page }) => {
+    test.setTimeout(600000);
+    await prepare(page);
+    await becomeGm(page);
+    await closePanels(page);
+    await freeze(page);
+    await buildSettlement(page, '農村', '20261106', grid.label);
+    await hideFloorLight(page);
+    await holdTorches(page);
+    await hidePieces(page);
+    await closePanels(page);
+    await settle(page, 400);
+    await letImagesArrive(page);
+    await page.locator('body').click({ position: { x: 1200, y: 780 } });
+    for (let step = 0; step < 4; step++) await page.keyboard.press('Control+ArrowDown');
+    await settle(page, 400);
+    await letImagesArrive(page);
+    await letImagesArrive(page);
+    await holdSceneAt(page, MILLS_HELD_AT_MS);
+    await snap(page, grid.name, { timeout: 150000 });
   });
 }
 

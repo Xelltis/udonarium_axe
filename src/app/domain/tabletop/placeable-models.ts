@@ -133,6 +133,8 @@ const SETTLEMENT: readonly Row[] = [
   ['stone_tower_round', 3.029, 3.024, 5, 3, true, true],
   ['stone_tower_square', 2.002, 3.002, 5, 3, true, true],
   ['watchtower_wood', 2.488, 2.488, 4.003, 2.5, true, true],
+  ['windmill', 3, 3, 5.6, 3, true, true],
+  ['watermill', 3, 2, 2.8, 3, true, true],
   ['totem', 0.855, 0.4, 2.45, 0.86, true, false],
   ['well', 0.92, 0.84, 1.08, 0.92, true, false],
   ['cart', 1.396, 0.801, 0.56, 1.4, true, false],

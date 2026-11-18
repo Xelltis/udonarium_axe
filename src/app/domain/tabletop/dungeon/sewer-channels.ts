@@ -10,7 +10,7 @@ import {
   roomCells,
   WaterwayKind,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
-import { cellOfLayoutPoint, layoutPointOf } from '@axe/domain/tabletop/field/field-sample-points';
+import { levelUnder } from '@axe/domain/tabletop/field/field-sample-points';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
@@ -43,9 +43,6 @@ const NORTH_WALL: readonly [number, number, number] = [0, -1, 90];
 const SOUTH_WALL: readonly [number, number, number] = [0, 1, 270];
 const WEST_WALL: readonly [number, number, number] = [-1, 0, 0];
 const EAST_WALL: readonly [number, number, number] = [1, 0, 180];
-
-/** How near two cells' middles may lie to a sample and still both be what it lies under, in cells. */
-const TIE = 1e-9;
 
 /**
  * Runs water through a laid-out place, as its plan says.
@@ -134,7 +131,7 @@ export function reliefOfWaterways(layout: DungeonLayout, plan: WaterwayPlan, gri
     for (let column = 0; column < columns; column++) {
       const x = column / GROUND_SAMPLES_PER_CELL;
       const y = row / GROUND_SAMPLES_PER_CELL;
-      heights[row * columns + column] = levelUnder(grid, x, y, levelAt);
+      heights[row * columns + column] = levelUnder(gridType, x, y, levelAt);
     }
   }
   for (const cell of standingCells(layout)) {
@@ -442,27 +439,4 @@ function sampleSpan(centre: number, count: number): { from: number; to: number }
     from: Math.max(0, Math.floor((centre - 1) * GROUND_SAMPLES_PER_CELL) + 1),
     to: Math.min(count - 1, Math.ceil((centre + 1) * GROUND_SAMPLES_PER_CELL) - 1),
   };
-}
-
-/** How high the ground stands at a point of the board: the level of the cell it lies in, the highest where it lies between cells. */
-function levelUnder(grid: MapGrid, x: number, y: number, levelAt: (x: number, y: number) => number): number {
-  const near = cellOfLayoutPoint(layoutPointOf(grid.type, x, y));
-  const distances = new Float64Array(9);
-  let nearest = Number.POSITIVE_INFINITY;
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const centre = cellCentre({ x: near.x + dx, y: near.y + dy }, grid);
-      const distance = Math.hypot(centre.x - x, centre.y - y);
-      distances[(dy + 1) * 3 + dx + 1] = distance;
-      nearest = Math.min(nearest, distance);
-    }
-  }
-  let level = Number.NEGATIVE_INFINITY;
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      if (distances[(dy + 1) * 3 + dx + 1] > nearest + TIE) continue;
-      level = Math.max(level, levelAt(near.x + dx, near.y + dy));
-    }
-  }
-  return level;
 }
