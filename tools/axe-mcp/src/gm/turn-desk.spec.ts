@@ -333,16 +333,88 @@ describe('TurnDesk', () => {
     expect(await later).toMatchObject({ turn: false });
   });
 
-  it('tells the tab once the AI has not called for a while, and again once it is back', async () => {
+  it('counts an AI as there while it waits for the turn or takes one, and by no call of another conversation', async () => {
     const tab = await connect();
-    await open(tab);
-    desk.noteCall();
-    await until(() => lastStatus(tab)?.attended === true);
+    const gm = {};
+    const other = {};
+    start(tab);
+    desk.noteCall(other);
+    expect(desk.status().attended).toBe(false);
 
-    await until(() => desk.status().attended === false, 2000);
-    expect(lastStatus(tab)).toMatchObject({ run: 'thinking' });
+    expect(await desk.waitForTurn(2000, undefined, gm)).toMatchObject({ turn: true });
+    expect(desk.status()).toMatchObject({ run: 'thinking', attended: true });
 
-    desk.noteCall();
+    // The one taking the turn calls nothing for a while; what the other calls says nothing of it.
+    const calling = setInterval(() => desk.noteCall(other), 20);
+    try {
+      await until(() => lastStatus(tab)?.attended === false, 2000);
+    } finally {
+      clearInterval(calling);
+    }
+    // Its turn is put back, and the game master waits for a taker again rather than seeming to think.
+    expect(lastStatus(tab)).toMatchObject({ run: 'waiting', attended: false });
+
+    const back = desk.waitForTurn(2000, undefined, gm);
     await until(() => lastStatus(tab)?.attended === true);
+    desk.close();
+    await back;
+  });
+
+  it('hands a turn that never reached its taker to whoever asks next, whole, with what goes beside it', async () => {
+    const tab = await connect();
+    const lost = {};
+    start(tab, { instructions: '古城の探索', notes: '門の前' });
+    expect(await desk.waitForTurn(2000, undefined, lost)).toMatchObject({ turn: true });
+    tab.say({ type: 'gm.events', events: [{ event: LINE, wake: 'called' }] });
+    tab.say({ type: 'gm.nudge', direction: '急いで' });
+    const handed = await desk.waitForTurn(2000, undefined, lost);
+    expect(handed).toMatchObject({ turn: true, events: [LINE], direction: '急いで' });
+
+    // It hangs up without a call to show the turn reached it.
+    desk.leave(lost);
+    expect(desk.status()).toMatchObject({ run: 'waiting', attended: false });
+
+    expect(await desk.waitForTurn(2000, undefined, {})).toMatchObject({
+      turn: true,
+      events: [LINE],
+      direction: '急いで',
+      instructions: '古城の探索',
+      notes: '門の前',
+    });
+  });
+
+  it('tells a turn its taker had begun only as a turn still to be taken, what happened told once', async () => {
+    const tab = await connect();
+    const gone = {};
+    start(tab);
+    expect(await desk.waitForTurn(2000, undefined, gone)).toMatchObject({ turn: true });
+    tab.say({ type: 'gm.events', events: [{ event: LINE, wake: 'called' }] });
+    expect(await desk.waitForTurn(2000, undefined, gone)).toMatchObject({ turn: true, events: [LINE] });
+
+    // It calls a tool, which shows the turn reached it, and then hangs up.
+    desk.noteCall(gone);
+    desk.leave(gone);
+
+    const next = await desk.waitForTurn(2000, undefined, {});
+    if (!next.turn) throw new Error('no turn was handed over');
+    expect(next.events).toEqual([]);
+    expect(next.reasons).toHaveLength(1);
+  });
+
+  it('hands no turn to a wait that was cut off, and keeps what was gathered for whoever asks next', async () => {
+    const tab = await connect();
+    const cut = {};
+    start(tab);
+    expect(await desk.waitForTurn(2000, undefined, cut)).toMatchObject({ turn: true });
+    const waiting = desk.waitForTurn(2000, undefined, cut);
+    await until(() => desk.status().run === 'waiting');
+
+    desk.hungUp({});
+    desk.hungUp(cut);
+    expect(await waiting).toMatchObject({ turn: false, running: true });
+    expect(desk.status().attended).toBe(false);
+
+    tab.say({ type: 'gm.events', events: [{ event: LINE, wake: 'called' }] });
+    expect(await desk.waitForTurn(2000, undefined, cut)).toMatchObject({ turn: true, events: [LINE] });
   });
 });

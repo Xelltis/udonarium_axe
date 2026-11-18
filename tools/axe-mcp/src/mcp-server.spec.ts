@@ -188,14 +188,17 @@ describe('createMcpServer', () => {
       });
     });
 
-    it('counts any call as the AI being there', async () => {
+    it('counts the AI as there once it waits for the turn, and not for calling a tool alone', async () => {
       const tab = await connectTab();
       tab.answer = () => ({ ok: true });
       expect(desk.status().attended).toBe(false);
 
       await gm.callTool({ name: 'get_room', arguments: {} });
+      expect(desk.status().attended).toBe(false);
 
-      expect(desk.status().attended).toBe(true);
+      const waiting = gm.callTool({ name: 'wait_for_turn', arguments: { timeout_seconds: 1 } });
+      await until(() => desk.status().attended === true);
+      await waiting;
     });
 
     it('hands the AI the prompt and the guide to being the game master of the panel', async () => {

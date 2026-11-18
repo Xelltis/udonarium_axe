@@ -40,7 +40,20 @@ function refuse(res: ServerResponse, status: number, text: string): void {
  * token when one is set, is turned away before MCP reads it.
  */
 export function serveMcpOverHttp(link: TabLink, options: McpHttpOptions): Promise<HttpServer> {
-  const sessions = new Map<string, StreamableHTTPServerTransport>();
+  /** The sessions open, each with the server that is its conversation with the desk that hands on the game master's turns. */
+  const sessions = new Map<string, { transport: StreamableHTTPServerTransport; conversation: object }>();
+
+  /**
+   * Tells the desk where a call of a conversation was cut off before it could be answered, as by an
+   * AI program that went away: the transport goes on with a call whoever is left to read its answer,
+   * so a wait for the turn would otherwise be handed a turn nobody reads.
+   */
+  const watchForCutOff = (req: IncomingMessage, res: ServerResponse, conversation: object): void => {
+    if (req.method !== 'POST') return;
+    res.once('close', () => {
+      if (!res.writableEnded) options.desk?.hungUp(conversation);
+    });
+  };
 
   const refusal = (req: IncomingMessage): [number, string] | null => {
     if (!isLoopbackHost(req.headers.host)) return [403, 'Only requests to 127.0.0.1 or localhost are served.'];
@@ -65,28 +78,30 @@ export function serveMcpOverHttp(link: TabLink, options: McpHttpOptions): Promis
     const id = req.headers['mcp-session-id'];
     const known = typeof id === 'string' ? sessions.get(id) : undefined;
     if (known) {
-      void known.handleRequest(req, res);
+      watchForCutOff(req, res, known.conversation);
+      void known.transport.handleRequest(req, res);
       return;
     }
     if (typeof id === 'string') {
       refuse(res, 404, 'That session is over. Start a new one.');
       return;
     }
+    const conversation = createMcpServer(link, options.version, options.desk);
     const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (sessionId) => {
-        sessions.set(sessionId, transport);
+        sessions.set(sessionId, { transport, conversation });
       },
       onsessionclosed: (sessionId) => {
         sessions.delete(sessionId);
       },
     });
-    const server = createMcpServer(link, options.version, options.desk);
     transport.onclose = () => {
       if (transport.sessionId) sessions.delete(transport.sessionId);
-      options.desk?.leave(server);
+      options.desk?.leave(conversation);
     };
-    void server.connect(transport).then(() => transport.handleRequest(req, res));
+    watchForCutOff(req, res, conversation);
+    void conversation.connect(transport).then(() => transport.handleRequest(req, res));
   });
 
   return new Promise((resolve, reject) => {
