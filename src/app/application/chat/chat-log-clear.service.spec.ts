@@ -65,6 +65,30 @@ describe('ChatLogClearService', () => {
     expect(noticeKeys()).toEqual(['common.chat.logClearedBeforeBy {"user":"アリス","time":"2026/11/18 21:05"}']);
   });
 
+  it('cuts at where a line stands in the log, which for a line disclosed later is when it was disclosed', () => {
+    beSeat(PeerRole.Player);
+    say('先に言った発言', 1000);
+    const kept = say('伏せて振った結果', 2000);
+    kept.disclosedAt = 6000;
+    say('あとの発言', 5000);
+
+    service.clear(tab, { before: 4000 });
+    expect(said()).toEqual(['あとの発言', '伏せて振った結果']);
+
+    service.clear(tab, { beforeLine: kept });
+    expect(said()).toEqual(['伏せて振った結果']);
+    expect(noticeKeys().at(-1)).toContain(clearedMomentText(6000));
+  });
+
+  it('leaves a tab alone, with nothing posted, where no line of it is within reach', () => {
+    beSeat(PeerRole.Player);
+    say('今日の発言', 5000);
+
+    service.clear(tab, { before: 4000 });
+
+    expect(tab.chatMessages.map((line) => line.text)).toEqual(['今日の発言']);
+  });
+
   it('clears the lines standing before a line, that line and those after it left', () => {
     beSeat(PeerRole.Player);
     say('先週の発言', 1000);

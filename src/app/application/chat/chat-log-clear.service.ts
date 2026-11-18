@@ -9,8 +9,10 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 
 /**
- * How much of a tab's log is cleared: all of it where nothing is given, the lines said before a
- * moment in epoch milliseconds, or the lines standing before one line of the tab.
+ * How much of a tab's log is cleared: all of it where nothing is given, the lines that stand in the
+ * log before a moment in epoch milliseconds, or the lines standing before one line of the tab. A line
+ * stands in the log where it was shown to the table, which for a line kept back and disclosed later
+ * is when it was disclosed, not when it was said.
  */
 export type ChatLogClearReach = { readonly before: number } | { readonly beforeLine: ChatMessage };
 
@@ -54,7 +56,7 @@ export class ChatLogClearService {
     const reached = !reach
       ? lines
       : 'before' in reach
-        ? lines.filter((line) => line.timestamp < reach.before)
+        ? lines.filter((line) => line.placedAt < reach.before)
         : lines.slice(0, Math.max(lines.indexOf(reach.beforeLine), 0));
     return this.keepsServerRolls ? reached.filter((line) => !line.isServerRoll) : reached;
   }
@@ -62,12 +64,15 @@ export class ChatLogClearService {
   /**
    * Clears the tab's log as far as the reach given, the whole of it where none is, and posts in the
    * tab who cleared it and up to when. Clearing the whole log puts the tab's portraits back as well.
-   * Does nothing for a seat that may not clear logs.
+   * A reach that takes no line of the tab leaves it as it is, with nothing posted. Does nothing for a
+   * seat that may not clear logs.
    */
   clear(tab: ChatTab, reach?: ChatLogClearReach): void {
     if (!this.canClear) return;
-    const moment = !reach ? null : 'before' in reach ? reach.before : reach.beforeLine.timestamp;
-    for (const line of this.linesWithin(tab, reach)) line.destroy();
+    const moment = !reach ? null : 'before' in reach ? reach.before : reach.beforeLine.placedAt;
+    const lines = this.linesWithin(tab, reach);
+    if (reach && lines.length === 0) return;
+    for (const line of lines) line.destroy();
     if (!reach) tab.portraitReset();
 
     const cursor = PeerCursor.myCursor;

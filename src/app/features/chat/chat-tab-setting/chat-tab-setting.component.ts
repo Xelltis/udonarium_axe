@@ -269,6 +269,12 @@ export class ChatTabSettingComponent {
   allowDeleteLog = false;
   /** What is written in the box of the log clearing: a local date and time, or nothing. */
   readonly clearBefore = signal('');
+  /**
+   * Whether a clearing takes only the lines before the moment in the box. It is turned on as the box
+   * is gone into: a date half written reads as an empty box, and a clearing of the whole log must not
+   * follow from that.
+   */
+  readonly clearOnlyBefore = signal(false);
   allowDeleteTab = false;
 
   constructor() {
@@ -418,15 +424,22 @@ export class ChatTabSettingComponent {
   }
 
   /**
-   * The moment written in the box of the log clearing, in epoch milliseconds, before which alone
-   * lines are cleared; null while the box is empty or holds no whole date and time, when a clearing
-   * takes the whole log.
+   * The moment written in the box of the log clearing, in epoch milliseconds; null while the box is
+   * empty or holds no whole date and time.
    */
   get clearBeforeMoment(): number | null {
     const written = this.clearBefore().trim();
     if (!written) return null;
     const moment = new Date(written).getTime();
     return Number.isFinite(moment) ? moment : null;
+  }
+
+  /**
+   * Whether a clearing can be done as it is set: always for the whole log, and for the lines before a
+   * moment only once a whole date and time is written.
+   */
+  get canClearAsSet(): boolean {
+    return !this.clearOnlyBefore() || this.clearBeforeMoment !== null;
   }
 
   /** The moment before which lines are cleared, as the hint under the box names it; empty for none. */
@@ -444,7 +457,7 @@ export class ChatTabSettingComponent {
    * leaves the dice the server rolled where they are, since the server keeps them.
    */
   deleteLog() {
-    if (!this.allowDeleteLog || !this.canEditTabs || !this.isSelectionInReach()) return;
+    if (!this.allowDeleteLog || !this.canEditTabs || !this.isSelectionInReach() || !this.canClearAsSet) return;
 
     const tab = this.selectedTab();
     if (this.isEmpty || !tab) return;
@@ -459,7 +472,7 @@ export class ChatTabSettingComponent {
    * lines never came to them.
    */
   deleteLogALL() {
-    if (!this.allowDeleteLog || !this.canEditTabs) return;
+    if (!this.allowDeleteLog || !this.canEditTabs || !this.canClearAsSet) return;
 
     const readsAll = Network.authorityPeerId === null || PeerCursor.isMyselfGameMaster;
     const tabs = this.chatTabList.chatTabs.filter((tab) => readsAll || canRoleViewTab(tab, PeerCursor.myRole));
@@ -469,7 +482,7 @@ export class ChatTabSettingComponent {
 
   private clearReach(): ChatLogClearReach | undefined {
     const moment = this.clearBeforeMoment;
-    return moment === null ? undefined : { before: moment };
+    return !this.clearOnlyBefore() || moment === null ? undefined : { before: moment };
   }
 
   /** Whether the picked tab is still one this seat is listed, and so may clear or delete. */
