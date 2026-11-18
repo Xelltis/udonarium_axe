@@ -11,9 +11,10 @@
  * is loaded with the file that starts it. The sources of the AI bridge are reached by the specs that
  * start the bridge.
  *
- * It errs towards running a spec. A spec that has left nothing behind yet runs, as does every spec
- * when the change touches what the suite itself is made of, the build's settings, or a file the app
- * is served rather than compiled from.
+ * It errs towards running a spec. Specs are picked only for a change whose reach can be told, which
+ * `change-reach.mjs` decides for this picker and the unit one alike: every spec runs for a file it
+ * knows nothing of, as the build's settings or a file the app is served, and for a helper of the suite
+ * itself. A spec that has left nothing behind yet runs too.
  *
  *   node scripts/e2e-related.mjs               the specs reached by what is not yet pushed
  *   node scripts/e2e-related.mjs --since main  ... by what has changed since a commit
@@ -27,6 +28,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 
+import { kindOfChange } from './change-reach.mjs';
 import { importedFrom, resolveSpecifier, RuntimeImports, sourcesUnder } from './runtime-imports.mjs';
 
 const LOADS_DIR = 'node_modules/.cache/axe-e2e/loads';
@@ -36,24 +38,10 @@ const PROJECTS = {
   e2e: ['chromium', 'chromium-webgl', 'chromium-webgpu', 'mobile', 'mobile-webgl'],
   visual: ['visual-webgl2', 'visual-webgpu'],
 };
-/** What every spec is run through or served from, whichever part of the app it tries. */
-const REACHES_EVERY_SPEC = [
-  /^package(?:-lock)?\.json$/,
-  /^angular\.json$/,
-  /^tsconfig(?:\.app)?\.json$/,
-  /^\.postcssrc\.json$/,
-  /^\.browserslistrc$/,
-  /^playwright\.config\.ts$/,
-  /^e2e\/(?!visual\/|server\/).+(?<!\.spec)\.(?:ts|mjs)$/,
-  /^src\/(?:index\.html|styles\.css|main\.ts)$/,
-  /^src\/assets\//,
-  /^public\//,
-];
 /**
  * What the specs that start the AI bridge run beside the app: the bridge is built from these and run
  * as a program of its own, which no part the browser asks for tells of.
  */
-const BRIDGE_SOURCES = /^tools\/axe-mcp\//;
 /** The sources of the app the bridge is built from as well, which reach its specs beside what the page loads them with. */
 const SHARED_WITH_BRIDGE = /^src\/app\/core\/agent\//;
 /** How a spec that starts the bridge is told: it takes the bridge's place from the helper that builds it. */
@@ -62,8 +50,6 @@ const STARTS_BRIDGE = /from '\.\/ai-bridge'/;
 const WORKER_STARTED = /new\s+(?:Shared)?Worker\(\s*new URL\(\s*['"]([^'"]+)['"]\s*,\s*import\.meta\.url/g;
 /** A picture the comparisons are made against, by its name. */
 const BASELINE = /^e2e\/visual\/__screenshots__\/[^/]+\/(.+)\.png$/;
-/** What every picture is taken through, beside the above. */
-const REACHES_EVERY_PICTURE = [/^e2e\/visual\/(?!.*\.spec\.ts$)/];
 
 function git(...args) {
   const result = spawnSync('git', args, { encoding: 'utf-8' });
@@ -172,36 +158,50 @@ const pickEvery = (wanted, why) => {
   for (const spec of allSpecs) if (wanted(spec)) pick(spec, why);
 };
 
-const { files, atStart, leadingParts } = howSourcesLoad();
-const partsChanged = new Map();
-for (const file of changed) {
-  if (REACHES_EVERY_SPEC.some((pattern) => pattern.test(file))) {
-    pickEvery(() => true, `${file} reaches every spec`);
-    continue;
+/**
+ * Picks for a changed file of the suite itself: a spec is itself, a picture is the spec that takes it,
+ * what the pictures are taken through is every picture, and any other helper or setting is every spec.
+ */
+function pickForSuiteFile(file) {
+  if (file.endsWith('.spec.ts')) {
+    if (allSpecs.includes(file)) pick(file, 'changed itself');
+    return;
   }
   const picture = BASELINE.exec(file)?.[1];
   if (picture !== undefined) {
-    // A picture taken again is checked by the spec that takes it, told by the picture's name in it; a
-    // name put together as the spec runs is found in none, and every picture is taken then.
+    // Told by the picture's name in the spec; a name put together as the spec runs is found in none,
+    // and every picture is taken then.
     const takers = allSpecs.filter((spec) => isPicture(spec) && textOf(spec).includes(`'${picture}'`));
     if (takers.length > 0) for (const spec of takers) pick(spec, `takes ${file}`);
     else pickEvery(isPicture, `${file} is a picture no spec names outright`);
-    continue;
+    return;
   }
-  if (REACHES_EVERY_PICTURE.some((pattern) => pattern.test(file))) {
-    pickEvery(isPicture, `${file} reaches every picture`);
-    continue;
-  }
-  if (file.startsWith('e2e/') && file.endsWith('.spec.ts')) {
-    if (allSpecs.includes(file)) pick(file, 'changed itself');
-    continue;
-  }
-  if (BRIDGE_SOURCES.test(file) || SHARED_WITH_BRIDGE.test(file)) {
+  if (file.startsWith('e2e/visual/')) pickEvery(isPicture, `${file} reaches every picture`);
+  else if (file.startsWith('e2e/server/'))
+    pickEvery((spec) => spec.startsWith('e2e/server/'), `${file} reaches the server's specs`);
+  else pickEvery(() => true, `${file} reaches every spec`);
+}
+
+const { files, atStart, leadingParts } = howSourcesLoad();
+const partsChanged = new Map();
+for (const file of changed) {
+  const change = kindOfChange(file);
+  if (change.kind === 'apart') continue;
+  if (change.kind === 'bridge' || SHARED_WITH_BRIDGE.test(file)) {
     pickEvery((spec) => STARTS_BRIDGE.test(textOf(spec)), `${file} is built into the bridge it starts`);
-    if (BRIDGE_SOURCES.test(file)) continue;
+    if (change.kind === 'bridge') continue;
   }
-  if (!file.startsWith('src/') || file.endsWith('.spec.ts') || file.startsWith('src/app/testing/')) continue;
-  const source = file.replace(/\.(?:html|css)$/, '.ts');
+  if (change.kind === 'e2e') {
+    pickForSuiteFile(file);
+    continue;
+  }
+  // The app is served its assets, and a file nobody has said anything of may be built into all of it.
+  if (change.kind !== 'source') {
+    pickEvery(() => true, `${file} may reach any spec`);
+    continue;
+  }
+  const { source } = change;
+  if (source.endsWith('.spec.ts') || source.startsWith('src/app/testing/')) continue;
   if (!files.has(source)) {
     if (existsSync(file)) pickEvery(() => true, `${file} is no source the imports tell of`);
     continue;

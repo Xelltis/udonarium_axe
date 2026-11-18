@@ -28,17 +28,9 @@ pre-commit:
 
 pre-push:
   jobs:
+    # No glob: which files reach a spec is the script's to say (scripts/change-reach.mjs), and a
+    # file it knows nothing of runs every spec.
     - name: test
-      glob:
-        - 'src/*'
-        - 'src/**/*'
-        - 'vitest.config.mts'
-        - 'vitest-base.config.mts'
-        - 'tsconfig*.json'
-        - 'angular.json'
-        - 'eslint.config.ts'
-        - 'package.json'
-        - 'package-lock.json'
       run: node scripts/vitest-related.mjs --disk-specs {push_files}
 
     - name: test-mcp

@@ -18,10 +18,12 @@
  * Every spec runs when the files handed include a runner config, a setup file, or anything a setup
  * file imports at any depth without waiting, since setup loads those into every spec. With
  * `--disk-specs`, as before a push, the specs that read files off the disk run as well whatever was
- * changed: a model or a source one of them checks is reached by no import. And every spec runs where
- * what was changed is a file of words under src that no import accounts for (a dictionary, a
- * stylesheet of the whole page, an agreement kept as JSON), or what every spec runs on: a spec may
- * come to such a file through a helper or the setup, which the imports read here do not tell. What setup
+ * changed: a model or a source one of them checks is reached by no import.
+ *
+ * Specs are picked only for changes whose reach can be told, which `change-reach.mjs` decides for
+ * this picker and the e2e one alike. A file it knows nothing of (a dictionary, a stylesheet of the
+ * whole page, an agreement kept as JSON, what is installed, how the sources are compiled) runs every
+ * spec; one it knows to reach none, as writing about the app does, runs none. What setup
  * imports only for a spec that builds a TestBed module, the providers every module is given, adds
  * every spec that names TestBed, as setup tells such a spec by that word.
  */
@@ -29,6 +31,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 
+import { kindOfChange } from './change-reach.mjs';
 import { importedFrom, resolveSpecifier, RuntimeImports, sourcesUnder } from './runtime-imports.mjs';
 
 const VITEST_CONFIG = 'vitest.config.mts';
@@ -93,45 +96,21 @@ function diskSpecs() {
   );
 }
 
-/** What every spec runs on beside the sources: what is installed, and how the sources are checked. */
-const UNDER_EVERY_SPEC = /^(?:package(?:-lock)?\.json|tsconfig(?:\.[^/]+)?\.json|angular\.json|eslint\.config\.ts)$/;
-/** A file of words a spec may read by any road: a dictionary, a stylesheet, an agreement kept as JSON. */
-const WORDS = /\.(?:json|css|scss|html|txt|svg|md)$/;
-
-/**
- * A file handed in that no import accounts for and a spec may yet read: what every spec runs on, or
- * a file of words under src that is neither a source nor the template or stylesheet beside one. A
- * spec comes to such a file through a helper, a setup file or an import of the file itself, none of
- * which tells here, so before a push every spec is run for it.
- */
-function unaccountedFor(file) {
-  if (UNDER_EVERY_SPEC.test(file)) return true;
-  if (!file.startsWith('src/') || file.endsWith('.ts') || !WORDS.test(file)) return false;
-  return !existsSync(file.replace(/\.(html|css)$/, '.ts')) || !/\.(html|css)$/.test(file);
-}
-
 const stagedConfig = stagedPaths.find((file) => configs.has(file));
 if (stagedConfig !== undefined) {
   console.log(`[vitest-related] ${stagedConfig} configures every spec; running every spec`);
   run([]);
 }
 
-const stagedUnaccounted = withDiskSpecs ? stagedPaths.find(unaccountedFor) : undefined;
-if (stagedUnaccounted !== undefined) {
-  console.log(`[vitest-related] ${stagedUnaccounted} may be read by any spec; running every spec`);
-  run([]);
-}
-
 const staged = new Set();
 for (const file of stagedPaths) {
-  if (!file.startsWith('src/')) continue;
-  if (file.endsWith('.ts')) {
-    staged.add(file);
-    continue;
-  }
-  if (file.endsWith('.html') || file.endsWith('.css')) {
-    const sibling = file.replace(/\.(html|css)$/, '.ts');
-    if (existsSync(sibling)) staged.add(sibling);
+  const change = kindOfChange(file);
+  if (change.kind === 'source') staged.add(change.source);
+  // A file whose reach nobody can tell may be read by any spec, through a helper, the setup or an
+  // import of the file itself: nothing is picked for it, and every spec runs.
+  if (change.kind === 'unknown') {
+    console.log(`[vitest-related] ${file} may reach any spec; running every spec`);
+    run([]);
   }
 }
 if (staged.size === 0) {

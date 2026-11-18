@@ -84,7 +84,9 @@ chore(release): bump version to 1.2.2
 （間接的に読むものも含む）をstagedにしたときは、どのspecにも影響するので全量を回す。
 セットアップが`TestBed`を使うspecのためだけに読み込むサービス（`loadGlobalTestProviders()`の先）に
 当たったときは、本文に`TestBed`を含むspecをすべて足す。`pre-push`は、まだpushしていないコミットが
-変えたファイルをまとめて同じスクリプトに渡す。あわせて、ファイルをディスクから読むspec（同梱モデルのハッシュ、ソースの並びを見るものなど）を、何を変えても回す（`--disk-specs`）。これらが見るファイルはimportに現れないため。importで説明できない文字のファイル（辞書、ページ全体のスタイルシート、JSONの取り決め）や、`package.json`・`tsconfig*.json`・`angular.json`を変えたpushでは、全量を回す。全量はCIが見る。
+変えたファイルをまとめて同じスクリプトに渡す。あわせて、ファイルをディスクから読むspec（同梱モデルのハッシュ、ソースの並びを見るものなど）を、何を変えても回す（`--disk-specs`）。これらが見るファイルはimportに現れないため。
+
+specを絞るのは、変更がどのspecに届くかを説明できるときだけにする。判定は[scripts/change-reach.mjs](../scripts/change-reach.mjs)の`kindOfChange`の1か所にあり、単体specを選ぶスクリプトもe2eを選ぶスクリプトもここに聞く。届く先を説明できる種類（ソースとその隣のテンプレート・スタイル、文字のないアセット、e2eの一式、AI連携のブリッジ、文書などテストに届かないもの）だけを名指しし、それ以外のファイルは`unknown`として全量を回す。辞書、ページ全体のスタイルシート、JSONの取り決め、`package.json`や`tsconfig*.json`はこの`unknown`に入る。新しい種類のファイルは、種類を決めるまで全量が回る。`pre-push`の`test`はファイルで絞らず、何が届くかをスクリプトに決めさせる。全量はCIも見る。
 
 設定: [../lefthook.yml](../lefthook.yml)
 
