@@ -77,6 +77,8 @@ export interface TableTestHooks {
   holdFlicker(timeMs: number | null): void;
   /** Has what moves by itself on the canvas drawn only by `drawDueNow`, or by the clock again given false. */
   holdMotion(held: boolean): void;
+  /** Holds what moves by itself on the canvas where it stands at one moment, in milliseconds, or moves it by the clock again given null. */
+  holdSceneAt(timeMs: number | null): void;
   /** Has the canvas ready the graphics card for a new kind of thing before drawing it, or build it as it draws. */
   readyBeforeDrawing(on: boolean): void;
   /** Has the lights that throw shadows of their own chosen from where the camera looks now, as though none did yet. */
@@ -229,6 +231,7 @@ export function installTableTestHooks(win: Window, sources: TableTestHookSources
     whenDrawn: () => scene.whenDrawn(),
     holdFlicker: (timeMs) => scene.holdFlicker(timeMs),
     holdMotion: (held) => scene.holdMotion(held),
+    holdSceneAt: (timeMs) => scene.holdSceneAt(timeMs),
     readyBeforeDrawing: (on) => scene.readyBeforeDrawing(on),
     chooseLightsAfresh: () => scene.chooseLightsAfresh(),
     holdMovesAt: (ms) => motions.holdAt(ms),

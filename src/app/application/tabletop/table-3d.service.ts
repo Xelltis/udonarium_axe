@@ -462,6 +462,7 @@ export class Table3dService {
   private readonly idleWaiters: (() => void)[] = [];
   /** Whether what moves by itself is drawn only as the frame waited for is drawn at once. */
   private motionHeld = false;
+  private sceneHeldAt: number | null = null;
   /** Whether the engine readies the graphics card for a new kind of thing before drawing it; see {@link readyBeforeDrawing}. */
   private readiesFirst = true;
 
@@ -702,6 +703,16 @@ export class Table3dService {
     this.motionHeld = held;
   }
 
+  /**
+   * Holds what moves by itself on the canvas, as water flowing and the sails of a windmill turning,
+   * where it stands at one moment, in milliseconds, whenever a frame is drawn, or moves it by the
+   * clock again given null: for a picture that has to come out the same however long the page took
+   * to get to it.
+   */
+  holdSceneAt(timeMs: number | null): void {
+    this.sceneHeldAt = timeMs;
+  }
+
   /** Settles once the canvas has drawn everything it was told, or at once while it has nothing to draw. */
   whenIdle(): Promise<void> {
     return new Promise((resolve) => {
@@ -885,7 +896,7 @@ export class Table3dService {
    */
   private drawFrame(engine: Table3dEngine, time: number): void {
     this.frame = null;
-    const moving = engine.advance(time);
+    const moving = engine.advance(this.sceneHeldAt ?? time);
     engine.renderIfChanged();
     if (moving && !this.motionHeld) this.drawSoon(engine, true, moving === 'slowly' ? time + SLOW_MOTION_FRAME_MS : 0);
     this.settleIfIdle();

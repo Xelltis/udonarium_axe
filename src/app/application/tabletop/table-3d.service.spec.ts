@@ -81,6 +81,7 @@ class FakeEngine implements Table3dEngine {
   qualities: Table3dQualityPlan[] = [];
   moving: boolean | 'slowly' = false;
   advanced = 0;
+  advancedTo: number[] = [];
   flickeredAt: number[] = [];
   drawn = 0;
   disposed = false;
@@ -194,7 +195,8 @@ class FakeEngine implements Table3dEngine {
     this.sizes.push([width, height]);
   }
 
-  advance(): boolean | 'slowly' {
+  advance(timeMs: number): boolean | 'slowly' {
+    this.advancedTo.push(timeMs);
     this.advanced++;
     return this.moving;
   }
@@ -398,6 +400,28 @@ describe('Table3dService', () => {
     await scene.whenIdle();
 
     expect(engines[0].readiesFirst).toEqual([false]);
+  });
+
+  it('draws what moves by itself where it stands at the moment it is held at, and by the clock again once let go', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+    scene.holdMotion(true);
+
+    scene.holdSceneAt(5000);
+    TestBed.inject(TableCameraService).showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 40 });
+    TestBed.tick();
+    expect(scene.drawDueNow()).toBe(true);
+    expect(engine.advancedTo.at(-1)).toBe(5000);
+
+    scene.holdSceneAt(null);
+    TestBed.inject(TableCameraService).showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 60 });
+    TestBed.tick();
+    expect(scene.drawDueNow()).toBe(true);
+    expect(engine.advancedTo.at(-1)).not.toBe(5000);
   });
 
   it('pours water from the spouts the engine tells of, down to the floor of a table with no water on it', async () => {
