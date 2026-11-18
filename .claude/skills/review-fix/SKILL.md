@@ -13,22 +13,22 @@ Show every finding of the review to the user, in Japanese. The user cannot see t
 
 - For each finding, write where it is and **which operation leads to which result**, without leaving anything out. Do not shrink a finding to one line
 - Rate each finding by the scale below, and say that the rating is your own
-- Write the count of the round as 「N件（高a・中b・低c・対象外d）」, and add a table of the counts per round when looping
+- Write the count of the round as 「N件（Critical a・High b・Middle c・Low d・対象外 e）」, and add a table of the counts per round when looping
 
 ### Severity scale
 
-Rate by how bad the effect is and how likely it is to happen.
+There are four levels, Critical, High, Middle and Low. Rate by how bad the effect is and how likely it is to happen.
 
-| Effect \ Likelihood                                                                  | Happens in ordinary use             | Happens under a specific condition | Rare or a guess (not reproduced) |
-| ------------------------------------------------------------------------------------ | ----------------------------------- | ---------------------------------- | -------------------------------- |
-| Cannot be undone (data lost or leaked, a hole in permissions, charges, cannot start) | 高                                  | 高                                 | 中                               |
-| Visible to the user (wrong behaviour, slower than before, a feature unusable)        | 中 (高 where it blocks a main flow) | 中                                 | 低 (write the reason)            |
-| Invisible to the user (duplication, maintainability, weak tests, small looks)        | 低                                  | 低                                 | 低                               |
+| Effect \ Likelihood                                                                  | Happens in ordinary use                   | Happens under a specific condition | Rare or a guess (not reproduced) |
+| ------------------------------------------------------------------------------------ | ----------------------------------------- | ---------------------------------- | -------------------------------- |
+| Cannot be undone (data lost or leaked, a hole in permissions, charges, cannot start) | Critical                                  | High                               | Middle                           |
+| Visible to the user (wrong behaviour, slower than before, a feature unusable)        | Middle (High where it blocks a main flow) | Middle                             | Low (write the reason)           |
+| Invisible to the user (duplication, maintainability, weak tests, small looks)        | Low                                       | Low                                | Low                              |
 
 Rules that come before the table:
 
-- A finding that stops the tests or CI from noticing something is 中 at least, even where the user sees nothing
-- A finding born of your own fix is 中 or higher
+- A finding that stops the tests or CI from noticing something is Middle at least, even where the user sees nothing
+- A finding born of your own fix is Middle or higher
 - A finding that comes up a second time in the same area is raised one level
 
 ## 2. Group
@@ -68,4 +68,4 @@ For each finding, write one of these, in Japanese.
 - Fixed in part (what is left)
 - Deferred (why)
 
-Keep the deferrals as one list across the rounds, and show it every round. Repeat until no 高 or 中 is left, and fix the 低 too rather than deferring them.
+Keep the deferrals as one list across the rounds, and show it every round. Repeat until no Critical, High or Middle is left, and fix the Low too rather than deferring them.
