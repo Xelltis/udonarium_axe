@@ -121,8 +121,11 @@ interface Herd {
   readonly parts: readonly InstancedMesh[];
   readonly capacities: readonly number[];
   copies: number;
-  /** The copies it draws and what they are drawn from, kept where any of its parts turns, to place them again as they turn. */
-  turning?: { readonly flock: readonly TableWorldModel[]; readonly loaded: LoadedModel };
+  /**
+   * The copies of its parts that turn, each with which of its part's copies it is, kept to turn them
+   * as time goes without working out again where their models stand; left out where none turns.
+   */
+  turning?: readonly { readonly index: number; readonly spin: SpinPlacement }[];
 }
 
 interface StoodModel {
@@ -187,6 +190,7 @@ export class ModelLayer {
   private turns = false;
   /** The moment the turning parts were last turned to, in milliseconds, which a herd laid again is turned to as well. */
   private turnedToMs = 0;
+  private readonly turnedPlace = new Matrix4();
   /** Whether the layer has been let go of, after which a model still being read is let go of as it comes. */
   private disposed = false;
 
@@ -278,13 +282,16 @@ export class ModelLayer {
       any = true;
       // Nothing has turned since they were last placed: the moment stands, and so do the herds.
       if (!moved) continue;
-      const { flock, loaded } = herd.turning;
-      const turns = (part: number) => loaded.parts[part].spin !== undefined;
-      this.placeHerd(
-        herd,
-        flock.map((model) => partPlacementsOf(model, loaded, timeMs, turns)),
-        turns
-      );
+      const turned = new Set<InstancedMesh>();
+      for (const { index, spin } of herd.turning) {
+        const part = herd.parts[spin.part];
+        part.setMatrixAt(index, spinPlacedAt(spin, timeMs, this.turnedPlace));
+        turned.add(part);
+      }
+      for (const part of turned) {
+        part.instanceMatrix.needsUpdate = true;
+        part.computeBoundingSphere();
+      }
     }
     if (any && moved) this.changed = true;
     return any;
@@ -441,14 +448,19 @@ export class ModelLayer {
       this.herds.set(url, herd);
     }
     herd.copies = flock.length;
-    herd.turning = loaded.parts.some((part) => part.spin) ? { flock, loaded } : undefined;
-    this.placeHerd(herd, placements, () => true);
+    const turning: { index: number; spin: SpinPlacement }[] = [];
+    const placed = loaded.parts.map(() => 0);
+    flock.forEach((model, copy) => {
+      for (const spin of spinPlacementsOf(model, loaded)) turning.push({ index: placed[spin.part], spin });
+      placements[copy].forEach((each, part) => (placed[part] += each.length));
+    });
+    herd.turning = turning.length > 0 ? turning : undefined;
+    this.placeHerd(herd, placements);
   }
 
-  /** Writes where the copies of a herd's parts are drawn, for each part asked for. */
-  private placeHerd(herd: Herd, placements: readonly Matrix4[][][], wanted: (part: number) => boolean): void {
+  /** Writes where the copies of a herd's parts are drawn. */
+  private placeHerd(herd: Herd, placements: readonly Matrix4[][][]): void {
     herd.parts.forEach((part, index) => {
-      if (!wanted(index)) return;
       let at = 0;
       for (const each of placements) for (const matrix of each[index]) part.setMatrixAt(at++, matrix);
       part.count = at;
@@ -694,29 +706,91 @@ function placementPartsOf(model: TableWorldModel, loaded: ModelMeasure): { frame
 }
 
 /**
- * Where each mesh of a model is drawn for a piece or block: placed with the model, and a leaf that swings
- * on a hinge of its own swung open about it while its door stands open. Given which parts are wanted,
- * the others of a model placed part by part are left with no place, as when only what turns is moved.
+ * Where each mesh of a model is drawn for a piece or block at a moment: placed with the model, a leaf
+ * that swings on a hinge of its own swung open about it while its door stands open, and a part made
+ * to turn turned as far as it has by then.
  */
-export function partPlacementsOf(
-  model: TableWorldModel,
-  loaded: ModelMeasure,
-  timeMs = 0,
-  wanted?: (part: number) => boolean
-): Matrix4[][] {
-  if (loaded.facade && model.boxPx) return facadePlacementsOf(model, loaded);
-  if (loaded.tile && model.boxPx) return tilePlacementsOf(model, loaded);
-  if (loaded.joined && model.boxPx) return joinedPlacementsOf(model, loaded);
+export function partPlacementsOf(model: TableWorldModel, loaded: ModelMeasure, timeMs = 0): Matrix4[][] {
+  if (!placedPartByPart(model, loaded)) {
+    if (loaded.facade) return facadePlacementsOf(model, loaded);
+    if (loaded.tile) return tilePlacementsOf(model, loaded);
+    return joinedPlacementsOf(model, loaded);
+  }
   const { frame, scaling } = placementPartsOf(model, loaded);
   const placement = frame.clone().multiply(scaling);
-  const open = model.door?.open === true;
-  return (loaded.parts ?? []).map(({ within, swing, spin }, part) => {
-    if (wanted && !wanted(part)) return [];
-    const turned = open && swing ? swungAbout(scaling, swing) : spin ? spunAbout(scaling, spin, timeMs) : null;
-    return [
-      turned ? frame.clone().multiply(turned).multiply(scaling).multiply(within) : placement.clone().multiply(within),
-    ];
+  return (loaded.parts ?? []).map((part, index) => {
+    if (swingsOpen(model, part)) {
+      return [frame.clone().multiply(swungAbout(scaling, part.swing!)).multiply(scaling).multiply(part.within)];
+    }
+    if (part.spin) return [spinPlacedAt(spinPlacementOf(frame, scaling, part.within, part.spin, index), timeMs)];
+    return [placement.clone().multiply(part.within)];
   });
+}
+
+/**
+ * A part made to turn, as one copy of its model draws it: what stays as it is while it turns, on
+ * either side of the turn, so that where it is drawn at a moment is worked out from the moment alone.
+ */
+export interface SpinPlacement {
+  /** Which of its model's parts it is. */
+  readonly part: number;
+  readonly before: Matrix4;
+  readonly axis: Vector3;
+  readonly degPerSecond: number;
+  readonly after: Matrix4;
+}
+
+/**
+ * The parts of a model that turn as a piece or block draws them, each with what of its place stays
+ * while it turns. {@link partPlacementsOf} draws a part that turns from the same, so a copy turned
+ * as time goes stands where placing it afresh at that moment would stand it. None for a model laid
+ * out of a kit, whose parts are placed by the block and do not turn.
+ */
+export function spinPlacementsOf(model: TableWorldModel, loaded: ModelMeasure): SpinPlacement[] {
+  if (!placedPartByPart(model, loaded)) return [];
+  const { frame, scaling } = placementPartsOf(model, loaded);
+  return (loaded.parts ?? []).flatMap((part, index) =>
+    part.spin && !swingsOpen(model, part) ? [spinPlacementOf(frame, scaling, part.within, part.spin, index)] : []
+  );
+}
+
+const TURN = new Matrix4();
+
+/**
+ * Where a part made to turn is drawn at a moment, in milliseconds: so many degrees a second from how
+ * it was made, about its axis, worked out from the moment alone, so that it stands the same whenever
+ * that moment is drawn. Written into the matrix given, where one is.
+ */
+export function spinPlacedAt(spin: SpinPlacement, timeMs: number, into = new Matrix4()): Matrix4 {
+  const turn = (((spin.degPerSecond * timeMs) / 1000) % 360) * RADIANS;
+  return into.copy(spin.before).multiply(TURN.makeRotationAxis(spin.axis, turn)).multiply(spin.after);
+}
+
+/** Whether a model is drawn one mesh to a part where it stands, rather than laid out of a kit over its block. */
+function placedPartByPart(model: TableWorldModel, loaded: ModelMeasure): boolean {
+  return !((loaded.facade || loaded.tile || loaded.joined) && model.boxPx);
+}
+
+function swingsOpen(model: TableWorldModel, part: Pick<ModelPart, 'swing'>): boolean {
+  return model.door?.open === true && part.swing !== undefined;
+}
+
+/** The turn of a part about the point its axis runs through where the scaling puts it, so that it turns unstretched. */
+function spinPlacementOf(
+  frame: Matrix4,
+  scaling: Matrix4,
+  within: Matrix4,
+  spin: NonNullable<ModelPart['spin']>,
+  part: number
+): SpinPlacement {
+  const at = spin.at.clone().applyMatrix4(scaling);
+  return {
+    part,
+    before: frame.clone().multiply(new Matrix4().makeTranslation(at.x, at.y, at.z)),
+    axis: spin.axis,
+    degPerSecond: spin.degPerSecond,
+    after: new Matrix4().makeTranslation(-at.x, -at.y, -at.z).multiply(scaling).multiply(within),
+  };
 }
 
 /** The four sides of a block, each as the turn that faces a part made facing south out of it. */
@@ -890,20 +964,6 @@ function swungAbout(scaling: Matrix4, swing: NonNullable<ModelPart['swing']>): M
     .makeTranslation(hinge.x, hinge.y, hinge.z)
     .multiply(new Matrix4().makeRotationY(swing.deg * RADIANS))
     .multiply(new Matrix4().makeTranslation(-hinge.x, -hinge.y, -hinge.z));
-}
-
-/**
- * The turn a part made to turn stands at a moment, in milliseconds, about the point its axis runs
- * through where the scaling puts it: so many degrees a second from how it was made, worked out from
- * the moment alone, so that it stands the same whenever that moment is drawn.
- */
-function spunAbout(scaling: Matrix4, spin: NonNullable<ModelPart['spin']>, timeMs: number): Matrix4 {
-  const at = spin.at.clone().applyMatrix4(scaling);
-  const turn = (((spin.degPerSecond * timeMs) / 1000) % 360) * RADIANS;
-  return new Matrix4()
-    .makeTranslation(at.x, at.y, at.z)
-    .multiply(new Matrix4().makeRotationAxis(spin.axis, turn))
-    .multiply(new Matrix4().makeTranslation(-at.x, -at.y, -at.z));
 }
 
 /** Which part of a building's kit a mesh is, as its node (or one it hangs from) says: a wall if none says. */

@@ -4,6 +4,8 @@ import {
   partPlacementsOf,
   placementOf,
   spinOf,
+  spinPlacedAt,
+  spinPlacementsOf,
   spoutsOf,
   standingBoxOf,
 } from '@axe/infrastructure/table-3d/model-layer';
@@ -99,6 +101,40 @@ describe('a part made to turn', () => {
     expect(drawn(later, 0.5, 1, 0)).toEqual(drawn(turned, 0.5, 1, 0));
   });
 
+  it('stands, turned as time goes, where placing its model afresh at that moment stands it', () => {
+    const stretched = { ...wheel, stretch: true };
+    const copies: [TableWorldModel, typeof stretched | typeof wheel][] = [
+      [knight(), wheel],
+      [knight({ rotateDeg: 37, rollDeg: 12, altitudePx: 30, model: { ...knight().model, turnDeg: 90 } }), wheel],
+      [knight({ boxPx: { widthPx: 150, depthPx: 50 }, heightPx: 80 }), stretched],
+    ];
+    for (const [model, measure] of copies) {
+      const spins = spinPlacementsOf(model, measure);
+      expect(spins.map((spin) => spin.part)).toEqual([1]);
+      for (const timeMs of [0, 250, 1000, 4321, 987654]) {
+        const [, [afresh]] = partPlacementsOf(model, measure, timeMs);
+        const turned = spinPlacedAt(spins[0], timeMs);
+        afresh.elements.forEach((value, at) =>
+          expect(turned.elements[at], `${model.rotateDeg} ${timeMs}`).toBeCloseTo(value, 6)
+        );
+      }
+    }
+  });
+
+  it('is not turned where its model is laid out of a kit over a block, or while it swings open as a leaf', () => {
+    const block = knight({ boxPx: { widthPx: 100, depthPx: 100 } });
+    expect(spinPlacementsOf(block, { ...wheel, tile: true })).toEqual([]);
+    expect(spinPlacementsOf(knight(), { ...wheel, tile: true }).map((spin) => spin.part)).toEqual([1]);
+
+    const leaf = {
+      ...MADE,
+      parts: [{ within: new Matrix4(), swing: { hinge: new Vector3(), deg: 90 }, spin: wheel.parts[1].spin }],
+    };
+    const open = knight({ door: { open: true, shiftX: 0, shiftY: 0, liftPx: 0, turnDeg: 0 } });
+    expect(spinPlacementsOf(open, leaf)).toEqual([]);
+    expect(spinPlacementsOf(knight(), leaf)).toHaveLength(1);
+  });
+
   it('turns with its model, about the axis as the model is turned', () => {
     const quarter = knight({ model: { ...knight().model, turnDeg: 90 } });
 
@@ -159,13 +195,6 @@ describe('a part made to turn', () => {
     mill.add(tower);
     expect(rounded(standingBoxOf(mill).min.toArray())).toEqual([-1.5, 0, -1.5]);
     expect(rounded(standingBoxOf(mill).max.toArray())).toEqual([1.5, 5.6, 1.5]);
-  });
-
-  it('places only the parts wanted of it, as when what turns alone is moved each frame', () => {
-    const [body, rim] = partPlacementsOf(knight(), wheel, 1000, (part) => part === 1);
-
-    expect(body).toEqual([]);
-    expect(drawn(rim[0], 0.5, 1, 0)).toEqual([100, 75, 200]);
   });
 
   it('reads nothing that names no axis, no turning, or anything but four figures', () => {
@@ -494,7 +523,7 @@ describe('ModelLayer', () => {
 
   describe('with a model a part of which turns', () => {
     /** A mill of a body and a wheel, read already, laid as two blocks drawn together. */
-    function mill(): { layer: ModelLayer; wheelAt: () => number[] } {
+    function mill(): { layer: ModelLayer; wheelAt: (copy?: number) => number[] } {
       const layer = new ModelLayer(
         () => undefined,
         () => undefined,
@@ -517,10 +546,10 @@ describe('ModelLayer', () => {
         ],
       });
       layer.set([knight(), knight({ owner: 'second', foot: { x: 300, y: 200, z: 0 } })]);
-      const wheelAt = () => {
+      const wheelAt = (copy = 0) => {
         const drawn = layer.group.children[1] as InstancedMesh;
         const matrix = new Matrix4();
-        drawn.getMatrixAt(0, matrix);
+        drawn.getMatrixAt(copy, matrix);
         const point = new Vector3(0.5, 1, 0).applyMatrix4(matrix);
         return [point.x, point.y, point.z].map((value) => Math.round(value * 1000) / 1000 + 0);
       };
@@ -554,6 +583,20 @@ describe('ModelLayer', () => {
 
       expect(wheelAt()).toEqual([125, 50, 200]);
       expect(layer.advance(2000)).toBe(false);
+      layer.dispose();
+    });
+
+    it('turns every copy where its own model stands, and leaves the parts that do not turn as they were laid', () => {
+      const { layer, wheelAt } = mill();
+      layer.setTurning(true);
+      const [body] = layer.group.children as InstancedMesh[];
+      const laid = body.instanceMatrix.version;
+
+      layer.advance(1000);
+
+      expect(wheelAt(0)).toEqual([100, 75, 200]);
+      expect(wheelAt(1)).toEqual([300, 75, 200]);
+      expect(body.instanceMatrix.version).toBe(laid);
       layer.dispose();
     });
 
