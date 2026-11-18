@@ -85,6 +85,15 @@ async function holdTorches(page: Page) {
 /** The moment the torches are held at, any one, so long as it is the same every run. */
 const TORCHES_HELD_AT_MS = 2000;
 
+/**
+ * Presses the bare page under the board, so that the keys that follow turn and move the table. Pressed
+ * at a point rather than on the body: a press on an element first waits for it to hold still over two
+ * frames, and a generated board drawn without a graphics card can take longer than that wait a frame.
+ */
+async function focusTable(page: Page) {
+  await page.mouse.click(1200, 780);
+}
+
 /** Gives textures fetched on real time a moment to arrive. */
 async function letImagesArrive(page: Page) {
   await page.waitForTimeout(1000);
@@ -124,7 +133,7 @@ for (const grid of GRIDS) {
     await letImagesArrive(page);
     await snap(page, grid.name, { timeout: 150000 });
 
-    await page.locator('body').click({ position: { x: 1200, y: 780 } });
+    await focusTable(page);
     for (let step = 0; step < 12; step++) await page.keyboard.press('Shift+ArrowRight');
     for (let step = 0; step < 4; step++) await page.keyboard.press('Shift+ArrowUp');
     await settle(page, 400);
@@ -180,7 +189,7 @@ test('a generated village runs a stream past its watermill, and stands a windmil
   await closePanels(page);
   await settle(page, 400);
   await letImagesArrive(page);
-  await page.locator('body').click({ position: { x: 1200, y: 780 } });
+  await focusTable(page);
   for (let step = 0; step < 6; step++) await page.keyboard.press('Control+ArrowDown');
   await settle(page, 400);
   await letImagesArrive(page);
@@ -206,7 +215,7 @@ for (const grid of [
     await closePanels(page);
     await settle(page, 400);
     await letImagesArrive(page);
-    await page.locator('body').click({ position: { x: 1200, y: 780 } });
+    await focusTable(page);
     for (let step = 0; step < 4; step++) await page.keyboard.press('Control+ArrowDown');
     await settle(page, 400);
     await letImagesArrive(page);
@@ -233,7 +242,7 @@ test('a generated sewer runs its water down the passages and pours it into the b
   await closePanels(page);
   await settle(page, 400);
   await letImagesArrive(page);
-  await page.locator('body').click({ position: { x: 1200, y: 780 } });
+  await focusTable(page);
   for (let step = 0; step < 4; step++) await page.keyboard.press('Control+ArrowDown');
   await settle(page, 400);
   await letImagesArrive(page);
