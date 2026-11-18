@@ -190,7 +190,7 @@
         "thinking": "Thinking…",
         "asked": "Stopped",
         "budget": "Stopped: the spending limit was reached",
-        "key": "To run it on Claude, create an API key in the Claude Console. A key of a workspace with a spending limit is recommended. Never paste the key into chat or this panel.",
+        "key": "Stopped: the API key was refused. Check the key given to the bridge",
         "failed": "Stopped after failing several times",
         "seat": "Stopped: the seat is no longer the game master's"
       },
