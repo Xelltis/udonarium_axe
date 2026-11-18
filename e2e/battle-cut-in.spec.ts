@@ -85,15 +85,26 @@ test.describe('the battle cut-in', () => {
     await amount.pressSequentially('-5');
     await expect(amount).toHaveValue('-5');
     await remote.getByTestId('remote-battle-on-change').dispatchEvent('click');
-    // The number pops up for a moment only, as early as the blow lands, so it is looked for at every
-    // frame from before the change is made.
-    const popped = page.waitForFunction(
+    // The number pops up for a moment only, as early as the blow lands, and a busy machine can draw
+    // no frame while it shows, so every change to the page is watched from before the change is made.
+    const popped = page.evaluate(
       () =>
-        [...document.querySelectorAll('[data-testid="battle-cut-in"] [data-testid="battle-pop"]')].some((pop) =>
-          pop.textContent?.includes('-5')
-        ),
-      undefined,
-      { polling: 'raf', timeout: 20000 }
+        new Promise<boolean>((resolve) => {
+          const shows = () =>
+            [...document.querySelectorAll('[data-testid="battle-cut-in"] [data-testid="battle-pop"]')].some((pop) =>
+              pop.textContent?.includes('-5')
+            );
+          const watch = new MutationObserver(() => {
+            if (!shows()) return;
+            watch.disconnect();
+            resolve(true);
+          });
+          watch.observe(document.body, { childList: true, subtree: true, characterData: true });
+          setTimeout(() => {
+            watch.disconnect();
+            resolve(shows());
+          }, 20000);
+        })
     );
     await remote.getByTestId('remote-change-execute').dispatchEvent('click');
 
@@ -101,6 +112,6 @@ test.describe('the battle cut-in', () => {
     await expect(stage).toBeVisible({ timeout: 10000 });
     const struck = stage.getByTestId('battle-plate').last();
     await expect(struck).toContainText('モンスターA');
-    await popped;
+    expect(await popped).toBe(true);
   });
 });

@@ -92,4 +92,46 @@ describe('HeldClock', () => {
 
     expect(clock.read(at + 300).held).toBe(true);
   });
+
+  it('stops at a moment it was told to keep rather than passing over it, on a page slow all along as on one that keeps stalling', () => {
+    const slow = new HeldClock(1000);
+    const at = framesOf(slow, 1000, 10, 1000);
+    const played = slow.read(at + 1000).elapsed;
+    slow.keep([played + 2500, played + 500]);
+
+    expect(slow.read(at + 2000).elapsed).toBe(played + 500);
+    expect(slow.read(at + 3000).elapsed).toBe(played + 1500);
+    expect(slow.read(at + 4000).elapsed).toBe(played + 2500);
+    expect(slow.read(at + 5000).elapsed).toBe(played + 3500);
+
+    const stalling = new HeldClock(1000);
+    let now = framesOf(stalling, 1000, 30, 16);
+    for (let stall = 0; stall < 4; stall++) {
+      now += 300;
+      stalling.read(now);
+      now = framesOf(stalling, now, 2, 16);
+    }
+    const before = stalling.read(now + 16).elapsed;
+    stalling.keep([before + 100]);
+
+    expect(stalling.read(now + 2016).elapsed).toBe(before + 100);
+  });
+
+  it('runs on past a kept moment once a frame was drawn at it, and through one it lands on', () => {
+    const clock = new HeldClock(0);
+    clock.keep([100]);
+
+    expect(clock.read(60).elapsed).toBe(60);
+    expect(clock.read(100).elapsed).toBe(100);
+    expect(clock.read(160).elapsed).toBe(160);
+  });
+
+  it('passes over the moments kept while the page was out of view', () => {
+    const clock = new HeldClock(0);
+    clock.keep([500]);
+    clock.read(16);
+    clock.leftView();
+
+    expect(clock.read(3000).elapsed).toBe(3000);
+  });
 });

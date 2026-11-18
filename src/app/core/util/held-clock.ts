@@ -29,6 +29,11 @@ export interface HeldClockReading {
  * what plays is passed over unseen. A page slow all along plays on in time at its own pace. A wait
  * while the page was out of view, as in a tab left in the background, counts in full, so what plays
  * there plays out.
+ *
+ * Whatever the page's pace, the clock stops at each moment it was told to keep rather than passing
+ * over it between two frames: what happens at such a moment, a blow landing and the number it
+ * knocks out, is drawn at that moment at least once before the clock runs on. A wait out of view
+ * passes over them as over everything else.
  */
 export class HeldClock {
   private last: number;
@@ -36,6 +41,8 @@ export class HeldClock {
   private usual = 1000 / 60;
   private away = false;
   private stallsHeld = 0;
+  private kept: readonly number[] = [];
+  private shown = 0;
 
   constructor(private readonly startedAt: number) {
     this.last = startedAt;
@@ -44,6 +51,14 @@ export class HeldClock {
   /** Notes that the page went out of view, so that the wait until the next frame counts in full. */
   leftView(): void {
     this.away = true;
+  }
+
+  /**
+   * Names the moments of what plays, in milliseconds from its start, that a frame is to be drawn at
+   * and none drawn past before it.
+   */
+  keep(moments: readonly number[]): void {
+    this.kept = [...moments].sort((a, b) => a - b);
   }
 
   /** How long has played at a frame drawn at the moment given. */
@@ -61,6 +76,13 @@ export class HeldClock {
     const away = this.away;
     this.last = now;
     this.away = false;
-    return { elapsed: now - this.startedAt - this.held, held, away };
+    let elapsed = now - this.startedAt - this.held;
+    const passed = away ? undefined : this.kept.find((moment) => moment > this.shown && moment < elapsed);
+    if (passed !== undefined) {
+      this.held += elapsed - passed;
+      elapsed = passed;
+    }
+    this.shown = elapsed;
+    return { elapsed, held, away };
   }
 }
