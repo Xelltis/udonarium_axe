@@ -71,15 +71,12 @@ export class AgentReadTools {
     read_chat: (args) => this.readChat(args),
     list_assets: (args) => this.assets(textArg(args, 'kind'), args['name'], numberArg(args, 'limit', 100)),
     read_scenario_text: (args) => this.scenarioText(textArg(args, 'text')),
-    wait_for_events: async (args, { signal }) => {
-      const batch = await this.events.waitFor(
+    wait_for_events: (args, { signal }) =>
+      this.events.waitFor(
         typeof args['after'] === 'string' ? args['after'] : undefined,
         numberArg(args, 'timeout_seconds', 25) * 1000,
         signal
-      );
-      // The lines of the tabs a game master is kept from are kept from what it waits for as well.
-      return { ...batch, events: batch.events.filter((event) => event.kind !== 'chat' || this.views.readsLine(event)) };
-    },
+      ),
   };
 
   /** A piece this seat sees, by id or name. */
@@ -108,32 +105,6 @@ export class AgentReadTools {
       (tab) => tab.name,
       'chat tab'
     );
-  }
-
-  /**
-   * The chat tab to read, by id or name, or the tab this seat has open where none is named. While the
-   * game master is let hear only some tabs, one of the others is refused, and the first it hears
-   * stands in for the open tab where that is one of them. What it says and rolls goes to any tab.
-   */
-  private tabToRead(reference: string): ChatTab {
-    const read = this.views.tabsRead();
-    if (!read) return this.tab(reference);
-    if (reference.trim() === '') {
-      const open = this.tab('');
-      const heard = read.has(open.identifier)
-        ? open
-        : ChatTabList.instance.chatTabs.find((tab) => read.has(tab.identifier));
-      if (!heard) throw new AgentToolError('not_found', 'The room has no chat tab you are let hear.');
-      return heard;
-    }
-    const tab = this.tab(reference);
-    if (!read.has(tab.identifier)) {
-      throw new AgentToolError(
-        'not_allowed',
-        `The person at the seat keeps the tab ${tab.name} from the game master. Read the tabs you are let hear.`
-      );
-    }
-    return tab;
   }
 
   /** The dice system lines are rolled under, as the chat box rolls them. */
@@ -214,7 +185,7 @@ export class AgentReadTools {
   }
 
   private readChat(args: Readonly<Record<string, unknown>>): unknown {
-    const tab = this.tabToRead(textArg(args, 'tab'));
+    const tab = this.tab(textArg(args, 'tab'));
     const limit = numberArg(args, 'limit', 50);
     let messages = tab.chatMessages;
     const before = textArg(args, 'before');
@@ -225,7 +196,7 @@ export class AgentReadTools {
     }
     const lines: AgentChatLine[] = [];
     for (let i = messages.length - 1; i >= 0 && lines.length < limit; i--) {
-      const line = this.views.chatLine(messages[i]);
+      const line = this.views.lineRead(messages[i]);
       if (line) lines.unshift(line);
     }
     return { tab: { id: tab.identifier, name: tab.name }, lines };

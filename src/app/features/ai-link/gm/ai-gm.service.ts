@@ -25,7 +25,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { AiLinkService } from '@axe/features/ai-link/ai-link.service';
-import { aiGmHears, type AiGmMode, type AiGmWakeContext, aiGmWakeOf } from '@axe/features/ai-link/gm/ai-gm-wake';
+import { type AiGmMode, type AiGmWakeContext, aiGmWakeOf } from '@axe/features/ai-link/gm/ai-gm-wake';
 
 /** What this browser keeps of the game master: how it is run, and what the person wrote for it. */
 export interface AiGmPreferences {
@@ -192,14 +192,17 @@ export class AiGmService {
     const heard = this.link.gmHeard.subscribe((message) => this.hear(message));
     effect(() => {
       const running = this.running();
-      untracked(() => (running ? this.startRelay() : this.stopRelay()));
-    });
-    effect(() => {
-      // While it runs with tabs chosen, the tools it reads the chat with are kept to those tabs too.
-      const chosen = this.running() ? this.preferences().tabs : [];
+      // The tabs it is kept to are told to where its lines are made before anything is handed on, so
+      // that no line said meanwhile slips by. Tabs chosen in another room, or since taken away, are
+      // none of this room's: with none of them left, every tab is read.
+      const chosen = running ? this.preferences().tabs : [];
       this.objectChange.collectionOf('chat-tab')();
       const here = chosen.filter((tab) => ChatTabList.instance.chatTabs.some((each) => each.identifier === tab));
-      untracked(() => this.views.tabsRead.set(here.length > 0 ? new Set(here) : null));
+      untracked(() => {
+        this.views.tabsRead.set(here.length > 0 ? new Set(here) : null);
+        if (running) this.startRelay();
+        else this.stopRelay();
+      });
     });
     effect(() => {
       if (this.linked()) return;
@@ -296,18 +299,15 @@ export class AiGmService {
   }
 
   private wakeContext(): AiGmWakeContext {
-    const { mode, callName, tabs } = this.preferences();
+    const { mode, callName } = this.preferences();
     const me = PeerCursor.myCursor?.userId ?? '';
     const line = (id: string) => {
       const message = this.objectStore.get<ChatMessage>(id);
       return message instanceof ChatMessage ? message : null;
     };
-    // Tabs chosen in another room, or since taken away, are not listened to: with none left, every tab is.
-    const here = new Set(ChatTabList.instance.chatTabs.map((tab) => tab.identifier));
     return {
       mode,
       callName,
-      tabs: tabs.filter((tab) => here.has(tab)),
       saidHere: (id) => me !== '' && line(id)?.from === me,
       whisperedHere: (id) => me !== '' && (line(id)?.sendTo.includes(me) ?? false),
       runsPiece: (id) => {
@@ -341,8 +341,7 @@ export class AiGmService {
       if (signal.aborted) return;
       if (batch.events.length > 0) {
         const context = this.wakeContext();
-        const heard = batch.events.filter((event) => aiGmHears(event, context));
-        const entries: GmEventEntry[] = heard.map((event) => {
+        const entries: GmEventEntry[] = batch.events.map((event) => {
           const wake = aiGmWakeOf(event, context);
           const plain = event as unknown as Readonly<Record<string, unknown>>;
           return wake ? { event: plain, wake } : { event: plain };

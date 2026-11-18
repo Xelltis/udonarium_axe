@@ -146,27 +146,60 @@ describe('AgentReadTools', () => {
     expect(read.lines[0].seat).toBe('AI GM');
     expect(read.lines[1].secret).toBe(true);
     expect((call('read_chat', { limit: 1 }) as { lines: unknown[] }).lines).toHaveLength(1);
+  });
 
-    // While the game master is let hear only some tabs, the others are refused, and the first it hears
-    // stands in for the open tab where that is one it does not.
-    const [open, other] = [ChatTabList.instance.chatTabs[0], ChatTabList.instance.addChatTab('雑談')];
-    other.addMessage({ from: 'someone', name: '誰か', text: 'ここだけの話', timestamp: 1 });
+  it('hands a game master kept to some tabs the same lines by every road: as they are said, as it waits, as it reads back', async () => {
+    const chatter = ChatTabList.instance.addChatTab('雑談');
     const views = TestBed.inject(AgentViews);
-    views.tabsRead.set(new Set([open.identifier]));
-    expect(() => call('read_chat', { tab: '雑談' })).toThrow(/keeps the tab 雑談 from the game master/);
-    expect((call('read_chat', { tab: open.name }) as { lines: unknown[] }).lines.length).toBeGreaterThan(0);
-    views.tabsRead.set(new Set([other.identifier]));
-    expect((call('read_chat') as { lines: { text: string }[] }).lines.map((line) => line.text)).toEqual([
-      'ここだけの話',
-    ]);
-    // A tab is still found by name for what is said and rolled there, kept from reading or not.
-    expect(tools.tab(open.name)).toBe(open);
-    // What the table put out, and a line of a tab it reads, are its to read; another tab's line is not.
-    expect(views.readsLine({ id: 'x', tab: other.identifier })).toBe(true);
-    expect(views.readsLine({ id: 'x', tab: open.identifier })).toBe(false);
-    expect(views.readsLine({ id: 'x', tab: open.identifier, system: true })).toBe(true);
+    const events = TestBed.inject(AgentEventLog);
+    views.tabsRead.set(new Set([main.identifier]));
+    events.start();
+    const waiting = call('wait_for_events', { timeout_seconds: 5 }) as Promise<AgentEventBatch>;
+    const beside = (text: string, more: Record<string, unknown> = {}) =>
+      chatter.addMessage({
+        from: 'someone',
+        name: '誰か',
+        text,
+        timestamp: (said += 1000),
+        tag: '',
+        imageIdentifier: '',
+        ...more,
+      });
+
+    const lines = [
+      say('扉を開けます', { from: 'someone' }),
+      beside('ここだけの話'),
+      beside('罠が作動した', { tag: 'system' }),
+      beside('GMにだけ', { to: 'ai-gm-user' }),
+    ];
+    const meant = ['扉を開けます', '罠が作動した', 'GMにだけ'];
+
+    // The rule itself.
+    expect(lines.flatMap((line) => views.lineRead(line)?.text ?? [])).toEqual(meant);
+    // As they are said, which is also what a game master is handed with its turn.
+    const heard = (await waiting).events;
+    const later = (await call('wait_for_events', {
+      after: (await waiting).cursor,
+      timeout_seconds: 1,
+    })) as AgentEventBatch;
+    expect([...heard, ...later.events].map((event) => (event as { text?: string }).text)).toEqual(meant);
+    // As it reads back, from either tab.
+    const read = (tab: string) =>
+      (call('read_chat', { tab }) as { lines: { text: string }[] }).lines.map((line) => line.text);
+    expect([...read('メイン'), ...read('雑談')]).toEqual(meant);
+
+    // What it wrote itself is told back to it whichever tab it wrote it in, and it finds any tab to write in.
+    expect(views.chatLine(lines[1])?.text).toBe('ここだけの話');
+    expect(tools.tab('雑談')).toBe(chatter);
+
+    // Kept to no tab, every line is its to read.
     views.tabsRead.set(null);
-    expect(views.readsLine({ id: 'x', tab: open.identifier })).toBe(true);
+    expect(lines.flatMap((line) => views.lineRead(line)?.text ?? [])).toEqual([
+      '扉を開けます',
+      'ここだけの話',
+      '罠が作動した',
+      'GMにだけ',
+    ]);
   });
 
   it('names the seat a line came from, this seat’s own before its cursor knows its user, and says plainly who sent it', () => {

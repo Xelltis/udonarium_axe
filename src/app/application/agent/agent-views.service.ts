@@ -99,21 +99,31 @@ export class AgentViews {
 
   /**
    * The chat tabs the AI is let read, by identifier, or null for every tab the seat reads. Set while a
-   * game master runs with tabs chosen for it to listen to, so that it does not read for itself the
-   * talk it is kept from hearing.
+   * game master runs with tabs chosen for it to listen to. This is the one place the choice is kept:
+   * whatever hands the AI lines it did not write, as they are said or as it reads back, takes them
+   * through {@link lineRead}, so no road to the talk it is kept from is left open beside the others.
    */
   readonly tabsRead = signal<ReadonlySet<string> | null>(null);
 
   /**
-   * Whether a chat line is the AI's to read: any line while every tab is read, and otherwise a line
-   * of a tab it is let read, one the table itself put out, or a whisper to this seat, wherever said.
+   * Whether a line is the AI's to read where it is kept to some tabs: a line of one of those tabs, one
+   * the table itself put out, the damage of a trap or the turn of a round being the game's own and no
+   * talk beside it, or a whisper to this seat, wherever it was said.
    */
-  readsLine(line: { readonly id: string; readonly tab: string; readonly system?: boolean }): boolean {
+  private reads(message: ChatMessage): boolean {
     const read = this.tabsRead();
-    if (!read || read.has(line.tab) || line.system) return true;
+    if (!read || read.has(message.tabIdentifier) || message.isSystem) return true;
     const me = PeerCursor.myCursor?.userId ?? '';
-    const message = this.objectStore.get<ChatMessage>(line.id);
-    return me !== '' && message instanceof ChatMessage && message.sendTo.includes(me);
+    return me !== '' && message.sendTo.includes(me);
+  }
+
+  /**
+   * A chat line as the AI is handed it among what others said: as this seat may read it, or null for
+   * one it may not see at all or one the AI is kept from. A line the AI wrote itself is told back to
+   * it by {@link chatLine}, whichever tab it wrote it in.
+   */
+  lineRead(message: ChatMessage): AgentChatLine | null {
+    return this.reads(message) ? this.chatLine(message) : null;
   }
 
   /** The grid the pieces of the table in view move over. */

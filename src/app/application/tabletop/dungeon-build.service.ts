@@ -32,6 +32,7 @@ import {
   MapMaterial,
   MapMood,
   MapPaint,
+  MapRect,
   MapSize,
   MapSlowGround,
   MapTrap,
@@ -498,23 +499,40 @@ export class DungeonBuildService {
         table.appendChild(dear);
       }
       if (preset.amount.length < 1 && preset.ailment.length < 1) continue;
-      const harm = new TableTrigger();
-      harm.name = name;
-      harm.col = patch.rect.x;
-      harm.row = patch.rect.y;
-      harm.width = patch.rect.w;
-      harm.height = patch.rect.h;
-      harm.moment = preset.moment;
-      harm.element = preset.amount.length > 0 ? HAZARD_RESOURCE : '';
-      harm.amount = preset.amount;
-      harm.ailment = preset.ailment;
-      harm.color = preset.color;
-      // Nobody is meant to be surprised by a lake of lava: the room can see the ground it is
-      // painted on, which is the whole of what makes it a hazard rather than a trap.
-      harm.open = true;
-      harm.initialize();
-      table.appendChild(harm);
+      this.layOpenHarm(table, patch.rect, name, preset);
     }
+  }
+
+  /**
+   * Lays ground that hurts whoever is caught in it, in the open. Nobody is meant to be surprised by a
+   * lake of lava or by foul water: the room can see the ground it is laid on, which is the whole of
+   * what makes it a hazard rather than a trap.
+   */
+  private layOpenHarm(
+    table: GameTable,
+    rect: MapRect,
+    name: string,
+    harm: {
+      readonly moment: TableTrigger['moment'];
+      readonly amount: string;
+      readonly ailment: string;
+      readonly color: string;
+    }
+  ): void {
+    const laid = new TableTrigger();
+    laid.name = name;
+    laid.col = rect.x;
+    laid.row = rect.y;
+    laid.width = rect.w;
+    laid.height = rect.h;
+    laid.moment = harm.moment;
+    laid.element = harm.amount.length > 0 ? HAZARD_RESOURCE : '';
+    laid.amount = harm.amount;
+    laid.ailment = harm.ailment;
+    laid.color = harm.color;
+    laid.open = true;
+    laid.initialize();
+    table.appendChild(laid);
   }
 
   /**
@@ -523,20 +541,7 @@ export class DungeonBuildService {
    */
   private layHarms(table: GameTable, harms: readonly MapHarm[]): void {
     for (const patch of harms) {
-      const harm = new TableTrigger();
-      harm.name = this.t(`feature.tabletop.dungeonGenerator.piece.${patch.thing}`);
-      harm.col = patch.rect.x;
-      harm.row = patch.rect.y;
-      harm.width = patch.rect.w;
-      harm.height = patch.rect.h;
-      harm.moment = patch.moment;
-      harm.element = patch.amount.length > 0 ? HAZARD_RESOURCE : '';
-      harm.amount = patch.amount;
-      harm.ailment = patch.ailment;
-      harm.color = patch.color;
-      harm.open = true;
-      harm.initialize();
-      table.appendChild(harm);
+      this.layOpenHarm(table, patch.rect, this.t(`feature.tabletop.dungeonGenerator.piece.${patch.thing}`), patch);
     }
   }
 
