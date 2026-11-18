@@ -1,71 +1,71 @@
 ---
 name: review-fix
-description: コードレビューの指摘を直すときの手順。レビューの結果を全件日本語で報告し、指摘を領域で束ね、決まりを1か所に置く形で直す。/code-review の結果を受けて直し始める前、「レビューと改修を繰り返す」ループの各回で使う。
+description: How to fix code review findings. Report every finding to the user in Japanese, group the findings by area, and fix each area by putting its rule in one place. Use before starting to fix the results of /code-review, and on every round of a "review and fix until clean" loop.
 ---
 
-# レビューの指摘を直す手順
+# Fixing code review findings
 
-指摘された行だけを塞ぐと、同じ決まりを通る別の経路に同じ問題が残り、次の回の指摘になる。この手順は、それを防ぐためのもの。基準の本文は [docs/coding-guidelines.md](../../../docs/coding-guidelines.md) の「修正の進め方」にあり、食い違ったらそちらが正しい。
+Patching only the line a finding points at leaves the same problem on every other path that goes through the same rule, and it comes back as the next round's finding. This procedure exists to prevent that. The authoritative text is the section 「修正の進め方」 of [docs/coding-guidelines.md](../../../docs/coding-guidelines.md); where the two disagree, that document is right.
 
-## 1. 報告する（直し始める前）
+## 1. Report (before fixing anything)
 
-レビューの結果を全件、日本語で示す。利用者にはレビューの生の出力（英語の JSON）は見えない。
+Show every finding of the review to the user, in Japanese. The user cannot see the raw output of the review (English JSON).
 
-- 1件ずつ、場所と、**どういう操作でどうなるか**を省かずに書く。1行に縮めない
-- レベルは下の基準で付け、自分で付けたと明記する
-- 回の件数を「N件（高a・中b・低c・対象外d）」で書き、繰り返しているときは回ごとの表を添える
+- For each finding, write where it is and **which operation leads to which result**, without leaving anything out. Do not shrink a finding to one line
+- Rate each finding by the scale below, and say that the rating is your own
+- Write the count of the round as 「N件（高a・中b・低c・対象外d）」, and add a table of the counts per round when looping
 
-### レベルの基準
+### Severity scale
 
-影響の大きさと起きやすさで決める。
+Rate by how bad the effect is and how likely it is to happen.
 
-| 影響＼起きやすさ                                                         | ふつうの使い方で起きる     | 特定の条件で起きる | まれ・推測（再現なし） |
-| ------------------------------------------------------------------------ | -------------------------- | ------------------ | ---------------------- |
-| 取り返しがつかない（データの消失・漏えい、権限の穴、課金、起動できない） | 高                         | 高                 | 中                     |
-| 利用者に見える（誤動作、性能の退行、機能が使えない）                     | 中（主な流れを塞ぐなら高） | 中                 | 低（理由を書く）       |
-| 利用者に見えない（重複、保守性、テストの弱さ、小さな見た目）             | 低                         | 低                 | 低                     |
+| Effect \ Likelihood                                                                  | Happens in ordinary use             | Happens under a specific condition | Rare or a guess (not reproduced) |
+| ------------------------------------------------------------------------------------ | ----------------------------------- | ---------------------------------- | -------------------------------- |
+| Cannot be undone (data lost or leaked, a hole in permissions, charges, cannot start) | 高                                  | 高                                 | 中                               |
+| Visible to the user (wrong behaviour, slower than before, a feature unusable)        | 中 (高 where it blocks a main flow) | 中                                 | 低 (write the reason)            |
+| Invisible to the user (duplication, maintainability, weak tests, small looks)        | 低                                  | 低                                 | 低                               |
 
-表より優先する決まり:
+Rules that come before the table:
 
-- テストや CI が気づけなくなる指摘は、利用者に見えなくても中
-- 自分が直した結果として生まれた指摘は中以上
-- 同じ領域で2度目に出た指摘は1段上げる
+- A finding that stops the tests or CI from noticing something is 中 at least, even where the user sees nothing
+- A finding born of your own fix is 中 or higher
+- A finding that comes up a second time in the same area is raised one level
 
-## 2. 束ねる
+## 2. Group
 
-指摘を領域ごとにまとめる（例: 「AI に見せる行の絞り込み」「番の取り次ぎ」）。前の回までの指摘と見送りも同じ領域に入れて数える。**同じ領域の指摘が2度目なら、継ぎ足さずに作り直す。**
+Gather the findings by area (for example "which lines an AI is shown", "handing the turn over"). Count the findings and the deferrals of earlier rounds in the same area too. **Where an area gets a finding for the second time, rebuild it rather than patching it again.**
 
-## 3. 領域ごとに、直す前に3つ書く
+## 3. For each area, write three things before fixing
 
-1. 破れている決まり
-2. その決まりを通る経路のすべて（grep で洗う。範囲外の機能が同じ部品を使っていないかも見る）
-3. 決まりを置く1か所
+1. The rule that is broken
+2. Every path that goes through that rule (find them with grep; also check whether a feature outside the change uses the same part)
+3. The one place the rule is to be kept
 
-3つ目が1か所に定まらないうちは直し始めない。定まらないのは、決まりがまだ言えていないか、共通の部品が要るかのどちらか。
+Do not start fixing until the third is settled as one place. Where it is not, either the rule has not been put into words yet, or a shared part is needed.
 
-## 4. 直す
+## 4. Fix
 
-- 既存の仕組みを写して変形を作らない。先に共通の部分を部品にして両方に使わせる
-- 例外を列挙しない。安全だと分かっているものだけを絞り込み、それ以外には安全な扱いを選ぶ
-- テストは決まりに付ける。決まりを通る経路のすべてで成り立つ形にして、経路を足し忘れると落ちるようにする。直しを外すと落ちることを確かめる
+- Do not copy an existing mechanism and bend the copy. Make the shared portion a part first, and have both use it
+- Do not list exceptions. Narrow down only what is known to be safe, and give everything else the safe treatment
+- Attach the tests to the rule. Shape them to hold on every path that goes through the rule, so that a path left out fails. Confirm that the tests fail with the fix taken out
 
-## 5. 自分で疑う（コミットの前）
+## 5. Doubt your own fix (before committing)
 
-直した内容に次のレビューが何と言うかを書き出す。同じ決まりを使う範囲外の機能も含める。書き出したものが指摘として成り立つなら、先に直す。
+Write out what the next review would say about the fix, features outside the change that use the same rule included. Where anything written out stands as a finding, fix it first.
 
-## 6. 確かめる
+## 6. Verify
 
-- コミットのたび: フックが選ぶ関連の単体 spec と lint
-- 領域の修正が一区切りついたとき: 型検査と、その領域の単体 spec
-- **繰り返しの各回では e2e も visual も流さない。** 繰り返しが終わってから、`npm run e2e:related` を1回、描画に関わる変更があれば `npm run e2e:related -- --visual` を1回流す
-- 重い処理は機械全体で1本ずつ（`flock ~/.claude/plans/fx-heavy.lock`）
+- On every commit: the related unit specs the hook picks, and lint
+- When the fix of an area reaches a stopping point: the type check, and the unit specs of that area
+- **Do not run e2e or visual on each round of the loop.** Once the loop is over, run `npm run e2e:related` once, and `npm run e2e:related -- --visual` once where a change touches drawing
+- Heavy work runs one at a time over the whole machine (`flock ~/.claude/plans/fx-heavy.lock`)
 
-## 7. 直したあとの報告
+## 7. Report after fixing
 
-指摘ごとに次のどれかを書く。
+For each finding, write one of these, in Japanese.
 
-- 全部直した（決まりを置いた場所）
-- 一部だけ直した（残ったこと）
-- 見送った（理由）
+- Fixed in full (where the rule was put)
+- Fixed in part (what is left)
+- Deferred (why)
 
-見送りは回をまたいだ一覧にして、毎回載せる。高と中がなくなるまで繰り返し、低も見送らずに直す。
+Keep the deferrals as one list across the rounds, and show it every round. Repeat until no 高 or 中 is left, and fix the 低 too rather than deferring them.
