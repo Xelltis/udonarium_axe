@@ -24,7 +24,7 @@ import {
   SLOWING_CROPS,
 } from '@axe/domain/tabletop/field/settlement-layout';
 import { alongTurn, outwardTurn, type SettlementModelId } from '@axe/domain/tabletop/field/settlement-models';
-import { areasOver } from '@axe/domain/tabletop/field/water-areas';
+import { areasOver, watersInLots, watersOver } from '@axe/domain/tabletop/field/water-areas';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { blockLiftsTo } from '@axe/domain/tabletop/ground/block-lift';
 import { type GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
@@ -38,7 +38,6 @@ import type {
   MapRect,
   MapSlowGround,
 } from '@axe/domain/tabletop/map-blocks';
-import { GENERATED_WATER_DENSITY } from '@axe/domain/tabletop/map-blocks';
 import { blockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
 
 /** What a settlement comes to on the table: what stands, what is painted, what is slow to cross, the water and the lights. */
@@ -170,8 +169,6 @@ const CROP_MODELS: Readonly<Record<CropKind, SettlementModelId>> = {
  * stands as tall as it grows.
  */
 const CROP_BLOCK_CELLS = 0.02;
-
-/** How thick a settlement's water is laid: as the settings of water lay a pond. */
 
 /** What a paddy's water is: shallow over its mud, murky and green, its surface this many cells over the ground it floods. */
 const PADDY_WATER = { surface: 0.08, color: '#6e7448', turbidity: 0.8, dirt: 0.35, leaves: 0, ice: 0 } as const;
@@ -340,27 +337,15 @@ function streamOf(
   level: number
 ): Pick<SettlementBlocks, 'paint' | 'slows' | 'ambiences'> {
   const wet = new Uint8Array(width * height);
-  const lots = new Map<number, Uint8Array>();
-  for (const cell of settlement.stream?.cells ?? []) {
-    if (cell.bridge) continue;
-    const index = cell.y * width + cell.x;
-    wet[index] = 1;
-    let lot = lots.get(cell.flow);
-    if (!lot) lots.set(cell.flow, (lot = new Uint8Array(width * height)));
-    lot[index] = 1;
-  }
-  const ambiences: MapAmbience[] = [];
-  for (const [flow, lot] of [...lots].sort(([a], [b]) => a - b)) {
-    for (const rect of areasOver(lot, width, height, gridType)) {
-      ambiences.push({
-        rect,
-        kind: 'water',
-        density: GENERATED_WATER_DENSITY,
-        name: 'water',
-        water: { surface: streamSurfaceOver(level), ...STREAM_WATER, flowDirection: flow },
-      });
-    }
-  }
+  const running = (settlement.stream?.cells ?? [])
+    .filter((cell) => !cell.bridge)
+    .map((cell) => ({ index: cell.y * width + cell.x, lot: String(cell.flow) }));
+  for (const { index } of running) wet[index] = 1;
+  const ambiences = watersInLots(running, width, height, gridType, (flow) => ({
+    surface: streamSurfaceOver(level),
+    ...STREAM_WATER,
+    flowDirection: Number(flow),
+  }));
   return {
     ambiences,
     slows: areasOver(wet, width, height, gridType).map((rect) => ({ rect, ...STREAM_WADING })),
@@ -485,15 +470,8 @@ export function settlementBlocks(
     if (crop === 'rice') {
       const paddy = new Uint8Array(width * height);
       for (let y = rect.y; y < rect.y + rect.h; y++) paddy.fill(1, y * width + rect.x, y * width + rect.x + rect.w);
-      for (const area of areasOver(paddy, width, height, gridType)) {
-        ambiences.push({
-          rect: area,
-          kind: 'water',
-          density: GENERATED_WATER_DENSITY,
-          name: 'water',
-          water: { ...PADDY_WATER, surface: level + PADDY_WATER.surface },
-        });
-      }
+      const water = { ...PADDY_WATER, surface: level + PADDY_WATER.surface };
+      ambiences.push(...watersOver(paddy, width, height, gridType, water));
     }
   }
   const stream = streamOf(settlement, width, height, span, gridType, level);

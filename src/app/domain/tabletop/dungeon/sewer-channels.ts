@@ -339,8 +339,11 @@ function headingTo(layout: DungeonLayout, index: number, will: (next: number) =>
   return -1;
 }
 
-/** The step a pipe faces, across the board, from the way it faces as a light on a wall is measured. */
-function awayFrom(facing: number): [number, number] {
+/**
+ * The step a pipe faces, across the board, from the way it faces as a light on a wall is measured:
+ * along x at nought, along y at ninety. Whatever reads which way a pipe faces reads it here.
+ */
+export function awayFrom(facing: number): [number, number] {
   const turn = (facing * Math.PI) / 180;
   return [Math.round(Math.cos(turn)), Math.round(Math.sin(turn))];
 }

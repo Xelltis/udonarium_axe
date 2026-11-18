@@ -18,17 +18,9 @@ import {
 import { settlementBlocks } from '@axe/domain/tabletop/field/settlement-blocks';
 import { FieldBuilding } from '@axe/domain/tabletop/field/town-layout';
 import { roofUnitModelOf, TOWN_KITS } from '@axe/domain/tabletop/field/town-models';
-import { areasOver } from '@axe/domain/tabletop/field/water-areas';
+import { watersOver } from '@axe/domain/tabletop/field/water-areas';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import {
-  GENERATED_WATER_DENSITY,
-  MapAmbience,
-  MapBlock,
-  MapBlocks,
-  MapLight,
-  MapLightKind,
-  MapPaint,
-} from '@axe/domain/tabletop/map-blocks';
+import { MapAmbience, MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } from '@axe/domain/tabletop/map-blocks';
 
 /**
  * How wide a clump of the same thing is allowed to grow before it is broken in two.
@@ -141,15 +133,8 @@ function watersOf(layout: FieldLayout, atmosphere: FieldAtmosphere, gridType: Gr
   atmosphere.bands.forEach((band, index) => {
     if (!band.water) return;
     const { color, turbidity, dirt, leaves, ice } = band.water;
-    for (const rect of areasOver(maskOfBand(layout, index), layout.width, layout.height, gridType)) {
-      waters.push({
-        rect,
-        kind: 'water',
-        density: GENERATED_WATER_DENSITY,
-        name: 'water',
-        water: { surface: 0, color, turbidity, dirt, leaves, ice },
-      });
-    }
+    const water = { surface: 0, color, turbidity, dirt, leaves, ice };
+    waters.push(...watersOver(maskOfBand(layout, index), layout.width, layout.height, gridType, water));
   });
   return waters;
 }

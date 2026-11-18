@@ -181,9 +181,6 @@ export interface MapWater {
  * What it looks like is laid as an area of its own, and what it costs to wade as slow ground; this is
  * the harm alone.
  */
-/** How thick the water a generator lays is: as the settings of water lay a pond. */
-export const GENERATED_WATER_DENSITY = 0.6;
-
 export interface MapHarm {
   rect: MapRect;
   /** What it is called on the table, as one of the pieces the generator names. */

@@ -22,13 +22,12 @@ import {
 } from '@axe/domain/tabletop/dungeon/furnishing-models';
 import { mergeMaskToRects } from '@axe/domain/tabletop/dungeon/rect-merge';
 import { furnishedCells, FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing';
-import { reliefOfWaterways } from '@axe/domain/tabletop/dungeon/sewer-channels';
-import { areasOver } from '@axe/domain/tabletop/field/water-areas';
+import { awayFrom, reliefOfWaterways } from '@axe/domain/tabletop/dungeon/sewer-channels';
+import { areasOver, watersInLots } from '@axe/domain/tabletop/field/water-areas';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { blockLiftsTo } from '@axe/domain/tabletop/ground/block-lift';
 import { HAZARD_PRESETS } from '@axe/domain/tabletop/hazard-presets';
 import {
-  GENERATED_WATER_DENSITY,
   MapAmbience,
   MapBlock,
   MapBlocks,
@@ -251,43 +250,27 @@ function furnishingBlocks(piece: DungeonFurnishing, span: number, options: Dunge
 function watersOf(layout: DungeonLayout, plan: WaterwayPlan, gridType: GridType): MapAmbience[] {
   const waterway = layout.waterway;
   if (!waterway) return [];
-  const lots = new Map<string, { kind: number; flow: number; mask: Uint8Array }>();
+  const wet: { index: number; lot: string }[] = [];
   for (let index = 0; index < waterway.kinds.length; index++) {
     const kind = waterway.kinds[index];
     if (kind === WaterwayKind.Dry || layout.cells[index] !== DungeonCell.Water) continue;
-    const flow = kind === WaterwayKind.Basin ? -1 : waterway.flow[index];
-    const key = `${kind}:${flow}`;
-    let lot = lots.get(key);
-    if (!lot) {
-      lot = { kind, flow, mask: new Uint8Array(waterway.kinds.length) };
-      lots.set(key, lot);
-    }
-    lot.mask[index] = 1;
+    wet.push({ index, lot: `${kind}:${kind === WaterwayKind.Basin ? -1 : waterway.flow[index]}` });
   }
-  const waters: MapAmbience[] = [];
-  for (const { kind, flow, mask } of lots.values()) {
+  return watersInLots(wet, layout.width, layout.height, gridType, (lot) => {
+    const [kind, flow] = lot.split(':').map(Number);
     const level = kind === WaterwayKind.Channel ? plan.channel : plan.basin;
     const runs = flow >= 0;
-    for (const rect of areasOver(mask, layout.width, layout.height, gridType)) {
-      waters.push({
-        rect,
-        kind: 'water',
-        density: GENERATED_WATER_DENSITY,
-        name: 'water',
-        water: {
-          surface: level.surface,
-          color: plan.look.color,
-          turbidity: plan.look.turbidity,
-          dirt: plan.look.dirt,
-          leaves: 0,
-          ice: 0,
-          flowSpeed: runs ? plan.flowSpeed : 0,
-          flowDirection: runs ? flow : 0,
-        },
-      });
-    }
-  }
-  return waters;
+    return {
+      surface: level.surface,
+      color: plan.look.color,
+      turbidity: plan.look.turbidity,
+      dirt: plan.look.dirt,
+      leaves: 0,
+      ice: 0,
+      flowSpeed: runs ? plan.flowSpeed : 0,
+      flowDirection: runs ? flow : 0,
+    };
+  });
 }
 
 /** What wading the water of a place costs and does, laid over as few areas as cover all of it. */
@@ -322,9 +305,7 @@ function spoutBlock(
   models: boolean,
   liftOf: ReturnType<typeof blockLiftsTo>
 ): MapBlock {
-  const turn = (spout.facing * Math.PI) / 180;
-  const ax = Math.round(Math.cos(turn));
-  const ay = Math.round(Math.sin(turn));
+  const [ax, ay] = awayFrom(spout.facing);
   const rect = { x: spout.x, y: spout.y, w: 1, h: 1 };
   const block = {
     kind: 'prop' as const,
