@@ -1,10 +1,14 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import {
+  ChatLogClearReach,
+  ChatLogClearService,
+  clearedMomentText,
+} from '@axe/application/chat/chat-log-clear.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { SaveProgress } from '@axe/application/file/save-progress';
-import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -54,6 +58,7 @@ export class ChatTabSettingComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
   private readonly snackbar = inject(SnackbarService);
+  private readonly logClear = inject(ChatLogClearService);
   /** A tab this seat deleted in a room server's room, which the server may put back, and when. */
   private deletedOnServer: { identifier: string; at: number } | null = null;
 
@@ -262,6 +267,8 @@ export class ChatTabSettingComponent {
   readonly progressPercent = this.saveProgress.percent;
 
   allowDeleteLog = false;
+  /** What is written in the box of the log clearing: a local date and time, or nothing. */
+  readonly clearBefore = signal('');
   allowDeleteTab = false;
 
   constructor() {
@@ -411,66 +418,64 @@ export class ChatTabSettingComponent {
   }
 
   /**
-   * Clears every message from the selected tab for every peer and posts who cleared it.
+   * The moment written in the box of the log clearing, in epoch milliseconds, before which alone
+   * lines are cleared; null while the box is empty or holds no whole date and time, when a clearing
+   * takes the whole log.
+   */
+  get clearBeforeMoment(): number | null {
+    const written = this.clearBefore().trim();
+    if (!written) return null;
+    const moment = new Date(written).getTime();
+    return Number.isFinite(moment) ? moment : null;
+  }
+
+  /** The moment before which lines are cleared, as the hint under the box names it; empty for none. */
+  get clearBeforeText(): string {
+    const moment = this.clearBeforeMoment;
+    return moment === null ? '' : clearedMomentText(moment);
+  }
+
+  /**
+   * Clears the selected tab's log for every peer and posts who cleared it: all of it, or only the
+   * lines said before the moment written in the box.
    *
-   * Needs the confirmation box ticked and a seat that may change the tabs; the tab's portraits are
-   * reset along with the log. In a room server's room, anyone but the game master leaves the dice
-   * the server rolled where they are, since the server keeps them.
+   * Needs the confirmation box ticked and a seat that may change the tabs; clearing the whole log
+   * resets the tab's portraits along with it. In a room server's room, anyone but the game master
+   * leaves the dice the server rolled where they are, since the server keeps them.
    */
   deleteLog() {
     if (!this.allowDeleteLog || !this.canEditTabs || !this.isSelectionInReach()) return;
 
     const tab = this.selectedTab();
     if (this.isEmpty || !tab) return;
-    this.clearLogOf(tab);
-    tab.portraitReset();
-    const mess = encodeI18nMessage('common.chat.logClearedBy', { user: this.resolveRequesterName() });
-    this.chatMessageService.sendSystemMessageToTab(tab, mess, undefined, this.requesterUserId());
+    this.logClear.clear(tab, this.clearReach());
   }
 
   /**
-   * Clears the logs of every tab for every peer, posting who cleared them in each; needs the
-   * confirmation box ticked and a seat that may change the tabs. In a room server's room, anyone but
-   * the game master leaves the dice the server rolled where they are, and leaves alone the tabs
-   * they may not read, whose lines never came to them.
+   * Clears the logs of every tab for every peer, all of each or only the lines said before the
+   * moment written in the box, posting who cleared them in each; needs the confirmation box ticked
+   * and a seat that may change the tabs. In a room server's room, anyone but the game master leaves
+   * the dice the server rolled where they are, and leaves alone the tabs they may not read, whose
+   * lines never came to them.
    */
   deleteLogALL() {
     if (!this.allowDeleteLog || !this.canEditTabs) return;
 
-    const mess = encodeI18nMessage('common.chat.logClearedBy', { user: this.resolveRequesterName() });
-
-    const requester = this.requesterUserId();
     const readsAll = Network.authorityPeerId === null || PeerCursor.isMyselfGameMaster;
     const tabs = this.chatTabList.chatTabs.filter((tab) => readsAll || canRoleViewTab(tab, PeerCursor.myRole));
-    for (const child of tabs) {
-      this.clearLogOf(child);
-      child.portraitReset();
-      this.chatMessageService.sendSystemMessageToTab(child, mess, undefined, requester);
-    }
+    const reach = this.clearReach();
+    for (const child of tabs) this.logClear.clear(child, reach);
   }
 
-  private clearLogOf(tab: ChatTab): void {
-    const keepServerRolls = this.isKeptToGameMasterByServer;
-    for (const child of [...tab.children]) {
-      if (keepServerRolls && child instanceof ChatMessage && child.isServerRoll) continue;
-      child.destroy();
-    }
+  private clearReach(): ChatLogClearReach | undefined {
+    const moment = this.clearBeforeMoment;
+    return moment === null ? undefined : { before: moment };
   }
 
   /** Whether the picked tab is still one this seat is listed, and so may clear or delete. */
   private isSelectionInReach(): boolean {
     const tab = this.selectedTab();
     return tab !== null && this.chatTabs.includes(tab);
-  }
-
-  private requesterUserId(): string {
-    return this.myPeer?.userId ?? '';
-  }
-
-  private resolveRequesterName(): string {
-    const cursor = this.myPeer;
-    const name = cursor?.name?.trim();
-    return name || cursor?.identifier || '';
   }
 
   /**

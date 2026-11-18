@@ -1969,6 +1969,49 @@ describe('ChatMessageComponent', () => {
       expect(menu.at(-2)?.name).toBe('');
     });
 
+    it('clears the log before a line once the reader is sure, telling how many lines go', async () => {
+      tab.addMessage({ from: 'someone', name: 'ノア', text: '先週の発言', timestamp: 100 });
+      tab.addMessage({ from: 'someone', name: 'ノア', text: '先週の返事', timestamp: 200 });
+      const first = shown('someone');
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+
+      const menu = menuFrom('more');
+      expect(menu.at(-1)).toBe(itemOf(menu, 'feature.chat.message.clearBefore'));
+      menu.at(-1)!.action?.();
+      await vi.waitFor(() => expect(tab.chatMessages[0]).toBe(first));
+
+      expect(ask).toHaveBeenCalledWith(expect.objectContaining({ danger: true }));
+      expect(tab.chatMessages.filter((line) => !line.isSystemMessage)).toEqual([first]);
+    });
+
+    it('leaves the log as it was when the reader thinks better of clearing it', async () => {
+      const old = tab.addMessage({ from: 'someone', name: 'ノア', text: '先週の発言', timestamp: 100 });
+      const first = shown('someone');
+      const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
+
+      itemOf(menuFrom('more'), 'feature.chat.message.clearBefore')!.action?.();
+      await vi.waitFor(() => expect(ask).toHaveBeenCalled());
+      await settle();
+
+      expect(tab.chatMessages).toEqual([old, first]);
+    });
+
+    it('offers no clearing before the first line of a tab, nor to a seat that is only watching', () => {
+      const first = shown('someone');
+      expect(itemOf(menuFrom('more'), 'feature.chat.message.clearBefore')).toBeUndefined();
+
+      const second = tab.addMessage({ from: 'someone', name: 'ノア', text: '次の発言', timestamp: 2000 });
+      fixture.componentRef.setInput('chatMessage', second);
+      fixture.detectChanges();
+      expect(itemOf(menuFrom('more'), 'feature.chat.message.clearBefore')).toBeDefined();
+
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      fixture.detectChanges();
+      expect(itemOf(menuFrom('more'), 'feature.chat.message.clearBefore')).toBeUndefined();
+      expect(tab.chatMessages).toEqual([first, second]);
+    });
+
     it('stops showing a deleted line through an answer to it', async () => {
       const original = tab.addMessage({ from: 'someone', name: 'ノア', text: '取り消された話', timestamp: 900 });
       shown('third', { replyTo: original.identifier } as Partial<ChatMessage>);

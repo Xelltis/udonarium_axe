@@ -1,0 +1,122 @@
+import { TestBed } from '@angular/core/testing';
+import { ChatLogClearService, clearedMomentText } from '@axe/application/chat/chat-log-clear.service';
+import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { Network } from '@axe/core/network/network';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+describe('ChatLogClearService', () => {
+  let service: ChatLogClearService;
+  let tab: ChatTab;
+
+  const beSeat = (role: PeerRole) => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = role;
+    PeerCursor.myCursor.name = 'アリス';
+  };
+  const say = (text: string, timestamp: number) => tab.addMessage({ from: 'someone', name: '誰か', text, timestamp });
+  /** What people said, the notices the tool posted left out. */
+  const said = () => tab.chatMessages.filter((line) => !line.isSystemMessage).map((line) => line.text);
+  const noticeKeys = () =>
+    tab.chatMessages
+      .filter((line) => line.isSystemMessage)
+      .map((line) => decodeI18nMessage(line.text, (key, params) => `${key} ${JSON.stringify(params ?? {})}`));
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    service = TestBed.inject(ChatLogClearService);
+    tab = ChatTabList.instance.addChatTab('メイン');
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    ChatTabList.forget();
+    PeerCursor.myCursor = null!;
+  });
+
+  it('clears the whole log, puts the portraits back and says who cleared it', () => {
+    beSeat(PeerRole.Player);
+    say('先週の発言', 1000);
+    say('今日の発言', 5000);
+    const reset = vi.spyOn(tab, 'portraitReset');
+
+    service.clear(tab);
+
+    expect(said()).toEqual([]);
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(noticeKeys()).toEqual(['common.chat.logClearedBy {"user":"アリス"}']);
+  });
+
+  it('clears only the lines said before a moment, leaving the portraits, and names the moment', () => {
+    beSeat(PeerRole.Player);
+    const moment = new Date(2026, 10, 18, 21, 5).getTime();
+    say('先週の発言', moment - 60_000);
+    say('ちょうどその時刻の発言', moment);
+    say('今日の発言', moment + 60_000);
+    const reset = vi.spyOn(tab, 'portraitReset');
+
+    service.clear(tab, { before: moment });
+
+    expect(said()).toEqual(['ちょうどその時刻の発言', '今日の発言']);
+    expect(reset).not.toHaveBeenCalled();
+    expect(noticeKeys()).toEqual(['common.chat.logClearedBeforeBy {"user":"アリス","time":"2026/11/18 21:05"}']);
+  });
+
+  it('clears the lines standing before a line, that line and those after it left', () => {
+    beSeat(PeerRole.Player);
+    say('先週の発言', 1000);
+    say('先週の返事', 2000);
+    const first = say('今日の最初の発言', 5000);
+    say('今日の次の発言', 6000);
+
+    expect(service.linesWithin(tab, { beforeLine: first }).map((line) => line.text)).toEqual([
+      '先週の発言',
+      '先週の返事',
+    ]);
+    service.clear(tab, { beforeLine: first });
+
+    expect(said()).toEqual(['今日の最初の発言', '今日の次の発言']);
+  });
+
+  it('takes nothing before a line that is not in the tab', () => {
+    beSeat(PeerRole.Player);
+    say('残る発言', 1000);
+    const other = ChatTabList.instance.addChatTab('雑談');
+    const elsewhere = other.addMessage({ from: 'someone', name: '誰か', text: '別のタブ', timestamp: 2000 });
+
+    expect(service.linesWithin(tab, { beforeLine: elsewhere })).toEqual([]);
+  });
+
+  it('clears nothing for a seat that is only watching', () => {
+    beSeat(PeerRole.Guest);
+    say('残る発言', 1000);
+
+    expect(service.canClear).toBe(false);
+    service.clear(tab);
+    service.clear(tab, { before: 9000 });
+
+    expect(tab.chatMessages.map((line) => line.text)).toEqual(['残る発言']);
+  });
+
+  it('leaves the dice a room server rolled to anyone but the game master', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    beSeat(PeerRole.Player);
+    say('先週の発言', 1000);
+    const rolled = tab.addMessage({ from: 'System-BCDice', name: 'ダイス', text: '2D6 → 7', timestamp: 1500 });
+    rolled.serverRoll = true;
+
+    service.clear(tab, { before: 9000 });
+    expect(said()).toEqual(['2D6 → 7']);
+
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    service.clear(tab, { before: 9000 });
+    expect(tab.chatMessages).not.toContain(rolled);
+  });
+
+  it('writes a moment as the local date and time to the minute', () => {
+    expect(clearedMomentText(new Date(2026, 0, 2, 3, 4, 59).getTime())).toBe('2026/01/02 03:04');
+  });
+});

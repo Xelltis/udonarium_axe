@@ -30,7 +30,8 @@
     },
     "chat": {
       "systemName": "System",
-      "logClearedBy": "Log cleared at the request of {{user}}."
+      "logClearedBy": "Log cleared at the request of {{user}}.",
+      "logClearedBeforeBy": "Log before {{time}} cleared at the request of {{user}}."
     },
     "theme": {
       "auto": "Theme: Auto",
@@ -4364,6 +4365,9 @@
         "deleteLine": "Delete",
         "deleteLineHint": "Delete (it leaves everyone’s screen but stays in the log)",
         "deleteLineConfirm": "Delete this line? It leaves everyone’s screen and cannot be brought back. It stays in the log.",
+        "clearBefore": "Clear the log before this line",
+        "clearBeforeConfirm": "Clear the {{count}} lines before this one in this tab? They leave everyone’s screen and the log, and cannot be brought back.",
+        "clearBeforeOk": "Clear",
         "bookmarks": {
           "button": "Bookmark",
           "shared": {
@@ -4535,6 +4539,9 @@
         "allowDeleteLog": "Enable clear",
         "deleteLogThisTab": "This tab",
         "deleteLogAllTabs": "All tabs",
+        "clearBefore": "Only before",
+        "clearBeforeNone": "With a date and time, only the lines said before it are cleared. Left empty, everything is",
+        "clearBeforeSet": "Only the lines said before {{time}} are cleared",
         "logKeepsServerRollsOnServer": "On a room server, dice the server rolled stay in the log (the GM can clear them)",
         "defaultTabName": "Tab",
         "noneMark": "—",

@@ -17,6 +17,7 @@ function state(partial: Partial<ChatMessageMenuState> = {}): ChatMessageMenuStat
     afterWhisperTargets: null,
     canUndoAfterWhisper: false,
     canPseudoDelete: false,
+    canClearBefore: false,
     canShowInTicker: true,
     copyTargets: [{ identifier: 'tab-2', name: 'サブタブ' }],
     hasOriginal: true,
@@ -42,6 +43,7 @@ function callbacks(): ChatMessageMenuCallbacks {
     whisperTo: vi.fn(),
     undoAfterWhisper: vi.fn(),
     pseudoDelete: vi.fn(),
+    clearBefore: vi.fn(),
     showInTicker: vi.fn(),
     toggleHistory: vi.fn(),
     jumpToOriginal: vi.fn(),
@@ -52,6 +54,25 @@ function callbacks(): ChatMessageMenuCallbacks {
 }
 
 describe('buildChatMessageContextMenu()', () => {
+  it('offers to clear the log before the line last of all, after deleting it, only where the reader may', () => {
+    const handlers = callbacks();
+    const menu = buildChatMessageContextMenu(
+      state({ canPseudoDelete: true, canClearBefore: true }),
+      handlers,
+      translate
+    );
+
+    expect(menu.slice(-2).map((entry) => entry.name)).toEqual([
+      'feature.chat.message.deleteLine',
+      'feature.chat.message.clearBefore',
+    ]);
+    menu.at(-1)!.action?.();
+    expect(handlers.clearBefore).toHaveBeenCalledTimes(1);
+
+    const without = buildChatMessageContextMenu(state({ canPseudoDelete: true }), handlers, translate);
+    expect(without.map((entry) => entry.name)).not.toContain('feature.chat.message.clearBefore');
+  });
+
   it("offers to set a roll as the tab's number to beat among the answers, or to take it off as that", () => {
     const handlers = callbacks();
     const names = (menu: { name: string }[]) => menu.map((entry) => entry.name);

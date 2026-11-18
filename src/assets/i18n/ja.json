@@ -30,7 +30,8 @@
     },
     "chat": {
       "systemName": "システムメッセージ",
-      "logClearedBy": "{{user}}さんからの依頼でログをクリアしました。"
+      "logClearedBy": "{{user}}さんからの依頼でログをクリアしました。",
+      "logClearedBeforeBy": "{{user}}さんからの依頼で、{{time}}より前のログをクリアしました。"
     },
     "theme": {
       "auto": "テーマ: 自動",
@@ -4364,6 +4365,9 @@
         "deleteLine": "削除",
         "deleteLineHint": "削除（全員の画面から消えます。ログには残ります）",
         "deleteLineConfirm": "この発言を削除しますか？全員の画面から消え、元に戻せません。ログには残ります。",
+        "clearBefore": "この発言より前のログを消去",
+        "clearBeforeConfirm": "このタブで、この発言より前の発言 {{count}} 件を消去しますか？部屋の全員の画面とログから消え、元に戻せません。",
+        "clearBeforeOk": "消去する",
         "bookmarks": {
           "button": "しおり",
           "shared": {
@@ -4535,6 +4539,9 @@
         "allowDeleteLog": "消去を有効化",
         "deleteLogThisTab": "このタブ",
         "deleteLogAllTabs": "全タブ",
+        "clearBefore": "この日時より前だけ",
+        "clearBeforeNone": "日時を入れると、その日時より前の発言だけを消します。空のときはすべて消します",
+        "clearBeforeSet": "{{time}}より前の発言だけを消します",
         "logKeepsServerRollsOnServer": "部屋のサーバーでは、サーバーで振ったダイスの結果は消えずに残ります（GM は消せます）",
         "defaultTabName": "タブ",
         "noneMark": "—",

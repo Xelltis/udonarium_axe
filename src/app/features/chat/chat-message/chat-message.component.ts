@@ -14,6 +14,7 @@ import { PieceResetService } from '@axe/application/character/piece-reset.servic
 import { type ResetUndoResult, ResetUndoService } from '@axe/application/character/reset-undo.service';
 import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
+import { ChatLogClearService } from '@axe/application/chat/chat-log-clear.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
@@ -144,6 +145,7 @@ export class ChatMessageComponent {
 
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly lineEdit = inject(ChatLineEditService);
+  private readonly logClear = inject(ChatLogClearService);
   private readonly resetUndo = inject(ResetUndoService);
   private readonly pieceReset = inject(PieceResetService);
   private readonly clock = inject(ChatClockService);
@@ -457,6 +459,7 @@ export class ChatMessageComponent {
         bookmarkKinds: this.bookmarkKinds(),
         canUndoAfterWhisper: this.canUndoAfterWhisper,
         canPseudoDelete: this.canPseudoDelete,
+        canClearBefore: this.linesBefore().length > 0,
         canShowInTicker: this.canShowInTicker(),
         copyTargets: this.canCopyToTab ? this.copyTargets() : [],
         hasOriginal: !!(this.replyPreview() || this.quotePreview()),
@@ -484,6 +487,7 @@ export class ChatMessageComponent {
         toggleBookmark: (kind) => this.toggleBookmark(kind),
         undoAfterWhisper: () => this.undoAfterWhisper(),
         pseudoDelete: () => void this.pseudoDelete(),
+        clearBefore: () => void this.clearBefore(),
         showInTicker: () => this.clickShowInTicker(),
         toggleHistory: () => this.toggleHistory(),
         jumpToOriginal: () => (this.replyPreview() ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
@@ -1030,6 +1034,35 @@ export class ChatMessageComponent {
       danger: true,
     });
     if (sure) this.lineEdit.pseudoDelete(message);
+  }
+
+  /**
+   * The lines a clearing of the log before this line would take: those standing before it in its
+   * tab, less what a room server keeps from this seat. None for a line drawn only to be read, one
+   * outside a tab, or a reader who may not clear logs.
+   */
+  private linesBefore(): ChatMessage[] {
+    const message = this.chatMessage;
+    const tab = message?.parent;
+    if (this.readOnly() || !(tab instanceof ChatTab) || !this.logClear.canClear) return [];
+    return this.logClear.linesWithin(tab, { beforeLine: message });
+  }
+
+  /**
+   * Clears the log of the line's tab before the line for every peer, from the line's menu. The lines
+   * are gone from the room for good, so the reader is asked first, and told how many go.
+   */
+  async clearBefore(): Promise<void> {
+    const message = this.chatMessage;
+    const tab = message?.parent;
+    const count = this.linesBefore().length;
+    if (!(tab instanceof ChatTab) || count < 1) return;
+    const sure = await this.confirm.ask({
+      message: this.t('feature.chat.message.clearBeforeConfirm', { count }),
+      okLabel: this.t('feature.chat.message.clearBeforeOk'),
+      danger: true,
+    });
+    if (sure && message.parent === tab) this.logClear.clear(tab, { beforeLine: message });
   }
 
   /** Puts this line in the ticker running round the table, where that ticker is shown at all. */

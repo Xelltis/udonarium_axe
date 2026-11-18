@@ -608,6 +608,35 @@ describe('ChatTabSettingComponent', () => {
       expect(tab.chatMessages).not.toContain(rolled);
     });
 
+    it('clears only the lines said before the moment written in the box, in one tab or in all of them', () => {
+      beSeat(PeerRole.Player);
+      const moment = new Date(2026, 10, 18, 21, 0).getTime();
+      const main = ChatTabList.instance.addChatTab('メイン');
+      const side = ChatTabList.instance.addChatTab('雑談');
+      for (const tab of [main, side]) {
+        tab.addMessage({ from: 'someone', name: '誰か', text: '先週の発言', timestamp: moment - 1000 });
+        tab.addMessage({ from: 'someone', name: '誰か', text: '今日の発言', timestamp: moment + 1000 });
+      }
+      const said = (tab: ChatTab) => tab.chatMessages.filter((line) => !line.isSystemMessage).map((line) => line.text);
+      component.selectedTab.set(main);
+      component.allowDeleteLog = true;
+
+      component.clearBefore.set('2026-11-18T21:00');
+      expect(component.clearBeforeMoment).toBe(moment);
+      expect(component.clearBeforeText).toBe('2026/11/18 21:00');
+      component.deleteLog();
+      expect(said(main)).toEqual(['今日の発言']);
+      expect(said(side)).toEqual(['先週の発言', '今日の発言']);
+
+      component.deleteLogALL();
+      expect(said(side)).toEqual(['今日の発言']);
+
+      component.clearBefore.set('');
+      expect(component.clearBeforeMoment).toBeNull();
+      component.deleteLog();
+      expect(said(main)).toEqual([]);
+    });
+
     it('clears and deletes no tab picked before the player could no longer read it', () => {
       beSeat(PeerRole.Player);
       const closed = ChatTabList.instance.addChatTab('closed');
