@@ -7,7 +7,9 @@
  * `keepLoadedParts` in e2e/helpers.ts), a panel's code being loaded when the panel is first opened.
  * The sources are sorted by how the app comes to load them. What the page loads as it starts is
  * reached by every spec. What is loaded only as it goes belongs to the parts that lead to it, and is
- * reached by the specs that asked for one of those. What nothing loads is reached by none.
+ * reached by the specs that asked for one of those. What nothing loads is reached by none. A worker
+ * is loaded with the file that starts it. The sources of the AI bridge are reached by the specs that
+ * start the bridge.
  *
  * It errs towards running a spec. A spec that has left nothing behind yet runs, as does every spec
  * when the change touches what the suite itself is made of, the build's settings, or a file the app
@@ -17,7 +19,8 @@
  *   node scripts/e2e-related.mjs --since main  ... by what has changed since a commit
  *   node scripts/e2e-related.mjs src/app/...   ... by the files named
  *   node scripts/e2e-related.mjs --run         runs them, each kind of project in turn
- *   node scripts/e2e-related.mjs --run --visual  runs the pictures too, which are left out otherwise
+ *   node scripts/e2e-related.mjs --run --visual  runs the pictures too, which are left out otherwise,
+ *                                                each way of drawing them by itself
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -38,11 +41,22 @@ const REACHES_EVERY_SPEC = [
   /^angular\.json$/,
   /^tsconfig(?:\.app)?\.json$/,
   /^playwright\.config\.ts$/,
-  /^e2e\/(?!visual\/|server\/)[^/]+(?<!\.spec)\.(?:ts|mjs)$/,
+  /^e2e\/(?!visual\/|server\/).+(?<!\.spec)\.(?:ts|mjs)$/,
   /^src\/(?:index\.html|styles\.css|main\.ts)$/,
   /^src\/assets\//,
   /^public\//,
 ];
+/**
+ * What the specs that start the AI bridge run beside the app: the bridge is built from these and run
+ * as a program of its own, which no part the browser asks for tells of.
+ */
+const BRIDGE_SOURCES = /^tools\/axe-mcp\//;
+/** The sources of the app the bridge is built from as well, which reach its specs beside what the page loads them with. */
+const SHARED_WITH_BRIDGE = /^src\/app\/core\/agent\//;
+/** How a spec that starts the bridge is told: it takes the bridge's place from the helper that builds it. */
+const STARTS_BRIDGE = /from '\.\/ai-bridge'/;
+/** A script started as a worker of its own, by the address of its file. */
+const WORKER_STARTED = /new\s+(?:Shared)?Worker\(\s*new URL\(\s*['"]([^'"]+)['"]\s*,\s*import\.meta\.url/g;
 /** What every picture is taken through, beside the above. */
 const REACHES_EVERY_PICTURE = [/^e2e\/visual\/(?!.*\.spec\.ts$)/];
 
@@ -98,12 +112,16 @@ function howSourcesLoad() {
   const waited = new Map();
   const lazyParts = new Set();
   for (const file of files) {
-    const read = runtimeImports.of(readFileSync(file, 'utf-8'));
+    const text = readFileSync(file, 'utf-8');
+    const read = runtimeImports.of(text);
     if (file.endsWith('.spec.ts') || file.startsWith('src/app/testing/')) continue;
     const resolved = (specifiers) => specifiers.map((specifier) => resolveSpecifier(specifier, file, files));
+    // A worker is started by its file's address rather than imported, and runs whenever what starts it
+    // does: it and what it imports are loaded with the file that starts it.
+    const workers = [...text.matchAll(WORKER_STARTED)].map(([, address]) => address);
     waited.set(
       file,
-      resolved(read.waited).filter((dependency) => dependency !== null && dependency !== file)
+      resolved([...read.waited, ...workers]).filter((dependency) => dependency !== null && dependency !== file)
     );
     for (const part of resolved(read.dynamic)) if (part !== null) lazyParts.add(part);
   }
@@ -158,6 +176,10 @@ for (const file of changed) {
     if (allSpecs.includes(file)) pick(file, 'changed itself');
     continue;
   }
+  if (BRIDGE_SOURCES.test(file) || SHARED_WITH_BRIDGE.test(file)) {
+    pickEvery((spec) => STARTS_BRIDGE.test(readFileSync(spec, 'utf-8')), `${file} is built into the bridge it starts`);
+    if (BRIDGE_SOURCES.test(file)) continue;
+  }
   if (!file.startsWith('src/') || file.endsWith('.spec.ts') || file.startsWith('src/app/testing/')) continue;
   const source = file.replace(/\.(?:html|css)$/, '.ts');
   if (!files.has(source)) {
@@ -197,11 +219,16 @@ for (const kind of ['e2e', 'visual']) {
 if (flags.has('--run')) {
   for (const kind of flags.has('--visual') ? ['e2e', 'visual'] : ['e2e']) {
     if (kinds[kind].length === 0) continue;
-    const result = spawnSync(
-      'npx',
-      ['playwright', 'test', ...PROJECTS[kind].map((project) => `--project=${project}`), ...kinds[kind]],
-      { stdio: 'inherit', shell: process.platform === 'win32' }
-    );
-    if (result.status !== 0) process.exit(result.status ?? 1);
+    // The pictures are drawn without a graphics card, and the two ways of drawing them at once are more
+    // pages than a machine draws in time: each is run by itself, one after the other.
+    const runs = kind === 'visual' ? PROJECTS[kind].map((project) => [project]) : [PROJECTS[kind]];
+    for (const projects of runs) {
+      const result = spawnSync(
+        'npx',
+        ['playwright', 'test', ...projects.map((project) => `--project=${project}`), ...kinds[kind]],
+        { stdio: 'inherit', shell: process.platform === 'win32' }
+      );
+      if (result.status !== 0) process.exit(result.status ?? 1);
+    }
   }
 }

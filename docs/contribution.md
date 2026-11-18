@@ -84,7 +84,7 @@ chore(release): bump version to 1.2.2
 （間接的に読むものも含む）をstagedにしたときは、どのspecにも影響するので全量を回す。
 セットアップが`TestBed`を使うspecのためだけに読み込むサービス（`loadGlobalTestProviders()`の先）に
 当たったときは、本文に`TestBed`を含むspecをすべて足す。`pre-push`は、まだpushしていないコミットが
-変えたファイルをまとめて同じスクリプトに渡す。全量はCIが見る。
+変えたファイルをまとめて同じスクリプトに渡す。あわせて、ファイルをディスクから読むspec（辞書のキー、同梱モデルのハッシュ、ソースの並びを見るものなど）を、何を変えても回す（`--disk-specs`）。これらが見るファイルはimportに現れないため。全量はCIが見る。
 
 設定: [../lefthook.yml](../lefthook.yml)
 
@@ -113,7 +113,8 @@ E2Eは載せていない。PlaywrightはCIだと5ブラウザぶん走る設定�
 specはアプリをimportしないので、テストごとに読み込んだ遅延チャンクの名前を`node_modules/.cache/axe-e2e/`へ残し、
 ソースのimportと突き合わせて選ぶ。対象はまだpushしていない変更で、`--since <コミット>`かファイル名で変えられる。
 起動時に読み込むソースやe2eの共有ヘルパーを変えたときは全部を回し、記録がまだ無いspecも回す。
-記録は`npm run e2e`を1回流すとできる。演出の比較も含めるなら`npm run e2e:related -- --visual`とする。
+Web Workerは起動する側のファイルと一緒に読み込まれるものとして数え、AI連携のブリッジのソース（`tools/axe-mcp`と`src/app/core/agent`）はブリッジを起動するspecに届くものとする。
+記録は`npm run e2e`を1回流すとできる。記録は実行のたびに足していき、途中で落ちた実行が短い記録で上書きしないようにしてある。演出の比較も含めるなら`npm run e2e:related -- --visual`とし、2つの描き方は1つずつ順に回る。
 
 演出の見た目は`e2e/visual/`のスクリーンショット比較で守る。
 `npx playwright test --project=visual-webgl2`と`--project=visual-webgpu`が、卓をWebGL2とWebGPUで描いて

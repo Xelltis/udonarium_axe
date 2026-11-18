@@ -16,7 +16,9 @@
  * run reads again only the files changed since the last.
  *
  * Every spec runs when the files handed include a runner config, a setup file, or anything a setup
- * file imports at any depth without waiting, since setup loads those into every spec. What setup
+ * file imports at any depth without waiting, since setup loads those into every spec. With
+ * `--disk-specs`, as before a push, the specs that read files off the disk run as well whatever was
+ * changed: a dictionary, a model or a source one of them checks is reached by no import. What setup
  * imports only for a spec that builds a TestBed module, the providers every module is given, adds
  * every spec that names TestBed, as setup tells such a spec by that word.
  */
@@ -66,8 +68,27 @@ function run(args) {
   process.exit(result.status ?? 1);
 }
 
+/**
+ * How a spec is told to read files off the disk rather than import them: the dictionaries, the models
+ * and their hashes, the sources it checks the layout or the wording of. What such a spec reaches no
+ * import tells of.
+ */
+const READS_DISK = /from 'node:fs'|from 'fs'|\breadFileSync\b|\breaddirSync\b|import\.meta\.glob/;
+
 const { setupFiles, configs } = runnerInputs();
-const stagedPaths = process.argv.slice(2).map((f) => posix.normalize(f.replaceAll('\\', '/')));
+const withDiskSpecs = process.argv.includes('--disk-specs');
+const stagedPaths = process.argv
+  .slice(2)
+  .filter((arg) => !arg.startsWith('--'))
+  .map((f) => posix.normalize(f.replaceAll('\\', '/')));
+
+/** The specs that read files off the disk, run with `--disk-specs` whatever was changed. */
+function diskSpecs() {
+  if (!withDiskSpecs || stagedPaths.length === 0) return [];
+  return sourcesUnder('src').filter(
+    (file) => file.endsWith('.spec.ts') && READS_DISK.test(readFileSync(file, 'utf-8'))
+  );
+}
 
 const stagedConfig = stagedPaths.find((file) => configs.has(file));
 if (stagedConfig !== undefined) {
@@ -88,8 +109,15 @@ for (const file of stagedPaths) {
   }
 }
 if (staged.size === 0) {
-  console.log('[vitest-related] no changed sources touch a spec; nothing to run');
-  process.exit(0);
+  const fromDisk = diskSpecs();
+  if (fromDisk.length === 0) {
+    console.log('[vitest-related] no changed sources touch a spec; nothing to run');
+    process.exit(0);
+  }
+  console.log(
+    `[vitest-related] no changed source is imported by a spec; running the ${fromDisk.length} that read files`
+  );
+  run(fromDisk.sort());
 }
 if (setupFiles.size === 0) {
   console.log(`[vitest-related] no setup files found in ${VITEST_CONFIG} or ${ANGULAR_WORKSPACE}; running every spec`);
@@ -141,6 +169,7 @@ if (stagedProvider !== undefined) {
   console.log(`[vitest-related] ${stagedProvider} is loaded with the providers every TestBed module is given`);
   for (const spec of testBedSpecs) specs.add(spec);
 }
+for (const spec of diskSpecs()) specs.add(spec);
 if (specs.size === 0) {
   console.log('[vitest-related] no spec reaches the changed sources; nothing to run');
   process.exit(0);

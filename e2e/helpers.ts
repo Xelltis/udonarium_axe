@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 import { expect, Locator, Page, test } from '@playwright/test';
@@ -241,8 +241,12 @@ export function keepLoadedParts(page: Page): void {
   const dir = join(LOADS_DIR, info.project.name);
   const kept = join(dir, `${info.testId}.txt`);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(kept, `${relative(process.cwd(), info.file).split('\\').join('/')}\n`);
-  const seen = new Set<string>();
+  // What an earlier run left is kept and added to: a run that fails or is stopped part of the way asks
+  // for less than the test goes through, and what it leaves alone would tell too little.
+  const spec = relative(process.cwd(), info.file).split('\\').join('/');
+  const before = existsSync(kept) ? readFileSync(kept, 'utf-8').split('\n').filter(Boolean) : [];
+  const seen = new Set<string>(before[0] === spec ? before.slice(1) : []);
+  writeFileSync(kept, [spec, ...seen].map((line) => `${line}\n`).join(''));
   context.on('request', (request) => {
     const part = LAZY_PART.exec(new URL(request.url()).pathname)?.[1];
     if (part === undefined || seen.has(part)) return;
