@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { ChatLogClearService, clearedMomentText, localMomentText } from '@axe/application/chat/chat-log-clear.service';
+import { ChatLogClearService, clearedMomentText } from '@axe/application/chat/chat-log-clear.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { Network } from '@axe/core/network/network';
 import { ObjectNode } from '@axe/core/sync/object-node';
+import { formatLogMoment } from '@axe/domain/chat/chat-log-rich';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -151,7 +152,7 @@ describe('ChatLogClearService', () => {
 
   it('writes a moment as the local date and time to the minute', () => {
     const moment = new Date(2026, 0, 2, 3, 4, 59).getTime();
-    expect(localMomentText(moment)).toBe('2026/01/02 03:04');
+    expect(formatLogMoment(moment)).toBe('2026/01/02 03:04');
     // The notice says how far the seat's time stands from UTC, for seats that keep another.
     expect(clearedMomentText(moment)).toMatch(/^2026\/01\/02 03:04 \(UTC[+-]\d{1,2}(:\d{2})?\)$/);
   });

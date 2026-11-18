@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ChatLogClearReach, ChatLogClearService, localMomentText } from '@axe/application/chat/chat-log-clear.service';
+import { ChatLogClearReach, ChatLogClearService } from '@axe/application/chat/chat-log-clear.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
@@ -16,6 +16,7 @@ import { networkMessage$ } from '@axe/core/network/network-messaging';
 import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { identifiersInXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { formatLogMoment } from '@axe/domain/chat/chat-log-rich';
 import { CHAT_LOG_STYLES, ChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -441,7 +442,7 @@ export class ChatTabSettingComponent {
   /** The moment before which lines are cleared, as the hint under the box names it; empty for none. */
   get clearBeforeText(): string {
     const moment = this.clearBeforeMoment;
-    return moment === null ? '' : localMomentText(moment);
+    return moment === null ? '' : formatLogMoment(moment);
   }
 
   /**

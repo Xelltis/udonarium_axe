@@ -3,6 +3,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Network } from '@axe/core/network/network';
+import { formatLogMoment } from '@axe/domain/chat/chat-log-rich';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -16,13 +17,6 @@ import { canRoleEdit } from '@axe/domain/peer/peer-role';
  */
 export type ChatLogClearReach = { readonly before: number } | { readonly beforeLine: ChatMessage };
 
-/** A moment to the minute, in the local time of this seat. */
-export function localMomentText(moment: number): string {
-  const at = new Date(moment);
-  const two = (value: number) => String(value).padStart(2, '0');
-  return `${at.getFullYear()}/${two(at.getMonth() + 1)}/${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
-}
-
 /**
  * The moment as the notice of a clearing names it: in the local time of the seat that asked, with how
  * far that time stands from UTC, since the notice is read as it is by seats that may keep another.
@@ -32,7 +26,7 @@ export function clearedMomentText(moment: number): string {
   const hours = Math.floor(Math.abs(ahead) / 60);
   const minutes = Math.abs(ahead) % 60;
   const zone = `UTC${ahead < 0 ? '-' : '+'}${hours}${minutes > 0 ? `:${String(minutes).padStart(2, '0')}` : ''}`;
-  return `${localMomentText(moment)} (${zone})`;
+  return `${formatLogMoment(moment)} (${zone})`;
 }
 
 /**
