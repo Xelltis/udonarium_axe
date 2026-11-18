@@ -427,7 +427,8 @@ export class ModelLayer {
 
   /** Stands the copies of a model that plays no motion where their pieces are, its herd grown where it is too small. */
   private herd(url: string, loaded: LoadedModel, flock: readonly TableWorldModel[]): void {
-    const placements = flock.map((model) => partPlacementsOf(model, loaded, this.turns ? this.turnedToMs : 0));
+    const placed = flock.map((model) => placedPartsOf(model, loaded, this.turns ? this.turnedToMs : 0));
+    const placements = placed.map((copy) => copy.placements);
     const counts = loaded.parts.map((_, part) => placements.reduce((sum, each) => sum + each[part].length, 0));
     let herd = this.herds.get(url);
     if (!herd || counts.some((count, part) => herd!.capacities[part] < count)) {
@@ -449,11 +450,11 @@ export class ModelLayer {
     }
     herd.copies = flock.length;
     const turning: { index: number; spin: SpinPlacement }[] = [];
-    const placed = loaded.parts.map(() => 0);
-    flock.forEach((model, copy) => {
-      for (const spin of spinPlacementsOf(model, loaded)) turning.push({ index: placed[spin.part], spin });
-      placements[copy].forEach((each, part) => (placed[part] += each.length));
-    });
+    const laid = loaded.parts.map(() => 0);
+    for (const copy of placed) {
+      for (const spin of copy.spins) turning.push({ index: laid[spin.part], spin });
+      copy.placements.forEach((each, part) => (laid[part] += each.length));
+    }
     herd.turning = turning.length > 0 ? turning : undefined;
     this.placeHerd(herd, placements);
   }
@@ -711,20 +712,39 @@ function placementPartsOf(model: TableWorldModel, loaded: ModelMeasure): { frame
  * to turn turned as far as it has by then.
  */
 export function partPlacementsOf(model: TableWorldModel, loaded: ModelMeasure, timeMs = 0): Matrix4[][] {
+  return placedPartsOf(model, loaded, timeMs).placements;
+}
+
+/**
+ * Where each mesh of a model is drawn for a piece or block at a moment, with what of the place of
+ * each part that turns stays while it turns: worked out once for the copy, the frame it stands in
+ * and its scaling with it, for whoever lays the copy and has its parts turn after. A part that turns
+ * is drawn from what is handed back of it, so a copy turned as time goes stands where placing it
+ * afresh at that moment would stand it. None turns in a model laid out of a kit, whose parts are
+ * placed by the block, or while it swings open as a leaf.
+ */
+export function placedPartsOf(
+  model: TableWorldModel,
+  loaded: ModelMeasure,
+  timeMs = 0
+): { readonly placements: Matrix4[][]; readonly spins: SpinPlacement[] } {
   if (!placedPartByPart(model, loaded)) {
-    if (loaded.facade) return facadePlacementsOf(model, loaded);
-    if (loaded.tile) return tilePlacementsOf(model, loaded);
-    return joinedPlacementsOf(model, loaded);
+    const kit = loaded.facade ? facadePlacementsOf : loaded.tile ? tilePlacementsOf : joinedPlacementsOf;
+    return { placements: kit(model, loaded), spins: [] };
   }
   const { frame, scaling } = placementPartsOf(model, loaded);
   const placement = frame.clone().multiply(scaling);
-  return (loaded.parts ?? []).map((part, index) => {
+  const spins: SpinPlacement[] = [];
+  const placements = (loaded.parts ?? []).map((part, index) => {
     if (swingsOpen(model, part)) {
       return [frame.clone().multiply(swungAbout(scaling, part.swing!)).multiply(scaling).multiply(part.within)];
     }
-    if (part.spin) return [spinPlacedAt(spinPlacementOf(frame, scaling, part.within, part.spin, index), timeMs)];
-    return [placement.clone().multiply(part.within)];
+    if (!part.spin) return [placement.clone().multiply(part.within)];
+    const spin = spinPlacementOf(frame, scaling, part.within, part.spin, index);
+    spins.push(spin);
+    return [spinPlacedAt(spin, timeMs)];
   });
+  return { placements, spins };
 }
 
 /**
@@ -738,20 +758,6 @@ export interface SpinPlacement {
   readonly axis: Vector3;
   readonly degPerSecond: number;
   readonly after: Matrix4;
-}
-
-/**
- * The parts of a model that turn as a piece or block draws them, each with what of its place stays
- * while it turns. {@link partPlacementsOf} draws a part that turns from the same, so a copy turned
- * as time goes stands where placing it afresh at that moment would stand it. None for a model laid
- * out of a kit, whose parts are placed by the block and do not turn.
- */
-export function spinPlacementsOf(model: TableWorldModel, loaded: ModelMeasure): SpinPlacement[] {
-  if (!placedPartByPart(model, loaded)) return [];
-  const { frame, scaling } = placementPartsOf(model, loaded);
-  return (loaded.parts ?? []).flatMap((part, index) =>
-    part.spin && !swingsOpen(model, part) ? [spinPlacementOf(frame, scaling, part.within, part.spin, index)] : []
-  );
 }
 
 const TURN = new Matrix4();

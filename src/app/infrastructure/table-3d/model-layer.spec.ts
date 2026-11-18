@@ -2,10 +2,10 @@ import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import {
   ModelLayer,
   partPlacementsOf,
+  placedPartsOf,
   placementOf,
   spinOf,
   spinPlacedAt,
-  spinPlacementsOf,
   spoutsOf,
   standingBoxOf,
 } from '@axe/infrastructure/table-3d/model-layer';
@@ -109,7 +109,7 @@ describe('a part made to turn', () => {
       [knight({ boxPx: { widthPx: 150, depthPx: 50 }, heightPx: 80 }), stretched],
     ];
     for (const [model, measure] of copies) {
-      const spins = spinPlacementsOf(model, measure);
+      const spins = placedPartsOf(model, measure).spins;
       expect(spins.map((spin) => spin.part)).toEqual([1]);
       for (const timeMs of [0, 250, 1000, 4321, 987654]) {
         const [, [afresh]] = partPlacementsOf(model, measure, timeMs);
@@ -121,18 +121,32 @@ describe('a part made to turn', () => {
     }
   });
 
+  it('is worked out with the places of its model’s parts, once for the copy, and is none where no part turns', () => {
+    const still = { ...MADE, parts: [{ within: new Matrix4() }, { within: new Matrix4() }] };
+    const turned = knight({ rotateDeg: 37, altitudePx: 30 });
+
+    expect(placedPartsOf(turned, still).spins).toEqual([]);
+    for (const measure of [still, wheel]) {
+      const placed = placedPartsOf(turned, measure, 1234).placements;
+      const afresh = partPlacementsOf(turned, measure, 1234);
+      expect(placed.map((each) => each.map((matrix) => matrix.elements))).toEqual(
+        afresh.map((each) => each.map((matrix) => matrix.elements))
+      );
+    }
+  });
+
   it('is not turned where its model is laid out of a kit over a block, or while it swings open as a leaf', () => {
     const block = knight({ boxPx: { widthPx: 100, depthPx: 100 } });
-    expect(spinPlacementsOf(block, { ...wheel, tile: true })).toEqual([]);
-    expect(spinPlacementsOf(knight(), { ...wheel, tile: true }).map((spin) => spin.part)).toEqual([1]);
+    expect(placedPartsOf(block, { ...wheel, tile: true }).spins).toEqual([]);
+    expect(placedPartsOf(knight(), { ...wheel, tile: true }).spins.map((spin) => spin.part)).toEqual([1]);
 
     const leaf = {
       ...MADE,
       parts: [{ within: new Matrix4(), swing: { hinge: new Vector3(), deg: 90 }, spin: wheel.parts[1].spin }],
     };
     const open = knight({ door: { open: true, shiftX: 0, shiftY: 0, liftPx: 0, turnDeg: 0 } });
-    expect(spinPlacementsOf(open, leaf)).toEqual([]);
-    expect(spinPlacementsOf(knight(), leaf)).toHaveLength(1);
+    expect(placedPartsOf(open, leaf).spins).toEqual([]);
+    expect(placedPartsOf(knight(), leaf).spins).toHaveLength(1);
   });
 
   it('turns with its model, about the axis as the model is turned', () => {
