@@ -19,6 +19,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { forgetWithheldTable } from '@axe/domain/peer/withheld-table';
 import { resetChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { ComponentResources } from '@axe/testing/component-resources';
+import { lowerTimerFlags } from '@axe/testing/timer-flags';
 import { callOffWaitingTimers, keepWaitingTimers } from '@axe/testing/waiting-timers';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -332,9 +333,13 @@ applyWaitForDefault();
 // while the line is full, a batch's next tick - goes off in whichever test the worker has reached by
 // then, in another file as often as not, and one that sets itself again goes on through every file
 // after. A page of the file's own would take them with it as it closed, so as each file ends, the
-// timers it still has waiting are called off.
+// timers it still has waiting are called off. A timer called off never takes down the mark its
+// keeper holds of it, so the marks kept by what lives on to the next file are taken down with them.
 keepWaitingTimers();
-afterAll(() => callOffWaitingTimers());
+afterAll(() => {
+  callOffWaitingTimers();
+  lowerTimerFlags();
+});
 
 // The dice bot starts fetching the dice library as it is first imported and waits for it nowhere, so
 // the library may be evaluated in the middle of whichever test the worker has reached. Evaluated
