@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { SUPPORTED_LANGS } from '@axe/application/i18n/transloco.config';
+import { layDictionaries } from '@axe/testing/transloco-testing';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
@@ -48,5 +49,26 @@ describe('the dictionaries every spec is given', () => {
     TestBed.configureTestingModule({});
 
     expect(TestBed.inject(TranslocoService).translate('common.hiddenName')).toBe(before);
+  });
+
+  it('go in by the way the service offers where it keeps what it has loaded otherwise, and translate the same', () => {
+    const transloco = TestBed.inject(TranslocoService);
+    const inner = transloco as unknown as { translations: Map<string, unknown>; cache: unknown };
+    const laid = transloco.getTranslation('en');
+    const cache = inner.cache;
+    try {
+      inner.translations.clear();
+      inner.cache = undefined;
+      const offered = vi.spyOn(transloco, 'setTranslation');
+
+      layDictionaries(transloco);
+
+      expect(offered).toHaveBeenCalledTimes(SUPPORTED_LANGS.length);
+      expect(transloco.getTranslation('en')).toEqual(laid);
+      expect(transloco.translate('common.hiddenName')).toBe('？？？');
+      expect(transloco.translate('common.hiddenName', {}, 'en')).toBe('???');
+    } finally {
+      inner.cache = cache;
+    }
   });
 });

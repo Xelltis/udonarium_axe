@@ -43,6 +43,32 @@ const flatDictionaries: Record<SupportedLang, Translation> = {
   ko: Object.freeze(flattened(koDict)),
 };
 
+/**
+ * Lays the dictionaries in a Transloco service as loaded. Where the service keeps what it has loaded
+ * and the loads it has made as this was written for, in two maps, they are put there as they stand,
+ * which costs nothing. Those are the service's own to keep and may change with a new version of it:
+ * where either is not such a map, the dictionaries go in by the way the service offers for it, slower
+ * and good whatever it keeps inside. `transloco-testing.spec.ts` holds both ways to translating alike.
+ */
+export function layDictionaries(service: TranslocoService): void {
+  const inner = service as unknown as { translations?: unknown; cache?: unknown };
+  const kept = inner.translations instanceof Map && inner.cache instanceof Map ? (inner as Kept) : null;
+  for (const lang of SUPPORTED_LANGS) {
+    if (kept) {
+      kept.translations.set(lang, flatDictionaries[lang]);
+      kept.cache.set(lang, of(flatDictionaries[lang]));
+    } else {
+      service.setTranslation(dictionaries[lang], lang, { emitChange: false });
+    }
+  }
+}
+
+/** Where a Transloco service keeps what it has loaded, and the loads it has made, each by language. */
+interface Kept {
+  readonly translations: Map<string, Translation>;
+  readonly cache: Map<string, Observable<Translation>>;
+}
+
 export function provideTranslocoTesting(): (Provider | EnvironmentProviders)[] {
   return [
     importProvidersFrom(
@@ -55,16 +81,7 @@ export function provideTranslocoTesting(): (Provider | EnvironmentProviders)[] {
         },
       })
     ),
-    provideAppInitializer(() => {
-      const service = inject(TranslocoService) as unknown as {
-        translations: Map<string, Translation>;
-        cache: Map<string, Observable<Translation>>;
-      };
-      for (const lang of SUPPORTED_LANGS) {
-        service.translations.set(lang, flatDictionaries[lang]);
-        service.cache.set(lang, of(flatDictionaries[lang]));
-      }
-    }),
+    provideAppInitializer(() => layDictionaries(inject(TranslocoService))),
   ];
 }
 
