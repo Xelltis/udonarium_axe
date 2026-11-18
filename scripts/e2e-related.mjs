@@ -34,14 +34,19 @@ import { partNameOf, reachOfSource, reasonsOf, specsReachedThroughParts } from '
 import { importedFrom, resolveSpecifier, RuntimeImports, sourcesUnder } from './runtime-imports.mjs';
 
 /**
- * Where each test leaves the parts of the app it asked for, and the projects of playwright.config.ts
- * that run the specs of each kind: kept in e2e/related.json, which the helper that writes the parts
- * reads as well, and a spec holds against the projects the configuration names.
+ * What the picker shares with the suite, kept in e2e/related.json, which the helper that writes what
+ * each test loaded reads as well: where each test leaves the parts of the app it asked for, what its
+ * name is kept after there and what joins the groups it stands in to its title, and the projects of
+ * playwright.config.ts that run the specs of each kind, which a spec holds against the projects the
+ * configuration names.
  */
-const { loadsDir: LOADS_DIR, projects: PROJECTS } = JSON.parse(readFileSync('e2e/related.json', 'utf-8'));
+const {
+  loadsDir: LOADS_DIR,
+  titleMark: TITLE_MARK,
+  titleJoint: TITLE_JOINT,
+  projects: PROJECTS,
+} = JSON.parse(readFileSync('e2e/related.json', 'utf-8'));
 const ENTRY = 'src/main.ts';
-/** What the name of a test is kept after in what it leaves, and what joins the groups it stands in to its title. */
-const { titleMark: TITLE_MARK, titleJoint: TITLE_JOINT } = JSON.parse(readFileSync('e2e/related.json', 'utf-8'));
 /**
  * The sources of the app the AI bridge is built from as well. The bridge is run as a program of its
  * own beside the app, which no part the browser asks for tells of, so these reach the specs that
