@@ -159,7 +159,8 @@ export function flatGroundOf(size: { width: number; height: number }, gridType: 
  * The ground with the bed of a settlement's stream dug into it, `STREAM_DEPTH` under the level the
  * settlement stands at, in every cell of the stream but its bridges. A sample is dug only where every
  * cell it lies under is the stream's, so the banks slope down inside the stream's own cells and the
- * ground of every other cell, and of the bridges, is left as it was.
+ * ground of every other cell, and of the bridges, is left as it was. A cell off the board counts as
+ * the cell of the board's edge beside it, so the bed runs out to the edge the stream leaves by.
  */
 export function digStreamBed(
   raster: GroundRaster,
@@ -174,8 +175,11 @@ export function digStreamBed(
     if (!cell.bridge) wet[cell.y * width + cell.x] = 1;
   }
   const bed = level - STREAM_DEPTH;
+  // Past the edge of the board the stream runs on as the cell it leaves by, so that its bed reaches
+  // the edge and no bank is left standing across it there.
+  const within = (value: number, size: number) => Math.min(size - 1, Math.max(0, value));
   const bedAt = (x: number, y: number) =>
-    x >= 0 && y >= 0 && x < width && y < height && wet[y * width + x] ? bed : Number.POSITIVE_INFINITY;
+    wet[within(y, height) * width + within(x, width)] ? bed : Number.POSITIVE_INFINITY;
   const heights = Float32Array.from(raster.heights);
   for (let row = 0; row < raster.rows; row++) {
     for (let column = 0; column < raster.columns; column++) {

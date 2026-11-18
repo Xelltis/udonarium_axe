@@ -458,7 +458,7 @@ function seedWithEverything(size: number, gridType: GridType): number {
 }
 
 describe('a village with a stream and mills on the table', () => {
-  it('digs the stream’s bed half a cell under the terrace, sloping inside its own cells, the bridges and the rest of the site left at the terrace', () => {
+  it('digs the stream’s bed half a cell under the terrace and out to the board’s edge, sloping inside its own cells, the bridges and the rest of the site left at the terrace', () => {
     for (const gridType of GRIDS) {
       for (const relief of [0, 2]) {
         const plan = planField({ atmosphere: 'village', size: 40, density: 50, seed: 7, relief, gridType });
@@ -469,7 +469,11 @@ describe('a village with a stream and mills on the table', () => {
         const wet = wetOf(settlement, layout.width);
         const site = settlementSiteOf(settlement, layout.width, layout.height);
         const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < layout.width && y < layout.height;
-        const inStream = (x: number, y: number) => (inside(x, y) && wet.has(y * layout.width + x) ? 0 : 1);
+        // A cell off the board is the stream's where the cell of the edge beside it is: the bed runs out
+        // to the edge the stream leaves by.
+        const edged = (value: number, size: number) => Math.min(size - 1, Math.max(0, value));
+        const inStream = (x: number, y: number) =>
+          wet.has(edged(y, layout.height) * layout.width + edged(x, layout.width)) ? 0 : 1;
         const onSite = (x: number, y: number) => (inside(x, y) && site[y * layout.width + x] ? 0 : 1);
         const bridges = settlement.stream!.cells.filter((cell) => cell.bridge);
         expect(bridges.length).toBeGreaterThan(0);

@@ -159,6 +159,12 @@ const allSpecs = specsUnder('e2e');
 const isPicture = (spec) => spec.startsWith('e2e/visual/');
 const loads = loadsKept();
 const picked = new Map();
+/** What each spec says, read once however many changed files ask. */
+const specTexts = new Map();
+const textOf = (spec) => {
+  if (!specTexts.has(spec)) specTexts.set(spec, readFileSync(spec, 'utf-8'));
+  return specTexts.get(spec);
+};
 const pick = (spec, why) => {
   if (!picked.has(spec)) picked.set(spec, why);
 };
@@ -177,7 +183,7 @@ for (const file of changed) {
   if (picture !== undefined) {
     // A picture taken again is checked by the spec that takes it, told by the picture's name in it; a
     // name put together as the spec runs is found in none, and every picture is taken then.
-    const takers = allSpecs.filter((spec) => isPicture(spec) && readFileSync(spec, 'utf-8').includes(`'${picture}'`));
+    const takers = allSpecs.filter((spec) => isPicture(spec) && textOf(spec).includes(`'${picture}'`));
     if (takers.length > 0) for (const spec of takers) pick(spec, `takes ${file}`);
     else pickEvery(isPicture, `${file} is a picture no spec names outright`);
     continue;
@@ -191,7 +197,7 @@ for (const file of changed) {
     continue;
   }
   if (BRIDGE_SOURCES.test(file) || SHARED_WITH_BRIDGE.test(file)) {
-    pickEvery((spec) => STARTS_BRIDGE.test(readFileSync(spec, 'utf-8')), `${file} is built into the bridge it starts`);
+    pickEvery((spec) => STARTS_BRIDGE.test(textOf(spec)), `${file} is built into the bridge it starts`);
     if (BRIDGE_SOURCES.test(file)) continue;
   }
   if (!file.startsWith('src/') || file.endsWith('.spec.ts') || file.startsWith('src/app/testing/')) continue;

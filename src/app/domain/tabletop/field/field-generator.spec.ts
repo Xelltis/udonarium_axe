@@ -554,6 +554,18 @@ describe('the ground of a field raised as high as asked', () => {
     expect(level).toBeGreaterThanOrEqual(0);
     expect([...beds]).toEqual([Math.round((level - STREAM_DEPTH) * 1000)]);
     expect(beyond.size).toBeGreaterThan(1);
+
+    // Where the stream leaves the board its bed runs out to the very edge, no bank left across it.
+    const last = { x: layout.width - 1, y: layout.height - 1 };
+    const leaving = layout.settlement!.stream!.cells.filter(
+      (cell) => !cell.bridge && (cell.x === 0 || cell.y === 0 || cell.x === last.x || cell.y === last.y)
+    );
+    expect(leaving.length).toBeGreaterThan(0);
+    for (const cell of leaving) {
+      const column = cell.x === 0 ? 0 : cell.x === last.x ? cell.x * 2 + 2 : cell.x * 2 + 1;
+      const row = cell.y === 0 ? 0 : cell.y === last.y ? cell.y * 2 + 2 : cell.y * 2 + 1;
+      expect(relief.heights[row * relief.columns + column], `${cell.x},${cell.y}`).toBeCloseTo(level - STREAM_DEPTH, 3);
+    }
     expect(Math.max(...relief.heights)).toBeLessThanOrEqual(3);
     expect(Math.min(...relief.heights)).toBeGreaterThanOrEqual(Math.min(0, level - STREAM_DEPTH) - 1e-6);
   });
