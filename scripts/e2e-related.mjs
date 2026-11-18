@@ -31,13 +31,13 @@ import { posix } from 'node:path';
 import { kindOfChange } from './change-reach.mjs';
 import { importedFrom, resolveSpecifier, RuntimeImports, sourcesUnder } from './runtime-imports.mjs';
 
-const LOADS_DIR = 'node_modules/.cache/axe-e2e/loads';
+/**
+ * Where each test leaves the parts of the app it asked for, and the projects of playwright.config.ts
+ * that run the specs of each kind: kept in e2e/related.json, which the helper that writes the parts
+ * reads as well, and a spec holds against the projects the configuration names.
+ */
+const { loadsDir: LOADS_DIR, projects: PROJECTS } = JSON.parse(readFileSync('e2e/related.json', 'utf-8'));
 const ENTRY = 'src/main.ts';
-/** The projects of playwright.config.ts that run the specs of each kind. */
-const PROJECTS = {
-  e2e: ['chromium', 'chromium-webgl', 'chromium-webgpu', 'mobile', 'mobile-webgl'],
-  visual: ['visual-webgl2', 'visual-webgpu'],
-};
 /**
  * What the specs that start the AI bridge run beside the app: the bridge is built from these and run
  * as a program of its own, which no part the browser asks for tells of.
@@ -243,8 +243,7 @@ if (flags.has('--run')) {
     const built = spawnSync('npx', ['ng', 'build'], { stdio: 'inherit', shell: process.platform === 'win32' });
     if (built.status !== 0) process.exit(built.status ?? 1);
   }
-  for (const kind of flags.has('--visual') ? ['e2e', 'visual'] : ['e2e']) {
-    if (kinds[kind].length === 0) continue;
+  for (const kind of kindsRun) {
     // The pictures are drawn without a graphics card, and the two ways of drawing them at once are more
     // pages than a machine draws in time: each is run by itself, one after the other.
     const runs = kind === 'visual' ? PROJECTS[kind].map((project) => [project]) : [PROJECTS[kind]];

@@ -4,6 +4,7 @@ import { join, relative } from 'node:path';
 import { expect, Locator, Page, test } from '@playwright/test';
 
 import type { TableTestHooks } from '../src/app/features/tabletop/game-table/table-test-hooks';
+import related from './related.json';
 
 declare global {
   /**
@@ -219,8 +220,11 @@ export async function triesToConnect(page: Page) {
   await page.addInitScript(() => localStorage.removeItem('ui-local-mode'));
 }
 
-/** Where each test leaves the lazily loaded parts of the app it asked for: `scripts/e2e-related.mjs` reads them. */
-const LOADS_DIR = join('node_modules', '.cache', 'axe-e2e', 'loads');
+/**
+ * Where each test leaves the lazily loaded parts of the app it asked for, as e2e/related.json names
+ * it: `scripts/e2e-related.mjs` reads them from there.
+ */
+const LOADS_DIR = related.loadsDir;
 
 /** A script the build names after the source it loads as it goes, with the hash of what it holds. */
 const LAZY_PART = /\/((?!chunk-)[^/]+)-[A-Za-z0-9_-]{8}\.js$/;
