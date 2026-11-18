@@ -33,6 +33,8 @@ Rules that come before the table:
 
 ## 2. Group
 
+Fix in order of severity: Critical first, then High, Middle and Low. A finding that needs a decision from the user is not put off for that: ask at once, and fix it in its turn.
+
 Gather the findings by area (for example "which lines an AI is shown", "handing the turn over"). Count the findings and the deferrals of earlier rounds in the same area too. **Where an area gets a finding for the second time, rebuild it rather than patching it again.**
 
 ## 3. For each area, write three things before fixing
