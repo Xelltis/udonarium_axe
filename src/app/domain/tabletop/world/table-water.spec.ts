@@ -280,7 +280,7 @@ describe('the water on a table as the scene draws it', () => {
 
     it('stands a column of four faces from a spout to where its water lands, with rings round that point', () => {
       const spout = { key: 'pipe', x: 2.5 * G, y: G, mouthPx: 60, outX: 0, outY: 1, widthPx: 10 };
-      const columns = waterColumnsOf(wide, cells, [spout]);
+      const columns = waterColumnsOf(wide, cells, [spout], () => 0);
 
       const water = tableWaterOf(wide, cells, sides, [], true, null, { falls: [], columns });
 
@@ -292,7 +292,7 @@ describe('the water on a table as the scene draws it', () => {
 
     it('draws a column over a table with no water on it, and keeps it moving', () => {
       const spout = { key: 'pipe', x: 2.5 * G, y: G, mouthPx: 60, outX: 0, outY: 1, widthPx: 10 };
-      const columns = waterColumnsOf(wide, new Map(), [spout]);
+      const columns = waterColumnsOf(wide, new Map(), [spout], () => 0);
 
       const water = tableWaterOf(wide, new Map(), [], [], true, null, { falls: [], columns });
 

@@ -7,7 +7,7 @@ import {
   cellPolygonOf,
 } from '@axe/domain/tabletop/fog/cell-grid';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import type { WaterCell } from '@axe/domain/tabletop/water/water-cells';
+import { standsWet, type WaterCell } from '@axe/domain/tabletop/water/water-cells';
 
 /**
  * One edge of a body of water seen from the side: an upright face along one side of one cell,
@@ -75,7 +75,7 @@ export function waterSidesOf(
   const sides: WaterSide[] = [];
   const ordered = [...cells.values()].sort((a, b) => a.index - b.index);
   for (const cell of ordered) {
-    if (cell.surfacePx <= cell.floorPx) continue;
+    if (!standsWet(cell)) continue;
     const { col, row } = cellColRow(grid, cell.index);
     const centre = cellCenterOf(grid, cell.index);
     const corners = cellPolygonOf(grid, cell.index);

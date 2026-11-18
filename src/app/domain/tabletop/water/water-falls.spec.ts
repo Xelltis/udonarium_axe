@@ -109,6 +109,17 @@ describe('waterFallsOf()', () => {
     expect(waterFallsOf(inland, waterCellsOf(inland, [area({})]))).toEqual([]);
   });
 
+  it('does not fall onto a cell of the lower water whose ground has risen through its surface', () => {
+    const { grid, cells } = channelAndBasin();
+    const across = cellIndexOf(grid, 2, 1);
+    const banked = new Map(
+      [...cells].map(([index, cell]) => [index, index === across ? { ...cell, floorPx: 55 } : cell])
+    );
+
+    expect(waterFallsOf(grid, cells)).toHaveLength(1);
+    expect(waterFallsOf(grid, banked)).toEqual([]);
+  });
+
   it.each([GridType.HEX_VERTICAL, GridType.HEX_HORIZONTAL])(
     'falls over the edges of a hex the flow runs out across on %s',
     (type) => {
@@ -139,7 +150,7 @@ describe('waterColumnsOf()', () => {
   it('pours from a spout down onto the water under where it lands, in the look of that water', () => {
     const { grid, cells } = channelAndBasin({}, { color: '#556b2f', dirt: 0.4, turbidity: 0.8 });
 
-    const columns = waterColumnsOf(grid, cells, [spout()]);
+    const columns = waterColumnsOf(grid, cells, [spout()], () => 0);
 
     expect(columns).toHaveLength(1);
     expect(columns[0]).toMatchObject({
@@ -178,8 +189,31 @@ describe('waterColumnsOf()', () => {
     expect(columns[0].bottomPx).toBe(30);
   });
 
+  it('lands on a block standing out of the water under it rather than on the water, in the look of that water still', () => {
+    const { grid, cells } = channelAndBasin({}, { color: '#556b2f' });
+
+    const columns = waterColumnsOf(grid, cells, [spout()], () => 30);
+
+    expect(columns[0]).toMatchObject({ bottomPx: 30, onWater: false, color: '#556b2f' });
+  });
+
+  it('lands on the water over a block or a bed it has covered', () => {
+    const { grid, cells } = channelAndBasin();
+
+    expect(waterColumnsOf(grid, cells, [spout()], () => 10)[0]).toMatchObject({ bottomPx: 15, onWater: true });
+    expect(waterColumnsOf(grid, cells, [spout()], () => -40)[0]).toMatchObject({ bottomPx: 15, onWater: true });
+  });
+
+  it('lands on the ground of a cell of the water whose ground has risen through its surface', () => {
+    const { grid, cells } = channelAndBasin();
+    const banked = new Map([...cells].map(([index, cell]) => [index, { ...cell, floorPx: 25 }]));
+
+    expect(waterColumnsOf(grid, banked, [spout()], () => 25)[0]).toMatchObject({ bottomPx: 25, onWater: false });
+    expect(waterColumnsOf(grid, banked, [spout()], () => 0)[0]).toMatchObject({ bottomPx: 0, onWater: false });
+  });
+
   it('pours nothing from a spout no higher than what lies below it', () => {
     const { grid, cells } = channelAndBasin();
-    expect(waterColumnsOf(grid, cells, [spout({ mouthPx: 15 })])).toEqual([]);
+    expect(waterColumnsOf(grid, cells, [spout({ mouthPx: 15 })], () => 0)).toEqual([]);
   });
 });

@@ -1,7 +1,7 @@
 import { clamp } from '@axe/core/util/clamp';
 import { hexChannels } from '@axe/core/util/hex-color';
 import { type CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
-import type { WaterCell } from '@axe/domain/tabletop/water/water-cells';
+import { standsWet, type WaterCell } from '@axe/domain/tabletop/water/water-cells';
 import { depthShadeAlpha } from '@axe/domain/tabletop/water/water-depth';
 import type { FallingWater, WaterColumn, WaterFall } from '@axe/domain/tabletop/water/water-falls';
 import { flowCellsPerSecond, flowVectorOf } from '@axe/domain/tabletop/water/water-flow';
@@ -224,7 +224,7 @@ export function tableWaterOf(
     const deep = channelsOf(deepWaterColor(tone));
     const wash = channelsOf(tone);
     const murk = channelsOf(murkColorOf(tone));
-    const surfaceZ = cell.surfacePx > cell.floorPx ? cell.surfacePx : cell.floorPx + FLAT_SURFACE_LIFT_PX;
+    const surfaceZ = standsWet(cell) ? cell.surfacePx : cell.floorPx + FLAT_SURFACE_LIFT_PX;
     const frozen = clamp(cell.ice ?? 0, 0, 1);
     const open = 1 - frozen;
     const glint = glintOpacity(cell.density, cell.turbidity, cell.dirt) * open;

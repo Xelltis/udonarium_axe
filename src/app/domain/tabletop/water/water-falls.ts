@@ -9,7 +9,7 @@ import {
 } from '@axe/domain/tabletop/fog/cell-grid';
 import { ICE_BEARS_AT } from '@axe/domain/tabletop/ground/ground-over-ice';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import type { WaterCell } from '@axe/domain/tabletop/water/water-cells';
+import { standsWet, type WaterCell } from '@axe/domain/tabletop/water/water-cells';
 import { flowVectorOf } from '@axe/domain/tabletop/water/water-flow';
 import { inwardOf, SQUARE_SIDE_STEPS } from '@axe/domain/tabletop/water/water-sides';
 
@@ -88,8 +88,8 @@ export interface WaterColumn extends FallingWater {
  *
  * Water falls where it flows out across an edge onto water standing lower beyond it. Still water
  * held beside lower water, as a pond drawn beside a deeper one, stands as it did; so does water
- * over an edge of the board, or over ground, or over water the seat cannot see. Ice hard enough to
- * stand on does not fall.
+ * over an edge of the board, or over ground, as a cell of the lower water whose ground has risen
+ * through its surface, or over water the seat cannot see. Ice hard enough to stand on does not fall.
  */
 export function waterFallsOf(grid: CellGrid, cells: ReadonlyMap<number, WaterCell>): WaterFall[] {
   const hex = isHexGrid(grid.type);
@@ -98,7 +98,7 @@ export function waterFallsOf(grid: CellGrid, cells: ReadonlyMap<number, WaterCel
   const falls: WaterFall[] = [];
   const ordered = [...cells.values()].sort((a, b) => a.index - b.index);
   for (const cell of ordered) {
-    if (!(cell.flowSpeed > 0) || (cell.ice ?? 0) >= ICE_BEARS_AT || cell.surfacePx <= cell.floorPx) continue;
+    if (!(cell.flowSpeed > 0) || (cell.ice ?? 0) >= ICE_BEARS_AT || !standsWet(cell)) continue;
     const flow = flowVectorOf(cell.flowDirection);
     const { col, row } = cellColRow(grid, cell.index);
     const centre = cellCenterOf(grid, cell.index);
@@ -108,7 +108,7 @@ export function waterFallsOf(grid: CellGrid, cells: ReadonlyMap<number, WaterCel
       const [dx, dy] = steps[side];
       const across = cellIndexOf(grid, col + dx, row + dy);
       const below = cells.get(across);
-      if (!below || cell.surfacePx - below.surfacePx < drop) continue;
+      if (!below || !standsWet(below) || cell.surfacePx - below.surfacePx < drop) continue;
       const from = corners[side];
       const to = corners[(side + 1) % corners.length];
       const inward = inwardOf(from, to, centre);
@@ -136,24 +136,27 @@ export function waterFallsOf(grid: CellGrid, cells: ReadonlyMap<number, WaterCel
 }
 
 /**
- * The water pouring from each spout, down to the water under where it lands, or to what it lands on
- * there, the ground or a block on it, which `landingAt` gives the height of for water coming down
- * from the height of the mouth. It takes the look of the water it pours into. A spout no higher than
- * what lies below it pours nothing.
+ * The water pouring from each spout, down to the first thing under where it lands: what can be
+ * landed on there, the ground or a block on it, which `landingAt` gives the height of for water
+ * coming down from the height of the mouth, or the water standing over that. A block standing out of
+ * the water takes it before the water does. It takes the look of the water it pours into. A spout no
+ * higher than what lies below it pours nothing.
  */
 export function waterColumnsOf(
   grid: CellGrid,
   cells: ReadonlyMap<number, WaterCell>,
   spouts: readonly WaterSpout[],
-  landingAt: (x: number, y: number, belowPx: number) => number = () => 0
+  landingAt: (x: number, y: number, belowPx: number) => number
 ): WaterColumn[] {
   const throwPx = SPOUT_THROW_CELLS * Math.max(grid.sizePx, 1);
   const columns: WaterColumn[] = [];
   for (const spout of spouts) {
     const x = spout.x + spout.outX * throwPx;
     const y = spout.y + spout.outY * throwPx;
-    const water = cells.get(cellIndexAt(grid, x, y));
-    const bottomPx = water ? Math.max(water.surfacePx, water.floorPx) : landingAt(x, y, spout.mouthPx);
+    const under = cells.get(cellIndexAt(grid, x, y));
+    const landing = landingAt(x, y, spout.mouthPx);
+    const water = under && standsWet(under) && under.surfacePx >= landing ? under : undefined;
+    const bottomPx = water ? water.surfacePx : landing;
     if (spout.mouthPx - bottomPx < 1) continue;
     columns.push({
       key: spout.key,
@@ -165,10 +168,10 @@ export function waterColumnsOf(
       bottomPx,
       halfPx: spout.widthPx / 2,
       onWater: !!water,
-      color: water?.color ?? SPOUT_WATER_COLOUR,
-      dirt: water?.dirt ?? 0,
-      turbidity: water?.turbidity ?? 0.5,
-      density: water?.density ?? 0.6,
+      color: under?.color ?? SPOUT_WATER_COLOUR,
+      dirt: under?.dirt ?? 0,
+      turbidity: under?.turbidity ?? 0.5,
+      density: under?.density ?? 0.6,
     });
   }
   return columns;
