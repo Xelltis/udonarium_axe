@@ -178,7 +178,9 @@ describe('TurnDesk', () => {
     tab.say({ type: 'gm.nudge', direction: '' });
     expect(await desk.waitForTurn(2000, undefined, first)).not.toHaveProperty('instructions');
 
+    // The first goes quiet, as an AI app does whose conversation was left for a new one.
     tab.say({ type: 'gm.nudge', direction: '' });
+    await until(() => desk.status().attended === false, 2000);
     expect(await desk.waitForTurn(2000, undefined, second)).toMatchObject({
       instructions: '古城の探索',
       notes: '門の前',
@@ -186,6 +188,7 @@ describe('TurnDesk', () => {
 
     desk.beginAnew(first);
     tab.say({ type: 'gm.nudge', direction: '' });
+    await until(() => desk.status().attended === false, 2000);
     expect(await desk.waitForTurn(2000, undefined, first)).toMatchObject({ instructions: '古城の探索' });
   });
 
@@ -253,7 +256,8 @@ describe('TurnDesk', () => {
     const tab = await connect();
     await open(tab, { instructions: '古城の探索' });
     tab.say({ type: 'gm.stop' });
-    await until(() => lastStatus(tab)?.run === 'off');
+    // By the desk's own word: the tab's last word of it may still be from before it was started.
+    await until(() => desk.status().run === 'off');
 
     start(tab, { instructions: '古城の探索', fresh: true });
     expect(await desk.waitForTurn(2000)).toMatchObject({ turn: true, instructions: '古城の探索' });
@@ -279,6 +283,19 @@ describe('TurnDesk', () => {
     expect(await waiting).toMatchObject({ turn: true, instructions: '古城の探索' });
   });
 
+  it('keeps the turn with the AI taking it while it shows it is there, and lets another have the next once it does not', async () => {
+    const tab = await connect();
+    const first = {};
+    const second = {};
+    start(tab);
+    expect(await desk.waitForTurn(2000, undefined, first)).toMatchObject({ turn: true });
+    tab.say({ type: 'gm.nudge', direction: '' });
+
+    expect(await desk.waitForTurn(2000, undefined, second)).toMatchObject({ turn: false });
+    await until(() => desk.status().attended === false, 2000);
+    expect(await desk.waitForTurn(2000, undefined, second)).toMatchObject({ turn: true });
+  });
+
   it('lets a later wait take the place of an earlier one', async () => {
     await connect();
     const earlier = desk.waitForTurn(2000);
@@ -294,7 +311,7 @@ describe('TurnDesk', () => {
     desk.noteCall();
     await until(() => lastStatus(tab)?.attended === true);
 
-    await until(() => lastStatus(tab)?.attended === false, 2000);
+    await until(() => desk.status().attended === false, 2000);
     expect(lastStatus(tab)).toMatchObject({ run: 'thinking' });
 
     desk.noteCall();

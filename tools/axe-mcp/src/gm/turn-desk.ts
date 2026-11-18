@@ -164,7 +164,9 @@ export class TurnDesk {
    */
   waitForTurn(timeoutMs: number, signal?: AbortSignal, conversation: object = this): Promise<TurnWait> {
     // Another conversation waiting keeps its place: were each to take the other's, neither would wait.
-    if (this.waiter && this.waiting !== conversation) {
+    // So does one taking its turn, for as long as it shows it is there.
+    const busy = this.waiter !== null || (this.run === 'thinking' && this.attended());
+    if (busy && this.waiting !== conversation) {
       return Promise.resolve({ turn: false, running: this.run !== 'off', note: SOMEONE_WAITS });
     }
     this.waiter?.({ turn: false, running: this.run !== 'off', note: TAKEN_OVER });

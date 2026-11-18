@@ -22,10 +22,12 @@ export interface AiGmWakeContext {
 /**
  * Whether something that happened reaches the game master at all. A line in a chat tab it does not
  * listen to does not, whoever said it, so that talk beside the game neither calls it nor is read by
- * it at its next turn; a whisper to its seat reaches it wherever it is said. Everything else does.
+ * it at its next turn; a whisper to its seat reaches it wherever it is said. What the table itself
+ * puts out reaches it from any tab, the damage of a trap or the turn of a round being the game's own
+ * and no talk beside it. Everything else does.
  */
 export function aiGmHears(event: AgentEvent, context: AiGmWakeContext): boolean {
-  if (event.kind !== 'chat') return true;
+  if (event.kind !== 'chat' || event.system) return true;
   if (context.tabs.length === 0 || context.tabs.includes(event.tab)) return true;
   return context.whisperedHere(event.id);
 }

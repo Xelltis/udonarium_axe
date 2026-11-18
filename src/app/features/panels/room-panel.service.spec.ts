@@ -29,13 +29,13 @@ describe('RoomPanelService', () => {
   }
 
   /** Takes the pop-out button's word for how the panel is to be opened again. */
-  function popOut(): PanelWindowRequest {
+  function popOut(call = 0): PanelWindowRequest {
     let asked: PanelWindowRequest | null = null;
     vi.spyOn(TestBed.inject(PanelWindowService), 'popOut').mockImplementation((request) => {
       asked = request;
       return true;
     });
-    option().controls![0].press({ close: vi.fn(), windowed: () => false } as unknown as PanelService);
+    option(call).controls![0].press({ close: vi.fn(), windowed: () => false } as unknown as PanelService);
     return asked!;
   }
 
@@ -52,11 +52,15 @@ describe('RoomPanelService', () => {
     expect(view.tab()).toBe('gm');
     expect(option(1).single).toBe('ai-link');
 
-    // Asking whether it stands, or moving it to a window of its own, leaves the half shown alone.
+    // Asking whether it stands leaves the half shown alone, and so does moving it to a window of its
+    // own and back: opened by the game master's name, it is the AI link panel by its own from there on.
     view.show('link');
     expect(service.isOpen('aiGm')).toBe(true);
     expect(view.tab()).toBe('link');
-    service.open('aiGm', {}, undefined, {} as ViewContainerRef);
+    const moved = popOut(1);
+    moved.open({} as ViewContainerRef);
+    expect(view.tab()).toBe('link');
+    moved.restore();
     expect(view.tab()).toBe('link');
   });
 

@@ -80,6 +80,8 @@ describe('aiGmWakeOf', () => {
     expect(aiGmHears(line({ tab: 'chatter', by_ai: true }), listening)).toBe(false);
     expect(aiGmHears(line({ id: 'mine', tab: 'chatter' }), listening)).toBe(false);
     expect(aiGmHears(line({ id: 'to-me', tab: 'chatter' }), listening)).toBe(true);
+    // What the table puts out is the game's own, whichever tab it is put in.
+    expect(aiGmHears(line({ tab: 'chatter', system: true, seat: undefined }), listening)).toBe(true);
     expect(aiGmHears(line({ tab: 'chatter' }), answering)).toBe(true);
     expect(aiGmHears({ kind: 'turn', round: 1, phase: 'acting', current: null }, listening)).toBe(true);
   });
